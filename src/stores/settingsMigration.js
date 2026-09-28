@@ -11,12 +11,19 @@
 //   - config.json, raidDefaults.templateId: the old global default (a Raid-Helper
 //     template id) is handed to every raid category as `categoryRaidTemplate`.
 //
+//   - events.json + raid-templates.json (#516): the full-raid rule from before
+//     #516 (`overflow` "bench"/"off") becomes "none" (no limit, the setup picks
+//     the 25) and `lockAtLimit` goes off on the same record. The new modes carry
+//     new names ("waitlist"/"refuse"), so a later deliberate choice is never
+//     switched back. Signups the old rule already put on the bench stay there.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const { isSnowflake } = require("../utils/ids");
 const { CONFIG_DEFAULTS } = require("./configSchema");
 const configStore = require("./configStore");
 const raidTemplateStore = require("./raidTemplateStore");
+const eventStore = require("./eventStore");
 
 /**
  * The event-server list an old single-server block stands for: its
@@ -89,6 +96,10 @@ function migrateConfig() {
 function migrateSettings({ log = console.log, warn = console.error } = {}) {
     const changes = [];
     try {
+        const overflowTemplates = raidTemplateStore.migrateOverflowModes();
+        if (overflowTemplates) changes.push(`raid-templates.json: ${overflowTemplates} Vorlage(n) auf "keine Grenze" umgestellt (overflow none, lockAtLimit aus)`);
+        const overflowEvents = eventStore.migrateOverflowModes();
+        if (overflowEvents) changes.push(`events.json: ${overflowEvents} Event(s) auf "keine Grenze" umgestellt (overflow none, lockAtLimit aus)`);
         const templates = raidTemplateStore.migrateLegacyTemplates();
         if (templates) changes.push(`raid-templates.json: ${templates} alte Raid-Helper-Vorlage(n) umgestellt`);
         changes.push(...migrateConfig());

@@ -7,8 +7,14 @@
         "check": "Prüfen"
     },
     "overflow": {
-        "off": "voll: keine Anmeldung mehr",
-        "bench": "voll: Warteliste (Bank)",
+        "label": "Bei voller Größe",
+        "tip": "Was mit neuen Anmeldungen passiert, sobald so viele „Dabei“/„Spät“ sind wie die Raidgröße. Keine Grenze (Standard): jede Anmeldung bleibt, wer mitspielt, entscheidest du im Setup. Warteliste: neue Anmeldungen landen auf der Bank, der Raider erfährt es sofort. Ablehnen: neue Anmeldungen werden abgewiesen. Wer schon einen Platz hat, behält ihn.",
+        "none": "keine Grenze",
+        "waitlist": "Warteliste",
+        "refuse": "ablehnen",
+        "lineNone": "voll: keine Grenze, Auswahl im Setup",
+        "lineWaitlist": "voll: Warteliste (Bank)",
+        "lineRefuse": "voll: keine Anmeldung mehr",
         "lock": "{full} · Anmeldung schließt bei Voll"
     },
     "problem": {

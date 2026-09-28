@@ -89,8 +89,6 @@
         "wishesTip": "“Likes to raid with” from the profiles feeds into the setup suggestion.",
         "autoSuggest": "Suggestion at signup deadline",
         "autoSuggestTip": "At the signup deadline a setup suggestion is created automatically — a draft someone has to approve.",
-        "overflow": "Waiting list when full",
-        "overflowTip": "Once the raid is full, every new signup that takes a spot (“Signed up” and “Late”) goes to the bench — the raider is told right away. Off: the signup is refused. Anyone who already has a spot keeps it.",
         "lockAtLimit": "Close signups when full",
         "lockAtLimitTip": "As soon as all spots are taken, signups close as if done by hand. If someone drops out, they do not reopen by themselves."
     },

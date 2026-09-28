@@ -25,8 +25,6 @@
         "fairnessTip": "Whoever sat on the bench last time is preferred in the setup suggestion.",
         "wishes": "Wishes",
         "wishesTip": "“Likes to raid with” from the profiles feeds into the setup suggestion.",
-        "overflow": "Waiting list when full",
-        "overflowTip": "Once the raid is full, every new signup that takes a spot (“Signed up” and “Late”) goes to the bench. Off: the signup is refused.",
         "lockAtLimit": "Close signups when full",
         "lockAtLimitTip": "As soon as all spots are taken, signups close. Signing off does not reopen them."
     },

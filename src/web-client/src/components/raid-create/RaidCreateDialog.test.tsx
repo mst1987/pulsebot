@@ -199,9 +199,11 @@ describe("Neues Event dialog", () => {
         await next(user);
         expect(currentStep()).toHaveTextContent(t("raidPlan.step.raid"));
         await user.click(screen.getByText(t("raidCreate.raid.more")));
-        const overflow = screen.getByRole("checkbox", { name: t("raidCreate.raid.overflow") });
+        // #516: no limit by default, the waiting list is a deliberate choice
+        const overflow = screen.getByRole("radiogroup", { name: t("raidPlan.overflow.label") });
+        expect(within(overflow).getByRole("radio", { name: t("raidPlan.overflow.none") })).toHaveAttribute("aria-checked", "true");
+        await user.click(within(overflow).getByRole("radio", { name: t("raidPlan.overflow.waitlist") }));
         const lock = screen.getByRole("checkbox", { name: t("raidCreate.raid.lockAtLimit") });
-        expect(overflow).toBeChecked();
         expect(lock).not.toBeChecked();
         await user.click(lock);
         // the announcement is not part of the raid step
@@ -219,7 +221,7 @@ describe("Neues Event dialog", () => {
 
         await waitFor(() => expect(api.createRaid).toHaveBeenCalledTimes(1));
         expect(api.createRaid).toHaveBeenCalledWith(expect.objectContaining({
-            signupSource: "eventhelper", announce: true, overflow: "bench", lockAtLimit: true,
+            signupSource: "eventhelper", announce: true, overflow: "waitlist", lockAtLimit: true,
             newChannel: { name: "t6-do-24-09", categoryId: "c2" },
         }));
         expect(await screen.findByText(t("raidCreate.toast.createdAnnounced"))).toBeInTheDocument();

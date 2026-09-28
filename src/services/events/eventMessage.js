@@ -84,6 +84,13 @@ const { approvedSetupOf } = require("../setup/setupCore");
 const { getConfig, resolveEventSheetLink } = require("../../stores/configStore");
 const { getEventSheet } = require("../../stores/eventSheetStore");
 const { getEventSoftres } = require("../../stores/eventSoftresStore");
+const { seatsParts } = require("../../utils/signup/capacity");
+
+/** The head's "Signed up" value: "**22** / 25", "**25** / 25 (+3)" when overbooked (#516), "**12**" without a size. */
+function signedUpValue(attending, size) {
+    const p = seatsParts(attending, size);
+    return `**${p.shown}**${p.size ? ` / ${p.size}` : ""}${p.extra ? ` (+${p.extra})` : ""}`;
+}
 
 // The old button id — messages posted before #287 carry it and keep working.
 const SIGNUP_BUTTON_PREFIX = "event-signup";
@@ -500,7 +507,7 @@ function buildEventMessage(event, signups, {
             ...(event.voiceChannelId ? [headLine("voice", "Voice channel", `<#${event.voiceChannelId}>`)] : []),
         ]),
         column([
-            headLine("signups", "Signed up", `**${c.attending}**${event.size ? ` / ${event.size}` : ""}`),
+            headLine("signups", "Signed up", signedUpValue(c.attending, event.size)),
             headLine("time", "Time", start ? `<t:${start}:t>` : "–"),
         ]),
         // an empty first line without a deadline keeps the countdown beside date and time

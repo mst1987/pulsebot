@@ -20,6 +20,8 @@ const {
 const { normalizeColor, normalizeImage, colorProblem, imageProblem } = require("./embedLook");
 // The emoji style of the message (letter tiles, role icons), copied to the event like the colour.
 const { emojiStyleOf, DEFAULT_EMOJI_STYLE } = require("../discord/appEmojis");
+// What a full raid does (#306, #516): "none" | "waitlist" | "refuse"; legacy values read as "none".
+const { DEFAULT_OVERFLOW, normalizeOverflow, normalizeLockAtLimit } = require("../../utils/signup/capacity");
 
 const MAX_SIZE = 40;
 // A signup deadline further out than two weeks before the raid is a typo.
@@ -54,7 +56,7 @@ function migrateLegacy(entry) {
         durationMinutes: null,
         fairness: false,
         wishes: false,
-        overflow: "bench",
+        overflow: DEFAULT_OVERFLOW,
         lockAtLimit: false,
         color: "",
         image: { mode: "thumbnail", url: "" },
@@ -108,8 +110,8 @@ function normalizeTemplate(raw) {
         wishes: src.wishes === true,
         // What a full raid does with a new "Dabei", and whether it closes its
         // own signup then (#306) — the event copies both on creation.
-        overflow: src.overflow === "off" ? "off" : "bench",
-        lockAtLimit: src.lockAtLimit === true,
+        overflow: normalizeOverflow(src.overflow),
+        lockAtLimit: normalizeLockAtLimit(src),
         // How the event message looks (#307): "" = the rule set's colour resp.
         // its boss icon. The event copies both on creation.
         color: normalizeColor(src.color),

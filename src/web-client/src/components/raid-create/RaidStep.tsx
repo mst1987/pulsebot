@@ -4,7 +4,7 @@ import { Button } from "../ui/Button";
 import Badge from "../ui/Badge";
 import Segment from "../ui/Segment";
 import CompositionEditor from "../CompositionEditor";
-import { AppearanceFields, BuffPicker, InstancePicker, RoleRanges, SizePicker, SwitchRow } from "../RaidPlanFields";
+import { AppearanceFields, BuffPicker, InstancePicker, OverflowField, RoleRanges, SizePicker, SwitchRow } from "../RaidPlanFields";
 import { CheckIcon } from "../icons";
 import type { TemplateMode } from "./createHelpers";
 import type { RaidCreateForm } from "./useRaidCreateForm";
@@ -20,7 +20,7 @@ export function RaidStep({ f }: { f: RaidCreateForm }) {
     const { plan, freeSize } = form;
     const moreCount = [plan.melee, plan.ranged].filter(Boolean).length + plan.requiredBuffs.length
         + (plan.fairness ? 1 : 0) + (plan.wishes ? 1 : 0) + (plan.autoSuggest ? 1 : 0)
-        + (plan.overflow === "off" ? 1 : 0) + (plan.lockAtLimit ? 1 : 0)
+        + (plan.overflow !== "none" ? 1 : 0) + (plan.lockAtLimit ? 1 : 0)
         + (plan.color ? 1 : 0) + (plan.image.url ? 1 : 0) + (plan.emojiStyle !== "arcane" ? 1 : 0);
     const toggleBuff = (key: string) => changePlan({
         ...plan, requiredBuffs: plan.requiredBuffs.includes(key) ? plan.requiredBuffs.filter((b) => b !== key) : [...plan.requiredBuffs, key],
@@ -68,11 +68,11 @@ export function RaidStep({ f }: { f: RaidCreateForm }) {
                         onChange={(look) => changePlan({ ...plan, ...look })} />
                     <RoleRanges idPrefix="re" melee={plan.melee} ranged={plan.ranged} onChange={(r) => changePlan({ ...plan, ...r })} />
                     <BuffPicker version={version} value={plan.requiredBuffs} onToggle={toggleBuff} />
+                    <OverflowField value={plan.overflow} onChange={(overflow) => changePlan({ ...plan, overflow })} />
                     <div className="rt-switches">
                         <SwitchRow label={t("raidCreate.raid.fairness")} tip={t("raidCreate.raid.fairnessTip")} checked={plan.fairness} onChange={(v) => changePlan({ ...plan, fairness: v })} />
                         <SwitchRow label={t("raidCreate.raid.wishes")} tip={t("raidCreate.raid.wishesTip")} checked={plan.wishes} onChange={(v) => changePlan({ ...plan, wishes: v })} />
                         <SwitchRow label={t("raidCreate.raid.autoSuggest")} tip={t("raidCreate.raid.autoSuggestTip")} checked={plan.autoSuggest} onChange={(v) => changePlan({ ...plan, autoSuggest: v })} />
-                        <SwitchRow label={t("raidCreate.raid.overflow")} tip={t("raidCreate.raid.overflowTip")} checked={plan.overflow !== "off"} onChange={(v) => changePlan({ ...plan, overflow: v ? "bench" : "off" })} />
                         <SwitchRow label={t("raidCreate.raid.lockAtLimit")} tip={t("raidCreate.raid.lockAtLimitTip")} checked={plan.lockAtLimit} onChange={(v) => changePlan({ ...plan, lockAtLimit: v })} />
                     </div>
                 </div>

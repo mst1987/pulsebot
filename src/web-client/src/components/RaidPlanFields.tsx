@@ -1,5 +1,6 @@
 import type { ReactNode, CSSProperties } from "react";
-import type { EmbedImage, EmojiStyle, GameVersion, RoleRange } from "../api";
+import type { EmbedImage, EmojiStyle, GameVersion, OverflowMode, RoleRange } from "../api";
+import { OVERFLOW_MODES } from "../api";
 import { EMBED_ACCENT, allowedSizes, instancesOf, leadInstance } from "../lib/raidTemplates";
 import Segment from "./ui/Segment";
 import Badge from "./ui/Badge";
@@ -243,6 +244,22 @@ export function BuffPicker({ version, value, onToggle }: { version: GameVersion 
 }
 
 /** One labelled switch, its explanation in the tooltip. */
+/**
+ * What a full raid does (#306, #516): no limit (default — the setup picks the
+ * players), waiting list, or refuse. One segment instead of a switch, since
+ * there are three answers.
+ */
+export function OverflowField({ value, onChange }: { value: OverflowMode; onChange: (value: OverflowMode) => void }) {
+    const t = useT();
+    return (
+        <div className="rt-field">
+            <FieldLabel text={t("raidPlan.overflow.label")} tip={t("raidPlan.overflow.tip")} />
+            <Segment<OverflowMode> size="sm" ariaLabel={t("raidPlan.overflow.label")} value={value} onChange={onChange}
+                options={OVERFLOW_MODES.map((m) => ({ value: m, label: t(`raidPlan.overflow.${m}`) }))} />
+        </div>
+    );
+}
+
 export function SwitchRow({ label, tip, checked, onChange }: { label: string; tip: string; checked: boolean; onChange: (checked: boolean) => void }) {
     return (
         <label className="switch-row" data-tip={label} data-tip-sub={tip}>

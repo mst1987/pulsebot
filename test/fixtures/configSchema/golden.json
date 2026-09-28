@@ -495,7 +495,7 @@
         "durationMinutes": null,
         "fairness": false,
         "wishes": false,
-        "overflow": "bench",
+        "overflow": "none",
         "lockAtLimit": false,
         "color": "",
         "image": {
@@ -524,7 +524,7 @@
         "durationMinutes": null,
         "fairness": false,
         "wishes": false,
-        "overflow": "bench",
+        "overflow": "none",
         "lockAtLimit": false,
         "color": "",
         "image": {
@@ -621,7 +621,7 @@
         "durationMinutes": null,
         "fairness": false,
         "wishes": false,
-        "overflow": "bench",
+        "overflow": "none",
         "lockAtLimit": false,
         "color": "",
         "image": {
@@ -718,7 +718,7 @@
         "durationMinutes": null,
         "fairness": false,
         "wishes": false,
-        "overflow": "bench",
+        "overflow": "none",
         "lockAtLimit": false,
         "color": "",
         "image": {

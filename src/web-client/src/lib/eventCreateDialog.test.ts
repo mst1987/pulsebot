@@ -114,32 +114,35 @@ describe("Event anlegen: plan rules (client)", () => {
         expect(logic.planFromEvent(ev)).toEqual({
             raidTemplateId: "tpl", versionId: "tbc", instanceIds: ["bt"], size: 25, tank: 3, healer: 7,
             melee: { min: 5, max: 8 }, ranged: null, requiredBuffs: ["kings"], deadlineHours: 48, durationMinutes: 180,
-            fairness: false, wishes: true, autoSuggest: true, overflow: "bench", lockAtLimit: false,
+            fairness: false, wishes: true, autoSuggest: true, overflow: "none", lockAtLimit: false,
             color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: "arcane",
         });
         // the event's own duration wins over the default (#305)
         expect(logic.planFromEvent({ ...ev, durationMinutes: 240 }).durationMinutes).toBe(240);
         // #306: was das Event gespeichert hat, steht auch im Entwurf.
-        expect(logic.planFromEvent({ ...ev, overflow: "off", lockAtLimit: true }))
-            .toMatchObject({ overflow: "off", lockAtLimit: true });
+        expect(logic.planFromEvent({ ...ev, overflow: "refuse", lockAtLimit: true }))
+            .toMatchObject({ overflow: "refuse", lockAtLimit: true });
+        // #516: a pre-#516 value reads as no limit
+        expect(logic.planFromEvent({ ...ev, overflow: "bench" }).overflow).toBe("none");
     });
 
     it("trägt die Warteliste durch Vorlage, Versionswechsel und Prüfen-Zeile (#306)", () => {
         const t = {
             id: "t1", name: "Kara", versionId: "tbc", instanceIds: ["kara"], size: 10,
             composition: { tank: 2, healer: 3, melee: null, ranged: null }, requiredBuffs: [], signupDeadline: null,
-            fairness: false, wishes: false, overflow: "off", lockAtLimit: true, raidhelperTemplateId: "",
+            fairness: false, wishes: false, overflow: "refuse", lockAtLimit: true, raidhelperTemplateId: "",
         };
         const plan = logic.planFromTemplate(t, v("tbc"));
-        expect(plan).toMatchObject({ overflow: "off", lockAtLimit: true });
-        expect(logic.withVersion(plan, v("classic"))).toMatchObject({ overflow: "off", lockAtLimit: true });
+        expect(plan).toMatchObject({ overflow: "refuse", lockAtLimit: true });
+        expect(logic.withVersion(plan, v("classic"))).toMatchObject({ overflow: "refuse", lockAtLimit: true });
         expect(logic.overflowLine(plan)).toBe("voll: keine Anmeldung mehr · Anmeldung schließt bei Voll");
-        expect(logic.overflowLine(logic.emptyPlan(v("tbc")))).toBe("voll: Warteliste (Bank)");
+        expect(logic.overflowLine(logic.emptyPlan(v("tbc")))).toBe("voll: keine Grenze, Auswahl im Setup");
+        expect(logic.overflowLine({ ...logic.emptyPlan(v("tbc")), overflow: "waitlist" })).toBe("voll: Warteliste (Bank)");
         // und der Server nimmt die Vorlage so an
         const server = requireBackend("services/events/raidTemplates");
         const saved = logic.templateFromPlan(plan, null, "Kara");
         expect(server.validateTemplate(server.normalizeTemplate(saved))).toBe("");
-        expect(server.normalizeTemplate(saved)).toMatchObject({ overflow: "off", lockAtLimit: true });
+        expect(server.normalizeTemplate(saved)).toMatchObject({ overflow: "refuse", lockAtLimit: true });
     });
 
     it("sends the plan in the shape POST/PATCH /api/raids take", () => {
@@ -148,7 +151,7 @@ describe("Event anlegen: plan rules (client)", () => {
             raidTemplateId: "t", versionId: "tbc", instanceIds: ["ssc"], size: 25,
             composition: { tank: 3, healer: 6, melee: { min: 4, max: 6 }, ranged: null },
             requiredBuffs: [], durationMinutes: 180, signupDeadlineHours: 3, fairness: false, wishes: false, autoSuggest: false,
-            overflow: "bench", lockAtLimit: false, color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: "arcane",
+            overflow: "none", lockAtLimit: false, color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: "arcane",
         });
     });
 
@@ -203,7 +206,7 @@ describe("Event anlegen: plan rules (client)", () => {
             name: "T6 25er", versionId: "tbc", instanceIds: ["hyjal", "bt"], size: 25,
             composition: { tank: 3, healer: 6, melee: null, ranged: null }, requiredBuffs: ["kings"],
             signupDeadline: { hoursBefore: 24 }, durationMinutes: 180, fairness: false, wishes: false,
-            overflow: "bench", lockAtLimit: false, color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: "arcane", raidhelperTemplateId: "",
+            overflow: "none", lockAtLimit: false, color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: "arcane", raidhelperTemplateId: "",
         });
         expect(fresh.id).toBeUndefined();
         const base = { id: "tpl-1", name: "Alt", raidhelperTemplateId: "rh-3" };

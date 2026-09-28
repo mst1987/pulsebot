@@ -7,7 +7,7 @@
 // syntax in bodies), so src/web-client/src/lib/eventCreateDialog.test.ts runs it in
 // plain Node against the server's rules (eventStore.normalizePlan,
 // utils/channelNames.renderChannelName).
-import type { EmbedImage, EmojiStyle, EventPlanInput, EventSource, GameVersion, OwnEvent, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";
+import type { EmbedImage, EmojiStyle, EventPlanInput, EventSource, GameVersion, OverflowMode, OwnEvent, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";
 import { allowedSizes, colorProblem, defaultComposition, DEFAULT_EMOJI_STYLE, emojiStyleOf, imageProblem, instancesOf, proposeComposition } from "./raidTemplates";
 import { t } from "../i18n";
 
@@ -30,8 +30,8 @@ export type EventPlan = {
     fairness: boolean;
     wishes: boolean;
     autoSuggest: boolean;
-    /** a full raid's new "Dabei" (#306): "bench" = waiting list, "off" = refused */
-    overflow: "bench" | "off";
+    /** a full raid's new "Dabei" (#306, #516): "none" = no limit, "waitlist" = bench, "refuse" = refused */
+    overflow: OverflowMode;
     /** close the signup by itself once the raid is full (#306) */
     lockAtLimit: boolean;
     /** the colour bar of the event message (#307), "" = the instance's own */
@@ -57,9 +57,15 @@ export function stepLabel(key: StepKey): string {
     return t(`raidPlan.step.${key}`);
 }
 
-/** What the two waiting-list switches say in one line, for the "Prüfen" step (#306). */
+/** A stored or sent overflow value as a mode; the pre-#516 "bench"/"off" and anything else read as "none". */
+export function overflowOf(value: unknown): OverflowMode {
+    return value === "waitlist" || value === "refuse" ? value : "none";
+}
+
+/** What the full-raid rule and the lock say in one line, for the "Prüfen" step (#306, #516). */
 export function overflowLine(plan: EventPlan): string {
-    const full = plan.overflow === "off" ? t("raidPlan.overflow.off") : t("raidPlan.overflow.bench");
+    const mode = overflowOf(plan.overflow);
+    const full = t(mode === "refuse" ? "raidPlan.overflow.lineRefuse" : mode === "waitlist" ? "raidPlan.overflow.lineWaitlist" : "raidPlan.overflow.lineNone");
     return plan.lockAtLimit ? t("raidPlan.overflow.lock", { full }) : full;
 }
 
@@ -89,7 +95,7 @@ export function emptyPlan(version: GameVersion | null | undefined): EventPlan {
         raidTemplateId: "", versionId: version ? version.id : "tbc", instanceIds: [], size: 25, tank: c.tank, healer: c.healer,
         melee: null, ranged: null, requiredBuffs: [], durationMinutes: PLAN_DEFAULT_DURATION,
         deadlineHours: 0, fairness: false, wishes: false, autoSuggest: false,
-        overflow: "bench", lockAtLimit: false,
+        overflow: "none", lockAtLimit: false,
         color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: DEFAULT_EMOJI_STYLE,
     };
 }
@@ -109,7 +115,7 @@ export function planFromTemplate(t: RaidTemplate, version: GameVersion | null | 
         durationMinutes: t.durationMinutes || PLAN_DEFAULT_DURATION,
         deadlineHours: t.signupDeadline ? t.signupDeadline.hoursBefore : 0,
         fairness: !!t.fairness, wishes: !!t.wishes, autoSuggest: false,
-        overflow: t.overflow === "off" ? "off" : "bench", lockAtLimit: !!t.lockAtLimit,
+        overflow: overflowOf(t.overflow), lockAtLimit: !!t.lockAtLimit,
         // #307: the look travels with the template, as a copy.
         color: t.color || "", image: lookImage(t.image), emojiStyle: emojiStyleOf(t.emojiStyle),
     };
@@ -127,7 +133,7 @@ export function planFromEvent(ev: OwnEvent): EventPlan {
         durationMinutes: ev.durationMinutes || PLAN_DEFAULT_DURATION,
         deadlineHours: ev.signupDeadline ? Math.max(0, Math.round((ev.startTime - ev.signupDeadline) / 3600)) : 0,
         fairness: !!ev.fairness, wishes: !!ev.wishes, autoSuggest: !!ev.autoSuggest,
-        overflow: ev.overflow === "off" ? "off" : "bench", lockAtLimit: !!ev.lockAtLimit,
+        overflow: overflowOf(ev.overflow), lockAtLimit: !!ev.lockAtLimit,
         color: ev.color || "", image: lookImage(ev.image), emojiStyle: emojiStyleOf(ev.emojiStyle),
     };
 }

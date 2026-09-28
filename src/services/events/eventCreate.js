@@ -27,6 +27,7 @@ const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const channelNaming = require("../discord/channelNaming");
 const { instanceById } = require("../../config/gameVersions");
 const { emojiStyleOf } = require("../discord/appEmojis");
+const { normalizeOverflow, normalizeLockAtLimit } = require("../../utils/signup/capacity");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const { toRaidHelperDate } = require("../../utils/time");
 
@@ -116,8 +117,8 @@ function templateDefaults(templateId, startTime) {
         fairness: t.fairness === true,
         wishes: t.wishes === true,
         // The waiting list (#306) travels with the template like the switches above.
-        overflow: t.overflow === "off" ? "off" : "bench",
-        lockAtLimit: t.lockAtLimit === true,
+        overflow: normalizeOverflow(t.overflow),
+        lockAtLimit: normalizeLockAtLimit(t),
         // Colour and picture of the event message (#307) travel with the
         // template too — a copy, so a later change of the template leaves the
         // events that already exist alone. Empty = the rule set decides.
@@ -244,8 +245,8 @@ function planFor(body, categoryId, title, startTime) {
             fairness: merged.fairness === true,
             wishes: merged.wishes === true,
             autoSuggest: merged.autoSuggest === true,
-            overflow: merged.overflow === "off" ? "off" : "bench",
-            lockAtLimit: merged.lockAtLimit === true,
+            overflow: normalizeOverflow(merged.overflow),
+            lockAtLimit: normalizeLockAtLimit(merged),
             emojiStyle: emojiStyleOf(merged.emojiStyle),
             raidTemplateId: template.raidTemplateId || "",
         },
@@ -516,7 +517,7 @@ const EDIT_FIELD_LABELS = {
     instanceIds: "Instanzen", size: "Größe", composition: "Zusammensetzung", compositionMax: "Zusammensetzung",
     requiredBuffs: "Pflicht-Buffs", signupDeadline: "Anmeldeschluss", fairness: "Fairness", wishes: "Wünsche",
     durationMinutes: "Dauer", voiceChannelId: "Sprachkanal",
-    autoSuggest: "Vorschlag bei Anmeldeschluss", overflow: "Warteliste", lockAtLimit: "Sperre bei Voll",
+    autoSuggest: "Vorschlag bei Anmeldeschluss", overflow: "Bei voller Größe", lockAtLimit: "Sperre bei Voll",
     color: "Farbe", image: "Bild", emojiStyle: "Emoji-Stil",
 };
 

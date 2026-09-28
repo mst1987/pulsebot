@@ -89,8 +89,6 @@
         "wishesTip": "„Gerne zusammen raiden mit“ aus den Profilen fließt in den Setup-Vorschlag ein.",
         "autoSuggest": "Vorschlag bei Anmeldeschluss",
         "autoSuggestTip": "Zum Anmeldeschluss entsteht automatisch ein Setup-Vorschlag — ein Entwurf, den jemand freigeben muss.",
-        "overflow": "Warteliste bei vollem Raid",
-        "overflowTip": "Ist der Raid voll, wird aus jeder neuen Anmeldung, die einen Platz belegt („Dabei“ und „Spät“), die Bank — der Raider erfährt es sofort. Aus: die Anmeldung wird abgelehnt. Wer schon einen Platz hat, behält ihn.",
         "lockAtLimit": "Anmeldung schließen, wenn voll",
         "lockAtLimitTip": "Sobald die Plätze belegt sind, schließt die Anmeldung wie von Hand. Meldet sich jemand ab, öffnet sie nicht von selbst wieder."
     },

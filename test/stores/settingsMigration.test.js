@@ -85,6 +85,55 @@ describe("stores/settingsMigration migrateSettings (#420)", () => {
     });
 });
 
+// #516: the full-raid rule from before ("bench"/"off") becomes "no limit", once.
+describe("stores/settingsMigration overflow -> none (#516)", () => {
+    const EVENTS_FILE = settingsPath("events.json");
+    const { getEvent } = require("../../src/stores/eventStore");
+    const OLD_EVENTS = { events: [
+        { id: "eh-a", title: "A", overflow: "bench", lockAtLimit: true, signupsClosed: true, size: 25 },
+        { id: "eh-b", title: "B", overflow: "off", lockAtLimit: false, size: 10 },
+        { id: "eh-c", title: "C", overflow: "waitlist", lockAtLimit: true, size: 10 },
+    ] };
+    const OLD_TPL = { templates: [
+        { id: "t1", name: "Kara", versionId: "tbc", raidhelperTemplateId: "", size: 10, overflow: "off", lockAtLimit: true, createdAt: 1, updatedAt: 2 },
+        { id: "t2", name: "SSC", versionId: "tbc", raidhelperTemplateId: "", size: 25, overflow: "refuse", lockAtLimit: true, createdAt: 1, updatedAt: 2 },
+    ] };
+
+    it("switches every legacy event and template to none, lockAtLimit off, logs it and leaves new choices alone", () => {
+        fs.__store.set(EVENTS_FILE, JSON.stringify(OLD_EVENTS));
+        fs.__store.set(TEMPLATES_FILE, JSON.stringify(OLD_TPL));
+        const log = jest.fn();
+        const { changes } = migrateSettings({ log });
+        expect(changes).toEqual([
+            expect.stringContaining("raid-templates.json: 1 Vorlage(n)"),
+            expect.stringContaining("events.json: 2 Event(s)"),
+        ]);
+        expect(log).toHaveBeenCalledTimes(2);
+        const events = stored(EVENTS_FILE).events;
+        expect(events[0]).toEqual({ ...OLD_EVENTS.events[0], overflow: "none", lockAtLimit: false });
+        expect(events[1]).toEqual({ ...OLD_EVENTS.events[1], overflow: "none", lockAtLimit: false });
+        expect(events[2]).toEqual(OLD_EVENTS.events[2]);
+        // a raid the old rule already closed stays closed - that is the orga's call
+        expect(getEvent("eh-a")).toMatchObject({ overflow: "none", lockAtLimit: false, signupsClosed: true });
+        const templates = stored(TEMPLATES_FILE).templates;
+        expect(templates[0]).toEqual({ ...OLD_TPL.templates[0], overflow: "none", lockAtLimit: false });
+        expect(templates[1]).toEqual(OLD_TPL.templates[1]);
+    });
+
+    it("is idempotent: the second start writes and logs nothing", () => {
+        fs.__store.set(EVENTS_FILE, JSON.stringify(OLD_EVENTS));
+        fs.__store.set(TEMPLATES_FILE, JSON.stringify(OLD_TPL));
+        migrateSettings(quiet);
+        const before = [fs.__store.get(EVENTS_FILE), fs.__store.get(TEMPLATES_FILE)];
+        fs.writeFileSync.mockClear();
+        const log = jest.fn();
+        expect(migrateSettings({ log })).toEqual({ changes: [] });
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+        expect(log).not.toHaveBeenCalled();
+        expect([fs.__store.get(EVENTS_FILE), fs.__store.get(TEMPLATES_FILE)]).toEqual(before);
+    });
+});
+
 describe("stores/settingsMigration steps", () => {
     it("legacyEventGuilds builds one entry from an event server, none without", () => {
         expect(legacyEventGuilds({ eventGuildId: " 111111 " })).toEqual([{ guildId: "111111", label: "", overviewGuildId: "", overviewChannelId: "" }]);

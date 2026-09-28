@@ -37,6 +37,7 @@ const { normalizeColor, normalizeImage, normalizeLook } = require("../services/e
 // The emoji style of the event message: letter tiles and role icons (arcane unless chosen otherwise).
 const { emojiStyleOf } = require("../services/discord/appEmojis");
 const { str } = require("../utils/text");
+const { normalizeOverflow, isLegacyOverflow, normalizeLockAtLimit } = require("../utils/signup/capacity");
 
 function readAll() {
     return store.read();
@@ -205,12 +206,13 @@ function complete(e) {
         wishes: !!e.wishes,
         // "Vorschlag automatisch bei Anmeldeschluss" (#261); read by the setup suggestion (#262).
         autoSuggest: !!e.autoSuggest,
-        // What happens to a new "Dabei" once the raid is full (#306): "bench"
-        // puts it on the waiting list, "off" refuses the signup. Default "bench".
-        overflow: e.overflow === "off" ? "off" : "bench",
+        // What happens to a new "Dabei" once the raid is full (#306, #516):
+        // "none" (default) takes every signup, "waitlist" puts it on the bench,
+        // "refuse" refuses it. A legacy "bench"/"off" reads as "none" (capacity.js).
+        overflow: normalizeOverflow(e.overflow),
         // Close the signup by itself the moment the raid is full (#306). Signing
-        // off never opens it again — that stays the orga's call.
-        lockAtLimit: !!e.lockAtLimit,
+        // off never opens it again — that stays the orga's call. Off on a legacy record.
+        lockAtLimit: normalizeLockAtLimit(e),
         // When the "Beim Anlegen ankündigen" ping went out (#306), 0 = never —
         // it is what keeps the announcement from going a second time.
         announcedAt: Number(e.announcedAt) || 0,
@@ -312,8 +314,8 @@ function createEvent(input = {}) {
         fairness: input.fairness === true,
         wishes: input.wishes === true,
         autoSuggest: input.autoSuggest === true,
-        overflow: input.overflow === "off" ? "off" : "bench",
-        lockAtLimit: input.lockAtLimit === true,
+        overflow: normalizeOverflow(input.overflow),
+        lockAtLimit: normalizeLockAtLimit(input),
         emojiStyle: emojiStyleOf(input.emojiStyle),
         raidTemplateId: str(input.raidTemplateId),
         createdBy: str(input.createdBy),
@@ -351,7 +353,7 @@ function updateEvent(id, patch = {}) {
     if (patch.fairness !== undefined) next.fairness = patch.fairness === true;
     if (patch.wishes !== undefined) next.wishes = patch.wishes === true;
     if (patch.autoSuggest !== undefined) next.autoSuggest = patch.autoSuggest === true;
-    if (patch.overflow !== undefined) next.overflow = patch.overflow === "off" ? "off" : "bench";
+    if (patch.overflow !== undefined) next.overflow = normalizeOverflow(patch.overflow);
     if (patch.lockAtLimit !== undefined) next.lockAtLimit = patch.lockAtLimit === true;
     if (patch.emojiStyle !== undefined) next.emojiStyle = emojiStyleOf(patch.emojiStyle);
     if (["versionId", "instanceIds", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes", "color", "image"].some((k) => patch[k] !== undefined)) {
@@ -597,10 +599,30 @@ function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } =
     return { event: complete(events[idx]) };
 }
 
+/**
+ * The one-off switch of #516, run at start by settingsMigration.js: every event
+ * still carrying a legacy overflow value ("bench"/"off", from before #516) gets
+ * `overflow: "none"` and `lockAtLimit: false`. Everything else on the record
+ * stays exactly as stored. A record already switched carries a new value and is
+ * never touched again, so a second run writes nothing.
+ * @returns {number} how many events were switched
+ */
+function migrateOverflowModes() {
+    const events = readAll();
+    let count = 0;
+    const next = events.map((e) => {
+        if (!e || !isLegacyOverflow(e.overflow)) return e;
+        count += 1;
+        return { ...e, overflow: "none", lockAtLimit: false };
+    });
+    if (count) writeAll(next);
+    return count;
+}
+
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft, setEventState,
     appendEventLog, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
-    normalizePlan, isOwnEventId, useFile: store.useFile, eventEndTime, clampDuration, MIN_DURATION, MAX_DURATION,
+    normalizePlan, isOwnEventId, migrateOverflowModes, useFile: store.useFile, eventEndTime, clampDuration, MIN_DURATION, MAX_DURATION,
     // only for the tests (#424): not part of the module's API
     _internal: {
         EVENTS_FILE,

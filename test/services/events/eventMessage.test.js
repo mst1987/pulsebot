@@ -243,6 +243,13 @@ describe("services/events/eventMessage", () => {
         ]);
     });
 
+    it("shows an overbooked raid as 3 / 3 (+2) instead of 5 / 3, never as full (#516)", () => {
+        const payload = buildEventMessage(event({ size: 3 }), signups, { emojis, now: NOW });
+        const fields = payload.embeds[0].fields;
+        expect(emojiless(fields[1].value).split("\n")[0]).toBe("<:eh_ui_signups> **3** / 3 (+2)");
+        expect(JSON.stringify(payload)).not.toMatch(/full/i);
+    });
+
     it("lists late, tentative, bench and absence as lines with icon, count, number box and spec icon (#355)", () => {
         const payload = buildEventMessage(event(), [...signups, su("8", "Bänki", "Mage-Frost", "ranged", "bench")], { emojis, now: NOW });
         const other = payload.embeds[0].fields.find((f) => !f.inline && f.value.includes("Late"));

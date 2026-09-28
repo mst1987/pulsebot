@@ -25,8 +25,6 @@
         "fairnessTip": "Wer zuletzt auf der Bank saß, wird beim Setup-Vorschlag bevorzugt.",
         "wishes": "Wünsche",
         "wishesTip": "„Gerne zusammen raiden mit“ aus den Profilen fließt in den Setup-Vorschlag ein.",
-        "overflow": "Warteliste bei vollem Raid",
-        "overflowTip": "Ist der Raid voll, wird aus jeder neuen Anmeldung, die einen Platz belegt („Dabei“ und „Spät“), die Bank. Aus: die Anmeldung wird abgelehnt.",
         "lockAtLimit": "Anmeldung schließen, wenn voll",
         "lockAtLimitTip": "Sobald die Plätze belegt sind, schließt die Anmeldung. Abmelden öffnet sie nicht wieder."
     },
