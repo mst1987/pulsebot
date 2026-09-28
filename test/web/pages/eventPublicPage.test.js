@@ -87,9 +87,18 @@ describe("web/pages/eventPublicPage", () => {
             expect(view.endTime).toBe(START + 3 * 3600);
             expect(view.size).toBe(25);
             expect(view.raids.map((r) => r.id)).toEqual(["ssc"]);
-            expect(view.counts).toEqual({ attending: 2, tank: 1, healer: 1, dps: 0, tentative: 0, bench: 1, absence: 0 });
+            expect(view.counts).toEqual({ attending: 2, accounts: 2, tank: 1, healer: 1, dps: 0, tentative: 0, bench: 1, absence: 0 });
             expect(view.icsUrl).toBe("/r/cal/eh-1.ics");
             expect(view.phase).toBe("open");
+        });
+
+        it("shows the single Discord accounts as Signed up, no /size — overbooked or not (#520)", () => {
+            const many = Array.from({ length: 27 }, (_, i) => su(`u${i}`, `Raider${i}`, "Warrior-Fury", "melee", i % 4 ? "signed" : "late"));
+            const view = publicEventView(event(), [...many, su("x", "Maybe", "Mage-Fire", "ranged", "tentative")], { now: NOW });
+            expect(view.counts.accounts).toBe(27);
+            const html = renderPublicEventPage(view);
+            expect(html).toMatch(/<span class="kicker">Signed up<\/span><b>27<\/b>/);
+            expect(html).not.toMatch(/25 \/ 25|\(\+2\)/);
         });
 
         it("groups the signups by class, with the character and the spec and nothing else", () => {

@@ -395,6 +395,86 @@
     "body": "SPA:/.env"
   },
   {
+    "request": "GET /e/eh-1/comp",
+    "status": 302,
+    "headers": {
+      "Location": "/e/eh-1",
+      "Cache-Control": "no-store"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /e/eh-1/comp (user)",
+    "status": 302,
+    "headers": {
+      "Location": "/e/eh-1",
+      "Cache-Control": "no-store"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /e/eh-1/comp (raider)",
+    "status": 302,
+    "headers": {
+      "Location": "/e/eh-1",
+      "Cache-Control": "no-store"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /e/eh-1/comp (viewas)",
+    "status": 302,
+    "headers": {
+      "Location": "/e/eh-1",
+      "Cache-Control": "no-store"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /e/eh-1/comp (orga)",
+    "status": 302,
+    "headers": {
+      "Location": "/raids/detail?event=eh-1&tab=setup",
+      "Cache-Control": "no-store"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /e/eh-1/comp/ (admin)",
+    "status": 302,
+    "headers": {
+      "Location": "/raids/detail?event=eh-1&tab=setup",
+      "Cache-Control": "no-store"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /e/eh-weg/comp (admin)",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /e/eh-1/comp/x (admin)",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/e/eh-1/comp/x"
+  },
+  {
+    "request": "POST /e/eh-1/comp (admin)",
+    "status": 405,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
     "request": "GET /rp-map/bt/supremus?v=1",
     "status": 200,
     "headers": {

@@ -40,7 +40,7 @@ const ev = (over = {}) => baseEvent({
     source: "raidhelper", title: "SSC + TK", startTime: sec(2026, 9, 17, 17, 30),
     channelName: "mi-17-09-ssc-tk", signUps: [], ...over,
 });
-const signed = (n, status = "signed") => Array.from({ length: n }, (_, i) => ({ userId: String(i), specName: "Arcane", status }));
+const signed = (n, status = "signed") => Array.from({ length: n }, (_, i) => ({ userId: `${status}-${i}`, specName: "Arcane", status }));
 
 const opts = { eventGuildId: "111", eventGuildName: "Pulse Events", baseUrl: "https://eh.example/", now: NOW };
 
@@ -74,21 +74,25 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
         expect(embed.fields[0].value).toBe([
             "**SSC + TK**",
             "🗓️ <t:1789666200:F>",
-            "-# 👥 9 · [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1) · Raid-Helper",
+            "-# 👥 9 signed up · [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1) · Raid-Helper",
             "",
             "**[Hyjal + BT](https://eh.example/e/e2)**",
             "🗓️ <t:1790271000:F>",
-            "-# 👥 15/25 · [#do-hyjal](https://discord.com/channels/111/c2)",
+            "-# 👥 15 signed up · [#do-hyjal](https://discord.com/channels/111/c2)",
         ].join("\n"));
         expect(embed.fields[2].value).toContain("Karazhan");
         expect(JSON.stringify(payload)).not.toContain("Vorbei");
     });
 
-    it("writes an overbooked raid as 25/25 (+3) (#516)", () => {
+    it("writes the single Discord accounts alone, no /size, an overbooked raid included (#516, #520)", () => {
+        // 28 entries: 26 signed, 2 late — one of the late ones is a second character of a signed account
+        const twice = { userId: "signed-3", specName: "Holy", status: "late" };
         const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Do", events: [
-            ev({ id: "e9", source: "eventhelper", title: "BT", startTime: sec(2026, 9, 24, 17, 30), channelId: "c2", channelName: "do-bt", size: 25, signUps: [...signed(26), ...signed(2, "late")] }),
+            ev({ id: "e9", source: "eventhelper", title: "BT", startTime: sec(2026, 9, 24, 17, 30), channelId: "c2", channelName: "do-bt", size: 25, signUps: [...signed(26), ...signed(1, "late"), twice, ...signed(2, "tentative"), ...signed(1, "absence")] }),
         ] }], opts);
-        expect(payload.embeds[0].fields[0].value).toContain(" 25/25 (+3) ");
+        const meta = payload.embeds[0].fields[0].value.split("\n").find((l) => l.startsWith("-#"));
+        expect(meta).toContain(" 27 signed up ");
+        expect(meta).not.toMatch(/\d+ ?\/ ?\d+|\(\+/);
     });
 
     it("strikes a cancelled event through and does not offer it for signing up (#288)", () => {

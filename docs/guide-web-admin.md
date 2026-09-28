@@ -102,7 +102,9 @@ Technik: [raid-templates.md](raid-templates.md)
 
 Wiederverwendbare Vorlagen (Instanzen, Größe, Rollen, Pflicht-Buffs, Anmeldeschluss, Aussehen der Nachricht) für ein schnelles Event-Anlegen. Details: [docs/raid-templates.md](raid-templates.md).
 
-Hinter „Mehr“ (in der Vorlage und im Erstellen-Dialog) steht **„Bei voller Größe“**: *keine Grenze* (Standard — es melden sich so viele an wie wollen, die Auswahl triffst du im Setup), *Warteliste* (neue Anmeldungen landen auf der Bank) oder *ablehnen*. Ist ein Raid überbucht, zeigen Nachricht und Übersichten „25/25 (+3)“.
+Hinter „Mehr“ (in der Vorlage und im Erstellen-Dialog) steht **„Bei voller Größe“**: *keine Grenze* (Standard — es melden sich so viele an wie wollen, die Auswahl triffst du im Setup), *Warteliste* (neue Anmeldungen landen auf der Bank) oder *ablehnen*. Nachricht, Talk-Übersicht, öffentliche Event-Seite, Anmeldeseite, Raid-Cockpit und „Event verwalten“ zählen nur die **einzelnen Discord-Accounts** („28 angemeldet“ bzw. „28 signed up“) — ohne „/25“, auch wenn der Raid überbucht ist; wer mit mehreren Charakteren angemeldet ist, zählt einmal.
+
+Der Link **„Comp“** in der Anmelde-Nachricht führt dich (eingeloggt, mit Schreibrecht für Raids) direkt in den Setup-Tab des Raids; Raider ohne dieses Recht und Besucher ohne Login landen mit demselben Link auf der öffentlichen Event-Seite. Das Raidsheet steht dort jetzt als „Sheet“.
 
 ## Anmeldungen
 

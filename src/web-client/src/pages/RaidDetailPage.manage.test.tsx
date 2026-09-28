@@ -27,7 +27,7 @@ const INFO: ManageInfo = {
         cancel: null, channelId: "ch1", channelName: "kara-do-01-10", categoryId: "c1",
     },
     started: false,
-    counts: { attending: 8, size: 10, tentative: 0, bench: 0, absence: 0 },
+    counts: { attending: 8, accounts: 8, size: 10, tentative: 0, bench: 0, absence: 0 },
     recipients: [{ userId: "r1", name: "anna", character: "Anna", status: "signed" }, { userId: "r2", name: "ben", character: "", status: "signed" }],
     archive: { configured: false },
     log: [],

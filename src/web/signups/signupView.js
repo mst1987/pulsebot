@@ -10,6 +10,7 @@ const { categoryVisible, profileRoles, roleCounts, signupWindow, allowedStatuses
 const { upcomingRows } = require("../../services/events/raidListing");
 const { instanceById, rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
 const { signupStatus } = require("../../utils/attendance");
+const { accountCount } = require("../../utils/signup/capacity");
 const { approvedPlacementFor } = require("../../services/setup/setupEditor");
 const { migrateSignup } = require("../../services/signups/signupCharacters");
 const { noteMode } = require("../../services/signups/signupNotes");
@@ -99,6 +100,8 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
             const source = row.source || "raidhelper";
             const signUps = ev.signUps || [];
             const attending = signUps.filter((s) => ["signed", "late"].includes(signupStatus(s))).length;
+            // what the row shows (#520): the single Discord accounts, no "/size"
+            const accounts = accountCount(signUps, signupStatus);
             const own = signUps.find((s) => String(s.userId) === uid) || null;
             const firstInstance = (ev.instanceIds || []).map((id) => instanceById(id)).find(Boolean);
             const base = {
@@ -113,6 +116,7 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
                 instanceIcon: (firstInstance && firstInstance.icon) || "",
                 size: row.raidSize,
                 attending,
+                accounts,
                 discordUrl: discordChannelUrl(guildId, row.channelId),
             };
             if (source !== "eventhelper") {

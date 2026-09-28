@@ -35,7 +35,6 @@ const { parseComposition } = require("./eventDraft");
 const { parseGermanDate, parseClockTime } = require("../../utils/time");
 const { webUrl, clip } = require("../../utils/discord/botLookup");
 const { isSnowflake } = require("../../utils/ids");
-const { seatsText } = require("../../utils/signup/capacity");
 
 const MANAGE_PREFIX = "event-manage";
 const FORM_PREFIX = "event-manage-form";
@@ -87,10 +86,10 @@ function findEvent(guildId, { eventId = "", messageId = "", channelId = "" } = {
     return upcoming[0] || inChannel[0] || null;
 }
 
-/** The overview line: "22/25 · Anmeldung offen bis Di 22.09. 20:00 · Setup: Entwurf". */
+/** The overview line (the accounts alone since #520): "22 angemeldet · Anmeldung offen bis Di 22.09. 20:00 · Setup: Entwurf". */
 function summaryLine(event) {
     const c = roleCounts(event, signupStore.listSignups(event.id));
-    const parts = [c.size ? seatsText(c.attending, c.size) : `${c.attending} angemeldet`];
+    const parts = [`${c.accounts} angemeldet`];
     if (event.status === "cancelled") parts.push("abgesagt");
     else if (event.signupsClosed) parts.push("Anmeldung geschlossen");
     else parts.push(event.signupDeadline ? `Anmeldung offen bis ${manage.whenLabel(event.signupDeadline)}` : "Anmeldung offen");

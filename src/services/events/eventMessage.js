@@ -84,12 +84,15 @@ const { approvedSetupOf } = require("../setup/setupCore");
 const { getConfig, resolveEventSheetLink } = require("../../stores/configStore");
 const { getEventSheet } = require("../../stores/eventSheetStore");
 const { getEventSoftres } = require("../../stores/eventSoftresStore");
-const { seatsParts } = require("../../utils/signup/capacity");
+const { signedUpText } = require("../../utils/signup/capacity");
 
-/** The head's "Signed up" value: "**22** / 25", "**25** / 25 (+3)" when overbooked (#516), "**12**" without a size. */
-function signedUpValue(attending, size) {
-    const p = seatsParts(attending, size);
-    return `**${p.shown}**${p.size ? ` / ${p.size}` : ""}${p.extra ? ` (+${p.extra})` : ""}`;
+/**
+ * The head's "Signed up" line (#520): the single Discord accounts, number in
+ * bold — "**28** signed up" — and no "/size": nobody reads "25/25 (+3)" as
+ * "full" when the setup picks the 25 anyway.
+ */
+function signedUpValue(accounts) {
+    return signedUpText(accounts).replace(/^(\d+)/, "**$1**");
 }
 
 // The old button id — messages posted before #287 carry it and keep working.
@@ -496,7 +499,8 @@ function buildEventMessage(event, signups, {
     // empty name) apart. Icon + value; without the icon "Label: value".
     const headLine = (icon, label, value) => {
         const e = emojiText(emojis, uiEmojiName(icon));
-        return e ? `${e} ${value}` : `${label}: ${value}`;
+        if (e) return `${e} ${value}`;
+        return label ? `${label}: ${value}` : value;
     };
     const column = (lines) => ({ name: ZWS, value: lines.join("\n"), inline: true });
     const headFields = [
@@ -507,7 +511,8 @@ function buildEventMessage(event, signups, {
             ...(event.voiceChannelId ? [headLine("voice", "Voice channel", `<#${event.voiceChannelId}>`)] : []),
         ]),
         column([
-            headLine("signups", "Signed up", signedUpValue(c.attending, event.size)),
+            // "28 signed up" names itself — no label in front, with or without the icon (#520)
+            headLine("signups", "", signedUpValue(c.accounts)),
             headLine("time", "Time", start ? `<t:${start}:t>` : "–"),
         ]),
         // an empty first line without a deadline keeps the countdown beside date and time
@@ -542,11 +547,16 @@ function buildEventMessage(event, signups, {
     // that is where one signs up and where the orga works.
     if (base) links.push(`[Event](${base}/e/${id})`);
     if (base) links.push(`[Sign up](${base}/signups?event=${id})`);
+    // "Comp" (#520): one link for everybody, the server sends each reader on —
+    // the orga with raid write access into the setup editor, everyone else to
+    // the public event page (pageRoutes.js, `/e/<id>/comp`).
+    if (base) links.push(`[Comp](${base}/e/${id}/comp)`);
     if (base && setupText) links.push(`[Setup](${base}/raids/detail?event=${id}&tab=setup)`);
     // The raid's comp sheet (an own copy, else the category's fixed one — see
     // configStore.resolveEventSheetLink) and its softres.it reservation list
-    // (eventSoftresStore), when either is on record (#357).
-    if (compUrl) links.push(`[Comp](${compUrl})`);
+    // (eventSoftresStore), when either is on record (#357). The sheet was
+    // "Comp" until #520 gave that name to the setup link.
+    if (compUrl) links.push(`[Sheet](${compUrl})`);
     if (srUrl) links.push(`[SR](${srUrl})`);
     const cal = icsUrl || icsUrlFor(event.id);
     if (cal) links.push(`[Calendar](${cal})`);

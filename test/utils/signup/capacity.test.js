@@ -1,5 +1,6 @@
 const {
-    OVERFLOW_MODES, DEFAULT_OVERFLOW, normalizeOverflow, isLegacyOverflow, normalizeLockAtLimit, seatsText,
+    OVERFLOW_MODES, DEFAULT_OVERFLOW, normalizeOverflow, isLegacyOverflow, normalizeLockAtLimit,
+    ATTENDING_STATUSES, accountCount, signedUpText,
 } = require("../../../src/utils/signup/capacity");
 
 describe("utils/signup/capacity (#516)", () => {
@@ -30,12 +31,39 @@ describe("utils/signup/capacity (#516)", () => {
         expect(normalizeLockAtLimit(null)).toBe(false);
     });
 
-    it("seatsText writes the fill, the overbooking as (+n)", () => {
-        expect(seatsText(22, 25)).toBe("22/25");
-        expect(seatsText(25, 25)).toBe("25/25");
-        expect(seatsText(28, 25)).toBe("25/25 (+3)");
-        expect(seatsText(28, 25, { sep: " / " })).toBe("25 / 25 (+3)");
-        expect(seatsText(12, 0)).toBe("12");
-        expect(seatsText(undefined, undefined)).toBe("0");
+    describe("accountCount (#520)", () => {
+        it("counts every Discord account once, however many characters it signed up", () => {
+            const signups = [
+                { userId: "1", status: "signed", characters: [{ character: "A" }, { character: "A2" }] },
+                // Raid-Helper can hold two entries of one user
+                { userId: "2", status: "signed" },
+                { userId: "2", status: "late" },
+                { userId: "3", status: "late" },
+            ];
+            expect(accountCount(signups)).toBe(3);
+        });
+
+        it("counts Dabei and Spät only — tentative, bench and absence stay out", () => {
+            const signups = ["signed", "late", "tentative", "bench", "absence"].map((status, i) => ({ userId: String(i), status }));
+            expect(accountCount(signups)).toBe(2);
+            expect(ATTENDING_STATUSES).toEqual(["signed", "late"]);
+        });
+
+        it("reads a missing status as signed and a signup without user id as one of its own", () => {
+            expect(accountCount([{ userId: "1" }, {}, {}, null])).toBe(3);
+            expect(accountCount(undefined)).toBe(0);
+        });
+
+        it("takes a status reader for Raid-Helper entries", () => {
+            const rh = [{ userId: "1", className: "Late" }, { userId: "2", className: "Absence" }];
+            expect(accountCount(rh, (s) => (s.className === "Late" ? "late" : "absence"))).toBe(1);
+        });
+    });
+
+    it("signedUpText writes the accounts alone — no /size (#520)", () => {
+        expect(signedUpText(28)).toBe("28 signed up");
+        expect(signedUpText(0)).toBe("0 signed up");
+        expect(signedUpText(undefined)).toBe("0 signed up");
+        expect(signedUpText(-2)).toBe("0 signed up");
     });
 });

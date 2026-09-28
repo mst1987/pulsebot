@@ -75,7 +75,7 @@ describe("the step bar's words", () => {
         const signup = p.steps[1];
         expect(signup.note).toBe("1 auf der Warteliste");
         expect(lib.stepTipSub(signup, false)).toBe(`${signup.note} · ${signup.hint}`);
-        expect(lib.stepFigure(signup)).toBe("1 / 25 1 auf der Warteliste");
+        expect(lib.stepFigure(signup)).toBe("1 angemeldet 1 auf der Warteliste");
         // a step without a deed says only what it is
         expect(lib.stepTipSub({ ...created, action: null }, true)).toBe(created.hint);
     });

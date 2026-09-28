@@ -26,6 +26,13 @@ jest.mock("../../../src/web/report/render", () => ({
     renderNotFound: jest.fn(() => "NOT_FOUND"),
     renderError: jest.fn((title, text) => `ERROR:${title}:${text}`),
 }));
+const mockUsers = {
+    admin: { id: "adm", isAdmin: true },
+    user: { id: "usr", isAdmin: false },
+    orga: { id: "org", isAdmin: false, access: { raids: { read: true, write: true } } },
+    raider: { id: "rdr", isAdmin: false, access: { raids: { read: true, write: false }, signup: { read: true, write: true } } },
+    viewas: { id: "adm", isAdmin: false, access: { raids: { read: true, write: false } }, viewAs: { roleIds: ["1"], at: 1 } },
+};
 jest.mock("../../../src/web/http/auth", () => ({
     configured: jest.fn(() => true),
     loginUrl: jest.fn((state) => `https://discord.example/authorize?state=${state}`),
@@ -36,7 +43,12 @@ jest.mock("../../../src/web/http/auth", () => ({
         throw e;
     }),
     destroy: jest.fn(),
-    getUser: jest.fn((req) => (req.headers.cookie === "admin" ? { id: "adm", isAdmin: true } : req.headers.cookie === "user" ? { id: "usr", isAdmin: false } : null)),
+    // #520 added three sessions for /e/<id>/comp: an orga account with raid write
+    // access, a raider with read only, and a full admin viewing the menu as a raider
+    // role (getUser already hands out the viewed role's rights; getRealUser would
+    // still say admin — the route must ask getUser).
+    getUser: jest.fn((req) => mockUsers[req.headers.cookie] || null),
+    getRealUser: jest.fn((req) => (req.headers.cookie === "viewas" ? mockUsers.admin : mockUsers[req.headers.cookie] || null)),
     parseCookies: jest.fn((req) => ({ sid: req.headers.cookie || "" })),
 }));
 jest.mock("../../../src/web/http/apiRouter", () => ({
@@ -163,6 +175,16 @@ const CASES = [
     ["GET", "/e/eh-weg"],
     ["GET", "/e/a/b"],
     ["GET", "/e/../../.env"],
+    // the Comp link of the event message (#520)
+    ["GET", "/e/eh-1/comp"],
+    ["GET", "/e/eh-1/comp", "user"],
+    ["GET", "/e/eh-1/comp", "raider"],
+    ["GET", "/e/eh-1/comp", "viewas"],
+    ["GET", "/e/eh-1/comp", "orga"],
+    ["GET", "/e/eh-1/comp/", "admin"],
+    ["GET", "/e/eh-weg/comp", "admin"],
+    ["GET", "/e/eh-1/comp/x", "admin"],
+    ["POST", "/e/eh-1/comp", "admin"],
     ["GET", "/rp-map/bt/supremus?v=1"],
     ["GET", "/rp-map/t/abc/kara"],
     ["GET", "/rp-map/bt"],

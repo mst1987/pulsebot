@@ -12,6 +12,8 @@ export type SignupCounts = {
     healer: SignupRoleCount;
     dps: SignupRoleCount;
     attending: number;
+    /** The single Discord accounts on "Dabei"/"Spät" (#520) — what every counter shows. */
+    accounts: number;
     tentative: number;
     bench: number;
     absence: number;
@@ -59,6 +61,8 @@ export type SignupEventBase = {
     instanceIcon: string;
     size: number;
     attending: number;
+    /** The single Discord accounts signed up (#520): the row's counter, no "/size". */
+    accounts: number;
     /** The event's post (own: the bot's message) or its channel in Discord. */
     discordUrl: string;
 };

@@ -83,6 +83,15 @@ describe("SignupsPage", () => {
         expect(screen.getByText(`Zibbo · ${t("signups.page.upcoming", { count: 3 })}`)).toBeInTheDocument();
     });
 
+    it("counts the single Discord accounts, no /size — also for an overbooked raid and a Raid-Helper raid (#520)", async () => {
+        const full = ownRow({ id: "eh-bt", title: "BT Sonntag", size: 25, attending: 28, accounts: 27, counts: counts({ attending: 28, accounts: 27 }) });
+        const rh = raidHelperRow({ attending: 14, accounts: 13 });
+        await show(signupsData({ events: [full, rh] }));
+        expect(within(rowOf("BT Sonntag")).getByText("27 angemeldet")).toBeInTheDocument();
+        expect(within(rowOf(rh.title)).getByText("13 angemeldet")).toBeInTheDocument();
+        expect(screen.queryByText(/\d+\/\d+ \(\+\d+\)|25\/25/)).toBeNull();
+    });
+
     it("says so when nothing is coming", async () => {
         await show(signupsData({ events: [] }));
         expect(screen.getByText(t("signups.page.empty"))).toBeInTheDocument();
@@ -99,13 +108,13 @@ describe("SignupsPage", () => {
         const row = rowOf("Kara Freitag");
         expect(within(row).getByText(rowSubline(KARA))).toBeInTheDocument();
         expect(rowSubline(KARA)).toContain(t("signups.deadlineAt", { time: formatEventTime(KARA.deadline) }));
-        const bar = within(row).getByText("3/10").closest(".an-bar");
+        const bar = within(row).getByText("3 angemeldet").closest(".an-bar");
         expect(bar).toHaveAttribute("data-tip", roleCountText(KARA.counts));
         // exactly one action: sign up
         expect(within(row).getAllByRole("button")).toHaveLength(1);
         expect(within(row).getByRole("button", { name: t("signups.signUp") })).toBeInTheDocument();
         // the other counts only in the bar's second line
-        expect(within(rowOf("SSC Donnerstag")).getByText("20/25").closest(".an-bar")).toHaveAttribute("data-tip-sub", t("signups.row.tentative", { count: 2 }));
+        expect(within(rowOf("SSC Donnerstag")).getByText("20 angemeldet").closest(".an-bar")).toHaveAttribute("data-tip-sub", t("signups.row.tentative", { count: 2 }));
     });
 
     it("offers only sign-off or late after the deadline, and nothing once the raid has started", async () => {
@@ -219,7 +228,7 @@ describe("SignupsPage", () => {
         await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: t("signups.signUp") }));
         await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
         const row = rowOf("Kara Freitag");
-        expect(within(row).getByText("4/10")).toBeInTheDocument();
+        expect(within(row).getByText("4 angemeldet")).toBeInTheDocument();
         expect(within(row).getByRole("button", { name: `${SIGNUP_STATUS.signed.label} · ${specLabel("Priest-Holy", "Holy")}` })).toBeInTheDocument();
         expect(where()).toBe("/signups");
     });
@@ -294,7 +303,7 @@ describe("several raids at once on the page (#293)", () => {
         expect(toolbar()).not.toBeInTheDocument();
         expect(screen.getByText(t("signups.bulk.toast", { saved: 1, total: 2 }))).toBeInTheDocument();
         // the saved raid's row shows the signup behind the dialog
-        expect(within(rowOf("Kara Freitag")).getByText("4/10")).toBeInTheDocument();
+        expect(within(rowOf("Kara Freitag")).getByText("4 angemeldet")).toBeInTheDocument();
 
         // the footer's "Schließen" (the head's × has the same name)
         await user.click(within(dialog).getAllByRole("button", { name: t("common.close") }).at(-1)!);
