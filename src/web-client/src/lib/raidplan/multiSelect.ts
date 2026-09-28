@@ -10,6 +10,7 @@ import { duplicateObject, isLocked, lookOf, patchLook, removeObject, reorderObje
 import { isRoleKind, unplaceSlot } from "./besetzung.ts";
 import { moveObject, objectPoint, objectPercent, scaleObject, setObjectPercent, setObjectSize, sizeOf } from "./geometry.ts";
 import type { ObjectKind } from "./model.ts";
+import { badgeScaleOf } from "./labelScale.ts";
 
 export type SelItem = { kind: ObjectKind; id: string };
 /** A rectangle by its corners, in board fractions (0..1). */
@@ -350,6 +351,15 @@ export function scaleArrowSelection(board: RaidplanBoard, sel: SelItem[], factor
 export function setRingSelection(board: RaidplanBoard, sel: SelItem[], show: boolean): RaidplanBoard {
     const ids = sel.filter((it) => it.kind === "slot").map((it) => it.id);
     return { ...board, slots: board.slots.map((s) => (s.kind === "group" && ids.indexOf(s.id) >= 0 ? { ...s, showRing: show } : s)) };
+}
+
+/** The badges of the group markers of the selection (#528): shown or hidden and / or their size (0.5 .. 1.5), the same for all of them; everything else is left alone. */
+export function setBadgeSelection(board: RaidplanBoard, sel: SelItem[], patch: { showBadge?: boolean; badgeScale?: number }): RaidplanBoard {
+    const ids = sel.filter((it) => it.kind === "slot").map((it) => it.id);
+    const p: { showBadge?: boolean; badgeScale?: number } = {};
+    if (patch.showBadge !== undefined) p.showBadge = patch.showBadge;
+    if (patch.badgeScale !== undefined) p.badgeScale = badgeScaleOf(patch.badgeScale);
+    return { ...board, slots: board.slots.map((s) => (s.kind === "group" && ids.indexOf(s.id) >= 0 ? { ...s, ...p } : s)) };
 }
 
 /** Puts the selection in front of or behind the rest of its layer; the order among them stays. */

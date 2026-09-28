@@ -47,9 +47,19 @@ export const BADGE_MAX_SHARE = 0.8;
 export const BADGE_FONT = 0.6;
 export const BADGE_BORDER = 0.07;
 
-/** The badge's diameter, digit font and rim (reference units) on an icon of `size` units. */
-export function badgeMetrics(size: number): { size: number; font: number; border: number } {
+/** A group's own badge size (#528, `slot.badgeScale`): 50 .. 150 % of the badge above, on top of it - floor and ceiling scale with it. */
+export const BADGE_SCALE_MIN = 0.5;
+export const BADGE_SCALE_MAX = 1.5;
+
+/** A stored badge scale as used: clamped to BADGE_SCALE_MIN .. BADGE_SCALE_MAX, 1 when it is missing or not a number. */
+export function badgeScaleOf(v: unknown): number {
+    const n = Number(v);
+    return v === undefined || v === null || v === "" || !Number.isFinite(n) ? 1 : Math.max(BADGE_SCALE_MIN, Math.min(BADGE_SCALE_MAX, n));
+}
+
+/** The badge's diameter, digit font and rim (reference units) on an icon of `size` units; `scale` = the group's own badge size (1 = as before). */
+export function badgeMetrics(size: number, scale = 1): { size: number; font: number; border: number } {
     const s = size > 0 ? size : 0;
-    const b = Math.min(Math.max(s * BADGE_FACTOR, BADGE_MIN), BADGE_MAX, s * BADGE_MAX_SHARE);
+    const b = Math.min(Math.max(s * BADGE_FACTOR, BADGE_MIN), BADGE_MAX, s * BADGE_MAX_SHARE) * badgeScaleOf(scale);
     return { size: b, font: b * BADGE_FONT, border: b * BADGE_BORDER };
 }

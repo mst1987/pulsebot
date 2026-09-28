@@ -2,7 +2,7 @@ import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import type { RaidplanBoard, RaidplanMobRef, RaidplanPlayer } from "../../../../api";
 import type { useT } from "../../../../i18n";
 import { mobIconNo, mobIconsOf, mobOfIcon, setRowOnMap, type AutoPlan } from "../../../../lib/raidplan/autoPlace";
-import { alignSelection, hasItem, reorderSelection, scaleArrowSelection, setLookSelection, setRingSelection, type SelItem } from "../../../../lib/raidplan/multiSelect";
+import { alignSelection, hasItem, reorderSelection, scaleArrowSelection, setLookSelection, setRingSelection, setBadgeSelection, type SelItem } from "../../../../lib/raidplan/multiSelect";
 import {
     applyMenuAction, autoStyleOf, canFace, compassName, contextMenuItems, lookOf, ownBadgeGroup, resetAutoAll, resetAutoPos, scaleArrow, SIZE_STEPS,
     type MenuItem, type ObjectKind, type Selection,
@@ -59,7 +59,7 @@ export function useBoardMenu({ menu, setMenu, canWrite, isEvent, board, auto, mo
         return [
             it("m:duplicate", "main"), it("m:front", "order"), it("m:back", "order"), it("m:lock", "order"), it("m:unlock", "order"), it("m:hide", "order"),
             it("m:alignLeft", "align"), it("m:alignRight", "align"), it("m:alignTop", "align"), it("m:alignBottom", "align"), it("m:alignCenterH", "align"), it("m:alignCenterV", "align"),
-            it("m:distH", "align"), it("m:distV", "align"), it("m:ringHide", "order"), it("m:ringShow", "order"), it("m:arrowUp", "size"), it("m:arrowDown", "size"), it("m:delete", "end", true),
+            it("m:distH", "align"), it("m:distV", "align"), it("m:ringHide", "order"), it("m:ringShow", "order"), it("m:badgeHide", "order"), it("m:badgeShow", "order"), it("m:arrowUp", "size"), it("m:arrowDown", "size"), it("m:delete", "end", true),
         ];
     };
     const menuItems = (): MenuItem[] => {
@@ -92,7 +92,7 @@ export function useBoardMenu({ menu, setMenu, canWrite, isEvent, board, auto, mo
         // the facing wedge of a boss / mob / enemy icon: bigger / smaller
         const arrows = ic && canFace(ic.iconKey) && !(look && look.lock) ? [it("arrow:up", "size"), it("arrow:down", "size")] : [];
         const extra = ref ? tankItems(board.assignments.some((a) => (a.type === "tank" || a.type === "trashtank" || a.type === "special") && a.assignees.indexOf(ref) >= 0)) : ic && (ic.mobId || mobOfIcon(auto, ic.id)) ? [it("auto:tank", "tank")] : [];
-        return [...contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split, ringOff: !!slot && slot.showRing === false, faces: !!ic && canFace(ic.iconKey), inGroup: sel.kind === "token" && ownBadgeGroup(board, players.get(sel.id) || ({ group: 0 } as RaidplanPlayer)) > 0 }), ...arrows, ...extra];
+        return [...contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split, ringOff: !!slot && slot.showRing === false, badgeOff: !!slot && slot.showBadge === false, faces: !!ic && canFace(ic.iconKey), inGroup: sel.kind === "token" && ownBadgeGroup(board, players.get(sel.id) || ({ group: 0 } as RaidplanPlayer)) > 0 }), ...arrows, ...extra];
     };
     const menuLabel = (item: MenuItem): string => {
         if (item.id.startsWith("tankt:")) {
@@ -142,6 +142,8 @@ export function useBoardMenu({ menu, setMenu, canWrite, isEvent, board, auto, mo
             else if (act === "unlock") multiAction((b, sel) => setLookSelection(b, sel, { lock: false }));
             else if (act === "ringHide") multiAction((b, sel) => setRingSelection(b, sel, false));
             else if (act === "ringShow") multiAction((b, sel) => setRingSelection(b, sel, true));
+            else if (act === "badgeHide") multiAction((b, sel) => setBadgeSelection(b, sel, { showBadge: false }));
+            else if (act === "badgeShow") multiAction((b, sel) => setBadgeSelection(b, sel, { showBadge: true }));
             else if (act === "arrowUp" || act === "arrowDown") multiAction((b, sel) => scaleArrowSelection(b, sel, act === "arrowUp" ? 1.25 : 0.8));
             else if (act === "hide") { multiAction((b, sel) => setLookSelection(b, sel, { hidden: true })); chooseItems([]); }
             else {

@@ -344,7 +344,26 @@
         "nameAuto": "The name is hidden: the icon is too small on screen to carry it (a bigger board, zoom or bigger icons show it again).",
         "chipWidth": "Width of the group chip (0 = automatic)",
         "chipAuto": "Automatic",
-        "chipAutoTip": "As wide as the longest name again (at most 220 px)"
+        "chipAutoTip": "As wide as the longest name again (at most 220 px)",
+        "ringHead": "Ring",
+        "ringOnlySplit": "Only a split group has a ring (tab “Group”).",
+        "badgeHead": "Group badge",
+        "showBadge": "Show the badge",
+        "badgeScale": "Badge size",
+        "badgeReset": "Default size",
+        "badgesBoardOff": "The number badges are switched off for this board in the view menu.",
+        "tab": {
+            "label": "Group settings",
+            "group": "Group",
+            "look": "Look",
+            "ringBadge": "Ring & badge",
+            "icon": "Symbol",
+            "facing": "Facing",
+            "iconLabel": "Symbol settings",
+            "roleLabel": "Role group settings",
+            "roleGroup": "Group",
+            "roleShape": "Shape"
+        }
     },
     "panel": {
         "props": "Properties",
@@ -404,7 +423,11 @@
         "m_ringShow": "Show group rings",
         "sizeTo": "Size {pct} %",
         "m_arrowUp": "Bigger arrows",
-        "m_arrowDown": "Smaller arrows"
+        "m_arrowDown": "Smaller arrows",
+        "badge_hide": "Hide the badge",
+        "badge_show": "Show the badge",
+        "m_badgeHide": "Hide group badges",
+        "m_badgeShow": "Show group badges"
     },
     "icon": {
         "boss": "Boss",

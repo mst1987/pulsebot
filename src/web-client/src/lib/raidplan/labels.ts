@@ -151,6 +151,21 @@ export function ringShown(boardShowRings: boolean | undefined, slot: { showRing?
     return boardShowRings !== false && slot.showRing !== false;
 }
 
+/** Whether a group's badge is drawn (#528): the board's switch for all badges ("Badges", `showBadges`) and the group's own one (`showBadge`), both default to shown. */
+export function badgeShown(boardShowBadges: boolean | undefined, slot: { showBadge?: boolean } | null | undefined): boolean {
+    return boardShowBadges !== false && !(slot && slot.showBadge === false);
+}
+
+/**
+ * The badge look of group `n` for a raider outside its ring (a slot, a free or an auto token, #528): the settings of the group marker of that
+ * number on the map - a split one first, else any placed and shown one. No marker: shown at 100 % (the callers only draw a badge when one stands there).
+ */
+export function groupBadgeLook(slots: RaidplanSlot[], n: number): { show: boolean; scale: number } {
+    const on = slots.filter((s) => s.kind === "group" && s.n === n && s.placed !== false && !s.hidden);
+    const g = on.find((s) => s.split && !s.hideMembers) || on[0];
+    return g ? { show: g.showBadge !== false, scale: g.badgeScale === undefined ? 1 : g.badgeScale } : { show: true, scale: 1 };
+}
+
 /** The ellipse (half width / height, as fractions of the board) that covers the offsets of a ring, with a little room for the tokens. */
 export function ringCover(offsets: { dx: number; dy: number }[], padX: number, padY: number): { rx: number; ry: number } {
     let rx = 0;

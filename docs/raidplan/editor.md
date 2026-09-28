@@ -577,6 +577,34 @@ orga wanted one healer - a paladin, or a shaman when there is none.
 - Tests: `test/services/raidplan/raidplanPriority.test.js`, `src/web-client/src/lib/raidplan/classPriority.test.ts` (the same
   cases on both twins, golden master, card items, preview, carry), `src/web-client/src/pages/raid-detail/raidplan/AssignModal.prio.test.tsx`.
 
+## The inspector in tabs (#528)
+
+„Überarbeite bitte die Anordnung in dem Menü, vielleicht ein, zwei Tabs mehr, dass die Zeile nicht so lang ist“: the menu
+meant is the inspector of a selected group marker (dock tab "Eigenschaften"). It was one column of about 1060 px at 1280 px
+width (sizes, ring, name, number, label, colour, raid mark, highlight, raiders, split, ring, opacity) - the longest of all.
+Measured live at 1280 px: a boss / mob icon that faces 790 px, a role group 960 px, a plain zone 500 px, a text 330 px, a
+mark 210 px.
+
+- **`InspectorTabs.tsx`**: the UI kit's `Segment` (size sm, across the whole column; styled by role in `editor.css`, as the
+  raid plan sheet keeps to `rp-` classes) above one tab's fields. The last tab per kind (`group`, `role`, `icon`) is
+  remembered in this browser (`usePersistedState`, key `eh-raidplan-insp-tab-<kind>`); a stored tab that no longer exists
+  falls back to the first. The head (name, kind) and the action icons (lock, duplicate, front, back, delete) stay outside.
+- **Group marker** (`GroupInspector.tsx`): *Gruppe* (number, own label, raiders, split, reset the members, chip width) |
+  *Darstellung* (group size and token size side by side, ring spacing, "Alle Gruppen so groß", role ring, name, opacity) |
+  *Ring & Badge* (group colour, raid mark, highlight; the ring of a split group and its opacity - a group that is not split
+  says where to split it; the group badge: "Badge anzeigen", "Badge-Größe" 50 - 150 %, "Standardgröße", a note when the
+  board's number badges are off, see board.md "Hide or scale a group's badge"). About 420 / 420 / 620 px instead of 1060.
+- **Role group** (Melees, Ranged ...): *Gruppe* (role, label, count, names) | *Form* (shape, zone scale, width / height,
+  turning) | *Darstellung* (border, symbol size, label place, colour, opacity): about 400 / 440 / 410 px.
+- **Icon that faces** (boss, mob, enemy): *Symbol* (size, ring, name, label, opacity) | *Blickrichtung* (automatic facing,
+  angle, compass, arrow size / colour / opacity): 430 / 525 px. Its angle field says "°" now instead of "px".
+- **Unchanged**: token, slot, mark, text, line, plain zone and the multi inspector (short enough). A plain zone's "Zone
+  skalieren" steps got their label on a line of their own and wrap (`.rp-insp-steps`) instead of one long line.
+- Nothing was dropped: every field and value is the one before, in a tab. At 390 px the dock sits under the map; no field
+  leaves the column and the page does not scroll sideways (puppeteer at 1280 and 390 px).
+- Tests: `src/web-client/src/pages/raid-detail/raidplan/Inspector.tabs.test.tsx` (the tabs of each kind, their fields, the
+  remembered tab, the badge fields, a short inspector without tabs).
+
 ## Groups in the plan: no bench in the assignments (#529)
 
 "Die Bench sollte auch nicht ins Setup uebernommen werden ... Manche Einteilungen wurden jetzt von Bench-Leuten eingeteilt." The plan read
