@@ -547,11 +547,16 @@ function buildEventMessage(event, signups, {
     // that is where one signs up and where the orga works.
     if (base) links.push(`[Event](${base}/e/${id})`);
     if (base) links.push(`[Sign up](${base}/signups?event=${id})`);
+    // "Comp" (#520): one link for everybody, the server sends each reader on —
+    // the orga with raid write access into the setup editor, everyone else to
+    // the public event page (pageRoutes.js, `/e/<id>/comp`).
+    if (base) links.push(`[Comp](${base}/e/${id}/comp)`);
     if (base && setupText) links.push(`[Setup](${base}/raids/detail?event=${id}&tab=setup)`);
     // The raid's comp sheet (an own copy, else the category's fixed one — see
     // configStore.resolveEventSheetLink) and its softres.it reservation list
-    // (eventSoftresStore), when either is on record (#357).
-    if (compUrl) links.push(`[Comp](${compUrl})`);
+    // (eventSoftresStore), when either is on record (#357). The sheet was
+    // "Comp" until #520 gave that name to the setup link.
+    if (compUrl) links.push(`[Sheet](${compUrl})`);
     if (srUrl) links.push(`[SR](${srUrl})`);
     const cal = icsUrl || icsUrlFor(event.id);
     if (cal) links.push(`[Calendar](${cal})`);

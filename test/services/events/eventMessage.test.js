@@ -109,7 +109,7 @@ describe("services/events/eventMessage", () => {
         const links = embed.fields[embed.fields.length - 1].value;
         // #308: the public event page first, the menu beside it, and the event's
         // own calendar file (no icsUrl was passed).
-        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Calendar](https://eh.example/r/cal/eh-1.ics)");
+        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://eh.example/e/eh-1/comp)  ·  [Calendar](https://eh.example/r/cal/eh-1.ics)");
         expect(links).not.toContain("Setup");
     });
 
@@ -517,7 +517,7 @@ describe("services/events/eventMessage", () => {
         const fields = payload.embeds[0].fields;
         expect(fields.some((f) => emojiless(f.name) === "Setup")).toBe(false);
         const links = fields[fields.length - 1].value;
-        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Setup](https://eh.example/raids/detail?event=eh-1&tab=setup)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
+        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://eh.example/e/eh-1/comp)  ·  [Setup](https://eh.example/raids/detail?event=eh-1&tab=setup)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
 
         const draft = buildEventMessage(event({ setup: { status: "draft", groups: approved.groups } }), signups, { now: NOW });
         expect(JSON.stringify(draft)).not.toContain("Setup");
@@ -528,17 +528,23 @@ describe("services/events/eventMessage", () => {
             const fields = buildEventMessage(event(), signups, { now: NOW, icsUrl: "https://eh.example/ics/eh-1.ics", ...opts }).embeds[0].fields;
             return fields[fields.length - 1].value;
         };
-        const head = "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)";
+        // "Comp" is the setup link of #520 (always there); the sheet of #357 is "Sheet" since
+        const head = "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://eh.example/e/eh-1/comp)";
         expect(links({})).toBe(`${head}  ·  [Calendar](https://eh.example/ics/eh-1.ics)`);
         expect(links({ compUrl: "https://docs.google.com/spreadsheets/d/abc" })).toBe(
-            `${head}  ·  [Comp](https://docs.google.com/spreadsheets/d/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)`,
+            `${head}  ·  [Sheet](https://docs.google.com/spreadsheets/d/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)`,
         );
         expect(links({ srUrl: "https://softres.it/raid/abc" })).toBe(
             `${head}  ·  [SR](https://softres.it/raid/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)`,
         );
         expect(links({ compUrl: "https://docs.google.com/spreadsheets/d/abc", srUrl: "https://softres.it/raid/abc" })).toBe(
-            `${head}  ·  [Comp](https://docs.google.com/spreadsheets/d/abc)  ·  [SR](https://softres.it/raid/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)`,
+            `${head}  ·  [Sheet](https://docs.google.com/spreadsheets/d/abc)  ·  [SR](https://softres.it/raid/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)`,
         );
+    });
+
+    it("links Comp to the redirect route of the event, one link for everybody (#520)", () => {
+        const fields = buildEventMessage(event({ id: "eh-2" }), signups, { now: NOW }).embeds[0].fields;
+        expect(fields[fields.length - 1].value).toContain("[Comp](https://eh.example/e/eh-2/comp)");
     });
 
     it("posts the message with the application emojis and remembers where it sits and what it shows", async () => {

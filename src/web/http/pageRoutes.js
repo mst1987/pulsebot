@@ -25,6 +25,7 @@ const raidplanStore = require("../../stores/raidplanStore");
 const { getEvent } = require("../../stores/eventStore");
 const { versionInfo } = require("./version");
 const auth = require("./auth");
+const { userCan, userHasMenuAccess } = require("../../config/permissions");
 const apiRouter = require("./apiRouter");
 const { serveAsset } = require("../report/assets");
 
@@ -153,6 +154,23 @@ function eventPage({ res, params }) {
     return send(res, html ? 200 : 404, html || renderNotFound());
 }
 
+// The "Comp" link of the event message (#520): /e/<eventId>/comp. A Discord
+// message is the same for everybody, so the link lands here and the server sends
+// each reader on — whoever may write in "raids" (the gate of the setup editor,
+// the same check as apiAccess; auth.getUser applies an active "Ansicht als")
+// into the setup tab of the raid detail page, everyone else (no login, no
+// right) to the public event page. Only own events have that page and the
+// message, so an unknown id — a Raid-Helper one included — is a 404. Nothing is
+// cached: the answer depends on who asks.
+function eventComp({ req, res, params }) {
+    const event = getEvent(params[0]);
+    if (!event) return send(res, 404, renderNotFound());
+    const id = encodeURIComponent(event.id);
+    const user = auth.getUser(req);
+    const orga = !!user && userHasMenuAccess(user) && userCan(user, "raids", "write");
+    return redirect(res, orga ? `/raids/detail?event=${id}&tab=setup` : `/e/${id}`, { "Cache-Control": "no-store" });
+}
+
 // Room maps of the raid plan (docs/raidplan.md): /rp-map/<instance>[/<boss>], no
 // login — the public plan page shows them too, and a map is a picture the orga
 // uploaded, nothing personal. The key is checked against the known instances
@@ -210,6 +228,7 @@ const PAGE_ROUTES = [
     { name: "health", method: "GET", exact: "/health", handler: health },
     { name: "calendar-user", method: "GET", pattern: /^\/r\/cal\/user\/([a-zA-Z0-9_-]+)\.ics$/, handler: userCalendar },
     { name: "calendar-event", method: "GET", pattern: /^\/r\/cal\/([a-zA-Z0-9_-]+)\.ics$/, handler: eventCalendar },
+    { name: "event-comp", method: "GET", pattern: /^\/e\/([a-zA-Z0-9_-]+)\/comp\/?$/, handler: eventComp },
     { name: "event-page", method: "GET", pattern: /^\/e\/([a-zA-Z0-9_-]+)\/?$/, handler: eventPage },
     { name: "raidplan-map", method: "GET", pattern: /^\/rp-map\/((?:[te]\/[a-z0-9-]{3,40}\/)?[a-z0-9]+(?:\/[a-z0-9-]+)?)$/, handler: raidplanMap },
     { name: "report-asset", method: "GET", prefix: "/r-assets/", handler: reportAsset },
