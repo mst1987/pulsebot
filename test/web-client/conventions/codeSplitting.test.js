@@ -4,7 +4,8 @@
 // a chunk of its own inside the raid detail page, and only the active language
 // is fetched. There is no bundler in this test run, so the invariants are read
 // from the sources: which modules are imported statically (they land in the
-// same chunk) and which only through `lazy(() => import(...))`.
+// same chunk) and which only through `lazyWithReload(() => import(...))` (lazy() plus the reload
+// after a deploy, #530).
 const fs = require("fs");
 const path = require("path");
 
@@ -48,15 +49,15 @@ describe("the routes are loaded lazily", () => {
     it("imports no page and not the shell statically", () => {
         expect(app).not.toMatch(/^import [^;]*from "\.\/pages\//m);
         expect(app).not.toMatch(/^import (?!type\s)[^;]*from "\.\/components\/Shell";/m);
-        expect(app).toContain("const Shell = lazy(() => import(\"./components/Shell\"));");
-        expect(app).toContain("const PlanPublicPage = lazy(() => import(\"./pages/PlanPublicPage\"));");
+        expect(app).toContain("const Shell = lazyWithReload(() => import(\"./components/Shell\"));");
+        expect(app).toContain("const PlanPublicPage = lazyWithReload(() => import(\"./pages/PlanPublicPage\"));");
     });
 
     it("has a lazy component for every page a route renders", () => {
         const rendered = new Set([...app.matchAll(/<(\w+Page) \/>/g)].map((m) => m[1]));
         expect(rendered.size).toBeGreaterThan(20);
         for (const page of rendered) {
-            expect(app).toMatch(new RegExp(`const ${page} = lazy\\(\\(\\) => import\\("\\./pages/[\\w/]+"\\)\\);`));
+            expect(app).toMatch(new RegExp(`const ${page} = lazyWithReload\\(\\(\\) => import\\("\\./pages/[\\w/]+"\\)\\);`));
         }
     });
 
@@ -83,8 +84,20 @@ describe("the routes are loaded lazily", () => {
     it("loads the raidplan editor only when its tab is opened", () => {
         const detail = read("pages/RaidDetailPage.tsx");
         expect(detail).not.toMatch(/^import [^;]*from "\.\/raid-detail\/RaidplanTab";/m);
-        expect(detail).toContain("const RaidplanTab = lazy(() => import(\"./raid-detail/RaidplanTab\"));");
+        expect(detail).toContain("const RaidplanTab = lazyWithReload(() => import(\"./raid-detail/RaidplanTab\"));");
         expect(staticGraph("pages/RaidDetailPage.tsx")).not.toContain("pages/raid-detail/RaidplanTab.tsx");
+    });
+
+    // #530: after a deploy the old chunks are gone; a plain lazy() left an open
+    // tab blank. Every lazy chunk goes through lazyWithReload, the entry installs
+    // the vite:preloadError handler, and a boundary catches what still fails.
+    it("reloads once instead of going blank when a chunk is gone after a deploy", () => {
+        for (const file of ["App.tsx", "pages/RaidDetailPage.tsx"]) {
+            expect(read(file)).not.toMatch(/\blazy\(/);
+        }
+        expect(read("main.tsx")).toContain("installPreloadErrorReload();");
+        expect(read("App.tsx")).toMatch(/<ChunkErrorBoundary>\s*<Suspense fallback=\{<RaidLoader text=/);
+        expect(read("components/Shell.tsx")).toMatch(/<ChunkErrorBoundary resetKey=\{location\.pathname\}>\s*<Suspense fallback=\{<RaidLoader \/>\}>/);
     });
 });
 

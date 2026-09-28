@@ -65,8 +65,32 @@ echo "$LOG_TAG Node $(node --version) at $(command -v node), npm $(npm --version
 echo "$LOG_TAG Installing dependencies..."
 npm ci --omit=dev
 
+# Every chunk under dist/assets/ carries its content hash in the name, and Vite
+# empties dist/ on each build. A tab opened before this deploy still asks for
+# the old names (#530) - keep the previous build's assets next to the new ones
+# so it goes on working; files older than ASSET_KEEP_DAYS are pruned. index.html
+# is never carried over, so every new page load gets the new build. A tab that
+# asks for a chunk that is gone anyway reloads itself (lib/chunkReload.ts).
+ASSET_DIR="src/web-client/dist/assets"
+ASSET_KEEP_DAYS=14
+PREV_ASSETS=""
+if [ -d "$ASSET_DIR" ]; then
+    PREV_ASSETS="$(mktemp -d)" || PREV_ASSETS=""
+    if [ -n "$PREV_ASSETS" ]; then
+        cp -a "$ASSET_DIR/." "$PREV_ASSETS/" || true
+    fi
+fi
+
 echo "$LOG_TAG Building web admin client..."
 (cd src/web-client && npm ci && npm run build)
+
+if [ -n "$PREV_ASSETS" ]; then
+    echo "$LOG_TAG Keeping the previous build's assets for open tabs (up to $ASSET_KEEP_DAYS days)..."
+    # -n: a file the new build wrote itself (same hash) is never overwritten
+    cp -an "$PREV_ASSETS/." "$ASSET_DIR/" 2>/dev/null || true
+    rm -rf "$PREV_ASSETS"
+    find "$ASSET_DIR" -type f -mtime +"$ASSET_KEEP_DAYS" -delete || true
+fi
 
 echo "$LOG_TAG Checking required environment variables..."
 REQUIRED_VARS=("DISCORDJS_BOT_TOKEN" "CLIENT_ID" "GUILD_ID" "RAIDHELPER_API_KEY" "RAIDHELPER_SERVER_ID")
