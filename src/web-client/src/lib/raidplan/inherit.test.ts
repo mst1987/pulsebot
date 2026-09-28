@@ -1,6 +1,9 @@
 // The Standard of a template (lib/raidplan/inherit.ts): inherited, deviated, switched off, the relative boss target, copy to all.
 import { describe, expect, it } from "vitest";
 import * as inh from "./inherit";
+import { requireBackend } from "../../test/backend";
+
+const server = requireBackend("services/raidplan/raidplanInherit");
 
 const row = (id, type, assignees, targets, extra = {}) => ({ id, type, title: "", spell: null, assignees, targets, note: "", suggested: true, ...extra });
 const board = (over = {}) => ({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], notes: "", counts: null, roles: {}, mobs: [], hiddenCards: [], inheritOff: [], ...over });
@@ -103,5 +106,46 @@ describe("copy to all", () => {
         expect(r["bt/a"]).toBe(dev);
         expect(r["bt/b"].assignments[0].id).toBe("kick1");
         expect(r["bt/b"].assignments).toHaveLength(4);
+    });
+});
+
+describe("the effective rows of a section (#524: event plans and templates alike)", () => {
+    const own = (id, extra = {}) => row(id, "kick", ["slot:dps:1"], [], { suggested: false, ...extra });
+    it("the Standard first in its order, then the own rows; a deviation in the place of its default; a hidden row left out", () => {
+        const b = board({ assignments: [own("o1"), own("x", { type: "tank", origin: "d2" })], inheritOff: ["d2", "d3"] });
+        expect(inh.mergeInherited(defaults, b, boss("bt/supremus", "Supremus")).map((a) => a.id)).toEqual(["d1", "x", "o1"]);
+        const plain = inh.mergeInherited(defaults, board({ assignments: [own("o1")] }), boss("bt/supremus", "Supremus"));
+        expect(plain.map((a) => a.id)).toEqual(["d1", "d2", "d3", "o1"]);
+        expect(plain[0]).toMatchObject({ origin: "d1", suggested: false, targets: [{ ref: "b:bt/supremus" }] });
+    });
+    it("only boss and trash sections inherit; 'Allgemein' and the Standard keep their own rows", () => {
+        const bosses = { defaults: board({ assignments: defaults }), general: board({ assignments: [own("g")] }), "bt/trash": board() };
+        expect(inh.effectiveRows(bosses, "general", trash).map((a) => a.id)).toEqual(["g"]);
+        expect(inh.effectiveRows(bosses, "defaults", trash).map((a) => a.id)).toEqual(["d1", "d2", "d3"]);
+        expect(inh.effectiveRows(bosses, "bt/trash", trash).map((a) => a.targets.length)).toEqual([0, 1, 2]);
+        expect(inh.effectiveRows(bosses, "bt/supremus", boss("bt/supremus", "Supremus"))).toHaveLength(3);
+        expect(["bt/supremus", "bt/trash", "general", "defaults"].map(inh.inherits)).toEqual([true, true, false, false]);
+    });
+    it("a change of the Standard reaches every section that did not deviate; a deviated one keeps its row", () => {
+        const swapped = defaults.map((d) => (d.id === "d3" ? { ...d, assignees: ["slot:healer:4"] } : d));
+        const dev = board({ assignments: [own("mine", { type: "heal", assignees: ["slot:healer:2"], origin: "d3" })], inheritOff: ["d3"] });
+        const bosses = { defaults: board({ assignments: swapped }), "bt/supremus": board(), "bt/gurtogg": dev };
+        expect(inh.effectiveRows(bosses, "bt/supremus", boss("bt/supremus", "Supremus")).find((a) => a.type === "heal")?.assignees).toEqual(["slot:healer:4"]);
+        expect(inh.effectiveRows(bosses, "bt/gurtogg", boss("bt/gurtogg", "Gurtogg")).find((a) => a.type === "heal")?.assignees).toEqual(["slot:healer:2"]);
+    });
+    it("is the twin of the server's mergeRows / effectiveRows: the same rows in the same order for the same boards", () => {
+        const sections = { "bt/supremus": boss("bt/supremus", "Supremus"), "bt/trash": trash, general: trash };
+        const serverSection = (s) => ({ bossMob: s.bossMob, mobs: new Map(s.mobs.map((m) => [m.id, m])) });
+        const bosses = {
+            defaults: board({ assignments: defaults }),
+            "bt/supremus": board({ assignments: [own("o1"), own("x", { type: "tank", origin: "d2" })], inheritOff: ["d2"] }),
+            "bt/trash": board({ inheritOff: ["d3"] }),
+            general: board({ assignments: [own("g")] }),
+        };
+        for (const key of Object.keys(sections)) {
+            const client = inh.effectiveRows(bosses, key, sections[key]);
+            const srv = server.effectiveRows(bosses, key, serverSection(sections[key]));
+            expect(client).toEqual(srv);
+        }
     });
 });

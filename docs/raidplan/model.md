@@ -30,9 +30,10 @@ equal terms — neither is a stopgap for the other.
 ## Data model
 
 `data/settings/raidplans.json`: `{ plans: [{ eventId, version, status: "draft" | "published", publicToken,
-templateId, bosses, updatedAt, updatedBy, link, known }] }` (`link` and `known` only on a Raid-Helper event's
-plan, see "Raid-Helper-Events"), `bosses[bossKey]` = a **board** (`raidplanBoard.js`, one shape for plans and
-templates):
+templateId, bosses, updatedAt, updatedBy, link, known, defaultsMigrated }] }` (`link` and `known` only on a
+Raid-Helper event's plan, see "Raid-Helper-Events"; `defaultsMigrated` see "The Standard of an event"),
+`bosses[bossKey]` = a **board** (`raidplanBoard.js`, one shape for plans and templates; `bosses.defaults` is the
+Standard, a board with only rows):
 
 - `tokens` `[{ userId, x, y }]` — free player tokens (plans only);
 - `slots` `[{ id, kind, n, label, x, y, userId, size, hideMembers, split, offsets }]` — placeholders:
@@ -224,6 +225,54 @@ stay on rows whose title stays), typed rows are kept.
 - **Dev data:** `scripts/seed-test-raid.js` builds the demo template "BT Demo" and applies it (heal
   assignments for Naj'entus, Supremus, Gurtogg, Illidan and the trash, plus kicks, misdirects, soulstones,
   fear ward, curses ...), see "Test raid".
+
+## The Standard of an event (#524)
+
+"Ich muss bei den Raids auch die generellen Einteilungen für alle Bosse an einer Stelle anpassen können": an event
+plan has the same **Standard** as a template (the section `defaults`, editor.md "Round 3", "Standard"). Its rows
+(tank -> boss of this section, the heal card with class references on tanks and groups ...) are stored ONCE in
+`bosses.defaults.assignments`; every boss and trash inherits them, "Allgemein" does not. A boss deviates with a
+copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches a row off (`inheritOff` only).
+
+- **Effective rows**: `raidplanInherit.effectiveRows(bosses, key, section)` (server) and
+  `lib/raidplan/inherit.ts effectiveRows` (client twin, the same cases in `inherit.test.ts`): the Standard's rows in
+  its order, resolved for the section (`b:this` -> the section's boss, a mob it lacks dropped), a deviation in the
+  place of its default, a hidden row left out; then the section's own rows. An inherited row keeps the Standard's
+  id and carries `origin` = that id, so `rowKey` (auto tokens) is the same in every boss. What reads rows goes
+  through it: the read view (`publicView`: a boss without a board of its own is listed when it inherits rows),
+  "Meine Aufgaben", the boss mark (#503), the auto tokens (#498), the lines (#507), the suggestions' `context`
+  (#501) and the Einteilungs-Link (#502, the same read view). Class references stay references and resolve against
+  the setup on every read, per section with its Besetzung (as before).
+- **Saving**: the route's `bossKeys` are `raidplan.planKeys(event)` (the sections plus `defaults`); the editor view
+  lists the Standard first (`raidplan.withStandard`).
+- **"Vorlage anwenden"** (`raidplanStore.applyTemplate`): the template's Standard becomes the event's Standard
+  (cleaned, under the template's row ids, so `inheritOff`, deviations and moved tanks keep pointing at them); the
+  bosses get the template's boards with their `inheritOff` (no copies any more). With a Standard every boss of the
+  template's instances is replaced (by the template's board, or by none: it then only inherits); a template without
+  a Standard removes the event's.
+- **Migration** (one-off, `settingsMigration` -> `raidplanStore.migrateEventDefaults` ->
+  `services/raidplan/raidplanDefaultsMigration.js migratePlan`): before #524 the apply wrote the Standard's rows as
+  copies (`origin: "default"`) into every boss. Every plan without `defaultsMigrated: true` is switched once:
+  copies that read the same in more than half of the sections holding copies (and at least two) - same type,
+  task, assignees, targets RELATIVE to the section (`b:<key>` read as `b:this`), note, classes, picks - become one
+  Standard row (order: where the copies stood); a section whose copy differs keeps it as its deviation (a copy of
+  the same type at the same place), a section without it switches the row off; rows without `origin: "default"`
+  stay; the moved tanks (`autoPos` / `autoStyle` keys) move to the Standard row's id. **Every section is checked**:
+  its effective rows after must equal its rows before (content and order, ids aside); where not, it keeps its board
+  and switches every Standard row off. The sections come from the event's instances (own event, else the plan's
+  `link`, plus the instances of the stored keys), so a boss without a board switches the rows off too. Before the
+  write the file is copied to `raidplans.json.bak-<yyyymmdd>` (a second one the same day gets a time suffix); the
+  log line reads `[settings] Migration: raidplans.json: Standard-Abschnitt (#524) - n Plan/Pläne geprüft, m
+  umgestellt, r Standard-Zeile(n) aus c Kopie(n), d Abweichung(en), k Abschnitt(e) unverändert behalten, Sicherung
+  …`. Idempotent: every plan carries the mark afterwards (a new plan is born with it, `emptyPlan`), the second start
+  writes nothing.
+- Tests: `test/services/raidplan/raidplanDefaultsMigration.test.js` (golden master: a plan built the way the old
+  apply built it, edited by hand - a changed copy, a deleted copy, an own row in front, a moved tank; effective
+  rows of every section identical before / after; idempotent; backup), `raidplanInherit.test.js` (apply, merge,
+  twins), `test/stores/settingsMigration.test.js` (log line), `test/web/apiRoutes/raidplan.test.js` (save, read
+  view), `src/web-client/src/lib/raidplan/inherit.test.ts` (client twin against the server) and
+  `pages/raid-detail/raidplan/EventStandard.test.tsx` (the Standard tab, inherited rows in a boss, swap, deviate,
+  hide / restore, auto tokens and lines of inherited rows).
 
 ## Permissions
 

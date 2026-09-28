@@ -247,7 +247,7 @@
         "none": "Keine Vorlage",
         "pick": "Vorlage wählen",
         "pickTitle": "Vorlage anwenden",
-        "hint": "Kopiert die Vorlage in diesen Plan. Spätere Änderungen der Vorlage wirken hier nicht.",
+        "hint": "Kopiert die Vorlage in diesen Plan; ihr Standard wird der Standard dieses Plans, den jeder Boss erbt. Spätere Änderungen der Vorlage wirken hier nicht.",
         "empty": "Leer",
         "emptyText": "Ohne Vorlage anfangen (Standard).",
         "bosses": {
@@ -721,7 +721,7 @@
         "title": "Standard",
         "thisBoss": "Boss (dieser Abschnitt)",
         "inherited": "Standard",
-        "inheritedTip": "Geerbt aus dem Standard der Vorlage. Änderungen im Standard wirken auf alle Bosse, die nicht abweichen.",
+        "inheritedTip": "Geerbt aus dem Standard. Änderungen im Standard wirken auf alle Bosse, die nicht abweichen.",
         "deviate": "Für diesen Boss abweichen (Zeile wird bossspezifisch)",
         "hideRow": "Für diesen Boss ausblenden",
         "restore": "Standard wiederherstellen (Abweichungen dieser Karte zurücksetzen)",

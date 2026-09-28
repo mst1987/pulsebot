@@ -3,7 +3,7 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 const fs = require("fs");
 const { settingsPath } = require("../../src/config/paths");
 const {
-    migrateSettings, legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate,
+    migrateSettings, legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, raidplanDefaultsLine,
 } = require("../../src/stores/settingsMigration");
 const { getConfig } = require("../../src/stores/configStore");
 const { listRaidTemplates } = require("../../src/stores/raidTemplateStore");
@@ -157,5 +157,30 @@ describe("stores/settingsMigration steps", () => {
         expect(migrateCategoryRaidTemplate({ categoryIds: ["a"] }, templates)).toBeNull();
         // no category list stored: the default categories get it, like before
         expect(Object.values(migrateCategoryRaidTemplate({ raidDefaults: { templateId: "3" } }, templates)).every((id) => id === "rh-3")).toBe(true);
+    });
+});
+
+describe("stores/settingsMigration: the raid plans' Standard (#524)", () => {
+    const PLANS_FILE = settingsPath("raidplans.json");
+    const copy = (id) => ({ id, type: "heal", title: "", spell: null, assignees: ["class:Priest:1"], targets: [{ kind: "slot", ref: "tank:1" }], note: "", suggested: false, origin: "default" });
+    it("turns the copies of an old plan into its Standard once, backs the file up and logs one line; the second start is silent", () => {
+        const bosses = {};
+        ["bt/supremus", "bt/gurtogg-bloodboil", "bt/trash"].forEach((key, i) => { bosses[key] = { assignments: [copy(`c${i}`)] }; });
+        fs.__store.set(PLANS_FILE, JSON.stringify({ plans: [{ eventId: "eh_1", version: 2, bosses }] }));
+        const log = jest.fn();
+        const { changes } = migrateSettings({ log });
+        expect(changes).toHaveLength(1);
+        expect(changes[0]).toMatch(/^raidplans\.json: Standard-Abschnitt \(#524\) - 1 Plan\/Pläne geprüft, 1 umgestellt, 1 Standard-Zeile\(n\) aus 3 Kopie\(n\), 0 Abweichung\(en\), 0 Abschnitt\(e\) unverändert behalten, Sicherung raidplans\.json\.bak-\d{8}$/);
+        expect(log).toHaveBeenCalledWith(expect.stringContaining("[settings] Migration: raidplans.json"));
+        const plan = stored(PLANS_FILE).plans[0];
+        expect(plan.defaultsMigrated).toBe(true);
+        expect(plan.bosses.defaults.assignments).toHaveLength(1);
+        expect([...fs.__store.keys()].some((k) => /raidplans\.json\.bak-\d{8}$/.test(k))).toBe(true);
+        const again = jest.fn();
+        expect(migrateSettings({ log: again }).changes).toEqual([]);
+        expect(again).not.toHaveBeenCalled();
+    });
+    it("words the line without a backup when there was no file to back up", () => {
+        expect(raidplanDefaultsLine({ plans: 1, migrated: 0, rows: 0, copies: 0, deviations: 0, kept: 0, backup: "" })).toBe("raidplans.json: Standard-Abschnitt (#524) - 1 Plan/Pläne geprüft, 0 umgestellt, 0 Standard-Zeile(n) aus 0 Kopie(n), 0 Abweichung(en), 0 Abschnitt(e) unverändert behalten");
     });
 });

@@ -17,13 +17,20 @@
 //     new names ("waitlist"/"refuse"), so a later deliberate choice is never
 //     switched back. Signups the old rule already put on the bench stay there.
 //
+//   - raidplans.json (#524): the copies of a template's Standard in every boss of
+//     an event plan become the event's Standard again
+//     (raidplanStore.migrateEventDefaults); the file is backed up first, every
+//     plan is marked `defaultsMigrated`.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
+const path = require("path");
 const { isSnowflake } = require("../utils/ids");
 const { CONFIG_DEFAULTS } = require("./configSchema");
 const configStore = require("./configStore");
 const raidTemplateStore = require("./raidTemplateStore");
 const eventStore = require("./eventStore");
+const raidplanStore = require("./raidplanStore");
 
 /**
  * The event-server list an old single-server block stands for: its
@@ -88,6 +95,12 @@ function migrateConfig() {
     return changes;
 }
 
+/** The log line of the raid plan switch (#524): plans checked / switched, Standard rows made from how many copies, deviations, backup. */
+function raidplanDefaultsLine(r) {
+    const backup = r.backup ? `, Sicherung ${path.basename(r.backup)}` : "";
+    return `raidplans.json: Standard-Abschnitt (#524) - ${r.plans} Plan/Pläne geprüft, ${r.migrated} umgestellt, ${r.rows} Standard-Zeile(n) aus ${r.copies} Kopie(n), ${r.deviations} Abweichung(en), ${r.kept} Abschnitt(e) unverändert behalten${backup}`;
+}
+
 /**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
@@ -103,6 +116,8 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         const templates = raidTemplateStore.migrateLegacyTemplates();
         if (templates) changes.push(`raid-templates.json: ${templates} alte Raid-Helper-Vorlage(n) umgestellt`);
         changes.push(...migrateConfig());
+        const plans = raidplanStore.migrateEventDefaults({ instanceIdsOf: (plan) => (eventStore.getEvent(plan.eventId) || {}).instanceIds || [] });
+        if (plans) changes.push(raidplanDefaultsLine(plans));
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -111,4 +126,4 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
     return { changes };
 }
 
-module.exports = { migrateSettings, legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate };
+module.exports = { migrateSettings, raidplanDefaultsLine, legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate };

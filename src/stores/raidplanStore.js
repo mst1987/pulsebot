@@ -37,6 +37,7 @@ const inherit = require("../services/raidplan/raidplanInherit");
 const { str } = require("../utils/text");
 const { isSnowflake } = require("../utils/ids");
 const catalogStore = require("./raidplanCatalogStore");
+const migrateDefaults = require("../services/raidplan/raidplanDefaultsMigration");
 
 const LIMITS = { ...board.LIMITS, mapBytes: 3 * 1024 * 1024 };
 
@@ -222,6 +223,8 @@ function normalizePlan(raw, eventId) {
         updatedBy: str(r.updatedBy),
         link: normalizeLink(r.link),
         known: normalizeKnown(r.known),
+        // the rows of the Standard were written into every boss before #524; true = the plan is past that switch (migrateEventDefaults)
+        defaultsMigrated: r.defaultsMigrated === true,
     };
 }
 
@@ -288,7 +291,8 @@ function getPublishedByToken(token) {
 
 /** An empty plan for an event that has none (nothing is written). */
 function emptyPlan(eventId) {
-    return normalizePlan({}, eventId);
+    // a new plan starts with the event Standard of #524: nothing of it to switch
+    return normalizePlan({ defaultsMigrated: true }, eventId);
 }
 
 // ---- validation ------------------------------------------------------------------
@@ -360,23 +364,24 @@ function applyTemplate(eventId, template, { version, bossKeys, roster, userId, t
     }
     const allowed = new Set(bossKeys);
     const bosses = { ...current.bosses };
+    const allowedUserIds = roster.map((p) => p.userId);
+    // the template's Standard becomes the event's Standard (#524): its rows stay inherited by every boss and trash of the event (a later
+    // change there reaches them all), under the template's row ids, so the bosses' `inheritOff`, their deviations (`origin`) and the moved
+    // tanks of inherited rows (`autoPos` keys) keep pointing at them. Class references stay references (resolved against the setup on read).
     const defaultRows = ((template.bosses || {})[inherit.DEFAULTS_KEY] || {}).assignments || [];
+    const std = board.cleanBoard({ assignments: defaultRows }, { allowedUserIds });
+    if (std.error) return std;
+    if (board.boardHasContent(std.board)) bosses[inherit.DEFAULTS_KEY] = std.board; else delete bosses[inherit.DEFAULTS_KEY];
     const meta = new Map(bossesForInstances(template.instanceIds).map((b) => [b.key, b]));
-    let mobsOfCatalog = null;
-    // every boss (and trash) the event has gets the template's board, or an empty one when the template has only the Standard for it
-    const keys = new Set([...Object.keys(template.bosses || {}).filter((k) => k !== inherit.DEFAULTS_KEY), ...(defaultRows.length > 0 ? bossKeys.filter((k) => meta.has(k) && !meta.get(k).general) : [])]);
+    // with a Standard every boss (and trash) of the template's instances is replaced: by the template's board, or by none (it then has
+    // exactly the inherited rows, as before #524 with the copies)
+    const keys = new Set([...Object.keys(template.bosses || {}).filter((k) => k !== inherit.DEFAULTS_KEY), ...(defaultRows.length > 0 ? bossKeys.filter((k) => meta.has(k) && inherit.inherits(k)) : [])]);
     for (const key of keys) {
         if (!allowed.has(key)) continue;
-        let tb = (template.bosses || {})[key] || {};
-        const bm = meta.get(key);
-        if (defaultRows.length > 0 && bm && !bm.general) {
-            if (!mobsOfCatalog) mobsOfCatalog = catalogStore.listMobs();
-            const section = inherit.sectionOf(bm, mobsOfCatalog, tb.mobs);
-            tb = { ...tb, assignments: inherit.effectiveRows(defaultRows, tb, section) };
-        }
-        const copy = board.reidBoard({ ...tb, tokens: [], inheritOff: [], profileId: tb.profileId || "" });
+        const tb = (template.bosses || {})[key] || {};
+        const copy = board.reidBoard({ ...tb, tokens: [], profileId: tb.profileId || "" });
         copy.slots = board.fillSlots(copy.slots, roster);
-        const cleaned = board.cleanBoard(copy, { allowedUserIds: roster.map((p) => p.userId), profileIds: tb.profileId ? [tb.profileId] : [] });
+        const cleaned = board.cleanBoard(copy, { allowedUserIds, profileIds: tb.profileId ? [tb.profileId] : [] });
         if (cleaned.error) return cleaned;
         if (board.boardHasContent(cleaned.board)) bosses[key] = cleaned.board; else delete bosses[key];
     }
@@ -422,6 +427,45 @@ function setLink(eventId, input, { userId, knownRoster = null, now = Date.now() 
     if (idx === -1) plans.push(next); else plans[idx] = next;
     writeAll(plans);
     return { plan: next };
+}
+
+/**
+ * The one-off switch of #524, run at start by settingsMigration.js: every plan without the mark `defaultsMigrated` gets its copies of the
+ * template's Standard (`origin: "default"` in each boss) turned into the event's Standard (raidplanDefaultsMigration.migratePlan: the
+ * effective rows of every section stay exactly as they were). `instanceIdsOf(plan)` names the instances of the plan's event (the own
+ * event's, else a Raid-Helper plan's `link`), so a section without a board of its own is known too; the instances of the stored keys
+ * always count. Before the first write the file is copied to `raidplans.json.bak-<yyyymmdd>` next to it. Idempotent: every plan carries
+ * the mark afterwards, a second run finds nothing and writes nothing.
+ * @returns {{ plans: number, migrated: number, rows: number, copies: number, deviations: number, kept: number, backup: string } | null}
+ *   null = nothing to do
+ */
+function migrateEventDefaults({ instanceIdsOf = () => [], now = new Date() } = {}) {
+    const plans = readAll();
+    if (!plans.some((p) => p && p.defaultsMigrated !== true)) return null;
+    const catalogMobs = catalogStore.listMobs();
+    const sum = { plans: 0, migrated: 0, rows: 0, copies: 0, deviations: 0, kept: 0, backup: "" };
+    const next = plans.map((p) => {
+        if (!p || p.defaultsMigrated === true) return p;
+        sum.plans += 1;
+        const bosses = p.bosses && typeof p.bosses === "object" ? p.bosses : {};
+        const fromKeys = Object.keys(bosses).filter((k) => k.includes("/")).map((k) => k.split("/")[0]);
+        const ids = [...new Set([...(instanceIdsOf(p) || []), ...((p.link && p.link.instanceIds) || []), ...fromKeys])];
+        const r = migrateDefaults.migratePlan(bosses, bossesForInstances(ids), catalogMobs);
+        if (!r) return { ...p, defaultsMigrated: true };
+        sum.migrated += 1;
+        for (const k of ["rows", "copies", "deviations", "kept"]) sum[k] += r[k];
+        return { ...p, bosses: r.bosses, defaultsMigrated: true };
+    });
+    const file = store.file;
+    if (fs.existsSync(file)) {
+        const day = now.toISOString().slice(0, 10).replace(/-/g, "");
+        let backup = `${file}.bak-${day}`;
+        if (fs.existsSync(backup)) backup = `${file}.bak-${day}-${now.getTime()}`;
+        fs.writeFileSync(backup, fs.readFileSync(file));
+        sum.backup = backup;
+    }
+    writeAll(next);
+    return sum;
 }
 
 /** Removes the plan of an event (it was deleted). */
@@ -527,7 +571,7 @@ function mapForBoss(boss, { eventId = "", templateId = "" } = {}) {
 
 module.exports = {
     useFile, LIMITS, bossKeyOf, bossesForInstances, isMapKey, getPlan, getPublishedByToken, emptyPlan, savePlan, applyTemplate, mapScope,
-    templateMapKey, eventMapKey, setPublished, deletePlan, setLink, playersOf, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
+    templateMapKey, eventMapKey, setPublished, deletePlan, setLink, migrateEventDefaults, playersOf, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
     // only for the tests (#424): not part of the module's API
     _internal: {
         slug, normalizeLink, knownAfter, sniffImage,

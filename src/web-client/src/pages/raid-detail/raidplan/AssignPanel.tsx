@@ -107,7 +107,7 @@ const MOB_TYPES = ["tank", "trashtank", "special", "cc", "kick", "dispel", "othe
  * the others appear with their first row or through "Karte hinzufügen". The old task rows are
  * rows of the type "other".
  */
-export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, groupCount, links, onLinks, catalog, sectionMobs, inherited = [], defaultRows = [], onCopyDefaults, openRequest = null }: {
+export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, groupCount, links, onLinks, catalog, sectionMobs, inherited = [], effective, defaultRows = [], onCopyDefaults, openRequest = null }: {
     scope: string;
     board: RaidplanBoard;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
@@ -126,6 +126,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     sectionMobs: RaidplanMobRef[];
     /** the rows this section inherits from the template's Standard (resolved for it), shown in their cards and not editable in place */
     inherited?: RaidplanAssignment[];
+    /** the section's EFFECTIVE rows (own + inherited, in the order the read view uses); without it: own, then inherited */
+    effective?: RaidplanAssignment[];
     /** the Standard's own rows (to restore a card) */
     defaultRows?: RaidplanAssignment[];
     /** in the Standard's own editor: writes its rows into every boss that does not differ (asks first) */
@@ -143,7 +145,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const [editAt, setEditAt] = useState<{ slot: string; cat: string }>({ slot: "who", cat: "" });
     const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
     // the section's own rows and the ones it inherits, resolved together (the same order the facing and the sheet use)
-    const filled = useMemo(() => expandClassRefs([...board.assignments, ...inherited], board.slots, roster, board.roles), [board.assignments, inherited, board.slots, board.roles, roster]);
+    const rowsAll = useMemo(() => effective || [...board.assignments, ...inherited], [effective, board.assignments, inherited]);
+    const filled = useMemo(() => expandClassRefs(rowsAll, board.slots, roster, board.roles), [rowsAll, board.slots, board.roles, roster]);
     const filledOf = (a: RaidplanAssignment) => filled.find((x) => x.id === a.id) || a;
     const openRow = (id: string, slot = "who", cat = "") => { setEditAt({ slot, cat }); setEditing(id); };
     /** An inherited row becomes the section's own (a copy, the default switched off here) and opens in the dialog. */
@@ -200,7 +203,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
             // the rows of this type made by hand stay: the suggestion goes round the raiders they already name
             const keep = board.assignments.filter((a) => a.type === type && !a.suggested);
             // the rows of the other kinds of task: the ranking knows who tanks here and who already has how many tasks (#501)
-            const context = [...board.assignments, ...inherited].filter((a) => a.type !== type);
+            const context = rowsAll.filter((a) => a.type !== type);
             const r = await suggestRaidplan({ event: isEvent ? eventId : undefined, type, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep, context });
             if (r.assignments.length === 0) toast(t("raidBoard.assign.noSuggestion"));
             else edit((b) => applySuggestions(b, type, r.assignments));
@@ -285,7 +288,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const suggestAssignees = async (a: RaidplanAssignment): Promise<string[] | null> => {
         try {
             const keep = board.assignments.filter((x) => x.type === a.type && x.id !== a.id);
-            const context = [...board.assignments, ...inherited].filter((x) => x.type !== a.type);
+            const context = rowsAll.filter((x) => x.type !== a.type);
             const r = await suggestRaidplan({ event: isEvent ? eventId : undefined, type: a.type, preferredClasses: effectiveClasses(board, a), allowOthers: !!a.allowOthers, preferredRole: a.preferredRole, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep, context });
             if (r.assignments.length === 0) { toast(t("raidBoard.assign.noSuggestion")); return null; }
             return r.assignments[0].assignees;

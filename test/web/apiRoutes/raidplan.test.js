@@ -84,8 +84,10 @@ describe("GET /api/raidplan", () => {
         const d = body(r);
         expect(d.canWrite).toBe(true);
         expect(d.plan).toMatchObject({ version: 0, status: "draft", publicPath: "", bosses: {} });
-        expect(d.bosses[0]).toMatchObject({ key: "general" });
-        expect(d.bosses[1]).toMatchObject({ key: "bt/high-warlord-najentus", mapUrl: "" });
+        // the event's Standard (#524) first, then "Allgemein" and the bosses
+        expect(d.bosses[0]).toMatchObject({ key: "defaults", defaults: true, name: "Standard" });
+        expect(d.bosses[1]).toMatchObject({ key: "general" });
+        expect(d.bosses[2]).toMatchObject({ key: "bt/high-warlord-najentus", mapUrl: "" });
         expect(d.roster.map((p) => p.userId)).toEqual(["u1", "u9"]);
         expect(d.roster[0]).toMatchObject({ character: "Tanky", role: "tank", classColor: "#C79C6E", group: 1 });
         expect(d.roster[0].iconUrl).toMatch(/^https:\/\/wow\.zamimg\.com\/images\/wow\/icons\//);
@@ -447,5 +449,54 @@ describe("what a raider counts as", () => {
         for (const key of ["Warrior-Protection", "Paladin-Protection", "Druid-Guardian"]) expect(roles[key]).toBe("tank");
         for (const key of ["Priest-Holy", "Priest-Discipline", "Paladin-Holy", "Shaman-Restoration", "Druid-Restoration"]) expect(roles[key]).toBe("healer");
         expect(Object.values(roles).filter((r) => r === "dps")).toEqual([]);
+    });
+});
+
+describe("the event's Standard (#524): saved with the plan, inherited by every boss in the read view", () => {
+    const heal = (id, assignees, targets, extra = {}) => ({ id, type: "heal", title: "", spell: null, assignees, targets, note: "", suggested: false, ...extra });
+    async function publishWith(bosses) {
+        const saved = await call(route.putPlan, ORGA, { event: "eh_1", version: 0, bosses });
+        expect(status(saved)).toBe(200);
+        const on = body(await call(route.postPublish, ORGA, { event: "eh_1", published: true }));
+        mockViewer = null;
+        const r = mockRes();
+        await route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${on.plan.publicPath.replace("/p/", "")}`));
+        return body(r);
+    }
+
+    it("saves the Standard; a boss without a board of its own shows its inherited rows, the boss target resolved for it", async () => {
+        const d = await publishWith({
+            defaults: { assignments: [
+                { id: "d1", type: "tank", title: "", spell: null, assignees: ["user:u1"], targets: [{ kind: "mob", ref: "b:this", name: "", icon: "" }], note: "", suggested: false },
+                heal("d2", ["class:Priest:1"], [{ kind: "player", ref: "u1" }]),
+            ] },
+        });
+        expect(store.getPlan("eh_1").bosses.defaults.assignments.map((a) => a.id)).toEqual(["d1", "d2"]);
+        // every boss and the trash inherit, "Allgemein" does not; the Standard itself is no section of the sheet
+        expect(d.bosses.map((b) => b.key)).not.toContain("defaults");
+        expect(d.bosses.map((b) => b.key)).not.toContain("general");
+        const sup = d.bosses.find((b) => b.key === "bt/supremus");
+        expect(sup.assignments.map((a) => a.type)).toEqual(["tank", "heal"]);
+        expect(sup.assignments[0]).toMatchObject({ assignees: ["user:u1"], origin: "d1", targets: [{ kind: "mob", ref: "b:bt/supremus", name: "Supremus" }] });
+        // the class reference is resolved against the approved setup, like any row of the section
+        expect(sup.assignments[1].assignees).toEqual(["user:u2"]);
+        expect(d.bosses.find((b) => b.key === "bt/trash").assignments[0].targets).toEqual([]);
+    });
+
+    it("a boss that deviated shows its own row in the default's place, a hidden row not at all", async () => {
+        const d = await publishWith({
+            defaults: { assignments: [heal("d1", ["user:u2"], [{ kind: "player", ref: "u1" }]), heal("d2", ["user:u2"], [{ kind: "group", ref: "1" }])] },
+            "bt/supremus": { assignments: [heal("own", ["user:u1"], [{ kind: "player", ref: "u2" }], { origin: "d1" })], inheritOff: ["d1"] },
+            "bt/gurtogg-bloodboil": { inheritOff: ["d2"] },
+        });
+        const sup = d.bosses.find((b) => b.key === "bt/supremus");
+        expect(sup.assignments.map((a) => a.id)).toEqual(["own", "d2"]);
+        const gur = d.bosses.find((b) => b.key === "bt/gurtogg-bloodboil");
+        expect(gur.assignments.map((a) => a.id)).toEqual(["d1"]);
+    });
+
+    it("a plan without a Standard reads as before: only boards of its own are listed", async () => {
+        const d = await publishWith({ "bt/supremus": { notes: "x" } });
+        expect(d.bosses.map((b) => b.key)).toEqual(["bt/supremus"]);
     });
 });

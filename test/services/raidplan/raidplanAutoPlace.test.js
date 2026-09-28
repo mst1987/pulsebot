@@ -102,11 +102,12 @@ describe("the moved positions follow their rows", () => {
         } }).template;
         const plan = plans.applyTemplate("e1", t, { version: 0, bossKeys: [BOSS, OTHER], roster, userId: "orga" }).plan;
         const b = plan.bosses[BOSS];
-        const inh = b.assignments.find((a) => a.origin === "default");
-        expect(inh.id).not.toBe("d1");
-        expect(b.autoPos).toEqual({ [`t:${inh.id}:1`]: { x: 0.2, y: 0.8 }, [`m:b:${BOSS}#1`]: { x: 0.5, y: 0.3 } });
+        // the Standard row lives in the event's Standard under its template id (#524): the boss inherits it, its moved tank stays under that key
+        expect(plan.bosses[inherit.DEFAULTS_KEY].assignments.map((a) => a.id)).toEqual(["d1"]);
+        expect(b.assignments).toEqual([]);
+        expect(b.autoPos).toEqual({ "t:d1:1": { x: 0.2, y: 0.8 }, [`m:b:${BOSS}#1`]: { x: 0.5, y: 0.3 } });
         // a boss at 200 %, the tank at 50 %, all of them at 80 %: the same in the event
-        expect(b.autoStyle).toEqual({ [`t:${inh.id}:1`]: { size: 19 }, [`m:b:${BOSS}#1`]: { size: 96 } });
+        expect(b.autoStyle).toEqual({ "t:d1:1": { size: 19 }, [`m:b:${BOSS}#1`]: { size: 96 } });
         expect(b.autoScale).toBe(0.8);
         expect(plan.bosses[OTHER]).toMatchObject({ showMap: false, autoPlace: false });
     });

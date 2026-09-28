@@ -40,9 +40,9 @@ describe("the Standard as a board of the template", () => {
         expect(t.bosses[inherit.DEFAULTS_KEY].assignments.map((a) => a.id)).toHaveLength(2);
         expect(raidplan.templateSummary(t).bossCount).toBe(0);
         const view = raidplan.templateView(t);
-        // the Standard right after "Allgemein"
-        expect(view.bossList[0]).toMatchObject({ key: "general" });
-        expect(view.bossList[1]).toMatchObject({ key: "defaults", defaults: true, name: "Standard" });
+        // the Standard first, before "Allgemein" (#524: the same order as in an event plan)
+        expect(view.bossList[0]).toMatchObject({ key: "defaults", defaults: true, name: "Standard" });
+        expect(view.bossList[1]).toMatchObject({ key: "general" });
         expect(view.bossList.filter((b) => b.defaults)).toHaveLength(1);
     });
     it("a template without a Standard is as before (nothing added to the bosses)", () => {
@@ -74,9 +74,9 @@ describe("the sections", () => {
         expect(a[0].targets.map((t) => t.ref)).toEqual([`b:${BOSS}`]);
         expect(b[0].targets.map((t) => t.ref)).toEqual([`b:${OTHER}`]);
     });
-    it("a row switched off for a boss is not written in", () => {
+    it("a row switched off for a boss is not inherited", () => {
         const s = inherit.sectionOf(boss(BOSS, "Supremus"), [], []);
-        expect(inherit.effectiveRows(DEFAULT_ROWS, { inheritOff: ["d1"], assignments: [] }, s).map((r) => r.type)).toEqual(["heal"]);
+        expect(inherit.mergeRows(DEFAULT_ROWS, { inheritOff: ["d1"], assignments: [] }, s).map((r) => r.type)).toEqual(["heal"]);
     });
     it("the icon key of a boss image", () => {
         expect(inherit.bossIconKey("/bosses/601.jpg")).toBe("boss:601");
@@ -85,35 +85,77 @@ describe("the sections", () => {
     });
 });
 
-describe("applying a template with a Standard to an event", () => {
-    it("every boss (and trash) gets the inherited rows, resolved for it, marked as from the Standard, with fresh ids; Allgemein stays as it is", () => {
+describe("applying a template with a Standard to an event (#524)", () => {
+    const section = (key, name) => inherit.sectionOf({ key, name, iconUrl: "/bosses/601.jpg", instanceId: "bt", trash: key === TRASH }, [], []);
+    const eff = (plan, key, name) => inherit.effectiveRows(plan.bosses, key, section(key, name));
+    it("the template's Standard becomes the event's Standard (the same row ids); no boss gets copies, every boss and trash inherits it", () => {
         const t = template(DEFAULT_ROWS, { [BOSS]: layout });
         const r = apply(t).plan;
-        for (const key of [BOSS, OTHER, TRASH]) expect(r.bosses[key]).toBeDefined();
+        expect(r.bosses[inherit.DEFAULTS_KEY].assignments.map((a) => a.id)).toEqual(["d1", "d2"]);
+        expect(r.bosses[BOSS].assignments).toEqual([]);
         expect(r.bosses.general).toBeUndefined();
-        const own = r.bosses[BOSS].assignments;
+        const own = eff(r, BOSS, "Supremus");
         expect(own.map((a) => a.type)).toEqual(["tank", "heal"]);
         expect(own[0].targets[0].ref).toBe(`b:${BOSS}`);
-        expect(r.bosses[OTHER].assignments[0].targets[0].ref).toBe(`b:${OTHER}`);
-        expect(r.bosses[TRASH].assignments[0].targets).toEqual([]);
-        expect(own[0].origin).toBe("default");
-        expect(own[0].id).not.toBe("d1");
-        expect(r.bosses[BOSS].inheritOff).toEqual([]);
+        expect(own[0].origin).toBe("d1");
+        expect(eff(r, OTHER, "Akama")[0].targets[0].ref).toBe(`b:${OTHER}`);
+        expect(eff(r, TRASH, "Trash")[0].targets).toEqual([]);
+        // "Allgemein" inherits nothing
+        expect(eff(r, "general", "Allgemein")).toEqual([]);
     });
-    it("a boss that deviated keeps its own row and gets the other inherited ones; a switched-off row is not written", () => {
+    it("a boss that deviated keeps its own row in the default's place and the other inherited ones; a switched-off row is not inherited", () => {
         const dev = board.cleanBoard({ assignments: [{ ...row("mine", "tank", ["slot:tank:2"], []), origin: "d1" }], inheritOff: ["d1"], slots: layout.slots }, { allowedUserIds: [] }).board;
         const t = template(DEFAULT_ROWS, { [BOSS]: dev, [OTHER]: { inheritOff: ["d2"] } });
         const r = apply(t).plan;
-        const a = r.bosses[BOSS].assignments;
-        expect(a.map((x) => x.type).sort()).toEqual(["heal", "tank"]);
-        expect(a.find((x) => x.type === "tank").assignees).toEqual(["slot:tank:2"]);
-        expect(r.bosses[OTHER].assignments.map((x) => x.type)).toEqual(["tank"]);
+        const a = eff(r, BOSS, "Supremus");
+        expect(a.map((x) => x.type)).toEqual(["tank", "heal"]);
+        expect(a[0].assignees).toEqual(["slot:tank:2"]);
+        expect(r.bosses[BOSS].inheritOff).toEqual(["d1"]);
+        expect(eff(r, OTHER, "Akama").map((x) => x.type)).toEqual(["tank"]);
     });
-    it("the plan is a snapshot: a later change of the Standard does not reach it", () => {
+    it("the event's Standard is its own: a later change of the template does not reach it, a change of the event's Standard reaches every boss", () => {
         const t = template();
         apply(t);
         templates.updateTemplate(t.id, { version: 2, bosses: { [inherit.DEFAULTS_KEY]: { assignments: [row("d1", "tank", ["slot:tank:3"], [])] } } });
-        expect(plans.getPlan("e1").bosses[BOSS].assignments[0].assignees).toEqual(["slot:tank:1"]);
+        const plan = plans.getPlan("e1");
+        expect(eff(plan, BOSS, "Supremus")[0].assignees).toEqual(["slot:tank:1"]);
+        const std = plan.bosses[inherit.DEFAULTS_KEY];
+        const saved = plans.savePlan("e1", { version: plan.version, bosses: { ...plan.bosses, [inherit.DEFAULTS_KEY]: { ...std, assignments: [{ ...std.assignments[0], assignees: ["slot:tank:2"] }, std.assignments[1]] } } }, { bossKeys: [BOSS, OTHER, TRASH, "general", inherit.DEFAULTS_KEY], allowedUserIds: [], userId: "o" }).plan;
+        for (const [key, name] of [[BOSS, "Supremus"], [OTHER, "Akama"], [TRASH, "Trash"]]) expect(eff(saved, key, name)[0].assignees).toEqual(["slot:tank:2"]);
+    });
+    it("applying a template without a Standard removes the event's Standard", () => {
+        apply(template());
+        const plan = plans.getPlan("e1");
+        const t2 = template([], { [BOSS]: { notes: "neu" } });
+        const r = plans.applyTemplate("e1", t2, { version: plan.version, bossKeys: [BOSS, OTHER, TRASH, "general", inherit.DEFAULTS_KEY], roster, userId: "orga" }).plan;
+        expect(r.bosses[inherit.DEFAULTS_KEY]).toBeUndefined();
+        expect(eff(r, BOSS, "Supremus")).toEqual([]);
+    });
+});
+
+describe("the effective rows of a section (mergeRows, the server twin of lib/raidplan/inherit.ts mergeInherited)", () => {
+    const s = () => inherit.sectionOf({ key: BOSS, name: "Supremus", iconUrl: "", instanceId: "bt" }, [], []);
+    const own = (id, extra = {}) => ({ ...row(id, "kick", ["slot:dps:1"], []), ...extra });
+    it("Standard rows first in the Standard's order, then the own rows", () => {
+        const r = inherit.mergeRows(DEFAULT_ROWS, { assignments: [own("o1"), own("o2")] }, s());
+        expect(r.map((a) => a.id)).toEqual(["d1", "d2", "o1", "o2"]);
+        expect(r[0]).toMatchObject({ origin: "d1", suggested: false });
+    });
+    it("a deviation stands in the place of its default row, a hidden one is left out", () => {
+        const dev = own("x", { type: "heal", origin: "d2" });
+        expect(inherit.mergeRows(DEFAULT_ROWS, { assignments: [own("o1"), dev], inheritOff: ["d2"] }, s()).map((a) => a.id)).toEqual(["d1", "x", "o1"]);
+        expect(inherit.mergeRows(DEFAULT_ROWS, { assignments: [own("o1")], inheritOff: ["d1"] }, s()).map((a) => a.id)).toEqual(["d2", "o1"]);
+    });
+    it("a deviation whose default is inherited anyway (not switched off) is an own row after the Standard", () => {
+        expect(inherit.mergeRows(DEFAULT_ROWS, { assignments: [own("x", { origin: "d1" })] }, s()).map((a) => a.id)).toEqual(["d1", "d2", "x"]);
+    });
+    it("Allgemein and the Standard have only their own rows; which sections inherit", () => {
+        const bosses = { [inherit.DEFAULTS_KEY]: { assignments: DEFAULT_ROWS }, general: { assignments: [own("g")] } };
+        expect(inherit.effectiveRows(bosses, "general", s()).map((a) => a.id)).toEqual(["g"]);
+        expect(inherit.effectiveRows(bosses, inherit.DEFAULTS_KEY, s()).map((a) => a.id)).toEqual(["d1", "d2"]);
+        expect(inherit.effectiveRows(bosses, BOSS, s()).map((a) => a.id)).toEqual(["d1", "d2"]);
+        expect(inherit.effectiveRows(undefined, BOSS, s())).toEqual([]);
+        expect([BOSS, TRASH, "general", inherit.DEFAULTS_KEY].map(inherit.inherits)).toEqual([true, true, false, false]);
     });
 });
 
@@ -144,11 +186,11 @@ describe("template -> event: what the boss icon's auto facing needs", () => {
         const b = plan.bosses[BOSS];
         expect(b.icons).toHaveLength(1);
         expect(b.slots.some((s) => s.kind === "tank" && s.n === 1 && s.placed !== false)).toBe(true);
-        const inherited = b.assignments.find((a) => a.type === "tank" && a.origin === "default");
+        const inherited = inherit.effectiveRows(plan.bosses, BOSS, inherit.sectionOf({ key: BOSS, name: "Supremus", iconUrl: "", instanceId: "bt" }, [], [])).find((a) => a.type === "tank");
         expect(inherited.assignees).toEqual(["slot:tank:1"]);
         expect(inherited.targets).toEqual([expect.objectContaining({ kind: "mob", ref: `b:${BOSS}` })]);
         // the other boss gets its own boss as the target, not this one's
-        const o = plan.bosses[OTHER].assignments.find((a) => a.type === "tank");
+        const o = inherit.effectiveRows(plan.bosses, OTHER, inherit.sectionOf({ key: OTHER, name: "Akama", iconUrl: "", instanceId: "bt" }, [], [])).find((a) => a.type === "tank");
         expect(o.targets[0].ref).toBe(`b:${OTHER}`);
     });
 });
