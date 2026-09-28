@@ -1,17 +1,18 @@
-// The "Standard" of a raid plan template (docs/raidplan.md): the tank and healer basics entered ONCE (the board `defaults` of the
-// template) and inherited by every boss and trash section. A boss can deviate from a row (it gets its own copy, the default row is
-// switched off for it: `board.inheritOff`) or switch a row off; applying the template to an event writes the inherited rows into
-// each boss board (a snapshot, marked `origin: "default"`, editable per boss there). "Allgemein" is something else: the raid-wide
-// utility rows (curses ...), one board for the whole raid.
+// The "Standard" of a raid plan template AND of an event plan (docs/raidplan.md, #524): the tank and healer basics entered ONCE (the
+// board `defaults`) and inherited by every boss and trash section. A boss can deviate from a row (it gets its own copy, the default row
+// is switched off for it: `board.inheritOff`) or switch a row off. Applying a template to an event writes the template's Standard into
+// the event's Standard, where it stays inherited: a change there reaches every boss that did not deviate. An event plan from before
+// #524 holds copies marked `origin: "default"` in each boss; raidplanDefaultsMigration.js turns them into the Standard once. "Allgemein"
+// is something else: the raid-wide utility rows (curses ...), one board for the whole raid.
 //
 // "Boss" as a target of a default row is relative: `THIS_BOSS` ("b:this") means the boss of the section it lands in. A mob target
 // that the section does not have falls back to none (the row stays, without that target), never an error.
 
 const DEFAULTS_KEY = "defaults";
+const GENERAL_KEY = "general";
 const THIS_BOSS = "b:this";
 
 const { str } = require("../../utils/text");
-const { newId } = require("../../utils/ids");
 
 /** The icon key of a boss image url (/bosses/601.jpg -> boss:601, an icon CDN url -> its name), "" for none. */
 function bossIconKey(url) {
@@ -59,14 +60,41 @@ function inheritedRows(defaultRows, off, section) {
     return (defaultRows || []).filter((r) => !skip.has(r.id)).map((r) => resolveRow(r, section));
 }
 
-/**
- * The rows of a section for an event plan: the inherited ones (fresh ids, `origin: "default"`, not a suggestion) first, then the
- * section's own rows. Used when a template is applied.
- */
-function effectiveRows(defaultRows, boardObj, section) {
-    // `_key`: the id the row had in the template, so the positions of what it puts on the map (autoPos) move to the new id (raidplanBoard.reidBoard)
-    const inherited = inheritedRows(defaultRows, boardObj && boardObj.inheritOff, section).map((r) => ({ ...r, _key: r.id, id: newId(5), origin: "default", suggested: false }));
-    return [...inherited, ...((boardObj && boardObj.assignments) || [])];
+/** Whether a section inherits the Standard: every boss and trash section, not "Allgemein" (the raid-wide rows) and not the Standard itself. */
+function inherits(key) {
+    return key !== DEFAULTS_KEY && key !== GENERAL_KEY;
 }
 
-module.exports = { DEFAULTS_KEY, THIS_BOSS, bossIconKey, sectionOf, resolveRow, inheritedRows, effectiveRows };
+/**
+ * The rows a section really has (#524): the Standard's rows in the Standard's order - resolved for the section, a row the section
+ * deviated from replaced by its own copy at the same place, a row it switched off left out - then the section's other own rows in their
+ * order. Inherited rows keep the Standard's id (`origin` = that id, so a moved tank keeps its place: raidplanBoard.rowKey). The client's
+ * twin is `mergeInherited` in lib/raidplan/inherit.ts (the same cases run on both).
+ */
+function mergeRows(defaultRows, boardObj, section) {
+    const own = (boardObj && boardObj.assignments) || [];
+    const off = new Set((boardObj && boardObj.inheritOff) || []);
+    const used = new Set();
+    const out = [];
+    for (const d of defaultRows || []) {
+        if (!off.has(d.id)) { out.push({ ...resolveRow(d, section), suggested: false }); continue; }
+        const dev = own.find((a) => a.origin === d.id && !used.has(a));
+        if (dev) { used.add(dev); out.push(dev); }
+    }
+    for (const a of own) if (!used.has(a)) out.push(a);
+    return out;
+}
+
+/**
+ * The EFFECTIVE rows of one section of a plan or a template (`bosses` = its boards, `section` = sectionOf): own + inherited from the
+ * Standard (`mergeRows`); "Allgemein" and the Standard have only their own. Everything that reads the rows of a section (the read view,
+ * "Meine Aufgaben", the auto tokens and lines, the suggestions) goes through here or its client twin.
+ */
+function effectiveRows(bosses, key, section) {
+    const all = bosses || {};
+    const b = all[key] || {};
+    if (!inherits(key)) return (b.assignments || []).slice();
+    return mergeRows((all[DEFAULTS_KEY] || {}).assignments || [], b, section);
+}
+
+module.exports = { DEFAULTS_KEY, GENERAL_KEY, THIS_BOSS, bossIconKey, sectionOf, resolveRow, inheritedRows, inherits, mergeRows, effectiveRows };

@@ -150,10 +150,20 @@ the icons that are imported end up in the bundle, about 10 KB), as inline SVG co
   scale grips; move/delete/duplicate/copy/align/lock/hide/order as one undo step each.
 - **Inputs**: `NumberField`/`SliderField` (`lib/raidplan/numberField.ts`) everywhere.
 - **Menu**: "Raidplan-Vorlagen" and "Raidplan-Katalog" are sub entries of Raid-Events (area `raids`).
-- **Standard (template).** Tank/heal defaults live once under `defaults` (`lib/raidplan/inherit.ts`,
+- **Standard (template and event plan, #524).** Tank/heal defaults live once under `defaults` (`lib/raidplan/inherit.ts`,
   `raidplanInherit.js`), inherited by every boss and trash (target "Boss (dieser Abschnitt)"); rows can be
-  deviated, hidden, restored; "Standard auf alle Bosse anwenden" copies; applying to an event writes inherited
-  rows (`origin: "default"`).
+  deviated, hidden, restored; "Standard auf alle Bosse anwenden" copies (template only). An **event plan** has the
+  same section: the tab "Standard" comes first (before "Allgemein", in the template too); `RaidplanTab` hands
+  `defaultRows` (the Standard's board) to `BoardWorkspace` like the template editor, so a boss shows the inherited
+  rows dimmed with "Standard" and the lock, the pencil deviates, the eye hides, "Standard wiederherstellen" on the
+  card restores. A change of the Standard reaches every boss that did not deviate. "Vorlage anwenden" writes the
+  template's Standard into the event's Standard (no copies in the bosses any more), see model.md, "The Standard of
+  an event". The badge "n offene Einteilungen" counts a Standard row once (in the Standard), not in every boss.
+  **EFFECTIVE rows** come from ONE rule: `effectiveRows(bosses, key, section)` / `mergeInherited` (client) and its
+  server twin `effectiveRows` / `mergeRows`: the Standard's rows in its order (a deviation in the place of its default,
+  a hidden one left out), then the section's own rows. The workspace hands them to the lines, the auto tokens,
+  "Meine Aufgaben", the suggestions' `context` and `AssignPanel` (`effective`); the server's read view uses the twin.
+  The row model is unchanged (a Standard row is an ordinary assignment), so later fields of a row travel with it.
 - **Group ring** can be hidden: per group `showRing` (+ colour/opacity), per board `showRings`, context menu,
   multi-selection, respected in the read view.
 - **Slot classes.** A role slot has `preferredClasses`; applying a template fills bound slots first (classes

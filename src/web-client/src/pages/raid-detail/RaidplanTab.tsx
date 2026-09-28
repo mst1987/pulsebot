@@ -13,6 +13,7 @@ import {
 } from "../../lib/raidplan";
 import type { RaidCtx } from "./meta";
 import { missingNames, openAssignments, type OpenRow } from "../../lib/raidplan/assignLine";
+import { DEFAULTS_KEY } from "../../lib/raidplan/inherit";
 import BoardWorkspace from "./raidplan/BoardWorkspace";
 import BossNav from "./raidplan/BossNav";
 import { LibraryModal, ProfilesModal } from "./raidplan/ProfileModals";
@@ -98,7 +99,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const dirty = !!view && !sameBosses(draft, view.plan.bosses, bossKeys);
     // every row of the plan with a place the setup does not fill (a class missing in the raid, or all of it already on the task)
     const openSummary = (list: OpenRow[]) => { const names = missingNames(list).join(", "); return list.length === 1 ? t("raidBoard.aline.openSummaryOne", { names }) : t("raidBoard.aline.openSummary", { n: list.length, names }); };
-    // each section with its Besetzung as the editor shows it (a slot reference names whoever stands in that slot)
+    // each section with its Besetzung as the editor shows it (a slot reference names whoever stands in that slot); a row of the Standard
+    // counts once, in the Standard (#524), not again in every boss that inherits it
     const openRows = useMemo(() => (view ? openAssignments(view.bosses.map((b) => ({ key: b.key, name: b.name, board: ensureBesetzung(boardOf(draft, b.key), besetzung, roster) })), roster) : []), [view, draft, besetzung, roster]);
     const canWrite = !!view && view.canWrite;
     // "Einteilungen posten" (#502) publishes a draft plan on the way: the page's reload after the post brings the new state here
@@ -117,7 +119,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     /** Applies a change to the selected boss's board (stable: the workspace's drag listens through it). */
     // the colours and marks of the groups are the plan's, not one boss's: one step over every board with a map
     const editAllBoards = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard, coalesce = false) => {
-        histEditAll(view ? view.bosses.filter((b) => !b.general).map((b) => b.key) : [], fn, coalesce);
+        histEditAll(view ? view.bosses.filter((b) => !b.general && !b.defaults).map((b) => b.key) : [], fn, coalesce);
     }, [histEditAll, view]);
     // the sections that come with the shared sheet: switched on/off for one section or for several (share dialog); two steps at most (in, out)
     const setSheet = useCallback((changes: Record<string, boolean>) => {
@@ -243,6 +245,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")} onSaveTactic={() => setModal("save")}
                     history={{ undo, redo, canUndo, canRedo }}
                     mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
+                    defaultRows={boardOf(draft, DEFAULTS_KEY).assignments}
                     saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("raidBoard.conflict.text")} /> : undefined}
                     bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} />}
                     status={(

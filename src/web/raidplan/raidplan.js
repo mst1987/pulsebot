@@ -23,6 +23,8 @@ const raiderProfiles = require("../../stores/raiderProfileStore");
 const characterKey = raiderProfiles.characterKey;
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
+// a section that has no board of its own (it only inherits the Standard): read as an empty one
+const EMPTY_BOARD = require("../../services/raidplan/raidplanBoard").cleanBoard({}, { allowedUserIds: [] }).board;
 
 /**
  * What a raider counts as: the role the setup placed him in when that is one of the four
@@ -117,6 +119,30 @@ function bossList(event, { templateId = "" } = {}) {
     });
 }
 
+/**
+ * The section list of an editor (template or event plan, #524) with the Standard: one more section FIRST, before "Allgemein" and the
+ * bosses (its own board: the tank / healer basics every boss and trash inherits, raidplanInherit.js). The public page never lists it.
+ */
+function withStandard(bosses) {
+    const out = bosses.slice();
+    if (out.length > 0) out.unshift({ key: inherit.DEFAULTS_KEY, instanceId: "", instanceName: "", name: "Standard", defaults: true, iconUrl: wowIconUrl("inv_misc_gear_01", 56), mapUrl: "", mapSource: "", eventMap: false, templateMap: false, ownMap: false, instanceMap: false });
+    return out;
+}
+
+/**
+ * The EFFECTIVE rows of one section of a plan (#524): its own and the ones it inherits from the plan's Standard, resolved for the section
+ * (raidplanInherit.effectiveRows). `meta` = the section's entry of the boss list, `catalogMobs` = the catalog's mobs.
+ */
+function sectionRows(bosses, meta, catalogMobs) {
+    const b = (bosses || {})[meta.key] || {};
+    return inherit.effectiveRows(bosses, meta.key, inherit.sectionOf(meta, catalogMobs, b.mobs));
+}
+
+/** The keys a save of an event plan may hold: the event's sections and its Standard. */
+function planKeys(event) {
+    return withStandard(bossList(event)).map((b) => b.key);
+}
+
 /** A template with its boards and the bosses of its instances (each with the map it would show). */
 function templateView(t) {
     const bosses = store.bossesForInstances(t.instanceIds).map((b) => {
@@ -130,9 +156,7 @@ function templateView(t) {
             instanceMap: !!store.mapVersion(b.instanceId),
         };
     });
-    // the Standard: one more section right after "Allgemein" (its own board: the tank / healer basics of every boss)
-    if (bosses.length > 0) bosses.splice(bosses[0] && bosses[0].general ? 1 : 0, 0, { key: inherit.DEFAULTS_KEY, instanceId: "", instanceName: "", name: "Standard", defaults: true, iconUrl: wowIconUrl("inv_misc_gear_01", 56), mapUrl: "", mapSource: "", templateMap: false, ownMap: false, instanceMap: false });
-    return { ...t, catalog: catalogStore.catalogView("tbc"), bossList: bosses, besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
+    return { ...t, bossList: withStandard(bosses), catalog: catalogStore.catalogView("tbc"), besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
 }
 
 /** What a template picker needs of a template (no boards). */
@@ -165,7 +189,7 @@ function editorView(event, { canWrite, me = "" }) {
             bosses: plan.bosses,
             updatedAt: plan.updatedAt,
         },
-        bosses: bossList(event, { templateId: template ? template.id : "" }),
+        bosses: withStandard(bossList(event, { templateId: template ? template.id : "" })),
         // the role slots of this raid: the template's when the plan came from one, else the event's own size and composition
         besetzung: template
             ? besetzungOf.effectiveBesetzung(template.instanceIds, template.size, template.counts)
@@ -212,11 +236,14 @@ function publicView(plan, event, { me = "" } = {}) {
     const known = new Set(roster.map((r) => r.userId));
     const profile = me ? raiderProfiles.getProfile(me) : null;
     const meIds = identify(me, profile ? profile.characters.map((c) => c.key) : [], roster);
+    const catalogMobs = catalogStore.listMobs();
+    // a boss without a board of its own still shows what it inherits from the Standard (#524)
+    const inheritsRows = (b) => inherit.inherits(b.key) && sectionRows(plan.bosses, b, catalogMobs).length > 0;
     const bosses = bossList(event, { templateId: plan.templateId })
         // a section switched off for the sheet is not delivered at all (no chip, no data): filtered before anything else is built from it
-        .filter((b) => plan.bosses[b.key] && plan.bosses[b.key].inSheet !== false)
+        .filter((b) => (plan.bosses[b.key] || inheritsRows(b)) && (plan.bosses[b.key] || {}).inSheet !== false)
         .map((b) => {
-            const board = plan.bosses[b.key];
+            const board = plan.bosses[b.key] || EMPTY_BOARD;
             // a section switched to "no map" sends no map and no objects of the map (like a section left out of the sheet): only its Besetzung,
             // the slots, which the assignments resolve against, and they are not drawn
             const mapOn = board.showMap !== false && !b.general;
@@ -252,7 +279,8 @@ function publicView(plan, event, { me = "" } = {}) {
                 mobs: board.mobs || [],
                 // assignments: a raider who is not in the approved setup is left out, a slot reference stays (it resolves to nobody = open)
                 // a class reference ("the first free Hunter") is resolved here, from the whole approved setup: the page only gets the raiders a plan names
-                assignments: assign.expandClassRefs([...assign.targetsToAssignments(board.targets, known), ...(board.assignments || [])].map((a) => ({
+                // the section's EFFECTIVE rows: its own and the ones it inherits from the Standard (#524)
+                assignments: assign.expandClassRefs([...assign.targetsToAssignments(board.targets, known), ...sectionRows(plan.bosses, b, catalogMobs)].map((a) => ({
                     ...a,
                     assignees: a.assignees.filter((r) => !r.startsWith("user:") || known.has(r.slice(5))),
                     targets: a.targets.filter((t) => t.kind !== "player" || known.has(t.ref)),
@@ -337,4 +365,4 @@ function eventBesetzung(event) {
     return { ...base, counts: { tank, healer, dps: Math.max(0, base.size - tank - healer), melee: 0, ranged: 0 }, split: false };
 }
 
-module.exports = { identify, suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };
+module.exports = { withStandard, planKeys, sectionRows, identify, suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };

@@ -247,7 +247,7 @@
         "none": "No template",
         "pick": "Pick a template",
         "pickTitle": "Apply a template",
-        "hint": "Copies the template into this plan. Later changes to the template do not reach it.",
+        "hint": "Copies the template into this plan; its default becomes this plan's default, which every boss inherits. Later changes to the template do not reach it.",
         "empty": "Empty",
         "emptyText": "Start without a template (default).",
         "bosses": {
@@ -721,7 +721,7 @@
         "title": "Default",
         "thisBoss": "Boss (of this section)",
         "inherited": "Default",
-        "inheritedTip": "Inherited from the template's default. A change of the default reaches every boss that does not deviate.",
+        "inheritedTip": "Inherited from the default. A change of the default reaches every boss that does not deviate.",
         "deviate": "Deviate for this boss (the row becomes boss specific)",
         "hideRow": "Hide for this boss",
         "restore": "Restore the default (reset the deviations of this card)",

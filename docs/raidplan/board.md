@@ -58,7 +58,8 @@ proxy's HTML.
   `PlanPublicPage` then drops the right column (`no-board no-map`) and the assignments use the full width
   (Allgemein keeps its 640px column).
 - **Order**: `raidplanStore.bossesForInstances` puts "Allgemein" first, then the bosses in raid order, then
-  the trash; the template view inserts "Standard" right after "Allgemein". The boss chip numbering is
+  the trash; the template view and the event editor put "Standard" first, before "Allgemein" (`raidplan.withStandard`,
+  #524; the read view never lists it). The boss chip numbering is
   unchanged (bosses only).
 - **Start section** (`lib/raidplan.startSection(sections, wanted, remembered, hidden)`): a deep link
   `?section=<key>` wins, then the section last open in this plan (editor and template editor only,
@@ -135,8 +136,8 @@ mechanism (see "Auto tokens of every task row").
   rows do not know keeps the older rule (`lib/raidplan/assign.ts facingOf`). In the template the wedge already follows
   the placeholder, so it is identical in the event.
 - **Template → event**: "Vorlage anwenden" copies `autoPlace` and `autoPos`; `raidplanBoard.reidBoard` moves
-  the keys of the rows to their new ids (a Standard row carries its template id as `_key` through
-  `raidplanInherit.effectiveRows`). "Vorlage duplizieren" does the same. The tanks resolve in the event from
+  the keys of the own rows to their new ids; a Standard row keeps its template id in the event's Standard (#524),
+  so the keys of its moved tanks (`t:<default id>:n`) stay as they are. "Vorlage duplizieren" does the same. The tanks resolve in the event from
   the setup; a later setup change or "Neu zuweisen" moves the token with them (references, not copies); a hand
   pick of the row (`picks`) stays.
 - **Sheet / public API**: `publicView` sends `autoPlace` and `autoPos` (nothing of it without the map, like

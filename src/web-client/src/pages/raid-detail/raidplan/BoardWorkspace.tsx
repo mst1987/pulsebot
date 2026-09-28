@@ -8,7 +8,7 @@ import { viewFromSaved } from "../../../lib/raidplan/boardView";
 import MiniMap from "../../../components/raidplan/MiniMap";
 import { useViewPrefs } from "../../../hooks/useViewPrefs";
 import { useToast } from "../../../components/Jobs";
-import { inheritedRows } from "../../../lib/raidplan/inherit";
+import { inheritedRows, mergeInherited } from "../../../lib/raidplan/inherit";
 import { autoPlaces, deriveAuto } from "../../../lib/raidplan/autoPlace";
 import { addItems, selectionBox, toggleItem, type SelItem } from "../../../lib/raidplan/multiSelect";
 import { useT } from "../../../i18n";
@@ -132,9 +132,13 @@ export default function BoardWorkspace({
     const mapOff = !noBoard && board.showMap === false;
     const noMap = noBoard || mapOff;
     const mobs = useMemo(() => sectionMobsOf(scope, boss.key, boss.name, bossIconOf(boss.iconUrl), boss.instanceId, board, catalog), [scope, boss.key, boss.name, boss.iconUrl, boss.instanceId, board, catalog]);
-    const inherited = useMemo(() => (defaultRows && !noBoard ? inheritedRows(defaultRows, board.inheritOff, { bossMob: scope === "boss" ? mobs.find((m) => m.id.indexOf("b:") === 0) || null : null, mobs }) : []), [defaultRows, noBoard, board.inheritOff, mobs, scope]);
-    // the EFFECTIVE rows of the section: its own and the ones it inherits from the Standard, class references resolved - what the lines and the facing of icons follow
-    const filledRows = useMemo(() => expandClassRefs([...board.assignments, ...inherited], board.slots, roster, board.roles), [board.assignments, inherited, board.slots, board.roles, roster]);
+    const section = useMemo(() => ({ bossMob: scope === "boss" ? mobs.find((m) => m.id.indexOf("b:") === 0) || null : null, mobs }), [mobs, scope]);
+    const inherited = useMemo(() => (defaultRows && !noBoard ? inheritedRows(defaultRows, board.inheritOff, section) : []), [defaultRows, noBoard, board.inheritOff, section]);
+    // the EFFECTIVE rows of the section (#524): the Standard's rows in its order (a deviation in the place of its default), then its own -
+    // the same order the server's read view and the suggestions use (lib/raidplan/inherit.ts mergeInherited)
+    const effective = useMemo(() => (defaultRows && !noBoard ? mergeInherited(defaultRows, board, section) : board.assignments), [defaultRows, noBoard, board, section]);
+    // ... with class references resolved: what the lines, the auto tokens, "Meine Aufgaben" and the facing of icons follow
+    const filledRows = useMemo(() => expandClassRefs(effective, board.slots, roster, board.roles), [effective, board.slots, board.roles, roster]);
     // what the tank rows put on the map by themselves: the mobs they name and their tanks (lib/raidplan/autoPlace.ts); nothing without a map
     const auto = useMemo(() => (noMap ? NO_AUTO : deriveAuto(filledRows, board, { template: !isEvent, roster })), [noMap, filledRows, board, isEvent, roster]);
     // a raider the tank rows put on the map is placed (not in the list, not in his group ring)
@@ -356,7 +360,7 @@ export default function BoardWorkspace({
                     scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
                     eventId={eventId} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
                     profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs}
-                    inherited={inherited} defaultRows={defaultRows} onCopyDefaults={onCopyDefaults} openRequest={rowReq}
+                    inherited={inherited} effective={effective} defaultRows={defaultRows} onCopyDefaults={onCopyDefaults} openRequest={rowReq}
                 />
                 {isEvent && !noBoard && <MyTasksPreview rows={filledRows} board={board} players={players} catalog={catalog} me={me || []} />}
                 <StepsCard

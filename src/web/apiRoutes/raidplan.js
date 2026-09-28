@@ -83,7 +83,7 @@ const putPlan = withUser({ write: "raids", csrf: true, body: true }, async ({ us
     if (!found) return;
     const event = found.event;
     const result = store.savePlan(event.id, { version: body.version, bosses: body.bosses }, {
-        bossKeys: raidplan.bossList(event).map((b) => b.key),
+        bossKeys: raidplan.planKeys(event),
         // a Raid-Helper line-up that could not be loaded right now drops nobody
         allowedUserIds: rosterSource.allowedFor(found),
         profileIds: profileStore.listProfiles().map((p) => p.id),
@@ -170,7 +170,7 @@ const postApply = withUser({ write: "raids", csrf: true, body: true }, async ({ 
     if (!template || !raidplan.templatesFor(event).some((t) => t.id === template.id)) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
     const result = store.applyTemplate(event.id, template, {
         version: body.version,
-        bossKeys: raidplan.bossList(event).map((b) => b.key),
+        bossKeys: raidplan.planKeys(event),
         // the open slots are filled from who is in the line-up now (a raider Raid-Helper no longer lists is not placed anew)
         roster: found.kind === "raidhelper" ? found.loaded : raidplan.editorRoster(event),
         userId: user.id,
