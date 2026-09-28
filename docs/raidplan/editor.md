@@ -543,3 +543,36 @@ whether he played elemental or enhancement, and the council's mage tank was also
 - **Changed on existing plans (on purpose)**: a class reference in a utility row can now resolve to another raider
   of the class than before when the first one tanks on that boss or has more tasks; the kick suggestion of the
   old test raid skips the warrior tank (`raidplanAssign.test.js`).
+
+## Count and class priority per row, no healer twice (#525)
+
+A row used to take every class it named: "Paladin 1" + "Schamane 1" on a heal row put a paladin AND a shaman in, although the
+orga wanted one healer - a paladin, or a shaman when there is none.
+
+- **Model** (`count`, `classPriority` on the row, [model.md](model.md#assignments-einteilungen)): "1 x Paladin › Schamane" = the
+  row wants `count` raiders (1..40; its fixed assignees, `user:` and slots, count towards it) and asks the classes in that
+  order. Only stored with a class list (`cleanAssignments`: known classes once each, a bad count becomes 1); a row without it
+  resolves exactly as before (golden master in both twins).
+- **Resolution** (`expandClassRefs`, both twins, `pickByPriority`): after the class references of each pass (tanking rows first,
+  then the others) the priority rows fill their open places in row order: the best ranked raider (`rankCandidates`, #501) of the
+  first class whom no row of the same kind of task has yet, else of the next class ...; nobody free in any class = a raider who
+  already has that task elsewhere (twice rather than open), never twice in one row; nobody at all = the place stays open (an
+  unresolved `class:<first class>:<n>` in the resolved row, shown as "1 x Paladin › Schamane fehlt"). The role is the task's
+  (healing = healers, else any spec). The exclusivity is per kind of task (a healer may also dispel; there the load of #501
+  applies) and covers the inherited Standard rows (#524), because the effective rows are resolved together. Older class
+  references of a type are served before its priority rows, so they resolve exactly as before. The resolved places are
+  APPENDED after the row's own assignees, so a second resolution adds nothing.
+- **Row dialog** (`AssignModal.tsx`, category *Klassen*): "Wie besetzen: Je Klasse fest | Nach Priorität". A new non-tanking row
+  starts "Nach Priorität": the class tiles build the order (a number on each chosen tile); beside it "Anzahl" (`NumberField`)
+  and the order as chips with earlier / later arrows and a cross; below "Eingeteilt -> <player>" or "niemand da" and the hint
+  "erste passende Klasse zuerst". A row with class references (and every tanking row) starts "Je Klasse fest"; it offers
+  "In Priorität umwandeln" (`toPriority`, only when simple: every reference a class, no "Any", no role but the task's;
+  `class:Paladin:1` + `class:Shaman:1` -> 1 x Paladin › Schamane, the count = the most references of one class plus the fixed
+  assignees). Switching back to "Je Klasse fest" drops the priority. Nothing is migrated automatically. The card's "+" carries
+  the priority to the next row (`carryClasses`), which then gets the next free healer.
+- **Card** (`assignLine.ts priorityItems`, `AssignLine.tsx PrioChip`): in an event the resolved raiders as plain chips, the places
+  nobody fills as ONE yellow chip "1 x [icon] Paladin › [icon] Schamane fehlt" (counted in "n offene Einteilungen"); in a
+  template one quiet chip with the count. The shared sheet gets the rows resolved by the server; an open place there reads as an
+  open class place ("Paladin 1 fehlt").
+- Tests: `test/services/raidplan/raidplanPriority.test.js`, `src/web-client/src/lib/raidplan/classPriority.test.ts` (the same
+  cases on both twins, golden master, card items, preview, carry), `src/web-client/src/pages/raid-detail/raidplan/AssignModal.prio.test.tsx`.

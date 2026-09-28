@@ -4,11 +4,43 @@
 // show; everything is edited in the row dialog. Tested in test/web-client/assignLine.test.js; function declarations and one-line
 // signatures only.
 import { classPlaceNameFor, classRefLabelFor, offRole, resolveAssignee, resolveTarget, type AssignCtx, type Resolved } from "./assign";
-import { classGroups, expandClassRefs, isClassRef, parseClassRef } from "./classRefs";
+import { classGroups, classPriorityOf, expandClassRefs, isClassRef, parseClassRef, rowCount } from "./classRefs";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from "../../api";
 
-/** One entry of a column: a single chip, or a bracket of a class reference with a count ("Jäger x2") holding what it resolves to. */
-export type LineItem = { key: string; kind: string; r: Resolved | null; order: number; open: boolean; mine: boolean; classId: string; role: string; count: number; items: Resolved[]; /** a player on a tanking row outside his spec role (a mage who tanks: "als Tank") */ asTank: boolean };
+/**
+ * One entry of a column: a single chip, a bracket of a class reference with a count ("Jäger x2") holding what it resolves to, or the
+ * open places of a class priority ("prio": "1 x Paladin > Schamane", #525; `classes` = the priority, `count` = how many places it stands for).
+ */
+export type LineItem = { key: string; kind: string; r: Resolved | null; order: number; open: boolean; mine: boolean; classId: string; role: string; count: number; items: Resolved[]; /** a player on a tanking row outside his spec role (a mage who tanks: "als Tank") */ asTank: boolean; /** the class priority of a "prio" item */ classes?: string[] };
+
+/** "Paladin › Schamane": the classes of a priority as the row names them (the card, the dialog, what is missing). */
+export function priorityName(classes: string[], type: string): string {
+    return classes.map((c) => classPlaceNameFor(c, "", type)).join(" › ");
+}
+
+/**
+ * The places of a row's class priority (#525), after its own assignees: in an event every resolved raider is a chip of its own and the
+ * places nobody fills are ONE open "prio" item ("1 x Paladin › Schamane fehlt"); in a template (nobody to resolve) the priority is one
+ * quiet "prio" item with its count.
+ */
+function priorityItems(row: RaidplanAssignment, filled: RaidplanAssignment, ctx: AssignCtx, me: string[], isEvent: boolean): LineItem[] {
+    const classes = classPriorityOf(row);
+    if (classes.length === 0) return [];
+    const base = { order: 0, role: "", items: [], asTank: false, classes, classId: classes[0] };
+    const places = Math.max(0, rowCount(row.count) - row.assignees.length);
+    const label = priorityName(classes, row.type);
+    if (!isEvent) return places > 0 ? [{ ...base, key: "prio", kind: "prio", r: { ...resolveAssignee(`class:${classes[0]}:1`, ctx), label, open: false }, open: false, mine: false, count: places }] : [];
+    const out: LineItem[] = [];
+    let missing: Resolved | null = null;
+    let open = 0;
+    filled.assignees.slice(row.assignees.length).forEach((ref, i) => {
+        const r = resolveAssignee(ref, ctx);
+        if (r.player) out.push({ ...base, key: `prio:${ref}:${i}`, kind: "one", r, open: false, mine: me.indexOf(r.player.userId) >= 0, count: 1, asTank: offRole(row.type, r.player) });
+        else { open += 1; if (!missing) missing = { ...r, label }; }
+    });
+    if (missing) out.push({ ...base, key: "prio", kind: "prio", r: missing, open: true, mine: false, count: open });
+    return out;
+}
 /** A row of the plan with a place nobody fills: its section, kind of task and what is missing ("Magier-Tank", "Jäger"). */
 export type OpenRow = { key: string; name: string; rowId: string; type: string; missing: string[] };
 
@@ -49,7 +81,7 @@ export function assigneeItems(row: RaidplanAssignment, filled: RaidplanAssignmen
         const r = named(resolveAssignee(filled.assignees[i] || ref, ctx), row.type);
         out.push({ key: ref, kind: "one", r, order: rotation ? i + 1 : 0, open: isMissing(r, isEvent), mine: !!r.player && me.indexOf(r.player.userId) >= 0, classId: q ? q.classId : "", role: q ? q.role : "", count: 1, items: [], asTank: offRole(row.type, r.player) });
     });
-    return out;
+    return out.concat(priorityItems(row, filled, ctx, me, isEvent));
 }
 
 /** The target column: every target as it resolves now (a class target resolved like an assignee; groups, marks, mobs, text as they are). */
@@ -63,7 +95,7 @@ export function targetItems(row: RaidplanAssignment, filled: RaidplanAssignment,
 
 /** The state of a row: "empty" (nothing chosen: a dashed placeholder), "open" (a place nobody fills: one yellow chip), "ok" (quiet). */
 export function lineState(row: RaidplanAssignment, filled: RaidplanAssignment, ctx: AssignCtx, isEvent: boolean): string {
-    if (row.assignees.length === 0 && row.targets.length === 0) return "empty";
+    if (row.assignees.length === 0 && row.targets.length === 0 && classPriorityOf(row).length === 0) return "empty";
     const items = [...assigneeItems(row, filled, ctx, [], false, isEvent), ...targetItems(row, filled, ctx, [], isEvent)];
     return items.some((x) => x.open) ? "open" : "ok";
 }
@@ -93,12 +125,14 @@ export function lineLabel(typeName: string, who: LineItem[], at: LineItem[], ope
 
 function itemName(x: LineItem, openWord: string): string {
     if (x.kind === "ref") return x.items.map((r) => (r.player ? r.player.character : `${r.label} (${openWord})`)).join(", ");
+    if (x.kind === "prio") return `${x.count} x ${x.r ? x.r.label : ""}${x.open ? ` (${openWord})` : ""}`;
     if (x.r && x.r.player) return x.r.player.character;
     return `${x.r ? x.r.label : ""}${x.open ? ` (${openWord})` : ""}`;
 }
 
 /** What an open place is missing, by name: a class place as the row names it ("Magier-Tank", "Jäger"), an open slot by its label. */
 function missingName(x: LineItem, r: Resolved, type: string): string {
+    if (x.kind === "prio") return r.label;
     if (r.kind === "class") {
         const q = parseClassRef(r.ref);
         return q ? classPlaceNameFor(q.classId, q.role, type) : r.label;
