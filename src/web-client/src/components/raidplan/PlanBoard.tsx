@@ -12,7 +12,7 @@ import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, autoBadgeGroup, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, chipWidthOf, turnedBox, uprightInner, roleNamesLayout, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, autoBadgeGroup, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, badgeShown, groupBadgeLook, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, chipWidthOf, turnedBox, uprightInner, roleNamesLayout, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import { classPlaceNameFor, classRefIcon, facingOf, linkClass, offRole, type AssignLink } from "../../lib/raidplan/assign";
 import { ANY } from "../../lib/raidplan/classRefs";
@@ -223,9 +223,16 @@ export default function PlanBoard({
     const factorOf = (def: number) => (def === SIZE_RANGES.icon.def ? ICON_NAME_FACTOR : NAME_FACTOR);
     const labelOf = (px: number, def: number) => labelMetrics(px, factorOf(def), screenScale);
     /** the group badge at the icon's upper right (lib/raidplan/labelScale.ts badgeMetrics, #511): its diameter, digit and rim as reference-unit variables */
-    const badgeVars = (px: number) => { const b = badgeMetrics(px); return { "--rp-badge": `${b.size}px`, "--rp-bf": `${b.font}px`, "--rp-bb": `${b.border}px` }; };
+    const badgeVars = (px: number, scale = 1) => { const b = badgeMetrics(px, scale); return { "--rp-badge": `${b.size}px`, "--rp-bf": `${b.font}px`, "--rp-bb": `${b.border}px` }; };
     /** the effects round an icon (me ring and glow, selection glow, shadow, outline) as reference-unit variables: shares of the icon's size, like the label */
-    const effectVars = (px: number) => { const e = effectMetrics(px); return { "--rp-ring": `${e.ring}px`, "--rp-glow": `${e.glow}px`, "--rp-gsp": `${e.spread}px`, "--rp-sel": `${e.select}px`, "--rp-shd": `${e.shadow}px`, "--rp-out": `${e.outline}px`, ...badgeVars(px) }; };
+    const effectVars = (px: number, badgeScale = 1) => { const e = effectMetrics(px); return { "--rp-ring": `${e.ring}px`, "--rp-glow": `${e.glow}px`, "--rp-gsp": `${e.spread}px`, "--rp-sel": `${e.select}px`, "--rp-shd": `${e.shadow}px`, "--rp-out": `${e.outline}px`, ...badgeVars(px, badgeScale) }; };
+    /** the group badge of a raider outside his ring (a slot, a free or an auto token of `px`): its colour, and the size and switch of his group's marker (#528) */
+    const groupBadge = (n: number, px: number) => {
+        const look = groupBadgeLook(slots, n);
+        if (!look.show) return null;
+        const c = groupColor(groupColors, n);
+        return <span className="rp-token-gbadge" aria-hidden="true" style={{ "--gc": c, "--gi": inkOn(c), ...(look.scale !== 1 ? badgeVars(px, look.scale) : {}) } as CSSProperties}>{n}</span>;
+    };
     const sizeStyle = (size: number | undefined, def: number) => ({ "--rp-s": `${scaled(size, def)}px`, "--rp-nf": `${labelOf(scaled(size, def), def).font}px`, ...effectVars(scaled(size, def)) }) as CSSProperties;
     /** " is-noname" when the object's name is off or would not fit its icon */
     const noName = (size: number | undefined, def: number, mult: number, show: boolean | undefined) => (show === false || !labelOf(scaled(size, def) * mult, def).show ? " is-noname" : "");
@@ -514,7 +521,9 @@ export default function PlanBoard({
                     const spread = gs * sp;
                     // a name under a ring member is never wider than the room to its neighbour (lib/raidplan/labels.ts ringNameWidth): a long one ends in "…"
                     const nameRoom = ringNameWidth(Math.max(around.length, 1), spacePx, memberPx);
-                    const memberSize = (sz: number | undefined) => ({ "--rp-s": `${Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)}px`, "--rp-nf": `${labelOf(scaled(sz, SIZE_RANGES.member.def) * gs * ts, SIZE_RANGES.member.def).font}px`, "--rp-nw": `${Math.round(nameRoom)}px`, ...effectVars(Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)) }) as CSSProperties;
+                    const memberSize = (sz: number | undefined) => ({ "--rp-s": `${Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)}px`, "--rp-nf": `${labelOf(scaled(sz, SIZE_RANGES.member.def) * gs * ts, SIZE_RANGES.member.def).font}px`, "--rp-nw": `${Math.round(nameRoom)}px`, ...effectVars(Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts), s.badgeScale) }) as CSSProperties;
+                    // the group's own badge switch (#528); the board's "Badges" hides all of them by its class
+                    const ownBadge = badgeShown(true, s);
                     const gcol = groupColor(groupColors, s.n);
                     const gmark = groupMark(groupMarks, s.n);
                     const ring = ringOffsets(everyone.length, size.w, size.h, spacePx);
@@ -550,7 +559,7 @@ export default function PlanBoard({
                                 <div key={`ph-${i}`} className="rp-token rp-member rp-member-ph" aria-hidden="true" style={{ "--rp-x": `${(s.x + h.dx) * 100}%`, "--rp-y": `${(s.y + h.dy) * 100}%`, "--rp-o": s.opacity, ...memberSize(s.size) } as CSSProperties}>
                                     <span className="rp-token-btn"><span className={`rp-ico rp-ico-open rp-role-${PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]}`}>
                                         <WowIcon name={ROLE_ICONS[PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]]} size={Math.max(12, Math.round(memberPx * 0.58))} />
-                                    </span></span><span className="rp-token-gbadge">{tag.number}</span>
+                                    </span></span>{ownBadge && <span className="rp-token-gbadge">{tag.number}</span>}
                                 </div>
                             ))}
                             {around.map((p) => {
@@ -572,7 +581,7 @@ export default function PlanBoard({
                                         >
                                             <TokenIcon player={p} />
                                         </button>
-                                        {tag.badges && <span className="rp-token-gbadge" aria-hidden="true">{tag.number}</span>}
+                                        {tag.badges && ownBadge && <span className="rp-token-gbadge" aria-hidden="true">{tag.number}</span>}
                                         <span className="rp-token-name"><PlayerName player={p} /></span>
                                         {mineHere && <span className="rp-token-me">{t("raidBoard.board.you")}</span>}
                                         {sizeHandle("member", id, s.lock)}
@@ -602,7 +611,7 @@ export default function PlanBoard({
                                 {player && <PlayerName player={player} />}
                             </span>
                         )}
-                        {player && showBadges && ownBadgeGroup(boardOwn, player) > 0 && <span className="rp-token-gbadge" aria-hidden="true" style={{ "--gc": groupColor(groupColors, player.group), "--gi": inkOn(groupColor(groupColors, player.group)) } as React.CSSProperties}>{player.group}</span>}
+                        {player && showBadges && ownBadgeGroup(boardOwn, player) > 0 && groupBadge(player.group, scaled(s.size, SIZE_RANGES.slot.def))}
                         {sizeHandle("slot", s.id, s.lock)}
                     </div>
                 );
@@ -636,7 +645,7 @@ export default function PlanBoard({
                         </button>
                         <span className="rp-token-name"><PlayerName player={p} /></span>
                         {mine && <span className="rp-token-me">{t("raidBoard.board.you")}</span>}
-                        {showBadges && ownBadgeGroup(boardOwn, p) > 0 && <span className="rp-token-gbadge" aria-hidden="true" style={{ "--gc": groupColor(groupColors, p.group), "--gi": inkOn(groupColor(groupColors, p.group)) } as React.CSSProperties}>{p.group}</span>}
+                        {showBadges && ownBadgeGroup(boardOwn, p) > 0 && groupBadge(p.group, scaled(tok.size, SIZE_RANGES.token.def))}
                         {sizeHandle("token", tok.userId, tok.lock)}
                     </div>
                 );
@@ -663,7 +672,7 @@ export default function PlanBoard({
                             </button>
                             <span className="rp-token-name rp-slot-name">{label && <span className="rp-slot-title">{label}</span>}<PlayerName player={p} /></span>
                             {mine && <span className="rp-token-me">{t("raidBoard.board.you")}</span>}
-                            {badge > 0 && <span className="rp-token-gbadge" aria-hidden="true" style={{ "--gc": groupColor(groupColors, badge), "--gi": inkOn(groupColor(groupColors, badge)) } as React.CSSProperties}>{badge}</span>}
+                            {badge > 0 && groupBadge(badge, scaled(k.size, SIZE_RANGES.token.def))}
                             {sizeHandle("auto", k.key, !!st.lock)}
                         </div>
                     );

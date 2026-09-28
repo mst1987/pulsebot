@@ -421,6 +421,28 @@ describe("a group chip's width (feature/raidplan-15)", () => {
         expect(clean({ slots: [{ id: "t", kind: "tank", n: 1, x: 0.5, y: 0.5, chipWidth: 150 }] }).board.slots[0].chipWidth).toBe(0);
     });
 });
+describe("a group's badge (#528)", () => {
+    const g = (extra) => clean({ slots: [{ id: "g", kind: "group", n: 1, x: 0.5, y: 0.5, ...extra }] }).board.slots[0];
+    it("is kept hidden and scaled (0.5 .. 1.5) for a group, stored only when it differs from the default", () => {
+        expect(g({ showBadge: false, badgeScale: 0.75 })).toMatchObject({ showBadge: false, badgeScale: 0.75 });
+        expect(g({ badgeScale: 0.1 }).badgeScale).toBe(0.5);
+        expect(g({ badgeScale: 9 }).badgeScale).toBe(1.5);
+        expect(g({ badgeScale: 1.234 }).badgeScale).toBe(1.23);
+        const plain = g({ showBadge: true, badgeScale: 1 });
+        expect(plain).not.toHaveProperty("showBadge");
+        expect(plain).not.toHaveProperty("badgeScale");
+        expect(g({ showBadge: "no", badgeScale: "x" })).not.toHaveProperty("badgeScale");
+        expect(g({ showBadge: "no" })).not.toHaveProperty("showBadge");
+    });
+    it("is dropped for any other slot and survives a copy (template applied)", () => {
+        const t = clean({ slots: [{ id: "t", kind: "tank", n: 1, x: 0.5, y: 0.5, showBadge: false, badgeScale: 0.5 }] }).board.slots[0];
+        expect(t).not.toHaveProperty("showBadge");
+        expect(t).not.toHaveProperty("badgeScale");
+        const b = clean({ slots: [{ id: "g", kind: "group", n: 2, x: 0.5, y: 0.5, showBadge: false, badgeScale: 1.4 }] }).board;
+        expect(board.reidBoard(b).slots[0]).toMatchObject({ showBadge: false, badgeScale: 1.4 });
+        expect(board._internal.cleanBadgeScale(null)).toBe(1);
+    });
+});
 describe("a role group's symbol size and label place (feature/raidplan-16)", () => {
     const zone = (extra) => clean({ zones: [{ id: "z", shape: "rect", type: "role", role: "melee", x: 0.1, y: 0.1, w: 0.1, h: 0.4, ...extra }] }).board.zones[0];
     it("are kept (0.25 .. 3, the five places), defaults otherwise; the angle too", () => {

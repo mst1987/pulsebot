@@ -344,7 +344,26 @@
         "nameAuto": "Der Name ist ausgeblendet: das Icon ist auf dem Bild zu klein dafür (größeres Board, Zoom oder größere Symbole zeigen ihn wieder).",
         "chipWidth": "Breite des Gruppen-Chips (0 = automatisch)",
         "chipAuto": "Automatisch",
-        "chipAutoTip": "Wieder so breit wie der längste Name (höchstens 220 px)"
+        "chipAutoTip": "Wieder so breit wie der längste Name (höchstens 220 px)",
+        "ringHead": "Rahmen",
+        "ringOnlySplit": "Den Rahmen hat nur eine aufgesplittete Gruppe (Tab „Gruppe“).",
+        "badgeHead": "Gruppen-Badge",
+        "showBadge": "Badge anzeigen",
+        "badgeScale": "Badge-Größe",
+        "badgeReset": "Standardgröße",
+        "badgesBoardOff": "Die Nummern-Badges sind für dieses Board in der Ansicht ausgeschaltet.",
+        "tab": {
+            "label": "Einstellungen der Gruppe",
+            "group": "Gruppe",
+            "look": "Darstellung",
+            "ringBadge": "Ring & Badge",
+            "icon": "Symbol",
+            "facing": "Blickrichtung",
+            "iconLabel": "Einstellungen des Symbols",
+            "roleLabel": "Einstellungen der Rollen-Gruppe",
+            "roleGroup": "Gruppe",
+            "roleShape": "Form"
+        }
     },
     "panel": {
         "props": "Eigenschaften",
@@ -404,7 +423,11 @@
         "m_ringShow": "Gruppenrahmen einblenden",
         "sizeTo": "Größe {pct} %",
         "m_arrowUp": "Pfeile größer",
-        "m_arrowDown": "Pfeile kleiner"
+        "m_arrowDown": "Pfeile kleiner",
+        "badge_hide": "Badge ausblenden",
+        "badge_show": "Badge einblenden",
+        "m_badgeHide": "Gruppen-Badges ausblenden",
+        "m_badgeShow": "Gruppen-Badges einblenden"
     },
     "icon": {
         "boss": "Boss",

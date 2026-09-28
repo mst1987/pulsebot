@@ -3,8 +3,9 @@ import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEn
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import { NumberField, SliderField } from "../../../components/raidplan/NumberField";
-import { alignSelection, resizeSelection, deleteSelection, duplicateSelection, lookSummary, optionSummary, patchArrowSelection, reorderSelection, roleZoneSummary, roleZonesOf, scaleSelection, setColorSelection, setFacingSelection, setRingSelection, setRoleZoneSelection, selectionBox, setLookSelection, sharedOptions, type BoardPx, type SelItem } from "../../../lib/raidplan/multiSelect";
+import { alignSelection, resizeSelection, deleteSelection, duplicateSelection, lookSummary, optionSummary, patchArrowSelection, reorderSelection, roleZoneSummary, roleZonesOf, scaleSelection, setColorSelection, setFacingSelection, setRingSelection, setBadgeSelection, setRoleZoneSelection, selectionBox, setLookSelection, sharedOptions, type BoardPx, type SelItem } from "../../../lib/raidplan/multiSelect";
 import { ARROW_COLOR, ARROW_MAX, ARROW_MIN, COMPASS, COMPASS_NAMES, LABEL_POS, clampOpacity } from "../../../lib/raidplan";
+import { BADGE_SCALE_MAX, BADGE_SCALE_MIN, badgeScaleOf } from "../../../lib/raidplan/labelScale";
 import { useT } from "../../../i18n";
 
 /** A checkbox that can say "mixed" (some of the selection have it, some not). */
@@ -113,6 +114,10 @@ export default function MultiInspector({ board, sel, px, canWrite, edit }: {
             <TriCheck label={t("raidBoard.insp.lock")} value={sum.lock} disabled={dis} onChange={(v) => edit((b) => setLookSelection(b, sel, { lock: v }))} />
             <TriCheck label={t("raidBoard.multi.hide")} value={sum.hidden} disabled={dis} onChange={(v) => edit((b) => setLookSelection(b, sel, { hidden: v }))} />
             {groups.length > 0 && <TriCheck label={t("raidBoard.insp.showRing")} value={groups.every((g) => g.showRing !== false) ? true : groups.every((g) => g.showRing === false) ? false : null} disabled={dis} onChange={(v) => edit((b) => setRingSelection(b, sel, v))} />}
+            {groups.length > 0 && <TriCheck label={t("raidBoard.insp.showBadge")} value={groups.every((g) => g.showBadge !== false) ? true : groups.every((g) => g.showBadge === false) ? false : null} disabled={dis} onChange={(v) => edit((b) => setBadgeSelection(b, sel, { showBadge: v }))} />}
+            {groups.length > 0 && groups.some((g) => g.showBadge !== false) && (
+                <SliderField label={mixed(t("raidBoard.insp.badgeScale"), groups.every((g) => badgeScaleOf(g.badgeScale) === badgeScaleOf(groups[0].badgeScale)) ? 1 : null)} value={Math.round(badgeScaleOf(groups[0].badgeScale) * 100)} min={BADGE_SCALE_MIN * 100} max={BADGE_SCALE_MAX * 100} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => setBadgeSelection(b, sel, { badgeScale: v / 100 }), true)} />
+            )}
             <div className="rp-field">
                 <span className="rp-kicker">{t("raidBoard.multi.align")}</span>
                 <div className="rp-insp-actions">

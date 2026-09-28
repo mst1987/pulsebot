@@ -405,6 +405,32 @@ describe("BoardWorkspace: the group badge", () => {
         expect(member.style.getPropertyValue("--rp-bb")).toBe(`${badgeMetrics(px).border}px`);
     });
 
+    // #528: the group's own switch and size
+    it("a group with its badge off: no badge on its members, nor on a task token of its raiders", () => {
+        const split = setup({ zones: [], slots: [{ ...groupSlot(true), showBadge: false }] }, true, ROSTER);
+        expect(split.obj("member:g1~u1")).not.toBeNull();
+        expect(split.container.querySelectorAll(".rp-token-gbadge")).toHaveLength(0);
+        split.unmount();
+        const chip = setup({ zones: [], slots: [{ ...groupSlot(false), showBadge: false }], assignments: [taskRow("k1", "kick", ["user:u1"], { onMap: true })] }, true, ROSTER);
+        expect(chip.obj("auto:t:k1:1")).not.toBeNull();
+        expect(chip.obj("auto:t:k1:1")!.querySelector(".rp-token-gbadge")).toBeNull();
+    });
+
+    it("a group's badge size: the members' variables and a task token's badge follow it", () => {
+        const split = setup({ zones: [], slots: [{ ...groupSlot(true), badgeScale: 0.5 }] }, true, ROSTER);
+        const member = split.obj("member:g1~u1")!;
+        const px = parseFloat(member.style.getPropertyValue("--rp-s"));
+        expect(member.style.getPropertyValue("--rp-badge")).toBe(`${badgeMetrics(px, 0.5).size}px`);
+        expect(badgeOf(member).textContent).toBe("1");
+        split.unmount();
+        const { obj } = setup({ zones: [], slots: [{ ...groupSlot(false), badgeScale: 1.5 }], assignments: [taskRow("k1", "kick", ["user:u1"], { onMap: true })] }, true, ROSTER);
+        const tok = obj("auto:t:k1:1")!;
+        const tpx = parseFloat(tok.style.getPropertyValue("--rp-s"));
+        const badge = badgeOf(tok);
+        expect(badge.style.getPropertyValue("--rp-badge")).toBe(`${badgeMetrics(tpx, 1.5).size}px`);
+        expect(badge.style.getPropertyValue("--rp-bf")).toBe(`${badgeMetrics(tpx, 1.5).font}px`);
+    });
+
     it("a task token on the map: the same badge, the same variables", () => {
         const { obj } = setup({ zones: [], slots: [groupSlot(false)], assignments: [taskRow("k1", "kick", ["user:u1"], { onMap: true })] }, true, ROSTER);
         const tok = obj("auto:t:k1:1")!;

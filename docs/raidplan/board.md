@@ -347,8 +347,25 @@ Besides:
   `effectVars`): BADGE_FACTOR 0.5 of the icon, at least BADGE_MIN 10 and at most BADGE_MAX 30 reference units,
   never more than 0.8 of the icon; the digit is 0.6 of the badge (at the default token as big as the name).
   Rim `--rp-icon-outline`, halo `--rp-text-halo` (the board is dark in both themes). No px size inline.
+- **Hide or scale a group's badge (#528).** "Ich würde bei Gruppen gerne die Gruppen-Badge ausblenden können oder kleiner
+  skalieren": every group marker has `showBadge` (missing = shown) and `badgeScale` (0.5 .. 1.5, missing = 1), like its
+  ring (`showRing`). The scale is a factor on top of `badgeMetrics(size, scale)`: floor and ceiling scale with it, so a
+  50 % badge on a tiny icon is half the floor (`badgeScaleOf` clamps, anything not a number is 1). Where it applies:
+  the members and placeholders of a split group (`effectVars(px, s.badgeScale)` on the member), and a raider of that
+  group outside the ring - a slot, a free token, an auto tank and a task token - through `labels.ts groupBadgeLook(slots,
+  n)` (the split marker of that number first, else any placed one; its switch and size; the badge span then carries
+  its own `--rp-badge` / `--rp-bf` / `--rp-bb` when the size is not 100 %). The board's "Nummern-Badges zeigen"
+  (`board.showBadges`, view menu) still hides all of them (`badgeShown(board, slot)`). Editor and read view draw the
+  same (`PlanBoard`). Server: `raidplanBoard.cleanSlot` keeps `showBadge: false` and a `badgeScale` other than 1 for
+  groups only (`cleanBadgeScale`, two decimals, 0.5 .. 1.5); a default badge stores nothing, so older boards and the
+  golden master are unchanged; `reidBoard` copies them with the slot. Edited in the inspector's tab "Ring & Badge"
+  ("Badge anzeigen", "Badge-Größe" 50 - 150 %, "Standardgröße"), the right-click "Badge ausblenden / einblenden" on a
+  group, and for several groups at once (`multiSelect.setBadgeSelection`: the multi inspector's "Badge anzeigen" and
+  "Badge-Größe", the multi menu's "Gruppen-Badges ausblenden / einblenden").
 
-Tests: `src/web-client/src/lib/raidplan/labelScale.test.ts` (also "group badge metrics"), "names on a group ring" in `src/web-client/src/lib/raidplan/raidplan.roleGroups.test.ts`, "the group badge" in `src/web-client/src/pages/raid-detail/raidplan/BoardWorkspace.test.tsx`.
+Tests: `src/web-client/src/lib/raidplan/labelScale.test.ts` (also "group badge metrics" and "a group's own badge size"),
+`src/web-client/src/lib/raidplan/badgeOptions.test.ts` (switch, look per group, menu, multi-selection), "a group's badge" in
+`test/services/raidplan/raidplanBoard.test.js`, "names on a group ring" in `src/web-client/src/lib/raidplan/raidplan.roleGroups.test.ts`, "the group badge" in `src/web-client/src/pages/raid-detail/raidplan/BoardWorkspace.test.tsx`.
 
 **A group's own "Token size" (feature/raidplan-15).** Two more causes, both only with a token size away from
 the default:

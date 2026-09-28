@@ -83,6 +83,11 @@ function cleanFactor(v) {
     const n = Number(v);
     return v !== "" && v !== null && v !== undefined && Number.isFinite(n) ? Math.max(0.25, Math.min(4, Math.round(n * 100) / 100)) : 1;
 }
+/** A group's badge size as stored (#528): 0.5 .. 1.5 (50 % .. 150 %), two decimals, 1 when it is not a number. */
+function cleanBadgeScale(v) {
+    const n = Number(v);
+    return v !== "" && v !== null && v !== undefined && Number.isFinite(n) ? Math.max(0.5, Math.min(1.5, Math.round(n * 100) / 100)) : 1;
+}
 // an icon is the encounter's boss icon (boss:<WCL encounter id>), a mob's portrait (mob:<NPC id>), a spell / ability icon of the icon CDN (wow:<icon name>) or one of the two built in symbols
 const MOB_ID = /^[dcb]:[\w\-/']{1,70}$/;
 const ICON_KEY = /^((?:boss|mob):\d{1,6}|wow:[a-z0-9_'-]{2,64}|enemy|bosspos)$/;
@@ -244,6 +249,9 @@ function cleanSlot(raw, ids, used, ctx) {
         showRing: !isGroup || o.showRing !== false,
         ringColor: isGroup ? cleanColor(o.ringColor, "") : "",
         ringOpacity: isGroup ? cleanOpacity(o.ringOpacity, 0.55) : 0.55,
+        // the group badge on its raiders (#528): hidden and its size (0.5 .. 1.5) - stored only when they differ from the default (shown, 100 %)
+        ...(isGroup && o.showBadge === false ? { showBadge: false } : {}),
+        ...(isGroup && cleanBadgeScale(o.badgeScale) !== 1 ? { badgeScale: cleanBadgeScale(o.badgeScale) } : {}),
         // the width of a group's chip with its name list (reference px, 60 .. 400); 0 = as wide as its longest name needs (up to 220)
         chipWidth: isGroup && Number.isFinite(Number(o.chipWidth)) && Number(o.chipWidth) > 0 ? Math.max(60, Math.min(400, Math.round(Number(o.chipWidth)))) : 0,
         // a role slot can ask for a class (priority = order): a template fills it from the setup's players of that class only;
@@ -661,6 +669,6 @@ module.exports = {
     LIMITS, cleanBoard, boardHasContent, reidBoard, fillSlots, newId, ANY_PLAYER,
     // only for the tests (#424): not part of the module's API
     _internal: {
-        cleanFactor, cleanView, MARKS, cleanGroupStyles, ZONE_ROLES, MIN_ZONE,
+        cleanFactor, cleanBadgeScale, cleanView, MARKS, cleanGroupStyles, ZONE_ROLES, MIN_ZONE,
     },
 };

@@ -67,6 +67,11 @@
 
 .rp-insp { display: flex; flex-direction: column; gap: 8px; }
 .rp-insp-empty { padding: 6px 2px; }
+/* a long inspector in tabs (#528, InspectorTabs.tsx): the UI kit segment across the whole column (by role: this sheet keeps to rp- classes), one tab below */
+.rp-insp-tabs > [role="radiogroup"] { display: flex; width: 100%; }
+.rp-insp-tabs [role="radio"] { flex: 1 1 0; min-width: 0; justify-content: center; padding: 0 6px; font-size: 12px; }
+.rp-insp-tab { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rp-insp-steps { display: flex; flex-wrap: wrap; gap: 4px; }
 .rp-insp-head { display: flex; flex-direction: column; gap: 1px; }
 .rp-insp-name { font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rp-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }

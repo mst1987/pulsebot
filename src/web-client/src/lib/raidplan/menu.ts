@@ -15,7 +15,7 @@ export function item(id: string, section: string, disabled: boolean, danger: boo
  * empty board (`"board"`), in order. `id`s are what applyMenuAction() and the page
  * understand; `section` groups them (a separator between sections).
  */
-export function contextMenuItems(target: string, opts: { locked: boolean; hasPlayer: boolean; isEvent: boolean; kind: string; hideMembers?: boolean; split?: boolean; ringOff?: boolean; inGroup?: boolean; faces?: boolean }): MenuItem[] {
+export function contextMenuItems(target: string, opts: { locked: boolean; hasPlayer: boolean; isEvent: boolean; kind: string; hideMembers?: boolean; split?: boolean; ringOff?: boolean; badgeOff?: boolean; inGroup?: boolean; faces?: boolean }): MenuItem[] {
     if (target === "board") {
         const out: MenuItem[] = [];
         for (const k of ["tank", "healer", "melee", "ranged", "dps", "group", "label"]) out.push(item(`insert:slot:${k}`, "slots", false, false));
@@ -44,6 +44,7 @@ export function contextMenuItems(target: string, opts: { locked: boolean; hasPla
         out.push(item(opts.hideMembers ? "members:show" : "members:hide", "group", false, false));
         out.push(item(opts.split ? "split:off" : "split:on", "group", false, false));
         if (opts.split) out.push(item(opts.ringOff ? "ring:show" : "ring:hide", "group", false, false));
+        out.push(item(opts.badgeOff ? "badge:show" : "badge:hide", "group", false, false));
     }
     out.push(item("delete", "end", false, true));
     return out;
@@ -84,6 +85,8 @@ export function applyMenuAction(board: RaidplanBoard, id: string, kind: ObjectKi
     if (id.startsWith("face:")) return { board: updateIcon(board, objId, { rotation: normAngle(Number(id.slice(5))) }), sel };
     if (id === "ring:hide") return { board: updateSlot(board, objId, { showRing: false }), sel };
     if (id === "ring:show") return { board: updateSlot(board, objId, { showRing: true }), sel };
+    if (id === "badge:hide") return { board: updateSlot(board, objId, { showBadge: false }), sel };
+    if (id === "badge:show") return { board: updateSlot(board, objId, { showBadge: true }), sel };
     if (id === "members:hide") return { board: updateSlot(board, objId, { hideMembers: true }), sel };
     if (id === "members:show") return { board: updateSlot(board, objId, { hideMembers: false }), sel };
     if (id === "split:on") return { board: updateSlot(board, objId, { split: true }), sel };

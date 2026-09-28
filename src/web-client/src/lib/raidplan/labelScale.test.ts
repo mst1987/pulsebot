@@ -82,3 +82,27 @@ describe("group badge metrics (#511)", () => {
         expect(ls.badgeMetrics(-5).size).toBe(0);
     });
 });
+
+describe("a group's own badge size (#528)", () => {
+    it("scales the badge, its digit and rim by the factor", () => {
+        const half = ls.badgeMetrics(38, 0.5);
+        expect(half.size).toBeCloseTo(9.5, 9);
+        expect(half.font).toBeCloseTo(9.5 * ls.BADGE_FONT, 9);
+        expect(half.border).toBeCloseTo(9.5 * ls.BADGE_BORDER, 9);
+        expect(ls.badgeMetrics(38, 1.5).size).toBeCloseTo(28.5, 9);
+        expect(ls.badgeMetrics(38, 1).size).toBe(ls.badgeMetrics(38).size);
+    });
+    it("floor and ceiling stay relative: they scale with the factor", () => {
+        expect(ls.badgeMetrics(16, 0.5).size).toBeCloseTo(ls.BADGE_MIN * 0.5, 9);
+        expect(ls.badgeMetrics(200, 1.5).size).toBeCloseTo(ls.BADGE_MAX * 1.5, 9);
+    });
+    it("the factor is clamped to 50 .. 150 %, anything that is not a number is 100 %", () => {
+        expect(ls.badgeScaleOf(0.1)).toBe(ls.BADGE_SCALE_MIN);
+        expect(ls.badgeScaleOf(9)).toBe(ls.BADGE_SCALE_MAX);
+        expect(ls.badgeScaleOf(undefined)).toBe(1);
+        expect(ls.badgeScaleOf("x")).toBe(1);
+        expect(ls.badgeScaleOf(null)).toBe(1);
+        expect(ls.badgeScaleOf(0.75)).toBe(0.75);
+        expect(ls.badgeMetrics(38, 10).size).toBeCloseTo(19 * 1.5, 9);
+    });
+});
