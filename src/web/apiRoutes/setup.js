@@ -131,7 +131,10 @@ const putSetup = withUser({ write: "raids", csrf: true, body: true }, async ({ u
     await answer(res, result, user);
 });
 
-/** POST /api/raids/setup/approve — body `{ event, version }` */
+/** "Bench mitposten" (#517): true/false from the body, undefined = keep the event's last choice. */
+const benchChoice = (body) => (typeof body.bench === "boolean" ? body.bench : undefined);
+
+/** POST /api/raids/setup/approve — body `{ event, version, bench? }` */
 const postApprove = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.approveEventSetup(String(body.event).trim(), { version: body.version, userId: user.id });
@@ -145,17 +148,17 @@ const postApprove = withUser({ write: "raids", csrf: true, body: true }, async (
     if (!result.already) {
         // The setup's own message (#290): awaited, so the answer says where it went;
         // the DMs run on in the background and the editor polls their outcome.
-        const { post } = await setupMessage.publishSetup(result.event.id, { userId: user.id });
+        const { post } = await setupMessage.publishSetup(result.event.id, { userId: user.id, bench: benchChoice(body) });
         if (post.code) message = `${message} Setup-Nachricht nicht gepostet: ${post.error}`;
     }
     await answer(res, result, user, { message });
 });
 
-/** POST /api/raids/setup/post — body `{ event }`: post/edit the approved setup, send outstanding DMs. */
+/** POST /api/raids/setup/post — body `{ event, bench? }`: post/edit the approved setup, send outstanding DMs. */
 const postPublish = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
-    const { post } = await setupMessage.publishSetup(event.id, { userId: user.id });
+    const { post } = await setupMessage.publishSetup(event.id, { userId: user.id, bench: benchChoice(body) });
     if (post.code) return sendFailure(res, post);
     const text = post.action === "edited" ? "Setup-Nachricht aktualisiert." : "Setup gepostet.";
     await answer(res, { event }, user, { message: text });

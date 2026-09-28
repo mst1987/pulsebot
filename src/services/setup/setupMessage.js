@@ -5,7 +5,9 @@
 // approval keeps the message on the approved lineup until the next approval.
 //
 // The message is its own post beside the signup message: groups 1–5 as inline
-// blocks (spec icon · name), the bench in one line, a line of role totals. It is
+// blocks (spec icon · name), the bench in one line — only when the orga ticks
+// "Bench mitposten" (#517, `setupPost.bench`, off by default; the pool of who
+// signed up and was not placed is never posted) — a line of role totals. It is
 // posted on the first approval and **edited** on every later one — where it sits
 // is remembered on the event (`event.setupPost`). A message deleted in Discord is
 // posted anew; a cancelled event gets its message marked ("Cancelled"), never a
@@ -13,7 +15,7 @@
 //
 // DMs are a switch per category (`config.categorySetupDms`, off by default):
 // placed raiders read "You are in Group 2 as Healer (Zibbo · Holy)", the
-// bench "This time on the bench …" with the proposal's reasons (translated by
+// bench — only while it is posted (#517) — "This time on the bench …" with the proposal's reasons (translated by
 // utils/signup/botEnglish.js). A raider is told once per
 // placement — `setupPost.told[userId]` keeps what they were told, so a new
 // approval only writes to those whose place changed, and a failed DM is tried
@@ -42,7 +44,7 @@ const {
     roleEmojiName, emojiStyleOf,
 } = require("../discord/appEmojis");
 const { str, clip } = require("../../utils/text");
-const { approvedSetupOf, confirmationsFor, confirmButtonRow, inviteButtonRow, pingButtonRow } = require("./setupCore");
+const { approvedSetupOf, benchPosted, confirmationsFor, confirmButtonRow, inviteButtonRow, pingButtonRow } = require("./setupCore");
 const { callSetupPing } = require("./setupPing");
 
 const LIMITS = { title: 256, description: 4096, fields: 25, fieldValue: 1024, total: 6000 };
@@ -126,7 +128,7 @@ function roleCounts(approved) {
  *   animated }; none = text. `confirmations`: userId → "confirmed" | "declined" (of the
  *   current version only — setupConfirmBot.confirmationsFor drops stale ones).
  */
-function buildSetupMessage(event, approved, { emojis = {}, confirmations = {} } = {}) {
+function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, bench: withBench = false } = {}) {
     if (!event || !approved || !Array.isArray(approved.groups)) return null;
     const cancelled = event.status === "cancelled";
     const title = clip(`${cancelled ? "Cancelled: " : ""}Setup · ${event.title || "Raid"}`, LIMITS.title);
@@ -163,7 +165,8 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {} } 
     if (descLines.length) descLines.push("\u200b");
     const description = descLines.join("\n");
     const groups = approved.groups.filter((g) => (g.slots || []).length).sort((a, b) => a.index - b.index);
-    const bench = approved.bench || [];
+    // the bench only when the orga chose to post it (#517)
+    const bench = withBench ? (approved.bench || []) : [];
     const base = publicBaseUrl();
     const link = base ? `[View on the web](${base}/signups?event=${encodeURIComponent(event.id)})` : "";
 
@@ -210,14 +213,14 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {} } 
 
 // ---- DMs --------------------------------------------------------------------
 
-/** Every raider of the approved lineup with where they stand. */
-function placementsOf(approved) {
+/** Every raider of the approved lineup with where they stand — the bench only when it is posted (#517). */
+function placementsOf(approved, { bench = false } = {}) {
     if (!approved) return [];
     const out = [];
     for (const g of approved.groups || []) {
         for (const s of g.slots || []) out.push({ ...s, group: g.index, bench: false });
     }
-    for (const b of approved.bench || []) out.push({ ...b, group: 0, bench: true });
+    if (bench) for (const b of approved.bench || []) out.push({ ...b, group: 0, bench: true });
     return out;
 }
 
@@ -290,7 +293,7 @@ async function sendSetupDms(eventId, { config = getConfig(), delayMs = DM_DELAY_
     if (running.has(event.id)) return { skipped: "running" };
 
     const told = { ...((event.setupPost && event.setupPost.told) || {}) };
-    const people = placementsOf(approved);
+    const people = placementsOf(approved, { bench: benchPosted(event) });
     const todo = people.filter((p) => told[p.userId] !== placementSignature(p));
     const dms = { version: approved.version, status: "running", startedAt: now(), at: 0, total: todo.length, sent: 0, failed: [], unchanged: people.length - todo.length };
     if (!todo.length) {
@@ -335,16 +338,19 @@ const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.
 
 async function payloadFor(event, approved) {
     await loadAppEmojis(discord.getClient());
-    return buildSetupMessage(event, approved, { emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved) });
+    return buildSetupMessage(event, approved, { emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved), bench: benchPosted(event) });
 }
 
 /**
  * Post the approved setup into the event's channel, or edit the message that is
  * already there. A draft is refused (`no_approved_setup`), a cancelled event
  * only gets an existing message marked (`cancelled` without one).
+ * `bench` (true/false, #517) is the orga's "Bench mitposten": remembered on the
+ * event (`setupPost.bench`) and used from then on; left out, the last choice stands.
  * @returns {Promise<{ action?: "posted"|"edited", code?: string, error?: string }>}
  */
-async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now() } = {}) {
+async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now(), bench } = {}) {
+    if (typeof bench === "boolean" && eventStore.getEvent(eventId)) eventStore.setEventSetupPost(eventId, { bench });
     const event = eventStore.getEvent(eventId);
     if (!event) return { code: "not_found", error: "Event nicht gefunden." };
     const approved = approvedSetupOf(event);
@@ -388,8 +394,8 @@ async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now() }
  * Returns once the message is done; `dms` is the running promise (null when
  * there is nothing to send).
  */
-async function publishSetup(eventId, { userId = "", now = Date.now(), config = getConfig(), delayMs } = {}) {
-    const post = await postOrEditSetupMessage(eventId, { userId, now });
+async function publishSetup(eventId, { userId = "", now = Date.now(), config = getConfig(), delayMs, bench } = {}) {
+    const post = await postOrEditSetupMessage(eventId, { userId, now, bench });
     const event = eventStore.getEvent(eventId);
     // The very first post pings everyone placed — same as a manual "Ping
     // everyone" click, with whatever text the orga set (setupPing.js). Never
@@ -425,9 +431,13 @@ function publishView(event, { config = getConfig(), channelName = "" } = {}) {
     const setup = event && event.setup;
     // Before an approval the draft is what will be sent; afterwards the approved lineup.
     const lineup = setup && setup.status !== "approved" ? setup : approved;
-    const people = placementsOf(lineup);
+    const bench = benchPosted(event);
+    const people = placementsOf(lineup, { bench });
     const told = post.told || {};
     return {
+        // "Bench mitposten" (#517): the last choice, off by default
+        bench,
+        benchCount: ((lineup && lineup.bench) || []).length,
         channelId: post.channelId || (event && event.channelId) || "",
         channelName: channelName || (event && event.channelName) || "",
         cancelled: !!(event && event.status === "cancelled"),

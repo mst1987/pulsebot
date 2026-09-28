@@ -6,10 +6,13 @@
 // stands where they do is the line's tooltip, the weights sit behind a dialog,
 // and so does Claude's explanation.
 //
-// Moving: drag a raider onto a group, onto the bench or onto another raider
-// (swap — inside one group that reorders it; every group always shows its five
-// places). Without a mouse: activate a raider (click, Enter), then the target.
-// Every move is saved at once and comes back valued by the server.
+// Moving: drag a raider onto a group, onto the bench, back into "Angemeldet"
+// (the pool of who signed up and is neither placed nor benched, #517) or onto
+// another raider (swap — inside one group that reorders it; every group always
+// shows its five places). Without a mouse: activate a raider (click, Enter),
+// then the target. Every move is saved at once and comes back valued by the
+// server. Posting carries the bench only with "Bench mitposten" ticked.
+
 import { useEffect, useRef, useState } from "react";
 import { approveRaidSetup, getRaidSetup, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, updateRaidSize, type ApiError, type SetupEditorData, type SetupPerson, type SetupPlacementInput } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
@@ -25,7 +28,7 @@ import { LockIcon } from "../../../components/icons";
 import type { RaidCtx } from "../meta";
 import "../../../styles/setup-editor.css";
 import { readCompact, storeCompact } from "./setupText";
-import { BenchCard, GroupCard, type Interaction, ReadOnly } from "./Board";
+import { BenchCard, GroupCard, type Interaction, PoolCard, ReadOnly } from "./Board";
 import { PingTextField, PublishLine, SizeControl, StatusBadge } from "./Controls";
 import { Summary } from "./Summary";
 import { SlotTip, TipEmpty } from "./SlotTip";
@@ -43,6 +46,8 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const [inspected, setInspected] = useState<string | null>(null);
     const [dialog, setDialog] = useState<"weights" | "explain" | "search" | null>(null);
     const [posting, setPosting] = useState(false);
+    // "Bench mitposten" (#517): null = what the event remembered from the last post (off by default)
+    const [benchChoice, setBenchChoice] = useState<boolean | null>(null);
     const [compact, setCompact] = useState(readCompact);
     const toggleCompact = () => setCompact((on) => {
         storeCompact(!on);
@@ -62,6 +67,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     }, [selected]);
 
     const setup = data?.setup || null;
+    const postBench = benchChoice ?? !!data?.publish?.bench;
 
     // The DMs of an approval run on in the background: poll only their state, so
     // a move the orga makes meanwhile is never overwritten by an older lineup.
@@ -92,7 +98,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         const next = { ...raw, setup: withSetupDefaults(raw.setup) };
         const known = current.current?.setup ? peopleOf(current.current.setup) : new Map<string, SetupPerson>();
         const named = (p: SetupPerson) => (p.name ? p : { ...p, name: known.get(p.userId)?.name || "" });
-        return { ...next, setup: { ...next.setup, groups: next.setup.groups.map((g) => ({ ...g, slots: g.slots.map(named) })), bench: next.setup.bench.map(named) } };
+        return { ...next, setup: { ...next.setup, groups: next.setup.groups.map((g) => ({ ...g, slots: g.slots.map(named) })), bench: next.setup.bench.map(named), pool: (next.setup.pool || []).map(named) } };
     };
 
     /** Answer of a mutating call: take the server's lineup, tell the parent the step changed. */
@@ -229,7 +235,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         try {
             // approve what is drawn: wait for the moves still on their way first
             await chain.current;
-            const next = await approveRaidSetup(ctx.eventId, confirmedVersion.current);
+            const next = await approveRaidSetup(ctx.eventId, confirmedVersion.current, { bench: postBench });
             accept(next, next.message);
         } catch (e) {
             jobs.notify((e as ApiError).message || t("setup.editor.approveFailed"), "err");
@@ -243,7 +249,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         setPosting(true);
         try {
             await chain.current;
-            const next = await publishRaidSetup(ctx.eventId);
+            const next = await publishRaidSetup(ctx.eventId, { bench: postBench });
             accept(next, next.message);
         } catch (e) {
             jobs.notify((e as ApiError).message || t("setup.editor.postFailed"), "err");
@@ -300,7 +306,8 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const suggest = movingPerson ? suggestGroup(movingPerson, withAllGroups(setup.groups, data.groupCount || 1)) : null;
     // looked up fresh every render, so a move redraws the panel's group and buffs
     const inspectedPerson = inspected ? peopleOf(setup).get(inspected) : undefined;
-    const inspectedIsBench = !!inspectedPerson && setup.bench.some((b) => b.userId === inspectedPerson.userId);
+    // on the bench or in the pool: no slot yet, so no "im Setup als" and no extra role
+    const inspectedIsBench = !!inspectedPerson && [...setup.bench, ...(setup.pool || [])].some((b) => b.userId === inspectedPerson.userId);
     const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)) };
     const groups = withAllGroups(setup.groups, data.groupCount || 1);
     const partyBuffs = setup.checks.buffs.party;
@@ -349,7 +356,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     </Button>
                 </div>
             </div>
-            <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />
+            <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} bench={postBench} onBench={setBenchChoice} />
             {/* the top area: left the ping message over the evening's numbers, right the raider panel (the one the pointer touched last) — one fixed height */}
             <div className="se-topline">
                 <div className="se-topleft">
@@ -365,7 +372,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
             </div>
 
             <div className="se-layout">
-                {/* the setup on top, the bench under a divider */}
+                {/* the setup on top, the bench under a divider, then who signed up and is not in it (#517) */}
                 <div className="se-main">
                     <div className="se-groups">
                         {groups.map((g) => (
@@ -373,6 +380,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                         ))}
                     </div>
                     <BenchCard bench={setup.bench} ui={ui} />
+                    <PoolCard pool={setup.pool || []} ui={ui} />
                 </div>
             </div>
 

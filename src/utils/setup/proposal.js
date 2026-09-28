@@ -1,4 +1,5 @@
-// The setup proposal (#262): raid groups and a bench, built from the signups,
+// The setup proposal (#262): raid groups, the pool of who is left (#517) and the
+// orga's explicit bench, built from the signups,
 // the raider profiles, attendance, earlier setups and the orga's fixed places.
 //
 // Always a proposal — a human approves it (#263). Pure and deterministic: the
@@ -435,6 +436,7 @@ function search(model, scorer) {
  *   versionId: string,
  *   groups: { index: number, slots: Slot[] }[],
  *   bench: BenchEntry[],
+ *   pool: BenchEntry[],
  *   checks: { ok: boolean, size: object, roles: object, buffs: object, wishes: { met: number, total: number, pairs: object[] } },
  *   events: { eventId: string, title: string, groups: object[], bench: BenchEntry[], checks: object, score: number }[],
  *   weights: object,
@@ -444,7 +446,9 @@ function search(model, scorer) {
  * Slot = `{ userId, character, classId, spec, role, main, status, locked, reasons: string[] }`,
  * BenchEntry = `{ userId, character, classId, spec, role, status, eventIds, locked, reasons: string[] }`.
  * `groups`/`checks` are the first (usually only) event's; with parallel events each has its own
- * entry in `events`, `bench` lists who is in none, and `checks.wishes` counts across all of them.
+ * entry in `events`, and `checks.wishes` counts across all of them. Who is in no group is split
+ * (#517): `bench` only holds who the orga fixed there (`{ userId, bench: true }`), `pool` (the
+ * editor's "Angemeldet") everybody else — a proposal never puts anybody on the bench by itself.
  */
 function buildSetupProposal(input = {}, options = {}) {
     const { model, effective } = prepare(input, options);
@@ -475,7 +479,8 @@ function prepare(input, options) {
  * — has the same shape as a proposal, so the editor reads both alike.
  *
  * `placement` = `{ groups: [{ index, slots: [{ userId, spec, role?, locked? }] }], bench: [{ userId, locked? }] }`
- * for the first event of `input`. manual.js validates it first; a placement
+ * for the first event of `input`. Every bench entry stays on the bench (#517);
+ * a signup in neither list comes back in `pool`. manual.js validates it first; a placement
  * that still breaks a hard rule throws.
  */
 function evaluateSetup(input = {}, placement = {}, options = {}) {
@@ -489,8 +494,9 @@ function evaluateSetup(input = {}, placement = {}, options = {}) {
             if (s.locked) locked.add(String(s.userId));
         }
     }
+    // #517: every bench entry is the orga's explicit choice; who is neither placed nor benched is the pool
     for (const b of Array.isArray(placement.bench) ? placement.bench : []) {
-        if (b && b.locked) fixed.push({ userId: String(b.userId), bench: true });
+        if (b && b.userId) fixed.push({ userId: String(b.userId), bench: true, locked: !!b.locked });
     }
     const { model, effective } = prepare({ ...input, fixed }, options);
     const n = model.cands.length;

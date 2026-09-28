@@ -54,7 +54,7 @@ describe("setupInput", () => {
         expect(attendance.attendanceFor).toHaveBeenCalledWith({ ctx: true }, "cat", "u1", ["u1"]);
         expect(input.fixed).toEqual([
             { userId: "u1", eventId: "eh-new", group: 2, spec: "Warrior-Protection", role: "tank", character: "" },
-            { userId: "u9", bench: true },
+            { userId: "u9", bench: true, locked: true },
         ]);
         expect(input.historySource).toBe("none");
     });

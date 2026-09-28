@@ -27,7 +27,8 @@ Technik: [setup.md](setup.md)
 *Teil der Raid-Detailseite, Bereich "Raids" schreiben*
 
 - Setup automatisch vorschlagen lassen (Rollenverteilung, Buffs, Fairness, Wünsche der Raider) und per Drag & Drop von Hand anpassen; einzelne Plätze lassen sich fixieren.
-- Vor der Freigabe für Raider unsichtbar. **"Freigeben"** postet die Setup-Nachricht im Kanal und verschickt optional DMs an die Raider.
+- Drei Bereiche: die **Gruppen**, die **Bank** und **„Angemeldet“** — alle Anmeldungen, die weder eingeplant noch auf der Bank sind (Ersatz-Anmeldungen mit kleinem „Ersatz“-Hinweis). Der Vorschlag setzt niemanden von selbst auf die Bank; du schiebst Leute gezielt dorthin (oder zurück nach „Angemeldet“), wie beim Einplanen.
+- Vor der Freigabe für Raider unsichtbar. **"Freigeben"** postet die Setup-Nachricht im Kanal und verschickt optional DMs an die Raider. Die Bank kommt nur mit, wenn **„Bench mitposten“** angehakt ist (Standard aus, wird je Event gemerkt); „Angemeldet“ wird nie gepostet.
 - Eine KI-Begründung erklärt die vorgeschlagene Aufstellung; **"Invite callen"** lässt sich direkt aus dem Editor auslösen.
 
 ## Raidplan

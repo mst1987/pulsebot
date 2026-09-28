@@ -60,6 +60,38 @@ function savedBody(): SetupPlacementInput & { event: string } {
 
 const groupOf = (body: SetupPlacementInput, userId: string) => body.groups.find((g) => g.slots.some((s) => s.userId === userId))?.index;
 
+// #517: the groups, the orga's bench and "Angemeldet" (signed up, in neither)
+describe("the setup editor: bench and pool \"Angemeldet\" (#517)", () => {
+    const WARLOCK = person("u-lock", "Fluch", { classId: "warlock", spec: "warlock-destruction", status: "bench" });
+
+    it("draws three areas, marks a bench signup in the pool and gives it no lock", async () => {
+        await show(editorData({}, { pool: [WARLOCK] }));
+        expect(screen.getByRole("region", { name: t("setup.bench.aria") })).toBeInTheDocument();
+        const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
+        expect(within(pool).getByText("Fluch")).toBeInTheDocument();
+        expect(within(pool).getByText(t("setup.pool.benchSignup"))).toBeInTheDocument();
+        expect(slot("Fluch").querySelector(".se-lock")).toBeNull();
+        expect(slot("Schatten").querySelector(".se-lock")).not.toBeNull();
+    });
+
+    it("brings somebody from the pool into a group and onto the bench", async () => {
+        await show(editorData({}, { pool: [WARLOCK] }));
+        fireEvent.drop(group(2), { dataTransfer: { getData: () => WARLOCK.userId } });
+        await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
+        expect(groupOf(savedBody(), WARLOCK.userId)).toBe(2);
+    });
+
+    it("takes a raider out of the setup by dropping them on \"Angemeldet\"", async () => {
+        await show(editorData({}, { pool: [WARLOCK] }));
+        fireEvent.drop(screen.getByRole("region", { name: t("setup.pool.chunkTitle", { index: 1 }) }), { dataTransfer: { getData: () => MAGE.userId } });
+        await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
+        const body = savedBody();
+        expect(groupOf(body, MAGE.userId)).toBeUndefined();
+        expect(body.bench.map((b) => b.userId)).toEqual([ROGUE.userId]);
+        expect(body).not.toHaveProperty("pool");
+    });
+});
+
 describe("the setup editor: moving raiders", () => {
     it("draws every group with its five places and the bench as cards of a group's size", async () => {
         await show(editorData({}, { bench: [ROGUE, person("b2", "Zwei"), person("b3", "Drei"), person("b4", "Vier"), person("b5", "Fuenf"), person("b6", "Sechs")] }));
@@ -153,10 +185,10 @@ describe("the setup editor: the bar", () => {
         expect(screen.getByText(t("setup.editor.sizeTotal", { perGroup: 5, size: 5 }))).toBeInTheDocument();
         fireEvent.blur(size);
 
-        // reshuffled in the browser before the server answered: one group left, Lumen on the bench
+        // reshuffled in the browser before the server answered: one group left, Lumen back under "Angemeldet" (#517 — never onto the bench by itself)
         await waitFor(() => expect(screen.queryByRole("region", { name: t("setup.group.title", { index: 2 }) })).not.toBeInTheDocument());
-        const bench = screen.getByRole("region", { name: t("setup.bench.aria") });
-        expect(within(bench).getByText("Lumen")).toBeInTheDocument();
+        const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
+        expect(within(pool).getByText("Lumen")).toBeInTheDocument();
         // the size goes through the event's own PATCH, the lineup follows once it is stored
         expect(calls("PATCH", "/api/raids")[0][2]).toEqual({ id: EVENT_ID, size: 5 });
         expect(calls("PUT", "/api/raids/setup")).toHaveLength(0);
@@ -260,7 +292,7 @@ describe("the setup editor: state, approval and posting", () => {
         expect(client.send).not.toHaveBeenCalled();
         await user.click(within(question).getByRole("button", { name: t("setup.editor.approve") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(1));
-        expect(calls("POST", "/api/raids/setup/approve")[0][2]).toEqual({ event: EVENT_ID, version: 3 });
+        expect(calls("POST", "/api/raids/setup/approve")[0][2]).toEqual({ event: EVENT_ID, version: 3, bench: false });
     });
 
     it("approves only after the moves still on their way, with the version the server confirmed", async () => {
@@ -276,7 +308,7 @@ describe("the setup editor: state, approval and posting", () => {
         expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(0);
         await act(async () => answerSave({ ...page, setup: { ...page.setup, version: 4 } }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(1));
-        expect(calls("POST", "/api/raids/setup/approve")[0][2]).toEqual({ event: EVENT_ID, version: 4 });
+        expect(calls("POST", "/api/raids/setup/approve")[0][2]).toEqual({ event: EVENT_ID, version: 4, bench: false });
     });
 
     it("shows a reader only the approved lineup, without anything to move", async () => {
@@ -301,7 +333,34 @@ describe("the setup editor: state, approval and posting", () => {
         expect(screen.getByText(t("setup.publish.notPosted", { channel: "#kara-do" }))).toBeInTheDocument();
         await user.click(screen.getByRole("button", { name: t("setup.publishLine.post") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/post")).toHaveLength(1));
-        expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID });
+        expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: false });
+    });
+
+    // #517: "Bench mitposten" — the bench goes out only when the orga ticks it
+    it("posts the bench only with the box ticked, and has no box without a bench", async () => {
+        const user = userEvent.setup();
+        const publish = { channelId: "c1", channelName: "kara-do", cancelled: false, dmsEnabled: true, recipients: 3, pendingDms: 3, posted: null, outdated: false, error: "", errorAt: 0, dms: null, bench: false, benchCount: 1 };
+        const view = await show(editorData({ publish }, { status: "approved" }));
+        const box = screen.getByRole("checkbox", { name: t("setup.publishLine.bench") });
+        expect(box).not.toBeChecked();
+        await user.click(box);
+        await user.click(screen.getByRole("button", { name: t("setup.publishLine.post") }));
+        await waitFor(() => expect(calls("POST", "/api/raids/setup/post")).toHaveLength(1));
+        expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: true });
+        view.unmount();
+
+        await show(editorData({ publish }, { status: "approved", bench: [] }));
+        expect(screen.queryByRole("checkbox", { name: t("setup.publishLine.bench") })).not.toBeInTheDocument();
+    });
+
+    it("remembers the event's last choice and approves with it", async () => {
+        const user = userEvent.setup();
+        const publish = { channelId: "c1", channelName: "kara-do", cancelled: false, dmsEnabled: false, recipients: 3, pendingDms: 3, posted: null, outdated: false, error: "", errorAt: 0, dms: null, bench: true, benchCount: 1 };
+        await show(editorData({ publish }));
+        expect(screen.getByRole("checkbox", { name: t("setup.publishLine.bench") })).toBeChecked();
+        await user.click(screen.getByRole("button", { name: t("setup.editor.approve") }));
+        await waitFor(() => expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(1));
+        expect(calls("POST", "/api/raids/setup/approve")[0][2]).toMatchObject({ event: EVENT_ID, bench: true });
     });
 
     describe("while the DMs are being sent", () => {

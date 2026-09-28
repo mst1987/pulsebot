@@ -1,6 +1,6 @@
 // The setup editor's moves (#263), pure: turn the stored setup into what
-// PUT /api/raids/setup takes, move a raider (to a group, onto the bench, swap
-// with somebody), toggle a lock — and redraw the lineup locally while the save
+// PUT /api/raids/setup takes, move a raider (to a group, onto the bench, back
+// into the pool "Angemeldet" (#517), swap with somebody), toggle a lock — and redraw the lineup locally while the save
 // is on its way. The server validates and values every change again; these
 // rules only keep the page from sending what it already knows is refused.
 //
@@ -12,8 +12,12 @@ import { t } from "../i18n";
 
 export const GROUP_SIZE = 5;
 
-/** Where a raider can be dropped: a group (with `pos`: onto that free place 1…5), the bench, or onto another raider (swap). */
-export type SetupTarget = { group: number; pos?: number } | { bench: true } | { userId: string };
+/**
+ * Where a raider can be dropped: a group (with `pos`: onto that free place 1…5), the bench, the pool
+ * ("Angemeldet", #517: signed up, neither placed nor benched), or onto another raider (swap).
+ * The pool is not part of the save request — who is in neither groups nor bench is in it.
+ */
+export type SetupTarget = { group: number; pos?: number } | { bench: true } | { pool: true } | { userId: string };
 
 /**
  * Every slot of a group with a place of its own, 1…5: a slot that has a free one
@@ -59,6 +63,7 @@ export function withSetupDefaults(setup: StoredSetup): StoredSetup {
         ...setup,
         groups,
         bench: setup.bench || [],
+        pool: setup.pool || [],
         warnings: setup.warnings || [],
         options: setup.options || { weights: {}, fairness: null, wishes: null },
         checks: {
@@ -111,7 +116,7 @@ function cloneInput(input: SetupPlacementInput): SetupPlacementInput {
     };
 }
 
-/** Take a raider out of wherever they are; returns the removed slot (bench entries get their person's spec). */
+/** Take a raider out of wherever they are; returns the removed slot (bench and pool entries get their person's spec). */
 function takeOut(input: SetupPlacementInput, userId: string, people: Map<string, SetupPerson>) {
     for (const g of input.groups) {
         const i = g.slots.findIndex((s) => s.userId === userId);
@@ -121,7 +126,26 @@ function takeOut(input: SetupPlacementInput, userId: string, people: Map<string,
     if (b >= 0) {
         return slotFromBench(input.bench.splice(b, 1)[0], people);
     }
-    return null;
+    // somebody from the pool is in neither list — nothing to take out, just their slot
+    return people.has(userId) ? slotFromBench({ userId, locked: false }, people) : null;
+}
+
+/** Where a raider stands, the pool included: `{ group }`, `{ bench: true }`, `{ pool: true }` or null. */
+function whereIs(input: SetupPlacementInput, userId: string, people: Map<string, SetupPerson>) {
+    return positionOf(input, userId) || (people.has(userId) ? { pool: true as const } : null);
+}
+
+/**
+ * A swap with the pool (#517): the raider from the pool takes the other's exact
+ * place (group and number, or the bench), the other goes back into the pool.
+ */
+function swapWithPool(input: SetupPlacementInput, fromPool: string, placed: string, people: Map<string, SetupPerson>) {
+    const at = placeOf(input, placed);
+    if (!at) return false;
+    const incoming = slotFromBench({ userId: fromPool, locked: false }, people);
+    if (at.slots) at.slots[at.i] = { ...incoming, pos: at.slots[at.i].pos };
+    else input.bench[at.i] = { userId: fromPool, locked: false };
+    return true;
 }
 
 /** A bench entry as a group slot: the person's own spec and role. */
@@ -177,16 +201,25 @@ function groupFor(input: SetupPlacementInput, index: number) {
  * `{ input: null }` when nothing would change.
  */
 export function moveRaider(current: SetupPlacementInput, userId: string, target: SetupTarget, people: Map<string, SetupPerson>, size: number) {
-    const from = positionOf(current, userId);
+    const from = whereIs(current, userId, people);
     if (!from) return { error: t("setup.moves.notInSetup") };
     const input = cloneInput(current);
 
     if ("userId" in target) {
         if (target.userId === userId) return { input: null };
-        const to = positionOf(input, target.userId);
+        const to = whereIs(input, target.userId, people);
         if (!to) return { error: t("setup.moves.targetNotInSetup") };
-        if ("bench" in from && "bench" in to) return { input: null };
+        if (("bench" in from && "bench" in to) || ("pool" in from && "pool" in to)) return { input: null };
+        if ("pool" in from) return swapWithPool(input, userId, target.userId, people) ? { input } : { error: t("setup.moves.notInSetup") };
+        if ("pool" in to) return swapWithPool(input, target.userId, userId, people) ? { input } : { error: t("setup.moves.notInSetup") };
         if (!swapInPlace(input, userId, target.userId, people)) return { error: t("setup.moves.notInSetup") };
+        return { input };
+    }
+
+    // back into the pool: out of the groups and off the bench, nothing else (#517)
+    if ("pool" in target) {
+        if ("pool" in from) return { input: null };
+        takeOut(input, userId, people);
         return { input };
     }
 
@@ -219,7 +252,7 @@ export function moveRaider(current: SetupPlacementInput, userId: string, target:
     const dest = groupFor(input, target.group);
     if (dest.slots.length >= GROUP_SIZE) return { error: t("setup.moves.groupFull", { group: target.group }) };
     const placed = input.groups.reduce((n, g) => n + g.slots.length, 0);
-    if ("bench" in from && size > 0 && placed >= size) return { error: t("setup.moves.raidFull", { size }) };
+    if (!("group" in from) && size > 0 && placed >= size) return { error: t("setup.moves.raidFull", { size }) };
     const slot = takeOut(input, userId, people);
     if (!slot) return { error: t("setup.moves.notInSetup") };
     // the wanted place if it is free, else the lowest free one (withPlaces)
@@ -231,10 +264,10 @@ export function moveRaider(current: SetupPlacementInput, userId: string, target:
 
 /**
  * Resize the raid, entirely client-side (#354): recompute how many groups fit
- * `newSize`, drop every group beyond that (its raiders onto the bench), then
+ * `newSize`, drop every group beyond that (its raiders back into the pool,
+ * "Angemeldet" — #517: nobody lands on the bench by themselves), then
  * trim what is left — from the highest-index group down, its last slot first —
- * until the total placed count is no bigger than `newSize`. Everyone bumped is
- * appended to the bench, its own order left alone. Locks are not special-cased
+ * until the total placed count is no bigger than `newSize`. Locks are not special-cased
  * here: this is a raw capacity trim, not a proposal re-run — a locked raider
  * can still be bumped, and the next proposal is what should honour locks again.
  */
@@ -242,17 +275,13 @@ export function resizeLineup(input: SetupPlacementInput, newSize: number, groupS
     const out = cloneInput(input);
     const size = Math.max(0, Math.floor(newSize) || 0);
     const groupCount = size > 0 ? Math.ceil(size / groupSize) : 0;
-    const overflow = out.groups.filter((g) => g.index > groupCount);
     out.groups = out.groups.filter((g) => g.index <= groupCount);
-    for (const g of overflow) for (const s of g.slots) out.bench.push({ userId: s.userId, locked: s.locked });
 
     let placed = out.groups.reduce((n, g) => n + g.slots.length, 0);
     for (const g of [...out.groups].sort((a, b) => b.index - a.index)) {
         if (placed <= size) break;
         while (placed > size && g.slots.length) {
-            const s = g.slots.pop();
-            if (!s) break;
-            out.bench.push({ userId: s.userId, locked: s.locked });
+            if (!g.slots.pop()) break;
             placed--;
         }
     }
@@ -282,7 +311,7 @@ export function toggleLock(current: SetupPlacementInput, userId: string): SetupP
 /**
  * Put a raider into the setup as another spec of their class — the third tank, an extra healer.
  * The slot keeps its place, takes the spec and its role, and is locked, so the next proposal leaves it as chosen.
- * `{ input: null }` when nothing changes, `{ error }` for somebody on the bench (they have no slot to change yet).
+ * `{ input: null }` when nothing changes, `{ error }` for somebody on the bench or in the pool (they have no slot to change yet).
  */
 export function respecRaider(current: SetupPlacementInput, userId: string, spec: { key: string; role: string }) {
     for (const g of current.groups) {
@@ -309,6 +338,7 @@ export function peopleOf(setup: StoredSetup): Map<string, SetupPerson> {
     const map = new Map();
     for (const g of setup.groups) for (const s of g.slots) map.set(s.userId, s);
     for (const b of setup.bench) map.set(b.userId, b);
+    for (const b of setup.pool || []) map.set(b.userId, b);
     return map;
 }
 
@@ -338,13 +368,24 @@ function personFrom(people: Map<string, SetupPerson>, userId: string, locked: bo
     return { ...base, userId, locked };
 }
 
-/** The setup redrawn from a save request — shown until the server's answer arrives. */
+/**
+ * The setup redrawn from a save request — shown until the server's answer arrives.
+ * The pool (#517) is everybody the setup knows who stands in neither list: its
+ * own order first, then who just left a group or the bench.
+ */
 export function applyLocal(setup: StoredSetup, input: SetupPlacementInput): StoredSetup {
     const people = peopleOf(setup);
+    const taken = new Set([...input.groups.flatMap((g) => g.slots.map((s) => s.userId)), ...input.bench.map((b) => b.userId)]);
+    const pool: SetupPerson[] = [];
+    for (const p of [...(setup.pool || []), ...setup.groups.flatMap((g) => g.slots), ...setup.bench]) {
+        if (taken.has(p.userId) || pool.some((x) => x.userId === p.userId)) continue;
+        pool.push(personFrom(people, p.userId, false));
+    }
     return {
         ...setup,
         groups: input.groups.map((g) => ({ index: g.index, slots: g.slots.map((s) => ({ ...personFrom(people, s.userId, s.locked), pos: s.pos })) })),
         bench: input.bench.map((b) => personFrom(people, b.userId, b.locked)),
+        pool,
     };
 }
 

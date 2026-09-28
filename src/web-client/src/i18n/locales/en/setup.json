@@ -76,7 +76,16 @@
     "bench": {
         "aria": "Bench",
         "title": "Bench",
-        "chunkTitle": "Bench {index}"
+        "chunkTitle": "Bench {index}",
+        "tip": "Only who was moved here by hand. Posted with the setup (and told per DM) only when “Post bench” is ticked."
+    },
+    "pool": {
+        "aria": "Signed up, not in the setup",
+        "title": "Signed up",
+        "chunkTitle": "Signed up {index}",
+        "tip": "Signed up, but neither placed nor on the bench. Never posted. Drag people from here into a group or onto the bench.",
+        "benchSignup": "Sub",
+        "benchSignupTip": "Signed up as a substitute (bench)"
     },
     "summary": {
         "aria": "Summary",
@@ -153,7 +162,9 @@
     "publishLine": {
         "enableDms": "Turn on DMs",
         "post": "Post setup",
-        "postSub": "Posts the approved setup to the event channel or updates the message there, and sends any DMs still missing. A draft is never posted."
+        "postSub": "Posts the approved setup to the event channel or updates the message there, and sends any DMs still missing. A draft is never posted.",
+        "bench": "Post bench",
+        "benchSub": "Ticked, the bench is in the setup message and the bench players get a DM. Unticked, it stays internal. The choice applies to approving and “Post setup” and is remembered per event."
     },
     "search": {
         "kicker": "Raid search",

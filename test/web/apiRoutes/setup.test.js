@@ -128,6 +128,18 @@ describe("posting the approved setup (#290)", () => {
         expect(body(await call(route.getSetup, READER, null, `event=${ID}`))).not.toHaveProperty("publish");
     });
 
+    it("hands the orga's \"Bench mitposten\" on to the post, only when it is a yes/no (#517)", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version, bench: true });
+        expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga", bench: true });
+        setupMessage.publishSetup.mockClear();
+        await call(route.postPublish, ORGA, { event: ID, bench: false });
+        expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga", bench: false });
+        setupMessage.publishSetup.mockClear();
+        await call(route.postPublish, ORGA, { event: ID, bench: "yes" });
+        expect(setupMessage.publishSetup.mock.calls[0][1].bench).toBeUndefined();
+    });
+
     it("POST /post re-posts and reports a refusal with its code", async () => {
         const ok = await call(route.postPublish, ORGA, { event: ID });
         expect(status(ok)).toBe(200);

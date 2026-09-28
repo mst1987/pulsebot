@@ -76,7 +76,16 @@
     "bench": {
         "aria": "Ersatzbank",
         "title": "Bank",
-        "chunkTitle": "Bank {index}"
+        "chunkTitle": "Bank {index}",
+        "tip": "Nur wer von Hand hierher geschoben wurde. Wird mit dem Setup nur gepostet (und per DM benachrichtigt), wenn „Bench mitposten“ angehakt ist."
+    },
+    "pool": {
+        "aria": "Angemeldet, nicht im Setup",
+        "title": "Angemeldet",
+        "chunkTitle": "Angemeldet {index}",
+        "tip": "Angemeldet, aber weder eingeplant noch auf der Bank. Wird nie gepostet. Ziehe Leute von hier in eine Gruppe oder auf die Bank.",
+        "benchSignup": "Ersatz",
+        "benchSignupTip": "Hat sich als Ersatz (Bank) angemeldet"
     },
     "summary": {
         "aria": "Zusammenfassung",
@@ -153,7 +162,9 @@
     "publishLine": {
         "enableDms": "DMs einschalten",
         "post": "Setup posten",
-        "postSub": "Postet das freigegebene Setup in den Event-Kanal oder aktualisiert die Nachricht dort und schickt DMs, die noch fehlen. Ein Entwurf wird nie gepostet."
+        "postSub": "Postet das freigegebene Setup in den Event-Kanal oder aktualisiert die Nachricht dort und schickt DMs, die noch fehlen. Ein Entwurf wird nie gepostet.",
+        "bench": "Bench mitposten",
+        "benchSub": "Mit Haken steht die Bank in der Setup-Nachricht und die Bank-Spieler bekommen eine DM. Ohne Haken bleibt sie intern. Die Wahl gilt für das Freigeben und „Setup posten“ und wird je Event gemerkt."
     },
     "search": {
         "kicker": "Raid-Suche",

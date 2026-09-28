@@ -66,7 +66,9 @@ describe("proposeEventSetup", () => {
         const { setup } = editor.proposeEventSetup(ID, {}, { userId: "orga", now: 5 });
         expect(setup).toMatchObject({ status: "draft", version: 1, origin: "proposal", updatedBy: "orga", approved: null, changedSinceApproval: false });
         expect(setup.groups.flatMap((g) => g.slots)).toHaveLength(10);
-        expect(setup.bench.length).toBe(2);
+        // #517: who is left over waits in the pool ("Angemeldet"), a proposal benches nobody
+        expect(setup.pool.length).toBe(2);
+        expect(setup.bench).toEqual([]);
         expect(setup.checks.roles.healer).toMatchObject({ count: 2, ok: true });
         expect(setup.events).toBeUndefined();
     });
@@ -233,7 +235,7 @@ describe("approval", () => {
         editor.approveEventSetup(ID, { version: setup.version, userId: "lead", now: 50 });
         const approvedBefore = mockEvents.get(ID).setup.approved;
         const p = placementOf(mockEvents.get(ID).setup);
-        const benched = p.bench[0].userId;
+        const benched = mockEvents.get(ID).setup.pool[0].userId;
         const out = p.groups.find((g) => g.slots.some((s) => s.role !== "tank" && s.role !== "healer"));
         const dropped = out.slots.find((s) => s.role !== "tank" && s.role !== "healer");
         out.slots = out.slots.filter((s) => s !== dropped);
@@ -245,7 +247,8 @@ describe("approval", () => {
         expect(saved).toMatchObject({ status: "draft", changedSinceApproval: true, version: 2 });
         expect(saved.approved).toEqual(approvedBefore);
         const event = mockEvents.get(ID);
-        expect(editor.approvedPlacementFor(event, benched)).toMatchObject({ bench: true });
+        // #517: the pool ("Angemeldet") is no part of what raiders see — nobody was on the approved bench
+        expect(editor.approvedPlacementFor(event, benched)).toBeNull();
         expect(editor.setupSummary(event)).toMatchObject({ status: "draft", changedSinceApproval: true });
     });
 
@@ -316,8 +319,9 @@ describe("editorView's bench pool (#354)", () => {
         mockSignups = [...mockSignups, su("late1", "Priest-Holy")];
         const event = mockEvents.get(ID);
         const view = editor.editorView(event, { canWrite: true, signups: mockSignups });
-        expect(view.setup.bench.filter((b) => b.userId === "late1")).toHaveLength(1);
-        expect(view.setup.bench.find((b) => b.userId === "late1")).toMatchObject({
+        expect(view.setup.pool.filter((b) => b.userId === "late1")).toHaveLength(1);
+        expect(view.setup.bench.some((b) => b.userId === "late1")).toBe(false);
+        expect(view.setup.pool.find((b) => b.userId === "late1")).toMatchObject({
             character: "Late1", spec: "Priest-Holy", role: "healer", locked: false, classColor: expect.stringMatching(/^#/),
         });
         // never into what raiders see — the approved snapshot stays exactly what was approved
@@ -355,7 +359,7 @@ describe("editorView's buff info and attendance", () => {
         expect(party.length).toBeGreaterThan(0);
         expect(party.every((b) => b.count >= 1 && typeof b.icon === "string" && b.label)).toBe(true);
         // a priest brings a raid buff to everyone
-        expect(view.setup.bench[0].brings.some((b) => b.scope === "raid")).toBe(true);
+        expect(view.setup.pool[0].brings.some((b) => b.scope === "raid")).toBe(true);
     });
 
     it("gives every raider the groups where they would help more — the drag glow — but never their own", () => {
@@ -374,13 +378,44 @@ describe("editorView's buff info and attendance", () => {
     });
 });
 
+// #517: groups, the explicit bench and the pool ("Angemeldet")
+describe("bench and pool (#517)", () => {
+    it("keeps a raider the orga put on the bench there through a new proposal, and counts the bench as a change", () => {
+        const { setup } = editor.proposeEventSetup(ID);
+        editor.approveEventSetup(ID, { version: setup.version });
+        const p = placementOf(mockEvents.get(ID).setup);
+        const benched = mockEvents.get(ID).setup.pool[0].userId;
+        p.bench = [{ userId: benched }];
+        const saved = editor.saveEventSetup(ID, p).setup;
+        // moving somebody onto the bench is a change of the lineup: a draft again, the next approval posts it
+        expect(saved).toMatchObject({ status: "draft", changedSinceApproval: true });
+        expect(saved.bench.map((b) => b.userId)).toEqual([benched]);
+        expect(saved.pool.map((b) => b.userId)).not.toContain(benched);
+        const again = editor.proposeEventSetup(ID).setup;
+        expect(again.bench.map((b) => b.userId)).toEqual([benched]);
+        // the approved snapshot carries the explicit bench, never the pool
+        const approved = editor.approveEventSetup(ID, { version: again.version }).setup.approved;
+        expect(approved.bench.map((b) => b.userId)).toEqual([benched]);
+        expect(approved).not.toHaveProperty("pool");
+        expect(editor.setupSummary(mockEvents.get(ID))).toMatchObject({ bench: 1, pool: again.pool.length });
+    });
+
+    it("reads a setup stored before #517 (no pool): the locked bench stays, the rest is the pool", () => {
+        const legacy = editor._internal.withSetupDefaults({ groups: [], bench: [{ userId: "a", locked: true }, { userId: "b" }] }, 10);
+        expect(legacy.bench.map((b) => b.userId)).toEqual(["a"]);
+        expect(legacy.pool.map((b) => [b.userId, b.locked])).toEqual([["b", false]]);
+        const current = editor._internal.withSetupDefaults({ groups: [], bench: [{ userId: "b" }], pool: [] }, 10);
+        expect(current.bench.map((b) => b.userId)).toEqual(["b"]);
+    });
+});
+
 describe("addUnplacedSignups", () => {
     const table = {
         specs: new Map([["Priest-Holy", { classId: "Priest", label: "Heilig", icon: "spell_holy_guardianspirit" }]]),
         classes: new Map([["Priest", { color: "#ffffff", label: "Priester", icon: "" }]]),
     };
 
-    it("decorates every unplaced signup and appends it to the bench", () => {
+    it("decorates every unplaced signup and appends it to the pool, never the bench (#517)", () => {
         const decorated = { groups: [{ index: 1, slots: [{ userId: "a" }] }], bench: [{ userId: "b" }] };
         const signups = [
             { userId: "a", character: "A", spec: "Priest-Holy", role: "healer" },
@@ -388,8 +423,9 @@ describe("addUnplacedSignups", () => {
             { userId: "d", character: "D", spec: "Priest-Holy", role: "healer", status: "absence" },
         ];
         const out = editor._internal.addUnplacedSignups(decorated, signups, table, { c: "Zibbo" });
-        expect(out.bench.map((b) => b.userId)).toEqual(["b", "c"]);
-        expect(out.bench[1]).toMatchObject({
+        expect(out.bench.map((b) => b.userId)).toEqual(["b"]);
+        expect(out.pool.map((b) => b.userId)).toEqual(["c"]);
+        expect(out.pool[0]).toMatchObject({
             character: "C", spec: "Priest-Holy", role: "healer", status: "late", locked: false, name: "Zibbo", classColor: "#ffffff",
         });
     });

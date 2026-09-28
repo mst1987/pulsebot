@@ -112,9 +112,10 @@ describe("evaluateSetup", () => {
         // the lock is the orga's, the rest is not
         expect(out.groups[0].slots.find((s) => s.userId === "mage")).toMatchObject({ locked: true, reasons: expect.arrayContaining(["Von der Orga fixiert"]) });
         expect(out.groups[0].slots.find((s) => s.userId === "tank").locked).toBe(false);
-        // everybody signed up and not placed is on the bench
-        expect(out.bench.map((b) => b.userId)).toEqual(expect.arrayContaining(["heal2", "rogue", "extra"]));
-        expect(out.bench.map((b) => b.userId)).not.toContain("gone");
+        // #517: everybody signed up and not placed is in the pool ("Angemeldet"), the bench stays empty
+        expect(out.pool.map((b) => b.userId)).toEqual(expect.arrayContaining(["heal2", "rogue", "extra"]));
+        expect(out.pool.map((b) => b.userId)).not.toContain("gone");
+        expect(out.bench).toEqual([]);
     });
 
     it("values the lineup a proposal built like the proposal did", () => {
@@ -131,5 +132,12 @@ describe("evaluateSetup", () => {
     it("keeps a raider the orga locked onto the bench there", () => {
         const out = evaluateSetup(input(), { groups: [{ index: 1, slots: [{ userId: "tank", spec: "Warrior-Protection" }] }], bench: [{ userId: "extra", locked: true }] });
         expect(out.bench.find((b) => b.userId === "extra")).toMatchObject({ locked: true, reasons: ["Von der Orga auf die Bank gesetzt"] });
+    });
+
+    it("keeps every bench entry on the bench, locked or not, and leaves it out of the pool (#517)", () => {
+        const out = evaluateSetup(input(), { groups: [{ index: 1, slots: [{ userId: "tank", spec: "Warrior-Protection" }] }], bench: [{ userId: "extra" }] });
+        expect(out.bench.map((b) => [b.userId, b.locked])).toEqual([["extra", false]]);
+        expect(out.pool.map((b) => b.userId)).not.toContain("extra");
+        expect(out.pool.map((b) => b.userId)).toContain("heal1");
     });
 });

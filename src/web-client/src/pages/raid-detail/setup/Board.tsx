@@ -29,7 +29,8 @@ export type Interaction = {
     onLock: (userId: string) => void;
 };
 
-function Slot({ p, ui }: { p: SetupPerson; ui: Interaction }) {
+/** One raider line. `inPool` (#517): signed up, not in the setup — no lock (there is no place to keep), a "Bank" signup marked. */
+function Slot({ p, ui, inPool = false }: { p: SetupPerson; ui: Interaction; inPool?: boolean }) {
     const t = useT();
     const status = statusLabel(p.status);
     const color = classColorProps(p.classColor);
@@ -74,10 +75,11 @@ function Slot({ p, ui }: { p: SetupPerson; ui: Interaction }) {
                     {(ui.extraRoles[p.userId] || []).map((r) => (
                         <span key={r} className="se-extra" data-tip={t("setup.extra.tip", { role: roleLabel(r) })}>{t(`setup.extra.short.${r}`)}</span>
                     ))}
+                    {inPool && p.status === "bench" && <span className="se-extra" data-tip={t("setup.pool.benchSignupTip")}>{t("setup.pool.benchSignup")}</span>}
                 </span>
             </span>
             {status && <span className={`rd-sig rd-sig-${p.status}`} aria-label={status} />}
-            {ui.editable && (
+            {ui.editable && !inPool && (
                 <IconButton
                     className={`se-lock${p.locked ? " is-on" : ""}`}
                     size="sm"
@@ -185,21 +187,25 @@ export function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs
     );
 }
 
-/** One 5-slot card of the bench (#354) — a group card's exact look, never a real group: no roles, no buffs, and dropping onto it always just means "onto the bench", wherever inside it lands. */
-function BenchChunk({ index, slots, ui }: { index: number; slots: SetupPerson[]; ui: Interaction }) {
+/**
+ * One 5-slot card of the bench (#354) or of the pool "Angemeldet" (#517) — a group card's exact look, never a real
+ * group: no roles, no buffs, and dropping onto it always just means "onto the bench" resp. "back into the pool",
+ * wherever inside it lands.
+ */
+function BenchChunk({ index, slots, ui, pool = false }: { index: number; slots: SetupPerson[]; ui: Interaction; pool?: boolean }) {
     const t = useT();
-    const zone = useZone({ bench: true }, ui);
+    const zone = useZone(pool ? { pool: true } : { bench: true }, ui);
     const full = slots.length >= GROUP_SIZE;
     const canTake = ui.editable && !!ui.selected && !slots.some((s) => s.userId === ui.selected);
-    const title = t("setup.bench.chunkTitle", { index });
+    const title = t(pool ? "setup.pool.chunkTitle" : "setup.bench.chunkTitle", { index });
     return (
         <section className={`se-group${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={title}>
             <GroupHeader title={title} count={slots.length} full={full} />
             <div className="se-slots">
-                {slots.map((p) => <Slot key={p.userId} p={p} ui={ui} />)}
+                {slots.map((p) => <Slot key={p.userId} p={p} ui={ui} inPool={pool} />)}
                 {Array.from({ length: Math.max(0, GROUP_SIZE - slots.length) }, (_, i) => (canTake
                     ? (
-                        <button key={`free-${i}`} type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop({ bench: true })}>
+                        <button key={`free-${i}`} type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop(pool ? { pool: true } : { bench: true })}>
                             {i === 0 ? t("setup.group.here") : ""}
                         </button>
                     )
@@ -213,12 +219,32 @@ export function BenchCard({ bench, ui }: { bench: SetupPerson[]; ui: Interaction
     const t = useT();
     return (
         <section className="se-bench" aria-label={t("setup.bench.aria")}>
-            <header className="se-bench-head">
+            <header className="se-bench-head" data-tip={t("setup.bench.title")} data-tip-sub={t("setup.bench.tip")}>
                 <span className="se-group-title">{t("setup.bench.title")}</span>
                 <span className="se-count">{bench.length}</span>
             </header>
             <div className="se-groups se-bench-chunks">
                 {benchChunks(bench).map((slots, i) => <BenchChunk key={i} index={i + 1} slots={slots} ui={ui} />)}
+            </div>
+        </section>
+    );
+}
+
+/**
+ * "Angemeldet" (#517): everybody signed up who is neither in a group nor on the
+ * bench — drawn like the bench, never posted. Dragging somebody here takes them
+ * out of the setup again.
+ */
+export function PoolCard({ pool, ui }: { pool: SetupPerson[]; ui: Interaction }) {
+    const t = useT();
+    return (
+        <section className="se-bench se-pool" aria-label={t("setup.pool.aria")}>
+            <header className="se-bench-head" data-tip={t("setup.pool.title")} data-tip-sub={t("setup.pool.tip")}>
+                <span className="se-group-title">{t("setup.pool.title")}</span>
+                <span className="se-count">{pool.length}</span>
+            </header>
+            <div className="se-groups se-bench-chunks">
+                {benchChunks(pool).map((slots, i) => <BenchChunk key={i} index={i + 1} slots={slots} ui={ui} pool />)}
             </div>
         </section>
     );

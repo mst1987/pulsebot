@@ -78,7 +78,10 @@ export type StoredSetup = {
     /** "auto" = drafted at the signup deadline without anybody asking (eventStore.saveSetupDraft). */
     origin: "proposal" | "manual" | "auto";
     groups: SetupEditorGroup[];
+    /** only who the orga put on the bench (#517) */
     bench: SetupPerson[];
+    /** "Angemeldet" (#517): signed up, neither placed nor benched — derived by the server, never sent back, never posted */
+    pool?: SetupPerson[];
     checks: SetupChecks;
     weights: SetupWeights;
     score: { total: number };
@@ -143,6 +146,9 @@ export type SetupSearch = {
 
 /** The setup message in the event channel and its DMs (#290) — before approving what will happen, after it what did. */
 export type SetupPublish = {
+    /** "Bench mitposten" (#517): the last choice for this event, off by default */
+    bench?: boolean;
+    benchCount?: number;
     channelId: string;
     channelName: string;
     cancelled: boolean;
@@ -164,8 +170,9 @@ export type SetupPublish = {
     } | null;
 };
 
-export function publishRaidSetup(eventId: string): Promise<SetupEditorData> {
-    return send("POST", "/api/raids/setup/post", { event: eventId });
+/** Post or update the approved setup; `bench` = "Bench mitposten" (#517), remembered for the event. */
+export function publishRaidSetup(eventId: string, opts: { bench?: boolean } = {}): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/post", { event: eventId, ...opts });
 }
 
 /** The message for needs the orga edited — nothing is posted. */
@@ -212,8 +219,9 @@ export function saveRaidSetup(eventId: string, input: SetupPlacementInput): Prom
     return send("PUT", "/api/raids/setup", { event: eventId, ...input });
 }
 
-export function approveRaidSetup(eventId: string, version: number): Promise<SetupEditorData> {
-    return send("POST", "/api/raids/setup/approve", { event: eventId, version });
+/** Approve the shown version — the approval posts the setup, with the bench when `bench` (#517). */
+export function approveRaidSetup(eventId: string, version: number, opts: { bench?: boolean } = {}): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/approve", { event: eventId, version, ...opts });
 }
 
 export function explainRaidSetup(eventId: string): Promise<{ eventId: string; status: string; alreadyRunning: boolean }> {

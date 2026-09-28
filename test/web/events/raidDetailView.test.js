@@ -161,7 +161,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         getEvent.mockReturnValue({
             status: "cancelled", signupsClosed: true, cancel: { reason: "Urlaub", archived: true }, log: [{}, {}], autoSuggest: true,
             setupPost: { channelId: "c2", messageId: "m1", version: 3, dms: { total: 5, sent: 4, failed: ["x"] } },
-            setup: { status: "approved", version: 3, groups: [{ slots: [{}, {}] }], bench: [{}], checks: { ok: true } }, size: 25,
+            setup: { status: "approved", version: 3, groups: [{ slots: [{}, {}] }], bench: [{}], pool: [], checks: { ok: true } }, size: 25,
         });
         listSignups.mockReturnValue([{ userId: "u7", character: "Devihra", spec: "Warrior-Arms", role: "melee", status: "signed" }]);
         const { body } = await buildRaidDetail({ guildId: "g1", eventId: "eh-1" });
