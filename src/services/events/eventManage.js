@@ -698,7 +698,7 @@ async function manageInfo({ guildId, eventId, now = Date.now() }) {
                 cancel: event.cancel, channelId: event.channelId, channelName: channelNameOf(event), categoryId: event.categoryId,
             },
             started: win.started,
-            counts: { attending: counts.attending, size: counts.size, tentative: counts.tentative, bench: counts.bench, absence: counts.absence },
+            counts: { attending: counts.attending, accounts: counts.accounts, size: counts.size, tentative: counts.tentative, bench: counts.bench, absence: counts.absence },
             recipients: signups.filter((s) => s.status !== "absence").map((s) => ({
                 userId: s.userId, name: names[s.userId] || "", character: s.character, status: s.status,
             })),

@@ -76,15 +76,12 @@ export function rowSubline(row: { source: string; startTime: number } & Partial<
 }
 
 /**
- * The fill as the bar writes it: "22/25", "25/25 (+3)" when more signed up than
- * there are seats (#516, no limit by default), "12" without a size. The same
- * text as the Discord message (src/utils/signup/capacity.js seatsText).
+ * The counter as the bar and the dialog write it (#520): the single Discord
+ * accounts signed up, "28 angemeldet" / "28 signed up" — no "/size", like the
+ * Discord message (src/utils/signup/capacity.js signedUpText).
  */
-export function seatLabel(attending: number, size: number): string {
-    const n = Math.max(0, attending || 0);
-    if (!(size > 0)) return String(n);
-    const extra = n - size;
-    return extra > 0 ? `${size}/${size} (+${extra})` : `${n}/${size}`;
+export function signedUpLabel(accounts: number): string {
+    return t("signups.attending", { count: Math.max(0, accounts || 0) });
 }
 
 /** Bar tone of the fill: full = ok, more than half = accent (none), less = mid. */

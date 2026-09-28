@@ -10,7 +10,7 @@ import { useToast } from "../Jobs";
 import SignupCharacterPicks from "./SignupCharacterPicks";
 import { formatEventTime } from "../../lib/format";
 import {
-    CAN_ALSO, ROLE_ORDER, SIGNUP_STATUS, SIGNUP_STATUS_ORDER, defaultCanAlso, roleCountText,
+    CAN_ALSO, ROLE_ORDER, SIGNUP_STATUS, SIGNUP_STATUS_ORDER, defaultCanAlso, roleCountText, signedUpLabel,
 } from "../../lib/signups";
 import {
     commonStatus, initialPicks, picksToInput, setAllStatuses, signupStatusOf, type CharacterPick,
@@ -124,7 +124,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved }
     const kicker = [
         formatEventTime(row.startTime),
         row.size ? t("signups.dialog.size", { size: row.size }) : "",
-        t("signups.attending", { count: row.attending }),
+        signedUpLabel(row.accounts),
         roleCountText(row.counts),
     ].filter(Boolean).join(" · ");
 

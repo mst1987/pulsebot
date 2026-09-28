@@ -301,7 +301,7 @@ describe("eventSteps — das Raid-Cockpit (#319)", () => {
         expect(res.current).toBe("signup");
         // ohne eine einzige Anmeldung ist der Aufruf die Tat, nicht der Ping
         expect(res.action).toMatchObject({ modal: "notify", label: "Anmelde-Aufruf posten" });
-        expect(at(res, "signup")).toMatchObject({ state: "current", value: "0", unit: "/ 25" });
+        expect(at(res, "signup")).toMatchObject({ state: "current", value: "0", unit: "angemeldet" });
         // nur ein Schritt ist offen; die späteren sind „später“, nicht „offen“
         expect(res.steps.filter((s) => s.state === "current").map((s) => s.id)).toEqual(["signup"]);
         expect(at(res, "after").state).toBe("todo");
@@ -313,9 +313,17 @@ describe("eventSteps — das Raid-Cockpit (#319)", () => {
         }));
         const step = at(res, "signup");
         expect(step.value).toBe("4");
-        expect(step.unit).toBe("/ 25");
+        expect(step.unit).toBe("angemeldet");
         expect(step.note).toBe("2 auf der Warteliste · 1× vielleicht");
         expect(step.fill).toBeCloseTo(4 / 25);
+    });
+
+    it("zählt einzelne Discord-Accounts, keine Größe dahinter — auch überbucht (#520)", () => {
+        const many = Array.from({ length: 27 }, (_, i) => ({ userId: String(i), status: i % 3 ? "signed" : "late" }));
+        const res = run(own({ ownSignups: [...many, { userId: "0", status: "late" }, { userId: "x", status: "absence" }] }));
+        const step = at(res, "signup");
+        expect(step).toMatchObject({ value: "27", unit: "angemeldet" });
+        expect(`${step.value} ${step.unit}`).not.toMatch(/\/|\(\+/);
     });
 
     it("pingt die Fehlenden, sobald jemand angemeldet ist", () => {
