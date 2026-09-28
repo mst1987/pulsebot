@@ -107,6 +107,9 @@
         "loadingMenu": "Menü wird geladen",
         "sessionError": "Fehler beim Laden der Session: {message}",
         "loginPrompt": "Bitte melde dich mit Discord an, um das Gildenmenü zu nutzen.",
-        "loginButton": "Mit Discord anmelden"
+        "loginButton": "Mit Discord anmelden",
+        "newVersionTitle": "Neue Version verfügbar",
+        "newVersionText": "Das Menü wurde aktualisiert. Lade die Seite neu, um weiterzuarbeiten.",
+        "newVersionReload": "Seite neu laden"
     }
 }

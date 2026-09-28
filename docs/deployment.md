@@ -114,6 +114,16 @@ Commit ins Log (`[deploy] Now at a1b2c3d …`), aktiviert die Node-Version aus
 Pflicht-Variablen in `.env`, registriert die Slash-Commands und startet den
 Prozess über pm2 neu.
 
+Beim Bauen des Web-Clients behält es die gehashten Dateien des vorherigen
+Builds (#530): `src/web-client/dist/assets/` wird vor dem Build in ein
+Temp-Verzeichnis kopiert und danach mit `cp -an` zurückgelegt (eine Datei, die
+der neue Build selbst geschrieben hat, wird nie überschrieben; `index.html`
+bleibt immer die neue). Ein Tab, der vor dem Deploy geöffnet wurde, lädt so
+seine alten Chunks weiter. Dateien älter als `ASSET_KEEP_DAYS` (14 Tage) löscht
+`find -mtime` wieder. Fehlt ein Chunk trotzdem, antwortet der Server mit 404
+und die Seite lädt sich einmal neu (docs/web-admin.md, „Nach einem Deploy“).
+Keiner dieser Schritte kann den Deploy scheitern lassen (`|| true`).
+
 Zum Schluss fragt es selbst `GET /health` ab (`curl -fsS`, bis zu 20 Versuche
 im Abstand von 3 s, Port aus `WEB_PORT` in `.env`, sonst 3005). Antwortet der
 Bot nicht, gibt es die letzten pm2-Logzeilen aus und endet mit `exit 1` — der

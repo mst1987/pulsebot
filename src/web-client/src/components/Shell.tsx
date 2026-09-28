@@ -7,6 +7,7 @@ import { ViewAsBanner, ViewAsButton } from "./ViewAs";
 import { CrestIcon, BurgerIcon, LogoutIcon, BookIcon } from "./icons";
 import WowIcon from "./ui/WowIcon";
 import RaidLoader from "./ui/RaidLoader";
+import ChunkErrorBoundary from "./ChunkErrorBoundary";
 import { IconButton } from "./ui/Button";
 import { TipLayer } from "./ui/Tip";
 import { MENU, firstAllowedTab, type MenuEntry } from "../lib/menu";
@@ -196,10 +197,14 @@ export default function Shell({ user, guilds, activeGuildId }: ShellContext & {
                     {/* While an admin looks at the menu as a role: which one, and the way back. */}
                     <ViewAsBanner user={user} />
                     {/* Every page is its own chunk (App.tsx, #436): while one loads,
-                        the menu stays and only the page body shows the loader. */}
-                    <Suspense fallback={<RaidLoader />}>
-                        <Outlet context={{ user } satisfies ShellContext} />
-                    </Suspense>
+                        the menu stays and only the page body shows the loader. A chunk
+                        that cannot be loaded (after a deploy, #530) shows the reload
+                        notice there too, and the next page tries again. */}
+                    <ChunkErrorBoundary resetKey={location.pathname}>
+                        <Suspense fallback={<RaidLoader />}>
+                            <Outlet context={{ user } satisfies ShellContext} />
+                        </Suspense>
+                    </ChunkErrorBoundary>
                 </div>
             </div>
             <TipLayer />

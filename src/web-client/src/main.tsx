@@ -4,6 +4,11 @@ import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import App from "./App.tsx";
 import { langReady } from "./i18n";
+import { installPreloadErrorReload } from "./lib/chunkReload";
+
+// A deploy removes the chunks of the previous build; a tab opened before it
+// reloads once instead of going blank (#530, lib/chunkReload.ts).
+installPreloadErrorReload();
 
 // A browser that chose English loads those texts as a chunk of their own
 // (i18n/index.ts, #436); drawing only once they are there keeps the first

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { JobsProvider } from "./components/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
@@ -7,6 +7,8 @@ import { getLang, langReady, setLang, useT } from "./i18n";
 import { firstAllowedTab } from "./lib/menu";
 import RaidLoader from "./components/ui/RaidLoader";
 import LangToggle from "./components/LangToggle";
+import ChunkErrorBoundary from "./components/ChunkErrorBoundary";
+import { lazyWithReload } from "./lib/chunkReload";
 
 // Every page, the shell around them and the public plan view are their own
 // chunk (#436): the first load carries only this router, the session and the
@@ -14,30 +16,30 @@ import LangToggle from "./components/LangToggle";
 // never downloads the menu, and the menu never downloads the pages nobody
 // opens. The shell shows the loader in its body while a page chunk is on its
 // way (components/Shell.tsx), so the menu stays standing.
-const Shell = lazy(() => import("./components/Shell"));
-const PlanPublicPage = lazy(() => import("./pages/PlanPublicPage"));
-const DashboardPage = lazy(() => import("./pages/DashboardPage"));
-const ChannelsPage = lazy(() => import("./pages/ChannelsPage"));
-const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
-const RaidsPage = lazy(() => import("./pages/RaidsPage"));
-const RaidCreatePage = lazy(() => import("./pages/RaidCreatePage"));
-const RaidDetailPage = lazy(() => import("./pages/RaidDetailPage"));
-const NotifyTemplatesPage = lazy(() => import("./pages/NotifyTemplatesPage"));
-const RaidTemplatesPage = lazy(() => import("./pages/RaidTemplatesPage"));
-const RaidplanTemplatesPage = lazy(() => import("./pages/RaidplanTemplatesPage"));
-const RaidplanCatalogPage = lazy(() => import("./pages/RaidplanCatalogPage"));
-const EventSeriesPage = lazy(() => import("./pages/EventSeriesPage"));
-const RecruitmentPage = lazy(() => import("./pages/recruitment/RecruitmentPage"));
-const HistoryPage = lazy(() => import("./pages/history/HistoryPage"));
-const HistoryEventPage = lazy(() => import("./pages/history/HistoryEventPage"));
-const HistoryInboxPage = lazy(() => import("./pages/history/HistoryInboxPage"));
-const HistoryCharPage = lazy(() => import("./pages/history/HistoryCharPage"));
-const RosterPage = lazy(() => import("./pages/roster/RosterPage"));
-const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
-const SignupsPage = lazy(() => import("./pages/SignupsPage"));
-const ClaPage = lazy(() => import("./pages/cla/ClaPage"));
-const LootCouncilPage = lazy(() => import("./pages/lootcouncil/LootCouncilPage"));
-const DropCheckPage = lazy(() => import("./pages/lootcouncil/DropCheckPage"));
+const Shell = lazyWithReload(() => import("./components/Shell"));
+const PlanPublicPage = lazyWithReload(() => import("./pages/PlanPublicPage"));
+const DashboardPage = lazyWithReload(() => import("./pages/DashboardPage"));
+const ChannelsPage = lazyWithReload(() => import("./pages/ChannelsPage"));
+const SettingsPage = lazyWithReload(() => import("./pages/settings/SettingsPage"));
+const RaidsPage = lazyWithReload(() => import("./pages/RaidsPage"));
+const RaidCreatePage = lazyWithReload(() => import("./pages/RaidCreatePage"));
+const RaidDetailPage = lazyWithReload(() => import("./pages/RaidDetailPage"));
+const NotifyTemplatesPage = lazyWithReload(() => import("./pages/NotifyTemplatesPage"));
+const RaidTemplatesPage = lazyWithReload(() => import("./pages/RaidTemplatesPage"));
+const RaidplanTemplatesPage = lazyWithReload(() => import("./pages/RaidplanTemplatesPage"));
+const RaidplanCatalogPage = lazyWithReload(() => import("./pages/RaidplanCatalogPage"));
+const EventSeriesPage = lazyWithReload(() => import("./pages/EventSeriesPage"));
+const RecruitmentPage = lazyWithReload(() => import("./pages/recruitment/RecruitmentPage"));
+const HistoryPage = lazyWithReload(() => import("./pages/history/HistoryPage"));
+const HistoryEventPage = lazyWithReload(() => import("./pages/history/HistoryEventPage"));
+const HistoryInboxPage = lazyWithReload(() => import("./pages/history/HistoryInboxPage"));
+const HistoryCharPage = lazyWithReload(() => import("./pages/history/HistoryCharPage"));
+const RosterPage = lazyWithReload(() => import("./pages/roster/RosterPage"));
+const ProfilePage = lazyWithReload(() => import("./pages/profile/ProfilePage"));
+const SignupsPage = lazyWithReload(() => import("./pages/SignupsPage"));
+const ClaPage = lazyWithReload(() => import("./pages/cla/ClaPage"));
+const LootCouncilPage = lazyWithReload(() => import("./pages/lootcouncil/LootCouncilPage"));
+const DropCheckPage = lazyWithReload(() => import("./pages/lootcouncil/DropCheckPage"));
 
 /**
  * Hides a page the user's rights don't cover. `areas` is an OR — one of them at
@@ -159,54 +161,58 @@ function MenuApp() {
     // after its page is gone.
     // The outer Suspense only waits for the shell's own chunk on the very first
     // view; from then on the shell's Suspense catches the page chunks.
+    // A chunk that is gone after a deploy reloads the page (lib/chunkReload.ts);
+    // should it fail again, ChunkErrorBoundary offers the reload as a button (#530).
     return (
-        <Suspense fallback={<RaidLoader text={t("shell.app.loadingMenu")} />}>
-            <JobsProvider>
-                <ConfirmProvider>
-                    <Routes>
-                        <Route element={<Shell user={user} guilds={guilds} activeGuildId={activeGuildId} />}>
-                            <Route index element={
-                                canAccess(user, "dashboard")
-                                    ? <DashboardPage />
-                                    : home
-                                        ? <Navigate to={home.href} replace />
-                                        : <NoAreaNotice />
-                            } />
-                            <Route path="channels" element={<Guard user={user} areas={["channels"]}><ChannelsPage /></Guard>} />
-                            <Route path="settings" element={<Guard user={user} areas={["settings"]}><SettingsPage /></Guard>} />
-                            <Route path="raids" element={<Guard user={user} areas={["raids"]}><RaidsPage /></Guard>} />
-                            <Route path="raids/new" element={<Guard user={user} areas={["raids"]} level="write"><RaidCreatePage /></Guard>} />
-                            <Route path="raids/detail" element={<Guard user={user} areas={["raids"]}><RaidDetailPage /></Guard>} />
-                            <Route path="raids/templates" element={<Guard user={user} areas={["raids"]}><NotifyTemplatesPage /></Guard>} />
-                            <Route path="raids/raid-templates" element={<Guard user={user} areas={["raids"]}><RaidTemplatesPage /></Guard>} />
-                            <Route path="raids/plan-templates" element={<Guard user={user} areas={["raids"]}><RaidplanTemplatesPage /></Guard>} />
-                            <Route path="raids/plan-catalog" element={<Guard user={user} areas={["raids"]}><RaidplanCatalogPage /></Guard>} />
-                            <Route path="raids/series" element={<Guard user={user} areas={["raids"]}><EventSeriesPage /></Guard>} />
-                            <Route path="recruitment" element={<Guard user={user} areas={["recruitment"]}><RecruitmentPage /></Guard>} />
-                            {/* "loot" opens the same three pages, cut down to the loot views. */}
-                            <Route path="history" element={<Guard user={user} areas={["history", "loot"]}><HistoryPage /></Guard>} />
-                            {/* The addon inbox is not open to the read-only "loot" area. */}
-                            <Route path="history/inbox" element={<Guard user={user} areas={["history"]}><HistoryInboxPage /></Guard>} />
-                            <Route path="history/event" element={<Guard user={user} areas={["history", "loot"]}><HistoryEventPage /></Guard>} />
-                            <Route path="history/char" element={<Guard user={user} areas={["history", "loot"]}><HistoryCharPage /></Guard>} />
-                            {/* The member self-service page: always the own account (area "signup"). */}
-                            <Route path="profile" element={<Guard user={user} areas={["signup"]}><ProfilePage /></Guard>} />
-                            {/* The member's coming raids and their own signup (area "signup", #256). */}
-                            <Route path="signups" element={<Guard user={user} areas={["signup"]}><SignupsPage /></Guard>} />
-                            <Route path="roster" element={<Guard user={user} areas={["roster"]}><RosterPage /></Guard>} />
-                            {/* Same character page, reached from the roster — the page keeps
-                                its back-link pointing at wherever it was opened from. */}
-                            <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />
-                            <Route path="cla" element={<Guard user={user} areas={["cla"]}><ClaPage /></Guard>} />
-                            <Route path="lootcouncil" element={<Guard user={user} areas={["lootcouncil"]}><LootCouncilPage /></Guard>} />
-                            <Route path="lootcouncil/drop/:itemId?" element={<Guard user={user} areas={["lootcouncil"]}><DropCheckPage /></Guard>} />
-                            {/* Inside the shell on purpose: a mistyped path should still
-                                leave the menu (and the way back) standing. */}
-                            <Route path="*" element={<NotFound />} />
-                        </Route>
-                    </Routes>
-                </ConfirmProvider>
-            </JobsProvider>
-        </Suspense>
+        <ChunkErrorBoundary>
+            <Suspense fallback={<RaidLoader text={t("shell.app.loadingMenu")} />}>
+                <JobsProvider>
+                    <ConfirmProvider>
+                        <Routes>
+                            <Route element={<Shell user={user} guilds={guilds} activeGuildId={activeGuildId} />}>
+                                <Route index element={
+                                    canAccess(user, "dashboard")
+                                        ? <DashboardPage />
+                                        : home
+                                            ? <Navigate to={home.href} replace />
+                                            : <NoAreaNotice />
+                                } />
+                                <Route path="channels" element={<Guard user={user} areas={["channels"]}><ChannelsPage /></Guard>} />
+                                <Route path="settings" element={<Guard user={user} areas={["settings"]}><SettingsPage /></Guard>} />
+                                <Route path="raids" element={<Guard user={user} areas={["raids"]}><RaidsPage /></Guard>} />
+                                <Route path="raids/new" element={<Guard user={user} areas={["raids"]} level="write"><RaidCreatePage /></Guard>} />
+                                <Route path="raids/detail" element={<Guard user={user} areas={["raids"]}><RaidDetailPage /></Guard>} />
+                                <Route path="raids/templates" element={<Guard user={user} areas={["raids"]}><NotifyTemplatesPage /></Guard>} />
+                                <Route path="raids/raid-templates" element={<Guard user={user} areas={["raids"]}><RaidTemplatesPage /></Guard>} />
+                                <Route path="raids/plan-templates" element={<Guard user={user} areas={["raids"]}><RaidplanTemplatesPage /></Guard>} />
+                                <Route path="raids/plan-catalog" element={<Guard user={user} areas={["raids"]}><RaidplanCatalogPage /></Guard>} />
+                                <Route path="raids/series" element={<Guard user={user} areas={["raids"]}><EventSeriesPage /></Guard>} />
+                                <Route path="recruitment" element={<Guard user={user} areas={["recruitment"]}><RecruitmentPage /></Guard>} />
+                                {/* "loot" opens the same three pages, cut down to the loot views. */}
+                                <Route path="history" element={<Guard user={user} areas={["history", "loot"]}><HistoryPage /></Guard>} />
+                                {/* The addon inbox is not open to the read-only "loot" area. */}
+                                <Route path="history/inbox" element={<Guard user={user} areas={["history"]}><HistoryInboxPage /></Guard>} />
+                                <Route path="history/event" element={<Guard user={user} areas={["history", "loot"]}><HistoryEventPage /></Guard>} />
+                                <Route path="history/char" element={<Guard user={user} areas={["history", "loot"]}><HistoryCharPage /></Guard>} />
+                                {/* The member self-service page: always the own account (area "signup"). */}
+                                <Route path="profile" element={<Guard user={user} areas={["signup"]}><ProfilePage /></Guard>} />
+                                {/* The member's coming raids and their own signup (area "signup", #256). */}
+                                <Route path="signups" element={<Guard user={user} areas={["signup"]}><SignupsPage /></Guard>} />
+                                <Route path="roster" element={<Guard user={user} areas={["roster"]}><RosterPage /></Guard>} />
+                                {/* Same character page, reached from the roster — the page keeps
+                                    its back-link pointing at wherever it was opened from. */}
+                                <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />
+                                <Route path="cla" element={<Guard user={user} areas={["cla"]}><ClaPage /></Guard>} />
+                                <Route path="lootcouncil" element={<Guard user={user} areas={["lootcouncil"]}><LootCouncilPage /></Guard>} />
+                                <Route path="lootcouncil/drop/:itemId?" element={<Guard user={user} areas={["lootcouncil"]}><DropCheckPage /></Guard>} />
+                                {/* Inside the shell on purpose: a mistyped path should still
+                                    leave the menu (and the way back) standing. */}
+                                <Route path="*" element={<NotFound />} />
+                            </Route>
+                        </Routes>
+                    </ConfirmProvider>
+                </JobsProvider>
+            </Suspense>
+        </ChunkErrorBoundary>
     );
 }

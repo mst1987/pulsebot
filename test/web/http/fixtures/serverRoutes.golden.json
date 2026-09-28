@@ -264,12 +264,20 @@
   },
   {
     "request": "HEAD /health",
-    "status": 405,
+    "status": 200,
     "headers": {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-cache"
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store"
     },
-    "body": "NOT_FOUND"
+    "body": "{\"status\":\"ok\",\"commit\":\"c0ffee\",\"committedAt\":\"2026-09-01T00:00:00Z\",\"subject\":\"Stand\",\"startedAt\":\"2026-09-02T00:00:00Z\"}"
+  },
+  {
+    "request": "HEAD /",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/"
   },
   {
     "request": "GET /health",
