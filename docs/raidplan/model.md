@@ -194,7 +194,14 @@ stay on rows whose title stays), typed rows are kept.
   references are dropped and counted; at most 60 rows per board, 12 assignees and 12 targets per row, notes
   200 and free text 60 characters; a user who is not in the event's lineup is dropped. `preferredRole` (the row
   dialog's "Rolle") is stored only as `melee`, `ranged`, `healer` or `tank`; anything else (and "egal") stores
-  nothing, so older rows stay as they are.
+  nothing, so older rows stay as they are. `classPriority` (#525: the classes in the order they are asked, known classes
+  once each) and `count` (1..40, anything else becomes 1) are stored only together, when the list is not empty; a row
+  without them stays exactly as it is.
+- **Count and class priority** (#525): a row `{ count: 1, classPriority: ["Paladin", "Shaman"] }` wants one raider - the
+  first free paladin healer, else a shaman; fixed assignees (`user:`, slots) count towards `count`. `expandClassRefs`
+  (server and client twin) appends the resolved places after the row's own assignees; rows of the same kind of task share
+  nobody while another candidate is free (then twice rather than open); a place nobody can fill stays an open class place.
+  Details: [editor.md, "Count and class priority"](editor.md#count-and-class-priority-per-row-no-healer-twice-525).
 - **Where:** every board. Two extra entries join the boss list of an event or template: **Trash** (key
   `<instance>/trash`, after the bosses of each instance: a full board, so trash pulls get slots, marks and
   rows, and it shows the instance's map) and **Allgemein** (key `general`, once at the end: no map board, only

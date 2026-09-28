@@ -1149,5 +1149,26 @@
         "goneMark": "nicht mehr im Setup",
         "nameFromRh": "Name aus Raid-Helper",
         "rhName": "Raid-Helper: {name}"
+    },
+    "prio": {
+        "mode": "Wie besetzen",
+        "modeFixed": "Je Klasse fest",
+        "modeFixedTip": "Jede gewählte Klasse bekommt ihre eigenen Plätze (Jäger ×2). Fehlt die Klasse, bleibt der Platz offen.",
+        "modePrio": "Nach Priorität",
+        "modePrioTip": "Eine Anzahl und die Klassen in Reihenfolge: erst die erste Klasse, fehlt sie, die nächste.",
+        "count": "Anzahl",
+        "countTip": "Wie viele Spieler die Zeile einteilt. Fest gewählte Spieler und Slots zählen mit.",
+        "order": "Reihenfolge",
+        "hint": "Erste passende Klasse zuerst, sonst die nächste. In derselben Aufgabe wird niemand doppelt eingeteilt, solange ein anderer frei ist.",
+        "empty": "Klassen oben antippen, in dieser Reihenfolge wird besetzt.",
+        "earlier": "Früher: {cls}",
+        "later": "Später: {cls}",
+        "remove": "Entfernen: {cls}",
+        "convert": "In Priorität umwandeln",
+        "convertTip": "Macht aus den Klassen dieser Zeile eine Anzahl mit Reihenfolge (z. B. Paladin 1 + Schamane 1 → 1 × Paladin › Schamane).",
+        "resolved": "Eingeteilt",
+        "nobody": "niemand da",
+        "aria": "Klassen-Priorität",
+        "missing": "fehlt"
     }
 }

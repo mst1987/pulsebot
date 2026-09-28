@@ -1149,5 +1149,26 @@
         "goneMark": "no longer in the setup",
         "nameFromRh": "Name from Raid-Helper",
         "rhName": "Raid-Helper: {name}"
+    },
+    "prio": {
+        "mode": "How to fill",
+        "modeFixed": "Fixed per class",
+        "modeFixedTip": "Every chosen class gets its own places (Hunter ×2). A class nobody plays leaves its place open.",
+        "modePrio": "By priority",
+        "modePrioTip": "A count and the classes in order: the first class first, the next one when it is missing.",
+        "count": "Count",
+        "countTip": "How many raiders the row assigns. Fixed players and slots count as well.",
+        "order": "Order",
+        "hint": "First matching class first, else the next one. Nobody gets the same task twice while somebody else is free.",
+        "empty": "Tap classes above, they are filled in this order.",
+        "earlier": "Earlier: {cls}",
+        "later": "Later: {cls}",
+        "remove": "Remove: {cls}",
+        "convert": "Convert to priority",
+        "convertTip": "Turns this row's classes into a count with an order (e.g. Paladin 1 + Shaman 1 → 1 × Paladin › Shaman).",
+        "resolved": "Assigned",
+        "nobody": "nobody there",
+        "aria": "Class priority",
+        "missing": "missing"
     }
 }

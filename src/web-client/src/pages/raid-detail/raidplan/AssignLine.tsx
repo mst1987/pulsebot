@@ -4,7 +4,7 @@ import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon, playerLabel } from "../../../components/raidplan/PlanBoard";
-import { ROLE_ICON, classPlaceNameFor, classRefIcon, iconForTask, iconForText, offRole, type AssignCtx, type Resolved } from "../../../lib/raidplan/assign";
+import { ROLE_ICON, classIconOf, classPlaceNameFor, classRefIcon, iconForTask, iconForText, offRole, type AssignCtx, type Resolved } from "../../../lib/raidplan/assign";
 import { assigneeItems, lineLabel, lineState, subLine, targetItems, type LineItem } from "../../../lib/raidplan/assignLine";
 import { groupColor } from "../../../lib/raidplan/groupStyle";
 import { MobIcon } from "./AssignPanel";
@@ -30,11 +30,27 @@ export function LineChip({ r, open, mine, order, ctx, readOnly, asTank = false }
     return <span className="rp-lc is-slot">{no}<span>{r.label}</span></span>;
 }
 
+/**
+ * The places of a class priority nobody fills yet (#525), compact: "1 x [icon] Paladin › [icon] Schamane", in an event yellow with "fehlt";
+ * in a template quiet (nothing to resolve there).
+ */
+export function PrioChip({ classes, count, open, type }: { classes: string[]; count: number; open: boolean; type: string }) {
+    const t = useT();
+    const name = classes.map((c) => classPlaceNameFor(c, "", type)).join(" › ");
+    return (
+        <span className={`rp-lc rp-lc-prio ${open ? "is-open" : "is-slot"}`} data-tip={open ? t("raidBoard.aline.missing", { what: `${count} x ${name}` }) : t("raidBoard.prio.hint")}>
+            <b className="rp-lc-cnt">{count} x</b>
+            {classes.map((c, i) => <span key={c} className="rp-lc-pc">{i > 0 && <span className="rp-lc-sep" aria-hidden="true">›</span>}<WowIcon name={classIconOf(c)} size={14} /><span>{classPlaceNameFor(c, "", type)}</span></span>)}
+            {open && <><span>{t("raidBoard.prio.missing")}</span><AlertTriangle size={12} aria-hidden="true" /></>}
+        </span>
+    );
+}
+
 function Cell({ items, ctx, readOnly, side, type }: { items: LineItem[]; ctx: AssignCtx; readOnly?: boolean; side: string; type: string }) {
     const t = useT();
     return (
         <div className={`rp-line-cell is-${side}`} aria-label={t(side === "who" ? "raidBoard.aline.colWho" : "raidBoard.aline.colAt")} role="group">
-            {items.map((x) => (x.kind === "ref" ? (
+            {items.map((x) => (x.kind === "prio" ? <PrioChip key={x.key} classes={x.classes || []} count={x.count} open={x.open} type={type} /> : x.kind === "ref" ? (
                 <span key={x.key} className="rp-lref">
                     <span className="rp-lref-t"><WowIcon name={classRefIcon(x.classId, x.role)} size={13} />{classPlaceNameFor(x.classId, x.role, type)} x{x.count}</span>
                     {x.items.map((r, i) => <LineChip key={`${r.ref}${i}`} r={r} open={r.open && (r.kind === "class" || r.kind === "slot")} mine={!!r.player && x.mine} order={0} ctx={ctx} readOnly={readOnly} asTank={offRole(type, r.player)} />)}

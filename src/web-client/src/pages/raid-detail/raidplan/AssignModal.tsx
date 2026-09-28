@@ -6,13 +6,14 @@ import WowIcon from "../../../components/ui/WowIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { type FlyItem } from "../../../lib/raidplan/flyout";
 import { ROLE_REFS, ROLE_TONE, CLASS_IDS, ROLE_ICON, classIconOf, classPlaceNameFor, classRefIcon, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/raidplan/assign";
-import { ANY, ANY_SPEC, CLASS_COLOR, PREFERRED_ROLES, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, boardContext, candidatesOf, rankCandidates, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole } from "../../../lib/raidplan/classRefs";
+import { ANY, ANY_SPEC, CLASS_COLOR, PREFERRED_ROLES, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, boardContext, candidatesOf, rankCandidates, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole, MAX_COUNT, classPriorityOf, hasPriority, movePriorityClass, rowCount, setPriority, setRowCount, toPriority, togglePriorityClass } from "../../../lib/raidplan/classRefs";
 import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/raidplan/assignModal";
 import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/raidplan/rosterAssign";
 import { AUTO_TANK_TYPES, mobCountOf, mobIconsOf, mobInstanceOf, setMobCount, setMobInstance, setRowOnMap } from "../../../lib/raidplan/autoPlace";
 import { MobIcon } from "./AssignPanel";
 import { groupColor } from "../../../lib/raidplan/groupStyle";
 import { AssignChip } from "./AssignPanel";
+import { NumberField } from "../../../components/raidplan/NumberField";
 import { useT } from "../../../i18n";
 
 export type PickOption = FlyItem & { node: ReactNode };
@@ -74,6 +75,11 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
     const [text, setText] = useState("");
     const [busy, setBusy] = useState(false);
     const [bound, setBound] = useState(false);
+    // how the classes of the row are filled (#525): "by priority" for a row that has one, and for a new non-tanking row without class references
+    const [prioMode, setPrioMode] = useState(() => {
+        const r = board.assignments.find((a) => a.id === rowId);
+        return !!r && (hasPriority(r) || (TANK_TYPES.indexOf(r.type) < 0 && !r.assignees.some((x) => isClassRef(x))));
+    });
     const byId = useMemo(() => players || new Map(roster.map((p) => [p.userId, p])), [players, roster]);
     const filledAll = useMemo(() => expandClassRefs(tmp.assignments, tmp.slots, roster, tmp.roles), [tmp.assignments, tmp.slots, roster, tmp.roles]);
     // what the ranking knows of the OTHER rows (who tanks, who has how many tasks): the candidates of a class show in its order (#501)
@@ -93,6 +99,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
     const counts = chosenCounts(row, slot);
     const typeName = t(`raidBoard.assign.type.${type}`);
     const target = slot === "at";
+    const prioOn = prioMode && !target;
     const role = target ? "" : impliedRole(type);
     // a tanking row: the general tanks ("any tank", "Tank (Krieger)" ...) are its classes; a plain class tile would only repeat them
     const tankRow = TANK_TYPES.indexOf(type) >= 0 && !target;
@@ -128,7 +135,13 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
         return patchAssignment(b, rowId, { preferredClasses: cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c] });
     });
     const suggestedClasses = classesForType(type, catalog);
-    const takeSuggested = () => set((b) => {
+    /** Changes the row itself on the copy (the priority helpers of lib/raidplan/classRefs.ts). */
+    const setRow = (fn: (r: RaidplanAssignment) => RaidplanAssignment) => set((b) => ({ ...b, assignments: b.assignments.map((a) => (a.id === rowId ? fn(a) : a)) }));
+    /** "Nach Priorität": the class references become a priority when that is simple (Paladin 1 + Schamane 1 -> 1 x Paladin › Schamane). */
+    const toPrio = () => { setPrioMode(true); setRow((r) => (hasPriority(r) ? r : toPriority(r) || r)); };
+    /** "Je Klasse fest": the priority goes (with its count); the class references of the row stay as they are. */
+    const toFixed = () => { setPrioMode(false); setRow((r) => setPriority(r, [])); };
+    const takeSuggested = () => prioOn ? setRow((r) => setPriority(r, [...classPriorityOf(r), ...suggestedClasses])) : set((b) => {
         let next = b.assignments;
         for (const c of suggestedClasses) if (refsOfClass(ownClassRefs(next.find((x) => x.id === rowId), false), c, role).length === 0) next = setClassCount(next, rowId, c, role, 1, false);
         return { ...b, assignments: next };
@@ -179,9 +192,17 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
         if (s === "who") {
             const plain = row.assignees.map((ref, i) => ({ ref, i })).filter((x) => !isClassRef(x.ref));
             const groups = classGroups(row.assignees.filter((r) => isClassRef(r)));
-            if (plain.length === 0 && groups.length === 0) return <span className="rp-muted">{t("raidBoard.amb.empty")}</span>;
+            const prio = classPriorityOf(row);
+            if (plain.length === 0 && groups.length === 0 && prio.length === 0) return <span className="rp-muted">{t("raidBoard.amb.empty")}</span>;
             return (
                 <>
+                    {prio.length > 0 && (
+                        <span className="rp-amb-chip is-class is-prio" style={{ ["--cc" as string]: CLASS_COLOR[prio[0]] }}>
+                            <span className="rp-amb-x">{rowCount(row.count)} x</span>
+                            {prio.map((c, i) => <span key={c} className="rp-lc-pc" style={{ ["--cc" as string]: CLASS_COLOR[c] }}>{i > 0 && <span className="rp-lc-sep" aria-hidden="true">›</span>}<WowIcon name={classIconOf(c)} size={16} /><b>{classPlaceNameFor(c, "", type)}</b></span>)}
+                            <button type="button" className="rp-achip-x" aria-label={`${t("raidBoard.assign.remove")}: ${t("raidBoard.prio.aria")}`} onClick={(e) => { e.stopPropagation(); setRow((r) => setPriority(r, [])); }}><X size={12} /></button>
+                        </span>
+                    )}
                     {plain.map((x) => {
                         const rotation = type === "kick" && row.assignees.length > 1;
                         return (
@@ -320,9 +341,98 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
             </div>
         );
     };
+    /**
+     * "Nach Priorität" (#525): the class tiles build the ORDER (a number on each chosen tile), beside it the count and the order as chips with
+     * "earlier / later"; below who it resolves to now. The first free raider of the first class, else of the next ...
+     */
+    const prioBlock = () => {
+        const list = classPriorityOf(row);
+        const places = filled.assignees.slice(row.assignees.length);
+        return (
+            <>
+                <div className="rp-amb-grid rp-amb-grid-class">
+                    {CLASS_IDS.map((c) => {
+                        const pos = list.indexOf(c);
+                        const n = classCount(roster, c, countRole(c), tmp.roles);
+                        const none = roster.length > 0 && n === 0;
+                        const label = t(`wow.class.${c}`);
+                        return (
+                            <button key={c} type="button" className={`rp-amb-tile rp-amb-class${pos >= 0 ? " is-on" : ""}${none ? " is-absent" : ""}${suggestedClasses.indexOf(c) >= 0 ? " is-suggested" : ""}`} aria-pressed={pos >= 0} aria-label={pos >= 0 ? `${label} (${pos + 1})` : label} style={{ ["--cc" as string]: CLASS_COLOR[c] }} onClick={() => setRow((r) => togglePriorityClass(r, c))} data-tip={none ? t("raidBoard.class.noneInRaid", { cls: label }) : undefined}>
+                                <WowIcon name={classIconOf(c)} size={22} />
+                                <span className="rp-amb-cname">{label}</span>
+                                {roster.length > 0 && (none ? <span className="rp-amb-cnt is-none"><AlertTriangle size={13} aria-hidden="true" /> 0</span> : <span className="rp-amb-cnt" data-tip={t("raidBoard.amb.classCountTip")}>{n}</span>)}
+                                {pos >= 0 && <span className="rp-amb-prank" aria-hidden="true">{pos + 1}</span>}
+                            </button>
+                        );
+                    })}
+                </div>
+                <div className="rp-amb-prio" role="group" aria-label={t("raidBoard.prio.aria")}>
+                    <span className="rp-amb-prio-count">
+                        <span className="rp-kicker" data-tip={t("raidBoard.prio.countTip")}>{t("raidBoard.prio.count")}</span>
+                        <NumberField label={t("raidBoard.prio.count")} value={rowCount(row.count)} min={1} max={MAX_COUNT} disabled={list.length === 0} onChange={(v) => setRow((r) => setRowCount(r, v))} />
+                    </span>
+                    <span className="rp-kicker">{t("raidBoard.prio.order")}</span>
+                    {list.length === 0 && <span className="rp-muted">{t("raidBoard.prio.empty")}</span>}
+                    <ol className="rp-amb-prio-list">
+                        {list.map((c, i) => {
+                            const name = classPlaceNameFor(c, "", type);
+                            return (
+                                <li key={c} className="rp-amb-prio-item">
+                                    <button type="button" className="rp-amb-rotbtn" aria-label={t("raidBoard.prio.earlier", { cls: name })} disabled={i === 0} onClick={() => setRow((r) => movePriorityClass(r, c, -1))}><ChevronLeft size={12} /></button>
+                                    <span className="rp-amb-chip is-class" style={{ ["--cc" as string]: CLASS_COLOR[c] }}>
+                                        <span className="rp-achip-no">{i + 1}</span><WowIcon name={classIconOf(c)} size={18} /><b>{name}</b>
+                                        <button type="button" className="rp-achip-x" aria-label={t("raidBoard.prio.remove", { cls: name })} onClick={() => setRow((r) => togglePriorityClass(r, c))}><X size={12} /></button>
+                                    </span>
+                                    <button type="button" className="rp-amb-rotbtn" aria-label={t("raidBoard.prio.later", { cls: name })} disabled={i === list.length - 1} onClick={() => setRow((r) => movePriorityClass(r, c, 1))}><ChevronRight size={12} /></button>
+                                </li>
+                            );
+                        })}
+                    </ol>
+                </div>
+                {roster.length > 0 && list.length > 0 && (
+                    <div className="rp-amb-resline">
+                        <span className="rp-amb-resref">{t("raidBoard.prio.resolved")}</span>
+                        <ArrowRight size={14} aria-hidden="true" className="rp-muted" />
+                        <span className="rp-amb-picks">
+                            {places.map((ref, i) => {
+                                const r = resolveAssignee(ref, ctx);
+                                return r.player ? <span key={`${ref}${i}`} className="rp-amb-pick is-on"><PlayerName player={r.player} /></span> : <span key={`${ref}${i}`} className="rp-amb-open"><AlertTriangle size={12} aria-hidden="true" /> {t("raidBoard.prio.nobody")}</span>;
+                            })}
+                        </span>
+                    </div>
+                )}
+                <p className="rp-muted rp-amb-note">{t("raidBoard.prio.hint")}</p>
+            </>
+        );
+    };
     const classesPanel = () => {
         const own = ownClassRefs(row, target);
         const groups = classGroups(own);
+        const convertible = !target && !prioOn && !!toPriority(row);
+        return (
+            <>
+                {!target && (
+                    <span className="rp-amb-pref rp-amb-prio-mode">
+                        <span className="rp-muted">{t("raidBoard.prio.mode")}</span>
+                        <span className="rp-amb-seg sm" role="radiogroup" aria-label={t("raidBoard.prio.mode")}>
+                            <button type="button" role="radio" aria-checked={!prioOn} className={!prioOn ? "is-on" : ""} data-tip={t("raidBoard.prio.modeFixedTip")} onClick={() => { if (prioOn) toFixed(); }}>{t("raidBoard.prio.modeFixed")}</button>
+                            <button type="button" role="radio" aria-checked={prioOn} className={prioOn ? "is-on" : ""} data-tip={t("raidBoard.prio.modePrioTip")} onClick={() => { if (!prioOn) toPrio(); }}>{t("raidBoard.prio.modePrio")}</button>
+                        </span>
+                        {convertible && <Button variant="ghost" size="sm" data-tip={t("raidBoard.prio.convertTip")} onClick={toPrio}>{t("raidBoard.prio.convert")}</Button>}
+                    </span>
+                )}
+                {prioOn ? prioBlock() : classesFixed(groups)}
+                {!target && (
+                    <div className="rp-amb-classfoot">
+                        {own.length > 0 && !prioOn && <label className="rp-check"><input type="checkbox" checked={!!row.allowMulti} onChange={(e) => set((b) => patchAssignment(b, rowId, { allowMulti: e.target.checked }))} /> {t("raidBoard.class.allowMulti")}</label>}
+                        {classFoot()}
+                    </div>
+                )}
+            </>
+        );
+    };
+    /** The fixed classes of a row ("Je Klasse fest"): the general tanks, the class tiles and one card per class with its count. */
+    const classesFixed = (groups: ClassGroup[]) => {
         return (
             <>
                 {tankRow && (
@@ -362,9 +472,13 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                 </div>
                 {groups.length > 0 && <div className="rp-amb-cards">{groups.map((g) => classCard(g))}</div>}
                 {groups.length > 0 && <p className="rp-muted rp-amb-note">{t("raidBoard.amb.noFallback")}</p>}
-                {!target && (
-                    <div className="rp-amb-classfoot">
-                        {own.length > 0 && <label className="rp-check"><input type="checkbox" checked={!!row.allowMulti} onChange={(e) => set((b) => patchAssignment(b, rowId, { allowMulti: e.target.checked }))} /> {t("raidBoard.class.allowMulti")}</label>}
+            </>
+        );
+    };
+    /** The foot of the classes (both ways of filling): the row's role, the classes preferred for suggestions, the suggested classes, slot binding. */
+    const classFoot = () => {
+        return (
+            <>
                         {!impliedRole(type) && (
                             <span className="rp-amb-pref">
                                 <span className="rp-muted" data-tip={t("raidBoard.amb.prefRoleTip")}>{t("raidBoard.amb.prefRole")}</span>
@@ -386,8 +500,6 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                         {suggestedClasses.length > 0 && !impliedTank && <Button variant="ghost" size="sm" icon={<Wand2 size={14} />} onClick={takeSuggested}>{t("raidBoard.class.addSuggested")}</Button>}
                         {row.assignees.some((r) => r.indexOf("slot:") === 0) && <Button variant="ghost" size="sm" data-tip={t("raidBoard.am.bindTip")} onClick={() => { set((b) => bindClassesToSlots(b, row.assignees, row.preferredClasses || [])); setBound(true); }}>{t("raidBoard.am.bind")}</Button>}
                         {slotClassesOfRow(tmp, row).length > 0 && <span className="rp-muted">{t("raidBoard.am.boundTo", { cls: slotClassesOfRow(tmp, row).map((c) => t(`wow.class.${c}`)).join(", ") })}</span>}
-                    </div>
-                )}
             </>
         );
     };

@@ -43,6 +43,93 @@ export const TANK_CLASSES = ["Any", "Warrior", "Paladin", "Druid"];
 /** The kinds of task that are tanking (they offer the general tanks). */
 export const TANK_TYPES = ["tank", "trashtank", "special"];
 
+// ---- count and class priority of a row (#525) --------------------------------------------------------
+// "1 x Paladin > Shaman": the row wants `count` raiders (its fixed assignees count), taken class by class in the order of `classPriority`;
+// only stored with a class list, so a row without one resolves exactly as before. Twin of raidplanAssign.js rowCount / classPriorityOf.
+
+/** The nine classes a priority can name (the order of the dialog's tiles). */
+export const PRIORITY_CLASSES = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];
+/** The most raiders a row with a class priority asks for. */
+export const MAX_COUNT = 40;
+
+/** The places a row with a class priority asks for: a whole number 1..40, anything else = 1. */
+export function rowCount(v: unknown): number {
+    const n = Number(v);
+    return Number.isInteger(n) && n >= 1 && n <= MAX_COUNT ? n : 1;
+}
+
+/** The class priority of a row as it is resolved: known classes, each once, in the order given. */
+export function classPriorityOf(a: { classPriority?: string[] } | null | undefined): string[] {
+    const out: string[] = [];
+    for (const c of (a && Array.isArray(a.classPriority) ? a.classPriority : [])) if (PRIORITY_CLASSES.indexOf(c) >= 0 && out.indexOf(c) < 0) out.push(c);
+    return out;
+}
+
+/** Whether a row resolves by its class priority ("1 x Paladin > Shaman"). */
+export function hasPriority(a: { classPriority?: string[] } | null | undefined): boolean {
+    return classPriorityOf(a).length > 0;
+}
+
+/**
+ * Turns the row's class references into a priority ("in Priorität umwandeln"): `class:Paladin:1`, `class:Shaman:1` -> 1 x Paladin > Shaman.
+ * Only when it is simple: every class reference names a class (no "Any") with no role of its own or the task's; the count is the most
+ * references one class had (Priest 1, Priest 2, Druid 1 -> 2 x Priest > Druid) plus the fixed assignees; hand picks of those references
+ * go. null = not simple.
+ */
+export function toPriority(row: RaidplanAssignment): RaidplanAssignment | null {
+    const refs = row.assignees.filter((r) => isClassRef(r));
+    if (refs.length === 0) return null;
+    const implied = impliedRole(row.type);
+    const per: Record<string, number> = {};
+    const order: string[] = [];
+    for (const r of refs) {
+        const q = parseClassRef(r);
+        if (!q || PRIORITY_CLASSES.indexOf(q.classId) < 0 || (q.role && q.role !== implied)) return null;
+        if (!per[q.classId]) order.push(q.classId);
+        per[q.classId] = (per[q.classId] || 0) + 1;
+    }
+    const most = Math.max(...order.map((c) => per[c]));
+    const picks: Record<string, string> = {};
+    const own = row.picks || {};
+    for (const key of Object.keys(own)) if (refs.indexOf(key) < 0) picks[key] = own[key];
+    const fixed = row.assignees.filter((r) => !isClassRef(r));
+    return { ...row, assignees: fixed, picks, classPriority: order, count: rowCount(fixed.length + most), suggested: false };
+}
+
+/** Sets the class priority of a row (the list in its order; empty = none, the count goes with it); a new list starts at 1 raider. */
+export function setPriority(row: RaidplanAssignment, list: string[]): RaidplanAssignment {
+    const prio = classPriorityOf({ classPriority: list });
+    const next: RaidplanAssignment = { ...row, suggested: false };
+    delete next.classPriority;
+    delete next.count;
+    if (prio.length === 0) return next;
+    return { ...next, classPriority: prio, count: hasPriority(row) ? rowCount(row.count) : 1 };
+}
+
+/** Adds a class at the end of the priority, or takes it out when it is in it. */
+export function togglePriorityClass(row: RaidplanAssignment, classId: string): RaidplanAssignment {
+    const cur = classPriorityOf(row);
+    return setPriority(row, cur.indexOf(classId) >= 0 ? cur.filter((c) => c !== classId) : [...cur, classId]);
+}
+
+/** Moves a class of the priority one place earlier (dir -1) or later (+1). */
+export function movePriorityClass(row: RaidplanAssignment, classId: string, dir: number): RaidplanAssignment {
+    const cur = classPriorityOf(row);
+    const i = cur.indexOf(classId);
+    const j = i + (dir < 0 ? -1 : 1);
+    if (i < 0 || j < 0 || j >= cur.length) return row;
+    const next = cur.slice();
+    next[i] = cur[j];
+    next[j] = classId;
+    return setPriority(row, next);
+}
+
+/** Sets how many raiders a row with a priority wants (1..40; a row without a priority stays as it is). */
+export function setRowCount(row: RaidplanAssignment, count: number): RaidplanAssignment {
+    if (!hasPriority(row)) return row;
+    return { ...row, count: Math.max(1, Math.min(MAX_COUNT, Math.round(Number(count) || 1))), suggested: false };
+}
+
 export function isClassRef(ref: string): boolean {
     return ref.indexOf("class:") === 0;
 }
@@ -159,8 +246,11 @@ export function setClassCount(assignments: RaidplanAssignment[], rowId: string, 
 export function carryClasses(assignments: RaidplanAssignment[], rowId: string): RaidplanAssignment[] {
     const row = assignments.find((a) => a.id === rowId);
     if (!row) return assignments;
-    const before = assignments.slice(0, assignments.indexOf(row)).filter((a) => a.type === row.type && a.assignees.some((r) => isClassRef(r)));
+    const before = assignments.slice(0, assignments.indexOf(row)).filter((a) => a.type === row.type && (a.assignees.some((r) => isClassRef(r)) || hasPriority(a)));
     if (before.length === 0) return assignments;
+    const model = before[before.length - 1];
+    // a priority row ("1 x Paladin > Shaman") is followed by the same priority: the resolution gives the next row the next free raider (#525)
+    if (hasPriority(model)) return assignments.map((a) => (a.id === rowId ? { ...a, classPriority: classPriorityOf(model), count: rowCount(model.count) } : a));
     let out = assignments;
     for (const g of classGroups(before[before.length - 1].assignees.filter((r) => isClassRef(r)))) out = setClassCount(out, rowId, g.classId, g.role, g.refs.length, false);
     return out;
@@ -315,7 +405,7 @@ export function boardContext(list: RaidplanAssignment[], slots: { kind: string; 
  * and order as the input, so a chip can be matched to its reference by index.
  */
 export function expandClassRefs(assignments: RaidplanAssignment[], slots: { kind: string; n: number; userId: string }[], roster: RaidplanPlayer[], roles: Record<string, string>): RaidplanAssignment[] {
-    const wantsExpansion = assignments.some((a) => a.assignees.some((r) => isClassRef(r)) || a.targets.some((tg) => tg.kind === "class"));
+    const wantsExpansion = assignments.some((a) => a.assignees.some((r) => isClassRef(r)) || a.targets.some((tg) => tg.kind === "class") || hasPriority(a));
     if (!wantsExpansion) return assignments;
     const byId: Record<string, RaidplanPlayer> = {};
     for (const p of roster) byId[p.userId] = p;
@@ -361,7 +451,25 @@ export function expandClassRefs(assignments: RaidplanAssignment[], slots: { kind
         }
         return a.allowMulti && pool.length > 0 ? pool[(q.n - 1) % pool.length].userId : "";
     }
+    /**
+     * One open place of a row with a class priority (#525): the best ranked raider of the first class nobody of that kind of task has yet,
+     * else of the next class ...; nobody free in any of them = one who already does that task elsewhere (twice rather than open), never one
+     * of this very row; nobody at all = "" (the place stays open).
+     */
+    function pickByPriority(a: RaidplanAssignment, i: number, prio: string[]): string {
+        const pools = prio.map((c) => rankCandidates(a, poolOf({ classId: c, role: "" }, a.type, roster, roles), ctx).filter((p) => !ctx.rowIds[i][p.userId]));
+        for (const pool of pools) {
+            const free = pool.find((p) => !(used[a.type] && used[a.type][p.userId]));
+            if (free) {
+                take(used, a.type, free.userId);
+                return free.userId;
+            }
+        }
+        const again = pools.find((pool) => pool.length > 0);
+        return again ? again[0].userId : "";
+    }
     const got: Record<string, string> = {};
+    const extra: Record<number, string[]> = {};
     // the tanking rows first (who tanks is known before a utility row picks), then the others; each time pass 1: a named class, pass 2: "Any"
     for (const tankPass of [true, false]) {
         for (const anyPass of [false, true]) {
@@ -382,12 +490,25 @@ export function expandClassRefs(assignments: RaidplanAssignment[], slots: { kind
                 });
             });
         }
+        // then the rows with a class priority (#525), in row order: their open places after the class references of this pass
+        assignments.forEach((a, i) => {
+            if ((TANK_TYPES.indexOf(a.type) >= 0) !== tankPass) return;
+            const prio = classPriorityOf(a);
+            if (prio.length === 0) return;
+            const places: string[] = [];
+            for (let k = a.assignees.length; k < rowCount(a.count); k += 1) {
+                const id = pickByPriority(a, i, prio);
+                places.push(id ? `user:${id}` : classRef(prio[0], k + 1, ""));
+                counted(i, a, id);
+            }
+            extra[i] = places;
+        });
     }
     return assignments.map((a, i) => {
         const assignees = a.assignees.map((r, j) => {
             const id = got[`${i}|a|${j}`];
             return id ? `user:${id}` : r;
-        });
+        }).concat(extra[i] || []);
         const targets = a.targets.map((tg, j) => {
             const id = got[`${i}|t|${j}`];
             return id ? playerTarget(id) : tg;

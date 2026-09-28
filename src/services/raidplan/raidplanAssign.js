@@ -1,9 +1,11 @@
 // Raid plan assignments ("Einteilungen", docs/raidplan.md): who heals whom, who kicks in
 // which order, misdirects, soulstones, curses, trash tanks and so on. One model for all:
 //
-//   { id, type, title, assignees: [ref], targets: [{ kind, ref }], note, suggested }
+//   { id, type, title, assignees: [ref], targets: [{ kind, ref }], note, suggested, count?, classPriority? }
 //   (`title` is the free text of the task: "Kick Fear", "Interrupt Shadow Bolt Volley" ...)
 //
+//   count + classPriority (#525): "1 x Paladin > Shaman" - the row wants `count` raiders (its fixed assignees count), taken class by class
+//                  in that order (expandClassRefs); a row without them is exactly what it was before
 //   assignee ref   "class:<Class>:<n>[:<role>]"  the n-th free raider of that class (resolved from the setup, never stored; `picks` = a hand-made choice)
 //                  "slot:<kind>:<n>"  a placeholder slot of the board (tank/healer/melee/ranged/dps n)
 //                  "user:<userId>"    one raider (event plans only)
@@ -84,6 +86,23 @@ function cleanClasses(raw) {
     return [...new Set((Array.isArray(raw) ? raw : []).map((c) => String(c === null || c === undefined ? "" : c).trim()).filter((c) => CLASS_IDS.includes(c)))];
 }
 
+/** The most raiders a row with a class priority asks for. */
+const MAX_COUNT = 40;
+/** The places a row with a class priority asks for: a whole number 1..40, anything else = 1. */
+function rowCount(v) {
+    const n = Number(v);
+    return Number.isInteger(n) && n >= 1 && n <= MAX_COUNT ? n : 1;
+}
+/** The class priority of a row as it is resolved: known classes, each once, in the order given. */
+function classPriorityOf(a) {
+    return cleanClasses(a && a.classPriority);
+}
+/** `{ classPriority, count }` of a row as it is stored (#525), or nothing when the row has no class list (it stays exactly as before). */
+function priorityOf(o) {
+    const prio = classPriorityOf(o);
+    return prio.length ? { classPriority: prio, count: rowCount(o.count) } : {};
+}
+
 /** Which of several mobs of one kind a target means: 1..20, 0 = none given (the row's own). */
 const mobInstance = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n >= 1 && n <= 20 ? n : 0; };
 
@@ -161,6 +180,8 @@ function cleanAssignments(raw, allowed = new Set()) {
             // the role the row prefers for its suggestions and class references ("Fernkampf": an elemental shaman before an enhancement one);
             // only stored when chosen, so older boards stay exactly as they are
             ...(PREFERRED_ROLES.includes(o.preferredRole) ? { preferredRole: o.preferredRole } : {}),
+            // "1 x Paladin > Shaman" (#525): how many the row wants and its classes in the order they are asked; only stored with a class list
+            ...priorityOf(o),
         });
     }
     return { assignments: out, dropped };
@@ -492,7 +513,7 @@ function boardContext(list, slots, roles = {}) {
  */
 function expandClassRefs(assignments, slots, roster, roles = {}) {
     const list = assignments || [];
-    if (!list.some((a) => a.assignees.some((r) => r.startsWith("class:")) || a.targets.some((t) => t.kind === "class"))) return list;
+    if (!list.some((a) => a.assignees.some((r) => r.startsWith("class:")) || a.targets.some((t) => t.kind === "class") || classPriorityOf(a).length > 0)) return list;
     const byId = new Map(roster.map((p) => [p.userId, p]));
     const used = {};
     const usedAt = {};
@@ -529,7 +550,22 @@ function expandClassRefs(assignments, slots, roster, roles = {}) {
         if (free) { take(bag, a.type, free.userId); return free.userId; }
         return a.allowMulti && pool.length ? pool[(q.n - 1) % pool.length].userId : "";
     };
+    /**
+     * One open place of a row with a class priority (#525): the best ranked raider of the first class nobody of that kind of task has yet,
+     * else of the next class ...; nobody free in any of them = one who already does that task elsewhere (twice rather than open), never one
+     * of this very row; nobody at all = "" (the place stays open).
+     */
+    const pickByPriority = (a, i, prio) => {
+        const pools = prio.map((c) => rankCandidates(a, poolOf({ classId: c, role: "" }, a.type, roster, roles || {}), ctx).filter((p) => !ctx.rowIds[i].has(p.userId)));
+        for (const pool of pools) {
+            const free = pool.find((p) => !(used[a.type] && used[a.type][p.userId]));
+            if (free) { take(used, a.type, free.userId); return free.userId; }
+        }
+        const again = pools.find((pool) => pool.length > 0);
+        return again ? again[0].userId : "";
+    };
     const got = new Map();
+    const extra = new Map();
     // the tanking rows first (who tanks is known before a utility row picks), then the others; each time pass 1: a named class, pass 2: "Any"
     for (const tankPass of [true, false]) {
         for (const anyPass of [false, true]) {
@@ -550,10 +586,23 @@ function expandClassRefs(assignments, slots, roster, roles = {}) {
                 });
             });
         }
+        // then the rows with a class priority (#525), in row order: their open places after the class references of this pass
+        list.forEach((a, i) => {
+            if (AUTO_TANK_TYPES.includes(a.type) !== tankPass) return;
+            const prio = classPriorityOf(a);
+            if (prio.length === 0) return;
+            const places = [];
+            for (let k = a.assignees.length; k < rowCount(a.count); k += 1) {
+                const id = pickByPriority(a, i, prio);
+                places.push(id ? "user:" + id : `class:${prio[0]}:${k + 1}`);
+                counted(i, a, id);
+            }
+            extra.set(i, places);
+        });
     }
     return list.map((a, i) => ({
         ...a,
-        assignees: a.assignees.map((r, j) => { const id = got.get(`${i}|a|${j}`); return id ? "user:" + id : r; }),
+        assignees: [...a.assignees.map((r, j) => { const id = got.get(`${i}|a|${j}`); return id ? "user:" + id : r; }), ...(extra.get(i) || [])],
         targets: a.targets.map((t, j) => { const id = got.get(`${i}|t|${j}`); return id ? { kind: "player", ref: id } : t; }),
     }));
 }
@@ -603,6 +652,6 @@ module.exports = {
     // the ranking of candidates (#501): twin of lib/raidplan/classRefs.ts
     PREFERRED_ROLES, RANK_POINTS, playerRole, scoreCandidate, rankCandidates, withoutMisfits, boardContext,
     _internal: {
-        impliedRole, mobInstance, renumberClassRefs, classesFor,
+        impliedRole, mobInstance, renumberClassRefs, classesFor, rowCount, classPriorityOf, MAX_COUNT,
     },
 };

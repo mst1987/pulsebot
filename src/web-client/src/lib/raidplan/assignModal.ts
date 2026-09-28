@@ -5,7 +5,8 @@
 // what this answers. Tested for real in src/web-client/src/lib/assignModal.test.ts; written with function declarations and one-line
 // signatures only (strippable by the test helper).
 import { SLOT_ORDER, classRefLabelFor, resolveAssignee, resolveTarget, slotChoices, type AssignCtx, type Resolved } from "./assign";
-import { isClassRef } from "./classRefs";
+import { classPriorityOf, isClassRef } from "./classRefs";
+import { priorityName } from "./assignLine";
 import type { RaidplanAssignment, RaidplanPlayer, RaidplanSlot } from "../../api";
 
 /** The three slots of the assignment bar: who does it, at whom / what, and the task (text and spell). */
@@ -118,6 +119,8 @@ export function chosenCounts(row: RaidplanAssignment, slot: string): Record<stri
         out[c] = (out[c] || 0) + 1;
     }
     if (slot === "task" && row.title) out["text"] = 1;
+    // the classes of a priority (#525) count as chosen classes
+    if (slot === "who" && classPriorityOf(row).length > 0) out["classes"] = (out["classes"] || 0) + classPriorityOf(row).length;
     return out;
 }
 
@@ -139,10 +142,14 @@ export function classCount(roster: RaidplanPlayer[], classId: string, role: stri
  */
 export function previewLines(row: RaidplanAssignment, filled: RaidplanAssignment, ctx: AssignCtx): PreviewLine[] {
     const targets = (filled.targets || row.targets).map((t) => resolveTarget(t, ctx));
-    return row.assignees.map((ref, i) => {
-        const r = resolveAssignee(filled.assignees[i] || ref, ctx);
+    // the places of a class priority (#525) follow the row's own assignees in the resolved row; an open one is named by the priority
+    const prio = classPriorityOf(row);
+    const refs = prio.length > 0 ? row.assignees.concat(filled.assignees.slice(row.assignees.length)) : row.assignees;
+    return refs.map((ref, i) => {
+        const r0 = resolveAssignee(filled.assignees[i] || ref, ctx);
+        const r = i >= row.assignees.length && !r0.player ? { ...r0, label: priorityName(prio, row.type) } : r0;
         // an open class place is named as the row names it: "Magier-Tank 1" on a tanking row
-        const who = r.kind === "class" ? { ...r, label: classRefLabelFor(r.ref, row.type) } : r;
+        const who = r.kind === "class" && i < row.assignees.length ? { ...r, label: classRefLabelFor(r.ref, row.type) } : r;
         return { who, targets, open: who.open, order: i + 1 };
     });
 }
