@@ -10,6 +10,10 @@
 //                                              again, send the DMs still outstanding
 //   POST /api/raids/setup/explain             raids write: Claude explains it (background job)
 //   GET  /api/raids/setup/explain?event=<id>  raids write (checked here): job state
+//   GET  /api/raids/setup/signup?event=&user=  raids write (checked here): one raider's signup
+//                                              and what the orga may change it to (#521)
+//   PUT  /api/raids/setup/signup              raids write: change it — status, character,
+//                                              spec — as the orga; the setup follows
 //
 // The area gate (apiAccess.js) decides read vs. write by method; the GET of the
 // editor additionally asks whether the caller may write, because a draft is
@@ -31,6 +35,7 @@ const { setupAttendance } = require("../setup/setupAttendance");
 const { postSearch, textForNeeds } = require("../../services/setup/raidSearch");
 const { startJob, getJob } = require("../logcheck/evalJobs");
 const { explainSetup } = require("../../utils/setup/explainText");
+const setupSignup = require("../../services/setup/setupSignup");
 
 const EXPLAIN_SECTION = "setup-explain";
 
@@ -185,6 +190,22 @@ const postExtraRole = withUser({ write: "raids", csrf: true, body: true }, async
     await answer(res, { event: updated }, user);
 });
 
+/** GET /api/raids/setup/signup?event=<id>&user=<userId> — the signup and the characters/specs the dialog offers. */
+const getSignupEdit = withUser({ write: "raids" }, async ({ res, url }) => {
+    if (!eventOf(res, url.searchParams.get("event"))) return;
+    const { view: out, failed } = setupSignup.signupEditView(url.searchParams.get("event"), url.searchParams.get("user"));
+    if (failed) return error(res, failed.status, failed.code, failed.error);
+    ok(res, out);
+});
+
+/** PUT /api/raids/setup/signup — body `{ event, userId, status, character?, spec?, from? }`: the orga changes a raider's signup (#521). */
+const putSignupEdit = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+    if (!eventOf(res, body.event)) return;
+    const result = await setupSignup.changeSignupFromSetup(String(body.event).trim(), body.userId, body, { user });
+    if (result.error) return error(res, result.status || 400, result.code || "failed", result.error);
+    await answer(res, { event: result.event }, user, { message: result.message, warning: result.warning || "" });
+});
+
 /** POST /api/raids/setup/search/text — body `{ event, roles, buffs }`: the message for needs the orga edited (nothing is posted). */
 const postSearchText = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     const event = eventOf(res, body.event);
@@ -243,10 +264,12 @@ const routes = [
     { method: "POST", path: "/api/raids/setup/post", handler: postPublish, area: "raids" },
     { method: "POST", path: "/api/raids/setup/ping-text", handler: postPingText, area: "raids" },
     { method: "POST", path: "/api/raids/setup/extra-role", handler: postExtraRole, area: "raids" },
+    { method: "GET", path: "/api/raids/setup/signup", handler: getSignupEdit, area: "raids" },
+    { method: "PUT", path: "/api/raids/setup/signup", handler: putSignupEdit, area: "raids" },
     { method: "POST", path: "/api/raids/setup/search/text", handler: postSearchText, area: "raids" },
     { method: "POST", path: "/api/raids/setup/search", handler: postSearchMessage, area: "raids" },
     { method: "POST", path: "/api/raids/setup/explain", handler: postExplain, area: "raids" },
     { method: "GET", path: "/api/raids/setup/explain", handler: getExplain, area: "raids" },
 ];
 
-module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postExtraRole, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION, routes };
+module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION, routes };

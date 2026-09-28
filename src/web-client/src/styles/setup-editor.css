@@ -312,3 +312,19 @@
 .se-tip-extra { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 4px; border: 1px solid var(--line); border-radius: 8px; background: none; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .se-tip-extra:hover { border-color: var(--accent); color: var(--text); }
 .se-tip-extra.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+
+/* "Anmeldung bearbeiten" (#521): the slot's pencil is an overlay like the lock (left of it), the dialog's choices are chips */
+.se-editbtn { position: absolute; top: 50%; right: 32px; transform: translateY(-50%); width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: var(--panel2); color: var(--muted); opacity: 0; }
+.se-editbtn.se-editbtn-alone { right: 4px; }
+.se-editbtn svg { width: 14px; height: 14px; }
+.se-slot:hover .se-editbtn, .se-slot:focus-within .se-editbtn { opacity: 1; }
+.se-compact .se-slot:hover .se-editbtn, .se-compact .se-slot:focus-within .se-editbtn { width: 20px; height: 20px; right: 28px; }
+.se-compact .se-slot:hover .se-editbtn.se-editbtn-alone, .se-compact .se-slot:focus-within .se-editbtn.se-editbtn-alone { right: 4px; }
+.se-edit { display: flex; flex-direction: column; gap: 14px; }
+.se-edit-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.se-edit-opt { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.se-edit-opt:hover { border-color: var(--accent); }
+.se-edit-opt.is-on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+.se-edit-opt.se-edit-off { border-style: dashed; color: var(--muted); }
+.se-edit-opt.se-edit-off.is-on { color: var(--text); }
+.se-edit-opt .wi { border-radius: 3px; }

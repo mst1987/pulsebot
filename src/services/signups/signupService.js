@@ -312,13 +312,37 @@ async function checkRaiderRole(event, userId, { byOrga = false, previous, roleId
 }
 
 /**
+ * The character an entry names: the profile's — or, for the orga changing a
+ * signup from the setup editor (`offProfile`, #521), one of the signup's own
+ * characters the profile does not have (a raider without a profile), its class
+ * read from the spec it was signed up with.
+ */
+function characterFor(profile, ref, prev, offProfile) {
+    const own = findCharacter(profile, ref);
+    if (own || !offProfile) return own;
+    const key = profiles.characterKey(ref);
+    const had = key ? ((prev && prev.characters) || []).find((c) => profiles.characterKey(c.character) === key) : null;
+    const info = had ? profiles.specInfo(had.spec) : null;
+    return info ? { key, name: had.character, className: info.classId, specs: [] } : null;
+}
+
+/** A spec the character may sign up with: one of its profile specs — for the orga (`offProfile`) any spec of its class. */
+function specAllowed(character, specKey, offProfile) {
+    if (character.specs.some((s) => s.key === specKey)) return true;
+    const info = offProfile ? profiles.specInfo(specKey) : null;
+    return !!info && info.classId === character.className;
+}
+
+/**
  * Check a signup without saving it.
  * @param {object} event   an eventStore event (source "eventhelper")
  * @param {object} input   { character, spec, status, canAlso?, comment }
- * @param {object} ctx     { profile, previous?, byOrga?, now? }
+ * @param {object} ctx     { profile, previous?, byOrga?, offProfile?, now? } — `offProfile` (the orga in the setup
+ *                         editor, #521): a spec of the character's class the profile lacks, and the signup's own
+ *                         characters without a profile, are taken
  * @returns {{ value?: object, error?: string, code?: string }}
  */
-function validateSignup(event, input = {}, { profile, previous = null, byOrga = false, now = Date.now() } = {}) {
+function validateSignup(event, input = {}, { profile, previous = null, byOrga = false, offProfile = false, now = Date.now() } = {}) {
     if (!event) return fail("not_found", "Event nicht gefunden.");
     if (event.source !== "eventhelper" || !isOwnEventId(event.id)) {
         return fail("raidhelper", "Für dieses Event meldest du dich über Raid-Helper im Discord an.");
@@ -358,13 +382,13 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
         const specKey = String(entry.spec || "").trim();
         if (status === "absence") {
             // Signing off keeps whatever still fits the profile, nothing is refused.
-            const character = findCharacter(profile, entry.character);
+            const character = characterFor(profile, entry.character, prev, offProfile);
             if (i === 0 && character && !specKey) resolved.push({ character, spec: "" });
-            else if (character && character.specs.some((s) => s.key === specKey) && !seen.has(character.key)) resolved.push({ character, spec: specKey });
+            else if (character && specAllowed(character, specKey, offProfile) && !seen.has(character.key)) resolved.push({ character, spec: specKey });
             if (character) seen.add(character.key);
             continue;
         }
-        const character = findCharacter(profile, entry.character);
+        const character = characterFor(profile, entry.character, prev, offProfile);
         if (!character) {
             return fail("character", i === 0 || !entry.character
                 ? "Dieser Charakter steht nicht in deinem Profil."
@@ -373,7 +397,7 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
         if (seen.has(character.key)) continue;
         seen.add(character.key);
         if (!specKey) return fail("spec", "Bitte eine Spezialisierung wählen.");
-        if (!character.specs.some((s) => s.key === specKey)) {
+        if (!specAllowed(character, specKey, offProfile)) {
             return fail("spec", `Diese Spezialisierung ist für ${character.name} nicht im Profil hinterlegt.`);
         }
         resolved.push({ character, spec: specKey, status: entry.status });
@@ -445,7 +469,9 @@ function requestedCharacters(input, previous) {
  * `userId` is who the signup belongs to; `byOrga` lifts the deadline and the
  * start for the orga entering somebody, the raider-role rule (checkRaiderRole;
  * `roleIds` / `config` are optional, it reads them otherwise) and the waiting
- * list. The change event fires in the store.
+ * list. `offProfile` (only with `byOrga`, the setup editor #521) also takes a spec
+ * of the character's class the profile lacks (validateSignup). The change event
+ * fires in the store.
  *
  * `waitlisted` says the "Dabei" became a bench seat because the raid is full,
  * `locked` that this signup closed the signup (`lockAtLimit`), and `notice` is
@@ -453,7 +479,7 @@ function requestedCharacters(input, previous) {
  * learns it right there, not from the roster.
  * @returns {Promise<{ signup?: object, event?: object, waitlisted?: boolean, locked?: boolean, notice?: string, error?: string, code?: string }>}
  */
-async function submitSignup(eventId, userId, input = {}, { byOrga = false, now = Date.now(), roleIds, config } = {}) {
+async function submitSignup(eventId, userId, input = {}, { byOrga = false, offProfile = false, now = Date.now(), roleIds, config } = {}) {
     const uid = String(userId || "").trim();
     if (!uid) return fail("bad_request", "Kein Nutzer.");
     if (!isOwnEventId(eventId)) {
@@ -465,7 +491,7 @@ async function submitSignup(eventId, userId, input = {}, { byOrga = false, now =
     const previous = signupStore.getSignup(event.id, uid);
     const access = await checkRaiderRole(event, uid, { byOrga, previous, roleIds, config });
     if (access.error) return access;
-    const checked = validateSignup(event, input, { profile, previous, byOrga, now });
+    const checked = validateSignup(event, input, { profile, previous, byOrga, offProfile: byOrga && offProfile, now });
     if (checked.error) return checked;
     const overflow = applyOverflow(event, checked.value, { previous, byOrga, userId: uid });
     if (overflow.error) return overflow;

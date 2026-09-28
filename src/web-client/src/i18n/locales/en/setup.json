@@ -274,5 +274,20 @@
         "outdated": "The message still shows version {version} — \"Post setup\" updates it.",
         "tip": "Setup in the channel",
         "reapproveSub": "On re-approval the message is edited, not posted again."
+    },
+    "signupEdit": {
+        "open": "Edit signup …",
+        "openSub": "Change status, character and spec as the orga (right-click works too).",
+        "kicker": "Signup · as orga",
+        "hint": "Deadline and profile do not bind the orga. Signup message and log follow, the place in the setup stays.",
+        "status": "Status",
+        "character": "Character",
+        "spec": "Spec",
+        "notInProfile": "not in profile",
+        "notInProfileHint": "{spec} is not in {character}'s profile - applies to this raid only.",
+        "absenceHint": "Signed off: leaves groups and bench and is no longer listed under \"Signed up\".",
+        "loading": "Loading signup …",
+        "loadFailed": "Signup not loaded: {message}",
+        "failed": "Signup not saved."
     }
 }

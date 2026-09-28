@@ -54,6 +54,7 @@
   "GET /api/raids/series/preview",
   "GET /api/raids/setup",
   "GET /api/raids/setup/explain",
+  "GET /api/raids/setup/signup",
   "GET /api/raids/softres/item-search",
   "GET /api/recruitment",
   "GET /api/roster",
@@ -187,5 +188,6 @@
   "PUT /api/raidplan",
   "PUT /api/raids/series",
   "PUT /api/raids/setup",
+  "PUT /api/raids/setup/signup",
   "PUT /api/signups"
 ]

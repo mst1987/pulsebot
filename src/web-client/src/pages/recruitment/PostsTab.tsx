@@ -13,7 +13,8 @@ import Badge from "../../components/ui/Badge";
 import { PartHead } from "../../components/ui/PartHead";
 import { useT } from "../../i18n";
 import { ICONS, openExternal, shortStamp } from "./shared";
-import { EditIcon, WantedIcons } from "./RecruitmentBits";
+import { WantedIcons } from "./RecruitmentBits";
+import { EditIcon } from "../../components/icons";
 
 type PostSortKey = "channel" | "wanted" | "template" | "source" | "updated";
 
