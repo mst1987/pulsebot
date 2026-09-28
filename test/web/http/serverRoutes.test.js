@@ -161,6 +161,7 @@ const CASES = [
     ["PUT", "/r/abc123"],
     ["POST", "/"],
     ["HEAD", "/health"],
+    ["HEAD", "/"],
     ["GET", "/health"],
     ["GET", "/health/"],
     ["GET", "/r/cal/user/ehc_ok.ics"],

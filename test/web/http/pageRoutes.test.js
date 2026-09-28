@@ -12,7 +12,7 @@ describe("web/http/pageRoutes", () => {
             expect(typeof route.name).toBe("string");
             expect(names.has(route.name)).toBe(false);
             names.add(route.name);
-            expect(route.method).toMatch(/^(\*|GET|DELETE)$/);
+            expect(route.method).toMatch(/^(\*|GET|HEAD|DELETE)$/);
             expect(MATCHERS.filter((k) => route[k] !== undefined)).toHaveLength(1);
             expect(typeof route.handler).toBe("function");
         }
@@ -21,7 +21,7 @@ describe("web/http/pageRoutes", () => {
     it("keeps the order the checks had in server.handle()", () => {
         expect(PAGE_ROUTES.map((r) => r.name)).toEqual([
             "api", "legacy-admin2", "legacy-admin", "auth-login", "auth-callback", "auth-logout", "report-delete",
-            "health", "calendar-user", "calendar-event", "event-comp", "event-page", "raidplan-map", "report-asset", "docs",
+            "health", "health-head", "calendar-user", "calendar-event", "event-comp", "event-page", "raidplan-map", "report-asset", "docs",
             "report-player", "report",
         ]);
     });
@@ -34,6 +34,7 @@ describe("web/http/pageRoutes", () => {
         ["GET", "/auth/login", "auth-login", []],
         ["DELETE", "/r/abc", "report-delete", ["abc"]],
         ["GET", "/health", "health", []],
+        ["HEAD", "/health", "health-head", []],
         ["GET", "/r/cal/user/tok_1.ics", "calendar-user", ["tok_1"]],
         ["GET", "/r/cal/eh-1.ics", "calendar-event", ["eh-1"]],
         ["GET", "/e/eh-1/comp", "event-comp", ["eh-1"]],
@@ -53,7 +54,7 @@ describe("web/http/pageRoutes", () => {
         ["POST", "/auth/login"],
         ["GET", "/r/abc/p/x"],
         ["DELETE", "/r/abc/p/1"],
-        ["HEAD", "/health"],
+        ["HEAD", "/health/"],
         ["GET", "/"],
         ["GET", "/administration"],
         ["GET", "/docs/x"],

@@ -226,6 +226,8 @@ const PAGE_ROUTES = [
     { name: "auth-logout", method: "GET", exact: "/auth/logout", handler: authLogout },
     { name: "report-delete", method: "DELETE", pattern: /^\/r\/([a-zA-Z0-9]+)\/?$/, handler: deleteReportPage },
     { name: "health", method: "GET", exact: "/health", handler: health },
+    // HEAD for uptime monitors (#530: HEAD now reaches the server instead of a 405); Node sends no body for it
+    { name: "health-head", method: "HEAD", exact: "/health", handler: health },
     { name: "calendar-user", method: "GET", pattern: /^\/r\/cal\/user\/([a-zA-Z0-9_-]+)\.ics$/, handler: userCalendar },
     { name: "calendar-event", method: "GET", pattern: /^\/r\/cal\/([a-zA-Z0-9_-]+)\.ics$/, handler: eventCalendar },
     { name: "event-comp", method: "GET", pattern: /^\/e\/([a-zA-Z0-9_-]+)\/comp\/?$/, handler: eventComp },

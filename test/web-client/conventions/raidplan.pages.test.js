@@ -24,7 +24,7 @@ describe("the pages", () => {
         expect(detail).toContain("t === \"plan\" ? hasPlan");
         expect(detail).toContain("{shown === \"plan\" && <Suspense fallback={<RaidLoader />}><RaidplanTab ctx={ctx} /></Suspense>}");
         // the editor is a chunk of its own, loaded only when the tab is opened (#436)
-        expect(detail).toContain("const RaidplanTab = lazy(() => import(\"./raid-detail/RaidplanTab\"));");
+        expect(detail).toContain("const RaidplanTab = lazyWithReload(() => import(\"./raid-detail/RaidplanTab\"));");
     });
 
     it("drags with Pointer Events on window, never with HTML5 drag and drop", () => {
