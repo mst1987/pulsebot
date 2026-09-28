@@ -64,7 +64,10 @@ export default function PlanPublicPage({ token }: { token: string }) {
         return () => window.removeEventListener("resize", size);
     }, []);
 
-    const players = useMemo(() => rosterMap(data ? data.roster : []), [data]);
+    // "Gruppen im Plan" (#529): a raider outside the plan comes only when a row names him - named there as he is, but never part of a
+    // group ring or an auto token (the server resolved everything else without him)
+    const players = useMemo(() => rosterMap(data ? data.roster.map((p) => (p.outOfPlan ? { ...p, outOfPlan: false } : p)) : []), [data]);
+    const planned = useMemo(() => (data ? data.roster.filter((p) => !p.outOfPlan) : []), [data]);
     // the sections where the visitor is personally assigned: their chips carry a dot (issue #503)
     const mineKeys = useMemo(() => bossesWithMine(data ? data.bosses : [], players, data ? data.meIds : []), [data, players]);
 
@@ -87,7 +90,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const mapHeight = mapOnly ? Math.max(300, win.h - 96) : wide ? Math.max(320, win.h - 108) : Math.round(win.h * 0.45);
     const ctx = boss ? { slots: boss.slots, players, catalog: data.catalog, groupColors: boss.groupColors, groupMarks: boss.groupMarks, roles: boss.roles || {}, icons: boss.icons } : null;
     // what the tank rows put on the map, exactly as the editor derives it (the rows arrive resolved from the approved setup)
-    const auto = boss && !boss.general && boss.showMap !== false ? deriveAuto(boss.assignments, boss as unknown as RaidplanBoard, { template: false, roster: data.roster }) : undefined;
+    const auto = boss && !boss.general && boss.showMap !== false ? deriveAuto(boss.assignments, boss as unknown as RaidplanBoard, { template: false, roster: planned }) : undefined;
     /** the groups of this section, for the legend that highlights one (the others dim on the map) */
     const groupNs = boss ? Array.from(new Set(boss.slots.filter((sl) => sl.kind === "group").map((sl) => sl.n))).sort((a, b) => a - b) : [];
     // "Only for me": the sections that concern the visitor (he does something, or something acts on him), and in them only his blocks
@@ -151,7 +154,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                                     <PlanBoard
                                         bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} maxHeight={mapHeight}
                                         tokens={boss.tokens} slots={boss.slots} marks={boss.marks} zones={boss.zones} icons={boss.icons} objectScale={boss.objectScale} lines={boss.lines} texts={boss.texts} mapOpacity={boss.mapOpacity}
-                                        players={players} roster={data.roster} me={data.meIds} links={prefs.links ? assignmentLinks({ ...boss, places: auto ? autoPlaces(auto) : {} } as never, data.meIds, auto || null) : []} auto={auto} assignments={boss.assignments} showRings={shownFor(boss.showRings, prefs.groupRings)} groupColors={boss.groupColors} groupMarks={boss.groupMarks} focusGroup={focusGroup}
+                                        players={players} roster={planned} me={data.meIds} links={prefs.links ? assignmentLinks({ ...boss, places: auto ? autoPlaces(auto) : {} } as never, data.meIds, auto || null) : []} auto={auto} assignments={boss.assignments} showRings={shownFor(boss.showRings, prefs.groupRings)} groupColors={boss.groupColors} groupMarks={boss.groupMarks} focusGroup={focusGroup}
                                         view={bv.view} frameRef={bv.frame} showNames={shownFor(boss.showNames, prefs.names)} showBadges={boss.showBadges !== false} showRoleRings={shownFor(boss.showRoleRings, prefs.roleRings)} highlightMe={prefs.highlight}
                                     />
                                     <div className="rp-zoomctl" role="group" aria-label={t("raidBoard.zoom.title")}>

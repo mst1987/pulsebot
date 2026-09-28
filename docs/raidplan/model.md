@@ -117,6 +117,17 @@ read view draws the same.
   approved one. The **read view names only players of the *approved* setup** (a raider never sees a setup
   draft, see docs/setup.md); a token of somebody who is only in the draft is left out there, and the share
   dialog says so.
+- **Groups in the plan (#529):** the lineup is the setup's groups plus its explicit bench (`rosterFrom` marks a bench raider
+  `bench: true`; a draft's bench goes through `setupCore.benchAndPool`, so the pool "Angemeldet" never comes in). The plan PICKS only
+  from the groups it includes: `plan.includedGroups` (group numbers 1..8 and optionally `"bench"`; missing = the groups up to the
+  raid's size, `ceil(size / 5)` of the plan's Besetzung - a 25er takes 1..5 -, no bench). One reader on each side:
+  `src/services/raidplan/raidplanGroups.js` (`includedGroups`, `planRoster`, `outOfPlanRoster`, `refillSlots`,
+  `cleanIncludedGroups`) and its client twin `lib/raidplan/planGroups.ts`. Everything that picks a raider reads through it: the
+  Besetzung and its counts, `expandClassRefs` (class references, priorities), the suggestions (roster and the heal row's groups),
+  the auto tokens, "Nicht platziert", the group markers, the read view and a template's slot fill. What a save may NAME stays the
+  whole lineup (`allowedUserIds`), so a bench raider already in a row is kept and marked "nicht im Plan". Set with `POST
+  /api/raidplan/groups { event, includedGroups }` (raids write; cleaned, `null` = back to the default; no version step). Details:
+  [editor.md, "Groups in the plan"](editor.md#groups-in-the-plan-no-bench-in-the-assignments-529).
 
 ## The Besetzung and the raid type
 

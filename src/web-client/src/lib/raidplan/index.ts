@@ -18,6 +18,7 @@
 //   besetzung   the role slots of a raid and their counts
 //   profiles    tactic profiles, sheets, section labels
 //   roleGroups  role group placeholders: their size, names and turning
+//   planGroups  "Gruppen im Plan" (#529): which setup groups (and the bench) the plan picks its raiders from
 // The other raid plan libs next to these (assign.ts, autoPlace.ts, steps.ts …)
 // are imported by their own path.
 export * from "./model";
@@ -31,3 +32,4 @@ export * from "./menu";
 export * from "./besetzung";
 export * from "./profiles";
 export * from "./roleGroups";
+export * from "./planGroups";

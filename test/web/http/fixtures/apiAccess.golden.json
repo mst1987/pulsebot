@@ -90,6 +90,7 @@
     "/api/game-versions": "raids",
     "/api/raidplan": "raids",
     "/api/raidplan/publish": "raids",
+    "/api/raidplan/groups": "raids",
     "/api/raidplan/suggest": "raids",
     "/api/raidplan/catalog": "raids",
     "/api/raidplan/catalog/mobs": "raids",

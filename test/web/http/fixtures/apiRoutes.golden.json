@@ -136,6 +136,7 @@
   "POST /api/raidplan/map/delete",
   "POST /api/raidplan/profiles",
   "POST /api/raidplan/publish",
+  "POST /api/raidplan/groups",
   "POST /api/raidplan/suggest",
   "POST /api/raidplan/templates",
   "POST /api/raidplan/templates/duplicate",

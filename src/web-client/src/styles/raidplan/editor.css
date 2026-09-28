@@ -186,3 +186,14 @@
 .rp-tprogress span.on { background: var(--accent-2); }
 .rp-tmeta { font-size: 12px; }
 .rp-tcard-actions { position: absolute; right: 8px; top: 158px; display: flex; gap: 2px; }
+
+/* "Gruppen im Plan" (#529): which setup groups the plan picks its raiders from - small chips in the tool bar's status */
+.rp-pgroups { display: inline-flex; align-items: center; gap: 3px; height: 26px; padding: 0 4px 0 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
+.rp-pgroups-label { display: inline-flex; align-items: center; gap: 4px; margin-right: 2px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.rp-pgroups-chip { min-width: 20px; height: 20px; padding: 0 5px; border: 1px dashed var(--line); border-radius: 10px; background: transparent; color: var(--muted); font: inherit; font-size: 11.5px; font-weight: 700; line-height: 1; cursor: pointer; }
+.rp-pgroups-chip.is-on { border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--text); }
+.rp-pgroups-chip:hover:not(:disabled) { border-color: var(--accent); }
+.rp-pgroups-chip:disabled { cursor: default; }
+.rp-pgroups-count { min-width: 20px; padding: 0 3px; color: var(--muted); font-size: 11.5px; font-weight: 700; text-align: center; }
+.rp-pgroups-reset { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+.rp-pgroups-reset:hover { color: var(--text); }
