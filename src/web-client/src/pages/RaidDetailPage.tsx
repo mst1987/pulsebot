@@ -10,7 +10,7 @@
 // it as `data.steps`, every step names at most one deed, and this file is the
 // one place that turns such a deed into a dialog, a tab, a menu action or an
 // evaluation. A Raid-Helper event has no `steps` and keeps today's view.
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     canAccess, getRaidDetail, reopenRaid, setRaidSignupsOpen, setRaidplanLink,
@@ -54,10 +54,11 @@ import type { PlayerRef, RaidCtx } from "./raid-detail/meta";
 import "../styles/raid-detail.css";
 import RaidLoader from "../components/ui/RaidLoader";
 import { useT } from "../i18n";
+import { lazyWithReload } from "../lib/chunkReload";
 
 // The raidplan editor (board, workspace, its css) is by far the heaviest part
 // of this page and only one of five tabs — it is a chunk of its own (#436).
-const RaidplanTab = lazy(() => import("./raid-detail/RaidplanTab"));
+const RaidplanTab = lazyWithReload(() => import("./raid-detail/RaidplanTab"));
 
 type Tab ="roster" | "setup" | "loot" | "logs" | "plan";
 const TABS: Tab[] = ["roster", "setup", "plan", "loot", "logs"];

@@ -119,6 +119,74 @@ describe("deploy.sh health check", () => {
     });
 });
 
+// #530: a tab opened before a deploy asks for the old build's chunks; the
+// previous assets stay next to the new ones for a while (never index.html).
+describe("deploy.sh keeps the previous build's assets", () => {
+    const deploy = read("deploy.sh");
+    const buildAt = deploy.indexOf("(cd src/web-client && npm ci && npm run build)");
+    const start = deploy.indexOf("ASSET_DIR=\"src/web-client/dist/assets\"");
+    const end = deploy.indexOf("find \"$ASSET_DIR\" -type f -mtime");
+    const snippet = deploy.slice(start, deploy.indexOf("fi\n", end) + 3);
+
+    it("saves the assets before the build and puts them back after it without overwriting", () => {
+        expect(start).toBeGreaterThan(-1);
+        expect(start).toBeLessThan(buildAt);
+        expect(deploy.indexOf("cp -an \"$PREV_ASSETS/.\" \"$ASSET_DIR/\"")).toBeGreaterThan(buildAt);
+        expect(snippet).not.toContain("index.html");
+    });
+
+    it("prunes kept assets after a fixed number of days", () => {
+        expect(Number(deploy.match(/ASSET_KEEP_DAYS=(\d+)/)?.[1])).toBeGreaterThanOrEqual(1);
+        expect(snippet).toMatch(/find "\$ASSET_DIR" -type f -mtime \+"\$ASSET_KEEP_DAYS" -delete \|\| true/);
+    });
+
+    it("never fails the deploy over the kept assets", () => {
+        expect(snippet).toMatch(/cp -a "\$ASSET_DIR\/\." "\$PREV_ASSETS\/" \|\| true/);
+        expect(snippet).toMatch(/cp -an [^\n]* \|\| true/);
+    });
+
+    // Runs the very lines of deploy.sh with a fake build in a scratch directory.
+    const bash = (() => {
+        try {
+            require("child_process").execFileSync("bash", ["-c", "command -v cp find mktemp"], { stdio: "ignore" });
+            return true;
+        } catch {
+            return false;
+        }
+    })();
+    (bash ? it : it.skip)("keeps the old chunks, takes the new ones and leaves no temp dir", () => {
+        const fs = require("fs");
+        const os = require("os");
+        const { execFileSync } = require("child_process");
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "eh-deploy-assets-"));
+        try {
+            const assets = path.join(dir, "src", "web-client", "dist", "assets");
+            fs.mkdirSync(assets, { recursive: true });
+            fs.writeFileSync(path.join(assets, "RaidplanTab-OLD.js"), "old");
+            fs.writeFileSync(path.join(assets, "vendor-SAME.js"), "old build");
+            // the fake build empties dist/ like Vite and writes the new chunks
+            const fakeBuild = [
+                "rm -rf src/web-client/dist && mkdir -p src/web-client/dist/assets",
+                "echo new > src/web-client/dist/assets/RaidplanTab-NEW.js",
+                "echo \"new build\" > src/web-client/dist/assets/vendor-SAME.js",
+                "echo html > src/web-client/dist/index.html",
+            ].join("\n");
+            const script = [
+                "set -euo pipefail",
+                "LOG_TAG=[test]",
+                "export TMPDIR=\"$PWD/tmp\" && mkdir -p \"$TMPDIR\"",
+                snippet.replace("(cd src/web-client && npm ci && npm run build)", fakeBuild),
+            ].join("\n");
+            execFileSync("bash", ["-c", script], { cwd: dir, stdio: "pipe" });
+            expect(fs.readdirSync(assets).sort()).toEqual(["RaidplanTab-NEW.js", "RaidplanTab-OLD.js", "vendor-SAME.js"]);
+            expect(fs.readFileSync(path.join(assets, "vendor-SAME.js"), "utf8").trim()).toBe("new build");
+            expect(fs.readdirSync(path.join(dir, "tmp"))).toEqual([]);
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+});
+
 describe("ecosystem.config.js", () => {
     const [app] = require(path.join(root, "ecosystem.config.js")).apps;
 

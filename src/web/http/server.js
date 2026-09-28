@@ -10,8 +10,8 @@ const { findPageRoute, send } = require("./pageRoutes");
 
 /**
  * One request: the first entry of pageRoutes.js that fits method and path
- * answers. Nothing fits: any method but GET is a 405; a GET is the client —
- * "/" and every page path below it. Who may see what is decided in the client
+ * answers. Nothing fits: any method but GET/HEAD is a 405; a GET (or HEAD) is
+ * the client — "/", every page path below it and the built files (#530). Who may see what is decided in the client
  * and, for real, by /api/* (apiAccess.js); an unknown path lands on the
  * client's own "not found" page.
  */
@@ -22,7 +22,7 @@ async function handle(req, res) {
 
     const hit = findPageRoute(req.method, pathname);
     if (hit) return hit.route.handler({ req, res, url, pathname, params: hit.params, rest: hit.rest });
-    if (req.method !== "GET") return send(res, 405, renderNotFound());
+    if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, renderNotFound());
     if (await staticClient.serve(req, res, pathname)) return undefined;
     // Only reached when dist/ was never built — see docs/web-admin.md.
     return send(res, 404, renderNotFound());
