@@ -288,14 +288,19 @@ describe("services/events/eventCreate", () => {
         });
 
         it("takes the waiting-list switches from the raid template (#306)", async () => {
-            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? { ...T5, overflow: "off", lockAtLimit: true } : null));
+            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? { ...T5, overflow: "refuse", lockAtLimit: true } : null));
             const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
-            expect(eventStore.getEvent(result.body.id)).toMatchObject({ overflow: "off", lockAtLimit: true });
+            expect(eventStore.getEvent(result.body.id)).toMatchObject({ overflow: "refuse", lockAtLimit: true });
         });
 
         it("lets the create dialog override the template's waiting list (#306)", async () => {
-            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5", overflow: "off", lockAtLimit: true }) });
-            expect(eventStore.getEvent(result.body.id)).toMatchObject({ overflow: "off", lockAtLimit: true });
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5", overflow: "waitlist", lockAtLimit: true }) });
+            expect(eventStore.getEvent(result.body.id)).toMatchObject({ overflow: "waitlist", lockAtLimit: true });
+        });
+
+        it("creates an event without a limit by default (#516)", async () => {
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2" }) });
+            expect(eventStore.getEvent(result.body.id)).toMatchObject({ overflow: "none", lockAtLimit: false });
         });
 
         it("takes the deadline as hours before the start and the auto-suggest switch", async () => {

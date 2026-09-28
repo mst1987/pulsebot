@@ -19,8 +19,8 @@ export type RaidTemplateInput = {
     durationMinutes: number | null;
     fairness: boolean;
     wishes: boolean;
-    /** what a full raid does with a new "Dabei" (#306): the waiting list, or refuse it */
-    overflow?: "bench" | "off";
+    /** what a full raid does with a new "Dabei" (#306, #516) */
+    overflow?: OverflowMode;
     /** close the signup by itself once the raid is full (#306) */
     lockAtLimit?: boolean;
     /** the colour bar of the event message (#307), "#rrggbb"; "" = the instance's own */
@@ -31,6 +31,14 @@ export type RaidTemplateInput = {
     emojiStyle?: EmojiStyle;
     raidhelperTemplateId: string;
 };
+
+/**
+ * What a raid does once its size is reached (#306, #516): "none" = no limit (the
+ * default, the setup picks who plays), "waitlist" = a new "Dabei" becomes the
+ * bench, "refuse" = it is refused. Mirrors src/utils/signup/capacity.js.
+ */
+export type OverflowMode = "none" | "waitlist" | "refuse";
+export const OVERFLOW_MODES: OverflowMode[] = ["none", "waitlist", "refuse"];
 
 /** Where a picture sits in the bot's event message (#307) and which one it is. */
 export type EmbedImage = { mode: "thumbnail" | "banner"; url: string };

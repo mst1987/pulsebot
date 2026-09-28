@@ -84,6 +84,13 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
         expect(JSON.stringify(payload)).not.toContain("Vorbei");
     });
 
+    it("writes an overbooked raid as 25/25 (+3) (#516)", () => {
+        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Do", events: [
+            ev({ id: "e9", source: "eventhelper", title: "BT", startTime: sec(2026, 9, 24, 17, 30), channelId: "c2", channelName: "do-bt", size: 25, signUps: [...signed(26), ...signed(2, "late")] }),
+        ] }], opts);
+        expect(payload.embeds[0].fields[0].value).toContain(" 25/25 (+3) ");
+    });
+
     it("strikes a cancelled event through and does not offer it for signing up (#288)", () => {
         const payload = buildOverviewMessage([{
             categoryId: "k1", categoryName: "Mi", events: [

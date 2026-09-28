@@ -405,7 +405,7 @@ describe("Raider-Rollen der Kategorie", () => {
 
 
 // #306 — die Warteliste: ein voller Raid nimmt keine neue „Dabei“-Anmeldung mehr.
-describe("Warteliste bei vollem Raid (#306)", () => {
+describe("Warteliste bei vollem Raid (#306, overflow: waitlist/refuse)", () => {
     // Füllt den Raid mit `n` fremden Anmeldungen auf (Rolle egal, es zählt der Platz).
     const fill = (n, status = "signed") => {
         for (let i = 0; i < n; i += 1) {
@@ -414,7 +414,7 @@ describe("Warteliste bei vollem Raid (#306)", () => {
     };
 
     it("macht aus einer neuen „Dabei“ die Bank und sagt es dem Raider sofort", async () => {
-        mockEvents.set("eh-kara", event({ size: 2 }));
+        mockEvents.set("eh-kara", event({ size: 2, overflow: "waitlist" }));
         fill(2);
         const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW });
         expect(res.error).toBeUndefined();
@@ -425,8 +425,8 @@ describe("Warteliste bei vollem Raid (#306)", () => {
         expect(res.notice).toContain("Warteliste");
     });
 
-    it("lehnt die Anmeldung ab, wenn die Kategorie keine Warteliste will (overflow: off)", async () => {
-        mockEvents.set("eh-kara", event({ size: 2, overflow: "off" }));
+    it("lehnt die Anmeldung ab, wenn die Kategorie keine Warteliste will (overflow: refuse)", async () => {
+        mockEvents.set("eh-kara", event({ size: 2, overflow: "refuse" }));
         fill(2);
         const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW });
         expect(res).toMatchObject({ code: "full" });
@@ -436,7 +436,7 @@ describe("Warteliste bei vollem Raid (#306)", () => {
     });
 
     it("lässt wer schon einen Platz hat seinen Platz behalten – auch beim Spec-Wechsel", async () => {
-        mockEvents.set("eh-kara", event({ size: 2 }));
+        mockEvents.set("eh-kara", event({ size: 2, overflow: "waitlist" }));
         fill(1);
         await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW });
         fill(2); // der Raid ist jetzt voll, Anna sitzt aber schon drin
@@ -446,7 +446,7 @@ describe("Warteliste bei vollem Raid (#306)", () => {
     });
 
     it("bindet die Orga nicht und zählt „Spät“ als belegten Platz", async () => {
-        mockEvents.set("eh-kara", event({ size: 2 }));
+        mockEvents.set("eh-kara", event({ size: 2, overflow: "waitlist" }));
         fill(2, "late");
         const orga = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW, byOrga: true });
         expect(orga.waitlisted).toBeFalsy();
@@ -454,7 +454,7 @@ describe("Warteliste bei vollem Raid (#306)", () => {
     });
 
     it("fängt auch eine neue „Spät“-Anmeldung ab – sonst geht man an der Warteliste vorbei", async () => {
-        mockEvents.set("eh-kara", event({ size: 2 }));
+        mockEvents.set("eh-kara", event({ size: 2, overflow: "waitlist" }));
         fill(2);
         const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "late" }, { now: NOW });
         expect(res.waitlisted).toBe(true);
@@ -465,7 +465,7 @@ describe("Warteliste bei vollem Raid (#306)", () => {
     });
 
     it("lehnt auch „Spät“ ab, wenn die Warteliste aus ist", async () => {
-        mockEvents.set("eh-kara", event({ size: 2, overflow: "off" }));
+        mockEvents.set("eh-kara", event({ size: 2, overflow: "refuse" }));
         fill(2);
         const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "late" }, { now: NOW });
         expect(res).toMatchObject({ code: "full" });
@@ -473,7 +473,7 @@ describe("Warteliste bei vollem Raid (#306)", () => {
     });
 
     it("lässt einen belegten Platz von „Dabei“ auf „Spät“ wechseln", async () => {
-        mockEvents.set("eh-kara", event({ size: 2 }));
+        mockEvents.set("eh-kara", event({ size: 2, overflow: "waitlist" }));
         fill(1);
         await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW });
         fill(2); // jetzt voll, Anna sitzt drin
@@ -483,7 +483,7 @@ describe("Warteliste bei vollem Raid (#306)", () => {
     });
 
     it("lässt „Vielleicht“, „Bank“ und Abmelden unberührt", async () => {
-        mockEvents.set("eh-kara", event({ size: 2 }));
+        mockEvents.set("eh-kara", event({ size: 2, overflow: "waitlist" }));
         fill(2);
         for (const status of ["tentative", "bench"]) {
             const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status }, { now: NOW });
@@ -495,12 +495,41 @@ describe("Warteliste bei vollem Raid (#306)", () => {
     });
 
     it("greift nicht, solange noch ein Platz frei ist oder das Event keine Größe hat", async () => {
-        mockEvents.set("eh-kara", event({ size: 3 }));
+        mockEvents.set("eh-kara", event({ size: 3, overflow: "waitlist" }));
         fill(2);
         expect((await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW })).signup.status).toBe("signed");
         mockSignups.delete("eh-kara/" + ANNA);
-        mockEvents.set("eh-kara", event({ size: 0 }));
+        mockEvents.set("eh-kara", event({ size: 0, overflow: "waitlist" }));
         expect((await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW })).signup.status).toBe("signed");
+    });
+});
+
+// #516 — keine Grenze: ohne Überlauf-Regel (Standard) bleibt jede Anmeldung, wie sie ist.
+describe("Keine Grenze bei voller Raidgröße (#516, overflow: none)", () => {
+    const fill = (n) => {
+        for (let i = 0; i < n; i += 1) {
+            mockSignups.set(`eh-kara/filler${i}`, { userId: `filler${i}`, character: `F${i}`, spec: "Mage-Fire", role: "ranged", status: "signed", characters: [], canAlso: [], comment: "", at: 1 });
+        }
+    };
+
+    it.each([["ohne Angabe", {}], ["none", { overflow: "none" }], ["alt: bench", { overflow: "bench" }], ["alt: off", { overflow: "off" }]])(
+        "lässt die 26. Anmeldung „Dabei“ (%s) – kein Bank, keine Ablehnung, kein Hinweis", async (_label, over) => {
+            mockEvents.set("eh-kara", event({ size: 25, ...over }));
+            fill(25);
+            const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW });
+            expect(res.error).toBeUndefined();
+            expect(res.signup.status).toBe("signed");
+            expect(res.waitlisted).toBe(false);
+            expect(res.notice).toBe("");
+            expect(service.rosterCounts([...mockSignups.values()]).attending).toBe(26);
+        });
+
+    it("lässt auch „Spät“ über die Größe", async () => {
+        mockEvents.set("eh-kara", event({ size: 2 }));
+        fill(2);
+        const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "late" }, { now: NOW });
+        expect(res.signup.status).toBe("late");
+        expect(res.waitlisted).toBe(false);
     });
 });
 

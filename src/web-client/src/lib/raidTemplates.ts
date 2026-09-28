@@ -176,7 +176,7 @@ export function newDraft(version: GameVersion | null | undefined): RaidTemplateI
         name: "", versionId: version ? version.id : "tbc", instanceIds: ids, size,
         composition: { tank: c.tank, healer: c.healer, melee: null, ranged: null },
         requiredBuffs: [], signupDeadline: null, durationMinutes: null, fairness: false, wishes: false,
-        overflow: "bench", lockAtLimit: false, raidhelperTemplateId: "",
+        overflow: "none", lockAtLimit: false, raidhelperTemplateId: "",
         // #307: nothing of its own — the instance's colour and boss icon.
         color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: DEFAULT_EMOJI_STYLE,
     };
@@ -193,7 +193,7 @@ export function draftOf(t: RaidTemplate): RaidTemplateInput {
         requiredBuffs: [...(t.requiredBuffs || [])], signupDeadline: t.signupDeadline || null,
         durationMinutes: t.durationMinutes ?? null,
         fairness: !!t.fairness, wishes: !!t.wishes,
-        overflow: t.overflow === "off" ? "off" : "bench", lockAtLimit: !!t.lockAtLimit,
+        overflow: t.overflow === "waitlist" || t.overflow === "refuse" ? t.overflow : "none", lockAtLimit: !!t.lockAtLimit,
         color: t.color || "",
         image: { mode: (t.image && t.image.mode) === "banner" ? "banner" : "thumbnail", url: (t.image && t.image.url) || "" },
         emojiStyle: emojiStyleOf(t.emojiStyle),

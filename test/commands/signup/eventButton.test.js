@@ -60,8 +60,19 @@ describe("Warteliste unter der Event-Nachricht (#306)", () => {
         }
     };
 
-    it("speichert die Anmeldung als Bank und sagt es in derselben Antwort", async () => {
+    it("ohne Grenze (Standard, #516): die Anmeldung bleibt Dabei, keine Warteliste-Zeile", async () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ size: 2 }));
+        fill(2);
+        profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        const i = click("join");
+        await command.execute(i);
+        expect(stored().status).toBe("signed");
+        const text = answerOf(replyOf(i)).text;
+        expect(text).not.toMatch(/waiting list|full/i);
+    });
+
+    it("speichert die Anmeldung als Bank und sagt es in derselben Antwort (overflow: waitlist)", async () => {
+        mocks.events.set("eh-kara", mocks.ownEvent({ size: 2, overflow: "waitlist" }));
         fill(2);
         profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
         const i = click("join");
@@ -73,7 +84,7 @@ describe("Warteliste unter der Event-Nachricht (#306)", () => {
     });
 
     it("lehnt die Anmeldung ab, wenn die Warteliste aus ist", async () => {
-        mocks.events.set("eh-kara", mocks.ownEvent({ size: 2, overflow: "off" }));
+        mocks.events.set("eh-kara", mocks.ownEvent({ size: 2, overflow: "refuse" }));
         fill(2);
         profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
         const i = click("join");

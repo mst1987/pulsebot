@@ -10,7 +10,7 @@ import RaidIcon from "../components/RaidIcon";
 import SignupDialog from "../components/signup/SignupDialog";
 import BulkSignupDialog from "../components/signup/BulkSignupDialog";
 import { ExternalIcon, XIcon } from "../components/icons";
-import { SIGNUP_STATUS, fillTone, roleCountText, rowSubline, statusBadgeLabel } from "../lib/signups";
+import { SIGNUP_STATUS, fillTone, roleCountText, rowSubline, seatLabel, statusBadgeLabel } from "../lib/signups";
 import { specLabel } from "../lib/wowNames";
 import { weekBands } from "../lib/raidTime";
 import { useT } from "../i18n";
@@ -201,7 +201,7 @@ function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
                 <div className="an-sub">{rowSubline(row)}</div>
             </div>
             <span className="an-bar" data-tip={barTip} data-tip-sub={barSub}>
-                <Bar value={row.attending} max={size || Math.max(row.attending, 1)} tone={fillTone(row.attending, size)} label={size ? `${row.attending}/${size}` : String(row.attending)} />
+                <Bar value={row.attending} max={size || Math.max(row.attending, 1)} tone={fillTone(row.attending, size)} label={seatLabel(row.attending, size)} />
             </span>
             {/* status and action are two columns, so each stays under its kind in every row */}
             <div className="an-state">

@@ -31,6 +31,7 @@ const { layout, esc } = require("../report/render");
 const { serverDateTime } = require("../../utils/time");
 const { ROLE_LABELS_EN } = require("../../config/gameVersions/classes");
 const { str, clip } = require("../../utils/text");
+const { seatsText } = require("../../utils/signup/capacity");
 
 // Every key the public payload may carry, at every level. The test walks the
 // view against this list — a new personal field cannot slip in unnoticed.
@@ -239,7 +240,7 @@ function renderPublicEventBody(view) {
         { kicker: "Date · server time", value: fmtDate(view.startTime), sub: view.endTime ? `until ${fmtTime(view.endTime)} server time` : "server time" },
         {
             kicker: "Signed up",
-            value: `${view.counts.attending}${view.size ? ` / ${view.size}` : ""}`,
+            value: seatsText(view.counts.attending, view.size, { sep: " / " }),
             sub: `${view.counts.tank} ${view.counts.tank === 1 ? "Tank" : "Tanks"} · ${view.counts.healer} ${view.counts.healer === 1 ? "Healer" : "Healers"} · ${view.counts.dps} DPS`,
         },
         {

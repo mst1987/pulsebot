@@ -31,6 +31,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const { onSignupsChanged } = require("../../stores/signupStore");
 const { getOverviewState, setOverviewState } = require("../../stores/talkOverviewStore");
 const { signupStatus } = require("../../utils/attendance");
+const { seatsText } = require("../../utils/signup/capacity");
 const { appEmojiMap, emojiText, uiEmojiName } = require("../discord/appEmojis");
 
 // Between two raid stanzas (each three lines) — a blank line for breathing room.
@@ -95,10 +96,9 @@ function attendingCount(event) {
     return (event.signUps || []).filter((s) => ["signed", "late"].includes(signupStatus(s))).length;
 }
 
-/** "22/25" against the planned size, "12" without one. */
+/** "22/25" against the planned size, "25/25 (+3)" when overbooked (#516), "12" without one. */
 function fillText(event) {
-    const n = attendingCount(event);
-    return Number(event.size) > 0 ? `${n}/${event.size}` : String(n);
+    return seatsText(attendingCount(event), event.size);
 }
 
 /**

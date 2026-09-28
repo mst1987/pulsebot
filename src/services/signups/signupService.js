@@ -13,13 +13,15 @@
 //     the event's game version (signupStore.normalizeSignup);
 //   * after the signup deadline a member can only sign off or say they come late,
 //     or keep the status and spec they already had — the orga still can (`deadline`);
-//   * a full raid (#306) takes no new signup that would take a seat ("Dabei" and
-//     "Spät" alike — rosterCounts counts them alike): with `event.overflow === "bench"`
-//     (the default) the signup becomes the waiting list — status "bench", and the
-//     raider is told so in the same breath — with `"off"` it is refused (`full`).
-//     Whoever already holds a seat keeps it (so signed → late stays possible), and
-//     the orga is bound by neither; with `event.lockAtLimit` a raid that just
-//     filled up closes its signup;
+//   * a raid has no limit by default (#516, `event.overflow === "none"`): every
+//     signup stays "Dabei"/"Spät" and the setup picks who plays. Only when the
+//     event asks for it does a full raid take no new signup that would take a
+//     seat ("Dabei" and "Spät" alike — rosterCounts counts them alike): with
+//     `"waitlist"` the signup becomes the waiting list — status "bench", and the
+//     raider is told so in the same breath — with `"refuse"` it is refused
+//     (`full`). Whoever already holds a seat keeps it (so signed → late stays
+//     possible), and the orga is bound by neither; with `event.lockAtLimit` a
+//     raid that just filled up closes its signup;
 //   * a category with raider roles (`config.categoryRoles`) takes new signups only
 //     from holders of one of them (`raider_role`) — the rule that also hides such
 //     events on the page (categoryVisible). Roles that cannot be read let the
@@ -38,6 +40,7 @@ const signupNotes = require("./signupNotes");
 const { SIGNUP_STATUSES } = require("../../utils/attendance");
 const { ROLES } = require("../../config/gameVersions/classes");
 const { spec: specOf } = require("../../config/gameVersions");
+const { normalizeOverflow } = require("../../utils/signup/capacity");
 
 // Statuses a member may still pick once the deadline has passed.
 const AFTER_DEADLINE = ["absence", "late"];
@@ -185,9 +188,9 @@ function wishPartnersSignedUp(profile, signups) {
 
 const fail = (code, error) => ({ code, error });
 
-/** An event's overflow rule, "bench" unless it says otherwise (#306). */
+/** An event's overflow rule (#306, #516): "none" unless it says "waitlist" or "refuse". */
 function overflowOf(event) {
-    return event && event.overflow === "off" ? "off" : "bench";
+    return normalizeOverflow(event && event.overflow);
 }
 
 /** Whether a stored signup already holds a seat — such a raider keeps it (#306). */
@@ -211,9 +214,11 @@ function benched(value) {
 }
 
 /**
- * The waiting list (#306). A raid that is full takes no NEW signup that would
- * take a seat: with `overflow: "bench"` it is stored as the bench and the
- * raider is told in the same answer, with `"off"` it is refused. Nobody is
+ * The waiting list (#306). With `overflow: "none"` (the default since #516)
+ * there is no limit and the signup is kept as it is. Otherwise a raid that is
+ * full takes no NEW signup that would take a seat: with `"waitlist"` it is
+ * stored as the bench and the raider is told in the same answer, with
+ * `"refuse"` it is refused. Nobody is
  * pushed off a seat they already hold, the orga (`byOrga`) is not bound, and an
  * event without a size has no limit to be full against.
  *
@@ -227,10 +232,11 @@ function benched(value) {
 function applyOverflow(event, value, { previous = null, byOrga = false, signups = null, userId = "" } = {}) {
     const keep = { value, waitlisted: false, notice: "" };
     const size = Number(event && event.size) || 0;
-    if (byOrga || !size || !ATTENDING.includes(String(value.status)) || holdsSeat(previous)) return keep;
+    const mode = overflowOf(event);
+    if (mode === "none" || byOrga || !size || !ATTENDING.includes(String(value.status)) || holdsSeat(previous)) return keep;
     const taken = seatsTaken(signups || signupStore.listSignups(event.id), userId);
     if (taken < size) return keep;
-    if (overflowOf(event) === "off") {
+    if (mode === "refuse") {
         return fail("full", `Der Raid ist voll (${taken}/${size}) – es geht keine Anmeldung mehr. Frag die Raidleitung.`);
     }
     return {

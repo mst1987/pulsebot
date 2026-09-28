@@ -2,7 +2,7 @@ import { get, send } from "./client";
 import type { EventLog } from "./dashboard";
 import type { Channel, ChannelNameSuggestion } from "./channels";
 import type { EventSource } from "./raidDetail";
-import type { RoleRange, EmbedImage, EmojiStyle, RaidTemplate, GameVersion } from "./raidTemplates";
+import type { RoleRange, EmbedImage, EmojiStyle, RaidTemplate, GameVersion, OverflowMode } from "./raidTemplates";
 
 // A row of the Raid-Events list — mirrors src/web/raidListing.js. `contentIds`
 // are the raid(s) the event is (for the boss icon), [] when nothing was
@@ -89,8 +89,8 @@ export type OwnEvent = {
     fairness: boolean;
     wishes: boolean;
     autoSuggest: boolean;
-    /** #306: "bench" = a full raid's new "Dabei" becomes the waiting list, "off" = refused */
-    overflow?: "bench" | "off";
+    /** #306, #516: what a full raid does with a new "Dabei" ("none" = no limit) */
+    overflow?: OverflowMode;
     lockAtLimit?: boolean;
     /** #307: the event's own colour bar, "" = the rule set of its instances */
     color?: string;
@@ -166,7 +166,7 @@ export type EventPlanInput = {
     fairness: boolean;
     wishes: boolean;
     autoSuggest: boolean;
-    overflow: "bench" | "off";
+    overflow: OverflowMode;
     lockAtLimit: boolean;
     /** #307: "" = the rule set's colour for the chosen instances */
     color: string;

@@ -8,6 +8,7 @@ const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { isLegacy, migrateLegacy, normalizeTemplate, validateTemplate } = require("../services/events/raidTemplates");
 const { newId } = require("../utils/ids");
+const { isLegacyOverflow } = require("../utils/signup/capacity");
 
 const store = createJsonStore({ file: settingsPath("raid-templates.json"), defaults: { templates: [] } });
 
@@ -38,6 +39,26 @@ function migrateLegacyTemplates() {
     const stored = storedTemplates();
     const count = stored.filter(isLegacy).length;
     if (count) store.write({ templates: stored.map((t) => (isLegacy(t) ? migrateLegacy(t) : withShape(t))) });
+    return count;
+}
+
+/**
+ * The one-off switch of #516 (settingsMigration.js): every template still
+ * carrying a legacy overflow value ("bench"/"off") gets `overflow: "none"` and
+ * `lockAtLimit: false`, the rest of the entry stays as stored. A switched entry
+ * carries a new value, so a second run writes nothing.
+ * @returns {number} how many templates were switched
+ */
+function migrateOverflowModes() {
+    const data = store.read();
+    const stored = Array.isArray(data.templates) ? data.templates : [];
+    let count = 0;
+    const next = stored.map((t) => {
+        if (!t || typeof t !== "object" || !isLegacyOverflow(t.overflow)) return t;
+        count += 1;
+        return { ...t, overflow: "none", lockAtLimit: false };
+    });
+    if (count) store.write({ ...data, templates: next });
     return count;
 }
 
@@ -112,5 +133,5 @@ function useFile(file) {
 
 module.exports = {
     listRaidTemplates, getRaidTemplate, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
-    migrateLegacyTemplates, useFile,
+    migrateLegacyTemplates, migrateOverflowModes, useFile,
 };

@@ -7,8 +7,14 @@
         "check": "Review"
     },
     "overflow": {
-        "off": "full: no more signups",
-        "bench": "full: waiting list (bench)",
+        "label": "When full",
+        "tip": "What happens to new signups once as many are “Signed up”/“Late” as the raid size. No limit (default): every signup stays, you pick who plays in the setup. Waiting list: new signups go to the bench, the raider is told right away. Refuse: new signups are turned away. Anyone who already has a spot keeps it.",
+        "none": "no limit",
+        "waitlist": "waiting list",
+        "refuse": "refuse",
+        "lineNone": "full: no limit, picked in the setup",
+        "lineWaitlist": "full: waiting list (bench)",
+        "lineRefuse": "full: no more signups",
         "lock": "{full} · signups close when full"
     },
     "problem": {

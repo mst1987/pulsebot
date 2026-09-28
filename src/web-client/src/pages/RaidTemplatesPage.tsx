@@ -8,7 +8,7 @@ import { useCollectionEditor } from "../lib/collectionEditor";
 import { usePersistedState } from "../lib/persistedState";
 import {
     allowedSizes, draftOf, emojiStyleOf, filterByVersion, instancesOf, newDraft, proposeComposition, templateLabel, validateDraft } from "../lib/raidTemplates";
-import { AppearanceFields, BuffPicker, FieldLabel, InstancePicker, NumberInput, RoleRanges, SizePicker, SwitchRow } from "../components/RaidPlanFields";
+import { AppearanceFields, BuffPicker, FieldLabel, InstancePicker, NumberInput, OverflowField, RoleRanges, SizePicker, SwitchRow } from "../components/RaidPlanFields";
 import type { ShellContext } from "../components/Shell";
 import { useToast } from "../components/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
@@ -130,7 +130,7 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
 
     const moreCount = [draft.composition.melee, draft.composition.ranged, draft.signupDeadline, draft.durationMinutes].filter(Boolean).length
         + draft.requiredBuffs.length + (draft.fairness ? 1 : 0) + (draft.wishes ? 1 : 0)
-        + (draft.overflow === "off" ? 1 : 0) + (draft.lockAtLimit ? 1 : 0) + (draft.raidhelperTemplateId ? 1 : 0)
+        + (draft.overflow && draft.overflow !== "none" ? 1 : 0) + (draft.lockAtLimit ? 1 : 0) + (draft.raidhelperTemplateId ? 1 : 0)
         + (draft.color ? 1 : 0) + (draft.image && draft.image.url ? 1 : 0) + (emojiStyleOf(draft.emojiStyle) !== "arcane" ? 1 : 0);
 
     return (
@@ -189,10 +189,10 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
                                 onChange={(e) => patch({ raidhelperTemplateId: e.target.value })} />
                         </div>
                     </div>
+                    <OverflowField value={draft.overflow || "none"} onChange={(overflow) => patch({ overflow })} />
                     <div className="rt-switches">
                         <SwitchRow label={t("raidTemplates.editor.fairness")} tip={t("raidTemplates.editor.fairnessTip")} checked={draft.fairness} onChange={(fairness) => patch({ fairness })} />
                         <SwitchRow label={t("raidTemplates.editor.wishes")} tip={t("raidTemplates.editor.wishesTip")} checked={draft.wishes} onChange={(wishes) => patch({ wishes })} />
-                        <SwitchRow label={t("raidTemplates.editor.overflow")} tip={t("raidTemplates.editor.overflowTip")} checked={draft.overflow !== "off"} onChange={(on) => patch({ overflow: on ? "bench" : "off" })} />
                         <SwitchRow label={t("raidTemplates.editor.lockAtLimit")} tip={t("raidTemplates.editor.lockAtLimitTip")} checked={!!draft.lockAtLimit} onChange={(lockAtLimit) => patch({ lockAtLimit })} />
                     </div>
                 </div>
