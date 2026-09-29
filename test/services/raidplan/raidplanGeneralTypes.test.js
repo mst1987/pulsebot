@@ -47,8 +47,8 @@ describe("catalog defaults of the new types", () => {
         expect(of("buff").map((s) => s.name)).toEqual(expect.arrayContaining(["Innervate", "Battle Shout", "Commanding Shout", "Prayer of Fortitude", "Prayer of Spirit", "Prayer of Shadow Protection", "Arcane Brilliance", "Gift of the Wild"]));
         // Curse of Recklessness stays a curse
         expect(defaults.SPELLS.find((s) => s.id === "d:curse-of-recklessness").type).toBe("curse");
-        // nothing of a later expansion
-        for (const s of [...NEW_TYPES.flatMap(of), ...of("buff")]) expect(s.versions).toBeUndefined();
+        // TBC entries, nothing of a later expansion (#544: every default names its version)
+        for (const s of [...NEW_TYPES.flatMap(of), ...of("buff")]) expect(s.versions).toEqual(["tbc"]);
     });
     it("the store gives the classes of a type from its spells", () => {
         expect(catalogStore.classesOf("blessing", "tbc")).toEqual(["Paladin"]);

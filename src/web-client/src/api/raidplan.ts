@@ -155,12 +155,13 @@ export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the
 export type BesetzungCounts = { tank: number; healer: number; dps: number; melee: number; ranged: number };
 export type Besetzung = { size: number; counts: BesetzungCounts; groups: number; /** melee / ranged were split by hand */ split: boolean };
 export type CatalogSource = "default" | "override" | "custom" | "hidden";
-export type CatalogMob = { id: string; name: string; kind: "boss" | "add" | "trash" | "other"; instanceId: string; bossKey: string; icon: string; /** the icon is a similar one, a placeholder */ similar?: boolean; note: string; /** the game versions that have it (missing = all) */ versions?: string[]; source: CatalogSource };
+export type CatalogMob = { id: string; name: string; kind: "boss" | "add" | "trash" | "other"; instanceId: string; bossKey: string; icon: string; /** the icon is a similar one, a placeholder */ similar?: boolean; note: string; /** the game versions that have it (#544: every entry names at least one; missing = all, only for data from before) */ versions?: string[]; source: CatalogSource };
 export type CatalogSpell = { id: string; name: string; nameEn: string; icon: string; type: RaidplanAssignType; classes: string[]; note: string; versions?: string[]; source: CatalogSource };
 export type Catalog = { mobs: CatalogMob[]; spells: CatalogSpell[] };
 export type CatalogAdmin = Catalog & {
     hidden: Catalog; iconChoices: Record<string, string[]>; kinds: string[]; classes: string[]; types: string[];
-    instances: { id: string; name: string; short: string; bosses: { key: string; name: string }[] }[];
+    /** the instances of every game version, each with its version (the form offers those of the entry's versions) */
+    instances: { id: string; name: string; short: string; versionId: string; bosses: { key: string; name: string }[] }[];
     limits: { mobs: number; spells: number; name: number; note: number };
     entry?: CatalogMob | CatalogSpell | null;
 };
@@ -184,10 +185,12 @@ export type RaidplanBoss = {
     ownMap: boolean;
     instanceMap: boolean;
 };
-export type RaidplanTemplateSummary = { id: string; name: string; category: string; description: string; guildId: string; instanceIds: string[]; bossCount: number };
+export type RaidplanTemplateSummary = { id: string; name: string; category: string; description: string; guildId: string; /** the game version (#544) */ versionId: string; instanceIds: string[]; bossCount: number };
 /** A raid plan template with its boards and the bosses of its instances. */
 export type RaidplanTemplate = {
     id: string; name: string; category: string; description: string; guildId: string; instanceIds: string[];
+    /** the game version (#544): its instances, its catalog, the tactics it offers */
+    versionId: string;
     bosses: Record<string, Partial<RaidplanBoard>>; version: number; updatedAt: number; bossList: RaidplanBoss[];
     catalog: Catalog;
     /** the raid type: its size (0 = the instances' default) and the role counts (null = derived) */
@@ -200,14 +203,16 @@ export type RaidplanTemplate = {
 export type RaidplanStepTarget = { kind: "mob" | "zone" | "mark" | "group" | "role"; ref: string; name?: string; icon?: string };
 export type RaidplanTiming = { kind: "" | "pull" | "phase" | "hp" | "interval" | "now" | "text"; from: number | null; to: number | null; text: string };
 export type RaidplanStep = { id: string; action: string; participants: string[]; sentence: string; targets: RaidplanStepTarget[]; timing: RaidplanTiming };
-export type RaidplanProfile = { id: string; name: string; category: string; bossKey: string; steps: RaidplanStep[]; targets: { title: string }[]; notes: string; updatedAt: number };
-export type RaidplanProfileInput = { name?: string; category?: string; bossKey?: string; steps?: RaidplanStep[]; targets?: { title: string }[]; notes?: string };
+export type RaidplanProfile = { id: string; name: string; category: string; /** the game version (#544) */ versionId: string; bossKey: string; steps: RaidplanStep[]; targets: { title: string }[]; notes: string; updatedAt: number };
+export type RaidplanProfileInput = { name?: string; category?: string; versionId?: string; bossKey?: string; steps?: RaidplanStep[]; targets?: { title: string }[]; notes?: string };
 export type RaidplanProfiles = { profiles: RaidplanProfile[]; categories: string[]; profile?: RaidplanProfile };
 export type RaidplanView = {
     /** the players of the lineup the logged-in user is (own account + raider profile characters) */
     meIds?: string[];
     eventId: string;
     event: { id: string; title: string; startTime: number };
+    /** the game version of the plan (#544): the catalog is that version's, templates and tactics are filtered by it */
+    versionId: string;
     canWrite: boolean;
     plan: { version: number; status: "draft" | "published"; publicPath: string; templateId: string; templateName: string; bosses: Record<string, Partial<RaidplanBoard>>; updatedAt: number; includedGroups?: IncludedGroups | null };
     bosses: RaidplanBoss[];
@@ -259,7 +264,7 @@ export function saveRaidplan(input: { event: string; version: number; bosses: Re
 }
 
 /** Suggested assignments of one type (nothing is saved); "slots" are the board's placeholder slots as the editor holds them. */
-export function suggestRaidplan(input: { event?: string; type: string; preferredClasses?: string[]; allowOthers?: boolean; slots: { kind: string; n: number; userId: string }[]; roles?: Record<string, string>; /** the rows of this type made by hand: the suggestion goes round them */ keep?: RaidplanAssignment[]; /** the row's role (the ranking prefers raiders of it) */ preferredRole?: string; /** the board's rows of the other types: who tanks, who has how many tasks */ context?: RaidplanAssignment[]; /** the row's spell (a debuff, blessing, aura or totem row, #536): a raider for that spell */ spellId?: string }): Promise<{ assignments: RaidplanAssignment[] }> {
+export function suggestRaidplan(input: { event?: string; type: string; preferredClasses?: string[]; allowOthers?: boolean; slots: { kind: string; n: number; userId: string }[]; roles?: Record<string, string>; /** the rows of this type made by hand: the suggestion goes round them */ keep?: RaidplanAssignment[]; /** the row's role (the ranking prefers raiders of it) */ preferredRole?: string; /** the board's rows of the other types: who tanks, who has how many tasks */ context?: RaidplanAssignment[]; /** the row's spell (a debuff, blessing, aura or totem row, #536): a raider for that spell */ spellId?: string; /** a template's game version (#544; an event plan's comes from its event) */ versionId?: string }): Promise<{ assignments: RaidplanAssignment[] }> {
     return send("POST", "/api/raidplan/suggest", input);
 }
 
@@ -329,12 +334,13 @@ export function getRaidplanProgress(by: { token: string } | { event: string }): 
     return get<RaidplanProgress>(`/api/raidplan/progress?${q}`);
 }
 
-export function applyRaidplanTemplate(input: { event: string; templateId: string; version: number }): Promise<RaidplanView> {
+/** `otherVersion`: apply a template of another game version than the event's (#544; asked first, else 409 version_mismatch). */
+export function applyRaidplanTemplate(input: { event: string; templateId: string; version: number; otherVersion?: boolean }): Promise<RaidplanView> {
     return send("POST", "/api/raidplan/apply", input);
 }
 
 export type RaidplanTemplates = { templates: RaidplanTemplate[]; template?: RaidplanTemplate; dropped?: number };
-export type RaidplanTemplateInput = { name?: string; category?: string; description?: string; guildId?: string; instanceIds?: string[]; size?: number; counts?: BesetzungCounts | null };
+export type RaidplanTemplateInput = { name?: string; category?: string; description?: string; guildId?: string; versionId?: string; instanceIds?: string[]; size?: number; counts?: BesetzungCounts | null };
 
 export function getRaidplanTemplates(): Promise<RaidplanTemplates> {
     return get<RaidplanTemplates>("/api/raidplan/templates");

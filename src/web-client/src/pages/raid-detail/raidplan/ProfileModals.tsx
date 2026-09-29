@@ -101,10 +101,13 @@ type FormState = { name: string; category: string; bossKey: string };
  * there. `draft` opens straight on a new tactic from the section's steps ("Als Taktik speichern"): slots and classes are kept, players
  * are left out (a library tactic is for any raid).
  */
-export function ProfilesModal({ open, onClose, profiles, categories, bosses, bossKey, draft, limits, onChanged }: {
+export function ProfilesModal({ open, onClose, profiles, categories, bosses, bossKey, versionId, draft, limits, onChanged }: {
     open: boolean;
     onClose: () => void;
+    /** the tactics of the plan's (template's) game version (#544) */
     profiles: RaidplanProfile[];
+    /** the game version a new tactic is saved for: the plan's (template's) */
+    versionId?: string;
     categories: string[];
     bosses: RaidplanBoss[];
     bossKey: string;
@@ -139,7 +142,7 @@ export function ProfilesModal({ open, onClose, profiles, categories, bosses, bos
     const startEdit = (p: RaidplanProfile) => { setForm({ name: p.name, category: p.category, bossKey: p.bossKey }); setEditing(p.id); };
     const set = (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch }));
     const draftSteps = draft ? stepsOf(draft).map((s) => ({ ...s, participants: s.participants.filter((r) => r.indexOf("user:") !== 0) })) : [];
-    const input: RaidplanProfileInput = { name: form.name.trim(), category: form.category.trim(), bossKey: form.bossKey, ...(editing === "new" ? { steps: draftSteps, notes: draft ? draft.notes : "", targets: [] } : {}) };
+    const input: RaidplanProfileInput = { name: form.name.trim(), category: form.category.trim(), bossKey: form.bossKey, ...(editing === "new" ? { steps: draftSteps, notes: draft ? draft.notes : "", targets: [], ...(versionId ? { versionId } : {}) } : {}) };
     const canSave = !!input.name && (editing !== "new" || draftSteps.length > 0);
 
     const save = async () => {

@@ -65,7 +65,7 @@ describe("overrides, own entries, hiding and reset", () => {
         expect(catalog.getMob("d:gathios")).toMatchObject({ name: "Gathios the Shatterer", source: "default" });
     });
     it("an own entry gets a c: id, is cleaned and can be changed and deleted", () => {
-        const r = catalog.save("mobs", { name: "  Boss Add  ", kind: "wat", instanceId: "bt", bossKey: "hyjal/anetheron", icon: "NOT AN ICON!" });
+        const r = catalog.save("mobs", { name: "  Boss Add  ", kind: "wat", instanceId: "bt", bossKey: "hyjal/anetheron", icon: "NOT AN ICON!", versions: ["tbc"] });
         expect(r.entry.id).toMatch(/^c:[0-9a-f]{10}$/);
         // a boss of another instance, an unknown kind and a bad icon are not kept
         expect(r.entry).toMatchObject({ name: "Boss Add", kind: "add", bossKey: "", icon: "", source: "custom" });
@@ -73,6 +73,9 @@ describe("overrides, own entries, hiding and reset", () => {
         expect(catalog.remove("mobs", r.entry.id)).toEqual({ removed: true, hidden: false });
         expect(catalog.getMob(r.entry.id)).toBeNull();
         expect(catalog.save("mobs", { name: "" }).code).toBe("invalid");
+        // #544: an own entry names at least one game version
+        expect(catalog.save("mobs", { name: "No version" })).toMatchObject({ code: "invalid", error: "Wähle mindestens eine Spielversion." });
+        expect(catalog.save("mobs", { name: "No version", versions: [] }).code).toBe("invalid");
         expect(catalog.save("mobs", { id: "c:nothere", name: "x" }).code).toBe("not_found");
     });
     it("deleting a default hides it (it can be reset), it is listed as hidden", () => {
@@ -84,9 +87,9 @@ describe("overrides, own entries, hiding and reset", () => {
         expect(catalog.reset("spells", "c:own").code).toBe("invalid");
     });
     it("spells: type, classes and icon are checked", () => {
-        const r = catalog.save("spells", { name: "Sunder", icon: "ability_warrior_sunder", type: "tank", classes: ["Warrior", "Bard"] });
+        const r = catalog.save("spells", { name: "Sunder", icon: "ability_warrior_sunder", type: "tank", classes: ["Warrior", "Bard"], versions: ["tbc"] });
         expect(r.entry).toMatchObject({ type: "tank", classes: ["Warrior"], source: "custom" });
-        expect(catalog.save("spells", { name: "x", type: "nonsense" }).entry.type).toBe("other");
+        expect(catalog.save("spells", { name: "x", type: "nonsense", versions: ["tbc"] }).entry.type).toBe("other");
     });
     it("the classes of a type follow the catalog: an override that adds a class is used by the suggestions", () => {
         expect(catalog.classesOf("curse")).toEqual(["Warlock"]);
@@ -126,14 +129,17 @@ describe("the API", () => {
         expect(d.spells.length).toBeGreaterThan(20);
         expect(d.types).toContain("curse");
         expect(d.instances.find((i) => i.id === "bt").bosses.map((b) => b.key)).toContain("bt/the-illidari-council");
+        // #544: the instances of every version, each naming its version (the form offers those of the entry's versions)
+        expect(d.instances.find((i) => i.id === "bt").versionId).toBe("tbc");
+        expect(d.instances.find((i) => i.id === "forever-ony").versionId).toBe("forever");
     });
     it("creates, changes, deletes and resets; a reader may not", async () => {
         expect(status(await call(route.postMob, READER, { name: "x" }))).toBe(403);
-        const made = body(await call(route.postMob, ORGA, { name: "Wave 1", kind: "add", instanceId: "hyjal" }));
+        const made = body(await call(route.postMob, ORGA, { name: "Wave 1", kind: "add", instanceId: "hyjal", versions: ["tbc"] }));
         expect(made.entry).toMatchObject({ name: "Wave 1", instanceId: "hyjal" });
         const changed = body(await call(route.patchMob, ORGA, { id: made.entry.id, name: "Wave 2" }, "PATCH"));
         expect(changed.entry.name).toBe("Wave 2");
-        expect(body(await call(route.postSpell, ORGA, { name: "My Spell", type: "cc", classes: ["Mage"] })).entry.source).toBe("custom");
+        expect(body(await call(route.postSpell, ORGA, { name: "My Spell", type: "cc", classes: ["Mage"], versions: ["tbc"] })).entry.source).toBe("custom");
         await call(route.deleteMob, ORGA, { id: "d:gathios" }, "DELETE");
         expect(catalog.getMob("d:gathios")).toBeNull();
         await call(route.postCatalogReset, ORGA, { kind: "mobs", id: "d:gathios" });

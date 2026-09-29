@@ -377,7 +377,7 @@ function suggestClassRows(type, { tanks, cls, pc, allowOthers, roster = [], vers
     }
     if (type === "curse") {
         // one curse per warlock, in the order of the catalog's curses (Elements, Recklessness, Doom ...)
-        const curses = catalog.spellsOfType("curse");
+        const curses = catalog.spellsOfType("curse", versionId);
         const count = Math.min(3, curses.length || CURSES.length);
         return Array.from({ length: count }, (_, i) => make("curse", [ref(cls[0], i + 1)], [], withRoster && curses[i] ? { id: curses[i].id, name: curses[i].name, icon: curses[i].icon } : null, pc, allowOthers));
     }

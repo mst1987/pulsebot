@@ -14,20 +14,29 @@ describe("catalog defaults", () => {
         expect(assign.CLASS_IDS).toEqual(TBC_CLASSES);
         for (const s of defaults.SPELLS) for (const c of s.classes) expect(TBC_CLASSES).toContain(c);
     });
-    it("a spell that exists only after TBC is limited to those versions (SINCE), and nothing else is", () => {
+    it("a spell that exists only after TBC is limited to those versions (SINCE), everything else is a TBC one", () => {
         for (const s of defaults.SPELLS) {
             const slug = s.id.replace(/^d:/, "");
             const since = defaults.SINCE[slug] || "classic";
             if (ORDER.indexOf(since) > ORDER.indexOf("tbc")) expect({ slug, versions: s.versions }).toEqual({ slug, versions: [since] });
-            else expect({ slug, versions: s.versions }).toEqual({ slug, versions: undefined });
+            else expect({ slug, versions: s.versions }).toEqual({ slug, versions: ["tbc"] });
         }
+    });
+    it("every default names its game version (#544): a new default without one fails here", () => {
+        const known = ["classic", "tbc", "wotlk", "forever"];
+        for (const e of [...defaults.MOBS, ...defaults.SPELLS]) {
+            expect({ id: e.id, has: Array.isArray(e.versions) && e.versions.length > 0 }).toEqual({ id: e.id, has: true });
+            for (const v of e.versions) expect(known).toContain(v);
+        }
+        for (const m of defaults.MOBS) expect({ id: m.id, versions: m.versions }).toEqual({ id: m.id, versions: ["tbc"] });
     });
     it("Misdirection is a hunter's in TBC; Tricks of the Trade is not offered there", () => {
         const md = defaults.SPELLS.filter((s) => s.type === "md");
         expect(md.find((s) => s.id === "d:misdirection").classes).toEqual(["Hunter"]);
         expect(store.classesOf("md", "tbc")).toEqual(["Hunter"]);
         expect(store.catalogView("tbc").spells.some((s) => s.id === "d:tricks-of-the-trade")).toBe(false);
-        expect(store.classesOf("md", "wotlk")).toEqual(["Hunter", "Rogue"]);
+        // Misdirection is entered as a TBC spell only (#544), so a WotLK plan would have the rogue's Tricks of the Trade alone
+        expect(store.classesOf("md", "wotlk")).toEqual(["Rogue"]);
         expect(store.catalogView("wotlk").spells.some((s) => s.id === "d:tricks-of-the-trade")).toBe(true);
         expect(store.catalogView().spells.some((s) => s.id === "d:tricks-of-the-trade")).toBe(true);
     });

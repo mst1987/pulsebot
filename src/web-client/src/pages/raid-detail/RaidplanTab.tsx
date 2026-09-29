@@ -28,6 +28,7 @@ import RaidplanBoundary from "../../components/raidplan/RaidplanBoundary";
 import RhSource from "./raidplan/RhSource";
 import PlanGroups from "./raidplan/PlanGroups";
 import { includedGroups, splitRoster } from "../../lib/raidplan/planGroups";
+import { ofVersion, splitByVersion, versionLabel } from "../../lib/raidplan/versions";
 
 /** The players a plan picks from ("Gruppen im Plan", #529) and the rest of the lineup (only to name a raider a row still holds). */
 function rosterOfView(v: RaidplanView | null): { roster: RaidplanPlayer[]; outside: RaidplanPlayer[] } {
@@ -209,12 +210,15 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     // ---- templates ----------------------------------------------------------------------------
     const applyTemplate = async (tpl: RaidplanTemplateSummary) => {
         if (!view) return;
+        // a template of another game version (#544) is only applied after a warning
+        const otherVersion = (tpl.versionId || "tbc") !== view.versionId;
+        if (otherVersion && !(await ask({ title: t("raidBoard.template.otherTitle"), text: t("raidBoard.template.otherText", { name: tpl.name, version: versionLabel([], tpl.versionId || "tbc"), event: versionLabel([], view.versionId) }), action: t("raidBoard.template.otherAction"), tone: "danger", icon: "inv_misc_map02" }))) return;
         const needsAsk = dirty || planHasContent(view.plan.bosses, bossKeys);
         if (needsAsk && !(await ask({ title: t("raidBoard.template.applyTitle", { name: tpl.name }), text: t("raidBoard.template.applyText"), action: t("raidBoard.template.applyAction"), tone: "primary", icon: "inv_misc_map02" }))) return;
         setSaving(true);
         try {
             // The server copies the template onto the *saved* plan; unsaved edits are replaced by it (asked above).
-            const v = await applyRaidplanTemplate({ event: eventId, templateId: tpl.id, version: view.plan.version });
+            const v = await applyRaidplanTemplate({ event: eventId, templateId: tpl.id, version: view.plan.version, ...(otherVersion ? { otherVersion: true } : {}) });
             setView(v);
             reset(v.plan.bosses);
             setConflict(false);
@@ -240,8 +244,12 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         setModal("");
         toast(t("raidBoard.steps.library.applied", { name: profile.name, n: (profile.steps || []).length }));
     };
-    const categories = useMemo(() => [...new Set(profiles.map((p) => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [profiles]);
+    // the tactics of the plan's game version only (#544); the name of an applied one is looked up in all of them
+    const planVersion = view ? view.versionId : "";
+    const versionProfiles = useMemo(() => (planVersion ? ofVersion(profiles, planVersion) : profiles), [profiles, planVersion]);
+    const categories = useMemo(() => [...new Set(versionProfiles.map((p) => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [versionProfiles]);
     const profile = profiles.find((p) => p.id === board.profileId) || null;
+    const offered = useMemo(() => splitByVersion(view ? view.templates : [], planVersion), [view, planVersion]);
 
     if (plan.error) return <div className="empty">{t("raidDetail.page.loadError", { message: plan.error.message })}</div>;
     if (!view) return <RaidLoader text={t("raidDetail.page.loading")} />;
@@ -298,7 +306,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                                 </button>
                             )}
                             {view.plan.templateName && <span className="rp-muted rp-bar-template">{t("raidBoard.template.current", { name: view.plan.templateName })}</span>}
-                            {canWrite && empty && !view.plan.templateName && view.templates.length > 0 && <span className="rp-muted">{t("raidBoard.template.hintEmpty")}</span>}
+                            {canWrite && empty && !view.plan.templateName && offered.own.length > 0 && <span className="rp-muted">{t("raidBoard.template.hintEmpty")}</span>}
                         </>
                     )}
                     actions={canWrite ? (
@@ -337,7 +345,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                             <span className="rp-muted">{t("raidBoard.template.emptyText")}</span>
                         </div>
                     </li>
-                    {view.templates.map((tpl) => (
+                    {offered.own.map((tpl) => (
                         <li key={tpl.id}>
                             <button type="button" className={`rp-pick-row rp-pick-profile${tpl.id === view.plan.templateId ? " is-on" : ""}`} disabled={saving} onClick={() => applyTemplate(tpl)}>
                                 <span className="rp-pick-name">{tpl.name}{tpl.category ? ` · ${tpl.category}` : ""}</span>
@@ -346,17 +354,33 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                         </li>
                     ))}
                     {view.templates.length === 0 && <li className="rp-muted">{t("raidBoard.template.noneYet")}</li>}
+                    {view.templates.length > 0 && offered.own.length === 0 && <li className="rp-muted rp-pick-note">{t("raidBoard.template.noneOfVersion", { version: versionLabel([], view.versionId) })}</li>}
                 </ul>
+                {offered.other.length > 0 && (
+                    <details className="rp-pick-other">
+                        <summary className="rp-muted">{t("raidBoard.template.otherVersions", { count: offered.other.length })}</summary>
+                        <ul className="rp-pick">
+                            {offered.other.map((tpl) => (
+                                <li key={tpl.id}>
+                                    <button type="button" className={`rp-pick-row rp-pick-profile${tpl.id === view.plan.templateId ? " is-on" : ""}`} disabled={saving} onClick={() => applyTemplate(tpl)}>
+                                        <span className="rp-pick-name">{tpl.name} <Badge>{t("raidBoard.template.otherVersionTag", { version: versionLabel([], tpl.versionId || "tbc") })}</Badge></span>
+                                        <span className="rp-muted">{tpl.description || t("raidBoard.template.bosses", { count: tpl.bossCount })}</span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </details>
+                )}
             </Modal>
             <LibraryModal
-                open={modal === "pick"} onClose={() => setModal("")} profiles={profiles} bosses={view.bosses} bossKey={selected} bossName={boss ? boss.name : ""}
+                open={modal === "pick"} onClose={() => setModal("")} profiles={versionProfiles} bosses={view.bosses} bossKey={selected} bossName={boss ? boss.name : ""}
                 onPick={pickProfile} canSave={stepsOf(board).length > 0}
                 onSaveAs={() => setModal("save")}
                 onManage={() => setModal("profiles")}
             />
             <ProfilesModal
                 open={modal === "profiles" || modal === "save"} onClose={() => setModal("")}
-                profiles={profiles} categories={categories} bosses={view.bosses} bossKey={selected}
+                profiles={versionProfiles} categories={categories} bosses={view.bosses} bossKey={selected} versionId={view.versionId}
                 draft={modal === "save" ? board : null} limits={view.limits}
                 onChanged={(list, saved) => {
                     setProfiles(list);

@@ -259,7 +259,13 @@
         "applyText": "Die Bosse der Vorlage ersetzen die Boards in diesem Plan, ungespeicherte Änderungen daran gehen verloren. Bosse, die die Vorlage nicht hat, bleiben.",
         "applyAction": "Anwenden",
         "applied": "Vorlage „{name}“ angewendet. Offene Slots siehst du im Board.",
-        "hintEmpty": "Tipp: Mit „Vorlage wählen“ startest du von einer Vorlage."
+        "hintEmpty": "Tipp: Mit „Vorlage wählen“ startest du von einer Vorlage.",
+        "otherVersions": "Vorlagen anderer Spielversionen ({count})",
+        "otherVersionTag": "{version}",
+        "otherTitle": "Vorlage einer anderen Spielversion anwenden?",
+        "otherText": "„{name}“ ist eine {version}-Vorlage, dieses Event ist {event}. Bosse und Katalog-Einträge der anderen Version passen hier nicht; nur Abschnitte, die beide haben, werden übernommen.",
+        "otherAction": "Trotzdem anwenden",
+        "noneOfVersion": "Für {version} gibt es noch keine Vorlage."
     },
     "tool": {
         "label": "Werkzeuge",

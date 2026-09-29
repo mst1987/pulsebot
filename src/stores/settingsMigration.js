@@ -22,6 +22,13 @@
 //     (raidplanStore.migrateEventDefaults); the file is backed up first, every
 //     plan is marked `defaultsMigrated`.
 //
+//   - raidplan-catalog.json, raidplan-templates.json, raidplan-profiles.json
+//     (#544): the raid plan knows game versions. An own catalog entry or an
+//     override without `versions` becomes `versions: ["tbc"]`; a raid plan
+//     template or a tactic profile without `versionId` gets its instances' /
+//     boss's version (TBC for all of them so far). Existing plans are not
+//     touched (their event carries the version).
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
@@ -31,6 +38,9 @@ const configStore = require("./configStore");
 const raidTemplateStore = require("./raidTemplateStore");
 const eventStore = require("./eventStore");
 const raidplanStore = require("./raidplanStore");
+const raidplanCatalogStore = require("./raidplanCatalogStore");
+const raidplanTemplateStore = require("./raidplanTemplateStore");
+const raidplanProfileStore = require("./raidplanProfileStore");
 
 /**
  * The event-server list an old single-server block stands for: its
@@ -101,6 +111,18 @@ function raidplanDefaultsLine(r) {
     return `raidplans.json: Standard-Abschnitt (#524) - ${r.plans} Plan/Pläne geprüft, ${r.migrated} umgestellt, ${r.rows} Standard-Zeile(n) aus ${r.copies} Kopie(n), ${r.deviations} Abweichung(en), ${r.kept} Abschnitt(e) unverändert behalten${backup}`;
 }
 
+/** The raid plan's game versions (#544): catalog entries, templates and tactic profiles without one become TBC ones. One line per file that changed. */
+function migrateRaidplanVersions() {
+    const out = [];
+    const entries = raidplanCatalogStore.migrateVersions("tbc");
+    if (entries) out.push(`raidplan-catalog.json: ${entries} Eintrag/Einträge ohne Spielversion auf versions ["tbc"] gesetzt (#544)`);
+    const templates = raidplanTemplateStore.migrateVersions();
+    if (templates) out.push(`raidplan-templates.json: ${templates} Vorlage(n) ohne Spielversion mit versionId versehen (#544)`);
+    const profiles = raidplanProfileStore.migrateVersions();
+    if (profiles) out.push(`raidplan-profiles.json: ${profiles} Taktik-Profil(e) ohne Spielversion mit versionId versehen (#544)`);
+    return out;
+}
+
 /**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
@@ -118,6 +140,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateConfig());
         const plans = raidplanStore.migrateEventDefaults({ instanceIdsOf: (plan) => (eventStore.getEvent(plan.eventId) || {}).instanceIds || [] });
         if (plans) changes.push(raidplanDefaultsLine(plans));
+        changes.push(...migrateRaidplanVersions());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -126,4 +149,4 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
     return { changes };
 }
 
-module.exports = { migrateSettings, raidplanDefaultsLine, legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate };
+module.exports = { migrateSettings, migrateRaidplanVersions, raidplanDefaultsLine, legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate };

@@ -8,8 +8,11 @@
 // takes it off the lists; "reset" removes the override / the hiding, so the default is back. A plan refers to an
 // entry by its id and keeps a snapshot of its name and icon (raidplanAssign.js), so a deleted entry still shows.
 //
-//   mob   { id, name, kind: boss | add | trash | other, instanceId, bossKey, icon, note }
-//   spell { id, name, nameEn, icon, type, classes: [class id], note }
+//   mob   { id, name, kind: boss | add | trash | other, instanceId, bossKey, icon, note, versions }
+//   spell { id, name, nameEn, icon, type, classes: [class id], note, versions }
+// `versions` (#544): the game versions that have the entry. Every entry carries at least one (the defaults in code, a
+// saved one because save() insists, the ones stored before #544 through migrateVersions() at start); a plan and the
+// catalog page only show the entries of one version (catalogView(versionId)).
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const crypto = require("crypto");
@@ -153,6 +156,7 @@ function save(kind, input, { now = Date.now() } = {}) {
     const current = (isMob ? getMob(id) : getSpell(id)) || {};
     const entry = (isMob ? cleanMob : cleanSpell)({ ...current, ...body }, id);
     if (!entry.name) return { code: "invalid", error: "Der Name fehlt." };
+    if (!entry.versions) return { code: "invalid", error: "Wähle mindestens eine Spielversion." };
     list[id] = entry;
     if (isMob) data.hiddenMobs = data.hiddenMobs.filter((x) => x !== id); else data.hiddenSpells = data.hiddenSpells.filter((x) => x !== id);
     writeAll(data);
@@ -188,4 +192,23 @@ function reset(kind, id) {
     return { reset: true };
 }
 
-module.exports = { inVersion, useFile, LIMITS, KINDS, CLASS_IDS, ICON, cleanIcon, listMobs, listSpells, getMob, getSpell, hiddenEntries, catalogView, classesOf, spellsOfType, save, remove, reset };
+/**
+ * One-off upgrade at start (#544, settingsMigration.js): an entry stored before the catalog knew versions (an own
+ * entry or an override of a default, no `versions`) existed in every version; it becomes a TBC entry, as everything
+ * of the catalog was until then. Idempotent: writes only when something changed. Returns how many entries changed.
+ */
+function migrateVersions(versionId = "tbc") {
+    const data = readAll();
+    let changed = 0;
+    for (const list of [data.mobs, data.spells]) {
+        for (const [id, entry] of Object.entries(list)) {
+            if (!entry || typeof entry !== "object" || versionsOf(entry).versions) continue;
+            list[id] = { ...entry, versions: [versionId] };
+            changed += 1;
+        }
+    }
+    if (changed) writeAll(data);
+    return changed;
+}
+
+module.exports = { inVersion, migrateVersions, useFile, LIMITS, KINDS, CLASS_IDS, ICON, cleanIcon, listMobs, listSpells, getMob, getSpell, hiddenEntries, catalogView, classesOf, spellsOfType, save, remove, reset };

@@ -55,5 +55,8 @@
     "similarTip": "Kein echtes NPC-Bild: ein ähnliches WoW-Icon nach Art des Mobs. Überschreibe den Eintrag, um ein eigenes zu setzen.",
     "iconSearch": "Icon suchen (Art oder Name)",
     "versions": "Spielversion",
-    "versionsHint": "Leer = in jeder Version. Sonst nur in den gewählten (ein TBC-Plan zeigt nur TBC-Einträge)."
+    "versionsHint": "Mindestens eine. Ein Raidplan zeigt nur die Einträge seiner Spielversion (ein Forever-Plan keine TBC-Mobs und -Spells).",
+    "versionSwitch": "Spielversion des Katalogs",
+    "versionNone": "In {version} gibt es noch keine Einträge. Lege sie mit „Neuer Mob“ bzw. „Neuer Spell“ an.",
+    "alsoIn": "auch {versions}"
 }

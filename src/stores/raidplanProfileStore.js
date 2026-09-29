@@ -1,7 +1,8 @@
 // Tactic profiles of the raid plan: named, categorised sets of target rows that
 // the orga picks for a boss board instead of typing the rows again.
 //
-// { id, name, category, bossKey, steps: [step], targets: [{ title }], notes, updatedAt }
+// { id, name, category, versionId, bossKey, steps: [step], targets: [{ title }], notes, updatedAt }
+//   versionId the game version (#544): a plan offers only the tactics of its own version
 //   name      free, required
 //   category  free text ("Tank", "Heiler", "Phase 1" …); the editor offers the
 //             ones that exist and lets a new one be typed
@@ -16,6 +17,7 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { isMapKey } = require("./raidplanStore");
+const { instanceById, rulesFor } = require("../config/gameVersions");
 const stepsOf = require("../services/raidplan/raidplanSteps");
 const { str } = require("../utils/text");
 const { newId } = require("../utils/ids");
@@ -42,6 +44,16 @@ function writeAll(profiles) {
     store.write({ profiles });
 }
 
+/**
+ * The game version of a stored profile: its own when known, else the version of the instance its boss belongs to, else
+ * TBC (every profile before #544 was a TBC one; settingsMigration writes it down once).
+ */
+function versionOf(r) {
+    if (rulesFor(str(r.versionId))) return str(r.versionId);
+    const inst = instanceById(str(r.bossKey).split("/")[0]);
+    return inst ? inst.versionId : "tbc";
+}
+
 /** A profile as stored: every field present, texts cut to their limits. */
 function normalize(raw) {
     const r = raw && typeof raw === "object" ? raw : {};
@@ -55,6 +67,7 @@ function normalize(raw) {
         id: str(r.id),
         name: str(r.name).slice(0, LIMITS.name),
         category: str(r.category).slice(0, LIMITS.category),
+        versionId: versionOf(r),
         bossKey: str(r.bossKey),
         steps,
         targets,
@@ -93,6 +106,10 @@ function validate(input, { partial = false } = {}) {
         const category = str(body.category);
         if (category.length > LIMITS.category) return { code: "invalid", error: `Die Kategorie darf höchstens ${LIMITS.category} Zeichen haben.` };
         value.category = category;
+    }
+    if (body.versionId !== undefined) {
+        if (!rulesFor(str(body.versionId))) return { code: "invalid", error: "Unbekannte Spielversion." };
+        value.versionId = str(body.versionId);
     }
     if (body.bossKey !== undefined) {
         const bossKey = str(body.bossKey);
@@ -154,4 +171,20 @@ function deleteProfile(id) {
     return true;
 }
 
-module.exports = { useFile, LIMITS, listProfiles, getProfile, categories, createProfile, updateProfile, deleteProfile };
+/**
+ * One-off upgrade at start (#544, settingsMigration.js): a profile stored without `versionId` gets the one it is read
+ * with (its boss's version, else TBC). Idempotent. Returns how many profiles changed.
+ */
+function migrateVersions() {
+    const all = readAll();
+    let changed = 0;
+    const next = all.map((p) => {
+        if (!p || typeof p !== "object" || rulesFor(str(p.versionId))) return p;
+        changed += 1;
+        return { ...p, versionId: versionOf(p) };
+    });
+    if (changed) writeAll(next);
+    return changed;
+}
+
+module.exports = { migrateVersions, useFile, LIMITS, listProfiles, getProfile, categories, createProfile, updateProfile, deleteProfile };
