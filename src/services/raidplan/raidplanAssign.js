@@ -484,7 +484,9 @@ function suggestGroupBuffs(type, { roster = [], versionId = "", keep = [], conte
         has[key] = seen.add(chosen.id);
         out.push(make(type, [`user:${p.userId}`], g >= 1 && g <= 20 ? [{ kind: "group", ref: key }] : [], snapOf(chosen)));
     }
-    return out;
+    // the card reads group by group (the ranking decided who is asked first, the list is shown in group order)
+    const groupOf = (a) => (a.targets[0] ? Number(a.targets[0].ref) : 99);
+    return out.map((a, i) => ({ a, i })).sort((x, y) => groupOf(x.a) - groupOf(y.a) || x.i - y.i).map((x) => x.a);
 }
 
 /**
