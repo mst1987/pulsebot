@@ -3,6 +3,8 @@ import { BookOpen, Copy, GripVertical, ListOrdered, Pencil, Plus, Save, Trash2 }
 import type { Catalog, RaidplanBoard, RaidplanMobRef, RaidplanPlayer, RaidplanStep } from "../../../api";
 import { useConfirm } from "../../../components/ui";
 import { ActionIcon } from "../../../components/raidplan/ActionIcon";
+import CollapseToggle from "../../../components/raidplan/CollapseToggle";
+import { useCollapse } from "../../../hooks/useCollapse";
 import type { AssignCtx } from "../../../lib/raidplan/assign";
 import { appendSteps, blankStep, duplicateStep, moveStep, moveStepTo, putStep, removeStep, resolveParticipants, starterTactics, stepsOf, timingLabel } from "../../../lib/raidplan/steps";
 import StepModal from "./StepModal";
@@ -33,6 +35,7 @@ export default function StepsCard({ board, edit, roster, players, isEvent, canWr
 }) {
     const t = useT();
     const ask = useConfirm();
+    const [collapsed, toggleCollapsed] = useCollapse("eh.raidplan.collapse.steps");
     const steps = stepsOf(board);
     const [editing, setEditing] = useState<RaidplanStep | null>(null);
     const [drag, setDrag] = useState<{ id: string; to: number } | null>(null);
@@ -91,8 +94,9 @@ export default function StepsCard({ board, edit, roster, players, isEvent, canWr
                         {steps.length > 0 && <button type="button" className="rp-line-btn is-tool is-danger" aria-label={t("raidBoard.steps.clearAll")} data-tip={t("raidBoard.steps.clearAll")} onClick={clearAll}><Trash2 size={15} /></button>}
                     </span>
                 )}
+                <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} label={t("raidBoard.steps.title")} />
             </header>
-            {steps.length === 0 ? (
+            {!collapsed && (steps.length === 0 ? (
                 <div className="rp-steps-empty">
                     <strong>{t("raidBoard.steps.emptyTitle", { boss: bossName })}</strong>
                     <p className="rp-muted">{t("raidBoard.steps.emptyText")}</p>
@@ -133,7 +137,7 @@ export default function StepsCard({ board, edit, roster, players, isEvent, canWr
                         ))}
                     </ol>
                 </>
-            )}
+            ))}
             {editing && (
                 <StepModal
                     step={editing} index={index} bossName={bossName} board={board} roster={roster} players={players} isEvent={isEvent} catalog={catalog} sectionMobs={sectionMobs} groupCount={groupCount}

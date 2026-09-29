@@ -3,6 +3,8 @@ import type { Catalog, RaidplanBoard, RaidplanMobRef } from "../../../api";
 import { addMobs, mobIconKey, mobRef, removeMob } from "../../../lib/raidplan/assign";
 import { insertObject } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
+import CollapseToggle from "../../../components/raidplan/CollapseToggle";
+import { useCollapse } from "../../../hooks/useCollapse";
 import { ChipPicker, MobIcon, type Option } from "./AssignPanel";
 
 /**
@@ -21,6 +23,7 @@ export default function MobsBar({ mobs, board, catalog, bossKey, instanceId, can
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
 }) {
     const t = useT();
+    const [collapsed, toggleCollapsed] = useCollapse("eh.raidplan.collapse.mobs");
     const added = new Set(board.mobs.map((m) => m.id));
     const options: Option[] = [];
     const chipOf = (m: RaidplanMobRef) => <span className="rp-achip"><MobIcon icon={m.icon} size={18} /><span>{m.name}</span></span>;
@@ -33,7 +36,8 @@ export default function MobsBar({ mobs, board, catalog, bossKey, instanceId, can
     return (
         <section className="rp-mobs" aria-label={t("raidBoard.mobs.title")}>
             <span className="rp-kicker rp-bes-head" data-tip={t("raidBoard.mobs.tip")}>{t("raidBoard.mobs.title")} · {mobs.length}</span>
-            <span className="rp-achips">
+            <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} label={t("raidBoard.mobs.title")} />
+            {!collapsed && <span className="rp-achips">
                 {mobs.map((m) => (
                     <span key={m.id} className={`rp-mobchip${added.has(m.id) ? " is-added" : ""}`}>
                         <span className="rp-achip"><MobIcon icon={m.icon} size={20} /><span>{m.name}</span></span>
@@ -53,7 +57,7 @@ export default function MobsBar({ mobs, board, catalog, bossKey, instanceId, can
                         onToggle={(id) => { const m = (catalog ? catalog.mobs : []).find((x) => x.id === id); if (m) edit((b) => (added.has(id) ? removeMob(b, id) : addMobs(b, [mobRef(m)]))); }}
                     />
                 )}
-            </span>
+            </span>}
         </section>
     );
 }

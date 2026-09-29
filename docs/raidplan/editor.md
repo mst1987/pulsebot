@@ -685,3 +685,30 @@ thunder clap, demoralizing shout, buff and other.
 - Tests: `test/services/raidplan/raidplanGeneralTypes.test.js`, `src/web-client/src/lib/raidplan/rank.test.ts` ("the raid-wide tasks",
   both twins), `assign.test.ts` (types per scope, default and addable cards), `mineView.test.ts`, `planTables.test.ts`,
   `src/web-client/src/pages/raid-detail/raidplan/GeneralCards.test.tsx` (the cards render, a debuff row, "Karte hinzufügen").
+
+## Long class priorities stack, every block folds and remembers it (#556)
+
+- **A class priority of 3+ never truncates.** `PrioChip` (`AssignLine.tsx`) showed "1 x [icon] Class › [icon] Class › ..." on one line;
+  with 3-4 classes the row ran out of width and the names ellipsised ("Dru", "Pri", "Sha" — unreadable, and the same information the
+  target chips already show without truncating by wrapping onto their own line). From 3 classes (`STACK_FROM`) the chip switches to a
+  vertical stack instead, one class per line (`.rp-lc-pcstack`/`.rp-lc-pcrow`, CSS `assign.css`): a small order badge
+  (`.rp-lc-pcorder`, "1".."4") plus a down chevron after every row but the last (`.rp-lc-pcarrow`) keep the priority order visible; the
+  class name itself never truncates (`.rp-lc-pcname`, no `text-overflow`). The leading "1 x" (`.rp-lc-cnt`) stays where it was. 1-2
+  classes keep the original inline "Paladin › Schamane" look (`.rp-lc-pc`/`.rp-lc-sep`), which always fits. Test:
+  `AssignLine.test.tsx` (2 vs. 4 classes, the order numbers, the arrows, an open/missing stacked chip).
+- **Every editor block folds through the same chevron, remembered in this browser.** The assignment cards (HEAL, TANK, …) already had a
+  chevron in their header (`AssignPanel.tsx`) but its fold state was local React state only — gone on reload and reset on every boss
+  switch (`useEffect(() => setFolded([]), [scope, eventId])`). Now `CollapseToggle.tsx` (`components/raidplan/`) is the ONE chevron
+  button everywhere (rotated `rp-rot-90` when folded, `aria-expanded`, a `label` prop for a block-specific aria-label like "Heilen:
+  Einklappen"), backed by `hooks/useCollapse.ts` on top of pure logic in `lib/raidplan/collapse.ts` (wrapped in try/catch — a private
+  window or blocked storage opens everything instead of throwing):
+  - `useCollapse(storageKey)`: one block that folds on its own — Besetzung ("Roster slots", `eh.raidplan.collapse.bes`), Taktik/`StepsCard`
+    (`eh.raidplan.collapse.steps`), the mobs bar/`MobsBar` (`eh.raidplan.collapse.mobs`). A real boolean under its own storage key.
+  - `useCollapseSet(storageKey)`: a set of same-shaped blocks that fold independently under ONE storage key, since they render in a
+    `.map` where a hook call per item would break the rules of hooks — the assignment cards, keyed by type
+    (`eh.raidplan.collapse.assign`, `isFolded(type)`/`toggleFold(type)`).
+  - The fold is remembered per block TYPE, not per boss/section: collapsing the Heal card stays collapsed when switching bosses or
+    reloading the page, matching how Besetzung/Taktik/the mobs bar (one instance each, always the same key) already behaved.
+  - Tests: `hooks/useCollapse.test.tsx` (both hooks, the localStorage round trip, several ids under one key not clobbering each other, a
+    blocked `localStorage.setItem` not throwing), `lib/raidplan/collapse.test.ts` (pure parsing), `Besetzung.test.tsx` and
+    `AssignPanel.test.tsx` (the chevron folds the block, `aria-expanded`, remembered across a remount).

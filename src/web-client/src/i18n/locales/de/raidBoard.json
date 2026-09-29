@@ -534,8 +534,6 @@
         "addCard": "Karte hinzufügen …",
         "suggestOne": "{type}: aus dem Setup vorschlagen",
         "addRowTo": "{type}: Zeile hinzufügen",
-        "fold": "Einklappen",
-        "unfold": "Ausklappen",
         "cardEmpty": "Noch keine Zeile.",
         "pickCurses": "Flüche",
         "pickSpells": "Spells",
@@ -572,6 +570,10 @@
         },
         "cardTypes": "Kartentypen",
         "cardEmptyHeal": "Noch keine Zeile. Weise Heilern Tanks, Gruppen oder Spieler zu."
+    },
+    "block": {
+        "fold": "Einklappen",
+        "unfold": "Ausklappen"
     },
     "bes": {
         "title": "Besetzung",
