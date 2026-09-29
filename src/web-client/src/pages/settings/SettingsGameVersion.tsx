@@ -75,20 +75,20 @@ export function VersionSettingsCard({ versions, mainVersion, value, raidsheets, 
                         </select>
                     </Field>
                     <Field className="set-field" label={t("settings.versionLinks.realm")} htmlFor={id("blizzardRealmSlug")} error={error("blizzardRealmSlug")}>
-                        {input("blizzardRealmSlug", "thunderstrike")}
+                        {input("blizzardRealmSlug", "realm-slug")}
                     </Field>
                     <Field
                         className="set-field" label={t("settings.versionLinks.namespace")} htmlFor={id("blizzardNamespace")}
                         tip={t("settings.versionLinks.namespace")} tipSub={t("settings.versionLinks.namespaceSub")} error={error("blizzardNamespace")}
                     >
-                        {input("blizzardNamespace", "profile-classicann-eu")}
+                        {input("blizzardNamespace", "profile-…-eu")}
                     </Field>
                 </div>
                 <Field
                     className="set-field" label={t("settings.versionLinks.armoryUrl")} htmlFor={id("armoryUrlTemplate")}
                     tip={t("settings.versionLinks.armoryUrl")} tipSub={t("settings.versionLinks.templateSub")} error={error("armoryUrlTemplate")}
                 >
-                    {input("armoryUrlTemplate", "https://classic-armory.org/character/eu/…/{char}")}
+                    {input("armoryUrlTemplate", "https://…/{char}")}
                 </Field>
             </div>
 
@@ -98,14 +98,14 @@ export function VersionSettingsCard({ versions, mainVersion, value, raidsheets, 
                     className="set-field" label={t("settings.versionLinks.wclUrl")} htmlFor={id("wclUrlTemplate")}
                     tip={t("settings.versionLinks.wclUrl")} tipSub={t("settings.versionLinks.templateSub")} error={error("wclUrlTemplate")}
                 >
-                    {input("wclUrlTemplate", "https://fresh.warcraftlogs.com/character/eu/…/{char}")}
+                    {input("wclUrlTemplate", "https://…warcraftlogs.com/character/…/{char}")}
                 </Field>
                 <div className="set-grid">
                     <Field
                         className="set-field" label={t("settings.versionLinks.wowhead")} htmlFor={id("wowheadPath")}
                         tip={t("settings.versionLinks.wowhead")} tipSub={t("settings.versionLinks.wowheadSub")} error={error("wowheadPath")}
                     >
-                        {input("wowheadPath", "tbc")}
+                        {input("wowheadPath", "tbc · classic · …")}
                     </Field>
                     <Field
                         className="set-field" label={t("settings.versionLinks.softres")} htmlFor={id("softresEdition")}

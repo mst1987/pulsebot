@@ -188,7 +188,8 @@
         "lootTip": "Imported items",
         "lootSub": "From the Gargul/RCLootcouncil imports.",
         "itemsUnit": "Items",
-        "lastOnline": "last online {date}"
+        "lastOnline": "last online {date}",
+        "setupVersion": "Set up armory"
     },
     "gear": {
         "emptySocket": "empty ({type})",
