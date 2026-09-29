@@ -87,6 +87,17 @@ describe("services/events/raidListing", () => {
             });
             expect(rows[1]).toMatchObject({ id: "e2", source: "raidhelper", contentIds: ["kara"], contentSources: ["title"] });
         });
+
+        it("carries the game version (#545): an own event's own, else the main version (a Raid-Helper event has none)", () => {
+            const rows = upcomingRows([
+                { categoryId: "c1", categoryName: "Donnerstag", events: [
+                    { id: "eh-1", source: "eventhelper", title: "Forever", versionId: "forever" },
+                    { id: "e2", title: "Kara" },
+                ] },
+            ]);
+            expect(rows[0].versionId).toBe("forever");
+            expect(rows[1].versionId).toBe("tbc");
+        });
     });
 
     describe("loadPastRaids", () => {

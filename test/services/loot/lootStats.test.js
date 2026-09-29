@@ -7,10 +7,17 @@ jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 jest.mock("../../../src/services/characters/characterInfo", () => ({
     annotatedCharacters: jest.fn(() => []),
 }));
+// Own events, for the award version (#545) — an id starting "eh-" is an own
+// event, everything else (Raid-Helper, manual) counts as TBC.
+jest.mock("../../../src/stores/eventStore", () => ({
+    isOwnEventId: (id) => String(id || "").startsWith("eh-"),
+    getEvent: jest.fn(() => null),
+}));
 
 const fs = require("fs");
 const { addImport } = require("../../../src/stores/lootStore.js");
 const { annotatedCharacters } = require("../../../src/services/characters/characterInfo");
+const eventStore = require("../../../src/stores/eventStore");
 const { reasonsByCharacter, itemCatalog, lootStats } = require("../../../src/services/loot/lootStats.js");
 
 beforeEach(() => {
@@ -108,6 +115,16 @@ describe("services/loot/lootStats", () => {
             expect(entry.awards[0].eventLabel).toBe("SSC-Raid");
             // the stored row id, which the item-details dialog deletes by
             expect(entry.awards.every((a) => typeof a.id === "string" && a.id.length > 0)).toBe(true);
+        });
+
+        it("carries the game version of each award (#545): an own event's own, else TBC", () => {
+            eventStore.getEvent.mockImplementation((id) => (id === "eh-9" ? { versionId: "forever" } : null));
+            addImport("eh-9", [item({ rawId: "a" })], { eventLabel: "Forever-Raid" });
+            addImport("ev1", [item({ rawId: "b", character: "Bar", characterKey: "bar" })], { eventLabel: "TBC-Raid" });
+
+            const [entry] = itemCatalog();
+            const byChar = Object.fromEntries(entry.awards.map((a) => [a.character, a.versionId]));
+            expect(byChar).toEqual({ Foo: "forever", Bar: "tbc" });
         });
 
         it("resolves the content of a Gargul row that has no instance at all", () => {

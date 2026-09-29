@@ -15,6 +15,7 @@ import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
 import PageHead from "../components/ui/PageHead";
 import Segment from "../components/ui/Segment";
+import VersionFilter from "../components/ui/VersionFilter";
 import Badge from "../components/ui/Badge";
 import WowIcon from "../components/ui/WowIcon";
 import RaidLoader from "../components/ui/RaidLoader";
@@ -211,20 +212,36 @@ export default function RaidTemplatesPage() {
     const editor = useCollectionEditor("edit");
     const toast = useToast();
     const canWrite = canAccess(user, "raids", "write");
-    const loaded = useApi(() => Promise.all([getRaidTemplates(), getGameVersions()]).then(([templates, v]) => ({ templates, versions: v.versions })), []);
+    const loaded = useApi(
+        () => Promise.all([getRaidTemplates(), getGameVersions()])
+            .then(([templates, v]) => ({ templates, versions: v.versions, defaultVersion: v.defaultVersion })),
+        [],
+    );
     const data = loaded.data?.templates ?? null;
     const versions = loaded.data?.versions ?? null;
-    const [versionFilter, setVersionFilter] = usePersistedState("raid-templates-version", "");
+    const defaultVersion = loaded.data?.defaultVersion ?? "";
+    // The version filter (#545): "" (nothing chosen yet) = the main version,
+    // "all" = every version — same convention as the roster (#543).
+    const [versionPick, setVersionPick] = usePersistedState("raid-templates-version", "");
     const [importing, setImporting] = useState(false);
 
     if (loaded.error) return <div className="empty">{tParts("raidTemplates.page.loadError", { message: loaded.error.message })}</div>;
     if (!data || !versions) return <RaidLoader text={t("raidTemplates.page.loading")} />;
 
     const shortOf = (id: string) => versions.find((v) => v.id === id)?.short || id;
-    // A remembered filter for a version that has no template shows everything instead of nothing.
-    const filter = versionFilter && versions.some((v) => v.id === versionFilter) ? versionFilter : "";
+    // A remembered pick for a version that has no template shows the main
+    // version instead — same fallback the roster and the loot history use.
+    const resolvedVersion = versionPick === "all" ? "all" : (versions.some((v) => v.id === versionPick) ? versionPick : defaultVersion);
+    const filter = resolvedVersion === "all" ? "" : resolvedVersion;
     const shown = filterByVersion(data.templates, filter);
     const entry = editor.editId ? data.templates.find((tpl) => tpl.id === editor.editId) || null : null;
+    // The filter's own choices: every version with a template, plus the main
+    // version even with none (see VersionFilter / api/raidTemplates.ts VersionChoice).
+    const versionCounts = new Map<string, number>();
+    for (const tpl of data.templates) versionCounts.set(tpl.versionId, (versionCounts.get(tpl.versionId) || 0) + 1);
+    const versionChoices = versions
+        .filter((v) => versionCounts.has(v.id) || v.id === defaultVersion)
+        .map((v) => ({ id: v.id, label: v.label, short: v.short, count: versionCounts.get(v.id) || 0 }));
 
     const afterChange = (msg: string) => {
         toast(msg);
@@ -256,8 +273,7 @@ export default function RaidTemplatesPage() {
                 title={t("raidTemplates.page.title")}
                 action={(
                     <>
-                        <Segment size="sm" ariaLabel={t("raidTemplates.version")} value={filter} onChange={setVersionFilter}
-                            options={[{ value: "", label: t("common.all") }, ...versions.map((v) => ({ value: v.id, label: v.short, tip: v.label }))]} />
+                        <VersionFilter versions={versionChoices} ariaLabel={t("raidTemplates.version")} value={resolvedVersion} onChange={setVersionPick} />
                         {canWrite && (
                             <IconButton icon={<RefreshIcon />} tip={t("raidTemplates.page.import")} tipSub={t("raidTemplates.page.importSub")} disabled={importing} onClick={importFromRaidHelper} />
                         )}

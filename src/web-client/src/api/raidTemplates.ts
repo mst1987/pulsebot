@@ -120,6 +120,16 @@ export type GameVersion = {
 
 export type GameVersionsData = { versions: GameVersion[]; defaultVersion: string };
 
+/**
+ * One option of a version filter (#545, the shape #543 introduced for the
+ * roster): a version that has rows in this list, plus the main version even
+ * with none — a list shows the filter at all only once it has more than one.
+ * `count` is this list's own count, not a global total; left out where
+ * counting would cost another full load (the dashboard tiles) — the option
+ * then shows its name alone.
+ */
+export type VersionChoice = { id: string; label: string; short: string; count?: number };
+
 export function getGameVersions(): Promise<GameVersionsData> {
     return get<GameVersionsData>("/api/game-versions");
 }

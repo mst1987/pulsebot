@@ -8,7 +8,7 @@ import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../../compone
 import { SearchBox } from "../../components/loot/LootFilters";
 import { useToast } from "../../components/Jobs";
 import { Button } from "../../components/ui/Button";
-import { Segment } from "../../components/ui";
+import { VersionFilter } from "../../components/ui";
 import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
 import { useT } from "../../i18n";
@@ -116,15 +116,11 @@ export function CharactersTab({ chars: allChars, categories, onChanged, versions
         [allChars, version],
     );
     const versionPicker = versions.length > 1 ? (
-        <Segment<string>
-            size="sm"
+        <VersionFilter
+            versions={versions}
             ariaLabel={t("history.chars.versionAria")}
             value={version}
             onChange={(v) => patch({ version: v === mainVersion ? "" : v })}
-            options={[
-                ...versions.map((v) => ({ value: v.id, label: `${v.short} · ${v.count}`, tip: v.label })),
-                { value: "all", label: t("common.all") },
-            ]}
         />
     ) : null;
 

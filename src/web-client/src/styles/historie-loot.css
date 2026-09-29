@@ -10,6 +10,9 @@
 .hl-areas .seg-opt .wi { width: 22px; height: 22px; border-radius: 5px; }
 .hl-areas .seg-opt.active { background: var(--area-history-soft); color: var(--text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--area-history) 35%, transparent); }
 
+/* ---- the "Raids"/"Items" version filter (#545), between the subnav and the card ---- */
+.hl-version { margin: 0 0 12px; }
+
 /* ---- a card whose first child is the part head ---- */
 .hl-card { position: relative; }
 .hl-card > .part-head { margin: 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }

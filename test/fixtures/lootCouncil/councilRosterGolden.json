@@ -4243,9 +4243,18 @@
     ],
     "avgLootCount": 1.2,
     "bisTier": "t6",
+    "versions": [
+      {
+        "id": "tbc",
+        "label": "TBC Anniversary",
+        "short": "TBC",
+        "count": 7
+      }
+    ],
     "skipped": {
       "category": 0,
-      "excluded": 1
+      "excluded": 1,
+      "version": 0
     },
     "categorySources": null
   },
@@ -7786,9 +7795,18 @@
     ],
     "avgLootCount": 1.5,
     "bisTier": "t6",
+    "versions": [
+      {
+        "id": "tbc",
+        "label": "TBC Anniversary",
+        "short": "TBC",
+        "count": 7
+      }
+    ],
     "skipped": {
       "category": 0,
-      "excluded": 1
+      "excluded": 1,
+      "version": 0
     },
     "categorySources": null
   },
@@ -8504,9 +8522,18 @@
     ],
     "avgLootCount": 0,
     "bisTier": "t6",
+    "versions": [
+      {
+        "id": "tbc",
+        "label": "TBC Anniversary",
+        "short": "TBC",
+        "count": 7
+      }
+    ],
     "skipped": {
       "category": 0,
-      "excluded": 1
+      "excluded": 1,
+      "version": 0
     },
     "categorySources": null
   },
@@ -11879,9 +11906,18 @@
     ],
     "avgLootCount": 1,
     "bisTier": "t6",
+    "versions": [
+      {
+        "id": "tbc",
+        "label": "TBC Anniversary",
+        "short": "TBC",
+        "count": 5
+      }
+    ],
     "skipped": {
       "category": 2,
-      "excluded": 1
+      "excluded": 1,
+      "version": 0
     },
     "categorySources": {
       "reports": 0,
@@ -16117,9 +16153,18 @@
     ],
     "avgLootCount": 1,
     "bisTier": "t6",
+    "versions": [
+      {
+        "id": "tbc",
+        "label": "TBC Anniversary",
+        "short": "TBC",
+        "count": 7
+      }
+    ],
     "skipped": {
       "category": 0,
-      "excluded": 1
+      "excluded": 1,
+      "version": 0
     },
     "categorySources": null
   },
@@ -19322,9 +19367,18 @@
     ],
     "avgLootCount": 1,
     "bisTier": "t5",
+    "versions": [
+      {
+        "id": "tbc",
+        "label": "TBC Anniversary",
+        "short": "TBC",
+        "count": 5
+      }
+    ],
     "skipped": {
       "category": 2,
-      "excluded": 1
+      "excluded": 1,
+      "version": 0
     },
     "categorySources": {
       "reports": 0,

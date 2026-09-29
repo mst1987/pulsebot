@@ -2,6 +2,7 @@
     "page": {
         "noCategory": "Ohne Kategorie",
         "viewAria": "Ansicht",
+        "versionAria": "Spielversion",
         "upcoming": "Kommend",
         "past": "Vergangen",
         "loadError": "Fehler beim Laden der Raid-Events: {message}",

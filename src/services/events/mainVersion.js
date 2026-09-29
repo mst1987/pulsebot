@@ -62,6 +62,23 @@ function rulesForEvent(event, opts) {
 }
 
 /**
+ * The version filter a list reads from its `?version=` query (#545): every
+ * list that mixes game versions takes the same three answers — nothing =
+ * the main version, "all" = every version (`versionId` ""), a known id = that
+ * one, an unknown id falls back to the main version like "nothing" does. One
+ * function so every route filters the same way roster.js did first (#543).
+ * @param {string} raw  the raw query value, e.g. `url.searchParams.get("version")`
+ * @param {{ config?: object }} [opts]
+ * @returns {{ versionId: string, mainVersion: string }}  versionId "" = all
+ */
+function resolveVersionQuery(raw, { config } = {}) {
+    const mainVersion = mainVersionFor({ config });
+    const key = String(raw || "").trim();
+    if (key === "all") return { versionId: "", mainVersion };
+    return { versionId: knownVersion(key) || mainVersion, mainVersion };
+}
+
+/**
  * The class list of a version as the signup and the profile pick from it:
  * `{ id, label, color, icon }`. The main version when `versionId` is unknown.
  */
@@ -70,4 +87,6 @@ function classesOfVersion(versionId, { config } = {}) {
     return rules.classes.map((c) => ({ id: c.id, label: c.label, color: c.color, icon: c.icon }));
 }
 
-module.exports = { mainVersionFor, versionOfEvent, rulesForEvent, classesOfVersion, knownVersion };
+module.exports = {
+    mainVersionFor, versionOfEvent, rulesForEvent, classesOfVersion, knownVersion, resolveVersionQuery,
+};

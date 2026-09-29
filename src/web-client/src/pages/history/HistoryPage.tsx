@@ -14,6 +14,7 @@ import { Button } from "../../components/ui/Button";
 import { PartHead } from "../../components/ui/PartHead";
 import PageHead from "../../components/ui/PageHead";
 import Segment from "../../components/ui/Segment";
+import VersionFilter from "../../components/ui/VersionFilter";
 import Badge from "../../components/ui/Badge";
 import "../../styles/historie-loot.css";
 import RaidLoader from "../../components/ui/RaidLoader";
@@ -105,6 +106,10 @@ export default function HistoryPage() {
     // what already happened is what this page is for — the coming ones are
     // planned on the Raid-Events page, not looked up here.
     const [raidWhen, setRaidWhen] = usePersistedState<RaidWhen>("history-raids-when", "past");
+    // The game version filter (#545) for the "Raids" and "Items" views — the
+    // main version unless the page picked another one or "all"; same fallback
+    // the roster and the "Charaktere" tab use.
+    const [versionPick, setVersionPick] = usePersistedState("history-version", "");
 
     // The overviews are fetched on the first visit to one of their views, then
     // kept — and refreshed after an import only once they were opened, since
@@ -129,14 +134,6 @@ export default function HistoryPage() {
     if (legacyTab === LEGACY_INBOX && fullHistory) return <Navigate to="/history/inbox" replace />;
 
     const activeArea = areas.find((a) => a.views.some((v) => v.id === tab)) || areas[0];
-    const counts: Partial<Record<Tab, number>> = data ? {
-        // No count on "Items": the view hides sharded loot by default, so the
-        // raw catalogue size would contradict the number in its own head.
-        reasons: stats?.characters.length,
-        loot: data.lootEvents.length,
-        raids: data.upcomingRaids.events.length + data.pastRaids.events.length,
-        logs: data.logs.length,
-    } : {};
 
     const head = (
         <div className="hl-page">
@@ -164,6 +161,37 @@ export default function HistoryPage() {
 
     if (error) return <>{head}<div className="empty">{tParts("history.shared.loadError", { message: error.message })}</div></>;
     if (!data) return <>{head}<RaidLoader text={t("history.page.loading")} /></>;
+
+    // The version filter (#545): the main version unless the page picked
+    // another one or "all" — same fallback the roster (#543) uses.
+    const versionChoices = data.versions || [];
+    const knownVersion = versionChoices.some((v) => v.id === versionPick);
+    const version = versionPick === "all" ? "all" : (knownVersion ? versionPick || "" : "") || data.mainVersion || "all";
+    const versionOf = (e: { versionId?: string }) => e.versionId || "tbc";
+    const pastEvents = version === "all" ? data.pastRaids.events : data.pastRaids.events.filter((e) => versionOf(e) === version);
+    const upcomingEvents = version === "all" ? data.upcomingRaids.events : data.upcomingRaids.events.filter((e) => versionOf(e) === version);
+    const statsItems = !stats ? [] : (version === "all" ? stats.items : stats.items
+        .map((it) => {
+            const awards = it.awards.filter((a) => (a.versionId || "tbc") === version);
+            return { ...it, awards, count: awards.length };
+        })
+        .filter((it) => it.count > 0));
+    const versionFilter = (tab === "items" || tab === "raids") && versionChoices.length > 1 ? (
+        <VersionFilter
+            versions={versionChoices}
+            ariaLabel={t("history.page.versionAria")}
+            value={version}
+            onChange={(v) => setVersionPick(v === data.mainVersion ? "" : v)}
+        />
+    ) : null;
+    const counts: Partial<Record<Tab, number>> = {
+        // No count on "Items": the view hides sharded loot by default, so the
+        // raw catalogue size would contradict the number in its own head.
+        reasons: stats?.characters.length,
+        loot: data.lootEvents.length,
+        raids: upcomingEvents.length + pastEvents.length,
+        logs: data.logs.length,
+    };
 
     return (
         <>
@@ -194,6 +222,7 @@ export default function HistoryPage() {
                     })}
                 </div>
             )}
+            {versionFilter && <div className="hl-version">{versionFilter}</div>}
 
             {tab === "raids" && (
                 <div className="dash-card hl-card">
@@ -212,15 +241,15 @@ export default function HistoryPage() {
                                 value={raidWhen}
                                 onChange={setRaidWhen}
                                 options={[
-                                    { value: "past", label: t("history.page.raids.past", { count: data.pastRaids.events.length }), icon: "inv_misc_pocketwatch_01", tip: t("history.page.raids.pastOptTip") },
-                                    { value: "upcoming", label: t("history.page.raids.upcoming", { count: data.upcomingRaids.events.length }), icon: "inv_misc_note_02", tip: t("history.page.raids.upcomingOptTip") },
+                                    { value: "past", label: t("history.page.raids.past", { count: pastEvents.length }), icon: "inv_misc_pocketwatch_01", tip: t("history.page.raids.pastOptTip") },
+                                    { value: "upcoming", label: t("history.page.raids.upcoming", { count: upcomingEvents.length }), icon: "inv_misc_note_02", tip: t("history.page.raids.upcomingOptTip") },
                                 ]}
                             />
                         )}
                     />
                     {raidWhen === "past"
-                        ? <RaidTable events={data.pastRaids.events} guildId={data.activeGuildId} error={data.pastRaids.error} emptyMessage={t("history.page.raids.pastEmpty")} sortKey="raids-past-sort" />
-                        : <RaidTable events={data.upcomingRaids.events} guildId={data.activeGuildId} error={data.upcomingRaids.error} emptyMessage={t("history.page.raids.upcomingEmpty")} sortKey="raids-upcoming-sort" initialDir="asc" />}
+                        ? <RaidTable events={pastEvents} guildId={data.activeGuildId} error={data.pastRaids.error} emptyMessage={t("history.page.raids.pastEmpty")} sortKey="raids-past-sort" />
+                        : <RaidTable events={upcomingEvents} guildId={data.activeGuildId} error={data.upcomingRaids.error} emptyMessage={t("history.page.raids.upcomingEmpty")} sortKey="raids-upcoming-sort" initialDir="asc" />}
                 </div>
             )}
             {tab === "loot" && (
@@ -240,7 +269,7 @@ export default function HistoryPage() {
                             ? <LootReasonsTab characters={stats.characters} reasons={stats.reasons} categories={data.categories} contents={stats.contents} />
                             : (
                                 <LootItemsTab
-                                    items={stats.items}
+                                    items={statsItems}
                                     contents={stats.contents}
                                     tiers={stats.tiers}
                                     reasons={stats.reasons}

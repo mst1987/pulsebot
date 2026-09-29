@@ -10,6 +10,8 @@ Für alle mit Zugriff auf mindestens einen Bereich. Zeigt offene Aufgaben auf ei
 
 **Kanal von <Event> fehlt:** Wurde der Discord-Kanal eines kommenden Raids gelöscht, steht der Raid rot in den offenen Aufgaben. Mit **Kanal neu anlegen** (nur mit Schreibrecht auf Raids) legt der Bot den Kanal nach der Namensregel der Kategorie wieder an, postet die Anmelde-Nachricht (und ein schon gepostetes Setup) hinein, und alle Übersichten verlinken ihn wieder. Bis dahin zeigen die Übersichten „channel missing“ statt eines Links, die Raid-Liste und die Raid-Seite „Kanal fehlt“. Gibt es auch die Kategorie nicht mehr, landet der Kanal ohne Kategorie – das sagt die Meldung dann dazu.
 
+Gibt es Raids in mehr als einer Spielversion, schaltet oben im Kopf ein Umschalter zwischen den Versionen (Standard: Hauptversion) oder „Alle“ um; die drei Kacheln (kommende Raids, letzte Raids, Top-Loot) folgen alle demselben Umschalter.
+
 ## Raid-Events
 
 Technik: [events.md](events.md)
@@ -17,6 +19,7 @@ Technik: [events.md](events.md)
 *Bereich "Raids" (lesen/schreiben)*
 
 - Neues Event per geführtem Dialog anlegen (Vorlage, Termin, Größe/Rollen, Kanal, Anmeldung) oder ein bestehendes bearbeiten.
+- Gibt es Raids in mehr als einer Spielversion, schaltet oben ein Versionsfilter zwischen den Versionen (Standard: Hauptversion) oder „Alle“ um — gilt für die kommenden und die vergangenen Raids gleichermaßen, die Wahl bleibt beim nächsten Besuch erhalten.
 - **Raid-Cockpit** auf der Detailseite: führt in sechs Schritten durch den Ablauf (Angelegt → Anmeldung → Setup → Freigabe → Einteilungen → Nachbereitung) und schlägt jeweils die nächste sinnvolle Handlung vor.
 - **Einteilungen posten:** Der Schritt „Einteilungen“ (oder der Knopf neben „Freigeben & teilen“ im Raidplan-Tab) postet den Link zur Lese-Ansicht des Raidplans mit optionaler Nachricht in den Event-Kanal, gibt den Plan dabei bei Bedarf frei, und ein erneutes Posten aktualisiert dieselbe Nachricht.
 - Über das **"Verwalten"-Menü**: Termin verschieben, Anmeldung öffnen/schließen, Raider ein-/austragen, Fehlende pingen, absagen/zurücknehmen, löschen (inklusive Kanal archivieren und Discord benachrichtigen).
@@ -110,6 +113,8 @@ Technik: [raid-templates.md](raid-templates.md)
 
 Wiederverwendbare Vorlagen (Instanzen, Größe, Rollen, Pflicht-Buffs, Anmeldeschluss, Aussehen der Nachricht) für ein schnelles Event-Anlegen. Details: [docs/raid-templates.md](raid-templates.md).
 
+Gibt es Vorlagen in mehr als einer Spielversion, zeigt die Liste oben von sich aus nur die Vorlagen der Hauptversion; ein Umschalter wechselt die Version oder zeigt „Alle“, die Wahl bleibt beim nächsten Besuch erhalten.
+
 Hinter „Mehr“ (in der Vorlage und im Erstellen-Dialog) steht **„Bei voller Größe“**: *keine Grenze* (Standard — es melden sich so viele an wie wollen, die Auswahl triffst du im Setup), *Warteliste* (neue Anmeldungen landen auf der Bank) oder *ablehnen*. Nachricht, Talk-Übersicht, öffentliche Event-Seite, Anmeldeseite, Raid-Cockpit und „Event verwalten“ zählen nur die **einzelnen Discord-Accounts** („28 angemeldet“ bzw. „28 signed up“) — ohne „/25“, auch wenn der Raid überbucht ist; wer mit mehreren Charakteren angemeldet ist, zählt einmal.
 
 Der Link **„Comp“** in der Anmelde-Nachricht führt dich (eingeloggt, mit Schreibrecht für Raids) direkt in den Setup-Tab des Raids; Raider ohne dieses Recht und Besucher ohne Login landen mit demselben Link auf der öffentlichen Event-Seite. Das Raidsheet steht dort jetzt als „Sheet“.
@@ -153,6 +158,7 @@ Technik: [loot-council.md](loot-council.md)
 - Rangliste je Raider nach Bedarf (Drought, bisheriger Loot-Anteil, BiS-Abstand).
 - Gear-Ansicht und Drop-Check für ein konkretes Item.
 - DPS-Simulation einzelner Ausrüstungswechsel, BiS-Listen je Spec. Details: [docs/loot-council.md](loot-council.md).
+- Neben der Raid-Kategorie schaltet ein Versionsfilter, welche Charaktere überhaupt auf der Liste stehen (Standard: Hauptversion, „Alle“ zeigt jede Version); ein Charakter ohne eigene Version zählt über seinen Loot oder seine Kategorie.
 
 ## Historie & Loot
 
@@ -163,6 +169,7 @@ Technik: [loot-import.md](loot-import.md)
 - Vergaben, Items, Gründe und Loot nach Raid einsehen.
 - Loot-Export aus Gargul/RCLootcouncil importieren.
 - Addon-Inbox: automatisch hochgeladene Loot-Sessions bestätigen und zuordnen. Details: [docs/loot-import.md](loot-import.md).
+- Gibt es Raids in mehr als einer Spielversion, schaltet in den Reitern „Raids“ und „Items“ ein Versionsfilter um (Standard: Hauptversion, „Alle“ zeigt jede Version) — derselbe Umschalter wie bei „Charaktere“ (siehe Roster oben).
 
 ## Log-Auswertung (CLA/RPB)
 

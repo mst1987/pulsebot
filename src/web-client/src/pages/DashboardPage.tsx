@@ -14,6 +14,7 @@ import { Link } from "react-router-dom";
 import { getDashboard, recreateChannel, type ApiError, type DashboardData, type DashboardRaid, type DashboardTask } from "../api";
 import { useToast } from "../components/Jobs";
 import { useApi } from "../hooks/useApi";
+import { usePersistedState } from "../lib/persistedState";
 import AsyncView from "../components/ui/AsyncView";
 import PageHead from "../components/ui/PageHead";
 import { PartHead } from "../components/ui/PartHead";
@@ -21,6 +22,7 @@ import { Button, buttonClass } from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import IconTile, { type TileTone } from "../components/ui/IconTile";
 import WowIcon from "../components/ui/WowIcon";
+import VersionFilter from "../components/ui/VersionFilter";
 import { ChevronRightIcon } from "../components/icons";
 import TopLootList from "../components/loot/TopLootList";
 import RaidDetailsModal from "../components/RaidDetailsModal";
@@ -347,7 +349,10 @@ function RecentRaidList({ recent }: { recent: DashboardData["recentEvents"] }) {
 
 export default function DashboardPage() {
     const t = useT();
-    const dashboard = useApi(() => getDashboard(), []);
+    // The version toggle shared by the three raid/loot tiles (#545): "" = the
+    // server's default (the main version), "all" = every one.
+    const [version, setVersion] = usePersistedState("dashboard-version", "");
+    const dashboard = useApi(() => getDashboard(version), [version]);
     const [detailsOpen, setDetailsOpen] = useState(false);
 
     return (
@@ -359,7 +364,19 @@ export default function DashboardPage() {
                     <div className="ov-page">
                         <PageHead
                             icon="inv_misc_map_01" tone="home" kicker={kicker} title={t("dashboard.page.title")}
-                            action={<Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.page.newRaid")}</Link>}
+                            action={(
+                                <>
+                                    {data.versions.length > 1 && (
+                                        <VersionFilter
+                                            versions={data.versions}
+                                            ariaLabel={t("dashboard.page.versionAria")}
+                                            value={version || data.version || "all"}
+                                            onChange={setVersion}
+                                        />
+                                    )}
+                                    <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.page.newRaid")}</Link>
+                                </>
+                            )}
                         />
 
                         <div className="ov-grid ov-grid-top">

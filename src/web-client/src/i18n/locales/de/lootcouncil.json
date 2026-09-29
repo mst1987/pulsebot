@@ -334,6 +334,7 @@
         "role": "Rolle",
         "category": "Raid-Kategorie",
         "allCategories": "Alle Raid-Kategorien",
+        "version": "Spielversion",
         "derivedTip": "Aus dem neuesten Loot abgeleitet: {tier}",
         "derivedTipSub": "Gemessen wird gegen die Liste des Tiers, aus dem der neueste Loot der Gilde stammt.",
         "bisList": "BiS-Liste",

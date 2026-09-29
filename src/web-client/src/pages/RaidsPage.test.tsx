@@ -23,14 +23,14 @@ const at = (iso: string) => Math.floor(Date.parse(iso) / 1000);
 function upcoming(over: Partial<UpcomingRaid>): UpcomingRaid {
     return {
         id: "1000", title: "", startTime: 0, channelId: "", channelName: "", categoryId: "", categoryName: "",
-        contentIds: [], contentSources: [], softres: null, signupCount: 0, raidSize: 25, raidSizeKnown: true, ...over,
+        contentIds: [], contentSources: [], softres: null, versionId: "tbc", signupCount: 0, raidSize: 25, raidSizeKnown: true, ...over,
     };
 }
 
 function past(over: Partial<PastRaid>): PastRaid {
     return {
         id: "2000", title: "", startTime: 0, channelId: "", channelName: "", categoryId: "", categoryName: "",
-        contentIds: [], contentSources: [], softres: null, logs: [], pendingLogs: [], pendingLogCount: 0, lootCount: 0, ...over,
+        contentIds: [], contentSources: [], softres: null, versionId: "tbc", logs: [], pendingLogs: [], pendingLogCount: 0, lootCount: 0, ...over,
     };
 }
 
@@ -38,6 +38,9 @@ const RAIDS: RaidsData = {
     activeGuildId: "g1",
     guildName: "Pulse",
     error: null,
+    version: "tbc",
+    mainVersion: "tbc",
+    versions: [],
     events: [
         // deliberately out of order: the list sorts by date itself
         upcoming({
@@ -59,6 +62,9 @@ const RAIDS: RaidsData = {
 const PAST: PastRaidsData = {
     activeGuildId: "g1",
     error: null,
+    version: "tbc",
+    mainVersion: "tbc",
+    versions: [],
     events: [
         past({
             id: "2001", title: "BT September", startTime: at("2026-09-10T17:30:00Z"), categoryId: "c2", categoryName: "T6",
@@ -331,6 +337,38 @@ describe("Raid-Events list", () => {
         await screen.findByRole("table", { name: t("raids.list.upcomingAria") });
         expect(screen.queryByRole("button", { name: t("raids.list.repeat") })).not.toBeInTheDocument();
         expect(screen.queryByRole("link", { name: t("raids.page.newEvent") })).not.toBeInTheDocument();
+    });
+
+    it("filters by game version, defaults to the main one and remembers the pick (#545)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(client.get).mockImplementation((path: string) => {
+            if (path.startsWith("/api/raids/past")) return Promise.resolve(PAST);
+            if (path.startsWith("/api/raids/new")) return Promise.resolve(CREATE_CONTEXT);
+            if (path.startsWith("/api/raids")) {
+                const forever = path.includes("version=forever");
+                return Promise.resolve({
+                    ...RAIDS,
+                    events: forever ? [] : RAIDS.events,
+                    version: forever ? "forever" : "tbc",
+                    mainVersion: "tbc",
+                    versions: [
+                        { id: "tbc", label: "WoW TBC", short: "TBC", count: 3 },
+                        { id: "forever", label: "WoW Forever", short: "Forever", count: 0 },
+                    ],
+                });
+            }
+            return Promise.reject({ code: "not_found", message: `unexpected ${path}` });
+        });
+        show();
+        await screen.findByRole("table", { name: t("raids.list.upcomingAria") });
+        const filter = screen.getByRole("radiogroup", { name: t("raids.page.versionAria") });
+        expect(within(filter).getByRole("radio", { name: /^TBC/ })).toHaveAttribute("aria-checked", "true");
+
+        await user.click(within(filter).getByRole("radio", { name: /^Forever/ }));
+        await waitFor(() => expect(client.get).toHaveBeenCalledWith("/api/raids?version=forever"));
+        expect(client.get).toHaveBeenCalledWith("/api/raids/past?version=forever");
+        expect(JSON.parse(localStorage.getItem("eh-raids-version") || "null")).toBe("forever");
+        expect(await screen.findByText(t("raids.page.noneUpcoming"))).toBeInTheDocument();
     });
 });
 

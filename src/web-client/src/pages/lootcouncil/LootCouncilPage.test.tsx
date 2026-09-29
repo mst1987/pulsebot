@@ -2,7 +2,7 @@
 // German default and the English texts (#440) of the page head, the four tabs
 // and the raider dialog. The structural promises (busy keys, no estimates,
 // the sim runner) stay in test/web-client/conventions/council*.test.js.
-import { screen } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
@@ -38,6 +38,25 @@ describe("loot council page (German)", () => {
         renderPage(<LootCouncilPage />, { route: "/lootcouncil?raider=Anna" });
         expect(await screen.findByText("Getragenes Set")).toBeInTheDocument();
         expect(screen.getByText("Loot-Council › Raider · Rang 1 von 1")).toBeInTheDocument();
+    });
+
+    it("filters by game version, defaults to the main one and remembers the pick (#545)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getLootCouncil).mockResolvedValue(councilData({
+            version: "tbc",
+            mainVersion: "tbc",
+            versions: [
+                { id: "tbc", label: "WoW TBC", short: "TBC", count: 1 },
+                { id: "forever", label: "WoW Forever", short: "Forever", count: 0 },
+            ],
+        }));
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        const filter = await screen.findByRole("radiogroup", { name: "Spielversion" });
+        expect(within(filter).getByRole("radio", { name: /^TBC/ })).toHaveAttribute("aria-checked", "true");
+
+        await user.click(within(filter).getByRole("radio", { name: /^Forever/ }));
+        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ version: "forever" })));
+        expect(JSON.parse(localStorage.getItem("eh-lootcouncil.view") || "null")).toMatchObject({ version: "forever" });
     });
 });
 

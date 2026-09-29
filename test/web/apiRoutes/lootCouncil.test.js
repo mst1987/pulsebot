@@ -191,7 +191,10 @@ describe("GET /api/lootcouncil", () => {
 
         const res = await call(getLootCouncil, "/api/lootcouncil", "?role=caster&tiers=t5, t6,&contents=ssc&category=c1");
         expect(status(res)).toBe(200);
-        expect(lc.councilRoster).toHaveBeenCalledWith({ role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", bisTier: "", versionId: "tbc" });
+        expect(lc.councilRoster).toHaveBeenCalledWith({
+            role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", bisTier: "", versionId: "tbc",
+            config: { categoryIds: ["c1", "c2"] }, mainVersion: "tbc", charVersion: "tbc",
+        });
         expect(lc.resolveContentFilter).toHaveBeenCalledWith({ tierIds: ["t5", "t6"], contentIds: ["ssc"] });
         expect(lc.bisGaps).toHaveBeenCalledWith(rows, { contentIds: ["ssc"] });
         expect(primeArmoryGear).not.toHaveBeenCalled();
@@ -217,6 +220,25 @@ describe("GET /api/lootcouncil", () => {
             { key: "old", reason: "left", at: 10 },
             { key: "undated", reason: "?" },
         ]);
+        // The version filter (#545): nothing asked = the main version.
+        expect(data.version).toBe("tbc");
+        expect(data.mainVersion).toBe("tbc");
+    });
+
+    it("passes the game version filter through, and 'all' lifts it (#545)", async () => {
+        lc.councilRoster.mockReturnValue({
+            rows: [], avgLootCount: 0, bisTier: "t5", skipped: 0, categorySources: {}, versions: [{ id: "tbc", label: "TBC", short: "TBC", count: 3 }],
+        });
+        mockUser = READER;
+
+        const forever = await call(getLootCouncil, "/api/lootcouncil", "?version=forever");
+        expect(lc.councilRoster).toHaveBeenCalledWith(expect.objectContaining({ charVersion: "forever", mainVersion: "tbc" }));
+        expect(body(forever).version).toBe("forever");
+        expect(body(forever).versions).toEqual([{ id: "tbc", label: "TBC", short: "TBC", count: 3 }]);
+
+        const all = await call(getLootCouncil, "/api/lootcouncil", "?version=all");
+        expect(lc.councilRoster).toHaveBeenCalledWith(expect.objectContaining({ charVersion: "" }));
+        expect(body(all).version).toBe("");
     });
 
     it("narrows to one dropped item: candidates instead of the gap list", async () => {

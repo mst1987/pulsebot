@@ -69,7 +69,7 @@ const raidEventGroups = require("../../../src/services/events/raidEventGroups");
 const logStore = require("../../../src/stores/logStore");
 const { AppError } = require("../../../src/web/http/apiResult");
 const { emptyAccess } = require("../../../src/config/permissions");
-const { request, post, patch, urlFor, handle } = routerClient();
+const { request, post, patch, urlFor, handle, get } = routerClient();
 
 describe("web/http/apiRouter", () => {
     // A route that throws must not escape to server.js's catch-all, which answers
@@ -158,8 +158,7 @@ describe("web/http/apiRouter", () => {
             activeGuildFor.mockReturnValue("guild-1");
             raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
 
-            const res = mockRes();
-            await handle("/api/raids", { method: "GET" }, res);
+            const res = await get("/api/raids");
 
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
         });

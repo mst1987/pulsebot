@@ -57,6 +57,7 @@ jest.mock("../../../src/web/dashboard/dashboardData", () => ({
     loadTopLoot: jest.fn(() => ({ items: [], configured: 0 })),
     loadChannelArchive: jest.fn(() => null),
     loadMissingChannels: jest.fn(() => Promise.resolve([])),
+    dashboardVersions: jest.fn(() => ({ mainVersion: "tbc", versions: [{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 0 }] })),
 }));
 // The dashboard asks GitHub how far the server is behind main. Unmocked, this
 // suite really called api.github.com (found by the network guard, #432) - and
@@ -266,7 +267,7 @@ const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const dashboardData = require("../../../src/web/dashboard/dashboardData");
 const discord = require("../../../src/services/discord/discord");
-const { handle } = routerClient(require("../../../src/web/apiRoutes/dashboard"));
+const { handle, get } = routerClient(require("../../../src/web/apiRoutes/dashboard"));
 
 describe("web/apiRoutes/dashboard", () => {
     describe("GET /api/dashboard", () => {
@@ -283,8 +284,7 @@ describe("web/apiRoutes/dashboard", () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             activeGuildFor.mockReturnValue("guild-1");
             dashboardData.loadMissingChannels.mockResolvedValueOnce([{ eventId: "eh-1", title: "Karazhan", startTime: 2000, channelName: "mi-kara" }]);
-            const res = mockRes();
-            await handle("/api/dashboard", { method: "GET" }, res);
+            const res = await get("/api/dashboard");
             expect(dashboardData.loadMissingChannels).toHaveBeenCalledWith("guild-1");
             const task = json(res).data.tasks.find((t) => t.id === "channel-missing:eh-1");
             expect(task).toMatchObject({
@@ -319,12 +319,10 @@ describe("web/apiRoutes/dashboard", () => {
             dashboardData.loadNewLoot.mockReturnValue({ count: 3, since: 1000000 });
             dashboardData.loadTopLoot.mockReturnValue({ items: [{ itemId: 30883, character: "Kilrogg" }], configured: 3 });
 
-            const res = mockRes();
-            const handled = await handle("/api/dashboard", { method: "GET" }, res);
+            const res = await get("/api/dashboard");
 
-            expect(handled).toBe(true);
-            expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2);
-            expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5);
+            expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2, { versionId: "tbc" });
+            expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5, { versionId: "tbc" });
             // "Neuer Loot" counts from the newest past raid's start
             expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(1000);
             const data = json(res).data;
@@ -344,6 +342,39 @@ describe("web/apiRoutes/dashboard", () => {
             // the old configuration counters are gone
             expect(data.stats).toBeUndefined();
             expect(data.recentReports).toBeUndefined();
+            // The version toggle shared by the three tiles (#545): nothing asked = the main version.
+            expect(data.version).toBe("tbc");
+            expect(data.mainVersion).toBe("tbc");
+            expect(data.versions).toEqual([{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 0 }]);
+        });
+
+        it("passes the game version filter through to the three tiles (#545)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat2: "forever" } });
+            dashboardData.loadNextRaids.mockResolvedValue({ raids: [], error: null });
+            dashboardData.loadRecentEvents.mockResolvedValue({ events: [], error: null });
+            dashboardData.dashboardVersions.mockReturnValue({
+                mainVersion: "tbc",
+                versions: [
+                    { id: "tbc", label: "TBC Anniversary", short: "TBC", count: 3 },
+                    { id: "forever", label: "WoW Forever", short: "Forever", count: 1 },
+                ],
+            });
+
+            const res = await get("/api/dashboard", { version: "forever" });
+
+            expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2, { versionId: "forever" });
+            expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5, { versionId: "forever" });
+            expect(dashboardData.loadTopLoot).toHaveBeenCalledWith(5, "forever");
+            const data = json(res).data;
+            expect(data.version).toBe("forever");
+            // Every version dashboardVersions() found, plus the main one.
+            expect(data.versions.map((v) => v.id).sort()).toEqual(["forever", "tbc"]);
+
+            const all = await get("/api/dashboard", { version: "all" });
+            expect(dashboardData.loadNextRaids).toHaveBeenLastCalledWith("guild-1", 2, { versionId: "" });
+            expect(json(all).data.version).toBe("");
         });
 
         it("shows no tasks and no next raid when nothing is due", async () => {
@@ -352,8 +383,7 @@ describe("web/apiRoutes/dashboard", () => {
             dashboardData.loadRecentEvents.mockResolvedValue({ events: [], error: null });
             dashboardData.loadLatestReport.mockReturnValue(null);
             dashboardData.loadInbox.mockReturnValue([]);
-            const res = mockRes();
-            await handle("/api/dashboard", { method: "GET" }, res);
+            const res = await get("/api/dashboard");
             const data = json(res).data;
             expect(data.nextRaid).toBeNull();
             expect(data.nextRaidError).toBe("Raid-Helper down");

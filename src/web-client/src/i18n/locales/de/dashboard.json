@@ -3,7 +3,8 @@
         "title": "Übersicht",
         "loading": "Übersicht wird geladen",
         "loadError": "Fehler beim Laden der Übersicht: {message}",
-        "newRaid": "Raid-Event anlegen"
+        "newRaid": "Raid-Event anlegen",
+        "versionAria": "Spielversion"
     },
     "sheet": {
         "doneTip": "Raidsheet fertig",

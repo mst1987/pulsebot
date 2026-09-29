@@ -10,7 +10,8 @@ const { decorateTemplate } = require("../../services/events/raidTemplates");
 const eventStore = require("../../stores/eventStore");
 const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const { publicVersions } = require("../../config/gameVersions");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor, resolveVersionQuery } = require("../../services/events/mainVersion");
+const { versionChoices } = require("../../services/characters/characterVersions");
 const { DEFAULT_SCHEMA } = require("../../utils/channelNames");
 const { deriveChannelName } = require("../../services/discord/channelNaming");
 const { signupSourceFor } = require("../../services/events/eventSources");
@@ -19,29 +20,46 @@ const discord = require("../../services/discord/discord");
 const linkCheck = require("../../services/discord/linkCheck");
 
 /**
- * GET /api/raids — the active guild's upcoming events of both sources
- * (Raid-Helper and EventHelper) as flat rows, each with its raid content(s),
- * raid size and soft-reserve link (raidListing.js).
+ * GET /api/raids[?version=<id>|all] — the active guild's upcoming events of
+ * both sources (Raid-Helper and EventHelper) as flat rows, each with its raid
+ * content(s), raid size and soft-reserve link (raidListing.js). Filtered by
+ * game version (#545): the main version unless the page asks for another or
+ * "all" — see mainVersion.resolveVersionQuery.
  */
-const getRaids = withUser({}, async ({ req, res }) => {
+const getRaids = withUser({}, async ({ req, res, url }) => {
     const guildId = activeGuildFor(req);
     const { groups, error: err } = await loadEventGroups(guildId);
     // The server's name goes into the page's kicker ("Raid-Helper · Pulse").
     const guild = guildId ? (discord.listGuilds() || []).find((g) => g.id === guildId) : null;
     // channelState per row (#537): the list links the Discord post only while the channel exists.
-    ok(res, { events: linkCheck.withChannelState(guildId, upcomingRows(groups)), error: err, activeGuildId: guildId, guildName: (guild && guild.name) || "" });
+    const rows = linkCheck.withChannelState(guildId, upcomingRows(groups));
+    const config = getConfig();
+    const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    const events = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
+    ok(res, {
+        events, error: err, activeGuildId: guildId, guildName: (guild && guild.name) || "",
+        version: versionId, mainVersion, versions: versionChoices(rows.map((r) => ({ versionIds: [r.versionId] })), mainVersion),
+    });
 });
 
 /**
- * GET /api/raids/past — the raids that already took place, newest first, with
- * their logs, open log decisions and loot count. Its own request because it
- * rescans the event snapshot and assigns fresh logs first, which the coming
- * raids have no need to wait for.
+ * GET /api/raids/past[?version=<id>|all] — the raids that already took place,
+ * newest first, with their logs, open log decisions and loot count. Its own
+ * request because it rescans the event snapshot and assigns fresh logs first,
+ * which the coming raids have no need to wait for. Filtered by game version
+ * (#545) like GET /api/raids.
  */
-const getPastRaids = withUser({}, async ({ req, res }) => {
+const getPastRaids = withUser({}, async ({ req, res, url }) => {
     const guildId = activeGuildFor(req);
-    const { events, error: err } = await loadPastRaids(guildId);
-    ok(res, { events: linkCheck.withChannelState(guildId, events), error: err, activeGuildId: guildId });
+    const { events: all, error: err } = await loadPastRaids(guildId);
+    const rows = linkCheck.withChannelState(guildId, all);
+    const config = getConfig();
+    const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    const events = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
+    ok(res, {
+        events, error: err, activeGuildId: guildId,
+        version: versionId, mainVersion, versions: versionChoices(rows.map((r) => ({ versionIds: [r.versionId] })), mainVersion),
+    });
 });
 
 /** A Discord list that may throw while the bot is offline — [] then. */
