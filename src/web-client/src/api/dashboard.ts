@@ -1,5 +1,6 @@
 import { get } from "./client";
 import type { ChannelState } from "../lib/discordLinks";
+import type { VersionChoice } from "./raidTemplates";
 
 export type EventLog = {
     title?: string;
@@ -19,7 +20,10 @@ export type RecentEvent = {
     channelName: string;
     /** Whether the channel still exists (#537). */
     channelState?: ChannelState;
+    categoryId?: string;
     categoryName: string;
+    /** The game version this raid plays (#545): its own, else its category's. */
+    versionId?: string;
     logs: EventLog[];
     // Logs that fit this raid time-wise but stayed unassigned (the automatic
     // match was ambiguous) — an open decision, never one of the raid's logs.
@@ -158,10 +162,16 @@ export type DashboardData = {
     // configured" from "configured, but nothing dropped yet".
     topLoot: { items: TopLootAward[]; configured: number };
     activeGuildId: string;
+    // The version filter shared by the three raid/loot tiles (#545): what is
+    // shown ("" = every version, "all" asked for), the default, and the choices.
+    version: string;
+    mainVersion: string;
+    versions: VersionChoice[];
 };
 
-export function getDashboard(): Promise<DashboardData> {
-    return get<DashboardData>("/api/dashboard");
+/** `version`: a version id, "all" for every version, "" (default) = the main version. */
+export function getDashboard(version = ""): Promise<DashboardData> {
+    return get<DashboardData>(`/api/dashboard${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 export type NextRaidNotSigned = {

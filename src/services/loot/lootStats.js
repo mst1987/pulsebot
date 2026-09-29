@@ -11,6 +11,7 @@ const { wowheadLink } = require("../../config/wowheadItemAliases");
 const { annotatedCharacters } = require("../characters/characterInfo");
 const { reasonCatalog, reasonMeta } = require("../../utils/loot/lootReasons");
 const { CONTENTS, TIERS, content: contentMeta } = require("../../config/tbcContent");
+const { eventVersion } = require("../characters/characterVersions");
 
 // The one response wording shared by every item of a bucket, or "" when they
 // differ (or none carries one).
@@ -96,7 +97,7 @@ function reasonsByCharacter() {
 
 // One award of one item, as the item table's raider badge needs it: who got it,
 // when, in which raid and for what reason.
-function award(it, known) {
+function award(it, known, versionCtx) {
     return {
         // The stored row's id: the item-details dialog deletes a single award
         // through it (POST /api/history/loot-delete).
@@ -114,6 +115,9 @@ function award(it, known) {
         categoryId: it.categoryId || "",
         awardedAt: it.awardedAt || 0,
         source: it.source || "",
+        // The game version this award's raid plays (#545): an own event's own,
+        // else TBC ("ohne Event = tbc") — the "Items" tab filters awards by it.
+        versionId: eventVersion(versionCtx, it.eventId),
     };
 }
 
@@ -134,6 +138,7 @@ function award(it, known) {
  */
 function itemCatalog() {
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
+    const versionCtx = { eventCache: new Map() };
     const byItem = new Map();
     for (const it of listAll()) {
         const id = Number(it.itemId) || 0;
@@ -167,7 +172,7 @@ function itemCatalog() {
         if (it.categoryId) entry.categoryIds.add(it.categoryId);
         entry.count += 1;
         entry.lastAwardedAt = Math.max(entry.lastAwardedAt, it.awardedAt || 0);
-        entry.awards.push(award(it, info.get(it.characterKey) || {}));
+        entry.awards.push(award(it, info.get(it.characterKey) || {}, versionCtx));
     }
     return [...byItem.values()]
         .map((e) => ({

@@ -57,6 +57,8 @@ export type LootAward = {
     categoryId: string;
     awardedAt: number;
     source: LootSource;
+    /** The game version this award's raid plays (#545): an own event's own, else TBC. */
+    versionId: string;
 };
 
 export type LootCatalogItem = {

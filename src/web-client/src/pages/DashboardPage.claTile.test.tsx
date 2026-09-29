@@ -30,6 +30,9 @@ function dashboard(lastReport: DashboardLastReport | null): DashboardData {
         recentEvents: { events: [], error: null },
         topLoot: { items: [], configured: 0 },
         activeGuildId: "g1",
+        version: "tbc",
+        mainVersion: "tbc",
+        versions: [],
     };
 }
 

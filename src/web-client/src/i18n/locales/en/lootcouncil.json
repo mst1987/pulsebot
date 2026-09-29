@@ -334,6 +334,7 @@
         "role": "Role",
         "category": "Raid category",
         "allCategories": "All raid categories",
+        "version": "Game version",
         "derivedTip": "Derived from the newest loot: {tier}",
         "derivedTipSub": "Measured against the list of the tier the guild's newest loot comes from.",
         "bisList": "BiS list",

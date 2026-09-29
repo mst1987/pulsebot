@@ -17,7 +17,7 @@ import { RosterKpis } from "./RosterHero";
 import { ROLE_ORDER, classIconName } from "../../lib/rosterView";
 import { classLabel, roleLabel } from "../../lib/wowNames";
 import { tParts, useT } from "../../i18n";
-import { IconTile, Segment, WowIcon } from "../../components/ui";
+import { IconTile, Segment, VersionFilter, WowIcon } from "../../components/ui";
 import { SearchIcon } from "../../components/icons";
 import type { ShellContext } from "../../components/Shell";
 import { useToast } from "../../components/Jobs";
@@ -222,14 +222,12 @@ export default function RosterPage() {
             <div className="dash-card ros-panel">
                 {(data.versions || []).length > 1 && (
                     <div className="ros-tabs ros-versions">
-                        <Segment<string>
+                        <VersionFilter
+                            versions={data.versions || []}
                             ariaLabel={t("roster.page.versionAria")}
                             value={version || data.version || "all"}
                             onChange={setVersion}
-                            options={[
-                                ...(data.versions || []).map((v) => ({ value: v.id, label: `${v.short} · ${v.count}`, tip: v.label })),
-                                { value: "all", label: t("common.all"), tip: t("roster.page.versionAllTip") },
-                            ]}
+                            allTip={t("roster.page.versionAllTip")}
                         />
                     </div>
                 )}

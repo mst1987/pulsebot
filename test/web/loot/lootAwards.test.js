@@ -12,10 +12,17 @@ jest.mock("../../../src/stores/lootStore", () => {
 });
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/stores/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
+// Own events, for the version filter (#545) — an id starting "eh-" is an own
+// event, everything else (Raid-Helper, manual) counts as TBC.
+jest.mock("../../../src/stores/eventStore", () => ({
+    isOwnEventId: (id) => String(id || "").startsWith("eh-"),
+    getEvent: jest.fn(() => null),
+}));
 
 const lootStore = require("../../../src/stores/lootStore");
 const settingsStore = require("../../../src/stores/settingsStore");
 const charStore = require("../../../src/stores/characterStore");
+const eventStore = require("../../../src/stores/eventStore");
 const { listAwards, PAGE_SIZE, UNKNOWN_CONTENT } = require("../../../src/web/loot/lootAwards");
 
 // A decorated loot row as lootStore.listAll() hands it out, newest first.
@@ -98,6 +105,17 @@ describe("web/loot/lootAwards listAwards", () => {
 
         it("filters by award reason", () => {
             expect(listAwards({ reason: "offspec" }).items.map((it) => it.character)).toEqual(["Shalya"]);
+        });
+
+        it("filters by game version (#545): an own event's own, else TBC", () => {
+            eventStore.getEvent.mockImplementation((id) => (id === "eh-9" ? { versionId: "forever" } : null));
+            lootStore.listAll.mockReturnValue([
+                lootRow({ character: "Aldric", eventId: "eh-9" }),
+                lootRow({ character: "Kilrogg", eventId: "e1" }),
+            ]);
+            expect(listAwards({ topOnly: false, versionId: "forever" }).items.map((it) => it.character)).toEqual(["Aldric"]);
+            expect(listAwards({ topOnly: false, versionId: "tbc" }).items.map((it) => it.character)).toEqual(["Kilrogg"]);
+            expect(listAwards({ topOnly: false }).items.map((it) => it.character).sort()).toEqual(["Aldric", "Kilrogg"]);
         });
 
         // Loot whose raid the content table doesn't know stays findable instead

@@ -11,6 +11,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const { classLook } = require("./lootClassLook");
 const { CONTENTS } = require("../../config/tbcContent");
 const { reasonCatalog } = require("../../utils/loot/lootReasons");
+const { eventVersion } = require("../../services/characters/characterVersions");
 
 // How many awards one page of the Historie tab holds.
 const PAGE_SIZE = 25;
@@ -65,10 +66,13 @@ function matchesContent(it, contentId) {
  * and reasons that actually occur in the current scope — offering a raid the
  * guild has never set foot in is noise (same rule as lootStats()).
  *
- * @param {object} [opts] { topOnly, search, categoryId, contentId, reason, page, pageSize }
+ * @param {object} [opts] { topOnly, search, categoryId, contentId, reason, page, pageSize, versionId }
+ *   versionId  restrict to awards of one game version (#545, "" = every one)
+ *              — derived from the item's event like the roster does (#543):
+ *              an own event's version, else TBC.
  */
 function listAwards({
-    topOnly = true, search = "", categoryId = "", contentId = "", reason = "",
+    topOnly = true, search = "", categoryId = "", contentId = "", reason = "", versionId = "",
     page = 1, pageSize = PAGE_SIZE,
 } = {}) {
     const ids = topItemIds();
@@ -76,12 +80,15 @@ function listAwards({
         ? listAllLoot().filter((it) => ids.has(Number(it.itemId)))
         : listAllLoot();
 
+    // Built only when actually filtering — every other call pays nothing for this.
+    const versionCtx = versionId ? { eventCache: new Map() } : null;
     const needle = String(search || "").trim().toLowerCase();
     const filtered = scoped.filter((it) => (
         matchesSearch(it, needle)
         && (!categoryId || it.categoryId === categoryId)
         && matchesContent(it, contentId)
         && (!reason || it.reason === reason)
+        && (!versionId || eventVersion(versionCtx, it.eventId) === versionId)
     ));
 
     const size = Math.max(1, Number(pageSize) || PAGE_SIZE);

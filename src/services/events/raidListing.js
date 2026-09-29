@@ -14,6 +14,7 @@ const { getEventSoftres } = require("../../stores/eventSoftresStore");
 const { listLogs } = require("../../stores/logStore");
 const { logPostedAt } = require("../logcheck/reportList");
 const { buildRecentEvents, pendingLogsForEvent } = require("./recentEvents");
+const { versionOfEvent } = require("./mainVersion");
 
 // The size a night is measured against when no content was recognised.
 const DEFAULT_RAID_SIZE = 25;
@@ -126,6 +127,9 @@ function upcomingRows(groups) {
             raidSize: size.size,
             raidSizeKnown: size.known,
             softres: softresOf(ev.id),
+            // The game version this raid plays (#545): its own (own events), else
+            // what the category plays — a Raid-Helper event carries none.
+            versionId: versionOfEvent({ versionId: ev.versionId, categoryId: g.categoryId }),
         };
     }));
 }
@@ -180,6 +184,7 @@ async function loadPastRaids(guildId, opts = {}) {
             pendingLogCount: ev.pendingLogs.length,
             lootCount: loot.length,
             softres: softresOf(ev.id),
+            versionId: versionOfEvent({ versionId: ev.versionId, categoryId: ev.categoryId }),
         };
     });
     return { events, error: stored.length ? null : scanError };

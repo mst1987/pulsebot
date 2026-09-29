@@ -34,7 +34,7 @@ const { specFor, ROLES } = require("../../config/casterSpecs");
 const engine = require("../../utils/wowsims/engine");
 const discord = require("../../services/discord/discord");
 const { getConfig } = require("../../stores/settingsStore");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor, resolveVersionQuery } = require("../../services/events/mainVersion");
 const { settingsForVersion } = require("../../services/events/versionSettings");
 
 /** Comma-separated query params ("t5,t6") as a clean array. */
@@ -70,7 +70,13 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     // version - its armory links, its realm for the gear, its Wowhead path.
     const config = getConfig();
     const versionId = mainVersionFor({ categoryId, config });
-    const opts = { role, tierIds, contentIds, categoryId, bisTier, versionId };
+    // The character filter (#545): which raiders are shown at all — separate
+    // from `versionId` above (only the links follow the category). Nothing
+    // asked = the main version, "all" = every one.
+    const { versionId: charVersion, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    const opts = {
+        role, tierIds, contentIds, categoryId, bisTier, versionId, config, mainVersion, charVersion,
+    };
     let built = councilRoster(opts);
     // A set that still holds a boss-specific piece is the one case the logs
     // cannot answer — only the armory knows what is on that raider *now*. Asked
@@ -86,7 +92,7 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
         }
     }
     const {
-        rows, avgLootCount, bisTier: usedBisTier, skipped, categorySources,
+        rows, avgLootCount, bisTier: usedBisTier, skipped, categorySources, versions,
     } = built;
     const contentFilter = resolveContentFilter({ tierIds, contentIds });
 
@@ -139,6 +145,11 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
         versionId,
         // Where the page's item links go ("" = no Wowhead links for this version).
         wowheadPath: settingsForVersion(versionId, { config }).wowheadPath,
+        // The character version filter (#545): what is shown ("" = all), the
+        // default, and the choices — independent of `versionId` above.
+        version: charVersion,
+        mainVersion,
+        versions,
     });
 });
 

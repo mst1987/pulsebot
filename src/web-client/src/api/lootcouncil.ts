@@ -1,6 +1,7 @@
 import { get, send } from "./client";
 import type { ApiError } from "./client";
 import type { ItemSearchResult } from "./settings";
+import type { VersionChoice } from "./raidTemplates";
 import { t } from "../i18n";
 
 // ── Loot-Council ─────────────────────────────────────────────────────────────
@@ -389,6 +390,14 @@ export type LootCouncilData = {
     versionId?: string;
     /** That version's Wowhead path for the item links; "" = no Wowhead links. */
     wowheadPath?: string;
+    /**
+     * The character version filter (#545): which raiders are shown at all —
+     * independent of `versionId` above (only the links follow the category).
+     * `version` "" = every version; `versions` is the filter's own choices.
+     */
+    version?: string;
+    mainVersion?: string;
+    versions?: VersionChoice[];
 };
 
 export type CouncilFilter = {
@@ -398,6 +407,8 @@ export type CouncilFilter = {
     category?: string;
     bisTier?: string;
     item?: number;
+    /** A version id, or "all" for every version; unset = the main version (#545). */
+    version?: string;
 };
 
 export function getLootCouncil(filter: CouncilFilter = {}): Promise<LootCouncilData> {
@@ -408,6 +419,7 @@ export function getLootCouncil(filter: CouncilFilter = {}): Promise<LootCouncilD
     if (filter.category) params.set("category", filter.category);
     if (filter.bisTier) params.set("bisTier", filter.bisTier);
     if (filter.item) params.set("item", String(filter.item));
+    if (filter.version) params.set("version", filter.version);
     const qs = params.toString();
     return get<LootCouncilData>(`/api/lootcouncil${qs ? `?${qs}` : ""}`);
 }

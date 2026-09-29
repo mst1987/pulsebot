@@ -22,6 +22,8 @@ const { countsAsLoot } = require("../../utils/loot/lootReasons");
 const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
 const { excludedKeys, plannedRoles } = require("../../stores/councilStore");
 const { versionLinks } = require("../../services/events/versionSettings");
+const { buildVersionContext, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
+const { mainVersionFor } = require("../../services/events/mainVersion");
 const { characterKey, characterKeyOf } = require("../../utils/loot/lootImport");
 const { listStoredEvents } = require("../../services/events/eventSources");
 const { listLogs } = require("../../stores/logStore");
@@ -699,9 +701,14 @@ function scoreRows(rows) {
  *   categoryId  restrict to one raid category (the Monday raid, say)
  *   bisTier     which tier's BiS list to measure against
  *               (default: the tier the guild's newest loot comes from)
+ *   charVersion restrict to raiders of one game version (#545, "" = every
+ *               version) — a character's version like the roster derives it
+ *               (services/characters/characterVersions.js): its own when
+ *               known, else the version of an own event it won loot in, else
+ *               its category's, else TBC.
  */
 function councilRoster(opts = {}) {
-    const { role = "", categoryId = "" } = opts;
+    const { role = "", categoryId = "", charVersion = "" } = opts;
     const contentFilter = resolveContentFilter(opts);
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
     const { roleByKey, planned } = judgedRoles();
@@ -731,12 +738,28 @@ function councilRoster(opts = {}) {
 
     // One read of the version's links for every row (#542): the category's version, else the main one.
     const links = versionLinks(opts.versionId);
+    // Every candidate's game version (#545), read once — cheap (no network),
+    // so it is always known: the version filter's own choices come from it
+    // (every version a candidate of this category has, plus the main one),
+    // and the same values decide who the charVersion filter keeps.
+    const versionCtx = buildVersionContext({ config: opts.config });
+    const mainVersion = opts.mainVersion || mainVersionFor({ config: opts.config });
     const ctx = { info, charStore, gearMap, loot, planned, role, bisTier, now, links };
     const rows = [];
-    const skipped = { category: 0, excluded: 0 };
+    const seenVersions = [];
+    const skipped = { category: 0, excluded: 0, version: 0 };
     for (const key of keys) {
         if (members && !members.keys.has(key)) { skipped.category += 1; continue; }
         if (excluded.has(key)) { skipped.excluded += 1; continue; }
+        const known = info.get(key) || {};
+        const bucket = loot.get(key);
+        const versionIds = versionsOfCharacter(versionCtx, {
+            name: known.character || (bucket && bucket.character) || key,
+            items: (bucket && bucket.all) || [],
+            categoryIds: known.categoryIds || [],
+        });
+        seenVersions.push({ versionIds });
+        if (charVersion && !versionIds.includes(charVersion)) { skipped.version += 1; continue; }
         const row = rosterRow(key, ctx);
         if (row) rows.push(row);
     }
@@ -751,6 +774,9 @@ function councilRoster(opts = {}) {
         rows,
         avgLootCount: Math.round(avg * 10) / 10,
         bisTier,
+        // The version filter's own choices (#545): every version a candidate
+        // of this category has, plus the main version even with none.
+        versions: versionChoices(seenVersions, mainVersion),
         skipped,
         // How the category filter knew who belongs: from the maintained
         // assignment, or only from who won loot there (which cannot see a

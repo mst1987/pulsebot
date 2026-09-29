@@ -74,17 +74,20 @@ describe("the Raid-Vorlagen list", () => {
         expect(within(old).getByText("Tanks").nextSibling).toHaveTextContent("–");
     });
 
-    it("filters by game version with a segment that is remembered", async () => {
+    it("defaults to the main version and filters by game version, remembered (#545)", async () => {
         const user = userEvent.setup();
         const view = await show();
-        expect(rowNames()).toEqual(["Kara Donnerstag", "Ony", "Altes Raid-Helper-Event"]);
-        const filter = screen.getAllByRole("radiogroup", { name: "Spielversion" })[0];
-        await user.click(within(filter).getByRole("radio", { name: tbc.short }));
+        // The main version (tbc) is the default filter: Ony (classic) starts hidden.
         expect(rowNames()).toEqual(["Kara Donnerstag", "Altes Raid-Helper-Event"]);
+        const filter = screen.getAllByRole("radiogroup", { name: "Spielversion" })[0];
+        // "Forever" has no template and is not the main version: not offered.
+        expect(within(filter).queryByRole("radio", { name: /forever/i })).not.toBeInTheDocument();
+        await user.click(within(filter).getByRole("radio", { name: t("common.all") }));
+        expect(rowNames()).toEqual(["Kara Donnerstag", "Ony", "Altes Raid-Helper-Event"]);
 
         view.unmount();
         await show();
-        expect(rowNames()).toEqual(["Kara Donnerstag", "Altes Raid-Helper-Event"]);
+        expect(rowNames()).toEqual(["Kara Donnerstag", "Ony", "Altes Raid-Helper-Event"]);
     });
 });
 

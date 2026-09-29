@@ -61,6 +61,7 @@
         "loading": "Loading history",
         "statsLoading": "Loading overview",
         "areaAria": "Area",
+        "versionAria": "Game version",
         "area": {
             "loot": "Loot",
             "raids": "Raids & logs",

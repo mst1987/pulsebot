@@ -34,6 +34,8 @@ const {
 const { getEvent, listEvents } = require("../../stores/eventStore");
 const linkCheck = require("../../services/discord/linkCheck");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
+const { versionOfEvent, mainVersionFor } = require("../../services/events/mainVersion");
+const { versionChoices } = require("../../services/characters/characterVersions");
 
 const RH_ERROR = "Events konnten nicht geladen werden (Raid-Helper API).";
 
@@ -68,8 +70,9 @@ function sheetFor(eventId, categoryId) {
  * line): who fills which role against the size the raid is planned for, and
  * whether sheet, setup and softres list are ready. One getSetup call per raid,
  * best-effort — a raid without a raidplan simply counts its signups.
+ * @param {{ versionId?: string }} [opts] filters by game version (#545, "" = every one)
  */
-async function loadNextRaids(guildId, count = 2) {
+async function loadNextRaids(guildId, count = 2, { versionId = "" } = {}) {
     if (!guildId) return { raids: [], error: null };
     const rh = createRaidhelperClient();
     let rhEvents = [];
@@ -86,10 +89,15 @@ async function loadNextRaids(guildId, count = 2) {
         return { raids: [], error: (e && e.message) || RH_ERROR };
     }
     // Both sources, soonest first. A Raid-Helper outage leaves the own events standing.
+    // The version filter (#545) narrows before the slice, so "the next 2 Forever
+    // raids" is really the next two, not two of a shorter list filtered after.
     const next = [
         ...rhEvents.filter((ev) => catMap[ev.channelId]).map((ev) => ({ source: "raidhelper", ...ev })),
         ...ownUpcomingRaw(guildId),
-    ].sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0)).slice(0, count);
+    ]
+        .map((ev) => ({ ...ev, categoryId: (catMap[ev.channelId] || {}).categoryId || ev.categoryId || "" }))
+        .filter((ev) => !versionId || versionOfEvent(ev) === versionId)
+        .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0)).slice(0, count);
     const raids = [];
     for (const ev of next) {
         const own = ev.source === "eventhelper";
@@ -262,7 +270,8 @@ function loadNewLoot(sinceStartTime) {
 // background sweep (every dashboard view is effectively an on-demand rescan);
 // if that scan fails but the store already has events for this guild, they are
 // shown regardless — only a guild with nothing stored yet surfaces the error.
-async function loadRecentEvents(guildId, limit = 5) {
+/** @param {{ versionId?: string }} [opts] filters by game version (#545, "" = every one) */
+async function loadRecentEvents(guildId, limit = 5, { versionId = "" } = {}) {
     if (!guildId) return { events: [], error: null };
     const { error: scanError } = await scanRaidEvents(guildId);
     // Assign freshly detected logs to their raid before reading them back, so a
@@ -274,7 +283,10 @@ async function loadRecentEvents(guildId, limit = 5) {
     const logs = listLogs()
         .filter((l) => !l.guildId || l.guildId === guildId)
         .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
-    const recent = buildRecentEvents(stored, { logs, limit, windowDays: Infinity });
+    // Filtered before buildRecentEvents cuts to `limit` (#545), so "the last 5
+    // Forever raids" really is the last five, not five of a shorter list.
+    const scoped = versionId ? stored.filter((ev) => versionOfEvent(ev) === versionId) : stored;
+    const recent = buildRecentEvents(scoped, { logs, limit, windowDays: Infinity });
     return {
         events: recent.map((ev) => ({
             id: ev.id,
@@ -283,11 +295,14 @@ async function loadRecentEvents(guildId, limit = 5) {
             startTime: ev.startTime,
             channelId: ev.channelId,
             channelName: ev.channelName || "",
+            categoryId: ev.categoryId || "",
             categoryName: ev.categoryName || "",
             logs: ev.logs,
             pendingLogCount: ev.pendingLogs.length,
             lootCount: listLootByEvent(ev.id).length,
             softres: getEventSoftres(ev.id),
+            // The game version this raid plays (#545): its own, else its category's.
+            versionId: versionOfEvent(ev),
         })),
         error: stored.length ? null : scanError,
     };
@@ -308,20 +323,38 @@ function annotateUpcomingExtras(events, guildId) {
         pendingLogCount: pendingLogsForEvent(ev, logs).length,
         lootCount: listLootByEvent(ev.id).length,
         softres: getEventSoftres(ev.id),
+        // The game version this raid plays (#545): its own, else its category's.
+        versionId: versionOfEvent(ev),
     }));
 }
 
 /**
  * The most recently awarded *top items* for the dashboard card — the first page
  * of exactly the list the Historie tab shows in full (see lootAwards.js), just
- * `limit` rows long and unfiltered.
+ * `limit` rows long.
  *
  * `configured` is how many top items are defined at all, so the card can tell
  * "nothing configured yet" from "configured, but none dropped yet".
+ * @param {string} [versionId] filters by game version (#545, "" = every one)
  */
-function loadTopLoot(limit = 5) {
-    const { items, topItemCount } = listAwards({ topOnly: true, page: 1, pageSize: limit });
+function loadTopLoot(limit = 5, versionId = "") {
+    const { items, topItemCount } = listAwards({ topOnly: true, page: 1, pageSize: limit, versionId });
     return { items, configured: topItemCount };
+}
+
+/**
+ * The dashboard's version toggle choices (#545): every version among the
+ * guild's stored events (own events and the last scan of Raid-Helper's — no
+ * live Raid-Helper call, so this stays cheap next to `loadNextRaids`'s own
+ * one), plus the main version even with none.
+ * @param {string} guildId
+ * @param {{ config?: object }} [opts]
+ */
+function dashboardVersions(guildId, { config } = {}) {
+    const mainVersion = mainVersionFor({ config });
+    const rows = (guildId ? listStoredEvents(guildId) : [])
+        .map((ev) => ({ versionIds: [versionOfEvent(ev)] }));
+    return { mainVersion, versions: versionChoices(rows, mainVersion) };
 }
 
 /**
@@ -348,5 +381,5 @@ async function loadMissingChannels(guildId, now = Date.now()) {
 
 module.exports = {
     loadNextRaids, loadNextRaidDetails, loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive, loadMissingChannels,
-    loadRecentEvents, annotateUpcomingExtras, loadTopLoot,
+    loadRecentEvents, annotateUpcomingExtras, loadTopLoot, dashboardVersions,
 };

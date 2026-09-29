@@ -11,6 +11,7 @@ import RaidCreateDialog from "../components/raid-create/RaidCreateDialog";
 import IconTile from "../components/ui/IconTile";
 import Badge from "../components/ui/Badge";
 import WowIcon from "../components/ui/WowIcon";
+import VersionFilter from "../components/ui/VersionFilter";
 import { buttonClass } from "../components/ui/Button";
 import "../styles/raid-events.css";
 import RaidLoader from "../components/ui/RaidLoader";
@@ -25,8 +26,9 @@ type View = typeof VIEWS[number];
 
 // /raids and /raids/new are two routes, so opening the dialog remounts the page.
 // The last answer is kept here and shown at once while the fresh one loads,
-// instead of blanking the list behind the dialog.
-const lastLoaded: { upcoming: RaidsData | null; past: PastRaidsData | null } = { upcoming: null, past: null };
+// instead of blanking the list behind the dialog. Keyed by the version filter
+// (#545): switching versions must not flash the other version's cached rows.
+const lastLoaded: { upcoming: Record<string, RaidsData>; past: Record<string, PastRaidsData> } = { upcoming: {}, past: {} };
 
 /** The pill id of events outside any category — "" is taken by "Alle". */
 const NO_CATEGORY = "__none__";
@@ -78,9 +80,20 @@ export default function RaidsPage() {
     // Remembered by category id, not by position: categories come and go with
     // the scheduled events, so a position would point at another raid next week.
     const [categoryId, setCategoryId] = usePersistedState("raids-category", "");
+    // The game version filter (#545): "" = the server's default (the main
+    // version), "all" = every one — same convention as the roster (#543).
+    const [version, setVersion] = usePersistedState("raids-version", "");
 
-    const upcomingData = useApi(() => getRaids().then((d) => { lastLoaded.upcoming = d; return d; }), [], { initial: lastLoaded.upcoming });
-    const pastData = useApi(() => getPastRaids().then((d) => { lastLoaded.past = d; return d; }), [], { initial: lastLoaded.past });
+    const upcomingData = useApi(
+        () => getRaids(version).then((d) => { lastLoaded.upcoming[version] = d; return d; }),
+        [version],
+        { initial: lastLoaded.upcoming[version] || null },
+    );
+    const pastData = useApi(
+        () => getPastRaids(version).then((d) => { lastLoaded.past[version] = d; return d; }),
+        [version],
+        { initial: lastLoaded.past[version] || null },
+    );
     const { data: upcoming, error } = upcomingData;
     const { data: past, error: pastError } = pastData;
     const load = () => { upcomingData.reload(); pastData.reload(); };
@@ -156,6 +169,14 @@ export default function RaidsPage() {
                     onChange={(v) => setView(v)}
                     counts={{ upcoming: upcoming.events.length, past: past ? past.events.length : null }}
                 />
+                {!!(view === "past" ? past : upcoming)?.versions.length && (
+                    <VersionFilter
+                        versions={(view === "past" ? past : upcoming)?.versions || []}
+                        ariaLabel={t("raids.page.versionAria")}
+                        value={version || (view === "past" ? past : upcoming)?.version || "all"}
+                        onChange={setVersion}
+                    />
+                )}
                 {pills.length > 0 && (
                     <div className="re-pills" role="radiogroup" aria-label={t("raids.page.categoryAria")}>
                         <button type="button" role="radio" aria-checked={activeCategory === null} className={`re-pill noimg${activeCategory === null ? " on" : ""}`} onClick={() => setCategoryId("")}>

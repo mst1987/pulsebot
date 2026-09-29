@@ -16,12 +16,14 @@ export type FilterView = {
     contents: string[];
     category: string;
     bisTier: string;
+    /** The game version filter (#545): "" = the main version, "all" = every one. */
+    version?: string;
 };
 
 /** The key the council's view is stored under — the drop check reads the same filters. */
 export const VIEW_KEY = "lootcouncil.view";
 
-export const FILTER_DEFAULT: FilterView = { role: "caster", tiers: [], contents: [], category: "", bisTier: "" };
+export const FILTER_DEFAULT: FilterView = { role: "caster", tiers: [], contents: [], category: "", bisTier: "", version: "" };
 
 // Wie die Rollen am Raider heißen, und ihr Icon im Segment. Der Name wird beim
 // Rendern übersetzt (lootcouncil.role.*); eine unbekannte Rolle zeigt `fallback`.

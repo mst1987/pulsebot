@@ -185,7 +185,7 @@ const raidEventGroups = require("../../../src/services/events/raidEventGroups");
 const raidEventStore = require("../../../src/stores/raidEventStore");
 const raidListing = require("../../../src/services/events/raidListing");
 const eventSoftresStore = require("../../../src/stores/eventSoftresStore");
-const { post, handle } = routerClient(require("../../../src/web/apiRoutes/raids"));
+const { post, handle, get } = routerClient(require("../../../src/web/apiRoutes/raids"));
 const { knownChannels } = require("../../helpers/linkCheck");
 
 // The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
@@ -213,8 +213,7 @@ describe("web/apiRoutes/raids", () => {
             eventSoftresStore.getEventSoftres.mockReturnValueOnce({ url: "https://softres.it/raid/x", editUrl: "secret" });
             discord.listGuilds.mockReturnValueOnce([{ id: "guild-0", name: "Andere" }, { id: "guild-1", name: "Pulse" }]);
 
-            const res = mockRes();
-            await handle("/api/raids", { method: "GET" }, res);
+            const res = await get("/api/raids");
 
             expect(raidEventGroups.loadEventGroups).toHaveBeenCalledWith("guild-1");
             expect(json(res)).toEqual({
@@ -225,10 +224,16 @@ describe("web/apiRoutes/raids", () => {
                         contentIds: ["kara"], contentSources: ["title"], raidSize: 10, raidSizeKnown: true,
                         // only the public link — the edit url is the softres admin key
                         softres: { url: "https://softres.it/raid/x" },
+                        // no category override in the (mocked, empty) config: the main version, "tbc".
+                        versionId: "tbc",
                     }],
                     error: null,
                     activeGuildId: "guild-1",
                     guildName: "Pulse",
+                    // The version filter (#545): nothing asked = the main version, and its choices.
+                    version: "tbc",
+                    mainVersion: "tbc",
+                    versions: [{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 1 }],
                 },
             });
         });
@@ -238,13 +243,38 @@ describe("web/apiRoutes/raids", () => {
             activeGuildFor.mockReturnValue("guild-1");
             raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper nicht erreichbar." });
 
-            const res = mockRes();
-            await handle("/api/raids", { method: "GET" }, res);
+            const res = await get("/api/raids");
 
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             expect(json(res)).toEqual({
-                data: { events: [], error: "Raid-Helper nicht erreichbar.", activeGuildId: "guild-1", guildName: "" },
+                data: {
+                    events: [], error: "Raid-Helper nicht erreichbar.", activeGuildId: "guild-1", guildName: "",
+                    version: "tbc", mainVersion: "tbc", versions: [{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 0 }],
+                },
             });
+        });
+
+        it("filters by game version (#545): default the main version, 'all' for every one", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [
+                    { id: "e1", title: "Kara", startTime: 100, channelId: "c1", channelName: "kara-mo" },
+                    { id: "e2", title: "Barrow Deeps", startTime: 200, channelId: "c2", channelName: "bd-mo", versionId: "forever" },
+                ] }],
+                error: null,
+            });
+
+            const byDefault = await get("/api/raids");
+            expect(json(byDefault).data.events.map((e) => e.id)).toEqual(["e1"]);
+
+            const forever = await get("/api/raids", { version: "forever" });
+            expect(json(forever).data.events.map((e) => e.id)).toEqual(["e2"]);
+            expect(json(forever).data.version).toBe("forever");
+
+            const all = await get("/api/raids", { version: "all" });
+            expect(json(all).data.events.map((e) => e.id).sort()).toEqual(["e1", "e2"]);
+            expect(json(all).data.version).toBe("");
         });
     });
 
@@ -260,13 +290,36 @@ describe("web/apiRoutes/raids", () => {
         it("returns the active guild's past raids", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             activeGuildFor.mockReturnValue("guild-1");
-            raidListing.loadPastRaids.mockResolvedValueOnce({ events: [{ id: "p1", title: "BT" }], error: null });
+            raidListing.loadPastRaids.mockResolvedValueOnce({ events: [{ id: "p1", title: "BT", versionId: "tbc" }], error: null });
 
-            const res = mockRes();
-            await handle("/api/raids/past", { method: "GET" }, res);
+            const res = await get("/api/raids/past");
 
             expect(raidListing.loadPastRaids).toHaveBeenCalledWith("guild-1");
-            expect(json(res)).toEqual({ data: { events: [{ id: "p1", title: "BT" }], error: null, activeGuildId: "guild-1" } });
+            expect(json(res)).toEqual({
+                data: {
+                    events: [{ id: "p1", title: "BT", versionId: "tbc" }],
+                    error: null,
+                    activeGuildId: "guild-1",
+                    version: "tbc",
+                    mainVersion: "tbc",
+                    versions: [{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 1 }],
+                },
+            });
+        });
+
+        it("filters past raids by game version (#545)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            raidListing.loadPastRaids.mockResolvedValueOnce({
+                events: [
+                    { id: "p1", title: "BT", versionId: "tbc" },
+                    { id: "p2", title: "Barrow Deeps", versionId: "forever" },
+                ],
+                error: null,
+            });
+
+            const res = await get("/api/raids/past", { version: "forever" });
+            expect(json(res).data.events.map((e) => e.id)).toEqual(["p2"]);
         });
     });
 

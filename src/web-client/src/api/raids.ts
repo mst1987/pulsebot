@@ -3,7 +3,7 @@ import type { ChannelState } from "../lib/discordLinks";
 import type { EventLog } from "./dashboard";
 import type { Channel, ChannelNameSuggestion } from "./channels";
 import type { EventSource } from "./raidDetail";
-import type { RoleRange, EmbedImage, EmojiStyle, RaidTemplate, GameVersion, OverflowMode } from "./raidTemplates";
+import type { RoleRange, EmbedImage, EmojiStyle, RaidTemplate, GameVersion, VersionChoice, OverflowMode } from "./raidTemplates";
 
 // A row of the Raid-Events list — mirrors src/web/raidListing.js. `contentIds`
 // are the raid(s) the event is (for the boss icon), [] when nothing was
@@ -22,6 +22,8 @@ export type RaidListBase = {
     contentIds: string[];
     contentSources: string[];
     softres: { url: string } | null;
+    /** The game version this raid plays (#545): its own, else its category's. */
+    versionId: string;
 };
 export type UpcomingRaid = RaidListBase & {
     signupCount: number;
@@ -36,15 +38,23 @@ export type PastRaid = RaidListBase & {
     pendingLogCount: number;
     lootCount: number;
 };
-export type RaidsData = { events: UpcomingRaid[]; error: string | null; activeGuildId: string; guildName: string };
-export type PastRaidsData = { events: PastRaid[]; error: string | null; activeGuildId: string };
+export type RaidsData = {
+    events: UpcomingRaid[]; error: string | null; activeGuildId: string; guildName: string;
+    /** The version filter (#545): what is shown ("" = all), the default, and the choices. */
+    version: string; mainVersion: string; versions: VersionChoice[];
+};
+export type PastRaidsData = {
+    events: PastRaid[]; error: string | null; activeGuildId: string;
+    version: string; mainVersion: string; versions: VersionChoice[];
+};
 
-export function getRaids(): Promise<RaidsData> {
-    return get<RaidsData>("/api/raids");
+/** `version`: a version id, "all" for every version, "" (default) = the main version. */
+export function getRaids(version = ""): Promise<RaidsData> {
+    return get<RaidsData>(`/api/raids${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
-export function getPastRaids(): Promise<PastRaidsData> {
-    return get<PastRaidsData>("/api/raids/past");
+export function getPastRaids(version = ""): Promise<PastRaidsData> {
+    return get<PastRaidsData>(`/api/raids/past${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 export type ReusableEvent = {

@@ -34,6 +34,8 @@ jest.mock("../../../src/stores/reportStore", () => ({
     listReports: (...a) => mockListReports(...a),
     getReport: (...a) => mockGetReport(...a),
 }));
+const mockListProfiles = jest.fn(() => []);
+jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: (...a) => mockListProfiles(...a) }));
 
 const {
     councilRoster, resolveContentFilter,
@@ -58,6 +60,7 @@ beforeEach(() => {
     mockLogs.mockReturnValue([]);
     mockListReports.mockReturnValue([]);
     mockGetReport.mockReturnValue(null);
+    mockListProfiles.mockReturnValue([]);
 });
 
 describe("web/loot/lootCouncil", () => {
@@ -94,6 +97,33 @@ describe("web/loot/lootCouncil", () => {
             const { rows } = councilRoster();
             expect(rows.map((r) => r.character)).toEqual(["Devihra"]);
             expect(rows[0].specKey).toBe("Priest-Shadow");
+        });
+
+        it("filters by game version (#545): a character's own profile version, else TBC", () => {
+            mockListAll.mockReturnValue([
+                lootRow(),
+                lootRow({ characterKey: "heala", character: "Heala" }),
+            ]);
+            mockAnnotated.mockReturnValue([
+                { key: "devihra", character: "Devihra", className: "Priest", spec: "Shadow", categoryIds: [] },
+                { key: "heala", character: "Heala", className: "Druid", spec: "Restoration", categoryIds: [] },
+            ]);
+            // Devihra plays WoW Forever *and* has TBC loot (her fixture item
+            // carries no own-event id, so it counts as TBC — "ohne Event = tbc").
+            // Heala has no profile: TBC only.
+            mockListProfiles.mockReturnValue([{ characters: [{ name: "Devihra", versionId: "forever" }] }]);
+
+            expect(councilRoster({ charVersion: "forever" }).rows.map((r) => r.character)).toEqual(["Devihra"]);
+            expect(councilRoster({ charVersion: "tbc" }).rows.map((r) => r.character).sort()).toEqual(["Devihra", "Heala"]);
+            expect(councilRoster({ charVersion: "forever" }).skipped.version).toBe(1);
+
+            const unfiltered = councilRoster({});
+            expect(unfiltered.rows.map((r) => r.character).sort()).toEqual(["Devihra", "Heala"]);
+            // The filter's own choices: every version a candidate has, plus the main one.
+            expect(unfiltered.versions).toEqual(expect.arrayContaining([
+                expect.objectContaining({ id: "tbc", count: 2 }),
+                expect.objectContaining({ id: "forever", count: 1 }),
+            ]));
         });
 
         it("filters by role", () => {

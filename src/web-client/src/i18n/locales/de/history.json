@@ -61,6 +61,7 @@
         "loading": "Historie wird geladen",
         "statsLoading": "Übersicht wird geladen",
         "areaAria": "Bereich",
+        "versionAria": "Spielversion",
         "area": {
             "loot": "Loot",
             "raids": "Raids & Logs",

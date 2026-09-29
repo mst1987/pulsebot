@@ -6,6 +6,7 @@ const discord = require("../../services/discord/discord");
 const {
     loadNextRaids, loadNextRaidDetails, loadRecentEvents, loadTopLoot,
     loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive, loadMissingChannels,
+    dashboardVersions,
 } = require("../dashboard/dashboardData");
 const { userCanAny } = require("../../config/permissions");
 const { buildTasks, zoneFor } = require("../dashboard/dashboardOverview");
@@ -13,7 +14,7 @@ const { loadDrift } = require("../../services/discord/roleSync");
 const { seriesFailures } = require("../events/eventSeries");
 const { deployStatus } = require("../http/deployStatus");
 const linkCheck = require("../../services/discord/linkCheck");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor, resolveVersionQuery } = require("../../services/events/mainVersion");
 const { settingsForVersion } = require("../../services/events/versionSettings");
 
 /** The series failures with their category's name; best-effort, never fails the dashboard. */
@@ -37,15 +38,19 @@ function kickerFor(guildId) {
 }
 
 /**
- * GET /api/dashboard — the start page: the next raid (and the one after), the
- * open tasks, one figure per area, the newest top-item awards and the last
- * raids. See dashboardOverview.js for what decides each part.
+ * GET /api/dashboard[?version=<id>|all] — the start page: the next raid (and
+ * the one after), the open tasks, one figure per area, the newest top-item
+ * awards and the last raids. See dashboardOverview.js for what decides each
+ * part. The three raid/loot tiles share one version filter (#545): the main
+ * version unless the page asks for another or "all".
  */
-const getDashboard = withUser({}, async ({ user, req, res }) => {
+const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
+    const config = getConfig();
+    const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
     const [next, recentEvents] = await Promise.all([
-        loadNextRaids(guildId, 2),
-        loadRecentEvents(guildId, 5),
+        loadNextRaids(guildId, 2, { versionId }),
+        loadRecentEvents(guildId, 5, { versionId }),
     ]);
     const report = loadLatestReport();
     const inbox = loadInbox();
@@ -82,12 +87,16 @@ const getDashboard = withUser({}, async ({ user, req, res }) => {
             recruitment: { posts: listRecruitmentPosts().length },
             roster: loadRosterFigures(guildId),
         },
-        topLoot: loadTopLoot(5),
+        topLoot: loadTopLoot(5, versionId),
         recentEvents: {
             ...recentEvents,
             events: linkCheck.withChannelState(guildId, recentEvents.events).map((ev) => ({ ...ev, icon: zoneFor(ev.title).icon })),
         },
         activeGuildId: guildId,
+        // The version filter shared by the three raid/loot tiles (#545).
+        version: versionId,
+        mainVersion,
+        versions: dashboardVersions(guildId, { config }).versions,
     });
 });
 

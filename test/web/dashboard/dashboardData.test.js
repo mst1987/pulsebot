@@ -57,6 +57,7 @@ const { createRaidhelperClient } = require("../../../src/utils/raidhelper/client
 const discord = require("../../../src/services/discord/discord");
 const {
     loadTopLoot, loadNextRaids, loadNextRaidDetails, loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot,
+    dashboardVersions,
 } = require("../../../src/web/dashboard/dashboardData");
 
 // A loot row as lootStore.listAll() hands it out (already decorated).
@@ -126,6 +127,19 @@ describe("web/dashboard/dashboardData loadTopLoot", () => {
             lootRow({ character: "C", awardedAt: 1000 }),
         ]);
         expect(loadTopLoot(2).items.map((it) => it.character)).toEqual(["A", "B"]);
+    });
+
+    it("filters by game version (#545): an own event's version, else TBC", () => {
+        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+        const eventStore = require("../../../src/stores/eventStore");
+        eventStore.getEvent.mockImplementation((id) => (id === "eh-9" ? { versionId: "forever" } : null));
+        lootStore.listAll.mockReturnValue([
+            lootRow({ character: "Aldric", eventId: "eh-9" }), // WoW Forever
+            lootRow({ character: "Kilrogg", eventId: "e1" }), // no own event = TBC
+        ]);
+        expect(loadTopLoot(5, "forever").items.map((it) => it.character)).toEqual(["Aldric"]);
+        expect(loadTopLoot(5, "tbc").items.map((it) => it.character)).toEqual(["Kilrogg"]);
+        expect(loadTopLoot(5).items.map((it) => it.character).sort()).toEqual(["Aldric", "Kilrogg"]);
     });
 
     it("shows at most five awards by default", () => {
@@ -243,6 +257,28 @@ describe("web/dashboard/dashboardData loadNextRaids", () => {
         }
     });
 
+    it("filters by game version (#545): an own event's own, a Raid-Helper one falls back to TBC", async () => {
+        const eventStore = require("../../../src/stores/eventStore");
+        const future = Math.floor(Date.now() / 1000) + 86400;
+        rh.getAllEvents.mockResolvedValue([{ id: "e1", title: "Black Temple", channelId: "c1", startTime: future + 100, signUps: [] }]);
+        rh.getSetup.mockResolvedValue({ setup: [] });
+        eventStore.listEvents.mockReturnValue([{
+            id: "eh-1", source: "eventhelper", guildId: "g1", categoryId: "cat2", categoryName: "Mo", channelId: "c9", channelName: "kara-eh",
+            title: "Barrow Deeps", leaderId: "", startTime: future, versionId: "forever", instanceIds: [], size: 10,
+            composition: { tank: 2, healer: 3, melee: 0, ranged: 0 },
+        }]);
+        try {
+            const forever = await loadNextRaids("g1", 2, { versionId: "forever" });
+            expect(forever.raids.map((r) => r.id)).toEqual(["eh-1"]);
+            const tbc = await loadNextRaids("g1", 2, { versionId: "tbc" });
+            expect(tbc.raids.map((r) => r.id)).toEqual(["e1"]);
+            const all = await loadNextRaids("g1", 2);
+            expect(all.raids.map((r) => r.id).sort()).toEqual(["e1", "eh-1"]);
+        } finally {
+            eventStore.listEvents.mockReturnValue([]);
+        }
+    });
+
     it("counts an own event's approved setup (never a draft) and takes its icon from its raids (#291)", async () => {
         const eventStore = require("../../../src/stores/eventStore");
         const future = Math.floor(Date.now() / 1000) + 86400;
@@ -273,6 +309,42 @@ describe("web/dashboard/dashboardData loadNextRaids", () => {
     it("reports a Raid-Helper failure instead of throwing", async () => {
         rh.getAllEvents.mockRejectedValue(new Error("kaputt"));
         expect(await loadNextRaids("g1")).toEqual({ raids: [], error: "kaputt" });
+    });
+});
+
+describe("web/dashboard/dashboardData dashboardVersions", () => {
+    const eventStore = require("../../../src/stores/eventStore");
+
+    afterEach(() => {
+        eventStore.listEvents.mockReturnValue([]);
+    });
+
+    it("without a guild: only the main version, no stored events to read", () => {
+        expect(dashboardVersions("", {})).toEqual({
+            mainVersion: "tbc",
+            versions: [{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 0 }],
+        });
+    });
+
+    it("finds every version among the stored (own) events, cheaply — no live Raid-Helper call (#545)", () => {
+        eventStore.listEvents.mockReturnValue([
+            { id: "eh-1", versionId: "forever", startTime: 1 },
+            { id: "eh-2", versionId: "forever", startTime: 2 },
+            { id: "eh-3", versionId: "tbc", startTime: 3 },
+        ]);
+        expect(dashboardVersions("g1", {})).toEqual({
+            mainVersion: "tbc",
+            versions: [
+                { id: "tbc", label: "TBC Anniversary", short: "TBC", count: 1 },
+                { id: "forever", label: "WoW Forever", short: "Forever", count: 2 },
+            ],
+        });
+        // Cheap: only the local stored events, never the live Raid-Helper client.
+        expect(createRaidhelperClient).not.toHaveBeenCalled();
+    });
+
+    it("reads the main version from the given config", () => {
+        expect(dashboardVersions("", { config: { mainVersion: "forever" } }).mainVersion).toBe("forever");
     });
 });
 

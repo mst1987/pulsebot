@@ -7,19 +7,17 @@ const rosterHidden = require("../../stores/rosterHiddenStore");
 const { repairItemNames: repairLootItemNames } = require("../../stores/lootStore");
 const { sourceForItem, content, tier } = require("../../config/tbcContent");
 const { bisSpecsView } = require("../loot/lootCouncil");
-const { mainVersionFor, knownVersion } = require("../../services/events/mainVersion");
+const { knownVersion, resolveVersionQuery } = require("../../services/events/mainVersion");
 const { getConfig } = require("../../stores/settingsStore");
 
 /**
  * The game version a list is filtered to (#543): `?version=<id>`, "all" for
- * every version, nothing = the main version from the settings.
+ * every version, nothing = the main version from the settings. Shared by every
+ * list that mixes versions (#545) — see mainVersion.resolveVersionQuery.
  * @returns {{ versionId: string, mainVersion: string }}  versionId "" = all
  */
 function versionFilter(url) {
-    const mainVersion = mainVersionFor({ config: getConfig() });
-    const raw = String((url && url.searchParams.get("version")) || "").trim();
-    if (raw === "all") return { versionId: "", mainVersion };
-    return { versionId: knownVersion(raw) || mainVersion, mainVersion };
+    return resolveVersionQuery(url && url.searchParams.get("version"), { config: getConfig() });
 }
 
 // How many item ids one character request may ask about — a paperdoll has 19.

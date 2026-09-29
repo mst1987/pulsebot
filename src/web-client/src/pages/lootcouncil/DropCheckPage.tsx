@@ -71,6 +71,7 @@ export default function DropCheckPage() {
 
     const fetchFocus = () => getLootCouncil({
         role: view.role, tiers: view.tiers, contents: view.contents, category: view.category, bisTier: view.bisTier,
+        version: view.version,
         item: itemId,
     });
 

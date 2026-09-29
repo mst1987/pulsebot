@@ -70,6 +70,9 @@ function dashboard(over: Partial<DashboardData> = {}): DashboardData {
         recentEvents: { events: [], error: null },
         topLoot: { items: [], configured: 0 },
         activeGuildId: "g1",
+        version: "tbc",
+        mainVersion: "tbc",
+        versions: [],
         ...over,
     };
 }
@@ -123,6 +126,25 @@ describe("Übersicht (DashboardPage)", () => {
         expect(link).toHaveAttribute("href", "/raids/new");
         expect(link.querySelector("img")?.getAttribute("src")).toContain("inv_misc_note_02");
         expect(link.querySelector("svg")).toBeNull();
+    });
+
+    it("filters the three tiles by game version, defaults to the main one and remembers the pick (#545)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getDashboard).mockImplementation((version = "") => Promise.resolve(dashboard({
+            version: version === "forever" ? "forever" : "tbc",
+            versions: [
+                { id: "tbc", label: "WoW TBC", short: "TBC" },
+                { id: "forever", label: "WoW Forever", short: "Forever" },
+            ],
+        })));
+        renderPage(<DashboardPage />);
+        await screen.findByText(t("dashboard.page.title"));
+        const filter = screen.getByRole("radiogroup", { name: t("dashboard.page.versionAria") });
+        expect(within(filter).getByRole("radio", { name: "TBC" })).toHaveAttribute("aria-checked", "true");
+
+        await user.click(within(filter).getByRole("radio", { name: "Forever" }));
+        await waitFor(() => expect(api.getDashboard).toHaveBeenLastCalledWith("forever"));
+        expect(JSON.parse(localStorage.getItem("eh-dashboard-version") || "null")).toBe("forever");
     });
 
     it("shows 'Alles erledigt' when there are no open tasks", async () => {

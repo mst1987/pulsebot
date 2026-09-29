@@ -146,7 +146,7 @@ table.idx td:has(> .bar) { padding-top: 5px; padding-bottom: 5px; }
 .page-head .ph-text { min-width: 0; }
 .page-head h1 { font-size: 24px; font-weight: 800; letter-spacing: -.3px; margin: 2px 0 0; line-height: 1.15; }
 .page-head .ph-meta { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
-.page-head .ph-act, .part-head .ph-act { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.page-head .ph-act, .part-head .ph-act { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; row-gap: 8px; }
 .part-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; padding: 10px 14px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; flex-wrap: wrap; }
 .part-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 800; min-width: 0; }
 .part-title .kicker { display: block; }
