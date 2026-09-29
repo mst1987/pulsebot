@@ -71,6 +71,7 @@
 /* ---- Links und Armory je Version (#542): one version at a time behind a switcher ---- */
 .gv-links { margin-top: 16px; }
 .gv-links-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.gv-links-head .gv-defaults { margin-left: auto; }
 .gv-hint { margin: 0; color: var(--muted); font-size: 13px; }
 .gv-group { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .gv-group-title { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }

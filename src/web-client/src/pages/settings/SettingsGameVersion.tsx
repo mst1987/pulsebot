@@ -2,9 +2,10 @@ import { useState } from "react";
 import Segment from "../../components/ui/Segment";
 import Field, { FieldLabel } from "../../components/ui/Field";
 import Badge from "../../components/ui/Badge";
+import { Button } from "../../components/ui/Button";
 import { useT } from "../../i18n";
 import {
-    BLIZZARD_REGIONS, SOFTRES_EDITIONS, blockOf, blockProblems, versionLinks,
+    BLIZZARD_REGIONS, SOFTRES_EDITIONS, applyDefaults, blockOf, blockProblems, defaultsDiff, versionLinks,
     type VersionSettingsBlock,
 } from "../../lib/versionLinks";
 
@@ -19,12 +20,16 @@ const SAMPLE_ITEM = 32837;
  * items link to (Wowhead), the softres edition and the default raidsheet. One
  * version at a time behind a switcher; part of the page's draft, so the save
  * bar sends the blocks. An empty field means "not there for this version" —
- * the app then leaves the link out.
+ * the app then leaves the link out. "Standardwerte übernehmen" (#553) puts the
+ * version's standard values into the draft (never the realm or the raidsheet,
+ * which are the guild's); a version without any (Forever) has it disabled.
  */
-export function VersionSettingsCard({ versions, mainVersion, value, raidsheets, onChange }: {
+export function VersionSettingsCard({ versions, mainVersion, value, defaults = {}, raidsheets, onChange }: {
     versions: GameVersionOption[];
     mainVersion: string;
     value: Record<string, VersionSettingsBlock>;
+    /** The standard values per version (GET /api/settings versionDefaults). */
+    defaults?: Record<string, VersionSettingsBlock>;
     raidsheets: { id: string; name: string }[];
     onChange: (versionId: string, block: VersionSettingsBlock) => void;
 }) {
@@ -36,6 +41,9 @@ export function VersionSettingsCard({ versions, mainVersion, value, raidsheets, 
     const set = (patch: Partial<VersionSettingsBlock>) => onChange(version.id, { ...block, ...patch });
     const problems = new Set(blockProblems(block));
     const links = versionLinks(block);
+    const std = defaults[version.id] ? blockOf(defaults[version.id]) : undefined;
+    const hasDefaults = !!std && Object.values(std).some(Boolean);
+    const changes = defaultsDiff(block, std);
     const id = (field: string) => `vs-${version.id}-${field}`;
     const error = (field: keyof VersionSettingsBlock) => (problems.has(field) ? t(`settings.versionLinks.invalid.${field}`) : undefined);
     const input = (field: keyof VersionSettingsBlock, placeholder: string) => (
@@ -62,6 +70,17 @@ export function VersionSettingsCard({ versions, mainVersion, value, raidsheets, 
                     options={versions.map((v) => ({ value: v.id, label: v.short || v.label, tip: v.label }))}
                 />
                 {version.id === mainVersion && <Badge tone="accent">{t("settings.gameVersion.main")}</Badge>}
+                <Button
+                    variant="ghost" size="sm" className="gv-defaults"
+                    disabled={!changes.length}
+                    data-tip={t("settings.versionLinks.defaults")}
+                    data-tip-sub={hasDefaults
+                        ? (changes.length ? t("settings.versionLinks.defaultsSub", { version: version.label }) : t("settings.versionLinks.defaultsSame"))
+                        : t("settings.versionLinks.defaultsNone", { version: version.label })}
+                    onClick={() => onChange(version.id, applyDefaults(block, std))}
+                >
+                    {t("settings.versionLinks.defaults")}
+                </Button>
             </div>
             <p className="gv-hint">{t("settings.versionLinks.emptyHint", { version: version.label })}</p>
 

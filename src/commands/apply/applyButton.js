@@ -1,5 +1,7 @@
 const { MessageFlags, ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
 const { CLASSES } = require("../../config/applyClasses");
+const { pendingApplications } = require("../../utils/recruitment/applicationState");
+const { versionOfApplyButton } = require("../../utils/recruitment/applyVersion");
 
 module.exports = {
     name: "apply",
@@ -8,6 +10,14 @@ module.exports = {
     defaultAccess: "everyone",
     kind: "button",
     async execute(interaction) {
+        // The game version of this application (#553): the one its button names
+        // ("apply:<versionId>"), TBC for a button from before. A fresh start of
+        // the flow drops whatever an earlier, unfinished one left behind.
+        pendingApplications.set(interaction.user.id, {
+            versionId: versionOfApplyButton(interaction.customId),
+            timestamp: Date.now(),
+        });
+
         const guildEmojis = interaction.guild?.emojis.cache;
 
         const options = CLASSES.map(({ label, value, icon }) => {

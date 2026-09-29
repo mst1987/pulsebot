@@ -13,7 +13,7 @@ import { PartHead } from "../../components/ui/PartHead";
 import WowIcon from "../../components/ui/WowIcon";
 import { tParts, useT } from "../../i18n";
 import { ICONS, isUrl, openExternal, shortStamp } from "./shared";
-import { ClassTile, StatusBadge } from "./RecruitmentBits";
+import { ClassTile, StatusBadge, VersionTag } from "./RecruitmentBits";
 
 type AppSortKey = "character" | "discord" | "date" | "status";
 
@@ -21,7 +21,7 @@ const APP_SORT_DEFAULTS: Record<AppSortKey, Dir> = { character: "asc", discord: 
 
 const STATUS_ORDER: Record<string, number> = { neu: 0, offen: 1, archiviert: 2 };
 
-function ApplicationDetails({ app, onClose }: { app: Application; onClose: () => void }) {
+function ApplicationDetails({ app, data, onClose }: { app: Application; data: RecruitmentData; onClose: () => void }) {
     const t = useT();
     const who = app.displayName || app.discordName || (app.applicantId ? t("recruitment.appDetails.member") : "—");
     const link = (value: string, icon: string) => {
@@ -54,6 +54,7 @@ function ApplicationDetails({ app, onClose }: { app: Application; onClose: () =>
                 {app.className && <b className="rc-app-class"><span {...classColorProps(app.classColor)}>{app.className}</span></b>}
                 {app.spec && <Badge tone="accent" icon={app.specIcon || undefined}>{app.spec}</Badge>}
                 <StatusBadge status={app.status} />
+                <VersionTag versionId={app.versionId} data={data} />
             </div>
             <dl className="rc-meta">
                 <dt>{t("recruitment.appDetails.applicant")}</dt>
@@ -116,7 +117,7 @@ export function ApplicationsTab({ data }: { data: RecruitmentData }) {
                                         <ClassTile app={a} />
                                         <div>
                                             <div className="cname"><span {...classColorProps(a.classColor)}>{a.character || a.name || t("recruitment.applications.fallbackName")}</span></div>
-                                            <div className="csub">{a.spec || a.classSpec || "—"}</div>
+                                            <div className="csub rc-name-tag"><span className="rc-name-text">{a.spec || a.classSpec || "—"}</span><VersionTag versionId={a.versionId} data={data} /></div>
                                         </div>
                                     </div>
                                 </td>
@@ -153,7 +154,7 @@ export function ApplicationsTab({ data }: { data: RecruitmentData }) {
                     : undefined}
             />
             {content}
-            {opened && <ApplicationDetails app={opened} onClose={() => setOpenId("")} />}
+            {opened && <ApplicationDetails app={opened} data={data} onClose={() => setOpenId("")} />}
         </>
     );
 }

@@ -6,8 +6,9 @@
 // Every field may be empty, and empty means "not there for this version": no
 // link (never a guessed or a TBC one), no armory request, no softres list. The
 // TBC block is what the install used before (#542's migration hands the old
-// single values to it); Forever and Classic start empty until their facts are
-// known.
+// single values to it); the other versions start with their rule set's
+// standard values (#553, config/gameVersions settingsDefaults — Classic's are
+// checked, Forever has none yet), and only empty fields are ever filled.
 //
 // The Battle.net credentials (client id/secret) stay one pair for all versions
 // in `config.blizzard` — it is one API application.
@@ -50,11 +51,41 @@ function settingsForVersion(versionId, { config } = {}) {
     return { versionId: id, ...schema.normalizeBlock(map[id]) };
 }
 
-/** Fill a {char} template; "" without template or name, or when the link would not work (#539). */
-function fillChar(template, character) {
+/**
+ * Fill a {char} template; "" without template or name, or when the link would
+ * not work (#539). {region} and {realm} (#553) take the version's Battle.net
+ * region and realm — a template that needs one the version has not set gives
+ * no link rather than one with a hole.
+ * @param {string} template
+ * @param {string} character
+ * @param {{ region?: string, realm?: string }} [place]
+ */
+function fillChar(template, character, { region = "", realm = "" } = {}) {
     const name = str(character);
     if (!template || !name) return "";
-    return externalLink(String(template).replace(/\{char\}/g, encodeURIComponent(name)));
+    const text = String(template);
+    if ((text.includes("{region}") && !str(region)) || (text.includes("{realm}") && !str(realm))) return "";
+    return externalLink(text
+        .replace(/\{region\}/g, encodeURIComponent(str(region)))
+        .replace(/\{realm\}/g, encodeURIComponent(str(realm)))
+        .replace(/\{char\}/g, encodeURIComponent(name)));
+}
+
+/**
+ * The Warcraft Logs site of a version: the origin of its log template
+ * ("https://vanilla.warcraftlogs.com"), "" without one or when it is no
+ * warcraftlogs.com address — the applicant check (#553) asks this site's v1
+ * API and links its reports there.
+ */
+function wclSiteOf(template) {
+    const text = str(template);
+    if (!text) return "";
+    try {
+        const url = new URL(text.replace(/\{(char|region|realm)\}/g, "x"));
+        return /(^|\.)warcraftlogs\.com$/i.test(url.hostname) && url.protocol === "https:" ? url.origin : "";
+    } catch {
+        return "";
+    }
 }
 
 /**
@@ -72,11 +103,20 @@ function versionLinks(versionId, opts = {}) {
         const query = params && params.length ? `?${params.join("&")}` : "";
         return externalLink(`https://www.wowhead.com/${s.wowheadPath}/${kind}=${target}${query}`);
     };
+    const place = { region: s.blizzardRegion, realm: s.blizzardRealmSlug };
+    const wclSite = wclSiteOf(s.wclUrlTemplate);
     return {
         versionId: s.versionId,
         settings: s,
-        armory: (character) => fillChar(s.armoryUrlTemplate, character),
-        wcl: (character) => fillChar(s.wclUrlTemplate, character),
+        armory: (character) => fillChar(s.armoryUrlTemplate, character, place),
+        wcl: (character) => fillChar(s.wclUrlTemplate, character, place),
+        /** The Warcraft Logs site of the version, "" without a log template. */
+        wclSite,
+        /** A report on the version's log site, "" without site or id. */
+        wclReport: (reportId) => {
+            const id = str(reportId);
+            return wclSite && /^[A-Za-z0-9]+$/.test(id) ? `${wclSite}/reports/${id}` : "";
+        },
         wowheadItem: (itemId, params) => wowhead("item", itemId, params),
         wowheadSpell: (spellId) => wowhead("spell", spellId),
         wowheadPath: s.wowheadPath,
@@ -124,5 +164,5 @@ function blizzardFor(versionId, opts = {}) {
 module.exports = {
     FIELDS: schema.FIELDS, REGIONS: schema.REGIONS, SOFTRES_EDITIONS: schema.SOFTRES_EDITIONS,
     normalizeBlock: schema.normalizeBlock,
-    settingsForVersion, versionLinks, blizzardFor, fillChar, versionLabel,
+    settingsForVersion, versionLinks, blizzardFor, fillChar, wclSiteOf, versionLabel,
 };

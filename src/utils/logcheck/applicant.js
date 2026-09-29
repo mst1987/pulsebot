@@ -2,8 +2,31 @@ const { analyzePlayerGear } = require("./gearIssues");
 const { analyzeConsumables } = require("./consumables");
 const { analyzePotions } = require("./potions");
 
-const REALM = process.env.APPLY_WCL_REALM || "thunderstrike";
-const REGION = process.env.APPLY_WCL_REGION || "eu";
+const { LEGACY_VERSION } = require("../../config/gameVersions");
+const { settingsForVersion, versionLinks } = require("../../services/events/versionSettings");
+
+// Where an applicant's parses are looked up (#553): the realm, region and
+// Warcraft Logs site of the application's game version (Einstellungen →
+// Spielversion). APPLY_WCL_REALM / APPLY_WCL_REGION are only the fallback of a
+// TBC block without realm or region — every other version asks its settings
+// alone, so a Classic application never lands on the TBC realm.
+
+/**
+ * The lookup of a version: { versionId, realm, region, site, ready }. Not
+ * ready when the version has no realm, region or log site — then there is
+ * nothing to ask, and the caller says so instead of guessing.
+ * @param {string} [versionId] the application's version; unknown = the main version
+ * @param {{ config?: object }} [opts]
+ */
+function applicantSource(versionId, opts = {}) {
+    const s = settingsForVersion(versionId, opts);
+    const legacy = s.versionId === LEGACY_VERSION;
+    const realm = s.blizzardRealmSlug || (legacy ? String(process.env.APPLY_WCL_REALM || "").trim().toLowerCase() : "");
+    const region = s.blizzardRegion || (legacy ? String(process.env.APPLY_WCL_REGION || "").trim().toLowerCase() : "");
+    const links = versionLinks(s.versionId, opts);
+    const site = links.wclSite;
+    return { versionId: s.versionId, realm, region, site, reportUrl: links.wclReport, ready: Boolean(realm && region && site) };
+}
 
 // Which potion type is "appropriate" for a class/spec.
 function relevantPotions(className, spec) {
@@ -35,12 +58,20 @@ function lastReport(parses) {
 
 /**
  * Pull a character's parses + analyze the gear/consumables/potions from their
- * most recent raid. Returns null if the character has no parses.
+ * most recent raid, on the realm and log site of the application's version
+ * (#553). Returns null if the character has no parses or the version has no
+ * lookup (applicantSource().ready).
+ * @param {object} wcl a WarcraftLogs client
+ * @param {string} characterName
+ * @param {{ className?: string, spec?: string }} [classSpec]
+ * @param {{ versionId?: string, config?: object }} [opts]
  */
-async function analyzeApplicant(wcl, characterName, classSpec = {}) {
+async function analyzeApplicant(wcl, characterName, classSpec = {}, { versionId, config } = {}) {
+    const source = applicantSource(versionId, { config });
+    if (!source.ready) return null;
     let parses;
     try {
-        parses = await wcl.getParses(characterName, REALM, REGION, "dps");
+        parses = await wcl.getParses(characterName, source.realm, source.region, "dps", { site: source.site });
     } catch {
         return null;
     }
@@ -49,7 +80,11 @@ async function analyzeApplicant(wcl, characterName, classSpec = {}) {
     const overview = parsesOverview(parses);
     const last = lastReport(parses);
 
-    const result = { overview, last, relevant: relevantPotions(classSpec.className, classSpec.spec) };
+    const result = {
+        overview, last, relevant: relevantPotions(classSpec.className, classSpec.spec),
+        versionId: source.versionId,
+        reportUrl: source.reportUrl(last.reportID),
+    };
 
     try {
         const fights = await wcl.getFights(last.reportID);
@@ -70,4 +105,4 @@ async function analyzeApplicant(wcl, characterName, classSpec = {}) {
     return result;
 }
 
-module.exports = { analyzeApplicant };
+module.exports = { analyzeApplicant, applicantSource };

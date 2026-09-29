@@ -831,7 +831,7 @@
         "title": "Links und Armory je Version",
         "titleSub": "Wo ein Charakter nachgeschlagen wird (Armory, Warcraft Logs) und wohin Items verlinken (Wowhead) – für jede Spielversion getrennt. Ein Event nutzt die Werte seiner Version, Raider-Seiten und Loot-Council die der Hauptversion bzw. der Kategorie.",
         "switch": "Spielversion der Einstellungen",
-        "emptyHint": "Leeres Feld = gibt es für {version} nicht: der Link fällt weg, die Armory wird nicht abgefragt.",
+        "emptyHint": "Diese Werte gelten nur für {version}. Leeres Feld = Link wird weggelassen.",
         "armory": "Armory",
         "logsAndItems": "Logs, Items, Softres, Raidsheet",
         "region": "Region",
@@ -840,7 +840,7 @@
         "namespaceSub": "Profil-Namespace der Blizzard-API, z. B. profile-classicann-eu für TBC Anniversary. Leer = keine Armory-Abfrage für diese Version.",
         "armoryUrl": "Armory-Link",
         "wclUrl": "Warcraft-Logs-Link",
-        "templateSub": "Eine Adresse mit {char} an der Stelle des Charakternamens. Leer = kein Link.",
+        "templateSub": "Eine Adresse mit {char} an der Stelle des Charakternamens; {region} und {realm} setzen Region und Realm von oben ein. Leer = kein Link.",
         "wowhead": "Wowhead-Pfad",
         "wowheadSub": "Der Teil nach wowhead.com/, z. B. tbc oder classic. Leer = keine Wowhead-Links und keine Item-Suche.",
         "softres": "Softres-Edition",
@@ -869,6 +869,10 @@
             "wowheadPath": "Nur Kleinbuchstaben, Ziffern und Bindestriche, z. B. tbc.",
             "softresEdition": "Unbekannte Edition.",
             "raidsheetId": "Raidsheet nicht gefunden."
-        }
+        },
+        "defaults": "Standardwerte übernehmen",
+        "defaultsSub": "Setzt die bekannten Werte für {version} ein (Namespace, Armory, Warcraft Logs, Wowhead, Softres). Realm und Raidsheet bleiben, wie sie sind. Gespeichert wird erst mit „Speichern“.",
+        "defaultsSame": "Die Standardwerte sind schon eingetragen.",
+        "defaultsNone": "Für {version} sind noch keine Standardwerte bekannt."
     }
 }

@@ -128,12 +128,16 @@ class WarcraftLogs {
     }
 
     /**
-     * Character parses/rankings (per-boss percentiles). Lives on the fresh host.
+     * Character parses/rankings (per-boss percentiles). They live on the site of
+     * the character's game version (#553: fresh for TBC Anniversary, vanilla for
+     * Classic Era — the application's version settings name it); fresh without one.
+     * @param {{ site?: string }} [opts] the site's origin, "https://<x>.warcraftlogs.com"
      * @returns array of parses (encounterName, spec, percentile, total, reportID, fightID, startTime, ...)
      */
-    async getParses(name, realm, region, metric = "dps") {
+    async getParses(name, realm, region, metric = "dps", { site } = {}) {
+        const origin = /^https:\/\/[a-z0-9.-]*warcraftlogs\.com$/i.test(String(site || "")) ? site : "https://fresh.warcraftlogs.com";
         // an absolute URL: axios ignores the classic baseURL for it
-        const url = `https://fresh.warcraftlogs.com/v1/parses/character/${encodeURIComponent(name)}/${encodeURIComponent(realm)}/${encodeURIComponent(region)}`;
+        const url = `${origin}/v1/parses/character/${encodeURIComponent(name)}/${encodeURIComponent(realm)}/${encodeURIComponent(region)}`;
         try {
             const response = await this.http.get(url, { params: { metric, api_key: this.apiKey } });
             return response.data;

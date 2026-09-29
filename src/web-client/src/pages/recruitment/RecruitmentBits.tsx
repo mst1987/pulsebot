@@ -56,6 +56,17 @@ export function StatusBadge({ status }: { status: string }) {
     return <Badge tip={t("recruitment.status.openTip")} tipSub={t("recruitment.status.openSub")}>{t("recruitment.status.open")}</Badge>;
 }
 
+/** The game version of a template, post or application (#553) — its short name, the full one in the tooltip. */
+export function VersionTag({ versionId, data }: { versionId: string; data: RecruitmentData }) {
+    const t = useT();
+    const v = (data.gameVersions || []).find((x) => x.id === versionId);
+    return (
+        <Badge size="sm" className="rc-version" tip={v ? v.label : versionId} tipSub={t("recruitment.version.tagSub")}>
+            {v ? v.short : versionId}
+        </Badge>
+    );
+}
+
 /** The class icon on a tile tinted in the class colour (IconTile only knows the area tones). */
 export function ClassTile({ app }: { app: Application }) {
     const cc = app.classColor ? ({ "--cls": app.classColor } as React.CSSProperties) : undefined;

@@ -11,7 +11,10 @@ module.exports = {
         const classValue = interaction.values[0];
         const cls = getClass(classValue);
 
+        // Keeps the version the apply button set (#553).
+        const pending = pendingApplications.get(interaction.user.id) || {};
         pendingApplications.set(interaction.user.id, {
+            versionId: pending.versionId,
             class: classValue,
             className: cls ? cls.label : classValue,
             timestamp: Date.now(),

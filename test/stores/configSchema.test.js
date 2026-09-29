@@ -26,7 +26,9 @@ const defaults = require("../../src/config/defaults");
 // #542 moved the Battle.net realm (region, realm slug, namespace) out of
 // `blizzard` into the TBC block of `versionSettings`, next to the armory/WCL
 // templates, Wowhead "tbc" and softres "tbc"; the other versions are empty.
-// The frozen result stays as it was frozen; this is the one documented change
+// #553 adds the standard values of the other versions (Classic's; Forever has
+// none) and the list of versions they were handed to.
+// The frozen result stays as it was frozen; these are the documented changes
 // on top of it.
 const EMPTY_BLOCK = {
     blizzardRegion: "", blizzardRealmSlug: "", blizzardNamespace: "", armoryUrlTemplate: "",
@@ -39,10 +41,19 @@ function after542(config) {
         armoryUrlTemplate: defaults.applyArmoryUrlTemplate, wclUrlTemplate: defaults.applyWclUrlTemplate,
         wowheadPath: "tbc", softresEdition: "tbc", raidsheetId: "",
     };
-    return { ...config, blizzard: credentials, versionSettings: { tbc, classic: EMPTY_BLOCK, forever: EMPTY_BLOCK } };
+    const classic = {
+        blizzardRegion: "eu", blizzardRealmSlug: "", blizzardNamespace: "profile-classic1x-eu",
+        armoryUrlTemplate: "https://classic-armory.org/character/{region}/vanilla/{realm}/{char}",
+        wclUrlTemplate: "https://vanilla.warcraftlogs.com/character/{region}/{realm}/{char}",
+        wowheadPath: "classic", softresEdition: "classic", raidsheetId: "",
+    };
+    return {
+        ...config, blizzard: credentials, versionSettings: { tbc, classic, forever: EMPTY_BLOCK },
+        versionDefaultsApplied: ["tbc", "classic"],
+    };
 }
 const golden = frozen.map((g) => ({ ...g, config: after542(g.config) }));
-const without542 = (changes) => changes.filter((line) => !line.includes("(#542)"));
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");

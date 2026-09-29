@@ -44,4 +44,12 @@ describe("commands/apply/applySelect", () => {
         const select = interaction.update.mock.calls[0][0].components[0].components[0];
         expect(select.options).toHaveLength(0);
     });
+
+    it("keeps the version the apply button set (#553)", async () => {
+        pendingApplications.set("user-7", { versionId: "classic", timestamp: 1 });
+        const interaction = mockInteraction({ userId: "user-7" });
+        interaction.values = ["mage"];
+        await command.execute(interaction);
+        expect(pendingApplications.get("user-7")).toMatchObject({ versionId: "classic", class: "mage" });
+    });
 });

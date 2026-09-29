@@ -201,3 +201,69 @@ describe("stores/settingsMigration: the raid plans' Standard (#524)", () => {
         expect(raidplanDefaultsLine({ plans: 1, migrated: 0, rows: 0, copies: 0, deviations: 0, kept: 0, backup: "" })).toBe("raidplans.json: Standard-Abschnitt (#524) - 1 Plan/Pläne geprüft, 0 umgestellt, 0 Standard-Zeile(n) aus 0 Kopie(n), 0 Abweichung(en), 0 Abschnitt(e) unverändert behalten");
     });
 });
+
+// #553: the standard values per version fill empty fields once; recruitment
+// templates and posts from before become TBC ones.
+describe("stores/settingsMigration standard values and recruitment versions (#553)", () => {
+    const { migrateVersionDefaults } = require("../../src/stores/settingsMigration");
+    const { normalizeBlock } = require("../../src/stores/versionSettingsSchema");
+    const RECRUIT_FILE = settingsPath("recruitment.json");
+    const POSTS_FILE = settingsPath("recruitment-posts.json");
+    const EMPTY = normalizeBlock({});
+    const current = (over = {}) => ({
+        guildId: "g",
+        versionSettings: { tbc: { ...EMPTY, blizzardRegion: "eu", blizzardRealmSlug: "thunderstrike", wowheadPath: "tbc" }, classic: { ...EMPTY, wowheadPath: "classic-own" }, forever: EMPTY },
+        ...over,
+    });
+
+    it("fills only the empty fields of every version with defaults, once", () => {
+        fs.__store.set(CONFIG_FILE, JSON.stringify(current()));
+        const { changes } = migrateSettings(quiet);
+        expect(changes).toEqual([expect.stringContaining("Standardwerte je Spielversion (#553)")]);
+        const config = stored(CONFIG_FILE);
+        expect(config.versionDefaultsApplied).toEqual(["tbc", "classic"]);
+        expect(config.versionSettings.classic).toMatchObject({ wowheadPath: "classic-own", softresEdition: "classic", blizzardNamespace: "profile-classic1x-eu", blizzardRealmSlug: "" });
+        expect(config.versionSettings.tbc).toMatchObject({ blizzardRealmSlug: "thunderstrike", wowheadPath: "tbc", softresEdition: "tbc", blizzardNamespace: "profile-classicann-eu" });
+        expect(config.versionSettings.forever).toEqual(EMPTY);
+        // the links work with the TBC realm, and stay out for Classic without one
+        const { versionLinks } = require("../../src/services/events/versionSettings");
+        expect(versionLinks("tbc").wcl("Nera")).toBe("https://fresh.warcraftlogs.com/character/eu/thunderstrike/Nera");
+        expect(versionLinks("classic").wcl("Nera")).toBe("");
+
+        fs.writeFileSync.mockClear();
+        expect(migrateSettings(quiet)).toEqual({ changes: [] });
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    it("never fills a field again once the version is listed (cleared on purpose)", () => {
+        fs.__store.set(CONFIG_FILE, JSON.stringify(current({ versionDefaultsApplied: ["tbc", "classic"] })));
+        expect(migrateSettings(quiet)).toEqual({ changes: [] });
+        expect(stored(CONFIG_FILE).versionSettings.classic.softresEdition).toBe("");
+    });
+
+    it("fills a version that was not listed yet and keeps the others", () => {
+        const out = migrateVersionDefaults(current({ versionDefaultsApplied: ["tbc"] }));
+        expect(out.versionDefaultsApplied).toEqual(["tbc", "classic"]);
+        expect(Object.keys(out.filled)).toEqual(["classic"]);
+        expect(out.versionSettings.tbc.softresEdition).toBe("");
+    });
+
+    it("has nothing to do for a fresh install or a config without the map", () => {
+        expect(migrateVersionDefaults({})).toBeNull();
+        expect(migrateVersionDefaults({ guildId: "g" })).toBeNull();
+        expect(migrateVersionDefaults({ guildId: "g", versionSettings: [] })).toBeNull();
+    });
+
+    it("gives recruitment templates and posts without a version TBC, once", () => {
+        fs.__store.set(RECRUIT_FILE, JSON.stringify({ templates: [{ id: "t1", name: "A" }, { id: "t2", name: "B", versionId: "classic" }] }));
+        fs.__store.set(POSTS_FILE, JSON.stringify({ posts: [{ id: "p1", channelId: "c", messageId: "m" }] }));
+        const { changes } = migrateSettings(quiet);
+        expect(changes).toEqual([
+            expect.stringContaining("recruitment.json: 1 Vorlage(n)"),
+            expect.stringContaining("recruitment-posts.json: 1 Nachricht(en)"),
+        ]);
+        expect(stored(RECRUIT_FILE).templates.map((t) => t.versionId)).toEqual(["tbc", "classic"]);
+        expect(stored(POSTS_FILE).posts[0].versionId).toBe("tbc");
+        expect(migrateSettings(quiet)).toEqual({ changes: [] });
+    });
+});

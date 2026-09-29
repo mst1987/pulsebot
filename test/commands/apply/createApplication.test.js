@@ -46,6 +46,8 @@ describe("commands/apply/createApplication", () => {
         const sendArg = targetSend.mock.calls[0][0];
         expect(sendArg.content).toBe("Bewirb dich!");
         expect(sendArg.components).toHaveLength(1);
+        // the button collects applications for the main version (#553)
+        expect(sendArg.components[0].components[0].data.custom_id).toMatch(/^apply:(tbc|classic|forever)$/);
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.stringContaining("https://discord/msg/1")
         );

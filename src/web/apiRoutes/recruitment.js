@@ -9,6 +9,8 @@ const {
 const discord = require("../../services/discord/discord");
 const { SPEC_CATALOG } = require("../../utils/recruitment/recruitmentSpecs");
 const { annotateApplication } = require("../recruitment/recruitmentApplications");
+const { VERSIONS } = require("../../config/gameVersions");
+const { mainVersionFor } = require("../../services/events/mainVersion");
 
 /**
  * GET /api/recruitment?view=posts|templates|applications&edit=<id>&editpost=<id>
@@ -45,10 +47,14 @@ const getRecruitmentData = withUser({}, async ({ req, res, url }) => {
         applicationsError,
         applicationChannelId,
         activeGuildId: guildId,
+        // The version filter and the template's version switch (#553): every
+        // template, post and application carries a versionId; the page filters.
+        gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short })),
+        mainVersion: mainVersionFor(),
     });
 });
 
-/** POST /api/recruitment — create/update a template. Body: { id?, name, content, buttonLabel }. */
+/** POST /api/recruitment — create/update a template. Body: { id?, name, content, buttonLabel, versionId? } (versionId: new = main version, #553). */
 const saveRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     ok(res, saveRecruitment(body), 201);
 });
@@ -79,6 +85,8 @@ const postRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ bo
             buttonLabel: template.buttonLabel,
             source: "web",
             templateId: template.id,
+            // the version the posted button names (#553)
+            versionId: template.versionId,
         });
         ok(res, saved, 201);
     } catch (e) {
@@ -90,7 +98,8 @@ const postRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ bo
 const updateRecruitmentPost = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const post = getRecruitmentPost(String(body.id || "").trim());
     if (!post) return error(res, 404, "not_found", "Nachricht nicht gefunden.");
-    const template = { content: body.content || "", title: "", body: "", buttonLabel: body.buttonLabel || "" };
+    // The button keeps the version of the post (#553) — an edit changes the text, not whose applications it collects.
+    const template = { content: body.content || "", title: "", body: "", buttonLabel: body.buttonLabel || "", versionId: post.versionId };
     try {
         await discord.editRecruitment(post.channelId, post.messageId, template);
         const saved = saveRecruitmentPost({ id: post.id, ...template });

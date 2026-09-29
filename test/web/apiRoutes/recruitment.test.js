@@ -80,6 +80,13 @@ describe("web/apiRoutes/recruitment", () => {
             expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
         });
 
+        it("hands the page the versions to filter by and the main version (#553)", async () => {
+            const res = await get("/api/recruitment", { view: "posts" });
+            const { data } = json(res);
+            expect(data.gameVersions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
+            expect(data.mainVersion).toBe("tbc");
+        });
+
         it("does not fetch applications outside the applications tab", async () => {
             await get("/api/recruitment", { view: "posts" });
             expect(discord.listApplications).not.toHaveBeenCalled();
@@ -189,15 +196,16 @@ describe("web/apiRoutes/recruitment", () => {
         it("posts the template and tracks the message", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(true);
-            settingsStore.getRecruitment.mockReturnValue({ id: "t1", content: "hi", title: "", body: "", buttonLabel: "" });
+            settingsStore.getRecruitment.mockReturnValue({ id: "t1", content: "hi", title: "", body: "", buttonLabel: "", versionId: "classic" });
             discord.postRecruitment.mockResolvedValue({ guildId: "g1", channelId: "c1", messageId: "m1" });
             settingsStore.saveRecruitmentPost.mockReturnValue({ id: "p1" });
 
             const res = await post("/api/recruitment/post", { templateId: "t1", channelId: "c1" });
 
-            expect(discord.postRecruitment).toHaveBeenCalledWith("c1", expect.objectContaining({ id: "t1" }));
+            expect(discord.postRecruitment).toHaveBeenCalledWith("c1", expect.objectContaining({ id: "t1", versionId: "classic" }));
+            // the post keeps the version its button names (#553)
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith(expect.objectContaining({
-                guildId: "g1", channelId: "c1", messageId: "m1", source: "web", templateId: "t1",
+                guildId: "g1", channelId: "c1", messageId: "m1", source: "web", templateId: "t1", versionId: "classic",
             }));
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
         });
@@ -236,6 +244,16 @@ describe("web/apiRoutes/recruitment", () => {
             expect(discord.editRecruitment).toHaveBeenCalledWith("c1", "m1", { content: "new", title: "", body: "", buttonLabel: "Bewerben" });
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith({ id: "p1", content: "new", title: "", body: "", buttonLabel: "Bewerben" });
             expect(json(res)).toEqual({ data: { id: "p1", content: "new" } });
+        });
+
+        it("keeps the post's version on its button (#553)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.getRecruitmentPost.mockReturnValue({ id: "p1", channelId: "c1", messageId: "m1", versionId: "classic" });
+            settingsStore.saveRecruitmentPost.mockReturnValue({ id: "p1" });
+            await post("/api/recruitment/post-update", { id: "p1", content: "new", buttonLabel: "Los", versionId: "tbc" });
+            expect(discord.editRecruitment).toHaveBeenCalledWith("c1", "m1", expect.objectContaining({ versionId: "classic" }));
+            expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith(expect.objectContaining({ versionId: "classic" }));
         });
     });
 

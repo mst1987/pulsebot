@@ -146,3 +146,8 @@ dl.rc-meta dd { margin: 0; font-size: 14px; min-width: 0; overflow-wrap: anywher
 .rc-col-source, .rc-col-updated { width: 130px; }
 .rc-col-postact { width: 132px; }
 .rc-col-appact { width: 210px; }
+
+/* The game version beside a name (#553): small, never the row's first read. */
+.rc-name-tag { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rc-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-name-tag .rc-version { flex: none; }

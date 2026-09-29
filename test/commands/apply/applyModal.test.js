@@ -2,10 +2,23 @@ jest.mock("../../../src/classes/warcraftlogs.js", () =>
     jest.fn().mockImplementation(() => ({}))
 );
 jest.mock("../../../src/utils/logcheck/applicant.js");
+// The links of the application's version (#553): Classic's point at the vanilla sites.
+jest.mock("../../../src/services/events/versionSettings.js", () => ({
+    versionLabel: (id) => ({ tbc: "TBC Anniversary", classic: "Classic Era" }[id] || id),
+    versionLinks: (id) => {
+        const versionId = id || "tbc";
+        const host = versionId === "classic" ? "vanilla" : "fresh";
+        return {
+            versionId,
+            armory: (c) => `https://armory.test/${versionId}/${c}`,
+            wcl: (c) => `https://${host}.warcraftlogs.com/character/eu/x/${c}`,
+        };
+    },
+}));
 
 const command = require("../../../src/commands/apply/applyModal.js");
 const { pendingApplications } = require("../../../src/utils/recruitment/applicationState.js");
-const { analyzeApplicant } = require("../../../src/utils/logcheck/applicant.js");
+const { analyzeApplicant, applicantSource } = require("../../../src/utils/logcheck/applicant.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 const discordClient = require("../../helpers/discordClient.js");
 
@@ -31,6 +44,7 @@ describe("commands/apply/applyModal", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         pendingApplications.clear();
+        applicantSource.mockReturnValue({ ready: true });
     });
 
     it("exports the handler for the \"apply-modal\" customId", () => {
@@ -148,5 +162,62 @@ describe("commands/apply/applyModal", () => {
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({ content: expect.stringContaining("Fehler beim Einreichen") })
         );
+    });
+
+    it("uses the links and log lookup of the application's version (#553)", async () => {
+        analyzeApplicant.mockResolvedValue(null);
+        const { client, threadSend } = makeClient();
+        const interaction = mockInteraction({ userId: "user-c", options: { characterName: "Nera", description: "hi" } });
+        pendingApplications.set("user-c", { versionId: "classic", class: "mage", className: "Mage", spec: "Frost" });
+
+        await command.execute(interaction, client);
+
+        const fields = threadSend.mock.calls[0][0].embeds[0].fields;
+        expect(fields).toEqual(expect.arrayContaining([
+            expect.objectContaining({ name: "Version", value: "Classic Era" }),
+            expect.objectContaining({ name: "Armory (automatisch ermittelt)", value: "https://armory.test/classic/Nera" }),
+            expect.objectContaining({ name: "WarcraftLogs (automatisch ermittelt)", value: "https://vanilla.warcraftlogs.com/character/eu/x/Nera" }),
+        ]));
+        expect(applicantSource).toHaveBeenCalledWith("classic");
+        expect(analyzeApplicant).toHaveBeenCalledWith(expect.anything(), "Nera", { className: "Mage", spec: "Frost" }, { versionId: "classic" });
+    });
+
+    it("an application without a remembered version is a TBC one", async () => {
+        analyzeApplicant.mockResolvedValue(null);
+        const { client, threadSend } = makeClient();
+        const interaction = mockInteraction({ userId: "user-t", options: { characterName: "Old", description: "x" } });
+
+        await command.execute(interaction, client);
+
+        const fields = threadSend.mock.calls[0][0].embeds[0].fields;
+        expect(fields).toEqual(expect.arrayContaining([expect.objectContaining({ name: "Version", value: "TBC Anniversary" })]));
+    });
+
+    it("says so instead of guessing when the version has no log lookup", async () => {
+        applicantSource.mockReturnValue({ ready: false });
+        const { client, threadSend } = makeClient();
+        const interaction = mockInteraction({ userId: "user-n", options: { characterName: "Nera", description: "x" } });
+        pendingApplications.set("user-n", { versionId: "classic" });
+
+        await command.execute(interaction, client);
+
+        const contents = threadSend.mock.calls.map((c) => c[0].content || "");
+        expect(contents.some((c) => c.includes("Keine Log-Analyse") && c.includes("Classic Era"))).toBe(true);
+        expect(analyzeApplicant).not.toHaveBeenCalled();
+    });
+
+    it("links the last raid on the version's log site", async () => {
+        analyzeApplicant.mockResolvedValue({
+            overview: [{ percentile: 91, encounterName: "Ragnaros", spec: "Frost", total: 900 }],
+            last: { reportID: "R1", startTime: 0 }, relevant: ["mana"], reportUrl: "https://vanilla.warcraftlogs.com/reports/R1",
+        });
+        const { client, threadSend } = makeClient();
+        const interaction = mockInteraction({ userId: "user-r", options: { characterName: "Nera", description: "x" } });
+        pendingApplications.set("user-r", { versionId: "classic" });
+
+        await command.execute(interaction, client);
+
+        const urls = threadSend.mock.calls.flatMap((c) => (c[0].embeds || []).map((e) => e.url)).filter(Boolean);
+        expect(urls).toEqual(["https://vanilla.warcraftlogs.com/reports/R1"]);
     });
 });

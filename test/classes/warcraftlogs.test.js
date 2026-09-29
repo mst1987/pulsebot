@@ -179,6 +179,16 @@ describe("classes/WarcraftLogs", () => {
             expect(result).toEqual([{ percentile: 99 }]);
         });
 
+        it("asks the log site of the character's version (#553), never a foreign host", async () => {
+            const client = new WarcraftLogs();
+            respond(reply(200, []));
+            await client.getParses("Nera", "firemaw", "eu", "dps", { site: "https://vanilla.warcraftlogs.com" });
+            expect(axios.getUri(sent())).toMatch(/^https:\/\/vanilla\.warcraftlogs\.com\/v1\/parses\/character\/Nera\/firemaw\/eu/);
+            respond(reply(200, []));
+            await client.getParses("Nera", "firemaw", "eu", "dps", { site: "https://evil.test" });
+            expect(axios.getUri(sent())).toMatch(/^https:\/\/fresh\.warcraftlogs\.com\//);
+        });
+
         it("re-throws on failure", async () => {
             const client = new WarcraftLogs();
             respond(reply(404, "no such character"));

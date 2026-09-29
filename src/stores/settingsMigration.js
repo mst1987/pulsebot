@@ -39,12 +39,20 @@
 //     `versionId` becomes a TBC one — that is what they were. Character keys
 //     do not move (a TBC key is the bare name).
 //
+//   - config.json, versionDefaultsApplied (#553): the standard values of every
+//     version (config/gameVersions settingsDefaults) fill its *empty* fields
+//     once; the version is then listed, so a field cleared later stays empty.
+//
+//   - recruitment.json, recruitment-posts.json (#553): applications know their
+//     game version. A recruitment template or a tracked post without
+//     `versionId` becomes a TBC one — every application so far was TBC.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
 const { isSnowflake } = require("../utils/ids");
 const { CONFIG_DEFAULTS } = require("./configSchema");
-const { versionSettingsOf } = require("./versionSettingsSchema");
+const { versionSettingsOf, versionsWithDefaults, fillDefaults } = require("./versionSettingsSchema");
 const { LEGACY_VERSION } = require("../config/gameVersions");
 const configStore = require("./configStore");
 const raidTemplateStore = require("./raidTemplateStore");
@@ -55,6 +63,7 @@ const raidplanTemplateStore = require("./raidplanTemplateStore");
 const raidplanProfileStore = require("./raidplanProfileStore");
 const raiderProfileStore = require("./raiderProfileStore");
 const specHistoryStore = require("./specHistoryStore");
+const recruitmentStore = require("./recruitmentStore");
 
 /**
  * The event-server list an old single-server block stands for: its
@@ -111,7 +120,34 @@ function migrateVersionSettings(stored) {
     if (stored.versionSettings && typeof stored.versionSettings === "object") return null;
     const blizzard = { ...(stored.blizzard && typeof stored.blizzard === "object" ? stored.blizzard : {}) };
     for (const key of LEGACY_BLIZZARD_KEYS) delete blizzard[key];
-    return { versionSettings: versionSettingsOf(stored), blizzard };
+    // versionSettingsOf already hands the other versions their standard values (#553).
+    return { versionSettings: versionSettingsOf(stored), blizzard, versionDefaultsApplied: versionsWithDefaults() };
+}
+
+/**
+ * The standard values per version (#553) for a config that has not had them:
+ * every version with defaults that `versionDefaultsApplied` does not list gets
+ * its *empty* fields filled (a value someone entered is never touched) and is
+ * added to the list — so the next start finds nothing to do, and a field
+ * cleared on purpose afterwards stays empty. A version whose defaults appear
+ * only later (Forever) is filled on the first start that knows them.
+ * null = nothing to upgrade (also a fresh install, which reads the defaults).
+ * @returns {null | { versionSettings: object, versionDefaultsApplied: string[], filled: Record<string, string[]> }}
+ */
+function migrateVersionDefaults(stored) {
+    if (!Object.keys(stored).length) return null;
+    if (!stored.versionSettings || typeof stored.versionSettings !== "object" || Array.isArray(stored.versionSettings)) return null;
+    const applied = Array.isArray(stored.versionDefaultsApplied) ? stored.versionDefaultsApplied.map(String) : [];
+    const todo = versionsWithDefaults().filter((id) => !applied.includes(id));
+    if (!todo.length) return null;
+    const versionSettings = { ...stored.versionSettings };
+    const filled = {};
+    for (const id of todo) {
+        const result = fillDefaults(versionSettings[id], id);
+        versionSettings[id] = result.block;
+        filled[id] = result.filled;
+    }
+    return { versionSettings, versionDefaultsApplied: [...applied, ...todo], filled };
 }
 
 /**
@@ -136,7 +172,14 @@ function migrateConfig() {
     if (versions) {
         Object.assign(next, versions);
         const tbc = versions.versionSettings[LEGACY_VERSION] || {};
-        changes.push(`config.json: Einstellungen je Spielversion (#542) - bisherige Werte als ${LEGACY_VERSION} (Realm ${tbc.blizzardRealmSlug || "-"}, Namespace ${tbc.blizzardNamespace || "-"}, Wowhead ${tbc.wowheadPath || "-"}), andere Versionen leer`);
+        changes.push(`config.json: Einstellungen je Spielversion (#542) - bisherige Werte als ${LEGACY_VERSION} (Realm ${tbc.blizzardRealmSlug || "-"}, Namespace ${tbc.blizzardNamespace || "-"}, Wowhead ${tbc.wowheadPath || "-"}), andere Versionen mit Standardwerten`);
+    }
+    const defaults = migrateVersionDefaults(next);
+    if (defaults) {
+        next.versionSettings = defaults.versionSettings;
+        next.versionDefaultsApplied = defaults.versionDefaultsApplied;
+        const list = Object.entries(defaults.filled).map(([id, fields]) => `${id}: ${fields.length ? fields.join(", ") : "nichts leer"}`).join("; ");
+        changes.push(`config.json: Standardwerte je Spielversion (#553) - nur leere Felder gefüllt (${list})`);
     }
     if (changes.length) configStore.writeStored(next);
     return changes;
@@ -170,6 +213,15 @@ function migrateCharacterVersions() {
     return out;
 }
 
+/** Applications per game version (#553): recruitment templates and tracked posts without one become TBC ones. */
+function migrateRecruitmentVersions() {
+    const out = [];
+    const r = recruitmentStore.migrateVersions(LEGACY_VERSION);
+    if (r.templates) out.push(`recruitment.json: ${r.templates} Vorlage(n) ohne Spielversion auf versionId "${LEGACY_VERSION}" gesetzt (#553)`);
+    if (r.posts) out.push(`recruitment-posts.json: ${r.posts} Nachricht(en) ohne Spielversion auf versionId "${LEGACY_VERSION}" gesetzt (#553)`);
+    return out;
+}
+
 /**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
@@ -189,6 +241,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         if (plans) changes.push(raidplanDefaultsLine(plans));
         changes.push(...migrateRaidplanVersions());
         changes.push(...migrateCharacterVersions());
+        changes.push(...migrateRecruitmentVersions());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -197,4 +250,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
     return { changes };
 }
 
-module.exports = { migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, raidplanDefaultsLine, legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings };
+module.exports = {
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, raidplanDefaultsLine,
+    legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
+};

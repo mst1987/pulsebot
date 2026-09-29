@@ -186,5 +186,12 @@
         "member": "member",
         "now": "Today at {time}",
         "empty": "No text yet."
+    },
+    "version": {
+        "filter": "Game version",
+        "allTip": "Templates, messages and applications of every game version",
+        "tagSub": "The game version of the applications: their links, realm and log analysis come from Settings → Game version.",
+        "label": "Game version",
+        "labelSub": "Which game version this template recruits for. A posted message's apply button carries it: armory and logs links, realm and log analysis of the application come from this version's settings."
     }
 }

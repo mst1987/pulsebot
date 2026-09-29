@@ -23,6 +23,7 @@ const { normalizeBotCommandAccess } = require("../../config/botCommands");
 const { VERSIONS } = require("../../config/gameVersions");
 const versionSettings = require("../../services/events/versionSettings");
 const { mainVersionFor } = require("../../services/events/mainVersion");
+const { defaultVersionSettings } = require("../../stores/versionSettingsSchema");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -209,6 +210,9 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         raidTemplates: listRaidTemplates().map((t) => ({ id: t.id, name: t.name, versionId: t.versionId, size: t.size })),
         // Einstellungen → Spielversion (#541): the versions to pick from, names only.
         gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short })),
+        // The standard values per version (#553) for "Standardwerte übernehmen";
+        // an all-empty block = the version has none yet (Forever).
+        versionDefaults: defaultVersionSettings(config.versionSettings),
         roles: discord.listRoles(guildId),
         categories: discord.listCategories(guildId),
         // The module fields pick a channel by name instead of a typed id; an

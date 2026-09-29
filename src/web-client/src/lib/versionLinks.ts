@@ -49,11 +49,15 @@ export function isWebLink(url: string): boolean {
     }
 }
 
-/** A template the server accepts: http(s), with a {char} placeholder. "" counts as fine (= no link). */
+/**
+ * A template the server accepts: http(s), with a {char} placeholder; {region}
+ * and {realm} may stand in for the block's own fields (#553). "" counts as
+ * fine (= no link).
+ */
 export function templateOk(tpl: string): boolean {
     const text = tpl.trim();
     if (!text) return true;
-    return text.includes("{char}") && isWebLink(text.replace(/\{char\}/g, "x"));
+    return text.includes("{char}") && isWebLink(text.replace(/\{(char|region|realm)\}/g, "x"));
 }
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,59}$/;
@@ -74,19 +78,47 @@ export function blockProblems(block: VersionSettingsBlock): (keyof VersionSettin
     return out;
 }
 
-/** Fill a {char} template; "" without template or name, or when the result is no working link. */
-export function fillCharTemplate(tpl: string, character: string): string {
+/**
+ * Fill a {char} template; "" without template or name, or when the result is
+ * no working link. {region}/{realm} (#553) take the version's region and
+ * realm — a template needing one that is not set gives no link.
+ */
+export function fillCharTemplate(tpl: string, character: string, place: { region?: string; realm?: string } = {}): string {
     const name = character.trim();
     if (!tpl || !name) return "";
-    const url = tpl.replace(/\{char\}/g, encodeURIComponent(name));
+    const region = (place.region || "").trim();
+    const realm = (place.realm || "").trim();
+    if ((tpl.includes("{region}") && !region) || (tpl.includes("{realm}") && !realm)) return "";
+    const url = tpl
+        .replace(/\{region\}/g, encodeURIComponent(region))
+        .replace(/\{realm\}/g, encodeURIComponent(realm))
+        .replace(/\{char\}/g, encodeURIComponent(name));
     return isWebLink(url) ? url : "";
+}
+
+/**
+ * The fields of `defaults` that "Standardwerte übernehmen" (#553) would
+ * change in `block`: every field with a standard value that differs. A field
+ * without one (the realm, the raidsheet) is never touched.
+ */
+export function defaultsDiff(block: VersionSettingsBlock, defaults: VersionSettingsBlock | undefined): (keyof VersionSettingsBlock)[] {
+    if (!defaults) return [];
+    return VERSION_SETTING_FIELDS.filter((f) => defaults[f] && defaults[f] !== block[f]);
+}
+
+/** `block` with the standard values taken over (see defaultsDiff). */
+export function applyDefaults(block: VersionSettingsBlock, defaults: VersionSettingsBlock | undefined): VersionSettingsBlock {
+    const out = { ...block };
+    for (const f of defaultsDiff(block, defaults)) out[f] = (defaults as VersionSettingsBlock)[f];
+    return out;
 }
 
 /** The links of one version's block, as the server builds them. */
 export function versionLinks(block: VersionSettingsBlock) {
+    const place = { region: block.blizzardRegion, realm: block.blizzardRealmSlug.trim().toLowerCase().replace(/['’]/g, "").replace(/\s+/g, "-") };
     return {
-        armory: (character: string) => fillCharTemplate(block.armoryUrlTemplate, character),
-        wcl: (character: string) => fillCharTemplate(block.wclUrlTemplate, character),
+        armory: (character: string) => fillCharTemplate(block.armoryUrlTemplate, character, place),
+        wcl: (character: string) => fillCharTemplate(block.wclUrlTemplate, character, place),
         wowheadItem: (itemId: number, params: string[] = []) => wowheadItemUrl(itemId, params, block.wowheadPath),
     };
 }

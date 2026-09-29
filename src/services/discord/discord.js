@@ -41,7 +41,9 @@ function fetchTextChannel(channelId, notFound) {
     return textChannelOf(client, channelId, notFound);
 }
 
-const RECRUIT_BUTTON_ID = "apply";
+// The apply button carries the game version of its applications (#553):
+// "apply:<versionId>", or the bare "apply" of a message from before.
+const { applyButtonId, isApplyButtonId, versionOfApplyButton, VERSION_FIELD, versionOfFieldValue } = require("../../utils/recruitment/applyVersion");
 // Button under a detected log; customId carries the tracked log id after the ":".
 const LOG_EVAL_PREFIX = "logcheck-eval";
 const TEXT_CHANNEL_TYPES = [ChannelType.GuildText, ChannelType.GuildAnnouncement];
@@ -470,7 +472,7 @@ async function duplicateChannel(channelId, newName) {
 function buildRecruitmentMessage(template) {
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setCustomId(RECRUIT_BUTTON_ID)
+            .setCustomId(applyButtonId(template.versionId))
             .setLabel(template.buttonLabel || "Jetzt bewerben")
             .setStyle(ButtonStyle.Success)
     );
@@ -510,15 +512,19 @@ async function deleteMessage(channelId, messageId) {
 function isRecruitmentMessage(msg) {
     if (!client || msg.author.id !== client.user.id) return false;
     return (msg.components || []).some((row) =>
-        (row.components || []).some((comp) => comp.customId === RECRUIT_BUTTON_ID));
+        (row.components || []).some((comp) => isApplyButtonId(comp.customId)));
 }
 
 function extractTemplate(msg) {
     const embed = msg.embeds && msg.embeds[0];
     let buttonLabel = "";
+    let versionId = "";
     for (const row of msg.components || []) {
         for (const comp of row.components || []) {
-            if (comp.customId === RECRUIT_BUTTON_ID) buttonLabel = comp.label || "";
+            if (isApplyButtonId(comp.customId)) {
+                buttonLabel = comp.label || "";
+                versionId = versionOfApplyButton(comp.customId);
+            }
         }
     }
     return {
@@ -526,6 +532,7 @@ function extractTemplate(msg) {
         title: (embed && embed.title) || "",
         body: (embed && embed.description) || "",
         buttonLabel,
+        versionId,
     };
 }
 
@@ -587,6 +594,8 @@ function parseApplicationEmbed(embed) {
         applicantId: "", displayName: "", character: "",
         classSpec: "", armory: "", wcl: "", description: "",
         discordName: "", date: "",
+        // The game version (#553): the embed's "Version" field, TBC for one from before.
+        versionId: versionOfFieldValue(""),
     };
     if (!embed) return out;
     const titleMatch = String(embed.title || "").match(/^Neue Bewerbung von (.+)$/);
@@ -607,6 +616,8 @@ function parseApplicationEmbed(embed) {
             out.wcl = value.trim();
         } else if (name.startsWith("über")) {
             out.description = value.trim();
+        } else if (name === VERSION_FIELD.toLowerCase()) {
+            out.versionId = versionOfFieldValue(value);
         }
     }
     const footerMatch = String((embed.footer && embed.footer.text) || "").match(/Discord:\s*(.+?)\s*\|\s*(.+)$/);
