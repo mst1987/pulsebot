@@ -127,10 +127,14 @@ export type DraftShape = {
     categorySignupNoteChannel?: Record<string, string>;
     categorySheets: Record<string, { url: string; name: string }>;
     categoryRaidTemplate?: Record<string, string>;
+    /** The main game version (#541); missing = "tbc". */
+    mainVersion?: string;
+    /** Category id → version; missing/"" = the main version. */
+    categoryVersion?: Record<string, string>;
     topItems: { id: number }[];
 };
 
-export type ChangeNames = { role: NameOf; user: NameOf; area: NameOf; category: NameOf };
+export type ChangeNames = { role: NameOf; user: NameOf; area: NameOf; category: NameOf; version?: NameOf };
 
 // The draft field and the key of its label (translated when the line is built).
 const SIMPLE_FIELDS: ["officerRoleId" | "applicationChannelId" | "raidChannelId", string][] = [
@@ -291,6 +295,17 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
     const tplIs = draft.categoryRaidTemplate || {};
     for (const id of [...new Set([...Object.keys(tplWas), ...Object.keys(tplIs)])]) {
         if ((tplWas[id] || "") !== (tplIs[id] || "")) out.push(t("settings.changes.template", { name: names.category(id) }));
+    }
+
+    // The game version (#541): the main one, and each category that differs.
+    const versionName = (id: string) => (id ? (names.version ? names.version(id) : id) : t("settings.changes.followMain"));
+    if ((saved.mainVersion || "tbc") !== (draft.mainVersion || "tbc")) {
+        out.push(t("settings.changes.mainVersion", { value: versionName(draft.mainVersion || "tbc") }));
+    }
+    const verWas = saved.categoryVersion || {};
+    const verIs = draft.categoryVersion || {};
+    for (const id of [...new Set([...Object.keys(verWas), ...Object.keys(verIs)])]) {
+        if ((verWas[id] || "") !== (verIs[id] || "")) out.push(t("settings.changes.categoryVersion", { name: names.category(id), value: versionName(verIs[id] || "") }));
     }
 
     for (const [key, labelKey] of SIMPLE_FIELDS) {

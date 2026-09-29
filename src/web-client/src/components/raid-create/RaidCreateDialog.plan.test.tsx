@@ -6,7 +6,7 @@
 // server's real one; the API is mocked at its transport (api/client). The walk
 // through the steps and the toasts: RaidCreateDialog.test.tsx; the plan rules:
 // lib/eventCreateDialog.test.ts.
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../../api/client";
@@ -107,6 +107,32 @@ describe("Event anlegen: the planning step", () => {
         // a Raid-Helper category: no raid step
         await user.selectOptions(field(t("raidCreate.termin.category")), "c2");
         expect(within(stepper()).getAllByRole("listitem").map((li) => li.textContent?.replace(/^\d/, ""))).toEqual(stepsFor(false, "raidhelper").map(stepLabel));
+    });
+
+    it("starts an empty plan in the main version, a category's own version where it plays another (#541)", async () => {
+        ctx = context({ defaultVersion: "forever", categoryVersions: { c2: "tbc" }, signupSources: { c1: "eventhelper", c2: "eventhelper" } });
+        const user = userEvent.setup();
+        await open();
+        await user.click(screen.getByRole("radio", { name: new RegExp(esc(t("raidCreate.start.empty"))) }));
+        await user.click(next());
+        fireEvent.change(field(t("raidCreate.termin.title")), { target: { value: "Ony" } });
+        fireEvent.change(field(t("raidCreate.termin.date")), { target: { value: "2026-12-10" } });
+        fireEvent.change(field(t("raidCreate.termin.time")), { target: { value: "19:30" } });
+        await user.click(next());
+
+        // the default channel's category c1 follows the main version: Forever and its raids
+        const forever = versions.find((v) => v.id === "forever")!;
+        const version = () => screen.getByRole("radiogroup", { name: t("raidCreate.raid.version") });
+        expect(within(version()).getByRole("radio", { name: forever.short })).toHaveAttribute("aria-checked", "true");
+        const picker = screen.getByRole("group", { name: t("raidPlan.fields.instances") });
+        expect(within(picker).getAllByRole("button").map((b) => b.getAttribute("data-tip"))).toEqual(forever.instances.map((i) => i.name));
+
+        // c2 plays TBC
+        await user.click(screen.getByRole("button", { name: t("raidCreate.footer.back") }));
+        await user.selectOptions(field(t("raidCreate.termin.category")), "c2");
+        await user.click(next());
+        const tbc = versions.find((v) => v.id === "tbc")!;
+        expect(within(version()).getByRole("radio", { name: tbc.short })).toHaveAttribute("aria-checked", "true");
     });
 
     it("starts from a raid template as well as from an event or empty", async () => {

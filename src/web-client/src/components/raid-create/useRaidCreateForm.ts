@@ -7,7 +7,7 @@ import { useT } from "../../i18n";
 import { eventDay } from "../../lib/raidTime";
 import { instancesOf } from "../../lib/raidTemplates";
 import {
-    emptyPlan, planBody, planFromEvent, planFromTemplate, planProblem, raidTag, schemaName, sourceOf, stepsFor, templateFromPlan, withInstance,
+    categoryVersionOf, emptyPlan, planBody, planFromEvent, planFromTemplate, planProblem, raidTag, schemaName, sourceOf, stepsFor, templateFromPlan, withInstance,
     type EventPlan, type StepKey,
 } from "../../lib/eventPlan";
 import { useToast } from "../Jobs";
@@ -104,7 +104,7 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
         const tpl = (data.raidTemplates || []).find((tp) => tp.id === tplId);
         const vs = data.versions || [];
         if (tpl) return planFromTemplate(tpl, vs.find((v) => v.id === tpl.versionId));
-        return emptyPlan(vs.find((v) => v.id === data.defaultVersion) || vs[0]);
+        return emptyPlan(categoryVersionOf(data, catId));
     };
 
     const applyCategory = (data: RaidCreateContext, catId: string) => {

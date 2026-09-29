@@ -10,7 +10,7 @@ import RaidIcon from "../components/RaidIcon";
 import SignupDialog from "../components/signup/SignupDialog";
 import BulkSignupDialog from "../components/signup/BulkSignupDialog";
 import { ExternalIcon, XIcon } from "../components/icons";
-import { SIGNUP_STATUS, fillTone, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups";
+import { SIGNUP_STATUS, classesForRows, fillTone, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups";
 import { specLabel } from "../lib/wowNames";
 import { weekBands } from "../lib/raidTime";
 import { useT } from "../i18n";
@@ -130,7 +130,7 @@ export default function SignupsPage() {
             <BulkSignupDialog
                 rows={bulkRows}
                 profile={data.profile}
-                classes={data.classes}
+                classes={classesForRows(data, bulkRows)}
                 onClose={() => setBulkRows([])}
                 onDone={onBulkDone}
             />
@@ -138,7 +138,7 @@ export default function SignupsPage() {
             <SignupDialog
                 row={openRow}
                 profile={data.profile}
-                classes={data.classes}
+                classes={classesForRows(data, openRow ? [openRow] : [])}
                 onClose={() => open("")}
                 onSaved={onSaved}
             />
