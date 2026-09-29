@@ -115,7 +115,7 @@ const BOSS_ORDER = {
     hyjal: ["Rage Winterchill", "Anetheron", "Kaz'rogal", "Azgalor", "Archimonde"],
     bt: [
         "High Warlord Naj'entus", "Supremus", "Shade of Akama", "Teron Gorefiend",
-        "Gurtogg Bloodboil", "Reliquary of the Lost", "Mother Shahraz",
+        "Reliquary of the Lost", "Gurtogg Bloodboil", "Mother Shahraz",
         "The Illidari Council", "Illidan Stormrage",
     ],
     swp: ["Kalecgos", "Brutallus", "Felmyst", "Eredar Twins", "M'uru", "Kil'jaeden"],

@@ -67,6 +67,16 @@ describe("tbcContent", () => {
             expect(bossOrder("bt", "Gurtogg Bloodboil")).toBeGreaterThan(bossOrder("bt", "High Warlord Naj'entus"));
         });
 
+        // #534: after the first four the raid goes to the Reliquary, then to Bloodboil.
+        it("puts the Reliquary of the Lost fifth in the Black Temple, before Gurtogg Bloodboil", () => {
+            expect(bossOrder("bt", "Teron Gorefiend")).toBe(3);
+            expect(bossOrder("bt", "Reliquary of the Lost")).toBe(4);
+            expect(bossOrder("bt", "Gurtogg Bloodboil")).toBe(5);
+            expect(BOSS_ORDER.bt.slice(3, 7)).toEqual([
+                "Teron Gorefiend", "Reliquary of the Lost", "Gurtogg Bloodboil", "Mother Shahraz",
+            ]);
+        });
+
         it("sorts the non-encounter buckets after every boss, chest before trash", () => {
             expect(bossOrder("za", "Timed Chest")).toBeGreaterThan(bossOrder("za", "Zul'jin"));
             expect(bossOrder("za", "Trash")).toBeGreaterThan(bossOrder("za", "Timed Chest"));
