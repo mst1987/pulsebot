@@ -8,6 +8,8 @@ Technik: [web-admin.md](web-admin.md)
 
 Für alle mit Zugriff auf mindestens einen Bereich. Zeigt offene Aufgaben auf einen Blick (fehlender Softres-Link, Kanäle zum Archivieren, fehlgeschlagene Serien-Events, Rollen-Drift, veralteter Server-Stand) sowie die nächsten anstehenden Raids.
 
+**Kanal von <Event> fehlt:** Wurde der Discord-Kanal eines kommenden Raids gelöscht, steht der Raid rot in den offenen Aufgaben. Mit **Kanal neu anlegen** (nur mit Schreibrecht auf Raids) legt der Bot den Kanal nach der Namensregel der Kategorie wieder an, postet die Anmelde-Nachricht (und ein schon gepostetes Setup) hinein, und alle Übersichten verlinken ihn wieder. Bis dahin zeigen die Übersichten „channel missing“ statt eines Links, die Raid-Liste und die Raid-Seite „Kanal fehlt“. Gibt es auch die Kategorie nicht mehr, landet der Kanal ohne Kategorie – das sagt die Meldung dann dazu.
+
 ## Raid-Events
 
 Technik: [events.md](events.md)

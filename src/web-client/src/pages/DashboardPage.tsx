@@ -170,7 +170,7 @@ function TaskAction({ task, onDone }: { task: DashboardTask; onDone?: () => void
             .catch((err: ApiError) => toast(err.message, "err"))
             .finally(() => setBusy(false));
     };
-    return <Button size="sm" variant="ghost" icon="inv_letter_15" running={busy} onClick={run}>{action.label}</Button>;
+    return <Button size="sm" variant="ghost" running={busy} onClick={run}>{action.label}</Button>;
 }
 
 /** The open tasks: one row per task that exists, each leading straight to where it is done. */
