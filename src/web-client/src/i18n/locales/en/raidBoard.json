@@ -171,7 +171,8 @@
         "mapBack": "Back to the overview",
         "thatsYou": "That is you",
         "du": "You",
-        "nothingShared": "Nothing shared yet."
+        "nothingShared": "Nothing shared yet.",
+        "updated": "Updated"
     },
     "slot": {
         "tank": "Tank {n}",

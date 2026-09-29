@@ -35,7 +35,7 @@ function plan(): RaidplanPublic {
 }
 
 async function open() {
-    vi.mocked(api.getRaidplanPublic).mockResolvedValue(plan());
+    vi.mocked(api.getRaidplanPublic).mockResolvedValue({ data: plan(), etag: "" });
     const r = render(<PlanPublicPage token="abc" />);
     const bar = await screen.findByRole("group", { name: "Gruppen" });
     return { r, bar, chip: (n: number) => within(bar).getByRole("button", { name: new RegExp(`Gruppe ${n}`) }) };

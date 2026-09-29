@@ -208,6 +208,9 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-public-titles { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 12px; min-width: 0; }
 .rp-public-title { margin: 0; font-size: 19px; line-height: 1.25; }
 .rp-public-titles .rp-kicker { font-size: 10px; }
+/* the live update's note (#555): small, beside the toggles, gone when empty */
+.rp-live-note { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--good-bg); color: var(--good); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.rp-live-note:empty { padding: 0; }
 .rp-public-nav { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; }
 .rp-read-2col { display: grid; grid-template-columns: clamp(560px, 40%, 640px) minmax(0, 1fr); gap: 20px; align-items: start; }
 .rp-read-2col.no-board { grid-template-columns: minmax(0, 640px); }
