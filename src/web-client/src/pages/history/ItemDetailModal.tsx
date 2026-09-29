@@ -34,7 +34,7 @@ export function ItemDetailModal({ slot, data, roster, onClose }: { slot: string;
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
-                    {!!g.itemId && <a className={buttonClass("ghost")} href={gearWowheadUrl(g)} target="_blank" rel="noopener noreferrer">{t("history.shared.wowhead")}</a>}
+                    {!!g.itemId && !!gearWowheadUrl(g, data.wowheadPath) && <a className={buttonClass("ghost")} href={gearWowheadUrl(g, data.wowheadPath)} target="_blank" rel="noopener noreferrer">{t("history.shared.wowhead")}</a>}
                     <EvaluationLink gear={report} variant="primary" size="md" />
                 </>
             )}

@@ -1,5 +1,5 @@
 import type { GearItem } from "../../api";
-import { wowheadItemUrl } from "../../lib/wowheadItems";
+import { wowheadItemUrl, LEGACY_WOWHEAD_PATH } from "../../lib/wowheadItems";
 import { t } from "../../i18n";
 
 // Character-sheet order in two columns, weapons underneath. Shirt and tabard
@@ -43,13 +43,14 @@ export function isEnchantable(g: GearItem, slot: string): boolean {
     return true;
 }
 
-// Wowhead item URL carrying the character's actual enchant + gems.
-export function gearWowheadUrl(g: GearItem): string {
+// Wowhead item URL carrying the character's actual enchant + gems, in the
+// character's version's Wowhead path (#542; "" = no link).
+export function gearWowheadUrl(g: GearItem, path: string = LEGACY_WOWHEAD_PATH): string {
     // an empty slot has no item page (the modal only links an item with an id)
     if (g.itemId === null) return "";
     const params: string[] = [];
     if (g.enchantIds.length) params.push(`ench=${g.enchantIds[0]}`);
     const gemIds = g.sockets.map((s) => s.gemId).filter((id): id is number => !!id);
     if (gemIds.length) params.push(`gems=${gemIds.join(":")}`);
-    return wowheadItemUrl(g.itemId, params);
+    return wowheadItemUrl(g.itemId, params, path);
 }

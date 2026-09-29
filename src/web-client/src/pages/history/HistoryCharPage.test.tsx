@@ -127,6 +127,15 @@ describe("HistoryCharPage — sections", () => {
         expect(screen.getByRole("tab", { name: /Ausrüstung/ })).toHaveAttribute("aria-selected", "true");
     });
 
+    it("sends a version without armory settings to Spielversion, with no armory button and no Wowhead link (#542)", async () => {
+        window.localStorage.removeItem("eh-history-char-tab");
+        const msg = "Armory für WoW Forever nicht eingerichtet (Einstellungen → Spielversion).";
+        await openPage("/roster/char?name=Alpha", adminUser(), charData({ gear: null, gearConfigured: false, gearError: msg, versionId: "forever", wowheadPath: "" }));
+        expect(screen.getByText(msg)).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Armory einrichten" })).toHaveAttribute("href", "/settings?section=spielversion");
+        expect(screen.queryByRole("link", { name: "Armory" })).toBeNull();
+    });
+
     it("has no back link to the roster and no namespace meta row", async () => {
         await openPage();
         expect(screen.queryByText(/Zurück zum Roster/)).not.toBeInTheDocument();

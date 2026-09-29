@@ -188,10 +188,9 @@ describe("stores/settingsStore", () => {
 
         it("exposes blizzard defaults and a categoryLootTool map", () => {
             const cfg = getConfig();
-            expect(cfg.blizzard).toEqual(expect.objectContaining({
-                clientId: expect.any(String), clientSecret: expect.any(String),
-                region: "eu", realmSlug: "thunderstrike", namespace: "",
-            }));
+            // only the credentials: the realm is per version since #542
+            expect(cfg.blizzard).toEqual({ clientId: expect.any(String), clientSecret: expect.any(String) });
+            expect(cfg.versionSettings.tbc).toMatchObject({ blizzardRegion: "eu", blizzardRealmSlug: "thunderstrike", blizzardNamespace: "profile-classicann-eu" });
             expect(cfg.categoryLootTool).toEqual({});
         });
 
@@ -372,7 +371,7 @@ describe("stores/settingsStore", () => {
             const cfg = getConfig();
             expect(cfg.blizzard.clientId).toBe("cid");
             expect(cfg.blizzard.clientSecret).toBe("sec2");
-            expect(cfg.blizzard.realmSlug).toBe("thunderstrike");
+            expect(cfg.versionSettings.tbc.blizzardRealmSlug).toBe("thunderstrike");
         });
 
         it("merges categoryLootTool entries per category", () => {

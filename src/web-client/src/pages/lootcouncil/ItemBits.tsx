@@ -15,6 +15,7 @@ import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { specClassLabel } from "../../lib/wowNames";
 import { WOWHEAD } from "./council";
+import { useWowheadPath } from "../../lib/versionLinks";
 import { RichTip } from "./RichTip";
 
 /**
@@ -71,12 +72,15 @@ export function ContentBadge({ contentId, tier, label }: { contentId: string; ti
 
 /** An item as icon + quality-coloured name, linked to Wowhead. */
 export function ItemLink({ id, name, iconUrl, quality }: { id: number; name: string; iconUrl?: string; quality?: number | null }) {
-    return (
-        <a className="lc-item" href={WOWHEAD(id)} target="_blank" rel="noreferrer">
+    const href = WOWHEAD(id, useWowheadPath());
+    const inner = (
+        <>
             {iconUrl ? <img src={iconUrl} alt="" loading="lazy" /> : null}
             <span {...itemQualityProps(quality ?? null)}>{name || `Item ${id}`}</span>
-        </a>
+        </>
     );
+    // No Wowhead path for the council's version (#542): the item stays, the link goes.
+    return href ? <a className="lc-item" href={href} target="_blank" rel="noreferrer">{inner}</a> : <span className="lc-item">{inner}</span>;
 }
 
 /**
@@ -90,15 +94,18 @@ export function ItemHead({ id, name, iconUrl, quality, meta }: {
     quality?: number | null;
     meta: ReactNode;
 }) {
+    const href = WOWHEAD(id, useWowheadPath());
     return (
         <span className="lc-itemhead">
             {iconUrl
                 ? <img src={iconUrl} alt="" loading="lazy" {...itemQualityProps(quality ?? null, "lc-itemhead-icon")} />
                 : <span className="lc-itemhead-icon lc-worn-blank" />}
             <span className="lc-itemhead-text">
-                <a href={WOWHEAD(id)} target="_blank" rel="noreferrer" {...itemQualityProps(quality ?? null, "lc-itemhead-name")}>
-                    {name || `Item ${id}`}
-                </a>
+                {href ? (
+                    <a href={href} target="_blank" rel="noreferrer" {...itemQualityProps(quality ?? null, "lc-itemhead-name")}>
+                        {name || `Item ${id}`}
+                    </a>
+                ) : <span {...itemQualityProps(quality ?? null, "lc-itemhead-name")}>{name || `Item ${id}`}</span>}
                 <span className="lc-gap-meta">{meta}</span>
             </span>
         </span>

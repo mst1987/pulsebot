@@ -62,7 +62,14 @@ describe("services/loot/armoryGear", () => {
         it("asks for nothing without credentials", async () => {
             mockIsConfigured.mockReturnValue(false);
             const result = await primeArmoryGear(["Devihra"]);
-            expect(result).toEqual({ asked: 0, answered: 0, configured: false });
+            expect(result).toEqual({ asked: 0, answered: 0, configured: false, reason: "not_configured" });
+            expect(mockGetEquipment).not.toHaveBeenCalled();
+        });
+
+        it("asks nobody for a version without a realm (#542)", async () => {
+            mockGetConfig.mockReturnValue({ blizzard: { clientId: "id", clientSecret: "secret" }, versionSettings: { forever: {} } });
+            const result = await primeArmoryGear(["Devihra"], { versionId: "forever" });
+            expect(result).toEqual({ asked: 0, answered: 0, configured: false, reason: "version_not_configured" });
             expect(mockGetEquipment).not.toHaveBeenCalled();
         });
 

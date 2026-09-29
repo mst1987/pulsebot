@@ -21,6 +21,8 @@ const {
 } = require("../../config/permissions");
 const { normalizeBotCommandAccess } = require("../../config/botCommands");
 const { VERSIONS } = require("../../config/gameVersions");
+const versionSettings = require("../../services/events/versionSettings");
+const { mainVersionFor } = require("../../services/events/mainVersion");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -361,8 +363,36 @@ function publicConfig(config) {
     return out;
 }
 
-// The blizzard fields taken from a PATCH body besides the secret.
-const BLIZZARD_FIELDS = ["clientId", "region", "realmSlug", "namespace"];
+// The blizzard fields taken from a PATCH body besides the secret. The realm
+// (region, realm slug, namespace) is per game version since #542.
+const BLIZZARD_FIELDS = ["clientId"];
+
+/**
+ * The versionSettings of a PATCH body (#542): per known version the fields
+ * sent, each checked. A filled value the schema would throw away (a template
+ * without {char}, a region that does not exist, a raidsheet nobody has) is an
+ * error with its field, never a silent "" - the admin sees what was wrong.
+ * @returns {{ partial: object } | { error: string }}
+ */
+function versionSettingsPatch(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const sheets = new Set(listRaidsheets().map((sh) => sh.id));
+    const partial = {};
+    for (const v of VERSIONS) {
+        const block = src[v.id];
+        if (!block || typeof block !== "object") continue;
+        const clean = versionSettings.normalizeBlock(block);
+        partial[v.id] = {};
+        for (const field of versionSettings.FIELDS) {
+            if (block[field] === undefined) continue;
+            const sent = String(block[field] === null ? "" : block[field]).trim();
+            if (sent && !clean[field]) return { error: `${v.label}: ${field} ist ungültig.`, field, versionId: v.id };
+            if (field === "raidsheetId" && clean[field] && !sheets.has(clean[field])) return { error: `${v.label}: Raidsheet nicht gefunden.`, field, versionId: v.id };
+            partial[v.id][field] = clean[field];
+        }
+    }
+    return { partial };
+}
 
 /**
  * PATCH /api/settings — merge-updates the admin config. Only keys present in
@@ -449,6 +479,12 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.categoryVersion !== undefined) {
         partial.categoryVersion = body.categoryVersion && typeof body.categoryVersion === "object" ? body.categoryVersion : {};
     }
+    // Per version (#542): only the versions and fields sent, merged by the store.
+    if (body.versionSettings !== undefined) {
+        const patch = versionSettingsPatch(body.versionSettings);
+        if (patch.error) return error(res, 400, "invalid_version_settings", patch.error);
+        partial.versionSettings = patch.partial;
+    }
     // Sent as the complete list; settingsStore normalises it and replaces the
     // stored one, so removing an item is just leaving it out.
     if (body.topItems !== undefined) partial.topItems = Array.isArray(body.topItems) ? body.topItems : [];
@@ -469,8 +505,11 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
  */
 const getItemSearch = withUser({}, async ({ res, url }) => {
     const q = url.searchParams.get("q") || "";
-    const edition = url.searchParams.get("edition") || "tbc";
-    const items = await wowhead.searchItems(q, { edition });
+    // An edition asked for wins; else the Wowhead path of the main version (#542) - none set, no search.
+    const edition = url.searchParams.get("edition") || "";
+    const config = getConfig();
+    const path = edition ? "" : versionSettings.settingsForVersion(mainVersionFor({ config }), { config }).wowheadPath;
+    const items = edition || path ? await wowhead.searchItems(q, { edition, path }) : [];
     ok(res, { items });
 });
 

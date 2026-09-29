@@ -15,7 +15,7 @@
 // go away with it.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { instanceById, rulesFor } = require("../config/gameVersions");
+const { instanceById, rulesFor, LEGACY_VERSION } = require("../config/gameVersions");
 const board = require("../services/raidplan/raidplanBoard");
 const planStore = require("./raidplanStore");
 const besetzung = require("../services/raidplan/raidplanBesetzung");
@@ -51,7 +51,7 @@ function writeAll(templates) {
 function versionOf(r) {
     if (rulesFor(str(r.versionId))) return str(r.versionId);
     const first = (Array.isArray(r.instanceIds) ? r.instanceIds : []).map((i) => instanceById(str(i))).find(Boolean);
-    return first ? first.versionId : "tbc";
+    return first ? first.versionId : LEGACY_VERSION;
 }
 
 function normalize(raw) {

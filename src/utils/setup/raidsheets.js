@@ -25,4 +25,21 @@ function matchRaidsheet(raidsheets, title) {
     return null;
 }
 
-module.exports = { matchRaidsheet };
+/**
+ * The raidsheet of an event of one game version (#542): a keyword match first,
+ * else the version's own default sheet (versionSettings.raidsheetId). A sheet
+ * that is another version's default never matches by keyword - a Forever
+ * "Hyjal" must not land in the TBC Hyjal sheet once each has its own.
+ *
+ * @param {Array} raidsheets
+ * @param {string} title
+ * @param {{ ownId?: string, otherIds?: string[] }} [opts] the version's sheet, the other versions' sheets
+ */
+function pickRaidsheet(raidsheets, title, { ownId = "", otherIds = [] } = {}) {
+    const list = raidsheets || [];
+    const others = new Set((otherIds || []).filter((id) => id && id !== ownId));
+    return matchRaidsheet(list.filter((s) => !others.has(s.id)), title)
+        || (ownId ? list.find((s) => s.id === ownId) || null : null);
+}
+
+module.exports = { matchRaidsheet, pickRaidsheet };

@@ -34,6 +34,8 @@ const { specFor, ROLES } = require("../../config/casterSpecs");
 const engine = require("../../utils/wowsims/engine");
 const discord = require("../../services/discord/discord");
 const { getConfig } = require("../../stores/settingsStore");
+const { mainVersionFor } = require("../../services/events/mainVersion");
+const { settingsForVersion } = require("../../services/events/versionSettings");
 
 /** Comma-separated query params ("t5,t6") as a clean array. */
 function listParam(url, name) {
@@ -64,7 +66,11 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     const bisTier = url.searchParams.get("bisTier") || "";
     const guildId = activeGuildFor(req);
 
-    const opts = { role, tierIds, contentIds, categoryId, bisTier };
+    // The version the council looks at (#542): the category's, else the main
+    // version - its armory links, its realm for the gear, its Wowhead path.
+    const config = getConfig();
+    const versionId = mainVersionFor({ categoryId, config });
+    const opts = { role, tierIds, contentIds, categoryId, bisTier, versionId };
     let built = councilRoster(opts);
     // A set that still holds a boss-specific piece is the one case the logs
     // cannot answer — only the armory knows what is on that raider *now*. Asked
@@ -73,7 +79,7 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     const needArmory = built.rows.filter((r) => r.gear && r.gear.dropped.length).map((r) => r.character);
     if (needArmory.length) {
         try {
-            const primed = await primeArmoryGear(needArmory);
+            const primed = await primeArmoryGear(needArmory, { versionId });
             if (primed.answered) built = councilRoster(opts);
         } catch (e) {
             console.error("armory gear failed:", e.message);
@@ -130,6 +136,9 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
                 : "Keine WoWSims-Simulation verfügbar (WOWSIMCLI_PATH nicht gesetzt) — ohne Simulation zeigt die Seite keine Zugewinne, geschätzt wird nichts.",
         },
         activeGuildId: guildId,
+        versionId,
+        // Where the page's item links go ("" = no Wowhead links for this version).
+        wowheadPath: settingsForVersion(versionId, { config }).wowheadPath,
     });
 });
 
@@ -311,8 +320,12 @@ const postArmoryRefresh = withUser({ write: "lootcouncil", csrf: true, body: tru
     const characters = Array.isArray(body.characters) ? body.characters : [];
     if (!characters.length) return apiError(res, 400, "bad_request", "Keine Charaktere angegeben.");
 
-    const result = await primeArmoryGear(characters, { full: true, force: true });
+    const versionId = mainVersionFor({ categoryId: String(body.category || ""), config: getConfig() });
+    const result = await primeArmoryGear(characters, { full: true, force: true, versionId });
     if (!result.configured) {
+        if (result.reason === "version_not_configured") {
+            return apiError(res, 400, "armory_not_configured", "Armory für diese Spielversion nicht eingerichtet (Einstellungen → Spielversion).");
+        }
         return apiError(res, 400, "armory_not_configured", "Für die Armory fehlen die Battle.net-Zugangsdaten (Einstellungen → Verbindungen).");
     }
     ok(res, result);

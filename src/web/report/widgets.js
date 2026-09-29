@@ -1,8 +1,9 @@
 // Small HTML building blocks every part of the report pages uses: icons, badges,
 // tiles, bars, metric cards, dialogs, number formats and the class colours.
-const { itemLink: wowheadItemLink } = require("../../utils/loot/wowhead");
+const { versionLinks } = require("../../services/events/versionSettings");
+const { LEGACY_VERSION } = require("../../config/gameVersions");
+const charLinks = require("../characters/charLinks");
 const { CLASS_COLORS } = require("../../utils/setup/setupView");
-const { armoryUrlFor } = require("../characters/charLinks");
 const rpbData = require("../../config/rpbData");
 const { esc } = require("./layout");
 
@@ -19,11 +20,31 @@ function tagClass(severity) {
     return severity === "high" ? "tag tag-high" : "tag tag-medium";
 }
 
+// The links of a report (#542): the log analyzers read TBC logs (tbcContent;
+// Forever is Phase 3 of #540), so a report links with the TBC block of the
+// settings. Read once per second, not per icon - a report renders hundreds.
+let linksMemo = { at: 0, links: null };
+function reportLinks(now = Date.now()) {
+    if (!linksMemo.links || now - linksMemo.at > 1000) linksMemo = { at: now, links: versionLinks(LEGACY_VERSION) };
+    return linksMemo.links;
+}
+
+/** The Wowhead page of an item in a report, "" when the version has no Wowhead path. */
+function wowheadItemLink(itemId, params) {
+    return reportLinks().wowheadItem(itemId, params);
+}
+
+/** The armory of a raider in a report (the report's version), "" without a template. */
+function armoryUrlFor(character) {
+    return charLinks.armoryUrlFor(character, LEGACY_VERSION);
+}
+
 function issueRow(issue) {
     const icon = `<img class="icon" src="${esc(iconUrl(issue.icon))}" loading="lazy" alt="">`;
     let name;
-    if (issue.itemId) {
-        name = `<a class="item" href="${esc(wowheadItemLink(issue.itemId))}" target="_blank" rel="noopener">${icon}<span>${esc(issue.itemName)}</span></a>`;
+    const itemUrl = issue.itemId ? wowheadItemLink(issue.itemId) : "";
+    if (itemUrl) {
+        name = `<a class="item" href="${esc(itemUrl)}" target="_blank" rel="noopener">${icon}<span>${esc(issue.itemName)}</span></a>`;
     } else {
         name = `<span class="item">${icon}<span>${esc(issue.itemName)}</span></span>`;
     }
@@ -267,7 +288,7 @@ const ICON_BY_NAME = (() => {
 /** Wowhead target for a tracked thing — item pages win over spell pages. */
 function wowheadHref(o) {
     if (o.itemId) return wowheadItemLink(o.itemId);
-    if (o.spellId) return `https://www.wowhead.com/tbc/spell=${o.spellId}`;
+    if (o.spellId) return reportLinks().wowheadSpell(o.spellId);
     return "";
 }
 
@@ -355,5 +376,6 @@ const sumOf = (list, pick) => (list || []).reduce((n, x) => n + (Number(pick(x))
 const avgOf = (list, pick) => ((list || []).length ? Math.round(sumOf(list, pick) / list.length) : 0);
 
 module.exports = {
+    wowheadItemLink, reportLinks,
     iconUrl, classIconUrl, classCell, playerCard, pctCell, expBtn, tile, badge, LINE, ibtn, armoryButton, armoryLink, dlgClose, groupHead, detailDialog, whoList, whatList, metricCard, barCell, healBar, HEAL_BAR_HOW, barPct, yesNo, hicon, colHead, ICON_BY_NAME, iconTile, iconRow, classColorOf, pctTone, classIconName, fmtK, fmtSecs, toneCell, naCell, kpi, num, sumOf, avgOf,
 };

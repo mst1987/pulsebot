@@ -18,7 +18,7 @@ const { characterMap } = require("../../stores/characterStore");
 const { latestIssuesByCharacter } = require("./charGearIssues");
 const { splitPlayer, characterKeyOf } = require("../../utils/loot/lootImport");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
-const { armoryUrlFor, wclUrlFor } = require("./charLinks");
+const { versionLinks } = require("../../services/events/versionSettings");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { buildAttendanceContext, attendanceFor, categoryInfo, roleFor } = require("../../services/characters/rosterAttendance");
 
@@ -104,6 +104,8 @@ function buildRoster(guildId) {
     const known = characterMap();
     const issuesByKey = latestIssuesByCharacter();
     const ctx = buildAttendanceContext(guildId);
+    // Armory/WCL of the main version (#542), read once; per character once it carries its own (#543).
+    const links = versionLinks();
     const chars = [...rows.values()].map(({ raiderIdsByCategory, ...row }) => {
         const info = known[row.key] || {};
         const className = row.className || info.className || "";
@@ -124,8 +126,8 @@ function buildRoster(guildId) {
             source: row.source || info.source || "",
             classColor: CLASS_COLORS[className] || "",
             iconUrl: className ? classSpecIconUrl(className, spec) : "",
-            armoryUrl: armoryUrlFor(row.character),
-            wclUrl: wclUrlFor(row.character),
+            armoryUrl: links.armory(row.character),
+            wclUrl: links.wcl(row.character),
             gear,
             role: roleFor(ctx, row.character, className, spec),
             attendance,

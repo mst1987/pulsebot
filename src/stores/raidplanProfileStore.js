@@ -17,7 +17,7 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { isMapKey } = require("./raidplanStore");
-const { instanceById, rulesFor } = require("../config/gameVersions");
+const { instanceById, rulesFor, LEGACY_VERSION } = require("../config/gameVersions");
 const stepsOf = require("../services/raidplan/raidplanSteps");
 const { str } = require("../utils/text");
 const { newId } = require("../utils/ids");
@@ -51,7 +51,7 @@ function writeAll(profiles) {
 function versionOf(r) {
     if (rulesFor(str(r.versionId))) return str(r.versionId);
     const inst = instanceById(str(r.bossKey).split("/")[0]);
-    return inst ? inst.versionId : "tbc";
+    return inst ? inst.versionId : LEGACY_VERSION;
 }
 
 /** A profile as stored: every field present, texts cut to their limits. */

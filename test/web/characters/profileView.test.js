@@ -194,7 +194,8 @@ describe("lookupArmory", () => {
     it("adds class, level and guild when the API answers", async () => {
         mockBlizzard.getCharacterSummary.mockResolvedValueOnce({ className: "MAGE", level: 70, guild: "Pulse" });
         const out = await lookupArmory("Frosty", "Die Aldor");
-        expect(Blizzard).toHaveBeenCalledWith({ clientId: "id" });
+        // the realm of the main version (#542): the TBC block read from the old values
+        expect(Blizzard).toHaveBeenCalledWith({ clientId: "id", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", namespace: "profile-classicann-eu" } });
         expect(mockBlizzard.getCharacterSummary).toHaveBeenCalledWith("Frosty", { realmSlug: "die-aldor" });
         expect(out).toEqual({ url: armoryUrlFor("Frosty"), fetched: true, className: "Mage", level: 70, guild: "Pulse" });
     });
@@ -217,9 +218,17 @@ describe("lookupArmory", () => {
         expect(await lookupArmory("Frosty")).toEqual(linkOnly("Frosty"));
     });
 
-    it("builds the client with empty options when no Blizzard config is stored", async () => {
+    it("builds the client with the TBC realm and no credentials when no Blizzard config is stored", async () => {
         getConfig.mockReturnValueOnce({});
         await lookupArmory("Frosty");
-        expect(Blizzard).toHaveBeenCalledWith({});
+        expect(Blizzard).toHaveBeenCalledWith({ clientId: "", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", namespace: "profile-classicann-eu" } });
+    });
+
+    it("asks nobody for a version without a realm (#542) and keeps the link empty without a template", async () => {
+        const forever = { blizzardRegion: "", blizzardRealmSlug: "", blizzardNamespace: "", armoryUrlTemplate: "" };
+        getConfig.mockReturnValueOnce({ blizzard: { clientId: "id", clientSecret: "s" }, versionSettings: { forever } });
+        const out = await lookupArmory("Frosty", "", "forever");
+        expect(Blizzard).not.toHaveBeenCalled();
+        expect(out.fetched).toBe(false);
     });
 });

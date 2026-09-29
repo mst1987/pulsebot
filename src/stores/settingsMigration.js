@@ -29,11 +29,18 @@
 //     boss's version (TBC for all of them so far). Existing plans are not
 //     touched (their event carries the version).
 //
+//   - config.json, versionSettings (#542): the single values of before (the
+//     Battle.net realm block in `blizzard`, the armory/WCL templates of the env,
+//     Wowhead "tbc", softres "tbc") become `versionSettings.tbc`; Forever and
+//     Classic start empty. `blizzard` keeps only the credentials.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
 const { isSnowflake } = require("../utils/ids");
 const { CONFIG_DEFAULTS } = require("./configSchema");
+const { versionSettingsOf } = require("./versionSettingsSchema");
+const { LEGACY_VERSION } = require("../config/gameVersions");
 const configStore = require("./configStore");
 const raidTemplateStore = require("./raidTemplateStore");
 const eventStore = require("./eventStore");
@@ -83,6 +90,23 @@ function migrateCategoryRaidTemplate(stored, templates) {
     return Object.fromEntries(categories.map((id) => [String(id), template.id]));
 }
 
+const LEGACY_BLIZZARD_KEYS = ["region", "realmSlug", "namespace"];
+
+/**
+ * The per-version settings for a config from before #542 (it has no
+ * `versionSettings` yet): the old values as the TBC block, the others empty,
+ * and the Battle.net block without its realm fields. null = nothing to upgrade.
+ */
+function migrateVersionSettings(stored) {
+    // A fresh install (no file) reads the defaults; writing one would make it
+    // look like an old install to signupSourcesOf().
+    if (!Object.keys(stored).length) return null;
+    if (stored.versionSettings && typeof stored.versionSettings === "object") return null;
+    const blizzard = { ...(stored.blizzard && typeof stored.blizzard === "object" ? stored.blizzard : {}) };
+    for (const key of LEGACY_BLIZZARD_KEYS) delete blizzard[key];
+    return { versionSettings: versionSettingsOf(stored), blizzard };
+}
+
 /**
  * Upgrade config.json. Returns what changed (empty = nothing written).
  * Runs after the templates, so a legacy default finds its migrated template.
@@ -100,6 +124,12 @@ function migrateConfig() {
     if (categoryRaidTemplate) {
         next.categoryRaidTemplate = categoryRaidTemplate;
         changes.push("config.json: raidDefaults.templateId -> categoryRaidTemplate");
+    }
+    const versions = migrateVersionSettings(stored);
+    if (versions) {
+        Object.assign(next, versions);
+        const tbc = versions.versionSettings[LEGACY_VERSION] || {};
+        changes.push(`config.json: Einstellungen je Spielversion (#542) - bisherige Werte als ${LEGACY_VERSION} (Realm ${tbc.blizzardRealmSlug || "-"}, Namespace ${tbc.blizzardNamespace || "-"}, Wowhead ${tbc.wowheadPath || "-"}), andere Versionen leer`);
     }
     if (changes.length) configStore.writeStored(next);
     return changes;
@@ -149,4 +179,4 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
     return { changes };
 }
 
-module.exports = { migrateSettings, migrateRaidplanVersions, raidplanDefaultsLine, legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate };
+module.exports = { migrateSettings, migrateRaidplanVersions, raidplanDefaultsLine, legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings };

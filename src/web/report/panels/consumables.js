@@ -1,8 +1,7 @@
 // Detail tables of the Vorbereitung group: gear problems, consumables, drums and
 // shadow resistance.
-const { itemLink: wowheadItemLink } = require("../../../utils/loot/wowhead");
 const { esc } = require("../layout");
-const { classCell, playerCard, pctCell, badge, barPct, yesNo, colHead } = require("../widgets");
+const { classCell, playerCard, pctCell, badge, barPct, yesNo, colHead, wowheadItemLink } = require("../widgets");
 
 function renderGearPanel(players, linkFor) {
     if (!players || players.length === 0) {
@@ -36,9 +35,11 @@ function renderConsumablesPanel(consumables, linkFor) {
 function renderShadowResiPanel(sr, linkFor) {
     if (!sr || !sr.players || sr.players.length === 0) return "<div class=\"empty\">Kein Mother-Shahraz-Kampf im Report.</div>";
     const body = sr.players.map((p) => {
-        const items = p.items.map((it) =>
-            `<a href="${esc(wowheadItemLink(it.itemId))}" target="_blank" rel="noopener">${esc(it.itemName)} (+${esc(it.sr)})</a>`
-        ).join(", ");
+        const items = p.items.map((it) => {
+            const url = wowheadItemLink(it.itemId);
+            const text = `${esc(it.itemName)} (+${esc(it.sr)})`;
+            return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${text}</a>` : text;
+        }).join(", ");
         return `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="srval">${esc(p.sr)}</td><td class="sritems">${items || "–"}</td></tr>`;
     }).join("");
     return `<div class="tbox"><table class="idx">

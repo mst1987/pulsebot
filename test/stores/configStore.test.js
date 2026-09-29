@@ -88,9 +88,9 @@ describe("stores/configStore stored file", () => {
 
 describe("stores/configStore saveConfig", () => {
     it("merges the nested blocks and normalises the category maps", () => {
-        configStore.saveConfig({ blizzard: { region: "us" }, anthropic: { model: "m" }, warcraftlogsV2: { clientId: "w" }, categoryLootTool: { a: "rclc" } });
+        configStore.saveConfig({ blizzard: { clientId: "id" }, versionSettings: { tbc: { blizzardRegion: "us" } }, anthropic: { model: "m" }, warcraftlogsV2: { clientId: "w" }, categoryLootTool: { a: "rclc" } });
         const saved = configStore.saveConfig({
-            raidDefaults: { channelId: "ch" }, blizzard: { realmSlug: "x" }, categoryLootTool: { b: "gargul" },
+            raidDefaults: { channelId: "ch" }, blizzard: { clientSecret: "s" }, versionSettings: { tbc: { blizzardRealmSlug: "x" }, forever: { wowheadPath: "forever" } }, categoryLootTool: { b: "gargul" },
             categoryLootSystem: { a: "gdkp" }, raidhelperRetirement: { disabled: true, at: 5, byName: "M" },
             categorySignupSource: { a: "raidhelper" }, categorySetupDms: { a: true }, categoryDiscordEvent: { a: true },
             categoryVoiceChannel: { a: "1300000000000000001" }, categoryMessageLook: { a: { titleSize: "huge" } },
@@ -99,7 +99,10 @@ describe("stores/configStore saveConfig", () => {
             categorySheets: { a: { url: "https://x" } }, topItems: [{ id: 1 }], roleSync: [], categoryReminders: {},
             discordServers: { eventGuilds: [{ guildId: "1100000000000000001" }] },
         });
-        expect(saved.blizzard).toMatchObject({ region: "us", realmSlug: "x" });
+        expect(saved.blizzard).toEqual({ clientId: "id", clientSecret: "s" });
+        // per version and per field (#542): the TBC block keeps what it had, Forever gets its path
+        expect(saved.versionSettings.tbc).toMatchObject({ blizzardRegion: "us", blizzardRealmSlug: "x", wowheadPath: "tbc" });
+        expect(saved.versionSettings.forever).toMatchObject({ wowheadPath: "forever", blizzardRealmSlug: "" });
         expect(saved.anthropic.model).toBe("m");
         expect(saved.warcraftlogsV2.clientId).toBe("w");
         expect(saved.categoryLootTool).toEqual({ a: "rclc", b: "gargul" });

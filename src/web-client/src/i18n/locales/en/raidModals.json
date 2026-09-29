@@ -213,6 +213,7 @@
         "viewList": "View list",
         "editList": "Edit list",
         "editListSub": "Link with admin token",
-        "messagePlaceholder": "e.g. Please enter them before the raid starts!"
+        "messagePlaceholder": "e.g. Please enter them before the raid starts!",
+        "noEdition": "No softres edition is set up for this event's game version (Settings → Game version). An existing list can be linked under \"Enter link\"."
     }
 }

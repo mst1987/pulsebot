@@ -11,6 +11,9 @@ describe("utils/loot/wowhead", () => {
             expect(wowhead.branchFor("tbc")).toBe("tbc");
             expect(wowhead.branchFor("wotlk")).toBe("wotlk");
             expect(wowhead.branchFor("unknown")).toBe("tbc");
+            // a version's own Wowhead path (#542) wins over the edition
+            expect(wowhead.branchFor("tbc", "forever")).toBe("forever");
+            expect(wowhead.itemLink(28830, "tbc", "classic")).toBe("https://www.wowhead.com/classic/item=28830");
         });
         it("builds icon and item urls", () => {
             expect(wowhead.iconUrl("INV_Misc_Bone_03")).toBe("https://wow.zamimg.com/images/wow/icons/large/inv_misc_bone_03.jpg");
@@ -36,6 +39,12 @@ describe("utils/loot/wowhead", () => {
                 "https://www.wowhead.com/tbc/search/suggestions-template",
                 expect.objectContaining({ params: { q: "dragon" } })
             );
+        });
+
+        it("searches the Wowhead path of a version when one is handed in (#542)", async () => {
+            axios.get.mockResolvedValue({ data: { results: [] } });
+            await wowhead.searchItems("onyxia", { path: "classic" });
+            expect(axios.get).toHaveBeenCalledWith("https://www.wowhead.com/classic/search/suggestions-template", expect.any(Object));
         });
 
         it("skips the request for short queries", async () => {

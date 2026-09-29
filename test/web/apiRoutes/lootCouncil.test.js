@@ -24,7 +24,7 @@ jest.mock("../../../src/stores/logGearStore", () => ({
     clearLogGear: jest.fn(() => true),
     recentLogs: jest.fn(() => [{ id: "rep1" }]),
 }));
-jest.mock("../../../src/config/tbcContent", () => ({ sourceForItem: jest.fn(() => null) }));
+jest.mock("../../../src/config/tbcContent", () => ({ ...jest.requireActual("../../../src/config/tbcContent"), sourceForItem: jest.fn(() => null) }));
 jest.mock("../../../src/stores/simStore", () => ({
     startCouncilSim: jest.fn(() => ({ started: true, status: "running" })),
     getJob: jest.fn(() => null),
@@ -191,7 +191,7 @@ describe("GET /api/lootcouncil", () => {
 
         const res = await call(getLootCouncil, "/api/lootcouncil", "?role=caster&tiers=t5, t6,&contents=ssc&category=c1");
         expect(status(res)).toBe(200);
-        expect(lc.councilRoster).toHaveBeenCalledWith({ role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", bisTier: "" });
+        expect(lc.councilRoster).toHaveBeenCalledWith({ role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", bisTier: "", versionId: "tbc" });
         expect(lc.resolveContentFilter).toHaveBeenCalledWith({ tierIds: ["t5", "t6"], contentIds: ["ssc"] });
         expect(lc.bisGaps).toHaveBeenCalledWith(rows, { contentIds: ["ssc"] });
         expect(primeArmoryGear).not.toHaveBeenCalled();
@@ -249,7 +249,7 @@ describe("GET /api/lootcouncil", () => {
         lc.councilRoster.mockReturnValueOnce(first).mockReturnValueOnce(second);
         primeArmoryGear.mockResolvedValueOnce({ answered: true });
         const res = await call(getLootCouncil);
-        expect(primeArmoryGear).toHaveBeenCalledWith(["Alpha"]);
+        expect(primeArmoryGear).toHaveBeenCalledWith(["Alpha"], { versionId: "tbc" });
         expect(lc.councilRoster).toHaveBeenCalledTimes(2);
         expect(body(res).roster).toEqual(second.rows);
     });
@@ -526,7 +526,7 @@ describe("POST /api/lootcouncil/armory", () => {
         mockBody = { characters: ["Alpha", "Beta"] };
         primeArmoryGear.mockResolvedValueOnce({ configured: true, answered: true, fetched: 2 });
         const res = await call(postArmoryRefresh, "/api/lootcouncil/armory");
-        expect(primeArmoryGear).toHaveBeenCalledWith(["Alpha", "Beta"], { full: true, force: true });
+        expect(primeArmoryGear).toHaveBeenCalledWith(["Alpha", "Beta"], { full: true, force: true, versionId: "tbc" });
         expect(body(res)).toEqual({ configured: true, answered: true, fetched: 2 });
     });
 

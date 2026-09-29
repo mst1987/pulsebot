@@ -293,7 +293,9 @@ describe("loot council — icons, buttons, tooltips", () => {
 
     it("keeps the worn-item marks in their corners, each explained by a tooltip", () => {
         const worn = fn(parts, "WornIcon");
-        expect(worn).toMatch(/<a\s+className=\{`lc-worn \$\{marks\}`\}\s+href=\{wornWowheadUrl\(item\)\}/);
+        // the link in the council's version's Wowhead path (#542), none without one
+        expect(worn).toMatch(/const href = wornWowheadUrl\(item, useWowheadPath\(\)\) \|\| undefined;/);
+        expect(worn).toMatch(/<a\s+className=\{`lc-worn \$\{marks\}`\}\s+href=\{href\}/);
         expect(worn).toMatch(/lc-worn-tag-bis" data-tip="BiS"/);
         expect(worn).toMatch(/lc-worn-tag-noench" data-tip=\{t\("lootcouncil\.gear\.wornNoEnchTip"\)\}/);
         expect(worn).toMatch(/lc-worn-tag lc-worn-tag-socket" data-tip=/);

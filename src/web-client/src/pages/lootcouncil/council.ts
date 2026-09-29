@@ -7,7 +7,7 @@ import { runCouncilSim, type LootCouncilData, type CouncilCandidate, type SimRes
 import { useJobs } from "../../components/Jobs";
 import { t, tOr } from "../../i18n";
 import type { Dir } from "../../lib/tableSort";
-import { wowheadItemUrl } from "../../lib/wowheadItems";
+import { wowheadItemUrl, LEGACY_WOWHEAD_PATH } from "../../lib/wowheadItems";
 
 /** The part of the persisted view both routes read: who is counted, which loot, which BiS list. */
 export type FilterView = {
@@ -28,7 +28,8 @@ export const FILTER_DEFAULT: FilterView = { role: "caster", tiers: [], contents:
 export const roleLabel = (id: string, fallback?: string) => tOr(`lootcouncil.role.${id}`, fallback || id);
 export const ROLE_ICON: Record<string, string> = { caster: "spell_holy_magicalsentry", healer: "spell_holy_guardianspirit" };
 
-export const WOWHEAD = (id: number) => wowheadItemUrl(id);
+/** An item's Wowhead page in the council's version (`path` = the data's wowheadPath, lib/versionLinks.ts). */
+export const WOWHEAD = (id: number, path: string = LEGACY_WOWHEAD_PATH) => wowheadItemUrl(id, [], path);
 
 /**
  * A raider's details, as a link: the council page opens its dialog from
@@ -44,11 +45,11 @@ export const dropHref = (itemId?: number) => (itemId ? `/lootcouncil/drop/${item
  * enchant in the url, so the widget tooltip (power.js, index.html) shows the
  * socketed, enchanted item like the in-game tooltip.
  */
-export function wornWowheadUrl(item: WornItem): string {
+export function wornWowheadUrl(item: WornItem, path: string = LEGACY_WOWHEAD_PATH): string {
     const params: string[] = [];
     if (item.enchantId) params.push(`ench=${item.enchantId}`);
     if (item.gemIds.length) params.push(`gems=${item.gemIds.join(":")}`);
-    return wowheadItemUrl(item.itemId, params);
+    return wowheadItemUrl(item.itemId, params, path);
 }
 
 // The roster's columns and the direction each column's first click picks: names
