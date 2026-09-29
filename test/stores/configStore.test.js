@@ -120,3 +120,29 @@ describe("stores/configStore resolveEventSheetLink", () => {
         expect(configStore.resolveEventSheetLink({ url: "https://own" }, undefined)).toEqual({ url: "https://own", name: "", source: "event" });
     });
 });
+
+describe("stores/configStore main version (#541)", () => {
+    it("reads tbc and no category override while nothing is stored", () => {
+        const config = configStore.getConfig();
+        expect(config.mainVersion).toBe("tbc");
+        expect(config.categoryVersion).toEqual({});
+    });
+
+    it("keeps only version ids a rule set knows", () => {
+        writeFile({ mainVersion: "wotlk", categoryVersion: { a: "forever", b: "cata", c: "", " ": "tbc" } });
+        const config = configStore.getConfig();
+        expect(config.mainVersion).toBe("tbc");
+        expect(config.categoryVersion).toEqual({ a: "forever" });
+        writeFile({ mainVersion: "forever", categoryVersion: ["forever"] });
+        expect(configStore.getConfig()).toMatchObject({ mainVersion: "forever", categoryVersion: {} });
+    });
+
+    it("saves the main version and replaces the category map as a whole", () => {
+        configStore.saveConfig({ mainVersion: "forever", categoryVersion: { a: "tbc", b: "classic" } });
+        expect(configStore.getConfig()).toMatchObject({ mainVersion: "forever", categoryVersion: { a: "tbc", b: "classic" } });
+        const saved = configStore.saveConfig({ categoryVersion: { b: "classic", x: "nope" } });
+        expect(saved.mainVersion).toBe("forever");
+        expect(saved.categoryVersion).toEqual({ b: "classic" });
+        expect(configStore.saveConfig({ mainVersion: "bogus" }).mainVersion).toBe("tbc");
+    });
+});

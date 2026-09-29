@@ -101,6 +101,16 @@ describe("services/events/eventCreate", () => {
         expect(scheduleOverviewSync).toHaveBeenCalledWith();
     });
 
+    it("starts an event without version and template in the version its category plays (#541)", async () => {
+        getConfig.mockReturnValue({ categorySignupSource: { "cat-eh": "eventhelper" }, mainVersion: "forever" });
+        const forever = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2" }) });
+        // "Kara" in the title is no TBC instance of a Forever raid
+        expect(eventStore.getEvent(forever.body.id)).toMatchObject({ versionId: "forever", instanceIds: [], size: 25 });
+        getConfig.mockReturnValue({ categorySignupSource: { "cat-eh": "eventhelper" }, mainVersion: "forever", categoryVersion: { "cat-eh": "tbc" } });
+        const tbc = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2" }) });
+        expect(eventStore.getEvent(tbc.body.id)).toMatchObject({ versionId: "tbc", instanceIds: ["kara"], size: 10 });
+    });
+
     it("accepts the planning fields for an EventHelper event", async () => {
         const result = await createEvent({ guildId: "g1", user, body: body({
             channelId: "c2", versionId: "tbc", instanceIds: ["gruul", "mag"], size: 25,

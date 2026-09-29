@@ -247,6 +247,9 @@ describe("web/apiRoutes/settings", () => {
                     activeGuildId: "guild-1",
                 });
                 expect(data.areas.map((a) => a.id)).toEqual(AREA_IDS);
+                // Einstellungen → Spielversion (#541) picks from these
+                expect(data.gameVersions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
+                expect(data.gameVersions[2]).toEqual({ id: "forever", label: expect.any(String), short: expect.any(String) });
             });
 
             // A role with write on "Einstellungen" may edit the bot config, but must
@@ -360,6 +363,15 @@ describe("web/apiRoutes/settings", () => {
                     categoryRoles: { cat1: ["role1"] },
                     blizzard: { clientSecret: "" },
                 });
+            });
+
+            it("forwards the main version and the category map (#541)", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { mainVersion: " forever ", categoryVersion: { cat1: "tbc" } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ mainVersion: "forever", categoryVersion: { cat1: "tbc" } });
+                await patch("/api/settings", { categoryVersion: null });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryVersion: {} });
             });
 
             it("forwards the Anthropic key only when sent, and never echoes it back", async () => {

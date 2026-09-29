@@ -21,7 +21,8 @@ const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../.
 const { memberEventRows, profileForSignup, signupSummary, eventSignupList } = require("../signups/signupView");
 const { noteMode, isNoteStatus, MIN_NOTE } = require("../../services/signups/signupNotes");
 const { userCanAny } = require("../../config/permissions");
-const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { VERSIONS } = require("../../config/gameVersions");
+const { mainVersionFor, classesOfVersion } = require("../../services/events/mainVersion");
 
 /** GET /api/signups — the caller's upcoming raids, their status in each, and their characters. */
 const getSignups = withUser({}, async ({ user, req, res }) => {
@@ -30,11 +31,15 @@ const getSignups = withUser({}, async ({ user, req, res }) => {
     const orga = userCanAny(user, ["raids"], "read");
     const roleIds = orga ? null : await discord.memberRoleIds(guildId, user.id);
     const profile = profiles.getProfile(user.id);
+    const config = getConfig();
     ok(res, {
-        events: memberEventRows(groups, { userId: user.id, guildId, config: getConfig(), roleIds, orga, profile }),
+        events: memberEventRows(groups, { userId: user.id, guildId, config, roleIds, orga, profile }),
         profile: profileForSignup(profile),
-        // Class colour and icon for the character picker.
-        classes: rulesFor(DEFAULT_VERSION).classes.map((c) => ({ id: c.id, label: c.label, color: c.color, icon: c.icon })),
+        // Class colour and icon for the character picker (#541): per version,
+        // the dialog takes the list of the event's version; `classes` is the
+        // main version's, for a row without one (Raid-Helper).
+        classes: classesOfVersion(mainVersionFor({ config }), { config }),
+        classesByVersion: Object.fromEntries(VERSIONS.map((v) => [v.id, classesOfVersion(v.id, { config })])),
         error: err,
     });
 });

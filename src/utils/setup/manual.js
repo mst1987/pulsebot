@@ -13,7 +13,8 @@
 // healers, a missing buff: that is the checks' business, and the orga may know
 // better. The same line the proposal draws (see docs/setup.md, "Setup-Vorschlag").
 
-const { rulesFor, DEFAULT_VERSION, ROLES } = require("../../config/gameVersions");
+const { ROLES } = require("../../config/gameVersions");
+const { rulesForEvent } = require("../../services/events/mainVersion");
 const { GROUP_SIZE, signupCharacters } = require("./model");
 const { str } = require("../text");
 
@@ -50,7 +51,7 @@ function placeSlots(slots) {
  * @returns {{ value?: { groups: object[], bench: object[] }, error?: string }}
  */
 function validatePlacement(raw, { event, signups } = {}) {
-    const rules = rulesFor((event && event.versionId) || DEFAULT_VERSION) || rulesFor(DEFAULT_VERSION);
+    const rules = rulesForEvent(event);
     const size = Math.max(0, Number(event && event.size) || 0);
     const groupCount = Math.max(1, Math.ceil(size / GROUP_SIZE));
     const specs = new Map();

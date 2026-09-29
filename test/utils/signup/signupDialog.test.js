@@ -4,6 +4,17 @@
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
+// The main version (#541) — empty = TBC, as before the setting existed.
+let mockConfig = {};
+jest.mock("../../../src/services/events/mainVersion", () => {
+    const actual = jest.requireActual("../../../src/services/events/mainVersion");
+    const withConfig = (fn) => (a, opts = {}) => fn(a, { config: mockConfig, ...opts });
+    return {
+        ...actual,
+        rulesForEvent: withConfig(actual.rulesForEvent),
+        versionOfEvent: withConfig(actual.versionOfEvent),
+    };
+});
 
 const mocks = require("../../helpers/signupMocks");
 const profiles = require("../../../src/stores/raiderProfileStore");
@@ -110,5 +121,28 @@ describe("buildSignupDialog", () => {
     it("ignores a state that names somebody else's character", () => {
         const picks = dialog.resolveState(mocks.events.get("eh-kara"), profiles.getProfile(ANNA), null, { character: "fremd", spec: "Rogue-Combat", canAlso: [] });
         expect(picks).toMatchObject({ character: "nerathil", spec: "Mage-Arcane" });
+    });
+});
+
+describe("main version (#541)", () => {
+    afterEach(() => {
+        mockConfig = {};
+    });
+
+    it("asks for a last name without a version only when the main version has them", () => {
+        const modal = (opts) => JSON.stringify(dialog.buildCharacterModal("x", opts).toJSON());
+        expect(modal({})).toBe(modal({ versionId: "tbc" }));
+        mockConfig = { mainVersion: "forever" };
+        expect(modal({})).toBe(modal({ versionId: "forever" }));
+        expect(modal({})).not.toBe(modal({ versionId: "tbc" }));
+        // an event's own version wins
+        expect(modal({ versionId: "tbc" })).not.toBe(modal({ versionId: "forever" }));
+    });
+
+    it("lists the classes of the event's version, the main version's for an event without one", () => {
+        const { rulesFor } = require("../../../src/config/gameVersions");
+        mockConfig = { mainVersion: "forever" };
+        expect(dialog.classesFor({ versionId: "tbc" })).toBe(rulesFor("tbc").classes);
+        expect(dialog.classesFor({})).toBe(rulesFor("forever").classes);
     });
 });

@@ -23,7 +23,7 @@ const signupService = require("../signups/signupService");
 const { STATUS_LABELS } = require("../events/eventManage");
 const setupEditor = require("./setupEditor");
 const { benchAndPool } = require("./setupCore");
-const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { rulesForEvent } = require("../events/mainVersion");
 const { signupCharacters } = require("../../utils/setup/model");
 const { SIGNUP_STATUSES } = require("../../utils/attendance");
 const { str } = require("../../utils/text");
@@ -32,8 +32,9 @@ const fail = (status, code, error) => ({ status, code, error });
 
 const keyOf = (name) => profiles.characterKey(name) || str(name).toLowerCase();
 
+/** The event's rule set; without a version the one its category plays (#541). */
 function rulesOf(event) {
-    return rulesFor((event && event.versionId) || DEFAULT_VERSION) || rulesFor(DEFAULT_VERSION);
+    return rulesForEvent(event);
 }
 
 /** The own event and the raider's signup, or a failure. */

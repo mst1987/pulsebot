@@ -1,7 +1,8 @@
 const crypto = require("crypto");
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { rulesFor, instanceById, compositionFor, DEFAULT_VERSION } = require("../config/gameVersions");
+const { rulesFor, instanceById, compositionFor, LEGACY_VERSION } = require("../config/gameVersions");
+const { mainVersionFor } = require("../services/events/mainVersion");
 
 // Events the EventHelper keeps itself (`source: "eventhelper"`), next to the
 // ones that live at Raid-Helper. One event has exactly one source: nothing here
@@ -89,7 +90,8 @@ function roleTarget(raw) {
  * @returns {{ value?: object, error?: string }}
  */
 function normalizePlan(input = {}) {
-    const versionId = str(input.versionId) || DEFAULT_VERSION;
+    // No version given: the one the event's category plays (#541).
+    const versionId = str(input.versionId) || mainVersionFor({ categoryId: str(input.categoryId) });
     const rules = rulesFor(versionId);
     if (!rules) return { error: `Unbekannte Spielversion „${versionId}“.` };
 
@@ -182,7 +184,8 @@ function complete(e) {
         description: e.description || "",
         leaderId: e.leaderId || "",
         startTime: Number(e.startTime) || 0,
-        versionId: e.versionId || DEFAULT_VERSION,
+        // Stored without a version = from before versions existed: TBC (#541).
+        versionId: e.versionId || LEGACY_VERSION,
         instanceIds: Array.isArray(e.instanceIds) ? e.instanceIds : [],
         size: Number(e.size) || 0,
         composition: { tank: 0, healer: 0, melee: 0, ranged: 0, ...(e.composition || {}) },

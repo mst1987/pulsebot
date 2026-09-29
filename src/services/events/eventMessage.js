@@ -70,7 +70,7 @@ const discord = require("../discord/discord");
 // The counting rule lives in the signup service, so the page and the message agree.
 const { rosterCounts, allowedStatuses, signupWindow } = require("../signups/signupService");
 const { buildClasses } = require("../../config/gameVersions/classes");
-const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { rulesForEvent } = require("./mainVersion");
 const {
     appEmojiMap, loadAppEmojis, emojiText, emojiOption,
     specEmojiName, classEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName, tileEmojiName, roleEmojiName, emojiStyleOf,
@@ -156,7 +156,7 @@ const escapeMd = (text) => String(text || "").replace(/([\\*_~`|>[\]()])/g, "\\$
 
 /** The classes of the event's game version (the rule set's order). */
 function classesOf(event) {
-    const rules = rulesFor(event && event.versionId) || rulesFor(DEFAULT_VERSION);
+    const rules = rulesForEvent(event);
     return (rules && rules.classes) || CLASSES;
 }
 

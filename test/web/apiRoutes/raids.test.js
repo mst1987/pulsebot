@@ -329,6 +329,20 @@ describe("web/apiRoutes/raids", () => {
                 },
             });
             expect(json(res).data.versions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
+            expect(json(res).data.categoryVersions).toEqual({});
+        });
+
+        it("names the main version and the categories that play another one (#541)", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "forever", categoryVersion: { cat1: "tbc" } });
+            settingsStore.listRaidTemplates.mockReturnValue([]);
+            discord.listTextChannels.mockReturnValue([]);
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+
+            const res = mockRes();
+            await handle("/api/raids/new", { method: "GET" }, res);
+            expect(json(res).data).toMatchObject({ defaultVersion: "forever", categoryVersions: { cat1: "tbc" } });
         });
     });
 

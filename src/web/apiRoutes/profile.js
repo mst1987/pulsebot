@@ -14,17 +14,29 @@ const { profileView, lookupArmory } = require("../characters/profileView");
 const calendarTokens = require("../../stores/calendarTokenStore");
 const calendarFeed = require("../pages/calendarFeed");
 const { userIcsUrl } = require("../../services/events/icsFeed");
-const { rulesFor, DEFAULT_VERSION, VERSIONS } = require("../../config/gameVersions");
+const { rulesFor, VERSIONS } = require("../../config/gameVersions");
+const { mainVersionFor } = require("../../services/events/mainVersion");
+const { getConfig } = require("../../stores/settingsStore");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
 
 const WEEKDAY_LABELS = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" };
 const GEAR_LABELS = { none: "keins", usable: "brauchbar", ready: "raidbereit" };
 
-/** What the page needs besides the profile: classes, raids, labels. Static. */
-function pageContext() {
-    const rules = rulesFor(DEFAULT_VERSION);
+/**
+ * What the page needs besides the profile: classes, raids, labels.
+ *
+ * The classes are the rule set of `versionId` — the main version from the
+ * settings unless one is given (#541). `classesByVersion` carries every
+ * version's list, so a character that belongs to another version (#543) picks
+ * from its own without another request.
+ */
+function pageContext({ versionId, config = getConfig() } = {}) {
+    const mainVersion = (versionId && rulesFor(versionId) && versionId) || mainVersionFor({ config });
+    const rules = rulesFor(mainVersion);
     return {
+        mainVersion,
         classes: rules.classes,
+        classesByVersion: Object.fromEntries(VERSIONS.map((v) => [v.id, v.classes])),
         roles: ROLE_LABELS,
         // The instances of every version, grouped, so a Classic guild finds its raids too.
         raidGroups: VERSIONS.map((v) => ({

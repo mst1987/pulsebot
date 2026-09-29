@@ -30,7 +30,7 @@ const { specNameFor } = require("../events/eventSources");
 const { evaluateSetup } = require("../../utils/setup/proposal");
 const { validatePlacement, placeSlots } = require("../../utils/setup/manual");
 const { DEFAULT_WEIGHTS, MAX_WEIGHT } = require("../../utils/setup/score");
-const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { rulesForEvent } = require("../events/mainVersion");
 const { str } = require("../../utils/text");
 const { approvedSetupOf, pingTextOf, benchAndPool } = require("./setupCore");
 const { suggestSearch } = require("./raidSearch");
@@ -335,7 +335,7 @@ function setupSummary(event) {
 // ---- the editor's view ------------------------------------------------------
 
 function specTable(versionId) {
-    const rules = rulesFor(versionId || DEFAULT_VERSION) || rulesFor(DEFAULT_VERSION);
+    const rules = rulesForEvent({ versionId });
     const specs = new Map();
     const classes = new Map();
     for (const c of rules.classes) {

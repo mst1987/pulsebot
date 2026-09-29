@@ -13,6 +13,7 @@ const { normalizeBotCommandAccess } = require("../config/botCommands");
 const { normalizeCategoryLootSystem } = require("../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const { isSnowflake } = require("../utils/ids");
+const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 
 // General bot config editable from the admin menu (kept out of .env on purpose).
 // Defaults come from config/variables (env / historical hard-codes); values saved
@@ -138,6 +139,13 @@ const CONFIG_DEFAULTS = {
     // (Einstellungen → Kategorien). A template that is some category's default
     // cannot be deleted (409 in apiRoutes/raidTemplates.js).
     categoryRaidTemplate: {},
+    // The game version the guild plays (#541): what a new event, a new raid
+    // template and the profile start with when nobody picked one. A version id
+    // of config/gameVersions; switched in Einstellungen → Spielversion.
+    mainVersion: DEFAULT_VERSION,
+    // A category that plays another version than the main one:
+    // { [categoryId]: versionId }. Only the categories that differ are stored.
+    categoryVersion: {},
     // The items the guild considers a "big" drop: [{ id, name, iconUrl, quality }],
     // picked from the Wowhead search in Einstellungen → Loot. Imported loot is
     // matched against these ids for the dashboard's "Latest Loot" card
@@ -196,6 +204,24 @@ function normalizeCategoryRaidTemplate(raw) {
         const key = String(catId).trim();
         const value = String(tplId || "").trim();
         if (key && value) out[key] = value;
+    }
+    return out;
+}
+
+/** A version id a rule set knows, else the default (#541). */
+function normalizeMainVersion(raw) {
+    const id = String(raw || "").trim();
+    return id && rulesFor(id) ? id : DEFAULT_VERSION;
+}
+
+/** Normalise { [categoryId]: versionId }: only known versions, empty entries dropped. */
+function normalizeCategoryVersion(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, versionId] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        const value = String(versionId || "").trim();
+        if (key && value && rulesFor(value)) out[key] = value;
     }
     return out;
 }
@@ -537,6 +563,8 @@ function normalizeConfig(raw) {
         categorySignupNoteChannel: normalizeCategoryVoiceChannel(stored.categorySignupNoteChannel),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         categoryRaidTemplate: normalizeCategoryRaidTemplate(stored.categoryRaidTemplate),
+        mainVersion: normalizeMainVersion(stored.mainVersion),
+        categoryVersion: normalizeCategoryVersion(stored.categoryVersion),
         topItems: normalizeTopItems(stored.topItems),
         roleSync: normalizeRoleSync(stored.roleSync),
         categoryReminders: normalizeCategoryReminders(stored.categoryReminders),
@@ -550,4 +578,5 @@ module.exports = {
     normalizeCategorySetupDms, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
     normalizeRaidhelperRetirement, normalizeCategorySheets, normalizeCategoryRoles,
+    normalizeMainVersion, normalizeCategoryVersion,
 };

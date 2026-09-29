@@ -13,8 +13,9 @@
 // "Größe ergänzen" until someone fills it in.
 
 const {
-    DEFAULT_VERSION, rulesFor, instance, compositionFor, defaultComposition,
+    LEGACY_VERSION, rulesFor, instance, compositionFor, defaultComposition,
 } = require("../../config/gameVersions");
+const { mainVersionFor } = require("./mainVersion");
 // Colour and picture of the bot's event message (#307) — one place validates
 // them for the template and for the event that inherits them.
 const { normalizeColor, normalizeImage, colorProblem, imageProblem } = require("./embedLook");
@@ -47,7 +48,8 @@ function migrateLegacy(entry) {
     return {
         id: legacyId(rhId),
         name: String(entry.name || "").trim() || `Raid-Helper ${rhId}`,
-        versionId: DEFAULT_VERSION,
+        // A Raid-Helper template from before #266 is a TBC one (#541).
+        versionId: LEGACY_VERSION,
         instanceIds: [],
         size: null,
         composition: { tank: 0, healer: 0, melee: null, ranged: null },
@@ -94,7 +96,9 @@ function normalizeTemplate(raw) {
     return {
         id: String(src.id || "").trim(),
         name: String(src.name || "").trim(),
-        versionId: String(src.versionId || DEFAULT_VERSION).trim(),
+        // A body without a version starts in the main version (#541); a stored
+        // template always has one (an old entry is migrateLegacy()'s).
+        versionId: String(src.versionId || mainVersionFor()).trim(),
         instanceIds: [...new Set(instances)],
         size: int(src.size),
         composition: {

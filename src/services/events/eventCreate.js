@@ -26,6 +26,7 @@ const { getConfig, getRaidTemplate } = require("../../stores/settingsStore");
 const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const channelNaming = require("../discord/channelNaming");
 const { instanceById } = require("../../config/gameVersions");
+const { mainVersionFor } = require("./mainVersion");
 const { emojiStyleOf } = require("../discord/appEmojis");
 const { normalizeOverflow, normalizeLockAtLimit } = require("../../utils/signup/capacity");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
@@ -229,9 +230,15 @@ function planFor(body, categoryId, title, startTime) {
     }
     const deadline = deadlineFrom(body, startTime);
     if (deadline !== undefined && given(body, "signupDeadlineHours")) merged.signupDeadline = deadline;
+    // Neither the body nor the template names a version: the one the category plays (#541).
+    if (!given(merged, "versionId")) merged.versionId = mainVersionFor({ categoryId, config: getConfig() });
+    // The instances the title names only when they belong to that version — a
+    // "Kara" in the title of a Forever raid is no reason to refuse it.
+    const fromTitle = () => raidContentIds({ title }).contentIds
+        .filter((id) => { const inst = instanceById(id); return !inst || inst.versionId === merged.versionId; });
     merged.instanceIds = Array.isArray(body.instanceIds) && body.instanceIds.length
         ? body.instanceIds
-        : ((template.instanceIds || []).length ? template.instanceIds : raidContentIds({ title }).contentIds);
+        : ((template.instanceIds || []).length ? template.instanceIds : fromTitle());
     const checked = eventStore.normalizePlan(merged);
     if (checked.error) return { error: fail(400, "invalid_plan", checked.error) };
     const signupDeadline = Number(merged.signupDeadline) || 0;
