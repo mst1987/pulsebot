@@ -259,7 +259,13 @@
         "applyText": "The template's bosses replace the boards in this plan, unsaved changes to them are lost. Bosses the template does not have stay.",
         "applyAction": "Apply",
         "applied": "Template \"{name}\" applied. Open slots are marked on the board.",
-        "hintEmpty": "Tip: \"Pick a template\" starts you from a template."
+        "hintEmpty": "Tip: \"Pick a template\" starts you from a template.",
+        "otherVersions": "Templates of other game versions ({count})",
+        "otherVersionTag": "{version}",
+        "otherTitle": "Apply a template of another game version?",
+        "otherText": "“{name}” is a {version} template, this event is {event}. Bosses and catalog entries of the other version do not fit here; only sections both have are taken over.",
+        "otherAction": "Apply anyway",
+        "noneOfVersion": "There is no template for {version} yet."
     },
     "tool": {
         "label": "Tools",

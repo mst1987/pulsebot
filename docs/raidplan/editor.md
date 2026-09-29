@@ -212,8 +212,9 @@ the icons that are imported end up in the bundle, about 10 KB), as inline SVG co
 - **Read view.** "Meine Aufgaben" and "Wirkt auf dich" (`lib/raidplan/mineView.ts`) are blocks per kind of task with
   one card per assignment (icon | who | arrow | at whom | extras); "Alle Einteilungen" is its own zone with
   the tables. "Tasks by player" is gone.
-- **TBC correctness.** Catalog entries may carry `versions` (default: all); the catalog, the pickers and the
-  suggestions filter by the event's game version. Misdirection is a hunter's; Tricks of the Trade (Patch
+- **TBC correctness.** Every catalog entry names its `versions` (#544, catalog.md "Per game version"); the catalog, the
+  pickers, the section's mobs and the suggestions only use the entries of the plan's game version (`catalogView(versionId)`,
+  the editor payload's `versionId`), templates and tactics are filtered by it too. Misdirection is a hunter's; Tricks of the Trade (Patch
   3.0.2) is limited to `wotlk` (`SINCE` + `test/services/raidplan/raidplanCatalogAudit.test.js`). Fear Ward is a spell of
   all priests since Patch 2.3.0 (Warcraft Wiki). Only the nine TBC classes exist.
 - **Crash guard.** `RaidplanBoundary` wraps the editors: a render error shows "Etwas ist schiefgelaufen" with
@@ -363,7 +364,7 @@ Both follow the Raidplan canvas (boards `Modal-B`, `Modal-Klassen`, `Zeilen-Cont
   (`suggestClassRows`).
 - **Read view**: "Nur f\u00fcr mich" chip in the section nav (only sections that concern the visitor, only his
   blocks), group healing "Nach Gruppe / Nach Heiler" (`healerGroups`).
-- **Catalog**: `versions` of an entry can be set in the catalog form (Klassik / TBC / WotLK); Bloodlust
+- **Catalog**: `versions` of an entry are set in the catalog form (the chips of the game versions, at least one); Bloodlust
   (Horde) and Heroism (Alliance) are separate entries.
 - **Pan and saved view.** Zoomed in, a drag on empty ground pans (Shift + drag = rubber band), also Space +
   drag, middle button, hand tool, plain wheel / two-finger scroll (at the edge the page scrolls again), arrow

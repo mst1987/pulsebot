@@ -111,7 +111,7 @@ const postSuggest = withUser({ write: "raids", csrf: true, body: true }, async (
     let event;
     if (body.event) { const found = await eventOf(res, body.event); if (!found) return; event = found.event; }
     const type = String(body.type || "");
-    ok(res, { assignments: assign.SUGGESTABLE.includes(type) ? raidplan.suggestFor(type, { event, slots: body.slots, roles: body.roles, preferredClasses: body.preferredClasses, allowOthers: body.allowOthers, keep: body.keep, preferredRole: body.preferredRole, context: body.context, spellId: body.spellId }) : [] });
+    ok(res, { assignments: assign.SUGGESTABLE.includes(type) ? raidplan.suggestFor(type, { event, versionId: String(body.versionId || ""), slots: body.slots, roles: body.roles, preferredClasses: body.preferredClasses, allowOthers: body.allowOthers, keep: body.keep, preferredRole: body.preferredRole, context: body.context, spellId: body.spellId }) : [] });
 });
 
 /** POST /api/raidplan/publish — body `{ event, published, rotate? }` */
@@ -184,13 +184,17 @@ const postMapDelete = withUser({ write: "raids", csrf: true, body: true }, async
     ok(res, { key, removed: store.deleteMap(key) });
 });
 
-/** POST /api/raidplan/apply — body `{ event, templateId, version }` */
+/**
+ * POST /api/raidplan/apply — body `{ event, templateId, version, otherVersion? }`. A template of another game version than the event's
+ * (#544) is only applied with `otherVersion: true` (the editor asks first); without it the answer is 409 `version_mismatch`.
+ */
 const postApply = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const event = found.event;
     const template = templateStore.getTemplate(body.templateId);
-    if (!template || !raidplan.templatesFor(event).some((t) => t.id === template.id)) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
+    if (!template || !raidplan.templatesFor(event, { allVersions: true }).some((t) => t.id === template.id)) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
+    if (template.versionId !== raidplan.planVersion(event) && body.otherVersion !== true) return error(res, 409, "version_mismatch", "Die Vorlage gehört zu einer anderen Spielversion als das Event.");
     const result = store.applyTemplate(event.id, template, {
         version: body.version,
         bossKeys: raidplan.planKeys(event),
@@ -279,7 +283,8 @@ function mobIconChoices() {
 /** What the catalog page needs: every visible entry, the hidden defaults, and the choices of the forms. */
 function catalogAnswer() {
     const { bossesForInstances } = store;
-    const instances = require("../../config/gameVersions").rulesFor("tbc").instances;
+    // the instances of every game version, each with its version (#544): the form offers those of the entry's versions
+    const instances = require("../../config/gameVersions").VERSIONS.flatMap((v) => v.instances.map((i) => ({ ...i, versionId: v.id })));
     return {
         ...catalog.catalogView(),
         hidden: catalog.hiddenEntries(),
@@ -287,7 +292,7 @@ function catalogAnswer() {
         iconChoices: mobIconChoices(),
         classes: catalog.CLASS_IDS,
         types: assign.ASSIGN_TYPES,
-        instances: instances.map((i) => ({ id: i.id, name: i.name, short: i.short, bosses: bossesForInstances([i.id]).filter((b) => !b.trash && !b.general).map((b) => ({ key: b.key, name: b.name })) })),
+        instances: instances.map((i) => ({ id: i.id, name: i.name, short: i.short, versionId: i.versionId, bosses: bossesForInstances([i.id]).filter((b) => !b.trash && !b.general).map((b) => ({ key: b.key, name: b.name })) })),
         limits: catalog.LIMITS,
     };
 }

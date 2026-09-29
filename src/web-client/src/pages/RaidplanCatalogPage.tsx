@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, type KeyboardEvent, type ReactNode } fr
 import { Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
-    canAccess, deleteCatalogEntry, getRaidplanCatalog, resetCatalogEntry, saveCatalogEntry,
+    canAccess, deleteCatalogEntry, getGameVersions, getRaidplanCatalog, resetCatalogEntry, saveCatalogEntry,
     type ApiError, type CatalogAdmin, type CatalogMob, type CatalogSpell } from "../api";
 import { useApi } from "../hooks/useApi";
 import type { ShellContext } from "../components/Shell";
@@ -15,17 +15,23 @@ import RaidLoader from "../components/ui/RaidLoader";
 import WowIcon from "../components/ui/WowIcon";
 import { MobIcon } from "./raid-detail/raidplan/AssignPanel";
 import Flyout from "../components/raidplan/Flyout";
+import Segment from "../components/ui/Segment";
+import { catalogOfVersion, inVersion, versionChips, versionLabel } from "../lib/raidplan/versions";
 import { ASSIGN_META } from "../lib/raidplan/assign";
 import { useT } from "../i18n";
 import "../styles/raidplan/index.css";
 
 type Tab = "mobs" | "spells";
 type Draft = Partial<CatalogMob & CatalogSpell>;
+type VersionInfo = { id: string; short: string; label: string };
 
 /**
  * "Raidplan-Katalog" (docs/raidplan.md): the mobs (a boss's adds, council members, trash) that can be tanked or
  * marked in a plan, and the spells that are handed out as assignments. The code brings defaults; here they can be
  * changed (an override), hidden or reset, and own entries added. List first, one form at a time.
+ *
+ * Per game version (#544): the switch on top shows the entries of one version (the main version first, from
+ * /api/game-versions' `defaultVersion`); a new entry starts in the version shown, the form's chips set its versions.
  */
 export default function RaidplanCatalogPage() {
     const t = useT();
@@ -35,6 +41,12 @@ export default function RaidplanCatalogPage() {
     const canWrite = canAccess(user, "raids", "write");
     const catalog = useApi(() => getRaidplanCatalog(), []);
     const { data, setData } = catalog;
+    // the game versions: the switch's choices and the main version it starts on (#541 makes that a setting; it is read from the same place)
+    const gameVersions = useApi(() => getGameVersions(), []);
+    const known: VersionInfo[] = useMemo(() => (gameVersions.data ? gameVersions.data.versions.map((v) => ({ id: v.id, short: v.short, label: v.label })) : []), [gameVersions.data]);
+    const [picked, setPicked] = useState("");
+    const version = picked || (gameVersions.data ? gameVersions.data.defaultVersion : "") || "tbc";
+    const shown = useMemo(() => (data ? catalogOfVersion(data, version) : { mobs: [], spells: [] }), [data, version]);
     const [which, setWhich] = useState<Tab>("mobs");
     const [q, setQ] = useState("");
     const [draft, setDraft] = useState<Draft | null>(null);
@@ -48,20 +60,20 @@ export default function RaidplanCatalogPage() {
     }, [data]);
     const mobGroups = useMemo(() => {
         const groups = new Map<string, CatalogMob[]>();
-        for (const m of data ? data.mobs : []) {
+        for (const m of shown.mobs) {
             if (needle && !`${m.name} ${bossName(m.bossKey)}`.toLowerCase().includes(needle)) continue;
             groups.set(m.instanceId, [...(groups.get(m.instanceId) || []), m]);
         }
         return [...groups.entries()];
-    }, [data, needle, bossName]);
+    }, [shown, needle, bossName]);
     const spellGroups = useMemo(() => {
         const groups = new Map<string, CatalogSpell[]>();
-        for (const s of data ? data.spells : []) {
+        for (const s of shown.spells) {
             if (needle && !`${s.name} ${s.nameEn}`.toLowerCase().includes(needle)) continue;
             groups.set(s.type, [...(groups.get(s.type) || []), s]);
         }
         return [...groups.entries()];
-    }, [data, needle]);
+    }, [shown, needle]);
 
     if (catalog.error) return <div className="empty">{t("catalog.loadError", { message: catalog.error.message })}</div>;
     if (!data) return <RaidLoader text={t("catalog.loading")} />;
@@ -93,10 +105,15 @@ export default function RaidplanCatalogPage() {
         await run(() => deleteCatalogEntry(kind, e.id), t("catalog.removed"));
     };
 
+    /** "also Classic" when an entry is in more versions than the one shown. */
+    const alsoIn = (e: CatalogMob | CatalogSpell) => {
+        const others = (e.versions || []).filter((v) => v !== version);
+        return others.length ? t("catalog.alsoIn", { versions: others.map((v) => versionLabel(known, v)).join(", ") }) : "";
+    };
     const row = (kind: Tab, e: CatalogMob | CatalogSpell, icon: JSX.Element, meta: string, extra?: ReactNode) => (
         <li key={e.id} className="rp-crow">
             {icon}
-            <span className="rp-crow-main"><strong>{e.name}</strong><span className="rp-muted">{meta}</span></span>
+            <span className="rp-crow-main"><strong>{e.name}</strong><span className="rp-muted">{[meta, alsoIn(e)].filter(Boolean).join(" · ")}</span></span>
             {extra}
             <Badge tone={e.source === "custom" ? "accent" : e.source === "override" ? "mid" : undefined}>{t(`catalog.source.${e.source}`)}</Badge>
             {canWrite && (
@@ -109,22 +126,27 @@ export default function RaidplanCatalogPage() {
         </li>
     );
 
-    const hidden = which === "mobs" ? data.hidden.mobs : data.hidden.spells;
+    const hidden = ((which === "mobs" ? data.hidden.mobs : data.hidden.spells) as (CatalogMob | CatalogSpell)[]).filter((e) => inVersion(e, version));
     return (
         <div className="rp-catalog">
             <p className="note"><Link className="mlink" to="/raids">{t("planTemplates.back")}</Link></p>
             <PageHead
                 icon="inv_misc_book_09" tone="raids" kicker={t("planTemplates.kicker")} title={t("catalog.title")}
-                action={canWrite ? <Button onClick={() => setDraft(which === "mobs" ? { kind: "add", instanceId: "", bossKey: "" } : { type: "curse", classes: [] })}><Plus size={16} /> {t(which === "mobs" ? "catalog.newMob" : "catalog.newSpell")}</Button> : undefined}
+                action={canWrite ? <Button onClick={() => setDraft(which === "mobs" ? { kind: "add", instanceId: "", bossKey: "", versions: [version] } : { type: "curse", classes: [], versions: [version] })}><Plus size={16} /> {t(which === "mobs" ? "catalog.newMob" : "catalog.newSpell")}</Button> : undefined}
             />
             <p className="rp-muted">{t("catalog.intro")}</p>
+            {known.length > 1 && (
+                <div className="rp-catversion">
+                    <Segment ariaLabel={t("catalog.versionSwitch")} value={version} onChange={setPicked} options={known.map((v) => ({ value: v.id, label: v.short, tip: v.label }))} />
+                </div>
+            )}
             <div className="rp-tfilters">
                 <div className="tabs rp-cattabs" role="tablist" aria-label={t("catalog.title")} onKeyDown={tabKeys}>
                     {(["mobs", "spells"] as Tab[]).map((x) => (
                         <button key={x} type="button" role="tab" id={`cattab-${x}`} aria-selected={which === x} tabIndex={which === x ? 0 : -1} className={`tab-btn${which === x ? " active" : ""}`} onClick={() => setWhich(x)}>
                             <WowIcon name={x === "mobs" ? "ability_warrior_defensivestance" : "spell_shadow_curseofsargeras"} size={18} />
                             <span>{t(`catalog.tab.${x}`)}</span>
-                            <span className="tab-count">{x === "mobs" ? data.mobs.length : data.spells.length}</span>
+                            <span className="tab-count">{x === "mobs" ? shown.mobs.length : shown.spells.length}</span>
                         </button>
                     ))}
                 </div>
@@ -146,7 +168,9 @@ export default function RaidplanCatalogPage() {
                     <ul className="rp-clist">{list.map((s) => row("spells", s, <WowIcon name={s.icon} size={30} />, s.classes.join(", ")))}</ul>
                 </section>
             ))}
-            {((which === "mobs" && mobGroups.length === 0) || (which === "spells" && spellGroups.length === 0)) && <p className="rp-muted">{t("catalog.none")}</p>}
+            {((which === "mobs" && mobGroups.length === 0) || (which === "spells" && spellGroups.length === 0)) && (
+                <p className="rp-muted">{!needle && (which === "mobs" ? shown.mobs : shown.spells).length === 0 ? t("catalog.versionNone", { version: versionLabel(known, version) }) : t("catalog.none")}</p>
+            )}
 
             {hidden.length > 0 && (
                 <section className="rp-cgroup">
@@ -164,7 +188,7 @@ export default function RaidplanCatalogPage() {
 
             {draft && (
                 <EntryModal
-                    which={which} data={data} initial={draft} onClose={() => setDraft(null)}
+                    which={which} data={data} known={known} initial={draft} onClose={() => setDraft(null)}
                     onSave={async (d) => { if (await run(() => saveCatalogEntry(which, d), t("catalog.saved"))) setDraft(null); }}
                 />
             )}
@@ -173,9 +197,11 @@ export default function RaidplanCatalogPage() {
 }
 
 /** The form of one mob or spell. */
-function EntryModal({ which, data, initial, onClose, onSave }: {
+function EntryModal({ which, data, known, initial, onClose, onSave }: {
     which: Tab;
     data: CatalogAdmin;
+    /** the game versions the chips offer */
+    known: VersionInfo[];
     initial: Draft;
     onClose: () => void;
     onSave: (d: Draft) => Promise<void>;
@@ -184,6 +210,10 @@ function EntryModal({ which, data, initial, onClose, onSave }: {
     const [f, setF] = useState<Draft>(initial);
     const [busy, setBusy] = useState(false);
     const inst = data.instances.find((i) => i.id === f.instanceId);
+    const chosen = f.versions || [];
+    // the instances of the entry's versions (and the one it has, so an old choice never vanishes)
+    const instances = data.instances.filter((i) => chosen.indexOf(i.versionId) >= 0 || i.id === f.instanceId);
+    const toggleVersion = (v: string) => setF((cur) => ({ ...cur, versions: (cur.versions || []).includes(v) ? (cur.versions || []).filter((x) => x !== v) : [...(cur.versions || []), v] }));
     const toggleClass = (c: string) => setF((cur) => ({ ...cur, classes: (cur.classes || []).includes(c) ? (cur.classes || []).filter((x) => x !== c) : [...(cur.classes || []), c] }));
     return (
         <Modal
@@ -192,7 +222,7 @@ function EntryModal({ which, data, initial, onClose, onSave }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("raidBoard.profile.cancel")}</Button>
-                    <Button disabled={!(f.name || "").trim()} running={busy} onClick={async () => { setBusy(true); try { await onSave({ ...f, name: (f.name || "").trim() }); } finally { setBusy(false); } }}>{t("raidBoard.profile.save")}</Button>
+                    <Button disabled={!(f.name || "").trim() || chosen.length === 0} running={busy} onClick={async () => { setBusy(true); try { await onSave({ ...f, name: (f.name || "").trim() }); } finally { setBusy(false); } }}>{t("raidBoard.profile.save")}</Button>
                 </>
             )}
         >
@@ -201,6 +231,13 @@ function EntryModal({ which, data, initial, onClose, onSave }: {
                     <span className="rp-kicker">{t("raidBoard.profile.name")}</span>
                     <input className="rp-form-name" value={f.name || ""} maxLength={data.limits.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
                 </label>
+                <div>
+                    <span className="rp-kicker">{t("catalog.versions")}</span>
+                    <div className="rp-classpick" role="group" aria-label={t("catalog.versions")}>
+                        {versionChips(known, chosen).map((v) => <button key={v.id} type="button" className={`rp-classbtn${chosen.includes(v.id) ? " is-on" : ""}`} aria-pressed={chosen.includes(v.id)} onClick={() => toggleVersion(v.id)}>{v.label}</button>)}
+                    </div>
+                    <span className="rp-muted">{t("catalog.versionsHint")}</span>
+                </div>
                 {which === "spells" && (
                     <label>
                         <span className="rp-kicker">{t("catalog.nameEn")}</span>
@@ -219,7 +256,7 @@ function EntryModal({ which, data, initial, onClose, onSave }: {
                             <span className="rp-kicker">{t("catalog.instance")}</span>
                             <select value={f.instanceId || ""} onChange={(e) => setF({ ...f, instanceId: e.target.value, bossKey: "" })}>
                                 <option value="">{t("catalog.noInstance")}</option>
-                                {data.instances.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                                {instances.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
                             </select>
                         </label>
                         <label>
@@ -249,13 +286,6 @@ function EntryModal({ which, data, initial, onClose, onSave }: {
                         </div>
                     </>
                 )}
-                <div>
-                    <span className="rp-kicker">{t("catalog.versions")}</span>
-                    <div className="rp-classpick" role="group" aria-label={t("catalog.versions")}>
-                        {["classic", "tbc", "wotlk"].map((v) => <button key={v} type="button" className={`rp-classbtn${(f.versions || []).includes(v) ? " is-on" : ""}`} aria-pressed={(f.versions || []).includes(v)} onClick={() => setF((cur) => ({ ...cur, versions: (cur.versions || []).includes(v) ? (cur.versions || []).filter((x) => x !== v) : [...(cur.versions || []), v] }))}>{v.toUpperCase()}</button>)}
-                    </div>
-                    <span className="rp-muted">{t("catalog.versionsHint")}</span>
-                </div>
                 <label>
                     <span className="rp-kicker">{t("catalog.icon")}</span>
                     {which === "mobs" && <IconPicker choices={data.iconChoices} value={(f.icon || "").toLowerCase()} onPick={(n) => setF({ ...f, icon: n })} />}

@@ -12,10 +12,37 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
 **overrides** it, a new one gets a `c:` id; `hiddenMobs` / `hiddenSpells`). Deleting a default hides it,
 "reset" removes the override / the hiding — no migration is ever needed.
 
-- **Mobs** `{ id, name, kind: boss | add | trash | other, instanceId, bossKey, icon, note }`; `icon` is a
+### Per game version (#544)
+
+Every entry names the game versions that have it (`versions`, at least one): the catalog page, the plan editor, the row
+dialog's spell lists, the suggestions, the section's mobs and the read view only ever see the entries of **one** version
+- the plan's (`catalogView(versionId)`, server and client the same; `lib/raidplan/versions.ts` mirrors `inVersion`).
+
+- **Defaults** carry `versions: ["tbc"]` in code (`raidplanCatalogDefaults.js`); Tricks of the Trade keeps `["wotlk"]`.
+  Nothing is marked Classic or Forever: the spells are the TBC ranks and talents checked against Wowhead TBC, whether
+  the other versions have the same spell under the same name is not verified (Classic's mage has "Remove Lesser
+  Curse"; Bloodlust, Heroism and Misdirection are new in TBC) - the admin adds a version by the chips of an override.
+  `test/services/raidplan/raidplanCatalogAudit.test.js` fails on a default without a version.
+- **Stored entries** (own ones and overrides) without `versions` became `versions: ["tbc"]` once at start
+  (`raidplanCatalogStore.migrateVersions`, run by `settingsMigration.js`, idempotent, one log line). A save without
+  a version is refused ("Wähle mindestens eine Spielversion."). `inVersion` still reads an entry without `versions`
+  as "every version" (only data from before the migration can look like that).
+- **Catalog page:** a version switch on top (the rule sets of `/api/game-versions`, starting on its
+  `defaultVersion` - the main version, a setting with #541); the lists, the tab counts and the hidden defaults are
+  those of the version shown, an entry in more versions says "auch Classic". "Neuer Mob / Neuer Spell" starts in the
+  version shown; the form's version chips (right under the name) set the versions, and the instance list offers
+  only the instances of the chosen versions (`GET /api/raidplan/catalog` sends the instances of every version with
+  their `versionId`).
+- **Templates and tactic profiles** carry a `versionId` too (see below); a template's editor gets its version's catalog
+  and its suggestions ask with that version (`POST /api/raidplan/suggest { versionId }` without an event).
+- Tests: `test/stores/settingsMigration.versions.test.js` (migration, idempotent), `test/web/apiRoutes/raidplan.versions.test.js`
+  (templates, apply, catalog of a Forever plan, suggestions), `src/web-client/src/lib/raidplan/versions.test.ts`,
+  `RaidplanCatalogPage.versions.test.tsx` (switch, new entry), `RaidplanTab.versions.test.tsx` ("Vorlage anwenden").
+
+- **Mobs** `{ id, name, kind: boss | add | trash | other, instanceId, bossKey, icon, note, versions }`; `icon` is a
   Wowhead icon name, `boss:<encounter id>` or empty (generic enemy icon). A mob with a `bossKey` is one of
   that boss's adds; a trash mob belongs to the instance.
-- **Spells** `{ id, name, nameEn, icon, type (an assignment type), classes, note }`. The classes of a type's
+- **Spells** `{ id, name, nameEn, icon, type (an assignment type), classes, note, versions }`. The classes of a type's
   spells are what the suggestions and the pre-selection use (`classesFor`, `classesForType`); without spells
   of a type the built in list applies.
 - **Defaults** (only what is certain; names from Wowhead TBC / warcraft.wiki.gg, see the header of the
@@ -46,7 +73,7 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
   - `brez`: Rebirth (druid).
   - Left out on purpose: Expose Weakness (a passive Survival proc, nobody to assign), Improved Hunter's Mark (a talent of Hunter's
     Mark), Sanctity / Crusader Aura, later ranks (one entry per spell). `SINCE` names the ones new in TBC (Commanding Shout, Wrath of
-    Air Totem, Totem of Wrath, Misery, Tree of Life) for the record; like everything up to TBC they carry no `versions`.
+    Air Totem, Totem of Wrath, Misery, Tree of Life) for the record; like everything up to TBC they carry `versions: ["tbc"]`.
   - Tests: `test/services/raidplan/raidplanGeneralTypes.test.js` (unique ids, known types and classes, the lists per type, a save
     keeps the new types, the ranking, the suggestions).
 - **Real portraits (43 of the 46 default mobs, Sept 2026):** `scripts/data/raidplanMobNpcs.js` names the Wowhead
@@ -111,8 +138,16 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
 Admin page **Raid-Events → Raidplan-Vorlagen** (`/raids/plan-templates`, area `raids`; list first,
 `?edit=<id>` is the editor, `?edit=new` the create dialog). A template is a named layout — "Montags-Raid" —
 that lays out the coarse plan **without players**: per boss placeholder slots, raid marks, zones, target rows
-and a note. `data/settings/raidplan-templates.json`: `{ id, name, category, description, guildId, instanceIds,
+and a note. `data/settings/raidplan-templates.json`: `{ id, name, category, description, guildId, versionId, instanceIds,
 bosses, version, updatedAt }`.
+
+- `versionId` (#544) is the game version: its instances must all belong to it (400 otherwise), without one it is the
+  version of the instances. The overview has a version switch (main version first, the count per version on each
+  option); "Neue Vorlage" is made for the version shown. An event's "Vorlage wählen" lists the templates of the
+  **event's** version; the others sit folded away under "Vorlagen anderer Spielversionen", and applying one of those
+  asks first and sends `otherVersion: true` - the server answers 409 `version_mismatch` without it
+  (`raidplan.templatesFor(event)` is the event's version only, `{ allVersions: true }` for the editor's list).
+  Templates from before #544 got their version once at start (`raidplanTemplateStore.migrateVersions`).
 
 - `guildId` is optional (the Discord event server it is for; "" = every server). A template made for another
   server is not offered for an event on this one and cannot be applied to it. `instanceIds` (at least one)
@@ -156,8 +191,12 @@ can be picked on any board — in a template as well as in an event plan. Applyi
 > what follows describes the older row-title profiles, which are read as note steps.
 
 A named, categorised set of target rows the orga picks for a boss instead of typing the rows again.
-`data/settings/raidplan-profiles.json`: `{ id, name, category, bossKey, targets: [{ title }], notes, updatedAt
+`data/settings/raidplan-profiles.json`: `{ id, name, category, versionId, bossKey, targets: [{ title }], notes, updatedAt
 }`.
+
+- `versionId` (#544): a plan's library, "Taktiken verwalten" and its categories only show the tactics of the plan's
+  (template's) version (`ofVersion` in `lib/raidplan/versions.ts`); a tactic saved from a board gets that version. A
+  profile from before #544 got the version of its boss (else TBC) once at start (`raidplanProfileStore.migrateVersions`).
 
 - `category` is free text (the editor offers the ones in use and lets a new one be typed); `bossKey` is `""`
   (every boss), an instance id, or one boss.

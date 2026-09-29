@@ -56,7 +56,7 @@ import { WorkspaceSide, type DockTab } from "./workspace/WorkspaceSide";
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, outside, canWrite, limits, profileName, onPickProfile, onSaveTactic, saveState, notice, history, status, actions, bossNav, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me,
+    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, outside, canWrite, limits, profileName, onPickProfile, onSaveTactic, saveState, notice, history, status, actions, bossNav, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me, versionId,
 }: {
     mode: "event" | "template";
     /** the event whose plan this is ("" in a template): suggestions read its lineup */
@@ -102,6 +102,8 @@ export default function BoardWorkspace({
     onCopyDefaults?: () => void;
     /** the logged-in user's own characters in the lineup (highlighted on the board and in the lines) */
     me?: string[];
+    /** a template's game version (#544): its suggestions use that version's catalog (an event plan's comes from the event) */
+    versionId?: string;
 }) {
     const t = useT();
     const toast = useToast();
@@ -361,7 +363,7 @@ export default function BoardWorkspace({
                 <AssignPanel
                     scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
                     eventId={eventId} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
-                    profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs}
+                    profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs} versionId={versionId}
                     inherited={inherited} effective={effective} defaultRows={defaultRows} onCopyDefaults={onCopyDefaults} openRequest={rowReq}
                 />
                 {isEvent && !noBoard && <MyTasksPreview rows={filledRows} board={board} players={players} catalog={catalog} me={me || []} />}
