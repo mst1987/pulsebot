@@ -17,15 +17,16 @@ const eventStore = require("../../stores/eventStore");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
 const { emojiFor, specEmojiName, classEmojiName, roleUiEmojiName } = require("../discord/appEmojis");
-const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { rulesForEvent } = require("../events/mainVersion");
 const { fail } = require("../../web/http/apiResult");
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
 const ROLE_NAME = { tank: ["Tank", "Tanks"], healer: ["Healer", "Healers"], melee: ["Melee DPS", "Melee DPS"], ranged: ["Ranged DPS", "Ranged DPS"] };
 const MAX_TEXT = 1900;
 
+/** The event's rule set; without a version the one its category plays (#541). */
 function rulesOf(event) {
-    return rulesFor((event && event.versionId) || DEFAULT_VERSION) || rulesFor(DEFAULT_VERSION);
+    return rulesForEvent(event);
 }
 
 /** Every spec of a rule set by its key, with its class' English name. */

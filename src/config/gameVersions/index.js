@@ -15,7 +15,15 @@ const classic = require("./classic");
 const forever = require("./forever");
 
 const VERSIONS = [tbc, classic, forever];
+// The main version of an install whose settings name none (#541). Which version
+// the guild plays is a setting — services/events/mainVersion.js' mainVersionFor()
+// reads it; this constant is only its last fallback and the default parameter
+// of the pure lookups below (every caller hands them a version).
 const DEFAULT_VERSION = "tbc";
+// The version of a record stored before it carried one: everything from then
+// was TBC, whatever the main version is today — so a stored record never
+// changes its version when the setting is switched.
+const LEGACY_VERSION = "tbc";
 const BY_ID = new Map(VERSIONS.map((v) => [v.id, v]));
 
 const INSTANCE_BY_ID = new Map();
@@ -170,7 +178,7 @@ function publicVersions() {
 }
 
 module.exports = {
-    VERSIONS, DEFAULT_VERSION, ROLES,
+    VERSIONS, DEFAULT_VERSION, LEGACY_VERSION, ROLES,
     rulesFor, instance, instanceById, spec, roleOfSpec, buffsOf,
     defaultComposition, compositionFor, finalBossesOf, bossesOf,
     instanceForBoss, instanceForZone, publicVersions,

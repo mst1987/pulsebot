@@ -14,7 +14,7 @@ const profileStore = require("../../stores/raidplanProfileStore");
 const templateStore = require("../../stores/raidplanTemplateStore");
 const { approvedSetupOf, benchAndPool } = require("../../services/setup/setupCore");
 const groupsOf = require("../../services/raidplan/raidplanGroups");
-const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { rulesForEvent } = require("../../services/events/mainVersion");
 const { wowIconUrl } = require("../../config/menu");
 const assign = require("../../services/raidplan/raidplanAssign");
 const stepsOf = require("../../services/raidplan/raidplanSteps");
@@ -42,7 +42,7 @@ function resolveRole(placedRole, spec) {
 
 /** A lineup as a flat list: { userId, character, classId, className, classColor, spec, specLabel, role, iconUrl, group }. */
 function rosterFrom(lineup, versionId) {
-    const rules = rulesFor(versionId || DEFAULT_VERSION) || rulesFor(DEFAULT_VERSION);
+    const rules = rulesForEvent({ versionId });
     const specs = new Map();
     const classes = new Map();
     for (const c of rules.classes) {

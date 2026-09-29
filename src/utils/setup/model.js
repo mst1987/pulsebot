@@ -6,7 +6,8 @@
 // Pure: no store, no clock, no randomness. Everything the proposal needs comes
 // in through `input`; setupInput.js is what reads it from the stores.
 
-const { rulesFor, DEFAULT_VERSION, ROLES } = require("../../config/gameVersions");
+const { rulesFor, ROLES } = require("../../config/gameVersions");
+const { versionOfEvent } = require("../../services/events/mainVersion");
 const { characterKeyOf } = require("../loot/lootImport");
 const { str } = require("../text");
 
@@ -499,8 +500,9 @@ function indexOptions(cands, specInfo, specData) {
  * refuses (a fixed slot for a raider who signed off, …) — never an exception.
  */
 function buildModel(input = {}, weights) {
-    const versionId = str(input.versionId) || DEFAULT_VERSION;
-    const rules = rulesFor(versionId) || rulesFor(DEFAULT_VERSION);
+    // The event's version; without one the version its category plays (#541).
+    const versionId = versionOfEvent({ versionId: str(input.versionId), categoryId: str(input.categoryId) });
+    const rules = rulesFor(versionId);
     const warnings = [];
     const events = normalizeEvents(input);
     const eventById = new Map(events.map((e) => [e.id, e]));

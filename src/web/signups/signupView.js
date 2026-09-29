@@ -8,14 +8,16 @@ const { getEvent } = require("../../stores/eventStore");
 // categoryVisible lives in the service: the same raider-role rule guards saving a signup (submitSignup).
 const { categoryVisible, profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("../../services/signups/signupService");
 const { upcomingRows } = require("../../services/events/raidListing");
-const { instanceById, rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { instanceById, VERSIONS } = require("../../config/gameVersions");
 const { signupStatus } = require("../../utils/attendance");
 const { accountCount } = require("../../utils/signup/capacity");
 const { approvedPlacementFor } = require("../../services/setup/setupEditor");
 const { migrateSignup } = require("../../services/signups/signupCharacters");
 const { noteMode } = require("../../services/signups/signupNotes");
 
-const CLASS_COLORS = new Map(rulesFor(DEFAULT_VERSION).classes.map((c) => [c.id, c.color]));
+// A class has one colour in every version; all of them, so a class only one
+// version plays still gets its colour (#541).
+const CLASS_COLORS = new Map(VERSIONS.flatMap((v) => v.classes.map((c) => [c.id, c.color])));
 
 const linkCheck = require("../../services/discord/linkCheck");
 

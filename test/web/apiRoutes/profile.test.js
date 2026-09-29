@@ -15,7 +15,8 @@ const mockCharacters = [];
 jest.mock("../../../src/stores/characterStore", () => ({ listCharacters: () => mockCharacters }));
 const mockAssignments = {};
 jest.mock("../../../src/stores/raiderCharactersStore", () => ({ listAllAssignments: () => mockAssignments }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({ blizzard: { clientId: "id", clientSecret: "secret" } }) }));
+let mockMainVersion = {};
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({ blizzard: { clientId: "id", clientSecret: "secret" }, ...mockMainVersion }) }));
 
 const mockSummary = jest.fn();
 let mockConfigured = true;
@@ -63,6 +64,23 @@ describe("GET/PUT /api/profile", () => {
         expect(data.classes).toHaveLength(9);
         expect(data.raidGroups.map((g) => g.id)).toEqual(["tbc", "classic", "forever"]);
         expect(data.gearLevels.map((g) => g.label)).toEqual(["keins", "brauchbar", "raidbereit"]);
+        expect(data.mainVersion).toBe("tbc");
+    });
+
+    it("nimmt den Regelsatz der Hauptversion aus den Einstellungen und liefert jede Version mit (#541)", async () => {
+        mockMainVersion = { mainVersion: "forever" };
+        try {
+            const data = json(await call(route.getProfile, ANNA)).data;
+            expect(data.mainVersion).toBe("forever");
+            const { rulesFor } = require("../../../src/config/gameVersions");
+            expect(data.classes).toEqual(rulesFor("forever").classes);
+            expect(Object.keys(data.classesByVersion)).toEqual(["tbc", "classic", "forever"]);
+            // #543 hands a character's own version in
+            expect(route.pageContext({ versionId: "classic" }).mainVersion).toBe("classic");
+            expect(route.pageContext({ versionId: "nope" }).mainVersion).toBe("forever");
+        } finally {
+            mockMainVersion = {};
+        }
     });
 
     it("liefert nur die eigene aus Raid-Helper importierte Spec-Historie (#291)", async () => {

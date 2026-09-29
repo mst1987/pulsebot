@@ -20,6 +20,7 @@ const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
 } = require("../../config/permissions");
 const { normalizeBotCommandAccess } = require("../../config/botCommands");
+const { VERSIONS } = require("../../config/gameVersions");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -204,6 +205,8 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // For the default-template select per category — names only, so a
         // settings user needs no raid rights to pick one.
         raidTemplates: listRaidTemplates().map((t) => ({ id: t.id, name: t.name, versionId: t.versionId, size: t.size })),
+        // Einstellungen → Spielversion (#541): the versions to pick from, names only.
+        gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short })),
         roles: discord.listRoles(guildId),
         categories: discord.listCategories(guildId),
         // The module fields pick a channel by name instead of a typed id; an
@@ -439,6 +442,12 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         const known = new Set(listRaidTemplates().map((t) => t.id));
         const raw = body.categoryRaidTemplate && typeof body.categoryRaidTemplate === "object" ? body.categoryRaidTemplate : {};
         partial.categoryRaidTemplate = Object.fromEntries(Object.entries(raw).filter(([, id]) => known.has(String(id || ""))));
+    }
+    // The main version and the categories that play another one (#541): the
+    // store keeps only known version ids, the map is sent whole.
+    if (body.mainVersion !== undefined) partial.mainVersion = String(body.mainVersion || "").trim();
+    if (body.categoryVersion !== undefined) {
+        partial.categoryVersion = body.categoryVersion && typeof body.categoryVersion === "object" ? body.categoryVersion : {};
     }
     // Sent as the complete list; settingsStore normalises it and replaces the
     // stored one, so removing an item is just leaving it out.

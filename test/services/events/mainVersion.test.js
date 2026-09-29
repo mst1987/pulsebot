@@ -1,0 +1,86 @@
+// The main game version as a setting (#541): category before global before
+// the default, unknown ids never handed out, an event's own version wins.
+let mockConfig = {};
+jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+
+const {
+    mainVersionFor, versionOfEvent, rulesForEvent, classesOfVersion, knownVersion,
+} = require("../../../src/services/events/mainVersion");
+
+beforeEach(() => {
+    mockConfig = {};
+});
+
+describe("mainVersionFor", () => {
+    it("is TBC while nothing is set", () => {
+        expect(mainVersionFor()).toBe("tbc");
+        expect(mainVersionFor({ categoryId: "c1" })).toBe("tbc");
+    });
+
+    it("reads the global main version from the settings", () => {
+        mockConfig = { mainVersion: "forever" };
+        expect(mainVersionFor()).toBe("forever");
+        expect(mainVersionFor({ categoryId: "c1" })).toBe("forever");
+    });
+
+    it("takes the category's own version before the global one", () => {
+        mockConfig = { mainVersion: "forever", categoryVersion: { c1: "tbc" } };
+        expect(mainVersionFor({ categoryId: "c1" })).toBe("tbc");
+        expect(mainVersionFor({ categoryId: "c2" })).toBe("forever");
+    });
+
+    it("skips an id no rule set knows, at every level", () => {
+        mockConfig = { mainVersion: "wotlk", categoryVersion: { c1: "cata", c2: "" } };
+        expect(mainVersionFor({ categoryId: "c1" })).toBe("tbc");
+        expect(mainVersionFor({ categoryId: "c2" })).toBe("tbc");
+        mockConfig = { mainVersion: "classic", categoryVersion: { c1: "cata" } };
+        expect(mainVersionFor({ categoryId: "c1" })).toBe("classic");
+    });
+
+    it("uses a config handed in instead of the stored one", () => {
+        mockConfig = { mainVersion: "forever" };
+        expect(mainVersionFor({ config: { mainVersion: "classic" } })).toBe("classic");
+        expect(mainVersionFor({ categoryId: "x", config: { categoryVersion: { x: "forever" } } })).toBe("forever");
+    });
+
+    it("survives a malformed or unreadable config", () => {
+        mockConfig = { categoryVersion: ["forever"] };
+        expect(mainVersionFor({ categoryId: "0" })).toBe("tbc");
+        mockConfig = null;
+        expect(mainVersionFor()).toBe("tbc");
+    });
+});
+
+describe("versionOfEvent / rulesForEvent", () => {
+    it("keeps the event's own version whatever the setting says", () => {
+        mockConfig = { mainVersion: "forever" };
+        expect(versionOfEvent({ versionId: "tbc", categoryId: "c1" })).toBe("tbc");
+        expect(rulesForEvent({ versionId: "classic" }).id).toBe("classic");
+    });
+
+    it("gives an event without a (known) version the one its category plays", () => {
+        mockConfig = { mainVersion: "forever", categoryVersion: { c1: "tbc" } };
+        expect(versionOfEvent({ categoryId: "c1" })).toBe("tbc");
+        expect(versionOfEvent({ versionId: "bogus", categoryId: "c2" })).toBe("forever");
+        expect(rulesForEvent(null).id).toBe("forever");
+    });
+});
+
+describe("classesOfVersion / knownVersion", () => {
+    it("lists a version's classes in the picker's shape", () => {
+        const list = classesOfVersion("forever");
+        expect(list.length).toBe(9);
+        expect(Object.keys(list[0]).sort()).toEqual(["color", "icon", "id", "label"]);
+    });
+
+    it("falls back to the main version's list for an unknown id", () => {
+        mockConfig = { mainVersion: "classic" };
+        expect(classesOfVersion("nope").map((c) => c.id)).toEqual(classesOfVersion("classic").map((c) => c.id));
+    });
+
+    it("knows only the rule sets' ids", () => {
+        expect(knownVersion(" forever ")).toBe("forever");
+        expect(knownVersion("wotlk")).toBe("");
+        expect(knownVersion(null)).toBe("");
+    });
+});

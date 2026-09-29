@@ -25,7 +25,7 @@ const path = require("path");
 const { dataPath, settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const crypto = require("crypto");
-const { instanceById } = require("../config/gameVersions");
+const { instanceById, LEGACY_VERSION } = require("../config/gameVersions");
 const { ZONES } = require("../config/bosses");
 const { wowIconUrl } = require("../config/menu");
 
@@ -184,7 +184,8 @@ function normalizeLink(raw) {
         source: "raidhelper",
         enabled: r.enabled === true,
         instanceIds: ids,
-        versionId: /^[a-z0-9-]{2,20}$/.test(str(r.versionId)) ? str(r.versionId) : "tbc",
+        // A link stored without a version is from the TBC days (#541).
+        versionId: /^[a-z0-9-]{2,20}$/.test(str(r.versionId)) ? str(r.versionId) : LEGACY_VERSION,
         size: size >= 1 && size <= 40 ? size : 0,
         composition: composition && Object.keys(composition).length ? composition : null,
         title: str(r.title).slice(0, 120),

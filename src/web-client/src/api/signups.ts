@@ -107,6 +107,8 @@ export type SignupsData = {
     events: SignupEventRow[];
     profile: SignupProfile;
     classes: SignupClass[];
+    /** The class list per game version (#541); a row picks its event's. */
+    classesByVersion?: Record<string, SignupClass[]>;
     error: string | null;
 };
 

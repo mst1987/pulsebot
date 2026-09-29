@@ -28,6 +28,10 @@
             "label": "Kategorien",
             "crumb": "Raid-Kategorien · alles, was pro Raidtag gilt"
         },
+        "spielversion": {
+            "label": "Spielversion",
+            "crumb": "Raid-Kategorien · welche WoW-Version die Gilde spielt"
+        },
         "raids": {
             "label": "Raid-Standardwerte",
             "crumb": "Module · womit ein neues Raid-Event vorbelegt wird"
@@ -92,6 +96,15 @@
         },
         "unsavedTip": "Ungespeichert"
     },
+    "gameVersion": {
+        "main": "Hauptversion",
+        "mainSub": "Mit dieser Version startet ein neues Event, eine neue Raid-Vorlage und das Raider-Profil, wenn niemand eine andere wählt. Bestehende Events und Vorlagen behalten ihre Version.",
+        "categories": "Abweichende Kategorien",
+        "categoriesSub": "Eine Kategorie, die eine andere Version spielt als die Hauptversion. „Hauptversion“ folgt der Einstellung oben.",
+        "followMain": "Hauptversion ({version})",
+        "categoryAria": "Spielversion von {name}",
+        "noCategories": "Noch keine aktive Kategorie – aktiviere sie unter Kategorien."
+    },
     "level": {
         "none": "aus",
         "read": "Lesen",
@@ -124,7 +137,10 @@
         "noteChannelDefault": "{name} · Kanal für Vielleicht/Absage → Standard",
         "raidsheet": "{name} · Raidsheet",
         "template": "{name} · Standard-Vorlage",
-        "topItems": "Top-Items"
+        "topItems": "Top-Items",
+        "mainVersion": "Hauptversion → {value}",
+        "categoryVersion": "{name} · Spielversion → {value}",
+        "followMain": "Hauptversion"
     },
     "lootTool": {
         "none": "keins"

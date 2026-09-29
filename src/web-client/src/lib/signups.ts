@@ -2,7 +2,7 @@
 // statuses in the member's words, their colours (the --sig-* tokens of
 // index.css), and the small rules the dialog applies before the server checks
 // them again (src/web/signupService.js).
-import type { GameRole, OwnSignupRow, SignupCounts, SignupProfile, SignupStatus } from "../api";
+import type { GameRole, OwnSignupRow, SignupClass, SignupCounts, SignupProfile, SignupStatus } from "../api";
 import type { Tone } from "../components/ui/Badge";
 import { formatEventTime } from "./format";
 import { t } from "../i18n";
@@ -29,6 +29,19 @@ export const SIGNUP_STATUS: Record<SignupStatus, { readonly label: string; tone?
 };
 
 /** What a stored absence reads as on a badge ("Abmelden" is the action, "Abgemeldet" the state). */
+/**
+ * The class list the signup picks from (#541): the one of the rows' game
+ * version when they all share one, else the main version's (`classes`).
+ */
+export function classesForRows(
+    data: { classes: SignupClass[]; classesByVersion?: Record<string, SignupClass[]> },
+    rows: { versionId?: string }[],
+): SignupClass[] {
+    const versions = [...new Set(rows.map((r) => r.versionId || ""))];
+    const own = versions.length === 1 && versions[0] ? (data.classesByVersion || {})[versions[0]] : undefined;
+    return own || data.classes;
+}
+
 export function statusBadgeLabel(status: SignupStatus): string {
     return status === "absence" ? t("signups.absentBadge") : SIGNUP_STATUS[status].label;
 }

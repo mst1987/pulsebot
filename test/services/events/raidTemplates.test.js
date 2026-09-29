@@ -1,6 +1,9 @@
 // The rules of a raid template (#266): normalisation, validation against the
 // rule set, the tanks/healers a size proposes, the migration of the old
 // Raid-Helper list and the badges the list shows.
+let mockConfig = {};
+jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+
 const {
     isLegacy, migrateLegacy, normalizeTemplate, validateTemplate, proposeComposition, decorateTemplate, legacyId,
 } = require("../../../src/services/events/raidTemplates");
@@ -38,6 +41,18 @@ describe("raidTemplates", () => {
             // only a real true switches a flag on
             expect(t.wishes).toBe(false);
             expect(t.raidhelperTemplateId).toBe("7");
+        });
+
+        it("starts a body without a version in the main version, keeps a given one (#541)", () => {
+            mockConfig = { mainVersion: "forever" };
+            try {
+                expect(normalizeTemplate({ name: "Ony" }).versionId).toBe("forever");
+                expect(normalizeTemplate({ name: "Kara", versionId: "tbc" }).versionId).toBe("tbc");
+                // an old Raid-Helper entry is from the TBC days, whatever the main version is now
+                expect(migrateLegacy({ id: "7", name: "Kara" }).versionId).toBe("tbc");
+            } finally {
+                mockConfig = {};
+            }
         });
     });
 

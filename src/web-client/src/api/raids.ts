@@ -132,6 +132,8 @@ export type RaidCreateContext = {
     raidTemplates?: RaidTemplate[];
     versions?: GameVersion[];
     defaultVersion?: string;
+    /** category id → the version it plays when it is not the main one (#541) */
+    categoryVersions?: Record<string, string>;
     /** category id → its channel naming schema (Kanäle) */
     channelSchemas?: Record<string, { schema: string; raid: string }>;
     defaultSchema?: string;

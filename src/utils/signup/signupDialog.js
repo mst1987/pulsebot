@@ -22,7 +22,7 @@ const {
 } = require("discord.js");
 const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
-const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { rulesForEvent, versionOfEvent } = require("../../services/events/mainVersion");
 const { ROLES } = require("../../config/gameVersions/classes");
 const { toEnglish } = require("./botEnglish");
 const { answerUpdate } = require("./signupReply");
@@ -106,8 +106,7 @@ function signableCharacters(profile) {
 
 /** The rule set's classes for the event's game version. */
 function classesFor(event) {
-    const rules = rulesFor(event && event.versionId) || rulesFor(DEFAULT_VERSION);
-    return rules.classes;
+    return rulesForEvent(event).classes;
 }
 
 /**
@@ -284,8 +283,9 @@ function savedNotice(signup, profile) {
  * In a version with last names (WoW Forever) it asks for "Vorname Nachname";
  * utils/signup/characterNames.js checks the answer either way.
  */
-function buildCharacterModal(customId, { defaultName = "", classText = "", versionId = DEFAULT_VERSION } = {}) {
-    const lastName = allowsLastName(versionId || DEFAULT_VERSION);
+function buildCharacterModal(customId, { defaultName = "", classText = "", versionId = "" } = {}) {
+    // No version handed in: the main version's name rule (#541).
+    const lastName = allowsLastName(versionOfEvent({ versionId }));
     const max = lastName ? NAME_MAX : NAME_PART_MAX;
     const input = new TextInputBuilder()
         .setCustomId("character")

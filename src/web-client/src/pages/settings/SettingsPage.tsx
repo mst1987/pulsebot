@@ -25,6 +25,7 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { type Draft, toDraft } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";
 import { ChannelListField, TopItemsField } from "./SettingsFields";
+import GameVersionSection from "./SettingsGameVersion";
 
 /** A module's fields on the panel card, each hint moved into its label's tooltip. */
 function ModuleCard({ children }: { children: ReactNode }) {
@@ -88,11 +89,13 @@ export default function SettingsPage() {
     const roleNames = new Map(data.roles.map((r) => [r.id, r.name]));
     const areaNames = new Map(data.areas.map((a) => [a.id, areaLabel(a)]));
     const categoryNames = new Map(data.categories.map((c) => [c.id, c.name]));
+    const versionNames = new Map((data.gameVersions || []).map((v) => [v.id, v.short || v.label]));
     const changes = draftChanges(saved, draft, {
         role: (id) => (roleNames.has(id) ? `@${roleNames.get(id)}` : id),
         user: (id) => (data.userNames || {})[id] || t("settings.account", { id }),
         area: (id) => areaNames.get(id) || id,
         category: (id) => categoryNames.get(id) || id,
+        version: (id) => versionNames.get(id) || id,
     });
 
     const submit = async () => {
@@ -132,6 +135,9 @@ export default function SettingsPage() {
                 categorySignupNoteChannel: draft.categorySignupNoteChannel,
                 // Sent whole: a category set back to "keine" is left out.
                 categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
+                // #541: sent whole as well — a category back on "Hauptversion" is left out.
+                mainVersion: draft.mainVersion,
+                categoryVersion: Object.fromEntries(Object.entries(draft.categoryVersion).filter(([, id]) => id)),
                 // Sent whole: the store replaces the map, so clearing a url is
                 // what removes that category's sheet.
                 categorySheets: Object.fromEntries(
@@ -259,6 +265,21 @@ export default function SettingsPage() {
                     icon={activeSection.icon}
                     crumb={activeCrumb}
                 />
+            );
+
+            case "spielversion": return (
+                <>
+                    {head(activeSection)}
+                    <GameVersionSection
+                        versions={data.gameVersions || []}
+                        categories={data.categories}
+                        activeIds={draft.categoryIds}
+                        mainVersion={draft.mainVersion}
+                        categoryVersion={draft.categoryVersion}
+                        onMainVersion={(mainVersion) => patch({ mainVersion })}
+                        onCategoryVersion={(id, versionId) => patch({ categoryVersion: { ...draft.categoryVersion, [id]: versionId } })}
+                    />
+                </>
             );
 
             case "raids": return (

@@ -228,4 +228,34 @@ describe("stores/eventStore", () => {
         fs.__store.set([...fs.__store.keys()][0], JSON.stringify(raw));
         expect(saveSetupDraft(event.id, proposal)).toMatchObject({ code: "approved" });
     });
+
+    // #541: the main version is a setting; only a missing version is filled from it
+    describe("main version", () => {
+        const configStore = require("../../src/stores/configStore");
+        const setVersions = (mainVersion, categoryVersion = {}) => configStore.saveConfig({ mainVersion, categoryVersion });
+
+        it("starts a plan without a version in the one the category plays", () => {
+            setVersions("forever", { cat1: "tbc" });
+            expect(normalizePlan({}).value.versionId).toBe("forever");
+            expect(normalizePlan({ categoryId: "cat1" }).value.versionId).toBe("tbc");
+            expect(normalizePlan({ categoryId: "cat2", instanceIds: ["forever-ony"] }).value).toMatchObject({ versionId: "forever", size: 40 });
+            const { event } = createEvent(base({ categoryId: "cat2" }));
+            expect(event.versionId).toBe("forever");
+            expect(createEvent(base()).event.versionId).toBe("tbc");
+        });
+
+        it("keeps a given version and every stored one when the setting changes", () => {
+            const { event } = createEvent(base({ instanceIds: ["kara"] }));
+            expect(event.versionId).toBe("tbc");
+            setVersions("forever");
+            expect(getEvent(event.id).versionId).toBe("tbc");
+            expect(normalizePlan({ versionId: "classic" }).value.versionId).toBe("classic");
+            // a record stored before versions existed stays TBC, not today's main version
+            const file = [...fs.__store.keys()].find((k) => k.endsWith("events.json"));
+            const raw = JSON.parse(fs.__store.get(file));
+            delete raw.events[0].versionId;
+            fs.__store.set(file, JSON.stringify(raw));
+            expect(getEvent(event.id).versionId).toBe("tbc");
+        });
+    });
 });

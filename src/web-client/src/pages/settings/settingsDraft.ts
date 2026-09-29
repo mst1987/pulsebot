@@ -37,6 +37,10 @@ export type Draft = {
     categorySignupNoteChannel: Record<string, string>;
     categorySheets: Record<string, CategorySheet>;
     categoryRaidTemplate: Record<string, string>;
+    /** Einstellungen → Spielversion (#541). */
+    mainVersion: string;
+    /** Category id → version; missing/"" = the main version. */
+    categoryVersion: Record<string, string>;
     topItems: TopItem[];
 };
 
@@ -66,6 +70,8 @@ export function toDraft(config: AdminConfig): Draft {
         categorySignupNoteChannel: config.categorySignupNoteChannel || {},
         categorySheets: config.categorySheets || {},
         categoryRaidTemplate: config.categoryRaidTemplate || {},
+        mainVersion: config.mainVersion || "tbc",
+        categoryVersion: config.categoryVersion || {},
         topItems: config.topItems || [],
     };
 }

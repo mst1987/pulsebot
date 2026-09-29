@@ -78,6 +78,17 @@ describe("save bar change list", () => {
         expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Standard-Vorlage"]);
     });
 
+    it("names the main version and a category that plays another one (#541)", () => {
+        const version = (id: string) => ({ tbc: "TBC", forever: "Forever" } as Record<string, string>)[id] || id;
+        const draft = { ...base(), mainVersion: "forever", categoryVersion: { c1: "tbc" } };
+        // a config from before the setting reads as TBC — no change there
+        expect(logic.draftChanges(base(), { ...base(), mainVersion: "tbc", categoryVersion: { c1: "" } }, { ...names, version })).toEqual([]);
+        expect(logic.draftChanges(base(), draft, { ...names, version })).toEqual(["Hauptversion → Forever", "Hyjal & BT · Spielversion → TBC"]);
+        // back on the main version; without version names the id stands in
+        expect(logic.draftChanges(draft, { ...draft, categoryVersion: {} }, names)).toEqual(["Hyjal & BT · Spielversion → Hauptversion"]);
+        expect(logic.draftChanges(base(), { ...base(), mainVersion: "classic" }, names)).toEqual(["Hauptversion → classic"]);
+    });
+
     it("is empty when nothing changed, even if the order of a list or an empty entry differs", () => {
         const draft = base();
         draft.categoryRoles = { c1: ["r2", "r1"] };

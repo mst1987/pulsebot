@@ -75,6 +75,10 @@ export type ProfileData = {
     /** #291: the caller's own specs imported from Raid-Helper, most played first. */
     specHistory?: { spec: string; count: number; lastAt: number; character: string }[];
     classes: GameClass[];
+    /** The main version the classes are from (#541). */
+    mainVersion?: string;
+    /** Every version's classes, for a character of another version (#543). */
+    classesByVersion?: Record<string, GameClass[]>;
     roles: Record<GameRole, string>;
     raidGroups: ProfileRaidGroup[];
     weekdays: { id: string; label: string }[];

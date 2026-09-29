@@ -39,6 +39,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "discordserver", group: "connections", icon: "inv_letter_15", adminOnly: true, standalone: true },
 
     { id: "kategorien", group: "categories", icon: "inv_banner_03" },
+    // #541: the main game version and the categories that play another one
+    { id: "spielversion", group: "categories", icon: "inv_misc_book_09" },
 
     { id: "raids", group: "modules", icon: "inv_misc_note_02" },
     { id: "raidsheets", group: "modules", icon: "inv_scroll_03", standalone: true },

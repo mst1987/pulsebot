@@ -188,6 +188,7 @@ Die meisten Unterbereiche brauchen Vollzugriff/Admin-Rechte:
 - **Berechtigungen** — Rechte je Discord-Rolle oder Einzelkonto pro Bereich (lesen/schreiben), Basiszugang für alle, Bot-Befehl-Rechte, "Ansicht als Rolle" zum Testen. Details: [docs/permissions.md](permissions.md).
 - **Verbindungen** — Discord-Server (Event-/Talk-Server), Raid-Helper-Umstieg, Loot-Sync-Token, Warcraft-Logs- und KI-Zugang.
 - **Kategorien** — pro Raid-Kategorie Quelle (Bot/Raid-Helper), Rollen, Vorlage, Lootsystem, Erinnerungen, Setup-DMs, Sprachkanal, Discord-Event.
+- **Spielversion** — die *Hauptversion* der Gilde (TBC, Classic oder Forever): Mit ihr startet ein neues Event ohne Vorlage, eine neue Raid-Vorlage und das Raider-Profil. Darunter kann jede aktive Kategorie eine *andere Version* spielen (z. B. die Hauptversion auf Forever, eine Kategorie bleibt TBC); „Hauptversion“ folgt der Einstellung oben. Umschalten greift sofort, ohne Deploy. Bestehende Events und Vorlagen behalten ihre Version, und jede Anmeldung zeigt die Klassen der Version ihres Events.
 
 ### Neu: Besetzung zuweisen, Standard, Mehrfachauswahl
 

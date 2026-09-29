@@ -88,6 +88,19 @@ export function lookImage(image: EmbedImage | null | undefined): EmbedImage {
     return { mode: (image && image.mode) === "banner" ? "banner" : "thumbnail", url: String((image && image.url) || "") };
 }
 
+/**
+ * The version a category's new plan starts in when no template decides (#541):
+ * the category's own, else the main version from the settings, else the first.
+ */
+export function categoryVersionOf(
+    ctx: { versions?: GameVersion[]; defaultVersion?: string; categoryVersions?: Record<string, string> },
+    categoryId: string,
+): GameVersion | undefined {
+    const vs = ctx.versions || [];
+    const own = (ctx.categoryVersions || {})[categoryId];
+    return vs.find((v) => v.id === own) || vs.find((v) => v.id === ctx.defaultVersion) || vs[0];
+}
+
 /** A plan of a version without instances: 25 players, the default curve. */
 export function emptyPlan(version: GameVersion | null | undefined): EventPlan {
     const c = defaultComposition(25);

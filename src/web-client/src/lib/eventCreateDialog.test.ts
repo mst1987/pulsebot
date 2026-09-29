@@ -22,6 +22,16 @@ const v = (id: string) => versions.find((x: any) => x.id === id);
 const serverProblem = (plan: unknown) => normalizePlan(logic.planBody(plan)).error || "";
 
 describe("Event anlegen: plan rules (client)", () => {
+    it("starts a category's plan in its own version, else the main version (#541)", () => {
+        const ctx = { versions, defaultVersion: "forever", categoryVersions: { c2: "tbc", c3: "wotlk" } };
+        expect(logic.categoryVersionOf(ctx, "c1").id).toBe("forever");
+        expect(logic.categoryVersionOf(ctx, "c2").id).toBe("tbc");
+        // an id the rule sets do not know falls back to the main version
+        expect(logic.categoryVersionOf(ctx, "c3").id).toBe("forever");
+        expect(logic.categoryVersionOf({ versions }, "c1").id).toBe("tbc");
+        expect(logic.categoryVersionOf({}, "c1")).toBeUndefined();
+    });
+
     it("walks Vorlage → Termin → Raid → Kanal & Anmeldung → Prüfen, the raid step only for EventHelper", async () => {
         expect(logic.stepsFor(false, "eventhelper")).toEqual(["start", "termin", "raid", "kanal", "check"]);
         expect(logic.stepsFor(false, "raidhelper")).toEqual(["start", "termin", "kanal", "check"]);

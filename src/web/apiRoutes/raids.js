@@ -9,7 +9,8 @@ const { createEvent, updateEvent } = require("../../services/events/eventCreate"
 const { decorateTemplate } = require("../../services/events/raidTemplates");
 const eventStore = require("../../stores/eventStore");
 const { getChannelConfig } = require("../../stores/channelArchiveStore");
-const { publicVersions, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { publicVersions } = require("../../config/gameVersions");
+const { mainVersionFor } = require("../../services/events/mainVersion");
 const { DEFAULT_SCHEMA } = require("../../utils/channelNames");
 const { deriveChannelName } = require("../../services/discord/channelNaming");
 const { signupSourceFor } = require("../../services/events/eventSources");
@@ -174,7 +175,10 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
         categoryRaidTemplates: categoryDefaults,
         raidTemplates: templates.map((t) => decorateTemplate({ instanceIds: [], ...t }, categoryDefaults)),
         versions: publicVersions(),
-        defaultVersion: DEFAULT_VERSION,
+        // The main version (#541) and the categories that play another one: a
+        // plan without a template starts in the version of its category.
+        defaultVersion: mainVersionFor({ config }),
+        categoryVersions: config.categoryVersion || {},
         channelSchemas: channelSchemas(guildId),
         defaultSchema: DEFAULT_SCHEMA,
         editEvent,

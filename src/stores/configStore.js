@@ -16,7 +16,7 @@ const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeCategorySignupSource,
     normalizeCategorySetupDms, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeTopItems,
-    normalizeRoleSync, normalizeCategoryReminders,
+    normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion,
 } = require("./configSchema");
 
 const FILE = settingsPath("config.json");
@@ -134,6 +134,10 @@ function saveConfig(partial) {
     }
     // Replaced whole, like the top items: a category left out has no default.
     if (partial.categoryRaidTemplate !== undefined) next.categoryRaidTemplate = normalizeCategoryRaidTemplate(partial.categoryRaidTemplate);
+    // #541: the main version replaces the stored one; the category map is sent
+    // whole (a category back on the main version is left out), like the templates.
+    if (partial.mainVersion !== undefined) next.mainVersion = normalizeMainVersion(partial.mainVersion);
+    if (partial.categoryVersion !== undefined) next.categoryVersion = normalizeCategoryVersion(partial.categoryVersion);
     if (partial.categorySheets) {
         next.categorySheets = normalizeCategorySheets({ ...current.categorySheets, ...partial.categorySheets });
     }

@@ -44,6 +44,10 @@ export type AdminConfig = {
     raidDefaults: { channelId: string };
     // The default raid template per category (category id → template id).
     categoryRaidTemplate: Record<string, string>;
+    /** The game version the guild plays (#541); missing = "tbc". */
+    mainVersion?: string;
+    /** Categories that play another version: category id → version id. */
+    categoryVersion?: Record<string, string>;
     blizzard: BlizzardConfig;
     // Claude phrases the log recommendations for the raiders. The key itself
     // never comes back from the server — only whether one is stored.
@@ -181,6 +185,8 @@ export type SettingsData = {
     raidsheets: Raidsheet[];
     // The raid templates, for the default-template select per category.
     raidTemplates?: { id: string; name: string; versionId: string; size: number | null }[];
+    /** Einstellungen → Spielversion (#541): the versions to pick from. */
+    gameVersions?: { id: string; label: string; short: string }[];
     roles: Role[];
     categories: Category[];
     // The text channels the bot can post in, for the channel pickers; empty

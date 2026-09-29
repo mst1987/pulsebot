@@ -28,6 +28,10 @@
             "label": "Categories",
             "crumb": "Raid categories · everything that applies per raid day"
         },
+        "spielversion": {
+            "label": "Game version",
+            "crumb": "Raid categories · which WoW version the guild plays"
+        },
         "raids": {
             "label": "Raid defaults",
             "crumb": "Modules · what a new raid event starts with"
@@ -92,6 +96,15 @@
         },
         "unsavedTip": "Unsaved"
     },
+    "gameVersion": {
+        "main": "Main version",
+        "mainSub": "A new event, a new raid template and the raider profile start in this version when nobody picks another. Existing events and templates keep their version.",
+        "categories": "Categories that differ",
+        "categoriesSub": "A category that plays another version than the main one. “Main version” follows the setting above.",
+        "followMain": "Main version ({version})",
+        "categoryAria": "Game version of {name}",
+        "noCategories": "No active category yet – switch one on under Categories."
+    },
     "level": {
         "none": "off",
         "read": "Read",
@@ -124,7 +137,10 @@
         "noteChannelDefault": "{name} · channel for tentative/decline → default",
         "raidsheet": "{name} · raidsheet",
         "template": "{name} · default template",
-        "topItems": "Top items"
+        "topItems": "Top items",
+        "mainVersion": "Main version → {value}",
+        "categoryVersion": "{name} · Game version → {value}",
+        "followMain": "main version"
     },
     "lootTool": {
         "none": "none"

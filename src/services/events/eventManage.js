@@ -39,7 +39,7 @@ const { scheduleOverviewSync } = require("../talk/talkOverview");
 const { deliverUserPing, sendDms } = require("../discord/pingDelivery");
 const { getConfig } = require("../../stores/settingsStore");
 const { setupSummary } = require("../setup/setupEditor");
-const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { rulesForEvent } = require("./mainVersion");
 const { toRaidHelperDate } = require("../../utils/time");
 const { SIGNUP_STATUSES } = require("../../utils/attendance");
 const { str } = require("../../utils/text");
@@ -724,7 +724,7 @@ async function raiderCandidates({ guildId, eventId }) {
     const found = ownEvent(guildId, eventId, { allowCancelled: true });
     if (found.error) return found;
     const { event } = found;
-    const rules = rulesFor(event.versionId) || rulesFor(DEFAULT_VERSION);
+    const rules = rulesForEvent(event);
     const specOf = (key) => {
         const info = profiles.specInfo(key);
         return info ? { key: info.key, label: info.label, role: info.role, icon: info.icon || "" } : null;

@@ -112,6 +112,20 @@ describe("GET /api/signups", () => {
         expect(rh).toMatchObject({ source: "raidhelper", discordUrl: "https://discord.com/channels/g1/c2/1400000000000000001", mine: null });
         expect(rh.allowedStatuses).toBeUndefined();
         expect(data.profile.characters[0]).toMatchObject({ name: "Nerathil", specs: [{ key: "Mage-Arcane", label: "Arkan", gear: "usable" }] });
+        expect(data.classes).toHaveLength(9);
+    });
+
+    it("liefert die Klassen je Spielversion, `classes` aus der Hauptversion (#541)", async () => {
+        const { rulesFor } = require("../../../src/config/gameVersions");
+        const shape = (v) => rulesFor(v).classes.map((c) => ({ id: c.id, label: c.label, color: c.color, icon: c.icon }));
+        let data = json(await call(route.getSignups, ANNA)).data;
+        expect(data.classes).toEqual(shape("tbc"));
+        expect(data.classesByVersion).toEqual({ tbc: shape("tbc"), classic: shape("classic"), forever: shape("forever") });
+        // the own event keeps its version, whatever the main version says
+        mockConfig = { mainVersion: "forever" };
+        data = json(await call(route.getSignups, ANNA)).data;
+        expect(data.classes).toEqual(shape("forever"));
+        expect(data.events[0].versionId).toBe("tbc");
     });
 
     it("zeigt einem Raider nie einen Setup-Entwurf, nur das freigegebene Setup (#263)", async () => {
