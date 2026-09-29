@@ -24,7 +24,8 @@ describe("the editor opens a board as the sheet does", () => {
         const ws = readWorkspace();
         expect(ws).toContain("useEffect(() => { bv.set(viewFromSaved(board.view)); }, [boss.key, savedKey]);");
         expect(ws).toContain("sheetView={viewFromSaved(board.view)} onSheetView={() => bv.set(viewFromSaved(board.view))}");
-        expect(read("pages/PlanPublicPage.tsx")).toContain("bv.set(viewFromSaved(b ? b.view : null))");
+        // the sheet: on open and when the saved view changes - not on every live update (#555)
+        expect(read("pages/PlanPublicPage.tsx")).toContain("useEffect(() => { bv.set(viewFromSaved(savedView)); }, [selected, savedViewKey]);");
         expect(read("pages/raid-detail/raidplan/ViewControls.tsx")).toContain("{offSheet && <button");
     });
 });

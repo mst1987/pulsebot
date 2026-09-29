@@ -49,6 +49,19 @@ export async function get<T>(path: string): Promise<T> {
     return (body?.data ?? null) as T;
 }
 
+/**
+ * A GET that a page polls (#555): sends the ETag of the answer it already has as If-None-Match and answers null when the
+ * server says 304 (nothing changed, no body), else the new data with its ETag. The browser cache stays out of it
+ * (`no-store`), so the 304 reaches this code instead of being turned into the cached 200.
+ */
+export async function getIfChanged<T>(path: string, etag: string): Promise<{ data: T; etag: string } | null> {
+    const res = await fetch(path, { credentials: "include", cache: "no-store", headers: etag ? { "If-None-Match": etag } : {} });
+    if (res.status === 304) return null;
+    const body = await parseJson(res);
+    if (!res.ok) throw errorFrom(body, res);
+    return { data: (body?.data ?? null) as T, etag: res.headers.get("ETag") || "" };
+}
+
 // Mutating requests carry the CSRF token from GET /api/session as a header
 // (csrf.ts keeps it; the SSR forms use a hidden _csrf field instead — see
 // src/web/auth.js).
