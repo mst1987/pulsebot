@@ -468,7 +468,7 @@ dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-heigh
 .rp-line-std { padding: 0 5px; border: 1px solid var(--line); border-radius: 4px; font-size: 11px; font-weight: 600; }
 .rp-lc { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; height: 26px; padding: 0 8px 0 4px; border-radius: 6px; background: var(--panel2); font-size: 14px; font-weight: 500; line-height: 1; white-space: nowrap; }
 .rp-lc > * { flex: 0 0 auto; }
-.rp-lc > span:not(.rp-lc-du):not(.rp-achip-no):not(.rp-ico):not(.rp-mobicon):not(.wi) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-block: 2px; }
+.rp-lc > span:not(.rp-lc-du):not(.rp-achip-no):not(.rp-ico):not(.rp-mobicon):not(.wi):not(.rp-lc-pcstack) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-block: 2px; }
 .rp-lc .rp-ico-sm { width: 20px; height: 20px; }
 .rp-lc .rp-achip-no { margin-right: 1px; }
 .rp-line:hover .rp-lc:not(.is-open):not(.is-slot) { background: var(--panel3); }
@@ -493,6 +493,13 @@ dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-heigh
 .rp-lc-cnt { font-size: 12px; font-weight: 700; }
 .rp-lc-pc { display: inline-flex; align-items: center; gap: 3px; }
 .rp-lc-sep { margin-right: 2px; color: var(--muted); }
+/* 3+ classes (#556): stacked one per line instead of truncating side by side */
+.rp-lc.rp-lc-prio.is-stacked { height: auto; align-items: flex-start; padding-block: 4px; white-space: normal; }
+.rp-lc-pcstack { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; overflow: visible; }
+.rp-lc-pcrow { display: flex; align-items: center; gap: 4px; min-width: 0; white-space: nowrap; }
+.rp-lc-pcorder { display: inline-grid; place-items: center; flex: 0 0 auto; width: 14px; height: 14px; border-radius: 50%; background: var(--panel3); font-size: 9px; font-weight: 700; color: var(--muted); }
+.rp-lc-pcname { overflow: visible; text-overflow: clip; white-space: nowrap; }
+.rp-lc-pcarrow { flex: 0 0 auto; margin-left: 2px; color: var(--muted); }
 @media (max-width: 600px) {
     .rp-alist.rp-linelist { display: flex; flex-direction: column; }
     .rp-line, .rp-line.is-ro, .rp-linelist > .rp-line { grid-template-columns: 26px minmax(0, 1fr) auto; row-gap: 4px; }

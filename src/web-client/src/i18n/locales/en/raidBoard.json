@@ -533,8 +533,6 @@
         "addCard": "Add a card …",
         "suggestOne": "{type}: suggest from the setup",
         "addRowTo": "{type}: add a row",
-        "fold": "Fold",
-        "unfold": "Unfold",
         "cardEmpty": "No row yet.",
         "pickCurses": "Curses",
         "pickSpells": "Spells",
@@ -571,6 +569,10 @@
         },
         "cardTypes": "Card types",
         "cardEmptyHeal": "No row yet. Give healers tanks, groups or players."
+    },
+    "block": {
+        "fold": "Fold",
+        "unfold": "Unfold"
     },
     "bes": {
         "title": "Roster slots",

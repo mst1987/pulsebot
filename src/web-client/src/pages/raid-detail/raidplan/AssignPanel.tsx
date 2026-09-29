@@ -3,7 +3,9 @@ import Flyout from "../../../components/raidplan/Flyout";
 import AssignModal from "./AssignModal";
 import TypeBadge from "./TypeBadge";
 import AssignLine from "./AssignLine";
-import { Copy, RotateCcw, EyeOff, Swords, ChevronDown, Users, Plus, Trash2, Wand2, X } from "lucide-react";
+import CollapseToggle from "../../../components/raidplan/CollapseToggle";
+import { useCollapseSet } from "../../../hooks/useCollapse";
+import { Copy, RotateCcw, EyeOff, Swords, Users, Plus, Trash2, Wand2, X } from "lucide-react";
 import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanPlayer } from "../../../api";
 import { IconButton, useConfirm } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
@@ -141,7 +143,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const toast = useToast();
     const [busy, setBusy] = useState("");
     const [extra, setExtra] = useState<string[]>([]);
-    const [folded, setFolded] = useState<string[]>([]);
+    // one card's fold state per type ("heal", "tank" …), remembered in this browser across a reload and every boss
+    const [isFolded, toggleFold] = useCollapseSet("eh.raidplan.collapse.assign");
     const [editing, setEditing] = useState("");
     /** where the dialog opens: the note icon opens it on the free text (note) of the task */
     const [editAt, setEditAt] = useState<{ slot: string; cat: string }>({ slot: "who", cat: "" });
@@ -167,8 +170,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const groups = Array.from({ length: Math.max(1, groupCount) }, (_, i) => i + 1);
     // the map asked for a row's dialog ("Tank wählen …", "Zeile bearbeiten …")
     useEffect(() => { if (openRequest && openRequest.id) openRow(openRequest.id); }, [openRequest]);
-    // another boss brings its own hand-added cards
-    useEffect(() => { setExtra([]); setFolded([]); }, [scope, eventId]);
+    // another boss brings its own hand-added cards (a card's fold state stays as it was: it is remembered per type, not per boss)
+    useEffect(() => { setExtra([]); }, [scope, eventId]);
 
     const ask = useConfirm();
     const shown = cardTypes(scope, [...board.assignments, ...inherited], extra, !canWrite, board.hiddenCards);
@@ -346,7 +349,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                 {shown.map((type) => {
                     const rows = rowsOfType(board.assignments, type);
                     const inh = rowsOfType(inherited, type);
-                    const fold = folded.indexOf(type) >= 0;
+                    const fold = isFolded(type);
                     const sum = cardSummary([...inh, ...rows], filled, ctx, isEvent);
                     return (
                         <section key={type} className="rp-acard" aria-label={t(`raidBoard.assign.type.${type}`)}>
@@ -360,9 +363,9 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                                     {canWrite && SUGGESTABLE.indexOf(type) >= 0 && (
                                         <IconButton size="sm" icon={<Wand2 size={15} />} tip={t("raidBoard.assign.suggestOne", { type: t(`raidBoard.assign.type.${type}`) })} disabled={busy === type} onClick={() => suggest(type)} />
                                     )}
-                                    {canWrite && <button type="button" className="rp-acard-add" aria-label={t("raidBoard.assign.addRowTo", { type: t(`raidBoard.assign.type.${type}`) })} data-tip={t("raidBoard.assign.addRowTo", { type: t(`raidBoard.assign.type.${type}`) })} onClick={() => { edit((b) => newRow(b, type)); setFolded(folded.filter((x) => x !== type)); }}><Plus size={13} aria-hidden="true" />{t("raidBoard.aline.add")}</button>}
+                                    {canWrite && <button type="button" className="rp-acard-add" aria-label={t("raidBoard.assign.addRowTo", { type: t(`raidBoard.assign.type.${type}`) })} data-tip={t("raidBoard.assign.addRowTo", { type: t(`raidBoard.assign.type.${type}`) })} onClick={() => { edit((b) => newRow(b, type)); if (fold) toggleFold(type); }}><Plus size={13} aria-hidden="true" />{t("raidBoard.aline.add")}</button>}
                                     {canWrite && <IconButton size="sm" tone="danger" icon={isDefaultCard(scope, type) ? <EyeOff size={15} /> : <Trash2 size={15} />} tip={t(isDefaultCard(scope, type) ? "raidBoard.assign.hideCard" : "raidBoard.assign.removeCard", { type: t(`raidBoard.assign.type.${type}`) })} onClick={() => dropCard(type, rows.length)} />}
-                                    <IconButton size="sm" icon={<ChevronDown size={15} className={fold ? "rp-rot-90" : ""} />} tip={t(fold ? "raidBoard.assign.unfold" : "raidBoard.assign.fold")} aria-expanded={!fold} onClick={() => setFolded(fold ? folded.filter((x) => x !== type) : [...folded, type])} />
+                                    <CollapseToggle collapsed={fold} onToggle={() => toggleFold(type)} label={t(`raidBoard.assign.type.${type}`)} />
                                 </span>
                             </header>
                             {!fold && (

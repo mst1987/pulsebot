@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from "react";
-import { AlertTriangle, ArrowRight, EyeOff, Lock, MapPin, Pencil, StickyNote, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronDown, EyeOff, Lock, MapPin, Pencil, StickyNote, Trash2 } from "lucide-react";
 import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
@@ -35,17 +35,34 @@ export function LineChip({ r, open, mine, order, ctx, readOnly, asTank = false }
     return <span className="rp-lc is-slot">{no}<span>{r.label}</span></span>;
 }
 
+/** From how many classes a priority stacks its chips vertically instead of side by side (#556): with 3+ names side by side ran out of
+ * room and truncated ("Dru", "Pri", "Sha"); 1-2 keep the inline "Paladin › Schamane" look, which fits. */
+const STACK_FROM = 3;
+
 /**
  * The places of a class priority nobody fills yet (#525), compact: "1 x [icon] Paladin › [icon] Schamane", in an event yellow with "fehlt";
- * in a template quiet (nothing to resolve there).
+ * in a template quiet (nothing to resolve there). With 3 or more classes (#556) the names stack one per line instead - the same way several
+ * target chips of a row already wrap onto their own line - each with a small order number, so a long priority never truncates a name.
  */
 export function PrioChip({ classes, count, open, type }: { classes: string[]; count: number; open: boolean; type: string }) {
     const t = useT();
     const name = classes.map((c) => classPlaceNameFor(c, "", type)).join(" › ");
+    const stacked = classes.length >= STACK_FROM;
     return (
-        <span className={`rp-lc rp-lc-prio ${open ? "is-open" : "is-slot"}`} data-tip={open ? t("raidBoard.aline.missing", { what: `${count} x ${name}` }) : t("raidBoard.prio.hint")}>
+        <span className={`rp-lc rp-lc-prio${stacked ? " is-stacked" : ""} ${open ? "is-open" : "is-slot"}`} data-tip={open ? t("raidBoard.aline.missing", { what: `${count} x ${name}` }) : t("raidBoard.prio.hint")}>
             <b className="rp-lc-cnt">{count} x</b>
-            {classes.map((c, i) => <span key={c} className="rp-lc-pc">{i > 0 && <span className="rp-lc-sep" aria-hidden="true">›</span>}<WowIcon name={classIconOf(c)} size={14} /><span>{classPlaceNameFor(c, "", type)}</span></span>)}
+            {stacked ? (
+                <span className="rp-lc-pcstack">
+                    {classes.map((c, i) => (
+                        <span key={c} className="rp-lc-pcrow">
+                            <span className="rp-lc-pcorder" aria-hidden="true">{i + 1}</span>
+                            <WowIcon name={classIconOf(c)} size={14} />
+                            <span className="rp-lc-pcname">{classPlaceNameFor(c, "", type)}</span>
+                            {i < classes.length - 1 && <ChevronDown size={11} className="rp-lc-pcarrow" aria-hidden="true" />}
+                        </span>
+                    ))}
+                </span>
+            ) : classes.map((c, i) => <span key={c} className="rp-lc-pc">{i > 0 && <span className="rp-lc-sep" aria-hidden="true">›</span>}<WowIcon name={classIconOf(c)} size={14} /><span>{classPlaceNameFor(c, "", type)}</span></span>)}
             {open && <><span>{t("raidBoard.prio.missing")}</span><AlertTriangle size={12} aria-hidden="true" /></>}
         </span>
     );

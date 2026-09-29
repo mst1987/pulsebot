@@ -8,6 +8,8 @@ import { ROLE_ICON, classIconOf } from "../../../lib/raidplan/assign";
 import { classStatus, refillByClass } from "../../../lib/raidplan/rosterAssign";
 import { groupColor, groupMark } from "../../../lib/raidplan/groupStyle";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
+import CollapseToggle from "../../../components/raidplan/CollapseToggle";
+import { useCollapse } from "../../../hooks/useCollapse";
 import GroupStyle from "./GroupStyle";
 import { assignSlot, besetzungSlots, countOf, effectiveCounts, placeSlot, resetCounts, roleOn, setCount, setFlexRole, unplaceSlot } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
@@ -41,6 +43,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
     onAssign: () => void;
 }) {
     const t = useT();
+    const [collapsed, toggleCollapsed] = useCollapse("eh.raidplan.collapse.bes");
     const [openSlot, setOpenSlot] = useState<{ id: string; el: HTMLElement } | null>(null);
     const open = openSlot ? openSlot.id : "";
     const [showSplit, setShowSplit] = useState(false);
@@ -137,7 +140,8 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
             )}
             {missing.length > 0 && <span className="rp-bes-missing" role="status">{missing.map((c) => t("raidBoard.roster.classMissing", { cls: t(`wow.class.${c}`) })).join(" · ")}</span>}
             <button type="button" className="rp-assign-btn rp-bes-assign" onClick={onAssign}><ListChecks size={15} aria-hidden="true" /><span>{t("raidBoard.roster.title")}</span></button>
-            <div className="rp-bes-blocks">
+            <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} label={t("raidBoard.bes.title")} />
+            {!collapsed && <div className="rp-bes-blocks">
             {clusters.map((kind) => {
                 const list = all.filter((s) => s.kind === kind);
                 const isGroup = kind === "group";
@@ -171,7 +175,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                     )}
                 </span>
             )}
-            </div>
+            </div>}
             {openSlot && flyout(openSlot)}
         </section>
     );
