@@ -64,6 +64,9 @@
 .gv-cat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 240px); gap: 12px; align-items: center; }
 .gv-cat label { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gv-empty { margin: 0; color: var(--muted); font-size: 13px; }
+@media (max-width: 560px) {
+    .gv-cat { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
 
 .set-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
 .set-form { padding: 16px; display: flex; flex-direction: column; gap: 16px; }

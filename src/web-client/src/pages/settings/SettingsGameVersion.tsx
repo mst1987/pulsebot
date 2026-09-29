@@ -22,6 +22,9 @@ export default function GameVersionSection({ versions, categories, activeIds, ma
 }) {
     const t = useT();
     const names = new Map(categories.map((c) => [c.id, c.name]));
+    // Every active category, like the Kategorien matrix: one Discord no longer
+    // knows (or another server's) keeps its row, named by its id.
+    const rows = activeIds;
     const mainShort = versions.find((v) => v.id === mainVersion)?.short || mainVersion;
     return (
         <div className="set-card set-form">
@@ -36,11 +39,11 @@ export default function GameVersionSection({ versions, categories, activeIds, ma
             </div>
             <div className="set-field">
                 <FieldLabel tip={t("settings.gameVersion.categories")} tipSub={t("settings.gameVersion.categoriesSub")}>{t("settings.gameVersion.categories")}</FieldLabel>
-                {activeIds.length === 0 ? (
+                {rows.length === 0 ? (
                     <p className="gv-empty">{t("settings.gameVersion.noCategories")}</p>
                 ) : (
                     <div className="gv-cats">
-                        {activeIds.map((id) => {
+                        {rows.map((id) => {
                             const name = names.get(id) || id;
                             return (
                                 <div className="gv-cat" key={id}>
