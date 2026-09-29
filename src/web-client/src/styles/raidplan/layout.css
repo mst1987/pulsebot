@@ -59,6 +59,11 @@
 .rp-tb-buff { --tb: var(--rp-tb-buff); }
 .rp-tb-curse { --tb: var(--rp-tb-curse); }
 .rp-tb-thunderclap, .rp-tb-demoshout { --tb: var(--rp-tb-aoe); }
+.rp-tb-debuff { --tb: var(--rp-tb-debuff); }
+.rp-tb-blessing { --tb: var(--rp-tb-blessing); }
+.rp-tb-aura { --tb: var(--rp-tb-aura); }
+.rp-tb-totem { --tb: var(--rp-tb-totem); }
+.rp-tb-brez { --tb: var(--rp-tb-brez); }
 
 .rp-mine { padding: 14px 16px; border: 2px solid var(--accent); border-radius: 14px; background: var(--accent-soft); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent); }
 .rp-mine h2 { margin: 0 0 10px; font-size: 13px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--accent); }

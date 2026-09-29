@@ -307,15 +307,22 @@ export function poolOf(q: { classId: string; role: string }, type: string, roste
 export const PREFERRED_ROLES = ["melee", "ranged", "healer", "tank"];
 /** The points of the ranking: the row's role wins over a spell of the catalog, that over the tank and healer penalties, those over the load. */
 export const RANK_POINTS = { role: 100, spell: 50, tank: -40, healer: -20, load: -3, loadCap: 6 };
-/** Kinds of task a tank does himself: no tank penalty (thunder clap and demoralizing shout are a warrior tank's). */
-const TANK_OK_TYPES = [...TANK_TYPES, "heal", "thunderclap", "demoshout"];
+/** Kinds of task a tank does himself: no tank penalty (thunder clap and demoralizing shout are a warrior tank's; a protection paladin blesses and has an aura). */
+const TANK_OK_TYPES = [...TANK_TYPES, "heal", "thunderclap", "demoshout", "blessing", "aura"];
+/** Spells a tank keeps up himself (#536): no tank penalty on a debuff row with one of them (Sunder Armor, the Faerie Fire of a bear). */
+const TANK_OK_SPELLS = ["d:sunder-armor", "d:faerie-fire"];
 /** Damage dealers' utility: a healer is only suggested for it when no damage dealer can. */
-const DPS_UTILITY_TYPES = ["kick", "cc", "curse", "md"];
+const DPS_UTILITY_TYPES = ["kick", "cc", "curse", "md", "debuff"];
 
 /** What the ranking knows of a board: flex roles, who stands in a tanking row, in how many rows each raider stands, the classes with a spell. */
 export type RankCtx = { roles?: Record<string, string>; tanks?: Record<string, boolean>; load?: Record<string, number>; spellClasses?: string[] };
 type RankPlayer = { userId: string; classId: string; role: string; specRole?: string };
-type RankRow = { type: string; preferredRole?: string };
+type RankRow = { type: string; preferredRole?: string; spell?: { id: string } | null };
+
+/** Whether a tank may do this row without a penalty: a kind of task of his, or a spell he keeps up anyway (server twin: tankOk). */
+function tankOk(row: RankRow): boolean {
+    return TANK_OK_TYPES.indexOf(row.type) >= 0 || (!!row.spell && TANK_OK_SPELLS.indexOf(row.spell.id) >= 0);
+}
 
 function isDamage(r: string): boolean {
     return r === "melee" || r === "ranged";
@@ -342,7 +349,7 @@ export function scoreCandidate(row: RankRow, p: RankPlayer, ctx: RankCtx = {}): 
     if (row.preferredRole && PREFERRED_ROLES.indexOf(row.preferredRole) >= 0 && role === row.preferredRole) parts.role = RANK_POINTS.role;
     if (TANK_TYPES.indexOf(row.type) < 0) {
         if ((ctx.spellClasses || []).indexOf(p.classId) >= 0) parts.spell = RANK_POINTS.spell;
-        if (TANK_OK_TYPES.indexOf(row.type) < 0 && isTankOf(p, ctx)) parts.tank = RANK_POINTS.tank;
+        if (!tankOk(row) && isTankOf(p, ctx)) parts.tank = RANK_POINTS.tank;
         if (DPS_UTILITY_TYPES.indexOf(row.type) >= 0 && role === "healer") parts.healer = RANK_POINTS.healer;
         const n = Math.min(RANK_POINTS.loadCap, Number((ctx.load || {})[p.userId]) || 0);
         if (n > 0) parts.load = n * RANK_POINTS.load;
@@ -358,7 +365,7 @@ export function rankCandidates<T extends RankPlayer>(row: RankRow, list: T[], ct
 /** The hard rules of a suggestion, only while somebody is left: no tank on a task not his, no healer on damage dealers' utility. */
 export function withoutMisfits<T extends RankPlayer>(row: RankRow, list: T[], ctx: RankCtx = {}): T[] {
     let out = list;
-    if (TANK_OK_TYPES.indexOf(row.type) < 0) {
+    if (!tankOk(row)) {
         const rest = out.filter((p) => !isTankOf(p, ctx));
         if (rest.length > 0) out = rest;
     }

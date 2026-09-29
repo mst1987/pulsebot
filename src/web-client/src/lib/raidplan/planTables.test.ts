@@ -102,3 +102,10 @@ describe("group healing by healer", () => {
         expect(tables.healerGroups([])).toEqual([]);
     });
 });
+
+describe("the slim tables of the raid-wide tasks (#536)", () => {
+    it("soulstone, battle res, blessings, auras, totems and debuffs each get their table in the fixed order", () => {
+        const a = ["debuff", "totem", "aura", "blessing", "brez", "ss"].map((type) => row(type, type, ["user:r1"], [{ kind: "group", ref: "1" }]));
+        expect(tables.simpleTables(a, ctx).map((x) => x.type)).toEqual(["ss", "brez", "blessing", "aura", "totem", "debuff"]);
+    });
+});

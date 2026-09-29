@@ -14,9 +14,12 @@ export const TASK_GROUPS = [
     { id: "kick", types: ["kick"], badge: "kick" },
     { id: "md", types: ["md"], badge: "md" },
     { id: "ss", types: ["ss"], badge: "ss" },
+    { id: "brez", types: ["brez"], badge: "brez" },
     { id: "fearward", types: ["fearward"], badge: "fearward" },
     { id: "support", types: ["dispel", "cc", "buff"], badge: "dispel" },
+    { id: "buffs", types: ["blessing", "aura", "totem"], badge: "blessing" },
     { id: "curse", types: ["curse"], badge: "curse" },
+    { id: "debuff", types: ["debuff"], badge: "debuff" },
     { id: "warrior", types: ["thunderclap", "demoshout"], badge: "thunderclap" },
     { id: "other", types: ["special", "other"], badge: "other" },
 ];

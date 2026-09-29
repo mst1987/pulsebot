@@ -470,7 +470,12 @@
             "curse": "Curses (warlocks)",
             "thunderclap": "Thunder Clap",
             "demoshout": "Demoralizing Shout",
-            "trashtank": "Trash tanks to marks"
+            "trashtank": "Trash tanks to marks",
+            "debuff": "Debuffs on the boss (Sunder, Faerie Fire, Mark …)",
+            "blessing": "Blessings (paladins)",
+            "aura": "Auras (paladins per group)",
+            "totem": "Totems (shamans per group)",
+            "brez": "Battle res (druid)"
         },
         "type": {
             "heal": "Heal",
@@ -487,7 +492,12 @@
             "dispel": "Dispel",
             "cc": "Crowd control",
             "buff": "Buff",
-            "tank": "Main tank / tanking"
+            "tank": "Main tank / tanking",
+            "debuff": "Debuffs",
+            "blessing": "Blessings",
+            "aura": "Auras",
+            "totem": "Totems",
+            "brez": "Battle res"
         },
         "suggested": "Suggestion",
         "assignees": "Assigned",
@@ -546,7 +556,12 @@
             "curse": "CURSE",
             "thunderclap": "THUNDER CLAP",
             "demoshout": "DEMO SHOUT",
-            "other": "TASK"
+            "other": "TASK",
+            "debuff": "DEBUFF",
+            "blessing": "BLESSING",
+            "aura": "AURA",
+            "totem": "TOTEM",
+            "brez": "BATTLE RES"
         },
         "cardTypes": "Card types",
         "cardEmptyHeal": "No row yet. Give healers tanks, groups or players."
@@ -850,7 +865,10 @@
             "support": "Dispel / CC / Buff",
             "curse": "Curses",
             "warrior": "Thunder Clap / Demo Shout",
-            "other": "Other"
+            "other": "Other",
+            "brez": "Battle res",
+            "buffs": "Blessings / Auras / Totems",
+            "debuff": "Debuffs"
         },
         "yourGroup": "Your group ({n})",
         "preview": "Preview: my tasks (how the read view shows it to you)"

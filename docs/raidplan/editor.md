@@ -637,3 +637,50 @@ assignment columns (healers, kicks, soulstones, debuffs) took raiders of a Raid-
   editor payload, the read view's priority, named bench raider, slot refill, the toggle, suggestions, template apply),
   `test/utils/setup/fillSetup.test.js`, `src/web-client/src/lib/raidplan/planGroups.test.ts`,
   `src/web-client/src/pages/raid-detail/raidplan/PlanGroups.test.tsx`.
+
+## The Allgemein section's raid-wide tasks (#536)
+
+"Könntest du noch Sachen bei General wie Soulstones oder andere Debuffs/Buffs einfügen": the section "Allgemein" knew only curses,
+thunder clap, demoralizing shout, buff and other.
+
+- **Five new types** (`ASSIGN_TYPES` in `raidplanConstants.js`, client `ASSIGN_META` / `CARD_ORDER` / `LINE_TYPES` in
+  `lib/raidplan/assign.ts`, `RaidplanAssignType`): `debuff` (debuffs on the boss), `blessing` (paladin blessings), `aura` (paladin auras
+  and the passive auras of a spec), `totem` (shaman totems), `brez` (battle res, Rebirth). The spells are in the catalog (catalog.md,
+  "Raid-wide tasks"). **Why own types instead of everything under `buff`**: a card per kind keeps each card short (one row per
+  paladin / shaman instead of one card with 25 rows of mixed buffs), each type has its own spell list in the row dialog (a totem row
+  picks among twelve totems, not among forty buffs), and the suggestions differ by kind (blessing per paladin, aura and totem per group).
+  Raid buffs cast by one class (shouts, prayers, Arcane Brilliance, Gift of the Wild) and the cooldowns (Innervate, Bloodlust / Heroism,
+  Power Infusion) stay `buff`.
+- **Where** (`SCOPE_TYPES`): Allgemein offers soulstone, battle res, fear ward, buff, blessing, aura, totem, curse, debuff, thunder clap,
+  demoralizing shout, other; a boss and the Standard also get `debuff` and `brez`; trash is unchanged. **Default cards of Allgemein**
+  (`DEFAULT_CARDS.general`): soulstone, blessings, totems, curses, debuffs, thunder clap, demoralizing shout (empty ones in the editor
+  only, hideable as before); auras, battle res, fear ward, buffs and other via "Karte hinzufügen". The read view shows the new types in
+  their own slim tables (`SIMPLE_ORDER`) and "Meine Aufgaben" groups them (`TASK_GROUPS`: "Battle-Rez", "Segen / Auren / Totems",
+  "Debuffs").
+- **Icons and colours**: type icons Sunder Armor, Greater Blessing of Kings, Devotion Aura, Windfury Totem, Rebirth; lines
+  `--rp-line-debuff / -blessing / -aura / -totem / -brez` and badges `--rp-tb-*` in `styles/tokens.css` (one bright set for both
+  themes like the others of #507: the board is a dark picture in both), rules in `raidplan/assign.css` and `layout.css`.
+- **Suggestions** (`suggest`, server; the card's wand for all five, `SUGGESTABLE` on both sides):
+  - *blessing*: one blessing per paladin in the order Kings, Might, Wisdom, Salvation, Light, Sanctuary (class references, ranked like
+    every suggestion; a template names four).
+  - *aura* / *totem* (`suggestGroupBuffs`, `GROUP_BUFF_PLAN`): party-wide in TBC, so one row per paladin / shaman of the plan with HIS
+    setup group as the target and the spell by his role (`playerRole`): protection Devotion, retribution Retribution, holy
+    Concentration Aura; enhancement Windfury, elemental Wrath of Air, restoration Mana Spring Totem. A second one of the same role in
+    the group takes the next of the list (Grace of Air ...). These rows name the raider directly (`user:`), because the group target
+    belongs to that very player; the raiders of rows the orga keeps are left out. The passive auras (Trueshot, Leader of the Pack,
+    Moonkin, Tree of Life) are never suggested.
+  - *debuff* (`suggestDebuffs`, `DEBUFF_PLAN`): Sunder Armor and Faerie Fire from a tank first, Hunter's Mark, Improved Scorch and
+    Shadow Weaving from a damage dealer, Judgement of Wisdom and of Light; each from another raider of the spell's classes (class
+    references with a role where it matters: "Tank (Krieger) 1", "Priester (dps) 1"). Expose Armor (does not stack with Sunder), Misery
+    and Judgement of the Crusader stay for rows made by hand.
+  - *brez*: one druid, the spell Rebirth. *ss* works in Allgemein as it did per boss (warlocks onto the healers).
+  - The row dialog's wand sends the row's spell (`spellId` in `POST /api/raidplan/suggest`): a debuff / blessing / aura / totem row asks
+    for a raider of THAT spell.
+- **Ranking (#501)**: blessing and aura are a tank's own kinds of task (a protection paladin blesses, no tank penalty); Sunder Armor and
+  Faerie Fire are spells a tank keeps up (`TANK_OK_SPELLS`, both twins: `tankOk(row)` looks at the row's spell), so the warrior tank may
+  sunder while another debuff goes to a damage dealer; `debuff` is damage dealers' utility (a healer only when nobody else can).
+- Existing plans are unchanged (nothing is migrated; the golden masters pass); an Allgemein section shows the four new default cards
+  empty in the editor, the read view only cards with content.
+- Tests: `test/services/raidplan/raidplanGeneralTypes.test.js`, `src/web-client/src/lib/raidplan/rank.test.ts` ("the raid-wide tasks",
+  both twins), `assign.test.ts` (types per scope, default and addable cards), `mineView.test.ts`, `planTables.test.ts`,
+  `src/web-client/src/pages/raid-detail/raidplan/GeneralCards.test.tsx` (the cards render, a debuff row, "Karte hinzufügen").

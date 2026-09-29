@@ -13,7 +13,10 @@ const ids = (blocks) => blocks.map((b) => [b.group, b.rows.map((r) => r.a.id)]);
 
 describe("kinds of task", () => {
     it("come in a fixed order and the small ones share a group", () => {
-        expect(mv.TASK_GROUPS.map((g) => g.id)).toEqual(["tank", "heal", "kick", "md", "ss", "fearward", "support", "curse", "warrior", "other"]);
+        expect(mv.TASK_GROUPS.map((g) => g.id)).toEqual(["tank", "heal", "kick", "md", "ss", "brez", "fearward", "support", "buffs", "curse", "debuff", "warrior", "other"]);
+        expect(mv.taskGroupOf("totem")).toBe("buffs");
+        expect(mv.taskGroupOf("blessing")).toBe("buffs");
+        expect(mv.taskGroupOf("debuff")).toBe("debuff");
         expect(mv.taskGroupOf("trashtank")).toBe("tank");
         expect(mv.taskGroupOf("dispel")).toBe("support");
         expect(mv.taskGroupOf("cc")).toBe("support");
