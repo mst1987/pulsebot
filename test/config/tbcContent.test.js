@@ -1,6 +1,6 @@
 const {
     CONTENTS, TIERS, RAID_LOOT, BOSS_ORDER, NON_BOSSES, bossOrder,
-    content, tier, sourceForItem, contentForInstance, contentsForText, contentForLoot, tokenTier,
+    content, tier, sourceForItem, encounterKey, contentForInstance, contentsForText, contentForLoot, tokenTier,
 } = require("../../src/config/tbcContent");
 
 describe("tbcContent", () => {
@@ -65,6 +65,16 @@ describe("tbcContent", () => {
             expect(bossOrder("hyjal", "Rage Winterchill")).toBeLessThan(bossOrder("hyjal", "Archimonde"));
             // Alphabetically these two are the wrong way round — that is the point.
             expect(bossOrder("bt", "Gurtogg Bloodboil")).toBeGreaterThan(bossOrder("bt", "High Warlord Naj'entus"));
+        });
+
+        // #534: after the first four the raid goes to the Reliquary, then to Bloodboil.
+        it("puts the Reliquary of the Lost fifth in the Black Temple, before Gurtogg Bloodboil", () => {
+            expect(bossOrder("bt", "Teron Gorefiend")).toBe(3);
+            expect(bossOrder("bt", "Reliquary of the Lost")).toBe(4);
+            expect(bossOrder("bt", "Gurtogg Bloodboil")).toBe(5);
+            expect(BOSS_ORDER.bt.slice(3, 7)).toEqual([
+                "Teron Gorefiend", "Reliquary of the Lost", "Gurtogg Bloodboil", "Mother Shahraz",
+            ]);
         });
 
         it("sorts the non-encounter buckets after every boss, chest before trash", () => {
@@ -262,5 +272,19 @@ describe("tbcContent", () => {
         expect(content("nope")).toBeNull();
         expect(tier("t5").label).toBe("Tier 5");
         expect(tier("t9")).toBeNull();
+    });
+
+    // #534: the WCL names that differ from the table fold onto our encounter, so a log kill counts for the boss
+    describe("encounterKey", () => {
+        it("folds the opera bosses onto the Opera Event", () => {
+            expect(encounterKey("The Big Bad Wolf")).toBe(encounterKey("Opera Event"));
+            expect(encounterKey("Opera Hall")).toBe(encounterKey("Opera Event"));
+        });
+
+        it("folds WCL names onto the table names (Reliquary of Souls, Daakara)", () => {
+            expect(encounterKey("Reliquary of Souls")).toBe(encounterKey("Reliquary of the Lost"));
+            expect(encounterKey("Daakara")).toBe(encounterKey("Zul'jin"));
+            expect(encounterKey("Gurtogg Bloodboil")).toBe("gurtoggbloodboil");
+        });
     });
 });

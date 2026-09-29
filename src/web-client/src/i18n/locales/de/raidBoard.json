@@ -742,6 +742,12 @@
         "onlyMineTip": "Nur die Abschnitte und Aufgaben, die dich betreffen",
         "hasMine": "Du hast hier Einteilungen"
     },
+    "progress": {
+        "follow": "Automatisch mitgehen",
+        "followOnTip": "Der Plan blättert anhand des Warcraft-Logs zum Boss, der gerade gepullt wird, sonst zum nächsten. Klick hält an.",
+        "followOffTip": "Angehalten, weil du selbst einen Abschnitt gewählt hast. Klick geht wieder mit dem Raid mit.",
+        "killed": "Im Log getötet"
+    },
     "multi": {
         "count": "{n} ausgewählt",
         "mixed": "gemischt",

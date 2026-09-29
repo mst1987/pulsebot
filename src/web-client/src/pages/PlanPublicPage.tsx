@@ -6,6 +6,7 @@ import { useBoardView } from "../hooks/useBoardView";
 import { viewFromSaved } from "../lib/raidplan/boardView";
 import MiniMap from "../components/raidplan/MiniMap";
 import { useViewPrefs } from "../hooks/useViewPrefs";
+import { useRaidProgress } from "../hooks/useRaidProgress";
 import { shownFor } from "../lib/raidplan/viewRules";
 import { SheetViewMenu } from "./raid-detail/raidplan/ViewControls";
 import { getRaidplanPublic, type RaidplanBoard, type RaidplanPublicBoss } from "../api";
@@ -70,6 +71,13 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const planned = useMemo(() => (data ? data.roster.filter((p) => !p.outOfPlan) : []), [data]);
     // the sections where the visitor is personally assigned: their chips carry a dot (issue #503)
     const mineKeys = useMemo(() => bossesWithMine(data ? data.bosses : [], players, data ? data.meIds : []), [data, players]);
+    // the plan follows the raid (#534): during the raid window the linked log turns it to the boss being pulled, else the next one -
+    // until the visitor picks a section himself (a deep link ?section= counts as that)
+    const sectionKeys = useMemo(() => (data ? data.bosses.map((b) => b.key) : []), [data]);
+    const progress = useRaidProgress({
+        source: data ? { token } : null, startTime: data ? data.event.startTime : 0, keys: sectionKeys, select: setSelected,
+        initialFollow: !new URLSearchParams(window.location.search).get("section"),
+    });
 
     if (error) {
         return (
@@ -126,7 +134,8 @@ export default function PlanPublicPage({ token }: { token: string }) {
             {data.bosses.length > 0 && (
                 <>
                     <SheetBossNav
-                        bosses={shownBosses} selectedKey={boss ? boss.key : ""} mineKeys={mineKeys} label={label} onSelect={setSelected}
+                        bosses={shownBosses} selectedKey={boss ? boss.key : ""} mineKeys={mineKeys} label={label} onSelect={progress.choose}
+                        killedKeys={progress.killed} follow={progress.live ? { on: progress.follow, onToggle: () => progress.setFollow(!progress.follow) } : undefined}
                         showOnlyMine={!!data.me && data.meIds.length > 0} onlyMine={onlyMine} onToggleOnlyMine={() => setOnlyMine((v) => !v)}
                     />
 

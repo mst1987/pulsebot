@@ -7,6 +7,7 @@ import { useApi } from "../../hooks/useApi";
 import { Badge, IconButton, Modal, RaidLoader, useConfirm } from "../../components/ui";
 import { useToast } from "../../components/Jobs";
 import { useOnFocus } from "../../hooks/useOnFocus";
+import { useRaidProgress } from "../../hooks/useRaidProgress";
 import { useT } from "../../i18n";
 import {
     boardCount, boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, startSection, objectCount, openSlots, planHasContent, sameBosses, sheetIncluded, toSave,
@@ -98,6 +99,12 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     };
 
     const bossKeys = useMemo(() => (view ? view.bosses.map((b) => b.key) : []), [view]);
+    // the plan follows the raid (#534): during the raid window the linked log turns it to the boss being pulled, else the next one -
+    // until the organiser picks a section himself
+    const progress = useRaidProgress({
+        source: view ? { event: eventId } : null, startTime: view ? view.event.startTime : 0, keys: bossKeys, select: setSelected,
+        initialFollow: !new URLSearchParams(window.location.search).get("section"),
+    });
     // remember the open section per plan (this browser)
     useEffect(() => { if (selected) rememberSection(eventId, selected); }, [eventId, selected]);
     // "Gruppen im Plan" (#529): every consumer below gets only the raiders of the plan's groups; the rest only names a raider a row holds
@@ -278,7 +285,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
                     defaultRows={boardOf(draft, DEFAULTS_KEY).assignments}
                     saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("raidBoard.conflict.text")} /> : undefined}
-                    bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} />}
+                    bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={progress.choose} killedKeys={progress.killed} follow={progress.live ? { on: progress.follow, onToggle: () => progress.setFollow(!progress.follow) } : undefined} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} />}
                     status={(
                         <>
                             <Badge tone={published ? "ok" : undefined}>{published ? t("raidBoard.bar.published") : t("raidBoard.bar.draft")}</Badge>
@@ -313,7 +320,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 <ul className="rp-openlist">
                     {groupOpen(openRows).map((sec) => (
                         <li key={sec.key}>
-                            <button type="button" className="rp-openlist-sec" onClick={() => { setSelected(sec.key); setModal(""); }}>{sec.name}</button>
+                            <button type="button" className="rp-openlist-sec" onClick={() => { progress.choose(sec.key); setModal(""); }}>{sec.name}</button>
                             <ul>
                                 {sec.rows.map((o) => <li key={o.rowId}><span className="rp-openlist-type">{t(`raidBoard.assign.type.${o.type}`)}</span> {t("raidBoard.aline.missing", { what: o.missing.join(", ") })}</li>)}
                             </ul>

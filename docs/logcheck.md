@@ -48,3 +48,24 @@ An evaluation of a raid that is still running is worth little and unfair to the 
 - **Getting past it is deliberate, never accidental.** `buildReport(link, { force: true })` is the way, and both front ends ask first: in Discord the refusal carries a *Trotzdem auswerten* button whose click opens a **modal** that wants `JA` typed in (`commands/logcheck/logevalForce.js` — the button and the modal share one customId prefix and one handler, branching on `isModalSubmit()`; a modal cannot be shown after `deferReply`, which is why the click cannot evaluate directly). In the admin menu the job comes back `incomplete` together with `raids` (`raidProgress.raidSummary()`: per raid the encounter list with what lies), and `lib/confirmIncomplete.ts` turns that into the "Raid noch nicht abgeschlossen" dialog with the boss grid (`components/IncompleteRaid.tsx`) and repeats the call with `force`.
 - A report built anyway keeps `raidProgress` on it, so the page says the raid was not finished instead of the reader having to remember.
 - **The same summary drives the Log-Auswertung list** ("Hyjal 3/5", yellow while the final boss stands). It is one list (`reportList.prepareClaList`: every log plus the reports built from a link that no log points at, filters `all|open|unlinked|done`); for a log nobody evaluated yet the raids come from its WCL fight list, read once together with the title (`logChannel.backfillLogTitles`) and stored on the log (`logStore.setLogRaids`). An unfinished raid is read again only while the post is under 12 h old and at most every 10 min — a raid that was called off stays unfinished forever. Karazhan counts 11 encounters: the opera is one, the rare spawns none.
+
+## Progress for the raid plan (#534)
+
+`GET /api/raidplan/progress` (docs/raidplan/sharing.md, "The plan follows the raid") tells the raid plan which of its bosses are
+down, which one is being fought and which comes next. Two modules:
+
+- **`utils/logcheck/bossProgress.js`** (pure): `deriveProgress(fights, sections)` over a v1 `report/fights` answer and the plan's
+  bosses in section order (`raidplanStore.bossesForInstances`, no "Allgemein", no trash). A fight counts only with `boss` > 0 and
+  is matched to a section by `tbcContent.encounterKey()` of its name **or** of `config/bosses.js`' `bossName(boss)` — the offset
+  Anniversary ids (50601, 100623) fold back there, so an untranslated German fight name still finds its boss. `encounterKey()` also
+  folds the two WCL names that differ from the table: "Reliquary of Souls" → "Reliquary of the Lost", "Daakara" → "Zul'jin" (which
+  fixes the same miss in `raidProgress.js`' encounter grid). **Killed** = a fight with `kill: true`; a wipe changes nothing.
+  **Current** = the section of the report's *last* fight while it runs (`inProgress: true`, which v1 carries on a live log, or no
+  `kill` yet); trash after it ends it. **Next** = the first boss not killed, in the plan's order, **starting in the instance of the
+  most recent boss pull** (a raid doing BT before Hyjal while the plan lists Hyjal first is followed through BT), then over all
+  sections; null when everything is down.
+- **`services/raidplan/raidplanProgress.js`**: the report is the newest log linked to the event with a report id
+  (`logStore.listLogsForEvent`, filled by `logAutoLink.js` or by hand). **WCL v1** `getFights` with the bot's key — v2 would need
+  the optional OAuth client. Only inside the raid window (`eventStartMs` − 30 min to + 6 h): outside it no request at all. One
+  request per report and 60 s (`CACHE_MS`), shared by every page that polls (one promise per report); a failure — private report,
+  429, no key — is cached as "no data" for the same minute and answered as `live: false`.

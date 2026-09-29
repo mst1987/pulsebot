@@ -115,7 +115,7 @@ const BOSS_ORDER = {
     hyjal: ["Rage Winterchill", "Anetheron", "Kaz'rogal", "Azgalor", "Archimonde"],
     bt: [
         "High Warlord Naj'entus", "Supremus", "Shade of Akama", "Teron Gorefiend",
-        "Gurtogg Bloodboil", "Reliquary of the Lost", "Mother Shahraz",
+        "Reliquary of the Lost", "Gurtogg Bloodboil", "Mother Shahraz",
         "The Illidari Council", "Illidan Stormrage",
     ],
     swp: ["Kalecgos", "Brutallus", "Felmyst", "Eredar Twins", "M'uru", "Kil'jaeden"],
@@ -301,10 +301,19 @@ function encountersFor(contentId) {
     return (BOSS_ORDER[contentId] || []).filter((name) => !NOT_COUNTED.has(normalizeBoss(name)));
 }
 
-/** A boss name folded onto the encounter it counts as (an opera boss → "Opera Event"). */
+// Encounters Warcraft Logs names differently than this table (and the loot data) does: the
+// Reliquary is WCL's encounter 606 "Reliquary of Souls" (its room is "of the Lost"), Zul'jin
+// is logged as "Daakara" (1194). Folded like the opera, so a log's kill counts for the boss.
+const WCL_ALIASES = new Map([
+    ["Reliquary of Souls", "Reliquary of the Lost"],
+    ["Daakara", "Zul'jin"],
+].map(([wcl, own]) => [normalizeBoss(wcl), normalizeBoss(own)]));
+
+/** A boss name folded onto the encounter it counts as (an opera boss → "Opera Event", a WCL name → ours). */
 function encounterKey(name) {
     const key = normalizeBoss(name);
-    return OPERA.map(normalizeBoss).includes(key) ? normalizeBoss("Opera Event") : key;
+    if (OPERA.map(normalizeBoss).includes(key)) return normalizeBoss("Opera Event");
+    return WCL_ALIASES.get(key) || key;
 }
 
 const BOSS_CONTENT = new Map();

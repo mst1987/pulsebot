@@ -202,3 +202,13 @@
 .rp-pgroups-count { min-width: 20px; padding: 0 3px; color: var(--muted); font-size: 11.5px; font-weight: 700; text-align: center; }
 .rp-pgroups-reset { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
 .rp-pgroups-reset:hover { color: var(--text); }
+
+/* the raid plan follows the log (#534, hooks/useRaidProgress.ts): a boss the linked log shows killed is dimmed and carries a small
+   check in --good at its lower right (the #503 dot stays at the upper right); the chosen chip keeps full strength */
+.rp-bosschip.is-killed { opacity: var(--rp-done-dim); }
+.rp-bosschip.is-killed img { filter: grayscale(.7); }
+.rp-bosschip.is-killed.is-on, .rp-bosschip.is-killed:hover, .rp-bosschip.is-killed:focus-visible { opacity: 1; }
+.rp-bosschip-done { position: absolute; right: -3px; bottom: -3px; display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; border-radius: 50%; background: var(--good); color: var(--on-good); box-shadow: 0 0 0 2px var(--panel); }
+/* "Automatisch mitgehen": a small switch at the end of the bar, filled while it follows */
+.rp-autofollow { margin-left: auto; gap: 5px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
+.rp-autofollow.is-on { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }

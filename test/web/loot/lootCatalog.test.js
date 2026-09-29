@@ -33,7 +33,7 @@ describe("web/loot/lootCatalog", () => {
         it("lists the bosses in the order the raid meets them, not alphabetically", () => {
             expect(bossSequence("bt")).toEqual([
                 "High Warlord Naj'entus", "Supremus", "Shade of Akama", "Teron Gorefiend",
-                "Gurtogg Bloodboil", "Reliquary of the Lost", "Mother Shahraz",
+                "Reliquary of the Lost", "Gurtogg Bloodboil", "Mother Shahraz",
                 "The Illidari Council", "Illidan Stormrage", "Trash",
             ]);
             expect(bossSequence("hyjal")).toEqual([

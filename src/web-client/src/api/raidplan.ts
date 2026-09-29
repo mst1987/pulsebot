@@ -317,6 +317,18 @@ export function getRaidplanPublic(token: string): Promise<RaidplanPublic> {
     return get<RaidplanPublic>(`/api/raidplan/public?token=${encodeURIComponent(token)}`);
 }
 
+/**
+ * What the Warcraft Log linked to the event shows (#534, GET /api/raidplan/progress): the section keys with a kill, the boss being
+ * fought (a running fight of a live log) and the next one standing. `live` false = no log, or outside the raid window.
+ */
+export type RaidplanProgress = { live: boolean; killed: string[]; current: string | null; next: string | null; updatedAt: number | null };
+
+/** The progress of a plan: the read view asks with its token, the editor with its event. */
+export function getRaidplanProgress(by: { token: string } | { event: string }): Promise<RaidplanProgress> {
+    const q = "token" in by ? `token=${encodeURIComponent(by.token)}` : `event=${encodeURIComponent(by.event)}`;
+    return get<RaidplanProgress>(`/api/raidplan/progress?${q}`);
+}
+
 export function applyRaidplanTemplate(input: { event: string; templateId: string; version: number }): Promise<RaidplanView> {
     return send("POST", "/api/raidplan/apply", input);
 }
