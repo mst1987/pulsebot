@@ -21,6 +21,7 @@ const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView"
 const { versionLinks } = require("../../services/events/versionSettings");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { buildAttendanceContext, attendanceFor, categoryInfo, roleFor } = require("../../services/characters/rosterAttendance");
+const { buildVersionContext, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
 
 // How much loot a roster row carries for its hover panel. The overview shows
 // the newest pieces, not a full history — the character page has that.
@@ -32,11 +33,15 @@ const MAX_LOOT_PREVIEW = 20;
  *
  * @param {string} guildId  active guild — resolves category names and limits
  *                          the raid events attendance counts
+ * @param {{ versionId?: string }} [opts]  `versionId` (#543): only the characters of
+ *                          that game version, attendance over its raid nights only
  * @returns {{chars: object[], categories: {id: string, name: string}[],
- *            categoryInfo: Object<string, {raids: number, contents: string[], icon: string}>}}
+ *            categoryInfo: Object<string, {raids: number, contents: string[], icon: string}>,
+ *            versions: {id: string, label: string, short: string, count: number}[]}}
  */
-function buildRoster(guildId) {
+function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {}) {
     const rows = new Map();
+    const versionCtx = buildVersionContext({ config });
 
     const ensure = (name) => {
         const key = characterKeyOf(name);
@@ -78,6 +83,7 @@ function buildRoster(guildId) {
         row.realm = c.realm || "";
         row.lootCount = c.count || 0;
         row.items = (c.items || []).slice(0, MAX_LOOT_PREVIEW);
+        row.allItems = c.items || [];
         row.className = c.className || "";
         row.spec = c.spec || "";
         row.source = c.source || "";
@@ -103,10 +109,21 @@ function buildRoster(guildId) {
     //    issues, role and attendance per category
     const known = characterMap();
     const issuesByKey = latestIssuesByCharacter();
-    const ctx = buildAttendanceContext(guildId);
-    // Armory/WCL of the main version (#542), read once; per character once it carries its own (#543).
-    const links = versionLinks();
-    const chars = [...rows.values()].map(({ raiderIdsByCategory, ...row }) => {
+    const ctx = buildAttendanceContext(guildId, { versionId });
+    const all = [...rows.values()].map(({ allItems, ...row }) => ({
+        ...row,
+        versionIds: versionsOfCharacter(versionCtx, { name: row.character, items: allItems || [], categoryIds: row.categoryIds }),
+    }));
+    const versions = versionChoices(all, mainVersion);
+    // Armory/WCL per game version (#542): the filtered one, else each character's own (#543) — read once per version.
+    const linkCache = new Map();
+    const linksOf = (id) => {
+        const key = id || "";
+        if (!linkCache.has(key)) linkCache.set(key, versionLinks(key || undefined, config ? { config } : undefined));
+        return linkCache.get(key);
+    };
+    const chars = all.filter((row) => !versionId || row.versionIds.includes(versionId)).map(({ raiderIdsByCategory, ...row }) => {
+        const links = linksOf(versionId || (row.versionIds.includes(mainVersion) ? mainVersion : row.versionIds[0]));
         const info = known[row.key] || {};
         const className = row.className || info.className || "";
         const spec = row.spec || info.spec || "";
@@ -141,20 +158,20 @@ function buildRoster(guildId) {
     // Names, not a pick list: a category that Discord no longer offers (gateway
     // offline, category deleted) still has to label the rows it owns instead of
     // leaving a raw snowflake in the table — see categoryNames.js.
-    return { chars, categories: listKnownCategories(guildId), categoryInfo: info };
+    return { chars, categories: listKnownCategories(guildId), categoryInfo: info, versions };
 }
 
 /**
  * One character's roster facts for the character page: role, the categories it
  * raids in with their attendance night by night.
  */
-function rosterCharacter(guildId, name) {
+function rosterCharacter(guildId, name, { versionId = "" } = {}) {
     const key = characterKeyOf(name);
     if (!key) return null;
-    const roster = buildRoster(guildId);
+    const roster = buildRoster(guildId, { versionId });
     const row = roster.chars.find((c) => c.key === key);
     if (!row) return null;
-    const ctx = buildAttendanceContext(guildId);
+    const ctx = buildAttendanceContext(guildId, { versionId });
     const assignments = listAllAssignments();
     const attendance = {};
     for (const id of row.categoryIds) {

@@ -174,6 +174,7 @@ jest.mock("../../../src/utils/loot/lootImport", () => {
         // the loot-add endpoint is tested for — a stub would test the stub.
         characterKey: actual.characterKey,
         characterKeyOf: actual.characterKeyOf,
+        nameKeyOf: actual.nameKeyOf,
         splitPlayer: actual.splitPlayer,
         buildManualItem: actual.buildManualItem,
         LootParseError,
@@ -319,6 +320,9 @@ describe("web/apiRoutes/history", () => {
                 categoryLootTool: { cat1: "gargul" },
                 activeGuildId: "guild-1",
                 chars: [],
+                // #543: the version filter of the "Charaktere" tab — the main version even without characters
+                mainVersion: "tbc",
+                versions: [{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 0 }],
             });
         });
 
@@ -373,11 +377,11 @@ describe("web/apiRoutes/history", () => {
             expect(json(res).data.chars).toEqual([
                 {
                     key: "anna@t", character: "Anna", realm: "t", count: 3, className: "Paladin", spec: "Holy", source: "wcl", reportId: "r1",
-                    classColor: expect.any(String), iconUrl: expect.any(String),
+                    classColor: expect.any(String), iconUrl: expect.any(String), versionIds: ["tbc"],
                 },
                 {
                     key: "bob@t", character: "Bob", realm: "t", count: 1, className: "", spec: "", source: "", reportId: "",
-                    classColor: "", iconUrl: "",
+                    classColor: "", iconUrl: "", versionIds: ["tbc"],
                 },
             ]);
             expect(json(res).data.chars[0].classColor).not.toBe("");
@@ -985,10 +989,17 @@ describe("web/apiRoutes/history", () => {
             expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
         });
 
-        it("asks no armory and links nothing for a main version without settings (#542)", async () => {
+        it("takes the character's own version: TBC loot links TBC, even with Forever as the main version (#543)", async () => {
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "forever", blizzard: { clientId: "id", clientSecret: "s" } });
+            const data = json(await get("/api/history/char", { name: "Anna" })).data;
+            expect(data).toMatchObject({ versionId: "tbc", versionIds: ["tbc"] });
+            expect(data.armoryUrl).toContain("Anna");
+        });
+
+        it("asks no armory and links nothing for a version without settings (#542, asked by ?version=)", async () => {
             mockIsConfigured.mockReturnValue(true);
             settingsStore.getConfig.mockReturnValue({ mainVersion: "forever", blizzard: { clientId: "id", clientSecret: "s" }, versionSettings: {} });
-            const data = json(await get("/api/history/char", { name: "Anna" })).data;
+            const data = json(await get("/api/history/char", { name: "Anna", version: "forever" })).data;
             expect(mockGetEquipment).not.toHaveBeenCalled();
             expect(mockGetCharacterSummary).not.toHaveBeenCalled();
             expect(data).toMatchObject({
@@ -1012,6 +1023,7 @@ describe("web/apiRoutes/history", () => {
                     character: "Anna", realm: "thunderstrike", itemName: "Sword",
                     className: "", spec: "", classColor: "", specIconUrl: "",
                 }],
+                versionIds: ["tbc"],
                 armoryUrl: expect.stringContaining(encodeURIComponent("Anna")),
                 wclUrl: expect.stringContaining(encodeURIComponent("Anna")),
                 gear: null,

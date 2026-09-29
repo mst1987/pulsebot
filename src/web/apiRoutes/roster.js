@@ -7,17 +7,35 @@ const rosterHidden = require("../../stores/rosterHiddenStore");
 const { repairItemNames: repairLootItemNames } = require("../../stores/lootStore");
 const { sourceForItem, content, tier } = require("../../config/tbcContent");
 const { bisSpecsView } = require("../loot/lootCouncil");
+const { mainVersionFor, knownVersion } = require("../../services/events/mainVersion");
+const { getConfig } = require("../../stores/settingsStore");
+
+/**
+ * The game version a list is filtered to (#543): `?version=<id>`, "all" for
+ * every version, nothing = the main version from the settings.
+ * @returns {{ versionId: string, mainVersion: string }}  versionId "" = all
+ */
+function versionFilter(url) {
+    const mainVersion = mainVersionFor({ config: getConfig() });
+    const raw = String((url && url.searchParams.get("version")) || "").trim();
+    if (raw === "all") return { versionId: "", mainVersion };
+    return { versionId: knownVersion(raw) || mainVersion, mainVersion };
+}
 
 // How many item ids one character request may ask about — a paperdoll has 19.
 const MAX_ITEM_IDS = 30;
 
-/** GET /api/roster — every character grouped by raid category (see roster.js). */
-const getRoster = withUser({}, async ({ req, res }) => {
+/**
+ * GET /api/roster[?version=<id>|all] — every character grouped by raid category (see roster.js),
+ * of one game version (#543; the main version unless the page asks for another or "all").
+ */
+const getRoster = withUser({}, async ({ req, res, url }) => {
     // Same one-time backfill the loot pages run, so the hover panel never shows
     // "Item <id>" for rows imported before icon enrichment existed.
     await repairLootItemNames();
     const guildId = activeGuildFor(req);
-    const { chars, categories, categoryInfo } = buildRoster(guildId);
+    const { versionId, mainVersion } = versionFilter(url);
+    const { chars, categories, categoryInfo, versions } = buildRoster(guildId, { versionId, mainVersion, config: getConfig() });
     // Characters somebody took off the roster (left the guild, one-off alt) go
     // out in their own list instead of being dropped: the page's "Ausgeblendet"
     // tab lists them and puts them back. The stats describe the roster that is
@@ -36,6 +54,10 @@ const getRoster = withUser({}, async ({ req, res }) => {
         categoryInfo,
         stats: rosterStats(active),
         activeGuildId: guildId,
+        // The version filter (#543): what is shown ("" = all), the default, and the choices.
+        version: versionId,
+        mainVersion,
+        versions,
     });
 });
 
@@ -89,7 +111,8 @@ function itemFacts(itemId) {
 const getRosterChar = withUser({}, async ({ req, res, url }) => {
     const name = String(url.searchParams.get("name") || "").trim();
     const guildId = activeGuildFor(req);
-    const facts = name ? rosterCharacter(guildId, name) : null;
+    const version = String(url.searchParams.get("version") || "").trim();
+    const facts = name ? rosterCharacter(guildId, name, { versionId: knownVersion(version) }) : null;
     const ids = String(url.searchParams.get("items") || "")
         .split(",")
         .map((s) => Number(s.trim()))
@@ -113,4 +136,4 @@ const routes = [
     { method: "GET", path: "/api/roster/char", handler: getRosterChar, area: ["roster", "history"] },
 ];
 
-module.exports = { getRoster, postRosterHide, getRosterChar, itemFacts, MAX_ITEM_IDS, routes };
+module.exports = { getRoster, postRosterHide, getRosterChar, itemFacts, versionFilter, MAX_ITEM_IDS, routes };

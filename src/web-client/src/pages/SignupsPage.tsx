@@ -10,7 +10,7 @@ import RaidIcon from "../components/RaidIcon";
 import SignupDialog from "../components/signup/SignupDialog";
 import BulkSignupDialog from "../components/signup/BulkSignupDialog";
 import { ExternalIcon, XIcon } from "../components/icons";
-import { SIGNUP_STATUS, classesForRows, fillTone, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups";
+import { SIGNUP_STATUS, classesForRows, fillTone, missingVersionLabel, profileForRows, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups";
 import { specLabel } from "../lib/wowNames";
 import { weekBands } from "../lib/raidTime";
 import { useT } from "../i18n";
@@ -72,7 +72,9 @@ export default function SignupsPage() {
     const count = data.events.length;
     const noCharacter = !data.profile.characters.length;
     // Only an own raid that still takes a signup can be picked.
-    const selectable = data.events.filter((e): e is OwnSignupRow => e.source === "eventhelper" && e.allowedStatuses.length > 0 && !noCharacter);
+    // …and only with a character of its game version (#543).
+    const selectable = data.events.filter((e): e is OwnSignupRow => e.source === "eventhelper" && e.allowedStatuses.length > 0 && !noCharacter
+        && profileForRows(data.profile, [e]).characters.length > 0);
     const selectedRows = selectable.filter((e) => selected.includes(e.id));
     const toggle = (id: string) => setSelected((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]));
 
@@ -129,7 +131,7 @@ export default function SignupsPage() {
 
             <BulkSignupDialog
                 rows={bulkRows}
-                profile={data.profile}
+                profile={profileForRows(data.profile, bulkRows)}
                 classes={classesForRows(data, bulkRows)}
                 onClose={() => setBulkRows([])}
                 onDone={onBulkDone}
@@ -137,7 +139,8 @@ export default function SignupsPage() {
 
             <SignupDialog
                 row={openRow}
-                profile={data.profile}
+                profile={profileForRows(data.profile, openRow ? [openRow] : [])}
+                missingVersion={missingVersionLabel(data.profile, openRow ? [openRow] : [], data.versions)}
                 classes={classesForRows(data, openRow ? [openRow] : [])}
                 onClose={() => open("")}
                 onSaved={onSaved}

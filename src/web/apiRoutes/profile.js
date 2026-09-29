@@ -15,7 +15,7 @@ const calendarTokens = require("../../stores/calendarTokenStore");
 const calendarFeed = require("../pages/calendarFeed");
 const { userIcsUrl } = require("../../services/events/icsFeed");
 const { rulesFor, VERSIONS } = require("../../config/gameVersions");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor, knownVersion } = require("../../services/events/mainVersion");
 const { getConfig } = require("../../stores/settingsStore");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
 
@@ -37,6 +37,11 @@ function pageContext({ versionId, config = getConfig() } = {}) {
         mainVersion,
         classes: rules.classes,
         classesByVersion: Object.fromEntries(VERSIONS.map((v) => [v.id, v.classes])),
+        // The versions a character can belong to (#543): the add dialog asks for one
+        // (the main version first), `lastName` switches on the last-name field.
+        versions: [...VERSIONS]
+            .sort((a, b) => Number(b.id === mainVersion) - Number(a.id === mainVersion))
+            .map((v) => ({ id: v.id, label: v.label, short: v.short || v.label, lastName: !!(v.characterNames && v.characterNames.lastName) })),
         roles: ROLE_LABELS,
         // The instances of every version, grouped, so a Classic guild finds its raids too.
         raidGroups: VERSIONS.map((v) => ({
@@ -97,7 +102,8 @@ const getLogCharacters = withUser({}, async ({ user, res, url }) => {
  * POST /api/profile/characters — add a character to the caller's own profile,
  * or remove one.
  * Body: { remove: key } | { source: "log", name } | { source: "armory", name, realm, className? }
- *     | { source: "manual", name, className, specs: [key] }
+ *     | { source: "manual", name, className, specs: [key] } — each with `versionId` (#543), the
+ * character's game version; missing or unknown = the main version.
  *
  * "Aus den Logs" takes class and spec from the logs, not from the request. A
  * character another account already has is added all the same — the answer
@@ -112,7 +118,8 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
     const name = String(body.name || "").trim();
     if (!name) return apiError(res, 400, "bad_request", "Bitte einen Charakternamen angeben.");
     const source = profiles.CHARACTER_SOURCES.includes(body.source) ? body.source : "manual";
-    const input = { name, realm: String(body.realm || "").trim(), source, className: body.className, specs: [] };
+    const versionId = knownVersion(body.versionId) || mainVersionFor({ config: getConfig() });
+    const input = { name, realm: String(body.realm || "").trim(), source, className: body.className, specs: [], versionId };
     let armory = null;
 
     if (source === "log") {
@@ -122,7 +129,7 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
         input.className = entry.className;
         if (entry.specKey) input.specs = [{ key: entry.specKey, gear: "ready" }];
     } else if (source === "armory") {
-        armory = await lookupArmory(name, input.realm);
+        armory = await lookupArmory(name, input.realm, versionId);
         if (armory.className) input.className = armory.className;
         if (armory.fetched) input.armory = { level: armory.level, guild: armory.guild, fetchedAt: Date.now() };
         if (!profiles.normalizeClass(input.className)) {

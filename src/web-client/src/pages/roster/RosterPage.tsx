@@ -7,7 +7,7 @@
 // #218): what does the character play, was it there lately, is its gear in
 // order, what did it already get. Explanations live in tooltips, the full gear
 // findings and the loot history one click away on the character page.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { canAccess, getCharacterClaims, getRoster, setRosterHidden, type ApiError, type RosterChar, type RosterHiddenNote, type RosterRole } from "../../api";
 import { useApi } from "../../hooks/useApi";
@@ -54,7 +54,9 @@ function byRoleThenName(a: RosterChar, b: RosterChar): number {
 
 export default function RosterPage() {
     const { user } = useOutletContext<ShellContext>();
-    const roster = useApi(() => getRoster(), []);
+    // The game version shown (#543): "" = the server's default (the main version), "all" = every one.
+    const [version, setVersion] = useState("");
+    const roster = useApi(() => getRoster(version), [version]);
     const { data, setData } = roster;
     // Beside the roster, best-effort: without the claims the "doppelt vergeben" badge simply stays away.
     const claimsData = useApi(() => getCharacterClaims().then((r) => r.claims), []);
@@ -111,7 +113,7 @@ export default function RosterPage() {
             // lists again once the roster comes back — quietly, in the background:
             // the change itself went through, so a failed refresh must not turn
             // the page into an error.
-            getRoster().then(setData).catch(() => undefined);
+            getRoster(version).then(setData).catch(() => undefined);
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
@@ -218,6 +220,19 @@ export default function RosterPage() {
             <RosterKpis stats={data.stats} onlyIssues={view.onlyIssues} onToggleIssues={() => patch({ onlyIssues: !view.onlyIssues })} />
 
             <div className="dash-card ros-panel">
+                {(data.versions || []).length > 1 && (
+                    <div className="ros-tabs ros-versions">
+                        <Segment<string>
+                            ariaLabel={t("roster.page.versionAria")}
+                            value={version || data.version || "all"}
+                            onChange={setVersion}
+                            options={[
+                                ...(data.versions || []).map((v) => ({ value: v.id, label: `${v.short} · ${v.count}`, tip: v.label })),
+                                { value: "all", label: t("common.all"), tip: t("roster.page.versionAllTip") },
+                            ]}
+                        />
+                    </div>
+                )}
                 {(!!data.hiddenChars.length || canWrite) && (
                     <div className="ros-tabs">
                         <Segment<Tab>

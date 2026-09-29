@@ -119,3 +119,28 @@ describe("stores/signupStore", () => {
         expect(saveSignup("", "u1", {}).error).toBeTruthy();
     });
 });
+
+describe("lastSignupOf je Spielversion (#543)", () => {
+    beforeEach(() => fs.__store.clear());
+
+    it("zählt mit versionId nur Events dieser Version und importierte Specs dieser Version", () => {
+        const specHistory = require("../../src/stores/specHistoryStore");
+        specHistory.applyImport([
+            { userId: "u8", spec: "Priest-Holy", eventId: "rh-1", at: 1000, character: "Devi" },
+            { userId: "u8", spec: "Priest-Shadow", eventId: "rh-2", at: 900, character: "Devi Res", versionId: "forever" },
+        ], { eventIds: ["rh-1", "rh-2"] });
+        const versionOf = (eventId) => (eventId === "eh-forever" ? "forever" : "tbc");
+        expect(lastSignupOf("u8", { versionId: "forever", versionOf })).toEqual({ eventId: "rh-2", character: "Devi Res", spec: "Priest-Shadow", imported: true });
+        expect(lastSignupOf("u8", { versionId: "tbc", versionOf })).toMatchObject({ character: "Devi", imported: true });
+
+        saveSignup("eh-tbc", "u8", { character: "Devi", spec: "Priest-Holy", status: "signed" });
+        expect(lastSignupOf("u8", { versionId: "forever", versionOf })).toMatchObject({ character: "Devi Res", imported: true });
+        expect(lastSignupOf("u8", { versionId: "tbc", versionOf })).toEqual({ eventId: "eh-tbc", character: "Devi", spec: "Priest-Holy" });
+        // without a version: the newest over everything, as before
+        expect(lastSignupOf("u8")).toMatchObject({ eventId: "eh-tbc" });
+        // the spec history keeps the two apart, TBC under the bare spec key
+        expect(specHistory.specHistoryOf("u8", { versionId: "forever" }).map((e) => e.spec)).toEqual(["Priest-Shadow"]);
+        expect(specHistory.specHistoryOf("u8").map((e) => [e.spec, e.versionId])).toEqual([["Priest-Holy", "tbc"], ["Priest-Shadow", "forever"]]);
+        expect(specHistory.migrateVersions()).toBe(0);
+    });
+});

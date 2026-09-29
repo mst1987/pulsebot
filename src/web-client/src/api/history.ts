@@ -119,6 +119,8 @@ export type AnnotatedCharacter = {
     reportId: string;
     classColor: string;
     iconUrl: string;
+    /** The game versions the character has loot / a profile in (#543). */
+    versionIds?: string[];
 };
 
 export type HistoryData = {
@@ -131,6 +133,9 @@ export type HistoryData = {
     categoryLootTool: Record<string, string>;
     chars: AnnotatedCharacter[];
     activeGuildId: string;
+    /** The "Charaktere" tab's version filter (#543): the default and the choices. */
+    mainVersion?: string;
+    versions?: { id: string; label: string; short: string; count: number }[];
 };
 
 export function getHistoryData(): Promise<HistoryData> {
@@ -207,7 +212,9 @@ export type CharInfo = {
 export type HistoryCharData = {
     character: string;
     realm: string;
-    /** The character's game version (#542; the main version until characters carry one, #543). */
+    /** Every game version the character has (#543). */
+    versionIds?: string[];
+    /** The version its links follow (#542/#543): `?version=`, else its own, the main version first. */
     versionId?: string;
     /** That version's Wowhead path for the gear links; "" = no Wowhead links. */
     wowheadPath?: string;

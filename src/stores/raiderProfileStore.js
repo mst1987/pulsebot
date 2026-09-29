@@ -12,13 +12,21 @@
 // raiderCharactersStore.js stays what it is — the orga's assignment of one
 // character per raid category. The profile only suggests from it.
 //
+// Every character belongs to one game version (#543, `versionId`): a raider has
+// TBC and WoW Forever characters side by side, and a Forever character carries
+// a last name. The key of a TBC character is its lower-case name as before; any
+// other version's key carries the version ("forever~devi res",
+// utils/loot/lootImport.js characterKeyOf), so "Devi Res", "Devi Rew" and a TBC
+// "Devi" are three characters. A character stored before versions is TBC
+// (`LEGACY_VERSION`) — migrateCharacterVersions() writes that down once at start.
+//
 // Stored under data/settings/raider-profiles.json like the other stores.
 
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { splitPlayer, characterKeyOf } = require("../utils/loot/lootImport");
+const { splitPlayer, characterKeyOf, nameKeyOf } = require("../utils/loot/lootImport");
 const { CLASSES, buildClasses } = require("../config/gameVersions/classes");
-const { instanceById } = require("../config/gameVersions");
+const { instanceById, rulesFor, LEGACY_VERSION } = require("../config/gameVersions");
 const { validateCharacterName, NAME_MAX } = require("../utils/signup/characterNames");
 const { isSnowflake } = require("../utils/ids");
 
@@ -50,6 +58,18 @@ const CLASS_IDS = CLASSES.map((c) => c.id);
 function normalizeClass(raw) {
     const clean = String(raw || "").trim().toLowerCase();
     return CLASS_IDS.find((c) => c.toLowerCase() === clean) || "";
+}
+
+/** A known version id, else the version of everything stored before versions (TBC). */
+function characterVersion(raw) {
+    const id = String(raw || "").trim();
+    return id && rulesFor(id) ? id : LEGACY_VERSION;
+}
+
+/** Whether a version's rule set plays this class (all three play the same nine today). */
+function classInVersion(className, versionId) {
+    const rules = rulesFor(versionId);
+    return !rules || rules.classes.some((c) => c.id === className);
 }
 
 /** The rule set's spec record for a key, or null. */
@@ -101,9 +121,10 @@ function normalizeSpecs(raw, className) {
 function normalizeCharacter(raw) {
     if (!raw || typeof raw !== "object") return null;
     const name = cleanText(splitPlayer(raw.name || raw.character || "").character, MAX_NAME);
-    const key = characterKeyOf(name);
+    const versionId = characterVersion(raw.versionId);
+    const key = characterKeyOf(name, versionId);
     const className = normalizeClass(raw.className);
-    if (!key || !className) return null;
+    if (!key || !className || !classInVersion(className, versionId)) return null;
     const armory = raw.armory && typeof raw.armory === "object" ? {
         level: Number(raw.armory.level) || null,
         guild: cleanText(raw.armory.guild, 48),
@@ -112,6 +133,7 @@ function normalizeCharacter(raw) {
     return {
         key,
         name,
+        versionId,
         realm: cleanText(raw.realm, 32),
         className,
         main: !!raw.main,
@@ -245,19 +267,23 @@ function saveProfile(userId, patch = {}, { name = "" } = {}) {
  *
  * A *new* typed name (anything but `source: "log"`) must pass
  * utils/signup/characterNames.js — letters, 2–12 per name, the profanity filter, a
- * last name only where `versionId` allows one (none given = the web profile,
- * which is not tied to a version, allows it).
+ * last name only where the character's version allows one.
+ *
+ * The character's version (#543) is `data.versionId`, else the `versionId`
+ * option (the Discord name modal hands the event's), else TBC. The same name
+ * in another version is another character.
  */
 function addCharacter(userId, data = {}, { name = "", versionId = "" } = {}) {
     const current = getProfile(userId);
     if (!current) return { error: "Kein Konto." };
-    let clean = normalizeCharacter({ ...data, source: data.source, main: false });
+    const version = characterVersion(data.versionId || versionId);
+    let clean = normalizeCharacter({ ...data, versionId: version, source: data.source, main: false });
     if (!clean) return { error: String(data.name || "").trim() ? "Bitte eine Klasse angeben." : "Bitte einen Namen angeben." };
     let existing = current.characters.find((c) => c.key === clean.key);
     if (!existing && clean.source !== "log") {
-        const checked = validateCharacterName(splitPlayer(data.name || data.character || "").character, { versionId });
+        const checked = validateCharacterName(splitPlayer(data.name || data.character || "").character, { versionId: version });
         if (checked.error) return { error: checked.error };
-        clean = { ...clean, name: checked.name, key: characterKeyOf(checked.name) };
+        clean = { ...clean, name: checked.name, key: characterKeyOf(checked.name, version) };
         existing = current.characters.find((c) => c.key === clean.key);
     }
     let characters;
@@ -293,9 +319,9 @@ function removeCharacter(userId, key) {
     return true;
 }
 
-/** Which *other* accounts claim this character: [{ userId, name }]. */
-function claimsFor(character, exceptUserId = "") {
-    const key = characterKeyOf(character);
+/** Which *other* accounts claim this character (a key, or a name plus its version): [{ userId, name }]. */
+function claimsFor(character, exceptUserId = "", versionId = "") {
+    const key = characterKeyOf(character, versionId);
     if (!key) return [];
     return listProfiles()
         .filter((p) => p.userId !== String(exceptUserId) && p.characters.some((c) => c.key === key))
@@ -310,7 +336,7 @@ function characterClaims() {
     const byKey = new Map();
     for (const p of listProfiles()) {
         for (const c of p.characters) {
-            if (!byKey.has(c.key)) byKey.set(c.key, { key: c.key, character: c.name, className: c.className, claims: [] });
+            if (!byKey.has(c.key)) byKey.set(c.key, { key: c.key, character: c.name, versionId: c.versionId, className: c.className, claims: [] });
             byKey.get(c.key).claims.push({ userId: p.userId, name: p.name, main: c.main });
         }
     }
@@ -348,6 +374,53 @@ function characterRoles(profile, character) {
     return out;
 }
 
+/**
+ * The characters of one game version (#543) — what a signup for an event of
+ * that version may pick from. No version = all of them.
+ */
+function charactersOfVersion(profile, versionId = "") {
+    const all = (profile && Array.isArray(profile.characters)) ? profile.characters : [];
+    const id = String(versionId || "").trim();
+    return id ? all.filter((c) => (c.versionId || LEGACY_VERSION) === id) : all;
+}
+
+/**
+ * A profile character by key or by name. With `versionId` only a character of
+ * that version counts (a Forever "Devi" never answers for a TBC signup); a name
+ * matches by its name part, so "Devi Res" finds "forever~devi res". Without a
+ * version an exact key wins, then a TBC character of that name, then any.
+ */
+function findCharacter(profile, ref, versionId = "") {
+    const key = characterKeyOf(ref);
+    if (!key) return null;
+    const pool = charactersOfVersion(profile, versionId);
+    const name = nameKeyOf(ref);
+    return pool.find((c) => c.key === key)
+        || pool.find((c) => c.key === name)
+        || pool.find((c) => nameKeyOf(c.key) === name)
+        || null;
+}
+
+/**
+ * One-off upgrade at start (#543, settingsMigration.js): every stored character
+ * without a (known) version becomes a TBC one. Keys do not move — a TBC key is
+ * the bare name. Idempotent: writes only when something changed.
+ * @returns {number} how many characters got a version
+ */
+function migrateCharacterVersions(versionId = LEGACY_VERSION) {
+    const all = readAll();
+    let changed = 0;
+    for (const profile of Object.values(all)) {
+        for (const c of (profile && Array.isArray(profile.characters)) ? profile.characters : []) {
+            if (!c || typeof c !== "object" || (c.versionId && rulesFor(c.versionId))) continue;
+            c.versionId = versionId;
+            changed += 1;
+        }
+    }
+    if (changed) writeAll(all);
+    return changed;
+}
+
 /** The main character of a profile, or null. */
 function mainCharacter(profile) {
     return (profile && profile.characters.find((c) => c.main)) || null;
@@ -364,7 +437,7 @@ function searchRaiders(query, exceptUserId = "", limit = 10) {
         .filter((p) => p.name || p.characters.length)
         .filter((p) => !q
             || p.name.toLowerCase().includes(q)
-            || p.characters.some((c) => c.key.includes(q)))
+            || p.characters.some((c) => c.name.toLowerCase().includes(q)))
         .map((p) => raiderRef(p))
         .sort((a, b) => a.name.localeCompare(b.name))
         .slice(0, limit);
@@ -388,7 +461,8 @@ function reset() {
 
 module.exports = {
     GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_AVOID, MAX_NOTE,
-    characterKey: characterKeyOf, normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles, classCan,
+    characterKey: characterKeyOf, nameKey: nameKeyOf, characterVersion, charactersOfVersion, findCharacter, migrateCharacterVersions,
+    normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles, classCan,
     getProfile, hasProfile, listProfiles, saveProfile, addCharacter, removeCharacter,
     claimsFor, characterClaims, mainCharacter, searchRaiders, raiderRef, reset, useFile,
     PROFILES_FILE,

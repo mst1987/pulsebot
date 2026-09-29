@@ -61,7 +61,7 @@ describe("web/characters/roster buildRoster", () => {
     });
 
     it("returns an empty roster when nothing is known", () => {
-        expect(buildRoster("guild-1")).toEqual({ chars: [], categories: [], categoryInfo: {} });
+        expect(buildRoster("guild-1")).toEqual({ chars: [], categories: [], categoryInfo: {}, versions: [] });
     });
 
     it("attaches role and per-category attendance, with the raiders assigned in that category", () => {

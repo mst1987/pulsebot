@@ -27,3 +27,11 @@ describe("web/characters/charLinks", () => {
         expect(fillCharTemplate("https://x/{char}", "  Devihra  ")).toBe("https://x/Devihra");
     });
 });
+
+describe("web/characters/charLinks je Spielversion (#543)", () => {
+    it("verlinkt jeden Charakter mit den Einstellungen seiner Version - ohne Forever-Vorlage kein Link", () => {
+        expect(armoryUrlFor("Devihra", "tbc")).toContain("Devihra");
+        expect(armoryUrlFor("Devi Res", "forever")).toBe("");
+        expect(wclUrlFor("Devi Res", "forever")).toBe("");
+    });
+});

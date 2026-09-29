@@ -27,6 +27,7 @@ const manage = require("./eventManage");
 const eventStore = require("../../stores/eventStore");
 const signupStore = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
+const { versionOfEvent } = require("./mainVersion");
 const { roleCounts } = require("../signups/signupService");
 const { updateEvent } = require("./eventCreate");
 const { pingMissingRaiders } = require("./missingPing");
@@ -134,7 +135,8 @@ function manageView(event, { notice = "", tone = "" } = {}) {
 function raiderView(event, userId) {
     const signup = signupStore.getSignup(event.id, userId);
     const profile = profiles.getProfile(userId) || { characters: [] };
-    const chars = profile.characters.filter((c) => c.specs.length);
+    // Only characters of the event's game version (#543).
+    const chars = profiles.charactersOfVersion(profile, versionOfEvent(event)).filter((c) => c.specs.length);
     const lines = [`<@${userId}>`];
     lines.push(signup
         ? `Eingetragen: **${manage.STATUS_LABELS[signup.status] || signup.status}**${signup.character ? ` · ${signup.character}` : ""}${signup.spec ? ` · ${(profiles.specInfo(signup.spec) || {}).label || signup.spec}` : ""}`
@@ -317,7 +319,7 @@ async function handleComponent(interaction, guildId) {
     if (f === "a") {
         const userId = isSnowflake(args[0] || "") ? args[0] : "";
         const [charKey = "", specKey = ""] = String((interaction.values || [])[0] || "").split("|");
-        const character = (profiles.getProfile(userId) || { characters: [] }).characters.find((c) => c.key === charKey);
+        const character = profiles.charactersOfVersion(profiles.getProfile(userId), versionOfEvent(event)).find((c) => c.key === charKey);
         if (!userId || !character) return edit(overview(event.id, { notice: "⚠️ Den Charakter gibt es im Profil nicht mehr.", tone: "err" }));
         const result = await manage.addRaider({ guildId, eventId: event.id, userId, character: character.name, spec: specKey, status: "signed", ...actor });
         return edit(overview(event.id, noticeOf(result)));

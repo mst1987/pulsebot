@@ -49,9 +49,11 @@ export function CharChip({ character, cls, active, onClick }: { character: Profi
     );
 }
 
-export function CharacterCard({ character, cls, data, onMain, onSpecs, onRoles, onRemove }: {
+export function CharacterCard({ character, cls, data, onMain, onSpecs, onRoles, onRemove, versionLabel = "" }: {
     character: ProfileCharacter;
     cls?: GameClass;
+    /** The character's game version, shown only when the profile has more than one (#543). */
+    versionLabel?: string;
     data: ProfileData;
     onMain: () => void;
     onSpecs: (specs: ProfileSpec[]) => void;
@@ -61,7 +63,7 @@ export function CharacterCard({ character, cls, data, onMain, onSpecs, onRoles, 
     const t = useT();
     const [picking, setPicking] = useState(false);
     const missing = (cls?.specs || []).filter((s) => !character.specs.some((own) => own.key === s.key));
-    const crumb = [classLabel(character.className, cls?.label || character.className), character.realm, character.armory?.level ? t("profile.char.level", { level: character.armory.level }) : "", character.armory?.guild || ""]
+    const crumb = [versionLabel, classLabel(character.className, cls?.label || character.className), character.realm, character.armory?.level ? t("profile.char.level", { level: character.armory.level }) : "", character.armory?.guild || ""]
         .filter(Boolean).join(" · ");
 
     const addSpec = (key: string) => {

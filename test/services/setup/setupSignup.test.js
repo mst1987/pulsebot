@@ -190,3 +190,26 @@ describe("signupEditView", () => {
         expect(signupEditView(event.id, uid(99)).failed).toMatchObject({ status: 404 });
     });
 });
+
+describe("Setup-Editor je Spielversion (#543)", () => {
+    it("bietet nur die Profil-Charaktere der Event-Version an und nimmt keinen der anderen", async () => {
+        const HEALER = uid(1);
+        profiles.addCharacter(HEALER, { name: "Heilbert Res", className: "Priest", specs: [{ key: "Priest-Shadow" }], versionId: "forever" });
+        const view = signupEditView(event.id, HEALER).view;
+        expect(view.options.map((o) => o.character)).toEqual(["Heilbert"]);
+
+        const result = await changeSignupFromSetup(event.id, HEALER, { status: "signed", from: "Heilbert", character: "Heilbert Res", spec: "Priest-Shadow" }, { user: ORGA, now: NOW });
+        expect(result.code).toBe("character_version");
+        expect(signupStore.getSignup(event.id, HEALER)).toMatchObject({ character: "Heilbert", spec: "Priest-Holy" });
+    });
+
+    it("bietet in einem Forever-Event den Forever-Charakter an", () => {
+        const forever = seed({ versionId: "forever", instanceIds: ["forever-barrow"], size: 10, title: "Barrow" });
+        const RAIDER = uid(30);
+        profiles.addCharacter(RAIDER, { name: "Devi", className: "Priest", specs: [{ key: "Priest-Holy" }] });
+        profiles.addCharacter(RAIDER, { name: "Devi Res", className: "Priest", specs: [{ key: "Priest-Shadow" }], versionId: "forever" });
+        signupStore.saveSignup(forever.id, RAIDER, { character: "Devi Res", spec: "Priest-Shadow", status: "signed" });
+        const view = signupEditView(forever.id, RAIDER).view;
+        expect(view.options.map((o) => [o.character, o.inProfile])).toEqual([["Devi Res", true]]);
+    });
+});

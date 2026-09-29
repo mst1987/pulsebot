@@ -23,6 +23,7 @@ const {
 const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
 const { rulesForEvent, versionOfEvent } = require("../../services/events/mainVersion");
+const { rulesFor } = require("../../config/gameVersions");
 const { ROLES } = require("../../config/gameVersions/classes");
 const { toEnglish } = require("./botEnglish");
 const { answerUpdate } = require("./signupReply");
@@ -99,9 +100,28 @@ function parseCommentId(customId) {
     return { eventId, state: decodeState(rest) };
 }
 
-/** The characters of a profile that can sign up (have at least one spec). */
-function signableCharacters(profile) {
-    return ((profile && profile.characters) || []).filter((c) => c.specs.length);
+/**
+ * The characters of a profile that can sign up (have at least one spec) — with
+ * `versionId` only those of the event's game version (#543).
+ */
+function signableCharacters(profile, versionId = "") {
+    return profiles.charactersOfVersion(profile, versionId).filter((c) => c.specs.length);
+}
+
+/** "WoW Forever" — the name of a version as a raider reads it. */
+function versionLabel(versionId) {
+    const rules = rulesFor(versionId);
+    return (rules && rules.label) || String(versionId || "");
+}
+
+/**
+ * The line for a raider whose profile has characters, but none of the event's
+ * version (#543) — English, with the link to the profile. "" otherwise.
+ */
+function missingVersionLine(profile, versionId) {
+    if (!signableCharacters(profile).length || signableCharacters(profile, versionId).length) return "";
+    const label = versionLabel(versionId);
+    return `No ${label} character in your profile yet – create a ${label} character in your [profile](${publicBaseUrl()}/profile) or pick class and spec here.`;
 }
 
 /** The rule set's classes for the event's game version. */
@@ -114,7 +134,7 @@ function classesFor(event) {
  * otherwise the main character with its first spec and the profile's "kann auch".
  */
 function resolveState(event, profile, mine, state) {
-    const chars = signableCharacters(profile);
+    const chars = signableCharacters(profile, versionOfEvent(event));
     if (state) {
         const ch = chars.find((c) => c.key === state.character);
         // With profile characters only one of them counts; without, any spec of the rule set (or nothing yet).
@@ -127,8 +147,7 @@ function resolveState(event, profile, mine, state) {
         }
     }
     if (mine && mine.status !== "absence" && mine.spec) {
-        const key = profiles.characterKey(mine.character);
-        const ch = chars.find((c) => c.key === key);
+        const ch = profiles.findCharacter({ characters: chars }, mine.character);
         if (ch && ch.specs.some((s) => s.key === mine.spec)) {
             return { character: ch.key, spec: mine.spec, canAlso: mine.canAlso || [] };
         }
@@ -155,9 +174,9 @@ function roleCountLine(counts) {
     return [part("Tank", counts.tank), part("Healer", counts.healer), part("DPS", counts.dps)].join(" · ");
 }
 
-/** "Thorwald · Protection" for a signup or a state. */
-function pickText(profile, character, spec) {
-    const ch = signableCharacters(profile).find((c) => c.key === profiles.characterKey(character));
+/** "Thorwald · Protection" for a signup or a state (a character of `versionId` when given). */
+function pickText(profile, character, spec, versionId = "") {
+    const ch = profiles.findCharacter({ characters: signableCharacters(profile, versionId) }, character);
     const name = ch ? ch.name : String(character || "");
     return [name, specLabel(spec)].filter(Boolean).join(" · ");
 }
@@ -174,7 +193,8 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
     const signups = listSignups(event.id);
     const mine = getSignup(event.id, uid);
     const profile = profiles.getProfile(uid) || { characters: [] };
-    const chars = signableCharacters(profile);
+    const versionId = versionOfEvent(event);
+    const chars = signableCharacters(profile, versionId);
     const picks = resolveState(event, profile, mine, state);
     const win = signupWindow(event, now);
     const allowed = allowedStatuses(event, { now });
@@ -183,14 +203,16 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
     const start = Number(event.startTime) || 0;
     lines.push([start ? `<t:${start}:f>` : "", roleCountLine(roleCounts(event, signups))].filter(Boolean).join(" · "));
     if (mine) {
-        const what = mine.status === "absence" ? "" : pickText(profile, mine.character, mine.spec);
+        const what = mine.status === "absence" ? "" : pickText(profile, mine.character, mine.spec, versionId);
         lines.push(`Your status: **${STATUS_STATE[mine.status] || mine.status}**${what ? ` · ${what}` : ""}${mine.comment ? ` · „${mine.comment}“` : ""}`);
     }
     if (event.status === "cancelled") lines.push(`The event was cancelled${event.cancel && event.cancel.reason ? ` – ${event.cancel.reason}` : ""}.`);
     else if (win.started) lines.push("The raid has already started – signups are closed.");
     else if (event.signupsClosed) lines.push("Signups are closed – you can only sign off now.");
     else if (win.deadlinePassed) lines.push("The signup deadline has passed – only Absence or “Late” now.");
-    if (!chars.length) {
+    const missing = missingVersionLine(profile, versionId);
+    if (missing) lines.push(missing);
+    else if (!chars.length) {
         lines.push(`No character in your profile yet – pick class and spec here or [create a profile](${publicBaseUrl()}/profile).`);
     }
     const partners = wishPartnersSignedUp(profile, signups.filter((s) => String(s.userId) !== uid));
@@ -264,7 +286,7 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
             .setURL(`${publicBaseUrl()}/signups?event=${encodeURIComponent(event.id)}`),
     ];
     if (!chars.length) {
-        extra.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Create profile").setURL(`${publicBaseUrl()}/profile`));
+        extra.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(missing ? `Add a ${versionLabel(versionId)} character`.slice(0, 80) : "Create profile").setURL(`${publicBaseUrl()}/profile`));
     }
     rows.push(new ActionRowBuilder().addComponents(extra));
 
@@ -272,9 +294,9 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
 }
 
 /** The confirmation line after a save. */
-function savedNotice(signup, profile) {
+function savedNotice(signup, profile, versionId = "") {
     if (signup.status === "absence") return "✅ Signed off.";
-    const what = pickText(profile, signup.character, signup.spec);
+    const what = pickText(profile, signup.character, signup.spec, versionId);
     return `✅ Saved: **${STATUS_STATE[signup.status]}**${what ? ` (${what})` : ""}`;
 }
 
@@ -326,6 +348,6 @@ function plainUpdate(interaction, content, event = null) {
 module.exports = {
     PICK_PREFIX, STATUS_PREFIX, COMMENT_PREFIX, MAX_CUSTOM_ID, STATUS_CODES, STATUS_BY_CODE, STATUS_LABELS, STATUS_STATE, ALSO_LABELS, GEAR_LABELS,
     encodeState, decodeState, pickId, statusId, commentId, parsePickId, parseStatusId, parseCommentId,
-    signableCharacters, classesFor, classLabel, resolveState, roleCountLine, pickText,
+    signableCharacters, missingVersionLine, versionLabel, classesFor, classLabel, resolveState, roleCountLine, pickText,
     buildSignupDialog, savedNotice, buildCharacterModal, buildCommentModal, plainUpdate,
 };

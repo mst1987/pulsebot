@@ -31,9 +31,12 @@ import { useT } from "../../i18n";
 // segment option is marked and one small line says so, instead of pretending
 // one status held for everybody.
 
-export default function SignupDialog({ row, profile, classes, onClose, onSaved }: {
+export default function SignupDialog({ row, profile, classes, onClose, onSaved, missingVersion = "" }: {
     row: OwnSignupRow | null;
+    /** Only the characters of the event's game version (#543, lib/signups profileForRows). */
     profile: SignupProfile;
+    /** The event's version when the profile has characters, but none of it — the dialog says so. */
+    missingVersion?: string;
     classes: SignupClass[];
     onClose: () => void;
     onSaved: (eventId: string, signup: OwnSignup, counts: SignupCounts) => void;
@@ -150,7 +153,12 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved }
             )}
         >
             <div className="an-dlg">
-                {noCharacter ? (
+                {noCharacter && missingVersion ? (
+                    <p className="an-note" data-version-missing>
+                        {t("signups.dialog.noVersionChar", { version: missingVersion })}{" "}
+                        <Link to="/profile">{t("signups.dialog.noVersionCharLink", { version: missingVersion })}</Link> {t("signups.dialog.noCharAfter")}
+                    </p>
+                ) : noCharacter ? (
                     <p className="an-note">
                         {t("signups.dialog.noCharBefore")} <Link to="/profile">{t("signups.dialog.noCharLink")}</Link> {t("signups.dialog.noCharAfter")}
                     </p>

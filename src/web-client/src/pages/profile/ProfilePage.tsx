@@ -14,6 +14,7 @@ import "../../styles/profil.css";
 import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } from "./ProfileParts";
 import { CharacterCard, CharChip, FirstCharacter } from "./CharacterCard";
 import { CalendarPart } from "./CalendarPart";
+import { groupByVersion } from "../../lib/characterVersions";
 
 export default function ProfilePage() {
     const { user } = useOutletContext<ShellContext>();
@@ -34,7 +35,8 @@ export default function ProfilePage() {
     const profile = data?.profile || null;
     const selectedKey = params.get("char") || profile?.characters.find((c) => c.main)?.key || profile?.characters[0]?.key || "";
     const selected = profile?.characters.find((c) => c.key === selectedKey) || profile?.characters[0] || null;
-    const classOf = (id: string) => data?.classes.find((c) => c.id === id);
+    // A character's class from its own version's rule set (#543), the main version's as a fallback.
+    const classOf = (c: ProfileCharacter) => ((c.versionId && data?.classesByVersion?.[c.versionId]) || data?.classes || []).find((x) => x.id === c.className);
 
     if (profileData.error) return <div className="empty">{t("profile.loadError", { message: profileData.error.message })}</div>;
     if (!data || !profile) return <RaidLoader text={t("profile.loading")} />;
@@ -72,7 +74,10 @@ export default function ProfilePage() {
     };
 
     const main = profile.characters.find((c) => c.main);
-    const mainClass = main ? classOf(main.className) : undefined;
+    const mainClass = main ? classOf(main) : undefined;
+    // Grouped by game version, the main version first (#543) — one group needs no heading.
+    const groups = groupByVersion(profile.characters, data.versions || [], data.mainVersion || "");
+    const labelOf = (versionId: string) => groups.find((g) => g.id === versionId)?.label || versionId;
 
     return (
         <div className="pf-page">
@@ -91,9 +96,16 @@ export default function ProfilePage() {
                 <FirstCharacter onPick={setAdding} />
             ) : (
                 <>
-                    <div className="pf-chips" role="tablist" aria-label={t("profile.charactersAria")}>
-                        {profile.characters.map((c) => (
-                            <CharChip key={c.key} character={c} cls={classOf(c.className)} active={c.key === selected?.key} onClick={() => selectChar(c.key)} />
+                    <div className="pf-chip-groups">
+                        {groups.map((g) => (
+                            <div key={g.id} className="pf-chip-group" data-version={g.id}>
+                                {groups.length > 1 && <span className="kicker pf-chip-group-label">{t("profile.versionGroup", { version: g.label })}</span>}
+                                <div className="pf-chips" role="tablist" aria-label={groups.length > 1 ? t("profile.versionGroup", { version: g.label }) : t("profile.charactersAria")}>
+                                    {g.characters.map((c) => (
+                                        <CharChip key={c.key} character={c} cls={classOf(c)} active={c.key === selected?.key} onClick={() => selectChar(c.key)} />
+                                    ))}
+                                </div>
+                            </div>
                         ))}
                     </div>
 
@@ -102,7 +114,8 @@ export default function ProfilePage() {
                             {selected && (
                                 <CharacterCard
                                     character={selected}
-                                    cls={classOf(selected.className)}
+                                    cls={classOf(selected)}
+                                    versionLabel={groups.length > 1 ? labelOf(selected.versionId) : ""}
                                     data={data}
                                     onMain={() => patch(
                                         { characters: [{ key: selected.key, main: true }] },
@@ -215,7 +228,10 @@ export default function ProfilePage() {
                 way={adding}
                 onClose={() => setAdding(null)}
                 classes={data.classes}
-                suggestion={specSuggestion(data.specHistory)}
+                versions={data.versions}
+                classesByVersion={data.classesByVersion}
+                defaultVersion={data.mainVersion}
+                suggestionFor={(versionId) => specSuggestion((data.specHistory || []).filter((h) => (h.versionId || "tbc") === versionId))}
                 onAdded={(next, key) => {
                     setProfile(next);
                     selectChar(key);

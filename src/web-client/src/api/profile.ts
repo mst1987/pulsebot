@@ -25,6 +25,8 @@ export type RaiderRef = { userId: string; name: string; main: string; className:
 export type ProfileCharacter = {
     key: string;
     name: string;
+    /** The game version the character belongs to (#543) — the signup offers only the event's. */
+    versionId: string;
     realm: string;
     className: string;
     main: boolean;
@@ -73,18 +75,22 @@ export type ProfileData = {
     profile: RaiderProfile;
     isNew: boolean;
     /** #291: the caller's own specs imported from Raid-Helper, most played first. */
-    specHistory?: { spec: string; count: number; lastAt: number; character: string }[];
+    specHistory?: { spec: string; count: number; lastAt: number; character: string; versionId?: string }[];
     classes: GameClass[];
     /** The main version the classes are from (#541). */
     mainVersion?: string;
     /** Every version's classes, for a character of another version (#543). */
     classesByVersion?: Record<string, GameClass[]>;
+    /** The versions a character can belong to, the main version first (#543); `lastName` = first + last name. */
+    versions?: ProfileVersion[];
     roles: Record<GameRole, string>;
     raidGroups: ProfileRaidGroup[];
     weekdays: { id: string; label: string }[];
     gearLevels: { id: GearLevel; label: string }[];
     limits: { characters: number; wishes: number; avoid: number; note: number };
 };
+
+export type ProfileVersion = { id: string; label: string; short: string; lastName: boolean };
 
 export type ProfilePatch = {
     availability?: string[];
@@ -106,14 +112,16 @@ export type LogCharacterSuggestion = {
     claimedBy: { userId: string; name: string }[];
 };
 
-export type AddCharacterInput =
+export type AddCharacterInput = (
     | { source: "log"; name: string }
     | { source: "armory"; name: string; realm?: string; className?: string }
-    | { source: "manual"; name: string; className: string; specs: string[] };
+    | { source: "manual"; name: string; className: string; specs: string[] }
+) & { /** The character's game version (#543); missing = the main version. */ versionId?: string };
 
 export type CharacterClaim = {
     key: string;
     character: string;
+    versionId?: string;
     className: string;
     claims: { userId: string; name: string; main: boolean }[];
 };

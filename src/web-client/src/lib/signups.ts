@@ -6,6 +6,7 @@ import type { GameRole, OwnSignupRow, SignupClass, SignupCounts, SignupProfile, 
 import type { Tone } from "../components/ui/Badge";
 import { formatEventTime } from "./format";
 import { t } from "../i18n";
+import { charactersOfVersion } from "./characterVersions";
 
 /** In the order a member thinks about it: coming, maybe, late, bench, not coming. */
 export const SIGNUP_STATUS_ORDER: SignupStatus[] = ["signed", "tentative", "late", "bench", "absence"];
@@ -40,6 +41,28 @@ export function classesForRows(
     const versions = [...new Set(rows.map((r) => r.versionId || ""))];
     const own = versions.length === 1 && versions[0] ? (data.classesByVersion || {})[versions[0]] : undefined;
     return own || data.classes;
+}
+
+/**
+ * The profile as the signup of these rows sees it (#543): only the characters
+ * of the rows' game version when they all share one, else every character (the
+ * server skips a character that does not fit a raid).
+ */
+export function profileForRows(profile: SignupProfile, rows: { versionId?: string }[]): SignupProfile {
+    const versions = [...new Set(rows.map((r) => r.versionId || ""))];
+    if (versions.length !== 1 || !versions[0]) return profile;
+    return { ...profile, characters: charactersOfVersion(profile.characters, versions[0]) };
+}
+
+/**
+ * The version a member lacks a character of for these rows (#543): its name
+ * when the profile has characters, but none of the rows' version — "" otherwise.
+ */
+export function missingVersionLabel(profile: SignupProfile, rows: { versionId?: string }[], versions: { id: string; label: string; short?: string }[] = []): string {
+    if (!profile.characters.length || profileForRows(profile, rows).characters.length) return "";
+    const id = rows[0]?.versionId || "";
+    const v = versions.find((x) => x.id === id);
+    return (v && (v.short || v.label)) || id;
 }
 
 export function statusBadgeLabel(status: SignupStatus): string {

@@ -129,6 +129,8 @@ Technik: [roster-profile.md](roster-profile.md)
 *Bereich "signup" — nicht standardmäßig für alle offen, muss zugewiesen werden*
 
 - Eigene Charaktere pflegen (Klasse/Spec/Gearstand), Verfügbarkeit nach Wochentag, bevorzugte Raids.
+- Jeder Charakter gehört zu einer **Spielversion** (TBC, Classic, WoW Forever). Beim Anlegen fragt das Fenster zuerst die Version (vorgewählt: die Hauptversion); WoW-Forever-Charaktere haben Vor- und Nachnamen (je höchstens 12 Buchstaben). Hast du Charaktere in mehreren Versionen, stehen sie nach Version gruppiert oben, die Hauptversion zuerst.
+- Für einen Raid kannst du dich nur mit einem Charakter **seiner** Version anmelden. Fehlt dir einer, sagt die Anmeldung das und verlinkt aufs Profil.
 - Wunschpartner und "nicht zusammen raiden mit" hinterlegen.
 - Persönlichen Kalender-Abo-Link erzeugen, der alle eigenen Anmeldungen enthält.
 
@@ -139,6 +141,8 @@ Technik: [roster-profile.md](roster-profile.md)
 *Bereich "roster"*
 
 Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit. Charaktere lassen sich ausblenden (ohne Daten zu löschen), z. B. bei Guild-Austritt.
+
+Gibt es Charaktere in mehr als einer Spielversion, schaltet oben ein Umschalter zwischen den Versionen (Standard: Hauptversion) oder „Alle“ um; die Anwesenheit zählt dann nur die Raids dieser Version. Der Reiter „Charaktere“ der Loot-Historie filtert genauso.
 
 ## Loot Council
 

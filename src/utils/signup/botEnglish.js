@@ -23,6 +23,8 @@ const RULES = [
     [/^Höchstens (\d+) Charaktere\.$/, "At most $1 characters."],
     [/^Dieser Charakter steht nicht in deinem Profil\.$/, "This character is not in your profile."],
     [/^(.+) steht nicht in deinem Profil\.$/, "$1 is not in your profile."],
+    [/^(.+) gehört zu (.+) – lege einen (.+)-Charakter im Profil an\.$/, "$1 belongs to $2 – create a $3 character in your profile."],
+    [/^Charakter aus einer anderen Spielversion – dieser Raid ist (.+)$/, "character of another game version – this raid is $1"],
     [/^Bitte eine Spezialisierung wählen\.$/, "Please pick a spec."],
     [/^Diese Spezialisierung ist für (.+) nicht im Profil hinterlegt\.$/, "This spec is not in your profile for $1."],
     [/^Der Raid ist voll \((\d+)\/(\d+)\) – es geht keine Anmeldung mehr\. Frag die Raidleitung\.$/, "The raid is full ($1/$2) – no more signups. Ask the raid lead."],

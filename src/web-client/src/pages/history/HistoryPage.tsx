@@ -252,7 +252,7 @@ export default function HistoryPage() {
                             )
             )}
             {tab === "logs" && <LogsTab logs={data.logs} onChanged={afterChange} />}
-            {tab === "chars" && <CharactersTab chars={data.chars} categories={data.categories} onChanged={afterChange} />}
+            {tab === "chars" && <CharactersTab chars={data.chars} categories={data.categories} onChanged={afterChange} versions={data.versions} mainVersion={data.mainVersion} />}
 
             {canWrite && (
                 <ImportLootDialog

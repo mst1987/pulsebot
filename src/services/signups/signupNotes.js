@@ -74,7 +74,7 @@ function characterName(signup) {
     const key = String((signup && signup.character) || "");
     if (!key) return "";
     const profile = profiles.getProfile(signup.userId);
-    const ch = ((profile && profile.characters) || []).find((c) => c.key === profiles.characterKey(key));
+    const ch = profile ? profiles.findCharacter(profile, key) : null;
     return ch ? ch.name : key;
 }
 

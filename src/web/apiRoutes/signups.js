@@ -40,6 +40,9 @@ const getSignups = withUser({}, async ({ user, req, res }) => {
         // main version's, for a row without one (Raid-Helper).
         classes: classesOfVersion(mainVersionFor({ config }), { config }),
         classesByVersion: Object.fromEntries(VERSIONS.map((v) => [v.id, classesOfVersion(v.id, { config })])),
+        // The names of the versions (#543): "Lege einen Forever-Charakter an" when the
+        // profile has none of the event's version (the rows carry their versionId).
+        versions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short || v.label })),
         error: err,
     });
 });

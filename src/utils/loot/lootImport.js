@@ -52,10 +52,32 @@ function characterKey(character) {
     return String(character || "").trim().toLowerCase();
 }
 
+// A character of another game version than TBC carries its version in its key
+// (#543): "forever~devi res". TBC keys - everything stored before versions,
+// loot, logs, attendance - stay the bare lower-case name, so nothing keyed by
+// them moves. "~" never occurs in a character name, nor in a Discord customId
+// separator (":").
+const VERSION_KEY_SEP = "~";
+const UNPREFIXED_VERSION = "tbc";
+
 /** The grouping key of a player name as the loot exports carry it: realm suffix
- * ("Name-Realm") dropped, then characterKey. The one key every store uses. */
-function characterKeyOf(name) {
-    return characterKey(splitPlayer(name).character);
+ * ("Name-Realm") dropped, then characterKey. The one key every store uses.
+ * With a `versionId` other than TBC the key carries the version ("forever~devi res");
+ * a key that already carries one is returned as it is. */
+function characterKeyOf(name, versionId = "") {
+    const raw = String(name || "").trim();
+    if (raw.includes(VERSION_KEY_SEP)) return raw.toLowerCase();
+    const key = characterKey(splitPlayer(raw).character);
+    const version = String(versionId || "").trim().toLowerCase();
+    if (!key || !version || version === UNPREFIXED_VERSION) return key;
+    return `${version}${VERSION_KEY_SEP}${key}`;
+}
+
+/** The name part of a key or a name: "forever~devi res" and "Devi Res" -> "devi res". */
+function nameKeyOf(keyOrName) {
+    const raw = String(keyOrName || "").trim();
+    const at = raw.indexOf(VERSION_KEY_SEP);
+    return characterKeyOf(at === -1 ? raw : raw.slice(at + 1));
 }
 
 class LootParseError extends Error {
@@ -427,6 +449,6 @@ async function enrichItemNames(items) {
 module.exports = {
     parseLoot, parseRclc, parseGargul, parseEventHelper, parseEventHelperSessions,
     buildManualItem, detectImportDate, enrichItemNames, needsLookup,
-    splitPlayer, characterKey, characterKeyOf, itemLink, LootParseError,
+    splitPlayer, characterKey, characterKeyOf, nameKeyOf, VERSION_KEY_SEP, itemLink, LootParseError,
     EH_FORMAT, EH_VERSION, MANUAL_SOURCE,
 };

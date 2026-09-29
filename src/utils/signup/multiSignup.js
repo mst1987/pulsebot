@@ -30,7 +30,8 @@ const { shortServerTime, shortServerDate, discordTimestamp } = require("../time"
 const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
 const eventStore = require("../../stores/eventStore");
-const { getSignup, lastSignupOf } = require("../../stores/signupStore");
+const { getSignup } = require("../../stores/signupStore");
+const { versionOfEvent } = require("../../services/events/mainVersion");
 const { migrateSignup, MAX_CHARACTERS } = require("../../services/signups/signupCharacters");
 const profiles = require("../../stores/raiderProfileStore");
 const guildRoles = require("../../services/discord/guildRoles");
@@ -38,7 +39,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const { signupWindow } = require("../../services/signups/signupService");
 const { emojiOption, specEmojiName, statusEmojiName } = require("../../services/discord/appEmojis");
 const { STATUS_CODES, STATUS_BY_CODE, STATUS_LABELS, STATUS_STATE } = require("./signupDialog");
-const { characterOptions, defaultPick } = require("./joinPicker");
+const { characterOptions, defaultPick, lastSignupInVersion } = require("./joinPicker");
 const { toEnglish } = require("./botEnglish");
 
 const PREFIX = "signup-multi";
@@ -122,11 +123,12 @@ function preselected(options, userId, eventId) {
     const mine = eventId ? migrateSignup(getSignup(eventId, userId)) : null;
     if (mine && mine.status !== "absence" && mine.characters && mine.characters.length) {
         const hits = mine.characters
-            .map((c) => options.find((o) => o.character === profiles.characterKey(c.character) && o.spec === c.spec))
+            .map((c) => options.find((o) => profiles.nameKey(o.character) === profiles.nameKey(c.character) && o.spec === c.spec))
             .filter(Boolean);
         if (hits.length) return hits;
     }
-    const pick = defaultPick(options, { last: lastSignupOf(userId) });
+    const event = eventId ? eventStore.getEvent(eventId) : null;
+    const pick = defaultPick(options, { last: event ? lastSignupInVersion(userId, versionOfEvent(event)) : null });
     return pick ? [pick] : [];
 }
 
@@ -252,8 +254,16 @@ function buildCharacterModal(token, session, page, events, profile, { emojis = {
     const hint = "Topmost pick = 1st choice, the others = “can also come with”";
     // Discord hands the picks back without their click order: remember the listed order.
     session.orders = session.orders || {};
+    const byEvent = new Map(events.map((e) => [e.id, e]));
+    // Per raid only the characters of its game version (#543) — "all" lists every one, the save skips what does not fit.
+    const optionsFor = (eventId) => {
+        const event = eventId ? byEvent.get(eventId) : null;
+        const own = event ? characterOptions(profile, versionOfEvent(event)) : [];
+        return own.length ? own : options;
+    };
     const select = (field, eventId) => {
-        const list = characterSelectOptions(options, preselected(options, session.userId, eventId), emojis);
+        const own = optionsFor(eventId);
+        const list = characterSelectOptions(own, preselected(own, session.userId, eventId), emojis);
         session.orders[`${page}:${field}`] = list.map((o) => o.value);
         return list;
     };
@@ -270,14 +280,15 @@ function buildCharacterModal(token, session, page, events, profile, { emojis = {
             ],
         };
     }
-    const byId = new Map(events.map((e) => [e.id, e]));
+    const byId = byEvent;
     const ids = session.selected.slice(page * PER_MODAL, (page + 1) * PER_MODAL);
     const pages = pageCount(session);
     const components = ids.map((id, i) => {
         const event = byId.get(id) || { id, title: id };
+        const list = select(`r${i}`, id);
         return labelled(`${plain(event.title) || "Raid"} · ${shortDate(event.startTime)}`.trim(), session.mode === "one" ? hint : `${hint} · empty = skip`, {
-            type: 3, custom_id: `r${i}`, min_values: session.mode === "one" ? 1 : 0, max_values: max, required: session.mode === "one",
-            options: select(`r${i}`, id),
+            type: 3, custom_id: `r${i}`, min_values: session.mode === "one" ? 1 : 0, max_values: Math.min(max, list.length), required: session.mode === "one",
+            options: list,
         });
     });
     return {
@@ -325,7 +336,7 @@ function entriesFromModal(interaction, session, page) {
 
 /** "Zibbo · Holy" for a stored or requested character. */
 function characterText(profile, c) {
-    const ch = ((profile && profile.characters) || []).find((x) => x.key === profiles.characterKey(c.character));
+    const ch = profile ? profiles.findCharacter(profile, c.character) : null;
     const info = profiles.specInfo(c.spec) || {};
     return [ch ? ch.name : c.character, info.labelEn || info.label || ""].filter(Boolean).join(" · ");
 }

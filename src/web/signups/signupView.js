@@ -8,7 +8,8 @@ const { getEvent } = require("../../stores/eventStore");
 // categoryVisible lives in the service: the same raider-role rule guards saving a signup (submitSignup).
 const { categoryVisible, profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("../../services/signups/signupService");
 const { upcomingRows } = require("../../services/events/raidListing");
-const { instanceById, VERSIONS } = require("../../config/gameVersions");
+const { instanceById, VERSIONS, LEGACY_VERSION } = require("../../config/gameVersions");
+const { versionOfEvent } = require("../../services/events/mainVersion");
 const { signupStatus } = require("../../utils/attendance");
 const { accountCount } = require("../../utils/signup/capacity");
 const { approvedPlacementFor } = require("../../services/setup/setupEditor");
@@ -29,6 +30,8 @@ function profileForSignup(profile) {
         characters: p.characters.map((c) => ({
             key: c.key,
             name: c.name,
+            // The dialog offers only the characters of the event's game version (#543).
+            versionId: c.versionId || LEGACY_VERSION,
             className: c.className,
             main: c.main,
             ...profileRoles(p, c.key),
@@ -136,7 +139,8 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
             return {
                 ...base,
                 discordUrl: (msg && msg.messageId && linkCheck.messageLink(guildId, msg.channelId || row.channelId, msg.messageId)) || base.discordUrl,
-                versionId: ev.versionId || "",
+                // Always a version (#543): the dialog filters the characters by it.
+                versionId: versionOfEvent(event, { config }),
                 deadline: win.deadline,
                 deadlinePassed: win.deadlinePassed,
                 started: win.started,

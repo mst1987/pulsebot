@@ -81,6 +81,8 @@
         "noCharBefore": "Your profile has no character yet.",
         "noCharLink": "Add a character",
         "noCharAfter": "– signing off works without one.",
+        "noVersionChar": "This raid is {version} – your profile has no {version} character yet.",
+        "noVersionCharLink": "Create a {version} character in your profile",
         "status": "Status",
         "notAfterDeadline": "No longer available after the signup deadline.",
         "mixedStatus": "Your characters have different statuses – this sets them all to one.",

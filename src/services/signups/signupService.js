@@ -39,7 +39,8 @@ const discord = require("../discord/discord");
 const signupNotes = require("./signupNotes");
 const { SIGNUP_STATUSES } = require("../../utils/attendance");
 const { ROLES } = require("../../config/gameVersions/classes");
-const { spec: specOf } = require("../../config/gameVersions");
+const { spec: specOf, rulesFor } = require("../../config/gameVersions");
+const { versionOfEvent } = require("../events/mainVersion");
 const { normalizeOverflow, accountCount } = require("../../utils/signup/capacity");
 
 // Statuses a member may still pick once the deadline has passed.
@@ -130,11 +131,26 @@ function allowedStatuses(event, { now = Date.now(), byOrga = false } = {}) {
     return SIGNUP_STATUSES.slice();
 }
 
-/** A profile character by key or name, or null. */
-function findCharacter(profile, ref) {
-    const key = profiles.characterKey(ref);
-    if (!profile || !key) return null;
-    return profile.characters.find((c) => c.key === key) || null;
+/** A profile character by key or name (of `versionId` when given, #543), or null. */
+function findCharacter(profile, ref, versionId = "") {
+    if (!profile) return null;
+    return profiles.findCharacter(profile, ref, versionId);
+}
+
+/** "WoW Forever" — a version's name for a message. */
+function versionName(versionId) {
+    const rules = rulesFor(versionId);
+    return (rules && rules.label) || String(versionId || "");
+}
+
+/**
+ * Why a profile character does not count for this event (#543): it belongs to
+ * another game version. "" when the profile has no character of that name at all.
+ */
+function otherVersionError(profile, ref, versionId) {
+    const other = findCharacter(profile, ref);
+    if (!other || (other.versionId || "tbc") === versionId) return "";
+    return `${other.name} gehört zu ${versionName(other.versionId)} – lege einen ${versionName(versionId)}-Charakter im Profil an.`;
 }
 
 /**
@@ -317,11 +333,11 @@ async function checkRaiderRole(event, userId, { byOrga = false, previous, roleId
  * characters the profile does not have (a raider without a profile), its class
  * read from the spec it was signed up with.
  */
-function characterFor(profile, ref, prev, offProfile) {
-    const own = findCharacter(profile, ref);
+function characterFor(profile, ref, prev, offProfile, versionId = "") {
+    const own = findCharacter(profile, ref, versionId);
     if (own || !offProfile) return own;
-    const key = profiles.characterKey(ref);
-    const had = key ? ((prev && prev.characters) || []).find((c) => profiles.characterKey(c.character) === key) : null;
+    const key = profiles.nameKey(ref);
+    const had = key ? ((prev && prev.characters) || []).find((c) => profiles.nameKey(c.character) === key) : null;
     const info = had ? profiles.specInfo(had.spec) : null;
     return info ? { key, name: had.character, className: info.classId, specs: [] } : null;
 }
@@ -354,6 +370,8 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
     if (isCancelled(event)) return fail("cancelled", "Das Event wurde abgesagt – Anmeldungen sind nicht mehr möglich.");
     if (w.started && !byOrga) return fail("started", "Der Raid hat schon begonnen – Anmeldungen sind geschlossen.");
     const prev = previous ? migrateSignup(previous) : null;
+    // Only characters of the event's game version sign up for it (#543).
+    const versionId = versionOfEvent(event);
     const entries = withStatuses(requestedCharacters(input, prev), status, prev);
     // Per character: a status the phase still allows, or the one it already had
     // (same character and spec) — keeping a signup to edit the comment, or moving
@@ -382,14 +400,16 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
         const specKey = String(entry.spec || "").trim();
         if (status === "absence") {
             // Signing off keeps whatever still fits the profile, nothing is refused.
-            const character = characterFor(profile, entry.character, prev, offProfile);
+            const character = characterFor(profile, entry.character, prev, offProfile, versionId);
             if (i === 0 && character && !specKey) resolved.push({ character, spec: "" });
             else if (character && specAllowed(character, specKey, offProfile) && !seen.has(character.key)) resolved.push({ character, spec: specKey });
             if (character) seen.add(character.key);
             continue;
         }
-        const character = characterFor(profile, entry.character, prev, offProfile);
+        const character = characterFor(profile, entry.character, prev, offProfile, versionId);
         if (!character) {
+            const otherVersion = otherVersionError(profile, entry.character, versionId);
+            if (otherVersion) return fail("character_version", otherVersion);
             return fail("character", i === 0 || !entry.character
                 ? "Dieser Charakter steht nicht in deinem Profil."
                 : `${entry.character} steht nicht in deinem Profil.`);
@@ -422,8 +442,8 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
 /** The previous signup's entry for the same character and spec, or null. */
 function prevCharacter(prev, entry) {
     if (!prev || prev.status === "absence") return null;
-    const key = profiles.characterKey(entry.character);
-    return (prev.characters || []).find((c) => profiles.characterKey(c.character) === key && c.spec === entry.spec) || null;
+    const key = profiles.nameKey(entry.character);
+    return (prev.characters || []).find((c) => profiles.nameKey(c.character) === key && c.spec === entry.spec) || null;
 }
 
 /**
@@ -456,10 +476,10 @@ function requestedCharacters(input, previous) {
             .map((c) => ({ character: String(c.character || "").trim(), spec: String(c.spec || "").trim(), status: String(c.status || "").trim() }));
     }
     const single = { character: String(input.character || "").trim(), spec: String(input.spec || "").trim(), status: "" };
-    const key = profiles.characterKey(single.character);
+    const key = profiles.nameKey(single.character);
     const alternates = ((previous && previous.characters) || [])
         .slice(1)
-        .filter((c) => profiles.characterKey(c.character) !== key)
+        .filter((c) => profiles.nameKey(c.character) !== key)
         .map((c) => ({ character: c.character, spec: c.spec, status: previous.status === "absence" ? "" : String(c.status || "") }));
     return single.character || single.spec ? [single, ...alternates] : [];
 }
@@ -510,7 +530,8 @@ async function submitSignup(eventId, userId, input = {}, { byOrga = false, offPr
  * Which of the requested characters can go into this raid, and why the others
  * cannot — for signing up to several raids with one choice (#293). A spec the
  * event's game version does not have ("Klasse passt nicht") and a spec the
- * profile marks without usable gear are skipped for that raid, never refused.
+ * profile marks without usable gear are skipped for that raid, never refused —
+ * and so is a character of another game version (#543).
  * @returns {{ characters: { character: string, spec: string }[], skipped: { character: string, spec: string, reason: string }[] }}
  */
 function fitCharactersToEvent(event, characters, profile) {
@@ -521,7 +542,12 @@ function fitCharactersToEvent(event, characters, profile) {
             out.skipped.push({ ...entry, reason: "Klasse passt nicht zu diesem Raid" });
             continue;
         }
-        const character = findCharacter(profile, entry.character);
+        const versionId = versionOfEvent(event);
+        const character = findCharacter(profile, entry.character, versionId);
+        if (!character && findCharacter(profile, entry.character)) {
+            out.skipped.push({ ...entry, reason: `Charakter aus einer anderen Spielversion – dieser Raid ist ${versionName(versionId)}` });
+            continue;
+        }
         const spec = character && character.specs.find((s) => s.key === entry.spec);
         if (spec && spec.gear === "none") {
             out.skipped.push({ ...entry, reason: "laut Profil ohne brauchbares Gear" });

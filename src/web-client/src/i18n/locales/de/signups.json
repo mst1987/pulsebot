@@ -81,6 +81,8 @@
         "noCharBefore": "In deinem Profil steht noch kein Charakter.",
         "noCharLink": "Charakter anlegen",
         "noCharAfter": "– abmelden geht auch ohne.",
+        "noVersionChar": "Dieser Raid ist {version} – in deinem Profil steht noch kein {version}-Charakter.",
+        "noVersionCharLink": "Lege einen {version}-Charakter im Profil an",
         "status": "Status",
         "notAfterDeadline": "Nach dem Anmeldeschluss nicht mehr wählbar.",
         "mixedStatus": "Deine Charaktere haben verschiedene Status – hier setzt du alle auf einen.",

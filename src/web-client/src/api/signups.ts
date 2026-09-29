@@ -97,6 +97,8 @@ export type SignupEventRow = RaidHelperSignupRow | OwnSignupRow;
 export type SignupProfileSpec = { key: string; label: string; icon: string; role: GameRole | ""; gear: GearLevel };
 export type SignupProfileCharacter = {
     key: string; name: string; className: string; main: boolean; specs: SignupProfileSpec[];
+    /** The character's game version (#543) — the dialog offers only the event's. */
+    versionId?: string;
     /** This character's "kann offtanken / heilen" (signupView.profileForSignup). */
     canOfftank: boolean; canHeal: boolean;
 };
@@ -109,6 +111,8 @@ export type SignupsData = {
     classes: SignupClass[];
     /** The class list per game version (#541); a row picks its event's. */
     classesByVersion?: Record<string, SignupClass[]>;
+    /** The names of the game versions (#543), for "Lege einen Forever-Charakter an". */
+    versions?: { id: string; label: string; short?: string }[];
     error: string | null;
 };
 

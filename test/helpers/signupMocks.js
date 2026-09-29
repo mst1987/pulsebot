@@ -55,9 +55,11 @@ function signupStore() {
         onSignupsChanged: () => () => {},
         getSignup: (eventId, userId) => signups.get(`${eventId}/${userId}`) || null,
         // The newest signup with a spec over every event (updatedAt, else at, decides).
-        lastSignupOf: (userId) => {
+        // With `versionId` + `versionOf` (#543) only the events of that game version count.
+        lastSignupOf: (userId, { versionId = "", versionOf = null } = {}) => {
             const own = [...signups.entries()]
                 .filter(([k, v]) => k.endsWith(`/${userId}`) && v.spec && v.status !== "absence")
+                .filter(([k]) => !versionId || !versionOf || versionOf(k.split("/")[0]) === versionId)
                 .sort((a, b) => (b[1].updatedAt || b[1].at || 0) - (a[1].updatedAt || a[1].at || 0));
             if (!own.length) return null;
             const [key, s] = own[0];

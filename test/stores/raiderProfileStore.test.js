@@ -39,9 +39,11 @@ describe("stores/raiderProfileStore", () => {
 
     it("prüft neu getippte Namen: Buchstaben, je 12, Nachname nur mit Forever, kein Schimpfwort", () => {
         const C = "300000000000000003";
-        expect(store.addCharacter(C, { name: "Aldric Sturmwind", className: "Mage", source: "manual" }).character)
-            .toMatchObject({ key: "aldric sturmwind", name: "Aldric Sturmwind" });
-        expect(store.addCharacter(C, { name: "Aldric Sturmwind", className: "Mage" }, { versionId: "tbc" }).error).toBeUndefined();
+        // #543: the character's own version decides — Forever with last name, TBC (the default) without.
+        expect(store.addCharacter(C, { name: "Aldric Sturmwind", className: "Mage", source: "manual", versionId: "forever" }).character)
+            .toMatchObject({ key: "forever~aldric sturmwind", name: "Aldric Sturmwind", versionId: "forever" });
+        expect(store.addCharacter(C, { name: "Aldric Sturmwind", className: "Mage", versionId: "forever" }).error).toBeUndefined();
+        expect(store.addCharacter(C, { name: "Aldric Sturmwind", className: "Mage" }).error).toMatch(/nur in WoW Forever/);
         expect(store.addCharacter(C, { name: "Brom Eisenfaust", className: "Warrior" }, { versionId: "tbc" }).error).toMatch(/nur in WoW Forever/);
         expect(store.addCharacter(C, { name: "Brom Eisenfaust", className: "Warrior" }, { versionId: "forever" }).character.name).toBe("Brom Eisenfaust");
         expect(store.addCharacter(C, { name: "Abcdefghijklm", className: "Warrior" }).error).toMatch(/höchstens 12/);
@@ -151,7 +153,7 @@ describe("stores/raiderProfileStore", () => {
 
         expect(store.claimsFor("nerathil", A)).toEqual([{ userId: B, name: "Bert" }]);
         expect(store.characterClaims()).toEqual([{
-            key: "nerathil", character: "Nerathil", className: "Mage",
+            key: "nerathil", character: "Nerathil", versionId: "tbc", className: "Mage",
             claims: [{ userId: A, name: "Anna", main: true }, { userId: B, name: "Bert", main: true }],
         }]);
     });

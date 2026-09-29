@@ -61,12 +61,14 @@ function profileView(profile, { forOrga = false, index = logIndex(), all = profi
         return {
             key: c.key,
             name: c.name,
+            // #543: the page groups by it, the signup offers only the event's version.
+            versionId: c.versionId,
             realm: c.realm,
             className: c.className,
             main: c.main,
             source: c.source,
             armory: c.armory,
-            armoryUrl: armoryUrlFor(c.name),
+            armoryUrl: armoryUrlFor(c.name, c.versionId),
             specs: c.specs.map((s) => specView(c, s, index)),
             canOfftank: roles.canOfftank,
             canHeal: roles.canHeal,
@@ -114,9 +116,10 @@ function realmSlug(realm) {
 }
 
 /**
- * Link a character with the armory: the link always (from the template in
- * config/variables.js), plus class, level and guild when the Blizzard API is
- * configured and answers. Any failure means link only — never an error.
+ * Link a character with the armory: the link always (from the template of the
+ * character's version, Einstellungen → Spielversion, #542/#543), plus class,
+ * level and guild when the Blizzard API is configured for that version and
+ * answers. Any failure means link only — never an error.
  * @returns {Promise<{ url, fetched, className, level, guild }>}
  */
 async function lookupArmory(name, realm = "", versionId = undefined) {
