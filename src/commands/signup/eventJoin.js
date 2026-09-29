@@ -2,10 +2,11 @@ const { MessageFlags } = require("discord.js");
 const { getEvent } = require("../../stores/eventStore");
 const { getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
+const { versionOfEvent } = require("../../services/events/mainVersion");
 const { submitSignup, allowedStatuses, checkRaiderRole, signupWindow, defaultCanAlso } = require("../../services/signups/signupService");
 const { JOIN_SELECT_PREFIX, STATUS_OPTIONS } = require("../../services/events/eventMessage");
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
-const { buildSignupDialog, savedNotice, plainUpdate } = require("../../utils/signup/signupDialog");
+const { buildSignupDialog, savedNotice, plainUpdate, missingVersionLine } = require("../../utils/signup/signupDialog");
 const { parseJoinId, characterOptions, buildJoinPicker } = require("../../utils/signup/joinPicker");
 const { answerPayload } = require("../../utils/signup/signupReply");
 const { savedEmbed } = require("../../utils/signup/signupButtons");
@@ -69,11 +70,13 @@ async function onStatus(interaction, event) {
         return reply(interaction, { embed: savedEmbed(event, result.signup, profiles.getProfile(uid), { emojis: await emojisFor(interaction), notice: result.notice }) });
     }
 
-    const options = characterOptions(profile);
+    const versionId = versionOfEvent(event);
+    const options = characterOptions(profile, versionId);
     if (!options.length) {
         const label = STATUS_OPTIONS[status].label;
+        // A profile with characters of another version only: the dialog's own line says so (#543).
         return reply(interaction, buildSignupDialog(event, uid, {
-            notice: `Pick class and spec, then click “${label}” – the bot then asks for your character's name.`,
+            notice: missingVersionLine(profile, versionId) ? "" : `Pick class and spec, then click “${label}” – the bot then asks for your character's name.`,
         }));
     }
 
@@ -90,7 +93,7 @@ async function onStatus(interaction, event) {
         });
         const notice = result.error
             ? `⚠️ ${result.error}`
-            : [savedNotice(result.signup, profiles.getProfile(uid)), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
+            : [savedNotice(result.signup, profiles.getProfile(uid), versionId), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
         return reply(interaction, buildJoinPicker(event, uid, status, { notice, emojis }));
     }
     return reply(interaction, buildJoinPicker(event, uid, status, { emojis }));
@@ -120,7 +123,7 @@ module.exports = {
             const [character = "", spec = ""] = String((interaction.values && interaction.values[0]) || "").split("|");
             // The same pick keeps its "kann auch", a new one takes the profile's.
             const same = state && state.character === character && state.spec === spec;
-            const next = same ? state : nextState(uid, { character, spec });
+            const next = same ? state : nextState(uid, { character, spec }, versionOfEvent(event));
             return interaction.update(buildJoinPicker(event, uid, status, { state: next, emojis: await emojisFor(interaction) }));
         }
         return plainUpdate(interaction, "Unknown action.");
@@ -128,9 +131,9 @@ module.exports = {
 };
 
 /** A freshly picked character · spec with the profile's "kann auch" (null when it is not the member's). */
-function nextState(userId, pick) {
+function nextState(userId, pick, versionId = "") {
     const profile = profiles.getProfile(userId) || { characters: [] };
-    const hit = characterOptions(profile).find((o) => o.character === pick.character && o.spec === pick.spec);
+    const hit = characterOptions(profile, versionId).find((o) => o.character === pick.character && o.spec === pick.spec);
     if (!hit) return null;
     return { character: hit.character, spec: hit.spec, canAlso: defaultCanAlso(profile, hit.character, hit.spec) };
 }

@@ -266,3 +266,23 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
         expect(out.has("u2")).toBe(false);
     });
 });
+
+describe("services/characters/rosterAttendance je Spielversion (#543)", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        withReports([]);
+    });
+
+    it("zaehlt mit versionId nur die Raids dieser Version, ohne Version sind es TBC-Raids", () => {
+        mockListRaidEvents.mockReturnValue([
+            event("e1", 7, { signUps: [{ userId: "u1", status: "signed" }] }),
+            event("e2", 14, { versionId: "forever", signUps: [{ userId: "u1", status: "absence" }] }),
+        ]);
+        const all = attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]);
+        expect(all).toMatchObject({ attended: 1, total: 2 });
+        const tbc = attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]);
+        expect(tbc).toMatchObject({ attended: 1, total: 1, pct: 100 });
+        const forever = attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "forever" }), "cat1", "Anna", ["u1"]);
+        expect(forever).toMatchObject({ attended: 0, total: 1, pct: 0 });
+    });
+});

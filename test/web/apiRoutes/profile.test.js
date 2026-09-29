@@ -92,7 +92,7 @@ describe("GET/PUT /api/profile", () => {
                 { userId: BERT.id, spec: "Priest-Shadow", eventId: "rh-1", at: 1000, character: "Ysolde" },
             ], { eventIds: ["rh-1"] });
             const data = json(await call(route.getProfile, ANNA)).data;
-            expect(data.specHistory).toEqual([{ spec: "Mage-Frost", count: 1, lastAt: 1000, lastEventId: "rh-1", character: "Nerathil" }]);
+            expect(data.specHistory).toEqual([{ spec: "Mage-Frost", count: 1, lastAt: 1000, lastEventId: "rh-1", character: "Nerathil", versionId: "tbc" }]);
             expect(JSON.stringify(data)).not.toContain("Ysolde");
         } finally {
             // The scratch directory goes at the end of the suite (helpers/tempStore).
@@ -348,5 +348,44 @@ describe("Kalender-Abo (/api/profile/calendar)", () => {
         const res = await call(route.postCalendarToken, ANNA);
         expect(res.end).not.toHaveBeenCalled();
         expect(calStore.listTokensFor(ANNA.id)).toEqual([]);
+    });
+});
+
+describe("Charaktere je Spielversion (#543)", () => {
+    afterEach(() => { mockMainVersion = {}; });
+
+    it("legt einen Charakter in der gewaehlten Version an, ohne Angabe in der Hauptversion", async () => {
+        const tbc = await call(route.postProfileCharacter, ANNA, { json: { source: "manual", name: "Devi", className: "Priest", specs: ["Priest-Holy"] } });
+        expect(json(tbc).data.character).toMatchObject({ key: "devi", versionId: "tbc" });
+        const forever = await call(route.postProfileCharacter, ANNA, { json: { source: "manual", name: "Devi Res", className: "Priest", specs: ["Priest-Shadow"], versionId: "forever" } });
+        expect(status(forever)).toBe(200);
+        expect(json(forever).data.character).toMatchObject({ key: "forever~devi res", name: "Devi Res", versionId: "forever" });
+        mockMainVersion = { mainVersion: "forever" };
+        const byMain = await call(route.postProfileCharacter, ANNA, { json: { source: "manual", name: "Devi Rew", className: "Mage", specs: [] } });
+        expect(json(byMain).data.character).toMatchObject({ key: "forever~devi rew", versionId: "forever" });
+        expect(store.getProfile(ANNA.id).characters.map((c) => c.key)).toEqual(["devi", "forever~devi res", "forever~devi rew"]);
+    });
+
+    it("prueft den Namen nach der Regel der Version: TBC ohne, Forever mit Nachnamen", async () => {
+        const res = await call(route.postProfileCharacter, ANNA, { json: { source: "manual", name: "Devi Res", className: "Priest", specs: [], versionId: "tbc" } });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.message).toMatch(/nur in WoW Forever/);
+    });
+
+    it("liefert die Versionen fuer den Dialog, die Hauptversion zuerst", async () => {
+        mockMainVersion = { mainVersion: "forever" };
+        const data = json(await call(route.getProfile, ANNA)).data;
+        expect(data.mainVersion).toBe("forever");
+        expect(data.versions[0]).toEqual({ id: "forever", label: "WoW Forever", short: "Forever", lastName: true });
+        expect(data.versions.find((v) => v.id === "tbc")).toMatchObject({ lastName: false });
+        expect(Object.keys(data.classesByVersion)).toEqual(expect.arrayContaining(["tbc", "classic", "forever"]));
+    });
+
+    it("zeigt die Version je Charakter und entfernt ueber den Versions-Schluessel", async () => {
+        store.addCharacter(ANNA.id, { name: "Devi Res", className: "Priest", versionId: "forever" }, { name: "Anna" });
+        const view = json(await call(route.getProfile, ANNA)).data.profile;
+        expect(view.characters[0]).toMatchObject({ key: "forever~devi res", versionId: "forever" });
+        const removed = await call(route.postProfileCharacter, ANNA, { json: { remove: "forever~devi res" } });
+        expect(json(removed).data.removed).toBe(true);
     });
 });

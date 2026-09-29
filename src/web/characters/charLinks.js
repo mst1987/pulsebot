@@ -20,14 +20,26 @@ function fillCharTemplate(tpl, character) {
     return String(tpl).replace("{char}", encodeURIComponent(name));
 }
 
-/** The armory page of a character, or "" when no template is configured. */
-function armoryUrlFor(character) {
-    return fillCharTemplate(applyArmoryUrlTemplate, character);
+/**
+ * The link templates of a game version (#543): where a character of that
+ * version is looked up. The one place that asks per version — the settings per
+ * version (#542) plug in here; until a version has its own, every version uses
+ * the configured templates, as before.
+ * @param {string} [_versionId]  the character's version ("" = TBC / the configured one)
+ * @returns {{ armory: string, wcl: string }}
+ */
+function linkTemplatesFor(_versionId = "") {
+    return { armory: applyArmoryUrlTemplate || "", wcl: applyWclUrlTemplate || "" };
 }
 
-/** The Warcraft-Logs page of a character, or "". */
-function wclUrlFor(character) {
-    return fillCharTemplate(applyWclUrlTemplate, character);
+/** The armory page of a character (of `versionId`), or "" when no template is configured. */
+function armoryUrlFor(character, versionId = "") {
+    return fillCharTemplate(linkTemplatesFor(versionId).armory, character);
 }
 
-module.exports = { fillCharTemplate, armoryUrlFor, wclUrlFor };
+/** The Warcraft-Logs page of a character (of `versionId`), or "". */
+function wclUrlFor(character, versionId = "") {
+    return fillCharTemplate(linkTemplatesFor(versionId).wcl, character);
+}
+
+module.exports = { fillCharTemplate, linkTemplatesFor, armoryUrlFor, wclUrlFor };

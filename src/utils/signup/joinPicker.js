@@ -17,12 +17,15 @@ const { publicBaseUrl } = require("../publicUrl");
 const { getSignup, lastSignupOf } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
 const { defaultCanAlso, signupWindow } = require("../../services/signups/signupService");
+const { versionOfEvent } = require("../../services/events/mainVersion");
+const { getEvent } = require("../../stores/eventStore");
 const { buildClasses } = require("../../config/gameVersions/classes");
+const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { emojiOption, specEmojiName } = require("../../services/discord/appEmojis");
 const { toEnglish } = require("./botEnglish");
 const {
     MAX_CUSTOM_ID, STATUS_CODES, STATUS_BY_CODE, STATUS_STATE,
-    encodeState, decodeState, statusId, commentId, signableCharacters, pickText,
+    encodeState, decodeState, statusId, commentId, signableCharacters, pickText, missingVersionLine,
 } = require("./signupDialog");
 
 const JOIN_PREFIX = "event-join";
@@ -51,12 +54,13 @@ function parseJoinId(customId) {
 
 /**
  * Every character · spec of a profile, as select entries. Specs with gear
- * "none" are left out while there are others — they are no real choice.
+ * "none" are left out while there are others — they are no real choice. With
+ * `versionId` only the characters of that game version (#543, the event's).
  * @returns {{ character: string, name: string, spec: string, gear: string, main: boolean, classId: string }[]}
  */
-function characterOptions(profile) {
+function characterOptions(profile, versionId = "") {
     const all = [];
-    for (const c of signableCharacters(profile)) {
+    for (const c of signableCharacters(profile, versionId)) {
         for (const s of c.specs) {
             all.push({ character: c.key, name: c.name, spec: s.key, gear: s.gear, main: !!c.main, classId: c.className });
         }
@@ -65,7 +69,20 @@ function characterOptions(profile) {
     return fitting.length ? fitting : all;
 }
 
-const sameOption = (o, character, spec) => o.character === profiles.characterKey(character) && o.spec === spec;
+// By name: an option's character is its key ("forever~devi res"), a signup keeps the name ("Devi Res").
+const sameOption = (o, character, spec) => profiles.nameKey(o.character) === profiles.nameKey(character) && o.spec === spec;
+
+/** "Last signed up as" within one game version (#543): own signups of that version's events, else its imported specs. */
+function lastSignupInVersion(userId, versionId) {
+    return lastSignupOf(userId, {
+        versionId,
+        versionOf: (eventId) => {
+            const event = getEvent(eventId);
+            // an event that is gone (or a Raid-Helper one) is from before versions: TBC
+            return event ? versionOfEvent(event) : LEGACY_VERSION;
+        },
+    });
+}
 
 /**
  * The pick to preselect: the current signup, else the spec used last (any
@@ -118,8 +135,9 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
     const uid = String(userId || "");
     const profile = profiles.getProfile(uid) || { characters: [] };
     const mine = getSignup(event.id, uid);
-    const last = lastSignupOf(uid);
-    const options = characterOptions(profile);
+    const versionId = versionOfEvent(event);
+    const last = lastSignupInVersion(uid, versionId);
+    const options = characterOptions(profile, versionId);
     const picks = resolvePick(profile, options, { state, mine, last });
     const win = signupWindow(event, now);
 
@@ -128,10 +146,12 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
     lines.push([`**${STATUS_STATE[status] || status}**`, start ? `<t:${start}:f>` : ""].filter(Boolean).join(" · "));
     lines.push("Which character? – from your EventHelper profile");
     if (mine) {
-        const what = mine.status === "absence" ? "" : pickText(profile, mine.character, mine.spec);
+        const what = mine.status === "absence" ? "" : pickText(profile, mine.character, mine.spec, versionId);
         lines.push(`So far: **${STATUS_STATE[mine.status] || mine.status}**${what ? ` · ${what}` : ""}`);
     }
     if (win.deadlinePassed && !win.started) lines.push("The signup deadline has passed – only “Late” or Absence now.");
+    const missing = missingVersionLine(profile, versionId);
+    if (missing) lines.push(missing);
     if (notice) lines.push("", toEnglish(notice));
 
     const lastOption = last
@@ -204,5 +224,5 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
 }
 
 module.exports = {
-    JOIN_PREFIX, joinId, parseJoinId, characterOptions, defaultPick, resolvePick, buildJoinPicker,
+    JOIN_PREFIX, joinId, parseJoinId, characterOptions, defaultPick, resolvePick, buildJoinPicker, lastSignupInVersion,
 };

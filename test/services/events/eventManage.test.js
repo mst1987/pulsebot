@@ -481,3 +481,21 @@ describe("the Discord event rides along (#305)", () => {
         expect(eventStore.getEvent(event.id).status).toBe("cancelled");
     });
 });
+
+describe("Raider eintragen je Spielversion (#543)", () => {
+    it("legt einen neuen Charakter in der Version des Events an und bietet nur deren Charaktere an", async () => {
+        const forever = seed({ title: "Barrow", versionId: "forever", instanceIds: ["forever-barrow"], size: 10 });
+        profiles.addCharacter(RAIDER, { name: "Thorwald", className: "Warrior", specs: [{ key: "Warrior-Protection" }] });
+        const result = await manage.addRaider({ guildId: "g1", eventId: forever.id, userId: RAIDER, character: "Thorwald Stein", spec: "Warrior-Protection", user: ORGA });
+        expect(result.body.profileChanged).toBe(true);
+        expect(profiles.getProfile(RAIDER).characters.map((c) => [c.key, c.versionId])).toEqual([
+            ["thorwald", "tbc"], ["forever~thorwald stein", "forever"],
+        ]);
+        expect(signupStore.getSignup(forever.id, RAIDER)).toMatchObject({ character: "Thorwald Stein" });
+
+        const { body } = await manage.raiderCandidates({ guildId: "g1", eventId: forever.id });
+        expect(body.raiders.find((r) => r.userId === RAIDER).characters.map((c) => c.name)).toEqual(["Thorwald Stein"]);
+        const tbc = await manage.raiderCandidates({ guildId: "g1", eventId: event.id });
+        expect(tbc.body.raiders.find((r) => r.userId === RAIDER).characters.map((c) => c.name)).toEqual(["Thorwald"]);
+    });
+});

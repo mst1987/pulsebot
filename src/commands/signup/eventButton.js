@@ -2,11 +2,12 @@ const { MessageFlags } = require("discord.js");
 const { getEvent } = require("../../stores/eventStore");
 const { getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
+const { versionOfEvent } = require("../../services/events/mainVersion");
 const { submitSignup, checkRaiderRole } = require("../../services/signups/signupService");
 const { BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
 const { characterOptions } = require("../../utils/signup/joinPicker");
-const { classLabel } = require("../../utils/signup/signupDialog");
+const { classLabel, missingVersionLine } = require("../../utils/signup/signupDialog");
 const {
     parseButtonId, refusal, savedEmbed, picksWithStatus, firstCharacterTo, withAddedCharacter, orderedValues,
     buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal, STATUS_WORD,
@@ -99,10 +100,12 @@ async function onJoin(interaction, event) {
     const uid = interaction.user.id;
     const why = await blocked(event, uid, "signed");
     if (why) return reply(interaction, why, event);
-    const options = characterOptions(profiles.getProfile(uid) || { characters: [] });
+    const profile = profiles.getProfile(uid) || { characters: [] };
+    const options = characterOptions(profile, versionOfEvent(event));
     const emojis = await emojisFor(interaction);
     if (!options.length) {
-        return reply(interaction, buildClassPicker(event, "signed", { emojis, notice: "No character in your profile yet – pick class and spec, then the bot asks for the name." }));
+        const notice = missingVersionLine(profile, versionOfEvent(event)) || "No character in your profile yet – pick class and spec, then the bot asks for the name.";
+        return reply(interaction, buildClassPicker(event, "signed", { emojis, notice }));
     }
     if (options.length === 1) {
         const [only] = options;
@@ -135,9 +138,11 @@ async function onStatus(interaction, event, status, { note } = {}) {
     }
     if (note !== undefined) keepNote(event.id, uid, status, note);
     const emojis = await emojisFor(interaction);
-    const options = characterOptions(profiles.getProfile(uid) || { characters: [] });
+    const profile = profiles.getProfile(uid) || { characters: [] };
+    const options = characterOptions(profile, versionOfEvent(event));
     if (!options.length) {
-        return reply(interaction, buildClassPicker(event, status, { emojis, notice: `No character in your profile yet – which class are you coming with as “${STATUS_WORD[status]}”?` }));
+        const notice = missingVersionLine(profile, versionOfEvent(event)) || `No character in your profile yet – which class are you coming with as “${STATUS_WORD[status]}”?`;
+        return reply(interaction, buildClassPicker(event, status, { emojis, notice }));
     }
     return reply(interaction, buildCharacterPicker(event, uid, status, { emojis }));
 }
@@ -160,7 +165,8 @@ async function onName(interaction, event, status, specKey) {
     if (why) return done(interaction, `⚠️ ${why}`, event);
     const name = String(interaction.fields.getTextInputValue("character") || "").trim();
     const profile = profiles.getProfile(uid) || { characters: [] };
-    const existing = profile.characters.find((c) => c.key === profiles.characterKey(name));
+    const versionId = versionOfEvent(event);
+    const existing = profiles.findCharacter(profile, name, versionId);
     if (existing && existing.className !== info.classId) {
         return done(interaction, `⚠️ ${existing.name} is already in your profile as a ${classLabel(event, existing.className)} – pick another name.`, event);
     }
@@ -169,7 +175,7 @@ async function onName(interaction, event, status, specKey) {
         className: info.classId,
         specs: [{ key: info.key, gear: "usable" }],
         source: "manual",
-    }, { name: displayName(interaction), versionId: event.versionId });
+    }, { name: displayName(interaction), versionId });
     if (added.error) return done(interaction, `⚠️ ${added.error}`, event);
     const next = withAddedCharacter(getSignup(event.id, uid), { character: added.character.name, spec: info.key, status });
     if (next.error) return done(interaction, `⚠️ ${next.error}`, event);

@@ -142,10 +142,18 @@ export type RosterData = {
     categoryInfo: Record<string, RosterCategoryInfo>;
     stats: RosterStats;
     activeGuildId: string;
+    /** The game version shown (#543): "" = all; the default is the main version. */
+    version?: string;
+    mainVersion?: string;
+    /** Every version with characters plus the main version — the page's filter. */
+    versions?: RosterVersion[];
 };
 
-export function getRoster(): Promise<RosterData> {
-    return get<RosterData>("/api/roster");
+export type RosterVersion = { id: string; label: string; short: string; count: number };
+
+/** The roster of one game version (#543): "" = the main version, "all" = every version. */
+export function getRoster(version = ""): Promise<RosterData> {
+    return get<RosterData>(`/api/roster${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 /**

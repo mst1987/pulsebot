@@ -128,6 +128,18 @@ describe("GET /api/signups", () => {
         expect(data.events[0].versionId).toBe("tbc");
     });
 
+    it("gibt jedem Charakter seine Version mit, jeder eigenen Zeile eine Version und die Versionsnamen (#543)", async () => {
+        profiles.addCharacter(ANNA.id, { name: "Devi Res", className: "Priest", specs: ["Priest-Shadow"], versionId: "forever" }, { name: "Anna" });
+        mockEvents.set("eh-kara", { ...ownEvent, versionId: "" });
+        mockGroups[0].events[0].versionId = "";
+        mockConfig = { categoryVersion: { "cat-kara": "forever" } };
+        const data = json(await call(route.getSignups, ANNA)).data;
+        expect(data.profile.characters.map((c) => [c.name, c.versionId])).toEqual([["Nerathil", "tbc"], ["Devi Res", "forever"]]);
+        // an event without a version plays its category's (the dialog filters by it)
+        expect(data.events[0].versionId).toBe("forever");
+        expect(data.versions).toEqual(expect.arrayContaining([{ id: "forever", label: "WoW Forever", short: "Forever" }]));
+    });
+
     it("zeigt einem Raider nie einen Setup-Entwurf, nur das freigegebene Setup (#263)", async () => {
         const slot = { userId: ANNA.id, character: "Nerathil", classId: "Mage", spec: "Mage-Arcane", role: "ranged" };
         mockEvents.set("eh-kara", { ...ownEvent, setup: { status: "draft", groups: [{ index: 3, slots: [{ ...slot, reasons: ["x"] }] }], bench: [], approved: null } });

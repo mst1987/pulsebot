@@ -102,3 +102,57 @@ describe("AddCharacterDialog", () => {
         expect(api.addProfileCharacter).toHaveBeenCalledWith({ source: "manual", name: "Borka", className: "Druid", specs: ["Druid-Restoration"] });
     });
 });
+
+describe("AddCharacterDialog je Spielversion (#543)", () => {
+    const VERSIONS = [
+        { id: "tbc", label: "TBC Anniversary", short: "TBC", lastName: false },
+        { id: "forever", label: "WoW Forever", short: "Forever", lastName: true },
+    ];
+    const FOREVER_CLASSES: GameClass[] = [CLASSES[1]];
+
+    function renderVersioned(defaultVersion = "tbc") {
+        const onAdded = vi.fn();
+        render(<AddCharacterDialog way="manual" onClose={vi.fn()} classes={CLASSES} onAdded={onAdded}
+            versions={VERSIONS} classesByVersion={{ tbc: CLASSES, forever: FOREVER_CLASSES }} defaultVersion={defaultVersion} />);
+        return { onAdded, user: userEvent.setup() };
+    }
+
+    it("fragt die Version, die Hauptversion vorgewählt", () => {
+        renderVersioned("forever");
+        const picker = screen.getByRole("radiogroup", { name: t("profile.add.versionAria") });
+        expect(within(picker).getAllByRole("radio").map((r) => r.textContent)).toEqual(["TBC", "Forever"]);
+        expect(within(picker).getByRole("radio", { name: "Forever" })).toHaveAttribute("aria-checked", "true");
+        // Forever: first and last name, the classes of its rule set
+        expect(screen.getByLabelText(t("profile.add.firstName"))).toBeInTheDocument();
+        expect(screen.getByLabelText(t("profile.add.lastName"))).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /Druide/ })).not.toBeInTheDocument();
+    });
+
+    it("legt einen Forever-Charakter mit Vor- und Nachnamen an", async () => {
+        const { user } = renderVersioned("forever");
+        await user.type(screen.getByLabelText(t("profile.add.firstName")), "Devi");
+        await user.type(screen.getByLabelText(t("profile.add.lastName")), "Res");
+        await user.click(screen.getByRole("button", { name: /Magier/ }));
+        await user.click(screen.getByRole("button", { name: t("profile.add.create") }));
+        expect(api.addProfileCharacter).toHaveBeenLastCalledWith({ source: "manual", name: "Devi Res", className: "Mage", specs: [], versionId: "forever" });
+    });
+
+    it("TBC hat ein Namensfeld mit höchstens 12 Buchstaben", async () => {
+        const { user } = renderVersioned("tbc");
+        expect(screen.queryByLabelText(t("profile.add.lastName"))).not.toBeInTheDocument();
+        expect(nameField()).toHaveAttribute("maxLength", "12");
+        await user.type(nameField(), "Devi");
+        await user.click(screen.getByRole("button", { name: /Druide/ }));
+        await user.click(screen.getByRole("button", { name: t("profile.add.create") }));
+        expect(api.addProfileCharacter).toHaveBeenLastCalledWith({ source: "manual", name: "Devi", className: "Druid", specs: [], versionId: "tbc" });
+    });
+
+    it("ein Versionswechsel setzt Klasse und Nachnamen zurück", async () => {
+        const { user } = renderVersioned("forever");
+        await user.type(screen.getByLabelText(t("profile.add.lastName")), "Res");
+        await user.click(screen.getByRole("button", { name: /Magier/ }));
+        await user.click(screen.getByRole("radio", { name: "TBC" }));
+        expect(screen.queryByLabelText(t("profile.add.lastName"))).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: t("profile.add.create") })).toBeDisabled();
+    });
+});

@@ -29,6 +29,8 @@ const { sessionContentLabel } = require("../loot/lootSessionContent");
 const { previewImport } = require("../loot/lootImportPreview");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
 const { armoryUrlFor, wclUrlFor } = require("../characters/charLinks");
+const { buildVersionContext, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
+const { mainVersionFor, knownVersion } = require("../../services/events/mainVersion");
 const Blizzard = require("../../classes/blizzard");
 const { userCan } = require("../../config/permissions");
 const discord = require("../../services/discord/discord");
@@ -83,6 +85,14 @@ const getHistoryData = withUser({}, async ({ user, req, res }) => {
     // Only a channel that still exists is linked (#537).
     const pastRaids = { ...past, events: linkCheck.withChannelState(guildId, past.events) };
     const cfg = getConfig();
+    // Per game version (#543): each character says which versions it has loot in,
+    // the "Charaktere" tab filters by it (the main version first).
+    const versionCtx = buildVersionContext({ config: cfg });
+    const chars = annotatedCharacters().map((c) => ({
+        ...withClassLook(c),
+        versionIds: versionsOfCharacter(versionCtx, { name: c.character, items: c.items, categoryIds: c.categoryIds }),
+    }));
+    const mainVersion = mainVersionFor({ config: cfg });
 
     ok(res, {
         events,
@@ -99,7 +109,9 @@ const getHistoryData = withUser({}, async ({ user, req, res }) => {
         categories: listKnownCategories(guildId),
         categoryLootTool: cfg.categoryLootTool || {},
         activeGuildId: guildId,
-        chars: annotatedCharacters().map(withClassLook),
+        chars,
+        mainVersion,
+        versions: versionChoices(chars, mainVersion),
     });
 });
 
@@ -522,18 +534,23 @@ const resolveCharacters = withUser({ csrf: true }, async ({ res }) => {
 });
 
 /**
- * GET /api/history/char?name=<name> — loot history plus live Blizzard gear
- * (paperdoll) and diagnostics for one character.
+ * GET /api/history/char?name=<name>[&version=<id>] — loot history plus live Blizzard gear
+ * (paperdoll) and diagnostics for one character. `version` (#543) picks the
+ * links of that game version (charLinks.linkTemplatesFor); `versionIds` says which
+ * versions the character has.
  */
 const getHistoryChar = withUser({}, async ({ res, url }) => {
     const name = url.searchParams.get("name") || "";
+    const askedVersion = knownVersion(url.searchParams.get("version"));
     await repairLootItemNames(); // see getHistoryEvent
     const items = withLootClassLook(listLootByCharacter(name));
     const cfg = getConfig();
     const bzCfg = cfg.blizzard || {};
     const realm = (items[0] && items[0].realm) || bzCfg.realmSlug || "";
-    const armoryUrl = armoryUrlFor(name);
-    const wclUrl = wclUrlFor(name);
+    const versionIds = versionsOfCharacter(buildVersionContext({ config: cfg }), { name, items });
+    const linkVersion = askedVersion || versionIds[0] || "";
+    const armoryUrl = armoryUrlFor(name, linkVersion);
+    const wclUrl = wclUrlFor(name, linkVersion);
     const client = new Blizzard(bzCfg);
     const gearConfigured = client.isConfigured();
     const gearNamespace = client._resolve().namespace;
@@ -559,6 +576,7 @@ const getHistoryChar = withUser({}, async ({ res, url }) => {
         character: name,
         realm,
         items,
+        versionIds,
         armoryUrl,
         wclUrl,
         gear,

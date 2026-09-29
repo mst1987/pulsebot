@@ -247,6 +247,7 @@
         "unknownItem": "unbekannt – Item nicht in der Raid-Loot-Tabelle"
     },
     "chars": {
+        "versionAria": "Spielversion",
         "colCharacter": "Charakter",
         "colClass": "Klasse & Spec",
         "itemsSub": "Hover über die Zahl zeigt die Items.",

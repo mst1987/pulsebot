@@ -27,3 +27,15 @@ describe("web/characters/charLinks", () => {
         expect(fillCharTemplate("https://x/{char}", "  Devihra  ")).toBe("https://x/Devihra");
     });
 });
+
+describe("web/characters/charLinks je Spielversion (#543)", () => {
+    const { linkTemplatesFor } = require("../../../src/web/characters/charLinks");
+
+    it("hat eine Stelle fuer die Vorlagen je Version und faellt bis dahin auf die konfigurierten zurueck", () => {
+        const tbc = linkTemplatesFor("tbc");
+        expect(linkTemplatesFor("forever")).toEqual(tbc);
+        expect(linkTemplatesFor()).toEqual(tbc);
+        expect(armoryUrlFor("Devi Res", "forever")).toBe(fillCharTemplate(tbc.armory, "Devi Res"));
+        expect(wclUrlFor("Devi Res", "forever")).toBe(fillCharTemplate(tbc.wcl, "Devi Res"));
+    });
+});

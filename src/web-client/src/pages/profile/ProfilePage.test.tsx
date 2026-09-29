@@ -42,7 +42,7 @@ const MAGE: GameClass = {
 
 function character(over: Partial<ProfileCharacter>): ProfileCharacter {
     return {
-        key: "borka", name: "Borka", realm: "Thunderstrike", className: "Druid", main: true, source: "manual",
+        key: "borka", name: "Borka", versionId: "tbc", realm: "Thunderstrike", className: "Druid", main: true, source: "manual",
         armory: null, armoryUrl: "", specs: [], canOfftank: false, canHeal: false,
         suggested: { canOfftank: true, canHeal: true }, possible: { canOfftank: true, canHeal: true }, claimedBy: [],
         ...over,
@@ -128,6 +128,41 @@ async function renderProfile(route = "/profile") {
     renderPage(<ProfilePage />, { route });
     await screen.findByRole("tablist", { name: t("profile.charactersAria") });
 }
+
+describe("Charaktere je Spielversion (#543)", () => {
+    const DEVI = character({ key: "forever~devi res", name: "Devi Res", versionId: "forever", className: "Mage", main: false });
+    const VERSIONS = [
+        { id: "forever", label: "WoW Forever", short: "Forever", lastName: true },
+        { id: "tbc", label: "TBC Anniversary", short: "TBC", lastName: false },
+    ];
+
+    afterEach(() => vi.clearAllMocks());
+
+    it("gruppiert die Charaktere nach Version, die Hauptversion zuerst", async () => {
+        setup(profile({ characters: [BORKA, FROSTI, DEVI] }));
+        vi.mocked(api.getProfile).mockResolvedValue({
+            ...profileData(profile({ characters: [BORKA, FROSTI, DEVI] })), mainVersion: "forever", versions: VERSIONS,
+            classesByVersion: { tbc: [DRUID, MAGE], forever: [MAGE] },
+        });
+        renderPage(<ProfilePage />, { route: "/profile?char=forever~devi res" });
+        const forever = await screen.findByRole("tablist", { name: t("profile.versionGroup", { version: "Forever" }) });
+        const tbc = screen.getByRole("tablist", { name: t("profile.versionGroup", { version: "TBC" }) });
+        expect(within(forever).getAllByRole("tab").map((b) => b.textContent)).toEqual([expect.stringContaining("Devi Res")]);
+        expect(within(tbc).getAllByRole("tab").map((b) => b.textContent)).toEqual([expect.stringContaining("Borka"), expect.stringContaining("Frosti")]);
+        // the main version's group comes first
+        const groups = document.querySelectorAll(".pf-chip-group");
+        expect([...groups].map((g) => g.getAttribute("data-version"))).toEqual(["forever", "tbc"]);
+        // the card names the version of the selected character
+        expect(screen.getByText(/Forever · /)).toBeInTheDocument();
+    });
+
+    it("zeigt eine Version ohne Überschrift, wie bisher", async () => {
+        setup();
+        await renderProfile();
+        expect(document.querySelectorAll(".pf-chip-group")).toHaveLength(1);
+        expect(screen.queryByText(t("profile.versionGroup", { version: "TBC" }))).not.toBeInTheDocument();
+    });
+});
 
 /** Clicks the fold's chevron — its accessible name is the part's title. */
 const openFold = async (user: ReturnType<typeof userEvent.setup>, key: string) => {

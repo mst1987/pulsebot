@@ -137,6 +137,7 @@ jest.mock("../../../src/utils/loot/lootImport", () => {
         // the loot-add endpoint is tested for — a stub would test the stub.
         characterKey: actual.characterKey,
         characterKeyOf: actual.characterKeyOf,
+        nameKeyOf: actual.nameKeyOf,
         splitPlayer: actual.splitPlayer,
         buildManualItem: actual.buildManualItem,
         LootParseError,
@@ -242,6 +243,35 @@ describe("web/apiRoutes/roster", () => {
             expect(data.chars[1]).toMatchObject({
                 categoryIds: ["cat2"], lootCount: 0, className: "Warrior", assigned: true, raiderIds: ["u1"], gear: null,
             });
+        });
+
+        it("filtert nach Spielversion: Standard Hauptversion, ?version=forever, ?version=all (#543)", async () => {
+            const settingsStore = require("../../../src/stores/settingsStore");
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat2: "forever" } });
+            auth.getUser.mockReturnValue(ADMIN);
+            characterInfo.annotatedCharacters.mockReturnValue([{
+                key: "anna", character: "Anna", realm: "", count: 1, categoryIds: ["cat1"], items: [{ itemId: 1, eventId: "rh-1" }],
+                className: "Priest", spec: "Shadow", source: "wcl",
+            }]);
+            raiderCharactersStore.listAllAssignments.mockReturnValue({ cat2: { u1: "Devi Res" } });
+            try {
+                const main = json(await get("/api/roster")).data;
+                expect(main.chars.map((c) => c.character)).toEqual(["Anna"]);
+                expect(main).toMatchObject({ version: "tbc", mainVersion: "tbc" });
+                expect(main.versions.map((v) => [v.id, v.count])).toEqual([["tbc", 1], ["forever", 1]]);
+
+                const forever = json(await get("/api/roster", { version: "forever" })).data;
+                expect(forever.chars.map((c) => [c.character, c.versionIds])).toEqual([["Devi Res", ["forever"]]]);
+                expect(forever.version).toBe("forever");
+
+                const all = json(await get("/api/roster", { version: "all" })).data;
+                expect(all.chars.map((c) => c.character)).toEqual(["Anna", "Devi Res"]);
+                expect(all.version).toBe("");
+                // an unknown version is the main version, never an empty page
+                expect(json(await get("/api/roster", { version: "gibtsnicht" })).data.version).toBe("tbc");
+            } finally {
+                settingsStore.getConfig.mockReturnValue({});
+            }
         });
 
         it("backfills missing loot item names before answering", async () => {

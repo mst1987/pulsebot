@@ -39,7 +39,7 @@ const { scheduleOverviewSync } = require("../talk/talkOverview");
 const { deliverUserPing, sendDms } = require("../discord/pingDelivery");
 const { getConfig } = require("../../stores/settingsStore");
 const { setupSummary } = require("../setup/setupEditor");
-const { rulesForEvent } = require("./mainVersion");
+const { rulesForEvent, versionOfEvent } = require("./mainVersion");
 const { toRaidHelperDate } = require("../../utils/time");
 const { SIGNUP_STATUSES } = require("../../utils/attendance");
 const { str } = require("../../utils/text");
@@ -341,14 +341,16 @@ async function addRaider({ guildId, eventId, userId, character, spec, alternates
     }
 
     let profileChanged = false;
+    // A character of the event's game version (#543) — a missing one is added in that version.
+    const versionId = versionOfEvent(found.event);
     /** The character in the raider's profile with this spec — added when missing. */
     const ensure = (charName, specInfo) => {
-        const existing = signupService.findCharacter(profiles.getProfile(uid), charName);
+        const existing = signupService.findCharacter(profiles.getProfile(uid), charName, versionId);
         if (existing && existing.className === specInfo.classId && existing.specs.some((s) => s.key === specInfo.key)) return null;
         if (existing && existing.className !== specInfo.classId) {
             return fail(400, "spec", `${existing.name} ist im Profil ${existing.className} — die Spec passt nicht.`);
         }
-        const added = profiles.addCharacter(uid, { name: charName, className: specInfo.classId, specs: [{ key: specInfo.key }], source: "manual" });
+        const added = profiles.addCharacter(uid, { name: charName, className: specInfo.classId, specs: [{ key: specInfo.key }], source: "manual", versionId });
         if (added.error) return fail(400, "character", added.error);
         profileChanged = true;
         return null;
@@ -741,7 +743,7 @@ async function raiderCandidates({ guildId, eventId }) {
     for (const p of profiles.listProfiles()) {
         const row = add(p.userId, p.name);
         if (!row) continue;
-        row.characters = p.characters.map((c) => ({
+        row.characters = profiles.charactersOfVersion(p, versionOfEvent(event)).map((c) => ({
             key: c.key, name: c.name, className: c.className, main: c.main, specs: c.specs.map((s) => specOf(s.key)).filter(Boolean),
         }));
     }

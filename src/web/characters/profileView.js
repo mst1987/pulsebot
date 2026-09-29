@@ -61,12 +61,14 @@ function profileView(profile, { forOrga = false, index = logIndex(), all = profi
         return {
             key: c.key,
             name: c.name,
+            // #543: the page groups by it, the signup offers only the event's version.
+            versionId: c.versionId,
             realm: c.realm,
             className: c.className,
             main: c.main,
             source: c.source,
             armory: c.armory,
-            armoryUrl: armoryUrlFor(c.name),
+            armoryUrl: armoryUrlFor(c.name, c.versionId),
             specs: c.specs.map((s) => specView(c, s, index)),
             canOfftank: roles.canOfftank,
             canHeal: roles.canHeal,
@@ -114,13 +116,15 @@ function realmSlug(realm) {
 }
 
 /**
- * Link a character with the armory: the link always (from the template in
- * config/variables.js), plus class, level and guild when the Blizzard API is
- * configured and answers. Any failure means link only — never an error.
+ * Link a character with the armory: the link always (from the template of the
+ * character's version, charLinks.linkTemplatesFor — today the one in
+ * config/variables.js for every version), plus class, level and guild when the
+ * Blizzard API is configured and answers. Any failure means link only — never
+ * an error.
  * @returns {Promise<{ url, fetched, className, level, guild }>}
  */
-async function lookupArmory(name, realm = "") {
-    const out = { url: armoryUrlFor(name), fetched: false, className: "", level: null, guild: "" };
+async function lookupArmory(name, realm = "", versionId = "") {
+    const out = { url: armoryUrlFor(name, versionId), fetched: false, className: "", level: null, guild: "" };
     try {
         const client = new Blizzard(getConfig().blizzard || {});
         if (!client.isConfigured()) return out;

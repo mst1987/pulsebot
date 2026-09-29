@@ -250,3 +250,27 @@ describe("RosterPage — in English", () => {
         expect(screen.getByRole("radio", { name: "Hidden (0)" })).toBeInTheDocument();
     });
 });
+
+describe("RosterPage version filter (#543)", () => {
+    const VERSIONS = [
+        { id: "tbc", label: "TBC Anniversary", short: "TBC", count: 2 },
+        { id: "forever", label: "WoW Forever", short: "Forever", count: 1 },
+    ];
+
+    it("shows the filter with more than one version and reloads the roster for the picked one", async () => {
+        const user = userEvent.setup();
+        await openPage({ ...rosterData([rosterChar("Anna")]), version: "tbc", mainVersion: "tbc", versions: VERSIONS });
+        const picker = screen.getByRole("radiogroup", { name: "Spielversion" });
+        expect(within(picker).getByRole("radio", { name: "TBC · 2" })).toHaveAttribute("aria-checked", "true");
+        vi.mocked(api.getRoster).mockResolvedValue({ ...rosterData([rosterChar("Devi Res")]), version: "forever", mainVersion: "tbc", versions: VERSIONS });
+        await user.click(within(picker).getByRole("radio", { name: "Forever · 1" }));
+        await waitFor(() => expect(api.getRoster).toHaveBeenLastCalledWith("forever"));
+        await user.click(within(await screen.findByRole("radiogroup", { name: "Spielversion" })).getByRole("radio", { name: "Alle" }));
+        await waitFor(() => expect(api.getRoster).toHaveBeenLastCalledWith("all"));
+    });
+
+    it("hides the filter while there is only one version", async () => {
+        await openPage({ ...rosterData([rosterChar("Anna")]), versions: [VERSIONS[0]] });
+        expect(screen.queryByRole("radiogroup", { name: "Spielversion" })).not.toBeInTheDocument();
+    });
+});

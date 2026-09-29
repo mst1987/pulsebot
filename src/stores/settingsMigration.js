@@ -29,6 +29,11 @@
 //     boss's version (TBC for all of them so far). Existing plans are not
 //     touched (their event carries the version).
 //
+//   - raider-profiles.json, spec-history.json (#543): characters know their game
+//     version. Every profile character and every imported spec without
+//     `versionId` becomes a TBC one — that is what they were. Character keys
+//     do not move (a TBC key is the bare name).
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
@@ -41,6 +46,8 @@ const raidplanStore = require("./raidplanStore");
 const raidplanCatalogStore = require("./raidplanCatalogStore");
 const raidplanTemplateStore = require("./raidplanTemplateStore");
 const raidplanProfileStore = require("./raidplanProfileStore");
+const raiderProfileStore = require("./raiderProfileStore");
+const specHistoryStore = require("./specHistoryStore");
 
 /**
  * The event-server list an old single-server block stands for: its
@@ -123,6 +130,16 @@ function migrateRaidplanVersions() {
     return out;
 }
 
+/** Characters per game version (#543): profile characters and imported specs without one become TBC ones. */
+function migrateCharacterVersions() {
+    const out = [];
+    const characters = raiderProfileStore.migrateCharacterVersions("tbc");
+    if (characters) out.push(`raider-profiles.json: ${characters} Charakter(e) ohne Spielversion auf versionId "tbc" gesetzt (#543)`);
+    const specs = specHistoryStore.migrateVersions("tbc");
+    if (specs) out.push(`spec-history.json: ${specs} importierte Spec(s) ohne Spielversion auf versionId "tbc" gesetzt (#543)`);
+    return out;
+}
+
 /**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
@@ -141,6 +158,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         const plans = raidplanStore.migrateEventDefaults({ instanceIdsOf: (plan) => (eventStore.getEvent(plan.eventId) || {}).instanceIds || [] });
         if (plans) changes.push(raidplanDefaultsLine(plans));
         changes.push(...migrateRaidplanVersions());
+        changes.push(...migrateCharacterVersions());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -149,4 +167,4 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
     return { changes };
 }
 
-module.exports = { migrateSettings, migrateRaidplanVersions, raidplanDefaultsLine, legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate };
+module.exports = { migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, raidplanDefaultsLine, legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate };

@@ -32,14 +32,15 @@
 // and every save goes through signupService.submitSignup (deadline, closed,
 // cancelled, raider role, profile rules). A customId is a hint, never a permission.
 const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
-const { getSignup, lastSignupOf } = require("../../stores/signupStore");
 const { migrateSignup, MAX_CHARACTERS } = require("../../services/signups/signupCharacters");
 const profiles = require("../../stores/raiderProfileStore");
 const { allowedStatuses, signupWindow } = require("../../services/signups/signupService");
 const { emojiOption, emojiText, specEmojiName, classEmojiName, uiEmojiName, statusEmojiName } = require("../../services/discord/appEmojis");
 const { BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { STATUS_CODES, STATUS_BY_CODE, STATUS_STATE, classesFor, buildCharacterModal } = require("./signupDialog");
-const { characterOptions, defaultPick } = require("./joinPicker");
+const { characterOptions, defaultPick, lastSignupInVersion } = require("./joinPicker");
+const { getSignup } = require("../../stores/signupStore");
+const { versionOfEvent } = require("../../services/events/mainVersion");
 const { MIN_NOTE } = require("../../services/signups/signupNotes");
 const { toEnglish } = require("./botEnglish");
 const { plainTitle, colorOf } = require("./signupReply");
@@ -82,7 +83,7 @@ function refusal(event, status, now = Date.now()) {
  * build their own icon alongside it (savedText) keep their exact old text.
  */
 function characterText(profile, entry, emojis = {}) {
-    const ch = ((profile && profile.characters) || []).find((c) => c.key === profiles.characterKey(entry.character));
+    const ch = profiles.findCharacter(profile, entry.character);
     const name = ch ? ch.name : entry.character;
     const icon = emojiText(emojis, specEmojiName(entry.spec));
     if (icon) return `${icon} ${name}`;
@@ -174,9 +175,9 @@ function firstCharacterTo(signup, status) {
 function withAddedCharacter(signup, entry) {
     const s = signup ? migrateSignup(signup) : null;
     if (!s || s.status === "absence" || !(s.characters || []).length) return { characters: [entry], status: entry.status };
-    const key = profiles.characterKey(entry.character);
+    const key = profiles.nameKey(entry.character);
     const list = s.characters.map((c) => ({ character: c.character, spec: c.spec, status: c.status }));
-    const at = list.findIndex((c) => profiles.characterKey(c.character) === key);
+    const at = list.findIndex((c) => profiles.nameKey(c.character) === key);
     if (at >= 0) list[at] = entry;
     else if (list.length >= MAX_CHARACTERS) {
         return { error: `You are already signed up with ${MAX_CHARACTERS} characters – pick again under “My characters …”.` };
@@ -206,13 +207,13 @@ function orderedValues(values, listed) {
  * select whose picks changed, and choosing the same characters again must still
  * save (e.g. "Anmelden" after "Spät" sets them back to "Dabei").
  */
-function pickOptions(profile, userId, eventId, { emojis = {} } = {}) {
-    const options = characterOptions(profile);
+function pickOptions(profile, userId, eventId, { emojis = {}, versionId = "" } = {}) {
+    const options = characterOptions(profile, versionId);
     const mine = migrateSignup(getSignup(eventId, userId));
     const current = mine && mine.status !== "absence"
-        ? (mine.characters || []).map((c) => options.find((o) => o.character === profiles.characterKey(c.character) && o.spec === c.spec)).filter(Boolean)
+        ? (mine.characters || []).map((c) => options.find((o) => profiles.nameKey(o.character) === profiles.nameKey(c.character) && o.spec === c.spec)).filter(Boolean)
         : [];
-    const likely = current.length ? null : defaultPick(options, { last: lastSignupOf(userId) });
+    const likely = current.length ? null : defaultPick(options, { last: versionId ? lastSignupInVersion(userId, versionId) : null });
     const first = current.length ? current : (likely ? [likely] : []);
     const ordered = [...first, ...options.filter((o) => !first.includes(o))];
     return ordered.slice(0, MAX_OPTIONS).map((o) => {
@@ -265,7 +266,7 @@ function classSelect(event, status, emojis, placeholder = "Pick a class …") {
  */
 function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "" } = {}) {
     const profile = profiles.getProfile(userId) || { characters: [] };
-    const options = pickOptions(profile, userId, event.id, { emojis });
+    const options = pickOptions(profile, userId, event.id, { emojis, versionId: versionOfEvent(event) });
     const max = Math.min(MAX_CHARACTERS, options.length);
     const lines = [headLine(event, status)];
     const mine = migrateSignup(getSignup(event.id, userId));
@@ -340,13 +341,14 @@ function buildSpecPicker(event, status, classId, { emojis = {} } = {}) {
 function buildNameModal(event, userId, status, specKey, { displayName = "" } = {}) {
     const info = profiles.specInfo(specKey) || {};
     const profile = profiles.getProfile(userId) || { characters: [] };
-    const sameClass = profile.characters.filter((c) => c.className === info.classId);
+    const versionId = versionOfEvent(event);
+    const sameClass = profiles.charactersOfVersion(profile, versionId).filter((c) => c.className === info.classId);
     const known = sameClass.find((c) => c.main) || sameClass[0];
     const cls = classesFor(event).find((c) => c.id === info.classId);
     return buildCharacterModal(btnId(event.id, "name", codeOf(status), specKey), {
         defaultName: known ? known.name : displayName,
         classText: [cls ? en(cls) : info.classId, en(info)].filter(Boolean).join(" · "),
-        versionId: event.versionId,
+        versionId,
     });
 }
 

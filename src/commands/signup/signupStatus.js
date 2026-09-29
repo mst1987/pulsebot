@@ -1,6 +1,7 @@
 const { getEvent } = require("../../stores/eventStore");
 const { getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
+const { versionOfEvent } = require("../../services/events/mainVersion");
 const { submitSignup, allowedStatuses, checkRaiderRole } = require("../../services/signups/signupService");
 const {
     STATUS_PREFIX, parseStatusId, resolveState, classLabel, buildSignupDialog, buildCharacterModal,
@@ -34,7 +35,7 @@ async function save(interaction, event, status, picks, character) {
     }
     const profile = profiles.getProfile(uid);
     // The waiting list (#306) rides on the same line as the confirmation.
-    const notice = [savedNotice(result.signup, profile), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
+    const notice = [savedNotice(result.signup, profile, versionOfEvent(event)), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
     return interaction.update(buildSignupDialog(event, uid, { state: picks, notice }));
 }
 
@@ -61,7 +62,7 @@ module.exports = {
                 className: info.classId,
                 specs: [{ key: info.key, gear: "usable" }],
                 source: "manual",
-            }, { name: (interaction.member && interaction.member.displayName) || interaction.user.username || "", versionId: event.versionId });
+            }, { name: (interaction.member && interaction.member.displayName) || interaction.user.username || "", versionId: versionOfEvent(event) });
             if (added.error) return interaction.update(buildSignupDialog(event, uid, { state: picks, notice: `⚠️ ${added.error}` }));
             return save(interaction, event, status, { ...picks, character: added.character.key }, added.character.key);
         }
@@ -78,7 +79,7 @@ module.exports = {
             const info = profiles.specInfo(picks.spec) || {};
             const defaultName = (interaction.member && interaction.member.displayName) || "";
             const classText = [classLabel(event, info.classId), info.labelEn || info.label].filter(Boolean).join(" · ");
-            return interaction.showModal(buildCharacterModal(interaction.customId, { defaultName, classText, versionId: event.versionId }));
+            return interaction.showModal(buildCharacterModal(interaction.customId, { defaultName, classText, versionId: versionOfEvent(event) }));
         }
         return save(interaction, event, status, picks, picks.character);
     },

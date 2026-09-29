@@ -137,16 +137,22 @@ function normalizeSignup(input = {}, { versionId = DEFAULT_VERSION } = {}) {
  * spec imported from Raid-Helper stands in (#291, specHistoryStore), marked
  * `imported` — its `character` is the name Raid-Helper had, which may not be a
  * profile character. Null without either.
+ *
+ * Per game version (#543): with `versionId` only a signup whose event plays it
+ * (`versionOf(eventId)`, handed in by the caller — this store does not read
+ * events) and only an imported spec of that version count.
+ * @param {string} userId
+ * @param {{ versionId?: string, versionOf?: (eventId: string) => string }} [opts]
  * @returns {{ eventId: string, character: string, spec: string, imported?: true }|null}
  */
-function lastSignupOf(userId) {
-    const own = lastOwnSignupOf(userId);
+function lastSignupOf(userId, { versionId = "", versionOf = null } = {}) {
+    const own = lastOwnSignupOf(userId, versionId && versionOf ? (eventId) => versionOf(eventId) === versionId : null);
     if (own) return own;
-    const imported = lastImportedSpecOf(userId);
+    const imported = lastImportedSpecOf(userId, { versionId });
     return imported ? { eventId: imported.eventId, character: imported.character, spec: imported.spec, imported: true } : null;
 }
 
-function lastOwnSignupOf(userId) {
+function lastOwnSignupOf(userId, keep = null) {
     const uid = String(userId || "");
     if (!uid) return null;
     let best = null;
@@ -154,6 +160,7 @@ function lastOwnSignupOf(userId) {
     for (const [eventId, byUser] of Object.entries(readAll())) {
         const s = byUser && byUser[uid];
         if (!s || !s.spec || s.status === "absence") continue;
+        if (keep && !keep(eventId)) continue;
         const at = Number(s.updatedAt) || Number(s.at) || 0;
         if (at > bestAt) {
             best = { eventId, character: s.character || "", spec: s.spec };

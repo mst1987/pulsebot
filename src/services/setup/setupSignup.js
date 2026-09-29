@@ -23,14 +23,15 @@ const signupService = require("../signups/signupService");
 const { STATUS_LABELS } = require("../events/eventManage");
 const setupEditor = require("./setupEditor");
 const { benchAndPool } = require("./setupCore");
-const { rulesForEvent } = require("../events/mainVersion");
+const { rulesForEvent, versionOfEvent } = require("../events/mainVersion");
 const { signupCharacters } = require("../../utils/setup/model");
 const { SIGNUP_STATUSES } = require("../../utils/attendance");
 const { str } = require("../../utils/text");
 
 const fail = (status, code, error) => ({ status, code, error });
 
-const keyOf = (name) => profiles.characterKey(name) || str(name).toLowerCase();
+// By name: the signup keeps "Devi Res", the profile key of a Forever character is "forever~devi res" (#543).
+const keyOf = (name) => profiles.nameKey(name) || str(name).toLowerCase();
 
 /** The event's rule set; without a version the one its category plays (#541). */
 function rulesOf(event) {
@@ -53,6 +54,7 @@ function signupOf(eventId, userId) {
  * character to choose from — the profile's characters, then the signup's own
  * ones the profile lacks — each with every spec of its class in the event's
  * rule set, the profile's specs first and the others marked `inProfile: false`.
+ * Only the profile characters of the event's game version are offered (#543).
  * @returns {{ failed?: object, view?: object }}
  */
 function signupEditView(eventId, userId) {
@@ -76,7 +78,7 @@ function signupEditView(eventId, userId) {
             .sort((a, b) => Number(b.inProfile) - Number(a.inProfile));
         options.push({ character: name, key, classId: cls.id, classLabel: cls.label, classColor: cls.color || "", classIcon: cls.icon || "", inProfile, specs });
     };
-    for (const c of (profile && profile.characters) || []) add(c.name, c.className, c.specs, true);
+    for (const c of profiles.charactersOfVersion(profile, versionOfEvent(event))) add(c.name, c.className, c.specs, true);
     for (const c of signupCharacters(signup)) add(str(c.character), specClass.get(str(c.spec)), [], false);
     return {
         view: {

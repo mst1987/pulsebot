@@ -13,10 +13,11 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").
 describe("the profile's suggestion from Raid-Helper", () => {
     it("prefills only the manual way and says where it came from", () => {
         const dialog = read("components", "profile", "AddCharacterDialog.tsx");
-        expect(dialog).toContain("if (way === \"manual\") applySuggestion();");
+        expect(dialog).toContain("if (way === \"manual\") applySuggestion(firstVersion);");
         expect(dialog).toContain("t(\"profile.add.fromRaidhelper\")");
         expect(require("../clientSource").dictionary("de")["profile.add.fromRaidhelper"]).toBe("aus Raid-Helper");
-        expect(read("pages", "profile", "ProfilePage.tsx")).toContain("suggestion={specSuggestion(data.specHistory)}");
+        // #543: per game version — the dialog asks for the suggestion of the version it adds to
+        expect(read("pages", "profile", "ProfilePage.tsx")).toContain("suggestionFor={(versionId) => specSuggestion(");
     });
 });
 

@@ -119,6 +119,8 @@ export type AnnotatedCharacter = {
     reportId: string;
     classColor: string;
     iconUrl: string;
+    /** The game versions the character has loot / a profile in (#543). */
+    versionIds?: string[];
 };
 
 export type HistoryData = {
@@ -131,6 +133,9 @@ export type HistoryData = {
     categoryLootTool: Record<string, string>;
     chars: AnnotatedCharacter[];
     activeGuildId: string;
+    /** The "Charaktere" tab's version filter (#543): the default and the choices. */
+    mainVersion?: string;
+    versions?: { id: string; label: string; short: string; count: number }[];
 };
 
 export function getHistoryData(): Promise<HistoryData> {

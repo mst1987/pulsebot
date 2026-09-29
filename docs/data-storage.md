@@ -63,8 +63,8 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/logGear.json` | `logGearStore.js` | Aus einem WCL-Report geladenes Gear je Raider | nein |
 | `settings/characters.json` | `characterStore.js` | Klasse/Spec je Charakter (Cache aus Loot und Logs) | nein |
 | `settings/raider-characters.json` | `raiderCharactersStore.js` | Charakter je Raider und Raid-Kategorie (Orga-Zuordnung) | nein |
-| `settings/raider-profiles.json` | `raiderProfileStore.js` | „Mein Profil“: Charaktere, Specs, Wünsche der Raider | nein |
-| `settings/spec-history.json` | `specHistoryStore.js` | Spec-Historie (u. a. aus dem Raid-Helper-Import) | nein |
+| `settings/raider-profiles.json` | `raiderProfileStore.js` | „Mein Profil“: Charaktere (je mit `versionId`, #543), Specs, Wünsche der Raider | nein |
+| `settings/spec-history.json` | `specHistoryStore.js` | Spec-Historie (u. a. aus dem Raid-Helper-Import), je Eintrag `versionId` (#543) | nein |
 | `settings/roster-hidden.json` | `rosterHiddenStore.js` | Im Roster ausgeblendete Charaktere | nein |
 | `settings/council-excluded.json` | `councilStore.js` | Raider, mit denen der Loot-Council nicht mehr plant | nein |
 | `settings/council-roles.json` | `councilStore.js` | Rolle je Raider, die der Council festlegt (Offspec-Abende) | nein |

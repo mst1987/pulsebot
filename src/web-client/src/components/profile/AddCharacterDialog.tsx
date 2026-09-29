@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
     addProfileCharacter, getLogCharacters,
-    type AddCharacterInput, type ApiError, type GameClass, type LogCharacterSuggestion, type RaiderProfile,
+    type AddCharacterInput, type ApiError, type GameClass, type LogCharacterSuggestion, type ProfileVersion, type RaiderProfile,
 } from "../../api";
 import { Badge, Button, Modal, RaidLoader, Segment, WowIcon } from "../ui";
 import { classColorProps } from "../ClassSpec";
@@ -17,6 +17,11 @@ import { useT } from "../../i18n";
 //   manual — name, class and specs by hand.
 // No confirmation by the orga: a character another account already has is
 // added all the same and marked, so the page says so instead of refusing.
+//
+// Every character belongs to a game version (#543): with more than one version
+// the dialog asks for it first (the main version preselected); the classes and
+// specs are that version's, and a version with last names (WoW Forever) gets a
+// first- and a last-name field.
 
 export type AddWay = "log" | "armory" | "manual";
 
@@ -28,16 +33,34 @@ const WAYS: { value: AddWay; key: string; icon: string }[] = [
 
 const MATCH_KEY: Record<string, string> = { assigned: "profile.add.matchAssigned", name: "profile.add.matchName" };
 
-export default function AddCharacterDialog({ way, onClose, classes, onAdded, suggestion = null }: {
+/** Letters per name part, as utils/signup/characterNames.js checks it. */
+const NAME_PART_MAX = 12;
+
+export default function AddCharacterDialog({
+    way, onClose, classes, onAdded, suggestion = null, suggestionFor, versions = [], classesByVersion, defaultVersion = "",
+}: {
     way: AddWay | null;
     /** #291: class, specs and name from the raider's imported Raid-Helper signups — prefills "Von Hand". */
     suggestion?: CharacterSuggestion | null;
+    /** The same per game version (#543) — wins over `suggestion`. */
+    suggestionFor?: (versionId: string) => CharacterSuggestion | null;
     onClose: () => void;
     classes: GameClass[];
     onAdded: (profile: RaiderProfile, key: string) => void;
+    /** The versions a character can belong to, the main version first (#543). */
+    versions?: ProfileVersion[];
+    classesByVersion?: Record<string, GameClass[]>;
+    /** The version preselected — the main version. */
+    defaultVersion?: string;
 }) {
     const t = useT();
     const [tab, setTab] = useState<AddWay>(way || "log");
+    const firstVersion = defaultVersion || versions[0]?.id || "";
+    const [version, setVersion] = useState(firstVersion);
+    const [lastName, setLastName] = useState("");
+    const versionInfo = versions.find((v) => v.id === version);
+    const withLastName = !!versionInfo?.lastName;
+    const versionClasses = (version && classesByVersion?.[version]) || classes;
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const [needClass, setNeedClass] = useState(false);
@@ -47,11 +70,12 @@ export default function AddCharacterDialog({ way, onClose, classes, onAdded, sug
     const [specs, setSpecs] = useState<string[]>([]);
 
     const [suggested, setSuggested] = useState(false);
-    const applySuggestion = () => {
-        if (!suggestion || !classes.some((c) => c.id === suggestion.className)) return;
-        setName((cur) => cur || suggestion.name);
-        setClassName(suggestion.className);
-        setSpecs(suggestion.specs);
+    const applySuggestion = (forVersion = version) => {
+        const s = suggestionFor ? suggestionFor(forVersion) : suggestion;
+        if (!s || !versionClasses.some((c) => c.id === s.className)) return;
+        setName((cur) => cur || s.name);
+        setClassName(s.className);
+        setSpecs(s.specs);
         setSuggested(true);
     };
 
@@ -61,11 +85,13 @@ export default function AddCharacterDialog({ way, onClose, classes, onAdded, sug
         setError("");
         setNeedClass(false);
         setName("");
+        setLastName("");
         setRealm("");
         setClassName("");
         setSpecs([]);
         setSuggested(false);
-        if (way === "manual") applySuggestion();
+        setVersion(firstVersion);
+        if (way === "manual") applySuggestion(firstVersion);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [way]);
 
@@ -73,7 +99,7 @@ export default function AddCharacterDialog({ way, onClose, classes, onAdded, sug
         setBusy(true);
         setError("");
         try {
-            const res = await addProfileCharacter(input);
+            const res = await addProfileCharacter(version ? { ...input, versionId: version } : input);
             onAdded(res.profile, res.character.key);
         } catch (e) {
             const err = e as ApiError;
@@ -84,8 +110,18 @@ export default function AddCharacterDialog({ way, onClose, classes, onAdded, sug
         }
     };
 
-    const cls = classes.find((c) => c.id === className);
+    const cls = versionClasses.find((c) => c.id === className);
+    // Forever: "Vorname Nachname" — one space between, as the name rule wants it.
+    const fullName = withLastName && lastName.trim() ? `${name.trim()} ${lastName.trim()}` : name.trim();
     const canSubmit = !!name.trim() && (tab === "armory" ? (!needClass || !!className) : !!className);
+    const pickVersion = (next: string) => {
+        setVersion(next);
+        setError("");
+        setClassName("");
+        setSpecs([]);
+        setSuggested(false);
+        if (!(versions.find((v) => v.id === next)?.lastName)) setLastName("");
+    };
 
     return (
         <Modal
@@ -104,25 +140,50 @@ export default function AddCharacterDialog({ way, onClose, classes, onAdded, sug
                         running={busy}
                         disabled={!canSubmit}
                         onClick={() => submit(tab === "armory"
-                            ? { source: "armory", name, realm, className: className || undefined }
-                            : { source: "manual", name, className, specs })}
+                            ? { source: "armory", name: fullName, realm, className: className || undefined }
+                            : { source: "manual", name: fullName, className, specs })}
                     >
                         {tab === "armory" ? t("profile.add.link") : t("profile.add.create")}
                     </Button>
                 </>
             )}
         >
+            {versions.length > 1 && (
+                <div className="pf-version-pick">
+                    <span className="kicker">{t("profile.add.version")}</span>
+                    <Segment<string>
+                        ariaLabel={t("profile.add.versionAria")}
+                        value={version}
+                        onChange={pickVersion}
+                        options={versions.map((v) => ({ value: v.id, label: v.short || v.label }))}
+                    />
+                </div>
+            )}
             <Segment<AddWay> ariaLabel={t("profile.add.wayAria")} value={tab} onChange={(v) => { setTab(v); setError(""); if (v === "manual" && !className) applySuggestion(); }} options={WAYS.map((w) => ({ value: w.value, label: t(w.key), icon: w.icon }))} />
 
-            {tab === "log" && <LogList classes={classes} busy={busy} onPick={(c) => submit({ source: "log", name: c.character })} />}
+            {tab === "log" && <LogList classes={versionClasses} busy={busy} onPick={(c) => submit({ source: "log", name: c.character })} />}
 
             {tab !== "log" && (
                 <div className="pf-form">
-                    <div className="field">
-                        <label htmlFor="pf-name">{t("profile.add.name")}</label>
-                        <input id="pf-name" value={name} maxLength={25} onChange={(e) => setName(e.target.value)} autoComplete="off" />
-                        <p className="hint">{t("profile.add.nameHint")}</p>
-                    </div>
+                    {withLastName ? (
+                        <div className="pf-name-pair">
+                            <div className="field">
+                                <label htmlFor="pf-name">{t("profile.add.firstName")}</label>
+                                <input id="pf-name" value={name} maxLength={NAME_PART_MAX} onChange={(e) => setName(e.target.value.replace(/\s+/g, ""))} autoComplete="off" />
+                            </div>
+                            <div className="field">
+                                <label htmlFor="pf-lastname">{t("profile.add.lastName")}</label>
+                                <input id="pf-lastname" value={lastName} maxLength={NAME_PART_MAX} onChange={(e) => setLastName(e.target.value.replace(/\s+/g, ""))} autoComplete="off" />
+                            </div>
+                            <p className="hint pf-name-hint">{t("profile.add.lastNameHint", { version: versionInfo?.label || "" })}</p>
+                        </div>
+                    ) : (
+                        <div className="field">
+                            <label htmlFor="pf-name">{t("profile.add.name")}</label>
+                            <input id="pf-name" value={name} maxLength={versions.length ? NAME_PART_MAX : 25} onChange={(e) => setName(e.target.value)} autoComplete="off" />
+                            <p className="hint">{versions.length ? t("profile.add.nameHintOne") : t("profile.add.nameHint")}</p>
+                        </div>
+                    )}
                     {tab === "armory" && (
                         <div className="field">
                             <label htmlFor="pf-realm">{t("profile.add.realm")}</label>
@@ -136,7 +197,7 @@ export default function AddCharacterDialog({ way, onClose, classes, onAdded, sug
                                 <Badge tip={t("profile.add.fromRaidhelperTip")} tipSub={t("profile.add.fromRaidhelperSub")}>{t("profile.add.fromRaidhelper")}</Badge>
                             )}</label>
                             <div className="pf-classes">
-                                {classes.map((c) => {
+                                {versionClasses.map((c) => {
                                     const color = classColorProps(c.color);
                                     return (
                                         <button key={c.id} type="button" className={`pf-class${c.id === className ? " is-on" : ""}`}

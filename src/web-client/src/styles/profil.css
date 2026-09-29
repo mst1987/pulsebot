@@ -20,7 +20,17 @@
 .pf-err { color: var(--high); }
 
 /* ---- character chips ---- */
+/* Grouped by game version (#543): the main version first, a small label per group. */
+.pf-chip-groups { display: flex; flex-wrap: wrap; gap: 10px 24px; }
+.pf-chip-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .pf-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+/* The add dialog: which version the character belongs to, and Forever's first + last name. */
+.pf-version-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.pf-name-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.pf-name-hint { grid-column: 1 / -1; }
+@media (max-width: 520px) {
+    .pf-name-pair { grid-template-columns: 1fr; }
+}
 .pf-chip {
     display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 5px; border-radius: 999px;
     background: var(--panel2); border: 1px solid var(--line); color: var(--text); font: 600 14px/1.2 inherit; cursor: pointer;

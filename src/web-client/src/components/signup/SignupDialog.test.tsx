@@ -279,3 +279,20 @@ describe("Warteliste im Dialog (#306)", () => {
         expect(screen.queryByText(t("signups.dialog.toastSaved", { title: "Kara Freitag", status: SIGNUP_STATUS.signed.label }))).not.toBeInTheDocument();
     });
 });
+
+describe("SignupDialog je Spielversion (#543)", () => {
+    it("sagt, welcher Charakter fehlt, und verlinkt aufs Profil", () => {
+        renderPage(<SignupDialog row={ownRow()} profile={{ ...PROFILE, characters: [] }} missingVersion="Forever" classes={CLASSES} onClose={vi.fn()} onSaved={vi.fn()} />);
+        expect(screen.getByText(t("signups.dialog.noVersionChar", { version: "Forever" }), { exact: false })).toBeInTheDocument();
+        const link = screen.getByRole("link", { name: t("signups.dialog.noVersionCharLink", { version: "Forever" }) });
+        expect(link).toHaveAttribute("href", "/profile");
+        // signing off still works, signing up waits for a character
+        expect(radio("absence")).toBeEnabled();
+        expect(radio("signed")).toBeDisabled();
+    });
+
+    it("ohne jeden Charakter bleibt der bisherige Hinweis", () => {
+        renderPage(<SignupDialog row={ownRow()} profile={{ ...PROFILE, characters: [] }} classes={CLASSES} onClose={vi.fn()} onSaved={vi.fn()} />);
+        expect(screen.getByRole("link", { name: t("signups.dialog.noCharLink") })).toBeInTheDocument();
+    });
+});
