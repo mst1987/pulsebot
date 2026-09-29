@@ -172,6 +172,11 @@
 .rp-crow-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .rp-crow-main strong { font-size: 14px; }
 .rp-crow-tools { display: inline-flex; gap: 2px; }
+/* A narrow phone moves the tools under the name instead of past the edge (#551). */
+@media (max-width: 600px) {
+    .rp-crow { flex-wrap: wrap; }
+    .rp-crow-tools { margin-left: auto; }
+}
 .rp-crow.is-hidden { opacity: .75; border-style: dashed; }
 .rp-segtext { height: var(--ctl-h-sm, 32px); padding: 0 12px; border: 0; background: var(--panel2); color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
 .rp-segtext.is-on { background: var(--accent); color: var(--on-fill); }
