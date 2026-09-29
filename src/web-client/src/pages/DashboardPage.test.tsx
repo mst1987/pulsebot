@@ -14,6 +14,7 @@ vi.mock("../api", async (orig) => ({
     ...(await orig<typeof import("../api")>()),
     getDashboard: vi.fn(),
     getNextRaidDetails: vi.fn(),
+    recreateChannel: vi.fn(),
 }));
 
 const DAY = 86400;
@@ -179,6 +180,29 @@ describe("Übersicht (DashboardPage)", () => {
         await showPage(dashboard({ nextRaid: raid({ softres: null, lootSystem }) }));
         expect(screen.queryByText(t("dashboard.lootBadge.softresMissing"))).not.toBeInTheDocument();
         expect(screen.getByText("Loot-Council")).toHaveAttribute("data-tip", t("dashboard.lootBadge.systemTip", { label: "Loot-Council" }));
+    });
+
+    it("offers \"Kanal neu anlegen\" beside a missing channel's task, then reloads (#537)", async () => {
+        const missing = task({
+            id: "channel-missing:eh-1", tone: "bad", title: "Kanal von Karazhan fehlt", href: "/raids/detail?event=eh-1",
+            action: { kind: "recreateChannel", eventId: "eh-1", label: "Kanal neu anlegen" },
+        });
+        vi.mocked(api.recreateChannel).mockResolvedValue({ message: "Kanal #mi-kara angelegt, Anmelde-Nachricht gepostet.", channelId: "c9", channelName: "mi-kara" });
+        await showPage(dashboard({ tasks: [missing] }));
+        const link = screen.getByRole("link", { name: /Kanal von Karazhan fehlt/ });
+        const button = screen.getByRole("button", { name: "Kanal neu anlegen" });
+        // the button sits beside the link, never inside it
+        expect(link.contains(button)).toBe(false);
+        vi.mocked(api.getDashboard).mockResolvedValue(dashboard({ tasks: [] }));
+        await userEvent.click(button);
+        expect(api.recreateChannel).toHaveBeenCalledWith("eh-1");
+        expect(await screen.findByText("Kanal #mi-kara angelegt, Anmelde-Nachricht gepostet.")).toBeInTheDocument();
+        await waitFor(() => expect(screen.getByText(t("dashboard.tasks.allDone"))).toBeInTheDocument());
+    });
+
+    it("links the next raid's Discord post only while its channel exists (#537)", async () => {
+        await showPage(dashboard({ nextRaid: raid({ channelState: "missing" }) }));
+        expect(screen.queryByRole("link", { name: new RegExp(t("dashboard.next.discordTip")) })).not.toBeInTheDocument();
     });
 
     it("uses the tooltip box, never a native title", async () => {

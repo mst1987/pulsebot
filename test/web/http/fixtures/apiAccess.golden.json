@@ -84,6 +84,7 @@
     "/api/raids/manage/cancel": "raids",
     "/api/raids/manage/reopen": "raids",
     "/api/raids/manage/delete": "raids",
+    "/api/raids/manage/recreate-channel": "raids",
     "/api/raids/series": "raids",
     "/api/raids/series/preview": "raids",
     "/api/raids/series/run": "raids",

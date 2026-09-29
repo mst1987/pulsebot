@@ -8,6 +8,10 @@ const {
     icsUrlFor, publicEventUrl, userIcsUrl, icsFileName,
 } = require("../../../src/services/events/icsFeed");
 const { event: baseEvent } = require("../../factories/events");
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("222222222222222222"));
 
 // 2026-09-24 19:30 UTC
 const START = Math.floor(Date.UTC(2026, 8, 24, 19, 30) / 1000);

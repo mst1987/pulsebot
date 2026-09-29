@@ -252,6 +252,12 @@ describe("the head and the roster of an own event", () => {
         expect(screen.queryByText(t("raidDetail.hero.signupsClosed"))).not.toBeInTheDocument();
     });
 
+    it("says the channel is missing instead of linking a deleted one (#537)", async () => {
+        await show(raidDetail({}, { channelState: "missing" }));
+        expect(screen.getByText(t("raidDetail.hero.channelMissing"))).toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: t("raidDetail.hero.eventPostAria") })).not.toBeInTheDocument();
+    });
+
     it("marks a closed signup", async () => {
         await show(raidDetail({}, { signupsClosed: true }));
         expect(t("raidDetail.hero.signupsClosed")).toBe("Anmeldung geschlossen");

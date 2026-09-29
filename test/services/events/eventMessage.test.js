@@ -18,6 +18,7 @@ const discord = require("../../../src/services/discord/discord");
 const appEmojis = require("../../../src/services/discord/appEmojis");
 const { event: baseEvent } = require("../../factories/events");
 const { makeClient, makeChannel } = require("../../helpers/discordClient");
+const { deletedChannels, linkCheck } = require("../../helpers/linkCheck");
 const {
     rosterCounts, rosterEntries, messagePhase, postEventMessage, refreshEventMessage, startEventMessageSync, messageComponents,
     _internal: {
@@ -540,6 +541,35 @@ describe("services/events/eventMessage", () => {
         expect(links({ compUrl: "https://docs.google.com/spreadsheets/d/abc", srUrl: "https://softres.it/raid/abc" })).toBe(
             `${head}  ·  [Sheet](https://docs.google.com/spreadsheets/d/abc)  ·  [SR](https://softres.it/raid/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)`,
         );
+    });
+
+    it("leaves out every link that would not open: no PUBLIC_BASE_URL, a malformed sheet or softres link (#537)", () => {
+        const variables = require("../../../src/config/variables");
+        const lastField = (opts) => {
+            const fields = buildEventMessage(event(), signups, { now: NOW, ...opts }).embeds[0].fields;
+            return fields[fields.length - 1].value;
+        };
+        expect(lastField({ compUrl: "docs.google.com/x", srUrl: "javascript:alert(1)" })).not.toMatch(/\[Sheet\]|\[SR\]/);
+        const before = variables.publicBaseUrl;
+        variables.publicBaseUrl = "";
+        try {
+            const fields = buildEventMessage(event(), signups, { now: NOW, compUrl: "https://docs.google.com/spreadsheets/d/abc" }).embeds[0].fields;
+            const text = JSON.stringify(fields);
+            expect(text).not.toMatch(/\[Event\]|\[Sign up\]|\[Comp\]|\[Calendar\]/);
+            expect(fields[fields.length - 1].value).toBe("[Sheet](https://docs.google.com/spreadsheets/d/abc)");
+        } finally {
+            variables.publicBaseUrl = before;
+        }
+    });
+
+    it("touches nothing in Discord for an event whose channel was deleted (#537)", async () => {
+        deletedChannels("c1");
+        getEvent.mockReturnValue(event({ message: { channelId: "c1", messageId: "m1", hash: "old" } }));
+        const { channel } = fakeDiscord();
+        await expect(refreshEventMessage("eh-1")).resolves.toEqual({ channelId: "c1", messageId: "", reposted: false, channelMissing: true });
+        expect(channel.send).not.toHaveBeenCalled();
+        expect(setEventMessage).not.toHaveBeenCalled();
+        linkCheck._reset();
     });
 
     it("links Comp to the redirect route of the event, one link for everybody (#520)", () => {

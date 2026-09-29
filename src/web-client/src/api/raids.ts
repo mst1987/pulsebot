@@ -1,4 +1,5 @@
 import { get, send } from "./client";
+import type { ChannelState } from "../lib/discordLinks";
 import type { EventLog } from "./dashboard";
 import type { Channel, ChannelNameSuggestion } from "./channels";
 import type { EventSource } from "./raidDetail";
@@ -14,6 +15,8 @@ export type RaidListBase = {
     startTime: number;
     channelId: string;
     channelName: string;
+    /** Whether the channel still exists (#537); the post is linked only on "ok". */
+    channelState?: ChannelState;
     categoryId: string;
     categoryName: string;
     contentIds: string[];

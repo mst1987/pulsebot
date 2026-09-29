@@ -42,6 +42,8 @@
         "sizeDefault": "Content not recognised – measured against the default size of 25.",
         "discordPost": "Open Discord post",
         "discordPostSub": "Jumps to the signup message.",
+        "channelMissing": "Channel missing",
+        "channelMissingSub": "The Discord channel was deleted – “Recreate channel” on the overview.",
         "discordPostSubIn": "Jumps to the signup message in #{channel}.",
         "setup": "Setup/Comp",
         "setupSub": "This event's composition in Raid-Helper.",

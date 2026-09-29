@@ -14,6 +14,10 @@ const discord = require("../../../src/services/discord/discord");
 const ping = require("../../../src/services/discord/pingDelivery");
 const { event: baseEvent } = require("../../factories/events");
 const { makeGuild, makeChannel } = require("../../helpers/discordClient");
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("110000", "x"));
 
 const config = (over = {}) => ({
     guildId: "100000",

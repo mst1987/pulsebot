@@ -23,8 +23,9 @@ const { discordTimestamp, shortServerTime } = require("../../utils/time");
 const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder,
 } = require("discord.js");
-const { embedAccentColor, publicBaseUrl } = require("../../config/variables");
+const { embedAccentColor } = require("../../config/variables");
 const discord = require("../discord/discord");
+const linkCheck = require("../discord/linkCheck");
 const guildRoles = require("../discord/guildRoles");
 const { loadEventGroups } = require("../events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
@@ -41,6 +42,8 @@ const RAID_SEP = "\n\n";
 // both name and value keeps it invisible.
 const SPACER = "​";
 const spacerField = () => ({ name: SPACER, value: SPACER, inline: false });
+// What a raid line shows instead of a link to a channel that is gone (#537).
+const CHANNEL_MISSING = "channel missing";
 
 const SELECT_ID = "talk-signup";
 // "Für alle Raids anmelden" / "Mehrere Raids wählen …" (#293, commands/signup/talkSignupAll|Multi.js)
@@ -56,9 +59,19 @@ const DEBOUNCE_MS = 3000;
 // right after creating a Raid-Helper event would not see it yet.
 const RAIDHELPER_CREATE_DELAY_MS = 35 * 1000;
 
-/** The web pages the buttons lead to. */
-function overviewLinks(baseUrl = publicBaseUrl) {
+/**
+ * `baseUrl` when it is an address a raider can open (http/https), without
+ * trailing slashes — "" otherwise (#537: no links into the localhost fallback).
+ */
+function usableBase(baseUrl) {
     const base = String(baseUrl || "").replace(/\/+$/, "");
+    return /^https?:\/\/[^\s/]+/i.test(base) ? base : "";
+}
+
+/** The web pages the buttons lead to; null without a usable base url (no buttons then). */
+function overviewLinks(baseUrl = linkCheck.webBase()) {
+    const base = usableBase(baseUrl);
+    if (!base) return null;
     return {
         web: `${base}/raids`,
         signups: `${base}/signups`,
@@ -66,15 +79,24 @@ function overviewLinks(baseUrl = publicBaseUrl) {
     };
 }
 
-/** "https://discord.com/channels/<guild>/<channel>", "" without both ids. */
-function channelUrl(guildId, channelId) {
-    return guildId && channelId ? `https://discord.com/channels/${guildId}/${channelId}` : "";
-}
-
 /** The public event page ("/e/<id>") on `baseUrl` — only own events have one, "" without a base url. */
 function eventUrl(eventId, baseUrl) {
-    const base = String(baseUrl || "").replace(/\/+$/, "");
+    const base = usableBase(baseUrl);
     return base && eventId ? `${base}/e/${encodeURIComponent(eventId)}` : "";
+}
+
+/**
+ * The channel part of a raid's meta line (#537): a link only when the channel
+ * exists (linkCheck), "channel missing" as plain text when it is gone, the bare
+ * name while nothing is known (bot offline since the start).
+ */
+function channelPart(event, eventGuildId, channelInfo) {
+    const name = `#${plain(event.channelName) || "event"}`;
+    if (!event.channelId) return "";
+    const info = channelInfo(eventGuildId, event.channelId);
+    if (info.url) return `[${name}](${info.url})`;
+    if (info.state === "missing") return CHANNEL_MISSING;
+    return name;
 }
 
 /**
@@ -108,7 +130,7 @@ function fillText(event) {
  * bigger inside an embed, so the title only gets emphasis through bold + the
  * link; the meta line is the one that shrinks.
  */
-function raidLine(event, eventGuildId, { emojis = {}, baseUrl = "" } = {}) {
+function raidLine(event, eventGuildId, { emojis = {}, baseUrl = "", channelInfo = linkCheck.channelInfo } = {}) {
     const title = plain(event.title) || "Raid";
     // A cancelled event (#288) stays listed until its day, struck through, so nobody wonders where it went.
     if (event.status === "cancelled") {
@@ -119,8 +141,8 @@ function raidLine(event, eventGuildId, { emojis = {}, baseUrl = "" } = {}) {
     const when = discordTimestamp(event.startTime, "F");
     const dateLine = when ? `${emojiText(emojis, uiEmojiName("date"), "🗓️")} ${when}` : "";
     const metaParts = [`${emojiText(emojis, uiEmojiName("signups"), "👥")} ${fillText(event)}`];
-    const url = channelUrl(eventGuildId, event.channelId);
-    if (url) metaParts.push(`[#${plain(event.channelName) || "event"}](${url})`);
+    const channel = channelPart(event, eventGuildId, channelInfo);
+    if (channel) metaParts.push(channel);
     if (event.source !== "eventhelper") metaParts.push("Raid-Helper");
     return [titleLine, dateLine, `-# ${metaParts.join(" · ")}`].filter(Boolean).join("\n");
 }
@@ -153,7 +175,7 @@ function upcomingGroups(groups, { now = Date.now(), categoryIds = [] } = {}) {
  * @returns {{ content: string, embeds: object[], components: object[] }} plain API JSON
  */
 function buildOverviewMessage(groups, opts = {}) {
-    const { eventGuildId = "", eventGuildName = "", baseUrl = publicBaseUrl, emojis = {} } = opts;
+    const { eventGuildId = "", eventGuildName = "", baseUrl = linkCheck.webBase(), emojis = {}, channelInfo = linkCheck.channelInfo } = opts;
     const list = upcomingGroups(groups, opts);
     const all = list.flatMap((g) => g.events.map((e) => ({ ...e, categoryName: g.categoryName })));
     // Nobody signs up for a cancelled raid (#288): it is shown, not offered.
@@ -176,7 +198,7 @@ function buildOverviewMessage(groups, opts = {}) {
         const lines = [];
         let length = 0;
         for (let i = 0; i < group.events.length; i++) {
-            const line = raidLine(group.events[i], eventGuildId, { emojis, baseUrl });
+            const line = raidLine(group.events[i], eventGuildId, { emojis, baseUrl, channelInfo });
             const rest = group.events.length - i - 1;
             // Room for this line, plus a "+N more" line if more follow.
             const reserve = rest ? 24 : 0;
@@ -222,12 +244,15 @@ function buildOverviewMessage(groups, opts = {}) {
             })));
         components.push(new ActionRowBuilder().addComponents(select));
     }
+    // Without PUBLIC_BASE_URL the web buttons would lead nowhere (#537): left out.
     const links = overviewLinks(baseUrl);
-    components.push(new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Web overview").setURL(links.web),
-        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("My signups").setURL(links.signups),
-        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("My profile").setURL(links.profile),
-    ));
+    if (links) {
+        components.push(new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Web overview").setURL(links.web),
+            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("My signups").setURL(links.signups),
+            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("My profile").setURL(links.profile),
+        ));
+    }
 
     return {
         content: "",
@@ -261,6 +286,8 @@ function overviewEntries(config = getConfig()) {
  */
 async function currentPayload({ config = getConfig(), now = Date.now(), guildId = guildRoles.eventGuildId(config) } = {}) {
     const { groups, error } = await loadEventGroups(guildId);
+    // Confirm every listed channel before a line links it (#537).
+    await linkCheck.checkChannels((groups || []).flatMap((g) => (g.events || []).map((e) => ({ guildId, channelId: e.channelId }))));
     const guild = discord.getGuild(guildId);
     const payload = buildOverviewMessage(groups, {
         eventGuildId: guildId,
@@ -374,7 +401,7 @@ function overviewStatus(config = getConfig()) {
             configured: true,
             channelId: entry.overviewChannelId,
             messageId: active ? state.messageId : "",
-            messageUrl: active ? `https://discord.com/channels/${entry.overviewGuildId}/${state.channelId}/${state.messageId}` : "",
+            messageUrl: active ? linkCheck.messageLink(entry.overviewGuildId, state.channelId, state.messageId) : "",
             postedAt: active ? state.postedAt : 0,
             editedAt: active ? state.editedAt : 0,
             checkedAt: state.checkedAt || 0,
@@ -428,7 +455,7 @@ function stopTalkOverview() {
 }
 
 module.exports = {
-    SELECT_ID, ALL_BUTTON_ID, MULTI_BUTTON_ID, RAIDHELPER_CREATE_DELAY_MS, channelUrl, currentPayload, syncOverview, overviewStatus,
+    SELECT_ID, ALL_BUTTON_ID, MULTI_BUTTON_ID, RAIDHELPER_CREATE_DELAY_MS, CHANNEL_MISSING, currentPayload, syncOverview, overviewStatus,
     scheduleOverviewSync, startTalkOverview, stopTalkOverview,
     // only for the tests (#424): not part of the module's API
     _internal: {

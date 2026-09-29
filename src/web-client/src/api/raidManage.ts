@@ -46,6 +46,11 @@ export type ManageCandidates = {
     classes: { id: string; label: string; color: string; icon: string; specs: ManageSpec[] }[];
 };
 
+/** "Kanal neu anlegen" (#537): the event's deleted channel made anew, the signup message posted in it. */
+export function recreateChannel(eventId: string): Promise<ManageResult & { channelId: string; channelName: string }> {
+    return send("POST", "/api/raids/manage/recreate-channel", { event: eventId });
+}
+
 export function getManageInfo(eventId: string): Promise<ManageInfo> {
     return get<ManageInfo>(`/api/raids/manage?event=${encodeURIComponent(eventId)}`);
 }

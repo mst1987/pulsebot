@@ -13,11 +13,25 @@ export const isOwnEventId = (eventId: string) => String(eventId || "").startsWit
 export const channelUrl = (guildId: string, channelId: string) =>
     `https://discord.com/channels/${guildId}/${channelId}`;
 
-/** The event's post in Discord; for an own event its channel (the bot's message id is not the event id). */
-export const eventPostUrl = (guildId: string, channelId: string, eventId: string) =>
-    isOwnEventId(eventId)
+/**
+ * What the server knows about an event's channel (#537, services/discord/linkCheck.js):
+ * "ok" = it exists, "missing" = deleted, "unknown" = the bot cannot tell.
+ */
+export type ChannelState = "ok" | "missing" | "unknown";
+
+/** Whether a channel may be linked: only when the server says it exists (an answer without the field counts as before). */
+export const channelLinkable = (state?: ChannelState) => !state || state === "ok";
+
+/**
+ * The event's post in Discord; for an own event its channel (the bot's message id is not the event id).
+ * "" — no link — without ids or while the channel is not known to exist (#537: no dead links).
+ */
+export const eventPostUrl = (guildId: string, channelId: string, eventId: string, state?: ChannelState) => {
+    if (!guildId || !channelId || !channelLinkable(state)) return "";
+    return isOwnEventId(eventId)
         ? channelUrl(guildId, channelId)
         : `https://discord.com/channels/${guildId}/${channelId}/${eventId}`;
+};
 
 /** The Raid-Helper raidplan, "" for an own event (it has none — render no link). */
 export const raidplanUrl = (eventId: string) =>

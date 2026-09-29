@@ -4,6 +4,7 @@ const { SlashCommandBuilder } = require("discord.js");
 const { DateTime } = require("luxon");
 const { listEvents, statusOf, statusCounts, STATUS_LABELS, STATUS_ICONS } = require("../../services/events/eventLookup");
 const { eventGuildId } = require("../../services/discord/guildRoles");
+const linkCheck = require("../../services/discord/linkCheck");
 const { webUrl, lookupReply, deferLookup, discordTime, respondChoices, clip } = require("../../utils/discord/botLookup");
 const { TIMEZONE } = require("../../config/timezone");
 
@@ -67,7 +68,9 @@ module.exports = {
         // Events live on the event server, whichever server the command came from.
         const guildId = eventGuildId() || (interaction.guild && interaction.guild.id) || "";
         const links = [{ label: "Im Web öffnen", url: webUrl(`/raids/detail?event=${encodeURIComponent(event.id)}`) }];
-        if (event.channelId && guildId) links.push({ label: "Zum Kanal", url: `https://discord.com/channels/${guildId}/${event.channelId}` });
+        // only a channel that exists (#537)
+        const channelUrl = linkCheck.channelLink(guildId, event.channelId);
+        if (channelUrl) links.push({ label: "Zum Kanal", url: channelUrl });
         return lookupReply(interaction, {
             title: event.title || "Raid",
             description: `${discordTime(event.startTime, "F")} (${discordTime(event.startTime, "R")})${where ? `\n${where}` : ""}`,

@@ -12,6 +12,10 @@ jest.mock("../../../src/services/discord/discord", () => ({ postNotice: (...a) =
 
 const { suggestSearch, textForNeeds, postSearch } = require("../../../src/services/setup/raidSearch");
 const { event: baseEvent } = require("../../factories/events");
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("c1"));
 
 const slots = (n) => Array.from({ length: n }, (_, i) => ({ userId: `u${i}` }));
 function event(over = {}) {

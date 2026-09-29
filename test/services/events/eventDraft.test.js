@@ -15,6 +15,10 @@ const { loadEventGroups } = require("../../../src/services/events/raidEventGroup
 const { eventGuildId } = require("../../../src/services/discord/guildRoles");
 const { createEvent } = require("../../../src/services/events/eventCreate");
 const draft = require("../../../src/services/events/eventDraft");
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("300", "301", "302", "556", "555"));
 
 const CAT_EH = "100000000000000001";
 const CAT_RH = "100000000000000002";

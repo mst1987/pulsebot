@@ -118,12 +118,17 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                 </div>
                 <div className="rd-hero-actions">
                     {manage}
-                    <a
-                        className="ibtn" href={eventPostUrl(data.guildId, ev.channelId, ev.id)} target="_blank" rel="noopener noreferrer"
-                        data-tip={t("raidDetail.hero.eventPost")} data-tip-sub={channel ? `#${channel}` : undefined} aria-label={t("raidDetail.hero.eventPostAria")}
-                    >
-                        <WowIcon name="inv_letter_15" size={24} />
-                    </a>
+                    {ev.channelState === "missing" && (
+                        <Badge tone="bad" icon="inv_letter_15" tip={t("raidDetail.hero.channelMissing")} tipSub={t("raidDetail.hero.channelMissingSub")}>{t("raidDetail.hero.channelMissing")}</Badge>
+                    )}
+                    {eventPostUrl(data.guildId, ev.channelId, ev.id, ev.channelState) && (
+                        <a
+                            className="ibtn" href={eventPostUrl(data.guildId, ev.channelId, ev.id, ev.channelState)} target="_blank" rel="noopener noreferrer"
+                            data-tip={t("raidDetail.hero.eventPost")} data-tip-sub={channel ? `#${channel}` : undefined} aria-label={t("raidDetail.hero.eventPostAria")}
+                        >
+                            <WowIcon name="inv_letter_15" size={24} />
+                        </a>
+                    )}
                     {raidplanUrl(ev.id) && (
                         <a
                             className="ibtn" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer"

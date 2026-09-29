@@ -17,7 +17,7 @@ const { noteMode } = require("../../services/signups/signupNotes");
 
 const CLASS_COLORS = new Map(rulesFor(DEFAULT_VERSION).classes.map((c) => [c.id, c.color]));
 
-const discordChannelUrl = (guildId, channelId) => (guildId && channelId ? `https://discord.com/channels/${guildId}/${channelId}` : "");
+const linkCheck = require("../../services/discord/linkCheck");
 
 /** A profile's characters as the signup dialog picks from them. */
 function profileForSignup(profile) {
@@ -117,12 +117,12 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
                 size: row.raidSize,
                 attending,
                 accounts,
-                discordUrl: discordChannelUrl(guildId, row.channelId),
+                discordUrl: linkCheck.channelLink(guildId, row.channelId),
             };
             if (source !== "eventhelper") {
                 return {
                     ...base,
-                    discordUrl: guildId && row.channelId ? `${base.discordUrl}/${row.id}` : "",
+                    discordUrl: linkCheck.messageLink(guildId, row.channelId, row.id),
                     mine: own ? { status: signupStatus(own), specName: own.specName || "" } : null,
                 };
             }
@@ -133,7 +133,7 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
             const msg = stored.message;
             return {
                 ...base,
-                discordUrl: msg && msg.messageId ? `${discordChannelUrl(guildId, msg.channelId || row.channelId)}/${msg.messageId}` : base.discordUrl,
+                discordUrl: (msg && msg.messageId && linkCheck.messageLink(guildId, msg.channelId || row.channelId, msg.messageId)) || base.discordUrl,
                 versionId: ev.versionId || "",
                 deadline: win.deadline,
                 deadlinePassed: win.deadlinePassed,

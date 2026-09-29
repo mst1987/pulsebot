@@ -5,13 +5,14 @@ const { activeGuildFor } = require("../http/activeGuild");
 const discord = require("../../services/discord/discord");
 const {
     loadNextRaids, loadNextRaidDetails, loadRecentEvents, loadTopLoot,
-    loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive,
+    loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive, loadMissingChannels,
 } = require("../dashboard/dashboardData");
 const { userCanAny } = require("../../config/permissions");
 const { buildTasks, zoneFor } = require("../dashboard/dashboardOverview");
 const { loadDrift } = require("../../services/discord/roleSync");
 const { seriesFailures } = require("../events/eventSeries");
 const { deployStatus } = require("../http/deployStatus");
+const linkCheck = require("../../services/discord/linkCheck");
 
 /** The series failures with their category's name; best-effort, never fails the dashboard. */
 function seriesFailuresFor(guildId) {
@@ -53,11 +54,13 @@ const getDashboard = withUser({}, async ({ user, req, res }) => {
     // settings, the same audience the footer line has. Best-effort and cached
     // for ten minutes in deployStatus.js, so it never slows the page down twice.
     const deploy = userCanAny(user, ["settings"], "read") ? await deployStatus() : null;
+    // Raids whose channel is gone (#537), for whoever sees the raids.
+    const missingChannels = userCanAny(user, ["raids"], "read") ? await loadMissingChannels(guildId) : [];
 
     ok(res, {
         kicker: kickerFor(guildId),
-        nextRaid: next.raids[0] || null,
-        followingRaid: next.raids[1] || null,
+        nextRaid: linkCheck.withChannelState(guildId, next.raids.slice(0, 1))[0] || null,
+        followingRaid: linkCheck.withChannelState(guildId, next.raids.slice(1, 2))[0] || null,
         nextRaidError: next.error,
         tasks: buildTasks({
             nextRaids: next.raids, recentEvents: recentEvents.events, report, inbox,
@@ -67,6 +70,8 @@ const getDashboard = withUser({}, async ({ user, req, res }) => {
             // Failed dates of a recurring event (#289), for whoever can open the series page.
             seriesFailures: userCanAny(user, ["raids"], "read") ? seriesFailuresFor(guildId) : [],
             deploy,
+            missingChannels,
+            canRecreate: userCanAny(user, ["raids"], "write"),
         }),
         areas: {
             lastReport: report,
@@ -77,7 +82,7 @@ const getDashboard = withUser({}, async ({ user, req, res }) => {
         topLoot: loadTopLoot(5),
         recentEvents: {
             ...recentEvents,
-            events: recentEvents.events.map((ev) => ({ ...ev, icon: zoneFor(ev.title).icon })),
+            events: linkCheck.withChannelState(guildId, recentEvents.events).map((ev) => ({ ...ev, icon: zoneFor(ev.title).icon })),
         },
         activeGuildId: guildId,
     });

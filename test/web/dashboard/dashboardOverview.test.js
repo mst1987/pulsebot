@@ -252,3 +252,29 @@ describe("roleDriftTask", () => {
         expect(tasksFor({ roleDrift: drift }).map((t) => t.id)).toEqual(["rolesync"]);
     });
 });
+
+describe("missingChannelTasks (#537)", () => {
+    const { buildTasks: tasksFor, _internal: { missingChannelTasks } } = require("../../../src/web/dashboard/dashboardOverview");
+    const gone = { eventId: "eh-1", title: "Karazhan", startTime: 2000, channelName: "mi-kara" };
+
+    it("makes one red task per raid whose channel is gone, with the button for the orga", () => {
+        const [task] = missingChannelTasks([gone], { canRecreate: true });
+        expect(task).toMatchObject({
+            id: "channel-missing:eh-1", tone: "bad", title: "Kanal von Karazhan fehlt",
+            ref: { title: "#mi-kara", at: 2000000 }, href: "/raids/detail?event=eh-1",
+            action: { kind: "recreateChannel", eventId: "eh-1", label: "Kanal neu anlegen" },
+        });
+    });
+
+    it("leaves the button out for a reader, and names the raid without a channel name", () => {
+        const [task] = missingChannelTasks([{ ...gone, channelName: "" }]);
+        expect(task.action).toBeUndefined();
+        expect(task.ref.title).toBe("Karazhan");
+        expect(missingChannelTasks(null)).toEqual([]);
+    });
+
+    it("sits in buildTasks' list", () => {
+        const tasks = tasksFor({ nextRaids: [{ id: "n", title: "x", sheet: { url: "u" } }], missingChannels: [gone], canRecreate: true });
+        expect(tasks.map((t) => t.id)).toEqual(["channel-missing:eh-1"]);
+    });
+});

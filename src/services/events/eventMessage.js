@@ -60,7 +60,7 @@
 // Nothing personal goes in beyond the character names the raiders signed up
 // with — the names the channel would see in Raid-Helper, too.
 const crypto = require("crypto");
-const { publicBaseUrl } = require("../../utils/publicUrl");
+const linkCheck = require("../discord/linkCheck");
 // Colour and picture of the embed (#307): the event's own, else the rule set of
 // its instances, else the accent — and never a picture Discord cannot load.
 const { embedColor, embedImageFields, messageLookOf } = require("./embedLook");
@@ -539,7 +539,10 @@ function buildEventMessage(event, signups, {
     // it and added height on top of an already tall embed (#352). The Setup
     // link below still points at it.
     const setupText = approvedSetupText(event);
-    const base = publicBaseUrl();
+    // Every link goes through linkCheck (#537): a web link only with a real
+    // PUBLIC_BASE_URL (not the localhost fallback), sheet and softres only
+    // when well formed — a link that would not open is left out.
+    const base = linkCheck.webBase();
     const id = encodeURIComponent(event.id);
     const links = [];
     // The public event page first (#308): it is the link everyone in the channel
@@ -556,9 +559,11 @@ function buildEventMessage(event, signups, {
     // configStore.resolveEventSheetLink) and its softres.it reservation list
     // (eventSoftresStore), when either is on record (#357). The sheet was
     // "Comp" until #520 gave that name to the setup link.
-    if (compUrl) links.push(`[Sheet](${compUrl})`);
-    if (srUrl) links.push(`[SR](${srUrl})`);
-    const cal = icsUrl || icsUrlFor(event.id);
+    const sheet = linkCheck.externalLink(compUrl);
+    const sr = linkCheck.externalLink(srUrl);
+    if (sheet) links.push(`[Sheet](${sheet})`);
+    if (sr) links.push(`[SR](${sr})`);
+    const cal = linkCheck.externalLink(icsUrl) || (base ? icsUrlFor(event.id) : "");
     if (cal) links.push(`[Calendar](${cal})`);
     if (links.length) tail.push({ name: ZWS, value: links.join("  ·  "), inline: false });
 
@@ -635,6 +640,11 @@ async function postEventMessage(eventId) {
 async function refreshEventMessage(eventId) {
     const event = getEvent(eventId);
     if (!event) return null;
+    // The channel is gone (#537): nothing to edit, nowhere to post — the
+    // dashboard asks the orga to create it anew (eventManage.recreateChannel).
+    if (linkCheck.channelState(event.guildId, event.channelId) === "missing") {
+        return { channelId: event.channelId, messageId: "", reposted: false, channelMissing: true };
+    }
     const payload = await payloadFor(event);
     const hash = payloadHash(payload);
     if (event.message) {

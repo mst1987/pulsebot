@@ -10,8 +10,11 @@
 const { fail } = require("../../web/http/apiResult");
 const raidplanStore = require("../../stores/raidplanStore");
 const { getRaidplanPost, markRaidplanPosted } = require("../../stores/raidplanPostStore");
-const { publicBaseUrl } = require("../../utils/publicUrl");
 const discord = require("../discord/discord");
+const linkCheck = require("../discord/linkCheck");
+
+// What the post says while the plan is not shared (#537): the link would lead nowhere, so it goes.
+const NOT_SHARED = "The raid assignments are not shared right now.";
 
 /** Whether an event (as loadEventGroups lists it) has a raid plan: an own event always, a Raid-Helper event once switched on. */
 function eventHasPlan(event, plan) {
@@ -55,11 +58,15 @@ async function postRaidplanLink({ event, message, userId = "" }) {
     if (!planFilled(plan)) {
         return fail(400, "empty_plan", "Der Raidplan ist noch leer – erst im Tab „Raidplan“ einteilen und speichern.");
     }
-    const base = publicBaseUrl();
-    if (!/^https?:\/\//.test(base)) {
+    const base = linkCheck.webBase();
+    if (!base) {
         return fail(400, "no_public_url", "PUBLIC_BASE_URL ist nicht gesetzt – ohne sie gibt es keinen Link, den Raider öffnen können.");
     }
     if (!event.channelId) return fail(400, "no_channel", "Das Event hat keinen Kanal.");
+    // A deleted channel (#537): nothing to post into — the dashboard offers "Kanal neu anlegen".
+    if (await linkCheck.checkChannel(event.guildId || "", event.channelId) === "missing") {
+        return fail(409, "channel_missing", "Der Kanal des Events existiert nicht mehr – erst über die Übersicht „Kanal neu anlegen“.");
+    }
 
     const before = getRaidplanPost(event.id);
     const text = message !== undefined ? String(message || "") : ((before && before.message) || "");
@@ -106,7 +113,9 @@ function raidplanPostState(event) {
     const plan = raidplanStore.getPlan(event && event.id);
     if (!eventHasPlan(event, plan)) return null;
     const published = !!(plan && plan.status === "published" && plan.publicToken);
-    const post = getRaidplanPost(event.id);
+    const stored = getRaidplanPost(event.id);
+    // A post whose message or channel is gone is no post to link to (#537).
+    const post = stored && stored.messageId && linkCheck.messageState(event.guildId || "", stored.channelId, stored.messageId) === "missing" ? null : stored;
     return {
         filled: planFilled(plan),
         published,
@@ -118,4 +127,25 @@ function raidplanPostState(event) {
     };
 }
 
-module.exports = { postRaidplanLink, raidplanPostState, linkMessage, eventHasPlan, planFilled };
+/**
+ * Keep a posted read link true after the plan's sharing changed (#537): a new
+ * token puts the new link in, a withdrawn share takes the link out (the message
+ * says the assignments are not shared). Best-effort, never throws.
+ * @returns {Promise<"none"|"linked"|"unlinked"|"failed">}
+ */
+async function syncRaidplanPost(event) {
+    const post = getRaidplanPost(event && event.id);
+    if (!post || !post.channelId || !post.messageId) return "none";
+    const url = linkCheck.webTarget("raidplan", event.id);
+    const opts = url
+        ? linkMessage({ url, title: event.title, startTime: event.startTime, message: post.message })
+        : { ...linkMessage({ url: "", title: event.title, startTime: event.startTime, message: NOT_SHARED }), url: "" };
+    try {
+        await discord.editLink(post.channelId, post.messageId, opts);
+        return url ? "linked" : "unlinked";
+    } catch {
+        return "failed";
+    }
+}
+
+module.exports = { postRaidplanLink, raidplanPostState, syncRaidplanPost, linkMessage, eventHasPlan, planFilled, NOT_SHARED };

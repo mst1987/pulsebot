@@ -136,8 +136,9 @@ export function UpcomingRaidList({ events, guildId, canWrite, onRepeat, emptyMes
                                     <Bar value={ev.signupCount} max={ev.raidSize} tone={signupTone(ev.signupCount, ev.raidSize)} label={`${ev.signupCount} / ${ev.raidSize}`} />
                                 </span>
                                 <div className="re-acts">
-                                    {guildId && ev.channelId && (
-                                        <IconLink href={eventPostUrl(guildId, ev.channelId, ev.id)} icon="inv_letter_15" tip={t("raids.list.discordPost")} tipSub={ev.channelName ? t("raids.list.discordPostSubIn", { channel: ev.channelName }) : t("raids.list.discordPostSub")} />
+                                    {ev.channelState === "missing" && <Badge tone="bad" tip={t("raids.list.channelMissing")} tipSub={t("raids.list.channelMissingSub")}>{t("raids.list.channelMissing")}</Badge>}
+                                    {eventPostUrl(guildId, ev.channelId, ev.id, ev.channelState) && (
+                                        <IconLink href={eventPostUrl(guildId, ev.channelId, ev.id, ev.channelState)} icon="inv_letter_15" tip={t("raids.list.discordPost")} tipSub={ev.channelName ? t("raids.list.discordPostSubIn", { channel: ev.channelName }) : t("raids.list.discordPostSub")} />
                                     )}
                                     {raidplanUrl(ev.id) && <IconLink href={raidplanUrl(ev.id)} icon="inv_misc_groupneedmore" tip={t("raids.list.setup")} tipSub={t("raids.list.setupSub")} />}
                                     {ev.softres?.url && <IconLink href={ev.softres.url} icon="inv_scroll_11" tip="Softres" tipSub={t("raids.list.softresSub")} />}

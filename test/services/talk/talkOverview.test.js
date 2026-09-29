@@ -25,13 +25,17 @@ const discord = require("../../../src/services/discord/discord");
 const { getConfig } = require("../../../src/stores/settingsStore");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const {
-    channelUrl, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview, currentPayload,
+    CHANNEL_MISSING, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview, currentPayload,
     _internal: {
         buildOverviewMessage, formatStart, payloadHash, overviewLinks,
     },
 } = require("../../../src/services/talk/talkOverview");
 const { event: baseEvent } = require("../../factories/events");
-const { makeClient, makeChannel } = require("../../helpers/discordClient");
+const { makeClient, makeChannel, makeGuild } = require("../../helpers/discordClient");
+const { knownChannels, deletedChannels, linkCheck } = require("../../helpers/linkCheck");
+
+// The event channels of these tests exist unless a test says otherwise (#537).
+beforeEach(() => knownChannels("c1", "c2", "c3", "ov"));
 
 const NOW = Date.UTC(2026, 8, 16, 12, 0); // Wed 16.09.2026 14:00 Berlin
 const sec = (y, m, d, h, min) => Math.floor(Date.UTC(y, m - 1, d, h, min) / 1000);
@@ -50,9 +54,29 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
         expect(formatStart(0)).toBe("");
     });
 
-    it("links into the event channel on the event server", () => {
-        expect(channelUrl("111", "c1")).toBe("https://discord.com/channels/111/c1");
-        expect(channelUrl("", "c1")).toBe("");
+    it("links into the event channel only while it exists — a deleted one reads \"channel missing\" (#537)", () => {
+        deletedChannels("c1");
+        linkCheck.channelCreated("c2");
+        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [
+            ev({ id: "e1", channelId: "c1" }),
+            ev({ id: "e2", channelId: "c2", channelName: "do-bt", startTime: sec(2026, 9, 18, 17, 30) }),
+            ev({ id: "e3", channelId: "c9", channelName: "fr-kara", startTime: sec(2026, 9, 19, 17, 30) }),
+        ] }], opts);
+        const meta = payload.embeds[0].fields[0].value.split("\n").filter((l) => l.startsWith("-#"));
+        expect(meta[0]).toContain(`· ${CHANNEL_MISSING} ·`);
+        expect(meta[0]).not.toContain("discord.com");
+        expect(meta[1]).toContain("[#do-bt](https://discord.com/channels/111/c2)");
+        // nothing known about c9 (bot offline since the start): the name, no link
+        expect(meta[2]).toContain("· #fr-kara");
+        expect(meta[2]).not.toContain("discord.com");
+    });
+
+    it("leaves the web buttons and title links out without a usable PUBLIC_BASE_URL (#537)", () => {
+        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev({ id: "eh-1", source: "eventhelper" })] }], { ...opts, baseUrl: "" });
+        expect(JSON.stringify(payload)).not.toContain("/raids");
+        expect(payload.embeds[0].fields[0].value).toContain("**SSC + TK**");
+        expect(payload.components.some((r) => r.components.some((c) => c.style === 5))).toBe(false);
+        expect(overviewLinks("http://")).toBeNull();
     });
 
     it("groups the upcoming raids by category, soonest category first, one line per raid", () => {
@@ -290,6 +314,23 @@ describe("services/talk/talkOverview — syncOverview", () => {
         expect(results).toHaveLength(2);
         expect(results[0]).toMatchObject({ guildId: "111", label: "PvE", status: "error" });
         expect(results[1]).toMatchObject({ guildId: "112", label: "PvP" });
+    });
+
+    it("shows a posted overview as \"channel missing\" once its event channel is deleted (#537)", async () => {
+        const { channel } = fakeDiscord();
+        // online, the event server cached without c1: the channel is gone
+        discord.getClient.mockReturnValue(makeClient({ channels: [channel], guilds: [makeGuild({ id: "111", channels: [] })] }));
+        linkCheck._reset();
+        await syncOverview({ guildId: "111" });
+        const posted = channel.send.mock.calls[0][0];
+        expect(posted.embeds[0].fields[0].value).toContain(CHANNEL_MISSING);
+        expect(JSON.stringify(posted)).not.toContain("discord.com/channels/111/c1");
+    });
+
+    it("drops the jump link of an overview message deleted in Discord (#537)", () => {
+        mockStates["111"] = { channelId: "ov", messageId: "m1", postedAt: 1, editedAt: 2, checkedAt: 3 };
+        linkCheck.messageDeleted("m1");
+        expect(overviewStatus(config)[0].messageUrl).toBe("");
     });
 
     it("reports the status with a jump link for the settings page", () => {

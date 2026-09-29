@@ -22,6 +22,10 @@ const eventStore = require("../../../src/stores/eventStore");
 const de = require("../../../src/services/discord/discordEvent");
 const { event: baseEvent } = require("../../factories/events");
 const { makeGuild, makeChannel } = require("../../helpers/discordClient");
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("c1"));
 
 const START = 2000000000; // the factory's start time
 const event = (over = {}) => baseEvent({

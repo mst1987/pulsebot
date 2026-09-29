@@ -11,7 +11,8 @@
 // when it opens.
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { getDashboard, type DashboardData, type DashboardRaid, type DashboardTask } from "../api";
+import { getDashboard, recreateChannel, type ApiError, type DashboardData, type DashboardRaid, type DashboardTask } from "../api";
+import { useToast } from "../components/Jobs";
 import { useApi } from "../hooks/useApi";
 import AsyncView from "../components/ui/AsyncView";
 import PageHead from "../components/ui/PageHead";
@@ -122,7 +123,7 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                                 : <Badge tone="mid" icon="inv_misc_groupneedmore" tip={t("dashboard.next.setupOpenTip")} tipSub={t("dashboard.next.setupOpenSub")}>{t("dashboard.next.setupOpen")}</Badge>}
                             <LootBadge raid={raid} />
                             <span className="ov-links">
-                                {guildId && raid.channelId && <IconLink icon="inv_letter_15" href={eventPostUrl(guildId, raid.channelId, raid.id)} tip={t("dashboard.next.discordTip")} tipSub={t("dashboard.next.discordSub")} />}
+                                {eventPostUrl(guildId, raid.channelId, raid.id, raid.channelState) && <IconLink icon="inv_letter_15" href={eventPostUrl(guildId, raid.channelId, raid.id, raid.channelState)} tip={t("dashboard.next.discordTip")} tipSub={t("dashboard.next.discordSub")} />}
                                 {raidplanUrl(raid.id) && <IconLink icon="inv_misc_groupneedmore" href={raidplanUrl(raid.id)} tip={t("dashboard.next.setupTip")} tipSub={t("dashboard.next.setupSub")} />}
                                 {raid.softres && <IconLink icon="inv_scroll_11" href={raid.softres.url} tip={t("dashboard.next.softresTip")} tipSub={t("dashboard.next.softresSub")} />}
                             </span>
@@ -150,8 +151,30 @@ function taskRef(task: DashboardTask): string {
     return [task.ref.title, task.ref.at ? dayDate(task.ref.at) : ""].filter(Boolean).join(" · ");
 }
 
+/**
+ * A task's own button (#537: "Kanal neu anlegen") — beside the row, not inside
+ * its link. Runs the action, says what happened and reloads the dashboard.
+ */
+function TaskAction({ task, onDone }: { task: DashboardTask; onDone?: () => void }) {
+    const toast = useToast();
+    const [busy, setBusy] = useState(false);
+    const action = task.action;
+    if (!action || action.kind !== "recreateChannel") return null;
+    const run = () => {
+        setBusy(true);
+        recreateChannel(action.eventId)
+            .then((r) => {
+                toast(r.warnings && r.warnings.length ? `${r.message}\n${r.warnings.join("\n")}` : r.message, r.warnings && r.warnings.length ? "err" : undefined);
+                if (onDone) onDone();
+            })
+            .catch((err: ApiError) => toast(err.message, "err"))
+            .finally(() => setBusy(false));
+    };
+    return <Button size="sm" variant="ghost" running={busy} onClick={run}>{action.label}</Button>;
+}
+
 /** The open tasks: one row per task that exists, each leading straight to where it is done. */
-export function TaskList({ tasks }: { tasks: DashboardTask[] }) {
+export function TaskList({ tasks, onChanged }: { tasks: DashboardTask[]; onChanged?: () => void }) {
     // The head says "something is open", not how bad the worst row is — the rows carry their own tone.
     const t = useT();
     const tone = tasks.length ? "mid" : "ok";
@@ -172,17 +195,23 @@ export function TaskList({ tasks }: { tasks: DashboardTask[] }) {
                 : (
                     <div className="ov-rows">
                         {/* `t` here is the task (it shadows the translator; the row shows server texts only) */}
-                        {tasks.map((t) => (
-                            <RowLink key={t.id} href={t.href} className="ov-row ov-task" tip={t.tip} tipSub={t.tipSub}>
-                                <IconTile icon={t.icon} tone={(t.tile as TileTone) || TASK_TILE[t.tone]} />
-                                <span className="grow">
-                                    <span className="t1">{t.title}</span>
-                                    <span className="t2">{taskRef(t)}</span>
-                                </span>
-                                {t.count > 0 && <Badge tone={t.tone} count>{t.count}</Badge>}
-                                <span className="ov-go" aria-hidden="true"><ChevronRightIcon /></span>
-                            </RowLink>
-                        ))}
+                        {tasks.map((t) => {
+                            const row = (
+                                <RowLink key={t.id} href={t.href} className="ov-row ov-task" tip={t.tip} tipSub={t.tipSub}>
+                                    <IconTile icon={t.icon} tone={(t.tile as TileTone) || TASK_TILE[t.tone]} />
+                                    <span className="grow">
+                                        <span className="t1">{t.title}</span>
+                                        <span className="t2">{taskRef(t)}</span>
+                                    </span>
+                                    {t.count > 0 && <Badge tone={t.tone} count>{t.count}</Badge>}
+                                    <span className="ov-go" aria-hidden="true"><ChevronRightIcon /></span>
+                                </RowLink>
+                            );
+                            // A task with its own button: the button sits beside the link, never inside it.
+                            return t.action
+                                ? <div key={t.id} className="ov-task-act">{row}<TaskAction task={t} onDone={onChanged} /></div>
+                                : row;
+                        })}
                     </div>
                 )}
         </section>
@@ -338,7 +367,7 @@ export default function DashboardPage() {
                                 raid={data.nextRaid} following={data.followingRaid} error={data.nextRaidError}
                                 guildId={data.activeGuildId} onDetails={() => setDetailsOpen(true)}
                             />
-                            <TaskList tasks={data.tasks} />
+                            <TaskList tasks={data.tasks} onChanged={() => void dashboard.reload()} />
                         </div>
 
                         <AreaTiles areas={data.areas} />

@@ -60,8 +60,9 @@ function LootCell({ ev }: { ev: RaidRow }) {
 function LinksCell({ ev, guildId }: { ev: RaidRow; guildId: string }) {
     const t = useT();
     const links: React.ReactNode[] = [];
-    if (guildId && ev.channelId) {
-        links.push(<a key="discord" className="mlink" href={eventPostUrl(guildId, ev.channelId, ev.id)} target="_blank" rel="noopener noreferrer">Discord</a>);
+    const post = eventPostUrl(guildId, ev.channelId, ev.id, ev.channelState);
+    if (post) {
+        links.push(<a key="discord" className="mlink" href={post} target="_blank" rel="noopener noreferrer">Discord</a>);
     }
     if (raidplanUrl(ev.id)) {
         links.push(<a key="setup" className="mlink" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer">{t("raids.list.setup")}</a>);

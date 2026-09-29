@@ -13,6 +13,7 @@
 //   POST /api/raids/manage/cancel                      { event, reason, archiveChannel, notify }
 //   POST /api/raids/manage/reopen                      { event }
 //   POST /api/raids/manage/delete                      { event, archiveChannel, notify, confirmStarted }
+//   POST /api/raids/manage/recreate-channel            { event } — the event's channel was deleted (#537)
 const { ok } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { sendResult } = require("../http/apiResult");
@@ -83,6 +84,11 @@ const postDelete = action(async ({ user, body: b, req, res }) => {
     }));
 });
 
+/** "Kanal neu anlegen" (#537, dashboard task "Kanal von <Event> fehlt"). */
+const postRecreateChannel = action(async ({ user, body, req, res }) => {
+    sendResult(res, await manage.recreateChannel({ guildId: activeGuildFor(req), eventId: body.event, user, byName: user.name }));
+});
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/raids/manage", handler: getManage, area: "raids" },
@@ -95,9 +101,10 @@ const routes = [
     { method: "POST", path: "/api/raids/manage/cancel", handler: postCancel, area: "raids" },
     { method: "POST", path: "/api/raids/manage/reopen", handler: postReopen, area: "raids" },
     { method: "POST", path: "/api/raids/manage/delete", handler: postDelete, area: "raids" },
+    { method: "POST", path: "/api/raids/manage/recreate-channel", handler: postRecreateChannel, area: "raids" },
 ];
 
 module.exports = {
-    getManage, getMovePreview, postMove, postSignups, getRaiderCandidates, postRaider, postRaiderRemove, postCancel, postReopen, postDelete,
+    getManage, getMovePreview, postMove, postSignups, getRaiderCandidates, postRaider, postRaiderRemove, postCancel, postReopen, postDelete, postRecreateChannel,
     routes,
 };

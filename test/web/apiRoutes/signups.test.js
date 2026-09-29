@@ -47,6 +47,10 @@ const { categoryVisible } = require("../../../src/web/signups/signupView");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { mockRes, status, json } = require("../../helpers/http");
 const { ownEvent: ownEventFixture } = require("../../factories/events");
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("c1", "c2"));
 
 const ANNA = { id: "200000000000000001", name: "Anna", isAdmin: false, access: { signup: { read: true, write: true } } };
 const BERT = { id: "200000000000000002", name: "Bert", isAdmin: false, access: { signup: { read: true, write: true } } };

@@ -10,6 +10,7 @@ const { handleLogMessage } = require("./services/logcheck/logChannel.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
 const { guardInteraction } = require("./services/discord/botAccess.js");
 const { ensureAppEmojis } = require("./services/discord/appEmojiSync.js");
+const linkWatch = require("./services/discord/linkWatch.js");
 const { loadCommandModules, kindOf } = require("./commands/loader.js");
 const { startJobs } = require("./web/http/jobs.js");
 const logger = require("./logger.js").child("bot");
@@ -72,6 +73,10 @@ client.on("guildMemberAdd", (member) => {
     Promise.resolve(handleMemberAdd(member))
         .catch((error) => console.error("guildMemberAdd handler error:", error.message));
 });
+
+// A deleted channel or tracked message (#537): links to it go at once, the
+// overviews redraw, a deleted signup message is posted anew (linkWatch.js).
+linkWatch.attach(client);
 
 // Resolve the command/handler key: slash commands use commandName; component
 // customIds may carry an argument after ":" (e.g. "logcheck-eval:<id>"), so the

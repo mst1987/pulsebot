@@ -363,3 +363,37 @@ describe("web/dashboard/dashboardData area loaders", () => {
         expect(loadNewLoot(0)).toEqual({ count: 0, since: 0 });
     });
 });
+
+describe("web/dashboard/dashboardData loadMissingChannels (#537)", () => {
+    const { loadMissingChannels } = require("../../../src/web/dashboard/dashboardData");
+    const eventStore = require("../../../src/stores/eventStore");
+    const { knownChannels, linkCheck } = require("../../helpers/linkCheck");
+    const now = 1_800_000_000_000;
+
+    afterEach(() => linkCheck._reset());
+
+    it("lists the upcoming own raids whose channel is known to be gone, soonest first", async () => {
+        knownChannels("c-ok");
+        linkCheck.channelDeleted("c-gone");
+        linkCheck.channelDeleted("c-gone2");
+        eventStore.listEvents.mockReturnValueOnce([
+            { id: "eh-3", title: "Gruul", startTime: 300, channelId: "c-gone2", channelName: "fr-gruul" },
+            { id: "eh-1", title: "Kara", startTime: 100, channelId: "c-gone", channelName: "mi-kara" },
+            { id: "eh-2", title: "SSC", startTime: 200, channelId: "c-ok" },
+            { id: "eh-4", title: "Abgesagt", startTime: 150, channelId: "c-gone", status: "cancelled" },
+            { id: "eh-5", title: "Unbekannt", startTime: 160, channelId: "c-unknown" },
+        ]);
+        const list = await loadMissingChannels("g1", now);
+        expect(eventStore.listEvents).toHaveBeenCalledWith("g1", { sinceSeconds: Math.floor(now / 1000) });
+        expect(list).toEqual([
+            { eventId: "eh-1", title: "Kara", startTime: 100, channelName: "mi-kara" },
+            { eventId: "eh-3", title: "Gruul", startTime: 300, channelName: "fr-gruul" },
+        ]);
+    });
+
+    it("answers nothing without a guild or when the store fails", async () => {
+        expect(await loadMissingChannels("")).toEqual([]);
+        eventStore.listEvents.mockImplementationOnce(() => { throw new Error("disk"); });
+        expect(await loadMissingChannels("g1")).toEqual([]);
+    });
+});

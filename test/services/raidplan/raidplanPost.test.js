@@ -9,7 +9,8 @@ const discord = require("../../../src/services/discord/discord");
 const { publicBaseUrl } = require("../../../src/utils/publicUrl");
 const raidplanStore = require("../../../src/stores/raidplanStore");
 const { getRaidplanPost, markRaidplanPosted } = require("../../../src/stores/raidplanPostStore");
-const { postRaidplanLink, raidplanPostState, linkMessage, eventHasPlan, planFilled } = require("../../../src/services/raidplan/raidplanPost");
+const { postRaidplanLink, raidplanPostState, syncRaidplanPost, linkMessage, eventHasPlan, planFilled, NOT_SHARED } = require("../../../src/services/raidplan/raidplanPost");
+const { knownChannels, deletedChannels, linkCheck } = require("../../helpers/linkCheck");
 
 const OWN = { id: "eh-1", source: "eventhelper", title: "Karazhan", channelId: "chan1", startTime: 1800000000 };
 const RH = { id: "rh-1", source: "raidhelper", title: "Gruul", channelId: "chan2", startTime: 1800000000 };
@@ -23,6 +24,7 @@ function savePlan(eventId, { published = false } = {}) {
 beforeEach(() => {
     fs.__store.clear();
     jest.clearAllMocks();
+    linkCheck._reset();
     publicBaseUrl.mockReturnValue("https://eh.example");
     discord.postLink.mockResolvedValue({ channelId: "chan1", messageId: "m1" });
     discord.editLink.mockResolvedValue({ channelId: "chan1", messageId: "m1" });
@@ -71,6 +73,13 @@ describe("services/raidplan/raidplanPost", () => {
             expect(discord.postLink).not.toHaveBeenCalled();
             // nothing was published on the way
             expect(raidplanStore.getPlan("eh-1").status).toBe("draft");
+        });
+
+        it("refuses to post into a deleted channel (#537)", async () => {
+            savePlan("eh-1");
+            deletedChannels("chan1");
+            expect((await postRaidplanLink({ event: OWN })).error).toMatchObject({ status: 409, code: "channel_missing" });
+            expect(discord.postLink).not.toHaveBeenCalled();
         });
 
         it("publishes a draft plan, posts its read link and remembers the message", async () => {
@@ -127,17 +136,58 @@ describe("services/raidplan/raidplanPost", () => {
     });
 
     describe("raidplanPostState", () => {
+        it("drops a post whose message was deleted in Discord (#537)", () => {
+            savePlan("eh-1", { published: true });
+            markRaidplanPosted("eh-1", { channelId: "chan1", messageId: "m1", message: "Hi", now: 5 });
+            knownChannels("chan1");
+            expect(raidplanPostState(OWN)).toMatchObject({ channelId: "chan1", messageId: "m1" });
+            linkCheck.messageDeleted("m1");
+            expect(raidplanPostState(OWN)).toMatchObject({ channelId: "", messageId: "", postedAt: 0 });
+        });
+
         it("is null without a plan", () => {
             expect(raidplanPostState(RH)).toBeNull();
             expect(raidplanPostState(null)).toBeNull();
         });
 
         it("says filled, published, the read path and where it was posted", () => {
+            linkCheck._reset();
             expect(raidplanPostState(OWN)).toEqual({ filled: false, published: false, publicPath: "", channelId: "", messageId: "", message: "", postedAt: 0 });
             savePlan("eh-1", { published: true });
             markRaidplanPosted("eh-1", { channelId: "chan1", messageId: "m1", message: "Hi", now: 5 });
             const token = raidplanStore.getPlan("eh-1").publicToken;
             expect(raidplanPostState(OWN)).toEqual({ filled: true, published: true, publicPath: `/p/${token}`, channelId: "chan1", messageId: "m1", message: "Hi", postedAt: 5 });
         });
+    });
+});
+
+describe("services/raidplan/raidplanPost - syncRaidplanPost (#537)", () => {
+    it("does nothing without a post", async () => {
+        expect(await syncRaidplanPost(OWN)).toBe("none");
+        expect(discord.editLink).not.toHaveBeenCalled();
+    });
+
+    it("puts the new read link in after the token changed", async () => {
+        savePlan("eh-1", { published: true });
+        markRaidplanPosted("eh-1", { channelId: "chan1", messageId: "m1", message: "Hi" });
+        raidplanStore.setPublished("eh-1", true, { rotate: true, userId: "u1" });
+        const token = raidplanStore.getPlan("eh-1").publicToken;
+        expect(await syncRaidplanPost(OWN)).toBe("linked");
+        expect(discord.editLink).toHaveBeenCalledWith("chan1", "m1", expect.objectContaining({ url: `https://eh.example/p/${token}` }));
+    });
+
+    it("takes the link out once the share is withdrawn", async () => {
+        savePlan("eh-1", { published: true });
+        markRaidplanPosted("eh-1", { channelId: "chan1", messageId: "m1", message: "Hi" });
+        raidplanStore.setPublished("eh-1", false, { userId: "u1" });
+        expect(await syncRaidplanPost(OWN)).toBe("unlinked");
+        expect(discord.editLink).toHaveBeenCalledWith("chan1", "m1", expect.objectContaining({ url: "", message: expect.stringMatching(new RegExp(`^${NOT_SHARED}`)) }));
+    });
+
+    it("reports a failed edit instead of throwing", async () => {
+        savePlan("eh-1", { published: true });
+        markRaidplanPosted("eh-1", { channelId: "chan1", messageId: "m1", message: "Hi" });
+        discord.editLink.mockRejectedValueOnce(new Error("Unknown Message"));
+        expect(await syncRaidplanPost(OWN)).toBe("failed");
     });
 });

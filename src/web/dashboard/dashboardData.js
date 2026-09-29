@@ -31,7 +31,8 @@ const {
     zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, isAttending,
     lastReportArea, openRecommendations, newLootSince,
 } = require("./dashboardOverview");
-const { getEvent } = require("../../stores/eventStore");
+const { getEvent, listEvents } = require("../../stores/eventStore");
+const linkCheck = require("../../services/discord/linkCheck");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
 
 const RH_ERROR = "Events konnten nicht geladen werden (Raid-Helper API).";
@@ -323,7 +324,29 @@ function loadTopLoot(limit = 5) {
     return { items, configured: topItemCount };
 }
 
+/**
+ * The own upcoming raids of the guild whose Discord channel is gone (#537),
+ * soonest first — each one a dashboard task "Kanal von <Event> fehlt". Only a
+ * channel known to be missing counts: with the bot offline nothing is known
+ * and nothing is reported. A cancelled raid needs no channel.
+ */
+async function loadMissingChannels(guildId, now = Date.now()) {
+    if (!guildId) return [];
+    try {
+        const events = listEvents(guildId, { sinceSeconds: Math.floor(now / 1000) })
+            .filter((e) => e && e.channelId && e.status !== "cancelled");
+        await linkCheck.checkChannels(events.map((e) => ({ guildId, channelId: e.channelId })), now);
+        return events
+            .filter((e) => linkCheck.channelState(guildId, e.channelId, now) === "missing")
+            .sort((a, b) => (a.startTime || 0) - (b.startTime || 0))
+            .map((e) => ({ eventId: e.id, title: e.title || "", startTime: e.startTime || 0, channelName: e.channelName || "" }));
+    } catch (e) {
+        console.error("dashboard missing channels failed:", e.message);
+        return [];
+    }
+}
+
 module.exports = {
-    loadNextRaids, loadNextRaidDetails, loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive,
+    loadNextRaids, loadNextRaidDetails, loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive, loadMissingChannels,
     loadRecentEvents, annotateUpcomingExtras, loadTopLoot,
 };

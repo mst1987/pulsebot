@@ -18,6 +18,10 @@ const { getStoredEvent } = require("../../../src/services/events/eventSources");
 const command = require("../../../src/commands/signup/talkSignup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("c-1", "c-2"));
 
 beforeAll(() => profiles.useFile(tempStoreFile("eh-cmd-talk-signup.json")));
 afterAll(() => {

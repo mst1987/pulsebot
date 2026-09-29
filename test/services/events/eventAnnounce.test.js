@@ -13,6 +13,10 @@ const fs = require("fs");
 const { deliverAnnouncement } = require("../../../src/services/discord/pingDelivery");
 const eventStore = require("../../../src/stores/eventStore");
 const announce = require("../../../src/services/events/eventAnnounce");
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("c1"));
 
 const CAT = "300000000000000001";
 const START = 1_900_000_000;
