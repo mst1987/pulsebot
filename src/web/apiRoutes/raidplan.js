@@ -19,6 +19,8 @@
 //   PATCH  /api/raidplan/profiles             raids write: change / rename a profile
 //   DELETE /api/raidplan/profiles             raids write: delete a profile
 //   GET    /api/raidplan/public?token=<token> NO login — the token is the authentication
+//   GET    /api/raidplan/progress?token=<token> | ?event=<id>  what the linked log shows down / fought / next (#534):
+//                                             with a token like /public (no login), with an event raids read
 //   GET    /api/raidplan/link?event=<id>      raids read: a Raid-Helper event's switch and what its title suggests
 //   POST   /api/raidplan/link                 raids write: switch a Raid-Helper event's plan on / off (instances, size, version)
 //
@@ -46,6 +48,7 @@ const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { rulesFor } = require("../../config/gameVersions");
 const { raidhelperDisabled } = require("../../utils/raidhelper/client");
+const { progressFor } = require("../../services/raidplan/raidplanProgress");
 
 const canWrite = (user) => userCan(user, "raids", "write");
 
@@ -103,7 +106,7 @@ const putPlan = withUser({ write: "raids", csrf: true, body: true }, async ({ us
  * the editor shows them marked as a suggestion. An unknown type answers an empty list.
  */
 const postSuggest = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
-    let event = null;
+    let event;
     if (body.event) { const found = await eventOf(res, body.event); if (!found) return; event = found.event; }
     const type = String(body.type || "");
     ok(res, { assignments: assign.SUGGESTABLE.includes(type) ? raidplan.suggestFor(type, { event, slots: body.slots, roles: body.roles, preferredClasses: body.preferredClasses, allowOthers: body.allowOthers, keep: body.keep, preferredRole: body.preferredRole, context: body.context }) : [] });
@@ -317,6 +320,32 @@ async function getPublic(req, res, url) {
     ok(res, raidplan.publicView(plan, event, { me: viewer ? viewer.id : "" }));
 }
 
+/**
+ * GET /api/raidplan/progress?token=<token> (the read view) or ?event=<id> (the editor, raids read) — #534:
+ * `{ live, killed, current, next, updatedAt }` from the Warcraft Log linked to the event (raidplanProgress.js);
+ * without a log or outside the raid window `{ live: false, killed: [], current: null, next: null }`. The token
+ * answers the same 404 as /public for an unknown or withdrawn link. Listed with `auth: "none"` because the token
+ * is its own authentication; the event variant checks the session and the area itself.
+ */
+async function getProgress(req, res, url) {
+    const token = url.searchParams.get("token");
+    let event;
+    if (token) {
+        const plan = store.getPublishedByToken(token);
+        const found = plan ? await rosterSource.planEventFor(plan.eventId) : null;
+        event = found && found.event;
+        if (!plan || !event) return error(res, 404, "not_found", "Diesen Raidplan gibt es nicht (mehr).");
+    } else {
+        const user = auth.getUser(req);
+        if (!user) return error(res, 401, "unauthorized", "Nicht angemeldet.");
+        if (!userCan(user, "raids", "read")) return error(res, 403, "forbidden", "Kein Zugriff auf diesen Bereich.");
+        const found = await eventOf(res, url.searchParams.get("event"));
+        if (!found) return;
+        event = found.event;
+    }
+    ok(res, await progressFor(event));
+}
+
 /** The Raid-Helper event `id` of the active server (loadEventGroups, with past raids), or null. */
 async function raidhelperEventOf(req, id) {
     const { groups } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
@@ -430,6 +459,7 @@ const routes = [
     { method: "GET", path: "/api/raidplan/link", handler: getLink, area: "raids" },
     { method: "POST", path: "/api/raidplan/link", handler: postLink, area: "raids" },
     { method: "GET", path: "/api/raidplan/public", handler: getPublic, auth: "none" },
+    { method: "GET", path: "/api/raidplan/progress", handler: getProgress, auth: "none" },
 ];
 
 module.exports = {
@@ -437,7 +467,7 @@ module.exports = {
     getPlan, putPlan, postSuggest, postPublish, postGroups, postMap, postMapDelete,
     getCatalog, postMob, patchMob, deleteMob,
     postSpell, patchSpell, deleteSpell, postCatalogReset,
-    getProfiles, postProfile, patchProfile, deleteProfile, getPublic,
+    getProfiles, postProfile, patchProfile, deleteProfile, getPublic, getProgress,
     postApply, getTemplates, postTemplate, patchTemplate, deleteTemplate, postTemplateDuplicate,
     routes,
 };

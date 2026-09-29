@@ -44,4 +44,32 @@ describe("SheetBossNav", () => {
         fireEvent.click(screen.getByRole("button", { name: "Nur für mich" }));
         expect(onToggleOnlyMine).toHaveBeenCalled();
     });
+
+    // #534: the linked log's kills and the "Automatisch mitgehen" switch
+    it("marks the bosses the log shows killed, beside the #503 dot", () => {
+        const { container } = show({ killedKeys: new Set(["winterchill", "anetheron"]) });
+        const killed = Array.from(container.querySelectorAll(".rp-bosschip.is-killed"));
+        expect(killed.map((b) => b.textContent)).toEqual(["Rage Winterchill", "Anetheron"]);
+        expect(container.querySelectorAll(".rp-bosschip-done")).toHaveLength(2);
+        // both marks on one chip: both said in tooltip and label
+        expect(killed[0].getAttribute("data-tip")).toBe("Du hast hier Einteilungen · Im Log getötet");
+        expect(screen.getByRole("button", { name: "Rage Winterchill (Du hast hier Einteilungen, Im Log getötet)" })).toBeTruthy();
+        expect(screen.getByRole("button", { name: "Anetheron (Im Log getötet)" }).classList.contains("is-on")).toBe(true);
+    });
+    it("shows the follow switch only while a log is read, pressed while it follows", () => {
+        expect(show().container.querySelector(".rp-autofollow")).toBeNull();
+        const onToggle = vi.fn();
+        const { container } = show({ follow: { on: true, onToggle } });
+        const sw = container.querySelector(".rp-autofollow") as HTMLButtonElement;
+        expect(sw.getAttribute("aria-pressed")).toBe("true");
+        expect(sw.textContent).toBe("Automatisch mitgehen");
+        fireEvent.click(sw);
+        expect(onToggle).toHaveBeenCalled();
+    });
+    it("says the switch is paused when it is off", () => {
+        const { container } = show({ follow: { on: false, onToggle: vi.fn() } });
+        const sw = container.querySelector(".rp-autofollow") as HTMLButtonElement;
+        expect(sw.getAttribute("aria-pressed")).toBe("false");
+        expect(sw.getAttribute("data-tip")).toMatch(/Angehalten/);
+    });
 });

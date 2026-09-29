@@ -89,6 +89,7 @@
     --rp-icon-outline: rgba(15, 17, 21, .85); --rp-icon-ring: rgba(255, 255, 255, .6); --rp-text-halo: #000;
     --rp-group-bg: rgba(19, 15, 38, .82); --rp-group-ink: #ece9ff; --rp-zone-ink: #f1f3f8; --rp-rg-ink: #121212;
     --rp-group-dim: .22; /* opacity of the other groups while one is highlighted (#512) */
+    --rp-done-dim: .6; /* opacity of a section chip whose boss the log shows killed (#534) */
     --rp-ico-base: #4a5060; --rp-ico-mix: #10131a; --rp-handle-edge: #fff;
     --rp-enemy: #b91c1c; --rp-bosspos: #7e22ce; --rp-du-ink: #14112e; --rp-fly-backdrop: rgba(8, 10, 18, .55);
     --rp-onme: #e0a020; --rp-onme-ink: #1a1205; --rp-oop: #d99a1e; --rp-bad: #f87171; --rp-autotank-miss: #fbbf24;

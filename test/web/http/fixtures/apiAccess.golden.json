@@ -165,7 +165,8 @@
   "ungated": [
     "/api/session",
     "/api/session/view-as",
-    "/api/raidplan/public"
+    "/api/raidplan/public",
+    "/api/raidplan/progress"
   ],
   "anyArea": [
     "/api/session/guild",

@@ -40,6 +40,7 @@
   "GET /api/raidplan/catalog",
   "GET /api/raidplan/link",
   "GET /api/raidplan/profiles",
+  "GET /api/raidplan/progress",
   "GET /api/raidplan/public",
   "GET /api/raidplan/templates",
   "GET /api/raids",

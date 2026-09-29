@@ -65,6 +65,32 @@ the organiser's own view of it is the "Meine Aufgaben" preview (`MyTasksPreview`
 it mounts the `TipLayer` itself: the `data-tip` boxes of the chips ("Only for me", the mark) and the zoom
 buttons show here too.
 
+## The plan follows the raid (#534)
+
+During the raid the read view and the editor turn to the boss being pulled by themselves, read from the Warcraft Log linked to
+the event.
+
+- **Endpoint:** `GET /api/raidplan/progress?token=<token>` (the read view; like `/public` in `UNGATED`, the same 404 for an
+  unknown or withdrawn link) or `?event=<id>` (the editor; the handler checks the session and `raids` read itself, since the route
+  is listed with `auth: "none"` for the token). Answer `{ live, killed, current, next, updatedAt }` with section keys
+  (`bt/supremus`); without a linked log, outside the raid window or when WCL fails `{ live: false, killed: [], current: null,
+  next: null }`. The derivation and the cache are described in docs/logcheck.md ("Progress for the raid plan").
+- **Client:** `hooks/useRaidProgress.ts` (pure half `lib/raidplan/progress.ts`). It asks at once and every 60 s, but only while
+  `document.visibilityState` is `visible` and the clock is inside the raid window (start − 30 min to start + 6 h, the same as the
+  server's); a tab that becomes visible again asks at once. It turns to `current ?? next` when the page shows that section. A
+  section picked by hand (a chip, the editor's "open assignments" list) goes through `choose()` and pauses following — only while a
+  log is read, so a click before the raid does not switch it off for the night; a deep link `?section=` starts paused.
+- **Chips:** `SheetBossNav` and the editor's `BossNav` take `killedKeys` and `follow`. A killed boss gets `.is-killed` (opacity
+  `--rp-done-dim`, `tokens.css`; the icon greyed, full strength when chosen or hovered) and a small check in `--good` at its
+  **lower** right (`.rp-bosschip-done`), so the #503 dot at the upper right and the editor's content dot stay free; tooltip and
+  label add "Im Log getötet". `AutoFollowToggle` ("Automatisch mitgehen", `aria-pressed`) ends the bar only while `live`.
+- **Limits:** the log is only as fresh as the logger's upload (live logging sends every minute or two), plus up to a minute of
+  server cache and a minute of polling. A report linked to the wrong event shows that raid's kills — correct the link on the event
+  page. Only the newest linked log with a report id is read.
+- Tests: `test/utils/logcheck/bossProgress.test.js`, `test/services/raidplan/raidplanProgress.test.js`,
+  `test/web/apiRoutes/raidplan.progress.test.js`, `src/web-client/src/hooks/useRaidProgress.test.tsx`,
+  `lib/raidplan/progress.test.ts`, `SheetBossNav.test.tsx`, `BossNav.test.tsx`.
+
 ## Einteilungen in den Event-Kanal posten (#502)
 
 The read link as one message in the event's channel, like "Sheet posten" for the raidsheet:

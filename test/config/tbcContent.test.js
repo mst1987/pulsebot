@@ -1,6 +1,6 @@
 const {
     CONTENTS, TIERS, RAID_LOOT, BOSS_ORDER, NON_BOSSES, bossOrder,
-    content, tier, sourceForItem, contentForInstance, contentsForText, contentForLoot, tokenTier,
+    content, tier, sourceForItem, encounterKey, contentForInstance, contentsForText, contentForLoot, tokenTier,
 } = require("../../src/config/tbcContent");
 
 describe("tbcContent", () => {
@@ -272,5 +272,19 @@ describe("tbcContent", () => {
         expect(content("nope")).toBeNull();
         expect(tier("t5").label).toBe("Tier 5");
         expect(tier("t9")).toBeNull();
+    });
+
+    // #534: the WCL names that differ from the table fold onto our encounter, so a log kill counts for the boss
+    describe("encounterKey", () => {
+        it("folds the opera bosses onto the Opera Event", () => {
+            expect(encounterKey("The Big Bad Wolf")).toBe(encounterKey("Opera Event"));
+            expect(encounterKey("Opera Hall")).toBe(encounterKey("Opera Event"));
+        });
+
+        it("folds WCL names onto the table names (Reliquary of Souls, Daakara)", () => {
+            expect(encounterKey("Reliquary of Souls")).toBe(encounterKey("Reliquary of the Lost"));
+            expect(encounterKey("Daakara")).toBe(encounterKey("Zul'jin"));
+            expect(encounterKey("Gurtogg Bloodboil")).toBe("gurtoggbloodboil");
+        });
     });
 });

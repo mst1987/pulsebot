@@ -742,6 +742,12 @@
         "onlyMineTip": "Only the sections and tasks that concern you",
         "hasMine": "You have assignments here"
     },
+    "progress": {
+        "follow": "Follow automatically",
+        "followOnTip": "The plan turns to the boss being pulled, else to the next one, as the Warcraft Log shows. Click to pause.",
+        "followOffTip": "Paused because you picked a section yourself. Click to follow the raid again.",
+        "killed": "Killed in the log"
+    },
     "multi": {
         "count": "{n} selected",
         "mixed": "mixed",
