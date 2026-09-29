@@ -493,9 +493,10 @@ describe("web/apiRoutes/settings", () => {
                 auth.checkCsrf.mockReturnValue(true);
                 settingsStore.saveConfig.mockReturnValue({ guildId: "g1", blizzard: { clientId: "bz-id", clientSecret: "bz-new", region: "eu" } });
 
-                // the secret left out: the stored one stays; unknown fields are dropped
+                // the secret left out: the stored one stays; unknown fields are dropped, and so is
+                // the realm - it is per game version since #542 (versionSettings)
                 const res = await patch("/api/settings", { blizzard: { clientId: " bz-id ", region: "EU ", realmSlug: "thunderstrike", namespace: "", hasClientSecret: true, bogus: 1 } });
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ blizzard: { clientId: "bz-id", region: "EU", realmSlug: "thunderstrike", namespace: "" } });
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ blizzard: { clientId: "bz-id" } });
                 expect(json(res).data.config.blizzard).toEqual({ clientId: "bz-id", region: "eu", hasClientSecret: true });
                 expect(JSON.stringify(json(res))).not.toContain("bz-new");
 
@@ -640,6 +641,41 @@ describe("web/apiRoutes/settings", () => {
             });
         });
 
+        describe("PATCH /api/settings versionSettings (#542)", () => {
+            beforeEach(() => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.listRaidsheets.mockReturnValue([{ id: "tier45", name: "Tier 4/5" }]);
+                settingsStore.saveConfig.mockReturnValue({ guildId: "g1" });
+            });
+
+            it("forwards only the versions and fields sent, normalised", async () => {
+                const res = await patch("/api/settings", { versionSettings: {
+                    forever: { blizzardRegion: "EU", blizzardRealmSlug: "Everlook", wowheadPath: "", raidsheetId: "tier45" },
+                    tbc: { armoryUrlTemplate: "https://armory.test/{char}" },
+                    wotlk: { wowheadPath: "wotlk" },
+                } });
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ versionSettings: {
+                    forever: { blizzardRegion: "eu", blizzardRealmSlug: "everlook", wowheadPath: "", raidsheetId: "tier45" },
+                    tbc: { armoryUrlTemplate: "https://armory.test/{char}" },
+                } });
+            });
+
+            it("refuses a value it would have to throw away, naming the version", async () => {
+                const res = await patch("/api/settings", { versionSettings: { forever: { armoryUrlTemplate: "https://armory.test/no-placeholder" } } });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(res).error).toEqual({ code: "invalid_version_settings", message: "WoW Forever: armoryUrlTemplate ist ungültig." });
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("refuses a raidsheet nobody has", async () => {
+                const res = await patch("/api/settings", { versionSettings: { tbc: { raidsheetId: "gone" } } });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(res).error.message).toBe("TBC Anniversary: Raidsheet nicht gefunden.");
+            });
+        });
+
         describe("GET /api/settings/item-search", () => {
             it("returns 401 for an anonymous caller", async () => {
                 auth.getUser.mockReturnValue(null);
@@ -652,8 +688,19 @@ describe("web/apiRoutes/settings", () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 wowhead.searchItems.mockResolvedValue([{ id: 30883, name: "Kalter Fels" }]);
                 const res = await get("/api/settings/item-search", { q: "kalter" });
-                expect(wowhead.searchItems).toHaveBeenCalledWith("kalter", { edition: "tbc" });
+                // no edition asked: the Wowhead path of the main version (#542)
+                expect(wowhead.searchItems).toHaveBeenCalledWith("kalter", { edition: "", path: "tbc" });
                 expect(json(res)).toEqual({ data: { items: [{ id: 30883, name: "Kalter Fels" }] } });
+            });
+
+            it("searches nothing while the main version has no Wowhead path, and honours an edition asked for", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                settingsStore.getConfig.mockReturnValue({ mainVersion: "forever", versionSettings: {} });
+                const res = await get("/api/settings/item-search", { q: "kalter" });
+                expect(wowhead.searchItems).not.toHaveBeenCalled();
+                expect(json(res)).toEqual({ data: { items: [] } });
+                await get("/api/settings/item-search", { q: "kalter", edition: "classic" });
+                expect(wowhead.searchItems).toHaveBeenCalledWith("kalter", { edition: "classic", path: "" });
             });
         });
     });

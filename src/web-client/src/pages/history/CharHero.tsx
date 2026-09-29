@@ -77,7 +77,10 @@ export function CharHero({ data, roster, loading, onReload }: { data: HistoryCha
                     <IconLink href={data.armoryUrl} icon="inv_shirt_guildtabard_01" tip="Armory" size="md" />
                     {data.gearConfigured
                         ? <Button variant="run" icon="trade_engineering" running={loading} onClick={onReload}>{t("history.hero.reloadGear")}</Button>
-                        : <Link className={buttonClass("ghost", "md", true)} to="/settings?section=battlenet"><WowIcon name="trade_engineering" size={22} />{t("history.hero.setupBnet")}</Link>}
+                        // no realm for the character's version (#542): the fix is under Spielversion, not Battle.net
+                        : data.gearError
+                            ? <Link className={buttonClass("ghost", "md", true)} to="/settings?section=spielversion"><WowIcon name="trade_engineering" size={22} />{t("history.hero.setupVersion")}</Link>
+                            : <Link className={buttonClass("ghost", "md", true)} to="/settings?section=battlenet"><WowIcon name="trade_engineering" size={22} />{t("history.hero.setupBnet")}</Link>}
                 </div>
             </div>
             <div className="ros-hero-foot">

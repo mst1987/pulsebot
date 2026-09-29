@@ -30,8 +30,9 @@ const { previewImport } = require("../loot/lootImportPreview");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
 const { armoryUrlFor, wclUrlFor } = require("../characters/charLinks");
 const { buildVersionContext, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
+const { versionLinks, blizzardFor } = require("../../services/events/versionSettings");
 const { mainVersionFor, knownVersion } = require("../../services/events/mainVersion");
-const Blizzard = require("../../classes/blizzard");
+const { linkItemsForImport } = require("../../services/loot/lootVersion");
 const { userCan } = require("../../config/permissions");
 const discord = require("../../services/discord/discord");
 const linkCheck = require("../../services/discord/linkCheck");
@@ -277,6 +278,8 @@ const importLoot = withUser({ csrf: true, body: true }, async ({ body, req, res 
 
     // Only where the event left a gap — see the header comment.
     const categoryId = target.categoryId || picked.id;
+    // The Wowhead links of the event's version (#542).
+    linkItemsForImport(items, { eventId, categoryId });
 
     const { added, skipped } = addLootImport(eventId, items, { categoryId, eventLabel });
     // RCLootcouncil exports carry the raider's class — keep it right away, so the
@@ -373,6 +376,7 @@ const addLootItem = withUser({ csrf: true, body: true }, async ({ user, body, re
 
     const target = await resolveImportTarget(req, { event: eventId, manualLabel: body.manualLabel, items: [item] });
     if (target.error) return error(res, target.status, target.code, target.error);
+    linkItemsForImport([item], target);
 
     const { added, skipped } = addLootImport(target.eventId, [item], {
         categoryId: target.categoryId,
@@ -477,6 +481,7 @@ const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ body, req,
     if (target.error) return error(res, target.status, target.code, target.error);
 
     const categoryId = target.categoryId || picked.id;
+    linkItemsForImport(entry.items, { eventId: target.eventId, categoryId });
     const { added, skipped } = addLootImport(target.eventId, entry.items, {
         categoryId,
         eventLabel: target.eventLabel,
@@ -536,7 +541,7 @@ const resolveCharacters = withUser({ csrf: true }, async ({ res }) => {
 /**
  * GET /api/history/char?name=<name>[&version=<id>] — loot history plus live Blizzard gear
  * (paperdoll) and diagnostics for one character. `version` (#543) picks the
- * links of that game version (charLinks.linkTemplatesFor); `versionIds` says which
+ * game version (armory, realm, Wowhead of versionSettings); `versionIds` says which
  * versions the character has.
  */
 const getHistoryChar = withUser({}, async ({ res, url }) => {
@@ -545,17 +550,22 @@ const getHistoryChar = withUser({}, async ({ res, url }) => {
     await repairLootItemNames(); // see getHistoryEvent
     const items = withLootClassLook(listLootByCharacter(name));
     const cfg = getConfig();
-    const bzCfg = cfg.blizzard || {};
-    const realm = (items[0] && items[0].realm) || bzCfg.realmSlug || "";
+    // The character's version (#543): the one asked for, else its own (the main
+    // version when it has that one too) — realm, armory, Wowhead all follow it (#542).
     const versionIds = versionsOfCharacter(buildVersionContext({ config: cfg }), { name, items });
-    const linkVersion = askedVersion || versionIds[0] || "";
-    const armoryUrl = armoryUrlFor(name, linkVersion);
-    const wclUrl = wclUrlFor(name, linkVersion);
-    const client = new Blizzard(bzCfg);
-    const gearConfigured = client.isConfigured();
-    const gearNamespace = client._resolve().namespace;
+    const mainVersion = mainVersionFor({ config: cfg });
+    const versionId = askedVersion || (versionIds.includes(mainVersion) ? mainVersion : versionIds[0]) || mainVersion;
+    const links = versionLinks(versionId, { config: cfg });
+    const bz = blizzardFor(versionId, { config: cfg });
+    const realm = (items[0] && items[0].realm) || links.settings.blizzardRealmSlug || "";
+    const armoryUrl = armoryUrlFor(name, versionId);
+    const wclUrl = wclUrlFor(name, versionId);
+    const client = bz.client;
+    const gearConfigured = !!client;
+    const gearNamespace = bz.namespace;
     let gear = null;
-    let gearError = "";
+    // A version without realm/namespace says so instead of asking Blizzard the TBC realm.
+    let gearError = bz.reason === "version_not_configured" ? bz.message : "";
     let charSummary = null;
     if (gearConfigured && name) {
         // Summary first — its level/last-login reveal whether the profile is
@@ -565,7 +575,7 @@ const getHistoryChar = withUser({}, async ({ res, url }) => {
         gear = await client.getEquipment(name);
         if (gear === null) {
             const e = client.lastError || {};
-            if (e.status === 404) gearError = `Charakter „${name}" nicht in der Blizzard-API gefunden (404, Namespace ${gearNamespace}). Realm-Slug „${bzCfg.realmSlug || "thunderstrike"}"/Schreibweise prüfen oder den Namespace in den Einstellungen ändern (z.B. profile-classicann-${bzCfg.region || "eu"}).`;
+            if (e.status === 404) gearError = `Charakter „${name}" nicht in der Blizzard-API gefunden (404, Namespace ${gearNamespace}). Realm-Slug „${bz.realmSlug}"/Schreibweise prüfen oder den Namespace in Einstellungen → Spielversion ändern.`;
             else if (e.status === 403) gearError = "Zugriff verweigert (403) — die Profile-API ist für diesen Realm evtl. nicht freigegeben.";
             else if (e.status === 401) gearError = "Authentifizierung fehlgeschlagen (401) — Battle.net Client-ID/Secret prüfen.";
             else if (e.status) gearError = `Blizzard-API-Fehler (${e.status}).`;
@@ -584,6 +594,9 @@ const getHistoryChar = withUser({}, async ({ res, url }) => {
         gearError,
         charSummary,
         gearNamespace,
+        versionId,
+        // The Wowhead path of that version for the gear links ("" = no links).
+        wowheadPath: links.wowheadPath,
         info: enrichCharInfo(getCharacter(name)),
         // What the last CLA evaluation found on this character's gear — the
         // detail behind the roster overview's issue count.

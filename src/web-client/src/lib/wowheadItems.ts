@@ -19,7 +19,19 @@ export function wowheadItemId(itemId: number): number {
     return WOWHEAD_ITEM_ALIASES[itemId] || itemId;
 }
 
-/** The TBC Wowhead page of an item, with optional query parameters (ench, gems). */
-export function wowheadItemUrl(itemId: number, params: string[] = []): string {
-    return `https://www.wowhead.com/tbc/item=${wowheadItemId(itemId)}${params.length ? `?${params.join("&")}` : ""}`;
+/**
+ * The Wowhead path of what was stored before game versions had settings (#542):
+ * TBC. A page that knows its version passes that version's path instead (the
+ * server sends it as `wowheadPath`, lib/versionLinks.ts).
+ */
+export const LEGACY_WOWHEAD_PATH = "tbc";
+
+/**
+ * The Wowhead page of an item in a version's Wowhead path, with optional query
+ * parameters (ench, gems). "" without a path (a version without Wowhead
+ * settings) or without an item — the caller leaves the link out.
+ */
+export function wowheadItemUrl(itemId: number, params: string[] = [], path: string = LEGACY_WOWHEAD_PATH): string {
+    if (!path || !itemId) return "";
+    return `https://www.wowhead.com/${path}/item=${wowheadItemId(itemId)}${params.length ? `?${params.join("&")}` : ""}`;
 }

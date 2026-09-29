@@ -242,8 +242,9 @@ describe("connection cards", () => {
     });
 
     it("keeps the secret contract: undefined keeps, empty clears", () => {
+        // the realm is per game version since #542: the Battle.net card sends only the credentials
         expect(logic.connectionPatch("battlenet", { clientId: "c", realmSlug: "Thunderstrike" }, undefined)).toEqual({
-            blizzard: { clientId: "c", region: "eu", realmSlug: "thunderstrike", namespace: "" },
+            blizzard: { clientId: "c" },
         });
         expect(logic.connectionPatch("battlenet", {}, "").blizzard.clientSecret).toBe("");
     });

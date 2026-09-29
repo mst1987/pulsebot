@@ -18,6 +18,7 @@ import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
 import { dropHref, gearCounts, roleLabel, wornWowheadUrl } from "./council";
+import { useWowheadPath } from "../../lib/versionLinks";
 import { ContentBadge, ItemLink, RaiderIdent } from "./ItemBits";
 import { GearBadges, WornIcon } from "./GearBadges";
 import { NeedBar } from "./NeedBar";
@@ -37,6 +38,7 @@ const GEAR_GROUPS: { id: string; slots: number[] }[] = [
 /** The worn set in three columns, each piece with its icon, name and slot. */
 function GearSheet({ items }: { items: WornItem[] }) {
     const t = useT();
+    const wowheadPath = useWowheadPath();
     const groups = GEAR_GROUPS.map((g) => ({ ...g, items: g.slots.flatMap((s) => items.filter((i) => i.slot === s)) }));
     // A slot id the groups do not know still gets shown, under the armour.
     const rest = items.filter((i) => !GEAR_GROUPS.some((g) => g.slots.includes(i.slot)));
@@ -50,7 +52,7 @@ function GearSheet({ items }: { items: WornItem[] }) {
                         <div key={`${item.slot}-${item.itemId}`} className="lc-sheet-row">
                             <WornIcon item={item} />
                             <span className="lc-sheet-text">
-                                <a href={wornWowheadUrl(item)} target="_blank" rel="noopener noreferrer" {...itemQualityProps(item.quality, "lc-sheet-name")}>
+                                <a href={wornWowheadUrl(item, wowheadPath) || undefined} target="_blank" rel="noopener noreferrer" {...itemQualityProps(item.quality, "lc-sheet-name")}>
                                     {item.itemName}
                                 </a>
                                 <span className="lc-sheet-slot">{item.slotName}</span>

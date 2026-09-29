@@ -21,7 +21,7 @@ const { gearByCharacter } = require("../../services/loot/charGear");
 const { countsAsLoot } = require("../../utils/loot/lootReasons");
 const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
 const { excludedKeys, plannedRoles } = require("../../stores/councilStore");
-const { armoryUrlFor } = require("../characters/charLinks");
+const { versionLinks } = require("../../services/events/versionSettings");
 const { characterKey, characterKeyOf } = require("../../utils/loot/lootImport");
 const { listStoredEvents } = require("../../services/events/eventSources");
 const { listLogs } = require("../../stores/logStore");
@@ -641,7 +641,7 @@ function rosterRow(key, ctx) {
         // The gear on this page is *last seen in a log*, never live. One
         // click to the armory is what makes that checkable instead of
         // something a council has to take on trust.
-        armoryUrl: armoryUrlFor(character),
+        armoryUrl: ctx.links.armory(character),
         spec: known.spec || "",
         specKey: specEntry.key,
         specLabel: specEntry.label,
@@ -729,7 +729,9 @@ function councilRoster(opts = {}) {
     // deleted, so the loot history stays whole and the decision is reversible.
     const excluded = excludedKeys();
 
-    const ctx = { info, charStore, gearMap, loot, planned, role, bisTier, now };
+    // One read of the version's links for every row (#542): the category's version, else the main one.
+    const links = versionLinks(opts.versionId);
+    const ctx = { info, charStore, gearMap, loot, planned, role, bisTier, now, links };
     const rows = [];
     const skipped = { category: 0, excluded: 0 };
     for (const key of keys) {

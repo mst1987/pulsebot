@@ -20,7 +20,29 @@ const { getConfig } = require("../../src/stores/configStore");
 const { listRaidTemplates } = require("../../src/stores/raidTemplateStore");
 const { migrateSettings } = require("../../src/stores/settingsMigration");
 const cases = require("../fixtures/configSchema/cases.json");
-const golden = require("../fixtures/configSchema/golden.json");
+const frozen = require("../fixtures/configSchema/golden.json");
+const defaults = require("../../src/config/defaults");
+
+// #542 moved the Battle.net realm (region, realm slug, namespace) out of
+// `blizzard` into the TBC block of `versionSettings`, next to the armory/WCL
+// templates, Wowhead "tbc" and softres "tbc"; the other versions are empty.
+// The frozen result stays as it was frozen; this is the one documented change
+// on top of it.
+const EMPTY_BLOCK = {
+    blizzardRegion: "", blizzardRealmSlug: "", blizzardNamespace: "", armoryUrlTemplate: "",
+    wclUrlTemplate: "", wowheadPath: "", softresEdition: "", raidsheetId: "",
+};
+function after542(config) {
+    const { region, realmSlug, namespace, ...credentials } = config.blizzard;
+    const tbc = {
+        blizzardRegion: region, blizzardRealmSlug: realmSlug, blizzardNamespace: namespace || `profile-classicann-${region}`,
+        armoryUrlTemplate: defaults.applyArmoryUrlTemplate, wclUrlTemplate: defaults.applyWclUrlTemplate,
+        wowheadPath: "tbc", softresEdition: "tbc", raidsheetId: "",
+    };
+    return { ...config, blizzard: credentials, versionSettings: { tbc, classic: EMPTY_BLOCK, forever: EMPTY_BLOCK } };
+}
+const golden = frozen.map((g) => ({ ...g, config: after542(g.config) }));
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");
@@ -57,7 +79,8 @@ describe("stores/configSchema golden master (#420)", () => {
             it("needs no migration: the schema alone gives the frozen result", () => {
                 load(c);
                 const { changes } = migrateSettings({ log: () => {} });
-                expect(changes).toEqual([]);
+                // every stored config predates #542's versionSettings (see after542)
+                expect(without542(changes)).toEqual([]);
                 expect(schema.normalizeConfig(c.config || {})).toEqual(expected.config);
             });
         }

@@ -142,7 +142,7 @@ export function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (
         body = (
             <>
                 <div className="ros-note">
-                    {data.gearConfigured
+                    {data.gearConfigured || data.gearError
                         ? (data.gearError || t("history.gear.noLiveGear"))
                         : <>{`${t("history.gear.bnetHintBefore")} `}<Link to="/settings?section=battlenet">{t("history.shared.settings")}</Link>{` ${t("history.gear.bnetHintAfter")}`}</>}
                 </div>

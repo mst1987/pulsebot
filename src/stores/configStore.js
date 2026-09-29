@@ -16,7 +16,7 @@ const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeCategorySignupSource,
     normalizeCategorySetupDms, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeTopItems,
-    normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion,
+    normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings,
 } = require("./configSchema");
 
 const FILE = settingsPath("config.json");
@@ -138,6 +138,12 @@ function saveConfig(partial) {
     // whole (a category back on the main version is left out), like the templates.
     if (partial.mainVersion !== undefined) next.mainVersion = normalizeMainVersion(partial.mainVersion);
     if (partial.categoryVersion !== undefined) next.categoryVersion = normalizeCategoryVersion(partial.categoryVersion);
+    // #542: merged per version and per field (a block sent for one version leaves the others alone), then normalised.
+    if (partial.versionSettings && typeof partial.versionSettings === "object") {
+        const merged = { ...current.versionSettings };
+        for (const [id, block] of Object.entries(partial.versionSettings)) merged[id] = { ...(merged[id] || {}), ...(block || {}) };
+        next.versionSettings = normalizeVersionSettings(merged);
+    }
     if (partial.categorySheets) {
         next.categorySheets = normalizeCategorySheets({ ...current.categorySheets, ...partial.categorySheets });
     }

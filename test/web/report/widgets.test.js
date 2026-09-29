@@ -137,7 +137,8 @@ describe("web/report/widgets", () => {
         it("links the armory as an icon button and as a labelled link", () => {
             armoryUrlFor.mockReturnValue("https://armory.test/c/Br%C3%B6kk");
             const btn = w.armoryButton("Brökk");
-            expect(armoryUrlFor).toHaveBeenCalledWith("Brökk");
+            // a report reads TBC logs, so it links the TBC armory (#542)
+            expect(armoryUrlFor).toHaveBeenCalledWith("Brökk", "tbc");
             expect(btn).toMatch(/^<a class="ibtn" href="https:\/\/armory\.test\/c\/Br%C3%B6kk" target="_blank" rel="noopener" data-tip="Armory öffnen"/);
             expect(btn).toContain("inv_shirt_guildtabard_01");
             const link = w.armoryLink("Brökk", "btn btn-ghost");

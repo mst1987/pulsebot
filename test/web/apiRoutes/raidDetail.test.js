@@ -220,9 +220,12 @@ jest.mock("../../../src/utils/loot/softres", () => ({
     codesForRulesetInstances: jest.fn((ids) => jest.requireActual("../../../src/utils/loot/softres").codesForRulesetInstances(ids, "tbc")),
     createRaid: jest.fn(),
 }));
-jest.mock("../../../src/utils/setup/raidsheets", () => ({
-    matchRaidsheet: jest.fn(() => null),
-}));
+jest.mock("../../../src/utils/setup/raidsheets", () => {
+    const m = { matchRaidsheet: jest.fn(() => null) };
+    // the version's pick (#542) asks the keyword match first, like the real one
+    m.pickRaidsheet = jest.fn((list, title) => m.matchRaidsheet(list, title));
+    return m;
+});
 jest.mock("../../../src/utils/loot/wowhead", () => {
     const actual = jest.requireActual("../../../src/utils/loot/wowhead");
     return {
@@ -1224,7 +1227,7 @@ describe("web/apiRoutes/raidDetail", () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             wowhead.searchItems.mockResolvedValue([{ id: 123, name: "Thunderfury", icon: "thunderfury" }]);
             const res = await get("/api/raids/softres/item-search", { q: "thunder", edition: "classic" });
-            expect(wowhead.searchItems).toHaveBeenCalledWith("thunder", { edition: "classic" });
+            expect(wowhead.searchItems).toHaveBeenCalledWith("thunder", { edition: "classic", path: "" });
             expect(json(res)).toEqual({ data: { items: [{ id: 123, name: "Thunderfury", icon: "thunderfury" }] } });
         });
     });

@@ -9,8 +9,11 @@ const { wowheadItemId } = require("../../config/wowheadItemAliases");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/large";
 
-// Map a softres edition to the Wowhead game branch used in its URL path.
-function branchFor(edition) {
+// Map a softres edition to the Wowhead game branch used in its URL path. A
+// version's own Wowhead path (#542, versionSettings.wowheadPath) is handed in
+// as `path` and wins over the edition.
+function branchFor(edition, path = "") {
+    if (path) return String(path);
     if (edition === "classic") return "classic";
     if (edition === "wotlk") return "wotlk";
     return "tbc";
@@ -20,8 +23,8 @@ function iconUrl(icon) {
     return icon ? `${ICON_BASE}/${String(icon).toLowerCase()}.jpg` : "";
 }
 
-function itemLink(itemId, edition = "tbc") {
-    return itemId ? `https://www.wowhead.com/${branchFor(edition)}/item=${wowheadItemId(itemId)}` : "";
+function itemLink(itemId, edition = "tbc", path = "") {
+    return itemId ? `https://www.wowhead.com/${branchFor(edition, path)}/item=${wowheadItemId(itemId)}` : "";
 }
 
 /**
@@ -29,13 +32,13 @@ function itemLink(itemId, edition = "tbc") {
  * { id, name, icon, iconUrl, quality }. Non-item results (spells, NPCs, quests)
  * are filtered out. Returns [] for short queries or on any error (best-effort).
  * @param {string} query
- * @param {object} [opts] { edition, limit }
+ * @param {object} [opts] { edition, limit, path } - `path` a version's Wowhead path, wins over the edition
  */
-async function searchItems(query, { edition = "tbc", limit = 12 } = {}) {
+async function searchItems(query, { edition = "tbc", limit = 12, path = "" } = {}) {
     const q = String(query || "").trim();
     if (q.length < 2) return [];
     try {
-        const { data } = await axios.get(`https://www.wowhead.com/${branchFor(edition)}/search/suggestions-template`, {
+        const { data } = await axios.get(`https://www.wowhead.com/${branchFor(edition, path)}/search/suggestions-template`, {
             params: { q },
             httpsAgent,
             timeout: 15000,
@@ -72,14 +75,16 @@ const itemCache = new Map();
  * (best-effort, like searchItems — a lookup failure just means the item keeps
  * showing as "Item <id>").
  * @param {number|string} itemId
- * @param {object} [opts] { edition }
+ * @param {object} [opts] { edition, path } - `path` a version's Wowhead path, wins over the edition
  */
-async function lookupItem(itemId, { edition = "tbc" } = {}) {
+async function lookupItem(itemId, { edition = "tbc", path = "" } = {}) {
     const id = Number(itemId) || 0;
     if (!id) return null;
-    if (itemCache.has(id)) return itemCache.get(id);
+    const branch = branchFor(edition, path);
+    const key = `${branch}:${id}`;
+    if (itemCache.has(key)) return itemCache.get(key);
     try {
-        const { data } = await axios.get(`https://nether.wowhead.com/${branchFor(edition)}/tooltip/item/${wowheadItemId(id)}`, {
+        const { data } = await axios.get(`https://nether.wowhead.com/${branch}/tooltip/item/${wowheadItemId(id)}`, {
             httpsAgent,
             timeout: 15000,
             headers: { "User-Agent": "Mozilla/5.0 (EventHelper)" },
@@ -92,7 +97,7 @@ async function lookupItem(itemId, { edition = "tbc" } = {}) {
             iconUrl: iconUrl(data.icon),
             quality: data.quality === undefined ? null : data.quality,
         };
-        itemCache.set(id, result);
+        itemCache.set(key, result);
         return result;
     } catch (e) {
         console.error("wowhead item lookup failed:", e.message);

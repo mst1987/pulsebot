@@ -14,7 +14,9 @@ const { loadEventGroups, eventLookbackSince } = require("../../services/events/r
 const {
     getConfig, listNotify, listRaidsheets, resolveEventSheetLink,
 } = require("../../stores/settingsStore");
-const { matchRaidsheet } = require("../../utils/setup/raidsheets");
+const { pickRaidsheet } = require("../../utils/setup/raidsheets");
+const { versionOfEvent } = require("../../services/events/mainVersion");
+const { settingsForVersion } = require("../../services/events/versionSettings");
 const { buildSetupView, tankCandidates } = require("../../utils/setup/setupView");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
@@ -44,9 +46,20 @@ const linkCheck = require("../../services/discord/linkCheck");
 const { setupSummary } = require("../../services/setup/setupEditor");
 const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 
-// For now the guild only raids TBC, so the softres suggestion and the pickable
-// catalogue are restricted to the TBC edition.
-const SOFTRES_EDITION = "tbc";
+/**
+ * The version of the event on this page and its settings (#542): an own event
+ * carries its version, a Raid-Helper one plays its category's. The softres
+ * edition and the default raidsheet follow it - a version without a softres
+ * edition (Forever until softres.it has it) offers no list at all.
+ */
+function eventVersionSettings(found, config) {
+    const versionId = versionOfEvent({ versionId: found.e.versionId, categoryId: found.g.categoryId }, { config });
+    const all = config.versionSettings || {};
+    return {
+        ...settingsForVersion(versionId, { config }),
+        otherSheetIds: Object.entries(all).filter(([id]) => id !== versionId).map(([, s]) => (s && s.raidsheetId) || ""),
+    };
+}
 
 const isOwn = (found) => found.e.source === "eventhelper";
 
@@ -188,11 +201,11 @@ async function ownEventPart(guildId, found, eventId) {
  * list, else the expected headcount from the attendance role(s); an own event
  * names the size it is planned for, which beats both guesses.
  */
-function softresPart(found, eventId, { categoryRoleIds, attendance }) {
-    const ownCodes = isOwn(found) ? softres.codesForRulesetInstances(found.e.instanceIds, SOFTRES_EDITION) : [];
+function softresPart(found, eventId, { categoryRoleIds, attendance }, edition = "tbc") {
+    const ownCodes = edition && isOwn(found) ? softres.codesForRulesetInstances(found.e.instanceIds, edition) : [];
     const suggestedInstances = ownCodes.length
         ? ownCodes.map((code) => ({ code }))
-        : softres.parseInstancesFromTitle(found.e.title, SOFTRES_EDITION);
+        : (edition ? softres.parseInstancesFromTitle(found.e.title, edition) : []);
     const eventSoftres = getEventSoftres(eventId);
     let signupTarget = eventSoftres && eventSoftres.instances && eventSoftres.instances.length
         ? softres.targetSizeForInstances(eventSoftres.instances)
@@ -268,8 +281,10 @@ async function buildRaidDetail({ guildId, eventId }) {
     const { found, groupsError, stale } = await findEvent(guildId, eventId);
     if (!found) return fail(groupsError ? 400 : 404, groupsError ? "events_unavailable" : "not_found", groupsError || "Event nicht gefunden.");
 
+    const config = getConfig();
+    const version = eventVersionSettings(found, config);
     const raidsheets = listRaidsheets();
-    const matched = matchRaidsheet(raidsheets, found.e.title);
+    const matched = pickRaidsheet(raidsheets, found.e.title, { ownId: version.raidsheetId, otherIds: version.otherSheetIds });
     const setupInfo = await setupPart(found, eventId);
     // A raid that is over and whose signups Raid-Helper no longer returns (and
     // that was never snapshotted) has an UNKNOWN roster — not an empty one.
@@ -279,7 +294,7 @@ async function buildRaidDetail({ guildId, eventId }) {
     const signupsKnown = isRosterKnown(found.e);
     const attendanceInfo = await attendancePart(guildId, found, signupsKnown);
     const own = await ownEventPart(guildId, found, eventId);
-    const softresInfo = softresPart(found, eventId, attendanceInfo);
+    const softresInfo = softresPart(found, eventId, attendanceInfo, version.softresEdition);
     const logs = await logsPart(guildId, eventId);
 
     const payload = {
@@ -304,8 +319,11 @@ async function buildRaidDetail({ guildId, eventId }) {
         // The raid plan's read link in the event channel (#502): null without a plan.
         raidplanPost: raidplanPostState(found.e),
         eventSoftres: softresInfo.eventSoftres,
-        softresCatalogue: softres.catalogue().filter((g) => g.edition === SOFTRES_EDITION),
-        softresEdition: SOFTRES_EDITION,
+        softresCatalogue: version.softresEdition ? softres.catalogue().filter((g) => g.edition === version.softresEdition) : [],
+        softresEdition: version.softresEdition,
+        // The event's version and its Wowhead path (#542) for the softres item search.
+        versionId: version.versionId,
+        wowheadPath: version.wowheadPath,
         softresSuggested: softresInfo.suggestedInstances.map((i) => i.code),
         attendance: attendanceInfo.attendance,
         ownSignups: own.ownSignups,

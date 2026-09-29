@@ -989,6 +989,25 @@ describe("web/apiRoutes/history", () => {
             expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
         });
 
+        it("takes the character's own version: TBC loot links TBC, even with Forever as the main version (#543)", async () => {
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "forever", blizzard: { clientId: "id", clientSecret: "s" } });
+            const data = json(await get("/api/history/char", { name: "Anna" })).data;
+            expect(data).toMatchObject({ versionId: "tbc", versionIds: ["tbc"] });
+            expect(data.armoryUrl).toContain("Anna");
+        });
+
+        it("asks no armory and links nothing for a version without settings (#542, asked by ?version=)", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "forever", blizzard: { clientId: "id", clientSecret: "s" }, versionSettings: {} });
+            const data = json(await get("/api/history/char", { name: "Anna", version: "forever" })).data;
+            expect(mockGetEquipment).not.toHaveBeenCalled();
+            expect(mockGetCharacterSummary).not.toHaveBeenCalled();
+            expect(data).toMatchObject({
+                versionId: "forever", gearConfigured: false, armoryUrl: "", wclUrl: "", wowheadPath: "",
+                gearError: "Armory für WoW Forever nicht eingerichtet (Einstellungen → Spielversion).",
+            });
+        });
+
         it("returns loot + links but no gear when Blizzard is not configured", async () => {
             lootStore.listByCharacter.mockReturnValue([{ character: "Anna", realm: "thunderstrike", itemName: "Sword" }]);
 
@@ -1012,6 +1031,8 @@ describe("web/apiRoutes/history", () => {
                 gearError: "",
                 charSummary: null,
                 gearNamespace: "profile-classicann-eu",
+                versionId: "tbc",
+                wowheadPath: "tbc",
                 info: null,
                 gearIssues: null,
             });
@@ -1073,7 +1094,7 @@ describe("web/apiRoutes/history", () => {
 
             expect(json(res).data.gearError).toBe(
                 "Charakter „Anna\" nicht in der Blizzard-API gefunden (404, Namespace profile-classicann-eu). "
-                + "Realm-Slug „thunderstrike\"/Schreibweise prüfen oder den Namespace in den Einstellungen ändern (z.B. profile-classicann-eu).",
+                + "Realm-Slug „thunderstrike\"/Schreibweise prüfen oder den Namespace in Einstellungen → Spielversion ändern.",
             );
         });
 

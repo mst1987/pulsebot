@@ -68,6 +68,18 @@
     .gv-cat { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }
 
+/* ---- Links und Armory je Version (#542): one version at a time behind a switcher ---- */
+.gv-links { margin-top: 16px; }
+.gv-links-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.gv-hint { margin: 0; color: var(--muted); font-size: 13px; }
+.gv-group { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.gv-group-title { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.gv-preview { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; font-size: 13px; }
+.gv-preview-label { color: var(--muted); }
+.gv-preview-off { color: var(--muted); text-decoration: line-through; }
+.gv-links .set-field input:not([type=checkbox]) { max-width: 100%; }
+.gv-links .set-field input[aria-invalid] { border-color: var(--high); }
+
 .set-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
 .set-form { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
 .set-form.sheetcard { border-radius: 10px; margin: 0; }

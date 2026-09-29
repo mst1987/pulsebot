@@ -47,6 +47,7 @@ const { instancesFromTitle } = require("../raidplan/raidplanTitle");
 const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { rulesFor } = require("../../config/gameVersions");
+const { mainVersionFor, versionOfEvent, knownVersion } = require("../../services/events/mainVersion");
 const { raidhelperDisabled } = require("../../utils/raidhelper/client");
 const { progressFor } = require("../../services/raidplan/raidplanProgress");
 const { syncRaidplanPost } = require("../../services/raidplan/raidplanPost");
@@ -358,20 +359,21 @@ async function getProgress(req, res, url) {
 /** The Raid-Helper event `id` of the active server (loadEventGroups, with past raids), or null. */
 async function raidhelperEventOf(req, id) {
     const { groups } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
-    for (const g of groups) for (const e of g.events) if (e.id === id && e.source === "raidhelper") return e;
+    for (const g of groups) for (const e of g.events) if (e.id === id && e.source === "raidhelper") return { ...e, categoryId: e.categoryId || g.categoryId || "" };
     return null;
 }
 
 /** The instances the activation dialog offers (the rule set's, with their sizes). */
 function instanceChoices(versionId) {
-    const rules = rulesFor(versionId || "tbc") || rulesFor("tbc");
+    const rules = rulesFor(knownVersion(versionId) || mainVersionFor());
     return rules.instances.map((i) => ({ id: i.id, name: i.name, short: i.short, sizes: i.sizes, defaultSize: i.defaultSize }));
 }
 
 /** What the activation dialog and the menu need of a Raid-Helper event's switch. */
 function linkView(eventId, ev, plan) {
     const link = plan && plan.link;
-    const suggestion = instancesFromTitle(ev ? ev.title : (link && link.title) || "", "tbc");
+    // A switched-on link keeps its version; else the event's category's (#542).
+    const suggestion = instancesFromTitle(ev ? ev.title : (link && link.title) || "", knownVersion(link && link.versionId) || versionOfEvent(ev));
     return {
         eventId,
         title: ev ? ev.title : (link ? link.title : ""),
@@ -409,7 +411,7 @@ const postLink = withUser({ write: "raids", csrf: true, body: true }, async ({ u
     if (!ev && !(before && before.link)) return error(res, 404, "not_found", "Event nicht gefunden.");
     const input = { enabled: body.enabled === true };
     if (body.enabled === true) {
-        const sug = instancesFromTitle(ev ? ev.title : "", "tbc");
+        const sug = instancesFromTitle(ev ? ev.title : "", knownVersion(before && before.link && before.link.versionId) || versionOfEvent(ev));
         const ids = Array.isArray(body.instanceIds) ? body.instanceIds : (before && before.link ? before.link.instanceIds : sug.instanceIds);
         Object.assign(input, {
             instanceIds: ids,
@@ -422,7 +424,7 @@ const postLink = withUser({ write: "raids", csrf: true, body: true }, async ({ u
     let knownRoster = null;
     if (input.enabled) {
         // what Raid-Helper lists right now is remembered at once: switched off later, the plan still knows its raiders
-        const r = await rosterSource.raidhelperPlanEvent({ ...(before || store.emptyPlan(id)), link: { ...(before && before.link ? before.link : {}), ...input, versionId: input.versionId || "tbc" } });
+        const r = await rosterSource.raidhelperPlanEvent({ ...(before || store.emptyPlan(id)), link: { ...(before && before.link ? before.link : {}), ...input, versionId: input.versionId || versionOfEvent(ev) } });
         if (r.info.authoritative) knownRoster = r.loaded;
     }
     const result = store.setLink(id, input, { userId: user.id, knownRoster });

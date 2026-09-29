@@ -18,7 +18,7 @@ const { characterMap } = require("../../stores/characterStore");
 const { latestIssuesByCharacter } = require("./charGearIssues");
 const { splitPlayer, characterKeyOf } = require("../../utils/loot/lootImport");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
-const { armoryUrlFor, wclUrlFor } = require("./charLinks");
+const { versionLinks } = require("../../services/events/versionSettings");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { buildAttendanceContext, attendanceFor, categoryInfo, roleFor } = require("../../services/characters/rosterAttendance");
 const { buildVersionContext, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
@@ -115,7 +115,15 @@ function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {})
         versionIds: versionsOfCharacter(versionCtx, { name: row.character, items: allItems || [], categoryIds: row.categoryIds }),
     }));
     const versions = versionChoices(all, mainVersion);
+    // Armory/WCL per game version (#542): the filtered one, else each character's own (#543) — read once per version.
+    const linkCache = new Map();
+    const linksOf = (id) => {
+        const key = id || "";
+        if (!linkCache.has(key)) linkCache.set(key, versionLinks(key || undefined, config ? { config } : undefined));
+        return linkCache.get(key);
+    };
     const chars = all.filter((row) => !versionId || row.versionIds.includes(versionId)).map(({ raiderIdsByCategory, ...row }) => {
+        const links = linksOf(versionId || (row.versionIds.includes(mainVersion) ? mainVersion : row.versionIds[0]));
         const info = known[row.key] || {};
         const className = row.className || info.className || "";
         const spec = row.spec || info.spec || "";
@@ -135,8 +143,8 @@ function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {})
             source: row.source || info.source || "",
             classColor: CLASS_COLORS[className] || "",
             iconUrl: className ? classSpecIconUrl(className, spec) : "",
-            armoryUrl: armoryUrlFor(row.character, versionId || row.versionIds[0]),
-            wclUrl: wclUrlFor(row.character, versionId || row.versionIds[0]),
+            armoryUrl: links.armory(row.character),
+            wclUrl: links.wcl(row.character),
             gear,
             role: roleFor(ctx, row.character, className, spec),
             attendance,

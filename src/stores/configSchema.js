@@ -6,7 +6,7 @@ const {
     officerRoleId, applicationChannelId,
     categoryIds,
     guildId, raidhelperServerId,
-    blizzardClientId, blizzardClientSecret, blizzardRegion, blizzardRealmSlug, blizzardNamespace,
+    blizzardClientId, blizzardClientSecret,
 } = require("../config/variables");
 const { normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess } = require("../config/permissions");
 const { normalizeBotCommandAccess } = require("../config/botCommands");
@@ -14,6 +14,7 @@ const { normalizeCategoryLootSystem } = require("../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const { isSnowflake } = require("../utils/ids");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
+const { versionSettingsOf, normalizeVersionSettings } = require("./versionSettingsSchema");
 
 // General bot config editable from the admin menu (kept out of .env on purpose).
 // Defaults come from config/variables (env / historical hard-codes); values saved
@@ -71,15 +72,19 @@ const CONFIG_DEFAULTS = {
     // is handed to the categories once at start (settingsMigration.js).
     raidDefaults: { channelId: "" },
     // Battle.net API credentials for optional live character gear (paperdoll) on
-    // the char-history page. Empty → char pages just link to classic-armory.org.
+    // the char-history page, one API application for every game version. The
+    // realm a lookup asks (region, realm slug, namespace) is per version since
+    // #542: versionSettings below. Empty → char pages just link to the armory.
     blizzard: {
         clientId: blizzardClientId || "",
         clientSecret: blizzardClientSecret || "",
-        region: blizzardRegion || "eu",
-        realmSlug: blizzardRealmSlug || "thunderstrike",
-        // Profile namespace override; empty = auto (profile-classic-<region>).
-        namespace: blizzardNamespace || "",
     },
+    // Per game version (#542, services/events/versionSettings.js): Battle.net
+    // realm, armory and Warcraft Logs templates, Wowhead path, softres edition
+    // and default raidsheet as { [versionId]: block }. Every known version is
+    // present, an empty field means "not there for this version". A config
+    // from before #542 reads its old single values as the TBC block.
+    versionSettings: versionSettingsOf({}),
     // Which loot addon a Discord category uses, keyed by category id:
     // "gargul" | "rclc". Steers the loot-import parser and the char-loot history.
     categoryLootTool: {},
@@ -521,6 +526,13 @@ function normalizeCategoryRoles(raw) {
     return out;
 }
 
+/** `{ clientId, clientSecret }` of the stored Battle.net block over the defaults (a stored value wins, also an emptied one). */
+function blizzardCredentials(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const pick = (key) => String(src[key] === undefined || src[key] === null ? CONFIG_DEFAULTS.blizzard[key] : src[key]);
+    return { clientId: pick("clientId"), clientSecret: pick("clientSecret") };
+}
+
 /** A stored config.json merged over the defaults, every field in its final shape. */
 function normalizeConfig(raw) {
     const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
@@ -546,7 +558,9 @@ function normalizeConfig(raw) {
         categoryIds: Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds,
         categoryRoles: normalizeCategoryRoles(stored.categoryRoles),
         logChannelIds: Array.isArray(stored.logChannelIds) ? stored.logChannelIds : CONFIG_DEFAULTS.logChannelIds,
-        blizzard: { ...CONFIG_DEFAULTS.blizzard, ...(stored.blizzard || {}) },
+        // Only the credentials: the realm fields of before #542 live in versionSettings.
+        blizzard: blizzardCredentials(stored.blizzard),
+        versionSettings: versionSettingsOf(stored),
         anthropic: { ...CONFIG_DEFAULTS.anthropic, ...(stored.anthropic || {}) },
         warcraftlogsV2: { ...CONFIG_DEFAULTS.warcraftlogsV2, ...(stored.warcraftlogsV2 || {}) },
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
@@ -578,5 +592,5 @@ module.exports = {
     normalizeCategorySetupDms, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
     normalizeRaidhelperRetirement, normalizeCategorySheets, normalizeCategoryRoles,
-    normalizeMainVersion, normalizeCategoryVersion,
+    normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings,
 };

@@ -1,6 +1,7 @@
 const { MessageFlags, ChannelType, ThreadAutoArchiveDuration } = require("discord.js");
 const { pendingApplications } = require("../../utils/recruitment/applicationState");
-const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
+// The armory/WCL templates of the main version (#542, Einstellungen → Spielversion).
+const { versionLinks } = require("../../services/events/versionSettings");
 // applicationChannelId + officerRoleId come from the admin-editable config (no restart).
 const { getConfig } = require("../../stores/configStore");
 const { getClass } = require("../../config/applyClasses");
@@ -80,12 +81,13 @@ module.exports = {
         let logsLink = interaction.fields.getTextInputValue("logsLink") || "";
         const description = interaction.fields.getTextInputValue("description") || "";
 
-        // auto-fill missing links from the configured templates ({char} placeholder)
-        const fillTemplate = (tpl) => tpl.replace("{char}", encodeURIComponent(characterName.trim()));
+        // auto-fill missing links from the main version's templates ({char} placeholder);
+        // a version without a template leaves the link out
+        const links = versionLinks();
         let armoryAuto = false;
         let logsAuto = false;
-        if (!armoryLink && applyArmoryUrlTemplate) { armoryLink = fillTemplate(applyArmoryUrlTemplate); armoryAuto = true; }
-        if (!logsLink && applyWclUrlTemplate) { logsLink = fillTemplate(applyWclUrlTemplate); logsAuto = true; }
+        if (!armoryLink && links.armory(characterName)) { armoryLink = links.armory(characterName); armoryAuto = true; }
+        if (!logsLink && links.wcl(characterName)) { logsLink = links.wcl(characterName); logsAuto = true; }
 
         const pending = pendingApplications.get(interaction.user.id) || {};
         pendingApplications.delete(interaction.user.id);
@@ -170,7 +172,7 @@ module.exports = {
                     const embeds = buildApplicantEmbeds(characterName, analysis);
                     for (const e of embeds) await thread.send({ embeds: [e] });
                 } else {
-                    await thread.send({ content: `Keine Warcraft-Logs-Parses für **${characterName}** auf Thunderstrike gefunden.` });
+                    await thread.send({ content: `Keine Warcraft-Logs-Parses für **${characterName}** gefunden.` });
                 }
             } catch (analysisError) {
                 console.error("applicant analysis failed:", analysisError.message);

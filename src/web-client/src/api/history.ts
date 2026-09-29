@@ -212,6 +212,12 @@ export type CharInfo = {
 export type HistoryCharData = {
     character: string;
     realm: string;
+    /** Every game version the character has (#543). */
+    versionIds?: string[];
+    /** The version its links follow (#542/#543): `?version=`, else its own, the main version first. */
+    versionId?: string;
+    /** That version's Wowhead path for the gear links; "" = no Wowhead links. */
+    wowheadPath?: string;
     items: LootItem[];
     armoryUrl: string;
     wclUrl: string;

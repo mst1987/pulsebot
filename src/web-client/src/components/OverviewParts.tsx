@@ -36,6 +36,8 @@ export function RoleBar({ role }: { role: DashboardRole }) {
  * <a>, with the tooltip as its accessible name.
  */
 export function IconLink({ icon, href, tip, tipSub }: { icon: string; href: string; tip: string; tipSub?: string }) {
+    // no link for this version (#542): no button, never one that goes nowhere
+    if (!href) return null;
     return (
         <a className="ibtn sm" href={href} target="_blank" rel="noopener noreferrer" aria-label={tip} data-tip={tip} data-tip-sub={tipSub}>
             <WowIcon name={icon} size={20} />

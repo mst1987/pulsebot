@@ -10,9 +10,9 @@
 // there is no reverse list at all, not even for the orga — only the setup
 // proposal reads it, and only when the orga asks for it.
 
-const Blizzard = require("../../classes/blizzard");
 const { getConfig } = require("../../stores/settingsStore");
 const { armoryUrlFor } = require("./charLinks");
+const { blizzardFor } = require("../../services/events/versionSettings");
 const profiles = require("../../stores/raiderProfileStore");
 const { specEvidence, logIndex } = require("./profileLogs");
 
@@ -117,17 +117,16 @@ function realmSlug(realm) {
 
 /**
  * Link a character with the armory: the link always (from the template of the
- * character's version, charLinks.linkTemplatesFor — today the one in
- * config/variables.js for every version), plus class, level and guild when the
- * Blizzard API is configured and answers. Any failure means link only — never
- * an error.
+ * character's version, Einstellungen → Spielversion, #542/#543), plus class,
+ * level and guild when the Blizzard API is configured for that version and
+ * answers. Any failure means link only — never an error.
  * @returns {Promise<{ url, fetched, className, level, guild }>}
  */
-async function lookupArmory(name, realm = "", versionId = "") {
+async function lookupArmory(name, realm = "", versionId = undefined) {
     const out = { url: armoryUrlFor(name, versionId), fetched: false, className: "", level: null, guild: "" };
     try {
-        const client = new Blizzard(getConfig().blizzard || {});
-        if (!client.isConfigured()) return out;
+        const { client } = blizzardFor(versionId, { config: getConfig() });
+        if (!client) return out;
         const opts = realm ? { realmSlug: realmSlug(realm) } : {};
         const summary = await client.getCharacterSummary(name, opts);
         if (!summary) return out;

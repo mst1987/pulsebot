@@ -37,6 +37,7 @@ import { useTableSort } from "../../lib/tableSort";
 import PageLoader from "../../components/PageLoader";
 import { Button, PageHead, useConfirm } from "../../components/ui";
 import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
+import { WowheadPathProvider } from "../../lib/versionLinks";
 import FilterBar from "./FilterBar";
 import RaiderDialog, { ExportDialog } from "./RaiderDialog";
 import "../../styles/loot-council.css";
@@ -310,7 +311,7 @@ export default function LootCouncilPage() {
     ].filter(Boolean).join(" · ");
 
     return (
-        <>
+        <WowheadPathProvider path={data.wowheadPath}>
             <PageHead
                 icon="inv_misc_coin_02"
                 tone="lootcouncil"
@@ -392,6 +393,6 @@ export default function LootCouncilPage() {
                 />
             ) : null}
             <ExportDialog data={exportData} onClose={() => setExportData(null)} />
-        </>
+        </WowheadPathProvider>
     );
 }

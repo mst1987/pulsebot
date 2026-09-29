@@ -188,7 +188,8 @@
         "lootTip": "Importierte Items",
         "lootSub": "Aus den Gargul-/RCLootcouncil-Importen.",
         "itemsUnit": "Items",
-        "lastOnline": "zuletzt online {date}"
+        "lastOnline": "zuletzt online {date}",
+        "setupVersion": "Armory einrichten"
     },
     "gear": {
         "emptySocket": "leer ({type})",

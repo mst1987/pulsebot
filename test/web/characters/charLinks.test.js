@@ -29,13 +29,9 @@ describe("web/characters/charLinks", () => {
 });
 
 describe("web/characters/charLinks je Spielversion (#543)", () => {
-    const { linkTemplatesFor } = require("../../../src/web/characters/charLinks");
-
-    it("hat eine Stelle fuer die Vorlagen je Version und faellt bis dahin auf die konfigurierten zurueck", () => {
-        const tbc = linkTemplatesFor("tbc");
-        expect(linkTemplatesFor("forever")).toEqual(tbc);
-        expect(linkTemplatesFor()).toEqual(tbc);
-        expect(armoryUrlFor("Devi Res", "forever")).toBe(fillCharTemplate(tbc.armory, "Devi Res"));
-        expect(wclUrlFor("Devi Res", "forever")).toBe(fillCharTemplate(tbc.wcl, "Devi Res"));
+    it("verlinkt jeden Charakter mit den Einstellungen seiner Version - ohne Forever-Vorlage kein Link", () => {
+        expect(armoryUrlFor("Devihra", "tbc")).toContain("Devihra");
+        expect(armoryUrlFor("Devi Res", "forever")).toBe("");
+        expect(wclUrlFor("Devi Res", "forever")).toBe("");
     });
 });

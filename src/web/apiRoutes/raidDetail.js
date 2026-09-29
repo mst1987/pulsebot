@@ -21,6 +21,8 @@ const softres = require("../../utils/loot/softres");
 const { setEventLootSystem, lootSystemOf } = require("../../stores/eventLootSystemStore");
 const { normalizeLootSystem } = require("../../services/loot/lootSystem");
 const wowhead = require("../../utils/loot/wowhead");
+const { mainVersionFor } = require("../../services/events/mainVersion");
+const { settingsForVersion } = require("../../services/events/versionSettings");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const Drive = require("../../classes/drive");
 const SheetsClient = require("../../classes/sheets");
@@ -292,8 +294,11 @@ const postPostRaidplan = withUser({ csrf: true, body: true }, async ({ user, bod
 /** GET /api/raids/softres/item-search?q=&edition= — Wowhead item search for the softres hard-reserve picker. */
 const getItemSearch = withUser({}, async ({ res, url }) => {
     const term = url.searchParams.get("q") || "";
-    const edition = url.searchParams.get("edition") || "tbc";
-    const items = await wowhead.searchItems(term, { edition });
+    // The softres list's edition picks the Wowhead branch; without one the main
+    // version's Wowhead path (#542), and a version without one searches nothing.
+    const edition = url.searchParams.get("edition") || "";
+    const path = edition ? "" : settingsForVersion(mainVersionFor()).wowheadPath;
+    const items = edition || path ? await wowhead.searchItems(term, { edition, path }) : [];
     ok(res, { items });
 });
 
