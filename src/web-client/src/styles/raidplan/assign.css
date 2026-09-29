@@ -16,6 +16,11 @@
 .rp-links .rp-link--buff { --lc: var(--rp-line-buff); }
 .rp-links .rp-link--curse { --lc: var(--rp-line-curse); }
 .rp-links .rp-link--thunderclap, .rp-links .rp-link--demoshout { --lc: var(--rp-line-aoe); }
+.rp-links .rp-link--debuff { --lc: var(--rp-line-debuff); }
+.rp-links .rp-link--blessing { --lc: var(--rp-line-blessing); }
+.rp-links .rp-link--aura { --lc: var(--rp-line-aura); }
+.rp-links .rp-link--totem { --lc: var(--rp-line-totem); }
+.rp-links .rp-link--brez { --lc: var(--rp-line-brez); }
 .rp-assign { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
 .rp-assign-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .rp-assign-head .rp-kicker { margin: 0; }

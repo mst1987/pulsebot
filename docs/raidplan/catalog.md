@@ -30,6 +30,25 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
   Counterspell, Dispel Magic / Cleanse / Purge / Remove Curse / Cure Poison, Innervate, Bloodlust, Heroism,
   Power Infusion, Shackle Undead, Polymorph, Hibernate, Banish, Taunt, Growl. Not in there (add per admin if
   wanted): Supremus's volcanoes, Hyjal wave details beyond the five, most trash.
+- **Raid-wide tasks (#536)**, each checked against the Wowhead TBC spell (the tooltip of `wowhead.com/tbc/spell=<id>`: name and
+  icon; the id stands next to each line of the defaults file) and the icon CDN (HTTP 200); all exist in 2.4.3:
+  - `buff` (added): Battle Shout, Commanding Shout, Prayer of Fortitude, Prayer of Spirit, Prayer of Shadow Protection, Arcane
+    Brilliance, Gift of the Wild (besides Innervate, Bloodlust, Heroism, Power Infusion).
+  - `blessing` (paladin): Blessing of Kings, Might, Wisdom, Salvation, Light, Sanctuary — one entry each, the Greater Blessing of the
+    same name is the same assignment (both ids in the file).
+  - `aura` (party-wide in TBC, handed out per group): Devotion, Retribution, Concentration, Shadow / Frost / Fire Resistance Aura
+    (paladin); Trueshot Aura (hunter), Leader of the Pack, Moonkin Aura, Tree of Life (druid) — the passive auras of a spec, only a
+    group placement, never suggested.
+  - `totem` (shaman): Windfury, Grace of Air, Wrath of Air, Tranquil Air, Strength of Earth, Mana Spring, Mana Tide, Totem of Wrath,
+    Tremor, Fire / Frost / Nature Resistance Totem.
+  - `debuff` (on the boss): Sunder Armor (warrior), Expose Armor (rogue), Faerie Fire (druid), Hunter's Mark, Improved Scorch (mage),
+    Shadow Weaving and Misery (priest), Judgement of Wisdom / Light / the Crusader (paladin). Curse of Recklessness stays a curse.
+  - `brez`: Rebirth (druid).
+  - Left out on purpose: Expose Weakness (a passive Survival proc, nobody to assign), Improved Hunter's Mark (a talent of Hunter's
+    Mark), Sanctity / Crusader Aura, later ranks (one entry per spell). `SINCE` names the ones new in TBC (Commanding Shout, Wrath of
+    Air Totem, Totem of Wrath, Misery, Tree of Life) for the record; like everything up to TBC they carry no `versions`.
+  - Tests: `test/services/raidplan/raidplanGeneralTypes.test.js` (unique ids, known types and classes, the lists per type, a save
+    keeps the new types, the ranking, the suggestions).
 - **Real portraits (43 of the 46 default mobs, Sept 2026):** `scripts/data/raidplanMobNpcs.js` names the Wowhead
   NPC of each default mob (TBC Classic database, e.g. Gathios 22949). `scripts/fetch-mob-icons.js` fetches the
   NPC page (its title has to name the mob, else the mob is skipped and reported), reads the display id and
@@ -84,7 +103,8 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
   target.
 - **Spell picker:** rows of a type that has spells pick one (fitting classes of the assignees first); its icon
   and name show in the row, the card and the read view. The suggestions fill the spell (curses: one per
-  warlock in the catalog's order, thunder clap / demoralizing shout, misdirect, soulstone, fear ward).
+  warlock in the catalog's order, thunder clap / demoralizing shout, misdirect, soulstone, fear ward; blessings,
+  auras, totems, debuffs and Rebirth: editor.md, "The Allgemein section's raid-wide tasks").
 
 ## Raid plan templates
 

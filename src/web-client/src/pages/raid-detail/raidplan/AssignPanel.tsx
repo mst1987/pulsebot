@@ -289,7 +289,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
         try {
             const keep = board.assignments.filter((x) => x.type === a.type && x.id !== a.id);
             const context = rowsAll.filter((x) => x.type !== a.type);
-            const r = await suggestRaidplan({ event: isEvent ? eventId : undefined, type: a.type, preferredClasses: effectiveClasses(board, a), allowOthers: !!a.allowOthers, preferredRole: a.preferredRole, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep, context });
+            const r = await suggestRaidplan({ event: isEvent ? eventId : undefined, type: a.type, preferredClasses: effectiveClasses(board, a), allowOthers: !!a.allowOthers, preferredRole: a.preferredRole, spellId: a.spell ? a.spell.id : undefined, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep, context });
             if (r.assignments.length === 0) { toast(t("raidBoard.assign.noSuggestion")); return null; }
             return r.assignments[0].assignees;
         } catch (err) {

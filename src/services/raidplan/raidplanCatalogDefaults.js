@@ -120,6 +120,62 @@ const SPELLS = [
     spell("banish", "Banish", "spell_shadow_cripple", "cc", ["Warlock"]),
     spell("taunt", "Taunt", "spell_nature_reincarnation", "tank", ["Warrior"]),
     spell("growl", "Growl", "ability_physical_taunt", "tank", ["Druid"]),
+    // #536, the raid-wide tasks of the "Allgemein" section. Name and icon of every entry checked against the Wowhead TBC spell (the tooltip of
+    // wowhead.com/tbc/spell=<id>, the id given per line), the icon also against the icon CDN (HTTP 200). All exist in 2.4.3.
+    // Buffs (raid / party buffs someone has to cast; the cooldowns Innervate, Bloodlust, Heroism, Power Infusion are above)
+    spell("battle-shout", "Battle Shout", "ability_warrior_battleshout", "buff", ["Warrior"]), // 2048
+    spell("commanding-shout", "Commanding Shout", "ability_warrior_rallyingcry", "buff", ["Warrior"]), // 469 (new in TBC)
+    spell("prayer-of-fortitude", "Prayer of Fortitude", "spell_holy_prayeroffortitude", "buff", ["Priest"]), // 25392
+    spell("prayer-of-spirit", "Prayer of Spirit", "spell_holy_prayerofspirit", "buff", ["Priest"]), // 32999 (Divine Spirit talent)
+    spell("prayer-of-shadow-protection", "Prayer of Shadow Protection", "spell_holy_prayerofshadowprotection", "buff", ["Priest"]), // 39374
+    spell("arcane-brilliance", "Arcane Brilliance", "spell_holy_arcaneintellect", "buff", ["Mage"]), // 27127
+    spell("gift-of-the-wild", "Gift of the Wild", "spell_nature_giftofthewild", "buff", ["Druid"]), // 26991
+    // Blessings (paladin; one entry each, the Greater Blessing of the same name is the same assignment): Kings 20217 / 25898, Might 27140 / 27141,
+    // Wisdom 27142 / 27143, Salvation 1038 / 25895, Light 27144 / 27145, Sanctuary 27168 / 27169 (Kings and Sanctuary are talents)
+    spell("blessing-of-kings", "Blessing of Kings", "spell_magic_magearmor", "blessing", ["Paladin"]),
+    spell("blessing-of-might", "Blessing of Might", "spell_holy_fistofjustice", "blessing", ["Paladin"]),
+    spell("blessing-of-wisdom", "Blessing of Wisdom", "spell_holy_sealofwisdom", "blessing", ["Paladin"]),
+    spell("blessing-of-salvation", "Blessing of Salvation", "spell_holy_sealofsalvation", "blessing", ["Paladin"]),
+    spell("blessing-of-light", "Blessing of Light", "spell_holy_prayerofhealing02", "blessing", ["Paladin"]),
+    spell("blessing-of-sanctuary", "Blessing of Sanctuary", "spell_nature_lightningshield", "blessing", ["Paladin"]),
+    // Auras (party-wide in TBC, so they are handed out per group): the paladin auras, and the passive auras of a spec (Trueshot Aura, Leader of
+    // the Pack, Moonkin Aura, Tree of Life) - those are only a group placement, the suggestion never hands them out
+    spell("devotion-aura", "Devotion Aura", "spell_holy_devotionaura", "aura", ["Paladin"]), // 27149
+    spell("retribution-aura", "Retribution Aura", "spell_holy_auraoflight", "aura", ["Paladin"]), // 27150
+    spell("concentration-aura", "Concentration Aura", "spell_holy_mindsooth", "aura", ["Paladin"]), // 19746
+    spell("shadow-resistance-aura", "Shadow Resistance Aura", "spell_shadow_sealofkings", "aura", ["Paladin"]), // 27151
+    spell("frost-resistance-aura", "Frost Resistance Aura", "spell_frost_wizardmark", "aura", ["Paladin"]), // 27152
+    spell("fire-resistance-aura", "Fire Resistance Aura", "spell_fire_sealoffire", "aura", ["Paladin"]), // 27153
+    spell("trueshot-aura", "Trueshot Aura", "ability_trueshot", "aura", ["Hunter"]), // 27066 (Marksmanship talent)
+    spell("leader-of-the-pack", "Leader of the Pack", "spell_nature_unyeildingstamina", "aura", ["Druid"]), // 17007 (Feral talent)
+    spell("moonkin-aura", "Moonkin Aura", "spell_nature_moonglow", "aura", ["Druid"]), // 24907 (Moonkin Form)
+    spell("tree-of-life", "Tree of Life", "ability_druid_treeoflife", "aura", ["Druid"]), // 33891 (new in TBC, Restoration talent)
+    // Totems (shaman, party-wide: one row per shaman and group)
+    spell("windfury-totem", "Windfury Totem", "spell_nature_windfury", "totem", ["Shaman"]), // 25587
+    spell("grace-of-air-totem", "Grace of Air Totem", "spell_nature_invisibilitytotem", "totem", ["Shaman"]), // 25359
+    spell("wrath-of-air-totem", "Wrath of Air Totem", "spell_nature_slowingtotem", "totem", ["Shaman"]), // 3738 (new in TBC)
+    spell("tranquil-air-totem", "Tranquil Air Totem", "spell_nature_brilliance", "totem", ["Shaman"]), // 25908
+    spell("strength-of-earth-totem", "Strength of Earth Totem", "spell_nature_earthbindtotem", "totem", ["Shaman"]), // 25528
+    spell("mana-spring-totem", "Mana Spring Totem", "spell_nature_manaregentotem", "totem", ["Shaman"]), // 25570
+    spell("mana-tide-totem", "Mana Tide Totem", "spell_frost_summonwaterelemental", "totem", ["Shaman"]), // 16190 (Restoration talent)
+    spell("totem-of-wrath", "Totem of Wrath", "spell_fire_totemofwrath", "totem", ["Shaman"]), // 30706 (new in TBC, Elemental talent)
+    spell("tremor-totem", "Tremor Totem", "spell_nature_tremortotem", "totem", ["Shaman"]), // 8143
+    spell("fire-resistance-totem", "Fire Resistance Totem", "spell_fireresistancetotem_01", "totem", ["Shaman"]), // 25563
+    spell("frost-resistance-totem", "Frost Resistance Totem", "spell_frostresistancetotem_01", "totem", ["Shaman"]), // 25560
+    spell("nature-resistance-totem", "Nature Resistance Totem", "spell_nature_natureresistancetotem", "totem", ["Shaman"]), // 25574
+    // Debuffs on the boss (armour, spell vulnerability, attack power, the paladin judgements; Curse of Recklessness stays with the curses)
+    spell("sunder-armor", "Sunder Armor", "ability_warrior_sunder", "debuff", ["Warrior"]), // 25225
+    spell("expose-armor", "Expose Armor", "ability_warrior_riposte", "debuff", ["Rogue"]), // 26866 (does not stack with Sunder Armor)
+    spell("faerie-fire", "Faerie Fire", "spell_nature_faeriefire", "debuff", ["Druid"]), // 26993 (Faerie Fire (Feral) is the same debuff)
+    spell("hunters-mark", "Hunter's Mark", "ability_hunter_snipershot", "debuff", ["Hunter"]), // 14325
+    spell("improved-scorch", "Improved Scorch", "spell_fire_soulburn", "debuff", ["Mage"]), // 12873 (Fire talent: Scorch 27074 stacks Fire Vulnerability)
+    spell("shadow-weaving", "Shadow Weaving", "spell_shadow_blackplague", "debuff", ["Priest"]), // 15334 (Shadow talent)
+    spell("misery", "Misery", "spell_shadow_misery", "debuff", ["Priest"]), // 33195 (new in TBC, Shadow talent)
+    spell("judgement-of-wisdom", "Judgement of Wisdom", "spell_holy_righteousnessaura", "debuff", ["Paladin"]), // 20355
+    spell("judgement-of-light", "Judgement of Light", "spell_holy_healingaura", "debuff", ["Paladin"]), // 27163
+    spell("judgement-of-the-crusader", "Judgement of the Crusader", "spell_holy_holysmite", "debuff", ["Paladin"]), // 27159
+    // Battle res
+    spell("rebirth", "Rebirth", "spell_nature_reincarnation", "brez", ["Druid"]), // 26994
 ];
 
 /**
@@ -130,6 +186,13 @@ const SPELLS = [
 // Checked one by one against Wowhead TBC / Warcraft Wiki (all exist in 2.4.3): Shield Bash (warrior, needs a shield: wowclassicdb.com/tbc/spell/36988),
 // Cure Poison for druids AND shamans (wowhead.com/tbc/spell=526), Remove Curse for mages AND druids (wowhead.com/tbc/spell=2782), Fear Ward (all priests since 2.3.0),
 // Bloodlust (Horde) / Heroism (Alliance). Nothing to remove.
-const SINCE = { "tricks-of-the-trade": "wotlk" };
+// #536 (Sept 2026): left out on purpose - Expose Weakness (34503, a passive Survival proc, nobody to assign), Improved Hunter's Mark (a talent of
+// Hunter's Mark), Sanctity Aura and Crusader Aura (passive / not a raid aura), the resistance totems' and auras' later ranks (one entry each).
+// The entries new in TBC are named here with "tbc" for the record; like every entry up to TBC they carry no `versions` (the audit only limits
+// what came after TBC).
+const SINCE = {
+    "tricks-of-the-trade": "wotlk",
+    "commanding-shout": "tbc", "wrath-of-air-totem": "tbc", "totem-of-wrath": "tbc", "misery": "tbc", "tree-of-life": "tbc",
+};
 
 module.exports = { MOBS, SPELLS, SINCE };

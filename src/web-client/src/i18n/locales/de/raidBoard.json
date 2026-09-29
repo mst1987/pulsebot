@@ -470,7 +470,12 @@
             "curse": "Flüche (Hexer)",
             "thunderclap": "Donnerknall",
             "demoshout": "Demoralisierender Ruf",
-            "trashtank": "Trash-Tanks auf Marker"
+            "trashtank": "Trash-Tanks auf Marker",
+            "debuff": "Debuffs am Boss (Sunder, Feenfeuer, Mal …)",
+            "blessing": "Segen (Paladine)",
+            "aura": "Auren (Paladine je Gruppe)",
+            "totem": "Totems (Schamanen je Gruppe)",
+            "brez": "Battle-Rez (Druide)"
         },
         "type": {
             "heal": "Heilen",
@@ -487,7 +492,12 @@
             "dispel": "Dispel",
             "cc": "Crowd Control",
             "buff": "Buff",
-            "tank": "Main-Tank / Tanken"
+            "tank": "Main-Tank / Tanken",
+            "debuff": "Debuffs",
+            "blessing": "Segen",
+            "aura": "Auren",
+            "totem": "Totems",
+            "brez": "Battle-Rez"
         },
         "suggested": "Vorschlag",
         "assignees": "Zuständig",
@@ -546,7 +556,12 @@
             "curse": "CURSE",
             "thunderclap": "DONNERKNALL",
             "demoshout": "DEMO-RUF",
-            "other": "AUFGABE"
+            "other": "AUFGABE",
+            "debuff": "DEBUFF",
+            "blessing": "SEGEN",
+            "aura": "AURA",
+            "totem": "TOTEM",
+            "brez": "BATTLE-REZ"
         },
         "cardTypes": "Kartentypen",
         "cardEmptyHeal": "Noch keine Zeile. Weise Heilern Tanks, Gruppen oder Spieler zu."
@@ -850,7 +865,10 @@
             "support": "Dispel / CC / Buff",
             "curse": "Flüche",
             "warrior": "Thunder Clap / Demo Shout",
-            "other": "Sonstiges"
+            "other": "Sonstiges",
+            "brez": "Battle-Rez",
+            "buffs": "Segen / Auren / Totems",
+            "debuff": "Debuffs"
         },
         "yourGroup": "Deine Gruppe ({n})",
         "preview": "Vorschau: Meine Aufgaben (so sieht es das Sheet für dich)"

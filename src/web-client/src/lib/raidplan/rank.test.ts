@@ -74,3 +74,36 @@ describe("the twins agree", () => {
         expect(cr.expandClassRefs(board, [], roster, { enh: "ranged" })).toEqual(server.expandClassRefs(board, [], roster, { enh: "ranged" }));
     });
 });
+
+describe("the raid-wide tasks (#536)", () => {
+    const wt = P("wt", "Warrior", "tank", "tank");
+    const wd = P("wd", "Warrior", "melee", "melee");
+    const prot = P("prot", "Paladin", "tank", "tank");
+    const holy = P("holy", "Paladin", "healer", "healer");
+    for (const [name, lib] of twins) {
+        it(`${name}: Sunder Armor and Faerie Fire are a tank's own debuffs, another debuff is not; a protection paladin blesses and has an aura`, () => {
+            expect(lib.scoreCandidate({ type: "debuff", spell: { id: "d:sunder-armor" } }, wt).parts.tank).toBe(0);
+            expect(lib.scoreCandidate({ type: "debuff", spell: { id: "d:faerie-fire" } }, bear).parts.tank).toBe(0);
+            expect(lib.scoreCandidate({ type: "debuff", spell: { id: "d:hunters-mark" } }, wt).parts.tank).toBe(-40);
+            expect(ids(lib.withoutMisfits({ type: "debuff", spell: { id: "d:sunder-armor" } }, [wt, wd]))).toEqual(["wt", "wd"]);
+            expect(ids(lib.withoutMisfits({ type: "debuff" }, [wt, wd]))).toEqual(["wd"]);
+            expect(lib.scoreCandidate({ type: "blessing" }, prot).parts.tank).toBe(0);
+            expect(lib.scoreCandidate({ type: "aura" }, prot).parts.tank).toBe(0);
+            expect(lib.scoreCandidate({ type: "debuff" }, holy).parts.healer).toBe(-20);
+        });
+    }
+    it("the twins resolve a debuff card the same way", () => {
+        const roster = [wt, wd, prot, holy, P("ret", "Paladin", "melee", "melee"), bear, tree];
+        const board = [
+            row("s", "debuff", ["class:Warrior:1:tank"], { spell: { id: "d:sunder-armor", name: "Sunder Armor", icon: "" } }),
+            row("j1", "debuff", ["class:Paladin:1"], { spell: { id: "d:judgement-of-wisdom", name: "Judgement of Wisdom", icon: "" } }),
+            row("j2", "debuff", ["class:Paladin:2"], { spell: { id: "d:judgement-of-light", name: "Judgement of Light", icon: "" } }),
+            row("f", "debuff", ["class:Druid:1"], { spell: { id: "d:faerie-fire", name: "Faerie Fire", icon: "" } }),
+            row("b", "blessing", ["class:Paladin:1"]), row("a", "aura", ["class:Paladin:2"]),
+        ];
+        const out = cr.expandClassRefs(board, [], roster, {});
+        expect(out).toEqual(server.expandClassRefs(board, [], roster, {}));
+        expect(who(out, "s")).toEqual(["user:wt"]);
+        expect(who(out, "j1")).toEqual(["user:ret"]);
+    });
+});

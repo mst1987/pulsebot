@@ -358,7 +358,7 @@ function publicView(plan, event, { me = "" } = {}) {
  * placeholder slots as the editor holds them, the event's roster (empty without an event, i.e.
  * in a template) and the raid's group numbers.
  */
-function suggestFor(type, { event = null, slots = [], roles = {}, preferredClasses = [], allowOthers = false, keep = [], preferredRole = "", context = [] } = {}) {
+function suggestFor(type, { event = null, slots = [], roles = {}, preferredClasses = [], allowOthers = false, keep = [], preferredRole = "", context = [], spellId = "" } = {}) {
     // flex: on this boss somebody plays another role than in the setup
     const flex = roles && typeof roles === "object" ? roles : {};
     // the raiders of the groups in the plan (#529): a bench raider is never suggested
@@ -379,6 +379,8 @@ function suggestFor(type, { event = null, slots = [], roles = {}, preferredClass
     return assign.suggest(type, {
         slots: clean, roster, groups, preferredClasses, allowOthers: allowOthers === true, versionId: event ? event.versionId || "tbc" : "tbc", keep: kept,
         preferredRole: String(preferredRole || ""), context: others, roles: flex,
+        // the row dialog's wand on a row with a spell (a debuff, a blessing, an aura, a totem; #536): a raider for that very spell
+        spellId: String(spellId || ""),
     });
 }
 

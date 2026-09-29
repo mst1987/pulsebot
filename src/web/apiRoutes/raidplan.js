@@ -99,7 +99,8 @@ const putPlan = withUser({ write: "raids", csrf: true, body: true }, async ({ us
 });
 
 /**
- * POST /api/raidplan/suggest — body `{ event?, type, slots, roles?, keep?, preferredRole?, context? }` (`preferredRole`: the row's
+ * POST /api/raidplan/suggest — body `{ event?, type, slots, roles?, keep?, preferredRole?, context?, spellId? }` (`spellId`: the row's
+ * spell, the row dialog's wand of a debuff / blessing / aura / totem row, #536; `preferredRole`: the row's
  * role, `context`: the board's rows of the other types, so the ranking knows who tanks and who has how many tasks; `keep`: the rows of that type made by hand; the
  * raiders they name are taken, the class-based suggestions go round the others): suggested assignments of one
  * type from the board's placeholder slots and (with an event) its lineup. Nothing is saved;
@@ -109,7 +110,7 @@ const postSuggest = withUser({ write: "raids", csrf: true, body: true }, async (
     let event;
     if (body.event) { const found = await eventOf(res, body.event); if (!found) return; event = found.event; }
     const type = String(body.type || "");
-    ok(res, { assignments: assign.SUGGESTABLE.includes(type) ? raidplan.suggestFor(type, { event, slots: body.slots, roles: body.roles, preferredClasses: body.preferredClasses, allowOthers: body.allowOthers, keep: body.keep, preferredRole: body.preferredRole, context: body.context }) : [] });
+    ok(res, { assignments: assign.SUGGESTABLE.includes(type) ? raidplan.suggestFor(type, { event, slots: body.slots, roles: body.roles, preferredClasses: body.preferredClasses, allowOthers: body.allowOthers, keep: body.keep, preferredRole: body.preferredRole, context: body.context, spellId: body.spellId }) : [] });
 });
 
 /** POST /api/raidplan/publish — body `{ event, published, rotate? }` */
