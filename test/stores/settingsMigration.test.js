@@ -32,8 +32,8 @@ describe("stores/settingsMigration migrateSettings (#420)", () => {
         fs.__store.set(TEMPLATES_FILE, JSON.stringify(OLD_TEMPLATES));
         const log = jest.fn();
         const { changes } = migrateSettings({ log });
-        expect(changes).toHaveLength(3);
-        expect(log).toHaveBeenCalledTimes(3);
+        expect(changes).toHaveLength(4);
+        expect(log).toHaveBeenCalledTimes(4);
         expect(log.mock.calls.every(([line]) => line.startsWith("[settings] Migration: "))).toBe(true);
 
         expect(stored(TEMPLATES_FILE).templates[0]).toMatchObject({ id: "rh-3", raidhelperTemplateId: "3" });
@@ -60,6 +60,23 @@ describe("stores/settingsMigration migrateSettings (#420)", () => {
         expect(fs.writeFileSync).not.toHaveBeenCalled();
         expect(log).not.toHaveBeenCalled();
         expect([fs.__store.get(CONFIG_FILE), fs.__store.get(TEMPLATES_FILE)]).toEqual(before);
+    });
+
+    it("moves the old Battle.net realm and templates into versionSettings.tbc once (#542)", () => {
+        fs.__store.set(CONFIG_FILE, JSON.stringify({ guildId: "g", blizzard: { clientId: "id", clientSecret: "s", region: "us", realmSlug: "nightslayer", namespace: "profile-classic1x-us" } }));
+        const { changes } = migrateSettings(quiet);
+        expect(changes).toEqual([expect.stringContaining("Einstellungen je Spielversion (#542)")]);
+        const config = stored(CONFIG_FILE);
+        expect(config.blizzard).toEqual({ clientId: "id", clientSecret: "s" });
+        expect(config.versionSettings.tbc).toMatchObject({
+            blizzardRegion: "us", blizzardRealmSlug: "nightslayer", blizzardNamespace: "profile-classic1x-us", wowheadPath: "tbc", softresEdition: "tbc",
+        });
+        expect(config.versionSettings.forever.blizzardRealmSlug).toBe("");
+        expect(getConfig().versionSettings.tbc.blizzardRealmSlug).toBe("nightslayer");
+        // idempotent: a second start finds the map and writes nothing, also after the admin emptied a field
+        fs.writeFileSync.mockClear();
+        expect(migrateSettings(quiet)).toEqual({ changes: [] });
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
     });
 
     it("writes nothing for a fresh install", () => {

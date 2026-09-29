@@ -13,6 +13,8 @@ const { loadDrift } = require("../../services/discord/roleSync");
 const { seriesFailures } = require("../events/eventSeries");
 const { deployStatus } = require("../http/deployStatus");
 const linkCheck = require("../../services/discord/linkCheck");
+const { mainVersionFor } = require("../../services/events/mainVersion");
+const { settingsForVersion } = require("../../services/events/versionSettings");
 
 /** The series failures with their category's name; best-effort, never fails the dashboard. */
 function seriesFailuresFor(guildId) {
@@ -24,12 +26,13 @@ function seriesFailuresFor(guildId) {
     }
 }
 
-/** The page head's kicker parts: the managed guild and the realm the loot lookups use ("Thunderstrike EU"). */
+/** The page head's kicker parts: the managed guild and the realm of the main version (#542, "Thunderstrike EU"; "" when it has none). */
 function kickerFor(guildId) {
     const guild = (discord.listGuilds() || []).find((g) => g.id === guildId);
-    const bnet = getConfig().blizzard || {};
-    const slug = String(bnet.realmSlug || "").replace(/-/g, " ");
-    const realm = slug ? `${slug.replace(/\b\w/g, (c) => c.toUpperCase())} ${String(bnet.region || "").toUpperCase()}`.trim() : "";
+    const config = getConfig();
+    const bnet = settingsForVersion(mainVersionFor({ config }), { config });
+    const slug = String(bnet.blizzardRealmSlug || "").replace(/-/g, " ");
+    const realm = slug ? `${slug.replace(/\b\w/g, (c) => c.toUpperCase())} ${String(bnet.blizzardRegion || "").toUpperCase()}`.trim() : "";
     return { guild: (guild && guild.name) || "", realm };
 }
 

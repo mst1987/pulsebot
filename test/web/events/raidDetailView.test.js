@@ -102,7 +102,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(Object.keys(body)).toEqual([
             "event", "setupFromSnapshot", "categoryName", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
-            "softresCatalogue", "softresEdition", "softresSuggested", "attendance", "ownSignups", "ownSetup", "ownSetupPost",
+            "softresCatalogue", "softresEdition", "versionId", "wowheadPath", "softresSuggested", "attendance", "ownSignups", "ownSetup", "ownSetupPost",
             "attendanceRoleIds", "membersError", "signupTarget", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
             "progress", "steps", "playerSummaries",
         ]);
@@ -130,6 +130,26 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(body.progress.steps.map((s) => s.key)).toContain("raidplan");
         expect(body.eventsWarning).toBeNull();
         expect(body.roles).toEqual([{ id: "r1", name: "Raider" }]);
+    });
+
+    it("follows the version of the event's category (#542): no softres edition, no TBC list, the version's own sheet", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
+        settingsStore.getConfig.mockReturnValue({
+            categoryVersion: { cat1: "forever" },
+            versionSettings: { tbc: { softresEdition: "tbc", wowheadPath: "tbc", raidsheetId: "sheet-kara" }, forever: { raidsheetId: "sheet-fv" } },
+        });
+        settingsStore.listRaidsheets.mockReturnValueOnce([
+            { id: "sheet-kara", name: "Karazhan", keywords: ["kara"] },
+            { id: "sheet-fv", name: "Forever", keywords: [] },
+        ]);
+        const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
+        expect(body.versionId).toBe("forever");
+        expect(body.softresEdition).toBe("");
+        expect(body.softresCatalogue).toEqual([]);
+        expect(body.softresSuggested).toEqual([]);
+        expect(body.wowheadPath).toBe("");
+        // "Kara Montag" names the TBC sheet's keyword, but that sheet is TBC's own
+        expect(body.matchedSheetId).toBe("sheet-fv");
     });
 
     it("falls back to the frozen snapshot when Raid-Helper returns an empty raidplan or fails", async () => {

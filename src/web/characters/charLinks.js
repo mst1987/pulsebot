@@ -1,33 +1,36 @@
 // Where to look a character up outside the bot: the armory and their Warcraft
 // Logs page.
 //
-// Both are URL templates with a {char} placeholder (config/variables.js), so a
-// guild on another realm sets them once in the environment instead of the links
-// being wrong everywhere. Three pages hand them out — the roster, the character
-// history and the loot council — which is one more than a copied one-liner
-// should live in.
+// Both are URL templates with a {char} placeholder, set per game version in
+// Einstellungen → Spielversion (#542, services/events/versionSettings.js), so a
+// TBC character links the TBC armory and a Forever one the Forever armory — or
+// nothing while that version has no template. Three pages hand them out — the
+// roster, the character history and the loot council — which is one more than
+// a copied one-liner should live in.
 //
 // The armory link matters most where the bot shows gear it derived itself: it
 // is *last seen in a log*, not live, and a council arguing over a drop wants to
 // be able to check that in one click rather than trust it.
 
-const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
+const { fillChar, versionLinks } = require("../../services/events/versionSettings");
 
-/** Fill a {char} template for a character name. "" when no template is set. */
+/** Fill a {char} template for a character name. "" when no template is set (or the link would not work). */
 function fillCharTemplate(tpl, character) {
-    const name = String(character || "").trim();
-    if (!tpl || !name) return "";
-    return String(tpl).replace("{char}", encodeURIComponent(name));
+    return fillChar(tpl, character);
 }
 
-/** The armory page of a character, or "" when no template is configured. */
-function armoryUrlFor(character) {
-    return fillCharTemplate(applyArmoryUrlTemplate, character);
+/**
+ * The armory page of a character, or "" when its version has no template.
+ * @param {string} character
+ * @param {string} [versionId] the character's version (#543); default the main version
+ */
+function armoryUrlFor(character, versionId) {
+    return versionLinks(versionId).armory(character);
 }
 
-/** The Warcraft-Logs page of a character, or "". */
-function wclUrlFor(character) {
-    return fillCharTemplate(applyWclUrlTemplate, character);
+/** The Warcraft-Logs page of a character, or "" (version as in armoryUrlFor). */
+function wclUrlFor(character, versionId) {
+    return versionLinks(versionId).wcl(character);
 }
 
 module.exports = { fillCharTemplate, armoryUrlFor, wclUrlFor };

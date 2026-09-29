@@ -4,7 +4,7 @@
 // ordinary words or other abbreviations ("gl", "mag", "aman", "plateau", "serpent", "tempest", "mh") are left out. Several instances may
 // match ("Kara + Gruul"); nothing sure = nothing. The raid plan's activation dialog shows it pre-filled and lets the orga correct it.
 const { INSTANCES } = require("../../config/softresInstances");
-const { rulesFor } = require("../../config/gameVersions");
+const { rulesFor, LEGACY_VERSION } = require("../../config/gameVersions");
 
 // softres.it instance code -> the rule set's instance id (TBC)
 const TBC_ID = { kara: "kara", gruul: "gruul", magtheridon: "mag", za: "za", ssc: "ssc", tempestkeep: "tk", blacktemple: "bt", hyjal: "hyjal", sunwellplateau: "swp" };
@@ -25,10 +25,10 @@ function hasWord(norm, keyword) {
  * The instances a title names (rule-set ids, in raid order), the size it names ("10er", "25 man", "(25)"), else the default size of
  * the (largest) instance, and the game version ("tbc"). `{ instanceIds: [], size: 0, versionId }` when nothing is sure.
  */
-function instancesFromTitle(title, versionId = "tbc") {
-    const rules = rulesFor(versionId || "tbc") || rulesFor("tbc");
+function instancesFromTitle(title, versionId = LEGACY_VERSION) {
+    const rules = rulesFor(versionId) || rulesFor(LEGACY_VERSION);
     const norm = normalize(title);
-    const out = { instanceIds: [], size: 0, versionId: rules.id || "tbc" };
+    const out = { instanceIds: [], size: 0, versionId: rules.id };
     // only the TBC keywords are mapped to rule-set ids so far; other versions are picked by hand
     if (!norm || out.versionId !== "tbc") return out;
     for (const [code, inst] of Object.entries(INSTANCES)) {

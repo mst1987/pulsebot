@@ -16,6 +16,7 @@ const { loadEventGroups, eventLookbackSince } = require("../../services/events/r
 const { addImport: addLootImport, eventsWithLoot } = require("../../stores/lootStore");
 const { rememberFromLoot } = require("../../services/characters/characterInfo");
 const { parseEventHelperSessions, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
+const { linkItemsForImport } = require("../../services/loot/lootVersion");
 const { bestDayMatch } = require("../loot/lootEventMatch");
 const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestTokenStore");
 const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
@@ -108,6 +109,7 @@ async function ingestLoot(req, res) {
 
         if (prior && prior.action === "accepted" && prior.eventId) {
             // Already confirmed once — the rest of the raid needs no second click.
+            linkItemsForImport(session.items, { eventId: prior.eventId, categoryId: prior.categoryId });
             const { added, skipped } = addLootImport(prior.eventId, session.items, {
                 categoryId: prior.categoryId,
                 eventLabel: prior.eventLabel,

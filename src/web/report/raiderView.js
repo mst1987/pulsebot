@@ -1,12 +1,11 @@
 // Sicht Raider: one card per raider with four sections, the paperdoll, the send
 // dialog, and the role filter above the cards.
 const { CLASS_COLORS } = require("../../utils/setup/setupView");
-const { itemLink: wowheadItemLink } = require("../../utils/loot/wowhead");
 const { plural } = require("../../utils/text");
 const { fmtTime, PX_PER_SEC } = require("./charts");
 const { ICONS } = require("./adminChrome");
 const { esc } = require("./layout");
-const { iconUrl, classIconUrl, expBtn, tile, badge, LINE, ibtn, armoryButton, dlgClose, detailDialog, barCell, barPct, hicon, iconTile, iconRow, classColorOf, fmtK, fmtSecs, naCell, num } = require("./widgets");
+const { wowheadItemLink, iconUrl, classIconUrl, expBtn, tile, badge, LINE, ibtn, armoryButton, dlgClose, detailDialog, barCell, barPct, hicon, iconTile, iconRow, classColorOf, fmtK, fmtSecs, naCell, num } = require("./widgets");
 const { CONS_HOW } = require("./panels/consumables");
 const { potionCells } = require("./panels/potions");
 const { INFERRED_HOW } = require("./panels/buffs");
@@ -67,7 +66,8 @@ function raiderPrep(ctx, p, i) {
     // Gear: only the problem items, the paperdoll behind "Ausrüstung"
     const gearRows = issues.map((it) => {
         const inner = `${it.icon ? hicon(it.icon, "") : ""}<span>${esc(it.itemName)}</span>`;
-        const label = it.itemId ? `<a class="item" href="${esc(wowheadItemLink(it.itemId))}" target="_blank" rel="noopener">${inner}</a>` : inner;
+        const url = it.itemId ? wowheadItemLink(it.itemId) : "";
+        const label = url ? `<a class="item" href="${esc(url)}" target="_blank" rel="noopener">${inner}</a>` : inner;
         return `<div class="kv"><span class="k">${label}</span>${badge(it.label, it.severity === "high" ? "bad" : "mid")}</div>`;
     }).join("");
     const armory = (p.armory || []).length;
@@ -405,8 +405,7 @@ function wowheadItemUrl(it) {
     if (it.enchant && it.enchant.enchantId) params.push(`ench=${encodeURIComponent(it.enchant.enchantId)}`);
     const gemIds = (it.gems || []).map((g) => g.id).filter(Boolean);
     if (gemIds.length) params.push(`gems=${gemIds.join(":")}`);
-    const qs = params.length ? `?${params.join("&")}` : "";
-    return `${esc(wowheadItemLink(it.itemId))}${qs}`;
+    return esc(wowheadItemLink(it.itemId, params));
 }
 
 // one equipment slot in the paperdoll (side = "left"/"right"/"bottom" controls alignment)
@@ -414,6 +413,9 @@ function paperdollSlot(it, side) {
     if (!it) return `<div class="slot empty-slot slot-${side}"><div class="slot-ph"></div></div>`;
     const q = QUALITY_COLOR[it.quality] !== undefined ? QUALITY_COLOR[it.quality] : "#2c313b";
     const href = wowheadItemUrl(it);
+    // No Wowhead path for the report's version (#542): the item stays, the link goes.
+    const tag = href ? "a" : "span";
+    const link = href ? ` href="${href}" target="_blank" rel="noopener"` : "";
     const img = `<img src="${esc(iconUrl(it.icon))}" loading="lazy" alt="">`;
     // enchant badge + status line (value comes from the Wowhead tooltip, not WCL)
     const enchant = it.enchant || {};
@@ -430,14 +432,19 @@ function paperdollSlot(it, side) {
         ench = "<div class=\"slot-ench ok\">verzaubert</div>";
     }
     // real gem icons + empty sockets
-    let gems = (it.gems || []).map((g) =>
-        `<a class="gemicon ${g.bad ? "gem-bad" : ""}" href="${esc(wowheadItemLink(g.id))}" target="_blank" rel="noopener" data-tip="${g.bad ? "suboptimaler Edelstein" : "Edelstein"}"><img src="${esc(iconUrl(g.icon))}" alt=""></a>`).join("");
+    let gems = (it.gems || []).map((g) => {
+        const gemUrl = wowheadItemLink(g.id);
+        const cls = `class="gemicon ${g.bad ? "gem-bad" : ""}"`;
+        const tip = `data-tip="${g.bad ? "suboptimaler Edelstein" : "Edelstein"}"`;
+        const img = `<img src="${esc(iconUrl(g.icon))}" alt="">`;
+        return gemUrl ? `<a ${cls} href="${esc(gemUrl)}" target="_blank" rel="noopener" ${tip}>${img}</a>` : `<span ${cls} ${tip}>${img}</span>`;
+    }).join("");
     for (let i = 0; i < (it.emptySockets || 0); i++) gems += "<span class=\"gemicon gem-empty\" data-tip=\"leerer Sockel\"></span>";
     const gemsRow = gems ? `<div class="slot-gems">${gems}</div>` : "";
     return `<div class="slot slot-${side}">
-      <a class="slot-icon" style="border-color:${q}" href="${href}" target="_blank" rel="noopener" data-tip="${esc(it.itemName)}">${img}${badge}</a>
+      <${tag} class="slot-icon" style="border-color:${q}"${link} data-tip="${esc(it.itemName)}">${img}${badge}</${tag}>
       <div class="slot-info">
-        <a class="slot-name" style="color:${q}" href="${href}" target="_blank" rel="noopener">${esc(it.itemName)}</a>
+        <${tag} class="slot-name" style="color:${q}"${link}>${esc(it.itemName)}</${tag}>
         ${ench}
         ${gemsRow}
       </div>

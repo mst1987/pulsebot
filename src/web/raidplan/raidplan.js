@@ -14,7 +14,8 @@ const profileStore = require("../../stores/raidplanProfileStore");
 const templateStore = require("../../stores/raidplanTemplateStore");
 const { approvedSetupOf, benchAndPool } = require("../../services/setup/setupCore");
 const groupsOf = require("../../services/raidplan/raidplanGroups");
-const { rulesForEvent } = require("../../services/events/mainVersion");
+const { rulesForEvent, versionOfEvent } = require("../../services/events/mainVersion");
+const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { wowIconUrl } = require("../../config/menu");
 const assign = require("../../services/raidplan/raidplanAssign");
 const stepsOf = require("../../services/raidplan/raidplanSteps");
@@ -182,9 +183,13 @@ function templateSummary(t) {
     };
 }
 
-/** The game version of an event's plan (#544): the event's own; an event without one is a TBC one. */
+/**
+ * The game version of an event's plan (#544): the event's own (every own event
+ * has one, a stored one without is LEGACY_VERSION there); a Raid-Helper event
+ * without one plays its category's version (#541/#542, versionOfEvent).
+ */
 function planVersion(event) {
-    return (event && event.versionId) || "tbc";
+    return versionOfEvent(event);
 }
 
 /**
@@ -371,7 +376,7 @@ function publicView(plan, event, { me = "" } = {}) {
 function suggestFor(type, { event = null, versionId: templateVersion = "", slots = [], roles = {}, preferredClasses = [], allowOthers = false, keep = [], preferredRole = "", context = [], spellId = "" } = {}) {
     // only the catalog of the plan's game version (#544): a TBC plan never offers Tricks of the Trade, a Forever plan no TBC-only spell;
     // a template's suggestion has no event and names its template's version
-    const versionId = event ? planVersion(event) : templateVersion || "tbc";
+    const versionId = event ? planVersion(event) : templateVersion || LEGACY_VERSION;
     // flex: on this boss somebody plays another role than in the setup
     const flex = roles && typeof roles === "object" ? roles : {};
     // the raiders of the groups in the plan (#529): a bench raider is never suggested

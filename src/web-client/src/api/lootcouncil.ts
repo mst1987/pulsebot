@@ -385,6 +385,10 @@ export type LootCouncilData = {
     };
     sim: { available: boolean; version: string; hint: string };
     activeGuildId: string;
+    /** The game version the council looks at (#542): the category's, else the main one. */
+    versionId?: string;
+    /** That version's Wowhead path for the item links; "" = no Wowhead links. */
+    wowheadPath?: string;
 };
 
 export type CouncilFilter = {

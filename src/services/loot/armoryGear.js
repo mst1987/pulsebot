@@ -17,8 +17,8 @@
 // — all of them simply mean no answer, and the caller falls back to what the
 // logs know. Nothing here is ever the only source of a raider's gear.
 
-const Blizzard = require("../../classes/blizzard");
 const { getConfig } = require("../../stores/settingsStore");
+const { blizzardFor } = require("../events/versionSettings");
 const { situationalItem } = require("../../config/situationalItems");
 const { isPvpItem } = require("./gearProfile");
 const wowsims = require("../../config/wowsims");
@@ -75,12 +75,14 @@ function toArmoryRows(gear) {
  * Fetch the armory for these characters and keep it for a while.
  *
  * @param {string[]} characters names, as the reports spell them
- * @returns {Promise<{asked: number, answered: number, configured: boolean}>}
+ * @param {object} [opts] `versionId`: the realm of which version to ask (#542); default the main version
+ * @returns {Promise<{asked: number, answered: number, configured: boolean, reason?: string}>}
  */
-async function primeArmoryGear(characters, { full = false, force = false } = {}) {
+async function primeArmoryGear(characters, { full = false, force = false, versionId } = {}) {
     const config = getConfig();
-    const client = new Blizzard(config.blizzard || {});
-    if (!client.isConfigured()) return { asked: 0, answered: 0, configured: false };
+    // A version without realm/namespace (Forever until it is known) asks nobody.
+    const { client, reason } = blizzardFor(versionId, { config });
+    if (!client) return { asked: 0, answered: 0, configured: false, reason };
 
     const now = Date.now();
     const wanted = [...new Set((characters || []).map((c) => String(c || "").trim()).filter(Boolean))]

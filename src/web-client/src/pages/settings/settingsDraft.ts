@@ -1,5 +1,6 @@
 import type { AdminConfig, RolePermissions, Access, TopItem, EventSource } from "../../api";
 import { type CategorySheet } from "./CategoryMatrix";
+import { blockOf, type VersionSettingsBlock } from "../../lib/versionLinks";
 
 export const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -41,6 +42,8 @@ export type Draft = {
     mainVersion: string;
     /** Category id → version; missing/"" = the main version. */
     categoryVersion: Record<string, string>;
+    /** Settings per game version (#542), every version the server sent. */
+    versionSettings: Record<string, VersionSettingsBlock>;
     topItems: TopItem[];
 };
 
@@ -72,6 +75,7 @@ export function toDraft(config: AdminConfig): Draft {
         categoryRaidTemplate: config.categoryRaidTemplate || {},
         mainVersion: config.mainVersion || "tbc",
         categoryVersion: config.categoryVersion || {},
+        versionSettings: Object.fromEntries(Object.entries(config.versionSettings || {}).map(([id, block]) => [id, blockOf(block)])),
         topItems: config.topItems || [],
     };
 }

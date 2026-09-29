@@ -24,13 +24,16 @@
 // via a Wowhead lookup; call it once at import time, not on every read, since
 // the same item ids repeat across a raid's loot.
 
-const { wowheadItemId } = require("../../config/wowheadItemAliases");
+const { versionLinks } = require("../../services/events/versionSettings");
 
-// Wowhead links for TBC (Burning Crusade). Item names resolve in the tooltip even
-// when an export (Gargul) only gives us the id. An Anniversary re-issue links
-// the original item Wowhead knows (config/wowheadItemAliases.js).
-function itemLink(itemId) {
-    return itemId ? `https://www.wowhead.com/tbc/item=${wowheadItemId(itemId)}` : "";
+// Wowhead links of a game version (#542: its Wowhead path, "" when it has
+// none). Item names resolve in the tooltip even when an export (Gargul) only
+// gives us the id. An Anniversary re-issue links the original item Wowhead
+// knows (config/wowheadItemAliases.js). A parse links with the main version;
+// the import relinks with the version of the event it lands on
+// (services/loot/lootVersion.js).
+function itemLink(itemId, versionId) {
+    return itemId ? versionLinks(versionId).wowheadItem(itemId) : "";
 }
 
 // "Naphfß-Thunderstrike" → { character: "Naphfß", realm: "Thunderstrike" }.

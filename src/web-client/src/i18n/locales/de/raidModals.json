@@ -213,6 +213,7 @@
         "viewList": "Liste ansehen",
         "editList": "Liste bearbeiten",
         "editListSub": "Link mit Admin-Token",
-        "messagePlaceholder": "z. B. Bitte bis Raidbeginn eintragen!"
+        "messagePlaceholder": "z. B. Bitte bis Raidbeginn eintragen!",
+        "noEdition": "Für die Spielversion dieses Events ist keine Softres-Edition eingerichtet (Einstellungen → Spielversion). Eine vorhandene Liste lässt sich unter „Link eintragen“ verknüpfen."
     }
 }

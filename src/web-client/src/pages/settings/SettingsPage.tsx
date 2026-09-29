@@ -25,7 +25,7 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { type Draft, toDraft } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";
 import { ChannelListField, TopItemsField } from "./SettingsFields";
-import GameVersionSection from "./SettingsGameVersion";
+import GameVersionSection, { VersionSettingsCard } from "./SettingsGameVersion";
 
 /** A module's fields on the panel card, each hint moved into its label's tooltip. */
 function ModuleCard({ children }: { children: ReactNode }) {
@@ -138,6 +138,8 @@ export default function SettingsPage() {
                 // #541: sent whole as well — a category back on "Hauptversion" is left out.
                 mainVersion: draft.mainVersion,
                 categoryVersion: Object.fromEntries(Object.entries(draft.categoryVersion).filter(([, id]) => id)),
+                // #542: every version's block, merged per field on the server; a wrong value comes back as 400 with its field.
+                versionSettings: draft.versionSettings,
                 // Sent whole: the store replaces the map, so clearing a url is
                 // what removes that category's sheet.
                 categorySheets: Object.fromEntries(
@@ -278,6 +280,13 @@ export default function SettingsPage() {
                         categoryVersion={draft.categoryVersion}
                         onMainVersion={(mainVersion) => patch({ mainVersion })}
                         onCategoryVersion={(id, versionId) => patch({ categoryVersion: { ...draft.categoryVersion, [id]: versionId } })}
+                    />
+                    <VersionSettingsCard
+                        versions={data.gameVersions || []}
+                        mainVersion={draft.mainVersion}
+                        value={draft.versionSettings}
+                        raidsheets={data.raidsheets || []}
+                        onChange={(id, block) => patch({ versionSettings: { ...draft.versionSettings, [id]: block } })}
                     />
                 </>
             );

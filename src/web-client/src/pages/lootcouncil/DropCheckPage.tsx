@@ -24,6 +24,7 @@ import { itemQualityProps } from "../../lib/itemQuality";
 import {
     CANDIDATE_SORT, FILTER_DEFAULT, VIEW_KEY, WOWHEAD, dropHref, pickVerdict, raiderHref, useCouncilSim, waitedTip,
     type CandidateSortKey, type FilterView } from "./council";
+import { WowheadPathProvider } from "../../lib/versionLinks";
 import { BisSpecs, ContentBadge, FoldRow, LootCount, RaiderIdent } from "./ItemBits";
 import { CandidateTable, ListBadge } from "./CandidateTable";
 import { NeedBar } from "./NeedBar";
@@ -41,6 +42,8 @@ export default function DropCheckPage() {
     const [view] = usePersistedState<FilterView>(VIEW_KEY, FILTER_DEFAULT);
     const [focus, setFocus] = useState<CouncilFocus | null>(null);
     const [simAvailable, setSimAvailable] = useState(false);
+    // The council's version's Wowhead path (#542); undefined until loaded = the stored (TBC) one
+    const [wowheadPath, setWowheadPath] = useState<string | undefined>(undefined);
     const [error, setError] = useState<ApiError | null>(null);
     const [loading, setLoading] = useState(false);
     const [unwearableOpen, setUnwearableOpen] = useState(false);
@@ -82,6 +85,7 @@ export default function DropCheckPage() {
                 setError(null);
                 setFocus(d.focus);
                 setSimAvailable(d.sim.available);
+                setWowheadPath(d.wowheadPath);
                 // Ohne Simulation gibt es keinen Zugewinn und keine Empfehlung —
                 // also wird der Drop sofort gerechnet, nicht erst auf Klick.
                 if (d.focus && d.sim.available) autoSimRef.current(d.focus);
@@ -158,7 +162,7 @@ export default function DropCheckPage() {
     const canSim = !!focus && simAvailable && focus.candidates.some((c) => c.simSupported && c.hasGear);
 
     return (
-        <>
+        <WowheadPathProvider path={wowheadPath}>
             <div className="page-head lc-drophead">
                 <Button variant="ghost" size="sm" icon={<ChevronLeftIcon />} onClick={() => navigate("/lootcouncil")}>{t("lootcouncil.drop.back")}</Button>
                 <div className="ph-text">
@@ -191,7 +195,7 @@ export default function DropCheckPage() {
                             ? <img src={focus.item.iconUrl} alt="" {...itemQualityProps(focus.item.quality, "lc-dropitem2-icon")} />
                             : <span className="lc-dropitem2-icon lc-worn-blank" />}
                         <div className="lc-dropitem2-text">
-                            <a href={WOWHEAD(focus.item.id)} target="_blank" rel="noreferrer" {...itemQualityProps(focus.item.quality, "lc-dropitem2-name")}>
+                            <a href={WOWHEAD(focus.item.id, wowheadPath) || undefined} target="_blank" rel="noreferrer" {...itemQualityProps(focus.item.quality, "lc-dropitem2-name")}>
                                 {focus.item.name || `Item ${focus.item.id}`}
                             </a>
                             <div className="lc-dropitem2-meta">
@@ -310,6 +314,6 @@ export default function DropCheckPage() {
                     ) : null}
                 </>
             )}
-        </>
+        </WowheadPathProvider>
     );
 }

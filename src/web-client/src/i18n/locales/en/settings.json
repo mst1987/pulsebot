@@ -140,7 +140,8 @@
         "topItems": "Top items",
         "mainVersion": "Main version → {value}",
         "categoryVersion": "{name} · Game version → {value}",
-        "followMain": "main version"
+        "followMain": "main version",
+        "versionSettings": "Links and armory · {value}"
     },
     "lootTool": {
         "none": "none"
@@ -526,7 +527,8 @@
         "secretKeep": "•••••••• stored — leave empty to keep it",
         "secretNone": "no secret stored yet",
         "keep": "Keep",
-        "secretNote": "Never shown again, only replaced or deleted."
+        "secretNote": "Never shown again, only replaced or deleted.",
+        "realmNotSet": "per game version (main version has no realm)"
     },
     "tokens": {
         "revokeAsk": "Revoke token \"{name}\"?",
@@ -824,5 +826,49 @@
         "switchLabel": "Switch off Raid-Helper requests",
         "disabledSince": "switched off {since}",
         "ready": "ready – history stays readable"
+    },
+    "versionLinks": {
+        "title": "Links and armory per version",
+        "titleSub": "Where a character is looked up (armory, Warcraft Logs) and where items link to (Wowhead), separately for every game version. An event uses the values of its version, raider pages and the loot council those of the main version or the category.",
+        "switch": "Game version of the settings",
+        "emptyHint": "Empty field = {version} has none: the link is left out, the armory is not asked.",
+        "armory": "Armory",
+        "logsAndItems": "Logs, items, softres, raidsheet",
+        "region": "Region",
+        "realm": "Realm",
+        "namespace": "Namespace",
+        "namespaceSub": "Profile namespace of the Blizzard API, e.g. profile-classicann-eu for TBC Anniversary. Empty = no armory lookup for this version.",
+        "armoryUrl": "Armory link",
+        "wclUrl": "Warcraft Logs link",
+        "templateSub": "An address with {char} where the character name goes. Empty = no link.",
+        "wowhead": "Wowhead path",
+        "wowheadSub": "The part after wowhead.com/, e.g. tbc or classic. Empty = no Wowhead links and no item search.",
+        "softres": "Softres edition",
+        "softresSub": "Which edition softres.it uses for this version. None = no softres for events of this version.",
+        "raidsheet": "Raidsheet template",
+        "raidsheetSub": "The raidsheet of an event of this version when no keyword matches. A raidsheet of another version is never picked by keyword.",
+        "byKeyword": "by keyword only",
+        "none": "none",
+        "preview": "The links look like this:",
+        "previewLink": {
+            "armory": "Armory",
+            "wcl": "Warcraft Logs",
+            "wowhead": "Wowhead"
+        },
+        "previewNone": {
+            "armory": "no armory",
+            "wcl": "no logs",
+            "wowhead": "no Wowhead"
+        },
+        "invalid": {
+            "blizzardRegion": "Unknown region.",
+            "blizzardRealmSlug": "Lower-case letters, digits and hyphens only.",
+            "blizzardNamespace": "Lower-case letters, digits and hyphens only.",
+            "armoryUrlTemplate": "An http(s) address with {char}.",
+            "wclUrlTemplate": "An http(s) address with {char}.",
+            "wowheadPath": "Lower-case letters, digits and hyphens only, e.g. tbc.",
+            "softresEdition": "Unknown edition.",
+            "raidsheetId": "Raidsheet not found."
+        }
     }
 }

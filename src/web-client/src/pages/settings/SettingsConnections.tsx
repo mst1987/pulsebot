@@ -50,6 +50,13 @@ function since(ms: number): string {
     return translate("settings.connections.since.days", { count: Math.round(hours / 24) });
 }
 
+/** "eu · thunderstrike" of the main version's block, or "nicht eingerichtet" (#542). */
+function mainRealm(c: SettingsData["config"]): string {
+    const block = (c.versionSettings || {})[c.mainVersion || "tbc"];
+    if (!block || !block.blizzardRealmSlug) return translate("settings.connections.realmNotSet");
+    return `${block.blizzardRegion || "?"} · ${block.blizzardRealmSlug}`;
+}
+
 // Built while rendering, so every text is in the active language.
 function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
     const t = translate;
@@ -74,8 +81,8 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
             tip: "Battle.net / Armory",
             tipSub: t("settings.connections.battlenetSub"),
             rows: [
-                ["Realm", `${c.blizzard.region || "eu"} · ${c.blizzard.realmSlug || "thunderstrike"}`],
-                ["Namespace", c.blizzard.namespace || t("settings.connections.auto")],
+                // the realm of the main version (#542); set per version under Spielversion
+                ["Realm", mainRealm(c)],
                 ["Secret", secret(c.blizzard.hasClientSecret)],
             ],
         },
@@ -213,16 +220,12 @@ function fieldsOf(id: Exclude<ConnectionId, "lootsync">): FieldsDef {
         };
     }
     if (id === "battlenet") {
-        const namespace = t("settings.connections.namespace");
         return {
             title: "Battle.net / Armory",
             missingText: t("settings.connections.battlenetMissing"),
             link: ["https://develop.battle.net/access/clients", t("settings.connections.battlenetLink")],
             fields: [
                 { key: "clientId", label: clientId, mono: true, placeholder: t("settings.connections.battlenetClientPlaceholder") },
-                { key: "region", label: "Region", placeholder: "eu" },
-                { key: "realmSlug", label: t("settings.connections.realmSlug"), placeholder: "thunderstrike" },
-                { key: "namespace", label: namespace, placeholder: t("settings.connections.namespacePlaceholder"), tip: namespace, tipSub: t("settings.connections.namespaceSub") },
             ],
             secret: { key: "clientSecret", label: secretLabel, tip: secretLabel, tipSub: t("settings.connections.battlenetSecretSub") },
         };
@@ -254,7 +257,7 @@ function initialFields(id: ConnectionId, config: AdminConfig): Record<string, st
     if (id === "discord") return { raidhelperServerId: config.raidhelperServerId || "" };
     if (id === "battlenet") {
         const b = config.blizzard;
-        return { clientId: b.clientId || "", region: b.region || "", realmSlug: b.realmSlug || "", namespace: b.namespace || "" };
+        return { clientId: b.clientId || "" };
     }
     if (id === "wcl") return { clientId: config.warcraftlogsV2?.clientId || "" };
     if (id === "anthropic") return { model: config.anthropic?.model || "" };

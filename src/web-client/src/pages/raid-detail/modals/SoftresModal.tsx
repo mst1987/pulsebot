@@ -61,14 +61,19 @@ export default function SoftresModal({ ctx, open, onClose }: { ctx: RaidCtx; ope
             const ed = codeEdition.get(code);
             if (ed) return ed;
         }
-        return softresEdition || softresCatalogue[0]?.edition || "tbc";
+        // "" when the event's version has no softres edition (#542): nothing to create, nothing to search
+        return softresEdition || softresCatalogue[0]?.edition || "";
     }, [selected, codeEdition, softresEdition, softresCatalogue]);
+    const noEdition = !softresCatalogue.length;
 
     const [softresUrl, setSoftresUrl] = useState(so?.url || "");
     const [softresEditUrl, setSoftresEditUrl] = useState(so?.editUrl || "");
     const [message, setMessage] = useState(so?.postedMessage || "");
 
-    const search = useCallback((q: string) => searchSoftresItems(currentEdition, q), [currentEdition]);
+    const search = useCallback(
+        (q: string) => (currentEdition ? searchSoftresItems(currentEdition, q) : Promise.resolve({ items: [] })),
+        [currentEdition],
+    );
 
     const toggle = (code: string, edition: string) => {
         const next = new Set(selected);
@@ -140,7 +145,10 @@ export default function SoftresModal({ ctx, open, onClose }: { ctx: RaidCtx; ope
             <div className="rd-dlg-stack">
                 <Segment<Mode> ariaLabel="Softres" size="sm" value={mode} onChange={setMode} options={modes} />
 
-                {mode === "create" && (
+                {mode === "create" && noEdition && (
+                    <p className="rd-muted" role="note">{t("raidModals.softres.noEdition")}</p>
+                )}
+                {mode === "create" && !noEdition && (
                     <form id="rd-softres-form" className="rd-form" onSubmit={create}>
                         <div className="field">
                             <label className="tipped" data-tip={t("raidModals.softres.instancesTip")} data-tip-sub={t("raidModals.softres.instancesTipSub")}>

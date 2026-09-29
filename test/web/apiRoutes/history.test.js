@@ -985,6 +985,18 @@ describe("web/apiRoutes/history", () => {
             expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
         });
 
+        it("asks no armory and links nothing for a main version without settings (#542)", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "forever", blizzard: { clientId: "id", clientSecret: "s" }, versionSettings: {} });
+            const data = json(await get("/api/history/char", { name: "Anna" })).data;
+            expect(mockGetEquipment).not.toHaveBeenCalled();
+            expect(mockGetCharacterSummary).not.toHaveBeenCalled();
+            expect(data).toMatchObject({
+                versionId: "forever", gearConfigured: false, armoryUrl: "", wclUrl: "", wowheadPath: "",
+                gearError: "Armory für WoW Forever nicht eingerichtet (Einstellungen → Spielversion).",
+            });
+        });
+
         it("returns loot + links but no gear when Blizzard is not configured", async () => {
             lootStore.listByCharacter.mockReturnValue([{ character: "Anna", realm: "thunderstrike", itemName: "Sword" }]);
 
@@ -1007,6 +1019,8 @@ describe("web/apiRoutes/history", () => {
                 gearError: "",
                 charSummary: null,
                 gearNamespace: "profile-classicann-eu",
+                versionId: "tbc",
+                wowheadPath: "tbc",
                 info: null,
                 gearIssues: null,
             });
@@ -1068,7 +1082,7 @@ describe("web/apiRoutes/history", () => {
 
             expect(json(res).data.gearError).toBe(
                 "Charakter „Anna\" nicht in der Blizzard-API gefunden (404, Namespace profile-classicann-eu). "
-                + "Realm-Slug „thunderstrike\"/Schreibweise prüfen oder den Namespace in den Einstellungen ändern (z.B. profile-classicann-eu).",
+                + "Realm-Slug „thunderstrike\"/Schreibweise prüfen oder den Namespace in Einstellungen → Spielversion ändern.",
             );
         });
 

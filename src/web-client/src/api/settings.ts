@@ -5,20 +5,20 @@ import type { DiscordServers, DiscordServerCard } from "./discordServers";
 import type { EventSource } from "./raidDetail";
 import type { TextChannel } from "./recruitment";
 import type { BotAccessRule } from "./botCommands";
+import type { VersionSettingsBlock } from "../lib/versionLinks";
 
 /** `color`: the role's Discord colour as hex, "" when it has none. */
 export type Role = { id: string; name: string; color?: string };
 
 // The Battle.net client. The secret never comes back from the server — only
 // whether one is stored. Read: { …, hasClientSecret }. Write: { …, clientSecret? }
-// — omit clientSecret to keep the stored one, "" to clear it.
+// — omit clientSecret to keep the stored one, "" to clear it. The realm the
+// armory asks (region, realm slug, namespace) is per game version since #542:
+// AdminConfig.versionSettings.
 export type BlizzardConfig = {
     clientId: string;
     hasClientSecret?: boolean;
     clientSecret?: string;
-    region: string;
-    realmSlug: string;
-    namespace: string;
 };
 
 export type AdminConfig = {
@@ -48,6 +48,12 @@ export type AdminConfig = {
     mainVersion?: string;
     /** Categories that play another version: category id → version id. */
     categoryVersion?: Record<string, string>;
+    /**
+     * Settings per game version (#542): armory realm, armory/WCL templates,
+     * Wowhead path, softres edition, default raidsheet. Every known version is
+     * present; an empty field = not there for that version (no link).
+     */
+    versionSettings?: Record<string, VersionSettingsBlock>;
     blizzard: BlizzardConfig;
     // Claude phrases the log recommendations for the raiders. The key itself
     // never comes back from the server — only whether one is stored.

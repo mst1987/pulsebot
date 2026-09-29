@@ -131,6 +131,8 @@ export type DraftShape = {
     mainVersion?: string;
     /** Category id → version; missing/"" = the main version. */
     categoryVersion?: Record<string, string>;
+    /** Settings per version (#542): version id → { field → value }. */
+    versionSettings?: Record<string, Record<string, string>>;
     topItems: { id: number }[];
 };
 
@@ -307,6 +309,15 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
     for (const id of [...new Set([...Object.keys(verWas), ...Object.keys(verIs)])]) {
         if ((verWas[id] || "") !== (verIs[id] || "")) out.push(t("settings.changes.categoryVersion", { name: names.category(id), value: versionName(verIs[id] || "") }));
     }
+    // Settings per version (#542): one line per version whose block changed.
+    const vsWas = saved.versionSettings || {};
+    const vsIs = draft.versionSettings || {};
+    for (const id of [...new Set([...Object.keys(vsWas), ...Object.keys(vsIs)])]) {
+        const was = vsWas[id] || {};
+        const is = vsIs[id] || {};
+        const changed = [...new Set([...Object.keys(was), ...Object.keys(is)])].some((k) => String(was[k] || "").trim() !== String(is[k] || "").trim());
+        if (changed) out.push(t("settings.changes.versionSettings", { value: versionName(id) }));
+    }
 
     for (const [key, labelKey] of SIMPLE_FIELDS) {
         if (String(saved[key] || "").trim() !== String(draft[key] || "").trim()) out.push(t(labelKey));
@@ -366,15 +377,8 @@ export function connectionPatch(id: ConnectionId, fields: Record<string, string>
     // The server itself is picked under Discord-Server (discordServersPatch below).
     if (id === "discord") return { raidhelperServerId: v("raidhelperServerId") };
     if (id === "battlenet") {
-        return {
-            blizzard: {
-                clientId: v("clientId"),
-                region: v("region") || "eu",
-                realmSlug: v("realmSlug").toLowerCase() || "thunderstrike",
-                namespace: v("namespace").toLowerCase(),
-                ...(secret !== undefined ? { clientSecret: secret } : {}),
-            },
-        };
+        // Only the credentials: the realm is per game version (#542, Einstellungen → Spielversion).
+        return { blizzard: { clientId: v("clientId"), ...(secret !== undefined ? { clientSecret: secret } : {}) } };
     }
     if (id === "anthropic") {
         return { anthropic: { model: v("model"), ...(secret !== undefined ? { apiKey: secret } : {}) } };

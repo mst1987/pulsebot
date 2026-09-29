@@ -7,6 +7,7 @@ import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { gearCounts, raiderHref, wornWowheadUrl } from "./council";
+import { useWowheadPath } from "../../lib/versionLinks";
 
 /** The shape `CouncilCandidate.gear` and `CouncilRaider.gear` share. */
 type CouncilGear = NonNullable<CouncilCandidate["gear"]>;
@@ -19,6 +20,8 @@ type CouncilGear = NonNullable<CouncilCandidate["gear"]>;
  */
 export function WornIcon({ item }: { item: WornItem }) {
     const t = useT();
+    // "" without a Wowhead path for the council's version (#542): an <a> without href is no link, never a broken one
+    const href = wornWowheadUrl(item, useWowheadPath()) || undefined;
     const noench = item.enchantStatus === "missing";
     const marks = [
         item.isBis ? "lc-worn-bis" : "",
@@ -32,7 +35,7 @@ export function WornIcon({ item }: { item: WornItem }) {
     return (
         <a
             className={`lc-worn ${marks}`}
-            href={wornWowheadUrl(item)}
+            href={href}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`${item.itemName} (${item.slotName})`}
