@@ -28,14 +28,21 @@ export const ASSIGN_META = {
     thunderclap: { icon: "spell_nature_thunderclap", classes: ["Warrior"] },
     demoshout: { icon: "ability_warrior_warcry", classes: ["Warrior"] },
     trashtank: { icon: "ability_defend", classes: [] },
+    // #536: debuffs on the boss, paladin blessings, auras (paladin; the passive ones of a spec), shaman totems, the battle res
+    debuff: { icon: "ability_warrior_sunder", classes: ["Warrior", "Druid", "Hunter", "Mage", "Priest", "Paladin", "Rogue"] },
+    blessing: { icon: "spell_magic_greaterblessingofkings", classes: ["Paladin"] },
+    aura: { icon: "spell_holy_devotionaura", classes: ["Paladin"] },
+    totem: { icon: "spell_nature_windfury", classes: ["Shaman"] },
+    brez: { icon: "spell_nature_reincarnation", classes: ["Druid"] },
     other: { icon: "inv_misc_note_01", classes: [] },
 } as Record<string, { icon: string; classes: string[] }>;
-export const SUGGESTABLE = ["heal", "kick", "md", "ss", "fearward", "curse", "thunderclap", "demoshout", "trashtank"];
+export const SUGGESTABLE = ["heal", "kick", "md", "ss", "fearward", "curse", "thunderclap", "demoshout", "trashtank", "debuff", "blessing", "aura", "totem", "brez"];
 export const SCOPE_TYPES = {
-    boss: ["tank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "other"],
+    boss: ["tank", "heal", "kick", "md", "ss", "brez", "fearward", "special", "dispel", "cc", "buff", "debuff", "other"],
     trash: ["trashtank", "tank", "heal", "kick", "cc", "dispel", "other"],
-    general: ["curse", "thunderclap", "demoshout", "buff", "other"],
-    defaults: ["tank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "other"],
+    // the raid-wide tasks of the evening (#536): soulstone, battle res, fear ward, buffs, blessings, auras, totems, curses, debuffs
+    general: ["ss", "brez", "fearward", "buff", "blessing", "aura", "totem", "curse", "debuff", "thunderclap", "demoshout", "other"],
+    defaults: ["tank", "heal", "kick", "md", "ss", "brez", "fearward", "special", "dispel", "cc", "buff", "debuff", "other"],
 } as Record<string, string[]>;
 /** The role icons the raid detail already uses for its role groups. */
 export const ROLE_ICON = {
@@ -46,12 +53,13 @@ export const ROLE_ICON = {
     dps: "inv_misc_questionmark",
 } as Record<string, string>;
 /** The fixed order of the cards: tanking, healing, interrupts ... (the same in the editor, the template and the read view). */
-export const CARD_ORDER = ["tank", "trashtank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "other"];
+export const CARD_ORDER = ["tank", "trashtank", "heal", "kick", "md", "ss", "brez", "fearward", "special", "dispel", "cc", "buff", "blessing", "aura", "totem", "curse", "debuff", "thunderclap", "demoshout", "other"];
 /** The cards an area always has in the editor, even empty. */
 export const DEFAULT_CARDS = {
     boss: ["tank", "heal"],
     trash: ["trashtank", "heal"],
-    general: ["curse", "thunderclap", "demoshout"],
+    // #536: soulstone, blessings, totems and debuffs besides the curses and the warrior's shouts; the rest via "Karte hinzufügen"
+    general: ["ss", "blessing", "totem", "curse", "debuff", "thunderclap", "demoshout"],
     defaults: ["tank", "heal"],
 } as Record<string, string[]>;
 
@@ -123,6 +131,8 @@ export const TEXT_ICONS = [
     ["misdirect", "ability_hunter_misdirection"], ["irreführ", "ability_hunter_misdirection"],
     ["soulstone", "spell_shadow_soulgem"], ["seelenstein", "spell_shadow_soulgem"],
     ["fear ward", "spell_holy_excorcism"], ["furchtschutz", "spell_holy_excorcism"],
+    ["rebirth", "spell_nature_reincarnation"], ["wiedergeburt", "spell_nature_reincarnation"],
+    ["sunder", "ability_warrior_sunder"], ["rüstung zerreißen", "ability_warrior_sunder"],
     ["dispel", "spell_holy_dispelmagic"], ["polymorph", "spell_nature_polymorph"], ["verwandlung", "spell_nature_polymorph"],
 ];
 
@@ -503,7 +513,7 @@ export function applySuggestions(board: RaidplanBoard, type: string, list: Raidp
 // ---- lines on the map -----------------------------------------------------------------------
 
 /** The row types whose lines have a colour of their own (`--rp-line-<type>` in styles/tokens.css); any other type draws as "other". */
-export const LINE_TYPES = ["tank", "trashtank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "other"];
+export const LINE_TYPES = ["tank", "trashtank", "heal", "kick", "md", "ss", "brez", "fearward", "special", "dispel", "cc", "buff", "blessing", "aura", "totem", "curse", "debuff", "thunderclap", "demoshout", "other"];
 
 /** The class that colours the line of a row type (`rp-link--heal` ...; `.rp-line` is taken by the drawn lines and the rows). */
 export function linkClass(type: string): string {

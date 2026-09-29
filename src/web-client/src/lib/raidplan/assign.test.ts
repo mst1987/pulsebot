@@ -51,7 +51,10 @@ describe("types per area", () => {
     it("boss, trash and the whole raid offer their own types, everything can be 'other'", () => {
         expect(lib.assignTypes("boss")).toEqual(expect.arrayContaining(["heal", "kick", "md", "ss", "fearward", "special", "other"]));
         expect(lib.assignTypes("trash")[0]).toBe("trashtank");
-        expect(lib.assignTypes("general")).toEqual(["curse", "thunderclap", "demoshout", "buff", "other"]);
+        expect(lib.assignTypes("general")).toEqual(["ss", "brez", "fearward", "buff", "blessing", "aura", "totem", "curse", "debuff", "thunderclap", "demoshout", "other"]);
+        // #536: the debuffs on the boss and the battle res also per boss (and in the Standard)
+        for (const scope of ["boss", "defaults"]) expect(lib.assignTypes(scope)).toEqual(expect.arrayContaining(["debuff", "brez"]));
+        expect(lib.assignTypes("trash")).not.toContain("debuff");
         expect(lib.assignTypes("nonsense")).toEqual(lib.assignTypes("boss"));
         for (const scope of ["boss", "trash", "general"]) expect(lib.assignTypes(scope)).toContain("other");
         expect(lib.scopeOf({ general: true })).toBe("general");
@@ -78,7 +81,9 @@ describe("cards", () => {
     it("every area has its default cards even when empty, in a fixed order", () => {
         expect(lib.cardTypes("boss", [], [], false, [])).toEqual(["tank", "heal"]);
         expect(lib.cardTypes("trash", [], [], false, [])).toEqual(["trashtank", "heal"]);
-        expect(lib.cardTypes("general", [], [], false, [])).toEqual(["curse", "thunderclap", "demoshout"]);
+        expect(lib.cardTypes("general", [], [], false, [])).toEqual(["ss", "blessing", "totem", "curse", "debuff", "thunderclap", "demoshout"]);
+        // a hidden default card stays hidden (the Seelenstein card of #536 like the others)
+        expect(lib.cardTypes("general", [], [], false, ["ss", "debuff"])).toEqual(["blessing", "totem", "curse", "thunderclap", "demoshout"]);
     });
     it("a type with a row and a card added by hand appear, in the fixed order whatever the order of the rows", () => {
         expect(lib.cardTypes("boss", [row("cc"), row("kick"), row("heal")], ["md"], false, [])).toEqual(["tank", "heal", "kick", "md", "cc"]);
@@ -89,8 +94,8 @@ describe("cards", () => {
         expect(lib.cardTypes("boss", [row("kick"), row("tank")], ["md"], true, [])).toEqual(["tank", "kick"]);
     });
     it("offers to add the area's other types, and a row of a card has the card's type", () => {
-        expect(lib.addableCards("boss", ["tank", "heal"])).toEqual(["kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "other"]);
-        expect(lib.addableCards("general", ["curse"])).toEqual(["buff", "thunderclap", "demoshout", "other"]);
+        expect(lib.addableCards("boss", ["tank", "heal"])).toEqual(["kick", "md", "ss", "brez", "fearward", "special", "dispel", "cc", "buff", "debuff", "other"]);
+        expect(lib.addableCards("general", ["ss", "blessing", "totem", "curse", "debuff", "thunderclap", "demoshout"])).toEqual(["brez", "fearward", "buff", "aura", "other"]);
         const r = lib.addRowOfType(board(), "tank");
         expect(r.board.assignments[0].type).toBe("tank");
         expect(lib.rowsOfType([row("tank"), row("heal"), row("tank")], "tank")).toHaveLength(2);

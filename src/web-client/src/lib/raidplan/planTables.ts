@@ -83,7 +83,7 @@ export function healerGroups(rows: GroupRow[]): { healer: Resolved; groups: numb
 }
 
 /** The types with their own small table, in the order they are shown. */
-export const SIMPLE_ORDER = ["kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "other"];
+export const SIMPLE_ORDER = ["kick", "md", "ss", "brez", "fearward", "special", "dispel", "cc", "buff", "blessing", "aura", "totem", "curse", "debuff", "thunderclap", "demoshout", "other"];
 
 /**
  * A slim table per other type. Interrupts get a row per assignee with their place in the rotation (1, 2, 3 ...);

@@ -76,6 +76,12 @@ const CLASS_RULES = {
     curse: ["Warlock"],
     thunderclap: ["Warrior"],
     demoshout: ["Warrior"],
+    // #536: the classes of the catalog's spells of these types say it; the lists only serve when the catalog has none
+    debuff: ["Warrior", "Druid", "Hunter", "Mage", "Priest", "Paladin", "Rogue"],
+    blessing: ["Paladin"],
+    aura: ["Paladin"],
+    totem: ["Shaman"],
+    brez: ["Druid"],
 };
 // The curses handed out, in the order of the warlocks.
 const CURSES = ["Curse of the Elements", "Curse of Recklessness", "Curse of Doom"];
@@ -254,7 +260,44 @@ function suggestHeal({ slots = [], roster = [], groups = [], preferredClasses = 
 }
 
 // dispel / cc / buff: the row dialog's wand names the one raider of the row's classes who ranks best (decurse: not the druid tank, #501)
-const CLASS_SUGGESTED = ["md", "fearward", "kick", "ss", "curse", "thunderclap", "demoshout", "dispel", "cc", "buff"];
+const CLASS_SUGGESTED = ["md", "fearward", "kick", "ss", "curse", "thunderclap", "demoshout", "dispel", "cc", "buff", "debuff", "blessing", "brez"];
+
+// #536: which catalog spells a suggestion hands out, in this order (slugs of the defaults; an entry the admin hid is skipped). `roles` = the
+// spec roles tried one after the other ("" = any): Sunder Armor and Faerie Fire from a tank first (he keeps them up anyway), the shadow
+// priest's and the fire mage's debuffs never from a healer. Expose Armor (does not stack with Sunder), Misery (the same shadow priest as
+// Shadow Weaving) and Judgement of the Crusader stay in the catalog for a row made by hand.
+const DEBUFF_PLAN = [
+    { spell: "sunder-armor", roles: ["tank", ""] },
+    { spell: "faerie-fire", roles: ["tank", ""] },
+    { spell: "hunters-mark" },
+    { spell: "improved-scorch", roles: ["dps"] },
+    { spell: "shadow-weaving", roles: ["dps"] },
+    { spell: "judgement-of-wisdom" },
+    { spell: "judgement-of-light" },
+];
+// one blessing per paladin, in this order (a template names the first four)
+const BLESSING_PLAN = ["blessing-of-kings", "blessing-of-might", "blessing-of-wisdom", "blessing-of-salvation", "blessing-of-light", "blessing-of-sanctuary"];
+// auras and totems are party-wide: one row per paladin / shaman for HIS group, the spell by his role (the first of the list his group has not
+// got yet, then the fallback list); the passive auras of a spec (Trueshot, Leader of the Pack ...) are never suggested
+const GROUP_BUFF_PLAN = {
+    aura: {
+        classId: "Paladin",
+        byRole: { tank: ["devotion-aura"], melee: ["retribution-aura"], healer: ["concentration-aura"] },
+        fallback: ["devotion-aura", "retribution-aura", "concentration-aura", "shadow-resistance-aura", "fire-resistance-aura", "frost-resistance-aura"],
+    },
+    totem: {
+        classId: "Shaman",
+        byRole: { melee: ["windfury-totem"], ranged: ["wrath-of-air-totem"], healer: ["mana-spring-totem"] },
+        fallback: ["windfury-totem", "grace-of-air-totem", "wrath-of-air-totem", "strength-of-earth-totem", "mana-spring-totem"],
+    },
+};
+/** A default spell of the catalog by its slug, with its classes, or null (hidden by the admin, another game version). */
+function spellBySlug(type, slug, versionId = "") {
+    const hit = catalog.spellsOfType(type, versionId).find((x) => x.id === `d:${slug}`);
+    return hit ? { id: hit.id, name: hit.name, icon: hit.icon, classes: hit.classes } : null;
+}
+/** A spell as a row stores it: the id with a snapshot of name and icon. */
+const snapOf = (sp) => (sp ? { id: sp.id, name: sp.name, icon: sp.icon } : null);
 
 /**
  * Suggestions for one type from the placeholder slots and the setup's roster. `groups` = the group numbers of the raid.
@@ -263,7 +306,7 @@ const CLASS_SUGGESTED = ["md", "fearward", "kick", "ss", "curse", "thunderclap",
  * every plan (`expandClassRefs`), next to the rows of that type the orga already made by hand (`keep`), so a suggestion never
  * takes a raider the orga has already given that task. What nobody fills is left out (no suggestion is better than a stranger).
  */
-function suggest(type, { slots = [], roster = [], groups = [], preferredClasses = [], allowOthers = false, versionId = "", keep = [], preferredRole = "", context = [], roles = {} } = {}) {
+function suggest(type, { slots = [], roster = [], groups = [], preferredClasses = [], allowOthers = false, versionId = "", keep = [], preferredRole = "", context = [], roles = {}, spellId = "" } = {}) {
     const tanks = slotsOf(slots, "tank");
     const pc = cleanClasses(preferredClasses);
     const pr = PREFERRED_ROLES.includes(preferredRole) ? preferredRole : "";
@@ -272,6 +315,7 @@ function suggest(type, { slots = [], roster = [], groups = [], preferredClasses 
     if (type === "trashtank") {
         return tanks.slice(0, MARKS.length).map((s, i) => make("trashtank", [refOf(s)], [{ kind: "mark", ref: MARKS[i] }]));
     }
+    if (GROUP_BUFF_PLAN[type]) return suggestGroupBuffs(type, { roster, versionId, keep, context, roles, slots, spellId: str(spellId) });
     if (!CLASS_SUGGESTED.includes(type)) return [];
     // the other rows of the board (other kinds of task): who tanks here and who already has how many tasks (the ranking, #501)
     const others = (context || []).filter((a) => a && a.type !== type);
@@ -279,7 +323,7 @@ function suggest(type, { slots = [], roster = [], groups = [], preferredClasses 
     // their class references resolved first: a "Magier-Tank" row counts its mage as a tank
     const named = roster.length ? expandClassRefs([...others, ...own], slots, roster, roles) : [...others, ...own];
     const ctx = { ...boardContext(named, slots, roles), spellClasses: catalog.classesOf(type, versionId) };
-    const rows = suggestClassRows(type, { tanks, cls: classes(type), pc, allowOthers, roster, versionId, pr, ctx })
+    const rows = suggestClassRows(type, { tanks, cls: classes(type), pc, allowOthers, roster, versionId, pr, ctx, spellId: str(spellId) })
         .map((a) => (pr ? { ...a, preferredRole: pr } : a));
     // a template has no players: the suggestion names classes ("the first free Hunter"), resolved from the setup once the template is
     // applied; its running numbers go on after the rows the orga keeps (a kept "Hunter 1" makes the suggestion start at Hunter 2)
@@ -295,7 +339,7 @@ function suggest(type, { slots = [], roster = [], groups = [], preferredClasses 
  * somebody else can (`withoutMisfits`); each class is numbered only as often as it is taken. Without a roster (a template) the counts
  * are what the task asks for.
  */
-function suggestClassRows(type, { tanks, cls, pc, allowOthers, roster = [], versionId = "", pr = "", ctx = {} }) {
+function suggestClassRows(type, { tanks, cls, pc, allowOthers, roster = [], versionId = "", pr = "", ctx = {}, spellId = "" }) {
     if (!cls.length) return [];
     const ref = (c, n, role = "") => `class:${c}:${n}${role ? `:${role}` : ""}`;
     const withRoster = roster.length > 0;
@@ -348,9 +392,99 @@ function suggestClassRows(type, { tanks, cls, pc, allowOthers, roster = [], vers
         const refs = sequence(3).map((x) => x.ref);
         return refs.length ? [make(type, refs, [], spellFor(type, "Warrior", 0, versionId), pc, allowOthers)] : [];
     }
-    // dispel, cc, buff: one raider (with a roster the best ranked one of the classes)
-    const one = withRoster ? sequence(1).map((x) => x.ref) : [ref(cls[0], 1)];
-    return one.length ? [make(type, one, [], null, pc, allowOthers)] : [];
+    if (type === "debuff") return suggestDebuffs({ cls, pc, allowOthers, roster, versionId, pr, ctx, spellId });
+    if (type === "blessing") {
+        // one blessing per paladin (a template names the first four)
+        const plan = blessingPlan(spellId, versionId);
+        return sequence(withRoster ? plan.length : Math.min(4, plan.length)).map((x, i) => make(type, [x.ref], [], plan[i], pc, allowOthers));
+    }
+    // dispel, cc, buff, brez: one raider (with a roster the best ranked one of the classes); a battle res row gets Rebirth
+    const one = withRoster ? sequence(1) : [{ c: cls[0], ref: ref(cls[0], 1) }];
+    return one.map((x) => make(type, [x.ref], [], SPELL_OF_ONE.includes(type) ? spellFor(type, x.c, 0, versionId) : null, pc, allowOthers));
+}
+
+/** The one-raider suggestions that also fill the spell (a battle res row: Rebirth); dispel, cc and buff leave it to the orga. */
+const SPELL_OF_ONE = ["brez"];
+
+/** The blessings a suggestion hands out, in BLESSING_PLAN's order; the row dialog's wand (`spellId`) = only the row's own blessing. */
+function blessingPlan(spellId, versionId) {
+    const own = spellId ? catalog.spellsOfType("blessing", versionId).find((x) => x.id === spellId) : null;
+    return own ? [snapOf(own)] : BLESSING_PLAN.map((slug) => snapOf(spellBySlug("blessing", slug, versionId))).filter(Boolean);
+}
+
+/**
+ * The debuffs on the boss (#536): one row per entry of DEBUFF_PLAN whose spell the catalog has, each from another raider of the spell's
+ * classes (ranked like every suggestion: a tank only for Sunder Armor / Faerie Fire, a healer only when nobody else can). Written as class
+ * references ("Paladin 1" Judgement of Wisdom, "Paladin 2" Judgement of Light), in a template one per entry. `spellId` (the row dialog's
+ * wand) = only that spell.
+ */
+function suggestDebuffs({ cls, pc, allowOthers, roster = [], versionId = "", pr = "", ctx = {}, spellId = "" }) {
+    let plan = DEBUFF_PLAN.map((e) => ({ ...e, sp: spellBySlug("debuff", e.spell, versionId) })).filter((e) => e.sp);
+    const own = spellId ? catalog.spellsOfType("debuff", versionId).find((x) => x.id === spellId) : null;
+    if (own) plan = [plan.find((e) => e.sp.id === own.id) || { sp: { id: own.id, name: own.name, icon: own.icon, classes: own.classes } }];
+    const out = [];
+    const taken = new Set();
+    const numbers = {};
+    const next = (c, role) => {
+        const k = `${c}:${role}`;
+        numbers[k] = (numbers[k] || 0) + 1;
+        return `class:${c}:${numbers[k]}${role ? `:${role}` : ""}`;
+    };
+    for (const e of plan) {
+        const classes = e.sp.classes.filter((c) => cls.includes(c));
+        if (!classes.length) continue;
+        const roles = e.roles || [""];
+        if (!roster.length) {
+            out.push(make("debuff", [next(classes[0], roles[0])], [], snapOf(e.sp), pc, allowOthers));
+            continue;
+        }
+        const row = { type: "debuff", preferredRole: pr, spell: { id: e.sp.id } };
+        for (const role of roles) {
+            const cands = roster.filter((p) => classes.includes(p.classId) && !taken.has(p.userId) && roleFits(role, p.role));
+            const best = rankCandidates(row, withoutMisfits(row, cands, ctx), ctx)[0];
+            if (!best) continue;
+            taken.add(best.userId);
+            out.push(make("debuff", [next(best.classId, role)], [], snapOf(e.sp), pc, allowOthers));
+            break;
+        }
+    }
+    return out;
+}
+
+/**
+ * Auras and totems (#536): party-wide, so one row per paladin / shaman of the plan for HIS group (target: his setup group), the spell by his
+ * role (GROUP_BUFF_PLAN: a protection paladin Devotion Aura, a retribution one Retribution Aura, a holy one Concentration Aura; an
+ * enhancement shaman Windfury Totem, an elemental one Wrath of Air Totem, a restoration one Mana Spring Totem), the next one of the list
+ * when his group already has that one. Raiders are named directly (the group belongs to the player); the ones the orga already gave the
+ * task (`keep`) are left out. A template gets one class row. `spellId` (the row dialog's wand) = that spell for the best ranked one.
+ */
+function suggestGroupBuffs(type, { roster = [], versionId = "", keep = [], context = [], roles = {}, slots = [], spellId = "" }) {
+    const plan = GROUP_BUFF_PLAN[type];
+    const sp = (slug) => spellBySlug(type, slug, versionId);
+    const forced = spellId ? catalog.spellsOfType(type, versionId).find((x) => x.id === spellId) : null;
+    if (!roster.length) {
+        const first = forced || plan.fallback.map(sp).find(Boolean);
+        return [make(type, [`class:${plan.classId}:1`], [], snapOf(first))];
+    }
+    const own = (keep || []).filter((a) => a && a.type === type);
+    const others = (context || []).filter((a) => a && a.type !== type);
+    const ctx = boardContext(expandClassRefs([...others, ...own], slots, roster, roles), slots, roles);
+    const named = new Set(ctx.rowIds.slice(others.length).flatMap((ids) => [...ids]));
+    const has = {};
+    for (const a of own) for (const t of a.targets || []) if (t.kind === "group" && a.spell) (has[t.ref] = has[t.ref] || new Set()).add(a.spell.id);
+    const list = rankCandidates({ type }, roster.filter((p) => p.classId === plan.classId && !named.has(p.userId)), ctx);
+    const out = [];
+    for (const p of forced ? list.slice(0, 1) : list) {
+        const g = Number(p.group);
+        const key = String(g);
+        const seen = has[key] || new Set();
+        const want = [...(plan.byRole[playerRole(p, roles)] || []), ...plan.fallback].map(sp).filter(Boolean);
+        const chosen = forced || want.find((x) => !seen.has(x.id)) || want[0];
+        if (!chosen) continue;
+        has[key] = seen.add(chosen.id);
+        out.push(make(type, [`user:${p.userId}`], g >= 1 && g <= 20 ? [{ kind: "group", ref: key }] : [], snapOf(chosen)));
+    }
+    return out;
 }
 
 /**
@@ -367,7 +501,7 @@ function resolveSuggested(type, rows, { roster, slots = [], keep = [], context =
 }
 
 /** Whether a suggestion of this type exists (the button is offered). */
-const SUGGESTABLE = ["heal", "kick", "md", "ss", "fearward", "curse", "thunderclap", "demoshout", "trashtank", "dispel", "cc", "buff"];
+const SUGGESTABLE = ["heal", "kick", "md", "ss", "fearward", "curse", "thunderclap", "demoshout", "trashtank", "dispel", "cc", "buff", "debuff", "blessing", "aura", "totem", "brez"];
 
 /**
  * The old task rows of a board ({ id, title, userIds }) as assignments: the title is the task
@@ -415,10 +549,14 @@ function poolOf(q, type, roster, roles) {
 
 /** The points of the ranking: the row's role wins over a spell of the catalog, that over the tank and healer penalties, those over the load. */
 const RANK_POINTS = { role: 100, spell: 50, tank: -40, healer: -20, load: -3, loadCap: 6 };
-/** Kinds of task a tank does himself: no tank penalty (thunder clap and demoralizing shout are a warrior tank's). */
-const TANK_OK_TYPES = [...AUTO_TANK_TYPES, "heal", "thunderclap", "demoshout"];
+/** Kinds of task a tank does himself: no tank penalty (thunder clap and demoralizing shout are a warrior tank's; a protection paladin blesses and has an aura). */
+const TANK_OK_TYPES = [...AUTO_TANK_TYPES, "heal", "thunderclap", "demoshout", "blessing", "aura"];
+/** Spells a tank keeps up himself (#536): no tank penalty on a debuff row with one of them (Sunder Armor, the Faerie Fire of a bear). */
+const TANK_OK_SPELLS = ["d:sunder-armor", "d:faerie-fire"];
 /** Damage dealers' utility: a healer is only suggested for it when no damage dealer can. */
-const DPS_UTILITY_TYPES = ["kick", "cc", "curse", "md"];
+const DPS_UTILITY_TYPES = ["kick", "cc", "curse", "md", "debuff"];
+/** Whether a tank may do this row without a penalty: a kind of task of his, or a spell he keeps up anyway. */
+const tankOk = (row) => TANK_OK_TYPES.includes(row && row.type) || TANK_OK_SPELLS.includes(row && row.spell && row.spell.id);
 
 /**
  * The role a raider plays on this boss for the ranking: a flex role wins (a "dps" flex role takes melee / ranged from the spec), a tank
@@ -452,7 +590,7 @@ function scoreCandidate(row, p, ctx = {}) {
     if (row && PREFERRED_ROLES.includes(row.preferredRole) && role === row.preferredRole) parts.role = RANK_POINTS.role;
     if (!AUTO_TANK_TYPES.includes(type)) {
         if ((ctx.spellClasses || []).includes(p.classId)) parts.spell = RANK_POINTS.spell;
-        if (!TANK_OK_TYPES.includes(type) && isTankOf(p, ctx)) parts.tank = RANK_POINTS.tank;
+        if (!tankOk(row) && isTankOf(p, ctx)) parts.tank = RANK_POINTS.tank;
         if (DPS_UTILITY_TYPES.includes(type) && role === "healer") parts.healer = RANK_POINTS.healer;
         const n = Math.min(RANK_POINTS.loadCap, Number((ctx.load || {})[p.userId]) || 0);
         if (n > 0) parts.load = n * RANK_POINTS.load;
@@ -472,7 +610,7 @@ function rankCandidates(row, list, ctx = {}) {
 function withoutMisfits(row, list, ctx = {}) {
     let out = list || [];
     const type = row && row.type;
-    if (!TANK_OK_TYPES.includes(type)) { const rest = out.filter((p) => !isTankOf(p, ctx)); if (rest.length) out = rest; }
+    if (!tankOk(row)) { const rest = out.filter((p) => !isTankOf(p, ctx)); if (rest.length) out = rest; }
     if (DPS_UTILITY_TYPES.includes(type)) { const rest = out.filter((p) => playerRole(p, ctx.roles) !== "healer"); if (rest.length) out = rest; }
     return out;
 }
