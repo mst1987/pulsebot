@@ -130,4 +130,44 @@ describe("services/events/versionSettings", () => {
         expect(vs.versionLabel("tbc")).toBe("TBC Anniversary");
         expect(vs.versionLabel("wotlk")).toBe("wotlk");
     });
+
+    describe("{region}/{realm} templates and the log site (#553)", () => {
+        const CLASSIC = {
+            blizzardRegion: "eu", blizzardRealmSlug: "firemaw", blizzardNamespace: "profile-classic1x-eu",
+            armoryUrlTemplate: "https://classic-armory.org/character/{region}/vanilla/{realm}/{char}",
+            wclUrlTemplate: "https://vanilla.warcraftlogs.com/character/{region}/{realm}/{char}",
+            wowheadPath: "classic", softresEdition: "classic", raidsheetId: "",
+        };
+        const cfg = (classic) => config({ versionSettings: normalizeVersionSettings({ tbc: TBC, classic }) });
+
+        it("fills region and realm from the version's own fields", () => {
+            const links = vs.versionLinks("classic", { config: cfg(CLASSIC) });
+            expect(links.armory("Nera")).toBe("https://classic-armory.org/character/eu/vanilla/firemaw/Nera");
+            expect(links.wcl("Nera")).toBe("https://vanilla.warcraftlogs.com/character/eu/firemaw/Nera");
+        });
+
+        it("leaves the link out while the realm is not set", () => {
+            const links = vs.versionLinks("classic", { config: cfg({ ...CLASSIC, blizzardRealmSlug: "" }) });
+            expect(links.armory("Nera")).toBe("");
+            expect(links.wcl("Nera")).toBe("");
+            expect(vs.fillChar("https://x.test/{region}/{char}", "Nera")).toBe("");
+            expect(vs.fillChar("https://x.test/{region}/{char}", "Nera", { region: "us" })).toBe("https://x.test/us/Nera");
+        });
+
+        it("names the log site and builds report links on it", () => {
+            const links = vs.versionLinks("classic", { config: cfg(CLASSIC) });
+            expect(links.wclSite).toBe("https://vanilla.warcraftlogs.com");
+            expect(links.wclReport("aBc123")).toBe("https://vanilla.warcraftlogs.com/reports/aBc123");
+            expect(links.wclReport("../x")).toBe("");
+            expect(vs.versionLinks("tbc", { config: cfg(CLASSIC) }).wclReport("r1")).toBe("https://fresh.warcraftlogs.com/reports/r1");
+        });
+
+        it("has no log site without a warcraftlogs.com template", () => {
+            expect(vs.wclSiteOf("")).toBe("");
+            expect(vs.wclSiteOf("https://forever.warcraftlogs.test/character/{char}")).toBe("");
+            expect(vs.wclSiteOf("http://fresh.warcraftlogs.com/{char}")).toBe("");
+            expect(vs.wclSiteOf("not a url {char}")).toBe("");
+            expect(vs.versionLinks("forever", { config: cfg(CLASSIC) }).wclReport("r1")).toBe("");
+        });
+    });
 });

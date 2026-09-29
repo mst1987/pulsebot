@@ -78,7 +78,7 @@ Short answers in Discord, the big view one click away: every reply is **ephemera
 | `utils/raidhelper/` | `client.js` (`createRaidhelperClient`, switch-off), `fixture.js` (dev stand-in), `queries.js` (signups/setups of a category), `channelEvents.js` (events of a category from both sources) |
 | `utils/loot/` | `lootImport.js`, `lootReasons.js`, `softres.js`, `wowhead.js` |
 | `utils/logcheck/` | The log analyzers and `wclRoster.js` (docs/logcheck.md) |
-| `utils/recruitment/` | `recruitmentSpecs.js`, `applicationState.js` |
+| `utils/recruitment/` | `recruitmentSpecs.js`, `applicationState.js`, `applyVersion.js` (game version of an application, #553) |
 | `utils/time/` | One module (`index.js`): German date formats and parsers, Discord timestamps and server-time texts, raid duration (`clampDuration`, `eventEndTime`); the zone is `config/timezone.js` |
 | `utils/wowsims/` | The WoWSims engine and presets |
 | flat | `format.js` (`formatSpecs`, `formatSignUps` of `/signup`), `text.js`, `ids.js`, `publicUrl.js`, `httpAgent.js`, `attendance.js`, `channelNames.js` |

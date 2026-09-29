@@ -14,7 +14,7 @@ const { normalizeCategoryLootSystem } = require("../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const { isSnowflake } = require("../utils/ids");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
-const { versionSettingsOf, normalizeVersionSettings } = require("./versionSettingsSchema");
+const { versionSettingsOf, normalizeVersionSettings, versionsWithDefaults } = require("./versionSettingsSchema");
 
 // General bot config editable from the admin menu (kept out of .env on purpose).
 // Defaults come from config/variables (env / historical hard-codes); values saved
@@ -85,6 +85,12 @@ const CONFIG_DEFAULTS = {
     // present, an empty field means "not there for this version". A config
     // from before #542 reads its old single values as the TBC block.
     versionSettings: versionSettingsOf({}),
+    // The versions whose standard values (#553, config/gameVersions
+    // settingsDefaults) were handed to versionSettings once — the start-up
+    // migration fills the empty fields of every *other* version with defaults
+    // and adds it here, so a field cleared on purpose later stays empty. A
+    // fresh install reads the defaults already, so it counts all of them.
+    versionDefaultsApplied: versionsWithDefaults(),
     // Which loot addon a Discord category uses, keyed by category id:
     // "gargul" | "rclc". Steers the loot-import parser and the char-loot history.
     categoryLootTool: {},

@@ -62,4 +62,15 @@ module.exports = {
     // Everything raidBuffs.js/totems.js know is TBC 2.4.3, so nothing is dropped.
     ...buildBuffs(classes),
     PLAN,
+    // The standard values of Einstellungen → Spielversion (#553, shape and
+    // placeholders: stores/versionSettingsSchema.js defaultBlock). The realm is
+    // the guild's, not the version's — it stays out; the install's bootstrap
+    // realm (config/defaults.js) fills the TBC block of a fresh install.
+    settingsDefaults: {
+        blizzardNamespace: "profile-classicann-{region}",
+        armoryUrlTemplate: "https://classic-armory.org/character/{region}/tbc-anniversary/{realm}/{char}",
+        wclUrlTemplate: "https://fresh.warcraftlogs.com/character/{region}/{realm}/{char}",
+        wowheadPath: "tbc",
+        softresEdition: "tbc",
+    },
 };

@@ -193,6 +193,11 @@ export type SettingsData = {
     raidTemplates?: { id: string; name: string; versionId: string; size: number | null }[];
     /** Einstellungen → Spielversion (#541): the versions to pick from. */
     gameVersions?: { id: string; label: string; short: string }[];
+    /**
+     * The standard values per version (#553) the "Standardwerte übernehmen"
+     * button takes over; an all-empty block = the version has none yet.
+     */
+    versionDefaults?: Record<string, VersionSettingsBlock>;
     roles: Role[];
     categories: Category[];
     // The text channels the bot can post in, for the channel pickers; empty

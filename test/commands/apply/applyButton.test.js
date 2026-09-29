@@ -2,6 +2,7 @@ const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/apply/applyButton.js");
 const { CLASSES } = require("../../../src/config/applyClasses.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
+const { pendingApplications } = require("../../../src/utils/recruitment/applicationState.js");
 
 describe("commands/apply/applyButton", () => {
     it("exports the handler for the \"apply\" customId", () => {
@@ -35,5 +36,14 @@ describe("commands/apply/applyButton", () => {
         const select = interaction.reply.mock.calls[0][0].components[0].components[0];
         const warriorOption = select.options.find((o) => o.data.value === "warrior");
         expect(warriorOption.data.emoji).toMatchObject({ id: "emoji-1", name: "warrior" });
+    });
+
+    it("starts the application with the version its button names (#553)", async () => {
+        pendingApplications.clear();
+        await command.execute(mockInteraction({ userId: "u-c", customId: "apply:classic" }));
+        await command.execute(mockInteraction({ userId: "u-t", customId: "apply" }));
+        expect(pendingApplications.get("u-c")).toMatchObject({ versionId: "classic" });
+        expect(pendingApplications.get("u-t")).toMatchObject({ versionId: "tbc" });
+        pendingApplications.clear();
     });
 });

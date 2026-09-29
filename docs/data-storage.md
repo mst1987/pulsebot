@@ -35,8 +35,8 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/config.json` | `settingsStore.js` | Bot-Einstellungen aus dem Web: Server, Kanäle, Rollen, Rechte, API-Zugänge (u. a. Blizzard-, WCL-v2- und Anthropic-Schlüssel) | **ja** |
 | `settings/ingest-tokens.json` | `ingestTokenStore.js` | Token des Loot-Sync-Tools, nur als sha256-Hash | **ja** (Hashes) |
 | `settings/calendar-tokens.json` | `calendarTokenStore.js` | Abo-Token des Raider-Kalenders, nur als sha256-Hash | **ja** (Hashes) |
-| `settings/recruitment.json` | `settingsStore.js` | Recruitment-Vorlagen: `{ templates: [...] }` | nein |
-| `settings/recruitment-posts.json` | `settingsStore.js` | Gepostete Recruitment-Nachrichten (zum späteren Bearbeiten) | nein |
+| `settings/recruitment.json` | `settingsStore.js` | Recruitment-Vorlagen: `{ templates: [...] }`, je Vorlage `versionId` (#553) | nein |
+| `settings/recruitment-posts.json` | `settingsStore.js` | Gepostete Recruitment-Nachrichten (zum späteren Bearbeiten), je Nachricht `versionId` des Bewerben-Knopfs (#553) | nein |
 | `settings/raid-templates.json` | `settingsStore.js` | Raid-Vorlagen (Instanz, Größe, Rollen, Zeiten) | nein |
 | `settings/notify.json` | `settingsStore.js` | Vorlagen für den Anmelde-Aufruf (Text mit Rollenping): `{ templates: [...] }` | nein |
 | `settings/events.json` | `eventStore.js` | Eigene Events: `{ events: [...] }` | nein |

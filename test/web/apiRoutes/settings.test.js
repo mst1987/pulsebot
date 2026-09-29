@@ -250,6 +250,9 @@ describe("web/apiRoutes/settings", () => {
                 // Einstellungen → Spielversion (#541) picks from these
                 expect(data.gameVersions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
                 expect(data.gameVersions[2]).toEqual({ id: "forever", label: expect.any(String), short: expect.any(String) });
+                // "Standardwerte übernehmen" (#553): Classic has checked values, Forever none yet
+                expect(data.versionDefaults.classic).toMatchObject({ wowheadPath: "classic", softresEdition: "classic", blizzardRealmSlug: "" });
+                expect(Object.values(data.versionDefaults.forever).every((v) => v === "")).toBe(true);
             });
 
             // A role with write on "Einstellungen" may edit the bot config, but must

@@ -556,7 +556,15 @@ describe("services/discord/discord channel management", () => {
                 description: "Hallo Welt",
                 discordName: "marc",
                 date: "25.07.2026",
+                // no "Version" field: an application from before #553 is a TBC one
+                versionId: "tbc",
             });
+        });
+
+        it("reads the game version of the application (#553)", () => {
+            const embed = { fields: [{ name: "Bewerber", value: "<@1>" }, { name: "Version", value: "Classic Era" }] };
+            expect(discord.parseApplicationEmbed(embed).versionId).toBe("classic");
+            expect(discord.parseApplicationEmbed({ fields: [{ name: "Version", value: "Wotlk" }] }).versionId).toBe("tbc");
         });
 
         it("returns blank fields for a null embed", () => {

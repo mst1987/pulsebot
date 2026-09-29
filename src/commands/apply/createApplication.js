@@ -1,4 +1,6 @@
 const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require("discord.js");
+const { applyButtonId } = require("../../utils/recruitment/applyVersion");
+const { mainVersionFor } = require("../../services/events/mainVersion");
 
 // Accepts a full message link or a bare message id (then read from the given fallback channel).
 function parseMessageRef(input, fallbackChannelId) {
@@ -36,7 +38,8 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId("apply")
+                // Applications through this button are for the main version (#553).
+                .setCustomId(applyButtonId(mainVersionFor()))
                 .setLabel("Jetzt bewerben")
                 .setStyle(ButtonStyle.Success)
         );

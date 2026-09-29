@@ -1,12 +1,14 @@
 const { MessageFlags, ChannelType, ThreadAutoArchiveDuration } = require("discord.js");
 const { pendingApplications } = require("../../utils/recruitment/applicationState");
-// The armory/WCL templates of the main version (#542, Einstellungen → Spielversion).
-const { versionLinks } = require("../../services/events/versionSettings");
+// The armory/WCL templates of the application's game version (#542/#553, Einstellungen → Spielversion).
+const { versionLinks, versionLabel } = require("../../services/events/versionSettings");
+const { LEGACY_VERSION } = require("../../config/gameVersions");
+const { VERSION_FIELD, versionFieldValue } = require("../../utils/recruitment/applyVersion");
 // applicationChannelId + officerRoleId come from the admin-editable config (no restart).
 const { getConfig } = require("../../stores/configStore");
 const { getClass } = require("../../config/applyClasses");
 const WarcraftLogs = require("../../classes/warcraftlogs");
-const { analyzeApplicant } = require("../../utils/logcheck/applicant");
+const { analyzeApplicant, applicantSource } = require("../../utils/logcheck/applicant");
 
 function buildApplicantEmbeds(characterName, analysis) {
     const embeds = [];
@@ -23,7 +25,8 @@ function buildApplicantEmbeds(characterName, analysis) {
 
     // 2) CLA analysis of the last raid
     const last = analysis.last;
-    const reportUrl = `https://fresh.warcraftlogs.com/reports/${last.reportID}`;
+    // the report on the log site of the application's version (#553)
+    const reportUrl = analysis.reportUrl || undefined;
     const date = new Date(last.startTime).toLocaleDateString("de-DE");
     const rel = new Set(analysis.relevant || []);
     const pots = analysis.potions || { destruction: 0, haste: 0, mana: 0 };
@@ -68,6 +71,33 @@ function getEmojiString(guildEmojis, iconName) {
     return emoji ? `<:${emoji.name}:${emoji.id}> ` : "";
 }
 
+/**
+ * Logs-Analyse des Bewerbers (Parse-Übersicht + CLA des letzten Raids) — best
+ * effort, on the realm and log site of the application's version (#553). A
+ * version without that lookup says so instead of asking another realm.
+ */
+async function postApplicantAnalysis(thread, characterName, pending, versionId) {
+    try {
+        if (!applicantSource(versionId).ready) {
+            await thread.send({ content: `Keine Log-Analyse: für **${versionLabel(versionId)}** fehlen Realm, Region oder Warcraft-Logs-Link (Einstellungen → Spielversion).` });
+            return;
+        }
+        const wcl = new WarcraftLogs();
+        const analysis = await analyzeApplicant(wcl, characterName, {
+            className: pending.className,
+            spec: pending.spec,
+        }, { versionId });
+        if (analysis) {
+            const embeds = buildApplicantEmbeds(characterName, analysis);
+            for (const e of embeds) await thread.send({ embeds: [e] });
+        } else {
+            await thread.send({ content: `Keine Warcraft-Logs-Parses für **${characterName}** gefunden.` });
+        }
+    } catch (analysisError) {
+        console.error("applicant analysis failed:", analysisError.message);
+    }
+}
+
 module.exports = {
     name: "apply-modal",
     description: "Bewerbungs-Modal Submit",
@@ -81,16 +111,19 @@ module.exports = {
         let logsLink = interaction.fields.getTextInputValue("logsLink") || "";
         const description = interaction.fields.getTextInputValue("description") || "";
 
-        // auto-fill missing links from the main version's templates ({char} placeholder);
+        const pending = pendingApplications.get(interaction.user.id) || {};
+        pendingApplications.delete(interaction.user.id);
+        // The game version the apply button named (#553); a flow whose state was
+        // lost (restart, 30-minute sweep) counts as one from before: TBC.
+        const versionId = pending.versionId || LEGACY_VERSION;
+
+        // auto-fill missing links from the version's templates ({char} placeholder);
         // a version without a template leaves the link out
-        const links = versionLinks();
+        const links = versionLinks(versionId);
         let armoryAuto = false;
         let logsAuto = false;
         if (!armoryLink && links.armory(characterName)) { armoryLink = links.armory(characterName); armoryAuto = true; }
         if (!logsLink && links.wcl(characterName)) { logsLink = links.wcl(characterName); logsAuto = true; }
-
-        const pending = pendingApplications.get(interaction.user.id) || {};
-        pendingApplications.delete(interaction.user.id);
 
         const guildEmojis = interaction.guild?.emojis.cache;
         const cls = getClass(pending.class);
@@ -114,6 +147,8 @@ module.exports = {
                 { name: "Bewerber", value: `<@${interaction.user.id}>`, inline: true },
                 { name: "Charakter", value: characterName, inline: true },
                 { name: "Klasse / Spec", value: classSpec, inline: true },
+                // read back by the Bewerbungen tab (discord.parseApplicationEmbed)
+                { name: VERSION_FIELD, value: versionFieldValue(links.versionId), inline: true },
             ];
             if (armoryLink) fields.push({ name: `Armory${armoryAuto ? auto : ""}`, value: truncate(armoryLink), inline: false });
             if (logsLink) fields.push({ name: `WarcraftLogs${logsAuto ? auto : ""}`, value: truncate(logsLink), inline: false });
@@ -161,22 +196,7 @@ module.exports = {
                 content: "Deine Bewerbung wurde eingereicht! Wir melden uns bei dir.",
             });
 
-            // Logs-Analyse des Bewerbers (Parse-Übersicht + CLA des letzten Raids) — best effort
-            try {
-                const wcl = new WarcraftLogs();
-                const analysis = await analyzeApplicant(wcl, characterName, {
-                    className: pending.className,
-                    spec: pending.spec,
-                });
-                if (analysis) {
-                    const embeds = buildApplicantEmbeds(characterName, analysis);
-                    for (const e of embeds) await thread.send({ embeds: [e] });
-                } else {
-                    await thread.send({ content: `Keine Warcraft-Logs-Parses für **${characterName}** gefunden.` });
-                }
-            } catch (analysisError) {
-                console.error("applicant analysis failed:", analysisError.message);
-            }
+            await postApplicantAnalysis(thread, characterName, pending, links.versionId);
         } catch (error) {
             console.error("Error creating application thread:", error.code || "", error.message, error);
             // an empty thread tells the officers nothing — drop it if we could not fill it

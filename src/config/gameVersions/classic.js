@@ -132,4 +132,22 @@ module.exports = {
     instances,
     ...buildBuffs(classes, { exclude: EXCLUDED_BUFFS }),
     EXCLUDED_BUFFS,
+    // The standard values of Einstellungen → Spielversion (#553), only what was
+    // checked against the services themselves (Sept 2026):
+    //   namespace  profile-classic1x-<region> — Blizzard's namespace of the Era
+    //              realms (progression Classic keeps profile-classic-<region>)
+    //   armory     classic-armory.org/character/<region>/vanilla/<realm>/<name>
+    //   logs       vanilla.warcraftlogs.com/character/<region>/<realm>/<name>
+    //              (Era and Season of Discovery live on the "vanilla" site)
+    //   wowhead    www.wowhead.com/classic/item=…
+    //   softres    the "classic" edition (config/softresInstances.js)
+    // The realm is the guild's and stays empty: until it is set, the armory and
+    // log links (both need {realm}) are left out.
+    settingsDefaults: {
+        blizzardNamespace: "profile-classic1x-{region}",
+        armoryUrlTemplate: "https://classic-armory.org/character/{region}/vanilla/{realm}/{char}",
+        wclUrlTemplate: "https://vanilla.warcraftlogs.com/character/{region}/{realm}/{char}",
+        wowheadPath: "classic",
+        softresEdition: "classic",
+    },
 };

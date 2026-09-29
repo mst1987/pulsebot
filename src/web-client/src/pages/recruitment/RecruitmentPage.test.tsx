@@ -23,14 +23,14 @@ const CHANNEL_NAME = "🔎》recruitment";
 const CATEGORY = "「・」TBC Montag";
 
 function template(over: Partial<RecruitmentTemplate> = {}): RecruitmentTemplate {
-    return { id: "t1", name: "Heiler gesucht", content: "## Holy Paladin\n## Restoration Druid\nKomm zu uns!", title: "", body: "", buttonLabel: "", ...over };
+    return { id: "t1", name: "Heiler gesucht", content: "## Holy Paladin\n## Restoration Druid\nKomm zu uns!", title: "", body: "", buttonLabel: "", versionId: "tbc", ...over };
 }
 
 function post(over: Partial<RecruitmentPost> = {}): RecruitmentPost {
     return {
         id: "p1", guildId: "g1", channelId: "c1", messageId: "m1", channelName: "",
         content: "## Holy Paladin\n## Restoration Druid\nKomm zu uns!", title: "", body: "", buttonLabel: "",
-        source: "web", templateId: "t1", postedAt: Date.UTC(2026, 8, 13, 20, 41), ...over,
+        source: "web", templateId: "t1", versionId: "tbc", postedAt: Date.UTC(2026, 8, 13, 20, 41), ...over,
     };
 }
 
@@ -40,7 +40,7 @@ function application(over: Partial<Application> = {}): Application {
         archived: false, applicantId: "u9", displayName: "Thrall", character: "Thrall", classSpec: "Schamane Enhancement",
         armory: "https://classic-armory.org/character/eu/thunderstrike/thrall", wcl: "", description: "Ich raide seit Classic.",
         discordName: "thrall", date: "", className: "Schamane", spec: "Enhancement", classColor: "#0070DE",
-        classIcon: "class_shaman", specIcon: "spell_nature_lightningshield", status: "neu", ...over,
+        classIcon: "class_shaman", specIcon: "spell_nature_lightningshield", status: "neu", versionId: "tbc", ...over,
     };
 }
 
@@ -59,6 +59,12 @@ function data(over: Partial<RecruitmentData> = {}): RecruitmentData {
         applicationsError: null,
         applicationChannelId: "c9",
         activeGuildId: "g1",
+        gameVersions: [
+            { id: "tbc", label: "TBC Anniversary", short: "TBC" },
+            { id: "classic", label: "Classic Era", short: "Classic" },
+            { id: "forever", label: "WoW Forever", short: "Forever" },
+        ],
+        mainVersion: "tbc",
         ...over,
     };
 }
@@ -298,5 +304,53 @@ describe("in English", () => {
         expect(within(dialog).getByText("About the applicant")).toBeInTheDocument();
         expect(within(dialog).getByRole("link", { name: /Open thread in Discord/ })).toBeInTheDocument();
         expect(within(dialog).getByText("new")).toBeInTheDocument();
+    });
+});
+
+// #553: applications per game version — the filter in the head narrows every
+// tab (Standard = the main version), each row names its version, and a
+// template picks the version its posted button collects applications for.
+describe("Recruitment per game version (#553)", () => {
+    beforeEach(() => {
+        localStorage.clear();
+        vi.mocked(api.getRecruitmentData).mockResolvedValue(data({
+            applications: [application(), application({ threadId: "th2", character: "Jaina", name: "Jaina", versionId: "classic" })],
+        }));
+    });
+
+    it("shows the main version's applications first and switches to Classic and to all", async () => {
+        const user = userEvent.setup();
+        renderPage(<RecruitmentPage />, { route: "/recruitment?view=applications" });
+        const filter = await screen.findByRole("radiogroup", { name: "Spielversion" });
+        expect(await screen.findByText("Thrall")).toBeInTheDocument();
+        expect(screen.queryByText("Jaina")).toBeNull();
+
+        await user.click(within(filter).getByRole("radio", { name: /Classic/ }));
+        expect(await screen.findByText("Jaina")).toBeInTheDocument();
+        expect(screen.queryByText("Thrall")).toBeNull();
+
+        await user.click(within(filter).getByRole("radio", { name: "Alle" }));
+        expect(await screen.findByText("Thrall")).toBeInTheDocument();
+        expect(screen.getByText("Jaina")).toBeInTheDocument();
+        expect(screen.getAllByText("Classic").length).toBeGreaterThan(0);
+    });
+
+    it("hides the filter while every row plays the main version", async () => {
+        vi.mocked(api.getRecruitmentData).mockResolvedValue(data());
+        renderPage(<RecruitmentPage />, { route: "/recruitment?view=templates" });
+        expect(await screen.findByText("Heiler gesucht")).toBeInTheDocument();
+        expect(screen.queryByRole("radiogroup", { name: "Spielversion" })).toBeNull();
+        expect(screen.getByText("TBC")).toBeInTheDocument();
+    });
+
+    it("saves a template with the version picked", async () => {
+        const user = userEvent.setup();
+        const save = vi.spyOn(api, "saveRecruitmentTemplate").mockResolvedValue(template({ versionId: "classic" }));
+        renderPage(<RecruitmentPage />, { route: "/recruitment?view=templates&edit=t1" });
+        const dialog = await screen.findByRole("dialog");
+        await user.click(within(dialog).getByRole("radio", { name: "Classic" }));
+        await user.click(within(dialog).getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ id: "t1", versionId: "classic" })));
+        save.mockRestore();
     });
 });

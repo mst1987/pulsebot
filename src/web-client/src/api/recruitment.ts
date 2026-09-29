@@ -8,6 +8,8 @@ export type RecruitmentTemplate = {
     title: string;
     body: string;
     buttonLabel: string;
+    /** The game version its applications are for (#553); one from before reads as "tbc". */
+    versionId: string;
     createdAt?: number;
     updatedAt?: number;
 };
@@ -25,6 +27,8 @@ export type RecruitmentPost = {
     source: "web" | "scan";
     /** The template it was posted from; "" for a message the scan found. */
     templateId?: string;
+    /** The version its apply button names (#553). */
+    versionId: string;
     postedAt?: number;
     updatedAt?: number;
 };
@@ -44,6 +48,8 @@ export type Application = {
     description: string;
     discordName: string;
     date: string;
+    /** The embed's "Version" field (#553); an application from before is "tbc". */
+    versionId: string;
     // Added by src/web/recruitmentApplications.js.
     className: string;
     spec: string;
@@ -73,6 +79,10 @@ export type RecruitmentData = {
     applicationsError: string | null;
     applicationChannelId: string;
     activeGuildId: string;
+    /** The versions to filter by and pick for a template (#553). */
+    gameVersions: { id: string; label: string; short: string }[];
+    /** What an unfiltered page shows and a new template starts with. */
+    mainVersion: string;
 };
 
 export function getRecruitmentData(params: { view?: string; edit?: string; editpost?: string } = {}): Promise<RecruitmentData> {
@@ -85,7 +95,7 @@ export function getRecruitmentData(params: { view?: string; edit?: string; editp
 }
 
 export function saveRecruitmentTemplate(
-    input: { id?: string; name: string; content: string; buttonLabel: string },
+    input: { id?: string; name: string; content: string; buttonLabel: string; versionId?: string },
 ): Promise<RecruitmentTemplate> {
     return send("POST", "/api/recruitment", input);
 }

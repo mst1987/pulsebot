@@ -77,3 +77,37 @@ describe("stores/recruitmentStore posts", () => {
         expect(store.saveRecruitmentPost({ channelId: "c9", messageId: "m9" })).toMatchObject({ source: "web", templateId: "" });
     });
 });
+
+describe("stores/recruitmentStore game versions (#553)", () => {
+    it("gives a new template the main version, keeps an update's and takes a sent one", () => {
+        const a = store.saveRecruitment({ name: "A" });
+        expect(a.versionId).toBe("tbc");
+        const b = store.saveRecruitment({ name: "B", versionId: "classic" });
+        expect(b.versionId).toBe("classic");
+        expect(store.saveRecruitment({ id: b.id, name: "B2" }).versionId).toBe("classic");
+        expect(store.saveRecruitment({ id: b.id, name: "B3", versionId: "wotlk" }).versionId).toBe("classic");
+        expect(store.saveRecruitment({ id: b.id, name: "B4", versionId: "forever" }).versionId).toBe("forever");
+    });
+
+    it("reads a template or post from before as TBC", () => {
+        fs.writeFileSync(templatesFile, JSON.stringify({ templates: [{ id: "t", name: "old" }] }));
+        fs.writeFileSync(postsFile, JSON.stringify({ posts: [{ id: "p", channelId: "c", messageId: "m" }] }));
+        expect(store.listRecruitment()[0].versionId).toBe("tbc");
+        expect(store.listRecruitmentPosts()[0].versionId).toBe("tbc");
+    });
+
+    it("stores a post's version: sent, else kept, else the main version", () => {
+        const p = store.saveRecruitmentPost({ channelId: "c", messageId: "m", versionId: "classic" });
+        expect(p.versionId).toBe("classic");
+        expect(store.saveRecruitmentPost({ id: p.id, content: "x" }).versionId).toBe("classic");
+        expect(store.saveRecruitmentPost({ channelId: "c2", messageId: "m2" }).versionId).toBe("tbc");
+    });
+
+    it("migrateVersions marks only records without a known version, once", () => {
+        fs.writeFileSync(templatesFile, JSON.stringify({ templates: [{ id: "t1" }, { id: "t2", versionId: "classic" }, { id: "t3", versionId: "nope" }] }));
+        fs.writeFileSync(postsFile, JSON.stringify({ posts: [{ id: "p1" }] }));
+        expect(store.migrateVersions("tbc")).toEqual({ templates: 2, posts: 1 });
+        expect(JSON.parse(fs.readFileSync(templatesFile, "utf8")).templates.map((t) => t.versionId)).toEqual(["tbc", "classic", "tbc"]);
+        expect(store.migrateVersions()).toEqual({ templates: 0, posts: 0 });
+    });
+});

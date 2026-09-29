@@ -61,4 +61,9 @@ module.exports = {
     instances,
     partyBuffs: classic.partyBuffs,
     raidBuffs: classic.raidBuffs,
+    // No standard values yet (#553): the beta's namespace, armory and log sites
+    // are not known (Epic #540 phase 2). Once they are, they go here in the
+    // shape of classic.js' settingsDefaults, and the start-up migration fills
+    // the empty fields once.
+    settingsDefaults: {},
 };

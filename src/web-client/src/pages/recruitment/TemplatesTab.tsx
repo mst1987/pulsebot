@@ -11,7 +11,7 @@ import DataTable from "../../components/ui/DataTable";
 import { PartHead } from "../../components/ui/PartHead";
 import { useT } from "../../i18n";
 import { ICONS } from "./shared";
-import { WantedIcons } from "./RecruitmentBits";
+import { VersionTag, WantedIcons } from "./RecruitmentBits";
 import { EditIcon } from "../../components/icons";
 
 type TemplateSortKey = "name" | "wanted" | "button" | "posted";
@@ -59,7 +59,7 @@ export function TemplatesTab({ data, editor, onPost, onChanged }: {
                 rows={data.templates} rowKey={(tpl) => tpl.id} sort={sort} sortValue={sortValue}
                 wrapClassName="rc-tbl" rowClassName="rc-row" onRowClick={(tpl) => editor.startEdit(tpl.id)}
                 columns={[
-                    { id: "name", label: t("recruitment.templates.colName"), sortKey: "name", cell: (tpl) => <div className="cname">{tpl.name || t("recruitment.templates.noName")}</div> },
+                    { id: "name", label: t("recruitment.templates.colName"), sortKey: "name", cell: (tpl) => <div className="cname rc-name-tag"><span className="rc-name-text">{tpl.name || t("recruitment.templates.noName")}</span><VersionTag versionId={tpl.versionId} data={data} /></div> },
                     { id: "wanted", label: t("recruitment.templates.colWanted"), sortKey: "wanted", tip: t("recruitment.posts.wantedTip"), tipSub: t("recruitment.posts.wantedSub"), width: 150, cell: (tpl) => <WantedIcons content={tpl.content} data={data} /> },
                     { id: "button", label: t("recruitment.templates.colButton"), sortKey: "button", tip: t("recruitment.templates.buttonTip"), tipSub: t("recruitment.templates.buttonSub"), width: 150, className: "csub", cell: (tpl) => tpl.buttonLabel || "—" },
                     { id: "posted", label: t("recruitment.templates.colPosted"), sortKey: "posted", tip: t("recruitment.templates.postedTip"), tipSub: t("recruitment.templates.postedSub"), width: 110, cell: (tpl) => {

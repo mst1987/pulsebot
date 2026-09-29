@@ -13,7 +13,7 @@ import Badge from "../../components/ui/Badge";
 import { PartHead } from "../../components/ui/PartHead";
 import { useT } from "../../i18n";
 import { ICONS, openExternal, shortStamp } from "./shared";
-import { WantedIcons } from "./RecruitmentBits";
+import { VersionTag, WantedIcons } from "./RecruitmentBits";
 import { EditIcon } from "../../components/icons";
 
 type PostSortKey = "channel" | "wanted" | "template" | "source" | "updated";
@@ -101,7 +101,7 @@ export function PostsTab({ data, editor, onChanged, reload }: {
                                             {/* Cut off rather than wrapped (see recruitment.css) —
                                                 the tooltip keeps the full name readable. */}
                                             <td data-tip={`#${p.channelName || ch?.name || p.channelId}`} data-tip-sub={ch?.category || undefined}>
-                                                <div className="cname">#{p.channelName || ch?.name || p.channelId}</div>
+                                                <div className="cname rc-name-tag"><span className="rc-name-text">#{p.channelName || ch?.name || p.channelId}</span><VersionTag versionId={p.versionId} data={data} /></div>
                                                 {ch?.category && <div className="csub">{ch.category}</div>}
                                             </td>
                                             <td><WantedIcons content={p.content} data={data} /></td>

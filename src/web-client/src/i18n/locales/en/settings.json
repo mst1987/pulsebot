@@ -831,7 +831,7 @@
         "title": "Links and armory per version",
         "titleSub": "Where a character is looked up (armory, Warcraft Logs) and where items link to (Wowhead), separately for every game version. An event uses the values of its version, raider pages and the loot council those of the main version or the category.",
         "switch": "Game version of the settings",
-        "emptyHint": "Empty field = {version} has none: the link is left out, the armory is not asked.",
+        "emptyHint": "These values apply only to {version}. Empty field = the link is left out.",
         "armory": "Armory",
         "logsAndItems": "Logs, items, softres, raidsheet",
         "region": "Region",
@@ -840,7 +840,7 @@
         "namespaceSub": "Profile namespace of the Blizzard API, e.g. profile-classicann-eu for TBC Anniversary. Empty = no armory lookup for this version.",
         "armoryUrl": "Armory link",
         "wclUrl": "Warcraft Logs link",
-        "templateSub": "An address with {char} where the character name goes. Empty = no link.",
+        "templateSub": "An address with {char} where the character name goes; {region} and {realm} insert the region and realm from above. Empty = no link.",
         "wowhead": "Wowhead path",
         "wowheadSub": "The part after wowhead.com/, e.g. tbc or classic. Empty = no Wowhead links and no item search.",
         "softres": "Softres edition",
@@ -869,6 +869,10 @@
             "wowheadPath": "Lower-case letters, digits and hyphens only, e.g. tbc.",
             "softresEdition": "Unknown edition.",
             "raidsheetId": "Raidsheet not found."
-        }
+        },
+        "defaults": "Use standard values",
+        "defaultsSub": "Fills in the known values for {version} (namespace, armory, Warcraft Logs, Wowhead, softres). Realm and raidsheet stay as they are. Nothing is stored until you save.",
+        "defaultsSame": "The standard values are already filled in.",
+        "defaultsNone": "No standard values are known for {version} yet."
     }
 }

@@ -22,11 +22,19 @@ const TBC = blockOf({
     wowheadPath: "tbc", softresEdition: "tbc",
 });
 
+const CLASSIC_STD = blockOf({
+    blizzardRegion: "eu", blizzardNamespace: "profile-classic1x-eu",
+    armoryUrlTemplate: "https://classic-armory.org/character/{region}/vanilla/{realm}/{char}",
+    wclUrlTemplate: "https://vanilla.warcraftlogs.com/character/{region}/{realm}/{char}",
+    wowheadPath: "classic", softresEdition: "classic",
+});
+const DEFAULTS = { tbc: blockOf({ wowheadPath: "tbc", softresEdition: "tbc" }), classic: CLASSIC_STD, forever: emptyBlock() };
+
 function Harness({ onChange, mainVersion = "tbc" }: { onChange: (id: string, b: VersionSettingsBlock) => void; mainVersion?: string }) {
     const [value, setValue] = useState<Record<string, VersionSettingsBlock>>({ tbc: TBC, classic: emptyBlock(), forever: emptyBlock() });
     return (
         <VersionSettingsCard
-            versions={VERSIONS} mainVersion={mainVersion} value={value}
+            versions={VERSIONS} mainVersion={mainVersion} value={value} defaults={DEFAULTS}
             raidsheets={[{ id: "tier45", name: "Tier 4 / Tier 5" }]}
             onChange={(id, block) => { onChange(id, block); setValue((cur) => ({ ...cur, [id]: block })); }}
         />
@@ -77,6 +85,43 @@ describe("VersionSettingsCard (#542)", () => {
             render(<Harness onChange={vi.fn()} />);
             expect(screen.getByText("Links and armory per version")).toBeInTheDocument();
             expect(screen.getByRole("textbox", { name: "Wowhead path" })).toHaveValue("tbc");
+        });
+    });
+});
+
+describe("VersionSettingsCard standard values (#553)", () => {
+    it("says for which version the values count", () => {
+        render(<Harness onChange={vi.fn()} />);
+        expect(screen.getByText("Diese Werte gelten nur für TBC Anniversary. Leeres Feld = Link wird weggelassen.")).toBeInTheDocument();
+    });
+
+    it("takes Classic's standard values over, realm stays, links follow once a realm is set", async () => {
+        const onChange = vi.fn();
+        render(<Harness onChange={onChange} />);
+        await userEvent.click(screen.getByRole("radio", { name: "Classic" }));
+        await userEvent.click(screen.getByRole("button", { name: "Standardwerte übernehmen" }));
+        expect(onChange).toHaveBeenLastCalledWith("classic", expect.objectContaining({ wowheadPath: "classic", softresEdition: "classic", blizzardRealmSlug: "" }));
+        expect(screen.getByRole("textbox", { name: "Namespace" })).toHaveValue("profile-classic1x-eu");
+        expect(screen.queryByRole("link", { name: "Warcraft Logs" })).toBeNull();
+        await userEvent.type(screen.getByRole("textbox", { name: "Realm" }), "firemaw");
+        expect(screen.getByRole("link", { name: "Warcraft Logs" })).toHaveAttribute("href", "https://vanilla.warcraftlogs.com/character/eu/firemaw/Devihra");
+        // everything taken over: nothing left to take
+        expect(screen.getByRole("button", { name: "Standardwerte übernehmen" })).toBeDisabled();
+    });
+
+    it("has nothing to take over for Forever", async () => {
+        render(<Harness onChange={vi.fn()} />);
+        await userEvent.click(screen.getByRole("radio", { name: "Forever" }));
+        const button = screen.getByRole("button", { name: "Standardwerte übernehmen" });
+        expect(button).toBeDisabled();
+        expect(button).toHaveAttribute("data-tip-sub", "Für WoW Forever sind noch keine Standardwerte bekannt.");
+    });
+
+    it("speaks English", async () => {
+        await inLang("en", () => {
+            render(<Harness onChange={vi.fn()} />);
+            expect(screen.getByRole("button", { name: "Use standard values" })).toBeInTheDocument();
+            expect(screen.getByText("These values apply only to TBC Anniversary. Empty field = the link is left out.")).toBeInTheDocument();
         });
     });
 });

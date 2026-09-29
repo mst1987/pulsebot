@@ -285,6 +285,7 @@ export default function SettingsPage() {
                         versions={data.gameVersions || []}
                         mainVersion={draft.mainVersion}
                         value={draft.versionSettings}
+                        defaults={data.versionDefaults}
                         raidsheets={data.raidsheets || []}
                         onChange={(id, block) => patch({ versionSettings: { ...draft.versionSettings, [id]: block } })}
                     />

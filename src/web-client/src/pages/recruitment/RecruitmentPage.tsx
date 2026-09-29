@@ -2,7 +2,8 @@ import { useState, type ReactNode } from "react";
 import { getRecruitmentData, type RecruitmentData } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import AsyncView from "../../components/ui/AsyncView";
-import { usePersistedSearchParam } from "../../lib/persistedState";
+import { usePersistedSearchParam, usePersistedState } from "../../lib/persistedState";
+import VersionFilter from "../../components/ui/VersionFilter";
 import { useCollectionEditor } from "../../lib/collectionEditor";
 import { useToast } from "../../components/Jobs";
 import { Button } from "../../components/ui/Button";
@@ -24,8 +25,34 @@ import { PostDialog } from "./PostDialog";
 // "post a message" dialog and an application's details. The editors stay in the
 // url (?edit=<id|new>, ?editpost=<id|new>), so a link to a template still opens
 // it; "new" on editpost is the posting dialog.
+//
+// Game versions (#553): every template, post and application carries one; the
+// version filter in the head (Standard = the main version, "Alle" = every one,
+// remembered) narrows the three tabs, the editors always see everything.
 
 type View = "posts" | "templates" | "applications";
+
+/** The page's data with only the rows of one version ("" = every version). */
+function filterRecruitment(data: RecruitmentData, versionId: string): RecruitmentData {
+    if (!versionId) return data;
+    const keep = <T extends { versionId?: string }>(rows: T[]) => rows.filter((r) => (r.versionId || "tbc") === versionId);
+    return {
+        ...data,
+        templates: keep(data.templates),
+        posts: keep(data.posts),
+        applications: data.applications ? keep(data.applications) : null,
+    };
+}
+
+/** The filter's choices: every version the open tab has rows of, plus the main version, with their counts. */
+function versionChoices(data: RecruitmentData, view: View) {
+    const rows: { versionId?: string }[] = view === "templates" ? data.templates : view === "posts" ? data.posts : (data.applications || []);
+    const counts = new Map<string, number>();
+    for (const r of rows) counts.set(r.versionId || "tbc", (counts.get(r.versionId || "tbc") || 0) + 1);
+    return (data.gameVersions || [])
+        .filter((v) => counts.has(v.id) || v.id === data.mainVersion)
+        .map((v) => ({ id: v.id, label: v.label, short: v.short, count: counts.get(v.id) || 0 }));
+}
 
 const VIEWS: View[] = ["posts", "templates", "applications"];
 
@@ -65,6 +92,8 @@ export default function RecruitmentPage() {
     // (?editpost=new) opens over whichever tab it was started from.
     const view: View = templateEditor.open ? "templates" : postEditor.editId ? "posts" : storedView;
     const [presetTemplateId, setPresetTemplateId] = useState("");
+    // "" = nothing picked yet (the main version), "all" = every version.
+    const [versionPick, setVersionPick] = usePersistedState("recruitment-version", "");
 
     const toast = useToast();
 
@@ -97,20 +126,30 @@ export default function RecruitmentPage() {
                 // back to the new-editor resp. the posting dialog rather than to nothing.
                 const editingTemplate = templateEditor.editId ? data.templates.find((tpl) => tpl.id === templateEditor.editId) || null : null;
                 const editingPost = postEditor.editId ? data.posts.find((p) => p.id === postEditor.editId) || null : null;
+                const choices = versionChoices(data, view);
+                // A remembered pick the open tab has no rows of shows the main version instead.
+                const resolved = versionPick === "all" ? "all" : (choices.some((c) => c.id === versionPick) ? versionPick : data.mainVersion);
+                // With one version only the filter hides itself (VersionFilter), so it filters nothing either.
+                const shown = choices.length > 1 ? filterRecruitment(data, resolved === "all" ? "" : resolved) : data;
 
                 return (
                     <div className="rc-page">
                         <PageHead
                             icon={ICONS.page} tone="recruitment" kicker={data.guildName || t("recruitment.page.serverFallback")} title={t("recruitment.page.title")}
-                            action={<Button icon={ICONS.post} onClick={() => openPostDialog()}>{t("recruitment.page.postMessage")}</Button>}
+                            action={(
+                                <>
+                                    <VersionFilter versions={choices} ariaLabel={t("recruitment.version.filter")} allTip={t("recruitment.version.allTip")} value={resolved} onChange={setVersionPick} />
+                                    <Button icon={ICONS.post} onClick={() => openPostDialog()}>{t("recruitment.page.postMessage")}</Button>
+                                </>
+                            )}
                         />
-                        <SubNav view={view} data={data} onChange={switchView} />
-                        {view === "applications" && <ApplicationsTab data={data} />}
+                        <SubNav view={view} data={shown} onChange={switchView} />
+                        {view === "applications" && <ApplicationsTab data={shown} />}
                         {view === "templates" && (
-                            <TemplatesTab data={data} editor={templateEditor} onPost={openPostDialog} onChanged={afterChange} />
+                            <TemplatesTab data={shown} editor={templateEditor} onPost={openPostDialog} onChanged={afterChange} />
                         )}
                         {view === "posts" && (
-                            <PostsTab data={data} editor={postEditor} onChanged={afterChange} reload={recruitment.reload} />
+                            <PostsTab data={shown} editor={postEditor} onChanged={afterChange} reload={recruitment.reload} />
                         )}
 
                         {templateEditor.open && (
