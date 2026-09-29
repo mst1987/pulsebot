@@ -1,7 +1,8 @@
 // Raid plan templates ("Raidplan-Vorlagen", docs/raidplan.md): a named layout the
 // orga makes once ("Montags-Raid") and picks when an event's plan is made.
 //
-// { id, name, category, description, guildId, instanceIds, bosses, version, updatedAt }
+// { id, name, category, description, guildId, versionId, instanceIds, bosses, version, updatedAt }
+//   versionId  the game version (#544): its instances only; an event is offered the templates of its own version
 //   guildId    "" = for every server, else the Discord server (event server) it is for
 //   instanceIds the instances it covers; only their bosses can have a board
 //   bosses     { [bossKey]: board } — the coarse layout WITHOUT players: placeholder
@@ -14,7 +15,7 @@
 // go away with it.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { instanceById } = require("../config/gameVersions");
+const { instanceById, rulesFor } = require("../config/gameVersions");
 const board = require("../services/raidplan/raidplanBoard");
 const planStore = require("./raidplanStore");
 const besetzung = require("../services/raidplan/raidplanBesetzung");
@@ -43,6 +44,16 @@ function writeAll(templates) {
     store.write({ templates });
 }
 
+/**
+ * The game version of a stored template: its own when known, else the version of its first instance, else TBC (every
+ * template before #544 was a TBC one; settingsMigration writes it down once).
+ */
+function versionOf(r) {
+    if (rulesFor(str(r.versionId))) return str(r.versionId);
+    const first = (Array.isArray(r.instanceIds) ? r.instanceIds : []).map((i) => instanceById(str(i))).find(Boolean);
+    return first ? first.versionId : "tbc";
+}
+
 function normalize(raw) {
     const r = raw && typeof raw === "object" ? raw : {};
     return {
@@ -51,6 +62,7 @@ function normalize(raw) {
         category: str(r.category).slice(0, LIMITS.category),
         description: str(r.description).slice(0, LIMITS.description),
         guildId: isSnowflake(str(r.guildId)) ? str(r.guildId) : "",
+        versionId: versionOf(r),
         instanceIds: [...new Set((Array.isArray(r.instanceIds) ? r.instanceIds : []).map(str).filter((i) => instanceById(i)))],
         // the raid type: its size (0 = the instances' default) and the Besetzung's role counts (null = derived from the type)
         size: Math.max(0, Math.min(besetzung.MAX_SIZE, Math.floor(Number(r.size) || 0))),
@@ -109,6 +121,10 @@ function validate(input, { partial = false } = {}) {
         if (body.counts !== null && (typeof body.counts !== "object" || Array.isArray(body.counts))) return { code: "invalid", error: "Die Besetzung hat ein ungültiges Format." };
         value.counts = body.counts;
     }
+    if (body.versionId !== undefined) {
+        if (!rulesFor(str(body.versionId))) return { code: "invalid", error: "Unbekannte Spielversion." };
+        value.versionId = str(body.versionId);
+    }
     if (body.instanceIds !== undefined) {
         if (!Array.isArray(body.instanceIds)) return { code: "invalid", error: "Die Instanzen haben ein ungültiges Format." };
         const ids = [...new Set(body.instanceIds.map(str))];
@@ -119,14 +135,23 @@ function validate(input, { partial = false } = {}) {
     return { value };
 }
 
+/** An error when an instance of the template belongs to another game version than the template, else null. */
+function versionMismatch(versionId, instanceIds) {
+    if (!instanceIds.every((i) => (instanceById(i) || {}).versionId === versionId)) return { code: "invalid", error: "Die Instanzen gehören nicht zur Spielversion der Vorlage." };
+    return null;
+}
+
 /** Creates a template. Needs a name and at least one instance. Returns `{ template }` or `{ code, error }`. */
 function createTemplate(input, { now = Date.now() } = {}) {
     const checked = validate(input);
     if (checked.error) return checked;
     if (!checked.value.instanceIds) return { code: "invalid", error: "Wähle mindestens eine Instanz." };
+    const versionId = checked.value.versionId || versionOf({ instanceIds: checked.value.instanceIds });
+    const mismatch = versionMismatch(versionId, checked.value.instanceIds);
+    if (mismatch) return mismatch;
     const all = readAll();
     if (all.length >= LIMITS.templates) return { code: "invalid", error: `Höchstens ${LIMITS.templates} Vorlagen.` };
-    const template = normalize({ ...checked.value, id: newId(), bosses: {}, version: 1, updatedAt: now });
+    const template = normalize({ ...checked.value, versionId, id: newId(), bosses: {}, version: 1, updatedAt: now });
     all.push(template);
     writeAll(all);
     return { template };
@@ -149,6 +174,10 @@ function updateTemplate(id, input, { now = Date.now() } = {}) {
     const checked = validate(body, { partial: true });
     if (checked.error) return checked;
     const next = { ...current, ...checked.value };
+    if (checked.value.versionId !== undefined || checked.value.instanceIds !== undefined) {
+        const mismatch = versionMismatch(next.versionId, next.instanceIds);
+        if (mismatch) return mismatch;
+    }
     const keys = new Set(bossKeysOf(next.instanceIds));
     let bosses = Object.fromEntries(Object.entries(current.bosses).filter(([k]) => keys.has(k)));
     let dropped = 0;
@@ -206,4 +235,20 @@ function deleteTemplate(id) {
     return true;
 }
 
-module.exports = { useFile, LIMITS, listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, duplicateTemplate, bossKeysOf };
+/**
+ * One-off upgrade at start (#544, settingsMigration.js): a template stored without `versionId` gets the one it is read
+ * with (its instances' version, TBC for all of them so far). Idempotent. Returns how many templates changed.
+ */
+function migrateVersions() {
+    const all = readAll();
+    let changed = 0;
+    const next = all.map((t) => {
+        if (!t || typeof t !== "object" || rulesFor(str(t.versionId))) return t;
+        changed += 1;
+        return { ...t, versionId: versionOf(t) };
+    });
+    if (changed) writeAll(next);
+    return changed;
+}
+
+module.exports = { migrateVersions, useFile, LIMITS, listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, duplicateTemplate, bossKeysOf };

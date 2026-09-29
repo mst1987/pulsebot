@@ -171,20 +171,28 @@ function templateView(t) {
             instanceMap: !!store.mapVersion(b.instanceId),
         };
     });
-    return { ...t, bossList: withStandard(bosses), catalog: catalogStore.catalogView("tbc"), besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
+    return { ...t, bossList: withStandard(bosses), catalog: catalogStore.catalogView(t.versionId), besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
 }
 
 /** What a template picker needs of a template (no boards). */
 function templateSummary(t) {
     return {
         id: t.id, name: t.name, category: t.category, description: t.description,
-        guildId: t.guildId, instanceIds: t.instanceIds, bossCount: Object.keys(t.bosses).filter((k) => k !== inherit.DEFAULTS_KEY).length,
+        guildId: t.guildId, versionId: t.versionId, instanceIds: t.instanceIds, bossCount: Object.keys(t.bosses).filter((k) => k !== inherit.DEFAULTS_KEY).length,
     };
 }
 
-/** The templates that may be applied to an event: not made for another server. */
-function templatesFor(event) {
-    return templateStore.listTemplates().filter((t) => !t.guildId || t.guildId === String(event.guildId || ""));
+/** The game version of an event's plan (#544): the event's own; an event without one is a TBC one. */
+function planVersion(event) {
+    return (event && event.versionId) || "tbc";
+}
+
+/**
+ * The templates that may be applied to an event: not made for another server, and of the event's game version (#544).
+ * `allVersions`: also those of other versions (the editor lists them apart, applying one asks first).
+ */
+function templatesFor(event, { allVersions = false } = {}) {
+    return templateStore.listTemplates().filter((t) => (!t.guildId || t.guildId === String(event.guildId || "")) && (allVersions || t.versionId === planVersion(event)));
 }
 
 /** GET /api/raidplan — everything the editor needs. */
@@ -194,6 +202,8 @@ function editorView(event, { canWrite, me = "" }) {
     return {
         eventId: event.id,
         event: { id: event.id, title: event.title, startTime: event.startTime },
+        // the game version of the plan (#544): the catalog below is that version's; templates and tactics are filtered by it
+        versionId: planVersion(event),
         canWrite,
         plan: {
             version: plan.version,
@@ -217,8 +227,8 @@ function editorView(event, { canWrite, me = "" }) {
         // where the players of a Raid-Helper event come from (the header shows it); null for an own event
         rosterSource: event.rosterSource || null,
         profiles: profileStore.listProfiles(),
-        templates: templatesFor(event).map(templateSummary),
-        catalog: catalogStore.catalogView(event.versionId || "tbc"),
+        templates: templatesFor(event, { allVersions: true }).map(templateSummary),
+        catalog: catalogStore.catalogView(planVersion(event)),
         limits: { ...store.LIMITS, profileName: profileStore.LIMITS.name, profileCategory: profileStore.LIMITS.category },
     };
 }
@@ -348,7 +358,7 @@ function publicView(plan, event, { me = "" } = {}) {
         roster: [...roster, ...outside].filter((r) => used.has(r.userId)),
         me: meIds[0] || "",
         meIds,
-        catalog: catalogStore.catalogView(event.versionId || "tbc"),
+        catalog: catalogStore.catalogView(planVersion(event)),
         loggedIn: !!me,
     };
 }
@@ -358,7 +368,10 @@ function publicView(plan, event, { me = "" } = {}) {
  * placeholder slots as the editor holds them, the event's roster (empty without an event, i.e.
  * in a template) and the raid's group numbers.
  */
-function suggestFor(type, { event = null, slots = [], roles = {}, preferredClasses = [], allowOthers = false, keep = [], preferredRole = "", context = [], spellId = "" } = {}) {
+function suggestFor(type, { event = null, versionId: templateVersion = "", slots = [], roles = {}, preferredClasses = [], allowOthers = false, keep = [], preferredRole = "", context = [], spellId = "" } = {}) {
+    // only the catalog of the plan's game version (#544): a TBC plan never offers Tricks of the Trade, a Forever plan no TBC-only spell;
+    // a template's suggestion has no event and names its template's version
+    const versionId = event ? planVersion(event) : templateVersion || "tbc";
     // flex: on this boss somebody plays another role than in the setup
     const flex = roles && typeof roles === "object" ? roles : {};
     // the raiders of the groups in the plan (#529): a bench raider is never suggested
@@ -369,7 +382,6 @@ function suggestFor(type, { event = null, slots = [], roles = {}, preferredClass
     let clean = (Array.isArray(slots) ? slots : []).map((s) => ({ kind: String(s && s.kind), n: Number(s && s.n) || 0, userId: String((s && s.userId) || "") })).filter((s) => s.n > 0);
     // in an event only the tank and healer slots somebody actually stands in count (a healer who plays DPS here leaves his slot open)
     if (event) clean = clean.filter((s) => (s.kind !== "tank" && s.kind !== "healer") || s.userId);
-    // a plan of a TBC raid never offers what only later game versions have (Tricks of the Trade); a template is a TBC one
     // the rows of this type the orga keeps (made by hand): the raiders they name are taken, the suggestion goes round the others
     const known = new Set(roster.map((p) => p.userId));
     const rowsOf = (list) => (Array.isArray(list) && list.length > 0 ? (assign.cleanAssignments(list.slice(0, assign.LIMITS.perBoard), known).assignments || []) : []);
@@ -377,7 +389,7 @@ function suggestFor(type, { event = null, slots = [], roles = {}, preferredClass
     // the board's rows of the other kinds of task: who tanks here and who already has how many tasks (the ranking, #501)
     const others = rowsOf(Array.isArray(context) ? context.filter((a) => a && a.type !== type) : []);
     return assign.suggest(type, {
-        slots: clean, roster, groups, preferredClasses, allowOthers: allowOthers === true, versionId: event ? event.versionId || "tbc" : "tbc", keep: kept,
+        slots: clean, roster, groups, preferredClasses, allowOthers: allowOthers === true, versionId, keep: kept,
         preferredRole: String(preferredRole || ""), context: others, roles: flex,
         // the row dialog's wand on a row with a spell (a debuff, a blessing, an aura, a totem; #536): a raider for that very spell
         spellId: String(spellId || ""),
@@ -394,4 +406,4 @@ function eventBesetzung(event) {
     return { ...base, counts: { tank, healer, dps: Math.max(0, base.size - tank - healer), melee: 0, ranged: 0 }, split: false };
 }
 
-module.exports = { planBesetzung, planIncluded, withStandard, planKeys, sectionRows, identify, suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };
+module.exports = { planVersion, planBesetzung, planIncluded, withStandard, planKeys, sectionRows, identify, suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };

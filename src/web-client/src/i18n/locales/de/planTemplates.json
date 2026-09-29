@@ -47,5 +47,7 @@
     "besetzungHint": "Festzulegen sind Größe, Tanks und Heiler, der Rest ist DPS. {groups} Gruppen. Pro Boss lässt sich die Anzahl im Editor ändern.",
     "dpsHint": "Was von der Größe nach Tanks und Heilern übrig bleibt. Die DPS-Slots heißen DPS 1..n, jeder Schadensverursacher passt.",
     "splitDps": "DPS in Melee / Ranged aufteilen (optional)",
-    "splitRest": "Rest: {n} × DPS (egal)"
+    "splitRest": "Rest: {n} × DPS (egal)",
+    "versionSwitch": "Spielversion der Vorlagen",
+    "noneOfVersion": "Für {version} gibt es noch keine Vorlage."
 }

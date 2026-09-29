@@ -157,6 +157,12 @@
 .rp-mobicon-generic { width: var(--rp-mob); height: var(--rp-mob); display: inline-flex; align-items: center; justify-content: center; background: var(--rp-enemy); color: var(--on-fill); }
 .rp-spellchip { border-color: var(--accent); }
 .rp-catalog { display: flex; flex-direction: column; gap: 12px; max-width: 980px; }
+/* the game version switch of the catalog and the template list (#544) */
+.rp-catversion { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+/* "Vorlage anwenden": the templates of other game versions, folded away under the event's own (#544) */
+.rp-pick-other { margin-top: 10px; }
+.rp-pick-other > summary { cursor: pointer; padding: 4px 0; }
+.rp-pick-other > .rp-pick { margin-top: 6px; }
 .rp-cgroup { display: flex; flex-direction: column; gap: 6px; }
 .rp-cgroup .rp-kicker { display: flex; align-items: center; gap: 6px; margin: 0; }
 .rp-clist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }

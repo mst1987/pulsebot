@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Copy, RotateCw, Search, Settings2, Trash2 } from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
@@ -36,11 +36,13 @@ import type { MapRow } from "./raid-detail/raidplan/MapPanel";
 import { useDraftHistory } from "./raid-detail/raidplan/useDraftHistory";
 import "../styles/raidplan/index.css";
 import RaidplanBoundary from "../components/raidplan/RaidplanBoundary";
+import Segment from "../components/ui/Segment";
+import { ofVersion } from "../lib/raidplan/versions";
 
-type Fields = { name: string; category: string; description: string; guildId: string; instanceIds: string[]; size: number; counts: BesetzungCounts | null };
+type Fields = { name: string; category: string; description: string; guildId: string; versionId: string; instanceIds: string[]; size: number; counts: BesetzungCounts | null };
 
-const blankFields = (): Fields => ({ name: "", category: "", description: "", guildId: "", instanceIds: [], size: 0, counts: null });
-const fieldsOf = (tpl: RaidplanTemplate): Fields => ({ name: tpl.name, category: tpl.category, description: tpl.description, guildId: tpl.guildId, instanceIds: tpl.instanceIds, size: tpl.size, counts: tpl.counts });
+const blankFields = (versionId: string): Fields => ({ name: "", category: "", description: "", guildId: "", versionId, instanceIds: [], size: 0, counts: null });
+const fieldsOf = (tpl: RaidplanTemplate): Fields => ({ name: tpl.name, category: tpl.category, description: tpl.description, guildId: tpl.guildId, versionId: tpl.versionId, instanceIds: tpl.instanceIds, size: tpl.size, counts: tpl.counts });
 
 /**
  * Raid plan templates ("Raidplan-Vorlagen", docs/raidplan.md): a named layout the
@@ -58,13 +60,17 @@ export default function RaidplanTemplatesPage() {
     const { user } = useOutletContext<ShellContext>();
     const editor = useCollectionEditor("edit");
     const canWrite = canAccess(user, "raids", "write");
-    const [version, setVersion] = useState<GameVersion | null>(null);
+    // the game versions (#544): the list shows one at a time, the main version first (/api/game-versions' defaultVersion, a setting with #541)
+    const [versions, setVersions] = useState<GameVersion[]>([]);
+    const [mainVersion, setMainVersion] = useState("tbc");
+    const [picked, setPicked] = useState("");
     const [guilds, setGuilds] = useState<SessionGuild[]>([]);
     const [profiles, setProfiles] = useState<RaidplanProfile[]>([]);
     // One round trip for the page: the templates are its data, the rest is read along with them.
     const loaded = useApi(() => Promise.all([getRaidplanTemplates(), getGameVersions(), getRaidplanProfiles(), getSession()])
         .then(([tpls, versions, profs, session]) => {
-            setVersion(versions.versions.find((v) => v.id === versions.defaultVersion) || versions.versions[0] || null);
+            setVersions(versions.versions);
+            setMainVersion(versions.defaultVersion || (versions.versions[0] ? versions.versions[0].id : "tbc"));
             setProfiles(profs.profiles);
             setGuilds(session.guilds);
             return tpls.templates;
@@ -76,20 +82,30 @@ export default function RaidplanTemplatesPage() {
     if (!templates) return <RaidLoader text={t("planTemplates.loading")} />;
 
     const current = editor.editId ? templates.find((x) => x.id === editor.editId) || null : null;
+    const versionOf = (id: string) => versions.find((v) => v.id === id) || null;
+    const shownVersion = picked || mainVersion;
 
 
     if (current) {
         return (
             <TemplateEditor
-                key={current.id} template={current} canWrite={canWrite} version={version} guilds={guilds}
-                profiles={profiles} onProfiles={setProfiles} onSaved={setTemplates} onBack={editor.close}
+                key={current.id} template={current} canWrite={canWrite} version={versionOf(current.versionId)} guilds={guilds}
+                profiles={ofVersion(profiles, current.versionId)} onProfiles={setProfiles} onSaved={setTemplates} onBack={editor.close}
             />
         );
     }
 
     return (
         <TemplateList
-            templates={templates} version={version} guilds={guilds} canWrite={canWrite}
+            templates={ofVersion(templates, shownVersion)} version={versionOf(shownVersion)} versionOf={versionOf} guilds={guilds} canWrite={canWrite}
+            switcher={versions.length > 1 ? (
+                <div className="rp-catversion">
+                    <Segment
+                        ariaLabel={t("planTemplates.versionSwitch")} value={shownVersion} onChange={setPicked}
+                        options={versions.map((v) => ({ value: v.id, label: `${v.short} · ${ofVersion(templates, v.id).length}`, tip: v.label }))}
+                    />
+                </div>
+            ) : null}
             isNew={editor.isNew} onNew={editor.startNew} onCloseNew={editor.close} onOpen={editor.startEdit} onTemplates={setTemplates}
         />
     );
@@ -140,9 +156,14 @@ function TemplateThumb({ tpl }: { tpl: RaidplanTemplate }) {
 }
 
 /** The overview: search and filters, then one card per template — newest change first. */
-function TemplateList({ templates, version, guilds, canWrite, isNew, onNew, onCloseNew, onOpen, onTemplates }: {
+function TemplateList({ templates, version, versionOf, switcher, guilds, canWrite, isNew, onNew, onCloseNew, onOpen, onTemplates }: {
+    /** the templates of the version shown (#544) */
     templates: RaidplanTemplate[];
+    /** the game version shown: its instances, and the version a new template is made for */
     version: GameVersion | null;
+    versionOf: (id: string) => GameVersion | null;
+    /** the version switch (null with a single version) */
+    switcher: ReactNode;
     guilds: SessionGuild[];
     canWrite: boolean;
     isNew: boolean;
@@ -198,11 +219,12 @@ function TemplateList({ templates, version, guilds, canWrite, isNew, onNew, onCl
                 action={canWrite ? <Button onClick={onNew}>{t("planTemplates.new")}</Button> : undefined}
             />
             <p className="rp-muted">{t("planTemplates.intro")}</p>
+            {switcher}
 
             {templates.length === 0 ? (
                 <div className="rp-empty">
                     <WowIcon name="inv_misc_map02" size={40} />
-                    <strong>{t("planTemplates.emptyTitle")}</strong>
+                    <strong>{switcher && version ? t("planTemplates.noneOfVersion", { version: version.short }) : t("planTemplates.emptyTitle")}</strong>
                     <p className="rp-muted">{t("planTemplates.empty")}</p>
                     {canWrite && <Button onClick={onNew}>{t("planTemplates.new")}</Button>}
                 </div>
@@ -282,7 +304,7 @@ function TemplateList({ templates, version, guilds, canWrite, isNew, onNew, onCl
 
             {isNew && (
                 <FieldsModal
-                    title={t("planTemplates.newTitle")} initial={blankFields()} version={version} guilds={guilds}
+                    title={t("planTemplates.newTitle")} initial={blankFields(version ? version.id : "tbc")} version={version} guilds={guilds}
                     onClose={onCloseNew}
                     onSave={async (fields) => {
                         try {
@@ -298,7 +320,7 @@ function TemplateList({ templates, version, guilds, canWrite, isNew, onNew, onCl
             )}
             {renaming && (
                 <FieldsModal
-                    title={t("planTemplates.rename")} initial={fieldsOf(renaming)} version={version} guilds={guilds}
+                    title={t("planTemplates.rename")} initial={fieldsOf(renaming)} version={versionOf(renaming.versionId)} guilds={guilds}
                     onClose={() => setRenaming(null)}
                     onSave={async (fields) => {
                         try {
@@ -553,7 +575,7 @@ function TemplateEditor({ template, canWrite, version, guilds, profiles, onProfi
             {boss && (
                 <RaidplanBoundary resetKey={selected}>
                 <BoardWorkspace
-                    mode="template" eventId="" besetzung={tpl.besetzung} catalog={tpl.catalog} boss={boss} allBosses={tpl.bossList} board={board} edit={edit} editAll={editAllBoards} roster={[]} canWrite={canWrite} limits={limits}
+                    mode="template" eventId="" versionId={tpl.versionId} besetzung={tpl.besetzung} catalog={tpl.catalog} boss={boss} allBosses={tpl.bossList} board={board} edit={edit} editAll={editAllBoards} roster={[]} canWrite={canWrite} limits={limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")} onSaveTactic={() => setModal("save")}
                     history={{ undo, redo, canUndo, canRedo }}
                     mapRows={mapRows} onMapsChanged={reloadMaps}
@@ -593,7 +615,7 @@ function TemplateEditor({ template, canWrite, version, guilds, profiles, onProfi
             />
             <ProfilesModal
                 open={modal === "profiles" || modal === "save"} onClose={() => setModal("")}
-                profiles={profiles} categories={categories} bosses={tpl.bossList} bossKey={selected}
+                profiles={profiles} categories={categories} bosses={tpl.bossList} bossKey={selected} versionId={tpl.versionId}
                 draft={modal === "save" ? board : null} limits={limits}
                 onChanged={(list, saved) => {
                     onProfiles(list);
