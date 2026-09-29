@@ -22,6 +22,10 @@ const stepCommand = require("../../../src/commands/event/eventCreateStep");
 const formCommand = require("../../../src/commands/event/eventCreateModal");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("555", "200000000000000001"));
 
 const CAT_EH = "100000000000000001";
 const CAT_RH = "100000000000000002";

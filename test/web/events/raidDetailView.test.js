@@ -51,6 +51,10 @@ const { backfillLogTitles } = require("../../../src/services/logcheck/logChannel
 const { buildRaidDetail, _internal } = require("../../../src/web/events/raidDetailView");
 const { getRaidDetail } = require("../../../src/web/apiRoutes/raidDetail");
 const { mockRes, status, json } = require("../../helpers/http");
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("c1", "c2", "c"));
 
 const FUTURE = Math.floor(Date.now() / 1000) + 86400;
 const PAST = Math.floor(Date.now() / 1000) - 86400;
@@ -59,7 +63,7 @@ const SLOTS = [
     { name: "Heili", userId: "u2", className: "Paladin", specName: "Holy", groupNumber: 1, slotNumber: 2 },
 ];
 const rhEvent = (over = {}) => ({
-    id: "rh1", source: "raidhelper", title: "Kara Montag", startTime: FUTURE, channelId: "c1", channelName: "kara",
+    id: "rh1", source: "raidhelper", title: "Kara Montag", startTime: FUTURE, channelId: "c1", channelName: "kara", channelState: "ok",
     signupCount: 2, signUps: [{ userId: "u1", specName: "Protection", status: "signed" }], ...over,
 });
 const ownEvent = (over = {}) => ({
@@ -103,7 +107,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
             "progress", "steps", "playerSummaries",
         ]);
         expect(body.event).toEqual({
-            id: "rh1", source: "raidhelper", title: "Kara Montag", startTime: FUTURE, channelId: "c1", channelName: "kara",
+            id: "rh1", source: "raidhelper", title: "Kara Montag", startTime: FUTURE, channelId: "c1", channelName: "kara", channelState: "ok",
             signupCount: 2, isPast: false, signupsKnown: true, signUpsFromSnapshot: false, raidplanEnabled: true, raidhelperDisabled: true,
         });
         expect(body.setup.groups).toHaveLength(1);

@@ -147,6 +147,7 @@
   "POST /api/raids/loot-system",
   "POST /api/raids/manage/cancel",
   "POST /api/raids/manage/delete",
+  "POST /api/raids/manage/recreate-channel",
   "POST /api/raids/manage/move",
   "POST /api/raids/manage/raider",
   "POST /api/raids/manage/raider/remove",

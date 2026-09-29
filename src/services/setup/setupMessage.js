@@ -32,7 +32,7 @@
 //
 // Nothing here throws at a caller: Discord errors come back as `{ code, error }`
 // and are stored, so an offline bot never fails an approval.
-const { publicBaseUrl } = require("../../utils/publicUrl");
+const linkCheck = require("../discord/linkCheck");
 const { embedColor } = require("../events/embedLook");
 const eventStore = require("../../stores/eventStore");
 const { getConfig } = require("../../stores/settingsStore");
@@ -170,8 +170,9 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
     const groups = approved.groups.filter((g) => (g.slots || []).length).sort((a, b) => a.index - b.index);
     // the bench only when the orga chose to post it (#517)
     const bench = withBench ? (approved.bench || []) : [];
-    const base = publicBaseUrl();
-    const link = base ? `[View on the web](${base}/signups?event=${encodeURIComponent(event.id)})` : "";
+    // Only with a real PUBLIC_BASE_URL (#537, linkCheck).
+    const signupUrl = linkCheck.webTarget("signup", event.id);
+    const link = signupUrl ? `[View on the web](${signupUrl})` : "";
 
     // Tried in order until the embed fits: icons everywhere, a plain bench, plain groups too.
     const variants = [{ groupIcons: true, benchIcons: true }, { groupIcons: true, benchIcons: false }, { groupIcons: false, benchIcons: false }];
@@ -276,9 +277,8 @@ function buildSetupDm(event, placement, { messageUrl = "", reasons = [], fairnes
 
 function messageUrlOf(event) {
     const post = event && event.setupPost;
-    return post && post.messageId && event.guildId
-        ? `https://discord.com/channels/${event.guildId}/${post.channelId}/${post.messageId}`
-        : "";
+    // Only while the message is there (#537): a DM must not lead into a deleted post.
+    return post && post.messageId && event.guildId ? linkCheck.messageLink(event.guildId, post.channelId, post.messageId) : "";
 }
 
 const running = new Set();
@@ -311,6 +311,7 @@ async function sendSetupDms(eventId, { config = getConfig(), delayMs = DM_DELAY_
     eventStore.setEventSetupPost(event.id, { dms });
     try {
         const fairness = fairnessOn(event);
+        if (event.setupPost && event.setupPost.messageId) await linkCheck.checkMessage(event.guildId, event.setupPost.channelId, event.setupPost.messageId);
         const messageUrl = messageUrlOf(event);
         for (let i = 0; i < todo.length; i++) {
             const p = todo[i];

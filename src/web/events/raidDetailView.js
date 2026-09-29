@@ -40,6 +40,7 @@ const { eventSignupList } = require("../signups/signupView");
 const { getEvent } = require("../../stores/eventStore");
 const raidplanStore = require("../../stores/raidplanStore");
 const { raidplanPostState } = require("../../services/raidplan/raidplanPost");
+const linkCheck = require("../../services/discord/linkCheck");
 const { setupSummary } = require("../../services/setup/setupEditor");
 const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 
@@ -215,7 +216,7 @@ async function logsPart(guildId, eventId) {
 }
 
 /** The page head's event: what every source has, plus what only an own event plans with. */
-function eventMeta(found, eventId, { isPast, signupsKnown }) {
+function eventMeta(found, eventId, { isPast, signupsKnown, guildId = "" }) {
     return {
         id: found.e.id,
         source: found.e.source || "raidhelper",
@@ -223,6 +224,8 @@ function eventMeta(found, eventId, { isPast, signupsKnown }) {
         startTime: found.e.startTime,
         channelId: found.e.channelId,
         channelName: found.e.channelName,
+        // "ok" | "missing" | "unknown" (#537): the head links the channel only on "ok".
+        channelState: linkCheck.channelState(found.e.guildId || guildId, found.e.channelId),
         signupCount: found.e.signupCount,
         isPast,
         // false → the roster is unknown (past raid, Raid-Helper dropped it and
@@ -280,7 +283,7 @@ async function buildRaidDetail({ guildId, eventId }) {
     const logs = await logsPart(guildId, eventId);
 
     const payload = {
-        event: eventMeta(found, eventId, { isPast, signupsKnown }),
+        event: eventMeta(found, eventId, { isPast, signupsKnown, guildId }),
         setupFromSnapshot: setupInfo.setupFromSnapshot,
         categoryName: found.g.categoryName,
         guildId,

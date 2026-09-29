@@ -56,6 +56,7 @@ jest.mock("../../../src/web/dashboard/dashboardData", () => ({
     annotateUpcomingExtras: jest.fn((events) => events),
     loadTopLoot: jest.fn(() => ({ items: [], configured: 0 })),
     loadChannelArchive: jest.fn(() => null),
+    loadMissingChannels: jest.fn(() => Promise.resolve([])),
 }));
 // The dashboard asks GitHub how far the server is behind main. Unmocked, this
 // suite really called api.github.com (found by the network guard, #432) - and
@@ -276,6 +277,20 @@ describe("web/apiRoutes/dashboard", () => {
             expect(handled).toBe(true);
             expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
             expect(json(res)).toEqual({ error: { code: "unauthorized", message: expect.any(String) } });
+        });
+
+        it("lists a raid whose channel is gone as a task with \"Kanal neu anlegen\" (#537)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            dashboardData.loadMissingChannels.mockResolvedValueOnce([{ eventId: "eh-1", title: "Karazhan", startTime: 2000, channelName: "mi-kara" }]);
+            const res = mockRes();
+            await handle("/api/dashboard", { method: "GET" }, res);
+            expect(dashboardData.loadMissingChannels).toHaveBeenCalledWith("guild-1");
+            const task = json(res).data.tasks.find((t) => t.id === "channel-missing:eh-1");
+            expect(task).toMatchObject({
+                title: "Kanal von Karazhan fehlt", tone: "bad", href: "/raids/detail?event=eh-1",
+                action: { kind: "recreateChannel", eventId: "eh-1", label: "Kanal neu anlegen" },
+            });
         });
 
         it("returns 403 for a logged-in non-admin", async () => {

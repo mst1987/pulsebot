@@ -42,6 +42,8 @@
         "signupsClosedSub": "Raider können sich nur noch abmelden. Die Orga trägt weiter ein.",
         "eventPost": "Event-Post in Discord",
         "eventPostAria": "Event-Post in Discord öffnen",
+        "channelMissing": "Kanal fehlt",
+        "channelMissingSub": "Der Discord-Kanal des Raids wurde gelöscht. Auf der Übersicht legt „Kanal neu anlegen“ ihn wieder an und postet die Anmelde-Nachricht.",
         "raidplan": "Raidplan im Raid-Helper",
         "raidplanSub": "Setup und Gruppen bearbeiten",
         "raidplanAria": "Raidplan im Raid-Helper öffnen",

@@ -186,6 +186,10 @@ const raidEventStore = require("../../../src/stores/raidEventStore");
 const raidListing = require("../../../src/services/events/raidListing");
 const eventSoftresStore = require("../../../src/stores/eventSoftresStore");
 const { post, handle } = routerClient(require("../../../src/web/apiRoutes/raids"));
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("c1", "c-old", "c-new", "c-snap"));
 
 describe("web/apiRoutes/raids", () => {
     describe("GET /api/raids", () => {
@@ -216,7 +220,7 @@ describe("web/apiRoutes/raids", () => {
             expect(json(res)).toEqual({
                 data: {
                     events: [{
-                        id: "e1", source: "raidhelper", title: "Kara", startTime: 100, channelId: "c1", channelName: "kara-mo",
+                        id: "e1", source: "raidhelper", title: "Kara", startTime: 100, channelId: "c1", channelName: "kara-mo", channelState: "ok",
                         categoryId: "cat1", categoryName: "Raids", signupCount: 7,
                         contentIds: ["kara"], contentSources: ["title"], raidSize: 10, raidSizeKnown: true,
                         // only the public link — the edit url is the softres admin key

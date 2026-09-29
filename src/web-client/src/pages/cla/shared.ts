@@ -1,5 +1,6 @@
 import type { ClaFilter, ClaRow, LogSection } from "../../api";
 import { formatDateTime, formatDayDate } from "../../lib/format";
+import { messageLink } from "../../lib/discordLinks";
 import { t } from "../../i18n";
 
 export const FILTERS: ClaFilter[] = ["all", "open", "unlinked", "done"];
@@ -64,7 +65,5 @@ export function formatMatchOffset(diffMs: number): string {
 }
 
 export function discordUrl(row: ClaRow): string {
-    return row.guildId && row.channelId && row.messageId
-        ? `https://discord.com/channels/${row.guildId}/${row.channelId}/${row.messageId}`
-        : "";
+    return row.guildId && row.channelId && row.messageId ? messageLink(row.guildId, row.channelId, row.messageId) : "";
 }

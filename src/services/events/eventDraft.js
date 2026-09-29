@@ -28,6 +28,7 @@ const crypto = require("crypto");
 const { DateTime } = require("luxon");
 const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const discord = require("../discord/discord");
+const linkCheck = require("../discord/linkCheck");
 const channelNaming = require("../discord/channelNaming");
 const { namingLine } = channelNaming;
 const { getConfig, listRaidTemplates, getRaidTemplate } = require("../../stores/settingsStore");
@@ -550,7 +551,9 @@ function successMessage(guildId, state, { body, startTime, naming }, result) {
     if (result.announceError) lines.push(`⚠️ Die Ankündigung wurde nicht gepostet: ${clip(result.announceError, 200)}`);
 
     const links = [];
-    if (channelId) links.push({ type: 2, style: 5, label: "Zum Kanal", url: `https://discord.com/channels/${guildId}/${channelId}` });
+    // A channel just made is in the cache; one that failed is not linked (#537).
+    const channelUrl = channelId ? linkCheck.channelLink(guildId, channelId) : "";
+    if (channelUrl) links.push({ type: 2, style: 5, label: "Zum Kanal", url: channelUrl });
     const detail = eventId ? `/raids/detail?event=${encodeURIComponent(eventId)}` : "/raids";
     links.push({ type: 2, style: 5, label: "Im Web bearbeiten", url: webUrl(detail) });
     if (eventId) links.push({ type: 2, style: 5, label: "Ankündigung pingen", url: webUrl(`${detail}&tab=actions`) });

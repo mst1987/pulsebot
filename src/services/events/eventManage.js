@@ -31,8 +31,9 @@ const channelNaming = require("../discord/channelNaming");
 const discordChannels = require("../discord/discordChannels");
 const archiveStore = require("../../stores/channelArchiveStore");
 const discord = require("../discord/discord");
+const linkCheck = require("../discord/linkCheck");
 const { refreshEventMessage } = require("./eventMessage");
-const { refreshSetupMessage } = require("../setup/setupMessage");
+const { refreshSetupMessage, postOrEditSetupMessage } = require("../setup/setupMessage");
 const discordEvent = require("../discord/discordEvent");
 const { scheduleOverviewSync } = require("../talk/talkOverview");
 const { deliverUserPing, sendDms } = require("../discord/pingDelivery");
@@ -66,6 +67,8 @@ const ACTION_LABELS = {
     lock: "Anmeldung automatisch geschlossen",
     announce: "Angekündigt",
     signupEdit: "Anmeldung geändert (Orga)",
+    channelGone: "Kanal in Discord gelöscht",
+    channel: "Kanal neu angelegt",
 };
 
 const STATUS_LABELS = {
@@ -393,7 +396,7 @@ async function removeRaider({ guildId, eventId, userId, user, byName }) {
 /** The DM a raider gets when an event is cancelled. */
 function cancelDm(event, reason, guildId) {
     const start = Number(event.startTime) || 0;
-    const url = guildId && event.channelId ? `https://discord.com/channels/${guildId}/${event.channelId}` : "";
+    const url = linkCheck.channelLink(guildId, event.channelId);
     return [
         `❌ **${event.title}**${start ? ` on <t:${start}:F>` : ""} has been cancelled.`,
         `Reason: ${reason}`,
@@ -774,6 +777,80 @@ async function raiderCandidates({ guildId, eventId }) {
     };
 }
 
+/**
+ * "Kanal neu anlegen" (#537): the event's Discord channel was deleted. A new
+ * one is made the way every event channel is made (#285, channelNaming): named
+ * like the category's previous event channels (else its schema), a copy of
+ * the template channel or the latest event channel of the category (else a
+ * plain channel with the category's rights), placed by date — in the event's
+ * category. The event then carries it, the signup message (and a posted
+ * setup) are posted into it, the Discord event and the overviews follow.
+ * Refused while the old channel still exists or nothing is known (bot offline).
+ */
+async function recreateChannel({ guildId, eventId, user, byName }) {
+    const found = ownEvent(guildId, eventId);
+    if (found.error) return found;
+    const event = found.event;
+    const gid = event.guildId || guildId;
+    const state = await linkCheck.checkChannel(gid, event.channelId);
+    if (state === "ok") return fail(409, "channel_exists", "Der Kanal des Events existiert noch.");
+    if (state === "unknown") return fail(503, "bot_offline", "Der Bot ist nicht verbunden – ob der Kanal fehlt, lässt sich gerade nicht prüfen.");
+
+    let naming;
+    try {
+        naming = await channelNaming.deriveChannelName({
+            guildId: gid, categoryId: event.categoryId, date: isoDay(event.startTime), instanceIds: event.instanceIds,
+            excludeChannelId: event.channelId,
+        });
+    } catch {
+        naming = null;
+    }
+    const name = (naming && naming.name) || event.channelName || "raid";
+    const categoryOk = !!event.categoryId && (discord.listCategories(gid) || []).some((c) => String(c.id) === String(event.categoryId));
+    let created;
+    try {
+        created = await discordChannels.createFromTemplate(gid, {
+            name,
+            parentId: categoryOk ? event.categoryId : "",
+            templateChannelId: (naming && naming.templateChannelId) || "",
+            ...((naming && naming.placement) || {}),
+        });
+    } catch (e) {
+        return fail(400, "create_failed", `Kanal konnte nicht angelegt werden: ${discordChannels.discordErrorText(e)}`);
+    }
+    linkCheck.channelCreated(created.id);
+    const oldName = event.channelName || event.channelId;
+    eventStore.updateEvent(event.id, { channelId: created.id, channelName: created.name || name });
+    // The old message went with the old channel: the redraw posts it anew.
+    eventStore.setEventMessage(event.id, null);
+    deleteRaidplanPost(event.id);
+    const warnings = [];
+    if (!categoryOk) warnings.push("Die Kategorie des Events gibt es nicht mehr – der Kanal steht ohne Kategorie.");
+    try {
+        await refreshEventMessage(event.id);
+    } catch (e) {
+        warnings.push(`Anmelde-Nachricht: ${(e && e.message) || "nicht gepostet"}`);
+    }
+    const post = eventStore.getEvent(event.id).setupPost;
+    if (post && post.messageId) {
+        eventStore.setEventSetupPost(event.id, { channelId: "", messageId: "" });
+        const setup = await postOrEditSetupMessage(event.id).catch((e) => ({ error: (e && e.message) || "Fehler" }));
+        if (setup && setup.error) warnings.push(`Setup-Nachricht: ${setup.error}`);
+    }
+    const dEvent = discordEvent.warningOf(await discordEvent.syncForEvent(event.id).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
+    if (dEvent) warnings.push(dEvent);
+    scheduleOverviewSync({ delayMs: 500 });
+    log(event.id, "channel", actorOf(user, byName), `#${oldName} → #${created.name || name}`);
+    return {
+        status: 200,
+        body: {
+            message: `Kanal #${created.name || name} angelegt, Anmelde-Nachricht gepostet.`,
+            channelId: created.id, channelName: created.name || name,
+            ...(warnings.length ? { warnings } : {}),
+        },
+    };
+}
+
 /** Where the setup editor of an event opens in the web. */
 function setupPath(eventId) {
     return `/raids/detail?event=${encodeURIComponent(eventId)}&tab=setup`;
@@ -781,5 +858,5 @@ function setupPath(eventId) {
 
 module.exports = {
     STATUS_LABELS, whenLabel, ownEvent, movePlan, moveEvent, setSignupsOpen, addRaider, removeRaider, cancelEvent, reopenEvent, deleteEvent,
-    deletionInfo, manageInfo, raiderCandidates, logView, setupPath,
+    deletionInfo, manageInfo, raiderCandidates, logView, setupPath, recreateChannel,
 };

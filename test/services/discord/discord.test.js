@@ -519,9 +519,11 @@ describe("services/discord/discord channel management", () => {
             await expect(discord.editLink("chan", "m9", { url: "https://sheet/1" })).rejects.toThrow("stammt nicht vom Bot");
         });
 
-        it("throws without a url", async () => {
-            setClientWithChannels();
-            await expect(discord.editLink("chan", "m9", { url: "" })).rejects.toThrow("Kein Link");
+        it("takes the button off without a url — a withdrawn share (#537)", async () => {
+            const message = botMessage();
+            setClientWithChannels(dc.makeChannel({ id: "chan", messages: [message] }));
+            await discord.editLink("chan", "m9", { url: "", title: "X", message: "Not shared" });
+            expect(message.edit).toHaveBeenCalledWith(expect.objectContaining({ content: "📄 **X**\nNot shared", components: [] }));
         });
 
         it("throws when the bot is not connected", async () => {
@@ -570,6 +572,8 @@ describe("services/discord/discord channel management", () => {
                 : [];
             return dc.makeChannel({
                 id, name, type: ChannelType.PublicThread, guildId: "g1", createdTimestamp,
+                // discord.js' own getter on a real thread (#537: nothing hand-built)
+                url: `https://discord.com/channels/g1/${id}`,
                 messages: messages.map((m, i) => [String(i), m]),
             });
         }

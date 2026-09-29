@@ -680,7 +680,8 @@ async function listApplications(channelId, { limit = 10, maxAgeWeeks = 6, archiv
         applications.push({
             threadId: thread.id,
             name: thread.name || "",
-            url: `https://discord.com/channels/${thread.guildId}/${thread.id}`,
+            // discord.js builds the jump link of the thread it just fetched (#537: no hand-built channel links)
+            url: thread.url || "",
             createdAt: thread.createdTimestamp || 0,
             archived,
             ...details,
@@ -788,13 +789,14 @@ async function finishLogButton(channelId, messageId, { reportUrl, title, logId, 
  * still had from before this was the case.
  */
 function buildLinkMessage({ url, title, message, label = "Öffnen", emoji = "📄" } = {}) {
-    const row = new ActionRowBuilder().addComponents(
+    // Without a url (a withdrawn share, #537) the message keeps its text and loses the button.
+    const row = url ? new ActionRowBuilder().addComponents(
         new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(url)
-    );
+    ) : null;
     const heading = title ? `${emoji} **${title}**` : "";
     const text = String(message || "").trim();
     const content = [heading, text].filter(Boolean).join("\n");
-    return { content, embeds: [], components: [row] };
+    return { content, embeds: [], components: row ? [row] : [] };
 }
 
 /**
@@ -812,10 +814,9 @@ async function postLink(channelId, opts = {}) {
     return { channelId: channel.id, messageId: posted.id, url: posted.url };
 }
 
-/** Edit an already-posted raidsheet/softres link message in place. */
+/** Edit an already-posted raidsheet/softres link message in place; without `url` the button goes. */
 async function editLink(channelId, messageId, opts = {}) {
     if (!client) throw new Error("Bot nicht verbunden.");
-    if (!opts.url) throw new Error("Kein Link vorhanden.");
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden.");
     const message = await channel.messages.fetch(messageId);
     if (message.author.id !== client.user.id) throw new Error("Diese Nachricht stammt nicht vom Bot.");

@@ -16,6 +16,7 @@ jest.mock("../../../src/services/events/eventManage", () => ({
     cancelEvent: jest.fn(async () => ({ status: 200, body: { message: "abgesagt" } })),
     reopenEvent: jest.fn(async () => ({ status: 200, body: { message: "offen" } })),
     deleteEvent: jest.fn(async () => ({ status: 200, body: { message: "gelöscht", warnings: [] } })),
+    recreateChannel: jest.fn(async () => ({ status: 200, body: { message: "Kanal #mi-kara angelegt, Anmelde-Nachricht gepostet.", channelId: "c-new", channelName: "mi-kara" } })),
 }));
 
 const { readJsonBody } = require("../../../src/web/http/apiBody");
@@ -28,6 +29,7 @@ const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, wr
 const PATHS = [
     "/api/raids/manage", "/api/raids/manage/move", "/api/raids/manage/signups", "/api/raids/manage/raider",
     "/api/raids/manage/raider/remove", "/api/raids/manage/cancel", "/api/raids/manage/reopen", "/api/raids/manage/delete",
+    "/api/raids/manage/recreate-channel",
 ];
 
 const { mockRes, status, body } = require("../../helpers/http");
@@ -99,5 +101,13 @@ describe("handlers", () => {
         manage.deleteEvent.mockResolvedValueOnce({ error: { status: 409, code: "started", message: "Bitte bestätigen." } });
         const refused = await call(route.postDelete, ORGA, { event: "eh-a" });
         expect(status(refused)).toBe(409);
+    });
+
+    it("recreates a deleted channel for the event of the active server (#537)", async () => {
+        const done = await call(route.postRecreateChannel, ORGA, { event: "eh-a" });
+        expect(manage.recreateChannel).toHaveBeenLastCalledWith({ guildId: "g1", eventId: "eh-a", user: ORGA, byName: "Orga" });
+        expect(body(done)).toMatchObject({ channelId: "c-new", channelName: "mi-kara" });
+        manage.recreateChannel.mockResolvedValueOnce({ error: { status: 409, code: "channel_exists", message: "Der Kanal des Events existiert noch." } });
+        expect(status(await call(route.postRecreateChannel, ORGA, { event: "eh-a" }))).toBe(409);
     });
 });

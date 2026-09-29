@@ -22,6 +22,7 @@
 // The end comes from the duration (#305, utils/time/index.js); an event without
 // a start has no VEVENT worth writing and answers "".
 const { publicBaseUrl } = require("../../utils/publicUrl");
+const linkCheck = require("../discord/linkCheck");
 const { eventEndTime } = require("../../utils/time");
 const { str, clip } = require("../../utils/text");
 
@@ -95,9 +96,8 @@ function icsTime(seconds) {
 
 /** The Discord link of the event's channel, "" without both ids. */
 function channelUrl(event) {
-    const guildId = String((event && event.guildId) || "");
-    const channelId = String((event && event.channelId) || "");
-    return guildId && channelId ? `https://discord.com/channels/${guildId}/${channelId}` : "";
+    // only a channel that exists (#537, linkCheck)
+    return event ? linkCheck.channelLink(event.guildId, event.channelId) : "";
 }
 
 

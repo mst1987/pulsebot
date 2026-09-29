@@ -267,6 +267,10 @@ const softres = require("../../../src/utils/loot/softres");
 const wowhead = require("../../../src/utils/loot/wowhead");
 const raidsheetsUtil = require("../../../src/utils/setup/raidsheets");
 const { post, get } = routerClient(require("../../../src/web/apiRoutes/raidDetail"));
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("chan1", "chan9", "c1"));
 
 describe("web/apiRoutes/raidDetail", () => {
     describe("GET /api/raids/detail", () => {
@@ -396,7 +400,7 @@ describe("web/apiRoutes/raidDetail", () => {
             const data = json(res).data;
             expect(data.event).toEqual({
                 id: "e1", source: "raidhelper", title: "GDKP Kara", startTime: 1753500000,
-                channelId: "chan1", channelName: "kara-channel", signupCount: 1,
+                channelId: "chan1", channelName: "kara-channel", channelState: "ok", signupCount: 1,
                 isPast: true, signupsKnown: true, signUpsFromSnapshot: false,
                 // a Raid-Helper event: its raid plan is off until the orga switches it on (docs/raidplan.md)
                 raidplanEnabled: false, raidhelperDisabled: false,

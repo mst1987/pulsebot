@@ -9,6 +9,10 @@ const { EMBED_LIMITS, embedSize } = require("../../../src/utils/discord/botLooku
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 const { event: baseEvent } = require("../../factories/events");
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("ch1"));
 
 const now = Math.floor(Date.now() / 1000);
 const event = (over = {}) => baseEvent({

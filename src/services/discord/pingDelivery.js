@@ -13,6 +13,7 @@
 //     event channel is not part of the target: with "both" they were already
 //     reached there, and a DM on top would be the same ping twice.
 const discord = require("./discord");
+const linkCheck = require("./linkCheck");
 const guildRoles = require("./guildRoles");
 const { getConfig } = require("../../stores/settingsStore");
 
@@ -67,7 +68,7 @@ async function talkMemberIds(guildId) {
 
 /** A jump link to the event channel, or "" when a part is unknown. */
 function eventChannelUrl(event, guildId) {
-    return guildId && event && event.channelId ? `https://discord.com/channels/${guildId}/${event.channelId}` : "";
+    return event ? linkCheck.channelLink(guildId, event.channelId) : "";
 }
 
 /** The DM text: the ping itself plus which raid it is about, since a DM has no channel to say so. */

@@ -17,6 +17,8 @@ let mockSignups = [];
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => mockSignups }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+// The event message links the setup only on a real PUBLIC_BASE_URL (#537).
+jest.mock("../../../src/utils/publicUrl", () => ({ publicBaseUrl: () => "https://eh.example" }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
 jest.mock("../../../src/services/events/eventSources", () => ({
     listStoredEvents: () => [],

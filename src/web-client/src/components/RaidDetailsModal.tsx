@@ -85,8 +85,8 @@ function Details({ raid, guildId }: { raid: NextRaidDetails; guildId: string }) 
                         ? check(true, "inv_misc_bag_10", t("dashboard.raidDetails.lootSystem"), raid.lootSystem.label)
                         : check(!!raid.softres, "inv_scroll_11", t("dashboard.raidDetails.softres"), raid.softres ? t("dashboard.raidDetails.created") : t("dashboard.raidDetails.missing"),
                             raid.softres ? { href: raid.softres.url, tip: t("dashboard.raidDetails.openSoftres") } : undefined)}
-                    {check(!!(guildId && raid.channelId), "inv_letter_15", t("dashboard.raidDetails.discordPost"), guildId && raid.channelId ? t("dashboard.raidDetails.posted") : t("dashboard.raidDetails.unknown"),
-                        guildId && raid.channelId ? { href: eventPostUrl(guildId, raid.channelId, raid.id), tip: t("dashboard.raidDetails.openDiscord") } : undefined)}
+                    {check(!!eventPostUrl(guildId, raid.channelId, raid.id, raid.channelState), "inv_letter_15", t("dashboard.raidDetails.discordPost"), eventPostUrl(guildId, raid.channelId, raid.id, raid.channelState) ? t("dashboard.raidDetails.posted") : t("dashboard.raidDetails.unknown"),
+                        eventPostUrl(guildId, raid.channelId, raid.id, raid.channelState) ? { href: eventPostUrl(guildId, raid.channelId, raid.id, raid.channelState), tip: t("dashboard.raidDetails.openDiscord") } : undefined)}
                 </div>
 
                 <SectHead

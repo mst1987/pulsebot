@@ -18,6 +18,7 @@
 // A series event (#289) is announced like a hand-made one: it goes through
 // eventCreate.createEvent(), so there is one switch and no special path.
 const eventStore = require("../../stores/eventStore");
+const linkCheck = require("../discord/linkCheck");
 const { getConfig } = require("../../stores/settingsStore");
 const { normalizePingTarget, deliverAnnouncement } = require("../discord/pingDelivery");
 
@@ -37,11 +38,8 @@ function announceSetting(categoryId, { config = getConfig(), want } = {}) {
 
 /** A jump link to the event's signup message, else to its channel, else "". */
 function messageUrl(event) {
-    const guildId = String((event && event.guildId) || "");
-    const channelId = String((event && event.channelId) || "");
-    const messageId = String((event && event.message && event.message.messageId) || "");
-    if (!guildId || !channelId) return "";
-    return `https://discord.com/channels/${guildId}/${channelId}${messageId ? `/${messageId}` : ""}`;
+    // only a link that works (#537, linkCheck)
+    return linkCheck.eventLink(event);
 }
 
 /**

@@ -428,6 +428,16 @@ describe("publishView", () => {
         expect(withBench).toMatchObject({ recipients: 5, pendingDms: 5, bench: true });
     });
 
+    it("links no setup message that was deleted in Discord - not on the web, not in a DM (#537)", async () => {
+        const { knownChannels, linkCheck } = require("../../helpers/linkCheck");
+        knownChannels("c1");
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 1, postedAt: 10 } });
+        expect(sm.publishView(mockEvents.get("eh-1"), { config: {} }).posted.messageUrl).toBe("https://discord.com/channels/g1/c1/m1");
+        linkCheck.messageDeleted("m1");
+        expect(sm.publishView(mockEvents.get("eh-1"), { config: {} }).posted.messageUrl).toBe("");
+        linkCheck._reset();
+    });
+
     it("says after it what did, failures included", () => {
         seed({
             setupPost: {

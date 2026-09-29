@@ -1,4 +1,5 @@
 import { get, send } from "./client";
+import type { ChannelState } from "../lib/discordLinks";
 import type { LootSystemKey, LootSystem } from "./dashboard";
 import type { Role, PingTarget, PingTargetInfo, ItemSearchResult, Raidsheet } from "./settings";
 import type { NotifyTemplate } from "./notifyTemplates";
@@ -112,6 +113,8 @@ export type RaidDetailEvent = {
     startTime: number;
     channelId: string;
     channelName: string;
+    /** Whether the channel still exists (#537); the head links the post only on "ok". */
+    channelState?: ChannelState;
     signupCount: number;
     // The raid already started.
     isPast?: boolean;

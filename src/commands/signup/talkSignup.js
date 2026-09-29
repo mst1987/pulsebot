@@ -1,5 +1,5 @@
 const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const { publicBaseUrl } = require("../../utils/publicUrl");
+const linkCheck = require("../../services/discord/linkCheck");
 const { getStoredEvent } = require("../../services/events/eventSources");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const { SELECT_ID } = require("../../services/talk/talkOverview");
@@ -35,21 +35,19 @@ module.exports = {
         const event = getStoredEvent(eventId);
         const name = event && event.title ? `**${event.title}**` : "this raid";
         const guildId = (event && event.guildId) || guildRoles.eventGuildId();
-        const channelUrl = event && event.channelId && guildId
-            ? `https://discord.com/channels/${guildId}/${event.channelId}`
-            : "";
-        const base = publicBaseUrl();
-        const url = channelUrl || `${base}/raids/detail?event=${encodeURIComponent(eventId)}`;
+        // Only a channel that exists (#537), else the web page — and that only with PUBLIC_BASE_URL.
+        const channelUrl = event ? linkCheck.channelLink(guildId, event.channelId) : "";
+        const url = channelUrl || linkCheck.webLink(`/raids/detail?event=${encodeURIComponent(eventId)}`);
         const text = channelUrl
             ? `Signups for ${name} run through Raid-Helper – sign up in the event channel.`
             : `Signups for ${name} run through Raid-Helper. You can find the raid in the EventHelper.`;
         return interaction.reply(answerPayload(text, {
             event,
             title: "Sign up at Raid-Helper",
-            components: [new ActionRowBuilder().addComponents(new ButtonBuilder()
+            components: url ? [new ActionRowBuilder().addComponents(new ButtonBuilder()
                 .setStyle(ButtonStyle.Link)
                 .setLabel(channelUrl ? "Go to the event channel" : "Open on the web")
-                .setURL(url)).toJSON()],
+                .setURL(url)).toJSON()] : [],
         }));
     },
 };

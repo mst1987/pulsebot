@@ -15,6 +15,7 @@ const { deriveChannelName } = require("../../services/discord/channelNaming");
 const { signupSourceFor } = require("../../services/events/eventSources");
 const { listSignups } = require("../../stores/signupStore");
 const discord = require("../../services/discord/discord");
+const linkCheck = require("../../services/discord/linkCheck");
 
 /**
  * GET /api/raids — the active guild's upcoming events of both sources
@@ -26,7 +27,8 @@ const getRaids = withUser({}, async ({ req, res }) => {
     const { groups, error: err } = await loadEventGroups(guildId);
     // The server's name goes into the page's kicker ("Raid-Helper · Pulse").
     const guild = guildId ? (discord.listGuilds() || []).find((g) => g.id === guildId) : null;
-    ok(res, { events: upcomingRows(groups), error: err, activeGuildId: guildId, guildName: (guild && guild.name) || "" });
+    // channelState per row (#537): the list links the Discord post only while the channel exists.
+    ok(res, { events: linkCheck.withChannelState(guildId, upcomingRows(groups)), error: err, activeGuildId: guildId, guildName: (guild && guild.name) || "" });
 });
 
 /**
@@ -38,7 +40,7 @@ const getRaids = withUser({}, async ({ req, res }) => {
 const getPastRaids = withUser({}, async ({ req, res }) => {
     const guildId = activeGuildFor(req);
     const { events, error: err } = await loadPastRaids(guildId);
-    ok(res, { events, error: err, activeGuildId: guildId });
+    ok(res, { events: linkCheck.withChannelState(guildId, events), error: err, activeGuildId: guildId });
 });
 
 /** A Discord list that may throw while the bot is offline — [] then. */

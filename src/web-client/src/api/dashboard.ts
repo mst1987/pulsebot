@@ -1,4 +1,5 @@
 import { get } from "./client";
+import type { ChannelState } from "../lib/discordLinks";
 
 export type EventLog = {
     title?: string;
@@ -16,6 +17,8 @@ export type RecentEvent = {
     startTime: number;
     channelId: string;
     channelName: string;
+    /** Whether the channel still exists (#537). */
+    channelState?: ChannelState;
     categoryName: string;
     logs: EventLog[];
     // Logs that fit this raid time-wise but stayed unassigned (the automatic
@@ -83,6 +86,8 @@ export type DashboardRaid = {
     startTime: number;
     channelId: string;
     channelName: string;
+    /** Whether the channel still exists (#537). */
+    channelState?: ChannelState;
     categoryId: string;
     /** WoW icon name of the raid's final boss. */
     icon: string;
@@ -97,8 +102,12 @@ export type DashboardRaid = {
 
 export type DashboardTaskTone = "ok" | "mid" | "bad" | "accent";
 
+/** What a task's own button does (#537): "Kanal neu anlegen" for a raid whose channel is gone. */
+export type DashboardTaskAction = { kind: "recreateChannel"; eventId: string; label: string };
+
 export type DashboardTask = {
-    id: "sheet" | "recommendations" | "logs" | "inbox" | "channels" | "rolesync";
+    /** "sheet", "logs", … — or "channel-missing:<eventId>", one per raid. */
+    id: string;
     tone: DashboardTaskTone;
     /** Tile tint when it differs from the tone (the inbox wears the history area's colour). */
     tile?: string;
@@ -110,6 +119,8 @@ export type DashboardTask = {
     href: string;
     tip: string;
     tipSub: string;
+    /** A button beside the row (orga with raid write access only). */
+    action?: DashboardTaskAction;
 };
 
 export type DashboardLastReport = {

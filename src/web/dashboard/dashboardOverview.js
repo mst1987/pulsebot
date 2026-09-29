@@ -237,7 +237,10 @@ function newLootSince(awards, sinceMs) {
  * @param {object[]} p.seriesFailures from eventSeries.seriesFailures(): { categoryId, categoryName, date, error }
  * @param {object|null} p.deploy     from deployStatus(): { status, behind, behindSince, short, … }
  */
-function buildTasks({ nextRaids = [], recentEvents = [], report = null, inbox = [], archive = null, roleDrift = null, seriesFailures = [], deploy = null }) {
+function buildTasks({
+    nextRaids = [], recentEvents = [], report = null, inbox = [], archive = null, roleDrift = null, seriesFailures = [], deploy = null,
+    missingChannels = [], canRecreate = false,
+}) {
     const tasks = [];
 
     // First in the list: everything else on this page is about a version that
@@ -247,6 +250,10 @@ function buildTasks({ nextRaids = [], recentEvents = [], report = null, inbox = 
 
     const seriesTask = eventSeriesTask(seriesFailures);
     if (seriesTask) tasks.push(seriesTask);
+
+    // A raid whose channel is gone (#537): nobody can sign up, every overview
+    // says "channel missing" — one task per raid, with the way out.
+    tasks.push(...missingChannelTasks(missingChannels, { canRecreate }));
 
     const noSheet = (nextRaids || []).filter((r) => !r.sheet);
     if (noSheet.length) {
@@ -341,6 +348,27 @@ function roleDriftTask(roleDrift) {
 }
 
 /**
+ * "Kanal von <Event> fehlt" (#537) — the event's Discord channel was deleted.
+ * The signup message went with it, and the overviews show "channel missing"
+ * instead of a link. The action "Kanal neu anlegen" (orga with `raids`
+ * write) creates it anew by the naming rule, in the event's category, and
+ * posts the signup message there (POST /api/raids/manage/recreate-channel).
+ * @param {{ eventId: string, title: string, startTime: number, channelName: string }[]} list
+ */
+function missingChannelTasks(list, { canRecreate = false } = {}) {
+    return (list || []).map((m) => ({
+        id: `channel-missing:${m.eventId}`, tone: "bad", tile: "channels", icon: "inv_letter_15",
+        title: `Kanal von ${m.title || "Raid"} fehlt`,
+        ref: { title: m.channelName ? `#${m.channelName}` : m.title, at: (m.startTime || 0) * 1000 },
+        count: 0,
+        href: `/raids/detail?event=${encodeURIComponent(m.eventId)}`,
+        tip: "Der Discord-Kanal des Raids existiert nicht mehr",
+        tipSub: "Mit ihm ist die Anmelde-Nachricht weg; die Übersichten zeigen „channel missing“ statt eines Links. „Kanal neu anlegen“ legt ihn nach der Namensregel in der Kategorie des Events an und postet die Anmelde-Nachricht dort. Öffnet sonst das Raid-Event.",
+        ...(canRecreate ? { action: { kind: "recreateChannel", eventId: m.eventId, label: "Kanal neu anlegen" } } : {}),
+    }));
+}
+
+/**
  * "Serie konnte Event nicht anlegen: fehlende Rechte" (#289) — a recurring
  * event whose date failed stays failed after a few attempts; the task says
  * which date and why, and leads to the series page where it is retried.
@@ -405,6 +433,6 @@ module.exports = {
     isAttending,
     // only for the tests (#424): not part of the module's API
     _internal: {
-        eventSeriesTask, deployTask, DEPLOY_GUIDE_URL, FALLBACK_ZONE_ICON, roleBucket, roleDriftTask,
+        eventSeriesTask, deployTask, DEPLOY_GUIDE_URL, FALLBACK_ZONE_ICON, roleBucket, roleDriftTask, missingChannelTasks,
     },
 };

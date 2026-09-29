@@ -42,6 +42,8 @@
         "signupsClosedSub": "Raiders can only sign off now. The organisers can still add people.",
         "eventPost": "Event post in Discord",
         "eventPostAria": "Open the event post in Discord",
+        "channelMissing": "Channel missing",
+        "channelMissingSub": "The raid's Discord channel was deleted. On the overview, “Recreate channel” makes it anew and posts the signup message.",
         "raidplan": "Raid plan in Raid-Helper",
         "raidplanSub": "Edit setup and groups",
         "raidplanAria": "Open the raid plan in Raid-Helper",

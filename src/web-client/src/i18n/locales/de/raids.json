@@ -42,6 +42,8 @@
         "sizeDefault": "Inhalt nicht erkannt – gemessen an der Standardgröße 25.",
         "discordPost": "Discord-Post öffnen",
         "discordPostSub": "Springt zur Anmelde-Nachricht.",
+        "channelMissing": "Kanal fehlt",
+        "channelMissingSub": "Der Discord-Kanal wurde gelöscht – auf der Übersicht „Kanal neu anlegen“.",
         "discordPostSubIn": "Springt zur Anmelde-Nachricht in #{channel}.",
         "setup": "Setup/Comp",
         "setupSub": "Die Aufstellung dieses Events im Raid-Helper.",

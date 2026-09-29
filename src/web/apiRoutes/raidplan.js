@@ -49,6 +49,7 @@ const { loadEventGroups, eventLookbackSince } = require("../../services/events/r
 const { rulesFor } = require("../../config/gameVersions");
 const { raidhelperDisabled } = require("../../utils/raidhelper/client");
 const { progressFor } = require("../../services/raidplan/raidplanProgress");
+const { syncRaidplanPost } = require("../../services/raidplan/raidplanPost");
 
 const canWrite = (user) => userCan(user, "raids", "write");
 
@@ -117,6 +118,8 @@ const postPublish = withUser({ write: "raids", csrf: true, body: true }, async (
     const found = await eventOf(res, body.event);
     if (!found) return;
     store.setPublished(found.event.id, body.published === true, { rotate: body.rotate === true, userId: user.id });
+    // A posted read link follows (#537): new token in, withdrawn share out.
+    await syncRaidplanPost(found.event);
     ok(res, raidplan.editorView(await refreshed(found), { canWrite: true }));
 });
 

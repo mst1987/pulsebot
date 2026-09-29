@@ -31,6 +31,7 @@ const {
     ChannelType, GuildScheduledEventEntityType, GuildScheduledEventPrivacyLevel, GuildScheduledEventStatus,
 } = require("discord.js");
 const discord = require("./discord");
+const linkCheck = require("./linkCheck");
 const eventStore = require("../../stores/eventStore");
 const { eventEndTime } = require("../../utils/time");
 const { getConfig } = require("../../stores/settingsStore");
@@ -56,13 +57,8 @@ function enabledFor(event, config = getConfig()) {
 
 /** The link to an event's signup message, else to its channel, else "". */
 function eventUrl(event) {
-    const guildId = String((event && event.guildId) || "");
-    const channelId = String((event && event.channelId) || "");
-    if (!guildId || !channelId) return "";
-    const messageId = event.message && event.message.messageId ? String(event.message.messageId) : "";
-    return messageId
-        ? `https://discord.com/channels/${guildId}/${channelId}/${messageId}`
-        : `https://discord.com/channels/${guildId}/${channelId}`;
+    // only a link that works (#537, linkCheck)
+    return linkCheck.eventLink(event);
 }
 
 /**

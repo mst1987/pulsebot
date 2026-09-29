@@ -32,6 +32,7 @@ const { armoryUrlFor, wclUrlFor } = require("../characters/charLinks");
 const Blizzard = require("../../classes/blizzard");
 const { userCan } = require("../../config/permissions");
 const discord = require("../../services/discord/discord");
+const linkCheck = require("../../services/discord/linkCheck");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 
 // A manually-labelled loot bucket's synthetic event id: "manual-<slug>".
@@ -78,7 +79,9 @@ const getHistoryData = withUser({}, async ({ user, req, res }) => {
     const allUpcoming = groups.flatMap((g) => g.events);
     const events = allUpcoming.map((ev) => ({ id: ev.id, title: ev.title, startTime: ev.startTime, categoryId: ev.categoryId }));
     const upcomingRaids = { events: annotateUpcomingExtras(allUpcoming, guildId), error: upcomingError };
-    const pastRaids = await loadRecentEvents(guildId, Infinity);
+    const past = await loadRecentEvents(guildId, Infinity);
+    // Only a channel that still exists is linked (#537).
+    const pastRaids = { ...past, events: linkCheck.withChannelState(guildId, past.events) };
     const cfg = getConfig();
 
     ok(res, {

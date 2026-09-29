@@ -6,6 +6,10 @@ jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}) })
 const discord = require("../../../src/services/discord/discord");
 const notes = require("../../../src/services/signups/signupNotes");
 const { signup: baseSignup } = require("../../factories/events");
+const { knownChannels } = require("../../helpers/linkCheck");
+
+// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+beforeEach(() => knownChannels("20000", "777777", "888888"));
 
 const EVENT = { id: "eh-1", title: "SSC + TK", categoryId: "cat-1", startTime: 1760000000, guildId: "10000", channelId: "20000", message: { messageId: "30000" } };
 const CHANNEL = { discordServers: { signupNoteChannelId: "777777" } };

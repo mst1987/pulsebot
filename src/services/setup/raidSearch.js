@@ -15,6 +15,7 @@
 // message. The orga edits it before it goes out.
 const eventStore = require("../../stores/eventStore");
 const discord = require("../discord/discord");
+const linkCheck = require("../discord/linkCheck");
 const { emojiFor, specEmojiName, classEmojiName, roleUiEmojiName } = require("../discord/appEmojis");
 const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
 const { fail } = require("../../web/http/apiResult");
@@ -54,11 +55,8 @@ function specsOfRole(specs, role) {
 
 /** The link to the signup message, else the event channel, else "". */
 function eventLink(event) {
-    const guildId = String((event && event.guildId) || "");
-    const channelId = String((event && event.channelId) || "");
-    if (!guildId || !channelId) return "";
-    const messageId = event.message && event.message.messageId ? String(event.message.messageId) : "";
-    return `https://discord.com/channels/${guildId}/${channelId}${messageId ? `/${messageId}` : ""}`;
+    // only a link that works (#537, linkCheck)
+    return linkCheck.eventLink(event);
 }
 
 function buildText(event, gap, specs) {
