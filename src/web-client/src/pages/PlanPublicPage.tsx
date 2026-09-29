@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { MarkIcon } from "../components/raidplan/MarkIcon";
 import { groupColor, groupMark, inkOn } from "../lib/raidplan/groupStyle";
-import { Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
+import { Maximize2, Minimize2, RefreshCw, ZoomIn, ZoomOut } from "lucide-react";
+import { useVisiblePoll } from "../hooks/useVisiblePoll";
+import { hasSectionDeepLink, sectionFromUrl, showSectionInUrl } from "../lib/raidplan/sectionUrl";
 import { useBoardView } from "../hooks/useBoardView";
 import { viewFromSaved } from "../lib/raidplan/boardView";
 import MiniMap from "../components/raidplan/MiniMap";
@@ -9,7 +11,7 @@ import { useViewPrefs } from "../hooks/useViewPrefs";
 import { useRaidProgress } from "../hooks/useRaidProgress";
 import { shownFor } from "../lib/raidplan/viewRules";
 import { SheetViewMenu } from "./raid-detail/raidplan/ViewControls";
-import { getRaidplanPublic, type RaidplanBoard, type RaidplanPublicBoss } from "../api";
+import { getRaidplanPublic, pollRaidplanPublic, type RaidplanBoard, type RaidplanPublicBoss } from "../api";
 import { useApi } from "../hooks/useApi";
 import { autoPlaces, deriveAuto } from "../lib/raidplan/autoPlace";
 import PlanBoard from "../components/raidplan/PlanBoard";
@@ -24,7 +26,7 @@ import { TipLayer } from "../components/ui/Tip";
 import LangToggle from "../components/LangToggle";
 import ThemeToggle from "../components/ThemeToggle";
 import { formatEventTime } from "../lib/format";
-import { rosterMap, sectionLabel, severalInstances, startSection } from "../lib/raidplan";
+import { rememberSection, rememberedSection, rosterMap, sectionLabel, severalInstances, startSection } from "../lib/raidplan";
 import { cleanNames } from "../lib/raidplan/mention";
 import Mentions from "../components/raidplan/Mentions";
 import { useT } from "../i18n";
@@ -39,24 +41,73 @@ import "../styles/raidplan/index.css";
  * "tasks by player" runs over the full width at the end. Below 1100 px the map is
  * on top and the assignments follow. When the visitor is logged in and stands in
  * the plan (the server answers with `me`), their own token and rows are highlighted.
+ *
+ * Live (#555): while the tab is visible the page asks again every LIVE_POLL_MS with the ETag of what it shows; the server
+ * answers a bare 304 while nothing changed. A changed plan is drawn in place - the section, the zoom, the scroll position,
+ * the highlighted group and "Only for me" stay - and a small "Aktualisiert" shows for a moment. The chosen section stands
+ * in the address (`#boss=<key>`, lib/raidplan/sectionUrl.ts) and in this browser, so a reload lands on it again.
  */
+const LIVE_POLL_MS = 20_000;
+/** How long the "Aktualisiert" note stays after a live update. */
+const UPDATED_NOTE_MS = 4_000;
+
 export default function PlanPublicPage({ token }: { token: string }) {
     const t = useT();
     const [selected, setSelected] = useState("");
-    const plan = useApi(() => getRaidplanPublic(token).then((d) => {
-        // a deep link (?section=<key>) first, else "Allgemein", else the first section (left-out ones are not sent at all)
-        setSelected(startSection(d.bosses, new URLSearchParams(window.location.search).get("section") || "", "", []));
+    const memoryKey = `p:${token}`;
+    // the ETag of what is shown: the live poll sends it and gets a bare 304 while nothing changed (#555)
+    const etag = useRef("");
+    const plan = useApi(() => getRaidplanPublic(token).then((r) => {
+        const d = r.data;
+        etag.current = r.etag;
+        // the address first (#boss= of the last visit, else a deep link ?section=), else the section last open in this browser,
+        // else "Allgemein", else the first section (left-out ones are not sent at all)
+        setSelected(startSection(d.bosses, sectionFromUrl(), rememberedSection(memoryKey), []));
         return d;
     }), [token]);
-    const { data, error } = plan;
+    const { data, error, setData } = plan;
+    // the chosen section into the address and this browser - by hand, by following the log or on the first load (#555)
+    useEffect(() => {
+        if (!selected) return;
+        showSectionInUrl(selected);
+        rememberSection(memoryKey, selected);
+    }, [selected, memoryKey]);
+    // a section the organiser removed meanwhile: back to where a fresh visit starts
+    useEffect(() => {
+        if (data && selected && !data.bosses.some((b) => b.key === selected)) setSelected(startSection(data.bosses, "", "", []));
+    }, [data, selected]);
+
+    // live (#555): ask again with the ETag of what is shown; a 304 (null) changes nothing
+    const [updatedAt, setUpdatedAt] = useState(0);
+    useVisiblePoll(() => {
+        if (!data) return;
+        const shown = data;
+        pollRaidplanPublic(token, etag.current).then((r) => {
+            if (!r) return;
+            etag.current = r.etag;
+            // an answer equal to what is shown (a proxy that dropped the ETag) draws nothing and says nothing
+            if (JSON.stringify(r.data) === JSON.stringify(shown)) return;
+            setData(r.data);
+            setUpdatedAt(Date.now());
+        }).catch(() => { /* withdrawn or offline: keep what is shown, the next round asks again */ });
+    }, LIVE_POLL_MS, !!data);
+    useEffect(() => {
+        if (!updatedAt) return undefined;
+        const timer = window.setTimeout(() => setUpdatedAt(0), UPDATED_NOTE_MS);
+        return () => window.clearTimeout(timer);
+    }, [updatedAt]);
     const [mapOnly, setMapOnly] = useState(false);
     const [focusGroup, setFocusGroup] = useState(0);
     const [onlyMine, setOnlyMine] = useState(false);
     const bv = useBoardView({ touchPan: true });
     const [prefs, setPref] = useViewPrefs("eh.raidplan.sheetPrefs");
     // another section starts fitted again
-    // a section opens with the view the organiser saved for it (the whole picture when there is none)
-    useEffect(() => { const b = data ? data.bosses.find((x) => x.key === selected) || data.bosses[0] : null; bv.set(viewFromSaved(b ? b.view : null)); }, [selected, data]); // eslint-disable-line react-hooks/exhaustive-deps
+    // a section opens with the view the organiser saved for it (the whole picture when there is none); a live update keeps the
+    // visitor's zoom unless the organiser changed that section's saved view
+    const openBoss = data ? data.bosses.find((x) => x.key === selected) || data.bosses[0] : null;
+    const savedView = openBoss ? openBoss.view : null;
+    const savedViewKey = JSON.stringify(savedView || null);
+    useEffect(() => { bv.set(viewFromSaved(savedView)); }, [selected, savedViewKey]); // eslint-disable-line react-hooks/exhaustive-deps
     const [win, setWin] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
 
     useEffect(() => {
@@ -72,11 +123,11 @@ export default function PlanPublicPage({ token }: { token: string }) {
     // the sections where the visitor is personally assigned: their chips carry a dot (issue #503)
     const mineKeys = useMemo(() => bossesWithMine(data ? data.bosses : [], players, data ? data.meIds : []), [data, players]);
     // the plan follows the raid (#534): during the raid window the linked log turns it to the boss being pulled, else the next one -
-    // until the visitor picks a section himself (a deep link ?section= counts as that)
+    // until the visitor picks a section himself (a deep link ?section= counts as that; the #boss= of a reload does not)
     const sectionKeys = useMemo(() => (data ? data.bosses.map((b) => b.key) : []), [data]);
     const progress = useRaidProgress({
         source: data ? { token } : null, startTime: data ? data.event.startTime : 0, keys: sectionKeys, select: setSelected,
-        initialFollow: !new URLSearchParams(window.location.search).get("section"),
+        initialFollow: !hasSectionDeepLink(),
     });
 
     if (error) {
@@ -124,6 +175,10 @@ export default function PlanPublicPage({ token }: { token: string }) {
                     {data.me && boss && <span className={mineHere ? "rp-me-note" : "rp-muted"}>· {mineHere ? t("raidBoard.public.you") : t("raidBoard.public.youNot")}</span>}
                 </div>
                 <div className="rp-public-tools">
+                    {/* the live update's note (#555): always in the page so a screen reader hears it, text only for a moment */}
+                    <span className="rp-live-note" role="status" aria-live="polite">
+                        {updatedAt > 0 && <><RefreshCw size={13} aria-hidden="true" />{t("raidBoard.public.updated")}</>}
+                    </span>
                     <LangToggle />
                     <ThemeToggle />
                 </div>

@@ -307,6 +307,25 @@ describe("GET /api/raidplan/public", () => {
         expect(body(await publicGet(on.plan.publicPath.replace("/p/", ""))).bosses[0].profileName).toBe("Tanks P1");
     });
 
+    it("carries an ETag and answers a bare 304 while nothing changed, a new body after a save (#555)", async () => {
+        const token = await publish();
+        const first = await publicGet(token);
+        const tag = first.writeHead.mock.calls[0][1].ETag;
+        expect(tag).toMatch(/^"[\w-]{27}"$/);
+        const again = mockRes();
+        await route.getPublic({ headers: { "if-none-match": tag } }, again, new URL(`http://x/api/raidplan/public?token=${token}`));
+        expect(status(again)).toBe(304);
+        expect(again.writeHead.mock.calls[0][1].ETag).toBe(tag);
+        expect(again.end).toHaveBeenCalledWith();
+        const plan = store.getPlan("eh_1");
+        await call(route.putPlan, ORGA, { event: "eh_1", version: plan.version, bosses: { "bt/supremus": { tokens: [{ userId: "u1", x: 0.2, y: 0.3 }], notes: "Changed" } } });
+        const after = mockRes();
+        await route.getPublic({ headers: { "if-none-match": tag } }, after, new URL(`http://x/api/raidplan/public?token=${token}`));
+        expect(status(after)).toBe(200);
+        expect(after.writeHead.mock.calls[0][1].ETag).not.toBe(tag);
+        expect(body(after).bosses[0].notes).toBe("Changed");
+    });
+
     it("answers one and the same 404 for unknown, malformed, withdrawn and orphaned tokens", async () => {
         const token = await publish();
         for (const bad of ["", "x", "aaaaaaaaaaaaaaaaaaaaaaaa"]) expect(status(await publicGet(bad))).toBe(404);

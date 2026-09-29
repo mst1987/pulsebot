@@ -2,7 +2,7 @@
 // that is no JSON becomes an ApiError with a sentence in the menu's language,
 // the HTML goes to the console only.
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { get, nonJsonMessage, send, type ApiError } from "./client";
+import { get, getIfChanged, nonJsonMessage, send, type ApiError } from "./client";
 import { t } from "../i18n";
 import { switchLang } from "../test/i18n";
 
@@ -113,5 +113,26 @@ describe("a non-JSON answer of the server or a proxy", () => {
         const err = await errorOf(get("/api/dashboard"));
         expect(err).toEqual({ code: "forbidden", message: "Kein Zugriff" });
         expect(consoleError).not.toHaveBeenCalled();
+    });
+});
+
+describe("getIfChanged (#555)", () => {
+    it("sends the ETag it has, past the browser cache, and answers null for a 304", async () => {
+        vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 304 }));
+        expect(await getIfChanged("/api/raidplan/public?token=x", "\"abc\"")).toBeNull();
+        const init = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
+        expect(init.headers).toEqual({ "If-None-Match": "\"abc\"" });
+        expect(init.cache).toBe("no-store");
+    });
+
+    it("answers the new data with its ETag; without an ETag it asks plainly", async () => {
+        vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ data: { a: 1 } }), { status: 200, headers: { ETag: "\"new\"" } }));
+        expect(await getIfChanged("/api/x", "")).toEqual({ data: { a: 1 }, etag: "\"new\"" });
+        expect((vi.mocked(fetch).mock.calls[0][1] as RequestInit).headers).toEqual({});
+    });
+
+    it("throws the server's error", async () => {
+        answer(JSON.stringify({ error: { code: "not_found", message: "weg" } }), 404);
+        expect(await errorOf(getIfChanged("/api/x", "\"a\""))).toEqual({ code: "not_found", message: "weg" });
     });
 });

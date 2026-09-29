@@ -12,6 +12,7 @@ import { useT } from "../../i18n";
 import {
     boardCount, boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, startSection, objectCount, openSlots, planHasContent, sameBosses, sheetIncluded, toSave,
 } from "../../lib/raidplan";
+import { hasSectionDeepLink, sectionFromUrl, showSectionInUrl } from "../../lib/raidplan/sectionUrl";
 import type { RaidCtx } from "./meta";
 import { missingNames, openAssignments, type OpenRow } from "../../lib/raidplan/assignLine";
 import { DEFAULTS_KEY } from "../../lib/raidplan/inherit";
@@ -71,8 +72,9 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         reset(v.plan.bosses);
         setProfiles(v.profiles);
         setConflict(false);
-        // the section it opens on: a deep link, else the one last open for this plan, else "Allgemein" (it comes first)
-        setSelected((cur) => (v.bosses.some((b) => b.key === cur) ? cur : startSection(v.bosses, new URLSearchParams(window.location.search).get("section") || "", rememberedSection(eventId), [])));
+        // the section it opens on: the address (#boss= of a reload, else a deep link ?section=), else the one last open for this plan,
+        // else "Allgemein" (it comes first)
+        setSelected((cur) => (v.bosses.some((b) => b.key === cur) ? cur : startSection(v.bosses, sectionFromUrl(), rememberedSection(eventId), [])));
         return v;
     }), [eventId, reset]);
     const { data: view, setData: setView } = plan;
@@ -104,10 +106,14 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     // until the organiser picks a section himself
     const progress = useRaidProgress({
         source: view ? { event: eventId } : null, startTime: view ? view.event.startTime : 0, keys: bossKeys, select: setSelected,
-        initialFollow: !new URLSearchParams(window.location.search).get("section"),
+        initialFollow: !hasSectionDeepLink(),
     });
-    // remember the open section per plan (this browser)
-    useEffect(() => { if (selected) rememberSection(eventId, selected); }, [eventId, selected]);
+    // remember the open section per plan (this browser) and show it in the address (#boss=, #555), so a reload opens it again
+    useEffect(() => {
+        if (!selected) return;
+        rememberSection(eventId, selected);
+        showSectionInUrl(selected);
+    }, [eventId, selected]);
     // "Gruppen im Plan" (#529): every consumer below gets only the raiders of the plan's groups; the rest only names a raider a row holds
     const split = useMemo(() => rosterOfView(view || null), [view]);
     const roster = split.roster;

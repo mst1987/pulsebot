@@ -1,4 +1,4 @@
-import { get, send, sendRaw } from "./client";
+import { get, getIfChanged, send, sendRaw } from "./client";
 
 // ---- Raidplan (src/web/apiRoutes/raidplan.js, docs/raidplan.md) ----
 
@@ -318,8 +318,17 @@ export function deleteRaidplanProfile(id: string): Promise<RaidplanProfiles> {
 }
 
 /** The read view behind /p/<token> — no login, the token is the authentication. */
-export function getRaidplanPublic(token: string): Promise<RaidplanPublic> {
-    return get<RaidplanPublic>(`/api/raidplan/public?token=${encodeURIComponent(token)}`);
+/** The read view's payload and its ETag (the live poll sends it back, #555). */
+export async function getRaidplanPublic(token: string): Promise<{ data: RaidplanPublic; etag: string }> {
+    const r = await getIfChanged<RaidplanPublic>(`/api/raidplan/public?token=${encodeURIComponent(token)}`, "");
+    // without an ETag to compare the server always answers the payload
+    if (!r) throw { code: "bad_response", message: "HTTP 304" };
+    return r;
+}
+
+/** The read view asks again (#555): null while the plan is unchanged since `etag` (a bare 304), else the new payload and its ETag. */
+export function pollRaidplanPublic(token: string, etag: string): Promise<{ data: RaidplanPublic; etag: string } | null> {
+    return getIfChanged<RaidplanPublic>(`/api/raidplan/public?token=${encodeURIComponent(token)}`, etag);
 }
 
 /**

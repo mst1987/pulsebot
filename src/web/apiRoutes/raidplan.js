@@ -29,7 +29,7 @@
 //
 // The area gate (apiAccess.js) decides read vs. write by method. The public route
 // is listed in UNGATED there; it hands out only what /p/<token> shows.
-const { ok, error } = require("../http/apiResponse");
+const { ok, okWithEtag, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { readRawBody } = require("../http/apiBody");
 const { sendFailure } = require("../http/apiResult");
@@ -319,6 +319,7 @@ function catalogWrite(kind, how) {
  * GET /api/raidplan/public?token=<token> — no login. An unknown token, an
  * unpublished plan and a plan whose event is gone all answer the same 404.
  * A logged-in viewer's own userId only marks their token; it grants nothing.
+ * The answer carries an ETag; the page polls with If-None-Match and gets a bare 304 while nothing changed (#555).
  */
 async function getPublic(req, res, url) {
     const plan = store.getPublishedByToken(url.searchParams.get("token"));
@@ -327,7 +328,7 @@ async function getPublic(req, res, url) {
     const event = found && found.event;
     if (!plan || !event) return error(res, 404, "not_found", "Diesen Raidplan gibt es nicht (mehr).");
     const viewer = auth.getUser(req);
-    ok(res, raidplan.publicView(plan, event, { me: viewer ? viewer.id : "" }));
+    okWithEtag(req, res, raidplan.publicView(plan, event, { me: viewer ? viewer.id : "" }));
 }
 
 /**

@@ -171,7 +171,8 @@
         "mapBack": "Zurück zur Übersicht",
         "thatsYou": "Das bist du",
         "du": "Du",
-        "nothingShared": "Noch nichts freigegeben."
+        "nothingShared": "Noch nichts freigegeben.",
+        "updated": "Aktualisiert"
     },
     "slot": {
         "tank": "Tank {n}",

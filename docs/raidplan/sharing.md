@@ -91,6 +91,34 @@ the event.
   `test/web/apiRoutes/raidplan.progress.test.js`, `src/web-client/src/hooks/useRaidProgress.test.tsx`,
   `lib/raidplan/progress.test.ts`, `SheetBossNav.test.tsx`, `BossNav.test.tsx`.
 
+## Live updates and the section in the address (#555)
+
+The read view takes a changed plan without a reload, and a reload lands on the boss that was open.
+
+- **Server:** `GET /api/raidplan/public` answers through `okWithEtag` (`src/web/http/apiResponse.js`): the `ETag` is a
+  short sha1 of exactly the JSON sent (so the setup, the published state and the viewer's `me` count too), and a
+  request whose `If-None-Match` names it gets a bare `304`. The payload is still built per request (it is in memory);
+  only the transfer and the page's redraw are saved.
+- **Client:** `PlanPublicPage` polls every 20 s through `hooks/useVisiblePoll.ts` (only while
+  `document.visibilityState` is `visible`, at once when the tab comes back, never on mount) with
+  `pollRaidplanPublic(token, etag)` → `getIfChanged` in `api/client.ts` (`cache: "no-store"`, so the 304 reaches the
+  code). The first load (`getRaidplanPublic`, same helper) keeps the ETag already; an answer equal to what is shown
+  (a proxy that dropped the ETag) draws nothing. A changed answer goes through `useApi`'s `setData` — no remount: section, scroll position, zoom
+  (the view is only reset when the section or its saved `view` changes), group focus, "Only for me" and map-only stay.
+  A small `.rp-live-note` "Aktualisiert" (`raidBoard.public.updated`, `role="status"`) shows for 4 s beside the
+  toggles. A failed poll (withdrawn, offline) keeps what is shown. A section removed meanwhile falls back to where a
+  fresh visit starts.
+- **The section in the address:** `lib/raidplan/sectionUrl.ts`. The chosen section — by hand, by following the log
+  (#534) or on the first load — is written as `#boss=<key>` with `history.replaceState` (no history entry; path, query
+  and the router's `history.state` kept) and remembered per plan in this browser (`rememberSection("p:<token>")`; the
+  editor keeps `rememberSection(<eventId>)`). A page opens on `#boss=` first, then the deep link `?section=`, then the
+  remembered one, then "Allgemein". Only `?section=` pauses following the log; `#boss=` of a reload does not, so a
+  reload during the raid still turns to the boss being pulled. The editor (`RaidplanTab`) writes the same hash; its
+  router drops it when another tab is chosen.
+- Tests: `test/web/http/apiResponse.test.js`, `test/web/apiRoutes/raidplan.test.js` (ETag / 304),
+  `lib/raidplan/sectionUrl.test.ts`, `hooks/useVisiblePoll.test.tsx`, `api/client.test.ts`,
+  `pages/PlanPublicPage.live.test.tsx`.
+
 ## Einteilungen in den Event-Kanal posten (#502)
 
 The read link as one message in the event's channel, like "Sheet posten" for the raidsheet:
