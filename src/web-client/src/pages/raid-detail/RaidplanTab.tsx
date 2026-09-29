@@ -354,7 +354,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                         </li>
                     ))}
                     {view.templates.length === 0 && <li className="rp-muted">{t("raidBoard.template.noneYet")}</li>}
-                    {view.templates.length > 0 && offered.own.length === 0 && <li className="rp-muted">{t("raidBoard.template.noneOfVersion", { version: versionLabel([], view.versionId) })}</li>}
+                    {view.templates.length > 0 && offered.own.length === 0 && <li className="rp-muted rp-pick-note">{t("raidBoard.template.noneOfVersion", { version: versionLabel([], view.versionId) })}</li>}
                 </ul>
                 {offered.other.length > 0 && (
                     <details className="rp-pick-other">

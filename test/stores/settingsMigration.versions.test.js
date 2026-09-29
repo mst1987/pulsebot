@@ -68,6 +68,20 @@ describe("stores/settingsMigration: raid plan game versions (#544)", () => {
         expect([CATALOG_FILE, TEMPLATES_FILE, PROFILES_FILE].map((f) => fs.__store.get(f))).toEqual(before);
     });
 
+    it("leaves the event plans as they are, and a TBC plan sees the same catalog as before (golden master)", () => {
+        const PLANS_FILE = settingsPath("raidplans.json");
+        const plansBytes = JSON.stringify({ plans: [{ eventId: "eh-1", version: 4, status: "draft", bosses: { "bt/supremus": { assignments: [{ id: "r1", type: "curse", spell: { id: "d:curse-of-doom", name: "Curse of Doom", icon: "x" } }] } } }] });
+        fs.__store.set(PLANS_FILE, plansBytes);
+        fs.__store.set(CATALOG_FILE, JSON.stringify(OLD_CATALOG));
+        migrateRaidplanVersions();
+        expect(fs.__store.get(PLANS_FILE)).toBe(plansBytes);
+        // before #544 a TBC plan got every default but Tricks of the Trade plus the stored entries; it still does
+        const defaults = require("../../src/services/raidplan/raidplanCatalogDefaults");
+        const tbc = catalog.catalogView("tbc");
+        expect(tbc.mobs.map((m) => m.id)).toEqual([...defaults.MOBS.map((m) => m.id), "c:aaaaaaaaaa"]);
+        expect(tbc.spells.map((s) => s.id)).toEqual(defaults.SPELLS.map((s) => s.id).filter((id) => id !== "d:tricks-of-the-trade"));
+    });
+
     it("a fresh install has nothing to migrate and writes no file", () => {
         expect(migrateRaidplanVersions()).toEqual([]);
         expect(fs.__store.has(CATALOG_FILE)).toBe(false);

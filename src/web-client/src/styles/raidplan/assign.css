@@ -163,6 +163,7 @@
 .rp-pick-other { margin-top: 10px; }
 .rp-pick-other > summary { cursor: pointer; padding: 4px 0; }
 .rp-pick-other > .rp-pick { margin-top: 6px; }
+.rp-pick > .rp-pick-note { grid-column: 1 / -1; }
 .rp-cgroup { display: flex; flex-direction: column; gap: 6px; }
 .rp-cgroup .rp-kicker { display: flex; align-items: center; gap: 6px; margin: 0; }
 .rp-clist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
