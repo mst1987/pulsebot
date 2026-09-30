@@ -1,124 +1,282 @@
-// The Kaderplaner's own data (docs/kaderplaner.md) and every rule for changing
-// it. Pure: each mutator takes the planner state of one server and returns a new
-// one, or throws an AppError the router answers with its status.
+// The Kaderplaner's own data (docs/kaderplaner.md): the shape of one server's
+// planner, its repair on read, the character data of the accounts and the
+// Kader themselves. Pure: every mutator takes the planner and returns a new one
+// (or `{ planner, ...extra }`), or throws an AppError the router answers with
+// its status. The players of a Kader, its questions and its example setups have
+// their own modules (kaderPlayers.js, kaderQuestions.js, kaderSetups.js).
 //
-//   { accounts:    [{ userId, displayName, addedAt }]           added by hand
-//     assignments: { [userId]: { characters: [...], activeCharacterId } }
-//     rosters:     [{ id, name, size, targets, members: [{ userId, role }], bench: [userId] }]
-//     setups:      { [rosterId]: { variants: [{ id, name, groups: [[userId|null x5] ...] }] } } }
+//   { v: 2,
+//     accounts:    [{ userId, displayName, addedAt }]          known by hand (no profile)
+//     assignments: { [userId]: { characters: [...], activeCharacterId } }   per server, not per Kader
+//     kaders:      [{ id, name, leads: [userId], createdAt, createdBy,
+//                     questions: [{ id, text, type, options: [{ id, label }], required }],
+//                     players:   { [userId]: entry },
+//                     setups:    [{ id, name, size: 10|20, groups: [[{ userId, spec }|null x5] x4] }] }] }
+//
+// A player entry: { state, since, by, addedAt, addedBy, history, wishes, interview,
+// votes, comments, decision } — see kaderPlayers.js. A state stays until somebody
+// changes it; nothing moves by itself.
 //
 // A character: { id, name, nameStyle, className, specs: [{ spec, main, gear }],
 // canTank, canHeal, onlineKey? } — nameStyle "forever" (Vorname Nachname) or
-// "nick" (one free nickname) — keys in the code's own vocabulary ("Warrior",
-// "Warrior-Protection", gear none|usable|ready). The planner's assignment wins
-// inside the planner; it is never written back to the raider profile.
+// "nick" (one free nickname), keys in the code's own vocabulary ("Warrior",
+// "Warrior-Protection"). The planner's character data wins inside the planner
+// and is never written back to a raider profile.
 const { AppError } = require("../../web/http/apiResult");
 const { isProfane, validateCharacterName } = require("../../utils/signup/characterNames");
 const { newId } = require("../../utils/ids");
-const { GROUP_SIZE, autoAssign } = require("./kaderAutoAssign");
+const { migrateLegacyPlanner, charOfAssignments } = require("./kaderMigration");
 
+const FORMAT = 2;
 const ROLES = ["tank", "healer", "melee", "ranged"];
+const STATES = ["pool", "selected", "provisional", "roster", "bench", "tentative"];
+/** The states whose players an example setup may hold. */
+const SETUP_STATES = ["roster", "provisional", "bench", "tentative"];
+const QUESTION_TYPES = ["single", "multi", "text"];
+const VOTES = ["yes", "unsure", "no"];
 const NAME_STYLES = ["forever", "nick"];
+const GEAR_LEVELS = ["none", "usable", "ready"];
+const SETUP_SIZES = [10, 20];
+const GROUP_COUNT = 4;
+const GROUP_SIZE = 5;
 // A nickname: letters (umlauts too), digits, space, hyphen, apostrophe.
 const NICK = /^[\p{L}\p{N}' -]+$/u;
 const NICK_MIN = 2;
 const NICK_MAX = 24;
-const GEAR_LEVELS = ["none", "usable", "ready"];
-const LIMITS = { accounts: 300, rosters: 30, variants: 6, characters: 8, name: 40 };
-const SIZE_MIN = 5;
-const SIZE_MAX = 40;
+const LIMITS = {
+    accounts: 500, characters: 8, name: 40, kaders: 30, leads: 10, players: 500,
+    questions: 30, question: 200, options: 20, option: 60, answer: 1000, note: 2000,
+    comment: 1000, comments: 200, history: 50, wishes: 6, variants: 6,
+};
 // An id typed by hand must look like a real Discord user id; one from the member list is taken as it is.
 const DISCORD_ID = /^\d{17,20}$/;
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
+const str = (v) => (v === null || v === undefined ? "" : String(v));
 const invalid = (message) => new AppError("invalid", 400, message);
 const notFound = (message) => new AppError("not_found", 404, message);
 const conflict = (message) => new AppError("conflict", 409, message);
+const forbidden = (message) => new AppError("forbidden", 403, message);
+const isObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 
 function emptyPlanner() {
-    return { accounts: [], assignments: {}, rosters: [], setups: {} };
+    return { v: FORMAT, accounts: [], assignments: {}, kaders: [] };
 }
 
-/** Sensible role targets for a raid size (they add up to the size). */
-function defaultTargets(size) {
-    const presets = {
-        10: { tank: 2, healer: 3, melee: 2, ranged: 3 },
-        20: { tank: 2, healer: 5, melee: 7, ranged: 6 },
-        25: { tank: 3, healer: 6, melee: 8, ranged: 8 },
-        40: { tank: 4, healer: 10, melee: 14, ranged: 12 },
-    };
-    if (presets[size]) return { ...presets[size] };
-    const tank = Math.max(1, Math.round(size / 10));
-    const healer = Math.max(1, Math.round(size / 4));
-    const melee = Math.round((size - tank - healer) / 2);
-    return { tank, healer, melee, ranged: Math.max(0, size - tank - healer - melee) };
-}
+/** Four groups of five empty slots — a 10er shows the first two of them. */
+const emptyGroups = () => Array.from({ length: GROUP_COUNT }, () => Array(GROUP_SIZE).fill(null));
 
-const groupCount = (size) => Math.max(1, Math.ceil(size / GROUP_SIZE));
-const emptyGroups = (size) => Array.from({ length: groupCount(size) }, () => Array(GROUP_SIZE).fill(null));
-const newSetup = (size) => ({ variants: [{ id: newId(), name: "Variante A", groups: emptyGroups(size) }] });
-
-/** Groups of exactly size/5 x 5 slots holding only roster members, each at most once. */
-function sanitizeGroups(groups, roster) {
-    const allowed = new Set(roster.members.map((m) => m.userId));
-    const used = new Set();
-    return Array.from({ length: groupCount(roster.size) }, (_, gi) => Array.from({ length: GROUP_SIZE }, (_, si) => {
-        const id = Array.isArray(groups) && Array.isArray(groups[gi]) ? groups[gi][si] : null;
-        if (typeof id !== "string" || !allowed.has(id) || used.has(id)) return null;
-        used.add(id);
-        return id;
-    }));
-}
+// ------------------------------------------------------------- normalise
 
 /** The stored style, else what the name looks like: two parts are a Forever name, anything else a nickname. */
 function nameStyleOf(c) {
     if (NAME_STYLES.includes(c.nameStyle)) return c.nameStyle;
-    return String(c.name || "").trim().split(/\s+/).length === 2 ? "forever" : "nick";
+    return str(c.name).trim().split(/\s+/).length === 2 ? "forever" : "nick";
 }
 
 function normalizeCharacter(c) {
-    if (!c || typeof c !== "object" || !c.id || !c.name) return null;
+    if (!isObject(c) || !c.id || !c.name) return null;
     const specs = (Array.isArray(c.specs) ? c.specs : [])
         .filter((s) => s && typeof s.spec === "string" && s.spec)
         .map((s) => ({ spec: s.spec, main: s.main === true, gear: GEAR_LEVELS.includes(s.gear) ? s.gear : "none" }));
     return {
-        id: String(c.id),
-        name: String(c.name),
+        id: str(c.id),
+        name: str(c.name),
         nameStyle: nameStyleOf(c),
-        className: String(c.className || ""),
+        className: str(c.className),
         specs,
         canTank: c.canTank === true,
         canHeal: c.canHeal === true,
-        ...(c.onlineKey ? { onlineKey: String(c.onlineKey) } : {}),
+        ...(c.onlineKey ? { onlineKey: str(c.onlineKey) } : {}),
     };
 }
 
-function normalizeRoster(r) {
-    const size = Math.min(SIZE_MAX, Math.max(SIZE_MIN, Math.round(Number(r.size)) || 20));
-    const targets = { ...defaultTargets(size) };
-    if (r.targets && typeof r.targets === "object") {
-        for (const role of ROLES) if (Number.isInteger(r.targets[role]) && r.targets[role] >= 0) targets[role] = r.targets[role];
-    }
-    const seen = new Set();
-    const members = (Array.isArray(r.members) ? r.members : [])
-        .filter((m) => m && typeof m.userId === "string" && ROLES.includes(m.role) && !seen.has(m.userId) && seen.add(m.userId))
-        .map((m) => ({ userId: m.userId, role: m.role }));
-    const bench = (Array.isArray(r.bench) ? r.bench : []).filter((id) => typeof id === "string" && !seen.has(id) && seen.add(id));
-    // an old roster's instanceId is dropped here: a roster is a name and a size (#566)
-    return { id: String(r.id), name: String(r.name || "Kader"), size, targets, members, bench };
+function normalizeOption(o) {
+    if (!isObject(o) || !o.id) return null;
+    const label = str(o.label).trim().slice(0, LIMITS.option);
+    return label ? { id: str(o.id), label } : null;
 }
 
-/** Repairs whatever was read from disk into a valid planner state (never throws). */
+function normalizeQuestion(q) {
+    if (!isObject(q) || !q.id) return null;
+    const type = QUESTION_TYPES.includes(q.type) ? q.type : "text";
+    const seen = new Set();
+    const options = type === "text" ? [] : (Array.isArray(q.options) ? q.options : [])
+        .map(normalizeOption)
+        .filter((o) => o && !seen.has(o.id) && seen.add(o.id))
+        .slice(0, LIMITS.options);
+    return { id: str(q.id), text: str(q.text).trim().slice(0, LIMITS.question) || "?", type, options, required: q.required === true };
+}
+
+/** An answer as its question wants it, or undefined when there is none (unknown option ids are dropped). */
+function normalizeAnswer(question, value) {
+    if (question.type === "text") {
+        const text = str(value).trim().slice(0, LIMITS.answer);
+        return text || undefined;
+    }
+    const ids = new Set(question.options.map((o) => o.id));
+    if (question.type === "single") {
+        const id = Array.isArray(value) ? str(value[0]) : str(value);
+        return ids.has(id) ? id : undefined;
+    }
+    const list = (Array.isArray(value) ? value : [value]).map(str);
+    const picked = question.options.map((o) => o.id).filter((id) => list.includes(id));
+    return picked.length ? picked : undefined;
+}
+
+function normalizeAnswers(raw, questions) {
+    const out = {};
+    if (!isObject(raw)) return out;
+    for (const q of questions) {
+        const a = normalizeAnswer(q, raw[q.id]);
+        if (a !== undefined) out[q.id] = a;
+    }
+    return out;
+}
+
+function normalizeWish(w) {
+    if (!isObject(w)) return null;
+    const className = str(w.className);
+    const spec = str(w.spec);
+    return className && spec ? { className, spec } : null;
+}
+
+function normalizeWishes(raw) {
+    const seen = new Set();
+    return (Array.isArray(raw) ? raw : [])
+        .map(normalizeWish)
+        .filter((w) => w && !seen.has(w.spec) && seen.add(w.spec))
+        .slice(0, LIMITS.wishes);
+}
+
+function normalizeInterview(raw, questions) {
+    const i = isObject(raw) ? raw : {};
+    return {
+        lead: str(i.lead),
+        answers: normalizeAnswers(i.answers, questions),
+        note: str(i.note).slice(0, LIMITS.note),
+        startedAt: str(i.startedAt),
+        updatedAt: str(i.updatedAt),
+        updatedBy: str(i.updatedBy),
+        completedAt: str(i.completedAt),
+        completedBy: str(i.completedBy),
+    };
+}
+
+function normalizeHistory(raw) {
+    return (Array.isArray(raw) ? raw : [])
+        .filter((h) => isObject(h) && h.type)
+        .map((h) => {
+            const out = { at: str(h.at), by: str(h.by), type: str(h.type) };
+            for (const k of ["from", "to", "vote", "className", "spec"]) if (h[k] !== undefined && h[k] !== null) out[k] = str(h[k]);
+            return out;
+        })
+        .slice(-LIMITS.history);
+}
+
+function normalizeEntry(raw, questions) {
+    const e = isObject(raw) ? raw : {};
+    const votes = {};
+    if (isObject(e.votes)) for (const [uid, v] of Object.entries(e.votes)) if (VOTES.includes(v)) votes[uid] = v;
+    const seen = new Set();
+    const comments = (Array.isArray(e.comments) ? e.comments : [])
+        .filter((c) => isObject(c) && c.id && str(c.text).trim() && !seen.has(c.id) && seen.add(c.id))
+        .map((c) => ({ id: str(c.id), by: str(c.by), at: str(c.at), text: str(c.text).slice(0, LIMITS.comment) }))
+        .slice(-LIMITS.comments);
+    return {
+        name: str(e.name).slice(0, LIMITS.name),
+        state: STATES.includes(e.state) ? e.state : "pool",
+        since: str(e.since),
+        by: str(e.by),
+        addedAt: str(e.addedAt),
+        addedBy: str(e.addedBy),
+        history: normalizeHistory(e.history),
+        wishes: normalizeWishes(e.wishes),
+        interview: normalizeInterview(e.interview, questions),
+        votes,
+        comments,
+        decision: normalizeWish(e.decision),
+    };
+}
+
+/** A slot of an example setup: a player who may stand in a setup, each at most once. */
+function normalizeSlot(raw, players, used) {
+    if (!isObject(raw)) return null;
+    const userId = str(raw.userId);
+    const entry = players[userId];
+    if (!entry || !SETUP_STATES.includes(entry.state) || used.has(userId)) return null;
+    used.add(userId);
+    return { userId, spec: str(raw.spec) };
+}
+
+function normalizeGroups(raw, players) {
+    const used = new Set();
+    return Array.from({ length: GROUP_COUNT }, (_, gi) => Array.from({ length: GROUP_SIZE }, (_, si) => {
+        const g = Array.isArray(raw) && Array.isArray(raw[gi]) ? raw[gi] : [];
+        return normalizeSlot(g[si], players, used);
+    }));
+}
+
+function normalizeVariant(v, players) {
+    if (!isObject(v) || !v.id) return null;
+    return {
+        id: str(v.id),
+        name: str(v.name).trim().slice(0, LIMITS.name) || "Variante",
+        size: SETUP_SIZES.includes(Number(v.size)) ? Number(v.size) : 20,
+        groups: normalizeGroups(v.groups, players),
+    };
+}
+
+function normalizeKader(k) {
+    if (!isObject(k) || !k.id) return null;
+    const qSeen = new Set();
+    const questions = (Array.isArray(k.questions) ? k.questions : [])
+        .map(normalizeQuestion)
+        .filter((q) => q && !qSeen.has(q.id) && qSeen.add(q.id))
+        .slice(0, LIMITS.questions);
+    const players = {};
+    if (isObject(k.players)) {
+        for (const [userId, raw] of Object.entries(k.players)) {
+            if (userId) players[userId] = normalizeEntry(raw, questions);
+        }
+    }
+    const vSeen = new Set();
+    const setups = (Array.isArray(k.setups) ? k.setups : [])
+        .map((v) => normalizeVariant(v, players))
+        .filter((v) => v && !vSeen.has(v.id) && vSeen.add(v.id))
+        .slice(0, LIMITS.variants);
+    return {
+        id: str(k.id),
+        name: str(k.name).trim().slice(0, LIMITS.name) || "Kader",
+        leads: [...new Set((Array.isArray(k.leads) ? k.leads : []).map(str).filter(Boolean))].slice(0, LIMITS.leads),
+        createdAt: str(k.createdAt),
+        createdBy: str(k.createdBy),
+        questions,
+        players,
+        setups,
+    };
+}
+
+/**
+ * Repairs whatever was read from disk into a valid planner (never throws). An
+ * old planner (#566: rosters with sizes, members and bench) is taken over the
+ * way settingsMigration.js does it at start — here with the planner's own
+ * character data only, as a safety net for a file the start did not migrate.
+ */
 function normalizePlanner(raw) {
     const out = emptyPlanner();
-    if (!raw || typeof raw !== "object") return out;
-    if (Array.isArray(raw.accounts)) {
-        out.accounts = raw.accounts
-            .filter((a) => a && typeof a.userId === "string" && a.userId)
-            .map((a) => ({ userId: a.userId, displayName: String(a.displayName || a.userId), addedAt: String(a.addedAt || "") }));
+    if (!isObject(raw)) return out;
+    const src = !Array.isArray(raw.kaders) && Array.isArray(raw.rosters)
+        ? migrateLegacyPlanner(raw, { charOf: charOfAssignments(raw) })
+        : raw;
+    if (Array.isArray(src.accounts)) {
+        const seen = new Set();
+        out.accounts = src.accounts
+            .filter((a) => a && typeof a.userId === "string" && a.userId && !seen.has(a.userId) && seen.add(a.userId))
+            .map((a) => ({ userId: a.userId, displayName: str(a.displayName || a.userId).slice(0, LIMITS.name), addedAt: str(a.addedAt) }));
     }
-    if (raw.assignments && typeof raw.assignments === "object") {
-        for (const [userId, a] of Object.entries(raw.assignments)) {
+    if (isObject(src.assignments)) {
+        for (const [userId, a] of Object.entries(src.assignments)) {
             if (!a || !Array.isArray(a.characters)) continue;
             const characters = a.characters.map(normalizeCharacter).filter(Boolean);
             out.assignments[userId] = {
@@ -127,80 +285,74 @@ function normalizePlanner(raw) {
             };
         }
     }
-    if (Array.isArray(raw.rosters)) out.rosters = raw.rosters.filter((r) => r && r.id).map(normalizeRoster);
-    for (const r of out.rosters) {
-        const s = raw.setups && raw.setups[r.id];
-        out.setups[r.id] = s && Array.isArray(s.variants) && s.variants.length
-            ? { variants: s.variants.map((v) => ({ id: String(v.id || newId()), name: String(v.name || "Variante"), groups: sanitizeGroups(v.groups, r) })) }
-            : newSetup(r.size);
-    }
+    const seen = new Set();
+    out.kaders = (Array.isArray(src.kaders) ? src.kaders : [])
+        .map(normalizeKader)
+        .filter((k) => k && !seen.has(k.id) && seen.add(k.id))
+        .slice(0, LIMITS.kaders);
     return out;
 }
 
-function getRoster(planner, rosterId) {
-    const roster = planner.rosters.find((r) => r.id === rosterId);
-    if (!roster) throw notFound("Kader nicht gefunden.");
-    return roster;
-}
+// --------------------------------------------------------------- helpers
 
-function cleanLabel(name, what) {
-    const text = String(name || "").trim().replace(/\s+/g, " ");
-    if (!text || text.length > LIMITS.name) throw invalid(`${what} fehlt oder ist zu lang (höchstens ${LIMITS.name} Zeichen).`);
+function cleanLabel(name, what, max = LIMITS.name) {
+    const text = str(name).trim().replace(/\s+/g, " ");
+    if (!text || text.length > max) throw invalid(`${what} fehlt oder ist zu lang (höchstens ${max} Zeichen).`);
     return text;
 }
 
-/** Whether an account is in the planner's pool: a raider with a profile of the version, or added by hand. */
-const inPool = (planner, ctx, userId) => ctx.poolIds.has(userId) || planner.accounts.some((a) => a.userId === userId);
+function getKader(planner, kaderId) {
+    const kader = planner.kaders.find((k) => k.id === kaderId);
+    if (!kader) throw notFound("Kader nicht gefunden.");
+    return kader;
+}
 
-// ---------------------------------------------------------------- accounts
+/** A mutation on one Kader: the planner copied, the Kader found, `fn(kader, next)` changes it in place. */
+function withKader(planner, kaderId, fn) {
+    const next = clone(planner);
+    const kader = getKader(next, str(kaderId));
+    const extra = fn(kader, next);
+    return extra && typeof extra === "object" ? { planner: next, ...extra } : next;
+}
 
-/**
- * Adds a Discord account to the pool. `ctx.memberIds` are the ids of the
- * server's member list, `ctx.poolIds` the raiders with a profile.
- */
-function addAccount(planner, input, ctx) {
-    const userId = String(input.userId || "").trim();
+/** Whether a user id may be taken: from the member list as it is, typed by hand only when it looks like a Discord id. */
+function checkUserId(raw, ctx) {
+    const userId = str(raw).trim();
     if (!userId) throw invalid("Discord-ID fehlt.");
-    if (!ctx.memberIds.has(userId) && !DISCORD_ID.test(userId)) throw invalid("Das ist keine Discord-ID (17 bis 20 Ziffern).");
-    if (inPool(planner, ctx, userId)) throw conflict("Dieser Account ist schon im Pool.");
-    if (planner.accounts.length >= LIMITS.accounts) throw conflict(`Mehr als ${LIMITS.accounts} Accounts sind nicht vorgesehen.`);
-    const next = clone(planner);
-    next.accounts.push({ userId, displayName: cleanLabel(input.displayName, "Name"), addedAt: new Date().toISOString() });
-    const c = input.character;
-    if (c && (c.firstName || c.lastName || c.nickname || c.className)) {
-        const nick = c.nameStyle === "nick";
-        const name = nick ? c.nickname : `${c.firstName || ""} ${c.lastName || ""}`;
-        const character = cleanCharacter({ name, nameStyle: nick ? "nick" : "forever", className: c.className, specs: [] }, ctx);
-        next.assignments[userId] = { characters: [character], activeCharacterId: character.id };
+    if (!(ctx.memberIds && ctx.memberIds.has(userId)) && !(ctx.knownIds && ctx.knownIds.has(userId)) && !DISCORD_ID.test(userId)) {
+        throw invalid("Das ist keine Discord-ID (17 bis 20 Ziffern).");
     }
-    return next;
+    return userId;
 }
 
-/** Drops an account added by hand, with its assignment and every roster place. */
-function removeAccount(planner, userId) {
-    if (!planner.accounts.some((a) => a.userId === userId)) throw notFound("Nur selbst hinzugefügte Accounts lassen sich entfernen.");
-    const next = clone(planner);
-    next.accounts = next.accounts.filter((a) => a.userId !== userId);
-    delete next.assignments[userId];
-    for (const r of next.rosters) {
-        r.members = r.members.filter((m) => m.userId !== userId);
-        r.bench = r.bench.filter((id) => id !== userId);
-        resanitize(next, r);
-    }
-    return next;
+/** Whether the planner may keep character data for an account: known to the bot or to the planner. */
+function isKnown(planner, ctx, userId) {
+    return (ctx.knownIds && ctx.knownIds.has(userId))
+        || planner.accounts.some((a) => a.userId === userId)
+        || planner.kaders.some((k) => !!k.players[userId]);
 }
 
-// ------------------------------------------------------------ assignments
+// ------------------------------------------------------ class & spec keys
 
 function classOf(ctx, key) {
-    const c = ctx.classes.get(key);
+    const c = ctx.classes.get(str(key));
     if (!c) throw invalid(`Unbekannte Klasse: ${key || "keine"}.`);
     return c;
 }
 
-/** A Forever name is "Vorname Nachname", each 2 to 12 letters (utils/signup/characterNames.js). */
+/** A class + spec pair of the rule set (a wish, a decision, a setup slot). */
+function cleanClassSpec(input, ctx) {
+    const cls = classOf(ctx, input && input.className);
+    const spec = str(input && input.spec);
+    if (!cls.specs.some((s) => s.key === spec)) throw invalid(`Unbekannter Spec: ${spec || "keiner"}.`);
+    return { className: cls.key, spec };
+}
+
+// ---------------------------------------------------------- characters
+
+/** A Forever name is "Vorname Nachname", each 2 to 12 letters (utils/signup/characterNames.js); a nickname is freer. */
 function cleanName(raw, style = "forever") {
-    const text = String(raw || "").trim().replace(/\s+/g, " ");
+    const text = str(raw).trim().replace(/\s+/g, " ");
     if (style === "nick") {
         const length = [...text].length;
         if (length < NICK_MIN || length > NICK_MAX) throw invalid(`Der Nickname braucht ${NICK_MIN} bis ${NICK_MAX} Zeichen.`);
@@ -217,10 +369,10 @@ function cleanName(raw, style = "forever") {
 function cleanCharacter(input, ctx) {
     const nameStyle = input.nameStyle === "nick" ? "nick" : "forever";
     const name = cleanName(input.name, nameStyle);
-    const cls = classOf(ctx, String(input.className || ""));
+    const cls = classOf(ctx, input.className);
     const seen = new Set();
     let specs = (Array.isArray(input.specs) ? input.specs : []).map((s) => ({
-        spec: String((s && s.spec) || ""),
+        spec: str(s && s.spec),
         main: !!s && s.main === true,
         gear: s && GEAR_LEVELS.includes(s.gear) ? s.gear : "none",
     })).filter((s) => {
@@ -233,20 +385,20 @@ function cleanCharacter(input, ctx) {
     const mainIndex = Math.max(0, specs.findIndex((s) => s.main));
     specs = specs.map((s, i) => ({ ...s, main: i === mainIndex }));
     return {
-        id: String(input.id || newId()).slice(0, 40),
+        id: str(input.id || newId()).slice(0, 40),
         name,
         nameStyle,
         className: cls.key,
         specs,
         canTank: input.canTank === true && !!cls.canTank,
         canHeal: input.canHeal === true && !!cls.canHeal,
-        ...(input.onlineKey ? { onlineKey: String(input.onlineKey).slice(0, 80) } : {}),
+        ...(input.onlineKey ? { onlineKey: str(input.onlineKey).slice(0, 80) } : {}),
     };
 }
 
 /** Replaces the planner's characters of one account; the profile is never touched. */
 function setAssignment(planner, userId, input, ctx) {
-    if (!inPool(planner, ctx, userId)) throw notFound("Account nicht im Pool.");
+    if (!isKnown(planner, ctx, userId)) throw notFound("Account unbekannt.");
     const list = Array.isArray(input.characters) ? input.characters : [];
     if (list.length > LIMITS.characters) throw invalid(`Höchstens ${LIMITS.characters} Charaktere je Account.`);
     const characters = list.map((c) => cleanCharacter(c || {}, ctx));
@@ -268,162 +420,87 @@ function resetAssignment(planner, userId) {
     return next;
 }
 
-// ----------------------------------------------------------------- rosters
-
-function cleanSize(value) {
-    const size = Number(value);
-    if (!Number.isInteger(size) || size < SIZE_MIN || size > SIZE_MAX) {
-        throw invalid(`Die Kadergröße muss eine ganze Zahl von ${SIZE_MIN} bis ${SIZE_MAX} sein.`);
-    }
-    return size;
-}
-
-function cleanTargets(input, size, fallback) {
-    const base = fallback || defaultTargets(size);
-    const out = {};
-    for (const role of ROLES) {
-        const v = input && input[role] !== undefined ? Number(input[role]) : base[role];
-        if (!Number.isInteger(v) || v < 0 || v > SIZE_MAX) throw invalid(`Die Zielzahlen müssen ganze Zahlen zwischen 0 und ${SIZE_MAX} sein.`);
-        out[role] = v;
-    }
-    return out;
-}
-
-function resanitize(planner, roster) {
-    for (const v of planner.setups[roster.id].variants) v.groups = sanitizeGroups(v.groups, roster);
-}
-
-/** A new roster: a name (required) and a size (5 to 40); the role targets follow from the size. */
-function createRoster(planner, input) {
-    if (planner.rosters.length >= LIMITS.rosters) throw conflict(`Mehr als ${LIMITS.rosters} Kader sind nicht vorgesehen.`);
-    const size = cleanSize(input.size === undefined || input.size === "" ? 20 : input.size);
-    const roster = {
-        id: newId(),
-        name: cleanLabel(input.name, "Name"),
-        size,
-        targets: cleanTargets(input.targets, size),
-        members: [],
-        bench: [],
-    };
-    const next = clone(planner);
-    next.rosters.push(roster);
-    next.setups[roster.id] = newSetup(size);
-    return { planner: next, rosterId: roster.id };
-}
-
-function updateRoster(planner, rosterId, input) {
-    const next = clone(planner);
-    const roster = getRoster(next, rosterId);
-    if (input.name !== undefined) roster.name = cleanLabel(input.name, "Name");
-    const size = input.size !== undefined ? cleanSize(input.size) : roster.size;
-    const sizeChanged = size !== roster.size;
-    roster.size = size;
-    if (input.targets !== undefined || sizeChanged) {
-        roster.targets = cleanTargets(input.targets, size, input.targets ? roster.targets : null);
-    }
-    if (roster.members.length > size) {
-        const dropped = roster.members.splice(size);
-        roster.bench.push(...dropped.map((m) => m.userId));
-    }
-    if (sizeChanged) {
-        for (const v of next.setups[roster.id].variants) v.groups = emptyGroups(size).map((g, gi) => g.map((_, si) => (v.groups[gi] ? v.groups[gi][si] : null)));
-    }
-    resanitize(next, roster);
-    return next;
-}
-
-function deleteRoster(planner, rosterId) {
-    getRoster(planner, rosterId);
-    const next = clone(planner);
-    next.rosters = next.rosters.filter((r) => r.id !== rosterId);
-    delete next.setups[rosterId];
-    return next;
-}
+// ------------------------------------------------------------ accounts
 
 /**
- * Moves an account inside a roster: into a role slot (`to: "role"`), onto the
- * bench (`"bench"`) or out again (`"free"`). `ctx.naturalRole(userId)` is the
- * role used when none is given.
+ * Makes an account known to the planner by hand (no profile, maybe not on the
+ * server): a Discord id and a display name, optionally a first character.
+ * Knowing it twice is no error — the name is refreshed.
  */
-function placeInRoster(planner, rosterId, input, ctx) {
-    const userId = String(input.userId || "");
-    if (!inPool(planner, ctx, userId)) throw notFound("Account nicht im Pool.");
-    if (!["role", "bench", "free"].includes(input.to)) throw invalid("Ziel muss role, bench oder free sein.");
+function addAccount(planner, input, ctx) {
+    const userId = checkUserId(input.userId, ctx);
+    const displayName = cleanLabel(input.displayName, "Name");
     const next = clone(planner);
-    const roster = getRoster(next, rosterId);
-    const wasMember = roster.members.some((m) => m.userId === userId);
-    roster.members = roster.members.filter((m) => m.userId !== userId);
-    roster.bench = roster.bench.filter((id) => id !== userId);
-    if (input.to === "role") {
-        const role = input.role || (ctx.naturalRole ? ctx.naturalRole(userId) : null) || "melee";
-        if (!ROLES.includes(role)) throw invalid("Unbekannte Rolle.");
-        if (!wasMember && roster.members.length >= roster.size) throw conflict(`Der Kader ist voll (${roster.size}/${roster.size}).`);
-        roster.members.push({ userId, role });
-    } else if (input.to === "bench") {
-        roster.bench.push(userId);
+    const known = next.accounts.find((a) => a.userId === userId);
+    if (known) known.displayName = displayName;
+    else {
+        if (next.accounts.length >= LIMITS.accounts) throw conflict(`Mehr als ${LIMITS.accounts} Accounts sind nicht vorgesehen.`);
+        next.accounts.push({ userId, displayName, addedAt: ctx.now });
     }
-    resanitize(next, roster);
+    const c = input.character;
+    if (c && (c.firstName || c.lastName || c.nickname || c.className)) {
+        const nick = c.nameStyle === "nick";
+        const name = nick ? c.nickname : `${c.firstName || ""} ${c.lastName || ""}`;
+        const character = cleanCharacter({ name, nameStyle: nick ? "nick" : "forever", className: c.className, specs: [] }, ctx);
+        next.assignments[userId] = { characters: [character], activeCharacterId: character.id };
+    }
     return next;
 }
 
-// ------------------------------------------------------------------ setups
-
-function getVariant(planner, rosterId, variantId) {
-    const roster = getRoster(planner, rosterId);
-    const variant = planner.setups[rosterId].variants.find((v) => v.id === variantId);
-    if (!variant) throw notFound("Variante nicht gefunden.");
-    return { roster, variant };
+/** Forgets an account added by hand: its character data and its place in every Kader go with it. */
+function removeAccount(planner, userId) {
+    if (!planner.accounts.some((a) => a.userId === userId)) throw notFound("Nur selbst hinzugefügte Accounts lassen sich entfernen.");
+    const next = clone(planner);
+    next.accounts = next.accounts.filter((a) => a.userId !== userId);
+    delete next.assignments[userId];
+    for (const k of next.kaders) delete k.players[userId];
+    return normalizePlanner(next);
 }
 
-function saveVariant(planner, rosterId, variantId, input) {
-    const next = clone(planner);
-    const { roster, variant } = getVariant(next, rosterId, variantId);
-    if (input.name !== undefined) variant.name = cleanLabel(input.name, "Name");
-    if (input.groups !== undefined) variant.groups = sanitizeGroups(input.groups, roster);
-    return next;
-}
+// --------------------------------------------------------------- Kader
 
-function addVariant(planner, rosterId, input = {}) {
-    const next = clone(planner);
-    const roster = getRoster(next, rosterId);
-    const setup = next.setups[rosterId];
-    if (setup.variants.length >= LIMITS.variants) throw conflict(`Mehr als ${LIMITS.variants} Varianten sind nicht vorgesehen.`);
-    const source = input.copyFrom ? setup.variants.find((v) => v.id === input.copyFrom) : null;
-    if (input.copyFrom && !source) throw notFound("Variante nicht gefunden.");
-    const variant = {
+function createKader(planner, input, ctx) {
+    if (planner.kaders.length >= LIMITS.kaders) throw conflict(`Mehr als ${LIMITS.kaders} Kader sind nicht vorgesehen.`);
+    const kader = {
         id: newId(),
-        name: input.name ? cleanLabel(input.name, "Name") : `Variante ${String.fromCharCode(65 + setup.variants.length)}`,
-        groups: source ? sanitizeGroups(source.groups, roster) : emptyGroups(roster.size),
+        name: cleanLabel(input.name, "Name"),
+        leads: ctx.actor ? [ctx.actor] : [],
+        createdAt: ctx.now,
+        createdBy: ctx.actor || "",
+        questions: [],
+        players: {},
+        setups: [{ id: newId(), name: "Variante A", size: 20, groups: emptyGroups() }],
     };
-    setup.variants.push(variant);
-    return { planner: next, variantId: variant.id };
+    const next = clone(planner);
+    next.kaders.push(kader);
+    return { planner: next, kaderId: kader.id };
 }
 
-function deleteVariant(planner, rosterId, variantId) {
-    const next = clone(planner);
-    getVariant(next, rosterId, variantId);
-    const setup = next.setups[rosterId];
-    if (setup.variants.length <= 1) throw conflict("Die letzte Variante bleibt.");
-    setup.variants = setup.variants.filter((v) => v.id !== variantId);
-    return next;
-}
-
-/** Spreads the roster over the groups; `ctx.playerInfo(userId)` gives class and attendance rate. */
-function autoAssignVariant(planner, rosterId, variantId, ctx) {
-    const next = clone(planner);
-    const { roster, variant } = getVariant(next, rosterId, variantId);
-    const members = roster.members.map((m) => {
-        const info = ctx.playerInfo(m.userId) || {};
-        return { userId: m.userId, role: m.role, classKey: info.classKey || "", rate: info.rate || 0 };
+function updateKader(planner, input, ctx) {
+    return withKader(planner, input.kaderId, (kader) => {
+        if (input.name !== undefined) kader.name = cleanLabel(input.name, "Name");
+        if (input.leads !== undefined) {
+            const leads = [...new Set((Array.isArray(input.leads) ? input.leads : []).map((id) => checkUserId(id, ctx)))];
+            if (!leads.length) throw invalid("Ein Kader braucht mindestens eine Leitung.");
+            if (leads.length > LIMITS.leads) throw invalid(`Höchstens ${LIMITS.leads} Personen in der Leitung.`);
+            kader.leads = leads;
+        }
     });
-    variant.groups = sanitizeGroups(autoAssign(members, groupCount(roster.size)).groups, roster);
+}
+
+function deleteKader(planner, kaderId) {
+    getKader(planner, str(kaderId));
+    const next = clone(planner);
+    next.kaders = next.kaders.filter((k) => k.id !== kaderId);
     return next;
 }
 
 module.exports = {
-    ROLES, GEAR_LEVELS, NAME_STYLES, LIMITS,
-    emptyPlanner, normalizePlanner, defaultTargets, sanitizeGroups,
-    addAccount, removeAccount, setAssignment, resetAssignment,
-    createRoster, updateRoster, deleteRoster, placeInRoster,
-    saveVariant, addVariant, deleteVariant, autoAssignVariant,
+    FORMAT, ROLES, STATES, SETUP_STATES, QUESTION_TYPES, VOTES, NAME_STYLES, GEAR_LEVELS, SETUP_SIZES,
+    GROUP_COUNT, GROUP_SIZE, LIMITS,
+    clone, str, isObject, invalid, notFound, conflict, forbidden,
+    emptyPlanner, emptyGroups, normalizePlanner, normalizeQuestion, normalizeAnswer, normalizeKader,
+    cleanLabel, getKader, withKader, checkUserId, isKnown, classOf, cleanClassSpec,
+    cleanCharacter, setAssignment, resetAssignment, addAccount, removeAccount,
+    createKader, updateKader, deleteKader,
 };

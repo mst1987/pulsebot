@@ -383,11 +383,12 @@ describe("services/discord/discord channel management", () => {
         beforeEach(() => discord._resetMembersCacheForTests());
         const guildWith = (members) => guildWithMemberFetch(jest.fn(async () => new Map(members.map((m) => [m.id, m]))));
 
-        it("lists every non-bot member with name and avatar, sorted by name", async () => {
+        it("lists every non-bot member with name, avatar and roles, sorted by name", async () => {
             const bot = dc.makeMember({ id: "9", displayName: "EventHelper" });
             bot.user.bot = true;
             const guild = guildWith([
-                dc.makeMember({ id: "1", displayName: "Bob", displayAvatarURL: jest.fn(() => "https://cdn/1.png") }),
+                // the guild's own id is its @everyone role: never a role to import from
+                dc.makeMember({ id: "1", displayName: "Bob", roleIds: ["g1", "r-raider"], displayAvatarURL: jest.fn(() => "https://cdn/1.png") }),
                 dc.makeMember({ id: "2", displayName: "Alice" }),
                 bot,
             ]);
@@ -395,8 +396,8 @@ describe("services/discord/discord channel management", () => {
             const { members, error } = await discord.listHumanMembers("g1");
             expect(error).toBeNull();
             expect(members).toEqual([
-                { id: "2", displayName: "Alice", avatarUrl: null },
-                { id: "1", displayName: "Bob", avatarUrl: "https://cdn/1.png" },
+                { id: "2", displayName: "Alice", avatarUrl: null, roleIds: [] },
+                { id: "1", displayName: "Bob", avatarUrl: "https://cdn/1.png", roleIds: ["r-raider"] },
             ]);
         });
 
@@ -412,7 +413,7 @@ describe("services/discord/discord channel management", () => {
             const guild = guildWith([dc.makeMember({ id: "1", displayName: "Bob", displayAvatarURL: () => { throw new Error("x"); } })]);
             setClientWithGuild(guild);
             const { members } = await discord.listHumanMembers("g1");
-            expect(members).toEqual([{ id: "1", displayName: "Bob", avatarUrl: null }]);
+            expect(members).toEqual([{ id: "1", displayName: "Bob", avatarUrl: null, roleIds: [] }]);
         });
 
         it("degrades to an empty list with an error when the fetch fails or the guild is unknown", async () => {

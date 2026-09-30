@@ -1,16 +1,10 @@
-// The Kaderplaner's merge (docs/kaderplaner.md): profile + planner assignment →
-// player. The planner wins; a deviation is marked, never written back.
-const { buildKaderView, mutationContext, publicView, diffAgainst } = require("../../../src/web/kader/kaderView");
-const { emptyPlanner } = require("../../../src/services/kader/kaderModel");
+// The Kaderplaner's view model (docs/kaderplaner.md): who the planner knows,
+// what they are prefilled with and from where, the planner winning over the
+// profile, names for every id, and the chosen Kader with the summaries.
+const { buildKaderView, kaderPayload, mutationContext, lightContext, prefillOf, diffAgainst } = require("../../../src/web/kader/kaderView");
+const model = require("../../../src/services/kader/kaderModel");
+const { U, CLASSES } = require("../../helpers/kaderFixtures");
 
-const U1 = "111111111111111111";
-const U2 = "222222222222222222";
-const HAND = "444444444444444444";
-
-const classes = [
-    { key: "Warrior", name: "Krieger", specs: [{ key: "Warrior-Protection", role: "tank" }, { key: "Warrior-Fury", role: "melee" }] },
-    { key: "Druid", name: "Druide", specs: [{ key: "Druid-Restoration", role: "healer" }, { key: "Druid-Balance", role: "ranged" }] },
-];
 const warrior = {
     key: "forever~aldric sturmwind", name: "Aldric Sturmwind", className: "Warrior", main: false,
     specs: [{ spec: "Warrior-Protection", gear: "ready" }, { spec: "Warrior-Fury", gear: "none" }], canTank: true, canHeal: false, logSpecs: ["Warrior-Fury"],
@@ -20,86 +14,119 @@ const druid = { key: "forever~mira sonnlicht", name: "Mira Sonnlicht", className
 const source = (over = {}) => ({
     guildId: "g1",
     versionId: "forever",
-    classes,
+    mainVersion: { id: "tbc", label: "TBC" },
+    classes: CLASSES,
     buffs: { raid: [], party: [] },
-    members: [{ userId: U1, displayName: "Aldric", avatarUrl: null }, { userId: U2, displayName: "Bea", avatarUrl: null }],
-    profiles: [{ userId: U1, characters: [warrior, druid], availability: ["mi", "do"] }],
-    attendance: [{ userId: U1, attended: 3, counted: 4, rate: 0.75, nights: [{ date: "2026-12-18", eventId: "e1", title: "Hyjal", attended: true, reason: null }] }],
+    members: [
+        { userId: U.a, displayName: "Aldric", avatarUrl: null, roleIds: ["r1"] },
+        { userId: U.b, displayName: "Bea", avatarUrl: null, roleIds: [] },
+        { userId: U.lead, displayName: "Kurt", avatarUrl: null, roleIds: ["r1"] },
+    ],
+    discordRoles: [{ id: "r1", name: "Raider", color: "", count: 2 }],
+    profiles: [
+        { userId: U.a, displayName: "Aldric (Profil)", characters: [warrior, druid], availability: ["mi", "do"], other: null },
+        { userId: U.c, displayName: "Oldie", characters: [], availability: [], other: { name: "Oldie", className: "Mage", spec: "Mage-Fire", versionId: "tbc" } },
+    ],
+    logChars: { [U.d]: { name: "Kael", className: "Priest", spec: "Priest-Shadow" } },
+    attendance: [{ userId: U.a, attended: 3, counted: 4, rate: 0.75, nights: [{ date: "2026-12-18", eventId: "e1", title: "Hyjal", attended: true, reason: null }] }],
+    attendanceMain: [{ userId: U.c, attended: 9, counted: 10, rate: 0.9, nights: [] }],
     warnings: [],
     ...over,
 });
 
+function planner() {
+    const p = model.normalizePlanner({
+        v: 2,
+        accounts: [{ userId: U.hand, displayName: "Hand" }],
+        kaders: [{
+            id: "k1", name: "Forever-Kader", leads: [U.lead],
+            players: {
+                [U.c]: { name: "Oldie", state: "selected" },
+                [U.d]: { name: "Kael (Import)", state: "pool" },
+                [U.a]: { state: "roster", decision: { className: "Warrior", spec: "Warrior-Protection" } },
+            },
+        }, { id: "k2", name: "Zweiter", players: { [U.b]: { name: "Bea", state: "bench" } } }],
+    });
+    return p;
+}
+
 describe("web/kader/kaderView", () => {
-    it("shows the profile's characters with its main active when the planner has nothing", () => {
-        const view = buildKaderView({ source: source(), planner: emptyPlanner() });
-        const [p] = view.players;
-        expect(p).toMatchObject({ userId: U1, displayName: "Aldric", hasProfile: true, manual: false, hasOverride: false, differs: [], availability: ["mi", "do"] });
-        expect(p.characters.map((c) => c.id)).toEqual(["p:forever~aldric sturmwind", "p:forever~mira sonnlicht"]);
-        expect(p.activeCharacterId).toBe("p:forever~mira sonnlicht");
-        expect(p.characters[0]).toMatchObject({ origin: "profile", mainSpec: "Warrior-Protection", role: "tank", gear: "ready" });
-        expect(p.profile).toEqual({ character: "Mira Sonnlicht", className: "Druid", mainSpec: "Druid-Restoration", logSpecs: [] });
-        expect(p.attendance).toEqual({ attended: 3, counted: 4, pct: 75, nights: [{ date: "2026-12-18", title: "Hyjal", attended: true, reason: null }] });
+    it("knows profiles of the version, hand-added accounts and everybody in a Kader", () => {
+        const view = buildKaderView({ source: source(), planner: planner(), kaderId: "k1" });
+        expect(view.players.map((p) => p.userId)).toEqual([U.a, U.hand, U.c, U.d, U.b]);
+        const byId = new Map(view.players.map((p) => [p.userId, p]));
+        // the member list's name wins, then the account, the profile, the name the Kader kept
+        expect(byId.get(U.a)).toMatchObject({ displayName: "Aldric", onServer: true, roleIds: ["r1"], hasProfile: true });
+        expect(byId.get(U.hand)).toMatchObject({ displayName: "Hand", manual: true, onServer: false });
+        expect(byId.get(U.c)).toMatchObject({ displayName: "Oldie", characters: [], availability: [] });
+        expect(byId.get(U.d).displayName).toBe("Kael (Import)");
     });
 
-    it("lets the planner's assignment win and marks what deviates from the profile", () => {
-        const planner = {
-            ...emptyPlanner(),
-            assignments: { [U1]: {
-                characters: [
-                    { id: "c1", name: "Aldric Sturmwind", className: "Warrior", specs: [{ spec: "Warrior-Fury", main: true, gear: "ready" }], canTank: false, canHeal: false, onlineKey: "forever~aldric sturmwind" },
-                    { id: "c2", name: "Neu Name", className: "Druid", specs: [], canTank: false, canHeal: false },
-                ],
-                activeCharacterId: "c1",
-            } },
-        };
-        const [p] = buildKaderView({ source: source(), planner }).players;
-        expect(p.hasOverride).toBe(true);
-        expect(p.activeCharacterId).toBe("c1");
-        expect(p.differs).toEqual(["mainSpec", "tank"]);
-        expect(p.characters[0]).toMatchObject({ origin: "planner", role: "melee" });
-        expect(p.characters[1].differs).toEqual(["notInProfile"]);
-        // the profile line still tells what the raider wrote
-        expect(p.profile.mainSpec).toBe("Druid-Restoration");
+    it("prefills from the planner, the profile (another version's main too) and the logs", () => {
+        const view = buildKaderView({ source: source(), planner: planner(), kaderId: "k1" });
+        const byId = new Map(view.players.map((p) => [p.userId, p]));
+        expect(byId.get(U.a).prefill).toEqual({ name: "Mira Sonnlicht", className: "Druid", spec: "Druid-Restoration", source: "profile", versionId: "" });
+        expect(byId.get(U.c).prefill).toEqual({ name: "Oldie", className: "Mage", spec: "Mage-Fire", source: "profile", versionId: "tbc" });
+        expect(byId.get(U.d).prefill).toEqual({ name: "Kael", className: "Priest", spec: "Priest-Shadow", source: "logs", versionId: "" });
+        expect(byId.get(U.hand).prefill).toBeNull();
+        const planned = prefillOf({ assignment: { characters: [{ id: "x", name: "Neu Name", className: "Mage", specs: [{ spec: "Mage-Frost", main: true }] }], activeCharacterId: "x" }, profile: null, logChar: null });
+        expect(planned).toMatchObject({ className: "Mage", spec: "Mage-Frost", source: "planner" });
     });
 
-    it("adds hand-added accounts to the pool and marks the server's members", () => {
-        const planner = { ...emptyPlanner(), accounts: [{ userId: HAND, displayName: "Hand", addedAt: "" }, { userId: U2, displayName: "Bea", addedAt: "" }] };
-        const view = buildKaderView({ source: source(), planner });
-        expect(view.players.map((p) => [p.userId, p.displayName, p.manual])).toEqual([[U1, "Aldric", false], [HAND, "Hand", true], [U2, "Bea", true]]);
-        expect(view.players[1]).toMatchObject({ hasProfile: false, characters: [], activeCharacterId: null, attendance: null, profile: null });
-        expect(view.members).toEqual([
-            { userId: U1, displayName: "Aldric", inPool: true, hasProfile: true, profile: { className: "Druid", mainSpec: "Druid-Restoration" }, pct: 75 },
-            { userId: U2, displayName: "Bea", inPool: true, hasProfile: false, profile: null, pct: null },
-        ]);
+    it("carries attendance of the planner's version and of the main version", () => {
+        const view = buildKaderView({ source: source(), planner: planner(), kaderId: "k1" });
+        const byId = new Map(view.players.map((p) => [p.userId, p]));
+        expect(byId.get(U.a).attendance).toEqual({ attended: 3, counted: 4, pct: 75, nights: [{ date: "2026-12-18", title: "Hyjal", attended: true, reason: null }] });
+        expect(byId.get(U.a).attendanceMain).toBeNull();
+        expect(byId.get(U.c).attendanceMain).toMatchObject({ pct: 90 });
+        expect(view.mainVersion).toEqual({ id: "tbc", label: "TBC" });
     });
 
-    it("names a raider who is not on the server by the name the profile was saved under", () => {
-        const view = buildKaderView({ source: source({ members: [], profiles: [{ userId: U1, displayName: "Aldric", characters: [warrior], availability: [] }] }), planner: emptyPlanner() });
-        expect(view.players[0].displayName).toBe("Aldric");
-        const bare = buildKaderView({ source: source({ members: [] }), planner: emptyPlanner() });
-        expect(bare.players[0].displayName).toBe(U1);
-    });
-
-    it("shows no attendance while nothing is counted (rate null)", () => {
-        const view = buildKaderView({ source: source({ attendance: [{ userId: U1, attended: 0, counted: 0, rate: null, nights: [] }] }), planner: emptyPlanner() });
-        expect(view.players[0].attendance).toBeNull();
-    });
-
-    it("gives the mutators their helpers and keeps them off the wire", () => {
-        const view = buildKaderView({ source: source(), planner: emptyPlanner() });
-        const ctx = mutationContext(view);
-        expect([...ctx.poolIds]).toEqual([U1]);
-        expect([...ctx.memberIds]).toEqual([U1, U2]);
-        expect(ctx.naturalRole(U1)).toBe("healer");
-        expect(ctx.naturalRole(U2)).toBeNull();
-        expect(ctx.playerInfo(U1)).toEqual({ classKey: "Druid", rate: 0.75 });
-        expect(ctx.classes.get("Warrior").name).toBe("Krieger");
-        expect(publicView(view)).not.toHaveProperty("poolIds");
-    });
-
-    it("diffs class changes and a character the profile does not know", () => {
-        const idx = new Map(classes.map((c) => [c.key, c]));
-        expect(diffAgainst({ name: "x", className: "Druid", specs: [], canTank: true, canHeal: false }, warrior, idx)).toEqual(["class", "mainSpec", "gear"]);
+    it("lets the planner's characters win and marks what deviates from the profile", () => {
+        const p = planner();
+        p.assignments[U.a] = { characters: [{ id: "c1", name: "Aldric Sturmwind", nameStyle: "forever", className: "Warrior", specs: [{ spec: "Warrior-Fury", main: true, gear: "ready" }], canTank: false, canHeal: false, onlineKey: "forever~aldric sturmwind" }], activeCharacterId: "c1" };
+        const view = buildKaderView({ source: source(), planner: p, kaderId: "k1" });
+        const a = view.players.find((x) => x.userId === U.a);
+        expect(a).toMatchObject({ hasOverride: true, activeCharacterId: "c1", differs: ["mainSpec", "tank"] });
+        expect(a.prefill.source).toBe("planner");
+        const idx = new Map(CLASSES.map((c) => [c.key, c]));
         expect(diffAgainst({ name: "x", className: "Druid", specs: [], canTank: false, canHeal: false }, null, idx)).toEqual(["notInProfile"]);
+    });
+
+    it("hands out members with their prefill, names for every id, the summaries and the chosen Kader", () => {
+        const view = buildKaderView({ source: source(), planner: planner(), kaderId: "k1" });
+        expect(view.members.find((m) => m.userId === U.a)).toMatchObject({ displayName: "Aldric", roleIds: ["r1"], prefill: { spec: "Druid-Restoration" } });
+        expect(view.names).toMatchObject({ [U.lead]: "Kurt", [U.hand]: "Hand", [U.c]: "Oldie", [U.b]: "Bea" });
+        expect(view.kaders).toEqual([
+            { id: "k1", name: "Forever-Kader", leads: [U.lead], createdAt: "", createdBy: "", counts: { pool: 1, selected: 1, provisional: 0, roster: 1, bench: 0, tentative: 0 } },
+            { id: "k2", name: "Zweiter", leads: [], createdAt: "", createdBy: "", counts: { pool: 0, selected: 0, provisional: 0, roster: 0, bench: 1, tentative: 0 } },
+        ]);
+        expect(view.kader.id).toBe("k1");
+        expect(view.kader.players[U.a].decision).toEqual({ className: "Warrior", spec: "Warrior-Protection" });
+        expect(buildKaderView({ source: source(), planner: planner(), kaderId: "nope" }).kader).toBeNull();
+        expect(view.discordRoles).toEqual([{ id: "r1", name: "Raider", color: "", count: 2 }]);
+    });
+
+    it("answers a change inside a Kader with that Kader and the summaries", () => {
+        const payload = kaderPayload(planner(), "k2");
+        expect(payload.kader.id).toBe("k2");
+        expect(payload.kaders.map((k) => k.id)).toEqual(["k1", "k2"]);
+        expect(kaderPayload(planner(), "gone").kader).toBeNull();
+    });
+
+    it("gives the mutators their helpers", () => {
+        const ctx = mutationContext({ source: source(), planner: planner(), actor: U.lead, now: "t" });
+        expect(ctx).toMatchObject({ actor: U.lead, now: "t" });
+        expect([...ctx.memberIds]).toEqual([U.a, U.b, U.lead]);
+        expect(ctx.knownIds.has(U.c)).toBe(true);
+        expect(ctx.knownIds.has(U.d)).toBe(true);
+        expect(ctx.prefillOf(U.d)).toMatchObject({ className: "Priest", spec: "Priest-Shadow" });
+        expect(ctx.rateOf(U.a)).toBe(0.75);
+        expect(ctx.rateOf(U.c)).toBe(0.9);
+        expect(ctx.rateOf(U.b)).toBe(0);
+        expect(ctx.classes.get("Mage").specs.map((s) => s.key)).toEqual(["Mage-Frost", "Mage-Fire"]);
+        const light = lightContext({ rules: { classes: CLASSES }, actor: U.lead });
+        expect(light.classes.size).toBe(CLASSES.length);
+        expect(light.memberIds.size).toBe(0);
     });
 });

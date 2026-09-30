@@ -47,6 +47,13 @@
 //     game version. A recruitment template or a tracked post without
 //     `versionId` becomes a TBC one — every application so far was TBC.
 //
+//   - kader.json (Kaderplaner-Ablauf): a planner of #566 (rosters with size,
+//     role targets, members and bench) becomes Kader with player states: every
+//     roster a Kader (same id and name), its members "roster" with a decision
+//     from their character, its bench "bench", its setup variants example
+//     setups (services/kader/kaderMigration.js). The characters come from the
+//     planner's own data, else from the Forever characters of the profile.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
@@ -64,6 +71,8 @@ const raidplanProfileStore = require("./raidplanProfileStore");
 const raiderProfileStore = require("./raiderProfileStore");
 const specHistoryStore = require("./specHistoryStore");
 const recruitmentStore = require("./recruitmentStore");
+const kaderStore = require("./kaderStore");
+const { charOfAssignments } = require("../services/kader/kaderMigration");
 
 /**
  * The event-server list an old single-server block stands for: its
@@ -222,6 +231,28 @@ function migrateRecruitmentVersions() {
     return out;
 }
 
+/** The Forever character of a raider profile as the Kaderplaner's migration reads it: its main (else first) one. */
+function profileCharOf(userId) {
+    const profile = raiderProfileStore.getProfile(userId);
+    const chars = raiderProfileStore.charactersOfVersion(profile, "forever");
+    const c = chars.find((x) => x.main) || chars[0];
+    if (!c || !c.className) return null;
+    const specs = (Array.isArray(c.specs) ? c.specs : []).map((s) => String((s && s.key) || "")).filter(Boolean);
+    return { className: c.className, specs, mainSpec: specs[0] || "" };
+}
+
+/** The Kaderplaner of #566 becomes Kader with player states. One line per server that changed. */
+function migrateKaderPlanner({ now = new Date().toISOString() } = {}) {
+    const done = kaderStore.migrateLegacy({
+        now,
+        charOfFor: (raw) => {
+            const fromPlanner = charOfAssignments(raw);
+            return (userId) => fromPlanner(userId) || profileCharOf(userId);
+        },
+    });
+    return done.map((d) => `kader.json: Server ${d.guildId}: ${d.kaders} Kader aus dem alten Format übernommen (${d.roster} im Roster, ${d.bench} auf der Bench, ${d.variants} Beispiel-Setup(s))`);
+}
+
 /**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
@@ -242,6 +273,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateRaidplanVersions());
         changes.push(...migrateCharacterVersions());
         changes.push(...migrateRecruitmentVersions());
+        changes.push(...migrateKaderPlanner());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -251,6 +283,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, raidplanDefaultsLine,
     legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

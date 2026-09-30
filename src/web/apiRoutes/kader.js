@@ -1,89 +1,184 @@
-// The Kaderplaner (docs/kaderplaner.md): raid rosters for WoW Forever, planned
-// in the web admin. Area "kader" — in no base access by default, so only full
-// admins and the accounts or roles an admin grants it to get in
-// (docs/permissions.md). GET reads the whole view model; every write changes the
-// planner of the active server and answers with the fresh view model, so the
-// page never merges anything itself.
+// The Kaderplaner (docs/kaderplaner.md): raid rosters for WoW Forever, one Kader
+// at a time from the Discord pool through the Vorauswahl (interviews) and the
+// provisional roster to roster, bench and tentative. Area "kader" — in no base
+// access by default, so only full admins and the accounts or roles an admin
+// grants it to get in (docs/permissions.md). GET = read, every change = write
+// plus CSRF; a read-only account sees everything and changes nothing.
+//
+// GET /api/kader?kader=<id> answers the whole view model: the server's side
+// (players with characters and attendance, members, Discord roles, names) plus
+// the chosen Kader. A change inside one Kader answers only `{ kader, kaders }`
+// (the Kader as stored and the summaries) — the page swaps them in; a change
+// that touches the server's side (accounts, character data, taking players in)
+// answers the whole view model again. Parameters travel in the body.
 const { ok } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { q } = require("../http/apiParams");
 const kaderStore = require("../../stores/kaderStore");
 const model = require("../../services/kader/kaderModel");
-const { loadKaderSource } = require("../kader/kaderSource");
-const { buildKaderView, mutationContext, publicView } = require("../kader/kaderView");
+const players = require("../../services/kader/kaderPlayers");
+const questions = require("../../services/kader/kaderQuestions");
+const setups = require("../../services/kader/kaderSetups");
+const { loadKaderSource, loadKaderRules } = require("../kader/kaderSource");
+const { buildKaderView, kaderPayload, mutationContext, lightContext } = require("../kader/kaderView");
 
-/** GET /api/kader — the whole view model of the active server. */
-const getKader = withUser({}, async ({ req, res }) => {
+const str = (body, key) => q.str(body, key);
+const WRITE = { write: "kader", csrf: true, body: true };
+
+/** Splits a mutator's answer into the new planner and what it adds to the reply (a created id, counts). */
+function unpack(result) {
+    return result && result.planner ? result : { planner: result };
+}
+
+/** GET /api/kader?kader=<id> — the whole view model of the active server, with the chosen Kader. */
+const getKader = withUser({}, async ({ req, res, query }) => {
     const guildId = activeGuildFor(req);
     const source = await loadKaderSource({ guildId });
-    ok(res, publicView(buildKaderView({ source, planner: kaderStore.readPlanner(guildId) })));
+    ok(res, buildKaderView({ source, planner: kaderStore.readPlanner(guildId), kaderId: str(query, "kader") }));
 });
 
 /**
- * A write route: runs a pure mutator of kaderModel.js on the stored planner of
- * the active server and answers with the new view. `mutate(planner, body, ctx)`
- * returns the new planner, or `{ planner, ...extra }` whose extras (the id of
- * what was created) are sent along. A refusal is an AppError the router answers.
+ * A change on the server's side: the bot's data is loaded (members, profiles,
+ * logs), the mutator runs on the stored planner, the reply is the whole view.
+ * The planner is read after the last await, so read, change and write happen
+ * without a pause in between.
  */
-function writeRoute(mutate) {
-    return withUser({ write: "kader", csrf: true, body: true }, async ({ req, res, body }) => {
+function fullWrite(mutate) {
+    return withUser(WRITE, async ({ req, res, body, user }) => {
         const guildId = activeGuildFor(req);
         const source = await loadKaderSource({ guildId });
         const planner = kaderStore.readPlanner(guildId);
-        const result = mutate(planner, body, mutationContext(buildKaderView({ source, planner })));
-        const { planner: next, ...extra } = result && result.planner ? result : { planner: result };
+        const { planner: next, ...extra } = unpack(mutate(planner, body, mutationContext({ source, planner, actor: user.id })));
         const stored = kaderStore.writePlanner(guildId, next);
-        ok(res, { ...publicView(buildKaderView({ source, planner: stored })), ...extra });
+        ok(res, { ...buildKaderView({ source, planner: stored, kaderId: str(body, "kaderId") || extra.kaderId || "" }), ...extra });
     });
 }
 
-const str = (body, key) => q.str(body, key);
+/**
+ * A change inside one Kader: only the rule set is needed (class and spec keys),
+ * unless `source` asks for the bot's data too (attendance for "Automatisch
+ * verteilen"). The reply is the Kader as stored and the summaries of all.
+ */
+function kaderWrite(mutate, { source: withSource = false } = {}) {
+    return withUser(WRITE, async ({ req, res, body, user }) => {
+        const guildId = activeGuildFor(req);
+        const source = withSource ? await loadKaderSource({ guildId }) : null;
+        const planner = kaderStore.readPlanner(guildId);
+        const ctx = source
+            ? mutationContext({ source, planner, actor: user.id })
+            : lightContext({ rules: loadKaderRules(), actor: user.id });
+        const { planner: next, ...extra } = unpack(mutate(planner, body, ctx));
+        const stored = kaderStore.writePlanner(guildId, next);
+        ok(res, { ...kaderPayload(stored, str(body, "kaderId") || extra.kaderId || ""), ...extra });
+    });
+}
 
-/** POST /api/kader/accounts — body: { userId, displayName, character?: { nameStyle, firstName, lastName | nickname, className } } */
-const addAccount = writeRoute((p, body, ctx) => model.addAccount(p, body, ctx));
-/** POST /api/kader/accounts/remove — body: { userId }; only an account added by hand. */
-const removeAccount = writeRoute((p, body) => model.removeAccount(p, str(body, "userId")));
+// ------------------------------------------------------------ Kader
+/** POST /api/kader/kaders — body: { name }; the creator becomes its lead. Answers `kaderId`. */
+const createKader = kaderWrite((p, body, ctx) => model.createKader(p, body, ctx));
+/** PUT /api/kader/kaders — body: { kaderId, name?, leads? } */
+const updateKader = kaderWrite((p, body, ctx) => model.updateKader(p, body, ctx));
+/** POST /api/kader/kaders/delete — body: { kaderId } — with everything in it. */
+const deleteKader = kaderWrite((p, body) => model.deleteKader(p, str(body, "kaderId")));
+
+// ---------------------------------------------------------- players
+/** POST /api/kader/players/add — body: { kaderId, players: [{ userId, displayName? }] } into the pool. Answers `added`, `already`. */
+const addPlayers = fullWrite((p, body, ctx) => players.addPlayers(p, body, ctx));
+/** POST /api/kader/players/remove — body: { kaderId, userIds } */
+const removePlayers = kaderWrite((p, body) => players.removePlayers(p, body));
+/** POST /api/kader/players/state — body: { kaderId, userIds, to, decision? }. Answers `moved`, `skipped`. */
+const setState = kaderWrite((p, body, ctx) => players.setState(p, body, ctx));
+
+// -------------------------------------------------------- interview
+/** PUT /api/kader/interview — body: { kaderId, userId, wishes?, answers?, note?, lead? } */
+const saveInterview = kaderWrite((p, body, ctx) => players.saveInterview(p, body, ctx));
+/** POST /api/kader/interview/complete — body: { kaderId, userId } */
+const completeInterview = kaderWrite((p, body, ctx) => players.completeInterview(p, body, ctx));
+/** POST /api/kader/interview/reopen — body: { kaderId, userId } */
+const reopenInterview = kaderWrite((p, body, ctx) => players.reopenInterview(p, body, ctx));
+
+// ------------------------------------------------ votes and comments
+/** POST /api/kader/votes — body: { kaderId, userId, vote: yes|unsure|no|"" }; leads only. */
+const setVote = kaderWrite((p, body, ctx) => players.setVote(p, body, ctx));
+/** POST /api/kader/comments — body: { kaderId, userId, text } */
+const addComment = kaderWrite((p, body, ctx) => players.addComment(p, body, ctx));
+/** POST /api/kader/comments/delete — body: { kaderId, userId, commentId }; own comments only. */
+const deleteComment = kaderWrite((p, body, ctx) => players.deleteComment(p, body, ctx));
+
+// --------------------------------------------------------- questions
+/** POST /api/kader/questions — body: { kaderId, text, type, options: [{ label }], required } */
+const addQuestion = kaderWrite((p, body) => questions.addQuestion(p, body));
+/** PUT /api/kader/questions — body: { kaderId, questionId, text?, type?, options?: [{ id?, label }], required? } */
+const updateQuestion = kaderWrite((p, body) => questions.updateQuestion(p, body));
+/** POST /api/kader/questions/delete — body: { kaderId, questionId } — its answers go with it. */
+const deleteQuestion = kaderWrite((p, body) => questions.deleteQuestion(p, body));
+/** POST /api/kader/questions/order — body: { kaderId, order: [questionId] } */
+const orderQuestions = kaderWrite((p, body) => questions.orderQuestions(p, body));
+/** POST /api/kader/questions/copy — body: { kaderId, fromKaderId } */
+const copyQuestions = kaderWrite((p, body) => questions.copyQuestions(p, body));
+
+// ----------------------------------------------------------- setups
+/** POST /api/kader/variants — body: { kaderId, name?, copyFrom? }. Answers `variantId`. */
+const addVariant = kaderWrite((p, body) => setups.addVariant(p, body));
+/** PUT /api/kader/variants — body: { kaderId, variantId, name?, size?, groups? } */
+const saveVariant = kaderWrite((p, body) => setups.saveVariant(p, body));
+/** POST /api/kader/variants/delete — body: { kaderId, variantId } */
+const deleteVariant = kaderWrite((p, body) => setups.deleteVariant(p, body));
+/** POST /api/kader/variants/auto — body: { kaderId, variantId, sources? }: "Automatisch verteilen". */
+const autoVariant = kaderWrite((p, body, ctx) => setups.autoVariant(p, body, ctx), { source: true });
+
+// ------------------------------------------ accounts and character data
+/**
+ * POST /api/kader/accounts — body: { userId, displayName, character?, kaderId? }:
+ * an account by Discord id; with `kaderId` it goes into that Kader's pool too.
+ */
+const addAccount = fullWrite((p, body, ctx) => {
+    const known = model.addAccount(p, body, ctx);
+    if (!str(body, "kaderId")) return known;
+    return players.addPlayers(known, { kaderId: str(body, "kaderId"), players: [{ userId: str(body, "userId"), displayName: str(body, "displayName") }] }, ctx);
+});
+/** POST /api/kader/accounts/remove — body: { userId }; only an account added by hand, out of every Kader. */
+const removeAccount = fullWrite((p, body) => model.removeAccount(p, str(body, "userId")));
 /** PUT /api/kader/assignments — body: { userId, characters, activeCharacterId } */
-const saveAssignment = writeRoute((p, body, ctx) => model.setAssignment(p, str(body, "userId"), body, ctx));
+const saveAssignment = fullWrite((p, body, ctx) => model.setAssignment(p, str(body, "userId"), body, ctx));
 /** POST /api/kader/assignments/reset — body: { userId }; the profile shows again. */
-const resetAssignment = writeRoute((p, body) => model.resetAssignment(p, str(body, "userId")));
-/** POST /api/kader/rosters — body: { name, size }; answers `rosterId` too. */
-const createRoster = writeRoute((p, body) => model.createRoster(p, body));
-/** PUT /api/kader/rosters — body: { rosterId, name?, size?, targets? } */
-const updateRoster = writeRoute((p, body) => model.updateRoster(p, str(body, "rosterId"), body));
-/** POST /api/kader/rosters/delete — body: { rosterId } */
-const deleteRoster = writeRoute((p, body) => model.deleteRoster(p, str(body, "rosterId")));
-/** POST /api/kader/rosters/place — body: { rosterId, userId, to: "role"|"bench"|"free", role? } */
-const placeInRoster = writeRoute((p, body, ctx) => model.placeInRoster(p, str(body, "rosterId"), body, ctx));
-/** POST /api/kader/variants — body: { rosterId, name?, copyFrom? }; answers `variantId` too. */
-const addVariant = writeRoute((p, body) => model.addVariant(p, str(body, "rosterId"), body));
-/** PUT /api/kader/variants — body: { rosterId, variantId, name?, groups? } */
-const saveVariant = writeRoute((p, body) => model.saveVariant(p, str(body, "rosterId"), str(body, "variantId"), body));
-/** POST /api/kader/variants/delete — body: { rosterId, variantId } */
-const deleteVariant = writeRoute((p, body) => model.deleteVariant(p, str(body, "rosterId"), str(body, "variantId")));
-/** POST /api/kader/variants/auto — body: { rosterId, variantId }: "Automatisch verteilen". */
-const autoVariant = writeRoute((p, body, ctx) => model.autoAssignVariant(p, str(body, "rosterId"), str(body, "variantId"), ctx));
+const resetAssignment = fullWrite((p, body) => model.resetAssignment(p, str(body, "userId")));
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/kader", handler: getKader, area: "kader" },
-    { method: "POST", path: "/api/kader/accounts", handler: addAccount, area: "kader" },
-    { method: "POST", path: "/api/kader/accounts/remove", handler: removeAccount, area: "kader" },
-    { method: "PUT", path: "/api/kader/assignments", handler: saveAssignment, area: "kader" },
-    { method: "POST", path: "/api/kader/assignments/reset", handler: resetAssignment, area: "kader" },
-    { method: "POST", path: "/api/kader/rosters", handler: createRoster, area: "kader" },
-    { method: "PUT", path: "/api/kader/rosters", handler: updateRoster, area: "kader" },
-    { method: "POST", path: "/api/kader/rosters/delete", handler: deleteRoster, area: "kader" },
-    { method: "POST", path: "/api/kader/rosters/place", handler: placeInRoster, area: "kader" },
+    { method: "POST", path: "/api/kader/kaders", handler: createKader, area: "kader" },
+    { method: "PUT", path: "/api/kader/kaders", handler: updateKader, area: "kader" },
+    { method: "POST", path: "/api/kader/kaders/delete", handler: deleteKader, area: "kader" },
+    { method: "POST", path: "/api/kader/players/add", handler: addPlayers, area: "kader" },
+    { method: "POST", path: "/api/kader/players/remove", handler: removePlayers, area: "kader" },
+    { method: "POST", path: "/api/kader/players/state", handler: setState, area: "kader" },
+    { method: "PUT", path: "/api/kader/interview", handler: saveInterview, area: "kader" },
+    { method: "POST", path: "/api/kader/interview/complete", handler: completeInterview, area: "kader" },
+    { method: "POST", path: "/api/kader/interview/reopen", handler: reopenInterview, area: "kader" },
+    { method: "POST", path: "/api/kader/votes", handler: setVote, area: "kader" },
+    { method: "POST", path: "/api/kader/comments", handler: addComment, area: "kader" },
+    { method: "POST", path: "/api/kader/comments/delete", handler: deleteComment, area: "kader" },
+    { method: "POST", path: "/api/kader/questions", handler: addQuestion, area: "kader" },
+    { method: "PUT", path: "/api/kader/questions", handler: updateQuestion, area: "kader" },
+    { method: "POST", path: "/api/kader/questions/delete", handler: deleteQuestion, area: "kader" },
+    { method: "POST", path: "/api/kader/questions/order", handler: orderQuestions, area: "kader" },
+    { method: "POST", path: "/api/kader/questions/copy", handler: copyQuestions, area: "kader" },
     { method: "POST", path: "/api/kader/variants", handler: addVariant, area: "kader" },
     { method: "PUT", path: "/api/kader/variants", handler: saveVariant, area: "kader" },
     { method: "POST", path: "/api/kader/variants/delete", handler: deleteVariant, area: "kader" },
     { method: "POST", path: "/api/kader/variants/auto", handler: autoVariant, area: "kader" },
+    { method: "POST", path: "/api/kader/accounts", handler: addAccount, area: "kader" },
+    { method: "POST", path: "/api/kader/accounts/remove", handler: removeAccount, area: "kader" },
+    { method: "PUT", path: "/api/kader/assignments", handler: saveAssignment, area: "kader" },
+    { method: "POST", path: "/api/kader/assignments/reset", handler: resetAssignment, area: "kader" },
 ];
 
 module.exports = {
-    getKader, addAccount, removeAccount, saveAssignment, resetAssignment,
-    createRoster, updateRoster, deleteRoster, placeInRoster,
-    addVariant, saveVariant, deleteVariant, autoVariant, routes,
+    getKader, createKader, updateKader, deleteKader, addPlayers, removePlayers, setState,
+    saveInterview, completeInterview, reopenInterview, setVote, addComment, deleteComment,
+    addQuestion, updateQuestion, deleteQuestion, orderQuestions, copyQuestions,
+    addVariant, saveVariant, deleteVariant, autoVariant,
+    addAccount, removeAccount, saveAssignment, resetAssignment, routes,
 };
