@@ -1190,6 +1190,18 @@
         "rotationHint": "Turn it at the round grip above the zone (Shift = 15° steps). Symbol, names and label stay upright.",
         "iconScale": "Symbol size",
         "iconAuto": "Automatic",
+        "areaStyle": "Area style",
+        "style": {
+            "calm": "Calm",
+            "arc": "Arc"
+        },
+        "styleHint": {
+            "calm": "Light fill, thin edge, badge on the top edge, names inside.",
+            "arc": "A ring or arc round the area's middle. Rotation aims the arc, width/height set the radius."
+        },
+        "arcSpan": "Arc (°, 360 = ring)",
+        "arcRing": "Ring",
+        "arcWidth": "Band width",
         "labelPos": "Label",
         "pos": {
             "in": "Inside",

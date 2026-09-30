@@ -90,9 +90,35 @@ describe("other long inspectors in tabs", () => {
         open("Form");
         expect(screen.getByText("Breite")).toBeInTheDocument();
         expect(screen.getByText("Zone skalieren")).toBeInTheDocument();
+        expect(screen.getByText("Flächen-Stil")).toBeInTheDocument();
+        open("Darstellung");
+        // an area carries its label in the badge on its edge (#559): no label place; a cluster of symbols keeps it
+        expect(screen.queryByText("Beschriftung", { selector: ".rp-kicker" })).toBeNull();
+        expect(screen.getByText("Deckkraft")).toBeInTheDocument();
+    });
+
+    it("a role group area switches between calm and arc (#559); the arc brings its span and band width", () => {
+        const { out, open } = show({ zones: [roleZone] }, { kind: "zone", id: "z1" });
+        open("Form");
+        const style = () => screen.getByRole("radiogroup", { name: "Flächen-Stil" });
+        // an area stored before the style existed is calm
+        expect(within(style()).getByRole("radio", { name: "Ruhig" })).toHaveAttribute("aria-checked", "true");
+        expect(screen.queryByText(/Bandbreite/)).toBeNull();
+        fireEvent.click(within(style()).getByRole("radio", { name: "Bogen" }));
+        expect(out.board.zones[0].areaStyle).toBe("arc");
+        expect(within(style()).getByRole("radio", { name: "Bogen" })).toHaveAttribute("aria-checked", "true");
+        expect(screen.getAllByText(/Bandbreite/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/360 = Ring/).length).toBeGreaterThan(0);
+        fireEvent.click(within(style()).getByRole("radio", { name: "Ruhig" }));
+        expect(out.board.zones[0].areaStyle).toBe("calm");
+    });
+
+    it("a cluster of symbols has no area style, but its label place", () => {
+        const { open } = show({ zones: [{ ...roleZone, shape: "cluster" }] }, { kind: "zone", id: "z1" });
+        open("Form");
+        expect(screen.queryByRole("radiogroup", { name: "Flächen-Stil" })).toBeNull();
         open("Darstellung");
         expect(screen.getByText("Beschriftung", { selector: ".rp-kicker" })).toBeInTheDocument();
-        expect(screen.getByText("Deckkraft")).toBeInTheDocument();
     });
 
     it("an icon that faces: Symbol | Blickrichtung", () => {

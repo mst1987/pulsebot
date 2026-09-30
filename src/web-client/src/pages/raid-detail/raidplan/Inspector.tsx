@@ -4,7 +4,7 @@ import { BringToFront, Copy, Lock, LockOpen, SendToBack, Trash2, UserMinus } fro
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanPlayer, RaidplanText, RaidplanZone, RaidplanZoneType } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import {
-    ARROW_COLOR, ARROW_MAX, ARROW_MIN, ROLE_GROUPS, ROLE_GROUP_COLORS, arrowOf, patchArrow, COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
+    AREA_STYLES, areaStyleOf, arcSpanOf, arcWidthOf, ARROW_COLOR, ARROW_MAX, ARROW_MIN, ROLE_GROUPS, ROLE_GROUP_COLORS, arrowOf, patchArrow, COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
     setObjectScale, sizeOf, objectPercent, setObjectPercent, LABEL_POS, scaleObject, SIZE_STEPS, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
 } from "../../../lib/raidplan";
 import { PlayerName, TokenIcon, ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
@@ -207,8 +207,26 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
             <label className="rp-check"><input type="checkbox" checked={!!zone.showNames} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { showNames: e.target.checked }))} /> {t("raidBoard.roleGroupUi.showNames")}</label>
         </>
     );
+    // a role group area is drawn calm or as a ring / arc (#559); a cluster of symbols has no area and no style
+    const areaStyle = zone && zone.type === "role" && zone.shape !== "cluster" ? areaStyleOf(zone) : "";
     const roleShape = zone && zone.type === "role" && (
         <>
+            {areaStyle && (
+                <div className="rp-field">
+                    <span className="rp-kicker">{t("raidBoard.roleGroupUi.areaStyle")}</span>
+                    <span className="rp-amb-seg sm" role="radiogroup" aria-label={t("raidBoard.roleGroupUi.areaStyle")}>
+                        {AREA_STYLES.map((s) => <button key={s} type="button" role="radio" aria-checked={areaStyle === s} className={areaStyle === s ? "is-on" : ""} disabled={dis} onClick={() => edit((b) => updateZone(b, id, { areaStyle: s }))}>{t(`raidBoard.roleGroupUi.style.${s}`)}</button>)}
+                    </span>
+                    <span className="rp-muted">{t(`raidBoard.roleGroupUi.styleHint.${areaStyle}`)}</span>
+                </div>
+            )}
+            {areaStyle === "arc" && (
+                <>
+                    <SliderField label={t("raidBoard.roleGroupUi.arcSpan")} value={arcSpanOf(zone)} min={30} max={360} step={5} unit="°" disabled={dis} onChange={(v) => edit((b) => updateZone(b, id, { arcSpan: Math.max(30, Math.min(360, Math.round(v))) }), true)} />
+                    {arcSpanOf(zone) !== 360 && <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => updateZone(b, id, { arcSpan: 360 }))}>{t("raidBoard.roleGroupUi.arcRing")}</button>}
+                    <SliderField label={t("raidBoard.roleGroupUi.arcWidth")} value={Math.round(arcWidthOf(zone) * 100)} min={10} max={80} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => updateZone(b, id, { arcWidth: Math.max(0.1, Math.min(0.8, v / 100)) }), true)} />
+                </>
+            )}
             <div className="rp-field">
                 <span className="rp-kicker">{t("raidBoard.roleGroupUi.shape")}</span>
                 <span className="rp-amb-seg sm" role="radiogroup" aria-label={t("raidBoard.roleGroupUi.shape")}>
@@ -236,12 +254,15 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
             {ringCheck}
             <SliderField label={t("raidBoard.roleGroupUi.iconScale")} value={Math.round((zone.iconScale || 1) * 100)} min={25} max={300} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => updateZone(b, id, { iconScale: v / 100 }), true)} />
             {(zone.iconScale || 1) !== 1 && <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => updateZone(b, id, { iconScale: 1 }))}>{t("raidBoard.roleGroupUi.iconAuto")}</button>}
-            <div className="rp-field">
-                <span className="rp-kicker">{t("raidBoard.roleGroupUi.labelPos")}</span>
-                <span className="rp-amb-seg sm" role="radiogroup" aria-label={t("raidBoard.roleGroupUi.labelPos")}>
-                    {LABEL_POS.map((p) => <button key={p} type="button" role="radio" aria-checked={(zone.labelPos || "in") === p} className={(zone.labelPos || "in") === p ? "is-on" : ""} disabled={dis} onClick={() => edit((b) => updateZone(b, id, { labelPos: p as RaidplanZone["labelPos"] }))}>{t(`raidBoard.roleGroupUi.pos.${p}`)}</button>)}
-                </span>
-            </div>
+            {/* an area carries its label in the badge on its edge (#559); only a cluster of symbols places it */}
+            {zone.shape === "cluster" && (
+                <div className="rp-field">
+                    <span className="rp-kicker">{t("raidBoard.roleGroupUi.labelPos")}</span>
+                    <span className="rp-amb-seg sm" role="radiogroup" aria-label={t("raidBoard.roleGroupUi.labelPos")}>
+                        {LABEL_POS.map((p) => <button key={p} type="button" role="radio" aria-checked={(zone.labelPos || "in") === p} className={(zone.labelPos || "in") === p ? "is-on" : ""} disabled={dis} onClick={() => edit((b) => updateZone(b, id, { labelPos: p as RaidplanZone["labelPos"] }))}>{t(`raidBoard.roleGroupUi.pos.${p}`)}</button>)}
+                    </span>
+                </div>
+            )}
             <div className="rp-field-row">
                 <label className="rp-field">
                     <span className="rp-kicker">{t("raidBoard.zone.color")}</span>

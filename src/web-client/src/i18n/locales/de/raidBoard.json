@@ -1190,6 +1190,18 @@
         "rotationHint": "Am runden Griff über der Zone drehen (Umschalt = 15°-Schritte). Symbol, Namen und Beschriftung bleiben aufrecht.",
         "iconScale": "Symbolgröße",
         "iconAuto": "Automatisch",
+        "areaStyle": "Flächen-Stil",
+        "style": {
+            "calm": "Ruhig",
+            "arc": "Bogen"
+        },
+        "styleHint": {
+            "calm": "Leichte Füllung, dünne Kante, Badge auf der Oberkante, Namen innen.",
+            "arc": "Ring bzw. Bogen um die Mitte der Fläche. Drehung richtet den Bogen aus, Breite/Höhe geben den Radius."
+        },
+        "arcSpan": "Bogen (°, 360 = Ring)",
+        "arcRing": "Ring",
+        "arcWidth": "Bandbreite",
         "labelPos": "Beschriftung",
         "pos": {
             "in": "Innen",

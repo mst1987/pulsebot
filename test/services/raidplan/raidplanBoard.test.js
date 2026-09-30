@@ -443,6 +443,28 @@ describe("a group's badge (#528)", () => {
         expect(board._internal.cleanBadgeScale(null)).toBe(1);
     });
 });
+describe("a role group area's style: calm or arc (#559)", () => {
+    const zone = (extra) => clean({ zones: [{ id: "z", shape: "ellipse", type: "role", role: "melee", x: 0.1, y: 0.1, w: 0.3, h: 0.3, ...extra }] }).board.zones[0];
+    it("an area stored before the style existed is calm, its arc defaults by role (ring for melee / tanks, half ring else)", () => {
+        expect(zone({})).toMatchObject({ areaStyle: "calm", arcSpan: 360, arcWidth: 0.35 });
+        expect(zone({ role: "tank" }).arcSpan).toBe(360);
+        expect(zone({ role: "ranged" }).arcSpan).toBe(180);
+        expect(zone({ role: "healer", areaStyle: "fancy" })).toMatchObject({ areaStyle: "calm", arcSpan: 180 });
+    });
+    it("keeps the arc and clamps its span (30 .. 360 whole degrees) and band width (0.1 .. 0.8)", () => {
+        expect(zone({ areaStyle: "arc", arcSpan: 120.4, arcWidth: 0.456 })).toMatchObject({ areaStyle: "arc", arcSpan: 120, arcWidth: 0.46 });
+        expect(zone({ areaStyle: "arc", arcSpan: 5, arcWidth: 3 })).toMatchObject({ arcSpan: 30, arcWidth: 0.8 });
+        expect(zone({ arcSpan: 720, arcWidth: 0.01 })).toMatchObject({ arcSpan: 360, arcWidth: 0.1 });
+        expect(zone({ arcSpan: "x", arcWidth: -1 })).toMatchObject({ arcSpan: 360, arcWidth: 0.35 });
+    });
+    it("only a role group has it, and a template applied keeps it", () => {
+        const d = clean({ zones: [{ id: "d", shape: "rect", type: "danger", x: 0.1, y: 0.1, w: 0.1, h: 0.1, areaStyle: "arc", arcSpan: 90 }] }).board.zones[0];
+        expect(d).not.toHaveProperty("areaStyle");
+        expect(d).not.toHaveProperty("arcSpan");
+        const b = clean({ zones: [{ id: "z", shape: "ellipse", type: "role", role: "ranged", x: 0.1, y: 0.1, w: 0.3, h: 0.3, areaStyle: "arc", arcSpan: 140, arcWidth: 0.5 }] }).board;
+        expect(board.reidBoard(b).zones[0]).toMatchObject({ areaStyle: "arc", arcSpan: 140, arcWidth: 0.5 });
+    });
+});
 describe("a role group's symbol size and label place (feature/raidplan-16)", () => {
     const zone = (extra) => clean({ zones: [{ id: "z", shape: "rect", type: "role", role: "melee", x: 0.1, y: 0.1, w: 0.1, h: 0.4, ...extra }] }).board.zones[0];
     it("are kept (0.25 .. 3, the five places), defaults otherwise; the angle too", () => {

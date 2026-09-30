@@ -26,6 +26,28 @@
    the zone (lib/raidplan/roleGroups.ts roleZoneMetrics -> --rp-zb / --rp-rg / --rp-zl / --rp-zk / --rp-zn), so it scales as one piece (#raidplan-15) */
 .rp-zone-role { border-style: solid; border-width: var(--rp-zb, 2px); background-image: none; }
 .rp-zone-role.rp-shape-cluster { background-color: transparent; border-color: transparent; }
+/* a role group AREA (#559, docs/raidplan/board.md "Role group areas: calm or arc"). Calm: a very light fill (a share of its opacity), a thin
+   line - dashed for ranged -, the badge on the top edge; arc: no box of its own, a ring / arc band (SVG) that alone takes the pointer */
+.rp-zone-role.is-calm { border-width: max(1px, calc(var(--rp-zb, 2px) * var(--rp-area-line))); background-color: color-mix(in srgb, var(--zc) calc(var(--zo, .3) * var(--rp-area-calm-fill) * 100%), transparent); }
+.rp-zone-role.is-dashed { border-style: dashed; }
+.rp-zone-role.is-arc { border-color: transparent; background: none; pointer-events: none; }
+.rp-zone-role.is-arc .rp-handle { pointer-events: auto; }
+.rp-arc { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.rp-arc-band { fill: color-mix(in srgb, var(--zc) calc(var(--zo, .3) * 100%), transparent); fill-rule: evenodd; stroke: var(--zc); stroke-width: max(1px, calc(var(--rp-zb, 2px) * var(--rp-area-line))); stroke-linejoin: round; pointer-events: visiblePainted; }
+.rp-zone-role.is-dashed .rp-arc-band { stroke-dasharray: calc(var(--rp-zb, 2px) * 3) calc(var(--rp-zb, 2px) * 2); }
+.rp-zone.is-noborder .rp-arc-band { stroke: transparent; }
+.rp-zone-role.is-arc.is-editable .rp-arc-band { cursor: move; }
+/* the badge: role symbol, label, count as one pill in the zone's colour; its font a share of the zone (--rp-bf, --rp-bi) */
+.rp-rg-badge { position: absolute; display: inline-flex; align-items: center; gap: calc(var(--rp-bf, 11px) * .4); padding: calc(var(--rp-bf, 11px) * .12) calc(var(--rp-bf, 11px) * .7) calc(var(--rp-bf, 11px) * .12) calc(var(--rp-bf, 11px) * .15); border: calc(var(--rp-bf, 11px) * .12) solid var(--zc); border-radius: 999px; background: var(--rp-area-badge-bg); color: var(--rp-area-badge-ink); font-size: var(--rp-bf, 11px); font-weight: 700; line-height: 1.2; white-space: nowrap; box-shadow: 0 1px calc(var(--rp-bf, 11px) * .4) var(--rp-area-badge-shadow); }
+.rp-rg-up.is-calm > .rp-rg-inner { top: calc(50% + var(--rp-bh, 0px) / 2); }
+.rp-rg-bico { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: var(--rp-bi, 18px); height: var(--rp-bi, 18px); border-radius: 50%; background: var(--zc); overflow: hidden; }
+.rp-rg-bico img { width: 80%; height: 80%; border-radius: 50%; }
+.rp-rg-bcount { padding: 0 calc(var(--rp-bf, 11px) * .45); border-radius: 999px; background: var(--zc); color: var(--rp-rg-ink); font-size: calc(var(--rp-bf, 11px) * .92); font-weight: 800; }
+/* the badge (calm: on the edge that lies on top, calmBadgeAt; arc: on the band's outer edge) and every name chip of an arc stand at their own
+   point (--rp-dx / --rp-dy from the middle, lib/raidplan/roleGroups.ts) */
+.rp-rg-up > .rp-rg-badge, .rp-rg-up.is-arc > .rp-rg-at { position: absolute; left: calc(50% + var(--rp-dx, 0px)); top: calc(50% + var(--rp-dy, 0px)); transform: translate(-50%, -50%); }
+.rp-rg-at { white-space: nowrap; padding: 0 calc(var(--rp-zn, 11px) * .35); border-radius: calc(var(--rp-zn, 11px) * .5); background: var(--rp-names-bg); font-size: var(--rp-zn, 11px); font-weight: 600; line-height: 1.4; }
+.rp-rg-at.rp-rg-more { background: var(--zc); color: var(--rp-rg-ink); font-weight: 800; }
 /* the content of a role group stands UPRIGHT over its (possibly turned) outline: a box of the turned zone's upright size (.rp-rg-up), in it the
    inner area (--rp-iw x --rp-ih) with the symbol as its head and the names below; the label inside (in the flow) or outside on one side.
    Nothing of it turns with the zone, so it stays readable (#raidplan-16) */

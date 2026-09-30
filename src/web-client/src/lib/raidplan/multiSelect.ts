@@ -3,7 +3,7 @@
 // Tests: src/web-client/src/lib/multiSelect.test.ts.
 import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanLook, RaidplanMark, RaidplanSlot, RaidplanText, RaidplanZone } from "../../api";
 import { MIN_ZONE, SIZE_RANGES, clamp01, newRowId } from "./model.ts";
-import { turnedBox } from "./roleGroups.ts";
+import { areaStyleOf, turnedBox, type AreaStyle } from "./roleGroups.ts";
 import { arrowOf, autoStyleOf, patchArrow, patchAutoStyle, scaleArrow } from "./autoStyle.ts";
 import { canFace, normAngle } from "./facing.ts";
 import { duplicateObject, isLocked, lookOf, patchLook, removeObject, reorderObject, updateIcon, updateLine, updateText, updateZone } from "./objects.ts";
@@ -483,18 +483,21 @@ export function roleZonesOf(board: RaidplanBoard, sel: SelItem[]): RaidplanZone[
 }
 
 /** What the role groups of a selection share: a value when all agree, null ("gemischt") otherwise. */
-export function roleZoneSummary(board: RaidplanBoard, sel: SelItem[]): { rotation: number | null; iconScale: number | null; labelPos: string | null } {
+export function roleZoneSummary(board: RaidplanBoard, sel: SelItem[]): { rotation: number | null; iconScale: number | null; labelPos: string | null; areas: number; areaStyle: AreaStyle | null } {
     const zs = roleZonesOf(board, sel);
     const same = <T>(list: T[]): T | null => (list.length > 0 && list.every((v) => v === list[0]) ? list[0] : null);
-    return { rotation: same(zs.map((z) => z.rotation || 0)), iconScale: same(zs.map((z) => z.iconScale || 1)), labelPos: same(zs.map((z) => z.labelPos || "in")) };
+    // the areas among them (a cluster of symbols has no area style, #559)
+    const areas = zs.filter((z) => z.shape !== "cluster");
+    return { rotation: same(zs.map((z) => z.rotation || 0)), iconScale: same(zs.map((z) => z.iconScale || 1)), labelPos: same(zs.map((z) => z.labelPos || "in")), areas: areas.length, areaStyle: same(areas.map((z) => areaStyleOf(z))) };
 }
 
-/** Sets the angle (0 .. 359), the symbol's scale (0.25 .. 3) and / or the label's place of every role group of the selection; locked ones keep theirs. */
-export function setRoleZoneSelection(board: RaidplanBoard, sel: SelItem[], patch: { rotation?: number; iconScale?: number; labelPos?: "in" | "top" | "bottom" | "left" | "right" }): RaidplanBoard {
+/** Sets the angle (0 .. 359), the symbol's scale (0.25 .. 3), the label's place and / or the area style of every role group of the selection; locked ones keep theirs. */
+export function setRoleZoneSelection(board: RaidplanBoard, sel: SelItem[], patch: { rotation?: number; iconScale?: number; labelPos?: "in" | "top" | "bottom" | "left" | "right"; areaStyle?: AreaStyle }): RaidplanBoard {
     const p: Partial<RaidplanZone> = {};
     if (patch.rotation !== undefined) p["rotation"] = normAngle(patch.rotation);
     if (patch.iconScale !== undefined) p["iconScale"] = Math.max(0.25, Math.min(3, Math.round(patch.iconScale * 100) / 100));
     if (patch.labelPos !== undefined) p["labelPos"] = patch.labelPos;
+    if (patch.areaStyle !== undefined) p["areaStyle"] = patch.areaStyle === "arc" ? "arc" : "calm";
     let out = board;
     for (const z of roleZonesOf(board, sel)) if (!isLocked(out, "zone", z.id)) out = updateZone(out, z.id, p);
     return out;

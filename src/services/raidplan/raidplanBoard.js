@@ -18,7 +18,8 @@
 //                                          rectangle / ellipse areas: danger, healthy,
 //                                          neutral or a custom one; type "role" = a placeholder for a whole role
 //                                          group ("Melees", "Ranged" ...: role, count, showNames; shape also "cluster"),
-//                                          never resolved into players
+//                                          never resolved into players; its area drawn "calm" or as an "arc"
+//                                          (areaStyle, arcSpan 30..360, arcWidth 0.1..0.8, #559)
 //   icons also carry arrowScale (0.25..3, the facing wedge), arrowHidden, arrowColor, arrowOpacity - only when set
 //   lines    [{ id, kind, x1, y1, x2, y2, color, width, ... }]   arrows and plain lines
 //   texts    [{ id, text, x, y, color, size, ... }]              free text on the board
@@ -122,6 +123,9 @@ const ZONE_SHAPES = ["rect", "ellipse"];
 const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#60a5fa", custom: "#a78bfa", role: "#f97316" };
 // where a role group's label stands: inside it, or outside on one side
 const ROLE_LABEL_POS = ["in", "top", "bottom", "left", "right"];
+// how a role group area is drawn (#559): "calm" (light fill, thin outline, badge on the top edge, names inside - the default, also for
+// every area stored before) or "arc" (a ring / an arc band round a centre, docs/raidplan/board.md "Role group areas: calm or arc")
+const AREA_STYLES = ["calm", "arc"];
 // a role group placeholder: which role and its colour (the role colours of the board: melee orange, ranged violet ...)
 const ZONE_ROLES = ["melee", "ranged", "healer", "tank", "dps"];
 const ROLE_COLORS = { melee: "#f97316", ranged: "#a78bfa", healer: "#35d6c4", tank: "#60a5fa", dps: "#f5c542" };
@@ -301,6 +305,21 @@ function cleanIcons(raw, ctx) {
     return icons;
 }
 
+/**
+ * The style of a role group area (#559): `areaStyle` "calm" (default) or "arc"; for the arc its span in whole degrees (30 .. 360, 360 = a
+ * closed ring; default a ring for melee and tanks, a half ring for the others) and the band's width as a share of the smaller half axis
+ * (0.1 .. 0.8, default 0.35). Both are kept in the calm style too, so switching back and forth loses nothing.
+ */
+function cleanAreaStyle(o, role) {
+    const span = Number(o.arcSpan);
+    const width = Number(o.arcWidth);
+    return {
+        areaStyle: AREA_STYLES.includes(o.areaStyle) ? o.areaStyle : "calm",
+        arcSpan: Number.isFinite(span) && span > 0 ? Math.max(30, Math.min(360, Math.round(span))) : role === "melee" || role === "tank" ? 360 : 180,
+        arcWidth: Number.isFinite(width) && width > 0 ? Math.max(0.1, Math.min(0.8, Math.round(width * 100) / 100)) : 0.35,
+    };
+}
+
 /** One zone: an area (danger, healthy, ...) or a role group; it always stays inside the board. */
 function cleanZone(z, ids) {
     const o = objectOf(z);
@@ -320,7 +339,7 @@ function cleanZone(z, ids) {
             // its symbol's own scale on top of the automatic size (0.25 .. 3, 1 = automatic) and where its label stands: inside, or outside
             // above / below / left / right of the zone (upright also when the zone is turned) - docs/raidplan.md, "Role groups"
             iconScale: Number.isFinite(Number(o.iconScale)) && Number(o.iconScale) > 0 ? Math.max(0.25, Math.min(3, Math.round(Number(o.iconScale) * 100) / 100)) : 1,
-            labelPos: ROLE_LABEL_POS.includes(o.labelPos) ? o.labelPos : "in" } : {}),
+            labelPos: ROLE_LABEL_POS.includes(o.labelPos) ? o.labelPos : "in", ...cleanAreaStyle(o, role) } : {}),
         ...common(o, 0.3),
         w: round4(w), h: round4(h),
         x: round4(Math.min(clamp01(Number(o.x)), 1 - w)),

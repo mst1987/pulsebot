@@ -88,6 +88,8 @@
     --rp-label-bg: rgba(15, 17, 21, .78); --rp-label-bg-soft: rgba(15, 17, 21, .55); --rp-names-bg: rgba(15, 17, 21, .72);
     --rp-icon-outline: rgba(15, 17, 21, .85); --rp-icon-ring: rgba(255, 255, 255, .6); --rp-text-halo: #000;
     --rp-group-bg: rgba(19, 15, 38, .82); --rp-group-ink: #ece9ff; --rp-zone-ink: #f1f3f8; --rp-rg-ink: #121212;
+    /* role group areas (#559): the badge on the edge (a dark pill, light text, a soft shadow), the calm fill as a share of the zone's opacity and its line as a share of the outline */
+    --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .45); --rp-area-calm-fill: .33; --rp-area-line: .6;
     --rp-group-dim: .22; /* opacity of the other groups while one is highlighted (#512) */
     --rp-done-dim: .6; /* opacity of a section chip whose boss the log shows killed (#534) */
     --rp-ico-base: #4a5060; --rp-ico-mix: #10131a; --rp-handle-edge: #fff;
@@ -150,6 +152,8 @@
         --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
         --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
+        /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
+        --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
     }
 }
 :root[data-theme="light"] {
@@ -185,4 +189,6 @@
     --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
     --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
+        /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
+        --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
 }
