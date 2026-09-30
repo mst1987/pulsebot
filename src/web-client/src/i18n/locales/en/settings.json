@@ -285,6 +285,10 @@
             "label": "Raid events",
             "description": "Create raid events, fill setups, post calls and Softres."
         },
+        "raidplan": {
+            "label": "Raid plan",
+            "description": "The raid plan on an event (boards per boss, posting the link), raid plan templates with tactic profiles and the raid plan catalog. An event's plan is opened through the event, which also takes reading raid events."
+        },
         "roster": {
             "label": "Roster",
             "description": "Character overview of the guild."

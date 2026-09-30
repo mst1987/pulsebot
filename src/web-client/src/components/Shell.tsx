@@ -68,6 +68,8 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
     // an entry that has sub entries under it (Raid-Events) is not active while one of them is open
     const subOpen = (tab: Tab) => TABS.some((o) => o.sub && o.id !== tab.id && o.href.startsWith(`${tab.href}/`) && tab.href !== o.href && !tab.sub && matchesTab(o.href, pathname));
     const allowed = TABS.filter((tab) => canAccessAny(user, tab.areas));
+    // a sub entry is indented under its parent only while that is shown too (Raidplan-Vorlagen without Raid-Events: its own area)
+    const indented = (tab: Tab) => !!tab.sub && allowed.some((o) => !o.sub && o.href !== "/" && tab.href.startsWith(`${o.href}/`));
     // The sidebar is always rendered, so it has to say something when a member's
     // account opens nothing at all — an empty column reads like a broken page.
     if (!allowed.length) {
@@ -92,7 +94,7 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
                             to={tab.href}
                             end={tab.href === "/"}
                             onClick={onNavigate}
-                            className={({ isActive }) => `nav-item area-${tab.area || tab.id}${tab.sub ? " is-sub" : ""}${isActive && !subOpen(tab) ? " active" : ""}`}
+                            className={({ isActive }) => `nav-item area-${tab.area || tab.id}${indented(tab) ? " is-sub" : ""}${isActive && !subOpen(tab) ? " active" : ""}`}
                         >
                             <WowIcon name={tab.wowIcon} size={24} />
                             <span>{tabLabel(tab)}</span>

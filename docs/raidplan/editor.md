@@ -120,7 +120,7 @@ dialogs are for the rare things (sharing, the template picker, managing tactic p
   on a dashed ring.
 - Rows: free title, players from the roster (a picker dialog), delete; "Taktik wählen" as before. "Freigeben &
   teilen" publishes/withdraws the *saved* plan.
-- Without `raids` write everything is read-only.
+- Without `raidplan` write everything is read-only (`raids` write does not matter here).
 
 **Raid marks:** the eight icons are the game's own `UI-RaidTargetingIcon_1..8` textures (64 px PNG), stored in
 `src/web-client/public/raidmarks/<skull|cross|square|moon|triangle|diamond|circle|star>.png` next to the boss
@@ -149,7 +149,7 @@ the icons that are imported end up in the bundle, about 10 KB), as inline SVG co
 - **Multi-selection** (`lib/raidplan/multiSelect.ts`): rubber band, Ctrl/Cmd/Shift click, Ctrl+A, shared frame with
   scale grips; move/delete/duplicate/copy/align/lock/hide/order as one undo step each.
 - **Inputs**: `NumberField`/`SliderField` (`lib/raidplan/numberField.ts`) everywhere.
-- **Menu**: "Raidplan-Vorlagen" and "Raidplan-Katalog" are sub entries of Raid-Events (area `raids`).
+- **Menu**: "Raidplan-Vorlagen" and "Raidplan-Katalog" are sub entries of Raid-Events (area `raidplan`; without Raid-Events they stand on their own, not indented).
 - **Standard (template and event plan, #524).** Tank/heal defaults live once under `defaults` (`lib/raidplan/inherit.ts`,
   `raidplanInherit.js`), inherited by every boss and trash (target "Boss (dieser Abschnitt)"); rows can be
   deviated, hidden, restored; "Standard auf alle Bosse anwenden" copies (template only). An **event plan** has the

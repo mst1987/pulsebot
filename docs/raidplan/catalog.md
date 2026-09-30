@@ -5,7 +5,7 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
 
 ## Catalog: mobs and spells
 
-Admin page **Raid-Events → Raidplan-Katalog** (`/raids/plan-catalog`, area `raids`; API
+Admin page **Raid-Events → Raidplan-Katalog** (`/raids/plan-catalog`, area `raidplan`; API
 `/api/raidplan/catalog`, `/catalog/mobs`, `/catalog/spells`, `/catalog/reset`, store
 `raidplanCatalogStore.js`). Two layers kept apart: the **defaults** in code (`raidplanCatalogDefaults.js`) and
 the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: an entry under a default's id
@@ -135,7 +135,7 @@ dialog's spell lists, the suggestions, the section's mobs and the read view only
 
 ## Raid plan templates
 
-Admin page **Raid-Events → Raidplan-Vorlagen** (`/raids/plan-templates`, area `raids`; list first,
+Admin page **Raid-Events → Raidplan-Vorlagen** (`/raids/plan-templates`, area `raidplan`; list first,
 `?edit=<id>` is the editor, `?edit=new` the create dialog). A template is a named layout — "Montags-Raid" —
 that lays out the coarse plan **without players**: per boss placeholder slots, raid marks, zones, target rows
 and a note. `data/settings/raidplan-templates.json`: `{ id, name, category, description, guildId, versionId, instanceIds,
@@ -202,7 +202,7 @@ A named, categorised set of target rows the orga picks for a boss instead of typ
   (every boss), an instance id, or one boss.
 - **Nothing is shipped** and no boss mechanics are invented; a profile holds only what the orga wrote. Titles
   only: **who stands on a row is decided per plan**. A token layout is not part of a profile (follow-up).
-- API (area `raids`, GET reads, the rest writes, CSRF): `GET/POST/PATCH/DELETE /api/raidplan/profiles`. The
+- API (area `raidplan`, GET reads, the rest writes, CSRF): `GET/POST/PATCH/DELETE /api/raidplan/profiles`. The
   editor payload carries the list too.
 - In the board: "Taktik wählen" opens the picker (the profiles that fit the boss, grouped by category, with a
   search). Picking one **replaces the rows and the note** (asked first when the board already holds something;

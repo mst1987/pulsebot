@@ -1,34 +1,36 @@
 // JSON API of the raid plan ("Raidplan", docs/raidplan.md) — the board editor on
 // the detail page of an own event, its tactic profiles and the public read view.
 //
-//   GET    /api/raidplan?event=<id>           raids read: plan, bosses, players, profiles
-//   PUT    /api/raidplan                      raids write: save the bosses (version-checked)
-//   POST   /api/raidplan/publish              raids write: publish / withdraw / new link
-//   POST   /api/raidplan/groups               raids write: "Gruppen im Plan" (#529), the setup groups the plan picks from
-//   POST   /api/raidplan/map?key=<key>        raids write: upload a room map (raw PNG/JPG/WebP body)
-//   POST   /api/raidplan/map/delete           raids write: remove a room map
-//   POST   /api/raidplan/apply                raids write: copy a template into the plan (snapshot,
+//   GET    /api/raidplan?event=<id>           raidplan read: plan, bosses, players, profiles
+//   PUT    /api/raidplan                      raidplan write: save the bosses (version-checked)
+//   POST   /api/raidplan/publish              raidplan write: publish / withdraw / new link
+//   POST   /api/raidplan/groups               raidplan write: "Gruppen im Plan" (#529), the setup groups the plan picks from
+//   POST   /api/raidplan/map?key=<key>        raidplan write: upload a room map (raw PNG/JPG/WebP body)
+//   POST   /api/raidplan/map/delete           raidplan write: remove a room map
+//   POST   /api/raidplan/apply                raidplan write: copy a template into the plan (snapshot,
 //                                              open slots filled from the approved setup)
-//   GET    /api/raidplan/templates            raids read: all raid plan templates with their boards
-//   POST   /api/raidplan/templates            raids write: create a template
-//   PATCH  /api/raidplan/templates            raids write: change fields and/or boards (version-checked)
-//   POST   /api/raidplan/templates/duplicate  raids write: a copy of a template (boards and maps)
-//   DELETE /api/raidplan/templates            raids write: delete a template and its maps (body { id })
-//   GET    /api/raidplan/profiles             raids read: all tactic profiles
-//   POST   /api/raidplan/profiles             raids write: create a profile
-//   PATCH  /api/raidplan/profiles             raids write: change / rename a profile
-//   DELETE /api/raidplan/profiles             raids write: delete a profile
+//   GET    /api/raidplan/templates            raidplan read: all raid plan templates with their boards
+//   POST   /api/raidplan/templates            raidplan write: create a template
+//   PATCH  /api/raidplan/templates            raidplan write: change fields and/or boards (version-checked)
+//   POST   /api/raidplan/templates/duplicate  raidplan write: a copy of a template (boards and maps)
+//   DELETE /api/raidplan/templates            raidplan write: delete a template and its maps (body { id })
+//   GET    /api/raidplan/profiles             raidplan read: all tactic profiles
+//   POST   /api/raidplan/profiles             raidplan write: create a profile
+//   PATCH  /api/raidplan/profiles             raidplan write: change / rename a profile
+//   DELETE /api/raidplan/profiles             raidplan write: delete a profile
 //   GET    /api/raidplan/public?token=<token> NO login — the token is the authentication
 //   GET    /api/raidplan/progress?token=<token> | ?event=<id>  what the linked log shows down / fought / next (#534):
-//                                             with a token like /public (no login), with an event raids read
-//   GET    /api/raidplan/link?event=<id>      raids read: a Raid-Helper event's switch and what its title suggests
-//   POST   /api/raidplan/link                 raids write: switch a Raid-Helper event's plan on / off (instances, size, version)
+//                                             with a token like /public (no login), with an event raidplan read
+//   GET    /api/raidplan/link?event=<id>      raidplan read: a Raid-Helper event's switch and what its title suggests
+//   POST   /api/raidplan/link                 raidplan write: switch a Raid-Helper event's plan on / off (instances, size, version)
 //
 // A Raid-Helper event has a plan once the orga switched it on (docs/raidplan.md, "Raid-Helper-Events"); its players come from
 // Raid-Helper (raidplanRosterSource.js, read only), everything else works as for an own event.
 //
-// The area gate (apiAccess.js) decides read vs. write by method. The public route
-// is listed in UNGATED there; it hands out only what /p/<token> shows.
+// Everything here is area "raidplan", not "raids": the tactics go to their own
+// people (docs/permissions.md). The area gate (apiAccess.js) decides read vs.
+// write by method. The public route is listed in UNGATED there; it hands out
+// only what /p/<token> shows.
 const { ok, okWithEtag, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { readRawBody } = require("../http/apiBody");
@@ -56,7 +58,7 @@ const { syncRaidplanPost } = require("../../services/raidplan/raidplanPost");
 const BY_EVENT = (body) => body.event;
 const { archiveOf } = require("../../services/events/eventArchive");
 
-const canWrite = (user) => userCan(user, "raids", "write");
+const canWrite = (user) => userCan(user, "raidplan", "write");
 
 /**
  * The event of a request's plan (raidplanRosterSource.planEventFor): an own event, or a Raid-Helper event whose plan is switched on -
@@ -90,7 +92,7 @@ const getPlan = withUser({}, async ({ user, res, url }) => {
 });
 
 /** PUT /api/raidplan — body `{ event, version, bosses }` */
-const putPlan = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const putPlan = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const event = found.event;
@@ -114,7 +116,7 @@ const putPlan = withUser({ write: "raids", csrf: true, body: true, archived: BY_
  * type from the board's placeholder slots and (with an event) its lineup. Nothing is saved;
  * the editor shows them marked as a suggestion. An unknown type answers an empty list.
  */
-const postSuggest = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ body, res }) => {
+const postSuggest = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ body, res }) => {
     let event;
     if (body.event) { const found = await eventOf(res, body.event); if (!found) return; event = found.event; }
     const type = String(body.type || "");
@@ -122,7 +124,7 @@ const postSuggest = withUser({ write: "raids", csrf: true, body: true, archived:
 });
 
 /** POST /api/raidplan/publish — body `{ event, published, rotate? }` */
-const postPublish = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postPublish = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     store.setPublished(found.event.id, body.published === true, { rotate: body.rotate === true, userId: user.id });
@@ -136,7 +138,7 @@ const postPublish = withUser({ write: "raids", csrf: true, body: true, archived:
  * raiders from, `null` = back to the default (the groups up to the raid's size). Written at once, no version step (the unsaved draft
  * of the boards stays valid); only valid values are kept. Answers the stored value and the one in effect.
  */
-const postGroups = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postGroups = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const raw = body.includedGroups === null ? null : Array.isArray(body.includedGroups) ? body.includedGroups : undefined;
@@ -174,7 +176,7 @@ function mapKeyOk(res, key) {
 }
 
 /** POST /api/raidplan/map?key=<key> — the body is the image itself. */
-const postMap = withUser({ write: "raids", csrf: true }, async ({ req, res, url }) => {
+const postMap = withUser({ write: "raidplan", csrf: true }, async ({ req, res, url }) => {
     const key = String(url.searchParams.get("key") || "").trim();
     if (!mapKeyOk(res, key)) return;
     const buffer = await readRawBody(req, store.LIMITS.mapBytes);
@@ -185,7 +187,7 @@ const postMap = withUser({ write: "raids", csrf: true }, async ({ req, res, url 
 });
 
 /** POST /api/raidplan/map/delete — body `{ key }` */
-const postMapDelete = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const postMapDelete = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
     const key = String(body.key || "").trim();
     if (!mapKeyOk(res, key)) return;
     ok(res, { key, removed: store.deleteMap(key) });
@@ -195,7 +197,7 @@ const postMapDelete = withUser({ write: "raids", csrf: true, body: true }, async
  * POST /api/raidplan/apply — body `{ event, templateId, version, otherVersion? }`. A template of another game version than the event's
  * (#544) is only applied with `otherVersion: true` (the editor asks first); without it the answer is 409 `version_mismatch`.
  */
-const postApply = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postApply = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const event = found.event;
@@ -227,28 +229,28 @@ const getTemplates = withUser({}, async ({ res }) => {
 });
 
 /** POST /api/raidplan/templates — body `{ name, category?, description?, guildId?, instanceIds }` */
-const postTemplate = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const postTemplate = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
     const result = templateStore.createTemplate(body);
     if (result.error) return sendFailure(res, result);
     ok(res, { ...templateList(), template: raidplan.templateView(result.template) });
 });
 
 /** PATCH /api/raidplan/templates — body `{ id, name?, category?, description?, guildId?, instanceIds?, bosses?, version? }` */
-const patchTemplate = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const patchTemplate = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
     const result = templateStore.updateTemplate(body.id, body);
     if (result.error) return sendFailure(res, result);
     ok(res, { ...templateList(), template: raidplan.templateView(result.template), dropped: result.dropped });
 });
 
 /** POST /api/raidplan/templates/duplicate — body `{ id }` */
-const postTemplateDuplicate = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const postTemplateDuplicate = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
     const result = templateStore.duplicateTemplate(body.id);
     if (result.error) return sendFailure(res, result);
     ok(res, { ...templateList(), template: raidplan.templateView(result.template) });
 });
 
 /** DELETE /api/raidplan/templates — body `{ id }` */
-const deleteTemplate = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const deleteTemplate = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
     if (!templateStore.deleteTemplate(body.id)) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
     ok(res, templateList());
 });
@@ -264,21 +266,21 @@ const getProfiles = withUser({}, async ({ res }) => {
 });
 
 /** POST /api/raidplan/profiles — body `{ name, category?, bossKey?, targets?, notes? }` */
-const postProfile = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const postProfile = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
     const result = profileStore.createProfile(body);
     if (result.error) return sendFailure(res, result);
     ok(res, { ...profileList(), profile: result.profile });
 });
 
 /** PATCH /api/raidplan/profiles — body `{ id, name?, category?, bossKey?, targets?, notes? }` */
-const patchProfile = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const patchProfile = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
     const result = profileStore.updateProfile(body.id, body);
     if (result.error) return sendFailure(res, result);
     ok(res, { ...profileList(), profile: result.profile });
 });
 
 /** DELETE /api/raidplan/profiles — body `{ id }` */
-const deleteProfile = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const deleteProfile = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
     if (!profileStore.deleteProfile(body.id)) return error(res, 404, "not_found", "Profil nicht gefunden.");
     ok(res, profileList());
 });
@@ -317,7 +319,7 @@ const getCatalog = withUser({}, async ({ res }) => {
 
 /** POST / PATCH / DELETE /api/raidplan/catalog/<mobs|spells> and POST /api/raidplan/catalog/reset — all answer the whole catalog. */
 function catalogWrite(kind, how) {
-    return withUser({ write: "raids", csrf: true, body: true }, async ({ body, req, res }) => {
+    return withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, req, res }) => {
         let r;
         if (how === "save") r = catalog.save(kind, how === "save" && req.method === "POST" ? { ...body, id: "" } : body);
         else if (how === "remove") r = catalog.remove(kind, body.id);
@@ -344,7 +346,7 @@ async function getPublic(req, res, url) {
 }
 
 /**
- * GET /api/raidplan/progress?token=<token> (the read view) or ?event=<id> (the editor, raids read) — #534:
+ * GET /api/raidplan/progress?token=<token> (the read view) or ?event=<id> (the editor, raidplan read) — #534:
  * `{ live, killed, current, next, updatedAt }` from the Warcraft Log linked to the event (raidplanProgress.js);
  * without a log or outside the raid window `{ live: false, killed: [], current: null, next: null }`. The token
  * answers the same 404 as /public for an unknown or withdrawn link. Listed with `auth: "none"` because the token
@@ -361,7 +363,7 @@ async function getProgress(req, res, url) {
     } else {
         const user = auth.getUser(req);
         if (!user) return error(res, 401, "unauthorized", "Nicht angemeldet.");
-        if (!userCan(user, "raids", "read")) return error(res, 403, "forbidden", "Kein Zugriff auf diesen Bereich.");
+        if (!userCan(user, "raidplan", "read")) return error(res, 403, "forbidden", "Kein Zugriff auf diesen Bereich.");
         const found = await eventOf(res, url.searchParams.get("event"));
         if (!found) return;
         event = found.event;
@@ -415,7 +417,7 @@ const getLink = withUser({}, async ({ req, res, url }) => {
 });
 
 /** POST /api/raidplan/link — body `{ event, enabled, instanceIds?, size?, versionId?, composition? }` */
-const postLink = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+const postLink = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const id = String(body.event || "").trim();
     if (isOwnEventId(id)) return error(res, 400, "invalid", "Eigene Events haben ihren Raidplan immer.");
     const before = store.getPlan(id);
@@ -455,33 +457,33 @@ const postCatalogReset = catalogWrite("mobs", "reset");
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
-    { method: "GET", path: "/api/raidplan", handler: getPlan, area: "raids" },
-    { method: "PUT", path: "/api/raidplan", handler: putPlan, area: "raids" },
-    { method: "POST", path: "/api/raidplan/suggest", handler: postSuggest, area: "raids" },
-    { method: "POST", path: "/api/raidplan/publish", handler: postPublish, area: "raids" },
-    { method: "POST", path: "/api/raidplan/groups", handler: postGroups, area: "raids" },
-    { method: "POST", path: "/api/raidplan/map", handler: postMap, area: "raids" },
-    { method: "POST", path: "/api/raidplan/map/delete", handler: postMapDelete, area: "raids" },
-    { method: "GET", path: "/api/raidplan/catalog", handler: getCatalog, area: "raids" },
-    { method: "POST", path: "/api/raidplan/catalog/mobs", handler: postMob, area: "raids" },
-    { method: "PATCH", path: "/api/raidplan/catalog/mobs", handler: patchMob, area: "raids" },
-    { method: "DELETE", path: "/api/raidplan/catalog/mobs", handler: deleteMob, area: "raids" },
-    { method: "POST", path: "/api/raidplan/catalog/spells", handler: postSpell, area: "raids" },
-    { method: "PATCH", path: "/api/raidplan/catalog/spells", handler: patchSpell, area: "raids" },
-    { method: "DELETE", path: "/api/raidplan/catalog/spells", handler: deleteSpell, area: "raids" },
-    { method: "POST", path: "/api/raidplan/catalog/reset", handler: postCatalogReset, area: "raids" },
-    { method: "GET", path: "/api/raidplan/profiles", handler: getProfiles, area: "raids" },
-    { method: "POST", path: "/api/raidplan/profiles", handler: postProfile, area: "raids" },
-    { method: "PATCH", path: "/api/raidplan/profiles", handler: patchProfile, area: "raids" },
-    { method: "DELETE", path: "/api/raidplan/profiles", handler: deleteProfile, area: "raids" },
-    { method: "POST", path: "/api/raidplan/apply", handler: postApply, area: "raids" },
-    { method: "GET", path: "/api/raidplan/templates", handler: getTemplates, area: "raids" },
-    { method: "POST", path: "/api/raidplan/templates", handler: postTemplate, area: "raids" },
-    { method: "PATCH", path: "/api/raidplan/templates", handler: patchTemplate, area: "raids" },
-    { method: "DELETE", path: "/api/raidplan/templates", handler: deleteTemplate, area: "raids" },
-    { method: "POST", path: "/api/raidplan/templates/duplicate", handler: postTemplateDuplicate, area: "raids" },
-    { method: "GET", path: "/api/raidplan/link", handler: getLink, area: "raids" },
-    { method: "POST", path: "/api/raidplan/link", handler: postLink, area: "raids" },
+    { method: "GET", path: "/api/raidplan", handler: getPlan, area: "raidplan" },
+    { method: "PUT", path: "/api/raidplan", handler: putPlan, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/suggest", handler: postSuggest, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/publish", handler: postPublish, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/groups", handler: postGroups, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/map", handler: postMap, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/map/delete", handler: postMapDelete, area: "raidplan" },
+    { method: "GET", path: "/api/raidplan/catalog", handler: getCatalog, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/catalog/mobs", handler: postMob, area: "raidplan" },
+    { method: "PATCH", path: "/api/raidplan/catalog/mobs", handler: patchMob, area: "raidplan" },
+    { method: "DELETE", path: "/api/raidplan/catalog/mobs", handler: deleteMob, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/catalog/spells", handler: postSpell, area: "raidplan" },
+    { method: "PATCH", path: "/api/raidplan/catalog/spells", handler: patchSpell, area: "raidplan" },
+    { method: "DELETE", path: "/api/raidplan/catalog/spells", handler: deleteSpell, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/catalog/reset", handler: postCatalogReset, area: "raidplan" },
+    { method: "GET", path: "/api/raidplan/profiles", handler: getProfiles, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/profiles", handler: postProfile, area: "raidplan" },
+    { method: "PATCH", path: "/api/raidplan/profiles", handler: patchProfile, area: "raidplan" },
+    { method: "DELETE", path: "/api/raidplan/profiles", handler: deleteProfile, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/apply", handler: postApply, area: "raidplan" },
+    { method: "GET", path: "/api/raidplan/templates", handler: getTemplates, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/templates", handler: postTemplate, area: "raidplan" },
+    { method: "PATCH", path: "/api/raidplan/templates", handler: patchTemplate, area: "raidplan" },
+    { method: "DELETE", path: "/api/raidplan/templates", handler: deleteTemplate, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/templates/duplicate", handler: postTemplateDuplicate, area: "raidplan" },
+    { method: "GET", path: "/api/raidplan/link", handler: getLink, area: "raidplan" },
+    { method: "POST", path: "/api/raidplan/link", handler: postLink, area: "raidplan" },
     { method: "GET", path: "/api/raidplan/public", handler: getPublic, auth: "none" },
     { method: "GET", path: "/api/raidplan/progress", handler: getProgress, auth: "none" },
 ];

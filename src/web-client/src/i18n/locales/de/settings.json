@@ -285,6 +285,10 @@
             "label": "Raid-Events",
             "description": "Raid-Events anlegen, Setups füllen, Aufrufe und Softres posten."
         },
+        "raidplan": {
+            "label": "Raidplan",
+            "description": "Raidplan am Event (Boards je Boss, Link posten), Raidplan-Vorlagen mit Taktik-Profilen und der Raidplan-Katalog. Den Plan eines Events öffnet man über das Event, dafür braucht es zusätzlich Raid-Events lesen."
+        },
         "roster": {
             "label": "Roster",
             "description": "Charakter-Übersicht der Gilde."

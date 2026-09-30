@@ -13,8 +13,8 @@ const plans = require("../../src/stores/raidplanStore");
 const route = require("../../src/web/apiRoutes/raidplan");
 const { checkAccess } = require("../../src/web/http/apiAccess");
 
-const ORGA = { id: "orga", isAdmin: false, access: { raids: { read: true, write: true } } };
-const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
+const ORGA = { id: "orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };
+const READER = { id: "reader", isAdmin: false, access: { raidplan: { read: true, write: false } } };
 
 const { mockRes, status, json } = require("../helpers/http");
 const body = (r) => { const p = json(r); return p.data || p.error; };
@@ -114,7 +114,7 @@ describe("references in assignments", () => {
 });
 
 describe("the API", () => {
-    it("is for the raids area: read to look, write to change", () => {
+    it("is for the raidplan area: read to look, write to change", () => {
         for (const path of ["/api/raidplan/catalog", "/api/raidplan/catalog/mobs", "/api/raidplan/catalog/spells", "/api/raidplan/catalog/reset"]) {
             expect(checkAccess(path, "GET", READER)).toBeNull();
             expect(checkAccess(path, "POST", READER)).toMatchObject({ status: 403 });

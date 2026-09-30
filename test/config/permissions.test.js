@@ -262,4 +262,27 @@ describe("config/permissions — per-account grants", () => {
             expect(userCan({ isAdmin: true, access: emptyAccess() }, "kader", "write")).toBe(true);
         });
     });
+
+    // The raid plan left "raids" (docs/permissions.md): the tactics are handed out on their own.
+    describe("the raidplan area", () => {
+        it("is its own area, right after the raid events whose tab it shares", () => {
+            expect(AREAS.find((a) => a.id === "raidplan")).toMatchObject({ tab: "raids", label: "Raidplan" });
+            expect(AREA_IDS.indexOf("raidplan")).toBe(AREA_IDS.indexOf("raids") + 1);
+        });
+
+        it("is not implied by raids, nor raids by it, and is in no default base access", () => {
+            const { CONFIG_DEFAULTS } = require("../../src/stores/configSchema");
+            expect(can(baseAccessMap(CONFIG_DEFAULTS.baseAccess), "raidplan")).toBe(false);
+            const orga = accessForRoles({ r: { raids: { read: true, write: true } } }, ["r"]);
+            expect(can(orga, "raidplan")).toBe(false);
+            const tactician = accessForRoles({ t: { raidplan: { write: true } } }, ["t"]);
+            expect(tactician.raidplan).toEqual({ read: true, write: true });
+            expect(can(tactician, "raids")).toBe(false);
+            expect(userCan({ isAdmin: true, access: emptyAccess() }, "raidplan", "write")).toBe(true);
+        });
+
+        it("survives the normaliser like every other area", () => {
+            expect(normalizeRolePermissions({ r: { raidplan: { read: true } } })).toEqual({ r: { raidplan: { read: true, write: false } } });
+        });
+    });
 });
