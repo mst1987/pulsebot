@@ -1,27 +1,35 @@
-// What every part of the Kaderplaner reads: the view model, the chosen roster
-// and the actions that change them (KaderPage.tsx provides it).
+// What every part of the Kaderplaner reads: the view model, the chosen Kader and
+// the actions that change them (KaderPage.tsx provides it).
 import { createContext, useContext } from "react";
-import type { KaderPlace, KaderPlayer, KaderRole, KaderRoster, KaderView } from "../../api";
+import type { KaderData, KaderPlayer, KaderView } from "../../api";
+
+/** The pages of one Kader, as they stand in the address (/kader/<id>/<sub>). */
+export type KaderSub = "pool" | "vorauswahl" | "uebersicht" | "roster" | "fragen" | "setups";
+export const SUBS: KaderSub[] = ["pool", "vorauswahl", "uebersicht", "roster", "fragen", "setups"];
 
 export type KaderModal =
     | { type: "account"; userId: string }
-    | { type: "add" }
-    | { type: "roster"; mode: "new" | "edit" }
-    | { type: "picker"; role: KaderRole }
+    | { type: "import" }
+    | { type: "addById" }
+    | { type: "settings" }
+    | { type: "create" }
     | null;
 
 export type KaderCtx = {
     view: KaderView;
-    roster: KaderRoster | null;
+    kader: KaderData;
     players: Map<string, KaderPlayer>;
     /** May change things (area "kader" at write level). */
     canWrite: boolean;
-    selectRoster: (id: string) => void;
-    /** Runs a write, swaps in the view it answers with; a failure is a toast. Resolves to the new view or null. */
-    run: (call: Promise<KaderView>) => Promise<KaderView | null>;
-    /** Puts a player into the chosen roster (by the natural role unless one is given), onto its bench or out. */
-    place: (userId: string, to: KaderPlace, role?: KaderRole) => Promise<void>;
+    /** The signed-in account. */
+    me: string;
+    /** Whether the signed-in account leads this Kader (only leads vote). */
+    isLead: boolean;
+    /** Runs a change, swaps its answer in; a failure is a toast. Resolves to the answer or null. */
+    run: <T>(call: Promise<T>) => Promise<T | null>;
     open: (modal: KaderModal) => void;
+    /** Goes to another page of this Kader, with an optional query ("?spieler=<id>"). */
+    go: (sub: KaderSub, search?: string) => void;
 };
 
 export const KaderContext = createContext<KaderCtx | null>(null);

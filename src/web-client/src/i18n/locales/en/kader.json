@@ -1,165 +1,549 @@
 {
     "loading": "Loading the roster planner …",
     "error": "That did not work.",
-    "nav": {
-        "back": "To the roster"
+    "system": "System",
+    "since": "since {date} ({by})",
+    "quote": "“{text}”",
+    "state": {
+        "pool": "Pool",
+        "selected": "Preselection",
+        "provisional": "Provisional",
+        "roster": "Roster",
+        "bench": "Bench",
+        "tentative": "Tentative"
     },
-    "board": {
-        "kicker": "Roster planner · Forever",
-        "pickRoster": "Choose roster",
-        "newRoster": "+ New roster …",
-        "noRoster": "No roster yet",
-        "noRosterHint": "Create a roster for a raid, then drag players from the pool into it.",
-        "noRosterRead": "There is no roster here yet.",
-        "filled": "{n} of {size} spots filled",
-        "toSetup": "Build setup"
+    "stateSince": {
+        "pool": "in the pool since {date} ({by})",
+        "selected": "in the preselection since {date} ({by})",
+        "provisional": "in the provisional roster since {date} ({by})",
+        "roster": "in the roster since {date} ({by})",
+        "bench": "on the bench since {date} ({by})",
+        "tentative": "tentative since {date} ({by})"
+    },
+    "nav": {
+        "aria": "States in this squad",
+        "selection": "Preselection",
+        "vorauswahl": "Interviews",
+        "uebersicht": "Overview",
+        "setups": "Build an example setup",
+        "kicker": "Players per status",
+        "count": {
+            "pool": {
+                "one": "{count} player in the pool",
+                "other": "{count} players in the pool"
+            },
+            "selected": {
+                "one": "{count} player in preselection",
+                "other": "{count} players in preselection"
+            },
+            "provisional": {
+                "one": "{count} player in the provisional roster",
+                "other": "{count} players in the provisional roster"
+            },
+            "roster": {
+                "one": "{count} player in the roster",
+                "other": "{count} players in the roster"
+            },
+            "bench": {
+                "one": "{count} player on the bench",
+                "other": "{count} players on the bench"
+            },
+            "tentative": {
+                "one": "{count} player tentative",
+                "other": "{count} players tentative"
+            }
+        }
+    },
+    "header": {
+        "kicker": "Roster planner",
+        "pick": "Choose a squad",
+        "new": "New squad",
+        "leads": "Leads",
+        "noLeads": "nobody yet",
+        "settings": "Squad settings",
+        "countLine": "{roster} in roster · {total} total"
+    },
+    "start": {
+        "kicker": "Roster planner · the steps of a squad",
+        "title": "From Discord to the roster",
+        "create": "Create the first squad",
+        "readOnly": "There is no squad yet. Whoever may edit the roster planner can create one.",
+        "kind": {
+            "action": "Action",
+            "state": "State",
+            "view": "View"
+        },
+        "step": {
+            "import": {
+                "title": "Pick a Discord role",
+                "what": "Everybody with the role shows up, characters prefilled from profiles and logs."
+            },
+            "pool": {
+                "title": "Pool",
+                "what": "Everybody taken into this squad; one switch per player puts them into the preselection."
+            },
+            "selected": {
+                "title": "Preselection · Interviews",
+                "what": "Talk to everybody: their wishes in order and this squad's questions."
+            },
+            "overview": {
+                "title": "Preselection · Overview",
+                "what": "Everybody's wishes and answers side by side: filter, compare, choose."
+            },
+            "provisional": {
+                "title": "Provisional roster",
+                "what": "The leads discuss: votes, comments and example setups (10 or 20)."
+            },
+            "roster": {
+                "title": "Roster · Bench · Tentative",
+                "what": "Into the roster with class and spec, onto the bench or tentative."
+            }
+        },
+        "rule": {
+            "state": {
+                "k": "State",
+                "t": "Every player has exactly one state per squad. It stays until somebody changes it, even for weeks."
+            },
+            "questions": {
+                "k": "Questions",
+                "t": "Every squad has its own questions. They show up for everybody in its preselection."
+            },
+            "history": {
+                "k": "History",
+                "t": "Each player shows who changed their state, interview and votes, and when."
+            },
+            "internal": {
+                "k": "Internal",
+                "t": "Wishes, answers, votes and comments are only seen by those who may open the roster planner."
+            }
+        }
+    },
+    "settings": {
+        "title": "Squad settings",
+        "createTitle": "New squad",
+        "createHint": "You lead the new squad. Add more leads in the settings afterwards.",
+        "create": "Create squad",
+        "namePlaceholder": "e.g. Forever squad 2027",
+        "leads": "Leads",
+        "leadsHint": "The leads hold the interviews and vote in the provisional roster.",
+        "addLead": "Add a lead",
+        "pickLead": "Choose a member …",
+        "removeLead": "Remove {name} from the leads",
+        "delete": "Delete squad",
+        "deleteTitle": "Delete squad \"{name}\"?",
+        "deleteText": "All {n} players of this squad go with it, with their interviews, votes, comments and the example setups. The accounts' character data stays."
+    },
+    "source": {
+        "planner": "manual",
+        "profile": "Profile",
+        "logs": "Logs",
+        "none": "missing",
+        "otherVersion": "From the profile of another game version ({version})",
+        "tip": "Where the character comes from: profile, logs or entered in the planner"
     },
     "pool": {
-        "title": "Discord accounts",
-        "countTip": "Accounts in the pool: with a Forever character in their profile or added by hand",
-        "search": "Name, character or class",
-        "nobody": "Nobody found.",
-        "noAccounts": "No accounts yet. Add one.",
-        "find": "Filters & groups",
-        "addAccount": "Add account",
-        "addTo": "Into the roster",
-        "addToNamed": "Put {name} into the roster",
-        "removeFrom": "Take out of the roster",
-        "removeFromNamed": "Take {name} out of the roster",
-        "full": "The roster is full"
+        "search": "Name, class or spec",
+        "scope": "Which players",
+        "scopeAll": "Everyone {n}",
+        "scopePool": "In pool {n}",
+        "scopeSelected": "In preselection {n}",
+        "filterRole": "Discord role",
+        "filterClass": "Class",
+        "noClass": "no character",
+        "byId": "By Discord ID",
+        "import": "Add from Discord role",
+        "ofTotal": {
+            "one": "of {count} player",
+            "other": "of {count} players"
+        },
+        "colPlayer": "Player",
+        "colChar": "Prefilled",
+        "colRoles": "Discord roles",
+        "colAttendance": "Attendance",
+        "colSelection": "Preselect",
+        "none": "Nobody matches the search and filters.",
+        "emptyKader": "Nobody in this squad yet. Take players from a Discord role.",
+        "noData": "no character data",
+        "notOnServer": "not on the server",
+        "toSelection": "Preselect {name}",
+        "peekHead": "{name}",
+        "main": "in use",
+        "noChars": "No character known yet.",
+        "attendance": "Attendance",
+        "attendanceOf": "Attendance ({version})",
+        "inKaderSince": "In the squad since",
+        "batchSelect": "Preselect",
+        "batchUnselect": "Unselect",
+        "remove": "Remove from squad",
+        "removeTitle": "Remove {n} from the squad?",
+        "removeText": "With their interviews, votes and comments in this squad. The accounts' character data stays.",
+        "moved": "{n} moved",
+        "movedSkipped": "{n} moved, {skipped} skipped (already further along)",
+        "nothingToMove": "None of the marked players is in a state that allows this.",
+        "scopeAllTip": {
+            "one": "{count} player in this squad",
+            "other": "{count} players in this squad"
+        }
     },
-    "slot": {
-        "free": "open · drag here",
-        "freeRead": "open",
-        "pickFor": "Open spot for {role}, choose a player"
-    },
-    "bench": {
-        "title": "Bench",
-        "hint": "Drag accounts here that only come along when needed"
-    },
-    "side": {
-        "classes": "Classes in the roster",
-        "nobody": "Nobody in the roster yet.",
-        "buffs": "Raid buffs",
-        "attendance": "Ø roster attendance",
-        "attendanceSub": "recent raid nights, from EventHelper",
-        "attendanceNone": "no Forever raids counted yet"
-    },
-    "player": {
-        "noChar": "No character",
-        "noCharLong": "no Forever character yet",
-        "noSpec": "no spec",
-        "canHeal": "can heal",
-        "canTank": "can tank",
-        "canDays": "can do {days}",
-        "noDays": "no raid days given"
-    },
-    "day": {
-        "mo": "Mon",
-        "di": "Tue",
-        "mi": "Wed",
-        "do": "Thu",
-        "fr": "Fri",
-        "sa": "Sat",
-        "so": "Sun"
-    },
-    "status": {
-        "kader": "In roster",
-        "bench": "Bench",
-        "none": "Free"
-    },
-    "gear": {
-        "none": "No gear",
-        "usable": "Usable",
-        "ready": "Raid ready"
-    },
-    "tier": {
-        "t0": "Core · 90 % and up",
-        "t1": "Reliable · 75–89 %",
-        "t2": "Irregular · 50–74 %",
-        "t3": "Rare · below 50 %"
-    },
-    "group": {
-        "noRole": "No class or spec",
-        "noClass": "No class",
-        "noData": "No data yet",
-        "all": "All players"
-    },
-    "groupBy": {
-        "role": "Role",
-        "cls": "Class",
-        "att": "Attendance",
-        "status": "Status",
-        "none": "None"
+    "batch": {
+        "aria": "Marked players",
+        "marked": "marked",
+        "mark": "Mark {name}",
+        "markAll": "Mark all",
+        "clear": "Clear the marks"
     },
     "filter": {
-        "status": "Status",
-        "role": "Role",
-        "class": "Class",
-        "attendance": "Attendance",
-        "days": "Days",
-        "gear": "Gear",
-        "attAll": "All",
-        "attFrom": "{pct} % and up",
-        "canDay": "can do {day}",
         "remove": "Remove filter: {label}",
         "clear": "Remove all"
     },
-    "players": {
-        "kicker": "Player pool",
-        "title": "Find players",
-        "search": "Name, Discord or spec",
-        "groupBy": "Group by",
-        "count": "{n} of {total} players",
-        "sort": "Sort",
-        "sortAtt": "Attendance",
-        "sortName": "Name",
-        "colChar": "Character",
-        "colSpec": "Spec",
-        "colAtt": "Attendance",
-        "colDays": "Can do Mon–Sun",
-        "colStatus": "Status",
-        "none": "Nobody matches these filters.",
-        "inKader": "{n} in roster"
+    "import": {
+        "kicker": "Into the pool of {name}",
+        "title": "Add from a Discord role",
+        "roles": "Discord roles",
+        "roleSearch": "Search a role",
+        "noRoles": "No roles known. Is the bot running, and may it read the member list?",
+        "rolesHint": "Everybody with at least one chosen role shows up on the right. Whoever is in this squad already stays as they are.",
+        "byId": "Add one by Discord ID",
+        "members": {
+            "one": "member",
+            "other": "members"
+        },
+        "lists": "Which members",
+        "listNew": "New {n}",
+        "listKnown": "Already in the pool {n}",
+        "listNoData": "No character data {n}",
+        "colDiscord": "Discord",
+        "colPrefill": "Prefilled",
+        "colSource": "Source",
+        "pickRoles": "Pick one or more roles on the left.",
+        "nobody": "Nobody in this list.",
+        "take": "Include {name}",
+        "inKader": "already in this squad",
+        "missing": "missing",
+        "noData": "no character data",
+        "from": {
+            "planner": "manual",
+            "profile": "Profile",
+            "logs": "Logs"
+        },
+        "offline": "The member list is not available right now (bot offline or without the members intent). Single players can be added by Discord ID.",
+        "summary": "{n} will be taken, {missing} of them without character data.",
+        "submit": "Add {n} to pool",
+        "done": "{n} added to the pool",
+        "holders": {
+            "one": "{count} member with this role",
+            "other": "{count} members with this role"
+        }
     },
-    "diff": {
-        "tip": "Differs from the profile",
-        "badge": "differs from the profile",
-        "class": "class",
-        "mainSpec": "main spec",
-        "gear": "gear",
-        "tank": "off-tank",
-        "heal": "healing",
-        "notInProfile": "not in the profile"
+    "add": {
+        "title": "Add a player",
+        "fromServer": "From the Discord server",
+        "byId": "By Discord ID",
+        "search": "Search member",
+        "searchPlaceholder": "Name on the Discord server",
+        "noMembers": "No member list available. Add the player by Discord ID.",
+        "nobody": "Nobody found.",
+        "noData": "no character data",
+        "inKader": "already in this squad",
+        "picked": "Chosen",
+        "discordId": "Discord ID",
+        "discordIdHint": "In Discord: turn on developer mode, right-click the account, \"Copy User ID\".",
+        "displayName": "Display name",
+        "charOptional": "Character · optional, can be done later",
+        "pickClass": "choose …",
+        "submit": "Add to pool",
+        "done": "{name} added to the pool",
+        "pick": "Choose"
     },
-    "field": {
-        "name": "Name",
-        "firstName": "First name",
-        "lastName": "Last name",
-        "class": "Class",
-        "specs": "Specs · star = main spec",
-        "gear": "Gear for the main spec",
-        "nameStyle": "Kind of name",
-        "nameForever": "Forever name",
-        "nameNick": "Nickname",
-        "nickname": "Nickname"
+    "interview": {
+        "listTitle": "Preselection",
+        "listAria": "Which interviews",
+        "listOpen": "Open {n}",
+        "listDone": "Done {n}",
+        "listAll": "All",
+        "listEmpty": "No one here.",
+        "nobodySelected": "Nobody in the preselection yet.",
+        "pick": "Pick a player on the left.",
+        "empty": "Put players into the preselection in the pool, then hold the interviews here.",
+        "toPoolPage": "To the pool",
+        "questionsLink": "This squad's questions",
+        "status": {
+            "started": "started",
+            "open": "open",
+            "done": "done"
+        },
+        "statusOpen": "open",
+        "statusDone": "done",
+        "subDone": "{lead} · done {date}",
+        "subStarted": "{lead} · started {date}",
+        "subPlanned": "{lead} · not started yet",
+        "subNobody": "nobody assigned",
+        "nobody": "nobody",
+        "aria": "Interview with {name}",
+        "prefilled": "prefilled",
+        "prefilledShort": "prefilled",
+        "noPrefill": "no character data",
+        "lead": "Interviewer",
+        "progress": "{done} of {total} answered",
+        "locked": "Completed on {date} ({by}). Reopen the interview to change it.",
+        "wishes": "Wishes",
+        "wishesHint": "1 = favourite",
+        "noWishes": "no wishes",
+        "noWishesYet": "No wish yet. Add class and spec below.",
+        "up": "Move up",
+        "down": "Move down",
+        "removeWish": "Remove wish",
+        "pickClass": "Choose a class …",
+        "addWish": "Add wish",
+        "note": "Notes from the interview",
+        "notePlaceholder": "What mattered in the interview",
+        "questions": "This squad's questions",
+        "editQuestions": "Edit questions",
+        "noQuestions": "This squad has no questions of its own yet.",
+        "stillOpen": "still open",
+        "aWish": "a wish",
+        "saving": "Saving …",
+        "lastSaved": "Last saved: {by}, {at}",
+        "notSaved": "Nothing saved yet",
+        "toPool": "Back to the pool",
+        "toPoolDone": "{name} is back in the pool",
+        "missing": "Missing: {list}",
+        "saveNext": "Save & next",
+        "complete": "Complete interview",
+        "completedToast": "Interview with {name} completed",
+        "reopen": "Reopen",
+        "statusOpenTip": "Interview not started yet",
+        "statusDoneTip": "Interview done",
+        "listOpenTip": {
+            "one": "{count} interview open",
+            "other": "{count} interviews open"
+        },
+        "listDoneTip": {
+            "one": "{count} interview done",
+            "other": "{count} interviews done"
+        },
+        "answered": "answered",
+        "specTaken": "{spec} is already a wish"
+    },
+    "qtype": {
+        "single": "Single choice",
+        "multi": "Multiple choice",
+        "text": "Free text",
+        "singleHint": "one",
+        "multiHint": "several",
+        "textHint": "free text",
+        "singleShort": "Single",
+        "multiShort": "Multiple",
+        "textShort": "Free text"
+    },
+    "overview": {
+        "search": "Name or spec",
+        "filterInterview": "Interview",
+        "filterWish": "1st wish",
+        "noWish": "no wish",
+        "answered": "answered",
+        "unanswered": "unanswered",
+        "group": "Group",
+        "byRole": "Role",
+        "byClass": "Class",
+        "byInterview": "Interview",
+        "byNone": "None",
+        "firstWish": "1st wish",
+        "colWish1": "1st wish",
+        "colWish2": "2nd wish",
+        "colInterview": "Interview",
+        "colSince": "Since",
+        "days": "{n} d",
+        "doneOf": "{done} of {n} interviews held",
+        "byLead": "Interview: {lead}, {date}",
+        "empty": "Nobody in the preselection yet.",
+        "toProvisional": "To provisional roster",
+        "toPool": "Back to the pool",
+        "openTitle": "{n} without a completed interview",
+        "openText": "They still go into the provisional roster; the interview stays visible there.",
+        "movedOn": "{n} in the provisional roster",
+        "movedBack": "{n} back in the pool",
+        "daysTip": {
+            "one": "in preselection since {date} ({count} day)",
+            "other": "in preselection since {date} ({count} days)"
+        }
+    },
+    "decide": {
+        "kicker": {
+            "provisional": "Under discussion",
+            "roster": "In the roster",
+            "bench": "On the bench",
+            "tentative": "Tentative"
+        },
+        "back": {
+            "selected": "Back to preselection",
+            "provisional": "Back to provisional"
+        },
+        "pickHint": "Click a card: wishes, interview, votes, comments and the decision.",
+        "drawer": "Discussion about {name}",
+        "yesVotes": {
+            "one": "{count} vote for",
+            "other": "{count} votes for"
+        },
+        "commentCount": {
+            "one": "{count} comment",
+            "other": "{count} comments"
+        },
+        "interviewBy": "Interview · {lead}, {date}",
+        "interviewOpen": "Interview · not completed yet",
+        "openInterview": "Open the interview",
+        "votes": "Lead votes",
+        "noVotes": {
+            "one": "{count} vote against",
+            "other": "{count} votes against"
+        },
+        "myVote": "Your vote",
+        "takeBack": "Withdraw vote",
+        "onlyLeads": "Only this squad's leads vote.",
+        "commentsTitle": "Comments · {n}",
+        "comment": "Comment",
+        "commentPlaceholder": "Write a comment",
+        "send": "Send",
+        "deleteComment": "Delete comment",
+        "deleteCommentTitle": "Delete your comment?",
+        "decision": "Decision",
+        "decisionAria": "Class and spec in the roster",
+        "wishN": "{label} (wish {n})",
+        "current": "{label} (so far)",
+        "toRoster": "To roster",
+        "changeDecision": "Change decision",
+        "toRosterDone": "{name} is in the roster: {pick}",
+        "moved": "{name}: {state}",
+        "cantMove": "This move is not possible directly.",
+        "history": "History",
+        "noVoteYet": "No vote yet.",
+        "dropHere": "Drop here",
+        "emptyRead": "Nobody"
+    },
+    "vote": {
+        "yes": "for",
+        "unsure": "unsure",
+        "no": "against",
+        "yesAction": "For",
+        "unsureAction": "Unsure",
+        "noAction": "Against"
+    },
+    "history": {
+        "added": "added to the pool",
+        "state": "{from} → {to}",
+        "decision": "Decision: {pick}",
+        "completed": "Interview completed",
+        "reopened": "Interview reopened",
+        "vote": "Vote: {vote}",
+        "voteNone": "Vote taken back",
+        "migrated": "taken over from the old roster planner ({to})"
+    },
+    "questions": {
+        "back": "To the preselection",
+        "kicker": "Questions · {name}",
+        "title": "This squad's questions",
+        "list": "Questions",
+        "fixedTitle": "Always in the interview",
+        "fixedText": "Wishes in order · notes from the interview",
+        "own": "{n} own questions",
+        "dragHint": "Drag to reorder",
+        "requiredShort": "required",
+        "add": "Add a question",
+        "copyFromOther": "Copy questions from another squad",
+        "note": "Applies to all {n} in this squad's preselection. A new question shows as open for everybody, a deleted one takes its answers along.",
+        "editor": "Edit the question",
+        "text": "Question",
+        "textPlaceholder": "e.g. Possible raid days",
+        "type": "Answer type",
+        "options": "Options",
+        "weekdays": "Add weekdays",
+        "optionN": "Option {n}",
+        "removeOption": "Remove option",
+        "addOption": "Option",
+        "renameHint": "Renaming keeps the answers, removing takes them along.",
+        "required": "Required: an interview can only be completed once it is answered",
+        "preview": "Preview in the interview",
+        "untitled": "New question",
+        "previewText": "Free text field",
+        "delete": "Delete question",
+        "deleteTitle": "Delete \"{text}\"?",
+        "deleteText": "Its {n} answers are deleted too.",
+        "deleteTextNone": "Nobody has answered it yet.",
+        "create": "Create question",
+        "added": "Question created",
+        "saved": "Question saved",
+        "loseTitle": "{n} answers change",
+        "loseText": "Answers to removed options or to another kind of answer are lost.",
+        "copyTitle": "Copy questions",
+        "copyHint": "The questions are copied and added at the end, without answers.",
+        "copyFrom": "From which squad",
+        "copyNone": "No other squad has questions.",
+        "countN": "{n} questions",
+        "copy": "Copy",
+        "copied": "{n} questions copied from {name}",
+        "tooMany": "Together that would be more than {max} questions."
+    },
+    "setups": {
+        "back": "To the provisional roster",
+        "kicker": "To play through in the meeting",
+        "title": "Example setups",
+        "variants": "Variants",
+        "addVariant": "New variant",
+        "copyVariant": "Copy variant",
+        "copyName": "{name} (copy)",
+        "rename": "Rename variant",
+        "deleteVariant": "Delete variant",
+        "deleteTitle": "Delete variant \"{name}\"?",
+        "size": "Size",
+        "sizeN": "{n}-man",
+        "copy": "Copy as text",
+        "copied": "Setup copied",
+        "textTitle": "Setup as text",
+        "textHint": "Copying did not work automatically. Select the text and copy it.",
+        "sources": "Players from",
+        "withoutGroup": "No group yet",
+        "allPlaced": "Everybody has a group.",
+        "nobody": "Nobody in the chosen states.",
+        "takeOut": "Take out of the group",
+        "hint": "An example setup never changes a state. Pick which wished spec applies at the slot.",
+        "pickHint": "Now click a slot. Whoever sits there swaps.",
+        "auto": "Auto-assign",
+        "autoTitle": "Assign again?",
+        "autoText": "The current placement of this variant is replaced.",
+        "group": "Group {n}",
+        "free": "free",
+        "freeSlot": "Group {group}, slot {n} free",
+        "specOf": "Spec of {name}",
+        "emptyGroup": "empty",
+        "missing": "no {buff}",
+        "moreBuffs": "+{n} buffs",
+        "hiddenGroups": "Groups 3 and 4 are kept and show again in the 20-man setup.",
+        "none": "No variant.",
+        "groupFill": "{n} of {max} spots",
+        "placedOf": {
+            "one": "of {count} spot",
+            "other": "of {count} spots"
+        }
     },
     "account": {
         "withProfile": "Discord · with EventHelper profile",
         "manual": "Discord · added by hand",
-        "onlyPlanner": "Only applies in the roster planner, the profile stays unchanged",
-        "inRoster": "In roster \"{roster}\"",
+        "onlyPlanner": "Only applies in the roster planner and all its squads, the profile stays unchanged",
+        "inKader": "In {kader}",
+        "notInKader": "Not in {kader}",
         "reset": "Reset assignment",
         "resetTitle": "Reset the assignment?",
         "resetText": "The roster planner then shows the characters from the profile again.",
         "remove": "Remove account",
-        "removeTitle": "Remove @{name} from the pool?",
+        "removeTitle": "Remove @{name}?",
+        "removeText": "The account disappears from every squad, with its interviews, votes and comments.",
         "characters": "Characters",
         "newChar": "New character",
         "used": "in use",
         "addChar": "+ Character",
         "use": "Use this character",
         "nameRule": "First and last name, 2 to 12 letters each.",
+        "nickRule": "2 to 24 characters: letters, digits, space, hyphen, apostrophe.",
         "makeMain": "{spec} as main spec",
         "mainTip": "Main spec",
         "canTank": "Can off-tank",
@@ -179,79 +563,67 @@
         "logs": "Per logs",
         "days": "Available",
         "differs": "Differs from the profile: {what}. The roster planner's assignment applies here, the profile is never overwritten.",
-        "differsNone": "If your assignment differs from the profile, a note shows up here; nothing is overwritten.",
-        "nickRule": "2 to 24 characters: letters, digits, space, hyphen, apostrophe."
+        "differsNone": "If your assignment differs from the profile, a note shows up here; nothing is overwritten."
     },
-    "add": {
-        "title": "Add Discord account",
-        "fromServer": "From the Discord server",
-        "byId": "By Discord ID",
-        "search": "Search member",
-        "searchPlaceholder": "Name on the Discord server",
-        "noMembers": "No member list available. Add the account by Discord ID.",
-        "noProfile": "no EventHelper profile",
-        "profile": "Profile: {line}",
-        "profileAtt": "Profile: {line}, {pct} % attendance",
-        "inPool": "already in the pool",
-        "picked": "Chosen",
-        "discordId": "Discord ID",
-        "discordIdHint": "In Discord: turn on developer mode, right-click the account, \"Copy User ID\".",
-        "displayName": "Display name",
-        "charOptional": "Character · optional, can be done later",
-        "pickClass": "choose …",
-        "submit": "Add & choose specs"
+    "field": {
+        "name": "Name",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "class": "Class",
+        "spec": "Spec",
+        "specs": "Specs · star = main spec",
+        "gear": "Gear for the main spec",
+        "nameStyle": "Kind of name",
+        "nameForever": "Forever name",
+        "nameNick": "Nickname",
+        "nickname": "Nickname"
     },
-    "roster": {
-        "new": "New roster",
-        "edit": "Edit roster",
-        "create": "Create roster",
-        "delete": "Delete roster",
-        "deleteTitle": "Delete roster \"{name}\"?",
-        "deleteText": "Its setups go with it. The players stay in the pool.",
-        "namePlaceholder": "e.g. Wednesday roster",
-        "size": "Roster size",
-        "sizeN": "{n}-man",
-        "targets": "Targets per role · total {sum} of {size}",
-        "label": "{name} · {size}-man",
-        "sizeRule": "A whole number from {min} to {max}.",
-        "sizeHint": "{groups} groups in the setup"
+    "gear": {
+        "none": "No gear",
+        "usable": "Usable",
+        "ready": "Raid ready"
     },
+    "diff": {
+        "badge": "differs from the profile",
+        "class": "class",
+        "mainSpec": "main spec",
+        "gear": "gear",
+        "tank": "off-tank",
+        "heal": "healing",
+        "notInProfile": "not in the profile"
+    },
+    "day": {
+        "mo": "Mon",
+        "di": "Tue",
+        "mi": "Wed",
+        "do": "Thu",
+        "fr": "Fri",
+        "sa": "Sat",
+        "so": "Sun"
+    },
+    "dayLong": {
+        "mo": "Monday",
+        "di": "Tuesday",
+        "mi": "Wednesday",
+        "do": "Thursday",
+        "fr": "Friday",
+        "sa": "Saturday",
+        "so": "Sunday"
+    },
+    "player": {
+        "noChar": "No character",
+        "noSpec": "no spec",
+        "canDays": "can do {days}",
+        "noDays": "no raid days given"
+    },
+    "playersN": {
+        "one": "{count} player",
+        "other": "{count} players"
+    },
+    "roleCount": "{role}: {n}",
     "picker": {
-        "title": "Choose a player for {role}",
-        "hint": "Matching roles are listed first.",
-        "nobody": "Nobody available."
-    },
-    "setup": {
-        "kicker": "Setup · {size}-man",
-        "auto": "Distribute automatically",
-        "copy": "Copy as text",
-        "copied": "Setup copied as text, paste it into Discord now.",
-        "variants": "Variants",
-        "addVariant": "New variant",
-        "copyVariant": "Copy variant",
-        "copyName": "{name} (copy)",
-        "rename": "Rename variant",
-        "deleteVariant": "Delete variant",
-        "deleteTitle": "Delete variant \"{name}\"?",
-        "group": "Group {n}",
-        "focus": {
-            "empty": "empty",
-            "mixed": "mixed"
-        },
-        "free": "open",
-        "freeSlot": "Spot {n} open",
-        "missing": "no {buff}",
-        "withoutGroup": "Not in a group yet",
-        "allPlaced": "Everyone is placed.",
-        "emptyRoster": "The roster is still empty. Fill it on the roster board.",
-        "takeOut": "Take out of the group",
-        "benchEmpty": "empty",
-        "hint": "Open roster spots are filled on the roster board; this only distributes.",
-        "pickHint": "Click a spot to put the chosen player there.",
-        "emptyGroup": "(empty)",
-        "textTitle": "Setup as text",
-        "textHint": "Copying is not allowed here: select the text and copy it by hand.",
-        "noRoster": "This roster does not exist (any more).",
-        "moreBuffs": "+{n} buffs"
+        "rank": "Wish {n}",
+        "decision": "Decision",
+        "before": "chosen before"
     }
 }

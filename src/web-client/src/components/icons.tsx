@@ -486,3 +486,54 @@ export function EditIcon() {
         </svg>
     );
 }
+
+/** Not begun yet — an empty circle (the Kaderplaner's open interview). */
+export function CircleIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+            <circle cx="12" cy="12" r="8" />
+        </svg>
+    );
+}
+
+/** Waiting for a decision — an hourglass (the Kaderplaner's provisional roster). */
+export function HourglassIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M6 3h12M6 21h12" />
+            <path d="M7.5 3v2.6a4.5 4.5 0 0 0 1.9 3.7L12 11.2l2.6-1.9a4.5 4.5 0 0 0 1.9-3.7V3" />
+            <path d="M7.5 21v-2.6a4.5 4.5 0 0 1 1.9-3.7L12 12.8l2.6 1.9a4.5 4.5 0 0 1 1.9 3.7V21" />
+        </svg>
+    );
+}
+
+/** A list with checks — the Kaderplaner's preselection and its interviews. */
+export function ListChecksIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m3.5 6.5 1.8 1.8L8.5 5" />
+            <path d="m3.5 15.5 1.8 1.8 3.2-3.3" />
+            <path d="M12 7h8.5M12 16h8.5" />
+        </svg>
+    );
+}
+
+/** A speech bubble — comments. */
+export function CommentIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 5h16v11H9.5L4 20z" />
+        </svg>
+    );
+}
+
+/** Keep what was entered — a floppy disk. */
+export function SaveIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M5 3.5h11l3.5 3.5v12a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V5A1.5 1.5 0 0 1 5 3.5z" />
+            <path d="M7.5 3.5v5h8v-5" />
+            <path d="M7.5 20.5v-6h9v6" />
+        </svg>
+    );
+}

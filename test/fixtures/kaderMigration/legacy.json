@@ -1,0 +1,54 @@
+{
+    "guilds": {
+        "g1": {
+            "accounts": [
+                { "userId": "555555555555555555", "displayName": "Hand", "addedAt": "2026-09-30T18:00:00.000Z" }
+            ],
+            "assignments": {
+                "111111111111111111": {
+                    "characters": [
+                        { "id": "c1", "name": "Aldric Sturmwind", "className": "Warrior", "specs": [{ "spec": "Warrior-Fury", "main": true, "gear": "ready" }, { "spec": "Warrior-Protection", "main": false, "gear": "usable" }], "canTank": true, "canHeal": false }
+                    ],
+                    "activeCharacterId": "c1"
+                },
+                "555555555555555555": {
+                    "characters": [
+                        { "id": "c9", "name": "Rikka Feldmark", "className": "Shaman", "specs": [{ "spec": "Shaman-Restoration", "main": true, "gear": "none" }], "canTank": false, "canHeal": true }
+                    ],
+                    "activeCharacterId": "c9"
+                }
+            },
+            "rosters": [
+                {
+                    "id": "r1", "name": "Hyjal Mittwoch", "instanceId": "forever-hyjal", "size": 20,
+                    "targets": { "tank": 2, "healer": 5, "melee": 7, "ranged": 6 },
+                    "members": [
+                        { "userId": "111111111111111111", "role": "tank" },
+                        { "userId": "222222222222222222", "role": "healer" },
+                        { "userId": "555555555555555555", "role": "melee" }
+                    ],
+                    "bench": ["333333333333333333"]
+                },
+                {
+                    "id": "r2", "name": "Barrow Test", "size": 10,
+                    "targets": { "tank": 2, "healer": 3, "melee": 2, "ranged": 3 },
+                    "members": [{ "userId": "222222222222222222", "role": "healer" }],
+                    "bench": []
+                }
+            ],
+            "setups": {
+                "r1": {
+                    "variants": [
+                        { "id": "v1", "name": "Variante A", "groups": [["111111111111111111", "222222222222222222", null, null, null], ["555555555555555555", "333333333333333333", null, null, null], [null, null, null, null, null], [null, null, null, null, null]] },
+                        { "id": "v2", "name": "Plan B", "groups": [[null, null, null, null, null], [null, null, null, null, null], [null, null, null, null, null], [null, null, null, null, "111111111111111111"]] }
+                    ]
+                },
+                "r2": {
+                    "variants": [
+                        { "id": "v3", "name": "Variante A", "groups": [["222222222222222222", null, null, null, null], [null, null, null, null, null]] }
+                    ]
+                }
+            }
+        }
+    }
+}

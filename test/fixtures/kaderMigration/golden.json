@@ -1,0 +1,401 @@
+{
+    "guilds": {
+        "g1": {
+            "v": 2,
+            "accounts": [
+                {
+                    "userId": "555555555555555555",
+                    "displayName": "Hand",
+                    "addedAt": "2026-09-30T18:00:00.000Z"
+                }
+            ],
+            "assignments": {
+                "111111111111111111": {
+                    "characters": [
+                        {
+                            "id": "c1",
+                            "name": "Aldric Sturmwind",
+                            "nameStyle": "forever",
+                            "className": "Warrior",
+                            "specs": [
+                                {
+                                    "spec": "Warrior-Fury",
+                                    "main": true,
+                                    "gear": "ready"
+                                },
+                                {
+                                    "spec": "Warrior-Protection",
+                                    "main": false,
+                                    "gear": "usable"
+                                }
+                            ],
+                            "canTank": true,
+                            "canHeal": false
+                        }
+                    ],
+                    "activeCharacterId": "c1"
+                },
+                "555555555555555555": {
+                    "characters": [
+                        {
+                            "id": "c9",
+                            "name": "Rikka Feldmark",
+                            "nameStyle": "forever",
+                            "className": "Shaman",
+                            "specs": [
+                                {
+                                    "spec": "Shaman-Restoration",
+                                    "main": true,
+                                    "gear": "none"
+                                }
+                            ],
+                            "canTank": false,
+                            "canHeal": true
+                        }
+                    ],
+                    "activeCharacterId": "c9"
+                }
+            },
+            "kaders": [
+                {
+                    "id": "r1",
+                    "name": "Hyjal Mittwoch",
+                    "leads": [],
+                    "createdAt": "2026-10-01T12:00:00.000Z",
+                    "createdBy": "",
+                    "questions": [],
+                    "players": {
+                        "111111111111111111": {
+                            "name": "",
+                            "state": "roster",
+                            "since": "2026-10-01T12:00:00.000Z",
+                            "by": "",
+                            "addedAt": "2026-10-01T12:00:00.000Z",
+                            "addedBy": "",
+                            "history": [
+                                {
+                                    "at": "2026-10-01T12:00:00.000Z",
+                                    "by": "",
+                                    "type": "migrated",
+                                    "to": "roster"
+                                }
+                            ],
+                            "wishes": [
+                                {
+                                    "className": "Warrior",
+                                    "spec": "Warrior-Protection"
+                                },
+                                {
+                                    "className": "Warrior",
+                                    "spec": "Warrior-Fury"
+                                }
+                            ],
+                            "interview": {
+                                "lead": "",
+                                "answers": {},
+                                "note": "",
+                                "startedAt": "",
+                                "updatedAt": "",
+                                "updatedBy": "",
+                                "completedAt": "",
+                                "completedBy": ""
+                            },
+                            "votes": {},
+                            "comments": [],
+                            "decision": {
+                                "className": "Warrior",
+                                "spec": "Warrior-Protection"
+                            }
+                        },
+                        "222222222222222222": {
+                            "name": "",
+                            "state": "roster",
+                            "since": "2026-10-01T12:00:00.000Z",
+                            "by": "",
+                            "addedAt": "2026-10-01T12:00:00.000Z",
+                            "addedBy": "",
+                            "history": [
+                                {
+                                    "at": "2026-10-01T12:00:00.000Z",
+                                    "by": "",
+                                    "type": "migrated",
+                                    "to": "roster"
+                                }
+                            ],
+                            "wishes": [
+                                {
+                                    "className": "Priest",
+                                    "spec": "Priest-Holy"
+                                }
+                            ],
+                            "interview": {
+                                "lead": "",
+                                "answers": {},
+                                "note": "",
+                                "startedAt": "",
+                                "updatedAt": "",
+                                "updatedBy": "",
+                                "completedAt": "",
+                                "completedBy": ""
+                            },
+                            "votes": {},
+                            "comments": [],
+                            "decision": {
+                                "className": "Priest",
+                                "spec": "Priest-Holy"
+                            }
+                        },
+                        "555555555555555555": {
+                            "name": "",
+                            "state": "roster",
+                            "since": "2026-10-01T12:00:00.000Z",
+                            "by": "",
+                            "addedAt": "2026-10-01T12:00:00.000Z",
+                            "addedBy": "",
+                            "history": [
+                                {
+                                    "at": "2026-10-01T12:00:00.000Z",
+                                    "by": "",
+                                    "type": "migrated",
+                                    "to": "roster"
+                                }
+                            ],
+                            "wishes": [
+                                {
+                                    "className": "Shaman",
+                                    "spec": "Shaman-Restoration"
+                                }
+                            ],
+                            "interview": {
+                                "lead": "",
+                                "answers": {},
+                                "note": "",
+                                "startedAt": "",
+                                "updatedAt": "",
+                                "updatedBy": "",
+                                "completedAt": "",
+                                "completedBy": ""
+                            },
+                            "votes": {},
+                            "comments": [],
+                            "decision": {
+                                "className": "Shaman",
+                                "spec": "Shaman-Restoration"
+                            }
+                        },
+                        "333333333333333333": {
+                            "name": "",
+                            "state": "bench",
+                            "since": "2026-10-01T12:00:00.000Z",
+                            "by": "",
+                            "addedAt": "2026-10-01T12:00:00.000Z",
+                            "addedBy": "",
+                            "history": [
+                                {
+                                    "at": "2026-10-01T12:00:00.000Z",
+                                    "by": "",
+                                    "type": "migrated",
+                                    "to": "bench"
+                                }
+                            ],
+                            "wishes": [
+                                {
+                                    "className": "Mage",
+                                    "spec": "Mage-Frost"
+                                }
+                            ],
+                            "interview": {
+                                "lead": "",
+                                "answers": {},
+                                "note": "",
+                                "startedAt": "",
+                                "updatedAt": "",
+                                "updatedBy": "",
+                                "completedAt": "",
+                                "completedBy": ""
+                            },
+                            "votes": {},
+                            "comments": [],
+                            "decision": null
+                        }
+                    },
+                    "setups": [
+                        {
+                            "id": "v1",
+                            "name": "Variante A",
+                            "size": 20,
+                            "groups": [
+                                [
+                                    {
+                                        "userId": "111111111111111111",
+                                        "spec": "Warrior-Protection"
+                                    },
+                                    {
+                                        "userId": "222222222222222222",
+                                        "spec": "Priest-Holy"
+                                    },
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    {
+                                        "userId": "555555555555555555",
+                                        "spec": "Shaman-Restoration"
+                                    },
+                                    {
+                                        "userId": "333333333333333333",
+                                        "spec": "Mage-Frost"
+                                    },
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ]
+                            ]
+                        },
+                        {
+                            "id": "v2",
+                            "name": "Plan B",
+                            "size": 20,
+                            "groups": [
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    {
+                                        "userId": "111111111111111111",
+                                        "spec": "Warrior-Protection"
+                                    }
+                                ]
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "id": "r2",
+                    "name": "Barrow Test",
+                    "leads": [],
+                    "createdAt": "2026-10-01T12:00:00.000Z",
+                    "createdBy": "",
+                    "questions": [],
+                    "players": {
+                        "222222222222222222": {
+                            "name": "",
+                            "state": "roster",
+                            "since": "2026-10-01T12:00:00.000Z",
+                            "by": "",
+                            "addedAt": "2026-10-01T12:00:00.000Z",
+                            "addedBy": "",
+                            "history": [
+                                {
+                                    "at": "2026-10-01T12:00:00.000Z",
+                                    "by": "",
+                                    "type": "migrated",
+                                    "to": "roster"
+                                }
+                            ],
+                            "wishes": [
+                                {
+                                    "className": "Priest",
+                                    "spec": "Priest-Holy"
+                                }
+                            ],
+                            "interview": {
+                                "lead": "",
+                                "answers": {},
+                                "note": "",
+                                "startedAt": "",
+                                "updatedAt": "",
+                                "updatedBy": "",
+                                "completedAt": "",
+                                "completedBy": ""
+                            },
+                            "votes": {},
+                            "comments": [],
+                            "decision": {
+                                "className": "Priest",
+                                "spec": "Priest-Holy"
+                            }
+                        }
+                    },
+                    "setups": [
+                        {
+                            "id": "v3",
+                            "name": "Variante A",
+                            "size": 10,
+                            "groups": [
+                                [
+                                    {
+                                        "userId": "222222222222222222",
+                                        "spec": "Priest-Holy"
+                                    },
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ]
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

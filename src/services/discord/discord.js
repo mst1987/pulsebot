@@ -248,10 +248,12 @@ function avatarUrlOf(member) {
 
 /**
  * Every human (non-bot) member of a guild, for the Kaderplaner
- * (docs/kaderplaner.md). Same cached full fetch as listMembersWithRoles(), so it
- * needs the GuildMembers intent too; a failure comes back as `error` with an
- * empty list, never thrown.
- * @returns {Promise<{ members: {id:string, displayName:string, avatarUrl:string|null}[], error: string|null }>}
+ * (docs/kaderplaner.md): name, avatar and the ids of their roles (the
+ * @everyone role left out) — the import from Discord roles works on those.
+ * Same cached full fetch as listMembersWithRoles(), so it needs the
+ * GuildMembers intent too; a failure comes back as `error` with an empty list,
+ * never thrown.
+ * @returns {Promise<{ members: {id:string, displayName:string, avatarUrl:string|null, roleIds:string[]}[], error: string|null }>}
  */
 async function listHumanMembers(guildId) {
     const guild = getGuild(guildId);
@@ -264,6 +266,7 @@ async function listHumanMembers(guildId) {
                 id: m.id,
                 displayName: m.displayName || m.user.globalName || m.user.username || m.id,
                 avatarUrl: avatarUrlOf(m),
+                roleIds: m.roles && m.roles.cache ? [...m.roles.cache.keys()].filter((id) => id !== guild.id) : [],
             }))
             .sort((a, b) => a.displayName.localeCompare(b.displayName));
         return { members, error: null };
