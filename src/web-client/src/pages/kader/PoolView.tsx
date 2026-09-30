@@ -1,22 +1,23 @@
 // Step 1 · Pool (/kader/<id>/pool): everybody taken into this Kader, with the
-// character they are prefilled with (and where it comes from), their Discord
-// roles and attendance. Per player the switch "Zur Auswahl" moves them between
-// pool and Vorauswahl; somebody further along shows their state instead. Marked
-// rows go at once. New players come from Discord roles (ImportModal) or by id.
+// character they are prefilled with (spec icon plus class, where it comes from),
+// their Discord roles and attendance. Per player the switch "Zur Auswahl" moves
+// them between pool and Vorauswahl; somebody further along shows their state
+// instead. Marked rows go at once. New players come from Discord roles
+// (ImportModal) or by id.
 import { useMemo, useState } from "react";
 import { removeKaderPlayers, setKaderState, type KaderEntry, type KaderState } from "../../api";
 import { Button, Segment } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
 import { useToast } from "../../components/Jobs";
 import { HoverPanel } from "../../components/HoverPanel";
-import { PlusIcon, SearchIcon } from "../../components/icons";
+import { ChevronLeftIcon, ListChecksIcon, RecruitmentIcon, RosterIcon, SearchIcon, TrashIcon } from "../../components/icons";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { attText, attendanceOf, className, dayOf, mainPick, playerName, searchText } from "../../lib/kader/model";
 import { cleanState, passes, type FilterDef, type FilterState } from "../../lib/kader/filters";
 import { FilterChips, FilterMenus } from "./FilterMenus";
 import { BatchBar } from "./BatchBar";
-import { PickIcon, PickLabel, PlayerName, SinceText, SourceBadge, StateBadge, Switch } from "./parts";
+import { EmptyState, PlayerName, SinceText, SourceBadge, SpecTag, StateBadge, Switch } from "./parts";
 import { useKader } from "./kaderContext";
 
 type Scope = "all" | "pool" | "selected";
@@ -34,14 +35,12 @@ function PlayerPeek({ userId, entry }: Row) {
             <div className="kp-peek">
                 {p && p.characters.length ? p.characters.map((c) => (
                     <div key={c.id} className="kp-peek-char">
-                        <PickIcon pick={{ className: c.className, spec: c.mainSpec || "" }} />
-                        <PickLabel pick={{ className: c.className, spec: c.mainSpec || "" }} />
+                        <SpecTag pick={{ className: c.className, spec: c.mainSpec || "" }} />
                         <span className="kp-sub">{c.name}{c.id === p.activeCharacterId ? ` · ${t("kader.pool.main")}` : ""}</span>
                     </div>
                 )) : p && p.prefill ? (
                     <div className="kp-peek-char">
-                        <PickIcon pick={p.prefill} />
-                        <PickLabel pick={p.prefill} />
+                        <SpecTag pick={p.prefill} />
                         <span className="kp-sub">{p.prefill.name}</span>
                     </div>
                 ) : <span className="kp-hint">{t("kader.pool.noChars")}</span>}
@@ -70,18 +69,18 @@ function PoolRow({ row, marked, onMark }: { row: Row; marked: boolean; onMark: (
                 <PlayerPeek userId={userId} entry={entry} />
                 {p && !p.onServer && <span className="kp-sub">{t("kader.pool.notOnServer")}</span>}
             </span>
-            <span className="kp-cell-char">
-                <PickIcon pick={pick} size={22} />
-                <span className="kp-ellipsis" data-tip={p && p.prefill ? p.prefill.name : undefined}>
-                    {pick ? <PickLabel pick={pick} /> : <span className="kp-warntext">{t("kader.pool.noData")}</span>}
+            <span className="kp-cell-stack">
+                <span className="kp-cell-char">
+                    {pick ? <SpecTag pick={pick} size={22} /> : <span className="kp-warntext">{t("kader.pool.noData")}</span>}
+                    <SourceBadge prefill={p ? p.prefill : null} />
                 </span>
-                <SourceBadge prefill={p ? p.prefill : null} />
+                {p && p.prefill && <span className="kp-sub">{p.prefill.name}</span>}
             </span>
             <span className="kp-cell-roles">
                 {roles.slice(0, 2).map((r) => <span key={r.id} className="kp-rolechip">{r.name}</span>)}
                 {roles.length > 2 && <span className="kp-rolechip" data-tip={roles.slice(2).map((r) => r.name).join(", ")}>+{roles.length - 2}</span>}
             </span>
-            <span className="kp-mono" data-tip={att && att.version ? t("kader.pool.attendanceOf", { version: att.version }) : undefined}>{attText(att)}</span>
+            <span className="kp-mono" data-tip={att && att.version ? t("kader.pool.attendanceOf", { version: att.version }) : t("kader.pool.attendance")}>{attText(att)}</span>
             <span>
                 {entry.state === "pool" || entry.state === "selected" ? (
                     <Switch on={entry.state === "selected"} label={t("kader.pool.toSelection", { name })} disabled={!canWrite}
@@ -155,31 +154,31 @@ export default function PoolView() {
         if (await run(removeKaderPlayers(kader.id, ids))) setMarked([]);
     };
     const toggleAll = (on: boolean) => setMarked(on ? shown.map((r) => r.userId) : []);
+    const importButton = <Button icon={<RecruitmentIcon />} onClick={() => open({ type: "import" })}>{t("kader.pool.import")}</Button>;
 
     return (
         <div className="kp-view">
             <div className="kp-toolbar">
-                <FilterMenus items={rows.filter(inScope)} defs={defs} state={filters} onChange={setFilters}>
-                    <label className="kp-search">
-                        <SearchIcon />
-                        <input type="search" aria-label={t("kader.pool.search")} placeholder={t("kader.pool.search")} value={q} onChange={(e) => setQ(e.target.value)} />
-                    </label>
-                    <Segment<Scope> size="sm" ariaLabel={t("kader.pool.scope")} value={scope} onChange={setScope} options={[
-                        { value: "all", label: t("kader.pool.scopeAll", { n: count("all") }) },
-                        { value: "pool", label: t("kader.pool.scopePool", { n: count("pool") }) },
-                        { value: "selected", label: t("kader.pool.scopeSelected", { n: count("selected") }) },
-                    ]} />
-                </FilterMenus>
+                <label className="kp-search">
+                    <SearchIcon />
+                    <input type="search" aria-label={t("kader.pool.search")} placeholder={t("kader.pool.search")} value={q} onChange={(e) => setQ(e.target.value)} />
+                </label>
+                <Segment<Scope> size="sm" ariaLabel={t("kader.pool.scope")} value={scope} onChange={setScope} options={[
+                    { value: "all", label: t("kader.pool.scopeAll", { n: count("all") }), tip: t("kader.pool.scopeAllTip", { count: count("all") }) },
+                    { value: "pool", label: t("kader.pool.scopePool", { n: count("pool") }), tip: t("kader.nav.count.pool", { count: count("pool") }) },
+                    { value: "selected", label: t("kader.pool.scopeSelected", { n: count("selected") }), tip: t("kader.nav.count.selected", { count: count("selected") }) },
+                ]} />
                 <span className="kp-grow" />
                 {canWrite && (
-                    <>
+                    <span className="kp-actions">
                         <button type="button" className="kp-link" onClick={() => open({ type: "addById" })}>{t("kader.pool.byId")}</button>
-                        <Button icon={<PlusIcon />} onClick={() => open({ type: "import" })}>{t("kader.pool.import")}</Button>
-                    </>
+                        {importButton}
+                    </span>
                 )}
             </div>
             <div className="kp-countrow">
-                <span className="kp-muted"><b className="kp-mono">{shown.length}</b> {t("kader.pool.ofTotal", { total: rows.length })}</span>
+                <FilterMenus items={rows.filter(inScope)} defs={defs} state={filters} onChange={setFilters} />
+                <span className="kp-muted"><b className="kp-mono kp-big-n">{shown.length}</b> {t("kader.pool.ofTotal", { count: rows.length })}</span>
                 <FilterChips defs={defs} state={filters} onChange={setFilters} />
             </div>
             <div className="kp-panel kp-table kp-scroll-x">
@@ -192,21 +191,18 @@ export default function PoolView() {
                     <span className="kicker">{t("kader.pool.colAttendance")}</span>
                     <span className="kicker">{t("kader.pool.colSelection")}</span>
                 </div>
-                {shown.length === 0 && (
-                    <div className="kp-empty">
-                        {rows.length ? t("kader.pool.none") : t("kader.pool.emptyKader")}
-                        {!rows.length && canWrite && <div className="kp-gap"><Button icon={<PlusIcon />} onClick={() => open({ type: "import" })}>{t("kader.pool.import")}</Button></div>}
-                    </div>
-                )}
+                {shown.length === 0 && (rows.length
+                    ? <EmptyState icon={<SearchIcon />} text={t("kader.pool.none")} />
+                    : <EmptyState icon={<RosterIcon />} text={t("kader.pool.emptyKader")}>{canWrite && importButton}</EmptyState>)}
                 {shown.map((r) => (
                     <PoolRow key={r.userId} row={r} marked={marked.includes(r.userId)}
                         onMark={(on) => setMarked(on ? [...marked, r.userId] : marked.filter((id) => id !== r.userId))} />
                 ))}
             </div>
             <BatchBar count={markedRows.length} onClear={() => setMarked([])}>
-                <Button size="sm" onClick={() => void moveMarked("selected")}>{t("kader.pool.batchSelect")}</Button>
-                <Button size="sm" variant="ghost" onClick={() => void moveMarked("pool")}>{t("kader.pool.batchUnselect")}</Button>
-                <button type="button" className="kp-link kp-danger" onClick={() => void removeMarked()}>{t("kader.pool.remove")}</button>
+                <Button size="sm" icon={<ListChecksIcon />} onClick={() => void moveMarked("selected")}>{t("kader.pool.batchSelect")}</Button>
+                <Button size="sm" variant="ghost" icon={<ChevronLeftIcon />} onClick={() => void moveMarked("pool")}>{t("kader.pool.batchUnselect")}</Button>
+                <Button size="sm" variant="danger" icon={<TrashIcon />} onClick={() => void removeMarked()}>{t("kader.pool.remove")}</Button>
             </BatchBar>
         </div>
     );

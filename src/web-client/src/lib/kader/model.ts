@@ -104,6 +104,21 @@ export function mainPick(player: KaderPlayer | undefined, entry?: KaderEntry): K
     return null;
 }
 
+/** One choice of the spec picker: a wish (rank 1…), the decision outside the wishes (0) or a spec no longer wished (-1). */
+export type WishOption = { pick: KaderWish; rank: number };
+
+/**
+ * What a player can stand for, as the spec picker lists it: the wishes in wish
+ * order, a decision that is none of them first; `current` (a setup slot's spec)
+ * is kept even when it is gone from both.
+ */
+export function wishOptions(entry: KaderEntry, current = ""): WishOption[] {
+    const out: WishOption[] = entry.wishes.map((w, i) => ({ pick: w, rank: i + 1 }));
+    if (entry.decision && !out.some((o) => o.pick.spec === entry.decision?.spec)) out.unshift({ pick: entry.decision, rank: 0 });
+    if (current && !out.some((o) => o.pick.spec === current)) out.unshift({ pick: { className: classOfSpec(current), spec: current }, rank: -1 });
+    return out;
+}
+
 /** A player's name for the page: the Discord name, else what the Kader kept. */
 export function playerName(view: KaderView, userId: string, entry?: KaderEntry): string {
     const p = view.players.find((x) => x.userId === userId);

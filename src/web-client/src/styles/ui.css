@@ -64,6 +64,7 @@
 }
 .seg-opt + .seg-opt { border-left: 1px solid var(--line); }
 .seg-opt .wi { width: 18px; height: 18px; }
+.seg-opt > svg { width: 15px; height: 15px; flex: none; }
 .seg-opt:hover:not(:disabled):not(.active) { color: var(--text); background: var(--panel3); }
 .seg-opt.active { background: var(--accent-soft); color: var(--accent); }
 .seg-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }

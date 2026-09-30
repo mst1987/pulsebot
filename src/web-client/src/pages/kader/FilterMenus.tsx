@@ -8,7 +8,7 @@ import { CheckIcon, ChevronDownIcon } from "../../components/icons";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 import { chipsOf, countFor, toggle, type FilterDef, type FilterState } from "../../lib/kader/filters";
-import { ClassIcon, RoleIcon, SpecIcon } from "./parts";
+import { ClassIcon, Count, RoleIcon, SpecIcon } from "./parts";
 import type { KaderRole } from "../../api";
 
 function OptionIcon({ icon }: { icon: NonNullable<FilterDef<unknown>["options"][number]["icon"]> }) {
@@ -25,6 +25,7 @@ export function FilterMenus<T>({ items, defs, state, onChange, children }: {
     /** More controls in the same row (search first, a segment, a button). */
     children?: ReactNode;
 }) {
+    const t = useT();
     const [open, setOpen] = useState<string | null>(null);
     const ref = useRef<HTMLDivElement>(null);
     useDismiss(ref, open !== null, () => setOpen(null));
@@ -55,7 +56,7 @@ export function FilterMenus<T>({ items, defs, state, onChange, children }: {
                                             <span className={`kp-check${checked ? " kp-on" : ""}`}>{checked && <CheckIcon />}</span>
                                             {o.icon && <OptionIcon icon={o.icon} />}
                                             <span className={`kp-grow${o.color ? " class-colored" : ""}`} style={o.color ? { "--cc": o.color } as CSSProperties : undefined}>{o.label}</span>
-                                            <span className="kp-mono kp-muted">{countFor(items, defs, state, def, o)}</span>
+                                            <Count n={countFor(items, defs, state, def, o)} tip={t("kader.playersN", { count: countFor(items, defs, state, def, o) })} className="kp-count-quiet" />
                                         </button>
                                     );
                                 })}

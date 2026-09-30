@@ -7,7 +7,8 @@
 // open Kader shows on top.
 import { useMemo, useState, type CSSProperties } from "react";
 import { removeKaderAccount, resetKaderAssignment, saveKaderAssignment, type KaderCharacterInput, type KaderDay, type KaderGear, type KaderNameStyle, type KaderPlayer } from "../../api";
-import { Badge, Button, Modal, Segment } from "../../components/ui";
+import { Badge, Button, Field, Modal, Segment } from "../../components/ui";
+import { RefreshIcon, SaveIcon, TrashIcon } from "../../components/icons";
 import { useConfirm } from "../../components/ui/Modal";
 import { useT } from "../../i18n";
 import { roleLabel } from "../../lib/wowNames";
@@ -156,117 +157,125 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
             tone="kader"
             kicker={player.hasProfile ? t("kader.account.withProfile") : t("kader.account.manual")}
             title={`@${player.displayName}`}
-            width={900}
+            width={920}
+            className="kp-dialog"
             hint={canWrite ? t("kader.account.onlyPlanner") : undefined}
             footer={canWrite ? (
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={busy || !allValid} onClick={() => void save()}>{t("common.apply")}</Button>
+                    <Button icon={<SaveIcon />} disabled={busy || !allValid} onClick={() => void save()}>{t("common.apply")}</Button>
                 </>
             ) : <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}
         >
-            <div className="kp-acc-status">
-                {entry ? (
-                    <>
-                        <span className="kicker">{t("kader.account.inKader", { kader: kader.name })}</span>
-                        <StateBadge state={entry.state} />
-                        <span className="kp-sub"><SinceText entry={entry} /></span>
-                    </>
-                ) : <span className="kp-muted">{t("kader.account.notInKader", { kader: kader.name })}</span>}
-                <span className="kp-grow" />
-                {canWrite && player.hasOverride && <button type="button" className="kp-link" onClick={() => void reset()}>{t("kader.account.reset")}</button>}
-                {canWrite && player.manual && <button type="button" className="kp-link kp-danger" onClick={() => void removeAccount()}>{t("kader.account.remove")}</button>}
-            </div>
-            <div className="kp-chartabs" role="tablist" aria-label={t("kader.account.characters")}>
-                {chars.map((c, i) => {
-                    const def = classDef(view.classes, c.className);
-                    return (
-                        <button key={c.id} type="button" role="tab" aria-selected={i === sel} className={`kp-chartab${i === sel ? " kp-active" : ""}${def ? " class-colored" : ""}`}
-                            style={def ? { "--cc": def.color } as CSSProperties : undefined} onClick={() => setSel(i)}>
-                            {c.name.trim() || t("kader.account.newChar")}{c.id === active ? ` · ${t("kader.account.used")}` : ""}
-                        </button>
-                    );
-                })}
-                {canWrite && <button type="button" className="kp-chartab kp-add" onClick={addChar} disabled={chars.length >= MAX_CHARS}>{t("kader.account.addChar")}</button>}
-            </div>
-            <div className="kp-accgrid">
-                {cur ? (
-                    <fieldset className="kp-editor" disabled={!canWrite}>
-                        <Segment<KaderNameStyle> size="sm" ariaLabel={t("kader.field.nameStyle")} value={cur.nameStyle}
-                            options={[{ value: "forever", label: t("kader.field.nameForever") }, { value: "nick", label: t("kader.field.nameNick") }]}
-                            onChange={(style) => patch((c) => ({ ...c, nameStyle: style, name: switchNameStyle(c.name, style) }))} />
-                        <div className="kp-namerow">
-                            {cur.nameStyle === "nick" ? (
-                                <label className="field">
-                                    <span className="field-label">{t("kader.field.nickname")}</span>
-                                    <input maxLength={24} value={cur.name.trimStart()} onChange={(e) => patch((c) => ({ ...c, name: e.target.value }))} />
-                                </label>
-                            ) : (
+            <div className="kp-stack">
+                <div className="kp-acc-status">
+                    {entry ? (
+                        <>
+                            <span className="kicker">{t("kader.account.inKader", { kader: kader.name })}</span>
+                            <StateBadge state={entry.state} />
+                            <span className="kp-sub"><SinceText entry={entry} /></span>
+                        </>
+                    ) : <span className="kp-muted">{t("kader.account.notInKader", { kader: kader.name })}</span>}
+                    <span className="kp-grow" />
+                    {canWrite && player.hasOverride && <Button variant="ghost" size="sm" icon={<RefreshIcon />} onClick={() => void reset()}>{t("kader.account.reset")}</Button>}
+                    {canWrite && player.manual && <Button variant="danger" size="sm" icon={<TrashIcon />} onClick={() => void removeAccount()}>{t("kader.account.remove")}</Button>}
+                </div>
+                <div className="kp-chartabs" role="tablist" aria-label={t("kader.account.characters")}>
+                    {chars.map((c, i) => {
+                        const def = classDef(view.classes, c.className);
+                        return (
+                            <button key={c.id} type="button" role="tab" aria-selected={i === sel} className={`kp-chartab${i === sel ? " kp-active" : ""}${def ? " class-colored" : ""}`}
+                                style={def ? { "--cc": def.color } as CSSProperties : undefined} onClick={() => setSel(i)}>
+                                {c.name.trim() || t("kader.account.newChar")}{c.id === active ? ` · ${t("kader.account.used")}` : ""}
+                            </button>
+                        );
+                    })}
+                    {canWrite && <button type="button" className="kp-chartab kp-add" onClick={addChar} disabled={chars.length >= MAX_CHARS}>{t("kader.account.addChar")}</button>}
+                </div>
+                <div className="kp-accgrid">
+                    {cur ? (
+                        <fieldset className="kp-editor" disabled={!canWrite}>
+                            <div className="kp-fgroup">
+                                <Segment<KaderNameStyle> size="sm" ariaLabel={t("kader.field.nameStyle")} value={cur.nameStyle}
+                                    options={[{ value: "forever", label: t("kader.field.nameForever") }, { value: "nick", label: t("kader.field.nameNick") }]}
+                                    onChange={(style) => patch((c) => ({ ...c, nameStyle: style, name: switchNameStyle(c.name, style) }))} />
+                                <div className="kp-namerow">
+                                    {cur.nameStyle === "nick" ? (
+                                        <Field label={t("kader.field.nickname")} htmlFor="kp-acc-nick">
+                                            <input id="kp-acc-nick" maxLength={24} value={cur.name.trimStart()} onChange={(e) => patch((c) => ({ ...c, name: e.target.value }))} />
+                                        </Field>
+                                    ) : (
+                                        <>
+                                            <Field label={t("kader.field.firstName")} htmlFor="kp-acc-first">
+                                                <input id="kp-acc-first" maxLength={12} value={first} onChange={(e) => setName(e.target.value.replace(/\s/g, ""), last)} />
+                                            </Field>
+                                            <Field label={t("kader.field.lastName")} htmlFor="kp-acc-last">
+                                                <input id="kp-acc-last" maxLength={12} value={last} onChange={(e) => setName(first, e.target.value.replace(/\s/g, ""))} />
+                                            </Field>
+                                        </>
+                                    )}
+                                    {cur.id !== active && <Button variant="ghost" size="sm" onClick={() => setActive(cur.id)}>{t("kader.account.use")}</Button>}
+                                </div>
+                                {!nameOk(cur.name, cur.nameStyle) && cur.name.trim() !== "" && <span className="kp-error">{cur.nameStyle === "nick" ? t("kader.account.nickRule") : t("kader.account.nameRule")}</span>}
+                            </div>
+                            <div className="kp-fgroup">
+                                <div className="kicker">{t("kader.field.class")}</div>
+                                <div className="kp-classgrid">
+                                    {view.classes.map((c) => (
+                                        <button key={c.key} type="button" aria-pressed={cur.className === c.key} className={`kp-classtile class-colored${cur.className === c.key ? " kp-active" : ""}`}
+                                            style={{ "--cc": c.color } as CSSProperties} onClick={() => setClass(c.key)}>
+                                            <ClassIcon classKey={c.key} size={20} />{className(view.classes, c.key)}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            {cls && (
                                 <>
-                                    <label className="field">
-                                        <span className="field-label">{t("kader.field.firstName")}</span>
-                                        <input maxLength={12} value={first} onChange={(e) => setName(e.target.value.replace(/\s/g, ""), last)} />
-                                    </label>
-                                    <label className="field">
-                                        <span className="field-label">{t("kader.field.lastName")}</span>
-                                        <input maxLength={12} value={last} onChange={(e) => setName(first, e.target.value.replace(/\s/g, ""))} />
-                                    </label>
+                                    <div className="kp-fgroup">
+                                        <div className="kicker">{t("kader.field.specs")}</div>
+                                        <div className="kp-specrow">
+                                            {cls.specs.map((s) => {
+                                                const pick = cur.specs.find((x) => x.spec === s.key);
+                                                const state = pick ? (pick.main ? "kp-main" : "kp-alt") : "";
+                                                return (
+                                                    <div key={s.key} className={`kp-spectile ${state}`}>
+                                                        <button type="button" className="kp-spectoggle" aria-pressed={!!pick} onClick={() => toggleSpec(s.key)}>
+                                                            <SpecIcon specKey={s.key} size={22} />
+                                                            <span className="kp-col">
+                                                                <span className="kp-specname">{specName(view.classes, s.key)}</span>
+                                                                <span className="kp-sub">{roleLabel(s.role)}</span>
+                                                            </span>
+                                                        </button>
+                                                        <button type="button" className="kp-star" aria-pressed={!!pick && pick.main} aria-label={t("kader.account.makeMain", { spec: specName(view.classes, s.key) })}
+                                                            data-tip={t("kader.account.mainTip")} onClick={() => makeMain(s.key)}>{pick && pick.main ? "★" : "☆"}</button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    <div className="kp-fgroup">
+                                        <div className="kicker">{t("kader.field.gear")}</div>
+                                        <Segment<KaderGear> size="sm" ariaLabel={t("kader.field.gear")} value={main ? main.gear : "none"}
+                                            options={GEARS.map((g) => ({ value: g, label: t(`kader.gear.${g}`), disabled: !main }))} onChange={setGear} />
+                                        <div className="kp-switches">
+                                            <label className={cls.canTank ? "" : "kp-off"} data-tip={cls.canTank ? undefined : t("kader.account.noTank")}>
+                                                <input type="checkbox" disabled={!cls.canTank} checked={cur.canTank} onChange={(e) => patch((c) => ({ ...c, canTank: e.target.checked }))} /> <RoleIcon role="tank" size={18} /> {t("kader.account.canTank")}
+                                            </label>
+                                            <label className={cls.canHeal ? "" : "kp-off"} data-tip={cls.canHeal ? undefined : t("kader.account.noHeal")}>
+                                                <input type="checkbox" disabled={!cls.canHeal} checked={cur.canHeal} onChange={(e) => patch((c) => ({ ...c, canHeal: e.target.checked }))} /> <RoleIcon role="healer" size={18} /> {t("kader.account.canHeal")}
+                                            </label>
+                                        </div>
+                                    </div>
                                 </>
                             )}
-                            {cur.id !== active && <Button variant="ghost" size="sm" onClick={() => setActive(cur.id)}>{t("kader.account.use")}</Button>}
-                        </div>
-                        {!nameOk(cur.name, cur.nameStyle) && cur.name.trim() !== "" && <span className="kp-error">{cur.nameStyle === "nick" ? t("kader.account.nickRule") : t("kader.account.nameRule")}</span>}
-                        <div className="kicker">{t("kader.field.class")}</div>
-                        <div className="kp-classgrid">
-                            {view.classes.map((c) => (
-                                <button key={c.key} type="button" aria-pressed={cur.className === c.key} className={`kp-classtile class-colored${cur.className === c.key ? " kp-active" : ""}`}
-                                    style={{ "--cc": c.color } as CSSProperties} onClick={() => setClass(c.key)}>
-                                    <ClassIcon classKey={c.key} size={20} />{className(view.classes, c.key)}
-                                </button>
-                            ))}
-                        </div>
-                        {cls && (
-                            <>
-                                <div className="kicker">{t("kader.field.specs")}</div>
-                                <div className="kp-specrow">
-                                    {cls.specs.map((s) => {
-                                        const pick = cur.specs.find((x) => x.spec === s.key);
-                                        const state = pick ? (pick.main ? "kp-main" : "kp-alt") : "";
-                                        return (
-                                            <div key={s.key} className={`kp-spectile ${state}`}>
-                                                <button type="button" className="kp-spectoggle" aria-pressed={!!pick} onClick={() => toggleSpec(s.key)}>
-                                                    <SpecIcon specKey={s.key} size={22} />
-                                                    <span className="kp-col">
-                                                    <span className="kp-specname">{specName(view.classes, s.key)}</span>
-                                                    <span className="kp-sub">{roleLabel(s.role)}</span>
-                                                    </span>
-                                                </button>
-                                                <button type="button" className="kp-star" aria-pressed={!!pick && pick.main} aria-label={t("kader.account.makeMain", { spec: specName(view.classes, s.key) })}
-                                                    data-tip={t("kader.account.mainTip")} onClick={() => makeMain(s.key)}>{pick && pick.main ? "★" : "☆"}</button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="kicker">{t("kader.field.gear")}</div>
-                                <Segment<KaderGear> size="sm" ariaLabel={t("kader.field.gear")} value={main ? main.gear : "none"}
-                                    options={GEARS.map((g) => ({ value: g, label: t(`kader.gear.${g}`), disabled: !main }))} onChange={setGear} />
-                                <div className="kp-switches">
-                                    <label className={cls.canTank ? "" : "kp-off"} data-tip={cls.canTank ? undefined : t("kader.account.noTank")}>
-                                        <input type="checkbox" disabled={!cls.canTank} checked={cur.canTank} onChange={(e) => patch((c) => ({ ...c, canTank: e.target.checked }))} /> <RoleIcon role="tank" size={18} /> {t("kader.account.canTank")}
-                                    </label>
-                                    <label className={cls.canHeal ? "" : "kp-off"} data-tip={cls.canHeal ? undefined : t("kader.account.noHeal")}>
-                                        <input type="checkbox" disabled={!cls.canHeal} checked={cur.canHeal} onChange={(e) => patch((c) => ({ ...c, canHeal: e.target.checked }))} /> <RoleIcon role="healer" size={18} /> {t("kader.account.canHeal")}
-                                    </label>
-                                </div>
-                            </>
-                        )}
-                        {canWrite && <button type="button" className="kp-link kp-danger kp-start" onClick={removeChar}>{t("kader.account.removeChar")}</button>}
-                        {cur.id === active && player.differs.length > 0 && !dirty && <Badge tone="mid" size="sm">{t("kader.diff.badge")}</Badge>}
-                    </fieldset>
-                ) : (
-                    <div className="kp-editor"><p className="kp-hint">{t("kader.account.noChars")}</p></div>
-                )}
-                <ProfilePanel player={player} />
+                            {canWrite && <button type="button" className="kp-link kp-danger" onClick={removeChar}>{t("kader.account.removeChar")}</button>}
+                            {cur.id === active && player.differs.length > 0 && !dirty && <Badge tone="mid" size="sm">{t("kader.diff.badge")}</Badge>}
+                        </fieldset>
+                    ) : (
+                        <div className="kp-editor"><p className="kp-hint">{t("kader.account.noChars")}</p></div>
+                    )}
+                    <ProfilePanel player={player} />
+                </div>
             </div>
         </Modal>
     );

@@ -31,6 +31,14 @@ describe("Segment", () => {
         expect(screen.getByRole("radio", { name: "Tank" })).toHaveAttribute("data-tip", "Nur Tanks");
     });
 
+    it("draws a line icon node beside the label", () => {
+        render(
+            <Segment<Role> ariaLabel="Stand" value="all" onChange={vi.fn()}
+                options={[{ value: "all", label: "Alle", icon: <svg data-testid="line-icon" /> }, { value: "tank", label: "Tank" }]} />,
+        );
+        expect(screen.getByRole("radio", { name: "Alle" })).toContainElement(screen.getByTestId("line-icon"));
+    });
+
     it("reports the picked value, and a disabled option cannot be picked", async () => {
         const onChange = renderSegment("all");
         await userEvent.click(screen.getByRole("radio", { name: "Tank" }));

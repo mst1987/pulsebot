@@ -1,15 +1,16 @@
 // "Aus Discord-Rolle hinzufügen": pick roles of the server; everybody holding at
 // least one of them shows on the right with the character they would be
-// prefilled with (profile, logs or nothing yet). Whoever is new is taken into
-// this Kader's pool; who is already in the Kader stays as they are.
+// prefilled with (spec icon plus class; profile, logs or nothing yet). Whoever
+// is new is taken into this Kader's pool; who is already in the Kader stays as
+// they are.
 import { useMemo, useState, type CSSProperties } from "react";
 import { addKaderPlayers, type KaderMember } from "../../api";
 import { Button, Modal, Segment } from "../../components/ui";
 import { useToast } from "../../components/Jobs";
-import { CheckIcon, SearchIcon } from "../../components/icons";
+import { AlertIcon, CheckIcon, RecruitmentIcon, SearchIcon } from "../../components/icons";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
-import { PickIcon, PickLabel } from "./parts";
+import { EmptyState, SpecTag } from "./parts";
 import { useKader } from "./kaderContext";
 
 type List = "new" | "known" | "nodata";
@@ -62,12 +63,12 @@ export default function ImportModal({ onClose, onById }: { onClose: () => void; 
             kicker={t("kader.import.kicker", { name: kader.name })}
             title={t("kader.import.title")}
             width={1080}
-            className="kp-import"
+            className="kp-import kp-dialog"
             hint={chosen.length ? t("kader.import.summary", { n: chosen.length, missing: chosenNoData }) : undefined}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={!chosen.length || busy} onClick={() => void submit()}>{t("kader.import.submit", { n: chosen.length })}</Button>
+                    <Button icon={<RecruitmentIcon />} disabled={!chosen.length || busy} onClick={() => void submit()}>{t("kader.import.submit", { n: chosen.length })}</Button>
                 </>
             )}
         >
@@ -79,7 +80,7 @@ export default function ImportModal({ onClose, onById }: { onClose: () => void; 
                         <input type="search" aria-label={t("kader.import.roleSearch")} placeholder={t("kader.import.roleSearch")} value={roleQ} onChange={(e) => setRoleQ(e.target.value)} />
                     </label>
                     <div className="kp-rolelist">
-                        {view.discordRoles.length === 0 && <span className="kp-hint">{t("kader.import.noRoles")}</span>}
+                        {view.discordRoles.length === 0 && <EmptyState icon={<AlertIcon />} text={t("kader.import.noRoles")} />}
                         {shownRoles.map((r) => {
                             const on = roles.includes(r.id);
                             return (
@@ -88,7 +89,7 @@ export default function ImportModal({ onClose, onById }: { onClose: () => void; 
                                     <span className={`kp-check${on ? " kp-on" : ""}`}>{on && <CheckIcon />}</span>
                                     <span className="kp-dot" style={{ "--cc": r.color || "var(--muted)" } as CSSProperties} />
                                     <span className="kp-grow">{r.name}</span>
-                                    <span className="kp-mono kp-muted">{r.count}</span>
+                                    <span className="kp-mono kp-muted" data-tip={t("kader.import.holders", { count: r.count })}>{r.count}</span>
                                 </button>
                             );
                         })}
@@ -103,7 +104,7 @@ export default function ImportModal({ onClose, onById }: { onClose: () => void; 
                         <Segment<List> size="sm" ariaLabel={t("kader.import.lists")} value={list} onChange={setList} options={[
                             { value: "new", label: t("kader.import.listNew", { n: fresh.length }) },
                             { value: "known", label: t("kader.import.listKnown", { n: known.length }) },
-                            { value: "nodata", label: t("kader.import.listNoData", { n: noData.length }) },
+                            { value: "nodata", label: t("kader.import.listNoData", { n: noData.length }), icon: noData.length ? <AlertIcon /> : undefined },
                         ]} />
                     </div>
                     <div className="kp-trow kp-thead kp-import-row">
@@ -113,8 +114,8 @@ export default function ImportModal({ onClose, onById }: { onClose: () => void; 
                         <span className="kicker">{t("kader.import.colSource")}</span>
                     </div>
                     <div className="kp-import-rows">
-                        {!roles.length && <div className="kp-empty">{t("kader.import.pickRoles")}</div>}
-                        {!!roles.length && !rows.length && <div className="kp-empty">{t("kader.import.nobody")}</div>}
+                        {!roles.length && <EmptyState icon={<RecruitmentIcon />} text={t("kader.import.pickRoles")} />}
+                        {!!roles.length && !rows.length && <EmptyState icon={<SearchIcon />} text={t("kader.import.nobody")} />}
                         {rows.map((m) => {
                             const member = inKader(m);
                             const checked = !member && !skip.includes(m.userId);
@@ -127,8 +128,7 @@ export default function ImportModal({ onClose, onById }: { onClose: () => void; 
                                         <span className="kp-sub">{roleNames(m)}</span>
                                     </span>
                                     <span className="kp-cell-char">
-                                        <PickIcon pick={m.prefill} size={22} />
-                                        {m.prefill ? <PickLabel pick={m.prefill} className="kp-ellipsis" /> : <span className="kp-warntext">{t("kader.import.noData")}</span>}
+                                        {m.prefill ? <SpecTag pick={m.prefill} size={22} /> : <span className="kp-warntext">{t("kader.import.noData")}</span>}
                                     </span>
                                     <span className={`kp-sub${m.prefill ? "" : " kp-warntext"}`}>{sourceText(m)}</span>
                                 </div>

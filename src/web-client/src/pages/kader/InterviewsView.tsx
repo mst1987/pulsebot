@@ -1,11 +1,12 @@
 // Step 2 · Vorauswahl · Gespräche (/kader/<id>/vorauswahl): the players in the
-// Vorauswahl on the left (Offen / Geführt / Alle), the interview of the chosen
-// one on the right — the wishes in order (the first is the favourite), the note
-// and the questions of this Kader. It saves itself a moment after each change
-// (only what changed), when another player is chosen and when the page is left.
-// "Gespräch abschließen" needs a wish and every required answer; a completed
-// interview is locked until it is opened again. ?spieler=<id> picks the player —
-// also one further along (the drawer of the Vorläufig step links here).
+// Vorauswahl on the left (○ Offen / ✓ Geführt / Alle), the interview of the
+// chosen one on the right — the wishes in order (the first is the favourite;
+// spec icon plus class), the note and the questions of this Kader, each with
+// its status (✓ beantwortet, ! noch offen). It saves itself a moment after each
+// change (only what changed), when another player is chosen and when the page
+// is left. "Gespräch abschließen" needs a wish and every required answer; a
+// completed interview is locked until it is opened again. ?spieler=<id> picks
+// the player — also one further along (the Vorläufig drawer links here).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -13,7 +14,7 @@ import {
     type KaderAnswer, type KaderEntry, type KaderQuestion, type KaderWish,
 } from "../../api";
 import { Button, IconButton, Segment, buttonClass } from "../../components/ui";
-import { BookIcon, ChevronDownIcon, PlusIcon, XIcon } from "../../components/icons";
+import { AlertIcon, BookIcon, CheckIcon, ChevronDownIcon, ChevronLeftIcon, CircleIcon, EditIcon, ListChecksIcon, PlusIcon, SaveIcon, XIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
@@ -22,7 +23,7 @@ import { classDef, className, dayOf, mainPick, nameOf, playerName, specName, spe
 import {
     dayShort, draftOf, isAnswered, isWeekdays, moveWish, patchOf, placeWish, progress, statusOf, toggleAnswer, type InterviewDraft,
 } from "../../lib/kader/interview";
-import { Grip, InterviewChip, PickIcon, PickLabel, PlayerName, SelectionTabs, StateSince } from "./parts";
+import { Count, DoneBadge, EmptyState, Grip, InterviewChip, PickIcon, PickLabel, PlayerName, ProgressRing, SelectionTabs, SpecIcon, SpecTag, StateSince } from "./parts";
 import { useKader } from "./kaderContext";
 
 type Shown = "open" | "done" | "all";
@@ -43,7 +44,10 @@ function ListRow({ userId, entry, current, onPick }: { userId: string; entry: Ka
         <button type="button" className={`kp-ivrow${current ? " kp-current" : ""}`} aria-current={current ? "true" : undefined} onClick={onPick}>
             <PickIcon pick={mainPick(players.get(userId), entry)} size={26} />
             <span className="kp-col kp-grow">
-                <span className="kp-strong kp-ellipsis">{playerName(view, userId, entry)}</span>
+                <span className="kp-ivrow-name">
+                    <span className="kp-strong kp-ellipsis">{playerName(view, userId, entry)}</span>
+                    {status === "done" && <DoneBadge />}
+                </span>
                 <span className="kp-sub">{sub}</span>
             </span>
             <InterviewChip entry={entry} />
@@ -51,7 +55,7 @@ function ListRow({ userId, entry, current, onPick }: { userId: string; entry: Ka
     );
 }
 
-/** The wishes in order: drag or the arrows move one, "+ Wunsch" adds a class and spec. */
+/** The wishes in order: drag or the arrows move one; a class and one of its spec icons add one. */
 function WishEditor({ wishes, prefill, locked, onChange }: { wishes: KaderWish[]; prefill: KaderWish | null; locked: boolean; onChange: (wishes: KaderWish[]) => void }) {
     const t = useT();
     const { view } = useKader();
@@ -111,7 +115,6 @@ function WishEditor({ wishes, prefill, locked, onChange }: { wishes: KaderWish[]
             </ol>
             {!locked && (
                 <div className="kp-wishadd">
-                    {cls && <PickIcon pick={pick || { className: cls, spec: "" }} size={30} />}
                     <label className="field">
                         <span className="field-label">{t("kader.field.class")}</span>
                         <select value={cls} onChange={(e) => pickClass(e.target.value)}>
@@ -119,12 +122,22 @@ function WishEditor({ wishes, prefill, locked, onChange }: { wishes: KaderWish[]
                             {view.classes.map((c) => <option key={c.key} value={c.key}>{className(view.classes, c.key)}</option>)}
                         </select>
                     </label>
-                    <label className="field">
-                        <span className="field-label">{t("kader.field.spec")}</span>
-                        <select value={spec} disabled={!def} onChange={(e) => setSpec(e.target.value)}>
-                            {(def ? def.specs : []).map((s) => <option key={s.key} value={s.key}>{specName(view.classes, s.key)}</option>)}
-                        </select>
-                    </label>
+                    {def && (
+                        <div className="kp-specpick" role="radiogroup" aria-label={t("kader.field.spec")}>
+                            {def.specs.map((s) => {
+                                const on = spec === s.key;
+                                const taken = wishes.some((w) => w.spec === s.key);
+                                return (
+                                    <button key={s.key} type="button" role="radio" aria-checked={on} disabled={taken}
+                                        aria-label={`${specName(view.classes, s.key)} · ${className(view.classes, def.key)}`}
+                                        data-tip={taken ? t("kader.interview.specTaken", { spec: specName(view.classes, s.key) }) : `${specName(view.classes, s.key)} · ${roleLabel(s.role)}`}
+                                        className={`kp-specbtn${on ? " kp-on" : ""}`} onClick={() => setSpec(s.key)}>
+                                        <SpecIcon specKey={s.key} size={26} />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                     <Button variant="ghost" icon={<PlusIcon />} disabled={!pick || known || wishes.length >= MAX_WISHES} onClick={add}>{t("kader.interview.addWish")}</Button>
                 </div>
             )}
@@ -136,11 +149,16 @@ function WishEditor({ wishes, prefill, locked, onChange }: { wishes: KaderWish[]
 function QuestionField({ q, value, onChange }: { q: KaderQuestion; value: KaderAnswer | undefined; onChange: (value: KaderAnswer) => void }) {
     const t = useT();
     const days = isWeekdays(q);
-    const open = q.required && !isAnswered(q, value);
+    const answered = isAnswered(q, value);
+    const open = q.required && !answered;
     return (
         <div className="kp-qfield">
             <span className="kp-qlabel">
-                {q.text} <span className={open ? "kp-warntext" : "kp-muted"}>· {open ? t("kader.interview.stillOpen") : t(`kader.qtype.${q.type}Hint`)}</span>
+                {answered
+                    ? <span className="kp-qstate kp-ok" role="img" aria-label={t("kader.interview.answered")}><CheckIcon /></span>
+                    : open ? <span className="kp-qstate kp-open" role="img" aria-label={t("kader.interview.stillOpen")}><AlertIcon /></span> : <span className="kp-qstate" aria-hidden="true" />}
+                <span>{q.text}</span>
+                <span className={open ? "kp-warntext" : "kp-muted"}>· {open ? t("kader.interview.stillOpen") : t(`kader.qtype.${q.type}Hint`)}</span>
             </span>
             {q.type === "text" ? (
                 <textarea rows={2} maxLength={1000} aria-label={q.text} value={typeof value === "string" ? value : ""} onChange={(e) => onChange(e.target.value)} />
@@ -243,9 +261,9 @@ function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: 
         <section className="kp-panel kp-iv-main" aria-label={t("kader.interview.aria", { name })}>
             <div className="kp-iv-head">
                 <div className="kp-col kp-grow">
-                    <h2 className="kp-iv-name"><PlayerName userId={userId} entry={entry} /></h2>
+                    <h2 className="kp-iv-name"><PlayerName userId={userId} entry={entry} />{done && <DoneBadge />}</h2>
                     <span className="kp-iv-meta">
-                        {pre ? <span>{t("kader.interview.prefilled")} <PickLabel pick={pre} /> <span className="kp-muted">({pre.name})</span></span> : <span>{t("kader.interview.noPrefill")}</span>}
+                        {pre ? <span className="kp-inline">{t("kader.interview.prefilled")} <SpecTag pick={pre} size={18} /> <span className="kp-muted">({pre.name})</span></span> : <span>{t("kader.interview.noPrefill")}</span>}
                         <span className="kp-muted"><StateSince entry={entry} /></span>
                     </span>
                 </div>
@@ -256,9 +274,12 @@ function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: 
                         {leads.map((id) => <option key={id} value={id}>{nameOf(view, id)}</option>)}
                     </select>
                 </label>
-                <span className={`kp-ivchip kp-ivchip-lg ${complete ? "kp-iv-done" : "kp-iv-started"}`}>{t("kader.interview.progress", { done: prog.done, total: prog.total })}</span>
+                <span className={`kp-ivchip kp-ivchip-lg ${complete ? "kp-iv-done" : "kp-iv-started"}`}>
+                    {complete ? <CheckIcon /> : <ProgressRing done={prog.done} total={prog.total} />}
+                    {t("kader.interview.progress", { done: prog.done, total: prog.total })}
+                </span>
             </div>
-            {done && <p className="kp-lockhint">{t("kader.interview.locked", { date: dayOf(iv.completedAt), by: nameOf(view, iv.completedBy) })}</p>}
+            {done && <p className="kp-lockhint"><CheckIcon />{t("kader.interview.locked", { date: dayOf(iv.completedAt), by: nameOf(view, iv.completedBy) })}</p>}
             <fieldset className="kp-iv-body" disabled={locked}>
                 <div className="kp-iv-col">
                     <div className="kp-between">
@@ -288,14 +309,16 @@ function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: 
                         : iv.updatedAt ? t("kader.interview.lastSaved", { by: nameOf(view, iv.updatedBy), at: stampOf(iv.updatedAt) })
                             : t("kader.interview.notSaved")}
                 </span>
-                {canWrite && entry.state === "selected" && <button type="button" className="kp-link kp-quiet" onClick={() => void toPool()}>{t("kader.interview.toPool")}</button>}
+                {canWrite && entry.state === "selected" && (
+                    <button type="button" className="kp-link kp-quiet kp-withicon" onClick={() => void toPool()}><ChevronLeftIcon />{t("kader.interview.toPool")}</button>
+                )}
                 <span className="kp-grow" />
-                {canWrite && !done && !complete && <span className="kp-sub kp-warntext">{t("kader.interview.missing", { list: missing.join(", ") })}</span>}
-                {canWrite && done && <Button variant="ghost" onClick={() => void run(reopenKaderInterview(kader.id, userId))}>{t("kader.interview.reopen")}</Button>}
+                {canWrite && !done && !complete && <span className="kp-sub kp-warntext kp-withicon"><AlertIcon />{t("kader.interview.missing", { list: missing.join(", ") })}</span>}
+                {canWrite && done && <Button variant="ghost" icon={<EditIcon />} onClick={() => void run(reopenKaderInterview(kader.id, userId))}>{t("kader.interview.reopen")}</Button>}
                 {canWrite && !done && (
                     <>
-                        <Button variant="ghost" onClick={() => void saveNext()}>{next ? t("kader.interview.saveNext") : t("common.save")}</Button>
-                        <Button disabled={!complete} onClick={() => void finish()}>{t("kader.interview.complete")}</Button>
+                        <Button variant="ghost" icon={<SaveIcon />} onClick={() => void saveNext()}>{next ? t("kader.interview.saveNext") : t("common.save")}</Button>
+                        <Button icon={<CheckIcon />} disabled={!complete} onClick={() => void finish()}>{t("kader.interview.complete")}</Button>
                     </>
                 )}
             </div>
@@ -326,29 +349,30 @@ export default function InterviewsView() {
             <SelectionTabs sub="vorauswahl">
                 <span className="kp-grow" />
                 <Link to={`/kader/${kader.id}/fragen`} className={buttonClass("ghost", "md", true, "kp-qlink")}>
-                    <BookIcon />{t("kader.interview.questionsLink")}<span className="kp-mono kp-muted">{kader.questions.length}</span>
+                    <BookIcon />{t("kader.interview.questionsLink")}<Count n={kader.questions.length} tip={t("kader.questions.countN", { n: kader.questions.length })} />
                 </Link>
             </SelectionTabs>
             <div className="kp-iv">
                 <section className="kp-panel kp-iv-list" aria-label={t("kader.interview.listTitle")}>
-                    <div className="kp-between">
+                    <div className="kp-listhead">
                         <h2>{t("kader.interview.listTitle")}</h2>
-                        <span className="kp-mono kp-muted">{rows.length}</span>
+                        <Count n={rows.length} tip={t("kader.nav.count.selected", { count: rows.length })} />
                     </div>
                     <Segment<Shown> size="sm" ariaLabel={t("kader.interview.listAria")} value={shown} onChange={setShown} options={[
-                        { value: "open", label: t("kader.interview.listOpen", { n: rows.length - doneCount }) },
-                        { value: "done", label: t("kader.interview.listDone", { n: doneCount }) },
+                        { value: "open", label: t("kader.interview.listOpen", { n: rows.length - doneCount }), icon: <CircleIcon />, tip: t("kader.interview.listOpenTip", { count: rows.length - doneCount }) },
+                        { value: "done", label: t("kader.interview.listDone", { n: doneCount }), icon: <CheckIcon />, tip: t("kader.interview.listDoneTip", { count: doneCount }) },
                         { value: "all", label: t("kader.interview.listAll") },
                     ]} />
                     <div className="kp-ivrows">
-                        {list.length === 0 && <p className="kp-hint">{rows.length ? t("kader.interview.listEmpty") : t("kader.interview.nobodySelected")}</p>}
+                        {list.length === 0 && <EmptyState icon={shown === "done" ? <CheckIcon /> : <ListChecksIcon />} text={rows.length ? t("kader.interview.listEmpty") : t("kader.interview.nobodySelected")} />}
                         {list.map(([id, e]) => <ListRow key={id} userId={id} entry={e} current={id === currentId} onPick={() => go(id)} />)}
                     </div>
                 </section>
                 {entry ? <InterviewPanel key={currentId} userId={currentId} entry={entry} next={next} onGo={go} /> : (
-                    <section className="kp-panel kp-iv-main kp-empty">
-                        <p>{rows.length ? t("kader.interview.pick") : t("kader.interview.empty")}</p>
-                        {!rows.length && <Link className={buttonClass("primary")} to={`/kader/${kader.id}/pool`}>{t("kader.interview.toPoolPage")}</Link>}
+                    <section className="kp-panel kp-iv-main kp-iv-empty">
+                        <EmptyState icon={<ListChecksIcon />} text={rows.length ? t("kader.interview.pick") : t("kader.interview.empty")}>
+                            {!rows.length && <Link className={buttonClass("primary")} to={`/kader/${kader.id}/pool`}>{t("kader.interview.toPoolPage")}</Link>}
+                        </EmptyState>
                     </section>
                 )}
             </div>

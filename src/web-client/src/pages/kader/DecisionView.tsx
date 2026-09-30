@@ -1,52 +1,69 @@
-// Steps 3 and 4 · Vorläufig and Roster (/kader/<id>/roster): four columns —
-// Vorläufig (the leads discuss), Roster, Bench, Tentative — and the drawer of the
-// chosen player: the wishes, the interview, the leads' votes, comments, the
-// decision (which class and spec in the roster) and what happened so far. Cards
-// move by drag and drop or with the drawer's buttons; every move can go back.
-// ?spieler=<id> opens the drawer (on a phone it slides over the page).
+// Steps 3 and 4 · Vorläufig and Roster (/kader/<id>/roster): one grid of four
+// equal columns — Roster (two columns wide), Bench and Tentative on top, the
+// provisional roster (all four columns) below — so every card has the width of
+// one column and the same height. All four sections look alike; only a small
+// coloured line says which state they are. One card for all: spec icon and
+// name in the class colour, votes and comments on the right; below it the
+// decision (roster) or the wishes as numbered spec icons. The drawer of the
+// chosen player on the right: wishes, the interview, the leads' votes,
+// comments, the decision (a spec from the wishes, WishPicker) with Ins Roster /
+// Entscheidung ändern, Bench, Tentative and the step back, and the history.
+// Cards move by drag and drop or with the drawer's buttons; every move can go
+// back. ?spieler=<id> opens the drawer (on a phone it slides over the page).
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { addKaderComment, deleteKaderComment, setKaderState, setKaderVote, type KaderEntry, type KaderState, type KaderVote, type KaderWish } from "../../api";
 import { Button, IconButton, Segment } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
-import { CheckIcon, XIcon } from "../../components/icons";
+import { BenchIcon, CheckIcon, ChevronLeftIcon, CommentIcon, EditIcon, SendIcon, TentativeIcon, XIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { relativeDayLabel } from "../../lib/format";
 import { rolePluralLabel } from "../../lib/wowNames";
-import { canMove, dayOf, entriesIn, mainPick, nameOf, playerName, ROLES, roleCounts, specName, wishLabel } from "../../lib/kader/model";
+import { canMove, classColor, dayOf, entriesIn, mainPick, nameOf, playerName, ROLES, roleCounts, wishLabel, wishOptions } from "../../lib/kader/model";
+import { classColorProps } from "../../components/ClassSpec";
 import { dragProps, useDropZone } from "./dnd";
-import { AnswerLines, CommentIcon, HistoryLines, PickIcon, PlayerName, RoleIcon, StateSince, WishLines } from "./parts";
+import { AnswerLines, Count, HistoryLines, PickIcon, PickLabel, PlayerName, RoleIcon, StateIcon, StateSince, VoteIcon, WishIcons, WishLines } from "./parts";
+import WishPicker from "./WishPicker";
 import { useKader } from "./kaderContext";
 
+/** The sections in grid order: the decided states on top, the provisional roster below. */
+const SECTIONS: KaderState[] = ["roster", "bench", "tentative", "provisional"];
 const COLUMNS: KaderState[] = ["provisional", "roster", "bench", "tentative"];
 const VOTES: KaderVote[] = ["yes", "unsure", "no"];
 
+/** One player, the same card in every section. */
 function Card({ userId, entry, current, onPick }: { userId: string; entry: KaderEntry; current: boolean; onPick: () => void }) {
     const t = useT();
     const { view, players, canWrite } = useKader();
-    const yes = Object.values(entry.votes).filter((v) => v === "yes").length;
-    const sub = entry.state === "provisional"
-        ? entry.wishes.slice(0, 2).map((w, i) => `${i + 1}. ${specName(view.classes, w.spec)}`).join(" · ")
-        : specName(view.classes, (entry.decision || entry.wishes[0] || { spec: "" }).spec);
+    const pick = mainPick(players.get(userId), entry);
+    const votes = Object.values(entry.votes);
+    const yes = votes.filter((v) => v === "yes").length;
+    const no = votes.filter((v) => v === "no").length;
+    const name = playerName(view, userId, entry);
+    const color = classColorProps(classColor(view.classes, pick ? pick.className : ""));
     return (
         <button type="button" className={`kp-card${current ? " kp-current" : ""}`} aria-pressed={current} onClick={onPick} {...dragProps(userId, canWrite)}>
             <span className="kp-card-top">
-                <PickIcon pick={mainPick(players.get(userId), entry)} size={22} />
-                <span className="kp-grow kp-strong kp-ellipsis">{playerName(view, userId, entry)}</span>
-                {entry.state === "provisional" && (
-                    <>
-                        <span className="kp-cnt kp-yes" data-tip={t("kader.decide.yesVotes", { n: yes })}><CheckIcon /><span className="kp-mono">{yes}</span></span>
-                        <span className="kp-cnt" data-tip={t("kader.decide.commentCount", { n: entry.comments.length })}><CommentIcon /><span className="kp-mono">{entry.comments.length}</span></span>
-                    </>
-                )}
+                <PickIcon pick={pick} size={22} />
+                <span className={`kp-card-name${color.className ? ` ${color.className}` : ""}`} style={color.style}>{name}</span>
+                <span className="kp-card-meta">
+                    <span className="kp-cnt kp-yes" data-tip={t("kader.decide.yesVotes", { count: yes })}><CheckIcon /><span className="kp-mono" aria-hidden="true">{yes}</span><span className="kp-sr">{t("kader.decide.yesVotes", { count: yes })}</span></span>
+                    {no > 0 && <span className="kp-cnt kp-no" data-tip={t("kader.decide.noVotes", { count: no })}><XIcon /><span className="kp-mono" aria-hidden="true">{no}</span><span className="kp-sr">{t("kader.decide.noVotes", { count: no })}</span></span>}
+                    <span className="kp-cnt" data-tip={t("kader.decide.commentCount", { count: entry.comments.length })}><CommentIcon /><span className="kp-mono" aria-hidden="true">{entry.comments.length}</span><span className="kp-sr">{t("kader.decide.commentCount", { count: entry.comments.length })}</span></span>
+                </span>
             </span>
-            <span className="kp-card-sub">{sub || t("kader.interview.noWishes")}</span>
+            <span className="kp-card-sub">
+                {entry.state === "roster" && entry.decision
+                    ? <><PickIcon pick={entry.decision} size={16} /><PickLabel pick={entry.decision} className="kp-ellipsis" /></>
+                    : <WishIcons wishes={entry.wishes} size={16} />}
+            </span>
         </button>
     );
 }
 
-function Column({ state, current, onPick, onDropUser }: { state: KaderState; current: string; onPick: (userId: string) => void; onDropUser: (userId: string, to: KaderState) => void }) {
+/** One state: the same panel for all four, a coloured line on top says which. */
+function Section({ state, current, onPick, onDropUser }: { state: KaderState; current: string; onPick: (userId: string) => void; onDropUser: (userId: string, to: KaderState) => void }) {
     const t = useT();
     const { view, kader, canWrite } = useKader();
     const rows = entriesIn(kader, [state]).sort(([a, ea], [b, eb]) => playerName(view, a, ea).localeCompare(playerName(view, b, eb)));
@@ -54,26 +71,27 @@ function Column({ state, current, onPick, onDropUser }: { state: KaderState; cur
     const mix = state === "roster" ? roleCounts(view.classes, rows.map(([, e]) => e.decision || e.wishes[0] || null)) : null;
     return (
         <section className={`kp-stcol kp-stcol-${state}${drop.over ? " kp-over" : ""}`} aria-label={t(`kader.state.${state}`)} {...drop.props}>
-            <div className="kp-between">
+            <div className="kp-stcol-head">
+                <StateIcon state={state} />
                 <h3 className="kp-stcol-title">{t(`kader.state.${state}`)}</h3>
-                <span className="kp-mono kp-muted">{rows.length}</span>
+                <Count n={rows.length} tip={t(`kader.nav.count.${state}`, { count: rows.length })} />
+                {mix && (
+                    <span className="kp-rolemix">
+                        {ROLES.map((r) => <span key={r} data-tip={t("kader.roleCount", { role: rolePluralLabel(r), n: mix[r] })}><RoleIcon role={r} size={16} /><b className="kp-mono">{mix[r]}</b></span>)}
+                    </span>
+                )}
             </div>
-            {mix && (
-                <div className="kp-rolemix">
-                    {ROLES.map((r) => <span key={r} data-tip={rolePluralLabel(r)}><RoleIcon role={r} size={16} /><b className="kp-mono">{mix[r]}</b></span>)}
-                </div>
-            )}
-            {rows.length === 0 && <p className="kp-hint">{t(`kader.decide.empty.${state}`)}</p>}
-            {rows.map(([id, e]) => <Card key={id} userId={id} entry={e} current={id === current} onPick={() => onPick(id)} />)}
+            <div className="kp-cards">
+                {rows.map(([id, e]) => <Card key={id} userId={id} entry={e} current={id === current} onPick={() => onPick(id)} />)}
+                {rows.length === 0 && (
+                    <div className="kp-card kp-card-empty" aria-hidden="true">
+                        <StateIcon state={state} />
+                        <span>{canWrite ? t("kader.decide.dropHere") : t("kader.decide.emptyRead")}</span>
+                    </div>
+                )}
+            </div>
         </section>
     );
-}
-
-/** The class/spec a player would stand for in the roster: the wishes, and a decision that is none of them. */
-function choicesOf(entry: KaderEntry): { pick: KaderWish; rank: number }[] {
-    const out = entry.wishes.map((w, i) => ({ pick: w, rank: i + 1 }));
-    if (entry.decision && !entry.wishes.some((w) => w.spec === entry.decision?.spec)) out.unshift({ pick: entry.decision, rank: 0 });
-    return out;
 }
 
 function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry; onClose: () => void }) {
@@ -81,13 +99,14 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
     const toast = useToast();
     const ask = useConfirm();
     const { view, kader, canWrite, isLead, me, run } = useKader();
-    const choices = choicesOf(entry);
+    const options = wishOptions(entry);
     const [choice, setChoice] = useState((entry.decision || entry.wishes[0] || { spec: "" }).spec);
     const [text, setText] = useState("");
     const name = playerName(view, userId, entry);
     const iv = entry.interview;
     const mine = entry.votes[me] || "";
-    const picked = choices.find((c) => c.pick.spec === choice);
+    const picked = options.find((o) => o.pick.spec === choice) || null;
+    const same = !!entry.decision && entry.decision.spec === choice;
 
     const moveTo = async (to: KaderState, decision?: KaderWish) => {
         if (await run(setKaderState(kader.id, [userId], to, decision))) {
@@ -111,9 +130,9 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
         <aside className="kp-drawer" aria-label={t("kader.decide.drawer", { name })}>
             <div className="kp-drawer-head">
                 <div className="kp-col kp-grow">
-                    <span className="kicker">{t(`kader.decide.kicker.${entry.state}`)}</span>
+                    <span className="kp-drawer-kicker"><StateIcon state={entry.state} /><span className="kicker">{t(`kader.decide.kicker.${entry.state}`)}</span></span>
                     <h2><PlayerName userId={userId} entry={entry} /></h2>
-                    <span className="kp-sub"><StateSince entry={entry} /></span>
+                    <span className="kp-sub kp-wrap"><StateSince entry={entry} /></span>
                 </div>
                 <IconButton icon={<XIcon />} size="sm" tip={t("common.close")} onClick={onClose} />
             </div>
@@ -127,14 +146,16 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
             <div className="kp-block">
                 <span className="kicker">{t("kader.decide.votes")}</span>
                 <div className="kp-votes">
-                    {Object.keys(entry.votes).length === 0 && <span className="kp-muted">{t("kader.decide.noVotes")}</span>}
-                    {Object.entries(entry.votes).map(([by, v]) => <span key={by} className={`kp-vote kp-vote-${v}`}>{nameOf(view, by)} · {t(`kader.vote.${v}`)}</span>)}
+                    {Object.keys(entry.votes).length === 0 && <span className="kp-muted">{t("kader.decide.noVoteYet")}</span>}
+                    {Object.entries(entry.votes).map(([by, v]) => (
+                        <span key={by} className={`kp-vote kp-vote-${v}`}><VoteIcon vote={v} />{nameOf(view, by)} · {t(`kader.vote.${v}`)}</span>
+                    ))}
                 </div>
                 {canWrite && isLead && (
                     <Segment<KaderVote | ""> size="sm" ariaLabel={t("kader.decide.myVote")} value={mine} onChange={(v) => { if (v) vote(v); }}
-                        options={VOTES.map((v) => ({ value: v, label: t(`kader.vote.${v}Action`) }))} />
+                        options={VOTES.map((v) => ({ value: v, label: t(`kader.vote.${v}Action`), icon: <VoteIcon vote={v} /> }))} />
                 )}
-                {canWrite && isLead && mine && <button type="button" className="kp-link kp-quiet kp-start" onClick={() => vote(mine)}>{t("kader.decide.takeBack")}</button>}
+                {canWrite && isLead && mine && <button type="button" className="kp-link kp-quiet" onClick={() => vote(mine)}>{t("kader.decide.takeBack")}</button>}
                 {canWrite && !isLead && <span className="kp-hint">{t("kader.decide.onlyLeads")}</span>}
             </div>
             <div className="kp-block kp-comments">
@@ -153,36 +174,39 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                 {canWrite && (
                     <form className="kp-commentform" onSubmit={(e) => { e.preventDefault(); void send(); }}>
                         <input type="text" maxLength={1000} aria-label={t("kader.decide.comment")} placeholder={t("kader.decide.commentPlaceholder")} value={text} onChange={(e) => setText(e.target.value)} />
-                        <Button size="sm" type="submit" disabled={!text.trim()}>{t("kader.decide.send")}</Button>
+                        <Button size="sm" type="submit" icon={<SendIcon />} disabled={!text.trim()}>{t("kader.decide.send")}</Button>
                     </form>
                 )}
             </div>
             {canWrite && (
                 <div className="kp-block kp-decision">
                     <span className="kicker">{t("kader.decide.decision")}</span>
-                    <div className="kp-pickrow">
-                        <PickIcon pick={picked ? picked.pick : null} size={30} />
-                        <select aria-label={t("kader.decide.decisionAria")} value={choice} disabled={!choices.length} onChange={(e) => setChoice(e.target.value)}>
-                            {!choices.length && <option value="">{t("kader.interview.noWishes")}</option>}
-                            {choices.map((c) => (
-                                <option key={c.pick.spec} value={c.pick.spec}>
-                                    {c.rank ? t("kader.decide.wishN", { label: wishLabel(view.classes, c.pick), n: c.rank }) : t("kader.decide.current", { label: wishLabel(view.classes, c.pick) })}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    {options.length
+                        ? <WishPicker entry={entry} value={choice} wide label={t("kader.decide.decisionAria")} onChange={(pick) => setChoice(pick.spec)} />
+                        : <span className="kp-hint">{t("kader.interview.noWishes")}</span>}
+                    {entry.state === "roster" ? (
+                        <Button className="kp-wide" icon={<EditIcon />} disabled={!picked || same} onClick={() => void moveTo("roster", picked ? picked.pick : undefined)}>
+                            {t("kader.decide.changeDecision")}
+                        </Button>
+                    ) : (
+                        <Button className="kp-wide" icon={<CheckIcon />} disabled={!picked} onClick={() => void moveTo("roster", picked ? picked.pick : undefined)}>
+                            {t("kader.decide.toRoster")}
+                        </Button>
+                    )}
                     <div className="kp-moves">
-                        {entry.state !== "roster" && <Button disabled={!picked} onClick={() => void moveTo("roster", picked ? picked.pick : undefined)}>{t("kader.decide.toRoster")}</Button>}
-                        {entry.state === "roster" && (
-                            <Button variant="ghost" disabled={!picked || (!!entry.decision && entry.decision.spec === choice)} onClick={() => void moveTo("roster", picked ? picked.pick : undefined)}>
-                                {t("kader.decide.changeDecision")}
-                            </Button>
-                        )}
-                        {(["bench", "tentative"] as KaderState[]).filter((s) => s !== entry.state).map((s) => (
-                            <Button key={s} variant="ghost" onClick={() => void moveTo(s)}>{t(`kader.state.${s}`)}</Button>
-                        ))}
+                        {(["bench", "tentative"] as const).map((s) => {
+                            const here = entry.state === s;
+                            return (
+                                <Button key={s} variant="ghost" className={here ? "kp-here" : undefined} icon={s === "bench" ? <BenchIcon /> : <TentativeIcon />}
+                                    disabled={here} aria-pressed={here} onClick={() => void moveTo(s)}>
+                                    {t(`kader.state.${s}`)}
+                                </Button>
+                            );
+                        })}
                     </div>
-                    {canMove(entry.state, back) && <button type="button" className="kp-link kp-quiet kp-start" onClick={() => void moveTo(back)}>{t(`kader.decide.back.${back}`)}</button>}
+                    {canMove(entry.state, back) && (
+                        <button type="button" className="kp-link kp-quiet kp-withicon" onClick={() => void moveTo(back)}><ChevronLeftIcon />{t(`kader.decide.back.${back}`)}</button>
+                    )}
                 </div>
             )}
             <details className="kp-details">
@@ -215,13 +239,14 @@ export default function DecisionView() {
 
     return (
         <div className="kp-view">
+            {!current && <p className="kp-hint">{t("kader.decide.pickHint")}</p>}
             <div className={`kp-decide${current ? " kp-open" : ""}`}>
-                {COLUMNS.map((s) => <Column key={s} state={s} current={current} onPick={pick} onDropUser={(id, to) => void dropOn(id, to)} />)}
-                {current && entry ? <Drawer key={`${current}-${entry.state}`} userId={current} entry={entry} onClose={() => pick("")} /> : (
-                    <aside className="kp-drawer kp-drawer-empty">
-                        <p className="kp-hint">{t("kader.decide.pickHint")}</p>
-                    </aside>
-                )}
+                <div className="kp-decide-main">
+                    <div className="kp-sections">
+                        {SECTIONS.map((s) => <Section key={s} state={s} current={current} onPick={pick} onDropUser={(id, to) => void dropOn(id, to)} />)}
+                    </div>
+                </div>
+                {current && entry && <Drawer key={`${current}-${entry.state}`} userId={current} entry={entry} onClose={() => pick("")} />}
             </div>
         </div>
     );

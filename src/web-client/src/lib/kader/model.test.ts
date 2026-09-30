@@ -3,11 +3,20 @@ import { t } from "../../i18n";
 import { kader, kaderView, U, ME } from "../../pages/kader/kader.fixture";
 import {
     attText, attendanceOf, byId, canMove, className, countStates, dayOf, daysSince, entriesIn, historyText, mainPick, nameOf,
-    playerName, roleCounts, searchText, specName, specRole, stampOf, wishLabel, MOVES, STATES,
+    playerName, roleCounts, searchText, specName, specRole, stampOf, wishLabel, wishOptions, MOVES, STATES,
 } from "./model";
 
 describe("lib/kader/model", () => {
     const view = kaderView();
+
+    it("lists what a player can stand for: the wishes in order, a decision outside them first", () => {
+        const k = kader();
+        expect(wishOptions(k.players[U.heal]).map((o) => [o.rank, o.pick.spec])).toEqual([[1, "Shaman-Restoration"], [2, "Shaman-Enhancement"]]);
+        const decided = { ...k.players[U.tank], decision: { className: "Warrior", spec: "Warrior-Fury" } };
+        expect(wishOptions(decided).map((o) => [o.rank, o.pick.spec])).toEqual([[0, "Warrior-Fury"], [1, "Warrior-Protection"]]);
+        // a slot's spec that is no longer wished stays visible as the current one
+        expect(wishOptions(k.players[U.heal], "Mage-Frost")[0]).toEqual({ rank: -1, pick: { className: "Mage", spec: "Mage-Frost" } });
+    });
     const players = byId(view.players);
 
     it("knows the moves the server allows, back steps included", () => {

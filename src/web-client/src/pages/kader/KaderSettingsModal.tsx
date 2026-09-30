@@ -1,11 +1,12 @@
 // A new Kader (just a name — the creator leads it), or the settings of one:
 // name, leads (who votes in the Vorläufig step and may conduct interviews) and
-// deleting it with everything in it.
+// deleting it with everything in it. Rendered outside the Kader's context too
+// (the start page's "Ersten Kader anlegen"), so it reads only its props.
 import { useState } from "react";
 import { createKader, deleteKader, updateKader, type KaderChange, type KaderView } from "../../api";
-import { Button, IconButton, Modal } from "../../components/ui";
+import { Button, Field, FieldLabel, IconButton, Modal } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
-import { XIcon } from "../../components/icons";
+import { PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/icons";
 import { useT } from "../../i18n";
 import { nameOf } from "../../lib/kader/model";
 
@@ -54,43 +55,51 @@ export default function KaderSettingsModal({ mode, view, onClose, run, onCreated
             icon="inv_misc_groupneedmore"
             tone="kader"
             title={mode === "create" ? t("kader.settings.createTitle") : t("kader.settings.title")}
-            width={520}
+            width={560}
+            className="kp-dialog"
             initialFocus="input"
             hint={mode === "create" ? t("kader.settings.createHint") : undefined}
             footer={(
                 <>
-                    {kader && <button type="button" className="kp-link kp-danger kp-footleft" onClick={() => void remove()}>{t("kader.settings.delete")}</button>}
+                    {kader && <Button variant="danger" icon={<TrashIcon />} className="kp-footleft" onClick={() => void remove()}>{t("kader.settings.delete")}</Button>}
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={!ready} onClick={() => void submit()}>{mode === "create" ? t("kader.settings.create") : t("common.save")}</Button>
+                    <Button icon={mode === "create" ? <PlusIcon /> : <SaveIcon />} disabled={!ready} onClick={() => void submit()}>
+                        {mode === "create" ? t("kader.settings.create") : t("common.save")}
+                    </Button>
                 </>
             )}
         >
-            <label className="field">
-                <span className="field-label">{t("kader.field.name")}</span>
-                <input value={name} maxLength={40} placeholder={t("kader.settings.namePlaceholder")} onChange={(e) => setName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") void submit(); }} />
-            </label>
-            {kader && (
-                <div className="field">
-                    <span className="field-label">{t("kader.settings.leads")}</span>
-                    <ul className="kp-leadlist">
-                        {leads.map((id) => (
-                            <li key={id}>
-                                <span className="kp-grow">{nameOf(view, id)}</span>
-                                <IconButton icon={<XIcon />} size="sm" tip={t("kader.settings.removeLead", { name: nameOf(view, id) })} disabled={leads.length <= 1} onClick={() => setLeads(leads.filter((x) => x !== id))} />
-                            </li>
-                        ))}
-                    </ul>
-                    <div className="kp-inline">
-                        <select aria-label={t("kader.settings.addLead")} value={pick} onChange={(e) => setPick(e.target.value)}>
-                            <option value="">{t("kader.settings.pickLead")}</option>
-                            {candidates.map((m) => <option key={m.userId} value={m.userId}>{m.displayName}</option>)}
-                        </select>
-                        <Button variant="ghost" size="sm" disabled={!pick} onClick={() => { setLeads([...leads, pick]); setPick(""); }}>{t("common.add")}</Button>
+            <div className="kp-stack">
+                <Field label={t("kader.field.name")} htmlFor="kp-kader-name">
+                    <input id="kp-kader-name" value={name} maxLength={40} placeholder={t("kader.settings.namePlaceholder")} onChange={(e) => setName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") void submit(); }} />
+                </Field>
+                {kader && (
+                    <div className="field">
+                        <FieldLabel>{t("kader.settings.leads")}</FieldLabel>
+                        <ul className="kp-leadlist">
+                            {leads.map((id, i) => {
+                                const lead = nameOf(view, id);
+                                return (
+                                    <li key={id}>
+                                        <span className={`kp-avatar kp-hue-${i % 4}`} aria-hidden="true">{(lead.trim()[0] || "?").toUpperCase()}</span>
+                                        <span className="kp-grow kp-strong">{lead}</span>
+                                        <IconButton icon={<XIcon />} size="sm" tip={t("kader.settings.removeLead", { name: lead })} disabled={leads.length <= 1} onClick={() => setLeads(leads.filter((x) => x !== id))} />
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                        <div className="kp-addrow">
+                            <select aria-label={t("kader.settings.addLead")} value={pick} onChange={(e) => setPick(e.target.value)}>
+                                <option value="">{t("kader.settings.pickLead")}</option>
+                                {candidates.map((m) => <option key={m.userId} value={m.userId}>{m.displayName}</option>)}
+                            </select>
+                            <Button variant="ghost" icon={<PlusIcon />} disabled={!pick} onClick={() => { setLeads([...leads, pick]); setPick(""); }}>{t("common.add")}</Button>
+                        </div>
+                        <div className="hint">{t("kader.settings.leadsHint")}</div>
                     </div>
-                    <span className="kp-hint">{t("kader.settings.leadsHint")}</span>
-                </div>
-            )}
+                )}
+            </div>
         </Modal>
     );
 }

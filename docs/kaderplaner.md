@@ -168,34 +168,64 @@ Parameters in the body; `kaderId` names the Kader.
 `/kader/:kaderId/:sub` — `/kader` opens the Kader used last (`kader-last`), else the first; without any Kader the
 start page shows the flow and "Ersten Kader anlegen".
 
-- **Header**: the Kader picker (all Kader with roster/total, "Neuer Kader"), the leads as avatars, the settings
-  (name, leads, delete behind a confirmation). Below the **status bar**: Pool → Vorauswahl → Vorläufig → Roster with
-  their counts, "Bench n · Tentative n" beside it.
+- **Header**: the Kader picker (every Kader with "n im Roster · m gesamt", "Neuer Kader"), the leads as avatars,
+  the settings (name, leads as rows with a remove button, add a member, delete behind a confirmation). Below the
+  **status bar** "Spieler je Status": one rectangular segment per state — icon, label, the count as a badge, the
+  words ("3 Spieler im Pool") as tooltip and accessible name; Pool → Vorauswahl → Vorläufig, then Roster · Bench ·
+  Tentative as one group. The states of the open page are marked (filled, accent underline); no step numbers.
+- **Numbers say what they count**: a figure always stands next to its word ("18 von 18 Spielern", "Im Pool 3",
+  "7 von 20 Plätzen", "2 von 5 Plätzen") or carries it as tooltip and screen-reader text (`Count` in
+  `pages/kader/parts.tsx`: section heads, filter options, role counts, list heads).
+- **Specs are icons**: a spec shows as its spec icon plus the class name in the class colour ("[Resto-Icon]
+  Schamane"); "Schamane · Wiederherstellung" is the tooltip and the icon's label (`SpecTag`, `PickLabel`). Wishes
+  in a small space are numbered icons ("1 [icon] 2 [icon]", `WishIcons`). Player names stay text.
+- **Status icons** (`pages/kader/parts.tsx`): interview open = empty circle, running = a ring filled to x/n, held =
+  check (also beside the name); answered question = check, required and open = "!"; state icons Pool = people,
+  Vorauswahl = checklist, Vorläufig = hourglass, Roster = shield, Bench, Tentative = question mark; votes dafür =
+  check, unsicher = question mark, dagegen = x. Line icons come from `components/icons.tsx`, always with text or a
+  label. Empty lists show a quiet icon above their text.
 - **`pool`**: everybody in the Kader with the prefilled character and its source (Profil / Logs / manuell / fehlt),
-  Discord roles and attendance; search, filter menus Discord-Rolle and Klasse, scope Alle/Pool/Zur Auswahl. The switch
-  "Zur Auswahl" moves pool ↔ Vorauswahl; somebody further along shows their state. Marked rows: zur Auswahl, nicht
-  zur Auswahl, aus dem Kader entfernen. **"Aus Discord-Rolle hinzufügen"**: search and pick roles, everybody holding
-  one of them with their prefilled character, tabs Neu / Schon im Pool / Ohne Chardaten, the checked ones go into the
-  pool. **"Per Discord-ID"** adds one account by id (optionally with a first character).
-- **`vorauswahl` (Gespräche)**: the players in the Vorauswahl (Offen / Geführt / Alle) with lead and status, the
-  interview of the chosen one (`?spieler=<id>`): wishes (drag or arrows, class and spec with their icons), the note,
-  the questions (pills, day buttons for the seven weekdays, free text), who leads it, progress. It **saves itself**
-  800 ms after a change — only what changed (`patchOf`) — and when another player is chosen or the page is left.
-  "Speichern & nächster", "Gespräch abschließen", "Wieder öffnen", "Zurück in den Pool".
+  Discord roles and attendance; search, scope "Alle im Kader / Im Pool / In der Vorauswahl", filter menus
+  Discord-Rolle and Klasse. The switch "Zur Auswahl" moves pool ↔ Vorauswahl; somebody further along shows their
+  state. Marked rows: zur Auswahl, nicht zur Auswahl, aus dem Kader entfernen. **"Aus Discord-Rolle hinzufügen"**:
+  search and pick roles, everybody holding one of them with their prefilled character, tabs Neu / Schon im Pool /
+  Ohne Chardaten, the checked ones go into the pool. **"Per Discord-ID"** adds one account by id (optionally with a
+  first character).
+- **`vorauswahl` (Gespräche)**: the players in the Vorauswahl (○ Offen / ✓ Geführt / Alle) with lead and status,
+  the interview of the chosen one (`?spieler=<id>`): wishes (drag or arrows; a new one by class and then one of its
+  spec icons), the note, the questions (pills, day buttons for the seven weekdays, free text), who leads it,
+  progress. It **saves itself** 800 ms after a change — only what changed (`patchOf`) — and when another player is
+  chosen or the page is left. "Speichern & nächster", "Gespräch abschließen", "Wieder öffnen", "Zurück in den Pool".
 - **`uebersicht`**: everybody in the Vorauswahl side by side — 1st and 2nd wish, one column per question (weekdays as
   squares), interview, days waiting; filter menus Gespräch, 1. Wunsch and per question; grouped by role, class,
   interview or none; a name shows the whole interview on hover. Marked rows go into the provisional roster (a
   confirmation when interviews are still open) or back into the pool.
-- **`roster`**: four columns Vorläufig · Roster (with its role mix) · Bench · Tentative; cards move by drag and drop.
-  The drawer of a card (`?spieler=<id>`): wishes, the interview, the leads' votes (own vote if lead, take it back),
-  comments (delete own), the decision (class/spec from the wishes) with Ins Roster / Bench / Tentative / back, and
-  the history. On a narrow screen the drawer slides over the page.
+- **`roster`**: one grid of four equal columns — Roster (two columns wide, its cards in two columns, the role mix in
+  its head), Bench and Tentative on top, Vorläufig (all four columns) below — so every card is one column wide and
+  64 px high. All sections share one panel; only a coloured line on top (roster teal, bench violet, tentative grey,
+  vorläufig orange) and the state icon say which. One card everywhere: spec icon and name in the class colour, ✓
+  votes for, × votes against, comments on the right; below it the decision (roster) or the wishes as numbered spec
+  icons. An empty section is a dashed drop zone of card size. The layout follows the room the sections have (a
+  container query): four columns down to 880 px, then two (Roster wide, Bench and Tentative, Vorläufig wide), one
+  below 520 px. The drawer of a card (`?spieler=<id>`) stays on the right (a sheet over the page below 1100 px):
+  wishes, the interview, the leads' votes (own vote if lead, take it back), comments (delete own), the **decision** —
+  the spec picker on its own line, one full-width button "Ins Roster" (or "Entscheidung ändern", off until another
+  spec is picked), Bench | Tentative (the current one pressed and off), the step back — and the history.
+- **The spec picker** (`pages/kader/WishPicker.tsx`): the same menu in the drawer's decision and in every setup
+  slot — the player's wishes in wish order across classes (a decision outside them first, labelled
+  "Entscheidung"), each row rank, spec icon, class in its colour and a check on the current one; the trigger shows
+  the chosen spec's icon (and the class when there is room). Keyboard: Enter/ArrowDown opens, arrows move, Escape
+  closes. `lib/kader/model.ts` `wishOptions` lists the choices.
 - **`fragen`**: the fixed block (wishes, note), the Kader's questions in order (drag or arrows), the editor (text,
   kind, options, "Wochentage einsetzen", required, preview), delete with the number of answers it takes, "Fragen aus
   anderem Kader übernehmen".
-- **`setups`**: variant tabs (new, copy, rename, delete), 10er/20er, the sources as chips, "Noch ohne Gruppe", the
-  groups with their spec per slot, buff hints ("kein Totem der Manaquelle"), drag or pick-and-place, "Automatisch
+- **`setups`**: variant tabs (new, copy, rename, delete), 10er/20er, the sources as chips with their counts, "Noch
+  ohne Gruppe" (with the wishes as icons), the groups with the spec picker per slot (class colour, role counts and buff
+  hints follow the chosen spec), buff hints ("kein Totem der Manaquelle"), drag or pick-and-place, "Automatisch
   verteilen", "Als Text kopieren" (for Discord; a dialog with the text when the clipboard is refused).
+- **Dialogs** share one rhythm (`kp-dialog`, `kp-stack`): 24 px body padding and between field groups, 8 px between
+  a label and its control and between list rows, the hint set apart; buttons carry an icon where it helps (Speichern,
+  Übernehmen, Löschen, In den Pool) and never get a width that cuts their label.
 - **WoW icons** everywhere a class, spec or role is named (rule set icons, `ROLE_ICON` from
   `lib/raidplan/assign.ts`), each with its name as label and tooltip (`pages/kader/parts.tsx`).
 - Remembered per browser: the last Kader, the pool scope and filters, the interview list, the overview grouping and

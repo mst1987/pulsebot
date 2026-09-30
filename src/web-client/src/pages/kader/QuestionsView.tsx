@@ -14,7 +14,7 @@ import {
 } from "../../api";
 import { Button, IconButton, Modal, Segment } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
-import { ChevronDownIcon, LockIcon, PlusIcon, XIcon } from "../../components/icons";
+import { ChevronDownIcon, CopyIcon, LockIcon, PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { dayShort, isWeekdays } from "../../lib/kader/interview";
@@ -174,8 +174,8 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
             <Preview draft={draft} />
             {canWrite && (
                 <div className="kp-qeditor-foot">
-                    {question ? <button type="button" className="kp-link kp-danger" onClick={() => void remove()}>{t("kader.questions.delete")}</button> : <span />}
-                    <Button disabled={!ready} onClick={() => void save()}>{question ? t("common.save") : t("kader.questions.create")}</Button>
+                    {question ? <Button variant="danger" icon={<TrashIcon />} onClick={() => void remove()}>{t("kader.questions.delete")}</Button> : <span />}
+                    <Button icon={question ? <SaveIcon /> : <PlusIcon />} disabled={!ready} onClick={() => void save()}>{question ? t("common.save") : t("kader.questions.create")}</Button>
                 </div>
             )}
         </section>
@@ -206,11 +206,12 @@ function CopyModal({ onClose, onCopied }: { onClose: () => void; onCopied: () =>
             tone="kader"
             title={t("kader.questions.copyTitle")}
             width={480}
+            className="kp-dialog"
             hint={t("kader.questions.copyHint")}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={!from || tooMany} onClick={() => void copy()}>{t("kader.questions.copy")}</Button>
+                    <Button icon={<CopyIcon />} disabled={!from || tooMany} onClick={() => void copy()}>{t("kader.questions.copy")}</Button>
                 </>
             )}
         >
@@ -294,7 +295,7 @@ export default function QuestionsView() {
                             <button type="button" className={`kp-dashed kp-dashed-lg${editing === NEW && questions.length ? " kp-current" : ""}`} disabled={questions.length >= MAX_QUESTIONS} onClick={() => pick(NEW)}>
                                 <PlusIcon />{t("kader.questions.add")}
                             </button>
-                            <button type="button" className="kp-link kp-center" onClick={() => setCopying(true)}>{t("kader.questions.copyFromOther")}</button>
+                            <button type="button" className="kp-link kp-center kp-withicon" onClick={() => setCopying(true)}><CopyIcon />{t("kader.questions.copyFromOther")}</button>
                         </>
                     )}
                     <p className="kp-note">{t("kader.questions.note", { n: inSelection })}</p>

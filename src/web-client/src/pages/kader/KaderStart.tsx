@@ -1,8 +1,9 @@
 // The Kaderplaner without any Kader yet: the flow from Discord to the roster in
 // six steps and the four rules behind it, and the button for the first Kader.
 import { Button, IconTile } from "../../components/ui";
-import { ChevronRightIcon, PlusIcon } from "../../components/icons";
+import { ChevronRightIcon, PlusIcon, RecruitmentIcon, SheetIcon } from "../../components/icons";
 import { useT } from "../../i18n";
+import { StateIcon } from "./parts";
 
 const STEPS = [
     { key: "import", kind: "action" },
@@ -13,6 +14,12 @@ const STEPS = [
     { key: "roster", kind: "state" },
 ] as const;
 const RULES = ["state", "questions", "history", "internal"] as const;
+
+function StepIcon({ step }: { step: typeof STEPS[number]["key"] }) {
+    if (step === "import") return <span className="kp-sico" aria-hidden="true"><RecruitmentIcon /></span>;
+    if (step === "overview") return <span className="kp-sico" aria-hidden="true"><SheetIcon /></span>;
+    return <StateIcon state={step} />;
+}
 
 export default function KaderStart({ canWrite, onCreate }: { canWrite: boolean; onCreate: () => void }) {
     const t = useT();
@@ -30,7 +37,7 @@ export default function KaderStart({ canWrite, onCreate }: { canWrite: boolean; 
             <ol className="kp-flow">
                 {STEPS.map((s, i) => (
                     <li key={s.key} className={`kp-flow-step kp-flow-${s.kind}`}>
-                        <span className="kicker">{t(`kader.start.kind.${s.kind}`, { n: STEPS.slice(0, i + 1).filter((x) => x.kind === "state").length })}</span>
+                        <span className="kp-flow-kind"><StepIcon step={s.key} /><span className="kicker">{t(`kader.start.kind.${s.kind}`)}</span></span>
                         <span className="kp-flow-title">{t(`kader.start.step.${s.key}.title`)}</span>
                         <span className="kp-flow-what">{t(`kader.start.step.${s.key}.what`)}</span>
                         {i < STEPS.length - 1 && <span className="kp-flow-arrow" aria-hidden="true"><ChevronRightIcon /></span>}

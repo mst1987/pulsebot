@@ -9,7 +9,7 @@ import { setKaderState, type KaderClassDef, type KaderEntry, type KaderQuestion,
 import { Button, Segment } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
 import { HoverPanel } from "../../components/HoverPanel";
-import { SearchIcon } from "../../components/icons";
+import { ChevronLeftIcon, HourglassIcon, ListChecksIcon, SearchIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
@@ -19,7 +19,7 @@ import { answerLabels, isAnswered, isWeekdays, statusOf, type InterviewStatus } 
 import { cleanState, passes, type FilterDef, type FilterOption, type FilterState } from "../../lib/kader/filters";
 import { FilterChips, FilterMenus } from "./FilterMenus";
 import { BatchBar } from "./BatchBar";
-import { AnswerLines, ClassIcon, DaySquares, HistoryLines, InterviewChip, PickIcon, PickLabel, PlayerName, RoleIcon, SelectionTabs, WishLines } from "./parts";
+import { AnswerLines, ClassIcon, Count, DaySquares, DoneBadge, EmptyState, HistoryLines, InterviewChip, PlayerName, RoleIcon, SelectionTabs, SpecTag, WishLines } from "./parts";
 import { useKader } from "./kaderContext";
 
 type GroupBy = "role" | "class" | "interview" | "none";
@@ -74,18 +74,15 @@ function OverviewRow({ row, marked, onMark }: { row: Row; marked: boolean; onMar
     return (
         <div className={`kp-trow kp-ov-grid${marked ? " kp-marked" : ""}`}>
             <input type="checkbox" checked={marked} disabled={!canWrite} aria-label={t("kader.batch.mark", { name: playerName(view, userId, entry) })} onChange={(e) => onMark(e.target.checked)} />
-            <span className="kp-cell-name"><Peek row={row} /></span>
-            <span className="kp-cell-char">
-                <PickIcon pick={w1} size={22} />
-                {w1 ? <PickLabel pick={w1} className="kp-ellipsis" /> : <span className="kp-muted">—</span>}
-            </span>
-            <span className="kp-cell-char">{w2 ? <PickLabel pick={w2} className="kp-ellipsis kp-small" /> : <span className="kp-muted">—</span>}</span>
+            <span className="kp-cell-name kp-namerowcell"><Peek row={row} />{status === "done" && <DoneBadge />}</span>
+            <span className="kp-cell-char">{w1 ? <SpecTag pick={w1} size={22} /> : <span className="kp-muted">—</span>}</span>
+            <span className="kp-cell-char">{w2 ? <SpecTag pick={w2} size={20} className="kp-small" /> : <span className="kp-muted">—</span>}</span>
             {kader.questions.map((q) => <AnswerCell key={q.id} q={q} entry={entry} />)}
             <span className="kp-col">
                 <InterviewChip entry={entry} />
                 <span className="kp-sub">{leadLine}</span>
             </span>
-            <span className="kp-mono kp-muted" data-tip={dayOf(entry.since)}>{days === null ? "—" : t("kader.overview.days", { n: days })}</span>
+            <span className="kp-mono kp-muted" data-tip={days === null ? undefined : t("kader.overview.daysTip", { count: days, date: dayOf(entry.since) })}>{days === null ? "—" : t("kader.overview.days", { n: days })}</span>
         </div>
     );
 }
@@ -196,12 +193,12 @@ export default function OverviewView() {
                 </label>
             </FilterMenus>
             <div className="kp-countrow">
-                <span className="kp-muted"><b className="kp-mono">{shown.length}</b> {t("kader.pool.ofTotal", { total: rows.length })}</span>
+                <span className="kp-muted"><b className="kp-mono kp-big-n">{shown.length}</b> {t("kader.pool.ofTotal", { count: rows.length })}</span>
                 <FilterChips defs={defs} state={filters} onChange={setFilters} />
                 <span className="kp-grow" />
                 <span className="kicker">{t("kader.overview.firstWish")}</span>
                 <span className="kp-rolemix">
-                    {ROLES.map((r) => <span key={r} data-tip={rolePluralLabel(r)}><RoleIcon role={r} size={16} /><b className="kp-mono">{mix[r]}</b></span>)}
+                    {ROLES.map((r) => <span key={r} data-tip={t("kader.roleCount", { role: rolePluralLabel(r), n: mix[r] })}><RoleIcon role={r} size={16} /><b className="kp-mono">{mix[r]}</b></span>)}
                 </span>
             </div>
             <div className="kp-panel kp-table kp-scroll-x" style={{ "--qcols": qcols, "--minw": `${minw}px` } as CSSProperties}>
@@ -215,14 +212,14 @@ export default function OverviewView() {
                     <span className="kicker">{t("kader.overview.colInterview")}</span>
                     <span className="kicker">{t("kader.overview.colSince")}</span>
                 </div>
-                {shown.length === 0 && <div className="kp-empty">{rows.length ? t("kader.pool.none") : t("kader.overview.empty")}</div>}
+                {shown.length === 0 && (rows.length ? <EmptyState icon={<SearchIcon />} text={t("kader.pool.none")} /> : <EmptyState icon={<ListChecksIcon />} text={t("kader.overview.empty")} />)}
                 {groups.filter((g) => g.rows.length).map((g) => (
                     <div key={g.key} className="kp-ogroup">
                         {groupBy !== "none" && (
                             <div className="kp-ghead">
                                 {g.icon}
                                 <span className="kp-gtitle">{g.title}</span>
-                                <span className="kp-mono kp-muted">{g.rows.length}</span>
+                                <Count n={g.rows.length} tip={t("kader.playersN", { count: g.rows.length })} />
                                 <span className="kp-rule" />
                                 <span className="kp-sub">{t("kader.overview.doneOf", { done: g.rows.filter((r) => statusOf(r.entry) === "done").length, n: g.rows.length })}</span>
                             </div>
@@ -235,8 +232,8 @@ export default function OverviewView() {
                 ))}
             </div>
             <BatchBar count={markedRows.length} onClear={() => setMarked([])}>
-                <Button size="sm" onClick={() => void move("provisional")}>{t("kader.overview.toProvisional")}</Button>
-                <Button size="sm" variant="ghost" onClick={() => void move("pool")}>{t("kader.overview.toPool")}</Button>
+                <Button size="sm" icon={<HourglassIcon />} onClick={() => void move("provisional")}>{t("kader.overview.toProvisional")}</Button>
+                <Button size="sm" variant="ghost" icon={<ChevronLeftIcon />} onClick={() => void move("pool")}>{t("kader.overview.toPool")}</Button>
             </BatchBar>
         </div>
     );

@@ -29,6 +29,7 @@ vi.mock("../../api", async (orig) => ({
 }));
 
 const PATH = "/kader/:kaderId?/:sub?";
+const SECTION_ORDER = ["roster", "bench", "tentative", "provisional"];
 const reader = adminUser({ isAdmin: false, access: { kader: { read: true, write: false } } });
 
 /** What a change inside the Kader answers: the Kader as stored plus the summaries. */
@@ -70,12 +71,40 @@ describe("KaderPage · Kader", () => {
         expect(api.createKader).toHaveBeenCalledWith("Forever-Kader 2027");
     });
 
-    it("shows the four steps with their counts and bench and tentative beside them", async () => {
+    it("edits name and leads in the settings: one row per lead, a real add button", async () => {
+        await show("/kader/k1/pool");
+        await userEvent.click(screen.getByRole("button", { name: t("kader.header.settings") }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByRole("textbox", { name: t("kader.field.name") })).toHaveValue("Forever-Kader");
+        // the only lead cannot be removed; adding waits for a member
+        expect(within(dialog).getByRole("button", { name: t("kader.settings.removeLead", { name: "Admin" }) })).toBeDisabled();
+        const add = within(dialog).getByRole("button", { name: t("common.add") });
+        expect(add).toBeDisabled();
+        await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: t("kader.settings.addLead") }), U.guest);
+        expect(add).toBeEnabled();
+        await userEvent.click(add);
+        expect(within(dialog).getByText("Gast")).toBeInTheDocument();
+    });
+
+    it("counts the players per state in the status bar, every count with the words behind it", async () => {
         await show("/kader/k1/pool");
         const nav = screen.getByRole("navigation", { name: t("kader.nav.aria") });
-        expect(within(nav).getByRole("link", { name: /Pool\s*1/ })).toHaveAttribute("aria-current", "page");
-        expect(within(nav).getByRole("link", { name: /Vorauswahl\s*2/ })).toBeInTheDocument();
-        expect(within(nav).getByText(t("kader.nav.more", { bench: 1, tentative: 1 }))).toBeInTheDocument();
+        expect(within(nav).getByText(t("kader.nav.kicker"))).toBeInTheDocument();
+        expect(within(nav).getByRole("link", { name: t("kader.nav.count.pool", { count: 1 }) })).toHaveAttribute("aria-current", "page");
+        expect(within(nav).getByRole("link", { name: t("kader.nav.count.selected", { count: 2 }) })).not.toHaveAttribute("aria-current");
+        // bench and tentative are segments of their own, next to the roster
+        for (const s of ["provisional", "roster", "bench", "tentative"]) {
+            expect(within(nav).getByRole("link", { name: t(`kader.nav.count.${s}`, { count: 1 }) })).toHaveAttribute("href", "/kader/k1/roster");
+        }
+        // no step numbers: the only figures are the counts
+        expect(within(nav).queryByText("4")).toBeNull();
+    });
+
+    it("marks every state the roster page shows", async () => {
+        await show("/kader/k1/roster");
+        const nav = screen.getByRole("navigation", { name: t("kader.nav.aria") });
+        const current = within(nav).getAllByRole("link").filter((a) => a.getAttribute("aria-current") === "page");
+        expect(current.map((a) => a.getAttribute("aria-label"))).toEqual(["provisional", "roster", "bench", "tentative"].map((s) => t(`kader.nav.count.${s}`, { count: 1 })));
     });
 });
 
@@ -83,7 +112,12 @@ describe("KaderPage · Pool", () => {
     it("lists everybody with the prefilled character and its source, and moves one by the switch", async () => {
         vi.mocked(api.setKaderState).mockResolvedValue(change());
         await show("/kader/k1/pool");
-        expect(screen.getByText("Magier · Frost")).toBeInTheDocument();
+        // a spec is its icon plus the class; the full name sits in the tooltip and on the icon
+        expect(screen.getByText("Magier")).toHaveAttribute("data-tip", "Magier · Frost");
+        expect(screen.getAllByRole("img", { name: "Frost · Magier" }).length).toBeGreaterThan(0);
+        // the scope says what it counts
+        expect(screen.getByRole("radio", { name: t("kader.pool.scopeSelected", { n: 2 }) })).toHaveAttribute("data-tip", t("kader.nav.count.selected", { count: 2 }));
+        expect(screen.getByText(t("kader.pool.ofTotal", { count: 7 }))).toBeInTheDocument();
         expect(screen.getAllByText(t("kader.source.profile")).length).toBeGreaterThan(0);
         expect(screen.getByText(t("kader.source.logs"))).toBeInTheDocument();
         // Neuling has no character data
@@ -157,6 +191,33 @@ describe("KaderPage · Vorauswahl", () => {
         const panel = screen.getByRole("region", { name: t("kader.interview.aria", { name: "Brakk" }) });
         expect(within(panel).getByRole("button", { name: t("kader.interview.reopen") })).toBeInTheDocument();
         expect(within(panel).getByRole("button", { name: "Mittwoch" })).toBeDisabled();
+        // a held interview carries its check beside the name
+        expect(within(panel).getByRole("img", { name: t("kader.interview.statusDoneTip") })).toBeInTheDocument();
+    });
+
+    it("marks the status with icons: the list filters, the questions and the progress", async () => {
+        await show(`/kader/k1/vorauswahl?spieler=${U.mage}`);
+        const list = screen.getByRole("region", { name: t("kader.interview.listTitle") });
+        const open = within(list).getByRole("radio", { name: t("kader.interview.listOpen", { n: 1 }) });
+        expect(open.querySelector("svg")).not.toBeNull();
+        expect(open).toHaveAttribute("data-tip", t("kader.interview.listOpenTip", { count: 1 }));
+        const panel = screen.getByRole("region", { name: t("kader.interview.aria", { name: "Liss" }) });
+        // the voice question is answered, the raid days (required) are still open
+        expect(within(panel).getAllByRole("img", { name: t("kader.interview.answered") })).toHaveLength(1);
+        expect(within(panel).getAllByRole("img", { name: t("kader.interview.stillOpen") })).toHaveLength(1);
+    });
+
+    it("adds a wish by class and one of its spec icons", async () => {
+        vi.mocked(api.saveKaderInterview).mockResolvedValue(change());
+        await show(`/kader/k1/vorauswahl?spieler=${U.mage}`);
+        const panel = screen.getByRole("region", { name: t("kader.interview.aria", { name: "Liss" }) });
+        await userEvent.selectOptions(within(panel).getByRole("combobox", { name: t("kader.field.class") }), "Mage");
+        const specs = within(panel).getByRole("radiogroup", { name: t("kader.field.spec") });
+        // Frost is wished already, Fire can be added
+        expect(within(specs).getByRole("radio", { name: "Frost · Magier" })).toBeDisabled();
+        await userEvent.click(within(specs).getByRole("radio", { name: "Feuer · Magier" }));
+        await userEvent.click(within(panel).getByRole("button", { name: t("kader.interview.addWish") }));
+        await waitFor(() => expect(api.saveKaderInterview).toHaveBeenCalledWith("k1", U.mage, { wishes: [{ className: "Mage", spec: "Mage-Frost" }, { className: "Mage", spec: "Mage-Fire" }] }), { timeout: 2500 });
     });
 
     it("compares everybody in the overview, filters by an answer and moves the marked on", async () => {
@@ -189,9 +250,55 @@ describe("KaderPage · Vorläufig und Roster", () => {
         await userEvent.type(within(drawer).getByRole("textbox", { name: t("kader.decide.comment") }), "Passt gut.");
         await userEvent.click(within(drawer).getByRole("button", { name: t("kader.decide.send") }));
         expect(api.addKaderComment).toHaveBeenCalledWith("k1", U.heal, "Passt gut.");
-        await userEvent.selectOptions(within(drawer).getByRole("combobox", { name: t("kader.decide.decisionAria") }), "Shaman-Enhancement");
+        await userEvent.click(within(drawer).getByRole("button", { name: new RegExp(`^${t("kader.decide.decisionAria")}`) }));
+        const menu = await screen.findByRole("menu", { name: t("kader.decide.decisionAria") });
+        const items = within(menu).getAllByRole("menuitemradio");
+        expect(items.map((b) => b.getAttribute("aria-label"))).toEqual([
+            `${t("kader.picker.rank", { n: 1 })}: Schamane · Wiederherstellung`,
+            `${t("kader.picker.rank", { n: 2 })}: Schamane · Verstärkung`,
+        ]);
+        expect(items[0]).toHaveAttribute("aria-checked", "true");
+        await userEvent.click(items[1]);
         await userEvent.click(within(drawer).getByRole("button", { name: t("kader.decide.toRoster") }));
         expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.heal], "roster", { className: "Shaman", spec: "Shaman-Enhancement" });
+    });
+
+    it("lays the sections out as one grid with the same card everywhere", async () => {
+        await show("/kader/k1/roster");
+        const sections = SECTION_ORDER.map((s) => screen.getByRole("region", { name: t(`kader.state.${s}`) }));
+        // one card per player, the same component in every section
+        expect(sections.map((sec) => sec.querySelectorAll(".kp-card:not(.kp-card-empty)").length)).toEqual([1, 1, 1, 1]);
+        // the cards carry votes and comments with the words behind the numbers
+        const provisional = sections[3];
+        expect(within(provisional).getByText(t("kader.decide.yesVotes", { count: 1 }))).toBeInTheDocument();
+        expect(within(provisional).getByText(t("kader.decide.commentCount", { count: 1 }))).toBeInTheDocument();
+    });
+
+    it("changes a roster decision only when it differs, and shows the current state as the pressed button", async () => {
+        vi.mocked(api.setKaderState).mockResolvedValue(change());
+        await show(`/kader/k1/roster?spieler=${U.sham}`);
+        const drawer = screen.getByRole("complementary", { name: t("kader.decide.drawer", { name: "Tomas" }) });
+        // Tomas is on the bench: bench is the pressed, disabled one; tentative and "Ins Roster" can be used
+        expect(within(drawer).getByRole("button", { name: t("kader.state.bench") })).toBeDisabled();
+        expect(within(drawer).getByRole("button", { name: t("kader.state.bench") })).toHaveAttribute("aria-pressed", "true");
+        expect(within(drawer).getByRole("button", { name: t("kader.state.tentative") })).toBeEnabled();
+        expect(within(drawer).getByRole("button", { name: t("kader.decide.toRoster") })).toBeEnabled();
+    });
+
+    it("keeps the decision change off until another spec is picked", async () => {
+        const k = kaderData();
+        k.players[U.tank].wishes = [{ className: "Warrior", spec: "Warrior-Protection" }, { className: "Warrior", spec: "Warrior-Fury" }];
+        vi.mocked(api.getKader).mockResolvedValue(kaderView({ kader: k }));
+        vi.mocked(api.setKaderState).mockResolvedValue(change(k));
+        await show(`/kader/k1/roster?spieler=${U.tank}`);
+        const drawer = screen.getByRole("complementary", { name: t("kader.decide.drawer", { name: "Aldric" }) });
+        const changeButton = within(drawer).getByRole("button", { name: t("kader.decide.changeDecision") });
+        expect(changeButton).toBeDisabled();
+        await userEvent.click(within(drawer).getByRole("button", { name: new RegExp(`^${t("kader.decide.decisionAria")}`) }));
+        await userEvent.click(await screen.findByRole("menuitemradio", { name: `${t("kader.picker.rank", { n: 2 })}: Krieger · Furor` }));
+        expect(changeButton).toBeEnabled();
+        await userEvent.click(changeButton);
+        expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.tank], "roster", { className: "Warrior", spec: "Warrior-Fury" });
     });
 
     it("moves a card back a step from the drawer", async () => {
@@ -242,6 +349,24 @@ describe("KaderPage · Beispiel-Setups", () => {
     });
 });
 
+describe("KaderPage · spec picker in the setups", () => {
+    it("picks a slot's spec from the player's wishes, with rank, icon and class", async () => {
+        const k = kaderData();
+        k.setups[0].groups[0][1] = { userId: U.heal, spec: "Shaman-Restoration" };
+        vi.mocked(api.getKader).mockResolvedValue(kaderView({ kader: k }));
+        vi.mocked(api.saveKaderVariant).mockResolvedValue(change(k));
+        await show("/kader/k1/setups");
+        await userEvent.click(screen.getByRole("button", { name: new RegExp(`^${t("kader.setups.specOf", { name: "Mira" })}`) }));
+        const menu = await screen.findByRole("menu", { name: t("kader.setups.specOf", { name: "Mira" }) });
+        const [first, second] = within(menu).getAllByRole("menuitemradio");
+        expect(first).toHaveAttribute("aria-checked", "true");
+        expect(within(second).getByText("Schamane")).toHaveAttribute("data-tip", "Schamane · Verstärkung");
+        await userEvent.click(second);
+        const groups = vi.mocked(api.saveKaderVariant).mock.calls.at(-1)?.[2].groups;
+        expect(groups?.[0][1]).toEqual({ userId: U.heal, spec: "Shaman-Enhancement" });
+    });
+});
+
 describe("KaderPage · read-only and English", () => {
     it("lets a read-only grant look at everything but change nothing", async () => {
         await show("/kader/k1/pool", reader);
@@ -267,7 +392,8 @@ describe("KaderPage · read-only and English", () => {
         try {
             await show("/kader/k1/vorauswahl");
             expect(screen.getByRole("link", { name: "Interviews" })).toBeInTheDocument();
-            expect(screen.getByRole("heading", { name: "In the preselection" })).toBeInTheDocument();
+            expect(screen.getByRole("heading", { name: "Preselection" })).toBeInTheDocument();
+            expect(screen.getByRole("radio", { name: "Done 1" })).toBeInTheDocument();
             expect(screen.getByRole("button", { name: "Complete interview" })).toBeInTheDocument();
         } finally {
             await switchLang("de");

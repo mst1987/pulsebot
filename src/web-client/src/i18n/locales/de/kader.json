@@ -20,28 +20,48 @@
         "bench": "auf der Bench seit {date} ({by})",
         "tentative": "Tentative seit {date} ({by})"
     },
-    "stage": {
-        "pool": "Pool",
-        "selected": "Vorauswahl",
-        "provisional": "Vorläufig",
-        "roster": "Roster"
-    },
     "nav": {
         "aria": "Status im Kader",
-        "more": "Bench {bench} · Tentative {tentative}",
         "selection": "Vorauswahl",
         "vorauswahl": "Gespräche",
         "uebersicht": "Übersicht",
-        "setups": "Beispiel-Setup bauen"
+        "setups": "Beispiel-Setup bauen",
+        "kicker": "Spieler je Status",
+        "count": {
+            "pool": {
+                "one": "{count} Spieler im Pool",
+                "other": "{count} Spieler im Pool"
+            },
+            "selected": {
+                "one": "{count} Spieler in der Vorauswahl",
+                "other": "{count} Spieler in der Vorauswahl"
+            },
+            "provisional": {
+                "one": "{count} Spieler im vorläufigen Roster",
+                "other": "{count} Spieler im vorläufigen Roster"
+            },
+            "roster": {
+                "one": "{count} Spieler im Roster",
+                "other": "{count} Spieler im Roster"
+            },
+            "bench": {
+                "one": "{count} Spieler auf der Bench",
+                "other": "{count} Spieler auf der Bench"
+            },
+            "tentative": {
+                "one": "{count} Spieler tentative",
+                "other": "{count} Spieler tentative"
+            }
+        }
     },
     "header": {
         "kicker": "Kaderplaner",
         "pick": "Kader wählen",
-        "countTip": "im Roster / insgesamt",
         "new": "Neuer Kader",
         "leads": "Leitung",
         "noLeads": "noch niemand",
-        "settings": "Einstellungen des Kaders"
+        "settings": "Einstellungen des Kaders",
+        "countLine": "{roster} im Roster · {total} gesamt"
     },
     "start": {
         "kicker": "Kaderplaner · Ablauf je Kader",
@@ -50,7 +70,7 @@
         "readOnly": "Hier gibt es noch keinen Kader. Anlegen kann ihn, wer den Kaderplaner bearbeiten darf.",
         "kind": {
             "action": "Aktion",
-            "state": "Status {n}",
+            "state": "Status",
             "view": "Ansicht"
         },
         "step": {
@@ -118,20 +138,24 @@
         "profile": "Profil",
         "logs": "Logs",
         "none": "fehlt",
-        "otherVersion": "Aus dem Profil einer anderen Spielversion ({version})"
+        "otherVersion": "Aus dem Profil einer anderen Spielversion ({version})",
+        "tip": "Woher der Charakter stammt: Profil, Logs oder im Kaderplaner eingetragen"
     },
     "pool": {
         "search": "Name, Klasse oder Spec",
         "scope": "Welche Spieler",
-        "scopeAll": "Alle {n}",
-        "scopePool": "Pool {n}",
-        "scopeSelected": "Zur Auswahl {n}",
+        "scopeAll": "Alle im Kader {n}",
+        "scopePool": "Im Pool {n}",
+        "scopeSelected": "In der Vorauswahl {n}",
         "filterRole": "Discord-Rolle",
         "filterClass": "Klasse",
         "noClass": "ohne Charakter",
         "byId": "Per Discord-ID",
         "import": "Aus Discord-Rolle hinzufügen",
-        "ofTotal": "von {total}",
+        "ofTotal": {
+            "one": "von {count} Spieler",
+            "other": "von {count} Spielern"
+        },
         "colPlayer": "Spieler",
         "colChar": "Vorbelegt",
         "colRoles": "Discord-Rollen",
@@ -155,7 +179,11 @@
         "removeText": "Mit ihren Gesprächen, Stimmen und Kommentaren in diesem Kader. Die Charakterdaten der Accounts bleiben.",
         "moved": "{n} verschoben",
         "movedSkipped": "{n} verschoben, {skipped} übersprungen (stehen schon weiter)",
-        "nothingToMove": "Keiner der Markierten steht dafür im passenden Status."
+        "nothingToMove": "Keiner der Markierten steht dafür im passenden Status.",
+        "scopeAllTip": {
+            "one": "{count} Spieler in diesem Kader",
+            "other": "{count} Spieler in diesem Kader"
+        }
     },
     "batch": {
         "aria": "Markierte Spieler",
@@ -201,7 +229,11 @@
         "offline": "Die Mitgliederliste ist gerade nicht verfügbar (Bot offline oder ohne Mitglieder-Intent). Einzelne Spieler gehen per Discord-ID.",
         "summary": "{n} werden übernommen, davon {missing} ohne Chardaten.",
         "submit": "{n} in den Pool",
-        "done": "{n} in den Pool übernommen"
+        "done": "{n} in den Pool übernommen",
+        "holders": {
+            "one": "{count} Mitglied mit dieser Rolle",
+            "other": "{count} Mitglieder mit dieser Rolle"
+        }
     },
     "add": {
         "title": "Spieler hinzufügen",
@@ -220,7 +252,8 @@
         "charOptional": "Charakter · optional, geht auch später",
         "pickClass": "wählen …",
         "submit": "In den Pool",
-        "done": "{name} ist im Pool"
+        "done": "{name} ist im Pool",
+        "pick": "Auswählen"
     },
     "interview": {
         "listTitle": "In der Vorauswahl",
@@ -278,7 +311,19 @@
         "saveNext": "Speichern & nächster",
         "complete": "Gespräch abschließen",
         "completedToast": "Gespräch mit {name} abgeschlossen",
-        "reopen": "Wieder öffnen"
+        "reopen": "Wieder öffnen",
+        "statusOpenTip": "Gespräch noch nicht begonnen",
+        "statusDoneTip": "Gespräch geführt",
+        "listOpenTip": {
+            "one": "{count} Gespräch offen",
+            "other": "{count} Gespräche offen"
+        },
+        "listDoneTip": {
+            "one": "{count} Gespräch geführt",
+            "other": "{count} Gespräche geführt"
+        },
+        "answered": "beantwortet",
+        "specTaken": "{spec} steht schon in den Wünschen"
     },
     "qtype": {
         "single": "Einzelauswahl",
@@ -317,7 +362,11 @@
         "openTitle": "{n} ohne abgeschlossenes Gespräch",
         "openText": "Sie kommen trotzdem ins vorläufige Roster; das Gespräch lässt sich dort weiter ansehen.",
         "movedOn": "{n} im vorläufigen Roster",
-        "movedBack": "{n} zurück im Pool"
+        "movedBack": "{n} zurück im Pool",
+        "daysTip": {
+            "one": "seit {date} in der Vorauswahl ({count} Tag)",
+            "other": "seit {date} in der Vorauswahl ({count} Tage)"
+        }
     },
     "decide": {
         "kicker": {
@@ -326,25 +375,28 @@
             "bench": "Auf der Bench",
             "tentative": "Tentative"
         },
-        "empty": {
-            "provisional": "Aus der Übersicht der Vorauswahl kommen Spieler hierher.",
-            "roster": "Noch niemand fest im Roster.",
-            "bench": "Niemand auf der Bench.",
-            "tentative": "Niemand tentative."
-        },
         "back": {
             "selected": "Zurück in die Vorauswahl",
             "provisional": "Zurück ins vorläufige Roster"
         },
         "pickHint": "Karte anklicken: Wünsche, Gespräch, Stimmen, Kommentare und die Entscheidung.",
         "drawer": "Diskussion zu {name}",
-        "yesVotes": "{n} Stimmen dafür",
-        "commentCount": "{n} Kommentare",
+        "yesVotes": {
+            "one": "{count} Stimme dafür",
+            "other": "{count} Stimmen dafür"
+        },
+        "commentCount": {
+            "one": "{count} Kommentar",
+            "other": "{count} Kommentare"
+        },
         "interviewBy": "Gespräch · {lead}, {date}",
         "interviewOpen": "Gespräch · noch nicht abgeschlossen",
         "openInterview": "Gespräch öffnen",
         "votes": "Stimmen der Leitung",
-        "noVotes": "Noch keine Stimme.",
+        "noVotes": {
+            "one": "{count} Stimme dagegen",
+            "other": "{count} Stimmen dagegen"
+        },
         "myVote": "Deine Stimme",
         "takeBack": "Stimme zurückziehen",
         "onlyLeads": "Abstimmen kann die Leitung dieses Kaders.",
@@ -363,7 +415,10 @@
         "toRosterDone": "{name} ist im Roster: {pick}",
         "moved": "{name}: {state}",
         "cantMove": "Dieser Wechsel geht nicht direkt.",
-        "history": "Verlauf"
+        "history": "Verlauf",
+        "noVoteYet": "Noch keine Stimme.",
+        "dropHere": "Hierher ziehen",
+        "emptyRead": "Niemand"
     },
     "vote": {
         "yes": "dafür",
@@ -463,7 +518,12 @@
         "missing": "kein {buff}",
         "moreBuffs": "+{n} Buffs",
         "hiddenGroups": "Gruppe 3 und 4 bleiben erhalten und erscheinen wieder im 20er.",
-        "none": "Keine Variante."
+        "none": "Keine Variante.",
+        "groupFill": "{n} von {max} Plätzen",
+        "placedOf": {
+            "one": "von {count} Platz",
+            "other": "von {count} Plätzen"
+        }
     },
     "account": {
         "withProfile": "Discord · mit EventHelper-Profil",
@@ -555,5 +615,15 @@
         "noSpec": "ohne Spec",
         "canDays": "kann {days}",
         "noDays": "keine Angabe zu Raidtagen"
+    },
+    "playersN": {
+        "one": "{count} Spieler",
+        "other": "{count} Spieler"
+    },
+    "roleCount": "{role}: {n}",
+    "picker": {
+        "rank": "{n}. Wunsch",
+        "decision": "Entscheidung",
+        "before": "bisher gewählt"
     }
 }

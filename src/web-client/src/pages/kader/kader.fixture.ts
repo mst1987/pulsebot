@@ -103,16 +103,16 @@ export function kaderView(over: Partial<KaderView> = {}): KaderView {
         roles: ["tank", "healer", "melee", "ranged"],
         classes: [
             { key: "Warrior", name: "Krieger", nameEn: "Warrior", color: "#C79C6E", icon: "", canTank: true, canHeal: false, specs: [
-                { key: "Warrior-Protection", name: "Schutz", nameEn: "Protection", role: "tank", canTank: true, canHeal: false, icon: "" },
-                { key: "Warrior-Fury", name: "Furor", nameEn: "Fury", role: "melee", canTank: false, canHeal: false, icon: "" },
+                { key: "Warrior-Protection", name: "Schutz", nameEn: "Protection", role: "tank", canTank: true, canHeal: false, icon: "ability_warrior_defensivestance" },
+                { key: "Warrior-Fury", name: "Furor", nameEn: "Fury", role: "melee", canTank: false, canHeal: false, icon: "ability_warrior_innerrage" },
             ] },
             { key: "Shaman", name: "Schamane", nameEn: "Shaman", color: "#0070DE", icon: "", canTank: false, canHeal: true, specs: [
-                { key: "Shaman-Enhancement", name: "Verstärkung", nameEn: "Enhancement", role: "melee", canTank: false, canHeal: false, icon: "" },
-                { key: "Shaman-Restoration", name: "Wiederherstellung", nameEn: "Restoration", role: "healer", canTank: false, canHeal: true, icon: "" },
+                { key: "Shaman-Enhancement", name: "Verstärkung", nameEn: "Enhancement", role: "melee", canTank: false, canHeal: false, icon: "spell_nature_lightningshield" },
+                { key: "Shaman-Restoration", name: "Wiederherstellung", nameEn: "Restoration", role: "healer", canTank: false, canHeal: true, icon: "spell_nature_magicimmunity" },
             ] },
             { key: "Mage", name: "Magier", nameEn: "Mage", color: "#69CCF0", icon: "", canTank: false, canHeal: false, specs: [
-                { key: "Mage-Frost", name: "Frost", nameEn: "Frost", role: "ranged", canTank: false, canHeal: false, icon: "" },
-                { key: "Mage-Fire", name: "Feuer", nameEn: "Fire", role: "ranged", canTank: false, canHeal: false, icon: "" },
+                { key: "Mage-Frost", name: "Frost", nameEn: "Frost", role: "ranged", canTank: false, canHeal: false, icon: "spell_frost_frostbolt02" },
+                { key: "Mage-Fire", name: "Feuer", nameEn: "Fire", role: "ranged", canTank: false, canHeal: false, icon: "spell_fire_firebolt02" },
             ] },
         ],
         buffs: {
@@ -126,7 +126,7 @@ export function kaderView(over: Partial<KaderView> = {}): KaderView {
             { userId: U.lead2, displayName: "Ohne", roleIds: ["r2"], prefill: null },
         ],
         discordRoles: [{ id: "r1", name: "Raider", color: "#3498db", count: 3 }, { id: "r2", name: "Trial", color: "", count: 2 }],
-        names: { [ME]: "Admin", [U.lead2]: "Ohne", [U.done]: "Brakk" },
+        names: { [ME]: "Admin", [U.lead2]: "Ohne", [U.done]: "Brakk", [U.guest]: "Gast", [U.tank]: "Aldric" },
         kaders: [
             { id: "k1", name: "Forever-Kader", leads: [ME], createdAt: "", createdBy: ME, counts: { pool: 1, selected: 2, provisional: 1, roster: 1, bench: 1, tentative: 1 }, questions: 3 },
             { id: "k2", name: "Zweiter Kader", leads: [], createdAt: "", createdBy: "", counts: { pool: 0, selected: 0, provisional: 0, roster: 0, bench: 0, tentative: 0 }, questions: 2 },

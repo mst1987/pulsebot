@@ -3,27 +3,30 @@
 // size keeps groups 3 and 4 as they are. The players come from the roster and
 // the provisional roster, bench and tentative can be added. Drag a player onto a
 // slot, or click the player and then the slot; whoever sits there swaps places.
-// The spec of a slot is one of the player's wishes. Each group names the party
-// buffs it has and the important ones it misses. A setup never changes a state.
+// The spec of a slot is one of the player's wishes, picked from its spec icons
+// (WishPicker); the class colour, role counts and buff hints follow it. Each
+// group names the party buffs it has and the important ones it misses. A setup
+// never changes a state.
 import { useState } from "react";
 import {
     addKaderVariant, autoKaderVariant, deleteKaderVariant, saveKaderVariant,
     type KaderSlot, type KaderState, type KaderVariant,
 } from "../../api";
-import { Button, IconButton, Modal } from "../../components/ui";
+import { Button, Field, IconButton, Modal } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
-import { CopyIcon, EditIcon, PlusIcon, TrashIcon, XIcon } from "../../components/icons";
+import { BoltIcon, CheckIcon, CopyIcon, EditIcon, PlusIcon, RosterIcon, SaveIcon, TrashIcon, XIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { rolePluralLabel } from "../../lib/wowNames";
-import { classColor, playerName, ROLES, SETUP_STATES, specName } from "../../lib/kader/model";
+import { classColor, classOfSpec, playerName, ROLES, SETUP_STATES } from "../../lib/kader/model";
 import {
-    GROUP_SIZE, defaultSpec, groupHints, moveToSlot, placedIds, removeFromGroups, setSlotSpec, setupText, slotRoles, specsFor, unplaced, visibleGroups, type Groups,
+    GROUP_SIZE, defaultSpec, groupHints, moveToSlot, placedIds, removeFromGroups, setSlotSpec, setupText, slotRoles, unplaced, visibleGroups, type Groups,
 } from "../../lib/kader/setup";
 import { classColorProps } from "../../components/ClassSpec";
 import { dragProps, useDropZone } from "./dnd";
-import { PickIcon, RoleIcon, SubHead } from "./parts";
+import { Count, EmptyState, PickIcon, RoleIcon, StateIcon, SubHead, WishIcons } from "./parts";
+import WishPicker from "./WishPicker";
 import { useKader } from "./kaderContext";
 
 const DEFAULT_SOURCES: KaderState[] = ["roster", "provisional"];
@@ -58,18 +61,15 @@ function Slot({ slot, gi, si, picked, onPick, onDropUser, onSpec }: {
     }
     const entry = kader.players[slot.userId];
     const name = playerName(view, slot.userId, entry);
-    const cls = slot.spec ? slot.spec.split("-")[0] : "";
-    const specs = entry ? specsFor(entry) : [];
-    if (slot.spec && !specs.includes(slot.spec)) specs.unshift(slot.spec);
+    const color = classColorProps(classColor(view.classes, classOfSpec(slot.spec)));
     return (
         <div className={`kp-slot${picked ? " kp-picked" : ""}${drop.over ? " kp-over" : ""}`} {...drop.props}>
+            {entry ? (
+                <WishPicker entry={entry} value={slot.spec} compact disabled={!canWrite} label={t("kader.setups.specOf", { name })} onChange={(pick) => onSpec(pick.spec)} />
+            ) : <PickIcon pick={slot.spec ? { className: classOfSpec(slot.spec), spec: slot.spec } : null} size={20} />}
             <button type="button" className="kp-slot-main" aria-pressed={picked} disabled={!canWrite} onClick={onPick} {...dragProps(slot.userId, canWrite)}>
-                <PickIcon pick={slot.spec ? { className: cls, spec: slot.spec } : null} size={22} />
-                <span className={`kp-slot-name kp-grow${cls ? " class-colored" : ""}`} style={classColorProps(classColor(view.classes, cls)).style}>{name}</span>
+                <span className={`kp-slot-name kp-grow${color.className ? ` ${color.className}` : ""}`} style={color.style}>{name}</span>
             </button>
-            <select className="kp-slot-spec" aria-label={t("kader.setups.specOf", { name })} value={slot.spec} disabled={!canWrite || specs.length < 2} onChange={(e) => onSpec(e.target.value)}>
-                {specs.map((s) => <option key={s} value={s}>{specName(view.classes, s)}</option>)}
-            </select>
             {entry && <StateDot state={entry.state} />}
         </div>
     );
@@ -94,7 +94,7 @@ function GroupCard({ variant, gi, picked, onPickSlot, onDropAt, onSpec }: {
         <div className="kp-panel kp-group">
             <div className="kp-between">
                 <h3>{t("kader.setups.group", { n: gi + 1 })}</h3>
-                <span className="kp-mono kp-muted">{filled} / {GROUP_SIZE}</span>
+                <span className="kp-sub">{t("kader.setups.groupFill", { n: filled, max: GROUP_SIZE })}</span>
             </div>
             {slots.map((slot, si) => (
                 <Slot key={si} slot={slot} gi={gi} si={si} picked={!!slot && slot.userId === picked}
@@ -120,19 +120,21 @@ function NameModal({ initial, onSave, onClose }: { initial: string; onSave: (nam
             open
             onClose={onClose}
             title={t("kader.setups.rename")}
-            width={420}
+            width={440}
+            className="kp-dialog"
             initialFocus="input"
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={!ok} onClick={() => onSave(name.trim())}>{t("common.save")}</Button>
+                    <Button icon={<SaveIcon />} disabled={!ok} onClick={() => onSave(name.trim())}>{t("common.save")}</Button>
                 </>
             )}
         >
-            <label className="field">
-                <span className="field-label">{t("kader.field.name")}</span>
-                <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && ok) onSave(name.trim()); }} />
-            </label>
+            <div className="kp-stack">
+                <Field label={t("kader.field.name")} htmlFor="kp-variant-name">
+                    <input id="kp-variant-name" value={name} maxLength={40} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && ok) onSave(name.trim()); }} />
+                </Field>
+            </div>
         </Modal>
     );
 }
@@ -180,6 +182,7 @@ export default function SetupsView() {
         void save(moveToSlot(variant.groups, userId, specFor(userId), gi, si));
         setPicked(null);
     };
+
     const toggleSource = (s: KaderState) => setSources(sources.includes(s) ? sources.filter((x) => x !== s) : [...sources, s]);
     const setSize = (size: 10 | 20) => { if (size !== variant.size) void run(saveKaderVariant(kader.id, variant.id, { size })); };
     const auto = async () => {
@@ -238,27 +241,30 @@ export default function SetupsView() {
                     <span className="kicker">{t("kader.setups.sources")}</span>
                     <div className="kp-sources">
                         {SETUP_STATES.map((s) => (
-                            <button key={s} type="button" aria-pressed={sources.includes(s)} className={`kp-source-chip${sources.includes(s) ? " kp-on" : ""}`} onClick={() => toggleSource(s)}>
-                                <span className={`kp-sdot kp-sdot-${s}`} aria-hidden="true" />{t(`kader.state.${s}`)}<span className="kp-mono kp-muted">{counts[s]}</span>
+                            <button key={s} type="button" aria-pressed={sources.includes(s)} className={`kp-source-chip${sources.includes(s) ? " kp-on" : ""}`}
+                                data-tip={t(`kader.nav.count.${s}`, { count: counts[s] })} onClick={() => toggleSource(s)}>
+                                <StateIcon state={s} />{t(`kader.state.${s}`)}<span className="kp-mono">{counts[s]}</span>
                             </button>
                         ))}
                     </div>
-                    <div className="kp-between kp-gap">
+                    <div className="kp-listhead kp-gap">
                         <h2>{t("kader.setups.withoutGroup")}</h2>
-                        <span className="kp-mono kp-muted">{rest.length}</span>
+                        <Count n={rest.length} tip={t("kader.playersN", { count: rest.length })} />
                     </div>
-                    {rest.length === 0 && <span className="kp-hint">{sources.some((s) => counts[s] > 0) ? t("kader.setups.allPlaced") : t("kader.setups.nobody")}</span>}
+                    {rest.length === 0 && (sources.some((s) => counts[s] > 0)
+                        ? <EmptyState icon={<CheckIcon />} text={t("kader.setups.allPlaced")} />
+                        : <EmptyState icon={<RosterIcon />} text={t("kader.setups.nobody")} />)}
                     {rest.map((id) => {
                         const entry = kader.players[id];
                         const spec = defaultSpec(entry);
-                        const cls = spec ? spec.split("-")[0] : "";
+                        const color = classColorProps(classColor(view.classes, classOfSpec(spec)));
                         return (
                             <button key={id} type="button" className={`kp-slot kp-restrow${picked === id ? " kp-picked" : ""}`} aria-pressed={picked === id} disabled={!canWrite}
                                 {...dragProps(id, canWrite)} onClick={() => setPicked(picked === id ? null : id)}>
-                                <PickIcon pick={spec ? { className: cls, spec } : null} size={24} />
+                                <PickIcon pick={spec ? { className: classOfSpec(spec), spec } : null} size={24} />
                                 <span className="kp-col kp-grow">
-                                    <span className={`kp-slot-name${cls ? " class-colored" : ""}`} style={classColorProps(classColor(view.classes, cls)).style}>{playerName(view, id, entry)}</span>
-                                    <span className="kp-sub">{spec ? specName(view.classes, spec) : t("kader.interview.noWishes")}</span>
+                                    <span className={`kp-slot-name${color.className ? ` ${color.className}` : ""}`} style={color.style}>{playerName(view, id, entry)}</span>
+                                    <WishIcons wishes={entry.wishes} size={16} />
                                 </span>
                                 <StateDot state={entry.state} />
                             </button>
@@ -272,10 +278,14 @@ export default function SetupsView() {
                 </aside>
                 <section className="kp-setup-main">
                     <div className="kp-setup-sum">
-                        <span><b className="kp-mono kp-big-n">{placed}</b> / {variant.size}</span>
-                        {ROLES.map((r) => <span key={r} className="kp-rolecount" data-tip={rolePluralLabel(r)}><RoleIcon role={r} size={18} /><b className="kp-mono">{roles[r]}</b></span>)}
+                        <span><b className="kp-mono kp-big-n">{placed}</b> {t("kader.setups.placedOf", { count: variant.size })}</span>
+                        {ROLES.map((r) => (
+                            <span key={r} className="kp-rolecount" data-tip={t("kader.roleCount", { role: rolePluralLabel(r), n: roles[r] })}>
+                                <RoleIcon role={r} size={18} /><b className="kp-mono">{roles[r]}</b>
+                            </span>
+                        ))}
                         <span className="kp-grow" />
-                        {canWrite && <Button variant="ghost" onClick={() => void auto()}>{t("kader.setups.auto")}</Button>}
+                        {canWrite && <Button variant="ghost" icon={<BoltIcon />} onClick={() => void auto()}>{t("kader.setups.auto")}</Button>}
                     </div>
                     <div className="kp-groups">
                         {variant.groups.slice(0, shownGroups).map((_, gi) => (
@@ -292,6 +302,7 @@ export default function SetupsView() {
                 onClose={() => setText(null)}
                 title={t("kader.setups.textTitle")}
                 width={560}
+                className="kp-dialog"
                 hint={t("kader.setups.textHint")}
                 footer={<Button onClick={() => setText(null)}>{t("common.close")}</Button>}
             >
