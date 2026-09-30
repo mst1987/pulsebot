@@ -5,12 +5,14 @@
 // source of a prefilled character, the initial of a lead, counts that say what
 // they count, the status of an interview (open circle, progress ring, check),
 // votes, empty states, a switch, the week squares, the head of a sub page, the
-// two tabs of the Vorauswahl and what an interview says (wishes, answers,
-// history).
+// two tabs of the Vorauswahl, what an interview says (wishes, answers,
+// history) and the sortable column head of the planner's tables.
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { KaderEntry, KaderPrefill, KaderQuestion, KaderAnswer, KaderRole, KaderState, KaderVote, KaderWish } from "../../api";
 import { classColorProps } from "../../components/ClassSpec";
+import { SortLabel, ariaSort } from "../../components/SortTh";
+import type { TableSort } from "../../lib/tableSort";
 import {
     BenchIcon, CheckIcon, ChevronLeftIcon, CircleIcon, CrestIcon, HourglassIcon, ListChecksIcon, RosterIcon, TentativeIcon, XIcon,
 } from "../../components/icons";
@@ -357,5 +359,33 @@ export function HistoryLines({ entry, limit = 0 }: { entry: KaderEntry; limit?: 
                 </li>
             ))}
         </ul>
+    );
+}
+
+/** A line of a planner table that is no row of players (nobody found, an empty list): one cell over the whole width. */
+export function TableNote({ children }: { children: ReactNode }) {
+    return <div role="row" className="kp-tnote"><div role="cell">{children}</div></div>;
+}
+
+/**
+ * A column head of the planner's tables: the head is the sort button (the
+ * shared SortLabel — chevron, keyboard, active state), `aria-sort` tells a
+ * screen reader the order. `children` go below the label (the attendance
+ * column's category menu).
+ */
+export function SortHead<K extends string>({ sortKey, label, sort, tip, tipSub, className: extra = "", children }: {
+    sortKey: K;
+    label: string;
+    sort: Pick<TableSort<K>, "sort" | "dir" | "onSort">;
+    tip?: string;
+    tipSub?: string;
+    className?: string;
+    children?: ReactNode;
+}) {
+    return (
+        <span role="columnheader" aria-sort={ariaSort(sortKey, sort.sort, sort.dir)} className={`kp-th${extra ? ` ${extra}` : ""}`}>
+            <span className="kicker"><SortLabel sortKey={sortKey} label={label} sort={sort.sort} dir={sort.dir} onSort={sort.onSort} tip={tip} tipSub={tipSub} /></span>
+            {children}
+        </span>
     );
 }

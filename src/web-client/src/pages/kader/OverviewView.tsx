@@ -2,8 +2,9 @@
 // Vorauswahl side by side — the first two wishes, one column per question of
 // this Kader, where the interview stands and how long they have been waiting.
 // Filter menus for the interview, the first wish and every question; grouped by
-// role, class or interview. A name shows the whole interview on hover. Marked
-// rows go on at once: into the provisional roster, or back into the pool.
+// role, class or interview. Every column head sorts (inside each group), the
+// order is remembered. A name shows the whole interview on hover. Marked rows
+// go on at once: into the provisional roster, or back into the pool.
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { setKaderState, type KaderClassDef, type KaderEntry, type KaderQuestion, type KaderRole, type KaderState } from "../../api";
 import { Button, Segment } from "../../components/ui";
@@ -13,13 +14,18 @@ import { ChevronLeftIcon, HourglassIcon, ListChecksIcon, SearchIcon } from "../.
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
+import { useTableSort } from "../../lib/tableSort";
 import { rolePluralLabel } from "../../lib/wowNames";
 import { className, dayOf, daysSince, nameOf, playerName, ROLES, roleCounts, searchText, specRole } from "../../lib/kader/model";
 import { answerLabels, isAnswered, isWeekdays, statusOf, type InterviewStatus } from "../../lib/kader/interview";
+import { overviewParts, overviewSortDefaults, sortTable } from "../../lib/kader/sort";
 import { cleanState, passes, type FilterDef, type FilterOption, type FilterState } from "../../lib/kader/filters";
 import { FilterChips, FilterMenus } from "./FilterMenus";
 import { BatchBar } from "./BatchBar";
-import { AnswerLines, ClassIcon, Count, DaySquares, DoneBadge, EmptyState, HistoryLines, InterviewChip, PlayerName, RoleIcon, SelectionTabs, SpecTag, WishLines } from "./parts";
+import {
+    AnswerLines, ClassIcon, Count, DaySquares, DoneBadge, EmptyState, HistoryLines, InterviewChip, PlayerName, RoleIcon, SelectionTabs, SortHead, SpecTag,
+    TableNote, WishLines,
+} from "./parts";
 import { useKader } from "./kaderContext";
 
 type GroupBy = "role" | "class" | "interview" | "none";
@@ -55,11 +61,11 @@ function Peek({ row }: { row: Row }) {
 
 function AnswerCell({ q, entry }: { q: KaderQuestion; entry: KaderEntry }) {
     const value = entry.interview.answers[q.id];
-    if (isWeekdays(q)) return <span><DaySquares question={q} value={value} /></span>;
+    if (isWeekdays(q)) return <span role="cell"><DaySquares question={q} value={value} /></span>;
     const labels = answerLabels(q, value);
-    if (!labels.length) return <span className="kp-muted">—</span>;
+    if (!labels.length) return <span role="cell" className="kp-muted">—</span>;
     const text = labels.join(" · ");
-    return <span className="kp-ellipsis" data-tip={text}>{text}</span>;
+    return <span role="cell" className="kp-ellipsis" data-tip={text}>{text}</span>;
 }
 
 function OverviewRow({ row, marked, onMark }: { row: Row; marked: boolean; onMark: (on: boolean) => void }) {
@@ -72,17 +78,19 @@ function OverviewRow({ row, marked, onMark }: { row: Row; marked: boolean; onMar
     const status = statusOf(entry);
     const leadLine = iv.lead ? `${nameOf(view, iv.lead)}${status === "done" ? ` · ${dayOf(iv.completedAt)}` : ""}` : t("kader.interview.nobody");
     return (
-        <div className={`kp-trow kp-ov-grid${marked ? " kp-marked" : ""}`}>
-            <input type="checkbox" checked={marked} disabled={!canWrite} aria-label={t("kader.batch.mark", { name: playerName(view, userId, entry) })} onChange={(e) => onMark(e.target.checked)} />
-            <span className="kp-cell-name kp-namerowcell"><Peek row={row} />{status === "done" && <DoneBadge />}</span>
-            <span className="kp-cell-char">{w1 ? <SpecTag pick={w1} size={22} /> : <span className="kp-muted">—</span>}</span>
-            <span className="kp-cell-char">{w2 ? <SpecTag pick={w2} size={20} className="kp-small" /> : <span className="kp-muted">—</span>}</span>
+        <div className={`kp-trow kp-ov-grid${marked ? " kp-marked" : ""}`} role="row">
+            <span role="cell" className="kp-cell-mark">
+                <input type="checkbox" checked={marked} disabled={!canWrite} aria-label={t("kader.batch.mark", { name: playerName(view, userId, entry) })} onChange={(e) => onMark(e.target.checked)} />
+            </span>
+            <span role="cell" className="kp-cell-name kp-namerowcell"><Peek row={row} />{status === "done" && <DoneBadge />}</span>
+            <span role="cell" className="kp-cell-char">{w1 ? <SpecTag pick={w1} size={22} /> : <span className="kp-muted">—</span>}</span>
+            <span role="cell" className="kp-cell-char">{w2 ? <SpecTag pick={w2} size={20} className="kp-small" /> : <span className="kp-muted">—</span>}</span>
             {kader.questions.map((q) => <AnswerCell key={q.id} q={q} entry={entry} />)}
-            <span className="kp-col">
+            <span role="cell" className="kp-col">
                 <InterviewChip entry={entry} />
                 <span className="kp-sub">{leadLine}</span>
             </span>
-            <span className="kp-mono kp-muted" data-tip={days === null ? undefined : t("kader.overview.daysTip", { count: days, date: dayOf(entry.since) })}>{days === null ? "—" : t("kader.overview.days", { n: days })}</span>
+            <span role="cell" className="kp-mono kp-muted" data-tip={days === null ? undefined : t("kader.overview.daysTip", { count: days, date: dayOf(entry.since) })}>{days === null ? "—" : t("kader.overview.days", { n: days })}</span>
         </div>
     );
 }
@@ -91,16 +99,16 @@ export default function OverviewView() {
     const t = useT();
     const toast = useToast();
     const ask = useConfirm();
-    const { view, kader, canWrite, run } = useKader();
+    const { view, kader, players, canWrite, run } = useKader();
     const [q, setQ] = useState("");
     const [groupBy, setGroupBy] = usePersistedState<GroupBy>("kader-overview-group", "role");
     const [rawFilters, setFilters] = usePersistedState<FilterState>("kader-overview-filters", {});
     const [marked, setMarked] = useState<string[]>([]);
+    const sort = useTableSort<string>("kader-overview-sort", overviewSortDefaults(kader.questions), "name");
 
     const rows: Row[] = useMemo(() => Object.entries(kader.players)
         .filter(([, e]) => e.state === "selected")
-        .map(([userId, entry]) => ({ userId, entry }))
-        .sort((a, b) => playerName(view, a.userId, a.entry).localeCompare(playerName(view, b.userId, b.entry))), [view, kader]);
+        .map(([userId, entry]) => ({ userId, entry })), [kader]);
 
     const defs = useMemo<FilterDef<Row>[]>(() => {
         const out: FilterDef<Row>[] = [
@@ -134,7 +142,13 @@ export default function OverviewView() {
     const filters = cleanState(defs, rawFilters);
 
     const needle = q.trim().toLowerCase();
-    const shown = rows.filter((r) => passes(r, defs, filters) && (!needle || searchText(view, r.userId, r.entry).includes(needle)));
+    // sorted first, grouped after: the order holds inside every group
+    const shown = sortTable(
+        rows.filter((r) => passes(r, defs, filters) && (!needle || searchText(view, r.userId, r.entry).includes(needle))),
+        (r) => playerName(view, r.userId, r.entry),
+        overviewParts({ view, kader, players }, sort.sort),
+        sort.dir,
+    );
     const mix = roleCounts(view.classes, shown.map((r) => r.entry.wishes[0] || null));
 
     const groups: Group[] = (() => {
@@ -170,7 +184,7 @@ export default function OverviewView() {
     // one column per question; the smallest widths of kader.css (.kp-ov-grid) plus the gaps give the table's least width
     const n = kader.questions.length;
     const qcols = n ? `repeat(${n}, minmax(88px, 1fr))` : "";
-    const minw = 22 + 130 + 160 + 110 + 116 + 48 + 12 * 5 + 28 + n * (88 + 12);
+    const minw = 22 + 130 + 160 + 110 + 116 + 56 + 12 * 5 + 28 + n * (88 + 12);
 
     return (
         <div className="kp-view">
@@ -201,27 +215,36 @@ export default function OverviewView() {
                     {ROLES.map((r) => <span key={r} data-tip={t("kader.roleCount", { role: rolePluralLabel(r), n: mix[r] })}><RoleIcon role={r} size={16} /><b className="kp-mono">{mix[r]}</b></span>)}
                 </span>
             </div>
-            <div className="kp-panel kp-table kp-scroll-x" style={{ "--qcols": qcols, "--minw": `${minw}px` } as CSSProperties}>
-                <div className="kp-trow kp-thead kp-ov-grid">
-                    <input type="checkbox" aria-label={t("kader.batch.markAll")} disabled={!canWrite || !shown.length}
-                        checked={shown.length > 0 && shown.every((r) => marked.includes(r.userId))} onChange={(e) => toggleAll(e.target.checked)} />
-                    <span className="kicker">{t("kader.pool.colPlayer")}</span>
-                    <span className="kicker">{t("kader.overview.colWish1")}</span>
-                    <span className="kicker">{t("kader.overview.colWish2")}</span>
-                    {kader.questions.map((question) => <span key={question.id} className="kicker kp-ellipsis" data-tip={question.text}>{question.text}</span>)}
-                    <span className="kicker">{t("kader.overview.colInterview")}</span>
-                    <span className="kicker">{t("kader.overview.colSince")}</span>
+            <div className="kp-panel kp-table kp-scroll-x" role="table" aria-label={t("kader.overview.tableLabel", { name: kader.name })}
+                style={{ "--qcols": qcols, "--minw": `${minw}px` } as CSSProperties}>
+                <div className="kp-trow kp-thead kp-ov-grid" role="row">
+                    <span role="columnheader" className="kp-cell-mark">
+                        <input type="checkbox" aria-label={t("kader.batch.markAll")} disabled={!canWrite || !shown.length}
+                            checked={shown.length > 0 && shown.every((r) => marked.includes(r.userId))} onChange={(e) => toggleAll(e.target.checked)} />
+                    </span>
+                    <SortHead sortKey="name" label={t("kader.pool.colPlayer")} sort={sort} />
+                    <SortHead sortKey="wish1" label={t("kader.overview.colWish1")} sort={sort} tip={t("kader.overview.colWish1")} tipSub={t("kader.sort.wishSub")} />
+                    <SortHead sortKey="wish2" label={t("kader.overview.colWish2")} sort={sort} tip={t("kader.overview.colWish2")} tipSub={t("kader.sort.wishSub")} />
+                    {kader.questions.map((question) => (
+                        <SortHead key={question.id} sortKey={`q-${question.id}`} label={question.text} sort={sort} tip={question.text} tipSub={t(`kader.sort.answer.${question.type}`)} />
+                    ))}
+                    <SortHead sortKey="interview" label={t("kader.overview.colInterview")} sort={sort} tip={t("kader.overview.colInterview")} tipSub={t("kader.sort.interviewSub")} />
+                    <SortHead sortKey="since" label={t("kader.overview.colSince")} sort={sort} tip={t("kader.overview.colSince")} tipSub={t("kader.sort.sinceSub")} />
                 </div>
-                {shown.length === 0 && (rows.length ? <EmptyState icon={<SearchIcon />} text={t("kader.pool.none")} /> : <EmptyState icon={<ListChecksIcon />} text={t("kader.overview.empty")} />)}
+                {shown.length === 0 && (
+                    <TableNote>{rows.length ? <EmptyState icon={<SearchIcon />} text={t("kader.pool.none")} /> : <EmptyState icon={<ListChecksIcon />} text={t("kader.overview.empty")} />}</TableNote>
+                )}
                 {groups.filter((g) => g.rows.length).map((g) => (
-                    <div key={g.key} className="kp-ogroup">
+                    <div key={g.key} className="kp-ogroup" role="rowgroup">
                         {groupBy !== "none" && (
-                            <div className="kp-ghead">
-                                {g.icon}
-                                <span className="kp-gtitle">{g.title}</span>
-                                <Count n={g.rows.length} tip={t("kader.playersN", { count: g.rows.length })} />
-                                <span className="kp-rule" />
-                                <span className="kp-sub">{t("kader.overview.doneOf", { done: g.rows.filter((r) => statusOf(r.entry) === "done").length, n: g.rows.length })}</span>
+                            <div role="row">
+                                <div role="cell" className="kp-ghead">
+                                    {g.icon}
+                                    <span className="kp-gtitle">{g.title}</span>
+                                    <Count n={g.rows.length} tip={t("kader.playersN", { count: g.rows.length })} />
+                                    <span className="kp-rule" />
+                                    <span className="kp-sub">{t("kader.overview.doneOf", { done: g.rows.filter((r) => statusOf(r.entry) === "done").length, n: g.rows.length })}</span>
+                                </div>
                             </div>
                         )}
                         {g.rows.map((r) => (

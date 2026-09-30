@@ -59,9 +59,18 @@ describe("config/gameVersions/buffs", () => {
 
     it("shapes every entry the same way", () => {
         for (const b of [...all.partyBuffs, ...all.raidBuffs]) {
-            expect(Object.keys(b).sort()).toEqual(["beneficiaries", "icon", "key", "label", "providers", "scope", "slot"]);
+            expect(Object.keys(b).sort()).toEqual(["beneficiaries", "icon", "key", "label", "labelEn", "providers", "scope", "slot"]);
             expect(b.providers.length).toBeGreaterThan(0);
         }
+    });
+
+    it("names every buff in English as well: the totem's, the spell's or the setup-only buff's own name", () => {
+        expect(find(all.partyBuffs, "manaSpring")).toMatchObject({ label: "Totem der Manaquelle", labelEn: "Mana Spring Totem" });
+        expect(find(all.partyBuffs, "trueshot").labelEn).toBe("Trueshot Aura");
+        expect(find(all.partyBuffs, "vampiricTouch").labelEn).toBe("Vampiric Touch");
+        // the German names the group spell, raidBuffs.js knows the single one in English
+        expect(find(all.raidBuffs, "motw")).toMatchObject({ label: "Gabe der Wildnis", labelEn: "Mark of the Wild" });
+        for (const b of [...all.partyBuffs, ...all.raidBuffs]) expect(b.labelEn).toMatch(/^[A-Za-z' :-]+$/);
     });
 
     describe("the versions built on it", () => {

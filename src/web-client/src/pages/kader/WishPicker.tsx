@@ -12,18 +12,13 @@ import type { KaderEntry, KaderWish } from "../../api";
 import Popover from "../../components/ui/Popover";
 import { CheckIcon, ChevronDownIcon } from "../../components/icons";
 import { useT } from "../../i18n";
-import { VIEWPORT_MARGIN, type Placement } from "../../lib/popoverPosition";
+import { belowStartPlacement } from "../../lib/popoverPosition";
 import { wishLabel, wishOptions, type WishOption } from "../../lib/kader/model";
 import { PickIcon, PickLabel, StateIcon } from "./parts";
 import { useKader } from "./kaderContext";
 
 /** The menu under its trigger, left edges aligned (the trigger sits at a slot's left), above it when there is no room below. */
-const belowStart: Placement = (anchor, box, viewport) => {
-    if (!anchor) return {};
-    const left = Math.max(VIEWPORT_MARGIN, Math.min(anchor.left, viewport.width - box.width - VIEWPORT_MARGIN));
-    const fitsBelow = viewport.height - anchor.bottom - VIEWPORT_MARGIN >= box.height + 6;
-    return { left, top: fitsBelow || anchor.top < box.height + 6 ? anchor.bottom + 6 : anchor.top - box.height - 6 };
-};
+const belowStart = belowStartPlacement();
 
 export default function WishPicker({ entry, value, onChange, label, disabled = false, compact = false, wide = false }: {
     entry: KaderEntry;

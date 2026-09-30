@@ -46,7 +46,7 @@ const TOTEM_BUFFS = {
 // for: Vampiric Touch returns mana to the shadow priest's party, so the priest
 // belongs with the casters and healers.
 const SETUP_ONLY = [
-    { key: "vampiricTouch", label: "Vampirberührung", icon: "spell_holy_stoicism", providerClass: "Priest", scope: "party", roles: ["healer", "caster"], classes: MANA_MELEE },
+    { key: "vampiricTouch", label: "Vampirberührung", labelEn: "Vampiric Touch", icon: "spell_holy_stoicism", providerClass: "Priest", scope: "party", roles: ["healer", "caster"], classes: MANA_MELEE },
 ];
 
 const EXCLUDED_GROUPS = new Set(["shield"]);
@@ -59,6 +59,9 @@ function allBuffs() {
         .map((b) => ({
             key: b.key,
             label: b.groupLabel || b.label,
+            // raidBuffs.js knows the English name of the single spell only
+            // ("Blessing of Kings" where the German names the greater one)
+            labelEn: b.name || b.label,
             icon: b.icon,
             providerClass: b.provider,
             // Blessings, prayers, gift and brilliance reach the whole raid;
@@ -74,6 +77,7 @@ function allBuffs() {
         .map((t) => ({
             key: t.key,
             label: t.label,
+            labelEn: t.name || t.label,
             icon: t.icon,
             providerClass: "Shaman",
             scope: "party",
@@ -90,7 +94,7 @@ function allBuffs() {
  * @param {object[]} classes  buildClasses() output of the version
  * @param {{ exclude?: string[] }} [options]  buff keys the version does not have
  * @returns {{ partyBuffs: object[], raidBuffs: object[] }} each entry
- *   `{ key, label, icon, scope, slot, providers: specKey[], beneficiaries: specKey[] }`
+ *   `{ key, label, labelEn, icon, scope, slot, providers: specKey[], beneficiaries: specKey[] }`
  */
 function buildBuffs(classes, options = {}) {
     const exclude = new Set(options.exclude || []);
@@ -100,6 +104,7 @@ function buildBuffs(classes, options = {}) {
         .map((b) => ({
             key: b.key,
             label: b.label,
+            labelEn: b.labelEn,
             icon: b.icon,
             scope: b.scope,
             // One buff per provider per slot: a totem's element (a shaman drops

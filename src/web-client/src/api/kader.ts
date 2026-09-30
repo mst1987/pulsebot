@@ -24,7 +24,8 @@ export type KaderQuestionType = "single" | "multi" | "text";
 
 export type KaderSpecDef = { key: string; name: string; nameEn: string; role: KaderRole; canTank: boolean; canHeal: boolean; icon: string };
 export type KaderClassDef = { key: string; name: string; nameEn: string; color: string; icon: string; specs: KaderSpecDef[]; canTank: boolean; canHeal: boolean };
-export type KaderRaidBuff = { key: string; label: string; icon: string; providers: string[] };
+/** A buff of the rule set: `label` German, `labelEn` the English name the rule set knows. */
+export type KaderRaidBuff = { key: string; label: string; labelEn: string; icon: string; providers: string[] };
 export type KaderPartyBuff = KaderRaidBuff & { beneficiaries: string[]; important: boolean };
 
 export type KaderSpecPick = { spec: string; main: boolean; gear: KaderGear };
@@ -48,8 +49,16 @@ export type KaderCharacter = {
 };
 
 export type KaderNight = { date: string; title: string; attended: boolean; reason: string | null };
-/** null while nothing is counted (Forever before its raids open): the page shows "—". */
-export type KaderAttendance = { attended: number; counted: number; pct: number; nights: KaderNight[] } | null;
+/** One raid category's last nights for an account (rosterAttendance.js: the last 11 with a signup or a log). */
+export type KaderCategoryAttendance = { attended: number; counted: number; nights: KaderNight[] };
+/**
+ * A player's attendance per raid category id — only the categories that counted
+ * a night for the account; null when none did. The page sums the Kader's pick
+ * (lib/kader/model.ts attendanceOf).
+ */
+export type KaderAttendance = Record<string, KaderCategoryAttendance> | null;
+/** A raid category of the server: a Discord category with raid events, the game version it plays, the nights it counts. */
+export type KaderRaidCategory = { id: string; name: string; versionId: string; versionLabel: string; nights: number };
 
 /** The character a player is prefilled with, and where it comes from ("fehlt" when null). */
 export type KaderPrefill = { name: string; className: string; spec: string; source: "planner" | "profile" | "logs"; versionId: string } | null;
@@ -71,7 +80,6 @@ export type KaderPlayer = {
     prefill: KaderPrefill;
     availability: KaderDay[];
     attendance: KaderAttendance;
-    attendanceMain: KaderAttendance;
 };
 
 export type KaderMember = { userId: string; displayName: string; roleIds: string[]; prefill: KaderPrefill };
@@ -119,6 +127,8 @@ export type KaderData = {
     leads: string[];
     createdAt: string;
     createdBy: string;
+    /** The raid categories attendance counts in (empty: none picked yet, the page shows "—"). */
+    attendanceCategories: string[];
     questions: KaderQuestion[];
     players: Record<string, KaderEntry>;
     setups: KaderVariant[];
@@ -132,6 +142,8 @@ export type KaderView = {
     roles: KaderRole[];
     classes: KaderClassDef[];
     buffs: { raid: KaderRaidBuff[]; party: KaderPartyBuff[] };
+    /** The server's raid categories, in Discord's order. */
+    raidCategories: KaderRaidCategory[];
     players: KaderPlayer[];
     members: KaderMember[];
     discordRoles: KaderDiscordRole[];
@@ -180,7 +192,7 @@ export function createKader(name: string): Promise<KaderChange> {
     return send("POST", "/api/kader/kaders", { name });
 }
 
-export function updateKader(kaderId: string, input: { name?: string; leads?: string[] }): Promise<KaderChange> {
+export function updateKader(kaderId: string, input: { name?: string; leads?: string[]; attendanceCategories?: string[] }): Promise<KaderChange> {
     return send("PUT", "/api/kader/kaders", { kaderId, ...input });
 }
 

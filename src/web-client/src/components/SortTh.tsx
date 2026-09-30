@@ -33,7 +33,8 @@ export function SortLabel<K extends string>({ sortKey, label, sort, dir, onSort,
             data-tip-sub={tipSub}
             onClick={() => onSort(sortKey)}
         >
-            {label}
+            {/* its own box, so a narrow column can cut a long label short and keep the chevron */}
+            <span className="sort-text">{label}</span>
             {active && <span className={`sort-chev${dir === "asc" ? " asc" : ""}`} aria-hidden="true"><ChevronDownIcon /></span>}
         </button>
     );

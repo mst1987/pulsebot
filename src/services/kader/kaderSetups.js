@@ -96,7 +96,8 @@ const STATE_ORDER = { roster: 0, provisional: 1, bench: 2, tentative: 3 };
  * "Automatisch verteilen": the players of the chosen states (`sources`, default
  * roster + Vorläufig) spread over the groups the size shows; the groups a 10er
  * hides are emptied. `ctx.classes` gives each spec's class and role,
- * `ctx.rateOf(userId)` the attendance (0–1) the heuristic places first.
+ * `ctx.rateOf(userId, categoryIds)` the attendance (0–1) over the Kader's raid
+ * categories, which the heuristic places first.
  */
 function autoVariant(planner, input, ctx) {
     const sources = (Array.isArray(input.sources) && input.sources.length ? input.sources : ["roster", "provisional"]).map(str);
@@ -114,7 +115,7 @@ function autoVariant(planner, input, ctx) {
             .sort(([a, ea], [b, eb]) => STATE_ORDER[ea.state] - STATE_ORDER[eb.state] || a.localeCompare(b))
             .map(([userId, e]) => {
                 const spec = defaultSpec(e);
-                const rate = ctx.rateOf ? ctx.rateOf(userId) : 0;
+                const rate = ctx.rateOf ? ctx.rateOf(userId, kader.attendanceCategories || []) : 0;
                 return { userId, spec, role: roleOf.get(spec) || "melee", classKey: classOf.get(spec) || "", rate: rate + (e.state === "roster" ? 2 : e.state === "provisional" ? 1 : 0) };
             });
         const visible = variant.size / GROUP_SIZE;
