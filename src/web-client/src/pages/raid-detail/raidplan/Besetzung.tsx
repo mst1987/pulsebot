@@ -5,6 +5,7 @@ import type { Besetzung as BesetzungData, RaidplanBoard, RaidplanPlayer, Raidpla
 import WowIcon from "../../../components/ui/WowIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { ROLE_ICON, classIconOf } from "../../../lib/raidplan/assign";
+import { slotSummary } from "../../../lib/raidplan/assignLine";
 import { classStatus, refillByClass } from "../../../lib/raidplan/rosterAssign";
 import { groupColor, groupMark } from "../../../lib/raidplan/groupStyle";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
@@ -52,6 +53,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
     const split = showSplit || counts.melee > 0 || counts.ranged > 0;
     const clusters = split ? ["tank", "healer", "dps", "melee", "ranged", "group"] : ["tank", "healer", "dps", "group"];
     const own = board.counts !== null;
+    const sum = slotSummary(all, isEvent);
     const missing = isEvent ? all.filter((s) => classStatus(s, roster, board) === "missing").flatMap((s) => s.preferredClasses || []).filter((c, i, l) => l.indexOf(c) === i) : [];
 
     const chip = (s: RaidplanSlot) => {
@@ -134,13 +136,23 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
 
     return (
         <section className="rp-bes" data-rp-bes aria-label={t("raidBoard.bes.title")}>
-            <span className="rp-kicker rp-bes-head" data-tip={t("raidBoard.bes.tip", { size: besetzung.size })}>{t("raidBoard.bes.title")} · {besetzung.size}</span>
-            {isEvent && canWrite && all.some((s) => (s.preferredClasses || []).length > 0) && (
-                <button type="button" className="rp-assign-btn rp-bes-assign" data-tip={t("raidBoard.bes.refillTip")} onClick={() => edit((b) => refillByClass(b, roster))}><RotateCcw size={15} aria-hidden="true" /><span>{t("raidBoard.bes.refill")}</span></button>
-            )}
+            <div className="rp-bes-top">
+                <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} label={t("raidBoard.bes.title")} />
+                <span className="rp-kicker rp-bes-head" data-tip={t("raidBoard.bes.tip", { size: besetzung.size })}>{t("raidBoard.bes.title")} · {besetzung.size}</span>
+                {collapsed && (
+                    <span className="rp-bes-sum">
+                        {isEvent ? t("raidBoard.bes.sumFilled", { n: sum.filled }) : t("raidBoard.bes.sumSlots", { n: sum.total })}
+                        {sum.open > 0 && <b className="rp-acard-open">{t("raidBoard.aline.open", { n: sum.open })}</b>}
+                    </span>
+                )}
+                <span className="rp-bes-topacts">
+                    {isEvent && canWrite && all.some((s) => (s.preferredClasses || []).length > 0) && (
+                        <button type="button" className="rp-assign-btn rp-bes-assign" data-tip={t("raidBoard.bes.refillTip")} onClick={() => edit((b) => refillByClass(b, roster))}><RotateCcw size={15} aria-hidden="true" /><span>{t("raidBoard.bes.refill")}</span></button>
+                    )}
+                    <button type="button" className="rp-assign-btn rp-bes-assign" onClick={onAssign}><ListChecks size={15} aria-hidden="true" /><span>{t("raidBoard.roster.title")}</span></button>
+                </span>
+            </div>
             {missing.length > 0 && <span className="rp-bes-missing" role="status">{missing.map((c) => t("raidBoard.roster.classMissing", { cls: t(`wow.class.${c}`) })).join(" · ")}</span>}
-            <button type="button" className="rp-assign-btn rp-bes-assign" onClick={onAssign}><ListChecks size={15} aria-hidden="true" /><span>{t("raidBoard.roster.title")}</span></button>
-            <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} label={t("raidBoard.bes.title")} />
             {!collapsed && <div className="rp-bes-blocks">
             {clusters.map((kind) => {
                 const list = all.filter((s) => s.kind === kind);

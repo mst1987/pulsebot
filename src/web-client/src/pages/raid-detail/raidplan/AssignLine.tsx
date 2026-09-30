@@ -1,5 +1,8 @@
-import type { KeyboardEvent } from "react";
-import { AlertTriangle, ArrowRight, ChevronDown, EyeOff, Lock, MapPin, Pencil, StickyNote, Trash2 } from "lucide-react";
+import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { AlertTriangle, ArrowRight, EyeOff, Lock, MapPin, MoreHorizontal, Pencil, StickyNote, Trash2 } from "lucide-react";
+import Popover from "../../../components/ui/Popover";
+import { belowEndPlacement } from "../../../lib/popoverPosition";
+import { CLASS_COLOR } from "../../../lib/raidplan/classRefs";
 import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
@@ -35,9 +38,10 @@ export function LineChip({ r, open, mine, order, ctx, readOnly, asTank = false }
     return <span className="rp-lc is-slot">{no}<span>{r.label}</span></span>;
 }
 
-/** From how many classes a priority stacks its chips vertically instead of side by side (#556): with 3+ names side by side ran out of
- * room and truncated ("Dru", "Pri", "Sha"); 1-2 keep the inline "Paladin › Schamane" look, which fits. */
-const STACK_FROM = 3;
+/** From how many classes a priority stacks its chips vertically instead of side by side (#556): side by side ran out of room and
+ * truncated ("Dru", "Pri", "Sha"). Since #559 already from 2 (draft "Editor aufgeräumt"): the count on top, one class per line with its
+ * rank number and the class colour as a small dot; a single class keeps the inline look. */
+const STACK_FROM = 2;
 
 /**
  * The places of a class priority nobody fills yet (#525), compact: "1 x [icon] Paladin › [icon] Schamane", in an event yellow with "fehlt";
@@ -56,9 +60,8 @@ export function PrioChip({ classes, count, open, type }: { classes: string[]; co
                     {classes.map((c, i) => (
                         <span key={c} className="rp-lc-pcrow">
                             <span className="rp-lc-pcorder" aria-hidden="true">{i + 1}</span>
-                            <WowIcon name={classIconOf(c)} size={14} />
+                            <span className="rp-lc-pcdot" style={{ "--cc": CLASS_COLOR[c] || "var(--muted)" } as CSSProperties} aria-hidden="true" />
                             <span className="rp-lc-pcname">{classPlaceNameFor(c, "", type)}</span>
-                            {i < classes.length - 1 && <ChevronDown size={11} className="rp-lc-pcarrow" aria-hidden="true" />}
                         </span>
                     ))}
                 </span>
@@ -68,10 +71,11 @@ export function PrioChip({ classes, count, open, type }: { classes: string[]; co
     );
 }
 
-function Cell({ items, ctx, readOnly, side, type }: { items: LineItem[]; ctx: AssignCtx; readOnly?: boolean; side: string; type: string }) {
+function Cell({ items, ctx, readOnly, side, type, badge = "" }: { items: LineItem[]; ctx: AssignCtx; readOnly?: boolean; side: string; type: string; badge?: string }) {
     const t = useT();
     return (
         <div className={`rp-line-cell is-${side}`} aria-label={t(side === "who" ? "raidBoard.aline.colWho" : "raidBoard.aline.colAt")} role="group">
+            {badge && <span className="rp-line-dev">{badge}</span>}
             {items.map((x) => (x.kind === "prio" ? <PrioChip key={x.key} classes={x.classes || []} count={x.count} open={x.open} type={type} /> : x.kind === "ref" ? (
                 <span key={x.key} className="rp-lref">
                     <span className="rp-lref-t"><WowIcon name={classRefIcon(x.classId, x.role)} size={13} />{classPlaceNameFor(x.classId, x.role, type)} x{x.count}</span>
@@ -83,13 +87,45 @@ function Cell({ items, ctx, readOnly, side, type }: { items: LineItem[]; ctx: As
 }
 
 /**
+ * The "..." of a row (#559): what used to be two more icons on every inherited row (hide for this boss, the lock that says "inherited")
+ * sits behind one accessible menu button, so a row shows the pencil and one dimmed "...".
+ */
+function RowMenu({ label, onHide }: { label: string; onHide?: () => void }) {
+    const t = useT();
+    const [open, setOpen] = useState(false);
+    const anchor = useRef<HTMLButtonElement>(null);
+    return (
+        <>
+            <button
+                ref={anchor} type="button" className={`rp-line-btn${open ? " is-on" : ""}`} aria-haspopup="menu" aria-expanded={open}
+                aria-label={`${t("raidBoard.aline.more")}: ${label}`} data-tip={t("raidBoard.aline.more")} onClick={() => setOpen((o) => !o)}
+            >
+                <MoreHorizontal size={14} />
+            </button>
+            {open && (
+                <Popover anchor={anchor} place={belowEndPlacement(4)} follow="close" onClose={() => setOpen(false)} className="rp-line-menu" role="menu">
+                    {onHide && (
+                        <button type="button" role="menuitem" className="rp-line-mi" onClick={() => { setOpen(false); onHide(); }}>
+                            <EyeOff size={14} aria-hidden="true" />{t("raidBoard.defaults.hideRow")}
+                        </button>
+                    )}
+                    <span role="menuitem" aria-disabled="true" className="rp-line-mi is-info" data-tip={t("raidBoard.defaults.inheritedTip")}>
+                        <Lock size={14} aria-hidden="true" />{t("raidBoard.defaults.inheritedShort")}
+                    </span>
+                </Popover>
+            )}
+        </>
+    );
+}
+
+/**
  * One assignment row as ONE container (option 1 of "Zeile mit Chip-Container"): spell icon | who | arrow | at whom | actions, the same columns
  * in every row of a card. The chips only show; the whole row is one button (the pencil's click area fills the container) that opens the row
  * dialog; note and delete sit above it. Tab reaches the row, Enter opens, Delete removes (after asking). A small line under it only when
  * there is a spell, a task text or a note. `readOnly` (the sheet): no actions, the viewer's own chip carries "DU" and frames the row.
  * `inherited` (a row from the template's Standard): a lock instead of the trash, the pencil makes it the section's own.
  */
-export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherited, me = [], onOpen, onNote, onDelete, onHide, onMap }: {
+export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherited, deviating, me = [], onOpen, onNote, onDelete, onHide, onMap }: {
     a: RaidplanAssignment;
     /** the row with its class references resolved (same order) */
     filled: RaidplanAssignment;
@@ -97,6 +133,8 @@ export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherite
     isEvent: boolean;
     readOnly?: boolean;
     inherited?: boolean;
+    /** the row differs from the Standard for this boss only (#559): badge "nur dieser Boss" and a light accent background */
+    deviating?: boolean;
     me?: string[];
     onOpen?: () => void;
     onNote?: () => void;
@@ -118,7 +156,7 @@ export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherite
     const onKey = (e: KeyboardEvent<HTMLLIElement>) => {
         if ((e.key === "Delete" || e.key === "Backspace") && onDelete && !inherited && (e.target as HTMLElement).classList.contains("rp-line-open")) { e.preventDefault(); onDelete(true); }
     };
-    const cls = ["rp-line", state === "empty" ? "is-blank" : `is-${state}`, readOnly ? "is-ro" : "", inherited ? "is-lock" : "", mineRow ? "is-me" : "", a.suggested ? "is-suggested" : ""].filter(Boolean).join(" ");
+    const cls = ["rp-line", state === "empty" ? "is-blank" : `is-${state}`, readOnly ? "is-ro" : "", inherited ? "is-lock" : "", deviating ? "is-dev" : "", mineRow ? "is-me" : "", a.suggested ? "is-suggested" : ""].filter(Boolean).join(" ");
     return (
         <li className={cls} onKeyDown={onKey}>
             <span className="rp-line-ico" data-tip={a.spell ? a.spell.name : typeName}><WowIcon name={icon} size={24} /></span>
@@ -126,7 +164,7 @@ export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherite
                 <span className="rp-line-empty">{t("raidBoard.aline.pickWho")}<ArrowRight size={15} aria-hidden="true" />{t("raidBoard.aline.pickTarget")}</span>
             ) : (
                 <>
-                    <Cell items={who} ctx={ctx} readOnly={readOnly} side="who" type={a.type} />
+                    <Cell items={who} ctx={ctx} readOnly={readOnly} side="who" type={a.type} badge={deviating ? t("raidBoard.aline.devBadge") : ""} />
                     {at.length > 0 ? <ArrowRight className="rp-line-arr" size={16} aria-hidden="true" /> : <span className="rp-line-arr" aria-hidden="true" />}
                     <Cell items={at} ctx={ctx} readOnly={readOnly} side="at" type={a.type} />
                 </>
@@ -135,10 +173,7 @@ export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherite
                 <div className="rp-line-acts">
                     {onOpen && <button type="button" className="rp-line-open rp-line-btn" aria-label={`${t(inherited ? "raidBoard.defaults.deviate" : "raidBoard.aline.edit")}: ${label}`} data-tip={t(inherited ? "raidBoard.defaults.deviate" : "raidBoard.aline.edit")} onClick={onOpen}><Pencil size={14} /></button>}
                     {inherited ? (
-                        <>
-                            {onHide && <button type="button" className="rp-line-btn" aria-label={t("raidBoard.defaults.hideRow")} data-tip={t("raidBoard.defaults.hideRow")} onClick={onHide}><EyeOff size={14} /></button>}
-                            <span className="rp-line-btn is-fixed" role="img" aria-label={t("raidBoard.defaults.inheritedTip")} data-tip={t("raidBoard.defaults.inheritedTip")}><Lock size={14} /></span>
-                        </>
+                        <RowMenu label={label} onHide={onHide} />
                     ) : (
                         <>
                             {onMap && <button type="button" className={`rp-line-btn${a.onMap ? " is-on is-map" : ""}`} aria-pressed={!!a.onMap} aria-label={t(a.onMap ? "raidBoard.auto.offMap" : "raidBoard.auto.onMap")} data-tip={a.onMap ? t("raidBoard.auto.offMap") : `${t("raidBoard.auto.onMap")}: ${t("raidBoard.auto.onMapTip")}`} onClick={onMap}><MapPin size={14} /></button>}
@@ -148,9 +183,8 @@ export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherite
                     )}
                 </div>
             )}
-            {(sub.length > 0 || inherited) && (
+            {sub.length > 0 && (
                 <div className="rp-line-sub" data-tip={sub.join(" · ") || undefined}>
-                    {inherited && <span className="rp-line-std">{t("raidBoard.defaults.inherited")}</span>}
                     {sub.map((s, i) => <span key={i} className={i === 0 && a.spell ? "rp-line-sp" : ""}>{s}</span>)}
                 </div>
             )}
