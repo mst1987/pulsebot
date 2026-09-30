@@ -204,7 +204,7 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
         expect(out.get("u1")).not.toHaveProperty("raids");
     });
 
-    it("hands out every counted night with `nights: true` (the Kaderbau export)", () => {
+    it("hands out every counted night with `nights: true` (the Kaderplaner)", () => {
         withReports([{ id: "r1", eventId: "e1", names: ["Mainchar"] }, { id: "r2", eventId: "e2", names: ["Else"] }]);
         const ctx = buildAttendanceContext("g1", { now: NOW });
         const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Mainchar", "Druid", true)])], { nights: true });

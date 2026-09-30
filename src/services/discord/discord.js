@@ -247,8 +247,8 @@ function avatarUrlOf(member) {
 }
 
 /**
- * Every human (non-bot) member of a guild, for the Kaderbau export
- * (docs/kaderbau.md). Same cached full fetch as listMembersWithRoles(), so it
+ * Every human (non-bot) member of a guild, for the Kaderplaner
+ * (docs/kaderplaner.md). Same cached full fetch as listMembersWithRoles(), so it
  * needs the GuildMembers intent too; a failure comes back as `error` with an
  * empty list, never thrown.
  * @returns {Promise<{ members: {id:string, displayName:string, avatarUrl:string|null}[], error: string|null }>}

@@ -164,7 +164,7 @@ describe("web/kader/kaderSource", () => {
             expect(druid.logSpecs).toEqual([]);
         });
 
-        // The privacy rule of docs/kaderbau.md: none of this may ever leave.
+        // The privacy rule of docs/kaderplaner.md: none of this may ever leave.
         it("never hands out avoid lists, wishes, notes, preferred raids or claims", async () => {
             const out = await loadSource({ versionId: "forever", now: NOW });
             const text = JSON.stringify(out);

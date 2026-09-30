@@ -229,7 +229,7 @@ function attendanceFor(ctx, categoryId, character, userIds = []) {
  *
  * @param {{ userId: string, chars: { name: string, className?: string, manual?: boolean }[] }[]} accounts
  * With `nights: true` each result also carries `raids` - every counted night with its verdict, newest
- * first (the Kaderbau export, docs/kaderbau.md); the setup editor leaves it out to keep its payload small.
+ * first (the Kaderplaner, docs/kaderplaner.md); the setup editor leaves it out to keep its payload small.
  *
  * @param {{ comparable?: (raid: {id, title, startTime, signUps, logs}) => boolean, nights?: boolean }} [opts]
  * @returns {Map<string, {attended: number, total: number, pct: number|null, link: "manual"|"auto",
