@@ -6,7 +6,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { KaderPlayer, KaderRole } from "../../api";
-import { Badge, Button, IconButton, IconTile } from "../../components/ui";
+import { Button, IconButton, IconTile } from "../../components/ui";
 import { AlertIcon, CheckIcon, EditIcon, PlusIcon, SearchIcon } from "../../components/icons";
 import { classColorProps } from "../../components/ClassSpec";
 import { useT } from "../../i18n";
@@ -15,7 +15,7 @@ import { activeOf, attSortValue, averageAttendance, classCounts, className, colo
 import { buttonClass } from "../../components/ui/Button";
 import { useKader } from "./kaderContext";
 import { dragProps, useDropZone } from "./dnd";
-import { CharName, ClassBar, Meter } from "./parts";
+import { CharName, ClassBar, Meter, PlayerIcon, RoleIcon } from "./parts";
 import { attText } from "../../lib/kader/model";
 
 function PoolRow({ player, benched }: { player: KaderPlayer; benched: boolean }) {
@@ -30,6 +30,7 @@ function PoolRow({ player, benched }: { player: KaderPlayer; benched: boolean })
         <div className="kp-prow" {...dragProps(player.userId, canWrite)}>
             <button type="button" className="kp-prow-main" onClick={() => open({ type: "account", userId: player.userId })}>
                 <ClassBar color={colorOf(view.classes, player)} />
+                <PlayerIcon player={player} />
                 <span className="kp-prow-text">
                     <CharName player={player} className="kp-prow-name" />
                     <span className="kp-sub">@{player.displayName} · {sub}{benched ? ` · ${t("kader.status.bench")}` : ""}</span>
@@ -67,8 +68,8 @@ function PoolPanel() {
             .filter((p) => !inKader.has(p.userId))
             .filter((p) => !needle || searchText(p, view.classes).includes(needle))
             .sort((a, b) => attSortValue(b) - attSortValue(a));
-        const defs = ROLES.map((r) => ({ key: r as string, title: rolePluralLabel(r), items: list.filter((p) => activeOf(p)?.role === r) }));
-        defs.push({ key: "none", title: t("kader.group.noRole"), items: list.filter((p) => !activeOf(p)?.role) });
+        const defs: { key: string; role: KaderRole | null; title: string; items: KaderPlayer[] }[] = ROLES.map((r) => ({ key: r, role: r, title: rolePluralLabel(r), items: list.filter((p) => activeOf(p)?.role === r) }));
+        defs.push({ key: "none", role: null, title: t("kader.group.noRole"), items: list.filter((p) => !activeOf(p)?.role) });
         return { groups: defs.filter((g) => g.items.length), benched: bench };
     }, [view, roster, q, t]);
 
@@ -86,7 +87,7 @@ function PoolPanel() {
                 {groups.length === 0 && <div className="kp-empty">{view.players.length ? t("kader.pool.nobody") : t("kader.pool.noAccounts")}</div>}
                 {groups.map((g) => (
                     <div key={g.key}>
-                        <div className="kp-glabel"><span className="kicker">{g.title}</span><span className="kp-rule" /><span className="kicker">{g.items.length}</span></div>
+                        <div className="kp-glabel">{g.role && <RoleIcon role={g.role} size={16} />}<span className="kicker">{g.title}</span><span className="kp-rule" /><span className="kicker">{g.items.length}</span></div>
                         {g.items.map((p) => <PoolRow key={p.userId} player={p} benched={benched.has(p.userId)} />)}
                     </div>
                 ))}
@@ -111,6 +112,7 @@ function Slot({ player, role }: { player: KaderPlayer | null; role: KaderRole })
     return (
         <button type="button" className="kp-slot" {...dragProps(player.userId, canWrite)} onClick={() => open({ type: "account", userId: player.userId })}>
             <ClassBar color={colorOf(view.classes, player)} small />
+            <PlayerIcon player={player} />
             <span className="kp-slot-text">
                 <CharName player={player} className="kp-slot-name" />
                 <span className="kp-sub">
@@ -130,7 +132,7 @@ function RoleCardView({ role, target, count, slots }: { role: KaderRole; target:
     return (
         <div className={`kp-panel kp-role${drop.over ? " kp-over" : ""}`} {...drop.props}>
             <div className="kp-panel-head">
-                <h3>{rolePluralLabel(role)}</h3>
+                <h3 className="kp-iconlabel"><RoleIcon role={role} />{rolePluralLabel(role)}</h3>
                 <span className={`kp-mono kp-count ${tone}`}>{count} / {target}</span>
             </div>
             <div className="kp-slots">
@@ -229,7 +231,6 @@ function BoardHead() {
     const t = useT();
     const navigate = useNavigate();
     const { view, roster, selectRoster, open, canWrite } = useKader();
-    const instance = roster ? view.instances.find((i) => i.id === roster.instanceId) : null;
     return (
         <div className="kp-head">
             <IconTile icon="inv_misc_groupneedmore" tone="kader" size="lg" />
@@ -246,12 +247,11 @@ function BoardHead() {
                         }}
                     >
                         {!roster && <option value="">{t("kader.board.noRoster")}</option>}
-                        {view.rosters.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        {view.rosters.map((r) => <option key={r.id} value={r.id}>{t("kader.roster.label", { name: r.name, size: r.size })}</option>)}
                         {canWrite && <option value="__new">{t("kader.board.newRoster")}</option>}
                     </select>
                     {roster && canWrite && <IconButton icon={<EditIcon />} size="sm" tip={t("kader.roster.edit")} onClick={() => open({ type: "roster", mode: "edit" })} />}
                 </div>
-                {instance && roster && !roster.name.includes(instance.name) && <div className="kp-head-meta"><Badge size="sm">{instance.name}</Badge></div>}
             </div>
             {roster && (
                 <div className="kp-bigcount" aria-label={t("kader.board.filled", { n: roster.members.length, size: roster.size })}>

@@ -78,7 +78,7 @@ describe("web/kader/kaderSource", () => {
     it("builds the documented top-level shape", async () => {
         const out = await loadSource({ now: NOW });
         expect(Object.keys(out)).toEqual([
-            "guildId", "versionId", "classes", "instances", "buffs", "members", "profiles", "attendance", "warnings",
+            "guildId", "versionId", "classes", "buffs", "members", "profiles", "attendance", "warnings",
         ]);
         expect(out).toMatchObject({ guildId: "g1", versionId: "forever", warnings: [] });
     });
@@ -92,15 +92,13 @@ describe("web/kader/kaderSource", () => {
         expect(out.buffs.party.find((b) => b.key === "trueshot").important).toBe(false);
     });
 
-    it("lists the rule set's classes with spec roles and the version's instances", async () => {
+    it("lists the rule set's classes with spec roles", async () => {
         const out = await loadSource({ versionId: "forever", now: NOW });
         const warrior = out.classes.find((c) => c.key === "Warrior");
         expect(warrior).toMatchObject({ name: "Krieger", nameEn: "Warrior", color: expect.stringMatching(/^#/) });
         expect(warrior.specs.find((s) => s.key === "Warrior-Protection")).toMatchObject({ name: "Schutz", role: "tank", canTank: true });
         const roles = new Set(out.classes.flatMap((c) => c.specs.map((s) => s.role)));
         expect([...roles].sort()).toEqual(["healer", "melee", "ranged", "tank"]);
-        expect(out.instances.find((i) => i.id === "forever-hyjal")).toMatchObject({ sizes: [20], defaultSize: 20 });
-        expect(out.instances.every((i) => i.id.startsWith("forever-"))).toBe(true);
     });
 
     it("hands out the event server's human members", async () => {

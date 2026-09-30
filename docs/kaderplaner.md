@@ -2,15 +2,15 @@
 
 Endnutzer-Sicht: siehe [guide-web-admin.md#kaderplaner](guide-web-admin.md#kaderplaner).
 
-The raid lead plans **raid rosters** in the web admin: a pool of Discord accounts, one roster per raid (instance +
-size, target numbers per role, bench), and per roster group setups in variants. What the bot already knows (rule set,
+The raid lead plans **raid rosters** in the web admin: a pool of Discord accounts, rosters with a name and a size
+(target numbers per role, bench), and per roster group setups in variants. What the bot already knows (rule set,
 server members, raider profiles, attendance) is read live; what the planner decides is stored in its own file and
 **never written back** to a raider profile.
 
 | Where | What |
 |---|---|
 | `src/web/apiRoutes/kader.js` | the routes (`GET /api/kader` + the write routes below), area `kader` |
-| `src/web/kader/kaderSource.js` | what the planner reads from the bot: classes/specs/instances/buffs of the version, the server's human members, whitelisted profiles, attendance |
+| `src/web/kader/kaderSource.js` | what the planner reads from the bot: classes/specs (with their WoW icons)/buffs of the version, the server's human members, whitelisted profiles, attendance |
 | `src/web/kader/kaderView.js` | the pure merge: source + planner → players (`buildKaderView`), the helpers the mutators need (`mutationContext`) |
 | `src/services/kader/kaderModel.js` | the planner's shape and every rule for changing it — pure mutators that throw `AppError` (400/404/409) |
 | `src/services/kader/kaderAutoAssign.js` | "Automatisch verteilen": the group heuristic |
@@ -40,7 +40,7 @@ CSRF refusal; `test/config/permissions.test.js` that the default base access doe
 
 ## View model (`GET /api/kader`)
 
-`{ versionId, guildId, roles, classes, instances, buffs: { raid, party }, players, members, rosters, setups, warnings }`
+`{ versionId, guildId, roles, classes, buffs: { raid, party }, players, members, rosters, setups, warnings }`
 
 - **classes**: `{ key: "Warrior", name, nameEn, color, icon, canTank, canHeal, specs: [{ key: "Warrior-Protection", name, nameEn, role, canTank, canHeal, icon }] }`.
 - **buffs**: `raid` = five raid buffs for the board's side panel (`fortitude`, `intellect`, `motw`, `kings`, `might`),
@@ -70,14 +70,19 @@ and assert none of it appears.
 
 - `accounts`: `[{ userId, displayName, addedAt }]` added by hand (a server member, or a raw Discord id 17–20 digits
   with a display name). An account with a profile of the version is in the pool anyway.
-- `assignments[userId]`: `{ characters: [{ id, name, className, specs: [{ spec, main, gear }], canTank, canHeal, onlineKey? }], activeCharacterId }`
-  — at most 8 characters, exactly one main spec each, names "Vorname Nachname" with 2–12 letters per part
-  (`utils/signup/characterNames.js`), tank/heal only where the class can. **The assignment wins inside the planner**;
+- `assignments[userId]`: `{ characters: [{ id, name, nameStyle, className, specs: [{ spec, main, gear }], canTank, canHeal, onlineKey? }], activeCharacterId }`
+  — at most 8 characters, exactly one main spec each, tank/heal only where the class can. The name follows its
+  `nameStyle` (a switch "Forever-Name | Nickname" per character in the account dialog and in "Account hinzufügen"):
+  `forever` = "Vorname Nachname" with 2–12 letters per part (`utils/signup/characterNames.js`), `nick` = one free
+  nickname of 2–24 letters (umlauts too), digits, spaces, hyphens, apostrophes; both through the profanity filter
+  (`config/profanity.js` via `isProfane`). A character stored without a style gets one from its name (two parts =
+  `forever`, else `nick`). The name is shown as entered everywhere (board, lists, setup, Discord text) and searched. **The assignment wins inside the planner**;
   the view compares it with the profile character it stems from (`onlineKey`, else the name) and marks the
   difference ("weicht vom Profil ab"). Resetting drops it and the profile shows again.
-- `rosters`: `[{ id, name, instanceId, size, targets: { tank, healer, melee, ranged }, members: [{ userId, role }], bench: [userId] }]`
-  — up to 30; size a multiple of 5 the instance offers; targets default per size (10: 2/3/2/3, 20: 2/5/7/6,
-  25: 3/6/8/8, 40: 4/10/14/12); a member is placed with the role of its active character's main spec unless a role is
+- `rosters`: `[{ id, name, size, targets: { tank, healer, melee, ranged }, members: [{ userId, role }], bench: [userId] }]`
+  — up to 30; a roster has **no instance** (#566): a required name and a size from 5 to 40 (a roster stored with an
+  `instanceId` still loads, the field is dropped on the next write); the setup has ceil(size / 5) groups; targets default per size (10: 2/3/2/3, 20: 2/5/7/6,
+  25: 3/6/8/8, 40: 4/10/14/12, any other size in proportion); a member is placed with the role of its active character's main spec unless a role is
   given; a smaller size puts the overflow on the bench.
 - `setups[rosterId]`: `{ variants: [{ id, name, groups: [[userId|null × 5] × size/5] }] }` — up to 6 variants, the
   last one stays; groups only ever hold roster members, each once (re-sanitised whenever the roster changes).
@@ -92,7 +97,7 @@ All answer with the fresh view model (a create adds `rosterId`/`variantId`); par
 | `POST /api/kader/accounts/remove` | `{ userId }` — only an account added by hand |
 | `PUT /api/kader/assignments` | `{ userId, characters, activeCharacterId }` |
 | `POST /api/kader/assignments/reset` | `{ userId }` |
-| `POST /api/kader/rosters` · `PUT` · `POST …/delete` | `{ name?, instanceId, size? }` · `{ rosterId, name?, instanceId?, size?, targets? }` · `{ rosterId }` |
+| `POST /api/kader/rosters` · `PUT` · `POST …/delete` | `{ name, size }` · `{ rosterId, name?, size?, targets? }` · `{ rosterId }` |
 | `POST /api/kader/rosters/place` | `{ rosterId, userId, to: "role"|"bench"|"free", role? }` |
 | `POST /api/kader/variants` · `PUT` · `POST …/delete` · `POST …/auto` | `{ rosterId, name?, copyFrom? }` · `{ rosterId, variantId, name?, groups? }` · `{ rosterId, variantId }` · `{ rosterId, variantId }` |
 
@@ -114,7 +119,9 @@ All answer with the fresh view model (a create adds `rosterId`/`variantId`); par
   who is left and the bench for Discord (falls back to a dialog with the text when the clipboard is refused).
 - **Dialogs:** the account (characters of the planner left, "Aus EventHelper · nur lesen" right: attendance nights,
   profile line, log specs, raid days, the difference note), add account (server member or raw id, optional first
-  character), roster (name, instance, size; targets when editing; delete behind a confirmation), slot picker.
+  character), roster (name and size — quick picks 10/20/25/40 or any number 5–40; targets when editing; delete behind a confirmation), slot picker.
+- **WoW icons** instead of plain text where they help recognition, all from the rule set (`classes[].icon`, `specs[].icon`) and the role icons the raid detail and the raid plan use (`ROLE_ICON` in `lib/raidplan/assign.ts`): the main spec's icon next to every player (pool, slots, list, setup groups), role icons on the role cards, pool groups, the Rolle menu, group heads and the Offtank/Heilen switches, class icons in the Klasse menu, class group heads and the account dialog's class tiles, spec icons on its spec buttons (`KIcon`/`SpecIcon`/`ClassIcon`/`RoleIcon`/`PlayerIcon` in `pages/kader/parts.tsx`, each with its name as label and tooltip).
+- The roster picker and the setup head show name and size ("Mittwochs-Kader · 20er").
 - The chosen roster is remembered per browser (`kader-roster`). A failed write is a toast; the server's German
   messages are shown as they come.
 

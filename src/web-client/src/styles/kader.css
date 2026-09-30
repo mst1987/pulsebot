@@ -304,3 +304,17 @@
 .kp-facts dt { color: var(--muted); }
 .kp-facts dd { margin: 0; }
 .kp-diffnote { font-size: 12.5px; padding: 8px 10px; color: var(--medium); background: var(--medium-bg); border-left: 2px solid var(--medium); }
+
+/* ---- WoW icons: spec, class and role, rounded like everywhere in the menu ---- */
+.kp-ico { display: inline-flex; flex: none; line-height: 0; }
+.kp-ico .wi { border-radius: 5px; box-shadow: 0 0 0 1px var(--line); }
+.kp-ico-none { width: var(--ico); height: var(--ico); border-radius: 5px; background: var(--panel3); }
+.kp-iconlabel { display: inline-flex; align-items: center; gap: 8px; }
+.kp-glabel .kp-ico .wi { border-radius: 4px; }
+.kp-classtile .kp-ico .wi { box-shadow: none; }
+.kp-spectoggle { flex-direction: row; align-items: center; gap: 8px; }
+.kp-switches .kp-ico { margin-left: 2px; }
+.kp-sizerow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.kp-sizerow input.kp-sizeinput[type=number] { width: 90px; }
+.kp-charhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.kp-editor > .seg { align-self: flex-start; }

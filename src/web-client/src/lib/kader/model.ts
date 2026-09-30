@@ -4,6 +4,7 @@
 // the profile) comes with the view model; this only counts and sorts.
 import type { KaderCharacter, KaderClassDef, KaderPartyBuff, KaderPlayer, KaderRaidBuff, KaderRole, KaderRoster, KaderVariant, KaderView } from "../../api";
 import { classLabel, specLabel } from "../wowNames";
+import { classIconName } from "../rosterView";
 import { t } from "../../i18n";
 
 export type Status = "kader" | "bench" | "none";
@@ -42,6 +43,19 @@ export function specName(classes: KaderClassDef[], key: string | null | undefine
     const cls = classDef(classes, key.split("-")[0]);
     const spec = cls ? cls.specs.find((s) => s.key === key) : null;
     return specLabel(key, spec ? spec.name : key);
+}
+
+/** The WoW icon of a spec key, as the rule set names it ("" when unknown). */
+export function specIconOf(classes: KaderClassDef[], key: string): string {
+    const cls = classDef(classes, key.split("-")[0]);
+    const spec = cls ? cls.specs.find((s) => s.key === key) : null;
+    return spec ? spec.icon : "";
+}
+
+/** The WoW icon of a class ("classicon_warrior"). */
+export function classIconOf(classes: KaderClassDef[], key: string): string {
+    const cls = classDef(classes, key);
+    return (cls && cls.icon) || (key ? classIconName(key) : "");
 }
 
 /** Whether a player is in the roster, on its bench or neither. */

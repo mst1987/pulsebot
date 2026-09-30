@@ -33,6 +33,7 @@ function fromProfile(c) {
     return {
         id: `p:${c.key}`,
         name: c.name,
+        nameStyle: String(c.name).trim().split(/\s+/).length === 2 ? "forever" : "nick",
         className: c.className,
         specs: c.specs.map((s, i) => ({ spec: s.spec, main: i === 0, gear: s.gear })),
         canTank: c.canTank,
@@ -159,7 +160,6 @@ function buildKaderView({ source, planner }) {
         guildId: source.guildId,
         roles: ["tank", "healer", "melee", "ranged"],
         classes: source.classes,
-        instances: source.instances,
         buffs: source.buffs,
         players,
         members: memberList,
@@ -179,7 +179,6 @@ function mutationContext(view) {
     };
     return {
         classes: indexClasses(view.classes),
-        instances: view.instances,
         memberIds: new Set(view.members.map((m) => m.userId)),
         poolIds: view.poolIds,
         naturalRole: (userId) => {

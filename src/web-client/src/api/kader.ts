@@ -15,9 +15,11 @@ export type KaderDiff = "class" | "mainSpec" | "gear" | "tank" | "heal" | "notIn
 
 export type KaderSpecDef = { key: string; name: string; nameEn: string; role: KaderRole; canTank: boolean; canHeal: boolean; icon: string };
 export type KaderClassDef = { key: string; name: string; nameEn: string; color: string; icon: string; specs: KaderSpecDef[]; canTank: boolean; canHeal: boolean };
-export type KaderInstance = { id: string; name: string; short: string; sizes: number[]; defaultSize: number; icon: string };
 export type KaderRaidBuff = { key: string; label: string; icon: string; providers: string[] };
 export type KaderPartyBuff = KaderRaidBuff & { beneficiaries: string[]; important: boolean };
+
+/** A Forever name ("Vorname Nachname") or a free nickname. */
+export type KaderNameStyle = "forever" | "nick";
 
 export type KaderSpecPick = { spec: string; main: boolean; gear: KaderGear };
 
@@ -25,6 +27,7 @@ export type KaderSpecPick = { spec: string; main: boolean; gear: KaderGear };
 export type KaderCharacter = {
     id: string;
     name: string;
+    nameStyle: KaderNameStyle;
     className: string;
     specs: KaderSpecPick[];
     canTank: boolean;
@@ -69,7 +72,6 @@ export type KaderMember = {
 export type KaderRoster = {
     id: string;
     name: string;
-    instanceId: string;
     size: number;
     targets: Record<KaderRole, number>;
     members: { userId: string; role: KaderRole }[];
@@ -82,7 +84,6 @@ export type KaderView = {
     guildId: string;
     roles: KaderRole[];
     classes: KaderClassDef[];
-    instances: KaderInstance[];
     buffs: { raid: KaderRaidBuff[]; party: KaderPartyBuff[] };
     players: KaderPlayer[];
     members: KaderMember[];
@@ -98,6 +99,7 @@ export type KaderView = {
 export type KaderCharacterInput = {
     id: string;
     name: string;
+    nameStyle: KaderNameStyle;
     className: string;
     specs: KaderSpecPick[];
     canTank: boolean;
@@ -111,7 +113,7 @@ export function getKader(): Promise<KaderView> {
     return get<KaderView>("/api/kader");
 }
 
-export function addKaderAccount(input: { userId: string; displayName: string; character?: { firstName: string; lastName: string; className: string } }): Promise<KaderView> {
+export function addKaderAccount(input: { userId: string; displayName: string; character?: { nameStyle: KaderNameStyle; firstName?: string; lastName?: string; nickname?: string; className: string } }): Promise<KaderView> {
     return send("POST", "/api/kader/accounts", input);
 }
 
@@ -127,11 +129,11 @@ export function resetKaderAssignment(userId: string): Promise<KaderView> {
     return send("POST", "/api/kader/assignments/reset", { userId });
 }
 
-export function createKaderRoster(input: { name?: string; instanceId: string; size?: number }): Promise<KaderView> {
+export function createKaderRoster(input: { name: string; size: number }): Promise<KaderView> {
     return send("POST", "/api/kader/rosters", input);
 }
 
-export function updateKaderRoster(rosterId: string, input: { name?: string; instanceId?: string; size?: number; targets?: Record<KaderRole, number> }): Promise<KaderView> {
+export function updateKaderRoster(rosterId: string, input: { name?: string; size?: number; targets?: Record<KaderRole, number> }): Promise<KaderView> {
     return send("PUT", "/api/kader/rosters", { rosterId, ...input });
 }
 

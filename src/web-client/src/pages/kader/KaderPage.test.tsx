@@ -16,6 +16,8 @@ vi.mock("../../api", async (orig) => ({
     getKader: vi.fn(),
     placeKaderPlayer: vi.fn(),
     autoKaderVariant: vi.fn(),
+    createKaderRoster: vi.fn(),
+    addKaderAccount: vi.fn(),
     saveKaderAssignment: vi.fn(),
     saveKaderVariant: vi.fn(),
 }));
@@ -76,10 +78,37 @@ describe("KaderPage · board", () => {
         expect(screen.getAllByText(t("kader.slot.freeRead")).length).toBeGreaterThan(0);
     });
 
-    it("offers to create the first roster", async () => {
+    it("creates the first roster from a name and a size", async () => {
         vi.mocked(api.getKader).mockResolvedValue(kaderView({ rosters: [], setups: {} }));
+        vi.mocked(api.createKaderRoster).mockResolvedValue({ ...kaderView(), rosterId: "r1" });
         renderPage(<KaderPage sub="board" />);
-        expect(await screen.findByRole("button", { name: t("kader.roster.create") })).toBeInTheDocument();
+        await userEvent.click(await screen.findByRole("button", { name: t("kader.roster.create") }));
+        const dialog = await screen.findByRole("dialog");
+        const create = within(dialog).getByRole("button", { name: t("kader.roster.create") });
+        expect(create).toBeDisabled();
+        await userEvent.type(within(dialog).getByRole("textbox"), "Mittwochs-Kader");
+        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.roster.sizeN", { n: 25 }) }));
+        expect(within(dialog).getByText(t("kader.roster.sizeHint", { groups: 5 }))).toBeInTheDocument();
+        await userEvent.click(create);
+        expect(api.createKaderRoster).toHaveBeenCalledWith({ name: "Mittwochs-Kader", size: 25 });
+        expect(await screen.findByRole("option", { name: "Hyjal Mittwoch · 20er" })).toBeInTheDocument();
+    });
+
+    it("refuses a size outside 5 to 40", async () => {
+        await show("board");
+        await userEvent.click(screen.getByRole("button", { name: t("kader.roster.edit") }));
+        const dialog = await screen.findByRole("dialog");
+        const size = within(dialog).getByRole("spinbutton", { name: t("kader.roster.size") });
+        await userEvent.clear(size);
+        await userEvent.type(size, "41");
+        expect(within(dialog).getByText(t("kader.roster.sizeRule", { min: 5, max: 40 }))).toBeInTheDocument();
+        expect(within(dialog).getByRole("button", { name: t("common.save") })).toBeDisabled();
+    });
+
+    it("marks roles and classes with their WoW icons", async () => {
+        await show("board");
+        expect(screen.getAllByRole("img", { name: "Tank" }).length).toBeGreaterThan(0);
+        expect(screen.getAllByRole("img", { name: "Heiler" }).length).toBeGreaterThan(0);
     });
 
     it("speaks English", async () => {
@@ -159,5 +188,37 @@ describe("KaderPage · account dialog", () => {
         await userEvent.click(within(dialog).getByRole("button", { name: t("kader.account.makeMain", { spec: "Verstärkung" }) }));
         await userEvent.click(within(dialog).getByRole("button", { name: t("common.apply") }));
         expect(api.saveKaderAssignment).toHaveBeenCalledWith(U.heal, [expect.objectContaining({ id: "h", specs: [{ spec: "Shaman-Enhancement", main: true, gear: "usable" }, { spec: "Shaman-Restoration", main: false, gear: "usable" }] })], "h");
+    });
+
+    it("switches a character to a nickname and saves it as one", async () => {
+        vi.mocked(api.saveKaderAssignment).mockResolvedValue(kaderView());
+        await show("board");
+        await userEvent.click(screen.getByText("Mira Sonnlicht"));
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(within(dialog).getByRole("radio", { name: t("kader.field.nameNick") }));
+        const nick = within(dialog).getByRole("textbox", { name: t("kader.field.nickname") });
+        expect(nick).toHaveValue("Mira Sonnlicht");
+        await userEvent.clear(nick);
+        await userEvent.type(nick, "K");
+        expect(within(dialog).getByText(t("kader.account.nickRule"))).toBeInTheDocument();
+        expect(within(dialog).getByRole("button", { name: t("common.apply") })).toBeDisabled();
+        await userEvent.type(nick, "nuffel");
+        await userEvent.click(within(dialog).getByRole("button", { name: t("common.apply") }));
+        expect(api.saveKaderAssignment).toHaveBeenCalledWith(U.heal, [expect.objectContaining({ id: "h", name: "Knuffel", nameStyle: "nick" })], "h");
+    });
+
+    it("adds an account with a nickname as its first character", async () => {
+        vi.mocked(api.addKaderAccount).mockResolvedValue(kaderView());
+        await show("board");
+        await userEvent.click(screen.getByRole("button", { name: t("kader.pool.addAccount") }));
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(within(dialog).getByRole("radio", { name: t("kader.add.byId") }));
+        await userEvent.type(within(dialog).getByRole("textbox", { name: new RegExp(`^${t("kader.add.discordId")}`) }), "280140000001999999");
+        await userEvent.type(within(dialog).getByRole("textbox", { name: t("kader.add.displayName") }), "Neu");
+        await userEvent.click(within(dialog).getByRole("radio", { name: t("kader.field.nameNick") }));
+        await userEvent.type(within(dialog).getByRole("textbox", { name: t("kader.field.nickname") }), "Knuffel");
+        await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: t("kader.field.class") }), "Mage");
+        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.add.submit") }));
+        expect(api.addKaderAccount).toHaveBeenCalledWith({ userId: "280140000001999999", displayName: "Neu", character: { nameStyle: "nick", nickname: "Knuffel", className: "Mage" } });
     });
 });

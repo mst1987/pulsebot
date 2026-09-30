@@ -14,10 +14,6 @@ const classes = new Map([
 ]);
 const ctx = {
     classes,
-    instances: [
-        { id: "forever-hyjal", name: "Hyjal", sizes: [20], defaultSize: 20 },
-        { id: "forever-barrow", name: "Barrow", sizes: [10], defaultSize: 10 },
-    ],
     memberIds: new Set([U1, U2]),
     poolIds: new Set([U1]),
     naturalRole: (id) => (id === U1 ? "tank" : null),
@@ -36,7 +32,7 @@ function refusal(fn) {
 }
 
 function withRoster() {
-    const { planner, rosterId } = model.createRoster(model.emptyPlanner(), { instanceId: "forever-hyjal" }, ctx);
+    const { planner, rosterId } = model.createRoster(model.emptyPlanner(), { name: "Mittwochs-Kader", size: 20 });
     return { planner, rosterId };
 }
 
@@ -125,6 +121,32 @@ describe("services/kader/kaderModel", () => {
             expect(refusal(() => model.setAssignment(model.emptyPlanner(), U2, { characters: [char()] }, ctx)).status).toBe(404);
         });
 
+        it("takes a nickname instead of a Forever name when the character says so", () => {
+            const p = model.setAssignment(model.emptyPlanner(), U1, { characters: [char({ name: "  Der Große  Bär-2 ", nameStyle: "nick" })] }, ctx);
+            expect(p.assignments[U1].characters[0]).toMatchObject({ name: "Der Große Bär-2", nameStyle: "nick" });
+            // a Forever name keeps its rules, and it is the default
+            expect(model.setAssignment(model.emptyPlanner(), U1, { characters: [char()] }, ctx).assignments[U1].characters[0].nameStyle).toBe("forever");
+            const nick = (name) => refusal(() => model.setAssignment(model.emptyPlanner(), U1, { characters: [char({ name, nameStyle: "nick" })] }, ctx));
+            expect(nick("A").message).toMatch(/2 bis 24/);
+            expect(nick("x".repeat(25)).message).toMatch(/2 bis 24/);
+            expect(nick("Bär_<script>").message).toMatch(/Buchstaben, Ziffern/);
+            expect(nick("Hitler").message).toMatch(/nicht erlaubt/);
+        });
+
+        it("adds the first character of a hand-added account as a nickname", () => {
+            const p = model.addAccount(model.emptyPlanner(), { userId: HAND, displayName: "Hand", character: { nameStyle: "nick", nickname: "Knuffel", className: "Mage" } }, ctx);
+            expect(p.assignments[HAND].characters[0]).toMatchObject({ name: "Knuffel", nameStyle: "nick", className: "Mage" });
+        });
+
+        it("gives characters stored before the name styles one by their name", () => {
+            const out = model.normalizePlanner({ assignments: { [U1]: { characters: [
+                { id: "a", name: "Aldric Sturmwind", className: "Warrior" },
+                { id: "b", name: "Knuffel", className: "Mage" },
+                { id: "c", name: "Mira Sonnlicht", nameStyle: "nick", className: "Druid" },
+            ] } } });
+            expect(out.assignments[U1].characters.map((c) => c.nameStyle)).toEqual(["forever", "nick", "nick"]);
+        });
+
         it("resets back to the profile", () => {
             const p = model.setAssignment(model.emptyPlanner(), U1, { characters: [char()] }, ctx);
             expect(model.resetAssignment(p, U1).assignments).toEqual({});
@@ -133,15 +155,27 @@ describe("services/kader/kaderModel", () => {
     });
 
     describe("rosters", () => {
-        it("creates a roster from an instance with its default size, name and targets", () => {
+        it("creates a roster from a name and a size, targets from the size", () => {
             const { planner, rosterId } = withRoster();
             expect(planner.rosters[0]).toEqual({
-                id: rosterId, name: "Hyjal · 20er", instanceId: "forever-hyjal", size: 20,
+                id: rosterId, name: "Mittwochs-Kader", size: 20,
                 targets: { tank: 2, healer: 5, melee: 7, ranged: 6 }, members: [], bench: [],
             });
             expect(planner.setups[rosterId].variants[0].groups).toHaveLength(4);
-            expect(refusal(() => model.createRoster(model.emptyPlanner(), { instanceId: "forever-hyjal", size: 25 }, ctx)).message).toMatch(/nicht als 25er/);
-            expect(refusal(() => model.createRoster(model.emptyPlanner(), { instanceId: "x" }, ctx)).status).toBe(400);
+            // a size without a preset: targets in proportion, groups = ceil(size / 5)
+            const odd = model.createRoster(model.emptyPlanner(), { name: "Klein", size: 12 });
+            const t = odd.planner.rosters[0].targets;
+            expect(t.tank + t.healer + t.melee + t.ranged).toBe(12);
+            expect(odd.planner.setups[odd.rosterId].variants[0].groups).toHaveLength(3);
+            expect(refusal(() => model.createRoster(model.emptyPlanner(), { name: "", size: 20 })).status).toBe(400);
+            expect(refusal(() => model.createRoster(model.emptyPlanner(), { name: "x", size: 41 })).message).toMatch(/5 bis 40/);
+            expect(refusal(() => model.createRoster(model.emptyPlanner(), { name: "x", size: 4 })).status).toBe(400);
+        });
+
+        it("loads an old roster that still names an instance and drops the field", () => {
+            const out = model.normalizePlanner({ rosters: [{ id: "r", name: "Hyjal", instanceId: "forever-hyjal", size: 20 }] });
+            expect(out.rosters[0]).not.toHaveProperty("instanceId");
+            expect(out.rosters[0]).toMatchObject({ name: "Hyjal", size: 20 });
         });
 
         it("places by the natural role, onto the bench and out again, and stops at the size", () => {
@@ -163,17 +197,17 @@ describe("services/kader/kaderModel", () => {
             expect(refusal(() => model.placeInRoster(full, "r", { userId: U1, to: "role" }, ctx)).status).toBe(409);
         });
 
-        it("updates name, instance, size and targets; a smaller size benches the overflow", () => {
+        it("updates name, size and targets; a smaller size benches the overflow", () => {
             const start = withRoster();
             const { rosterId } = start;
             let { planner } = start;
             planner = model.placeInRoster(planner, rosterId, { userId: U1, to: "role" }, ctx);
             planner = model.updateRoster(planner, rosterId, { name: "Mo-Raid", targets: { tank: 3 } }, ctx);
             expect(planner.rosters[0]).toMatchObject({ name: "Mo-Raid", targets: { tank: 3, healer: 5, melee: 7, ranged: 6 } });
-            planner = model.updateRoster(planner, rosterId, { instanceId: "forever-barrow" }, ctx);
-            expect(planner.rosters[0]).toMatchObject({ instanceId: "forever-barrow", size: 10, targets: model.defaultTargets(10) });
+            planner = model.updateRoster(planner, rosterId, { size: 10 }, ctx);
+            expect(planner.rosters[0]).toMatchObject({ size: 10, targets: model.defaultTargets(10) });
             expect(planner.setups[rosterId].variants[0].groups).toHaveLength(2);
-            expect(refusal(() => model.updateRoster(planner, rosterId, { size: 12 }, ctx)).status).toBe(400);
+            expect(refusal(() => model.updateRoster(planner, rosterId, { size: 50 }, ctx)).status).toBe(400);
             expect(refusal(() => model.updateRoster(planner, "nope", {}, ctx)).status).toBe(404);
 
             const big = model.normalizePlanner({ rosters: [{ id: "r", size: 10, members: ["a", "b", "c", "d", "e", "f", "g"].map((userId) => ({ userId, role: "melee" })) }] });

@@ -4,7 +4,7 @@
 // planner's assignment wins inside the planner and is never written back to the
 // raider profile; where it deviates, the dialog says so.
 import { useMemo, useState, type CSSProperties } from "react";
-import { removeKaderAccount, resetKaderAssignment, saveKaderAssignment, type KaderCharacterInput, type KaderGear, type KaderPlayer } from "../../api";
+import { removeKaderAccount, resetKaderAssignment, saveKaderAssignment, type KaderCharacterInput, type KaderGear, type KaderNameStyle, type KaderPlayer } from "../../api";
 import { Badge, Button, Modal, Segment } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
 import { useT } from "../../i18n";
@@ -12,9 +12,10 @@ import { roleLabel } from "../../lib/wowNames";
 import { formatDayMonth } from "../../lib/format";
 import { className, classDef, specName, statusOf, type Status } from "../../lib/kader/model";
 import { DAYS } from "../../lib/kader/players";
+import { inferNameStyle, nameOk, splitName, switchNameStyle } from "../../lib/kader/names";
 import { useKader } from "./kaderContext";
+import { ClassIcon, RoleIcon, SpecIcon } from "./parts";
 
-const NAME_PART = /^\p{L}{2,12}$/u;
 const GEARS: KaderGear[] = ["none", "usable", "ready"];
 const MAX_CHARS = 8;
 
@@ -24,6 +25,7 @@ function draftOf(player: KaderPlayer): { chars: KaderCharacterInput[]; active: s
         chars: player.characters.map((c) => ({
             id: c.id,
             name: c.name,
+            nameStyle: c.nameStyle || inferNameStyle(c.name),
             className: c.className,
             specs: c.specs.map((s) => ({ ...s })),
             canTank: c.canTank,
@@ -33,15 +35,6 @@ function draftOf(player: KaderPlayer): { chars: KaderCharacterInput[]; active: s
         active: player.activeCharacterId,
     };
 }
-
-const splitName = (name: string): [string, string] => {
-    const i = name.indexOf(" ");
-    return i < 0 ? [name, ""] : [name.slice(0, i), name.slice(i + 1)];
-};
-const nameOk = (name: string): boolean => {
-    const [a, b] = splitName(name);
-    return NAME_PART.test(a) && NAME_PART.test(b);
-};
 
 /** What EventHelper knows about the account: read only. */
 function ProfilePanel({ player }: { player: KaderPlayer }) {
@@ -98,7 +91,7 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
     const main = cur ? cur.specs.find((s) => s.main) || cur.specs[0] : undefined;
     const status = statusOf(roster, userId);
     const dirty = JSON.stringify({ chars, active }) !== JSON.stringify(initial);
-    const allValid = chars.every((c) => nameOk(c.name) && !!c.className);
+    const allValid = chars.every((c) => nameOk(c.name, c.nameStyle) && !!c.className);
     const [first, last] = splitName(cur ? cur.name : "");
 
     const patch = (fn: (c: KaderCharacterInput) => KaderCharacterInput) => setChars(chars.map((c, i) => (i === sel ? fn(c) : c)));
@@ -125,7 +118,7 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
     const setGear = (gear: KaderGear) => patch((c) => ({ ...c, specs: c.specs.map((s) => (s.main ? { ...s, gear } : s)) }));
     const addChar = () => {
         const id = `n${Date.now().toString(36)}`;
-        setChars([...chars, { id, name: " ", className: "", specs: [], canTank: false, canHeal: false }]);
+        setChars([...chars, { id, name: " ", nameStyle: "forever", className: "", specs: [], canTank: false, canHeal: false }]);
         setSel(chars.length);
         if (!active) setActive(id);
     };
@@ -200,24 +193,36 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
             <div className="kp-accgrid">
                 {cur ? (
                     <fieldset className="kp-editor" disabled={!canWrite}>
+                        <Segment<KaderNameStyle> size="sm" ariaLabel={t("kader.field.nameStyle")} value={cur.nameStyle}
+                            options={[{ value: "forever", label: t("kader.field.nameForever") }, { value: "nick", label: t("kader.field.nameNick") }]}
+                            onChange={(style) => patch((c) => ({ ...c, nameStyle: style, name: switchNameStyle(c.name, style) }))} />
                         <div className="kp-namerow">
-                            <label className="field">
-                                <span className="field-label">{t("kader.field.firstName")}</span>
-                                <input maxLength={12} value={first} onChange={(e) => setName(e.target.value.replace(/\s/g, ""), last)} />
-                            </label>
-                            <label className="field">
-                                <span className="field-label">{t("kader.field.lastName")}</span>
-                                <input maxLength={12} value={last} onChange={(e) => setName(first, e.target.value.replace(/\s/g, ""))} />
-                            </label>
+                            {cur.nameStyle === "nick" ? (
+                                <label className="field">
+                                    <span className="field-label">{t("kader.field.nickname")}</span>
+                                    <input maxLength={24} value={cur.name.trimStart()} onChange={(e) => patch((c) => ({ ...c, name: e.target.value }))} />
+                                </label>
+                            ) : (
+                                <>
+                                    <label className="field">
+                                        <span className="field-label">{t("kader.field.firstName")}</span>
+                                        <input maxLength={12} value={first} onChange={(e) => setName(e.target.value.replace(/\s/g, ""), last)} />
+                                    </label>
+                                    <label className="field">
+                                        <span className="field-label">{t("kader.field.lastName")}</span>
+                                        <input maxLength={12} value={last} onChange={(e) => setName(first, e.target.value.replace(/\s/g, ""))} />
+                                    </label>
+                                </>
+                            )}
                             {cur.id !== active && <Button variant="ghost" size="sm" onClick={() => setActive(cur.id)}>{t("kader.account.use")}</Button>}
                         </div>
-                        {!nameOk(cur.name) && cur.name.trim() !== "" && <span className="kp-error">{t("kader.account.nameRule")}</span>}
+                        {!nameOk(cur.name, cur.nameStyle) && cur.name.trim() !== "" && <span className="kp-error">{cur.nameStyle === "nick" ? t("kader.account.nickRule") : t("kader.account.nameRule")}</span>}
                         <div className="kicker">{t("kader.field.class")}</div>
                         <div className="kp-classgrid">
                             {view.classes.map((c) => (
                                 <button key={c.key} type="button" aria-pressed={cur.className === c.key} className={`kp-classtile class-colored${cur.className === c.key ? " kp-active" : ""}`}
                                     style={{ "--cc": c.color } as CSSProperties} onClick={() => setClass(c.key)}>
-                                    <span className="kp-swatch" />{className(view.classes, c.key)}
+                                    <ClassIcon classKey={c.key} size={20} />{className(view.classes, c.key)}
                                 </button>
                             ))}
                         </div>
@@ -231,8 +236,11 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
                                         return (
                                             <div key={s.key} className={`kp-spectile ${state}`}>
                                                 <button type="button" className="kp-spectoggle" aria-pressed={!!pick} onClick={() => toggleSpec(s.key)}>
+                                                    <SpecIcon specKey={s.key} size={22} />
+                                                    <span className="kp-col">
                                                     <span className="kp-specname">{specName(view.classes, s.key)}</span>
                                                     <span className="kp-sub">{roleLabel(s.role)}</span>
+                                                    </span>
                                                 </button>
                                                 <button type="button" className="kp-star" aria-pressed={!!pick && pick.main} aria-label={t("kader.account.makeMain", { spec: specName(view.classes, s.key) })}
                                                     data-tip={t("kader.account.mainTip")} onClick={() => makeMain(s.key)}>{pick && pick.main ? "★" : "☆"}</button>
@@ -245,10 +253,10 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
                                     options={GEARS.map((g) => ({ value: g, label: t(`kader.gear.${g}`), disabled: !main }))} onChange={setGear} />
                                 <div className="kp-switches">
                                     <label className={cls.canTank ? "" : "kp-off"} data-tip={cls.canTank ? undefined : t("kader.account.noTank")}>
-                                        <input type="checkbox" disabled={!cls.canTank} checked={cur.canTank} onChange={(e) => patch((c) => ({ ...c, canTank: e.target.checked }))} /> {t("kader.account.canTank")}
+                                        <input type="checkbox" disabled={!cls.canTank} checked={cur.canTank} onChange={(e) => patch((c) => ({ ...c, canTank: e.target.checked }))} /> <RoleIcon role="tank" size={18} /> {t("kader.account.canTank")}
                                     </label>
                                     <label className={cls.canHeal ? "" : "kp-off"} data-tip={cls.canHeal ? undefined : t("kader.account.noHeal")}>
-                                        <input type="checkbox" disabled={!cls.canHeal} checked={cur.canHeal} onChange={(e) => patch((c) => ({ ...c, canHeal: e.target.checked }))} /> {t("kader.account.canHeal")}
+                                        <input type="checkbox" disabled={!cls.canHeal} checked={cur.canHeal} onChange={(e) => patch((c) => ({ ...c, canHeal: e.target.checked }))} /> <RoleIcon role="healer" size={18} /> {t("kader.account.canHeal")}
                                     </label>
                                 </div>
                             </>

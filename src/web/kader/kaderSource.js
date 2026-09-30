@@ -1,5 +1,5 @@
 // What the Kaderplaner (docs/kaderplaner.md) reads from the rest of the bot:
-// the game version's rule set (classes, specs, instances, buffs), the human
+// the game version's rule set (classes, specs, buffs), the human
 // members of the server, the raider profiles with characters of the version
 // and the attendance of the version's raid nights. Everything is derived on
 // read; the planner's own data lives in kaderStore.js and is merged on top by
@@ -58,17 +58,6 @@ function sourceClasses(rules) {
             canHeal: specs.some((s) => s.canHeal),
         };
     });
-}
-
-function sourceInstances(rules) {
-    return rules.instances.map((i) => ({
-        id: i.id,
-        name: i.name,
-        short: i.short || i.name,
-        sizes: Array.isArray(i.sizes) ? [...i.sizes] : [],
-        defaultSize: i.defaultSize || (Array.isArray(i.sizes) ? i.sizes[0] : 0) || 0,
-        icon: i.icon || "",
-    }));
 }
 
 /** The raid and party buffs of a rule set, reduced to what the planner checks: who provides it, who wants it. */
@@ -199,7 +188,6 @@ async function loadKaderSource({ guildId = "", versionId = plannerVersion(), now
         guildId: guildId || "",
         versionId,
         classes: sourceClasses(rules),
-        instances: sourceInstances(rules),
         buffs: sourceBuffs(rules),
         members,
         profiles: listed,

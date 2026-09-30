@@ -92,22 +92,22 @@ describe("web/apiRoutes/kader", () => {
         it("refuses a member without the grant, even one with other areas", async () => {
             auth.getUser.mockReturnValue(OUTSIDER);
             expect(status(await get("/api/kader"))).toBe(403);
-            expect(status(await post("/api/kader/rosters", { instanceId: "forever-hyjal" }))).toBe(403);
+            expect(status(await post("/api/kader/rosters", { name: "Mittwochs-Kader", size: 20 }))).toBe(403);
             expect(kaderStore.readPlanner("g1").rosters).toEqual([]);
         });
 
         it("lets a single-account grant in: read views, write edits", async () => {
             auth.getUser.mockReturnValue(granted("read"));
             expect(status(await get("/api/kader"))).toBe(200);
-            expect(status(await post("/api/kader/rosters", { instanceId: "forever-hyjal" }))).toBe(403);
+            expect(status(await post("/api/kader/rosters", { name: "Mittwochs-Kader", size: 20 }))).toBe(403);
 
             auth.getUser.mockReturnValue(granted("write"));
-            expect(status(await post("/api/kader/rosters", { instanceId: "forever-hyjal" }))).toBe(200);
+            expect(status(await post("/api/kader/rosters", { name: "Mittwochs-Kader", size: 20 }))).toBe(200);
         });
 
         it("refuses a write without a valid CSRF token", async () => {
             auth.checkCsrf.mockReturnValue(false);
-            expect(status(await post("/api/kader/rosters", { instanceId: "forever-hyjal" }))).toBe(403);
+            expect(status(await post("/api/kader/rosters", { name: "Mittwochs-Kader", size: 20 }))).toBe(403);
             expect(kaderStore.readPlanner("g1").rosters).toEqual([]);
         });
     });
@@ -146,11 +146,11 @@ describe("web/apiRoutes/kader", () => {
 
     describe("writes", () => {
         it("builds a roster, places players, assigns characters and splits a setup", async () => {
-            let res = await post("/api/kader/rosters", { instanceId: "forever-hyjal" });
+            let res = await post("/api/kader/rosters", { name: "Mittwochs-Kader", size: 20 });
             expect(status(res)).toBe(200);
             const { rosterId } = body(res);
             expect(body(res).rosters[0]).toMatchObject({
-                id: rosterId, name: "Hyjal Summit (Forever) · 20er", size: 20, targets: { tank: 2, healer: 5, melee: 7, ranged: 6 },
+                id: rosterId, name: "Mittwochs-Kader", size: 20, targets: { tank: 2, healer: 5, melee: 7, ranged: 6 },
             });
 
             res = await post("/api/kader/accounts", { userId: U2, displayName: "Bea", character: { firstName: "rikka", lastName: "feldmark", className: "Shaman" } });
@@ -191,9 +191,9 @@ describe("web/apiRoutes/kader", () => {
         });
 
         it("answers a rule violation with its status and message", async () => {
-            let res = await post("/api/kader/rosters", { instanceId: "nope" });
+            let res = await post("/api/kader/rosters", { name: "Zu groß", size: 60 });
             expect(status(res)).toBe(400);
-            expect(body(res).error).toMatchObject({ code: "invalid", message: "Unbekannte Instanz." });
+            expect(body(res).error).toMatchObject({ code: "invalid", message: expect.stringMatching(/5 bis 40/) });
 
             res = await post("/api/kader/accounts", { userId: "123", displayName: "Kurz" });
             expect(status(res)).toBe(400);
@@ -217,7 +217,7 @@ describe("web/apiRoutes/kader", () => {
             let res = await post("/api/kader/assignments/reset", { userId: U1 });
             expect(body(res).players[0].hasOverride).toBe(false);
 
-            res = await post("/api/kader/rosters", { instanceId: "forever-barrow", name: "Barrow Mo" });
+            res = await post("/api/kader/rosters", { name: "Barrow Mo", size: 10 });
             const { rosterId } = body(res);
             res = await put("/api/kader/rosters", { rosterId, targets: { tank: 1, healer: 3, melee: 3, ranged: 3 } });
             expect(body(res).rosters[0].targets).toEqual({ tank: 1, healer: 3, melee: 3, ranged: 3 });

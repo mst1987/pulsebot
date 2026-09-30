@@ -40,7 +40,7 @@ function writeRoute(mutate) {
 
 const str = (body, key) => q.str(body, key);
 
-/** POST /api/kader/accounts — body: { userId, displayName, character?: { firstName, lastName, className } } */
+/** POST /api/kader/accounts — body: { userId, displayName, character?: { nameStyle, firstName, lastName | nickname, className } } */
 const addAccount = writeRoute((p, body, ctx) => model.addAccount(p, body, ctx));
 /** POST /api/kader/accounts/remove — body: { userId }; only an account added by hand. */
 const removeAccount = writeRoute((p, body) => model.removeAccount(p, str(body, "userId")));
@@ -48,10 +48,10 @@ const removeAccount = writeRoute((p, body) => model.removeAccount(p, str(body, "
 const saveAssignment = writeRoute((p, body, ctx) => model.setAssignment(p, str(body, "userId"), body, ctx));
 /** POST /api/kader/assignments/reset — body: { userId }; the profile shows again. */
 const resetAssignment = writeRoute((p, body) => model.resetAssignment(p, str(body, "userId")));
-/** POST /api/kader/rosters — body: { name?, instanceId, size? }; answers `rosterId` too. */
-const createRoster = writeRoute((p, body, ctx) => model.createRoster(p, body, ctx));
-/** PUT /api/kader/rosters — body: { rosterId, name?, instanceId?, size?, targets? } */
-const updateRoster = writeRoute((p, body, ctx) => model.updateRoster(p, str(body, "rosterId"), body, ctx));
+/** POST /api/kader/rosters — body: { name, size }; answers `rosterId` too. */
+const createRoster = writeRoute((p, body) => model.createRoster(p, body));
+/** PUT /api/kader/rosters — body: { rosterId, name?, size?, targets? } */
+const updateRoster = writeRoute((p, body) => model.updateRoster(p, str(body, "rosterId"), body));
 /** POST /api/kader/rosters/delete — body: { rosterId } */
 const deleteRoster = writeRoute((p, body) => model.deleteRoster(p, str(body, "rosterId")));
 /** POST /api/kader/rosters/place — body: { rosterId, userId, to: "role"|"bench"|"free", role? } */

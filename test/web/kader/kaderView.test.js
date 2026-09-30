@@ -21,7 +21,6 @@ const source = (over = {}) => ({
     guildId: "g1",
     versionId: "forever",
     classes,
-    instances: [],
     buffs: { raid: [], party: [] },
     members: [{ userId: U1, displayName: "Aldric", avatarUrl: null }, { userId: U2, displayName: "Bea", avatarUrl: null }],
     profiles: [{ userId: U1, characters: [warrior, druid], availability: ["mi", "do"] }],

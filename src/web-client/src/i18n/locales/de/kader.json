@@ -138,7 +138,11 @@
         "lastName": "Nachname",
         "class": "Klasse",
         "specs": "Specs · Stern = Haupt-Spec",
-        "gear": "Gear für Haupt-Spec"
+        "gear": "Gear für Haupt-Spec",
+        "nameStyle": "Art des Namens",
+        "nameForever": "Forever-Name",
+        "nameNick": "Nickname",
+        "nickname": "Nickname"
     },
     "account": {
         "withProfile": "Discord · mit EventHelper-Profil",
@@ -153,7 +157,7 @@
         "characters": "Charaktere",
         "newChar": "Neuer Charakter",
         "used": "verwendet",
-        "addChar": "+ Forever-Charakter",
+        "addChar": "+ Charakter",
         "use": "Diesen Charakter verwenden",
         "nameRule": "Vorname und Nachname, je 2 bis 12 Buchstaben.",
         "makeMain": "{spec} als Haupt-Spec",
@@ -175,7 +179,8 @@
         "logs": "Laut Logs",
         "days": "Verfügbar",
         "differs": "Weicht vom Profil ab: {what}. Hier gilt die Zuweisung des Kaderplaners, das Profil wird nie überschrieben.",
-        "differsNone": "Weicht deine Zuweisung vom Profil ab, steht hier ein Hinweis – überschrieben wird nichts."
+        "differsNone": "Weicht deine Zuweisung vom Profil ab, steht hier ein Hinweis – überschrieben wird nichts.",
+        "nickRule": "2 bis 24 Zeichen: Buchstaben, Ziffern, Leerzeichen, Bindestrich, Apostroph."
     },
     "add": {
         "title": "Discord-Account hinzufügen",
@@ -192,7 +197,7 @@
         "discordId": "Discord-ID",
         "discordIdHint": "In Discord: Entwicklermodus an, Rechtsklick auf den Account, „Benutzer-ID kopieren“.",
         "displayName": "Anzeigename",
-        "charOptional": "Forever-Charakter · optional, geht auch später",
+        "charOptional": "Charakter · optional, geht auch später",
         "pickClass": "wählen …",
         "submit": "Hinzufügen & Specs wählen"
     },
@@ -203,11 +208,13 @@
         "delete": "Kader löschen",
         "deleteTitle": "Kader „{name}“ löschen?",
         "deleteText": "Mit ihm gehen seine Setups. Die Spieler bleiben im Pool.",
-        "namePlaceholder": "leer = Instanz und Größe",
-        "instance": "Instanz",
-        "size": "Größe",
+        "namePlaceholder": "z. B. Mittwochs-Kader",
+        "size": "Kadergröße",
         "sizeN": "{n}er",
-        "targets": "Zielzahlen je Rolle · Summe {sum} von {size}"
+        "targets": "Zielzahlen je Rolle · Summe {sum} von {size}",
+        "label": "{name} · {size}er",
+        "sizeRule": "Eine ganze Zahl von {min} bis {max}.",
+        "sizeHint": "{groups} Gruppen im Setup"
     },
     "picker": {
         "title": "Spieler für {role} wählen",
@@ -215,7 +222,7 @@
         "nobody": "Niemand verfügbar."
     },
     "setup": {
-        "kicker": "Setup · {raid} · {size}er",
+        "kicker": "Setup · {size}er",
         "auto": "Automatisch verteilen",
         "copy": "Als Text kopieren",
         "copied": "Setup als Text kopiert – jetzt in Discord einfügen.",

@@ -138,7 +138,11 @@
         "lastName": "Last name",
         "class": "Class",
         "specs": "Specs · star = main spec",
-        "gear": "Gear for the main spec"
+        "gear": "Gear for the main spec",
+        "nameStyle": "Kind of name",
+        "nameForever": "Forever name",
+        "nameNick": "Nickname",
+        "nickname": "Nickname"
     },
     "account": {
         "withProfile": "Discord · with EventHelper profile",
@@ -153,7 +157,7 @@
         "characters": "Characters",
         "newChar": "New character",
         "used": "in use",
-        "addChar": "+ Forever character",
+        "addChar": "+ Character",
         "use": "Use this character",
         "nameRule": "First and last name, 2 to 12 letters each.",
         "makeMain": "{spec} as main spec",
@@ -175,7 +179,8 @@
         "logs": "Per logs",
         "days": "Available",
         "differs": "Differs from the profile: {what}. The roster planner's assignment applies here, the profile is never overwritten.",
-        "differsNone": "If your assignment differs from the profile, a note shows up here; nothing is overwritten."
+        "differsNone": "If your assignment differs from the profile, a note shows up here; nothing is overwritten.",
+        "nickRule": "2 to 24 characters: letters, digits, space, hyphen, apostrophe."
     },
     "add": {
         "title": "Add Discord account",
@@ -192,7 +197,7 @@
         "discordId": "Discord ID",
         "discordIdHint": "In Discord: turn on developer mode, right-click the account, \"Copy User ID\".",
         "displayName": "Display name",
-        "charOptional": "Forever character · optional, can be done later",
+        "charOptional": "Character · optional, can be done later",
         "pickClass": "choose …",
         "submit": "Add & choose specs"
     },
@@ -203,11 +208,13 @@
         "delete": "Delete roster",
         "deleteTitle": "Delete roster \"{name}\"?",
         "deleteText": "Its setups go with it. The players stay in the pool.",
-        "namePlaceholder": "empty = instance and size",
-        "instance": "Instance",
-        "size": "Size",
+        "namePlaceholder": "e.g. Wednesday roster",
+        "size": "Roster size",
         "sizeN": "{n}-man",
-        "targets": "Targets per role · total {sum} of {size}"
+        "targets": "Targets per role · total {sum} of {size}",
+        "label": "{name} · {size}-man",
+        "sizeRule": "A whole number from {min} to {max}.",
+        "sizeHint": "{groups} groups in the setup"
     },
     "picker": {
         "title": "Choose a player for {role}",
@@ -215,7 +222,7 @@
         "nobody": "Nobody available."
     },
     "setup": {
-        "kicker": "Setup · {raid} · {size}-man",
+        "kicker": "Setup · {size}-man",
         "auto": "Distribute automatically",
         "copy": "Copy as text",
         "copied": "Setup copied as text, paste it into Discord now.",

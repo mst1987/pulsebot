@@ -7,7 +7,7 @@ export const U = { tank: "111111111111111111", heal: "222222222222222222", sham:
 
 function char(over: Partial<KaderCharacter>): KaderCharacter {
     return {
-        id: "c", name: "Name Nachname", className: "Warrior", specs: [], canTank: false, canHeal: false,
+        id: "c", name: "Name Nachname", nameStyle: "forever", className: "Warrior", specs: [], canTank: false, canHeal: false,
         origin: "profile", differs: [], mainSpec: null, role: null, gear: "none", ...over,
     };
 }
@@ -63,7 +63,6 @@ export function kaderView(over: Partial<KaderView> = {}): KaderView {
                 { key: "Mage-Frost", name: "Frost", nameEn: "Frost", role: "ranged", canTank: false, canHeal: false, icon: "" },
             ] },
         ],
-        instances: [{ id: "forever-hyjal", name: "Hyjal Summit (Forever)", short: "Hyjal F", sizes: [20], defaultSize: 20, icon: "" }],
         buffs: {
             raid: [{ key: "intellect", label: "Arkane Brillanz", icon: "", providers: ["Mage-Frost"] }],
             party: [{ key: "windfury", label: "Totem des Windzorns", icon: "", providers: ["Shaman-Enhancement", "Shaman-Restoration"], beneficiaries: ["Warrior-Protection", "Warrior-Fury", "Shaman-Enhancement"], important: true }],
@@ -74,7 +73,7 @@ export function kaderView(over: Partial<KaderView> = {}): KaderView {
             { userId: "666666666666666666", displayName: "Gast", inPool: false, hasProfile: false, profile: null, pct: null },
         ],
         rosters: [{
-            id: "r1", name: "Hyjal Mittwoch", instanceId: "forever-hyjal", size: 20,
+            id: "r1", name: "Hyjal Mittwoch", size: 20,
             targets: { tank: 2, healer: 5, melee: 7, ranged: 6 },
             members: [{ userId: U.tank, role: "tank" }, { userId: U.heal, role: "healer" }],
             bench: [U.sham],

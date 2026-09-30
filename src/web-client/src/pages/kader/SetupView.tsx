@@ -20,7 +20,7 @@ import { activeOf, className, colorOf, focusOf, groupHints, moveToSlot, removeFr
 import { setupText } from "../../lib/kader/setupText";
 import { useKader } from "./kaderContext";
 import { dragProps, useDropZone } from "./dnd";
-import { CharName, ClassBar, SubHead } from "./parts";
+import { CharName, ClassBar, PlayerIcon, SubHead } from "./parts";
 
 function GroupSlot({ player, index, picked, onPick, onDropUser }: {
     player: KaderPlayer | null;
@@ -39,7 +39,6 @@ function GroupSlot({ player, index, picked, onPick, onDropUser }: {
             </button>
         );
     }
-    const a = activeOf(player);
     return (
         <button
             type="button"
@@ -51,8 +50,8 @@ function GroupSlot({ player, index, picked, onPick, onDropUser }: {
             {...drop.props}
         >
             <ClassBar color={colorOf(view.classes, player)} small />
+            <PlayerIcon player={player} size={18} />
             <CharName player={player} className="kp-slot-name kp-grow" />
-            <span className="kp-sub">{a ? specName(view.classes, a.mainSpec) || className(view.classes, a.className) : ""}</span>
         </button>
     );
 }
@@ -112,7 +111,6 @@ function VariantBody({ roster, variants, variant, setVariantId }: {
     const [renaming, setRenaming] = useState<string | null>(null);
     const [text, setText] = useState<string | null>(null);
     const roles = useMemo(() => new Map(roster.members.map((m) => [m.userId, m.role])), [roster]);
-    const instance = view.instances.find((i) => i.id === roster.instanceId);
 
     const save = (groups: Groups) => run(saveKaderVariant(roster.id, variant.id, { groups }));
     const rest = unassigned(roster, variant);
@@ -153,7 +151,7 @@ function VariantBody({ roster, variants, variant, setVariantId }: {
 
     return (
         <>
-            <SubHead kicker={t("kader.setup.kicker", { raid: instance ? instance.name : roster.name, size: roster.size })} title={roster.name}>
+            <SubHead kicker={t("kader.setup.kicker", { size: roster.size })} title={roster.name}>
                 <Button variant="ghost" disabled={!canWrite || !roster.members.length} onClick={() => { setPicked(null); void run(autoKaderVariant(roster.id, variant.id)); }}>{t("kader.setup.auto")}</Button>
                 <Button icon={<CopyIcon />} onClick={() => void copy()}>{t("kader.setup.copy")}</Button>
             </SubHead>
@@ -185,6 +183,7 @@ function VariantBody({ roster, variants, variant, setVariantId }: {
                             <button key={id} type="button" className={`kp-slot${picked === id ? " kp-picked" : ""}`} aria-pressed={picked === id} disabled={!canWrite}
                                 {...dragProps(id, canWrite)} onClick={() => setPicked(picked === id ? null : id)} onDoubleClick={() => open({ type: "account", userId: id })}>
                                 <ClassBar color={colorOf(view.classes, p)} small />
+                                <PlayerIcon player={p} size={18} />
                                 <span className="kp-slot-text">
                                     <CharName player={p} className="kp-slot-name" />
                                     <span className="kp-sub">{a ? specName(view.classes, a.mainSpec) || className(view.classes, a.className) : t("kader.player.noChar")}</span>

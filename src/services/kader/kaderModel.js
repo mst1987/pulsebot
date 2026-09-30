@@ -4,19 +4,25 @@
 //
 //   { accounts:    [{ userId, displayName, addedAt }]           added by hand
 //     assignments: { [userId]: { characters: [...], activeCharacterId } }
-//     rosters:     [{ id, name, instanceId, size, targets, members: [{ userId, role }], bench: [userId] }]
+//     rosters:     [{ id, name, size, targets, members: [{ userId, role }], bench: [userId] }]
 //     setups:      { [rosterId]: { variants: [{ id, name, groups: [[userId|null x5] ...] }] } } }
 //
-// A character: { id, name, className, specs: [{ spec, main, gear }], canTank,
-// canHeal, onlineKey? } — keys in the code's own vocabulary ("Warrior",
+// A character: { id, name, nameStyle, className, specs: [{ spec, main, gear }],
+// canTank, canHeal, onlineKey? } — nameStyle "forever" (Vorname Nachname) or
+// "nick" (one free nickname) — keys in the code's own vocabulary ("Warrior",
 // "Warrior-Protection", gear none|usable|ready). The planner's assignment wins
 // inside the planner; it is never written back to the raider profile.
 const { AppError } = require("../../web/http/apiResult");
-const { validateCharacterName } = require("../../utils/signup/characterNames");
+const { isProfane, validateCharacterName } = require("../../utils/signup/characterNames");
 const { newId } = require("../../utils/ids");
 const { GROUP_SIZE, autoAssign } = require("./kaderAutoAssign");
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
+const NAME_STYLES = ["forever", "nick"];
+// A nickname: letters (umlauts too), digits, space, hyphen, apostrophe.
+const NICK = /^[\p{L}\p{N}' -]+$/u;
+const NICK_MIN = 2;
+const NICK_MAX = 24;
 const GEAR_LEVELS = ["none", "usable", "ready"];
 const LIMITS = { accounts: 300, rosters: 30, variants: 6, characters: 8, name: 40 };
 const SIZE_MIN = 5;
@@ -64,6 +70,12 @@ function sanitizeGroups(groups, roster) {
     }));
 }
 
+/** The stored style, else what the name looks like: two parts are a Forever name, anything else a nickname. */
+function nameStyleOf(c) {
+    if (NAME_STYLES.includes(c.nameStyle)) return c.nameStyle;
+    return String(c.name || "").trim().split(/\s+/).length === 2 ? "forever" : "nick";
+}
+
 function normalizeCharacter(c) {
     if (!c || typeof c !== "object" || !c.id || !c.name) return null;
     const specs = (Array.isArray(c.specs) ? c.specs : [])
@@ -72,6 +84,7 @@ function normalizeCharacter(c) {
     return {
         id: String(c.id),
         name: String(c.name),
+        nameStyle: nameStyleOf(c),
         className: String(c.className || ""),
         specs,
         canTank: c.canTank === true,
@@ -81,7 +94,7 @@ function normalizeCharacter(c) {
 }
 
 function normalizeRoster(r) {
-    const size = Number(r.size) || 20;
+    const size = Math.min(SIZE_MAX, Math.max(SIZE_MIN, Math.round(Number(r.size)) || 20));
     const targets = { ...defaultTargets(size) };
     if (r.targets && typeof r.targets === "object") {
         for (const role of ROLES) if (Number.isInteger(r.targets[role]) && r.targets[role] >= 0) targets[role] = r.targets[role];
@@ -91,7 +104,8 @@ function normalizeRoster(r) {
         .filter((m) => m && typeof m.userId === "string" && ROLES.includes(m.role) && !seen.has(m.userId) && seen.add(m.userId))
         .map((m) => ({ userId: m.userId, role: m.role }));
     const bench = (Array.isArray(r.bench) ? r.bench : []).filter((id) => typeof id === "string" && !seen.has(id) && seen.add(id));
-    return { id: String(r.id), name: String(r.name || "Kader"), instanceId: String(r.instanceId || ""), size, targets, members, bench };
+    // an old roster's instanceId is dropped here: a roster is a name and a size (#566)
+    return { id: String(r.id), name: String(r.name || "Kader"), size, targets, members, bench };
 }
 
 /** Repairs whatever was read from disk into a valid planner state (never throws). */
@@ -153,8 +167,10 @@ function addAccount(planner, input, ctx) {
     const next = clone(planner);
     next.accounts.push({ userId, displayName: cleanLabel(input.displayName, "Name"), addedAt: new Date().toISOString() });
     const c = input.character;
-    if (c && (c.firstName || c.lastName || c.className)) {
-        const character = cleanCharacter({ name: `${c.firstName || ""} ${c.lastName || ""}`, className: c.className, specs: [] }, ctx);
+    if (c && (c.firstName || c.lastName || c.nickname || c.className)) {
+        const nick = c.nameStyle === "nick";
+        const name = nick ? c.nickname : `${c.firstName || ""} ${c.lastName || ""}`;
+        const character = cleanCharacter({ name, nameStyle: nick ? "nick" : "forever", className: c.className, specs: [] }, ctx);
         next.assignments[userId] = { characters: [character], activeCharacterId: character.id };
     }
     return next;
@@ -183,8 +199,15 @@ function classOf(ctx, key) {
 }
 
 /** A Forever name is "Vorname Nachname", each 2 to 12 letters (utils/signup/characterNames.js). */
-function cleanName(raw) {
+function cleanName(raw, style = "forever") {
     const text = String(raw || "").trim().replace(/\s+/g, " ");
+    if (style === "nick") {
+        const length = [...text].length;
+        if (length < NICK_MIN || length > NICK_MAX) throw invalid(`Der Nickname braucht ${NICK_MIN} bis ${NICK_MAX} Zeichen.`);
+        if (!NICK.test(text)) throw invalid("Der Nickname darf nur Buchstaben, Ziffern, Leerzeichen, Bindestrich und Apostroph haben.");
+        if (isProfane(text)) throw invalid("Dieser Name ist nicht erlaubt – bitte einen anderen wählen.");
+        return text;
+    }
     if (text.split(" ").length !== 2) throw invalid("Der Name besteht aus Vorname und Nachname, je höchstens 12 Buchstaben.");
     const checked = validateCharacterName(text, { lastName: true });
     if (checked.error) throw invalid(checked.error);
@@ -192,7 +215,8 @@ function cleanName(raw) {
 }
 
 function cleanCharacter(input, ctx) {
-    const name = cleanName(input.name);
+    const nameStyle = input.nameStyle === "nick" ? "nick" : "forever";
+    const name = cleanName(input.name, nameStyle);
     const cls = classOf(ctx, String(input.className || ""));
     const seen = new Set();
     let specs = (Array.isArray(input.specs) ? input.specs : []).map((s) => ({
@@ -211,6 +235,7 @@ function cleanCharacter(input, ctx) {
     return {
         id: String(input.id || newId()).slice(0, 40),
         name,
+        nameStyle,
         className: cls.key,
         specs,
         canTank: input.canTank === true && !!cls.canTank,
@@ -247,8 +272,8 @@ function resetAssignment(planner, userId) {
 
 function cleanSize(value) {
     const size = Number(value);
-    if (!Number.isInteger(size) || size < SIZE_MIN || size > SIZE_MAX || size % GROUP_SIZE) {
-        throw invalid(`Die Größe muss ein Vielfaches von ${GROUP_SIZE} sein (${SIZE_MIN} bis ${SIZE_MAX}).`);
+    if (!Number.isInteger(size) || size < SIZE_MIN || size > SIZE_MAX) {
+        throw invalid(`Die Kadergröße muss eine ganze Zahl von ${SIZE_MIN} bis ${SIZE_MAX} sein.`);
     }
     return size;
 }
@@ -264,22 +289,17 @@ function cleanTargets(input, size, fallback) {
     return out;
 }
 
-const instanceFor = (ctx, instanceId) => (ctx.instances || []).find((i) => i.id === instanceId) || null;
-
 function resanitize(planner, roster) {
     for (const v of planner.setups[roster.id].variants) v.groups = sanitizeGroups(v.groups, roster);
 }
 
-function createRoster(planner, input, ctx) {
+/** A new roster: a name (required) and a size (5 to 40); the role targets follow from the size. */
+function createRoster(planner, input) {
     if (planner.rosters.length >= LIMITS.rosters) throw conflict(`Mehr als ${LIMITS.rosters} Kader sind nicht vorgesehen.`);
-    const instance = instanceFor(ctx, input.instanceId);
-    if (!instance) throw invalid("Unbekannte Instanz.");
-    const size = cleanSize(input.size === undefined || input.size === "" ? instance.defaultSize : input.size);
-    if (instance.sizes.length && !instance.sizes.includes(size)) throw invalid(`${instance.name} gibt es nicht als ${size}er.`);
+    const size = cleanSize(input.size === undefined || input.size === "" ? 20 : input.size);
     const roster = {
         id: newId(),
-        name: cleanLabel(input.name || `${instance.name} · ${size}er`, "Name"),
-        instanceId: instance.id,
+        name: cleanLabel(input.name, "Name"),
         size,
         targets: cleanTargets(input.targets, size),
         members: [],
@@ -291,18 +311,11 @@ function createRoster(planner, input, ctx) {
     return { planner: next, rosterId: roster.id };
 }
 
-function updateRoster(planner, rosterId, input, ctx) {
+function updateRoster(planner, rosterId, input) {
     const next = clone(planner);
     const roster = getRoster(next, rosterId);
     if (input.name !== undefined) roster.name = cleanLabel(input.name, "Name");
-    let size = roster.size;
-    if (input.instanceId !== undefined && input.instanceId !== roster.instanceId) {
-        const instance = instanceFor(ctx, input.instanceId);
-        if (!instance) throw invalid("Unbekannte Instanz.");
-        roster.instanceId = instance.id;
-        if (input.size === undefined && instance.sizes.length && !instance.sizes.includes(size)) size = instance.defaultSize;
-    }
-    if (input.size !== undefined) size = cleanSize(input.size);
+    const size = input.size !== undefined ? cleanSize(input.size) : roster.size;
     const sizeChanged = size !== roster.size;
     roster.size = size;
     if (input.targets !== undefined || sizeChanged) {
@@ -408,7 +421,7 @@ function autoAssignVariant(planner, rosterId, variantId, ctx) {
 }
 
 module.exports = {
-    ROLES, GEAR_LEVELS, LIMITS,
+    ROLES, GEAR_LEVELS, NAME_STYLES, LIMITS,
     emptyPlanner, normalizePlanner, defaultTargets, sanitizeGroups,
     addAccount, removeAccount, setAssignment, resetAssignment,
     createRoster, updateRoster, deleteRoster, placeInRoster,

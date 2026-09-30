@@ -4,7 +4,7 @@
 // (Rolle, Klasse, Anwesenheit, Status, Keine) and groups that fold, each head
 // with its count, class mix, how many are in the roster and the average
 // attendance. Filters, grouping, sort and folded groups are remembered.
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { KaderDay, KaderGear, KaderPlayer, KaderRole } from "../../api";
 import { Chip, IconButton, Segment } from "../../components/ui";
 import { CheckIcon, ChevronDownIcon, MinusIcon, PlusIcon, SearchIcon } from "../../components/icons";
@@ -19,11 +19,11 @@ import {
     type Filters, type GroupBy, type SortBy,
 } from "../../lib/kader/players";
 import { useKader } from "./kaderContext";
-import { CharName, ClassBar, Meter, SubHead, WeekDots } from "./parts";
+import { CharName, ClassBar, ClassIcon, Meter, PlayerIcon, RoleIcon, SubHead, WeekDots } from "./parts";
 import { attText, specLine } from "../../lib/kader/model";
 
 type MenuKey = "status" | "roles" | "classes" | "minAtt" | "days" | "gear";
-type Option = { key: string; label: string; checked: boolean; n: number; pick: () => void; color?: string; single?: boolean };
+type Option = { key: string; label: string; checked: boolean; n: number; pick: () => void; color?: string; icon?: ReactNode; single?: boolean };
 
 function toggle<T>(list: T[], v: T): T[] {
     return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
@@ -42,6 +42,7 @@ function PlayerRow({ player }: { player: KaderPlayer }) {
         <div className="kp-lrow">
             <button type="button" className="kp-lrow-char" onClick={() => open({ type: "account", userId: player.userId })}>
                 <ClassBar color={colorOf(view.classes, player)} />
+                <PlayerIcon player={player} />
                 <span className="kp-prow-text">
                     <CharName player={player} className="kp-lrow-name" />
                     <span className="kp-sub">@{player.displayName}</span>
@@ -103,10 +104,11 @@ export default function PlayersView() {
     const classLabelOf = (v: string) => (v === NO_CLASS ? t("kader.group.noClass") : className(classes, v));
     const menus: { key: MenuKey; label: string; n: number; badge: string; options: Option[] }[] = [
         { key: "status", label: t("kader.filter.status"), n: f.status.length, badge: String(f.status.length), options: multi<Status>("status", STATUSES, (v) => t(`kader.status.${v}`), (p, v) => status(p.userId) === v) },
-        { key: "roles", label: t("kader.filter.role"), n: f.roles.length, badge: String(f.roles.length), options: multi<KaderRole>("roles", ROLES, (v) => roleLabel(v), (p, v) => activeOf(p)?.role === v) },
+        { key: "roles", label: t("kader.filter.role"), n: f.roles.length, badge: String(f.roles.length), options: multi<KaderRole>("roles", ROLES, (v) => roleLabel(v), (p, v) => activeOf(p)?.role === v).map((o) => ({ ...o, icon: <RoleIcon role={o.key as KaderRole} size={18} /> })) },
         {
             key: "classes", label: t("kader.filter.class"), n: f.classes.length, badge: String(f.classes.length),
-            options: multi<string>("classes", [...classes.map((c) => c.key), NO_CLASS], classLabelOf, (p, v) => (activeOf(p)?.className || NO_CLASS) === v, (v) => classes.find((c) => c.key === v)?.color || ""),
+            options: multi<string>("classes", [...classes.map((c) => c.key), NO_CLASS], classLabelOf, (p, v) => (activeOf(p)?.className || NO_CLASS) === v, (v) => classes.find((c) => c.key === v)?.color || "")
+                .map((o) => ({ ...o, icon: o.key === NO_CLASS ? undefined : <ClassIcon classKey={o.key} size={18} /> })),
         },
         {
             key: "minAtt", label: t("kader.filter.attendance"), n: f.minAtt ? 1 : 0, badge: `≥${f.minAtt}`,
@@ -159,7 +161,7 @@ export default function PlayersView() {
                                     {m.options.map((o) => (
                                         <button key={o.key} type="button" role={o.single ? "menuitemradio" : "menuitemcheckbox"} aria-checked={o.checked} className="kp-menuopt" onClick={o.pick}>
                                             <span className={`kp-check${o.single ? " kp-round" : ""}${o.checked ? " kp-on" : ""}`}>{o.checked && <CheckIcon />}</span>
-                                            {o.color && <span className="kp-swatch" style={{ "--cc": o.color } as CSSProperties} />}
+                                            {o.icon}
                                             <span className={`kp-grow${o.color ? " class-colored" : ""}`} style={o.color ? { "--cc": o.color } as CSSProperties : undefined}>{o.label}</span>
                                             <span className="kp-mono kp-muted">{o.n}</span>
                                         </button>
@@ -209,6 +211,8 @@ export default function PlayersView() {
                         <div key={g.key} className="kp-lgroup">
                             <button type="button" className="kp-ghead" aria-expanded={expanded} onClick={() => setCollapsed(expanded ? [...collapsed, g.key] : collapsed.filter((k) => k !== g.key))}>
                                 <span className={`kp-chev${expanded ? "" : " kp-closed"}`}><ChevronDownIcon /></span>
+                                {by === "role" && (ROLES as string[]).includes(g.key) && <RoleIcon role={g.key as KaderRole} size={18} />}
+                                {by === "cls" && g.key !== NO_CLASS && <ClassIcon classKey={g.key} size={18} />}
                                 <span className={`kp-gtitle ${g.tone}${g.color ? " class-colored" : ""}`} style={g.color ? { "--cc": g.color } as CSSProperties : undefined}>{g.title}</span>
                                 <span className="kp-mono kp-muted">{g.items.length}</span>
                                 <span className="kp-mix" aria-hidden="true">

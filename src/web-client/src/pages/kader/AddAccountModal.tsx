@@ -1,12 +1,14 @@
 // "Discord-Account hinzufügen": a member of the server (searched by name) or a
-// raw Discord id with a display name, optionally with a first Forever character.
+// raw Discord id with a display name, optionally with a first character (a
+// Forever name or a nickname).
 // Accounts with an EventHelper profile of the version are in the pool already.
 import { useState } from "react";
-import { addKaderAccount } from "../../api";
+import { addKaderAccount, type KaderNameStyle } from "../../api";
 import { Button, Modal, Segment } from "../../components/ui";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { className, specName } from "../../lib/kader/model";
+import { nameOk } from "../../lib/kader/names";
 import { useKader } from "./kaderContext";
 
 type Tab = "server" | "id";
@@ -23,19 +25,22 @@ export default function AddAccountModal({ onClose, onAdded }: { onClose: () => v
     const [rawName, setRawName] = useState("");
     const [first, setFirst] = useState("");
     const [last, setLast] = useState("");
+    const [nick, setNick] = useState("");
+    const [nameStyle, setNameStyle] = useState<KaderNameStyle>("forever");
     const [cls, setCls] = useState("");
 
     const needle = q.trim().toLowerCase();
     const hits = view.members.filter((m) => !needle || m.displayName.toLowerCase().includes(needle)).slice(0, 40);
     const member = view.members.find((m) => m.userId === picked);
-    const someChar = !!(first || last || cls);
-    const charOk = !someChar || (!!first.trim() && !!last.trim() && !!cls);
+    const isNick = nameStyle === "nick";
+    const someChar = !!((isNick ? nick : first || last) || cls);
+    const charOk = !someChar || (!!cls && (isNick ? nameOk(nick, "nick") : nameOk(`${first.trim()} ${last.trim()}`, "forever")));
     const ready = charOk && (tab === "server" ? !!member && !member.inPool : /^\d{17,20}$/.test(rawId.trim()) && rawName.trim().length > 0);
 
     const submit = async () => {
         const userId = tab === "server" && member ? member.userId : rawId.trim();
         const displayName = tab === "server" && member ? member.displayName : rawName.trim();
-        const next = await run(addKaderAccount({ userId, displayName, character: someChar ? { firstName: first.trim(), lastName: last.trim(), className: cls } : undefined }));
+        const next = await run(addKaderAccount({ userId, displayName, character: !someChar ? undefined : isNick ? { nameStyle, nickname: nick.trim(), className: cls } : { nameStyle, firstName: first.trim(), lastName: last.trim(), className: cls } }));
         if (next) onAdded(userId);
     };
 
@@ -100,16 +105,29 @@ export default function AddAccountModal({ onClose, onAdded }: { onClose: () => v
                     </label>
                 </div>
             )}
-            <div className="kicker kp-gap">{t("kader.add.charOptional")}</div>
-            <div className="kp-three">
-                <label className="field">
-                    <span className="field-label">{t("kader.field.firstName")}</span>
-                    <input maxLength={12} value={first} onChange={(e) => setFirst(e.target.value.replace(/\s/g, ""))} />
-                </label>
-                <label className="field">
-                    <span className="field-label">{t("kader.field.lastName")}</span>
-                    <input maxLength={12} value={last} onChange={(e) => setLast(e.target.value.replace(/\s/g, ""))} />
-                </label>
+            <div className="kp-charhead kp-gap">
+                <span className="kicker">{t("kader.add.charOptional")}</span>
+                <Segment<KaderNameStyle> size="sm" ariaLabel={t("kader.field.nameStyle")} value={nameStyle} onChange={setNameStyle}
+                    options={[{ value: "forever", label: t("kader.field.nameForever") }, { value: "nick", label: t("kader.field.nameNick") }]} />
+            </div>
+            <div className={isNick ? "kp-two" : "kp-three"}>
+                {isNick ? (
+                    <label className="field">
+                        <span className="field-label">{t("kader.field.nickname")}</span>
+                        <input maxLength={24} value={nick} onChange={(e) => setNick(e.target.value)} />
+                    </label>
+                ) : (
+                    <>
+                        <label className="field">
+                            <span className="field-label">{t("kader.field.firstName")}</span>
+                            <input maxLength={12} value={first} onChange={(e) => setFirst(e.target.value.replace(/\s/g, ""))} />
+                        </label>
+                        <label className="field">
+                            <span className="field-label">{t("kader.field.lastName")}</span>
+                            <input maxLength={12} value={last} onChange={(e) => setLast(e.target.value.replace(/\s/g, ""))} />
+                        </label>
+                    </>
+                )}
                 <label className="field">
                     <span className="field-label">{t("kader.field.class")}</span>
                     <select value={cls} onChange={(e) => setCls(e.target.value)}>
