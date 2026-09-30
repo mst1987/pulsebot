@@ -25,7 +25,8 @@
         "addTo": "In den Kader",
         "addToNamed": "{name} in den Kader",
         "removeFrom": "Aus dem Kader nehmen",
-        "removeFromNamed": "{name} aus dem Kader nehmen"
+        "removeFromNamed": "{name} aus dem Kader nehmen",
+        "full": "Der Kader ist voll"
     },
     "slot": {
         "free": "frei · hierher ziehen",
@@ -243,6 +244,7 @@
         "emptyGroup": "(leer)",
         "textTitle": "Setup als Text",
         "textHint": "Kopieren ist hier nicht erlaubt: Text markieren und von Hand kopieren.",
-        "noRoster": "Diesen Kader gibt es nicht (mehr)."
+        "noRoster": "Diesen Kader gibt es nicht (mehr).",
+        "moreBuffs": "+{n} Buffs"
     }
 }

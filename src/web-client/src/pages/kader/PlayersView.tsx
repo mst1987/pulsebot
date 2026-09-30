@@ -36,6 +36,7 @@ function PlayerRow({ player }: { player: KaderPlayer }) {
     const a = activeOf(player);
     const pct = pctOf(player);
     const free = status !== "kader";
+    const full = !!roster && roster.members.length >= roster.size;
     const name = a ? a.name : player.displayName;
     return (
         <div className="kp-lrow">
@@ -48,7 +49,7 @@ function PlayerRow({ player }: { player: KaderPlayer }) {
             </button>
             <span className="kp-lrow-spec">{specLine(player, view.classes)}</span>
             <span className="kp-lrow-att">
-                <Meter pct={pct} tone={pct === null ? "" : `tier-${tierOf(pct)}`} />
+                {pct !== null ? <Meter pct={pct} tone={`tier-${tierOf(pct)}`} /> : <span />}
                 <span className="kp-mono">{attText(player)}</span>
             </span>
             <WeekDots days={player.availability} />
@@ -57,9 +58,9 @@ function PlayerRow({ player }: { player: KaderPlayer }) {
                 <IconButton
                     icon={free ? <PlusIcon /> : <MinusIcon />}
                     size="sm"
-                    tip={free ? t("kader.pool.addTo") : t("kader.pool.removeFrom")}
+                    tip={free ? (full ? t("kader.pool.full") : t("kader.pool.addTo")) : t("kader.pool.removeFrom")}
                     aria-label={free ? t("kader.pool.addToNamed", { name }) : t("kader.pool.removeFromNamed", { name })}
-                    disabled={!roster}
+                    disabled={!roster || (free && full)}
                     onClick={() => void place(player.userId, free ? "role" : "free")}
                 />
             ) : <span />}
@@ -168,6 +169,7 @@ export default function PlayersView() {
                         </div>
                     ))}
                     <span className="kp-grow" />
+                    <div className="kp-groupby">
                     <span className="kicker">{t("kader.players.groupBy")}</span>
                     <Segment<GroupBy>
                         size="sm"
@@ -176,6 +178,7 @@ export default function PlayersView() {
                         onChange={(v) => { setGroupBy(v); setCollapsed([]); }}
                         options={GROUP_BYS.map((g) => ({ value: g, label: t(`kader.groupBy.${g}`) }))}
                     />
+                    </div>
                 </div>
                 <div className="kp-countrow">
                     <span className="kp-muted">{tParts("kader.players.count", { n: list.length, total: view.players.length })}</span>

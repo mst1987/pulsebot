@@ -103,6 +103,8 @@ function sourceProfile(profile, versionId, index) {
     const mainKey = (chars.find((c) => c.main) || chars[0]).key;
     return {
         userId: profile.userId,
+        // the Discord name the profile was saved under: the name shown when the account is not (or no longer) on the server
+        displayName: profile.name || "",
         characters: chars.map((c) => {
             const roles = profiles.characterRoles(profile, c);
             return {

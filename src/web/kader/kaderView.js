@@ -125,7 +125,10 @@ function buildKaderView({ source, planner }) {
 
     const players = order.map((userId) => {
         const account = manual.get(userId);
-        const member = members.get(userId) || (account ? { userId, displayName: account.displayName, avatarUrl: null } : null);
+        const profile = profiles.get(userId);
+        const member = members.get(userId)
+            || (account ? { userId, displayName: account.displayName, avatarUrl: null } : null)
+            || (profile && profile.displayName ? { userId, displayName: profile.displayName, avatarUrl: null } : null);
         return buildPlayer({
             userId,
             member,

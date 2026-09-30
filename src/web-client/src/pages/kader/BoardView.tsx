@@ -22,6 +22,7 @@ function PoolRow({ player, benched }: { player: KaderPlayer; benched: boolean })
     const t = useT();
     const { view, roster, place, open, canWrite } = useKader();
     const a = activeOf(player);
+    const full = !!roster && roster.members.length >= roster.size;
     const sub = a
         ? [specName(view.classes, a.mainSpec) || className(view.classes, a.className), a.canHeal && a.role !== "healer" ? t("kader.player.canHeal") : "", a.canTank && a.role !== "tank" ? t("kader.player.canTank") : ""].filter(Boolean).join(" · ")
         : t("kader.player.noCharLong");
@@ -35,16 +36,16 @@ function PoolRow({ player, benched }: { player: KaderPlayer; benched: boolean })
                 </span>
                 <span className="kp-prow-att">
                     <span className="kp-mono">{attText(player)}</span>
-                    <Meter pct={player.attendance ? player.attendance.pct : null} />
+                    {player.attendance && <Meter pct={player.attendance.pct} />}
                 </span>
             </button>
             {canWrite && (
                 <IconButton
                     icon={<PlusIcon />}
                     size="sm"
-                    tip={t("kader.pool.addTo")}
+                    tip={full ? t("kader.pool.full") : t("kader.pool.addTo")}
                     aria-label={t("kader.pool.addToNamed", { name: a ? a.name : player.displayName })}
-                    disabled={!roster}
+                    disabled={!roster || full}
                     onClick={() => void place(player.userId, "role")}
                 />
             )}
@@ -114,7 +115,7 @@ function Slot({ player, role }: { player: KaderPlayer | null; role: KaderRole })
                 <CharName player={player} className="kp-slot-name" />
                 <span className="kp-sub">
                     {a ? specName(view.classes, a.mainSpec) || className(view.classes, a.className) : t("kader.player.noChar")}
-                    <span className="kp-mono"> · {attText(player)}</span>
+                    {player.attendance && <span className="kp-mono"> · {attText(player)}</span>}
                 </span>
             </span>
             {player.differs.length > 0 && <span className="kp-diff" data-tip={t("kader.diff.tip")} aria-label={t("kader.diff.tip")}>≠</span>}
@@ -125,7 +126,7 @@ function Slot({ player, role }: { player: KaderPlayer | null; role: KaderRole })
 function RoleCardView({ role, target, count, slots }: { role: KaderRole; target: number; count: number; slots: (KaderPlayer | null)[] }) {
     const { place, canWrite } = useKader();
     const drop = useDropZone((id) => void place(id, "role", role), canWrite);
-    const tone = count >= target ? "kp-full" : "kp-short";
+    const tone = count > target ? "kp-above" : count === target ? "kp-full" : "kp-short";
     return (
         <div className={`kp-panel kp-role${drop.over ? " kp-over" : ""}`} {...drop.props}>
             <div className="kp-panel-head">
@@ -250,7 +251,7 @@ function BoardHead() {
                     </select>
                     {roster && canWrite && <IconButton icon={<EditIcon />} size="sm" tip={t("kader.roster.edit")} onClick={() => open({ type: "roster", mode: "edit" })} />}
                 </div>
-                {instance && <div className="kp-head-meta"><Badge size="sm">{instance.name}</Badge></div>}
+                {instance && roster && !roster.name.includes(instance.name) && <div className="kp-head-meta"><Badge size="sm">{instance.name}</Badge></div>}
             </div>
             {roster && (
                 <div className="kp-bigcount" aria-label={t("kader.board.filled", { n: roster.members.length, size: roster.size })}>

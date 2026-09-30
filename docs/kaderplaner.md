@@ -58,7 +58,8 @@ gear `none|usable|ready`, weekdays `mo…so` (the profile store's), `differs` co
 `tank`, `heal`, `notInProfile` (the client translates them).
 
 **Privacy:** a profile leaves `kaderSource.js` as a whitelist — characters (key, name, class, specs with gear, main,
-tank/heal, log specs) and the raid days. Never `avoid`/`avoidEnabled`, `wishes`, `note`, `preferredRaids`, calendar
+tank/heal, log specs), the raid days and the Discord name it was saved under (`displayName`, shown only when the
+account is not on the server). Never `avoid`/`avoidEnabled`, `wishes`, `note`, `preferredRaids`, calendar
 tokens or who else claims a character. `test/web/kader/kaderSource.test.js` and the route test serialise the payload
 and assert none of it appears.
 

@@ -67,8 +67,8 @@ describe("lib/kader/model", () => {
         // two melee who want Windfury and no shaman bringing it: missing
         const warrior2 = { ...players.get(U.tank)!, userId: "w2" };
         const map = new Map([...players, ["w2", warrior2]]);
-        expect(groupHints([U.tank, "w2"], map, view.buffs.party)).toEqual([{ key: "windfury", label: "Totem des Windzorns", ok: false }]);
-        expect(groupHints([U.tank, U.sham], players, view.buffs.party)).toEqual([{ key: "windfury", label: "Totem des Windzorns", ok: true }]);
+        expect(groupHints([U.tank, "w2"], map, view.buffs.party)).toEqual([{ key: "windfury", label: "Totem des Windzorns", ok: false, important: true }]);
+        expect(groupHints([U.tank, U.sham], players, view.buffs.party)).toEqual([{ key: "windfury", label: "Totem des Windzorns", ok: true, important: true }]);
         expect(groupHints([U.tank], players, view.buffs.party)).toEqual([]);
     });
 });

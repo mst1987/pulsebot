@@ -76,7 +76,7 @@ function ProfilePanel({ player }: { player: KaderPlayer }) {
             </dl>
             {player.differs.length > 0
                 ? <div className="kp-diffnote">{t("kader.account.differs", { what: player.differs.map((d) => t(`kader.diff.${d}`)).join(", ") })}</div>
-                : <div className="kp-sub">{t("kader.account.differsNone")}</div>}
+                : <div className="kp-hint">{t("kader.account.differsNone")}</div>}
         </aside>
     );
 }
@@ -253,7 +253,7 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
                                 </div>
                             </>
                         )}
-                        {canWrite && <button type="button" className="kp-link kp-danger" onClick={removeChar}>{t("kader.account.removeChar")}</button>}
+                        {canWrite && <button type="button" className="kp-link kp-danger kp-start" onClick={removeChar}>{t("kader.account.removeChar")}</button>}
                         {cur.id === active && player.differs.length > 0 && !dirty && <Badge tone="mid" size="sm">{t("kader.diff.badge")}</Badge>}
                     </fieldset>
                 ) : (

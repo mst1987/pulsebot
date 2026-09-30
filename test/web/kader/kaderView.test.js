@@ -74,6 +74,13 @@ describe("web/kader/kaderView", () => {
         ]);
     });
 
+    it("names a raider who is not on the server by the name the profile was saved under", () => {
+        const view = buildKaderView({ source: source({ members: [], profiles: [{ userId: U1, displayName: "Aldric", characters: [warrior], availability: [] }] }), planner: emptyPlanner() });
+        expect(view.players[0].displayName).toBe("Aldric");
+        const bare = buildKaderView({ source: source({ members: [] }), planner: emptyPlanner() });
+        expect(bare.players[0].displayName).toBe(U1);
+    });
+
     it("shows no attendance while nothing is counted (rate null)", () => {
         const view = buildKaderView({ source: source({ attendance: [{ userId: U1, attended: 0, counted: 0, rate: null, nights: [] }] }), planner: emptyPlanner() });
         expect(view.players[0].attendance).toBeNull();

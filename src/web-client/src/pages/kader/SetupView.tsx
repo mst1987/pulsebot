@@ -67,7 +67,10 @@ function GroupCard({ index, ids, picked, onPick, onDropAt, roles }: {
 }) {
     const t = useT();
     const { view, players } = useKader();
+    // the important party buffs by name; the rest a group brings as one "+n" with the names in its tooltip
     const hints = groupHints(ids, players, view.buffs.party);
+    const shown = hints.filter((h) => h.important);
+    const more = hints.filter((h) => !h.important);
     const focus = focusOf(ids, roles);
     return (
         <div className="kp-panel kp-group">
@@ -87,7 +90,8 @@ function GroupCard({ index, ids, picked, onPick, onDropAt, roles }: {
             ))}
             {hints.length > 0 && (
                 <div className="kp-hints">
-                    {hints.map((h) => <span key={h.key} className={`kp-hintchip${h.ok ? " kp-ok" : " kp-miss"}`}>{h.ok ? h.label : t("kader.setup.missing", { buff: h.label })}</span>)}
+                    {shown.map((h) => <span key={h.key} className={`kp-hintchip${h.ok ? " kp-ok" : " kp-miss"}`}>{h.ok ? h.label : t("kader.setup.missing", { buff: h.label })}</span>)}
+                    {more.length > 0 && <span className="kp-hintchip" data-tip={more.map((h) => h.label).join(", ")}>{t("kader.setup.moreBuffs", { n: more.length })}</span>}
                 </div>
             )}
         </div>

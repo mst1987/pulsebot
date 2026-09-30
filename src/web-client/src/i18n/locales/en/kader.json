@@ -25,7 +25,8 @@
         "addTo": "Into the roster",
         "addToNamed": "Put {name} into the roster",
         "removeFrom": "Take out of the roster",
-        "removeFromNamed": "Take {name} out of the roster"
+        "removeFromNamed": "Take {name} out of the roster",
+        "full": "The roster is full"
     },
     "slot": {
         "free": "open · drag here",
@@ -243,6 +244,7 @@
         "emptyGroup": "(empty)",
         "textTitle": "Setup as text",
         "textHint": "Copying is not allowed here: select the text and copy it by hand.",
-        "noRoster": "This roster does not exist (any more)."
+        "noRoster": "This roster does not exist (any more).",
+        "moreBuffs": "+{n} buffs"
     }
 }

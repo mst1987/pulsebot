@@ -144,7 +144,7 @@ export function removeFromGroups(groups: Groups, userId: string): Groups {
     return groups.map((g) => g.map((id) => (id === userId ? null : id)));
 }
 
-export type Hint = { key: string; label: string; ok: boolean };
+export type Hint = { key: string; label: string; ok: boolean; important: boolean };
 
 /**
  * The buff hints of one group: a party buff somebody in it brings (ok), or an
@@ -159,8 +159,8 @@ export function groupHints(ids: (string | null)[], players: Map<string, KaderPla
             const a = activeOf(p);
             return !!a && !!a.mainSpec && buff.beneficiaries.includes(a.mainSpec);
         }).length;
-        if (provided) out.push({ key: buff.key, label: buff.label, ok: true });
-        else if (buff.important && wanting >= 2) out.push({ key: buff.key, label: buff.label, ok: false });
+        if (provided) out.push({ key: buff.key, label: buff.label, ok: true, important: buff.important });
+        else if (buff.important && wanting >= 2) out.push({ key: buff.key, label: buff.label, ok: false, important: true });
     }
     return out;
 }
