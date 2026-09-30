@@ -3,8 +3,9 @@ import { Eraser, Wand2 } from "lucide-react";
 import type { RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../../../api";
 import { Button, Modal } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
+import RoleGlyph from "../../../components/raidplan/RoleGlyph";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
-import { CLASS_IDS, ROLE_ICON, classIconOf } from "../../../lib/raidplan/assign";
+import { CLASS_IDS, classIconOf } from "../../../lib/raidplan/assign";
 import { ROLE_SLOT_KINDS, assignOrSwap, classStatus, clearAllSlots, clearSlot, fillOpenSlots, roleSlots, slotCandidates, toggleSlotClass } from "../../../lib/raidplan/rosterAssign";
 import { useT } from "../../../i18n";
 
@@ -114,7 +115,7 @@ export default function AssignRosterModal({ board, roster, isEvent, canWrite, ed
                     <div className="rp-ar-cols">
                         {kinds.map((k) => (
                             <div key={k} className="rp-ar-col">
-                                <h3 className="rp-kicker"><WowIcon name={ROLE_ICON[k]} size={16} /> {t(`raidBoard.slot.kind.${k}`)} · {slots.filter((s) => s.kind === k).length}</h3>
+                                <h3 className="rp-kicker"><RoleGlyph role={k} size={16} /> {t(`raidBoard.slot.kind.${k}`)} · {slots.filter((s) => s.kind === k).length}</h3>
                                 {slots.filter((s) => s.kind === k).map((s) => {
                                     const p = s.userId ? players.get(s.userId) || null : null;
                                     const st = classStatus(s, roster, board);

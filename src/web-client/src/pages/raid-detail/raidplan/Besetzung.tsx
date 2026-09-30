@@ -3,8 +3,9 @@ import Flyout from "../../../components/raidplan/Flyout";
 import { Check, ListChecks, MapPin, Minus, Plus, RotateCcw, Split, Users } from "lucide-react";
 import type { Besetzung as BesetzungData, RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
+import RoleGlyph from "../../../components/raidplan/RoleGlyph";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
-import { ROLE_ICON, classIconOf } from "../../../lib/raidplan/assign";
+import { classIconOf } from "../../../lib/raidplan/assign";
 import { slotSummary } from "../../../lib/raidplan/assignLine";
 import { classStatus, refillByClass } from "../../../lib/raidplan/rosterAssign";
 import { groupColor, groupMark } from "../../../lib/raidplan/groupStyle";
@@ -60,7 +61,6 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
         const player = s.userId ? players.get(s.userId) || null : null;
         const name = t(`raidBoard.slot.${s.kind}`, { n: s.n });
         const on = s.placed !== false;
-        const roleIcon = ROLE_ICON[s.kind];
         const flexNow = player ? board.roles[player.userId] : "";
         return (
             <span key={s.id} className={`rp-bes-slot${on ? " is-placed" : ""}`}>
@@ -72,7 +72,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                     onPointerDown={(e) => { if (canWrite) onChipDown(e, s.id); }}
                     onClick={(e) => { if (on) onShow(s.id); setOpenSlot(open === s.id ? null : { id: s.id, el: e.currentTarget }); }}
                 >
-                    {player ? <TokenIcon player={player} size="sm" /> : s.kind === "group" ? <Users size={15} aria-hidden="true" /> : <WowIcon name={roleIcon} size={20} />}
+                    {player ? <TokenIcon player={player} size="sm" /> : s.kind === "group" ? <Users size={15} aria-hidden="true" /> : <RoleGlyph role={s.kind} size={22} />}
                     {s.kind === "group" && groupMark(board.groupMarks, s.n) && <MarkIcon mark={groupMark(board.groupMarks, s.n) as never} size={14} />}
                     <span className="rp-bes-n">{s.n}</span>
                     {(s.preferredClasses || []).length > 0 && <span className={`rp-bes-cls is-${classStatus(s, roster, board)}`} aria-hidden="true"><WowIcon name={classIconOf((s.preferredClasses || [])[0])} size={13} /></span>}
@@ -120,7 +120,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                                     const cur = eff === r || (r === "dps" && eff !== "tank" && eff !== "healer");
                                     return (
                                         <button key={r} type="button" className={`rp-pop-act${cur ? " is-on" : ""}`} aria-pressed={cur} onClick={() => { edit((b) => setFlexRole(b, roster, player.userId, r)); setOpenSlot(null); }}>
-                                            <WowIcon name={ROLE_ICON[r]} size={18} /> {t(`raidBoard.slot.kind.${r}`)}
+                                            <RoleGlyph role={r} size={18} /> {t(`raidBoard.slot.kind.${r}`)}
                                         </button>
                                     );
                                 })}
@@ -163,7 +163,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                     <div key={kind} className={`rp-bes-role rp-bes-${kind}`} role="group" aria-label={label}>
                         <span className="rp-kicker rp-bes-rolelabel">{label}</span>
                         <div className="rp-bes-rolebody">
-                        <span className="rp-bes-roleicon" data-tip={label}>{isGroup ? <Users size={17} /> : <WowIcon name={ROLE_ICON[kind]} size={22} />}</span>
+                        <span className="rp-bes-roleicon" data-tip={label}>{isGroup ? <Users size={17} /> : <RoleGlyph role={kind} size={22} />}</span>
                         {!isGroup && canWrite && (
                             <button type="button" className="rp-bes-step" aria-label={t("raidBoard.bes.less", { role: label })} disabled={n <= 0} onClick={() => edit((b) => setCount(b, besetzung, kind, n - 1, roster))}><Minus size={12} /></button>
                         )}

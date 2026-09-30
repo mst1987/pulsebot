@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Eye, BoxSelect, Circle, CircleDashed, Image as ImageIcon, ImageOff, ListChecks, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2, Users } from "lucide-react";
 import type { RaidplanBoard } from "../../../../api";
 import { IconButton } from "../../../../components/ui";
-import WowIcon from "../../../../components/ui/WowIcon";
+import RoleGlyph from "../../../../components/raidplan/RoleGlyph";
 import { useT } from "../../../../i18n";
 import { savedView, viewFromSaved } from "../../../../lib/raidplan/boardView";
 import type { useBoardView } from "../../../../hooks/useBoardView";
@@ -67,8 +67,8 @@ export function WorkspaceToolbar({ canWrite, saveState, notice, history, onInser
                     {quick({ type: "text", text: t("raidBoard.text.default") }, t("raidBoard.tool.text"), <Type size={17} />)}
                     {quick({ type: "zone", zoneType: "neutral", shape: "rect" }, t("raidBoard.zone.rect"), <Square size={17} />)}
                     {quick({ type: "zone", zoneType: "neutral", shape: "ellipse" }, t("raidBoard.zone.ellipse"), <Circle size={17} />)}
-                    {quick({ type: "zone", zoneType: "role", shape: "ellipse", role: "melee" }, t("raidBoard.roleGroup.melee"), <WowIcon name="ability_dualwield" size={17} />)}
-                    {quick({ type: "zone", zoneType: "role", shape: "ellipse", role: "ranged" }, t("raidBoard.roleGroup.ranged"), <WowIcon name="inv_weapon_bow_07" size={17} />)}
+                    {quick({ type: "zone", zoneType: "role", shape: "ellipse", role: "melee" }, t("raidBoard.roleGroup.melee"), <RoleGlyph role="melee" size={20} />)}
+                    {quick({ type: "zone", zoneType: "role", shape: "ellipse", role: "ranged" }, t("raidBoard.roleGroup.ranged"), <RoleGlyph role="ranged" size={20} />)}
                 </div>
                 <span className="rp-tool-sep" aria-hidden="true" />
                 <div className="rp-tool-group">

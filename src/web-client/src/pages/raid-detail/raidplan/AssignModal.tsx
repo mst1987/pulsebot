@@ -3,9 +3,11 @@ import { AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, LayoutGrid
 import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from "../../../api";
 import { Button, Modal } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
+import ClassRefIcon from "../../../components/raidplan/ClassRefIcon";
+import RoleGlyph from "../../../components/raidplan/RoleGlyph";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { type FlyItem } from "../../../lib/raidplan/flyout";
-import { ROLE_REFS, ROLE_TONE, CLASS_IDS, ROLE_ICON, classIconOf, classPlaceNameFor, classRefIcon, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/raidplan/assign";
+import { ROLE_REFS, CLASS_IDS, classIconOf, classPlaceNameFor, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/raidplan/assign";
 import { ANY, ANY_SPEC, CLASS_COLOR, PREFERRED_ROLES, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, boardContext, candidatesOf, rankCandidates, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole, MAX_COUNT, classPriorityOf, hasPriority, movePriorityClass, rowCount, setPriority, setRowCount, toPriority, togglePriorityClass } from "../../../lib/raidplan/classRefs";
 import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/raidplan/assignModal";
 import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/raidplan/rosterAssign";
@@ -183,7 +185,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
     // ---- the bar ----
     const classChip = (g: ClassGroup, tgt: boolean) => (
         <span key={`${g.classId}|${g.role}`} className="rp-amb-chip is-class" style={{ ["--cc" as string]: CLASS_COLOR[g.classId] }}>
-            <WowIcon name={classRefIcon(g.classId, g.role)} size={18} />
+            <ClassRefIcon classId={g.classId} role={g.role} size={18} />
             <b>{classPlaceNameFor(g.classId, g.role, type)}</b><span className="rp-amb-x">x{g.refs.length}</span>
             <button type="button" className="rp-achip-x" aria-label={`${t("raidBoard.assign.remove")}: ${classPlaceNameFor(g.classId, g.role, type)}`} onClick={(e) => { e.stopPropagation(); setCount(g.classId, g.role, 0, tgt); }}><X size={12} /></button>
         </span>
@@ -249,7 +251,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
     );
     const personBody = (e: PeopleEntry) => (
         <>
-            {e.player ? <TokenIcon player={e.player} size="sm" /> : <WowIcon name={ROLE_ICON[e.kind] || ROLE_ICON.dps} size={20} />}
+            {e.player ? <TokenIcon player={e.player} size="sm" /> : <RoleGlyph role={e.kind} size={20} />}
             {e.n > 0 && <span className="rp-amb-n">{e.n}</span>}
             {e.player ? <PlayerName player={e.player} className="rp-amb-name" /> : <span className="rp-amb-name rp-muted">{t(`raidBoard.slot.kind.${e.kind}`)} · {t("raidBoard.amb.openSlot")}</span>}
         </>
@@ -323,7 +325,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
         return (
             <div key={`${g.classId}|${g.role}`} className="rp-amb-card" style={{ ["--cc" as string]: CLASS_COLOR[g.classId] }}>
                 <div className="rp-amb-card-head">
-                    <WowIcon name={classRefIcon(g.classId, g.role)} size={22} />
+                    <ClassRefIcon classId={g.classId} role={g.role} size={22} />
                     <b className="rp-amb-card-name">{name}</b>
                     <span className="rp-amb-step" role="group" aria-label={`${t("raidBoard.amb.count")}: ${name}`}>
                         <button type="button" aria-label={t("raidBoard.class.fewer")} disabled={g.refs.length <= 1} onClick={() => setCount(g.classId, g.role, g.refs.length - 1, target)}><Minus size={14} /></button>
@@ -443,7 +445,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                                 const on = groups.some((g) => g.classId === c && g.role === "tank");
                                 return (
                                     <button key={c} type="button" className={`rp-amb-tile rp-amb-class${on ? " is-on" : ""}`} aria-pressed={on} style={{ ["--cc" as string]: CLASS_COLOR[c] }} onClick={() => setCount(c, "tank", on ? 0 : 1, false)}>
-                                        {c !== ANY && <Shield size={14} aria-hidden="true" className="rp-amb-shield" />}<WowIcon name={classRefIcon(c, "tank")} size={20} />
+                                        {c !== ANY && <Shield size={14} aria-hidden="true" className="rp-amb-shield" />}<ClassRefIcon classId={c} role={"tank"} size={20} />
                                         <span className="rp-amb-cname">{c === ANY ? t("raidBoard.class.anyTank") : t(`wow.class.${c}`)}</span>
                                         {roster.length > 0 && <span className="rp-amb-cnt" data-tip={t("raidBoard.amb.classCountTip")}>{classCount(roster, c, "tank", tmp.roles)}</span>}
                                         {on && <Check size={14} className="rp-amb-check" aria-hidden="true" />}
@@ -573,7 +575,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
             <div className="rp-amb-grid rp-amb-grid-wide">
                 {ROLE_REFS.map((r) => {
                     const key = slot === "who" ? `role:${r}` : `role|${r}`;
-                    return tile(key, chosen.indexOf(key) >= 0, <><span className="rp-rolechip-ico" style={{ ["--rc" as string]: ROLE_TONE[r] }}><WowIcon name={ROLE_ICON[r] || ROLE_ICON.dps} size={22} /></span><span className="rp-amb-name">{t(`raidBoard.roleGroup.${r}`)}</span></>, t(`raidBoard.roleGroup.${r}`));
+                    return tile(key, chosen.indexOf(key) >= 0, <><RoleGlyph role={r} size={22} /><span className="rp-amb-name">{t(`raidBoard.roleGroup.${r}`)}</span></>, t(`raidBoard.roleGroup.${r}`));
                 })}
             </div>
             <p className="rp-muted rp-amb-note">{t("raidBoard.roleGroupUi.refHint")}</p>
@@ -660,7 +662,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                             {lines.map((l) => (
                                 <span key={`${l.order}`} className={`rp-amb-pline${l.open ? " is-open" : ""}`} aria-label={previewText(l, openWord)}>
                                     {type === "kick" && lines.length > 1 && <span className="rp-achip-no">{l.order}</span>}
-                                    {l.who.player ? <><TokenIcon player={l.who.player} size="sm" /><PlayerName player={l.who.player} /></> : <><WowIcon name={l.who.icon || ROLE_ICON[l.who.role] || ROLE_ICON.dps} size={18} /><span>{l.who.label}{l.who.kind === "role" ? "" : ` · ${openWord}`}</span></>}
+                                    {l.who.player ? <><TokenIcon player={l.who.player} size="sm" /><PlayerName player={l.who.player} /></> : <>{l.who.kind === "class" && l.who.classId !== ANY ? <WowIcon name={l.who.icon} size={18} /> : <RoleGlyph role={l.who.role} size={18} />}<span>{l.who.label}{l.who.kind === "role" ? "" : ` · ${openWord}`}</span></>}
                                     {l.targets.length > 0 && <ArrowRight size={14} aria-hidden="true" className="rp-muted" />}
                                     {l.targets.slice(0, 3).map((tg) => <span key={`${tg.kind}${tg.ref}`} className={`rp-amb-ptarget${tg.kind === "group" ? " is-group" : ""}`} style={tg.kind === "group" ? ({ "--rp-gline": groupColor(tmp.groupColors, tg.group) } as React.CSSProperties) : undefined}>{tg.player ? <PlayerName player={tg.player} /> : tg.label}</span>)}
                                     {l.targets.length > 3 && <span className="rp-muted">+{l.targets.length - 3}</span>}

@@ -40,8 +40,7 @@
 /* the badge: role symbol, label, count as one pill in the zone's colour; its font a share of the zone (--rp-bf, --rp-bi) */
 .rp-rg-badge { position: absolute; display: inline-flex; align-items: center; gap: calc(var(--rp-bf, 11px) * .4); padding: calc(var(--rp-bf, 11px) * .12) calc(var(--rp-bf, 11px) * .7) calc(var(--rp-bf, 11px) * .12) calc(var(--rp-bf, 11px) * .15); border: calc(var(--rp-bf, 11px) * .12) solid var(--zc); border-radius: 999px; background: var(--rp-area-badge-bg); color: var(--rp-area-badge-ink); font-size: var(--rp-bf, 11px); font-weight: 700; line-height: 1.2; white-space: nowrap; box-shadow: 0 1px calc(var(--rp-bf, 11px) * .4) var(--rp-area-badge-shadow); }
 .rp-rg-up.is-calm > .rp-rg-inner { top: calc(50% + var(--rp-bh, 0px) / 2); }
-.rp-rg-bico { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: var(--rp-bi, 18px); height: var(--rp-bi, 18px); border-radius: 50%; background: var(--zc); overflow: hidden; }
-.rp-rg-bico img { width: 80%; height: 80%; border-radius: 50%; }
+.rp-rg-bico { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: var(--rp-bi, 18px); height: var(--rp-bi, 18px); }
 .rp-rg-bcount { padding: 0 calc(var(--rp-bf, 11px) * .45); border-radius: 999px; background: var(--zc); color: var(--rp-rg-ink); font-size: calc(var(--rp-bf, 11px) * .92); font-weight: 800; }
 /* the badge (calm: on the edge that lies on top, calmBadgeAt; arc: on the band's outer edge) and every name chip of an arc stand at their own
    point (--rp-dx / --rp-dy from the middle, lib/raidplan/roleGroups.ts) */
@@ -54,8 +53,7 @@
 .rp-rg-up { position: absolute; transform: translate(-50%, -50%); pointer-events: none; z-index: 0; }
 .rp-rg-inner { position: absolute; left: 50%; top: 50%; width: var(--rp-iw, 60px); height: var(--rp-ih, 60px); transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--rp-zn, 11px) * .3); overflow: hidden; }
 .rp-rg-head { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; flex: 0 0 auto; }
-.rp-rg-ico { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--rp-rg, 30px); height: var(--rp-rg, 30px); aspect-ratio: 1; border-radius: 50%; background: var(--rp-label-bg-soft); box-sizing: border-box; }
-.rp-rg-ico img { width: 72%; height: 72%; border-radius: 50%; }
+.rp-rg-ico { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--rp-rg, 30px); height: var(--rp-rg, 30px); aspect-ratio: 1; border-radius: 50%; box-sizing: border-box; }
 .rp-rg-label { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--rp-zl, 11.5px); padding: calc(var(--rp-zl, 11.5px) * .1) calc(var(--rp-zl, 11.5px) * .55); border-radius: calc(var(--rp-zl, 11.5px) * .5); background: var(--rp-label-bg); color: var(--rp-zone-ink); font-weight: 700; }
 /* the label outside: next to the upright box of the zone, on the side chosen (labelPos) */
 .rp-rg-label.is-out { position: absolute; max-width: none; }
@@ -70,7 +68,7 @@
 .rp-rg-names > * { white-space: nowrap; padding: 0 calc(var(--rp-zn, 11px) * .35); border-radius: calc(var(--rp-zn, 11px) * .5); background: var(--rp-names-bg); font-weight: 600; }
 .rp-rg-names > .rp-rg-more { background: var(--zc); color: var(--rp-rg-ink); font-weight: 800; }
 .rp-lc.is-role, .rp-achip-role { border-color: var(--rc, var(--line)); }
-.rp-rolechip-ico { display: inline-flex; border-radius: 50%; border: 2px double var(--rc, var(--line)); }
+.rp-rolechip-ico { display: inline-flex; }
 /* the grip that turns a role group, above its top edge */
 .rp-zone .rp-h-zrot { left: calc(50% - 7px); top: -26px; width: 14px; height: 14px; border-radius: 50%; cursor: grab; }
 
@@ -110,3 +108,12 @@
 .rp-board .rp-facing { transform: rotate(var(--rp-face)); }
 .rp-board .rp-wedge { opacity: var(--rp-wo, 1); }
 .rp-board .rp-text { color: var(--rp-tc, inherit); font-size: var(--rp-fs); }
+/* the role glyph (RoleGlyph, #559): dark disc, role colour as ring, glyph as a line in that colour; the colour comes from the role */
+.rp-glyph { --g: var(--rp-role-dps); display: inline-block; flex: 0 0 auto; color: var(--g); vertical-align: middle; }
+.rp-glyph-tank { --g: var(--rp-role-tank); }
+.rp-glyph-healer { --g: var(--rp-role-healer); }
+.rp-glyph-melee { --g: var(--rp-role-melee); }
+.rp-glyph-ranged { --g: var(--rp-role-ranged); }
+.rp-glyph-dps { --g: var(--rp-role-dps); }
+.rp-glyph-group { --g: var(--accent); }
+.rp-glyph-disc { fill: var(--rp-glyph-bg); }

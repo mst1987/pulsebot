@@ -84,6 +84,7 @@
     --discord-blurple: #5865f2; --discord-green: #248046;
     /* ---- raid plan (styles/raidplan.css, rp-): the board is a dark picture in both themes ---- */
     --rp-role-tank: #60a5fa; --rp-role-healer: #35d6c4; --rp-role-melee: #f97316; --rp-role-ranged: #a78bfa; --rp-role-dps: #f5c542;
+    --rp-glyph-bg: #12161a; /* the dark disc of a role glyph (RoleGlyph, #559) */
     --rp-board-bg: #0f1115; --rp-grid-bg: #14171d; --rp-grid-line: #1c2028; --rp-grid-text: #7c8496; --rp-slot-title: #cfd5e2;
     --rp-label-bg: rgba(15, 17, 21, .78); --rp-label-bg-soft: rgba(15, 17, 21, .55); --rp-names-bg: rgba(15, 17, 21, .72);
     --rp-icon-outline: rgba(15, 17, 21, .85); --rp-icon-ring: rgba(255, 255, 255, .6); --rp-text-halo: #000;

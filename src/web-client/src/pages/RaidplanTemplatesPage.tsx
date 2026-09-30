@@ -19,11 +19,12 @@ import PageHead from "../components/ui/PageHead";
 import Badge from "../components/ui/Badge";
 import RaidLoader from "../components/ui/RaidLoader";
 import WowIcon from "../components/ui/WowIcon";
+import RoleGlyph from "../components/raidplan/RoleGlyph";
 import { InstancePicker, NumberInput, SizePicker } from "../components/RaidPlanFields";
 import PlanBoard from "../components/raidplan/PlanBoard";
 import { formatDate } from "../lib/format";
 import type { BesetzungCounts } from "../api";
-import { ROLE_ICON, bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../lib/raidplan/assign";
+import { bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../lib/raidplan/assign";
 import { DEFAULTS_KEY, copyDefaultsToAll, differs } from "../lib/raidplan/inherit";
 import { besetzungFor } from "../lib/raidplan";
 import { useT } from "../i18n";
@@ -277,7 +278,7 @@ function TemplateList({ templates, version, versionOf, switcher, guilds, canWrit
                                                 <span className="rp-tsize" data-tip={t("planTemplates.besetzungHint", { groups: tpl.besetzung.groups })}>{tpl.besetzung.size}</span>
                                                 {["tank", "healer", "dps", ...(tpl.besetzung.split ? ["melee", "ranged"] : [])].map((kind) => (
                                                     <span key={kind} className="rp-tcount" data-tip={t(`raidBoard.slot.kind.${kind}`)}>
-                                                        <WowIcon name={ROLE_ICON[kind]} size={16} />{tpl.besetzung.counts[kind as keyof BesetzungCounts]}
+                                                        <RoleGlyph role={kind} size={18} />{tpl.besetzung.counts[kind as keyof BesetzungCounts]}
                                                     </span>
                                                 ))}
                                             </div>
@@ -401,15 +402,15 @@ function FieldsModal({ title, initial, version, guilds, onClose, onSave }: {
                     <span className="rp-kicker">{t("planTemplates.besetzung")} · {derived.size}</span>
                     <div className="rp-bes-fields">
                         <span className="rp-bes-field">
-                            <WowIcon name={ROLE_ICON.tank} size={22} />
+                            <RoleGlyph role="tank" size={24} />
                             <NumberInput id="bes-tank" label={t("raidBoard.slot.kind.tank")} value={counts.tank} onChange={(v) => setCounts({ tank: v || 0 })} />
                         </span>
                         <span className="rp-bes-field">
-                            <WowIcon name={ROLE_ICON.healer} size={22} />
+                            <RoleGlyph role="healer" size={24} />
                             <NumberInput id="bes-healer" label={t("raidBoard.slot.kind.healer")} value={counts.healer} onChange={(v) => setCounts({ healer: v || 0 })} />
                         </span>
                         <span className="rp-bes-field rp-bes-dps">
-                            <WowIcon name={ROLE_ICON.dps} size={22} />
+                            <RoleGlyph role="dps" size={24} />
                             <span className="rp-bes-dpsval" data-tip={t("planTemplates.dpsHint")}><span className="rp-kicker">{t("raidBoard.bes.dpsTotal")}</span><strong>{counts.dps}</strong></span>
                         </span>
                     </div>
@@ -418,8 +419,8 @@ function FieldsModal({ title, initial, version, guilds, onClose, onSave }: {
                     </label>
                     {split && (
                         <div className="rp-bes-fields">
-                            <span className="rp-bes-field"><WowIcon name={ROLE_ICON.melee} size={22} /><NumberInput id="bes-melee" label={t("raidBoard.slot.kind.melee")} value={counts.melee} onChange={(v) => setCounts({ melee: Math.min(v || 0, counts.dps - counts.ranged) })} /></span>
-                            <span className="rp-bes-field"><WowIcon name={ROLE_ICON.ranged} size={22} /><NumberInput id="bes-ranged" label={t("raidBoard.slot.kind.ranged")} value={counts.ranged} onChange={(v) => setCounts({ ranged: Math.min(v || 0, counts.dps - counts.melee) })} /></span>
+                            <span className="rp-bes-field"><RoleGlyph role="melee" size={24} /><NumberInput id="bes-melee" label={t("raidBoard.slot.kind.melee")} value={counts.melee} onChange={(v) => setCounts({ melee: Math.min(v || 0, counts.dps - counts.ranged) })} /></span>
+                            <span className="rp-bes-field"><RoleGlyph role="ranged" size={24} /><NumberInput id="bes-ranged" label={t("raidBoard.slot.kind.ranged")} value={counts.ranged} onChange={(v) => setCounts({ ranged: Math.min(v || 0, counts.dps - counts.melee) })} /></span>
                             <span className="rp-muted">{t("planTemplates.splitRest", { n: Math.max(0, counts.dps - counts.melee - counts.ranged) })}</span>
                         </div>
                     )}

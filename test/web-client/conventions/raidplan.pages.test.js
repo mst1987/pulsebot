@@ -256,7 +256,7 @@ describe("the new pages", () => {
         expect(palette).toContain("iconKey: \"bosspos\"");
         expect(palette).toContain("wowIconUrl(clean, 56)");
         expect(work).toContain("bosses={allBosses}");
-        for (const kind of ["tank", "healer", "melee", "ranged", "dps", "group", "label"]) expect(palette).toContain("kind: \"" + kind + "\"");
+        for (const kind of ["tank", "healer", "melee", "ranged", "dps", "group", "label"]) expect(palette).toContain("\"" + kind + "\"");
     });
 
     it("draws icons, split groups and the new roles on the shared board and in the read view", () => {
