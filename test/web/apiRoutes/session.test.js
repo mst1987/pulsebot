@@ -293,6 +293,23 @@ describe("web/apiRoutes/session", () => {
             expect(data.areas.map((a) => a.id)).toEqual(AREA_IDS);
         });
 
+        // The content switch of the menu (#563): main version, hiding, the versions offered.
+        it("sends the content switch to a menu user, nothing to a caller without menu", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "forever", hideOtherVersions: true });
+            const res = mockRes();
+            await handle("/api/session", { method: "GET" }, res);
+            expect(json(res).data.content).toEqual({
+                mainVersion: "forever", hideOtherVersions: true,
+                versions: [{ id: "forever", label: "WoW Forever", short: "Forever" }],
+            });
+            auth.getUser.mockReturnValue(null);
+            const anon = mockRes();
+            await handle("/api/session", { method: "GET" }, anon);
+            expect(json(anon).data.content).toBeNull();
+            settingsStore.getConfig.mockReturnValue({});
+        });
+
         // The switcher shows the fixed role of a server as a badge (#251).
         it("tags the event and the talk server in the guild list", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });

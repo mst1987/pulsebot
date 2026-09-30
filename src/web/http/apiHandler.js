@@ -16,6 +16,7 @@ const { requireAdmin, requireFullAdmin, requireCsrf } = require("./apiMiddleware
 const { readJsonBody } = require("./apiBody");
 const { error } = require("./apiResponse");
 const { AREAS, userCan } = require("../../config/permissions");
+const { archivedRefusal } = require("../../services/events/eventArchive");
 
 const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
 
@@ -25,11 +26,14 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  * @param {string}  [opts.write]  the area the caller needs at write level (403 otherwise)
  * @param {boolean} [opts.csrf]   check the X-CSRF-Token header (every mutating call)
  * @param {boolean} [opts.body]   parse the JSON body (always an object; `{}` when empty or invalid)
+ * @param {(body: object, query: URLSearchParams) => string|string[]} [opts.archived]
+ *        the event id(s) a write changes: an event of a hidden game version is
+ *        read only (#563, eventArchive.js) and the call answers 409 "archived"
  * @param {(ctx: { user, body, query, url, req, res }) => any} fn the handler
  */
 function withUser(opts, fn) {
     if (typeof opts === "function") { fn = opts; opts = {}; }
-    const { full = false, write = "", csrf = false, body = false } = opts || {};
+    const { full = false, write = "", csrf = false, body = false, archived = null } = opts || {};
     return async function handler(req, res, url) {
         const user = full ? requireFullAdmin(req, res) : requireAdmin(req, res);
         if (!user) return undefined;
@@ -39,6 +43,14 @@ function withUser(opts, fn) {
         }
         if (csrf && !requireCsrf(req, res)) return undefined;
         const parsed = body ? ((await readJsonBody(req)) || {}) : undefined;
+        if (archived) {
+            const query = url && url.searchParams ? url.searchParams : new URLSearchParams();
+            const refused = archivedRefusal(archived(parsed || {}, query));
+            if (refused) {
+                error(res, refused.status, refused.code, refused.message);
+                return undefined;
+            }
+        }
         return fn({
             user,
             body: parsed,

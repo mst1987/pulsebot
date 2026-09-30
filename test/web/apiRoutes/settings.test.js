@@ -156,6 +156,14 @@ jest.mock("../../../src/stores/ingestTokenStore", () => ({
     createToken: jest.fn(),
     revokeToken: jest.fn(),
 }));
+// The content switch (#563): the warning list and the archive export, steered per test.
+jest.mock("../../../src/services/events/contentVersions", () => ({
+    upcomingByVersion: jest.fn(() => ({})),
+    versionsWithData: jest.fn(() => new Set(["tbc"])),
+    archiveExport: jest.fn(() => ({ exportedAt: "2026-10-01T12:00:00.000Z", mainVersion: "forever", versions: ["tbc", "classic"], loot: [], attendance: [] })),
+    archiveCsv: jest.fn(() => "type,versionId\r\nloot,tbc\r\n"),
+    contentVersions: jest.fn(() => ({ mainVersion: "tbc", hideOtherVersions: false, versions: [] })),
+}));
 // The handlers are also called directly below (without the router): the
 // middleware and the body reader run for real unless a test steers them.
 jest.mock("../../../src/web/http/apiMiddleware", () => {
@@ -1042,5 +1050,64 @@ describe("web/apiRoutes/settings", () => {
                 settingsStore.getConfig.mockReturnValue({});
             });
         });
+    });
+});
+
+// "Andere Versionen ausblenden" (#563): the switch is saved, the settings page
+// gets the coming raids per version, and the archive export is a download for
+// full admins only.
+describe("web/apiRoutes/settings: content switch (#563)", () => {
+    const contentVersions = require("../../../src/services/events/contentVersions");
+
+    beforeEach(() => {
+        requireAdmin.mockReset().mockImplementation(realMiddleware.requireAdmin);
+        requireFullAdmin.mockReset().mockImplementation(realMiddleware.requireFullAdmin);
+        readJsonBody.mockReset().mockImplementation(realBody.readJsonBody);
+        settingsStore.getConfig.mockReturnValue({});
+    });
+
+    it("saves hideOtherVersions as a boolean", async () => {
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        auth.checkCsrf.mockReturnValue(true);
+        await patch("/api/settings", { hideOtherVersions: true });
+        expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ hideOtherVersions: true });
+        await patch("/api/settings", { hideOtherVersions: "yes" });
+        expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ hideOtherVersions: false });
+    });
+
+    it("sends the coming raids per version with the settings", async () => {
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        contentVersions.upcomingByVersion.mockReturnValue({ tbc: [{ id: "e1", title: "BT", startTime: 100 }] });
+        const res = await get("/api/settings");
+        expect(json(res).data.upcomingByVersion).toEqual({ tbc: [{ id: "e1", title: "BT", startTime: 100 }] });
+    });
+
+    it("hands a full admin the archive as a CSV download", async () => {
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        const res = await get("/api/settings/archive-export");
+        const [code, headers] = res.writeHead.mock.calls[0];
+        expect(code).toBe(200);
+        expect(headers["Content-Type"]).toBe("text/csv; charset=utf-8");
+        expect(headers["Content-Disposition"]).toBe("attachment; filename=\"eventhelper-archiv-tbc-classic-2026-10-01.csv\"");
+        const text = res.end.mock.calls[0][0];
+        expect(text.charCodeAt(0)).toBe(0xfeff);
+        expect(text.slice(1)).toBe("type,versionId\r\nloot,tbc\r\n");
+    });
+
+    it("hands the same archive as JSON when asked", async () => {
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        const res = await get("/api/settings/archive-export", { format: "json" });
+        const [code, headers] = res.writeHead.mock.calls[0];
+        expect(code).toBe(200);
+        expect(headers["Content-Disposition"]).toContain(".json\"");
+        expect(JSON.parse(res.end.mock.calls[0][0])).toMatchObject({ versions: ["tbc", "classic"], loot: [], attendance: [] });
+    });
+
+    it("refuses the export to a settings user who is no full admin", async () => {
+        auth.getUser.mockReturnValue({
+            id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), settings: { read: true, write: true } },
+        });
+        const res = await get("/api/settings/archive-export");
+        expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
     });
 });

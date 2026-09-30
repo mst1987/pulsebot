@@ -1,7 +1,6 @@
-// The loot history's "Charaktere" tab per game version (#543): the main version
-// first, another version or "Alle" one click away.
-import { screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+// The loot history's "Charaktere" tab per game version (#543): the characters
+// of the version the menu's content switch shows (#563); no filter of its own.
+import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { AnnotatedCharacter } from "../../api";
 import { renderPage } from "../../test/render";
@@ -15,33 +14,25 @@ function char(character: string, versionIds: string[]): AnnotatedCharacter {
 }
 
 const CHARS = [char("Anna", ["tbc"]), char("Devi Res", ["forever"])];
-const VERSIONS = [
-    { id: "tbc", label: "TBC Anniversary", short: "TBC", count: 1 },
-    { id: "forever", label: "WoW Forever", short: "Forever", count: 1 },
-];
 
 beforeEach(() => localStorage.clear());
 
-describe("CharactersTab per game version (#543)", () => {
-    it("shows the main version first and switches to another one or all", async () => {
-        const user = userEvent.setup();
-        renderPage(<CharactersTab chars={CHARS} categories={[]} onChanged={() => undefined} versions={VERSIONS} mainVersion="tbc" />);
+describe("CharactersTab per game version (#543, #563)", () => {
+    it("shows only the characters of the version it is handed", () => {
+        const view = renderPage(<CharactersTab chars={CHARS} categories={[]} onChanged={() => undefined} version="tbc" />);
         expect(screen.getByText("Anna")).toBeInTheDocument();
         expect(screen.queryByText("Devi Res")).not.toBeInTheDocument();
+        expect(screen.queryByRole("radiogroup", { name: "Spielversion" })).not.toBeInTheDocument();
+        view.unmount();
 
-        const picker = screen.getByRole("radiogroup", { name: "Spielversion" });
-        await user.click(within(picker).getByRole("radio", { name: "Forever · 1" }));
+        renderPage(<CharactersTab chars={CHARS} categories={[]} onChanged={() => undefined} version="forever" />);
         expect(screen.getByText("Devi Res")).toBeInTheDocument();
         expect(screen.queryByText("Anna")).not.toBeInTheDocument();
-
-        await user.click(within(screen.getByRole("radiogroup", { name: "Spielversion" })).getByRole("radio", { name: "Alle" }));
-        expect(screen.getByText("Anna")).toBeInTheDocument();
-        expect(screen.getByText("Devi Res")).toBeInTheDocument();
     });
 
-    it("has no filter with a single version", () => {
-        renderPage(<CharactersTab chars={[CHARS[0]]} categories={[]} onChanged={() => undefined} versions={[VERSIONS[0]]} mainVersion="tbc" />);
-        expect(screen.queryByRole("radiogroup", { name: "Spielversion" })).not.toBeInTheDocument();
+    it("shows everyone without a version (no session content)", () => {
+        renderPage(<CharactersTab chars={CHARS} categories={[]} onChanged={() => undefined} />);
         expect(screen.getByText("Anna")).toBeInTheDocument();
+        expect(screen.getByText("Devi Res")).toBeInTheDocument();
     });
 });

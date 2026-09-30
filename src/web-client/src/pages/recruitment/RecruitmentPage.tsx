@@ -2,8 +2,8 @@ import { useState, type ReactNode } from "react";
 import { getRecruitmentData, type RecruitmentData } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import AsyncView from "../../components/ui/AsyncView";
-import { usePersistedSearchParam, usePersistedState } from "../../lib/persistedState";
-import VersionFilter from "../../components/ui/VersionFilter";
+import { usePersistedSearchParam } from "../../lib/persistedState";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { useCollectionEditor } from "../../lib/collectionEditor";
 import { useToast } from "../../components/Jobs";
 import { Button } from "../../components/ui/Button";
@@ -27,8 +27,8 @@ import { PostDialog } from "./PostDialog";
 // it; "new" on editpost is the posting dialog.
 //
 // Game versions (#553): every template, post and application carries one; the
-// version filter in the head (Standard = the main version, "Alle" = every one,
-// remembered) narrows the three tabs, the editors always see everything.
+// menu's content switch (#563) narrows the three tabs, the editors always see
+// everything.
 
 type View = "posts" | "templates" | "applications";
 
@@ -42,16 +42,6 @@ function filterRecruitment(data: RecruitmentData, versionId: string): Recruitmen
         posts: keep(data.posts),
         applications: data.applications ? keep(data.applications) : null,
     };
-}
-
-/** The filter's choices: every version the open tab has rows of, plus the main version, with their counts. */
-function versionChoices(data: RecruitmentData, view: View) {
-    const rows: { versionId?: string }[] = view === "templates" ? data.templates : view === "posts" ? data.posts : (data.applications || []);
-    const counts = new Map<string, number>();
-    for (const r of rows) counts.set(r.versionId || "tbc", (counts.get(r.versionId || "tbc") || 0) + 1);
-    return (data.gameVersions || [])
-        .filter((v) => counts.has(v.id) || v.id === data.mainVersion)
-        .map((v) => ({ id: v.id, label: v.label, short: v.short, count: counts.get(v.id) || 0 }));
 }
 
 const VIEWS: View[] = ["posts", "templates", "applications"];
@@ -92,8 +82,8 @@ export default function RecruitmentPage() {
     // (?editpost=new) opens over whichever tab it was started from.
     const view: View = templateEditor.open ? "templates" : postEditor.editId ? "posts" : storedView;
     const [presetTemplateId, setPresetTemplateId] = useState("");
-    // "" = nothing picked yet (the main version), "all" = every version.
-    const [versionPick, setVersionPick] = usePersistedState("recruitment-version", "");
+    // The game version (#563): the menu's content switch, else the main version.
+    const { version: contentVersion } = useContentVersion();
 
     const toast = useToast();
 
@@ -126,22 +116,13 @@ export default function RecruitmentPage() {
                 // back to the new-editor resp. the posting dialog rather than to nothing.
                 const editingTemplate = templateEditor.editId ? data.templates.find((tpl) => tpl.id === templateEditor.editId) || null : null;
                 const editingPost = postEditor.editId ? data.posts.find((p) => p.id === postEditor.editId) || null : null;
-                const choices = versionChoices(data, view);
-                // A remembered pick the open tab has no rows of shows the main version instead.
-                const resolved = versionPick === "all" ? "all" : (choices.some((c) => c.id === versionPick) ? versionPick : data.mainVersion);
-                // With one version only the filter hides itself (VersionFilter), so it filters nothing either.
-                const shown = choices.length > 1 ? filterRecruitment(data, resolved === "all" ? "" : resolved) : data;
+                const shown = filterRecruitment(data, contentVersion || data.mainVersion || "");
 
                 return (
                     <div className="rc-page">
                         <PageHead
                             icon={ICONS.page} tone="recruitment" kicker={data.guildName || t("recruitment.page.serverFallback")} title={t("recruitment.page.title")}
-                            action={(
-                                <>
-                                    <VersionFilter versions={choices} ariaLabel={t("recruitment.version.filter")} allTip={t("recruitment.version.allTip")} value={resolved} onChange={setVersionPick} />
-                                    <Button icon={ICONS.post} onClick={() => openPostDialog()}>{t("recruitment.page.postMessage")}</Button>
-                                </>
-                            )}
+                            action={<Button icon={ICONS.post} onClick={() => openPostDialog()}>{t("recruitment.page.postMessage")}</Button>}
                         />
                         <SubNav view={view} data={shown} onChange={switchView} />
                         {view === "applications" && <ApplicationsTab data={shown} />}

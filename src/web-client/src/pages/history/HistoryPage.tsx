@@ -14,7 +14,7 @@ import { Button } from "../../components/ui/Button";
 import { PartHead } from "../../components/ui/PartHead";
 import PageHead from "../../components/ui/PageHead";
 import Segment from "../../components/ui/Segment";
-import VersionFilter from "../../components/ui/VersionFilter";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import Badge from "../../components/ui/Badge";
 import "../../styles/historie-loot.css";
 import RaidLoader from "../../components/ui/RaidLoader";
@@ -106,10 +106,8 @@ export default function HistoryPage() {
     // what already happened is what this page is for — the coming ones are
     // planned on the Raid-Events page, not looked up here.
     const [raidWhen, setRaidWhen] = usePersistedState<RaidWhen>("history-raids-when", "past");
-    // The game version filter (#545) for the "Raids" and "Items" views — the
-    // main version unless the page picked another one or "all"; same fallback
-    // the roster and the "Charaktere" tab use.
-    const [versionPick, setVersionPick] = usePersistedState("history-version", "");
+    // The game version of every view (#563): the menu's content switch.
+    const { version: contentVersion } = useContentVersion();
 
     // The overviews are fetched on the first visit to one of their views, then
     // kept — and refreshed after an import only once they were opened, since
@@ -120,7 +118,7 @@ export default function HistoryPage() {
     useEffect(() => {
         if (STATS_TABS.includes(tab)) setStatsWanted(true);
     }, [tab]);
-    const statsData = useApi(() => getLootStats(), [], { enabled: statsWanted });
+    const statsData = useApi(() => getLootStats(contentVersion), [contentVersion], { enabled: statsWanted });
     const { data: stats, error: statsError } = statsData;
 
     const afterChange = (msg: string) => {
@@ -162,33 +160,23 @@ export default function HistoryPage() {
     if (error) return <>{head}<div className="empty">{tParts("history.shared.loadError", { message: error.message })}</div></>;
     if (!data) return <>{head}<RaidLoader text={t("history.page.loading")} /></>;
 
-    // The version filter (#545): the main version unless the page picked
-    // another one or "all" — same fallback the roster (#543) uses.
-    const versionChoices = data.versions || [];
-    const knownVersion = versionChoices.some((v) => v.id === versionPick);
-    const version = versionPick === "all" ? "all" : (knownVersion ? versionPick || "" : "") || data.mainVersion || "all";
-    const versionOf = (e: { versionId?: string }) => e.versionId || "tbc";
-    const pastEvents = version === "all" ? data.pastRaids.events : data.pastRaids.events.filter((e) => versionOf(e) === version);
-    const upcomingEvents = version === "all" ? data.upcomingRaids.events : data.upcomingRaids.events.filter((e) => versionOf(e) === version);
-    const statsItems = !stats ? [] : (version === "all" ? stats.items : stats.items
+    // The menu's content version (#563), else the main version the server named.
+    const version = contentVersion || data.mainVersion || "";
+    const ofVersion = <T extends { versionId?: string }>(rows: T[]) => (version ? rows.filter((e) => (e.versionId || "tbc") === version) : rows);
+    const pastEvents = ofVersion(data.pastRaids.events);
+    const upcomingEvents = ofVersion(data.upcomingRaids.events);
+    const lootEvents = ofVersion(data.lootEvents);
+    const statsItems = !stats ? [] : (!version ? stats.items : stats.items
         .map((it) => {
             const awards = it.awards.filter((a) => (a.versionId || "tbc") === version);
             return { ...it, awards, count: awards.length };
         })
         .filter((it) => it.count > 0));
-    const versionFilter = (tab === "items" || tab === "raids") && versionChoices.length > 1 ? (
-        <VersionFilter
-            versions={versionChoices}
-            ariaLabel={t("history.page.versionAria")}
-            value={version}
-            onChange={(v) => setVersionPick(v === data.mainVersion ? "" : v)}
-        />
-    ) : null;
     const counts: Partial<Record<Tab, number>> = {
         // No count on "Items": the view hides sharded loot by default, so the
         // raw catalogue size would contradict the number in its own head.
         reasons: stats?.characters.length,
-        loot: data.lootEvents.length,
+        loot: lootEvents.length,
         raids: upcomingEvents.length + pastEvents.length,
         logs: data.logs.length,
     };
@@ -222,7 +210,6 @@ export default function HistoryPage() {
                     })}
                 </div>
             )}
-            {versionFilter && <div className="hl-version">{versionFilter}</div>}
 
             {tab === "raids" && (
                 <div className="dash-card hl-card">
@@ -254,7 +241,7 @@ export default function HistoryPage() {
             )}
             {tab === "loot" && (
                 <LootEventsTab
-                    lootEvents={data.lootEvents} categories={data.categories}
+                    lootEvents={lootEvents} categories={data.categories}
                     onChanged={afterChange} canEdit={canAccess(user, "history", "write")}
                 />
             )}
@@ -281,7 +268,7 @@ export default function HistoryPage() {
                             )
             )}
             {tab === "logs" && <LogsTab logs={data.logs} onChanged={afterChange} />}
-            {tab === "chars" && <CharactersTab chars={data.chars} categories={data.categories} onChanged={afterChange} versions={data.versions} mainVersion={data.mainVersion} />}
+            {tab === "chars" && <CharactersTab chars={data.chars} categories={data.categories} onChanged={afterChange} version={version} />}
 
             {canWrite && (
                 <ImportLootDialog

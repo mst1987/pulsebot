@@ -10,7 +10,7 @@ const { decorateTemplate } = require("../../services/events/raidTemplates");
 const eventStore = require("../../stores/eventStore");
 const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const { publicVersions } = require("../../config/gameVersions");
-const { mainVersionFor, resolveVersionQuery } = require("../../services/events/mainVersion");
+const { mainVersionFor, resolveVersionQuery, visibleVersions, visibleRows } = require("../../services/events/mainVersion");
 const { versionChoices } = require("../../services/characters/characterVersions");
 const { DEFAULT_SCHEMA } = require("../../utils/channelNames");
 const { deriveChannelName } = require("../../services/discord/channelNaming");
@@ -147,15 +147,18 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
     // be continued. Best-effort: an API error just leaves the list short
     // (loadEventGroups already swallows it).
     const { groups } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
-    const reusableEvents = groups.flatMap((g) => g.events.map((ev) => ({
+    const config = getConfig();
+    // Other versions hidden (#563): their events, templates, categories and rule sets are not offered.
+    const visible = new Set(visibleVersions(config));
+    const categoryShown = (id) => visible.has(mainVersionFor({ categoryId: id, config }));
+    const reusableEvents = groups.filter((g) => categoryShown(g.categoryId)).flatMap((g) => g.events.map((ev) => ({
         id: ev.id, source: ev.source || "raidhelper", title: ev.title, templateId: ev.templateId,
         description: ev.description, channelId: ev.channelId, channelName: ev.channelName,
         categoryId: g.categoryId || "", categoryName: g.categoryName || "",
         startTime: ev.startTime || 0,
         contentIds: raidContentIds({ title: ev.title, categoryName: g.categoryName, channelName: ev.channelName, instanceIds: ev.instanceIds }).contentIds,
     })));
-    const config = getConfig();
-    const templates = listRaidTemplates();
+    const templates = visibleRows(listRaidTemplates(), (t) => t.versionId, config);
     const categoryDefaults = config.categoryRaidTemplate || {};
     // The default template per category, as the Raid-Helper template id the
     // create form sends — a category whose default links none has no entry.
@@ -189,10 +192,10 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
         categoryAnnounce: config.categoryAnnounce || {},
         // The planning step (#261): categories, the raid templates with their
         // badges and the default per category, the rule set, the naming schemas.
-        categories: safeList(() => discord.listCategories(guildId)),
+        categories: safeList(() => discord.listCategories(guildId)).filter((c) => categoryShown(c.id)),
         categoryRaidTemplates: categoryDefaults,
         raidTemplates: templates.map((t) => decorateTemplate({ instanceIds: [], ...t }, categoryDefaults)),
-        versions: publicVersions(),
+        versions: publicVersions().filter((v) => visible.has(v.id)),
         // The main version (#541) and the categories that play another one: a
         // plan without a template starts in the version of its category.
         defaultVersion: mainVersionFor({ config }),
@@ -238,7 +241,7 @@ const createRaid = withUser({ csrf: true, body: true }, async ({ user, body, req
  * PATCH /api/raids — change an own (EventHelper) event with the create
  * dialog's fields. Body: { id, … }; a Raid-Helper id is refused (#261).
  */
-const updateRaid = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
+const updateRaid = withUser({ csrf: true, body: true, archived: (body) => body.id }, async ({ user, body, req, res }) => {
     const result = await updateEvent({ guildId: activeGuildFor(req), body, user, byName: user.name });
     if (result.error) return sendResult(res, result);
     ok(res, result.body, result.status);

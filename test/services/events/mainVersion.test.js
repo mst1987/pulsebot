@@ -84,3 +84,51 @@ describe("classesOfVersion / knownVersion", () => {
         expect(knownVersion(null)).toBe("");
     });
 });
+
+// "Andere Versionen ausblenden" (#563): one question every list asks.
+describe("hiding the other versions (#563)", () => {
+    const {
+        hidesOtherVersions, visibleVersions, isVersionVisible, visibleRows, otherVersions, resolveVersionQuery,
+    } = require("../../../src/services/events/mainVersion");
+
+    it("shows every version while the setting is off", () => {
+        mockConfig = { mainVersion: "forever" };
+        expect(hidesOtherVersions()).toBe(false);
+        expect(visibleVersions()).toEqual(["tbc", "classic", "forever"]);
+        expect(isVersionVisible("tbc")).toBe(true);
+        const rows = [{ v: "tbc" }, { v: "forever" }];
+        expect(visibleRows(rows, (r) => r.v)).toBe(rows);
+    });
+
+    it("shows only the main version while it is on", () => {
+        mockConfig = { mainVersion: "forever", hideOtherVersions: true };
+        expect(hidesOtherVersions()).toBe(true);
+        expect(visibleVersions()).toEqual(["forever"]);
+        expect(isVersionVisible("forever")).toBe(true);
+        expect(isVersionVisible("tbc")).toBe(false);
+        // an unknown or missing id counts as the main version
+        expect(isVersionVisible("")).toBe(true);
+        expect(isVersionVisible("wotlk")).toBe(true);
+        expect(visibleRows([{ v: "tbc" }, { v: "forever" }, { v: "classic" }], (r) => r.v)).toEqual([{ v: "forever" }]);
+    });
+
+    it("only a literal true hides anything", () => {
+        expect(hidesOtherVersions({ hideOtherVersions: "yes" })).toBe(false);
+        expect(hidesOtherVersions({ hideOtherVersions: true })).toBe(true);
+    });
+
+    it("names every version but the main one for the archive", () => {
+        mockConfig = { mainVersion: "forever" };
+        expect(otherVersions()).toEqual(["tbc", "classic"]);
+        expect(otherVersions({ mainVersion: "tbc" })).toEqual(["classic", "forever"]);
+    });
+
+    it("ignores ?version= of another version and 'all' while hidden", () => {
+        mockConfig = { mainVersion: "forever", hideOtherVersions: true };
+        expect(resolveVersionQuery("tbc")).toEqual({ versionId: "forever", mainVersion: "forever" });
+        expect(resolveVersionQuery("all")).toEqual({ versionId: "forever", mainVersion: "forever" });
+        mockConfig = { mainVersion: "forever" };
+        expect(resolveVersionQuery("tbc")).toEqual({ versionId: "tbc", mainVersion: "forever" });
+        expect(resolveVersionQuery("all")).toEqual({ versionId: "", mainVersion: "forever" });
+    });
+});

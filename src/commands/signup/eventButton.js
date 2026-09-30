@@ -3,6 +3,7 @@ const { getEvent } = require("../../stores/eventStore");
 const { getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
 const { versionOfEvent } = require("../../services/events/mainVersion");
+const { archivedNotice } = require("../../services/events/eventArchive");
 const { submitSignup, checkRaiderRole } = require("../../services/signups/signupService");
 const { BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
@@ -227,6 +228,9 @@ module.exports = {
         // A click on the public message replies; a step in the member's own message updates it.
         const fromPublic = ["join", "class", "absence", "why", "note", ...STATUS_ACTIONS].includes(action);
         if (!event) return fromPublic ? reply(interaction, "This event no longer exists.") : done(interaction, "This event no longer exists.");
+        // A hidden game version (#563): the old message still answers, but only that the raid is archived.
+        const archived = archivedNotice(event);
+        if (archived) return fromPublic ? reply(interaction, archived, event) : done(interaction, archived, event);
         const uid = interaction.user.id;
 
         switch (action) {

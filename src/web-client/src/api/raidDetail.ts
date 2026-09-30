@@ -169,6 +169,8 @@ export type RaidplanPostState = {
 
 export type RaidDetailData = {
     event: RaidDetailEvent;
+    /** An event of a hidden game version (#563): the page opens as a read-only archive; null/missing = a normal event. */
+    archived?: { versionId: string; label: string; short: string } | null;
     categoryName: string;
     guildId: string;
     eventsWarning: string | null;

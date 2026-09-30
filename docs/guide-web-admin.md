@@ -2,6 +2,8 @@
 
 Diese Seite ist für Orga-Mitglieder, die das **Web-Admin-Panel** benutzen — nicht für Entwickler. Sie beschreibt, was man in jedem Bereich der Oberfläche tun kann. Für den Discord-Bot selbst siehe [docs/guide-discord.md](guide-discord.md). Welcher Bereich für wen sichtbar ist, steuern die [Berechtigungen](#einstellungen), siehe auch [docs/permissions.md](permissions.md).
 
+**Content-Umschalter (Spielversion):** Gibt es Daten in mehr als einer Spielversion (z. B. WoW Forever und TBC), steht oben in der Kopfleiste neben der Server-Auswahl ein Umschalter „Forever | TBC“. Er gilt für das ganze Menü – Raids, vergangene Raids, Loot-Historie, Loot-Council, Roster, Raid- und Raidplan-Vorlagen, Katalog, Übersicht, Recruitment und die Auswahlfelder. Start ist die Hauptversion, deine Wahl merkt sich der Browser. Auf dem Handy steht dort ein kleiner Chip mit der aktiven Version; antippen klappt den Umschalter auf. Die einzelnen Seiten haben keinen eigenen Versionsfilter mehr. Sind andere Versionen ausgeblendet (Einstellungen → Spielversion), steht dort nur noch ein stiller Hinweis mit der Hauptversion.
+
 ## Übersicht / Dashboard
 
 Technik: [web-admin.md](web-admin.md)
@@ -10,7 +12,7 @@ Für alle mit Zugriff auf mindestens einen Bereich. Zeigt offene Aufgaben auf ei
 
 **Kanal von <Event> fehlt:** Wurde der Discord-Kanal eines kommenden Raids gelöscht, steht der Raid rot in den offenen Aufgaben. Mit **Kanal neu anlegen** (nur mit Schreibrecht auf Raids) legt der Bot den Kanal nach der Namensregel der Kategorie wieder an, postet die Anmelde-Nachricht (und ein schon gepostetes Setup) hinein, und alle Übersichten verlinken ihn wieder. Bis dahin zeigen die Übersichten „channel missing“ statt eines Links, die Raid-Liste und die Raid-Seite „Kanal fehlt“. Gibt es auch die Kategorie nicht mehr, landet der Kanal ohne Kategorie – das sagt die Meldung dann dazu.
 
-Gibt es Raids in mehr als einer Spielversion, schaltet oben im Kopf ein Umschalter zwischen den Versionen (Standard: Hauptversion) oder „Alle“ um; die drei Kacheln (kommende Raids, letzte Raids, Top-Loot) folgen alle demselben Umschalter.
+Die drei Kacheln (kommende Raids, letzte Raids, Top-Loot) zeigen die Spielversion des Content-Umschalters oben in der Kopfleiste.
 
 ## Raid-Events
 
@@ -19,7 +21,8 @@ Technik: [events.md](events.md)
 *Bereich "Raids" (lesen/schreiben)*
 
 - Neues Event per geführtem Dialog anlegen (Vorlage, Termin, Größe/Rollen, Kanal, Anmeldung) oder ein bestehendes bearbeiten.
-- Gibt es Raids in mehr als einer Spielversion, schaltet oben ein Versionsfilter zwischen den Versionen (Standard: Hauptversion) oder „Alle“ um — gilt für die kommenden und die vergangenen Raids gleichermaßen, die Wahl bleibt beim nächsten Besuch erhalten.
+- Kommende und vergangene Raids zeigen die Spielversion des Content-Umschalters in der Kopfleiste.
+- **Archiv:** Ein Event einer ausgeblendeten Version (Einstellungen → Spielversion → „Andere Versionen ausblenden“) steht in keiner Liste mehr, lässt sich aber über seinen direkten Link öffnen – mit dem Banner „Archiv · TBC“ und nur lesend: kein Anmelden, kein Setup posten, kein Raidplan bearbeiten, keine Verwaltung.
 - **Raid-Cockpit** auf der Detailseite: führt in sechs Schritten durch den Ablauf (Angelegt → Anmeldung → Setup → Freigabe → Einteilungen → Nachbereitung) und schlägt jeweils die nächste sinnvolle Handlung vor.
 - **Einteilungen posten:** Der Schritt „Einteilungen“ (oder der Knopf neben „Freigeben & teilen“ im Raidplan-Tab) postet den Link zur Lese-Ansicht des Raidplans mit optionaler Nachricht in den Event-Kanal, gibt den Plan dabei bei Bedarf frei, und ein erneutes Posten aktualisiert dieselbe Nachricht.
 - Über das **"Verwalten"-Menü**: Termin verschieben, Anmeldung öffnen/schließen, Raider ein-/austragen, Fehlende pingen, absagen/zurücknehmen, löschen (inklusive Kanal archivieren und Discord benachrichtigen).
@@ -58,7 +61,7 @@ Technik: [raidplan.md](raidplan.md)
 - Zonen skalierst du an den Ecken, Linien an den Enden; gesperrte Objekte bewegen sich nicht.
 - **DPS als Gesamtzahl:** Pflicht sind Größe, Tanks und Heiler; der Rest ist DPS ("DPS 1..n", jeder Schadensverursacher passt). Melee/Ranged trennst du nur, wenn du willst (Schalter "DPS in Melee / Ranged aufteilen"). **Pro Boss** lassen sich die Zahlen mit +/- ändern ("nur dieser Boss", der Pfeil setzt zurück), und im Event kann ein Spieler pro Boss die Rolle wechseln (Chip anklicken: Heiler spielt hier DPS). Hat das Setup mehr Tanks/Heiler/DPS als die Vorlage, kommen Slots dazu; hat es weniger, bleiben sie offen.
 - **Mobs und Katalog:** Jeder Boss hat den Boss selbst als Tankziel, dazu seine Adds aus dem Katalog; weitere Mobs fügst du in der Leiste "Mobs" hinzu ("+"), das Fadenkreuz setzt einen Mob als rundes Icon auf die Map. Unter *Raid-Events → Raidplan-Katalog* pflegst du Mobs und Spells (Standardwerte überschreiben, ausblenden, zurücksetzen, eigene anlegen). Einteilungszeilen wählen ihren Spell aus dem Katalog (mit Icon).
-- **Katalog je Spielversion:** Oben im Katalog schaltest du die Spielversion um (TBC / Classic / Forever, Start: die Hauptversion); du siehst nur die Einträge dieser Version. Ein neuer Mob oder Spell gehört zur angezeigten Version, über die Versions-Chips im Formular ordnest du ihn weiteren Versionen zu (mindestens eine). Ein Raidplan zeigt nur Mobs und Spells der Spielversion seines Events: ein Forever-Raid bekommt keine TBC-Mobs und -Fähigkeiten vorgeschlagen, ein TBC-Raid keine Forever-Einträge. Alle bisherigen Einträge sind TBC.
+- **Katalog je Spielversion:** Der Katalog zeigt die Einträge der Spielversion des Content-Umschalters oben in der Kopfleiste (Start: die Hauptversion). Ein neuer Mob oder Spell gehört zur angezeigten Version, über die Versions-Chips im Formular ordnest du ihn weiteren Versionen zu (mindestens eine). Ein Raidplan zeigt nur Mobs und Spells der Spielversion seines Events: ein Forever-Raid bekommt keine TBC-Mobs und -Fähigkeiten vorgeschlagen, ein TBC-Raid keine Forever-Einträge. Alle bisherigen Einträge sind TBC.
 - **Mob-Bilder:** Fast alle Standard-Mobs (43 von 46) zeigen ein echtes **Portrait** (Modell-Ansicht des NPCs, auf Kopf und Schultern zugeschnitten); nur Doomfire Spirit, Towering Infernal und Giant Infernal haben noch ein ähnliches Spell-Icon und sind als "Platzhalter-Icon" markiert. Eigene Icons setzt du im Katalog weiterhin selbst.
 - **Lese-Ansicht:** lesbare Breite, Einteilungen als Karten nebeneinander mit echten WoW-Icons, oben "Meine Einteilungen" (es gibt keine Gesamtliste "Aufgaben nach Spieler" mehr). Wer eingeloggt ist, wird auch über die Charaktere seines Raider-Profils erkannt und überall hervorgehoben; der Login führt zurück zur Plan-Seite.
 - **Gruppen im Plan:** Oben in der Werkzeugleiste stehen kleine Chips „Gruppen 1 2 3 4 5 Bank“ und die Zahl der Spieler im Plan. Der Raidplan nimmt seine Spieler nur aus den gefüllten Gruppen — Standard sind die Gruppen bis zur Raidgröße (beim 25er Gruppe 1–5), **die Bank ist aus** und wer nur „Angemeldet“ ist, kommt nie hinein. Das gilt für Besetzung, Klassen-Einteilungen, Vorschläge, Auto-Symbole, „Nicht platziert“ und die Lese-Ansicht. Ein Klick schaltet eine Gruppe oder die Bank ein/aus (sofort gespeichert), der Pfeil setzt auf den Standard zurück. Steht jemand, der jetzt nicht im Plan ist, schon namentlich in einer Einteilung, bleibt er stehen, aber gelb mit Warnsymbol („sitzt auf der Bank – nicht im Plan“) — dann bitte neu vergeben. Auch „Sheet füllen“ nimmt nur die Gruppen 1–5, nie die Bank.
@@ -95,7 +98,7 @@ Technik: [raidplan.md](raidplan.md)
 - Die **Übersicht** zeigt je Vorlage eine Karte mit Vorschaubild, Chips (Kategorie, Server, Instanzen), Fortschrittsbalken je Boss und Datum der letzten Änderung, neueste zuerst. Suche und Filter nach Instanz und Kategorie. Ein Klick auf die Karte öffnet den Editor; per Icon änderst du Name und Eigenschaften, **duplizierst** oder **löschst** (mit Rückfrage) die Vorlage. Bereits angewendete Pläne bleiben beim Löschen unberührt.
 - Die **Taktik-Profile** bleiben als Zeilen-Bibliothek nutzbar ("Taktik wählen"), auch in einer Vorlage: die Vorlage legt fest, wo etwas steht, ein Profil liefert nur Aufgabenzeilen.
 - Anwenden geschieht im Raidplan des Events ("Vorlage wählen").
-- **Je Spielversion:** Oben in der Übersicht schaltest du die Spielversion um; eine neue Vorlage gehört zur angezeigten Version und bietet nur deren Instanzen an. "Vorlage wählen" im Event zeigt die Vorlagen der Event-Version; Vorlagen anderer Versionen stehen eingeklappt darunter und lassen sich nur nach einer Warnung anwenden. Taktik-Profile gelten ebenfalls je Version.
+- **Je Spielversion:** Die Übersicht zeigt die Vorlagen der Version des Content-Umschalters; eine neue Vorlage gehört zur angezeigten Version und bietet nur deren Instanzen an. "Vorlage wählen" im Event zeigt die Vorlagen der Event-Version; Vorlagen anderer Versionen stehen eingeklappt darunter und lassen sich nur nach einer Warnung anwenden. Taktik-Profile gelten ebenfalls je Version.
 
 ## Serien (wiederkehrende Events)
 
@@ -114,7 +117,7 @@ Technik: [raid-templates.md](raid-templates.md)
 
 Wiederverwendbare Vorlagen (Instanzen, Größe, Rollen, Pflicht-Buffs, Anmeldeschluss, Aussehen der Nachricht) für ein schnelles Event-Anlegen. Details: [docs/raid-templates.md](raid-templates.md).
 
-Gibt es Vorlagen in mehr als einer Spielversion, zeigt die Liste oben von sich aus nur die Vorlagen der Hauptversion; ein Umschalter wechselt die Version oder zeigt „Alle“, die Wahl bleibt beim nächsten Besuch erhalten.
+Die Liste zeigt die Vorlagen der Spielversion des Content-Umschalters in der Kopfleiste (Start: die Hauptversion); eine neue Vorlage beginnt in dieser Version.
 
 Hinter „Mehr“ (in der Vorlage und im Erstellen-Dialog) steht **„Bei voller Größe“**: *keine Grenze* (Standard — es melden sich so viele an wie wollen, die Auswahl triffst du im Setup), *Warteliste* (neue Anmeldungen landen auf der Bank) oder *ablehnen*. Nachricht, Talk-Übersicht, öffentliche Event-Seite, Anmeldeseite, Raid-Cockpit und „Event verwalten“ zählen nur die **einzelnen Discord-Accounts** („28 angemeldet“ bzw. „28 signed up“) — ohne „/25“, auch wenn der Raid überbucht ist; wer mit mehreren Charakteren angemeldet ist, zählt einmal.
 
@@ -148,7 +151,7 @@ Technik: [roster-profile.md](roster-profile.md)
 
 Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit. Charaktere lassen sich ausblenden (ohne Daten zu löschen), z. B. bei Guild-Austritt.
 
-Gibt es Charaktere in mehr als einer Spielversion, schaltet oben ein Umschalter zwischen den Versionen (Standard: Hauptversion) oder „Alle“ um; die Anwesenheit zählt dann nur die Raids dieser Version. Der Reiter „Charaktere“ der Loot-Historie filtert genauso.
+Das Roster zeigt die Charaktere der Spielversion des Content-Umschalters in der Kopfleiste; die Anwesenheit zählt nur die Raids dieser Version. Der Reiter „Charaktere“ der Loot-Historie folgt demselben Umschalter.
 
 ## Loot Council
 
@@ -159,7 +162,7 @@ Technik: [loot-council.md](loot-council.md)
 - Rangliste je Raider nach Bedarf (Drought, bisheriger Loot-Anteil, BiS-Abstand).
 - Gear-Ansicht und Drop-Check für ein konkretes Item.
 - DPS-Simulation einzelner Ausrüstungswechsel, BiS-Listen je Spec. Details: [docs/loot-council.md](loot-council.md).
-- Neben der Raid-Kategorie schaltet ein Versionsfilter, welche Charaktere überhaupt auf der Liste stehen (Standard: Hauptversion, „Alle“ zeigt jede Version); ein Charakter ohne eigene Version zählt über seinen Loot oder seine Kategorie.
+- Welche Charaktere überhaupt auf der Liste stehen, bestimmt der Content-Umschalter in der Kopfleiste (Start: die Hauptversion); ein Charakter ohne eigene Version zählt über seinen Loot oder seine Kategorie.
 
 ## Historie & Loot
 
@@ -170,7 +173,7 @@ Technik: [loot-import.md](loot-import.md)
 - Vergaben, Items, Gründe und Loot nach Raid einsehen.
 - Loot-Export aus Gargul/RCLootcouncil importieren.
 - Addon-Inbox: automatisch hochgeladene Loot-Sessions bestätigen und zuordnen. Details: [docs/loot-import.md](loot-import.md).
-- Gibt es Raids in mehr als einer Spielversion, schaltet in den Reitern „Raids“ und „Items“ ein Versionsfilter um (Standard: Hauptversion, „Alle“ zeigt jede Version) — derselbe Umschalter wie bei „Charaktere“ (siehe Roster oben).
+- Alle Reiter (Raids, Items, Loot, Loot-Gründe, Neuester Loot, Charaktere) zeigen die Spielversion des Content-Umschalters in der Kopfleiste.
 
 ## Log-Auswertung (CLA/RPB)
 
@@ -201,8 +204,9 @@ Die meisten Unterbereiche brauchen Vollzugriff/Admin-Rechte:
 - **Verbindungen** — Discord-Server (Event-/Talk-Server), Raid-Helper-Umstieg, Loot-Sync-Token, Warcraft-Logs- und KI-Zugang.
 - **Kategorien** — pro Raid-Kategorie Quelle (Bot/Raid-Helper), Rollen, Vorlage, Lootsystem, Erinnerungen, Setup-DMs, Sprachkanal, Discord-Event.
 - **Spielversion** — die *Hauptversion* der Gilde (TBC, Classic oder Forever): Mit ihr startet ein neues Event ohne Vorlage, eine neue Raid-Vorlage und das Raider-Profil. Darunter kann jede aktive Kategorie eine *andere Version* spielen (z. B. die Hauptversion auf Forever, eine Kategorie bleibt TBC); „Hauptversion“ folgt der Einstellung oben. Umschalten greift sofort, ohne Deploy. Bestehende Events und Vorlagen behalten ihre Version, und jede Anmeldung zeigt die Klassen der Version ihres Events.
+  - **Andere Versionen ausblenden:** Der Schalter darunter zeigt allen nur noch die Hauptversion: Der Content-Umschalter in der Kopfleiste verschwindet (nur ein stiller Hinweis bleibt), andere Versionen verschwinden aus Listen, Loot, Historie, Roster, Katalog, Vorlagen und Auswahlfeldern – auch über Links mit `?version=`. **Nichts wird gelöscht**, ausschalten holt alles zurück. Ein Event einer ausgeblendeten Version bleibt über seinen direkten Link (Raid-Seite, Raidplan-Link) erreichbar, mit Banner „Archiv · TBC“ und nur lesend; die Anmelde-Buttons alter Discord-Nachrichten antworten dann, dass der Raid archiviert ist. Gibt es noch kommende Raids anderer Versionen, warnt die Karte mit Anzahl und Daten. **Archiv exportieren** (nur Voll-Admins) lädt Loot-Historie und Anwesenheit aller Versionen außer der Hauptversion als CSV (oder JSON) herunter. Die Vorschau zeigt, wie die Kopfleiste danach aussieht.
   - **Links und Armory je Version:** Darunter stellst du für jede Spielversion getrennt ein, wo ein Charakter nachgeschlagen wird (Region, Realm, Namespace, Armory-Link, Warcraft-Logs-Link mit `{char}` für den Namen), wohin Items verlinken (Wowhead-Pfad, z. B. `tbc`), welche Softres-Edition Events dieser Version nutzen und welches Raidsheet sie bekommen, wenn kein Stichwort passt. Oben schaltest du die Version um, unten siehst du die Links an einem Beispiel. **Leeres Feld = gibt es für diese Version nicht:** Der Link fällt weg, die Armory wird nicht gefragt, Softres wird nicht angeboten – nie ein falscher TBC-Link. TBC hat die bisherigen Werte (Thunderstrike), Classic Era ist mit den geprüften Standardwerten vorbelegt (Namespace, classic-armory.org, vanilla.warcraftlogs.com, Wowhead `classic`, Softres `classic`) – nur den Realm trägst du selbst ein, dann erscheinen Armory- und Logs-Links. Forever ist leer, bis Realm und Seiten bekannt sind. In Links dürfen `{region}` und `{realm}` stehen, sie nehmen Region und Realm von oben. **Standardwerte übernehmen** setzt die bekannten Werte der gewählten Version wieder ein (Realm und Raidsheet bleiben); gespeichert wird mit „Speichern“.
-  - **Bewerbungen je Version:** Eine Recruitment-Vorlage gehört zu einer Spielversion (im Editor umschaltbar, neu: die Hauptversion); der Bewerben-Knopf der geposteten Nachricht nimmt sie mit. Armory- und Logs-Links, Realm und Loganalyse der Bewerbung kommen dann aus den Einstellungen dieser Version. Die Recruitment-Seite zeigt die Version jeder Zeile und hat oben denselben Versionsfilter wie die übrigen Listen; alte Vorlagen, Nachrichten und Bewerbungen sind TBC. Die Battle.net-Zugangsdaten selbst bleiben unter Verbindungen.
+  - **Bewerbungen je Version:** Eine Recruitment-Vorlage gehört zu einer Spielversion (im Editor umschaltbar, neu: die Hauptversion); der Bewerben-Knopf der geposteten Nachricht nimmt sie mit. Armory- und Logs-Links, Realm und Loganalyse der Bewerbung kommen dann aus den Einstellungen dieser Version. Die Recruitment-Seite zeigt die Version jeder Zeile und folgt dem Content-Umschalter in der Kopfleiste wie die übrigen Listen; alte Vorlagen, Nachrichten und Bewerbungen sind TBC. Die Battle.net-Zugangsdaten selbst bleiben unter Verbindungen.
 
 ### Neu: Besetzung zuweisen, Standard, Mehrfachauswahl
 

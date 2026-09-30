@@ -18,6 +18,7 @@ import {
     type RaidPrimaryAction, type RaidStep, type RaidStepDeed } from "../api";
 import { useApi } from "../hooks/useApi";
 import { useConfirm } from "../components/ui/Modal";
+import ArchiveBanner from "../components/ArchiveBanner";
 import { raidhelperMenu, type ManageAction } from "../lib/eventManage";
 import { withoutDeeds } from "../lib/raidSteps";
 import ManageMenu from "./raid-detail/manage/ManageMenu";
@@ -122,9 +123,13 @@ export default function RaidDetailPage() {
         detail.reload();
     };
 
+    // An event of a hidden game version (#563) is an archive: readable, nothing
+    // about it can be changed (the server refuses every write with 409 as well).
+    const archived = (data && data.archived) || null;
+    const canWrite = canAccess(user, "raids", "write") && !archived;
     const ctx: RaidCtx | null = data && {
         data, eventId, onChanged: afterChange, openModal: setModal, openPlayer: setPlayer,
-        canManage: data.event.source === "eventhelper" && canAccess(user, "raids", "write"),
+        canManage: data.event.source === "eventhelper" && canWrite,
     };
     const evaluator = useEvaluate({ onChanged: afterChange });
 
@@ -170,7 +175,7 @@ export default function RaidDetailPage() {
     // Editing reuses the create dialog (#261), everything else is a dialog or one question.
     const canManage = !!ctx.canManage;
     // A Raid-Helper event's menu holds only the raid plan switch (raids write).
-    const canSwitchPlan = !ownEvent && canAccess(user, "raids", "write");
+    const canSwitchPlan = !ownEvent && canWrite;
     const runManage = async (action: ManageAction) => {
         const ev = data.event;
         if (action === "raidplanOn") setLinkOpen(true);
@@ -242,10 +247,11 @@ export default function RaidDetailPage() {
     return (
         <div className="rd-page">
             {data.eventsWarning && <div className="flash flash-err">{data.eventsWarning}</div>}
+            <ArchiveBanner archive={archived} />
 
             <RaidDetailHero
-                data={data} onStep={openStep} onPrimary={runPrimary}
-                onLootSystem={canAccess(user, "raids", "write") ? () => setModal("lootsystem") : undefined}
+                data={data} onStep={archived ? () => undefined : openStep} onPrimary={archived ? () => undefined : runPrimary}
+                onLootSystem={canWrite ? () => setModal("lootsystem") : undefined}
                 primaryRunning={!!primaryEval && evaluator.isRunning(primaryEval.logId, primaryEval.section)}
                 cockpit={cockpit ? (
                     <StepBar

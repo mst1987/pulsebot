@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../api";
 import type { DashboardData, DashboardRaid, DashboardTask, NextRaidDetails } from "../api";
 import { t } from "../i18n";
-import { renderPage } from "../test/render";
+import { CONTENT_ARIA, renderPage, twoVersions } from "../test/render";
 import DashboardPage from "./DashboardPage";
 
 vi.mock("../api", async (orig) => ({
@@ -128,23 +128,21 @@ describe("Übersicht (DashboardPage)", () => {
         expect(link.querySelector("svg")).toBeNull();
     });
 
-    it("filters the three tiles by game version, defaults to the main one and remembers the pick (#545)", async () => {
+    it("loads the tiles of the menu's content version and follows a switch (#563)", async () => {
+        localStorage.removeItem("eh-content-version");
         const user = userEvent.setup();
         vi.mocked(api.getDashboard).mockImplementation((version = "") => Promise.resolve(dashboard({
             version: version === "forever" ? "forever" : "tbc",
-            versions: [
-                { id: "tbc", label: "WoW TBC", short: "TBC" },
-                { id: "forever", label: "WoW Forever", short: "Forever" },
-            ],
         })));
-        renderPage(<DashboardPage />);
+        renderPage(<DashboardPage />, { content: twoVersions() });
         await screen.findByText(t("dashboard.page.title"));
-        const filter = screen.getByRole("radiogroup", { name: t("dashboard.page.versionAria") });
-        expect(within(filter).getByRole("radio", { name: "TBC" })).toHaveAttribute("aria-checked", "true");
+        expect(api.getDashboard).toHaveBeenLastCalledWith("tbc");
+        expect(screen.queryByRole("radiogroup", { name: t("dashboard.page.versionAria") })).not.toBeInTheDocument();
 
-        await user.click(within(filter).getByRole("radio", { name: "Forever" }));
+        const content = screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0];
+        await user.click(within(content).getByRole("radio", { name: /Forever/ }));
         await waitFor(() => expect(api.getDashboard).toHaveBeenLastCalledWith("forever"));
-        expect(JSON.parse(localStorage.getItem("eh-dashboard-version") || "null")).toBe("forever");
+        localStorage.removeItem("eh-content-version");
     });
 
     it("shows 'Alles erledigt' when there are no open tasks", async () => {

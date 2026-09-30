@@ -19,6 +19,7 @@ import Pager from "../../components/Pager";
 import TopLootList from "../../components/loot/TopLootList";
 import { ActiveFilters, FilterPopover, RaidChips, SearchBox, SwitchRow, type ActiveFilter } from "../../components/loot/LootFilters";
 import RaidLoader from "../../components/ui/RaidLoader";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { tParts, useT } from "../../i18n";
 
 type View = { search: string; category: string; content: string; reason: string; topOnly: boolean };
@@ -27,6 +28,8 @@ const VIEW_DEFAULT: View = { search: "", category: "", content: "", reason: "", 
 export function LatestLootTab({ categories }: { categories: Category[] }) {
     const t = useT();
     const [view, setView] = usePersistedState<View>("history-awards-view", VIEW_DEFAULT);
+    // The menu's content version (#563): only the loot of its raids.
+    const { version } = useContentVersion();
     const [page, setPage] = useState(1);
     const [data, setData] = useState<LootAwardsData | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -51,7 +54,7 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
         setBusy(true);
         getLootAwards({
             topOnly: view.topOnly, search: view.search, category: view.category,
-            content: view.content, reason: view.reason, page,
+            content: view.content, reason: view.reason, page, version,
         })
             .then((d) => {
                 if (cancelled) return;
@@ -62,7 +65,7 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
             .catch((err: ApiError) => { if (!cancelled) setError(err.message); })
             .finally(() => { if (!cancelled) setBusy(false); });
         return () => { cancelled = true; };
-    }, [view.topOnly, view.search, view.category, view.content, view.reason, page]);
+    }, [view.topOnly, view.search, view.category, view.content, view.reason, page, version]);
 
     const categoryOptions = categories.filter((c) => c.id);
     const categoryName = categoryOptions.find((c) => c.id === view.category)?.name || view.category;

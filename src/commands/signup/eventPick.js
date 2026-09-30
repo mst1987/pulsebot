@@ -1,4 +1,5 @@
 const { getEvent } = require("../../stores/eventStore");
+const { archivedNotice } = require("../../services/events/eventArchive");
 const { PICK_PREFIX, PICK_MINE, messageComponents } = require("../../services/events/eventMessage");
 const { onJoin, onClass, reply, emojisFor } = require("./eventButton");
 
@@ -38,6 +39,8 @@ module.exports = {
         const [, eventId = ""] = String(interaction.customId || "").split(":");
         const event = getEvent(eventId);
         if (!event) return reply(interaction, "This event no longer exists.");
+        const archived = archivedNotice(event);
+        if (archived) return reply(interaction, archived, event);
         await resetSelect(interaction, event);
         const value = String((interaction.values || [])[0] || "");
         if (value === PICK_MINE) return onJoin(interaction, event);

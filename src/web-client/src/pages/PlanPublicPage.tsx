@@ -23,6 +23,7 @@ import { assignmentLinks, isMine } from "../lib/raidplan/assign";
 import { splitMine } from "../lib/raidplan/mineView";
 import RaidLoader from "../components/ui/RaidLoader";
 import { TipLayer } from "../components/ui/Tip";
+import ArchiveBanner from "../components/ArchiveBanner";
 import LangToggle from "../components/LangToggle";
 import ThemeToggle from "../components/ThemeToggle";
 import { formatEventTime } from "../lib/format";
@@ -166,6 +167,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
         <div className="rp-public rp-wide">
             {/* the page has no menu shell: its own layer draws the data-tip boxes (the chips, the zoom buttons) */}
             <TipLayer />
+            <ArchiveBanner archive={data.archived} publicView />
             <header className="rp-public-head">
                 <div className="rp-public-titles">
                     <span className="rp-kicker">{t("raidBoard.public.kicker")}</span>

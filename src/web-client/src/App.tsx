@@ -169,7 +169,7 @@ function MenuApp() {
                 <JobsProvider>
                     <ConfirmProvider>
                         <Routes>
-                            <Route element={<Shell user={user} guilds={guilds} activeGuildId={activeGuildId} />}>
+                            <Route element={<Shell user={user} guilds={guilds} activeGuildId={activeGuildId} content={state.session.content} />}>
                                 <Route index element={
                                     canAccess(user, "dashboard")
                                         ? <DashboardPage />

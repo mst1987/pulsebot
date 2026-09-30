@@ -26,6 +26,8 @@ import { type Draft, toDraft } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";
 import { ChannelListField, TopItemsField } from "./SettingsFields";
 import GameVersionSection, { VersionSettingsCard } from "./SettingsGameVersion";
+import HideOtherVersionsCard from "./HideOtherVersionsCard";
+import { useContentVersion } from "../../hooks/useContentVersion";
 
 /** A module's fields on the panel card, each hint moved into its label's tooltip. */
 function ModuleCard({ children }: { children: ReactNode }) {
@@ -45,6 +47,8 @@ export default function SettingsPage() {
     const { data, setData } = settingsData;
     const [saving, setSaving] = useState(false);
     const toast = useToast();
+    // A changed main version or "Andere Versionen ausblenden" (#563) changes the menu's content switch.
+    const content = useContentVersion();
     // In the url as well as remembered, so a hint elsewhere in the menu can link
     // straight at the section it names ("…siehe Einstellungen → Kategorien").
     // Old ids stay allowed and are redirected by resolveSection().
@@ -138,6 +142,8 @@ export default function SettingsPage() {
                 // #541: sent whole as well — a category back on "Hauptversion" is left out.
                 mainVersion: draft.mainVersion,
                 categoryVersion: Object.fromEntries(Object.entries(draft.categoryVersion).filter(([, id]) => id)),
+                // #563: only the main version everywhere while it is on.
+                hideOtherVersions: draft.hideOtherVersions,
                 // #542: every version's block, merged per field on the server; a wrong value comes back as 400 with its field.
                 versionSettings: draft.versionSettings,
                 // Sent whole: the store replaces the map, so clearing a url is
@@ -150,6 +156,9 @@ export default function SettingsPage() {
             setData({ ...data, config });
             setDraft(toDraft(config));
             toast(t("settings.savedToast"));
+            if ((config.mainVersion || "tbc") !== (saved.mainVersion || "tbc") || !!config.hideOtherVersions !== saved.hideOtherVersions) {
+                void content.refresh();
+            }
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {
@@ -280,6 +289,15 @@ export default function SettingsPage() {
                         categoryVersion={draft.categoryVersion}
                         onMainVersion={(mainVersion) => patch({ mainVersion })}
                         onCategoryVersion={(id, versionId) => patch({ categoryVersion: { ...draft.categoryVersion, [id]: versionId } })}
+                    />
+                    <HideOtherVersionsCard
+                        versions={data.gameVersions || []}
+                        mainVersion={draft.mainVersion}
+                        hidden={draft.hideOtherVersions}
+                        upcoming={data.upcomingByVersion}
+                        dataVersions={data.dataVersions}
+                        canExport={data.canManageAccess}
+                        onChange={(hideOtherVersions) => patch({ hideOtherVersions })}
                     />
                     <VersionSettingsCard
                         versions={data.gameVersions || []}

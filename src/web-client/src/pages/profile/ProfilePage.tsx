@@ -15,8 +15,10 @@ import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } fro
 import { CharacterCard, CharChip, FirstCharacter } from "./CharacterCard";
 import { CalendarPart } from "./CalendarPart";
 import { groupByVersion } from "../../lib/characterVersions";
+import { useContentVersion } from "../../hooks/useContentVersion";
 
 export default function ProfilePage() {
+    const content = useContentVersion();
     const { user } = useOutletContext<ShellContext>();
     const toast = useToast();
     const ask = useConfirm();
@@ -76,7 +78,9 @@ export default function ProfilePage() {
     const main = profile.characters.find((c) => c.main);
     const mainClass = main ? classOf(main) : undefined;
     // Grouped by game version, the main version first (#543) — one group needs no heading.
-    const groups = groupByVersion(profile.characters, data.versions || [], data.mainVersion || "");
+    // Other versions hidden (#563): only the main version's characters are shown (nothing is removed).
+    const groups = groupByVersion(profile.characters, data.versions || [], data.mainVersion || "")
+        .filter((g) => !content.hidden || !content.mainVersion || g.id === content.mainVersion);
     const labelOf = (versionId: string) => groups.find((g) => g.id === versionId)?.label || versionId;
 
     return (

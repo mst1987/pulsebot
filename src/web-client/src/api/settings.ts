@@ -48,6 +48,8 @@ export type AdminConfig = {
     mainVersion?: string;
     /** Categories that play another version: category id → version id. */
     categoryVersion?: Record<string, string>;
+    /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
+    hideOtherVersions?: boolean;
     /**
      * Settings per game version (#542): armory realm, armory/WCL templates,
      * Wowhead path, softres edition, default raidsheet. Every known version is
@@ -198,6 +200,10 @@ export type SettingsData = {
      * button takes over; an all-empty block = the version has none yet.
      */
     versionDefaults?: Record<string, VersionSettingsBlock>;
+    /** The coming raids per version (#563), for the warning before hiding the other versions. */
+    upcomingByVersion?: Record<string, { id: string; title: string; startTime: number }[]>;
+    /** The versions something is stored for (#563): the archive export names only those. */
+    dataVersions?: string[];
     roles: Role[];
     categories: Category[];
     // The text channels the bot can post in, for the channel pickers; empty

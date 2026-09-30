@@ -3,6 +3,7 @@ const { getEvent } = require("../../stores/eventStore");
 const { getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
 const { versionOfEvent } = require("../../services/events/mainVersion");
+const { archivedNotice } = require("../../services/events/eventArchive");
 const { submitSignup, allowedStatuses, checkRaiderRole, signupWindow, defaultCanAlso } = require("../../services/signups/signupService");
 const { JOIN_SELECT_PREFIX, STATUS_OPTIONS } = require("../../services/events/eventMessage");
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
@@ -110,6 +111,8 @@ module.exports = {
         const event = getEvent(eventId);
         if (!field) {
             if (!event) return reply(interaction, { content: "This event no longer exists." });
+            const archived = archivedNotice(event);
+            if (archived) return interaction.reply(answerPayload(archived, { event }));
             return onStatus(interaction, event);
         }
 

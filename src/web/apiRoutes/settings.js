@@ -23,6 +23,9 @@ const { normalizeBotCommandAccess } = require("../../config/botCommands");
 const { VERSIONS } = require("../../config/gameVersions");
 const versionSettings = require("../../services/events/versionSettings");
 const { mainVersionFor } = require("../../services/events/mainVersion");
+const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../services/events/contentVersions");
+// Makes Excel read the umlauts of an archive CSV as UTF-8.
+const BOM = String.fromCharCode(0xfeff);
 const { defaultVersionSettings } = require("../../stores/versionSettingsSchema");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
@@ -213,6 +216,10 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // The standard values per version (#553) for "Standardwerte übernehmen";
         // an all-empty block = the version has none yet (Forever).
         versionDefaults: defaultVersionSettings(config.versionSettings),
+        // "Andere Versionen ausblenden" (#563): the coming raids per version, for the warning.
+        upcomingByVersion: upcomingByVersion({ config }),
+        // The versions with data (#563): the archive export names only those.
+        dataVersions: [...versionsWithData(config)],
         roles: discord.listRoles(guildId),
         categories: discord.listCategories(guildId),
         // The module fields pick a channel by name instead of a typed id; an
@@ -483,6 +490,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.categoryVersion !== undefined) {
         partial.categoryVersion = body.categoryVersion && typeof body.categoryVersion === "object" ? body.categoryVersion : {};
     }
+    if (body.hideOtherVersions !== undefined) partial.hideOtherVersions = body.hideOtherVersions === true;
     // Per version (#542): only the versions and fields sent, merged by the store.
     if (body.versionSettings !== undefined) {
         const patch = versionSettingsPatch(body.versionSettings);
@@ -515,6 +523,32 @@ const getItemSearch = withUser({}, async ({ res, url }) => {
     const path = edition ? "" : versionSettings.settingsForVersion(mainVersionFor({ config }), { config }).wowheadPath;
     const items = edition || path ? await wowhead.searchItems(q, { edition, path }) : [];
     ok(res, { items });
+});
+
+/**
+ * GET /api/settings/archive-export?format=csv|json — loot and attendance of
+ * every version but the main one (#563), as a download: the archive the orga
+ * keeps before "Andere Versionen ausblenden". Full admins only (it carries
+ * every raider's history); read only, nothing is removed.
+ */
+const getArchiveExport = withUser({ full: true }, async ({ res, url }) => {
+    const data = archiveExport({ config: getConfig() });
+    const day = data.exportedAt.slice(0, 10);
+    const name = `eventhelper-archiv-${data.versions.join("-") || "leer"}-${day}`;
+    if (url.searchParams.get("format") === "json") {
+        res.writeHead(200, {
+            "Content-Type": "application/json; charset=utf-8",
+            "Content-Disposition": `attachment; filename="${name}.json"`,
+            "Cache-Control": "no-store",
+        });
+        return res.end(JSON.stringify(data, null, 2));
+    }
+    res.writeHead(200, {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${name}.csv"`,
+        "Cache-Control": "no-store",
+    });
+    return res.end(BOM + archiveCsv(data));
 });
 
 /** POST /api/settings/raidsheets — create (no id) or update (id) a raidsheet. */
@@ -561,6 +595,7 @@ const routes = [
     { method: "GET", path: "/api/settings", handler: getSettings, area: "settings" },
     { method: "PATCH", path: "/api/settings", handler: updateSettings, area: "settings" },
     { method: "GET", path: "/api/settings/item-search", handler: getItemSearch, area: "settings" },
+    { method: "GET", path: "/api/settings/archive-export", handler: getArchiveExport, area: "settings" },
     { method: "POST", path: "/api/settings/raidsheets", handler: saveRaidsheetHandler, area: "settings" },
     { method: "POST", path: "/api/settings/raidsheets/delete", handler: deleteRaidsheetHandler, area: "settings" },
     { method: "GET", path: "/api/settings/discord-servers", handler: getDiscordServers, area: "settings" },
@@ -572,7 +607,7 @@ const routes = [
 ];
 
 module.exports = {
-    getSettings, updateSettings, getItemSearch, saveRaidsheetHandler, deleteRaidsheetHandler,
+    getSettings, updateSettings, getItemSearch, getArchiveExport, saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
     getRoleSync, getReminders,
     publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, FULL_ADMIN_KEYS,

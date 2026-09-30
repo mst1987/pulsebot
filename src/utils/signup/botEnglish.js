@@ -12,6 +12,7 @@
 const RULES = [
     // signupService.validateSignup / submitSignup / submitSignups
     [/^Event nicht gefunden\.?$/, "This event no longer exists."],
+    [/^Dieser Raid ist archiviert \((.+) ist ausgeblendet\) – Anmeldungen sind geschlossen\.$/, "This raid is archived ($1 is no longer shown) – signups are closed."],
     [/^Für dieses Event meldest du dich über Raid-Helper im Discord an\.$/, "Sign up for this event through Raid-Helper in Discord."],
     [/^Anmeldung läuft über Raid-Helper\.$/, "Signups for this raid run through Raid-Helper."],
     [/^Unbekannter Anmeldestatus „(.*)“\.$/, "Unknown signup status “$1”."],

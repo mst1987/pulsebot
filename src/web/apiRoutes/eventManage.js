@@ -24,7 +24,7 @@ const manage = require("../../services/events/eventManage");
 /** A read that prepares an action: menu user with `raids` write. */
 const reader = (fn) => withUser({ write: "raids" }, fn);
 /** A write: menu user, CSRF, JSON body. */
-const action = (fn) => withUser({ csrf: true, body: true }, fn);
+const action = (fn) => withUser({ csrf: true, body: true, archived: (body) => body.event }, fn);
 
 const getManage = reader(async ({ req, res, query }) => {
     sendResult(res, await manage.manageInfo({ guildId: activeGuildFor(req), eventId: q.str(query, "event") }));

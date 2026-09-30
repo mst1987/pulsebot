@@ -15,6 +15,7 @@ Technik: [signups.md](signups.md), [bot-commands.md](bot-commands.md)
 - Wer noch keinen Charakter im Bot hat: Der Dialog fragt beim ersten Mal nach Klasse/Spec/Name und legt den Charakter automatisch an.
 - Angeboten werden nur Charaktere der **Spielversion des Raids** (z. B. nur WoW-Forever-Charaktere für einen Forever-Raid). Hast du nur Charaktere einer anderen Version, sagt der Bot: „No WoW Forever character in your profile yet – create a WoW Forever character in your profile …" mit Link zur Profilseite — oder du wählst Klasse und Spec direkt im Dialog, dann legt der Bot den Charakter in der richtigen Version an.
 - Jede Rückmeldung des Bots zur Anmeldung (gespeichert, abgemeldet, Warteliste, Fehler wie „Event gibt es nicht mehr“) kommt als kleine Karte in der Farbe des Raids, nur für dich sichtbar: oben „Saved for <Raid>“, darunter deine Charaktere mit Spec-Icon und Status, der Raidbeginn in deiner Ortszeit und ggf. der Warteliste-Hinweis.
+- Hat die Orga eine Spielversion ausgeblendet (z. B. TBC nach dem Umstieg auf Forever), antworten die Buttons alter Nachrichten dieser Version nur noch mit der Karte „This raid is archived“ – Anmelden und Ändern gehen dort nicht mehr, gelöscht wird nichts.
 - `/profil` zeigt eine kurze Zusammenfassung des eigenen Profils, mit Buttons um "kann Offtank/Heilen" je Hauptcharakter zu setzen, plus Link zur eigenen Profilseite im Web.
 
 Für eine **neue** Anmeldung braucht man ggf. eine Raider-Rolle der jeweiligen Kategorie — eine bereits bestehende Anmeldung lässt sich aber immer noch ändern.

@@ -3,6 +3,8 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import LangToggle from "./LangToggle";
 import GuildSwitcher from "./GuildSwitcher";
+import ContentSwitch from "./ContentSwitch";
+import ContentVersionProvider from "./ContentVersionProvider";
 import { ViewAsBanner, ViewAsButton } from "./ViewAs";
 import { CrestIcon, BurgerIcon, LogoutIcon, BookIcon } from "./icons";
 import WowIcon from "./ui/WowIcon";
@@ -11,7 +13,7 @@ import ChunkErrorBoundary from "./ChunkErrorBoundary";
 import { IconButton } from "./ui/Button";
 import { TipLayer } from "./ui/Tip";
 import { MENU, firstAllowedTab, type MenuEntry } from "../lib/menu";
-import { canAccess, canAccessAny, getVersion, type SessionUser, type SessionGuild } from "../api";
+import { canAccess, canAccessAny, getVersion, type SessionUser, type SessionGuild, type ContentInfo } from "../api";
 import { useApi } from "../hooks/useApi";
 import { deployLine } from "../lib/deployVersion";
 import { t as tr, tOr, useLang, useT } from "../i18n";
@@ -123,9 +125,11 @@ function DeployLine({ user }: { user: SessionUser }) {
     );
 }
 
-export default function Shell({ user, guilds, activeGuildId }: ShellContext & {
+export default function Shell({ user, guilds, activeGuildId, content }: ShellContext & {
     guilds: SessionGuild[];
     activeGuildId: string;
+    /** The content switch (#563); missing = no switch, the server picks the main version. */
+    content?: ContentInfo | null;
 }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const location = useLocation();
@@ -140,74 +144,77 @@ export default function Shell({ user, guilds, activeGuildId }: ShellContext & {
     const crumb = subCrumb(location.pathname, new URLSearchParams(location.search));
 
     return (
-        <div className="app">
-            <aside className={`side${menuOpen ? " open" : ""}`}>
-                {/* The crest is the way home: "/" is the dashboard, or — for an
-                    account without dashboard access — App.tsx's redirect to the
-                    first section that account may open. The menu closes on the
-                    click like a nav item, so on a phone the page shows. The
-                    crest stays a line icon: it is the brand, not a game thing. */}
-                <Link className="brand" to="/" aria-label={t("shell.toHome")} onClick={() => setMenuOpen(false)}>
-                    <div className="crest"><CrestIcon /></div>
-                    <div>
-                        <div className="brand-name">EventHelper</div>
-                        {/* Not "Gilden-Admin": most people in here are members
-                            looking up loot, not officers. */}
-                        <div className="brand-sub">{t("shell.brandSub")}</div>
-                    </div>
-                </Link>
-                <AdminNav user={user} onNavigate={() => setMenuOpen(false)} />
-                <DeployLine user={user} />
-                <div className="side-foot">
-                    <div className="avatar">{initial}</div>
-                    <div className="ub-meta">
-                        <div className="u-name">{user.name}</div>
-                        <div className="u-role">
-                            {user.isAdmin ? t("shell.role.admin") : firstAllowedTab(user) ? t("shell.role.limited") : t("shell.role.none")}
+        <ContentVersionProvider content={content}>
+            <div className="app">
+                <aside className={`side${menuOpen ? " open" : ""}`}>
+                    {/* The crest is the way home: "/" is the dashboard, or — for an
+                        account without dashboard access — App.tsx's redirect to the
+                        first section that account may open. The menu closes on the
+                        click like a nav item, so on a phone the page shows. The
+                        crest stays a line icon: it is the brand, not a game thing. */}
+                    <Link className="brand" to="/" aria-label={t("shell.toHome")} onClick={() => setMenuOpen(false)}>
+                        <div className="crest"><CrestIcon /></div>
+                        <div>
+                            <div className="brand-name">EventHelper</div>
+                            {/* Not "Gilden-Admin": most people in here are members
+                                looking up loot, not officers. */}
+                            <div className="brand-sub">{t("shell.brandSub")}</div>
                         </div>
-                    </div>
-                    {/* A real link, not a button: logging out is a navigation to
-                        the server, and it has to work without any script state. */}
-                    <a className="ibtn sm u-logout" href="/auth/logout" aria-label={t("shell.logout")} data-tip={t("shell.logout")} data-tip-sub={t("shell.logoutSub")}>
-                        <LogoutIcon />
-                    </a>
-                </div>
-            </aside>
-            <div className="main">
-                <header className="topbar">
-                    <IconButton className="menu-toggle" icon={<BurgerIcon />} tip={t("shell.menuToggle")} onClick={() => setMenuOpen((o) => !o)} />
-                    <div className="crumbs">
-                        <Link to="/">{t("shell.crumb.menu")}</Link> <span className="crumb-sep">/</span>{" "}
-                        {crumb && tab ? <Link to={tab.href}>{label}</Link> : <b>{label}</b>}
-                        {crumb && <> <span className="crumb-sep">/</span> <b>{crumb}</b></>}
-                    </div>
-                    <div className="top-actions">
-                        <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} />
-                        <ViewAsButton user={user} />
-                        {/* A real link, not a button: it leaves the SPA for the
-                            server-rendered docs page (src/web/docsPage.js). */}
-                        <a className="ibtn" href="/docs" aria-label={t("shell.docs")} data-tip={t("shell.docs")}>
-                            <BookIcon />
+                    </Link>
+                    <AdminNav user={user} onNavigate={() => setMenuOpen(false)} />
+                    <DeployLine user={user} />
+                    <div className="side-foot">
+                        <div className="avatar">{initial}</div>
+                        <div className="ub-meta">
+                            <div className="u-name">{user.name}</div>
+                            <div className="u-role">
+                                {user.isAdmin ? t("shell.role.admin") : firstAllowedTab(user) ? t("shell.role.limited") : t("shell.role.none")}
+                            </div>
+                        </div>
+                        {/* A real link, not a button: logging out is a navigation to
+                            the server, and it has to work without any script state. */}
+                        <a className="ibtn sm u-logout" href="/auth/logout" aria-label={t("shell.logout")} data-tip={t("shell.logout")} data-tip-sub={t("shell.logoutSub")}>
+                            <LogoutIcon />
                         </a>
-                        <LangToggle account />
-                        <ThemeToggle />
                     </div>
-                </header>
-                <div className="content" key={lang}>
-                    {/* While an admin looks at the menu as a role: which one, and the way back. */}
-                    <ViewAsBanner user={user} />
-                    {/* Every page is its own chunk (App.tsx, #436): while one loads,
-                        the menu stays and only the page body shows the loader. A chunk
-                        that cannot be loaded (after a deploy, #530) shows the reload
-                        notice there too, and the next page tries again. */}
-                    <ChunkErrorBoundary resetKey={location.pathname}>
-                        <Suspense fallback={<RaidLoader />}>
-                            <Outlet context={{ user } satisfies ShellContext} />
-                        </Suspense>
-                    </ChunkErrorBoundary>
+                </aside>
+                <div className="main">
+                    <header className="topbar">
+                        <IconButton className="menu-toggle" icon={<BurgerIcon />} tip={t("shell.menuToggle")} onClick={() => setMenuOpen((o) => !o)} />
+                        <div className="crumbs">
+                            <Link to="/">{t("shell.crumb.menu")}</Link> <span className="crumb-sep">/</span>{" "}
+                            {crumb && tab ? <Link to={tab.href}>{label}</Link> : <b>{label}</b>}
+                            {crumb && <> <span className="crumb-sep">/</span> <b>{crumb}</b></>}
+                        </div>
+                        <div className="top-actions">
+                            <ContentSwitch />
+                            <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} />
+                            <ViewAsButton user={user} />
+                            {/* A real link, not a button: it leaves the SPA for the
+                                server-rendered docs page (src/web/docsPage.js). */}
+                            <a className="ibtn" href="/docs" aria-label={t("shell.docs")} data-tip={t("shell.docs")}>
+                                <BookIcon />
+                            </a>
+                            <LangToggle account />
+                            <ThemeToggle />
+                        </div>
+                    </header>
+                    <div className="content" key={lang}>
+                        {/* While an admin looks at the menu as a role: which one, and the way back. */}
+                        <ViewAsBanner user={user} />
+                        {/* Every page is its own chunk (App.tsx, #436): while one loads,
+                            the menu stays and only the page body shows the loader. A chunk
+                            that cannot be loaded (after a deploy, #530) shows the reload
+                            notice there too, and the next page tries again. */}
+                        <ChunkErrorBoundary resetKey={location.pathname}>
+                            <Suspense fallback={<RaidLoader />}>
+                                <Outlet context={{ user } satisfies ShellContext} />
+                            </Suspense>
+                        </ChunkErrorBoundary>
+                    </div>
                 </div>
+                <TipLayer />
             </div>
-            <TipLayer />
-        </div>
+        </ContentVersionProvider>
     );
 }

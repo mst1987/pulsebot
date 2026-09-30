@@ -243,6 +243,8 @@ export type RaidplanPublic = {
     me: string;
     /** every player of the approved setup that is the visitor's: their own account and the characters of their raider profile */
     meIds: string[];
+    /** An event of a hidden game version (#563): the plan stays readable, with the archive banner. */
+    archived?: { versionId: string; label: string; short: string } | null;
     catalog: Catalog;
     loggedIn: boolean;
 };

@@ -12,7 +12,9 @@ import { render, type RenderResult } from "@testing-library/react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom";
 import { JobsProvider } from "../components/Jobs";
 import { ConfirmProvider } from "../components/ui/Modal";
-import type { SessionUser } from "../api";
+import type { ContentInfo, SessionUser } from "../api";
+import ContentVersionProvider from "../components/ContentVersionProvider";
+import ContentSwitch from "../components/ContentSwitch";
 
 /** A full admin: every area open. Override fields to test a narrower account. */
 export function adminUser(over: Partial<SessionUser> = {}): SessionUser {
@@ -26,10 +28,16 @@ export type RenderPageOptions = {
     path?: string;
     /** The signed-in account the shell would pass down. */
     user?: SessionUser;
+    /**
+     * The menu's content switch (#563): with it the page sits inside the
+     * ContentVersionProvider and the switch is rendered above it, like the
+     * shell's top bar; without it the page reads "" (the server's main version).
+     */
+    content?: ContentInfo;
 };
 
-export function renderPage(ui: ReactElement, { route = "/", path = "*", user = adminUser() }: RenderPageOptions = {}): RenderResult {
-    return render(
+export function renderPage(ui: ReactElement, { route = "/", path = "*", user = adminUser(), content }: RenderPageOptions = {}): RenderResult {
+    const page = (
         <JobsProvider>
             <ConfirmProvider>
                 <MemoryRouter initialEntries={[route]}>
@@ -40,6 +48,25 @@ export function renderPage(ui: ReactElement, { route = "/", path = "*", user = a
                     </Routes>
                 </MemoryRouter>
             </ConfirmProvider>
-        </JobsProvider>,
+        </JobsProvider>
+    );
+    if (!content) return render(page);
+    return render(
+        <ContentVersionProvider content={content}>
+            <ContentSwitch />
+            {page}
+        </ContentVersionProvider>,
     );
 }
+
+/** The content switch of a guild with TBC (main) and Forever data (#563); `over` changes single fields. */
+export function twoVersions(over: Partial<ContentInfo> = {}): ContentInfo {
+    return {
+        mainVersion: "tbc", hideOtherVersions: false,
+        versions: [{ id: "tbc", label: "WoW TBC", short: "TBC" }, { id: "forever", label: "WoW Forever", short: "Forever" }],
+        ...over,
+    };
+}
+
+/** The radio group of the content switch (the wide segment; the phone chip opens a second one). */
+export const CONTENT_ARIA = "shell.content.aria";

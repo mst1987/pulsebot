@@ -13,7 +13,7 @@ import { t } from "../i18n";
 import { proposeComposition } from "../lib/raidTemplates";
 import { requireBackend } from "../test/backend";
 import { switchLang } from "../test/i18n";
-import { adminUser, renderPage } from "../test/render";
+import { adminUser, CONTENT_ARIA, renderPage, twoVersions } from "../test/render";
 import RaidTemplatesPage from "./RaidTemplatesPage";
 
 vi.mock("../api/client", async (orig) => ({ ...(await orig<typeof import("../api/client")>()), get: vi.fn(), send: vi.fn() }));
@@ -74,20 +74,20 @@ describe("the Raid-Vorlagen list", () => {
         expect(within(old).getByText("Tanks").nextSibling).toHaveTextContent("–");
     });
 
-    it("defaults to the main version and filters by game version, remembered (#545)", async () => {
+    it("shows the templates of the menu's content version, the main one by default (#563)", async () => {
+        localStorage.removeItem("eh-content-version");
         const user = userEvent.setup();
-        const view = await show();
-        // The main version (tbc) is the default filter: Ony (classic) starts hidden.
+        renderPage(<RaidTemplatesPage />, {
+            route: "/raids/raid-templates",
+            content: twoVersions({ versions: [{ id: "tbc", label: "TBC", short: "TBC" }, { id: "classic", label: "Classic Era", short: "Classic" }] }),
+        });
+        await screen.findByRole("heading", { name: "Raid-Vorlagen" });
+        // The main version (tbc) first: Ony (classic) starts hidden, and the page has no filter of its own.
         expect(rowNames()).toEqual(["Kara Donnerstag", "Altes Raid-Helper-Event"]);
-        const filter = screen.getAllByRole("radiogroup", { name: "Spielversion" })[0];
-        // "Forever" has no template and is not the main version: not offered.
-        expect(within(filter).queryByRole("radio", { name: /forever/i })).not.toBeInTheDocument();
-        await user.click(within(filter).getByRole("radio", { name: t("common.all") }));
-        expect(rowNames()).toEqual(["Kara Donnerstag", "Ony", "Altes Raid-Helper-Event"]);
-
-        view.unmount();
-        await show();
-        expect(rowNames()).toEqual(["Kara Donnerstag", "Ony", "Altes Raid-Helper-Event"]);
+        expect(screen.queryByRole("radiogroup", { name: "Spielversion" })).not.toBeInTheDocument();
+        await user.click(within(screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0]).getByRole("radio", { name: /Classic/ }));
+        expect(rowNames()).toEqual(["Ony"]);
+        localStorage.removeItem("eh-content-version");
     });
 });
 

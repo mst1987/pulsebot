@@ -10,7 +10,13 @@
 // signup that carries its own `versionId` keeps it, whatever the setting says
 // later; a record stored before versions existed is LEGACY_VERSION (TBC), not
 // the main version of today (config/gameVersions).
-const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+//
+// "Andere Versionen ausblenden" (#563, config.hideOtherVersions): while it is
+// on, every list and selection list shows only the main version —
+// visibleVersions() / isVersionVisible() are the one question they ask, and
+// resolveVersionQuery() ignores a `?version=` of another one. A direct link to
+// an event of a hidden version still opens it, read only (eventArchive.js).
+const { rulesFor, DEFAULT_VERSION, VERSIONS } = require("../../config/gameVersions");
 
 /** `id` when a rule set has it, else "". */
 function knownVersion(id) {
@@ -72,7 +78,10 @@ function rulesForEvent(event, opts) {
  * @returns {{ versionId: string, mainVersion: string }}  versionId "" = all
  */
 function resolveVersionQuery(raw, { config } = {}) {
-    const mainVersion = mainVersionFor({ config });
+    const cfg = configOf(config);
+    const mainVersion = mainVersionFor({ config: cfg });
+    // Other versions hidden (#563): the main version, whatever was asked.
+    if (hidesOtherVersions(cfg)) return { versionId: mainVersion, mainVersion };
     const key = String(raw || "").trim();
     if (key === "all") return { versionId: "", mainVersion };
     return { versionId: knownVersion(key) || mainVersion, mainVersion };
@@ -87,6 +96,50 @@ function classesOfVersion(versionId, { config } = {}) {
     return rules.classes.map((c) => ({ id: c.id, label: c.label, color: c.color, icon: c.icon }));
 }
 
+/** Whether the orga hid every version but the main one (#563). */
+function hidesOtherVersions(config) {
+    return configOf(config).hideOtherVersions === true;
+}
+
+/**
+ * The versions a list may show (#563): every version, or only the main one
+ * while the other versions are hidden.
+ * @returns {string[]} version ids in rule-set order
+ */
+function visibleVersions(config) {
+    const cfg = configOf(config);
+    if (!hidesOtherVersions(cfg)) return VERSIONS.map((v) => v.id);
+    return [mainVersionFor({ config: cfg })];
+}
+
+/** Whether a version is shown; an unknown or missing id counts as the main version. */
+function isVersionVisible(versionId, config) {
+    const cfg = configOf(config);
+    return visibleVersions(cfg).includes(knownVersion(versionId) || mainVersionFor({ config: cfg }));
+}
+
+/**
+ * `rows` without those of a hidden version (#563) — the same array while
+ * nothing is hidden. `versionOf(row)` names a row's version; an unknown or
+ * missing one counts as the main version.
+ * @template T
+ * @param {T[]} rows
+ * @param {(row: T) => string} versionOf
+ * @returns {T[]}
+ */
+function visibleRows(rows, versionOf, config) {
+    const cfg = configOf(config);
+    if (!hidesOtherVersions(cfg)) return rows;
+    return (rows || []).filter((r) => isVersionVisible(versionOf(r), cfg));
+}
+
+/** Every version but the main one: what the switch hides and the archive export carries. */
+function otherVersions(config) {
+    const main = mainVersionFor({ config });
+    return VERSIONS.map((v) => v.id).filter((id) => id !== main);
+}
+
 module.exports = {
     mainVersionFor, versionOfEvent, rulesForEvent, classesOfVersion, knownVersion, resolveVersionQuery,
+    hidesOtherVersions, visibleVersions, isVersionVisible, visibleRows, otherVersions,
 };

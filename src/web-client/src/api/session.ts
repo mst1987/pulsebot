@@ -23,12 +23,18 @@ export type ViewAsRole = { id: string; name: string; color: string; admin: boole
 /** "event" | "talk" = the server's fixed role from Einstellungen → Discord-Server, "" = none. */
 export type GuildRole = "event" | "talk" | "";
 export type SessionGuild = { id: string; name: string; role?: GuildRole };
+/** A game version the content switch offers (#563). */
+export type ContentVersionRef = { id: string; label: string; short: string };
+/** The content switch of the menu (#563): main version, whether the others are hidden, the versions offered (main first). */
+export type ContentInfo = { mainVersion: string; hideOtherVersions: boolean; versions: ContentVersionRef[] };
 export type Session = {
     user: SessionUser | null;
     csrfToken: string | null;
     areas: Area[];
     guilds: SessionGuild[];
     activeGuildId: string;
+    /** null for a caller without menu access; missing from an older server. */
+    content?: ContentInfo | null;
 };
 
 /** The session — and, as a side effect, the CSRF token every send() from now on carries (csrf.ts). */

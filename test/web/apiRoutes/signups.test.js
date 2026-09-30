@@ -189,6 +189,15 @@ describe("GET /api/signups", () => {
 });
 
 describe("PUT /api/signups", () => {
+    it("weist ein Event einer ausgeblendeten Spielversion mit 409 ab (#563)", async () => {
+        mockConfig = { mainVersion: "forever", hideOtherVersions: true };
+        const res = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", status: "signed" } });
+        expect(status(res)).toBe(409);
+        expect(json(res).error.code).toBe("archived");
+        expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(false);
+        mockConfig = {};
+    });
+
     it("schreibt nur die eigene Anmeldung, auch wenn der Body ein anderes Konto nennt", async () => {
         const res = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", userId: BERT.id, character: "Nerathil", spec: "Mage-Arcane", status: "signed" } });
         expect(status(res)).toBe(200);

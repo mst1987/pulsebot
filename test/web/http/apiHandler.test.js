@@ -10,6 +10,14 @@ jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => mockUser),
     checkCsrf: jest.fn(() => mockCsrf),
 }));
+// The write guard of an archived event (#563): steered per test.
+let mockArchived = new Set();
+jest.mock("../../../src/services/events/eventArchive", () => ({
+    archivedRefusal: jest.fn((ids) => {
+        const hit = [].concat(ids || []).find((id) => mockArchived.has(id));
+        return hit ? { status: 409, code: "archived", message: `Archiv: ${hit}` } : null;
+    }),
+}));
 
 const { withUser } = require("../../../src/web/http/apiHandler");
 const { emptyAccess } = require("../../../src/config/permissions");
@@ -149,5 +157,38 @@ describe("web/http/apiHandler withUser", () => {
         const fn = jest.fn(({ res }) => res.end("{}"));
         await call(withUser(fn), { method: "GET" });
         expect(fn).toHaveBeenCalledTimes(1);
+    });
+});
+
+// `archived` (#563): a write on an event of a hidden game version is refused
+// before the handler runs; everything else passes.
+describe("web/http/apiHandler withUser archived", () => {
+    beforeEach(() => {
+        mockUser = admin;
+        mockCsrf = true;
+        mockArchived = new Set(["old"]);
+    });
+
+    it("answers 409 archived for an archived event and never calls the handler", async () => {
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        const res = await call(withUser({ csrf: true, body: true, archived: (body) => body.event }, fn), { json: { event: "old" } });
+        expect(status(res)).toBe(409);
+        expect(sent(res).error).toMatchObject({ code: "archived", message: "Archiv: old" });
+        expect(fn).not.toHaveBeenCalled();
+    });
+
+    it("lets a normal event and a list without an archived one through", async () => {
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        await call(withUser({ csrf: true, body: true, archived: (body) => body.event }, fn), { json: { event: "new" } });
+        await call(withUser({ csrf: true, body: true, archived: (body) => body.ids }, fn), { json: { ids: ["a", "b"] } });
+        expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    it("can read the event from the query", async () => {
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        const url = new URL("http://x/api/thing?event=old");
+        const res = await call(withUser({ csrf: true, archived: (_body, query) => query.get("event") }, fn), { url });
+        expect(status(res)).toBe(409);
+        expect(fn).not.toHaveBeenCalled();
     });
 });

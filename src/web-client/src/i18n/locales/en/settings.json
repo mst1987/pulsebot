@@ -103,7 +103,21 @@
         "categoriesSub": "A category that plays another version than the main one. “Main version” follows the setting above.",
         "followMain": "Main version ({version})",
         "categoryAria": "Game version of {name}",
-        "noCategories": "No active category yet – switch one on under Categories."
+        "noCategories": "No active category yet – switch one on under Categories.",
+        "hideOthers": "Hide other versions",
+        "hideOthersText": "Everybody only sees {version}. {others} disappears from lists, loot, history, roster, catalogue, templates and pickers. Nothing is deleted, switching it off brings everything back.",
+        "hideOthersNone": "Other versions",
+        "upcoming": {
+            "one": "There is still 1 upcoming raid of another version ({dates}). It will be hidden but stays reachable through its Discord link – read only.",
+            "other": "There are still {count} upcoming raids of other versions ({dates}). They will be hidden but stay reachable through their Discord link – read only."
+        },
+        "export": "Export {versions} archive (loot, attendance)",
+        "exportTip": "Export archive",
+        "exportSub": "Loot history and attendance of every version but the main one as a CSV file. Admins only.",
+        "exportJson": "as JSON",
+        "preview": "This is how the top bar looks",
+        "previewOn": "Hidden: no switch anymore, only a quiet hint which version is active.",
+        "previewOff": "Not hidden: everybody can switch between the versions at the top, the choice is remembered per user."
     },
     "level": {
         "none": "off",
@@ -140,6 +154,8 @@
         "topItems": "Top items",
         "mainVersion": "Main version → {value}",
         "categoryVersion": "{name} · Game version → {value}",
+        "hideOtherOn": "Hide other versions on",
+        "hideOtherOff": "Hide other versions off",
         "followMain": "main version",
         "versionSettings": "Links and armory · {value}"
     },

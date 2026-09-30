@@ -38,6 +38,7 @@ import PageLoader from "../../components/PageLoader";
 import { Button, PageHead, useConfirm } from "../../components/ui";
 import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
 import { WowheadPathProvider } from "../../lib/versionLinks";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import FilterBar from "./FilterBar";
 import RaiderDialog, { ExportDialog } from "./RaiderDialog";
 import "../../styles/loot-council.css";
@@ -49,11 +50,13 @@ import { BisListsTab } from "./BisListsTab";
 import { CompareTab } from "./CompareTab";
 
 const VIEW_DEFAULT: View = {
-    role: "caster", tiers: [], contents: [], category: "", bisTier: "", version: "", tab: "roster",
+    role: "caster", tiers: [], contents: [], category: "", bisTier: "", tab: "roster",
     listTier: "t6", listOff: [], listFocus: 0, cmpOff: [],
 };
 
 export default function LootCouncilPage() {
+    // The game version of the raiders shown (#563): the menu's content switch.
+    const { version: contentVersion } = useContentVersion();
     const { user } = useOutletContext<ShellContext>();
     // Setting a raider aside is an action on the server, so it takes write.
     const canWrite = canAccess(user, "lootcouncil", "write");
@@ -100,7 +103,7 @@ export default function LootCouncilPage() {
             contents: view.contents,
             category: view.category,
             bisTier: view.bisTier,
-            version: view.version,
+            version: contentVersion,
         });
         const request = loaded.current
             ? jobs.run({ label: t("lootcouncil.page.loading"), quiet: true }, fetchData)
@@ -111,7 +114,7 @@ export default function LootCouncilPage() {
                 return d;
             })
             .finally(() => setLoading(false));
-    }, [view.role, view.tiers, view.contents, view.category, view.bisTier, view.version, jobs, t]);
+    }, [view.role, view.tiers, view.contents, view.category, view.bisTier, contentVersion, jobs, t]);
 
     /** Everything that depends on the raiders' data — every gear-changing action goes through here. */
     const reloadAll = useCallback(async () => load(), [load]);
@@ -122,7 +125,7 @@ export default function LootCouncilPage() {
 
     // A changed filter changes which raiders and items were simulated, so the
     // old results no longer describe what is on screen.
-    useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.bisTier, view.version, setSim]);
+    useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.bisTier, contentVersion, setSim]);
 
     const patch = (next: Partial<View>) => setView({ ...view, ...next });
 

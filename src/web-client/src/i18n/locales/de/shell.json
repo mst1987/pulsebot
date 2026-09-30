@@ -1,4 +1,17 @@
 {
+    "content": {
+        "aria": "Content: Spielversion für das ganze Menü",
+        "chipAria": "Content {version}, tippen zum Wechseln",
+        "panel": "Content",
+        "hiddenTip": "Andere Versionen sind ausgeblendet",
+        "hiddenSub": "Einstellungen → Spielversion. Nichts wurde gelöscht."
+    },
+    "archive": {
+        "title": "Archiv · {version}",
+        "text": "Diese Version ist ausgeblendet. Du siehst das Event, weil du einen direkten Link geöffnet hast; es taucht in keiner Liste auf.",
+        "textPublic": "Diese Version ist ausgeblendet. Der Raidplan bleibt über den Link lesbar.",
+        "readOnly": "Nur lesen"
+    },
     "brandSub": "Gildenmenü",
     "toHome": "Zur Übersicht",
     "menu": {

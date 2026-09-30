@@ -1,4 +1,17 @@
 {
+    "content": {
+        "aria": "Content: game version for the whole menu",
+        "chipAria": "Content {version}, tap to switch",
+        "panel": "Content",
+        "hiddenTip": "Other versions are hidden",
+        "hiddenSub": "Settings → Game version. Nothing was deleted."
+    },
+    "archive": {
+        "title": "Archive · {version}",
+        "text": "This version is hidden. You see the event because you opened a direct link; it shows up in no list.",
+        "textPublic": "This version is hidden. The raid plan stays readable through the link.",
+        "readOnly": "Read only"
+    },
     "brandSub": "Guild menu",
     "toHome": "Go to overview",
     "menu": {

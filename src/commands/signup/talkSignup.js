@@ -2,6 +2,7 @@ const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("
 const linkCheck = require("../../services/discord/linkCheck");
 const { getStoredEvent } = require("../../services/events/eventSources");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
+const { archivedNotice } = require("../../services/events/eventArchive");
 const { SELECT_ID } = require("../../services/talk/talkOverview");
 const guildRoles = require("../../services/discord/guildRoles");
 const { checkRaiderRole } = require("../../services/signups/signupService");
@@ -25,6 +26,8 @@ module.exports = {
         if (isOwnEventId(eventId)) {
             const event = getEvent(eventId);
             if (!event) return interaction.reply(answerPayload("This event no longer exists."));
+            const archived = archivedNotice(event);
+            if (archived) return interaction.reply(answerPayload(archived, { event }));
             // The overview is one message for everybody, so it cannot leave out a raid
             // the member may not join — the raider-role rule answers here instead.
             const access = await checkRaiderRole(event, interaction.user.id);

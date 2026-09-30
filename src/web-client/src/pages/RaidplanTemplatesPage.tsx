@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Copy, RotateCw, Search, Settings2, Trash2 } from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
@@ -37,7 +37,7 @@ import type { MapRow } from "./raid-detail/raidplan/MapPanel";
 import { useDraftHistory } from "./raid-detail/raidplan/useDraftHistory";
 import "../styles/raidplan/index.css";
 import RaidplanBoundary from "../components/raidplan/RaidplanBoundary";
-import Segment from "../components/ui/Segment";
+import { useContentVersion } from "../hooks/useContentVersion";
 import { ofVersion } from "../lib/raidplan/versions";
 
 type Fields = { name: string; category: string; description: string; guildId: string; versionId: string; instanceIds: string[]; size: number; counts: BesetzungCounts | null };
@@ -64,7 +64,8 @@ export default function RaidplanTemplatesPage() {
     // the game versions (#544): the list shows one at a time, the main version first (/api/game-versions' defaultVersion, a setting with #541)
     const [versions, setVersions] = useState<GameVersion[]>([]);
     const [mainVersion, setMainVersion] = useState("tbc");
-    const [picked, setPicked] = useState("");
+    // The game version shown (#563): the menu's content switch.
+    const { version: picked } = useContentVersion();
     const [guilds, setGuilds] = useState<SessionGuild[]>([]);
     const [profiles, setProfiles] = useState<RaidplanProfile[]>([]);
     // One round trip for the page: the templates are its data, the rest is read along with them.
@@ -99,14 +100,6 @@ export default function RaidplanTemplatesPage() {
     return (
         <TemplateList
             templates={ofVersion(templates, shownVersion)} version={versionOf(shownVersion)} versionOf={versionOf} guilds={guilds} canWrite={canWrite}
-            switcher={versions.length > 1 ? (
-                <div className="rp-catversion">
-                    <Segment
-                        ariaLabel={t("planTemplates.versionSwitch")} value={shownVersion} onChange={setPicked}
-                        options={versions.map((v) => ({ value: v.id, label: `${v.short} · ${ofVersion(templates, v.id).length}`, tip: v.label }))}
-                    />
-                </div>
-            ) : null}
             isNew={editor.isNew} onNew={editor.startNew} onCloseNew={editor.close} onOpen={editor.startEdit} onTemplates={setTemplates}
         />
     );
@@ -157,14 +150,13 @@ function TemplateThumb({ tpl }: { tpl: RaidplanTemplate }) {
 }
 
 /** The overview: search and filters, then one card per template — newest change first. */
-function TemplateList({ templates, version, versionOf, switcher, guilds, canWrite, isNew, onNew, onCloseNew, onOpen, onTemplates }: {
+function TemplateList({ templates, version, versionOf, guilds, canWrite, isNew, onNew, onCloseNew, onOpen, onTemplates }: {
     /** the templates of the version shown (#544) */
     templates: RaidplanTemplate[];
     /** the game version shown: its instances, and the version a new template is made for */
     version: GameVersion | null;
     versionOf: (id: string) => GameVersion | null;
     /** the version switch (null with a single version) */
-    switcher: ReactNode;
     guilds: SessionGuild[];
     canWrite: boolean;
     isNew: boolean;
@@ -220,12 +212,11 @@ function TemplateList({ templates, version, versionOf, switcher, guilds, canWrit
                 action={canWrite ? <Button onClick={onNew}>{t("planTemplates.new")}</Button> : undefined}
             />
             <p className="rp-muted">{t("planTemplates.intro")}</p>
-            {switcher}
 
             {templates.length === 0 ? (
                 <div className="rp-empty">
                     <WowIcon name="inv_misc_map02" size={40} />
-                    <strong>{switcher && version ? t("planTemplates.noneOfVersion", { version: version.short }) : t("planTemplates.emptyTitle")}</strong>
+                    <strong>{version ? t("planTemplates.noneOfVersion", { version: version.short }) : t("planTemplates.emptyTitle")}</strong>
                     <p className="rp-muted">{t("planTemplates.empty")}</p>
                     {canWrite && <Button onClick={onNew}>{t("planTemplates.new")}</Button>}
                 </div>

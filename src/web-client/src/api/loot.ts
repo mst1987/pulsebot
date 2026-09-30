@@ -90,8 +90,9 @@ export type LootStats = {
     unknownContentCount: number;
 };
 
-export function getLootStats(): Promise<LootStats> {
-    return get<LootStats>("/api/history/loot-stats");
+/** `version` (#563): the menu's content version, "" = the server's main version. */
+export function getLootStats(version = ""): Promise<LootStats> {
+    return get<LootStats>(`/api/history/loot-stats${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 // One page of the "Latest Loot" tab. The rows are the same awards the dashboard
@@ -105,6 +106,8 @@ export type LootAwardsQuery = {
     content: string;
     reason: string;
     page: number;
+    /** The menu's content version (#563), "" = the server's main version. */
+    version?: string;
 };
 
 export type LootAwardsData = {
@@ -129,6 +132,7 @@ export function getLootAwards(q: LootAwardsQuery): Promise<LootAwardsData> {
         reason: q.reason,
         page: String(q.page),
     });
+    if (q.version) qs.set("version", q.version);
     return get<LootAwardsData>(`/api/history/loot-awards?${qs.toString()}`);
 }
 

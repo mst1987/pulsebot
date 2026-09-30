@@ -74,6 +74,17 @@ beforeEach(() => {
 });
 
 describe("submitSignup", () => {
+    it("lehnt ein Event einer ausgeblendeten Spielversion ab (#563) und speichert nichts", async () => {
+        mockConfig = { mainVersion: "forever", hideOtherVersions: true };
+        const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW });
+        expect(res.code).toBe("archived");
+        expect(res.error).toContain("archiviert");
+        expect(mockChanged).not.toHaveBeenCalled();
+        // the raider reads it in English
+        const { toEnglish } = require("../../../src/utils/signup/botEnglish");
+        expect(toEnglish(res.error)).toBe("This raid is archived (TBC Anniversary is no longer shown) – signups are closed.");
+    });
+
     it("meldet mit Charakter und Spec aus dem Profil an und löst das Änderungsereignis aus", async () => {
         const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed", comment: "komme pünktlich" }, { now: NOW });
         expect(res.error).toBeUndefined();

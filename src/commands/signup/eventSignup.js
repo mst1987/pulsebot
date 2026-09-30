@@ -1,5 +1,6 @@
 const { MessageFlags } = require("discord.js");
 const { getEvent } = require("../../stores/eventStore");
+const { archivedNotice } = require("../../services/events/eventArchive");
 const { SIGNUP_BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { checkRaiderRole } = require("../../services/signups/signupService");
 const { buildSignupDialog } = require("../../utils/signup/signupDialog");
@@ -20,6 +21,8 @@ module.exports = {
         const eventId = String(interaction.customId || "").split(":")[1] || "";
         const event = getEvent(eventId);
         if (!event) return interaction.reply(answerPayload("This event no longer exists."));
+        const archived = archivedNotice(event);
+        if (archived) return interaction.reply(answerPayload(archived, { event }));
         const access = await checkRaiderRole(event, interaction.user.id);
         if (access.error) return interaction.reply(answerPayload(access.error, { event }));
         return interaction.reply({ ...buildSignupDialog(event, interaction.user.id), flags: MessageFlags.Ephemeral });

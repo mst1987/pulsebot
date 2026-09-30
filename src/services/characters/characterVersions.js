@@ -12,7 +12,7 @@
 // A character with no evidence at all is TBC (LEGACY_VERSION), what everything
 // before versions was.
 const { LEGACY_VERSION, VERSIONS } = require("../../config/gameVersions");
-const { knownVersion, mainVersionFor } = require("../events/mainVersion");
+const { knownVersion, mainVersionFor, visibleVersions } = require("../events/mainVersion");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
 const profiles = require("../../stores/raiderProfileStore");
 const eventStore = require("../../stores/eventStore");
@@ -62,10 +62,13 @@ function versionsOfCharacter(ctx, { name, items = [], categoryIds = [] }) {
  * The version picker of a list: every version that has characters, plus the
  * main version (the default filter), each `{ id, label, short, count }`.
  */
-function versionChoices(rows, mainVersion) {
+function versionChoices(rows, mainVersion, { config } = {}) {
     const counts = new Map();
     for (const r of rows) for (const v of r.versionIds || []) counts.set(v, (counts.get(v) || 0) + 1);
+    // Other versions hidden (#563): never offered, whatever rows there are.
+    const visible = new Set(visibleVersions(config));
     return VERSIONS
+        .filter((v) => visible.has(v.id))
         .filter((v) => counts.has(v.id) || v.id === mainVersion)
         .map((v) => ({ id: v.id, label: v.label, short: v.short || v.label, count: counts.get(v.id) || 0 }));
 }

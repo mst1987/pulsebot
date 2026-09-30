@@ -339,3 +339,17 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 }
 .savebar b { font-size: 14.5px; white-space: nowrap; }
 .savebar-list { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; cursor: default; }
+
+/* ===== Spielversion: "Andere Versionen ausblenden" (#563) ===== */
+.gv-hide { margin-top: 16px; }
+.gv-hide-row { display: flex; align-items: flex-start; gap: 14px; }
+.gv-hide-row .switch { margin-top: 2px; }
+.gv-hide-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.gv-hide-text .field-label label { font-size: 15.5px; font-weight: 700; }
+.gv-hide-warn { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; background: var(--archive-bg); border: 1px solid var(--archive-line); color: var(--archive-text); }
+.gv-hide-warn p { margin: 0; font-size: 13.5px; line-height: 1.55; }
+.gv-hide-warn-icon { width: 18px; height: 18px; flex: 0 0 auto; color: var(--archive-ink); }
+.gv-hide-export { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.gv-hide-export-icon { width: 16px; height: 16px; flex: 0 0 auto; }
+.gv-hide-preview { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.gv-hide-bar { display: flex; align-items: center; min-height: 52px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }
