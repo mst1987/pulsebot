@@ -237,6 +237,41 @@ async function listMembersWithRoles(guildId, roleIds = []) {
     }
 }
 
+/** A member's avatar URL (server avatar, else the account's), null when none can be built. */
+function avatarUrlOf(member) {
+    try {
+        return typeof member.displayAvatarURL === "function" ? member.displayAvatarURL({ size: 64 }) || null : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Every human (non-bot) member of a guild, for the Kaderplaner
+ * (docs/kaderplaner.md). Same cached full fetch as listMembersWithRoles(), so it
+ * needs the GuildMembers intent too; a failure comes back as `error` with an
+ * empty list, never thrown.
+ * @returns {Promise<{ members: {id:string, displayName:string, avatarUrl:string|null}[], error: string|null }>}
+ */
+async function listHumanMembers(guildId) {
+    const guild = getGuild(guildId);
+    if (!guild) return { members: [], error: "Server nicht gefunden oder Bot nicht verbunden." };
+    try {
+        const all = await fetchGuildMembersCached(guildId, guild);
+        const members = all
+            .filter((m) => m && m.user && !m.user.bot)
+            .map((m) => ({
+                id: m.id,
+                displayName: m.displayName || m.user.globalName || m.user.username || m.id,
+                avatarUrl: avatarUrlOf(m),
+            }))
+            .sort((a, b) => a.displayName.localeCompare(b.displayName));
+        return { members, error: null };
+    } catch (e) {
+        return { members: [], error: (e && e.message) || "Mitglieder konnten nicht geladen werden (GuildMembers-Intent aktiv?)." };
+    }
+}
+
 /**
  * Ping the given users in a channel, asking them to sign up or off for an event.
  * The mentions live in the plain content so they actually notify; allowedMentions
@@ -924,7 +959,7 @@ module.exports = {
     memberRoleIds,
     listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
-    listMembersWithRoles, postMissingPing, postNotice, channelVisible, mentionChunks, _resetMembersCacheForTests,
+    listMembersWithRoles, listHumanMembers, postMissingPing, postNotice, channelVisible, mentionChunks, _resetMembersCacheForTests,
     fetchGuildMembersCached, botPermissionsIn, REQUIRED_BOT_PERMISSIONS,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,

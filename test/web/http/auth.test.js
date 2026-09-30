@@ -522,6 +522,18 @@ describe("web/http/auth", () => {
                 expect(auth.getUser(req).access.lootcouncil).toEqual({ read: true, write: true });
             });
 
+            // The Kaderplaner is handed to named people only (docs/kaderplaner.md).
+            it("opens the Kaderplaner to exactly the named account", async () => {
+                getConfig.mockImplementation(() => ({
+                    adminRoleIds: [], rolePermissions: {}, baseAccess: { loot: { read: true } },
+                    userPermissions: { "617": { kader: { read: true, write: true } } },
+                }));
+                const mine = await loginAs("617");
+                expect(auth.getUser(mine.req).access.kader).toEqual({ read: true, write: true });
+                const other = await loginAs("618");
+                expect(auth.getUser(other.req).access.kader).toEqual({ read: false, write: false });
+            });
+
             it("unions with the role grants instead of replacing them", async () => {
                 getConfig.mockImplementation(() => ({
                     adminRoleIds: [],

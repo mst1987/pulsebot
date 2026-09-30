@@ -193,5 +193,18 @@
   "PUT /api/raids/series",
   "PUT /api/raids/setup",
   "PUT /api/raids/setup/signup",
-  "PUT /api/signups"
+  "PUT /api/signups",
+  "GET /api/kader",
+  "POST /api/kader/accounts",
+  "POST /api/kader/accounts/remove",
+  "PUT /api/kader/assignments",
+  "POST /api/kader/assignments/reset",
+  "POST /api/kader/rosters",
+  "PUT /api/kader/rosters",
+  "POST /api/kader/rosters/delete",
+  "POST /api/kader/rosters/place",
+  "POST /api/kader/variants",
+  "PUT /api/kader/variants",
+  "POST /api/kader/variants/delete",
+  "POST /api/kader/variants/auto"
 ]

@@ -301,6 +301,10 @@
             "label": "Loot council",
             "description": "Caster overview for the loot council: awarded items per content, BiS gaps and upgrade suggestions."
         },
+        "kader": {
+            "label": "Roster planner",
+            "description": "Plan raid rosters for WoW Forever: player pool, a roster per raid, group setups. Assignments only apply inside the planner; the raider profile stays unchanged."
+        },
         "channels": {
             "label": "Channels",
             "description": "Create and duplicate Discord channels."

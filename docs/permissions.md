@@ -20,6 +20,8 @@ Access is **per area** (one admin-menu section) and **per level** (`read` = open
 
 **Rights can also go to one named account**, not just to a role: `config.userPermissions` is `{ [userId]: { [areaId]: { read, write } } }` — the same shape as `rolePermissions`, keyed by Discord user id, edited in Einstellungen → *Berechtigungen* under "Einzelne Konten" and unioned in exactly like the base access (it can only widen). It exists for areas that go to named people rather than to a group; inventing a Discord role for two players is a second list to keep in sync. Like the base access it is resolved **without Discord** (`BASE_ACCESS(userId)` in `auth.js`), so such a grant survives an offline bot, and it is full-admin-only (`ACCESS_KEYS`).
 
+**`kader` (Kaderplaner) goes to named people only.** It is in no base access by default and should stay out of it: full admins have it, others get it through a role grant or — the intended way — a single-account grant under "Einzelne Konten". `read` shows the planner, `write` edits it ([kaderplaner.md](kaderplaner.md)).
+
 **Bot commands are a separate axis.** Who may run which command in Discord is not an area and not a `read`/`write` level — it hangs on Discord roles per command (`config.botCommandAccess`, Einstellungen → Berechtigungen → *Bot-Befehle*, see "Who may run a command" in docs/bot-commands.md). Full admins are admins there too; everything else is configured apart from the web areas.
 
 ## Ansicht als Rolle (`src/web/http/viewAs.js`, `components/ViewAs.tsx`)

@@ -228,9 +228,13 @@ function attendanceFor(ctx, categoryId, character, userIds = []) {
  * never joins the other kind is not marked absent for it.
  *
  * @param {{ userId: string, chars: { name: string, className?: string, manual?: boolean }[] }[]} accounts
- * @param {{ comparable?: (raid: {id, title, startTime, signUps, logs}) => boolean }} [opts]
+ * With `nights: true` each result also carries `raids` - every counted night with its verdict, newest
+ * first (the Kaderplaner, docs/kaderplaner.md); the setup editor leaves it out to keep its payload small.
+ *
+ * @param {{ comparable?: (raid: {id, title, startTime, signUps, logs}) => boolean, nights?: boolean }} [opts]
  * @returns {Map<string, {attended: number, total: number, pct: number|null, link: "manual"|"auto",
- *            inferred: number, missed: {eventId, title, startTime, reason}[]}>}
+ *            inferred: number, missed: {eventId, title, startTime, reason}[],
+ *            raids?: {eventId, title, startTime, attended, reason}[]}>}
  */
 function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
     const list = (accounts || []).filter((a) => a && a.userId && (a.chars || []).length);
@@ -281,6 +285,7 @@ function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
             link: a.chars.some((c) => c.manual) && !inferred ? "manual" : "auto",
             inferred,
             missed: raids.filter((r) => !r.attended).map(({ eventId, title, startTime, reason }) => ({ eventId, title, startTime, reason })),
+            ...(opts.nights ? { raids } : {}),
         });
     }
     return out;

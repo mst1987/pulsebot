@@ -22,6 +22,7 @@
     --area-raids:#60a5fa; --area-raids-soft:rgba(96,165,250,.16);
     --area-roster:#a3e635; --area-roster-soft:rgba(163,230,53,.16);
     --area-lootcouncil:#e879f9; --area-lootcouncil-soft:rgba(232,121,249,.16);
+    --area-kader:#fbbf24; --area-kader-soft:rgba(251,191,36,.16);
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
@@ -43,6 +44,7 @@
       --area-raids:#2563c9; --area-raids-soft:rgba(37,99,201,.12);
       --area-roster:#5f8f12; --area-roster-soft:rgba(95,143,18,.12);
       --area-lootcouncil:#b03cc0; --area-lootcouncil-soft:rgba(176,60,192,.12);
+      --area-kader:#b7791f; --area-kader-soft:rgba(183,121,31,.12);
     }
   }
   :root[data-theme="light"] {
@@ -64,6 +66,7 @@
     --area-raids:#2563c9; --area-raids-soft:rgba(37,99,201,.12);
     --area-roster:#5f8f12; --area-roster-soft:rgba(95,143,18,.12);
     --area-lootcouncil:#b03cc0; --area-lootcouncil-soft:rgba(176,60,192,.12);
+    --area-kader:#b7791f; --area-kader-soft:rgba(183,121,31,.12);
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; transition:background .2s, color .2s; }
