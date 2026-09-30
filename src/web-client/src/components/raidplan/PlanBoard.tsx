@@ -10,6 +10,7 @@ import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, Rai
 import { classColorProps } from "../ClassSpec";
 import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
+import RoleGlyph from "./RoleGlyph";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
 import { SIZE_RANGES, autoBadgeGroup, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, badgeShown, groupBadgeLook, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, areaStyleOf, arcSpanOf, arcWidthOf, arcPath, arcLayout, calmBadgeAt, areaBadgeMetrics, areaBadgeWidth, chipWidthOf, turnedBox, uprightInner, roleNamesLayout, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
@@ -19,14 +20,6 @@ import { ANY } from "../../lib/raidplan/classRefs";
 import { autoFacing, mobIconNo, type AutoPlan, type AutoTank } from "../../lib/raidplan/autoPlace";
 import "../../styles/raidplan/index.css";
 
-// The role icons the raid detail already uses for its role groups (meta.ts's ROLE_META).
-const ROLE_ICONS: Record<string, string> = {
-    tank: "ability_warrior_defensivestance",
-    healer: "spell_holy_flashheal",
-    melee: "ability_dualwield",
-    ranged: "inv_weapon_bow_07",
-    dps: "inv_misc_questionmark",
-};
 
 /** The type of a zone as a glyph, so it reads without its colour (danger, healthy, neutral, own). */
 const PLACEHOLDER_ROLES = ["tank", "healer", "dps", "dps", "dps"];
@@ -313,7 +306,7 @@ export default function PlanBoard({
         const at = (p: { dx: number; dy: number }) => ({ "--rp-dx": `${p.dx}px`, "--rp-dy": `${p.dy}px` }) as CSSProperties;
         const badge = (pos?: { dx: number; dy: number }) => (
             <span className="rp-rg-badge" style={pos ? at(pos) : undefined}>
-                <span className="rp-rg-bico"><WowIcon name={ROLE_ICONS[role] || ROLE_ICONS.dps} size={Math.max(8, Math.round(bm.icon * 0.8))} /></span>
+                <span className="rp-rg-bico"><RoleGlyph role={role} size={Math.max(8, Math.round(bm.icon))} /></span>
                 <span className="rp-rg-btext">{label}</span>
                 {count > 0 && <span className="rp-rg-bcount">{count}</span>}
             </span>
@@ -387,7 +380,7 @@ export default function PlanBoard({
             <div key={`up-${z.id}`} className="rp-rg-up" style={style} aria-hidden="true">
                 <div className="rp-rg-inner">
                     <span className="rp-rg-head">
-                        {Array.from({ length: n }, (_, k) => <span key={k} className="rp-rg-ico"><WowIcon name={ROLE_ICONS[role] || ROLE_ICONS.dps} size={Math.max(8, Math.round((cluster ? m.icon * iconScale : icon) * 0.72))} /></span>)}
+                        {Array.from({ length: n }, (_, k) => <span key={k} className="rp-rg-ico"><RoleGlyph role={role} size={Math.max(8, Math.round(cluster ? m.icon * iconScale : icon))} /></span>)}
                         {(z.count || 0) > 0 && <span className="rp-rg-count">{z.count}</span>}
                     </span>
                     {label && pos === "in" && <span className="rp-rg-label">{label}</span>}
@@ -638,7 +631,7 @@ export default function PlanBoard({
                             {holders.map((h, i) => (
                                 <div key={`ph-${i}`} className="rp-token rp-member rp-member-ph" aria-hidden="true" style={{ "--rp-x": `${(s.x + h.dx) * 100}%`, "--rp-y": `${(s.y + h.dy) * 100}%`, "--rp-o": s.opacity, ...memberSize(s.size) } as CSSProperties}>
                                     <span className="rp-token-btn"><span className={`rp-ico rp-ico-open rp-role-${PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]}`}>
-                                        <WowIcon name={ROLE_ICONS[PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]]} size={Math.max(12, Math.round(memberPx * 0.58))} />
+                                        <RoleGlyph bare role={PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]} size={Math.max(12, Math.round(memberPx * 0.58))} />
                                     </span></span>{ownBadge && <span className="rp-token-gbadge">{tag.number}</span>}
                                 </div>
                             ))}
@@ -681,7 +674,7 @@ export default function PlanBoard({
                         >
                             {player ? <TokenIcon player={player} /> : (
                                 <span className={`rp-ico rp-ico-open${tone ? ` rp-role-${tone}` : ""}`} aria-hidden="true">
-                                    {tone ? <WowIcon name={ROLE_ICONS[tone]} size={Math.max(14, Math.round(scaled(s.size, SIZE_RANGES.slot.def) * 0.58))} /> : <span className="rp-ico-ph" />}
+                                    {tone ? <RoleGlyph bare role={tone} size={Math.max(14, Math.round(scaled(s.size, SIZE_RANGES.slot.def) * 0.58))} /> : <span className="rp-ico-ph" />}
                                 </span>
                             )}
                         </button>
@@ -762,12 +755,15 @@ export default function PlanBoard({
                 const miss = missing ? t("raidBoard.auto.missing", { cls: k.classId === ANY ? who : t(`wow.class.${k.classId}`) }) : "";
                 const tip = autoTip(k, missing ? miss : who);
                 // a task row's place: the role of its class / slot (no tank shield by default)
-                const icon = k.classId ? classRefIcon(k.classId, k.role || (k.task ? "dps" : "tank")) : ROLE_ICONS[k.slotKind] || (k.task ? ROLE_ICONS.dps : ROLE_ICONS.tank);
+                // a real class keeps its class icon; any other open place (a slot, "any <role>") shows its role as a glyph
+                const classIcon = k.classId && k.classId !== ANY ? classRefIcon(k.classId, "dps") : "";
+                const glyphRole = k.classId ? k.role || (k.task ? "dps" : "tank") : k.slotKind || (k.task ? "dps" : "tank");
+                const glyphPx = Math.max(14, Math.round(scaled(k.size, SIZE_RANGES.token.def) * 0.58));
                 const shown = missing || !!label;
                 return (
                     <div key={`auto:${k.key}`} data-obj={`auto:${k.key}`} className={cls(`${base} is-auto is-open`, "auto", k.key, `${ring}${shown ? noName(k.size, SIZE_RANGES.token.def, 1, st.showName) : " is-noname"}`, !!st.lock)} style={style}>
                         <button type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1} aria-label={tip} data-tip={tip} {...handlers("auto", k.key)}>
-                            <span className={`rp-ico rp-ico-open rp-role-${k.task ? k.slotKind || k.role || "dps" : "tank"}`} aria-hidden="true"><WowIcon name={icon} size={Math.max(14, Math.round(scaled(k.size, SIZE_RANGES.token.def) * 0.58))} /></span>
+                            <span className={`rp-ico rp-ico-open rp-role-${k.task ? k.slotKind || k.role || "dps" : "tank"}`} aria-hidden="true">{classIcon ? <WowIcon name={classIcon} size={glyphPx} /> : <RoleGlyph bare role={glyphRole} size={glyphPx} />}</span>
                             {missing && <span className="rp-autowarn" aria-hidden="true"><AlertTriangle size={11} /></span>}
                         </button>
                         {shown && <span className={`rp-token-name${missing ? " rp-autotank-miss" : ""}`}>{label && <span className="rp-slot-title">{label}</span>}{miss}</span>}

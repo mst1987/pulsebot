@@ -1,30 +1,18 @@
 import { useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { Crosshair, Minus, MoveUpRight, Swords, Type } from "lucide-react";
-import WowIcon from "../../../components/ui/WowIcon";
+import RoleGlyph from "../../../components/raidplan/RoleGlyph";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
-import { RAID_MARKS, ROLE_GROUP_COLORS, ZONE_COLORS, ZONE_TYPES, iconKeyForBoss, type InsertSpec } from "../../../lib/raidplan";
+import { RAID_MARKS, ZONE_COLORS, ZONE_TYPES, iconKeyForBoss, type InsertSpec } from "../../../lib/raidplan";
 import { wowIconUrl } from "../../../lib/wowIcon";
 import type { RaidplanBoss, RaidplanMarkName, RaidplanZoneType } from "../../../api";
 import { useT } from "../../../i18n";
 
-const SLOT_ICONS: { kind: "tank" | "healer" | "melee" | "ranged" | "dps" | "group" | "label"; icon: string }[] = [
-    { kind: "tank", icon: "ability_warrior_defensivestance" },
-    { kind: "healer", icon: "spell_holy_flashheal" },
-    { kind: "melee", icon: "ability_dualwield" },
-    { kind: "ranged", icon: "inv_weapon_bow_07" },
-    { kind: "dps", icon: "inv_misc_questionmark" },
-    { kind: "group", icon: "achievement_guildperk_everybodysfriend" },
-];
+// the role placeholders of the palette (a slot of the Besetzung), drawn by RoleGlyph
+const SLOT_KINDS = ["tank", "healer", "melee", "ranged", "dps", "group"] as const;
 
 // the role group placeholders ("Melees", "Ranged" first): a whole role, never players
-const ROLE_GROUP_ICONS: { role: "melee" | "ranged" | "healer" | "tank" | "dps"; icon: string }[] = [
-    { role: "melee", icon: "ability_dualwield" },
-    { role: "ranged", icon: "inv_weapon_bow_07" },
-    { role: "healer", icon: "spell_holy_flashheal" },
-    { role: "tank", icon: "ability_warrior_defensivestance" },
-    { role: "dps", icon: "inv_misc_questionmark" },
-];
+const ROLE_GROUP_KINDS = ["melee", "ranged", "healer", "tank", "dps"] as const;
 
 /** What is typed as an icon name, cleaned the way the server checks it (lower case, underscores). */
 function cleanIconName(raw: string): string {
@@ -66,14 +54,14 @@ export default function Palette({ onStart, onInsert, bosses, currentBoss, tally 
         </button>
     );
     /** A role slot of the palette: it places one of the Besetzung's slots; once all are on the map it is greyed out and says so. */
-    const slotEntry = (kind: string, icon: string) => {
+    const slotEntry = (kind: string) => {
         const tl = tally.find((x) => x.kind === kind);
         const off = !!tl && tl.placed >= tl.total;
         const name = t(`raidBoard.slot.kind.${kind}`);
         const label = tl ? `${name} ${tl.placed}/${tl.total}${off ? ` · ${t("raidBoard.palette.allPlaced")}` : ""}` : name;
         return entry(kind, { type: "slot", kind: kind as never, label: "" }, label, (
             <>
-                <WowIcon name={icon} size={26} />
+                <RoleGlyph role={kind} size={30} />
                 {tl && <span className="rp-pal-tally">{tl.placed}/{tl.total}</span>}
             </>
         ), off);
@@ -91,7 +79,7 @@ export default function Palette({ onStart, onInsert, bosses, currentBoss, tally 
             <div className="rp-palette-group">
                 <h3 className="rp-kicker">{t("raidBoard.palette.slots")}</h3>
                 <div className="rp-pal-grid">
-                    {SLOT_ICONS.map((s) => slotEntry(s.kind, s.icon))}
+                    {SLOT_KINDS.map((kind) => slotEntry(kind))}
                     {entry("label", { type: "slot", kind: "label", label: t("raidBoard.slot.kind.label") }, t("raidBoard.slot.kind.label"), <span className="rp-pal-text">Abc</span>)}
                 </div>
             </div>
@@ -134,7 +122,7 @@ export default function Palette({ onStart, onInsert, bosses, currentBoss, tally 
             <div className="rp-palette-group">
                 <h3 className="rp-kicker" data-tip={t("raidBoard.roleGroupUi.hint")}>{t("raidBoard.palette.roleGroups")}</h3>
                 <div className="rp-pal-grid">
-                    {ROLE_GROUP_ICONS.map((r) => entry(`role-${r.role}`, { type: "zone", zoneType: "role", shape: "ellipse", role: r.role }, t(`raidBoard.roleGroup.${r.role}`), <span className={`rp-rolechip-ico rp-role-${r.role}`} style={{ "--rc": ROLE_GROUP_COLORS[r.role] } as CSSProperties}><WowIcon name={r.icon} size={24} /></span>))}
+                    {ROLE_GROUP_KINDS.map((role) => entry(`role-${role}`, { type: "zone", zoneType: "role", shape: "ellipse", role }, t(`raidBoard.roleGroup.${role}`), <RoleGlyph role={role} size={30} />))}
                 </div>
             </div>
             <div className="rp-palette-group">

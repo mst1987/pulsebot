@@ -61,7 +61,8 @@ describe("a role group placeholder", () => {
         expect(menu).toEqual(expect.arrayContaining(["insert:role:melee", "insert:role:ranged"]));
         expect(raidplan.insertObject(board(), { type: "zone", zoneType: "role", shape: "ellipse", role: "nope" }, null).board.zones[0].role).toBe("melee");
         const pal = read("pages/raid-detail/raidplan/Palette.tsx");
-        expect(pal.indexOf("role: \"melee\"")).toBeLessThan(pal.indexOf("role: \"ranged\""));
+        expect(pal.indexOf("\"melee\"")).toBeLessThan(pal.indexOf("\"ranged\""));
+        expect(pal.indexOf("ROLE_GROUP_KINDS = [\"melee\", \"ranged\"")).toBeGreaterThan(-1);
         expect(read("pages/raid-detail/raidplan/workspace/WorkspaceToolbar.tsx")).toContain("zoneType: \"role\", shape: \"ellipse\", role: \"melee\"");
     });
 

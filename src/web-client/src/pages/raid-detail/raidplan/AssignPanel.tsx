@@ -1,3 +1,4 @@
+import { ANY } from "../../../lib/raidplan/classRefs";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Flyout from "../../../components/raidplan/Flyout";
 import AssignModal from "./AssignModal";
@@ -9,11 +10,12 @@ import { Copy, RotateCcw, EyeOff, Swords, Users, Plus, Trash2, X } from "lucide-
 import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanPlayer } from "../../../api";
 import { IconButton, useConfirm } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
+import RoleGlyph from "../../../components/raidplan/RoleGlyph";
 import { useToast } from "../../../components/Jobs";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import {
-    ALL_MARKS, CARD_ORDER, SCOPE_TYPES, playersByClass, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForText, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, rowsOfType, patchAssignment, removeAssignment,
+    ALL_MARKS, CARD_ORDER, SCOPE_TYPES, playersByClass, mobTarget, spellRef, spellsFor, iconForText, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, rowsOfType, patchAssignment, removeAssignment,
     resolveAssignee, resolveTarget, slotChoices, toggleTarget, ROLE_TONE, type AssignCtx, type Resolved,
 } from "../../../lib/raidplan/assign";
 import { cardSummary, lineState } from "../../../lib/raidplan/assignLine";
@@ -42,9 +44,9 @@ export function AssignChip({ r, mine, onRemove, extra, ctx }: { r: Resolved; min
             <PlayerName player={r.player} />
         </>
     ) : r.kind === "role" ? (
-        <><span className="rp-rolechip-ico" style={{ "--rc": ROLE_TONE[r.role] } as React.CSSProperties}><WowIcon name={r.icon} size={18} /></span><span>{r.label}</span></>
+        <><RoleGlyph role={r.role} size={18} /><span>{r.label}</span></>
     ) : r.kind === "class" ? (
-        <><WowIcon name={r.icon} size={18} /><span className="rp-achip-open">{r.label} ({t("raidBoard.class.missing")})</span></>
+        <>{r.classId === ANY ? <RoleGlyph role={r.role} size={18} /> : <WowIcon name={r.icon} size={18} />}<span className="rp-achip-open">{r.label} ({t("raidBoard.class.missing")})</span></>
     ) : r.kind === "mark" ? (
         <><MarkIcon mark={r.mark as never} size={18} /><span>{r.label}</span></>
     ) : r.kind === "mob" ? (
@@ -55,7 +57,7 @@ export function AssignChip({ r, mine, onRemove, extra, ctx }: { r: Resolved; min
         <><WowIcon name={iconForText(r.label) || "inv_misc_note_01"} size={18} /><span>{r.label}</span></>
     ) : (
         <>
-            {r.kind === "slot" && ROLE_ICON[r.role] && <WowIcon name={ROLE_ICON[r.role]} size={18} />}
+            {r.kind === "slot" && ROLE_TONE[r.role] && <RoleGlyph role={r.role} size={18} />}
             <span className={r.open ? "rp-achip-open" : ""}>{r.label}{r.open && r.kind === "slot" ? ` (${t("raidBoard.slot.open")})` : ""}</span>
         </>
     );
@@ -92,7 +94,7 @@ export function ChipPicker({ options, onToggle, textPlaceholder, onText, label, 
 export function SlotPickChip({ r, n }: { r: Resolved; n: number }) {
     return (
         <span className="rp-pchip">
-            {r.player ? <TokenIcon player={r.player} size="sm" /> : <WowIcon name={ROLE_ICON[r.role] || ROLE_ICON.dps} size={18} />}
+            {r.player ? <TokenIcon player={r.player} size="sm" /> : <RoleGlyph role={r.role} size={18} />}
             <b>{n}</b>
         </span>
     );

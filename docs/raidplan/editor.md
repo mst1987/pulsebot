@@ -746,3 +746,26 @@ the resolution and the sheet are untouched.
 - Tests: `AssignLine.test.tsx` (stack from 2 classes, rank + dot, deviation badge, the "..." menu), `AssignPanel.test.tsx` (chevron first in the head,
   text buttons, column header, deviating count), `Besetzung.test.tsx` (chevron in the head line, folded summary), `MobsBar.test.tsx`,
   `lib/raidplan/cardSummary.test.ts`, `EventStandard.test.tsx` (hide via the menu).
+
+## Role glyphs: "Ring und Linie" (#559, section 1)
+
+- **One component for every role placeholder:** `components/raidplan/RoleGlyph.tsx` draws the role as an own inline stroke SVG (24x24 viewBox, round caps
+  and joins) instead of a WoW icon: a dark disc (`--rp-glyph-bg`), the role colour as a ring (`--rp-role-tank/-healer/-melee/-ranged/-dps`) and the glyph
+  as a line in that colour. Ranged keeps the double ring. Glyphs: melee crossed swords, ranged bow with arrow, tank shield, healer "Herzschlag" (heart with
+  a pulse line, option H2 of the design canvas), dps (an unknown damage role) flame, group users. `role` is one of `tank | healer | melee | ranged | dps |
+  group`; an unknown one draws as dps. Up to 32 px the line is thicker (2.6 instead of 2) and swords / bow use the shorter paths, so small sizes stay crisp;
+  the size is the pixel size the caller already computes from its token size variable. No colour in the component, no inline style: the colour is the
+  class `rp-glyph-<role>` (objects.css), `aria-hidden` unless `label` is given (then `role="img"` + `aria-label`).
+- **`bare`** draws only the line glyph, for a host that already draws disc and ring: the open token on the map (`.rp-ico.rp-ico-open.rp-role-*` with its dashed
+  or double ring, the placeholders of a split group, the open auto tokens of the task rows).
+- **`components/raidplan/ClassRefIcon.tsx`:** a class reference draws the WoW class icon; "any <role>" (class `Any`, no class) draws the role glyph.
+- **Where it is used** (every place that showed a role WoW icon): the Besetzung (role blocks, flex buttons of the pop-up), the palette (slots, "Rollen-Gruppen",
+  the group entry), the tool bar (Melees / Ranged), open slot / auto tokens and split-group placeholders on the map, the badge and the head icons of the role group
+  areas (`.rp-rg-bico`, `.rp-rg-ico`, calm and arc), the role chips of the assignment lines / panel / dialogs (`AssignLine`, `AssignPanel`, `AssignModal`,
+  `StepModal`, `AssignRosterModal`), the read view `/p/<token>` (`ReadTables`, same board) and the template editor (Besetzung fields, template cards).
+  Players keep their class / spec icons (WoW icons); only ROLE placeholders changed. `ROLE_ICON` in `lib/raidplan/assign.ts` stays as data (the resolved
+  `icon` of a role) but is no longer drawn.
+- Tests: `RoleGlyph.test.tsx` (every role, ranged double ring, healer path, thicker line when small, bare, aria, no colour in the markup, and that the role
+  placeholder files no longer name a role WoW icon), `ClassRefIcon` in the same file.
+- Measured with puppeteer (event with 25 raiders, Supremus, calm and arc role areas, five open role slots on the map, `page.setViewport` 1440 and 390): Besetzung,
+  palette, board (zoomed in and out) and the read view show the glyphs crisp, no overflow, no horizontal scroll.

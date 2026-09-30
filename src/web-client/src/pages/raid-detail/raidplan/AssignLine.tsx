@@ -1,3 +1,4 @@
+import { ANY } from "../../../lib/raidplan/classRefs";
 import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { AlertTriangle, ArrowRight, EyeOff, Lock, MapPin, MoreHorizontal, Pencil, StickyNote, Trash2 } from "lucide-react";
 import Popover from "../../../components/ui/Popover";
@@ -5,9 +6,11 @@ import { belowEndPlacement } from "../../../lib/popoverPosition";
 import { CLASS_COLOR } from "../../../lib/raidplan/classRefs";
 import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
+import ClassRefIcon from "../../../components/raidplan/ClassRefIcon";
+import RoleGlyph from "../../../components/raidplan/RoleGlyph";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon, playerLabel } from "../../../components/raidplan/PlanBoard";
-import { ROLE_ICON, classIconOf, classPlaceNameFor, classRefIcon, iconForTask, iconForText, offRole, type AssignCtx, type Resolved } from "../../../lib/raidplan/assign";
+import { classIconOf, classPlaceNameFor, iconForTask, iconForText, offRole, type AssignCtx, type Resolved } from "../../../lib/raidplan/assign";
 import { assigneeItems, lineLabel, lineState, subLine, targetItems, type LineItem } from "../../../lib/raidplan/assignLine";
 import { groupColor } from "../../../lib/raidplan/groupStyle";
 import { MobIcon } from "./AssignPanel";
@@ -28,9 +31,9 @@ export function LineChip({ r, open, mine, order, ctx, readOnly, asTank = false }
         // the sheet: the full name in the tooltip (a very long one ends in "…" on the chip)
         return <span className={`rp-lc${mine && readOnly ? " is-me" : ""}`} data-tip={asTank ? `${t(`wow.class.${r.player.classId}`)} · ${t("raidBoard.class.asTank")}` : readOnly ? playerLabel(r.player) : undefined}>{no}<TokenIcon player={r.player} size="sm" /><PlayerName player={r.player} />{asTank && <span className="rp-lc-as">{t("raidBoard.class.asTank")}</span>}{mine && readOnly && <span className="rp-lc-du">{t("raidBoard.public.du")}</span>}</span>;
     }
-    if (r.kind === "class") return <span className={`rp-lc ${open ? "is-open" : "is-slot"}`}>{no}<WowIcon name={r.icon} size={16} /><span>{open ? t("raidBoard.aline.missing", { what: r.label }) : r.label}</span>{open && <AlertTriangle size={12} aria-hidden="true" />}</span>;
-    if (r.kind === "slot") return <span className={`rp-lc ${open ? "is-open" : "is-slot"}`}>{no}<WowIcon name={ROLE_ICON[r.role] || ROLE_ICON.dps} size={16} /><span>{r.label}</span>{open && <AlertTriangle size={12} aria-label={t("raidBoard.slot.open")} />}</span>;
-    if (r.kind === "role") return <span className="rp-lc is-role" style={{ "--rc": ROLE_TONE[r.role] } as React.CSSProperties}>{no}<span className="rp-rolechip-ico"><WowIcon name={r.icon} size={16} /></span><span>{r.label}</span></span>;
+    if (r.kind === "class") return <span className={`rp-lc ${open ? "is-open" : "is-slot"}`}>{no}{r.classId === ANY ? <RoleGlyph role={r.role} size={16} /> : <WowIcon name={r.icon} size={16} />}<span>{open ? t("raidBoard.aline.missing", { what: r.label }) : r.label}</span>{open && <AlertTriangle size={12} aria-hidden="true" />}</span>;
+    if (r.kind === "slot") return <span className={`rp-lc ${open ? "is-open" : "is-slot"}`}>{no}<RoleGlyph role={r.role} size={16} /><span>{r.label}</span>{open && <AlertTriangle size={12} aria-label={t("raidBoard.slot.open")} />}</span>;
+    if (r.kind === "role") return <span className="rp-lc is-role" style={{ "--rc": ROLE_TONE[r.role] } as React.CSSProperties}>{no}<RoleGlyph role={r.role} size={16} /><span>{r.label}</span></span>;
     if (r.kind === "group") return <span className="rp-lc is-grp" style={{ "--rp-gline": groupColor(ctx.groupColors, r.group) } as React.CSSProperties}><span>{r.label}</span></span>;
     if (r.kind === "mob") return <span className="rp-lc is-mk" data-tip={readOnly ? r.label : undefined}><MobIcon icon={r.icon} size={18} /><span>{r.label}</span></span>;
     if (r.kind === "mark") return <span className="rp-lc is-mk"><MarkIcon mark={r.mark as never} size={16} /><span>{r.label}</span></span>;
@@ -78,7 +81,7 @@ function Cell({ items, ctx, readOnly, side, type, badge = "" }: { items: LineIte
             {badge && <span className="rp-line-dev">{badge}</span>}
             {items.map((x) => (x.kind === "prio" ? <PrioChip key={x.key} classes={x.classes || []} count={x.count} open={x.open} type={type} /> : x.kind === "ref" ? (
                 <span key={x.key} className="rp-lref">
-                    <span className="rp-lref-t"><WowIcon name={classRefIcon(x.classId, x.role)} size={13} />{classPlaceNameFor(x.classId, x.role, type)} x{x.count}</span>
+                    <span className="rp-lref-t"><ClassRefIcon classId={x.classId} role={x.role} size={13} />{classPlaceNameFor(x.classId, x.role, type)} x{x.count}</span>
                     {x.items.map((r, i) => <LineChip key={`${r.ref}${i}`} r={r} open={r.open && (r.kind === "class" || r.kind === "slot")} mine={!!r.player && x.mine} order={0} ctx={ctx} readOnly={readOnly} asTank={offRole(type, r.player)} />)}
                 </span>
             ) : x.r ? <LineChip key={x.key} r={x.r} open={x.open} mine={x.mine} order={x.order} ctx={ctx} readOnly={readOnly} asTank={x.asTank} /> : null))}
