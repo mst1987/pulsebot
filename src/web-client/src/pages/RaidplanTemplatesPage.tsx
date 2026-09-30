@@ -60,7 +60,7 @@ export default function RaidplanTemplatesPage() {
     const t = useT();
     const { user } = useOutletContext<ShellContext>();
     const editor = useCollectionEditor("edit");
-    const canWrite = canAccess(user, "raids", "write");
+    const canWrite = canAccess(user, "raidplan", "write");
     // the game versions (#544): the list shows one at a time, the main version first (/api/game-versions' defaultVersion, a setting with #541)
     const [versions, setVersions] = useState<GameVersion[]>([]);
     const [mainVersion, setMainVersion] = useState("tbc");
@@ -100,7 +100,7 @@ export default function RaidplanTemplatesPage() {
     return (
         <TemplateList
             templates={ofVersion(templates, shownVersion)} version={versionOf(shownVersion)} versionOf={versionOf} guilds={guilds} canWrite={canWrite}
-            isNew={editor.isNew} onNew={editor.startNew} onCloseNew={editor.close} onOpen={editor.startEdit} onTemplates={setTemplates}
+            backToRaids={canAccess(user, "raids")} isNew={editor.isNew} onNew={editor.startNew} onCloseNew={editor.close} onOpen={editor.startEdit} onTemplates={setTemplates}
         />
     );
 }
@@ -150,7 +150,7 @@ function TemplateThumb({ tpl }: { tpl: RaidplanTemplate }) {
 }
 
 /** The overview: search and filters, then one card per template — newest change first. */
-function TemplateList({ templates, version, versionOf, guilds, canWrite, isNew, onNew, onCloseNew, onOpen, onTemplates }: {
+function TemplateList({ templates, version, versionOf, guilds, canWrite, backToRaids, isNew, onNew, onCloseNew, onOpen, onTemplates }: {
     /** the templates of the version shown (#544) */
     templates: RaidplanTemplate[];
     /** the game version shown: its instances, and the version a new template is made for */
@@ -159,6 +159,8 @@ function TemplateList({ templates, version, versionOf, guilds, canWrite, isNew, 
     /** the version switch (null with a single version) */
     guilds: SessionGuild[];
     canWrite: boolean;
+    /** the link back to the raid list, only for who may open it (the raid plan is its own area) */
+    backToRaids: boolean;
     isNew: boolean;
     onNew: () => void;
     onCloseNew: () => void;
@@ -205,7 +207,7 @@ function TemplateList({ templates, version, versionOf, guilds, canWrite, isNew, 
 
     return (
         <div className="rp-templates">
-            <p className="note"><Link className="mlink" to="/raids">{t("planTemplates.back")}</Link></p>
+            {backToRaids && <p className="note"><Link className="mlink" to="/raids">{t("planTemplates.back")}</Link></p>}
             <PageHead
                 icon="inv_misc_map02" tone="raids" kicker={t("planTemplates.kicker")} title={t("planTemplates.title")}
                 meta={<Badge count>{templates.length}</Badge>}

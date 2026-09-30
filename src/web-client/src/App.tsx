@@ -185,8 +185,9 @@ function MenuApp() {
                                 <Route path="raids/detail" element={<Guard user={user} areas={["raids"]}><RaidDetailPage /></Guard>} />
                                 <Route path="raids/templates" element={<Guard user={user} areas={["raids"]}><NotifyTemplatesPage /></Guard>} />
                                 <Route path="raids/raid-templates" element={<Guard user={user} areas={["raids"]}><RaidTemplatesPage /></Guard>} />
-                                <Route path="raids/plan-templates" element={<Guard user={user} areas={["raids"]}><RaidplanTemplatesPage /></Guard>} />
-                                <Route path="raids/plan-catalog" element={<Guard user={user} areas={["raids"]}><RaidplanCatalogPage /></Guard>} />
+                                {/* The raid plan is its own area (docs/permissions.md), even though its pages sit under /raids. */}
+                                <Route path="raids/plan-templates" element={<Guard user={user} areas={["raidplan"]}><RaidplanTemplatesPage /></Guard>} />
+                                <Route path="raids/plan-catalog" element={<Guard user={user} areas={["raidplan"]}><RaidplanCatalogPage /></Guard>} />
                                 <Route path="raids/series" element={<Guard user={user} areas={["raids"]}><EventSeriesPage /></Guard>} />
                                 <Route path="recruitment" element={<Guard user={user} areas={["recruitment"]}><RecruitmentPage /></Guard>} />
                                 {/* "loot" opens the same three pages, cut down to the loot views. */}

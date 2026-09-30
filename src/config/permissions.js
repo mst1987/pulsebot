@@ -29,6 +29,12 @@ const AREAS = [
     { id: "recruitment", tab: "recruitment", label: "Recruitment", description: "Bewerbungs-Vorlagen und gepostete Recruitment-Nachrichten." },
     { id: "cla", tab: "cla", label: "CLA / Logcheck", description: "Log-Auswertungen anstoßen, Reports verwalten und zuordnen." },
     { id: "raids", tab: "raids", label: "Raid-Events", description: "Raid-Events anlegen, Setups füllen, Aufrufe und Softres posten." },
+    // The raid plan (docs/raidplan.md): boards per boss on an event, the plan
+    // templates with their tactic profiles and the catalog. Its own area so the
+    // tactics can go to people who do not run the events, and the event orga
+    // does not get them for free. The plan of one event still lives on that
+    // event's page, so opening it takes "raids" read as well.
+    { id: "raidplan", tab: "raids", label: "Raidplan", description: "Raidplan am Event (Boards je Boss, Link posten), Raidplan-Vorlagen mit Taktik-Profilen und der Raidplan-Katalog. Den Plan eines Events öffnet man über das Event, dafür braucht es zusätzlich Raid-Events lesen." },
     { id: "roster", tab: "roster", label: "Roster", description: "Charakter-Übersicht der Gilde." },
     { id: "history", tab: "history", label: "Historie & Loot", description: "Loot-Import, Event- und Charakter-Historie." },
     // A slice of the same tab: the loot views without the raid lists, the logs

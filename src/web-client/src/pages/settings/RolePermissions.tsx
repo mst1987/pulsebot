@@ -32,6 +32,7 @@ const AREA_ICONS: Record<string, string> = {
     recruitment: "inv_misc_grouplooking",
     cla: "inv_misc_pocketwatch_01",
     raids: "inv_misc_note_02",
+    raidplan: "inv_misc_map02",
     roster: "achievement_guildperk_everybodysfriend",
     history: "inv_misc_book_09",
     loot: "inv_misc_bag_10",

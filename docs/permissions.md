@@ -22,6 +22,12 @@ Access is **per area** (one admin-menu section) and **per level** (`read` = open
 
 **`kader` (Kaderplaner) goes to named people only.** It is in no base access by default and should stay out of it: full admins have it, others get it through a role grant or — the intended way — a single-account grant under "Einzelne Konten". `read` shows the planner, `write` edits it ([kaderplaner.md](kaderplaner.md)).
 
+**`raidplan` (Raidplan) is its own area, not a part of `raids`.** It covers every `/api/raidplan…` route (the plan on an event, the templates with their tactic profiles, the catalog, the Raid-Helper switch), `POST /api/raids/post-raidplan` (posting the link publishes the plan) and the two menu entries *Raidplan-Vorlagen* / *Raidplan-Katalog* (still sub entries under Raid-Events and coloured like it; without `raids` they stand on their own). The point is to hand the tactics to people who do not run the events, and to stop the event orga getting them for free — so `raids` implies nothing here, and the other way round. When the area came in, nothing was carried over: only full admins had it until someone granted it. Consequences:
+
+- **The plan of one event lives on that event's page**, so opening it takes `raids` read *and* `raidplan` read. Without `raidplan` read the "Raidplan" tab is not there (`RaidDetailPage.tsx`, `hasPlan`); the editor's `canWrite` is `raidplan` write, whatever `raids` says.
+- **The "Einteilungen" step** (posting the link) comes only with `raidplan` write: `GET /api/raids/detail` builds with `planPost = userCan(user, "raidplan", "write")`, which leaves out `raidplanPost` and the own event's `plan` step (`eventSteps(d, { plan: false })`) — no button that fails at the server.
+- **`/api/game-versions`** is `["raids", "raidplan"]`: the template and catalog pages show one game version at a time.
+
 **Bot commands are a separate axis.** Who may run which command in Discord is not an area and not a `read`/`write` level — it hangs on Discord roles per command (`config.botCommandAccess`, Einstellungen → Berechtigungen → *Bot-Befehle*, see "Who may run a command" in docs/bot-commands.md). Full admins are admins there too; everything else is configured apart from the web areas.
 
 ## Ansicht als Rolle (`src/web/http/viewAs.js`, `components/ViewAs.tsx`)
@@ -35,4 +41,4 @@ A full admin can look at the whole menu **with the rights of one or more Discord
 
 ## Public, token-guarded read routes (`UNGATED`)
 
-Besides the session bootstrap, `UNGATED` holds `/api/raidplan/public`: the read view of a **published** raid plan (`/p/<token>`, docs/raidplan.md). It needs no session because the token in the address is the authentication; its handler answers only for the token of a published plan (unknown, withdrawn and orphaned all get the same 404), and a session, when there is one, only marks the viewer's own token. Every other `/api/raidplan…` path is area `raids`.
+Besides the session bootstrap, `UNGATED` holds `/api/raidplan/public`: the read view of a **published** raid plan (`/p/<token>`, docs/raidplan.md). It needs no session because the token in the address is the authentication; its handler answers only for the token of a published plan (unknown, withdrawn and orphaned all get the same 404), and a session, when there is one, only marks the viewer's own token. Every other `/api/raidplan…` path is area `raidplan` (see above).

@@ -14,7 +14,7 @@ There are **no maps in the repo** and nothing is fetched from anywhere; the orga
   looked up live (deleting the template deletes its maps).
 - Per boss and per instance (the defaults; the fallback of every boss without its own): `POST
   /api/raidplan/map?key=<key>` with the **file as the request body** (`readRawBody`, cut off at 3 MB), `POST
-  /api/raidplan/map/delete { key }`. Area `raids` write. The key must be a known instance id or boss key,
+  /api/raidplan/map/delete { key }`. Area `raidplan` write. The key must be a known instance id or boss key,
   optionally scoped with `t/<templateId>/` or `e/<eventId>/`; a scoped key is only written for a template that
   exists or an own event, so no path can be built from it.
 - The server recognises PNG, JPG and WebP **by the first bytes** (`sniffImage`), never by the claimed type;

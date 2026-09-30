@@ -1,5 +1,5 @@
 // GET /api/raidplan/progress (#534): the read view asks with its token (no login), the editor with its event
-// (raids read). The derivation is mocked here — test/services/raidplan/raidplanProgress.test.js covers it.
+// (raidplan read). The derivation is mocked here — test/services/raidplan/raidplanProgress.test.js covers it.
 let mockUser = null;
 let mockViewer = null;
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
@@ -24,8 +24,8 @@ const { progressFor } = require("../../../src/services/raidplan/raidplanProgress
 const { checkAccess, UNGATED } = require("../../../src/web/http/apiAccess");
 const { mockRes, status, json } = require("../../helpers/http");
 
-const ORGA = { id: "orga", isAdmin: false, access: { raids: { read: true, write: true } } };
-const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
+const ORGA = { id: "orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };
+const READER = { id: "reader", isAdmin: false, access: { raidplan: { read: true, write: false } } };
 const MEMBER = { id: "m", isAdmin: false, access: { signup: { read: true, write: true } } };
 const body = (r) => { const p = json(r); return p.data || p.error; };
 
@@ -78,7 +78,7 @@ describe("GET /api/raidplan/progress", () => {
         expect(progressFor).not.toHaveBeenCalled();
     });
 
-    it("answers the editor by its event for raids read, never for others", async () => {
+    it("answers the editor by its event for raidplan read, never for others", async () => {
         const ok = await progressGet("event=eh_1", READER);
         expect(status(ok)).toBe(200);
         expect(body(ok).next).toBe("bt/supremus");

@@ -44,7 +44,9 @@ Technik: [setup.md](setup.md)
 
 Technik: [raidplan.md](raidplan.md)
 
-*Tab der Raid-Detailseite, Bereich "Raids" (lesen/schreiben) — bei eigenen Events immer, bei Raid-Helper-Events sobald der Raidplan aktiviert ist*
+*Tab der Raid-Detailseite, Bereich "Raidplan" (lesen/schreiben; das Event selbst öffnet man mit "Raid-Events" lesen) — bei eigenen Events immer, bei Raid-Helper-Events sobald der Raidplan aktiviert ist*
+
+Der Raidplan ist ein **eigener Bereich**: Wer Raid-Events verwalten darf, sieht den Raidplan nicht automatisch, und wer nur den Raidplan hat, kann Vorlagen und Katalog pflegen, aber keine Events anlegen oder Setups ändern. Ein Voll-Admin vergibt ihn unter Einstellungen → Berechtigungen (je Rolle oder Einzelkonto). „Einteilungen posten“ (den Link in den Event-Kanal) gibt es nur mit Raidplan schreiben.
 
 - **Raid-Helper-Events:** Über **Verwalten → "Raidplan aktivieren"** bekommt auch ein Raid-Helper-Event einen Raidplan. Der Dialog schlägt Instanz und Größe aus dem Eventnamen vor ("BT 25er" → Black Temple, 25); du prüfst und korrigierst sie. Die **Aufstellung kommt aus Raid-Helper und ist schreibgeschützt** — Änderungen machst du in Raid-Helper, im Plan holt **Neu laden** sie sofort (sonst höchstens einmal pro Minute). Oben im Plan steht, woher die Spieler kommen und von wann der Stand ist.
   - Namen: Raid-Helper zeigt oft Discord-Namen. Der Plan sucht im Raider-Profil den Charakter der Klasse aus Raid-Helper (Main bevorzugt); findet er keinen, steht der Raid-Helper-Name **kursiv** da ("Name aus Raid-Helper"). Der Tooltip zeigt beide Namen, die Suche findet beide.
@@ -92,7 +94,7 @@ Technik: [raidplan.md](raidplan.md)
 
 Technik: [raidplan.md](raidplan.md)
 
-*Raid-Events → "Raidplan-Vorlagen", Bereich "Raids"*
+*Raid-Events → "Raidplan-Vorlagen", Bereich "Raidplan"*
 
 - Benannte Vorlagen (z. B. "Montags-Raid") mit Name, Kategorie, Beschreibung, optional einem Server und den Instanzen. Je Boss ein Board **ohne Spieler**: Slots, Raid-Marker, Zonen, Aufgabenzeilen, Notiz; je Boss lässt sich eine eigene Karte hinterlegen.
 - Die **Übersicht** zeigt je Vorlage eine Karte mit Vorschaubild, Chips (Kategorie, Server, Instanzen), Fortschrittsbalken je Boss und Datum der letzten Änderung, neueste zuerst. Suche und Filter nach Instanz und Kategorie. Ein Klick auf die Karte öffnet den Editor; per Icon änderst du Name und Eigenschaften, **duplizierst** oder **löschst** (mit Rückfrage) die Vorlage. Bereits angewendete Pläne bleiben beim Löschen unberührt.

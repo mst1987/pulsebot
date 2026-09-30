@@ -28,8 +28,9 @@ beforeEach(() => {
 });
 
 describe("POST /api/raids/post-raidplan", () => {
-    it("is a raids route", () => {
-        expect(routes).toContainEqual({ method: "POST", path: "/api/raids/post-raidplan", handler: postPostRaidplan, area: "raids" });
+    // It publishes the plan on the way: a raid plan write, whoever runs the event.
+    it("is a raidplan route", () => {
+        expect(routes).toContainEqual({ method: "POST", path: "/api/raids/post-raidplan", handler: postPostRaidplan, area: "raidplan" });
     });
 
     it("hands the server's own event, the message and the caller to the service", async () => {

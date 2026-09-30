@@ -38,7 +38,7 @@ export default function RaidplanCatalogPage() {
     const toast = useToast();
     const ask = useConfirm();
     const { user } = useOutletContext<ShellContext>();
-    const canWrite = canAccess(user, "raids", "write");
+    const canWrite = canAccess(user, "raidplan", "write");
     const catalog = useApi(() => getRaidplanCatalog(), []);
     const { data, setData } = catalog;
     // the game versions: the switch's choices and the main version it starts on (#541 makes that a setting; it is read from the same place)
@@ -130,7 +130,7 @@ export default function RaidplanCatalogPage() {
     const hidden = ((which === "mobs" ? data.hidden.mobs : data.hidden.spells) as (CatalogMob | CatalogSpell)[]).filter((e) => inVersion(e, version));
     return (
         <div className="rp-catalog">
-            <p className="note"><Link className="mlink" to="/raids">{t("planTemplates.back")}</Link></p>
+            {canAccess(user, "raids") && <p className="note"><Link className="mlink" to="/raids">{t("planTemplates.back")}</Link></p>}
             <PageHead
                 icon="inv_misc_book_09" tone="raids" kicker={t("planTemplates.kicker")} title={t("catalog.title")}
                 action={canWrite ? <Button onClick={() => setDraft(which === "mobs" ? { kind: "add", instanceId: "", bossKey: "", versions: [version] } : { type: "curse", classes: [], versions: [version] })}><Plus size={16} /> {t(which === "mobs" ? "catalog.newMob" : "catalog.newSpell")}</Button> : undefined}

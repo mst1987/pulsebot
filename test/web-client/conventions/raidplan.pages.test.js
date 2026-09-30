@@ -18,9 +18,9 @@ describe("the pages", () => {
     const menu = read("pages/raid-detail/raidplan/ContextMenu.tsx");
     const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
 
-    it("is a tab of an own event, and of a Raid-Helper event whose plan is switched on; after the setup", () => {
+    it("is a tab of an own event, and of a Raid-Helper event whose plan is switched on; after the setup; only with raidplan read", () => {
         expect(detail).toMatch(/const TABS: Tab\[\] = \["roster", "setup", "plan", "loot", "logs"\];/);
-        expect(detail).toContain("const hasPlan = ownEvent || !!data.event.raidplanEnabled;");
+        expect(detail).toContain("const hasPlan = canAccess(user, \"raidplan\") && (ownEvent || !!data.event.raidplanEnabled);");
         expect(detail).toContain("t === \"plan\" ? hasPlan");
         expect(detail).toContain("{shown === \"plan\" && <Suspense fallback={<RaidLoader />}><RaidplanTab ctx={ctx} /></Suspense>}");
         // the editor is a chunk of its own, loaded only when the tab is opened (#436)
@@ -183,12 +183,23 @@ describe("the pages", () => {
         expect(tab).toContain("planHasContent(view.plan.bosses, bossKeys)");
     });
 
-    it("reaches the template page from the raid list and the router, inside the raids area", () => {
-        expect(app).toMatch(/path="raids\/plan-templates" element=\{<Guard user=\{user\} areas=\{\["raids"\]\}><RaidplanTemplatesPage \/><\/Guard>\}/);
-        // in the menu (a sub entry of Raid-Events), no longer a button in the page head
+    it("reaches the template page and the catalog from the menu and the router, in the raidplan area", () => {
+        expect(app).toMatch(/path="raids\/plan-templates" element=\{<Guard user=\{user\} areas=\{\["raidplan"\]\}><RaidplanTemplatesPage \/><\/Guard>\}/);
+        expect(app).toMatch(/path="raids\/plan-catalog" element=\{<Guard user=\{user\} areas=\{\["raidplan"\]\}><RaidplanCatalogPage \/><\/Guard>\}/);
+        // in the menu (a sub entry of Raid-Events, coloured like it), no longer a button in the page head
         expect(read("pages/RaidsPage.tsx")).not.toContain("/raids/plan-templates");
-        expect(JSON.stringify(require("../../../src/config/menu.json"))).toContain("/raids/plan-templates");
+        const menu = require("../../../src/config/menu.json");
+        for (const id of ["planTemplates", "planCatalog"]) {
+            expect(menu.find((e) => e.id === id)).toMatchObject({ areas: ["raidplan"], area: "raids", sub: true });
+        }
         expect(read("components/Shell.tsx")).toContain("/raids/plan-templates");
+        // both pages write only with raidplan write, and point back to the raid list only for who may open it
+        for (const page of ["pages/RaidplanTemplatesPage.tsx", "pages/RaidplanCatalogPage.tsx"]) {
+            expect(read(page)).toContain("const canWrite = canAccess(user, \"raidplan\", \"write\");");
+        }
+        expect(read("pages/RaidplanCatalogPage.tsx")).toContain("{canAccess(user, \"raids\") && <p className=\"note\"><Link className=\"mlink\" to=\"/raids\">");
+        expect(read("pages/RaidplanTemplatesPage.tsx")).toContain("backToRaids={canAccess(user, \"raids\")}");
+        expect(read("pages/RaidplanTemplatesPage.tsx")).toContain("{backToRaids && <p className=\"note\"><Link className=\"mlink\" to=\"/raids\">");
     });
 });
 

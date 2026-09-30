@@ -280,6 +280,39 @@ describe("the head and the roster of an own event", () => {
     });
 });
 
+// The raid plan is its own area (docs/permissions.md): the event page shows its
+// tab and the Raid-Helper switch only to who holds "raidplan", whatever "raids" says.
+describe("the raid plan's own area", () => {
+    const planTab = () => screen.queryByRole("tab", { name: t("raidDetail.page.tab.plan") });
+    const READ = { read: true, write: false };
+    const WRITE = { read: true, write: true };
+    const EVENT_ORGA = adminUser({ isAdmin: false, access: { raids: WRITE } });
+
+    it("shows the plan tab only with raidplan read", async () => {
+        let view = await show(raidDetail(), EVENT_ORGA);
+        expect(planTab()).toBeNull();
+        // the other tabs are all there
+        expect(screen.getByRole("tab", { name: new RegExp(t("raidDetail.page.tab.roster")) })).toBeInTheDocument();
+        view.unmount();
+        view = await show(raidDetail(), adminUser({ isAdmin: false, access: { raids: READ, raidplan: READ } }));
+        expect(planTab()).not.toBeNull();
+        view.unmount();
+        await show(raidDetail());
+        expect(planTab()).not.toBeNull();
+    });
+
+    it("offers the Raid-Helper event's plan switch to raidplan write, not to raids write", async () => {
+        let view = await show(raidhelperDetail(), EVENT_ORGA);
+        expect(manageButton()).toBeNull();
+        view.unmount();
+        view = await show(raidhelperDetail(), adminUser({ isAdmin: false, access: { raids: READ, raidplan: WRITE } }));
+        expect(manageButton()).not.toBeNull();
+        view.unmount();
+        await show(raidhelperDetail(), adminUser({ isAdmin: false, access: { raids: READ, raidplan: READ } }));
+        expect(manageButton()).toBeNull();
+    });
+});
+
 // An event of a hidden game version (#563), opened through a direct link: the
 // archive banner, and nothing to manage even with raids write.
 describe("an archived event (#563)", () => {

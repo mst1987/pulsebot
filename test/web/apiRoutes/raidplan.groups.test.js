@@ -23,8 +23,8 @@ const route = require("../../../src/web/apiRoutes/raidplan");
 const { checkAccess, areasFor } = require("../../../src/web/http/apiAccess");
 const { mockRes, status, json } = require("../../helpers/http");
 
-const ORGA = { id: "orga", isAdmin: false, access: { raids: { read: true, write: true } } };
-const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
+const ORGA = { id: "orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };
+const READER = { id: "reader", isAdmin: false, access: { raidplan: { read: true, write: false } } };
 const EV = "eh-1";
 const BOSS = "bt/supremus";
 const body = (r) => { const p = json(r); return p.data || p.error; };
@@ -132,8 +132,8 @@ describe("the read view", () => {
 });
 
 describe("POST /api/raidplan/groups", () => {
-    it("is under raids write", () => {
-        expect(areasFor("/api/raidplan/groups")).toEqual(["raids"]);
+    it("is under raidplan write", () => {
+        expect(areasFor("/api/raidplan/groups")).toEqual(["raidplan"]);
         expect(checkAccess("/api/raidplan/groups", "POST", READER)).toMatchObject({ status: 403 });
     });
 
