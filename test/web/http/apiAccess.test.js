@@ -174,12 +174,20 @@ describe("web/http/apiAccess", () => {
         it("lets the token-authenticated ingest endpoints past the session gate", () => {
             expect(checkAccess("/api/ingest/loot", "POST", null)).toBeNull();
             expect(checkAccess("/api/ingest/raids", "POST", null)).toBeNull();
+            // the Kaderbau export (apiRoutes/kader.js), its own ehk_ tokens
+            expect(checkAccess("/api/kader/export", "GET", null)).toBeNull();
         });
 
         // That exemption must stay this deliberate, tiny set, not a hole a
         // future route slips into by accident.
-        it("exempts nothing but the loot-sync ingest endpoints from the session gate", () => {
-            expect([...TOKEN_AUTH]).toEqual(["/api/ingest/loot", "/api/ingest/raids"]);
+        it("exempts nothing but the loot-sync ingest endpoints and the Kaderbau export from the session gate", () => {
+            expect([...TOKEN_AUTH].sort()).toEqual(["/api/ingest/loot", "/api/ingest/raids", "/api/kader/export"]);
+        });
+
+        // Minting a Kaderbau token needs a session, like the loot-sync tokens.
+        it("keeps the Kaderbau token management behind the session gate", () => {
+            expect(checkAccess("/api/kader/tokens", "GET", null)).toMatchObject({ status: 401 });
+            expect(checkAccess("/api/kader/tokens", "POST", null)).toMatchObject({ status: 401 });
         });
 
         // Anmeldungen (#256): a member with "signup" reads and writes their own

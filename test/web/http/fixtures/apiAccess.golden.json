@@ -162,7 +162,9 @@
     "/api/cla/log-automatch": "cla",
     "/api/cla/recommendations": "cla",
     "/api/cla/recommendations/send": "cla",
-    "/api/cla/recommendations/phrase": "cla"
+    "/api/cla/recommendations/phrase": "cla",
+    "/api/kader/tokens": "settings",
+    "/api/kader/tokens/delete": "settings"
   },
   "ungated": [
     "/api/session",
@@ -176,6 +178,7 @@
   ],
   "tokenAuth": [
     "/api/ingest/loot",
-    "/api/ingest/raids"
+    "/api/ingest/raids",
+    "/api/kader/export"
   ]
 }

@@ -264,3 +264,24 @@ export function createIngestToken(
 export function deleteIngestToken(id: string): Promise<{ id: string }> {
     return send("POST", "/api/settings/ingest-tokens/delete", { id });
 }
+
+// ---- Kaderbau API tokens (full admins only, docs/kaderbau.md) ----
+// Same shape as the loot-sync tokens, a capability of their own (prefix ehk_):
+// they only read GET /api/kader/export.
+
+export type KaderToken = IngestToken;
+
+export function getKaderTokens(): Promise<{ tokens: KaderToken[] }> {
+    return get<{ tokens: KaderToken[] }>("/api/kader/tokens");
+}
+
+/** Mints a token. `token` is the plaintext and is returned exactly once. */
+export function createKaderToken(
+    name: string,
+): Promise<{ token: string; record: KaderToken }> {
+    return send("POST", "/api/kader/tokens", { name });
+}
+
+export function deleteKaderToken(id: string): Promise<{ id: string }> {
+    return send("POST", "/api/kader/tokens/delete", { id });
+}

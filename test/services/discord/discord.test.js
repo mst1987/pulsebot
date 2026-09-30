@@ -379,6 +379,52 @@ describe("services/discord/discord channel management", () => {
         });
     });
 
+    describe("listHumanMembers", () => {
+        beforeEach(() => discord._resetMembersCacheForTests());
+        const guildWith = (members) => guildWithMemberFetch(jest.fn(async () => new Map(members.map((m) => [m.id, m]))));
+
+        it("lists every non-bot member with name and avatar, sorted by name", async () => {
+            const bot = dc.makeMember({ id: "9", displayName: "EventHelper" });
+            bot.user.bot = true;
+            const guild = guildWith([
+                dc.makeMember({ id: "1", displayName: "Bob", displayAvatarURL: jest.fn(() => "https://cdn/1.png") }),
+                dc.makeMember({ id: "2", displayName: "Alice" }),
+                bot,
+            ]);
+            setClientWithGuild(guild);
+            const { members, error } = await discord.listHumanMembers("g1");
+            expect(error).toBeNull();
+            expect(members).toEqual([
+                { id: "2", displayName: "Alice", avatarUrl: null },
+                { id: "1", displayName: "Bob", avatarUrl: "https://cdn/1.png" },
+            ]);
+        });
+
+        it("shares the member cache with listMembersWithRoles", async () => {
+            const guild = guildWith([dc.makeMember({ id: "1", displayName: "Bob", roleIds: ["r1"] })]);
+            setClientWithGuild(guild);
+            await discord.listMembersWithRoles("g1", ["r1"]);
+            await discord.listHumanMembers("g1");
+            expect(guild.members.fetch).toHaveBeenCalledTimes(1);
+        });
+
+        it("keeps a member whose avatar lookup throws, without an avatar", async () => {
+            const guild = guildWith([dc.makeMember({ id: "1", displayName: "Bob", displayAvatarURL: () => { throw new Error("x"); } })]);
+            setClientWithGuild(guild);
+            const { members } = await discord.listHumanMembers("g1");
+            expect(members).toEqual([{ id: "1", displayName: "Bob", avatarUrl: null }]);
+        });
+
+        it("degrades to an empty list with an error when the fetch fails or the guild is unknown", async () => {
+            setClientWithGuild(guildWithMemberFetch(jest.fn(async () => { throw new Error("Used disallowed intents"); })));
+            expect(await discord.listHumanMembers("g1")).toEqual({ members: [], error: "Used disallowed intents" });
+            setClientWithGuild(null);
+            const res = await discord.listHumanMembers("nope");
+            expect(res.members).toEqual([]);
+            expect(res.error).toMatch(/Server nicht gefunden/);
+        });
+    });
+
     describe("resolveUserNames", () => {
         // A fake member as it appears in guild.members.cache / a fetch() result.
         function fakeMember(id, displayName) {

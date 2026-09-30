@@ -201,6 +201,17 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
         const ctx = buildAttendanceContext("g1", { now: NOW });
         const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Mainchar", "Druid", true), ch("Twink", "Mage", true)])]);
         expect(out.get("u1")).toMatchObject({ attended: 2, total: 2, pct: 100, link: "manual", inferred: 0, missed: [] });
+        expect(out.get("u1")).not.toHaveProperty("raids");
+    });
+
+    it("hands out every counted night with `nights: true` (the Kaderbau export)", () => {
+        withReports([{ id: "r1", eventId: "e1", names: ["Mainchar"] }, { id: "r2", eventId: "e2", names: ["Else"] }]);
+        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Mainchar", "Druid", true)])], { nights: true });
+        expect(out.get("u1").raids.map((r) => [r.eventId, r.attended, r.reason])).toEqual([
+            ["e1", true, "im Log"],
+            ["e2", false, "nicht im Log"],
+        ]);
     });
 
     it("counts only the nights `comparable` accepts and takes the last eleven of those — one category, two kinds of raid", () => {

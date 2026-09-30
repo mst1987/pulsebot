@@ -21,6 +21,7 @@ vi.mock("../../api", async (orig) => ({
     getSettings: vi.fn(),
     updateSettings: vi.fn(),
     getIngestTokens: vi.fn(),
+    getKaderTokens: vi.fn(),
 }));
 
 vi.mock("./RolePermissions", () => ({ default: () => <div>Panel Berechtigungen</div> }));
@@ -74,6 +75,7 @@ beforeEach(() => {
     vi.mocked(api.getSettings).mockReset().mockResolvedValue(settings());
     vi.mocked(api.updateSettings).mockReset().mockImplementation(async (partial) => ({ config: { ...config(), ...partial } as AdminConfig }));
     vi.mocked(api.getIngestTokens).mockReset().mockResolvedValue({ tokens: [] });
+    vi.mocked(api.getKaderTokens).mockReset().mockResolvedValue({ tokens: [] });
 });
 
 describe("the section column", () => {

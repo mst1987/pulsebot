@@ -1,24 +1,22 @@
 import { useState, type ReactNode } from "react";
 import {
-    updateSettings, createIngestToken, deleteIngestToken,
+    updateSettings,
     type AdminConfig, type ApiError, type IngestToken, type SettingsData,
 } from "../../api";
-import { fmtMs } from "../../lib/format";
-import { useTableSort, type Dir } from "../../lib/tableSort";
-import { SortTh } from "../../components/SortTh";
 import { connectionInputs, connectionPatch, connectionState, visibleConnections, type ConnectionId } from "../../lib/settingsLogic";
 import { useToast } from "../../components/Jobs";
-import { useConfirm, Modal } from "../../components/ui/Modal";
-import { Button, IconButton, buttonClass } from "../../components/ui/Button";
+import { Modal } from "../../components/ui/Modal";
+import { Button, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import PartHead from "../../components/ui/PartHead";
-import { CheckIcon, CopyIcon, ExternalIcon, TrashIcon } from "../../components/icons";
+import { ExternalIcon, TrashIcon } from "../../components/icons";
 import { AdminOnlyBadge, CheckMark, PenIcon, WarnIcon } from "../../components/settings/settingsUi";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
-import RaidLoader from "../../components/ui/RaidLoader";
 import RaidhelperRetirementCard from "./SettingsRaidhelperRetirement";
-import { tParts, t as translate, useT } from "../../i18n";
+import TokensModal from "./SettingsTokensModal";
+import KaderbauCard from "./SettingsKaderbau";
+import { t as translate, useT } from "../../i18n";
 
 // Einstellungen → Verbindungen: one status card per foreign system instead of a
 // form per system. The card answers "is it set up?" at a glance; what the
@@ -177,6 +175,9 @@ export default function ConnectionsSection({ data, tokens, onConfig, onTokensCha
                         </section>
                     );
                 })}
+                {/* The local Kaderbau app's read tokens (docs/kaderbau.md) — full admins only,
+                    optional, so it never counts as "nicht eingerichtet". */}
+                {data.canManageAccess && <KaderbauCard />}
             </div>
             {/* #291: the switch-over checklist — full admins only, like the API. */}
             {data.canManageAccess && <RaidhelperRetirementCard />}
@@ -375,138 +376,6 @@ function ConnectionModal({ id, card, data, onClose, onSaved }: {
                         <a className={buttonClass("ghost", "sm", true)} href={def.link[0]} target="_blank" rel="noopener noreferrer">
                             <ExternalIcon />{def.link[1]}
                         </a>
-                    </div>
-                )}
-            </div>
-        </Modal>
-    );
-}
-
-type TokenSortKey = "name" | "created" | "lastUsed" | "uses";
-const TOKEN_SORT_DEFAULTS: Record<TokenSortKey, Dir> = { name: "asc", created: "desc", lastUsed: "desc", uses: "desc" };
-
-/** Loot-Sync tokens: mint one (shown exactly once), revoke one behind a confirm. */
-function TokensModal({ open, tokens, onClose, onChanged }: {
-    open: boolean;
-    tokens: IngestToken[] | null;
-    onClose: () => void;
-    onChanged: () => void;
-}) {
-    const ask = useConfirm();
-    const toast = useToast();
-    const t = useT();
-    const [name, setName] = useState("");
-    const [busy, setBusy] = useState(false);
-    // The plaintext of the token just created — only in this state, gone on reload.
-    const [fresh, setFresh] = useState<{ token: string; name: string } | null>(null);
-    const [copied, setCopied] = useState(false);
-
-    const close = () => { setFresh(null); setCopied(false); onClose(); };
-
-    const create = async () => {
-        setBusy(true);
-        try {
-            const r = await createIngestToken(name);
-            setFresh({ token: r.token, name: r.record.name });
-            setName("");
-            setCopied(false);
-            onChanged();
-        } catch (err) {
-            toast((err as ApiError).message, "err");
-        } finally {
-            setBusy(false);
-        }
-    };
-
-    const revoke = async (tok: IngestToken) => {
-        if (!(await ask({ title: t("settings.tokens.revokeAsk", { name: tok.name }), text: t("settings.tokens.revokeText"), action: t("settings.tokens.revoke"), tone: "danger" }))) return;
-        try {
-            await deleteIngestToken(tok.id);
-            onChanged();
-            toast(t("settings.tokens.revoked", { name: tok.name }));
-        } catch (err) {
-            toast((err as ApiError).message, "err");
-        }
-    };
-
-    // Default "zuletzt benutzt": the question this table answers is usually
-    // "welcher Rechner lädt eigentlich noch hoch?".
-    const { sort, dir, onSort, apply } = useTableSort<TokenSortKey>("settings-ingest-tokens-sort", TOKEN_SORT_DEFAULTS, "lastUsed");
-    const sorted = apply(tokens || [], (tok, key) => {
-        switch (key) {
-            case "name": return tok.name.toLowerCase();
-            case "created": return tok.createdAt || 0;
-            case "uses": return tok.uses || 0;
-            default: return tok.lastUsedAt || 0;
-        }
-    });
-
-    return (
-        <Modal
-            open={open}
-            onClose={close}
-            icon="inv_misc_punchcards_blue"
-            tone="settings"
-            kicker={t("settings.editKicker")}
-            title={t("settings.tokens.title")}
-            width={720}
-            hint={<AdminOnlyBadge />}
-            footer={<Button variant="ghost" onClick={close}>{t("common.done")}</Button>}
-        >
-            <div className="conn-form">
-                {fresh && (
-                    <div className="conn-status mid">
-                        <Badge tone="mid" icon={<WarnIcon />}>{t("settings.tokens.onceVisible")}</Badge>
-                        <div className="fresh-token">
-                            <span>{tParts("settings.tokens.created", { name: fresh.name })}</span>
-                            <div className="secret-row">
-                                <input type="text" readOnly className="mono" value={fresh.token} onFocus={(e) => e.target.select()} />
-                                <IconButton
-                                    icon={copied ? <CheckIcon /> : <CopyIcon />}
-                                    tip={copied ? t("common.copied") : t("settings.tokens.copy")}
-                                    onClick={() => { navigator.clipboard?.writeText(fresh.token); setCopied(true); }}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                )}
-                <div className="dlg-field">
-                    <FieldLabel htmlFor="token-name" tip={t("settings.tokens.new")} tipSub={t("settings.tokens.newSub")}>{t("settings.tokens.new")}</FieldLabel>
-                    <div className="secret-row">
-                        <input id="token-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("settings.tokens.namePlaceholder")} />
-                        <Button icon="inv_misc_punchcards_blue" onClick={create} disabled={busy}>{busy ? t("settings.tokens.creating") : t("settings.tokens.create")}</Button>
-                    </div>
-                </div>
-                {!tokens ? <RaidLoader compact text={t("settings.tokens.loading")} /> : !tokens.length ? (
-                    <div className="empty">{t("settings.tokens.empty")}</div>
-                ) : (
-                    <div className="table-scroll">
-                        <table className="idx">
-                            <thead>
-                                <tr>
-                                    <SortTh sortKey="name" label={t("common.name")} sort={sort} dir={dir} onSort={onSort} />
-                                    <th data-tip={t("settings.tokens.colToken")} data-tip-sub={t("settings.tokens.colTokenSub")}>{t("settings.tokens.colToken")}</th>
-                                    <SortTh sortKey="created" label={t("settings.tokens.colCreated")} sort={sort} dir={dir} onSort={onSort} />
-                                    <SortTh sortKey="lastUsed" label={t("settings.tokens.colLastUsed")} sort={sort} dir={dir} onSort={onSort} />
-                                    <SortTh sortKey="uses" label={t("settings.tokens.colUploads")} sort={sort} dir={dir} onSort={onSort} />
-                                    <th />
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {sorted.map((tok) => (
-                                    <tr key={tok.id}>
-                                        <td><strong>{tok.name}</strong></td>
-                                        <td className="mono">ehl_…{tok.hint}</td>
-                                        <td className="small" data-tip={tok.createdBy ? t("settings.tokens.createdBy", { name: tok.createdBy }) : undefined}>{fmtMs(tok.createdAt)}</td>
-                                        <td className="small">{tok.lastUsedAt ? fmtMs(tok.lastUsedAt) : t("settings.tokens.never")}</td>
-                                        <td className="mono">{tok.uses || 0}</td>
-                                        <td className="cell-act">
-                                            <IconButton icon={<TrashIcon />} tip={t("settings.tokens.revokeTip")} size="sm" tone="danger" onClick={() => revoke(tok)} />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
                     </div>
                 )}
             </div>

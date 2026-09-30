@@ -571,6 +571,18 @@
         "never": "nie",
         "revokeTip": "Token zurückziehen"
     },
+    "kaderTokens": {
+        "title": "Kaderbau-Tokens",
+        "revokeText": "Die Kaderbau-App, die ihn benutzt, kann danach keine Daten mehr abrufen.",
+        "colUses": "Abrufe",
+        "newSub": "Ein Name pro Rechner, damit ein einzelner gezielt zurückgezogen werden kann. Der Token darf nur lesen: Mitglieder, Profile und Anwesenheit — nie Loot hochladen.",
+        "cardTitle": "Kaderbau",
+        "cardTip": "Kaderbau (lokale App)",
+        "cardSub": "Die Kaderbau-App auf dem Rechner der Raidleitung holt sich mit einem dieser Tokens Klassen, Raids, Mitglieder, Raider-Profile und Anwesenheit (nur lesen). Wünsche, Notizen und „nicht mit“-Listen verlassen den Server nie.",
+        "lastUse": "Letzter Abruf",
+        "noUseYet": "noch keiner",
+        "endpoint": "Endpunkt"
+    },
     "permissions": {
         "cellAria": "{owner} · {area}: {level}",
         "cellSub": "{level} — Klick schaltet auf {next}",
