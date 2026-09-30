@@ -1,0 +1,248 @@
+{
+    "loading": "Lade den Kaderplaner …",
+    "error": "Das hat nicht geklappt.",
+    "nav": {
+        "back": "Zum Kader"
+    },
+    "board": {
+        "kicker": "Kaderplaner · Forever",
+        "pickRoster": "Kader wählen",
+        "newRoster": "+ Neuer Kader …",
+        "noRoster": "Noch kein Kader",
+        "noRosterHint": "Lege einen Kader für einen Raid an, dann ziehst du Spieler aus dem Pool hinein.",
+        "noRosterRead": "Hier gibt es noch keinen Kader.",
+        "filled": "{n} von {size} Plätzen besetzt",
+        "toSetup": "Setup bauen"
+    },
+    "pool": {
+        "title": "Discord-Accounts",
+        "countTip": "Accounts im Pool: mit Forever-Charakter im Profil oder von Hand hinzugefügt",
+        "search": "Name, Charakter oder Klasse",
+        "nobody": "Niemand gefunden.",
+        "noAccounts": "Noch keine Accounts. Füge einen hinzu.",
+        "find": "Filter & Gruppen",
+        "addAccount": "Account hinzufügen",
+        "addTo": "In den Kader",
+        "addToNamed": "{name} in den Kader",
+        "removeFrom": "Aus dem Kader nehmen",
+        "removeFromNamed": "{name} aus dem Kader nehmen"
+    },
+    "slot": {
+        "free": "frei · hierher ziehen",
+        "freeRead": "frei",
+        "pickFor": "Platz frei bei {role}, Spieler wählen"
+    },
+    "bench": {
+        "title": "Ersatzbank",
+        "hint": "Accounts hierher ziehen, die nur bei Bedarf mitkommen"
+    },
+    "side": {
+        "classes": "Klassen im Kader",
+        "nobody": "Noch niemand im Kader.",
+        "buffs": "Raid-Buffs",
+        "attendance": "Ø Anwesenheit Kader",
+        "attendanceSub": "letzte Raidabende, aus EventHelper",
+        "attendanceNone": "noch keine Forever-Raids gezählt"
+    },
+    "player": {
+        "noChar": "Kein Charakter",
+        "noCharLong": "noch kein Forever-Charakter",
+        "noSpec": "ohne Spec",
+        "canHeal": "kann heilen",
+        "canTank": "kann tanken",
+        "canDays": "kann {days}",
+        "noDays": "keine Angabe zu Raidtagen"
+    },
+    "day": {
+        "mo": "Mo",
+        "di": "Di",
+        "mi": "Mi",
+        "do": "Do",
+        "fr": "Fr",
+        "sa": "Sa",
+        "so": "So"
+    },
+    "status": {
+        "kader": "Im Kader",
+        "bench": "Ersatzbank",
+        "none": "Frei"
+    },
+    "gear": {
+        "none": "Kein Gear",
+        "usable": "Brauchbar",
+        "ready": "Raidbereit"
+    },
+    "tier": {
+        "t0": "Stamm · ab 90 %",
+        "t1": "Verlässlich · 75–89 %",
+        "t2": "Wechselhaft · 50–74 %",
+        "t3": "Selten · unter 50 %"
+    },
+    "group": {
+        "noRole": "Ohne Klasse oder Spec",
+        "noClass": "Ohne Klasse",
+        "noData": "Noch keine Daten",
+        "all": "Alle Spieler"
+    },
+    "groupBy": {
+        "role": "Rolle",
+        "cls": "Klasse",
+        "att": "Anwesenheit",
+        "status": "Status",
+        "none": "Keine"
+    },
+    "filter": {
+        "status": "Status",
+        "role": "Rolle",
+        "class": "Klasse",
+        "attendance": "Anwesenheit",
+        "days": "Tage",
+        "gear": "Gear",
+        "attAll": "Alle",
+        "attFrom": "ab {pct} %",
+        "canDay": "kann {day}",
+        "remove": "Filter entfernen: {label}",
+        "clear": "Alle entfernen"
+    },
+    "players": {
+        "kicker": "Spieler-Pool",
+        "title": "Spieler finden",
+        "search": "Name, Discord oder Spec",
+        "groupBy": "Gruppieren",
+        "count": "{n} von {total} Spielern",
+        "sort": "Sortieren",
+        "sortAtt": "Anwesenheit",
+        "sortName": "Name",
+        "colChar": "Charakter",
+        "colSpec": "Spec",
+        "colAtt": "Anwesenheit",
+        "colDays": "Kann Mo–So",
+        "colStatus": "Status",
+        "none": "Niemand passt zu diesen Filtern.",
+        "inKader": "{n} im Kader"
+    },
+    "diff": {
+        "tip": "Weicht vom Profil ab",
+        "badge": "weicht vom Profil ab",
+        "class": "Klasse",
+        "mainSpec": "Haupt-Spec",
+        "gear": "Gear",
+        "tank": "Offtank",
+        "heal": "Heilen",
+        "notInProfile": "nicht im Profil"
+    },
+    "field": {
+        "name": "Name",
+        "firstName": "Vorname",
+        "lastName": "Nachname",
+        "class": "Klasse",
+        "specs": "Specs · Stern = Haupt-Spec",
+        "gear": "Gear für Haupt-Spec"
+    },
+    "account": {
+        "withProfile": "Discord · mit EventHelper-Profil",
+        "manual": "Discord · von Hand hinzugefügt",
+        "onlyPlanner": "Gilt nur im Kaderplaner, das Profil bleibt unverändert",
+        "inRoster": "Im Kader „{roster}“",
+        "reset": "Zuweisung zurücksetzen",
+        "resetTitle": "Zuweisung zurücksetzen?",
+        "resetText": "Der Kaderplaner zeigt dann wieder die Charaktere aus dem Profil.",
+        "remove": "Account entfernen",
+        "removeTitle": "@{name} aus dem Pool entfernen?",
+        "characters": "Charaktere",
+        "newChar": "Neuer Charakter",
+        "used": "verwendet",
+        "addChar": "+ Forever-Charakter",
+        "use": "Diesen Charakter verwenden",
+        "nameRule": "Vorname und Nachname, je 2 bis 12 Buchstaben.",
+        "makeMain": "{spec} als Haupt-Spec",
+        "mainTip": "Haupt-Spec",
+        "canTank": "Kann Offtank",
+        "canHeal": "Kann heilen",
+        "noTank": "Diese Klasse hat keinen Tank-Spec",
+        "noHeal": "Diese Klasse hat keinen Heil-Spec",
+        "removeChar": "Charakter entfernen",
+        "noChars": "Dieser Account hat noch keinen Charakter. Lege oben einen an.",
+        "fromProfile": "Aus EventHelper · nur lesen",
+        "noProfile": "Dieser Account hat noch kein EventHelper-Profil. Alles hier wird im Kaderplaner eingetragen.",
+        "noNights": "Noch keine Raidabende gezählt. Die Anwesenheit erscheint, sobald Forever-Raids stattgefunden haben.",
+        "attendance": "Anwesenheit",
+        "there": "da",
+        "missed": "gefehlt",
+        "nights": "letzte {n} Raidabende · {there} da, {missed} gefehlt",
+        "profileSays": "Profil sagt",
+        "logs": "Laut Logs",
+        "days": "Verfügbar",
+        "differs": "Weicht vom Profil ab: {what}. Hier gilt die Zuweisung des Kaderplaners, das Profil wird nie überschrieben.",
+        "differsNone": "Weicht deine Zuweisung vom Profil ab, steht hier ein Hinweis – überschrieben wird nichts."
+    },
+    "add": {
+        "title": "Discord-Account hinzufügen",
+        "fromServer": "Vom Discord-Server",
+        "byId": "Per Discord-ID",
+        "search": "Mitglied suchen",
+        "searchPlaceholder": "Name auf dem Discord-Server",
+        "noMembers": "Keine Mitgliederliste verfügbar. Füge den Account per Discord-ID hinzu.",
+        "noProfile": "kein EventHelper-Profil",
+        "profile": "Profil: {line}",
+        "profileAtt": "Profil: {line}, {pct} % Anwesenheit",
+        "inPool": "schon im Pool",
+        "picked": "Gewählt",
+        "discordId": "Discord-ID",
+        "discordIdHint": "In Discord: Entwicklermodus an, Rechtsklick auf den Account, „Benutzer-ID kopieren“.",
+        "displayName": "Anzeigename",
+        "charOptional": "Forever-Charakter · optional, geht auch später",
+        "pickClass": "wählen …",
+        "submit": "Hinzufügen & Specs wählen"
+    },
+    "roster": {
+        "new": "Neuer Kader",
+        "edit": "Kader bearbeiten",
+        "create": "Kader anlegen",
+        "delete": "Kader löschen",
+        "deleteTitle": "Kader „{name}“ löschen?",
+        "deleteText": "Mit ihm gehen seine Setups. Die Spieler bleiben im Pool.",
+        "namePlaceholder": "leer = Instanz und Größe",
+        "instance": "Instanz",
+        "size": "Größe",
+        "sizeN": "{n}er",
+        "targets": "Zielzahlen je Rolle · Summe {sum} von {size}"
+    },
+    "picker": {
+        "title": "Spieler für {role} wählen",
+        "hint": "Passende Rollen stehen oben.",
+        "nobody": "Niemand verfügbar."
+    },
+    "setup": {
+        "kicker": "Setup · {raid} · {size}er",
+        "auto": "Automatisch verteilen",
+        "copy": "Als Text kopieren",
+        "copied": "Setup als Text kopiert – jetzt in Discord einfügen.",
+        "variants": "Varianten",
+        "addVariant": "Neue Variante",
+        "copyVariant": "Variante kopieren",
+        "copyName": "{name} (Kopie)",
+        "rename": "Variante umbenennen",
+        "deleteVariant": "Variante löschen",
+        "deleteTitle": "Variante „{name}“ löschen?",
+        "group": "Gruppe {n}",
+        "focus": {
+            "empty": "leer",
+            "mixed": "gemischt"
+        },
+        "free": "frei",
+        "freeSlot": "Platz {n} frei",
+        "missing": "kein {buff}",
+        "withoutGroup": "Noch ohne Gruppe",
+        "allPlaced": "Alle sind eingeteilt.",
+        "emptyRoster": "Der Kader ist noch leer. Fülle ihn im Kader-Board.",
+        "takeOut": "Aus der Gruppe nehmen",
+        "benchEmpty": "leer",
+        "hint": "Freie Kaderplätze füllst du im Kader-Board; hier wird nur verteilt.",
+        "pickHint": "Klick auf einen Platz, um den gewählten Spieler dorthin zu setzen.",
+        "emptyGroup": "(leer)",
+        "textTitle": "Setup als Text",
+        "textHint": "Kopieren ist hier nicht erlaubt: Text markieren und von Hand kopieren.",
+        "noRoster": "Diesen Kader gibt es nicht (mehr)."
+    }
+}

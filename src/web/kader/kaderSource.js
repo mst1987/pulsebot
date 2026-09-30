@@ -1,68 +1,91 @@
-// The read-only snapshot the local Kaderbau app (roster builder) pulls through
-// GET /api/kader/export — see docs/kaderbau.md for the contract, the value
-// vocabularies and the privacy rules.
-//
-// Everything here is derived on read from what the bot already keeps: the game
-// version's rule set, the members of the event server, the raider profiles and
-// the attendance of the version's raid nights. Nothing is stored for it.
+// What the Kaderplaner (docs/kaderplaner.md) reads from the rest of the bot:
+// the game version's rule set (classes, specs, instances, buffs), the human
+// members of the server, the raider profiles with characters of the version
+// and the attendance of the version's raid nights. Everything is derived on
+// read; the planner's own data lives in kaderStore.js and is merged on top by
+// kaderView.js.
 //
 // Privacy: a profile leaves this module as a whitelist of fields — characters,
 // their specs and gear, the tank/heal switches, the main flag and the raid days.
 // Never `avoid`/`avoidEnabled`, wishes, the note, preferred raids, calendar
-// tokens or who else claims a character (test/web/kader/kaderExport.test.js
+// tokens or who else claims a character (test/web/kader/kaderSource.test.js
 // scans the payload for them).
 const { rulesFor } = require("../../config/gameVersions");
 const { buildClasses } = require("../../config/gameVersions/classes");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { buildAttendanceContext, attendanceForAccounts } = require("../../services/characters/rosterAttendance");
 const discord = require("../../services/discord/discord");
-const guildRoles = require("../../services/discord/guildRoles");
 const profiles = require("../../stores/raiderProfileStore");
 const { logIndex } = require("../characters/profileLogs");
 const { serverDateTime } = require("../../utils/time");
 
-const FORMAT = "eventhelper-kader";
-const FORMAT_VERSION = 1;
-// Forever is what the Kaderbau is built for (launch Nov 2026); an install
+// Forever is what the planner is built for (launch Nov 2026); an install
 // without that rule set falls back to its main version.
 const PREFERRED_VERSION = "forever";
 
-/** The version an export is for: the asked one (null when unknown), else forever, else the main version. */
-function exportVersion(raw) {
-    const asked = String(raw || "").trim();
-    if (asked) return rulesFor(asked) ? asked : null;
+// The party buffs a setup group is checked for ("kein Windzorn" on a group of
+// melee). The others are shown when a group has them, never flagged as missing.
+const KEY_PARTY_BUFFS = new Set(["windfury", "battleShout", "manaSpring"]);
+// The raid buffs the board's side panel lists: one line per providing class, so
+// the panel stays five lines instead of every blessing and prayer.
+const BOARD_RAID_BUFFS = ["fortitude", "intellect", "motw", "kings", "might"];
+
+/** The version the planner works in: forever, else the main version. */
+function plannerVersion() {
     return rulesFor(PREFERRED_VERSION) ? PREFERRED_VERSION : mainVersionFor();
 }
 
 /** Classes and specs of a rule set, keys as the profiles store them ("Warrior", "Warrior-Protection"). */
-function exportClasses(rules) {
-    return buildClasses(rules.classes).map((c) => ({
-        key: c.id,
-        name: c.label,
-        nameEn: c.labelEn,
-        color: c.color,
-        icon: c.icon || "",
-        specs: c.specs.map((s) => ({
+function sourceClasses(rules) {
+    return buildClasses(rules.classes).map((c) => {
+        const specs = c.specs.map((s) => ({
             key: s.key,
             name: s.label,
             nameEn: s.labelEn,
             role: s.role,
-            canTank: s.canTank,
-            canHeal: s.canHeal,
+            canTank: !!s.canTank,
+            canHeal: !!s.canHeal,
             icon: s.icon || "",
-        })),
-    }));
+        }));
+        return {
+            key: c.id,
+            name: c.label,
+            nameEn: c.labelEn,
+            color: c.color,
+            icon: c.icon || "",
+            specs,
+            canTank: specs.some((s) => s.canTank),
+            canHeal: specs.some((s) => s.canHeal),
+        };
+    });
 }
 
-function exportInstances(rules) {
+function sourceInstances(rules) {
     return rules.instances.map((i) => ({
         id: i.id,
         name: i.name,
         short: i.short || i.name,
         sizes: Array.isArray(i.sizes) ? [...i.sizes] : [],
         defaultSize: i.defaultSize || (Array.isArray(i.sizes) ? i.sizes[0] : 0) || 0,
-        status: i.status || "complete",
+        icon: i.icon || "",
     }));
+}
+
+/** The raid and party buffs of a rule set, reduced to what the planner checks: who provides it, who wants it. */
+function sourceBuffs(rules) {
+    const raid = BOARD_RAID_BUFFS
+        .map((key) => (rules.raidBuffs || []).find((b) => b.key === key))
+        .filter(Boolean)
+        .map((b) => ({ key: b.key, label: b.label, icon: b.icon || "", providers: [...b.providers] }));
+    const party = (rules.partyBuffs || []).map((b) => ({
+        key: b.key,
+        label: b.label,
+        icon: b.icon || "",
+        providers: [...b.providers],
+        beneficiaries: [...(b.beneficiaries || [])],
+        important: KEY_PARTY_BUFFS.has(b.key),
+    }));
+    return { raid, party };
 }
 
 /** The name part of a character key ("forever~aldric sturmwind" -> "aldric sturmwind"): logs know no version. */
@@ -72,7 +95,7 @@ function logSpecsOf(character, index) {
 }
 
 /** One profile, whitelisted, with only the characters of the version — null when it has none. */
-function exportProfile(profile, versionId, index) {
+function sourceProfile(profile, versionId, index) {
     const chars = profiles.charactersOfVersion(profile, versionId);
     if (!chars.length) return null;
     // The stored main is one per account across all versions; inside this
@@ -86,7 +109,6 @@ function exportProfile(profile, versionId, index) {
                 key: c.key,
                 name: c.name,
                 className: c.className,
-                realm: c.realm || "",
                 specs: (c.specs || []).map((s) => ({ spec: s.key, gear: s.gear })),
                 main: c.key === mainKey,
                 canTank: !!roles.canOfftank,
@@ -102,8 +124,9 @@ function exportProfile(profile, versionId, index) {
  * Attendance per Discord account over the version's raid nights, every raid
  * category of the guild summed up. Each category counts its last RAID_WINDOW
  * nights with evidence (rosterAttendance.js), so the list stays bounded.
+ * `rate` is null while nothing is counted (Forever before its raids open).
  */
-function exportAttendance(guildId, versionId, accounts, nowSec) {
+function sourceAttendance(guildId, versionId, accounts, nowSec) {
     const ctx = buildAttendanceContext(guildId, { versionId, now: nowSec });
     const byUser = new Map(accounts.map((a) => [a.userId, []]));
     for (const categoryId of ctx.raidsByCategory.keys()) {
@@ -136,17 +159,17 @@ function exportAttendance(guildId, versionId, accounts, nowSec) {
 }
 
 /**
- * The whole export for one version.
- * @param {{ versionId: string, guildId?: string, now?: number }} opts  `now` in ms
+ * Everything the planner reads from the bot, for one server and version.
+ * @param {{ guildId: string, versionId?: string, now?: number }} opts  `now` in ms
  */
-async function buildKaderExport({ versionId, guildId = guildRoles.eventGuildId(), now = Date.now() } = {}) {
+async function loadKaderSource({ guildId = "", versionId = plannerVersion(), now = Date.now() } = {}) {
     const rules = rulesFor(versionId);
     if (!rules) throw new Error(`unknown version ${versionId}`);
     const warnings = [];
 
     let members = [];
     if (!guildId) {
-        warnings.push("Kein Event-Server konfiguriert - Mitgliederliste leer.");
+        warnings.push("Kein Discord-Server aktiv - Mitgliederliste leer.");
     } else {
         const listed = await discord.listHumanMembers(guildId);
         if (listed.error) warnings.push(`Mitgliederliste nicht verfügbar (GuildMembers-Intent aktiv? Bot verbunden?): ${listed.error}`);
@@ -154,35 +177,33 @@ async function buildKaderExport({ versionId, guildId = guildRoles.eventGuildId()
     }
 
     const index = logIndex();
-    const exported = profiles.listProfiles()
-        .map((p) => exportProfile(p, versionId, index))
+    const listed = profiles.listProfiles()
+        .map((p) => sourceProfile(p, versionId, index))
         .filter(Boolean)
         .sort((a, b) => a.userId.localeCompare(b.userId));
 
-    const accounts = exported.map((p) => ({
+    const accounts = listed.map((p) => ({
         userId: p.userId,
         chars: p.characters.map((c) => ({ name: c.name, className: c.className, manual: true })),
     }));
     let attendance = [];
     try {
-        attendance = exportAttendance(guildId, versionId, accounts, Math.floor(now / 1000));
+        attendance = sourceAttendance(guildId, versionId, accounts, Math.floor(now / 1000));
     } catch (e) {
         warnings.push(`Anwesenheit nicht verfügbar: ${(e && e.message) || e}`);
     }
 
     return {
-        format: FORMAT,
-        v: FORMAT_VERSION,
-        generatedAt: new Date(now).toISOString(),
         guildId: guildId || "",
         versionId,
-        classes: exportClasses(rules),
-        instances: exportInstances(rules),
+        classes: sourceClasses(rules),
+        instances: sourceInstances(rules),
+        buffs: sourceBuffs(rules),
         members,
-        profiles: exported,
+        profiles: listed,
         attendance,
         warnings,
     };
 }
 
-module.exports = { buildKaderExport, exportVersion, FORMAT, FORMAT_VERSION, PREFERRED_VERSION };
+module.exports = { loadKaderSource, plannerVersion, PREFERRED_VERSION };

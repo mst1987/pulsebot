@@ -40,6 +40,7 @@
     --area-raids: #60a5fa; --area-raids-soft: rgba(96, 165, 250, .16);
     --area-roster: #a3e635; --area-roster-soft: rgba(163, 230, 53, .16);
     --area-lootcouncil: #e879f9; --area-lootcouncil-soft: rgba(232, 121, 249, .16);
+    --area-kader: #fbbf24; --area-kader-soft: rgba(251, 191, 36, .16);
     /* ---- loot award reasons: a green→yellow→orange→red scale, see .rbadge ---- */
     --reason-bis: #35d6a4; --reason-bis-bg: rgba(53, 214, 164, .16);
     --reason-mainspec: #7fd17f; --reason-mainspec-bg: rgba(127, 209, 127, .16);
@@ -144,6 +145,7 @@
         --area-raids: #2563c9; --area-raids-soft: rgba(37, 99, 201, .12);
         --area-roster: #5f8f12; --area-roster-soft: rgba(95, 143, 18, .12);
         --area-lootcouncil: #b03cc0; --area-lootcouncil-soft: rgba(176, 60, 192, .12);
+        --area-kader: #b7791f; --area-kader-soft: rgba(183, 121, 31, .12);
         --reason-bis: #0f8f72; --reason-bis-bg: rgba(15, 143, 114, .12);
         --reason-mainspec: #2b9440; --reason-mainspec-bg: rgba(43, 148, 64, .12);
         --reason-upgrade: #6d8f19; --reason-upgrade-bg: rgba(109, 143, 25, .12);
@@ -183,6 +185,7 @@
     --area-raids: #2563c9; --area-raids-soft: rgba(37, 99, 201, .12);
     --area-roster: #5f8f12; --area-roster-soft: rgba(95, 143, 18, .12);
     --area-lootcouncil: #b03cc0; --area-lootcouncil-soft: rgba(176, 60, 192, .12);
+    --area-kader: #b7791f; --area-kader-soft: rgba(183, 121, 31, .12);
     --reason-bis: #0f8f72; --reason-bis-bg: rgba(15, 143, 114, .12);
     --reason-mainspec: #2b9440; --reason-mainspec-bg: rgba(43, 148, 64, .12);
     --reason-upgrade: #6d8f19; --reason-upgrade-bg: rgba(109, 143, 25, .12);

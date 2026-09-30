@@ -26,4 +26,5 @@ export * from "./profile";
 export * from "./signups";
 export * from "./setup";
 export * from "./raidplan";
+export * from "./kader";
 export { canAccess, canAccessAny } from "../lib/access";

@@ -301,6 +301,10 @@
             "label": "Loot council",
             "description": "Caster overview for the loot council: awarded items per content, BiS gaps and upgrade suggestions."
         },
+        "kader": {
+            "label": "Roster planner",
+            "description": "Plan raid rosters for WoW Forever: player pool, a roster per raid, group setups. Assignments only apply inside the planner; the raider profile stays unchanged."
+        },
         "channels": {
             "label": "Channels",
             "description": "Create and duplicate Discord channels."
@@ -570,18 +574,6 @@
         "createdBy": "by {name}",
         "never": "never",
         "revokeTip": "Revoke token"
-    },
-    "kaderTokens": {
-        "title": "Roster builder tokens",
-        "revokeText": "The roster builder app using it can no longer fetch any data afterwards.",
-        "colUses": "Fetches",
-        "newSub": "One name per computer, so a single one can be revoked on its own. The token can only read: members, profiles and attendance — never upload loot.",
-        "cardTitle": "Roster builder",
-        "cardTip": "Roster builder (local app)",
-        "cardSub": "The roster builder app on the raid lead's computer uses one of these tokens to fetch classes, raids, members, raider profiles and attendance (read only). Wishes, notes and \"not with\" lists never leave the server.",
-        "lastUse": "Last fetch",
-        "noUseYet": "none yet",
-        "endpoint": "Endpoint"
     },
     "permissions": {
         "cellAria": "{owner} · {area}: {level}",

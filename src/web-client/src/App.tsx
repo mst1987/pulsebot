@@ -40,6 +40,7 @@ const SignupsPage = lazyWithReload(() => import("./pages/SignupsPage"));
 const ClaPage = lazyWithReload(() => import("./pages/cla/ClaPage"));
 const LootCouncilPage = lazyWithReload(() => import("./pages/lootcouncil/LootCouncilPage"));
 const DropCheckPage = lazyWithReload(() => import("./pages/lootcouncil/DropCheckPage"));
+const KaderPage = lazyWithReload(() => import("./pages/kader/KaderPage"));
 
 /**
  * Hides a page the user's rights don't cover. `areas` is an OR — one of them at
@@ -205,6 +206,10 @@ function MenuApp() {
                                 <Route path="cla" element={<Guard user={user} areas={["cla"]}><ClaPage /></Guard>} />
                                 <Route path="lootcouncil" element={<Guard user={user} areas={["lootcouncil"]}><LootCouncilPage /></Guard>} />
                                 <Route path="lootcouncil/drop/:itemId?" element={<Guard user={user} areas={["lootcouncil"]}><DropCheckPage /></Guard>} />
+                                {/* The Kaderplaner (area "kader"): board, player search, group setup of one roster. */}
+                                <Route path="kader" element={<Guard user={user} areas={["kader"]}><KaderPage sub="board" /></Guard>} />
+                                <Route path="kader/spieler" element={<Guard user={user} areas={["kader"]}><KaderPage sub="players" /></Guard>} />
+                                <Route path="kader/setup/:rosterId" element={<Guard user={user} areas={["kader"]}><KaderPage sub="setup" /></Guard>} />
                                 {/* Inside the shell on purpose: a mistyped path should still
                                     leave the menu (and the way back) standing. */}
                                 <Route path="*" element={<NotFound />} />

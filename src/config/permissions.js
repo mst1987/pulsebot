@@ -40,6 +40,10 @@ const AREAS = [
     // than another slice of "loot", because it is handed to the few people who
     // sit on the council, not to the guild at large.
     { id: "lootcouncil", tab: "lootcouncil", label: "Loot-Council", description: "Caster-Übersicht für den Lootrat: vergebene Items je Content, BiS-Lücken und Upgrade-Vorschläge." },
+    // Raid rosters for WoW Forever (docs/kaderplaner.md). Meant for the raid lead
+    // and the few people they name: never part of a base access by default, so
+    // only full admins and explicit role or single-account grants open it.
+    { id: "kader", tab: "kader", label: "Kaderplaner", description: "Raidkader für WoW Forever planen: Spieler-Pool, Kader je Raid, Gruppen-Setups. Die Zuweisungen gelten nur im Planer, das Raider-Profil bleibt unverändert." },
     { id: "channels", tab: "channels", label: "Kanäle", description: "Discord-Kanäle anlegen und duplizieren." },
     { id: "settings", tab: "settings", label: "Einstellungen", description: "Bot-Konfiguration. Admin-Rollen und Berechtigungen bleiben Voll-Admins vorbehalten." },
 ];

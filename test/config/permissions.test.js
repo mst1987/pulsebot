@@ -247,4 +247,19 @@ describe("config/permissions — per-account grants", () => {
             expect(can(historyWriter, "lootcouncil")).toBe(false);
         });
     });
+    // The Kaderplaner goes to the raid lead and the people they name
+    // (docs/kaderplaner.md): nobody gets it by default.
+    describe("the kader area", () => {
+        it("is its own area on its own tab", () => {
+            expect(AREAS.find((a) => a.id === "kader")).toMatchObject({ tab: "kader", label: "Kaderplaner" });
+        });
+
+        it("is in no default base access and opens only with an explicit grant", () => {
+            const { CONFIG_DEFAULTS } = require("../../src/stores/configSchema");
+            expect(can(baseAccessMap(CONFIG_DEFAULTS.baseAccess), "kader")).toBe(false);
+            expect(can(accessForUser({ "42": { kader: { read: true } } }, "42"), "kader")).toBe(true);
+            expect(can(accessForUser({ "42": { kader: { read: true } } }, "43"), "kader")).toBe(false);
+            expect(userCan({ isAdmin: true, access: emptyAccess() }, "kader", "write")).toBe(true);
+        });
+    });
 });

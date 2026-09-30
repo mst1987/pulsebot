@@ -163,8 +163,17 @@
     "/api/cla/recommendations": "cla",
     "/api/cla/recommendations/send": "cla",
     "/api/cla/recommendations/phrase": "cla",
-    "/api/kader/tokens": "settings",
-    "/api/kader/tokens/delete": "settings"
+    "/api/kader": "kader",
+    "/api/kader/accounts": "kader",
+    "/api/kader/accounts/remove": "kader",
+    "/api/kader/assignments": "kader",
+    "/api/kader/assignments/reset": "kader",
+    "/api/kader/rosters": "kader",
+    "/api/kader/rosters/delete": "kader",
+    "/api/kader/rosters/place": "kader",
+    "/api/kader/variants": "kader",
+    "/api/kader/variants/delete": "kader",
+    "/api/kader/variants/auto": "kader"
   },
   "ungated": [
     "/api/session",
@@ -178,7 +187,6 @@
   ],
   "tokenAuth": [
     "/api/ingest/loot",
-    "/api/ingest/raids",
-    "/api/kader/export"
+    "/api/ingest/raids"
   ]
 }

@@ -187,6 +187,7 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .area-roster { --area: var(--area-roster); --area-soft: var(--area-roster-soft); }
 .area-history { --area: var(--area-history); --area-soft: var(--area-history-soft); }
 .area-lootcouncil { --area: var(--area-lootcouncil); --area-soft: var(--area-lootcouncil-soft); }
+.area-kader { --area: var(--area-kader); --area-soft: var(--area-kader-soft); }
 .area-channels { --area: var(--area-channels); --area-soft: var(--area-channels-soft); }
 .area-settings { --area: var(--area-settings); --area-soft: var(--area-settings-soft); }
 /* Which commit the server runs (#314). One quiet line above the user block —

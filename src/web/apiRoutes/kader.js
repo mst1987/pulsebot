@@ -1,80 +1,89 @@
-// The Kaderbau export (docs/kaderbau.md): a read-only snapshot for the local
-// roster-builder app a raid lead runs on their PC, plus the settings routes that
-// mint and revoke the app's API tokens.
-//
-// GET /api/kader/export has no Discord session behind it: the app calls it
-// server-to-server with `Authorization: Bearer ehk_…` (kaderTokenStore.js).
-// apiAccess.js exempts it from the session gate (`auth: "token"`) and this
-// handler does the whole auth itself, before any work. A loot-sync token
-// (`ehl_`) is unknown to the Kaderbau store and is refused like any other.
-const { ok, error } = require("../http/apiResponse");
+// The Kaderplaner (docs/kaderplaner.md): raid rosters for WoW Forever, planned
+// in the web admin. Area "kader" — in no base access by default, so only full
+// admins and the accounts or roles an admin grants it to get in
+// (docs/permissions.md). GET reads the whole view model; every write changes the
+// planner of the active server and answers with the fresh view model, so the
+// page never merges anything itself.
+const { ok } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
-const kaderTokens = require("../../stores/kaderTokenStore");
-const { buildKaderExport, exportVersion } = require("../kader/kaderExport");
+const { activeGuildFor } = require("../http/activeGuild");
+const { q } = require("../http/apiParams");
+const kaderStore = require("../../stores/kaderStore");
+const model = require("../../services/kader/kaderModel");
+const { loadKaderSource } = require("../kader/kaderSource");
+const { buildKaderView, mutationContext, publicView } = require("../kader/kaderView");
 
-/** The token behind the request, or null after sending the 401. */
-function requireKaderToken(req, res) {
-    const raw = kaderTokens.bearerFrom(req);
-    if (!raw) {
-        error(res, 401, "no_token", "Kein API-Token übermittelt (Authorization: Bearer …).");
-        return null;
-    }
-    const token = kaderTokens.verifyToken(raw);
-    if (!token) {
-        error(res, 401, "bad_token", "API-Token unbekannt oder zurückgezogen.");
-        return null;
-    }
-    return token;
-}
-
-/** GET /api/kader/export?version=<id> — the snapshot; see docs/kaderbau.md for its shape. */
-async function getKaderExport(req, res, url) {
-    const token = requireKaderToken(req, res);
-    if (!token) return;
-    const query = url && url.searchParams ? url.searchParams : new URLSearchParams();
-    const versionId = exportVersion(query.get("version"));
-    if (!versionId) return error(res, 400, "unknown_version", "Unbekannte Spielversion.");
-    touchKaderToken(token.id);
-    ok(res, await buildKaderExport({ versionId }));
-}
-
-function touchKaderToken(id) {
-    try {
-        kaderTokens.touchToken(id);
-    } catch (e) {
-        // "zuletzt benutzt" is a convenience; the export must not fail over it.
-        console.error("kader: token touch failed:", (e && e.message) || e);
-    }
-}
-
-// ---- Kaderbau API tokens (Einstellungen → Verbindungen) ----
-// Full-admin only, like the loot-sync tokens: a credential that bypasses the
-// Discord login must not be mintable with mere write access to "Einstellungen".
-
-/** GET /api/kader/tokens — the tokens, never their secrets. */
-const getKaderTokens = withUser({ full: true }, async ({ res }) => {
-    ok(res, { tokens: kaderTokens.listTokens() });
+/** GET /api/kader — the whole view model of the active server. */
+const getKader = withUser({}, async ({ req, res }) => {
+    const guildId = activeGuildFor(req);
+    const source = await loadKaderSource({ guildId });
+    ok(res, publicView(buildKaderView({ source, planner: kaderStore.readPlanner(guildId) })));
 });
 
-/** POST /api/kader/tokens — body: { name }. Returns the plaintext **once**. */
-const createKaderTokenHandler = withUser({ full: true, csrf: true, body: true }, async ({ user, body, res }) => {
-    const { token, record } = kaderTokens.createToken(body.name, user.name || user.id || "");
-    ok(res, { token, record }, 201);
-});
+/**
+ * A write route: runs a pure mutator of kaderModel.js on the stored planner of
+ * the active server and answers with the new view. `mutate(planner, body, ctx)`
+ * returns the new planner, or `{ planner, ...extra }` whose extras (the id of
+ * what was created) are sent along. A refusal is an AppError the router answers.
+ */
+function writeRoute(mutate) {
+    return withUser({ write: "kader", csrf: true, body: true }, async ({ req, res, body }) => {
+        const guildId = activeGuildFor(req);
+        const source = await loadKaderSource({ guildId });
+        const planner = kaderStore.readPlanner(guildId);
+        const result = mutate(planner, body, mutationContext(buildKaderView({ source, planner })));
+        const { planner: next, ...extra } = result && result.planner ? result : { planner: result };
+        const stored = kaderStore.writePlanner(guildId, next);
+        ok(res, { ...publicView(buildKaderView({ source, planner: stored })), ...extra });
+    });
+}
 
-/** POST /api/kader/tokens/delete — body: { id }. Revokes immediately. */
-const deleteKaderTokenHandler = withUser({ full: true, csrf: true, body: true }, async ({ body, res }) => {
-    const id = String(body.id || "").trim();
-    if (!id || !kaderTokens.revokeToken(id)) return error(res, 404, "not_found", "Token nicht gefunden.");
-    ok(res, { id });
-});
+const str = (body, key) => q.str(body, key);
+
+/** POST /api/kader/accounts — body: { userId, displayName, character?: { firstName, lastName, className } } */
+const addAccount = writeRoute((p, body, ctx) => model.addAccount(p, body, ctx));
+/** POST /api/kader/accounts/remove — body: { userId }; only an account added by hand. */
+const removeAccount = writeRoute((p, body) => model.removeAccount(p, str(body, "userId")));
+/** PUT /api/kader/assignments — body: { userId, characters, activeCharacterId } */
+const saveAssignment = writeRoute((p, body, ctx) => model.setAssignment(p, str(body, "userId"), body, ctx));
+/** POST /api/kader/assignments/reset — body: { userId }; the profile shows again. */
+const resetAssignment = writeRoute((p, body) => model.resetAssignment(p, str(body, "userId")));
+/** POST /api/kader/rosters — body: { name?, instanceId, size? }; answers `rosterId` too. */
+const createRoster = writeRoute((p, body, ctx) => model.createRoster(p, body, ctx));
+/** PUT /api/kader/rosters — body: { rosterId, name?, instanceId?, size?, targets? } */
+const updateRoster = writeRoute((p, body, ctx) => model.updateRoster(p, str(body, "rosterId"), body, ctx));
+/** POST /api/kader/rosters/delete — body: { rosterId } */
+const deleteRoster = writeRoute((p, body) => model.deleteRoster(p, str(body, "rosterId")));
+/** POST /api/kader/rosters/place — body: { rosterId, userId, to: "role"|"bench"|"free", role? } */
+const placeInRoster = writeRoute((p, body, ctx) => model.placeInRoster(p, str(body, "rosterId"), body, ctx));
+/** POST /api/kader/variants — body: { rosterId, name?, copyFrom? }; answers `variantId` too. */
+const addVariant = writeRoute((p, body) => model.addVariant(p, str(body, "rosterId"), body));
+/** PUT /api/kader/variants — body: { rosterId, variantId, name?, groups? } */
+const saveVariant = writeRoute((p, body) => model.saveVariant(p, str(body, "rosterId"), str(body, "variantId"), body));
+/** POST /api/kader/variants/delete — body: { rosterId, variantId } */
+const deleteVariant = writeRoute((p, body) => model.deleteVariant(p, str(body, "rosterId"), str(body, "variantId")));
+/** POST /api/kader/variants/auto — body: { rosterId, variantId }: "Automatisch verteilen". */
+const autoVariant = writeRoute((p, body, ctx) => model.autoAssignVariant(p, str(body, "rosterId"), str(body, "variantId"), ctx));
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
-    { method: "GET", path: "/api/kader/export", handler: getKaderExport, auth: "token" },
-    { method: "GET", path: "/api/kader/tokens", handler: getKaderTokens, area: "settings" },
-    { method: "POST", path: "/api/kader/tokens", handler: createKaderTokenHandler, area: "settings" },
-    { method: "POST", path: "/api/kader/tokens/delete", handler: deleteKaderTokenHandler, area: "settings" },
+    { method: "GET", path: "/api/kader", handler: getKader, area: "kader" },
+    { method: "POST", path: "/api/kader/accounts", handler: addAccount, area: "kader" },
+    { method: "POST", path: "/api/kader/accounts/remove", handler: removeAccount, area: "kader" },
+    { method: "PUT", path: "/api/kader/assignments", handler: saveAssignment, area: "kader" },
+    { method: "POST", path: "/api/kader/assignments/reset", handler: resetAssignment, area: "kader" },
+    { method: "POST", path: "/api/kader/rosters", handler: createRoster, area: "kader" },
+    { method: "PUT", path: "/api/kader/rosters", handler: updateRoster, area: "kader" },
+    { method: "POST", path: "/api/kader/rosters/delete", handler: deleteRoster, area: "kader" },
+    { method: "POST", path: "/api/kader/rosters/place", handler: placeInRoster, area: "kader" },
+    { method: "POST", path: "/api/kader/variants", handler: addVariant, area: "kader" },
+    { method: "PUT", path: "/api/kader/variants", handler: saveVariant, area: "kader" },
+    { method: "POST", path: "/api/kader/variants/delete", handler: deleteVariant, area: "kader" },
+    { method: "POST", path: "/api/kader/variants/auto", handler: autoVariant, area: "kader" },
 ];
 
-module.exports = { getKaderExport, getKaderTokens, createKaderTokenHandler, deleteKaderTokenHandler, routes };
+module.exports = {
+    getKader, addAccount, removeAccount, saveAssignment, resetAssignment,
+    createRoster, updateRoster, deleteRoster, placeInRoster,
+    addVariant, saveVariant, deleteVariant, autoVariant, routes,
+};

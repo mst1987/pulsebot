@@ -1,9 +1,8 @@
-// The Kaderbau snapshot (docs/kaderbau.md): shape, version filter, attendance
-// and — above all — that nothing private leaves the profile store.
+// What the Kaderplaner reads from the bot (docs/kaderplaner.md): shape, attendance
+// and, above all, that nothing private leaves the profile store.
 jest.mock("../../../src/services/discord/discord", () => ({
     listHumanMembers: jest.fn(async () => ({ members: [], error: null })),
 }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "g1") }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn(() => []) }));
 jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
 jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
@@ -15,7 +14,9 @@ const profiles = require("../../../src/stores/raiderProfileStore");
 const discord = require("../../../src/services/discord/discord");
 const { listStoredEvents } = require("../../../src/services/events/eventSources");
 const { logIndex } = require("../../../src/web/characters/profileLogs");
-const { buildKaderExport, exportVersion } = require("../../../src/web/kader/kaderExport");
+const { loadKaderSource, plannerVersion } = require("../../../src/web/kader/kaderSource");
+
+const loadSource = (opts) => loadKaderSource({ guildId: "g1", ...opts });
 
 const NOW = Date.UTC(2026, 11, 20, 12);
 const NOW_SEC = NOW / 1000;
@@ -69,28 +70,30 @@ beforeEach(() => {
     logIndex.mockReturnValue(new Map());
 });
 
-describe("web/kader/kaderExport", () => {
-    describe("exportVersion", () => {
-        it("defaults to forever and refuses an unknown version", () => {
-            expect(exportVersion("")).toBe("forever");
-            expect(exportVersion(null)).toBe("forever");
-            expect(exportVersion("tbc")).toBe("tbc");
-            expect(exportVersion("wotlk")).toBeNull();
-        });
+describe("web/kader/kaderSource", () => {
+    it("works in Forever", () => {
+        expect(plannerVersion()).toBe("forever");
     });
 
     it("builds the documented top-level shape", async () => {
-        const out = await buildKaderExport({ versionId: "forever", now: NOW });
+        const out = await loadSource({ now: NOW });
         expect(Object.keys(out)).toEqual([
-            "format", "v", "generatedAt", "guildId", "versionId",
-            "classes", "instances", "members", "profiles", "attendance", "warnings",
+            "guildId", "versionId", "classes", "instances", "buffs", "members", "profiles", "attendance", "warnings",
         ]);
-        expect(out).toMatchObject({ format: "eventhelper-kader", v: 1, guildId: "g1", versionId: "forever", warnings: [] });
-        expect(out.generatedAt).toBe(new Date(NOW).toISOString());
+        expect(out).toMatchObject({ guildId: "g1", versionId: "forever", warnings: [] });
+    });
+
+    it("hands out the raid buffs of the side panel and the party buffs a group is checked for", async () => {
+        const out = await loadSource({ now: NOW });
+        expect(out.buffs.raid.map((b) => b.key)).toEqual(["fortitude", "intellect", "motw", "kings", "might"]);
+        const windfury = out.buffs.party.find((b) => b.key === "windfury");
+        expect(windfury).toMatchObject({ important: true, providers: expect.arrayContaining(["Shaman-Enhancement"]) });
+        expect(windfury.beneficiaries).toContain("Warrior-Fury");
+        expect(out.buffs.party.find((b) => b.key === "trueshot").important).toBe(false);
     });
 
     it("lists the rule set's classes with spec roles and the version's instances", async () => {
-        const out = await buildKaderExport({ versionId: "forever", now: NOW });
+        const out = await loadSource({ versionId: "forever", now: NOW });
         const warrior = out.classes.find((c) => c.key === "Warrior");
         expect(warrior).toMatchObject({ name: "Krieger", nameEn: "Warrior", color: expect.stringMatching(/^#/) });
         expect(warrior.specs.find((s) => s.key === "Warrior-Protection")).toMatchObject({ name: "Schutz", role: "tank", canTank: true });
@@ -101,7 +104,7 @@ describe("web/kader/kaderExport", () => {
     });
 
     it("hands out the event server's human members", async () => {
-        const out = await buildKaderExport({ versionId: "forever", now: NOW });
+        const out = await loadSource({ versionId: "forever", now: NOW });
         expect(discord.listHumanMembers).toHaveBeenCalledWith("g1");
         expect(out.members).toEqual([
             { userId: U1, displayName: "Aldric", avatarUrl: "https://cdn.example/a.png" },
@@ -111,13 +114,13 @@ describe("web/kader/kaderExport", () => {
 
     it("answers with an empty member list and a warning when Discord cannot list them", async () => {
         discord.listHumanMembers.mockResolvedValue({ members: [], error: "Used disallowed intents" });
-        const out = await buildKaderExport({ versionId: "forever", now: NOW });
+        const out = await loadSource({ versionId: "forever", now: NOW });
         expect(out.members).toEqual([]);
         expect(out.warnings).toEqual([expect.stringMatching(/GuildMembers.*Used disallowed intents/)]);
     });
 
     it("warns instead of asking Discord when no event server is configured", async () => {
-        const out = await buildKaderExport({ versionId: "forever", guildId: "", now: NOW });
+        const out = await loadSource({ versionId: "forever", guildId: "", now: NOW });
         expect(discord.listHumanMembers).not.toHaveBeenCalled();
         expect(out.guildId).toBe("");
         expect(out.warnings).toHaveLength(1);
@@ -125,7 +128,7 @@ describe("web/kader/kaderExport", () => {
 
     describe("profiles", () => {
         it("carries only the characters of the version, and only raiders who have one", async () => {
-            const out = await buildKaderExport({ versionId: "forever", now: NOW });
+            const out = await loadSource({ versionId: "forever", now: NOW });
             expect(out.profiles.map((p) => p.userId)).toEqual([U1]);
             const [p] = out.profiles;
             expect(p.characters.map((c) => c.name)).toEqual(["Aldric Sturmwind", "Mira Sonnlicht"]);
@@ -133,13 +136,12 @@ describe("web/kader/kaderExport", () => {
         });
 
         it("exports a character in the documented shape with effective tank/heal switches", async () => {
-            const out = await buildKaderExport({ versionId: "forever", now: NOW });
+            const out = await loadSource({ versionId: "forever", now: NOW });
             const [warrior, druid] = out.profiles[0].characters;
             expect(warrior).toEqual({
                 key: "forever~aldric sturmwind",
                 name: "Aldric Sturmwind",
                 className: "Warrior",
-                realm: "",
                 specs: [{ spec: "Warrior-Protection", gear: "usable" }, { spec: "Warrior-Fury", gear: "none" }],
                 // the account's main is the TBC priest: inside Forever the first character stands in
                 main: true,
@@ -156,15 +158,15 @@ describe("web/kader/kaderExport", () => {
                 ["aldric sturmwind", { className: "Warrior", specKey: "Warrior-Protection" }],
                 ["mira sonnlicht", { className: "Mage", specKey: "Mage-Frost" }],
             ]));
-            const out = await buildKaderExport({ versionId: "forever", now: NOW });
+            const out = await loadSource({ versionId: "forever", now: NOW });
             const [warrior, druid] = out.profiles[0].characters;
             expect(warrior.logSpecs).toEqual(["Warrior-Protection"]);
             expect(druid.logSpecs).toEqual([]);
         });
 
         // The privacy rule of docs/kaderbau.md: none of this may ever leave.
-        it("never exports avoid lists, wishes, notes, preferred raids or claims", async () => {
-            const out = await buildKaderExport({ versionId: "forever", now: NOW });
+        it("never hands out avoid lists, wishes, notes, preferred raids or claims", async () => {
+            const out = await loadSource({ versionId: "forever", now: NOW });
             const text = JSON.stringify(out);
             for (const field of ["avoid", "avoidEnabled", "wishes", "note", "preferredRaids", "claimedBy", "calendar", "token"]) {
                 expect(text).not.toContain(`"${field}"`);
@@ -183,7 +185,7 @@ describe("web/kader/kaderExport", () => {
                 { id: "e3", categoryId: "c1", versionId: "tbc", title: "Kara", startTime: NOW_SEC - 3 * DAY, signUps: [{ userId: U1, status: "signed" }] },
                 { id: "future", categoryId: "c1", versionId: "forever", title: "Next", startTime: NOW_SEC + 2 * DAY, signUps: [{ userId: U1, status: "signed" }] },
             ]);
-            const out = await buildKaderExport({ versionId: "forever", now: NOW });
+            const out = await loadSource({ versionId: "forever", now: NOW });
             expect(out.attendance).toHaveLength(1);
             const [a] = out.attendance;
             expect(a).toMatchObject({ userId: U1, attended: 1, counted: 2, rate: 0.5 });
@@ -194,19 +196,19 @@ describe("web/kader/kaderExport", () => {
         });
 
         it("counts nothing yet for a version without raid nights", async () => {
-            const out = await buildKaderExport({ versionId: "forever", now: NOW });
+            const out = await loadSource({ versionId: "forever", now: NOW });
             expect(out.attendance).toEqual([{ userId: U1, attended: 0, counted: 0, rate: null, nights: [] }]);
         });
 
         it("keeps answering with a warning when attendance cannot be read", async () => {
             listStoredEvents.mockImplementation(() => { throw new Error("disk"); });
-            const out = await buildKaderExport({ versionId: "forever", now: NOW });
+            const out = await loadSource({ versionId: "forever", now: NOW });
             expect(out.attendance).toEqual([]);
             expect(out.warnings).toEqual([expect.stringMatching(/Anwesenheit.*disk/)]);
         });
     });
 
     it("refuses an unknown version", async () => {
-        await expect(buildKaderExport({ versionId: "wotlk", now: NOW })).rejects.toThrow(/unknown version/);
+        await expect(loadSource({ versionId: "wotlk", now: NOW })).rejects.toThrow(/unknown version/);
     });
 });

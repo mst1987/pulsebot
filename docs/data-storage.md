@@ -34,7 +34,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `sessions.json` | `web/http/auth.js` | Web-Sitzungen: sid → `{ id, name, isAdmin, access, csrf, createdAt, adminCheckedAt }` | **ja** (eine sid ist ein Login) |
 | `settings/config.json` | `settingsStore.js` | Bot-Einstellungen aus dem Web: Server, Kanäle, Rollen, Rechte, API-Zugänge (u. a. Blizzard-, WCL-v2- und Anthropic-Schlüssel) | **ja** |
 | `settings/ingest-tokens.json` | `ingestTokenStore.js` | Token des Loot-Sync-Tools, nur als sha256-Hash | **ja** (Hashes) |
-| `settings/kader-tokens.json` | `kaderTokenStore.js` | Token der lokalen Kaderbau-App (nur Lesen, `ehk_`), nur als sha256-Hash — siehe [kaderbau.md](kaderbau.md) | **ja** (Hashes) |
+| `settings/kader.json` | `kaderStore.js` | Kaderplaner je Discord-Server: von Hand hinzugefügte Accounts, Charakter-Zuweisungen des Planers, Kader, Gruppen-Setups — siehe [kaderplaner.md](kaderplaner.md) | nein |
 | `settings/calendar-tokens.json` | `calendarTokenStore.js` | Abo-Token des Raider-Kalenders, nur als sha256-Hash | **ja** (Hashes) |
 | `settings/recruitment.json` | `settingsStore.js` | Recruitment-Vorlagen: `{ templates: [...] }`, je Vorlage `versionId` (#553) | nein |
 | `settings/recruitment-posts.json` | `settingsStore.js` | Gepostete Recruitment-Nachrichten (zum späteren Bearbeiten), je Nachricht `versionId` des Bewerben-Knopfs (#553) | nein |

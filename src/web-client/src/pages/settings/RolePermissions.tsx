@@ -36,6 +36,7 @@ const AREA_ICONS: Record<string, string> = {
     history: "inv_misc_book_09",
     loot: "inv_misc_bag_10",
     lootcouncil: "inv_misc_coin_02",
+    kader: "inv_misc_groupneedmore",
     channels: "inv_letter_15",
     settings: "trade_engineering",
 };

@@ -153,6 +153,16 @@ Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit. Charaktere lassen s
 
 Das Roster zeigt die Charaktere der Spielversion des Content-Umschalters in der Kopfleiste; die Anwesenheit zählt nur die Raids dieser Version. Der Reiter „Charaktere“ der Loot-Historie folgt demselben Umschalter.
 
+## Kaderplaner
+
+Technik: [kaderplaner.md](kaderplaner.md)
+
+*Bereich "kader"* — nur für Voll-Admins und die Konten oder Rollen, denen ein Admin ihn unter Einstellungen → Berechtigungen gibt (am besten unter „Einzelne Konten“).
+
+Raidkader für WoW Forever planen. **Kader-Board:** links der Pool (alle Discord-Accounts mit Forever-Charakter im Profil plus von Hand hinzugefügte), in der Mitte der Kader nach Rollen mit Zielzahlen und Ersatzbank, rechts Klassen-Mix, Raid-Buffs und Ø-Anwesenheit. Spieler per Ziehen verschieben — oder mit „+“, einem Klick auf einen freien Platz oder im Account-Dialog. **Spieler finden:** Filter (Status, Rolle, Klasse, Anwesenheit, Tage, Gear) mit Anzahlen, Gruppierung, Sortierung. **Setup bauen:** Gruppen zu fünft in Varianten, „Automatisch verteilen“ und „Als Text kopieren“ für Discord.
+
+Im Account-Dialog trägst du Charakter, Klasse, Specs (Stern = Haupt-Spec), Gear und Offtank/Heilen ein. Das gilt nur im Kaderplaner — das Raider-Profil wird nie geändert; weicht deine Zuweisung davon ab, steht „weicht vom Profil ab“ dabei. Solange es noch keine Forever-Raids gab, zeigt die Anwesenheit „—“.
+
 ## Loot Council
 
 Technik: [loot-council.md](loot-council.md)

@@ -51,7 +51,7 @@ describe("one menu for both front ends", () => {
             { name: "Start", ids: ["home", "signups", "profile"] },
             { name: "Raids", ids: ["raids", "roster", "cla"] },
             { name: "Loot", ids: ["history", "lootcouncil"] },
-            { name: "Gilde", ids: ["recruitment", "channels"] },
+            { name: "Gilde", ids: ["recruitment", "kader", "channels"] },
             { name: "System", ids: ["settings"] },
         ]);
         // a group is one contiguous block, so its heading is printed once
@@ -72,6 +72,7 @@ describe("one menu for both front ends", () => {
             roster: "achievement_guildperk_everybodysfriend",
             history: "inv_misc_bag_10",
             lootcouncil: "inv_misc_coin_02",
+            kader: "inv_misc_groupneedmore",
             channels: "inv_letter_15",
             settings: "trade_engineering",
         });
