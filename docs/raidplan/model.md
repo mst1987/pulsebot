@@ -50,7 +50,7 @@ Standard, a board with only rows):
 - `marks` `[{ id, mark, x, y }]` — the eight raid target marks (`skull cross square moon triangle diamond
   circle star`);
 - `zones` `[{ id, shape: rect|ellipse, type: danger|healthy|neutral|custom, label, color, x, y, w, h }]` — x/y
-  is the top-left corner; a new zone gets its type's preset colour (`ZONE_COLORS`), any `#rrggbb` is accepted;
+  is the top-left corner; a new zone gets its type's preset colour (`ZONE_COLORS`), any `#rrggbb` is accepted; a role group area also carries `areaStyle` (`calm` | `arc`), `arcSpan` and `arcWidth` (see board.md, "Role group areas: calm or arc");
 - `lines` `[{ id, kind: arrow|line, x1, y1, x2, y2, color, width }]` (width 1..12 px) and `texts` `[{ id,
   text, x, y, color, size }]` (size 10..48 px, text up to 60 characters, an empty text is dropped);
 - **every object** (token, slot, mark, zone, line, text) also has `opacity` (0.1..1, clamped; zones start at

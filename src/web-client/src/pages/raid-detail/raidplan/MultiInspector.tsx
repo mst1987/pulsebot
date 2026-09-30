@@ -4,7 +4,7 @@ import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import { NumberField, SliderField } from "../../../components/raidplan/NumberField";
 import { alignSelection, resizeSelection, deleteSelection, duplicateSelection, lookSummary, optionSummary, patchArrowSelection, reorderSelection, roleZoneSummary, roleZonesOf, scaleSelection, setColorSelection, setFacingSelection, setRingSelection, setBadgeSelection, setRoleZoneSelection, selectionBox, setLookSelection, sharedOptions, type BoardPx, type SelItem } from "../../../lib/raidplan/multiSelect";
-import { ARROW_COLOR, ARROW_MAX, ARROW_MIN, COMPASS, COMPASS_NAMES, LABEL_POS, clampOpacity } from "../../../lib/raidplan";
+import { AREA_STYLES, ARROW_COLOR, ARROW_MAX, ARROW_MIN, COMPASS, COMPASS_NAMES, LABEL_POS, clampOpacity } from "../../../lib/raidplan";
 import { BADGE_SCALE_MAX, BADGE_SCALE_MIN, badgeScaleOf } from "../../../lib/raidplan/labelScale";
 import { useT } from "../../../i18n";
 
@@ -103,6 +103,14 @@ export default function MultiInspector({ board, sel, px, canWrite, edit }: {
             )}
             {roles && (
                 <div className="rp-field">
+                    {roles.areas > 0 && (
+                        <>
+                            <span className="rp-kicker">{mixed(t("raidBoard.roleGroupUi.areaStyle"), roles.areaStyle)}</span>
+                            <span className="rp-amb-seg sm" role="radiogroup" aria-label={t("raidBoard.roleGroupUi.areaStyle")}>
+                                {AREA_STYLES.map((s) => <button key={s} type="button" role="radio" aria-checked={roles.areaStyle === s} className={roles.areaStyle === s ? "is-on" : ""} disabled={dis} onClick={() => edit((b) => setRoleZoneSelection(b, sel, { areaStyle: s }))}>{t(`raidBoard.roleGroupUi.style.${s}`)}</button>)}
+                            </span>
+                        </>
+                    )}
                     <SliderField label={mixed(t("raidBoard.roleGroupUi.rotation"), roles.rotation)} value={roles.rotation === null ? 0 : roles.rotation} min={0} max={359} step={1} unit="°" disabled={dis} onChange={(v) => edit((b) => setRoleZoneSelection(b, sel, { rotation: v }), true)} />
                     <SliderField label={mixed(t("raidBoard.roleGroupUi.iconScale"), roles.iconScale)} value={Math.round((roles.iconScale === null ? 1 : roles.iconScale) * 100)} min={25} max={300} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => setRoleZoneSelection(b, sel, { iconScale: v / 100 }), true)} />
                     <span className="rp-kicker">{mixed(t("raidBoard.roleGroupUi.labelPos"), roles.labelPos)}</span>

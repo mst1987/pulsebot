@@ -443,6 +443,47 @@ Tests: "role groups turned, their names inside" in `src/web-client/src/lib/raidp
 multi-selection" in `src/web-client/src/lib/raidplan/multiOptions.test.ts`, "a role group's symbol size and label place" in
 `test/services/raidplan/raidplanBoard.test.js`.
 
+## Role group areas: calm or arc (#559, section 2)
+
+A role group AREA (a zone of type `role` with the shape `ellipse` or `rect`; the cluster "Symbole" has no area and keeps its look
+above) is drawn in one of two styles, chosen per area in the inspector (tab "Form", segmented control "Flächen-Stil": Ruhig / Bogen)
+and for several at once in the multi-selection. Chosen in the design canvas "Flächen auf der Karte" (variants B and C, not A).
+
+- **Data model** (optional fields on the zone, `raidplanBoard.cleanAreaStyle` on the server, twins `areaStyleOf` / `arcSpanOf` /
+  `arcWidthOf` in `lib/raidplan/roleGroups.ts`):
+  - `areaStyle`: `"calm"` | `"arc"`. Missing or unknown = `"calm"`, so every area stored before is calm - nothing to migrate.
+  - `arcSpan`: the arc in whole degrees, 30 .. 360 (360 = a closed ring). Missing = a ring for melee and tanks, 180 for the others.
+  - `arcWidth`: the band's width as a share of the smaller half axis, 0.1 .. 0.8 (default 0.35).
+  - The arc's middle points DOWN before the zone is turned; the existing `rotation` aims it ("open side" = the opposite direction), `w` /
+    `h` are its outer radii (the zone's ellipse; a rectangle draws its inscribed ellipse as a band). Span and width are cleaned for every
+    role group, also a calm one, so switching back and forth loses nothing. Other zones never carry them; a template applied keeps them
+    (`reidBoard` copies the zone).
+- **Calm ("Ruhig", the default):** a very light fill (the zone's opacity x `--rp-area-calm-fill`), a thin line (`--rp-zb` x
+  `--rp-area-line`), solid for every role except ranged (dashed). The **badge** - role icon, label (the role's name when none was written)
+  and count - sits centred on the edge that lies on top, half outside (`calmBadgeAt`: the zone's own top edge, the side that is up once it
+  turns past 45 degrees). The names are small chips inside (`roleNamesLayout(..., withIcon = false)`: no symbol above them; they start
+  below the badge when it reaches into their area).
+- **Arc ("Bogen"):** the zone draws no box; an SVG path in the zone's own reference px (`arcPath`) is a ring (two ellipses, even-odd)
+  or an annulus sector, filled with the zone's opacity, the thin line solid / dashed like calm. Only the band takes the pointer (the
+  empty middle and the rest of the box let clicks through to the board; the grips stay reachable). The badge sits on the outer edge -
+  at the top of a ring, in the middle of an arc; the names are chips along the middle of the band, spread evenly and clear of the badge
+  (`arcLayout`), upright and turned with the zone. They shrink down to 60 % of their font before one "+N" chip (all others in its
+  tooltip) takes the rest; too small on screen they are hidden like every name.
+- **Label place and symbol size:** an area carries its label in the badge, so "Beschriftung" (`labelPos`) is only offered for the cluster
+  (the field stays stored). "Symbolgröße" (`iconScale`) scales the badge.
+- **Default per plan / template: not done.** Boards are stored per section and a plan has no settings of its own that the editor saves
+  (the Standard board carries only rows); a new area starts calm, the multi-selection switches many at once.
+- **Styles:** `styles/raidplan/objects.css` (`.rp-zone-role.is-calm` / `.is-arc` / `.is-dashed`, `.rp-arc-band`, `.rp-rg-badge`,
+  `.rp-rg-at`); colours only from the zone (`--zc`) and the tokens `--rp-area-badge-bg`, `--rp-area-badge-ink`,
+  `--rp-area-badge-shadow`, `--rp-area-calm-fill`, `--rp-area-line` (tokens.css, dark and both light blocks); geometry only through custom
+  properties (`--rp-dx` / `--rp-dy`, `--rp-bf`, `--rp-bi`, `--rp-bh`). The editor, the template preview and the read view `/p/<token>` use
+  the same `PlanBoard`, so they draw both styles identically.
+
+Tests: `src/web-client/src/lib/raidplan/areaStyle.test.ts` (defaults, band, path, badge and name places), `src/web-client/src/components/raidplan/PlanBoard.areas.test.tsx`
+(both styles rendered, the read view against the editor), "a role group area switches between calm and arc" in
+`src/web-client/src/pages/raid-detail/raidplan/Inspector.tabs.test.tsx`, "the area style for all of them at once" in
+`src/web-client/src/lib/raidplan/multiOptions.test.ts`, "a role group area's style: calm or arc (#559)" in `test/services/raidplan/raidplanBoard.test.js`.
+
 ## Section bar and boss icons (feature/raidplan-16, part 3)
 
 - **Every section carries its name** in the section bar - the editor's (`BossNav`, also the template editor)

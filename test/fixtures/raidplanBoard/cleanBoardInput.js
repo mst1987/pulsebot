@@ -47,7 +47,7 @@ const input = {
     ],
     zones: [
         { id: "z1", type: "danger", shape: "ellipse", label: "Feuer", x: 0.99, y: 0.5, w: 0.5, h: 0.01, color: "#123456" },
-        { id: "z2", type: "role", role: "healer", shape: "cluster", count: 99, showNames: true, rotation: 45, iconScale: 7, labelPos: "top", x: 0.2, y: 0.2, w: 0.2, h: 0.2 },
+        { id: "z2", type: "role", role: "healer", shape: "cluster", count: 99, showNames: true, rotation: 45, iconScale: 7, labelPos: "top", areaStyle: "arc", arcSpan: 999, arcWidth: 0.05, x: 0.2, y: 0.2, w: 0.2, h: 0.2 },
         { id: "z3", type: "role", role: "wizard", shape: "triangle", count: -3, iconScale: "x", labelPos: "nowhere", opacity: 0.8 },
         { id: "z4", type: "lava", shape: "cluster", w: 5, h: "a" },
         "not an object",

@@ -71,10 +71,17 @@ describe("role groups in a multi-selection (feature/raidplan-16)", () => {
     const role = (id, extra) => ({ id, shape: "rect", type: "role", label: "", color: "#f97316", x: 0.1, y: 0.1, w: 0.1, h: 0.4, role: "melee", count: 0, showNames: false, rotation: 0, opacity: 0.3, lock: false, hidden: false, ...extra });
     it("angle, symbol size and label place for all of them; mixed shows null; anything else in the selection = not offered", () => {
         const b = board({ zones: [role("a", { rotation: 30 }), role("b", { rotation: 60, iconScale: 2 })] });
-        expect(ms.roleZoneSummary(b, sel("zone:a", "zone:b"))).toEqual({ rotation: null, iconScale: null, labelPos: "in" });
+        expect(ms.roleZoneSummary(b, sel("zone:a", "zone:b"))).toEqual({ rotation: null, iconScale: null, labelPos: "in", areas: 2, areaStyle: "calm" });
         const c = ms.setRoleZoneSelection(b, sel("zone:a", "zone:b"), { rotation: 90, iconScale: 1.5, labelPos: "top" });
         expect(c.zones.map((z) => [z.rotation, z.iconScale, z.labelPos])).toEqual([[90, 1.5, "top"], [90, 1.5, "top"]]);
         expect(ms.roleZonesOf(b, sel("zone:a", "mark:k1"))).toEqual([]);
+    });
+    it("the area style for all of them at once (#559); a cluster of symbols does not count as an area", () => {
+        const b = board({ zones: [role("a", {}), role("b", { areaStyle: "arc" }), role("c", { shape: "cluster" })] });
+        expect(ms.roleZoneSummary(b, sel("zone:a", "zone:b", "zone:c"))).toMatchObject({ areas: 2, areaStyle: null });
+        const c = ms.setRoleZoneSelection(b, sel("zone:a", "zone:b"), { areaStyle: "arc" });
+        expect(ms.roleZoneSummary(c, sel("zone:a", "zone:b"))).toMatchObject({ areas: 2, areaStyle: "arc" });
+        expect(ms.roleZoneSummary(b, sel("zone:c"))).toMatchObject({ areas: 0, areaStyle: null });
     });
     it("a turned zone's box for the rubber band is its upright box", () => {
         const b = board({ zones: [role("a", { rotation: 90, x: 0.4, y: 0.1, w: 0.1, h: 0.5 })] });

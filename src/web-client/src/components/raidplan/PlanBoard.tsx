@@ -12,7 +12,7 @@ import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, autoBadgeGroup, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, badgeShown, groupBadgeLook, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, chipWidthOf, turnedBox, uprightInner, roleNamesLayout, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, autoBadgeGroup, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, badgeShown, groupBadgeLook, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, areaStyleOf, arcSpanOf, arcWidthOf, arcPath, arcLayout, calmBadgeAt, areaBadgeMetrics, areaBadgeWidth, chipWidthOf, turnedBox, uprightInner, roleNamesLayout, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import { classPlaceNameFor, classRefIcon, facingOf, linkClass, offRole, type AssignLink } from "../../lib/raidplan/assign";
 import { ANY } from "../../lib/raidplan/classRefs";
@@ -281,7 +281,81 @@ export default function PlanBoard({
      * was written, the count badge when set; with "Namen anzeigen" the setup's players of that role (spec role) below it - never needed, so the
      * sheet shows it without anybody known.
      */
-    const roleBody = (z: RaidplanZone) => {
+    const roleBody = (z: RaidplanZone) => (z.shape === "cluster" ? clusterBody(z) : areaBody(z));
+    /** the setup's players of a role group's role, when it shows names (spec role; "dps" = neither tank nor healer) */
+    const roleMembers = (z: RaidplanZone) => {
+        const role = z.role || "melee";
+        return z.showNames ? roster.filter((p) => (role === "dps" ? p.role !== "tank" && p.role !== "healer" : p.role === role)) : [];
+    };
+    /** a name chip on the map is not shown when its font would be too small on screen (never enlarged) */
+    const tooSmall = (font: number) => screenScale > 0 && font * screenScale < HIDE_SCREEN_FONT;
+    /**
+     * A role group AREA (#559, docs/raidplan/board.md "Role group areas: calm or arc"): its badge (role symbol, label - the role's name when
+     * none was written - and the count) and the names. Calm: the badge on the top edge of the upright box, the names inside. Arc: the badge
+     * on the band's outer edge, the names as chips along the band. Both upright over the turned outline, the same in editor and sheet.
+     */
+    const areaBody = (z: RaidplanZone) => {
+        const role = z.role || "melee";
+        const zw = z.w * size.w;
+        const zh = z.h * size.h;
+        const deg = z.rotation || 0;
+        const arc = areaStyleOf(z) === "arc";
+        const box = turnedBox(zw, zh, deg, arc ? "ellipse" : z.shape);
+        const bm = areaBadgeMetrics(zw, zh, z.iconScale || 1);
+        const label = zoneBoardLabel(z) || t(`raidBoard.roleGroup.${role}`);
+        const count = z.count || 0;
+        const members = roleMembers(z);
+        const names = members.map((p) => p.character);
+        const vars: Record<string, string> = {
+            "--rp-x": `${(z.x + z.w / 2) * 100}%`, "--rp-y": `${(z.y + z.h / 2) * 100}%`, "--rp-w": `${(box.w / (size.w || 1)) * 100}%`, "--rp-h": `${(box.h / (size.h || 1)) * 100}%`,
+            "--zc": z.color, "--rp-bf": `${bm.font}px`, "--rp-bi": `${bm.icon}px`,
+        };
+        const at = (p: { dx: number; dy: number }) => ({ "--rp-dx": `${p.dx}px`, "--rp-dy": `${p.dy}px` }) as CSSProperties;
+        const badge = (pos?: { dx: number; dy: number }) => (
+            <span className="rp-rg-badge" style={pos ? at(pos) : undefined}>
+                <span className="rp-rg-bico"><WowIcon name={ROLE_ICONS[role] || ROLE_ICONS.dps} size={Math.max(8, Math.round(bm.icon * 0.8))} /></span>
+                <span className="rp-rg-btext">{label}</span>
+                {count > 0 && <span className="rp-rg-bcount">{count}</span>}
+            </span>
+        );
+        if (arc) {
+            const lay = arcLayout(zw, zh, arcSpanOf(z), arcWidthOf(z), deg, names, areaBadgeWidth(label, count, bm.font));
+            const shown = names.length > 0 && !tooSmall(lay.font);
+            const rest = members.slice(lay.shown);
+            return (
+                <div key={`up-${z.id}`} className="rp-rg-up is-arc" style={{ ...vars, "--rp-zn": `${lay.font}px` } as CSSProperties} aria-hidden="true">
+                    {shown && members.slice(0, lay.shown).map((p, k) => <span key={p.userId} className="rp-rg-at" style={at(lay.spots[k])}><PlayerName player={p} className={isMe(p.userId) ? "is-me" : ""} /></span>)}
+                    {shown && rest.length > 0 && <span className="rp-rg-at rp-rg-more" style={at(lay.spots[lay.shown])} data-tip={rest.map((p) => p.character).join(", ")}>{lay.shown > 0 ? `+${rest.length}` : rest.length}</span>}
+                    {badge(lay.badge)}
+                </div>
+            );
+        }
+        const inner = uprightInner(zw, zh, deg, z.shape);
+        // the badge on the edge that lies on top; when its lower half reaches into the names' area, they start below it
+        const at0 = calmBadgeAt(zw, zh, deg);
+        const under = at0.dy + bm.height / 2 > -inner.h / 2;
+        const innerH = Math.max(0, inner.h - (under ? bm.height / 2 : 0));
+        const lay = names.length > 0 ? roleNamesLayout(inner.w, innerH, names, 1, false) : null;
+        const namesShown = !!lay && lay.shown > 0 && !tooSmall(lay.font);
+        const noRoom = !!lay && lay.shown === 0 && !tooSmall(lay.font);
+        const rest = lay && namesShown ? members.slice(lay.shown) : [];
+        return (
+            <div key={`up-${z.id}`} className="rp-rg-up is-calm" style={{ ...vars, "--rp-iw": `${Math.round(inner.w)}px`, "--rp-ih": `${Math.round(innerH)}px`, "--rp-bh": `${under ? Math.round(bm.height / 2) : 0}px`, "--rp-zn": `${lay ? lay.font : 11}px` } as CSSProperties} aria-hidden="true">
+                <div className="rp-rg-inner">
+                    {noRoom && <span className="rp-rg-names"><span className="rp-rg-more" data-tip={names.join(", ")}>{members.length}</span></span>}
+                    {namesShown && lay && (
+                        <span className="rp-rg-names">
+                            {members.slice(0, lay.shown).map((p) => <PlayerName key={p.userId} player={p} className={isMe(p.userId) ? "is-me" : ""} />)}
+                            {rest.length > 0 && <span className="rp-rg-more" data-tip={rest.map((p) => p.character).join(", ")}>+{rest.length}</span>}
+                        </span>
+                    )}
+                </div>
+                {badge(at0)}
+            </div>
+        );
+    };
+    /** a role group of the shape "Symbole" (several role icons, no area): as before, with its label inside or outside */
+    const clusterBody = (z: RaidplanZone) => {
         const role = z.role || "melee";
         const cluster = z.shape === "cluster";
         const n = cluster ? Math.max(3, Math.min(8, z.count || 5)) : 1;
@@ -364,13 +438,19 @@ export default function PlanBoard({
                 const zs = { "--rp-x": `${z.x * 100}%`, "--rp-y": `${z.y * 100}%`, "--rp-w": `${z.w * 100}%`, "--rp-h": `${z.h * 100}%`, "--zc": z.color, "--zo": z.opacity, ...(rm ? { "--rp-rg": `${rm.icon}px`, "--rp-zb": `${rm.border}px`, "--rp-zl": `${rm.label}px`, "--rp-zk": `${rm.badge}px`, "--rp-zn": `${rm.names}px` } : {}), ...(z.type === "role" && z.rotation ? { transform: `rotate(${z.rotation}deg)` } : {}) } as CSSProperties;
                 const name = z.label || (z.type === "role" ? t(`raidBoard.roleGroup.${z.role || "melee"}`) : t(`raidBoard.zone.${z.type}`));
                 const zoneLabel = zoneBoardLabel(z);
+                // a role group area: calm or arc (#559), a ranged one with a dashed line
+                const area = z.type === "role" && z.shape !== "cluster" ? areaStyleOf(z) : "";
+                const areaCls = area ? ` is-${area}${z.role === "ranged" ? " is-dashed" : ""}` : "";
+                const zw = z.w * size.w;
+                const zh = z.h * size.h;
                 return (
                     <div
                         key={z.id} style={zs} data-zone={z.id} data-obj={`zone:${z.id}`} tabIndex={editable ? 0 : undefined}
-                        className={cls(`rp-zone rp-zone-${z.type} rp-shape-${z.shape}`, "zone", z.id, ringShownFor(true, z.ring) ? "" : "is-noborder", z.lock)}
+                        className={cls(`rp-zone rp-zone-${z.type} rp-shape-${z.shape}${areaCls}`, "zone", z.id, ringShownFor(true, z.ring) ? "" : "is-noborder", z.lock)}
                         aria-label={`${t(`raidBoard.zone.${z.type}`)}: ${name}`}
                         {...handlers("zone", z.id)}
                     >
+                        {area === "arc" && zw > 0 && <svg className="rp-arc" viewBox={`0 0 ${zw} ${zh}`} aria-hidden="true"><path className="rp-arc-band" d={arcPath(zw, zh, arcSpanOf(z), arcWidthOf(z))} /></svg>}
                         {z.type === "role" ? null : <span className={`rp-zone-label${zoneLabel ? "" : " is-glyph"}`}><span aria-hidden="true">{ZONE_GLYPHS[z.type]}</span>{zoneLabel ? ` ${zoneLabel}` : ""}</span>}
                         {editable && !z.lock && isSel("zone", z.id) && z.type === "role" && <span className="rp-handle rp-h-zrot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "zone", z.id, "rot"); }} />}
                         {editable && !z.lock && isSel("zone", z.id) && (["nw", "ne", "sw", "se", "n", "e", "s", "w"] as Handle[]).map((c) => (
