@@ -74,8 +74,8 @@ function interviewProgress(entry, questions) {
 // ------------------------------------------------------- in and out
 
 /** A new entry in the pool; the wishes start with the account's character (profile, logs or the planner's own). */
-function newEntry(userId, name, ctx) {
-    const pre = ctx.prefillOf ? ctx.prefillOf(userId) : null;
+function newEntry(userId, name, ctx, planner) {
+    const pre = ctx.prefillOf ? ctx.prefillOf(userId, planner) : null;
     let wishes = [];
     if (pre && pre.className && pre.spec) {
         try {
@@ -107,7 +107,7 @@ function newEntry(userId, name, ctx) {
 function addPlayers(planner, input, ctx) {
     const list = Array.isArray(input.players) ? input.players : [];
     if (!list.length) throw invalid("Niemand ausgewählt.");
-    return withKader(planner, input.kaderId, (kader) => {
+    return withKader(planner, input.kaderId, (kader, next) => {
         let added = 0;
         let already = 0;
         for (const p of list) {
@@ -117,7 +117,7 @@ function addPlayers(planner, input, ctx) {
                 continue;
             }
             if (Object.keys(kader.players).length >= LIMITS.players) throw conflict(`Mehr als ${LIMITS.players} Spieler je Kader sind nicht vorgesehen.`);
-            kader.players[userId] = newEntry(userId, p && p.displayName, ctx);
+            kader.players[userId] = newEntry(userId, p && p.displayName, ctx, next);
             added += 1;
         }
         return { added, already };
@@ -206,7 +206,8 @@ function cleanWishes(raw, ctx) {
 /**
  * Saves (part of) an interview: `wishes`, `answers` (only the questions given,
  * an empty value clears one), `note`, `lead` (one of the Kader's leads or "").
- * Works in every state; a completed interview stays completed.
+ * Works in every state; a completed interview stays completed. Only content
+ * starts it: naming who leads it plans the interview, it does not begin it.
  */
 function saveInterview(planner, input, ctx) {
     return withKader(planner, input.kaderId, (kader) => {
@@ -239,7 +240,8 @@ function saveInterview(planner, input, ctx) {
             if (lead && !kader.leads.includes(lead)) throw invalid("Das Gespräch führt jemand aus der Leitung.");
             iv.lead = lead;
         }
-        if (!iv.startedAt) iv.startedAt = ctx.now;
+        const content = input.wishes !== undefined || input.answers !== undefined || input.note !== undefined;
+        if (content && !iv.startedAt) iv.startedAt = ctx.now;
         iv.updatedAt = ctx.now;
         iv.updatedBy = ctx.actor || "";
     });

@@ -46,21 +46,42 @@ describe("stores/kaderStore", () => {
         expect(kaderStore.migrateLegacy({ now: "x", charOfFor: () => () => null })).toEqual([]);
     });
 
-    // The privacy rule of docs/kaderplaner.md: only the Kaderplaner's own
-    // modules (and the start's migration) read this store.
-    it("is read by the Kaderplaner alone", () => {
-        const SRC = path.join(__dirname, "..", "..", "src");
-        const readers = [];
+});
+
+// The privacy rule of docs/kaderplaner.md: wishes, answers, notes, votes and
+// comments never leave the Kaderplaner — not into a profile, the roster, another
+// API or a log.
+describe("the Kaderplaner's data stays in the Kaderplaner", () => {
+    const SRC = path.join(__dirname, "..", "..", "src");
+    /** Every backend module (web client left out) whose source matches `re`, as a path below src/. */
+    function modulesMatching(re) {
+        const out = [];
         const walk = (dir) => {
             for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
                 const full = path.join(dir, entry.name);
-                if (entry.isDirectory()) walk(full);
-                else if (entry.name.endsWith(".js") && /require\(\s*["'][^"']*kaderStore["']\s*\)/.test(fs.readFileSync(full, "utf8"))) {
-                    readers.push(path.relative(SRC, full).split(path.sep).join("/"));
+                if (entry.isDirectory()) {
+                    if (entry.name !== "web-client" && entry.name !== "node_modules") walk(full);
+                } else if (entry.name.endsWith(".js") && re.test(fs.readFileSync(full, "utf8"))) {
+                    out.push(path.relative(SRC, full).split(path.sep).join("/"));
                 }
             }
         };
         walk(SRC);
-        expect(readers.sort()).toEqual(["stores/settingsMigration.js", "web/apiRoutes/kader.js"]);
+        return out.sort();
+    }
+    const OWN = (rel) => rel.startsWith("services/kader/") || rel.startsWith("web/kader/") || rel === "web/apiRoutes/kader.js" || rel === "stores/kaderStore.js";
+
+    it("is read by the Kaderplaner alone (and the start's migration)", () => {
+        expect(modulesMatching(/require\(\s*["'][^"']*kaderStore["']\s*\)/)).toEqual(["stores/settingsMigration.js", "web/apiRoutes/kader.js"]);
+    });
+
+    it("keeps its rules and its view to itself: nothing else requires them", () => {
+        const users = modulesMatching(/require\(\s*["'][^"']*(services\/kader\/|\/kader\/kader|\.\/kader(Model|Players|Questions|Setups|Migration|AutoAssign|View|Source))[^"']*["']\s*\)/);
+        expect(users.filter((rel) => !OWN(rel))).toEqual(["stores/settingsMigration.js"]);
+    });
+
+    it("writes nothing of a Kader into a log", () => {
+        const logging = modulesMatching(/\b(console\.\w+|logger\.\w+)\s*\(|require\(\s*["'][^"']*\/logger["']\s*\)/).filter(OWN);
+        expect(logging).toEqual([]);
     });
 });

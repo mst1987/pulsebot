@@ -98,8 +98,8 @@ describe("web/kader/kaderView", () => {
         expect(view.members.find((m) => m.userId === U.a)).toMatchObject({ displayName: "Aldric", roleIds: ["r1"], prefill: { spec: "Druid-Restoration" } });
         expect(view.names).toMatchObject({ [U.lead]: "Kurt", [U.hand]: "Hand", [U.c]: "Oldie", [U.b]: "Bea" });
         expect(view.kaders).toEqual([
-            { id: "k1", name: "Forever-Kader", leads: [U.lead], createdAt: "", createdBy: "", counts: { pool: 1, selected: 1, provisional: 0, roster: 1, bench: 0, tentative: 0 } },
-            { id: "k2", name: "Zweiter", leads: [], createdAt: "", createdBy: "", counts: { pool: 0, selected: 0, provisional: 0, roster: 0, bench: 1, tentative: 0 } },
+            { id: "k1", name: "Forever-Kader", leads: [U.lead], createdAt: "", createdBy: "", counts: { pool: 1, selected: 1, provisional: 0, roster: 1, bench: 0, tentative: 0 }, questions: 0 },
+            { id: "k2", name: "Zweiter", leads: [], createdAt: "", createdBy: "", counts: { pool: 0, selected: 0, provisional: 0, roster: 0, bench: 1, tentative: 0 }, questions: 0 },
         ]);
         expect(view.kader.id).toBe("k1");
         expect(view.kader.players[U.a].decision).toEqual({ className: "Warrior", spec: "Warrior-Protection" });
@@ -121,6 +121,10 @@ describe("web/kader/kaderView", () => {
         expect(ctx.knownIds.has(U.c)).toBe(true);
         expect(ctx.knownIds.has(U.d)).toBe(true);
         expect(ctx.prefillOf(U.d)).toMatchObject({ className: "Priest", spec: "Priest-Shadow" });
+        // the planner being changed wins over the one the context was built from (an account just given a character)
+        const changed = planner();
+        changed.assignments[U.d] = { characters: [{ id: "c9", name: "Neu Name", nameStyle: "forever", className: "Mage", specs: [{ spec: "Mage-Frost", main: true, gear: "none" }], canTank: false, canHeal: false }], activeCharacterId: "c9" };
+        expect(ctx.prefillOf(U.d, changed)).toMatchObject({ className: "Mage", spec: "Mage-Frost", source: "planner" });
         expect(ctx.rateOf(U.a)).toBe(0.75);
         expect(ctx.rateOf(U.c)).toBe(0.9);
         expect(ctx.rateOf(U.b)).toBe(0);

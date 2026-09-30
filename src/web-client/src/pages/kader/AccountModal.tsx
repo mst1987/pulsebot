@@ -1,21 +1,23 @@
-// One Discord account in the Kaderplaner: its Forever characters as the planner
-// sees them (name "Vorname Nachname", class, specs with one main spec, gear,
-// tank/heal) on the left, what EventHelper knows on the right — read only. The
-// planner's assignment wins inside the planner and is never written back to the
-// raider profile; where it deviates, the dialog says so.
+// One Discord account in the Kaderplaner (a click on a name opens it): its
+// Forever characters as the planner sees them (a Forever name or a nickname,
+// class, specs with one main spec, gear, tank/heal) on the left, what
+// EventHelper knows on the right — read only. The character data belongs to the
+// server, not to one Kader; the planner's assignment wins inside the planner and
+// is never written back to the raider profile. Where the account stands in the
+// open Kader shows on top.
 import { useMemo, useState, type CSSProperties } from "react";
-import { removeKaderAccount, resetKaderAssignment, saveKaderAssignment, type KaderCharacterInput, type KaderGear, type KaderNameStyle, type KaderPlayer } from "../../api";
+import { removeKaderAccount, resetKaderAssignment, saveKaderAssignment, type KaderCharacterInput, type KaderDay, type KaderGear, type KaderNameStyle, type KaderPlayer } from "../../api";
 import { Badge, Button, Modal, Segment } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
 import { useT } from "../../i18n";
 import { roleLabel } from "../../lib/wowNames";
 import { formatDayMonth } from "../../lib/format";
-import { className, classDef, specName, statusOf, type Status } from "../../lib/kader/model";
-import { DAYS } from "../../lib/kader/players";
+import { className, classDef, specName } from "../../lib/kader/model";
 import { inferNameStyle, nameOk, splitName, switchNameStyle } from "../../lib/kader/names";
 import { useKader } from "./kaderContext";
-import { ClassIcon, RoleIcon, SpecIcon } from "./parts";
+import { ClassIcon, RoleIcon, SinceText, SpecIcon, StateBadge } from "./parts";
 
+const DAYS: KaderDay[] = ["mo", "di", "mi", "do", "fr", "sa", "so"];
 const GEARS: KaderGear[] = ["none", "usable", "ready"];
 const MAX_CHARS = 8;
 
@@ -77,7 +79,7 @@ function ProfilePanel({ player }: { player: KaderPlayer }) {
 export default function AccountModal({ userId, onClose }: { userId: string; onClose: () => void }) {
     const t = useT();
     const ask = useConfirm();
-    const { view, roster, players, run, place, canWrite } = useKader();
+    const { view, kader, players, run, canWrite } = useKader();
     const player = players.get(userId);
     const initial = useMemo(() => (player ? draftOf(player) : { chars: [], active: null }), [player]);
     const [chars, setChars] = useState<KaderCharacterInput[]>(initial.chars);
@@ -89,7 +91,7 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
     const cur: KaderCharacterInput | undefined = chars[sel];
     const cls = cur ? classDef(view.classes, cur.className) : null;
     const main = cur ? cur.specs.find((s) => s.main) || cur.specs[0] : undefined;
-    const status = statusOf(roster, userId);
+    const entry = kader.players[userId];
     const dirty = JSON.stringify({ chars, active }) !== JSON.stringify(initial);
     const allValid = chars.every((c) => nameOk(c.name, c.nameStyle) && !!c.className);
     const [first, last] = splitName(cur ? cur.name : "");
@@ -142,15 +144,9 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
         if (await run(resetKaderAssignment(userId))) onClose();
     };
     const removeAccount = async () => {
-        if (!(await ask({ title: t("kader.account.removeTitle", { name: player.displayName }), action: t("common.remove"), tone: "danger" }))) return;
+        if (!(await ask({ title: t("kader.account.removeTitle", { name: player.displayName }), text: t("kader.account.removeText"), action: t("common.remove"), tone: "danger" }))) return;
         if (await run(removeKaderAccount(userId))) onClose();
     };
-
-    const statusOptions: { value: Status; label: string }[] = [
-        { value: "none", label: t("kader.status.none") },
-        { value: "kader", label: t("kader.status.kader") },
-        { value: "bench", label: t("kader.status.bench") },
-    ];
 
     return (
         <Modal
@@ -169,15 +165,18 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
                 </>
             ) : <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}
         >
-            {roster && canWrite && (
-                <div className="kp-acc-status">
-                    <span className="kicker">{t("kader.account.inRoster", { roster: roster.name })}</span>
-                    <Segment<Status> size="sm" ariaLabel={t("kader.account.inRoster", { roster: roster.name })} value={status} options={statusOptions}
-                        onChange={(v) => void place(userId, v === "kader" ? "role" : v === "bench" ? "bench" : "free")} />
-                    {player.hasOverride && <button type="button" className="kp-link" onClick={() => void reset()}>{t("kader.account.reset")}</button>}
-                    {player.manual && <button type="button" className="kp-link kp-danger" onClick={() => void removeAccount()}>{t("kader.account.remove")}</button>}
-                </div>
-            )}
+            <div className="kp-acc-status">
+                {entry ? (
+                    <>
+                        <span className="kicker">{t("kader.account.inKader", { kader: kader.name })}</span>
+                        <StateBadge state={entry.state} />
+                        <span className="kp-sub"><SinceText entry={entry} /></span>
+                    </>
+                ) : <span className="kp-muted">{t("kader.account.notInKader", { kader: kader.name })}</span>}
+                <span className="kp-grow" />
+                {canWrite && player.hasOverride && <button type="button" className="kp-link" onClick={() => void reset()}>{t("kader.account.reset")}</button>}
+                {canWrite && player.manual && <button type="button" className="kp-link kp-danger" onClick={() => void removeAccount()}>{t("kader.account.remove")}</button>}
+            </div>
             <div className="kp-chartabs" role="tablist" aria-label={t("kader.account.characters")}>
                 {chars.map((c, i) => {
                     const def = classDef(view.classes, c.className);

@@ -110,9 +110,12 @@ describe("services/kader/kaderPlayers", () => {
             return { planner: move(p, kaderId, [U.a], "selected"), kaderId, days, voice, other };
         }
 
-        it("saves wishes, answers, note and lead; the first save starts it", () => {
+        it("saves wishes, answers, note and lead; the first save with content starts it", () => {
             const { planner, kaderId, days, voice, other } = withQuestions();
             let p = model.updateKader(planner, { kaderId, leads: [U.lead, U.lead2] }, ctx);
+            // naming who leads it only plans the interview
+            const planned = players.saveInterview(p, { kaderId, userId: U.a, lead: U.lead2 }, ctx);
+            expect(entry(planned, U.a).interview).toMatchObject({ lead: U.lead2, startedAt: "", updatedBy: U.lead });
             p = players.saveInterview(p, {
                 kaderId, userId: U.a,
                 wishes: [{ className: "Warrior", spec: "Warrior-Fury" }, { className: "Mage", spec: "Mage-Fire" }],

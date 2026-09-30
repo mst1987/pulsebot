@@ -1,89 +1,135 @@
-// The Kaderplaner (docs/kaderplaner.md): raid rosters for WoW Forever. One page
-// with three views — the board (/kader), the player search (/kader/spieler) and
-// the group setup of a roster (/kader/setup/:rosterId) — over one view model
-// from GET /api/kader. Every write answers with the fresh view model, which is
-// swapped in as it is; the page never merges anything itself.
+// The Kaderplaner (docs/kaderplaner.md): raid rosters for WoW Forever, one Kader
+// at a time. Every player of a Kader has a state that stays until somebody
+// changes it — Pool → Vorauswahl (interviews) → Vorläufig (the leads discuss) →
+// Roster / Bench / Tentative. The pages of a Kader live at /kader/<id>/<page>:
+// pool, vorauswahl (Gespräche), uebersicht, roster, fragen, setups; /kader
+// opens the Kader used last.
 //
-// Area "kader": only full admins and the accounts or roles an admin hands it to
-// (docs/permissions.md). Without write access everything is shown, nothing moves.
-import { useCallback, useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
-import { canAccess, getKader, placeKaderPlayer, type ApiError, type KaderPlace, type KaderRole, type KaderView } from "../../api";
+// One view model from GET /api/kader?kader=<id>. A change inside the Kader
+// answers the Kader as stored (swapped in here), a change on the server's side
+// the whole view. Area "kader": only full admins and the accounts or roles an
+// admin hands it to (docs/permissions.md). Read-only sees everything, changes
+// nothing.
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Navigate, useNavigate, useOutletContext, useParams } from "react-router-dom";
+import { canAccess, getKader, type ApiError, type KaderChange, type KaderView } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedState } from "../../lib/persistedState";
-import { byId, pickRoster } from "../../lib/kader/model";
+import { byId } from "../../lib/kader/model";
 import { useToast } from "../../components/Jobs";
 import RaidLoader from "../../components/ui/RaidLoader";
 import type { ShellContext } from "../../components/Shell";
 import { useT } from "../../i18n";
-import { KaderContext, type KaderCtx, type KaderModal } from "./kaderContext";
-import BoardView from "./BoardView";
-import PlayersView from "./PlayersView";
-import SetupView from "./SetupView";
+import { KaderContext, SUBS, type KaderCtx, type KaderModal, type KaderSub } from "./kaderContext";
+import KaderHeader, { StageNav } from "./KaderHeader";
+import KaderStart from "./KaderStart";
+import PoolView from "./PoolView";
+import InterviewsView from "./InterviewsView";
+import OverviewView from "./OverviewView";
+import DecisionView from "./DecisionView";
+import QuestionsView from "./QuestionsView";
+import SetupsView from "./SetupsView";
 import AccountModal from "./AccountModal";
 import AddAccountModal from "./AddAccountModal";
-import RosterModal from "./RosterModal";
-import PickerModal from "./PickerModal";
+import ImportModal from "./ImportModal";
+import KaderSettingsModal from "./KaderSettingsModal";
 import "../../styles/kader.css";
 
-export type KaderSubView = "board" | "players" | "setup";
+/** Swaps an answer into the loaded view: the whole view, or `{ kader, kaders }` of a change inside one Kader. */
+function merge(prev: KaderView | null, result: unknown): KaderView | null {
+    if (!prev || !result || typeof result !== "object") return prev;
+    const r = result as Partial<KaderView> & Partial<KaderChange>;
+    if (Array.isArray(r.players)) return r as KaderView;
+    if (!Array.isArray(r.kaders)) return prev;
+    const kaders = r.kaders;
+    let kader = prev.kader;
+    if (r.kader && kader && r.kader.id === kader.id) kader = r.kader;
+    else if (kader && !kaders.some((k) => k.id === kader?.id)) kader = null;
+    return { ...prev, kaders, kader };
+}
 
-export default function KaderPage({ sub }: { sub: KaderSubView }) {
+export default function KaderPage() {
     const { user } = useOutletContext<ShellContext>();
+    const { kaderId = "", sub: rawSub = "" } = useParams();
+    const sub: KaderSub = (SUBS as string[]).includes(rawSub) ? rawSub as KaderSub : "pool";
+    const navigate = useNavigate();
     const t = useT();
     const toast = useToast();
-    const state = useApi(() => getKader(), []);
+    const [last, setLast] = usePersistedState<string>("kader-last", "");
+    const state = useApi(() => getKader(kaderId), [kaderId]);
     const { setData } = state;
-    const [rosterId, setRosterId] = usePersistedState<string>("kader-roster", "");
     const [modal, setModal] = useState<KaderModal>(null);
     const canWrite = canAccess(user, "kader", "write");
+    const view = state.data;
+    const kader = view ? view.kader : null;
 
-    const run = useCallback(async (call: Promise<KaderView>) => {
+    useEffect(() => {
+        if (kader && kader.id !== last) setLast(kader.id);
+    }, [kader, last, setLast]);
+
+    const run = useCallback(async <T,>(call: Promise<T>): Promise<T | null> => {
         try {
-            const next = await call;
-            setData(next);
-            return next;
+            const result = await call;
+            setData((prev) => merge(prev, result));
+            return result;
         } catch (e) {
             toast((e as ApiError).message || t("kader.error"), "err");
             return null;
         }
     }, [setData, toast, t]);
 
-    const view = state.data;
-    const roster = view ? pickRoster(view, rosterId) : null;
     const players = useMemo(() => byId(view ? view.players : []), [view]);
 
-    const place = useCallback(async (userId: string, to: KaderPlace, role?: KaderRole) => {
-        if (!roster) return;
-        await run(placeKaderPlayer(roster.id, userId, to, role));
-    }, [roster, run]);
-
-    if (state.error && !view) return <div className="empty">{state.error.message}</div>;
+    if (state.error) return <div className="empty">{state.error.message}</div>;
     if (!view) return <RaidLoader text={t("kader.loading")} />;
+
+    // no Kader in the address, or one that is gone: the one used last, else the first
+    if (!kader) {
+        const fallback = view.kaders.find((k) => k.id === last) || view.kaders[0];
+        if (fallback) return <Navigate to={`/kader/${fallback.id}/pool`} replace />;
+        return (
+            <>
+                <KaderStart canWrite={canWrite} onCreate={() => setModal({ type: "create" })} />
+                {modal && modal.type === "create" && (
+                    <KaderSettingsModal mode="create" view={view} onClose={() => setModal(null)} run={run} onCreated={(id) => { setModal(null); navigate(`/kader/${id}/pool`); }} />
+                )}
+            </>
+        );
+    }
 
     const ctx: KaderCtx = {
         view,
-        roster,
+        kader,
         players,
         canWrite,
-        selectRoster: setRosterId,
+        me: user.id,
+        isLead: kader.leads.includes(user.id),
         run,
-        place,
         open: setModal,
+        go: (to, search = "") => navigate(`/kader/${kader.id}/${to}${search}`),
     };
     const close = () => setModal(null);
 
     return (
         <KaderContext.Provider value={ctx}>
             <div className="kp-page" data-kader-view={sub}>
-                {sub === "board" && <BoardView />}
-                {sub === "players" && <PlayersView />}
-                {sub === "setup" && <SetupView />}
+                <KaderHeader />
+                {view.warnings.length > 0 && <div className="kp-warn" role="status">{view.warnings.join(" · ")}</div>}
+                {sub !== "fragen" && sub !== "setups" && <StageNav sub={sub} />}
+                {sub === "pool" && <PoolView />}
+                {sub === "vorauswahl" && <InterviewsView />}
+                {sub === "uebersicht" && <OverviewView />}
+                {sub === "roster" && <DecisionView />}
+                {sub === "fragen" && <QuestionsView />}
+                {sub === "setups" && <SetupsView />}
             </div>
-            {modal?.type === "account" && <AccountModal key={modal.userId} userId={modal.userId} onClose={close} />}
-            {modal?.type === "add" && <AddAccountModal onClose={close} onAdded={(userId) => setModal({ type: "account", userId })} />}
-            {modal?.type === "roster" && <RosterModal mode={modal.mode} onClose={close} />}
-            {modal?.type === "picker" && <PickerModal role={modal.role} onClose={close} />}
+            {modal && modal.type === "account" && <AccountModal key={modal.userId} userId={modal.userId} onClose={close} />}
+            {modal && modal.type === "import" && <ImportModal onClose={close} onById={() => setModal({ type: "addById" })} />}
+            {modal && modal.type === "addById" && <AddAccountModal startWay="id" onClose={close} />}
+            {modal && modal.type === "settings" && <KaderSettingsModal mode="edit" view={view} onClose={close} run={run} onDeleted={() => { close(); navigate("/kader"); }} />}
+            {modal && modal.type === "create" && (
+                <KaderSettingsModal mode="create" view={view} onClose={close} run={run} onCreated={(id) => { close(); navigate(`/kader/${id}/pool`); }} />
+            )}
         </KaderContext.Provider>
     );
 }

@@ -1,24 +1,24 @@
-// "Discord-Account hinzufügen": a member of the server (searched by name) or a
-// raw Discord id with a display name, optionally with a first character (a
-// Forever name or a nickname).
-// Accounts with an EventHelper profile of the version are in the pool already.
+// "Spieler hinzufügen" one at a time: a member of the server (searched by name)
+// or a raw Discord id with a display name, optionally with a first character (a
+// Forever name or a nickname). The player goes into this Kader's pool; the
+// bulk way in is the import from Discord roles (ImportModal).
 import { useState } from "react";
-import { addKaderAccount, type KaderNameStyle } from "../../api";
+import { addKaderAccount, addKaderPlayers, type KaderMember, type KaderNameStyle } from "../../api";
 import { Button, Modal, Segment } from "../../components/ui";
+import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
-import { usePersistedState } from "../../lib/persistedState";
-import { className, specName } from "../../lib/kader/model";
+import { className } from "../../lib/kader/model";
 import { nameOk } from "../../lib/kader/names";
+import { PickIcon, PickLabel } from "./parts";
 import { useKader } from "./kaderContext";
 
-type Tab = "server" | "id";
+type Way = "server" | "id";
 
-const initial = (name: string) => (name.trim()[0] || "?").toUpperCase();
-
-export default function AddAccountModal({ onClose, onAdded }: { onClose: () => void; onAdded: (userId: string) => void }) {
+export default function AddAccountModal({ startWay = "server", onClose }: { startWay?: Way; onClose: () => void }) {
     const t = useT();
-    const { view, run } = useKader();
-    const [tab, setTab] = usePersistedState<Tab>("kader-add-tab", "server");
+    const toast = useToast();
+    const { view, kader, run } = useKader();
+    const [way, setWay] = useState<Way>(startWay);
     const [q, setQ] = useState("");
     const [picked, setPicked] = useState<string | null>(null);
     const [rawId, setRawId] = useState("");
@@ -32,22 +32,26 @@ export default function AddAccountModal({ onClose, onAdded }: { onClose: () => v
     const needle = q.trim().toLowerCase();
     const hits = view.members.filter((m) => !needle || m.displayName.toLowerCase().includes(needle)).slice(0, 40);
     const member = view.members.find((m) => m.userId === picked);
+    const inKader = (m: KaderMember) => !!kader.players[m.userId];
     const isNick = nameStyle === "nick";
     const someChar = !!((isNick ? nick : first || last) || cls);
     const charOk = !someChar || (!!cls && (isNick ? nameOk(nick, "nick") : nameOk(`${first.trim()} ${last.trim()}`, "forever")));
-    const ready = charOk && (tab === "server" ? !!member && !member.inPool : /^\d{17,20}$/.test(rawId.trim()) && rawName.trim().length > 0);
+    const idOk = /^\d{17,20}$/.test(rawId.trim());
+    const ready = charOk && (way === "server" ? !!member && !inKader(member) : idOk && rawName.trim().length > 0);
 
     const submit = async () => {
-        const userId = tab === "server" && member ? member.userId : rawId.trim();
-        const displayName = tab === "server" && member ? member.displayName : rawName.trim();
-        const next = await run(addKaderAccount({ userId, displayName, character: !someChar ? undefined : isNick ? { nameStyle, nickname: nick.trim(), className: cls } : { nameStyle, firstName: first.trim(), lastName: last.trim(), className: cls } }));
-        if (next) onAdded(userId);
-    };
-
-    const hintOf = (m: typeof view.members[number]) => {
-        if (!m.hasProfile) return t("kader.add.noProfile");
-        const line = m.profile ? `${className(view.classes, m.profile.className)} · ${specName(view.classes, m.profile.mainSpec) || t("kader.player.noSpec")}` : "";
-        return m.pct === null ? t("kader.add.profile", { line }) : t("kader.add.profileAtt", { line, pct: m.pct });
+        const userId = way === "server" && member ? member.userId : rawId.trim();
+        const displayName = way === "server" && member ? member.displayName : rawName.trim();
+        const character = !someChar ? undefined : isNick
+            ? { nameStyle, nickname: nick.trim(), className: cls }
+            : { nameStyle, firstName: first.trim(), lastName: last.trim(), className: cls };
+        const result = way === "server" && !character
+            ? await run(addKaderPlayers(kader.id, [{ userId, displayName }]))
+            : await run(addKaderAccount({ userId, displayName, kaderId: kader.id, character }));
+        if (result) {
+            toast(t("kader.add.done", { name: displayName }));
+            onClose();
+        }
     };
 
     return (
@@ -56,6 +60,7 @@ export default function AddAccountModal({ onClose, onAdded }: { onClose: () => v
             onClose={onClose}
             icon="inv_misc_groupneedmore"
             tone="kader"
+            kicker={t("kader.import.kicker", { name: kader.name })}
             title={t("kader.add.title")}
             width={640}
             footer={(
@@ -65,11 +70,13 @@ export default function AddAccountModal({ onClose, onAdded }: { onClose: () => v
                 </>
             )}
         >
-            <Segment<Tab> ariaLabel={t("kader.add.title")} value={tab} onChange={setTab}
-                options={[{ value: "server", label: t("kader.add.fromServer") }, { value: "id", label: t("kader.add.byId") }]} />
-            {tab === "server" ? (
+            <div className="kp-way">
+                <Segment<Way> ariaLabel={t("kader.add.title")} value={way} onChange={setWay}
+                    options={[{ value: "server", label: t("kader.add.fromServer") }, { value: "id", label: t("kader.add.byId") }]} />
+            </div>
+            {way === "server" ? (
                 <>
-                    <label className="field kp-gap">
+                    <label className="field">
                         <span className="field-label">{t("kader.add.search")}</span>
                         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("kader.add.searchPlaceholder")} />
                     </label>
@@ -77,23 +84,23 @@ export default function AddAccountModal({ onClose, onAdded }: { onClose: () => v
                         {view.members.length === 0 && <span className="kp-hint">{t("kader.add.noMembers")}</span>}
                         {hits.map((m) => (
                             <div key={m.userId} className={`kp-result${picked === m.userId ? " kp-picked" : ""}`}>
-                                <span className="kp-avatar" aria-hidden="true">{initial(m.displayName)}</span>
+                                <PickIcon pick={m.prefill} size={22} />
                                 <span className="kp-col kp-grow">
-                                    <span className="kp-result-name">@{m.displayName}</span>
-                                    <span className={`kp-sub${m.hasProfile ? " kp-accent2" : ""}`}>{hintOf(m)}</span>
+                                    <span className="kp-strong">{m.displayName}</span>
+                                    {m.prefill ? <PickLabel pick={m.prefill} className="kp-sub" /> : <span className="kp-sub">{t("kader.add.noData")}</span>}
                                 </span>
-                                {m.inPool
-                                    ? <span className="kp-sub">{t("kader.add.inPool")}</span>
+                                {inKader(m)
+                                    ? <span className="kp-sub">{t("kader.add.inKader")}</span>
                                     : <Button size="sm" variant={picked === m.userId ? "primary" : "ghost"} aria-pressed={picked === m.userId} onClick={() => setPicked(picked === m.userId ? null : m.userId)}>
                                         {picked === m.userId ? t("kader.add.picked") : t("common.add")}
                                     </Button>}
                             </div>
                         ))}
-                        {view.members.length > 0 && hits.length === 0 && <span className="kp-hint">{t("kader.pool.nobody")}</span>}
+                        {view.members.length > 0 && hits.length === 0 && <span className="kp-hint">{t("kader.add.nobody")}</span>}
                     </div>
                 </>
             ) : (
-                <div className="kp-two kp-gap">
+                <div className="kp-two">
                     <label className="field">
                         <span className="field-label">{t("kader.add.discordId")}</span>
                         <input inputMode="numeric" value={rawId} onChange={(e) => setRawId(e.target.value)} placeholder="280140000001000000" />

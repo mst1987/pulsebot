@@ -154,8 +154,9 @@ function stateCounts(kader) {
     return counts;
 }
 
+/** A Kader in the picker: name, leads, counts per state and how many questions it asks (for "Fragen übernehmen"). */
 function kaderSummary(k) {
-    return { id: k.id, name: k.name, leads: [...k.leads], createdAt: k.createdAt, createdBy: k.createdBy, counts: stateCounts(k) };
+    return { id: k.id, name: k.name, leads: [...k.leads], createdAt: k.createdAt, createdBy: k.createdBy, counts: stateCounts(k), questions: k.questions.length };
 }
 
 /** A name for every user id the page may show: members, accounts, profiles, the names the Kader kept. */
@@ -249,7 +250,7 @@ function mutationContext({ source, planner, actor = "", now = new Date().toISOSt
         classes: indexClasses(source.classes),
         memberIds: new Set(source.members.map((m) => m.userId)),
         knownIds,
-        prefillOf: (userId) => prefillOf({ assignment: planner.assignments[userId] || null, profile: profiles.get(userId) || null, logChar: logChars[userId] || null }),
+        prefillOf: (userId, current = planner) => prefillOf({ assignment: (current || planner).assignments[userId] || null, profile: profiles.get(userId) || null, logChar: logChars[userId] || null }),
         rateOf: (userId) => rate.get(userId) || 0,
     };
 }
