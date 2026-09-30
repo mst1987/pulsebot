@@ -5,7 +5,7 @@ import TypeBadge from "./TypeBadge";
 import AssignLine from "./AssignLine";
 import CollapseToggle from "../../../components/raidplan/CollapseToggle";
 import { useCollapseSet } from "../../../hooks/useCollapse";
-import { Copy, RotateCcw, EyeOff, Swords, Users, Plus, Trash2, Wand2, X } from "lucide-react";
+import { Copy, RotateCcw, EyeOff, Swords, Users, Plus, Trash2, X } from "lucide-react";
 import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanPlayer } from "../../../api";
 import { IconButton, useConfirm } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
@@ -16,12 +16,11 @@ import {
     ALL_MARKS, CARD_ORDER, SCOPE_TYPES, playersByClass, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForText, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, rowsOfType, patchAssignment, removeAssignment,
     resolveAssignee, resolveTarget, slotChoices, toggleTarget, ROLE_TONE, type AssignCtx, type Resolved,
 } from "../../../lib/raidplan/assign";
-import { cardSummary } from "../../../lib/raidplan/assignLine";
+import { cardSummary, lineState } from "../../../lib/raidplan/assignLine";
 import { targetKey } from "../../../lib/raidplan/assignModal";
 import { canPutOnMap, mobTargetsFor, sameTargetAs, setRowOnMap } from "../../../lib/raidplan/autoPlace";
 import { wowIconUrl } from "../../../lib/wowIcon";
-import { canRestore, deviate, hideInherited, restoreInherited } from "../../../lib/raidplan/inherit";
-import { portraitUrl } from "../../../lib/raidplan";
+import { canRestore, deviate, hideInherited, isDeviation, restoreInherited } from "../../../lib/raidplan/inherit";import { portraitUrl } from "../../../lib/raidplan";
 import { effectiveClasses } from "../../../lib/raidplan/rosterAssign";
 import { carryClasses, expandClassRefs } from "../../../lib/raidplan/classRefs";
 import { groupColor } from "../../../lib/raidplan/groupStyle";
@@ -350,27 +349,31 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                     const rows = rowsOfType(board.assignments, type);
                     const inh = rowsOfType(inherited, type);
                     const fold = isFolded(type);
-                    const sum = cardSummary([...inh, ...rows], filled, ctx, isEvent);
+                    const sum = cardSummary([...inh, ...rows], filled, ctx, isEvent, rows);
                     return (
                         <section key={type} className="rp-acard" aria-label={t(`raidBoard.assign.type.${type}`)}>
                             <header className="rp-acard-head">
+                                <CollapseToggle collapsed={fold} onToggle={() => toggleFold(type)} label={t(`raidBoard.assign.type.${type}`)} />
                                 <TypeBadge type={type} label={t(`raidBoard.assign.type.${type}`)} size={24} />
-                                <span className="rp-acard-sum">{sum.rows === 1 ? t("raidBoard.aline.row") : t("raidBoard.aline.rows", { n: sum.rows })}{sum.open > 0 && <b className="rp-acard-open"> · {t("raidBoard.aline.open", { n: sum.open })}</b>}</span>
+                                <span className="rp-acard-sum">{sum.rows === 1 ? t("raidBoard.aline.row") : t("raidBoard.aline.rows", { n: sum.rows })}{sum.deviating > 0 && <> · {t("raidBoard.aline.deviating", { n: sum.deviating })}</>}</span>
+                                {sum.open > 0 && <span className="rp-acard-open">{t("raidBoard.aline.open", { n: sum.open })}</span>}
                                 <span className="rp-acard-tools">
                                     {canWrite && defaultRows.length > 0 && canRestore(board, defaultRows, type) && (
                                         <IconButton size="sm" icon={<RotateCcw size={15} />} tip={t("raidBoard.defaults.restore")} onClick={() => edit((b) => restoreInherited(b, defaultRows, type))} />
                                     )}
                                     {canWrite && SUGGESTABLE.indexOf(type) >= 0 && (
-                                        <IconButton size="sm" icon={<Wand2 size={15} />} tip={t("raidBoard.assign.suggestOne", { type: t(`raidBoard.assign.type.${type}`) })} disabled={busy === type} onClick={() => suggest(type)} />
+                                        <button type="button" className="rp-acard-add" aria-label={t("raidBoard.assign.suggestOne", { type: t(`raidBoard.assign.type.${type}`) })} data-tip={t("raidBoard.assign.suggestOne", { type: t(`raidBoard.assign.type.${type}`) })} disabled={busy === type} onClick={() => suggest(type)}>{t("raidBoard.assign.autoFill")}</button>
                                     )}
                                     {canWrite && <button type="button" className="rp-acard-add" aria-label={t("raidBoard.assign.addRowTo", { type: t(`raidBoard.assign.type.${type}`) })} data-tip={t("raidBoard.assign.addRowTo", { type: t(`raidBoard.assign.type.${type}`) })} onClick={() => { edit((b) => newRow(b, type)); if (fold) toggleFold(type); }}><Plus size={13} aria-hidden="true" />{t("raidBoard.aline.add")}</button>}
                                     {canWrite && <IconButton size="sm" tone="danger" icon={isDefaultCard(scope, type) ? <EyeOff size={15} /> : <Trash2 size={15} />} tip={t(isDefaultCard(scope, type) ? "raidBoard.assign.hideCard" : "raidBoard.assign.removeCard", { type: t(`raidBoard.assign.type.${type}`) })} onClick={() => dropCard(type, rows.length)} />}
-                                    <CollapseToggle collapsed={fold} onToggle={() => toggleFold(type)} label={t(`raidBoard.assign.type.${type}`)} />
                                 </span>
                             </header>
                             {!fold && (
-                                <ul className="rp-alist rp-linelist">
+                                <ul className="rp-alist rp-linelist rp-editlist">
                                     {rows.length === 0 && inh.length === 0 && <li className="rp-muted rp-acard-empty">{t(type === "heal" ? "raidBoard.assign.cardEmptyHeal" : "raidBoard.assign.cardEmpty")}</li>}
+                                    {[...inh, ...rows].some((a) => lineState(a, filledOf(a), ctx, isEvent) !== "empty") && (
+                                        <li className="rp-linehead" aria-hidden="true"><span className="rp-linehead-who">{t("raidBoard.aline.headWho")}</span><span className="rp-linehead-at">{t("raidBoard.aline.headAt")}</span></li>
+                                    )}
                                     {inh.map((a) => (
                                         <AssignLine
                                             key={`inh-${a.id}`} a={a} filled={filledOf(a)} ctx={ctx} isEvent={isEvent} inherited readOnly={!canWrite}
@@ -379,7 +382,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                                     ))}
                                     {rows.map((a) => (
                                         <AssignLine
-                                            key={a.id} a={a} filled={filledOf(a)} ctx={ctx} isEvent={isEvent} readOnly={!canWrite}
+                                            key={a.id} a={a} filled={filledOf(a)} ctx={ctx} isEvent={isEvent} readOnly={!canWrite} deviating={isDeviation(a)}
                                             onOpen={canWrite ? () => openRow(a.id) : undefined} onNote={canWrite ? () => openRow(a.id, "task", "text") : undefined}
                                             onDelete={canWrite ? (confirmFirst) => deleteRow(a.id, confirmFirst) : undefined}
                                             onMap={canWrite && canPutOnMap(a) ? () => edit((b) => setRowOnMap(b, a.id, !a.onMap)) : undefined}

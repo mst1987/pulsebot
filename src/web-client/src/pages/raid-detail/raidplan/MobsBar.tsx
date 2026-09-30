@@ -35,8 +35,10 @@ export default function MobsBar({ mobs, board, catalog, bossKey, instanceId, can
     options.sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
     return (
         <section className="rp-mobs" aria-label={t("raidBoard.mobs.title")}>
-            <span className="rp-kicker rp-bes-head" data-tip={t("raidBoard.mobs.tip")}>{t("raidBoard.mobs.title")} · {mobs.length}</span>
-            <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} label={t("raidBoard.mobs.title")} />
+            <div className="rp-bes-top">
+                <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} label={t("raidBoard.mobs.title")} />
+                <span className="rp-kicker rp-bes-head" data-tip={t("raidBoard.mobs.tip")}>{t("raidBoard.mobs.title")} · {mobs.length}</span>
+            </div>
             {!collapsed && <span className="rp-achips">
                 {mobs.map((m) => (
                     <span key={m.id} className={`rp-mobchip${added.has(m.id) ? " is-added" : ""}`}>

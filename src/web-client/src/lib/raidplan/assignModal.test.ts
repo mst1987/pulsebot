@@ -121,7 +121,7 @@ describe("the row container", () => {
     });
     it("the card counter, the rotation numbers, the 'DU' of the viewer and the small line", () => {
         const rows = [row({ id: "a", assignees: ["user:war"] }), row({ id: "b", assignees: ["class:Mage:1"] }), row({ id: "c" })];
-        expect(al.cardSummary(rows, cr.expandClassRefs(rows, slots, roster, {}), ctx, true)).toEqual({ rows: 3, open: 1 });
+        expect(al.cardSummary(rows, cr.expandClassRefs(rows, slots, roster, {}), ctx, true)).toEqual({ rows: 3, open: 1, deviating: 0 });
         const kick = row({ type: "kick", assignees: ["user:rog", "user:war"] });
         expect(al.assigneeItems(kick, kick, ctx, ["war"], true, true).map((x) => [x.order, x.mine])).toEqual([[1, false], [2, true]]);
         expect(al.subLine(row({ spell: { id: "d:x", name: "Misdirection", icon: "" }, title: "Pull", note: "vor dem Pull" }))).toEqual(["Misdirection", "Pull", "vor dem Pull"]);

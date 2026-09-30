@@ -92,7 +92,9 @@ describe("the Standard of an event plan (#524)", () => {
     it("every boss inherits the rows, dimmed and marked 'Standard'; a healer swapped in the Standard shows in every boss", () => {
         const { container } = setup(SUPREMUS.key, plan());
         expect(container.querySelectorAll(".rp-line.is-lock")).toHaveLength(3);
-        expect(within(healCard()).getAllByText("Standard")).toHaveLength(3);
+        // no "Standard" label under every row any more (#559): the lock lives in the row's "..." menu
+        expect(within(healCard()).queryAllByText("Standard")).toHaveLength(0);
+        expect(within(healCard()).getAllByRole("button", { name: /Weitere Aktionen/ })).toHaveLength(3);
         expect(healCard().textContent).toContain("Sanftmut");
         // the Standard's third row goes to another healer: Supremus and Akama both follow
         act(() => { api!.edit(DEFAULTS_KEY, (b) => ({ ...b, assignments: b.assignments.map((a) => (a.id === "d3" ? { ...a, assignees: ["user:h2"] } : a)) })); });
@@ -121,7 +123,8 @@ describe("the Standard of an event plan (#524)", () => {
 
     it("hides an inherited row for one boss and restores it with the card's 'Standard wiederherstellen'", () => {
         const { container } = setup(SUPREMUS.key, plan());
-        fireEvent.click(within(healCard()).getAllByRole("button", { name: /Für diesen Boss ausblenden/ })[0]);
+        fireEvent.click(within(healCard()).getAllByRole("button", { name: /Weitere Aktionen/ })[0]);
+        fireEvent.click(screen.getByRole("menuitem", { name: /Für diesen Boss ausblenden/ }));
         expect(api!.draft[SUPREMUS.key].inheritOff).toEqual(["d1"]);
         expect(container.querySelectorAll(".rp-line.is-lock")).toHaveLength(2);
         fireEvent.click(within(healCard()).getByRole("button", { name: /Standard wiederherstellen/ }));
