@@ -81,10 +81,11 @@ export default function StepsCard({ board, edit, roster, players, isEvent, canWr
     return (
         <section className="rp-steps" aria-label={t("raidBoard.steps.title")}>
             <header className="rp-steps-head">
+                <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} label={t("raidBoard.steps.title")} />
                 <span className="rp-steps-ti" aria-hidden="true"><ListOrdered size={18} /></span>
                 <div className="rp-steps-titles">
                     <h3 className="rp-steps-tn">{t("raidBoard.steps.title")}</h3>
-                    <span className="rp-muted rp-steps-sub">{t("raidBoard.steps.sub")}</span>
+                    <span className="rp-muted rp-steps-sub">{collapsed ? t(steps.length === 1 ? "raidBoard.steps.sumOne" : "raidBoard.steps.sumN", { n: steps.length }) : t("raidBoard.steps.sub")}</span>
                 </div>
                 {canWrite && (
                     <span className="rp-steps-tools">
@@ -94,7 +95,6 @@ export default function StepsCard({ board, edit, roster, players, isEvent, canWr
                         {steps.length > 0 && <button type="button" className="rp-line-btn is-tool is-danger" aria-label={t("raidBoard.steps.clearAll")} data-tip={t("raidBoard.steps.clearAll")} onClick={clearAll}><Trash2 size={15} /></button>}
                     </span>
                 )}
-                <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} label={t("raidBoard.steps.title")} />
             </header>
             {!collapsed && (steps.length === 0 ? (
                 <div className="rp-steps-empty">

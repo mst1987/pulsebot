@@ -712,3 +712,37 @@ thunder clap, demoralizing shout, buff and other.
   - Tests: `hooks/useCollapse.test.tsx` (both hooks, the localStorage round trip, several ids under one key not clobbering each other, a
     blocked `localStorage.setItem` not throwing), `lib/raidplan/collapse.test.ts` (pure parsing), `Besetzung.test.tsx` and
     `AssignPanel.test.tsx` (the chevron folds the block, `aria-expanded`, remembered across a remount).
+
+## Cards tidied, the chevron in the head line (#559, sections 3 and 4)
+
+Design: the artboard "Editor aufgeräumt" (Raidplan canvas, 30.09.2026). Only the look and the place of controls changed; the row model,
+the resolution and the sheet are untouched.
+
+- **One column header per card** (`AssignPanel.tsx`, `.rp-linehead`, a subgrid `li` over the row grid): "Wer (Priorität)" / "Auf" once above the
+  rows instead of a label under every row. Shown as soon as the card has one row that is not empty, hidden on a phone (< 600 px, where a row
+  stacks who / arrow / at whom). The "Standard" label under an inherited row is gone.
+- **Only deviations are marked** (`isDeviation`, `AssignLine` prop `deviating`): a row of this boss that differs from the Standard (`origin` = the id
+  of its Standard row) gets the badge "nur dieser Boss" in its who column and a light accent background (`.rp-line.is-dev`). An inherited row is
+  quiet (dimmed as before, `.is-lock`); a row applied from a template (`origin: "default"`) is no deviation.
+- **Class priority stacked** (`PrioChip`): from **2** classes (was 3, #556) the chip is a column: the count "1 x" as a small chip on top, then one
+  line per class with its rank number (`.rp-lc-pcorder`) and the class colour as a small dot (`.rp-lc-pcdot`, `--cc` from `CLASS_COLOR`, no class
+  icon, no arrows). One class keeps the inline look. Open places keep the dashed warning frame.
+- **Row actions**: the pencil stays visible; the actions are dimmed (opacity .45) until the row is hovered or focused. Inherited rows: hide and the
+  lock ("Vom Standard geerbt", with the long tooltip) moved into ONE "..." menu button (`RowMenu` in `AssignLine.tsx`: `aria-haspopup="menu"`,
+  `aria-expanded`, `role="menu"` / `menuitem`, on the shared `Popover`, closes on Esc, a click outside and on scroll). Own rows keep map / note / trash.
+- **Targets a calm list** (`.rp-editlist`): one target per line, equal height, the group colour only as the left edge (`.rp-lc.is-grp`); rows are
+  top aligned so the targets start next to the first class.
+- **Head actions as text**: "Auto-Füllen" (`raidBoard.assign.autoFill`, keeps the tooltip and the aria-label "<type>: aus dem Setup vorschlagen")
+  and "+ Zeile" replace the wand icon.
+- **Folded blocks show one line**: assignment card "5 Zeilen · 1 abweichend" with the open places as a warning badge (`.rp-acard-open`,
+  `cardSummary(rows, filled, ctx, isEvent, own)`: the deviations are counted among the section's OWN rows, an inherited row is resolved with an
+  `origin` and is no deviation); Besetzung "25 besetzt" + badge "2 offen" (`slotSummary`; a template has nobody in a slot and shows "n Slots");
+  Taktik "n Schritte".
+- **The chevron sits in the head line, left of the title, in every foldable block** (Besetzung, Taktik / `StepsCard`, the mobs bar, the assignment
+  cards): `CollapseToggle` is the first element of `.rp-bes-top` / `.rp-steps-head` / `.rp-acard-head`; the Besetzung no longer has a row of its own
+  for it ("Besetzung zuweisen" sits right in the head line, `.rp-bes-topacts`). Measured with puppeteer (event with 25 raiders, Supremus,
+  `page.setViewport`): Besetzung open 214 -> 157 px at 1440 (453 -> 395 at 390), folded 103 -> 46 px (103 -> 82); Taktik folded at 390 195 -> 114;
+  the assignment cards grow a little (Heilen 414 -> 453 px at 1440) by the column header and the stacked classes; no horizontal scroll at 1440 / 390.
+- Tests: `AssignLine.test.tsx` (stack from 2 classes, rank + dot, deviation badge, the "..." menu), `AssignPanel.test.tsx` (chevron first in the head,
+  text buttons, column header, deviating count), `Besetzung.test.tsx` (chevron in the head line, folded summary), `MobsBar.test.tsx`,
+  `lib/raidplan/cardSummary.test.ts`, `EventStandard.test.tsx` (hide via the menu).

@@ -424,7 +424,9 @@ dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-heigh
 .rp-cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); }
 .rp-acard-head { flex-wrap: wrap; row-gap: 4px; }
 .rp-acard-sum { font-size: 12.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.rp-acard-open { color: var(--rp-warn); font-weight: 600; }
+/* open places as a warning badge (#559), the same in a card head and in the folded Besetzung summary */
+.rp-acard-open { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--rp-warn-a15); color: var(--rp-warn); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.rp-acard-add:disabled { opacity: .5; cursor: default; }
 .rp-acard-add { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: none; color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
 .rp-acard-add:hover { border-color: var(--accent); }
 .rp-line { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr) 18px minmax(0, 1fr) minmax(76px, auto); gap: 0 8px; align-items: center; min-height: 46px; padding: 8px 6px 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); list-style: none; }
@@ -494,12 +496,51 @@ dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-heigh
 .rp-lc-pc { display: inline-flex; align-items: center; gap: 3px; }
 .rp-lc-sep { margin-right: 2px; color: var(--muted); }
 /* 3+ classes (#556): stacked one per line instead of truncating side by side */
-.rp-lc.rp-lc-prio.is-stacked { height: auto; align-items: flex-start; padding-block: 4px; white-space: normal; }
-.rp-lc-pcstack { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; overflow: visible; }
-.rp-lc-pcrow { display: flex; align-items: center; gap: 4px; min-width: 0; white-space: nowrap; }
-.rp-lc-pcorder { display: inline-grid; place-items: center; flex: 0 0 auto; width: 14px; height: 14px; border-radius: 50%; background: var(--panel3); font-size: 9px; font-weight: 700; color: var(--muted); }
+.rp-lc.rp-lc-prio.is-stacked { height: auto; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0; background: transparent; white-space: normal; }
+.rp-lc.rp-lc-prio.is-stacked.is-slot { border: 0; }
+.rp-lc.rp-lc-prio.is-stacked.is-open { padding: 4px 8px; }
+.rp-lc.rp-lc-prio.is-stacked .rp-lc-cnt { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; background: var(--panel3); }
+.rp-lc-pcstack { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; overflow: visible; }
+.rp-lc-pcrow { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+.rp-lc-pcorder { display: inline-grid; place-items: center; flex: 0 0 auto; width: 18px; height: 18px; border-radius: 5px; background: var(--panel3); font-size: 11px; font-weight: 700; color: var(--muted); }
+.rp-lc-pcdot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 3px; background: var(--cc, var(--muted)); box-shadow: 0 0 0 1px var(--line); }
 .rp-lc-pcname { overflow: visible; text-overflow: clip; white-space: nowrap; }
-.rp-lc-pcarrow { flex: 0 0 auto; margin-left: 2px; color: var(--muted); }
+
+/* ---- #559: the cards tidied ("Editor aufgeraeumt") ---- */
+/* one column header row per card instead of a label under every row; it sits on the same subgrid as the rows */
+.rp-linelist > .rp-linehead { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; column-gap: 8px; padding: 0 6px 0 10px; list-style: none; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.rp-linehead-who { grid-column: 2; }
+.rp-linehead-at { grid-column: 4; }
+/* a row that differs from the Standard for this boss only: the badge in its who column and a light accent background */
+.rp-line-dev { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.rp-line.is-dev { background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
+.rp-line.is-dev:not(.is-ro):hover { background: color-mix(in srgb, var(--accent) 12%, var(--panel2)); }
+/* the rows of an editor card: top aligned so the targets start next to the first class, the targets a calm list (colour only as the left edge, equal heights) */
+.rp-editlist > .rp-line { align-items: start; min-height: 0; }
+.rp-editlist .rp-line-arr { margin-top: 5px; }
+.rp-editlist .rp-line-ico { margin-top: 1px; }
+.rp-editlist .rp-line-cell.is-at { flex-direction: column; align-items: stretch; gap: 4px; }
+.rp-editlist .rp-line-cell.is-at > .rp-lc { height: 26px; }
+.rp-editlist .rp-line-cell.is-at > .rp-lc.is-grp { background: var(--panel2); }
+/* actions dimmed until the row is hovered or focused (the pencil stays as it is) */
+.rp-editlist .rp-line-acts .rp-line-btn:not(.rp-line-open) { opacity: .45; }
+.rp-editlist .rp-line:hover .rp-line-acts .rp-line-btn, .rp-editlist .rp-line:focus-within .rp-line-acts .rp-line-btn { opacity: 1; }
+.rp-editlist .rp-line-acts { align-items: flex-start; }
+/* the "..." menu of a row */
+.rp-line-menu { position: fixed; z-index: 60; display: flex; flex-direction: column; min-width: 200px; padding: 5px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px -6px var(--shade-40); }
+.rp-line-mi { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 0; border-radius: 7px; background: none; color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; text-align: left; white-space: nowrap; cursor: pointer; }
+.rp-line-mi:hover, .rp-line-mi:focus-visible { background: var(--accent-soft); }
+.rp-line-mi.is-info { color: var(--muted); font-weight: 500; cursor: default; }
+.rp-line-mi.is-info:hover { background: none; }
+/* the head line of the Besetzung, the mobs bar and the tactic: chevron, title, summary, actions - no row of its own for the chevron */
+.rp-bes-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.rp-bes-top .rp-bes-head { margin: 0; }
+.rp-bes-topacts { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; }
+.rp-bes-topacts .rp-bes-assign { align-self: center; }
+@media (max-width: 600px) {
+    .rp-linelist > .rp-linehead { display: none; }
+}
+.rp-bes-sum { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 @media (max-width: 600px) {
     .rp-alist.rp-linelist { display: flex; flex-direction: column; }
     .rp-line, .rp-line.is-ro, .rp-linelist > .rp-line { grid-template-columns: 26px minmax(0, 1fr) auto; row-gap: 4px; }

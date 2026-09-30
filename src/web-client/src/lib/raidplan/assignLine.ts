@@ -7,6 +7,7 @@ import { classPlaceNameFor, classRefLabelFor, offRole, resolveAssignee, resolveT
 import { classGroups, classPriorityOf, expandClassRefs, isClassRef, parseClassRef, rowCount } from "./classRefs";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from "../../api";
 import { t } from "../../i18n";
+import { isDeviation } from "./inherit";
 
 /**
  * One entry of a column: a single chip, a bracket of a class reference with a count ("Jäger x2") holding what it resolves to, or the
@@ -45,7 +46,7 @@ function priorityItems(row: RaidplanAssignment, filled: RaidplanAssignment, ctx:
 /** A row of the plan with a place nobody fills: its section, kind of task and what is missing ("Magier-Tank", "Jäger"). */
 export type OpenRow = { key: string; name: string; rowId: string; type: string; missing: string[] };
 
-export type CardSum = { rows: number; open: number };
+export type CardSum = { rows: number; open: number; deviating: number };
 
 /** Whether a resolved chip is an open place that is missing (yellow): a class nobody fills, or an empty role slot in an EVENT (in a template a slot is only a placeholder, grey). */
 export function isMissing(r: Resolved, isEvent: boolean): boolean {
@@ -103,11 +104,19 @@ export function lineState(row: RaidplanAssignment, filled: RaidplanAssignment, c
     return items.some((x) => x.open) ? "open" : "ok";
 }
 
-/** The counter of a card: how many rows and how many of them have an open place ("4 Zeilen · 1 offen"). */
-export function cardSummary(rows: RaidplanAssignment[], filled: RaidplanAssignment[], ctx: AssignCtx, isEvent: boolean): CardSum {
+/** The counter of a card: how many rows, how many of them have an open place and how many differ from the Standard ("5 Zeilen · 1 abweichend · 1 offen"). */
+export function cardSummary(rows: RaidplanAssignment[], filled: RaidplanAssignment[], ctx: AssignCtx, isEvent: boolean, own: RaidplanAssignment[] = rows): CardSum {
     let open = 0;
     for (const a of rows) if (lineState(a, filled.find((x) => x.id === a.id) || a, ctx, isEvent) === "open") open += 1;
-    return { rows: rows.length, open };
+    // `own` = the section's own rows: an inherited row is resolved with `origin` = its Standard row, but it does not deviate
+    return { rows: rows.length, open, deviating: own.filter((a) => isDeviation(a)).length };
+}
+
+/** The role slots of the Besetzung for its one-line summary ("25 besetzt · 2 offen"): a group marker is no slot of a raider; in a template nobody stands in a slot, so it only counts. */
+export function slotSummary(slots: { kind: string; userId?: string | null }[], isEvent: boolean): { total: number; filled: number; open: number } {
+    const roles = slots.filter((s) => s.kind !== "group");
+    const filled = isEvent ? roles.filter((s) => !!s.userId).length : 0;
+    return { total: roles.length, filled, open: isEvent ? roles.length - filled : 0 };
 }
 
 /** The small line under a row, only when there is something: the spell's name, the task text (when it is not just the type) and the note. */
