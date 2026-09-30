@@ -8,7 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { RosterChar, RosterData } from "../../api";
 import RosterPage from "./RosterPage";
-import { adminUser, renderPage } from "../../test/render";
+import { adminUser, CONTENT_ARIA, renderPage, twoVersions } from "../../test/render";
+import { t } from "../../i18n";
 import { switchLang } from "../../test/i18n";
 import { gearWithIssues, rosterChar, rosterData } from "./RosterPage.fixture";
 
@@ -251,26 +252,18 @@ describe("RosterPage — in English", () => {
     });
 });
 
-describe("RosterPage version filter (#543)", () => {
-    const VERSIONS = [
-        { id: "tbc", label: "TBC Anniversary", short: "TBC", count: 2 },
-        { id: "forever", label: "WoW Forever", short: "Forever", count: 1 },
-    ];
-
-    it("shows the filter with more than one version and reloads the roster for the picked one", async () => {
+describe("RosterPage per game version (#543, #563)", () => {
+    it("has no filter of its own and reloads the roster when the menu's content switch changes", async () => {
+        localStorage.removeItem("eh-content-version");
         const user = userEvent.setup();
-        await openPage({ ...rosterData([rosterChar("Anna")]), version: "tbc", mainVersion: "tbc", versions: VERSIONS });
-        const picker = screen.getByRole("radiogroup", { name: "Spielversion" });
-        expect(within(picker).getByRole("radio", { name: "TBC · 2" })).toHaveAttribute("aria-checked", "true");
-        vi.mocked(api.getRoster).mockResolvedValue({ ...rosterData([rosterChar("Devi Res")]), version: "forever", mainVersion: "tbc", versions: VERSIONS });
-        await user.click(within(picker).getByRole("radio", { name: "Forever · 1" }));
-        await waitFor(() => expect(api.getRoster).toHaveBeenLastCalledWith("forever"));
-        await user.click(within(await screen.findByRole("radiogroup", { name: "Spielversion" })).getByRole("radio", { name: "Alle" }));
-        await waitFor(() => expect(api.getRoster).toHaveBeenLastCalledWith("all"));
-    });
-
-    it("hides the filter while there is only one version", async () => {
-        await openPage({ ...rosterData([rosterChar("Anna")]), versions: [VERSIONS[0]] });
+        vi.mocked(api.getRoster).mockResolvedValue({ ...rosterData([rosterChar("Anna")]), version: "tbc", mainVersion: "tbc" });
+        renderPage(<RosterPage />, { route: "/roster", content: twoVersions() });
+        await screen.findByRole("radiogroup", { name: "Rolle" });
+        expect(api.getRoster).toHaveBeenLastCalledWith("tbc");
         expect(screen.queryByRole("radiogroup", { name: "Spielversion" })).not.toBeInTheDocument();
+        vi.mocked(api.getRoster).mockResolvedValue({ ...rosterData([rosterChar("Devi Res")]), version: "forever", mainVersion: "tbc" });
+        await user.click(within(screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0]).getByRole("radio", { name: /Forever/ }));
+        await waitFor(() => expect(api.getRoster).toHaveBeenLastCalledWith("forever"));
+        localStorage.removeItem("eh-content-version");
     });
 });

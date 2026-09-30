@@ -54,6 +54,7 @@
       "categoryRaidTemplate": {},
       "mainVersion": "tbc",
       "categoryVersion": {},
+      "hideOtherVersions": false,
       "topItems": [],
       "anthropic": {
         "apiKey": "",
@@ -123,6 +124,7 @@
       "categoryRaidTemplate": {},
       "mainVersion": "tbc",
       "categoryVersion": {},
+      "hideOtherVersions": false,
       "topItems": [],
       "anthropic": {
         "apiKey": "",
@@ -270,6 +272,7 @@
       },
       "mainVersion": "tbc",
       "categoryVersion": {},
+      "hideOtherVersions": false,
       "topItems": [
         {
           "id": 32837,
@@ -371,6 +374,7 @@
       "categoryRaidTemplate": {},
       "mainVersion": "tbc",
       "categoryVersion": {},
+      "hideOtherVersions": false,
       "topItems": [],
       "anthropic": {
         "apiKey": "",
@@ -475,6 +479,7 @@
       },
       "mainVersion": "tbc",
       "categoryVersion": {},
+      "hideOtherVersions": false,
       "topItems": [],
       "anthropic": {
         "apiKey": "",
@@ -603,6 +608,7 @@
       "categoryRaidTemplate": {},
       "mainVersion": "tbc",
       "categoryVersion": {},
+      "hideOtherVersions": false,
       "topItems": [],
       "anthropic": {
         "apiKey": "",
@@ -702,6 +708,7 @@
       },
       "mainVersion": "tbc",
       "categoryVersion": {},
+      "hideOtherVersions": false,
       "topItems": [],
       "anthropic": {
         "apiKey": "",
@@ -805,6 +812,7 @@
       "categoryRaidTemplate": {},
       "mainVersion": "tbc",
       "categoryVersion": {},
+      "hideOtherVersions": false,
       "topItems": [],
       "anthropic": {
         "apiKey": "",
@@ -914,6 +922,7 @@
       "categoryRaidTemplate": {},
       "mainVersion": "tbc",
       "categoryVersion": {},
+      "hideOtherVersions": false,
       "topItems": [
         {
           "id": 19019,

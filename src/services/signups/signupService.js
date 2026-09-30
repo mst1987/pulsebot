@@ -41,6 +41,7 @@ const { SIGNUP_STATUSES } = require("../../utils/attendance");
 const { ROLES } = require("../../config/gameVersions/classes");
 const { spec: specOf, rulesFor } = require("../../config/gameVersions");
 const { versionOfEvent } = require("../events/mainVersion");
+const { archiveOf } = require("../events/eventArchive");
 const { normalizeOverflow, accountCount } = require("../../utils/signup/capacity");
 
 // Statuses a member may still pick once the deadline has passed.
@@ -507,6 +508,9 @@ async function submitSignup(eventId, userId, input = {}, { byOrga = false, offPr
     }
     const event = getEvent(eventId);
     if (!event) return fail("not_found", "Event nicht gefunden.");
+    // An event of a hidden game version is an archive (#563): readable, never changed.
+    const archive = archiveOf(event, { config });
+    if (archive) return fail("archived", `Dieser Raid ist archiviert (${archive.label} ist ausgeblendet) – Anmeldungen sind geschlossen.`);
     const profile = profiles.getProfile(uid);
     const previous = signupStore.getSignup(event.id, uid);
     const access = await checkRaiderRole(event, uid, { byOrga, previous, roleIds, config });

@@ -318,21 +318,21 @@ describe("Recruitment per game version (#553)", () => {
         }));
     });
 
-    it("shows the main version's applications first and switches to Classic and to all", async () => {
+    it("shows the applications of the menu's content version, the main one first (#563)", async () => {
+        localStorage.removeItem("eh-content-version");
         const user = userEvent.setup();
-        renderPage(<RecruitmentPage />, { route: "/recruitment?view=applications" });
-        const filter = await screen.findByRole("radiogroup", { name: "Spielversion" });
+        renderPage(<RecruitmentPage />, {
+            route: "/recruitment?view=applications",
+            content: { mainVersion: "tbc", hideOtherVersions: false, versions: [{ id: "tbc", label: "TBC", short: "TBC" }, { id: "classic", label: "Classic Era", short: "Classic" }] },
+        });
         expect(await screen.findByText("Thrall")).toBeInTheDocument();
         expect(screen.queryByText("Jaina")).toBeNull();
+        expect(screen.queryByRole("radiogroup", { name: "Spielversion" })).toBeNull();
 
-        await user.click(within(filter).getByRole("radio", { name: /Classic/ }));
+        await user.click(within(screen.getAllByRole("radiogroup", { name: "Content: Spielversion für das ganze Menü" })[0]).getByRole("radio", { name: /Classic/ }));
         expect(await screen.findByText("Jaina")).toBeInTheDocument();
         expect(screen.queryByText("Thrall")).toBeNull();
-
-        await user.click(within(filter).getByRole("radio", { name: "Alle" }));
-        expect(await screen.findByText("Thrall")).toBeInTheDocument();
-        expect(screen.getByText("Jaina")).toBeInTheDocument();
-        expect(screen.getAllByText("Classic").length).toBeGreaterThan(0);
+        localStorage.removeItem("eh-content-version");
     });
 
     it("hides the filter while every row plays the main version", async () => {

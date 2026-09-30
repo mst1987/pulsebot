@@ -5,7 +5,6 @@ import {
     type ApiError, type GameVersion, type RaidTemplate, type RaidTemplateInput } from "../api";
 import { useApi } from "../hooks/useApi";
 import { useCollectionEditor } from "../lib/collectionEditor";
-import { usePersistedState } from "../lib/persistedState";
 import {
     allowedSizes, draftOf, emojiStyleOf, filterByVersion, instancesOf, newDraft, proposeComposition, templateLabel, validateDraft } from "../lib/raidTemplates";
 import { AppearanceFields, BuffPicker, FieldLabel, InstancePicker, NumberInput, OverflowField, RoleRanges, SizePicker, SwitchRow } from "../components/RaidPlanFields";
@@ -15,7 +14,7 @@ import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
 import PageHead from "../components/ui/PageHead";
 import Segment from "../components/ui/Segment";
-import VersionFilter from "../components/ui/VersionFilter";
+import { useContentVersion } from "../hooks/useContentVersion";
 import Badge from "../components/ui/Badge";
 import WowIcon from "../components/ui/WowIcon";
 import RaidLoader from "../components/ui/RaidLoader";
@@ -220,28 +219,21 @@ export default function RaidTemplatesPage() {
     const data = loaded.data?.templates ?? null;
     const versions = loaded.data?.versions ?? null;
     const defaultVersion = loaded.data?.defaultVersion ?? "";
-    // The version filter (#545): "" (nothing chosen yet) = the main version,
-    // "all" = every version — same convention as the roster (#543).
-    const [versionPick, setVersionPick] = usePersistedState("raid-templates-version", "");
+    // The game version (#563): the menu's content switch, else the main version.
+    const { version: contentVersion, hidden: othersHidden } = useContentVersion();
     const [importing, setImporting] = useState(false);
 
     if (loaded.error) return <div className="empty">{tParts("raidTemplates.page.loadError", { message: loaded.error.message })}</div>;
     if (!data || !versions) return <RaidLoader text={t("raidTemplates.page.loading")} />;
 
     const shortOf = (id: string) => versions.find((v) => v.id === id)?.short || id;
-    // A remembered pick for a version that has no template shows the main
-    // version instead — same fallback the roster and the loot history use.
-    const resolvedVersion = versionPick === "all" ? "all" : (versions.some((v) => v.id === versionPick) ? versionPick : defaultVersion);
-    const filter = resolvedVersion === "all" ? "" : resolvedVersion;
-    const shown = filterByVersion(data.templates, filter);
+    const shown = filterByVersion(data.templates, contentVersion || defaultVersion);
     const entry = editor.editId ? data.templates.find((tpl) => tpl.id === editor.editId) || null : null;
-    // The filter's own choices: every version with a template, plus the main
-    // version even with none (see VersionFilter / api/raidTemplates.ts VersionChoice).
-    const versionCounts = new Map<string, number>();
-    for (const tpl of data.templates) versionCounts.set(tpl.versionId, (versionCounts.get(tpl.versionId) || 0) + 1);
-    const versionChoices = versions
-        .filter((v) => versionCounts.has(v.id) || v.id === defaultVersion)
-        .map((v) => ({ id: v.id, label: v.label, short: v.short, count: versionCounts.get(v.id) || 0 }));
+    // A new template starts in the shown version (#563); with the other versions hidden only that one is offered.
+    const shownVersion = contentVersion || defaultVersion;
+    const editorVersions = [...versions]
+        .filter((v) => !othersHidden || v.id === shownVersion || v.id === entry?.versionId)
+        .sort((a, b) => Number(b.id === shownVersion) - Number(a.id === shownVersion));
 
     const afterChange = (msg: string) => {
         toast(msg);
@@ -273,7 +265,6 @@ export default function RaidTemplatesPage() {
                 title={t("raidTemplates.page.title")}
                 action={(
                     <>
-                        <VersionFilter versions={versionChoices} ariaLabel={t("raidTemplates.version")} value={resolvedVersion} onChange={setVersionPick} />
                         {canWrite && (
                             <IconButton icon={<RefreshIcon />} tip={t("raidTemplates.page.import")} tipSub={t("raidTemplates.page.importSub")} disabled={importing} onClick={importFromRaidHelper} />
                         )}
@@ -312,7 +303,7 @@ export default function RaidTemplatesPage() {
                 <RaidTemplateModal
                     key={editor.open}
                     template={entry}
-                    versions={versions}
+                    versions={editorVersions}
                     canWrite={canWrite}
                     onSaved={afterChange}
                     onClose={editor.close}

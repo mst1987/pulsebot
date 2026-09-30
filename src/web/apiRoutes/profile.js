@@ -15,7 +15,7 @@ const calendarTokens = require("../../stores/calendarTokenStore");
 const calendarFeed = require("../pages/calendarFeed");
 const { userIcsUrl } = require("../../services/events/icsFeed");
 const { rulesFor, VERSIONS } = require("../../config/gameVersions");
-const { mainVersionFor, knownVersion } = require("../../services/events/mainVersion");
+const { mainVersionFor, knownVersion, isVersionVisible } = require("../../services/events/mainVersion");
 const { getConfig } = require("../../stores/settingsStore");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
 
@@ -39,12 +39,13 @@ function pageContext({ versionId, config = getConfig() } = {}) {
         classesByVersion: Object.fromEntries(VERSIONS.map((v) => [v.id, v.classes])),
         // The versions a character can belong to (#543): the add dialog asks for one
         // (the main version first), `lastName` switches on the last-name field.
-        versions: [...VERSIONS]
+        // Other versions hidden (#563): a new character only in the main version.
+        versions: VERSIONS.filter((v) => isVersionVisible(v.id, config))
             .sort((a, b) => Number(b.id === mainVersion) - Number(a.id === mainVersion))
             .map((v) => ({ id: v.id, label: v.label, short: v.short || v.label, lastName: !!(v.characterNames && v.characterNames.lastName) })),
         roles: ROLE_LABELS,
         // The instances of every version, grouped, so a Classic guild finds its raids too.
-        raidGroups: VERSIONS.map((v) => ({
+        raidGroups: VERSIONS.filter((v) => isVersionVisible(v.id, config)).map((v) => ({
             id: v.id,
             label: v.label,
             instances: v.instances.map((i) => ({ id: i.id, name: i.name, short: i.short, icon: i.icon, status: i.status })),

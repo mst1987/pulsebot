@@ -4,14 +4,17 @@ const {
     listRaidTemplates, getRaidTemplate, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate, getConfig,
 } = require("../../stores/settingsStore");
 const { decorateTemplate } = require("../../services/events/raidTemplates");
+const { visibleRows } = require("../../services/events/mainVersion");
 const discord = require("../../services/discord/discord");
 const { activeGuildFor } = require("../http/activeGuild");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 
 /** Every template as the list shows it, with its badges and the categories using it as default. */
 function decoratedTemplates() {
-    const defaults = getConfig().categoryRaidTemplate || {};
-    return listRaidTemplates().map((t) => decorateTemplate(t, defaults));
+    const config = getConfig();
+    const defaults = config.categoryRaidTemplate || {};
+    // Other versions hidden (#563): their templates stay out of the list.
+    return visibleRows(listRaidTemplates(), (t) => t.versionId, config).map((t) => decorateTemplate(t, defaults));
 }
 
 /** The Discord category names, so "Standard für …" reads as names. Best-effort: offline = {}. */

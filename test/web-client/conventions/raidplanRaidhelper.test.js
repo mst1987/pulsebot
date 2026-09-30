@@ -10,7 +10,7 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").
 describe("the activation dialog", () => {
     it("the page: the menu for a Raid-Helper event with raids write, the dialog, the confirmation before switching off", () => {
         const page = read("pages", "RaidDetailPage.tsx");
-        expect(page).toContain("const canSwitchPlan = !ownEvent && canAccess(user, \"raids\", \"write\");");
+        expect(page).toContain("const canSwitchPlan = !ownEvent && canWrite;");
         expect(page).toContain("entries={raidhelperMenu({ planEnabled: !!data.event.raidplanEnabled, disabled: !!data.event.raidhelperDisabled })}");
         expect(page).toMatch(/action === "raidplanOff"\) \{\n\s+const ok = await ask\(/);
         const modal = read("pages", "raid-detail", "manage", "RaidplanLinkModal.tsx");

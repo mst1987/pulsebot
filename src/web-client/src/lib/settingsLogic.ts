@@ -131,6 +131,8 @@ export type DraftShape = {
     mainVersion?: string;
     /** Category id → version; missing/"" = the main version. */
     categoryVersion?: Record<string, string>;
+    /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
+    hideOtherVersions?: boolean;
     /** Settings per version (#542): version id → { field → value }. */
     versionSettings?: Record<string, Record<string, string>>;
     topItems: { id: number }[];
@@ -303,6 +305,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
     const versionName = (id: string) => (id ? (names.version ? names.version(id) : id) : t("settings.changes.followMain"));
     if ((saved.mainVersion || "tbc") !== (draft.mainVersion || "tbc")) {
         out.push(t("settings.changes.mainVersion", { value: versionName(draft.mainVersion || "tbc") }));
+    }
+    if (!!saved.hideOtherVersions !== !!draft.hideOtherVersions) {
+        out.push(t(draft.hideOtherVersions ? "settings.changes.hideOtherOn" : "settings.changes.hideOtherOff"));
     }
     const verWas = saved.categoryVersion || {};
     const verIs = draft.categoryVersion || {};

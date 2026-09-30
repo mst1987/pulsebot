@@ -11,7 +11,7 @@ import RaidCreateDialog from "../components/raid-create/RaidCreateDialog";
 import IconTile from "../components/ui/IconTile";
 import Badge from "../components/ui/Badge";
 import WowIcon from "../components/ui/WowIcon";
-import VersionFilter from "../components/ui/VersionFilter";
+import { useContentVersion } from "../hooks/useContentVersion";
 import { buttonClass } from "../components/ui/Button";
 import "../styles/raid-events.css";
 import RaidLoader from "../components/ui/RaidLoader";
@@ -80,9 +80,8 @@ export default function RaidsPage() {
     // Remembered by category id, not by position: categories come and go with
     // the scheduled events, so a position would point at another raid next week.
     const [categoryId, setCategoryId] = usePersistedState("raids-category", "");
-    // The game version filter (#545): "" = the server's default (the main
-    // version), "all" = every one — same convention as the roster (#543).
-    const [version, setVersion] = usePersistedState("raids-version", "");
+    // The game version (#563): the menu's content switch; "" = the server's main version.
+    const { version } = useContentVersion();
 
     const upcomingData = useApi(
         () => getRaids(version).then((d) => { lastLoaded.upcoming[version] = d; return d; }),
@@ -169,14 +168,6 @@ export default function RaidsPage() {
                     onChange={(v) => setView(v)}
                     counts={{ upcoming: upcoming.events.length, past: past ? past.events.length : null }}
                 />
-                {!!(view === "past" ? past : upcoming)?.versions.length && (
-                    <VersionFilter
-                        versions={(view === "past" ? past : upcoming)?.versions || []}
-                        ariaLabel={t("raids.page.versionAria")}
-                        value={version || (view === "past" ? past : upcoming)?.version || "all"}
-                        onChange={setVersion}
-                    />
-                )}
                 {pills.length > 0 && (
                     <div className="re-pills" role="radiogroup" aria-label={t("raids.page.categoryAria")}>
                         <button type="button" role="radio" aria-checked={activeCategory === null} className={`re-pill noimg${activeCategory === null ? " on" : ""}`} onClick={() => setCategoryId("")}>

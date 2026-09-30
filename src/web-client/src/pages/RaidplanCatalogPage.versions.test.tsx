@@ -1,11 +1,12 @@
-// Raidplan-Katalog per game version (#544): the switch starts on the main version, shows only that version's
-// entries, and a new entry is made for the version shown (its chips can add others).
+// Raidplan-Katalog per game version (#544): the menu's content switch (#563) decides the version, the page shows
+// only that version's entries, and a new entry is made for the version shown (its chips can add others).
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../api";
 import type { CatalogAdmin, GameVersionsData } from "../api";
-import { renderPage } from "../test/render";
+import { CONTENT_ARIA, renderPage, twoVersions } from "../test/render";
+import { t } from "../i18n";
 import RaidplanCatalogPage from "./RaidplanCatalogPage";
 
 vi.mock("../api", async (orig) => ({
@@ -36,21 +37,22 @@ const CATALOG: CatalogAdmin = {
 };
 
 beforeEach(() => {
+    localStorage.removeItem("eh-content-version");
     vi.mocked(api.getRaidplanCatalog).mockReset().mockResolvedValue(CATALOG);
     vi.mocked(api.getGameVersions).mockReset().mockResolvedValue(VERSIONS);
     vi.mocked(api.saveCatalogEntry).mockReset().mockResolvedValue(CATALOG);
 });
 
 describe("Raidplan-Katalog per game version", () => {
-    it("starts on the main version and shows only its entries; the switch shows another version's", async () => {
+    it("shows the entries of the menu's content version, the main one first", async () => {
         const user = userEvent.setup();
-        renderPage(<RaidplanCatalogPage />, { route: "/raids/plan-catalog" });
-        const sw = await screen.findByRole("radiogroup", { name: "Spielversion des Katalogs" });
-        expect(within(sw).getByRole("radio", { name: "TBC" })).toHaveAttribute("aria-checked", "true");
-        expect(screen.getByText("Gathios the Shatterer")).toBeInTheDocument();
+        renderPage(<RaidplanCatalogPage />, { route: "/raids/plan-catalog", content: twoVersions() });
+        expect(await screen.findByText("Gathios the Shatterer")).toBeInTheDocument();
+        expect(screen.queryByRole("radiogroup", { name: "Spielversion des Katalogs" })).not.toBeInTheDocument();
+        const sw = screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0];
         expect(screen.queryByText("Onyxian Whelp")).not.toBeInTheDocument();
 
-        await user.click(within(sw).getByRole("radio", { name: "Forever" }));
+        await user.click(within(sw).getByRole("radio", { name: /Forever/ }));
         expect(screen.getByText("Onyxian Whelp")).toBeInTheDocument();
         expect(screen.queryByText("Gathios the Shatterer")).not.toBeInTheDocument();
         await user.click(screen.getByRole("tab", { name: /Spells/ }));
@@ -60,9 +62,10 @@ describe("Raidplan-Katalog per game version", () => {
 
     it("a new mob is made for the version shown, offers that version's instances and needs a version", async () => {
         const user = userEvent.setup();
-        renderPage(<RaidplanCatalogPage />, { route: "/raids/plan-catalog" });
-        const sw = await screen.findByRole("radiogroup", { name: "Spielversion des Katalogs" });
-        await user.click(within(sw).getByRole("radio", { name: "Forever" }));
+        renderPage(<RaidplanCatalogPage />, { route: "/raids/plan-catalog", content: twoVersions() });
+        await screen.findByText("Gathios the Shatterer");
+        const sw = screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0];
+        await user.click(within(sw).getByRole("radio", { name: /Forever/ }));
         await user.click(screen.getByRole("button", { name: /Neuer Mob/ }));
         const dialog = await screen.findByRole("dialog");
         const chips = within(dialog).getByRole("group", { name: "Spielversion" });

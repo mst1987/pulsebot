@@ -16,6 +16,7 @@ const {
 } = require("../../stores/settingsStore");
 const { pickRaidsheet } = require("../../utils/setup/raidsheets");
 const { versionOfEvent } = require("../../services/events/mainVersion");
+const { archiveOf } = require("../../services/events/eventArchive");
 const { settingsForVersion } = require("../../services/events/versionSettings");
 const { buildSetupView, tankCandidates } = require("../../utils/setup/setupView");
 const {
@@ -324,6 +325,8 @@ async function buildRaidDetail({ guildId, eventId }) {
         // The event's version and its Wowhead path (#542) for the softres item search.
         versionId: version.versionId,
         wowheadPath: version.wowheadPath,
+        // A hidden game version (#563): the page opens as a read-only archive (null = a normal event).
+        archived: archiveOf({ versionId: version.versionId, categoryId: found.g.categoryId }, { config }),
         softresSuggested: softresInfo.suggestedInstances.map((i) => i.code),
         attendance: attendanceInfo.attendance,
         ownSignups: own.ownSignups,

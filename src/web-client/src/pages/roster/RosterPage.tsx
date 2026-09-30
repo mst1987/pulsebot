@@ -7,7 +7,7 @@
 // #218): what does the character play, was it there lately, is its gear in
 // order, what did it already get. Explanations live in tooltips, the full gear
 // findings and the loot history one click away on the character page.
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import { canAccess, getCharacterClaims, getRoster, setRosterHidden, type ApiError, type RosterChar, type RosterHiddenNote, type RosterRole } from "../../api";
 import { useApi } from "../../hooks/useApi";
@@ -17,7 +17,8 @@ import { RosterKpis } from "./RosterHero";
 import { ROLE_ORDER, classIconName } from "../../lib/rosterView";
 import { classLabel, roleLabel } from "../../lib/wowNames";
 import { tParts, useT } from "../../i18n";
-import { IconTile, Segment, VersionFilter, WowIcon } from "../../components/ui";
+import { IconTile, Segment, WowIcon } from "../../components/ui";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { SearchIcon } from "../../components/icons";
 import type { ShellContext } from "../../components/Shell";
 import { useToast } from "../../components/Jobs";
@@ -54,8 +55,8 @@ function byRoleThenName(a: RosterChar, b: RosterChar): number {
 
 export default function RosterPage() {
     const { user } = useOutletContext<ShellContext>();
-    // The game version shown (#543): "" = the server's default (the main version), "all" = every one.
-    const [version, setVersion] = useState("");
+    // The game version shown (#543): the menu's content switch (#563), "" = the server's main version.
+    const { version } = useContentVersion();
     const roster = useApi(() => getRoster(version), [version]);
     const { data, setData } = roster;
     // Beside the roster, best-effort: without the claims the "doppelt vergeben" badge simply stays away.
@@ -220,17 +221,6 @@ export default function RosterPage() {
             <RosterKpis stats={data.stats} onlyIssues={view.onlyIssues} onToggleIssues={() => patch({ onlyIssues: !view.onlyIssues })} />
 
             <div className="dash-card ros-panel">
-                {(data.versions || []).length > 1 && (
-                    <div className="ros-tabs ros-versions">
-                        <VersionFilter
-                            versions={data.versions || []}
-                            ariaLabel={t("roster.page.versionAria")}
-                            value={version || data.version || "all"}
-                            onChange={setVersion}
-                            allTip={t("roster.page.versionAllTip")}
-                        />
-                    </div>
-                )}
                 {(!!data.hiddenChars.length || canWrite) && (
                     <div className="ros-tabs">
                         <Segment<Tab>

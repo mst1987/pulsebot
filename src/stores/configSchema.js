@@ -157,6 +157,11 @@ const CONFIG_DEFAULTS = {
     // A category that plays another version than the main one:
     // { [categoryId]: versionId }. Only the categories that differ are stored.
     categoryVersion: {},
+    // "Andere Versionen ausblenden" (#563): true = every list, selection list
+    // and the menu's content switch show only the main version; a direct link
+    // to an event of another version opens it read only (archive). Nothing is
+    // deleted, switching it off brings everything back.
+    hideOtherVersions: false,
     // The items the guild considers a "big" drop: [{ id, name, iconUrl, quality }],
     // picked from the Wowhead search in Einstellungen → Loot. Imported loot is
     // matched against these ids for the dashboard's "Latest Loot" card
@@ -585,6 +590,7 @@ function normalizeConfig(raw) {
         categoryRaidTemplate: normalizeCategoryRaidTemplate(stored.categoryRaidTemplate),
         mainVersion: normalizeMainVersion(stored.mainVersion),
         categoryVersion: normalizeCategoryVersion(stored.categoryVersion),
+        hideOtherVersions: stored.hideOtherVersions === true,
         topItems: normalizeTopItems(stored.topItems),
         roleSync: normalizeRoleSync(stored.roleSync),
         categoryReminders: normalizeCategoryReminders(stored.categoryReminders),

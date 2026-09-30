@@ -37,6 +37,9 @@ const { startJob, getJob } = require("../logcheck/evalJobs");
 const { explainSetup } = require("../../utils/setup/explainText");
 const setupSignup = require("../../services/setup/setupSignup");
 
+// A write on an event setup: an archived event (a hidden game version, #563) is read only.
+const BY_EVENT = (body) => body.event;
+
 const EXPLAIN_SECTION = "setup-explain";
 
 const canWrite = (user) => userCan(user, "raids", "write");
@@ -123,14 +126,14 @@ async function answer(res, result, user, extra = {}) {
 }
 
 /** POST /api/raids/setup/propose — body `{ event, weights?, fairness?, wishes? }` */
-const postPropose = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const postPropose = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.proposeEventSetup(String(body.event).trim(), body, { userId: user.id });
     await answer(res, result, user, { message: "Neuer Vorschlag erstellt." });
 });
 
 /** PUT /api/raids/setup — body `{ event, version, groups, bench, weights?, fairness?, wishes? }` */
-const putSetup = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const putSetup = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.saveEventSetup(String(body.event).trim(), body, { userId: user.id });
     await answer(res, result, user);
@@ -140,7 +143,7 @@ const putSetup = withUser({ write: "raids", csrf: true, body: true }, async ({ u
 const benchChoice = (body) => (typeof body.bench === "boolean" ? body.bench : undefined);
 
 /** POST /api/raids/setup/approve — body `{ event, version, bench? }` */
-const postApprove = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const postApprove = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.approveEventSetup(String(body.event).trim(), { version: body.version, userId: user.id });
     if (result.error) return sendFailure(res, result);
@@ -160,7 +163,7 @@ const postApprove = withUser({ write: "raids", csrf: true, body: true }, async (
 });
 
 /** POST /api/raids/setup/post — body `{ event, bench? }`: post/edit the approved setup, send outstanding DMs. */
-const postPublish = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const postPublish = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const { post } = await setupMessage.publishSetup(event.id, { userId: user.id, bench: benchChoice(body) });
@@ -170,7 +173,7 @@ const postPublish = withUser({ write: "raids", csrf: true, body: true }, async (
 });
 
 /** POST /api/raids/setup/ping-text — body `{ event, text }`: what "Ping everyone" (and the first post's own ping) sends. */
-const postPingText = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const postPingText = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     saveSetupPingText(event.id, body.text);
@@ -178,7 +181,7 @@ const postPingText = withUser({ write: "raids", csrf: true, body: true }, async 
 });
 
 /** POST /api/raids/setup/extra-role — body `{ event, userId, role: "tank"|"healer", on }`: mark a raider as an extra tank / healer, or not any more. */
-const postExtraRole = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const postExtraRole = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const userId = String(body.userId || "").trim();
@@ -199,7 +202,7 @@ const getSignupEdit = withUser({ write: "raids" }, async ({ res, url }) => {
 });
 
 /** PUT /api/raids/setup/signup — body `{ event, userId, status, character?, spec?, from? }`: the orga changes a raider's signup (#521). */
-const putSignupEdit = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const putSignupEdit = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = await setupSignup.changeSignupFromSetup(String(body.event).trim(), body.userId, body, { user });
     if (result.error) return error(res, result.status || 400, result.code || "failed", result.error);

@@ -518,3 +518,37 @@ describe("commands/signup/eventButton", () => {
         });
     });
 });
+
+// A hidden game version (#563): the buttons under an old message only say the raid is archived.
+describe("event buttons of an archived raid (#563)", () => {
+    beforeEach(() => {
+        mocks.access.config = { mainVersion: "forever", hideOtherVersions: true };
+    });
+    afterEach(() => {
+        mocks.access.config = {};
+    });
+
+    it("answers a click with an ephemeral English embed and saves nothing", async () => {
+        const i = click("join");
+        await command.execute(i);
+        const payload = replyOf(i);
+        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        const answer = answerOf(payload);
+        expect(answer.title).toBe("This raid is archived");
+        expect(answer.description).toContain("TBC Anniversary");
+        expect(stored()).toBeUndefined();
+    });
+
+    it("updates a step inside the member's own message the same way", async () => {
+        const i = click("pick:signed");
+        await command.execute(i);
+        expect(answerOf(updateOf(i)).title).toBe("This raid is archived");
+    });
+
+    it("lets the raid of the main version through", async () => {
+        mocks.events.set("eh-kara", { ...mocks.ownEvent(), versionId: "forever" });
+        const i = click("join");
+        await command.execute(i);
+        expect(answerOf(replyOf(i)).title).not.toBe("This raid is archived");
+    });
+});

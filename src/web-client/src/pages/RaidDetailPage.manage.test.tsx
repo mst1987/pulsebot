@@ -279,3 +279,20 @@ describe("the head and the roster of an own event", () => {
         expect(screen.queryByRole("button", { name: t("raidDetail.roster.addRaider") })).not.toBeInTheDocument();
     });
 });
+
+// An event of a hidden game version (#563), opened through a direct link: the
+// archive banner, and nothing to manage even with raids write.
+describe("an archived event (#563)", () => {
+    it("shows the archive banner and no manage menu", async () => {
+        await show(raidDetail({ archived: { versionId: "tbc", label: "TBC Anniversary", short: "TBC" } }));
+        expect(screen.getByRole("note")).toHaveTextContent(t("shell.archive.title", { version: "TBC" }));
+        expect(screen.getByRole("note")).toHaveTextContent(t("shell.archive.readOnly"));
+        expect(manageButton()).toBeNull();
+    });
+
+    it("a normal event has no banner and keeps its menu", async () => {
+        await show(raidDetail({ archived: null }));
+        expect(screen.queryByRole("note")).toBeNull();
+        expect(manageButton()).not.toBeNull();
+    });
+});

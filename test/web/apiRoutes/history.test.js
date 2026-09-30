@@ -287,6 +287,33 @@ const { post, get } = routerClient(require("../../../src/web/apiRoutes/history")
 
 describe("web/apiRoutes/history", () => {
     describe("GET /api/history", () => {
+        it("leaves the raids and loot of a hidden version out (#563)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [
+                    { id: "e1", title: "Kara", startTime: 100, categoryId: "cat1", versionId: "tbc" },
+                    { id: "e2", title: "Ony", startTime: 200, categoryId: "cat1", versionId: "forever" },
+                ] }],
+                error: null,
+            });
+            dashboardData.annotateUpcomingExtras.mockImplementation((rows) => rows);
+            dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "e0", title: "Old Kara", versionId: "tbc" }, { id: "e9", title: "Old Ony", versionId: "forever" }], error: null });
+            lootStore.eventsWithLoot.mockReturnValue([{ eventId: "e1", label: "Kara", count: 2 }]);
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "forever", hideOtherVersions: true });
+
+            const data = json(await get("/api/history")).data;
+
+            expect(data.events.map((e) => e.id)).toEqual(["e2"]);
+            expect(data.upcomingRaids.events.map((e) => e.id)).toEqual(["e2"]);
+            expect(data.pastRaids.events.map((e) => e.id)).toEqual(["e9"]);
+            // loot without an own event is TBC: hidden
+            expect(data.lootEvents).toEqual([]);
+            expect(data.versions.map((v) => v.id)).toEqual(["forever"]);
+            dashboardData.annotateUpcomingExtras.mockReset();
+            settingsStore.getConfig.mockReturnValue({});
+        });
+
         it("returns 401 for an anonymous caller", async () => {
             auth.getUser.mockReturnValue(null);
             const res = await get("/api/history");
@@ -314,7 +341,8 @@ describe("web/apiRoutes/history", () => {
                 events: [{ id: "e1", title: "Kara", startTime: 100, categoryId: "cat1" }],
                 upcomingRaids: { events: [{ id: "e1", title: "Kara", lootCount: 2 }], error: null },
                 pastRaids: { events: [{ id: "e0", title: "Old Kara" }], error: null },
-                lootEvents: [{ eventId: "e1", label: "Kara", count: 2 }],
+                // #563: each bucket names the version of its raid (no own event = TBC)
+                lootEvents: [{ eventId: "e1", label: "Kara", count: 2, versionId: "tbc" }],
                 logs: [{ id: "l1", title: "Log 1", postedAt: 0 }],
                 categories: [{ id: "cat1", name: "Raids" }],
                 categoryLootTool: { cat1: "gargul" },
@@ -344,7 +372,7 @@ describe("web/apiRoutes/history", () => {
                 events: [],
                 upcomingRaids: { events: [], error: null },
                 pastRaids: { events: [], error: null },
-                lootEvents: [{ eventId: "e1", label: "Kara", count: 2 }],
+                lootEvents: [{ eventId: "e1", label: "Kara", count: 2, versionId: "tbc" }],
                 logs: [],
                 categories: [{ id: "cat1", name: "Raids" }],
                 categoryLootTool: {},
@@ -868,7 +896,7 @@ describe("web/apiRoutes/history", () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             await get("/api/history/loot-awards", {});
             expect(lootAwards.listAwards).toHaveBeenCalledWith({
-                topOnly: true, search: "", categoryId: "", contentId: "", reason: "", page: 1,
+                topOnly: true, search: "", categoryId: "", contentId: "", reason: "", page: 1, versionId: "tbc",
             });
         });
 
@@ -878,7 +906,7 @@ describe("web/apiRoutes/history", () => {
                 top: "0", q: "vashj", category: "cat1", content: "ssc", reason: "offspec", page: "3",
             });
             expect(lootAwards.listAwards).toHaveBeenCalledWith({
-                topOnly: false, search: "vashj", categoryId: "cat1", contentId: "ssc", reason: "offspec", page: 3,
+                topOnly: false, search: "vashj", categoryId: "cat1", contentId: "ssc", reason: "offspec", page: 3, versionId: "tbc",
             });
         });
 

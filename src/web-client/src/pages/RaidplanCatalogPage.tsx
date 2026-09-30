@@ -15,7 +15,7 @@ import RaidLoader from "../components/ui/RaidLoader";
 import WowIcon from "../components/ui/WowIcon";
 import { MobIcon } from "./raid-detail/raidplan/AssignPanel";
 import Flyout from "../components/raidplan/Flyout";
-import Segment from "../components/ui/Segment";
+import { useContentVersion } from "../hooks/useContentVersion";
 import { catalogOfVersion, inVersion, versionChips, versionLabel } from "../lib/raidplan/versions";
 import { ASSIGN_META } from "../lib/raidplan/assign";
 import { useT } from "../i18n";
@@ -44,7 +44,8 @@ export default function RaidplanCatalogPage() {
     // the game versions: the switch's choices and the main version it starts on (#541 makes that a setting; it is read from the same place)
     const gameVersions = useApi(() => getGameVersions(), []);
     const known: VersionInfo[] = useMemo(() => (gameVersions.data ? gameVersions.data.versions.map((v) => ({ id: v.id, short: v.short, label: v.label })) : []), [gameVersions.data]);
-    const [picked, setPicked] = useState("");
+    // The game version shown (#563): the menu's content switch.
+    const { version: picked } = useContentVersion();
     const version = picked || (gameVersions.data ? gameVersions.data.defaultVersion : "") || "tbc";
     const shown = useMemo(() => (data ? catalogOfVersion(data, version) : { mobs: [], spells: [] }), [data, version]);
     const [which, setWhich] = useState<Tab>("mobs");
@@ -135,11 +136,6 @@ export default function RaidplanCatalogPage() {
                 action={canWrite ? <Button onClick={() => setDraft(which === "mobs" ? { kind: "add", instanceId: "", bossKey: "", versions: [version] } : { type: "curse", classes: [], versions: [version] })}><Plus size={16} /> {t(which === "mobs" ? "catalog.newMob" : "catalog.newSpell")}</Button> : undefined}
             />
             <p className="rp-muted">{t("catalog.intro")}</p>
-            {known.length > 1 && (
-                <div className="rp-catversion">
-                    <Segment ariaLabel={t("catalog.versionSwitch")} value={version} onChange={setPicked} options={known.map((v) => ({ value: v.id, label: v.short, tip: v.label }))} />
-                </div>
-            )}
             <div className="rp-tfilters">
                 <div className="tabs rp-cattabs" role="tablist" aria-label={t("catalog.title")} onKeyDown={tabKeys}>
                     {(["mobs", "spells"] as Tab[]).map((x) => (

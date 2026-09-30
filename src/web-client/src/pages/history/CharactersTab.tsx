@@ -8,7 +8,6 @@ import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../../compone
 import { SearchBox } from "../../components/loot/LootFilters";
 import { useToast } from "../../components/Jobs";
 import { Button } from "../../components/ui/Button";
-import { VersionFilter } from "../../components/ui";
 import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
 import { useT } from "../../i18n";
@@ -18,10 +17,10 @@ type CharSortKey = "character" | "classSpec" | "category" | "count" | "source";
 const CHAR_SORT_DEFAULTS: Record<CharSortKey, Dir> = { character: "asc", classSpec: "asc", category: "asc", count: "desc", source: "asc" };
 
 // Everything the Charaktere view remembers between visits (see usePersistedState).
-// `version` (#543): "" = the main version, "all" = every version.
-type CharView = { search: string; category: string; classSpec: string; sort: CharSortKey; dir: Dir; version?: string };
+// The game version is not one of them: it is the menu's content switch (#563).
+type CharView = { search: string; category: string; classSpec: string; sort: CharSortKey; dir: Dir };
 
-const CHAR_VIEW_DEFAULT: CharView = { search: "", category: "", classSpec: "", sort: "count", dir: CHAR_SORT_DEFAULTS.count, version: "" };
+const CHAR_VIEW_DEFAULT: CharView = { search: "", category: "", classSpec: "", sort: "count", dir: CHAR_SORT_DEFAULTS.count };
 
 // The category cell holds badges, one per raid series the character shows up
 // in; it sorts by their names (the ids are snowflakes and would sort by channel
@@ -86,13 +85,12 @@ function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
     );
 }
 
-export function CharactersTab({ chars: allChars, categories, onChanged, versions = [], mainVersion = "" }: {
+export function CharactersTab({ chars: allChars, categories, onChanged, version = "" }: {
     chars: AnnotatedCharacter[];
     categories: Category[];
     onChanged: (msg: string) => void;
-    /** The game versions with characters plus the main version (#543) — the filter shows with more than one. */
-    versions?: { id: string; label: string; short: string; count: number }[];
-    mainVersion?: string;
+    /** The menu's content version (#563): only characters of it; "" = every character. */
+    version?: string;
 }) {
     const t = useT();
     const [busy, setBusy] = useState(false);
@@ -108,21 +106,11 @@ export function CharactersTab({ chars: allChars, categories, onChanged, versions
     const sort: CharSortKey = CHAR_SORT_DEFAULTS[view.sort] ? view.sort : CHAR_VIEW_DEFAULT.sort;
     const dir: Dir = view.dir === "asc" ? "asc" : "desc";
     const patch = (p: Partial<CharView>) => setView((v) => ({ ...v, ...p }));
-    // Per game version (#543): the main version unless the view picked another or "all".
-    const known = versions.some((v) => v.id === view.version);
-    const version = view.version === "all" ? "all" : (known ? view.version || "" : "") || mainVersion || "all";
+    // Per game version (#543): the one of the menu's content switch (#563).
     const chars = useMemo(
-        () => (version === "all" ? allChars : allChars.filter((c) => (c.versionIds || ["tbc"]).includes(version))),
+        () => (!version ? allChars : allChars.filter((c) => (c.versionIds || ["tbc"]).includes(version))),
         [allChars, version],
     );
-    const versionPicker = versions.length > 1 ? (
-        <VersionFilter
-            versions={versions}
-            ariaLabel={t("history.chars.versionAria")}
-            value={version}
-            onChange={(v) => patch({ version: v === mainVersion ? "" : v })}
-        />
-    ) : null;
 
     // The result has to be a toast: the old page-level flash line was rendered
     // far above the fold, so a finished lookup looked like nothing had happened.
@@ -177,9 +165,8 @@ export function CharactersTab({ chars: allChars, categories, onChanged, versions
         <PartHead
             icon="achievement_guildperk_everybodysfriend" tone="history" title={t("history.chars.title")} crumb={t("history.chars.title")}
             tip={t("history.chars.title")} tipSub={t("history.chars.tipSub")}
-            action={chars.length || versionPicker ? (
+            action={chars.length ? (
                 <>
-                {versionPicker}
                 {chars.length > 0 && <Button
                     variant="run"
                     icon="inv_misc_spyglass_03"

@@ -12,6 +12,8 @@ export type LootSource = "gargul" | "rclc" | "manual" | string;
 export type LootEventSummary = {
     eventId: string;
     label: string;
+    /** The game version of its raid (#563): the "Loot" view follows the menu's content switch. */
+    versionId?: string;
     /**
      * Discord raid category the bucket is filed under, "" when it has none —
      * the normal case for loot imported without a Raid-Helper event, which

@@ -11,6 +11,7 @@ const { AREAS, emptyAccess, fullAccess, userHasMenuAccess } = require("../../con
 const { getConfig } = require("../../stores/settingsStore");
 const { guildId: envGuildId, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
 const { normalizeRoleIds, MAX_ROLES } = require("../http/viewAs");
+const { contentVersions } = require("../../services/events/contentVersions");
 
 /** GET /api/session — who the caller is (if anyone), their CSRF token, what the
  * caller may see (per-area access) and — for menu users — the guilds the bot is
@@ -40,6 +41,9 @@ function getSession(req, res) {
         // Each with its fixed role ("event" | "talk" | ""), the switcher's badge.
         guilds: hasMenu ? sessionGuilds() : [],
         activeGuildId: hasMenu ? activeGuildFor(req) : "",
+        // The content switch of the menu (#563): main version, whether the others are
+        // hidden, and the versions it offers (only those with data or a category).
+        content: hasMenu ? contentVersions() : null,
     });
 }
 

@@ -122,6 +122,7 @@ const WEB_GROUPS = [
         "<strong>Berechtigungen</strong> — Rechte je Rolle/Konto pro Bereich, Basiszugang, Bot-Befehl-Rechte, „Ansicht als Rolle“.",
         "<strong>Verbindungen</strong> — Discord-Server, Raid-Helper-Umstieg, Loot-Sync-Token, Warcraft-Logs- und KI-Zugang.",
         "<strong>Kategorien</strong> — pro Raid-Kategorie Quelle, Rollen, Vorlage, Lootsystem, Erinnerungen, Setup-DMs, Sprachkanal.",
+        "<strong>Spielversion</strong> — Hauptversion, Kategorien einer anderen Version, „Andere Versionen ausblenden“ (nur noch die Hauptversion überall, nichts wird gelöscht) und der Archiv-Export.",
     ] },
 ];
 

@@ -339,7 +339,8 @@ describe("Raid-Events list", () => {
         expect(screen.queryByRole("link", { name: t("raids.page.newEvent") })).not.toBeInTheDocument();
     });
 
-    it("filters by game version, defaults to the main one and remembers the pick (#545)", async () => {
+    it("asks for the version of the menu's content switch and follows a switch (#563)", async () => {
+        localStorage.removeItem("eh-content-version");
         const user = userEvent.setup();
         vi.mocked(client.get).mockImplementation((path: string) => {
             if (path.startsWith("/api/raids/past")) return Promise.resolve(PAST);
@@ -359,16 +360,26 @@ describe("Raid-Events list", () => {
             }
             return Promise.reject({ code: "not_found", message: `unexpected ${path}` });
         });
-        show();
+        renderPage(<RaidsPage />, {
+            route: "/raids",
+            content: {
+                mainVersion: "tbc", hideOtherVersions: false,
+                versions: [{ id: "tbc", label: "WoW TBC", short: "TBC" }, { id: "forever", label: "WoW Forever", short: "Forever" }],
+            },
+        });
         await screen.findByRole("table", { name: t("raids.list.upcomingAria") });
-        const filter = screen.getByRole("radiogroup", { name: t("raids.page.versionAria") });
-        expect(within(filter).getByRole("radio", { name: /^TBC/ })).toHaveAttribute("aria-checked", "true");
+        expect(client.get).toHaveBeenCalledWith("/api/raids?version=tbc");
+        // the page has no version filter of its own anymore
+        expect(screen.queryByRole("radiogroup", { name: t("raids.page.versionAria") })).not.toBeInTheDocument();
+        const content = screen.getAllByRole("radiogroup", { name: t("shell.content.aria") })[0];
+        expect(within(content).getByRole("radio", { name: /TBC/ })).toHaveAttribute("aria-checked", "true");
 
-        await user.click(within(filter).getByRole("radio", { name: /^Forever/ }));
+        await user.click(within(content).getByRole("radio", { name: /Forever/ }));
         await waitFor(() => expect(client.get).toHaveBeenCalledWith("/api/raids?version=forever"));
         expect(client.get).toHaveBeenCalledWith("/api/raids/past?version=forever");
-        expect(JSON.parse(localStorage.getItem("eh-raids-version") || "null")).toBe("forever");
+        expect(localStorage.getItem("eh-content-version")).toBe("forever");
         expect(await screen.findByText(t("raids.page.noneUpcoming"))).toBeInTheDocument();
+        localStorage.removeItem("eh-content-version");
     });
 });
 

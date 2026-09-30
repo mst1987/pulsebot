@@ -22,7 +22,7 @@ const { memberEventRows, profileForSignup, signupSummary, eventSignupList } = re
 const { noteMode, isNoteStatus, MIN_NOTE } = require("../../services/signups/signupNotes");
 const { userCanAny } = require("../../config/permissions");
 const { VERSIONS } = require("../../config/gameVersions");
-const { mainVersionFor, classesOfVersion } = require("../../services/events/mainVersion");
+const { mainVersionFor, classesOfVersion, visibleRows, versionOfEvent } = require("../../services/events/mainVersion");
 
 /** GET /api/signups — the caller's upcoming raids, their status in each, and their characters. */
 const getSignups = withUser({}, async ({ user, req, res }) => {
@@ -33,7 +33,8 @@ const getSignups = withUser({}, async ({ user, req, res }) => {
     const profile = profiles.getProfile(user.id);
     const config = getConfig();
     ok(res, {
-        events: memberEventRows(groups, { userId: user.id, guildId, config, roleIds, orga, profile }),
+        // Other versions hidden (#563): only the raids of the main version.
+        events: visibleRows(memberEventRows(groups, { userId: user.id, guildId, config, roleIds, orga, profile }), (e) => versionOfEvent(e, { config }), config),
         profile: profileForSignup(profile),
         // Class colour and icon for the character picker (#541): per version,
         // the dialog takes the list of the event's version; `classes` is the
@@ -48,7 +49,7 @@ const getSignups = withUser({}, async ({ user, req, res }) => {
 });
 
 /** PUT /api/signups — create, change or withdraw (status "absence") the caller's own signup. */
-const putSignup = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const putSignup = withUser({ csrf: true, body: true, archived: (body) => body.eventId }, async ({ user, body, res }) => {
     const eventId = String(body.eventId || "").trim();
     if (!eventId) return apiError(res, 400, "bad_request", "Kein Event angegeben.");
     // Whoever may change raids is the orga: the deadline does not bind them.
@@ -90,7 +91,7 @@ const MAX_BULK = 50;
  * one result per raid (saved, or refused with the reason, and the characters
  * skipped there) plus the fresh counts of the saved ones.
  */
-const postSignupsBulk = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const postSignupsBulk = withUser({ csrf: true, body: true, archived: (body) => (Array.isArray(body.eventIds) ? body.eventIds : []) }, async ({ user, body, res }) => {
     const eventIds = [...new Set((Array.isArray(body.eventIds) ? body.eventIds : []).map((id) => String(id || "").trim()).filter(Boolean))];
     if (!eventIds.length) return apiError(res, 400, "bad_request", "Keine Raids gewählt.");
     if (eventIds.length > MAX_BULK) return apiError(res, 400, "bad_request", `Höchstens ${MAX_BULK} Raids auf einmal.`);

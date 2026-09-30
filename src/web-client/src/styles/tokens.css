@@ -53,6 +53,9 @@
     /* ---- signup status (Anwesenheit): icon-only colours, see .sig-ico ---- */
     --sig-signed: #7fd17f; --sig-tentative: #e3cf5c; --sig-late: #eb9440;
     --sig-bench: #6fa8dc; --sig-absence: #e0524f;
+    /* ---- game versions (#563): the dot of the content switch, and the archive banner of a hidden version ---- */
+    --ver-forever: #35d6c4; --ver-tbc: #e0a23a; --ver-classic: #b0b8c4;
+    --archive-ink: #f0c27a; --archive-text: #c9b28a; --archive-bg: rgba(224, 162, 58, .10); --archive-line: rgba(224, 162, 58, .35);
     /* ---- the same in both themes: ink on a coloured fill, shadows, overlays ---- */
     --on-fill: #fff; --on-good: #10240f; --on-medium: #1c1305;
     /* the dark a colour is mixed with to stay readable on the light theme (.class-colored, .item-quality) */
@@ -152,6 +155,8 @@
         --reason-bank: #5b616e; --reason-bank-bg: rgba(91, 97, 110, .12);
         --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
         --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
+        --ver-forever: #0f8f82; --ver-tbc: #9a6c12; --ver-classic: #5b616e;
+        --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
         /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
         --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
@@ -189,6 +194,8 @@
     --reason-bank: #5b616e; --reason-bank-bg: rgba(91, 97, 110, .12);
     --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
     --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
+    --ver-forever: #0f8f82; --ver-tbc: #9a6c12; --ver-classic: #5b616e;
+    --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
         /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
         --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;

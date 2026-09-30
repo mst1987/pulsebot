@@ -10,7 +10,7 @@ const discord = require("../../services/discord/discord");
 const { SPEC_CATALOG } = require("../../utils/recruitment/recruitmentSpecs");
 const { annotateApplication } = require("../recruitment/recruitmentApplications");
 const { VERSIONS } = require("../../config/gameVersions");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor, visibleRows, visibleVersions } = require("../../services/events/mainVersion");
 
 /**
  * GET /api/recruitment?view=posts|templates|applications&edit=<id>&editpost=<id>
@@ -36,20 +36,21 @@ const getRecruitmentData = withUser({}, async ({ req, res, url }) => {
     ok(res, {
         view,
         guildName: guild ? guild.name : "",
-        templates: listRecruitment(),
+        // Other versions hidden (#563): their templates, posts and applications stay out.
+        templates: visibleRows(listRecruitment(), (r) => r.versionId),
         editing: editId ? getRecruitment(editId) : null,
         editingPost: editPostId ? getRecruitmentPost(editPostId) : null,
-        posts: guildId ? listRecruitmentPosts().filter((p) => p.guildId === guildId) : listRecruitmentPosts(),
+        posts: visibleRows(guildId ? listRecruitmentPosts().filter((p) => p.guildId === guildId) : listRecruitmentPosts(), (p) => p.versionId),
         channels: discord.listTextChannels(guildId),
         emojis: discord.listEmojis(guildId),
         specCatalog: SPEC_CATALOG,
-        applications,
+        applications: visibleRows(applications, (a) => a.versionId || "tbc"),
         applicationsError,
         applicationChannelId,
         activeGuildId: guildId,
         // The version filter and the template's version switch (#553): every
         // template, post and application carries a versionId; the page filters.
-        gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short })),
+        gameVersions: VERSIONS.filter((v) => visibleVersions().includes(v.id)).map((v) => ({ id: v.id, label: v.label, short: v.short })),
         mainVersion: mainVersionFor(),
     });
 });

@@ -8,7 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import { bisListsData, councilData } from "../../test/councilFixtures";
 import { switchLang } from "../../test/i18n";
-import { renderPage } from "../../test/render";
+import { CONTENT_ARIA, renderPage, twoVersions } from "../../test/render";
+import { t } from "../../i18n";
 import LootCouncilPage from "./LootCouncilPage";
 
 vi.mock("../../api", async (orig) => ({
@@ -40,23 +41,18 @@ describe("loot council page (German)", () => {
         expect(screen.getByText("Loot-Council › Raider · Rang 1 von 1")).toBeInTheDocument();
     });
 
-    it("filters by game version, defaults to the main one and remembers the pick (#545)", async () => {
+    it("asks for the raiders of the menu's content version and follows a switch (#563)", async () => {
+        localStorage.removeItem("eh-content-version");
         const user = userEvent.setup();
-        vi.mocked(api.getLootCouncil).mockResolvedValue(councilData({
-            version: "tbc",
-            mainVersion: "tbc",
-            versions: [
-                { id: "tbc", label: "WoW TBC", short: "TBC", count: 1 },
-                { id: "forever", label: "WoW Forever", short: "Forever", count: 0 },
-            ],
-        }));
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
-        const filter = await screen.findByRole("radiogroup", { name: "Spielversion" });
-        expect(within(filter).getByRole("radio", { name: /^TBC/ })).toHaveAttribute("aria-checked", "true");
+        vi.mocked(api.getLootCouncil).mockResolvedValue(councilData({ version: "tbc", mainVersion: "tbc" }));
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil", content: twoVersions() });
+        expect(await screen.findByText("Wer ist dran?")).toBeInTheDocument();
+        expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ version: "tbc" }));
+        expect(screen.queryByRole("radiogroup", { name: "Spielversion" })).not.toBeInTheDocument();
 
-        await user.click(within(filter).getByRole("radio", { name: /^Forever/ }));
+        await user.click(within(screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0]).getByRole("radio", { name: /Forever/ }));
         await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ version: "forever" })));
-        expect(JSON.parse(localStorage.getItem("eh-lootcouncil.view") || "null")).toMatchObject({ version: "forever" });
+        localStorage.removeItem("eh-content-version");
     });
 });
 

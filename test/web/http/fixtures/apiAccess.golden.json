@@ -18,6 +18,7 @@
     "/api/settings/ingest-tokens": "settings",
     "/api/settings/ingest-tokens/delete": "settings",
     "/api/bot-commands": "settings",
+    "/api/settings/archive-export": "settings",
     "/api/settings/discord-servers": "settings",
     "/api/settings/talk-overview": "settings",
     "/api/settings/role-sync": "settings",

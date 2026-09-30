@@ -35,10 +35,10 @@ function soleResponse(items) {
  * @returns [{ key, character, realm, className, spec, count,
  *             reasons: [{ reason, label, tone, count, items: [...] }] }]
  */
-function reasonsByCharacter() {
+function reasonsByCharacter(rows = listAll()) {
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
     const byChar = new Map();
-    for (const it of listAll()) {
+    for (const it of rows) {
         const key = it.characterKey;
         if (!key) continue;
         if (!byChar.has(key)) {
@@ -136,11 +136,11 @@ function award(it, known, versionCtx) {
  *             tier, boss, tokenTier, categoryIds, count, lastAwardedAt,
  *             awards: [...] }]
  */
-function itemCatalog() {
+function itemCatalog(rows = listAll()) {
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
     const versionCtx = { eventCache: new Map() };
     const byItem = new Map();
-    for (const it of listAll()) {
+    for (const it of rows) {
         const id = Number(it.itemId) || 0;
         if (!id) continue;
         if (!byItem.has(id)) {
@@ -189,8 +189,11 @@ function itemCatalog() {
  * hard-codes a reason colour or a raid name — same rule the class colours
  * already follow.
  */
-function lootStats() {
-    const items = itemCatalog();
+function lootStats({ versionId = "" } = {}) {
+    // One game version only (#563, the content switch): the loot of its raids.
+    const ctx = { eventCache: new Map() };
+    const rows = versionId ? listAll().filter((it) => eventVersion(ctx, it.eventId) === versionId) : listAll();
+    const items = itemCatalog(rows);
     // Only offer filters that actually match something — a dropdown full of
     // raids the guild has never set foot in is noise.
     const usedContents = new Set(items.map((i) => i.contentId).filter(Boolean));
@@ -199,7 +202,7 @@ function lootStats() {
         reasons: reasonCatalog(),
         contents: CONTENTS.filter((c) => usedContents.has(c.id)),
         tiers: TIERS.filter((t) => usedTiers.has(t.id)),
-        characters: reasonsByCharacter(),
+        characters: reasonsByCharacter(rows),
         items,
         unknownContentCount: items.filter((i) => !i.contentId).length,
     };

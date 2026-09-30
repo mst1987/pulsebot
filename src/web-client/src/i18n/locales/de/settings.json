@@ -103,7 +103,21 @@
         "categoriesSub": "Eine Kategorie, die eine andere Version spielt als die Hauptversion. „Hauptversion“ folgt der Einstellung oben.",
         "followMain": "Hauptversion ({version})",
         "categoryAria": "Spielversion von {name}",
-        "noCategories": "Noch keine aktive Kategorie – aktiviere sie unter Kategorien."
+        "noCategories": "Noch keine aktive Kategorie – aktiviere sie unter Kategorien.",
+        "hideOthers": "Andere Versionen ausblenden",
+        "hideOthersText": "Alle sehen nur noch {version}. {others} verschwindet aus Listen, Loot, Historie, Roster, Katalog, Vorlagen und Auswahlfeldern. Nichts wird gelöscht, ausschalten holt alles zurück.",
+        "hideOthersNone": "andere Versionen",
+        "upcoming": {
+            "one": "Es gibt noch 1 kommenden Raid einer anderen Version ({dates}). Er wird ausgeblendet, bleibt aber über seinen Discord-Link erreichbar – nur lesend.",
+            "other": "Es gibt noch {count} kommende Raids anderer Versionen ({dates}). Sie werden ausgeblendet, bleiben aber über ihren Discord-Link erreichbar – nur lesend."
+        },
+        "export": "{versions}-Archiv exportieren (Loot, Anwesenheit)",
+        "exportTip": "Archiv exportieren",
+        "exportSub": "Loot-Historie und Anwesenheit aller Versionen außer der Hauptversion als CSV-Datei. Nur für Administratoren.",
+        "exportJson": "als JSON",
+        "preview": "So sieht die Kopfleiste aus",
+        "previewOn": "Ausgeblendet: kein Umschalter mehr, nur ein stiller Hinweis, welche Version aktiv ist.",
+        "previewOff": "Nicht ausgeblendet: jeder kann oben zwischen den Versionen wechseln, die Wahl wird je Nutzer gemerkt."
     },
     "level": {
         "none": "aus",
@@ -140,6 +154,8 @@
         "topItems": "Top-Items",
         "mainVersion": "Hauptversion → {value}",
         "categoryVersion": "{name} · Spielversion → {value}",
+        "hideOtherOn": "Andere Versionen ausblenden an",
+        "hideOtherOff": "Andere Versionen ausblenden aus",
         "followMain": "Hauptversion",
         "versionSettings": "Links und Armory · {value}"
     },

@@ -433,6 +433,35 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .guild-sel select { min-height: var(--ctl-h); max-width: 300px; padding-left: 38px; font-size: 14px; font-weight: 600; }
 .guild-sel.is-single { min-height: var(--ctl-h); padding: 0 12px 0 38px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); font-size: 14px; font-weight: 600; }
 
+/* ===== content switch (#563): one game version for the whole menu, next to
+   the server select. Wide screens show the segment, a phone the chip that
+   opens it in its own row under the bar; with the other versions hidden only
+   a quiet hint stays. ===== */
+.ver-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: var(--muted); }
+.ver-dot.ver-forever { background: var(--ver-forever); }
+.ver-dot.ver-tbc { background: var(--ver-tbc); }
+.ver-dot.ver-classic { background: var(--ver-classic); }
+.cswitch-seg .seg-opt { gap: 8px; min-height: var(--ctl-h-sm); padding: 0 14px; font-weight: 600; }
+.cswitch-seg .seg-opt.active { background: var(--accent); color: var(--accent-ink); }
+.cswitch-quiet { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.cswitch-chip { display: none; align-items: center; gap: 6px; min-height: var(--ctl-h-sm); padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.cswitch-chip[aria-expanded="true"] { border-color: var(--accent); }
+.cswitch-panel { display: none; }
+@media (max-width: 700px) {
+    .seg.cswitch-wide { display: none; }
+    .cswitch-chip { display: inline-flex; }
+    .cswitch-panel { display: flex; flex-direction: column; gap: 8px; order: 99; flex: 1 0 100%; padding-top: 4px; }
+    .seg.cswitch-full { display: flex; width: 100%; }
+    .cswitch-full .seg-opt { flex: 1 1 0; justify-content: center; min-height: 36px; }
+}
+
+/* ===== archive banner (#563): an event of a hidden version, opened by a direct link ===== */
+.archive-banner { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 12px 16px; margin: 0 0 18px; border-radius: 10px; background: var(--archive-bg); border: 1px solid var(--archive-line); color: var(--archive-text); font-size: 14px; }
+.archive-banner-icon { width: 20px; height: 20px; flex: 0 0 auto; color: var(--archive-ink); }
+.archive-banner-title { color: var(--archive-ink); font-weight: 700; white-space: nowrap; }
+.archive-banner-text { flex: 1 1 280px; min-width: 0; }
+.archive-banner-tag { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--archive-line); color: var(--archive-ink); font-size: 13px; font-weight: 600; white-space: nowrap; }
+
 .emoji-picker { position: relative; display: inline-block; margin-top: 2px; }
 .emoji-panel {
     display: none; position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: 288px; background: var(--panel);

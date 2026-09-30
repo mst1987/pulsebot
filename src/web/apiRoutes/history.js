@@ -29,9 +29,9 @@ const { sessionContentLabel } = require("../loot/lootSessionContent");
 const { previewImport } = require("../loot/lootImportPreview");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
 const { armoryUrlFor, wclUrlFor } = require("../characters/charLinks");
-const { buildVersionContext, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
+const { buildVersionContext, versionsOfCharacter, versionChoices, eventVersion } = require("../../services/characters/characterVersions");
 const { versionLinks, blizzardFor } = require("../../services/events/versionSettings");
-const { mainVersionFor, knownVersion } = require("../../services/events/mainVersion");
+const { mainVersionFor, knownVersion, resolveVersionQuery, visibleRows, visibleVersions, versionOfEvent } = require("../../services/events/mainVersion");
 const { linkItemsForImport } = require("../../services/loot/lootVersion");
 const { userCan } = require("../../config/permissions");
 const discord = require("../../services/discord/discord");
@@ -61,13 +61,21 @@ function lootOnlyHistoryData(guildId) {
         events: [],
         upcomingRaids: { events: [], error: null },
         pastRaids: { events: [], error: null },
-        lootEvents: eventsWithLoot(),
+        lootEvents: lootEventRows(getConfig()),
         logs: [],
         categories: listKnownCategories(guildId),
         categoryLootTool: {},
         activeGuildId: guildId,
         chars: [],
     };
+}
+
+/**
+ * The loot buckets, each with the version of its raid (#563: the "Loot" view
+ * follows the content switch), without those of a hidden version.
+ */
+function lootEventRows(cfg, versionCtx = buildVersionContext({ config: cfg })) {
+    return visibleRows(eventsWithLoot().map((e) => ({ ...e, versionId: eventVersion(versionCtx, e.eventId) })), (e) => e.versionId, cfg);
 }
 
 /** GET /api/history — everything the "Alle Raids/Import/Loot/Logs/Loot-Tools" tabs need. */
@@ -78,28 +86,35 @@ const getHistoryData = withUser({}, async ({ user, req, res }) => {
     // belong to "Historie & Loot". Skipping them also spares the Raid-Helper and
     // Discord round-trips below, which that caller has no use for.
     if (!userCan(user, "history")) return ok(res, lootOnlyHistoryData(guildId));
+    const cfg = getConfig();
+    // Other versions hidden (#563): their raids, loot and characters stay out.
+    const rowVersion = (e) => versionOfEvent(e, { config: cfg });
     const { groups, error: upcomingError } = await loadEventGroups(guildId);
-    const allUpcoming = groups.flatMap((g) => g.events);
+    const allUpcoming = visibleRows(groups.flatMap((g) => g.events), rowVersion, cfg);
     const events = allUpcoming.map((ev) => ({ id: ev.id, title: ev.title, startTime: ev.startTime, categoryId: ev.categoryId }));
     const upcomingRaids = { events: annotateUpcomingExtras(allUpcoming, guildId), error: upcomingError };
     const past = await loadRecentEvents(guildId, Infinity);
     // Only a channel that still exists is linked (#537).
-    const pastRaids = { ...past, events: linkCheck.withChannelState(guildId, past.events) };
-    const cfg = getConfig();
+    const pastRaids = { ...past, events: linkCheck.withChannelState(guildId, visibleRows(past.events, rowVersion, cfg)) };
     // Per game version (#543): each character says which versions it has loot in,
     // the "Charaktere" tab filters by it (the main version first).
     const versionCtx = buildVersionContext({ config: cfg });
-    const chars = annotatedCharacters().map((c) => ({
-        ...withClassLook(c),
-        versionIds: versionsOfCharacter(versionCtx, { name: c.character, items: c.items, categoryIds: c.categoryIds }),
-    }));
+    const visible = new Set(visibleVersions(cfg));
+    const chars = annotatedCharacters()
+        .map((c) => ({
+            ...withClassLook(c),
+            versionIds: versionsOfCharacter(versionCtx, { name: c.character, items: c.items, categoryIds: c.categoryIds }).filter((v) => visible.has(v)),
+        }))
+        .filter((c) => c.versionIds.length);
     const mainVersion = mainVersionFor({ config: cfg });
+    // Each loot bucket carries the version of its raid (#563): the "Loot" tab follows the content switch.
+    const lootEvents = lootEventRows(cfg, versionCtx);
 
     ok(res, {
         events,
         upcomingRaids,
         pastRaids,
-        lootEvents: eventsWithLoot(),
+        lootEvents,
         // postedAt: when the WCL link was actually posted in the channel (falls
         // back through the message-id snowflake to detectedAt) — same field the
         // legacy SSR page and the dashboard's "Latest Events" card show.
@@ -122,11 +137,13 @@ const getHistoryData = withUser({}, async ({ user, req, res }) => {
  * Own endpoint rather than part of /api/history: it carries every loot row that
  * was ever imported, which the five older tabs have no use for.
  */
-const getLootStats = withUser({}, async ({ res }) => {
+const getLootStats = withUser({}, async ({ res, url }) => {
     // Same one-time backfill the event/character pages do — an item without a
     // name is unusable in a table that is sorted and filtered by name.
     await repairLootItemNames();
-    const stats = lootStats();
+    // One game version (#563, the menu's content switch): `?version=`, else the main version.
+    const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config: getConfig() });
+    const stats = lootStats({ versionId });
     ok(res, {
         ...stats,
         characters: stats.characters.map(withClassLook),
@@ -156,6 +173,7 @@ const getLootAwards = withUser({}, async ({ res, url }) => {
         contentId: q.get("content") || "",
         reason: q.get("reason") || "",
         page: Number(q.get("page")) || 1,
+        versionId: resolveVersionQuery(q.get("version"), { config: getConfig() }).versionId,
     }));
 });
 

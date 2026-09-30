@@ -47,10 +47,14 @@ const { instancesFromTitle } = require("../raidplan/raidplanTitle");
 const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { rulesFor } = require("../../config/gameVersions");
-const { mainVersionFor, versionOfEvent, knownVersion } = require("../../services/events/mainVersion");
+const { mainVersionFor, versionOfEvent, knownVersion, visibleRows, visibleVersions } = require("../../services/events/mainVersion");
 const { raidhelperDisabled } = require("../../utils/raidhelper/client");
 const { progressFor } = require("../../services/raidplan/raidplanProgress");
 const { syncRaidplanPost } = require("../../services/raidplan/raidplanPost");
+
+// A write on an event plan: an archived event (a hidden game version, #563) is read only.
+const BY_EVENT = (body) => body.event;
+const { archiveOf } = require("../../services/events/eventArchive");
 
 const canWrite = (user) => userCan(user, "raids", "write");
 
@@ -80,11 +84,13 @@ function knownRosterOf(found) {
 const getPlan = withUser({}, async ({ user, res, url }) => {
     const found = await eventOf(res, url.searchParams.get("event"), { fresh: url.searchParams.get("fresh") === "1" });
     if (!found) return;
-    ok(res, raidplan.editorView(found.event, { canWrite: canWrite(user), me: user && user.id ? String(user.id) : "" }));
+    // An archived event (a hidden game version, #563) opens read only, whatever the caller may do.
+    const archived = archiveOf(found.event);
+    ok(res, { ...raidplan.editorView(found.event, { canWrite: canWrite(user) && !archived, me: user && user.id ? String(user.id) : "" }), archived });
 });
 
 /** PUT /api/raidplan — body `{ event, version, bosses }` */
-const putPlan = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const putPlan = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const event = found.event;
@@ -108,7 +114,7 @@ const putPlan = withUser({ write: "raids", csrf: true, body: true }, async ({ us
  * type from the board's placeholder slots and (with an event) its lineup. Nothing is saved;
  * the editor shows them marked as a suggestion. An unknown type answers an empty list.
  */
-const postSuggest = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const postSuggest = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ body, res }) => {
     let event;
     if (body.event) { const found = await eventOf(res, body.event); if (!found) return; event = found.event; }
     const type = String(body.type || "");
@@ -116,7 +122,7 @@ const postSuggest = withUser({ write: "raids", csrf: true, body: true }, async (
 });
 
 /** POST /api/raidplan/publish — body `{ event, published, rotate? }` */
-const postPublish = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const postPublish = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     store.setPublished(found.event.id, body.published === true, { rotate: body.rotate === true, userId: user.id });
@@ -130,7 +136,7 @@ const postPublish = withUser({ write: "raids", csrf: true, body: true }, async (
  * raiders from, `null` = back to the default (the groups up to the raid's size). Written at once, no version step (the unsaved draft
  * of the boards stays valid); only valid values are kept. Answers the stored value and the one in effect.
  */
-const postGroups = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const postGroups = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const raw = body.includedGroups === null ? null : Array.isArray(body.includedGroups) ? body.includedGroups : undefined;
@@ -189,7 +195,7 @@ const postMapDelete = withUser({ write: "raids", csrf: true, body: true }, async
  * POST /api/raidplan/apply — body `{ event, templateId, version, otherVersion? }`. A template of another game version than the event's
  * (#544) is only applied with `otherVersion: true` (the editor asks first); without it the answer is 409 `version_mismatch`.
  */
-const postApply = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const postApply = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const event = found.event;
@@ -211,7 +217,8 @@ const postApply = withUser({ write: "raids", csrf: true, body: true }, async ({ 
 });
 
 function templateList() {
-    return { templates: templateStore.listTemplates().map(raidplan.templateView) };
+    // Other versions hidden (#563): their plan templates stay out.
+    return { templates: visibleRows(templateStore.listTemplates(), (t) => t.versionId).map(raidplan.templateView) };
 }
 
 /** GET /api/raidplan/templates */
@@ -286,14 +293,19 @@ function catalogAnswer() {
     const { bossesForInstances } = store;
     // the instances of every game version, each with its version (#544): the form offers those of the entry's versions
     const instances = require("../../config/gameVersions").VERSIONS.flatMap((v) => v.instances.map((i) => ({ ...i, versionId: v.id })));
+    // Other versions hidden (#563): only the entries and instances of the shown version.
+    const visible = new Set(visibleVersions());
+    const shown = (e) => !Array.isArray(e.versions) || !e.versions.length || e.versions.some((v) => visible.has(v));
+    const view = catalog.catalogView();
     return {
-        ...catalog.catalogView(),
+        mobs: view.mobs.filter(shown),
+        spells: view.spells.filter(shown),
         hidden: catalog.hiddenEntries(),
         kinds: catalog.KINDS,
         iconChoices: mobIconChoices(),
         classes: catalog.CLASS_IDS,
         types: assign.ASSIGN_TYPES,
-        instances: instances.map((i) => ({ id: i.id, name: i.name, short: i.short, versionId: i.versionId, bosses: bossesForInstances([i.id]).filter((b) => !b.trash && !b.general).map((b) => ({ key: b.key, name: b.name })) })),
+        instances: instances.filter((i) => visible.has(i.versionId)).map((i) => ({ id: i.id, name: i.name, short: i.short, versionId: i.versionId, bosses: bossesForInstances([i.id]).filter((b) => !b.trash && !b.general).map((b) => ({ key: b.key, name: b.name })) })),
         limits: catalog.LIMITS,
     };
 }
@@ -328,7 +340,7 @@ async function getPublic(req, res, url) {
     const event = found && found.event;
     if (!plan || !event) return error(res, 404, "not_found", "Diesen Raidplan gibt es nicht (mehr).");
     const viewer = auth.getUser(req);
-    okWithEtag(req, res, raidplan.publicView(plan, event, { me: viewer ? viewer.id : "" }));
+    okWithEtag(req, res, { ...raidplan.publicView(plan, event, { me: viewer ? viewer.id : "" }), archived: archiveOf(event) });
 }
 
 /**
@@ -403,7 +415,7 @@ const getLink = withUser({}, async ({ req, res, url }) => {
 });
 
 /** POST /api/raidplan/link — body `{ event, enabled, instanceIds?, size?, versionId?, composition? }` */
-const postLink = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, req, res }) => {
+const postLink = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const id = String(body.event || "").trim();
     if (isOwnEventId(id)) return error(res, 400, "invalid", "Eigene Events haben ihren Raidplan immer.");
     const before = store.getPlan(id);

@@ -42,6 +42,8 @@ export type Draft = {
     mainVersion: string;
     /** Category id → version; missing/"" = the main version. */
     categoryVersion: Record<string, string>;
+    /** "Andere Versionen ausblenden" (#563). */
+    hideOtherVersions: boolean;
     /** Settings per game version (#542), every version the server sent. */
     versionSettings: Record<string, VersionSettingsBlock>;
     topItems: TopItem[];
@@ -75,6 +77,7 @@ export function toDraft(config: AdminConfig): Draft {
         categoryRaidTemplate: config.categoryRaidTemplate || {},
         mainVersion: config.mainVersion || "tbc",
         categoryVersion: config.categoryVersion || {},
+        hideOtherVersions: config.hideOtherVersions === true,
         versionSettings: Object.fromEntries(Object.entries(config.versionSettings || {}).map(([id, block]) => [id, blockOf(block)])),
         topItems: config.topItems || [],
     };

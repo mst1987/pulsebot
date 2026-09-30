@@ -5,7 +5,7 @@
 // tooltip of the control it explains.
 import { useRef, useState } from "react";
 import type { LootCouncilData } from "../../api";
-import { Badge, Button, Segment, VersionFilter } from "../../components/ui";
+import { Badge, Button, Segment } from "../../components/ui";
 import { ChevronDownIcon } from "../../components/icons";
 import { ROLE_ICON, categoryNote, roleLabel, type FilterView } from "./council";
 import { useDismiss } from "../../hooks/useDismiss";
@@ -134,14 +134,6 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                 <option value="">{t("lootcouncil.filter.allCategories")}</option>
                 {o.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            {(data.versions || []).length > 1 && (
-                <VersionFilter
-                    versions={data.versions || []}
-                    ariaLabel={t("lootcouncil.filter.version")}
-                    value={view.version || data.version || "all"}
-                    onChange={(version) => patch({ version })}
-                />
-            )}
             <span
                 className="lc-selwrap"
                 data-tip={derivedTier ? t("lootcouncil.filter.derivedTip", { tier: derivedTier.label }) : undefined}
