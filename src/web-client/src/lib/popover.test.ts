@@ -52,6 +52,24 @@ describe("belowEndPosition", () => {
     });
 });
 
+describe("belowStartPosition", () => {
+    const box = { width: 300, height: 200 };
+
+    it("puts a menu under its button, left edges aligned", () => {
+        expect(lib.belowStartPosition(rect(400, 100, 120, 30), box, VIEW)).toEqual({ left: 400, top: 136 });
+    });
+
+    it("stays inside the viewport on the right", () => {
+        expect(lib.belowStartPosition(rect(1500, 100, 80, 30), box, VIEW).left).toBe(1600 - 300 - 8);
+    });
+
+    it("opens above the button when there is no room below but room above", () => {
+        expect(lib.belowStartPosition(rect(400, 800, 120, 30), box, VIEW)).toEqual({ left: 400, top: 594 });
+        // no room either way: below, where the page can scroll to it
+        expect(lib.belowStartPosition(rect(400, 100, 120, 30), box, { width: 1600, height: 250 }).top).toBe(136);
+    });
+});
+
 describe("panelPosition", () => {
     it("opens below the anchor, its right edge on the anchor's", () => {
         expect(lib.panelPosition(rect(600, 100, 40, 20), VIEW)).toEqual({ left: 300, width: 340, top: 126, maxHeight: 340 });
@@ -78,6 +96,8 @@ describe("placements", () => {
         const a = rect(500, 300, 60, 20);
         expect(lib.tipPlacement()(a, box, VIEW)).toEqual(lib.tipPosition(a, box, VIEW));
         expect(lib.belowEndPlacement()(a, box, VIEW)).toEqual(lib.belowEndPosition(a, VIEW));
+        expect(lib.belowStartPlacement()(a, box, VIEW)).toEqual(lib.belowStartPosition(a, box, VIEW));
+        expect(lib.belowStartPlacement()(null, box, VIEW)).toEqual({});
         expect(lib.panelPlacement(200, 100)(a, box, VIEW)).toEqual(lib.panelPosition(a, VIEW, 200, 100));
         expect(lib.tipPlacement()(null, box, VIEW)).toEqual({});
         expect(lib.belowEndPlacement()(null, box, VIEW)).toEqual({});

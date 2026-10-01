@@ -82,6 +82,8 @@ describe("services/kader/kaderModel", () => {
         it("creates a Kader led by its creator, with a first example setup", () => {
             const { kader, kaderId } = withKader();
             expect(kader).toMatchObject({ id: kaderId, name: "Forever-Kader 2027", leads: [U.lead], createdAt: NOW, createdBy: U.lead, questions: [], players: {} });
+            // no raid category counts until a lead picks one
+            expect(kader.attendanceCategories).toEqual([]);
             expect(kader.setups).toEqual([{ id: expect.any(String), name: "Variante A", size: 20, groups: model.emptyGroups() }]);
             expect(refusal(() => model.createKader(model.emptyPlanner(), { name: "" }, ctx)).status).toBe(400);
         });
@@ -96,6 +98,32 @@ describe("services/kader/kaderModel", () => {
             next = model.deleteKader(next, kaderId);
             expect(next.kaders).toEqual([]);
             expect(refusal(() => model.deleteKader(next, kaderId)).status).toBe(404);
+        });
+
+        it("keeps the raid categories attendance counts in: known ones only, each once, an empty pick allowed", () => {
+            const { planner, kaderId } = withKader();
+            const withCats = { ...ctx, raidCategoryIds: new Set(["c-mo", "c-do", "c-pug"]) };
+            let next = model.updateKader(planner, { kaderId, attendanceCategories: ["c-do", " c-mo ", "c-do", "c-gone", 42] }, withCats);
+            // an id the server does not know as a raid category is left out, not refused
+            expect(next.kaders[0].attendanceCategories).toEqual(["c-do", "c-mo"]);
+            // name and leads stay as they are
+            expect(next.kaders[0]).toMatchObject({ name: "Forever-Kader 2027", leads: [U.lead] });
+            next = model.updateKader(next, { kaderId, attendanceCategories: [] }, withCats);
+            expect(next.kaders[0].attendanceCategories).toEqual([]);
+            // without the server's list nothing is known, so nothing is kept
+            expect(model.updateKader(planner, { kaderId, attendanceCategories: ["c-mo"] }, ctx).kaders[0].attendanceCategories).toEqual([]);
+            expect(refusal(() => model.updateKader(planner, { kaderId, attendanceCategories: "c-mo" }, withCats)).status).toBe(400);
+        });
+
+        it("repairs a stored pick on read and gives an old Kader an empty one", () => {
+            const many = Array.from({ length: 30 }, (_, i) => `c${i}`);
+            const out = model.normalizePlanner({ v: 2, kaders: [
+                { id: "k1", name: "Alt" },
+                { id: "k2", name: "Neu", attendanceCategories: ["c1", "c1", "", null, 7, ...many] },
+            ] });
+            expect(out.kaders[0].attendanceCategories).toEqual([]);
+            expect(out.kaders[1].attendanceCategories.slice(0, 3)).toEqual(["c1", "7", "c0"]);
+            expect(out.kaders[1].attendanceCategories).toHaveLength(model.LIMITS.attendanceCategories);
         });
     });
 

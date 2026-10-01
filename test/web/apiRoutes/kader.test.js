@@ -30,6 +30,7 @@ jest.mock("../../../src/web/characters/profileLogs", () => ({
 
 const auth = require("../../../src/web/http/auth");
 const discord = require("../../../src/services/discord/discord");
+const { listStoredEvents } = require("../../../src/services/events/eventSources");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const kaderStore = require("../../../src/stores/kaderStore");
 const { emptyAccess, mergeAccess, accessForUser } = require("../../../src/config/permissions");
@@ -169,6 +170,45 @@ describe("web/apiRoutes/kader", () => {
             expect(view.members).toEqual([]);
             expect(view.discordRoles).toEqual([]);
             expect(view.warnings).toEqual([expect.stringContaining("offline")]);
+        });
+    });
+
+    describe("the raid categories attendance counts in", () => {
+        const past = (days) => Math.floor(Date.now() / 1000) - days * 86400;
+
+        beforeEach(() => {
+            listStoredEvents.mockReturnValue([
+                { id: "e1", guildId: "g1", categoryId: "c-mo", categoryName: "Mo Raid", title: "Kara", startTime: past(3), signUps: [{ userId: U1, status: "signed" }] },
+                { id: "e2", guildId: "g1", categoryId: "c-do", categoryName: "Do Raid", title: "Gruul", startTime: past(6), signUps: [{ userId: U1, status: "absence" }] },
+                { id: "e3", guildId: "g1", categoryId: "c-mo", categoryName: "Mo Raid", title: "Kara", startTime: past(10), signUps: [{ userId: U1, status: "signed" }] },
+            ]);
+        });
+
+        it("hands out the server's raid categories and each account's attendance per category", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            const view = body(await get("/api/kader", { kader: kaderId }));
+            expect(view.raidCategories.map((c) => [c.id, c.name, c.nights])).toEqual([["c-mo", "Mo Raid", 2], ["c-do", "Do Raid", 1]]);
+            const aldric = view.players.find((p) => p.userId === U1);
+            expect(aldric.attendance["c-mo"]).toMatchObject({ attended: 2, counted: 2 });
+            expect(aldric.attendance["c-do"]).toMatchObject({ attended: 0, counted: 1, nights: [expect.objectContaining({ title: "Gruul", reason: "abgemeldet" })] });
+            // a new Kader counts in no category until a lead picks one
+            expect(view.kader.attendanceCategories).toEqual([]);
+        });
+
+        it("keeps the pick on the Kader for every lead, leaving out what is no raid category", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            let res = await put("/api/kader/kaders", { kaderId, attendanceCategories: ["c-mo", "c-nope"] });
+            expect(status(res)).toBe(200);
+            expect(Object.keys(body(res)).sort()).toEqual(["kader", "kaders"]);
+            expect(body(res).kader.attendanceCategories).toEqual(["c-mo"]);
+            // another lead reads the same pick
+            auth.getUser.mockReturnValue(granted("read"));
+            expect(body(await get("/api/kader", { kader: kaderId })).kader.attendanceCategories).toEqual(["c-mo"]);
+            // a read-only account cannot change it
+            expect(status(await put("/api/kader/kaders", { kaderId, attendanceCategories: [] }))).toBe(403);
+            auth.getUser.mockReturnValue(ADMIN);
+            res = await put("/api/kader/kaders", { kaderId, attendanceCategories: "c-mo" });
+            expect(status(res)).toBe(400);
         });
     });
 

@@ -1,14 +1,16 @@
 // A new Kader (just a name — the creator leads it), or the settings of one:
-// name, leads (who votes in the Vorläufig step and may conduct interviews) and
-// deleting it with everything in it. Rendered outside the Kader's context too
-// (the start page's "Ersten Kader anlegen"), so it reads only its props.
+// name, leads (who votes in the Vorläufig step and may conduct interviews), the
+// raid categories its attendance counts in and deleting it with everything in
+// it. Rendered outside the Kader's context too (the start page's "Ersten Kader
+// anlegen"), so it reads only its props.
 import { useState } from "react";
 import { createKader, deleteKader, updateKader, type KaderChange, type KaderView } from "../../api";
 import { Button, Field, FieldLabel, IconButton, Modal } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
 import { PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/icons";
 import { useT } from "../../i18n";
-import { nameOf } from "../../lib/kader/model";
+import { nameOf, togglePick } from "../../lib/kader/model";
+import { CategoryChecklist } from "./Attendance";
 
 type Props = {
     mode: "create" | "edit";
@@ -26,6 +28,8 @@ export default function KaderSettingsModal({ mode, view, onClose, run, onCreated
     const [name, setName] = useState(kader ? kader.name : "");
     const [leads, setLeads] = useState<string[]>(kader ? kader.leads : []);
     const [pick, setPick] = useState("");
+    // the server's order, ids it no longer knows dropped
+    const [cats, setCats] = useState<string[]>(() => view.raidCategories.map((c) => c.id).filter((id) => !!kader && (kader.attendanceCategories || []).includes(id)));
     const candidates = view.members.filter((m) => !leads.includes(m.userId)).sort((a, b) => a.displayName.localeCompare(b.displayName));
     const ready = !!name.trim() && (mode === "create" || leads.length > 0);
 
@@ -37,7 +41,7 @@ export default function KaderSettingsModal({ mode, view, onClose, run, onCreated
             return;
         }
         if (!kader) return;
-        const change = await run(updateKader(kader.id, { name: name.trim(), leads }));
+        const change = await run(updateKader(kader.id, { name: name.trim(), leads, attendanceCategories: cats }));
         if (change) onClose();
     };
 
@@ -97,6 +101,13 @@ export default function KaderSettingsModal({ mode, view, onClose, run, onCreated
                             <Button variant="ghost" icon={<PlusIcon />} disabled={!pick} onClick={() => { setLeads([...leads, pick]); setPick(""); }}>{t("common.add")}</Button>
                         </div>
                         <div className="hint">{t("kader.settings.leadsHint")}</div>
+                    </div>
+                )}
+                {kader && (
+                    <div className="field">
+                        <FieldLabel>{t("kader.settings.attendance")}</FieldLabel>
+                        <CategoryChecklist view={view} picked={cats} onToggle={(id) => setCats(togglePick(view, cats, id))} />
+                        <div className="hint">{t("kader.settings.attendanceHint")}</div>
                     </div>
                 )}
             </div>

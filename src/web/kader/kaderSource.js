@@ -1,10 +1,11 @@
 // What the Kaderplaner (docs/kaderplaner.md) reads from the rest of the bot:
 // the game version's rule set (classes, specs, buffs), the human members of the
 // server with their Discord roles, the raider profiles, the characters the logs
-// link to an account, and the attendance — of the planner's version and of the
-// server's main version (Forever has no raid nights yet; the TBC nights still
-// say who shows up). Everything is derived on read; the planner's own data
-// lives in kaderStore.js and is merged on top by kaderView.js.
+// link to an account, the server's raid categories and the attendance of every
+// account in each of them — a Kader picks the categories that count, so a PUG
+// category nobody of the Kader joins no longer pulls everybody down. Everything
+// is derived on read; the planner's own data lives in kaderStore.js and is
+// merged on top by kaderView.js.
 //
 // Privacy: a profile leaves this module as a whitelist of fields — characters,
 // their specs and gear, the tank/heal switches, the main flag, the raid days and
@@ -14,8 +15,11 @@
 const { rulesFor } = require("../../config/gameVersions");
 const { buildClasses } = require("../../config/gameVersions/classes");
 const { mainVersionFor } = require("../../services/events/mainVersion");
+const { listStoredEvents } = require("../../services/events/eventSources");
 const { buildAttendanceContext, attendanceForAccounts } = require("../../services/characters/rosterAttendance");
 const discord = require("../../services/discord/discord");
+const { listKnownCategories } = require("../../services/discord/categoryNames");
+const { getConfig } = require("../../stores/configStore");
 const profiles = require("../../stores/raiderProfileStore");
 const raiderCharacters = require("../../stores/raiderCharactersStore");
 const { logIndex } = require("../characters/profileLogs");
@@ -66,10 +70,11 @@ function sourceBuffs(rules) {
     const raid = BOARD_RAID_BUFFS
         .map((key) => (rules.raidBuffs || []).find((b) => b.key === key))
         .filter(Boolean)
-        .map((b) => ({ key: b.key, label: b.label, icon: b.icon || "", providers: [...b.providers] }));
+        .map((b) => ({ key: b.key, label: b.label, labelEn: b.labelEn || b.label, icon: b.icon || "", providers: [...b.providers] }));
     const party = (rules.partyBuffs || []).map((b) => ({
         key: b.key,
         label: b.label,
+        labelEn: b.labelEn || b.label,
         icon: b.icon || "",
         providers: [...b.providers],
         beneficiaries: [...(b.beneficiaries || [])],
@@ -140,42 +145,82 @@ function sourceLogChars(index) {
 }
 
 /**
- * Attendance per Discord account over one version's raid nights, every raid
- * category of the guild summed up. Each category counts its last RAID_WINDOW
- * nights with evidence (rosterAttendance.js), so the list stays bounded.
- * `rate` is null while nothing is counted (Forever before its raids open).
+ * The raid categories of the server a Kader can count attendance in: every
+ * Discord category the admin marked for events (config.categoryIds) and every
+ * category a raid of this server ran in, with the name Discord gives it (or the
+ * one remembered, categoryNames.js) and the game version it plays. An id no
+ * name is known for is left out. In Discord's order.
+ * @returns {{ id: string, name: string, versionId: string, versionLabel: string }[]}
  */
-function sourceAttendance(guildId, versionId, accounts, nowSec) {
-    if (!accounts.length) return [];
-    const ctx = buildAttendanceContext(guildId, { versionId, now: nowSec });
-    const byUser = new Map(accounts.map((a) => [a.userId, []]));
-    for (const categoryId of ctx.raidsByCategory.keys()) {
-        for (const [userId, result] of attendanceForAccounts(ctx, categoryId, accounts, { nights: true })) {
-            byUser.get(userId).push(...(result.raids || []));
+function listRaidCategories(guildId) {
+    const config = getConfig();
+    const ids = new Set((config.categoryIds || []).map((id) => String(id).trim()).filter(Boolean));
+    for (const ev of listStoredEvents(guildId)) if (ev && ev.categoryId) ids.add(String(ev.categoryId));
+    return listKnownCategories(guildId)
+        .filter((c) => ids.has(c.id) && c.name)
+        .map((c) => {
+            const versionId = mainVersionFor({ categoryId: c.id, config });
+            const rules = rulesFor(versionId);
+            return { id: c.id, name: c.name, versionId, versionLabel: rules ? rules.short || rules.label : versionId };
+        });
+}
+
+/**
+ * Whom attendance is counted for: every account with a character the bot
+ * knows — the profile's characters of every version (a TBC night is matched
+ * against the TBC character) and the characters the orga assigned per raid
+ * category (with class and name as the logs spell them).
+ */
+function attendanceAccounts(index) {
+    const byUser = new Map();
+    const add = (userId, name, className) => {
+        const clean = String(name || "").trim();
+        if (!userId || !clean) return;
+        const list = byUser.get(userId) || [];
+        if (!list.some((c) => c.name.toLowerCase() === clean.toLowerCase())) list.push({ name: clean, className: className || "", manual: true });
+        byUser.set(userId, list);
+    };
+    for (const p of profiles.listProfiles()) for (const c of profiles.charactersOfVersion(p, "")) add(p.userId, c.name, c.className);
+    for (const map of Object.values(raiderCharacters.listAllAssignments())) {
+        for (const [userId, name] of Object.entries(map || {})) {
+            const entry = name ? index.get(profiles.characterKey(name)) : null;
+            add(userId, (entry && entry.character) || name, entry && entry.className);
         }
     }
-    return accounts.map(({ userId }) => {
-        const nights = byUser.get(userId)
-            .sort((a, b) => (b.startTime || 0) - (a.startTime || 0))
-            .map((r) => {
-                const dt = serverDateTime(r.startTime);
-                return {
-                    date: dt ? dt.toISODate() : "",
-                    eventId: r.eventId,
-                    title: r.title || "",
-                    attended: !!r.attended,
-                    reason: r.attended ? null : (r.reason || null),
-                };
-            });
-        const attended = nights.filter((n) => n.attended).length;
-        return {
-            userId,
-            attended,
-            counted: nights.length,
-            rate: nights.length ? Math.round((attended / nights.length) * 100) / 100 : null,
-            nights,
-        };
-    });
+    return [...byUser].map(([userId, chars]) => ({ userId, chars }));
+}
+
+/** One counted night as the page shows it. */
+function nightOf(r) {
+    const dt = serverDateTime(r.startTime);
+    return {
+        date: dt ? dt.toISODate() : "",
+        eventId: r.eventId,
+        title: r.title || "",
+        attended: !!r.attended,
+        reason: r.attended ? null : (r.reason || null),
+    };
+}
+
+/**
+ * Attendance per Discord account in each raid category: the category's last
+ * RAID_WINDOW nights with evidence (rosterAttendance.js), whatever game version
+ * they were played in. An account carries only the categories that counted a
+ * night for it; one without any is left out (the page shows "—").
+ * @returns {{ userId: string, byCategory: Object<string, { attended: number, counted: number, nights: object[] }> }[]}
+ */
+function sourceAttendance(ctx, categories, accounts) {
+    const byUser = new Map(accounts.map((a) => [a.userId, {}]));
+    for (const { id } of categories) {
+        if (!(ctx.raidsByCategory.get(id) || []).length) continue;
+        for (const [userId, result] of attendanceForAccounts(ctx, id, accounts, { nights: true })) {
+            if (!result.total || !byUser.has(userId)) continue;
+            byUser.get(userId)[id] = { attended: result.attended, counted: result.total, nights: (result.raids || []).map(nightOf) };
+        }
+    }
+    return [...byUser]
+        .filter(([, byCategory]) => Object.keys(byCategory).length)
+        .map(([userId, byCategory]) => ({ userId, byCategory }));
 }
 
 /** The Discord roles of the server with how many of its members hold each; roles nobody holds are left out. */
@@ -214,26 +259,13 @@ async function loadKaderSource({ guildId = "", versionId = plannerVersion(), now
         .sort((a, b) => a.userId.localeCompare(b.userId));
     const logChars = sourceLogChars(index);
 
-    const nowSec = Math.floor(now / 1000);
+    let raidCategories = [];
     let attendance = [];
-    let attendanceMain = [];
     try {
-        attendance = sourceAttendance(guildId, versionId, listed
-            .filter((p) => p.characters.length)
-            .map((p) => ({ userId: p.userId, chars: p.characters.map((c) => ({ name: c.name, className: c.className, manual: true })) })), nowSec);
-        if (mainVersionId !== versionId) {
-            const accounts = new Map();
-            for (const p of profiles.listProfiles()) {
-                const chars = profiles.charactersOfVersion(p, mainVersionId).map((c) => ({ name: c.name, className: c.className, manual: true }));
-                if (chars.length) accounts.set(p.userId, chars);
-            }
-            for (const [userId, c] of Object.entries(logChars)) {
-                const list = accounts.get(userId) || [];
-                if (!list.some((x) => x.name.toLowerCase() === c.name.toLowerCase())) list.push({ name: c.name, className: c.className, manual: true });
-                accounts.set(userId, list);
-            }
-            attendanceMain = sourceAttendance(guildId, mainVersionId, [...accounts].map(([userId, chars]) => ({ userId, chars })), nowSec);
-        }
+        const categories = listRaidCategories(guildId);
+        const ctx = buildAttendanceContext(guildId, { now: Math.floor(now / 1000) });
+        raidCategories = categories.map((c) => ({ ...c, nights: (ctx.raidsByCategory.get(c.id) || []).length }));
+        attendance = sourceAttendance(ctx, categories, attendanceAccounts(index));
     } catch (e) {
         warnings.push(`Anwesenheit nicht verfügbar: ${(e && e.message) || e}`);
     }
@@ -248,8 +280,8 @@ async function loadKaderSource({ guildId = "", versionId = plannerVersion(), now
         discordRoles: guildId ? sourceRoles(guildId, members) : [],
         profiles: listed,
         logChars,
+        raidCategories,
         attendance,
-        attendanceMain,
         warnings,
     };
 }
@@ -261,4 +293,4 @@ function loadKaderRules(versionId = plannerVersion()) {
     return { versionId, classes: sourceClasses(rules) };
 }
 
-module.exports = { loadKaderSource, loadKaderRules, plannerVersion, PREFERRED_VERSION };
+module.exports = { loadKaderSource, loadKaderRules, listRaidCategories, plannerVersion, PREFERRED_VERSION };

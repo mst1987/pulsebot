@@ -9,6 +9,7 @@
 //     accounts:    [{ userId, displayName, addedAt }]          known by hand (no profile)
 //     assignments: { [userId]: { characters: [...], activeCharacterId } }   per server, not per Kader
 //     kaders:      [{ id, name, leads: [userId], createdAt, createdBy,
+//                     attendanceCategories: [categoryId],   the raid categories attendance counts in
 //                     questions: [{ id, text, type, options: [{ id, label }], required }],
 //                     players:   { [userId]: entry },
 //                     setups:    [{ id, name, size: 10|20, groups: [[{ userId, spec }|null x5] x4] }] }] }
@@ -33,6 +34,12 @@ const STATES = ["pool", "selected", "provisional", "roster", "bench", "tentative
 /** The states whose players an example setup may hold. */
 const SETUP_STATES = ["roster", "provisional", "bench", "tentative"];
 const QUESTION_TYPES = ["single", "multi", "text"];
+/**
+ * The colours an answer option may carry (tokens --opt-<name> of the web
+ * client, tokens.css), in the order "automatic" hands them out; an option
+ * without one gets the next free colour by position (lib/kader/colors.ts).
+ */
+const OPTION_COLORS = ["blue", "amber", "rose", "teal", "violet", "lime", "orange", "slate"];
 const VOTES = ["yes", "unsure", "no"];
 const NAME_STYLES = ["forever", "nick"];
 const GEAR_LEVELS = ["none", "usable", "ready"];
@@ -46,7 +53,7 @@ const NICK_MAX = 24;
 const LIMITS = {
     accounts: 500, characters: 8, name: 40, kaders: 30, leads: 10, players: 500,
     questions: 30, question: 200, options: 20, option: 60, answer: 1000, note: 2000,
-    comment: 1000, comments: 200, history: 50, wishes: 6, variants: 6,
+    comment: 1000, comments: 200, history: 50, wishes: 6, variants: 6, attendanceCategories: 20,
 };
 // An id typed by hand must look like a real Discord user id; one from the member list is taken as it is.
 const DISCORD_ID = /^\d{17,20}$/;
@@ -94,7 +101,9 @@ function normalizeCharacter(c) {
 function normalizeOption(o) {
     if (!isObject(o) || !o.id) return null;
     const label = str(o.label).trim().slice(0, LIMITS.option);
-    return label ? { id: str(o.id), label } : null;
+    if (!label) return null;
+    // a colour of the palette, else none (the page picks one by position)
+    return OPTION_COLORS.includes(o.color) ? { id: str(o.id), label, color: o.color } : { id: str(o.id), label };
 }
 
 function normalizeQuestion(q) {
@@ -227,6 +236,11 @@ function normalizeVariant(v, players) {
     };
 }
 
+/** Category ids as strings, each once, at most LIMITS.attendanceCategories. */
+function categoryIds(raw) {
+    return [...new Set((Array.isArray(raw) ? raw : []).map((id) => str(id).trim()).filter(Boolean))].slice(0, LIMITS.attendanceCategories);
+}
+
 function normalizeKader(k) {
     if (!isObject(k) || !k.id) return null;
     const qSeen = new Set();
@@ -251,6 +265,9 @@ function normalizeKader(k) {
         leads: [...new Set((Array.isArray(k.leads) ? k.leads : []).map(str).filter(Boolean))].slice(0, LIMITS.leads),
         createdAt: str(k.createdAt),
         createdBy: str(k.createdBy),
+        // A Kader stored before the setting existed counts in no category: the
+        // page says "—" and asks for a pick instead of guessing (docs/kaderplaner.md).
+        attendanceCategories: categoryIds(k.attendanceCategories),
         questions,
         players,
         setups,
@@ -467,6 +484,7 @@ function createKader(planner, input, ctx) {
         leads: ctx.actor ? [ctx.actor] : [],
         createdAt: ctx.now,
         createdBy: ctx.actor || "",
+        attendanceCategories: [],
         questions: [],
         players: {},
         setups: [{ id: newId(), name: "Variante A", size: 20, groups: emptyGroups() }],
@@ -476,6 +494,12 @@ function createKader(planner, input, ctx) {
     return { planner: next, kaderId: kader.id };
 }
 
+/**
+ * Name, leads and the raid categories attendance counts in. A category id the
+ * server does not know as a raid category (`ctx.raidCategoryIds`, see
+ * kaderSource.listRaidCategories) is left out without an error; an empty list
+ * is a valid pick ("no category yet").
+ */
 function updateKader(planner, input, ctx) {
     return withKader(planner, input.kaderId, (kader) => {
         if (input.name !== undefined) kader.name = cleanLabel(input.name, "Name");
@@ -484,6 +508,11 @@ function updateKader(planner, input, ctx) {
             if (!leads.length) throw invalid("Ein Kader braucht mindestens eine Leitung.");
             if (leads.length > LIMITS.leads) throw invalid(`Höchstens ${LIMITS.leads} Personen in der Leitung.`);
             kader.leads = leads;
+        }
+        if (input.attendanceCategories !== undefined) {
+            if (!Array.isArray(input.attendanceCategories)) throw invalid("Die Raid-Kategorien kommen als Liste.");
+            const known = ctx.raidCategoryIds instanceof Set ? ctx.raidCategoryIds : new Set();
+            kader.attendanceCategories = categoryIds(input.attendanceCategories.filter((id) => known.has(str(id).trim())));
         }
     });
 }
@@ -496,7 +525,7 @@ function deleteKader(planner, kaderId) {
 }
 
 module.exports = {
-    FORMAT, ROLES, STATES, SETUP_STATES, QUESTION_TYPES, VOTES, NAME_STYLES, GEAR_LEVELS, SETUP_SIZES,
+    FORMAT, ROLES, STATES, SETUP_STATES, QUESTION_TYPES, OPTION_COLORS, VOTES, NAME_STYLES, GEAR_LEVELS, SETUP_SIZES,
     GROUP_COUNT, GROUP_SIZE, LIMITS,
     clone, str, isObject, invalid, notFound, conflict, forbidden,
     emptyPlanner, emptyGroups, normalizePlanner, normalizeQuestion, normalizeAnswer, normalizeKader,

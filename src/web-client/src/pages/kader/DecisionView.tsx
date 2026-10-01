@@ -5,8 +5,9 @@
 // coloured line says which state they are. One card for all: spec icon and
 // name in the class colour, votes and comments on the right; below it the
 // decision (roster) or the wishes as numbered spec icons. The drawer of the
-// chosen player on the right: wishes, the interview, the leads' votes,
-// comments, the decision (a spec from the wishes, WishPicker) with Ins Roster /
+// chosen player on the right: wishes, the attendance over the Kader's raid
+// categories, the interview, the leads' votes, comments, the decision (a spec
+// from the wishes, WishPicker) with Ins Roster /
 // Entscheidung ändern, Bench, Tentative and the step back, and the history.
 // Cards move by drag and drop or with the drawer's buttons; every move can go
 // back. ?spieler=<id> opens the drawer (on a phone it slides over the page).
@@ -15,7 +16,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { addKaderComment, deleteKaderComment, setKaderState, setKaderVote, type KaderEntry, type KaderState, type KaderVote, type KaderWish } from "../../api";
 import { Button, IconButton, Segment } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
-import { BenchIcon, CheckIcon, ChevronLeftIcon, CommentIcon, EditIcon, SendIcon, TentativeIcon, XIcon } from "../../components/icons";
+import { BenchIcon, CheckIcon, CommentIcon, EditIcon, SendIcon, TentativeIcon, XIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { relativeDayLabel } from "../../lib/format";
@@ -23,7 +24,10 @@ import { rolePluralLabel } from "../../lib/wowNames";
 import { canMove, classColor, dayOf, entriesIn, mainPick, nameOf, playerName, ROLES, roleCounts, wishLabel, wishOptions } from "../../lib/kader/model";
 import { classColorProps } from "../../components/ClassSpec";
 import { dragProps, useDropZone } from "./dnd";
-import { AnswerLines, Count, HistoryLines, PickIcon, PickLabel, PlayerName, RoleIcon, StateIcon, StateSince, VoteIcon, WishIcons, WishLines } from "./parts";
+import {
+    AnswerLines, BackButton, Count, HistoryLines, PickIcon, PickLabel, PlayerName, RoleIcon, StateIcon, StateSince, VoteIcon, WishIcons, WishLines,
+} from "./parts";
+import { AttendanceLine } from "./Attendance";
 import WishPicker from "./WishPicker";
 import { useKader } from "./kaderContext";
 
@@ -137,6 +141,7 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                 <IconButton icon={<XIcon />} size="sm" tip={t("common.close")} onClick={onClose} />
             </div>
             <WishLines wishes={entry.wishes} />
+            <AttendanceLine userId={userId} label={t("kader.pool.attendance")} />
             <details className="kp-details">
                 <summary>{iv.completedAt ? t("kader.decide.interviewBy", { lead: nameOf(view, iv.lead || iv.completedBy), date: dayOf(iv.completedAt) }) : t("kader.decide.interviewOpen")}</summary>
                 <AnswerLines entry={entry} questions={kader.questions} />
@@ -155,7 +160,7 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                     <Segment<KaderVote | ""> size="sm" ariaLabel={t("kader.decide.myVote")} value={mine} onChange={(v) => { if (v) vote(v); }}
                         options={VOTES.map((v) => ({ value: v, label: t(`kader.vote.${v}Action`), icon: <VoteIcon vote={v} /> }))} />
                 )}
-                {canWrite && isLead && mine && <button type="button" className="kp-link kp-quiet" onClick={() => vote(mine)}>{t("kader.decide.takeBack")}</button>}
+                {canWrite && isLead && mine && <BackButton size="sm" label={t("kader.decide.takeBack")} onClick={() => vote(mine)} />}
                 {canWrite && !isLead && <span className="kp-hint">{t("kader.decide.onlyLeads")}</span>}
             </div>
             <div className="kp-block kp-comments">
@@ -204,9 +209,7 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                             );
                         })}
                     </div>
-                    {canMove(entry.state, back) && (
-                        <button type="button" className="kp-link kp-quiet kp-withicon" onClick={() => void moveTo(back)}><ChevronLeftIcon />{t(`kader.decide.back.${back}`)}</button>
-                    )}
+                    {canMove(entry.state, back) && <BackButton wide label={t(`kader.decide.back.${back}`)} onClick={() => void moveTo(back)} />}
                 </div>
             )}
             <details className="kp-details">

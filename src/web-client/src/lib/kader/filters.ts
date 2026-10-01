@@ -2,11 +2,13 @@
 // each menu is a set of options with a test; several picks inside one menu are
 // "any of", the menus together "all of". Every option counts how many would
 // remain with the other menus applied. Pure.
+import type { Tone } from "./colors";
 
 /** What an option shows beside its label: a WoW icon of a class, spec or role. */
 export type FilterIcon = { kind: "class" | "spec" | "role"; key: string };
 
-export type FilterOption<T> = { value: string; label: string; test: (item: T) => boolean; icon?: FilterIcon; color?: string };
+/** `tone`: an answer option's colour (weekday or palette), drawn as a dot before the label. */
+export type FilterOption<T> = { value: string; label: string; test: (item: T) => boolean; icon?: FilterIcon; color?: string; tone?: Tone };
 export type FilterDef<T> = { key: string; label: string; options: FilterOption<T>[] };
 /** The picks per menu key. */
 export type FilterState = Record<string, string[]>;

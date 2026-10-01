@@ -1,7 +1,8 @@
 // The Kaderplaner's view model (docs/kaderplaner.md): who the planner knows,
 // what they are prefilled with and from where, the planner winning over the
-// profile, names for every id, and the chosen Kader with the summaries.
-const { buildKaderView, kaderPayload, mutationContext, lightContext, prefillOf, diffAgainst } = require("../../../src/web/kader/kaderView");
+// profile, attendance per raid category, names for every id, and the chosen
+// Kader with the summaries.
+const { buildKaderView, kaderPayload, mutationContext, lightContext, prefillOf, diffAgainst, rateOver } = require("../../../src/web/kader/kaderView");
 const model = require("../../../src/services/kader/kaderModel");
 const { U, CLASSES } = require("../../helpers/kaderFixtures");
 
@@ -28,8 +29,14 @@ const source = (over = {}) => ({
         { userId: U.c, displayName: "Oldie", characters: [], availability: [], other: { name: "Oldie", className: "Mage", spec: "Mage-Fire", versionId: "tbc" } },
     ],
     logChars: { [U.d]: { name: "Kael", className: "Priest", spec: "Priest-Shadow" } },
-    attendance: [{ userId: U.a, attended: 3, counted: 4, rate: 0.75, nights: [{ date: "2026-12-18", eventId: "e1", title: "Hyjal", attended: true, reason: null }] }],
-    attendanceMain: [{ userId: U.c, attended: 9, counted: 10, rate: 0.9, nights: [] }],
+    raidCategories: [
+        { id: "c-mo", name: "Mo Raid", versionId: "tbc", versionLabel: "TBC", nights: 4 },
+        { id: "c-do", name: "Do Raid", versionId: "tbc", versionLabel: "TBC", nights: 10 },
+    ],
+    attendance: [
+        { userId: U.a, byCategory: { "c-mo": { attended: 3, counted: 4, nights: [{ date: "2026-12-18", eventId: "e1", title: "Hyjal", attended: true, reason: null }] } } },
+        { userId: U.c, byCategory: { "c-mo": { attended: 1, counted: 4, nights: [] }, "c-do": { attended: 9, counted: 10, nights: [] }, "c-empty": { attended: 0, counted: 0, nights: [] } } },
+    ],
     warnings: [],
     ...over,
 });
@@ -73,13 +80,30 @@ describe("web/kader/kaderView", () => {
         expect(planned).toMatchObject({ className: "Mage", spec: "Mage-Frost", source: "planner" });
     });
 
-    it("carries attendance of the planner's version and of the main version", () => {
+    it("carries attendance per raid category and the server's raid categories; the page sums the Kader's pick", () => {
         const view = buildKaderView({ source: source(), planner: planner(), kaderId: "k1" });
         const byId = new Map(view.players.map((p) => [p.userId, p]));
-        expect(byId.get(U.a).attendance).toEqual({ attended: 3, counted: 4, pct: 75, nights: [{ date: "2026-12-18", title: "Hyjal", attended: true, reason: null }] });
-        expect(byId.get(U.a).attendanceMain).toBeNull();
-        expect(byId.get(U.c).attendanceMain).toMatchObject({ pct: 90 });
+        expect(byId.get(U.a).attendance).toEqual({ "c-mo": { attended: 3, counted: 4, nights: [{ date: "2026-12-18", title: "Hyjal", attended: true, reason: null }] } });
+        // a category that counted no night for the account is left out
+        expect(Object.keys(byId.get(U.c).attendance)).toEqual(["c-mo", "c-do"]);
+        expect(byId.get(U.c).attendance["c-do"]).toMatchObject({ attended: 9, counted: 10 });
+        // nothing counted at all: null, the page shows "—"
+        expect(byId.get(U.b).attendance).toBeNull();
+        expect(byId.get(U.a)).not.toHaveProperty("attendanceMain");
+        expect(view.raidCategories.map((c) => [c.id, c.name, c.nights])).toEqual([["c-mo", "Mo Raid", 4], ["c-do", "Do Raid", 10]]);
+        // a Kader stored before the setting existed counts in no category yet
+        expect(view.kader.attendanceCategories).toEqual([]);
         expect(view.mainVersion).toEqual({ id: "tbc", label: "TBC" });
+    });
+
+    it("sums attendance over the picked categories only", () => {
+        const by = { mo: { attended: 9, counted: 11 }, do: { attended: 7, counted: 10 } };
+        expect(rateOver(by, ["mo", "do"])).toBeCloseTo(16 / 21);
+        expect(rateOver(by, ["do"])).toBe(0.7);
+        // an unknown or uncounted category adds nothing; nothing picked or nothing counted is null
+        expect(rateOver(by, ["mo", "pug"])).toBeCloseTo(9 / 11);
+        expect(rateOver(by, [])).toBeNull();
+        expect(rateOver(null, ["mo"])).toBeNull();
     });
 
     it("lets the planner's characters win and marks what deviates from the profile", () => {
@@ -125,9 +149,13 @@ describe("web/kader/kaderView", () => {
         const changed = planner();
         changed.assignments[U.d] = { characters: [{ id: "c9", name: "Neu Name", nameStyle: "forever", className: "Mage", specs: [{ spec: "Mage-Frost", main: true, gear: "none" }], canTank: false, canHeal: false }], activeCharacterId: "c9" };
         expect(ctx.prefillOf(U.d, changed)).toMatchObject({ className: "Mage", spec: "Mage-Frost", source: "planner" });
-        expect(ctx.rateOf(U.a)).toBe(0.75);
-        expect(ctx.rateOf(U.c)).toBe(0.9);
-        expect(ctx.rateOf(U.b)).toBe(0);
+        // attendance over the Kader's categories: none picked counts as 0
+        expect(ctx.rateOf(U.a, ["c-mo"])).toBe(0.75);
+        expect(ctx.rateOf(U.c, ["c-do"])).toBe(0.9);
+        expect(ctx.rateOf(U.c, ["c-mo", "c-do"])).toBeCloseTo(10 / 14);
+        expect(ctx.rateOf(U.c)).toBe(0);
+        expect(ctx.rateOf(U.b, ["c-mo"])).toBe(0);
+        expect([...ctx.raidCategoryIds]).toEqual(["c-mo", "c-do"]);
         expect(ctx.classes.get("Mage").specs.map((s) => s.key)).toEqual(["Mage-Frost", "Mage-Fire"]);
         const light = lightContext({ rules: { classes: CLASSES }, actor: U.lead });
         expect(light.classes.size).toBe(CLASSES.length);

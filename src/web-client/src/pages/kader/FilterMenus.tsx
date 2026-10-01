@@ -1,13 +1,14 @@
 // The dropdown filter menus of the Kaderplaner's lists: one button per menu with
-// the number of picks, the options with a check, an icon where it helps and the
-// count each would leave (lib/kader/filters.ts). The active picks show as
-// removable chips (FilterChips).
+// the number of picks, the options with a check, an icon or an answer's colour
+// dot where it helps and the count each would leave (lib/kader/filters.ts). The
+// active picks show as removable chips (FilterChips).
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Chip } from "../../components/ui";
 import { CheckIcon, ChevronDownIcon } from "../../components/icons";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 import { chipsOf, countFor, toggle, type FilterDef, type FilterState } from "../../lib/kader/filters";
+import { toneAttrs } from "../../lib/kader/colors";
 import { ClassIcon, Count, RoleIcon, SpecIcon } from "./parts";
 import type { KaderRole } from "../../api";
 
@@ -55,6 +56,7 @@ export function FilterMenus<T>({ items, defs, state, onChange, children }: {
                                         <button key={o.value} type="button" role="menuitemcheckbox" aria-checked={checked} className="kp-menuopt" onClick={() => onChange(toggle(state, def.key, o.value))}>
                                             <span className={`kp-check${checked ? " kp-on" : ""}`}>{checked && <CheckIcon />}</span>
                                             {o.icon && <OptionIcon icon={o.icon} />}
+                                            {o.tone && <span className="kp-tonedot" aria-hidden="true" {...toneAttrs(o.tone)} />}
                                             <span className={`kp-grow${o.color ? " class-colored" : ""}`} style={o.color ? { "--cc": o.color } as CSSProperties : undefined}>{o.label}</span>
                                             <Count n={countFor(items, defs, state, def, o)} tip={t("kader.playersN", { count: countFor(items, defs, state, def, o) })} className="kp-count-quiet" />
                                         </button>

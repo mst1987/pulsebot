@@ -4,12 +4,15 @@
 // Two layers:
 //   - per server: the players the planner knows (a profile with a character of
 //     the version, an account known by hand, anybody in a Kader) with their
-//     characters, the prefilled character, Discord roles and attendance;
-//     the server's members and roles for the import; names for every user id
-//     the page shows (leads, votes, comments, history).
+//     characters, the prefilled character, Discord roles and attendance per
+//     raid category; the server's raid categories; the server's members and
+//     roles for the import; names for every user id the page shows (leads,
+//     votes, comments, history).
 //   - per Kader: the chosen Kader as stored (players with state, interview,
-//     votes, comments, decision; questions; example setups) and a summary of
-//     every Kader for the selector.
+//     votes, comments, decision; questions; example setups; the raid
+//     categories its attendance counts in) and a summary of every Kader for
+//     the selector. The page sums a player's attendance over the Kader's
+//     categories itself, so a new pick needs no second request.
 //
 // The rule "the planner wins": when an account has the planner's own character
 // data, its characters replace the profile's inside the planner. Each planner
@@ -76,15 +79,36 @@ function diffAgainst(char, profileChar, classes) {
     return out;
 }
 
-/** Nothing counted yet (Forever before its raids open) is no attendance at all: the page shows "—". */
+/**
+ * A player's attendance per raid category, `{ [categoryId]: { attended,
+ * counted, nights } }`; null when no category counted a night for the account
+ * (no character known, no raid yet): the page shows "—".
+ */
 function attendanceView(a) {
-    if (!a || a.rate === null || a.rate === undefined) return null;
-    return {
-        attended: a.attended,
-        counted: a.counted,
-        pct: Math.round(a.rate * 100),
-        nights: a.nights.map(({ date, title, attended, reason }) => ({ date, title, attended, reason })),
-    };
+    if (!a || !a.byCategory) return null;
+    const out = {};
+    for (const [id, c] of Object.entries(a.byCategory)) {
+        if (!c || !c.counted) continue;
+        out[id] = {
+            attended: c.attended,
+            counted: c.counted,
+            nights: c.nights.map(({ date, title, attended, reason }) => ({ date, title, attended, reason })),
+        };
+    }
+    return Object.keys(out).length ? out : null;
+}
+
+/** Attendance (0–1) summed over some raid categories; null when none of them counted a night. */
+function rateOver(byCategory, categoryIds) {
+    let attended = 0;
+    let counted = 0;
+    for (const id of categoryIds || []) {
+        const c = byCategory && byCategory[id];
+        if (!c) continue;
+        attended += c.attended;
+        counted += c.counted;
+    }
+    return counted ? attended / counted : null;
 }
 
 /**
@@ -109,7 +133,7 @@ function prefillOf({ assignment, profile, logChar }) {
     return null;
 }
 
-function buildPlayer({ userId, displayName, member, profile, logChar, attendance, attendanceMain, assignment, manual, classes }) {
+function buildPlayer({ userId, displayName, member, profile, logChar, attendance, assignment, manual, classes }) {
     const profileChars = profile ? profile.characters : [];
     const chars = assignment
         ? assignment.characters.map((c) => ({
@@ -143,7 +167,6 @@ function buildPlayer({ userId, displayName, member, profile, logChar, attendance
         prefill: prefillOf({ assignment, profile, logChar }),
         availability: profile ? [...profile.availability] : [],
         attendance: attendanceView(attendance),
-        attendanceMain: attendanceView(attendanceMain),
     };
 }
 
@@ -177,8 +200,7 @@ function buildKaderView({ source, planner, kaderId = "" }) {
     const classes = indexClasses(source.classes);
     const members = new Map(source.members.map((m) => [m.userId, m]));
     const profiles = new Map(source.profiles.map((p) => [p.userId, p]));
-    const attendance = new Map(source.attendance.map((a) => [a.userId, a]));
-    const attendanceMain = new Map((source.attendanceMain || []).map((a) => [a.userId, a]));
+    const attendance = new Map((source.attendance || []).map((a) => [a.userId, a]));
     const logChars = source.logChars || {};
     const manual = new Map(planner.accounts.map((a) => [a.userId, a]));
     const names = namesOf(source, planner);
@@ -196,7 +218,6 @@ function buildKaderView({ source, planner, kaderId = "" }) {
         profile: profiles.get(userId) || null,
         logChar: logChars[userId] || null,
         attendance: attendance.get(userId) || null,
-        attendanceMain: attendanceMain.get(userId) || null,
         assignment: planner.assignments[userId] || null,
         manual: manual.has(userId),
         classes,
@@ -218,6 +239,7 @@ function buildKaderView({ source, planner, kaderId = "" }) {
         roles: ["tank", "healer", "melee", "ranged"],
         classes: source.classes,
         buffs: source.buffs,
+        raidCategories: source.raidCategories || [],
         players,
         members: memberList,
         discordRoles: source.discordRoles || [],
@@ -240,9 +262,7 @@ function kaderPayload(planner, kaderId) {
 function mutationContext({ source, planner, actor = "", now = new Date().toISOString() }) {
     const profiles = new Map(source.profiles.map((p) => [p.userId, p]));
     const logChars = source.logChars || {};
-    const rate = new Map();
-    for (const a of source.attendanceMain || []) if (a.rate !== null) rate.set(a.userId, a.rate);
-    for (const a of source.attendance) if (a.rate !== null) rate.set(a.userId, a.rate);
+    const attendance = new Map((source.attendance || []).map((a) => [a.userId, a.byCategory]));
     const knownIds = new Set([...profiles.keys(), ...source.members.map((m) => m.userId), ...Object.keys(logChars)]);
     return {
         now,
@@ -251,7 +271,9 @@ function mutationContext({ source, planner, actor = "", now = new Date().toISOSt
         memberIds: new Set(source.members.map((m) => m.userId)),
         knownIds,
         prefillOf: (userId, current = planner) => prefillOf({ assignment: (current || planner).assignments[userId] || null, profile: profiles.get(userId) || null, logChar: logChars[userId] || null }),
-        rateOf: (userId) => rate.get(userId) || 0,
+        /** Attendance (0–1) over a Kader's raid categories, 0 when none of them counted a night. */
+        rateOf: (userId, categoryIds = []) => rateOver(attendance.get(userId), categoryIds) || 0,
+        raidCategoryIds: new Set((source.raidCategories || []).map((c) => c.id)),
     };
 }
 
@@ -260,4 +282,4 @@ function lightContext({ rules, actor = "", now = new Date().toISOString() }) {
     return { now, actor, classes: indexClasses(rules.classes), memberIds: new Set(), knownIds: new Set() };
 }
 
-module.exports = { buildKaderView, kaderPayload, mutationContext, lightContext, prefillOf, diffAgainst, describe, stateCounts };
+module.exports = { buildKaderView, kaderPayload, mutationContext, lightContext, prefillOf, diffAgainst, describe, stateCounts, rateOver };

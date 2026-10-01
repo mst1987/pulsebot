@@ -5,21 +5,25 @@
 // source of a prefilled character, the initial of a lead, counts that say what
 // they count, the status of an interview (open circle, progress ring, check),
 // votes, empty states, a switch, the week squares, the head of a sub page, the
-// two tabs of the Vorauswahl and what an interview says (wishes, answers,
-// history).
+// two tabs of the Vorauswahl, what an interview says (wishes, answers,
+// history), the sortable column head of the planner's tables and the button
+// of every step back.
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { KaderEntry, KaderPrefill, KaderQuestion, KaderAnswer, KaderRole, KaderState, KaderVote, KaderWish } from "../../api";
 import { classColorProps } from "../../components/ClassSpec";
+import { SortLabel, ariaSort } from "../../components/SortTh";
+import type { TableSort } from "../../lib/tableSort";
 import {
-    BenchIcon, CheckIcon, ChevronLeftIcon, CircleIcon, CrestIcon, HourglassIcon, ListChecksIcon, RosterIcon, TentativeIcon, XIcon,
+    ArrowLeftIcon, BenchIcon, CheckIcon, CircleIcon, CrestIcon, HourglassIcon, ListChecksIcon, RosterIcon, TentativeIcon, XIcon,
 } from "../../components/icons";
-import { WowIcon } from "../../components/ui";
+import { WowIcon, buttonClass } from "../../components/ui";
 import { useT } from "../../i18n";
 import { ROLE_ICON } from "../../lib/raidplan/assign";
 import { roleLabel } from "../../lib/wowNames";
 import { classColor, classIconOf, className, dayOf, historyText, nameOf, playerName, specIconOf, specName, wishLabel } from "../../lib/kader/model";
-import { answerLabels, dayShort, isWeekdays, progress, statusOf } from "../../lib/kader/interview";
+import { dayShort, isAnswered, isWeekdays, progress, statusOf } from "../../lib/kader/interview";
+import { toneAttrs, toneOf } from "../../lib/kader/colors";
 import { useKader, type KaderSub } from "./kaderContext";
 
 /**
@@ -259,16 +263,61 @@ export function Grip() {
     );
 }
 
-/** The answer to a weekday question as seven squares. */
+/** The answer to a weekday question as seven squares, a picked day in its colour (the profile's weekday colours). */
 export function DaySquares({ question, value }: { question: KaderQuestion; value: KaderAnswer | undefined }) {
     const picked = Array.isArray(value) ? value : [];
     const on = question.options.filter((o) => picked.includes(o.id)).map((o) => dayShort(o.label));
     const label = on.length ? on.join(", ") : "—";
     return (
         <span className="kp-week" role="img" aria-label={label} data-tip={label}>
-            {question.options.map((o) => <i key={o.id} className={picked.includes(o.id) ? "on" : ""} />)}
+            {question.options.map((o) => <i key={o.id} className={picked.includes(o.id) ? "on" : ""} {...toneAttrs(toneOf(question, o.id))} />)}
         </span>
     );
+}
+
+/** One answer option as a tinted chip in its colour, the label always written (the colour only helps to see it). */
+export function AnswerChip({ question, optionId, label }: { question: KaderQuestion; optionId: string; label: string }) {
+    return <span className="kp-ochip" {...toneAttrs(toneOf(question, optionId))}><span>{label}</span></span>;
+}
+
+/**
+ * The answer to a question: the picked options as coloured chips (weekdays
+ * short, in their day colours), free text as plain text, "—" without one.
+ * `nowrap` keeps them on one line (a table cell; the full answer in its tooltip).
+ */
+export function AnswerChips({ question, value, nowrap = false }: { question: KaderQuestion; value: KaderAnswer | undefined; nowrap?: boolean }) {
+    if (!isAnswered(question, value)) return <span className="kp-muted">—</span>;
+    if (question.type === "text") return <span className="kp-answer-text">{String(value)}</span>;
+    const ids = Array.isArray(value) ? value : [value];
+    const days = isWeekdays(question);
+    return (
+        <span className={`kp-chips${nowrap ? " kp-nowrap" : ""}`}>
+            {question.options.filter((o) => ids.includes(o.id)).map((o) => (
+                <AnswerChip key={o.id} question={question} optionId={o.id} label={days ? dayShort(o.label) : o.label} />
+            ))}
+        </span>
+    );
+}
+
+/**
+ * A step back — "Zurück in den Pool", "Zurück in die Vorauswahl", "Zurück ins
+ * vorläufige Roster", "Zur Vorauswahl": always this one button, an arrow and
+ * the words on a tinted, outlined face in the back colour (--back-*,
+ * tokens.css; 4.5:1 in both themes), never a faint text link. A link when
+ * `to` is given (the head of a sub page).
+ */
+export function BackButton({ label, onClick, to, size = "md", disabled = false, wide = false }: {
+    label: string;
+    onClick?: () => void;
+    to?: string;
+    size?: "md" | "sm";
+    disabled?: boolean;
+    /** The full width of its block (the drawer's decision). */
+    wide?: boolean;
+}) {
+    const cls = buttonClass("ghost", size, true, `kp-backbtn${wide ? " kp-wide" : ""}`);
+    if (to) return <Link to={to} className={cls}><ArrowLeftIcon />{label}</Link>;
+    return <button type="button" className={cls} disabled={disabled} onClick={onClick}><ArrowLeftIcon />{label}</button>;
 }
 
 /** The head of a sub page (Fragen, Beispiel-Setups): back to its step, kicker and title, actions on the right. */
@@ -276,7 +325,7 @@ export function SubHead({ back, backLabel, kicker, title, children }: { back: Ka
     const { kader } = useKader();
     return (
         <div className="kp-subhead">
-            <Link to={`/kader/${kader.id}/${back}`} className="kp-back"><ChevronLeftIcon />{backLabel}</Link>
+            <BackButton to={`/kader/${kader.id}/${back}`} label={backLabel} />
             <span className="kp-vrule" aria-hidden="true" />
             <div className="kp-subhead-text">
                 <div className="kicker">{kicker}</div>
@@ -321,20 +370,19 @@ export function WishLines({ wishes }: { wishes: KaderWish[] }) {
     );
 }
 
-/** The answers of an interview as label and value; an open required question in the warning colour. */
+/** The answers of an interview as label and value (coloured chips, AnswerChips); an open required question in the warning colour. */
 export function AnswerLines({ entry, questions }: { entry: KaderEntry; questions: KaderQuestion[] }) {
     const t = useT();
     if (!questions.length) return null;
     return (
         <dl className="kp-answers">
             {questions.map((q) => {
-                const labels = answerLabels(q, entry.interview.answers[q.id]);
-                const text = isWeekdays(q) ? labels.map(dayShort).join(" · ") : labels.join(" · ");
+                const value = entry.interview.answers[q.id];
                 return (
                     <div key={q.id}>
                         <dt>{q.text}</dt>
-                        {labels.length
-                            ? <dd>{text}</dd>
+                        {isAnswered(q, value)
+                            ? <dd><AnswerChips question={q} value={value} /></dd>
                             : <dd className={q.required ? "kp-warntext" : "kp-muted"}>{q.required ? t("kader.interview.stillOpen") : "—"}</dd>}
                     </div>
                 );
@@ -357,5 +405,33 @@ export function HistoryLines({ entry, limit = 0 }: { entry: KaderEntry; limit?: 
                 </li>
             ))}
         </ul>
+    );
+}
+
+/** A line of a planner table that is no row of players (nobody found, an empty list): one cell over the whole width. */
+export function TableNote({ children }: { children: ReactNode }) {
+    return <div role="row" className="kp-tnote"><div role="cell">{children}</div></div>;
+}
+
+/**
+ * A column head of the planner's tables: the head is the sort button (the
+ * shared SortLabel — chevron, keyboard, active state), `aria-sort` tells a
+ * screen reader the order. `children` go below the label (the attendance
+ * column's category menu).
+ */
+export function SortHead<K extends string>({ sortKey, label, sort, tip, tipSub, className: extra = "", children }: {
+    sortKey: K;
+    label: string;
+    sort: Pick<TableSort<K>, "sort" | "dir" | "onSort">;
+    tip?: string;
+    tipSub?: string;
+    className?: string;
+    children?: ReactNode;
+}) {
+    return (
+        <span role="columnheader" aria-sort={ariaSort(sortKey, sort.sort, sort.dir)} className={`kp-th${extra ? ` ${extra}` : ""}`}>
+            <span className="kicker"><SortLabel sortKey={sortKey} label={label} sort={sort.sort} dir={sort.dir} onSort={sort.onSort} tip={tip} tipSub={tipSub} /></span>
+            {children}
+        </span>
     );
 }

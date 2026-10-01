@@ -14,16 +14,19 @@ import {
     type KaderAnswer, type KaderEntry, type KaderQuestion, type KaderWish,
 } from "../../api";
 import { Button, IconButton, Segment, buttonClass } from "../../components/ui";
-import { AlertIcon, BookIcon, CheckIcon, ChevronDownIcon, ChevronLeftIcon, CircleIcon, EditIcon, ListChecksIcon, PlusIcon, SaveIcon, XIcon } from "../../components/icons";
+import { AlertIcon, BookIcon, CheckIcon, ChevronDownIcon, CircleIcon, EditIcon, ListChecksIcon, PlusIcon, SaveIcon, XIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { roleLabel } from "../../lib/wowNames";
+import { toneAttrs, toneOf } from "../../lib/kader/colors";
 import { classDef, className, dayOf, mainPick, nameOf, playerName, specName, specRole, stampOf } from "../../lib/kader/model";
 import {
     dayShort, draftOf, isAnswered, isWeekdays, moveWish, patchOf, placeWish, progress, statusOf, toggleAnswer, type InterviewDraft,
 } from "../../lib/kader/interview";
-import { Count, DoneBadge, EmptyState, Grip, InterviewChip, PickIcon, PickLabel, PlayerName, ProgressRing, SelectionTabs, SpecIcon, SpecTag, StateSince } from "./parts";
+import {
+    BackButton, Count, DoneBadge, EmptyState, Grip, InterviewChip, PickIcon, PickLabel, PlayerName, ProgressRing, SelectionTabs, SpecIcon, SpecTag, StateSince,
+} from "./parts";
 import { useKader } from "./kaderContext";
 
 type Shown = "open" | "done" | "all";
@@ -145,7 +148,10 @@ function WishEditor({ wishes, prefill, locked, onChange }: { wishes: KaderWish[]
     );
 }
 
-/** One question of the Kader: pills for one answer, toggles (or seven day buttons) for several, a text field. */
+/**
+ * One question of the Kader: pills for one answer, toggles (or seven day buttons) for several, a text field.
+ * Every option carries its colour (lib/kader/colors.ts): the marker always, the picked pill tinted; a picked day in its day colour.
+ */
 function QuestionField({ q, value, onChange }: { q: KaderQuestion; value: KaderAnswer | undefined; onChange: (value: KaderAnswer) => void }) {
     const t = useT();
     const days = isWeekdays(q);
@@ -169,12 +175,12 @@ function QuestionField({ q, value, onChange }: { q: KaderQuestion; value: KaderA
                         const label = days ? dayShort(o.label) : o.label;
                         return q.type === "single" ? (
                             <button key={o.id} type="button" role="radio" aria-checked={on} aria-label={days ? o.label : undefined}
-                                className={`kp-pill${on ? " kp-on" : ""}`} onClick={() => onChange(toggleAnswer(q, value, o.id))}>
+                                className={`kp-pill${on ? " kp-on" : ""}`} {...toneAttrs(toneOf(q, o.id))} onClick={() => onChange(toggleAnswer(q, value, o.id))}>
                                 {!days && <span className="kp-radio" aria-hidden="true" />}{label}
                             </button>
                         ) : (
                             <button key={o.id} type="button" aria-pressed={on} aria-label={days ? o.label : undefined}
-                                className={`kp-pill${on ? " kp-on" : ""}`} onClick={() => onChange(toggleAnswer(q, value, o.id))}>
+                                className={`kp-pill${on ? " kp-on" : ""}`} {...toneAttrs(toneOf(q, o.id))} onClick={() => onChange(toggleAnswer(q, value, o.id))}>
                                 {!days && <span className="kp-box" aria-hidden="true" />}{label}
                             </button>
                         );
@@ -309,18 +315,18 @@ function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: 
                         : iv.updatedAt ? t("kader.interview.lastSaved", { by: nameOf(view, iv.updatedBy), at: stampOf(iv.updatedAt) })
                             : t("kader.interview.notSaved")}
                 </span>
-                {canWrite && entry.state === "selected" && (
-                    <button type="button" className="kp-link kp-quiet kp-withicon" onClick={() => void toPool()}><ChevronLeftIcon />{t("kader.interview.toPool")}</button>
-                )}
-                <span className="kp-grow" />
-                {canWrite && !done && !complete && <span className="kp-sub kp-warntext kp-withicon"><AlertIcon />{t("kader.interview.missing", { list: missing.join(", ") })}</span>}
-                {canWrite && done && <Button variant="ghost" icon={<EditIcon />} onClick={() => void run(reopenKaderInterview(kader.id, userId))}>{t("kader.interview.reopen")}</Button>}
-                {canWrite && !done && (
-                    <>
-                        <Button variant="ghost" icon={<SaveIcon />} onClick={() => void saveNext()}>{next ? t("kader.interview.saveNext") : t("common.save")}</Button>
-                        <Button icon={<CheckIcon />} disabled={!complete} onClick={() => void finish()}>{t("kader.interview.complete")}</Button>
-                    </>
-                )}
+                {canWrite && entry.state === "selected" && <BackButton label={t("kader.interview.toPool")} onClick={() => void toPool()} />}
+                {/* the way on stays on the right, also when the row wraps */}
+                <span className="kp-iv-foot-act">
+                    {canWrite && !done && !complete && <span className="kp-sub kp-warntext kp-withicon kp-wrap"><AlertIcon />{t("kader.interview.missing", { list: missing.join(", ") })}</span>}
+                    {canWrite && done && <Button variant="ghost" icon={<EditIcon />} onClick={() => void run(reopenKaderInterview(kader.id, userId))}>{t("kader.interview.reopen")}</Button>}
+                    {canWrite && !done && (
+                        <>
+                            <Button variant="ghost" icon={<SaveIcon />} onClick={() => void saveNext()}>{next ? t("kader.interview.saveNext") : t("common.save")}</Button>
+                            <Button icon={<CheckIcon />} disabled={!complete} onClick={() => void finish()}>{t("kader.interview.complete")}</Button>
+                        </>
+                    )}
+                </span>
             </div>
         </section>
     );

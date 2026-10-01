@@ -1,10 +1,12 @@
 // The Kaderplaner's pure helpers (docs/kaderplaner.md): class and spec labels
 // and icons, the states of a Kader and who stands in which, the character a
-// player is prefilled with. Everything the server already decided (the
-// effective character, what deviates from the profile, the prefill source)
-// comes with the view model; this only names, counts and sorts.
+// player is prefilled with, the attendance over the Kader's raid categories.
+// Everything the server already decided (the effective character, what
+// deviates from the profile, the prefill source, the nights per category)
+// comes with the view model; this only names, counts, sums and sorts.
 import type {
-    KaderCharacter, KaderClassDef, KaderData, KaderEntry, KaderHistoryItem, KaderPlayer, KaderRole, KaderState, KaderView, KaderWish,
+    KaderCharacter, KaderClassDef, KaderData, KaderDiscordRole, KaderEntry, KaderHistoryItem, KaderNight, KaderPlayer, KaderRaidCategory, KaderRole,
+    KaderState, KaderView, KaderWish,
 } from "../../api";
 import { classLabel, specLabel } from "../wowNames";
 import { classIconName } from "../rosterView";
@@ -161,17 +163,71 @@ export function entriesIn(kader: KaderData, states: KaderState[]): [string, Kade
     return Object.entries(kader.players).filter(([, e]) => states.includes(e.state));
 }
 
-/** The best attendance known: the planner's version, else the main version (with its label). */
-export function attendanceOf(view: KaderView, player: KaderPlayer | undefined): { pct: number; version: string } | null {
-    if (!player) return null;
-    if (player.attendance) return { pct: player.attendance.pct, version: "" };
-    if (player.attendanceMain) return { pct: player.attendanceMain.pct, version: view.mainVersion.label };
-    return null;
+/** One raid category's share of a player's attendance ("Mo Raid 9/11"). */
+export type AttendancePart = { id: string; name: string; attended: number; counted: number };
+/** A player's attendance summed over the Kader's raid categories, with every counted night (newest first). */
+export type AttendanceSum = { attended: number; counted: number; pct: number; parts: AttendancePart[]; nights: (KaderNight & { category: string })[] };
+
+/** Whether the server's raid categories play more than one game version — then each names its version. */
+export function versionsDiffer(view: KaderView): boolean {
+    return new Set(view.raidCategories.map((c) => c.versionId)).size > 1;
+}
+
+/** "Mo Raid", or "Mo Raid · TBC" while the categories play different versions. */
+export function categoryLabel(view: KaderView, category: KaderRaidCategory): string {
+    return versionsDiffer(view) && category.versionLabel ? `${category.name} · ${category.versionLabel}` : category.name;
+}
+
+/** The raid categories a Kader's attendance counts in, in the server's order; an id the server no longer knows is left out. */
+export function attendanceCategoriesOf(view: KaderView, kader: KaderData): KaderRaidCategory[] {
+    const picked = new Set(kader.attendanceCategories || []);
+    return view.raidCategories.filter((c) => picked.has(c.id));
+}
+
+/** A pick of raid categories with `id` switched on or off, in the server's order; ids the server no longer knows drop out. */
+export function togglePick(view: KaderView, ids: string[] | undefined, id: string): string[] {
+    const list = ids || [];
+    const next = list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+    return view.raidCategories.map((c) => c.id).filter((x) => next.includes(x));
+}
+
+/**
+ * A player's attendance over the Kader's raid categories: attended and counted
+ * nights summed, the percent, each category's share and the nights, newest
+ * first. Null while the Kader has picked no category, or none of its categories
+ * counted a night for the player — the page shows "—" then.
+ */
+export function attendanceOf(view: KaderView, kader: KaderData, player: KaderPlayer | undefined): AttendanceSum | null {
+    if (!player || !player.attendance) return null;
+    const parts: AttendancePart[] = [];
+    const nights: AttendanceSum["nights"] = [];
+    for (const c of attendanceCategoriesOf(view, kader)) {
+        const a = player.attendance[c.id];
+        if (!a || !a.counted) continue;
+        const name = categoryLabel(view, c);
+        parts.push({ id: c.id, name, attended: a.attended, counted: a.counted });
+        for (const n of a.nights) nights.push({ ...n, category: name });
+    }
+    const counted = parts.reduce((sum, p) => sum + p.counted, 0);
+    if (!counted) return null;
+    const attended = parts.reduce((sum, p) => sum + p.attended, 0);
+    nights.sort((a, b) => b.date.localeCompare(a.date));
+    return { attended, counted, pct: Math.round((attended / counted) * 100), parts, nights };
 }
 
 /** "83 %" or "—" while nothing is counted. */
 export function attText(att: { pct: number } | null): string {
     return att ? `${att.pct} %` : "—";
+}
+
+/** Each category's share: "Mo Raid 9/11 · Do Raid 7/10" ("" without attendance). */
+export function attPartsText(att: AttendanceSum | null): string {
+    return att ? att.parts.map((p) => `${p.name} ${p.attended}/${p.counted}`).join(" · ") : "";
+}
+
+/** The Discord roles a player holds that the server lists, in the order the player's roles come. */
+export function rolesOf(view: KaderView, player: KaderPlayer | undefined): KaderDiscordRole[] {
+    return (player ? player.roleIds : []).map((id) => view.discordRoles.find((r) => r.id === id)).filter((r): r is KaderDiscordRole => !!r);
 }
 
 /** Name, Discord name, characters, the prefilled character and the wishes — what a search looks through. */

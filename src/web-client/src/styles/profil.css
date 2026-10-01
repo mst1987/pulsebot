@@ -101,15 +101,10 @@
 .pf-raid.is-on, .pf-class.is-on { background: var(--area-profile-soft); border-color: var(--area-profile); color: var(--text); }
 
 /* Every weekday its own colour, so the week reads at a glance — in the buttons
-   and in the folded summary alike. --day-ink is the text tone: the colour
-   itself on dark, a darker shade of it on light. */
-[data-day="mo"] { --day: var(--day-mo); --day-dark: var(--day-mo-dark); }
-[data-day="di"] { --day: var(--day-di); --day-dark: var(--day-di-dark); }
-[data-day="mi"] { --day: var(--day-mi); --day-dark: var(--day-mi-dark); }
-[data-day="do"] { --day: var(--day-do); --day-dark: var(--day-do-dark); }
-[data-day="fr"] { --day: var(--day-fr); --day-dark: var(--day-fr-dark); }
-[data-day="sa"] { --day: var(--day-sa); --day-dark: var(--day-sa-dark); }
-[data-day="so"] { --day: var(--day-so); --day-dark: var(--day-so-dark); }
+   and in the folded summary alike ([data-day] gives --day and --day-dark, in
+   shared.css: the Kaderplaner colours its weekday answers the same way).
+   --day-ink is the text tone: the colour itself on dark, a darker shade of it
+   on light. */
 .pf-day, .pf-day-tag { --day-ink: var(--day); }
 @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) .pf-day, :root:not([data-theme="dark"]) .pf-day-tag { --day-ink: var(--day-dark); }

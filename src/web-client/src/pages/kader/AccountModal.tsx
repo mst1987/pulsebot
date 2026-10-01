@@ -1,10 +1,11 @@
 // One Discord account in the Kaderplaner (a click on a name opens it): its
 // Forever characters as the planner sees them (a Forever name or a nickname,
 // class, specs with one main spec, gear, tank/heal) on the left, what
-// EventHelper knows on the right — read only. The character data belongs to the
-// server, not to one Kader; the planner's assignment wins inside the planner and
-// is never written back to the raider profile. Where the account stands in the
-// open Kader shows on top.
+// EventHelper knows on the right — read only, with the attendance over the
+// open Kader's raid categories. The character data belongs to the server, not
+// to one Kader; the planner's assignment wins inside the planner and is never
+// written back to the raider profile. Where the account stands in the open
+// Kader shows on top.
 import { useMemo, useState, type CSSProperties } from "react";
 import { removeKaderAccount, resetKaderAssignment, saveKaderAssignment, type KaderCharacterInput, type KaderDay, type KaderGear, type KaderNameStyle, type KaderPlayer } from "../../api";
 import { Badge, Button, Field, Modal, Segment } from "../../components/ui";
@@ -12,10 +13,10 @@ import { RefreshIcon, SaveIcon, TrashIcon } from "../../components/icons";
 import { useConfirm } from "../../components/ui/Modal";
 import { useT } from "../../i18n";
 import { roleLabel } from "../../lib/wowNames";
-import { formatDayMonth } from "../../lib/format";
 import { className, classDef, specName } from "../../lib/kader/model";
 import { inferNameStyle, nameOk, splitName, switchNameStyle } from "../../lib/kader/names";
 import { useKader } from "./kaderContext";
+import { AttendanceNights } from "./Attendance";
 import { ClassIcon, RoleIcon, SinceText, SpecIcon, StateBadge } from "./parts";
 
 const DAYS: KaderDay[] = ["mo", "di", "mi", "do", "fr", "sa", "so"];
@@ -43,28 +44,13 @@ function draftOf(player: KaderPlayer): { chars: KaderCharacterInput[]; active: s
 function ProfilePanel({ player }: { player: KaderPlayer }) {
     const t = useT();
     const { view } = useKader();
-    const att = player.attendance;
-    const missed = att ? att.nights.filter((n) => !n.attended).length : 0;
     const days = DAYS.filter((d) => player.availability.includes(d)).map((d) => t(`kader.day.${d}`));
     const p = player.profile;
     return (
         <aside className="kp-profile">
             <span className="kicker kp-accent2">{t("kader.account.fromProfile")}</span>
             {!player.hasProfile && <p className="kp-hint">{t("kader.account.noProfile")}</p>}
-            {player.hasProfile && !att && <p className="kp-hint">{t("kader.account.noNights")}</p>}
-            {att && (
-                <div className="kp-attblock">
-                    <div className="kp-between"><span className="kp-muted">{t("kader.account.attendance")}</span><span className="kp-big kp-mono">{att.pct} %</span></div>
-                    <div className="kp-nights">
-                        {att.nights.map((n, i) => (
-                            <i key={`${n.date}-${i}`} className={n.attended ? "on" : "off"}
-                                data-tip={`${n.date ? formatDayMonth(Date.parse(`${n.date}T12:00:00Z`)) : ""} · ${n.title}`}
-                                data-tip-sub={n.attended ? t("kader.account.there") : (n.reason || t("kader.account.missed"))} />
-                        ))}
-                    </div>
-                    <span className="kp-sub">{t("kader.account.nights", { n: att.counted, there: att.attended, missed })}</span>
-                </div>
-            )}
+            <AttendanceNights player={player} />
             <dl className="kp-facts">
                 <div><dt>{t("kader.account.profileSays")}</dt><dd>{p ? `${p.character} · ${className(view.classes, p.className)} · ${specName(view.classes, p.mainSpec) || t("kader.player.noSpec")}` : "–"}</dd></div>
                 <div><dt>{t("kader.account.logs")}</dt><dd>{p && p.logSpecs.length ? p.logSpecs.map((s) => specName(view.classes, s)).join(", ") : "–"}</dd></div>

@@ -2,9 +2,14 @@
 // stands where, who is still without a group, the buff hints of a group and the
 // text for Discord. A 10er shows groups 1–2; whoever stands in 3–4 counts as
 // unplaced until it is a 20er again. Pure.
-import type { KaderClassDef, KaderData, KaderEntry, KaderPartyBuff, KaderRole, KaderSlot, KaderState, KaderVariant, KaderView } from "../../api";
-import { t } from "../../i18n";
+import type { KaderClassDef, KaderData, KaderEntry, KaderPartyBuff, KaderRaidBuff, KaderRole, KaderSlot, KaderState, KaderVariant, KaderView } from "../../api";
+import { getLang, t } from "../../i18n";
 import { className, playerName, specName, specRole } from "./model";
+
+/** A buff's name in the menu language: the rule set's English name, else its German one. */
+export function buffLabel(buff: KaderRaidBuff): string {
+    return getLang() === "en" && buff.labelEn ? buff.labelEn : buff.label;
+}
 
 export const GROUP_SIZE = 5;
 export type Groups = KaderSlot[][];
@@ -92,8 +97,8 @@ export function groupHints(slots: KaderSlot[], party: KaderPartyBuff[]): Hint[] 
     for (const buff of party) {
         const provided = specs.some((s) => buff.providers.includes(s));
         const wanting = specs.filter((s) => buff.beneficiaries.includes(s)).length;
-        if (provided) out.push({ key: buff.key, label: buff.label, ok: true, important: buff.important });
-        else if (buff.important && wanting >= 2) out.push({ key: buff.key, label: buff.label, ok: false, important: true });
+        if (provided) out.push({ key: buff.key, label: buffLabel(buff), ok: true, important: buff.important });
+        else if (buff.important && wanting >= 2) out.push({ key: buff.key, label: buffLabel(buff), ok: false, important: true });
     }
     return out;
 }

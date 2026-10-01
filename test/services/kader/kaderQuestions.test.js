@@ -61,6 +61,36 @@ describe("services/kader/kaderQuestions", () => {
         expect(refusal(() => questions.updateQuestion(text, { kaderId, questionId: vq.id, type: "single" })).message).toMatch(/mindestens eine/);
     });
 
+    it("keeps an option's colour from the palette through renaming and reordering, refuses an unknown one", () => {
+        const { planner, kaderId, vq } = setup();
+        const [immer, selten] = vq.options;
+        // no colour yet: the page picks one by position
+        expect(immer.color).toBeUndefined();
+        let p = questions.updateQuestion(planner, { kaderId, questionId: vq.id, options: [{ id: immer.id, label: "Immer", color: "teal" }, { id: selten.id, label: "Selten" }] });
+        expect(p.kaders[0].questions[1].options.map((o) => o.color)).toEqual(["teal", undefined]);
+        // renamed and moved, sent without a colour: the colour stays
+        p = questions.updateQuestion(p, { kaderId, questionId: vq.id, options: [{ id: selten.id, label: "Selten" }, { id: immer.id, label: "Fast immer" }] });
+        expect(p.kaders[0].questions[1].options.map((o) => [o.label, o.color])).toEqual([["Selten", undefined], ["Fast immer", "teal"]]);
+        // "" resets to automatic
+        p = questions.updateQuestion(p, { kaderId, questionId: vq.id, options: [{ id: selten.id, label: "Selten" }, { id: immer.id, label: "Fast immer", color: "" }] });
+        expect(p.kaders[0].questions[1].options[1].color).toBeUndefined();
+        // every colour of the palette goes, anything else is a 400
+        for (const color of model.OPTION_COLORS) {
+            const q = questions.addQuestion(planner, { kaderId, text: `F ${color}`, type: "single", options: [{ label: "a", color }] });
+            expect(q.planner.kaders[0].questions[2].options[0].color).toBe(color);
+        }
+        const bad = refusal(() => questions.addQuestion(planner, { kaderId, text: "Bunt", type: "single", options: [{ label: "a", color: "#ff0000" }] }));
+        expect(bad.status).toBe(400);
+        expect(bad.message).toMatch(/Farbe/);
+        // a stored colour the palette no longer knows is dropped on read
+        expect(model.normalizeQuestion({ id: "q", text: "x", type: "single", options: [{ id: "o", label: "a", color: "pink" }] }).options[0]).toEqual({ id: "o", label: "a" });
+        // copies carry the colours
+        const other = model.createKader(p, { name: "Zweiter" }, ctx);
+        const copied = questions.copyQuestions(other.planner, { kaderId: other.kaderId, fromKaderId: kaderId });
+        const target = copied.planner.kaders.find((k) => k.id === other.kaderId);
+        expect(target.questions[1].options.map((o) => o.label)).toEqual(["Selten", "Fast immer"]);
+    });
+
     it("deletes a question with its answers", () => {
         const { planner, kaderId, dq, vq } = setup();
         const p = questions.deleteQuestion(planner, { kaderId, questionId: dq.id });

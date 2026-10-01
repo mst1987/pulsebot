@@ -89,6 +89,15 @@ describe("services/kader/kaderSetups", () => {
         expect(refusal(() => setups.autoVariant(p, { kaderId, variantId, sources: ["pool"] }, ctx)).status).toBe(400);
     });
 
+    it("asks for attendance over the Kader's own raid categories", () => {
+        const { planner, kaderId, variantId } = setup();
+        planner.kaders[0].attendanceCategories = ["c-mo", "c-do"];
+        const asked = [];
+        setups.autoVariant(planner, { kaderId, variantId }, { ...ctx, rateOf: (userId, categoryIds) => { asked.push([userId, categoryIds]); return 0.5; } });
+        expect(asked.length).toBeGreaterThan(0);
+        for (const [, ids] of asked) expect(ids).toEqual(["c-mo", "c-do"]);
+    });
+
     it("knows the specs a player can stand for", () => {
         const { planner } = setup();
         const a = planner.kaders[0].players[U.a];

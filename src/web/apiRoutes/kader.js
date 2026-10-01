@@ -20,7 +20,7 @@ const model = require("../../services/kader/kaderModel");
 const players = require("../../services/kader/kaderPlayers");
 const questions = require("../../services/kader/kaderQuestions");
 const setups = require("../../services/kader/kaderSetups");
-const { loadKaderSource, loadKaderRules } = require("../kader/kaderSource");
+const { loadKaderSource, loadKaderRules, listRaidCategories } = require("../kader/kaderSource");
 const { buildKaderView, kaderPayload, mutationContext, lightContext } = require("../kader/kaderView");
 
 const str = (body, key) => q.str(body, key);
@@ -58,9 +58,11 @@ function fullWrite(mutate) {
 /**
  * A change inside one Kader: only the rule set is needed (class and spec keys),
  * unless `source` asks for the bot's data too (attendance for "Automatisch
- * verteilen"). The reply is the Kader as stored and the summaries of all.
+ * verteilen") or `categories` for the server's raid categories (the Kader's
+ * attendance pick is checked against them). The reply is the Kader as stored
+ * and the summaries of all.
  */
-function kaderWrite(mutate, { source: withSource = false } = {}) {
+function kaderWrite(mutate, { source: withSource = false, categories = false } = {}) {
     return withUser(WRITE, async ({ req, res, body, user }) => {
         const guildId = activeGuildFor(req);
         const source = withSource ? await loadKaderSource({ guildId }) : null;
@@ -68,6 +70,7 @@ function kaderWrite(mutate, { source: withSource = false } = {}) {
         const ctx = source
             ? mutationContext({ source, planner, actor: user.id })
             : lightContext({ rules: loadKaderRules(), actor: user.id });
+        if (categories && !source) ctx.raidCategoryIds = new Set(listRaidCategories(guildId).map((c) => c.id));
         const { planner: next, ...extra } = unpack(mutate(planner, body, ctx));
         const stored = kaderStore.writePlanner(guildId, next);
         ok(res, { ...kaderPayload(stored, str(body, "kaderId") || extra.kaderId || ""), ...extra });
@@ -77,8 +80,11 @@ function kaderWrite(mutate, { source: withSource = false } = {}) {
 // ------------------------------------------------------------ Kader
 /** POST /api/kader/kaders — body: { name }; the creator becomes its lead. Answers `kaderId`. */
 const createKader = kaderWrite((p, body, ctx) => model.createKader(p, body, ctx));
-/** PUT /api/kader/kaders — body: { kaderId, name?, leads? } */
-const updateKader = kaderWrite((p, body, ctx) => model.updateKader(p, body, ctx));
+/**
+ * PUT /api/kader/kaders — body: { kaderId, name?, leads?, attendanceCategories? }; a
+ * category the server does not know as a raid category is left out.
+ */
+const updateKader = kaderWrite((p, body, ctx) => model.updateKader(p, body, ctx), { categories: true });
 /** POST /api/kader/kaders/delete — body: { kaderId } — with everything in it. */
 const deleteKader = kaderWrite((p, body) => model.deleteKader(p, str(body, "kaderId")));
 
@@ -107,9 +113,9 @@ const addComment = kaderWrite((p, body, ctx) => players.addComment(p, body, ctx)
 const deleteComment = kaderWrite((p, body, ctx) => players.deleteComment(p, body, ctx));
 
 // --------------------------------------------------------- questions
-/** POST /api/kader/questions — body: { kaderId, text, type, options: [{ label }], required } */
+/** POST /api/kader/questions — body: { kaderId, text, type, options: [{ label, color? }], required } */
 const addQuestion = kaderWrite((p, body) => questions.addQuestion(p, body));
-/** PUT /api/kader/questions — body: { kaderId, questionId, text?, type?, options?: [{ id?, label }], required? } */
+/** PUT /api/kader/questions — body: { kaderId, questionId, text?, type?, options?: [{ id?, label, color? }], required? } */
 const updateQuestion = kaderWrite((p, body) => questions.updateQuestion(p, body));
 /** POST /api/kader/questions/delete — body: { kaderId, questionId } — its answers go with it. */
 const deleteQuestion = kaderWrite((p, body) => questions.deleteQuestion(p, body));

@@ -37,6 +37,17 @@ export function belowEndPosition(anchor: Rect, viewport: Size, gap = 6): { top: 
 }
 
 /**
+ * A menu under its button, left edges aligned (a button at the start of a row
+ * or cell), kept inside the viewport; above the button when there is no room
+ * below and enough above.
+ */
+export function belowStartPosition(anchor: Rect, box: Size, viewport: Size, gap = 6): { left: number; top: number } {
+    const left = Math.max(VIEWPORT_MARGIN, Math.min(anchor.left, viewport.width - box.width - VIEWPORT_MARGIN));
+    const fitsBelow = viewport.height - anchor.bottom - VIEWPORT_MARGIN >= box.height + gap;
+    return { left, top: fitsBelow || anchor.top < box.height + gap ? anchor.bottom + gap : anchor.top - box.height - gap };
+}
+
+/**
  * A hover panel of a fixed width: its right edge on the anchor's, below the
  * anchor, flipped above it when there is more room up there and not enough
  * below; its height is capped to the room it has.
@@ -59,6 +70,11 @@ export function tipPlacement(gap = 9): Placement {
 /** Placement: a menu under its button, right-aligned (see belowEndPosition). */
 export function belowEndPlacement(gap = 6): Placement {
     return (anchor, _box, viewport) => (anchor ? belowEndPosition(anchor, viewport, gap) : {});
+}
+
+/** Placement: a menu under its button, left-aligned, flipped above when it must (see belowStartPosition). */
+export function belowStartPlacement(gap = 6): Placement {
+    return (anchor, box, viewport) => (anchor ? belowStartPosition(anchor, box, viewport, gap) : {});
 }
 
 /** Placement: a hover panel of a fixed width (see panelPosition). */

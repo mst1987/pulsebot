@@ -1,8 +1,10 @@
 // Step 1 · Pool (/kader/<id>/pool): everybody taken into this Kader, with the
 // character they are prefilled with (spec icon plus class, where it comes from),
-// their Discord roles and attendance. Per player the switch "Zur Auswahl" moves
-// them between pool and Vorauswahl; somebody further along shows their state
-// instead. Marked rows go at once. New players come from Discord roles
+// their Discord roles and their attendance over the raid categories the Kader
+// counts (picked in the head of that column, Attendance.tsx). Every column
+// head sorts, the order is remembered. Per player the switch "Zur Auswahl"
+// moves them between pool and Vorauswahl; somebody further along shows their
+// state instead. Marked rows go at once. New players come from Discord roles
 // (ImportModal) or by id.
 import { useMemo, useState } from "react";
 import { removeKaderPlayers, setKaderState, type KaderEntry, type KaderState } from "../../api";
@@ -10,14 +12,17 @@ import { Button, Segment } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
 import { useToast } from "../../components/Jobs";
 import { HoverPanel } from "../../components/HoverPanel";
-import { ChevronLeftIcon, ListChecksIcon, RecruitmentIcon, RosterIcon, SearchIcon, TrashIcon } from "../../components/icons";
+import { AlertIcon, ListChecksIcon, PlusIcon, RecruitmentIcon, RosterIcon, SearchIcon, TrashIcon } from "../../components/icons";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
-import { attText, attendanceOf, className, dayOf, mainPick, playerName, searchText } from "../../lib/kader/model";
+import { useTableSort } from "../../lib/tableSort";
+import { attendanceCategoriesOf, className, dayOf, mainPick, playerName, rolesOf, searchText } from "../../lib/kader/model";
+import { POOL_SORT, poolParts, sortTable, type PoolSortKey } from "../../lib/kader/sort";
 import { cleanState, passes, type FilterDef, type FilterState } from "../../lib/kader/filters";
 import { FilterChips, FilterMenus } from "./FilterMenus";
 import { BatchBar } from "./BatchBar";
-import { EmptyState, PlayerName, SinceText, SourceBadge, SpecTag, StateBadge, Switch } from "./parts";
+import { AttendanceSource, AttendanceValue } from "./Attendance";
+import { BackButton, EmptyState, PlayerName, SinceText, SortHead, SourceBadge, SpecTag, StateBadge, Switch, TableNote } from "./parts";
 import { useKader } from "./kaderContext";
 
 type Scope = "all" | "pool" | "selected";
@@ -29,7 +34,6 @@ function PlayerPeek({ userId, entry }: Row) {
     const t = useT();
     const { view, players } = useKader();
     const p = players.get(userId);
-    const att = attendanceOf(view, p);
     return (
         <HoverPanel className="kp-plain" trigger={<PlayerName userId={userId} entry={entry} className="kp-rowname" />} head={t("kader.pool.peekHead", { name: playerName(view, userId, entry) })} width={320}>
             <div className="kp-peek">
@@ -45,7 +49,7 @@ function PlayerPeek({ userId, entry }: Row) {
                     </div>
                 ) : <span className="kp-hint">{t("kader.pool.noChars")}</span>}
                 <div className="kp-peek-rule" />
-                <div className="kp-between"><span className="kp-muted">{att && att.version ? t("kader.pool.attendanceOf", { version: att.version }) : t("kader.pool.attendance")}</span><span className="kp-mono">{attText(att)}</span></div>
+                <div className="kp-between"><span className="kp-muted">{t("kader.pool.attendance")}</span><AttendanceValue userId={userId} /></div>
                 <div className="kp-between"><span className="kp-muted">{t("kader.pool.inKaderSince")}</span><span>{dayOf(entry.addedAt) || "—"}</span></div>
                 <div className="kp-sub"><StateBadge state={entry.state} /> <SinceText entry={entry} /></div>
             </div>
@@ -58,30 +62,31 @@ function PoolRow({ row, marked, onMark }: { row: Row; marked: boolean; onMark: (
     const { view, kader, players, canWrite, run } = useKader();
     const { userId, entry } = row;
     const p = players.get(userId);
-    const att = attendanceOf(view, p);
     const pick = p && p.prefill ? { className: p.prefill.className, spec: p.prefill.spec } : null;
-    const roles = (p ? p.roleIds : []).map((id) => view.discordRoles.find((r) => r.id === id)).filter((r): r is NonNullable<typeof r> => !!r);
+    const roles = rolesOf(view, p);
     const name = playerName(view, userId, entry);
     return (
-        <div className={`kp-trow kp-pool-grid${marked ? " kp-marked" : ""}`}>
-            <input type="checkbox" checked={marked} disabled={!canWrite} aria-label={t("kader.batch.mark", { name })} onChange={(e) => onMark(e.target.checked)} />
-            <span className="kp-cell-name">
+        <div className={`kp-trow kp-pool-grid${marked ? " kp-marked" : ""}`} role="row">
+            <span role="cell" className="kp-cell-mark">
+                <input type="checkbox" checked={marked} disabled={!canWrite} aria-label={t("kader.batch.mark", { name })} onChange={(e) => onMark(e.target.checked)} />
+            </span>
+            <span role="cell" className="kp-cell-name">
                 <PlayerPeek userId={userId} entry={entry} />
                 {p && !p.onServer && <span className="kp-sub">{t("kader.pool.notOnServer")}</span>}
             </span>
-            <span className="kp-cell-stack">
+            <span role="cell" className="kp-cell-stack">
                 <span className="kp-cell-char">
                     {pick ? <SpecTag pick={pick} size={22} /> : <span className="kp-warntext">{t("kader.pool.noData")}</span>}
                     <SourceBadge prefill={p ? p.prefill : null} />
                 </span>
                 {p && p.prefill && <span className="kp-sub">{p.prefill.name}</span>}
             </span>
-            <span className="kp-cell-roles">
+            <span role="cell" className="kp-cell-roles">
                 {roles.slice(0, 2).map((r) => <span key={r.id} className="kp-rolechip">{r.name}</span>)}
                 {roles.length > 2 && <span className="kp-rolechip" data-tip={roles.slice(2).map((r) => r.name).join(", ")}>+{roles.length - 2}</span>}
             </span>
-            <span className="kp-mono" data-tip={att && att.version ? t("kader.pool.attendanceOf", { version: att.version }) : t("kader.pool.attendance")}>{attText(att)}</span>
-            <span>
+            <span role="cell"><AttendanceValue userId={userId} /></span>
+            <span role="cell">
                 {entry.state === "pool" || entry.state === "selected" ? (
                     <Switch on={entry.state === "selected"} label={t("kader.pool.toSelection", { name })} disabled={!canWrite}
                         onChange={(on) => void run(setKaderState(kader.id, [userId], on ? "selected" : "pool"))} />
@@ -100,10 +105,9 @@ export default function PoolView() {
     const [scope, setScope] = usePersistedState<Scope>("kader-pool-scope", "all");
     const [rawFilters, setFilters] = usePersistedState<FilterState>("kader-pool-filters", {});
     const [marked, setMarked] = useState<string[]>([]);
+    const sort = useTableSort<PoolSortKey>("kader-pool-sort", POOL_SORT, "name");
 
-    const rows: Row[] = useMemo(() => Object.entries(kader.players)
-        .map(([userId, entry]) => ({ userId, entry }))
-        .sort((a, b) => playerName(view, a.userId, a.entry).localeCompare(playerName(view, b.userId, b.entry))), [view, kader]);
+    const rows: Row[] = useMemo(() => Object.entries(kader.players).map(([userId, entry]) => ({ userId, entry })), [kader]);
 
     const defs = useMemo<FilterDef<Row>[]>(() => {
         const held = new Set(rows.flatMap((r) => (players.get(r.userId) || { roleIds: [] as string[] }).roleIds));
@@ -131,7 +135,12 @@ export default function PoolView() {
 
     const inScope = (r: Row) => scope === "all" || r.entry.state === scope;
     const needle = q.trim().toLowerCase();
-    const shown = rows.filter((r) => inScope(r) && passes(r, defs, filters) && (!needle || searchText(view, r.userId, r.entry).includes(needle)));
+    const shown = sortTable(
+        rows.filter((r) => inScope(r) && passes(r, defs, filters) && (!needle || searchText(view, r.userId, r.entry).includes(needle))),
+        (r) => playerName(view, r.userId, r.entry),
+        poolParts({ view, kader, players }, sort.sort),
+        sort.dir,
+    );
     const count = (s: Scope) => rows.filter((r) => s === "all" || r.entry.state === s).length;
     const markedRows = rows.filter((r) => marked.includes(r.userId));
 
@@ -171,7 +180,7 @@ export default function PoolView() {
                 <span className="kp-grow" />
                 {canWrite && (
                     <span className="kp-actions">
-                        <button type="button" className="kp-link" onClick={() => open({ type: "addById" })}>{t("kader.pool.byId")}</button>
+                        <Button variant="ghost" icon={<PlusIcon />} onClick={() => open({ type: "addById" })}>{t("kader.pool.byId")}</Button>
                         {importButton}
                     </span>
                 )}
@@ -181,19 +190,34 @@ export default function PoolView() {
                 <span className="kp-muted"><b className="kp-mono kp-big-n">{shown.length}</b> {t("kader.pool.ofTotal", { count: rows.length })}</span>
                 <FilterChips defs={defs} state={filters} onChange={setFilters} />
             </div>
-            <div className="kp-panel kp-table kp-scroll-x">
-                <div className="kp-trow kp-thead kp-pool-grid">
-                    <input type="checkbox" aria-label={t("kader.batch.markAll")} disabled={!canWrite || !shown.length}
-                        checked={shown.length > 0 && shown.every((r) => marked.includes(r.userId))} onChange={(e) => toggleAll(e.target.checked)} />
-                    <span className="kicker">{t("kader.pool.colPlayer")}</span>
-                    <span className="kicker">{t("kader.pool.colChar")}</span>
-                    <span className="kicker">{t("kader.pool.colRoles")}</span>
-                    <span className="kicker">{t("kader.pool.colAttendance")}</span>
-                    <span className="kicker">{t("kader.pool.colSelection")}</span>
+            {/* no silent fallback: without a pick the attendance says so above the table */}
+            {!attendanceCategoriesOf(view, kader).length && view.raidCategories.length > 0 && (
+                <p className="kp-attnote" role="note">
+                    <AlertIcon />
+                    <span><b>{t("kader.att.noneTip")}.</b> {t(canWrite ? "kader.att.noneSub" : "kader.att.noneSubRead")}</span>
+                </p>
+            )}
+            <div className="kp-panel kp-table kp-scroll-x kp-pool-table" role="table" aria-label={t("kader.pool.tableLabel", { name: kader.name })}>
+                <div className="kp-trow kp-thead kp-pool-grid" role="row">
+                    <span role="columnheader" className="kp-cell-mark">
+                        <input type="checkbox" aria-label={t("kader.batch.markAll")} disabled={!canWrite || !shown.length}
+                            checked={shown.length > 0 && shown.every((r) => marked.includes(r.userId))} onChange={(e) => toggleAll(e.target.checked)} />
+                    </span>
+                    <SortHead sortKey="name" label={t("kader.pool.colPlayer")} sort={sort} />
+                    <SortHead sortKey="char" label={t("kader.pool.colChar")} sort={sort} tip={t("kader.pool.colChar")} tipSub={t("kader.sort.charSub")} />
+                    <SortHead sortKey="roles" label={t("kader.pool.colRoles")} sort={sort} tip={t("kader.pool.colRoles")} tipSub={t("kader.sort.rolesSub")} />
+                    <SortHead sortKey="attendance" label={t("kader.pool.colAttendance")} sort={sort} tip={t("kader.pool.colAttendance")} tipSub={t("kader.sort.attendanceSub")} className="kp-th-att">
+                        <AttendanceSource />
+                    </SortHead>
+                    <SortHead sortKey="state" label={t("kader.pool.colSelection")} sort={sort} tip={t("kader.pool.colSelection")} tipSub={t("kader.sort.stateSub")} />
                 </div>
-                {shown.length === 0 && (rows.length
-                    ? <EmptyState icon={<SearchIcon />} text={t("kader.pool.none")} />
-                    : <EmptyState icon={<RosterIcon />} text={t("kader.pool.emptyKader")}>{canWrite && importButton}</EmptyState>)}
+                {shown.length === 0 && (
+                    <TableNote>
+                        {rows.length
+                            ? <EmptyState icon={<SearchIcon />} text={t("kader.pool.none")} />
+                            : <EmptyState icon={<RosterIcon />} text={t("kader.pool.emptyKader")}>{canWrite && importButton}</EmptyState>}
+                    </TableNote>
+                )}
                 {shown.map((r) => (
                     <PoolRow key={r.userId} row={r} marked={marked.includes(r.userId)}
                         onMark={(on) => setMarked(on ? [...marked, r.userId] : marked.filter((id) => id !== r.userId))} />
@@ -201,7 +225,7 @@ export default function PoolView() {
             </div>
             <BatchBar count={markedRows.length} onClear={() => setMarked([])}>
                 <Button size="sm" icon={<ListChecksIcon />} onClick={() => void moveMarked("selected")}>{t("kader.pool.batchSelect")}</Button>
-                <Button size="sm" variant="ghost" icon={<ChevronLeftIcon />} onClick={() => void moveMarked("pool")}>{t("kader.pool.batchUnselect")}</Button>
+                <BackButton size="sm" label={t("kader.pool.batchUnselect")} onClick={() => void moveMarked("pool")} />
                 <Button size="sm" variant="danger" icon={<TrashIcon />} onClick={() => void removeMarked()}>{t("kader.pool.remove")}</Button>
             </BatchBar>
         </div>
