@@ -66,7 +66,7 @@ export default function KaderHeader() {
             <div className="kp-leads">
                 <span className="kicker">{t("kader.header.leads")}</span>
                 <span className="kp-avatars">
-                    {kader.leads.length ? kader.leads.map((id, i) => <Avatar key={id} userId={id} index={i} />) : <span className="kp-muted">{t("kader.header.noLeads")}</span>}
+                    {kader.leads.length ? kader.leads.map((id) => <Avatar key={id} userId={id} />) : <span className="kp-muted">{t("kader.header.noLeads")}</span>}
                 </span>
             </div>
             {canWrite && <IconButton icon={<SettingsIcon />} tip={t("kader.header.settings")} onClick={() => open({ type: "settings" })} />}

@@ -278,10 +278,9 @@
         },
         "statusOpen": "offen",
         "statusDone": "geführt",
-        "subDone": "{lead} · geführt {date}",
-        "subStarted": "{lead} · angefangen {date}",
-        "subPlanned": "{lead} · noch nicht begonnen",
-        "subNobody": "niemand zugeteilt",
+        "subDone": "geführt {date}",
+        "subStarted": "angefangen {date}",
+        "subPlanned": "noch nicht begonnen",
         "nobody": "niemand",
         "aria": "Gespräch mit {name}",
         "prefilled": "vorbelegt",
@@ -327,7 +326,8 @@
             "other": "{count} Gespräche geführt"
         },
         "answered": "beantwortet",
-        "specTaken": "{spec} steht schon in den Wünschen"
+        "specTaken": "{spec} steht schon in den Wünschen",
+        "listEmptyLead": "Hier ist gerade niemand für diese Auswahl."
     },
     "qtype": {
         "single": "Einzelauswahl",
@@ -360,7 +360,6 @@
         "tableLabel": "Vorauswahl von {name} im Vergleich",
         "days": "{n} T",
         "doneOf": "{done} von {n} Gesprächen geführt",
-        "byLead": "Gespräch: {lead}, {date}",
         "empty": "Noch niemand in der Vorauswahl.",
         "toProvisional": "Ins vorläufige Roster",
         "toPool": "Zurück in den Pool",
@@ -371,7 +370,9 @@
         "daysTip": {
             "one": "seit {date} in der Vorauswahl ({count} Tag)",
             "other": "seit {date} in der Vorauswahl ({count} Tage)"
-        }
+        },
+        "filterLead": "Interviewer",
+        "byInterviewer": "Interviewer"
     },
     "decide": {
         "kicker": {
@@ -394,7 +395,6 @@
             "one": "{count} Kommentar",
             "other": "{count} Kommentare"
         },
-        "interviewBy": "Gespräch · {lead}, {date}",
         "interviewOpen": "Gespräch · noch nicht abgeschlossen",
         "openInterview": "Gespräch öffnen",
         "votes": "Stimmen der Leitung",
@@ -423,7 +423,8 @@
         "history": "Verlauf",
         "noVoteYet": "Noch keine Stimme.",
         "dropHere": "Hierher ziehen",
-        "emptyRead": "Niemand"
+        "emptyRead": "Niemand",
+        "interviewDone": "Gespräch geführt von"
     },
     "vote": {
         "yes": "dafür",
@@ -685,5 +686,14 @@
         "rank": "{n}. Wunsch",
         "decision": "Entscheidung",
         "before": "bisher gewählt"
+    },
+    "lead": {
+        "tip": "Gespräch führt: {name}",
+        "nobody": "Niemand",
+        "nobodyLong": "Niemand zugeteilt",
+        "nobodyTip": "Gespräch führt: niemand zugeteilt",
+        "you": "(du)",
+        "all": "Alle",
+        "me": "Ich"
     }
 }

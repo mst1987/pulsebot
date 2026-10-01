@@ -24,6 +24,7 @@ import { roleLabel } from "../../lib/wowNames";
 import { classColor, classIconOf, className, dayOf, historyText, nameOf, playerName, specIconOf, specName, wishLabel } from "../../lib/kader/model";
 import { dayShort, isAnswered, isWeekdays, progress, statusOf } from "../../lib/kader/interview";
 import { toneAttrs, toneOf } from "../../lib/kader/colors";
+import { leadHue } from "../../lib/kader/leads";
 import { useKader, type KaderSub } from "./kaderContext";
 
 /**
@@ -160,10 +161,10 @@ export function SourceBadge({ prefill }: { prefill: KaderPrefill }) {
 }
 
 /** The initial of a lead in a small circle, the full name as its tooltip. */
-export function Avatar({ userId, index = 0 }: { userId: string; index?: number }) {
-    const { view } = useKader();
+export function Avatar({ userId }: { userId: string }) {
+    const { view, kader } = useKader();
     const name = nameOf(view, userId);
-    return <span className={`kp-avatar kp-hue-${index % 4}`} role="img" aria-label={name} data-tip={name}>{(name.trim()[0] || "?").toUpperCase()}</span>;
+    return <span className={`kp-avatar kp-hue-${leadHue(kader.leads, userId)}`} role="img" aria-label={name} data-tip={name}>{(name.trim()[0] || "?").toUpperCase()}</span>;
 }
 
 /** A number that says what it counts: the figure as a badge, the words in the tooltip and for screen readers. */

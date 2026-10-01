@@ -278,10 +278,9 @@
         },
         "statusOpen": "open",
         "statusDone": "done",
-        "subDone": "{lead} · done {date}",
-        "subStarted": "{lead} · started {date}",
-        "subPlanned": "{lead} · not started yet",
-        "subNobody": "nobody assigned",
+        "subDone": "done {date}",
+        "subStarted": "started {date}",
+        "subPlanned": "not started yet",
         "nobody": "nobody",
         "aria": "Interview with {name}",
         "prefilled": "prefilled",
@@ -327,7 +326,8 @@
             "other": "{count} interviews done"
         },
         "answered": "answered",
-        "specTaken": "{spec} is already a wish"
+        "specTaken": "{spec} is already a wish",
+        "listEmptyLead": "No one here for this pick."
     },
     "qtype": {
         "single": "Single choice",
@@ -360,7 +360,6 @@
         "tableLabel": "Preselection of {name} side by side",
         "days": "{n} d",
         "doneOf": "{done} of {n} interviews held",
-        "byLead": "Interview: {lead}, {date}",
         "empty": "Nobody in the preselection yet.",
         "toProvisional": "To provisional roster",
         "toPool": "Back to the pool",
@@ -371,7 +370,9 @@
         "daysTip": {
             "one": "in preselection since {date} ({count} day)",
             "other": "in preselection since {date} ({count} days)"
-        }
+        },
+        "filterLead": "Interviewer",
+        "byInterviewer": "Interviewer"
     },
     "decide": {
         "kicker": {
@@ -394,7 +395,6 @@
             "one": "{count} comment",
             "other": "{count} comments"
         },
-        "interviewBy": "Interview · {lead}, {date}",
         "interviewOpen": "Interview · not completed yet",
         "openInterview": "Open the interview",
         "votes": "Lead votes",
@@ -423,7 +423,8 @@
         "history": "History",
         "noVoteYet": "No vote yet.",
         "dropHere": "Drop here",
-        "emptyRead": "Nobody"
+        "emptyRead": "Nobody",
+        "interviewDone": "Interview done by"
     },
     "vote": {
         "yes": "for",
@@ -685,5 +686,14 @@
         "rank": "Wish {n}",
         "decision": "Decision",
         "before": "chosen before"
+    },
+    "lead": {
+        "tip": "Interview by: {name}",
+        "nobody": "Nobody",
+        "nobodyLong": "Nobody assigned",
+        "nobodyTip": "Interview by: nobody assigned",
+        "you": "(you)",
+        "all": "All",
+        "me": "Me"
     }
 }

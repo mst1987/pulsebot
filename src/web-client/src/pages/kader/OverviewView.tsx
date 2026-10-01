@@ -28,8 +28,10 @@ import {
     TableNote, WishLines,
 } from "./parts";
 import { useKader } from "./kaderContext";
+import { LeadAvatar, LeadBadge } from "./Leads";
+import { interviewersOf } from "../../lib/kader/leads";
 
-type GroupBy = "role" | "class" | "interview" | "none";
+type GroupBy = "role" | "class" | "interview" | "lead" | "none";
 type Row = { userId: string; entry: KaderEntry };
 type Group = { key: string; title: string; icon: ReactNode; rows: Row[] };
 const NONE = "-";
@@ -45,11 +47,13 @@ function Peek({ row }: { row: Row }) {
     const { userId, entry } = row;
     const iv = entry.interview;
     const name = playerName(view, userId, entry);
-    const by = iv.lead ? t("kader.overview.byLead", { lead: nameOf(view, iv.lead), date: dayOf(iv.startedAt) || "—" }) : t("kader.interview.subNobody");
     return (
         <HoverPanel className="kp-plain" trigger={<PlayerName userId={userId} entry={entry} className="kp-rowname" />} head={name} width={360}>
             <div className="kp-peek">
-                <span className="kp-sub">{by}</span>
+                <span className="kp-leadline">
+                    <LeadBadge userId={iv.lead} />
+                    {iv.startedAt && <span className="kp-sub">{t("kader.interview.subStarted", { date: dayOf(iv.startedAt) })}</span>}
+                </span>
                 <WishLines wishes={entry.wishes} />
                 {kader.questions.length > 0 && <div className="kp-peek-rule" />}
                 <AnswerLines entry={entry} questions={kader.questions} />
@@ -79,7 +83,7 @@ function OverviewRow({ row, marked, onMark }: { row: Row; marked: boolean; onMar
     const iv = entry.interview;
     const days = daysSince(entry.since);
     const status = statusOf(entry);
-    const leadLine = iv.lead ? `${nameOf(view, iv.lead)}${status === "done" ? ` · ${dayOf(iv.completedAt)}` : ""}` : t("kader.interview.nobody");
+    const leadDetail = status === "done" ? `${t("kader.interview.status.done")} ${dayOf(iv.completedAt)}` : "";
     return (
         <div className={`kp-trow kp-ov-grid${marked ? " kp-marked" : ""}`} role="row">
             <span role="cell" className="kp-cell-mark">
@@ -91,7 +95,7 @@ function OverviewRow({ row, marked, onMark }: { row: Row; marked: boolean; onMar
             {kader.questions.map((q) => <AnswerCell key={q.id} q={q} entry={entry} />)}
             <span role="cell" className="kp-col">
                 <InterviewChip entry={entry} />
-                <span className="kp-sub">{leadLine}</span>
+                <LeadBadge userId={iv.lead} detail={leadDetail} />
             </span>
             <span role="cell" className="kp-mono kp-muted" data-tip={days === null ? undefined : t("kader.overview.daysTip", { count: days, date: dayOf(entry.since) })}>{days === null ? "—" : t("kader.overview.days", { n: days })}</span>
         </div>
@@ -113,11 +117,20 @@ export default function OverviewView() {
         .filter(([, e]) => e.state === "selected")
         .map(([userId, entry]) => ({ userId, entry })), [kader]);
 
+    const interviewers = useMemo(() => interviewersOf(kader, rows.map((r) => r.entry)), [kader, rows]);
+
     const defs = useMemo<FilterDef<Row>[]>(() => {
         const out: FilterDef<Row>[] = [
             {
                 key: "interview", label: t("kader.overview.filterInterview"),
                 options: STATUSES.map((s) => ({ value: s, label: t(`kader.interview.status.${s}`), test: (r: Row) => statusOf(r.entry) === s })),
+            },
+            {
+                key: "lead", label: t("kader.overview.filterLead"),
+                options: [
+                    ...interviewers.map((id) => ({ value: id, label: nameOf(view, id), lead: id, test: (r: Row) => r.entry.interview.lead === id })),
+                    { value: NONE, label: t("kader.lead.nobodyLong"), lead: "", test: (r: Row) => !r.entry.interview.lead },
+                ],
             },
             {
                 key: "wish", label: t("kader.overview.filterWish"),
@@ -141,7 +154,7 @@ export default function OverviewView() {
             out.push({ key: `q-${question.id}`, label: question.text, options });
         }
         return out;
-    }, [kader.questions, view.classes, t]);
+    }, [kader.questions, view, interviewers, t]);
     const filters = cleanState(defs, rawFilters);
 
     const needle = q.trim().toLowerCase();
@@ -158,6 +171,13 @@ export default function OverviewView() {
         if (groupBy === "none") return [{ key: "all", title: "", icon: null, rows: shown }];
         if (groupBy === "interview") {
             return STATUSES.map((s) => ({ key: s, title: t(`kader.interview.status.${s}`), icon: null, rows: shown.filter((r) => statusOf(r.entry) === s) }));
+        }
+        if (groupBy === "lead") {
+            const out: Group[] = interviewers.map((id) => ({
+                key: id, title: nameOf(view, id), icon: <LeadAvatar userId={id} size={20} />, rows: shown.filter((r) => r.entry.interview.lead === id),
+            }));
+            out.push({ key: NONE, title: t("kader.lead.nobodyLong"), icon: <LeadAvatar userId="" size={20} />, rows: shown.filter((r) => !r.entry.interview.lead) });
+            return out;
         }
         if (groupBy === "class") {
             const out: Group[] = view.classes.map((c) => ({
@@ -200,6 +220,7 @@ export default function OverviewView() {
                         { value: "role", label: t("kader.overview.byRole") },
                         { value: "class", label: t("kader.overview.byClass") },
                         { value: "interview", label: t("kader.overview.byInterview") },
+                        { value: "lead", label: t("kader.overview.byInterviewer") },
                         { value: "none", label: t("kader.overview.byNone") },
                     ]} />
                 </span>

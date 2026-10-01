@@ -169,7 +169,7 @@ describe("KaderPage · Vorauswahl", () => {
         vi.mocked(api.saveKaderInterview).mockResolvedValue(change());
         await show("/kader/k1/vorauswahl");
         const list = screen.getByRole("region", { name: t("kader.interview.listTitle") });
-        const rows = within(list).getAllByRole("button");
+        const rows = within(list).getAllByRole("button").filter((b) => b.classList.contains("kp-ivrow"));
         expect(rows[0]).toHaveTextContent("Liss");
         expect(within(list).queryByText("Brakk")).toBeNull();
         const panel = screen.getByRole("region", { name: t("kader.interview.aria", { name: "Liss" }) });
