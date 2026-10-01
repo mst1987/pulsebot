@@ -669,3 +669,32 @@ describe("KaderPage · saving a character keeps the page", () => {
         await waitFor(() => expect(vi.mocked(api.getKader).mock.calls.length).toBeGreaterThan(1));
     });
 });
+
+describe("KaderPage · assigning from the profile", () => {
+    it("offers every profile character with version and main, marks the ones already in, and fills the picked one", async () => {
+        const base = kaderView();
+        const players = base.players.map((p) => (p.userId === U.tank ? {
+            ...p,
+            pickable: [
+                { key: "forever~aldric sturmwind", name: "Aldric Sturmwind", className: "Warrior", versionId: "forever", main: true, canTank: true, canHeal: false, specs: [{ spec: "Warrior-Protection", main: true, gear: "ready" as const }], source: "profile" as const },
+                { key: "tbc~brakk", name: "Brakk", className: "Warrior", versionId: "tbc", main: false, canTank: false, canHeal: false, specs: [{ spec: "Warrior-Fury", main: true, gear: "usable" as const }], source: "profile" as const },
+            ],
+        } : p));
+        vi.mocked(api.getKader).mockResolvedValue({ ...base, players });
+        vi.mocked(api.saveKaderAssignment).mockResolvedValue({ ...base, players });
+        await show("/kader/k1/pool");
+        await userEvent.click(screen.getByRole("button", { name: "Aldric" }));
+        const dialog = await screen.findByRole("dialog");
+        const group = within(dialog).getByRole("group", { name: t("kader.account.pickTitle") });
+        expect(within(group).getByRole("button", { name: "Aldric Sturmwind" })).toBeDisabled();
+        expect(within(group).getByText(t("kader.account.pickMain"))).toBeInTheDocument();
+        expect(within(group).getByText("Forever")).toBeInTheDocument();
+        expect(within(group).getByText("TBC")).toBeInTheDocument();
+        await userEvent.click(within(group).getByRole("button", { name: "Brakk" }));
+        expect(within(group).getByRole("button", { name: "Brakk" })).toBeDisabled();
+        await userEvent.click(within(dialog).getByRole("button", { name: t("common.apply") }));
+        await waitFor(() => expect(api.saveKaderAssignment).toHaveBeenCalled());
+        const sent = vi.mocked(api.saveKaderAssignment).mock.calls[0][2];
+        expect(sent[1]).toMatchObject({ name: "Brakk", nameStyle: "nick", className: "Warrior", onlineKey: "tbc~brakk", specs: [{ spec: "Warrior-Fury", main: true, gear: "usable" }] });
+    });
+});

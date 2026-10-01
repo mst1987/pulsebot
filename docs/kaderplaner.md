@@ -181,7 +181,11 @@ members, discordRoles, names, kaders, kader, warnings }`
   category's name carries its version only while the categories play different ones ("Mo Raid · TBC").
 - **players**: everybody the planner knows on this server (profiles of the version, accounts, everybody in a Kader):
   `{ userId, displayName, avatarUrl, onServer, roleIds, hasProfile, manual, hasOverride, characters,
-  activeCharacterId, differs, profile, prefill, availability, attendance }` — `attendance` per raid category.
+  activeCharacterId, differs, profile, prefill, pickable, availability, attendance }` — `attendance` per raid category.
+- **pickable**: what the account dialog offers to assign, "Aus dem Profil zuweisen": every profile character of any game
+  version `{ key, name, className, versionId, main, canTank, canHeal, specs, source: "profile" }` plus the log-linked one
+  (`source: "logs"`). Same whitelisted fields as the rest of the profile (source: `allCharacters`); a pick fills a new
+  planner character (Forever: first + last name, other versions: nickname) the lead can still edit.
 - **prefill**: the character a player is prefilled with — `{ name, className, spec, source: planner|profile|logs,
   versionId }`, or `null` ("fehlt"). The planner's own data wins, then the profile of the version, then a profile
   character of another version (flagged by `versionId`), then the character the logs link to the account.

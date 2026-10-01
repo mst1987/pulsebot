@@ -80,6 +80,20 @@ describe("web/kader/kaderView", () => {
         expect(planned).toMatchObject({ className: "Mage", spec: "Mage-Frost", source: "planner" });
     });
 
+    it("offers every profile character and the log-linked one to assign (`pickable`)", () => {
+        const src = source();
+        src.profiles[0].allCharacters = [
+            { key: "forever~aldric sturmwind", name: "Aldric Sturmwind", className: "Warrior", versionId: "forever", main: true, canTank: false, canHeal: false, specs: [{ spec: "Warrior-Fury", gear: "usable" }, { spec: "Warrior-Arms", gear: "none" }] },
+            { key: "tbc~devi", name: "Devi", className: "Priest", versionId: "tbc", main: false, canTank: false, canHeal: true, specs: [] },
+        ];
+        const view = buildKaderView({ source: src, planner: planner(), kaderId: "k1" });
+        const byId = new Map(view.players.map((p) => [p.userId, p]));
+        expect(byId.get(U.a).pickable.map((c) => [c.name, c.versionId, c.main])).toEqual([["Aldric Sturmwind", "forever", true], ["Devi", "tbc", false]]);
+        expect(byId.get(U.a).pickable[0].specs).toEqual([{ spec: "Warrior-Fury", main: true, gear: "usable" }, { spec: "Warrior-Arms", main: false, gear: "none" }]);
+        expect(byId.get(U.d).pickable).toEqual([expect.objectContaining({ name: "Kael", source: "logs", specs: [{ spec: "Priest-Shadow", main: true, gear: "none" }] })]);
+        expect(byId.get(U.hand).pickable).toEqual([]);
+    });
+
     it("carries attendance per raid category and the server's raid categories; the page sums the Kader's pick", () => {
         const view = buildKaderView({ source: source(), planner: planner(), kaderId: "k1" });
         const byId = new Map(view.players.map((p) => [p.userId, p]));

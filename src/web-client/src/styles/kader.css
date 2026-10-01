@@ -470,6 +470,14 @@ dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
 }
 .kp-chartab.kp-active { border-color: var(--cc, var(--accent)); box-shadow: inset 0 -2px 0 var(--cc, var(--accent)); }
 .kp-chartab.kp-add { color: var(--muted); border-style: dashed; background: transparent; }
+.kp-picklist { display: flex; flex-wrap: wrap; gap: 6px; }
+.kp-pick {
+    display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: var(--ctl-radius);
+    border: 1px solid var(--line); background: var(--panel2); font: inherit; font-size: 13.5px; cursor: pointer;
+}
+.kp-pick .kp-pickname { font-weight: 700; color: var(--cc, inherit); }
+.kp-pick:hover:not(:disabled) { border-color: var(--cc, var(--accent)); }
+.kp-pick.kp-have { opacity: .55; cursor: default; }
 .kp-accgrid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; }
 @media (max-width: 760px) { .kp-accgrid { grid-template-columns: minmax(0, 1fr); } }
 .kp-editor { display: flex; flex-direction: column; gap: 22px; min-width: 0; border: 0; padding: 0; margin: 0; }

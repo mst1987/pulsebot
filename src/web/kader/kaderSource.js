@@ -9,7 +9,7 @@
 //
 // Privacy: a profile leaves this module as a whitelist of fields — characters,
 // their specs and gear, the tank/heal switches, the main flag, the raid days and
-// the name the profile was saved under. Never `avoid`/`avoidEnabled`, wishes,
+// the name the profile was saved under; `allCharacters` lists them across all game versions (same fields). Never `avoid`/`avoidEnabled`, wishes,
 // the note, preferred raids, calendar tokens or who else claims a character
 // (test/web/kader/kaderSource.test.js scans the payload for them).
 const { rulesFor } = require("../../config/gameVersions");
@@ -117,6 +117,20 @@ function sourceProfile(profile, versionId, index) {
                 canTank: !!roles.canOfftank,
                 canHeal: !!roles.canHeal,
                 logSpecs: logSpecsOf(c, index),
+            };
+        }),
+        // every character of the account, any game version: what the account dialog offers to assign
+        allCharacters: all.map((c) => {
+            const roles = profiles.characterRoles(profile, c);
+            return {
+                key: c.key,
+                name: c.name,
+                className: c.className,
+                versionId: profiles.characterVersion(c.versionId),
+                specs: (c.specs || []).map((s) => ({ spec: s.key, gear: s.gear })),
+                main: !!c.main,
+                canTank: !!roles.canOfftank,
+                canHeal: !!roles.canHeal,
             };
         }),
         availability: [...(profile.availability || [])],

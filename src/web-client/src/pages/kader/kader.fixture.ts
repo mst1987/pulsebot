@@ -36,7 +36,7 @@ function char(over: Partial<KaderCharacter>): KaderCharacter {
 export function player(over: Partial<KaderPlayer> & { userId: string }): KaderPlayer {
     return {
         displayName: over.userId, avatarUrl: null, onServer: true, roleIds: [], hasProfile: true, manual: false, hasOverride: false,
-        characters: [], activeCharacterId: null, differs: [], profile: null, prefill: null, availability: [], attendance: null, ...over,
+        characters: [], activeCharacterId: null, differs: [], profile: null, prefill: null, pickable: [], availability: [], attendance: null, ...over,
     };
 }
 

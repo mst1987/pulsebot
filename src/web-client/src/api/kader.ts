@@ -63,6 +63,19 @@ export type KaderRaidCategory = { id: string; name: string; versionId: string; v
 /** The character a player is prefilled with, and where it comes from ("fehlt" when null). */
 export type KaderPrefill = { name: string; className: string; spec: string; source: "planner" | "profile" | "logs"; versionId: string } | null;
 
+/** A character of the raider profile (any game version) or one the logs link to the account: what the account dialog offers. */
+export type KaderPickable = {
+    key: string;
+    name: string;
+    className: string;
+    versionId: string;
+    main: boolean;
+    canTank: boolean;
+    canHeal: boolean;
+    specs: KaderSpecPick[];
+    source: "profile" | "logs";
+};
+
 /** A player the planner knows, per server (not per Kader). */
 export type KaderPlayer = {
     userId: string;
@@ -78,6 +91,7 @@ export type KaderPlayer = {
     differs: KaderDiff[];
     profile: { character: string; className: string; mainSpec: string | null; logSpecs: string[] } | null;
     prefill: KaderPrefill;
+    pickable: KaderPickable[];
     availability: KaderDay[];
     attendance: KaderAttendance;
 };
