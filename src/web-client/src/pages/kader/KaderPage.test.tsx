@@ -28,6 +28,7 @@ vi.mock("../../api", async (orig) => ({
     saveKaderVariant: vi.fn(),
     updateKader: vi.fn(),
     updateKaderQuestion: vi.fn(),
+    saveKaderAssignment: vi.fn(),
 }));
 
 const PATH = "/kader/:kaderId?/:sub?";
@@ -640,5 +641,74 @@ describe("KaderPage · read-only and English", () => {
         } finally {
             await switchLang("de");
         }
+    });
+});
+
+describe("KaderPage · saving a character keeps the page", () => {
+    async function saveFirstName() {
+        await show("/kader/k1/pool");
+        await userEvent.click(screen.getByRole("button", { name: "Aldric" }));
+        const dialog = await screen.findByRole("dialog");
+        const first = within(dialog).getByLabelText(t("kader.field.firstName"));
+        await userEvent.type(first, "x");
+        await userEvent.click(within(dialog).getByRole("button", { name: t("common.apply") }));
+    }
+
+    it("sends the open Kader with the save", async () => {
+        vi.mocked(api.saveKaderAssignment).mockResolvedValue(kaderView());
+        await saveFirstName();
+        await waitFor(() => expect(api.saveKaderAssignment).toHaveBeenCalled());
+        expect(vi.mocked(api.saveKaderAssignment).mock.calls[0][0]).toBe("k1");
+    });
+
+    it("does not go blank when the answer is a whole view without the Kader", async () => {
+        vi.mocked(api.saveKaderAssignment).mockResolvedValue(kaderView({ kader: null }));
+        await saveFirstName();
+        await waitFor(() => expect(api.saveKaderAssignment).toHaveBeenCalled());
+        expect(await screen.findByRole("button", { name: /Forever-Kader/ })).toBeInTheDocument();
+        await waitFor(() => expect(vi.mocked(api.getKader).mock.calls.length).toBeGreaterThan(1));
+    });
+});
+
+describe("KaderPage · assigning from the profile", () => {
+    it("offers every profile character with version and main, marks the ones already in, and fills the picked one", async () => {
+        const base = kaderView();
+        const players = base.players.map((p) => (p.userId === U.tank ? {
+            ...p,
+            pickable: [
+                { key: "forever~aldric sturmwind", name: "Aldric Sturmwind", className: "Warrior", versionId: "forever", main: true, canTank: true, canHeal: false, specs: [{ spec: "Warrior-Protection", main: true, gear: "ready" as const }], source: "profile" as const },
+                { key: "tbc~brakk", name: "Brakk", className: "Warrior", versionId: "tbc", main: false, canTank: false, canHeal: false, specs: [{ spec: "Warrior-Fury", main: true, gear: "usable" as const }], source: "profile" as const },
+            ],
+        } : p));
+        vi.mocked(api.getKader).mockResolvedValue({ ...base, players });
+        vi.mocked(api.saveKaderAssignment).mockResolvedValue({ ...base, players });
+        await show("/kader/k1/pool");
+        await userEvent.click(screen.getByRole("button", { name: "Aldric" }));
+        const dialog = await screen.findByRole("dialog");
+        const group = within(dialog).getByRole("group", { name: t("kader.account.pickTitle") });
+        expect(within(group).getByRole("button", { name: "Aldric Sturmwind" })).toBeDisabled();
+        expect(within(group).getByText(t("kader.account.pickMain"))).toBeInTheDocument();
+        expect(within(group).getByText("Forever")).toBeInTheDocument();
+        expect(within(group).getByText("TBC")).toBeInTheDocument();
+        await userEvent.click(within(group).getByRole("button", { name: "Brakk" }));
+        expect(within(group).getByRole("button", { name: "Brakk" })).toBeDisabled();
+        await userEvent.click(within(dialog).getByRole("button", { name: t("common.apply") }));
+        await waitFor(() => expect(api.saveKaderAssignment).toHaveBeenCalled());
+        const sent = vi.mocked(api.saveKaderAssignment).mock.calls[0][2];
+        expect(sent[1]).toMatchObject({ name: "Brakk", nameStyle: "nick", className: "Warrior", onlineKey: "tbc~brakk", specs: [{ spec: "Warrior-Fury", main: true, gear: "usable" }] });
+    });
+});
+
+describe("KaderPage · removing a character in the account dialog", () => {
+    it("asks first, then drops the character from the draft", async () => {
+        await show("/kader/k1/pool");
+        await userEvent.click(screen.getByRole("button", { name: "Aldric" }));
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.account.removeChar") }));
+        const dialogs = await screen.findAllByRole("dialog");
+        const confirm = dialogs[dialogs.length - 1];
+        expect(within(confirm).getByText(t("kader.account.removeCharText"))).toBeInTheDocument();
+        await userEvent.click(within(confirm).getByRole("button", { name: t("common.remove") }));
+        await waitFor(() => expect(within(dialog).queryByRole("tab", { name: /Aldric Sturmwind/ })).toBeNull());
     });
 });

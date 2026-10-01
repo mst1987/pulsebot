@@ -63,6 +63,19 @@ export type KaderRaidCategory = { id: string; name: string; versionId: string; v
 /** The character a player is prefilled with, and where it comes from ("fehlt" when null). */
 export type KaderPrefill = { name: string; className: string; spec: string; source: "planner" | "profile" | "logs"; versionId: string } | null;
 
+/** A character of the raider profile (any game version) or one the logs link to the account: what the account dialog offers. */
+export type KaderPickable = {
+    key: string;
+    name: string;
+    className: string;
+    versionId: string;
+    main: boolean;
+    canTank: boolean;
+    canHeal: boolean;
+    specs: KaderSpecPick[];
+    source: "profile" | "logs";
+};
+
 /** A player the planner knows, per server (not per Kader). */
 export type KaderPlayer = {
     userId: string;
@@ -78,6 +91,7 @@ export type KaderPlayer = {
     differs: KaderDiff[];
     profile: { character: string; className: string; mainSpec: string | null; logSpecs: string[] } | null;
     prefill: KaderPrefill;
+    pickable: KaderPickable[];
     availability: KaderDay[];
     attendance: KaderAttendance;
 };
@@ -278,19 +292,19 @@ export function autoKaderVariant(kaderId: string, variantId: string, sources: Ka
     return send("POST", "/api/kader/variants/auto", { kaderId, variantId, sources });
 }
 
-// ----- accounts and character data (answer the whole view)
+// ----- accounts and character data (answer the whole view; `kaderId` = the open Kader, so the answer carries it)
 export function addKaderAccount(input: { userId: string; displayName: string; kaderId?: string; character?: { nameStyle: KaderNameStyle; firstName?: string; lastName?: string; nickname?: string; className: string } }): Promise<KaderView> {
     return send("POST", "/api/kader/accounts", input);
 }
 
-export function removeKaderAccount(userId: string): Promise<KaderView> {
-    return send("POST", "/api/kader/accounts/remove", { userId });
+export function removeKaderAccount(kaderId: string, userId: string): Promise<KaderView> {
+    return send("POST", "/api/kader/accounts/remove", { kaderId, userId });
 }
 
-export function saveKaderAssignment(userId: string, characters: KaderCharacterInput[], activeCharacterId: string | null): Promise<KaderView> {
-    return send("PUT", "/api/kader/assignments", { userId, characters, activeCharacterId });
+export function saveKaderAssignment(kaderId: string, userId: string, characters: KaderCharacterInput[], activeCharacterId: string | null): Promise<KaderView> {
+    return send("PUT", "/api/kader/assignments", { kaderId, userId, characters, activeCharacterId });
 }
 
-export function resetKaderAssignment(userId: string): Promise<KaderView> {
-    return send("POST", "/api/kader/assignments/reset", { userId });
+export function resetKaderAssignment(kaderId: string, userId: string): Promise<KaderView> {
+    return send("POST", "/api/kader/assignments/reset", { kaderId, userId });
 }

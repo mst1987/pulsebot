@@ -7,7 +7,7 @@
 // written back to the raider profile. Where the account stands in the open
 // Kader shows on top.
 import { useMemo, useState, type CSSProperties } from "react";
-import { removeKaderAccount, resetKaderAssignment, saveKaderAssignment, type KaderCharacterInput, type KaderDay, type KaderGear, type KaderNameStyle, type KaderPlayer } from "../../api";
+import { removeKaderAccount, resetKaderAssignment, saveKaderAssignment, type KaderCharacterInput, type KaderDay, type KaderGear, type KaderNameStyle, type KaderPickable, type KaderPlayer } from "../../api";
 import { Badge, Button, Field, Modal, Segment } from "../../components/ui";
 import { RefreshIcon, SaveIcon, TrashIcon } from "../../components/icons";
 import { useConfirm } from "../../components/ui/Modal";
@@ -22,6 +22,22 @@ import { ClassIcon, RoleIcon, SinceText, SpecIcon, StateBadge } from "./parts";
 const DAYS: KaderDay[] = ["mo", "di", "mi", "do", "fr", "sa", "so"];
 const GEARS: KaderGear[] = ["none", "usable", "ready"];
 const MAX_CHARS = 8;
+const VERSION_LABEL: Record<string, string> = { forever: "Forever", tbc: "TBC", classic: "Classic" };
+
+/** A pickable character as the planner's character: a Forever name is first + last, every other one a nickname. */
+function fromPickable(p: KaderPickable): KaderCharacterInput {
+    const nameStyle: KaderNameStyle = p.versionId === "forever" && inferNameStyle(p.name) === "forever" ? "forever" : "nick";
+    return {
+        id: `n${Date.now().toString(36)}${p.key.length}`,
+        name: p.name,
+        nameStyle,
+        className: p.className,
+        specs: p.specs.map((x) => ({ ...x })),
+        canTank: p.canTank,
+        canHeal: p.canHeal,
+        ...(p.key ? { onlineKey: p.key } : {}),
+    };
+}
 
 /** The editable copy of a player's characters (profile ids become new planner ids with an onlineKey). */
 function draftOf(player: KaderPlayer): { chars: KaderCharacterInput[]; active: string | null } {
@@ -111,7 +127,15 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
         setSel(chars.length);
         if (!active) setActive(id);
     };
-    const removeChar = () => {
+    const taken = (p: KaderPickable) => chars.some((c) => (p.key && c.onlineKey === p.key) || c.name.trim().toLowerCase() === p.name.toLowerCase());
+    const pick = (p: KaderPickable) => {
+        const next = fromPickable(p);
+        setChars([...chars, next]);
+        setSel(chars.length);
+        if (!active) setActive(next.id);
+    };
+    const removeChar = async () => {
+        if (!(await ask({ title: t("kader.account.removeCharTitle", { name: cur && cur.name.trim() ? cur.name.trim() : t("kader.account.newChar") }), text: t("kader.account.removeCharText"), action: t("common.remove"), tone: "danger" }))) return;
         const next = chars.filter((_, i) => i !== sel);
         setChars(next);
         setSel(Math.max(0, sel - 1));
@@ -122,17 +146,17 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
         if (!dirty) return onClose();
         setBusy(true);
         // a refusal (a name the rules do not allow) is a toast; the dialog stays open with the draft
-        const next = await run(saveKaderAssignment(userId, chars, active));
+        const next = await run(saveKaderAssignment(kader.id, userId, chars, active));
         setBusy(false);
         if (next) onClose();
     };
     const reset = async () => {
         if (!(await ask({ title: t("kader.account.resetTitle"), text: t("kader.account.resetText"), action: t("common.reset"), tone: "danger" }))) return;
-        if (await run(resetKaderAssignment(userId))) onClose();
+        if (await run(resetKaderAssignment(kader.id, userId))) onClose();
     };
     const removeAccount = async () => {
         if (!(await ask({ title: t("kader.account.removeTitle", { name: player.displayName }), text: t("kader.account.removeText"), action: t("common.remove"), tone: "danger" }))) return;
-        if (await run(removeKaderAccount(userId))) onClose();
+        if (await run(removeKaderAccount(kader.id, userId))) onClose();
     };
 
     return (
@@ -178,6 +202,28 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
                     })}
                     {canWrite && <button type="button" className="kp-chartab kp-add" onClick={addChar} disabled={chars.length >= MAX_CHARS}>{t("kader.account.addChar")}</button>}
                 </div>
+                {canWrite && player.pickable.length > 0 && (
+                    <div className="kp-fgroup" role="group" aria-label={t("kader.account.pickTitle")}>
+                        <div className="kicker">{t("kader.account.pickTitle")}</div>
+                        <div className="kp-picklist">
+                            {player.pickable.map((p) => {
+                                const def = classDef(view.classes, p.className);
+                                const have = taken(p);
+                                const mainSpec = p.specs.find((x) => x.main) || p.specs[0];
+                                return (
+                                    <button key={`${p.key}|${p.name}`} type="button" className={`kp-pick class-colored${have ? " kp-have" : ""}`} style={def ? { "--cc": def.color } as CSSProperties : undefined}
+                                        disabled={have || chars.length >= MAX_CHARS} aria-label={p.name} onClick={() => pick(p)}>
+                                        {mainSpec ? <SpecIcon specKey={mainSpec.spec} size={20} /> : <ClassIcon classKey={p.className} size={20} />}
+                                        <span className="kp-pickname">{p.name}</span>
+                                        <Badge tone="mid" size="sm">{p.source === "logs" ? t("kader.account.pickLogs") : VERSION_LABEL[p.versionId] || p.versionId.toUpperCase()}</Badge>
+                                        {p.main && <Badge tone="accent" size="sm">{t("kader.account.pickMain")}</Badge>}
+                                        {have && <span className="kp-sub">{t("kader.account.pickHave")}</span>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
                 <div className="kp-accgrid">
                     {cur ? (
                         <fieldset className="kp-editor" disabled={!canWrite}>
@@ -254,7 +300,11 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
                                     </div>
                                 </>
                             )}
-                            {canWrite && <button type="button" className="kp-link kp-danger" onClick={removeChar}>{t("kader.account.removeChar")}</button>}
+                            {canWrite && (
+                                <div className="kp-dangerrow">
+                                    <Button variant="danger" icon={<TrashIcon />} onClick={() => void removeChar()}>{t("kader.account.removeChar")}</Button>
+                                </div>
+                            )}
                             {cur.id === active && player.differs.length > 0 && !dirty && <Badge tone="mid" size="sm">{t("kader.diff.badge")}</Badge>}
                         </fieldset>
                     ) : (

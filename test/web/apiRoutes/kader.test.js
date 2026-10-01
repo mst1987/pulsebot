@@ -296,6 +296,18 @@ describe("web/apiRoutes/kader", () => {
             expect(body(res).players.map((p) => p.userId)).not.toContain(HAND);
         });
 
+        it("answers the full-view writes with the open Kader when the call names it", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            const chars = [{ id: "c1", name: "Aldric Sturmwind", className: "Warrior", onlineKey: "forever~aldric sturmwind", specs: [{ spec: "Warrior-Fury", main: true, gear: "usable" }] }];
+            let res = await put("/api/kader/assignments", { kaderId, userId: U1, characters: chars, activeCharacterId: "c1" });
+            expect(body(res).kader).toMatchObject({ id: kaderId });
+            res = await post("/api/kader/assignments/reset", { kaderId, userId: U1 });
+            expect(body(res).kader).toMatchObject({ id: kaderId });
+            await post("/api/kader/accounts", { userId: HAND, displayName: "Neu", character: { nameStyle: "nick", nickname: "Knuffel", className: "Mage" } });
+            res = await post("/api/kader/accounts/remove", { kaderId, userId: HAND });
+            expect(body(res).kader).toMatchObject({ id: kaderId });
+        });
+
         it("keeps the Kader's settings: rename, leads, questions from another Kader, delete", async () => {
             const { kaderId } = await kaderWithPlayers();
             await post("/api/kader/questions", { kaderId, text: "Voice", type: "single", options: ["Ja", "Nein"] });

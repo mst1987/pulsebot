@@ -181,7 +181,11 @@ members, discordRoles, names, kaders, kader, warnings }`
   category's name carries its version only while the categories play different ones ("Mo Raid · TBC").
 - **players**: everybody the planner knows on this server (profiles of the version, accounts, everybody in a Kader):
   `{ userId, displayName, avatarUrl, onServer, roleIds, hasProfile, manual, hasOverride, characters,
-  activeCharacterId, differs, profile, prefill, availability, attendance }` — `attendance` per raid category.
+  activeCharacterId, differs, profile, prefill, pickable, availability, attendance }` — `attendance` per raid category.
+- **pickable**: what the account dialog offers to assign, "Aus dem Profil zuweisen": every profile character of any game
+  version `{ key, name, className, versionId, main, canTank, canHeal, specs, source: "profile" }` plus the log-linked one
+  (`source: "logs"`). Same whitelisted fields as the rest of the profile (source: `allCharacters`); a pick fills a new
+  planner character (Forever: first + last name, other versions: nickname) the lead can still edit.
 - **prefill**: the character a player is prefilled with — `{ name, className, spec, source: planner|profile|logs,
   versionId }`, or `null` ("fehlt"). The planner's own data wins, then the profile of the version, then a profile
   character of another version (flagged by `versionId`), then the character the logs link to the account.
@@ -193,7 +197,9 @@ members, discordRoles, names, kaders, kader, warnings }`
 
 A change inside a Kader answers `{ kader, kaders, …extra }` (`moved`, `skipped`, `questionId`, `variantId`,
 `commentId`, `copied`); a change on the server's side (taking players in, accounts, character data) answers the whole
-view model again. The page swaps either in.
+view model again — the client sends the open `kaderId` with those writes too (`accounts/remove`, `assignments`,
+`assignments/reset`); without it the answer has `kader: null`. The page swaps either in and refetches when a whole view
+comes back without the open Kader.
 
 ## Write routes
 
@@ -213,8 +219,8 @@ Parameters in the body; `kaderId` names the Kader.
 | `POST /api/kader/questions/order` · `…/copy` | `{ kaderId, order }` · `{ kaderId, fromKaderId }` |
 | `POST /api/kader/variants` · `PUT` · `POST …/delete` · `…/auto` | `{ kaderId, name?, copyFrom? }` · `{ kaderId, variantId, name?, size?, groups? }` · `{ kaderId, variantId }` · `{ kaderId, variantId, sources }` |
 | `POST /api/kader/accounts` | `{ userId, displayName, kaderId?, character? }` — with `kaderId` also into that Kader's pool (whole view) |
-| `POST /api/kader/accounts/remove` | `{ userId }` — only an account added by hand |
-| `PUT /api/kader/assignments` · `POST …/reset` | `{ userId, characters, activeCharacterId }` · `{ userId }` |
+| `POST /api/kader/accounts/remove` | `{ kaderId, userId }` — only an account added by hand |
+| `PUT /api/kader/assignments` · `POST …/reset` | `{ kaderId, userId, characters, activeCharacterId }` · `{ kaderId, userId }` |
 
 ## The page
 

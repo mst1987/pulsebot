@@ -133,6 +133,25 @@ function prefillOf({ assignment, profile, logChar }) {
     return null;
 }
 
+/** What the account dialog offers to assign: every profile character of any version, plus the log-linked one. */
+function pickableOf(profile, logChar) {
+    const out = (profile ? profile.allCharacters || [] : []).map((c) => ({
+        key: c.key,
+        name: c.name,
+        className: c.className,
+        versionId: c.versionId,
+        main: c.main,
+        canTank: c.canTank,
+        canHeal: c.canHeal,
+        specs: c.specs.map((s, i) => ({ spec: s.spec, main: i === 0, gear: s.gear })),
+        source: "profile",
+    }));
+    if (logChar && logChar.name && !out.some((c) => c.name.toLowerCase() === logChar.name.toLowerCase())) {
+        out.push({ key: "", name: logChar.name, className: logChar.className, versionId: "", main: false, canTank: false, canHeal: false, specs: logChar.spec ? [{ spec: logChar.spec, main: true, gear: "none" }] : [], source: "logs" });
+    }
+    return out;
+}
+
 function buildPlayer({ userId, displayName, member, profile, logChar, attendance, assignment, manual, classes }) {
     const profileChars = profile ? profile.characters : [];
     const chars = assignment
@@ -165,6 +184,7 @@ function buildPlayer({ userId, displayName, member, profile, logChar, attendance
             ? { character: profileMain.name, className: profileMain.className, mainSpec: profileDesc.mainSpec, logSpecs: [...profileMain.logSpecs] }
             : null,
         prefill: prefillOf({ assignment, profile, logChar }),
+        pickable: pickableOf(profile, logChar),
         availability: profile ? [...profile.availability] : [],
         attendance: attendanceView(attendance),
     };

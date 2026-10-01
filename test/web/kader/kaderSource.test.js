@@ -168,6 +168,15 @@ describe("web/kader/kaderSource", () => {
             expect(oldie).toMatchObject({ characters: [], other: { name: "Oldie", className: "Mage", spec: "Mage-Fire", versionId: "tbc" } });
         });
 
+        it("lists every character of the account in `allCharacters`, whatever its game version", async () => {
+            const out = await loadSource({ now: NOW });
+            const [aldric, oldie] = out.profiles;
+            expect(aldric.allCharacters.map((c) => c.name)).toEqual(expect.arrayContaining(["Aldric Sturmwind", "Mira Sonnlicht", "Devi"]));
+            expect(aldric.allCharacters.find((c) => c.name === "Devi")).toMatchObject({ className: "Priest", versionId: "tbc" });
+            expect(oldie.allCharacters).toEqual([expect.objectContaining({ name: "Oldie", versionId: "tbc", className: "Mage" })]);
+            for (const c of aldric.allCharacters) expect(Object.keys(c).sort()).toEqual(["canHeal", "canTank", "className", "key", "main", "name", "specs", "versionId"]);
+        });
+
         it("hands a character out in the documented shape with effective tank/heal switches", async () => {
             const out = await loadSource({ now: NOW });
             const [warrior, druid] = out.profiles[0].characters;
@@ -206,7 +215,7 @@ describe("web/kader/kaderSource", () => {
             }
             expect(text).not.toContain("GEHEIME-NOTIZ");
             expect(text).not.toContain(U3);
-            expect(Object.keys(out.profiles[0]).sort()).toEqual(["availability", "characters", "displayName", "other", "userId"]);
+            expect(Object.keys(out.profiles[0]).sort()).toEqual(["allCharacters", "availability", "characters", "displayName", "other", "userId"]);
         });
     });
 
