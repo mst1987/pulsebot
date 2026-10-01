@@ -8,7 +8,10 @@
 // chosen player on the right: wishes, the attendance over the Kader's raid
 // categories, the interview, the leads' votes, comments, the decision (a spec
 // from the wishes, WishPicker) with Ins Roster /
-// Entscheidung ändern, Bench, Tentative and the step back, and the history.
+// Entscheidung ändern, Bench, Tentative and the step back; the history behind
+// the "Verlauf" button in its head. Somebody else on the same player shows as a
+// marker on the card and a calm line in the drawer; a refetch keeps a
+// half-typed comment and a picked spec.
 // Cards move by drag and drop or with the drawer's buttons; every move can go
 // back. ?spieler=<id> opens the drawer (on a phone it slides over the page).
 import { useState } from "react";
@@ -27,11 +30,13 @@ import { leadHue } from "../../lib/kader/leads";
 import { LeadBadge } from "./Leads";
 import { dragProps, useDropZone } from "./dnd";
 import {
-    AnswerLines, BackButton, Count, HistoryLines, PickIcon, PickLabel, PlayerName, RoleIcon, StateIcon, StateSince, VoteIcon, WishIcons, WishLines,
+    AnswerLines, BackButton, Count, PickIcon, PickLabel, PlayerName, RoleIcon, StateIcon, VoteIcon, WishIcons, WishLines,
 } from "./parts";
 import { AttendanceLine } from "./Attendance";
 import WishPicker from "./WishPicker";
-import { useKader } from "./kaderContext";
+import { useKader, useReportFocus } from "./kaderContext";
+import { HistoryButton } from "./ActivityLog";
+import { PresenceBanner, PresenceMark } from "./Presence";
 
 /** The sections in grid order: the decided states on top, the provisional roster below. */
 const SECTIONS: KaderState[] = ["roster", "bench", "tentative", "provisional"];
@@ -53,6 +58,7 @@ function Card({ userId, entry, current, onPick }: { userId: string; entry: Kader
             <span className="kp-card-top">
                 <PickIcon pick={pick} size={22} />
                 <span className={`kp-card-name${color.className ? ` ${color.className}` : ""}`} style={color.style}>{name}</span>
+                <PresenceMark playerId={userId} />
                 <span className="kp-card-meta">
                     <span className="kp-cnt kp-yes" data-tip={t("kader.decide.yesVotes", { count: yes })}><CheckIcon /><span className="kp-mono" aria-hidden="true">{yes}</span><span className="kp-sr">{t("kader.decide.yesVotes", { count: yes })}</span></span>
                     {no > 0 && <span className="kp-cnt kp-no" data-tip={t("kader.decide.noVotes", { count: no })}><XIcon /><span className="kp-mono" aria-hidden="true">{no}</span><span className="kp-sr">{t("kader.decide.noVotes", { count: no })}</span></span>}
@@ -105,8 +111,12 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
     const toast = useToast();
     const ask = useConfirm();
     const { view, kader, canWrite, isLead, me, run } = useKader();
+    useReportFocus("view", { playerId: userId, what: "drawer", edit: false });
     const options = wishOptions(entry);
-    const [choice, setChoice] = useState((entry.decision || entry.wishes[0] || { spec: "" }).spec);
+    // the spec picked here; until somebody picks one it follows the stored decision (also one changed live)
+    const [pickedSpec, setPickedSpec] = useState<string | null>(null);
+    const choice = pickedSpec !== null ? pickedSpec : (entry.decision || entry.wishes[0] || { spec: "" }).spec;
+    // a half-typed comment stays when the entry changes live (the drawer is keyed by the player only)
     const [text, setText] = useState("");
     const name = playerName(view, userId, entry);
     const iv = entry.interview;
@@ -116,6 +126,7 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
 
     const moveTo = async (to: KaderState, decision?: KaderWish) => {
         if (await run(setKaderState(kader.id, [userId], to, decision))) {
+            setPickedSpec(null);
             toast(to === "roster" && decision ? t("kader.decide.toRosterDone", { name, pick: wishLabel(view.classes, decision) }) : t("kader.decide.moved", { name, state: t(`kader.state.${to}`) }));
         }
     };
@@ -138,10 +149,11 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                 <div className="kp-col kp-grow">
                     <span className="kp-drawer-kicker"><StateIcon state={entry.state} /><span className="kicker">{t(`kader.decide.kicker.${entry.state}`)}</span></span>
                     <h2><PlayerName userId={userId} entry={entry} /></h2>
-                    <span className="kp-sub kp-wrap"><StateSince entry={entry} /></span>
                 </div>
+                <HistoryButton userId={userId} entry={entry} />
                 <IconButton icon={<XIcon />} size="sm" tip={t("common.close")} onClick={onClose} />
             </div>
+            <PresenceBanner playerId={userId} what="drawer" />
             <WishLines wishes={entry.wishes} />
             <AttendanceLine userId={userId} label={t("kader.pool.attendance")} />
             <details className="kp-details">
@@ -193,7 +205,7 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                 <div className="kp-block kp-decision">
                     <span className="kicker">{t("kader.decide.decision")}</span>
                     {options.length
-                        ? <WishPicker entry={entry} value={choice} wide label={t("kader.decide.decisionAria")} onChange={(pick) => setChoice(pick.spec)} />
+                        ? <WishPicker entry={entry} value={choice} wide label={t("kader.decide.decisionAria")} onChange={(pick) => setPickedSpec(pick.spec)} />
                         : <span className="kp-hint">{t("kader.interview.noWishes")}</span>}
                     {entry.state === "roster" ? (
                         <Button className="kp-wide" icon={<EditIcon />} disabled={!picked || same} onClick={() => void moveTo("roster", picked ? picked.pick : undefined)}>
@@ -218,10 +230,6 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                     {canMove(entry.state, back) && <BackButton wide label={t(`kader.decide.back.${back}`)} onClick={() => void moveTo(back)} />}
                 </div>
             )}
-            <details className="kp-details">
-                <summary>{t("kader.decide.history")}</summary>
-                <HistoryLines entry={entry} />
-            </details>
         </aside>
     );
 }
@@ -255,7 +263,7 @@ export default function DecisionView() {
                         {SECTIONS.map((s) => <Section key={s} state={s} current={current} onPick={pick} onDropUser={(id, to) => void dropOn(id, to)} />)}
                     </div>
                 </div>
-                {current && entry && <Drawer key={`${current}-${entry.state}`} userId={current} entry={entry} onClose={() => pick("")} />}
+                {current && entry && <Drawer key={current} userId={current} entry={entry} onClose={() => pick("")} />}
             </div>
         </div>
     );

@@ -16,6 +16,9 @@ import KaderPage from "./KaderPage";
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getKader: vi.fn(),
+    // the live poll answers nothing here (KaderLive.test.tsx tests it)
+    getKaderLive: vi.fn(),
+    leaveKaderLive: vi.fn(),
     createKader: vi.fn(),
     setKaderState: vi.fn(),
     addKaderPlayers: vi.fn(),
@@ -178,7 +181,7 @@ describe("KaderPage · Vorauswahl", () => {
         expect(within(panel).getByRole("button", { name: t("kader.interview.complete") })).toBeDisabled();
         await userEvent.click(within(panel).getByRole("button", { name: "Mittwoch" }));
         expect(within(panel).getByRole("button", { name: t("kader.interview.complete") })).toBeEnabled();
-        await waitFor(() => expect(api.saveKaderInterview).toHaveBeenCalledWith("k1", U.mage, { answers: { q1: ["d3"] } }), { timeout: 2500 });
+        await waitFor(() => expect(api.saveKaderInterview).toHaveBeenCalledWith("k1", U.mage, { answers: { q1: ["d3"] } }, { baseRev: 0 }), { timeout: 2500 });
     });
 
     it("completes an interview and goes on", async () => {
@@ -190,7 +193,7 @@ describe("KaderPage · Vorauswahl", () => {
         const panel = screen.getByRole("region", { name: t("kader.interview.aria", { name: "Liss" }) });
         await userEvent.click(within(panel).getByRole("button", { name: "Donnerstag" }));
         await userEvent.click(within(panel).getByRole("button", { name: t("kader.interview.complete") }));
-        expect(api.saveKaderInterview).toHaveBeenCalledWith("k1", U.mage, { answers: { q1: ["d4"] } });
+        expect(api.saveKaderInterview).toHaveBeenCalledWith("k1", U.mage, { answers: { q1: ["d4"] } }, { baseRev: 0 });
         expect(api.completeKaderInterview).toHaveBeenCalledWith("k1", U.mage);
     });
 
@@ -225,7 +228,7 @@ describe("KaderPage · Vorauswahl", () => {
         expect(within(specs).getByRole("radio", { name: "Frost · Magier" })).toBeDisabled();
         await userEvent.click(within(specs).getByRole("radio", { name: "Feuer · Magier" }));
         await userEvent.click(within(panel).getByRole("button", { name: t("kader.interview.addWish") }));
-        await waitFor(() => expect(api.saveKaderInterview).toHaveBeenCalledWith("k1", U.mage, { wishes: [{ className: "Mage", spec: "Mage-Frost" }, { className: "Mage", spec: "Mage-Fire" }] }), { timeout: 2500 });
+        await waitFor(() => expect(api.saveKaderInterview).toHaveBeenCalledWith("k1", U.mage, { wishes: [{ className: "Mage", spec: "Mage-Frost" }, { className: "Mage", spec: "Mage-Fire" }] }, { baseRev: 0 }), { timeout: 2500 });
     });
 
     it("compares everybody in the overview, filters by an answer and moves the marked on", async () => {
@@ -510,7 +513,7 @@ describe("KaderPage · answer colours", () => {
         expect(api.updateKaderQuestion).toHaveBeenCalledWith("k1", "q2", {
             text: "Im Voice-Chat aktiv?", type: "single", required: false,
             options: [{ id: "o1", label: "Immer", color: "teal" }, { id: "o2", label: "Meistens", color: "amber" }, { id: "o3", label: "Selten", color: "slate" }],
-        });
+        }, { baseRev: 0 });
         first.unmount();
         // weekdays keep their day colours: no swatches
         renderPage(<KaderPage />, { route: "/kader/k1/fragen?frage=q1", path: PATH });

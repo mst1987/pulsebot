@@ -29,6 +29,7 @@ import {
 } from "./parts";
 import { useKader } from "./kaderContext";
 import { LeadAvatar, LeadBadge } from "./Leads";
+import { PresenceMark } from "./Presence";
 import { interviewersOf } from "../../lib/kader/leads";
 
 type GroupBy = "role" | "class" | "interview" | "lead" | "none";
@@ -89,7 +90,7 @@ function OverviewRow({ row, marked, onMark }: { row: Row; marked: boolean; onMar
             <span role="cell" className="kp-cell-mark">
                 <input type="checkbox" checked={marked} disabled={!canWrite} aria-label={t("kader.batch.mark", { name: playerName(view, userId, entry) })} onChange={(e) => onMark(e.target.checked)} />
             </span>
-            <span role="cell" className="kp-cell-name kp-namerowcell"><Peek row={row} />{status === "done" && <DoneBadge />}</span>
+            <span role="cell" className="kp-cell-name kp-namerowcell"><Peek row={row} />{status === "done" && <DoneBadge />}<PresenceMark playerId={userId} /></span>
             <span role="cell" className="kp-cell-char">{w1 ? <SpecTag pick={w1} size={22} /> : <span className="kp-muted">—</span>}</span>
             <span role="cell" className="kp-cell-char">{w2 ? <SpecTag pick={w2} size={20} className="kp-small" /> : <span className="kp-muted">—</span>}</span>
             {kader.questions.map((q) => <AnswerCell key={q.id} q={q} entry={entry} />)}

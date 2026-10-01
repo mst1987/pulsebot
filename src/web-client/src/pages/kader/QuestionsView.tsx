@@ -8,11 +8,11 @@
 // copies another Kader's set. Every option of a choice has a colour (a swatch
 // beside it; weekdays keep their day colours), saved with the question.
 // ?frage=<id> is the question in the editor.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-    addKaderQuestion, copyKaderQuestions, deleteKaderQuestion, orderKaderQuestions, updateKaderQuestion,
-    type KaderData, type KaderQuestion, type KaderQuestionType,
+    addKaderQuestion, copyKaderQuestions, deleteKaderQuestion, isStale, orderKaderQuestions, updateKaderQuestion,
+    type KaderData, type KaderQuestion, type KaderQuestionType, type KaderStaleError,
 } from "../../api";
 import { Button, IconButton, Modal, Segment } from "../../components/ui";
 import Popover from "../../components/ui/Popover";
@@ -23,8 +23,10 @@ import { useT } from "../../i18n";
 import { dayShort, isWeekdays } from "../../lib/kader/interview";
 import { DAY_KEYS, OPTION_COLORS, optionColors, toneAttrs, type OptionColor } from "../../lib/kader/colors";
 import { belowStartPlacement } from "../../lib/popoverPosition";
+import { changedSince, personName } from "../../lib/kader/live";
 import { Grip, SubHead } from "./parts";
 import { useKader } from "./kaderContext";
+import { ConflictBanner } from "./Presence";
 
 const NEW = "new";
 const TYPES: KaderQuestionType[] = ["single", "multi", "text"];
@@ -128,9 +130,33 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
     const t = useT();
     const toast = useToast();
     const ask = useConfirm();
-    const { kader, canWrite, run } = useKader();
+    const { view, kader, canWrite, run, refresh, me } = useKader();
+    // the question as the draft started from it; its revision goes with the save
+    const [base, setBase] = useState<KaderQuestion | null>(question);
     const [draft, setDraft] = useState<Draft>(() => draftOf(question));
     const [from, setFrom] = useState<number | null>(null);
+    const [conflict, setConflict] = useState<{ by: string } | null>(null);
+    const saving = useRef(false);
+    const dirty = base ? JSON.stringify(draft) !== JSON.stringify(draftOf(base)) : true;
+
+    /** Starts the draft again from the question as it is now ("Neu laden", or nothing typed yet). */
+    const takeCurrent = (q: KaderQuestion) => {
+        setBase(q);
+        setDraft(draftOf(q));
+        setConflict(null);
+    };
+    // somebody else changed the question while it is open: an untouched draft follows, a touched one asks
+    const questionRev = question ? question.rev || 0 : 0;
+    useEffect(() => {
+        if (saving.current || !question || !base || questionRev === (base.rev || 0)) return;
+        if (!dirty) takeCurrent(question);
+        else if (!conflict) {
+            const line = changedSince(kader, base.rev || 0, me, ["questions"]);
+            setConflict({ by: line ? line.by : "" });
+        }
+        // only a new revision of the question matters here
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [questionRev]);
     const options = draft.options.filter((o) => o.label.trim());
     const ready = !!draft.text.trim() && (draft.type === "text" || options.length >= 2);
     const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
@@ -151,7 +177,8 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
         set({ type: "multi", options: DAY_KEYS.map((d, i) => ({ key: newKey(), label: t(`kader.dayLong.${d}`), color: colors[i] })) });
     };
 
-    const save = async () => {
+    /** Saves the draft; `force` overwrites a version somebody else saved meanwhile ("Trotzdem speichern"). */
+    const save = async (force = false) => {
         if (!ready) return;
         const input = {
             text: draft.text.trim(),
@@ -163,7 +190,24 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
         if (question) {
             const lost = affectedBy(kader, question, draft);
             if (lost && !(await ask({ title: t("kader.questions.loseTitle", { n: lost }), text: t("kader.questions.loseText"), action: t("common.save"), tone: "danger" }))) return;
-            if (await run(updateKaderQuestion(kader.id, question.id, input))) toast(t("kader.questions.saved"));
+            const caught: { stale?: KaderStaleError } = {};
+            saving.current = true;
+            const result = await run(updateKaderQuestion(kader.id, question.id, input, force ? { force: true } : { baseRev: base ? base.rev || 0 : 0 }), {
+                onError: (e) => {
+                    if (!isStale(e)) return false;
+                    caught.stale = e;
+                    return true;
+                },
+            });
+            saving.current = false;
+            if (caught.stale) {
+                setConflict({ by: caught.stale.by || "" });
+                void refresh();
+                return;
+            }
+            const saved = result && result.kader ? result.kader.questions.find((q) => q.id === question.id) : undefined;
+            if (saved) takeCurrent(saved);
+            if (result) toast(t("kader.questions.saved"));
             return;
         }
         const result = await run(addKaderQuestion(kader.id, input));
@@ -182,6 +226,10 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
 
     return (
         <section className="kp-panel kp-qeditor" aria-label={t("kader.questions.editor")}>
+            {conflict && question && (
+                <ConflictBanner text={t("kader.live.conflict.question", { name: personName(view, conflict.by) })}
+                    onReload={() => takeCurrent(question)} onOverwrite={() => void save(true)} />
+            )}
             <fieldset disabled={!canWrite}>
                 <label className="field">
                     <span className="kicker">{t("kader.questions.text")}</span>
@@ -235,7 +283,7 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
             {canWrite && (
                 <div className="kp-qeditor-foot">
                     {question ? <Button variant="danger" icon={<TrashIcon />} onClick={() => void remove()}>{t("kader.questions.delete")}</Button> : <span />}
-                    <Button icon={question ? <SaveIcon /> : <PlusIcon />} disabled={!ready} onClick={() => void save()}>{question ? t("common.save") : t("kader.questions.create")}</Button>
+                    <Button icon={question ? <SaveIcon /> : <PlusIcon />} disabled={!ready || !!conflict} onClick={() => void save()}>{question ? t("common.save") : t("kader.questions.create")}</Button>
                 </div>
             )}
         </section>
@@ -360,7 +408,8 @@ export default function QuestionsView() {
                     )}
                     <p className="kp-note">{t("kader.questions.note", { n: inSelection })}</p>
                 </section>
-                <Editor key={editing === NEW ? `new-${questions.length}` : `${editing}-${JSON.stringify(selected)}`} question={editing === NEW ? null : selected}
+                {/* keyed by the question alone: a change seen live never throws away what is typed (the editor decides) */}
+                <Editor key={editing} question={editing === NEW ? null : selected}
                     onSaved={(id) => pick(id)} onDeleted={() => setParams({}, { replace: true })} />
             </div>
             {copying && <CopyModal onClose={() => setCopying(false)} onCopied={() => { setCopying(false); setParams({}, { replace: true }); }} />}

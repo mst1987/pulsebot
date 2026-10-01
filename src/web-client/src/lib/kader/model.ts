@@ -259,6 +259,8 @@ export function historyText(view: KaderView, item: KaderHistoryItem): string {
         case "added": return t("kader.history.added");
         case "state": return t("kader.history.state", { from: state(item.from), to: state(item.to) });
         case "decision": return t("kader.history.decision", { pick: wishLabel(view.classes, { className: item.className || "", spec: item.spec || "" }) });
+        case "interview_saved": return t("kader.history.saved");
+        case "lead": return item.to ? t("kader.history.lead", { name: nameOf(view, item.to) }) : t("kader.history.leadNone");
         case "interview_completed": return t("kader.history.completed");
         case "interview_reopened": return t("kader.history.reopened");
         case "vote": return item.vote && item.vote !== "none" ? t("kader.history.vote", { vote: t(`kader.vote.${item.vote}`) }) : t("kader.history.voteNone");

@@ -13,6 +13,8 @@ import KaderPage from "./KaderPage";
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getKader: vi.fn(),
+    getKaderLive: vi.fn(),
+    leaveKaderLive: vi.fn(),
     saveKaderInterview: vi.fn(),
 }));
 
@@ -125,7 +127,7 @@ describe("the interview's Gespräch führt pick", () => {
         const menu = screen.getByRole("menu", { name: t("kader.interview.lead") });
         expect(within(menu).getAllByRole("menuitemradio")).toHaveLength(4);
         await userEvent.click(within(menu).getByRole("menuitemradio", { name: new RegExp("Ohne") }));
-        await waitFor(() => expect(api.saveKaderInterview).toHaveBeenCalledWith("k1", U.mage, { lead: U.lead2 }), { timeout: 2500 });
+        await waitFor(() => expect(api.saveKaderInterview).toHaveBeenCalledWith("k1", U.mage, { lead: U.lead2 }, { baseRev: 0 }), { timeout: 2500 });
     });
 });
 

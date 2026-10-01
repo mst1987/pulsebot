@@ -1,4 +1,4 @@
-import { get, send } from "./client";
+import { get, getKeepalive, send, type ApiError } from "./client";
 
 // ===== Kaderplaner (docs/kaderplaner.md) =====
 // Raid rosters for WoW Forever, area "kader". Several Kader per server; every
@@ -94,6 +94,9 @@ export type KaderPlayer = {
     pickable: KaderPickable[];
     availability: KaderDay[];
     attendance: KaderAttendance;
+    /** The revision of the planner's character data (0 = none of its own) and who changed it last (the account dialog's conflict check). */
+    rev?: number;
+    changedBy?: string;
 };
 
 export type KaderMember = { userId: string; displayName: string; roleIds: string[]; prefill: KaderPrefill };
@@ -110,6 +113,8 @@ export type KaderInterview = {
     updatedBy: string;
     completedAt: string;
     completedBy: string;
+    /** The revision of the last change to wishes, answers, note, interviewer or completion (missing = 0). */
+    rev?: number;
 };
 export type KaderHistoryItem = { at: string; by: string; type: string; from?: string; to?: string; vote?: string; className?: string; spec?: string };
 export type KaderComment = { id: string; by: string; at: string; text: string };
@@ -132,7 +137,7 @@ export type KaderEntry = {
 
 /** An answer option; `color` one of KADER_OPTION_COLORS (lib/kader/colors.ts), none = picked by position. */
 export type KaderOption = { id: string; label: string; color?: string };
-export type KaderQuestion = { id: string; text: string; type: KaderQuestionType; options: KaderOption[]; required: boolean };
+export type KaderQuestion = { id: string; text: string; type: KaderQuestionType; options: KaderOption[]; required: boolean; rev?: number };
 export type KaderSlot = { userId: string; spec: string } | null;
 export type KaderVariant = { id: string; name: string; size: 10 | 20; groups: KaderSlot[][] };
 
@@ -147,7 +152,55 @@ export type KaderData = {
     questions: KaderQuestion[];
     players: Record<string, KaderEntry>;
     setups: KaderVariant[];
+    /** The revision of the last change in this Kader (missing = 0, never changed since live updates exist). */
+    rev?: number;
+    /** What changed, oldest first, the newest 50 lines (types and ids only). */
+    activity?: KaderActivityItem[];
 };
+
+/** The kinds of change a Kader's activity log knows (src/services/kader/kaderActivity.js). */
+export type KaderActivityType =
+    | "created" | "added" | "removed" | "state" | "decision" | "interview" | "lead" | "interview_completed" | "interview_reopened"
+    | "vote" | "comment" | "comment_deleted" | "questions" | "setups" | "settings" | "character";
+/** One line of the activity log: several players moved at once are one line with `count`. */
+export type KaderActivityItem = {
+    rev: number;
+    at: string;
+    by: string;
+    type: KaderActivityType;
+    playerId?: string;
+    count?: number;
+    from?: string;
+    to?: string;
+    questionId?: string;
+};
+
+/** The pages of one Kader a presence can name. */
+export type KaderPresenceSub = "" | "pool" | "vorauswahl" | "uebersicht" | "roster" | "fragen" | "setups";
+/** What somebody has open with a player: the interview, the discussion drawer, the account dialog. */
+export type KaderPresenceWhat = "" | "interview" | "drawer" | "account";
+/** Somebody else in the same Kader right now (in memory on the server, gone 25 s after their last poll). */
+export type KaderPresence = { userId: string; name: string; sub: KaderPresenceSub; playerId: string; what: KaderPresenceWhat; edit: boolean };
+/** The answer of the live poll. */
+export type KaderLive = {
+    rev: number;
+    sharedRev: number;
+    changes: KaderActivityItem[];
+    /** There were more changes than `changes` holds. */
+    more: boolean;
+    presence: KaderPresence[];
+    /** The Kader is not there (any more). */
+    gone?: boolean;
+};
+/** Where the page is, reported with every poll. */
+export type KaderLiveWhere = { tab: string; sub: KaderPresenceSub; playerId: string; what: KaderPresenceWhat; edit: boolean };
+/** A 409 "somebody changed this in between": the current revision, who and when. */
+export type KaderStaleError = ApiError & { rev?: number; by?: string; at?: string };
+/** Whether a refused save was refused because somebody else changed the item in between. */
+export const isStale = (e: unknown): e is KaderStaleError => !!e && typeof e === "object" && (e as ApiError).code === "stale";
+/** A save that names the revision it started from; `force` overwrites a newer one ("Trotzdem speichern"). */
+export type KaderBase = { baseRev?: number; force?: boolean };
+
 export type KaderSummary = { id: string; name: string; leads: string[]; createdAt: string; createdBy: string; counts: Record<KaderState, number>; questions: number };
 
 export type KaderView = {
@@ -166,12 +219,15 @@ export type KaderView = {
     kaders: KaderSummary[];
     kader: KaderData | null;
     warnings: string[];
+    /** The revision of the last change on the server's side (accounts, character data, Kader created/renamed/deleted). */
+    sharedRev?: number;
 };
 
 /** What a change inside one Kader answers, plus what the change adds (a created id, counts). */
 export type KaderChange = {
     kader: KaderData | null;
     kaders: KaderSummary[];
+    sharedRev?: number;
     kaderId?: string;
     moved?: number;
     skipped?: number;
@@ -202,6 +258,35 @@ export function getKader(kaderId = ""): Promise<KaderView> {
     return get<KaderView>(kaderId ? `/api/kader?kader=${encodeURIComponent(kaderId)}` : "/api/kader");
 }
 
+/** Only the Kader as stored and the summaries: the light refetch after a change somebody else made inside it. */
+export function getKaderOnly(kaderId: string): Promise<KaderChange> {
+    return get<KaderChange>(`/api/kader/kader?kader=${encodeURIComponent(kaderId)}`);
+}
+
+function liveQuery(kaderId: string, where: KaderLiveWhere, extra: Record<string, string> = {}): string {
+    const q = new URLSearchParams({ kader: kaderId, tab: where.tab, ...extra });
+    if (where.sub) q.set("sub", where.sub);
+    if (where.playerId && where.what) {
+        q.set("player", where.playerId);
+        q.set("what", where.what);
+        if (where.edit) q.set("edit", "1");
+    }
+    return `/api/kader/live?${q.toString()}`;
+}
+
+/**
+ * The live poll (every 5 s while the tab is visible): reports where the page is and answers the Kader's
+ * revision, the changes since `rev` and who else is in the Kader.
+ */
+export function getKaderLive(kaderId: string, rev: number, where: KaderLiveWhere): Promise<KaderLive> {
+    return get<KaderLive>(liveQuery(kaderId, where, { rev: String(rev) }));
+}
+
+/** The page leaves the Kader: the others stop seeing it at once. Best effort (the server forgets it 25 s later anyway). */
+export function leaveKaderLive(kaderId: string, where: KaderLiveWhere): void {
+    getKeepalive(liveQuery(kaderId, where, { leave: "1" }));
+}
+
 // ----- Kader
 export function createKader(name: string): Promise<KaderChange> {
     return send("POST", "/api/kader/kaders", { name });
@@ -229,8 +314,9 @@ export function setKaderState(kaderId: string, userIds: string[], to: KaderState
 }
 
 // ----- interview
-export function saveKaderInterview(kaderId: string, userId: string, patch: KaderInterviewPatch): Promise<KaderChange> {
-    return send("PUT", "/api/kader/interview", { kaderId, userId, ...patch });
+/** Saves what changed; `base` names the interview's revision the draft started from (409 `stale` when it moved on). */
+export function saveKaderInterview(kaderId: string, userId: string, patch: KaderInterviewPatch, base: KaderBase = {}): Promise<KaderChange> {
+    return send("PUT", "/api/kader/interview", { kaderId, userId, ...patch, ...base });
 }
 
 export function completeKaderInterview(kaderId: string, userId: string): Promise<KaderChange> {
@@ -259,8 +345,8 @@ export function addKaderQuestion(kaderId: string, input: KaderQuestionInput): Pr
     return send("POST", "/api/kader/questions", { kaderId, ...input });
 }
 
-export function updateKaderQuestion(kaderId: string, questionId: string, input: Partial<KaderQuestionInput>): Promise<KaderChange> {
-    return send("PUT", "/api/kader/questions", { kaderId, questionId, ...input });
+export function updateKaderQuestion(kaderId: string, questionId: string, input: Partial<KaderQuestionInput>, base: KaderBase = {}): Promise<KaderChange> {
+    return send("PUT", "/api/kader/questions", { kaderId, questionId, ...input, ...base });
 }
 
 export function deleteKaderQuestion(kaderId: string, questionId: string): Promise<KaderChange> {
@@ -301,8 +387,8 @@ export function removeKaderAccount(kaderId: string, userId: string): Promise<Kad
     return send("POST", "/api/kader/accounts/remove", { kaderId, userId });
 }
 
-export function saveKaderAssignment(kaderId: string, userId: string, characters: KaderCharacterInput[], activeCharacterId: string | null): Promise<KaderView> {
-    return send("PUT", "/api/kader/assignments", { kaderId, userId, characters, activeCharacterId });
+export function saveKaderAssignment(kaderId: string, userId: string, characters: KaderCharacterInput[], activeCharacterId: string | null, base: KaderBase = {}): Promise<KaderView> {
+    return send("PUT", "/api/kader/assignments", { kaderId, userId, characters, activeCharacterId, ...base });
 }
 
 export function resetKaderAssignment(kaderId: string, userId: string): Promise<KaderView> {

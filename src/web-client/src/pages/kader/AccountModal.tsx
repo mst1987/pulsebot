@@ -5,19 +5,30 @@
 // open Kader's raid categories. The character data belongs to the server, not
 // to one Kader; the planner's assignment wins inside the planner and is never
 // written back to the raider profile. Where the account stands in the open
-// Kader shows on top.
-import { useMemo, useState, type CSSProperties } from "react";
-import { removeKaderAccount, resetKaderAssignment, saveKaderAssignment, type KaderCharacterInput, type KaderDay, type KaderGear, type KaderNameStyle, type KaderPickable, type KaderPlayer } from "../../api";
+// Kader shows on top, its history behind "Verlauf".
+//
+// Live: the draft stays when the view changes. When somebody else changed the
+// characters meanwhile, an untouched draft takes their version; a touched one
+// stays and the dialog asks ("Neu laden" / "Trotzdem speichern") — also when a
+// save is refused as stale. Who else has this account open stands on top.
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+    isStale, removeKaderAccount, resetKaderAssignment, saveKaderAssignment,
+    type KaderCharacterInput, type KaderDay, type KaderGear, type KaderNameStyle, type KaderPickable, type KaderPlayer, type KaderStaleError,
+} from "../../api";
 import { Badge, Button, Field, Modal, Segment } from "../../components/ui";
 import { RefreshIcon, SaveIcon, TrashIcon } from "../../components/icons";
 import { useConfirm } from "../../components/ui/Modal";
 import { useT } from "../../i18n";
 import { roleLabel } from "../../lib/wowNames";
 import { className, classDef, specName } from "../../lib/kader/model";
+import { personName } from "../../lib/kader/live";
 import { inferNameStyle, nameOk, splitName, switchNameStyle } from "../../lib/kader/names";
-import { useKader } from "./kaderContext";
+import { useKader, useReportFocus } from "./kaderContext";
 import { AttendanceNights } from "./Attendance";
-import { ClassIcon, RoleIcon, SinceText, SpecIcon, StateBadge } from "./parts";
+import { ClassIcon, RoleIcon, SpecIcon, StateBadge } from "./parts";
+import { HistoryButton } from "./ActivityLog";
+import { ConflictBanner, PresenceBanner } from "./Presence";
 
 const DAYS: KaderDay[] = ["mo", "di", "mi", "do", "fr", "sa", "so"];
 const GEARS: KaderGear[] = ["none", "usable", "ready"];
@@ -82,20 +93,44 @@ function ProfilePanel({ player }: { player: KaderPlayer }) {
 export default function AccountModal({ userId, onClose }: { userId: string; onClose: () => void }) {
     const t = useT();
     const ask = useConfirm();
-    const { view, kader, players, run, canWrite } = useKader();
+    const { view, kader, players, run, canWrite, refresh } = useKader();
     const player = players.get(userId);
-    const initial = useMemo(() => (player ? draftOf(player) : { chars: [], active: null }), [player]);
+    useReportFocus("dialog", { playerId: userId, what: "account", edit: canWrite });
+    // the account as the draft started from it: its revision goes with the save
+    const [base, setBase] = useState<KaderPlayer | undefined>(player);
+    const initial = useMemo(() => (base ? draftOf(base) : { chars: [], active: null }), [base]);
     const [chars, setChars] = useState<KaderCharacterInput[]>(initial.chars);
     const [active, setActive] = useState<string | null>(initial.active);
     const [sel, setSel] = useState(Math.max(0, initial.chars.findIndex((c) => c.id === initial.active)));
     const [busy, setBusy] = useState(false);
+    const [conflict, setConflict] = useState<{ by: string } | null>(null);
+    const dirty = JSON.stringify({ chars, active }) !== JSON.stringify(initial);
+
+    /** Starts the draft again from the account as it is now ("Neu laden", or nothing typed yet). */
+    const takeCurrent = (p: KaderPlayer) => {
+        const d = draftOf(p);
+        setBase(p);
+        setChars(d.chars);
+        setActive(d.active);
+        setSel(Math.max(0, d.chars.findIndex((c) => c.id === d.active)));
+        setConflict(null);
+    };
+
+    // somebody else saved the characters while the dialog is open
+    const playerRev = player ? player.rev || 0 : 0;
+    useEffect(() => {
+        if (!player || !base || playerRev === (base.rev || 0)) return;
+        if (!dirty) takeCurrent(player);
+        else if (!conflict) setConflict({ by: player.changedBy || "" });
+        // only a new revision of the account matters here
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [playerRev]);
 
     if (!player) return null;
     const cur: KaderCharacterInput | undefined = chars[sel];
     const cls = cur ? classDef(view.classes, cur.className) : null;
     const main = cur ? cur.specs.find((s) => s.main) || cur.specs[0] : undefined;
     const entry = kader.players[userId];
-    const dirty = JSON.stringify({ chars, active }) !== JSON.stringify(initial);
     const allValid = chars.every((c) => nameOk(c.name, c.nameStyle) && !!c.className);
     const [first, last] = splitName(cur ? cur.name : "");
 
@@ -142,13 +177,27 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
         if (cur && active === cur.id) setActive(next[0] ? next[0].id : null);
     };
 
-    const save = async () => {
-        if (!dirty) return onClose();
+    /** Saves the draft; `force` overwrites a version somebody else saved meanwhile ("Trotzdem speichern"). */
+    const save = async (force = false) => {
+        if (!dirty && !force) return onClose();
         setBusy(true);
+        const caught: { stale?: KaderStaleError } = {};
         // a refusal (a name the rules do not allow) is a toast; the dialog stays open with the draft
-        const next = await run(saveKaderAssignment(kader.id, userId, chars, active));
+        const next = await run(saveKaderAssignment(kader.id, userId, chars, active, force ? { force: true } : { baseRev: base ? base.rev || 0 : 0 }), {
+            onError: (e) => {
+                if (!isStale(e)) return false;
+                caught.stale = e;
+                return true;
+            },
+        });
         setBusy(false);
+        if (caught.stale) {
+            setConflict({ by: caught.stale.by || "" });
+            void refresh(true);
+            return undefined;
+        }
         if (next) onClose();
+        return undefined;
     };
     const reset = async () => {
         if (!(await ask({ title: t("kader.account.resetTitle"), text: t("kader.account.resetText"), action: t("common.reset"), tone: "danger" }))) return;
@@ -173,17 +222,22 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
             footer={canWrite ? (
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon={<SaveIcon />} disabled={busy || !allValid} onClick={() => void save()}>{t("common.apply")}</Button>
+                    <Button icon={<SaveIcon />} disabled={busy || !allValid || !!conflict} onClick={() => void save()}>{t("common.apply")}</Button>
                 </>
             ) : <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}
         >
             <div className="kp-stack">
+                <PresenceBanner playerId={userId} what="account" />
+                {conflict && (
+                    <ConflictBanner busy={busy} text={t("kader.live.conflict.account", { name: personName(view, conflict.by) })}
+                        onReload={() => takeCurrent(player)} onOverwrite={() => void save(true)} />
+                )}
                 <div className="kp-acc-status">
                     {entry ? (
                         <>
                             <span className="kicker">{t("kader.account.inKader", { kader: kader.name })}</span>
                             <StateBadge state={entry.state} />
-                            <span className="kp-sub"><SinceText entry={entry} /></span>
+                            <HistoryButton userId={userId} entry={entry} />
                         </>
                     ) : <span className="kp-muted">{t("kader.account.notInKader", { kader: kader.name })}</span>}
                     <span className="kp-grow" />

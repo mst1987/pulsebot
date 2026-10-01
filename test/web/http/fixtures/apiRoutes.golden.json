@@ -195,6 +195,8 @@
   "PUT /api/raids/setup/signup",
   "PUT /api/signups",
   "GET /api/kader",
+  "GET /api/kader/kader",
+  "GET /api/kader/live",
   "POST /api/kader/kaders",
   "PUT /api/kader/kaders",
   "POST /api/kader/kaders/delete",

@@ -1,8 +1,9 @@
 // Small pieces every view of the Kaderplaner draws the same way: WoW icons of
 // class, spec and role — a spec is shown as its icon plus the class name, the
 // full "Schamane · Wiederherstellung" sits in the tooltip —, a player's name (it
-// opens the account dialog), the state with its icon and "seit … (wer)", the
-// source of a prefilled character, the initial of a lead, counts that say what
+// opens the account dialog), the state with its icon, the source of a
+// prefilled character (who changed what when lives in the Verlauf,
+// ActivityLog.tsx), counts that say what
 // they count, the status of an interview (open circle, progress ring, check),
 // votes, empty states, a switch, the week squares, the head of a sub page, the
 // two tabs of the Vorauswahl, what an interview says (wishes, answers,
@@ -24,7 +25,6 @@ import { roleLabel } from "../../lib/wowNames";
 import { classColor, classIconOf, className, dayOf, historyText, nameOf, playerName, specIconOf, specName, wishLabel } from "../../lib/kader/model";
 import { dayShort, isAnswered, isWeekdays, progress, statusOf } from "../../lib/kader/interview";
 import { toneAttrs, toneOf } from "../../lib/kader/colors";
-import { leadHue } from "../../lib/kader/leads";
 import { useKader, type KaderSub } from "./kaderContext";
 
 /**
@@ -136,21 +136,6 @@ export function StateBadge({ state }: { state: KaderState }) {
     return <span className={`kp-state kp-st-${state}`}><StateIcon state={state} />{t(`kader.state.${state}`)}</span>;
 }
 
-/** "seit 30.09. (Kurt)" — since when and by whom a player stands where they stand. */
-export function SinceText({ entry }: { entry: KaderEntry }) {
-    const { view } = useKader();
-    const t = useT();
-    if (!entry.since) return null;
-    return <>{t("kader.since", { date: dayOf(entry.since), by: nameOf(view, entry.by) })}</>;
-}
-
-/** "in der Vorauswahl seit 30.09. (Kurt)" — the state in words, with since when and by whom. */
-export function StateSince({ entry }: { entry: KaderEntry }) {
-    const { view } = useKader();
-    const t = useT();
-    return <>{t(`kader.stateSince.${entry.state}`, { date: dayOf(entry.since) || "—", by: nameOf(view, entry.by) })}</>;
-}
-
 /** Where a prefilled character comes from: Profil, Logs, manuell (the planner's own data) or fehlt. */
 export function SourceBadge({ prefill }: { prefill: KaderPrefill }) {
     const t = useT();
@@ -158,13 +143,6 @@ export function SourceBadge({ prefill }: { prefill: KaderPrefill }) {
     const label = t(`kader.source.${source}`);
     const tip = prefill && prefill.versionId ? t("kader.source.otherVersion", { version: prefill.versionId.toUpperCase() }) : t("kader.source.tip");
     return <span className={`kp-source kp-src-${source}`} data-tip={tip}>{label}</span>;
-}
-
-/** The initial of a lead in a small circle, the full name as its tooltip. */
-export function Avatar({ userId }: { userId: string }) {
-    const { view, kader } = useKader();
-    const name = nameOf(view, userId);
-    return <span className={`kp-avatar kp-hue-${leadHue(kader.leads, userId)}`} role="img" aria-label={name} data-tip={name}>{(name.trim()[0] || "?").toUpperCase()}</span>;
 }
 
 /** A number that says what it counts: the figure as a badge, the words in the tooltip and for screen readers. */

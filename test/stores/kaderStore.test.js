@@ -46,6 +46,58 @@ describe("stores/kaderStore", () => {
         expect(kaderStore.migrateLegacy({ now: "x", charOfFor: () => () => null })).toEqual([]);
     });
 
+    describe("revisions and the activity log (Live)", () => {
+        const KADER = { id: "k1", name: "Hyjal", players: { "111111111111111111": { state: "pool", interview: { note: "x" } } }, questions: [{ id: "q1", text: "Voice", type: "text" }] };
+
+        it("reads a planner stored before they existed as revision 0 without a log, and writes it back unchanged", () => {
+            fs.writeFileSync(file, JSON.stringify({ guilds: { g1: { v: 2, kaders: [KADER] } } }));
+            const p = kaderStore.readPlanner("g1");
+            expect(p.rev).toBeUndefined();
+            expect(p.kaders[0].rev).toBeUndefined();
+            expect(p.kaders[0].activity).toBeUndefined();
+            expect(p.kaders[0].players["111111111111111111"].interview.rev).toBeUndefined();
+            expect(kaderStore.liveState("g1", "k1")).toEqual({ found: true, rev: 0, sharedRev: 0, activity: [] });
+            // idempotent: writing what was read changes nothing
+            kaderStore.writePlanner("g1", p);
+            expect(kaderStore.readPlanner("g1")).toEqual(p);
+        });
+
+        it("keeps revisions and the log, and drops what is no revision or no known line", () => {
+            kaderStore.writePlanner("g1", {
+                v: 2, rev: 7, sharedRev: 3,
+                assignments: { "111111111111111111": { characters: [{ id: "c1", name: "A B", className: "Mage", specs: [] }], rev: 5, by: "u", at: "t" } },
+                kaders: [{
+                    ...KADER, rev: 6,
+                    questions: [{ id: "q1", text: "Voice", type: "text", rev: 4 }],
+                    players: { "111111111111111111": { state: "pool", interview: { rev: 6 } } },
+                    activity: [
+                        { rev: 6, at: "t", by: "u", type: "state", playerId: "111111111111111111", from: "pool", to: "selected", note: "GEHEIM" },
+                        { rev: "7", type: "state" }, { rev: 8, type: "hack" }, null,
+                    ],
+                }],
+            });
+            const p = kaderStore.readPlanner("g1");
+            expect(p).toMatchObject({ rev: 7, sharedRev: 3 });
+            expect(p.assignments["111111111111111111"]).toMatchObject({ rev: 5, by: "u", at: "t" });
+            expect(p.kaders[0]).toMatchObject({ rev: 6, questions: [{ id: "q1", rev: 4 }] });
+            expect(p.kaders[0].players["111111111111111111"].interview.rev).toBe(6);
+            expect(p.kaders[0].activity).toEqual([{ rev: 6, at: "t", by: "u", type: "state", playerId: "111111111111111111", from: "pool", to: "selected" }]);
+        });
+
+        it("answers the live state of a Kader, fresh after every write, and nothing for one that is not there", () => {
+            kaderStore.writePlanner("g1", { v: 2, sharedRev: 2, kaders: [{ ...KADER, rev: 2 }] });
+            expect(kaderStore.liveState("g1", "k1")).toMatchObject({ found: true, rev: 2, sharedRev: 2 });
+            expect(kaderStore.liveState("g1", "nope")).toEqual({ found: false, rev: 0, sharedRev: 2, activity: [] });
+            expect(kaderStore.liveState("g2", "k1").found).toBe(false);
+            kaderStore.writePlanner("g1", { v: 2, sharedRev: 2, kaders: [{ ...KADER, rev: 3 }] });
+            expect(kaderStore.liveState("g1", "k1").rev).toBe(3);
+            // an edit by hand counts too (another size, another mtime)
+            const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+            raw.guilds.g1.kaders[0].rev = 12345;
+            fs.writeFileSync(file, JSON.stringify(raw));
+            expect(kaderStore.liveState("g1", "k1").rev).toBe(12345);
+        });
+    });
 });
 
 // The privacy rule of docs/kaderplaner.md: wishes, answers, notes, votes and

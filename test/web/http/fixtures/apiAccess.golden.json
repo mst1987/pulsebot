@@ -167,6 +167,8 @@
     "/api/cla/recommendations/send": "cla",
     "/api/cla/recommendations/phrase": "cla",
     "/api/kader": "kader",
+    "/api/kader/kader": "kader",
+    "/api/kader/live": "kader",
     "/api/kader/kaders": "kader",
     "/api/kader/kaders/delete": "kader",
     "/api/kader/players/add": "kader",

@@ -199,7 +199,7 @@ describe("web/apiRoutes/kader", () => {
             const { kaderId } = await kaderWithPlayers();
             let res = await put("/api/kader/kaders", { kaderId, attendanceCategories: ["c-mo", "c-nope"] });
             expect(status(res)).toBe(200);
-            expect(Object.keys(body(res)).sort()).toEqual(["kader", "kaders"]);
+            expect(Object.keys(body(res)).sort()).toEqual(["kader", "kaders", "sharedRev"]);
             expect(body(res).kader.attendanceCategories).toEqual(["c-mo"]);
             // another lead reads the same pick
             auth.getUser.mockReturnValue(granted("read"));
@@ -220,7 +220,7 @@ describe("web/apiRoutes/kader", () => {
             expect(view.kader.players[U2]).toMatchObject({ name: "Bea", wishes: [] });
 
             let res = await post("/api/kader/players/state", { kaderId, userIds: [U1, U2], to: "selected" });
-            expect(Object.keys(body(res)).sort()).toEqual(["kader", "kaders", "moved", "skipped"]);
+            expect(Object.keys(body(res)).sort()).toEqual(["kader", "kaders", "moved", "sharedRev", "skipped"]);
             expect(body(res)).toMatchObject({ moved: 2, skipped: 0 });
 
             res = await post("/api/kader/questions", { kaderId, text: "Raidtage", type: "multi", options: [{ label: "Mi" }, { label: "Do" }], required: true });
@@ -262,7 +262,7 @@ describe("web/apiRoutes/kader", () => {
             // the raider profile is never written
             expect(fs.readFileSync(profileFile, "utf8")).toBe(profileBefore);
             expect(kaderStore.readPlanner("g1").kaders[0].players[U1].history.map((h) => h.type)).toEqual(
-                ["added", "state", "interview_completed", "state", "vote", "state", "decision"],
+                ["added", "state", "interview_saved", "lead", "interview_completed", "state", "vote", "state", "decision"],
             );
         });
 
