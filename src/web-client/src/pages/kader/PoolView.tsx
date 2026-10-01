@@ -12,11 +12,11 @@ import { Button, Segment } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
 import { useToast } from "../../components/Jobs";
 import { HoverPanel } from "../../components/HoverPanel";
-import { ListChecksIcon, PlusIcon, RecruitmentIcon, RosterIcon, SearchIcon, TrashIcon } from "../../components/icons";
+import { AlertIcon, ListChecksIcon, PlusIcon, RecruitmentIcon, RosterIcon, SearchIcon, TrashIcon } from "../../components/icons";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { useTableSort } from "../../lib/tableSort";
-import { className, dayOf, mainPick, playerName, rolesOf, searchText } from "../../lib/kader/model";
+import { attendanceCategoriesOf, className, dayOf, mainPick, playerName, rolesOf, searchText } from "../../lib/kader/model";
 import { POOL_SORT, poolParts, sortTable, type PoolSortKey } from "../../lib/kader/sort";
 import { cleanState, passes, type FilterDef, type FilterState } from "../../lib/kader/filters";
 import { FilterChips, FilterMenus } from "./FilterMenus";
@@ -190,6 +190,13 @@ export default function PoolView() {
                 <span className="kp-muted"><b className="kp-mono kp-big-n">{shown.length}</b> {t("kader.pool.ofTotal", { count: rows.length })}</span>
                 <FilterChips defs={defs} state={filters} onChange={setFilters} />
             </div>
+            {/* no silent fallback: without a pick the attendance says so above the table */}
+            {!attendanceCategoriesOf(view, kader).length && view.raidCategories.length > 0 && (
+                <p className="kp-attnote" role="note">
+                    <AlertIcon />
+                    <span><b>{t("kader.att.noneTip")}.</b> {t(canWrite ? "kader.att.noneSub" : "kader.att.noneSubRead")}</span>
+                </p>
+            )}
             <div className="kp-panel kp-table kp-scroll-x kp-pool-table" role="table" aria-label={t("kader.pool.tableLabel", { name: kader.name })}>
                 <div className="kp-trow kp-thead kp-pool-grid" role="row">
                     <span role="columnheader" className="kp-cell-mark">

@@ -128,6 +128,8 @@ describe("KaderPage · Pool", () => {
         expect(screen.getByText("76 %")).toHaveAttribute("data-tip-sub", "Mo Raid 9/11 · Do Raid 7/10");
         // Liss: only Do counts (her PUG nights are not picked)
         expect(screen.getByText("40 %")).toHaveAttribute("data-tip-sub", "Do Raid 2/5");
+        // with a pick there is no hint above the table
+        expect(screen.queryByRole("note")).toBeNull();
         await userEvent.click(screen.getByRole("switch", { name: t("kader.pool.toSelection", { name: "Neuling" }) }));
         expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.hand], "selected");
         // somebody further along shows their state instead of the switch
@@ -342,6 +344,8 @@ describe("KaderPage · attendance per raid category", () => {
         expect(dashes).toHaveLength(7);
         expect(dashes[0]).toHaveAttribute("data-tip-sub", t("kader.att.noneSub"));
         expect(screen.getByRole("button", { name: t("kader.att.pickLong") })).toHaveTextContent(t("kader.att.pick"));
+        // and the hint above the table says where to pick them
+        expect(screen.getByRole("note")).toHaveTextContent(t("kader.att.noneSub"));
         // the account dialog says the same
         await userEvent.click(screen.getByRole("button", { name: "Aldric" }));
         const dialog = await screen.findByRole("dialog");

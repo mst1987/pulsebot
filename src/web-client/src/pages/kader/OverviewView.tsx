@@ -181,10 +181,11 @@ export default function OverviewView() {
         }
     };
     const toggleAll = (on: boolean) => setMarked(on ? shown.map((r) => r.userId) : []);
-    // one column per question; the smallest widths of kader.css (.kp-ov-grid) plus the gaps give the table's least width
-    const n = kader.questions.length;
-    const qcols = n ? `repeat(${n}, minmax(88px, 1fr))` : "";
-    const minw = 22 + 130 + 160 + 110 + 116 + 56 + 12 * 5 + 28 + n * (88 + 12);
+    // one column per question (seven day squares need 112 px); the smallest widths of kader.css
+    // (.kp-ov-grid) plus the gaps give the table's least width
+    const qmin = kader.questions.map((question) => (isWeekdays(question) ? 112 : 88));
+    const qcols = qmin.map((w) => `minmax(${w}px, 1fr)`).join(" ");
+    const minw = 22 + 130 + 160 + 110 + 116 + 56 + 12 * 5 + 28 + qmin.reduce((sum, w) => sum + w + 12, 0);
 
     return (
         <div className="kp-view">

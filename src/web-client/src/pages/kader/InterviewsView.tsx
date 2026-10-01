@@ -312,15 +312,17 @@ function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: 
                             : t("kader.interview.notSaved")}
                 </span>
                 {canWrite && entry.state === "selected" && <BackButton label={t("kader.interview.toPool")} onClick={() => void toPool()} />}
-                <span className="kp-grow" />
-                {canWrite && !done && !complete && <span className="kp-sub kp-warntext kp-withicon"><AlertIcon />{t("kader.interview.missing", { list: missing.join(", ") })}</span>}
-                {canWrite && done && <Button variant="ghost" icon={<EditIcon />} onClick={() => void run(reopenKaderInterview(kader.id, userId))}>{t("kader.interview.reopen")}</Button>}
-                {canWrite && !done && (
-                    <>
-                        <Button variant="ghost" icon={<SaveIcon />} onClick={() => void saveNext()}>{next ? t("kader.interview.saveNext") : t("common.save")}</Button>
-                        <Button icon={<CheckIcon />} disabled={!complete} onClick={() => void finish()}>{t("kader.interview.complete")}</Button>
-                    </>
-                )}
+                {/* the way on stays on the right, also when the row wraps */}
+                <span className="kp-iv-foot-act">
+                    {canWrite && !done && !complete && <span className="kp-sub kp-warntext kp-withicon kp-wrap"><AlertIcon />{t("kader.interview.missing", { list: missing.join(", ") })}</span>}
+                    {canWrite && done && <Button variant="ghost" icon={<EditIcon />} onClick={() => void run(reopenKaderInterview(kader.id, userId))}>{t("kader.interview.reopen")}</Button>}
+                    {canWrite && !done && (
+                        <>
+                            <Button variant="ghost" icon={<SaveIcon />} onClick={() => void saveNext()}>{next ? t("kader.interview.saveNext") : t("common.save")}</Button>
+                            <Button icon={<CheckIcon />} disabled={!complete} onClick={() => void finish()}>{t("kader.interview.complete")}</Button>
+                        </>
+                    )}
+                </span>
             </div>
         </section>
     );

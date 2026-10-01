@@ -250,7 +250,7 @@
    long label ends in "…" and keeps its chevron; extra controls go below it */
 .kp-th { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
 .kp-th > .kicker { display: flex; max-width: 100%; min-width: 0; }
-.kp-th .sort-link { max-width: 100%; min-width: 0; }
+.kp-th .sort-link { max-width: 100%; min-width: 0; text-transform: inherit; letter-spacing: inherit; }
 /* the attendance column: which raid categories count, a menu for the leads */
 .kp-th-att { gap: 5px; }
 .kp-attsrc {
@@ -260,16 +260,23 @@
 }
 .kp-attsrc svg { width: 12px; height: 12px; flex: none; color: var(--muted); }
 .kp-attsrc:hover, .kp-attsrc:focus-visible, .kp-attsrc[aria-expanded="true"] { border-color: var(--accent); outline: none; }
-.kp-attsrc.kp-empty { border-color: var(--medium); background: var(--medium-bg); }
-.kp-attsrc.kp-empty svg:first-child { color: var(--medium); }
+.kp-attsrc.kp-attsrc-none { border-color: var(--medium); background: var(--medium-bg); }
+.kp-attsrc.kp-attsrc-none svg:first-child { color: var(--medium); }
 .kp-attsrc.kp-static { cursor: default; padding: 0; border-color: transparent; background: none; color: var(--muted); font-weight: 400; }
-.kp-attsrc.kp-static.kp-empty { color: var(--medium); }
+.kp-attsrc.kp-static.kp-attsrc-none { color: var(--medium); }
 .kp-attmenu { min-width: 280px; gap: 8px; padding: 8px; }
 .kp-attmenu-head { padding: 4px 6px 0; }
 .kp-attmenu-note { font-size: 12px; }
-.kp-attvalue { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; text-align: right; }
-.kp-attvalue b { font-size: 18px; }
-.kp-drawer-att { align-items: flex-start; }
+/* the Pool's hint while the Kader counts in no raid category */
+.kp-attnote {
+    display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 10px 14px; font-size: 13.5px; line-height: 1.45;
+    color: var(--text); background: var(--medium-bg); border-left: 3px solid var(--medium); border-radius: 0 6px 6px 0;
+}
+.kp-attnote > svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--medium); }
+/* the drawer's line: the word and the value on top, what it is made of below over the full width */
+.kp-attline { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px 8px; min-width: 0; }
+.kp-attline > b { font-size: 18px; }
+.kp-attline > .kp-sub { grid-column: 1 / -1; }
 /* the raid categories to tick: rows in the settings, menu items in the column head */
 .kp-catlist { display: flex; flex-direction: column; gap: 8px; }
 .kp-catopt {
@@ -285,8 +292,8 @@
 .kp-attmenu .kp-catopt { min-height: 40px; padding: 4px 8px; border-color: transparent; background: none; }
 .kp-attmenu .kp-catopt:hover, .kp-attmenu .kp-catopt:focus-visible { background: var(--panel2); }
 .kp-attmenu .kp-catopt.kp-on { background: var(--accent-soft); }
-.kp-pool-table { --minw: 880px; }
-.kp-pool-grid { grid-template-columns: 22px minmax(150px, 1.3fr) minmax(220px, 1.7fr) minmax(130px, 1fr) 132px 132px; }
+.kp-pool-table { --minw: 920px; }
+.kp-pool-grid { grid-template-columns: 22px minmax(150px, 1.3fr) minmax(220px, 1.7fr) minmax(130px, 1fr) 164px 132px; }
 /* the overview's width per question lives in OverviewView (--qcols, --minw): keep both in step */
 .kp-ov-grid { grid-template-columns: 22px minmax(130px, 1fr) minmax(160px, 1.25fr) minmax(110px, 1fr) var(--qcols,) 116px 56px; min-height: 48px; }
 /* a phone: the pool is a list — name over character, the switch on the right; roles and
@@ -569,7 +576,8 @@ dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
 .kp-radio { border-radius: 50%; }
 .kp-box { border-radius: 3px; }
 .kp-on .kp-radio, .kp-on .kp-box { background: var(--accent); border-color: var(--accent); }
-.kp-iv-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--line); }
+.kp-iv-foot { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--line); }
+.kp-iv-foot-act { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-left: auto; min-width: 0; }
 @media (max-width: 1100px) { .kp-iv-body { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 900px) {
     .kp-iv { grid-template-columns: minmax(0, 1fr); }

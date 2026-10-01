@@ -27,7 +27,7 @@ import { dragProps, useDropZone } from "./dnd";
 import {
     AnswerLines, BackButton, Count, HistoryLines, PickIcon, PickLabel, PlayerName, RoleIcon, StateIcon, StateSince, VoteIcon, WishIcons, WishLines,
 } from "./parts";
-import { AttendanceValue } from "./Attendance";
+import { AttendanceLine } from "./Attendance";
 import WishPicker from "./WishPicker";
 import { useKader } from "./kaderContext";
 
@@ -141,10 +141,7 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                 <IconButton icon={<XIcon />} size="sm" tip={t("common.close")} onClick={onClose} />
             </div>
             <WishLines wishes={entry.wishes} />
-            <div className="kp-between kp-drawer-att">
-                <span className="kp-muted">{t("kader.pool.attendance")}</span>
-                <AttendanceValue userId={userId} withParts />
-            </div>
+            <AttendanceLine userId={userId} label={t("kader.pool.attendance")} />
             <details className="kp-details">
                 <summary>{iv.completedAt ? t("kader.decide.interviewBy", { lead: nameOf(view, iv.lead || iv.completedBy), date: dayOf(iv.completedAt) }) : t("kader.decide.interviewOpen")}</summary>
                 <AnswerLines entry={entry} questions={kader.questions} />

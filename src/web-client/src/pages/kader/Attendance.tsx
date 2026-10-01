@@ -30,19 +30,25 @@ function useAttendanceWords(userId: string): { text: string; tip: string; sub: s
     return { text: attText(att), tip: t("kader.att.tip", { attended: att.attended, counted: att.counted }), sub: attPartsText(att), counted: true };
 }
 
-/**
- * A player's attendance over the Kader's categories: "76 %" or "—", what it is
- * made of in the tooltip. `withParts` writes it out below the value (the
- * drawer has the room): "16 von 21 Raidabenden da · Mo Raid 9/11 · Do Raid 7/10".
- */
-export function AttendanceValue({ userId, withParts = false }: { userId: string; withParts?: boolean }) {
+/** A player's attendance over the Kader's categories: "76 %" or "—", what it is made of in the tooltip. */
+export function AttendanceValue({ userId }: { userId: string }) {
     const words = useAttendanceWords(userId);
-    if (!withParts) return <span className="kp-mono" data-tip={words.tip} data-tip-sub={words.sub}>{words.text}</span>;
+    return <span className="kp-mono" data-tip={words.tip} data-tip-sub={words.sub}>{words.text}</span>;
+}
+
+/**
+ * The same written out where there is room (the Vorläufig drawer): the word
+ * and the value, below it what it is made of — "16 von 21 Raidabenden da · Mo
+ * Raid 9/11 · Do Raid 7/10".
+ */
+export function AttendanceLine({ userId, label }: { userId: string; label: string }) {
+    const words = useAttendanceWords(userId);
     return (
-        <span className="kp-attvalue">
+        <div className="kp-attline">
+            <span className="kp-muted">{label}</span>
             <b className="kp-mono">{words.text}</b>
             <span className="kp-sub kp-wrap">{words.counted ? `${words.tip} · ${words.sub}` : words.tip}</span>
-        </span>
+        </div>
     );
 }
 
@@ -134,7 +140,7 @@ export function AttendanceSource() {
 
     if (!canWrite) {
         return (
-            <span className={`kp-attsrc kp-static${names ? "" : " kp-empty"}`} data-tip={names ? t("kader.att.from", { cats: names }) : t("kader.att.noneTip")}>
+            <span className={`kp-attsrc kp-static${names ? "" : " kp-attsrc-none"}`} data-tip={names ? t("kader.att.from", { cats: names }) : t("kader.att.noneTip")}>
                 <span className="kp-ellipsis">{names || t("kader.att.noneShort")}</span>
             </span>
         );
@@ -163,7 +169,7 @@ export function AttendanceSource() {
     };
     return (
         <>
-            <button ref={anchor} type="button" className={`kp-attsrc${names ? "" : " kp-empty"}`} aria-haspopup="menu" aria-expanded={open}
+            <button ref={anchor} type="button" className={`kp-attsrc${names ? "" : " kp-attsrc-none"}`} aria-haspopup="menu" aria-expanded={open}
                 aria-label={names ? t("kader.att.fromChange", { cats: names }) : t("kader.att.pickLong")}
                 data-tip={names ? t("kader.att.from", { cats: names }) : t("kader.att.pickLong")} onClick={() => setOpen(!open)}
                 onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); } }}>
