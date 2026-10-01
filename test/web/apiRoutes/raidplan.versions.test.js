@@ -22,7 +22,7 @@ const raidplan = require("../../../src/web/raidplan/raidplan");
 const route = require("../../../src/web/apiRoutes/raidplan");
 const { mockRes, status, json } = require("../../helpers/http");
 
-const ORGA = { id: "orga", isAdmin: false, access: { raids: { read: true, write: true } } };
+const ORGA = { id: "orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };
 const person = (userId, character, spec, role) => ({ userId, character, spec, role });
 const APPROVED = {
     version: 1, approvedAt: 1, approvedBy: "orga",

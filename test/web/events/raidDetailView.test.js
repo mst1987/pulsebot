@@ -2,7 +2,9 @@
 // GET /api/raids/detail from one builder per part; apiRoutes/raidDetail.js only
 // sends it. The byte-for-byte comparison against the old handler was done on
 // the dev data before the move (see the PR); these tests pin each part.
-jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock());
+const ADMIN = { id: "1", name: "Admin", isAdmin: true };
+let mockUser = ADMIN;
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 123) }));
 jest.mock("../../../src/stores/settingsStore", () => ({
@@ -205,6 +207,18 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(body.eventsWarning).toBe("Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.");
     });
 
+    // Posting the plan's link is a raid plan write (docs/permissions.md): without it there is no step to nudge.
+    it("leaves out the plan's link state and the \"Einteilungen\" step for a reader who may not post it", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+        getEvent.mockReturnValue({ status: "active", setup: null });
+        const ids = (body) => body.steps.steps.map((s) => s.id);
+        const all = (await buildRaidDetail({ guildId: "g1", eventId: "eh-1" })).body;
+        expect(ids(all)).toContain("plan");
+        const without = (await buildRaidDetail({ guildId: "g1", eventId: "eh-1", planPost: false })).body;
+        expect(ids(without)).toEqual(ids(all).filter((id) => id !== "plan"));
+        expect(without.raidplanPost).toBeNull();
+    });
+
     it("leaves the member list alone when the roster of a past raid is unknown", async () => {
         loadEventGroups.mockResolvedValue(groupsWith(rhEvent({ startTime: PAST, signUps: [] })));
         settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["r1"] } });
@@ -275,5 +289,24 @@ describe("GET /api/raids/detail (the route only speaks HTTP)", () => {
         const r = mockRes();
         await getRaidDetail({ headers: {} }, r, new URL("http://x/api/raids/detail"));
         expect(sent(r)).toEqual({ status: 404, body: { error: { code: "not_found", message: "Event nicht gefunden." } } });
+    });
+
+    it("hands the \"Einteilungen\" step only to a caller with raidplan write", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+        getEvent.mockReturnValue({ status: "active", setup: null });
+        const stepIds = async (user) => {
+            mockUser = user;
+            const r = mockRes();
+            await getRaidDetail({ headers: {} }, r, new URL("http://x/api/raids/detail?event=eh-1"));
+            return json(r).data.steps.steps.map((s) => s.id);
+        };
+        try {
+            expect(await stepIds(ADMIN)).toContain("plan");
+            expect(await stepIds({ id: "o", isAdmin: false, access: { raids: { read: true, write: true } } })).not.toContain("plan");
+            expect(await stepIds({ id: "p", isAdmin: false, access: { raids: { read: true, write: false }, raidplan: { read: true, write: false } } })).not.toContain("plan");
+            expect(await stepIds({ id: "w", isAdmin: false, access: { raids: { read: true, write: false }, raidplan: { read: true, write: true } } })).toContain("plan");
+        } finally {
+            mockUser = ADMIN;
+        }
     });
 });

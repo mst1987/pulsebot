@@ -140,8 +140,8 @@ export default function RaidDetailPage() {
     // Only an own event has a setup editor; a Raid-Helper event's setup is its raidplan in the roster.
     const ownEvent = data.event.source === "eventhelper";
     // The raid plan (boards per boss): always on an own event, on a Raid-Helper event once the orga switched it on (its players then
-    // come from Raid-Helper). The setup editor stays an own event's.
-    const hasPlan = ownEvent || !!data.event.raidplanEnabled;
+    // come from Raid-Helper). The setup editor stays an own event's. The plan is its own area ("raidplan", docs/permissions.md).
+    const hasPlan = canAccess(user, "raidplan") && (ownEvent || !!data.event.raidplanEnabled);
     const tabs = TABS.filter((t) => (t === "setup" ? ownEvent : t === "plan" ? hasPlan : true));
     const shown: Tab = (tab === "setup" && !ownEvent) || (tab === "plan" && !hasPlan) ? LEGACY_TABS.setup.tab : tab;
 
@@ -174,8 +174,8 @@ export default function RaidDetailPage() {
     // Event verwalten (#288): one menu for an own event, only with raids write.
     // Editing reuses the create dialog (#261), everything else is a dialog or one question.
     const canManage = !!ctx.canManage;
-    // A Raid-Helper event's menu holds only the raid plan switch (raids write).
-    const canSwitchPlan = !ownEvent && canWrite;
+    // A Raid-Helper event's menu holds only the raid plan switch (raidplan write).
+    const canSwitchPlan = !ownEvent && !archived && canAccess(user, "raidplan", "write");
     const runManage = async (action: ManageAction) => {
         const ev = data.event;
         if (action === "raidplanOn") setLinkOpen(true);

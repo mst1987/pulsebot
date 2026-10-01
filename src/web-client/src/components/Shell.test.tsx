@@ -47,7 +47,17 @@ describe("the sidebar", () => {
     it("shows only the entries the account's areas open", () => {
         showShell({ id: "u5", name: "Rai", isAdmin: false, access: { raids: { read: true, write: false }, loot: { read: true, write: false } } });
         const hrefs = within(screen.getByRole("navigation")).getAllByRole("link").map((a) => a.getAttribute("href"));
-        expect(hrefs).toEqual(["/raids", "/raids/plan-templates", "/raids/plan-catalog", "/history"]);
+        // the raid plan's pages are their own area ("raidplan"), not a part of the raid events
+        expect(hrefs).toEqual(["/raids", "/history"]);
+    });
+
+    it("indents the raid plan's entries under Raid-Events only while that is shown too", () => {
+        const hrefsAndSub = () => within(screen.getByRole("navigation")).getAllByRole("link").map((a) => [a.getAttribute("href"), a.classList.contains("is-sub")]);
+        const both = showShell({ id: "u6", name: "Tak", isAdmin: false, access: { raids: { read: true, write: false }, raidplan: { read: true, write: true } } });
+        expect(hrefsAndSub()).toEqual([["/raids", false], ["/raids/plan-templates", true], ["/raids/plan-catalog", true]]);
+        both.unmount();
+        showShell({ id: "u7", name: "Tik", isAdmin: false, access: { raidplan: { read: true, write: false } } });
+        expect(hrefsAndSub()).toEqual([["/raids/plan-templates", false], ["/raids/plan-catalog", false]]);
     });
 
     it("puts the logout in the foot for every account, as a plain link to the server", () => {

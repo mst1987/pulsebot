@@ -71,7 +71,7 @@ During the raid the read view and the editor turn to the boss being pulled by th
 the event.
 
 - **Endpoint:** `GET /api/raidplan/progress?token=<token>` (the read view; like `/public` in `UNGATED`, the same 404 for an
-  unknown or withdrawn link) or `?event=<id>` (the editor; the handler checks the session and `raids` read itself, since the route
+  unknown or withdrawn link) or `?event=<id>` (the editor; the handler checks the session and `raidplan` read itself, since the route
   is listed with `auth: "none"` for the token). Answer `{ live, killed, current, next, updatedAt }` with section keys
   (`bt/supremus`); without a linked log, outside the raid window or when WCL fails `{ live: false, killed: [], current: null,
   next: null }`. The derivation and the cache are described in docs/logcheck.md ("Progress for the raid plan").
@@ -123,7 +123,7 @@ The read view takes a changed plan without a reload, and a reload lands on the b
 
 The read link as one message in the event's channel, like "Sheet posten" for the raidsheet:
 
-- **Route:** `POST /api/raids/post-raidplan { event, message? }` (`apiRoutes/raidDetail.js`, area `raids`, write,
+- **Route:** `POST /api/raids/post-raidplan { event, message? }` (`apiRoutes/raidDetail.js`, area `raidplan`, write — it publishes the plan on the way,
   CSRF). The event — channel, title, start — is resolved on the server from its own event list, never taken from
   the body. The work is `postRaidplanLink()` in `src/services/raidplan/raidplanPost.js`.
 - **What it checks:** the event has a plan (an own event always, a Raid-Helper event once switched on — else 409
@@ -144,7 +144,7 @@ The read link as one message in the event's channel, like "Sheet posten" for the
   `publicPath` only while published, where and when it was posted; `null` without a plan). The own event's
   cockpit has the step *Einteilungen* (docs/events.md, "Das Raid-Cockpit"), a Raid-Helper event with a plan gets
   it in its progress bar after the raidsheet. Both open `RaidplanPostModal.tsx`; the raid plan tab has the same
-  entry as an icon (`Send`) beside "Freigeben & teilen" (raids write only), which reads the page's data again
+  entry as an icon (`Send`) beside "Freigeben & teilen" (raidplan write only), which reads the page's data again
   first so the dialog knows the last save. A post that published the plan turns the tab's badge to "Freigegeben"
   without reloading the plan (the draft stays). The link shows the **saved** plan — the tooltip says so while
   there are unsaved changes.

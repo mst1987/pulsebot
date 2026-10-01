@@ -41,14 +41,17 @@ const {
 const { pingMissingRaiders } = require("../../services/events/missingPing");
 const { buildRaidDetail } = require("../events/raidDetailView");
 const { postRaidplanLink } = require("../../services/raidplan/raidplanPost");
+const { userCan } = require("../../config/permissions");
 
 /**
  * GET /api/raids/detail?event=<id> — everything the event-detail page needs in
- * one read; built by raidDetailView.js, this is only the HTTP side.
+ * one read; built by raidDetailView.js, this is only the HTTP side. Posting the
+ * plan's link is area "raidplan", so its step comes only with that write right.
  */
-const getRaidDetail = withUser({}, async ({ req, res, url }) => {
+const getRaidDetail = withUser({}, async ({ user, req, res, url }) => {
     const eventId = (url.searchParams.get("event") || "").trim();
-    return sendResult(res, await buildRaidDetail({ guildId: activeGuildFor(req), eventId }));
+    const planPost = userCan(user, "raidplan", "write");
+    return sendResult(res, await buildRaidDetail({ guildId: activeGuildFor(req), eventId, planPost }));
 });
 
 /**
@@ -396,7 +399,8 @@ const routes = [
     { method: "POST", path: "/api/raids/fill", handler: postFill, area: "raids" },
     { method: "POST", path: "/api/raids/post-sheet", handler: postPostSheet, area: "raids" },
     { method: "POST", path: "/api/raids/post-softres", handler: postPostSoftres, area: "raids" },
-    { method: "POST", path: "/api/raids/post-raidplan", handler: postPostRaidplan, area: "raids" },
+    // publishes the plan when needed: a raid plan write, not an event one
+    { method: "POST", path: "/api/raids/post-raidplan", handler: postPostRaidplan, area: "raidplan" },
     { method: "GET", path: "/api/raids/softres/item-search", handler: getItemSearch, area: "raids" },
     { method: "POST", path: "/api/raids/softres", handler: postSoftresCreate, area: "raids" },
     { method: "POST", path: "/api/raids/softres/link", handler: postSoftresLink, area: "raids" },

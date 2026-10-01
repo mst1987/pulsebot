@@ -22,8 +22,8 @@ const profiles = require("../../../src/stores/raidplanProfileStore");
 const route = require("../../../src/web/apiRoutes/raidplan");
 const { checkAccess, areasFor, UNGATED } = require("../../../src/web/http/apiAccess");
 
-const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };
-const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
+const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };
+const READER = { id: "reader", isAdmin: false, access: { raidplan: { read: true, write: false } } };
 const MEMBER = { id: "m", isAdmin: false, access: { signup: { read: true, write: true } } };
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)]);
 
@@ -63,9 +63,9 @@ afterAll(() => {
 });
 
 describe("access", () => {
-    it("puts every path under raids, the public view under nothing but the token", () => {
+    it("puts every path under raidplan, the public view under nothing but the token", () => {
         for (const p of ["/api/raidplan", "/api/raidplan/publish", "/api/raidplan/map", "/api/raidplan/map/delete", "/api/raidplan/profiles"]) {
-            expect(areasFor(p)).toEqual(["raids"]);
+            expect(areasFor(p)).toEqual(["raidplan"]);
             expect(checkAccess(p, "GET", READER)).toBeNull();
             expect(checkAccess(p, "PUT", READER)).toMatchObject({ status: 403 });
             expect(checkAccess(p, "POST", ORGA)).toBeNull();
@@ -74,6 +74,22 @@ describe("access", () => {
         }
         expect(UNGATED.has("/api/raidplan/public")).toBe(true);
         expect(checkAccess("/api/raidplan/public", "GET", null)).toBeNull();
+    });
+
+    // The plan is its own area: running the events no longer brings the tactics along.
+    it("refuses the event orga without a raidplan grant, on every path", () => {
+        const EVENT_ORGA = { id: "eo", isAdmin: false, access: { raids: { read: true, write: true } } };
+        const paths = route.routes.filter((r) => !r.auth).map((r) => r.path);
+        expect(paths.length).toBeGreaterThan(20);
+        for (const p of paths) {
+            expect(checkAccess(p, "GET", EVENT_ORGA)).toMatchObject({ status: 403 });
+            expect(checkAccess(p, "POST", EVENT_ORGA)).toMatchObject({ status: 403 });
+        }
+    });
+
+    it("lets the canWrite of the editor follow raidplan write, not raids write", async () => {
+        const both = { id: "b", isAdmin: false, access: { raids: { read: true, write: true }, raidplan: { read: true, write: false } } };
+        expect(body(await call(route.getPlan, both, null, "event=eh_1")).canWrite).toBe(false);
     });
 });
 

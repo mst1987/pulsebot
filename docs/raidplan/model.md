@@ -113,7 +113,7 @@ read view draws the same.
   an untouched boss is not stored, a `profileId` that no longer exists is forgotten.
 - **Version check:** `PUT` carries the `version` it read; a stale one answers `409 conflict`, the editor keeps
   the unsaved draft and offers "Neu laden". Nothing is written before "Speichern".
-- **Who is offered:** the editor (raids) sees the current lineup — the draft when there is one, else the
+- **Who is offered:** the editor (raidplan) sees the current lineup — the draft when there is one, else the
   approved one. The **read view names only players of the *approved* setup** (a raider never sees a setup
   draft, see docs/setup.md); a token of somebody who is only in the draft is left out there, and the share
   dialog says so.
@@ -126,7 +126,7 @@ read view draws the same.
   Besetzung and its counts, `expandClassRefs` (class references, priorities), the suggestions (roster and the heal row's groups),
   the auto tokens, "Nicht platziert", the group markers, the read view and a template's slot fill. What a save may NAME stays the
   whole lineup (`allowedUserIds`), so a bench raider already in a row is kept and marked "nicht im Plan". Set with `POST
-  /api/raidplan/groups { event, includedGroups }` (raids write; cleaned, `null` = back to the default; no version step). Details:
+  /api/raidplan/groups { event, includedGroups }` (raidplan write; cleaned, `null` = back to the default; no version step). Details:
   [editor.md, "Groups in the plan"](editor.md#groups-in-the-plan-no-bench-in-the-assignments-529).
 
 ## The Besetzung and the raid type
@@ -220,7 +220,7 @@ stay on rows whose title stays), typed rows are kept.
   Allgemein are part of templates and are copied when one is applied. Types offered: boss: heal, kick, md, ss,
   fearward, special, other; trash: trashtank (tank to the n-th raid mark with the real mark icons), heal,
   kick, other; general: curse, thunderclap, demoshout, other.
-- **Suggestions** (`POST /api/raidplan/suggest { event?, type, slots }`, area raids write, nothing saved; pure
+- **Suggestions** (`POST /api/raidplan/suggest { event?, type, slots }`, area raidplan write, nothing saved; pure
   `raidplanAssign.suggest`): **heal** = healer 1 to tank 1, healer 2 to tank 2 ..., the remaining healers take
   the raid groups, every group at least one healer and evenly (the healer with the fewest targets first);
   **kick** = rogue, shaman, warrior, mage (at most three); **md** = hunters to the tanks (Misdirection is a
@@ -294,9 +294,9 @@ copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches
 
 ## Permissions
 
-All `/api/raidplan…` paths are area **`raids`** (read = GET, write = everything else), in
+All `/api/raidplan…` paths are area **`raidplan`** (read = GET, write = everything else; its own area, not `raids`, see docs/permissions.md), in
 the module's `routes` table (fail-closed, see docs/permissions.md) except `/api/raidplan/public`. Mutating calls
-are wrapped in `withUser({ write: "raids", csrf: true, body: true })`. Deleting an event deletes its plan
+are wrapped in `withUser({ write: "raidplan", csrf: true, body: true })`. Deleting an event deletes its plan
 (`eventManage.deleteEvent`).
 
 ## Test raid (dev)
@@ -342,7 +342,7 @@ the orga switches it on. It is a **permanent, equal mode**, not a bridge until t
 nothing here depends on `raidhelperRetirement`, and `categorySignupSource` / `signupSourceDefault` stay
 untouched.
 
-**The switch sits at the event, in its "Verwalten" menu.** A Raid-Helper event's menu (raids write) holds only
+**The switch sits at the event, in its "Verwalten" menu.** A Raid-Helper event's menu (raidplan write) holds only
 this entry: "Raidplan aktivieren" opens a dialog, "Raidplan aktiv ✓ – deaktivieren" asks once. Switched off,
 the plan **stays saved** (a later switch-on finds it again) but goes back to draft: the public link stops
 answering. With Raid-Helper switched off in the settings the entry stays, its line reads "Raid-Helper ist
@@ -395,7 +395,7 @@ authoritative save / template / switch-on, plus the gone raiders the plan still 
 
 **Routes.** `GET /api/raidplan/link?event=<id>` (the switch, the title's suggestion, the instances with their
 sizes, and a probe of the line-up: players, `hasGroups`) and `POST /api/raidplan/link` `{ event, enabled,
-instanceIds?, size?, versionId?, composition? }` — area `raids` (write for POST); the event must be a
+instanceIds?, size?, versionId?, composition? }` — area `raidplan` (write for POST); the event must be a
 Raid-Helper event of the active server (`loadEventGroups` with the lookback), own events answer 400. `GET
 /api/raidplan`, save, apply, publish, suggest and the event's own maps (`e/<id>/…`) accept a Raid-Helper event
 with the switch on; `getPlan` / `getPublic` are async now (awaited in `apiRouter.js`). `GET /api/raids/detail`

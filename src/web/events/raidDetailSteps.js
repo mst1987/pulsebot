@@ -607,17 +607,21 @@ function afterStep(d) {
 }
 
 /**
- * Die Strecke eines eigenen Events: sechs Schritte, der erste offene ist der
+ * Die Strecke eines eigenen Events: sechs Schritte (fünf ohne Raidplan-Schreibrecht), der erste offene ist der
  * aktuelle und trägt die eine auffällige Tat. Jeder andere Schritt bleibt ruhig
  * — „später“ oder „übersprungen“, nie ein Fehler.
  * @param {object} d das Raid-Detail-Payload
- * @param {{ now?: number }} [opts] Testbarkeit: der Jetzt-Zeitpunkt in ms
+ * @param {{ now?: number, plan?: boolean }} [opts] `now`: der Jetzt-Zeitpunkt in ms (Testbarkeit);
+ *   `plan: false` lässt „Einteilungen“ weg — wer den Raidplan nicht schreiben darf, postet ihn auch nicht
  * @returns {{ steps: object[], current: string, action: object|null, cancelled: boolean, note: string }}
  */
 function eventSteps(d, opts = {}) {
     const now = Number(opts.now) || Date.now();
     const ev = (d && d.event) || {};
-    const steps = [createdStep(d), signupStepOwn(d, now), setupStepOwn(d, now), approvalStep(d, now), planStepOwn(d), afterStep(d)];
+    const steps = [
+        createdStep(d), signupStepOwn(d, now), setupStepOwn(d, now), approvalStep(d, now),
+        opts.plan === false ? null : planStepOwn(d), afterStep(d),
+    ].filter(Boolean);
     // Abgesagt: nur „abgesagt“ und der Weg zurück. Kein Schritt ist mehr offen.
     if (ev.status === "cancelled") {
         for (const s of steps) {

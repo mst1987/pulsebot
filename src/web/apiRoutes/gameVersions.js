@@ -18,7 +18,8 @@ const getGameVersions = withUser({}, async ({ res, url }) => {
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
-    { method: "GET", path: "/api/game-versions", handler: getGameVersions, area: "raids" },
+    // The raid plan's templates and catalog show one version at a time, so "raidplan" reads the list too.
+    { method: "GET", path: "/api/game-versions", handler: getGameVersions, area: ["raids", "raidplan"] },
 ];
 
 module.exports = { getGameVersions, routes };

@@ -22,8 +22,8 @@ const templates = require("../../../src/stores/raidplanTemplateStore");
 const route = require("../../../src/web/apiRoutes/raidplan");
 const { checkAccess, areasFor } = require("../../../src/web/http/apiAccess");
 
-const ORGA = { id: "orga", isAdmin: false, access: { raids: { read: true, write: true } } };
-const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
+const ORGA = { id: "orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };
+const READER = { id: "reader", isAdmin: false, access: { raidplan: { read: true, write: false } } };
 const MEMBER = { id: "m", isAdmin: false, access: { signup: { read: true, write: true } } };
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)]);
 const BOSS = "bt/supremus";
@@ -74,9 +74,9 @@ async function makeTemplate(extra = {}) {
 }
 
 describe("access", () => {
-    it("puts the template paths under raids: read reads, write writes", () => {
+    it("puts the template paths under raidplan: read reads, write writes", () => {
         for (const p of ["/api/raidplan/templates", "/api/raidplan/templates/duplicate", "/api/raidplan/apply"]) {
-            expect(areasFor(p)).toEqual(["raids"]);
+            expect(areasFor(p)).toEqual(["raidplan"]);
             expect(checkAccess(p, "GET", READER)).toBeNull();
             expect(checkAccess(p, "POST", READER)).toMatchObject({ status: 403 });
             expect(checkAccess(p, "DELETE", ORGA)).toBeNull();

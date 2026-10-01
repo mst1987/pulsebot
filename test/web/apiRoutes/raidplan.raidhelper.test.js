@@ -42,8 +42,8 @@ const route = require("../../../src/web/apiRoutes/raidplan");
 const rosterSource = require("../../../src/web/raidplan/raidplanRosterSource");
 const { checkAccess, areasFor } = require("../../../src/web/http/apiAccess");
 
-const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };
-const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
+const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };
+const READER = { id: "reader", isAdmin: false, access: { raidplan: { read: true, write: false } } };
 const EV = "1400000000000000009";
 
 const { mockRes, status, json } = require("../../helpers/http");
@@ -78,8 +78,8 @@ afterAll(() => {
 });
 
 describe("the switch", () => {
-    it("is under raids: read for GET, write for POST", () => {
-        expect(areasFor("/api/raidplan/link")).toEqual(["raids"]);
+    it("is under raidplan: read for GET, write for POST", () => {
+        expect(areasFor("/api/raidplan/link")).toEqual(["raidplan"]);
         expect(checkAccess("/api/raidplan/link", "GET", READER)).toBeNull();
         expect(checkAccess("/api/raidplan/link", "POST", READER)).toMatchObject({ status: 403 });
     });

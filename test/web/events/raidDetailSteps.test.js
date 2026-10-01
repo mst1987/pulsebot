@@ -515,6 +515,15 @@ describe("eventSteps — das Raid-Cockpit (#319)", () => {
             const res = run(ready(rp(), { isPast: true, startTime: inHours(-3) }));
             expect(at(res, "plan")).toMatchObject({ state: "skipped", note: "nicht gepostet" });
         });
+
+        // Posten ist Raidplan-Schreiben (docs/permissions.md): ohne das Recht fehlt der Schritt ganz, statt einen Knopf zu zeigen, der scheitert.
+        it("ohne Raidplan-Schreibrecht fehlt der Schritt, und er wird nie der aktuelle", () => {
+            const res = eventSteps(ready(rp()), { now: NOW, plan: false });
+            expect(res.steps.map((s) => s.id)).toEqual(STEP_IDS.filter((id) => id !== "plan"));
+            expect(res.current).toBe("");
+            expect(res.action).toBeNull();
+            expect(res.note).toBe("Alles erledigt, was vor dem Raid zu tun war.");
+        });
     });
 
     it("kommt ohne jedes Feld aus, statt zu werfen", () => {

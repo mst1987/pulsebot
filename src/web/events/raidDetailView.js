@@ -276,9 +276,11 @@ function playerSummariesPart(guildId, found, { setup, attendance }) {
 
 /**
  * The whole read for one event.
+ * @param {{ guildId: string, eventId: string, planPost?: boolean }} o `planPost` false (a reader without
+ *   "raidplan" write) leaves out the raid plan's link state and with it the "Einteilungen" step
  * @returns {Promise<{ body: object } | { error: { status, code, message } }>} for apiResult.sendResult
  */
-async function buildRaidDetail({ guildId, eventId }) {
+async function buildRaidDetail({ guildId, eventId, planPost = true }) {
     const { found, groupsError, stale } = await findEvent(guildId, eventId);
     if (!found) return fail(groupsError ? 400 : 404, groupsError ? "events_unavailable" : "not_found", groupsError || "Event nicht gefunden.");
 
@@ -317,8 +319,8 @@ async function buildRaidDetail({ guildId, eventId }) {
         // Which sheet this raid actually links: its own filled copy, else the
         // fixed sheet assigned to its category in the settings, else null.
         sheetLink: resolveEventSheetLink(getEventSheet(eventId), found.g.categoryId),
-        // The raid plan's read link in the event channel (#502): null without a plan.
-        raidplanPost: raidplanPostState(found.e),
+        // The raid plan's read link in the event channel (#502): null without a plan, or for a reader who may not post it.
+        raidplanPost: planPost ? raidplanPostState(found.e) : null,
         eventSoftres: softresInfo.eventSoftres,
         softresCatalogue: version.softresEdition ? softres.catalogue().filter((g) => g.edition === version.softresEdition) : [],
         softresEdition: version.softresEdition,
@@ -347,7 +349,7 @@ async function buildRaidDetail({ guildId, eventId }) {
     payload.progress = raidSteps(payload);
     // An own event answers the orga's one question as a six-step route instead
     // (#319, #502). Raid-Helper events keep exactly today's view: steps stays null.
-    payload.steps = isOwn(found) ? eventSteps(payload) : null;
+    payload.steps = isOwn(found) ? eventSteps(payload, { plan: planPost }) : null;
     payload.playerSummaries = playerSummariesPart(guildId, found, { setup: setupInfo.setup, attendance: attendanceInfo.attendance });
     return { body: payload };
 }
