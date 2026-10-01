@@ -2,7 +2,11 @@
 // asked in the interview of everybody in its Vorauswahl. Wishes and the note are
 // fixed parts of every interview, not questions. Pure mutators like kaderModel.js.
 //
-//   { id, text, type: "single" | "multi" | "text", options: [{ id, label }], required }
+//   { id, text, type: "single" | "multi" | "text", options: [{ id, label, color? }], required }
+//
+// An option's colour is one of OPTION_COLORS (kaderModel.js); without one the
+// page picks it by position. A colour the palette does not know is a 400; an
+// option sent without `color` keeps the one it had, `color: ""` resets it.
 //
 // Rules the answers depend on:
 //   - a new question is simply unanswered (open) for everybody,
@@ -11,16 +15,23 @@
 //   - a type change keeps what still fits (single ↔ multi), a change to or from text drops the answers.
 const { newId } = require("../../utils/ids");
 const {
-    QUESTION_TYPES, LIMITS, str, isObject, invalid, notFound, conflict,
+    QUESTION_TYPES, OPTION_COLORS, LIMITS, str, isObject, invalid, notFound, conflict,
     withKader, getKader, cleanLabel, normalizeAnswer,
 } = require("./kaderModel");
+
+/** An option's colour: one of the palette, "" for none (automatic); anything else is refused. */
+function cleanColor(raw) {
+    const color = str(raw).trim();
+    if (color && !OPTION_COLORS.includes(color)) throw invalid(`Unbekannte Farbe „${color}“.`);
+    return color;
+}
 
 function cleanOptions(raw, type, previous = []) {
     if (type === "text") return [];
     const list = Array.isArray(raw) ? raw : [];
     if (!list.length) throw invalid("Eine Auswahlfrage braucht mindestens eine Antwort.");
     if (list.length > LIMITS.options) throw invalid(`Höchstens ${LIMITS.options} Antworten je Frage.`);
-    const known = new Set(previous.map((o) => o.id));
+    const known = new Map(previous.map((o) => [o.id, o]));
     const ids = new Set();
     const labels = new Set();
     return list.map((o) => {
@@ -31,7 +42,10 @@ function cleanOptions(raw, type, previous = []) {
         let id = isObject(o) && known.has(str(o.id)) ? str(o.id) : "";
         if (!id || ids.has(id)) id = newId(3);
         ids.add(id);
-        return { id, label };
+        // renaming or moving an option keeps its colour unless a new one is given
+        const before = known.get(id);
+        const color = isObject(o) && o.color !== undefined ? cleanColor(o.color) : (before && before.color) || "";
+        return color ? { id, label, color } : { id, label };
     });
 }
 

@@ -22,7 +22,8 @@ import { useT } from "../../i18n";
 import { ROLE_ICON } from "../../lib/raidplan/assign";
 import { roleLabel } from "../../lib/wowNames";
 import { classColor, classIconOf, className, dayOf, historyText, nameOf, playerName, specIconOf, specName, wishLabel } from "../../lib/kader/model";
-import { answerLabels, dayShort, isWeekdays, progress, statusOf } from "../../lib/kader/interview";
+import { dayShort, isAnswered, isWeekdays, progress, statusOf } from "../../lib/kader/interview";
+import { toneAttrs, toneOf } from "../../lib/kader/colors";
 import { useKader, type KaderSub } from "./kaderContext";
 
 /**
@@ -262,14 +263,38 @@ export function Grip() {
     );
 }
 
-/** The answer to a weekday question as seven squares. */
+/** The answer to a weekday question as seven squares, a picked day in its colour (the profile's weekday colours). */
 export function DaySquares({ question, value }: { question: KaderQuestion; value: KaderAnswer | undefined }) {
     const picked = Array.isArray(value) ? value : [];
     const on = question.options.filter((o) => picked.includes(o.id)).map((o) => dayShort(o.label));
     const label = on.length ? on.join(", ") : "—";
     return (
         <span className="kp-week" role="img" aria-label={label} data-tip={label}>
-            {question.options.map((o) => <i key={o.id} className={picked.includes(o.id) ? "on" : ""} />)}
+            {question.options.map((o) => <i key={o.id} className={picked.includes(o.id) ? "on" : ""} {...toneAttrs(toneOf(question, o.id))} />)}
+        </span>
+    );
+}
+
+/** One answer option as a tinted chip in its colour, the label always written (the colour only helps to see it). */
+export function AnswerChip({ question, optionId, label }: { question: KaderQuestion; optionId: string; label: string }) {
+    return <span className="kp-ochip" {...toneAttrs(toneOf(question, optionId))}><span>{label}</span></span>;
+}
+
+/**
+ * The answer to a question: the picked options as coloured chips (weekdays
+ * short, in their day colours), free text as plain text, "—" without one.
+ * `nowrap` keeps them on one line (a table cell; the full answer in its tooltip).
+ */
+export function AnswerChips({ question, value, nowrap = false }: { question: KaderQuestion; value: KaderAnswer | undefined; nowrap?: boolean }) {
+    if (!isAnswered(question, value)) return <span className="kp-muted">—</span>;
+    if (question.type === "text") return <span className="kp-answer-text">{String(value)}</span>;
+    const ids = Array.isArray(value) ? value : [value];
+    const days = isWeekdays(question);
+    return (
+        <span className={`kp-chips${nowrap ? " kp-nowrap" : ""}`}>
+            {question.options.filter((o) => ids.includes(o.id)).map((o) => (
+                <AnswerChip key={o.id} question={question} optionId={o.id} label={days ? dayShort(o.label) : o.label} />
+            ))}
         </span>
     );
 }
@@ -345,20 +370,19 @@ export function WishLines({ wishes }: { wishes: KaderWish[] }) {
     );
 }
 
-/** The answers of an interview as label and value; an open required question in the warning colour. */
+/** The answers of an interview as label and value (coloured chips, AnswerChips); an open required question in the warning colour. */
 export function AnswerLines({ entry, questions }: { entry: KaderEntry; questions: KaderQuestion[] }) {
     const t = useT();
     if (!questions.length) return null;
     return (
         <dl className="kp-answers">
             {questions.map((q) => {
-                const labels = answerLabels(q, entry.interview.answers[q.id]);
-                const text = isWeekdays(q) ? labels.map(dayShort).join(" · ") : labels.join(" · ");
+                const value = entry.interview.answers[q.id];
                 return (
                     <div key={q.id}>
                         <dt>{q.text}</dt>
-                        {labels.length
-                            ? <dd>{text}</dd>
+                        {isAnswered(q, value)
+                            ? <dd><AnswerChips question={q} value={value} /></dd>
                             : <dd className={q.required ? "kp-warntext" : "kp-muted"}>{q.required ? t("kader.interview.stillOpen") : "—"}</dd>}
                     </div>
                 );

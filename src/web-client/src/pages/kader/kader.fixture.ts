@@ -53,7 +53,8 @@ export function entry(over: Partial<KaderEntry> = {}): KaderEntry {
 const DAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 export const QUESTIONS: KaderQuestion[] = [
     { id: "q1", text: "Mögliche Raidtage", type: "multi", options: DAYS.map((label, i) => ({ id: `d${i + 1}`, label })), required: true },
-    { id: "q2", text: "Im Voice-Chat aktiv?", type: "single", options: [{ id: "o1", label: "Immer" }, { id: "o2", label: "Meistens" }, { id: "o3", label: "Selten" }], required: false },
+    // "Selten" has its own colour, the others are picked by position (blue, amber)
+    { id: "q2", text: "Im Voice-Chat aktiv?", type: "single", options: [{ id: "o1", label: "Immer" }, { id: "o2", label: "Meistens" }, { id: "o3", label: "Selten", color: "slate" }], required: false },
     { id: "q3", text: "Anmerkung", type: "text", options: [], required: false },
 ];
 

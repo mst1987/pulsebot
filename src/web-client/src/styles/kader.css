@@ -334,7 +334,35 @@
 .kp-gtitle { font-size: 15px; font-weight: 700; }
 .kp-week { display: inline-flex; gap: 3px; }
 .kp-week i { width: 13px; height: 13px; border-radius: 3px; background: var(--line); }
-.kp-week i.on { background: var(--accent-2); }
+.kp-week i.on { background: var(--tone, var(--accent-2)); }
+
+/* ---- answer colours (lib/kader/colors.ts): a weekday by [data-day] (shared.css: the
+   profile's day colours), a choice by [data-opt] (--opt-* in tokens.css). Only tints,
+   dots, borders and markers carry them; the label stays in --text, so contrast holds
+   and the colour is never the only signal. ---- */
+.kp-week i[data-day], .kp-ochip[data-day], .kp-pill[data-day], .kp-tonedot[data-day] { --tone: var(--day); }
+[data-opt="blue"] { --tone: var(--opt-blue); }
+[data-opt="amber"] { --tone: var(--opt-amber); }
+[data-opt="rose"] { --tone: var(--opt-rose); }
+[data-opt="teal"] { --tone: var(--opt-teal); }
+[data-opt="violet"] { --tone: var(--opt-violet); }
+[data-opt="lime"] { --tone: var(--opt-lime); }
+[data-opt="orange"] { --tone: var(--opt-orange); }
+[data-opt="slate"] { --tone: var(--opt-slate); }
+.kp-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; min-width: 0; max-width: 100%; vertical-align: middle; }
+.kp-chips.kp-nowrap { flex-wrap: nowrap; overflow: hidden; }
+.kp-ochip {
+    display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; padding: 1px 7px 1px 6px; flex: none;
+    border-radius: 5px; border: 1px solid color-mix(in srgb, var(--tone, var(--muted)) 45%, transparent);
+    background: color-mix(in srgb, var(--tone, var(--muted)) 16%, transparent);
+    color: var(--text); font-size: 12.5px; font-weight: 600; line-height: 1.5; white-space: nowrap;
+}
+.kp-chips.kp-nowrap .kp-ochip:last-child { flex: 0 1 auto; }
+.kp-ochip::before { content: ""; width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--tone, var(--muted)); }
+.kp-ochip > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.kp-cell-answer { display: flex; min-width: 0; }
+.kp-answer-text { overflow-wrap: anywhere; }
+.kp-tonedot { display: inline-block; width: 10px; height: 10px; flex: none; border-radius: 50%; background: var(--tone, var(--muted)); }
 
 /* state badge, source badge, switch */
 .kp-state {
@@ -576,6 +604,32 @@ dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
 .kp-radio { border-radius: 50%; }
 .kp-box { border-radius: 3px; }
 .kp-on .kp-radio, .kp-on .kp-box { background: var(--accent); border-color: var(--accent); }
+/* a coloured option: its marker always in its colour, picked = tinted in it (the label stays --text) */
+.kp-pill[data-opt] .kp-radio, .kp-pill[data-opt] .kp-box { border-color: var(--tone); }
+.kp-pill.kp-on[data-opt], .kp-pill.kp-on[data-day] {
+    border-color: var(--tone); background: color-mix(in srgb, var(--tone) 22%, transparent); color: var(--text);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 55%, transparent);
+}
+.kp-pill.kp-on[data-opt] .kp-radio, .kp-pill.kp-on[data-opt] .kp-box { background: var(--tone); border-color: var(--tone); }
+.kp-pill[data-opt]:hover:not(:disabled), .kp-pill[data-day]:hover:not(:disabled) { border-color: var(--tone); }
+/* the question editor: the colour of an option, the palette as swatches */
+.kp-swatchbtn {
+    display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none; padding: 0;
+    border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: pointer;
+}
+.kp-swatchbtn .kp-tonedot { width: 14px; height: 14px; }
+.kp-swatchbtn:hover:not(:disabled), .kp-swatchbtn[aria-expanded="true"] { border-color: var(--accent); }
+.kp-swatchbtn:disabled { cursor: default; }
+.kp-tonedot.kp-tonedot-fixed { width: 14px; height: 14px; margin: 0 7px; }
+.kp-swatches { min-width: 0; padding: 8px; }
+.kp-swatchrow { display: grid; grid-template-columns: repeat(4, 32px); gap: 6px; }
+.kp-swatch {
+    display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; cursor: pointer;
+    border: 2px solid transparent; border-radius: 7px; background: var(--tone); color: var(--bg);
+}
+.kp-swatch svg { width: 16px; height: 16px; }
+.kp-swatch:hover, .kp-swatch:focus-visible { border-color: var(--text); outline: none; }
+.kp-swatch.kp-on { border-color: var(--text); }
 .kp-iv-foot { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--line); }
 .kp-iv-foot-act { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-left: auto; min-width: 0; }
 @media (max-width: 1100px) { .kp-iv-body { grid-template-columns: minmax(0, 1fr); } }

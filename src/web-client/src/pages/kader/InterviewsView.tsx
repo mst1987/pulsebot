@@ -19,6 +19,7 @@ import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { roleLabel } from "../../lib/wowNames";
+import { toneAttrs, toneOf } from "../../lib/kader/colors";
 import { classDef, className, dayOf, mainPick, nameOf, playerName, specName, specRole, stampOf } from "../../lib/kader/model";
 import {
     dayShort, draftOf, isAnswered, isWeekdays, moveWish, patchOf, placeWish, progress, statusOf, toggleAnswer, type InterviewDraft,
@@ -147,7 +148,10 @@ function WishEditor({ wishes, prefill, locked, onChange }: { wishes: KaderWish[]
     );
 }
 
-/** One question of the Kader: pills for one answer, toggles (or seven day buttons) for several, a text field. */
+/**
+ * One question of the Kader: pills for one answer, toggles (or seven day buttons) for several, a text field.
+ * Every option carries its colour (lib/kader/colors.ts): the marker always, the picked pill tinted; a picked day in its day colour.
+ */
 function QuestionField({ q, value, onChange }: { q: KaderQuestion; value: KaderAnswer | undefined; onChange: (value: KaderAnswer) => void }) {
     const t = useT();
     const days = isWeekdays(q);
@@ -171,12 +175,12 @@ function QuestionField({ q, value, onChange }: { q: KaderQuestion; value: KaderA
                         const label = days ? dayShort(o.label) : o.label;
                         return q.type === "single" ? (
                             <button key={o.id} type="button" role="radio" aria-checked={on} aria-label={days ? o.label : undefined}
-                                className={`kp-pill${on ? " kp-on" : ""}`} onClick={() => onChange(toggleAnswer(q, value, o.id))}>
+                                className={`kp-pill${on ? " kp-on" : ""}`} {...toneAttrs(toneOf(q, o.id))} onClick={() => onChange(toggleAnswer(q, value, o.id))}>
                                 {!days && <span className="kp-radio" aria-hidden="true" />}{label}
                             </button>
                         ) : (
                             <button key={o.id} type="button" aria-pressed={on} aria-label={days ? o.label : undefined}
-                                className={`kp-pill${on ? " kp-on" : ""}`} onClick={() => onChange(toggleAnswer(q, value, o.id))}>
+                                className={`kp-pill${on ? " kp-on" : ""}`} {...toneAttrs(toneOf(q, o.id))} onClick={() => onChange(toggleAnswer(q, value, o.id))}>
                                 {!days && <span className="kp-box" aria-hidden="true" />}{label}
                             </button>
                         );

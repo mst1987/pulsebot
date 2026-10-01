@@ -44,6 +44,10 @@
     /* a step back (the Kaderplaner's BackButton): its own sky blue, the ink at
        least 4.5:1 on its tint over --panel and --panel2 in both themes */
     --back-ink: #4cc3f7; --back-bg: rgba(56, 189, 248, .14); --back-bg-hover: rgba(56, 189, 248, .20); --back-line: rgba(56, 189, 248, .55);
+    /* the Kaderplaner's answer options (lib/kader/colors.ts): distinct in hue and
+       lightness; only tints, dots and borders use them, the text stays --text */
+    --opt-blue: #60a5fa; --opt-amber: #fbbf24; --opt-rose: #fb7185; --opt-teal: #2dd4bf;
+    --opt-violet: #c084fc; --opt-lime: #a3e635; --opt-orange: #fb923c; --opt-slate: #94a3b8;
     /* ---- loot award reasons: a green→yellow→orange→red scale, see .rbadge ---- */
     --reason-bis: #35d6a4; --reason-bis-bg: rgba(53, 214, 164, .16);
     --reason-mainspec: #7fd17f; --reason-mainspec-bg: rgba(127, 209, 127, .16);
@@ -150,6 +154,8 @@
         --area-lootcouncil: #b03cc0; --area-lootcouncil-soft: rgba(176, 60, 192, .12);
         --area-kader: #b7791f; --area-kader-soft: rgba(183, 121, 31, .12);
         --back-ink: #0b6694; --back-bg: rgba(14, 127, 184, .10); --back-bg-hover: rgba(14, 127, 184, .15); --back-line: rgba(14, 127, 184, .5);
+        --opt-blue: #2563eb; --opt-amber: #d97706; --opt-rose: #e11d48; --opt-teal: #0d9488;
+        --opt-violet: #9333ea; --opt-lime: #65a30d; --opt-orange: #ea580c; --opt-slate: #64748b;
         --reason-bis: #0f8f72; --reason-bis-bg: rgba(15, 143, 114, .12);
         --reason-mainspec: #2b9440; --reason-mainspec-bg: rgba(43, 148, 64, .12);
         --reason-upgrade: #6d8f19; --reason-upgrade-bg: rgba(109, 143, 25, .12);
@@ -191,6 +197,8 @@
     --area-lootcouncil: #b03cc0; --area-lootcouncil-soft: rgba(176, 60, 192, .12);
     --area-kader: #b7791f; --area-kader-soft: rgba(183, 121, 31, .12);
     --back-ink: #0b6694; --back-bg: rgba(14, 127, 184, .10); --back-bg-hover: rgba(14, 127, 184, .15); --back-line: rgba(14, 127, 184, .5);
+    --opt-blue: #2563eb; --opt-amber: #d97706; --opt-rose: #e11d48; --opt-teal: #0d9488;
+    --opt-violet: #9333ea; --opt-lime: #65a30d; --opt-orange: #ea580c; --opt-slate: #64748b;
     --reason-bis: #0f8f72; --reason-bis-bg: rgba(15, 143, 114, .12);
     --reason-mainspec: #2b9440; --reason-mainspec-bg: rgba(43, 148, 64, .12);
     --reason-upgrade: #6d8f19; --reason-upgrade-bg: rgba(109, 143, 25, .12);

@@ -463,6 +463,9 @@
         "options": "Options",
         "weekdays": "Add weekdays",
         "optionN": "Option {n}",
+        "optionColor": "Colour of \"{label}\": {color}",
+        "colorHint": "Every option has a colour, so it is recognised in the interview and the overview without reading. The dot on the left changes it.",
+        "colorHintDays": "Weekdays keep their fixed colours, as in the raider profile.",
         "removeOption": "Remove option",
         "addOption": "Option",
         "renameHint": "Renaming keeps the answers, removing takes them along.",
@@ -625,6 +628,16 @@
         "other": "{count} players"
     },
     "roleCount": "{role}: {n}",
+    "color": {
+        "blue": "Blue",
+        "amber": "Yellow",
+        "rose": "Red",
+        "teal": "Teal",
+        "violet": "Violet",
+        "lime": "Green",
+        "orange": "Orange",
+        "slate": "Grey"
+    },
     "att": {
         "noneTip": "No raid category picked yet",
         "noneSub": "Pick the raid categories that count in the head of the attendance column or in the squad's settings.",

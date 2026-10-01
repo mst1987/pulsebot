@@ -27,7 +27,7 @@ profile.
 | `src/services/kader/kaderMigration.js` | the one-time upgrade of the #566 file (see "Umstellung") |
 | `src/stores/kaderStore.js` | `data/settings/kader.json`, one planner per Discord server |
 | `src/web-client/src/pages/kader/` | the page (`KaderPage.tsx`): header, status bar, the six views and the dialogs |
-| `src/web-client/src/lib/kader/` | client logic: `model.ts` (names, icons, states, counts, the attendance sum over the Kader's raid categories), `interview.ts` (progress, draft/patch), `filters.ts`, `sort.ts` (the sort keys of the planner's tables), `setup.ts` (slots, buff hints, Discord text), `names.ts` |
+| `src/web-client/src/lib/kader/` | client logic: `model.ts` (names, icons, states, counts, the attendance sum over the Kader's raid categories), `interview.ts` (progress, draft/patch), `filters.ts`, `sort.ts` (the sort keys of the planner's tables), `colors.ts` (the colours of the answers), `setup.ts` (slots, buff hints, Discord text), `names.ts` |
 | `src/web-client/src/styles/kader.css` | the module stylesheet, prefix `kp-` (modifiers too) |
 
 ## Access
@@ -102,7 +102,7 @@ of the Kader joins must not pull everybody down, a Thursday Kader only cares for
 ```
 { id, name (≤ 40), leads: [userId] (≥ 1 on every change, default the creator), createdAt, createdBy,
   attendanceCategories: [categoryId] (≤ 20, the raid categories attendance counts in; [] = none picked yet),
-  questions: [{ id, text (≤ 200), type: single|multi|text, options: [{ id, label (≤ 60) }] (≤ 20), required }] (≤ 30),
+  questions: [{ id, text (≤ 200), type: single|multi|text, options: [{ id, label (≤ 60), color? }] (≤ 20), required }] (≤ 30),
   players: { [userId]: entry } (≤ 500),
   setups: [{ id, name, size: 10|20, groups: [[{ userId, spec } | null] × 5] × 4 }] (1–6) }
 ```
@@ -137,6 +137,29 @@ it), *angefangen* while it runs (`x/n`), *geführt* once completed — "Gespräc
 required answer (409 "Noch offen: …"). A completed interview can be opened again. A new question shows as open for
 everybody; deleting one takes its answers; renaming an option keeps its id and its answers; switching a question to or
 from free text drops its answers, single ↔ multiple refits them.
+
+### Answer colours
+
+An answer is recognised at a glance before it is read (`lib/kader/colors.ts`):
+
+- **Weekdays**: the options of a weekday question (`interview.ts` `isWeekdays`: seven options Monday to Sunday) carry
+  the app's weekday colours — the tokens `--day-<mo…so>` the raider profile uses, mapped once by `[data-day]` in
+  `styles/shared.css` (no copy of the values).
+- **Choices**: every other option of a single or multiple choice has a palette colour, `OPTION_COLORS` = blue, amber,
+  rose, teal, violet, lime, orange, slate (tokens `--opt-<name>` in `tokens.css`, dark and light, distinct in hue
+  and lightness; mapped by `[data-opt]` in `kader.css`). An option stores its own as `color`; without one it gets the
+  first palette colour no option of the question holds, by position (`optionColors`). The question editor shows a
+  colour dot before every option that opens the eight swatches (radio buttons, each named), and it saves every
+  option with its colour, so renaming and reordering keep it. The server takes only palette names (`cleanColor`, else
+  400 "Unbekannte Farbe"); an option sent without `color` keeps the one it had, `""` resets it to automatic; a stored
+  name the palette no longer knows is dropped on read. Weekday questions show the day colours instead of swatches.
+- **Free text** stays plain.
+- **Where**: the Übersicht (day squares, choices as chips; a dot per option in the filter menus), the Gespräche form
+  (a picked day tinted in its colour, unpicked days neutral; every choice's marker in its colour, the picked pill
+  tinted), the row tooltip and the drawer's answers (`AnswerChips` in `pages/kader/parts.tsx`) and the editor's
+  preview. Only tints, dots, borders and markers carry the colour; the label is always written and stays `--text`
+  (contrast holds in both themes, the colour is never the only signal, aria unchanged).
+  `test/web-client/conventions/kaderColors.test.js` keeps client palette, server palette, tokens and mappings in step.
 
 ### Example setups
 
@@ -186,7 +209,7 @@ Parameters in the body; `kaderId` names the Kader.
 | `POST /api/kader/interview/complete` · `…/reopen` | `{ kaderId, userId }` |
 | `POST /api/kader/votes` | `{ kaderId, userId, vote: yes\|unsure\|no\|"" }` — leads only |
 | `POST /api/kader/comments` · `…/delete` | `{ kaderId, userId, text }` · `{ kaderId, userId, commentId }` — own only |
-| `POST /api/kader/questions` · `PUT` · `POST …/delete` | `{ kaderId, text, type, options, required }` · `{ kaderId, questionId, … }` · `{ kaderId, questionId }` |
+| `POST /api/kader/questions` · `PUT` · `POST …/delete` | `{ kaderId, text, type, options: [{ id?, label, color? }], required }` · `{ kaderId, questionId, … }` · `{ kaderId, questionId }` |
 | `POST /api/kader/questions/order` · `…/copy` | `{ kaderId, order }` · `{ kaderId, fromKaderId }` |
 | `POST /api/kader/variants` · `PUT` · `POST …/delete` · `…/auto` | `{ kaderId, name?, copyFrom? }` · `{ kaderId, variantId, name?, size?, groups? }` · `{ kaderId, variantId }` · `{ kaderId, variantId, sources }` |
 | `POST /api/kader/accounts` | `{ userId, displayName, kaderId?, character? }` — with `kaderId` also into that Kader's pool (whole view) |
@@ -266,8 +289,8 @@ start page shows the flow and "Ersten Kader anlegen".
   the chosen spec's icon (and the class when there is room). Keyboard: Enter/ArrowDown opens, arrows move, Escape
   closes. `lib/kader/model.ts` `wishOptions` lists the choices.
 - **`fragen`**: the fixed block (wishes, note), the Kader's questions in order (drag or arrows), the editor (text,
-  kind, options, "Wochentage einsetzen", required, preview), delete with the number of answers it takes, "Fragen aus
-  anderem Kader übernehmen".
+  kind, options each with its colour swatch, "Wochentage einsetzen", required, preview in the colours), delete with
+  the number of answers it takes, "Fragen aus anderem Kader übernehmen" (the colours come along).
 - **`setups`**: variant tabs (new, copy, rename, delete), 10er/20er, the sources as chips with their counts, "Noch
   ohne Gruppe" (with the wishes as icons), the groups with the spec picker per slot (class colour, role counts and buff
   hints follow the chosen spec), buff hints ("kein Totem der Manaquelle"), drag or pick-and-place, "Automatisch

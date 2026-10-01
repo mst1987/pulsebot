@@ -27,6 +27,7 @@ vi.mock("../../api", async (orig) => ({
     deleteKaderQuestion: vi.fn(),
     saveKaderVariant: vi.fn(),
     updateKader: vi.fn(),
+    updateKaderQuestion: vi.fn(),
 }));
 
 const PATH = "/kader/:kaderId?/:sub?";
@@ -446,6 +447,80 @@ describe("KaderPage · sorting", () => {
     });
 });
 
+describe("KaderPage · answer colours", () => {
+    it("colours the overview: picked days in their day colour, choices as chips, a dot per option in the filter", async () => {
+        await show("/kader/k1/uebersicht");
+        const table = screen.getByRole("table", { name: t("kader.overview.tableLabel", { name: "Forever-Kader" }) });
+        const brakk = within(table).getByText("Brakk").closest("[role=row]") as HTMLElement;
+        // Mittwoch and Donnerstag, the rest stays neutral
+        expect(Array.from(brakk.querySelectorAll(".kp-week i")).map((i) => i.getAttribute("data-day"))).toEqual(["mo", "di", "mi", "do", "fr", "sa", "so"]);
+        expect(Array.from(brakk.querySelectorAll(".kp-week i.on")).map((i) => i.getAttribute("data-day"))).toEqual(["mi", "do"]);
+        // the label stays beside the colour
+        expect(within(brakk).getByText("Meistens").closest(".kp-ochip")).toHaveAttribute("data-opt", "amber");
+        const liss = within(table).getByText("Liss").closest("[role=row]") as HTMLElement;
+        expect(within(liss).getByText("Immer").closest(".kp-ochip")).toHaveAttribute("data-opt", "blue");
+        await userEvent.click(screen.getByRole("button", { name: /Im Voice-Chat aktiv\?/, expanded: false }));
+        const selten = screen.getByRole("menuitemcheckbox", { name: /Selten/ });
+        expect(selten.querySelector(".kp-tonedot")).toHaveAttribute("data-opt", "slate");
+    });
+
+    it("tints a picked pill in its option's colour and a picked day in its day colour", async () => {
+        vi.mocked(api.saveKaderInterview).mockResolvedValue(change());
+        await show(`/kader/k1/vorauswahl?spieler=${U.mage}`);
+        const panel = screen.getByRole("region", { name: t("kader.interview.aria", { name: "Liss" }) });
+        const immer = within(panel).getByRole("radio", { name: /Immer/ });
+        expect(immer).toHaveAttribute("data-opt", "blue");
+        expect(immer).toHaveClass("kp-on");
+        expect(within(panel).getByRole("radio", { name: /Selten/ })).toHaveAttribute("data-opt", "slate");
+        const wednesday = within(panel).getByRole("button", { name: "Mittwoch" });
+        expect(wednesday).toHaveAttribute("data-day", "mi");
+        expect(wednesday).not.toHaveClass("kp-on");
+        await userEvent.click(wednesday);
+        expect(wednesday).toHaveClass("kp-on");
+        // free text stays plain
+        expect(within(panel).getByRole("textbox", { name: "Anmerkung" })).not.toHaveAttribute("data-opt");
+    });
+
+    it("shows the answers in the drawer as coloured chips", async () => {
+        const k = kaderData();
+        k.players[U.heal].interview = { ...k.players[U.heal].interview, answers: { q1: ["d1", "d5"], q2: "o3", q3: "Kann leiten" } };
+        vi.mocked(api.getKader).mockResolvedValue(kaderView({ kader: k }));
+        await show(`/kader/k1/roster?spieler=${U.heal}`);
+        const drawer = screen.getByRole("complementary", { name: t("kader.decide.drawer", { name: "Mira" }) });
+        expect(within(drawer).getByText("Mo").closest(".kp-ochip")).toHaveAttribute("data-day", "mo");
+        expect(within(drawer).getByText("Fr").closest(".kp-ochip")).toHaveAttribute("data-day", "fr");
+        expect(within(drawer).getByText("Selten").closest(".kp-ochip")).toHaveAttribute("data-opt", "slate");
+        expect(within(drawer).getByText("Kann leiten").closest(".kp-ochip")).toBeNull();
+    });
+
+    it("lets the lead change an option's colour in the editor and saves it with the question", async () => {
+        vi.mocked(api.updateKaderQuestion).mockResolvedValue(change());
+        const first = await show("/kader/k1/fragen?frage=q2");
+        const editor = screen.getByRole("region", { name: t("kader.questions.editor") });
+        const name = t("kader.questions.optionColor", { label: "Immer", color: t("kader.color.blue") });
+        await userEvent.click(within(editor).getByRole("button", { name }));
+        const palette = await screen.findByRole("radiogroup", { name });
+        expect(within(palette).getAllByRole("radio")).toHaveLength(8);
+        expect(within(palette).getByRole("radio", { name: t("kader.color.blue") })).toHaveAttribute("aria-checked", "true");
+        await userEvent.click(within(palette).getByRole("radio", { name: t("kader.color.teal") }));
+        // the preview follows
+        expect(editor.querySelector(".kp-preview .kp-pill")).toHaveAttribute("data-opt", "teal");
+        await userEvent.click(within(editor).getByRole("button", { name: t("common.save") }));
+        expect(api.updateKaderQuestion).toHaveBeenCalledWith("k1", "q2", {
+            text: "Im Voice-Chat aktiv?", type: "single", required: false,
+            options: [{ id: "o1", label: "Immer", color: "teal" }, { id: "o2", label: "Meistens", color: "amber" }, { id: "o3", label: "Selten", color: "slate" }],
+        });
+        first.unmount();
+        // weekdays keep their day colours: no swatches
+        renderPage(<KaderPage />, { route: "/kader/k1/fragen?frage=q1", path: PATH });
+        await screen.findByRole("button", { name: /Forever-Kader/ });
+        const days = screen.getByRole("region", { name: t("kader.questions.editor") });
+        expect(days.querySelectorAll(".kp-swatchbtn")).toHaveLength(0);
+        expect(days.querySelectorAll(".kp-tonedot-fixed")).toHaveLength(7);
+        expect(within(days).getByText(t("kader.questions.colorHintDays"))).toBeInTheDocument();
+    });
+});
+
 describe("KaderPage · back buttons", () => {
     it("draws every step back as the same coloured button with an arrow", async () => {
         vi.mocked(api.setKaderState).mockResolvedValue(change());
@@ -484,7 +559,7 @@ describe("KaderPage · Fragen", () => {
         await userEvent.type(within(editor).getByRole("textbox", { name: t("kader.questions.optionN", { n: 1 }) }), "Neu");
         await userEvent.type(within(editor).getByRole("textbox", { name: t("kader.questions.optionN", { n: 2 }) }), "Viel");
         await userEvent.click(within(editor).getByRole("button", { name: t("kader.questions.create") }));
-        expect(api.addKaderQuestion).toHaveBeenCalledWith("k1", { text: "Erfahrung", type: "single", required: false, options: [{ label: "Neu" }, { label: "Viel" }] });
+        expect(api.addKaderQuestion).toHaveBeenCalledWith("k1", { text: "Erfahrung", type: "single", required: false, options: [{ label: "Neu", color: "blue" }, { label: "Viel", color: "amber" }] });
     });
 
     it("says how many answers go with a deleted question", async () => {

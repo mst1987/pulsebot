@@ -113,9 +113,9 @@ const addComment = kaderWrite((p, body, ctx) => players.addComment(p, body, ctx)
 const deleteComment = kaderWrite((p, body, ctx) => players.deleteComment(p, body, ctx));
 
 // --------------------------------------------------------- questions
-/** POST /api/kader/questions — body: { kaderId, text, type, options: [{ label }], required } */
+/** POST /api/kader/questions — body: { kaderId, text, type, options: [{ label, color? }], required } */
 const addQuestion = kaderWrite((p, body) => questions.addQuestion(p, body));
-/** PUT /api/kader/questions — body: { kaderId, questionId, text?, type?, options?: [{ id?, label }], required? } */
+/** PUT /api/kader/questions — body: { kaderId, questionId, text?, type?, options?: [{ id?, label, color? }], required? } */
 const updateQuestion = kaderWrite((p, body) => questions.updateQuestion(p, body));
 /** POST /api/kader/questions/delete — body: { kaderId, questionId } — its answers go with it. */
 const deleteQuestion = kaderWrite((p, body) => questions.deleteQuestion(p, body));

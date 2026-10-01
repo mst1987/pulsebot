@@ -116,7 +116,8 @@ export type KaderEntry = {
     decision: KaderWish | null;
 };
 
-export type KaderOption = { id: string; label: string };
+/** An answer option; `color` one of KADER_OPTION_COLORS (lib/kader/colors.ts), none = picked by position. */
+export type KaderOption = { id: string; label: string; color?: string };
 export type KaderQuestion = { id: string; text: string; type: KaderQuestionType; options: KaderOption[]; required: boolean };
 export type KaderSlot = { userId: string; spec: string } | null;
 export type KaderVariant = { id: string; name: string; size: 10 | 20; groups: KaderSlot[][] };
@@ -181,7 +182,7 @@ export type KaderCharacterInput = {
 };
 
 export type KaderInterviewPatch = { wishes?: KaderWish[]; answers?: Record<string, KaderAnswer>; note?: string; lead?: string };
-export type KaderQuestionInput = { text: string; type: KaderQuestionType; options: { id?: string; label: string }[]; required: boolean };
+export type KaderQuestionInput = { text: string; type: KaderQuestionType; options: { id?: string; label: string; color?: string }[]; required: boolean };
 
 export function getKader(kaderId = ""): Promise<KaderView> {
     return get<KaderView>(kaderId ? `/api/kader?kader=${encodeURIComponent(kaderId)}` : "/api/kader");

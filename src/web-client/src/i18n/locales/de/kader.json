@@ -463,6 +463,9 @@
         "options": "Antwortmöglichkeiten",
         "weekdays": "Wochentage einsetzen",
         "optionN": "Antwort {n}",
+        "optionColor": "Farbe von „{label}“: {color}",
+        "colorHint": "Jede Antwort hat eine Farbe, damit man sie im Gespräch und in der Übersicht ohne Lesen erkennt. Der Punkt links ändert sie.",
+        "colorHintDays": "Wochentage tragen ihre festen Farben, wie im Raider-Profil.",
         "removeOption": "Antwort entfernen",
         "addOption": "Antwort",
         "renameHint": "Umbenennen behält die Antworten, Entfernen nimmt sie mit.",
@@ -625,6 +628,16 @@
         "other": "{count} Spieler"
     },
     "roleCount": "{role}: {n}",
+    "color": {
+        "blue": "Blau",
+        "amber": "Gelb",
+        "rose": "Rot",
+        "teal": "Türkis",
+        "violet": "Violett",
+        "lime": "Grün",
+        "orange": "Orange",
+        "slate": "Grau"
+    },
     "att": {
         "noneTip": "Noch keine Raid-Kategorie gewählt",
         "noneSub": "Wähle im Kopf der Spalte Anwesenheit oder in den Einstellungen des Kaders, welche Raid-Kategorien zählen.",

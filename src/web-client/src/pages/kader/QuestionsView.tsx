@@ -5,19 +5,24 @@
 // options, required or not, with a preview. A new question shows as open for
 // everybody; deleting one takes its answers along (the dialog says how many);
 // renaming an option keeps its answers. "Fragen aus anderem Kader übernehmen"
-// copies another Kader's set. ?frage=<id> is the question in the editor.
-import { useState } from "react";
+// copies another Kader's set. Every option of a choice has a colour (a swatch
+// beside it; weekdays keep their day colours), saved with the question.
+// ?frage=<id> is the question in the editor.
+import { useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
     addKaderQuestion, copyKaderQuestions, deleteKaderQuestion, orderKaderQuestions, updateKaderQuestion,
     type KaderData, type KaderQuestion, type KaderQuestionType,
 } from "../../api";
 import { Button, IconButton, Modal, Segment } from "../../components/ui";
+import Popover from "../../components/ui/Popover";
 import { useConfirm } from "../../components/ui/Modal";
-import { ChevronDownIcon, CopyIcon, LockIcon, PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/icons";
+import { CheckIcon, ChevronDownIcon, CopyIcon, LockIcon, PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { dayShort, isWeekdays } from "../../lib/kader/interview";
+import { DAY_KEYS, OPTION_COLORS, optionColors, toneAttrs, type OptionColor } from "../../lib/kader/colors";
+import { belowStartPlacement } from "../../lib/popoverPosition";
 import { Grip, SubHead } from "./parts";
 import { useKader } from "./kaderContext";
 
@@ -25,17 +30,21 @@ const NEW = "new";
 const TYPES: KaderQuestionType[] = ["single", "multi", "text"];
 const MAX_QUESTIONS = 30;
 const MAX_OPTIONS = 20;
-const WEEKDAY_KEYS = ["mo", "di", "mi", "do", "fr", "sa", "so"];
 
-type DraftOption = { key: string; id?: string; label: string };
+/** An option in the editor; its colour is always resolved, so moving it keeps it (saved with the question). */
+type DraftOption = { key: string; id?: string; label: string; color: OptionColor };
 type Draft = { text: string; type: KaderQuestionType; options: DraftOption[]; required: boolean };
 
 let keySeq = 0;
 const newKey = () => `o${++keySeq}`;
 
 function draftOf(q: KaderQuestion | null): Draft {
-    if (!q) return { text: "", type: "single", options: [{ key: newKey(), label: "" }, { key: newKey(), label: "" }], required: false };
-    return { text: q.text, type: q.type, options: q.options.map((o) => ({ key: o.id, id: o.id, label: o.label })), required: q.required };
+    if (!q) {
+        const [a, b] = optionColors([{}, {}]);
+        return { text: "", type: "single", options: [{ key: newKey(), label: "", color: a }, { key: newKey(), label: "", color: b }], required: false };
+    }
+    const colors = optionColors(q.options);
+    return { text: q.text, type: q.type, options: q.options.map((o, i) => ({ key: o.id, id: o.id, label: o.label, color: colors[i] })), required: q.required };
 }
 
 /** How many interviews answered a question. */
@@ -55,24 +64,63 @@ function affectedBy(kader: KaderData, q: KaderQuestion, draft: Draft): number {
     }).length;
 }
 
+/** Whether the draft's options are the seven weekdays (then they carry the day colours, no swatches). */
+function draftIsWeekdays(draft: Draft): boolean {
+    const labels = draft.options.map((o) => o.label.trim()).filter(Boolean);
+    return draft.type !== "text" && isWeekdays({ id: "", text: "", type: draft.type, options: labels.map((label, i) => ({ id: String(i), label })), required: false });
+}
+
+/** The question as the interview will show it: every option in its colour, as if picked. */
 function Preview({ draft }: { draft: Draft }) {
     const t = useT();
-    const labels = draft.options.map((o) => o.label.trim()).filter(Boolean);
-    const days = draft.type !== "text" && isWeekdays({ id: "", text: "", type: draft.type, options: labels.map((label, i) => ({ id: String(i), label })), required: false });
+    const options = draft.options.filter((o) => o.label.trim());
+    const days = draftIsWeekdays(draft);
     return (
         <div className="kp-preview">
             <span className="kicker">{t("kader.questions.preview")}</span>
             <span className="kp-strong">{draft.text.trim() || t("kader.questions.untitled")}</span>
             {draft.type === "text" ? <span className="kp-preview-text">{t("kader.questions.previewText")}</span> : (
                 <div className={days ? "kp-days" : "kp-pills"}>
-                    {labels.map((label, i) => (
-                        <span key={`${label}-${i}`} className="kp-pill">
-                            {!days && <span className={draft.type === "single" ? "kp-radio" : "kp-box"} aria-hidden="true" />}{days ? dayShort(label) : label}
+                    {options.map((o, i) => (
+                        <span key={o.key} className="kp-pill kp-on" {...toneAttrs(days ? { day: DAY_KEYS[i] } : { opt: o.color })}>
+                            {!days && <span className={draft.type === "single" ? "kp-radio" : "kp-box"} aria-hidden="true" />}{days ? dayShort(o.label) : o.label.trim()}
                         </span>
                     ))}
                 </div>
             )}
         </div>
+    );
+}
+
+const belowStart = belowStartPlacement();
+
+/** The colour of one option: a dot that opens the palette as a row of swatches (radio buttons, each named). */
+function ColorPick({ value, label, onChange }: { value: OptionColor; label: string; onChange: (color: OptionColor) => void }) {
+    const t = useT();
+    const [open, setOpen] = useState(false);
+    const anchor = useRef<HTMLButtonElement>(null);
+    const name = t(`kader.color.${value}`);
+    return (
+        <>
+            <button ref={anchor} type="button" className="kp-swatchbtn" aria-haspopup="true" aria-expanded={open}
+                aria-label={t("kader.questions.optionColor", { label, color: name })} data-tip={t("kader.questions.optionColor", { label, color: name })}
+                onClick={() => setOpen(!open)}>
+                <span className="kp-tonedot" aria-hidden="true" {...toneAttrs({ opt: value })} />
+            </button>
+            {open && (
+                <Popover anchor={anchor} place={belowStart} follow="reposition" onClose={() => setOpen(false)} className="kp-wmenu kp-swatches">
+                    <div role="radiogroup" aria-label={t("kader.questions.optionColor", { label, color: name })} className="kp-swatchrow">
+                        {OPTION_COLORS.map((c) => (
+                            <button key={c} type="button" role="radio" aria-checked={c === value} aria-label={t(`kader.color.${c}`)} data-tip={t(`kader.color.${c}`)}
+                                className={`kp-swatch${c === value ? " kp-on" : ""}`} {...toneAttrs({ opt: c })}
+                                onClick={() => { onChange(c); setOpen(false); anchor.current?.focus(); }}>
+                                {c === value && <CheckIcon />}
+                            </button>
+                        ))}
+                    </div>
+                </Popover>
+            )}
+        </>
     );
 }
 
@@ -87,6 +135,10 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
     const ready = !!draft.text.trim() && (draft.type === "text" || options.length >= 2);
     const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
     const setOption = (i: number, label: string) => set({ options: draft.options.map((o, j) => (j === i ? { ...o, label } : o)) });
+    const setColor = (i: number, color: OptionColor) => set({ options: draft.options.map((o, j) => (j === i ? { ...o, color } : o)) });
+    // a new option takes the first colour no option holds yet
+    const addOption = () => set({ options: [...draft.options, { key: newKey(), label: "", color: optionColors([...draft.options, {}])[draft.options.length] }] });
+    const days = draftIsWeekdays(draft);
     const moveOption = (a: number, b: number) => {
         if (a === b || b < 0 || b >= draft.options.length) return;
         const next = [...draft.options];
@@ -94,7 +146,10 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
         next.splice(b, 0, moved);
         set({ options: next });
     };
-    const fillWeekdays = () => set({ type: "multi", options: WEEKDAY_KEYS.map((d) => ({ key: newKey(), label: t(`kader.dayLong.${d}`) })) });
+    const fillWeekdays = () => {
+        const colors = optionColors(DAY_KEYS.map(() => ({})));
+        set({ type: "multi", options: DAY_KEYS.map((d, i) => ({ key: newKey(), label: t(`kader.dayLong.${d}`), color: colors[i] })) });
+    };
 
     const save = async () => {
         if (!ready) return;
@@ -102,7 +157,8 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
             text: draft.text.trim(),
             type: draft.type,
             required: draft.required,
-            options: draft.type === "text" ? [] : options.map((o) => (o.id ? { id: o.id, label: o.label.trim() } : { label: o.label.trim() })),
+            // every option with its colour: moving one later keeps it
+            options: draft.type === "text" ? [] : options.map((o) => (o.id ? { id: o.id, label: o.label.trim(), color: o.color } : { label: o.label.trim(), color: o.color })),
         };
         if (question) {
             const lost = affectedBy(kader, question, draft);
@@ -150,6 +206,9 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
                                     onDrop={(e) => { e.preventDefault(); if (from !== null) moveOption(from, i); setFrom(null); }}
                                     onDragEnd={() => setFrom(null)}>
                                     <Grip />
+                                    {days
+                                        ? <span className="kp-tonedot kp-tonedot-fixed" aria-hidden="true" {...toneAttrs({ day: DAY_KEYS[i] || "mo" })} />
+                                        : <ColorPick value={o.color} label={o.label.trim() || t("kader.questions.optionN", { n: i + 1 })} onChange={(c) => setColor(i, c)} />}
                                     <input className="kp-optinput" aria-label={t("kader.questions.optionN", { n: i + 1 })} value={o.label} maxLength={60} onChange={(e) => setOption(i, e.target.value)} />
                                     <IconButton icon={<ChevronDownIcon />} className="kp-flip" size="sm" tip={t("kader.interview.up")} disabled={i === 0} onClick={() => moveOption(i, i - 1)} />
                                     <IconButton icon={<XIcon />} size="sm" tip={t("kader.questions.removeOption")} onClick={() => set({ options: draft.options.filter((_, j) => j !== i) })} />
@@ -157,12 +216,13 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
                             ))}
                             {canWrite && (
                                 <li>
-                                    <button type="button" className="kp-dashed" disabled={draft.options.length >= MAX_OPTIONS} onClick={() => set({ options: [...draft.options, { key: newKey(), label: "" }] })}>
+                                    <button type="button" className="kp-dashed" disabled={draft.options.length >= MAX_OPTIONS} onClick={addOption}>
                                         <PlusIcon />{t("kader.questions.addOption")}
                                     </button>
                                 </li>
                             )}
                         </ol>
+                        <span className="kp-hint">{days ? t("kader.questions.colorHintDays") : t("kader.questions.colorHint")}</span>
                         {question && <span className="kp-hint">{t("kader.questions.renameHint")}</span>}
                     </div>
                 )}

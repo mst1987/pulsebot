@@ -34,6 +34,12 @@ const STATES = ["pool", "selected", "provisional", "roster", "bench", "tentative
 /** The states whose players an example setup may hold. */
 const SETUP_STATES = ["roster", "provisional", "bench", "tentative"];
 const QUESTION_TYPES = ["single", "multi", "text"];
+/**
+ * The colours an answer option may carry (tokens --opt-<name> of the web
+ * client, tokens.css), in the order "automatic" hands them out; an option
+ * without one gets the next free colour by position (lib/kader/colors.ts).
+ */
+const OPTION_COLORS = ["blue", "amber", "rose", "teal", "violet", "lime", "orange", "slate"];
 const VOTES = ["yes", "unsure", "no"];
 const NAME_STYLES = ["forever", "nick"];
 const GEAR_LEVELS = ["none", "usable", "ready"];
@@ -95,7 +101,9 @@ function normalizeCharacter(c) {
 function normalizeOption(o) {
     if (!isObject(o) || !o.id) return null;
     const label = str(o.label).trim().slice(0, LIMITS.option);
-    return label ? { id: str(o.id), label } : null;
+    if (!label) return null;
+    // a colour of the palette, else none (the page picks one by position)
+    return OPTION_COLORS.includes(o.color) ? { id: str(o.id), label, color: o.color } : { id: str(o.id), label };
 }
 
 function normalizeQuestion(q) {
@@ -517,7 +525,7 @@ function deleteKader(planner, kaderId) {
 }
 
 module.exports = {
-    FORMAT, ROLES, STATES, SETUP_STATES, QUESTION_TYPES, VOTES, NAME_STYLES, GEAR_LEVELS, SETUP_SIZES,
+    FORMAT, ROLES, STATES, SETUP_STATES, QUESTION_TYPES, OPTION_COLORS, VOTES, NAME_STYLES, GEAR_LEVELS, SETUP_SIZES,
     GROUP_COUNT, GROUP_SIZE, LIMITS,
     clone, str, isObject, invalid, notFound, conflict, forbidden,
     emptyPlanner, emptyGroups, normalizePlanner, normalizeQuestion, normalizeAnswer, normalizeKader,

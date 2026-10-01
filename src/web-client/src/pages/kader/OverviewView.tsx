@@ -19,11 +19,12 @@ import { rolePluralLabel } from "../../lib/wowNames";
 import { className, dayOf, daysSince, nameOf, playerName, ROLES, roleCounts, searchText, specRole } from "../../lib/kader/model";
 import { answerLabels, isAnswered, isWeekdays, statusOf, type InterviewStatus } from "../../lib/kader/interview";
 import { overviewParts, overviewSortDefaults, sortTable } from "../../lib/kader/sort";
+import { toneOf } from "../../lib/kader/colors";
 import { cleanState, passes, type FilterDef, type FilterOption, type FilterState } from "../../lib/kader/filters";
 import { FilterChips, FilterMenus } from "./FilterMenus";
 import { BatchBar } from "./BatchBar";
 import {
-    AnswerLines, BackButton, ClassIcon, Count, DaySquares, DoneBadge, EmptyState, HistoryLines, InterviewChip, PlayerName, RoleIcon, SelectionTabs, SortHead, SpecTag,
+    AnswerChips, AnswerLines, BackButton, ClassIcon, Count, DaySquares, DoneBadge, EmptyState, HistoryLines, InterviewChip, PlayerName, RoleIcon, SelectionTabs, SortHead, SpecTag,
     TableNote, WishLines,
 } from "./parts";
 import { useKader } from "./kaderContext";
@@ -65,7 +66,9 @@ function AnswerCell({ q, entry }: { q: KaderQuestion; entry: KaderEntry }) {
     const labels = answerLabels(q, value);
     if (!labels.length) return <span role="cell" className="kp-muted">—</span>;
     const text = labels.join(" · ");
-    return <span role="cell" className="kp-ellipsis" data-tip={text}>{text}</span>;
+    // a choice as coloured chips, free text as text; the whole answer in the tooltip
+    if (q.type === "text") return <span role="cell" className="kp-ellipsis" data-tip={text}>{text}</span>;
+    return <span role="cell" className="kp-cell-answer" data-tip={text}><AnswerChips question={q} value={value} nowrap /></span>;
 }
 
 function OverviewRow({ row, marked, onMark }: { row: Row; marked: boolean; onMark: (on: boolean) => void }) {
@@ -128,7 +131,7 @@ export default function OverviewView() {
             const options: FilterOption<Row>[] = question.type === "text"
                 ? [{ value: "yes", label: t("kader.overview.answered"), test: (r: Row) => isAnswered(question, r.entry.interview.answers[question.id]) }]
                 : question.options.map((o) => ({
-                    value: o.id, label: o.label,
+                    value: o.id, label: o.label, tone: toneOf(question, o.id),
                     test: (r: Row) => {
                         const v = r.entry.interview.answers[question.id];
                         return Array.isArray(v) ? v.includes(o.id) : v === o.id;
