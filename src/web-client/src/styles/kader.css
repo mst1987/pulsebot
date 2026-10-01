@@ -475,9 +475,10 @@ dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
     display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: var(--ctl-radius);
     border: 1px solid var(--line); background: var(--panel2); font: inherit; font-size: 13.5px; cursor: pointer;
 }
-.kp-pick .kp-pickname { font-weight: 700; color: var(--cc, inherit); }
+.kp-pick .kp-pickname { font-weight: 700; }
 .kp-pick:hover:not(:disabled) { border-color: var(--cc, var(--accent)); }
-.kp-pick.kp-have { opacity: .55; cursor: default; }
+.kp-pick.kp-have { background: transparent; border-style: dashed; cursor: default; }
+.kp-pick.kp-have .kp-pickname { font-weight: 600; }
 .kp-accgrid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; }
 @media (max-width: 760px) { .kp-accgrid { grid-template-columns: minmax(0, 1fr); } }
 .kp-editor { display: flex; flex-direction: column; gap: 22px; min-width: 0; border: 0; padding: 0; margin: 0; }
@@ -897,3 +898,9 @@ dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
 .kp-textarea { width: 100%; min-height: 260px; font: 13px/1.5 var(--font-mono); padding: 10px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; }
 @media (max-width: 900px) { .kp-setup { grid-template-columns: minmax(0, 1fr); } .kp-rest { min-height: 0; } }
 @media (max-width: 700px) { .kp-groups { grid-template-columns: minmax(0, 1fr); } }
+
+/* Priest white stays pale even after the shared light-theme mix: names and tiles in the account dialog go darker still (>= 3:1) */
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) :is(.kp-pick, .kp-chartab, .kp-classtile).class-colored { color: color-mix(in srgb, var(--cc) 35%, var(--ink-shade)); }
+}
+:root[data-theme="light"] :is(.kp-pick, .kp-chartab, .kp-classtile).class-colored { color: color-mix(in srgb, var(--cc) 35%, var(--ink-shade)); }
