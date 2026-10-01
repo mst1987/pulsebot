@@ -62,6 +62,18 @@ export async function getIfChanged<T>(path: string, etag: string): Promise<{ dat
     return { data: (body?.data ?? null) as T, etag: res.headers.get("ETag") || "" };
 }
 
+/**
+ * A GET that must reach the server even while the page closes (an open Kader page telling the others it left):
+ * `keepalive`, no answer read, every failure swallowed — whatever it reports also runs out on the server by itself.
+ */
+export function getKeepalive(path: string): void {
+    try {
+        void fetch(path, { credentials: "include", keepalive: true }).catch(() => undefined);
+    } catch {
+        // no fetch at all (an old browser, a test): nothing to do
+    }
+}
+
 // Mutating requests carry the CSRF token from GET /api/session as a header
 // (csrf.ts keeps it; the SSR forms use a hidden _csrf field instead — see
 // src/web/auth.js).

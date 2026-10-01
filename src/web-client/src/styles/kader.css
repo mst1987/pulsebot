@@ -928,3 +928,76 @@ dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
     :root:not([data-theme="dark"]) :is(.kp-pick, .kp-chartab, .kp-classtile).class-colored { color: color-mix(in srgb, var(--cc) 35%, var(--ink-shade)); }
 }
 :root[data-theme="light"] :is(.kp-pick, .kp-chartab, .kp-classtile).class-colored { color: color-mix(in srgb, var(--cc) 35%, var(--ink-shade)); }
+
+/* ---- Live (docs/kaderplaner.md): who is here, what changed, conflicts, the logs ---- */
+.kp-top-act { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.btn.kp-logbtn svg { width: 14px; height: 14px; }
+/* somebody here right now: a ring in their colour and a dot (the name is always in the tooltip) */
+.kp-avatar.kp-online { position: relative; box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--hue); }
+.kp-avatar.kp-online::after {
+    content: ""; position: absolute; right: -2px; bottom: -2px; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--good); box-shadow: 0 0 0 2px var(--panel);
+}
+.kp-avatar-sized.kp-online::after { width: max(7px, calc(var(--av) * 0.38)); height: max(7px, calc(var(--av) * 0.38)); }
+.kp-presence-av { font-weight: 800; color: var(--text); background: color-mix(in srgb, var(--hue) 24%, transparent); }
+.kp-guests { display: inline-flex; align-items: center; gap: 6px; padding-left: 10px; border-left: 1px solid var(--line); color: var(--muted); }
+.kp-guests > svg { width: 14px; height: 14px; flex: none; }
+.kp-guests .kp-avatar { width: 24px; height: 24px; font-size: 11px; }
+.kp-presence-mark { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: 2px; }
+.kp-presence-more { font-size: 11px; font-weight: 700; color: var(--muted); }
+.kp-presence-banner {
+    display: flex; flex-direction: column; gap: 6px; padding: 8px 12px; font-size: 13px; color: var(--text);
+    background: color-mix(in srgb, var(--good) 8%, var(--panel)); border-left: 2px solid var(--good);
+}
+.kp-presence-line { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+/* a save over somebody else's change: the input stays, the person decides */
+.kp-conflict {
+    display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 10px 12px;
+    background: var(--medium-bg); border: 1px solid var(--medium); border-radius: 8px;
+}
+.kp-conflict-text { display: flex; align-items: flex-start; gap: 10px; flex: 1 1 260px; min-width: 0; font-size: 13.5px; }
+.kp-conflict-text > svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--medium); }
+.kp-conflict-act { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.kp-livehint { margin: 0; padding: 8px 12px; font-size: 13px; color: var(--muted); background: var(--panel2); border-left: 2px solid var(--line); }
+/* the save state of an interview: one quiet icon, its words in the tooltip */
+.kp-savestate { display: inline-grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 50%; color: var(--muted); }
+.kp-savestate svg { width: 14px; height: 14px; }
+.kp-savestate.kp-save-saved { color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 12%, transparent); }
+.kp-savestate.kp-save-dirty svg { fill: currentColor; width: 9px; height: 9px; }
+.kp-savestate.kp-save-dirty { color: var(--accent); }
+.kp-savestate.kp-save-paused { color: var(--medium); background: var(--medium-bg); }
+.kp-savestate.kp-save-saving svg { animation: toast-spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .kp-savestate.kp-save-saving svg { animation: none; } }
+/* the footer's left slot: save state and what is still open, of fixed width so the buttons never move */
+.kp-iv-foot-state { display: inline-flex; align-items: center; gap: 10px; min-width: 14rem; }
+/* what is still open: a count; the list is in the tooltip */
+.kp-missing { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.kp-missing svg { width: 14px; height: 14px; flex: none; }
+/* the logs: a player's Verlauf as a panel under its button, the Kader's Aktivität in a dialog */
+.kp-logpop {
+    position: fixed; z-index: 70; width: min(380px, calc(100vw - 32px)); max-height: min(440px, calc(100vh - 24px)); overflow-y: auto;
+    display: flex; flex-direction: column; gap: 8px; padding: 12px 14px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 18px 40px -12px var(--shade-55);
+}
+.kp-logpop-head { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; }
+.kp-logpop-head > svg { width: 14px; height: 14px; flex: none; color: var(--muted); }
+.kp-loglist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.kp-loglist li {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 10px;
+    padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px;
+}
+.kp-loglist li:first-child { border-top: 0; }
+.kp-loglist-wide li { grid-template-columns: auto minmax(0, 1fr); }
+.kp-logtime { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.kp-logtext { min-width: 0; overflow-wrap: anywhere; }
+.kp-logline { display: flex; align-items: center; gap: 8px; }
+.kp-logline .kp-avatar { flex: none; }
+.kp-logwho { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 140px; color: var(--muted); font-size: 12.5px; }
+.kp-logwho .kp-avatar { flex: none; }
+@media (max-width: 600px) {
+    .kp-loglist li { grid-template-columns: minmax(0, 1fr) auto; }
+    .kp-loglist li .kp-logtime { grid-column: 1 / -1; }
+    .kp-loglist-wide li { grid-template-columns: minmax(0, 1fr); }
+    .kp-top-act { margin-left: auto; }
+    .kp-iv-foot-state { min-width: 0; }
+}

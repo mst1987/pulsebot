@@ -10,21 +10,27 @@ import { useConfirm } from "../../components/ui/Modal";
 import { PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/icons";
 import { useT } from "../../i18n";
 import { nameOf, togglePick } from "../../lib/kader/model";
+import { changedSince } from "../../lib/kader/live";
 import { CategoryChecklist } from "./Attendance";
 
 type Props = {
     mode: "create" | "edit";
     view: KaderView;
+    /** The signed-in account: a change somebody else made while the dialog is open gets a quiet hint. */
+    me?: string;
     onClose: () => void;
     run: <T>(call: Promise<T>) => Promise<T | null>;
     onCreated?: (kaderId: string) => void;
     onDeleted?: () => void;
 };
 
-export default function KaderSettingsModal({ mode, view, onClose, run, onCreated, onDeleted }: Props) {
+export default function KaderSettingsModal({ mode, view, me = "", onClose, run, onCreated, onDeleted }: Props) {
     const t = useT();
     const ask = useConfirm();
     const kader = mode === "edit" ? view.kader : null;
+    // what is typed stays when the Kader changes live; somebody else's change since opening gets a quiet hint
+    const [openRev] = useState(kader && kader.rev ? kader.rev : 0);
+    const changed = kader ? changedSince(kader, openRev, me, ["settings"]) : null;
     const [name, setName] = useState(kader ? kader.name : "");
     const [leads, setLeads] = useState<string[]>(kader ? kader.leads : []);
     const [pick, setPick] = useState("");
@@ -74,6 +80,7 @@ export default function KaderSettingsModal({ mode, view, onClose, run, onCreated
             )}
         >
             <div className="kp-stack">
+                {changed && <p className="kp-livehint" role="status">{t("kader.live.changed", { name: nameOf(view, changed.by) })}</p>}
                 <Field label={t("kader.field.name")} htmlFor="kp-kader-name">
                     <input id="kp-kader-name" value={name} maxLength={40} placeholder={t("kader.settings.namePlaceholder")} onChange={(e) => setName(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") void submit(); }} />

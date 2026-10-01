@@ -16,8 +16,16 @@
 const { newId } = require("../../utils/ids");
 const {
     QUESTION_TYPES, OPTION_COLORS, LIMITS, str, isObject, invalid, notFound, conflict,
-    withKader, getKader, cleanLabel, normalizeAnswer,
+    withKader, getKader, cleanLabel, normalizeAnswer, assertFresh, revOf,
 } = require("./kaderModel");
+
+/** Who made the change a question carries the revision of (its line in the Kader's activity log), "" when unknown. */
+function changedBy(kader, question) {
+    const rev = revOf(question.rev);
+    const item = (kader.activity || []).slice().reverse()
+        .find((a) => a.type === "questions" && a.rev === rev && (!a.questionId || a.questionId === question.id));
+    return item ? item.by : "";
+}
 
 /** An option's colour: one of the palette, "" for none (automatic); anything else is refused. */
 function cleanColor(raw) {
@@ -88,10 +96,15 @@ function addQuestion(planner, input) {
     });
 }
 
-/** Changes a question: text, type, options (an option with a known id keeps it), required. */
+/**
+ * Changes a question: text, type, options (an option with a known id keeps it),
+ * required. `baseRev` (the question's revision the editor started from) refuses
+ * a save over somebody else's change with 409 `stale`, unless `force`.
+ */
 function updateQuestion(planner, input) {
     return withKader(planner, input.kaderId, (kader) => {
         const question = getQuestion(kader, input.questionId);
+        assertFresh(input, question.rev, "Inzwischen hat jemand anderes diese Frage geändert.", { by: changedBy(kader, question) });
         if (input.text !== undefined) question.text = cleanLabel(input.text, "Frage", LIMITS.question);
         if (input.required !== undefined) question.required = input.required === true;
         const oldType = question.type;

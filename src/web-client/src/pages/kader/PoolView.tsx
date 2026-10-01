@@ -22,7 +22,7 @@ import { cleanState, passes, type FilterDef, type FilterState } from "../../lib/
 import { FilterChips, FilterMenus } from "./FilterMenus";
 import { BatchBar } from "./BatchBar";
 import { AttendanceSource, AttendanceValue } from "./Attendance";
-import { BackButton, EmptyState, PlayerName, SinceText, SortHead, SourceBadge, SpecTag, StateBadge, Switch, TableNote } from "./parts";
+import { BackButton, EmptyState, PlayerName, SortHead, SourceBadge, SpecTag, StateBadge, Switch, TableNote } from "./parts";
 import { useKader } from "./kaderContext";
 
 type Scope = "all" | "pool" | "selected";
@@ -51,7 +51,7 @@ function PlayerPeek({ userId, entry }: Row) {
                 <div className="kp-peek-rule" />
                 <div className="kp-between"><span className="kp-muted">{t("kader.pool.attendance")}</span><AttendanceValue userId={userId} /></div>
                 <div className="kp-between"><span className="kp-muted">{t("kader.pool.inKaderSince")}</span><span>{dayOf(entry.addedAt) || "—"}</span></div>
-                <div className="kp-sub"><StateBadge state={entry.state} /> <SinceText entry={entry} /></div>
+                <div className="kp-sub"><StateBadge state={entry.state} /></div>
             </div>
         </HoverPanel>
     );

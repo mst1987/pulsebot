@@ -10,17 +10,29 @@
 // the whole view. Area "kader": only full admins and the accounts or roles an
 // admin hands it to (docs/permissions.md). Read-only sees everything, changes
 // nothing.
-import { useCallback, useEffect, useMemo, useState } from "react";
+//
+// Live (docs/kaderplaner.md): while the page is visible it polls the Kader's
+// revision (useKaderLive). When somebody else changed something, it fetches the
+// Kader again — only the Kader (GET /api/kader/kader) when the change stayed
+// inside it, the whole view when the server's side changed or players came in —
+// and says in a toast who did what. What a part holds unsaved (an interview
+// draft, a dialog, a half-typed comment) stays: the parts keep their own state.
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useOutletContext, useParams } from "react-router-dom";
-import { canAccess, getKader, type ApiError, type KaderChange, type KaderView } from "../../api";
+import { canAccess, getKader, getKaderOnly, type ApiError, type KaderChange, type KaderLive, type KaderView } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedState } from "../../lib/persistedState";
 import { byId } from "../../lib/kader/model";
+import { liveToast } from "../../lib/kader/live";
 import { useToast } from "../../components/Jobs";
 import RaidLoader from "../../components/ui/RaidLoader";
 import type { ShellContext } from "../../components/Shell";
 import { useT } from "../../i18n";
-import { KaderContext, SUBS, type KaderCtx, type KaderModal, type KaderSub } from "./kaderContext";
+import {
+    KaderContext, SUBS, type KaderCtx, type KaderFocus, type KaderFocusSource, type KaderModal, type KaderRunOptions, type KaderSub,
+} from "./kaderContext";
+import { useKaderLive } from "./useKaderLive";
+import ActivityModal from "./ActivityLog";
 import KaderHeader, { StageNav } from "./KaderHeader";
 import KaderStart from "./KaderStart";
 import PoolView from "./PoolView";
@@ -51,7 +63,12 @@ function merge(prev: KaderView | null, result: unknown): KaderView | null {
     let kader = prev.kader;
     if (r.kader && kader && r.kader.id === kader.id) kader = r.kader;
     else if (kader && !kaders.some((k) => k.id === kader?.id)) kader = null;
-    return { ...prev, kaders, kader };
+    return { ...prev, kaders, kader, sharedRev: typeof r.sharedRev === "number" ? r.sharedRev : prev.sharedRev };
+}
+
+/** Whether what the live poll learnt needs the whole view again (players came in, characters or the server's side changed). */
+function needsWholeView(live: KaderLive, view: KaderView): boolean {
+    return !!live.gone || live.more || live.sharedRev > (view.sharedRev || 0) || live.changes.some((c) => c.type === "added" || c.type === "character");
 }
 
 /** A whole view without the Kader the address names, though that Kader exists: refetch it. */
@@ -73,24 +90,82 @@ export default function KaderPage() {
     const { setData, reload } = state;
     const [modal, setModal] = useState<KaderModal>(null);
     const canWrite = canAccess(user, "kader", "write");
+    const canRead = canAccess(user, "kader", "read");
     const view = state.data;
     const kader = view ? view.kader : null;
+    const viewRef = useRef(view);
+    viewRef.current = view;
 
     useEffect(() => {
         if (kader && kader.id !== last) setLast(kader.id);
     }, [kader, last, setLast]);
 
-    const run = useCallback(async <T,>(call: Promise<T>): Promise<T | null> => {
+    const run = useCallback(async <T,>(call: Promise<T>, options: KaderRunOptions = {}): Promise<T | null> => {
         try {
             const result = await call;
             setData((prev) => merge(prev, result));
             if (needsReload(result, kaderId)) void reload();
             return result;
         } catch (e) {
+            if (options.onError && options.onError(e as ApiError)) return null;
             toast((e as ApiError).message || t("kader.error"), "err");
             return null;
         }
     }, [setData, reload, kaderId, toast, t]);
+
+    // ------------------------------------------------------------ live
+    // what the parts have open (the account dialog wins over the view under it)
+    const [focuses, setFocuses] = useState<Record<KaderFocusSource, KaderFocus | null>>({ view: null, dialog: null });
+    const reportFocus = useCallback((source: KaderFocusSource, focus: KaderFocus | null) => {
+        setFocuses((prev) => (prev[source] === focus ? prev : { ...prev, [source]: focus }));
+    }, []);
+    const focused = focuses.dialog || focuses.view;
+    const refreshing = useRef(false);
+    const toastedRev = useRef(0);
+    const recent = useRef(new Map<string, number>());
+
+    /** Fetches the open Kader again: only the Kader, or the whole view. Resolves to the view it put on screen. */
+    const refetch = useCallback(async (whole: boolean): Promise<KaderView | null> => {
+        if (refreshing.current || !kaderId) return null;
+        refreshing.current = true;
+        try {
+            const answer: KaderView | KaderChange = whole ? await getKader(kaderId) : await getKaderOnly(kaderId);
+            // an own save that landed while this was on its way is newer: keep it
+            const older = (prev: KaderView | null) => !!prev && !!prev.kader && !!answer.kader && (answer.kader.rev || 0) < (prev.kader.rev || 0);
+            const next = older(viewRef.current) ? viewRef.current : merge(viewRef.current, answer);
+            setData((prev) => (older(prev) ? prev : merge(prev, answer)));
+            return next;
+        } catch {
+            // the next poll tries again
+            return null;
+        } finally {
+            refreshing.current = false;
+        }
+    }, [kaderId, setData]);
+
+    const onMoved = useCallback(async (live: KaderLive) => {
+        const current = viewRef.current;
+        if (!current) return;
+        // every change is said once, also when two polls answer before the refetch lands
+        const fresh = live.changes.filter((c) => c.rev > toastedRev.current);
+        if (fresh.length) toastedRev.current = Math.max(...fresh.map((c) => c.rev));
+        const next = await refetch(needsWholeView(live, current));
+        // with the names of the fresh view (a player just taken in has one only there)
+        const shown = next || current;
+        if (!fresh.length || !shown.kader) return;
+        const text = liveToast(shown, shown.kader, fresh, user.id, recent.current);
+        if (text) toast(text);
+    }, [refetch, toast, user.id]);
+
+    const presence = useKaderLive({
+        kaderId: kader ? kader.id : "",
+        rev: kader && kader.rev ? kader.rev : 0,
+        sharedRev: view && view.sharedRev ? view.sharedRev : 0,
+        where: { sub, playerId: focused ? focused.playerId : "", what: focused ? focused.what : "", edit: !!focused && focused.edit && canWrite },
+        enabled: canRead && !!kader,
+        onMoved: (live) => void onMoved(live),
+    });
+    const refresh = useCallback(async (whole = false) => { await refetch(whole); }, [refetch]);
 
     const players = useMemo(() => byId(view ? view.players : []), [view]);
 
@@ -123,6 +198,9 @@ export default function KaderPage() {
         run,
         open: setModal,
         go: (to, search = "") => navigate(`/kader/${kader.id}/${to}${search}`),
+        presence,
+        focus: reportFocus,
+        refresh,
     };
     const close = () => setModal(null);
 
@@ -142,7 +220,8 @@ export default function KaderPage() {
             {modal && modal.type === "account" && <AccountModal key={modal.userId} userId={modal.userId} onClose={close} />}
             {modal && modal.type === "import" && <ImportModal onClose={close} onById={() => setModal({ type: "addById" })} />}
             {modal && modal.type === "addById" && <AddAccountModal startWay="id" onClose={close} />}
-            {modal && modal.type === "settings" && <KaderSettingsModal mode="edit" view={view} onClose={close} run={run} onDeleted={() => { close(); navigate("/kader"); }} />}
+            {modal && modal.type === "settings" && <KaderSettingsModal mode="edit" view={view} me={user.id} onClose={close} run={run} onDeleted={() => { close(); navigate("/kader"); }} />}
+            {modal && modal.type === "activity" && <ActivityModal onClose={close} />}
             {modal && modal.type === "create" && (
                 <KaderSettingsModal mode="create" view={view} onClose={close} run={run} onCreated={(id) => { close(); navigate(`/kader/${id}/pool`); }} />
             )}

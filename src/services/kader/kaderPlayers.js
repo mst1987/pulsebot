@@ -7,7 +7,9 @@
 //   { name,                         the Discord name when the player was added (a fallback)
 //     state, since, by,             pool | selected | provisional | roster | bench | tentative
 //     addedAt, addedBy,
-//     history:   [{ at, by, type, from?, to?, vote?, className?, spec? }]   the newest LIMITS.history
+//     history:   [{ at, by, type, from?, to?, vote?, className?, spec? }]   the newest LIMITS.history:
+//                added, state, decision, interview_saved, lead, interview_completed,
+//                interview_reopened, vote, migrated (the page's "Verlauf")
 //     wishes:    [{ className, spec }]                                     in order, 1 = most wanted
 //     interview: { lead, answers: { [questionId]: optionId | optionId[] | text }, note,
 //                  startedAt, updatedAt, updatedBy, completedAt, completedBy }
@@ -20,8 +22,15 @@
 const { newId } = require("../../utils/ids");
 const {
     STATES, VOTES, LIMITS, str, isObject, invalid, notFound, conflict, forbidden,
-    withKader, checkUserId, normalizeAnswer, cleanClassSpec,
+    withKader, checkUserId, normalizeAnswer, cleanClassSpec, assertFresh,
 } = require("./kaderModel");
+
+/**
+ * Saves of the same kind by the same person within this time are one line of
+ * the history ("Gespräch gespeichert" while somebody types, autosaved every
+ * second, stays one line per person per ten minutes).
+ */
+const COALESCE_MS = 10 * 60 * 1000;
 
 /** The state changes the planner knows; everything else is refused. Each can be walked back. */
 const MOVES = {
@@ -38,6 +47,27 @@ const canMove = (from, to) => (MOVES[from] || []).includes(to);
 function pushHistory(entry, item) {
     entry.history.push(item);
     if (entry.history.length > LIMITS.history) entry.history.splice(0, entry.history.length - LIMITS.history);
+}
+
+/** Whether two ISO times lie less than `ms` apart. */
+function within(a, b, ms) {
+    const ta = Date.parse(a);
+    const tb = Date.parse(b);
+    return Number.isFinite(ta) && Number.isFinite(tb) && Math.abs(tb - ta) < ms;
+}
+
+/**
+ * A history line that may stand for several saves: when the newest line is of
+ * the same type, by the same person and less than COALESCE_MS old, it is
+ * updated (its time, its `to`) instead of adding another.
+ */
+function noteHistory(entry, item) {
+    const last = entry.history[entry.history.length - 1];
+    if (last && last.type === item.type && last.by === item.by && within(last.at, item.at, COALESCE_MS)) {
+        entry.history[entry.history.length - 1] = item;
+        return;
+    }
+    pushHistory(entry, item);
 }
 
 function entryOf(kader, userId) {
@@ -208,11 +238,20 @@ function cleanWishes(raw, ctx) {
  * an empty value clears one), `note`, `lead` (one of the Kader's leads or "").
  * Works in every state; a completed interview stays completed. Only content
  * starts it: naming who leads it plans the interview, it does not begin it.
+ *
+ * `baseRev` is the interview's revision the page started from: when somebody
+ * else saved in between, the save is refused (409 `stale`) unless `force`
+ * ("Trotzdem speichern"). A save that changed content is one line "Gespräch
+ * gespeichert" in the history, a new interviewer one line "Gespräch führt"
+ * (both coalesced per person, noteHistory).
  */
 function saveInterview(planner, input, ctx) {
     return withKader(planner, input.kaderId, (kader) => {
         const entry = entryOf(kader, input.userId);
         const iv = entry.interview;
+        assertFresh(input, iv.rev, "Inzwischen hat jemand anderes dieses Gespräch geändert.", { by: iv.updatedBy, at: iv.updatedAt });
+        const contentBefore = JSON.stringify([entry.wishes, iv.answers, iv.note]);
+        const leadBefore = iv.lead;
         if (input.wishes !== undefined) entry.wishes = cleanWishes(input.wishes, ctx);
         if (input.answers !== undefined) {
             if (!isObject(input.answers)) throw invalid("Antworten fehlen.");
@@ -244,6 +283,10 @@ function saveInterview(planner, input, ctx) {
         if (content && !iv.startedAt) iv.startedAt = ctx.now;
         iv.updatedAt = ctx.now;
         iv.updatedBy = ctx.actor || "";
+        if (JSON.stringify([entry.wishes, iv.answers, iv.note]) !== contentBefore) {
+            noteHistory(entry, { at: ctx.now, by: ctx.actor || "", type: "interview_saved" });
+        }
+        if (iv.lead !== leadBefore) noteHistory(entry, { at: ctx.now, by: ctx.actor || "", type: "lead", to: iv.lead });
     });
 }
 
@@ -317,7 +360,7 @@ function deleteComment(planner, input, ctx) {
 }
 
 module.exports = {
-    MOVES, canMove, isAnswered, interviewProgress,
+    MOVES, COALESCE_MS, canMove, isAnswered, interviewProgress,
     addPlayers, removePlayers, setState,
     saveInterview, completeInterview, reopenInterview,
     setVote, addComment, deleteComment,

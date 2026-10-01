@@ -7,32 +7,38 @@
 // is left. "Gespräch abschließen" needs a wish and every required answer; a
 // completed interview is locked until it is opened again. ?spieler=<id> picks
 // the player — also one further along (the Vorläufig drawer links here).
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+//
+// Live: somebody else's save shows by itself while nothing is unsaved here; with
+// unsaved input the panel keeps it and asks (useInterviewDraft). Who else has
+// this interview open stands on top (PresenceBanner), a marker on the list row.
+// Who did what when is in the "Verlauf" (HistoryButton), not on the form.
+import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
-    completeKaderInterview, reopenKaderInterview, saveKaderInterview, setKaderState,
+    completeKaderInterview, reopenKaderInterview, setKaderState,
     type KaderAnswer, type KaderEntry, type KaderQuestion, type KaderWish,
 } from "../../api";
 import { Button, IconButton, Segment, buttonClass } from "../../components/ui";
-import { AlertIcon, BookIcon, CheckIcon, ChevronDownIcon, CircleIcon, EditIcon, ListChecksIcon, PlusIcon, SaveIcon, XIcon } from "../../components/icons";
+import { AlertIcon, BookIcon, CheckIcon, ChevronDownIcon, CircleIcon, EditIcon, ListChecksIcon, PlusIcon, RefreshIcon, SaveIcon, XIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { LEAD_ALL, LEAD_ME, LEAD_NONE, cleanLeadPick, interviewersOf, leadMatches } from "../../lib/kader/leads";
 import { usePersistedState } from "../../lib/persistedState";
 import { roleLabel } from "../../lib/wowNames";
 import { toneAttrs, toneOf } from "../../lib/kader/colors";
-import { classDef, className, dayOf, mainPick, nameOf, playerName, specName, specRole, stampOf } from "../../lib/kader/model";
+import { personName } from "../../lib/kader/live";
+import { classDef, className, dayOf, mainPick, nameOf, playerName, specName, specRole } from "../../lib/kader/model";
+import { dayShort, isAnswered, isWeekdays, moveWish, placeWish, progress, statusOf, toggleAnswer } from "../../lib/kader/interview";
 import {
-    dayShort, draftOf, isAnswered, isWeekdays, moveWish, patchOf, placeWish, progress, statusOf, toggleAnswer, type InterviewDraft,
-} from "../../lib/kader/interview";
-import {
-    BackButton, Count, DoneBadge, EmptyState, Grip, InterviewChip, PickIcon, PickLabel, PlayerName, ProgressRing, SelectionTabs, SpecIcon, SpecTag, StateSince,
+    BackButton, Count, DoneBadge, EmptyState, Grip, InterviewChip, PickIcon, PickLabel, PlayerName, ProgressRing, SelectionTabs, SpecIcon, SpecTag,
 } from "./parts";
-import { useKader } from "./kaderContext";
+import { useKader, useReportFocus } from "./kaderContext";
 import { LeadBadge, LeadMenu, type LeadOption } from "./Leads";
+import { HistoryButton } from "./ActivityLog";
+import { ConflictBanner, PresenceBanner, PresenceMark } from "./Presence";
+import { useInterviewDraft, type InterviewConflict } from "./useInterviewDraft";
 
 type Shown = "open" | "done" | "all";
-const SAVE_DELAY = 800;
 const MAX_WISHES = 6;
 const ORDER = { started: 0, open: 1, done: 2 } as const;
 
@@ -51,6 +57,7 @@ function ListRow({ userId, entry, current, onPick }: { userId: string; entry: Ka
                 <span className="kp-ivrow-name">
                     <span className="kp-strong kp-ellipsis">{playerName(view, userId, entry)}</span>
                     {status === "done" && <DoneBadge />}
+                    <PresenceMark playerId={userId} />
                 </span>
                 <span className="kp-leadline">
                     <LeadBadge userId={iv.lead} />
@@ -195,59 +202,48 @@ function QuestionField({ q, value, onChange }: { q: KaderQuestion; value: KaderA
     );
 }
 
+/**
+ * Where the saving stands, as one small icon with its words in the tooltip: saved (check), saving (turning),
+ * unsaved input (dot), paused by a conflict (warning), nothing saved yet (empty circle). No name, no date —
+ * who saved when is in the Verlauf.
+ */
+function SaveState({ saving, dirty, conflict, saved }: { saving: boolean; dirty: boolean; conflict: boolean; saved: boolean }) {
+    const t = useT();
+    const [state, label, icon] = conflict ? ["paused", t("kader.live.conflict.paused"), <AlertIcon key="i" />]
+        : saving ? ["saving", t("kader.interview.saving"), <RefreshIcon key="i" />]
+            : dirty ? ["dirty", t("kader.interview.unsaved"), <CircleIcon key="i" />]
+                : saved ? ["saved", t("kader.interview.saved"), <CheckIcon key="i" />]
+                    : ["none", t("kader.interview.notSaved"), <CircleIcon key="i" />];
+    return (
+        <span className={`kp-savestate kp-save-${state}`} role="status" data-tip={label}>
+            {icon}
+            <span className="kp-sr">{label}</span>
+        </span>
+    );
+}
+
 function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: KaderEntry; next: string | null; onGo: (userId: string | null) => void }) {
     const t = useT();
     const toast = useToast();
-    const { view, kader, players, canWrite, run } = useKader();
-    const [draft, setDraft] = useState<InterviewDraft>(() => draftOf(entry));
-    const [saving, setSaving] = useState(false);
-    const draftRef = useRef(draft);
-    const entryRef = useRef(entry);
-    const timer = useRef(0);
-    useEffect(() => { entryRef.current = entry; }, [entry]);
-
-    const flush = useCallback(async (): Promise<boolean> => {
-        window.clearTimeout(timer.current);
-        const patch = patchOf(draftRef.current, entryRef.current);
-        if (!patch) return true;
-        setSaving(true);
-        const result = await run(saveKaderInterview(kader.id, userId, patch));
-        setSaving(false);
-        return !!result;
-    }, [run, kader.id, userId]);
-
-    // whatever is still unsaved goes out when the player changes or the page closes
-    const flushRef = useRef(flush);
-    useEffect(() => { flushRef.current = flush; }, [flush]);
-    useEffect(() => () => { void flushRef.current(); }, []);
-    useEffect(() => {
-        const warn = (e: BeforeUnloadEvent) => {
-            if (!patchOf(draftRef.current, entryRef.current)) return;
-            void flushRef.current();
-            e.preventDefault();
-        };
-        window.addEventListener("beforeunload", warn);
-        return () => window.removeEventListener("beforeunload", warn);
-    }, []);
-
-    const change = (next: InterviewDraft) => {
-        draftRef.current = next;
-        setDraft(next);
-        window.clearTimeout(timer.current);
-        timer.current = window.setTimeout(() => void flushRef.current(), SAVE_DELAY);
-    };
+    const { view, kader, players, canWrite, run, refresh } = useKader();
+    const name = playerName(view, userId, entry);
+    const { draft, change, save: flush, keepMine, takeTheirs, saving, conflict, dirty } = useInterviewDraft({
+        kaderId: kader.id, userId, entry, run, refresh,
+        onLost: () => toast(t("kader.live.conflict.lost", { name }), "err"),
+    });
 
     const player = players.get(userId);
-    const name = playerName(view, userId, entry);
     const pre = player && player.prefill ? player.prefill : null;
     const iv = entry.interview;
     const done = statusOf(entry) === "done";
     const locked = !canWrite || done;
+    useReportFocus("view", { playerId: userId, what: "interview", edit: canWrite && !done });
     const live: KaderEntry = { ...entry, wishes: draft.wishes, interview: { ...iv, answers: draft.answers } };
     const prog = progress(live, kader.questions);
     const complete = prog.done === prog.total;
     const missing = [...(draft.wishes.length ? [] : [t("kader.interview.aWish")]), ...prog.missing.map((q) => q.text)];
     const leads = !draft.lead || kader.leads.includes(draft.lead) ? kader.leads : [...kader.leads, draft.lead];
+    const conflictText = (c: InterviewConflict) => t("kader.live.conflict.interview", { name: personName(view, c.by) });
 
     const finish = async () => {
         if (!(await flush())) return;
@@ -269,12 +265,14 @@ function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: 
 
     return (
         <section className="kp-panel kp-iv-main" aria-label={t("kader.interview.aria", { name })}>
+            <PresenceBanner playerId={userId} what="interview" />
+            {conflict && <ConflictBanner text={conflictText(conflict)} onReload={takeTheirs} onOverwrite={() => void keepMine()} />}
             <div className="kp-iv-head">
                 <div className="kp-col kp-grow">
                     <h2 className="kp-iv-name"><PlayerName userId={userId} entry={entry} />{done && <DoneBadge />}</h2>
                     <span className="kp-iv-meta">
                         {pre ? <span className="kp-inline">{t("kader.interview.prefilled")} <SpecTag pick={pre} size={18} /> <span className="kp-muted">({pre.name})</span></span> : <span>{t("kader.interview.noPrefill")}</span>}
-                        <span className="kp-muted"><StateSince entry={entry} /></span>
+                        <HistoryButton userId={userId} entry={entry} />
                     </span>
                 </div>
                 <div className="field kp-leadpick">
@@ -289,7 +287,7 @@ function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: 
                     {t("kader.interview.progress", { done: prog.done, total: prog.total })}
                 </span>
             </div>
-            {done && <p className="kp-lockhint"><CheckIcon />{t("kader.interview.locked", { date: dayOf(iv.completedAt), by: nameOf(view, iv.completedBy) })}</p>}
+            {done && <p className="kp-lockhint"><CheckIcon />{t("kader.interview.locked")}</p>}
             <fieldset className="kp-iv-body" disabled={locked}>
                 <div className="kp-iv-col">
                     <div className="kp-between">
@@ -314,15 +312,22 @@ function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: 
                 </div>
             </fieldset>
             <div className="kp-iv-foot">
-                <span className="kp-sub" role="status">
-                    {saving ? t("kader.interview.saving")
-                        : iv.updatedAt ? t("kader.interview.lastSaved", { by: nameOf(view, iv.updatedBy), at: stampOf(iv.updatedAt) })
-                            : t("kader.interview.notSaved")}
-                </span>
+                {/* the save state and what is still open (a count, the list in the tooltip) in a slot of fixed width: the
+                    buttons stay where they are when the count goes */}
+                {canWrite && (
+                    <span className="kp-iv-foot-state">
+                        <SaveState saving={saving} dirty={dirty} conflict={!!conflict} saved={!!iv.updatedAt} />
+                        {!done && !complete && (
+                            <span className="kp-missing kp-warntext" data-tip={t("kader.interview.missingTip", { list: missing.join(", ") })}>
+                                <AlertIcon />{t("kader.interview.missingN", { count: missing.length })}
+                                <span className="kp-sr">{t("kader.interview.missingTip", { list: missing.join(", ") })}</span>
+                            </span>
+                        )}
+                    </span>
+                )}
                 {canWrite && entry.state === "selected" && <BackButton label={t("kader.interview.toPool")} onClick={() => void toPool()} />}
                 {/* the way on stays on the right, also when the row wraps */}
                 <span className="kp-iv-foot-act">
-                    {canWrite && !done && !complete && <span className="kp-sub kp-warntext kp-withicon kp-wrap"><AlertIcon />{t("kader.interview.missing", { list: missing.join(", ") })}</span>}
                     {canWrite && done && <Button variant="ghost" icon={<EditIcon />} onClick={() => void run(reopenKaderInterview(kader.id, userId))}>{t("kader.interview.reopen")}</Button>}
                     {canWrite && !done && (
                         <>

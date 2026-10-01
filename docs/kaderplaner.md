@@ -25,9 +25,11 @@ profile.
 | `src/services/kader/kaderSetups.js` | example setups: variants, size 10/20, groups, "Automatisch verteilen" |
 | `src/services/kader/kaderAutoAssign.js` | the group heuristic of "Automatisch verteilen" |
 | `src/services/kader/kaderMigration.js` | the one-time upgrade of the #566 file (see "Umstellung") |
-| `src/stores/kaderStore.js` | `data/settings/kader.json`, one planner per Discord server |
-| `src/web-client/src/pages/kader/` | the page (`KaderPage.tsx`): header, status bar, the six views and the dialogs |
-| `src/web-client/src/lib/kader/` | client logic: `model.ts` (names, icons, states, counts, the attendance sum over the Kader's raid categories), `interview.ts` (progress, draft/patch), `filters.ts`, `sort.ts` (the sort keys of the planner's tables), `colors.ts` (the colours of the answers), `setup.ts` (slots, buff hints, Discord text), `names.ts` |
+| `src/services/kader/kaderActivity.js` | Live: what a write changed — revisions and the Kader's activity log (`recordChanges`), the lines after a revision (`changesSince`) |
+| `src/web/kader/kaderPresence.js` | Live: who is in which Kader right now, in memory only |
+| `src/stores/kaderStore.js` | `data/settings/kader.json`, one planner per Discord server; `liveState` for the poll |
+| `src/web-client/src/pages/kader/` | the page (`KaderPage.tsx`): header, status bar, the six views and the dialogs; live: `useKaderLive.ts` (the poll), `useInterviewDraft.ts` (the interview's draft and its conflicts), `Presence.tsx` (who is here, the conflict banner), `ActivityLog.tsx` (Verlauf, Aktivität) |
+| `src/web-client/src/lib/kader/` | client logic: `model.ts` (names, icons, states, counts, the attendance sum over the Kader's raid categories), `interview.ts` (progress, draft/patch), `filters.ts`, `sort.ts` (the sort keys of the planner's tables), `colors.ts` (the colours of the answers), `setup.ts` (slots, buff hints, Discord text), `names.ts`, `live.ts` (activity lines as sentences, the toast, presence in words) |
 | `src/web-client/src/styles/kader.css` | the module stylesheet, prefix `kp-` (modifiers too) |
 
 ## Access
@@ -112,11 +114,11 @@ A player's **entry**:
 | Field | What |
 |---|---|
 | `name` | the Discord name at the time they were taken in (shown when the account is gone) |
-| `state`, `since`, `by` | `pool` · `selected` · `provisional` · `roster` · `bench` · `tentative`, with when and who — every page shows "seit 30.09. (Kurt)" |
+| `state`, `since`, `by` | `pool` · `selected` · `provisional` · `roster` · `bench` · `tentative`, with when and who (the Verlauf says it; the working surfaces do not) |
 | `addedAt`, `addedBy` | when and by whom the player came into this Kader |
-| `history` | the last 50 events: `added`, `state {from,to}`, `decision {className,spec}`, `interview_completed`, `interview_reopened`, `vote {vote|none}`, `migrated {to}` — with `at` and `by` |
+| `history` | the last 50 events: `added`, `state {from,to}`, `decision {className,spec}`, `interview_saved`, `lead {to}`, `interview_completed`, `interview_reopened`, `vote {vote|none}`, `migrated {to}` — with `at` and `by`. `interview_saved` and `lead` are coalesced: the same person within ten minutes updates their line (`kaderPlayers.noteHistory`) |
 | `wishes` | `[{ className, spec }]` in order (≤ 6, no spec twice); prefilled with the account's character when taken in |
-| `interview` | `{ lead, answers: { [questionId]: optionId \| [optionId] \| text }, note (≤ 2000), startedAt, updatedAt, updatedBy, completedAt, completedBy }` |
+| `interview` | `{ lead, answers: { [questionId]: optionId \| [optionId] \| text }, note (≤ 2000), startedAt, updatedAt, updatedBy, completedAt, completedBy, rev? }` |
 | `votes` | `{ [leadUserId]: yes \| unsure \| no }` |
 | `comments` | `[{ id, by, at, text (≤ 1000) }]` (≤ 200), only the author deletes one |
 | `decision` | `{ className, spec }` — set when the player goes into the roster |
@@ -170,10 +172,84 @@ state**. "Automatisch verteilen" (sources: roster + provisional by default, benc
 visible groups — roster before provisional, then by attendance over the Kader's raid categories — with the heuristic of `kaderAutoAssign.js` (tanks
 one per group, healers and shamans spread, melee to a shaman or warrior, casters to a healer or shaman).
 
+## Live: changes, presence, conflicts
+
+Several people work in the same Kader at the same time; the page shows what the others do without a reload and
+never silently overwrites anything.
+
+**Revisions** (`services/kader/kaderActivity.js`). Every write in `apiRoutes/kader.js` (`kaderWrite`, `fullWrite`)
+compares the planner as stored with the one about to be stored (`recordChanges`) — so no write type can forget it.
+When anything changed, the planner's counter `rev` goes up by one and everything that changed is stamped with it:
+the Kader (`kader.rev`), an interview (`interview.rev`: wishes, answers, note, interviewer or completion), a question
+(`question.rev`), an account's character data (`assignment.rev`, `by`, `at`), and `planner.sharedRev` for the
+server's side (accounts, character data, a Kader created, renamed or deleted). Stamps of one counter only grow, so a
+different revision always means a change in between, also after delete-and-recreate. A write that changes nothing
+raises nothing. Data stored before (no revisions) reads as 0 and is written back unchanged (`kaderModel.normalize*`
+keep a revision only when it is a positive number; `test/stores/kaderStore.test.js`).
+
+**Activity log** (`kader.activity`, the newest 50, oldest first): one line per kind of change of a write,
+`{ rev, at, by, type, playerId?, count?, from?, to?, questionId? }` — types `created`, `added`, `removed`, `state`,
+`decision`, `interview`, `lead`, `interview_completed`, `interview_reopened`, `vote`, `comment`, `comment_deleted`,
+`questions`, `setups`, `settings`, `character`. Several players of one write are one line with `count`; a question
+edit that refits answers is one `questions` line, not one per interview; a move that drops setup slots is the move,
+not a setup change. Repeated edits (`interview`, `lead`, `questions`, `setups`, `settings`, `character`) of the same
+person on the same thing within ten minutes replace the newest line (newer `rev` and `at`) — an interview typed and
+autosaved every second stays one line. Never an answer, a note or a comment's text (tested).
+
+**The poll** — `GET /api/kader/live?kader=<id>&rev=<n>&tab=<id>&sub=<page>&player=<id>&what=<interview|drawer|account>&edit=1`
+(area `kader`, read): answers `{ rev, sharedRev, changes, more, presence }` — the Kader's revision, its activity lines
+after `rev` (at most 20; `more` when there may have been more) and who else is in this Kader; `gone: true` for a Kader
+that is not there. It never builds the view model: `kaderStore.liveState` keeps the revisions and logs per server in
+memory and reads the file again only when it changed (a stat per poll). `leave=1` takes the tab out at once.
+The page (`pages/kader/useKaderLive.ts`) asks every 5 s **only while the tab is visible** (`hooks/useVisiblePoll.ts`),
+at once when the tab comes back, the page opens a Kader or opens something else; nothing for an account without
+`kader` read, nothing after leaving the Kader pages (then `leave=1`). When `rev` or `sharedRev` moved, it fetches
+again — only the Kader (`GET /api/kader/kader?kader=<id>`, `{ kader, kaders, sharedRev }`) when the change stayed
+inside it, the whole view when the server's side changed, players came in or characters changed — and toasts what the
+others did (`lib/kader/live.ts`): one change as its sentence ("Kurt hat Seraphine ins vorläufige Roster geschoben"),
+several as "Lena hat 3 Änderungen gemacht" / "Lena und Kurt haben 4 Änderungen gemacht"; own changes never, a
+repeated edit (somebody typing) once per two minutes. An answer older than an own save that landed meanwhile is
+dropped.
+
+**Presence** (`web/kader/kaderPresence.js`): the poll is the heartbeat. In memory only (one PM2 process), never on
+disk, never logged; an entry is user id, display name, Kader, page, player, kind (`interview`, `drawer`, `account`),
+whether it is edited (only with `kader` write) and when — gone 25 s after the last poll. Only callers in the same
+Kader of the same server get it, never their own. The page shows it: the header's "Leitung" — a lead who is here gets
+a ring and a green dot, others with access who are here stand beside them as small avatars (tooltip "Kurt · gerade
+in Gespräche"); the Gespräche list rows, the Übersicht rows and the Vorläufig cards carry the coloured initial of who
+has that player open ("Lena bearbeitet gerade dieses Gespräch" / "… sieht sich … gerade an"); an open interview,
+drawer or account dialog says it in a calm line ("Lena bearbeitet gerade auch dieses Gespräch"). Parts report what
+they have open with `useReportFocus` (the account dialog wins over the view under it).
+
+**No silent overwrites.** The parts keep what is typed in their own state, keyed by the item only (the Gespräche
+form by player, the drawer by player, the question editor by question, the dialogs by their open), so a refetch never
+throws input away. A save names the revision it started from (`baseRev`): `PUT /api/kader/interview`,
+`PUT /api/kader/assignments`, `PUT /api/kader/questions`. A newer stored revision answers **409 `stale`** with
+`{ code, message, rev, by, at }` (`kaderModel.assertFresh`, sent by `guarded()` in the route module); `force: true`
+overwrites ("Trotzdem speichern"); a save without `baseRev` is not checked. The interview (`useInterviewDraft.ts`):
+another person's change with nothing unsaved here is taken over at once; with unsaved input — seen live or answered
+409 — the input stays, **autosave pauses** and a banner offers "Neu laden" (their version) or "Trotzdem speichern"
+(what is shown, `force`); nothing saves by itself until one is chosen, so there is no loop. Leaving the player with an
+undecided conflict says in a toast that the input was not saved. The account dialog and the question editor work the
+same way (an untouched draft follows, a touched one asks); the settings dialog shows a quiet "Kurt hat das
+inzwischen geändert" (`changedSince`).
+
+## Verlauf und Aktivität
+
+Who changed what and when is in two logs, not on the working surfaces (no "seit … (wer)", no "Zuletzt gespeichert"):
+
+- **Verlauf** of a player (`ActivityLog.tsx` `HistoryButton`, a clock button in the interview's head, the drawer's
+  head and the account dialog): the player's `history`, newest first, each line with date and time, what and who.
+- **Aktivität** of the Kader (header, next to the settings): the activity log, newest first, filterable by person
+  (remembered in `kader-activity-person`).
+
+The interview keeps only a small save-state icon (saved, saving, unsaved, paused, nothing yet — the words in the
+tooltip) and "n Pflichtfragen offen" (the list in the tooltip) next to it, so the action buttons stay where they are.
+
 ## View model (`GET /api/kader?kader=<id>`)
 
 `{ versionId, mainVersion: { id, label }, guildId, roles, classes, buffs: { raid, party }, raidCategories, players,
-members, discordRoles, names, kaders, kader, warnings }`
+members, discordRoles, names, kaders, kader, warnings, sharedRev }`
 
 - **buffs**: each with `label` (German) and `labelEn` (the rule set's English name — the totem's or the spell's,
   "Windfury Totem"); the setup hints take the one of the menu language (`lib/kader/setup.ts` `buffLabel`).
@@ -181,7 +257,8 @@ members, discordRoles, names, kaders, kader, warnings }`
   category's name carries its version only while the categories play different ones ("Mo Raid · TBC").
 - **players**: everybody the planner knows on this server (profiles of the version, accounts, everybody in a Kader):
   `{ userId, displayName, avatarUrl, onServer, roleIds, hasProfile, manual, hasOverride, characters,
-  activeCharacterId, differs, profile, prefill, pickable, availability, attendance }` — `attendance` per raid category.
+  activeCharacterId, differs, profile, prefill, pickable, availability, attendance, rev, changedBy }` — `attendance` per raid
+  category, `rev`/`changedBy` the revision of the planner's character data and who saved it (0/"" without any).
 - **pickable**: what the account dialog offers to assign, "Aus dem Profil zuweisen": every profile character of any game
   version `{ key, name, className, versionId, main, canTank, canHeal, specs, source: "profile" }` plus the log-linked one
   (`source: "logs"`). Same whitelisted fields as the rest of the profile (source: `allCharacters`); a pick fills a new
@@ -195,7 +272,7 @@ members, discordRoles, names, kaders, kader, warnings }`
 - **kaders**: summaries `{ id, name, leads, createdAt, createdBy, counts: { [state]: n }, questions }`; **kader**: the
   chosen one in full, `null` when the address names none.
 
-A change inside a Kader answers `{ kader, kaders, …extra }` (`moved`, `skipped`, `questionId`, `variantId`,
+A change inside a Kader answers `{ kader, kaders, sharedRev, …extra }` (`moved`, `skipped`, `questionId`, `variantId`,
 `commentId`, `copied`); a change on the server's side (taking players in, accounts, character data) answers the whole
 view model again — the client sends the open `kaderId` with those writes too (`accounts/remove`, `assignments`,
 `assignments/reset`); without it the answer has `kader: null`. The page swaps either in and refetches when a whole view
@@ -211,16 +288,19 @@ Parameters in the body; `kaderId` names the Kader.
 | `POST /api/kader/players/add` | `{ kaderId, players: [{ userId, displayName? }] }` → `added`, `already` (whole view) |
 | `POST /api/kader/players/remove` | `{ kaderId, userIds }` |
 | `POST /api/kader/players/state` | `{ kaderId, userIds, to, decision? }` |
-| `PUT /api/kader/interview` | `{ kaderId, userId, wishes?, answers? (only those given; "" clears one), note?, lead? }` |
+| `PUT /api/kader/interview` | `{ kaderId, userId, wishes?, answers? (only those given; "" clears one), note?, lead?, baseRev?, force? }` |
 | `POST /api/kader/interview/complete` · `…/reopen` | `{ kaderId, userId }` |
 | `POST /api/kader/votes` | `{ kaderId, userId, vote: yes\|unsure\|no\|"" }` — leads only |
 | `POST /api/kader/comments` · `…/delete` | `{ kaderId, userId, text }` · `{ kaderId, userId, commentId }` — own only |
-| `POST /api/kader/questions` · `PUT` · `POST …/delete` | `{ kaderId, text, type, options: [{ id?, label, color? }], required }` · `{ kaderId, questionId, … }` · `{ kaderId, questionId }` |
+| `POST /api/kader/questions` · `PUT` · `POST …/delete` | `{ kaderId, text, type, options: [{ id?, label, color? }], required }` · `{ kaderId, questionId, …, baseRev?, force? }` · `{ kaderId, questionId }` |
 | `POST /api/kader/questions/order` · `…/copy` | `{ kaderId, order }` · `{ kaderId, fromKaderId }` |
 | `POST /api/kader/variants` · `PUT` · `POST …/delete` · `…/auto` | `{ kaderId, name?, copyFrom? }` · `{ kaderId, variantId, name?, size?, groups? }` · `{ kaderId, variantId }` · `{ kaderId, variantId, sources }` |
 | `POST /api/kader/accounts` | `{ userId, displayName, kaderId?, character? }` — with `kaderId` also into that Kader's pool (whole view) |
 | `POST /api/kader/accounts/remove` | `{ kaderId, userId }` — only an account added by hand |
-| `PUT /api/kader/assignments` · `POST …/reset` | `{ kaderId, userId, characters, activeCharacterId }` · `{ kaderId, userId }` |
+| `PUT /api/kader/assignments` · `POST …/reset` | `{ kaderId, userId, characters, activeCharacterId, baseRev?, force? }` · `{ kaderId, userId }` |
+
+`baseRev`/`force`: see "Live" — a save from an older revision answers 409 `stale`. The reads: `GET /api/kader`
+(the view), `GET /api/kader/kader?kader=<id>` (only the Kader), `GET /api/kader/live` (the poll).
 
 ## The page
 
@@ -273,8 +353,10 @@ start page shows the flow and "Ersten Kader anlegen".
   list the segment shows; remembered per Kader in `eh-kader-interview-lead`) combinable with the segment,
   the interview of the chosen one (`?spieler=<id>`): wishes (drag or arrows; a new one by class and then one of its
   spec icons), the note, the questions (pills, day buttons for the seven weekdays, free text), who leads it (the
-  same coloured menu), progress. It **saves itself** 800 ms after a change — only what changed (`patchOf`) — and when another player is
-  chosen or the page is left. "Speichern & nächster", "Gespräch abschließen", "Wieder öffnen", "Zurück in den Pool".
+  same coloured menu), progress. It **saves itself** 800 ms after a change — only what changed (`patchOf`), with the
+  revision it started from — and when another player is chosen or the page is left (see "Live" for a conflict).
+  "Speichern & nächster", "Gespräch abschließen", "Wieder öffnen", "Zurück in den Pool"; the save state as a small
+  icon and "n Pflichtfragen offen" in the footer, the Verlauf behind the clock button in the head.
 - **`uebersicht`**: everybody in the Vorauswahl side by side — 1st and 2nd wish, one column per question (weekdays as
   squares), interview with the interviewer's badge below, days waiting; filter menus Gespräch, Interviewer (the leads
   plus "Niemand zugeteilt", an initial dot and a count each), 1. Wunsch and per question; grouped by role, class,
@@ -301,7 +383,9 @@ start page shows the flow and "Ersten Kader anlegen".
   wishes, the attendance with each category's share, the interview, the leads' votes (own vote if lead, take it
   back), comments (delete own), the **decision** —
   the spec picker on its own line, one full-width button "Ins Roster" (or "Entscheidung ändern", off until another
-  spec is picked), Bench | Tentative (the current one pressed and off), the step back — and the history.
+  spec is picked), Bench | Tentative (the current one pressed and off), the step back; the Verlauf behind the clock
+  button in its head. The drawer is keyed by the player alone: a live change keeps a half-typed comment and a picked
+  spec (the pick follows the stored decision until somebody picks).
 - **The spec picker** (`pages/kader/WishPicker.tsx`): the same menu in the drawer's decision and in every setup
   slot — the player's wishes in wish order across classes (a decision outside them first, labelled
   "Entscheidung"), each row rank, spec icon, class in its colour and a check on the current one; the trigger shows

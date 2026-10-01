@@ -1,17 +1,19 @@
 // The head of every Kader page: which Kader (a picker with every Kader and "Neuer
-// Kader"), who leads it, the settings — and the status bar: how many players
+// Kader"), who leads it and who is here right now (Presence.tsx), the Kader's
+// activity log ("Aktivität"), the settings — and the status bar: how many players
 // stand in each state (Pool → Vorauswahl → Vorläufig → Roster · Bench ·
 // Tentative), each state with its icon and its count, the states of the open
 // page marked.
 import { Fragment, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { KaderState } from "../../api";
-import { ChevronDownIcon, ChevronRightIcon, PlusIcon, SettingsIcon } from "../../components/icons";
+import { ChevronDownIcon, ChevronRightIcon, ClockIcon, PlusIcon, SettingsIcon } from "../../components/icons";
 import { IconButton, IconTile, buttonClass } from "../../components/ui";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 import { countStates } from "../../lib/kader/model";
-import { Avatar, StateIcon } from "./parts";
+import { StateIcon } from "./parts";
+import { HeaderPeople } from "./Presence";
 import { useKader, type KaderSub } from "./kaderContext";
 
 /** Which page shows a state. */
@@ -54,7 +56,7 @@ function KaderPicker() {
 
 export default function KaderHeader() {
     const t = useT();
-    const { kader, canWrite, open } = useKader();
+    const { canWrite, open } = useKader();
     return (
         <div className="kp-top">
             <IconTile icon="inv_misc_groupneedmore" tone="kader" size="lg" />
@@ -65,11 +67,14 @@ export default function KaderHeader() {
             <span className="kp-grow" />
             <div className="kp-leads">
                 <span className="kicker">{t("kader.header.leads")}</span>
-                <span className="kp-avatars">
-                    {kader.leads.length ? kader.leads.map((id) => <Avatar key={id} userId={id} />) : <span className="kp-muted">{t("kader.header.noLeads")}</span>}
-                </span>
+                <HeaderPeople />
             </div>
-            {canWrite && <IconButton icon={<SettingsIcon />} tip={t("kader.header.settings")} onClick={() => open({ type: "settings" })} />}
+            <span className="kp-top-act">
+                <button type="button" className={buttonClass("ghost", "sm", true, "kp-logbtn")} data-tip={t("kader.log.activityTip")} onClick={() => open({ type: "activity" })}>
+                    <ClockIcon />{t("kader.log.activity")}
+                </button>
+                {canWrite && <IconButton icon={<SettingsIcon />} tip={t("kader.header.settings")} onClick={() => open({ type: "settings" })} />}
+            </span>
         </div>
     );
 }

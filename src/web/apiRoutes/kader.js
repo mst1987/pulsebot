@@ -11,17 +11,27 @@
 // (the Kader as stored and the summaries) — the page swaps them in; a change
 // that touches the server's side (accounts, character data, taking players in)
 // answers the whole view model again. Parameters travel in the body.
-const { ok } = require("../http/apiResponse");
+//
+// Live (docs/kaderplaner.md): every write is compared with what was stored
+// before (kaderActivity.recordChanges) — revisions and the Kader's activity
+// log. GET /api/kader/live is the page's poll (revision, the changes since the
+// page's revision, who else is in the Kader); GET /api/kader/kader the light
+// refetch of one Kader. A save that names the revision it started from
+// (`baseRev`) and finds a newer one answers 409 `stale` with who changed it.
+const { ok, sendJson } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { q } = require("../http/apiParams");
+const { userCan } = require("../../config/permissions");
 const kaderStore = require("../../stores/kaderStore");
 const model = require("../../services/kader/kaderModel");
 const players = require("../../services/kader/kaderPlayers");
 const questions = require("../../services/kader/kaderQuestions");
 const setups = require("../../services/kader/kaderSetups");
+const { recordChanges, changesSince } = require("../../services/kader/kaderActivity");
 const { loadKaderSource, loadKaderRules, listRaidCategories } = require("../kader/kaderSource");
 const { buildKaderView, kaderPayload, mutationContext, lightContext } = require("../kader/kaderView");
+const presence = require("../kader/kaderPresence");
 
 const str = (body, key) => q.str(body, key);
 const WRITE = { write: "kader", csrf: true, body: true };
@@ -31,11 +41,64 @@ function unpack(result) {
     return result && result.planner ? result : { planner: result };
 }
 
+/** Writes a mutator's planner with its revisions and activity lines (who: `actor`, when: `now`). */
+function store(guildId, before, next, { actor, now }) {
+    return kaderStore.writePlanner(guildId, recordChanges(before, model.normalizePlanner(next), { actor, now }));
+}
+
+/**
+ * Runs a write; a 409 `stale` (kaderModel.stale) is answered with its details
+ * (the current revision, who changed it, when) next to code and message.
+ */
+function guarded(fn) {
+    return async (ctx) => {
+        try {
+            return await fn(ctx);
+        } catch (e) {
+            if (!(e && e.code === "stale")) throw e;
+            return sendJson(ctx.res, 409, { error: { code: "stale", message: e.message, ...(e.details || {}) } });
+        }
+    };
+}
+
 /** GET /api/kader?kader=<id> — the whole view model of the active server, with the chosen Kader. */
 const getKader = withUser({}, async ({ req, res, query }) => {
     const guildId = activeGuildFor(req);
     const source = await loadKaderSource({ guildId });
     ok(res, buildKaderView({ source, planner: kaderStore.readPlanner(guildId), kaderId: str(query, "kader") }));
+});
+
+/** GET /api/kader/kader?kader=<id> — only the Kader as stored and the summaries (a change inside it, seen live). */
+const getKaderOnly = withUser({}, async ({ req, res, query }) => {
+    ok(res, kaderPayload(kaderStore.readPlanner(activeGuildFor(req)), str(query, "kader")));
+});
+
+/**
+ * GET /api/kader/live?kader=<id>&rev=<n>&tab=<id>&sub=<page>&player=<id>&what=<interview|drawer|account>&edit=1[&leave=1]
+ *
+ * The poll of an open Kader page, every few seconds while it is visible:
+ * reports where the page is (in memory only, kaderPresence.js) and answers
+ * `{ rev, sharedRev, changes, more, presence }` — the Kader's revision, its
+ * activity lines after `rev`, and who else is in this Kader. Never builds the
+ * view model; reads the file only when it changed. `leave=1` takes the tab out
+ * at once. A Kader that is gone answers `gone: true`.
+ */
+const getLive = withUser({}, async ({ req, res, query, user }) => {
+    const guildId = activeGuildFor(req);
+    const kaderId = str(query, "kader");
+    const tab = str(query, "tab");
+    const state = kaderStore.liveState(guildId, kaderId);
+    if (!state.found || query.get("leave") === "1") presence.leave({ guildId, userId: user.id, tab });
+    if (!state.found) return ok(res, { gone: true, rev: 0, sharedRev: state.sharedRev, changes: [], more: false, presence: [] });
+    if (query.get("leave") !== "1") {
+        presence.beat({
+            guildId, kaderId, tab, userId: user.id, name: user.name,
+            sub: str(query, "sub"), playerId: str(query, "player"), what: str(query, "what"),
+            edit: query.get("edit") === "1" && userCan(user, "kader", "write"),
+        });
+    }
+    const { changes, more } = changesSince(state.activity, query.has("rev") ? Number(query.get("rev")) : NaN);
+    return ok(res, { rev: state.rev, sharedRev: state.sharedRev, changes, more, presence: presence.present({ guildId, kaderId, except: user.id }) });
 });
 
 /**
@@ -45,14 +108,15 @@ const getKader = withUser({}, async ({ req, res, query }) => {
  * without a pause in between.
  */
 function fullWrite(mutate) {
-    return withUser(WRITE, async ({ req, res, body, user }) => {
+    return withUser(WRITE, guarded(async ({ req, res, body, user }) => {
         const guildId = activeGuildFor(req);
         const source = await loadKaderSource({ guildId });
         const planner = kaderStore.readPlanner(guildId);
-        const { planner: next, ...extra } = unpack(mutate(planner, body, mutationContext({ source, planner, actor: user.id })));
-        const stored = kaderStore.writePlanner(guildId, next);
+        const ctx = mutationContext({ source, planner, actor: user.id });
+        const { planner: next, ...extra } = unpack(mutate(planner, body, ctx));
+        const stored = store(guildId, planner, next, ctx);
         ok(res, { ...buildKaderView({ source, planner: stored, kaderId: str(body, "kaderId") || extra.kaderId || "" }), ...extra });
-    });
+    }));
 }
 
 /**
@@ -63,7 +127,7 @@ function fullWrite(mutate) {
  * and the summaries of all.
  */
 function kaderWrite(mutate, { source: withSource = false, categories = false } = {}) {
-    return withUser(WRITE, async ({ req, res, body, user }) => {
+    return withUser(WRITE, guarded(async ({ req, res, body, user }) => {
         const guildId = activeGuildFor(req);
         const source = withSource ? await loadKaderSource({ guildId }) : null;
         const planner = kaderStore.readPlanner(guildId);
@@ -72,9 +136,9 @@ function kaderWrite(mutate, { source: withSource = false, categories = false } =
             : lightContext({ rules: loadKaderRules(), actor: user.id });
         if (categories && !source) ctx.raidCategoryIds = new Set(listRaidCategories(guildId).map((c) => c.id));
         const { planner: next, ...extra } = unpack(mutate(planner, body, ctx));
-        const stored = kaderStore.writePlanner(guildId, next);
+        const stored = store(guildId, planner, next, ctx);
         ok(res, { ...kaderPayload(stored, str(body, "kaderId") || extra.kaderId || ""), ...extra });
-    });
+    }));
 }
 
 // ------------------------------------------------------------ Kader
@@ -154,6 +218,8 @@ const resetAssignment = fullWrite((p, body) => model.resetAssignment(p, str(body
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/kader", handler: getKader, area: "kader" },
+    { method: "GET", path: "/api/kader/kader", handler: getKaderOnly, area: "kader" },
+    { method: "GET", path: "/api/kader/live", handler: getLive, area: "kader" },
     { method: "POST", path: "/api/kader/kaders", handler: createKader, area: "kader" },
     { method: "PUT", path: "/api/kader/kaders", handler: updateKader, area: "kader" },
     { method: "POST", path: "/api/kader/kaders/delete", handler: deleteKader, area: "kader" },
@@ -182,7 +248,7 @@ const routes = [
 ];
 
 module.exports = {
-    getKader, createKader, updateKader, deleteKader, addPlayers, removePlayers, setState,
+    getKader, getKaderOnly, getLive, createKader, updateKader, deleteKader, addPlayers, removePlayers, setState,
     saveInterview, completeInterview, reopenInterview, setVote, addComment, deleteComment,
     addQuestion, updateQuestion, deleteQuestion, orderQuestions, copyQuestions,
     addVariant, saveVariant, deleteVariant, autoVariant,

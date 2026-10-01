@@ -187,6 +187,9 @@ function buildPlayer({ userId, displayName, member, profile, logChar, attendance
         pickable: pickableOf(profile, logChar),
         availability: profile ? [...profile.availability] : [],
         attendance: attendanceView(attendance),
+        // the revision of the planner's character data and who changed it (the account dialog's conflict check)
+        rev: assignment && assignment.rev ? assignment.rev : 0,
+        changedBy: assignment && assignment.by ? assignment.by : "",
     };
 }
 
@@ -267,14 +270,19 @@ function buildKaderView({ source, planner, kaderId = "" }) {
         kaders: planner.kaders.map(kaderSummary),
         kader,
         warnings: source.warnings,
+        sharedRev: planner.sharedRev || 0,
     };
 }
 
-/** What a change inside one Kader answers: the Kader as stored now and the summaries of all. */
+/**
+ * What a change inside one Kader answers (and GET /api/kader/kader): the Kader
+ * as stored now, the summaries of all and the revision of the server's side.
+ */
 function kaderPayload(planner, kaderId) {
     return {
         kader: planner.kaders.find((k) => k.id === kaderId) || null,
         kaders: planner.kaders.map(kaderSummary),
+        sharedRev: planner.sharedRev || 0,
     };
 }
 

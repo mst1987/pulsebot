@@ -2,7 +2,6 @@
     "loading": "Lade den Kaderplaner …",
     "error": "Das hat nicht geklappt.",
     "system": "System",
-    "since": "seit {date} ({by})",
     "quote": "„{text}“",
     "state": {
         "pool": "Pool",
@@ -11,14 +10,6 @@
         "roster": "Roster",
         "bench": "Bench",
         "tentative": "Tentative"
-    },
-    "stateSince": {
-        "pool": "im Pool seit {date} ({by})",
-        "selected": "in der Vorauswahl seit {date} ({by})",
-        "provisional": "im vorläufigen Roster seit {date} ({by})",
-        "roster": "im Roster seit {date} ({by})",
-        "bench": "auf der Bench seit {date} ({by})",
-        "tentative": "Tentative seit {date} ({by})"
     },
     "nav": {
         "aria": "Status im Kader",
@@ -288,7 +279,7 @@
         "noPrefill": "keine Chardaten",
         "lead": "Gespräch führt",
         "progress": "{done} von {total} beantwortet",
-        "locked": "Abgeschlossen am {date} ({by}). Zum Ändern das Gespräch wieder öffnen.",
+        "locked": "Abgeschlossen. Zum Ändern das Gespräch wieder öffnen; wer es wann abgeschlossen hat, steht im Verlauf.",
         "wishes": "Spielwünsche",
         "wishesHint": "1 = am liebsten",
         "noWishes": "keine Wünsche",
@@ -306,11 +297,16 @@
         "stillOpen": "noch offen",
         "aWish": "ein Spielwunsch",
         "saving": "Speichert …",
-        "lastSaved": "Zuletzt gespeichert: {by}, {at}",
+        "saved": "Gespeichert",
+        "unsaved": "Ungespeicherte Änderungen",
         "notSaved": "Noch nichts gespeichert",
         "toPool": "Zurück in den Pool",
         "toPoolDone": "{name} ist wieder im Pool",
-        "missing": "Fehlt: {list}",
+        "missingN": {
+            "one": "{count} Pflichtfrage offen",
+            "other": "{count} Pflichtfragen offen"
+        },
+        "missingTip": "Noch offen: {list}",
         "saveNext": "Speichern & nächster",
         "complete": "Gespräch abschließen",
         "completedToast": "Gespräch mit {name} abgeschlossen",
@@ -420,7 +416,6 @@
         "toRosterDone": "{name} ist im Roster: {pick}",
         "moved": "{name}: {state}",
         "cantMove": "Dieser Wechsel geht nicht direkt.",
-        "history": "Verlauf",
         "noVoteYet": "Noch keine Stimme.",
         "dropHere": "Hierher ziehen",
         "emptyRead": "Niemand",
@@ -442,7 +437,10 @@
         "reopened": "Gespräch wieder geöffnet",
         "vote": "Stimme: {vote}",
         "voteNone": "Stimme zurückgezogen",
-        "migrated": "aus dem alten Kaderplaner übernommen ({to})"
+        "migrated": "aus dem alten Kaderplaner übernommen ({to})",
+        "saved": "Gespräch gespeichert",
+        "lead": "Gespräch führt: {name}",
+        "leadNone": "Gesprächsführung entfernt"
     },
     "questions": {
         "back": "Zur Vorauswahl",
@@ -695,5 +693,99 @@
         "you": "(du)",
         "all": "Alle",
         "me": "Ich"
+    },
+    "live": {
+        "someone": "Jemand",
+        "players": {
+            "one": "{count} Spieler",
+            "other": "{count} Spieler"
+        },
+        "state": {
+            "pool": "{by} hat {who} zurück in den Pool geschoben",
+            "selected": "{by} hat {who} in die Vorauswahl geschoben",
+            "provisional": "{by} hat {who} ins vorläufige Roster geschoben",
+            "roster": "{by} hat {who} ins Roster geschoben",
+            "bench": "{by} hat {who} auf die Bench gesetzt",
+            "tentative": "{by} hat {who} auf Tentative gesetzt"
+        },
+        "stateOther": "{by} hat den Status von {who} geändert",
+        "created": "{by} hat den Kader angelegt",
+        "added": "{by} hat {who} in den Pool übernommen",
+        "removed": "{by} hat {who} aus dem Kader entfernt",
+        "decision": "{by} hat die Entscheidung für {who} geändert",
+        "interview": "{by} hat das Gespräch mit {who} bearbeitet",
+        "lead": "{by} hat das Gespräch mit {who} an {lead} gegeben",
+        "leadSelf": "{by} führt jetzt das Gespräch mit {who}",
+        "leadNone": "{by} hat die Gesprächsführung bei {who} entfernt",
+        "interview_completed": "{by} hat das Gespräch mit {who} abgeschlossen",
+        "interview_reopened": "{by} hat das Gespräch mit {who} wieder geöffnet",
+        "vote": "{by} hat über {who} abgestimmt",
+        "comment": "{by} hat {who} kommentiert",
+        "comment_deleted": "{by} hat einen Kommentar zu {who} gelöscht",
+        "questions": "{by} hat die Fragen geändert",
+        "question": "{by} hat die Frage „{text}“ geändert",
+        "setups": "{by} hat die Beispiel-Setups geändert",
+        "settings": "{by} hat die Einstellungen des Kaders geändert",
+        "character": "{by} hat die Charaktere von {who} geändert",
+        "summary": {
+            "one": "{by} hat {count} Änderung gemacht",
+            "other": "{by} hat {count} Änderungen gemacht"
+        },
+        "summaryMany": {
+            "one": "{names} haben {count} Änderung gemacht",
+            "other": "{names} haben {count} Änderungen gemacht"
+        },
+        "and": "{a} und {b}",
+        "andOthers": {
+            "one": "{name} und {count} weitere Person",
+            "other": "{name} und {count} weitere"
+        },
+        "where": {
+            "pool": "Pool",
+            "vorauswahl": "Gespräche",
+            "uebersicht": "Übersicht",
+            "roster": "Vorläufig & Roster",
+            "fragen": "Fragen",
+            "setups": "Beispiel-Setups"
+        },
+        "presence": {
+            "where": "{name} · gerade in {where}",
+            "interviewEdit": "{name} bearbeitet gerade dieses Gespräch",
+            "interviewView": "{name} sieht sich dieses Gespräch gerade an",
+            "alsoInterviewEdit": "{name} bearbeitet gerade auch dieses Gespräch",
+            "accountEdit": "{name} bearbeitet gerade die Charaktere",
+            "accountView": "{name} sieht sich die Charaktere gerade an",
+            "alsoAccountEdit": "{name} bearbeitet gerade auch diese Charaktere",
+            "drawerView": "{name} sieht sich die Diskussion gerade an",
+            "others": "Auch gerade im Kader"
+        },
+        "conflict": {
+            "interview": "{name} hat dieses Gespräch inzwischen geändert.",
+            "account": "{name} hat die Charaktere inzwischen geändert.",
+            "question": "{name} hat diese Frage inzwischen geändert.",
+            "hint": "Deine Eingaben sind noch da. „Neu laden“ übernimmt den neuen Stand, „Trotzdem speichern“ überschreibt ihn mit deinem.",
+            "reload": "Neu laden",
+            "overwrite": "Trotzdem speichern",
+            "paused": "Automatisches Speichern pausiert, bis du entscheidest",
+            "lost": "Deine Änderungen am Gespräch mit {name} sind nicht gespeichert: es wurde inzwischen geändert."
+        },
+        "changed": "{name} hat das inzwischen geändert. Mit Speichern gilt dein Stand."
+    },
+    "log": {
+        "history": "Verlauf",
+        "historyTip": "Verlauf von {name}: wer wann was geändert hat",
+        "historyTitle": "Verlauf · {name}",
+        "historyEmpty": "Noch nichts passiert.",
+        "activity": "Aktivität",
+        "activityTip": "Aktivität im Kader: wer zuletzt was geändert hat",
+        "activityTitle": "Aktivität · {name}",
+        "activityHint": "Die letzten 50 Änderungen in diesem Kader, die neuesten oben. Antworten, Notizen und Kommentare stehen hier nie.",
+        "activityEmpty": "Noch keine Änderungen aufgezeichnet.",
+        "person": "Person",
+        "all": "Alle",
+        "count": {
+            "one": "{count} Änderung",
+            "other": "{count} Änderungen"
+        }
     }
 }

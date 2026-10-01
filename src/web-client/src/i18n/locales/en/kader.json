@@ -2,7 +2,6 @@
     "loading": "Loading the roster planner …",
     "error": "That did not work.",
     "system": "System",
-    "since": "since {date} ({by})",
     "quote": "“{text}”",
     "state": {
         "pool": "Pool",
@@ -11,14 +10,6 @@
         "roster": "Roster",
         "bench": "Bench",
         "tentative": "Tentative"
-    },
-    "stateSince": {
-        "pool": "in the pool since {date} ({by})",
-        "selected": "in the preselection since {date} ({by})",
-        "provisional": "in the provisional roster since {date} ({by})",
-        "roster": "in the roster since {date} ({by})",
-        "bench": "on the bench since {date} ({by})",
-        "tentative": "tentative since {date} ({by})"
     },
     "nav": {
         "aria": "States in this squad",
@@ -288,7 +279,7 @@
         "noPrefill": "no character data",
         "lead": "Interviewer",
         "progress": "{done} of {total} answered",
-        "locked": "Completed on {date} ({by}). Reopen the interview to change it.",
+        "locked": "Completed. Reopen the interview to change it; who completed it when is in the history.",
         "wishes": "Wishes",
         "wishesHint": "1 = favourite",
         "noWishes": "no wishes",
@@ -306,11 +297,16 @@
         "stillOpen": "still open",
         "aWish": "a wish",
         "saving": "Saving …",
-        "lastSaved": "Last saved: {by}, {at}",
+        "saved": "Saved",
+        "unsaved": "Unsaved changes",
         "notSaved": "Nothing saved yet",
         "toPool": "Back to the pool",
         "toPoolDone": "{name} is back in the pool",
-        "missing": "Missing: {list}",
+        "missingN": {
+            "one": "{count} required question open",
+            "other": "{count} required questions open"
+        },
+        "missingTip": "Still open: {list}",
         "saveNext": "Save & next",
         "complete": "Complete interview",
         "completedToast": "Interview with {name} completed",
@@ -420,7 +416,6 @@
         "toRosterDone": "{name} is in the roster: {pick}",
         "moved": "{name}: {state}",
         "cantMove": "This move is not possible directly.",
-        "history": "History",
         "noVoteYet": "No vote yet.",
         "dropHere": "Drop here",
         "emptyRead": "Nobody",
@@ -442,7 +437,10 @@
         "reopened": "Interview reopened",
         "vote": "Vote: {vote}",
         "voteNone": "Vote taken back",
-        "migrated": "taken over from the old roster planner ({to})"
+        "migrated": "taken over from the old roster planner ({to})",
+        "saved": "Interview saved",
+        "lead": "Interview by: {name}",
+        "leadNone": "Interviewer removed"
     },
     "questions": {
         "back": "To the preselection",
@@ -695,5 +693,99 @@
         "you": "(you)",
         "all": "All",
         "me": "Me"
+    },
+    "live": {
+        "someone": "Someone",
+        "players": {
+            "one": "{count} player",
+            "other": "{count} players"
+        },
+        "state": {
+            "pool": "{by} moved {who} back to the pool",
+            "selected": "{by} moved {who} to the preselection",
+            "provisional": "{by} moved {who} to the provisional roster",
+            "roster": "{by} moved {who} to the roster",
+            "bench": "{by} put {who} on the bench",
+            "tentative": "{by} set {who} to tentative"
+        },
+        "stateOther": "{by} changed the state of {who}",
+        "created": "{by} created the squad",
+        "added": "{by} took {who} into the pool",
+        "removed": "{by} removed {who} from the squad",
+        "decision": "{by} changed the decision for {who}",
+        "interview": "{by} edited the interview with {who}",
+        "lead": "{by} handed the interview with {who} to {lead}",
+        "leadSelf": "{by} now leads the interview with {who}",
+        "leadNone": "{by} removed the interviewer of {who}",
+        "interview_completed": "{by} completed the interview with {who}",
+        "interview_reopened": "{by} reopened the interview with {who}",
+        "vote": "{by} voted on {who}",
+        "comment": "{by} commented on {who}",
+        "comment_deleted": "{by} deleted a comment on {who}",
+        "questions": "{by} changed the questions",
+        "question": "{by} changed the question “{text}”",
+        "setups": "{by} changed the example setups",
+        "settings": "{by} changed the squad's settings",
+        "character": "{by} changed the characters of {who}",
+        "summary": {
+            "one": "{by} made {count} change",
+            "other": "{by} made {count} changes"
+        },
+        "summaryMany": {
+            "one": "{names} made {count} change",
+            "other": "{names} made {count} changes"
+        },
+        "and": "{a} and {b}",
+        "andOthers": {
+            "one": "{name} and {count} other",
+            "other": "{name} and {count} others"
+        },
+        "where": {
+            "pool": "Pool",
+            "vorauswahl": "Interviews",
+            "uebersicht": "Overview",
+            "roster": "Provisional & roster",
+            "fragen": "Questions",
+            "setups": "Example setups"
+        },
+        "presence": {
+            "where": "{name} · now in {where}",
+            "interviewEdit": "{name} is editing this interview right now",
+            "interviewView": "{name} is looking at this interview right now",
+            "alsoInterviewEdit": "{name} is editing this interview too right now",
+            "accountEdit": "{name} is editing the characters right now",
+            "accountView": "{name} is looking at the characters right now",
+            "alsoAccountEdit": "{name} is editing these characters too right now",
+            "drawerView": "{name} is looking at the discussion right now",
+            "others": "Also in the squad right now"
+        },
+        "conflict": {
+            "interview": "{name} has changed this interview in the meantime.",
+            "account": "{name} has changed the characters in the meantime.",
+            "question": "{name} has changed this question in the meantime.",
+            "hint": "Your input is still here. “Reload” takes the new version, “Save anyway” overwrites it with yours.",
+            "reload": "Reload",
+            "overwrite": "Save anyway",
+            "paused": "Autosave paused until you decide",
+            "lost": "Your changes to the interview with {name} were not saved: it was changed in the meantime."
+        },
+        "changed": "{name} has changed this in the meantime. Saving makes your version count."
+    },
+    "log": {
+        "history": "History",
+        "historyTip": "History of {name}: who changed what and when",
+        "historyTitle": "History · {name}",
+        "historyEmpty": "Nothing happened yet.",
+        "activity": "Activity",
+        "activityTip": "Activity in the squad: who changed what recently",
+        "activityTitle": "Activity · {name}",
+        "activityHint": "The last 50 changes in this squad, newest first. Answers, notes and comments never show here.",
+        "activityEmpty": "No changes recorded yet.",
+        "person": "Person",
+        "all": "All",
+        "count": {
+            "one": "{count} change",
+            "other": "{count} changes"
+        }
     }
 }

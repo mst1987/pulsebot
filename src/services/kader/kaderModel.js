@@ -5,14 +5,19 @@
 // its status. The players of a Kader, its questions and its example setups have
 // their own modules (kaderPlayers.js, kaderQuestions.js, kaderSetups.js).
 //
-//   { v: 2,
+//   { v: 2, rev?, sharedRev?,
 //     accounts:    [{ userId, displayName, addedAt }]          known by hand (no profile)
-//     assignments: { [userId]: { characters: [...], activeCharacterId } }   per server, not per Kader
+//     assignments: { [userId]: { characters: [...], activeCharacterId, rev?, by?, at? } }   per server, not per Kader
 //     kaders:      [{ id, name, leads: [userId], createdAt, createdBy,
 //                     attendanceCategories: [categoryId],   the raid categories attendance counts in
-//                     questions: [{ id, text, type, options: [{ id, label }], required }],
+//                     questions: [{ id, text, type, options: [{ id, label }], required, rev? }],
 //                     players:   { [userId]: entry },
-//                     setups:    [{ id, name, size: 10|20, groups: [[{ userId, spec }|null x5] x4] }] }] }
+//                     setups:    [{ id, name, size: 10|20, groups: [[{ userId, spec }|null x5] x4] }],
+//                     rev?, activity?: [{ rev, at, by, type, playerId?, count?, from?, to?, questionId? }] }] }
+//
+// The revisions are stamps of the planner's change counter `rev`, set by
+// kaderActivity.js after every write (never by a mutator); missing = 0. They
+// let the page see that somebody else changed something (docs/kaderplaner.md, "Live").
 //
 // A player entry: { state, since, by, addedAt, addedBy, history, wishes, interview,
 // votes, comments, decision } — see kaderPlayers.js. A state stays until somebody
@@ -54,7 +59,16 @@ const LIMITS = {
     accounts: 500, characters: 8, name: 40, kaders: 30, leads: 10, players: 500,
     questions: 30, question: 200, options: 20, option: 60, answer: 1000, note: 2000,
     comment: 1000, comments: 200, history: 50, wishes: 6, variants: 6, attendanceCategories: 20,
+    activity: 50,
 };
+/**
+ * What a Kader's activity log knows (kaderActivity.js): only types and ids,
+ * never an answer, a note or a comment's text.
+ */
+const ACTIVITY_TYPES = [
+    "created", "added", "removed", "state", "decision", "interview", "lead", "interview_completed", "interview_reopened",
+    "vote", "comment", "comment_deleted", "questions", "setups", "settings", "character",
+];
 // An id typed by hand must look like a real Discord user id; one from the member list is taken as it is.
 const DISCORD_ID = /^\d{17,20}$/;
 
@@ -65,6 +79,30 @@ const notFound = (message) => new AppError("not_found", 404, message);
 const conflict = (message) => new AppError("conflict", 409, message);
 const forbidden = (message) => new AppError("forbidden", 403, message);
 const isObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+/** A revision (a stamp of the planner's change counter): a positive whole number, else 0 = never stamped. */
+const revOf = (v) => (Number.isSafeInteger(v) && v > 0 ? v : 0);
+
+/**
+ * "Somebody changed this in between" (409 `stale`): the save named the
+ * revision it started from (`baseRev`) and the stored one moved on. `details`
+ * travel in the error answer (the current revision, who, when) so the page can
+ * offer "Neu laden" or "Trotzdem speichern".
+ */
+function stale(message, details = {}) {
+    const e = new AppError("stale", 409, message);
+    e.details = details;
+    return e;
+}
+
+/**
+ * Refuses a save that started from another revision than the stored one. No
+ * `baseRev` (an older page, a script) or `force: true` ("Trotzdem speichern")
+ * skips the check.
+ */
+function assertFresh(input, rev, message, details = {}) {
+    if (!input || input.force === true || input.baseRev === undefined || input.baseRev === null || input.baseRev === "") return;
+    if (Number(input.baseRev) !== revOf(rev)) throw stale(message, { rev: revOf(rev), ...details });
+}
 
 function emptyPlanner() {
     return { v: FORMAT, accounts: [], assignments: {}, kaders: [] };
@@ -114,7 +152,10 @@ function normalizeQuestion(q) {
         .map(normalizeOption)
         .filter((o) => o && !seen.has(o.id) && seen.add(o.id))
         .slice(0, LIMITS.options);
-    return { id: str(q.id), text: str(q.text).trim().slice(0, LIMITS.question) || "?", type, options, required: q.required === true };
+    const out = { id: str(q.id), text: str(q.text).trim().slice(0, LIMITS.question) || "?", type, options, required: q.required === true };
+    // the revision of the last change (kaderActivity.js); a question never stamped carries none
+    if (revOf(q.rev)) out.rev = q.rev;
+    return out;
 }
 
 /** An answer as its question wants it, or undefined when there is none (unknown option ids are dropped). */
@@ -160,7 +201,7 @@ function normalizeWishes(raw) {
 
 function normalizeInterview(raw, questions) {
     const i = isObject(raw) ? raw : {};
-    return {
+    const out = {
         lead: str(i.lead),
         answers: normalizeAnswers(i.answers, questions),
         note: str(i.note).slice(0, LIMITS.note),
@@ -170,6 +211,9 @@ function normalizeInterview(raw, questions) {
         completedAt: str(i.completedAt),
         completedBy: str(i.completedBy),
     };
+    // wishes, answers, note, lead or completion changed at this revision (the conflict check of a save)
+    if (revOf(i.rev)) out.rev = i.rev;
+    return out;
 }
 
 function normalizeHistory(raw) {
@@ -181,6 +225,21 @@ function normalizeHistory(raw) {
             return out;
         })
         .slice(-LIMITS.history);
+}
+
+/** One line of a Kader's activity log: type, who, when, at which revision, the player or question it touched. */
+function normalizeActivityItem(a) {
+    if (!isObject(a) || !ACTIVITY_TYPES.includes(a.type) || !revOf(a.rev)) return null;
+    const out = { rev: a.rev, at: str(a.at), by: str(a.by), type: a.type };
+    if (a.playerId) out.playerId = str(a.playerId);
+    if (revOf(a.count) > 1) out.count = a.count;
+    for (const k of ["from", "to", "questionId"]) if (a[k] !== undefined && a[k] !== null && a[k] !== "") out[k] = str(a[k]);
+    return out;
+}
+
+/** The activity log, oldest first, the newest LIMITS.activity lines. */
+function normalizeActivity(raw) {
+    return (Array.isArray(raw) ? raw : []).map(normalizeActivityItem).filter(Boolean).slice(-LIMITS.activity);
 }
 
 function normalizeEntry(raw, questions) {
@@ -259,7 +318,7 @@ function normalizeKader(k) {
         .map((v) => normalizeVariant(v, players))
         .filter((v) => v && !vSeen.has(v.id) && vSeen.add(v.id))
         .slice(0, LIMITS.variants);
-    return {
+    const out = {
         id: str(k.id),
         name: str(k.name).trim().slice(0, LIMITS.name) || "Kader",
         leads: [...new Set((Array.isArray(k.leads) ? k.leads : []).map(str).filter(Boolean))].slice(0, LIMITS.leads),
@@ -272,6 +331,12 @@ function normalizeKader(k) {
         players,
         setups,
     };
+    // Live (kaderActivity.js): the revision of the last change and what changed.
+    // A Kader stored before they existed has neither (= revision 0, no log).
+    if (revOf(k.rev)) out.rev = k.rev;
+    const activity = normalizeActivity(k.activity);
+    if (activity.length) out.activity = activity;
+    return out;
 }
 
 /**
@@ -300,6 +365,8 @@ function normalizePlanner(raw) {
                 characters,
                 activeCharacterId: characters.some((c) => c.id === a.activeCharacterId) ? a.activeCharacterId : (characters[0] ? characters[0].id : null),
             };
+            // who changed it last and at which revision (the account dialog's conflict check)
+            if (revOf(a.rev)) Object.assign(out.assignments[userId], { rev: a.rev, by: str(a.by), at: str(a.at) });
         }
     }
     const seen = new Set();
@@ -307,6 +374,10 @@ function normalizePlanner(raw) {
         .map(normalizeKader)
         .filter((k) => k && !seen.has(k.id) && seen.add(k.id))
         .slice(0, LIMITS.kaders);
+    // the change counter of the whole planner and the revision of the last change
+    // on the server's side (accounts, character data, Kader created/renamed/deleted)
+    if (revOf(src.rev)) out.rev = src.rev;
+    if (revOf(src.sharedRev)) out.sharedRev = src.sharedRev;
     return out;
 }
 
@@ -416,6 +487,11 @@ function cleanCharacter(input, ctx) {
 /** Replaces the planner's characters of one account; the profile is never touched. */
 function setAssignment(planner, userId, input, ctx) {
     if (!isKnown(planner, ctx, userId)) throw notFound("Account unbekannt.");
+    const before = planner.assignments[userId];
+    assertFresh(input, before && before.rev, "Inzwischen hat jemand anderes die Charaktere dieses Accounts geändert.", {
+        by: before ? before.by || "" : "",
+        at: before ? before.at || "" : "",
+    });
     const list = Array.isArray(input.characters) ? input.characters : [];
     if (list.length > LIMITS.characters) throw invalid(`Höchstens ${LIMITS.characters} Charaktere je Account.`);
     const characters = list.map((c) => cleanCharacter(c || {}, ctx));
@@ -526,9 +602,9 @@ function deleteKader(planner, kaderId) {
 
 module.exports = {
     FORMAT, ROLES, STATES, SETUP_STATES, QUESTION_TYPES, OPTION_COLORS, VOTES, NAME_STYLES, GEAR_LEVELS, SETUP_SIZES,
-    GROUP_COUNT, GROUP_SIZE, LIMITS,
-    clone, str, isObject, invalid, notFound, conflict, forbidden,
-    emptyPlanner, emptyGroups, normalizePlanner, normalizeQuestion, normalizeAnswer, normalizeKader,
+    GROUP_COUNT, GROUP_SIZE, LIMITS, ACTIVITY_TYPES,
+    clone, str, isObject, invalid, notFound, conflict, forbidden, revOf, stale, assertFresh,
+    emptyPlanner, emptyGroups, normalizePlanner, normalizeQuestion, normalizeAnswer, normalizeKader, normalizeActivity,
     cleanLabel, getKader, withKader, checkUserId, isKnown, classOf, cleanClassSpec,
     cleanCharacter, setAssignment, resetAssignment, addAccount, removeAccount,
     createKader, updateKader, deleteKader,
