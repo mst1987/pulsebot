@@ -57,15 +57,20 @@ function within(a, b, ms) {
 }
 
 /**
- * A history line that may stand for several saves: when the newest line is of
- * the same type, by the same person and less than COALESCE_MS old, it is
- * updated (its time, its `to`) instead of adding another.
+ * A history line that may stand for several saves: a line of the same type by
+ * the same person less than COALESCE_MS old — also with other people's lines in
+ * between (two leads taking turns) — is replaced and moves to the end (its new
+ * time, its `to`) instead of adding another.
  */
 function noteHistory(entry, item) {
-    const last = entry.history[entry.history.length - 1];
-    if (last && last.type === item.type && last.by === item.by && within(last.at, item.at, COALESCE_MS)) {
-        entry.history[entry.history.length - 1] = item;
-        return;
+    for (let i = entry.history.length - 1; i >= 0; i--) {
+        const h = entry.history[i];
+        // the history is oldest first: once a line is out of the window, every older one is too
+        if (!within(h.at, item.at, COALESCE_MS)) break;
+        if (h.type === item.type && h.by === item.by) {
+            entry.history.splice(i, 1);
+            break;
+        }
     }
     pushHistory(entry, item);
 }

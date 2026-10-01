@@ -116,7 +116,7 @@ A player's **entry**:
 | `name` | the Discord name at the time they were taken in (shown when the account is gone) |
 | `state`, `since`, `by` | `pool` · `selected` · `provisional` · `roster` · `bench` · `tentative`, with when and who (the Verlauf says it; the working surfaces do not) |
 | `addedAt`, `addedBy` | when and by whom the player came into this Kader |
-| `history` | the last 50 events: `added`, `state {from,to}`, `decision {className,spec}`, `interview_saved`, `lead {to}`, `interview_completed`, `interview_reopened`, `vote {vote|none}`, `migrated {to}` — with `at` and `by`. `interview_saved` and `lead` are coalesced: the same person within ten minutes updates their line (`kaderPlayers.noteHistory`) |
+| `history` | the last 50 events: `added`, `state {from,to}`, `decision {className,spec}`, `interview_saved`, `lead {to}`, `interview_completed`, `interview_reopened`, `vote {vote|none}`, `migrated {to}` — with `at` and `by`. `interview_saved` and `lead` are coalesced: the same person within ten minutes replaces their line, also with other people's lines in between, and it moves to the end (`kaderPlayers.noteHistory`) |
 | `wishes` | `[{ className, spec }]` in order (≤ 6, no spec twice); prefilled with the account's character when taken in |
 | `interview` | `{ lead, answers: { [questionId]: optionId \| [optionId] \| text }, note (≤ 2000), startedAt, updatedAt, updatedBy, completedAt, completedBy, rev? }` |
 | `votes` | `{ [leadUserId]: yes \| unsure \| no }` |
@@ -193,8 +193,9 @@ keep a revision only when it is a positive number; `test/stores/kaderStore.test.
 `questions`, `setups`, `settings`, `character`. Several players of one write are one line with `count`; a question
 edit that refits answers is one `questions` line, not one per interview; a move that drops setup slots is the move,
 not a setup change. Repeated edits (`interview`, `lead`, `questions`, `setups`, `settings`, `character`) of the same
-person on the same thing within ten minutes replace the newest line (newer `rev` and `at`) — an interview typed and
-autosaved every second stays one line. Never an answer, a note or a comment's text (tested).
+person on the same thing within ten minutes replace that person's earlier line, also with other people's lines in
+between, and move to the end (newer `rev` and `at`) — an interview typed and autosaved every second stays one line, two
+leads taking turns on one interview stay two. Never an answer, a note or a comment's text (tested).
 
 **The poll** — `GET /api/kader/live?kader=<id>&rev=<n>&tab=<id>&sub=<page>&player=<id>&what=<interview|drawer|account>&edit=1`
 (area `kader`, read): answers `{ rev, sharedRev, changes, more, presence }` — the Kader's revision, its activity lines

@@ -23,8 +23,10 @@
 // questionId? }` — types and ids only, never an answer, a note or a comment.
 // Several players moved by one write are one line with a count. Repeated
 // edits of the same thing by the same person within COALESCE_MS are one line
-// (an interview typed and autosaved every second stays one line), its rev and
-// time the newest. The log keeps the newest LIMITS.activity lines.
+// (an interview typed and autosaved every second stays one line), also when
+// other people's lines stand in between (two leads taking turns on one
+// interview): the earlier line goes, the new one is the newest. The log keeps
+// the newest LIMITS.activity lines.
 const { LIMITS } = require("./kaderModel");
 
 /** The line types an edit can repeat quickly; the same one again within COALESCE_MS replaces the older line. */
@@ -136,16 +138,28 @@ function kaderLines(prev, next, rev) {
     return lines;
 }
 
-/** Appends lines to a Kader's log, folding a repeated edit into the newest line (COALESCE). */
+/**
+ * The index of the line a repeated edit folds into: the same person, kind and thing (player, question) within
+ * COALESCE_MS — also with other people's lines in between (two people taking turns on one interview). -1 = none.
+ */
+function repeatOf(log, line) {
+    if (!COALESCE.has(line.type)) return -1;
+    for (let i = log.length - 1; i >= 0; i--) {
+        const a = log[i];
+        // the log is oldest first: once a line is out of the window, every older one is too
+        if (!within(a.at, line.at, COALESCE_MS)) return -1;
+        if (a.type === line.type && a.by === line.by && (a.playerId || "") === (line.playerId || "") && (a.questionId || "") === (line.questionId || "")) return i;
+    }
+    return -1;
+}
+
+/** Appends lines to a Kader's log; a repeated edit replaces its earlier line and moves to the end (the newest). */
 function appendActivity(kader, lines) {
     const log = Array.isArray(kader.activity) ? kader.activity : [];
     for (const line of lines) {
-        const last = log[log.length - 1];
-        const repeat = last && COALESCE.has(line.type) && last.type === line.type && last.by === line.by
-            && (last.playerId || "") === (line.playerId || "") && (last.questionId || "") === (line.questionId || "")
-            && within(last.at, line.at, COALESCE_MS);
-        if (repeat) log[log.length - 1] = line;
-        else log.push(line);
+        const i = repeatOf(log, line);
+        if (i >= 0) log.splice(i, 1);
+        log.push(line);
     }
     kader.activity = log.slice(-LIMITS.activity);
 }

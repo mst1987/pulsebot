@@ -158,6 +158,22 @@ describe("services/kader/kaderActivity", () => {
             expect(interviewLines()).toHaveLength(4);
         });
 
+        it("folds two people taking turns on one interview into one line each, the newest edit at the end", () => {
+            const { planner, kaderId } = stored();
+            let p = planner;
+            for (let i = 0; i < 6; i++) {
+                const actor = i % 2 ? U.lead2 : U.lead;
+                p = write(p, players.saveInterview(p, { kaderId, userId: U.a, note: `Runde ${i}` }, ctx), { actor, now: at(i) });
+            }
+            const lines = kaderOf(p).activity.filter((a) => a.type === "interview");
+            expect(lines.map((a) => [a.by, a.at])).toEqual([[U.lead, at(4)], [U.lead2, at(5)]]);
+            expect(lastLine(p)).toMatchObject({ by: U.lead2, rev: p.rev });
+            // a line of another kind in between stays where it is; the repeated edit moves past it to the end
+            p = write(p, players.setVote(p, { kaderId, userId: U.b, vote: "yes" }, ctx), { now: at(6) });
+            p = write(p, players.saveInterview(p, { kaderId, userId: U.a, note: "Runde 7" }, ctx), { now: at(7) });
+            expect(kaderOf(p).activity.slice(-3).map((a) => [a.type, a.by])).toEqual([["interview", U.lead2], ["vote", U.lead], ["interview", U.lead]]);
+        });
+
         it("keeps the newest 50 lines", () => {
             const start = stored();
             const kaderId = start.kaderId;

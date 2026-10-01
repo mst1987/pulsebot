@@ -37,6 +37,19 @@ describe("services/kader/kaderPlayers · live", () => {
             ]);
         });
 
+        it("keeps one line per person when two leads take turns within ten minutes, the newest at the end", () => {
+            const { planner, kaderId } = setup();
+            let p = planner;
+            for (let i = 0; i < 6; i++) p = save(p, kaderId, { note: `Runde ${i}` }, at(i, { actor: i % 2 ? U.lead2 : U.lead }));
+            expect(history(p).slice(1)).toEqual([
+                { at: at(4).now, by: U.lead, type: "interview_saved" },
+                { at: at(5).now, by: U.lead2, type: "interview_saved" },
+            ]);
+            // after ten minutes it is a new line again
+            p = save(p, kaderId, { note: "später" }, at(16));
+            expect(history(p).filter((h) => h.type === "interview_saved" && h.by === U.lead)).toHaveLength(2);
+        });
+
         it("notes nothing for a save that changed nothing", () => {
             const { planner, kaderId } = setup();
             const p = save(save(planner, kaderId, { note: "x" }), kaderId, { note: "x" }, at(20));
