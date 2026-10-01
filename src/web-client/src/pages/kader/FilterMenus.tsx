@@ -10,6 +10,7 @@ import { useT } from "../../i18n";
 import { chipsOf, countFor, toggle, type FilterDef, type FilterState } from "../../lib/kader/filters";
 import { toneAttrs } from "../../lib/kader/colors";
 import { ClassIcon, Count, RoleIcon, SpecIcon } from "./parts";
+import { LeadAvatar } from "./Leads";
 import type { KaderRole } from "../../api";
 
 function OptionIcon({ icon }: { icon: NonNullable<FilterDef<unknown>["options"][number]["icon"]> }) {
@@ -56,6 +57,7 @@ export function FilterMenus<T>({ items, defs, state, onChange, children }: {
                                         <button key={o.value} type="button" role="menuitemcheckbox" aria-checked={checked} className="kp-menuopt" onClick={() => onChange(toggle(state, def.key, o.value))}>
                                             <span className={`kp-check${checked ? " kp-on" : ""}`}>{checked && <CheckIcon />}</span>
                                             {o.icon && <OptionIcon icon={o.icon} />}
+                                            {o.lead !== undefined && <LeadAvatar userId={o.lead} size={18} />}
                                             {o.tone && <span className="kp-tonedot" aria-hidden="true" {...toneAttrs(o.tone)} />}
                                             <span className={`kp-grow${o.color ? " class-colored" : ""}`} style={o.color ? { "--cc": o.color } as CSSProperties : undefined}>{o.label}</span>
                                             <Count n={countFor(items, defs, state, def, o)} tip={t("kader.playersN", { count: countFor(items, defs, state, def, o) })} className="kp-count-quiet" />

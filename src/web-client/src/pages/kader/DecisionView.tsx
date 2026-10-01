@@ -23,6 +23,8 @@ import { relativeDayLabel } from "../../lib/format";
 import { rolePluralLabel } from "../../lib/wowNames";
 import { canMove, classColor, dayOf, entriesIn, mainPick, nameOf, playerName, ROLES, roleCounts, wishLabel, wishOptions } from "../../lib/kader/model";
 import { classColorProps } from "../../components/ClassSpec";
+import { leadHue } from "../../lib/kader/leads";
+import { LeadBadge } from "./Leads";
 import { dragProps, useDropZone } from "./dnd";
 import {
     AnswerLines, BackButton, Count, HistoryLines, PickIcon, PickLabel, PlayerName, RoleIcon, StateIcon, StateSince, VoteIcon, WishIcons, WishLines,
@@ -128,7 +130,7 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
         await run(deleteKaderComment(kader.id, userId, commentId));
     };
     const back: KaderState = entry.state === "provisional" ? "selected" : "provisional";
-    const leadIndex = (id: string) => Math.max(0, kader.leads.indexOf(id)) % 4;
+    const leadIndex = (id: string) => leadHue(kader.leads, id);
 
     return (
         <aside className="kp-drawer" aria-label={t("kader.decide.drawer", { name })}>
@@ -143,7 +145,11 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
             <WishLines wishes={entry.wishes} />
             <AttendanceLine userId={userId} label={t("kader.pool.attendance")} />
             <details className="kp-details">
-                <summary>{iv.completedAt ? t("kader.decide.interviewBy", { lead: nameOf(view, iv.lead || iv.completedBy), date: dayOf(iv.completedAt) }) : t("kader.decide.interviewOpen")}</summary>
+                <summary className="kp-ivsummary">
+                    <span>{iv.completedAt ? t("kader.decide.interviewDone") : t("kader.decide.interviewOpen")}</span>
+                    {(iv.lead || iv.completedAt) && <LeadBadge userId={iv.lead || iv.completedBy} />}
+                    {iv.completedAt && <span className="kp-muted">{dayOf(iv.completedAt)}</span>}
+                </summary>
                 <AnswerLines entry={entry} questions={kader.questions} />
                 {iv.note && <p className="kp-quote">{t("kader.quote", { text: iv.note })}</p>}
                 <Link className="kp-link" to={`/kader/${kader.id}/vorauswahl?spieler=${encodeURIComponent(userId)}`}>{t("kader.decide.openInterview")}</Link>

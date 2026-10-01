@@ -268,15 +268,28 @@ start page shows the flow and "Ersten Kader anlegen".
   search and pick roles, everybody holding one of them with their prefilled character, tabs Neu / Schon im Pool /
   Ohne Chardaten, the checked ones go into the pool. **"Per Discord-ID"** adds one account by id (optionally with a
   first character).
-- **`vorauswahl` (Gespräche)**: the players in the Vorauswahl (○ Offen / ✓ Geführt / Alle) with lead and status,
+- **`vorauswahl` (Gespräche)**: the players in the Vorauswahl (○ Offen / ✓ Geführt / Alle) with the interviewer
+  as a badge and the status, a "Gespräch führt" menu (Alle · Ich · each lead · Niemand, each with its count over the
+  list the segment shows; remembered per Kader in `eh-kader-interview-lead`) combinable with the segment,
   the interview of the chosen one (`?spieler=<id>`): wishes (drag or arrows; a new one by class and then one of its
-  spec icons), the note, the questions (pills, day buttons for the seven weekdays, free text), who leads it,
-  progress. It **saves itself** 800 ms after a change — only what changed (`patchOf`) — and when another player is
+  spec icons), the note, the questions (pills, day buttons for the seven weekdays, free text), who leads it (the
+  same coloured menu), progress. It **saves itself** 800 ms after a change — only what changed (`patchOf`) — and when another player is
   chosen or the page is left. "Speichern & nächster", "Gespräch abschließen", "Wieder öffnen", "Zurück in den Pool".
 - **`uebersicht`**: everybody in the Vorauswahl side by side — 1st and 2nd wish, one column per question (weekdays as
-  squares), interview, days waiting; filter menus Gespräch, 1. Wunsch and per question; grouped by role, class,
-  interview or none; a name shows the whole interview on hover. Marked rows go into the provisional roster (a
+  squares), interview with the interviewer's badge below, days waiting; filter menus Gespräch, Interviewer (the leads
+  plus "Niemand zugeteilt", an initial dot and a count each), 1. Wunsch and per question; grouped by role, class,
+  interview, interviewer or none; a name shows the whole interview on hover. Marked rows go into the provisional roster (a
   confirmation when interviews are still open) or back into the pool.
+- **Interviewer badges** (`LeadBadge`/`LeadMenu` in `pages/kader/Leads.tsx`, colours in `lib/kader/leads.ts`): one
+  identity per lead everywhere — the Kader header's "Leitung" row, the Gespräche list and its header, the Übersicht
+  (cell, group head, filter), the drawer's interview line and the vote authors. The colour comes from the user id
+  (`leadHue`: one of four hues, so a lead keeps it when the list is reordered; only two leads that would share one are
+  told apart, the lower id keeps it), never the only signal: the badge always shows the initial and the name
+  (tooltip and `aria-label` "Gespräch führt: Kurt"; the signed-in account's own badge in menus adds "(du)"). The
+  initial is drawn in the text colour on a tint of the lead's colour with a ring in it, so the contrast holds in
+  both themes. Nobody assigned is a distinct warning badge ("Niemand", dashed person-question icon). The filter in
+  the Übersicht is the ordinary `lead` menu of `FilterMenus` (`FilterOption.lead` draws the dot); `GroupBy` knows
+  `lead` (one group per lead, then "Niemand zugeteilt").
 - **`roster`**: one grid of four equal columns — Roster (two columns wide, its cards in two columns, the role mix in
   its head), Bench and Tentative on top, Vorläufig (all four columns) below — so every card is one column wide and
   64 px high. All sections share one panel; only a coloured line on top (roster teal, bench violet, tentative grey,

@@ -8,7 +8,10 @@ import type { Tone } from "./colors";
 export type FilterIcon = { kind: "class" | "spec" | "role"; key: string };
 
 /** `tone`: an answer option's colour (weekday or palette), drawn as a dot before the label. */
-export type FilterOption<T> = { value: string; label: string; test: (item: T) => boolean; icon?: FilterIcon; color?: string; tone?: Tone };
+export type FilterOption<T> = { value: string; label: string; test: (item: T) => boolean; icon?: FilterIcon; color?: string; tone?: Tone;
+    /** An interviewer: the option shows their coloured initial ("" = nobody assigned). */
+    lead?: string;
+};
 export type FilterDef<T> = { key: string; label: string; options: FilterOption<T>[] };
 /** The picks per menu key. */
 export type FilterState = Record<string, string[]>;

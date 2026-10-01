@@ -17,6 +17,7 @@ import { Button, IconButton, Segment, buttonClass } from "../../components/ui";
 import { AlertIcon, BookIcon, CheckIcon, ChevronDownIcon, CircleIcon, EditIcon, ListChecksIcon, PlusIcon, SaveIcon, XIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
+import { LEAD_ALL, LEAD_ME, LEAD_NONE, cleanLeadPick, interviewersOf, leadMatches } from "../../lib/kader/leads";
 import { usePersistedState } from "../../lib/persistedState";
 import { roleLabel } from "../../lib/wowNames";
 import { toneAttrs, toneOf } from "../../lib/kader/colors";
@@ -28,6 +29,7 @@ import {
     BackButton, Count, DoneBadge, EmptyState, Grip, InterviewChip, PickIcon, PickLabel, PlayerName, ProgressRing, SelectionTabs, SpecIcon, SpecTag, StateSince,
 } from "./parts";
 import { useKader } from "./kaderContext";
+import { LeadBadge, LeadMenu, type LeadOption } from "./Leads";
 
 type Shown = "open" | "done" | "all";
 const SAVE_DELAY = 800;
@@ -39,10 +41,9 @@ function ListRow({ userId, entry, current, onPick }: { userId: string; entry: Ka
     const { view, players } = useKader();
     const status = statusOf(entry);
     const iv = entry.interview;
-    const lead = iv.lead ? nameOf(view, iv.lead) : t("kader.interview.nobody");
-    const sub = status === "done" ? t("kader.interview.subDone", { lead, date: dayOf(iv.completedAt) })
-        : status === "started" ? t("kader.interview.subStarted", { lead, date: dayOf(iv.startedAt) })
-            : iv.lead ? t("kader.interview.subPlanned", { lead }) : t("kader.interview.subNobody");
+    const sub = status === "done" ? t("kader.interview.subDone", { date: dayOf(iv.completedAt) })
+        : status === "started" ? t("kader.interview.subStarted", { date: dayOf(iv.startedAt) })
+            : t("kader.interview.subPlanned");
     return (
         <button type="button" className={`kp-ivrow${current ? " kp-current" : ""}`} aria-current={current ? "true" : undefined} onClick={onPick}>
             <PickIcon pick={mainPick(players.get(userId), entry)} size={26} />
@@ -51,7 +52,10 @@ function ListRow({ userId, entry, current, onPick }: { userId: string; entry: Ka
                     <span className="kp-strong kp-ellipsis">{playerName(view, userId, entry)}</span>
                     {status === "done" && <DoneBadge />}
                 </span>
-                <span className="kp-sub">{sub}</span>
+                <span className="kp-leadline">
+                    <LeadBadge userId={iv.lead} />
+                    <span className="kp-sub">{sub}</span>
+                </span>
             </span>
             <InterviewChip entry={entry} />
         </button>
@@ -273,13 +277,13 @@ function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: 
                         <span className="kp-muted"><StateSince entry={entry} /></span>
                     </span>
                 </div>
-                <label className="field kp-leadpick">
+                <div className="field kp-leadpick">
                     <span className="field-label">{t("kader.interview.lead")}</span>
-                    <select value={draft.lead} disabled={locked} onChange={(e) => change({ ...draft, lead: e.target.value })}>
-                        <option value="">{t("kader.interview.nobody")}</option>
-                        {leads.map((id) => <option key={id} value={id}>{nameOf(view, id)}</option>)}
-                    </select>
-                </label>
+                    <LeadMenu label={t("kader.interview.lead")} value={draft.lead} disabled={locked} onChange={(lead) => change({ ...draft, lead })} options={[
+                        { value: "", label: t("kader.lead.nobody"), badge: <LeadBadge userId="" /> },
+                        ...leads.map((id) => ({ value: id, label: nameOf(view, id), badge: <LeadBadge userId={id} you /> })),
+                    ]} />
+                </div>
                 <span className={`kp-ivchip kp-ivchip-lg ${complete ? "kp-iv-done" : "kp-iv-started"}`}>
                     {complete ? <CheckIcon /> : <ProgressRing done={prog.done} total={prog.total} />}
                     {t("kader.interview.progress", { done: prog.done, total: prog.total })}
@@ -334,15 +338,26 @@ function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: 
 
 export default function InterviewsView() {
     const t = useT();
-    const { view, kader } = useKader();
+    const { view, kader, me } = useKader();
     const [params, setParams] = useSearchParams();
     const [shown, setShown] = usePersistedState<Shown>("kader-interview-list", "open");
+    const [leadPicks, setLeadPicks] = usePersistedState<Record<string, string>>("kader-interview-lead", {});
 
     const rows = useMemo(() => Object.entries(kader.players)
         .filter(([, e]) => e.state === "selected")
         .sort(([a, ea], [b, eb]) => (ORDER[statusOf(ea)] - ORDER[statusOf(eb)]) || playerName(view, a, ea).localeCompare(playerName(view, b, eb))), [view, kader]);
     const doneCount = rows.filter(([, e]) => statusOf(e) === "done").length;
-    const list = rows.filter(([, e]) => shown === "all" || (shown === "done") === (statusOf(e) === "done"));
+    const interviewers = useMemo(() => interviewersOf(kader, rows.map(([, e]) => e)), [kader, rows]);
+    const leadPick = cleanLeadPick(leadPicks[kader.id], interviewers);
+    const inSegment = rows.filter(([, e]) => shown === "all" || (shown === "done") === (statusOf(e) === "done"));
+    const list = inSegment.filter(([, e]) => leadMatches(e, leadPick, me));
+    const leadCount = (pick: string) => inSegment.filter(([, e]) => leadMatches(e, pick, me)).length;
+    const leadOptions: LeadOption[] = [
+        { value: LEAD_ALL, label: t("kader.lead.all"), badge: <span className="kp-lead-name">{t("kader.lead.all")}</span>, count: leadCount(LEAD_ALL) },
+        ...(kader.leads.includes(me) ? [{ value: LEAD_ME, label: t("kader.lead.me"), badge: <LeadBadge userId={me} label={t("kader.lead.me")} />, count: leadCount(LEAD_ME) }] : []),
+        ...interviewers.filter((id) => id !== me).map((id) => ({ value: id, label: nameOf(view, id), badge: <LeadBadge userId={id} />, count: leadCount(id) })),
+        { value: LEAD_NONE, label: t("kader.lead.nobody"), badge: <LeadBadge userId="" />, count: leadCount(LEAD_NONE) },
+    ];
     const wanted = params.get("spieler") || "";
     const currentId = wanted && kader.players[wanted] ? wanted : (list[0] ? list[0][0] : "");
     const entry = currentId ? kader.players[currentId] : null;
@@ -369,8 +384,10 @@ export default function InterviewsView() {
                         { value: "done", label: t("kader.interview.listDone", { n: doneCount }), icon: <CheckIcon />, tip: t("kader.interview.listDoneTip", { count: doneCount }) },
                         { value: "all", label: t("kader.interview.listAll") },
                     ]} />
+                    <LeadMenu label={t("kader.interview.lead")} prefix={t("kader.interview.lead")} value={leadPick} options={leadOptions} className="kp-leadfilter"
+                        onChange={(pick) => setLeadPicks({ ...leadPicks, [kader.id]: pick })} />
                     <div className="kp-ivrows">
-                        {list.length === 0 && <EmptyState icon={shown === "done" ? <CheckIcon /> : <ListChecksIcon />} text={rows.length ? t("kader.interview.listEmpty") : t("kader.interview.nobodySelected")} />}
+                        {list.length === 0 && <EmptyState icon={shown === "done" ? <CheckIcon /> : <ListChecksIcon />} text={rows.length ? t(leadPick === LEAD_ALL ? "kader.interview.listEmpty" : "kader.interview.listEmptyLead") : t("kader.interview.nobodySelected")} />}
                         {list.map(([id, e]) => <ListRow key={id} userId={id} entry={e} current={id === currentId} onPick={() => go(id)} />)}
                     </div>
                 </section>
