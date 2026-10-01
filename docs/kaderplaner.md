@@ -193,7 +193,9 @@ members, discordRoles, names, kaders, kader, warnings }`
 
 A change inside a Kader answers `{ kader, kaders, …extra }` (`moved`, `skipped`, `questionId`, `variantId`,
 `commentId`, `copied`); a change on the server's side (taking players in, accounts, character data) answers the whole
-view model again. The page swaps either in.
+view model again — the client sends the open `kaderId` with those writes too (`accounts/remove`, `assignments`,
+`assignments/reset`); without it the answer has `kader: null`. The page swaps either in and refetches when a whole view
+comes back without the open Kader.
 
 ## Write routes
 
@@ -213,8 +215,8 @@ Parameters in the body; `kaderId` names the Kader.
 | `POST /api/kader/questions/order` · `…/copy` | `{ kaderId, order }` · `{ kaderId, fromKaderId }` |
 | `POST /api/kader/variants` · `PUT` · `POST …/delete` · `…/auto` | `{ kaderId, name?, copyFrom? }` · `{ kaderId, variantId, name?, size?, groups? }` · `{ kaderId, variantId }` · `{ kaderId, variantId, sources }` |
 | `POST /api/kader/accounts` | `{ userId, displayName, kaderId?, character? }` — with `kaderId` also into that Kader's pool (whole view) |
-| `POST /api/kader/accounts/remove` | `{ userId }` — only an account added by hand |
-| `PUT /api/kader/assignments` · `POST …/reset` | `{ userId, characters, activeCharacterId }` · `{ userId }` |
+| `POST /api/kader/accounts/remove` | `{ kaderId, userId }` — only an account added by hand |
+| `PUT /api/kader/assignments` · `POST …/reset` | `{ kaderId, userId, characters, activeCharacterId }` · `{ kaderId, userId }` |
 
 ## The page
 

@@ -39,13 +39,26 @@ import "../../styles/kader.css";
 function merge(prev: KaderView | null, result: unknown): KaderView | null {
     if (!prev || !result || typeof result !== "object") return prev;
     const r = result as Partial<KaderView> & Partial<KaderChange>;
-    if (Array.isArray(r.players)) return r as KaderView;
+    if (Array.isArray(r.players)) {
+        // a whole view that lost the open Kader (an answer without `kaderId`) must not blank the page
+        if (!r.kader && prev.kader && Array.isArray(r.kaders) && r.kaders.some((k) => k.id === prev.kader?.id)) {
+            return { ...(r as KaderView), kader: prev.kader };
+        }
+        return r as KaderView;
+    }
     if (!Array.isArray(r.kaders)) return prev;
     const kaders = r.kaders;
     let kader = prev.kader;
     if (r.kader && kader && r.kader.id === kader.id) kader = r.kader;
     else if (kader && !kaders.some((k) => k.id === kader?.id)) kader = null;
     return { ...prev, kaders, kader };
+}
+
+/** A whole view without the Kader the address names, though that Kader exists: refetch it. */
+function needsReload(result: unknown, kaderId: string): boolean {
+    if (!kaderId || !result || typeof result !== "object") return false;
+    const r = result as Partial<KaderView>;
+    return Array.isArray(r.players) && !r.kader && Array.isArray(r.kaders) && r.kaders.some((k) => k.id === kaderId);
 }
 
 export default function KaderPage() {
@@ -57,7 +70,7 @@ export default function KaderPage() {
     const toast = useToast();
     const [last, setLast] = usePersistedState<string>("kader-last", "");
     const state = useApi(() => getKader(kaderId), [kaderId]);
-    const { setData } = state;
+    const { setData, reload } = state;
     const [modal, setModal] = useState<KaderModal>(null);
     const canWrite = canAccess(user, "kader", "write");
     const view = state.data;
@@ -71,12 +84,13 @@ export default function KaderPage() {
         try {
             const result = await call;
             setData((prev) => merge(prev, result));
+            if (needsReload(result, kaderId)) void reload();
             return result;
         } catch (e) {
             toast((e as ApiError).message || t("kader.error"), "err");
             return null;
         }
-    }, [setData, toast, t]);
+    }, [setData, reload, kaderId, toast, t]);
 
     const players = useMemo(() => byId(view ? view.players : []), [view]);
 
@@ -86,6 +100,8 @@ export default function KaderPage() {
     // no Kader in the address, or one that is gone: the one used last, else the first
     if (!kader) {
         const fallback = view.kaders.find((k) => k.id === last) || view.kaders[0];
+        // the address names a Kader that exists but the view lacks it: fetch again, never navigate to where we are
+        if (kaderId && view.kaders.some((k) => k.id === kaderId)) return <RaidLoader text={t("kader.loading")} />;
         if (fallback) return <Navigate to={`/kader/${fallback.id}/pool`} replace />;
         return (
             <>

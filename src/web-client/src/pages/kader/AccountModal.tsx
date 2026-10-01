@@ -122,17 +122,17 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
         if (!dirty) return onClose();
         setBusy(true);
         // a refusal (a name the rules do not allow) is a toast; the dialog stays open with the draft
-        const next = await run(saveKaderAssignment(userId, chars, active));
+        const next = await run(saveKaderAssignment(kader.id, userId, chars, active));
         setBusy(false);
         if (next) onClose();
     };
     const reset = async () => {
         if (!(await ask({ title: t("kader.account.resetTitle"), text: t("kader.account.resetText"), action: t("common.reset"), tone: "danger" }))) return;
-        if (await run(resetKaderAssignment(userId))) onClose();
+        if (await run(resetKaderAssignment(kader.id, userId))) onClose();
     };
     const removeAccount = async () => {
         if (!(await ask({ title: t("kader.account.removeTitle", { name: player.displayName }), text: t("kader.account.removeText"), action: t("common.remove"), tone: "danger" }))) return;
-        if (await run(removeKaderAccount(userId))) onClose();
+        if (await run(removeKaderAccount(kader.id, userId))) onClose();
     };
 
     return (

@@ -28,6 +28,7 @@ vi.mock("../../api", async (orig) => ({
     saveKaderVariant: vi.fn(),
     updateKader: vi.fn(),
     updateKaderQuestion: vi.fn(),
+    saveKaderAssignment: vi.fn(),
 }));
 
 const PATH = "/kader/:kaderId?/:sub?";
@@ -640,5 +641,31 @@ describe("KaderPage · read-only and English", () => {
         } finally {
             await switchLang("de");
         }
+    });
+});
+
+describe("KaderPage · saving a character keeps the page", () => {
+    async function saveFirstName() {
+        await show("/kader/k1/pool");
+        await userEvent.click(screen.getByRole("button", { name: "Aldric" }));
+        const dialog = await screen.findByRole("dialog");
+        const first = within(dialog).getByLabelText(t("kader.field.firstName"));
+        await userEvent.type(first, "x");
+        await userEvent.click(within(dialog).getByRole("button", { name: t("common.apply") }));
+    }
+
+    it("sends the open Kader with the save", async () => {
+        vi.mocked(api.saveKaderAssignment).mockResolvedValue(kaderView());
+        await saveFirstName();
+        await waitFor(() => expect(api.saveKaderAssignment).toHaveBeenCalled());
+        expect(vi.mocked(api.saveKaderAssignment).mock.calls[0][0]).toBe("k1");
+    });
+
+    it("does not go blank when the answer is a whole view without the Kader", async () => {
+        vi.mocked(api.saveKaderAssignment).mockResolvedValue(kaderView({ kader: null }));
+        await saveFirstName();
+        await waitFor(() => expect(api.saveKaderAssignment).toHaveBeenCalled());
+        expect(await screen.findByRole("button", { name: /Forever-Kader/ })).toBeInTheDocument();
+        await waitFor(() => expect(vi.mocked(api.getKader).mock.calls.length).toBeGreaterThan(1));
     });
 });
