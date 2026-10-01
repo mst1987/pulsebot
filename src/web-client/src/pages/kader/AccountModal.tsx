@@ -134,7 +134,8 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
         setSel(chars.length);
         if (!active) setActive(next.id);
     };
-    const removeChar = () => {
+    const removeChar = async () => {
+        if (!(await ask({ title: t("kader.account.removeCharTitle", { name: cur && cur.name.trim() ? cur.name.trim() : t("kader.account.newChar") }), text: t("kader.account.removeCharText"), action: t("common.remove"), tone: "danger" }))) return;
         const next = chars.filter((_, i) => i !== sel);
         setChars(next);
         setSel(Math.max(0, sel - 1));
@@ -299,7 +300,11 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
                                     </div>
                                 </>
                             )}
-                            {canWrite && <button type="button" className="kp-link kp-danger" onClick={removeChar}>{t("kader.account.removeChar")}</button>}
+                            {canWrite && (
+                                <div className="kp-dangerrow">
+                                    <Button variant="danger" icon={<TrashIcon />} onClick={() => void removeChar()}>{t("kader.account.removeChar")}</Button>
+                                </div>
+                            )}
                             {cur.id === active && player.differs.length > 0 && !dirty && <Badge tone="mid" size="sm">{t("kader.diff.badge")}</Badge>}
                         </fieldset>
                     ) : (

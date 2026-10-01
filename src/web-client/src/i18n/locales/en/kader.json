@@ -563,6 +563,8 @@
         "noTank": "This class has no tank spec",
         "noHeal": "This class has no healing spec",
         "removeChar": "Remove character",
+        "removeCharTitle": "Remove {name}?",
+        "removeCharText": "The character leaves the planner; it is only saved with Apply.",
         "noChars": "This account has no character yet. Add one above.",
         "fromProfile": "From EventHelper · read only",
         "noProfile": "This account has no EventHelper profile yet. Everything here is entered in the roster planner.",

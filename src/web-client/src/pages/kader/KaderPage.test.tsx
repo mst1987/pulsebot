@@ -698,3 +698,17 @@ describe("KaderPage · assigning from the profile", () => {
         expect(sent[1]).toMatchObject({ name: "Brakk", nameStyle: "nick", className: "Warrior", onlineKey: "tbc~brakk", specs: [{ spec: "Warrior-Fury", main: true, gear: "usable" }] });
     });
 });
+
+describe("KaderPage · removing a character in the account dialog", () => {
+    it("asks first, then drops the character from the draft", async () => {
+        await show("/kader/k1/pool");
+        await userEvent.click(screen.getByRole("button", { name: "Aldric" }));
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.account.removeChar") }));
+        const dialogs = await screen.findAllByRole("dialog");
+        const confirm = dialogs[dialogs.length - 1];
+        expect(within(confirm).getByText(t("kader.account.removeCharText"))).toBeInTheDocument();
+        await userEvent.click(within(confirm).getByRole("button", { name: t("common.remove") }));
+        await waitFor(() => expect(within(dialog).queryByRole("tab", { name: /Aldric Sturmwind/ })).toBeNull());
+    });
+});

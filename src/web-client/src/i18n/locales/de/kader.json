@@ -563,6 +563,8 @@
         "noTank": "Diese Klasse hat keinen Tank-Spec",
         "noHeal": "Diese Klasse hat keinen Heil-Spec",
         "removeChar": "Charakter entfernen",
+        "removeCharTitle": "{name} entfernen?",
+        "removeCharText": "Der Charakter verschwindet aus dem Planer; erst mit Übernehmen wird es gespeichert.",
         "noChars": "Dieser Account hat noch keinen Charakter. Lege oben einen an.",
         "fromProfile": "Aus EventHelper · nur lesen",
         "noProfile": "Dieser Account hat noch kein EventHelper-Profil. Alles hier wird im Kaderplaner eingetragen.",

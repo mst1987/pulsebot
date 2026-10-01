@@ -483,7 +483,8 @@ dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
 @media (max-width: 760px) { .kp-accgrid { grid-template-columns: minmax(0, 1fr); } }
 .kp-editor { display: flex; flex-direction: column; gap: 22px; min-width: 0; border: 0; padding: 0; margin: 0; }
 .kp-editor .seg { align-self: flex-start; }
-.kp-editor > .kp-link { align-self: flex-start; }
+.kp-dangerrow { display: flex; justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--line); }
+.kp-dangerrow .btn { min-height: 44px; }
 .kp-namerow { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
 .kp-namerow .field { margin-bottom: 0; flex: 1 1 150px; }
 .kp-classgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; }
