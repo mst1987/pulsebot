@@ -185,8 +185,9 @@ export function attendanceCategoriesOf(view: KaderView, kader: KaderData): Kader
 }
 
 /** A pick of raid categories with `id` switched on or off, in the server's order; ids the server no longer knows drop out. */
-export function togglePick(view: KaderView, ids: string[], id: string): string[] {
-    const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
+export function togglePick(view: KaderView, ids: string[] | undefined, id: string): string[] {
+    const list = ids || [];
+    const next = list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
     return view.raidCategories.map((c) => c.id).filter((x) => next.includes(x));
 }
 

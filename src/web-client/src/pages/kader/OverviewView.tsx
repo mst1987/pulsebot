@@ -10,7 +10,7 @@ import { setKaderState, type KaderClassDef, type KaderEntry, type KaderQuestion,
 import { Button, Segment } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
 import { HoverPanel } from "../../components/HoverPanel";
-import { ChevronLeftIcon, HourglassIcon, ListChecksIcon, SearchIcon } from "../../components/icons";
+import { HourglassIcon, ListChecksIcon, SearchIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
@@ -23,7 +23,7 @@ import { cleanState, passes, type FilterDef, type FilterOption, type FilterState
 import { FilterChips, FilterMenus } from "./FilterMenus";
 import { BatchBar } from "./BatchBar";
 import {
-    AnswerLines, ClassIcon, Count, DaySquares, DoneBadge, EmptyState, HistoryLines, InterviewChip, PlayerName, RoleIcon, SelectionTabs, SortHead, SpecTag,
+    AnswerLines, BackButton, ClassIcon, Count, DaySquares, DoneBadge, EmptyState, HistoryLines, InterviewChip, PlayerName, RoleIcon, SelectionTabs, SortHead, SpecTag,
     TableNote, WishLines,
 } from "./parts";
 import { useKader } from "./kaderContext";
@@ -256,7 +256,7 @@ export default function OverviewView() {
             </div>
             <BatchBar count={markedRows.length} onClear={() => setMarked([])}>
                 <Button size="sm" icon={<HourglassIcon />} onClick={() => void move("provisional")}>{t("kader.overview.toProvisional")}</Button>
-                <Button size="sm" variant="ghost" icon={<ChevronLeftIcon />} onClick={() => void move("pool")}>{t("kader.overview.toPool")}</Button>
+                <BackButton size="sm" label={t("kader.overview.toPool")} onClick={() => void move("pool")} />
             </BatchBar>
         </div>
     );

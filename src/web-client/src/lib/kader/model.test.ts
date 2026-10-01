@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { t } from "../../i18n";
-import { kader, kaderView, U, ME } from "../../pages/kader/kader.fixture";
+import { CAT, kader, kaderView, RAID_CATEGORIES, U, ME } from "../../pages/kader/kader.fixture";
 import {
-    attText, attendanceOf, byId, canMove, className, countStates, dayOf, daysSince, entriesIn, historyText, mainPick, nameOf,
-    playerName, roleCounts, searchText, specName, specRole, stampOf, wishLabel, wishOptions, MOVES, STATES,
+    attPartsText, attText, attendanceCategoriesOf, attendanceOf, byId, canMove, categoryLabel, className, countStates, dayOf, daysSince, entriesIn,
+    historyText, mainPick, nameOf, playerName, roleCounts, rolesOf, searchText, specName, specRole, stampOf, togglePick, versionsDiffer, wishLabel,
+    wishOptions, MOVES, STATES,
 } from "./model";
 
 describe("lib/kader/model", () => {
@@ -63,12 +64,57 @@ describe("lib/kader/model", () => {
         expect(entriesIn(k, ["roster", "bench"]).map(([id]) => id).sort()).toEqual([U.tank, U.sham].sort());
     });
 
-    it("takes the attendance of the planner's version, else the main version's with its label", () => {
-        expect(attendanceOf(view, players.get(U.tank))).toEqual({ pct: 90, version: "" });
-        expect(attendanceOf(view, players.get(U.mage))).toEqual({ pct: 80, version: "TBC" });
-        expect(attendanceOf(view, players.get(U.hand))).toBeNull();
+    it("sums the attendance over the Kader's raid categories only, with each category's share", () => {
+        const k = kader();
+        const tank = attendanceOf(view, k, players.get(U.tank));
+        // Mo 9/11 + Do 7/10
+        expect(tank && { attended: tank.attended, counted: tank.counted, pct: tank.pct }).toEqual({ attended: 16, counted: 21, pct: 76 });
+        expect(attPartsText(tank)).toBe("Mo Raid 9/11 · Do Raid 7/10");
+        // the nights of every picked category, newest first, each with its category
+        expect(tank?.nights.map((n) => [n.date, n.category])).toEqual([["2026-09-28", "Mo Raid"], ["2026-09-24", "Do Raid"], ["2026-09-21", "Mo Raid"]]);
+        // Liss: the PUG nights are not picked, only Do counts
+        expect(attendanceOf(view, k, players.get(U.mage))?.pct).toBe(40);
+        expect(attPartsText(attendanceOf(view, k, players.get(U.mage)))).toBe("Do Raid 2/5");
+        // picked, but no night counted for Tomas; Neuling has no attendance at all
+        expect(attendanceOf(view, k, players.get(U.sham))).toBeNull();
+        expect(attendanceOf(view, k, players.get(U.hand))).toBeNull();
+        expect(attendanceOf(view, k, undefined)).toBeNull();
         expect(attText(null)).toBe("—");
         expect(attText({ pct: 75 })).toBe("75 %");
+        expect(attPartsText(null)).toBe("");
+    });
+
+    it("shows no attendance at all while the Kader picked no category — no fallback", () => {
+        const none = kader({ attendanceCategories: [] });
+        expect(attendanceCategoriesOf(view, none)).toEqual([]);
+        expect(attendanceOf(view, none, players.get(U.tank))).toBeNull();
+        // an id the server no longer knows as a raid category counts for nothing
+        const gone = kader({ attendanceCategories: ["deleted-category", CAT.do] });
+        expect(attendanceCategoriesOf(view, gone).map((c) => c.id)).toEqual([CAT.do]);
+        expect(attendanceOf(view, gone, players.get(U.tank))?.pct).toBe(70);
+        // only the PUG category: Liss 4/4
+        expect(attendanceOf(view, kader({ attendanceCategories: [CAT.pug] }), players.get(U.mage))?.pct).toBe(100);
+    });
+
+    it("switches a category of the pick on and off, in the server's order", () => {
+        expect(togglePick(view, [CAT.do], CAT.mo)).toEqual([CAT.mo, CAT.do]);
+        expect(togglePick(view, [CAT.mo, CAT.do], CAT.mo)).toEqual([CAT.do]);
+        expect(togglePick(view, ["deleted-category"], CAT.pug)).toEqual([CAT.pug]);
+        expect(togglePick(view, undefined, CAT.pug)).toEqual([CAT.pug]);
+    });
+
+    it("names a category with its game version only while the categories play different ones", () => {
+        expect(versionsDiffer(view)).toBe(false);
+        expect(categoryLabel(view, RAID_CATEGORIES[0])).toBe("Mo Raid");
+        const mixed = kaderView({ raidCategories: [...RAID_CATEGORIES, { id: "c-fv", name: "Forever Raid", versionId: "forever", versionLabel: "Forever", nights: 0 }] });
+        expect(versionsDiffer(mixed)).toBe(true);
+        expect(categoryLabel(mixed, RAID_CATEGORIES[0])).toBe("Mo Raid · TBC");
+    });
+
+    it("lists the Discord roles a player holds that the server knows", () => {
+        expect(rolesOf(view, players.get(U.tank)).map((r) => r.name)).toEqual(["Raider"]);
+        expect(rolesOf(view, players.get(U.sham))).toEqual([]);
+        expect(rolesOf(view, undefined)).toEqual([]);
     });
 
     it("searches names, characters and wishes", () => {

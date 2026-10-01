@@ -10,7 +10,7 @@ import type { KaderData } from "../../api";
 import { t } from "../../i18n";
 import { switchLang } from "../../test/i18n";
 import { adminUser, renderPage } from "../../test/render";
-import { kader as kaderData, kaderView, U } from "./kader.fixture";
+import { CAT, kader as kaderData, kaderView, ME, U } from "./kader.fixture";
 import KaderPage from "./KaderPage";
 
 vi.mock("../../api", async (orig) => ({
@@ -26,6 +26,7 @@ vi.mock("../../api", async (orig) => ({
     addKaderQuestion: vi.fn(),
     deleteKaderQuestion: vi.fn(),
     saveKaderVariant: vi.fn(),
+    updateKader: vi.fn(),
 }));
 
 const PATH = "/kader/:kaderId?/:sub?";
@@ -122,8 +123,11 @@ describe("KaderPage · Pool", () => {
         expect(screen.getByText(t("kader.source.logs"))).toBeInTheDocument();
         // Neuling has no character data
         expect(screen.getAllByText(t("kader.pool.noData")).length).toBeGreaterThan(0);
-        // the attendance of the main version carries its label
-        expect(screen.getByText("80 %")).toHaveAttribute("data-tip", t("kader.pool.attendanceOf", { version: "TBC" }));
+        // the attendance over the Kader's two categories, each one's share in the tooltip
+        expect(screen.getByText("76 %")).toHaveAttribute("data-tip", t("kader.att.tip", { attended: 16, counted: 21 }));
+        expect(screen.getByText("76 %")).toHaveAttribute("data-tip-sub", "Mo Raid 9/11 · Do Raid 7/10");
+        // Liss: only Do counts (her PUG nights are not picked)
+        expect(screen.getByText("40 %")).toHaveAttribute("data-tip-sub", "Do Raid 2/5");
         await userEvent.click(screen.getByRole("switch", { name: t("kader.pool.toSelection", { name: "Neuling" }) }));
         expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.hand], "selected");
         // somebody further along shows their state instead of the switch
@@ -225,7 +229,8 @@ describe("KaderPage · Vorauswahl", () => {
         await show("/kader/k1/uebersicht");
         expect(screen.getByText("Liss")).toBeInTheDocument();
         expect(screen.getByText("Brakk")).toBeInTheDocument();
-        await userEvent.click(screen.getByRole("button", { name: /Im Voice-Chat aktiv\?/ }));
+        // the filter menu (the column head of the same name sorts)
+        await userEvent.click(screen.getByRole("button", { name: /Im Voice-Chat aktiv\?/, expanded: false }));
         await userEvent.click(screen.getByRole("menuitemcheckbox", { name: /Meistens/ }));
         expect(screen.queryByText("Liss")).toBeNull();
         expect(screen.getByText("Brakk")).toBeInTheDocument();
@@ -309,6 +314,161 @@ describe("KaderPage · Vorläufig und Roster", () => {
     });
 });
 
+describe("KaderPage · attendance per raid category", () => {
+    it("picks the raid categories in the attendance column's head, for the whole Kader", async () => {
+        vi.mocked(api.updateKader).mockResolvedValue(change(kaderData({ attendanceCategories: [CAT.mo, CAT.do, CAT.pug] })));
+        await show("/kader/k1/pool");
+        await userEvent.click(screen.getByRole("button", { name: t("kader.att.fromChange", { cats: "Mo Raid, Do Raid" }) }));
+        const menu = await screen.findByRole("menu", { name: t("kader.att.menuTitle") });
+        const items = within(menu).getAllByRole("menuitemcheckbox");
+        expect(items.map((i) => i.getAttribute("aria-checked"))).toEqual(["true", "true", "false"]);
+        // every count with its word
+        expect(within(menu).getByText(t("kader.att.nights", { count: 4 }))).toBeInTheDocument();
+        // the keyboard: the first category has the focus, the arrows move it
+        expect(items[0]).toHaveFocus();
+        await userEvent.keyboard("{ArrowDown}");
+        expect(items[1]).toHaveFocus();
+        await userEvent.click(within(menu).getByRole("menuitemcheckbox", { name: /PUG/ }));
+        expect(api.updateKader).toHaveBeenCalledWith("k1", { attendanceCategories: [CAT.mo, CAT.do, CAT.pug] });
+        // with the PUG nights Liss has 6 of 9
+        expect(await screen.findByText("67 %")).toHaveAttribute("data-tip-sub", "Do Raid 2/5 · PUG 4/4");
+    });
+
+    it("shows \"—\" and asks for a pick while the Kader counts in no category", async () => {
+        vi.mocked(api.getKader).mockResolvedValue(kaderView({ kader: kaderData({ attendanceCategories: [] }) }));
+        await show("/kader/k1/pool");
+        expect(screen.queryByText("76 %")).toBeNull();
+        const dashes = screen.getAllByText("—").filter((el) => el.getAttribute("data-tip") === t("kader.att.noneTip"));
+        expect(dashes).toHaveLength(7);
+        expect(dashes[0]).toHaveAttribute("data-tip-sub", t("kader.att.noneSub"));
+        expect(screen.getByRole("button", { name: t("kader.att.pickLong") })).toHaveTextContent(t("kader.att.pick"));
+        // the account dialog says the same
+        await userEvent.click(screen.getByRole("button", { name: "Aldric" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText(`${t("kader.att.noneTip")}. ${t("kader.att.noneSub")}`)).toBeInTheDocument();
+    });
+
+    it("picks the raid categories in the Kader's settings too", async () => {
+        vi.mocked(api.updateKader).mockResolvedValue(change());
+        await show("/kader/k1/pool");
+        await userEvent.click(screen.getByRole("button", { name: t("kader.header.settings") }));
+        const dialog = await screen.findByRole("dialog");
+        const group = within(dialog).getByRole("group", { name: t("kader.att.menuTitle") });
+        expect(within(group).getAllByRole("checkbox").map((b) => b.getAttribute("aria-checked"))).toEqual(["true", "true", "false"]);
+        expect(within(group).getByText(t("kader.att.nights", { count: 11 }))).toBeInTheDocument();
+        await userEvent.click(within(group).getByRole("checkbox", { name: /Mo Raid/ }));
+        await userEvent.click(within(group).getByRole("checkbox", { name: /PUG/ }));
+        await userEvent.click(within(dialog).getByRole("button", { name: t("common.save") }));
+        expect(api.updateKader).toHaveBeenCalledWith("k1", { name: "Forever-Kader", leads: [ME], attendanceCategories: [CAT.do, CAT.pug] });
+    });
+
+    it("shows it in the drawer and in the account dialog, with each category's share and the nights", async () => {
+        await show(`/kader/k1/roster?spieler=${U.tank}`);
+        const drawer = screen.getByRole("complementary", { name: t("kader.decide.drawer", { name: "Aldric" }) });
+        expect(within(drawer).getByText("76 %")).toBeInTheDocument();
+        expect(within(drawer).getByText(`${t("kader.att.tip", { attended: 16, counted: 21 })} · Mo Raid 9/11 · Do Raid 7/10`)).toBeInTheDocument();
+        await userEvent.click(within(drawer).getByRole("button", { name: "Aldric" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText("76 %")).toBeInTheDocument();
+        expect(within(dialog).getByText(t("kader.att.from", { cats: "Mo Raid 9/11 · Do Raid 7/10" }))).toBeInTheDocument();
+        expect(within(dialog).getByText(t("kader.account.nights", { n: 21, there: 16, missed: 5 }))).toBeInTheDocument();
+        // one square per night, newest first, the category in its tooltip
+        const nights = Array.from(dialog.querySelectorAll(".kp-nights i"));
+        expect(nights.map((n) => n.className)).toEqual(["on", "on", "off"]);
+        expect(nights[1].getAttribute("data-tip")).toContain("Do Raid");
+    });
+});
+
+describe("KaderPage · sorting", () => {
+    const rowNames = (table: HTMLElement) => within(table).getAllByRole("row")
+        .filter((r) => r.classList.contains("kp-trow") && !r.classList.contains("kp-thead"))
+        .map((r) => (r.querySelector(".kp-namebtn, .kp-strong") || r).textContent);
+
+    it("sorts the pool by a column head, says so with aria-sort and remembers it", async () => {
+        await show("/kader/k1/pool");
+        const table = screen.getByRole("table", { name: t("kader.pool.tableLabel", { name: "Forever-Kader" }) });
+        expect(rowNames(table)).toEqual(["Aldric", "Brakk", "Kael", "Liss", "Mira", "Neuling", "Tomas"]);
+        const head = within(table).getByRole("button", { name: t("kader.pool.colAttendance") });
+        await userEvent.click(head);
+        // highest first, "—" last
+        expect(rowNames(table)).toEqual(["Mira", "Aldric", "Liss", "Brakk", "Kael", "Neuling", "Tomas"]);
+        expect(head.closest("[role=columnheader]")).toHaveAttribute("aria-sort", "descending");
+        // the keyboard: the head is a button
+        head.focus();
+        await userEvent.keyboard("{Enter}");
+        expect(rowNames(table)).toEqual(["Liss", "Aldric", "Mira", "Brakk", "Kael", "Neuling", "Tomas"]);
+        expect(head.closest("[role=columnheader]")).toHaveAttribute("aria-sort", "ascending");
+        expect(JSON.parse(localStorage.getItem("eh-kader-pool-sort") || "{}")).toEqual({ sort: "attendance", dir: "asc" });
+        await userEvent.click(within(table).getByRole("button", { name: t("kader.pool.colSelection") }));
+        expect(rowNames(table)).toEqual(["Kael", "Tomas", "Aldric", "Mira", "Brakk", "Liss", "Neuling"]);
+    });
+
+    it("sorts the overview by a column head, inside every group", async () => {
+        const k = kaderData();
+        k.players[U.hand] = { ...k.players[U.hand], state: "selected", wishes: [{ className: "Warrior", spec: "Warrior-Fury" }] };
+        vi.mocked(api.getKader).mockResolvedValue(kaderView({ kader: k }));
+        await show("/kader/k1/uebersicht");
+        const table = screen.getByRole("table", { name: t("kader.overview.tableLabel", { name: "Forever-Kader" }) });
+        // grouped by role: melee (Brakk, Neuling), ranged (Liss)
+        expect(rowNames(table)).toEqual(["Brakk", "Neuling", "Liss"]);
+        await userEvent.click(within(table).getByRole("button", { name: t("kader.overview.colInterview") }));
+        // open before held — inside the melee group
+        expect(rowNames(table)).toEqual(["Neuling", "Brakk", "Liss"]);
+        expect(within(table).getByRole("button", { name: t("kader.overview.colInterview") }).closest("[role=columnheader]")).toHaveAttribute("aria-sort", "ascending");
+        await userEvent.click(screen.getByRole("radio", { name: t("kader.overview.byNone") }));
+        expect(rowNames(table)).toEqual(["Neuling", "Liss", "Brakk"]);
+        // a question column: the voice answers in option order, unanswered last
+        await userEvent.click(within(table).getByRole("button", { name: "Im Voice-Chat aktiv?" }));
+        expect(rowNames(table)).toEqual(["Liss", "Brakk", "Neuling"]);
+    });
+
+    it("sorts the import's member list", async () => {
+        await show("/kader/k1/pool");
+        await userEvent.click(screen.getByRole("button", { name: t("kader.pool.import") }));
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(within(dialog).getByRole("button", { name: /Raider/ }));
+        await userEvent.click(within(dialog).getByRole("button", { name: /Trial/ }));
+        const table = within(dialog).getByRole("table", { name: t("kader.import.tableLabel") });
+        expect(rowNames(table)).toEqual(["Gast", "Ohne"]);
+        await userEvent.click(within(table).getByRole("button", { name: t("kader.import.colDiscord") }));
+        expect(rowNames(table)).toEqual(["Ohne", "Gast"]);
+        expect(within(table).getByRole("columnheader", { name: t("kader.import.colDiscord") })).toHaveAttribute("aria-sort", "descending");
+        // the prefilled character, nothing known last in both directions
+        const prefill = within(table).getByRole("button", { name: t("kader.import.colPrefill") });
+        await userEvent.click(prefill);
+        expect(rowNames(table)).toEqual(["Gast", "Ohne"]);
+        await userEvent.click(prefill);
+        expect(rowNames(table)).toEqual(["Gast", "Ohne"]);
+    });
+});
+
+describe("KaderPage · back buttons", () => {
+    it("draws every step back as the same coloured button with an arrow", async () => {
+        vi.mocked(api.setKaderState).mockResolvedValue(change());
+        const first = await show(`/kader/k1/vorauswahl?spieler=${U.mage}`);
+        const panel = screen.getByRole("region", { name: t("kader.interview.aria", { name: "Liss" }) });
+        const toPool = within(panel).getByRole("button", { name: t("kader.interview.toPool") });
+        expect(toPool).toHaveClass("btn", "btn-ghost", "kp-backbtn");
+        expect(toPool.querySelector("svg")).not.toBeNull();
+        await userEvent.click(toPool);
+        expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.mage], "pool");
+        first.unmount();
+
+        const second = renderPage(<KaderPage />, { route: `/kader/k1/roster?spieler=${U.heal}`, path: PATH });
+        await screen.findByRole("button", { name: /Forever-Kader/ });
+        const drawer = screen.getByRole("complementary", { name: t("kader.decide.drawer", { name: "Mira" }) });
+        expect(within(drawer).getByRole("button", { name: t("kader.decide.back.selected") })).toHaveClass("kp-backbtn", "kp-wide");
+        expect(within(drawer).getByRole("button", { name: t("kader.decide.takeBack") })).toHaveClass("kp-backbtn", "btn-sm");
+        second.unmount();
+
+        renderPage(<KaderPage />, { route: "/kader/k1/fragen", path: PATH });
+        await screen.findByRole("button", { name: /Forever-Kader/ });
+        const back = screen.getByRole("link", { name: t("kader.questions.back") });
+        expect(back).toHaveClass("kp-backbtn");
+        expect(back).toHaveAttribute("href", "/kader/k1/vorauswahl");
+    });
+});
+
 describe("KaderPage · Fragen", () => {
     it("adds a question with its options", async () => {
         vi.mocked(api.addKaderQuestion).mockResolvedValue({ ...change(), questionId: "q9" });
@@ -371,6 +531,9 @@ describe("KaderPage · read-only and English", () => {
     it("lets a read-only grant look at everything but change nothing", async () => {
         await show("/kader/k1/pool", reader);
         expect(screen.queryByRole("button", { name: t("kader.pool.import") })).toBeNull();
+        // the attendance's categories as plain text, no menu
+        expect(screen.getByText("Mo Raid, Do Raid")).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: t("kader.att.fromChange", { cats: "Mo Raid, Do Raid" }) })).toBeNull();
         expect(screen.getByRole("switch", { name: t("kader.pool.toSelection", { name: "Neuling" }) })).toBeDisabled();
         expect(screen.queryByRole("button", { name: t("kader.header.settings") })).toBeNull();
     });

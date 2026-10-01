@@ -49,9 +49,14 @@
 }
 .kp-link:hover, .kp-link:focus-visible { color: var(--text); }
 .kp-link.kp-danger { color: var(--high); }
-.kp-link.kp-quiet { color: var(--muted); text-decoration: none; }
-.kp-link.kp-quiet:hover { color: var(--text); }
 .kp-link.kp-center { align-self: center; }
+.btn.kp-start { align-self: flex-start; }
+/* a step back (BackButton, parts.tsx): the same outlined, tinted button everywhere,
+   in its own colour (--back-*, tokens.css) — never a faint text link */
+.btn.btn-ghost.kp-backbtn { background: var(--back-bg); color: var(--back-ink); border-color: var(--back-line); font-weight: 600; text-decoration: none; }
+.btn.btn-ghost.kp-backbtn:hover:not(:disabled), .btn.btn-ghost.kp-backbtn:focus-visible { background: var(--back-bg-hover); border-color: var(--back-ink); }
+.btn.kp-backbtn svg { width: 16px; height: 16px; }
+.btn.btn-sm.kp-backbtn svg { width: 14px; height: 14px; }
 .kp-withicon { display: inline-flex; align-items: center; gap: 6px; }
 .kp-withicon svg { width: 14px; height: 14px; flex: none; }
 .kp-warn {
@@ -238,10 +243,54 @@
 .kp-trow:not(.kp-thead):hover { background: var(--panel2); }
 .kp-trow.kp-marked { background: var(--accent-soft); }
 .kp-scroll-x .kp-trow, .kp-scroll-x .kp-ghead { min-width: var(--minw, 860px); }
-.kp-pool-grid { grid-template-columns: 22px minmax(150px, 1.3fr) minmax(220px, 1.7fr) minmax(130px, 1fr) 96px 132px; }
+.kp-cell-mark { display: inline-flex; align-items: center; }
+/* a line that is no row of players (nobody found, an empty list) */
+.kp-tnote { border-top: 1px solid var(--line-soft); }
+/* a sortable column head (SortHead, parts.tsx): the kicker is the sort button, a
+   long label ends in "…" and keeps its chevron; extra controls go below it */
+.kp-th { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.kp-th > .kicker { display: flex; max-width: 100%; min-width: 0; }
+.kp-th .sort-link { max-width: 100%; min-width: 0; }
+/* the attendance column: which raid categories count, a menu for the leads */
+.kp-th-att { gap: 5px; }
+.kp-attsrc {
+    display: inline-flex; align-items: center; gap: 5px; max-width: 100%; min-height: 26px; padding: 2px 7px;
+    border: 1px solid var(--line); border-radius: 5px; background: var(--panel2); color: var(--text);
+    font: inherit; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer;
+}
+.kp-attsrc svg { width: 12px; height: 12px; flex: none; color: var(--muted); }
+.kp-attsrc:hover, .kp-attsrc:focus-visible, .kp-attsrc[aria-expanded="true"] { border-color: var(--accent); outline: none; }
+.kp-attsrc.kp-empty { border-color: var(--medium); background: var(--medium-bg); }
+.kp-attsrc.kp-empty svg:first-child { color: var(--medium); }
+.kp-attsrc.kp-static { cursor: default; padding: 0; border-color: transparent; background: none; color: var(--muted); font-weight: 400; }
+.kp-attsrc.kp-static.kp-empty { color: var(--medium); }
+.kp-attmenu { min-width: 280px; gap: 8px; padding: 8px; }
+.kp-attmenu-head { padding: 4px 6px 0; }
+.kp-attmenu-note { font-size: 12px; }
+.kp-attvalue { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; text-align: right; }
+.kp-attvalue b { font-size: 18px; }
+.kp-drawer-att { align-items: flex-start; }
+/* the raid categories to tick: rows in the settings, menu items in the column head */
+.kp-catlist { display: flex; flex-direction: column; gap: 8px; }
+.kp-catopt {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 12px;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text);
+    font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+}
+.kp-catopt:hover:not(:disabled), .kp-catopt:focus-visible { border-color: var(--accent); outline: none; }
+.kp-catopt.kp-on { border-color: var(--accent); background: var(--accent-soft); }
+.kp-catopt:disabled { cursor: default; opacity: .6; }
+.kp-catopt .kp-sub { flex: none; }
+.kp-attmenu .kp-catlist { gap: 2px; }
+.kp-attmenu .kp-catopt { min-height: 40px; padding: 4px 8px; border-color: transparent; background: none; }
+.kp-attmenu .kp-catopt:hover, .kp-attmenu .kp-catopt:focus-visible { background: var(--panel2); }
+.kp-attmenu .kp-catopt.kp-on { background: var(--accent-soft); }
+.kp-pool-table { --minw: 880px; }
+.kp-pool-grid { grid-template-columns: 22px minmax(150px, 1.3fr) minmax(220px, 1.7fr) minmax(130px, 1fr) 132px 132px; }
 /* the overview's width per question lives in OverviewView (--qcols, --minw): keep both in step */
-.kp-ov-grid { grid-template-columns: 22px minmax(130px, 1fr) minmax(160px, 1.25fr) minmax(110px, 1fr) var(--qcols,) 116px 48px; min-height: 48px; }
-/* a phone: the pool is a list — name over character, the switch on the right; roles and attendance stay in the peek */
+.kp-ov-grid { grid-template-columns: 22px minmax(130px, 1fr) minmax(160px, 1.25fr) minmax(110px, 1fr) var(--qcols,) 116px 56px; min-height: 48px; }
+/* a phone: the pool is a list — name over character, the switch on the right; roles and
+   attendance stay in the peek. The head becomes a bar of sort buttons, every column kept. */
 @media (max-width: 700px) {
     .kp-scroll-x .kp-trow.kp-pool-grid { min-width: 0; }
     .kp-pool-grid { grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: "mark name sel" "mark char sel"; row-gap: 4px; }
@@ -249,7 +298,9 @@
     .kp-pool-grid > :nth-child(2) { grid-area: name; }
     .kp-pool-grid > :nth-child(3) { grid-area: char; }
     .kp-pool-grid > :nth-child(6) { grid-area: sel; }
-    .kp-pool-grid > :nth-child(4), .kp-pool-grid > :nth-child(5), .kp-pool-grid.kp-thead > :nth-child(3) { display: none; }
+    .kp-pool-grid:not(.kp-thead) > :nth-child(4), .kp-pool-grid:not(.kp-thead) > :nth-child(5) { display: none; }
+    .kp-thead.kp-pool-grid { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+    .kp-thead.kp-pool-grid .kp-th { flex-direction: row; align-items: center; gap: 8px; max-width: 100%; }
 }
 .kp-cell-name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .kp-cell-name.kp-namerowcell { flex-direction: row; align-items: center; gap: 6px; }
@@ -356,8 +407,9 @@ dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
 .kp-roleopt.kp-on { background: var(--accent-soft); }
 .kp-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--cc); flex: none; box-shadow: inset 0 0 0 1px var(--shade-35); }
 .kp-import-list { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.kp-import-table { display: flex; flex-direction: column; min-width: 0; }
 .kp-import-rows { max-height: 380px; overflow: auto; }
-.kp-import-row { grid-template-columns: 22px minmax(0, 1.1fr) minmax(0, 1.4fr) 120px; padding: 8px 10px; }
+.kp-import-row { grid-template-columns: 22px minmax(0, 1.1fr) minmax(0, 1.4fr) 132px; padding: 8px 10px; }
 @media (max-width: 760px) {
     .kp-import-grid { grid-template-columns: minmax(0, 1fr); }
     .kp-import-roles { min-height: 0; }
@@ -366,6 +418,8 @@ dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
 @media (max-width: 600px) {
     .kp-import-row { grid-template-columns: 22px minmax(0, 1fr); gap: 4px 10px; }
     .kp-import-row > :nth-child(n+3) { grid-column: 2; }
+    /* the head: a bar of sort buttons */
+    .kp-thead.kp-import-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 }
 .kp-results { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow: auto; margin-top: 12px; }
 .kp-result { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 8px; border-radius: 6px; border: 1px solid transparent; min-width: 0; }
@@ -594,7 +648,7 @@ dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
 .kp-vote.kp-vote-no { background: var(--high-bg); color: var(--high); }
 .kp-block > .seg { align-self: stretch; }
 .kp-block > .seg .seg-opt { flex: 1 1 0; justify-content: center; }
-.kp-block > .kp-link { align-self: flex-start; }
+.kp-block > .kp-backbtn:not(.kp-wide) { align-self: flex-start; }
 .kp-comment { font-size: 13px; line-height: 1.45; }
 .kp-comment p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .kp-comment-head { display: flex; align-items: center; gap: 6px; min-height: 28px; }
@@ -651,9 +705,6 @@ dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
 
 /* ---- Fragen ---- */
 .kp-subhead { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
-.kp-back { display: inline-flex; align-items: center; gap: 6px; height: 40px; color: var(--muted); font-size: 14px; text-decoration: none; }
-.kp-back:hover, .kp-back:focus-visible { color: var(--text); }
-.kp-back svg { width: 16px; height: 16px; }
 .kp-subhead-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .kp-subhead-text h2 { margin: 0; font-size: 20px; font-weight: 800; }
 .kp-subhead-act { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1 1 auto; min-width: 0; }

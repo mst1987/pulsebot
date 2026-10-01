@@ -1,16 +1,18 @@
 // "Aus Discord-Rolle hinzufügen": pick roles of the server; everybody holding at
 // least one of them shows on the right with the character they would be
-// prefilled with (spec icon plus class; profile, logs or nothing yet). Whoever
-// is new is taken into this Kader's pool; who is already in the Kader stays as
-// they are.
+// prefilled with (spec icon plus class; profile, logs or nothing yet), sortable
+// by name, character and source (remembered). Whoever is new is taken into this
+// Kader's pool; who is already in the Kader stays as they are.
 import { useMemo, useState, type CSSProperties } from "react";
 import { addKaderPlayers, type KaderMember } from "../../api";
 import { Button, Modal, Segment } from "../../components/ui";
 import { useToast } from "../../components/Jobs";
-import { AlertIcon, CheckIcon, RecruitmentIcon, SearchIcon } from "../../components/icons";
+import { AlertIcon, CheckIcon, PlusIcon, RecruitmentIcon, SearchIcon } from "../../components/icons";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
-import { EmptyState, SpecTag } from "./parts";
+import { useTableSort } from "../../lib/tableSort";
+import { IMPORT_SORT, importParts, sortTable, type ImportSortKey } from "../../lib/kader/sort";
+import { EmptyState, SortHead, SpecTag, TableNote } from "./parts";
 import { useKader } from "./kaderContext";
 
 type List = "new" | "known" | "nodata";
@@ -32,7 +34,8 @@ export default function ImportModal({ onClose, onById }: { onClose: () => void; 
     const fresh = holders.filter((m) => !inKader(m));
     const known = holders.filter(inKader);
     const noData = fresh.filter((m) => !m.prefill);
-    const rows = list === "known" ? known : list === "nodata" ? noData : fresh;
+    const sort = useTableSort<ImportSortKey>("kader-import-sort", IMPORT_SORT, "name");
+    const rows = sortTable(list === "known" ? known : list === "nodata" ? noData : fresh, (m) => m.displayName, importParts(view, sort.sort, inKader), sort.dir);
     const chosen = fresh.filter((m) => !skip.includes(m.userId));
     const chosenNoData = chosen.filter((m) => !m.prefill).length;
     const roleNames = (m: KaderMember) => view.discordRoles.filter((r) => roles.includes(r.id) && m.roleIds.includes(r.id)).map((r) => r.name).join(" · ");
@@ -96,7 +99,7 @@ export default function ImportModal({ onClose, onById }: { onClose: () => void; 
                     </div>
                     <span className="kp-grow" />
                     <p className="kp-note">{t("kader.import.rolesHint")}</p>
-                    <button type="button" className="kp-link" onClick={onById}>{t("kader.import.byId")}</button>
+                    <Button variant="ghost" size="sm" icon={<PlusIcon />} className="kp-start" onClick={onById}>{t("kader.import.byId")}</Button>
                 </aside>
                 <section className="kp-import-list">
                     <div className="kp-between">
@@ -107,33 +110,37 @@ export default function ImportModal({ onClose, onById }: { onClose: () => void; 
                             { value: "nodata", label: t("kader.import.listNoData", { n: noData.length }), icon: noData.length ? <AlertIcon /> : undefined },
                         ]} />
                     </div>
-                    <div className="kp-trow kp-thead kp-import-row">
-                        <span />
-                        <span className="kicker">{t("kader.import.colDiscord")}</span>
-                        <span className="kicker">{t("kader.import.colPrefill")}</span>
-                        <span className="kicker">{t("kader.import.colSource")}</span>
-                    </div>
-                    <div className="kp-import-rows">
-                        {!roles.length && <EmptyState icon={<RecruitmentIcon />} text={t("kader.import.pickRoles")} />}
-                        {!!roles.length && !rows.length && <EmptyState icon={<SearchIcon />} text={t("kader.import.nobody")} />}
-                        {rows.map((m) => {
-                            const member = inKader(m);
-                            const checked = !member && !skip.includes(m.userId);
-                            return (
-                                <div key={m.userId} className={`kp-trow kp-import-row${member ? " kp-dim" : ""}`}>
-                                    <input type="checkbox" checked={checked} disabled={member} aria-label={t("kader.import.take", { name: m.displayName })}
-                                        onChange={(e) => setSkip(e.target.checked ? skip.filter((id) => id !== m.userId) : [...skip, m.userId])} />
-                                    <span className="kp-col">
-                                        <span className="kp-strong">{m.displayName}</span>
-                                        <span className="kp-sub">{roleNames(m)}</span>
-                                    </span>
-                                    <span className="kp-cell-char">
-                                        {m.prefill ? <SpecTag pick={m.prefill} size={22} /> : <span className="kp-warntext">{t("kader.import.noData")}</span>}
-                                    </span>
-                                    <span className={`kp-sub${m.prefill ? "" : " kp-warntext"}`}>{sourceText(m)}</span>
-                                </div>
-                            );
-                        })}
+                    <div className="kp-import-table" role="table" aria-label={t("kader.import.tableLabel")}>
+                        <div className="kp-trow kp-thead kp-import-row" role="row">
+                            <span role="columnheader" className="kp-cell-mark"><span className="kp-sr">{t("kader.import.colTake")}</span></span>
+                            <SortHead sortKey="name" label={t("kader.import.colDiscord")} sort={sort} />
+                            <SortHead sortKey="prefill" label={t("kader.import.colPrefill")} sort={sort} tip={t("kader.import.colPrefill")} tipSub={t("kader.sort.prefillSub")} />
+                            <SortHead sortKey="source" label={t("kader.import.colSource")} sort={sort} tip={t("kader.import.colSource")} tipSub={t("kader.sort.sourceSub")} />
+                        </div>
+                        <div className="kp-import-rows" role="rowgroup">
+                            {!roles.length && <TableNote><EmptyState icon={<RecruitmentIcon />} text={t("kader.import.pickRoles")} /></TableNote>}
+                            {!!roles.length && !rows.length && <TableNote><EmptyState icon={<SearchIcon />} text={t("kader.import.nobody")} /></TableNote>}
+                            {rows.map((m) => {
+                                const member = inKader(m);
+                                const checked = !member && !skip.includes(m.userId);
+                                return (
+                                    <div key={m.userId} className={`kp-trow kp-import-row${member ? " kp-dim" : ""}`} role="row">
+                                        <span role="cell" className="kp-cell-mark">
+                                            <input type="checkbox" checked={checked} disabled={member} aria-label={t("kader.import.take", { name: m.displayName })}
+                                                onChange={(e) => setSkip(e.target.checked ? skip.filter((id) => id !== m.userId) : [...skip, m.userId])} />
+                                        </span>
+                                        <span role="cell" className="kp-col">
+                                            <span className="kp-strong">{m.displayName}</span>
+                                            <span className="kp-sub">{roleNames(m)}</span>
+                                        </span>
+                                        <span role="cell" className="kp-cell-char">
+                                            {m.prefill ? <SpecTag pick={m.prefill} size={22} /> : <span className="kp-warntext">{t("kader.import.noData")}</span>}
+                                        </span>
+                                        <span role="cell" className={`kp-sub${m.prefill ? "" : " kp-warntext"}`}>{sourceText(m)}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                     {view.members.length === 0 && <p className="kp-warntext">{t("kader.import.offline")}</p>}
                 </section>

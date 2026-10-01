@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { KaderVariant } from "../../api";
 import { kader, kaderView, U } from "../../pages/kader/kader.fixture";
+import { switchLang } from "../../test/i18n";
 import {
-    defaultSpec, groupHints, moveToSlot, placedIds, removeFromGroups, setSlotSpec, setupText, slotRoles, specsFor, unplaced, visibleGroups,
+    buffLabel, defaultSpec, groupHints, moveToSlot, placedIds, removeFromGroups, setSlotSpec, setupText, slotRoles, specsFor, unplaced, visibleGroups,
 } from "./setup";
 
 const view = kaderView();
@@ -53,6 +54,21 @@ describe("lib/kader/setup", () => {
         // two who want Windfury and nobody bringing it: missing
         const wanting = [{ userId: U.tank, spec: "Warrior-Protection" }, { userId: U.done, spec: "Warrior-Fury" }, null, null, null];
         expect(groupHints(wanting, view.buffs.party)).toEqual([{ key: "windfury", label: "Totem des Windzorns", ok: false, important: true }]);
+    });
+
+    it("names a buff with the rule set's English name in English, the German one else", async () => {
+        const [windfury] = view.buffs.party;
+        expect(buffLabel(windfury)).toBe("Totem des Windzorns");
+        await switchLang("en");
+        try {
+            expect(buffLabel(windfury)).toBe("Windfury Totem");
+            const groups = moveToSlot(variant().groups, U.heal, "Shaman-Restoration", 0, 1);
+            expect(groupHints(groups[0], view.buffs.party).map((h) => h.label)).toEqual(["Windfury Totem"]);
+            // a buff the rule set knows no English name for keeps its German one
+            expect(buffLabel({ ...windfury, labelEn: "" })).toBe("Totem des Windzorns");
+        } finally {
+            await switchLang("de");
+        }
     });
 
     it("writes the variant as text for Discord", () => {

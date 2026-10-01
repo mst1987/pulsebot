@@ -63,6 +63,7 @@
                     "leads": [],
                     "createdAt": "2026-10-01T12:00:00.000Z",
                     "createdBy": "",
+                    "attendanceCategories": [],
                     "questions": [],
                     "players": {
                         "111111111111111111": {
@@ -313,6 +314,7 @@
                     "leads": [],
                     "createdAt": "2026-10-01T12:00:00.000Z",
                     "createdBy": "",
+                    "attendanceCategories": [],
                     "questions": [],
                     "players": {
                         "222222222222222222": {

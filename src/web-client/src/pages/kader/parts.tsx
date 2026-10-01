@@ -6,7 +6,8 @@
 // they count, the status of an interview (open circle, progress ring, check),
 // votes, empty states, a switch, the week squares, the head of a sub page, the
 // two tabs of the Vorauswahl, what an interview says (wishes, answers,
-// history) and the sortable column head of the planner's tables.
+// history), the sortable column head of the planner's tables and the button
+// of every step back.
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { KaderEntry, KaderPrefill, KaderQuestion, KaderAnswer, KaderRole, KaderState, KaderVote, KaderWish } from "../../api";
@@ -14,9 +15,9 @@ import { classColorProps } from "../../components/ClassSpec";
 import { SortLabel, ariaSort } from "../../components/SortTh";
 import type { TableSort } from "../../lib/tableSort";
 import {
-    BenchIcon, CheckIcon, ChevronLeftIcon, CircleIcon, CrestIcon, HourglassIcon, ListChecksIcon, RosterIcon, TentativeIcon, XIcon,
+    ArrowLeftIcon, BenchIcon, CheckIcon, CircleIcon, CrestIcon, HourglassIcon, ListChecksIcon, RosterIcon, TentativeIcon, XIcon,
 } from "../../components/icons";
-import { WowIcon } from "../../components/ui";
+import { WowIcon, buttonClass } from "../../components/ui";
 import { useT } from "../../i18n";
 import { ROLE_ICON } from "../../lib/raidplan/assign";
 import { roleLabel } from "../../lib/wowNames";
@@ -273,12 +274,33 @@ export function DaySquares({ question, value }: { question: KaderQuestion; value
     );
 }
 
+/**
+ * A step back — "Zurück in den Pool", "Zurück in die Vorauswahl", "Zurück ins
+ * vorläufige Roster", "Zur Vorauswahl": always this one button, an arrow and
+ * the words on a tinted, outlined face in the back colour (--back-*,
+ * tokens.css; 4.5:1 in both themes), never a faint text link. A link when
+ * `to` is given (the head of a sub page).
+ */
+export function BackButton({ label, onClick, to, size = "md", disabled = false, wide = false }: {
+    label: string;
+    onClick?: () => void;
+    to?: string;
+    size?: "md" | "sm";
+    disabled?: boolean;
+    /** The full width of its block (the drawer's decision). */
+    wide?: boolean;
+}) {
+    const cls = buttonClass("ghost", size, true, `kp-backbtn${wide ? " kp-wide" : ""}`);
+    if (to) return <Link to={to} className={cls}><ArrowLeftIcon />{label}</Link>;
+    return <button type="button" className={cls} disabled={disabled} onClick={onClick}><ArrowLeftIcon />{label}</button>;
+}
+
 /** The head of a sub page (Fragen, Beispiel-Setups): back to its step, kicker and title, actions on the right. */
 export function SubHead({ back, backLabel, kicker, title, children }: { back: KaderSub; backLabel: string; kicker: string; title: string; children?: ReactNode }) {
     const { kader } = useKader();
     return (
         <div className="kp-subhead">
-            <Link to={`/kader/${kader.id}/${back}`} className="kp-back"><ChevronLeftIcon />{backLabel}</Link>
+            <BackButton to={`/kader/${kader.id}/${back}`} label={backLabel} />
             <span className="kp-vrule" aria-hidden="true" />
             <div className="kp-subhead-text">
                 <div className="kicker">{kicker}</div>

@@ -1,8 +1,12 @@
 // A small Kaderplaner view model for the tests: three classes, one Kader with
 // a player in every state — the signed-in admin ("u1") leads it — three
 // questions (weekdays, voice, a free text), one 20er variant, and a second
-// Kader with questions to copy from.
-import type { KaderCharacter, KaderData, KaderEntry, KaderPlayer, KaderQuestion, KaderSlot, KaderView } from "../../api";
+// Kader with questions to copy from. Three raid categories of the server; the
+// Kader counts attendance in two of them (Mo Raid, Do Raid), the PUG category
+// is left out.
+import type {
+    KaderCategoryAttendance, KaderCharacter, KaderData, KaderEntry, KaderNight, KaderPlayer, KaderQuestion, KaderRaidCategory, KaderSlot, KaderView,
+} from "../../api";
 
 export const U = {
     tank: "111111111111111111", heal: "222222222222222222", sham: "333333333333333333", mage: "444444444444444444",
@@ -10,6 +14,17 @@ export const U = {
 };
 export const ME = "u1";
 export const NOW = "2026-09-30T18:00:00.000Z";
+export const CAT = { mo: "c-mo", do: "c-do", pug: "c-pug" };
+export const RAID_CATEGORIES: KaderRaidCategory[] = [
+    { id: CAT.mo, name: "Mo Raid", versionId: "tbc", versionLabel: "TBC", nights: 11 },
+    { id: CAT.do, name: "Do Raid", versionId: "tbc", versionLabel: "TBC", nights: 10 },
+    { id: CAT.pug, name: "PUG", versionId: "tbc", versionLabel: "TBC", nights: 4 },
+];
+
+/** One category's share: `attended` of `counted` nights, the nights themselves optional. */
+export function att(attended: number, counted: number, nights: KaderNight[] = []): KaderCategoryAttendance {
+    return { attended, counted, nights };
+}
 
 function char(over: Partial<KaderCharacter>): KaderCharacter {
     return {
@@ -21,7 +36,7 @@ function char(over: Partial<KaderCharacter>): KaderCharacter {
 export function player(over: Partial<KaderPlayer> & { userId: string }): KaderPlayer {
     return {
         displayName: over.userId, avatarUrl: null, onServer: true, roleIds: [], hasProfile: true, manual: false, hasOverride: false,
-        characters: [], activeCharacterId: null, differs: [], profile: null, prefill: null, availability: [], attendance: null, attendanceMain: null, ...over,
+        characters: [], activeCharacterId: null, differs: [], profile: null, prefill: null, availability: [], attendance: null, ...over,
     };
 }
 
@@ -49,6 +64,7 @@ export function kader(over: Partial<KaderData> = {}): KaderData {
     setupGroups[0][0] = { userId: U.tank, spec: "Warrior-Protection" };
     return {
         id: "k1", name: "Forever-Kader", leads: [ME], createdAt: "2026-09-20T18:00:00.000Z", createdBy: ME,
+        attendanceCategories: [CAT.mo, CAT.do],
         questions: QUESTIONS,
         players: {
             [U.hand]: entry({ name: "Neuling" }),
@@ -80,17 +96,26 @@ export function kaderView(over: Partial<KaderView> = {}): KaderView {
             characters: [char({ id: "t", name: "Aldric Sturmwind", className: "Warrior", mainSpec: "Warrior-Protection", role: "tank", gear: "ready", specs: [{ spec: "Warrior-Protection", main: true, gear: "ready" }] })],
             activeCharacterId: "t",
             prefill: { name: "Aldric Sturmwind", className: "Warrior", spec: "Warrior-Protection", source: "profile", versionId: "" },
-            attendance: { attended: 9, counted: 10, pct: 90, nights: [] },
+            // Mo 9/11 + Do 7/10 = 16 of 21 = 76 %
+            attendance: {
+                [CAT.mo]: att(9, 11, [
+                    { date: "2026-09-28", title: "Karazhan", attended: true, reason: null },
+                    { date: "2026-09-21", title: "Karazhan", attended: false, reason: "abgemeldet" },
+                ]),
+                [CAT.do]: att(7, 10, [{ date: "2026-09-24", title: "Gruul", attended: true, reason: null }]),
+            },
         }),
         player({
             userId: U.heal, displayName: "Mira", roleIds: ["r1"],
             prefill: { name: "Mira Sonnlicht", className: "Shaman", spec: "Shaman-Restoration", source: "logs", versionId: "" },
+            attendance: { [CAT.mo]: att(11, 11) },
         }),
         player({ userId: U.sham, displayName: "Tomas", prefill: { name: "Tomas Erdherz", className: "Shaman", spec: "Shaman-Enhancement", source: "profile", versionId: "" } }),
         player({
             userId: U.mage, displayName: "Liss", roleIds: ["r2"],
             prefill: { name: "Liss Funkenhand", className: "Mage", spec: "Mage-Frost", source: "profile", versionId: "" },
-            attendanceMain: { attended: 4, counted: 5, pct: 80, nights: [] },
+            // only Do counts for this Kader: 2 of 5 = 40 % (the PUG nights stay out)
+            attendance: { [CAT.pug]: att(4, 4), [CAT.do]: att(2, 5) },
         }),
         player({ userId: U.hand, displayName: "Neuling", hasProfile: false, manual: true }),
         player({ userId: U.done, displayName: U.done, prefill: { name: "Brakk Eisenfaust", className: "Warrior", spec: "Warrior-Fury", source: "profile", versionId: "" } }),
@@ -115,9 +140,10 @@ export function kaderView(over: Partial<KaderView> = {}): KaderView {
                 { key: "Mage-Fire", name: "Feuer", nameEn: "Fire", role: "ranged", canTank: false, canHeal: false, icon: "spell_fire_firebolt02" },
             ] },
         ],
+        raidCategories: RAID_CATEGORIES,
         buffs: {
             raid: [],
-            party: [{ key: "windfury", label: "Totem des Windzorns", icon: "", providers: ["Shaman-Enhancement", "Shaman-Restoration"], beneficiaries: ["Warrior-Protection", "Warrior-Fury", "Shaman-Enhancement"], important: true }],
+            party: [{ key: "windfury", label: "Totem des Windzorns", labelEn: "Windfury Totem", icon: "", providers: ["Shaman-Enhancement", "Shaman-Restoration"], beneficiaries: ["Warrior-Protection", "Warrior-Fury", "Shaman-Enhancement"], important: true }],
         },
         players,
         members: [

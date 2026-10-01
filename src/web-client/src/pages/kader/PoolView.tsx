@@ -12,7 +12,7 @@ import { Button, Segment } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
 import { useToast } from "../../components/Jobs";
 import { HoverPanel } from "../../components/HoverPanel";
-import { ChevronLeftIcon, ListChecksIcon, RecruitmentIcon, RosterIcon, SearchIcon, TrashIcon } from "../../components/icons";
+import { ListChecksIcon, PlusIcon, RecruitmentIcon, RosterIcon, SearchIcon, TrashIcon } from "../../components/icons";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { useTableSort } from "../../lib/tableSort";
@@ -22,7 +22,7 @@ import { cleanState, passes, type FilterDef, type FilterState } from "../../lib/
 import { FilterChips, FilterMenus } from "./FilterMenus";
 import { BatchBar } from "./BatchBar";
 import { AttendanceSource, AttendanceValue } from "./Attendance";
-import { EmptyState, PlayerName, SinceText, SortHead, SourceBadge, SpecTag, StateBadge, Switch, TableNote } from "./parts";
+import { BackButton, EmptyState, PlayerName, SinceText, SortHead, SourceBadge, SpecTag, StateBadge, Switch, TableNote } from "./parts";
 import { useKader } from "./kaderContext";
 
 type Scope = "all" | "pool" | "selected";
@@ -180,7 +180,7 @@ export default function PoolView() {
                 <span className="kp-grow" />
                 {canWrite && (
                     <span className="kp-actions">
-                        <button type="button" className="kp-link" onClick={() => open({ type: "addById" })}>{t("kader.pool.byId")}</button>
+                        <Button variant="ghost" icon={<PlusIcon />} onClick={() => open({ type: "addById" })}>{t("kader.pool.byId")}</Button>
                         {importButton}
                     </span>
                 )}
@@ -218,7 +218,7 @@ export default function PoolView() {
             </div>
             <BatchBar count={markedRows.length} onClear={() => setMarked([])}>
                 <Button size="sm" icon={<ListChecksIcon />} onClick={() => void moveMarked("selected")}>{t("kader.pool.batchSelect")}</Button>
-                <Button size="sm" variant="ghost" icon={<ChevronLeftIcon />} onClick={() => void moveMarked("pool")}>{t("kader.pool.batchUnselect")}</Button>
+                <BackButton size="sm" label={t("kader.pool.batchUnselect")} onClick={() => void moveMarked("pool")} />
                 <Button size="sm" variant="danger" icon={<TrashIcon />} onClick={() => void removeMarked()}>{t("kader.pool.remove")}</Button>
             </BatchBar>
         </div>

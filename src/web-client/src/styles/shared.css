@@ -416,8 +416,10 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .sort-link:hover { color: var(--accent); }
 .sort-link.active { color: var(--accent); }
 .sort-link.tipped { text-decoration: underline dotted; text-decoration-color: var(--line); text-underline-offset: 3px; }
+/* the label: in a column narrower than it, it ends in "…" and the chevron stays */
+.sort-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* the active column's direction: one chevron, turned for ascending */
-.sort-chev { display: inline-block; width: 12px; height: 12px; margin-left: 3px; }
+.sort-chev { display: inline-block; flex: none; width: 12px; height: 12px; margin-left: 3px; }
 .sort-chev svg { width: 12px; height: 12px; display: block; }
 .sort-chev.asc svg { transform: rotate(180deg); }
 .pager { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }

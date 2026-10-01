@@ -14,7 +14,7 @@ import {
     type KaderAnswer, type KaderEntry, type KaderQuestion, type KaderWish,
 } from "../../api";
 import { Button, IconButton, Segment, buttonClass } from "../../components/ui";
-import { AlertIcon, BookIcon, CheckIcon, ChevronDownIcon, ChevronLeftIcon, CircleIcon, EditIcon, ListChecksIcon, PlusIcon, SaveIcon, XIcon } from "../../components/icons";
+import { AlertIcon, BookIcon, CheckIcon, ChevronDownIcon, CircleIcon, EditIcon, ListChecksIcon, PlusIcon, SaveIcon, XIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
@@ -23,7 +23,9 @@ import { classDef, className, dayOf, mainPick, nameOf, playerName, specName, spe
 import {
     dayShort, draftOf, isAnswered, isWeekdays, moveWish, patchOf, placeWish, progress, statusOf, toggleAnswer, type InterviewDraft,
 } from "../../lib/kader/interview";
-import { Count, DoneBadge, EmptyState, Grip, InterviewChip, PickIcon, PickLabel, PlayerName, ProgressRing, SelectionTabs, SpecIcon, SpecTag, StateSince } from "./parts";
+import {
+    BackButton, Count, DoneBadge, EmptyState, Grip, InterviewChip, PickIcon, PickLabel, PlayerName, ProgressRing, SelectionTabs, SpecIcon, SpecTag, StateSince,
+} from "./parts";
 import { useKader } from "./kaderContext";
 
 type Shown = "open" | "done" | "all";
@@ -309,9 +311,7 @@ function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: 
                         : iv.updatedAt ? t("kader.interview.lastSaved", { by: nameOf(view, iv.updatedBy), at: stampOf(iv.updatedAt) })
                             : t("kader.interview.notSaved")}
                 </span>
-                {canWrite && entry.state === "selected" && (
-                    <button type="button" className="kp-link kp-quiet kp-withicon" onClick={() => void toPool()}><ChevronLeftIcon />{t("kader.interview.toPool")}</button>
-                )}
+                {canWrite && entry.state === "selected" && <BackButton label={t("kader.interview.toPool")} onClick={() => void toPool()} />}
                 <span className="kp-grow" />
                 {canWrite && !done && !complete && <span className="kp-sub kp-warntext kp-withicon"><AlertIcon />{t("kader.interview.missing", { list: missing.join(", ") })}</span>}
                 {canWrite && done && <Button variant="ghost" icon={<EditIcon />} onClick={() => void run(reopenKaderInterview(kader.id, userId))}>{t("kader.interview.reopen")}</Button>}
