@@ -3,7 +3,8 @@
 //   GET  /api/raids/setup?event=<id>          area raids (read): the orga gets the draft,
 //                                              everyone else only the approved lineup
 //   POST /api/raids/setup/propose             raids write: new proposal, locked places kept
-//   PUT  /api/raids/setup                     raids write: the orga's own lineup
+//   PUT  /api/raids/setup                     raids write: the orga's own lineup — once the
+//                                              setup is posted, live into its message
 //   POST /api/raids/setup/approve             raids write: approve the shown version — and
 //                                              post it into the channel / DM it (#290)
 //   POST /api/raids/setup/post                raids write: post or edit the approved setup
@@ -125,18 +126,37 @@ async function answer(res, result, user, extra = {}) {
     ok(res, { ...(await view(result.event, user, { names: false })), ...extra });
 }
 
+/**
+ * A change of a posted setup went live (setupEditor.storeSetup): the setup
+ * message follows — awaited, so the answer's `publish` already shows the edit
+ * — and the event message like after an approval. A failed edit never fails
+ * the change: its text comes back for the answer's message, "" when all went well.
+ */
+async function followLive(result, user) {
+    if (!result || result.error || !result.live) return "";
+    const post = await setupMessage.refreshLiveSetup(result.event.id, { userId: user.id });
+    if (result.event.message) {
+        refreshEventMessage(result.event.id).catch((e) => console.error(`[setup] event message ${result.event.id}:`, e.message));
+    }
+    return post.code ? `Setup-Nachricht nicht aktualisiert: ${post.error}` : "";
+}
+
 /** POST /api/raids/setup/propose — body `{ event, weights?, fairness?, wishes? }` */
 const postPropose = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.proposeEventSetup(String(body.event).trim(), body, { userId: user.id });
-    await answer(res, result, user, { message: "Neuer Vorschlag erstellt." });
+    const failed = await followLive(result, user);
+    const message = result.live ? "Neuer Vorschlag erstellt – die gepostete Setup-Nachricht zeigt ihn schon." : "Neuer Vorschlag erstellt.";
+    await answer(res, result, user, { message: failed ? `Neuer Vorschlag erstellt. ${failed}` : message });
 });
 
 /** PUT /api/raids/setup — body `{ event, version, groups, bench, weights?, fairness?, wishes? }` */
 const putSetup = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.saveEventSetup(String(body.event).trim(), body, { userId: user.id });
-    await answer(res, result, user);
+    // a move answers quietly; only a failed edit of the posted message is said
+    const failed = await followLive(result, user);
+    await answer(res, result, user, failed ? { message: failed } : {});
 });
 
 /** "Bench mitposten" (#517): true/false from the body, undefined = keep the event's last choice. */
@@ -206,7 +226,8 @@ const putSignupEdit = withUser({ write: "raids", csrf: true, body: true, archive
     if (!eventOf(res, body.event)) return;
     const result = await setupSignup.changeSignupFromSetup(String(body.event).trim(), body.userId, body, { user });
     if (result.error) return error(res, result.status || 400, result.code || "failed", result.error);
-    await answer(res, { event: result.event }, user, { message: result.message, warning: result.warning || "" });
+    const failed = await followLive(result, user);
+    await answer(res, { event: result.event }, user, { message: failed ? `${result.message} ${failed}` : result.message, warning: result.warning || "" });
 });
 
 /** POST /api/raids/setup/search/text — body `{ event, roles, buffs }`: the message for needs the orga edited (nothing is posted). */

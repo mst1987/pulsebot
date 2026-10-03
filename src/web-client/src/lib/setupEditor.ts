@@ -463,10 +463,15 @@ export function publishHint(publish: SetupPublish | undefined, approved: boolean
         parts.push(t("setup.publish.dmsOffShort"));
         lines.push(offSub);
     }
+    // a change after the post goes live without DMs — who still waits for one ("Setup posten" sends it);
+    // the failed ones are already named above
+    const open = (publish.pendingDms || 0) - (failed && dms ? dms.failed.length : 0);
+    if (!running && publish.dmsEnabled && open > 0) parts.push(t("setup.publish.dmsPending", { count: open }));
     if (publish.outdated) {
         lines.unshift(t("setup.publish.outdated", { version: publish.posted.version }));
     }
-    return { tone, text: parts.join(" · "), tip: t("setup.publish.tip"), sub: lines.join("\n") || t("setup.publish.reapproveSub"), running, canPost: true };
+    lines.push(t("setup.publish.liveSub"));
+    return { tone, text: parts.join(" · "), tip: t("setup.publish.tip"), sub: lines.join("\n"), running, canPost: true };
 }
 
 /** The missing buffs, one row per set of specs that brings them — six blessings of the same paladin specs are one row, not six. */

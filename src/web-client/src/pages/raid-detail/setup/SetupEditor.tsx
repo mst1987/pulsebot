@@ -127,7 +127,8 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                 // only the last pending save redraws; earlier answers would flash an older lineup
                 if (ticket === saving.current) {
                     saving.current = 0;
-                    accept(next);
+                    // a move answers quietly — a message only when the posted setup could not follow
+                    accept(next, next.message);
                 }
             } catch (e) {
                 saving.current = 0;

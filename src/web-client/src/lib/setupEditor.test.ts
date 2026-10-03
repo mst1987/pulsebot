@@ -232,7 +232,7 @@ describe("what posting the setup will do / did (#290)", () => {
 
     it("says after approving what happened, failures in the tooltip", () => {
         const done = lib.publishHint(publish({
-            dmsEnabled: true,
+            dmsEnabled: true, pendingDms: 3,
             posted: { messageUrl: "u", version: 2, postedAt: 100, editedAt: 0 },
             dms: { status: "done", version: 2, at: 120, total: 25, sent: 22, failed: [{ userId: "1", character: "Kael", error: "Cannot send" }, { userId: "2", character: "", error: "x" }, { userId: "3", character: "Zibbo", error: "y" }], unchanged: 0 },
         }), true, time);
@@ -248,6 +248,16 @@ describe("what posting the setup will do / did (#290)", () => {
         expect(off.sub).toContain("Stand 1");
     });
 
+    it("says that changes go live and how many DMs a live change left open", () => {
+        const posted = { messageUrl: "u", version: 3, postedAt: 100, editedAt: 300 };
+        const dms = { status: "done", version: 2, at: 120, total: 25, sent: 25, failed: [], unchanged: 0 };
+        const live = lib.publishHint(publish({ dmsEnabled: true, pendingDms: 2, posted, dms }), true, time);
+        expect(live).toMatchObject({ tone: "ok", text: "aktualisiert T300 in #kara-do · 25 DMs · 2 DMs offen", canPost: true });
+        expect(live.sub).toContain("aktualisieren die Nachricht sofort");
+        const none = lib.publishHint(publish({ dmsEnabled: true, pendingDms: 0, posted, dms }), true, time);
+        expect(none.text).toBe("aktualisiert T300 in #kara-do · 25 DMs");
+    });
+
     it("names an error, a missing post and a cancelled event", () => {
         expect(lib.publishHint(publish({ error: "Bot nicht verbunden.", errorAt: 50 }), true, time)).toMatchObject({ tone: "bad", text: "Setup nicht gepostet: Bot nicht verbunden.", canPost: true });
         expect(lib.publishHint(publish(), true, time)).toMatchObject({ tone: "mid", text: "Noch nicht in #kara-do gepostet" });
@@ -257,7 +267,7 @@ describe("what posting the setup will do / did (#290)", () => {
     it("speaks English when the page does", async () => {
         await inLang("en", () => {
             expect(lib.publishHint(publish(), false, time).text).toBe("On approval: posts the setup in #kara-do · DMs to 25 raiders (off)");
-            const done = publish({ posted: { messageUrl: "u", version: 1, postedAt: 100, editedAt: 0 }, dmsEnabled: true, dms: { status: "done", version: 1, at: 1, total: 1, sent: 1, failed: [], unchanged: 0 } });
+            const done = publish({ posted: { messageUrl: "u", version: 1, postedAt: 100, editedAt: 0 }, dmsEnabled: true, pendingDms: 0, dms: { status: "done", version: 1, at: 1, total: 1, sent: 1, failed: [], unchanged: 0 } });
             expect(lib.publishHint(done, true, time).text).toBe("posted T100 in #kara-do · 1 DM");
             expect(lib.moveRaider(lib.toInput(setup()), "w", { group: 1 }, lib.peopleOf(setup()), 25).error).toBe("Group 1 is full — drag onto a raider to swap.");
         });

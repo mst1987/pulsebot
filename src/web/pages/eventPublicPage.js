@@ -263,7 +263,7 @@ function renderPublicEventBody(view) {
         : "<div class=\"empty\">Nobody has signed up yet.</div>";
 
     const setup = view.setup
-        ? `<h2 class="ev-sec">Setup</h2><div class="ev-grid">${[
+        ? `<h2 class="ev-sec" id="setup">Setup</h2><div class="ev-grid">${[
             ...view.setup.groups.map((g) => block({ id: "", label: `Group ${g.index}`, color: "", icon: "", members: g.members })),
             ...(view.setup.bench.length ? [block({ id: "", label: "Bench", color: "", icon: "", members: view.setup.bench })] : []),
         ].join("")}</div>`

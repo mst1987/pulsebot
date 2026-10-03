@@ -273,7 +273,8 @@
         "dmsOffShort": "DMs off",
         "outdated": "The message still shows version {version} — \"Post setup\" updates it.",
         "tip": "Setup in the channel",
-        "reapproveSub": "On re-approval the message is edited, not posted again."
+        "dmsPending": "{count} DMs pending",
+        "liveSub": "Changes to the setup update the message right away — no ping, no DMs. \"Post setup\" sends pending DMs."
     },
     "signupEdit": {
         "open": "Edit signup …",

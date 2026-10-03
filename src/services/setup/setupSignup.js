@@ -181,12 +181,14 @@ async function changeSignupFromSetup(eventId, userId, body = {}, { user = null, 
     });
 
     let warning = "";
+    let live = false;
     const fresh = eventStore.getEvent(event.id) || event;
     if (fresh.setup) {
         const playChanged = keyOf(from.character) !== keyOf(to.character) || from.spec !== to.spec;
         const placement = withoutGone(placementAfter({ ...fresh.setup, eventId: fresh.id }, uid, { absent: after.status === "absence", from, to, playChanged }));
         const saved = setupEditor.saveEventSetup(fresh.id, placement, { userId: str(user && user.id), now });
         if (saved.error) warning = `Setup nicht angepasst: ${saved.error}`;
+        live = !!saved.live;
     }
     const who = after.character || to.character || uid;
     return {
@@ -194,6 +196,8 @@ async function changeSignupFromSetup(eventId, userId, body = {}, { user = null, 
         signup: after,
         message: `Anmeldung von ${who} geändert.${warning ? ` ${warning}` : ""}`,
         warning,
+        // the posted setup changed with it (setupEditor.storeSetup): the caller brings its message up to date
+        live,
     };
 }
 
