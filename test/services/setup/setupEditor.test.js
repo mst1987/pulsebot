@@ -32,7 +32,7 @@ jest.mock("../../../src/services/events/eventSources", () => ({
 }));
 
 const editor = require("../../../src/services/setup/setupEditor");
-const { approvedSetupOf } = require("../../../src/services/setup/setupCore");
+const { approvedSetupOf, confirmationsFor } = require("../../../src/services/setup/setupCore");
 const { _internal: { buildEventMessage } } = require("../../../src/services/events/eventMessage");
 const { su } = require("../../utils/setup/fixtures");
 
@@ -316,22 +316,23 @@ describe("a posted setup goes live", () => {
         expect(result.event.setup.approved.version).toBe(2);
     });
 
-    it("keeps the confirmations of everybody whose place stayed, asks the moved one again", () => {
+    it("keeps every confirmation through a change — who left the groups just has none shown", () => {
         postApproved();
-        const before = Object.keys(mockEvents.get(ID).setupPost.confirmations);
+        const before = JSON.parse(JSON.stringify(mockEvents.get(ID).setupPost.confirmations));
         editor.saveEventSetup(ID, swapInPool(placementOf(mockEvents.get(ID).setup)));
-        const after = mockEvents.get(ID).setupPost.confirmations;
-        expect(after[swapInPool.last.out]).toBeUndefined();
-        expect(Object.keys(after).sort()).toEqual(before.filter((id) => id !== swapInPool.last.out).sort());
-        expect(Object.values(after).every((c) => c.version === 2 && c.status === "confirmed")).toBe(true);
+        const event = mockEvents.get(ID);
+        expect(event.setupPost.confirmations).toEqual(before);
+        const shown = confirmationsFor(event, event.setup.approved);
+        expect(shown[swapInPool.last.out]).toBeUndefined();
+        expect(Object.keys(shown).sort()).toEqual(Object.keys(before).filter((id) => id !== swapInPool.last.out).sort());
     });
 
-    it("drops a confirmation of an older version instead of carrying it on", () => {
+    it("hands the orga the confirmations in the editor's view", () => {
         postApproved();
-        const stale = Object.keys(mockEvents.get(ID).setupPost.confirmations)[0];
-        mockEvents.get(ID).setupPost.confirmations[stale].version = 0;
-        editor.saveEventSetup(ID, swapInPool(placementOf(mockEvents.get(ID).setup)));
-        expect(mockEvents.get(ID).setupPost.confirmations[stale]).toBeUndefined();
+        const view = editor.editorView(mockEvents.get(ID), { canWrite: true, signups: mockSignups });
+        expect(Object.values(view.confirmations).every((s) => s === "confirmed")).toBe(true);
+        expect(Object.keys(view.confirmations).length).toBeGreaterThan(0);
+        expect(editor.editorView(mockEvents.get(ID), { canWrite: false })).not.toHaveProperty("confirmations");
     });
 
     it("a new proposal goes live too — and so does a draft left from before the post", () => {

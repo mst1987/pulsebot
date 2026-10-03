@@ -22,7 +22,7 @@ jest.mock("../../../src/stores/eventStore", () => ({
 }));
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
-jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })) }));
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })), editPingMessages: jest.fn(async (c, ids) => ({ messageIds: ids })) }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
 const discord = require("../../../src/services/discord/discord");
@@ -314,6 +314,16 @@ describe("refreshLiveSetup", () => {
         expect(discord.postMissingPing).not.toHaveBeenCalled();
         expect(discord.sendDirectMessage).not.toHaveBeenCalled();
         expect(mockEvents.get("eh-1").setupPost).toMatchObject({ version: 2, editedAt: 7, editedBy: "orga" });
+    });
+
+    it("keeps the last ping's list true — an edit, never a new ping", async () => {
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 1, ping: { channelId: "c1", messageIds: ["p1"], userIds: ["2"], by: "1", text: "Go" } } });
+        fakeChannel();
+        await sm.refreshLiveSetup("eh-1", { userId: "orga" });
+        // everybody in a group but the one who pinged
+        expect(discord.editPingMessages).toHaveBeenCalledWith("c1", ["p1"], ["2", "3", "4"], "Go");
+        expect(discord.postMissingPing).not.toHaveBeenCalled();
+        expect(mockEvents.get("eh-1").setupPost.ping.userIds).toEqual(["2", "3", "4"]);
     });
 
     it("runs one edit after the other per event, each with the lineup as it stands then", async () => {

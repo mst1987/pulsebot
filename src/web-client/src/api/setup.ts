@@ -119,6 +119,8 @@ export type SetupEditorData = {
     hasApiKey?: boolean;
     /** The ping text sent with the posted setup — orga only, always the effective text (own or default, never empty). */
     pingText?: string;
+    /** Orga only: Confirm/Cancel of the raiders placed in a group, by user id — their own clicks and the orga's marks. */
+    confirmations?: Record<string, SetupConfirmation>;
     /** Raiders marked as an extra tank / healer (they play that role on some bosses), by user id. */
     extraRoles?: Record<string, string[]>;
     explainJob?: SetupJob;
@@ -171,7 +173,7 @@ export type SetupPublish = {
 };
 
 /** Post or update the approved setup; `bench` = "Bench mitposten" (#517), remembered for the event. */
-export function publishRaidSetup(eventId: string, opts: { bench?: boolean } = {}): Promise<SetupEditorData> {
+export function publishRaidSetup(eventId: string, opts: { bench?: boolean; version?: number } = {}): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/post", { event: eventId, ...opts });
 }
 
@@ -183,6 +185,14 @@ export function previewRaidSearch(eventId: string, needs: { roles: { role: strin
 /** Post the "we are looking for …" message into the event channel; `text` = the edited message. */
 export function postRaidSearch(eventId: string, text: string): Promise<{ message: string; url?: string }> {
     return send("POST", "/api/raids/setup/search", { event: eventId, text });
+}
+
+/** A raider's answer under the setup message: Confirm or Cancel. */
+export type SetupConfirmation = "confirmed" | "declined";
+
+/** The orga sets (or with "" clears) a raider's Confirm/Cancel — the Discord message follows. */
+export function setSetupConfirmation(eventId: string, userId: string, status: SetupConfirmation | ""): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/confirm", { event: eventId, userId, status });
 }
 
 /** Save the ping text sent when the setup is posted; "" clears it back to the default. */

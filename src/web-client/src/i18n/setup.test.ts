@@ -13,7 +13,7 @@ describe("setup namespace", () => {
             expect(t("setup.summary.hints", { count: 1 })).toBe("1 note");
             expect(t("setup.summary.hints", { count: 3 })).toBe("3 notes");
             expect(t("setup.publish.dmsSent", { count: 2 })).toBe("2 DMs");
-            expect(t("setup.editor.approveAnywayTitle")).toBe("Approve anyway?");
+            expect(t("setup.editor.approveAnywayTitle")).toBe("Post anyway?");
         });
     });
 

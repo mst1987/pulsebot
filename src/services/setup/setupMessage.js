@@ -47,7 +47,7 @@ const {
 } = require("../discord/appEmojis");
 const { str, clip } = require("../../utils/text");
 const { approvedSetupOf, benchPosted, confirmationsFor, confirmButtonRow, inviteButtonRow, pingButtonRow } = require("./setupCore");
-const { callSetupPing } = require("./setupPing");
+const { callSetupPing, refreshSetupPing } = require("./setupPing");
 
 const LIMITS = { title: 256, description: 4096, fields: 25, fieldValue: 1024, total: 6000 };
 const CANCELLED_COLOR = 0xe0524f;
@@ -130,8 +130,8 @@ const GRID_COLUMNS = 3;
  * @param {object} event     an eventStore event (a cancelled one is marked)
  * @param {object|null} approved the approved snapshot (setupEditor.approvedSetupOf)
  * @param {{ emojis?: object, confirmations?: object }} opts `emojis`: name → { id, name,
- *   animated }; none = text. `confirmations`: userId → "confirmed" | "declined" (of the
- *   current version only — setupConfirmBot.confirmationsFor drops stale ones).
+ *   animated }; none = text. `confirmations`: userId → "confirmed" | "declined" (who stands
+ *   in a group — setupCore.confirmationsFor; an answer stays through later changes).
  */
 function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, bench: withBench = false } = {}) {
     if (!event || !approved || !Array.isArray(approved.groups)) return null;
@@ -431,14 +431,20 @@ const liveQueue = new Map();
 /**
  * After a live change of a posted setup (setupEditor.storeSetup): edit the
  * message to the new lineup. One after the other per event, each reading the
- * event fresh, so the last change is what stays in Discord. No ping and no
- * DMs — a quick reshuffle must not message anybody; "Setup posten" sends the
- * DMs still outstanding.
+ * event fresh, so the last change is what stays in Discord. The last ping's
+ * list follows too (setupPing.refreshSetupPing — an edit, it notifies nobody).
+ * No new ping and no DMs — a quick reshuffle must not message anybody; "Setup
+ * posten" sends the DMs still outstanding.
  * @returns {Promise<{ action?: string, code?: string, error?: string }>}
  */
 function refreshLiveSetup(eventId, { userId = "", now } = {}) {
     const before = liveQueue.get(eventId) || Promise.resolve();
-    const run = before.then(() => postOrEditSetupMessage(eventId, { userId, now: now || Date.now() }));
+    const run = before.then(async () => {
+        const post = await postOrEditSetupMessage(eventId, { userId, now: now || Date.now() });
+        // best-effort: a ping that cannot be edited never fails the change
+        await refreshSetupPing(eventId).catch(() => {});
+        return post;
+    });
     liveQueue.set(eventId, run);
     return run.finally(() => {
         if (liveQueue.get(eventId) === run) liveQueue.delete(eventId);

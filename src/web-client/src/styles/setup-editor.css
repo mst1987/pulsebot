@@ -320,6 +320,24 @@
 .se-slot:hover .se-editbtn, .se-slot:focus-within .se-editbtn { opacity: 1; }
 .se-compact .se-slot:hover .se-editbtn, .se-compact .se-slot:focus-within .se-editbtn { width: 20px; height: 20px; right: 28px; }
 .se-compact .se-slot:hover .se-editbtn.se-editbtn-alone, .se-compact .se-slot:focus-within .se-editbtn.se-editbtn-alone { right: 4px; }
+/* Confirm/Cancel of a group slot: the line tinted green (red for a cancel), the mark as a big, faint icon behind its right end */
+.se-slot.se-confirmed { background: linear-gradient(90deg, var(--panel2) 0%, var(--good-bg) 55%), var(--panel2); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.se-slot.se-declined { background: linear-gradient(90deg, var(--panel2) 0%, var(--high-bg) 55%), var(--panel2); border-color: color-mix(in srgb, var(--high) 45%, transparent); }
+.se-confirm-mark { position: absolute; z-index: 0; top: 50%; right: 22px; transform: translateY(-50%); display: flex; width: 26px; height: 26px; pointer-events: none; opacity: .45; }
+/* the name and spec stay readable on top of the mark */
+.se-slot.se-confirmed .se-slot-text, .se-slot.se-declined .se-slot-text { position: relative; z-index: 1; }
+.se-confirm-mark svg { width: 100%; height: 100%; }
+.se-confirmed .se-confirm-mark { color: var(--good); }
+.se-declined .se-confirm-mark { color: var(--high); }
+/* the mark makes room for the buttons while the pointer is on the line */
+.se-slot:hover .se-confirm-mark, .se-slot:focus-within .se-confirm-mark { opacity: 0; }
+.se-compact .se-confirm-mark { width: 20px; height: 20px; right: 18px; }
+/* the orga's check: an overlay left of the pencil, like the lock */
+.se-confirmbtn { position: absolute; top: 50%; right: 60px; transform: translateY(-50%); width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: var(--panel2); color: var(--muted); opacity: 0; }
+.se-confirmbtn svg { width: 14px; height: 14px; }
+.se-confirmbtn.is-on { color: var(--good); }
+.se-slot:hover .se-confirmbtn, .se-slot:focus-within .se-confirmbtn { opacity: 1; }
+.se-compact .se-slot:hover .se-confirmbtn, .se-compact .se-slot:focus-within .se-confirmbtn { width: 20px; height: 20px; right: 52px; }
 .se-edit { display: flex; flex-direction: column; gap: 14px; }
 .se-edit-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .se-edit-opt { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); font-size: 13.5px; font-weight: 600; cursor: pointer; }

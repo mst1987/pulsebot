@@ -81,7 +81,7 @@
             "setup": "Open setup",
             "propose": "Suggest setup",
             "post": "Post setup",
-            "approve": "Approve setup",
+            "approve": "Post setup",
             "raidplan": "Post assignments",
             "plan": "Open raid plan",
             "log": "Assign log",

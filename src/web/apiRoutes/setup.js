@@ -7,8 +7,9 @@
 //                                              setup is posted, live into its message
 //   POST /api/raids/setup/approve             raids write: approve the shown version — and
 //                                              post it into the channel / DM it (#290)
-//   POST /api/raids/setup/post                raids write: post or edit the approved setup
-//                                              again, send the DMs still outstanding
+//   POST /api/raids/setup/post                raids write: post or edit the setup (a draft is
+//                                              approved first), send the DMs still outstanding
+//   POST /api/raids/setup/confirm             raids write: set or clear a raider's Confirm/Cancel
 //   POST /api/raids/setup/explain             raids write: Claude explains it (background job)
 //   GET  /api/raids/setup/explain?event=<id>  raids write (checked here): job state
 //   GET  /api/raids/setup/signup?event=&user=  raids write (checked here): one raider's signup
@@ -37,6 +38,7 @@ const { postSearch, textForNeeds } = require("../../services/setup/raidSearch");
 const { startJob, getJob } = require("../logcheck/evalJobs");
 const { explainSetup } = require("../../utils/setup/explainText");
 const setupSignup = require("../../services/setup/setupSignup");
+const setupConfirm = require("../../services/setup/setupConfirm");
 
 // A write on an event setup: an archived event (a hidden game version, #563) is read only.
 const BY_EVENT = (body) => body.event;
@@ -172,7 +174,7 @@ const postApprove = withUser({ write: "raids", csrf: true, body: true, archived:
     if (!result.already && result.event.message) {
         refreshEventMessage(result.event.id).catch((e) => console.error(`[setup] event message ${result.event.id}:`, e.message));
     }
-    let message = result.already ? "Setup war schon freigegeben." : "Setup freigegeben – Raider sehen es jetzt.";
+    let message = result.already ? "Setup war schon gepostet." : "Setup gepostet – Raider sehen es jetzt.";
     if (!result.already) {
         // The setup's own message (#290): awaited, so the answer says where it went;
         // the DMs run on in the background and the editor polls their outcome.
@@ -182,14 +184,39 @@ const postApprove = withUser({ write: "raids", csrf: true, body: true, archived:
     await answer(res, result, user, { message });
 });
 
-/** POST /api/raids/setup/post — body `{ event, bench? }`: post/edit the approved setup, send outstanding DMs. */
+/**
+ * POST /api/raids/setup/post — body `{ event, version?, bench? }`: post/edit the
+ * setup and send outstanding DMs. Posting is approving: a draft is approved
+ * first (only the `version` the editor showed, when one is sent), so there is
+ * no separate approval step for the orga.
+ */
 const postPublish = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
+    if (event.setup && event.setup.status !== "approved") {
+        const approved = setupEditor.approveEventSetup(event.id, { version: body.version, userId: user.id });
+        if (approved.error) return sendFailure(res, approved);
+        if (approved.event.message) {
+            refreshEventMessage(event.id).catch((e) => console.error(`[setup] event message ${event.id}:`, e.message));
+        }
+    }
     const { post } = await setupMessage.publishSetup(event.id, { userId: user.id, bench: benchChoice(body) });
     if (post.code) return sendFailure(res, post);
     const text = post.action === "edited" ? "Setup-Nachricht aktualisiert." : "Setup gepostet.";
     await answer(res, { event }, user, { message: text });
+});
+
+/**
+ * POST /api/raids/setup/confirm — body `{ event, userId, status: "confirmed"|"declined"|"" }`:
+ * the orga sets (or clears) a raider's Confirm/Cancel, as if they had clicked it.
+ */
+const postConfirm = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+    const event = eventOf(res, body.event);
+    if (!event) return;
+    const result = await setupConfirm.setConfirmation(event.id, body.userId, typeof body.status === "string" ? body.status : "", { by: user.id });
+    if (result.code) return error(res, result.code === "invalid" ? 400 : 409, result.code, result.error);
+    const failed = result.refreshed && result.refreshed.code ? `Setup-Nachricht nicht aktualisiert: ${result.refreshed.error}` : "";
+    await answer(res, { event }, user, failed ? { message: failed } : {});
 });
 
 /** POST /api/raids/setup/ping-text — body `{ event, text }`: what "Ping everyone" (and the first post's own ping) sends. */
@@ -287,6 +314,7 @@ const routes = [
     { method: "POST", path: "/api/raids/setup/approve", handler: postApprove, area: "raids" },
     { method: "POST", path: "/api/raids/setup/post", handler: postPublish, area: "raids" },
     { method: "POST", path: "/api/raids/setup/ping-text", handler: postPingText, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/confirm", handler: postConfirm, area: "raids" },
     { method: "POST", path: "/api/raids/setup/extra-role", handler: postExtraRole, area: "raids" },
     { method: "GET", path: "/api/raids/setup/signup", handler: getSignupEdit, area: "raids" },
     { method: "PUT", path: "/api/raids/setup/signup", handler: putSignupEdit, area: "raids" },
@@ -296,4 +324,4 @@ const routes = [
     { method: "GET", path: "/api/raids/setup/explain", handler: getExplain, area: "raids" },
 ];
 
-module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION, routes };
+module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postConfirm, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION, routes };

@@ -483,7 +483,7 @@ describe("services/discord/discord channel management", () => {
             const send = jest.fn(async () => ({ id: "m1", url: "https://d/m1" }));
             setClientWithChannels(dc.makeChannel({ id: "chan", send }));
             const res = await discord.postMissingPing("chan", ["1", "2", "2"], "Bitte melden");
-            expect(res).toEqual({ channelId: "chan", messageId: "m1", url: "https://d/m1" });
+            expect(res).toEqual({ channelId: "chan", messageId: "m1", messageIds: ["m1"], url: "https://d/m1" });
             const payload = send.mock.calls[0][0];
             expect(payload.content).toBe("<@1> <@2>\nBitte melden");
             expect(payload.allowedMentions).toEqual({ users: ["1", "2"] });
@@ -504,6 +504,48 @@ describe("services/discord/discord channel management", () => {
         it("throws when the bot is not connected", async () => {
             discord.setClient(null);
             await expect(discord.postMissingPing("chan", ["1"], "x")).rejects.toThrow("Bot nicht verbunden");
+        });
+    });
+
+    describe("editPingMessages", () => {
+        const message = (id) => ({ id, edit: jest.fn(async () => {}), delete: jest.fn(async () => {}) });
+
+        it("edits the ping to the new list — nobody is notified", async () => {
+            const m1 = message("m1");
+            const channel = dc.makeChannel({ id: "chan", messages: [m1] });
+            setClientWithChannels(channel);
+            expect(await discord.editPingMessages("chan", ["m1"], ["1", "3", "3"], "Setup steht")).toEqual({ messageIds: ["m1"] });
+            expect(m1.edit).toHaveBeenCalledWith({ content: "<@1> <@3>\nSetup steht", allowedMentions: { parse: [] } });
+            expect(channel.send).not.toHaveBeenCalled();
+        });
+
+        it("posts a chunk more quietly, deletes one left over", async () => {
+            // 120 snowflake-long ids (~22 characters a mention) need two messages
+            const many = Array.from({ length: 120 }, (_, i) => `1000000000000${String(i).padStart(5, "0")}`);
+            const m1 = message("m1");
+            const grown = dc.makeChannel({ id: "chan", messages: [m1] });
+            setClientWithChannels(grown);
+            const out = await discord.editPingMessages("chan", ["m1"], many, "x");
+            expect(out.messageIds).toEqual(["m1", "m-new"]);
+            expect(grown.send).toHaveBeenCalledWith(expect.objectContaining({ allowedMentions: { parse: [] } }));
+
+            const a = message("a");
+            const b = message("b");
+            setClientWithChannels(dc.makeChannel({ id: "chan", messages: [a, b] }));
+            expect(await discord.editPingMessages("chan", ["a", "b"], ["1"], "x")).toEqual({ messageIds: ["a"] });
+            expect(b.delete).toHaveBeenCalled();
+        });
+
+        it("leaves a ping deleted by hand deleted", async () => {
+            const channel = dc.makeChannel({ id: "chan", messages: [] });
+            setClientWithChannels(channel);
+            expect(await discord.editPingMessages("chan", ["gone"], ["1"], "x")).toEqual({ messageIds: [] });
+            expect(channel.send).not.toHaveBeenCalled();
+        });
+
+        it("throws when the bot is not connected", async () => {
+            discord.setClient(null);
+            await expect(discord.editPingMessages("chan", ["m1"], ["1"], "x")).rejects.toThrow("Bot nicht verbunden");
         });
     });
 
