@@ -5,6 +5,7 @@ const mockEvents = new Map();
 const clone = (x) => JSON.parse(JSON.stringify(x));
 jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: jest.fn((id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null)),
+    isOwnEventId: (id) => String(id || "").startsWith("eh-"),
     setEventSetupPost: jest.fn((id, patch) => {
         const e = mockEvents.get(id);
         if (!e) return null;
@@ -110,7 +111,8 @@ describe("buildSetupMessage", () => {
         expect(bench.name).toContain("(1)");
         expect(bench.inline).toBe(false);
         expect(bench.value).toContain("Thalia");
-        expect(embed.fields.at(-1).value).toContain("https://eh.example/signups?event=eh-1");
+        // straight to the comp: the orga lands in the editor, everyone else on the setup of the event page
+        expect(embed.fields.at(-1).value).toBe("[View the comp](https://eh.example/e/eh-1/comp)");
         expect(embed.footer.text).toContain("version 2");
         // one row: Confirm/Cancel for every placed raider (setupConfirmBot.js),
         // then Call invites and Ping everyone for the orga alone (inviteCallBot.js, setupPingBot.js)
@@ -298,6 +300,44 @@ describe("postOrEditSetupMessage", () => {
         const { channel } = fakeChannel();
         expect(await sm.refreshSetupMessage("eh-1")).toBeNull();
         expect(channel.send).not.toHaveBeenCalled();
+    });
+});
+
+describe("refreshLiveSetup", () => {
+    it("edits the posted message to the live lineup — no ping, no DMs", async () => {
+        mockConfig = { categorySetupDms: { cat1: true } };
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 1, postedAt: 1 } });
+        const { channel, message } = fakeChannel();
+        expect(await sm.refreshLiveSetup("eh-1", { userId: "orga", now: 7 })).toEqual({ action: "edited" });
+        expect(channel.send).not.toHaveBeenCalled();
+        expect(message.edit).toHaveBeenCalledTimes(1);
+        expect(discord.postMissingPing).not.toHaveBeenCalled();
+        expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+        expect(mockEvents.get("eh-1").setupPost).toMatchObject({ version: 2, editedAt: 7, editedBy: "orga" });
+    });
+
+    it("runs one edit after the other per event, each with the lineup as it stands then", async () => {
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 1 } });
+        const { message } = fakeChannel();
+        const seen = [];
+        let release;
+        message.edit.mockImplementationOnce((payload) => new Promise((resolve) => { release = resolve; seen.push(payload); }));
+        message.edit.mockImplementation((payload) => { seen.push(payload); return Promise.resolve(); });
+
+        const first = sm.refreshLiveSetup("eh-1");
+        await new Promise((r) => setImmediate(r));
+        // a second change while the first edit is still out: it waits
+        const a = approved(3);
+        a.groups[0].slots[0] = p("1", "Brokkoli", "Warrior-Protection", "tank");
+        mockEvents.get("eh-1").setup.approved = a;
+        const second = sm.refreshLiveSetup("eh-1");
+        await new Promise((r) => setImmediate(r));
+        expect(seen).toHaveLength(1);
+        release();
+        await Promise.all([first, second]);
+        expect(seen).toHaveLength(2);
+        expect(JSON.stringify(seen[1])).toContain("Brokkoli");
+        expect(mockEvents.get("eh-1").setupPost.version).toBe(3);
     });
 });
 

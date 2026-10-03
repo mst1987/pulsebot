@@ -1,8 +1,10 @@
 // The approved setup of an own event in its channel, and optionally per DM (#290).
 //
 // ⚠️ Only the approved snapshot (setupEditor.approvedSetupOf) ever leaves the
-// editor: a draft is never posted and never sent. A draft changed after an
-// approval keeps the message on the approved lineup until the next approval.
+// editor: a draft is never posted and never sent. Once the message is posted, a
+// change in the editor is approved at once (setupEditor.postedLive) and the
+// message follows (`refreshLiveSetup`, no ping, no DMs); before the first post
+// a changed draft waits for the approval.
 //
 // The message is its own post beside the signup message: groups 1–5 as inline
 // blocks (spec icon · name), the bench in one line — only when the orga ticks
@@ -170,9 +172,11 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
     const groups = approved.groups.filter((g) => (g.slots || []).length).sort((a, b) => a.index - b.index);
     // the bench only when the orga chose to post it (#517)
     const bench = withBench ? (approved.bench || []) : [];
+    // Straight to the comp: /e/<id>/comp sends the orga into the setup editor and
+    // everyone else to the setup on the public event page (pageRoutes.eventComp).
     // Only with a real PUBLIC_BASE_URL (#537, linkCheck).
-    const signupUrl = linkCheck.webTarget("signup", event.id);
-    const link = signupUrl ? `[View on the web](${signupUrl})` : "";
+    const compUrl = linkCheck.webTarget("comp", event.id);
+    const link = compUrl ? `[View the comp](${compUrl})` : "";
 
     // Tried in order until the embed fits: icons everywhere, a plain bench, plain groups too.
     const variants = [{ groupIcons: true, benchIcons: true }, { groupIcons: true, benchIcons: false }, { groupIcons: false, benchIcons: false }];
@@ -421,6 +425,26 @@ async function publishSetup(eventId, { userId = "", now = Date.now(), config = g
     return { post, dms };
 }
 
+/** eventId → the last queued live refresh, so the edits of quick moves land in order. */
+const liveQueue = new Map();
+
+/**
+ * After a live change of a posted setup (setupEditor.storeSetup): edit the
+ * message to the new lineup. One after the other per event, each reading the
+ * event fresh, so the last change is what stays in Discord. No ping and no
+ * DMs — a quick reshuffle must not message anybody; "Setup posten" sends the
+ * DMs still outstanding.
+ * @returns {Promise<{ action?: string, code?: string, error?: string }>}
+ */
+function refreshLiveSetup(eventId, { userId = "", now } = {}) {
+    const before = liveQueue.get(eventId) || Promise.resolve();
+    const run = before.then(() => postOrEditSetupMessage(eventId, { userId, now: now || Date.now() }));
+    liveQueue.set(eventId, run);
+    return run.finally(() => {
+        if (liveQueue.get(eventId) === run) liveQueue.delete(eventId);
+    });
+}
+
 /** Bring an already posted setup message up to date (a cancellation, its reversal). Never posts a new one. */
 async function refreshSetupMessage(eventId) {
     const event = eventStore.getEvent(eventId);
@@ -475,10 +499,11 @@ function publishView(event, { config = getConfig(), channelName = "" } = {}) {
 
 function _resetForTests() {
     running.clear();
+    liveQueue.clear();
 }
 
 module.exports = {
     LIMITS, DM_DELAY_MS,
     buildSetupMessage, buildSetupDm, embedLength, placementsOf, placementSignature, dmsEnabled, benchReasons,
-    postOrEditSetupMessage, sendSetupDms, publishSetup, refreshSetupMessage, publishView, _resetForTests,
+    postOrEditSetupMessage, sendSetupDms, publishSetup, refreshSetupMessage, refreshLiveSetup, publishView, _resetForTests,
 };

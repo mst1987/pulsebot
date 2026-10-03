@@ -12,6 +12,12 @@ jest.mock("../../../src/stores/eventStore", () => ({
         mockEvents.set(id, { ...mockEvents.get(id), setup: JSON.parse(JSON.stringify(setup)) });
         return JSON.parse(JSON.stringify(mockEvents.get(id)));
     },
+    setEventSetupPost: (id, patch) => {
+        if (!mockEvents.has(id)) return null;
+        const prev = mockEvents.get(id);
+        mockEvents.set(id, { ...prev, setupPost: { ...(prev.setupPost || {}), ...JSON.parse(JSON.stringify(patch)) } });
+        return JSON.parse(JSON.stringify(mockEvents.get(id)));
+    },
 }));
 let mockSignups = [];
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => mockSignups }));
@@ -54,6 +60,22 @@ function placementOf(setup) {
         groups: setup.groups.map((g) => ({ index: g.index, slots: g.slots.map((s) => ({ userId: s.userId, spec: s.spec, role: s.role, locked: s.locked })) })),
         bench: setup.bench.map((b) => ({ userId: b.userId, locked: b.locked })),
     };
+}
+
+/**
+ * The first raider of the pool into the first DPS place of a group, that DPS
+ * onto the bench — a change of the lineup. Returns the placement; who moved is
+ * on `swapInPool.last` ({ in, out }).
+ */
+function swapInPool(p) {
+    const incoming = mockEvents.get(ID).setup.pool[0].userId;
+    const group = p.groups.find((g) => g.slots.some((s) => s.role !== "tank" && s.role !== "healer"));
+    const outgoing = group.slots.find((s) => s.role !== "tank" && s.role !== "healer");
+    group.slots = group.slots.filter((s) => s !== outgoing);
+    group.slots.push({ userId: incoming, spec: mockSignups.find((s) => s.userId === incoming).spec });
+    p.bench = p.bench.filter((b) => b.userId !== incoming).concat({ userId: outgoing.userId });
+    swapInPool.last = { in: incoming, out: outgoing.userId };
+    return p;
 }
 
 const where = (setup, userId) => {
@@ -254,6 +276,12 @@ describe("approval", () => {
         expect(editor.setupSummary(event)).toMatchObject({ status: "draft", changedSinceApproval: true });
     });
 
+    it("says nothing about going live while the setup is not posted", () => {
+        const { setup } = editor.proposeEventSetup(ID);
+        editor.approveEventSetup(ID, { version: setup.version });
+        expect(editor.saveEventSetup(ID, swapInPool(placementOf(mockEvents.get(ID).setup))).live).toBeUndefined();
+    });
+
     it("keeps the approval when only a lock changes", () => {
         const { setup } = editor.proposeEventSetup(ID);
         editor.approveEventSetup(ID, { version: setup.version });
@@ -262,6 +290,81 @@ describe("approval", () => {
         const saved = editor.saveEventSetup(ID, p).setup;
         expect(saved).toMatchObject({ status: "approved", version: 1, changedSinceApproval: false });
         expect(saved.groups[0].slots[0].locked).toBe(true);
+    });
+});
+
+describe("a posted setup goes live", () => {
+    /** Propose, approve as "lead" and mark the message as posted, with confirmations of everybody placed. */
+    function postApproved() {
+        const { setup } = editor.proposeEventSetup(ID);
+        editor.approveEventSetup(ID, { version: setup.version, userId: "lead", now: 50 });
+        const approved = mockEvents.get(ID).setup.approved;
+        const confirmations = {};
+        for (const g of approved.groups) for (const s of g.slots) confirmations[s.userId] = { status: "confirmed", version: approved.version };
+        mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: { channelId: "c1", messageId: "m1", version: approved.version, confirmations } });
+    }
+
+    it("approves a change at once by whoever made it, and says so", () => {
+        postApproved();
+        const result = editor.saveEventSetup(ID, swapInPool(placementOf(mockEvents.get(ID).setup)), { userId: "orga2", now: 80 });
+        expect(result.live).toBe(true);
+        expect(result.setup).toMatchObject({ status: "approved", version: 2, approvedVersion: 2, approvedBy: "orga2", approvedAt: 80, changedSinceApproval: false });
+        // raiders see the new lineup straight away
+        const event = mockEvents.get(ID);
+        expect(editor.approvedPlacementFor(event, swapInPool.last.in)).toMatchObject({ group: expect.any(Number) });
+        expect(editor.approvedPlacementFor(event, swapInPool.last.out)).toMatchObject({ bench: true });
+        expect(result.event.setup.approved.version).toBe(2);
+    });
+
+    it("keeps the confirmations of everybody whose place stayed, asks the moved one again", () => {
+        postApproved();
+        const before = Object.keys(mockEvents.get(ID).setupPost.confirmations);
+        editor.saveEventSetup(ID, swapInPool(placementOf(mockEvents.get(ID).setup)));
+        const after = mockEvents.get(ID).setupPost.confirmations;
+        expect(after[swapInPool.last.out]).toBeUndefined();
+        expect(Object.keys(after).sort()).toEqual(before.filter((id) => id !== swapInPool.last.out).sort());
+        expect(Object.values(after).every((c) => c.version === 2 && c.status === "confirmed")).toBe(true);
+    });
+
+    it("drops a confirmation of an older version instead of carrying it on", () => {
+        postApproved();
+        const stale = Object.keys(mockEvents.get(ID).setupPost.confirmations)[0];
+        mockEvents.get(ID).setupPost.confirmations[stale].version = 0;
+        editor.saveEventSetup(ID, swapInPool(placementOf(mockEvents.get(ID).setup)));
+        expect(mockEvents.get(ID).setupPost.confirmations[stale]).toBeUndefined();
+    });
+
+    it("a new proposal goes live too — and so does a draft left from before the post", () => {
+        postApproved();
+        // a change while the message was not out yet: a draft beside the approval
+        const post = mockEvents.get(ID).setupPost;
+        mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: { ...post, messageId: "" } });
+        editor.saveEventSetup(ID, swapInPool(placementOf(mockEvents.get(ID).setup)));
+        expect(mockEvents.get(ID).setup.status).toBe("draft");
+        mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: post });
+
+        const result = editor.proposeEventSetup(ID, {}, { userId: "orga3", now: 90 });
+        expect(result.live).toBe(true);
+        expect(result.setup).toMatchObject({ status: "approved", approvedBy: "orga3", approvedAt: 90 });
+        expect(result.setup.approved.version).toBe(result.setup.version);
+    });
+
+    it("stays a draft for a cancelled event, an unposted message and an empty lineup", () => {
+        postApproved();
+        mockEvents.set(ID, { ...mockEvents.get(ID), status: "cancelled" });
+        const cancelled = editor.saveEventSetup(ID, swapInPool(placementOf(mockEvents.get(ID).setup)));
+        expect(cancelled.live).toBeUndefined();
+        expect(cancelled.setup).toMatchObject({ status: "draft", changedSinceApproval: true });
+
+        seed();
+        postApproved();
+        const empty = placementOf(mockEvents.get(ID).setup);
+        empty.groups.forEach((g) => { g.slots = []; });
+        empty.bench = [];
+        const out = editor.saveEventSetup(ID, empty);
+        expect(out.live).toBeUndefined();
+        expect(out.setup.status).toBe("draft");
+        expect(out.setup.approved.version).toBe(1);
     });
 });
 

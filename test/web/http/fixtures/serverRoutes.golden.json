@@ -483,6 +483,33 @@
     "body": "NOT_FOUND"
   },
   {
+    "request": "GET /e/eh-setup/comp",
+    "status": 302,
+    "headers": {
+      "Location": "/e/eh-setup#setup",
+      "Cache-Control": "no-store"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /e/eh-setup/comp (raider)",
+    "status": 302,
+    "headers": {
+      "Location": "/e/eh-setup#setup",
+      "Cache-Control": "no-store"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /e/eh-setup/comp (orga)",
+    "status": 302,
+    "headers": {
+      "Location": "/raids/detail?event=eh-setup&tab=setup",
+      "Cache-Control": "no-store"
+    },
+    "body": null
+  },
+  {
     "request": "GET /rp-map/bt/supremus?v=1",
     "status": 200,
     "headers": {

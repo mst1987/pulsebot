@@ -74,7 +74,11 @@ jest.mock("../../../src/services/events/icsFeed", () => ({
 jest.mock("../../../src/web/pages/calendarFeed", () => ({ feedFor: jest.fn((token) => (token === "ehc_ok" ? { body: `FEED:${token}` } : null)) }));
 jest.mock("../../../src/stores/eventStore", () => ({
     ...jest.requireActual("../../../src/stores/eventStore"),
-    getEvent: jest.fn((id) => (id === "eh-1" || id === "eh-leer" ? { id } : null)),
+    getEvent: jest.fn((id) => {
+        if (id === "eh-1" || id === "eh-leer") return { id };
+        // an event with an approved setup: the Comp link lands on its #setup section
+        return id === "eh-setup" ? { id, setup: { status: "approved", approved: { version: 1, groups: [] } } } : null;
+    }),
 }));
 jest.mock("../../../src/stores/raidplanStore", () => ({
     ...jest.requireActual("../../../src/stores/raidplanStore"),
@@ -186,6 +190,10 @@ const CASES = [
     ["GET", "/e/eh-weg/comp", "admin"],
     ["GET", "/e/eh-1/comp/x", "admin"],
     ["POST", "/e/eh-1/comp", "admin"],
+    // the setup message links here too: with an approved setup straight to its section
+    ["GET", "/e/eh-setup/comp"],
+    ["GET", "/e/eh-setup/comp", "raider"],
+    ["GET", "/e/eh-setup/comp", "orga"],
     ["GET", "/rp-map/bt/supremus?v=1"],
     ["GET", "/rp-map/t/abc/kara"],
     ["GET", "/rp-map/bt"],

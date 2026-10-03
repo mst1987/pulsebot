@@ -15,6 +15,10 @@ jest.mock("../../../src/stores/eventStore", () => ({
         mockEvents.set(id, { ...mockEvents.get(id), setup: JSON.parse(JSON.stringify(setup)) });
         return JSON.parse(JSON.stringify(mockEvents.get(id)));
     },
+    setEventSetupPost: (id, patch) => {
+        mockEvents.set(id, { ...mockEvents.get(id), setupPost: { ...(mockEvents.get(id).setupPost || {}), ...JSON.parse(JSON.stringify(patch)) } });
+        return JSON.parse(JSON.stringify(mockEvents.get(id)));
+    },
     setEventSetupPingText: jest.fn((id, text) => {
         if (!mockEvents.has(id)) return null;
         mockEvents.set(id, { ...mockEvents.get(id), setupPingText: String(text || "") });
@@ -33,6 +37,7 @@ jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: je
 jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
 jest.mock("../../../src/services/setup/setupMessage", () => ({
     publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),
+    refreshLiveSetup: jest.fn(async () => ({ action: "edited" })),
     publishView: jest.fn(() => ({ dmsEnabled: false, recipients: 10 })),
 }));
 const mockExplain = jest.fn();
@@ -77,6 +82,7 @@ beforeEach(() => {
     mockExplain.mockReset();
     refreshEventMessage.mockClear();
     setupMessage.publishSetup.mockClear();
+    setupMessage.refreshLiveSetup.mockClear();
 });
 
 describe("access", () => {
@@ -148,6 +154,67 @@ describe("posting the approved setup (#290)", () => {
         const refused = await call(route.postPublish, ORGA, { event: ID });
         expect(status(refused)).toBe(400);
         expect(body(refused).error.code).toBe("no_approved_setup");
+    });
+});
+
+describe("a posted setup follows every change", () => {
+    /** The stored lineup with the first pool raider in place of a DPS — a change of who stands where. */
+    function changedLineup() {
+        const setup = mockEvents.get(ID).setup;
+        const groups = setup.groups.map((g) => ({ index: g.index, slots: g.slots.map((s) => ({ userId: s.userId, spec: s.spec, role: s.role })) }));
+        const incoming = setup.pool[0];
+        const group = groups.find((g) => g.slots.some((s) => s.role !== "tank" && s.role !== "healer"));
+        const out = group.slots.find((s) => s.role !== "tank" && s.role !== "healer");
+        group.slots = group.slots.filter((s) => s !== out).concat({ userId: incoming.userId, spec: incoming.spec });
+        return { event: ID, version: setup.version, groups, bench: [] };
+    }
+
+    async function approveAndPost() {
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version });
+        mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: { channelId: "c", messageId: "sm", version: 1 } });
+        setupMessage.publishSetup.mockClear();
+        refreshEventMessage.mockClear();
+    }
+
+    it("edits the posted message on a move — quietly, no new post", async () => {
+        await approveAndPost();
+        const r = await call(route.putSetup, ORGA, changedLineup());
+        expect(status(r)).toBe(200);
+        expect(body(r).setup.status).toBe("approved");
+        expect(body(r).message).toBeUndefined();
+        expect(setupMessage.refreshLiveSetup).toHaveBeenCalledWith(ID, { userId: "orga" });
+        expect(setupMessage.publishSetup).not.toHaveBeenCalled();
+        expect(refreshEventMessage).toHaveBeenCalledWith(ID);
+    });
+
+    it("says so when the edit did not get through, the change stands", async () => {
+        await approveAndPost();
+        setupMessage.refreshLiveSetup.mockResolvedValueOnce({ code: "discord", error: "Bot nicht verbunden." });
+        const r = await call(route.putSetup, ORGA, changedLineup());
+        expect(status(r)).toBe(200);
+        expect(body(r).message).toBe("Setup-Nachricht nicht aktualisiert: Bot nicht verbunden.");
+        expect(mockEvents.get(ID).setup.status).toBe("approved");
+    });
+
+    it("a new proposal goes into the message too", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version });
+        // a draft from before the post — whatever the proposal makes of it goes live
+        await call(route.putSetup, ORGA, changedLineup());
+        mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: { channelId: "c", messageId: "sm", version: 1 } });
+        const r = await call(route.postPropose, ORGA, { event: ID });
+        expect(setupMessage.refreshLiveSetup).toHaveBeenCalledWith(ID, { userId: "orga" });
+        expect(body(r).message).toMatch(/gepostete Setup-Nachricht zeigt ihn schon/);
+        expect(mockEvents.get(ID).setup.status).toBe("approved");
+    });
+
+    it("leaves the message alone while nothing is posted yet", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version });
+        const r = await call(route.putSetup, ORGA, changedLineup());
+        expect(body(r).setup.status).toBe("draft");
+        expect(setupMessage.refreshLiveSetup).not.toHaveBeenCalled();
     });
 });
 

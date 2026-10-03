@@ -7,6 +7,10 @@
 // setupCore.approvedSetupOf() / approvedPlacementFor() / raidHelperSlots(),
 // which only ever read the frozen `approved` snapshot.
 //
+// Once the approved setup is posted in Discord, the orga works on it live: a
+// change is approved by whoever made it and the message follows at once
+// (`postedLive`, `storeSetup`). Before the first post a change stays a draft.
+//
 // Stored on the event (eventStore.setEventSetup) as one object:
 //   status              "draft" | "approved"
 //   version             bumps on every proposal and every change of the lineup
@@ -163,6 +167,69 @@ function nextSetup(prev, result, { origin, options, userId, now }) {
     };
 }
 
+/** A setup as approved by `userId` at `now`: the frozen snapshot for raiders included. */
+function approvedVersionOf(setup, { userId, now }) {
+    return {
+        ...setup,
+        status: "approved",
+        changedSinceApproval: false,
+        approvedAt: now,
+        approvedBy: str(userId),
+        approvedVersion: setup.version,
+        approved: snapshotOf(setup, { at: now, by: str(userId) }),
+    };
+}
+
+/**
+ * Whether the approved setup is out in Discord (its message posted, the event not
+ * cancelled). Then a change in the editor goes live at once: the new lineup is
+ * approved by whoever made it and the message follows — the orga changes a
+ * posted setup, it does not draft a second one beside it.
+ */
+function postedLive(event) {
+    return !!(event && event.status !== "cancelled" && event.setupPost && event.setupPost.messageId && approvedSetupOf(event));
+}
+
+/** Where a raider stands in a group of a snapshot — a confirmation holds while this stays. */
+function groupPlaces(snapshot) {
+    const out = new Map();
+    for (const g of (snapshot && snapshot.groups) || []) {
+        for (const s of g.slots || []) out.set(String(s.userId), `${g.index}/${String(s.character || "").toLowerCase()}/${s.spec}/${s.role}`);
+    }
+    return out;
+}
+
+/**
+ * A live change keeps the Confirm/Cancel of everybody whose place it did not
+ * touch (stamped onto the new version); who was moved is asked again.
+ */
+function carryConfirmations(event, before, after) {
+    const stored = (event.setupPost && event.setupPost.confirmations) || {};
+    const was = groupPlaces(before);
+    const now = groupPlaces(after);
+    const kept = {};
+    for (const [userId, entry] of Object.entries(stored)) {
+        if (!entry || Number(entry.version) !== Number(before.version)) continue;
+        if (now.has(userId) && now.get(userId) === was.get(userId)) kept[userId] = { ...entry, version: after.version };
+    }
+    eventStore.setEventSetupPost(event.id, { confirmations: kept });
+}
+
+/**
+ * Store the next setup — approved at once while the setup is posted
+ * (`postedLive`), else as it comes. `live: true` tells the caller to bring the
+ * message up to date (setupMessage.refreshLiveSetup).
+ */
+function storeSetup(event, setup, { userId, now }) {
+    // an empty lineup is never approved, live or not (approveEventSetup's "no_setup")
+    const live = setup.status !== "approved" && postedLive(event) && (setup.groups || []).some((g) => (g.slots || []).length);
+    const saved = eventStore.setEventSetup(event.id, live ? approvedVersionOf(setup, { userId, now }) : setup);
+    if (!live) return { setup: saved.setup, event: saved };
+    carryConfirmations(event, approvedSetupOf(event), saved.setup.approved);
+    const fresh = eventStore.getEvent(event.id) || saved;
+    return { setup: fresh.setup, event: fresh, live: true };
+}
+
 function ownEvent(eventId) {
     const event = eventStore.getEvent(eventId);
     if (!event) return { failed: fail(eventStore.isOwnEventId(eventId) ? "not_found" : "raidhelper", eventStore.isOwnEventId(eventId) ? "Event nicht gefunden." : "Das Setup dieses Events liegt bei Raid-Helper.") };
@@ -182,8 +249,7 @@ function proposeEventSetup(eventId, body = {}, { userId = "", now = Date.now() }
     if (!result) return fail("not_found", "Event nicht gefunden.");
     const setup = nextSetup(event.setup, result, { origin: "proposal", options, userId, now });
     // A proposal that lands on the approved lineup again leaves the approval standing.
-    const saved = eventStore.setEventSetup(event.id, setup);
-    return { setup: saved.setup, event: saved };
+    return storeSetup(event, setup, { userId, now });
 }
 
 /**
@@ -239,8 +305,7 @@ function saveEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = 
     if (lost.length) return fail("invalid", `Nicht platzierbar: ${lost.join(", ")}.`);
     const groups = inPlacedOrder(result.groups, checked.value.groups);
     const setup = nextSetup(prev, { ...result, groups, historySource: input.historySource }, { origin: "manual", options, userId, now });
-    const saved = eventStore.setEventSetup(event.id, setup);
-    return { setup: saved.setup, event: saved };
+    return storeSetup(event, setup, { userId, now });
 }
 
 /**
@@ -256,16 +321,7 @@ function approveEventSetup(eventId, { version, userId = "", now = Date.now() } =
         return fail("conflict", "Das Setup wurde inzwischen geändert – bitte neu laden und erneut prüfen.");
     }
     if (setup.status === "approved") return { setup, event, already: true };
-    const approved = {
-        ...setup,
-        status: "approved",
-        changedSinceApproval: false,
-        approvedAt: now,
-        approvedBy: str(userId),
-        approvedVersion: setup.version,
-        approved: snapshotOf(setup, { at: now, by: str(userId) }),
-    };
-    const saved = eventStore.setEventSetup(event.id, approved);
+    const saved = eventStore.setEventSetup(event.id, approvedVersionOf(setup, { userId, now }));
     return { setup: saved.setup, event: saved };
 }
 

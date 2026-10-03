@@ -23,6 +23,7 @@ const { buildIcs, icsFileName } = require("../../services/events/icsFeed");
 const calendarFeed = require("../pages/calendarFeed");
 const raidplanStore = require("../../stores/raidplanStore");
 const { getEvent } = require("../../stores/eventStore");
+const { approvedSetupOf } = require("../../services/setup/setupCore");
 const { versionInfo } = require("./version");
 const auth = require("./auth");
 const { userCan, userHasMenuAccess } = require("../../config/permissions");
@@ -159,7 +160,8 @@ function eventPage({ res, params }) {
 // each reader on — whoever may write in "raids" (the gate of the setup editor,
 // the same check as apiAccess; auth.getUser applies an active "Ansicht als")
 // into the setup tab of the raid detail page, everyone else (no login, no
-// right) to the public event page. Only own events have that page and the
+// right) to the public event page — once a setup is approved, to its setup
+// section. The setup message links here too. Only own events have that page and the
 // message, so an unknown id — a Raid-Helper one included — is a 404. Nothing is
 // cached: the answer depends on who asks.
 function eventComp({ req, res, params }) {
@@ -168,7 +170,9 @@ function eventComp({ req, res, params }) {
     const id = encodeURIComponent(event.id);
     const user = auth.getUser(req);
     const orga = !!user && userHasMenuAccess(user) && userCan(user, "raids", "write");
-    return redirect(res, orga ? `/raids/detail?event=${id}&tab=setup` : `/e/${id}`, { "Cache-Control": "no-store" });
+    // with an approved setup straight down to it (the page's `#setup` heading)
+    const publicPage = `/e/${id}${approvedSetupOf(event) ? "#setup" : ""}`;
+    return redirect(res, orga ? `/raids/detail?event=${id}&tab=setup` : publicPage, { "Cache-Control": "no-store" });
 }
 
 // Room maps of the raid plan (docs/raidplan.md): /rp-map/<instance>[/<boss>], no

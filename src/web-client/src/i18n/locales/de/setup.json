@@ -273,7 +273,8 @@
         "dmsOffShort": "DMs aus",
         "outdated": "Die Nachricht zeigt noch Stand {version} – „Setup posten“ aktualisiert sie.",
         "tip": "Setup im Kanal",
-        "reapproveSub": "Bei erneuter Freigabe wird die Nachricht bearbeitet, nicht neu gepostet."
+        "dmsPending": "{count} DMs offen",
+        "liveSub": "Änderungen am Setup aktualisieren die Nachricht sofort – ohne Ping und ohne DMs. „Setup posten“ schickt offene DMs."
     },
     "signupEdit": {
         "open": "Anmeldung bearbeiten …",
