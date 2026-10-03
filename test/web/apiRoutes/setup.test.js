@@ -38,6 +38,7 @@ jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMess
 jest.mock("../../../src/services/setup/setupMessage", () => ({
     publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),
     refreshLiveSetup: jest.fn(async () => ({ action: "edited" })),
+    postOrEditSetupMessage: jest.fn(async () => ({ action: "edited" })),
     publishView: jest.fn(() => ({ dmsEnabled: false, recipients: 10 })),
 }));
 const mockExplain = jest.fn();
@@ -116,7 +117,7 @@ describe("posting the approved setup (#290)", () => {
         expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga" });
         setupMessage.publishSetup.mockClear();
         const again = await call(route.postApprove, ORGA, { event: ID, version });
-        expect(body(again).message).toMatch(/schon freigegeben/);
+        expect(body(again).message).toMatch(/schon gepostet/);
         expect(setupMessage.publishSetup).not.toHaveBeenCalled();
     });
 
@@ -154,6 +155,57 @@ describe("posting the approved setup (#290)", () => {
         const refused = await call(route.postPublish, ORGA, { event: ID });
         expect(status(refused)).toBe(400);
         expect(body(refused).error.code).toBe("no_approved_setup");
+    });
+
+    it("POST /post approves a draft first — posting is approving", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        const version = mockEvents.get(ID).setup.version;
+        // only the version the editor showed
+        const stale = await call(route.postPublish, ORGA, { event: ID, version: version + 5 });
+        expect(body(stale).error.code).toBe("conflict");
+        expect(setupMessage.publishSetup).not.toHaveBeenCalled();
+
+        const r = await call(route.postPublish, ORGA, { event: ID, version });
+        expect(status(r)).toBe(200);
+        expect(mockEvents.get(ID).setup).toMatchObject({ status: "approved", approvedBy: "orga", approvedVersion: version });
+        expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga" });
+        expect(refreshEventMessage).toHaveBeenCalledWith(ID);
+    });
+});
+
+describe("Confirm/Cancel set by the orga", () => {
+    async function posted() {
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version });
+        mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: { channelId: "c", messageId: "sm", version: 1 } });
+        return mockEvents.get(ID).setup.approved.groups[0].slots[0].userId;
+    }
+
+    it("sets a raider's check, shows it in the editor and edits the message", async () => {
+        const raider = await posted();
+        const r = await call(route.postConfirm, ORGA, { event: ID, userId: raider, status: "confirmed" });
+        expect(status(r)).toBe(200);
+        expect(body(r).confirmations).toEqual({ [raider]: "confirmed" });
+        expect(mockEvents.get(ID).setupPost.confirmations[raider]).toMatchObject({ status: "confirmed", by: "orga" });
+        expect(setupMessage.postOrEditSetupMessage).toHaveBeenCalledWith(ID, { userId: "orga" });
+
+        const cleared = await call(route.postConfirm, ORGA, { event: ID, userId: raider, status: "" });
+        expect(body(cleared).confirmations).toEqual({});
+    });
+
+    it("refuses somebody not in a group and a reader", async () => {
+        await posted();
+        const r = await call(route.postConfirm, ORGA, { event: ID, userId: "nobody", status: "confirmed" });
+        expect(status(r)).toBe(409);
+        expect(body(r).error.code).toBe("not_placed");
+        expect(status(await call(route.postConfirm, READER, { event: ID, userId: "x", status: "confirmed" }))).toBe(403);
+    });
+
+    it("says when the message could not follow", async () => {
+        const raider = await posted();
+        setupMessage.postOrEditSetupMessage.mockResolvedValueOnce({ code: "discord", error: "Bot nicht verbunden." });
+        const r = await call(route.postConfirm, ORGA, { event: ID, userId: raider, status: "confirmed" });
+        expect(body(r).message).toBe("Setup-Nachricht nicht aktualisiert: Bot nicht verbunden.");
     });
 });
 
@@ -246,7 +298,7 @@ describe("the draft stays with the orga", () => {
         const version = mockEvents.get(ID).setup.version;
         const approved = await call(route.postApprove, ORGA, { event: ID, version });
         expect(status(approved)).toBe(200);
-        expect(body(approved).message).toMatch(/freigegeben/);
+        expect(body(approved).message).toMatch(/gepostet – Raider sehen es jetzt/);
         expect(refreshEventMessage).toHaveBeenCalledWith(ID);
 
         const after = body(await call(route.getSetup, READER, null, `event=${ID}`));

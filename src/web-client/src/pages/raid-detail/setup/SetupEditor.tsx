@@ -14,7 +14,7 @@
 // server. Posting carries the bench only with "Bench mitposten" ticked.
 
 import { useEffect, useRef, useState } from "react";
-import { approveRaidSetup, getRaidSetup, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, updateRaidSize, type ApiError, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput } from "../../../api";
+import { approveRaidSetup, getRaidSetup, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { applyLocal, moveRaider, peopleOf, resizeLineup, respecRaider, suggestGroup, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
 import { useT } from "../../../i18n";
@@ -263,6 +263,27 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
+    /**
+     * The orga's check on a group slot: confirmed ↔ none (a "Cancel" turns into
+     * confirmed). Drawn at once, the answer brings the stored marks back.
+     */
+    const toggleConfirm = async (userId: string) => {
+        const before = current.current?.confirmations || {};
+        const next: SetupConfirmation | "" = before[userId] === "confirmed" ? "" : "confirmed";
+        const optimistic = { ...before };
+        if (next) optimistic[userId] = next;
+        else delete optimistic[userId];
+        setData((prev) => (prev ? { ...prev, confirmations: optimistic } : prev));
+        try {
+            const answer = await setSetupConfirmation(ctx.eventId, userId, next);
+            setData((prev) => (prev ? { ...prev, confirmations: answer.confirmations || {}, publish: answer.publish } : prev));
+            if (answer.message) jobs.notify(answer.message, "err");
+        } catch (e) {
+            setData((prev) => (prev ? { ...prev, confirmations: before } : prev));
+            jobs.notify((e as ApiError).message || t("setup.editor.confirmFailed"), "err");
+        }
+    };
+
     const toggleExtra = async (userId: string, role: "tank" | "healer", on: boolean) => {
         try {
             const next = await saveSetupExtraRole(ctx.eventId, userId, role, on);
@@ -326,7 +347,11 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const editPerson = editing ? peopleOf(setup).get(editing) : undefined;
     // on the bench or in the pool: no slot yet, so no "im Setup als" and no extra role
     const inspectedIsBench = !!inspectedPerson && [...setup.bench, ...(setup.pool || [])].some((b) => b.userId === inspectedPerson.userId);
-    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)), onEdit: setEditing };
+    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)), onEdit: setEditing,
+        // Confirm/Cancel only exists for a posted (= approved) setup — before that nobody can have answered
+        confirmations: data.confirmations || {}, onConfirm: setup.status === "approved" ? (userId) => void toggleConfirm(userId) : undefined };
+    // posting is approving (no separate step): once the message is out, every change goes live by itself
+    const live = setup.status === "approved" && !!data.publish?.posted;
     const groups = withAllGroups(setup.groups, data.groupCount || 1);
     const partyBuffs = setup.checks.buffs.party;
     const lockedCount = [...setup.groups.flatMap((g) => g.slots), ...setup.bench].filter((p) => p.locked).length;
@@ -369,9 +394,18 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     <Button variant="ghost" size="sm" icon="inv_scroll_03" onClick={() => setDialog("explain")}>{t("setup.editor.explain")}</Button>
                     <Button variant="ghost" size="sm" icon="inv_misc_gear_01" disabled={busy} onClick={() => setDialog("weights")}>{t("setup.summary.weights")}</Button>
                     <Button variant="ghost" size="sm" icon="spell_holy_borrowedtime" disabled={busy} onClick={() => propose()}>{t("setup.editor.repropose")}</Button>
-                    <Button size="sm" icon="achievement_guildperk_everybodysfriend" disabled={busy || setup.status === "approved"} onClick={approve}>
-                        {setup.status === "approved" ? t("setup.editor.approved") : t("setup.editor.approve")}
-                    </Button>
+                    {/* a draft: "Setup posten" approves and posts in one; posted: a quiet "Gepostet" (approved but not
+                        out yet, e.g. the bot was offline — the line under the bar has "Setup posten" for that) */}
+                    {setup.status !== "approved" && (
+                        <Button size="sm" icon="inv_letter_15" disabled={busy} data-tip={t("setup.editor.approve")} data-tip-sub={t("setup.editor.approveSub")} onClick={approve}>
+                            {t("setup.editor.approve")}
+                        </Button>
+                    )}
+                    {live && (
+                        <Button size="sm" icon="inv_letter_15" disabled data-tip={t("setup.editor.approved")} data-tip-sub={t("setup.editor.approvedSub")}>
+                            {t("setup.editor.approved")}
+                        </Button>
+                    )}
                 </div>
             </div>
             <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} bench={postBench} onBench={setBenchChoice} />

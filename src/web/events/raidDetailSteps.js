@@ -285,7 +285,7 @@ function primaryFor(step, d) {
         case "signup": return { label: "Anmelde-Aufruf posten", icon: "inv_letter_15", modal: "notify" };
         // The raidplan link only exists at Raid-Helper; an own event opens its setup editor.
         case "setup": return isOwnEvent(d)
-            ? { label: d.ownSetup && d.ownSetup.placed ? "Setup freigeben" : "Setup vorschlagen", icon: "inv_misc_map_01", tab: "setup" }
+            ? { label: d.ownSetup && d.ownSetup.placed ? "Setup posten" : "Setup vorschlagen", icon: "inv_misc_map_01", tab: "setup" }
             :{ label: "Raidplan öffnen", icon: "inv_misc_map_01", href: `https://raid-helper.xyz/raidplan/${(d.event || {}).id || ""}` };
         case "sheet": return { label: "Raidsheet füllen", icon: "inv_scroll_03", modal: "sheet" };
         case "raidplan": return { label: "Einteilungen posten", icon: "inv_misc_map02", modal: "raidplan" };
@@ -530,11 +530,11 @@ function approvalStep(d, now) {
     }
     return {
         ...step, state: "open", value: String(s.placed), unit: "im Entwurf",
-        note: s.changedSinceApproval ? "geändert seit der Freigabe" : "Entwurf",
+        note: s.changedSinceApproval ? "geändert seit dem Posten" : "Entwurf",
         hint: s.changedSinceApproval
-            ? "Die Raider sehen noch den zuletzt freigegebenen Stand. Erst die Freigabe macht die Änderung sichtbar."
-            : "Der Entwurf steht, freigegeben ist er nicht — Raider sehen noch nichts. Im Editor prüfen und freigeben.",
-        action: deed("approve", "Setup freigeben", "inv_misc_note_02", { tab: "setup" }),
+            ? "Die Raider sehen noch den zuletzt geposteten Stand. Erst „Setup posten“ macht die Änderung sichtbar."
+            : "Der Entwurf steht, gepostet ist er nicht — Raider sehen noch nichts. Im Editor prüfen und „Setup posten“ (das gibt ihn zugleich frei).",
+        action: deed("approve", "Setup posten", "inv_misc_note_02", { tab: "setup" }),
     };
 }
 

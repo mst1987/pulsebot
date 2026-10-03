@@ -11,9 +11,8 @@
 // anyone may click, but only the raider's own placement is ever touched —
 // someone not in the lineup is told so, privately.
 const { MessageFlags } = require("discord.js");
-const eventStore = require("../../stores/eventStore");
-const { approvedSetupOf, CONFIRM_PREFIX } = require("./setupCore");
-const { postOrEditSetupMessage } = require("./setupMessage");
+const { CONFIRM_PREFIX } = require("./setupCore");
+const confirm = require("./setupConfirm");
 
 const EVENT_ID = /^eh-[a-z0-9]{1,40}$/;
 const STATUS_OF_FIELD = { y: "confirmed", n: "declined" };
@@ -25,27 +24,17 @@ function parseConfirmId(customId) {
 }
 
 /**
- * Record a raider's own confirmation and refresh the posted message. A stale
- * confirmation (from before the lineup last changed) never counts — dropped
- * here, not just hidden, so an old click can't resurface after a re-approval.
+ * Record a raider's own confirmation and refresh the posted message — the
+ * same service the orga's mark in the editor goes through (setupConfirm.js).
+ * It stays through later changes of the setup.
  * @returns {Promise<{ status?: string, code?: string, error?: string }>}
  */
 async function setConfirmation(eventId, userId, field) {
     const status = STATUS_OF_FIELD[field];
     if (!status) return { code: "invalid", error: "Unbekannte Aktion." };
-    const event = eventStore.getEvent(eventId);
-    if (!event) return { code: "not_found", error: "Event nicht gefunden." };
-    const approved = approvedSetupOf(event);
-    if (!approved) return { code: "no_approved_setup", error: "Es gibt noch kein freigegebenes Setup." };
-    // A group placement only — the bench never shows the mark, so confirming
-    // there would silently do nothing visible.
-    const placed = (approved.groups || []).some((g) => (g.slots || []).some((s) => String(s.userId) === String(userId)));
-    if (!placed) return { code: "not_placed", error: "Du stehst in diesem Setup nicht in einer Gruppe." };
-    const prior = (event.setupPost && event.setupPost.confirmations) || {};
-    const kept = Object.fromEntries(Object.entries(prior).filter(([, v]) => Number(v && v.version) === Number(approved.version)));
-    eventStore.setEventSetupPost(event.id, { confirmations: { ...kept, [String(userId)]: { status, version: approved.version } } });
-    const refreshed = await postOrEditSetupMessage(eventId, { userId });
-    return { status, refreshed };
+    const result = await confirm.setConfirmation(eventId, userId, status, { by: userId });
+    if (result.code === "not_placed") return { ...result, error: "Du stehst in diesem Setup nicht in einer Gruppe." };
+    return result;
 }
 
 /** Handle a click of either button. */

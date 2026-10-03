@@ -294,6 +294,7 @@ async function postMissingPing(channelId, userIds = [], text = "") {
     // on the last one.
     const chunks = mentionChunks(users.map((id) => `<@${id}>`), MESSAGE_LIMIT - body.length - 1);
     let first = null;
+    const messageIds = [];
     for (let i = 0; i < chunks.length; i++) {
         const last = i === chunks.length - 1;
         const posted = await channel.send({
@@ -301,8 +302,50 @@ async function postMissingPing(channelId, userIds = [], text = "") {
             allowedMentions: { users },
         });
         if (!first) first = posted;
+        messageIds.push(String(posted.id));
     }
-    return { channelId: channel.id, messageId: first.id, url: first.url };
+    return { channelId: channel.id, messageId: first.id, messageIds, url: first.url };
+}
+
+/**
+ * Bring a posted ping (postMissingPing's messages) to another list of users,
+ * split the same way. An edit notifies nobody (and `allowedMentions` parses
+ * nothing to be sure) — the list is only kept true. A chunk more than before is
+ * posted quietly, a message left over is deleted; a message somebody deleted in
+ * Discord stays deleted (its share is moved on to the next message).
+ * @returns {Promise<{ messageIds: string[] }>} the messages the ping consists of now
+ */
+async function editPingMessages(channelId, messageIds = [], userIds = [], text = "") {
+    if (!client) throw new Error("Bot nicht verbunden.");
+    const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
+    const users = [...new Set((userIds || []).map(String).filter(Boolean))];
+    const body = String(text || "").trim();
+    const chunks = users.length ? mentionChunks(users.map((id) => `<@${id}>`), MESSAGE_LIMIT - body.length - 1) : [""];
+    const contents = chunks.map((c, i) => (i === chunks.length - 1 ? [c, body].filter(Boolean).join("\n") : c));
+    const quiet = { parse: [] };
+    // the messages still there, in order
+    const messages = [];
+    for (const id of (messageIds || []).map(String)) {
+        try {
+            messages.push(await channel.messages.fetch(id));
+        } catch (e) {
+            if (!/unknown message/i.test((e && e.message) || "") && Number(e && e.code) !== 10008) throw e;
+        }
+    }
+    // the whole ping deleted by hand: it stays gone
+    if (!messages.length) return { messageIds: [] };
+    const kept = [];
+    for (let i = 0; i < contents.length; i++) {
+        if (messages[i]) {
+            await messages[i].edit({ content: contents[i], allowedMentions: quiet });
+            kept.push(String(messages[i].id));
+        } else {
+            const posted = await channel.send({ content: contents[i], allowedMentions: quiet });
+            kept.push(String(posted.id));
+        }
+    }
+    for (const left of messages.slice(contents.length)) await left.delete().catch(() => {});
+    return { messageIds: kept };
 }
 
 const MESSAGE_LIMIT = 2000;
@@ -962,7 +1005,7 @@ module.exports = {
     memberRoleIds,
     listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
-    listMembersWithRoles, listHumanMembers, postMissingPing, postNotice, channelVisible, mentionChunks, _resetMembersCacheForTests,
+    listMembersWithRoles, listHumanMembers, postMissingPing, editPingMessages, postNotice, channelVisible, mentionChunks, _resetMembersCacheForTests,
     fetchGuildMembersCached, botPermissionsIn, REQUIRED_BOT_PERMISSIONS,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,

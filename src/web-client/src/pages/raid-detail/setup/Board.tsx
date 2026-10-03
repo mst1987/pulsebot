@@ -1,12 +1,12 @@
 import { useState, type DragEvent, type KeyboardEvent } from "react";
-import type { SetupAttendance, SetupEditorData, SetupEditorGroup, SetupPerson } from "../../../api";
+import type { SetupAttendance, SetupConfirmation, SetupEditorData, SetupEditorGroup, SetupPerson } from "../../../api";
 import { benchChunks, placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
 import { wowIconUrl } from "../../../lib/wowIcon";
 import { roleLabel } from "../../../lib/wowNames";
 import { useT } from "../../../i18n";
 import { IconButton } from "../../../components/ui/Button";
 import WowIcon from "../../../components/ui/WowIcon";
-import { EditIcon, LockIcon, UnlockIcon } from "../../../components/icons";
+import { CheckIcon, EditIcon, LockIcon, UnlockIcon, XIcon } from "../../../components/icons";
 import { classColorProps } from "../../../components/ClassSpec";
 import SpecTile from "../SpecTile";
 import { specText, statusLabel } from "./setupText";
@@ -29,14 +29,22 @@ export type Interaction = {
     onLock: (userId: string) => void;
     /** "Anmeldung bearbeiten" (#521): the pencil on the slot and a right click open it; missing = read-only. */
     onEdit?: (userId: string) => void;
+    /** Confirm/Cancel by user id (the raiders' clicks under the setup message and the orga's marks) — drawn on group slots only. */
+    confirmations?: Record<string, SetupConfirmation>;
+    /** The orga's check on a group slot: set or take away the confirmation; missing = no button. */
+    onConfirm?: (userId: string) => void;
 };
 
-/** One raider line. `inPool` (#517): signed up, not in the setup — no lock (there is no place to keep), a "Bank" signup marked. */
-function Slot({ p, ui, inPool = false }: { p: SetupPerson; ui: Interaction; inPool?: boolean }) {
+/**
+ * One raider line. `inPool` (#517): signed up, not in the setup — no lock (there is no place to keep), a "Bank" signup marked.
+ * `inGroup`: a place in a group — only there a Confirm/Cancel is drawn (green resp. red, the mark as a big icon behind the line).
+ */
+function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerson; ui: Interaction; inPool?: boolean; inGroup?: boolean }) {
     const t = useT();
     const status = statusLabel(p.status);
     const color = classColorProps(p.classColor);
     const selected = ui.selected === p.userId;
+    const confirmation = inGroup ? (ui.confirmations || {})[p.userId] : undefined;
     const inspect = () => ui.onInspect(p.userId);
     const keyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -51,7 +59,7 @@ function Slot({ p, ui, inPool = false }: { p: SetupPerson; ui: Interaction; inPo
     };
     return (
         <div
-            className={`se-slot${selected ? " se-picked" : ""}${p.locked ? " se-locked" : ""}${ui.dragging === p.userId ? " se-dragging" : ""}`}
+            className={`se-slot${selected ? " se-picked" : ""}${p.locked ? " se-locked" : ""}${ui.dragging === p.userId ? " se-dragging" : ""}${confirmation ? ` se-${confirmation}` : ""}`}
             role={ui.editable ? "button" : undefined}
             tabIndex={ui.editable ? 0 : undefined}
             aria-pressed={ui.editable ? selected : undefined}
@@ -83,6 +91,23 @@ function Slot({ p, ui, inPool = false }: { p: SetupPerson; ui: Interaction; inPo
                 </span>
             </span>
             {status && <span className={`rd-sig rd-sig-${p.status}`} aria-label={status} />}
+            {confirmation && (
+                <span className="se-confirm-mark" role="img" aria-label={t(`setup.slot.${confirmation}`)}>
+                    {confirmation === "confirmed" ? <CheckIcon /> : <XIcon />}
+                </span>
+            )}
+            {ui.editable && inGroup && ui.onConfirm && (
+                <IconButton
+                    className={`se-confirmbtn${confirmation === "confirmed" ? " is-on" : ""}`}
+                    size="sm"
+                    icon={<CheckIcon />}
+                    tip={confirmation ? t(`setup.slot.${confirmation}`) : t("setup.slot.confirm")}
+                    tipSub={confirmation ? t(`setup.slot.${confirmation}Sub`) : t("setup.slot.confirmSub")}
+                    aria-pressed={confirmation === "confirmed"}
+                    onClick={(e) => { e.stopPropagation(); ui.onConfirm?.(p.userId); }}
+                    onKeyDown={(e) => e.stopPropagation()}
+                />
+            )}
             {ui.editable && ui.onEdit && (
                 <IconButton
                     className={`se-editbtn${inPool ? " se-editbtn-alone" : ""}`}
@@ -195,7 +220,7 @@ export function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs
             {/* always five places, each where the orga put its raider — a free one takes a drop of its own (place 5 of a group of two) */}
             <div className="se-slots">
                 {placeGrid(group.slots).map((p, i) => (p
-                    ? <Slot key={p.userId} p={p} ui={ui} />
+                    ? <Slot key={p.userId} p={p} ui={ui} inGroup />
                     : <FreePlace key={`free-${i + 1}`} group={group.index} pos={i + 1} pickable={ui.editable && !!ui.selected} ui={ui} />))}
             </div>
         </section>

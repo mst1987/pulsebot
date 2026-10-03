@@ -272,13 +272,12 @@ describe("the setup editor: the side column and the dialogs", () => {
 
 describe("the setup editor: state, approval and posting", () => {
     it.each([
-        ["an approved setup", { status: "approved" as const }, ["Freigegeben"], ["Entwurf"]],
-        ["a setup changed after its approval", { changedSinceApproval: true }, ["geändert seit Freigabe"], ["Freigegeben"]],
+        ["an approved setup", { status: "approved" as const }, ["Gepostet"], ["Entwurf"]],
+        ["a setup changed after its approval", { changedSinceApproval: true }, ["geändert seit dem Posten"], ["Gepostet"]],
         ["a proposal", { origin: "proposal" as const }, ["Entwurf"], ["automatischer Vorschlag"]],
         ["a draft made at the deadline", { origin: "auto" as const }, ["Entwurf", "automatischer Vorschlag"], []],
     ])("says what state %s is in", async (_name, setup, shown, hidden) => {
         await show(editorData({}, setup));
-        // (the approve button of an approved setup says "Freigegeben" as well)
         for (const text of shown) expect(screen.getAllByText(text).length).toBeGreaterThan(0);
         for (const text of hidden) expect(screen.queryAllByText(text)).toHaveLength(0);
     });
@@ -288,7 +287,7 @@ describe("the setup editor: state, approval and posting", () => {
         await show(editorData({}, { checks: { ...editorData().setup!.checks, ok: false } }));
         await user.click(screen.getByRole("button", { name: t("setup.editor.approve") }));
         const question = screen.getByRole("dialog");
-        expect(within(question).getByText("Trotzdem freigeben?")).toBeInTheDocument();
+        expect(within(question).getByText("Trotzdem posten?")).toBeInTheDocument();
         expect(client.send).not.toHaveBeenCalled();
         await user.click(within(question).getByRole("button", { name: t("setup.editor.approve") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(1));
@@ -361,6 +360,67 @@ describe("the setup editor: state, approval and posting", () => {
         await user.click(screen.getByRole("button", { name: t("setup.editor.approve") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/approve")[0][2]).toMatchObject({ event: EVENT_ID, bench: true });
+    });
+
+    it("has no separate approval: a draft is posted with \"Setup posten\", a posted setup just says so", async () => {
+        const posted = { messageUrl: "", version: 3, postedAt: 1, editedAt: 0 };
+        const publish = { channelId: "c1", channelName: "kara-do", cancelled: false, dmsEnabled: false, recipients: 3, pendingDms: 0, posted, outdated: false, error: "", errorAt: 0, dms: null };
+        const view = await show(editorData({ publish }));
+        expect(screen.getByRole("button", { name: t("setup.editor.approve") })).toBeEnabled();
+        view.unmount();
+
+        await show(editorData({ publish }, { status: "approved" }));
+        expect(screen.getByRole("button", { name: t("setup.editor.approved") })).toBeDisabled();
+        // only the line under the bar still offers "Setup posten" (outstanding DMs, a repost) — the bar has none
+        expect(screen.getAllByRole("button", { name: t("setup.editor.approve") })).toHaveLength(1);
+        expect(screen.getByRole("button", { name: t("setup.editor.approve") }).closest(".se-publish")).not.toBeNull();
+    });
+
+    describe("Confirm/Cancel in the editor", () => {
+        const confirmButton = (character: string) => within(slot(character)).getByRole("button", { name: /bestätigt|Bestätigt|Abgesagt/ });
+
+        it("tints a confirmed line green, a cancelled one red — group places only", async () => {
+            await show(editorData({ confirmations: { "u-tank": "confirmed", "u-priest": "declined", "u-rogue": "confirmed" } }, { status: "approved" }));
+            expect(slot("Bruno")).toHaveClass("se-confirmed");
+            expect(within(slot("Bruno")).getByRole("img", { name: t("setup.slot.confirmed") })).toBeInTheDocument();
+            expect(slot("Lumen")).toHaveClass("se-declined");
+            expect(slot("Ignis")).not.toHaveClass("se-confirmed");
+            // the bench never shows the mark
+            expect(slot("Schatten")).not.toHaveClass("se-confirmed");
+        });
+
+        it("lets the orga set and take away the check — drawn at once, saved on the server", async () => {
+            const user = userEvent.setup();
+            vi.mocked(client.send).mockImplementation((_m: string, path: string, body?: unknown) => (path === "/api/raids/setup/confirm"
+                ? Promise.resolve({ ...page, confirmations: (body as { status: string }).status ? { "u-mage": "confirmed" } : {} })
+                : Promise.resolve(page)));
+            await show(editorData({ confirmations: {} }, { status: "approved" }));
+            await user.click(confirmButton("Ignis"));
+            expect(slot("Ignis")).toHaveClass("se-confirmed");
+            await waitFor(() => expect(calls("POST", "/api/raids/setup/confirm")).toHaveLength(1));
+            expect(calls("POST", "/api/raids/setup/confirm")[0][2]).toEqual({ event: EVENT_ID, userId: "u-mage", status: "confirmed" });
+            // clicking the check does not pick the raider for a move
+            expect(slot("Ignis")).not.toHaveClass("se-picked");
+
+            await user.click(confirmButton("Ignis"));
+            await waitFor(() => expect(calls("POST", "/api/raids/setup/confirm")).toHaveLength(2));
+            expect(calls("POST", "/api/raids/setup/confirm")[1][2]).toEqual({ event: EVENT_ID, userId: "u-mage", status: "" });
+            await waitFor(() => expect(slot("Ignis")).not.toHaveClass("se-confirmed"));
+        });
+
+        it("turns a cancel into a check, and puts the mark back when saving fails", async () => {
+            const user = userEvent.setup();
+            vi.mocked(client.send).mockImplementation(() => Promise.reject({ code: "not_placed", message: "nope" }));
+            await show(editorData({ confirmations: { "u-priest": "declined" } }, { status: "approved" }));
+            await user.click(confirmButton("Lumen"));
+            expect(calls("POST", "/api/raids/setup/confirm")[0][2]).toEqual({ event: EVENT_ID, userId: "u-priest", status: "confirmed" });
+            await waitFor(() => expect(slot("Lumen")).toHaveClass("se-declined"));
+        });
+
+        it("offers no check before the setup is posted", async () => {
+            await show(editorData({ confirmations: {} }));
+            expect(within(slot("Bruno")).queryByRole("button", { name: t("setup.slot.confirm") })).not.toBeInTheDocument();
+        });
     });
 
     describe("while the DMs are being sent", () => {

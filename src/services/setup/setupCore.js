@@ -50,13 +50,22 @@ function pingTextOf(event) {
 
 // ---- Confirm / Cancel ---------------------------------------------------------
 
-/** The confirmations of the currently approved version, plain `{ userId: status }`. */
+const CONFIRM_STATUSES = ["confirmed", "declined"];
+
+/**
+ * The confirmations of everybody placed in a group of the approved lineup,
+ * plain `{ userId: status }`. A confirmation is the raider's (or the orga's)
+ * answer for the evening, not for one version: it stays through every later
+ * change of the setup, a move to another group included. Who is no longer in
+ * a group has none shown — and gets it back on their return.
+ */
 function confirmationsFor(event, approved) {
     if (!approved) return {};
     const stored = (event && event.setupPost && event.setupPost.confirmations) || {};
+    const placed = new Set((approved.groups || []).flatMap((g) => (g.slots || []).map((s) => String(s.userId))));
     const out = {};
     for (const [userId, entry] of Object.entries(stored)) {
-        if (entry && Number(entry.version) === Number(approved.version)) out[userId] = entry.status;
+        if (entry && CONFIRM_STATUSES.includes(entry.status) && placed.has(userId)) out[userId] = entry.status;
     }
     return out;
 }
@@ -99,7 +108,7 @@ function pingButtonRow(eventId) {
 module.exports = {
     approvedSetupOf, benchAndPool, benchPosted,
     PING_TEXT, PING_TEXT_MAX, pingTextOf,
-    confirmationsFor,
+    CONFIRM_STATUSES, confirmationsFor,
     CONFIRM_PREFIX, INVITE_PREFIX, PING_PREFIX, confirmId, inviteId, pingId,
     confirmButtonRow, inviteButtonRow, pingButtonRow,
 };

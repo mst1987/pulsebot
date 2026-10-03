@@ -121,6 +121,6 @@ describe("the cockpit in the menu language", () => {
         expect(lib.stepTitle(step)).toBe("Freigabe");
         expect(lib.stepTitle({ id: "future", label: "Neu" })).toBe("Neu");
         expect(lib.deedLabel({ id: "evaluate", label: "CLA auswerten" })).toBe("CLA auswerten");
-        expect(lib.deedLabel({ id: "approve", label: "egal" })).toBe("Setup freigeben");
+        expect(lib.deedLabel({ id: "approve", label: "egal" })).toBe("Setup posten");
     });
 });

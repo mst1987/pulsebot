@@ -73,7 +73,7 @@ describe("raidSteps", () => {
         it("is open while only a draft exists, and the primary action is the approval", () => {
             const res = own({ status: "draft", placed: 25, size: 25, changedSinceApproval: false });
             expect(step(res, "setup")).toMatchObject({ done: false, value: "25", unit: "/ 25", badge: { label: "Entwurf", tone: "mid" } });
-            expect(res.primary).toMatchObject({ label: "Setup freigeben", tab: "setup" });
+            expect(res.primary).toMatchObject({ label: "Setup posten", tab: "setup" });
         });
 
         it("says when a draft changed an earlier approval", () => {
@@ -409,13 +409,13 @@ describe("eventSteps — das Raid-Cockpit (#319)", () => {
         it("ist offen, solange nur ein Entwurf steht", () => {
             const res = run(own({ event: { signupsClosed: true }, ownSetup: { status: "draft", placed: 25, size: 25, version: 1, bench: 0, ok: true } }));
             expect(at(res, "approval")).toMatchObject({ state: "current", value: "25", unit: "im Entwurf", note: "Entwurf" });
-            expect(res.action).toMatchObject({ tab: "setup", label: "Setup freigeben" });
+            expect(res.action).toMatchObject({ tab: "setup", label: "Setup posten" });
             expect(at(res, "approval").hint).toMatch(/Raider sehen noch nichts/);
         });
 
         it("ist wieder offen, wenn sich nach der Freigabe etwas geändert hat", () => {
             const res = approved(null, { status: "approved", changedSinceApproval: true });
-            expect(at(res, "approval")).toMatchObject({ state: "current", note: "geändert seit der Freigabe" });
+            expect(at(res, "approval")).toMatchObject({ state: "current", note: "geändert seit dem Posten" });
         });
 
         it("nennt den Stand und die DMs, wenn freigegeben ist", () => {

@@ -1,6 +1,6 @@
 // "Confirm"/"Cancel" unter der Setup-Nachricht (Raid-Helper-Stil): eigene
 // Platzierung bestaetigen oder absagen, nur markieren (keine automatische
-// Nachbesetzung), veraltete Bestaetigungen fallen bei einer neuen Version weg.
+// Nachbesetzung); eine Bestaetigung bleibt ueber spaetere Aenderungen des Setups erhalten.
 const { MessageFlags } = require("discord.js");
 
 const mockEvents = new Map();
@@ -71,11 +71,12 @@ describe("setupConfirmBot", () => {
         const ok = await confirmBot.setConfirmation("eh-1", "1", "y");
         expect(ok.status).toBe("confirmed");
         const stored = eventStore.getEvent("eh-1").setupPost.confirmations;
-        expect(stored["1"]).toEqual({ status: "confirmed", version: 2 });
+        // `by` the raider themselves — the orga's mark in the editor names the orga member
+        expect(stored["1"]).toEqual({ status: "confirmed", at: expect.any(Number), by: "1" });
 
         const cancelled = await confirmBot.setConfirmation("eh-1", "2", "n");
         expect(cancelled.status).toBe("declined");
-        expect(eventStore.getEvent("eh-1").setupPost.confirmations["2"]).toEqual({ status: "declined", version: 2 });
+        expect(eventStore.getEvent("eh-1").setupPost.confirmations["2"]).toMatchObject({ status: "declined", by: "2" });
         // the first raider's confirmation survives a second raider's own click
         expect(eventStore.getEvent("eh-1").setupPost.confirmations["1"].status).toBe("confirmed");
     });
@@ -95,18 +96,22 @@ describe("setupConfirmBot", () => {
         expect((await confirmBot.setConfirmation("eh-1", "1", "y")).code).toBe("no_approved_setup");
     });
 
-    it("drops a confirmation from an earlier version once the lineup changed", async () => {
+    it("keeps a confirmation through later changes of the lineup", async () => {
         seed();
         await confirmBot.setConfirmation("eh-1", "1", "y");
-        // a re-approval bumps the version and keeps the same raider in group 1
+        // a later version moves raider 1 into group 2 — the answer stays
         const event = eventStore.getEvent("eh-1");
-        event.setup.approved = approved(3);
+        const later = approved(3);
+        later.groups = [{ index: 1, slots: [later.groups[0].slots[1]] }, { index: 2, slots: [later.groups[0].slots[0]] }];
+        event.setup.approved = later;
         event.setup.version = 3;
         mockEvents.set("eh-1", event);
-        expect(setupCore.confirmationsFor(event, approved(3))).toEqual({});
+        expect(setupCore.confirmationsFor(event, later)).toEqual({ 1: "confirmed" });
         await confirmBot.setConfirmation("eh-1", "2", "y");
-        // the stale v2 entry for "1" is gone, only the fresh v3 one for "2" remains
-        expect(eventStore.getEvent("eh-1").setupPost.confirmations).toEqual({ 2: { status: "confirmed", version: 3 } });
+        expect(setupCore.confirmationsFor(eventStore.getEvent("eh-1"), later)).toEqual({ 1: "confirmed", 2: "confirmed" });
+        // somebody no longer in a group has none shown, and gets it back on their return
+        const without = { ...later, groups: [later.groups[0]] };
+        expect(setupCore.confirmationsFor(eventStore.getEvent("eh-1"), without)).toEqual({ 2: "confirmed" });
     });
 
     it("handleConfirmComponent replies ephemeral, success or refusal", async () => {

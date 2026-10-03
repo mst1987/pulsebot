@@ -6,6 +6,12 @@ const mockEvents = new Map();
 jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: jest.fn((id) => mockEvents.get(id) || null),
     appendEventLog: jest.fn(),
+    setEventSetupPost: jest.fn((id, patch) => {
+        const e = mockEvents.get(id);
+        if (!e) return null;
+        e.setupPost = { ...(e.setupPost || {}), ...JSON.parse(JSON.stringify(patch)) };
+        return e;
+    }),
     setEventSetupPingText: jest.fn((id, text) => {
         const e = mockEvents.get(id);
         if (!e) return null;
@@ -13,13 +19,16 @@ jest.mock("../../../src/stores/eventStore", () => ({
         return e;
     }),
 }));
-jest.mock("../../../src/services/discord/discord", () => ({ postMissingPing: jest.fn(async () => ({ url: "https://discord.example/m1" })) }));
+jest.mock("../../../src/services/discord/discord", () => ({
+    postMissingPing: jest.fn(async () => ({ url: "https://discord.example/m1" })),
+    editPingMessages: jest.fn(async (channelId, ids) => ({ messageIds: ids })),
+}));
 // Which server counts as the event server is /event's rule, tested with it (test/commands/event).
 jest.mock("../../../src/services/events/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
 
 const eventStore = require("../../../src/stores/eventStore");
 const discord = require("../../../src/services/discord/discord");
-const { setupPingPlan, callSetupPing, saveSetupPingText } = require("../../../src/services/setup/setupPing");
+const { setupPingPlan, callSetupPing, saveSetupPingText, refreshSetupPing } = require("../../../src/services/setup/setupPing");
 const { pingTextOf, PING_TEXT, pingButtonRow } = require("../../../src/services/setup/setupCore");
 const bot = require("../../../src/services/setup/setupPingBot");
 const command = require("../../../src/commands/event/setupPingButton");
@@ -179,5 +188,39 @@ describe("the Discord button + modal (setupPingBot)", () => {
     it("ignores ids that are no own event", () => {
         expect(bot.parsePingId("setup-ping:../../x")).toEqual({ eventId: "" });
         expect(pingButtonRow("eh-abc123").components[0].custom_id).toBe("setup-ping:eh-abc123");
+    });
+});
+
+describe("the ping follows the setup (refreshSetupPing)", () => {
+    async function pinged() {
+        raid();
+        discord.postMissingPing.mockResolvedValueOnce({ channelId: "c1", messageId: "p1", messageIds: ["p1"], url: "u" });
+        await callSetupPing({ guildId: "g1", eventId: "eh-abc123", userId: "u-lead" });
+    }
+
+    it("remembers the last ping: its messages, who was named, who pinged, the text", async () => {
+        await pinged();
+        expect(mockEvents.get("eh-abc123").setupPost.ping).toEqual({ channelId: "c1", messageIds: ["p1"], userIds: ["u2", "u3", "u8"], by: "u-lead", text: PING_TEXT });
+    });
+
+    it("edits it to the lineup as it stands now — the pinger still left out", async () => {
+        await pinged();
+        const event = mockEvents.get("eh-abc123");
+        event.setup.approved.groups = [{ index: 1, slots: [slot("u-lead", "Naphfß"), slot("u3", "Zibbo"), slot("u9", "Neu")] }];
+        expect(await refreshSetupPing("eh-abc123")).toEqual({ edited: true });
+        expect(discord.editPingMessages).toHaveBeenCalledWith("c1", ["p1"], ["u3", "u9"], PING_TEXT);
+        expect(event.setupPost.ping.userIds).toEqual(["u3", "u9"]);
+        // the same list again: nothing to edit
+        expect(await refreshSetupPing("eh-abc123")).toEqual({ skipped: "unchanged" });
+        expect(discord.editPingMessages).toHaveBeenCalledTimes(1);
+    });
+
+    it("does nothing without a remembered ping and swallows a Discord error", async () => {
+        raid();
+        expect(await refreshSetupPing("eh-abc123")).toEqual({ skipped: "no_ping" });
+        await pinged();
+        mockEvents.get("eh-abc123").setup.approved.groups[0].slots.push(slot("u10", "Zehn"));
+        discord.editPingMessages.mockRejectedValueOnce(new Error("Missing Access"));
+        expect(await refreshSetupPing("eh-abc123")).toEqual({ error: "Missing Access" });
     });
 });

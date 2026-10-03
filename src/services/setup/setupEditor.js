@@ -36,7 +36,7 @@ const { validatePlacement, placeSlots } = require("../../utils/setup/manual");
 const { DEFAULT_WEIGHTS, MAX_WEIGHT } = require("../../utils/setup/score");
 const { rulesForEvent } = require("../events/mainVersion");
 const { str } = require("../../utils/text");
-const { approvedSetupOf, pingTextOf, benchAndPool } = require("./setupCore");
+const { approvedSetupOf, pingTextOf, benchAndPool, confirmationsFor } = require("./setupCore");
 const { suggestSearch } = require("./raidSearch");
 
 
@@ -190,44 +190,18 @@ function postedLive(event) {
     return !!(event && event.status !== "cancelled" && event.setupPost && event.setupPost.messageId && approvedSetupOf(event));
 }
 
-/** Where a raider stands in a group of a snapshot — a confirmation holds while this stays. */
-function groupPlaces(snapshot) {
-    const out = new Map();
-    for (const g of (snapshot && snapshot.groups) || []) {
-        for (const s of g.slots || []) out.set(String(s.userId), `${g.index}/${String(s.character || "").toLowerCase()}/${s.spec}/${s.role}`);
-    }
-    return out;
-}
-
-/**
- * A live change keeps the Confirm/Cancel of everybody whose place it did not
- * touch (stamped onto the new version); who was moved is asked again.
- */
-function carryConfirmations(event, before, after) {
-    const stored = (event.setupPost && event.setupPost.confirmations) || {};
-    const was = groupPlaces(before);
-    const now = groupPlaces(after);
-    const kept = {};
-    for (const [userId, entry] of Object.entries(stored)) {
-        if (!entry || Number(entry.version) !== Number(before.version)) continue;
-        if (now.has(userId) && now.get(userId) === was.get(userId)) kept[userId] = { ...entry, version: after.version };
-    }
-    eventStore.setEventSetupPost(event.id, { confirmations: kept });
-}
-
 /**
  * Store the next setup — approved at once while the setup is posted
  * (`postedLive`), else as it comes. `live: true` tells the caller to bring the
- * message up to date (setupMessage.refreshLiveSetup).
+ * message (and the ping) up to date (setupMessage.refreshLiveSetup). The
+ * confirmations are not touched: they stay through every change
+ * (setupCore.confirmationsFor).
  */
 function storeSetup(event, setup, { userId, now }) {
     // an empty lineup is never approved, live or not (approveEventSetup's "no_setup")
     const live = setup.status !== "approved" && postedLive(event) && (setup.groups || []).some((g) => (g.slots || []).length);
     const saved = eventStore.setEventSetup(event.id, live ? approvedVersionOf(setup, { userId, now }) : setup);
-    if (!live) return { setup: saved.setup, event: saved };
-    carryConfirmations(event, approvedSetupOf(event), saved.setup.approved);
-    const fresh = eventStore.getEvent(event.id) || saved;
-    return { setup: fresh.setup, event: fresh, live: true };
+    return live ? { setup: saved.setup, event: saved, live: true } : { setup: saved.setup, event: saved };
 }
 
 function ownEvent(eventId) {
@@ -584,6 +558,8 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         absent: signups.filter((s) => s.status === "absence").length,
         avoidPairs,
         pingText: pingTextOf(event),
+        // Confirm/Cancel by user id — the raiders' clicks and the orga's own marks (setupConfirm.js)
+        confirmations: confirmationsFor(event, approvedSetupOf(event)),
         // raiders marked as an extra tank / healer, by user id
         extraRoles: event.extraRoles || {},
         // what the raid still needs and the message that looks for it (raidSearch.js)

@@ -224,10 +224,10 @@ describe("what posting the setup will do / did (#290)", () => {
     });
 
     it("says before approving where it posts and whether DMs go out", () => {
-        expect(lib.publishHint(publish(), false, time)).toMatchObject({ text: "Beim Freigeben: postet Setup in #kanal · DMs an 25 Raider (aus)".replace("#kanal", "#kara-do"), canPost: false });
+        expect(lib.publishHint(publish(), false, time)).toMatchObject({ text: "Beim Posten: postet Setup in #kara-do · DMs an 25 Raider (aus)", canPost: false });
         const on = lib.publishHint(publish({ dmsEnabled: true, pendingDms: 3, posted: { messageUrl: "u", version: 1, postedAt: 5, editedAt: 0 } }), false, time);
-        expect(on.text).toBe("Beim Freigeben: aktualisiert das Setup in #kara-do · DMs an 3 Raider");
-        expect(on.sub).toContain("nie gepostet");
+        expect(on.text).toBe("Beim Posten: aktualisiert das Setup in #kara-do · DMs an 3 Raider");
+        expect(on.sub).toContain("vor dem Posten ist das Setup ein Entwurf");
     });
 
     it("says after approving what happened, failures in the tooltip", () => {
@@ -266,7 +266,7 @@ describe("what posting the setup will do / did (#290)", () => {
 
     it("speaks English when the page does", async () => {
         await inLang("en", () => {
-            expect(lib.publishHint(publish(), false, time).text).toBe("On approval: posts the setup in #kara-do · DMs to 25 raiders (off)");
+            expect(lib.publishHint(publish(), false, time).text).toBe("On posting: posts the setup in #kara-do · DMs to 25 raiders (off)");
             const done = publish({ posted: { messageUrl: "u", version: 1, postedAt: 100, editedAt: 0 }, dmsEnabled: true, pendingDms: 0, dms: { status: "done", version: 1, at: 1, total: 1, sent: 1, failed: [], unchanged: 0 } });
             expect(lib.publishHint(done, true, time).text).toBe("posted T100 in #kara-do · 1 DM");
             expect(lib.moveRaider(lib.toInput(setup()), "w", { group: 1 }, lib.peopleOf(setup()), 25).error).toBe("Group 1 is full — drag onto a raider to swap.");

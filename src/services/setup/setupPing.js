@@ -55,7 +55,37 @@ async function callSetupPing({ guildId, eventId, userId, byName = "", text } = {
     }
     const count = plan.userIds.length;
     eventStore.appendEventLog(event.id, { action: "setupPing", by: String(userId || ""), byName, detail: `${count} Raider gepingt` });
+    // the last ping is remembered, so a later change of the setup can keep its list true (refreshSetupPing)
+    if (posted && posted.channelId) {
+        eventStore.setEventSetupPost(event.id, {
+            ping: { channelId: String(posted.channelId), messageIds: posted.messageIds || [String(posted.messageId)], userIds: plan.userIds, by: String(userId || ""), text: plan.text },
+        });
+    }
     return { message: `${count} Raider aus dem Setup gepingt.`, count, url: posted && posted.url };
 }
 
-module.exports = { saveSetupPingText, setupPingPlan, callSetupPing };
+/**
+ * After a live change of the setup: the last ping's message is edited to the
+ * people placed now (setupPingPlan, the pinger left out as before). Nobody is
+ * notified by an edit — newcomers are named, not pinged; who left the setup
+ * disappears from the list. Nothing to do without a remembered ping, for a
+ * cancelled event or when the list is the same.
+ * @returns {Promise<{ edited?: boolean, skipped?: string, error?: string }>}
+ */
+async function refreshSetupPing(eventId) {
+    const event = eventStore.getEvent(eventId);
+    const ping = event && event.setupPost && event.setupPost.ping;
+    if (!ping || !ping.channelId || !(ping.messageIds || []).length) return { skipped: "no_ping" };
+    const plan = setupPingPlan(event, ping.by, { text: ping.text });
+    if (plan.error) return { skipped: plan.error.code || "no_plan" };
+    if ([...plan.userIds].sort().join(",") === [...(ping.userIds || [])].sort().join(",")) return { skipped: "unchanged" };
+    try {
+        const { messageIds } = await discord.editPingMessages(ping.channelId, ping.messageIds, plan.userIds, plan.text);
+        eventStore.setEventSetupPost(event.id, { ping: { ...ping, messageIds, userIds: plan.userIds } });
+        return { edited: true };
+    } catch (e) {
+        return { error: (e && e.message) || "Discord hat nicht geantwortet." };
+    }
+}
+
+module.exports = { saveSetupPingText, setupPingPlan, callSetupPing, refreshSetupPing };
