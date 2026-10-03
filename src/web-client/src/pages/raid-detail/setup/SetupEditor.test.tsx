@@ -262,6 +262,13 @@ describe("the setup editor: the bar", () => {
         expect(container.querySelector("[title]")).toBeNull();
     });
 
+    it("names tank and healer on a line, never melee or ranged — an off-spec tints the spec instead", async () => {
+        await show(editorData({}, { groups: [{ index: 1, slots: [{ ...TANK, pos: 1 }, { ...MAGE, pos: 2, main: false }] }], bench: [] }));
+        expect(within(slot("Bruno")).getByText("Tank")).toBeInTheDocument();
+        expect(within(slot("Ignis")).queryByText(/Fernkampf/)).not.toBeInTheDocument();
+        expect(within(slot("Ignis")).getByText("Feuer")).toHaveClass("se-offrole");
+    });
+
     it("keeps one line per raider: why they stand there is only in the panel", async () => {
         const user = userEvent.setup();
         await show();

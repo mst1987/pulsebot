@@ -332,16 +332,17 @@
 .se-tip-pin { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11.5px; font-weight: 700; }
 .se-tip.se-tip-pinned { box-shadow: 0 0 0 2px var(--accent-soft); }
 
-/* Confirm/Cancel of a group slot: the line tinted green (red for a cancel), the mark as a big, faint icon behind its right end */
-.se-slot.se-confirmed { background: linear-gradient(90deg, var(--panel2) 0%, var(--good-bg) 55%), var(--panel2); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
-.se-slot.se-declined { background: linear-gradient(90deg, var(--panel2) 0%, var(--high-bg) 55%), var(--panel2); border-color: color-mix(in srgb, var(--high) 45%, transparent); }
-.se-confirm-mark { position: absolute; top: 50%; right: 22px; transform: translateY(-50%); display: flex; width: 26px; height: 26px; pointer-events: none; opacity: .45; }
+/* Confirm/Cancel of a group slot: the line tinted green (red for a cancel), the mark a faint watermark in the top
+   right corner — cut by the line's edge, behind the text, so it never stands in the way of a name */
+.se-slot.se-confirmed { overflow: hidden; background: linear-gradient(90deg, var(--panel2) 0%, var(--good-bg) 55%), var(--panel2); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.se-slot.se-declined { overflow: hidden; background: linear-gradient(90deg, var(--panel2) 0%, var(--high-bg) 55%), var(--panel2); border-color: color-mix(in srgb, var(--high) 45%, transparent); }
+.se-confirm-mark { position: absolute; top: -7px; right: -5px; display: flex; width: 34px; height: 34px; pointer-events: none; opacity: .22; transform: rotate(-8deg); }
 .se-confirm-mark svg { width: 100%; height: 100%; }
 .se-confirmed .se-confirm-mark { color: var(--good); }
 .se-declined .se-confirm-mark { color: var(--high); }
 /* the name and spec stay readable on top of the mark */
 .se-slot.se-confirmed .se-slot-text, .se-slot.se-declined .se-slot-text { position: relative; }
-.se-compact .se-confirm-mark { width: 20px; height: 20px; right: 18px; }
+.se-compact .se-confirm-mark { width: 24px; height: 24px; top: -5px; right: -4px; }
 /* the picked raider wins over every tint: a strong accent frame and wash, also on a green or red line */
 .se-slot.se-picked, .se-slot.se-picked.se-confirmed, .se-slot.se-picked.se-declined {
     border-color: var(--accent); background: linear-gradient(0deg, var(--accent-soft), var(--accent-soft)), var(--panel2);
