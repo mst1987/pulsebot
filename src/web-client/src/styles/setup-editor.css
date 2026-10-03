@@ -190,14 +190,9 @@
 .se-name { font-weight: 700; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .se-sub { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .se-offrole { color: var(--medium); font-weight: 700; }
-/* the lock is an overlay, not a column: it takes no width from the name. Locked = a small icon in the corner; hovering the slot brings the full button */
-.se-lock { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: var(--panel2); color: var(--muted); opacity: 0; }
-.se-lock svg { width: 14px; height: 14px; }
-.se-slot:hover .se-lock, .se-slot:focus-within .se-lock { opacity: 1; }
-.se-lock.is-on { opacity: 1; top: 4px; right: 5px; transform: none; width: 14px; height: 14px; background: none; color: var(--accent); }
-.se-lock.is-on svg { width: 12px; height: 12px; }
-.se-slot:hover .se-lock.is-on, .se-slot:focus-within .se-lock.is-on { top: 50%; right: 4px; transform: translateY(-50%); width: 24px; height: 24px; background: var(--panel2); }
-.se-slot:hover .se-lock.is-on svg, .se-slot:focus-within .se-lock.is-on svg { width: 14px; height: 14px; }
+/* a fixed place: a small lock in the corner, only a sign — the raider panel's button changes it; it takes no width from the name */
+.se-lock-mark { position: absolute; top: 4px; right: 5px; display: flex; width: 12px; height: 12px; color: var(--accent); pointer-events: none; }
+.se-lock-mark svg { width: 100%; height: 100%; }
 
 /* the summary column */
 .se-side { display: flex; flex-direction: column; gap: 12px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
@@ -257,7 +252,6 @@
 .se-compact .se-slot img, .se-compact .se-slot [class*="spec-ph"] { width: 20px; height: 20px; }
 .se-compact .se-sub { display: none; }
 .se-compact .se-name { font-size: 13.5px; }
-.se-compact .se-slot:hover .se-lock, .se-compact .se-slot:focus-within .se-lock { width: 20px; height: 20px; }
 .se-compact .se-group-head-top { min-height: 28px; padding: 5px 38px; }
 .se-compact .se-group-title { font-size: 13.5px; }
 .se-compact .se-group-head-top .se-count.se-num { font-size: 15px; }
@@ -312,32 +306,49 @@
 .se-tip-extra { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 4px; border: 1px solid var(--line); border-radius: 8px; background: none; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .se-tip-extra:hover { border-color: var(--accent); color: var(--text); }
 .se-tip-extra.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+/* the orga's actions on the raider shown (check, fix, signup): in the panel, never on the line, so nothing can cover them */
+.se-tip-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.se-tip-act { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.se-tip-act svg { width: 14px; height: 14px; }
+.se-tip-act:hover, .se-tip-act:focus-visible { border-color: var(--accent); outline: none; }
+.se-tip-act.is-on { border-color: var(--accent); background: var(--accent-soft); }
+.se-tip-act-ok.is-on { border-color: var(--good); background: var(--good-bg); color: var(--good); }
+.se-tip-act-ok.se-tip-act-no { border-color: var(--high); background: var(--high-bg); color: var(--high); }
+/* "Mehr ▾" in the bar: the rarely needed actions, portalled below the button */
+.se-more { position: relative; display: inline-flex; }
+.se-more-chev { display: inline-flex; margin-left: 2px; color: var(--muted); }
+.se-more-chev svg { width: 14px; height: 14px; }
+.se-more-pop { position: fixed; z-index: 60; width: 300px; max-height: calc(100vh - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: 1px; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 18px 40px -12px var(--shade-55); }
+.se-more-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 0; border-radius: 7px; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.se-more-item:hover, .se-more-item:focus-visible { background: var(--panel2); outline: none; }
+.se-more-item:disabled { opacity: .5; cursor: default; }
+.se-more-item.is-on .se-more-label::after { content: " ✓"; color: var(--accent); }
+.se-more-text { display: flex; flex-direction: column; min-width: 0; }
+.se-more-label { font-size: 14px; font-weight: 700; line-height: 1.25; }
+.se-more-sub { font-size: 12px; color: var(--muted); line-height: 1.3; }
+.se-bar-count { margin-left: 2px; padding: 0 6px; border-radius: 999px; background: var(--good-bg); color: var(--good); font-size: 11.5px; font-weight: 800; }
+/* a picked raider holds the panel: a small pin next to the name says so */
+.se-tip-nameline { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.se-tip-pin { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11.5px; font-weight: 700; }
+.se-tip.se-tip-pinned { box-shadow: 0 0 0 2px var(--accent-soft); }
 
-/* "Anmeldung bearbeiten" (#521): the slot's pencil is an overlay like the lock (left of it), the dialog's choices are chips */
-.se-editbtn { position: absolute; top: 50%; right: 32px; transform: translateY(-50%); width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: var(--panel2); color: var(--muted); opacity: 0; }
-.se-editbtn.se-editbtn-alone { right: 4px; }
-.se-editbtn svg { width: 14px; height: 14px; }
-.se-slot:hover .se-editbtn, .se-slot:focus-within .se-editbtn { opacity: 1; }
-.se-compact .se-slot:hover .se-editbtn, .se-compact .se-slot:focus-within .se-editbtn { width: 20px; height: 20px; right: 28px; }
-.se-compact .se-slot:hover .se-editbtn.se-editbtn-alone, .se-compact .se-slot:focus-within .se-editbtn.se-editbtn-alone { right: 4px; }
 /* Confirm/Cancel of a group slot: the line tinted green (red for a cancel), the mark as a big, faint icon behind its right end */
 .se-slot.se-confirmed { background: linear-gradient(90deg, var(--panel2) 0%, var(--good-bg) 55%), var(--panel2); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
 .se-slot.se-declined { background: linear-gradient(90deg, var(--panel2) 0%, var(--high-bg) 55%), var(--panel2); border-color: color-mix(in srgb, var(--high) 45%, transparent); }
-.se-confirm-mark { position: absolute; z-index: 0; top: 50%; right: 22px; transform: translateY(-50%); display: flex; width: 26px; height: 26px; pointer-events: none; opacity: .45; }
-/* the name and spec stay readable on top of the mark */
-.se-slot.se-confirmed .se-slot-text, .se-slot.se-declined .se-slot-text { position: relative; z-index: 1; }
+.se-confirm-mark { position: absolute; top: 50%; right: 22px; transform: translateY(-50%); display: flex; width: 26px; height: 26px; pointer-events: none; opacity: .45; }
 .se-confirm-mark svg { width: 100%; height: 100%; }
 .se-confirmed .se-confirm-mark { color: var(--good); }
 .se-declined .se-confirm-mark { color: var(--high); }
-/* the mark makes room for the buttons while the pointer is on the line */
-.se-slot:hover .se-confirm-mark, .se-slot:focus-within .se-confirm-mark { opacity: 0; }
+/* the name and spec stay readable on top of the mark */
+.se-slot.se-confirmed .se-slot-text, .se-slot.se-declined .se-slot-text { position: relative; }
 .se-compact .se-confirm-mark { width: 20px; height: 20px; right: 18px; }
-/* the orga's check: an overlay left of the pencil, like the lock */
-.se-confirmbtn { position: absolute; top: 50%; right: 60px; transform: translateY(-50%); width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: var(--panel2); color: var(--muted); opacity: 0; }
-.se-confirmbtn svg { width: 14px; height: 14px; }
-.se-confirmbtn.is-on { color: var(--good); }
-.se-slot:hover .se-confirmbtn, .se-slot:focus-within .se-confirmbtn { opacity: 1; }
-.se-compact .se-slot:hover .se-confirmbtn, .se-compact .se-slot:focus-within .se-confirmbtn { width: 20px; height: 20px; right: 52px; }
+/* the picked raider wins over every tint: a strong accent frame and wash, also on a green or red line */
+.se-slot.se-picked, .se-slot.se-picked.se-confirmed, .se-slot.se-picked.se-declined {
+    border-color: var(--accent); background: linear-gradient(0deg, var(--accent-soft), var(--accent-soft)), var(--panel2);
+    box-shadow: 0 0 0 2px var(--accent), 0 0 14px -2px var(--accent);
+}
+/* the raider the panel holds (after a panel action, nothing to move): the frame without the wash, the tint stays readable */
+.se-slot.se-pinned, .se-slot.se-pinned.se-confirmed, .se-slot.se-pinned.se-declined { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .se-edit { display: flex; flex-direction: column; gap: 14px; }
 .se-edit-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .se-edit-opt { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); font-size: 13.5px; font-weight: 600; cursor: pointer; }

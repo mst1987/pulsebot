@@ -428,6 +428,11 @@ function signupStepOwn(d, now) {
     if (deadlinePassed || ev.isPast) {
         return { ...step, state: "done", hint: `${closing} Wer jetzt noch mitsoll, wird über „Verwalten › Raider eintragen“ eingetragen.`, action: null };
     }
+    // Posting the setup (= approving it) is past the signup by itself: nothing to
+    // close — the signup may well stay open, so somebody can step in when a raider drops out.
+    if (d.ownSetup && d.ownSetup.status === "approved") {
+        return { ...step, state: "done", hint: `Das Setup ist gepostet — die Anmeldung muss dafür nicht geschlossen werden und bleibt offen für Nachrücker. ${closing}`, action: null };
+    }
     // Offen: die eine Tat richtet sich danach, woran es gerade hängt.
     let action;
     if (!c.total) action = deed("notify", "Anmelde-Aufruf posten", "inv_letter_15", { modal: "notify" });

@@ -14,7 +14,7 @@
 // server. Posting carries the bench only with "Bench mitposten" ticked.
 
 import { useEffect, useRef, useState } from "react";
-import { approveRaidSetup, getRaidSetup, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput } from "../../../api";
+import { approveRaidSetup, getRaidSetup, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { applyLocal, moveRaider, peopleOf, resizeLineup, respecRaider, suggestGroup, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
 import { useT } from "../../../i18n";
@@ -29,9 +29,9 @@ import type { RaidCtx } from "../meta";
 import "../../../styles/setup-editor.css";
 import { readCompact, storeCompact } from "./setupText";
 import { BenchCard, GroupCard, type Interaction, PoolCard, ReadOnly } from "./Board";
-import { PingTextField, PublishLine, SizeControl, StatusBadge } from "./Controls";
+import { MoreMenu, PingTextField, PublishLine, SizeControl, StatusBadge } from "./Controls";
 import { Summary } from "./Summary";
-import { SlotTip, TipEmpty } from "./SlotTip";
+import { SlotTip, TipEmpty, type SlotActions } from "./SlotTip";
 import { ExplainModal, WeightsModal } from "./SetupModals";
 import { SearchModal } from "./SearchModal";
 import { SignupEditModal } from "./SignupEditModal";
@@ -62,12 +62,22 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const { data, setData } = setupData;
     const load = setupData.reload;
 
+    // The raider the panel holds on to: the one clicked last. Unlike `selected`
+    // (picked to be moved — the next raider clicked is swapped with it) it
+    // outlives a panel action: confirm, fix or edit drop the pick, the panel
+    // stays, and the next click on a raider just picks that one.
+    const [pinned, setPinned] = useState<string | null>(null);
+
     useEffect(() => {
-        if (!selected) return undefined;
-        const esc = (e: globalThis.KeyboardEvent) => { if (e.key === "Escape") setSelected(null); };
+        if (!selected && !pinned) return undefined;
+        const esc = (e: globalThis.KeyboardEvent) => {
+            if (e.key !== "Escape") return;
+            setSelected(null);
+            setPinned(null);
+        };
         document.addEventListener("keydown", esc);
         return () => document.removeEventListener("keydown", esc);
-    }, [selected]);
+    }, [selected, pinned]);
 
     const setup = data?.setup || null;
     const postBench = benchChoice ?? !!data?.publish?.bench;
@@ -163,9 +173,21 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     };
 
     const pick = (userId: string) => {
-        if (!selected) return setSelected(userId);
-        if (selected === userId) return setSelected(null);
+        if (!selected) {
+            setPinned(userId);
+            return setSelected(userId);
+        }
+        if (selected === userId) {
+            setPinned(null);
+            return setSelected(null);
+        }
         move({ userId });
+    };
+
+    /** A panel action on the raider shown: done, the pick is dropped (no swap on the next click), the panel stays. */
+    const act = (fn: () => void) => () => {
+        setSelected(null);
+        fn();
     };
 
     /**
@@ -263,23 +285,58 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
-    /**
-     * The orga's check on a group slot: confirmed ↔ none (a "Cancel" turns into
-     * confirmed). Drawn at once, the answer brings the stored marks back.
-     */
-    const toggleConfirm = async (userId: string) => {
-        const before = current.current?.confirmations || {};
-        const next: SetupConfirmation | "" = before[userId] === "confirmed" ? "" : "confirmed";
-        const optimistic = { ...before };
-        if (next) optimistic[userId] = next;
-        else delete optimistic[userId];
-        setData((prev) => (prev ? { ...prev, confirmations: optimistic } : prev));
+    // The orga's marks, many in a row: each is drawn at once and sent one after
+    // the other (the server answers at once, the Discord message follows a
+    // moment after the last). A mark still on its way overrides whatever an
+    // answer to an earlier one says — so a quick second click never jumps back.
+    const pendingMarks = useRef(new Map<string, SetupConfirmation | "">());
+    const markChain = useRef<Promise<unknown>>(Promise.resolve());
+    const withPending = (marks: Record<string, SetupConfirmation>) => {
+        const out = { ...marks };
+        for (const [id, status] of pendingMarks.current) {
+            if (status) out[id] = status;
+            else delete out[id];
+        }
+        return out;
+    };
+    const settle = (userId: string, sent: SetupConfirmation | "") => {
+        if (pendingMarks.current.get(userId) === sent) pendingMarks.current.delete(userId);
+    };
+
+    /** The check in the raider panel: confirmed ↔ none (a "Cancel" turns into confirmed). */
+    const toggleConfirm = (userId: string) => {
+        const was = (current.current?.confirmations || {})[userId];
+        const next: SetupConfirmation | "" = was === "confirmed" ? "" : "confirmed";
+        pendingMarks.current.set(userId, next);
+        setData((prev) => (prev ? { ...prev, confirmations: withPending(prev.confirmations || {}) } : prev));
+        markChain.current = markChain.current.then(async () => {
+            try {
+                const answer = await setSetupConfirmation(ctx.eventId, userId, next);
+                settle(userId, next);
+                setData((prev) => (prev ? { ...prev, confirmations: withPending(answer.confirmations || {}) } : prev));
+            } catch (e) {
+                settle(userId, next);
+                // back to what the line showed before this click — unless a newer click is already on its way
+                setData((prev) => {
+                    if (!prev || pendingMarks.current.has(userId)) return prev;
+                    const marks = { ...(prev.confirmations || {}) };
+                    if (was) marks[userId] = was;
+                    else delete marks[userId];
+                    return { ...prev, confirmations: marks };
+                });
+                jobs.notify((e as ApiError).message || t("setup.editor.confirmFailed"), "err");
+            }
+        });
+    };
+
+    /** "Alle bestätigen": after the marks still on their way, the check for everybody in a group without an answer. */
+    const confirmEveryone = async () => {
+        await markChain.current;
         try {
-            const answer = await setSetupConfirmation(ctx.eventId, userId, next);
-            setData((prev) => (prev ? { ...prev, confirmations: answer.confirmations || {}, publish: answer.publish } : prev));
-            if (answer.message) jobs.notify(answer.message, "err");
+            const answer = await confirmAllSetup(ctx.eventId);
+            setData((prev) => (prev ? { ...prev, confirmations: withPending(answer.confirmations || {}) } : prev));
+            jobs.notify(answer.count ? t("setup.editor.confirmAllDone", { count: answer.count }) : t("setup.editor.confirmAllNone"));
         } catch (e) {
-            setData((prev) => (prev ? { ...prev, confirmations: before } : prev));
             jobs.notify((e as ApiError).message || t("setup.editor.confirmFailed"), "err");
         }
     };
@@ -342,16 +399,31 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const moving = dragging || selected;
     const movingPerson = moving ? peopleOf(setup).get(moving) : undefined;
     const suggest = movingPerson ? suggestGroup(movingPerson, withAllGroups(setup.groups, data.groupCount || 1)) : null;
-    // looked up fresh every render, so a move redraws the panel's group and buffs
-    const inspectedPerson = inspected ? peopleOf(setup).get(inspected) : undefined;
+    // The panel shows the raider clicked last (`pinned`) — the pointer passing over
+    // other lines on its way to the panel's buttons changes nothing — else the
+    // one the pointer touched last. Looked up fresh every render, so a move
+    // redraws the panel's group and buffs.
+    const shownId = (pinned && peopleOf(setup).has(pinned) ? pinned : null) || inspected;
+    const inspectedPerson = shownId ? peopleOf(setup).get(shownId) : undefined;
     const editPerson = editing ? peopleOf(setup).get(editing) : undefined;
     // on the bench or in the pool: no slot yet, so no "im Setup als" and no extra role
     const inspectedIsBench = !!inspectedPerson && [...setup.bench, ...(setup.pool || [])].some((b) => b.userId === inspectedPerson.userId);
-    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)), onEdit: setEditing,
-        // Confirm/Cancel only exists for a posted (= approved) setup — before that nobody can have answered
-        confirmations: data.confirmations || {}, onConfirm: setup.status === "approved" ? (userId) => void toggleConfirm(userId) : undefined };
+    const inspectedInPool = !!inspectedPerson && (setup.pool || []).some((b) => b.userId === inspectedPerson.userId);
+    const inspectedInGroup = !!inspectedPerson && setup.groups.some((g) => g.slots.some((s) => s.userId === inspectedPerson.userId));
+    const confirmations = data.confirmations || {};
+    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onEdit: setEditing, confirmations, pinned: shownId === pinned ? pinned : null };
     // posting is approving (no separate step): once the message is out, every change goes live by itself
     const live = setup.status === "approved" && !!data.publish?.posted;
+    // the actions on the raider shown (SlotTip) — the check only for a group place of a posted (= approved) setup
+    const actions: SlotActions = inspectedPerson && !busy ? {
+        confirmation: inspectedInGroup ? confirmations[inspectedPerson.userId] : undefined,
+        onConfirm: inspectedInGroup && setup.status === "approved" ? act(() => toggleConfirm(inspectedPerson.userId)) : undefined,
+        locked: !!inspectedPerson.locked,
+        onLock: inspectedInPool ? undefined : act(() => void save(toggleLock(toInput(current.current?.setup || setup), inspectedPerson.userId))),
+        onEdit: act(() => setEditing(inspectedPerson.userId)),
+    } : {};
+    // who in the groups has no answer yet — "Alle bestätigen" is there only while somebody is left
+    const unanswered = setup.groups.reduce((n, g) => n + g.slots.filter((s) => !confirmations[s.userId]).length, 0);
     const groups = withAllGroups(setup.groups, data.groupCount || 1);
     const partyBuffs = setup.checks.buffs.party;
     const lockedCount = [...setup.groups.flatMap((g) => g.slots), ...setup.bench].filter((p) => p.locked).length;
@@ -377,23 +449,25 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     {selected ? t("setup.editor.pickTarget") : t("setup.editor.dragHint")}
                 </span>
                 <div className="se-bar-act">
-                    <Button
-                        variant="ghost" size="sm" icon="inv_misc_book_09" aria-pressed={compact}
-                        data-tip={t("setup.editor.compact")} data-tip-sub={t("setup.editor.compactSub")}
-                        onClick={toggleCompact}
-                    >
-                        {t("setup.editor.compact")}
-                    </Button>
-                    <Button
-                        variant="ghost" size="sm" icon="inv_misc_spyglass_02" disabled={!data.search}
-                        data-tip={t("setup.editor.search")} data-tip-sub={t("setup.editor.searchSub")}
-                        onClick={() => setDialog("search")}
-                    >
-                        {t("setup.editor.search")}
-                    </Button>
-                    <Button variant="ghost" size="sm" icon="inv_scroll_03" onClick={() => setDialog("explain")}>{t("setup.editor.explain")}</Button>
-                    <Button variant="ghost" size="sm" icon="inv_misc_gear_01" disabled={busy} onClick={() => setDialog("weights")}>{t("setup.summary.weights")}</Button>
+                    {/* the rarely needed ones behind "Mehr"; in the bar only what the evening is about */}
+                    <MoreMenu
+                        items={[
+                            { id: "compact", label: t("setup.editor.compact"), sub: t("setup.editor.compactSub"), icon: "inv_misc_book_09", on: compact, onSelect: toggleCompact },
+                            { id: "search", label: t("setup.editor.search"), sub: t("setup.editor.searchSub"), icon: "inv_misc_spyglass_02", disabled: !data.search, onSelect: () => setDialog("search") },
+                            { id: "explain", label: t("setup.editor.explain"), sub: t("setup.editor.explainSub"), icon: "inv_scroll_03", onSelect: () => setDialog("explain") },
+                            { id: "weights", label: t("setup.summary.weights"), sub: t("setup.editor.weightsSub"), icon: "inv_misc_gear_01", disabled: busy, onSelect: () => setDialog("weights") },
+                        ]}
+                    />
                     <Button variant="ghost" size="sm" icon="spell_holy_borrowedtime" disabled={busy} onClick={() => propose()}>{t("setup.editor.repropose")}</Button>
+                    {setup.status === "approved" && unanswered > 0 && (
+                        <Button
+                            variant="ghost" size="sm" icon="achievement_guildperk_everybodysfriend" disabled={busy}
+                            data-tip={t("setup.editor.confirmAll")} data-tip-sub={t("setup.editor.confirmAllSub")}
+                            onClick={() => void confirmEveryone()}
+                        >
+                            {t("setup.editor.confirmAll")} <small className="se-bar-count">{unanswered}</small>
+                        </Button>
+                    )}
                     {/* a draft: "Setup posten" approves and posts in one; posted: a quiet "Gepostet" (approved but not
                         out yet, e.g. the bot was offline — the line under the bar has "Setup posten" for that) */}
                     {setup.status !== "approved" && (
@@ -420,7 +494,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                         onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
                     />
                 </div>
-                {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} extra={(data.extraRoles || {})[inspectedPerson.userId] || []} onExtra={inspectedIsBench ? undefined : (role, on) => void toggleExtra(inspectedPerson.userId, role, on)} onSpec={busy || inspectedIsBench ? undefined : (key) => respec(inspectedPerson.userId, key)} /> : <TipEmpty />}
+                {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} extra={(data.extraRoles || {})[inspectedPerson.userId] || []} onExtra={inspectedIsBench ? undefined : (role, on) => void toggleExtra(inspectedPerson.userId, role, on)} onSpec={busy || inspectedIsBench ? undefined : (key) => respec(inspectedPerson.userId, key)} actions={actions} pinned={shownId === pinned} /> : <TipEmpty />}
             </div>
 
             <div className="se-layout">

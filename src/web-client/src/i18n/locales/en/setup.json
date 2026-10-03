@@ -24,7 +24,9 @@
             "bringsRaid": "to the raid",
             "why": "Why here",
             "aria": "Raider details",
-            "empty": "Hover a raider to see details"
+            "empty": "Hover a raider to see details",
+            "pinned": "selected",
+            "pinnedSub": "The panel stays with this raider until you release the selection — Esc or click them again."
         },
         "offSpec": "Off-spec",
         "status": {
@@ -71,7 +73,8 @@
         "confirm": "Mark as confirmed",
         "confirmSub": "Sets the green check as if the raider had clicked \"Confirm\" — in the Discord message too.",
         "confirmedSub": "Confirmed — click to take the check away.",
-        "declinedSub": "Cancelled — click to set the green check instead."
+        "declinedSub": "Cancelled — click to set the green check instead.",
+        "confirmShort": "Confirm"
     },
     "group": {
         "title": "Group {index}",
@@ -214,6 +217,14 @@
         "approvedSub": "The setup is in the channel. Every change here updates the message right away.",
         "approveFailed": "Posting failed.",
         "confirmFailed": "Confirmation not saved.",
+        "confirmAll": "Confirm all",
+        "confirmAllSub": "Sets the green check for everybody in the groups who has not answered yet. Who clicked \"Cancel\" stays cancelled. The Discord message follows.",
+        "confirmAllNone": "Everybody in the groups has answered already.",
+        "confirmAllDone": { "one": "{count} raider confirmed.", "other": "{count} raiders confirmed." },
+        "more": "More",
+        "moreSub": "Compact view, search, AI explanation and weights",
+        "explainSub": "Claude explains in a few paragraphs why the setup stands as it does.",
+        "weightsSub": "How much roles, buffs, attendance and fairness count in the proposal.",
         "postFailed": "Posting failed.",
         "loadFailed": "Setup not loaded: {message}",
         "loading": "Loading setup",
@@ -287,6 +298,7 @@
     },
     "signupEdit": {
         "open": "Edit signup …",
+        "short": "Signup",
         "openSub": "Change status, character and spec as the orga (right-click works too).",
         "kicker": "Signup · as orga",
         "hint": "Deadline and profile do not bind the orga. Signup message and log follow, the place in the setup stays.",

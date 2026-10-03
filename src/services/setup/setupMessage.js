@@ -438,17 +438,58 @@ const liveQueue = new Map();
  * @returns {Promise<{ action?: string, code?: string, error?: string }>}
  */
 function refreshLiveSetup(eventId, { userId = "", now } = {}) {
-    const before = liveQueue.get(eventId) || Promise.resolve();
-    const run = before.then(async () => {
+    return enqueue(eventId, async () => {
         const post = await postOrEditSetupMessage(eventId, { userId, now: now || Date.now() });
         // best-effort: a ping that cannot be edited never fails the change
         await refreshSetupPing(eventId).catch(() => {});
         return post;
     });
+}
+
+/** Run `task` after every edit already queued for the event — so an older payload never lands after a newer one. */
+function enqueue(eventId, task) {
+    const before = liveQueue.get(eventId) || Promise.resolve();
+    const run = before.then(task);
     liveQueue.set(eventId, run);
     return run.finally(() => {
         if (liveQueue.get(eventId) === run) liveQueue.delete(eventId);
     });
+}
+
+/**
+ * Edit the posted message in the event's queue — for a change of the marks
+ * only (Confirm/Cancel), so the ping is left alone. Never posts a first one.
+ * @returns {Promise<{ action?: string, code?: string, error?: string } | null>}
+ */
+function editSetupMessageQueued(eventId, { userId = "" } = {}) {
+    return enqueue(eventId, async () => {
+        const event = eventStore.getEvent(eventId);
+        if (!event || !event.setupPost || !event.setupPost.messageId) return null;
+        return postOrEditSetupMessage(eventId, { userId });
+    });
+}
+
+/** eventId → the timer of a refresh waiting for more marks. */
+const pendingEdits = new Map();
+/** How long an edit waits for the next click of the orga — one edit for a run of quick marks. */
+const MARK_EDIT_DELAY_MS = 1200;
+
+/**
+ * The orga marks several raiders in a row (setupConfirm.js): the message is
+ * edited once, a moment after the last mark, instead of once per click — a
+ * Discord edit takes a while and is rate limited per channel. A failure is
+ * stored on the event (`setupPost.error`) like every edit and shows in the
+ * editor's line under the bar.
+ */
+function scheduleSetupEdit(eventId, { userId = "", delayMs = MARK_EDIT_DELAY_MS } = {}) {
+    const waiting = pendingEdits.get(eventId);
+    if (waiting) clearTimeout(waiting);
+    const timer = setTimeout(() => {
+        pendingEdits.delete(eventId);
+        editSetupMessageQueued(eventId, { userId }).catch(() => {});
+    }, delayMs);
+    if (typeof timer.unref === "function") timer.unref();
+    pendingEdits.set(eventId, timer);
 }
 
 /** Bring an already posted setup message up to date (a cancellation, its reversal). Never posts a new one. */
@@ -506,10 +547,13 @@ function publishView(event, { config = getConfig(), channelName = "" } = {}) {
 function _resetForTests() {
     running.clear();
     liveQueue.clear();
+    for (const timer of pendingEdits.values()) clearTimeout(timer);
+    pendingEdits.clear();
 }
 
 module.exports = {
     LIMITS, DM_DELAY_MS,
     buildSetupMessage, buildSetupDm, embedLength, placementsOf, placementSignature, dmsEnabled, benchReasons,
-    postOrEditSetupMessage, sendSetupDms, publishSetup, refreshSetupMessage, refreshLiveSetup, publishView, _resetForTests,
+    postOrEditSetupMessage, sendSetupDms, publishSetup, refreshSetupMessage, refreshLiveSetup,
+    editSetupMessageQueued, scheduleSetupEdit, MARK_EDIT_DELAY_MS, publishView, _resetForTests,
 };

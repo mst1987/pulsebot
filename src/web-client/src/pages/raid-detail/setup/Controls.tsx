@@ -1,12 +1,58 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { SetupEditorData, StoredSetup } from "../../../api";
 import { pingTextToSave, publishHint, GROUP_SIZE } from "../../../lib/setupEditor";
+import { belowEndPlacement } from "../../../lib/popoverPosition";
 import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
+import Popover from "../../../components/ui/Popover";
 import WowIcon from "../../../components/ui/WowIcon";
+import { ChevronDownIcon } from "../../../components/icons";
 import { clock, dateTime, MAX_RAID_SIZE } from "./setupText";
+
+/** One entry of the bar's "Mehr" menu. `on` marks a switch that is on (the compact view). */
+export type MoreItem = { id: string; label: string; sub: string; icon: string; on?: boolean; disabled?: boolean; onSelect: () => void };
+
+/**
+ * "Mehr ▾" in the bar: what is needed now and then (compact view, search, the
+ * AI explanation, the weights) — so the bar shows only what the evening turns
+ * on: propose, confirm everybody, post. Portalled like "Event verwalten".
+ */
+export function MoreMenu({ items }: { items: MoreItem[] }) {
+    const t = useT();
+    const [open, setOpen] = useState(false);
+    const anchor = useRef<HTMLDivElement>(null);
+    return (
+        <div className="se-more" ref={anchor}>
+            <Button
+                variant="ghost" size="sm" icon="inv_misc_note_05" aria-haspopup="menu" aria-expanded={open}
+                data-tip={open ? undefined : t("setup.editor.more")} data-tip-sub={open ? undefined : t("setup.editor.moreSub")}
+                onClick={() => setOpen((o) => !o)}
+            >
+                {t("setup.editor.more")}<span className="se-more-chev" aria-hidden="true"><ChevronDownIcon /></span>
+            </Button>
+            {open && (
+                <Popover anchor={anchor} place={belowEndPlacement()} follow="reposition" onClose={() => setOpen(false)} className="se-more-pop" role="menu">
+                    {items.map((it) => (
+                        <button
+                            key={it.id} type="button" role={it.on === undefined ? "menuitem" : "menuitemcheckbox"}
+                            aria-checked={it.on === undefined ? undefined : it.on}
+                            className={`se-more-item${it.on ? " is-on" : ""}`} disabled={it.disabled}
+                            onClick={() => { setOpen(false); it.onSelect(); }}
+                        >
+                            <WowIcon name={it.icon} size={24} />
+                            <span className="se-more-text">
+                                <span className="se-more-label">{it.label}</span>
+                                <span className="se-more-sub">{it.sub}</span>
+                            </span>
+                        </button>
+                    ))}
+                </Popover>
+            )}
+        </div>
+    );
+}
 
 /**
  * The raid size, editable right in the bar (#354): a change reshuffles groups

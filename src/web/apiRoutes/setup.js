@@ -10,6 +10,7 @@
 //   POST /api/raids/setup/post                raids write: post or edit the setup (a draft is
 //                                              approved first), send the DMs still outstanding
 //   POST /api/raids/setup/confirm             raids write: set or clear a raider's Confirm/Cancel
+//   POST /api/raids/setup/confirm-all         raids write: the check for everybody without an answer
 //   POST /api/raids/setup/explain             raids write: Claude explains it (background job)
 //   GET  /api/raids/setup/explain?event=<id>  raids write (checked here): job state
 //   GET  /api/raids/setup/signup?event=&user=  raids write (checked here): one raider's signup
@@ -209,14 +210,24 @@ const postPublish = withUser({ write: "raids", csrf: true, body: true, archived:
 /**
  * POST /api/raids/setup/confirm — body `{ event, userId, status: "confirmed"|"declined"|"" }`:
  * the orga sets (or clears) a raider's Confirm/Cancel, as if they had clicked it.
+ * Answers at once with only `{ confirmations }` — the Discord message is edited
+ * a moment later, once for a run of quick clicks (setupConfirm.js).
  */
 const postConfirm = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
-    const result = await setupConfirm.setConfirmation(event.id, body.userId, typeof body.status === "string" ? body.status : "", { by: user.id });
+    const result = await setupConfirm.setConfirmation(event.id, body.userId, typeof body.status === "string" ? body.status : "", { by: user.id, edit: "later" });
     if (result.code) return error(res, result.code === "invalid" ? 400 : 409, result.code, result.error);
-    const failed = result.refreshed && result.refreshed.code ? `Setup-Nachricht nicht aktualisiert: ${result.refreshed.error}` : "";
-    await answer(res, { event }, user, failed ? { message: failed } : {});
+    ok(res, { confirmations: result.confirmations });
+});
+
+/** POST /api/raids/setup/confirm-all — body `{ event }`: everybody in a group without an answer gets the check (a "Cancel" stays). */
+const postConfirmAll = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+    const event = eventOf(res, body.event);
+    if (!event) return;
+    const result = await setupConfirm.confirmAll(event.id, { by: user.id });
+    if (result.code) return error(res, 409, result.code, result.error);
+    ok(res, { confirmations: result.confirmations, count: result.count });
 });
 
 /** POST /api/raids/setup/ping-text — body `{ event, text }`: what "Ping everyone" (and the first post's own ping) sends. */
@@ -315,6 +326,7 @@ const routes = [
     { method: "POST", path: "/api/raids/setup/post", handler: postPublish, area: "raids" },
     { method: "POST", path: "/api/raids/setup/ping-text", handler: postPingText, area: "raids" },
     { method: "POST", path: "/api/raids/setup/confirm", handler: postConfirm, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/confirm-all", handler: postConfirmAll, area: "raids" },
     { method: "POST", path: "/api/raids/setup/extra-role", handler: postExtraRole, area: "raids" },
     { method: "GET", path: "/api/raids/setup/signup", handler: getSignupEdit, area: "raids" },
     { method: "PUT", path: "/api/raids/setup/signup", handler: putSignupEdit, area: "raids" },
@@ -324,4 +336,4 @@ const routes = [
     { method: "GET", path: "/api/raids/setup/explain", handler: getExplain, area: "raids" },
 ];
 
-module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postConfirm, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION, routes };
+module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postConfirm, postConfirmAll, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION, routes };
