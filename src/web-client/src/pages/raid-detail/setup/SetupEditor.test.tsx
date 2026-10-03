@@ -435,8 +435,10 @@ describe("the setup editor: state, approval and posting", () => {
         it("tints a confirmed line green, a cancelled one red — group places only", async () => {
             await show(editorData({ confirmations: { "u-tank": "confirmed", "u-priest": "declined", "u-rogue": "confirmed" } }, { status: "approved" }));
             expect(slot("Bruno")).toHaveClass("se-confirmed");
-            expect(within(slot("Bruno")).getByRole("img", { name: t("setup.slot.confirmed") })).toBeInTheDocument();
+            // the mark is a badge on the spec icon's corner
+            expect(within(slot("Bruno")).getByRole("img", { name: t("setup.slot.confirmed") }).closest(".se-slot-tile")).not.toBeNull();
             expect(slot("Lumen")).toHaveClass("se-declined");
+            expect(within(slot("Lumen")).getByRole("img", { name: t("setup.slot.declined") }).closest(".se-slot-tile")).not.toBeNull();
             expect(slot("Ignis")).not.toHaveClass("se-confirmed");
             // the bench never shows the mark
             expect(slot("Schatten")).not.toHaveClass("se-confirmed");

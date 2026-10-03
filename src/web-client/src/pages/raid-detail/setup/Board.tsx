@@ -80,7 +80,15 @@ function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerson; ui: 
             onDrop={ui.editable ? drop : undefined}
             onContextMenu={ui.editable && ui.onEdit ? (e) => { e.preventDefault(); ui.onEdit?.(p.userId); } : undefined}
         >
-            <SpecTile iconUrl={p.specIcon ? wowIconUrl(p.specIcon, 36) : undefined} classColor={p.classColor} />
+            {/* Confirm/Cancel as a small badge on the spec icon's corner, like an online status — the line's right stays free */}
+            <span className="se-slot-tile">
+                <SpecTile iconUrl={p.specIcon ? wowIconUrl(p.specIcon, 36) : undefined} classColor={p.classColor} />
+                {confirmation && (
+                    <span className="se-confirm-mark" role="img" aria-label={t(`setup.slot.${confirmation}`)}>
+                        {confirmation === "confirmed" ? <CheckIcon /> : <XIcon />}
+                    </span>
+                )}
+            </span>
             <span className="se-slot-text">
                 <span className={`se-name ${color.className || ""}`} style={color.style}>{p.character}</span>
                 <span className="se-sub">
@@ -97,11 +105,6 @@ function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerson; ui: 
                 </span>
             </span>
             {status && <span className={`rd-sig rd-sig-${p.status}`} aria-label={status} />}
-            {confirmation && (
-                <span className="se-confirm-mark" role="img" aria-label={t(`setup.slot.${confirmation}`)}>
-                    {confirmation === "confirmed" ? <CheckIcon /> : <XIcon />}
-                </span>
-            )}
             {/* a fixed place only shows it — the panel's button changes it */}
             {p.locked && !inPool && <span className="se-lock-mark" role="img" aria-label={t("setup.slot.locked")}><LockIcon /></span>}
         </div>
