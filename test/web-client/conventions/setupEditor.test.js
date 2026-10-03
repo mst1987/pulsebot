@@ -84,6 +84,9 @@ describe("setup editor conventions", () => {
         // a button there once sat under the name and the confirm mark and could not be clicked
         expect(css).not.toMatch(/\.se-(lock|editbtn|confirmbtn) \{/);
         expect(css).toMatch(/\.se-tip-act \{/);
+        // the confirm mark is a faint watermark in the top right corner, cut by the line's edge — never in a name's way
+        expect(css).toMatch(/\.se-confirm-mark \{ position: absolute; top: -\d+px; right: -\d+px;[^}]*opacity: \.\d+/);
+        expect(css).toMatch(/\.se-slot\.se-confirmed \{ overflow: hidden;/);
         // the picked raider wins over the green/red tint
         expect(css).toMatch(/\.se-slot\.se-picked\.se-confirmed[^{]*\{[^}]*border-color: var\(--accent\)/);
     });

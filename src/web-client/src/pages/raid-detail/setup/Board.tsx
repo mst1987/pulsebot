@@ -10,6 +10,9 @@ import { classColorProps } from "../../../components/ClassSpec";
 import SpecTile from "../SpecTile";
 import { specText, statusLabel } from "./setupText";
 
+/** Melee and ranged go without saying on a raider's line (the spec tells it); tank and healer are named. */
+const showsRole = (role: string | undefined) => role === "tank" || role === "healer";
+
 export type Interaction = {
     editable: boolean;
     selected: string | null;
@@ -83,9 +86,11 @@ function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerson; ui: 
                 <span className="se-sub">
                     {/* first, so a long spec text never cuts it off (#517) */}
                     {inPool && p.status === "bench" && <span className="se-extra se-extra-lead" data-tip={t("setup.pool.benchSignupTip")}>{t("setup.pool.benchSignup")}</span>}
-                    {specText(p)}
-                    {/* an off-spec role is tinted — "Zweitspec" itself is in the tooltip */}
-                    {p.role && <> · <span className={p.main === false ? "se-offrole" : undefined}>{roleLabel(p.role)}</span></>}
+                    {/* the role only where the spec does not say it on its own: tank and healer, never melee/ranged.
+                        An off-spec is tinted — the role where it is shown, else the spec; "Zweitspec" itself is in the tooltip */}
+                    {showsRole(p.role)
+                        ? <>{specText(p)} · <span className={p.main === false ? "se-offrole" : undefined}>{roleLabel(p.role)}</span></>
+                        : <span className={p.main === false ? "se-offrole" : undefined}>{specText(p)}</span>}
                     {(ui.extraRoles[p.userId] || []).map((r) => (
                         <span key={r} className="se-extra" data-tip={t("setup.extra.tip", { role: roleLabel(r) })}>{t(`setup.extra.short.${r}`)}</span>
                     ))}
