@@ -190,9 +190,17 @@ export function postRaidSearch(eventId: string, text: string): Promise<{ message
 /** A raider's answer under the setup message: Confirm or Cancel. */
 export type SetupConfirmation = "confirmed" | "declined";
 
-/** The orga sets (or with "" clears) a raider's Confirm/Cancel — the Discord message follows. */
-export function setSetupConfirmation(eventId: string, userId: string, status: SetupConfirmation | ""): Promise<SetupEditorData> {
+/** The confirmations after an orga mark — answered at once, the Discord message follows a moment later. */
+export type SetupConfirmationsAnswer = { confirmations: Record<string, SetupConfirmation>; count?: number };
+
+/** The orga sets (or with "" clears) a raider's Confirm/Cancel. */
+export function setSetupConfirmation(eventId: string, userId: string, status: SetupConfirmation | ""): Promise<SetupConfirmationsAnswer> {
     return send("POST", "/api/raids/setup/confirm", { event: eventId, userId, status });
+}
+
+/** "Alle bestätigen": the check for everybody in a group without an answer (a "Cancel" stays). */
+export function confirmAllSetup(eventId: string): Promise<SetupConfirmationsAnswer> {
+    return send("POST", "/api/raids/setup/confirm-all", { event: eventId });
 }
 
 /** Save the ping text sent when the setup is posted; "" clears it back to the default. */

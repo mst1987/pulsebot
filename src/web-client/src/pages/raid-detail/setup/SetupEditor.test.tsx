@@ -38,6 +38,9 @@ async function show(data: SetupEditorData = page) {
 
 const group = (index: number) => screen.getByRole("region", { name: t("setup.group.title", { index }) });
 
+/** The raider panel right of the numbers (SlotTip). */
+const panel = () => screen.getByRole("complementary", { name: t("setup.person.tip.aria") });
+
 /** A raider's line: the element that is picked, dragged and dropped on. */
 function slot(character: string): HTMLElement {
     // the raider panel repeats the name of the raider touched last; the line is the one with data-user
@@ -70,8 +73,12 @@ describe("the setup editor: bench and pool \"Angemeldet\" (#517)", () => {
         const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
         expect(within(pool).getByText("Fluch")).toBeInTheDocument();
         expect(within(pool).getByText(t("setup.pool.benchSignup"))).toBeInTheDocument();
-        expect(slot("Fluch").querySelector(".se-lock")).toBeNull();
-        expect(slot("Schatten").querySelector(".se-lock")).not.toBeNull();
+        // fixing is the panel's: a pool raider has nothing to fix, a bench raider has
+        const user = userEvent.setup();
+        await user.hover(slot("Fluch"));
+        expect(within(panel()).queryByRole("button", { name: new RegExp(t("setup.slot.lock")) })).not.toBeInTheDocument();
+        await user.hover(slot("Schatten"));
+        expect(within(panel()).getByRole("button", { name: new RegExp(t("setup.slot.lock")) })).toBeInTheDocument();
     });
 
     it("brings somebody from the pool into a group and onto the bench", async () => {
@@ -157,13 +164,29 @@ describe("the setup editor: moving raiders", () => {
         expect(groupOf(body, "u-priest")).toBe(1);
     });
 
-    it("locks a raider with the small lock, without picking them", async () => {
+    it("fixes a raider from the panel — the pick is dropped, the next click picks, never swaps", async () => {
         const user = userEvent.setup();
         await show();
-        await user.click(within(slot("Bruno")).getByRole("button", { name: t("setup.slot.lock") }));
+        // nothing to click on the line itself any more
+        expect(within(slot("Bruno")).queryByRole("button")).not.toBeInTheDocument();
+        await user.click(slot("Bruno"));
+        await user.click(within(panel()).getByRole("button", { name: new RegExp(t("setup.slot.lock")) }));
         await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
         expect(savedBody().groups[0].slots.find((s) => s.userId === TANK.userId)?.locked).toBe(true);
         expect(slot("Bruno")).toHaveAttribute("aria-pressed", "false");
+        // the panel stays with Bruno although the pointer passes other raiders
+        await user.hover(slot("Lumen"));
+        expect(within(panel()).getByText("Bruno")).toBeInTheDocument();
+        expect(within(panel()).getByText(t("setup.person.tip.pinned"))).toBeInTheDocument();
+        // a click on Lumen picks Lumen — no swap with Bruno
+        await user.click(slot("Lumen"));
+        expect(calls("PUT", "/api/raids/setup")).toHaveLength(1);
+        expect(slot("Lumen")).toHaveAttribute("aria-pressed", "true");
+        expect(within(panel()).getByText("Lumen")).toBeInTheDocument();
+        // Esc lets go: the panel follows the pointer again
+        await user.keyboard("{Escape}");
+        await user.hover(slot("Ignis"));
+        expect(within(panel()).getByText("Ignis")).toBeInTheDocument();
     });
 });
 
@@ -197,19 +220,34 @@ describe("the setup editor: the bar", () => {
         expect(savedBody().groups.map((g) => g.index)).toEqual([1]);
     });
 
-    it("offers a compact view, off by default and remembered in the browser", async () => {
+    it("offers a compact view under \"Mehr\", off by default and remembered in the browser", async () => {
         const user = userEvent.setup();
         const view = await show();
-        const compact = () => screen.getByRole("button", { name: t("setup.editor.compact") });
+        const compact = async () => {
+            await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+            return screen.getByRole("menuitemcheckbox", { name: new RegExp(t("setup.editor.compact")) });
+        };
         expect(t("setup.editor.compact")).toBe("Kompakt");
-        expect(compact()).toHaveAttribute("aria-pressed", "false");
-        await user.click(compact());
-        expect(compact()).toHaveAttribute("aria-pressed", "true");
+        expect(await compact()).toHaveAttribute("aria-checked", "false");
+        await user.click(screen.getByRole("menuitemcheckbox", { name: new RegExp(t("setup.editor.compact")) }));
+        expect(document.querySelector(".se-compact")).not.toBeNull();
         expect(localStorage.getItem("eh-setup-compact")).toBe("1");
 
         view.unmount();
         await show();
-        expect(compact()).toHaveAttribute("aria-pressed", "true");
+        expect(await compact()).toHaveAttribute("aria-checked", "true");
+    });
+
+    it("keeps only proposing, confirming everybody and posting in the bar — the rest under \"Mehr\"", async () => {
+        const user = userEvent.setup();
+        await show();
+        const bar = document.querySelector<HTMLElement>(".se-bar-act")!;
+        expect(within(bar).queryByRole("button", { name: t("setup.editor.explain") })).not.toBeInTheDocument();
+        expect(within(bar).getByRole("button", { name: t("setup.editor.repropose") })).toBeInTheDocument();
+        await user.click(within(bar).getByRole("button", { name: t("setup.editor.more") }));
+        for (const name of [t("setup.editor.search"), t("setup.editor.explain"), t("setup.summary.weights")]) {
+            expect(screen.getByRole("menuitem", { name: new RegExp(name) })).toBeInTheDocument();
+        }
     });
 
     it("puts the ping text over the numbers on the left and the raider panel on the right, with no native title anywhere", async () => {
@@ -256,16 +294,18 @@ describe("the setup editor: the side column and the dialogs", () => {
         expect(savedBody()).toMatchObject({ wishes: true, event: EVENT_ID });
     });
 
-    it("opens the weights and the explanation as dialogs from the bar", async () => {
+    it("opens the weights and the explanation as dialogs from \"Mehr\"", async () => {
         const user = userEvent.setup();
         await show();
-        await user.click(screen.getByRole("button", { name: t("setup.summary.weights") }));
+        await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+        await user.click(screen.getByRole("menuitem", { name: new RegExp(t("setup.summary.weights")) }));
         const weights = screen.getByRole("dialog");
         expect(within(weights).getByText("Gewichte")).toBeInTheDocument();
         expect(within(weights).getAllByRole("slider").length).toBeGreaterThan(5);
         await user.click(within(weights).getByRole("button", { name: t("common.close") }));
 
-        await user.click(screen.getByRole("button", { name: t("setup.editor.explain") }));
+        await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+        await user.click(screen.getByRole("menuitem", { name: new RegExp(t("setup.editor.explain")) }));
         expect(within(screen.getByRole("dialog")).getByText("KI-Begründung")).toBeInTheDocument();
     });
 });
@@ -377,7 +417,13 @@ describe("the setup editor: state, approval and posting", () => {
     });
 
     describe("Confirm/Cancel in the editor", () => {
-        const confirmButton = (character: string) => within(slot(character)).getByRole("button", { name: /bestätigt|Bestätigt|Abgesagt/ });
+        /** The panel's check for a raider: hover the line (the panel follows), the button sits in the panel. */
+        const userRef = { current: userEvent.setup() };
+        const confirmButton = async (character: string) => {
+            await userRef.current.hover(slot(character));
+            return within(panel()).getByRole("button", { name: /Bestätigen|Bestätigt|Abgesagt/ });
+        };
+        beforeEach(() => { userRef.current = userEvent.setup(); });
 
         it("tints a confirmed line green, a cancelled one red — group places only", async () => {
             await show(editorData({ confirmations: { "u-tank": "confirmed", "u-priest": "declined", "u-rogue": "confirmed" } }, { status: "approved" }));
@@ -389,37 +435,85 @@ describe("the setup editor: state, approval and posting", () => {
             expect(slot("Schatten")).not.toHaveClass("se-confirmed");
         });
 
-        it("lets the orga set and take away the check — drawn at once, saved on the server", async () => {
-            const user = userEvent.setup();
+        it("lets the orga set and take away the check in the panel — drawn at once, saved on the server", async () => {
+            const user = userRef.current;
             vi.mocked(client.send).mockImplementation((_m: string, path: string, body?: unknown) => (path === "/api/raids/setup/confirm"
-                ? Promise.resolve({ ...page, confirmations: (body as { status: string }).status ? { "u-mage": "confirmed" } : {} })
+                ? Promise.resolve({ confirmations: (body as { status: string }).status ? { "u-mage": "confirmed" } : {} })
                 : Promise.resolve(page)));
             await show(editorData({ confirmations: {} }, { status: "approved" }));
-            await user.click(confirmButton("Ignis"));
+            await user.click(await confirmButton("Ignis"));
             expect(slot("Ignis")).toHaveClass("se-confirmed");
             await waitFor(() => expect(calls("POST", "/api/raids/setup/confirm")).toHaveLength(1));
             expect(calls("POST", "/api/raids/setup/confirm")[0][2]).toEqual({ event: EVENT_ID, userId: "u-mage", status: "confirmed" });
-            // clicking the check does not pick the raider for a move
+            // the check never picks the raider for a move
             expect(slot("Ignis")).not.toHaveClass("se-picked");
 
-            await user.click(confirmButton("Ignis"));
+            await user.click(await confirmButton("Ignis"));
             await waitFor(() => expect(calls("POST", "/api/raids/setup/confirm")).toHaveLength(2));
             expect(calls("POST", "/api/raids/setup/confirm")[1][2]).toEqual({ event: EVENT_ID, userId: "u-mage", status: "" });
             await waitFor(() => expect(slot("Ignis")).not.toHaveClass("se-confirmed"));
         });
 
+        it("keeps quick marks: an older answer never takes back a click still on its way", async () => {
+            const user = userRef.current;
+            const answers: Array<(v: unknown) => void> = [];
+            vi.mocked(client.send).mockImplementation((_m: string, path: string) => (path === "/api/raids/setup/confirm"
+                ? new Promise((resolve) => { answers.push(resolve); })
+                : Promise.resolve(page)));
+            await show(editorData({ confirmations: {} }, { status: "approved" }));
+            await user.click(await confirmButton("Bruno"));
+            await user.click(await confirmButton("Ignis"));
+            expect(slot("Bruno")).toHaveClass("se-confirmed");
+            expect(slot("Ignis")).toHaveClass("se-confirmed");
+            // one after the other: the second goes out once the first is answered
+            expect(calls("POST", "/api/raids/setup/confirm")).toHaveLength(1);
+            // the server's answer to the first knows only Bruno — Ignis must stay green
+            await act(async () => answers[0]({ confirmations: { "u-tank": "confirmed" } }));
+            expect(slot("Ignis")).toHaveClass("se-confirmed");
+            await waitFor(() => expect(calls("POST", "/api/raids/setup/confirm")).toHaveLength(2));
+            await act(async () => answers[1]({ confirmations: { "u-tank": "confirmed", "u-mage": "confirmed" } }));
+            expect(slot("Bruno")).toHaveClass("se-confirmed");
+            expect(slot("Ignis")).toHaveClass("se-confirmed");
+        });
+
         it("turns a cancel into a check, and puts the mark back when saving fails", async () => {
-            const user = userEvent.setup();
+            const user = userRef.current;
             vi.mocked(client.send).mockImplementation(() => Promise.reject({ code: "not_placed", message: "nope" }));
             await show(editorData({ confirmations: { "u-priest": "declined" } }, { status: "approved" }));
-            await user.click(confirmButton("Lumen"));
+            await user.click(await confirmButton("Lumen"));
+            await waitFor(() => expect(calls("POST", "/api/raids/setup/confirm")).toHaveLength(1));
             expect(calls("POST", "/api/raids/setup/confirm")[0][2]).toEqual({ event: EVENT_ID, userId: "u-priest", status: "confirmed" });
             await waitFor(() => expect(slot("Lumen")).toHaveClass("se-declined"));
         });
 
-        it("offers no check before the setup is posted", async () => {
+        it("confirms everybody without an answer with one button, which goes once nobody is left", async () => {
+            const user = userRef.current;
+            vi.mocked(client.send).mockImplementation((_m: string, path: string) => (path === "/api/raids/setup/confirm-all"
+                ? Promise.resolve({ confirmations: { "u-tank": "confirmed", "u-mage": "confirmed", "u-priest": "declined" }, count: 2 })
+                : Promise.resolve(page)));
+            await show(editorData({ confirmations: { "u-priest": "declined" } }, { status: "approved" }));
+            await user.click(screen.getByRole("button", { name: new RegExp(t("setup.editor.confirmAll")) }));
+            await waitFor(() => expect(calls("POST", "/api/raids/setup/confirm-all")).toHaveLength(1));
+            expect(calls("POST", "/api/raids/setup/confirm-all")[0][2]).toEqual({ event: EVENT_ID });
+            await waitFor(() => expect(slot("Bruno")).toHaveClass("se-confirmed"));
+            expect(slot("Lumen")).toHaveClass("se-declined");
+            expect(screen.queryByRole("button", { name: new RegExp(t("setup.editor.confirmAll")) })).not.toBeInTheDocument();
+        });
+
+        it("offers no check and no \"Alle bestätigen\" before the setup is posted", async () => {
+            const user = userRef.current;
             await show(editorData({ confirmations: {} }));
-            expect(within(slot("Bruno")).queryByRole("button", { name: t("setup.slot.confirm") })).not.toBeInTheDocument();
+            await user.hover(slot("Bruno"));
+            expect(within(panel()).queryByRole("button", { name: /Bestätigen/ })).not.toBeInTheDocument();
+            expect(screen.queryByRole("button", { name: new RegExp(t("setup.editor.confirmAll")) })).not.toBeInTheDocument();
+        });
+
+        it("keeps the picked raider plainly marked on a green line", async () => {
+            const user = userRef.current;
+            await show(editorData({ confirmations: { "u-tank": "confirmed" } }, { status: "approved" }));
+            await user.click(slot("Bruno"));
+            expect(slot("Bruno")).toHaveClass("se-picked");
+            expect(slot("Bruno")).toHaveClass("se-confirmed");
         });
     });
 

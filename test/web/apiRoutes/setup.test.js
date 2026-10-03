@@ -39,6 +39,8 @@ jest.mock("../../../src/services/setup/setupMessage", () => ({
     publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),
     refreshLiveSetup: jest.fn(async () => ({ action: "edited" })),
     postOrEditSetupMessage: jest.fn(async () => ({ action: "edited" })),
+    editSetupMessageQueued: jest.fn(async () => ({ action: "edited" })),
+    scheduleSetupEdit: jest.fn(),
     publishView: jest.fn(() => ({ dmsEnabled: false, recipients: 10 })),
 }));
 const mockExplain = jest.fn();
@@ -83,6 +85,8 @@ beforeEach(() => {
     mockExplain.mockReset();
     refreshEventMessage.mockClear();
     setupMessage.publishSetup.mockClear();
+    setupMessage.scheduleSetupEdit.mockClear();
+    setupMessage.editSetupMessageQueued.mockClear();
     setupMessage.refreshLiveSetup.mockClear();
 });
 
@@ -181,16 +185,29 @@ describe("Confirm/Cancel set by the orga", () => {
         return mockEvents.get(ID).setup.approved.groups[0].slots[0].userId;
     }
 
-    it("sets a raider's check, shows it in the editor and edits the message", async () => {
+    it("sets a raider's check and answers at once with only the marks — the edit is scheduled", async () => {
         const raider = await posted();
         const r = await call(route.postConfirm, ORGA, { event: ID, userId: raider, status: "confirmed" });
         expect(status(r)).toBe(200);
-        expect(body(r).confirmations).toEqual({ [raider]: "confirmed" });
+        // no whole editor payload: a click must answer fast
+        expect(body(r)).toEqual({ confirmations: { [raider]: "confirmed" } });
         expect(mockEvents.get(ID).setupPost.confirmations[raider]).toMatchObject({ status: "confirmed", by: "orga" });
-        expect(setupMessage.postOrEditSetupMessage).toHaveBeenCalledWith(ID, { userId: "orga" });
+        expect(setupMessage.scheduleSetupEdit).toHaveBeenCalledWith(ID, { userId: "orga" });
+        expect(setupMessage.editSetupMessageQueued).not.toHaveBeenCalled();
 
         const cleared = await call(route.postConfirm, ORGA, { event: ID, userId: raider, status: "" });
         expect(body(cleared).confirmations).toEqual({});
+    });
+
+    it("confirms everybody without an answer with one request", async () => {
+        await posted();
+        const placed = mockEvents.get(ID).setup.approved.groups.flatMap((g) => g.slots.map((s) => s.userId));
+        const r = await call(route.postConfirmAll, ORGA, { event: ID });
+        expect(status(r)).toBe(200);
+        expect(body(r).count).toBe(placed.length);
+        expect(Object.keys(body(r).confirmations).sort()).toEqual([...placed].sort());
+        expect(setupMessage.scheduleSetupEdit).toHaveBeenCalledWith(ID, { userId: "orga" });
+        expect(status(await call(route.postConfirmAll, READER, { event: ID }))).toBe(403);
     });
 
     it("refuses somebody not in a group and a reader", async () => {
@@ -201,11 +218,11 @@ describe("Confirm/Cancel set by the orga", () => {
         expect(status(await call(route.postConfirm, READER, { event: ID, userId: "x", status: "confirmed" }))).toBe(403);
     });
 
-    it("says when the message could not follow", async () => {
-        const raider = await posted();
-        setupMessage.postOrEditSetupMessage.mockResolvedValueOnce({ code: "discord", error: "Bot nicht verbunden." });
-        const r = await call(route.postConfirm, ORGA, { event: ID, userId: raider, status: "confirmed" });
-        expect(body(r).message).toBe("Setup-Nachricht nicht aktualisiert: Bot nicht verbunden.");
+    it("refuses \"Alle bestätigen\" before anything is posted", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        const r = await call(route.postConfirmAll, ORGA, { event: ID });
+        expect(status(r)).toBe(409);
+        expect(body(r).error.code).toBe("no_approved_setup");
     });
 });
 

@@ -73,6 +73,7 @@
     "/api/raids/setup/post": "raids",
     "/api/raids/setup/ping-text": "raids",
     "/api/raids/setup/confirm": "raids",
+    "/api/raids/setup/confirm-all": "raids",
     "/api/raids/setup/extra-role": "raids",
     "/api/raids/setup/signup": "raids",
     "/api/raids/setup/search": "raids",

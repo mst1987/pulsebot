@@ -303,6 +303,36 @@ describe("postOrEditSetupMessage", () => {
     });
 });
 
+describe("marks only (Confirm/Cancel): editSetupMessageQueued / scheduleSetupEdit", () => {
+    afterEach(() => { jest.useRealTimers(); });
+
+    it("edits the posted message without touching the ping, and never posts a first one", async () => {
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 2, ping: { channelId: "c1", messageIds: ["p1"], userIds: ["9"], by: "1", text: "Go" } } });
+        const { channel, message } = fakeChannel();
+        expect(await sm.editSetupMessageQueued("eh-1", { userId: "orga" })).toEqual({ action: "edited" });
+        expect(message.edit).toHaveBeenCalledTimes(1);
+        expect(discord.editPingMessages).not.toHaveBeenCalled();
+
+        seed({ setupPost: null });
+        expect(await sm.editSetupMessageQueued("eh-1")).toBeNull();
+        expect(channel.send).not.toHaveBeenCalled();
+    });
+
+    it("bundles a run of quick marks into one edit, a moment after the last", async () => {
+        jest.useFakeTimers();
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 2 } });
+        const { message } = fakeChannel();
+        sm.scheduleSetupEdit("eh-1", { userId: "orga" });
+        jest.advanceTimersByTime(sm.MARK_EDIT_DELAY_MS - 100);
+        sm.scheduleSetupEdit("eh-1", { userId: "orga" });
+        jest.advanceTimersByTime(sm.MARK_EDIT_DELAY_MS - 100);
+        sm.scheduleSetupEdit("eh-1", { userId: "orga" });
+        expect(message.edit).not.toHaveBeenCalled();
+        await jest.advanceTimersByTimeAsync(sm.MARK_EDIT_DELAY_MS + 10);
+        expect(message.edit).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe("refreshLiveSetup", () => {
     it("edits the posted message to the live lineup — no ping, no DMs", async () => {
         mockConfig = { categorySetupDms: { cat1: true } };

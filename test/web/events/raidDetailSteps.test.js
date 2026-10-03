@@ -347,6 +347,19 @@ describe("eventSteps — das Raid-Cockpit (#319)", () => {
         expect(at(passed, "signup").hint).toMatch(/Anmeldeschluss/);
     });
 
+    it("ist mit der Anmeldung fertig, sobald das Setup gepostet ist — offen bleiben darf sie", () => {
+        const posted = run(own({
+            event: { signupsClosed: false, startTime: inHours(30) }, ownSignups: signed(20),
+            ownSetup: { status: "approved", changedSinceApproval: false, placed: 20, size: 25, version: 2, bench: 0, ok: true },
+            ownSetupPost: { messageId: "m1", version: 2, dms: null },
+        }));
+        expect(at(posted, "signup")).toMatchObject({ state: "done", action: null });
+        expect(at(posted, "signup").hint).toMatch(/muss dafür nicht geschlossen werden/);
+        // nothing asks to close it any more
+        expect(posted.action === null || posted.action.label !== "Anmeldung schließen").toBe(true);
+        expect(posted.current).not.toBe("signup");
+    });
+
     it("Setup: kein Vorschlag → offen, ein Entwurf → erledigt", () => {
         const open = run(own({ event: { signupsClosed: true } }));
         expect(at(open, "setup")).toMatchObject({ state: "current", value: "—" });

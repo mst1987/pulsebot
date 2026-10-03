@@ -24,7 +24,9 @@
             "bringsRaid": "für den Raid",
             "why": "Warum hier",
             "aria": "Details zum Raider",
-            "empty": "Raider berühren, um Details zu sehen"
+            "empty": "Raider berühren, um Details zu sehen",
+            "pinned": "ausgewählt",
+            "pinnedSub": "Das Panel bleibt bei diesem Raider, bis du die Auswahl löst – Esc oder noch einmal auf ihn klicken."
         },
         "offSpec": "Zweitspec",
         "status": {
@@ -71,7 +73,8 @@
         "confirm": "Als bestätigt markieren",
         "confirmSub": "Setzt den grünen Haken, als hätte der Raider selbst auf „Confirm“ geklickt – auch in der Discord-Nachricht.",
         "confirmedSub": "Bestätigt – Klick nimmt den Haken wieder weg.",
-        "declinedSub": "Hat abgesagt – Klick setzt stattdessen den grünen Haken."
+        "declinedSub": "Hat abgesagt – Klick setzt stattdessen den grünen Haken.",
+        "confirmShort": "Bestätigen"
     },
     "group": {
         "title": "Gruppe {index}",
@@ -214,6 +217,14 @@
         "approvedSub": "Das Setup steht im Kanal. Jede Änderung hier aktualisiert die Nachricht sofort.",
         "approveFailed": "Posten fehlgeschlagen.",
         "confirmFailed": "Bestätigung nicht gespeichert.",
+        "confirmAll": "Alle bestätigen",
+        "confirmAllSub": "Setzt den grünen Haken bei allen in den Gruppen, die noch nicht geantwortet haben. Wer „Cancel“ geklickt hat, bleibt abgesagt. Die Discord-Nachricht zieht mit.",
+        "confirmAllNone": "Alle in den Gruppen haben schon geantwortet.",
+        "confirmAllDone": { "one": "{count} Raider bestätigt.", "other": "{count} Raider bestätigt." },
+        "more": "Mehr",
+        "moreSub": "Kompakte Ansicht, Suche, KI-Begründung und Gewichte",
+        "explainSub": "Claude erklärt in ein paar Absätzen, warum das Setup so steht.",
+        "weightsSub": "Wie stark Rollen, Buffs, Anwesenheit und Fairness beim Vorschlag zählen.",
         "postFailed": "Posten fehlgeschlagen.",
         "loadFailed": "Setup nicht geladen: {message}",
         "loading": "Setup wird geladen",
@@ -287,6 +298,7 @@
     },
     "signupEdit": {
         "open": "Anmeldung bearbeiten …",
+        "short": "Anmeldung",
         "openSub": "Anmeldeart, Charakter und Spec als Orga ändern (auch per Rechtsklick).",
         "kicker": "Anmeldung · als Orga",
         "hint": "Anmeldeschluss und Profil gelten für die Orga nicht. Anmelde-Nachricht und Protokoll ziehen nach, der Platz im Setup bleibt.",

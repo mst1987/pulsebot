@@ -165,6 +165,7 @@
   "POST /api/raids/setup/extra-role",
   "POST /api/raids/setup/ping-text",
   "POST /api/raids/setup/confirm",
+  "POST /api/raids/setup/confirm-all",
   "POST /api/raids/setup/post",
   "POST /api/raids/setup/propose",
   "POST /api/raids/setup/search",

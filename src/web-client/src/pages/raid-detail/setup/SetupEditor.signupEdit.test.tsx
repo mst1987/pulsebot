@@ -74,7 +74,8 @@ describe("Anmeldung bearbeiten", () => {
     it("changes status and spec of a placed raider — the answer keeps Ignis on the place, now as frost", async () => {
         const user = userEvent.setup();
         await show();
-        await user.click(within(slot("Ignis")).getByRole("button", { name: t("setup.signupEdit.open") }));
+        await user.hover(slot("Ignis"));
+        await user.click(within(screen.getByRole("complementary", { name: t("setup.person.tip.aria") })).getByRole("button", { name: new RegExp(t("setup.signupEdit.short")) }));
         await within(dialog()).findByRole("radio", { name: SIGNUP_STATUS.late.label });
         expect(client.get).toHaveBeenCalledWith(`/api/raids/setup/signup?event=${EVENT_ID}&user=${MAGE.userId}`);
         const save = within(dialog()).getByRole("button", { name: t("common.save") });
@@ -118,7 +119,8 @@ describe("Anmeldung bearbeiten", () => {
         vi.mocked(client.send).mockImplementation((method: string, path: string) => (method === "PUT" && path === "/api/raids/setup/signup"
             ? Promise.reject(Object.assign(new Error("Diese Spezialisierung passt nicht."), { status: 400, code: "spec" }))
             : Promise.resolve(page)));
-        await user.click(within(slot("Ignis")).getByRole("button", { name: t("setup.signupEdit.open") }));
+        await user.hover(slot("Ignis"));
+        await user.click(within(screen.getByRole("complementary", { name: t("setup.person.tip.aria") })).getByRole("button", { name: new RegExp(t("setup.signupEdit.short")) }));
         await user.click(await within(dialog()).findByRole("radio", { name: SIGNUP_STATUS.tentative.label }));
         await user.click(within(dialog()).getByRole("button", { name: t("common.save") }));
         expect(await within(dialog()).findByRole("alert")).toHaveTextContent("Diese Spezialisierung passt nicht.");

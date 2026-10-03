@@ -1,7 +1,7 @@
 // Setup-Editor (#263): the rules a render cannot see — its own stylesheet and
 // class namespace, no drag-and-drop library, and the CSS decisions that were
 // checked in a real browser (one fixed top row, the stacked panel, row heights,
-// the lock overlay). What the editor does is rendered in Vitest:
+// the lock mark, nothing clickable on a line). What the editor does is rendered in Vitest:
 // src/web-client/src/pages/raid-detail/setup/SetupEditor.test.tsx and
 // SetupEditor.panel.test.tsx; the moves behind it in lib/setupEditor.test.ts.
 const { read } = require("../clientSource");
@@ -74,10 +74,17 @@ describe("setup editor conventions", () => {
         expect(css).toMatch(/\.se-compact \{ --se-row: 32px; \}/);
     });
 
-    it("draws the lock as an overlay that takes no width from the raider's name", () => {
+    it("draws the lock as a small corner mark that takes no width from the raider's name", () => {
         expect(css).toMatch(/\.se-slot \{ position: relative;/);
-        expect(css).toMatch(/\.se-lock \{ position: absolute;/);
-        expect(css).toMatch(/\.se-lock\.is-on \{[^}]*opacity: 1;[^}]*width: 14px/);
-        expect(css).not.toMatch(/\.se-lock \{[^}]*flex: 0 0 auto/);
+        expect(css).toMatch(/\.se-lock-mark \{ position: absolute;[^}]*width: 12px;[^}]*pointer-events: none/);
+        expect(css).not.toMatch(/\.se-lock-mark \{[^}]*flex: 0 0 auto/);
+    });
+
+    it("keeps nothing clickable on a raider's line — the actions live in the panel", () => {
+        // a button there once sat under the name and the confirm mark and could not be clicked
+        expect(css).not.toMatch(/\.se-(lock|editbtn|confirmbtn) \{/);
+        expect(css).toMatch(/\.se-tip-act \{/);
+        // the picked raider wins over the green/red tint
+        expect(css).toMatch(/\.se-slot\.se-picked\.se-confirmed[^{]*\{[^}]*border-color: var\(--accent\)/);
     });
 });

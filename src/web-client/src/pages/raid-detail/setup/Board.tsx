@@ -4,9 +4,8 @@ import { benchChunks, placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } f
 import { wowIconUrl } from "../../../lib/wowIcon";
 import { roleLabel } from "../../../lib/wowNames";
 import { useT } from "../../../i18n";
-import { IconButton } from "../../../components/ui/Button";
 import WowIcon from "../../../components/ui/WowIcon";
-import { CheckIcon, EditIcon, LockIcon, UnlockIcon, XIcon } from "../../../components/icons";
+import { CheckIcon, LockIcon, XIcon } from "../../../components/icons";
 import { classColorProps } from "../../../components/ClassSpec";
 import SpecTile from "../SpecTile";
 import { specText, statusLabel } from "./setupText";
@@ -26,17 +25,19 @@ export type Interaction = {
     onDrag: (userId: string | null) => void;
     /** raiders marked as an extra tank / healer, by user id */
     extraRoles: Record<string, string[]>;
-    onLock: (userId: string) => void;
-    /** "Anmeldung bearbeiten" (#521): the pencil on the slot and a right click open it; missing = read-only. */
+    /** "Anmeldung bearbeiten" (#521): a right click opens it (the button sits in the raider panel); missing = read-only. */
     onEdit?: (userId: string) => void;
     /** Confirm/Cancel by user id (the raiders' clicks under the setup message and the orga's marks) — drawn on group slots only. */
     confirmations?: Record<string, SetupConfirmation>;
-    /** The orga's check on a group slot: set or take away the confirmation; missing = no button. */
-    onConfirm?: (userId: string) => void;
+    /** The raider the panel holds on to (clicked last, no move pending) — framed, so it is clear whose panel it is. */
+    pinned?: string | null;
 };
 
 /**
- * One raider line. `inPool` (#517): signed up, not in the setup — no lock (there is no place to keep), a "Bank" signup marked.
+ * One raider line — nothing on it to click but the line itself (pick, drag,
+ * right click): fixing, the check and "Anmeldung bearbeiten" are buttons in the
+ * raider panel (SlotTip), so they can never sit under the name or the mark.
+ * `inPool` (#517): signed up, not in the setup, a "Bank" signup marked.
  * `inGroup`: a place in a group — only there a Confirm/Cancel is drawn (green resp. red, the mark as a big icon behind the line).
  */
 function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerson; ui: Interaction; inPool?: boolean; inGroup?: boolean }) {
@@ -59,7 +60,7 @@ function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerson; ui: 
     };
     return (
         <div
-            className={`se-slot${selected ? " se-picked" : ""}${p.locked ? " se-locked" : ""}${ui.dragging === p.userId ? " se-dragging" : ""}${confirmation ? ` se-${confirmation}` : ""}`}
+            className={`se-slot${selected ? " se-picked" : ""}${!selected && ui.pinned === p.userId ? " se-pinned" : ""}${p.locked ? " se-locked" : ""}${ui.dragging === p.userId ? " se-dragging" : ""}${confirmation ? ` se-${confirmation}` : ""}`}
             role={ui.editable ? "button" : undefined}
             tabIndex={ui.editable ? 0 : undefined}
             aria-pressed={ui.editable ? selected : undefined}
@@ -96,41 +97,8 @@ function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerson; ui: 
                     {confirmation === "confirmed" ? <CheckIcon /> : <XIcon />}
                 </span>
             )}
-            {ui.editable && inGroup && ui.onConfirm && (
-                <IconButton
-                    className={`se-confirmbtn${confirmation === "confirmed" ? " is-on" : ""}`}
-                    size="sm"
-                    icon={<CheckIcon />}
-                    tip={confirmation ? t(`setup.slot.${confirmation}`) : t("setup.slot.confirm")}
-                    tipSub={confirmation ? t(`setup.slot.${confirmation}Sub`) : t("setup.slot.confirmSub")}
-                    aria-pressed={confirmation === "confirmed"}
-                    onClick={(e) => { e.stopPropagation(); ui.onConfirm?.(p.userId); }}
-                    onKeyDown={(e) => e.stopPropagation()}
-                />
-            )}
-            {ui.editable && ui.onEdit && (
-                <IconButton
-                    className={`se-editbtn${inPool ? " se-editbtn-alone" : ""}`}
-                    size="sm"
-                    icon={<EditIcon />}
-                    tip={t("setup.signupEdit.open")}
-                    tipSub={t("setup.signupEdit.openSub")}
-                    onClick={(e) => { e.stopPropagation(); ui.onEdit?.(p.userId); }}
-                    onKeyDown={(e) => e.stopPropagation()}
-                />
-            )}
-            {ui.editable && !inPool && (
-                <IconButton
-                    className={`se-lock${p.locked ? " is-on" : ""}`}
-                    size="sm"
-                    icon={p.locked ? <LockIcon /> : <UnlockIcon />}
-                    tip={p.locked ? t("setup.slot.locked") : t("setup.slot.lock")}
-                    tipSub={p.locked ? t("setup.slot.lockedSub") : t("setup.slot.lockSub")}
-                    aria-pressed={!!p.locked}
-                    onClick={(e) => { e.stopPropagation(); ui.onLock(p.userId); }}
-                    onKeyDown={(e) => e.stopPropagation()}
-                />
-            )}
+            {/* a fixed place only shows it — the panel's button changes it */}
+            {p.locked && !inPool && <span className="se-lock-mark" role="img" aria-label={t("setup.slot.locked")}><LockIcon /></span>}
         </div>
     );
 }
@@ -294,7 +262,7 @@ export function PoolCard({ pool, ui }: { pool: SetupPerson[]; ui: Interaction })
 export function ReadOnly({ data }: { data: SetupEditorData }) {
     const t = useT();
     const approved = data.approved;
-    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, extraRoles: {}, suggest: null, onInspect: () => {}, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, onLock: () => {} };
+    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, extraRoles: {}, suggest: null, onInspect: () => {}, onPick: () => {}, onDrop: () => {}, onDrag: () => {} };
     if (!approved) return <p className="rd-empty">{t("setup.readOnly.notApproved")}</p>;
     const groupCount = Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE));
     return (
