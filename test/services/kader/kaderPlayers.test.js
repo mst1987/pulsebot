@@ -130,7 +130,8 @@ describe("services/kader/kaderPlayers", () => {
             expect(iv).toMatchObject({ note: "Will Furor lernen", lead: U.lead2, startedAt: "2026-10-05T20:00:00.000Z", updatedBy: U.lead });
             // an empty value clears one answer, the others stay
             p = players.saveInterview(p, { kaderId, userId: U.a, answers: { [voice.id]: "" } }, ctx);
-            expect(Object.keys(entry(p, U.a).interview.answers)).toEqual([days.id, other.id]);
+            // sorted: the ids are random, and one made of digits only sorts first among object keys
+            expect(Object.keys(entry(p, U.a).interview.answers).sort()).toEqual([days.id, other.id].sort());
             expect(entry(p, U.a).interview.startedAt).toBe("2026-10-05T20:00:00.000Z");
         });
 
