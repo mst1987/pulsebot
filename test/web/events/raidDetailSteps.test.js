@@ -229,6 +229,26 @@ describe("raidSteps", () => {
         });
     });
 
+    describe("Planung: Raidplan oder Sheet, nie beides", () => {
+        const rp = { filled: true, published: false, publicPath: "", channelId: "", messageId: "", message: "", postedAt: 0 };
+        const keys = (d) => raidSteps(d).steps.map((s) => s.key);
+
+        it("a category planning with the raid plan has no Raidsheet step, so nobody is nudged to fill one", () => {
+            expect(keys(base({ planning: "raidplan", raidplanPost: rp }))).toEqual(["signup", "setup", "raidplan", "softres", "loot", "logs"]);
+            const res = raidSteps(base({ planning: "raidplan", event: { ...base().event, signupCount: 23 }, setup: { total: 25, groups: [], roleCounts: {} } }));
+            expect(res.next).not.toBe("sheet");
+            expect(res.primary).not.toMatchObject({ modal: "sheet" });
+        });
+
+        it("a category planning with a sheet has no Einteilungen step, even with a plan", () => {
+            expect(keys(base({ planning: "sheet", raidplanPost: rp }))).toEqual(["signup", "setup", "sheet", "softres", "loot", "logs"]);
+        });
+
+        it("a payload without planning keeps both (older callers)", () => {
+            expect(keys(base({ raidplanPost: rp }))).toEqual(["signup", "setup", "sheet", "raidplan", "softres", "loot", "logs"]);
+        });
+    });
+
     it("shows a softres list's amount and whether it was posted", () => {
         const res = raidSteps(base({ eventSoftres: { url: "u", editUrl: "e", instances: ["bt"], amount: 2, hardReserveCount: 1 } }));
         expect(step(res, "softres")).toMatchObject({ value: "2", unit: "/ Spieler", badge: { label: "nicht gepostet", tone: "mid" }, done: true });
@@ -530,6 +550,13 @@ describe("eventSteps — das Raid-Cockpit (#319)", () => {
         });
 
         // Posten ist Raidplan-Schreiben (docs/permissions.md): ohne das Recht fehlt der Schritt ganz, statt einen Knopf zu zeigen, der scheitert.
+        it("plant die Kategorie mit einem Sheet, fehlt „Einteilungen“ ganz", () => {
+            const res = eventSteps({ ...ready(rp()), planning: "sheet" }, { now: NOW });
+            expect(res.steps.map((s) => s.id)).toEqual(STEP_IDS.filter((id) => id !== "plan"));
+            expect(res.current).toBe("");
+            expect(eventSteps({ ...ready(rp()), planning: "raidplan" }, { now: NOW }).current).toBe("plan");
+        });
+
         it("ohne Raidplan-Schreibrecht fehlt der Schritt, und er wird nie der aktuelle", () => {
             const res = eventSteps(ready(rp()), { now: NOW, plan: false });
             expect(res.steps.map((s) => s.id)).toEqual(STEP_IDS.filter((id) => id !== "plan"));

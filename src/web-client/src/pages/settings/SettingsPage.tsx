@@ -157,6 +157,8 @@ export default function SettingsPage() {
                 categorySheets: Object.fromEntries(
                     Object.entries(draft.categorySheets).map(([id, s]) => [id, { url: s.url.trim(), name: s.name.trim() }]),
                 ),
+                // Raid plan or sheet per category: merged on the server, only picked modes are sent.
+                categoryPlanning: draft.categoryPlanning,
                 topItems: draft.topItems,
             });
             setData({ ...data, config });
@@ -262,6 +264,8 @@ export default function SettingsPage() {
                     noteChannels={data.noteChannels}
                     onSignupNoteChannel={(id, channelId) => patch({ categorySignupNoteChannel: { ...draft.categorySignupNoteChannel, [id]: channelId } })}
                     categorySheets={draft.categorySheets}
+                    categoryPlanning={draft.categoryPlanning}
+                    onPlanning={(id, mode) => patch({ categoryPlanning: { ...draft.categoryPlanning, [id]: mode } })}
                     savedCategoryRoles={data.config.categoryRoles || {}}
                     onToggleCategory={toggleCategory}
                     onToggleRole={toggleRole}

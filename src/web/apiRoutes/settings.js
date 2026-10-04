@@ -23,6 +23,7 @@ const { normalizeBotCommandAccess } = require("../../config/botCommands");
 const { VERSIONS } = require("../../config/gameVersions");
 const versionSettings = require("../../services/events/versionSettings");
 const { mainVersionFor } = require("../../services/events/mainVersion");
+const { normalizeCategoryPlanning } = require("../../services/events/planning");
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../services/events/contentVersions");
 // Makes Excel read the umlauts of an archive CSV as UTF-8.
 const BOM = String.fromCharCode(0xfeff);
@@ -477,6 +478,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // The channel of those messages per category (#335): same contract as the voice channel.
     if (body.categorySignupNoteChannel !== undefined) partial.categorySignupNoteChannel = normalizeCategoryVoiceChannel(body.categorySignupNoteChannel);
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
+    // Raid plan or sheet per category: merged by the store, an unknown mode drops out.
+    if (body.categoryPlanning !== undefined) partial.categoryPlanning = normalizeCategoryPlanning(body.categoryPlanning);
     // Sent whole; an id no template has is dropped, so a category can never
     // point at a template that is not there (the store normalises the rest).
     if (body.categoryRaidTemplate !== undefined) {

@@ -10,6 +10,11 @@
 // it as `data.steps`, every step names at most one deed, and this file is the
 // one place that turns such a deed into a dialog, a tab, a menu action or an
 // evaluation. A Raid-Helper event has no `steps` and keeps today's view.
+//
+// A raid category plans with the raid plan OR a Google Sheet, never both
+// (`data.planning`, src/services/events/planning.js): "sheet" hides the
+// Raidplan tab and its switch, "raidplan" the sheet dialog and its menu entry.
+// The steps the server sends are gated the same way.
 import { Suspense, useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
@@ -141,7 +146,10 @@ export default function RaidDetailPage() {
     const ownEvent = data.event.source === "eventhelper";
     // The raid plan (boards per boss): always on an own event, on a Raid-Helper event once the orga switched it on (its players then
     // come from Raid-Helper). The setup editor stays an own event's. The plan is its own area ("raidplan", docs/permissions.md).
-    const hasPlan = canAccess(user, "raidplan") && (ownEvent || !!data.event.raidplanEnabled);
+    const planning = data.planning;
+    const hasPlan = canAccess(user, "raidplan") && planning !== "sheet" && (ownEvent || !!data.event.raidplanEnabled);
+    // The sheet dialog only where the category plans with a sheet (an older server without `planning` keeps it).
+    const hasSheet = planning !== "raidplan";
     const tabs = TABS.filter((t) => (t === "setup" ? ownEvent : t === "plan" ? hasPlan : true));
     const shown: Tab = (tab === "setup" && !ownEvent) || (tab === "plan" && !hasPlan) ? LEGACY_TABS.setup.tab : tab;
 
@@ -175,7 +183,7 @@ export default function RaidDetailPage() {
     // Editing reuses the create dialog (#261), everything else is a dialog or one question.
     const canManage = !!ctx.canManage;
     // A Raid-Helper event's menu holds only the raid plan switch (raidplan write).
-    const canSwitchPlan = !ownEvent && !archived && canAccess(user, "raidplan", "write");
+    const canSwitchPlan = !ownEvent && !archived && planning !== "sheet" && canAccess(user, "raidplan", "write");
     const runManage = async (action: ManageAction) => {
         const ev = data.event;
         if (action === "raidplanOn") setLinkOpen(true);
@@ -200,7 +208,7 @@ export default function RaidDetailPage() {
         else if (action === "setup") switchTab("setup");
         // The three the old progress bar used to be the only way to (#319).
         else if (action === "notify") setModal("notify");
-        else if (action === "sheet") setModal("sheet");
+        else if (action === "sheet" && hasSheet) setModal("sheet");
         else if (action === "softres") setModal("softres");
         else if (action === "signups") {
             const open = !!ev.signupsClosed;
@@ -261,7 +269,7 @@ export default function RaidDetailPage() {
                 ) : undefined}
                 manage={canManage ? (
                     <ManageMenu
-                        state={{ cancelled: data.event.status === "cancelled", signupsClosed: !!data.event.signupsClosed, isPast: !!data.event.isPast, logCount: data.event.logCount || 0, softres: data.lootSystem?.softres, invite: !!data.ownSetup?.approvedAt }}
+                        state={{ cancelled: data.event.status === "cancelled", signupsClosed: !!data.event.signupsClosed, isPast: !!data.event.isPast, logCount: data.event.logCount || 0, softres: data.lootSystem?.softres, invite: !!data.ownSetup?.approvedAt, sheet: hasSheet }}
                         onAction={runManage}
                     />
                 ) : canSwitchPlan ? (
@@ -290,8 +298,8 @@ export default function RaidDetailPage() {
             {shown === "plan" && <Suspense fallback={<RaidLoader />}><RaidplanTab ctx={ctx} /></Suspense>}
 
             <NotifyModal ctx={ctx} open={modal === "notify"} onClose={close} />
-            <SheetModal ctx={ctx} open={modal === "sheet"} onClose={close} />
-            {data.raidplanPost && <RaidplanPostModal ctx={ctx} open={modal === "raidplan"} onClose={close} />}
+            {hasSheet && <SheetModal ctx={ctx} open={modal === "sheet"} onClose={close} />}
+            {data.raidplanPost && hasPlan && <RaidplanPostModal ctx={ctx} open={modal === "raidplan"} onClose={close} />}
             <SoftresModal ctx={ctx} open={modal === "softres"} onClose={close} />
             <LootSystemModal ctx={ctx} open={modal === "lootsystem"} onClose={close} />
             <PingModal ctx={ctx} open={modal === "ping"} onClose={close} />

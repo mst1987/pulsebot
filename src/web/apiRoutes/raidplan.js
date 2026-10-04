@@ -53,6 +53,8 @@ const { mainVersionFor, versionOfEvent, knownVersion, visibleRows, visibleVersio
 const { raidhelperDisabled } = require("../../utils/raidhelper/client");
 const { progressFor } = require("../../services/raidplan/raidplanProgress");
 const { syncRaidplanPost } = require("../../services/raidplan/raidplanPost");
+const { getConfig } = require("../../stores/configStore");
+const { planningRefusal } = require("../../services/events/planning");
 
 // A write on an event plan: an archived event (a hidden game version, #563) is read only.
 const BY_EVENT = (body) => body.event;
@@ -416,6 +418,25 @@ const getLink = withUser({}, async ({ req, res, url }) => {
     ok(res, { ...view, lineup: { count: probe.loaded.length, available: probe.info.available, hasGroups: probe.info.hasGroups, origin: probe.info.origin, unmatchedNames: probe.info.unmatchedNames, unknown: probe.info.unknown } });
 });
 
+/** A category that plans with a sheet gets no raid plan (services/events/planning.js): switching on answers 409, switching off always works. */
+function switchOnRefusal(body, ev) {
+    return body.enabled === true && ev ? planningRefusal("raidplan", ev.categoryId, getConfig()) : null;
+}
+
+/** What switching on stores: the body's instances / size / version / composition, else the plan's, else what the title suggests. */
+function switchOnInput(body, before, ev, req) {
+    const link = before && before.link ? before.link : null;
+    const sug = instancesFromTitle(ev ? ev.title : "", knownVersion(link && link.versionId) || versionOfEvent(ev));
+    const input = {
+        instanceIds: Array.isArray(body.instanceIds) ? body.instanceIds : (link ? link.instanceIds : sug.instanceIds),
+        size: body.size !== undefined ? body.size : (link ? link.size : sug.size),
+        versionId: body.versionId || (link ? link.versionId : sug.versionId),
+        composition: body.composition !== undefined ? body.composition : (link ? link.composition : null),
+    };
+    if (ev) Object.assign(input, { title: ev.title, startTime: ev.startTime, guildId: activeGuildFor(req) });
+    return input;
+}
+
 /** POST /api/raidplan/link — body `{ event, enabled, instanceIds?, size?, versionId?, composition? }` */
 const postLink = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const id = String(body.event || "").trim();
@@ -424,18 +445,10 @@ const postLink = withUser({ write: "raidplan", csrf: true, body: true, archived:
     const ev = await raidhelperEventOf(req, id);
     // switching on needs the event on this server; switching off also works for one Raid-Helper no longer lists
     if (!ev && !(before && before.link)) return error(res, 404, "not_found", "Event nicht gefunden.");
+    const blocked = switchOnRefusal(body, ev);
+    if (blocked) return error(res, blocked.status, blocked.code, blocked.message);
     const input = { enabled: body.enabled === true };
-    if (body.enabled === true) {
-        const sug = instancesFromTitle(ev ? ev.title : "", knownVersion(before && before.link && before.link.versionId) || versionOfEvent(ev));
-        const ids = Array.isArray(body.instanceIds) ? body.instanceIds : (before && before.link ? before.link.instanceIds : sug.instanceIds);
-        Object.assign(input, {
-            instanceIds: ids,
-            size: body.size !== undefined ? body.size : (before && before.link ? before.link.size : sug.size),
-            versionId: body.versionId || (before && before.link ? before.link.versionId : sug.versionId),
-            composition: body.composition !== undefined ? body.composition : (before && before.link ? before.link.composition : null),
-        });
-        if (ev) Object.assign(input, { title: ev.title, startTime: ev.startTime, guildId: activeGuildFor(req) });
-    }
+    if (body.enabled === true) Object.assign(input, switchOnInput(body, before, ev, req));
     let knownRoster = null;
     if (input.enabled) {
         // what Raid-Helper lists right now is remembered at once: switched off later, the plan still knows its raiders

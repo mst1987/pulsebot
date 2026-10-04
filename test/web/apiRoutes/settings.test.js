@@ -810,6 +810,22 @@ describe("web/apiRoutes/settings", () => {
             });
         });
 
+        describe("Planung je Kategorie: Raidplan oder Sheet", () => {
+            it("passes the known modes on and drops anything else", async () => {
+                readJsonBody.mockResolvedValue({ categoryPlanning: { c1: "sheet", c2: "raidplan", c3: "both" } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryPlanning: { c1: "sheet", c2: "raidplan" } });
+            });
+
+            it("is a setting a limited settings user may change (not full-admin-only)", async () => {
+                requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
+                requireFullAdmin.mockReturnValue(null);
+                readJsonBody.mockResolvedValue({ categoryPlanning: { c1: "sheet" } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryPlanning: { c1: "sheet" } });
+            });
+        });
+
         describe("Kanal für Vielleicht/Absage je Kategorie (#335)", () => {
             it("stores the channel as a string, so a category can go back to the default", async () => {
                 readJsonBody.mockResolvedValue({ categorySignupNoteChannel: { c1: " 123456789012345678 ", c2: "" } });

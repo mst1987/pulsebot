@@ -15,9 +15,10 @@ const { normalizeCategoryMessageLook } = require("../services/events/embedLook")
 const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeCategorySignupSource,
     normalizeCategorySetupDms, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
-    normalizeCategorySignupNotes, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeTopItems,
+    normalizeCategorySignupNotes, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
     normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings,
 } = require("./configSchema");
+const { planningOf } = require("../services/events/planning");
 
 const FILE = settingsPath("config.json");
 
@@ -57,22 +58,54 @@ function useFile(file) {
 /**
  * Which sheet a raid should link: the copy the app created for this very raid
  * if there is one, otherwise the fixed sheet assigned to its category. Returns
- * null when neither exists.
+ * null when neither exists - and always for a category that plans with the raid
+ * plan instead (planningOf(), src/services/events/planning.js): a raid gets the
+ * raid plan or a sheet, never both.
  *
  * @param {object|null} eventSheet  the eventSheetStore record for the raid
  * @param {string} categoryId       the raid channel's Discord category
  * @returns {null | { url, name, source: "event" | "category" }}
  */
 function resolveEventSheetLink(eventSheet, categoryId) {
+    const config = getConfig();
+    if (planningOf(categoryId, config) !== "sheet") return null;
     if (eventSheet && eventSheet.url) {
         return { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" };
     }
-    const assigned = getConfig().categorySheets[String(categoryId || "").trim()];
+    const assigned = config.categorySheets[String(categoryId || "").trim()];
     if (assigned && assigned.url) {
         return { url: assigned.url, name: assigned.name || "", source: "category" };
     }
     return null;
 }
+
+/**
+ * The per-category maps a save merges into the stored one and then normalises,
+ * so a category the request leaves out keeps its value and one set back to the
+ * default drops out:
+ * - categoryLootSystem: "" (like the loot addon) drops the category again;
+ * - categorySignupSource: `current` already carries the categories pinned for an
+ *   install from before #291 (signupSourcesOf), so a save writes them down;
+ * - categorySetupDms, categoryDiscordEvent (#305): a category switched off drops out;
+ * - categoryVoiceChannel (#305), categorySignupNoteChannel (#335): "" = back to the default;
+ * - categoryMessageLook: merged per category, one back at the defaults drops out;
+ * - categoryAnnounce (#306), categorySignupNotes ("optional" drops out);
+ * - categorySheets: an emptied url drops the sheet;
+ * - categoryPlanning: raid plan or sheet, a category not sent keeps its mode.
+ */
+const MERGED_CATEGORY_MAPS = [
+    ["categoryLootSystem", normalizeCategoryLootSystem],
+    ["categorySignupSource", normalizeCategorySignupSource],
+    ["categorySetupDms", normalizeCategorySetupDms],
+    ["categoryDiscordEvent", normalizeCategoryFlags],
+    ["categoryVoiceChannel", normalizeCategoryVoiceChannel],
+    ["categoryMessageLook", normalizeCategoryMessageLook],
+    ["categoryAnnounce", normalizeCategoryAnnounce],
+    ["categorySignupNotes", normalizeCategorySignupNotes],
+    ["categorySignupNoteChannel", normalizeCategoryVoiceChannel],
+    ["categorySheets", normalizeCategorySheets],
+    ["categoryPlanning", normalizeCategoryPlanning],
+];
 
 /**
  * Merge and persist a partial config update. Returns the config as every other
@@ -95,42 +128,9 @@ function saveConfig(partial) {
     }
     if (partial.warcraftlogsV2) next.warcraftlogsV2 = { ...current.warcraftlogsV2, ...partial.warcraftlogsV2 };
     if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
-    // Merged, then normalised: "" (like the loot addon) drops the category again.
-    if (partial.categoryLootSystem) {
-        next.categoryLootSystem = normalizeCategoryLootSystem({ ...current.categoryLootSystem, ...partial.categoryLootSystem });
-    }
-    // Merged, then normalised. `current` already carries the categories pinned
-    // for an install from before #291 (signupSourcesOf), so this save writes them down.
     if (partial.raidhelperRetirement !== undefined) next.raidhelperRetirement = normalizeRaidhelperRetirement(partial.raidhelperRetirement);
-    if (partial.categorySignupSource) {
-        next.categorySignupSource = normalizeCategorySignupSource({ ...current.categorySignupSource, ...partial.categorySignupSource });
-    }
-    // Merged, then normalised: a category switched off drops out.
-    if (partial.categorySetupDms) {
-        next.categorySetupDms = normalizeCategorySetupDms({ ...current.categorySetupDms, ...partial.categorySetupDms });
-    }
-    // Same contract for the two per-category switches of #305: merged, then
-    // normalised — a category switched off (or a cleared voice channel) drops out.
-    if (partial.categoryDiscordEvent) {
-        next.categoryDiscordEvent = normalizeCategoryFlags({ ...current.categoryDiscordEvent, ...partial.categoryDiscordEvent });
-    }
-    if (partial.categoryVoiceChannel) {
-        next.categoryVoiceChannel = normalizeCategoryVoiceChannel({ ...current.categoryVoiceChannel, ...partial.categoryVoiceChannel });
-    }
-    // Merged per category, then normalised: a category back at the defaults drops out.
-    if (partial.categoryMessageLook) {
-        next.categoryMessageLook = normalizeCategoryMessageLook({ ...current.categoryMessageLook, ...partial.categoryMessageLook });
-    }
-    if (partial.categoryAnnounce) {
-        next.categoryAnnounce = normalizeCategoryAnnounce({ ...current.categoryAnnounce, ...partial.categoryAnnounce });
-    }
-    // Merged, then normalised: a category set back to "optional" drops out.
-    if (partial.categorySignupNotes) {
-        next.categorySignupNotes = normalizeCategorySignupNotes({ ...current.categorySignupNotes, ...partial.categorySignupNotes });
-    }
-    // Same contract as the voice channel: "" drops the category (back to the default).
-    if (partial.categorySignupNoteChannel) {
-        next.categorySignupNoteChannel = normalizeCategoryVoiceChannel({ ...current.categorySignupNoteChannel, ...partial.categorySignupNoteChannel });
+    for (const [key, normalize] of MERGED_CATEGORY_MAPS) {
+        if (partial[key]) next[key] = normalize({ ...current[key], ...partial[key] });
     }
     // Replaced whole, like the top items: a category left out has no default.
     if (partial.categoryRaidTemplate !== undefined) next.categoryRaidTemplate = normalizeCategoryRaidTemplate(partial.categoryRaidTemplate);
@@ -143,9 +143,6 @@ function saveConfig(partial) {
         const merged = { ...current.versionSettings };
         for (const [id, block] of Object.entries(partial.versionSettings)) merged[id] = { ...(merged[id] || {}), ...(block || {}) };
         next.versionSettings = normalizeVersionSettings(merged);
-    }
-    if (partial.categorySheets) {
-        next.categorySheets = normalizeCategorySheets({ ...current.categorySheets, ...partial.categorySheets });
     }
     // A list, not a map: what is sent replaces the stored one (that is how an
     // item gets removed again), it is only cleaned up on the way in.

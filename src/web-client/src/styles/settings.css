@@ -294,7 +294,7 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .cat-list { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
 .cat-inner { min-width: 700px; }
 .cat-row {
-    display: grid; grid-template-columns: 40px minmax(140px, 1fr) 96px 124px 116px 80px 96px; align-items: center; gap: 8px;
+    display: grid; grid-template-columns: 40px minmax(120px, 1fr) 92px 124px 100px 72px 92px; align-items: center; gap: 8px;
     padding: 10px 14px; border-bottom: 1px solid var(--line-soft); border-left: 3px solid transparent; padding-left: 11px;
 }
 .cat-row.cat-head { background: var(--panel2); border-bottom: 1px solid var(--line); padding-top: 8px; padding-bottom: 8px; font-family: var(--font-mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
@@ -305,14 +305,33 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .cat-name > span:first-child { overflow-wrap: anywhere; }
 .cat-off { grid-column: 3 / -1; font-family: var(--font-mono); font-size: 12px; }
 .cat-row .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-.cat-detail {
-    padding: 16px 16px 18px 17px; border-left: 3px solid var(--accent); border-bottom: 1px solid var(--line);
-    display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 22px;
+/* The open card (design "B · Tabs in der Karte"): a tab bar under the row, then one row per setting. */
+.cat-detail { border-left: 3px solid var(--accent); border-bottom: 1px solid var(--line); background: var(--panel); }
+.cat-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--accent-soft); }
+.cat-tab {
+    appearance: none; display: inline-flex; align-items: center; gap: 7px; padding: 11px 14px 9px; margin-bottom: -1px;
+    border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
 }
-.cat-detail-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-/* a label with its switch on one line (Setup-DMs, #290) */
-.cat-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.cat-switch-row > label:first-child { margin: 0; }
+.cat-tab:hover { color: var(--text); }
+.cat-tab.is-active { color: var(--text); border-bottom-color: var(--accent); }
+.cat-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px 6px 0 0; }
+.cat-tab-count {
+    min-width: 20px; padding: 0 6px; border-radius: 999px; font-family: var(--font-mono); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+    background: var(--panel2); color: var(--muted); border: 1px solid var(--line);
+}
+.cat-tab.is-active .cat-tab-count { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+.cat-tabpanel { padding: 0 16px 0 17px; }
+.cat-field-wrap + .cat-field-wrap { border-top: 1px solid var(--line-soft); }
+/* name | control | what it does */
+.cat-field { display: grid; grid-template-columns: 170px minmax(0, 1.5fr) minmax(0, 1fr); gap: 8px 22px; align-items: start; padding: 14px 0; }
+.cat-field-label { padding-top: 7px; min-width: 0; font-size: 14px; font-weight: 700; line-height: 1.35; }
+.cat-field-label > label { margin: 0; font: inherit; color: inherit; }
+.cat-field-control { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.cat-field-control > select, .cat-field-control > .rch-summary, .cat-field-control > .sheet-field, .cat-field-control > .cat-panel,
+.cat-field-control > .cat-note-channel, .cat-field-control > .cat-panel-state { align-self: stretch; }
+.cat-field-control > .seg { flex-wrap: wrap; max-width: 100%; }
+.cat-field-control > .switch { margin-top: 5px; }
+.cat-field-sub { padding-top: 6px; font-size: 12.5px; line-height: 1.5; color: var(--muted); min-width: 0; }
 /* #335: the channel of "Vielleicht/Absage" under its segment — one quiet line. */
 .cat-note-channel { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .cat-note-channel > select { flex: 1; min-width: 0; font-size: 13px; }
@@ -332,8 +351,22 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .rch-name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 760px) {
-    .cat-detail { grid-template-columns: 1fr; }
+    /* the three columns of a setting stack */
+    .cat-field { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .cat-field-label, .cat-field-sub { padding-top: 0; }
     .rch-row { grid-template-columns: 1fr; gap: 4px; }
+}
+/* phone: no sideways scrolling - a category's row wraps its pills under its name */
+@media (max-width: 600px) {
+    .cat-inner { min-width: 0; }
+    .cat-row.cat-head { display: none; }
+    .cat-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+    .cat-row > .cat-name { flex: 1 1 calc(100% - 150px); }
+    .cat-row > .cat-cell { order: 2; max-width: 100%; }
+    .cat-row > .cat-off { flex: 1 1 100%; }
+    .cat-tabs { padding: 0 6px; }
+    .cat-tab { padding: 10px 9px 8px; }
+    .cat-tabpanel { padding: 0 12px 0 13px; }
 }
 
 /* ---- save bar: sticks to the bottom while the panel scrolls ---- */

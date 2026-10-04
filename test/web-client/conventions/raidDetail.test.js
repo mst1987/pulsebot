@@ -25,7 +25,7 @@ describe("raid detail layout", () => {
         expect(page).toContain("const TABS: Tab[] = [\"roster\", \"setup\", \"plan\", \"loot\", \"logs\"];");
         // the setup editor only on an own event; the raid plan also on a Raid-Helper event whose plan is switched on,
         // and only for a reader of its own area
-        expect(page).toContain("const hasPlan = canAccess(user, \"raidplan\") && (ownEvent || !!data.event.raidplanEnabled);");
+        expect(page).toContain("const hasPlan = canAccess(user, \"raidplan\") && planning !== \"sheet\" && (ownEvent || !!data.event.raidplanEnabled);");
         expect(page).toContain("const tabs = TABS.filter((t) => (t === \"setup\" ? ownEvent : t === \"plan\" ? hasPlan : true));");
         // an old ?tab=setup of a Raid-Helper event still lands on the roster
         expect(page).toContain("const shown: Tab = (tab === \"setup\" && !ownEvent) || (tab === \"plan\" && !hasPlan) ? LEGACY_TABS.setup.tab : tab;");

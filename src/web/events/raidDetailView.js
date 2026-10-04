@@ -46,6 +46,7 @@ const { raidplanPostState } = require("../../services/raidplan/raidplanPost");
 const linkCheck = require("../../services/discord/linkCheck");
 const { setupSummary } = require("../../services/setup/setupEditor");
 const { pingTargetInfo } = require("../../services/discord/pingDelivery");
+const { planningOf } = require("../../services/events/planning");
 
 /**
  * The version of the event on this page and its settings (#542): an own event
@@ -230,7 +231,7 @@ async function logsPart(guildId, eventId) {
 }
 
 /** The page head's event: what every source has, plus what only an own event plans with. */
-function eventMeta(found, eventId, { isPast, signupsKnown, guildId = "" }) {
+function eventMeta(found, eventId, { isPast, signupsKnown, guildId = "", planning = "raidplan" }) {
     return {
         id: found.e.id,
         source: found.e.source || "raidhelper",
@@ -255,8 +256,8 @@ function eventMeta(found, eventId, { isPast, signupsKnown, guildId = "" }) {
             signupDeadline: Number(found.e.signupDeadline) || 0,
         } : {}),
         // a Raid-Helper event whose raid plan the orga switched on (docs/raidplan.md, "Raid-Helper-Events"): the page shows the
-        // "Raidplan" tab; an own event always has it
-        raidplanEnabled: isOwn(found) || raidplanSwitchedOn(eventId),
+        // "Raidplan" tab; an own event always has it - unless its category plans with a sheet (services/events/planning.js)
+        raidplanEnabled: planning !== "sheet" && (isOwn(found) || raidplanSwitchedOn(eventId)),
         // Raid-Helper switched off in the settings: the menu says the plan works from its saved line-up only
         ...(isOwn(found) ? {} : { raidhelperDisabled: raidhelperDisabled() }),
     };
@@ -285,6 +286,8 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
     if (!found) return fail(groupsError ? 400 : 404, groupsError ? "events_unavailable" : "not_found", groupsError || "Event nicht gefunden.");
 
     const config = getConfig();
+    // Raid plan or Google Sheet, never both: the category's choice gates the plan's tab and step and the sheet's.
+    const planning = planningOf(found.g.categoryId, config);
     const version = eventVersionSettings(found, config);
     const raidsheets = listRaidsheets();
     const matched = pickRaidsheet(raidsheets, found.e.title, { ownId: version.raidsheetId, otherIds: version.otherSheetIds });
@@ -301,7 +304,9 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
     const logs = await logsPart(guildId, eventId);
 
     const payload = {
-        event: eventMeta(found, eventId, { isPast, signupsKnown, guildId }),
+        event: eventMeta(found, eventId, { isPast, signupsKnown, guildId, planning }),
+        // "raidplan" | "sheet": which of the two this raid's category plans with (Einstellungen → Kategorien).
+        planning,
         setupFromSnapshot: setupInfo.setupFromSnapshot,
         categoryName: found.g.categoryName,
         guildId,
@@ -319,8 +324,9 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
         // Which sheet this raid actually links: its own filled copy, else the
         // fixed sheet assigned to its category in the settings, else null.
         sheetLink: resolveEventSheetLink(getEventSheet(eventId), found.g.categoryId),
-        // The raid plan's read link in the event channel (#502): null without a plan, or for a reader who may not post it.
-        raidplanPost: planPost ? raidplanPostState(found.e) : null,
+        // The raid plan's read link in the event channel (#502): null without a plan, for a reader who may not post it,
+        // or in a category that plans with a sheet.
+        raidplanPost: planPost && planning === "raidplan" ? raidplanPostState(found.e) : null,
         eventSoftres: softresInfo.eventSoftres,
         softresCatalogue: version.softresEdition ? softres.catalogue().filter((g) => g.edition === version.softresEdition) : [],
         softresEdition: version.softresEdition,

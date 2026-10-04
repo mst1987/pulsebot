@@ -5,7 +5,9 @@
 // of them inactive — and kept the raider → character assignment in a separate
 // section with its own category picker. What is protected here: the list with
 // its tinted head, one row open at a time, the inactive categories folded away,
-// unknown ids kept visible, and the assignment reachable from the row.
+// unknown ids kept visible, and the assignment reachable from the row. The open
+// card (CategoryDetail.tsx, design "B · Tabs in der Karte") sorts its settings
+// into four tabs, one row each: name | control | what it does.
 // The row logic itself (categoryRows / splitCategoryRows) runs in
 // settingsLogic.test.js.
 const fs = require("fs");
@@ -14,6 +16,8 @@ const path = require("path");
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const css = fs.readFileSync(path.join(CLIENT, "styles", "settings.css"), "utf8");
 const matrix = fs.readFileSync(path.join(CLIENT, "pages", "settings", "CategoryMatrix.tsx"), "utf8");
+const detail = fs.readFileSync(path.join(CLIENT, "pages", "settings", "CategoryDetail.tsx"), "utf8").replace(/\r\n/g, "\n");
+const field = fs.readFileSync(path.join(CLIENT, "pages", "settings", "CategoryField.tsx"), "utf8");
 const page = fs.readFileSync(path.join(CLIENT, "pages", "settings", "SettingsPage.tsx"), "utf8");
 // The texts live in the dictionaries since #440; the source names their keys.
 const de = require("../clientSource").dictionary("de");
@@ -66,10 +70,11 @@ describe("Kategorien list", () => {
     });
 
     it("picks the loot addon with a segment and opens the character assignment for this category", () => {
-        expect(matrix).toMatch(/<Segment ariaLabel=\{t\("settings\.categories\.lootAddonAria"/);
-        expect(matrix).toContain("[\"gargul\", \"rclc\", \"\"].map((value) => ({ value, label: lootToolLabel(value) }))");
+        expect(detail).toMatch(/<Segment ariaLabel=\{t\("settings\.categories\.lootAddonAria"/);
+        expect(detail).toContain("[\"gargul\", \"rclc\", \"\"].map((value) => ({ value, label: lootToolLabel(value) }))");
         expect(de["settings.lootTool.none"]).toBe("keins");
-        expect(matrix).toContain("icon=\"ability_rogue_disguise\"");
+        expect(detail).toContain("icon=\"ability_rogue_disguise\"");
+        expect(matrix).toContain("onAssign={() => setAssigning(cat)}");
         expect(matrix).toContain("categoryId={assigning.id}");
         const modal = fs.readFileSync(path.join(CLIENT, "pages", "settings", "RaiderCharactersModal.tsx"), "utf8");
         // the category is a prop now, never a second picker
@@ -77,23 +82,42 @@ describe("Kategorien list", () => {
         expect(page).not.toContain("RaiderCharactersTab");
     });
 
-    it("moves the hints into tooltips at the field names", () => {
-        expect(matrix).not.toContain("className=\"hint\"");
-        for (const key of ["raiderRoles", "lootAddon", "fixedSheet", "chars"]) {
-            expect(matrix).toContain(`tip={t("settings.categories.${key}")}`);
+    it("shows each setting's explanation beside it: name | control | what it does", () => {
+        expect(matrix + detail).not.toContain("className=\"hint\"");
+        for (const key of ["raiderRoles", "lootAddon", "fixedSheet", "newEvents", "notes", "planning"]) {
+            expect(detail).toContain(`label={t("settings.categories.${key}")}`);
+            expect(detail).toContain(`sub={t("settings.categories.${key}Sub")}`);
         }
+        expect(detail).toContain("label={t(\"settings.categories.chars\")} sub={t(\"settings.categories.charsDetailSub\")}");
         expect(de["settings.categories.chars"]).toBe("Raider → Charakter");
+        expect(field).toContain("<div className=\"cat-field-sub\">{sub}</div>");
+        expect(rule(".cat-field")).toContain("grid-template-columns: 170px minmax(0, 1.5fr) minmax(0, 1fr)");
+        // below 760 px the three columns stack
+        expect(css).toMatch(/@media \(max-width: 760px\) \{[^@]*\.cat-field \{ grid-template-columns: minmax\(0, 1fr\);/);
+    });
+
+    it("sorts the open card's settings into four real tabs", () => {
+        const logic = fs.readFileSync(path.join(CLIENT, "lib", "settingsLogic.ts"), "utf8");
+        expect(logic).toContain("export const CATEGORY_TABS = [\"signup\", \"message\", \"plan\", \"loot\"] as const;");
+        expect(detail).toContain("role=\"tablist\"");
+        expect(detail).toContain("role=\"tab\"");
+        expect(detail).toContain("role=\"tabpanel\"");
+        expect(detail).toContain("onKeyDown={onKey}");
+        expect(matrix).toContain("usePersistedState<Record<string, CategoryTab>>(\"settings-category-tabs\", {})");
+        expect(rule(".cat-tab.is-active")).toContain("border-bottom-color: var(--accent)");
+        expect([de["settings.categories.tabs.signup"], de["settings.categories.tabs.plan"]]).toEqual(["Anmeldung", "Setup & Planung"]);
     });
 
     it("spaces the list from the stylesheet, never inline", () => {
-        expect(matrix).not.toContain("style={{");
-        expect(rule(".cat-detail")).toContain("gap: 22px");
+        expect(matrix + detail + field).not.toContain("style={{");
+        expect(rule(".cat-field-wrap + .cat-field-wrap")).toContain("border-top: 1px solid var(--line-soft)");
     });
 
     it("picks the message channel at the message segment, hidden for \"keine\" and while no channels load (#335)", () => {
-        const block = matrix.slice(matrix.indexOf("{onSignupNotes && ("), matrix.indexOf("{onDiscordEvent && ("));
+        const block = detail.slice(detail.indexOf("function notesField("), detail.indexOf("function messageFields("));
         expect(block).toContain("options={noteModes()}");
-        expect(block).toContain("signupNoteMode(categorySignupNotes, cat.id) !== \"none\"");
+        expect(block).toContain("const mode = signupNoteMode(s.categorySignupNotes, cat.id);");
+        expect(block).toContain("mode !== \"none\"");
         expect(block).toContain("noteChannels.channels.length > 0");
         expect(block).toContain("<option value=\"\">{pick.defaultLabel}</option>");
         // an own channel out of reach stays selected and is marked, never silently dropped

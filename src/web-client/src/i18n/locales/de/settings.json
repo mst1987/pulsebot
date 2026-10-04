@@ -157,7 +157,8 @@
         "hideOtherOn": "Andere Versionen ausblenden an",
         "hideOtherOff": "Andere Versionen ausblenden aus",
         "followMain": "Hauptversion",
-        "versionSettings": "Links und Armory · {value}"
+        "versionSettings": "Links und Armory · {value}",
+        "planning": "{name} · Planung → {value}"
     },
     "lootTool": {
         "none": "keins"
@@ -665,7 +666,6 @@
         "missing": "fehlt",
         "fixedSheet": "Festes Raidsheet",
         "sheet": "Sheet",
-        "noSheet": "kein Sheet",
         "chars": "Raider → Charakter",
         "charsSub": "{assigned} von {members} Raidern haben einen festen Charakter.",
         "noRaidEvents": "keine Raid-Events",
@@ -726,7 +726,6 @@
         "sheetUrlPlaceholder": "https://docs.google.com/spreadsheets/… (leer = keins)",
         "colActive": "Aktiv",
         "colCategory": "Kategorie",
-        "colRaidsheet": "Raidsheet",
         "colChars": "Chars",
         "noneShown": "Noch keine Raid-Kategorie — unten eine Discord-Kategorie einschalten.",
         "folded": {
@@ -745,7 +744,22 @@
         "panelRemoveTitle": "Panel entfernen?",
         "panelRemoveText": "Die Nachricht in Discord wird gelöscht. Was Raider schon eingetragen haben, bleibt.",
         "panelSince": "gepostet {date}",
-        "panelNoChannels": "Keine Textkanäle – ist der Bot online?"
+        "panelNoChannels": "Keine Textkanäle – ist der Bot online?",
+        "tabs": {
+            "signup": "Anmeldung",
+            "message": "Nachricht",
+            "plan": "Setup & Planung",
+            "loot": "Loot"
+        },
+        "tabsAria": "Einstellungen von {name}",
+        "colPlanning": "Planung",
+        "planning": "Planung",
+        "planningSub": "Womit die Raids dieser Kategorie eingeteilt werden: Raidplan (ein Board je Boss, „Einteilungen“ im Kanal) oder Google-Sheet (das feste Sheet oder je Raid eine Kopie einer Vorlage). Nie beides. Ohne Wahl: festes Sheet eingetragen = Sheet, sonst Raidplan.",
+        "planningAria": "Planung {name}",
+        "planningRaidplanTip": "Plant mit dem Raidplan",
+        "planningRaidplanSub": "Raid-Seite mit Tab „Raidplan“ und Schritt „Einteilungen“; kein Raidsheet.",
+        "planningCopiesTip": "Plant mit einem Sheet",
+        "planningCopiesSub": "Kein festes Sheet: je Raid wird eine Kopie einer Raidsheet-Vorlage gefüllt (Module › Raidsheets)."
     },
     "botCommands": {
         "mode": {
@@ -911,5 +925,9 @@
         "defaultsSub": "Setzt die bekannten Werte für {version} ein (Namespace, Armory, Warcraft Logs, Wowhead, Softres). Realm und Raidsheet bleiben, wie sie sind. Gespeichert wird erst mit „Speichern“.",
         "defaultsSame": "Die Standardwerte sind schon eingetragen.",
         "defaultsNone": "Für {version} sind noch keine Standardwerte bekannt."
+    },
+    "planning": {
+        "raidplan": "Raidplan",
+        "sheet": "Sheet"
     }
 }

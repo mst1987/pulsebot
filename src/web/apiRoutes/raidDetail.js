@@ -11,7 +11,8 @@ const { AppError, sendResult } = require("../http/apiResult");
 const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
-const { getNotify, getRaidsheet, resolveEventSheetLink } = require("../../stores/settingsStore");
+const { getConfig, getNotify, getRaidsheet, resolveEventSheetLink } = require("../../stores/settingsStore");
+const { planningRefusal } = require("../../services/events/planning");
 const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../../stores/eventSheetStore");
 const { sourceOfEventId } = require("../../services/events/eventSources");
 const {
@@ -69,6 +70,21 @@ async function resolveEventForPost(req, eventId) {
     // categoryId comes along because the sheet a raid links may be the fixed one
     // assigned to its category (settingsStore's categorySheets).
     return { found: hit.e, categoryId: hit.g.categoryId, errorMessage: null, code: null };
+}
+
+/**
+ * The 409 for an action ("sheet" | "raidplan") the event's category does not plan with
+ * (services/events/planning.js), or null. Without a `categoryId` the event is looked up;
+ * one that cannot be found is left to the action itself (it answers its own 404/400).
+ */
+async function planningBlock(req, eventId, action, categoryId) {
+    let category = categoryId;
+    if (category === undefined) {
+        const hit = await resolveEventForPost(req, eventId);
+        if (hit.errorMessage) return null;
+        category = hit.categoryId;
+    }
+    return planningRefusal(action, category, getConfig());
 }
 
 /** POST /api/raids/notify — post an Anmelde-Aufruf into the event channel, pinging the chosen roles. Body: { event, templateId, channelId, roleIds }. */
@@ -138,10 +154,13 @@ const postInviteCall = withUser({ csrf: true, body: true, archived: BY_EVENT }, 
  * days after the raid. The source raidsheet is never written to or deleted.
  * Body: { event, sheetId, tank3, eventTitle, eventStartTime }.
  */
-const postFill = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, res }) => {
+const postFill = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, req, res }) => {
     const eventId = q.str(body, "event");
     const sheet = getRaidsheet(q.str(body, "sheetId"));
     if (!sheet) return error(res, 400, "sheet_not_found", "Raidsheet nicht gefunden.");
+    // A category that plans with the raid plan gets no sheet (Einstellungen → Kategorien).
+    const blocked = await planningBlock(req, eventId, "sheet");
+    if (blocked) return error(res, blocked.status, blocked.code, blocked.message);
     // An own event fills the sheet from its approved setup (#263) — never from a draft.
     const own = sourceOfEventId(eventId) === "eventhelper";
     const ownSlots = own ? raidHelperSlots(getEvent(eventId)) : null;
@@ -210,6 +229,8 @@ const postPostSheet = withUser({ csrf: true, body: true, archived: BY_EVENT }, a
     // Past raids included — the detail page is reachable for them too.
     const { found, categoryId, errorMessage, code } = await resolveEventForPost(req, eventId);
     if (errorMessage) return error(res, code === "not_found" ? 404 : 400, code, errorMessage);
+    const blocked = await planningBlock(req, eventId, "sheet", categoryId);
+    if (blocked) return error(res, blocked.status, blocked.code, blocked.message);
     // The app-made copy wins; without one the category's fixed sheet is posted.
     const link = resolveEventSheetLink(es, categoryId);
     if (!link) {
@@ -291,8 +312,11 @@ const postPostSoftres = withUser({ csrf: true, body: true, archived: BY_EVENT },
 const postPostRaidplan = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const eventId = q.str(body, "event");
     // The channel, title and start come from the server's own event list, never from the body.
-    const { found, errorMessage, code } = await resolveEventForPost(req, eventId);
+    const { found, categoryId, errorMessage, code } = await resolveEventForPost(req, eventId);
     if (errorMessage) return error(res, code === "not_found" ? 404 : 400, code, errorMessage);
+    // A category that plans with a sheet has no raid plan to post.
+    const blocked = await planningBlock(req, eventId, "raidplan", categoryId);
+    if (blocked) return error(res, blocked.status, blocked.code, blocked.message);
     const message = body.message !== undefined ? String(body.message || "").slice(0, 500) : undefined;
     sendResult(res, await postRaidplanLink({ event: found, message, userId: user.id }));
 });

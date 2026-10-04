@@ -12,6 +12,7 @@ const { normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess 
 const { normalizeBotCommandAccess } = require("../config/botCommands");
 const { normalizeCategoryLootSystem } = require("../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
+const { normalizeCategoryPlanning } = require("../services/events/planning");
 const { isSnowflake } = require("../utils/ids");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { versionSettingsOf, normalizeVersionSettings, versionsWithDefaults } = require("./versionSettingsSchema");
@@ -146,6 +147,11 @@ const CONFIG_DEFAULTS = {
     // links this sheet instead of needing its own copy. A copy the app actually
     // created for that raid still wins — see resolveEventSheetLink() in configStore.js.
     categorySheets: {},
+    // How a category plans its raids: { [categoryId]: "raidplan" | "sheet" } -
+    // the raid plan or a Google Sheet, never both. Only a picked mode is stored;
+    // without one, a category with a fixed sheet is "sheet", every other
+    // "raidplan" (planningOf() in src/services/events/planning.js).
+    categoryPlanning: {},
     // The default raid template per Discord category: { [categoryId]: templateId }
     // (Einstellungen → Kategorien). A template that is some category's default
     // cannot be deleted (409 in apiRoutes/raidTemplates.js).
@@ -587,6 +593,7 @@ function normalizeConfig(raw) {
         categorySignupNotes: normalizeCategorySignupNotes(stored.categorySignupNotes),
         categorySignupNoteChannel: normalizeCategoryVoiceChannel(stored.categorySignupNoteChannel),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
+        categoryPlanning: normalizeCategoryPlanning(stored.categoryPlanning),
         categoryRaidTemplate: normalizeCategoryRaidTemplate(stored.categoryRaidTemplate),
         mainVersion: normalizeMainVersion(stored.mainVersion),
         categoryVersion: normalizeCategoryVersion(stored.categoryVersion),
@@ -603,6 +610,6 @@ module.exports = {
     normalizeRoleSync, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
     normalizeCategorySetupDms, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
-    normalizeRaidhelperRetirement, normalizeCategorySheets, normalizeCategoryRoles,
+    normalizeRaidhelperRetirement, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
     normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings,
 };

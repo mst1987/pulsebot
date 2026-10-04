@@ -120,7 +120,38 @@ describe("stores/configStore resolveEventSheetLink", () => {
         expect(configStore.resolveEventSheetLink({ url: "https://own", sheetName: "Own" }, "cat")).toEqual({ url: "https://own", name: "Own", source: "event" });
         expect(configStore.resolveEventSheetLink(null, " cat ")).toEqual({ url: "https://cat", name: "Kat", source: "category" });
         expect(configStore.resolveEventSheetLink(null, "none")).toBeNull();
-        expect(configStore.resolveEventSheetLink({ url: "https://own" }, undefined)).toEqual({ url: "https://own", name: "", source: "event" });
+    });
+
+    it("links nothing for a category that plans with the raid plan - not even a filled copy", () => {
+        configStore.saveConfig({
+            categorySheets: { cat: { url: "https://cat", name: "Kat" } },
+            categoryPlanning: { cat: "raidplan", other: "sheet" },
+        });
+        expect(configStore.resolveEventSheetLink({ url: "https://own" }, "cat")).toBeNull();
+        expect(configStore.resolveEventSheetLink(null, "cat")).toBeNull();
+        // picked "sheet" without a fixed sheet: only a filled copy is linked
+        expect(configStore.resolveEventSheetLink({ url: "https://own" }, "other")).toEqual({ url: "https://own", name: "", source: "event" });
+        expect(configStore.resolveEventSheetLink(null, "other")).toBeNull();
+        // no category at all has no fixed sheet, so it plans with the raid plan
+        expect(configStore.resolveEventSheetLink({ url: "https://own" }, undefined)).toBeNull();
+        // a category without a fixed sheet and without a pick: the raid plan
+        expect(configStore.resolveEventSheetLink({ url: "https://own" }, "none")).toBeNull();
+    });
+});
+
+describe("stores/configStore categoryPlanning", () => {
+    it("starts empty and merges per category, dropping unknown modes", () => {
+        expect(configStore.getConfig().categoryPlanning).toEqual({});
+        configStore.saveConfig({ categoryPlanning: { a: "sheet", b: "raidplan" } });
+        configStore.saveConfig({ categoryPlanning: { b: "sheet", c: "both" } });
+        expect(configStore.getConfig().categoryPlanning).toEqual({ a: "sheet", b: "sheet" });
+    });
+
+    it("normalises a stored map by hand", () => {
+        writeFile({ categoryPlanning: { " x ": "raidplan", y: 1, z: "sheet", "": "sheet" } });
+        expect(configStore.getConfig().categoryPlanning).toEqual({ x: "raidplan", z: "sheet" });
+        writeFile({ categoryPlanning: ["sheet"] });
+        expect(configStore.getConfig().categoryPlanning).toEqual({});
     });
 });
 

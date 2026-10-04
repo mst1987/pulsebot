@@ -105,6 +105,8 @@ export type Attendance = { responded: AttendancePerson[]; missing: AttendancePer
 
 /** Where an event lives: at Raid-Helper, or in the EventHelper's own store (src/web/eventSources.js). */
 export type EventSource = "raidhelper" | "eventhelper";
+/** How a raid category plans its raids (src/services/events/planning.js): the raid plan or a Google Sheet, never both. */
+export type PlanningMode = "raidplan" | "sheet";
 
 export type RaidDetailEvent = {
     id: string;
@@ -172,6 +174,8 @@ export type RaidDetailData = {
     /** An event of a hidden game version (#563): the page opens as a read-only archive; null/missing = a normal event. */
     archived?: { versionId: string; label: string; short: string } | null;
     categoryName: string;
+    /** Raid plan or sheet, after the category's choice; missing (an older server) = both are offered. */
+    planning?: PlanningMode;
     guildId: string;
     eventsWarning: string | null;
     notifyTemplates: NotifyTemplate[];

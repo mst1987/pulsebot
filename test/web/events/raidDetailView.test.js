@@ -102,7 +102,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         raidhelperDisabled.mockReturnValue(true);
         const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
         expect(Object.keys(body)).toEqual([
-            "event", "setupFromSnapshot", "categoryName", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
+            "event", "planning", "setupFromSnapshot", "categoryName", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
             "softresCatalogue", "softresEdition", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "ownSetupPost",
             "attendanceRoleIds", "membersError", "signupTarget", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
@@ -130,8 +130,23 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         // the plan is switched on but empty (#502): nothing posted, nothing to post
         expect(body.raidplanPost).toEqual({ filled: false, published: false, publicPath: "", channelId: "", messageId: "", message: "", postedAt: 0 });
         expect(body.progress.steps.map((s) => s.key)).toContain("raidplan");
+        // no fixed sheet and no pick: the category plans with the raid plan, so there is no sheet step
+        expect(body.planning).toBe("raidplan");
+        expect(body.progress.steps.map((s) => s.key)).not.toContain("sheet");
         expect(body.eventsWarning).toBeNull();
         expect(body.roles).toEqual([{ id: "r1", name: "Raider" }]);
+    });
+
+    it("leaves the raid plan out of a category that plans with a sheet", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
+        settingsStore.getConfig.mockReturnValue({ categoryPlanning: { cat1: "sheet" } });
+        raidplanStore.getPlan.mockReturnValue({ link: { enabled: true } });
+        const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
+        expect(body.planning).toBe("sheet");
+        expect(body.event.raidplanEnabled).toBe(false);
+        expect(body.raidplanPost).toBeNull();
+        expect(body.progress.steps.map((s) => s.key)).toEqual(expect.arrayContaining(["sheet"]));
+        expect(body.progress.steps.map((s) => s.key)).not.toContain("raidplan");
     });
 
     it("follows the version of the event's category (#542): no softres edition, no TBC list, the version's own sheet", async () => {

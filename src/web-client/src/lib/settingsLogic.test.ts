@@ -72,6 +72,16 @@ describe("save bar change list", () => {
         categoryLootTool: {}, categorySheets: {}, categoryRaidTemplate: { c1: "tpl1" }, topItems: [{ id: 1 }],
     });
 
+    it("names a changed planning per category: the picked mode, else the fixed sheet's default", () => {
+        const draft = base();
+        draft.categoryPlanning = { c1: "sheet" };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Planung → Sheet"]);
+        // picking what the default already was is no change
+        const same = base();
+        same.categoryPlanning = { c1: "raidplan" };
+        expect(logic.draftChanges(base(), same, names)).toEqual([]);
+    });
+
     it("names a changed default raid template per category, and ignores an emptied entry", () => {
         const draft = base();
         draft.categoryRaidTemplate = { c1: "tpl2", c9: "" };
@@ -307,6 +317,21 @@ describe("Discord-Server cards (#251, #361)", () => {
         expect(logic.overlapBadge({ eventCount: 100, talkCount: 50, both: 50, error: null }).tone).toBe("mid");
         expect(logic.overlapBadge({ eventCount: null, talkCount: null, both: null, error: "Intent fehlt" }))
             .toEqual({ label: "Überschneidung unbekannt", tone: "", tip: "Intent fehlt" });
+    });
+});
+
+describe("planningOf: raid plan or sheet", () => {
+    it("takes the picked mode, else the sheet when a fixed one is set, else the raid plan", () => {
+        expect(mod.planningOf("c1", { c1: "raidplan" }, { c1: { url: "https://x" } })).toBe("raidplan");
+        expect(mod.planningOf("c1", { c1: "sheet" }, {})).toBe("sheet");
+        expect(mod.planningOf("c1", {}, { c1: { url: "https://x" } })).toBe("sheet");
+        expect(mod.planningOf("c1", { c1: "both" }, { c1: { url: " " } })).toBe("raidplan");
+        expect(mod.planningOf("c1", undefined, undefined)).toBe("raidplan");
+    });
+
+    it("names the two modes in both languages", async () => {
+        expect([mod.planningLabel("raidplan"), mod.planningLabel("sheet")]).toEqual(["Raidplan", "Sheet"]);
+        expect(await inLang("en", () => mod.planningLabel("raidplan"))).toBe("Raid plan");
     });
 });
 

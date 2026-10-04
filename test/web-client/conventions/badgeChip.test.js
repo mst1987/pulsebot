@@ -59,7 +59,8 @@ describe("the places that use them", () => {
         const settings = read("pages/settings");
         expect(settings).toContain("<Chip");
         expect(settings).not.toContain("chip-x");
-        const matrix = read("pages/settings/CategoryMatrix.tsx");
+        // the open category card (its tabs) lives in CategoryDetail.tsx
+        const matrix = read("pages/settings/CategoryDetail.tsx");
         expect(matrix).toMatch(/<Chip key=\{r\.id\} tone=\{on \? "accent" : undefined\} pressed=\{on\}/);
         expect(matrix).not.toContain("className={`badge chip");
     });
