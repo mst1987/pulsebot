@@ -209,6 +209,23 @@ function setLogTitle(id, title) {
 }
 
 /**
+ * Remember when the report started (Warcraft Logs' `start`, epoch ms) — the date the
+ * message under the log shows. No-op for an unreadable value or unknown id. Returns the
+ * saved log, or null.
+ */
+function setReportStart(id, startMs) {
+    const ms = Math.floor(Number(startMs) || 0);
+    if (ms <= 0) return null;
+    const logs = readAll();
+    const log = logs.find((l) => l.id === id);
+    if (!log || log.reportStart === ms) return log || null;
+    log.reportStart = ms;
+    log.updatedAt = Date.now();
+    writeAll(logs);
+    return log;
+}
+
+/**
  * Store which raids a log covers and how far each got (raidProgress.raidSummary()
  * of its WCL fight list), with the time it was read — backfilled lazily when the
  * list is viewed, so "Hyjal 3/5" is there before anyone evaluated the log.
@@ -285,6 +302,6 @@ function deleteLog(id) {
 
 module.exports = {
     listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
-    markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, setLogRaids, deleteLog, LOGS_FILE,
+    markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, setReportStart, setLogRaids, deleteLog, LOGS_FILE,
     linkEvent, unlinkEvent, listLogsForEvent, useFile: store.useFile,
 };

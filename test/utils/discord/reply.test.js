@@ -170,6 +170,12 @@ describe("utils/discord/reply", () => {
             expect(e.fields.length).toBeLessThanOrEqual(EMBED_LIMITS.fields);
         });
 
+        it("puts the author line above the title, cut to Discord's limit", () => {
+            expect(buildEmbed({ author: "Log-Auswertung läuft", title: "SSC" }).author).toEqual({ name: "Log-Auswertung läuft" });
+            expect(buildEmbed({ author: "x".repeat(300) }).author.name).toHaveLength(256);
+            expect(buildEmbed({ title: "SSC" }).author).toBeUndefined();
+        });
+
         it("leaves empty parts out, uses the accent colour and a timestamp as ISO", () => {
             expect(buildEmbed({})).toEqual({ color: EMBED_ACCENT_COLOR });
             const e = buildEmbed({ description: "x", timestamp: 0, footer: { text: "f", iconURL: "https://x.example/i.png" } });

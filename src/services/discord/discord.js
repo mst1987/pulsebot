@@ -7,6 +7,9 @@ const {
     ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionsBitField,
 } = require("discord.js");
 const { embedAccentColor } = require("../../config/variables");
+const { DateTime } = require("luxon");
+const { TIMEZONE } = require("../../config/timezone");
+const { buildEmbed } = require("../../utils/discord/reply");
 
 let client = null;
 function setClient(c) {
@@ -826,65 +829,80 @@ function logButtonRow(logId, doneSections = []) {
     )];
 }
 
-/** The message body under a detected log, describing what each button does. */
-function logButtonContent(title, doneSections = [], reportUrl = "") {
-    const open = LOG_SECTIONS.filter((s) => !doneSections.includes(s.key));
+// The embed's colour bar shows how far the log is: open (orange), half (blurple), done (green).
+const LOG_COLORS = { open: 0xe8a33d, half: 0x5865f2, done: 0x23a55a };
+const LOG_HEADS = { open: "Warcraft-Logs-Report erkannt", half: "Log-Auswertung läuft", done: "Log vollständig ausgewertet" };
+
+/** "So 04.10." in server time (the guild's), "" without a start. */
+function logDayText(startMs) {
+    const ms = Number(startMs) || 0;
+    if (!ms) return "";
+    const dt = DateTime.fromMillis(ms, { zone: TIMEZONE }).setLocale("de");
+    return `${dt.toFormat("ccc").replace(/\.$/, "")} ${dt.toFormat("dd.MM.")}`;
+}
+
+/**
+ * The embed under a detected log (a checklist): head by progress, the report's name as
+ * the title (linked to Warcraft Logs), "So 04.10. · 1 von 2 ausgewertet", one line per
+ * analysis — an open one says what it checks, a finished one is ticked and links the
+ * evaluation — and while nothing ran yet a footer how it works. Pure.
+ *
+ * @param {{ title?: string, link?: string, startMs?: number, doneSections?: string[], reportUrl?: string }} opts
+ */
+function logButtonEmbed({ title = "", link = "", startMs = 0, doneSections = [], reportUrl = "" } = {}) {
     const done = LOG_SECTIONS.filter((s) => doneSections.includes(s.key));
+    const state = !done.length ? "open" : done.length < LOG_SECTIONS.length ? "half" : "done";
+    const sub = [logDayText(startMs), `${done.length} von ${LOG_SECTIONS.length} ausgewertet`].filter(Boolean).join(" · ");
+    const lines = LOG_SECTIONS.map((s) => (doneSections.includes(s.key)
+        ? `✅ **${s.done}** – ausgewertet${reportUrl ? ` · [öffnen](${reportUrl})` : ""}`
+        : `⚪ **${s.done}** – ${s.what}`));
+    return buildEmbed({
+        title: String(title || "").trim() || "Warcraft-Logs-Report",
+        url: /^https:\/\//.test(String(link || "")) ? link : undefined,
+        description: [sub, "", ...lines].join("\n"),
+        color: LOG_COLORS[state],
+        footer: state === "open" ? "Ein Klick startet die Auswertung · beide landen auf derselben Seite" : "",
+        author: LOG_HEADS[state],
+    });
+}
 
-    if (!open.length) {
-        return `✅ **Vollständig ausgewertet**${title ? ` – ${title}` : ""}`
-            + `\nCLA und RPB liegen vor${reportUrl ? " — beide auf derselben Seite" : ""}.`;
+/** The whole message under a detected log: the embed, the open analyses' buttons and the evaluation's link. */
+function logButtonPayload({ logId, title, link, startMs, doneSections = [], reportUrl = "" } = {}) {
+    const components = logId ? logButtonRow(logId, doneSections) : [];
+    if (reportUrl) {
+        components.push(new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setLabel("Auswertung öffnen").setStyle(ButtonStyle.Link).setURL(reportUrl)));
     }
-
-    const head = done.length
-        ? `✅ **${done.map((s) => s.done).join(" & ")} ausgewertet**${title ? ` – ${title}` : ""}`
-        : `📊 **Warcraft-Logs-Report erkannt**${title ? ` – ${title}` : ""}`;
-    const lines = open.map((s) => `**${s.label}** → ${s.what}`);
-    const hint = done.length
-        ? "\nDie zweite Auswertung landet auf derselben Seite."
-        : "";
-    return `${head}\n${lines.join("\n")}${hint}`;
+    return { content: "", embeds: [logButtonEmbed({ title, link, startMs, doneSections, reportUrl })], components };
 }
 
 /**
  * Post the CLA/RPB evaluation buttons as a reply under a detected log message.
  * @param {import("discord.js").Message} message the message that contained the log link
- * @param {object} opts { logId, title, doneSections }
+ * @param {object} opts { logId, title, link, startMs, doneSections }
  * @returns {Promise<{channelId: string, messageId: string}>}
  */
-async function postLogButton(message, { logId, title, doneSections = [] } = {}) {
+async function postLogButton(message, opts = {}) {
     if (!client) throw new Error("Bot nicht verbunden.");
-    const sent = await message.reply({
-        content: logButtonContent(title, doneSections),
-        components: logButtonRow(logId, doneSections),
-        allowedMentions: { repliedUser: false },
-    });
+    const sent = await message.reply({ ...logButtonPayload(opts), allowedMentions: { repliedUser: false } });
     return { channelId: sent.channelId, messageId: sent.id };
 }
 
 /**
- * Update a previously-posted log button message after one half was evaluated:
- * the finished analysis loses its button and gains a link, the other one stays
- * clickable. Best-effort — returns false on error.
+ * Update a previously-posted log button message: after one half was evaluated (the
+ * finished analysis loses its button and gains a link, the other one stays
+ * clickable), or when the report's name and date arrived after the detection. A
+ * message from before the embed (plain text) becomes the embed. Best-effort —
+ * returns false on error.
  *
- * @param {object} opts { reportUrl, title, logId, doneSections }
+ * @param {object} opts { reportUrl, title, link, startMs, logId, doneSections }
  */
-async function finishLogButton(channelId, messageId, { reportUrl, title, logId, doneSections = [] } = {}) {
+async function finishLogButton(channelId, messageId, opts = {}) {
     if (!client || !channelId || !messageId) return false;
     try {
         const channel = await client.channels.fetch(channelId);
         const message = await channel.messages.fetch(messageId);
-
-        const components = logId ? logButtonRow(logId, doneSections) : [];
-        if (reportUrl) {
-            const linkRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setLabel("Auswertung öffnen").setStyle(ButtonStyle.Link).setURL(reportUrl));
-            components.push(linkRow);
-        }
-        await message.edit({
-            content: logButtonContent(title, doneSections, reportUrl),
-            components,
-        });
+        await message.edit(logButtonPayload(opts));
         return true;
     } catch (e) {
         console.error("finishLogButton failed:", e.message);
@@ -1032,6 +1050,6 @@ module.exports = {
     isRecruitmentMessage, extractTemplate,
     listApplications, parseApplicationEmbed,
     postLogButton, finishLogButton, LOG_EVAL_PREFIX,
-    LOG_SECTIONS, logButtonRow, logButtonContent,
+    LOG_SECTIONS, logButtonRow, logButtonEmbed, logButtonPayload, logDayText,
     postLink, editLink, postPayload, editPayload,
 };

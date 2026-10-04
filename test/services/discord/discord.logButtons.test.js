@@ -1,6 +1,7 @@
 const discord = require("../../../src/services/discord/discord.js");
 
-const { LOG_SECTIONS, logButtonRow, logButtonContent, LOG_EVAL_PREFIX } = discord;
+const { LOG_SECTIONS, logButtonRow, logButtonEmbed, logButtonPayload, logDayText, LOG_EVAL_PREFIX } = discord;
+const dc = require("../../helpers/discordClient");
 
 /** Pull the plain customId/label pairs out of a built ActionRow. */
 function buttonsOf(rows) {
@@ -37,34 +38,77 @@ describe("services/discord/discord — log evaluation buttons", () => {
     });
 });
 
-describe("services/discord/discord — log button message text", () => {
-    it("describes both analyses for a freshly detected log", () => {
-        const text = logButtonContent("SSC + TK");
-        expect(text).toContain("Warcraft-Logs-Report erkannt");
-        expect(text).toContain("SSC + TK");
-        expect(text).toContain("CLA auswerten");
-        expect(text).toContain("RPB auswerten");
-        // each button's scope is spelled out
-        expect(text).toContain("Gear");
-        expect(text).toContain("vermeidbarer Schaden");
+describe("services/discord/discord — the embed under a detected log (checklist)", () => {
+    // Sun 4 Oct 2026, 18:34 in Berlin
+    const START = Date.UTC(2026, 9, 4, 16, 34);
+
+    it("a fresh log: orange, head 'erkannt', the report's name linked, both analyses open with what they check", () => {
+        const e = logButtonEmbed({ title: "Black Temple + Hyjal", link: "https://classic.warcraftlogs.com/reports/RPT1", startMs: START });
+        expect(e.color).toBe(0xe8a33d);
+        expect(e.author.name).toBe("Warcraft-Logs-Report erkannt");
+        expect(e.title).toBe("Black Temple + Hyjal");
+        expect(e.url).toBe("https://classic.warcraftlogs.com/reports/RPT1");
+        const lines = e.description.split("\n");
+        expect(lines[0]).toBe("So 04.10. · 0 von 2 ausgewertet");
+        expect(lines).toContain("⚪ **CLA** – Gear, Verzauberungen, Sockel, Consumables, Drums, Potions & Shadow-Resi");
+        expect(lines.some((l) => l.startsWith("⚪ **RPB** – vermeidbarer Schaden"))).toBe(true);
+        expect(e.footer.text).toBe("Ein Klick startet die Auswertung · beide landen auf derselben Seite");
     });
 
-    it("reports the finished half and still explains the open one", () => {
-        const text = logButtonContent("SSC + TK", ["cla"]);
-        expect(text).toContain("CLA ausgewertet");
-        expect(text).toContain("RPB auswerten");
-        expect(text).not.toContain("CLA auswerten");
-        expect(text).toContain("derselben Seite");
+    it("one half done: blurple, 'läuft', the finished line ticked with a link, the other still open, no footer", () => {
+        const e = logButtonEmbed({ title: "SSC + TK", doneSections: ["cla"], reportUrl: "https://eh.example/r/abc" });
+        expect(e.color).toBe(0x5865f2);
+        expect(e.author.name).toBe("Log-Auswertung läuft");
+        expect(e.description).toContain("1 von 2 ausgewertet");
+        expect(e.description).toContain("✅ **CLA** – ausgewertet · [öffnen](https://eh.example/r/abc)");
+        expect(e.description).toContain("⚪ **RPB** –");
+        expect(e.footer).toBeUndefined();
     });
 
-    it("says so once both halves are done", () => {
-        const text = logButtonContent("SSC + TK", ["cla", "rpb"]);
-        expect(text).toContain("Vollständig ausgewertet");
-        expect(text).not.toContain("auswerten**");
+    it("both done: green, 'vollständig ausgewertet', two ticks", () => {
+        const e = logButtonEmbed({ title: "SSC + TK", doneSections: ["cla", "rpb"] });
+        expect(e.color).toBe(0x23a55a);
+        expect(e.author.name).toBe("Log vollständig ausgewertet");
+        expect(e.description).toContain("2 von 2 ausgewertet");
+        expect(e.description).toContain("✅ **CLA** – ausgewertet");
+        expect(e.description).toContain("✅ **RPB** – ausgewertet");
     });
 
-    it("works without a title", () => {
-        expect(logButtonContent("")).toContain("Warcraft-Logs-Report erkannt");
-        expect(logButtonContent("", ["cla", "rpb"])).toContain("Vollständig ausgewertet");
+    it("works before the report's name and date are known, and links only https", () => {
+        const e = logButtonEmbed({ link: "javascript:alert(1)" });
+        expect(e.title).toBe("Warcraft-Logs-Report");
+        expect(e.url).toBeUndefined();
+        expect(e.description.split("\n")[0]).toBe("0 von 2 ausgewertet");
+        expect(logDayText(0)).toBe("");
+        expect(logDayText(START)).toBe("So 04.10.");
+    });
+
+    it("the payload: no text content, the embed, open buttons and the evaluation's link", () => {
+        const p = logButtonPayload({ logId: "log1", title: "SSC", doneSections: ["cla"], reportUrl: "https://eh.example/r/abc" });
+        expect(p.content).toBe("");
+        expect(p.embeds).toHaveLength(1);
+        expect(buttonsOf(p.components)).toEqual([{ customId: `${LOG_EVAL_PREFIX}:log1:rpb`, label: "RPB auswerten" }]);
+        expect(p.components[1].components[0].data).toMatchObject({ label: "Auswertung öffnen", url: "https://eh.example/r/abc" });
+        expect(logButtonPayload({ title: "x", doneSections: ["cla", "rpb"] }).components).toEqual([]);
+    });
+});
+
+describe("services/discord/discord — posting and updating the message under a log", () => {
+    afterAll(() => discord.setClient(null));
+
+    it("replies with the embed, pinging nobody, and edits a message (also an old plain-text one) into the embed", async () => {
+        const old = { id: "m1", content: "📊 **Warcraft-Logs-Report erkannt**", edit: jest.fn(async () => {}) };
+        const channel = dc.makeChannel({ id: "logch", messages: [old] });
+        discord.setClient(dc.makeClient({ channels: [channel], user: { id: "bot" } }));
+        const message = { reply: jest.fn(async () => ({ channelId: "logch", id: "m9" })) };
+        expect(await discord.postLogButton(message, { logId: "log1", link: "https://classic.warcraftlogs.com/reports/R" })).toEqual({ channelId: "logch", messageId: "m9" });
+        const sent = message.reply.mock.calls[0][0];
+        expect(sent.allowedMentions).toEqual({ repliedUser: false });
+        expect(sent.embeds[0].title).toBe("Warcraft-Logs-Report");
+        expect(await discord.finishLogButton("logch", "m1", { logId: "log1", title: "SSC", startMs: Date.UTC(2026, 9, 4, 16, 0) })).toBe(true);
+        const edited = old.edit.mock.calls[0][0];
+        expect(edited.content).toBe("");
+        expect(edited.embeds[0].title).toBe("SSC");
+        expect(await discord.finishLogButton("logch", "nope", {})).toBe(false);
     });
 });

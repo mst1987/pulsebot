@@ -16,7 +16,7 @@ const logStore = require("../../../src/stores/logStore.js");
 const discord = require("../../../src/services/discord/discord.js");
 require("../../helpers/discordMock").withClientHelpers(discord);
 const { buildReport, ReportError } = require("../../../src/utils/logcheck/report.js");
-const { handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, messageText } = require("../../../src/services/logcheck/logChannel.js");
+const { handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, messageText, enrichLogButton } = require("../../../src/services/logcheck/logChannel.js");
 
 const { makeClient, makeChannel } = require("../../helpers/discordClient");
 
@@ -74,11 +74,43 @@ describe("services/logcheck/logChannel — messageText", () => {
     });
 });
 
+describe("services/logcheck/logChannel — enrichLogButton", () => {
+    it("reads name and start of the report and draws them into the message", async () => {
+        const log = { id: "log1", reportId: "RPT1", link: "https://classic.warcraftlogs.com/reports/RPT1" };
+        logStore.getLog.mockReturnValue({ ...log, title: "Black Temple", reportStart: 1791000000000 });
+        discord.finishLogButton.mockResolvedValue(true);
+        const client = { getFights: jest.fn(async () => ({ title: "Black Temple", start: 1791000000000, fights: [] })) };
+        expect(await enrichLogButton(log, { channelId: "logch", messageId: "btn1" }, { client })).toBe(true);
+        expect(client.getFights).toHaveBeenCalledWith("RPT1");
+        expect(logStore.setLogTitle).toHaveBeenCalledWith("log1", "Black Temple");
+        expect(logStore.setReportStart).toHaveBeenCalledWith("log1", 1791000000000);
+        expect(discord.finishLogButton).toHaveBeenCalledWith("logch", "btn1", expect.objectContaining({
+            logId: "log1", title: "Black Temple", link: log.link, startMs: 1791000000000, doneSections: [],
+        }));
+    });
+
+    it("leaves the message alone when Warcraft Logs answers nothing or fails", async () => {
+        const log = { id: "log1", reportId: "RPT1" };
+        expect(await enrichLogButton(log, { channelId: "c", messageId: "m" }, { client: { getFights: jest.fn(async () => ({})) } })).toBe(false);
+        expect(await enrichLogButton(log, { channelId: "c", messageId: "m" }, { client: { getFights: jest.fn(async () => { throw new Error("429"); }) } })).toBe(false);
+        expect(discord.finishLogButton).not.toHaveBeenCalled();
+    });
+
+    it("a fresh log asks for name and date right after posting its message", async () => {
+        mockGetFights.mockResolvedValue({ title: "SSC", start: 1791000000000 });
+        logStore.getLog.mockReturnValue({ id: "log1", title: "SSC", reportStart: 1791000000000 });
+        await handleLogMessage(msg({ content: "log https://classic.warcraftlogs.com/reports/RPT1" }));
+        await new Promise((r) => setImmediate(r));
+        expect(mockGetFights).toHaveBeenCalledWith("RPT1");
+        expect(discord.finishLogButton).toHaveBeenCalledWith("logch", "btn1", expect.objectContaining({ title: "SSC" }));
+    });
+});
+
 describe("services/logcheck/logChannel — handleLogMessage", () => {
     it("registers a fresh log and posts the evaluate buttons", async () => {
         await handleLogMessage(msg({ content: "log https://classic.warcraftlogs.com/reports/RPT1" }));
         expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", channelId: "logch", source: "listener", postedAt: 111000 }));
-        expect(discord.postLogButton).toHaveBeenCalledWith(expect.any(Object), { logId: "log1", doneSections: [] });
+        expect(discord.postLogButton).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({ logId: "log1", doneSections: [] }));
         expect(logStore.setButtonMessage).toHaveBeenCalledWith("log1", { channelId: "logch", messageId: "btn1" });
     });
 

@@ -36,6 +36,33 @@ function messageText(message) {
     return parts.join("\n");
 }
 
+/**
+ * After the message under a fresh log is out: read the report's name and start from
+ * Warcraft Logs (report/fights, one request) and draw them into the message, so it shows
+ * "Black Temple + Hyjal · So 04.10." instead of "Warcraft-Logs-Report". Not awaited by the
+ * listener — a slow or failing WCL never delays the buttons; without an answer the message
+ * just keeps its plain title. Never throws.
+ */
+async function enrichLogButton(log, btn, { client } = {}) {
+    try {
+        const wcl = client || new WarcraftLogs();
+        const report = await wcl.getFights(log.reportId);
+        const title = String((report && report.title) || "").trim();
+        const startMs = Number(report && report.start) || 0;
+        if (!title && !startMs) return false;
+        if (title) logStore.setLogTitle(log.id, title);
+        if (startMs) logStore.setReportStart(log.id, startMs);
+        const fresh = logStore.getLog(log.id) || log;
+        return await discord.finishLogButton(btn.channelId, btn.messageId, {
+            logId: fresh.id, title: fresh.title, link: fresh.link, startMs: fresh.reportStart,
+            doneSections: logStore.evaluatedSections(fresh),
+        });
+    } catch (e) {
+        console.error(`enrichLogButton ${log && log.reportId}: ${e.message}`);
+        return false;
+    }
+}
+
 /** Is this channel one of the configured log channels? */
 function isLogChannel(channelId) {
     const ids = getConfig().logChannelIds || [];
@@ -76,9 +103,14 @@ async function handleLogMessage(message) {
             // a half that already ran keeps its button off the fresh message
             const btn = await discord.postLogButton(message, {
                 logId: log.id,
+                title: log.title,
+                link: log.link,
+                startMs: log.reportStart,
                 doneSections: logStore.evaluatedSections(log),
             });
             logStore.setButtonMessage(log.id, btn);
+            // name and date of the report follow as soon as Warcraft Logs answers
+            if (!log.title || !log.reportStart) void enrichLogButton(log, btn);
         } catch (e) {
             console.error("postLogButton failed:", e.message);
         }
@@ -278,6 +310,6 @@ async function backfillLogTitles(logs, now = Date.now()) {
 }
 
 module.exports = {
-    handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles,
+    handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, enrichLogButton,
     messageText, isLogChannel, SECTION_LABEL, SECTION_CLA, SECTION_RPB,
 };
