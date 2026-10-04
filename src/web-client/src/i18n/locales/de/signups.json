@@ -149,5 +149,86 @@
         "add": "Spec hinzufügen",
         "search": "Suchen …",
         "noHits": "Keine Treffer."
+    },
+    "availability": {
+        "title": "Ab- & Anwesenheit",
+        "tipSub": "Trag ein, wann du weg bist oder sicher dabei – der Bot meldet dich für alle Raids im Zeitraum ab oder an, auch für Raids, die erst später angelegt werden.",
+        "addAbsence": "Abwesenheit eintragen",
+        "addPresence": "Anwesenheit eintragen",
+        "none": "Nichts eingetragen.",
+        "loadError": "Ab- & Anwesenheit konnte nicht geladen werden: {message}",
+        "kind": {
+            "absence": "Abwesend",
+            "presence": "Anwesend"
+        },
+        "byOrga": "von der Raidleitung",
+        "byOrgaTip": "Die Raidleitung hat das für dich eingetragen.",
+        "onlyCategory": "nur {name}",
+        "done": {
+            "one": "{count} Raid geändert",
+            "other": "{count} Raids geändert"
+        },
+        "remove": "Eintrag löschen",
+        "removeTitle": "Eintrag löschen?",
+        "removeText": "Neue Raids im Zeitraum werden dann nicht mehr automatisch geändert. Bestehende An- und Abmeldungen bleiben, wie sie sind.",
+        "removed": "Eintrag gelöscht.",
+        "dialog": {
+            "kicker": "Ab- & Anwesenheit",
+            "titleAbsence": "Abwesenheit eintragen",
+            "titlePresence": "Anwesenheit eintragen",
+            "kindAria": "Art des Eintrags",
+            "absence": "Abwesenheit",
+            "presence": "Anwesenheit",
+            "from": "Von",
+            "to": "Bis",
+            "reason": "Grund",
+            "optional": "(optional)",
+            "reasonPlaceholder": "z. B. Urlaub, Arbeit",
+            "character": "Charakter",
+            "spec": "Spec",
+            "noCharacter": "In deinem Profil steht kein Charakter mit Spec – eine Anwesenheit braucht einen.",
+            "noCharacterFor": "{name} hat keinen Charakter mit Spec im Profil.",
+            "raids": "Raids im Zeitraum",
+            "picked": "{picked} von {total} gewählt",
+            "noRaids": "Im Zeitraum steht noch kein Raid an.",
+            "searching": "Raids werden gesucht …",
+            "raidAria": "{title} einbeziehen",
+            "hintAbsence": "Raids, die später im Zeitraum angelegt werden, melden dich automatisch ab. Jede Änderung kommt als DM.",
+            "hintPresence": "Raids, die später im Zeitraum angelegt werden, melden dich automatisch an. Jede Änderung kommt als DM.",
+            "hintAbsenceFor": "Raids, die später im Zeitraum angelegt werden, melden {name} automatisch ab. Jede Änderung geht als DM an {name}.",
+            "hintPresenceFor": "Raids, die später im Zeitraum angelegt werden, melden {name} automatisch an. Jede Änderung geht als DM an {name}.",
+            "saveAbsence": "Abwesenheit speichern",
+            "savePresence": "Anwesenheit speichern",
+            "forRaider": "Für Raider eintragen",
+            "forRaiderSub": "Als Raidleitung für jemanden eintragen, der dir Bescheid gesagt hat. Die DM geht an den Raider.",
+            "searchRaider": "Raider suchen …",
+            "searchRaiderAria": "Raider suchen",
+            "forName": "Für {name}",
+            "backToMe": "Wieder für mich",
+            "loadingRaider": "Charaktere werden geladen …",
+            "resultsKicker": "Gespeichert"
+        },
+        "result": {
+            "signedOff": {
+                "one": "{count} Raid abgemeldet",
+                "other": "{count} Raids abgemeldet"
+            },
+            "signedUp": {
+                "one": "{count} Raid angemeldet",
+                "other": "{count} Raids angemeldet"
+            },
+            "noRaid": "Gespeichert – noch kein Raid im Zeitraum",
+            "skipped": "{count} übersprungen",
+            "failed": "{count} fehlgeschlagen",
+            "noDm": "DM nicht zugestellt",
+            "done": "erledigt",
+            "skippedBadge": "übersprungen",
+            "failedBadge": "nicht geändert"
+        },
+        "skip": {
+            "already_absent": "war schon abgemeldet",
+            "already_signed": "war schon angemeldet",
+            "absent": "dort ist eine Abwesenheit eingetragen"
+        }
     }
 }

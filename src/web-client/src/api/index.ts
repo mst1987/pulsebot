@@ -24,6 +24,7 @@ export * from "./cla";
 export * from "./lootcouncil";
 export * from "./profile";
 export * from "./signups";
+export * from "./availability";
 export * from "./setup";
 export * from "./raidplan";
 export * from "./kader";

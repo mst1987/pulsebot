@@ -149,5 +149,86 @@
         "add": "Add spec",
         "search": "Search …",
         "noHits": "No matches."
+    },
+    "availability": {
+        "title": "Absence & attendance",
+        "tipSub": "Enter when you are away or sure to be there – the bot signs you off from or up for every raid in that period, also for raids created later.",
+        "addAbsence": "Enter absence",
+        "addPresence": "Enter attendance",
+        "none": "Nothing entered.",
+        "loadError": "Could not load absence & attendance: {message}",
+        "kind": {
+            "absence": "Away",
+            "presence": "Attending"
+        },
+        "byOrga": "by the raid lead",
+        "byOrgaTip": "The raid lead entered this for you.",
+        "onlyCategory": "only {name}",
+        "done": {
+            "one": "{count} raid changed",
+            "other": "{count} raids changed"
+        },
+        "remove": "Delete entry",
+        "removeTitle": "Delete entry?",
+        "removeText": "New raids in the period are then no longer changed automatically. Existing signups and sign-offs stay as they are.",
+        "removed": "Entry deleted.",
+        "dialog": {
+            "kicker": "Absence & attendance",
+            "titleAbsence": "Enter absence",
+            "titlePresence": "Enter attendance",
+            "kindAria": "Kind of entry",
+            "absence": "Absence",
+            "presence": "Attendance",
+            "from": "From",
+            "to": "To",
+            "reason": "Reason",
+            "optional": "(optional)",
+            "reasonPlaceholder": "e.g. holiday, work",
+            "character": "Character",
+            "spec": "Spec",
+            "noCharacter": "Your profile has no character with a spec – an attendance needs one.",
+            "noCharacterFor": "{name} has no character with a spec in their profile.",
+            "raids": "Raids in this period",
+            "picked": "{picked} of {total} selected",
+            "noRaids": "No raid in this period yet.",
+            "searching": "Looking for raids …",
+            "raidAria": "Include {title}",
+            "hintAbsence": "Raids created later in this period sign you off automatically. Every change comes as a DM.",
+            "hintPresence": "Raids created later in this period sign you up automatically. Every change comes as a DM.",
+            "hintAbsenceFor": "Raids created later in this period sign {name} off automatically. Every change goes to {name} as a DM.",
+            "hintPresenceFor": "Raids created later in this period sign {name} up automatically. Every change goes to {name} as a DM.",
+            "saveAbsence": "Save absence",
+            "savePresence": "Save attendance",
+            "forRaider": "Enter for a raider",
+            "forRaiderSub": "As raid lead, enter it for someone who told you. The DM goes to the raider.",
+            "searchRaider": "Search raider …",
+            "searchRaiderAria": "Search raider",
+            "forName": "For {name}",
+            "backToMe": "Back to me",
+            "loadingRaider": "Loading characters …",
+            "resultsKicker": "Saved"
+        },
+        "result": {
+            "signedOff": {
+                "one": "{count} raid signed off",
+                "other": "{count} raids signed off"
+            },
+            "signedUp": {
+                "one": "{count} raid signed up",
+                "other": "{count} raids signed up"
+            },
+            "noRaid": "Saved – no raid in this period yet",
+            "skipped": "{count} skipped",
+            "failed": "{count} failed",
+            "noDm": "DM not delivered",
+            "done": "done",
+            "skippedBadge": "skipped",
+            "failedBadge": "not changed"
+        },
+        "skip": {
+            "already_absent": "was already signed off",
+            "already_signed": "was already signed up",
+            "absent": "an absence covers it"
+        }
     }
 }

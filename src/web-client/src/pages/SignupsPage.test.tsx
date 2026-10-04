@@ -23,6 +23,7 @@ vi.mock("../api", async (orig) => ({
     getSignups: vi.fn(),
     saveSignup: vi.fn(),
     saveSignupsBulk: vi.fn(),
+    getAvailability: vi.fn(),
 }));
 
 // Thursday 17 September 2026, noon in Berlin: the raid ID runs 16.09.–22.09.
@@ -68,6 +69,8 @@ beforeEach(() => {
     vi.mocked(api.getSignups).mockReset();
     vi.mocked(api.saveSignup).mockReset();
     vi.mocked(api.saveSignupsBulk).mockReset();
+    // the section above the raids (components/signup/AvailabilitySection.test.tsx)
+    vi.mocked(api.getAvailability).mockResolvedValue({ userId: "u1", name: "Zibbo", orga: false, today: "2026-09-17", maxDays: 180, entries: [], characters: [] });
     openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
 });
 
@@ -90,6 +93,12 @@ describe("SignupsPage", () => {
         expect(within(rowOf("BT Sonntag")).getByText("27 angemeldet")).toBeInTheDocument();
         expect(within(rowOf(rh.title)).getByText("13 angemeldet")).toBeInTheDocument();
         expect(screen.queryByText(/\d+\/\d+ \(\+\d+\)|25\/25/)).toBeNull();
+    });
+
+    it("shows the absence/attendance section above the raids, also when nothing is coming", async () => {
+        await show(signupsData({ events: [] }));
+        expect(await screen.findByRole("region", { name: t("signups.availability.title") })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: t("signups.availability.addAbsence") })).toBeInTheDocument();
     });
 
     it("says so when nothing is coming", async () => {

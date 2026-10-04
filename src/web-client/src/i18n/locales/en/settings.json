@@ -732,7 +732,20 @@
         "folded": {
             "one": "{count} more Discord category without raid events",
             "other": "{count} more Discord categories without raid events"
-        }
+        },
+        "panel": "Absence/attendance panel",
+        "panelSub": "A Discord message with buttons where raiders enter absence or attendance for this category's raids. Posting again replaces the old panel.",
+        "panelChannelAria": "Channel for the panel of {name}",
+        "panelPickChannel": "Pick a channel …",
+        "panelPost": "Post",
+        "panelRepost": "Post again",
+        "panelView": "View",
+        "panelPosted": "Panel posted.",
+        "panelRemoved": "Panel removed.",
+        "panelRemoveTitle": "Remove panel?",
+        "panelRemoveText": "The message in Discord is deleted. What raiders already entered stays.",
+        "panelSince": "posted {date}",
+        "panelNoChannels": "No text channels – is the bot online?"
     },
     "botCommands": {
         "mode": {

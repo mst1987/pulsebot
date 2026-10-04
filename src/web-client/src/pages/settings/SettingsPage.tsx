@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { getSettings, updateSettings, getIngestTokens, type ApiError } from "../../api";
+import { getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, type ApiError, type AvailabilityPanel } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedSearchParam } from "../../lib/persistedState";
 import RolePermissionsEditor from "./RolePermissions";
@@ -65,6 +65,12 @@ export default function SettingsPage() {
     const tokensData = useApi(() => getIngestTokens().then((r) => r.tokens), [], { enabled: canManage });
     const tokens = tokensData.error ? null : tokensData.data;
     const loadTokens = tokensData.reload;
+    // The absence/attendance panels per category: posted and removed at once, never through the draft.
+    const panelsData = useApi(() => getAvailabilityPanels().then((r) => r.panels), [], { enabled: !!data });
+    const setPanel = (categoryId: string, panel: AvailabilityPanel | null) => panelsData.setData((list) => [
+        ...(list || []).filter((p) => p.categoryId !== categoryId),
+        ...(panel ? [panel] : []),
+    ]);
 
     if (settingsData.error) return <div className="empty">{tParts("settings.page.loadError", { message: settingsData.error.message })}</div>;
     if (!data || !draft) return <RaidLoader text={t("settings.page.loading")} />;
@@ -273,6 +279,12 @@ export default function SettingsPage() {
                         value: draft.categoryRaidTemplate,
                         onChange: (id, templateId) => patch({ categoryRaidTemplate: { ...draft.categoryRaidTemplate, [id]: templateId } }),
                     }}
+                    // a failed load leaves the row out rather than offering to post a second panel
+                    availabilityPanels={panelsData.data ? {
+                        panels: panelsData.data,
+                        channels: data.noteChannels ? data.noteChannels.channels : [],
+                        onChange: setPanel,
+                    } : undefined}
                     icon={activeSection.icon}
                     crumb={activeCrumb}
                 />

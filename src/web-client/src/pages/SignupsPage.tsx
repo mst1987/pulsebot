@@ -9,6 +9,7 @@ import { Badge, Bar, Button, IconButton, PageHead, RaidLoader, WowIcon } from ".
 import RaidIcon from "../components/RaidIcon";
 import SignupDialog from "../components/signup/SignupDialog";
 import BulkSignupDialog from "../components/signup/BulkSignupDialog";
+import AvailabilitySection from "../components/signup/AvailabilitySection";
 import { ExternalIcon, XIcon } from "../components/icons";
 import { SIGNUP_STATUS, classesForRows, fillTone, missingVersionLabel, profileForRows, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups";
 import { specLabel } from "../lib/wowNames";
@@ -93,6 +94,8 @@ export default function SignupsPage() {
             />
 
             {data.error && <div className="flash flash-err">{t("signups.page.raidHelperError", { error: data.error })}</div>}
+
+            <AvailabilitySection onChanged={() => { void signups.reload(); }} />
 
             {count === 0
                 ? <p className="an-empty">{t("signups.page.empty")}</p>
