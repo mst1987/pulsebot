@@ -34,6 +34,8 @@ jest.mock("../../../src/services/discord/discordEvent", () => ({
     deleteForEvent: jest.fn(async () => ({ skipped: "none" })),
     warningOf: (r) => (r && r.warning ? `Discord-Event: ${r.warning}` : ""),
 }));
+// Absences and attendances follow a moved or reopened raid — mocked, so the call can be asserted.
+jest.mock("../../../src/services/signups/availability", () => ({ applyToEvent: jest.fn(async () => []) }));
 
 const { DateTime } = require("luxon");
 const fs = require("fs");
@@ -52,7 +54,8 @@ const reminderStore = require("../../../src/stores/reminderStore");
 const archiveStore = require("../../../src/stores/channelArchiveStore");
 const signupService = require("../../../src/services/signups/signupService");
 const discordEvent = require("../../../src/services/discord/discordEvent");
-const manage = require("../../../src/services/events/eventManage");
+const availability = require("../../../src/services/signups/availability");
+const manage =require("../../../src/services/events/eventManage");
 const { makeClient, makeChannel } = require("../../helpers/discordClient");
 
 const ZONE = "Europe/Berlin";
@@ -488,6 +491,26 @@ describe("the Discord event rides along (#305)", () => {
         expect(result.status).toBe(200);
         expect(result.body.warnings).toContain("Discord-Event: Recht fehlt");
         expect(eventStore.getEvent(event.id).status).toBe("cancelled");
+    });
+});
+
+describe("absences and attendances follow the raid (#584)", () => {
+    it("are applied after a move and after a reopen, never on a refused move", async () => {
+        const target = day(9, "20:00");
+        channelNaming.deriveChannelName.mockResolvedValue({ name: "mi-24-09-ssc-tk", source: "previous", fromChannelId: "c1" });
+        expect((await manage.moveEvent({ guildId: "g1", eventId: event.id, date: "kaputt", time: "20:00", user: ORGA })).error).toBeTruthy();
+        expect(availability.applyToEvent).not.toHaveBeenCalled();
+
+        await manage.moveEvent({ guildId: "g1", eventId: event.id, date: target.toISODate(), time: "20:00", notify: false, user: ORGA });
+        expect(availability.applyToEvent).toHaveBeenCalledWith(event.id);
+        expect(eventStore.getEvent(event.id).startTime).toBe(Math.floor(target.toSeconds()));
+
+        availability.applyToEvent.mockClear();
+        await manage.cancelEvent({ guildId: "g1", eventId: event.id, reason: "zu wenige Heiler", notify: false, user: ORGA });
+        expect(availability.applyToEvent).not.toHaveBeenCalled();
+        await manage.reopenEvent({ guildId: "g1", eventId: event.id, user: ORGA });
+        expect(availability.applyToEvent).toHaveBeenCalledWith(event.id);
+        expect(eventStore.getEvent(event.id).status).toBe("active");
     });
 });
 
