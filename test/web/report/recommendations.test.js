@@ -1,6 +1,6 @@
 // The findings on the report page (src/web/report/recommendations.js): review
 // rights, one finding row, the raid's list and the "Alle senden" box.
-const { IMPACT_LABEL, IMPACT_TONE, canReview, recItem, renderRaidRecommendations, renderSendBox } = require("../../../src/web/report/recommendations");
+const { IMPACT_LABEL, IMPACT_TONE, canReview, recItem, renderRaidRecommendations, renderKeyFindings, renderSendBox } = require("../../../src/web/report/recommendations");
 
 const item = (over = {}) => ({ key: "k1", impact: "high", title: "Flask fehlt", text: "Regeltext", approved: null, custom: "", evidence: [], ...over });
 
@@ -97,6 +97,71 @@ describe("web/report/recommendations", () => {
         });
     });
 
+    describe("renderKeyFindings", () => {
+        const report = { id: "r1", recommendations: { raid: [], players: [{ name: "Elun", items: [{ key: "a" }] }] }, recommendationReview: { players: { Elun: { a: { approved: true } } } } };
+        const raidItems = (specs) => specs.map(([key, impact, approved]) => item({ key, impact, title: `T-${key}`, approved }));
+        const keys = (html) => [...html.matchAll(/<details class="rec [^"]*" data-key="([^"]+)"/g)].map((m) => m[1]);
+
+        it("renders nothing without recommendations, and for a reader nothing without approved raid findings", () => {
+            expect(renderKeyFindings(report, null, true)).toBe("");
+            expect(renderKeyFindings(report, { raid: raidItems([["a", "high", null], ["b", "low", false]]), players: [] }, false)).toBe("");
+            expect(renderKeyFindings(report, { raid: [], players: [] }, false)).toBe("");
+        });
+
+        it("heads the section with Das Wichtigste and counts open and approved points for a reviewer", () => {
+            const html = renderKeyFindings(report, { raid: raidItems([["a", "high", null], ["b", "low", true], ["c", "low", true]]), players: [{ name: "Elun", items: [{ approved: true }] }, { name: "Dorn", items: [{ approved: null }] }] }, true);
+            expect(html).toMatch(/^<section class="key-findings" id="rs-rec-raid">/);
+            expect(html).toContain("<h2>Das Wichtigste</h2><span class=\"sub\">3 Punkte für den ganzen Raid · 1 offen · 2 freigegeben</span>");
+            expect(html).toContain("<button type=\"button\" class=\"btn\" data-dialog=\"dlg-rs-send\">");
+            expect(html).toContain("Empfehlungen senden …</button>");
+            expect(html).toContain("<dialog class=\"dlg detail\" id=\"dlg-rs-send\">");
+            expect(html).toContain("Empfehlungen senden</div>");
+            expect(html).toContain("Versand · 1 Raider mit freigegebenen Punkten");
+            expect(html).toContain("<div class=\"rec-send\" data-report=\"r1\">");
+            expect(html).toContain("data-review=\"approve\"");
+            // fewer than six: nothing folded
+            expect(html).not.toContain("key-more");
+        });
+
+        it("says a single point in the singular", () => {
+            const html = renderKeyFindings(report, { raid: raidItems([["a", "low", null]]), players: [] }, true);
+            expect(html).toContain("1 Punkt für den ganzen Raid · 1 offen · 0 freigegeben");
+        });
+
+        it("sorts the findings high, medium, low (stable within an impact)", () => {
+            const html = renderKeyFindings(report, { raid: raidItems([["l1", "low", null], ["m1", "medium", null], ["h1", "high", null], ["l2", "low", null], ["h2", "high", null]]), players: [] }, true);
+            expect(keys(html)).toEqual(["h1", "h2", "m1", "l1", "l2"]);
+        });
+
+        it("shows the first five and folds the rest behind a count of the remaining points", () => {
+            const specs = ["a", "b", "c", "d", "e", "f", "g"].map((k, i) => [k, i < 2 ? "low" : "high", null]);
+            const html = renderKeyFindings(report, { raid: raidItems(specs), players: [] }, true);
+            const [shown, more] = html.split("<details class=\"key-more\">");
+            expect(keys(shown)).toEqual(["c", "d", "e", "f", "g"]);
+            expect(more).toContain("<summary>2 weitere Punkte anzeigen</summary>");
+            expect(keys(more)).toEqual(["a", "b"]);
+            // exactly one over: singular
+            const one = renderKeyFindings(report, { raid: raidItems(["a", "b", "c", "d", "e", "f"].map((k) => [k, "low", null])), players: [] }, true);
+            expect(one).toContain("<summary>1 weiterer Punkt anzeigen</summary>");
+            expect(keys(one.split("<details class=\"key-more\">")[1])).toEqual(["f"]);
+        });
+
+        it("gives a reader only the approved findings, counted as the raid lead's, without controls or dialog", () => {
+            const html = renderKeyFindings(report, { raid: raidItems([["a", "high", null], ["b", "medium", true], ["c", "low", false], ["d", "low", true]]), players: [] }, false);
+            expect(html).toContain("<h2>Das Wichtigste</h2><span class=\"sub\">2 Punkte von der Raidleitung</span>");
+            expect(keys(html)).toEqual(["b", "d"]);
+            expect(html).not.toContain("dlg-rs-send");
+            expect(html).not.toContain("Empfehlungen senden");
+            expect(html).not.toContain("data-review");
+        });
+
+        it("gives a reviewer without any raid finding the empty sentence and still the send button", () => {
+            const html = renderKeyFindings(report, { raid: [], players: [] }, true);
+            expect(html).toContain("<div class=\"rec-empty\">Nichts, was den ganzen Raid gekostet hätte.</div>");
+            expect(html).toContain("0 Punkte für den ganzen Raid · 0 offen · 0 freigegeben");
+            expect(html).toContain("data-dialog=\"dlg-rs-send\"");
+        });
+    });
     describe("renderSendBox", () => {
         const base = {
             id: "rep<1>",

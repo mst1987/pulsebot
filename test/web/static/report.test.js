@@ -164,8 +164,14 @@ describe("static/report.js — helpers", () => {
         expect(h.sendResult({})).toEqual({ text: "Nichts gesendet.", force: false });
     });
 
-    it("reads the view or the raider from the url", () => {
+    it("reads the view, the boss or the raider from the url", () => {
         expect(h.viewTarget("#bosse", "")).toEqual({ view: "bosse" });
+        expect(h.viewTarget("#boss-e649", "")).toEqual({ boss: "e649" });
+        expect(h.viewTarget("#boss-nHigh%20King", "")).toEqual({ boss: "nHigh King" });
+        expect(h.viewTarget("#boss-e%E0%A4%A", "")).toEqual({ boss: "e%E0%A4%A" });
+        // a ?player= link wins over a boss hash; a bare "boss-" names nothing
+        expect(h.viewTarget("#boss-e649", "?player=Dorn")).toEqual({ raider: "Dorn" });
+        expect(h.viewTarget("#boss-", "")).toBeNull();
         expect(h.viewTarget("#raider-Elun", "")).toEqual({ raider: "Elun" });
         expect(h.viewTarget("#raider-J%C3%A4ger", "")).toEqual({ raider: "Jäger" });
         expect(h.viewTarget("#raider-%E0%A4%A", "")).toEqual({ raider: "%E0%A4%A" });

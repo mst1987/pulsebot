@@ -119,6 +119,55 @@ describe("web/report/fightTopics", () => {
             expect(html).toContain("<td><span class=\"tv\">0</span></td><td>–</td><td class=\"mono\">0:00, 0:01, 0:02, 0:03, 0:04, 0:05, 0:06, 0:07, … (10)</td>");
             expect(html).toContain("<tr><td>Keine</td><td>–</td><td>–</td><td class=\"mono\">–</td></tr>");
         });
+
+        it("names the first column with opts.label", () => {
+            expect(topicTable([{ label: "A", value: "1%" }], 1000, "bands", { label: "Debuff" })).toContain("<tr><th>Debuff</th><th>Uptime</th>");
+            expect(topicTable([{ label: "A" }], 1000, "markers", { label: "Raider <x>" })).toContain("<tr><th>Raider &lt;x&gt;</th><th>Anzahl</th>");
+        });
+
+        describe("fold option", () => {
+            const rows = [
+                { label: "Bad", value: "40%", tone: "high" },
+                { label: "Fine A", value: "95%", tone: "good" },
+                { label: "Mid", value: "70%", tone: "medium" },
+                { label: "Fine B", value: "88%", tone: "good" },
+            ];
+
+            it("folds the good rows behind one button that names how many and from which value", () => {
+                const html = topicTable(rows, 1000, "bands", { fold: true });
+                expect(html).toContain("<tr class=\"fold-row\" hidden><td>Fine A</td>");
+                expect(html).toContain("<tr class=\"fold-row\" hidden><td>Fine B</td>");
+                expect(html.match(/class="fold-row"/g)).toHaveLength(2);
+                // the shown rows keep their order, the folded ones follow, the button closes the table
+                expect(html.indexOf("<td>Bad</td>")).toBeLessThan(html.indexOf("<td>Mid</td>"));
+                expect(html.indexOf("<td>Mid</td>")).toBeLessThan(html.indexOf("Fine A"));
+                expect(html).toMatch(/<tr class="fold-btn-row"><td colspan="5"><button type="button" class="fold-btn" data-unfold data-more="2 weitere ab 88 % anzeigen" data-less="Weniger anzeigen">2 weitere ab 88 % anzeigen<\/button><\/td><\/tr><\/table>$/);
+            });
+
+            it("words the threshold with opts.unit and uses four columns for marker tables", () => {
+                const html = topicTable(rows, 1000, "markers", { fold: true, unit: "Uptime" });
+                expect(html).toContain("data-more=\"2 weitere ab 88 % Uptime anzeigen\"");
+                expect(html).toContain("<td colspan=\"4\">");
+            });
+
+            it("leaves out the threshold when no folded row has a numeric value", () => {
+                const html = topicTable([{ label: "Bad", tone: "high" }, { label: "Fine", tone: "good", value: "gut" }], 1000, "bands", { fold: true });
+                expect(html).toContain("data-more=\"1 weitere anzeigen\"");
+            });
+
+            it("honours a row's own fold flag over its tone", () => {
+                const html = topicTable([{ label: "Slow", value: "95%", tone: "good", fold: false }, { label: "Quick", value: "50%", tone: "high", fold: true }], 1000, "bands", { fold: true });
+                expect(html).toContain("<tr class=\"fold-row\" hidden><td>Quick</td>");
+                expect(html).not.toContain("<tr class=\"fold-row\" hidden><td>Slow</td>");
+            });
+
+            it("folds nothing when every row would fold, without the option, or without rows", () => {
+                const allFine = rows.filter((r) => r.tone === "good");
+                expect(topicTable(allFine, 1000, "bands", { fold: true })).not.toContain("fold");
+                expect(topicTable(rows, 1000, "bands")).not.toContain("fold");
+                expect(topicTable([], 1000, "bands", { fold: true })).not.toContain("fold");
+            });
+        });
     });
 
     describe("groupedTable", () => {

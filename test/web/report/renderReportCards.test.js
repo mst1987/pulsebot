@@ -1,5 +1,5 @@
 // The report page's three views (Raid · Bosse · Raider), the KPI cards, the
-// boss and raider cards with their chips and sections, the chart dialogs, the
+// boss table and boss pages, the raider cards with their badges and sections, the chart dialogs, the
 // send dialog and the role filter — for a reviewer and for everyone else.
 const { renderReportPage, renderPlayerPage } = require("../../../src/web/report/render.js");
 
@@ -87,8 +87,10 @@ describe("web/report/render — report page: head and views", () => {
         expect(html).toContain("<div class=\"kpi-v\">1 <small>· 1 Kill, 1 Wipe</small></div>");
         expect(html).toContain("Tode</div>");
         expect(html).toContain("<div class=\"kpi-v bad\">4 <small class=\"bad\">· 2 vermeidbar</small></div>");
-        expect(html).toContain("Offene Empfehlungen</div>");
-        expect(html).toContain("<div class=\"kpi-v\">4 <small>· bei 2 von 3 Raidern</small></div>"); // raid 2 + Elun 1 + Dorn 1
+        // the open recommendations are no KPI any more (they sit under "Das Wichtigste"); the raid buffs are
+        expect(html).not.toContain("Offene Empfehlungen</div>");
+        expect(html).toContain("Raid-Buffs</div>");
+        expect(html).toContain("<div class=\"kpi-v bad\">50 % <small>· 1 von 1 lückenhaft</small></div>");
         expect(html).toContain("Flask / Elixiere</div>");
         expect(html).toContain("<div class=\"kpi-v warn\">89 % <small>· Ø Food 83 %</small></div>");
     });
@@ -108,15 +110,16 @@ describe("web/report/render — report page: head and views", () => {
         expect(html.match(/<script src="\/r-assets\/report\.js\?v=[0-9a-f]+"><\/script>/g)).toHaveLength(1);
     });
 
-    it("groups the raid-wide parts into four areas with metric cards, each opening its table as a dialog", () => {
+    it("groups the raid-wide parts into three areas with metric cards, each opening its table as a dialog", () => {
         const html = renderReportPage(report(), admin);
-        // Empfehlungen · Vorbereitung · Leistung · Fehler, in this order
+        // "Das Wichtigste" above the views, then Vorbereitung · Leistung · Fehler, in this order
         const at = (s) => html.indexOf(s);
         expect(at("id=\"rs-rec-raid\"")).toBeGreaterThan(0);
+        expect(at("class=\"seg views\"")).toBeGreaterThan(at("id=\"rs-rec-raid\""));
         expect(at("id=\"rg-prep\"")).toBeGreaterThan(at("id=\"rs-rec-raid\""));
         expect(at("id=\"rg-perf\"")).toBeGreaterThan(at("id=\"rg-prep\""));
         expect(at("id=\"rg-err\"")).toBeGreaterThan(at("id=\"rg-perf\""));
-        expect(html).toMatch(/Raid<span class="n mid">4<\/span>/);
+        expect(html).toMatch(/Raid<span class="n mid">3<\/span>/); // the three areas; the raid findings are not an area any more
         // the area head: tile, title, breadcrumb, one count badge
         expect(html).toMatch(/<section class="gcard" id="rg-prep"><div class="part-head gh"><span class="tile mid"><img class="hicon"[^>]*trade_alchemy\.jpg" alt=""><\/span><div class="gh-title"><b>Vorbereitung<\/b><span class="kicker">Raid › Buffs · Debuffs · Consumables · Gear<\/span><\/div><span class="grow"><\/span><span class="badge mid count">\d Bereiche? auffällig<\/span><\/div>/);
         for (const [group, ids] of [["prep", ["raidbuffs", "consumables", "potions", "gear"]], ["perf", ["activity", "cooldowns", "healers", "totems"]], ["err", ["mechanics"]]]) {
@@ -142,15 +145,17 @@ describe("web/report/render — report page: head and views", () => {
         expect(html).not.toContain("class=\"rsec\"");
     });
 
-    it("draws the raid's findings as one row each, with the one send action in the area head", () => {
+    it("draws the raid's findings under Das Wichtigste as one row each, with the one send action in its head", () => {
         const html = renderReportPage(report(), admin);
         const recs = html.slice(html.indexOf("id=\"rs-rec-raid\""), html.indexOf("</section>", html.indexOf("id=\"rs-rec-raid\"")));
-        expect(recs).toContain("<b>Empfehlungen an den Raid</b><span class=\"kicker\">Raid › Empfehlungen · 2 offen · 0 freigegeben</span>");
-        expect(recs).toMatch(/<button type="button" class="btn btn-sm" data-dialog="dlg-rs-send"><img[^>]*inv_letter_15\.jpg" alt="">Alle senden …<\/button>/);
+        expect(recs).toContain("<h2>Das Wichtigste</h2><span class=\"sub\">2 Punkte für den ganzen Raid · 2 offen · 0 freigegeben</span>");
+        expect(recs).toMatch(/<button type="button" class="btn" data-dialog="dlg-rs-send"><img[^>]*inv_letter_15\.jpg" alt="">Empfehlungen senden …<\/button>/);
         expect(recs).toContain("<details class=\"rec rrow-d rec-high rec-state-open\" data-key=\"raid.debuff.misery\">");
         expect(recs).toMatch(/<summary class="rrow"><span><span class="badge bad">hoch<\/span><\/span><span class="t rec-title" data-tip="Misery: Ø 0 %, fehlte in 1 Kampf">Misery: Ø 0 %, fehlte in 1 Kampf<\/span><span class="ev"><span class="badge ev-b" data-tip="Boss" data-tip-sub="High King Maulgar">Boss <b>High King Maulgar<\/b><\/span><\/span><span class="st"><span class="badge rec-state mid">offen<\/span><\/span><span class="acts rec-review"/);
         expect(recs.match(/class="ibtn"[^>]*data-review="(?:approve|reject|edit)"/g)).toHaveLength(6); // three per finding
         expect(recs).toContain("<dialog class=\"dlg detail\" id=\"dlg-rs-send\">");
+        // two findings: nothing to fold
+        expect(recs).not.toContain("key-more");
     });
 
     it("keeps the report logic out of the page: inline only small snippets that parse, the rest in report.js", () => {
@@ -183,44 +188,62 @@ describe("web/report/render — report page: head and views", () => {
     });
 });
 
-describe("web/report/render — boss cards", () => {
-    it("draws one card per boss with icon, meta line and the chips, the first open", () => {
+describe("web/report/render — boss table and boss pages", () => {
+    it("draws one table row per boss with icon and the worst news per column, and a hidden page behind it", () => {
         const html = renderReportPage(report(), admin);
-        expect(html).toContain("<details class=\"vcard boss-card\" id=\"boss-e649\" open>");
-        expect(html).toContain("<img class=\"vcard-icon\" src=\"/bosses/649.jpg\" alt=\"\">");
-        // the meta line is badges now: tries, the wipe, the kill, the deaths (with the avoidable ones)
-        expect(html).toContain("<div class=\"vcard-meta\"><span class=\"badge count\">2 Tries</span><span class=\"badge bad\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/achievement_boss_illidan.jpg\" alt=\"\">Wipe bei 32 %</span><span class=\"badge ok\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/achievement_boss_illidan.jpg\" alt=\"\">Kill 3:24</span><span class=\"badge bad\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/ability_creature_cursed_05.jpg\" alt=\"\">1 Tod · 1 vermeidbar</span></div>");
-        expect(html).toContain("<span class=\"exp-lbl\"><span class=\"exp-w\">Details</span><span class=\"exp\"><svg");
-        // every chip explains itself in the page's tooltip box
-        expect(html).toMatch(/<span class="chip chip-x bad" data-tip="Erwartete Debuffs, die in mindestens einem Try kein einziges Mal auf dem Boss lagen" data-tip-sub="[^"]+">(?:<img[^>]*>)?<b>1<\/b> Debuff fehlte<\/span>/);
-        expect(html).toMatch(/<span class="chip chip-x warn" data-tip="Spieler, denen[^"]*" data-tip-sub="[^"]+">(?:<img[^>]*>)?<b>1<\/b> Buffs fehlten<\/span>/);
-        expect(html).toMatch(/<span class="chip chip-x" data-tip="Dispelbare Debuffs[^"]*" data-tip-sub="[^"]+">(?:<img[^>]*>)?<b>1<\/b> nie dispellt<\/span>/);
-        expect(html).toMatch(/<span class="chip chip-x ok" data-tip="Schaden des ganzen Raids pro Sekunde im Kill-Try, im Mittel über den Kampf" data-tip-sub="[^"]+">(?:<img[^>]*>)?<b>11,9k<\/b> Raid-DPS<\/span>/); // the kill's mean, not the wipe's
+        expect(html).not.toContain("boss-card");
+        expect(html).toContain("<div class=\"boss-index\" id=\"bossIndex\">");
+        expect(html).toContain("<button type=\"button\" class=\"boss-open\" data-boss-open=\"e649\"><img class=\"boss-ico\" src=\"/bosses/649.jpg\" alt=\"\"><b>High King Maulgar</b></button>");
+        const row = html.slice(html.indexOf("<tr data-boss-open=\"e649\">"), html.indexOf("</tr>", html.indexOf("<tr data-boss-open=\"e649\">")));
+        // the kill with its time and the number of tries, the deaths with the avoidable ones, the three checks
+        expect(row).toContain("<td><span class=\"badge ok\">Kill 3:24</span> <span class=\"mute\">2 Tries</span></td>");
+        expect(row).toContain("<td><span class=\"badge bad\">1 Tod · vermeidbar</span></td>");
+        expect(row).toContain("<td><span class=\"badge bad\">1 von 2 fehlten</span></td>");
+        expect(row).toContain("<td><span class=\"badge mid\">1 Raider ohne</span></td>");
+        expect(row).toContain("<td><span class=\"badge\">1 nie dispellt</span></td>");
+        expect(row).toContain("<td class=\"boss-go\">Öffnen ›</td>");
+        // no Raid-DPS chip any more
+        expect(html).not.toContain("chip-x");
+        expect(html).not.toContain("Raid-DPS</span>");
+        expect(html).toContain("<section class=\"boss-detail\" id=\"boss-e649\" data-boss=\"e649\" hidden>");
     });
 
-    it("puts the try pills, the stats row and the section buttons into the open card", () => {
+    it("heads the boss page with a back button, the kicker and the facts, then the try pills and the topic list", () => {
         const html = renderReportPage(report(), admin);
+        expect(html).toContain("data-boss-back>");
+        expect(html).toContain("Alle Bosse</button>");
+        expect(html).toContain("<span class=\"kicker\">Boss 1 von 1</span><h2>High King Maulgar</h2>");
+        expect(html).toContain("<div class=\"bfact\"><span class=\"kicker\">Kampf</span><b>Kill 3:24 <small>· 2 Tries</small></b></div>");
+        expect(html).toContain("<div class=\"bfact\"><span class=\"kicker\">Aktivität</span><b class=\"warn\">Ø 92 %</b></div>");
+        expect(html).toContain("<div class=\"bfact\"><span class=\"kicker\">Tode</span><b class=\"bad\">1 Tod · vermeidbar</b></div>");
         expect(html).toContain("class=\"try-pill active try-wipe\" data-show=\"fight-2\">Try 1<span class=\"s\">Wipe bei 32 % · 2:00</span>");
-        expect(html).toContain("Raid-DPS</div><div class=\"stat-v\">12,4k</div>");
-        expect(html).not.toContain("Bloodlust</div><div class=\"stat-v\">"); // dropped from the stats row on request; the windows stay in the Cooldowns chart
-        expect(html).toContain("Aktivität Ø</div><div class=\"stat-v warn\">92 %</div>");
-        expect(html).toContain("Debuffs erwartet</div><div class=\"stat-v\">2 <small class=\"bad\">· 1 fehlte</small></div>");
-        expect(html).toContain("Tode</div><div class=\"stat-v bad\">1 <small>· Brokk 0:40</small></div>");
-        expect(html).toContain("class=\"sec active\" data-show=\"fp-2-debuffs\">");
-        expect(html).toContain("Debuffs<span class=\"n bad\">2 · 1 fehlt</span>");
-        expect(html).toMatch(/Cooldowns<span class="n(?: mid| bad)?">1 · 100 % genutzt<\/span>/);
-        expect(html).toMatch(/Heilung<span class="n(?: mid| bad)?">1 · 1 Heiler<\/span>/);
-        expect(html).toMatch(/Buffs<span class="n(?: mid| bad)?">1 · 1 fehlten<\/span>/);
-        expect(html).toContain("Kampfverlauf</button>");
-        expect(html).toMatch(/Tode<span class="n(?: mid| bad)?">1<\/span>/);
+        // no stats row in the fight any more: the numbers moved into the boss head and the topic list
+        expect(html).not.toContain("class=\"stats\"");
+        expect(html).not.toContain("Raid-DPS</div>");
+        expect(html).not.toContain("Debuffs erwartet");
+        // the topics worst first: the bad ones, the mid one, the ok ones, the neutral series last
+        const nav = html.slice(html.indexOf("<nav class=\"topic-nav\""), html.indexOf("</nav>", html.indexOf("<nav class=\"topic-nav\"")));
+        expect(nav).toContain("<button type=\"button\" class=\"topic active\" data-show=\"fp-2-debuffs\">");
+        expect(nav).toContain("<b>Debuffs</b><small>1 von 2 fehlten</small></span><span class=\"dot bad\"></span>");
+        expect(nav).toContain("<b>Buffs</b><small>1 fehlten</small></span><span class=\"dot bad\"></span>");
+        expect(nav).toContain("<b>Tode</b><small>1 Tod · 1 vermeidbar</small></span><span class=\"dot bad\"></span>");
+        expect(nav).toContain("<b>Aktivität</b><small>Ø 92 % aktiv</small></span><span class=\"dot mid\"></span>");
+        expect(nav).toContain("<b>Cooldowns</b><small>100 % genutzt</small></span><span class=\"dot ok\"></span>");
+        expect(nav).toContain("<b>Heilung</b><small>1 Heiler</small></span><span class=\"dot ok\"></span>");
+        expect(nav).toContain("<b>Kampfverlauf</b><small>DPS und HPS</small></span><span class=\"dot none\"></span>");
+        expect([...nav.matchAll(/class="dot (\w+)"/g)].map((m) => m[1])).toEqual(["bad", "bad", "bad", "mid", "ok", "ok", "none"]);
     });
 
     it("shows the compact table first and the chart behind a dialog button", () => {
         const html = renderReportPage(report(), admin);
-        // the part head: a tile in the topic's tone, the title, the breadcrumb under it
-        expect(html).toContain("<div class=\"part-title\"><span class=\"tile bad\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/spell_shadow_chilltouch.jpg\" alt=\"\"></span><div>Debuffs · auf High King Maulgar<span class=\"kicker\">Bosse › High King Maulgar › Try 1 › Debuffs</span></div></div>");
-        expect(html).toContain("<button type=\"button\" class=\"btn btn-ghost btn-sm\" data-dialog=\"dlg-fp-2-debuffs\">");
+        // the panel head: just the label, no tile, no subject, no breadcrumb
+        expect(html).toContain("<div class=\"topic-head\"><h3>Debuffs</h3><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-dialog=\"dlg-fp-2-debuffs\">");
+        expect(html).not.toContain("auf High King Maulgar");
+        expect(html).not.toContain("Bosse › High King Maulgar › Try 1 › Debuffs");
+        // the worst debuff first, the first column named after what the rows are
+        expect(html).toContain("<th>Debuff</th><th>Uptime</th>");
         expect(html).toContain("Misery</td><td><span class=\"tv high\">fehlte</span></td><td>fehlt</td>");
+        expect(html.indexOf("Misery</td><td><span class=\"tv high\">fehlte")).toBeLessThan(html.indexOf("Sunder Armor</td><td><span class=\"tv good\">96%"));
         expect(html).toContain("<dialog class=\"dlg chart\" id=\"dlg-fp-2-debuffs\">");
         expect(html).toContain("<div class=\"dlg-title\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/spell_shadow_chilltouch.jpg\" alt=\"\">High King Maulgar · Debuffs</div>");
         expect(html).toContain("Wipe bei 32 % · 2:00 · 6 px pro Sekunde, seitlich scrollen");
@@ -238,10 +261,11 @@ describe("web/report/render — boss cards", () => {
         expect(html).toContain("Nie entfernte Debuffs<span class=\"meta\">1</span>");
     });
 
-    it("lists the raid recommendations that name the boss under the card, with controls for a reviewer", () => {
+    it("lists the raid recommendations that name the boss on its page, with controls for a reviewer", () => {
         const html = renderReportPage(report(), admin);
-        expect(html).toContain("Empfehlungen zu diesem Boss</div><ul class=\"rec-list\">");
-        const block = html.slice(html.indexOf("Empfehlungen zu diesem Boss"), html.indexOf("</details>", html.indexOf("Empfehlungen zu diesem Boss")));
+        expect(html).toContain("<div class=\"boss-recs\"><h3>Empfehlungen zu diesem Boss</h3><ul class=\"rec-list\">");
+        const at = html.indexOf("<h3>Empfehlungen zu diesem Boss</h3>");
+        const block = html.slice(at, html.indexOf("</ul>", at));
         expect(block).toContain("Misery: Ø 0 %, fehlte in 1 Kampf");
         expect(block).not.toContain("2 vermeidbare Tode");
         expect(block).toContain("data-scope=\"raid\" data-player=\"\" data-key=\"raid.debuff.misery\"");
@@ -249,25 +273,25 @@ describe("web/report/render — boss cards", () => {
         expect(renderReportPage(report(), reader)).not.toContain("Empfehlungen zu diesem Boss");
     });
 });
-
 describe("web/report/render — raider cards", () => {
-    it("draws one closed card per raider with class icon, role, fight count and at most three badges", () => {
+    it("draws one closed card per raider with class icon, a plain sub line and at most two badges", () => {
         const html = renderReportPage(report(), admin);
         expect(html).toContain("<details class=\"vcard raider-card\" id=\"raider-Elun\" data-name=\"Elun\" data-role=\"healer\" data-open=\"1\" data-report=\"abc123def456\" style=\"--cc:#FFFFFF\">");
         expect(html).toContain("<details class=\"vcard raider-card\" id=\"raider-Brokk\" data-name=\"Brokk\" data-role=\"tank\" data-open=\"0\"");
         expect(html).toContain("<details class=\"vcard raider-card\" id=\"raider-Dorn\" data-name=\"Dorn\" data-role=\"dps\" data-open=\"1\"");
-        expect(html).toContain("<div class=\"vcard-title cn\">Elun</div><div class=\"vcard-meta\"><span class=\"badge\">Priest</span><span class=\"badge accent\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/spell_holy_flashheal.jpg\" alt=\"\">Heiler</span><span class=\"badge count\">1 Kampf</span></div>");
+        expect(html).toContain("<div class=\"vcard-title cn\">Elun</div><div class=\"vcard-sub\">Priest · Heiler · 1 Kampf</div>");
         const head = (name) => { const at = html.indexOf(`id="raider-${name}"`); return html.slice(at, html.indexOf("</summary>", at)); };
         const chips = (name) => { const h = head(name); return h.slice(h.indexOf("<div class=\"vcard-chips\">"), h.indexOf("</div>", h.indexOf("<div class=\"vcard-chips\">"))); };
-        for (const name of ["Brokk", "Elun", "Dorn"]) expect((chips(name).match(/<span class="badge/g) || []).length).toBeLessThanOrEqual(3);
+        for (const name of ["Brokk", "Elun", "Dorn"]) expect((chips(name).match(/<span class="badge/g) || []).length).toBeLessThanOrEqual(2);
         // worst first: Brokk's avoidable death, Elun's mana, Dorn's consumables
         expect(chips("Brokk")).toMatch(/^<div class="vcard-chips"><span class="badge bad"[^>]*><img[^>]*ability_creature_cursed_05\.jpg" alt="">1 vermeidbarer Tod<\/span>/);
         expect(chips("Elun")).toContain("inv_potion_137.jpg\" alt=\"\">2× unter 10 % Mana</span>");
         expect(chips("Elun")).toContain("inv_shield_06.jpg\" alt=\"\">1 Gear-Problem</span>");
         expect(chips("Dorn")).toContain("inv_alchemy_endlessflask_05.jpg\" alt=\"\">Consumables 67 %</span>");
-        // the timeline and the player page are icon buttons in the head
-        expect(head("Elun")).toMatch(/<button type="button" class="ibtn" data-tip="Kampfverlauf öffnen" data-tip-sub="1 Kampf mit eigenen Zeilen[^"]*" aria-label="Kampfverlauf öffnen" data-dialog="dlg-rt-1"><img class="hicon"[^>]*inv_misc_pocketwatch_01\.jpg" alt=""><\/button>/);
-        expect(head("Elun")).toMatch(/<a class="ibtn" href="\/r\/abc123def456\/p\/1" data-tip="Spielerseite öffnen"/);
+        // the timeline, the armory and the player page are labelled buttons in the opened card, not icons in the head
+        expect(head("Elun")).not.toContain("class=\"ibtn\"");
+        const links = (name) => { const at = html.indexOf(`id="raider-${name}"`); const s = html.indexOf("<div class=\"raider-links\">", at); return html.slice(s, html.indexOf("</div>", s)); };
+        expect(links("Elun")).toMatch(/^<div class="raider-links"><button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-rt-1" data-tip="1 Kampf mit eigenen Zeilen"[^>]*><img class="hicon"[^>]*inv_misc_pocketwatch_01\.jpg" alt="">Kampfverlauf<\/button><a class="btn btn-ghost btn-sm" href="[^"]*Elun"[^>]*data-tip="Armory öffnen"[^>]*>[\s\S]*?Armory[\s\S]*?<\/a><a class="btn btn-ghost btn-sm" href="\/r\/abc123def456\/p\/1" data-tip="Spielerseite öffnen"/);
     });
 
     it("offers four sections: recommendations, preparation, performance, mistakes", () => {
@@ -475,7 +499,7 @@ describe("web/report/render — totem timeline and the armory link", () => {
 
     it("gives the raider card and the player page a link to the armory", () => {
         const html = renderReportPage(report(), admin);
-        expect(html).toMatch(/<a class="ibtn" href="[^"]*Dorn"[^>]*data-tip="Armory öffnen"/);
+        expect(html).toMatch(/<a class="btn btn-ghost btn-sm" href="[^"]*Dorn"[^>]*data-tip="Armory öffnen"/);
         expect(html).toContain("data-tip-sub=\"Der Charakter, wie er jetzt aussieht. Der Report zeigt die Ausrüstung aus dem Log dieses Abends.\"");
         const page = renderPlayerPage(report(), 2, admin);
         expect(page).toMatch(/<a class="btn btn-ghost btn-sm" href="[^"]*Dorn"[^>]*>[\s\S]*?Armory<\/a>/);

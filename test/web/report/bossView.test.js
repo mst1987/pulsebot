@@ -1,6 +1,6 @@
-// Sicht Bosse (src/web/report/bossView.js): try pills, the boss cards with
-// their chips and recommendations, and a raider's own slice of the timeline.
-const { tryPills, renderBossView, playerFights, renderPlayerTimeline } = require("../../../src/web/report/bossView");
+// Sicht Bosse (src/web/report/bossView.js): try pills, the boss table with
+// its rows and the boss pages with their recommendations, and a raider's own slice of the timeline.
+const { tryPills, bossFacts, renderBossView, playerFights, renderPlayerTimeline } = require("../../../src/web/report/bossView");
 
 const fight = (over = {}) => ({ id: 1, boss: "Maulgar", encounterId: 649, kill: false, fightPercentage: 40, duration: 120000, deaths: [], ...over });
 
@@ -39,48 +39,65 @@ describe("web/report/bossView", () => {
             expect(renderBossView({ fights: [] }, null, [], false)).toBe("<div class=\"empty\">Keine Boss-Kämpfe im Log.</div>");
         });
 
-        it("notes the missing v2 access when no fight has a series", () => {
+        it("notes the missing v2 access inside the boss index when no fight has a series", () => {
             const html = renderBossView({ fights: [fight()] }, null, [], false);
-            expect(html).toMatch(/^<p class="note">Raid-DPS\/HPS und Boss-Leben brauchen den Warcraft-Logs-v2-Zugang/);
-            // a single wipe: its outcome as the badge, no chips, no pills
-            expect(html).toContain("<span class=\"badge count\">1 Try</span><span class=\"badge bad\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/achievement_boss_illidan.jpg\" alt=\"\">Wipe bei 40 %</span>");
-            expect(html).toContain("<span class=\"badge\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/ability_creature_cursed_05.jpg\" alt=\"\">0 Tode</span>");
-            expect(html).toContain("<div class=\"vcard-chips\"></div>");
+            expect(html).toMatch(/^<div class="boss-index" id="bossIndex"><p class="note">Raid-DPS\/HPS und Boss-Leben brauchen den Warcraft-Logs-v2-Zugang/);
+            // a single wipe: its outcome as the badge, no tries note, no pills, no chips
+            expect(html).toContain("<td><span class=\"badge bad\">Wipe bei 40 %</span></td>");
+            expect(html).toContain("<td><span class=\"badge ok\">0 Tode</span></td>");
             expect(html).not.toContain("try-pills");
+            expect(html).not.toContain("boss-card");
+            expect(html).not.toContain("chip-x");
         });
 
         const html = renderBossView(timeline(), (n) => `/p/${n}`, [], false);
 
-        it("renders one card per boss, the first open, with its icon", () => {
-            expect(html).not.toMatch(/^<p class="note">/);
-            expect(html).toContain("<details class=\"vcard boss-card\" id=\"boss-e649\" open>");
-            expect(html).toContain("<details class=\"vcard boss-card\" id=\"boss-e650\">");
-            expect(html).toContain("<summary><img class=\"vcard-icon\" src=\"/bosses/649.jpg\" alt=\"\"><div class=\"vcard-main\"><div class=\"vcard-title\">Maulgar</div>");
+        it("renders a table with one row per boss, each opening its hidden page", () => {
+            expect(html).not.toContain("<p class=\"note\">Raid-DPS");
+            expect(html).toContain("<table class=\"idx boss-table\"><thead><tr><th>Boss</th><th>Kampf</th><th>Tode</th><th>Debuffs</th><th>Buffs</th><th>Dispel</th><th></th></tr></thead>");
+            expect(html).toContain("<tr data-boss-open=\"e649\">");
+            expect(html).toContain("<tr data-boss-open=\"e650\">");
+            expect(html).toContain("<button type=\"button\" class=\"boss-open\" data-boss-open=\"e649\"><img class=\"boss-ico\" src=\"/bosses/649.jpg\" alt=\"\"><b>Maulgar</b></button>");
+            expect(html.match(/<tr data-boss-open=/g)).toHaveLength(2);
+            expect(html).toContain("<section class=\"boss-detail\" id=\"boss-e649\" data-boss=\"e649\" hidden>");
+            expect(html).toContain("<section class=\"boss-detail\" id=\"boss-e650\" data-boss=\"e650\" hidden>");
+            expect(html).toContain("<button type=\"button\" class=\"btn btn-ghost btn-sm btn-back\" data-boss-back>");
+            expect(html).toContain("Alle Bosse</button>");
+            expect(html).toContain("<span class=\"kicker\">Boss 1 von 2</span><h2>Maulgar</h2>");
+            expect(html).toContain("<span class=\"kicker\">Boss 2 von 2</span><h2>Gruul</h2>");
             expect(html).toContain("<nav class=\"try-pills\">");
+            expect(html).not.toContain("<details class=\"vcard boss-card\"");
         });
 
-        it("sums the boss up in the meta line: tries, wipes, kill time and deaths", () => {
-            expect(html).toContain("<span class=\"badge count\">2 Tries</span>");
-            expect(html).toContain("alt=\"\">Wipe bei 40 %</span>");
-            expect(html).toContain("<span class=\"badge ok\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/achievement_boss_illidan.jpg\" alt=\"\">Kill 3:00</span>");
-            expect(html).toContain("alt=\"\">2 Tode · 1 vermeidbar</span>");
+        it("sums the boss up in the row cells: outcome, tries, deaths", () => {
+            const row = html.match(/<tr data-boss-open="e649">.*?<\/tr>/)[0];
+            expect(row).toContain("<td><span class=\"badge ok\">Kill 3:00</span> <span class=\"mute\">2 Tries</span></td>");
+            expect(row).toContain("<td><span class=\"badge bad\">2 Tode · 1 vermeidbar</span></td>");
             // Gruul: one kill, one death
-            expect(html).toContain("<span class=\"badge mid\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/ability_creature_cursed_05.jpg\" alt=\"\">1 Tod</span>");
+            const gruul = html.match(/<tr data-boss-open="e650">.*?<\/tr>/)[0];
+            expect(gruul).toContain("<td><span class=\"badge ok\">Kill 3:20</span></td>");
+            expect(gruul).toContain("<td><span class=\"badge mid\">1 Tod</span></td>");
         });
 
-        it("sums the boss up in chips: missing debuffs, players short of buffs, undispelled debuffs, the kill's DPS", () => {
-            expect(html).toMatch(/<span class="chip chip-x bad"[^>]*><img[^>]*><b>1<\/b> Debuff fehlte<\/span>/);
-            expect(html).toMatch(/<span class="chip chip-x warn"[^>]*><img[^>]*><b>1<\/b> Buffs fehlten<\/span>/);
-            expect(html).toMatch(/<span class="chip chip-x warn"[^>]*><img[^>]*><b>3<\/b> nie dispellt<\/span>/);
-            expect(html).toMatch(/<span class="chip chip-x ok" data-tip="Schaden des ganzen Raids pro Sekunde im Kill-Try, im Mittel über den Kampf"[^>]*><img[^>]*><b>2,0k<\/b> Raid-DPS<\/span>/);
+        it("sums the boss up in the row cells: missing debuffs, raiders short of buffs, undispelled debuffs", () => {
+            const row = html.match(/<tr data-boss-open="e649">.*?<\/tr>/)[0];
+            expect(row).toContain("<td><span class=\"badge bad\">1 von 2 fehlten</span></td>");
+            expect(row).toContain("<td><span class=\"badge mid\">1 Raider ohne</span></td>");
+            expect(row).toContain("<td><span class=\"badge mid\">3 nie dispellt</span></td>");
+            expect(row).toContain("<td class=\"boss-go\">Öffnen ›</td>");
+            // Gruul has no such data: dashes
+            const gruul = html.match(/<tr data-boss-open="e650">.*?<\/tr>/)[0];
+            expect(gruul.match(/<span class="mute">–<\/span>/g)).toHaveLength(3);
         });
 
-        it("tones clean chips ok and takes the last try's DPS without a kill", () => {
+        it("tones clean cells ok and counts several wipes", () => {
             const clean = renderBossView({ fights: [fight({ debuffs: [{ key: "a", expected: true, uptimePct: 99 }], buffs: { players: [{ name: "A", buffs: [] }] }, healers: { healers: [], dispels: {} }, series: { dps: [500] } })] }, null, [], false);
-            expect(clean).toMatch(/<span class="chip chip-x ok"[^>]*><img[^>]*><b>0<\/b> Debuffs fehlten<\/span>/);
-            expect(clean).toMatch(/<span class="chip chip-x ok"[^>]*><img[^>]*><b>0<\/b> Buffs fehlten<\/span>/);
-            expect(clean).toMatch(/<span class="chip chip-x"[^>]*><img[^>]*><b>0<\/b> nie dispellt<\/span>/);
-            expect(clean).toContain("im letzten Try");
+            expect(clean).toContain("<td><span class=\"badge ok\">alle da</span></td><td><span class=\"badge ok\">alle da</span></td><td><span class=\"badge ok\">alles dispellt</span></td>");
+            const wipes = renderBossView({ fights: [fight({ id: 1 }), fight({ id: 2 }), fight({ id: 3 })] }, null, [], false);
+            expect(wipes).toContain("<span class=\"badge bad\">3 Wipes</span> <span class=\"mute\">3 Tries</span>");
+            // a few undispelled debuffs stay neutral
+            const few = renderBossView({ fights: [fight({ healers: { dispels: { missed: [{}] } } })] }, null, [], false);
+            expect(few).toContain("<span class=\"badge\">1 nie dispellt</span>");
         });
 
         it("adds the raid findings that name the boss, the approved ones for a reader", () => {
@@ -91,8 +108,7 @@ describe("web/report/bossView", () => {
                 { key: "d", impact: "low", title: "x", text: "t", custom: "bei maulgar", approved: true },
             ];
             const reader = renderBossView({ fights: [fight()] }, null, recs, false);
-            expect(reader).toContain("<div class=\"boss-recs\"><div class=\"kicker icons\">");
-            expect(reader).toContain("Empfehlungen zu diesem Boss</div><ul class=\"rec-list\">");
+            expect(reader).toContain("<div class=\"boss-recs\"><h3>Empfehlungen zu diesem Boss</h3><ul class=\"rec-list\">");
             expect(reader).not.toContain("data-key=\"a\"");
             expect(reader).toContain("data-key=\"b\"");
             expect(reader).not.toContain("data-key=\"c\"");
@@ -105,8 +121,58 @@ describe("web/report/bossView", () => {
 
         it("renders a boss without an encounter icon with an empty icon slot", () => {
             const trash = renderBossView({ fights: [fight({ boss: "Trash", encounterId: 0 })] }, null, [], false);
-            expect(trash).toContain("<details class=\"vcard boss-card\" id=\"boss-nTrash\" open>");
-            expect(trash).toContain("<summary><span class=\"vcard-icon\"></span>");
+            expect(trash).toContain("<tr data-boss-open=\"nTrash\">");
+            expect(trash).toContain("<button type=\"button\" class=\"boss-open\" data-boss-open=\"nTrash\"><span class=\"boss-ico\"></span><b>Trash</b></button>");
+            expect(trash).toContain("<section class=\"boss-detail\" id=\"boss-nTrash\" data-boss=\"nTrash\" hidden>");
+            expect(trash).not.toContain("boss-head-ico");
+        });
+
+        it("heads a boss page with its facts: fight, activity when known, deaths", () => {
+            expect(html).toContain("<div class=\"bfact\"><span class=\"kicker\">Kampf</span><b>Kill 3:00 <small>· 2 Tries</small></b></div>");
+            expect(html).toContain("<div class=\"bfact\"><span class=\"kicker\">Tode</span><b class=\"bad\">2 Tode · 1 vermeidbar</b></div>");
+            expect(html).not.toContain("<span class=\"kicker\">Aktivität</span>");
+            const act = renderBossView({ fights: [fight({ activity: [{ name: "A", activePct: 80 }, { name: "B", activePct: 90 }] })] }, null, [], false);
+            expect(act).toContain("<span class=\"kicker\">Aktivität</span><b class=\"warn\">Ø 85 %</b>");
+        });
+    });
+
+    describe("bossFacts", () => {
+        const groupOf = (...fights) => ({ fights });
+
+        it("counts tries, wipes, deaths and avoidable deaths over all pulls and finds the kill", () => {
+            const x = bossFacts(groupOf(fight({ id: 1, deaths: [{ name: "A", avoidable: true }, { name: "B" }] }), fight({ id: 2, kill: true, deaths: [{ name: "C", avoidable: true }] })));
+            expect(x.tries).toBe(2);
+            expect(x.wipes).toHaveLength(1);
+            expect(x.kill.id).toBe(2);
+            expect(x.deaths).toBe(3);
+            expect(x.avoidable).toBe(2);
+        });
+
+        it("reports figures without a source as null", () => {
+            const x = bossFacts(groupOf(fight()));
+            expect(x.kill).toBeUndefined();
+            expect(x.debuffs).toBeNull();
+            expect(x.lacking).toBeNull();
+            expect(x.undispelled).toBeNull();
+            expect(x.activity).toBeNull();
+        });
+
+        it("counts expected debuffs once over the tries and missing ones when flagged or at 0 % uptime", () => {
+            const x = bossFacts(groupOf(
+                fight({ debuffs: [{ key: "coe", expected: true, missing: true }, { key: "sunder", expected: true, uptimePct: 90 }, { key: "x", expected: false, missing: true }] }),
+                fight({ debuffs: [{ key: "coe", expected: true, uptimePct: 50 }, { key: "sunder", expected: true, uptimePct: 0 }] }),
+            ));
+            expect(x.debuffs).toEqual({ expected: 2, missing: 2 });
+        });
+
+        it("counts each raider short of buffs once, sums undispelled debuffs and rounds the mean activity", () => {
+            const x = bossFacts(groupOf(
+                fight({ buffs: { players: [{ name: "A", buffs: [], missing: ["kings"] }, { name: "B", buffs: [] }] }, healers: { dispels: { missed: [{}, {}] } }, activity: [{ activePct: 80 }, { activePct: 91 }] }),
+                fight({ buffs: { players: [{ name: "A", buffs: [], missing: ["kings"] }] }, healers: { dispels: { missed: [{}] } }, activity: [{ activePct: "n/a" }] }),
+            ));
+            expect(x.lacking).toBe(1);
+            expect(x.undispelled).toBe(3);
+            expect(x.activity).toBe(86);
         });
     });
 

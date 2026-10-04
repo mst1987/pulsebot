@@ -6,21 +6,25 @@ const { renderBossView } = require("./bossView");
 const { reportContext } = require("./context");
 const { raidGroups } = require("./raidGroups");
 const { renderRaiderView } = require("./raiderView");
+const { renderKeyFindings } = require("./recommendations");
 
-// ---- the report page: head, KPI cards, three views -------------------------------
+// ---- the report page: head, KPI cards, „Das Wichtigste“, three views ---------------
 //
-// Sicht Raid: everything raid-wide as foldable sections. Sicht Bosse: one card
-// per boss (bossCard). Sicht Raider: one card per raider (raiderCard), with a
-// search field and a role filter. The open view sits in the url hash
-// (#raid / #bosse / #raider, #raider-<name> opens one card), so a link from
-// Discord or the admin menu lands on the right place.
+// „Das Wichtigste“: the raid's findings, the heaviest first, with the page's
+// one main button (send). Sicht Raid: the raid-wide areas as metric cards.
+// Sicht Bosse: a table of the bosses, a row opens that boss's page
+// (bossView.js). Sicht Raider: the raiders grouped by how much there is to
+// talk about (raiderView.js), with a search field and a role filter. The open
+// view sits in the url hash (#raid / #bosse / #raider, #boss-<key> opens a
+// boss, #raider-<name> one card), so a link from Discord or the admin menu
+// lands on the right place.
 
 /**
- * Headline numbers: bosses (kills/wipes), deaths (avoidable), open
- * recommendations (for a reviewer; approved ones for everyone else) and the
- * flask/elixir coverage. Every card only when its source is there.
+ * Headline numbers: bosses (kills/wipes), deaths (avoidable), the
+ * flask/elixir coverage and the raid buffs. Every card only when its source
+ * is there.
  */
-function kpiCards(report, ctx) {
+function kpiCards(report) {
     const out = [];
     const fights = (report.timeline && report.timeline.fights) || [];
     const rows = (report.bossUptimes && report.bossUptimes.rows) || [];
@@ -42,23 +46,17 @@ function kpiCards(report, ctx) {
         const n = report.rpb.damage.players.reduce((s, p) => s + (p.deaths || 0), 0);
         out.push(kpi("ability_creature_cursed_05", "Tode", String(n), null, "high"));
     }
-    if (ctx.rec) {
-        const players = ctx.rec.players || [];
-        if (ctx.reviewer) {
-            const open = ctx.recItems.filter((i) => i.approved === null).length;
-            const withOpen = players.filter((p) => p.items.some((i) => i.approved === null)).length;
-            out.push(kpi("inv_misc_note_01", "Offene Empfehlungen", String(open), { text: `bei ${withOpen} von ${players.length} Raidern` }, "medium", open ? "" : "good", "Befunde, die noch niemand freigegeben oder verworfen hat", "Erst freigegebene Punkte gehen per Bot an die Raider. Entscheiden kannst du in der Sicht Raider und unter „Empfehlungen an den Raid“."));
-        } else {
-            const approved = ctx.recItems.filter((i) => i.approved === true).length;
-            const withApproved = players.filter((p) => p.items.some((i) => i.approved === true)).length;
-            out.push(kpi("inv_misc_note_01", "Empfehlungen", String(approved), { text: `freigegeben · bei ${withApproved} Raidern` }, "medium", "", "Vom Raidlead freigegebene Empfehlungen", "Nur freigegebene Punkte sind auf dieser Seite sichtbar."));
-        }
-    }
     const cons = (report.consumables && report.consumables.players) || [];
     if (cons.length) {
         const avg = (key) => Math.round(cons.reduce((n, p) => n + (p[key] || 0), 0) / cons.length);
         const buffed = avg("buffed");
         out.push(kpi("inv_alchemy_endlessflask_05", "Flask / Elixiere", `${buffed} %`, { text: `Ø Food ${avg("food")} %` }, "good", buffed >= 90 ? "good" : buffed < 50 ? "bad" : "warn", "Anteil der Boss-Kämpfe, in denen ein Raider ein Flask oder beide Elixiere hatte, im Mittel über den Raid", "Ø Food: dasselbe für den Essensbuff. Ab 90 % grün, unter 50 % rot. Je Raider unter „Consumables“."));
+    }
+    const buffRows = ((report.raidBuffs && report.raidBuffs.rows) || []).filter((r) => r.expected && Number.isFinite(r.coveragePct));
+    if (buffRows.length) {
+        const cov = Math.round(buffRows.reduce((n, r) => n + r.coveragePct, 0) / buffRows.length);
+        const short = buffRows.filter((r) => r.none > 0 || r.partial > 0 || (r.late || 0) > 0).length;
+        out.push(kpi("spell_magic_greaterblessingofkings", "Raid-Buffs", `${cov} %`, short ? { text: `${short} von ${buffRows.length} lückenhaft` } : { text: "alle durchgehend" }, cov >= 95 ? "good" : "medium", cov >= 95 ? "good" : cov >= 80 ? "warn" : "bad", "Anteil der Boss-Kämpfe, in denen die erwarteten Raid-Buffs durchgehend auf den Raidern lagen, im Mittel über alle Buffs", "Lückenhaft: ein Buff, der in mindestens einem Kampf bei jemandem fehlte, spät kam oder ausging. Je Buff und Raider unter Sicht Raid › Raid-Buffs."));
     }
     if (!out.length) {
         const gearIssues = (report.players || []).reduce((n, p) => n + (p.issues || []).length, 0);
@@ -102,7 +100,8 @@ function renderReportPage(report, user) {
         </div>
         ${actions ? `<div class="page-actions">${actions}</div>` : ""}
       </div>
-      ${kpiCards(report, ctx)}
+      ${kpiCards(report)}
+      ${renderKeyFindings(report, rec, reviewer)}
       <div class="view-bar"><nav class="seg views">${seg}</nav></div>
       ${panels}`;
 
