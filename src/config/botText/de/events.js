@@ -10,7 +10,7 @@ module.exports = {
     "**Signups closed**": "**Anmeldung geschlossen**",
     "you can still sign off.": "du kannst dich noch abmelden.",
     "The raid has started – signups are closed.": "Der Raid hat begonnen – die Anmeldung ist geschlossen.",
-    "The signup deadline has passed – only “Late” or Absence now.": "Der Anmeldeschluss ist vorbei – jetzt nur noch „Spät“ oder Absagen.",
+    "The signup deadline has passed – only “Late” or Absence now.": "Der Anmeldeschluss ist vorbei – nur noch „Spät“ oder Absagen.",
     "Cancelled: {title}": "Abgesagt: {title}",
     "My characters …": "Meine Charaktere …",
     "from your profile – up to 3 at once": "aus deinem Profil – bis zu 3 auf einmal",

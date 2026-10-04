@@ -169,7 +169,7 @@ NODE_ENV=production     # On the server: TLS verification on, dev shortcuts off
 - **Semicolons:** Always (enforced by ESLint).
 - **Line endings:** LF, set by `.gitattributes` (`* text=auto eol=lf`) — not enforced by ESLint (a fixed rule broke the Linux CI).
 - **Lint rules:** `@eslint/js` recommended plus `no-undef`, `no-unused-vars` (unused args as `_x`), `prefer-const`, `no-var`, `indent` 4 (`SwitchCase: 1`) and `complexity` (warn at 30) for `src/`, `scripts/`, hooks and `test/` (there also `eslint-plugin-jest`); the client adds `eslint-plugin-react` and `jsx-a11y`.
-- **Language:** Bot texts a raider reads in Discord are **English** (dates as Discord timestamps, German service messages through `utils/signup/botEnglish.js`); orga/admin texts in the bot stay German for now; the web gets its language from the client's i18n layer. Variable names, function names, comments in English. Details: docs/signups.md, docs/bot-commands.md.
+- **Language:** Bot texts a raider reads in Discord are written in English in the code and go through `tr(lang, "…")` (`utils/i18n/botText.js`, German catalog in `config/botText/de/`): **German by default**, public messages in the server language (`botLanguage`), personal ones in the reader's own choice (`/language`, the web's DE/EN switch). Dates as Discord timestamps; orga/admin texts in the bot stay German; the web gets its language from the client's i18n layer. Variable names, function names, comments in English. Details: docs/bot-commands.md („Sprache des Bots“).
 - **No TypeScript** in the bot (the web client in `src/web-client/` is TypeScript).
 
 ## Testing

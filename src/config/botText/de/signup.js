@@ -8,7 +8,7 @@ module.exports = {
     "The event was cancelled – {reason}.": "Das Event wurde abgesagt – {reason}.",
     "The raid has already started – signups are closed.": "Der Raid hat schon begonnen – Anmeldungen sind geschlossen.",
     "Signups are closed – you can only sign off now.": "Die Anmeldung ist geschlossen – du kannst dich nur noch abmelden.",
-    "The signup deadline has passed – only “Late” or Absence now.": "Der Anmeldeschluss ist vorbei – nur noch „Spät“ oder Abmelden.",
+    "The signup deadline has passed – only “Late” or Absence now.": "Der Anmeldeschluss ist vorbei – nur noch „Spät“ oder Absagen.",
     "The signup deadline has passed – only Absence or “Late” now.": "Der Anmeldeschluss ist vorbei – nur noch Abmelden oder „Spät“.",
     "The signup deadline has passed – you can only sign off or sign up as “Late” now.":
         "Der Anmeldeschluss ist vorbei – du kannst dich nur noch abmelden oder „Spät“ angeben.",

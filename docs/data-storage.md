@@ -70,7 +70,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/roster-hidden.json` | `rosterHiddenStore.js` | Im Roster ausgeblendete Charaktere | nein |
 | `settings/council-excluded.json` | `councilStore.js` | Raider, mit denen der Loot-Council nicht mehr plant | nein |
 | `settings/council-roles.json` | `councilStore.js` | Rolle je Raider, die der Council festlegt (Offspec-Abende) | nein |
-| `settings/user-prefs.json` | `userPrefsStore.js` | Einstellungen je Konto (Sprache des Menüs) | nein |
+| `settings/user-prefs.json` | `userPrefsStore.js` | Einstellungen je Konto (Sprache des Menüs und der persönlichen Bot-Nachrichten) | nein |
 | `sim/results.json` | `simStore.js` | Cache der Loot-Council-Simulationen (Schlüssel = Loadout + Binary) | nein |
 | `rh-fixture-mode.txt` | `src/utils/raidhelper/fixture.js` | Nur Dev: Modus des Raid-Helper-Stand-ins einer Testinstanz | nein |
 
