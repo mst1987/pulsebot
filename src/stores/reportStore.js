@@ -65,7 +65,11 @@ function deleteReport(id) {
 //
 // Only the *metadata* is kept, never the report itself: a dozen short fields
 // per file is a few kilobytes, where the parsed reports would be hundreds of
-// megabytes of resident objects.
+// megabytes of resident objects. That is also why this map has no upper bound:
+// listReports() walks *every* file in order, and a bounded map evicted the
+// oldest entry on every insert once there were more files than slots — from
+// the 61st report on, nothing ever hit and every listing parsed every report
+// again, blocking the process for seconds on each page that lists them.
 const metaCache = new Map();
 
 // The same for the part of a report the gear walk needs (charGear.js): the
@@ -80,14 +84,16 @@ function stampOf(full) {
     return `${stat.mtimeMs}:${stat.size}`;
 }
 
-/** A projection of one report file, remembered until the file changes. */
-function cachedSlice(file, cache, project) {
+/** A projection of one report file, remembered until the file changes; `max` bounds the cache (0 = no bound). */
+function cachedSlice(file, cache, project, max = 0) {
     const full = path.join(REPORTS_DIR, file);
     const stamp = stampOf(full);
     const hit = cache.get(file);
     if (hit && hit.stamp === stamp) return hit.value;
     const value = project(JSON.parse(fs.readFileSync(full, "utf8")));
-    if (cache.size >= MAX_ROSTER_CACHE) cache.delete(cache.keys().next().value);
+    // a changed file moves to the back instead of pushing a stranger out
+    cache.delete(file);
+    if (max && cache.size >= max) cache.delete(cache.keys().next().value);
     cache.set(file, { stamp, value });
     return value;
 }
@@ -109,7 +115,7 @@ function getReportRoster(id) {
             // Reports from before the roster existed carry the players instead,
             // and the gear findings read that fallback (charGearIssues.js).
             players: Array.isArray(r.players) ? r.players : [],
-        }));
+        }), MAX_ROSTER_CACHE);
     } catch {
         return null;
     }

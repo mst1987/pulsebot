@@ -228,6 +228,29 @@ describe("stores/reportStore", () => {
             expect(fs.readFileSync).not.toHaveBeenCalled();
         });
 
+        // From the 61st report on the bounded map evicted on every insert, so a
+        // listing never hit and parsed every file again — seconds of a blocked
+        // process on every page that lists reports (Okt 2026).
+        it("trifft auch bei mehr Reports als der Roster-Cache fasst", () => {
+            for (let i = 0; i < 75; i++) saveReport({ title: `R${i}`, generatedAt: i, players: [] });
+            expect(listReports()).toHaveLength(75);
+            fs.readFileSync.mockClear();
+            expect(listReports()).toHaveLength(75);
+            expect(fs.readFileSync).not.toHaveBeenCalled();
+        });
+
+        it("hält den Roster-Cache bei 60 Einträgen und behält dabei die zuletzt gelesenen", () => {
+            const ids = [];
+            for (let i = 0; i < 61; i++) ids.push(saveReport({ title: `R${i}`, roster: [], players: [] }));
+            for (const id of ids) getReportRoster(id);
+            fs.readFileSync.mockClear();
+            // the newest 60 come out of the cache, the first one fell out
+            for (const id of ids.slice(1)) getReportRoster(id);
+            expect(fs.readFileSync).not.toHaveBeenCalled();
+            getReportRoster(ids[0]);
+            expect(fs.readFileSync).toHaveBeenCalledTimes(1);
+        });
+
         it("liest sie wieder, sobald sie sich ändert", () => {
             const id = saveReport({ title: "Alt", players: [] });
             listReports();
