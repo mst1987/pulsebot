@@ -7,6 +7,7 @@ import { classColorProps } from "../../components/ClassSpec";
 import { ContentBadge, ItemLink } from "./ItemBits";
 import type { View } from "./view";
 import { Part } from "./Part";
+import RaidLoader from "../../components/ui/RaidLoader";
 
 // The tier buttons wear the hue of the raids they stand for — the same table
 // the raid badges use (.lc-h-* in index.css).
@@ -82,7 +83,7 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
         patch({ listOff: data.specs.map((s) => s.key).filter((k) => k !== specKey), listFocus: itemId });
     };
 
-    if (loading && !data) return <div className="hint">{t("lootcouncil.bisLists.loading")}</div>;
+    if (loading && !data) return <RaidLoader compact text={t("lootcouncil.bisLists.loading")} />;
     if (failed) return <div className="empty">{failed}</div>;
     if (!data) return null;
 

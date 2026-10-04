@@ -34,7 +34,7 @@ import { fmtMs } from "../../lib/format";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { useTableSort } from "../../lib/tableSort";
-import PageLoader from "../../components/PageLoader";
+import RaidLoader from "../../components/ui/RaidLoader";
 import { Button, PageHead, useConfirm } from "../../components/ui";
 import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
 import { WowheadPathProvider } from "../../lib/versionLinks";
@@ -302,7 +302,8 @@ export default function LootCouncilPage() {
         await setExcluded(character, true);
     };
 
-    if (loading && !data) return <PageLoader show text={t("lootcouncil.page.loading")} />;
+    // the first load in the page body like every other page — the overlay (PageLoader) is for long operations
+    if (loading && !data) return <RaidLoader text={t("lootcouncil.page.loading")} />;
     if (error) return <div className="empty">{error.message}</div>;
     if (!data) return null;
 

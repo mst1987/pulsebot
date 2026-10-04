@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import WowIcon from "./WowIcon";
 import { classIconName } from "../../lib/rosterView";
 import { classLabel } from "../../lib/wowNames";
@@ -12,8 +12,18 @@ import { RAID_CONTENTS } from "../../lib/raidIcons";
 //
 // Purely decorative: WoW icons that are already mirrored for the rest of the
 // menu (no new assets), a CSS animation, and nothing that moves under
-// prefers-reduced-motion. The party and the boss are drawn once per mount, so
-// the scene does not reshuffle while the page keeps rendering.
+// prefers-reduced-motion.
+//
+// ONE scene per wait. Opening a page passes through several loading states in
+// a row — the login, the shell's code, the page's code, the page's data, a
+// tab's data — and each renders its own RaidLoader. Drawn per mount they
+// reshuffled party and boss and restarted the animation at every step, which
+// read as several loading screens for one load. So the scene lives here, not
+// in the component: a loader that comes up while another is on screen (or
+// within CHAIN_MS after the last one left) takes the same party, boss and
+// rhythm — the animation's phase follows the clock, so it runs on instead of
+// starting over. Only the first loader of a wait fades in a little late
+// (`rl-fresh`, CSS): a load faster than that shows no loader at all.
 
 /** The classes that can turn up in the party — the icon table's own keys. */
 const CLASSES = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];
@@ -44,19 +54,66 @@ function pickParty(): string[] {
     return party;
 }
 
-export default function RaidLoader({ text = t("common.loading"), compact = false }: {
-    /** What is being waited for — one short line under the scene. */
+/** How long after the last loader left a new one still belongs to the same wait. */
+export const CHAIN_MS = 1500;
+/** One full beat of all the animations (1.1 s and 1.4 s) — the phase is taken modulo this. */
+const BEAT_MS = 15400;
+
+type Scene = { party: string[]; boss: { key: string; label: string } };
+
+// The wait in progress: its scene, its last caption, how many loaders show it, when the last one left.
+let scene: Scene | null = null;
+let caption = "";
+let shown = 0;
+let lastLeft = 0;
+
+/** The scene for a loader mounting now, and whether it opens a new wait. */
+function sceneNow(now: number): { scene: Scene; fresh: boolean } {
+    if (scene && (shown > 0 || now - lastLeft <= CHAIN_MS)) return { scene, fresh: false };
+    scene = { party: pickParty(), boss: BOSSES[Math.floor(Math.random() * BOSSES.length)] };
+    caption = "";
+    return { scene, fresh: true };
+}
+
+/** Forget the wait in progress (tests). */
+export function resetLoaderScene() {
+    scene = null;
+    caption = "";
+    shown = 0;
+    lastLeft = 0;
+}
+
+export default function RaidLoader({ text, compact = false }: {
+    /**
+     * What is being waited for — one short line under the scene. Left out, the
+     * line of the wait's previous loader stays (a code chunk loading between
+     * "Menü wird geladen" and "Raid wird geladen" says nothing of its own), else "Lade…".
+     */
     text?: string;
     /** Smaller, for a loading state inside a card instead of a whole page. */
     compact?: boolean;
 }) {
-    const { party, boss } = useMemo(() => ({
-        party: pickParty(),
-        boss: BOSSES[Math.floor(Math.random() * BOSSES.length)],
-    }), []);
+    // decided once per mount: the wait's scene, its line, and where in the beat the animation stands
+    const [{ party, boss, fresh, phase, line }] = useState(() => {
+        const now = Date.now();
+        const pick = sceneNow(now);
+        if (text) caption = text;
+        return { ...pick.scene, fresh: pick.fresh, phase: -(now % BEAT_MS), line: text || caption || t("common.loading") };
+    });
+    useEffect(() => {
+        shown += 1;
+        return () => {
+            shown -= 1;
+            lastLeft = Date.now();
+        };
+    }, []);
 
     return (
-        <div className={`rl${compact ? " rl-compact" : ""}`} role="status" aria-live="polite">
+        <div
+            className={`rl${compact ? " rl-compact" : ""}${fresh ? " rl-fresh" : ""}`}
+            style={{ "--rl-phase": `${phase}ms` } as CSSProperties}
+            role="status" aria-live="polite"
+        >
             <div className="rl-stage" aria-hidden="true">
                 <div className="rl-party">
                     {party.map((className, i) => (
@@ -86,7 +143,7 @@ export default function RaidLoader({ text = t("common.loading"), compact = false
                     </span>
                 </span>
             </div>
-            <div className="rl-caption">{text}</div>
+            <div className="rl-caption">{text || line}</div>
         </div>
     );
 }
