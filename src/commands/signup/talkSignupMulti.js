@@ -6,21 +6,23 @@ const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis
 const { characterOptions } = require("../../utils/signup/joinPicker");
 const { createSession, getSession, signableRaids, buildRaidPicker } = require("../../utils/signup/multiSignup");
 const { answerPayload } = require("../../utils/signup/signupReply");
+const { langOfInteraction } = require("../../services/discord/botLanguage");
+const { tr } = require("../../utils/i18n/botText");
 
 // "Mehrere Raids wählen …" under the raid overview on the talk server (#293):
 // step 1, only for the member — the coming raids (all preselected), the status
 // for all of them and "Weiter: Charaktere" (commands/signup/signupMulti.js).
 
 /** Without a profile character there is nothing to pick — the reply says where to add one. */
-function noCharacterReply() {
+function noCharacterReply(lang = "de") {
     const components = /^https?:\/\//.test(publicBaseUrl())
-        ? [{ type: 1, components: [{ type: 2, style: 5, label: "Create profile", url: `${publicBaseUrl()}/profile` }] }]
+        ? [{ type: 1, components: [{ type: 2, style: 5, label: tr(lang, "Create profile"), url: `${publicBaseUrl()}/profile` }] }]
         : [];
-    return answerPayload("To sign up for several raids you need characters with a spec in your profile.", { components });
+    return answerPayload(tr(lang, "To sign up for several raids you need characters with a spec in your profile."), { components, lang });
 }
 
-function noRaidsReply() {
-    return answerPayload("There are no coming raids with an EventHelper signup right now.");
+function noRaidsReply(lang = "de") {
+    return answerPayload(tr(lang, "There are no coming raids with an EventHelper signup right now."), { lang });
 }
 
 module.exports = {
@@ -31,13 +33,14 @@ module.exports = {
     noRaidsReply,
     async execute(interaction) {
         const uid = interaction.user.id;
+        const lang = langOfInteraction(interaction);
         const profile = profiles.getProfile(uid) || { characters: [] };
-        if (!characterOptions(profile).length) return interaction.reply(noCharacterReply());
+        if (!characterOptions(profile).length) return interaction.reply(noCharacterReply(lang));
         const raids = signableRaids();
-        if (!raids.length) return interaction.reply(noRaidsReply());
+        if (!raids.length) return interaction.reply(noRaidsReply(lang));
         const token = createSession(uid, { mode: "multi", eventIds: raids.map((e) => e.id) });
         if (interaction.client) await loadAppEmojis(interaction.client);
-        const payload = buildRaidPicker(token, getSession(token, uid), raids, { emojis: appEmojiMap() });
+        const payload = buildRaidPicker(token, getSession(token, uid), raids, { emojis: appEmojiMap(), lang });
         return interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
     },
 };

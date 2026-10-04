@@ -12,6 +12,7 @@
 // `<characterKey>:<specKey>:<roleMask>` — the same state signupDialog.js
 // carries, so its handlers take over seamlessly. A customId is a hint, never a
 // permission: every save goes through signupService.submitSignup.
+// Only the member sees it: the texts are in their language (`lang`).
 const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
 const { getSignup, lastSignupOf } = require("../../stores/signupStore");
@@ -22,18 +23,18 @@ const { getEvent } = require("../../stores/eventStore");
 const { buildClasses } = require("../../config/gameVersions/classes");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { emojiOption, specEmojiName } = require("../../services/discord/appEmojis");
-const { toEnglish } = require("./botEnglish");
+const { tr, serviceText, specLabel, classLabel } = require("../i18n/botText");
 const {
-    MAX_CUSTOM_ID, STATUS_CODES, STATUS_BY_CODE, STATUS_STATE,
+    MAX_CUSTOM_ID, STATUS_CODES, STATUS_BY_CODE, statusState, gearText,
     encodeState, decodeState, statusId, commentId, signableCharacters, pickText, missingVersionLine,
 } = require("./signupDialog");
 
 const JOIN_PREFIX = "event-join";
 const MAX_OPTIONS = 25;
-const GEAR_TEXT = { ready: "raid ready", usable: "usable", none: "no gear" };
 const GEAR_RANK = { ready: 2, usable: 1, none: 0 };
+// English, translated with tr(lang, ROLE_TEXT[role]).
 const ROLE_TEXT = { tank: "Tank", healer: "Healer" };
-const CLASS_LABEL = new Map(buildClasses().map((c) => [c.id, c.labelEn || c.label]));
+const CLASS_INFO = new Map(buildClasses().map((c) => [c.id, c]));
 
 
 /** customId of a picker component; the state is dropped when the id would pass 100 characters. */
@@ -130,10 +131,10 @@ function resolvePick(profile, options, { state = null, mine = null, last = null 
 
 /**
  * The picker payload for one member, one own event and the status they chose.
- * @param {{ state?: object|null, notice?: string, emojis?: object, now?: number }} opts
+ * @param {{ state?: object|null, notice?: string, emojis?: object, now?: number, lang?: string }} opts
  * @returns {{ embeds: object[], components: object[] }}
  */
-function buildJoinPicker(event, userId, status, { state = null, notice = "", emojis = {}, now = Date.now() } = {}) {
+function buildJoinPicker(event, userId, status, { state = null, notice = "", emojis = {}, now = Date.now(), lang = "de" } = {}) {
     const uid = String(userId || "");
     const profile = profiles.getProfile(uid) || { characters: [] };
     const mine = getSignup(event.id, uid);
@@ -145,16 +146,16 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
 
     const lines = [];
     const start = Number(event.startTime) || 0;
-    lines.push([`**${STATUS_STATE[status] || status}**`, start ? `<t:${start}:f>` : ""].filter(Boolean).join(" · "));
-    lines.push("Which character? – from your EventHelper profile");
+    lines.push([`**${statusState(lang, status)}**`, start ? `<t:${start}:f>` : ""].filter(Boolean).join(" · "));
+    lines.push(tr(lang, "Which character? – from your EventHelper profile"));
     if (mine) {
-        const what = mine.status === "absence" ? "" : pickText(profile, mine.character, mine.spec, versionId);
-        lines.push(`So far: **${STATUS_STATE[mine.status] || mine.status}**${what ? ` · ${what}` : ""}`);
+        const what = mine.status === "absence" ? "" : pickText(profile, mine.character, mine.spec, versionId, lang);
+        lines.push(`${tr(lang, "So far: **{status}**", { status: statusState(lang, mine.status) })}${what ? ` · ${what}` : ""}`);
     }
-    if (win.deadlinePassed && !win.started) lines.push("The signup deadline has passed – only “Late” or Absence now.");
-    const missing = missingVersionLine(profile, versionId);
+    if (win.deadlinePassed && !win.started) lines.push(tr(lang, "The signup deadline has passed – only “Late” or Absence now."));
+    const missing = missingVersionLine(profile, versionId, lang);
     if (missing) lines.push(missing);
-    if (notice) lines.push("", toEnglish(notice));
+    if (notice) lines.push("", serviceText(lang, notice));
 
     const lastOption = last
         ? options.find((o) => sameOption(o, last.character, last.spec))
@@ -163,13 +164,13 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
     const selectOptions = options.slice(0, MAX_OPTIONS).map((o) => {
         const info = profiles.specInfo(o.spec) || {};
         const description = [
-            CLASS_LABEL.get(o.classId) || o.classId,
-            GEAR_TEXT[o.gear] || "",
-            ROLE_TEXT[info.role] || "",
-            o === lastOption ? "last used" : "",
+            classLabel(lang, CLASS_INFO.get(o.classId), o.classId),
+            gearText(lang, o.gear),
+            ROLE_TEXT[info.role] ? tr(lang, ROLE_TEXT[info.role]) : "",
+            o === lastOption ? tr(lang, "last used") : "",
         ].filter(Boolean).join(" · ");
         const option = {
-            label: `${o.name} · ${info.labelEn || info.label || o.spec}`.slice(0, 100),
+            label: `${o.name} · ${specLabel(lang, info) || o.spec}`.slice(0, 100),
             value: `${o.character}|${o.spec}`.slice(0, 100),
             description: description.slice(0, 100),
             default: o.character === picks.character && o.spec === picks.spec,
@@ -186,7 +187,7 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
             components: [{
                 type: 3,
                 custom_id: joinId(event.id, status, "c", picks),
-                placeholder: "Pick character · spec …",
+                placeholder: tr(lang, "Pick character · spec …"),
                 min_values: 1,
                 max_values: 1,
                 options: selectOptions,
@@ -200,20 +201,20 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
                 type: 2,
                 style: 3,
                 custom_id: statusId(event.id, status, picks),
-                label: status === "signed" ? "Sign up" : `Save: ${STATUS_STATE[status] || status}`,
+                label: status === "signed" ? tr(lang, "Sign up") : tr(lang, "Save: {status}", { status: statusState(lang, status) }),
                 disabled: !picks.spec || win.started,
             },
-            { type: 2, style: 2, custom_id: joinId(event.id, status, "m", picks), label: "Can also …", disabled: win.started },
-            { type: 2, style: 2, custom_id: commentId(event.id, picks), label: "Comment", disabled: !mine || win.started },
+            { type: 2, style: 2, custom_id: joinId(event.id, status, "m", picks), label: tr(lang, "Can also …"), disabled: win.started },
+            { type: 2, style: 2, custom_id: commentId(event.id, picks), label: tr(lang, "Comment"), disabled: !mine || win.started },
             // Several own characters, first choice + "kann auch mit" (#293, commands/signup/signupMulti.js).
             ...(options.length > 1 && status !== "absence"
-                ? [{ type: 2, style: 2, custom_id: `signup-multi:e:${event.id}:${STATUS_CODES[status] || "s"}`, label: "Several characters …", disabled: win.started }]
+                ? [{ type: 2, style: 2, custom_id: `signup-multi:e:${event.id}:${STATUS_CODES[status] || "s"}`, label: tr(lang, "Several characters …"), disabled: win.started }]
                 : []),
         ],
     });
     // A link button needs an absolute url.
     if (/^https?:\/\//.test(publicBaseUrl())) {
-        components[components.length - 1].components.push({ type: 2, style: 5, label: "Profile", url: `${publicBaseUrl()}/profile` });
+        components[components.length - 1].components.push({ type: 2, style: 5, label: tr(lang, "Profile"), url: `${publicBaseUrl()}/profile` });
     }
 
     const embed = {

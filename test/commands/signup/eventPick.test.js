@@ -40,6 +40,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
+    mocks.access.config = { botLanguage: "en" };
     mocks.events.set("eh-kara", mocks.ownEvent());
 });
 
@@ -119,7 +120,7 @@ describe("commands/signup/eventPick", () => {
         expect(late.update.mock.calls[0][0].components.flatMap((r) => r.components).map((c) => c.custom_id)).toEqual(["event-btn:eh-kara:late", "event-btn:eh-kara:absence"]);
 
         mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
-        mocks.access.config = { categoryRoles: { "cat-1": ["role-raider"] } };
+        mocks.access.config = { botLanguage: "en", categoryRoles: { "cat-1": ["role-raider"] } };
         mocks.access.roleIds = ["other"];
         const cls = pick("Mage");
         await command.execute(cls);

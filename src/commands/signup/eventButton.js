@@ -4,6 +4,8 @@ const { getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
 const { versionOfEvent } = require("../../services/events/mainVersion");
 const { archivedNotice } = require("../../services/events/eventArchive");
+const { langOfInteraction } = require("../../services/discord/botLanguage");
+const { tr } = require("../../utils/i18n/botText");
 const { submitSignup, checkRaiderRole } = require("../../services/signups/signupService");
 const { BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
@@ -11,7 +13,7 @@ const { characterOptions } = require("../../utils/signup/joinPicker");
 const { classLabel, missingVersionLine } = require("../../utils/signup/signupDialog");
 const {
     parseButtonId, refusal, savedEmbed, picksWithStatus, firstCharacterTo, withAddedCharacter, orderedValues,
-    buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal, STATUS_WORD,
+    buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal, statusWord,
 } = require("../../utils/signup/signupButtons");
 const { answerPayload, answerUpdate } = require("../../utils/signup/signupReply");
 const { noteMode, MIN_NOTE } = require("../../services/signups/signupNotes");
@@ -20,6 +22,7 @@ const { noteMode, MIN_NOTE } = require("../../services/signups/signupNotes");
 // them — see utils/signup/signupButtons.js for the flow and the customIds. Every answer
 // is ephemeral: a click on the public message replies, a step inside the
 // member's own message updates it. Saves go through signupService.submitSignup.
+// Everything is in the member's language (langOfInteraction).
 const STATUS_ACTIONS = ["late", "tentative", "bench"];
 
 // After the public select reset itself (eventPick.js: interaction.update), the answer is a follow-up.
@@ -27,12 +30,12 @@ const STATUS_ACTIONS = ["late", "tentative", "bench"];
 // `{ embed }` (the save confirmation); a picker payload goes out as it is.
 const reply = (interaction, payload, event = null) => {
     let body;
-    if (typeof payload === "string") body = answerPayload(payload, { event });
+    if (typeof payload === "string") body = answerPayload(payload, { event, lang: langOfInteraction(interaction) });
     else if (payload && payload.embed) body = answerPayload(payload.embed);
     else body = { ...payload, flags: MessageFlags.Ephemeral };
     return interaction.replied || interaction.deferred ? interaction.followUp(body) : interaction.reply(body);
 };
-const done = (interaction, answer, event = null) => interaction.update(answerUpdate(answer, { event }));
+const done = (interaction, answer, event = null) => interaction.update(answerUpdate(answer, { event, lang: langOfInteraction(interaction) }));
 
 async function emojisFor(interaction) {
     if (interaction.client) await loadAppEmojis(interaction.client);
@@ -63,15 +66,15 @@ function takeNote(eventId, uid, status, now = Date.now()) {
 /** The message a modal brought, or `{ error }` when the category requires one and it is too short. */
 function noteFrom(interaction, event) {
     const note = String(interaction.fields.getTextInputValue("reason") || "").replace(/\s+/g, " ").trim();
-    if (noteMode(event.categoryId) === "required" && note.length < MIN_NOTE) return { error: "Please leave a short message." };
+    if (noteMode(event.categoryId) === "required" && note.length < MIN_NOTE) return { error: tr(langOfInteraction(interaction), "Please leave a short message.") };
     return { note };
 }
 
 const displayName = (interaction) => (interaction.member && interaction.member.displayName) || (interaction.user && interaction.user.username) || "";
 
-/** Refused status or raider role: the reason, else "". */
-async function blocked(event, uid, status) {
-    const why = refusal(event, status);
+/** Refused status or raider role: the reason (the service's in German, answerPayload translates), else "". */
+async function blocked(event, uid, status, lang) {
+    const why = refusal(event, status, Date.now(), lang);
     if (why) return why;
     const access = await checkRaiderRole(event, uid);
     return access.error || "";
@@ -92,36 +95,39 @@ async function save(interaction, event, input, { update = false } = {}) {
     }
     const emojis = await emojisFor(interaction);
     // "You are on the waiting list" belongs under the confirmation, not into the roster (#306).
-    const embed = savedEmbed(event, result.signup, profiles.getProfile(uid), { emojis, notice: result.notice });
+    const embed = savedEmbed(event, result.signup, profiles.getProfile(uid), { emojis, notice: result.notice, lang: langOfInteraction(interaction) });
     return update ? done(interaction, embed) : reply(interaction, { embed });
 }
 
 /** Anmelden: one fitting character signs up at once, several get the select, none the class way. */
 async function onJoin(interaction, event) {
     const uid = interaction.user.id;
-    const why = await blocked(event, uid, "signed");
+    const lang = langOfInteraction(interaction);
+    const why = await blocked(event, uid, "signed", lang);
     if (why) return reply(interaction, why, event);
     const profile = profiles.getProfile(uid) || { characters: [] };
     const options = characterOptions(profile, versionOfEvent(event));
     const emojis = await emojisFor(interaction);
     if (!options.length) {
-        const notice = missingVersionLine(profile, versionOfEvent(event)) || "No character in your profile yet – pick class and spec, then the bot asks for the name.";
-        return reply(interaction, buildClassPicker(event, "signed", { emojis, notice }));
+        const notice = missingVersionLine(profile, versionOfEvent(event), lang)
+            || tr(lang, "No character in your profile yet – pick class and spec, then the bot asks for the name.");
+        return reply(interaction, buildClassPicker(event, "signed", { emojis, notice, lang }));
     }
     if (options.length === 1) {
         const [only] = options;
         return save(interaction, event, { characters: [{ character: only.character, spec: only.spec, status: "signed" }], status: "signed" });
     }
-    return reply(interaction, buildCharacterPicker(event, uid, "signed", { emojis }));
+    return reply(interaction, buildCharacterPicker(event, uid, "signed", { emojis, lang }));
 }
 
 /** A class from the public select (#303), or the old "Klasse wählen" button (no class yet): spec step, then the name modal. */
 async function onClass(interaction, event, classId) {
-    const why = await blocked(event, interaction.user.id, "signed");
+    const lang = langOfInteraction(interaction);
+    const why = await blocked(event, interaction.user.id, "signed", lang);
     if (why) return reply(interaction, why, event);
     const emojis = await emojisFor(interaction);
-    if (!classId) return reply(interaction, buildClassPicker(event, "signed", { emojis }));
-    return reply(interaction, buildSpecPicker(event, "signed", classId, { emojis }) || "Unknown class.", event);
+    if (!classId) return reply(interaction, buildClassPicker(event, "signed", { emojis, lang }));
+    return reply(interaction, buildSpecPicker(event, "signed", classId, { emojis, lang }) || tr(lang, "Unknown class."), event);
 }
 
 /**
@@ -130,7 +136,8 @@ async function onClass(interaction, event, classId) {
  */
 async function onStatus(interaction, event, status, { note } = {}) {
     const uid = interaction.user.id;
-    const why = await blocked(event, uid, status);
+    const lang = langOfInteraction(interaction);
+    const why = await blocked(event, uid, status, lang);
     if (why) return reply(interaction, why, event);
     const comment = note === undefined ? {} : { comment: note };
     const moved = firstCharacterTo(getSignup(event.id, uid), status);
@@ -142,17 +149,18 @@ async function onStatus(interaction, event, status, { note } = {}) {
     const profile = profiles.getProfile(uid) || { characters: [] };
     const options = characterOptions(profile, versionOfEvent(event));
     if (!options.length) {
-        const notice = missingVersionLine(profile, versionOfEvent(event)) || `No character in your profile yet – which class are you coming with as “${STATUS_WORD[status]}”?`;
-        return reply(interaction, buildClassPicker(event, status, { emojis, notice }));
+        const notice = missingVersionLine(profile, versionOfEvent(event), lang)
+            || tr(lang, "No character in your profile yet – which class are you coming with as “{status}”?", { status: statusWord(lang, status) });
+        return reply(interaction, buildClassPicker(event, status, { emojis, notice, lang }));
     }
-    return reply(interaction, buildCharacterPicker(event, uid, status, { emojis }));
+    return reply(interaction, buildCharacterPicker(event, uid, status, { emojis, lang }));
 }
 
 /** The character select: save the picks (listed order = priority) with the flow's status. */
 async function onPick(interaction, event, status) {
     const listed = (interaction.component && interaction.component.options) || [];
     const picks = orderedValues(interaction.values, listed);
-    if (!picks.length) return done(interaction, "No character picked.", event);
+    if (!picks.length) return done(interaction, tr(langOfInteraction(interaction), "No character picked."), event);
     const note = takeNote(event.id, interaction.user.id, status);
     return save(interaction, event, { characters: picksWithStatus(picks, status), status, ...note }, { update: true });
 }
@@ -160,16 +168,18 @@ async function onPick(interaction, event, status) {
 /** The name modal: add the character (or its spec) to the profile, then add it to the signup. */
 async function onName(interaction, event, status, specKey) {
     const uid = interaction.user.id;
+    const lang = langOfInteraction(interaction);
     const info = profiles.specInfo(specKey);
-    if (!info) return done(interaction, "⚠️ Unknown spec – please pick again.", event);
-    const why = await blocked(event, uid, status);
+    if (!info) return done(interaction, `⚠️ ${tr(lang, "Unknown spec – please pick again.")}`, event);
+    const why = await blocked(event, uid, status, lang);
     if (why) return done(interaction, `⚠️ ${why}`, event);
     const name = String(interaction.fields.getTextInputValue("character") || "").trim();
     const profile = profiles.getProfile(uid) || { characters: [] };
     const versionId = versionOfEvent(event);
     const existing = profiles.findCharacter(profile, name, versionId);
     if (existing && existing.className !== info.classId) {
-        return done(interaction, `⚠️ ${existing.name} is already in your profile as a ${classLabel(event, existing.className)} – pick another name.`, event);
+        const text = tr(lang, "{name} is already in your profile as a {class} – pick another name.", { name: existing.name, class: classLabel(event, existing.className, lang) });
+        return done(interaction, `⚠️ ${text}`, event);
     }
     const added = profiles.addCharacter(uid, {
         name,
@@ -178,7 +188,7 @@ async function onName(interaction, event, status, specKey) {
         source: "manual",
     }, { name: displayName(interaction), versionId });
     if (added.error) return done(interaction, `⚠️ ${added.error}`, event);
-    const next = withAddedCharacter(getSignup(event.id, uid), { character: added.character.name, spec: info.key, status });
+    const next = withAddedCharacter(getSignup(event.id, uid), { character: added.character.name, spec: info.key, status }, lang);
     if (next.error) return done(interaction, `⚠️ ${next.error}`, event);
     const note = takeNote(event.id, uid, next.status);
     return save(interaction, event, { characters: next.characters, status: next.status, ...note }, { update: true });
@@ -225,11 +235,15 @@ module.exports = {
         const { eventId, action, status, arg } = parseButtonId(interaction.customId);
         const event = getEvent(eventId);
         const isModal = !!(interaction.isModalSubmit && interaction.isModalSubmit());
+        const lang = langOfInteraction(interaction);
         // A click on the public message replies; a step in the member's own message updates it.
         const fromPublic = ["join", "class", "absence", "why", "note", ...STATUS_ACTIONS].includes(action);
-        if (!event) return fromPublic ? reply(interaction, "This event no longer exists.") : done(interaction, "This event no longer exists.");
+        if (!event) {
+            const gone = tr(lang, "This event no longer exists.");
+            return fromPublic ? reply(interaction, gone) : done(interaction, gone);
+        }
         // A hidden game version (#563): the old message still answers, but only that the raid is archived.
-        const archived = archivedNotice(event);
+        const archived = archivedNotice(event, { lang });
         if (archived) return fromPublic ? reply(interaction, archived, event) : done(interaction, archived, event);
         const uid = interaction.user.id;
 
@@ -245,41 +259,49 @@ module.exports = {
                 // The message first (unless the category asks for none), refused cases before it.
                 const mode = noteMode(event.categoryId);
                 if (mode === "none") return onStatus(interaction, event, action);
-                const why = await blocked(event, uid, action);
+                const why = await blocked(event, uid, action, lang);
                 if (why) return reply(interaction, why, event);
-                return interaction.showModal(buildNoteModal(event.id, action, { required: mode === "required" }));
+                return interaction.showModal(buildNoteModal(event.id, action, { required: mode === "required", lang }));
             }
             case "absence": {
                 // Signing off is always allowed until the start — unless the event is cancelled.
-                const why = refusal(event, "absence");
+                const why = refusal(event, "absence", Date.now(), lang);
                 if (why) return reply(interaction, why, event);
                 const mode = noteMode(event.categoryId);
                 if (mode === "none") return signOff(interaction, event);
-                return interaction.showModal(buildNoteModal(event.id, "absence", { required: mode === "required" }));
+                return interaction.showModal(buildNoteModal(event.id, "absence", { required: mode === "required", lang }));
             }
             case "why":
                 return onAbsence(interaction, event);
             case "note":
-                if (!isModal || !status) return reply(interaction, "Unknown action.", event);
+                if (!isModal || !status) return reply(interaction, tr(lang, "Unknown action."), event);
                 return onNote(interaction, event, status);
-            case "pick":
-                return onPick(interaction, event, status || "signed");
-            case "other":
-                return interaction.update(buildClassPicker(event, status || "signed", { emojis: await emojisFor(interaction) }));
-            case "cls": {
-                const picker = buildSpecPicker(event, status || "signed", String((interaction.values || [])[0] || ""), { emojis: await emojisFor(interaction) });
-                return picker ? interaction.update(picker) : done(interaction, "Unknown class.", event);
-            }
-            case "spec": {
-                const specKey = String((interaction.values || [])[0] || "");
-                if (!profiles.specInfo(specKey)) return done(interaction, "Unknown spec.", event);
-                return interaction.showModal(buildNameModal(event, uid, status || "signed", specKey, { displayName: displayName(interaction) }));
-            }
-            case "name":
-                if (!isModal) return done(interaction, "Unknown action.", event);
-                return onName(interaction, event, status || "signed", arg);
             default:
-                return fromPublic ? reply(interaction, "Unknown action.") : done(interaction, "Unknown action.", event);
+                if (fromPublic) return reply(interaction, tr(lang, "Unknown action."));
+                return onStep(interaction, event, { action, status: status || "signed", arg, isModal, lang });
         }
     },
 };
+
+/** A step inside the member's own message: the character, class and spec selects, the name modal. */
+async function onStep(interaction, event, { action, status, arg, isModal, lang }) {
+    const value = String((interaction.values || [])[0] || "");
+    switch (action) {
+        case "pick":
+            return onPick(interaction, event, status);
+        case "other":
+            return interaction.update(buildClassPicker(event, status, { emojis: await emojisFor(interaction), lang }));
+        case "cls": {
+            const picker = buildSpecPicker(event, status, value, { emojis: await emojisFor(interaction), lang });
+            return picker ? interaction.update(picker) : done(interaction, tr(lang, "Unknown class."), event);
+        }
+        case "spec":
+            if (!profiles.specInfo(value)) return done(interaction, tr(lang, "Unknown spec."), event);
+            return interaction.showModal(buildNameModal(event, interaction.user.id, status, value, { displayName: displayName(interaction), lang }));
+        case "name":
+            if (!isModal) return done(interaction, tr(lang, "Unknown action."), event);
+            return onName(interaction, event, status, arg);
+        default:
+            return done(interaction, tr(lang, "Unknown action."), event);
+    }
+}

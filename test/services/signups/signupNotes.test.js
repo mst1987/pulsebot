@@ -39,7 +39,7 @@ describe("services/signups/signupNotes", () => {
     });
 
     it("builds an embed like Raid-Helper's: title bar, who/status/reason, and a closing raid line", () => {
-        const post = notes.buildNotePost(EVENT, signup({ comment: "**krank** @everyone\n> x" }));
+        const post = notes.buildNotePost(EVENT, signup({ comment: "**krank** @everyone\n> x" }), { lang: "en" });
         expect(post.embeds).toHaveLength(1);
         const embed = post.embeds[0];
         expect(embed.title).toBe("Notification received!");
@@ -51,10 +51,23 @@ describe("services/signups/signupNotes", () => {
         expect(lines[3]).toBe("");
         expect(lines[4]).toBe("<@123456> | **[SSC + TK](https://discord.com/channels/10000/20000/30000)** <t:1760000000:f>");
 
-        const noCharacter = notes.buildNotePost({ title: "Kara" }, signup({ status: "tentative", character: "" }));
+        const noCharacter = notes.buildNotePost({ title: "Kara" }, signup({ status: "tentative", character: "" }), { lang: "en" });
         const noCharacterLines = noCharacter.embeds[0].description.split("\n");
         expect(noCharacterLines[0]).toBe("**<@123456>** signed up as **Tentative** with the following reason:");
         expect(noCharacterLines[4]).toBe("<@123456> | **Kara**");
+    });
+
+    it("writes the post in the server language, German by default", () => {
+        const embed = notes.buildNotePost(EVENT, signup()).embeds[0];
+        expect(embed.title).toBe("Benachrichtigung erhalten!");
+        expect(embed.description.split("\n")[0]).toBe("**<@123456> (zibbo)** hat sich als **Abgemeldet** gemeldet, mit folgender Begründung:");
+        const tentative = notes.buildNotePost(EVENT, signup({ status: "tentative" })).embeds[0];
+        expect(tentative.description).toContain("als **Vielleicht** gemeldet");
+    });
+
+    it("posts in the configured server language", async () => {
+        await notes.postSignupNote(EVENT, signup(), null, { config: { ...CHANNEL, botLanguage: "en" } });
+        expect(discord.postNotice.mock.calls[0][1].embeds[0].title).toBe("Notification received!");
     });
 
     it("posts to the configured channel", async () => {
