@@ -8,8 +8,6 @@
    --qcols. Down to 390 px wide tables scroll inside their panel, never the page.
    ===================================================================== */
 
-.content:has(.kp-page) { max-width: 1440px; }
-
 .kp-page { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .kp-view { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 

@@ -220,10 +220,6 @@ dialog.dlg.dlg-flush .dlg-foot .dlg-hint { order: -1; margin-right: auto; }
 .lang-toggle button.is-on { color: var(--text); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); cursor: default; }
 .lang-toggle button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent); }
 
-/* sub entries of the menu (Raidplan-Vorlagen, Raidplan-Katalog under Raid-Events) */
-.nav-item.is-sub { margin-left: 16px; padding-top: 5px; padding-bottom: 5px; font-size: 13.5px; }
-.nav-item.is-sub .wi { width: 20px; height: 20px; }
-
 /* ---- what used to be inline styles (#441) --------------------------------
    A fixed look is a class; a value that differs per element (a width, a
    colour, a position) is a custom property set on the element and read here. */

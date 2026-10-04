@@ -71,6 +71,14 @@ describe("persistedState hooks", () => {
         expect(hook).toContain("allowed as readonly string[]).includes(v)");
         expect(hook).toMatch(/pick\(searchParams\.get\(param\)\) \?\? pick\(read<string>\(fullKey, ""\)\) \?\? fallback/);
     });
+
+    it("remembers a value that came with a link only when the page asks for it", () => {
+        // A deep link into the raid list must not change the view the sidebar
+        // opens next week; the settings sections, opened from the menu's links, must.
+        const hook = persistedState.match(/export function usePersistedSearchParam[\s\S]*?\r?\n}\r?\n/)[0];
+        expect(hook).toContain("rememberLinked = false,");
+        expect(hook).toContain("const linked = rememberLinked ? pick(searchParams.get(param)) : null;");
+    });
 });
 
 describe("client state persistence", () => {
@@ -85,6 +93,8 @@ describe("client state persistence", () => {
         ["pages/RaidsPage.tsx", "raids-category"],
         ["pages/RaidsPage.tsx", "raids-view"],
         ["pages/settings/SettingsPage.tsx", "settings-section"],
+        // the menu's folded-out groups (Raid-Events, Einstellungen)
+        ["components/Shell.tsx", "menu-groups"],
     ];
 
     it.each(TAB_PAGES)("%s remembers its open tab as %s", (file, key) => {

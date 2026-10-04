@@ -2,14 +2,15 @@ import WowIcon from "./ui/WowIcon";
 import Badge, { type Tone } from "./ui/Badge";
 
 // A secondary navigation for a page that holds more sections than a single tab
-// row can carry legibly: a narrow column of entries with a heading per group,
-// the same idiom as the shell's sidebar (.menu-label / .nav-item), one level in.
-// Each entry leads with its WoW icon and may carry a round count badge for
-// what is open there ("1 Verbindung fehlt"), so nobody has to open every section
-// to find the one that needs attention.
+// row can carry legibly: a wrapping row of chips with a heading per group, each
+// group on its own line, so the grouping survives on a phone. Each entry leads
+// with its WoW icon and may carry a round count badge for what is open there
+// ("1 Verbindung fehlt"), so nobody has to open every section to find the one
+// that needs attention.
 //
-// Below the layout breakpoint it turns into a wrapping row of chips — the group
-// headings stay, each taking its own line, so the grouping survives on a phone.
+// Einstellungen shows it only below the shell's breakpoint: on a wide screen
+// its sections are the children of "Einstellungen" in the main menu
+// (components/Shell.tsx), so the page keeps the full width (styles/settings.css).
 
 export type NavBadge = { count: number; tone?: Tone; tip?: string };
 export type NavEntry = { id: string; label: string; icon?: string; badge?: NavBadge | null };
