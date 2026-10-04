@@ -3,6 +3,8 @@ import { ChevronLeft, ZoomIn, ZoomOut } from "lucide-react";
 import { useVisiblePoll } from "../hooks/useVisiblePoll";
 import { hasSectionDeepLink, sectionFromUrl, showSectionInUrl } from "../lib/raidplan/sectionUrl";
 import { useBoardView } from "../hooks/useBoardView";
+import { useSheetLayout } from "../hooks/useSheetLayout";
+import type { StripMode } from "../lib/raidplan/sheetLayout";
 import { viewFromSaved } from "../lib/raidplan/boardView";
 import MiniMap from "../components/raidplan/MiniMap";
 import { useViewPrefs } from "../hooks/useViewPrefs";
@@ -14,6 +16,7 @@ import { useApi } from "../hooks/useApi";
 import { autoPlaces, deriveAuto } from "../lib/raidplan/autoPlace";
 import PlanBoard from "../components/raidplan/PlanBoard";
 import StageBar from "./raid-detail/raidplan/stage/StageBar";
+import BossStrip from "./raid-detail/raidplan/stage/BossStrip";
 import MineCard from "./raid-detail/raidplan/stage/MineCard";
 import TasksPanel from "./raid-detail/raidplan/stage/TasksPanel";
 import { bossesWithMine } from "../lib/raidplan/bossMine";
@@ -110,8 +113,11 @@ export default function PlanPublicPage({ token }: { token: string }) {
     }, [updatedAt]);
     const [focusGroup, setFocusGroup] = useState(0);
     const [onlyMine, setOnlyMine] = useState(false);
-    const [panel, setPanel] = useState(false);
-    const togglePanel = useCallback(() => setPanel((v) => !v), []);
+    // the boss strip and "Alle Einteilungen" as this visitor left them (this browser, across sections and reloads)
+    const [layout, setLayout] = useSheetLayout();
+    const panel = layout.allTasks;
+    const togglePanel = useCallback(() => setLayout({ allTasks: !panel }), [setLayout, panel]);
+    const setStrip = useCallback((strip: StripMode) => setLayout({ strip }), [setLayout]);
     // "Deine Aufgaben" starts folded on a phone, where it would cover half the map
     const [mineFolded, setMineFolded] = useState(() => window.innerWidth < 720);
     const bv = useBoardView({ touchPan: true });
@@ -203,6 +209,10 @@ export default function PlanPublicPage({ token }: { token: string }) {
         />
     );
 
+    const strip = (mode: "top" | "left") => (
+        <BossStrip sections={shownBosses} selectedKey={boss.key} mineKeys={mineKeys} killedKeys={progress.killed} label={label} mode={mode} onPick={progress.choose} />
+    );
+
     return (
         <div className="rp-public rp-sheet">
             {/* the page has no menu shell: its own layer draws the data-tip boxes (the arrows, the groups, the zoom buttons) */}
@@ -213,8 +223,12 @@ export default function PlanPublicPage({ token }: { token: string }) {
                 head={`${data.event.title} · ${formatEventTime(data.event.startTime)}`} onPick={progress.choose}
                 groups={hasMap ? groupNs : []} focusGroup={focusGroup} onFocusGroup={setFocusGroup} follow={progress.chip}
                 onlyMine={data.me && data.meIds.length > 0 ? { on: onlyMine, toggle: () => setOnlyMine((v) => !v) } : null}
+                strip={{ mode: layout.strip, set: setStrip }} allTasks={hasMap ? { on: panel, toggle: togglePanel } : null}
                 updated={updatedAt > 0}
             />
+            {layout.strip === "top" && strip("top")}
+            <div className="rp-sheet-main">
+            {layout.strip === "left" && strip("left")}
             {hasMap ? (
                 <div ref={stageRef} className={`rp-sheet-stage${panel ? " is-panel" : ""}`}>
                     {boss.mapUrl && <img className="rp-sheet-backdrop" src={boss.mapUrl} alt="" aria-hidden="true" />}
@@ -251,6 +265,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                     {tasks}
                 </div>
             )}
+            </div>
         </div>
     );
 }

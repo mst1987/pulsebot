@@ -51,7 +51,7 @@ const rowOf = (c: HTMLElement, n: number) => Array.from(c.querySelectorAll(".rp-
 class NoResize { observe() {} unobserve() {} disconnect() {} }
 vi.stubGlobal("ResizeObserver", NoResize);
 
-beforeEach(() => vi.mocked(api.getRaidplanPublic).mockReset());
+beforeEach(() => { vi.mocked(api.getRaidplanPublic).mockReset(); window.localStorage.clear(); });
 
 describe("PlanPublicPage — highlighting a group (#512)", () => {
     it("nothing is dimmed until a chip is clicked", async () => {

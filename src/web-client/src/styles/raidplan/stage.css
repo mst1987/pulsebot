@@ -13,7 +13,8 @@
 .rp-sheet-arrow:disabled { opacity: .35; cursor: default; }
 .rp-sheet-arrow:focus-visible, .rp-sheet-menubtn:focus-visible, .rp-sheet-groups button:focus-visible, .rp-sheet-iconbtn:focus-visible, .rp-sheet-tab:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 .rp-sheet-portrait { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--rp-enemy); object-fit: cover; }
-.rp-sheet-titles { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+/* a fixed width: the arrows stay put from boss to boss ("Reliquary of the Lost", "High Warlord Naj'entus" fit); longer ends in "…" */
+.rp-sheet-titles { display: flex; flex-direction: column; flex: none; width: 300px; min-width: 0; line-height: 1.2; }
 .rp-sheet-titles .rp-kicker { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rp-sheet-title { margin: 0; font-size: 22px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rp-sheet-menuwrap { position: relative; flex: none; }
@@ -47,6 +48,45 @@
 .rp-sheet-gnum { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 3px; box-sizing: border-box; border-radius: 5px; background: var(--gc); color: var(--gi); font: 800 12px/1 var(--font-mono); }
 .rp-sheet-tools { display: flex; align-items: center; gap: 10px; flex: none; margin-left: auto; }
 .rp-sheet-tools .rp-autofollow { margin-left: 0; }
+/* "Alle Einteilungen": a switch with its word, pressed while the panel is open */
+.rp-sheet-alltasks { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.rp-sheet-alltasks:hover { border-color: var(--accent); }
+.rp-sheet-alltasks.is-on { border-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+.rp-sheet-alltasks:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+/* the menu's "Boss-Leiste: Aus | Oben | Links" */
+.rp-sheet-menu-strip { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px 6px; font-size: 14px; }
+.rp-sheet-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--ctl-radius); overflow: hidden; }
+.rp-sheet-seg button { height: 32px; padding: 0 12px; border: 0; background: var(--panel); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.rp-sheet-seg button + button { border-left: 1px solid var(--line); }
+.rp-sheet-seg button.is-on { background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent); font-weight: 800; }
+
+/* ---- the extra boss strip (BossStrip.tsx): a row under the bar or a column beside the map ---- */
+.rp-sheet-main { flex: 1; min-height: 0; display: flex; }
+.rp-sheet-main > .rp-sheet-stage, .rp-sheet-main > .rp-sheet-flat { flex: 1; min-width: 0; }
+.rp-sheet-strip { flex: none; display: flex; background: var(--panel); }
+.rp-sheet-strip.is-top { flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+.rp-sheet-strip.is-left { flex-direction: column; gap: 12px; width: 236px; box-sizing: border-box; padding: 12px 10px; overflow-y: auto; border-right: 1px solid var(--line); }
+.rp-sheet-strip-run { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rp-sheet-strip.is-left .rp-sheet-strip-run { flex-direction: column; align-items: stretch; gap: 4px; }
+.rp-sheet-strip-run > .rp-kicker { flex: none; white-space: nowrap; }
+.rp-sheet-strip.is-left .rp-sheet-strip-run > .rp-kicker { padding: 0 6px 2px; }
+.rp-sheet-strip-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.rp-sheet-strip.is-left .rp-sheet-strip-chips { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
+.rp-sheet-chip { position: relative; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 11px 0 4px; border: 1px solid var(--line); border-radius: 17px; background: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.rp-sheet-strip.is-left .rp-sheet-chip { width: 100%; height: 40px; border-color: transparent; border-radius: 8px; background: transparent; text-align: left; }
+.rp-sheet-chip:hover { border-color: var(--accent); }
+.rp-sheet-strip.is-left .rp-sheet-chip:hover { background: var(--panel2); }
+.rp-sheet-chip:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+.rp-sheet-chip.is-on, .rp-sheet-strip.is-left .rp-sheet-chip.is-on { border-color: var(--accent); background: var(--accent-soft); font-weight: 800; }
+.rp-sheet-chip img, .rp-sheet-chip-ph { flex: none; width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: var(--panel3); }
+.rp-sheet-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.rp-sheet-chip.is-killed { opacity: var(--rp-done-dim); }
+.rp-sheet-chip.is-killed img { filter: grayscale(.7); }
+.rp-sheet-chip.is-killed.is-on, .rp-sheet-chip.is-killed:hover, .rp-sheet-chip.is-killed:focus-visible { opacity: 1; }
+/* the visitor's own section: the accent dot top right; a killed boss: the check bottom right (as the old chips had them) */
+.rp-sheet-chip-mine { position: absolute; left: 22px; top: 2px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--panel); }
+.rp-sheet-chip-done { position: absolute; left: 20px; bottom: 1px; display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: var(--good); color: var(--on-good); box-shadow: 0 0 0 2px var(--panel); }
 
 /* ---- the stage ---- */
 .rp-sheet-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--rp-board-bg); }
@@ -111,7 +151,17 @@
 @media (max-width: 720px) {
     .rp-sheet-bar { padding: 8px 10px; gap: 8px; }
     .rp-sheet-boss { flex-basis: 100%; }
-    .rp-sheet-titles { flex: 1; }
+    .rp-sheet-titles { flex: 1; width: auto; }
+    /* the switch keeps its icon only (its name stays in aria-label), so menu and tools share one line */
+    .rp-sheet-alltasks { width: 40px; padding: 0; justify-content: center; }
+    .rp-sheet-alltasks-word { display: none; }
+    .rp-sheet-strip-run { flex: none; }
+    /* on a phone the strip is always a scrolling row under the bar, also when "Links" is chosen */
+    .rp-sheet-main { flex-direction: column; }
+    .rp-sheet-strip.is-top, .rp-sheet-strip.is-left { flex-direction: row; flex-wrap: nowrap; width: auto; gap: 14px; padding: 6px 10px; overflow-x: auto; overflow-y: hidden; border-right: 0; border-bottom: 1px solid var(--line); }
+    .rp-sheet-strip.is-left .rp-sheet-strip-run { flex-direction: row; align-items: center; }
+    .rp-sheet-strip-chips, .rp-sheet-strip.is-left .rp-sheet-strip-chips { flex-direction: row; flex-wrap: nowrap; }
+    .rp-sheet-strip.is-left .rp-sheet-chip { width: auto; height: 34px; border-color: var(--line); border-radius: 17px; background: var(--panel2); }
     .rp-sheet-title { font-size: 18px; }
     /* the menu opens under the whole bar, as wide as the screen */
     .rp-sheet-menuwrap { position: static; }

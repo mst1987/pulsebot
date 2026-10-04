@@ -151,3 +151,39 @@ describe("Alle Aufgaben", () => {
         expect(card()).toBeInTheDocument();
     });
 });
+
+describe("the visitor's layout (remembered in this browser)", () => {
+    it("'Alle Einteilungen' opens the tables and the next visit starts with them open", async () => {
+        const r = await open();
+        await userEvent.click(screen.getByRole("button", { name: /Alle Einteilungen/ }));
+        expect(screen.getByRole("complementary", { name: "Alle Aufgaben" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Alle Einteilungen/ })).toHaveAttribute("aria-pressed", "true");
+        // another section keeps it open
+        await userEvent.click(screen.getByRole("button", { name: "Nächster Abschnitt: Supremus" }));
+        expect(screen.getByRole("complementary", { name: "Alle Aufgaben" })).toBeInTheDocument();
+        r.unmount();
+        await open();
+        expect(screen.getByRole("complementary", { name: "Alle Aufgaben" })).toBeInTheDocument();
+        await userEvent.click(screen.getByRole("button", { name: /Alle Einteilungen/ }));
+        expect(screen.queryByRole("complementary")).toBeNull();
+    });
+
+    it("the boss strip shows every section as a chip, over the map or beside it, and picks one", async () => {
+        const r = await open();
+        expect(screen.queryByRole("navigation", { name: "Boss-Leiste" })).toBeNull();
+        await userEvent.click(screen.getByRole("button", { name: /Alle 4 Abschnitte/ }));
+        await userEvent.click(screen.getByRole("radio", { name: "Oben" }));
+        const strip = screen.getByRole("navigation", { name: "Boss-Leiste" });
+        expect(strip).toHaveClass("is-top");
+        expect(within(strip).getAllByRole("button")).toHaveLength(4);
+        expect(within(strip).getByRole("button", { name: "Supremus (Aufgabe für dich)" })).toBeInTheDocument();
+        expect(within(strip).getByRole("button", { name: "Najentus" })).toHaveAttribute("aria-current", "true");
+        await userEvent.click(within(strip).getByRole("button", { name: "Anetheron" }));
+        expect(heading()).toHaveTextContent("Anetheron");
+        await userEvent.click(screen.getByRole("button", { name: /Alle 4 Abschnitte/ }));
+        await userEvent.click(screen.getByRole("radio", { name: "Links" }));
+        expect(screen.getByRole("navigation", { name: "Boss-Leiste" })).toHaveClass("is-left");
+        // the strip stands left of the map, in the page's main row
+        expect(r.container.querySelector(".rp-sheet-main > .rp-sheet-strip.is-left + .rp-sheet-stage")).not.toBeNull();
+    });
+});

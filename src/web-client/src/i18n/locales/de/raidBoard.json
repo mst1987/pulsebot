@@ -188,7 +188,13 @@
         "allTasksCount": "{n} Einteilungen",
         "close": "Schließen",
         "noTasks": "In diesem Abschnitt gibt es keine Einteilungen.",
-        "focusGroup": "Gruppe {n} hervorheben"
+        "focusGroup": "Gruppe {n} hervorheben",
+        "strip": "Boss-Leiste",
+        "stripOff": "Aus",
+        "stripTop": "Oben",
+        "stripLeft": "Links",
+        "allTasksToggle": "Alle Einteilungen",
+        "allTasksTip": "Blendet die Tabellen aller Einteilungen ein oder aus. Bleibt so, bis du es wieder änderst."
     },
     "slot": {
         "tank": "Tank {n}",
