@@ -33,7 +33,8 @@ const { versionOfEvent } = require("../events/mainVersion");
 const { archiveOf } = require("../events/eventArchive");
 const { spec: specOf } = require("../../config/gameVersions");
 const { TIMEZONE } = require("../../config/timezone");
-const { toEnglish } = require("../../utils/signup/botEnglish");
+const { tr, serviceText, specLabel, dateLocale } = require("../../utils/i18n/botText");
+const { langOf, serverLang } = require("../discord/botLanguage");
 const { buildEmbed } = require("../../utils/discord/reply");
 const logger = require("../../logger");
 
@@ -146,7 +147,9 @@ async function applyOutcome(entry, event, { now, config }) {
     const byOrga = !!entry.createdBy && entry.createdBy !== entry.userId;
     if (entry.kind === "absence") {
         if (previous && previous.status === "absence") return { ok: false, skipped: "already_absent" };
-        const comment = entry.comment || `Away ${shortDay(entry.from)}–${shortDay(entry.to)}`;
+        // the roster and the event message show it: the server language
+        const lang = serverLang(config);
+        const comment = entry.comment || tr(lang, "Away {from}–{to}", { from: shortDay(entry.from, lang), to: shortDay(entry.to, lang) });
         const saved = await submitSignup(event.id, entry.userId, { status: "absence", comment }, { byOrga, now, config });
         return saved.error ? { ok: false, error: saved.error } : { ok: true };
     }
@@ -184,7 +187,7 @@ async function createEntry(userId, input = {}, { by = "", eventIds, now = Date.n
         results.push(await applyToRaid(added.entry, event, { now, config: cfg }));
     }
     const entry = store.getEntry(added.entry.id) || added.entry;
-    const sent = dm ? await sendDm(entry.userId, entryDm(entry, results)) : false;
+    const sent = dm ? await sendDm(entry.userId, entryDm(entry, results, langOf(entry.userId, { config: cfg }))) : false;
     return { entry, results, dm: sent };
 }
 
@@ -207,7 +210,7 @@ async function applyToEvent(eventId, { now = Date.now(), config } = {}) {
         for (const entry of entries) {
             const result = await applyToRaid(entry, event, { now, config: cfg });
             out.push({ entry, result });
-            if (result.ok) await sendDm(entry.userId, raidDm(entry, event));
+            if (result.ok) await sendDm(entry.userId, raidDm(entry, event, langOf(entry.userId, { config: cfg })));
         }
     } catch (e) {
         logger.warn(`[availability] ${eventId}: ${(e && e.message) || e}`);
@@ -229,11 +232,11 @@ function activeEntries(userId, { now = Date.now() } = {}) {
     return store.listEntries({ userId }).filter((e) => e.to >= t);
 }
 
-// --- DMs (English, like every raider-facing bot text) ---
+// --- DMs, in the raider's language (services/discord/botLanguage.js) ---
 
-function shortDay(day) {
+function shortDay(day, lang = "de") {
     const dt = DateTime.fromISO(str(day), { zone: TIMEZONE });
-    return dt.isValid ? dt.setLocale("en").toFormat("d LLL") : str(day);
+    return dt.isValid ? dt.setLocale(dateLocale(lang)).toFormat(dateLocale(lang) === "de" ? "d. LLL" : "d LLL") : str(day);
 }
 
 /** "<t:…:D> – <t:…:D>" of an entry's period; one day once. */
@@ -243,9 +246,8 @@ function periodText(entry) {
     return entry.from === entry.to ? `<t:${from}:D>` : `<t:${from}:D> – <t:${to}:D>`;
 }
 
-function specName(key) {
-    const info = profiles.specInfo(key);
-    return (info && (info.labelEn || info.label)) || key;
+function specName(key, lang) {
+    return specLabel(lang, profiles.specInfo(key), key);
 }
 
 function raidLine(r) {
@@ -262,49 +264,56 @@ const SKIP_TEXT = {
 };
 
 /** The DM after entering: the period, what was done per raid, and that later raids follow. */
-function entryDm(entry, results) {
+function entryDm(entry, results, lang = "de") {
     const absence = entry.kind === "absence";
     const lines = [periodText(entry)];
-    if (absence && entry.comment) lines.push(`Reason: ${entry.comment}`);
-    if (!absence) lines.push(`Character: **${entry.character}** · ${specName(entry.spec)}`);
+    if (absence && entry.comment) lines.push(tr(lang, "Reason: {reason}", { reason: entry.comment }));
+    if (!absence) lines.push(tr(lang, "Character: **{character}** · {spec}", { character: entry.character, spec: specName(entry.spec, lang) }));
     const done = results.filter((r) => r.ok);
     const skipped = results.filter((r) => !r.ok && r.skipped);
     const failed = results.filter((r) => !r.ok && !r.skipped);
     lines.push("");
     if (done.length) {
-        lines.push(absence ? "**Signed off from:**" : "**Signed up for:**");
+        lines.push(absence ? tr(lang, "**Signed off from:**") : tr(lang, "**Signed up for:**"));
         for (const r of done) lines.push(`• ${raidLine(r)}`);
     } else {
-        lines.push(absence ? "No raid to sign off from yet." : "No raid to sign up for yet.");
+        lines.push(absence ? tr(lang, "No raid to sign off from yet.") : tr(lang, "No raid to sign up for yet."));
     }
-    for (const r of skipped) lines.push(`⏭️ ${raidLine(r)} – ${SKIP_TEXT[r.skipped] || "skipped"}`);
-    for (const r of failed) lines.push(`⛔ ${raidLine(r)} – ${toEnglish(r.error)}`);
+    for (const r of skipped) lines.push(`⏭️ ${raidLine(r)} – ${tr(lang, SKIP_TEXT[r.skipped] || "skipped")}`);
+    for (const r of failed) lines.push(`⛔ ${raidLine(r)} – ${serviceText(lang, r.error)}`);
     lines.push("");
     lines.push(absence
-        ? "Raids created later in this period sign you off automatically – you get a DM each time."
-        : "Raids created later in this period sign you up automatically – you get a DM each time.");
+        ? tr(lang, "Raids created later in this period sign you off automatically – you get a DM each time.")
+        : tr(lang, "Raids created later in this period sign you up automatically – you get a DM each time."));
     return {
-        title: absence ? "Absence saved" : "Attendance saved",
+        title: absence ? tr(lang, "Absence saved") : tr(lang, "Attendance saved"),
         description: lines.join("\n"),
-        by: entry.createdBy !== entry.userId ? entry.createdBy : "",
+        footer: entry.createdBy !== entry.userId ? tr(lang, "Entered for you by the raid lead") : "",
     };
 }
 
 /** The DM when a raid of the period was signed up / off for the raider later on. */
-function raidDm(entry, event) {
+function raidDm(entry, event, lang = "de") {
     const absence = entry.kind === "absence";
     const lines = [raidLine({ eventId: event.id, title: event.title, startTime: event.startTime })];
+    const period = periodText(entry);
     lines.push(absence
-        ? `You are away ${periodText(entry)}${entry.comment ? ` (${entry.comment})` : ""}, so you were signed off.`
-        : `You are available ${periodText(entry)}, so you were signed up with **${entry.character}** · ${specName(entry.spec)}.`);
-    lines.push("Changed your mind? Sign up or off again in the raid's message.");
-    return { title: absence ? "Signed off automatically" : "Signed up automatically", description: lines.join("\n"), by: "" };
+        ? (entry.comment
+            ? tr(lang, "You are away {period} ({reason}), so you were signed off.", { period, reason: entry.comment })
+            : tr(lang, "You are away {period}, so you were signed off.", { period }))
+        : tr(lang, "You are available {period}, so you were signed up with **{character}** · {spec}.", { period, character: entry.character, spec: specName(entry.spec, lang) }));
+    lines.push(tr(lang, "Changed your mind? Sign up or off again in the raid's message."));
+    return {
+        title: absence ? tr(lang, "Signed off automatically") : tr(lang, "Signed up automatically"),
+        description: lines.join("\n"),
+        footer: "",
+    };
 }
 
 /** Send one of the DMs above as an embed. Never throws; returns whether it went out. */
-async function sendDm(userId, { title, description, by }) {
+async function sendDm(userId, { title, description, footer }) {
     try {
-        const embed = buildEmbed({ title, description, footer: by ? "Entered for you by the raid lead" : "" });
+        const embed = buildEmbed({ title, description, footer });
         const sent = await discord.sendDirectMessage(userId, { embeds: [embed] });
         return !!(sent && sent.ok);
     } catch (e) {

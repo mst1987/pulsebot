@@ -39,6 +39,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
+    mocks.access.config = { botLanguage: "en" };
     for (const e of store.listEntries()) store.removeEntry(e.id);
     discord.sendDirectMessage.mockClear();
     for (const [id, days, cat] of [["eh-a", 2, "cat1"], ["eh-b", 3, "cat1"], ["eh-c", 3, "cat2"]]) {
@@ -158,6 +159,18 @@ describe("Anwesenheit", () => {
         await command.execute(save);
         expect(answerOf(save.editReply.mock.calls[0][0]).title).toBe("Attendance saved");
         expect(mocks.signups.get(`eh-a/${ANNA}`)).toMatchObject({ status: "signed", character: "Zibbowar", spec: "Warrior-Protection" });
+    });
+});
+
+describe("Deutsch als Standard", () => {
+    it("antwortet ohne eigene Wahl in der Server-Sprache Deutsch", async () => {
+        mocks.access.config = {};
+        const modal = submit("availability:ma:", { from: "morgen", to: "" });
+        await command.execute(modal);
+        expect(answerOf(replyPayload(modal)).description).toBe("⚠️ Bitte ein gültiges Von- und Bis-Datum angeben.");
+        const btn = click("availability:a:");
+        await command.execute(btn);
+        expect(btn.showModal.mock.calls[0][0].data.title).toBe("Abwesenheit eintragen");
     });
 });
 

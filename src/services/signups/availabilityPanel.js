@@ -2,12 +2,16 @@
 // builds it): one per raid category, posted by the orga into a channel of its
 // choice. Its buttons open the entries for that category's raids only. Posting
 // again — into the same or another channel — replaces the category's earlier
-// panel, so there is never a second one with stale buttons.
+// panel, so there is never a second one with stale buttons. The panel speaks the
+// server language (services/discord/botLanguage.js); refreshPanels() redraws
+// every posted one in place when it changes.
 const store = require("../../stores/availabilityStore");
 const discord = require("../discord/discord");
 const { eventGuildIds } = require("../discord/guildRoles");
 const settingsStore = require("../../stores/settingsStore");
+const { serverLang } = require("../discord/botLanguage");
 const { panelPayload } = require("../../utils/signup/availabilityDialog");
+const logger = require("../../logger");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -37,7 +41,7 @@ async function postPanel({ categoryId, channelId, by = "", config } = {}) {
     const categoryName = categoryNameFor(cat, { config });
     let posted;
     try {
-        posted = await discord.postPayload(channel, panelPayload({ categoryId: cat, categoryName }));
+        posted = await discord.postPayload(channel, panelPayload({ categoryId: cat, categoryName, lang: serverLang(config) }));
     } catch (e) {
         return { error: `Das Panel konnte nicht gepostet werden: ${(e && e.message) || e}` };
     }
@@ -54,4 +58,26 @@ async function removePanel(categoryId) {
     return panel;
 }
 
-module.exports = { postPanel, removePanel, categoryNameFor };
+/**
+ * Redraw every posted panel in place (the server language changed). A panel
+ * whose message is gone or cannot be edited is logged and left; never throws.
+ * @returns {Promise<{ edited: number, failed: number }>}
+ */
+async function refreshPanels({ config } = {}) {
+    const cfg = config || settingsStore.getConfig();
+    const lang = serverLang(cfg);
+    const out = { edited: 0, failed: 0 };
+    for (const panel of store.listPanels()) {
+        try {
+            const categoryName = categoryNameFor(panel.categoryId, { config: cfg });
+            await discord.editPayload(panel.channelId, panel.messageId, panelPayload({ categoryId: panel.categoryId, categoryName, lang }));
+            out.edited += 1;
+        } catch (e) {
+            out.failed += 1;
+            logger.warn(`[availability] panel ${panel.categoryId}: ${(e && e.message) || e}`);
+        }
+    }
+    return out;
+}
+
+module.exports = { postPanel, removePanel, refreshPanels, categoryNameFor };
