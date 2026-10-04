@@ -32,11 +32,11 @@ const reader = { id: "u3", name: "Member", isAdmin: false, access: { loot: { rea
 describe("web/report/render — Empfehlungen for a reviewer", () => {
     it("shows every finding with verdict controls, the open count in the KPI card and the raid section", () => {
         const html = renderReportPage(report(null), admin);
-        expect(html).toContain("<section class=\"gcard\" id=\"rs-rec-raid\">");
-        expect(html).toContain("Offene Empfehlungen</div>");
-        expect(html).toContain("<div class=\"kpi-v\">3 <small>· bei 1 von 2 Raidern</small></div>"); // three undecided
-        // the area head counts its own in the breadcrumb, the one action is "Alle senden"
-        expect(html).toContain("<b>Empfehlungen an den Raid</b><span class=\"kicker\">Raid › Empfehlungen · 1 offen · 0 freigegeben</span>");
+        // the raid findings sit under "Das Wichtigste" above the views, with the one send button
+        expect(html).toContain("<section class=\"key-findings\" id=\"rs-rec-raid\">");
+        expect(html).not.toContain("Offene Empfehlungen");
+        expect(html).toContain("<h2>Das Wichtigste</h2>");
+        expect(html).toContain("<span class=\"sub\">1 Punkt für den ganzen Raid · 1 offen · 0 freigegeben</span>");
         expect(html).toContain("2 Tode in den ersten 30 Sekunden");
         expect(html).toContain("data-scope=\"raid\" data-player=\"\" data-key=\"raid.earlyDeaths\"");
         expect(html).toContain("data-scope=\"player\" data-player=\"Farin\" data-key=\"gear\"");
@@ -56,7 +56,7 @@ describe("web/report/render — Empfehlungen for a reviewer", () => {
         expect(html).toContain("class=\"rec rrow-d rec-high rec-state-approved\" data-key=\"gear\"");
         expect(html).toContain("<p class=\"rec-body\">Bitte vor dem Raid verzaubern.</p>");
         expect(html).toContain("class=\"rec rrow-d rec-low rec-state-rejected\" data-key=\"consumables.food\"");
-        expect(html).toContain("<div class=\"kpi-v\">1 <small>· bei 0 von 2 Raidern</small></div>"); // only the raid finding is still open
+        expect(html).toContain("<span class=\"sub\">1 Punkt für den ganzen Raid · 1 offen · 0 freigegeben</span>"); // only the raid finding is still open
         // the active verdict is toned; the text sits in the row's body with the editor
         expect(html).toMatch(/<button type="button" class="ibtn ok" data-tip="Freigeben"[^>]*data-review="approve">/);
         expect(html).toMatch(/<button type="button" class="ibtn bad" data-tip="Nicht senden"[^>]*data-review="reject">/);
@@ -67,7 +67,7 @@ describe("web/report/render — Empfehlungen for a reviewer", () => {
     it("puts the raider's own points into their card: chip, section with controls and the footer", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true } } } }), admin);
         expect(html).toContain("data-name=\"Farin\" data-role=\"dps\" data-open=\"1\"");
-        expect(html).toContain("inv_misc_note_01.jpg\" alt=\"\">1 offen</span>");
+        expect(html).toContain("<span class=\"badge\" data-tip=\"Befunde, die noch niemand freigegeben oder verworfen hat\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_misc_note_01.jpg\" alt=\"\">1 Empfehlung offen</span>");
         expect(html).toMatch(/Empfehlungen<span class="n(?: mid| bad)?">2 · 1 offen<\/span>/);
         expect(html).toContain("<span class=\"note\">1 freigegeben · 1 offen · zuletzt gesendet: nie</span>");
         expect(html).toContain("data-phrase=\"player\"");
@@ -90,8 +90,8 @@ describe("web/report/render — Empfehlungen for everyone else", () => {
         expect(renderReportPage(report(null), reader)).not.toContain("2 Gear-Probleme");
         const html = renderReportPage(report({ raid: { "raid.earlyDeaths": { approved: true } }, players: { Farin: { gear: { approved: true } } } }), reader);
         expect(html).toContain("id=\"rs-rec-raid\"");
-        expect(html).toContain("<b>Empfehlungen an den Raid</b><span class=\"kicker\">Raid › Empfehlungen · 1 Punkt von der Raidleitung</span></div><span class=\"grow\"></span><span class=\"badge count\">1</span>");
-        expect(html).toContain("<div class=\"kpi-v\">2 <small>· freigegeben · bei 1 Raidern</small></div>"); // the raid's point and Farin's
+        expect(html).toContain("<h2>Das Wichtigste</h2><span class=\"sub\">1 Punkt von der Raidleitung</span>");
+        expect(html).not.toContain("Offene Empfehlungen");
         expect(html).toContain("2 Gear-Probleme");
         expect(html).not.toContain("Essen 80 %");
         expect(html).not.toContain("data-review=");

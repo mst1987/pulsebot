@@ -1,4 +1,4 @@
-// "Alle senden": the one action in the head of the raid's recommendations, a dialog with counts, mapping check, phrasing and send.
+// "Empfehlungen senden": the one main button of "Das Wichtigste", a dialog with counts, mapping check, phrasing and send.
 const { renderReportPage } = require("../../../src/web/report/render.js");
 
 function report(review, sent) {
@@ -22,9 +22,9 @@ function report(review, sent) {
 const admin = { id: "u1", name: "Lead", isAdmin: true };
 
 describe("web/report/render — send box", () => {
-    it("opens from the area head as a dialog with the counts and an active send button once something is approved", () => {
+    it("opens from the Das Wichtigste head as a dialog with the counts and an active send button once something is approved", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true } } } }, { Farin: { at: 1 } }), admin);
-        expect(html).toMatch(/<button type="button" class="btn btn-sm" data-dialog="dlg-rs-send"><img class="hicon"[^>]*inv_letter_15\.jpg" alt="">Alle senden …<\/button>/);
+        expect(html).toMatch(/<button type="button" class="btn" data-dialog="dlg-rs-send"><img class="hicon"[^>]*inv_letter_15\.jpg" alt="">Empfehlungen senden …<\/button>/);
         expect(html).toContain("<dialog class=\"dlg detail\" id=\"dlg-rs-send\">");
         expect(html).toContain("<div class=\"rec-send\" data-report=\"abc123def456\">");
         expect(html).toContain("1 Raider mit freigegebenen Punkten</span>");

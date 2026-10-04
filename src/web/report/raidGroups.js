@@ -1,5 +1,5 @@
-// Sicht Raid: the findings for the raid and the three area groups (Vorbereitung,
-// Leistung, Fehler), one metric card and one detail dialog per area.
+// Sicht Raid: the three area groups (Vorbereitung, Leistung, Fehler), one
+// metric card and one detail dialog per area.
 const { plural } = require("../../utils/text");
 const { esc } = require("./layout");
 const { badge, groupHead, detailDialog, whoList, whatList, metricCard, barCell, hicon, fmtK, sumOf, avgOf } = require("./widgets");
@@ -9,12 +9,11 @@ const { renderSunderPanel, renderBossUptimesPanel, renderRaidDebuffsPanel } = re
 const { groupByBoss } = require("./fightTopics");
 const { renderHealersPanel } = require("./panels/healers");
 const { renderRaidBuffsPanel } = require("./panels/buffs");
-const { renderRaidRecommendations, renderSendBox } = require("./recommendations");
 const { renderRpbDamagePanel } = require("./panels/damage");
 const { renderRpbActivityPanel, renderRpbSpellsPanel, renderRpbInterruptsPanel, renderRpbValidationPanel, renderRpbUsagePanel } = require("./panels/rpb");
 const { AREA_HOW, renderCooldownSummary, renderActivitySummary, renderTotemSummary, renderMechanicsSummary } = require("./panels/summaries");
 
-// ---- Sicht Raid: four groups (Empfehlungen · Vorbereitung · Leistung · Fehler) ----
+// ---- Sicht Raid: three groups (Vorbereitung · Leistung · Fehler) ----
 //
 // Every raid-wide part is a metric card: one value, one or two badges and the
 // raiders who stand out; the explanation sits in the tooltip of its title and
@@ -44,27 +43,8 @@ function rpbOf(report) {
     return { rpb, roles: rpb && rpb.roles };
 }
 
-// --- Empfehlungen an den Raid ---
-
-/** The findings for the raid as a group of their own; a reader sees only the approved ones, and no group when there are none. */
-function recsGroup(ctx) {
-    const { report, reviewer, rec } = ctx;
-    if (!rec) return null;
-    const raid = rec.raid || [];
-    const shown = reviewer ? raid : raid.filter((i) => i.approved === true);
-    if (!shown.length && !reviewer) return null;
-    const open = raid.filter((i) => i.approved === null).length;
-    const approved = raid.filter((i) => i.approved === true).length;
-    const crumb = reviewer ? `Raid › Empfehlungen · ${open} offen · ${approved} freigegeben` : `Raid › Empfehlungen · ${plural(shown.length, "Punkt", "Punkte")} von der Raidleitung`;
-    const players = (rec.players || []).filter((p) => p.items.some((i) => i.approved === true)).length;
-    const action = reviewer
-        ? `<button type="button" class="btn btn-sm" data-dialog="dlg-rs-send">${hicon("inv_letter_15", "")}Alle senden …</button>`
-        : badge(String(shown.length), "", "", true);
-    return {
-        id: "recs", flagged: reviewer ? open : 0,
-        html: `<section class="gcard" id="rs-rec-raid">${groupHead("inv_misc_note_01", open && reviewer ? "mid" : "", "Empfehlungen an den Raid", crumb, action)}${renderRaidRecommendations(rec, reviewer)}${reviewer ? detailDialog("rs-send", "inv_letter_15", "", "Alle senden", `Raid › Empfehlungen › Versand · ${plural(players, "Raider", "Raider")} mit freigegebenen Punkten`, renderSendBox(report), "Ein unveränderter Satz wird nie zweimal geschickt.") : ""}</section>`,
-    };
-}
+// The raid's findings are not a group here: they head the page as „Das
+// Wichtigste“ (recommendations.js renderKeyFindings).
 
 // --- Vorbereitung: one function per area, each null when its source is missing ---
 
@@ -333,11 +313,9 @@ function areaGroup(g, list) {
     };
 }
 
-/** The four groups of Sicht Raid, only those with something in them: { id, flagged, html }. */
+/** The three area groups of Sicht Raid, only those with something in them: { id, flagged, html }. */
 function raidGroups(ctx) {
-    const groups = [recsGroup(ctx)];
-    for (const g of AREA_GROUPS) groups.push(areaGroup(g, g.areas.map((fn) => fn(ctx)).filter(Boolean)));
-    return groups.filter(Boolean);
+    return AREA_GROUPS.map((g) => areaGroup(g, g.areas.map((fn) => fn(ctx)).filter(Boolean))).filter(Boolean);
 }
 
 module.exports = {

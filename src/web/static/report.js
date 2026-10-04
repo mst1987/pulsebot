@@ -87,8 +87,9 @@
 
     /**
      * Where a url points on the report page: ?player=<name> and #raider-<name>
-     * open that raider's card, #raid / #bosse / #raider a view.
-     * @returns {{ raider: string } | { view: string } | null}
+     * open that raider's card, #boss-<key> that boss's page, #raid / #bosse /
+     * #raider a view.
+     * @returns {{ raider: string } | { boss: string } | { view: string } | null}
      */
     function viewTarget(hash, search) {
         var h;
@@ -101,6 +102,8 @@
         if (q) return { raider: q };
         var m = h.match(/^raider-(.+)$/);
         if (m) return { raider: m[1] };
+        var b = h.match(/^boss-(.+)$/);
+        if (b) return { boss: b[1] };
         if (h === "raid" || h === "bosse" || h === "raider") return { view: h };
         return null;
     }
@@ -254,11 +257,60 @@
             }
         }
     }
+    // Sicht Bosse: the table, or one boss's page in its place
+    function showBoss(key) {
+        var page = key ? document.getElementById("boss-" + key) : null;
+        var index = document.getElementById("bossIndex");
+        if (!index) return;
+        index.hidden = !!page;
+        document.querySelectorAll(".boss-detail").forEach(function (d) {
+            d.hidden = d !== page;
+        });
+        var view = document.getElementById("view-bosse");
+        if (view && view.getBoundingClientRect().top < 0) view.scrollIntoView({ block: "start" });
+    }
+    function setHash(h) {
+        try {
+            history.replaceState(null, "", "#" + h);
+        } catch {
+            /* a sandboxed frame may refuse it; the page switched anyway */
+        }
+    }
+    document.addEventListener("click", function (e) {
+        var o = e.target.closest("[data-boss-open]");
+        if (o) {
+            showBoss(o.getAttribute("data-boss-open"));
+            setHash("boss-" + o.getAttribute("data-boss-open"));
+            return;
+        }
+        if (e.target.closest("[data-boss-back]")) {
+            showBoss(null);
+            setHash("bosse");
+        }
+    });
     function fromUrl() {
         var t = viewTarget(location.hash, location.search);
         if (t && t.raider) openRaider(t.raider);
-        else if (t) showView(t.view);
+        else if (t && t.boss) {
+            showView("bosse");
+            showBoss(t.boss);
+        } else if (t) {
+            showView(t.view);
+            if (t.view === "bosse") showBoss(null);
+        }
     }
+
+    // ---- a table's folded rows: "n weitere anzeigen" / "Weniger anzeigen" ----
+    document.addEventListener("click", function (e) {
+        var b = e.target.closest("[data-unfold]");
+        if (!b) return;
+        var rows = b.closest("table").querySelectorAll(".fold-row");
+        var open = rows.length && rows[0].hidden;
+        rows.forEach(function (r) {
+            r.hidden = !open;
+        });
+        b.textContent = b.getAttribute(open ? "data-less" : "data-more");
+    });
     document.addEventListener("click", function (e) {
         var b = e.target.closest(".seg.views [data-show]");
         if (!b) return;
@@ -280,6 +332,10 @@
             var ok = cardVisible({ open: c.getAttribute("data-open"), role: c.getAttribute("data-role"), name: c.getAttribute("data-name") }, cardRole, cardQuery);
             c.hidden = !ok;
             if (ok) any = true;
+        });
+        // a group without a card left after search and filter goes, head and all
+        document.querySelectorAll(".raider-group").forEach(function (g) {
+            g.hidden = !g.querySelector(".raider-card:not([hidden])");
         });
         var empty = document.getElementById("raiderEmpty");
         if (empty) empty.hidden = any;
@@ -324,7 +380,7 @@
         });
     });
 
-    // ---- "Alle senden": the mapping check and the send to every raider ---------------
+    // ---- "Empfehlungen senden": the mapping check and the send to every raider ---------------
     // The send button posts once and lists who got a DM and who was skipped and why;
     // "Zuordnung prüfen" fetches the per-raider mapping state without sending.
     function sendRow(cls, text) {

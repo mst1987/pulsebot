@@ -1,4 +1,4 @@
-// The raider cards fold: one <details> per raider, closed by default, at most three badges in the head.
+// The raider cards fold: one <details> per raider, closed by default, at most two badges in the head.
 const { renderReportPage } = require("../../../src/web/report/render.js");
 
 function report(review) {
@@ -32,10 +32,13 @@ describe("web/report/render — foldable raider cards", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true } } } }), admin);
         expect(html.match(/<details class="vcard raider-card"/g)).toHaveLength(2);
         expect(html).not.toMatch(/<details class="vcard raider-card"[^>]*\sopen>/);
-        expect(head(html, "Farin")).toContain("inv_misc_note_01.jpg\" alt=\"\">1 offen</span>");
-        // nothing stands out: one badge in the ok tone
+        // the open count is a neutral badge with words, no tone
+        expect(head(html, "Farin")).toContain("<span class=\"badge\" data-tip=\"Befunde, die noch niemand freigegeben oder verworfen hat\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_misc_note_01.jpg\" alt=\"\">1 Empfehlung offen</span>");
+        expect(head(html, "Farin")).toContain("<div class=\"vcard-sub\">Warlock · DPS</div>");
+        // nothing stands out: exactly one badge, in the ok tone (the role is plain text in the sub line now)
         expect(head(html, "Dorn")).toContain("<span class=\"badge ok\">");
-        expect(head(html, "Dorn").match(/class="badge (?:ok|mid|bad|accent)"/g)).toHaveLength(2); // the role badge + the one ok badge
+        expect(head(html, "Dorn").match(/class="badge[ "]/g)).toHaveLength(1);
+        expect(head(html, "Dorn")).toContain("<div class=\"vcard-sub\">Shaman · DPS</div>");
         // a card with undecided points is marked for the "Offen" filter
         expect(html).toContain("data-name=\"Farin\" data-role=\"dps\" data-open=\"1\"");
         expect(html).toMatch(/data-rolefilter="open"><img class="hicon"[^>]*>Offen <span class="n mid">1<\/span>/);

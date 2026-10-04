@@ -1,5 +1,5 @@
-// One boss fight on the report page (src/web/report/fight.js): the stats row,
-// the topic buttons and panels, the chart dialogs and the player's own strip.
+// One boss fight on the report page (src/web/report/fight.js): the topic list
+// and panels, the chart dialogs and the player's own strip.
 const { renderFightSection } = require("../../../src/web/report/fight");
 
 /** A kill with every topic the analyzers fill. */
@@ -65,43 +65,54 @@ describe("web/report/fight", () => {
     describe("the raid view (card mode)", () => {
         const html = renderFightSection(fullFight(), (n) => (n === "Alice" ? "/r/x/p/0" : null), null, 2, 3, true, "card", "", { iconUrl: "/bosses/650.jpg", crumb: "Bosse › Gruul", subject: "auf Gruul" });
 
-        it("opens the section with the stats row: DPS, HPS, activity, debuffs and deaths", () => {
-            expect(html).toMatch(/^<section class="fight" id="fight-3">/);
-            expect(html).toContain("Raid-DPS</div><div class=\"stat-v\">1,0k</div>");
-            expect(html).toContain("Raid-HPS</div><div class=\"stat-v\">300</div>");
-            expect(html).toContain("Aktivität Ø</div><div class=\"stat-v bad\">77 %</div>");
-            expect(html).toContain("Debuffs erwartet</div><div class=\"stat-v\">3 <small class=\"bad\">· 1 fehlte</small></div>");
-            expect(html).toContain("Tode</div><div class=\"stat-v bad\">2 <small>· Alice 0:30</small></div>");
+        it("has no stats row any more: the section opens with the topic list", () => {
+            expect(html).toMatch(/^<section class="fight" id="fight-3">\s*<div class="topic-grid"><nav class="topic-nav" aria-label="Bereiche">/);
+            expect(html).not.toContain("class=\"stats\"");
+            expect(html).not.toContain("Raid-DPS</div>");
+            expect(html).not.toContain("Debuffs erwartet");
+            expect(html).not.toContain("<nav class=\"secs\">");
         });
 
-        it("offers one button per topic with its count and tone, the first active", () => {
-            expect(html).toContain("<button type=\"button\" class=\"sec active\" data-show=\"fp-3-debuffs\">");
-            expect(html).toContain("Debuffs<span class=\"n bad\">3 · 1 fehlt</span>");
-            expect(html).toContain("Totems<span class=\"n bad\">3 · Twisting</span>");
-            expect(html).toContain("Cooldowns<span class=\"n bad\">4 · 38 % genutzt</span>");
-            expect(html).toContain("Aktivität<span class=\"n bad\">2 · Ø 77 %</span>");
-            expect(html).toContain("Mechaniken<span class=\"n mid\">4 · 4 Treffer</span>");
-            expect(html).toContain("Heilung<span class=\"n\">1 · 1 Heiler</span>");
-            expect(html).toContain("Buffs<span class=\"n bad\">1 · 1 fehlten</span>");
-            expect(html).toContain("data-show=\"fp-3-series\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_misc_pocketwatch_01.jpg\" alt=\"\">Kampfverlauf</button>");
-            expect(html).toContain("Tode<span class=\"n bad\">2</span>");
-            expect(html).toContain("<div id=\"fp-3-debuffs\" class=\"fight-part part\">");
+        it("offers one button per topic with its brief line and tone dot, worst first, the first active", () => {
+            const nav = html.slice(html.indexOf("<nav class=\"topic-nav\""), html.indexOf("</nav>"));
+            expect(nav).toContain("<button type=\"button\" class=\"topic active\" data-show=\"fp-3-debuffs\">");
+            expect(nav).toContain("<span class=\"tn\"><b>Debuffs</b><small>1 von 3 fehlten</small></span><span class=\"dot bad\"></span>");
+            expect(nav).toContain("<span class=\"tn\"><b>Totems</b><small>2 Schamanen · Twisting</small></span><span class=\"dot bad\"></span>");
+            expect(nav).toContain("<span class=\"tn\"><b>Cooldowns</b><small>38 % genutzt</small></span><span class=\"dot bad\"></span>");
+            expect(nav).toContain("<span class=\"tn\"><b>Aktivität</b><small>Ø 77 % aktiv</small></span><span class=\"dot bad\"></span>");
+            expect(nav).toContain("<span class=\"tn\"><b>Mechaniken</b><small>4 Treffer</small></span><span class=\"dot mid\"></span>");
+            expect(nav).toContain("<span class=\"tn\"><b>Heilung</b><small>1 Heiler</small></span><span class=\"dot ok\"></span>");
+            expect(nav).toContain("<span class=\"tn\"><b>Buffs</b><small>1 fehlten</small></span><span class=\"dot bad\"></span>");
+            expect(nav).toContain("<span class=\"tn\"><b>Tode</b><small>2 Tode · 1 vermeidbar</small></span><span class=\"dot bad\"></span>");
+            // the series is neutral: no verdict, last
+            expect(nav).toContain("<span class=\"tn\"><b>Kampfverlauf</b><small>DPS und HPS</small></span><span class=\"dot none\"></span>");
+            expect(nav.match(/class="topic active"/g)).toHaveLength(1);
+            // worst first: every bad topic, then mid, then ok, then neutral
+            const dots = [...nav.matchAll(/<span class="dot (\w+)"><\/span>/g)].map((m) => m[1]);
+            expect(dots).toEqual(["bad", "bad", "bad", "bad", "bad", "bad", "mid", "ok", "none"]);
+            expect(nav.indexOf("<b>Mechaniken</b>")).toBeLessThan(nav.indexOf("<b>Heilung</b>"));
+            expect(nav.indexOf("<b>Heilung</b>")).toBeLessThan(nav.indexOf("<b>Kampfverlauf</b>"));
+            expect(html).toContain("<div class=\"topic-panels\"><div id=\"fp-3-debuffs\" class=\"fight-part part\">");
             expect(html).toContain("<div id=\"fp-3-totems\" class=\"fight-part part\" hidden>");
         });
 
-        it("heads each part with its tile, subject and crumb, the chart behind a dialog", () => {
+        it("heads each part with its label, the chart behind a dialog, worst debuffs first and the good ones folded", () => {
             const debuffs = section(html, "fp-3-debuffs");
-            expect(debuffs).toContain("<div class=\"part-title\"><span class=\"tile bad\">");
-            expect(debuffs).toContain("Debuffs · auf Gruul<span class=\"kicker\">Bosse › Gruul › Try 2 › Debuffs</span>");
-            expect(debuffs).toContain("data-dialog=\"dlg-fp-3-debuffs\"");
-            expect(debuffs).toContain("Sunder Armor</td><td><span class=\"tv good\">100%</span></td><td>5/5 ab 0:08</td>");
+            expect(debuffs).toContain("<div class=\"topic-head\"><h3>Debuffs</h3><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-dialog=\"dlg-fp-3-debuffs\">");
+            expect(debuffs).not.toContain("part-title");
+            expect(debuffs).not.toContain("auf Gruul");
+            expect(debuffs).not.toContain("class=\"kicker\"");
+            expect(debuffs).toContain("<th>Debuff</th><th>Uptime</th>");
             expect(debuffs).toContain("Curse of Elements</td><td><span class=\"tv high\">fehlte</span></td><td>fehlt</td>");
             expect(debuffs).toContain("Faerie Fire</td><td><span class=\"tv high\">50%</span>");
+            expect(debuffs).toContain("<tr class=\"fold-row\" hidden><td><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/ability_sunder.jpg\" alt=\"\">Sunder Armor</td><td><span class=\"tv good\">100%</span></td><td>5/5 ab 0:08</td>");
+            expect(debuffs).toContain("<tr class=\"fold-btn-row\"><td colspan=\"5\"><button type=\"button\" class=\"fold-btn\" data-unfold data-more=\"1 weitere ab 100 % Uptime anzeigen\" data-less=\"Weniger anzeigen\">");
+            expect(debuffs.indexOf("Curse of Elements")).toBeLessThan(debuffs.indexOf("Faerie Fire"));
+            expect(debuffs.indexOf("Faerie Fire")).toBeLessThan(debuffs.indexOf("Sunder Armor"));
             expect(html).toContain("<dialog class=\"dlg chart\" id=\"dlg-fp-3-debuffs\">");
             expect(html).toContain("<img class=\"vcard-icon\" src=\"/bosses/650.jpg\" alt=\"\">");
             expect(html).toContain("Gruul &lt;the Dragonkiller&gt; · Debuffs</div><div class=\"vcard-meta\">Kill · 3:00 · 6 px pro Sekunde, seitlich scrollen</div>");
         });
-
         it("groups totems per shaman, the one with gaps first, and draws one chart per shaman", () => {
             const totems = section(html, "fp-3-totems");
             expect(totems.indexOf(">Rain<")).toBeLessThan(totems.indexOf(">Dorn<"));
@@ -208,11 +219,12 @@ describe("web/report/fight", () => {
         it("draws the fight itself as the one band, and a wipe with its health", () => {
             const html = renderFightSection({ id: 9, boss: "Maulgar", kill: false, fightPercentage: 32.5, duration: 120000, deaths: [] }, null, null, 1, 1, true, "card", "", null);
             expect(html).toMatch(/^<section class="fight fight-wipe" id="fight-9">/);
-            expect(html).toContain("Tode</div><div class=\"stat-v\">0 </div>");
-            expect(html).toContain("<button type=\"button\" class=\"sec active\" data-show=\"fp-9-fight\">");
-            expect(html).toContain("Kampf<span class=\"n\">1</span>");
+            expect(html).not.toContain("class=\"stats\"");
+            // the deaths topic is ok, the fight itself neutral: ok comes first
+            expect(html).toContain("<button type=\"button\" class=\"topic active\" data-show=\"fp-9-deaths\">");
+            expect(html).toContain("<span class=\"tn\"><b>Kampf</b><small>2:00</small></span><span class=\"dot none\"></span>");
             expect(html).toContain("Kampf (Wipe)</td><td><span class=\"tv high\">2:00</span></td>");
-            expect(html).toContain("Tode<span class=\"n\">0</span>");
+            expect(html).toContain("<span class=\"tn\"><b>Tode</b><small>niemand gestorben</small></span><span class=\"dot ok\"></span>");
             expect(html).toContain("<div class=\"fc-empty\">Niemand ist gestorben.</div>");
             expect(html).toContain("Wipe bei 33 % · 2:00");
             expect(html).not.toContain("class=\"kicker\">");
@@ -223,7 +235,9 @@ describe("web/report/fight", () => {
             expect(html).toContain("Kampf (Kill)</td><td><span class=\"tv good\">1:00</span></td>");
             expect(html).not.toContain("Raid-DPS");
             expect(html).not.toContain("Debuffs erwartet");
-            expect(html).toContain("<span class=\"kicker\">Bosse › X › Kampf</span>");
+            // no crumb kicker in the part head any more
+            expect(html).not.toContain("class=\"kicker\"");
+            expect(html).toContain("<div class=\"topic-head\"><h3>Kampf</h3>");
         });
     });
 
@@ -236,14 +250,19 @@ describe("web/report/fight", () => {
             mechanics: null, healers: null, buffs: { players: [{ name: "Cid", type: "Rogue", buffs: [] }] }, series: null, deaths: [],
         });
         const html = renderFightSection(f, null, null, 1, 1, true, "card", "", {});
-        expect(html).toContain("Debuffs erwartet</div><div class=\"stat-v\">1 </div>");
-        expect(html).toContain("Aktivität Ø</div><div class=\"stat-v\">99 %</div>");
-        expect(html).toContain("Totems<span class=\"n mid\">1</span>");
+        // a single debuff row that is good enough to fold has nothing to fold it away from
+        expect(html).toContain("<small>1 erwartet, alle da</small>");
+        expect(html).not.toContain("fold-btn");
+        expect(html).not.toContain("fold-row");
+        expect(html).toContain("<small>Ø 99 % aktiv</small>");
+        expect(html).toContain("<b>Totems</b><small>1 Schamane</small></span><span class=\"dot mid\"></span>");
+        // the worst topic opens first
+        expect(html).toContain("<button type=\"button\" class=\"topic active\" data-show=\"fp-3-totems\">");
         expect(html).toContain("<span class=\"badge mid\">1 Lücke</span>");
         expect(html).not.toContain("data-frole=\"Dorn\"");
-        expect(html).toContain("Cooldowns<span class=\"n\">1</span>");
+        expect(html).toContain("<b>Cooldowns</b><small>1 Cooldown</small></span><span class=\"dot ok\"></span>");
         expect(html).toContain("<span class=\"badge\">0 Einsätze</span>");
-        expect(html).toContain("Buffs<span class=\"n\">0 · alle da</span>");
-        expect(html).toContain("Tode<span class=\"n\">0</span>");
+        expect(html).toContain("<b>Buffs</b><small>alle da</small></span><span class=\"dot ok\"></span>");
+        expect(html).toContain("<b>Tode</b><small>niemand gestorben</small></span><span class=\"dot ok\"></span>");
     });
 });
