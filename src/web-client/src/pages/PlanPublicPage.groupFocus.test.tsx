@@ -1,6 +1,6 @@
-// The "Groups" bar of the read view /p/<token> (#512): a chip highlights its group — the raiders of the other groups
-// dim on the map (group markers with their ring and members, role slots, free tokens) and in the group heal table —
-// a second click ends it. Nothing of it is saved; "Only for me" and the highlight work side by side.
+// The groups in the stage bar of the read view /p/<token> (#512): a field highlights its group — the raiders of the other
+// groups dim on the map (group markers with their ring and members, role slots, free tokens) and in the group heal table
+// of "Alle Aufgaben" — a second click ends it. Nothing of it is saved; "Only for me" and the highlight work side by side.
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -38,6 +38,8 @@ async function open() {
     vi.mocked(api.getRaidplanPublic).mockResolvedValue({ data: plan(), etag: "" });
     const r = render(<PlanPublicPage token="abc" />);
     const bar = await screen.findByRole("group", { name: "Gruppen" });
+    // the tables of everyone are in the panel "Alle Aufgaben"
+    await userEvent.click(screen.getByRole("button", { name: /Alle Aufgaben/ }));
     return { r, bar, chip: (n: number) => within(bar).getByRole("button", { name: new RegExp(`Gruppe ${n}`) }) };
 }
 
@@ -89,15 +91,16 @@ describe("PlanPublicPage — highlighting a group (#512)", () => {
         expect(r.container.querySelectorAll(".rp-gdim, .rp-board .is-focus")).toHaveLength(0);
     });
 
-    it("works together with \"Only for me\": the map keeps the highlight, the own blocks stay", async () => {
+    it("works together with \"Only for me\": the map keeps the highlight, the section and the own card stay", async () => {
         const { r, chip } = await open();
         await userEvent.click(chip(2));
-        await userEvent.click(screen.getByRole("button", { name: /Nur für mich/ }));
+        await userEvent.click(screen.getByRole("button", { name: /Alle 1 Abschnitte/ }));
+        await userEvent.click(screen.getByRole("checkbox", { name: /Nur für mich/ }));
         expect(wraps(r.container)[1]).toHaveClass("is-focus");
         expect(wraps(r.container)[0]).toHaveClass("rp-gdim");
-        // the tables of everyone are gone, the own block is there
-        expect(r.container.querySelector(".rp-rtable")).toBeNull();
-        expect(r.container.querySelector(".rp-personal")).not.toBeNull();
+        // the open section stays, the visitor's card shows his own task
+        expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Supremus");
+        expect(screen.getByRole("region", { name: /Deine Aufgaben/ })).toHaveTextContent("Du machst");
         await userEvent.click(chip(2));
         expect(r.container.querySelectorAll(".rp-gdim")).toHaveLength(0);
     });

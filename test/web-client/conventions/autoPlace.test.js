@@ -15,7 +15,7 @@ describe("wiring", () => {
         expect(ws).toContain("autoUsers: auto.users");
         const sheet = read("pages/PlanPublicPage.tsx");
         expect(sheet).toContain("deriveAuto(boss.assignments");
-        expect(sheet).toContain("boss.showMap !== false ? deriveAuto");
+        expect(sheet).toContain("boss && hasMap ? deriveAuto");
         const pb = read("components/raidplan/PlanBoard.tsx");
         expect(pb).toContain("data-obj={`auto:${k.key}`}");
         expect(pb).toContain("raidBoard.auto.missing");

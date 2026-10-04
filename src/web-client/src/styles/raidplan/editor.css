@@ -14,14 +14,7 @@
 .rp-toolbar2 .ibtn.rp-save:not(:disabled) { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .rp-bar-template { font-size: 12.5px; }
 
-/* the section bar: every chip with its name; it wraps to a second line instead of scrolling or cutting names (#raidplan-16) */
-.rp-bossnav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 5px; padding: 2px 0; }
 .rp-bosschip-name { white-space: nowrap; }
-/* a phone: smaller chips, so a raid of three instances needs fewer lines (names stay whole) */
-@media (max-width: 560px) {
-    .rp-bossnav .rp-bosschip { font-size: 12px; padding: 2px 7px 2px 3px; gap: 4px; }
-    .rp-bossnav .rp-bosschip img { width: 20px; height: 20px; }
-}
 .rp-bosschip { position: relative; display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; padding: 3px 8px 3px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
 .rp-bosschip img { border-radius: 50%; }
 .rp-bosschip:hover { color: var(--text); border-color: var(--accent); }
@@ -29,8 +22,6 @@
 .rp-bosschip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .rp-bosschip-no { font-family: var(--font-mono); font-size: 11.5px; }
 .rp-bosschip .rp-boss-dot { position: absolute; right: 1px; top: 1px; width: 7px; height: 7px; }
-/* the sheet: a section where the visitor is personally assigned (SheetBossNav, lib/raidplan/bossMine.ts) - a small accent dot, set off from the chip by a panel ring */
-.rp-bosschip-mine { position: absolute; right: -2px; top: -2px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--panel); }
 
 /* the players not placed yet: one compact strip, always in view */
 .rp-tray { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 6px 10px; background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; transition: border-color .12s ease, box-shadow .12s ease; }

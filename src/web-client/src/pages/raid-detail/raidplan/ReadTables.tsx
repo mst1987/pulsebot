@@ -106,8 +106,9 @@ export function MineBlocks({ blocks, ctx, me, names }: { blocks: MineBlock[]; ct
 /**
  * The read view's assignments as real tables: first "Meine Einteilungen" (for a visitor who was recognised), then
  * Tank | Ziel | Heiler, Heiler | Gruppen, and a slim table per other type. Rows of the visitor are highlighted.
+ * `personal={false}` leaves the visitor's own part out (the read view's stage shows it in "Deine Aufgaben").
  */
-export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, focusGroup = 0, onFocusGroup, onlyMine = false }: { assignments: RaidplanAssignment[]; ctx: AssignCtx; me: string[]; loggedIn: boolean; loginHref: string; focusGroup?: number; onFocusGroup?: (n: number) => void; onlyMine?: boolean }) {
+export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, focusGroup = 0, onFocusGroup, onlyMine = false, personal = true }: { assignments: RaidplanAssignment[]; ctx: AssignCtx; me: string[]; loggedIn: boolean; loginHref: string; focusGroup?: number; onFocusGroup?: (n: number) => void; onlyMine?: boolean; personal?: boolean }) {
     const t = useT();
     // the visitor's own characters by name: for the names in words (notes, free text)
     const names = useMemo(() => cleanNames(me.map((id) => (ctx.players.get(id) || { character: "" }).character)), [me, ctx.players]);
@@ -122,7 +123,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
     const others = useMemo(() => simpleTables(assignments, ctx), [assignments, ctx]);
     return (
         <div className="rp-rtables">
-            <div className="rp-personal">
+            {personal && <div className="rp-personal">
             {me.length === 0 ? (
                 <p className="rp-muted rp-mine-hint">{loggedIn ? t("raidBoard.read.notInPlan") : <>{t("raidBoard.read.loginHint")} <a className="mlink" href={loginHref}>{t("raidBoard.public.login")}</a></>}</p>
             ) : split.mine.length === 0 && split.onMe.length === 0 ? (
@@ -143,7 +144,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
                     )}
                 </>
             )}
-            </div>
+            </div>}
 
             {!onlyMine && (tanks.length > 0 || groups.length > 0 || others.length > 0) && (
             <details className="rp-allzone" open>

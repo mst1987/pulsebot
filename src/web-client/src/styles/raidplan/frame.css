@@ -163,9 +163,6 @@
 
 /* ---- the public read view ---- */
 .rp-public { max-width: 1800px; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 16px; }
-.rp-public-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.rp-public-title { margin: 2px 0 0; font-size: 26px; font-weight: 800; line-height: 1.2; }
-.rp-public-tools { display: flex; align-items: center; gap: 8px; }
 .rp-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
 .rp-tab { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--muted); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer; }
 .rp-tab img { border-radius: 5px; }
@@ -175,7 +172,6 @@
 .rp-public-body { display: flex; flex-direction: column; gap: 18px; }
 .rp-public-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .rp-h2 { margin-top: 6px; }
-.rp-me-note { margin: 0; color: var(--accent); font-weight: 700; font-size: 14px; }
 .rp-table { width: 100%; border-collapse: collapse; }
 .rp-table th, .rp-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 .rp-table th { width: 38%; font-size: 14px; font-weight: 700; }
@@ -188,7 +184,6 @@
     .rp-bosses { flex-direction: row; overflow-x: auto; padding: 8px; }
     .rp-bosses .rp-kicker { display: none; }
     .rp-boss { width: auto; white-space: nowrap; }
-    .rp-public-title { font-size: 21px; }
 }
 
 /* ---- work area: tool bar, board, then the folds underneath ---- */

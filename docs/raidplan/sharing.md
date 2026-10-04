@@ -22,9 +22,28 @@ links to `/auth/login?next=/p/<token>`: after the Discord login the visitor land
 
 ## Read view (`/p/<token>`)
 
-The "Sheet-Ansicht": per boss the board — map at the full page width, with its **zones, raid marks, slots
-(resolved players, open ones dimmed) and group markers** — and under it the table of rows, the note and the
-tactic name. A slot whose player is not in the approved setup shows as open. Objects switched off in the layer
+The "Sheet-Ansicht", laid out as a **stage** ("Karte als Bühne", Oct 2026; design canvas "Raidplan-Ansicht
+Redesign", sketch 3). The page is exactly the window (`.rp-sheet`, `styles/raidplan/stage.css`):
+
+- **One bar** (`stage/StageBar.tsx`): the open section with its portrait, its place ("Hyjal · Boss 2 von 5",
+  `lib/raidplan/stage.ts` `sectionPlace`) and arrows to the sections before and after it; "Alle N Abschnitte"
+  opens `stage/SectionMenu.tsx` - every section in runs of one instance, with "Aufgabe für dich" (#503) and
+  "besiegt" (#534) spelled out, "Nur für mich" at its foot (closed by `useDismiss`); then the group fields
+  (#512), "Automatisch mitgehen", the live note, language and theme. It replaced the row of one chip per section
+  (`SheetBossNav`), which needed two lines for a raid of three instances.
+- **The map** fills the rest of the window as a whole (`PlanBoard` with `maxHeight` = the stage's measured
+  height), on a blurred copy of itself; zoom and the view menu float at its lower right.
+- **"Deine Aufgaben"** (`stage/MineCard.tsx`) floats at the lower left: the visitor's character and group, "Du
+  machst" (his own rows, `MineBlocks`) or "Bei diesem Boss hast du keine eigene Aufgabe.", "Wirkt auf dich", and
+  quick links to the other sections where he has a task of his own. It folds to its head (folded from the start
+  on a phone). Without a login it is the login hint, outside the plan a single sentence.
+- **"Alle Aufgaben"** is a tab on the right edge; it opens `stage/TasksPanel.tsx` over the map: the organiser's
+  note, `ReadTables` without the personal part (`personal={false}`) and the tactic's steps.
+- A section **without a map** (Allgemein, "Karte aus") has no stage: card and tables stand in the page's flow
+  (`.rp-sheet-flat`).
+
+On the board: **zones, raid marks, slots (resolved players, open ones dimmed) and group markers**, the tactic name
+in the tables. A slot whose player is not in the approved setup shows as open. Objects switched off in the layer
 list (`hidden`) are left out on the server, opacity and the map's dimming are applied as in the editor. **No
 login, no menu**: `App.tsx` answers `/p/<token>` before it asks for a session; the data comes from `GET
 /api/raidplan/public?token=…`, which is in `UNGATED` (`apiAccess.js`, see docs/permissions.md) and answers
@@ -37,9 +56,9 @@ answers `me` = their Discord id when they stand in the plan; the page then rings
 and says so. A visitor without a login gets a "log in" link (the login returns to the menu start, not to the
 plan — a follow-up). It grants nothing: the highlight is the only thing a session changes.
 
-**Highlighting a group (#512):** above the map the bar "Gruppen" holds one chip per group marker of the section
-(tooltip "Gruppe hervorheben (die anderen werden abgedunkelt)"); the group cells of the group heal table do the
-same. A click highlights that group, a click on the active chip ends it, another chip moves it; the state lives
+**Highlighting a group (#512):** the stage bar holds "Gruppen", one square field per group marker of the section
+(number in the group's colour and its raid mark; tooltip "Gruppe hervorheben (die anderen werden abgedunkelt)");
+the group cells of the group heal table in "Alle Aufgaben" do the same. A click highlights that group, a click on the active chip ends it, another chip moves it; the state lives
 only in the page (`focusGroup`, never saved, it survives a change of section and works beside "Only for me").
 Every raider of another group (or of none) dims: the group markers with their ring, chip and member tokens,
 filled role slots, free tokens and auto-placed raiders on the map (`groupFocusCls` in
@@ -51,18 +70,17 @@ lines and open slots stay as they are. `.rp-gdim` only sets `--rp-gf: var(--rp-g
 a regression). The editor shares it through the inspector's group focus (`BoardWorkspace`).
 Tests: `src/web-client/src/pages/PlanPublicPage.groupFocus.test.tsx`, `test/web-client/conventions/groupFocus.test.js`.
 
-**Sections marked where the visitor is assigned (#503):** in the chip bar (`SheetBossNav`) every section where
-the visitor is **personally** assigned carries a small dot in `--accent` at its upper right (ringed with
-`--panel`, so it also stands out on the filled chosen chip), and its tooltip / label say "Du hast hier
-Einteilungen" (`raidBoard.read.hasMine`). Personal = `lib/raidplan/bossMine.ts` `bossesWithMine`: a row whose
+**Sections marked where the visitor is assigned (#503):** in the section menu every section where the visitor is
+**personally** assigned says "Aufgabe für dich" (`raidBoard.stage.tagMine`, in `--accent`), and "Deine Aufgaben"
+links those sections ("Eigene Aufgaben hast du bei"). Until Oct 2026 it was a small dot on the section's chip.
+Personal = `lib/raidplan/bossMine.ts` `bossesWithMine`: a row whose
 assignee is one of his players by name or by slot (tank, kick, heal, special task …), a row whose target is him
 or his slot ("Wirkt auf dich"), or a tactic step with `user:<him>` among its participants. Stricter than "Only
 for me" (`isMine` / `mineView`): a `role:<role>` row, a target role group, his raid group ("Gruppe 2") or his
-name in a note or free text do not mark the chip. The line "You are in the plan for this boss" stays as it
-was. The editor's chips do not get the mark: their corner dot already says "this section holds something",
+name in a note or free text do not mark the section. The editor's chips do not get the mark: their corner dot already says "this section holds something",
 and the editor derives the effective rows (inherited, class references resolved) only for the open section —
 the organiser's own view of it is the "Meine Aufgaben" preview (`MyTasksPreview`). The page has no menu shell, so
-it mounts the `TipLayer` itself: the `data-tip` boxes of the chips ("Only for me", the mark) and the zoom
+it mounts the `TipLayer` itself: the `data-tip` boxes of the bar (arrows, groups, "Nur für mich") and the zoom
 buttons show here too.
 
 ## The plan follows the raid (#534)
@@ -81,7 +99,9 @@ the event.
   server's); a tab that becomes visible again asks at once. It turns to `current ?? next` when the page shows that section. A
   section picked by hand (a chip, the editor's "open assignments" list) goes through `choose()` and pauses following — only while a
   log is read, so a click before the raid does not switch it off for the night; a deep link `?section=` starts paused.
-- **Chips:** `SheetBossNav` and the editor's `SectionStrip` (its list; `BossNav` before Oct 2026) take `killedKeys` and `follow`. A killed boss gets `.is-killed` (opacity
+- **Sheet:** the stage bar takes `killedKeys` and `follow`: a killed boss says "besiegt" in the section menu (portrait greyed),
+  `AutoFollowToggle` sits at the bar's end.
+- **Editor chips:** the editor's `SectionStrip` (its list; `BossNav` before Oct 2026) takes `killedKeys` and `follow`. A killed boss gets `.is-killed` (opacity
   `--rp-done-dim`, `tokens.css`; the icon greyed, full strength when chosen or hovered) and a small check in `--good` at its
   **lower** right (`.rp-bosschip-done`), so the #503 dot at the upper right and the editor's content dot stay free; tooltip and
   label add "Im Log getötet". `AutoFollowToggle` ("Automatisch mitgehen", `aria-pressed`) ends the bar while `live`; inside the raid window without a readable log it
@@ -93,7 +113,8 @@ the event.
   page. Only the newest linked log with a report id is read.
 - Tests: `test/utils/logcheck/bossProgress.test.js`, `test/services/raidplan/raidplanProgress.test.js`,
   `test/web/apiRoutes/raidplan.progress.test.js`, `src/web-client/src/hooks/useRaidProgress.test.tsx`,
-  `lib/raidplan/progress.test.ts`, `SheetBossNav.test.tsx`, `SectionStrip.test.tsx`.
+  `lib/raidplan/progress.test.ts`, `stage/StageBar.test.tsx`, `SectionStrip.test.tsx`; the stage as a whole:
+  `pages/PlanPublicPage.stage.test.tsx`, `lib/raidplan/stage.test.ts`.
 
 ## Live updates and the section in the address (#555)
 

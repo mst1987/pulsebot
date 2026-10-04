@@ -155,7 +155,8 @@ describe("the pages", () => {
         expect(pub).toContain("lines={boss.lines}");
         expect(pub).toContain("texts={boss.texts}");
         expect(pub).toContain("mapOpacity={boss.mapOpacity}");
-        expect(pub).toContain("boss.slots.some((sl) => sl.userId === data.me)");
+        // the visitor's own place and tasks: "Deine Aufgaben" floating over the map (the stage, Oct 2026)
+        expect(pub).toContain("<MineCard");
     });
 
     it("fits any map: the board takes the map's aspect ratio", () => {
@@ -323,19 +324,19 @@ describe("\"All assignments\" never cuts a name (feature/raidplan-16)", () => {
 });
 
 describe("the section bar names every section (feature/raidplan-16)", () => {
-    it("editor (the strip's list, Oct 2026) and sheet show the name on every chip, the sheet's bar wraps instead of scrolling", () => {
+    it("editor (the strip's list, Oct 2026) and sheet (the stage's section menu) show the name of every section", () => {
         const fs = require("fs");
         const p = require("path");
         const nav = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan/SectionStrip.tsx"), "utf8");
         expect(nav).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
         expect(nav).not.toContain("rp-bosschip-no");
         const sheet = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/PlanPublicPage.tsx"), "utf8");
-        // the sheet's chips live in SheetBossNav since #503 (the mark of the visitor's own sections); the page hands it the label
-        const sheetNav = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan/SheetBossNav.tsx"), "utf8");
-        expect(sheetNav).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
-        expect(sheet).toContain("<SheetBossNav");
+        // the sheet's sections are the stage bar's menu since Oct 2026 (one row per section, its name in full); the page hands it the label
+        const sheetMenu = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan/stage/SectionMenu.tsx"), "utf8");
+        expect(sheetMenu).toContain("<span className=\"rp-sheet-menu-name\">{label(b)}</span>");
+        expect(sheet).toContain("<StageBar");
         expect(sheet).toContain("const label = (b: RaidplanPublicBoss) => sectionLabel(b, several);");
         const css = require("../clientSource").read("styles/raidplan/index.css");
-        expect(css).toContain(".rp-bossnav { display: flex; flex-wrap: wrap;");
+        expect(css).toContain(".rp-sheet-menu-item { display: flex;");
     });
 });

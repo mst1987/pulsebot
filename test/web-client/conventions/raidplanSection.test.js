@@ -15,7 +15,8 @@ describe("a section planned without its map", () => {
         expect(ws).toContain("raidBoard.map.offNote");
         expect(ws).toContain("raidBoard.map.hiddenKept");
         const sheet = read("pages/PlanPublicPage.tsx");
-        expect(sheet).toContain("boss.showMap !== false && (");
-        expect(sheet).toContain("\" no-map\"");
+        // the stage: no map, no stage - card and tables stand in the page's flow
+        expect(sheet).toContain("const hasMap = !!boss && !boss.general && boss.showMap !== false;");
+        expect(sheet).toContain("<div className=\"rp-sheet-flat\">");
     });
 });

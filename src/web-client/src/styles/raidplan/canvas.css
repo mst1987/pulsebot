@@ -37,9 +37,6 @@
 .rp-gswatch { background: var(--rp-sw); width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line); padding: 0; cursor: pointer; }
 .rp-gswatch.is-on { outline: 2px solid var(--accent); outline-offset: 2px; }
 .rp-gmark { padding: 3px 5px; }
-.rp-glegend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; font-size: 12px; }
-.rp-glegend button { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; border: 2px solid var(--gc); background: var(--panel); color: var(--text); font: inherit; font-weight: 800; cursor: pointer; }
-.rp-glegend button.is-on { background: var(--gc); color: var(--gi); }
 
 /* "Alle Einteilungen": its own zone, apart from the personal blocks */
 .rp-allzone { margin-top: 36px; padding-top: 14px; border-top: 2px solid var(--line); }
@@ -55,8 +52,6 @@
 .rp-rtable .rp-who { flex-wrap: nowrap; }
 .rp-rtable td .rp-who-list { flex-wrap: wrap; }
 .rp-rtable td { min-width: 0; }
-.rp-read-right { flex-direction: column; align-items: center; }
-.rp-read-right .rp-glegend { align-self: stretch; }
 
 /* zoom, names / badges / rings on or off, the size of the names follows the symbol size */
 .rp-canvas .rp-handle { transform: scale(calc(1 / var(--rp-k, 1))); }
@@ -175,7 +170,6 @@
 .rp-gcell { flex-wrap: wrap; }
 .rp-gnum { font-size: 16px; white-space: nowrap; }
 
-.rp-onlymine { font-size: 12px; font-weight: 800; padding: 0 12px; width: auto; }
 .rp-gheal .rp-seg { display: inline-flex; align-self: flex-start; width: auto; gap: 0; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--panel2); }
 .rp-gheal .rp-seg button { width: auto; height: auto; padding: 4px 12px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .rp-gheal .rp-seg button.is-on { background: var(--accent); color: var(--accent-ink); }
@@ -188,7 +182,6 @@
 .rp-minimap img { display: block; width: 100%; height: auto; opacity: .85; pointer-events: none; }
 .rp-minimap-grid { width: 100%; aspect-ratio: 16 / 10; background: var(--rp-grid-bg); }
 .rp-minimap-view { position: absolute; left: var(--rp-x); top: var(--rp-y); width: var(--rp-w); height: var(--rp-h); border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; box-sizing: border-box; }
-.rp-read-right .rp-minimap { z-index: 6; }
 .rp-zoomctl-pct { width: auto !important; padding: 0 10px !important; }
 
 .rp-mypreview { margin: 10px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 8px 14px; }
