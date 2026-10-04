@@ -1,15 +1,18 @@
 import { Check } from "lucide-react";
 import type { RaidplanPublicBoss } from "../../../../api";
 import { sectionGroups } from "../../../../lib/raidplan/stage";
+import { STRIP_MODES, type StripMode } from "../../../../lib/raidplan/sheetLayout";
 import { useT } from "../../../../i18n";
+
+const STRIP_LABEL: Record<StripMode, string> = { off: "raidBoard.stage.stripOff", top: "raidBoard.stage.stripTop", left: "raidBoard.stage.stripLeft" };
 
 /**
  * "Alle N Abschnitte" of the stage bar (/p/<token>): every section of the plan in runs of one instance, each with its portrait and,
  * spelled out, whether the visitor has a task of his own there ("Aufgabe für dich", the old chip's dot) or the log shows the boss
- * killed ("besiegt", the old chip's check). A pick closes it; Esc and a click outside are the bar's useDismiss. "Nur für mich" sits
- * at its foot.
+ * killed ("besiegt", the old chip's check). A pick closes it; Esc and a click outside are the bar's useDismiss. At its foot "Nur für mich"
+ * and "Boss-Leiste" (off, a row over the map, a column beside it: stage/BossStrip.tsx).
  */
-export default function SectionMenu({ sections, selectedKey, mineKeys, killedKeys, label, head, onlyMine, onPick }: {
+export default function SectionMenu({ sections, selectedKey, mineKeys, killedKeys, label, head, onlyMine, strip, onPick }: {
     sections: RaidplanPublicBoss[];
     selectedKey: string;
     mineKeys: Set<string>;
@@ -19,6 +22,8 @@ export default function SectionMenu({ sections, selectedKey, mineKeys, killedKey
     head: string;
     /** "Nur für mich" for a visitor who stands in the plan; null = not offered */
     onlyMine: { on: boolean; toggle: () => void } | null;
+    /** the extra boss strip and its switch */
+    strip: { mode: StripMode; set: (mode: StripMode) => void };
     onPick: (key: string) => void;
 }) {
     const t = useT();
@@ -52,6 +57,14 @@ export default function SectionMenu({ sections, selectedKey, mineKeys, killedKey
                     {t("raidBoard.read.onlyMine")}
                 </label>
             )}
+            <div className="rp-sheet-menu-strip" role="radiogroup" aria-label={t("raidBoard.stage.strip")}>
+                <span>{t("raidBoard.stage.strip")}</span>
+                <span className="rp-sheet-seg">
+                    {STRIP_MODES.map((m) => (
+                        <button key={m} type="button" role="radio" aria-checked={strip.mode === m} className={strip.mode === m ? "is-on" : ""} onClick={() => strip.set(m)}>{t(STRIP_LABEL[m])}</button>
+                    ))}
+                </span>
+            </div>
         </div>
     );
 }

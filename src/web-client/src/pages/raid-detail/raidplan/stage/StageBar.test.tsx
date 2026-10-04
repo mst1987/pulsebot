@@ -13,14 +13,15 @@ function show(over: Partial<Parameters<typeof StageBar>[0]> = {}) {
     const onPick = vi.fn();
     const onFocusGroup = vi.fn();
     const toggle = vi.fn();
+    const setStrip = vi.fn();
     const r = render(
         <StageBar
             boss={BOSSES[1]} sections={BOSSES} mineKeys={new Set(["winterchill", "azgalor"])} label={(b) => b.name} head="Hyjal · So 19:00"
-            onPick={onPick} groups={[]} focusGroup={0} onFocusGroup={onFocusGroup} onlyMine={{ on: false, toggle }} updated={false} {...over}
+            onPick={onPick} groups={[]} focusGroup={0} onFocusGroup={onFocusGroup} onlyMine={{ on: false, toggle }} strip={{ mode: "off", set: setStrip }} allTasks={null} updated={false} {...over}
         />,
     );
     const menu = () => { fireEvent.click(screen.getByRole("button", { name: /Alle 5 Abschnitte/ })); return screen.getByRole("dialog", { name: "Abschnitte" }); };
-    return { ...r, onPick, onFocusGroup, toggle, menu };
+    return { ...r, onPick, onFocusGroup, toggle, setStrip, menu };
 }
 
 describe("StageBar", () => {
@@ -116,5 +117,25 @@ describe("StageBar", () => {
         unmount();
         show({ updated: true });
         expect(screen.getByRole("status")).toHaveTextContent("Aktualisiert");
+    });
+
+    it("switches the boss strip in the menu: off, top, left", () => {
+        const { menu, setStrip } = show();
+        const group = within(menu()).getByRole("radiogroup", { name: "Boss-Leiste" });
+        expect(within(group).getByRole("radio", { name: "Aus" })).toHaveAttribute("aria-checked", "true");
+        fireEvent.click(within(group).getByRole("radio", { name: "Links" }));
+        expect(setStrip).toHaveBeenCalledWith("left");
+    });
+
+    it("'Alle Einteilungen' is a pressed switch while the panel is open, and missing without a map", () => {
+        const toggleAll = vi.fn();
+        const { unmount } = show({ allTasks: { on: true, toggle: toggleAll } });
+        const sw = screen.getByRole("button", { name: /Alle Einteilungen/ });
+        expect(sw).toHaveAttribute("aria-pressed", "true");
+        fireEvent.click(sw);
+        expect(toggleAll).toHaveBeenCalled();
+        unmount();
+        show();
+        expect(screen.queryByRole("button", { name: /Alle Einteilungen/ })).toBeNull();
     });
 });

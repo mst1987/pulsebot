@@ -29,15 +29,23 @@ Redesign", sketch 3). The page is exactly the window (`.rp-sheet`, `styles/raidp
   `lib/raidplan/stage.ts` `sectionPlace`) and arrows to the sections before and after it; "Alle N Abschnitte"
   opens `stage/SectionMenu.tsx` - every section in runs of one instance, with "Aufgabe für dich" (#503) and
   "besiegt" (#534) spelled out, "Nur für mich" at its foot (closed by `useDismiss`); then the group fields
-  (#512), "Automatisch mitgehen", the live note, language and theme. It replaced the row of one chip per section
-  (`SheetBossNav`), which needed two lines for a raid of three instances.
+  (#512), "Alle Einteilungen", "Automatisch mitgehen", the live note, language and theme. It replaced the row of
+  one chip per section (`SheetBossNav`), which needed two lines for a raid of three instances. The title block has
+  a fixed width (300px), so the arrows stay where they are from boss to boss; a longer name ends in "…".
+- **The visitor's layout** (`lib/raidplan/sheetLayout.ts`, `hooks/useSheetLayout.ts`, localStorage
+  `eh.raidplan.sheetLayout`, never in the plan): "Alle Einteilungen" in the bar opens or closes the panel and
+  stays so across sections and reloads (the tab on the right edge does the same); "Boss-Leiste: Aus | Oben |
+  Links" at the foot of the section menu adds the old chips back for whoever wants every boss in sight
+  (`stage/BossStrip.tsx`): one chip per section in runs of one instance, the accent dot where the visitor has a task
+  of his own (#503), the check where the log shows the boss killed (#534), as a row under the bar or a column left
+  of the map (`.rp-sheet-main`). On a phone both are a scrolling row. Off by default.
 - **The map** fills the rest of the window as a whole (`PlanBoard` with `maxHeight` = the stage's measured
   height), on a blurred copy of itself; zoom and the view menu float at its lower right.
 - **"Deine Aufgaben"** (`stage/MineCard.tsx`) floats at the lower left: the visitor's character and group, "Du
   machst" (his own rows, `MineBlocks`) or "Bei diesem Boss hast du keine eigene Aufgabe.", "Wirkt auf dich", and
   quick links to the other sections where he has a task of his own. It folds to its head (folded from the start
   on a phone). Without a login it is the login hint, outside the plan a single sentence.
-- **"Alle Aufgaben"** is a tab on the right edge; it opens `stage/TasksPanel.tsx` over the map: the organiser's
+- **"Alle Aufgaben"** is a tab on the right edge (and the switch "Alle Einteilungen" in the bar); it opens `stage/TasksPanel.tsx` over the map: the organiser's
   note, `ReadTables` without the personal part (`personal={false}`) and the tactic's steps.
 - A section **without a map** (Allgemein, "Karte aus") has no stage: card and tables stand in the page's flow
   (`.rp-sheet-flat`).

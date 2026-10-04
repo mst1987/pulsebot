@@ -188,7 +188,13 @@
         "allTasksCount": "{n} assignments",
         "close": "Close",
         "noTasks": "There are no assignments in this section.",
-        "focusGroup": "Highlight group {n}"
+        "focusGroup": "Highlight group {n}",
+        "strip": "Boss strip",
+        "stripOff": "Off",
+        "stripTop": "Top",
+        "stripLeft": "Left",
+        "allTasksToggle": "All assignments",
+        "allTasksTip": "Shows or hides the tables of all assignments. Stays that way until you change it."
     },
     "slot": {
         "tank": "Tank {n}",
