@@ -103,7 +103,7 @@ describe("the Raid-Vorlagen page in English", () => {
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText(/^More:/)).toBeInTheDocument();
         expect(within(dialog).getByLabelText("Signup deadline (hours before start)")).toBeInTheDocument();
-        expect(within(dialog).getByRole("checkbox", { name: "Wishes" })).toBeInTheDocument();
+        expect(within(dialog).getByRole("switch", { name: "Wishes" })).toBeInTheDocument();
         expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     });
 });
@@ -143,8 +143,8 @@ describe("the Raid-Vorlagen editor", () => {
             within(more).getByText(t("raidPlan.fields.buffs")),
             within(more).getByLabelText("Anmeldeschluss (Stunden vor Start)"),
             within(more).getByLabelText("Raid-Helper-Vorlage (ID)"),
-            within(more).getByRole("checkbox", { name: "Fairness" }),
-            within(more).getByRole("checkbox", { name: "Wünsche" }),
+            within(more).getByRole("switch", { name: "Fairness" }),
+            within(more).getByRole("switch", { name: "Wünsche" }),
         ]) expect(later).toBeInTheDocument();
     });
 

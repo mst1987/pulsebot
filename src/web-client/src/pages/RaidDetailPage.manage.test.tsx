@@ -177,7 +177,7 @@ describe("the dialogs", () => {
         expect(client.get).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/raids\/manage\/move\?event=own1&date=2026-10-01&time=19%3A45$/));
         expect(within(dialog()).getByText("#kara-fr-02-10")).toBeInTheDocument();
         expect(t("raidManage.move.rename")).toBe("Kanal umbenennen");
-        const rename = within(dialog()).getByRole("checkbox", { name: t("raidManage.move.rename") });
+        const rename = within(dialog()).getByRole("switch", { name: t("raidManage.move.rename") });
         expect(rename).toBeChecked();
         await user.click(rename);
         // without the rename the channel keeps its name
@@ -210,7 +210,7 @@ describe("the dialogs", () => {
         info = { ...INFO, archive: { configured: true } };
         await show();
         await choose(user, t("raidDetail.manage.cancel"));
-        expect(await within(dialog()).findByRole("checkbox", { name: t("raidManage.archive.label") })).not.toBeChecked();
+        expect(await within(dialog()).findByRole("switch", { name: t("raidManage.archive.label") })).not.toBeChecked();
     });
 
     it("deletes after one dialog, with both switches off and the started-raid switch first, then goes back to the raid list", async () => {
@@ -218,9 +218,9 @@ describe("the dialogs", () => {
         info = { ...INFO, archive: { configured: true }, deletion: { ...INFO.deletion, started: true } };
         await show();
         await choose(user, t("raidDetail.manage.delete"));
-        const started = await within(dialog()).findByRole("checkbox", { name: t("raidManage.delete.startedLabel") });
-        const notify = within(dialog()).getByRole("checkbox", { name: t("raidManage.delete.notifyLabel", { count: 2 }) });
-        const archive = within(dialog()).getByRole("checkbox", { name: t("raidManage.archive.label") });
+        const started = await within(dialog()).findByRole("switch", { name: t("raidManage.delete.startedLabel") });
+        const notify = within(dialog()).getByRole("switch", { name: t("raidManage.delete.notifyLabel", { count: 2 }) });
+        const archive = within(dialog()).getByRole("switch", { name: t("raidManage.archive.label") });
         expect([started, notify, archive].map((c) => (c as HTMLInputElement).checked)).toEqual([false, false, false]);
         const confirm = within(dialog()).getByRole("button", { name: t("raidManage.delete.confirm") });
         expect(confirm).toBeDisabled();
@@ -238,7 +238,7 @@ describe("the dialogs", () => {
         await show();
         await choose(user, t("raidDetail.manage.delete"));
         await within(dialog()).findByText(t("raidManage.archive.none"));
-        expect(within(dialog()).queryByRole("checkbox", { name: t("raidManage.delete.notifyLabel", { count: 2 }) })).not.toBeInTheDocument();
+        expect(within(dialog()).queryByRole("switch", { name: t("raidManage.delete.notifyLabel", { count: 2 }) })).not.toBeInTheDocument();
         expect(within(dialog()).getByRole("button", { name: t("raidManage.delete.confirm") })).toBeEnabled();
     });
 });

@@ -124,7 +124,7 @@ describe("ChannelsPage — 'gleich Event anlegen'", () => {
         await openPage(withEvents());
         await user.click(screen.getByRole("button", { name: "Anlegen" }));
         const dialog = screen.getByRole("dialog");
-        const toggle = within(dialog).getByRole("checkbox", { name: "Gleich Event anlegen" });
+        const toggle = within(dialog).getByRole("switch", { name: "Gleich Event anlegen" });
         expect(toggle).not.toBeChecked();
         expect(within(dialog).queryByLabelText("Uhrzeit")).not.toBeInTheDocument();
 
@@ -150,7 +150,7 @@ describe("ChannelsPage — 'gleich Event anlegen'", () => {
         const user = userEvent.setup();
         await openPage();
         await user.click(screen.getByRole("button", { name: "Anlegen" }));
-        expect(within(screen.getByRole("dialog")).queryByRole("checkbox", { name: "Gleich Event anlegen" })).not.toBeInTheDocument();
+        expect(within(screen.getByRole("dialog")).queryByRole("switch", { name: "Gleich Event anlegen" })).not.toBeInTheDocument();
     });
 
     it("disappears when the category is taken away", async () => {
@@ -159,7 +159,7 @@ describe("ChannelsPage — 'gleich Event anlegen'", () => {
         await user.click(screen.getByRole("button", { name: "Anlegen" }));
         const dialog = screen.getByRole("dialog");
         await user.selectOptions(within(dialog).getByRole("combobox", { name: "Kategorie" }), "— keine Kategorie —");
-        expect(within(dialog).queryByRole("checkbox", { name: "Gleich Event anlegen" })).not.toBeInTheDocument();
+        expect(within(dialog).queryByRole("switch", { name: "Gleich Event anlegen" })).not.toBeInTheDocument();
     });
 });
 
