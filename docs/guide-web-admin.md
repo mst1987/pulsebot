@@ -4,6 +4,8 @@ Diese Seite ist für Orga-Mitglieder, die das **Web-Admin-Panel** benutzen — n
 
 **Content-Umschalter (Spielversion):** Gibt es Daten in mehr als einer Spielversion (z. B. WoW Forever und TBC), steht oben in der Kopfleiste neben der Server-Auswahl ein Umschalter „Forever | TBC“. Er gilt für das ganze Menü – Raids, vergangene Raids, Loot-Historie, Loot-Council, Roster, Raid- und Raidplan-Vorlagen, Katalog, Übersicht, Recruitment und die Auswahlfelder. Start ist die Hauptversion, deine Wahl merkt sich der Browser. Auf dem Handy steht dort ein kleiner Chip mit der aktiven Version; antippen klappt den Umschalter auf. Die einzelnen Seiten haben keinen eigenen Versionsfilter mehr. Sind andere Versionen ausgeblendet (Einstellungen → Spielversion), steht dort nur noch ein stiller Hinweis mit der Hauptversion.
 
+**Menü mit Unterpunkten:** „Raid-Events“ (Raidplan-Vorlagen, Raidplan-Katalog) und „Einstellungen“ (alle Bereiche der Einstellungen, mit ihren Zählern) klappen ihre Unterpunkte direkt im Menü auf. Der Name öffnet die Seite wie immer, der kleine Pfeil daneben klappt nur auf und zu; die Gruppe der offenen Seite ist von selbst offen, alles andere merkt sich der Browser.
+
 ## Übersicht / Dashboard
 
 Technik: [web-admin.md](web-admin.md)
