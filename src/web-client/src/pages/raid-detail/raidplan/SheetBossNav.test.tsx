@@ -72,4 +72,19 @@ describe("SheetBossNav", () => {
         expect(sw.getAttribute("aria-pressed")).toBe("false");
         expect(sw.getAttribute("data-tip")).toMatch(/Angehalten/);
     });
+    it("shows a waiting chip without a readable log, inert, with the reason in its tooltip", () => {
+        const onToggle = vi.fn();
+        const { container, unmount } = show({ follow: { on: false, onToggle, waiting: "no_log" } });
+        const chip = container.querySelector(".rp-autofollow") as HTMLButtonElement;
+        expect(chip.classList.contains("is-waiting")).toBe(true);
+        expect(chip.getAttribute("aria-disabled")).toBe("true");
+        expect(chip.hasAttribute("aria-pressed")).toBe(false);
+        expect(chip.textContent).toBe("Wartet auf Log");
+        expect(chip.getAttribute("data-tip-sub")).toMatch(/kein Warcraft Log verknüpft/);
+        fireEvent.click(chip);
+        expect(onToggle).not.toHaveBeenCalled();
+        unmount();
+        const err = show({ follow: { on: false, onToggle, waiting: "wcl_error" } }).container.querySelector(".rp-autofollow") as HTMLButtonElement;
+        expect(err.getAttribute("data-tip-sub")).toMatch(/nicht lesen/);
+    });
 });

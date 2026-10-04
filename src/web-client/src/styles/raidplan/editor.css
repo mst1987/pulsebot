@@ -212,3 +212,5 @@
 /* "Automatisch mitgehen": a small switch at the end of the bar, filled while it follows */
 .rp-autofollow { margin-left: auto; gap: 5px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
 .rp-autofollow.is-on { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+/* inside the raid window without a readable log: shown, greyed, inert — its tooltip says what is missing */
+.rp-autofollow.is-waiting { opacity: .6; cursor: help; border-style: dashed; }

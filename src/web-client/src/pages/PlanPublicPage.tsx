@@ -192,7 +192,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                 <>
                     <SheetBossNav
                         bosses={shownBosses} selectedKey={boss ? boss.key : ""} mineKeys={mineKeys} label={label} onSelect={progress.choose}
-                        killedKeys={progress.killed} follow={progress.live ? { on: progress.follow, onToggle: () => progress.setFollow(!progress.follow) } : undefined}
+                        killedKeys={progress.killed} follow={progress.chip}
                         showOnlyMine={!!data.me && data.meIds.length > 0} onlyMine={onlyMine} onToggleOnlyMine={() => setOnlyMine((v) => !v)}
                     />
 

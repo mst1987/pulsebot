@@ -337,9 +337,14 @@ export function pollRaidplanPublic(token: string, etag: string): Promise<{ data:
 
 /**
  * What the Warcraft Log linked to the event shows (#534, GET /api/raidplan/progress): the section keys with a kill, the boss being
- * fought (a running fight of a live log) and the next one standing. `live` false = no log, or outside the raid window.
+ * fought (a running fight of a live log) and the next one standing. `live` false = no log, or outside the raid window;
+ * `waiting` says why inside the window: "no_log" (no Warcraft Log linked yet) or "wcl_error" (the linked log cannot be read).
  */
-export type RaidplanProgress = { live: boolean; killed: string[]; current: string | null; next: string | null; updatedAt: number | null };
+export type RaidplanProgressWaiting = "no_log" | "wcl_error";
+export type RaidplanProgress = {
+    live: boolean; waiting?: RaidplanProgressWaiting | null;
+    killed: string[]; current: string | null; next: string | null; updatedAt: number | null;
+};
 
 /** The progress of a plan: the read view asks with its token, the editor with its event. */
 export function getRaidplanProgress(by: { token: string } | { event: string }): Promise<RaidplanProgress> {

@@ -73,18 +73,21 @@ function fightsFor(reportId, { now = Date.now(), client } = {}) {
 const EMPTY = Object.freeze({ live: false, killed: [], current: null, next: null, updatedAt: null });
 
 /**
- * The progress of an event's plan: `{ live, killed, current, next, updatedAt }`. `live` is true when a linked
- * log was read inside the raid window; otherwise everything is empty (`killed: []`, `current`/`next` null).
+ * The progress of an event's plan: `{ live, waiting, killed, current, next, updatedAt }`. `live` is true when a
+ * linked log was read inside the raid window; otherwise everything is empty (`killed: []`, `current`/`next` null)
+ * and `waiting` says why, so the page can show "Automatisch mitgehen" waiting instead of hiding it:
+ * "no_log" (inside the window, no Warcraft Log linked to the event yet), "wcl_error" (a log is linked but its
+ * fights could not be read — private report, WCL down, no API key); null outside the raid window.
  * @param {object} event   `{ id, startTime, instanceIds }`
  * @param {{ now?: number, client?: object }} [opts]   `client`: a WarcraftLogs stand-in (tests)
  */
 async function progressFor(event, { now = Date.now(), client } = {}) {
-    if (!event || !inRaidWindow(event, now)) return { ...EMPTY, killed: [] };
+    if (!event || !inRaidWindow(event, now)) return { ...EMPTY, waiting: null, killed: [] };
     const reportId = reportIdForEvent(event.id);
-    if (!reportId) return { ...EMPTY, killed: [] };
+    if (!reportId) return { ...EMPTY, waiting: "no_log", killed: [] };
     const { fights, at } = await fightsFor(reportId, { now, client });
-    if (!fights) return { ...EMPTY, killed: [] };
-    return { live: true, ...deriveProgress(fights, planBosses(event)), updatedAt: at };
+    if (!fights) return { ...EMPTY, waiting: "wcl_error", killed: [] };
+    return { live: true, waiting: null, ...deriveProgress(fights, planBosses(event)), updatedAt: at };
 }
 
 /** Test-only: forget every cached report. */

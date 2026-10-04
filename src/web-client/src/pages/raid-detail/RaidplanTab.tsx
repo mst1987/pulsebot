@@ -299,7 +299,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
                     defaultRows={boardOf(draft, DEFAULTS_KEY).assignments}
                     saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("raidBoard.conflict.text")} /> : undefined}
-                    bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={progress.choose} killedKeys={progress.killed} follow={progress.live ? { on: progress.follow, onToggle: () => progress.setFollow(!progress.follow) } : undefined} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} />}
+                    bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={progress.choose} killedKeys={progress.killed} follow={progress.chip} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} />}
                     status={(
                         <>
                             <Badge tone={published ? "ok" : undefined}>{published ? t("raidBoard.bar.published") : t("raidBoard.bar.draft")}</Badge>
