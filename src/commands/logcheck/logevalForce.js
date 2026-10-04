@@ -92,6 +92,8 @@ async function runForcedLog(interaction, logId, section) {
         await discord.finishLogButton(log.buttonChannelId, log.buttonMessageId, {
             reportUrl: res.url,
             title: res.report.title,
+            link: log.link,
+            startMs: log.reportStart,
             logId: log.id || logId,
             doneSections: logStore.evaluatedSections(log),
         });

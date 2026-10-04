@@ -25,6 +25,7 @@ const EMBED_LIMITS = Object.freeze({
     fieldValue: 1024,
     fields: 25,
     footer: 2048,
+    author: 256,
     total: 6000,
 });
 
@@ -41,9 +42,10 @@ function clip(text, max) {
 /**
  * One embed as the plain object Discord takes. Empty parts are left out;
  * `color` defaults to the accent colour, `timestamp` takes a Date, ms, an ISO
- * string or `true` (now), `footer` a text or `{ text, iconURL }`.
+ * string or `true` (now), `footer` a text or `{ text, iconURL }`, `author` the small
+ * line above the title (a text).
  */
-function buildEmbed({ title, description, fields, color, footer, timestamp, url } = {}) {
+function buildEmbed({ title, description, fields, color, footer, timestamp, url, author } = {}) {
     const embed = new EmbedBuilder().setColor(Number.isInteger(color) ? color : embedAccentColor);
     let budget = EMBED_LIMITS.total;
     const take = (text, max) => {
@@ -51,6 +53,8 @@ function buildEmbed({ title, description, fields, color, footer, timestamp, url 
         budget -= out.length;
         return out;
     };
+    const a = author ? take(author, EMBED_LIMITS.author) : "";
+    if (a) embed.setAuthor({ name: a });
     const t = title ? take(title, EMBED_LIMITS.title) : "";
     if (t) embed.setTitle(t);
     if (t && url) embed.setURL(url);

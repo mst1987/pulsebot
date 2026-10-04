@@ -47,6 +47,8 @@ module.exports = {
                 {
                     reportUrl: res.url,
                     title: res.report.title,
+                    link: log.link,
+                    startMs: log.reportStart,
                     logId: log.id || logId,
                     doneSections: logStore.evaluatedSections(log),
                 },

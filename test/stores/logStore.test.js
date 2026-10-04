@@ -4,7 +4,7 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 const fs = require("fs");
 const {
     listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
-    markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, setLogRaids, deleteLog,
+    markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, setReportStart, setLogRaids, deleteLog,
     linkEvent, unlinkEvent, listLogsForEvent,
 } = require("../../src/stores/logStore.js");
 
@@ -102,6 +102,19 @@ describe("stores/logStore", () => {
             expect(setLogTitle(a.id, "   ")).toBeNull();
             expect(setLogTitle("nope", "x")).toBeNull();
             // neither wrote to disk
+            expect(fs.writeFileSync.mock.calls.length).toBe(writes);
+        });
+    });
+
+    describe("setReportStart", () => {
+        it("remembers when the report started, and ignores nonsense or an unknown id", () => {
+            const a = saveLog(base());
+            expect(setReportStart(a.id, 1791000000000.7).reportStart).toBe(1791000000000);
+            expect(getLog(a.id).reportStart).toBe(1791000000000);
+            const writes = fs.writeFileSync.mock.calls.length;
+            expect(setReportStart(a.id, 0)).toBeNull();
+            expect(setReportStart("nope", 5)).toBeNull();
+            expect(setReportStart(a.id, 1791000000000).reportStart).toBe(1791000000000);
             expect(fs.writeFileSync.mock.calls.length).toBe(writes);
         });
     });
