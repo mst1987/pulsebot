@@ -174,6 +174,8 @@ async function createEntry(userId, input = {}, { by = "", eventIds, now = Date.n
     const raids = raidsInRange(checked.value, { now, config: cfg });
     const picked = Array.isArray(eventIds) ? new Set(eventIds.map(str)) : null;
     const skip = picked ? raids.filter((e) => !picked.has(e.id)).map((e) => e.id) : [];
+    // entries long over go here: nothing else ever needs them
+    store.prune(today(now));
     const added = store.addEntry({ ...checked.value, skip, createdBy: str(by) || checked.value.userId }, { now });
     if (added.error) return added;
     const results = [];

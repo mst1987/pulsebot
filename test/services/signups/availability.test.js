@@ -248,4 +248,13 @@ describe("deleteEntry / activeEntries", () => {
         expect(availability.deleteEntry(entry.id, { userId: ORGA, orga: true }).entry.id).toBe(entry.id);
         expect(availability.activeEntries(ANNA, { now: NOW })).toEqual([]);
     });
+
+    it("räumt beim Eintragen Einträge weg, die über 30 Tage vorbei sind", async () => {
+        const old = store.addEntry({ userId: ANNA, kind: "absence", from: dayPlus(-60), to: dayPlus(-40) }).entry;
+        const recent = store.addEntry({ userId: ANNA, kind: "absence", from: dayPlus(-12), to: dayPlus(-10) }).entry;
+        await availability.createEntry(ANNA, { kind: "absence", from: today, to: today }, { now: NOW, dm: false });
+        const left = store.listEntries({ userId: ANNA }).map((e) => e.id);
+        expect(left).not.toContain(old.id);
+        expect(left).toContain(recent.id);
+    });
 });
