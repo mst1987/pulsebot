@@ -36,7 +36,7 @@ export function NeedBar({ subject, width = 150 }: { subject: NeedSubject; width?
             trigger={
                 <span className="lc-needbar" style={{ "--lc-nb": `${width}px` } as CSSProperties}>
                     {parts.map((s) => <i key={s.cls} className={s.cls} style={{ "--fill": `${s.w}%` } as CSSProperties} />)}
-                    <b>{score}</b>
+                    <b>{t("lootcouncil.need.bar", { score })}</b>
                 </span>
             }
         >

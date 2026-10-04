@@ -213,10 +213,10 @@ Technik: [loot-import.md](loot-import.md)
 
 *Bereich "history" — lesend teils auch über den Basiszugang für alle Mitglieder*
 
-- Vergaben, Items, Gründe und Loot nach Raid einsehen.
+- Vier Reiter: Vergaben, Items, Raids und Charaktere. Unter Items lässt sich zwischen „Nach Item“ und „Nach Spieler“ (Gründe) umschalten, unter Raids zwischen vergangenen und kommenden Raids, dem Loot nach Raid und den Logs. Gründe und Raid filtert man in der Zeile unter den Reitern.
 - Loot-Export aus Gargul/RCLootcouncil importieren.
 - Addon-Inbox: automatisch hochgeladene Loot-Sessions bestätigen und zuordnen. Details: [docs/loot-import.md](loot-import.md).
-- Alle Reiter (Raids, Items, Loot, Loot-Gründe, Neuester Loot, Charaktere) zeigen die Spielversion des Content-Umschalters in der Kopfleiste.
+- Alle Reiter (Vergaben, Items, Raids, Charaktere) zeigen die Spielversion des Content-Umschalters in der Kopfleiste.
 
 ## Log-Auswertung (CLA/RPB)
 

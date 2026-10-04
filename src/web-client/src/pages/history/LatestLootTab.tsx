@@ -1,40 +1,61 @@
-// "Vergaben": the dashboard card's list in full — every award, newest first,
-// filterable and paged 25 at a time.
+// "Vergaben": the dashboard card's list in full — every award, newest first by
+// default, filterable, sortable and paged 25 at a time.
 //
-// Server-side filtering and paging (GET /api/history/loot-awards): the loot
-// store holds every row ever imported, and this view only ever shows one page of
-// it, so shipping the lot to the browser to slice it there would be wasted
-// payload. Every filter change therefore refetches — the search box debounced,
-// so typing doesn't fire a request per keystroke.
+// Server-side filtering, sorting and paging (GET /api/history/loot-awards): the
+// loot store holds every row ever imported, and this view only ever shows one
+// page of it, so shipping the lot to the browser to slice it there would be
+// wasted payload. Every filter or sort change therefore refetches — the search
+// box debounced, so typing doesn't fire a request per keystroke.
 //
 // "Nur Top-Items" is on by default, which is exactly the dashboard card's
 // content; switching it off widens the same list to all imported loot.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { getLootAwards, type ApiError, type Category, type LootAwardsData } from "../../api";
 import { usePersistedState } from "../../lib/persistedState";
-import { PartHead } from "../../components/ui/PartHead";
-import Badge from "../../components/ui/Badge";
+import { useTableSort, type Dir } from "../../lib/tableSort";
+import { fmtMs } from "../../lib/format";
+import { itemQualityProps, itemQualityColor } from "../../lib/itemQuality";
+import { contentName } from "../../lib/wowNames";
+import { shortDate } from "../../lib/overviewDates";
+import { SortTh } from "../../components/SortTh";
+import { CharacterLink } from "../../components/ClassSpec";
 import Pager from "../../components/Pager";
-import TopLootList from "../../components/loot/TopLootList";
-import { ActiveFilters, FilterPopover, RaidChips, SearchBox, SwitchRow, type ActiveFilter } from "../../components/loot/LootFilters";
+import { LootResponseBadge } from "../../components/loot/LootTable";
+import { contentIcon } from "../../components/loot/LootBadges";
+import { ActiveFilters, FilterPopover, ListCount, RaidSelect, SearchBox, SwitchRow, type ActiveFilter } from "../../components/loot/LootFilters";
 import RaidLoader from "../../components/ui/RaidLoader";
+import WowIcon from "../../components/ui/WowIcon";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { tParts, useT } from "../../i18n";
 
 type View = { search: string; category: string; content: string; reason: string; topOnly: boolean };
 const VIEW_DEFAULT: View = { search: "", category: "", content: "", reason: "", topOnly: true };
 
-export function LatestLootTab({ categories }: { categories: Category[] }) {
+type SortKey = "date" | "item" | "character" | "reason" | "raid";
+// Dates start newest first, names and labels A to Z.
+const SORT_DEFAULTS: Record<SortKey, Dir> = { date: "desc", item: "asc", character: "asc", reason: "asc", raid: "asc" };
+
+const classIcon = (className: string) => `classicon_${className === "DK" ? "deathknight" : className.toLowerCase()}`;
+
+/** "10.10." for this year's awards, the full date for older ones (the list pages back through years). */
+function awardDate(ms: number): string {
+    if (!ms) return "";
+    const full = fmtMs(ms, false);
+    return full.endsWith(String(new Date().getFullYear())) ? shortDate(ms) : full;
+}
+
+export function LatestLootTab({ categories, lead }: { categories: Category[]; lead?: ReactNode }) {
     const t = useT();
     const [view, setView] = usePersistedState<View>("history-awards-view", VIEW_DEFAULT);
+    const { sort, dir, onSort } = useTableSort<SortKey>("history-awards-sort", SORT_DEFAULTS, "date");
     // The menu's content version (#563): only the loot of its raids.
     const { version } = useContentVersion();
     const [page, setPage] = useState(1);
     const [data, setData] = useState<LootAwardsData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
-    // Only the search box is debounced; a chip or select change should feel immediate.
+    // Only the search box is debounced; a select change should feel immediate.
     const [search, setSearch] = useState(view.search);
     const firstLoad = useRef(true);
 
@@ -54,7 +75,7 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
         setBusy(true);
         getLootAwards({
             topOnly: view.topOnly, search: view.search, category: view.category,
-            content: view.content, reason: view.reason, page, version,
+            content: view.content, reason: view.reason, page, version, sort, dir,
         })
             .then((d) => {
                 if (cancelled) return;
@@ -65,8 +86,9 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
             .catch((err: ApiError) => { if (!cancelled) setError(err.message); })
             .finally(() => { if (!cancelled) setBusy(false); });
         return () => { cancelled = true; };
-    }, [view.topOnly, view.search, view.category, view.content, view.reason, page, version]);
+    }, [view.topOnly, view.search, view.category, view.content, view.reason, page, version, sort, dir]);
 
+    const contentLabel = useMemo(() => new Map((data?.contents || []).map((c) => [c.id, contentName(c.id, c.label)])), [data]);
     const categoryOptions = categories.filter((c) => c.id);
     const categoryName = categoryOptions.find((c) => c.id === view.category)?.name || view.category;
     const active: ActiveFilter[] = view.category
@@ -75,25 +97,16 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
 
     return (
         <div className="dash-card hl-card">
-            <PartHead
-                icon="inv_misc_coin_02" tone="history" title={t("history.page.view.awards")} crumb={t("history.latest.crumb")}
-                tip={t("history.page.view.awards")} tipSub={t("history.latest.tipSub")}
-                action={data ? <Badge count>{tParts("history.shared.awards", { count: data.total })}</Badge> : undefined}
-            />
             <div className="filter-bar hl-filters">
+                {lead}
                 <SearchBox id="awards-search" value={search} onChange={setSearch} placeholder={t("history.latest.searchPlaceholder")} />
-                {data && (
-                    <RaidChips
-                        contents={data.contents}
-                        value={view.content}
-                        onChange={(content) => patch({ content })}
-                        unknownCount={data.unknownContentCount}
-                    />
-                )}
                 <select id="awards-reason" className="hl-sel" aria-label={t("history.shared.reason")} value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
                     <option value="">{t("history.shared.allReasons")}</option>
                     {(data?.reasons || []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                 </select>
+                {data && (
+                    <RaidSelect id="awards-raid" contents={data.contents} value={view.content} onChange={(content) => patch({ content })} unknownCount={data.unknownContentCount} />
+                )}
                 <SwitchRow
                     checked={view.topOnly}
                     onChange={(topOnly) => patch({ topOnly, content: "", reason: "" })}
@@ -109,6 +122,7 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
                         </select>
                     </div>
                 </FilterPopover>
+                {data && <ListCount>{tParts("history.shared.awards", { count: data.total })}</ListCount>}
             </div>
             <ActiveFilters filters={active} />
 
@@ -125,9 +139,59 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
                             </div>
                         )
                         : (
-                            <div className={busy ? "hl-dim" : undefined}>
-                                <TopLootList items={data.items} />
-                            </div>
+                            <table className={`idx flush hl-awards${busy ? " hl-dim" : ""}`}>
+                                <thead>
+                                    <tr>
+                                        <SortTh sortKey="date" label={t("history.shared.colDate")} sort={sort} dir={dir} onSort={onSort} />
+                                        <SortTh sortKey="item" label={t("history.shared.colItem")} sort={sort} dir={dir} onSort={onSort} />
+                                        <SortTh sortKey="character" label={t("history.shared.colRaider")} sort={sort} dir={dir} onSort={onSort} />
+                                        <SortTh sortKey="reason" label={t("history.shared.reason")} sort={sort} dir={dir} onSort={onSort} />
+                                        <SortTh sortKey="raid" label={t("history.shared.colRaid")} sort={sort} dir={dir} onSort={onSort} />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.items.map((it) => {
+                                        const name = it.itemName || t("dashboard.topLoot.item", { id: it.itemId });
+                                        const raid = contentLabel.get(it.contentId) || it.eventLabel || "";
+                                        const who = [it.spec, it.className].filter(Boolean).join(" ");
+                                        return (
+                                            <tr key={`${it.eventId}-${it.itemId}-${it.character}-${it.awardedAt}`}>
+                                                <td className="hl-when">{awardDate(it.awardedAt)}</td>
+                                                <td>
+                                                    <div className="hl-item">
+                                                        {it.itemIconUrl
+                                                            ? <img className="hl-ico" src={it.itemIconUrl} alt="" loading="lazy" style={{ "--iqb": itemQualityColor(it.itemQuality) || "var(--line)" } as CSSProperties} />
+                                                            : <span className="hl-ico" />}
+                                                        <div className="hl-item-text">
+                                                            {it.itemLink
+                                                                ? <a {...itemQualityProps(it.itemQuality, "hl-item-name")} href={it.itemLink} target="_blank" rel="noopener noreferrer">{name}</a>
+                                                                : <span {...itemQualityProps(it.itemQuality, "hl-item-name")}>{name}</span>}
+                                                            {it.boss && <span className="hl-item-sub">{it.boss}</span>}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span className="hl-who" data-tip={who ? `${it.character} · ${who}` : it.character} data-tip-sub={it.response ? t("dashboard.topLoot.responseSub", { response: it.response }) : t("dashboard.topLoot.noResponse")}>
+                                                        {it.className && <WowIcon name={classIcon(it.className)} size={20} />}
+                                                        <CharacterLink character={it.character} classColor={it.classColor} />
+                                                    </span>
+                                                </td>
+                                                <td><LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} /></td>
+                                                <td>
+                                                    <Link
+                                                        className="hl-raidlink"
+                                                        to={it.eventId ? `/history/event?event=${encodeURIComponent(it.eventId)}` : "/history"}
+                                                        aria-label={it.eventLabel ? t("dashboard.topLoot.openLoot", { event: it.eventLabel }) : t("dashboard.topLoot.openLootThis")}
+                                                    >
+                                                        <WowIcon name={contentIcon(it.contentId)} size={20} />
+                                                        {raid || t("history.shared.raidUnknown")}
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         )}
             {data && data.totalPages > 1 && (
                 <div className="hl-foot">

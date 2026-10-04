@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { getHistoryData, getLootStats, getLootInbox, getSession, canAccess } from "../../api";
 import { useApi } from "../../hooks/useApi";
@@ -11,11 +11,10 @@ import { ImportLootDialog } from "./ImportLootDialog";
 import type { ShellContext } from "../../components/Shell";
 import { useToast } from "../../components/Jobs";
 import { Button } from "../../components/ui/Button";
-import { PartHead } from "../../components/ui/PartHead";
+import { ListCount } from "../../components/loot/LootFilters";
 import PageHead from "../../components/ui/PageHead";
 import Segment from "../../components/ui/Segment";
 import { useContentVersion } from "../../hooks/useContentVersion";
-import Badge from "../../components/ui/Badge";
 import "../../styles/historie-loot.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { LootEventsTab } from "./LootEventsTab";
@@ -23,43 +22,35 @@ import { LogsTab } from "./LogsTab";
 import { CharactersTab } from "./CharactersTab";
 import { tParts, useT } from "../../i18n";
 
-type Tab = "awards" | "items" | "reasons" | "loot" | "raids" | "logs" | "chars";
-
-// Three areas instead of three groups of nine tabs (design issue #225): the
-// area says what kind of thing it is, the view which one. The import form and
-// the addon inbox are gone from the tab list — neither is a view; the import is
-// a dialog from the page head, the inbox its own page (/history/inbox).
-// The open area follows from the open view, so there is nothing extra to
-// remember or persist.
-// The "loot" area is also what the narrower "Loot-Ansichten" permission opens on
+// One tab row (Vergaben | Items | Raids | Charaktere) instead of an area switch
+// over a second row of views. What used to be a tab of its own is a switch
+// inside the tab it belongs to: "Gründe" (per player) next to the item list in
+// "Items", "Nach Raid" (the loot per raid) and "Warcraft Logs" next to the raid
+// lists in "Raids". The import form and the addon inbox are not views at all —
+// the import is a dialog from the page head, the inbox its own page
+// (/history/inbox).
+// The "loot" tabs are also what the narrower "Loot-Ansichten" permission opens on
 // its own — see the page component and src/config/permissions.js.
-type AreaId = "loot" | "raids" | "chars";
+type Tab = "awards" | "items" | "raids" | "chars";
+type RaidsView = "past" | "upcoming" | "loot" | "logs";
+type ItemsView = "items" | "players";
 
-// Labels are translated at render (history.page.area.<id> / history.page.view.<id>).
-const AREAS: { id: AreaId; icon: string; views: { id: Tab }[] }[] = [
-    {
-        id: "loot", icon: "inv_misc_bag_10", views: [
-            { id: "awards" },
-            { id: "items" },
-            { id: "reasons" },
-            { id: "loot" },
-        ],
-    },
-    {
-        id: "raids", icon: "inv_misc_note_02", views: [
-            { id: "raids" },
-            { id: "logs" },
-        ],
-    },
-    { id: "chars", icon: "achievement_guildperk_everybodysfriend", views: [{ id: "chars" }] },
-];
+// Labels are translated at render (history.page.view.<id>).
+const TABS: Tab[] = ["awards", "items", "raids", "chars"];
+// What the narrower "loot" permission may open: the loot lists, and of "Raids"
+// only the loot per raid.
+const LOOT_TABS: Tab[] = ["awards", "items", "raids"];
+
+// ?tab= values from before the single tab row, still posted in Discord and
+// bookmarked: each maps to its new tab plus the switch position inside it.
+const LEGACY_TABS: Record<string, { tab: Tab; raids?: RaidsView; items?: ItemsView }> = {
+    reasons: { tab: "items", items: "players" },
+    loot: { tab: "raids", raids: "loot" },
+    logs: { tab: "raids", raids: "logs" },
+};
 
 // The main view of the page — where the sidebar link lands.
 const DEFAULT_TAB: Tab = "items";
-
-// The Raids view's two lists. They used to sit stacked in one view, the coming
-// raids on top — which put the list nobody comes here for above the one they do.
-type RaidWhen = "past" | "upcoming";
 
 // Old ?tab= values that are no longer views: "import" opens the dialog, "inbox"
 // goes to its page. Links to them are posted in Discord and must keep working.
@@ -69,7 +60,7 @@ const LEGACY_INBOX = "inbox";
 
 // The two overview views carry every loot row ever imported, so they load on
 // demand instead of with the page — opening "Raids" must not pay for them.
-const STATS_TABS: Tab[] = ["reasons", "items"];
+const STATS_TABS: Tab[] = ["items"];
 
 export default function HistoryPage() {
     const t = useT();
@@ -82,12 +73,13 @@ export default function HistoryPage() {
     // hidden views would have nothing to show anyway (apiRoutes/history.js).
     const fullHistory = canAccess(user, "history");
     const canWrite = canAccess(user, "history", "write");
-    const areas = fullHistory ? AREAS : AREAS.filter((a) => a.id === "loot");
-    const allowedTabs = areas.flatMap((a) => a.views.map((v) => v.id));
+    const allowedTabs = fullHistory ? TABS : LOOT_TABS;
     // In the URL (linkable, survives a reload) and remembered on top of that, so
     // coming back via the sidebar re-opens the view that was last used here.
-    const [tab, setTab] = usePersistedSearchParam<Tab>("history-tab", "tab", DEFAULT_TAB, allowedTabs);
+    const [paramTab, setTab] = usePersistedSearchParam<Tab>("history-tab", "tab", DEFAULT_TAB, allowedTabs);
     const legacyTab = searchParams.get("tab");
+    const legacy = legacyTab ? LEGACY_TABS[legacyTab] : undefined;
+    const tab = legacy && allowedTabs.includes(legacy.tab) ? legacy.tab : paramTab;
 
     const history = useApi(() => getHistoryData(), []);
     const { data, error } = history;
@@ -102,10 +94,23 @@ export default function HistoryPage() {
     // The kicker names the guild whose history this is (blank until known, or when it cannot be).
     const session = useApi(() => getSession(), []);
     const guildName = session.data ? session.data.guilds.find((g) => g.id === session.data?.activeGuildId)?.name || "" : "";
-    // The Raids view shows one list at a time, and it opens on the past raids:
+    // The Raids tab shows one list at a time, and it opens on the past raids:
     // what already happened is what this page is for — the coming ones are
-    // planned on the Raid-Events page, not looked up here.
-    const [raidWhen, setRaidWhen] = usePersistedState<RaidWhen>("history-raids-when", "past");
+    // planned on the Raid-Events page, not looked up here. Without the full
+    // "history" permission only the loot per raid is open.
+    const [storedRaidsView, setRaidsView] = usePersistedState<RaidsView>("history-raids-view", "past");
+    const [storedItemsView, setItemsView] = usePersistedState<ItemsView>("history-items-view-by", "items");
+    const raidsView: RaidsView = fullHistory ? storedRaidsView : "loot";
+    const itemsView: ItemsView = storedItemsView === "players" ? "players" : "items";
+    // An old link names the switch position too — apply it once, after that the
+    // visitor's own clicks rule.
+    const legacyApplied = useRef(false);
+    useEffect(() => {
+        if (!legacy || legacyApplied.current) return;
+        legacyApplied.current = true;
+        if (legacy.raids) setRaidsView(legacy.raids);
+        if (legacy.items) setItemsView(legacy.items);
+    }, [legacy, setRaidsView, setItemsView]);
     // The game version of every view (#563): the menu's content switch.
     const { version: contentVersion } = useContentVersion();
 
@@ -131,8 +136,6 @@ export default function HistoryPage() {
     // ?tab=inbox from before the inbox became a page.
     if (legacyTab === LEGACY_INBOX && fullHistory) return <Navigate to="/history/inbox" replace />;
 
-    const activeArea = areas.find((a) => a.views.some((v) => v.id === tab)) || areas[0];
-
     const head = (
         <div className="hl-page">
             <PageHead
@@ -143,9 +146,9 @@ export default function HistoryPage() {
                 action={(fullHistory || canWrite) ? (
                     <>
                         {fullHistory && (
-                            <Button variant="ghost" icon="inv_letter_18" onClick={() => navigate("/history/inbox")}>
+                            <Button variant="ghost" className="hl-inbox-btn" icon="inv_letter_18" onClick={() => navigate("/history/inbox")}>
                                 {t("history.page.inbox")}
-                                {inboxCount > 0 && <Badge tone="mid" count>{tParts("history.page.inboxOpen", { count: inboxCount })}</Badge>}
+                                {inboxCount > 0 && <> · {tParts("history.page.inboxOpen", { count: inboxCount })}</>}
                             </Button>
                         )}
                         {canWrite && (
@@ -172,88 +175,55 @@ export default function HistoryPage() {
             return { ...it, awards, count: awards.length };
         })
         .filter((it) => it.count > 0));
-    const counts: Partial<Record<Tab, number>> = {
-        // No count on "Items": the view hides sharded loot by default, so the
-        // raw catalogue size would contradict the number in its own head.
-        reasons: stats?.characters.length,
-        loot: lootEvents.length,
-        raids: upcomingEvents.length + pastEvents.length,
-        logs: data.logs.length,
-    };
+
+    // The switch inside "Raids": which list of raids it is, one at a time. It
+    // leads the filter line of whichever list is open.
+    const raidsOptions: { value: RaidsView; label: string; tip: string }[] = [
+        { value: "past", label: t("history.page.raids.past", { count: pastEvents.length }), tip: t("history.page.raids.pastOptTip") },
+        { value: "upcoming", label: t("history.page.raids.upcoming", { count: upcomingEvents.length }), tip: t("history.page.raids.upcomingOptTip") },
+        { value: "loot", label: t("history.page.raids.loot", { count: lootEvents.length }), tip: t("history.page.raids.lootTip") },
+        { value: "logs", label: t("history.page.raids.logs", { count: data.logs.length }), tip: t("history.page.raids.logsTip") },
+    ];
+    const raidsSwitch = fullHistory ? (
+        <Segment<RaidsView> ariaLabel={t("history.page.raids.whenAria")} size="sm" value={raidsView} onChange={setRaidsView} options={raidsOptions} />
+    ) : undefined;
+    // The switch inside "Items": the same loot by item or by player (the old "Gründe").
+    const itemsSwitch = (
+        <Segment<ItemsView>
+            ariaLabel={t("history.page.itemsBy.aria")}
+            size="sm"
+            value={itemsView}
+            onChange={setItemsView}
+            options={[
+                { value: "items", label: t("history.page.itemsBy.items"), tip: t("history.page.itemsBy.itemsTip") },
+                { value: "players", label: t("history.page.itemsBy.players"), tip: t("history.page.itemsBy.playersTip") },
+            ]}
+        />
+    );
+    const statsBar = <div className="filter-bar hl-filters">{itemsSwitch}</div>;
 
     return (
         <>
             {head}
 
-            {/* A switch with a single area would say nothing the subnav under it
-                doesn't — the loot-only view goes straight to its views. */}
-            {areas.length > 1 && (
-                <div className="hl-areas">
-                    <Segment<AreaId>
-                        ariaLabel={t("history.page.areaAria")}
-                        options={areas.map((a) => ({ value: a.id, label: t(`history.page.area.${a.id}`), icon: a.icon }))}
-                        value={activeArea.id}
-                        onChange={(id) => setTab((areas.find((a) => a.id === id) || areas[0]).views[0].id)}
-                    />
-                </div>
-            )}
-            {activeArea.views.length > 1 && (
-                <div className="subnav" role="tablist">
-                    {activeArea.views.map((v) => {
-                        const count = counts[v.id];
-                        return (
-                            <button key={v.id} type="button" className={`subnav-item${tab === v.id ? " active" : ""}`} role="tab" aria-selected={tab === v.id} onClick={() => setTab(v.id)}>
-                                {t(`history.page.view.${v.id}`)}
-                                {!!count && <span className="subnav-count">{count}</span>}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
+            {/* The one tab row. A loot-only visitor sees three of the four. */}
+            <div className="subnav" role="tablist">
+                {allowedTabs.map((id) => (
+                    <button key={id} type="button" className={`subnav-item${tab === id ? " active" : ""}`} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
+                        {t(`history.page.view.${id}`)}
+                    </button>
+                ))}
+            </div>
 
-            {tab === "raids" && (
-                <div className="dash-card hl-card">
-                    <PartHead
-                        icon="inv_misc_note_02" tone="history"
-                        title={raidWhen === "past" ? t("history.page.raids.pastTitle") : t("history.page.raids.upcomingTitle")}
-                        crumb={t("history.page.raids.crumb")}
-                        tip={raidWhen === "past" ? t("history.page.raids.pastTip") : t("history.page.raids.upcomingTip")}
-                        tipSub={raidWhen === "past"
-                            ? t("history.page.raids.pastSub")
-                            : t("history.page.raids.upcomingSub")}
-                        action={(
-                            <Segment<RaidWhen>
-                                ariaLabel={t("history.page.raids.whenAria")}
-                                size="sm"
-                                value={raidWhen}
-                                onChange={setRaidWhen}
-                                options={[
-                                    { value: "past", label: t("history.page.raids.past", { count: pastEvents.length }), icon: "inv_misc_pocketwatch_01", tip: t("history.page.raids.pastOptTip") },
-                                    { value: "upcoming", label: t("history.page.raids.upcoming", { count: upcomingEvents.length }), icon: "inv_misc_note_02", tip: t("history.page.raids.upcomingOptTip") },
-                                ]}
-                            />
-                        )}
-                    />
-                    {raidWhen === "past"
-                        ? <RaidTable events={pastEvents} guildId={data.activeGuildId} error={data.pastRaids.error} emptyMessage={t("history.page.raids.pastEmpty")} sortKey="raids-past-sort" />
-                        : <RaidTable events={upcomingEvents} guildId={data.activeGuildId} error={data.upcomingRaids.error} emptyMessage={t("history.page.raids.upcomingEmpty")} sortKey="raids-upcoming-sort" initialDir="asc" />}
-                </div>
-            )}
-            {tab === "loot" && (
-                <LootEventsTab
-                    lootEvents={lootEvents} categories={data.categories}
-                    onChanged={afterChange} canEdit={canAccess(user, "history", "write")}
-                />
-            )}
             {/* Fetches its own page of awards — see LatestLootTab. */}
             {tab === "awards" && <LatestLootTab categories={data.categories} />}
-            {STATS_TABS.includes(tab) && (
+            {tab === "items" && (
                 statsError
-                    ? <div className="empty">{tParts("history.shared.loadError", { message: statsError.message })}</div>
+                    ? <div className="dash-card hl-card">{statsBar}<div className="empty">{tParts("history.shared.loadError", { message: statsError.message })}</div></div>
                     : !stats
-                        ? <RaidLoader compact text={t("history.page.statsLoading")} />
-                        : tab === "reasons"
-                            ? <LootReasonsTab characters={stats.characters} reasons={stats.reasons} categories={data.categories} contents={stats.contents} />
+                        ? <div className="dash-card hl-card">{statsBar}<RaidLoader compact text={t("history.page.statsLoading")} /></div>
+                        : itemsView === "players"
+                            ? <LootReasonsTab characters={stats.characters} reasons={stats.reasons} categories={data.categories} contents={stats.contents} lead={itemsSwitch} />
                             : (
                                 <LootItemsTab
                                     items={statsItems}
@@ -264,10 +234,25 @@ export default function HistoryPage() {
                                     unknownContentCount={stats.unknownContentCount}
                                     canEdit={canWrite}
                                     onChanged={afterChange}
+                                    lead={itemsSwitch}
                                 />
                             )
             )}
-            {tab === "logs" && <LogsTab logs={data.logs} onChanged={afterChange} />}
+            {tab === "raids" && raidsView === "loot" && (
+                <LootEventsTab lootEvents={lootEvents} categories={data.categories} onChanged={afterChange} canEdit={canWrite} lead={raidsSwitch} />
+            )}
+            {tab === "raids" && raidsView === "logs" && <LogsTab logs={data.logs} onChanged={afterChange} lead={raidsSwitch} />}
+            {tab === "raids" && (raidsView === "past" || raidsView === "upcoming") && (
+                <div className="dash-card hl-card">
+                    <div className="filter-bar hl-filters">
+                        {raidsSwitch}
+                        <ListCount>{tParts("history.page.raids.count", { count: raidsView === "past" ? pastEvents.length : upcomingEvents.length })}</ListCount>
+                    </div>
+                    {raidsView === "past"
+                        ? <RaidTable events={pastEvents} guildId={data.activeGuildId} error={data.pastRaids.error} emptyMessage={t("history.page.raids.pastEmpty")} sortKey="raids-past-sort" />
+                        : <RaidTable events={upcomingEvents} guildId={data.activeGuildId} error={data.upcomingRaids.error} emptyMessage={t("history.page.raids.upcomingEmpty")} sortKey="raids-upcoming-sort" initialDir="asc" />}
+                </div>
+            )}
             {tab === "chars" && <CharactersTab chars={data.chars} categories={data.categories} onChanged={afterChange} version={version} />}
 
             {canWrite && (

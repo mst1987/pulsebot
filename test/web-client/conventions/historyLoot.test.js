@@ -81,7 +81,7 @@ describe("Historie & Loot module", () => {
 
     it("keeps the rare filters behind one Filter button and lists them as removable badges", () => {
         const items = src["pages/history/LootItemsTab.tsx"];
-        expect(items).toContain("<RaidChips");
+        expect(items).toContain("<RaidSelect");
         expect(items).toContain("<FilterPopover");
         expect(items).toContain("<ActiveFilters");
         // removable through the shared Badge (ui/Badge onRemove, #439)
@@ -115,7 +115,7 @@ describe("Historie & Loot module", () => {
 
     it("builds on the shared UI blocks and keeps its CSS in the module file", () => {
         expect(src["pages/history/HistoryPage.tsx"]).toContain("<PageHead");
-        expect(src["pages/history/HistoryPage.tsx"]).toContain("<Segment<AreaId>");
+        expect(src["pages/history/HistoryPage.tsx"]).toContain("<Segment<RaidsView>");
         for (const file of ["pages/history/HistoryPage.tsx", "pages/history/HistoryEventPage.tsx", "pages/history/HistoryInboxPage.tsx"]) {
             expect(src[file]).toContain("import \"../../styles/historie-loot.css\";");
         }
@@ -123,18 +123,28 @@ describe("Historie & Loot module", () => {
         expect(read("index.css")).not.toContain(".hl-");
     });
 
-    // The Raids view used to stack both lists with the coming raids on top —
-    // the list nobody opens this page for above the one they do.
-    it("opens the Raids view on the past raids and switches to the coming ones", () => {
+    // The Raids tab used to stack both lists with the coming raids on top —
+    // the list nobody opens this page for above the one they do. Now a switch
+    // inside the tab picks one list at a time (and the loot per raid and the logs).
+    it("opens the Raids tab on the past raids and switches between its lists", () => {
         const page = src["pages/history/HistoryPage.tsx"].replace(/\r\n/g, "\n");
-        expect(page).toContain("usePersistedState<RaidWhen>(\"history-raids-when\", \"past\")");
-        expect(page).toContain("<Segment<RaidWhen>");
-        const view = page.match(/\{tab === "raids" && \(\n[\s\S]*?\n {12}\)\}/)[0];
+        expect(page).toContain("usePersistedState<RaidsView>(\"history-raids-view\", \"past\")");
+        expect(page).toContain("<Segment<RaidsView>");
+        const view = page.match(/\{tab === "raids" && \(raidsView === "past"[\s\S]*?\n {12}\)\}/)[0];
         expect((view.match(/<RaidTable/g) || []).length).toBe(2);
-        expect(view).toContain("raidWhen === \"past\"");
-        // One card with one table at a time, not two cards under each other.
+        expect(view).toContain("raidsView === \"past\"");
+        // One card with one table at a time, and no card header repeating the tab.
         expect((view.match(/dash-card hl-card/g) || []).length).toBe(1);
-        expect((view.match(/<PartHead/g) || []).length).toBe(1);
+        expect(page).not.toContain("<PartHead");
+    });
+
+    it("has one tab row and no card headers repeating the tab", () => {
+        const page = src["pages/history/HistoryPage.tsx"];
+        expect((page.match(/role="tablist"/g) || []).length).toBe(1);
+        expect(page).toContain("const TABS: Tab[] = [\"awards\", \"items\", \"raids\", \"chars\"];");
+        for (const file of MODULE_FILES.filter((f) => f.startsWith("pages/history/") && !f.includes("Dialog") && !f.includes("Form") && !f.includes("Inbox") && !f.includes("EventPage"))) {
+            expect({ file, partHead: src[file].includes("<PartHead") }).toEqual({ file, partHead: false });
+        }
     });
 
     // Every search on this page is the module's own field (icon, tokens, focus

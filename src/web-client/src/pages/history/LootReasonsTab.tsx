@@ -6,16 +6,14 @@
 //
 // The reason catalog, its labels and its colours all come from the server
 // (utils/lootReasons.js); this file only lays them out.
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { CharReasonRow, LootContent, LootReason, Category } from "../../api";
 import { usePersistedState } from "../../lib/persistedState";
 import { sortRows, type Dir } from "../../lib/tableSort";
 import { SortLabel, ariaSort } from "../../components/SortTh";
-import { PartHead } from "../../components/ui/PartHead";
-import Badge from "../../components/ui/Badge";
 import Bar from "../../components/ui/Bar";
 import { ReasonBadge, ReasonBadgeButton, RaiderBadge, StackBar } from "../../components/loot/LootBadges";
-import { ActiveFilters, SearchBox, type ActiveFilter } from "../../components/loot/LootFilters";
+import { ActiveFilters, ListCount, SearchBox, type ActiveFilter } from "../../components/loot/LootFilters";
 import { RaiderReasonDialog } from "./ItemAwardsDialog";
 import { tParts, useT } from "../../i18n";
 
@@ -39,11 +37,13 @@ function sortValue(c: CharReasonRow, key: SortKey): string | number {
     }
 }
 
-export function LootReasonsTab({ characters, reasons, categories, contents }: {
+export function LootReasonsTab({ characters, reasons, categories, contents, lead }: {
     characters: CharReasonRow[];
     reasons: LootReason[];
     categories: Category[];
     contents: LootContent[];
+    /** The page's view switch, first in the filter line. */
+    lead?: ReactNode;
 }) {
     const t = useT();
     const [view, setView] = usePersistedState<View>("history-reasons-view", VIEW_DEFAULT);
@@ -98,16 +98,10 @@ export function LootReasonsTab({ characters, reasons, categories, contents }: {
     const bucket = openRaider?.reasons.find((b) => b.reason === openBucket?.reason) || null;
 
     const head = (
-        <PartHead
-            icon="inv_misc_book_09" tone="history" title={t("history.page.view.reasons")} crumb={t("history.reasons.crumb")}
-            tip={t("history.page.view.reasons")} tipSub={t("history.reasons.tipSub")}
-            action={characters.length ? (
-                <>
-                    <Badge count>{tParts("history.reasons.raiders", { count: characters.length })}</Badge>
-                    <Badge tone="accent" count>{tParts("history.shared.items", { count: totalItems })}</Badge>
-                </>
-            ) : undefined}
-        />
+        <div className="filter-bar hl-filters">
+            {lead}
+            {characters.length > 0 && <ListCount>{tParts("history.reasons.raiders", { count: characters.length })} · {tParts("history.shared.items", { count: totalItems })}</ListCount>}
+        </div>
     );
 
     if (!characters.length) {
@@ -121,8 +115,8 @@ export function LootReasonsTab({ characters, reasons, categories, contents }: {
 
     return (
         <div className="dash-card hl-card">
-            {head}
             <div className="filter-bar hl-filters">
+                {lead}
                 <SearchBox id="reasons-search" value={view.search} onChange={(search) => patch({ search })} placeholder={t("history.shared.charSearch")} />
                 <select id="reasons-reason" className="hl-sel" aria-label={t("history.shared.reason")} value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
                     <option value="">{t("history.shared.allReasons")}</option>
@@ -134,6 +128,7 @@ export function LootReasonsTab({ characters, reasons, categories, contents }: {
                         {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                     </select>
                 )}
+                <ListCount>{tParts("history.reasons.raiders", { count: characters.length })} · {tParts("history.shared.items", { count: totalItems })}</ListCount>
                 <div className="badge-row is-end">
                     {totals.map((r) => <ReasonBadge key={r.id} label={r.label} tone={r.tone} count={r.count} />)}
                 </div>

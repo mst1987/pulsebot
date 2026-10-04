@@ -28,13 +28,15 @@ describe("loot council — page structure", () => {
         expect(filterBar).toMatch(/<Segment\s+ariaLabel=\{t\("lootcouncil\.filter\.role"\)\}/);
         expect(text("filter.role")).toBe("Rolle");
         expect(council).toMatch(/caster: "spell_holy_magicalsentry", healer: "spell_holy_guardianspirit"/);
-        expect(filterBar).toMatch(/icon="inv_shield_06"/);
-        expect(filterBar).toMatch(/Sim \{simulated\}\/\{simulatable\}/);
+        // Gear source and simulation are facts inside the one Filter box, said with words.
+        expect(filterBar).toContain("t(\"lootcouncil.filter.gearSource\")");
+        expect(filterBar).toContain("t(\"lootcouncil.filter.simValue\", { done: simulated, total: simulatable })");
     });
 
-    it("keeps the content choices in a popover with the raid hues", () => {
+    it("keeps the content choices in the Filter popover with the raid hues", () => {
+        expect(filterBar).toMatch(/aria-expanded=\{open\}/);
+        expect(filterBar).toContain("lootcouncil.filter.buttonActive");
         const content = fn(filterBar, "ContentFilter");
-        expect(content).toMatch(/aria-expanded=\{open\}/);
         expect(content).toMatch(/lc-filter lc-h-\$\{c\.id\}/);
         expect(content).toMatch(/className=\{`lc-cbadge lc-h-\$\{tier\.id\}`\}/);
     });

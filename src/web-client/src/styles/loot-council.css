@@ -20,25 +20,34 @@
 .lc-note { font-size: 12.5px; margin-top: 8px; }
 
 /* ---- page head, filter bar, tabs ---- */
-.lc-filterbar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.lc-filterline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 16px; position: relative; }
 .lc-filterbar-badges { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
 .lc-sel { min-height: var(--ctl-h-sm); padding-top: 4px; padding-bottom: 4px; font-size: 13.5px; width: auto; }
-.lc-selwrap { display: inline-flex; }
-.lc-pop { position: relative; display: inline-flex; }
+.lc-fpop { position: relative; display: inline-flex; }
 .lc-selbtn {
-    display: inline-flex; align-items: center; gap: 8px; min-height: var(--ctl-h-sm); padding: 4px 10px;
+    display: inline-flex; align-items: center; gap: 8px; min-height: var(--ctl-h); padding: 4px 12px;
     background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: var(--ctl-radius);
-    font: inherit; font-size: 13.5px; cursor: pointer; white-space: nowrap;
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
 .lc-selbtn:hover { border-color: var(--muted); }
+.lc-selbtn.on { border-color: var(--accent); background: var(--accent-soft); }
 .lc-selbtn[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .lc-selbtn svg { width: 15px; height: 15px; flex: none; color: var(--muted); }
-.lc-popmenu {
-    position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; width: min(420px, calc(100vw - 48px));
-    display: flex; flex-direction: column; gap: 8px; padding: 12px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px -6px var(--shade-40);
+/* The one filter box: Content wide on top, the other fields two to a row. */
+.lc-fpopmenu {
+    position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; width: min(500px, calc(100vw - 32px));
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; padding: 16px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 14px 38px -12px var(--shade-50);
 }
-.lc-popmenu > .btn { align-self: flex-start; }
+.lc-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.lc-field.lc-field-wide { grid-column: 1 / -1; }
+.lc-field .lc-sel { width: 100%; min-height: var(--ctl-h); }
+.lc-fval { display: flex; align-items: center; min-height: var(--ctl-h); padding: 0 12px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); font-size: 14px; font-weight: 600; cursor: help; }
+.lc-fval.accent { color: var(--accent); }
+.lc-fval.ok { color: var(--good); }
+.lc-fval.bad { color: var(--high); }
+.lc-fpop-foot { grid-column: 1 / -1; display: flex; gap: 8px; }
+.lc-rosterbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 10px; font-size: 13.5px; }
 .lc-popbtns { display: flex; flex-wrap: wrap; gap: 6px; }
 .lc-tabs { margin-top: 0; }
 
@@ -84,7 +93,7 @@ a.lc-id-name:hover { text-decoration: underline; }
 .lc-list {
     border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; margin-bottom: 16px;
     display: grid; column-gap: 12px;
-    grid-template-columns: 28px minmax(170px, 1.2fr) 150px 52px 44px 120px 52px minmax(120px, 1fr) auto;
+    grid-template-columns: 28px minmax(170px, 1.2fr) 140px 112px 56px 136px 52px minmax(120px, 1fr) auto;
 }
 .lc-lrow {
     display: grid; grid-column: 1 / -1; grid-template-columns: subgrid;
@@ -227,4 +236,10 @@ tr.lc-crow-panel > td { padding: 0 14px 16px 50px; border-bottom: 1px solid var(
     .lc-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .lc-sheet { grid-template-columns: 1fr; }
     .lc-filterbar-badges { margin-left: 0; }
+}
+
+/* The filter box opens across the page on a phone instead of off its right edge. */
+@media (max-width: 700px) {
+    .lc-fpop { position: static; }
+    .lc-fpopmenu { left: 0; right: 0; width: auto; grid-template-columns: 1fr; }
 }
