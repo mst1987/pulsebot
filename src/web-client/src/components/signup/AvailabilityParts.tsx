@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { searchRaiders, type AvailabilityRaid, type AvailabilityResult, type RaiderRef } from "../../api";
+import { searchRaiders, type AvailabilityKind, type AvailabilityRaid, type AvailabilityResult, type RaiderRef } from "../../api";
 import { Badge, Button, IconButton } from "../ui";
 import { RosterIcon, SearchIcon, XIcon } from "../icons";
 import { formatDayDate, formatTime } from "../../lib/format";
 import { SIGNUP_STATUS, statusBadgeLabel } from "../../lib/signups";
-import { skipReason } from "../../lib/availability";
+import { skipReason, staysAsIs } from "../../lib/availability";
 import { useT } from "../../i18n";
 
 // The parts of the absence/attendance dialog (AvailabilityDialog.tsx): the raids
@@ -17,8 +17,12 @@ function when(startTime: number): string {
     return `${formatDayDate(ms)} ${formatTime(ms)}`;
 }
 
-/** The raids the period covers — all picked at first; a click leaves one out. */
-export function RaidChecklist({ raids, off, onToggle }: {
+/**
+ * The raids the period covers — all picked at first; a click leaves one out. A
+ * raid the save would leave alone anyway (staysAsIs) stays unpicked and greyed out.
+ */
+export function RaidChecklist({ kind, raids, off, onToggle }: {
+    kind: AvailabilityKind;
     raids: AvailabilityRaid[];
     /** The ids left out. */
     off: Set<string>;
@@ -28,11 +32,12 @@ export function RaidChecklist({ raids, off, onToggle }: {
     return (
         <ul className="an-av-raids">
             {raids.map((r) => {
-                const picked = !off.has(r.id);
+                const fixed = staysAsIs(kind, r.status);
+                const picked = !fixed && !off.has(r.id);
                 return (
                     <li key={r.id}>
                         <label className={`an-av-raid${picked ? "" : " an-av-off"}`}>
-                            <input type="checkbox" checked={picked} onChange={() => onToggle(r.id)} aria-label={t("signups.availability.dialog.raidAria", { title: r.title })} />
+                            <input type="checkbox" checked={picked} disabled={fixed} onChange={() => onToggle(r.id)} aria-label={t("signups.availability.dialog.raidAria", { title: r.title })} />
                             <span className="an-av-text">
                                 <span className="an-av-title">{r.title}</span>
                                 <span className="an-av-when">{[when(r.startTime), r.categoryName].filter(Boolean).join(" · ")}</span>

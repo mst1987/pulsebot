@@ -9,7 +9,7 @@ import { Button, Modal, Segment, WowIcon } from "../ui";
 import { AbsenceIcon, CheckIcon, SignedIcon } from "../icons";
 import { useToast } from "../Jobs";
 import { RaidChecklist, RaiderPick, ResultList } from "./AvailabilityParts";
-import { countResults, firstSpec, nextTo, resultSummary } from "../../lib/availability";
+import { countResults, firstSpec, nextTo, resultSummary, staysAsIs } from "../../lib/availability";
 import { classIconName } from "../../lib/rosterView";
 import { specLabel } from "../../lib/wowNames";
 import { useT } from "../../i18n";
@@ -93,7 +93,7 @@ function AvailabilityForm({ initialKind, own, onClose, onSaved }: {
     // the answer for exactly these inputs, else still looking
     const current = complete && preview.key === inputKey ? preview : null;
     const raids = current?.raids || [];
-    const picked = raids.filter((r) => !off.has(r.id));
+    const picked = raids.filter((r) => !off.has(r.id) && !staysAsIs(kind, r.status));
     const problem = current?.problem || (target && other.error ? other.error.message : "");
     const canSave = !!current && !!current.raids && !busy && !results;
 
@@ -211,7 +211,7 @@ function AvailabilityForm({ initialKind, own, onClose, onSaved }: {
                         {problem ? <p className="an-av-problem" role="alert">{problem}</p>
                             : !complete ? null
                                 : !current ? <p className="an-note">{t("signups.availability.dialog.searching")}</p>
-                                    : raids.length ? <RaidChecklist raids={raids} off={off} onToggle={toggle} />
+                                    : raids.length ? <RaidChecklist kind={kind} raids={raids} off={off} onToggle={toggle} />
                                         : <p className="an-note">{t("signups.availability.dialog.noRaids")}</p>}
                     </div>
                 </div>

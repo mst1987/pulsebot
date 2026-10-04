@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { AvailabilityResult } from "../api";
 import { t } from "../i18n";
 import { switchLang } from "../test/i18n";
-import { countResults, dayMs, firstSpec, nextTo, periodLabel, resultSummary, skipReason } from "./availability";
+import { countResults, dayMs, firstSpec, nextTo, periodLabel, resultSummary, skipReason, staysAsIs } from "./availability";
 import { formatDayDate } from "./format";
 
 const result = (over: Partial<AvailabilityResult> = {}): AvailabilityResult => ({
@@ -13,6 +13,14 @@ const result = (over: Partial<AvailabilityResult> = {}): AvailabilityResult => (
 afterEach(() => switchLang("de"));
 
 describe("availability rules", () => {
+    it("knows the raids a save leaves alone anyway", () => {
+        expect(staysAsIs("presence", "")).toBe(false);
+        expect(staysAsIs("presence", "tentative")).toBe(true);
+        expect(staysAsIs("presence", "absence")).toBe(true);
+        expect(staysAsIs("absence", "signed")).toBe(false);
+        expect(staysAsIs("absence", "absence")).toBe(true);
+    });
+
     it("reads a day as noon UTC, so the guild's calendar day stays the same", () => {
         expect(new Date(dayMs("2026-10-05")).toISOString()).toBe("2026-10-05T12:00:00.000Z");
         expect(dayMs("05.10.2026")).toBe(0);

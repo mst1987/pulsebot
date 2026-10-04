@@ -84,6 +84,25 @@ describe("AvailabilityDialog", () => {
         expect(onClose).toHaveBeenCalled();
     });
 
+    it("leaves a raid the save would skip anyway unpicked and greyed out", async () => {
+        const user = userEvent.setup();
+        show("presence");
+        // an attendance never touches an existing signup: Kara (signed) cannot be picked
+        expect(await raidBox("Kara Freitag")).not.toBeChecked();
+        expect(await raidBox("Kara Freitag")).toBeDisabled();
+        expect(await raidBox("Gruul Samstag")).toBeChecked();
+        expect(screen.getByText(t("signups.availability.dialog.picked", { picked: 1, total: 2 }), { exact: false })).toBeInTheDocument();
+        await user.click(saveButton("presence"));
+        expect(api.saveAvailability).toHaveBeenCalledWith(expect.objectContaining({ kind: "presence", eventIds: ["gruul"] }));
+    });
+
+    it("an absence still picks a raid one is signed up for, but not one already signed off from", async () => {
+        vi.mocked(api.previewAvailability).mockResolvedValue({ raids: [RAIDS[0], { ...RAIDS[1], status: "absence" }] });
+        show();
+        expect(await raidBox("Kara Freitag")).toBeChecked();
+        expect(await raidBox("Gruul Samstag")).toBeDisabled();
+    });
+
     it("moves 'Bis' along with 'Von' and looks the period up again", async () => {
         show();
         await raidBox("Kara Freitag");
@@ -110,7 +129,8 @@ describe("AvailabilityDialog", () => {
         await waitFor(() => expect(saveButton("presence")).toBeEnabled());
         await user.click(saveButton("presence"));
         expect(api.saveAvailability).toHaveBeenCalledWith({
-            kind: "presence", from: "2026-10-05", to: "2026-10-05", character: "zibbowar", spec: "Warrior-Protection", comment: "", eventIds: ["kara", "gruul"],
+            // Kara is signed up already: an attendance leaves it alone, so it is not sent
+            kind: "presence", from: "2026-10-05", to: "2026-10-05", character: "zibbowar", spec: "Warrior-Protection", comment: "", eventIds: ["gruul"],
         });
     });
 

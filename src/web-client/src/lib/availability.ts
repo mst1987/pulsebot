@@ -32,6 +32,15 @@ export function firstSpec(character: AvailabilityCharacter | undefined): string 
     return (character.specs.find((s) => s.gear === "ready") || character.specs[0]).key;
 }
 
+/**
+ * Whether the server would leave this raid alone anyway (availability.js): an
+ * attendance never touches an existing signup or absence, an absence never one
+ * already signed off. The dialog shows such a raid greyed out and unpicked.
+ */
+export function staysAsIs(kind: AvailabilityKind, status: string): boolean {
+    return kind === "presence" ? !!status : status === "absence";
+}
+
 /** What a save did, counted: changed, skipped (already so), failed. */
 export function countResults(results: AvailabilityResult[]): { done: number; skipped: number; failed: number } {
     return {
