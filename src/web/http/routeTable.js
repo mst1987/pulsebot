@@ -20,7 +20,7 @@ const MODULES = [
     "session", "dashboard", "version", "channels", "settings", "talkOverview", "raidhelperRetirement",
     "ingest", "kader", "botCommands", "raiderCharacters", "roster", "profile", "signups", "lootCouncil",
     "raids", "raidDetail", "setup", "raidplan", "eventManage", "eventSeries", "gameVersions",
-    "notifyTemplates", "raidTemplates", "recruitment", "history", "cla",
+    "notifyTemplates", "raidTemplates", "recruitment", "history", "cla", "availability",
 ];
 
 const METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);

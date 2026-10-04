@@ -72,6 +72,17 @@ const RULES = [
     [/^Der Vorname hat (\d+) Buchstaben – höchstens (\d+)\.$/, "The first name has $1 letters – at most $2."],
     [/^Der Nachname hat (\d+) Buchstaben – höchstens (\d+)\.$/, "The last name has $1 letters – at most $2."],
     [/^Dieser Name ist nicht erlaubt – bitte einen anderen wählen\.$/, "This name is not allowed – please pick another one."],
+    // services/signups/availability.js + stores/availabilityStore.js (absences and attendances)
+    [/^Unbekannte Art – Abwesenheit oder Anwesenheit\.$/, "Unknown kind – absence or attendance."],
+    [/^Bitte ein gültiges Von- und Bis-Datum angeben\.$/, "Please enter a valid start and end date (e.g. 24.10. or 2026-10-24)."],
+    [/^Das Bis-Datum liegt vor dem Von-Datum\.$/, "The end date lies before the start date."],
+    [/^Für eine Anwesenheit bitte Charakter und Spec wählen\.$/, "Pick a character and spec for an attendance."],
+    [/^Kein Raider\.$/, "No raider."],
+    [/^Höchstens (\d+) Einträge – lösche zuerst einen alten\.$/, "At most $1 entries – delete an old one first."],
+    [/^Der Zeitraum liegt schon in der Vergangenheit\.$/, "That period is already over."],
+    [/^Höchstens (\d+) Tage auf einmal\.$/, "At most $1 days at once."],
+    [/^Diese Spec hat der Charakter im Profil nicht\.$/, "Your profile does not have this spec for the character."],
+    [/^Eintrag nicht gefunden\.$/, "Entry not found."],
 ];
 
 /**
