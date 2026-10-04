@@ -27,7 +27,7 @@ const { mainVersionFor } = require("../../services/events/mainVersion");
 const { characterKey, characterKeyOf } = require("../../utils/loot/lootImport");
 const { listStoredEvents } = require("../../services/events/eventSources");
 const { listLogs } = require("../../stores/logStore");
-const { listReports, getReport } = require("../../stores/reportStore");
+const { listReports, getReportRoster } = require("../../stores/reportStore");
 const { CONTENTS, TIERS, content: contentMeta, sourceForItem } = require("../../config/tbcContent");
 const { SLOT_NAMES } = require("../../utils/logcheck/gearIssues");
 const { characterProfile } = require("../../utils/setup/setupView");
@@ -135,7 +135,8 @@ function categoryFromReports(categoryId) {
     if (!reportIds.size) return keys;
     for (const meta of listReports().slice(0, MAX_CATEGORY_REPORTS)) {
         if (!reportIds.has(String(meta.id))) continue;
-        const report = getReport(meta.id);
+        // only the roster, not the whole report: the timeline is 90 % of the file
+        const report = getReportRoster(meta.id);
         for (const entry of (report && report.roster) || []) {
             const key = characterKeyOf(entry.name);
             if (key) keys.add(key);

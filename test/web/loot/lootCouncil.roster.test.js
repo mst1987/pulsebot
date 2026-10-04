@@ -33,6 +33,7 @@ jest.mock("../../../src/stores/logStore", () => ({ listLogs: (...a) => mockLogs(
 jest.mock("../../../src/stores/reportStore", () => ({
     listReports: (...a) => mockListReports(...a),
     getReport: (...a) => mockGetReport(...a),
+    getReportRoster: (...a) => mockGetReport(...a),
 }));
 const mockListProfiles = jest.fn(() => []);
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: (...a) => mockListProfiles(...a) }));

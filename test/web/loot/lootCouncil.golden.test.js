@@ -31,7 +31,7 @@ jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: () => [
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: () => [], getEvent: () => null, isOwnEventId: () => false }));
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => [] }));
 jest.mock("../../../src/stores/logStore", () => ({ listLogs: () => [] }));
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null }));
+jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null, getReportRoster: () => null }));
 
 const { councilRoster } = require("../../../src/web/loot/lootCouncil");
 const wowsims = require("../../../src/config/wowsims");
