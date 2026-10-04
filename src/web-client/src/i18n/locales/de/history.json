@@ -62,11 +62,6 @@
         "statsLoading": "Übersicht wird geladen",
         "areaAria": "Bereich",
         "versionAria": "Spielversion",
-        "area": {
-            "loot": "Loot",
-            "raids": "Raids & Logs",
-            "chars": "Charaktere"
-        },
         "view": {
             "awards": "Vergaben",
             "items": "Items",
@@ -77,20 +72,28 @@
             "chars": "Charaktere"
         },
         "raids": {
-            "pastTitle": "Vergangene Raids",
-            "upcomingTitle": "Kommende Raids",
-            "crumb": "Raids & Logs › Raids",
-            "pastTip": "Gelaufene Raids",
-            "upcomingTip": "Angesetzte Raids",
-            "pastSub": "Jeder Termin, der vorbei ist, mit seinen Logs und dem importierten Loot.",
-            "upcomingSub": "Was im Kalender steht. Geplant wird er unter Raid-Events.",
             "whenAria": "Zeitraum",
             "past": "Vergangene ({count})",
             "upcoming": "Kommende ({count})",
             "pastOptTip": "Schon gelaufen",
             "upcomingOptTip": "Noch angesetzt",
             "pastEmpty": "Keine vergangenen Raids gefunden.",
-            "upcomingEmpty": "Keine anstehenden Raids gefunden."
+            "upcomingEmpty": "Keine anstehenden Raids gefunden.",
+            "loot": "Loot nach Raid ({count})",
+            "lootTip": "Der importierte Loot, je Raid-Abend",
+            "logs": "Logs ({count})",
+            "logsTip": "Warcraft-Logs-Berichte",
+            "count": {
+                "one": "{count} Raids",
+                "other": "{count} Raids"
+            }
+        },
+        "itemsBy": {
+            "aria": "Ansicht",
+            "items": "Nach Item",
+            "players": "Nach Spieler",
+            "itemsTip": "Jedes Item einmal, mit seinen Vergaben",
+            "playersTip": "Was jeder Spieler bekommen hat und warum (Gründe)"
         }
     },
     "event": {

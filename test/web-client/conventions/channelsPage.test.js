@@ -11,7 +11,7 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").
 
 const page = read("pages", "ChannelsPage.tsx");
 const css = read("styles", "channels.css");
-const PARTS = ["ArchiveTab", "CategorySchemaDialog", "channelBits", "ChannelBulk", "ChannelDialogs", "ChannelEditDialog", "ChannelTree", "NamingBadge", "PurposeList", "QuickCreateDialog"];
+const PARTS = ["ArchiveTab", "CategorySchemaDialog", "channelBits", "ChannelBulk", "ChannelDialogs", "ChannelEditDialog", "ChannelTree", "MoreMenu", "NamingBadge", "PurposeList", "QuickCreateDialog"];
 const ALL = [page, ...PARTS.map((name) => read("components", "channels", `${name}.tsx`))].join("\n");
 
 describe("ChannelsPage — conventions", () => {
@@ -34,10 +34,14 @@ describe("ChannelsPage — conventions", () => {
         }
     });
 
-    it("pins the bulk bar to the viewport, one line wide", () => {
-        expect(css).toMatch(/\.kn-bulk \{[\s\S]*position: fixed/);
-        // left: 50% leaves the fixed bar half the viewport: without max-content its buttons wrap onto two lines.
-        expect(css).toMatch(/\.kn-bulk \{[^}]*width: max-content/);
+    it("keeps the bulk bar sticky at the bottom of the list, not over the page", () => {
+        expect(css).toMatch(/\.kn-bulk \{[^}]*position: sticky/);
+        expect(css).not.toMatch(/\.kn-bulk \{[^}]*position: fixed/);
+    });
+
+    it("keeps a row's actions reachable without hover: always there on touch", () => {
+        expect(css).toMatch(/@media \(hover: none\) \{[^}]*\.kn-row-icons \{ opacity: 1; \}/);
+        expect(css).toContain(".kn-row:focus-within .kn-row-icons");
     });
 
     it("shows a category head's pencil on hover like the channel rows' icons", () => {

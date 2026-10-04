@@ -1,4 +1,4 @@
-import { useState, type PointerEvent } from "react";
+import { useState, type PointerEvent, type ReactNode } from "react";
 import Flyout from "../../../components/raidplan/Flyout";
 import { Check, ListChecks, MapPin, Minus, Plus, RotateCcw, Split, Users } from "lucide-react";
 import type { Besetzung as BesetzungData, RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../../../api";
@@ -10,7 +10,6 @@ import { slotSummary } from "../../../lib/raidplan/assignLine";
 import { classStatus, refillByClass } from "../../../lib/raidplan/rosterAssign";
 import { groupColor, groupMark } from "../../../lib/raidplan/groupStyle";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
-import CollapseToggle from "../../../components/raidplan/CollapseToggle";
 import { useCollapse } from "../../../hooks/useCollapse";
 import GroupStyle from "./GroupStyle";
 import { assignSlot, besetzungSlots, countOf, effectiveCounts, placeSlot, resetCounts, roleOn, setCount, setFlexRole, unplaceSlot } from "../../../lib/raidplan";
@@ -24,8 +23,11 @@ import { useT } from "../../../i18n";
  * somebody else; a player can play another role on this boss (flex). +/- change how many a role has — for this
  * boss only ("nur dieser Boss", back to the raid type's numbers with the arrow). The pin puts a slot on the
  * map (click, or drag it onto the board); everything can be assigned unplaced.
+ * Since Oct 2026 it is ONE line by default ("25 Spieler · 3 Tanks · 7 Heiler · 15 DD"); "Ändern" opens all of the above.
  */
-export default function Besetzung({ board, besetzung, roster, isEvent, canWrite, edit, editAll, players, onPlaceDown, onChipDown, onShow, onAssign }: {
+export default function Besetzung({ board, besetzung, roster, isEvent, canWrite, edit, editAll, players, onPlaceDown, onChipDown, onShow, onAssign, tools }: {
+    /** more settings of the plan's lineup, shown when the block is open ("Gruppen im Plan" of an event plan) */
+    tools?: ReactNode;
     board: RaidplanBoard;
     besetzung: BesetzungData;
     roster: RaidplanPlayer[];
@@ -45,7 +47,9 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
     onAssign: () => void;
 }) {
     const t = useT();
-    const [collapsed, toggleCollapsed] = useCollapse("eh.raidplan.collapse.bes");
+    // one line by default (Oct 2026); "Ändern" opens the steppers and chips, remembered in this browser (the stored flag means "open")
+    const [opened, toggleCollapsed] = useCollapse("eh.raidplan.bes.open");
+    const collapsed = !opened;
     const [openSlot, setOpenSlot] = useState<{ id: string; el: HTMLElement } | null>(null);
     const open = openSlot ? openSlot.id : "";
     const [showSplit, setShowSplit] = useState(false);
@@ -134,25 +138,39 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
         );
     };
 
+    // the one line (Oct 2026): "25 Spieler · 3 Tanks · 7 Heiler · 15 DD", each role with its colour dot
+    const roleN = (kinds: string[]) => all.filter((s) => kinds.indexOf(s.kind) >= 0).length;
+    const line = [
+        { key: "tank", n: roleN(["tank"]), label: t("raidBoard.views.besTanks") },
+        { key: "healer", n: roleN(["healer"]), label: t("raidBoard.views.besHealers") },
+        { key: "dps", n: roleN(["dps", "melee", "ranged"]), label: t("raidBoard.views.besDps") },
+    ];
     return (
-        <section className="rp-bes" data-rp-bes aria-label={t("raidBoard.bes.title")}>
+        <section className={`rp-bes${collapsed ? " is-line" : ""}`} data-rp-bes aria-label={t("raidBoard.bes.title")}>
             <div className="rp-bes-top">
-                <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} label={t("raidBoard.bes.title")} />
-                <span className="rp-kicker rp-bes-head" data-tip={t("raidBoard.bes.tip", { size: besetzung.size })}>{t("raidBoard.bes.title")} · {besetzung.size}</span>
+                <span className="rp-kicker rp-bes-head" data-tip={t("raidBoard.bes.tip", { size: besetzung.size })}>{collapsed ? t("raidBoard.bes.title") : `${t("raidBoard.bes.title")} · ${besetzung.size}`}</span>
                 {collapsed && (
                     <span className="rp-bes-sum">
-                        {isEvent ? t("raidBoard.bes.sumFilled", { n: sum.filled }) : t("raidBoard.bes.sumSlots", { n: sum.total })}
-                        {sum.open > 0 && <b className="rp-acard-open">{t("raidBoard.aline.open", { n: sum.open })}</b>}
+                        <span><b>{sum.total}</b> {isEvent ? t("raidBoard.views.besPlayers") : t("raidBoard.views.besSlots")}</span>
+                        {line.map((r) => <span key={r.key} className={`rp-bes-sumrole is-${r.key}`}><span className="rp-bes-dot" aria-hidden="true" /><b>{r.n}</b> {r.label}</span>)}
+                        {sum.open > 0 && <b className="rp-acard-open" data-tip={t("raidBoard.views.besOpenTip")}>{t("raidBoard.aline.open", { n: sum.open })}</b>}
                     </span>
                 )}
                 <span className="rp-bes-topacts">
-                    {isEvent && canWrite && all.some((s) => (s.preferredClasses || []).length > 0) && (
+                    {!collapsed && isEvent && canWrite && all.some((s) => (s.preferredClasses || []).length > 0) && (
                         <button type="button" className="rp-assign-btn rp-bes-assign" data-tip={t("raidBoard.bes.refillTip")} onClick={() => edit((b) => refillByClass(b, roster))}><RotateCcw size={15} aria-hidden="true" /><span>{t("raidBoard.bes.refill")}</span></button>
                     )}
-                    <button type="button" className="rp-assign-btn rp-bes-assign" onClick={onAssign}><ListChecks size={15} aria-hidden="true" /><span>{t("raidBoard.roster.title")}</span></button>
+                    {!collapsed && <button type="button" className="rp-assign-btn rp-bes-assign" onClick={onAssign}><ListChecks size={15} aria-hidden="true" /><span>{t("raidBoard.roster.title")}</span></button>}
+                    <button
+                        type="button" className="btn btn-ghost btn-sm rp-bes-edit" aria-expanded={!collapsed} data-tip={collapsed ? t("raidBoard.views.besEditTip") : undefined}
+                        aria-label={collapsed ? `${t("raidBoard.bes.title")}: ${t("raidBoard.views.besEdit")}` : `${t("raidBoard.bes.title")}: ${t("raidBoard.views.besDone")}`} onClick={toggleCollapsed}
+                    >
+                        {collapsed ? t("raidBoard.views.besEdit") : t("raidBoard.views.besDone")}
+                    </button>
                 </span>
             </div>
             {missing.length > 0 && <span className="rp-bes-missing" role="status">{missing.map((c) => t("raidBoard.roster.classMissing", { cls: t(`wow.class.${c}`) })).join(" · ")}</span>}
+            {!collapsed && tools}
             {!collapsed && <div className="rp-bes-blocks">
             {clusters.map((kind) => {
                 const list = all.filter((s) => s.kind === kind);

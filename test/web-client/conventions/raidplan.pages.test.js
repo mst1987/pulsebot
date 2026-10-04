@@ -209,7 +209,7 @@ describe("the texts", () => {
         const en = dictionary("en");
         const files = [
             "pages/RaidplanTemplatesPage.tsx", "pages/raid-detail/raidplan/BoardWorkspace.tsx", "pages/raid-detail/raidplan/workspace", "pages/raid-detail/raidplan/Inspector.tsx", "pages/raid-detail/raidplan/LayerList.tsx",
-            "pages/raid-detail/raidplan/Palette.tsx", "pages/raid-detail/raidplan/MapPanel.tsx", "pages/raid-detail/raidplan/BossNav.tsx", "pages/raid-detail/raidplan/Palette.tsx", "pages/raid-detail/RaidplanTab.tsx",
+            "pages/raid-detail/raidplan/Palette.tsx", "pages/raid-detail/raidplan/MapPanel.tsx", "pages/raid-detail/raidplan/SectionStrip.tsx", "pages/raid-detail/raidplan/Palette.tsx", "pages/raid-detail/RaidplanTab.tsx",
             "pages/raid-detail/raidplan/TargetsPanel.tsx", "pages/raid-detail/raidplan/ProfileModals.tsx", "pages/raid-detail/raidplan/ShareModal.tsx", "pages/PlanPublicPage.tsx",
             "components/raidplan/PlanBoard.tsx",
         ];
@@ -321,10 +321,10 @@ describe("\"All assignments\" never cuts a name (feature/raidplan-16)", () => {
 });
 
 describe("the section bar names every section (feature/raidplan-16)", () => {
-    it("editor and sheet show the name on every chip, the bar wraps instead of scrolling", () => {
+    it("editor (the strip's list, Oct 2026) and sheet show the name on every chip, the sheet's bar wraps instead of scrolling", () => {
         const fs = require("fs");
         const p = require("path");
-        const nav = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan/BossNav.tsx"), "utf8");
+        const nav = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan/SectionStrip.tsx"), "utf8");
         expect(nav).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
         expect(nav).not.toContain("rp-bosschip-no");
         const sheet = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/PlanPublicPage.tsx"), "utf8");

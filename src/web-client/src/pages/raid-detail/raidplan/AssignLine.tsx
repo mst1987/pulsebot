@@ -159,7 +159,8 @@ export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherite
     const onKey = (e: KeyboardEvent<HTMLLIElement>) => {
         if ((e.key === "Delete" || e.key === "Backspace") && onDelete && !inherited && (e.target as HTMLElement).classList.contains("rp-line-open")) { e.preventDefault(); onDelete(true); }
     };
-    const cls = ["rp-line", state === "empty" ? "is-blank" : `is-${state}`, readOnly ? "is-ro" : "", inherited ? "is-lock" : "", deviating ? "is-dev" : "", mineRow ? "is-me" : "", a.suggested ? "is-suggested" : ""].filter(Boolean).join(" ");
+    const nobody = !readOnly && state !== "empty" && who.length === 0;
+    const cls = ["rp-line", state === "empty" ? "is-blank" : nobody ? "is-open" : `is-${state}`, readOnly ? "is-ro" : "", inherited ? "is-lock" : "", deviating ? "is-dev" : "", mineRow ? "is-me" : "", a.suggested ? "is-suggested" : ""].filter(Boolean).join(" ");
     return (
         <li className={cls} onKeyDown={onKey}>
             <span className="rp-line-ico" data-tip={a.spell ? a.spell.name : typeName}><WowIcon name={icon} size={24} /></span>
@@ -167,7 +168,13 @@ export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherite
                 <span className="rp-line-empty">{t("raidBoard.aline.pickWho")}<ArrowRight size={15} aria-hidden="true" />{t("raidBoard.aline.pickTarget")}</span>
             ) : (
                 <>
-                    <Cell items={who} ctx={ctx} readOnly={readOnly} side="who" type={a.type} badge={deviating ? t("raidBoard.aline.devBadge") : ""} />
+                    {nobody ? (
+                        // the editor (never the sheet): a task with targets but nobody to do it shows the one dashed mark (Oct 2026)
+                        <div className="rp-line-cell is-who" role="group" aria-label={t("raidBoard.aline.colWho")}>
+                            {deviating && <span className="rp-line-dev">{t("raidBoard.aline.devBadge")}</span>}
+                            <span className="rp-lc is-open is-nobody">{t("raidBoard.views.noPlayer")}</span>
+                        </div>
+                    ) : <Cell items={who} ctx={ctx} readOnly={readOnly} side="who" type={a.type} badge={deviating ? t("raidBoard.aline.devBadge") : ""} />}
                     {at.length > 0 ? <ArrowRight className="rp-line-arr" size={16} aria-hidden="true" /> : <span className="rp-line-arr" aria-hidden="true" />}
                     <Cell items={at} ctx={ctx} readOnly={readOnly} side="at" type={a.type} />
                 </>

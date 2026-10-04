@@ -193,8 +193,8 @@ export default function ClaPage() {
         />
     );
 
-    if (cla.error && !data) return <>{head}<div className="empty">{tParts("cla.page.loadError", { message: cla.error.message })}</div></>;
-    if (!data) return <>{head}<RaidLoader text={t("cla.page.loading")} /></>;
+    if (cla.error && !data) return <><div className="la-page">{head}<div className="empty">{tParts("cla.page.loadError", { message: cla.error.message })}</div></div></>;
+    if (!data) return <><div className="la-page">{head}<RaidLoader text={t("cla.page.loading")} /></div></>;
 
     const list = data.page;
     const columns: { key?: string; label: string; tip: string; sub: string }[] = [
@@ -206,68 +206,70 @@ export default function ClaPage() {
 
     return (
         <>
-            {head}
-            <div className="part-head la-filter">
-                <FilterSegment value={data.filter} counts={data.counts} onChange={switchFilter} />
-                <div className="ph-act">
-                    {data.autoMatchCount > 0 && (
-                        <Button
-                            variant="ghost" size="sm" icon="spell_holy_borrowedtime" running={automatching} onClick={automatch}
-                            data-tip={t("cla.toolbar.autoMatch")} data-tip-sub={t("cla.toolbar.autoMatchSub")}
-                        >
-                            {t("cla.toolbar.autoMatch")} <Badge count tone="mid">{data.autoMatchCount}</Badge>
-                        </Button>
-                    )}
-                    {data.logChannelsConfigured
-                        ? (
-                            <IconButton
-                                icon={scanning ? <span className="btn-spin" aria-hidden="true" /> : "inv_misc_spyglass_03"}
-                                tip={scanning ? t("cla.toolbar.scanning") : t("cla.toolbar.scan")}
-                                tipSub={t("cla.toolbar.scanSub")}
-                                disabled={scanning} onClick={scan}
-                            />
-                        )
-                        : (
-                            <a
-                                className={buttonClass("ghost", "sm", true)} href="/settings?section=logs"
-                                data-tip={t("cla.toolbar.noChannels")} data-tip-sub={t("cla.toolbar.noChannelsSub")}
-                            ><WowIcon name="inv_letter_15" size={18} />{t("cla.toolbar.setupChannels")}</a>
+            <div className="la-page">
+                {head}
+                <div className="part-head la-filter">
+                    <FilterSegment value={data.filter} counts={data.counts} onChange={switchFilter} />
+                    <div className="ph-act">
+                        {data.autoMatchCount > 0 && (
+                            <Button
+                                variant="ghost" size="sm" icon="spell_holy_borrowedtime" running={automatching} onClick={automatch}
+                                data-tip={t("cla.toolbar.autoMatch")} data-tip-sub={t("cla.toolbar.autoMatchSub")}
+                            >
+                                {t("cla.toolbar.autoMatch")} <Badge count tone="mid">{data.autoMatchCount}</Badge>
+                            </Button>
                         )}
-                </div>
-            </div>
-            {list.items.length
-                ? (
-                    <>
-                        <div className="la-list" role="table" aria-label="Logs">
-                            <div className="la-cols" role="row">
-                                <span aria-hidden="true" />
-                                {columns.map((c) => (
-                                    <span key={c.label} role="columnheader" aria-sort={c.key ? ariaSort(c.key, list.sort, list.dir) : undefined}>
-                                        {c.key
-                                            ? <SortLabel sortKey={c.key} label={c.label} sort={list.sort} dir={list.dir} onSort={sortBy} tip={c.tip} tipSub={c.sub} />
-                                            : c.label}
-                                    </span>
-                                ))}
-                                <span aria-hidden="true" />
-                            </div>
-                            {list.items.map((row) => (
-                                <ListRow
-                                    key={row.id}
-                                    row={row}
-                                    running={ANALYSES.map((a) => a.key).filter((s) => running.includes(`${row.logId}:${s}`))}
-                                    eventsError={data.matchEventsError}
-                                    onEvaluate={(section) => evaluate(row, section)}
-                                    onAssign={() => setAssignRow(row)}
-                                    onReset={(section) => reset(row, section)}
-                                    onDeleteLog={() => removeLog(row)}
-                                    onDeleteReport={() => removeReport(row)}
+                        {data.logChannelsConfigured
+                            ? (
+                                <IconButton
+                                    icon={scanning ? <span className="btn-spin" aria-hidden="true" /> : "inv_misc_spyglass_03"}
+                                    tip={scanning ? t("cla.toolbar.scanning") : t("cla.toolbar.scan")}
+                                    tipSub={t("cla.toolbar.scanSub")}
+                                    disabled={scanning} onClick={scan}
                                 />
-                            ))}
-                        </div>
-                        <Pager page={list} onPage={goToPage} />
-                    </>
-                )
-                : <div className="empty">{filterMeta(data.filter).empty}</div>}
+                            )
+                            : (
+                                <a
+                                    className={buttonClass("ghost", "sm", true)} href="/settings?section=logs"
+                                    data-tip={t("cla.toolbar.noChannels")} data-tip-sub={t("cla.toolbar.noChannelsSub")}
+                                ><WowIcon name="inv_letter_15" size={18} />{t("cla.toolbar.setupChannels")}</a>
+                            )}
+                    </div>
+                </div>
+                {list.items.length
+                    ? (
+                        <>
+                            <div className="la-list" role="table" aria-label="Logs">
+                                <div className="la-cols" role="row">
+                                    <span aria-hidden="true" />
+                                    {columns.map((c) => (
+                                        <span key={c.label} role="columnheader" aria-sort={c.key ? ariaSort(c.key, list.sort, list.dir) : undefined}>
+                                            {c.key
+                                                ? <SortLabel sortKey={c.key} label={c.label} sort={list.sort} dir={list.dir} onSort={sortBy} tip={c.tip} tipSub={c.sub} />
+                                                : c.label}
+                                        </span>
+                                    ))}
+                                    <span aria-hidden="true" />
+                                </div>
+                                {list.items.map((row) => (
+                                    <ListRow
+                                        key={row.id}
+                                        row={row}
+                                        running={ANALYSES.map((a) => a.key).filter((s) => running.includes(`${row.logId}:${s}`))}
+                                        eventsError={data.matchEventsError}
+                                        onEvaluate={(section) => evaluate(row, section)}
+                                        onAssign={() => setAssignRow(row)}
+                                        onReset={(section) => reset(row, section)}
+                                        onDeleteLog={() => removeLog(row)}
+                                        onDeleteReport={() => removeReport(row)}
+                                    />
+                                ))}
+                            </div>
+                            <Pager page={list} onPage={goToPage} />
+                        </>
+                    )
+                    : <div className="empty">{filterMeta(data.filter).empty}</div>}
+            </div>
             <NewEvaluationDialog open={newOpen} onClose={() => setNewOpen(false)} onChanged={cla.reload} />
             <AssignDialog row={assignRow} onClose={() => setAssignRow(null)} onAssign={assign} onUnlink={unlink} />
         </>

@@ -14,7 +14,7 @@
 .hl-version { margin: 0 0 12px; }
 
 /* ---- a card whose first child is the part head ---- */
-.hl-card { position: relative; }
+.hl-card { position: relative; overflow-x: auto; }
 .hl-card > .part-head { margin: 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
 .hl-card > .part-head .ph-act { flex-wrap: wrap; }
 .hl-card > .empty { padding: 28px 16px; }
@@ -28,18 +28,9 @@
     background: var(--bg); color: var(--text); font: inherit; font-size: 14px;
 }
 .hl-search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.hl-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.hl-fchip {
-    display: inline-flex; align-items: center; gap: 7px; padding: 3px 11px 3px 4px; min-height: 32px; border-radius: 999px;
-    border: 1px solid var(--line); background: var(--bg); color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
-}
-.hl-fchip.plain { padding-left: 11px; }
-.hl-fchip .wi { width: 22px; height: 22px; border-radius: 999px; }
-.hl-fchip:hover { color: var(--text); border-color: var(--accent); }
-.hl-fchip.on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
-.hl-fchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.hl-filters .hl-sel { width: auto; min-width: 150px; }
+.hl-filters .hl-sel { width: auto; min-width: 150px; max-width: 220px; }
 .hl-filter-btn { margin-left: auto; }
+.hl-filter-btn + .hl-count { margin-left: 0; }
 .hl-pop {
     position: absolute; z-index: 30; right: 16px; top: calc(100% - 6px); width: 300px; display: flex; flex-direction: column; gap: 12px; padding: 14px;
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 14px 38px -12px var(--shade-50);
@@ -50,6 +41,23 @@
 .hl-active .kicker { margin-right: 4px; }
 .hl-reset { margin-left: auto; font-size: 12.5px; }
 button.hl-reset { background: none; border: 0; cursor: pointer; }
+
+/* The right end of a filter line: the size of the list, in words. */
+.hl-count { margin-left: auto; font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; }
+.filter-bar.hl-filters .seg { flex: 0 0 auto; }
+.filter-bar.hl-filters .hl-search { flex: 1 1 260px; max-width: 460px; }
+
+/* The page head's secondary button: the inbox, in the accent's soft colour (the one primary stays "Loot importieren"). */
+.hl-page .btn.hl-inbox-btn { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-soft); }
+.hl-page .btn.hl-inbox-btn:hover:not(:disabled) { border-color: var(--accent); }
+
+/* ---- the Vergaben table ---- */
+table.hl-awards td { vertical-align: middle; }
+table.hl-awards.hl-dim { opacity: .55; transition: opacity .12s ease; }
+.hl-who { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; white-space: nowrap; }
+.hl-raidlink { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text); text-decoration: none; white-space: nowrap; }
+.hl-raidlink:hover { color: var(--accent); }
+.hl-raidlink .wi { border-radius: 5px; }
 
 /* ---- grid tables (the loot rows are blocks, not table cells) ---- */
 .hl-grid { display: grid; gap: 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--line); }
@@ -140,6 +148,10 @@ button.rbadge:hover { filter: brightness(1.1); box-shadow: 0 0 0 2px var(--accen
 .hl-field:last-child { margin-bottom: 0; }
 .hl-field > .badge { align-self: flex-start; }
 /* the page head's two actions wrap under the title on a phone */
+/* a sparse page: the narrow width of the shared layer (shared.css, "Two page widths") */
+/* the head is the only thing inside .hl-page; the tab row and whatever the open
+   tab renders are its siblings, so everything after it follows (not the native dialogs) */
+.hl-page, .hl-page ~ :not(dialog) { max-width: var(--page-narrow); }
 .hl-page .page-head .ph-act { flex-wrap: wrap; }
 @media (max-width: 600px) { .hl-page .page-head .ph-act { margin-left: 0; } }
 .hl-field > .hl-lbl { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }

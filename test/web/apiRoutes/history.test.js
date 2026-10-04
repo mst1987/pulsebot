@@ -896,7 +896,7 @@ describe("web/apiRoutes/history", () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             await get("/api/history/loot-awards", {});
             expect(lootAwards.listAwards).toHaveBeenCalledWith({
-                topOnly: true, search: "", categoryId: "", contentId: "", reason: "", page: 1, versionId: "tbc",
+                topOnly: true, search: "", categoryId: "", contentId: "", reason: "", page: 1, sort: "date", dir: "desc", versionId: "tbc",
             });
         });
 
@@ -906,8 +906,16 @@ describe("web/apiRoutes/history", () => {
                 top: "0", q: "vashj", category: "cat1", content: "ssc", reason: "offspec", page: "3",
             });
             expect(lootAwards.listAwards).toHaveBeenCalledWith({
-                topOnly: false, search: "vashj", categoryId: "cat1", contentId: "ssc", reason: "offspec", page: 3, versionId: "tbc",
+                topOnly: false, search: "vashj", categoryId: "cat1", contentId: "ssc", reason: "offspec", page: 3, sort: "date", dir: "desc", versionId: "tbc",
             });
+        });
+
+        it("passes the sort column and direction through, and reads anything but asc as desc", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            await get("/api/history/loot-awards", { sort: "item", dir: "asc" });
+            expect(lootAwards.listAwards).toHaveBeenLastCalledWith(expect.objectContaining({ sort: "item", dir: "asc" }));
+            await get("/api/history/loot-awards", { sort: "raid", dir: "sideways" });
+            expect(lootAwards.listAwards).toHaveBeenLastCalledWith(expect.objectContaining({ sort: "raid", dir: "desc" }));
         });
 
         it("serves the page the store returns", async () => {

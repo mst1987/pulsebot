@@ -1,10 +1,13 @@
 // Tab "Setup" of an own event (#263): the proposal, the orga's changes, the
-// approval. Kept calm on purpose — group cards with one compact line per
-// raider, the bench beside them and a narrow column with only what decides
-// the evening (roles against the plan, buffs, fairness, wishes, "nicht
-// zusammen" — asked once, counts only, never names). Why somebody
-// stands where they do is the line's tooltip, the weights sit behind a dialog,
-// and so does Claude's explanation.
+// approval. Kept calm on purpose — ONE toolbar line (the setup's one state,
+// "Tanks 3 von 3 · … · 23 von 25 bestätigt", "Mehr ▾", "Alle bestätigen" and the
+// one primary button: "Setup posten" until it is out, then "Alle pingen"), the
+// group cards right under it with one compact line per raider, the bench and
+// "Angemeldet" as rows, and one summary line (buffs, fairness, wishes, "nicht
+// zusammen" — asked once, counts only, never names) whose "Details" opens the
+// tiles and switches. Everything rarer sits under "Mehr": proposing anew, the
+// group count, the ping text, the switches, the weights, Claude's explanation.
+// A click on a raider opens their details in a side drawer.
 //
 // Moving: drag a raider onto a group, onto the bench, back into "Angemeldet"
 // (the pool of who signed up and is neither placed nor benched, #517) or onto
@@ -13,26 +16,28 @@
 // then the target. Every move is saved at once and comes back valued by the
 // server. Posting carries the bench only with "Bench mitposten" ticked.
 
-import { useEffect, useRef, useState } from "react";
-import { approveRaidSetup, getRaidSetup, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput } from "../../../api";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+import { approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
-import { applyLocal, moveRaider, peopleOf, resizeLineup, respecRaider, suggestGroup, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
+import { applyLocal, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
 import { useT } from "../../../i18n";
-import { Button } from "../../../components/ui/Button";
+import { Button, IconButton } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import { useConfirm } from "../../../components/ui/Modal";
 import RaidLoader from "../../../components/ui/RaidLoader";
 import WowIcon from "../../../components/ui/WowIcon";
 import { useJobs } from "../../../components/Jobs";
-import { LockIcon } from "../../../components/icons";
+import { LockIcon, XIcon } from "../../../components/icons";
 import type { RaidCtx } from "../meta";
 import "../../../styles/setup-editor.css";
-import { readCompact, storeCompact } from "./setupText";
+import { clock, readCompact, storeCompact } from "./setupText";
 import { BenchCard, GroupCard, type Interaction, PoolCard, ReadOnly } from "./Board";
-import { MoreMenu, PingTextField, PublishLine, SizeControl, StatusBadge } from "./Controls";
-import { Summary } from "./Summary";
-import { SlotTip, TipEmpty, type SlotActions } from "./SlotTip";
-import { ExplainModal, WeightsModal } from "./SetupModals";
+import { MoreMenu, PingTextField, SizeControl, StatusBadge, type MoreItem } from "./Controls";
+import { Summary, SummaryLine } from "./Summary";
+import { roleFigures, summaryOptions } from "./summaryFigures";
+import { SlotTip, type SlotActions } from "./SlotTip";
+import { EditorDialog, ExplainModal, WeightsModal } from "./SetupModals";
 import { SearchModal } from "./SearchModal";
 import { SignupEditModal } from "./SignupEditModal";
 
@@ -43,10 +48,11 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const [busy, setBusy] = useState(false);
     const [selected, setSelected] = useState<string | null>(null);
     const [dragging, setDragging] = useState<string | null>(null);
-    // the raider the docked panel shows: the one the pointer touched last
-    const [inspected, setInspected] = useState<string | null>(null);
-    const [dialog, setDialog] = useState<"weights" | "explain" | "search" | null>(null);
+    // the dialogs: the rare tools under "Mehr", and the summary line's "Details"
+    const [dialog, setDialog] = useState<"weights" | "explain" | "search" | "size" | "ping" | "details" | null>(null);
     const [posting, setPosting] = useState(false);
+    const [pinging, setPinging] = useState(false);
+    const navigate = useNavigate();
     // "Anmeldung bearbeiten" (#521): the raider whose signup the dialog changes
     const [editing, setEditing] = useState<string | null>(null);
     // "Bench mitposten" (#517): null = what the event remembered from the last post (off by default)
@@ -62,10 +68,11 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const { data, setData } = setupData;
     const load = setupData.reload;
 
-    // The raider the panel holds on to: the one clicked last. Unlike `selected`
-    // (picked to be moved — the next raider clicked is swapped with it) it
-    // outlives a panel action: confirm, fix or edit drop the pick, the panel
-    // stays, and the next click on a raider just picks that one.
+    // The raider the side drawer shows: the one clicked last (nothing stands open
+    // before a click). Unlike `selected` (picked to be moved — the next raider
+    // clicked is swapped with it) it outlives a panel action: confirm, fix or edit
+    // drop the pick, the drawer stays, and the next click on a raider just picks
+    // that one. Esc or its close button lets go.
     const [pinned, setPinned] = useState<string | null>(null);
 
     useEffect(() => {
@@ -271,6 +278,32 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
+    /**
+     * "Alle pingen" — the posted setup's one action: everybody in its groups, in the
+     * event channel, with the ping text (the web's twin of "Ping everyone" under the
+     * message). Asks first, with how many and the text, from the server's dry run.
+     */
+    const pingAll = async () => {
+        setPinging(true);
+        try {
+            const plan = await previewSetupPing(ctx.eventId);
+            const ok = await ask({
+                title: t("setup.ping.askTitle"),
+                text: t("setup.ping.askText", { count: plan.count, text: plan.text }),
+                action: t("setup.ping.action"),
+                icon: "inv_letter_15",
+                tone: "primary",
+            });
+            if (!ok) return;
+            const r = await pingSetup(ctx.eventId);
+            jobs.notify(r.message);
+        } catch (e) {
+            jobs.notify((e as ApiError).message || t("setup.ping.failed"), "err");
+        } finally {
+            setPinging(false);
+        }
+    };
+
     const post = async () => {
         setPosting(true);
         try {
@@ -399,11 +432,9 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const moving = dragging || selected;
     const movingPerson = moving ? peopleOf(setup).get(moving) : undefined;
     const suggest = movingPerson ? suggestGroup(movingPerson, withAllGroups(setup.groups, data.groupCount || 1)) : null;
-    // The panel shows the raider clicked last (`pinned`) — the pointer passing over
-    // other lines on its way to the panel's buttons changes nothing — else the
-    // one the pointer touched last. Looked up fresh every render, so a move
-    // redraws the panel's group and buffs.
-    const shownId = (pinned && peopleOf(setup).has(pinned) ? pinned : null) || inspected;
+    // The drawer shows the raider clicked last (`pinned`) — looked up fresh every
+    // render, so a move redraws its group and buffs. Nothing stands open before a click.
+    const shownId = pinned && peopleOf(setup).has(pinned) ? pinned : null;
     const inspectedPerson = shownId ? peopleOf(setup).get(shownId) : undefined;
     const editPerson = editing ? peopleOf(setup).get(editing) : undefined;
     // on the bench or in the pool: no slot yet, so no "im Setup als" and no extra role
@@ -411,9 +442,12 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const inspectedInPool = !!inspectedPerson && (setup.pool || []).some((b) => b.userId === inspectedPerson.userId);
     const inspectedInGroup = !!inspectedPerson && setup.groups.some((g) => g.slots.some((s) => s.userId === inspectedPerson.userId));
     const confirmations = data.confirmations || {};
-    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onEdit: setEditing, confirmations, pinned: shownId === pinned ? pinned : null };
-    // posting is approving (no separate step): once the message is out, every change goes live by itself
-    const live = setup.status === "approved" && !!data.publish?.posted;
+    // hovering a raider no longer opens anything — a click does (the drawer)
+    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: () => undefined, onPick: pick, onDrop: move, onDrag: setDragging, onEdit: setEditing, confirmations, pinned: shownId };
+    const closeDrawer = () => {
+        setPinned(null);
+        setSelected(null);
+    };
     // the actions on the raider shown (SlotTip) — the check only for a group place of a posted (= approved) setup
     const actions: SlotActions = inspectedPerson && !busy ? {
         confirmation: inspectedInGroup ? confirmations[inspectedPerson.userId] : undefined,
@@ -423,82 +457,122 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         onEdit: act(() => setEditing(inspectedPerson.userId)),
     } : {};
     // who in the groups has no answer yet — "Alle bestätigen" is there only while somebody is left
+    const placed = setup.groups.reduce((n, g) => n + g.slots.length, 0);
     const unanswered = setup.groups.reduce((n, g) => n + g.slots.filter((s) => !confirmations[s.userId]).length, 0);
+    const confirmed = setup.groups.reduce((n, g) => n + g.slots.filter((s) => confirmations[s.userId] === "confirmed").length, 0);
     const groups = withAllGroups(setup.groups, data.groupCount || 1);
     const partyBuffs = setup.checks.buffs.party;
     const lockedCount = [...setup.groups.flatMap((g) => g.slots), ...setup.bench].filter((p) => p.locked).length;
     const size = setup.checks.size;
+    const approved = setup.status === "approved";
+    // ONE state (never "Gepostet" beside "noch nicht gepostet") and ONE primary button that follows it
+    const state = setupState(setup, data.publish);
+    const hint = publishHint(data.publish, approved, clock);
+    const opts = summaryOptions(data, setup);
+    const keep = () => toInput(current.current?.setup || setup);
+    const cancelled = !!data.publish?.cancelled;
+
+    let primary: ReactNode = null;
+    if (!cancelled && !approved) {
+        primary = (
+            <Button icon="inv_letter_15" disabled={busy} data-tip={t("setup.editor.approve")} data-tip-sub={t("setup.editor.approveSub")} onClick={approve}>
+                {t("setup.editor.approve")}
+            </Button>
+        );
+    } else if (!cancelled && state.needsPost) {
+        primary = (
+            <Button icon="inv_letter_15" running={posting || !!hint?.running} disabled={busy} data-tip={t("setup.publishLine.post")} data-tip-sub={t("setup.publishLine.postSub")} onClick={post}>
+                {t("setup.publishLine.post")}
+            </Button>
+        );
+    } else if (!cancelled) {
+        primary = (
+            <Button icon="spell_holy_prayerofspirit" running={pinging} disabled={busy} data-tip={t("setup.ping.button")} data-tip-sub={t("setup.ping.buttonSub")} onClick={() => void pingAll()}>
+                {t("setup.ping.button")}
+            </Button>
+        );
+    }
+
+    const more: (MoreItem | "sep")[] = [
+        { id: "repropose", label: t("setup.editor.repropose"), sub: t("setup.more.reproposeSub"), icon: "spell_holy_borrowedtime", disabled: busy, onSelect: () => void propose() },
+        { id: "size", label: t("setup.more.size"), sub: t("setup.more.sizeSub", { groups: Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE)), size: data.event.size || 0 }), icon: "achievement_guildperk_everybodysfriend", disabled: busy, onSelect: () => setDialog("size") },
+        { id: "ping", label: t("setup.pingText.title"), sub: data.pingText || t("setup.more.pingDefault"), icon: "inv_letter_15", disabled: busy, onSelect: () => setDialog("ping") },
+        "sep",
+        { id: "fairness", label: t("setup.summary.fairness"), sub: t("setup.summary.fairnessCap"), icon: "spell_holy_divineintervention", on: opts.fairness, disabled: busy, onSelect: () => void save(keep(), { fairness: !opts.fairness }) },
+        { id: "wishes", label: t("setup.summary.wishes"), sub: opts.wishes ? t("setup.summary.wishesCapOn", { met: setup.checks.wishes.met, total: setup.checks.wishes.total }) : t("setup.more.wishesOffSub"), icon: "inv_valentineschocolate02", on: opts.wishes, disabled: busy, onSelect: () => void save(keep(), { wishes: !opts.wishes }) },
+        ...(opts.avoidTotal > 0 ? [{ id: "avoid", label: t("setup.summary.avoid"), sub: t("setup.summary.avoidSub", { count: opts.avoidTotal }), icon: "ability_creature_cursed_02", on: opts.avoid, disabled: busy, onSelect: () => void save(keep(), { avoid: !opts.avoid }) }] : []),
+        // only with somebody on the bench — the pool ("Angemeldet") is never posted
+        ...(setup.bench.length > 0 && !cancelled ? [{ id: "bench", label: t("setup.publishLine.bench"), sub: t("setup.more.benchSub"), icon: "inv_misc_groupneedmore", on: postBench, disabled: busy, onSelect: () => setBenchChoice(!postBench) }] : []),
+        "sep",
+        // posted and current: posting again sends the DMs a live change left open, or redraws the message
+        ...(approved && !state.needsPost && hint?.canPost ? [{ id: "repost", label: t("setup.publishLine.post"), sub: t("setup.publishLine.postSub"), icon: "inv_letter_15", disabled: busy || posting, onSelect: () => void post() }] : []),
+        ...(data.publish && !data.publish.dmsEnabled && !cancelled ? [{ id: "dms", label: t("setup.publishLine.enableDms"), sub: t("setup.more.dmsSub"), icon: "inv_letter_15", onSelect: () => navigate("/settings?section=kategorien") }] : []),
+        { id: "compact", label: t("setup.editor.compact"), sub: t("setup.editor.compactSub"), icon: "inv_misc_book_09", on: compact, onSelect: toggleCompact },
+        { id: "search", label: t("setup.editor.search"), sub: t("setup.editor.searchSub"), icon: "inv_misc_spyglass_02", disabled: !data.search, onSelect: () => setDialog("search") },
+        { id: "explain", label: t("setup.editor.explain"), sub: t("setup.editor.explainSub"), icon: "inv_scroll_03", onSelect: () => setDialog("explain") },
+        { id: "weights", label: t("setup.summary.weights"), sub: t("setup.editor.weightsSub"), icon: "inv_misc_gear_01", disabled: busy, onSelect: () => setDialog("weights") },
+    ];
+
+    const figures = roleFigures(setup);
+    const counts: ReactNode[] = figures.map((f) => (
+        <span
+            key={f.key} className={f.ok ? undefined : "se-off"}
+            data-tip={f.target ? t("setup.summary.statTipTarget", { label: f.label, value: f.value, target: f.target }) : t("setup.summary.statTip", { label: f.label, value: f.value })}
+            data-tip-sub={f.tip}
+        >
+            {f.label} <b>{f.target ? (/^\d+$/.test(f.target) ? t("setup.bar.ofTarget", { value: f.value, target: f.target }) : t("setup.bar.withTarget", { value: f.value, target: f.target })) : f.value}</b>
+        </span>
+    ));
+    if (!size.ok) {
+        counts.push(
+            <span key="places" className="se-off" data-tip={t("setup.editor.placesTip")} data-tip-sub={t("setup.editor.placesSub", { count: size.count, size: size.size, bench: setup.bench.length })}>
+                <b>{t("setup.bar.places", { count: size.count, size: size.size })}</b>
+            </span>,
+        );
+    }
+    if (approved && placed > 0) {
+        counts.push(
+            <span key="confirmed" className="se-counts-ok" data-tip={t("setup.bar.confirmedTip")} data-tip-sub={t("setup.bar.confirmedSub")}>
+                <b>{t("setup.bar.confirmed", { count: confirmed, total: placed })}</b>
+            </span>,
+        );
+    }
 
     return (
         <div className={`se-editor${compact ? " se-compact" : ""}`}>
+            {/* ONE toolbar line: the state, the counts, then "Mehr", "Alle bestätigen" and the one primary button */}
             <div className="se-bar">
-                <StatusBadge setup={setup} />
-                <SizeControl size={data.event.size} disabled={busy} onCommit={resize} />
-                <Badge
-                    tone={size.ok ? undefined : "mid"} tip={t("setup.editor.placesTip")}
-                    tipSub={t("setup.editor.placesSub", { count: size.count, size: size.size, bench: setup.bench.length })}
-                >
-                    {t("setup.editor.placesBadge", { count: size.count, size: size.size })}
-                </Badge>
+                <StatusBadge setup={setup} publish={data.publish} />
+                {/* while a raider is picked the counts make room for where to click next */}
+                {selected
+                    ? <span className="se-bar-pick">{t("setup.editor.pickTarget")}</span>
+                    : (
+                        <span className="se-counts">
+                            {counts.map((c, i) => <Fragment key={i}>{i > 0 && <span className="se-counts-dot" aria-hidden="true">·</span>}{c}</Fragment>)}
+                        </span>
+                    )}
                 {lockedCount > 0 && (
                     <Badge tone="accent" icon={<LockIcon />} tip={t("setup.editor.lockedTip")} tipSub={t("setup.editor.lockedSub")}>
                         {t("setup.editor.locked", { count: lockedCount })}
                     </Badge>
                 )}
-                <span className="se-bar-hint">
-                    {selected ? t("setup.editor.pickTarget") : t("setup.editor.dragHint")}
-                </span>
                 <div className="se-bar-act">
-                    {/* the rarely needed ones behind "Mehr"; in the bar only what the evening is about */}
-                    <MoreMenu
-                        items={[
-                            { id: "compact", label: t("setup.editor.compact"), sub: t("setup.editor.compactSub"), icon: "inv_misc_book_09", on: compact, onSelect: toggleCompact },
-                            { id: "search", label: t("setup.editor.search"), sub: t("setup.editor.searchSub"), icon: "inv_misc_spyglass_02", disabled: !data.search, onSelect: () => setDialog("search") },
-                            { id: "explain", label: t("setup.editor.explain"), sub: t("setup.editor.explainSub"), icon: "inv_scroll_03", onSelect: () => setDialog("explain") },
-                            { id: "weights", label: t("setup.summary.weights"), sub: t("setup.editor.weightsSub"), icon: "inv_misc_gear_01", disabled: busy, onSelect: () => setDialog("weights") },
-                        ]}
-                    />
-                    <Button variant="ghost" size="sm" icon="spell_holy_borrowedtime" disabled={busy} onClick={() => propose()}>{t("setup.editor.repropose")}</Button>
-                    {setup.status === "approved" && unanswered > 0 && (
+                    <MoreMenu items={more} />
+                    {approved && unanswered > 0 && (
                         <Button
                             variant="ghost" size="sm" icon="achievement_guildperk_everybodysfriend" disabled={busy}
                             data-tip={t("setup.editor.confirmAll")} data-tip-sub={t("setup.editor.confirmAllSub")}
                             onClick={() => void confirmEveryone()}
                         >
-                            {t("setup.editor.confirmAll")} <small className="se-bar-count">{unanswered}</small>
+                            {t("setup.editor.confirmAll")}
                         </Button>
                     )}
-                    {/* a draft: "Setup posten" approves and posts in one; posted: a quiet "Gepostet" (approved but not
-                        out yet, e.g. the bot was offline — the line under the bar has "Setup posten" for that) */}
-                    {setup.status !== "approved" && (
-                        <Button size="sm" icon="inv_letter_15" disabled={busy} data-tip={t("setup.editor.approve")} data-tip-sub={t("setup.editor.approveSub")} onClick={approve}>
-                            {t("setup.editor.approve")}
-                        </Button>
-                    )}
-                    {live && (
-                        <Button size="sm" icon="inv_letter_15" disabled data-tip={t("setup.editor.approved")} data-tip-sub={t("setup.editor.approvedSub")}>
-                            {t("setup.editor.approved")}
-                        </Button>
-                    )}
+                    {primary}
                 </div>
-            </div>
-            <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} bench={postBench} onBench={setBenchChoice} />
-            {/* the top area: left the ping message over the evening's numbers, right the raider panel (the one the pointer touched last) — one fixed height */}
-            <div className="se-topline">
-                <div className="se-topleft">
-                    <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
-                    <Summary
-                        data={data} setup={setup} busy={busy}
-                        onFairness={(on) => save(toInput(current.current?.setup || setup), { fairness: on })}
-                        onWishes={(on) => save(toInput(current.current?.setup || setup), { wishes: on })}
-                        onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
-                    />
-                </div>
-                {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} extra={(data.extraRoles || {})[inspectedPerson.userId] || []} onExtra={inspectedIsBench ? undefined : (role, on) => void toggleExtra(inspectedPerson.userId, role, on)} onSpec={busy || inspectedIsBench ? undefined : (key) => respec(inspectedPerson.userId, key)} actions={actions} pinned={shownId === pinned} /> : <TipEmpty />}
             </div>
 
             <div className="se-layout">
-                {/* the setup on top, the bench under a divider, then who signed up and is not in it (#517) */}
+                {/* the groups right under the bar, the bench and "Angemeldet" (#517) as rows under them, then one summary line */}
                 <div className="se-main">
                     <div className="se-groups">
                         {groups.map((g) => (
@@ -507,9 +581,41 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     </div>
                     <BenchCard bench={setup.bench} ui={ui} />
                     <PoolCard pool={setup.pool || []} ui={ui} />
+                    <SummaryLine data={data} setup={setup} onDetails={() => setDialog("details")} />
                 </div>
             </div>
 
+            {/* the raider's details: a side drawer that a click opens, never an empty box */}
+            {inspectedPerson && (
+                <div className="se-drawer">
+                    <div className="se-drawer-head">
+                        <span className="kicker">{t("setup.drawer.kicker")}</span>
+                        <IconButton icon={<XIcon />} tip={t("common.close")} size="sm" onClick={closeDrawer} />
+                    </div>
+                    <SlotTip
+                        p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined}
+                        extra={(data.extraRoles || {})[inspectedPerson.userId] || []}
+                        onExtra={inspectedIsBench ? undefined : (role, on) => void toggleExtra(inspectedPerson.userId, role, on)}
+                        onSpec={busy || inspectedIsBench ? undefined : (key) => respec(inspectedPerson.userId, key)}
+                        actions={actions} pinned={selected === shownId}
+                    />
+                </div>
+            )}
+
+            <EditorDialog open={dialog === "size"} onClose={() => setDialog(null)} icon="achievement_guildperk_everybodysfriend" title={t("setup.more.size")}>
+                <SizeControl size={data.event.size} disabled={busy} onCommit={resize} />
+            </EditorDialog>
+            <EditorDialog open={dialog === "ping"} onClose={() => setDialog(null)} icon="inv_letter_15" title={t("setup.pingText.title")}>
+                <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
+            </EditorDialog>
+            <EditorDialog open={dialog === "details"} onClose={() => setDialog(null)} icon="inv_misc_map_01" title={t("setup.line.detailsTitle")} width={640}>
+                <Summary
+                    data={data} setup={setup} busy={busy}
+                    onFairness={(on) => save(keep(), { fairness: on })}
+                    onWishes={(on) => save(keep(), { wishes: on })}
+                    onAvoid={(on) => save(keep(), { avoid: on })}
+                />
+            </EditorDialog>
             <WeightsModal open={dialog === "weights"} onClose={() => setDialog(null)} data={data} setup={setup} onApply={(w) => propose(w)} />
             <SearchModal open={dialog === "search"} onClose={() => setDialog(null)} ctx={ctx} search={data.search} />
             {editPerson && <SignupEditModal key={editPerson.userId} eventId={ctx.eventId} person={editPerson} onClose={() => setEditing(null)} onSave={saveSignup} />}

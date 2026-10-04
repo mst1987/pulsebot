@@ -94,3 +94,37 @@ describe("Einstellungen conventions", () => {
         }
     });
 });
+
+describe("the two page widths", () => {
+    const shared = cssParts(readClient("styles", "shared.css")).outside;
+    const narrow = shared.match(/([^{}]*)\{\s*max-width: var\(--page-narrow\);\s*\}/);
+
+    it("caps .content at 1440px and defines the narrow width once", () => {
+        expect(shared).toMatch(/\.content \{[^}]*max-width: 1440px/);
+        expect(shared).toMatch(/:root \{ --page-narrow: 1200px; \}/);
+        expect(shared.match(/--page-narrow:/g)).toHaveLength(1);
+    });
+
+    it("lists the sparse pages in one rule and keeps the dense ones out", () => {
+        expect(narrow).not.toBeNull();
+        const list = narrow[1];
+        for (const root of [".ov-page", ".re-page", ".rt-page", ".sr-page", ".an-page", ".pf-page", ".rc-page", ".kn-page", ".la-page", ".hc-page"]) {
+            expect(list).toContain(root);
+        }
+        for (const dense of [".kp-page", ".rd-page", ".rp-templates"]) expect(list).not.toContain(dense);
+    });
+
+    it("narrows the settings panel by its open section, except Berechtigungen and Kategorien", () => {
+        const list = narrow[1];
+        expect(list).toContain(".settings-panel:not([data-section=\"berechtigungen\"]):not([data-section=\"kategorien\"])");
+        expect(settingsSrc).toContain("data-section={active}");
+    });
+
+    it("lets Historie & Loot join from its own file, which a convention keeps the hl- prefix in", () => {
+        expect(readClient("styles", "historie-loot.css")).toContain(".hl-page, .hl-page ~ :not(dialog) { max-width: var(--page-narrow); }");
+    });
+
+    it("has no :has() special case and no other fixed page cap in the shared layer", () => {
+        expect(shared).not.toMatch(/\.content:has\(/);
+    });
+});

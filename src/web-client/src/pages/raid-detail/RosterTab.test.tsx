@@ -106,3 +106,25 @@ describe("signup status display", () => {
         expect(chip("@bob").getAttribute("data-tip-sub")).toContain("Angemeldet");
     });
 });
+
+describe("the tab's one line instead of a card head", () => {
+    it("repeats no tab name: the state left, the tab's actions right", () => {
+        const { container } = renderPage(<RosterTab ctx={ctx()} />);
+        expect(container.querySelector(".part-head")).toBeNull();
+        expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+        // the ping of the missing ones is the line's action
+        expect(container.querySelector(".rd-tabbar .rd-tabbar-act")).toHaveTextContent(t("raidDetail.roster.pingMissing"));
+    });
+
+    it("shows missing raider roles as a badge, and fixing it as its own link button", () => {
+        const c = ctx();
+        c.data = { ...c.data, attendanceRoleIds: [] };
+        renderPage(<RosterTab ctx={c} />);
+        const badge = screen.getByText(t("raidDetail.roster.noRoles"));
+        expect(badge).toHaveClass("badge", "mid");
+        expect(badge.closest("a, button")).toBeNull();
+        const fix = screen.getByRole("link", { name: t("raidDetail.roster.setRoles") });
+        expect(fix).toHaveAttribute("href", "/settings?section=kategorien");
+        expect(fix).toHaveClass("btn");
+    });
+});

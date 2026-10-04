@@ -7,14 +7,13 @@
 // nothing but that id — filters exactly like an RCLootcouncil one, and by raid
 // category (Mainraid, Twinkraid, …) like the Gründe view. What was only ever
 // sharded is out of the table by default (see DISENCHANT).
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { Category, LootAward, LootCatalogItem, LootContent, LootReason, LootTier } from "../../api";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { contentName } from "../../lib/wowNames";
 import { usePersistedState } from "../../lib/persistedState";
 import { sortRows, type Dir } from "../../lib/tableSort";
 import { SortLabel, ariaSort } from "../../components/SortTh";
-import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
 import Bar from "../../components/ui/Bar";
 import WowIcon from "../../components/ui/WowIcon";
@@ -22,7 +21,7 @@ import { IconButton } from "../../components/ui/Button";
 import { ChevronRightIcon } from "../../components/icons";
 import Pager from "../../components/Pager";
 import { ItemIcon, RaiderChip, StackBar, contentIcon, tallyReasons } from "../../components/loot/LootBadges";
-import { ActiveFilters, FilterPopover, RaidChips, SearchBox, SwitchRow, UNKNOWN_CONTENT, type ActiveFilter } from "../../components/loot/LootFilters";
+import { ActiveFilters, FilterPopover, ListCount, RaidSelect, SearchBox, SwitchRow, UNKNOWN_CONTENT, type ActiveFilter } from "../../components/loot/LootFilters";
 import { ItemAwardsDialog } from "./ItemAwardsDialog";
 import { tParts, useT } from "../../i18n";
 
@@ -71,7 +70,7 @@ function recipients(awards: LootAward[]): LootAward[] {
     return out;
 }
 
-export function LootItemsTab({ items, contents, tiers, reasons, categories, unknownContentCount, canEdit, onChanged }: {
+export function LootItemsTab({ items, contents, tiers, reasons, categories, unknownContentCount, canEdit, onChanged, lead }: {
     items: LootCatalogItem[];
     contents: LootContent[];
     tiers: LootTier[];
@@ -80,6 +79,8 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
     unknownContentCount: number;
     canEdit: boolean;
     onChanged: (msg: string) => void;
+    /** The page's view switch, first in the filter line. */
+    lead?: ReactNode;
 }) {
     const t = useT();
     const [view, setView] = usePersistedState<View>("history-items-view", VIEW_DEFAULT);
@@ -183,7 +184,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
     if (!items.length) {
         return (
             <div className="dash-card hl-card">
-                <PartHead icon="inv_misc_bag_10" tone="history" title={t("history.page.view.items")} crumb={t("history.items.crumb")} />
+                {lead && <div className="filter-bar hl-filters">{lead}</div>}
                 <div className="empty">{t("history.shared.noLoot")}</div>
             </div>
         );
@@ -191,23 +192,14 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
 
     return (
         <div className="dash-card hl-card">
-            <PartHead
-                icon="inv_misc_bag_10" tone="history" title={t("history.page.view.items")} crumb={t("history.items.crumb")}
-                tip={t("history.page.view.items")} tipSub={t("history.items.tipSub")}
-                action={(
-                    <>
-                        <Badge count>{tParts("history.shared.items", { count: sorted.length })}</Badge>
-                        <Badge tone="accent" count>{tParts("history.shared.awards", { count: awardCount })}</Badge>
-                    </>
-                )}
-            />
             <div className="filter-bar hl-filters">
+                {lead}
                 <SearchBox id="items-search" value={view.search} onChange={(search) => patch({ search })} placeholder={t("history.items.searchPlaceholder")} />
-                <RaidChips contents={contentOptions} value={view.content} onChange={(content) => patch({ content })} unknownCount={view.tier ? 0 : unknownCount} />
                 <select id="items-reason" className="hl-sel" aria-label={t("history.shared.reason")} value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
                     <option value="">{t("history.shared.allReasons")}</option>
                     {reasonOptions.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                 </select>
+                <RaidSelect id="items-raid" contents={contentOptions} value={view.content} onChange={(content) => patch({ content })} unknownCount={view.tier ? 0 : unknownCount} />
                 <FilterPopover active={popoverCount}>
                     <div>
                         <label className="hl-lbl" htmlFor="items-tier">{t("history.items.tier")}</label>
@@ -250,6 +242,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                         }}
                     />
                 </FilterPopover>
+                <ListCount>{tParts("history.shared.items", { count: sorted.length })} · {tParts("history.shared.awards", { count: awardCount })}</ListCount>
             </div>
             <ActiveFilters
                 filters={active}

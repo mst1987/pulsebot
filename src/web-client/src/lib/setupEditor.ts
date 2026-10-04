@@ -474,6 +474,29 @@ export function publishHint(publish: SetupPublish | undefined, approved: boolean
     return { tone, text: parts.join(" · "), tip: t("setup.publish.tip"), sub: lines.join("\n"), running, canPost: true };
 }
 
+/**
+ * The ONE state of the setup in the editor's bar — a badge that can never say
+ * "Gepostet" next to "noch nicht gepostet": a draft (or a draft again, changed
+ * since the post), approved but not out yet, posting failed, posted but the
+ * message shows an older version, posted. `needsPost` says the bar's one primary
+ * button is "Setup posten" (else, once posted, the ping); `version` is the
+ * "Stand" a posted message shows.
+ */
+export type SetupState = { key: "draft" | "changed" | "notPosted" | "error" | "outdated" | "posted" | "cancelled"; tone: "ok" | "mid" | "bad"; label: string; version: number; needsPost: boolean };
+
+export function setupState(setup: Pick<StoredSetup, "status" | "changedSinceApproval" | "version">, publish: SetupPublish | undefined): SetupState {
+    const version = (publish && publish.posted && publish.posted.version) || setup.version || 1;
+    const make = (key: SetupState["key"], tone: SetupState["tone"], needsPost: boolean): SetupState => ({ key, tone, label: t(`setup.state.${key}`, { version }), version, needsPost });
+    if (publish && publish.cancelled) return make("cancelled", "mid", false);
+    if (setup.status !== "approved") return make(setup.changedSinceApproval ? "changed" : "draft", "mid", true);
+    if (!publish) return make("posted", "ok", false);
+    const lastPost = publish.posted ? Math.max(publish.posted.postedAt || 0, publish.posted.editedAt || 0) : 0;
+    if (publish.error && publish.errorAt >= lastPost) return make("error", "bad", true);
+    if (!publish.posted) return make("notPosted", "mid", true);
+    if (publish.outdated) return make("outdated", "mid", true);
+    return make("posted", "ok", false);
+}
+
 /** The missing buffs, one row per set of specs that brings them — six blessings of the same paladin specs are one row, not six. */
 export function groupSearchBuffs(buffs: SetupSearch["buffs"]): { id: string; required: boolean; specs: string[]; buffs: SetupSearch["buffs"] }[] {
     const groups: { id: string; required: boolean; specs: string[]; buffs: SetupSearch["buffs"] }[] = [];

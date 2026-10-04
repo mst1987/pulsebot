@@ -34,20 +34,25 @@ import { useBoardKeys } from "./workspace/useBoardKeys";
 import { useBoardMenu } from "./workspace/useBoardMenu";
 import { tankRowActions } from "./workspace/tankRows";
 import { WorkspaceToolbar } from "./workspace/WorkspaceToolbar";
+import { MapToolRow } from "./workspace/MapToolRow";
 import { WorkspaceSide, type DockTab } from "./workspace/WorkspaceSide";
+import { usePlanView, type PlanView } from "./planView";
 
 /**
  * The working area of one boss, shared by the event plan and the raid plan
- * template (one component, so both behave the same). Everything one edits is in
- * view at once, inside the menu's normal page frame:
+ * template (one component, so both behave the same). Since Oct 2026 it has two
+ * views, never side by side (there is not enough room for the map next to the
+ * task list), chosen in the sticky strip and remembered in this browser:
  *
- *   a sticky tool bar (undo / redo, quick inserts, the parent's status and actions)
- *   the boss chips (the parent's)
- *   the players not placed yet (an event plan)
- *   [ palette | the board | properties + background + layers ]
- *   the target rows and the note
+ *   a sticky strip: the section choice (the parent's `bossNav`), "Aufgaben | Karte",
+ *   the parent's status and actions
+ *   "Aufgaben": the Besetzung as one line ("Ändern" opens it), the assignment cards
+ *   in two columns, the mobs, "Meine Aufgaben", the tactic and the notes
+ *   "Karte": ONE labelled tool row (Zeichnen ▾, Formen ▾, Ansicht ▾, zoom, S / M / L,
+ *   undo / redo, Eigenschaften), then [ the board | the players not placed yet ]
+ *   with properties / layers / background beside it behind "Eigenschaften"
  *
- * The palette and the right panel can be folded away for a bigger board. Everything
+ * Standard and Allgemein have no map and are always "Aufgaben". Everything
  * on the board is dragged with Pointer Events on window (no HTML5 drag and drop, so a
  * finger works like a mouse): palette entries and players from the list onto the
  * board or a slot, objects around the board, a zone's corners and a line's ends to
@@ -56,9 +61,13 @@ import { WorkspaceSide, type DockTab } from "./workspace/WorkspaceSide";
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, outside, canWrite, limits, profileName, onPickProfile, onSaveTactic, saveState, notice, history, status, actions, bossNav, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me, versionId,
+    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, outside, canWrite, limits, profileName, onPickProfile, onSaveTactic, saveState, notice, history, status, actions, bossNav, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me, versionId, urlView = false, besetzungTools,
 }: {
     mode: "event" | "template";
+    /** the view ("Aufgaben" / "Karte") also lives in the address (`#view=map`, next to the section's `#boss=`) */
+    urlView?: boolean;
+    /** more of the plan's lineup settings inside the opened Besetzung ("Gruppen im Plan") */
+    besetzungTools?: ReactNode;
     /** the event whose plan this is ("" in a template): suggestions read its lineup */
     eventId: string;
     /** the role slots of this raid (Tank 1..n ...): shown as the Besetzung, assignable without being on the map */
@@ -89,11 +98,11 @@ export default function BoardWorkspace({
     /** the unsaved strip at the top of the sticky tool bar */
     notice?: ReactNode;
     history: { undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean };
-    /** Badges at the left of the tool bar (published, unsaved …). */
+    /** The status in the strip, right of the view switch (draft / published, saved …). */
     status?: ReactNode;
-    /** Icon buttons at the right of the tool bar (template, share, save …). */
+    /** The page's actions at the right end of the strip (link, share, more …). */
     actions?: ReactNode;
-    /** The boss chips, under the tool bar. */
+    /** The section choice at the left of the strip (SectionStrip). */
     bossNav: ReactNode;
     mapRows: MapRow[];
     onMapsChanged: () => void;
@@ -110,13 +119,17 @@ export default function BoardWorkspace({
     const [menu, setMenu] = useState<Menu | null>(null);
     const [tab, setTab] = useState<DockTab>("props");
     const { mapSize, mapPx, chooseMapSize, startSplit } = useMapSize();
-    const [showBes, setShowBes] = useState(true);
+    // the two views (Oct 2026): "Aufgaben" or "Karte", never side by side; Standard and Allgemein have no map, they are always "Aufgaben"
+    const [view, chooseView] = usePlanView(!!urlView);
+    // the Besetzung band above the map (view "Karte"; the view "Aufgaben" always has its one line)
+    const [showBes, setShowBes] = useState(false);
     const [rosterOpen, setRosterOpen] = useState(false);
     // the read view's picture without editor chrome (no grips, chips, selection): a check of how the sheet will look
     const [preview, setPreview] = useState(false);
     const [selectMode, setSelectMode] = useState(false);
     const [showPalette, setShowPalette] = useState(() => window.innerHeight > 1000);
-    const [showPanel, setShowPanel] = useState(true);
+    // properties, layers and background: behind the tool row's "Eigenschaften"
+    const [showPanel, setShowPanel] = useState(false);
     const [showLinks, setShowLinks] = useState(true);
     /** the group the map highlights (the others dim): a view setting, not part of the plan */
     const [focusGroup, setFocusGroup] = useState(0);
@@ -135,6 +148,10 @@ export default function BoardWorkspace({
     // full width; the objects on the map stay stored and come back when it is switched on again
     const mapOff = !noBoard && board.showMap === false;
     const noMap = noBoard || mapOff;
+    const shown: PlanView = noBoard ? "tasks" : view;
+    const onMapView = shown === "map";
+    /** keys, the rubber band and the arrows act on the board only while it is in view */
+    const mapAway = noMap || !onMapView;
     const mobs = useMemo(() => sectionMobsOf(scope, boss.key, boss.name, bossIconOf(boss.iconUrl), boss.instanceId, board, catalog), [scope, boss.key, boss.name, boss.iconUrl, boss.instanceId, board, catalog]);
     const section = useMemo(() => ({ bossMob: scope === "boss" ? mobs.find((m) => m.id.indexOf("b:") === 0) || null : null, mobs }), [mobs, scope]);
     const inherited = useMemo(() => (defaultRows && !noBoard ? inheritedRows(defaultRows, board.inheritOff, section) : []), [defaultRows, noBoard, board.inheritOff, section]);
@@ -167,12 +184,25 @@ export default function BoardWorkspace({
 
     const { selected, setSelected, multi, setMulti, currentSel, chooseItems } = useBoardSelection({ board, bossKey: boss.key, withAuto, onBossChange: () => setMenu(null) });
     // zoom and pan: a view setting; the frame is what shows the picture, boardRef its (transformed) canvas: dragging measures the canvas, so it is exact at any zoom
-    const bv = useBoardView({ touchPan: !selectMode, arrows: !selected && multi.length === 0, onEmptyClick: () => chooseItems([]) });
+    const bv = useBoardView({ touchPan: !selectMode, arrows: onMapView && !selected && multi.length === 0, onEmptyClick: () => chooseItems([]) });
+    // the view "Aufgaben" hides the board: nothing stays selected there, no menu stays open
+    useEffect(() => { if (!onMapView) { chooseItems([]); setMenu(null); } }, [onMapView]); // eslint-disable-line react-hooks/exhaustive-deps
     const [prefs, setPref] = useViewPrefs("eh.raidplan.viewPrefs");
     const setFrame = useCallback((el: HTMLDivElement | null) => { frameEl.current = el; bv.frame(el); }, [bv.frame]); // eslint-disable-line react-hooks/exhaustive-deps
     // the board opens with the cutout saved for it - exactly what the sheet (/p/<token>) opens with; saving, removing or undoing it shows at once
     const savedKey = board.view ? `${board.view.zoom}:${board.view.cx}:${board.view.cy}` : "";
     useEffect(() => { bv.set(viewFromSaved(board.view)); }, [boss.key, savedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    // the board stays in view under the sticky strip and tool row (`--rp-sticky-h`): their height changes with the unsaved strip and the view
+    useEffect(() => {
+        const work = workRef.current;
+        const sticky = work ? work.querySelector<HTMLElement>(".rp-sticky") : null;
+        if (!work || !sticky || typeof ResizeObserver === "undefined") return undefined;
+        const set = () => work.style.setProperty("--rp-sticky-h", `${Math.round(sticky.getBoundingClientRect().height)}px`);
+        set();
+        const ro = new ResizeObserver(set);
+        ro.observe(sticky);
+        return () => ro.disconnect();
+    }, []);
     // The workspace is one screen: opening it scrolls the page so the tool bar sits under the header (wide screens only).
     useEffect(() => {
         const el = workRef.current;
@@ -227,11 +257,12 @@ export default function BoardWorkspace({
         board, boardNow, edit, canWrite, multi, selectMode, currentSel, chooseItems, setSelected, setMulti, toBoard, boardPx, withAuto, noAuto, insert,
     });
     const { band, boardWrapDown, boardWrapMove, boardWrapEnd } = useRubberBand({
-        canWrite, noMap, selectMode, boardNow, toBoard, boardPx, withAuto, currentSel, chooseItems, openMenu, cancelDrag,
+        canWrite, noMap: mapAway, selectMode, boardNow, toBoard, boardPx, withAuto, currentSel, chooseItems, openMenu, cancelDrag,
     });
     const { startScale } = useSelectionScale({ multi, boardEl: () => boardRef.current, boardNow, withAuto, noAuto, centerOf: edits.centerOf, edit });
     const { onKey } = useBoardKeys({
-        canWrite, noMap, boardNow, boardRef, bossKey: boss.key, selected, setSelected, multi, auto, edit, history, clip: edits.clip, currentSel, chooseItems, withAuto,
+        // Ctrl+A / D / C / V act on the board only while it is in view (undo / redo work in both views)
+        canWrite: canWrite && !mapAway, noMap: mapAway, boardNow, boardRef, bossKey: boss.key, selected, setSelected, multi, auto, edit, history, clip: edits.clip, currentSel, chooseItems, withAuto,
         multiAction: edits.multiAction, centerOf: edits.centerOf, boardPx, doDelete: edits.doDelete, doDuplicate: edits.doDuplicate, doCopy: edits.doCopy, doPaste: edits.doPaste,
         focusProperties, onNoDelete: () => toast(t("raidBoard.auto.noDelete")),
     });
@@ -267,41 +298,71 @@ export default function BoardWorkspace({
     const dragKey = drag && drag.moved && drag.handle !== "size" && drag.handle !== "rot" && drag.kind !== "tray" && drag.kind !== "palette" ? `${drag.kind}:${drag.id}` : "";
     const toggle = (on: boolean, set: (fn: (v: boolean) => boolean) => void) => ({ on, toggle: () => set((v) => !v) });
 
+    const assignPanel = (dialogOnly: boolean) => (
+        <AssignPanel
+            scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
+            eventId={eventId} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
+            profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs} versionId={versionId}
+            inherited={inherited} effective={effective} defaultRows={defaultRows} onCopyDefaults={onCopyDefaults} openRequest={rowReq}
+            sectionKey={boss.key} history={history} dialogOnly={dialogOnly}
+        />
+    );
+    const besetzungBlock = (
+        <Besetzung
+            board={board} besetzung={besetzung} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} edit={edit} editAll={editAll || edit}
+            onPlaceDown={(e, slotId) => startPalette(e, { type: "place", slotId })}
+            onChipDown={(e, slotId) => startPalette(e, { type: "place", slotId }, true)}
+            onShow={(slotId) => { if (onMapView) showSlot(slotId); }} onAssign={() => setRosterOpen(true)} tools={besetzungTools}
+        />
+    );
+
     return (
-        <div className="rp-work" ref={workRef}>
+        <div className={`rp-work is-${shown}`} ref={workRef}>
             <WorkspaceToolbar
-                canWrite={canWrite} saveState={saveState} notice={notice} history={history} onInsert={(spec) => insert(spec, null)}
-                palette={toggle(showPalette, setShowPalette)} selectMode={toggle(selectMode, setSelectMode)} bes={toggle(showBes, setShowBes)} panel={toggle(showPanel, setShowPanel)} preview={toggle(preview, setPreview)}
-                onRoster={() => setRosterOpen(true)} board={board} edit={edit} noBoard={noBoard} noMap={noMap} mapOff={mapOff}
-                onMapOff={(off) => { edit((b) => ({ ...b, showMap: !off })); if (off) toast(t("raidBoard.map.hiddenKept")); }}
-                bv={bv} prefs={prefs} setPref={setPref} links={showLinks} onLinks={setShowLinks} mapSize={mapSize} chooseMapSize={chooseMapSize}
+                saveState={saveState} notice={notice} view={shown} onView={chooseView} mapless={noBoard}
                 status={status} actions={actions} bossNav={bossNav}
+                tools={onMapView ? (
+                    <MapToolRow
+                        canWrite={canWrite} history={history} onInsert={(spec) => insert(spec, null)}
+                        palette={toggle(showPalette, setShowPalette)} selectMode={toggle(selectMode, setSelectMode)} bes={toggle(showBes, setShowBes)} panel={toggle(showPanel, setShowPanel)} preview={toggle(preview, setPreview)}
+                        onRoster={() => setRosterOpen(true)} board={board} edit={edit} noMap={noMap} mapOff={mapOff}
+                        onMapOff={(off) => { edit((b) => ({ ...b, showMap: !off })); if (off) toast(t("raidBoard.map.hiddenKept")); }}
+                        bv={bv} prefs={prefs} setPref={setPref} links={showLinks} onLinks={setShowLinks} mapSize={mapSize} chooseMapSize={chooseMapSize}
+                    />
+                ) : undefined}
             />
 
-            {(showPalette || showBes) && (
+            {!onMapView && (
+                <div className="rp-tasksview">
+                    {besetzungBlock}
+                    {assignPanel(false)}
+                    {!noBoard && <MobsBar mobs={mobs} board={board} catalog={catalog} bossKey={boss.key} instanceId={boss.instanceId} canWrite={canWrite} edit={edit} />}
+                    {isEvent && !noBoard && <MyTasksPreview rows={filledRows} board={board} players={players} catalog={catalog} me={me || []} />}
+                    <StepsCard
+                        board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} catalog={catalog} sectionMobs={mobs}
+                        groupCount={groupCount} bossName={boss.name} onLibrary={onPickProfile} onSaveAs={onSaveTactic || onPickProfile}
+                    />
+                    <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />
+                </div>
+            )}
+
+            {onMapView && ((showPalette && canWrite && !noMap) || showBes) && (
                 <div className="rp-bands">
                     {showPalette && canWrite && !noMap && (
                         <Palette onStart={startPalette} onInsert={(spec) => insert(spec, null)} bosses={allBosses} currentBoss={boss.key} tally={slotTally(board)} />
                     )}
-                    {showBes && (
-                        <Besetzung
-                            board={board} besetzung={besetzung} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} edit={edit} editAll={editAll || edit}
-                            onPlaceDown={(e, slotId) => startPalette(e, { type: "place", slotId })}
-                            onChipDown={(e, slotId) => startPalette(e, { type: "place", slotId }, true)}
-                            onShow={showSlot} onAssign={() => setRosterOpen(true)}
-                        />
-                    )}
+                    {showBes && besetzungBlock}
                 </div>
             )}
 
-            {mapOff && (
+            {onMapView && mapOff && (
                 <p className="rp-mapoff" role="status">
                     <ImageOff size={16} aria-hidden="true" /><span>{t("raidBoard.map.offNote")}</span>
                     {canWrite && <button type="button" className="rp-acard-add" onClick={() => edit((b) => ({ ...b, showMap: true }))}><ImageIcon size={14} aria-hidden="true" />{t("raidBoard.map.show")}</button>}
                 </p>
             )}
-            {!noMap && (
-            <div className={`rp-stage2${showPanel && !noBoard ? "" : " no-dock"}`}>
+            {onMapView && !noMap && (
+            <div className={`rp-mapstage${isEvent || showPanel ? "" : " no-side"}`}>
                 {!noBoard && (
                 <div
                     className={`rp-board-wrap${bv.hand ? " is-hand" : ""}${bv.panning ? " is-panning" : ""}${bv.view.z > 1 ? " is-pannable" : ""}`}
@@ -340,9 +401,9 @@ export default function BoardWorkspace({
                     {prefs.minimap && bv.view.z > 1 && <MiniMap mapUrl={boss.mapUrl} view={bv.view} onCenter={bv.centerAt} label={t("raidBoard.zoom.minimap")} />}
                 </div>
                 )}
-                {!noBoard && (showPanel || (isEvent && roster.length >= 0)) && (
+                {!noBoard && (showPanel || isEvent) && (
                     <WorkspaceSide
-                        isEvent={isEvent} showPanel={showPanel} roster={roster} missing={missing} overTray={!!drag && drag.overTray} canWrite={canWrite}
+                        isEvent={isEvent} showPanel={showPanel} onClosePanel={() => setShowPanel(false)} roster={roster} missing={missing} overTray={!!drag && drag.overTray} canWrite={canWrite}
                         onTrayDown={(e, userId) => startDrag(e, "tray", userId)} panelRef={panelRef} tab={tab} setTab={setTab}
                         board={board} edit={edit} editAll={editAll || edit} withAuto={withAuto} noAuto={noAuto} boardPx={boardPx} players={players}
                         selected={selected} setSelected={setSelected} multi={multi} auto={auto} rows={filledRows} focusGroup={focusGroup} setFocusGroup={setFocusGroup}
@@ -351,30 +412,17 @@ export default function BoardWorkspace({
                 )}
             </div>
             )}
-            {!noMap && (
+            {onMapView && !noMap && (
                 <div
                     className="rp-splitter" role="separator" aria-orientation="horizontal" tabIndex={0} aria-label={t("raidBoard.split.label")} aria-valuenow={mapPx} data-tip={t("raidBoard.split.tip")}
                     onPointerDown={startSplit}
                     onKeyDown={(e) => { if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); chooseMapSize({ step: "C", px: mapPx + (e.key === "ArrowDown" ? 30 : -30) }); } }}
                 ><span aria-hidden="true" /></div>
             )}
-            <div className="rp-below-map">
-                {!noBoard && <MobsBar mobs={mobs} board={board} catalog={catalog} bossKey={boss.key} instanceId={boss.instanceId} canWrite={canWrite} edit={edit} />}
-                <AssignPanel
-                    scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
-                    eventId={eventId} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
-                    profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs} versionId={versionId}
-                    inherited={inherited} effective={effective} defaultRows={defaultRows} onCopyDefaults={onCopyDefaults} openRequest={rowReq}
-                />
-                {isEvent && !noBoard && <MyTasksPreview rows={filledRows} board={board} players={players} catalog={catalog} me={me || []} />}
-                <StepsCard
-                    board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} catalog={catalog} sectionMobs={mobs}
-                    groupCount={groupCount} bossName={boss.name} onLibrary={onPickProfile} onSaveAs={onSaveTactic || onPickProfile}
-                />
-                <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />
-            </div>
+            {/* the map's "Tank wählen …" / "Zeile bearbeiten …" open the row dialog: the panel is there without its cards */}
+            {onMapView && assignPanel(true)}
             {rosterOpen && <AssignRosterModal board={board} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onClose={() => setRosterOpen(false)} />}
-            {canWrite && !noMap && <p className="rp-muted rp-hint">{t(isEvent ? "raidBoard.board.hint" : "raidBoard.board.hintTemplate")}</p>}
+            {onMapView && canWrite && !noMap && <p className="rp-muted rp-hint">{t(isEvent ? "raidBoard.board.hint" : "raidBoard.board.hintTemplate")}</p>}
 
             {drag && drag.kind === "tray" && dragPlayer && (
                 <div className="rp-ghost" style={{ "--rp-x": `${drag.x}px`, "--rp-y": `${drag.y}px` } as React.CSSProperties} aria-hidden="true">

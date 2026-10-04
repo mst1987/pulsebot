@@ -46,8 +46,9 @@ proxy's HTML.
 ## Map on / off per section and "Allgemein" first
 
 - **`showMap`** (board field, `raidplanBoard.cleanBoard`): `true` unless it is exactly `false`, so every board
-  from before the switch keeps its map; a hidden map alone counts as content. The tool bar of a boss / trash
-  section has "Karte ausblenden / anzeigen" (image icon); "Allgemein" and "Standard" have no map anyway. Off:
+  from before the switch keeps its map; a hidden map alone counts as content. The view "Karte" of a boss / trash
+  section has it in "Ansicht ▾" ("Karte für diesen Abschnitt zeigen", since Oct 2026; before: an image icon in the tool bar);
+  "Allgemein" and "Standard" have no map anyway. Off:
   `BoardWorkspace` renders no board, palette, layers, zoom, minimap, map size or inspector, but a dashed note
   "Dieser Abschnitt wird ohne Karte geplant … bleiben gespeichert" with "Karte anzeigen"; Besetzung,
   assignments and tactic take the full width. The objects (tokens, marks, icons, zones, lines, texts) stay in
@@ -66,8 +67,8 @@ proxy's HTML.
   `localStorage` `eh.raidplan.section.<eventId>` / `t:<templateId>`, `rememberSection` / `rememberedSection`,
   a blocked storage answers ""), then "Allgemein", then the first shown section. The sheet starts at Allgemein
   (or the deep link).
-- The right-click on a boss chip opens a small menu: "Aus dem Sheet ausklammern / Ins Sheet aufnehmen" and
-  (boss / trash) "Karte ausblenden / anzeigen" (`BossNav` `onMap`). A test that `showMap` travels with
+- The right-click on a section in the strip's list opens a small menu: "Aus dem Sheet ausklammern / Ins Sheet aufnehmen" and
+  (boss / trash) "Karte ausblenden / anzeigen" (`SectionStrip` `onMap`; the chips of `BossNav` before Oct 2026). A test that `showMap` travels with
   "Vorlage anwenden" and "Vorlage duplizieren": `test/services/raidplan/raidplanAutoPlace.test.js`.
 - Tests: `src/web-client/src/lib/raidplan/raidplanSection.test.ts`, `test/services/raidplan/raidplanBoard.test.js` (flag),
   `test/web/apiRoutes/raidplan.test.js` ("a section without its map", order), `test/stores/raidplanStore.test.js`,
@@ -486,7 +487,7 @@ Tests: `src/web-client/src/lib/raidplan/areaStyle.test.ts` (defaults, band, path
 
 ## Section bar and boss icons (feature/raidplan-16, part 3)
 
-- **Every section carries its name** in the section bar - the editor's (`BossNav`, also the template editor)
+- **Every section carries its name** in the section bar - the editor's (`BossNav` then, the list of `SectionStrip` since Oct 2026; also the template editor)
   and the sheet's (`PlanPublicPage`) alike: icon + name as one pill, no number (the order is the raid's), the
   chosen one filled. The label comes from `lib/raidplan/profiles.ts sectionLabel`: a boss by its name, "Allgemein",
   "Standard", and a trash section by its instance when the plan covers several (`severalInstances`: "Trash ·

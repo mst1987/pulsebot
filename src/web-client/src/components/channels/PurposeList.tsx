@@ -67,12 +67,13 @@ export function PurposeList({ data, canEdit, onEdit }: {
 }
 
 /** The summary badges of the purposes ("5 gesetzt · 1 fehlt"). */
-export function PurposeSummaryBadges({ data }: { data: ChannelsData }) {
+/** `compact`: only what needs attention (missing, warnings); "gesetzt" shows only when nothing does. */
+export function PurposeSummaryBadges({ data, compact }: { data: ChannelsData; compact?: boolean }) {
     const t = useT();
     const { set, missing, warnings } = data.purposeSummary;
     return (
         <>
-            <Badge tone="ok" icon={<CheckIcon />}>{tParts("channels.purposeList.set", { count: set })}</Badge>
+            {(!compact || (!missing && !warnings)) && <Badge tone="ok" icon={<CheckIcon />}>{tParts("channels.purposeList.set", { count: set })}</Badge>}
             {missing > 0 && <Badge tone="bad">{tParts("channels.purposeList.missing", { count: missing })}</Badge>}
             {warnings > 0 && <Badge tone="mid" tip={t("channels.purposeList.warningsTip")} tipSub={t("channels.purposeList.warningsSub")}>{t("channels.purposeList.warnings", { count: warnings })}</Badge>}
         </>

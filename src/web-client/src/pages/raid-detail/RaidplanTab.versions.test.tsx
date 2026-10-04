@@ -44,11 +44,17 @@ beforeEach(() => {
     vi.mocked(client.send).mockReset().mockResolvedValue(view());
 });
 
+/** "Vorlage wählen" sits in the strip's "Mehr" menu since Oct 2026. */
+async function openTemplates(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole("button", { name: t("raidBoard.views.more") }));
+    await user.click(screen.getByRole("menuitem", { name: new RegExp(t("raidBoard.template.pick")) }));
+}
+
 describe("RaidplanTab: templates of the event's game version", () => {
     it("lists the event's version's templates, folds the others away and warns before applying one of them", async () => {
         const user = userEvent.setup();
         renderPage(<RaidplanTab ctx={ctx()} />);
-        await user.click(await screen.findByRole("button", { name: t("raidBoard.template.pick") }));
+        await openTemplates(user);
         const dialog = await screen.findByRole("dialog");
         const other = within(dialog).getByText(t("raidBoard.template.otherVersions", { count: 1 })).closest("details")!;
         expect(other).not.toHaveAttribute("open");
@@ -68,7 +74,7 @@ describe("RaidplanTab: templates of the event's game version", () => {
     it("applies a template of the same version without the warning", async () => {
         const user = userEvent.setup();
         renderPage(<RaidplanTab ctx={ctx()} />);
-        await user.click(await screen.findByRole("button", { name: t("raidBoard.template.pick") }));
+        await openTemplates(user);
         const dialog = await screen.findByRole("dialog");
         await user.click(within(dialog).getByRole("button", { name: /Ony-Aufstellung/ }));
         expect(screen.queryByText(t("raidBoard.template.otherTitle"))).not.toBeInTheDocument();

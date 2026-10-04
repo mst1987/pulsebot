@@ -1,6 +1,6 @@
 import { useState, type DragEvent, type KeyboardEvent } from "react";
 import type { SetupAttendance, SetupConfirmation, SetupEditorData, SetupEditorGroup, SetupPerson } from "../../../api";
-import { benchChunks, placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
+import { placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
 import { wowIconUrl } from "../../../lib/wowIcon";
 import { roleLabel } from "../../../lib/wowNames";
 import { useT } from "../../../i18n";
@@ -204,46 +204,36 @@ export function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs
 }
 
 /**
- * One 5-slot card of the bench (#354) or of the pool "Angemeldet" (#517) — a group card's exact look, never a real
- * group: no roles, no buffs, and dropping onto it always just means "onto the bench" resp. "back into the pool",
- * wherever inside it lands.
+ * The bench (#354) or the pool "Angemeldet" (#517) as ONE row under the groups:
+ * its name and count, then its raiders side by side — never a real group: no
+ * roles, no buffs, and dropping anywhere on the row just means "onto the bench"
+ * resp. "back into the pool". Picked somebody? A "Hierher" place takes them.
  */
-function BenchChunk({ index, slots, ui, pool = false }: { index: number; slots: SetupPerson[]; ui: Interaction; pool?: boolean }) {
+function SlotRow({ people, ui, pool = false }: { people: SetupPerson[]; ui: Interaction; pool?: boolean }) {
     const t = useT();
-    const zone = useZone(pool ? { pool: true } : { bench: true }, ui);
-    const full = slots.length >= GROUP_SIZE;
-    const canTake = ui.editable && !!ui.selected && !slots.some((s) => s.userId === ui.selected);
-    const title = t(pool ? "setup.pool.chunkTitle" : "setup.bench.chunkTitle", { index });
+    const target: SetupTarget = pool ? { pool: true } : { bench: true };
+    const zone = useZone(target, ui);
+    const canTake = ui.editable && !!ui.selected && !people.some((s) => s.userId === ui.selected);
+    const key = pool ? "pool" : "bench";
     return (
-        <section className={`se-group${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={title}>
-            <GroupHeader title={title} count={slots.length} full={full} />
-            <div className="se-slots">
-                {slots.map((p) => <Slot key={p.userId} p={p} ui={ui} inPool={pool} />)}
-                {Array.from({ length: Math.max(0, GROUP_SIZE - slots.length) }, (_, i) => (canTake
-                    ? (
-                        <button key={`free-${i}`} type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop(pool ? { pool: true } : { bench: true })}>
-                            {i === 0 ? t("setup.group.here") : ""}
-                        </button>
-                    )
-                    : <span key={`free-${i}`} className="se-ph" aria-hidden="true">{slots.length + i + 1}</span>))}
+        <section className={`se-bench se-row${pool ? " se-pool" : ""}${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t(`setup.${key}.aria`)}>
+            <header className="se-bench-head" data-tip={t(`setup.${key}.title`)} data-tip-sub={t(`setup.${key}.tip`)}>
+                <span className="se-group-title">{t(`setup.${key}.title`)}</span>
+                <span className="se-count">{people.length}</span>
+            </header>
+            <div className="se-row-slots">
+                {people.map((p) => <Slot key={p.userId} p={p} ui={ui} inPool={pool} />)}
+                {canTake && (
+                    <button type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop(target)}>{t("setup.group.here")}</button>
+                )}
+                {!people.length && !canTake && <span className="se-row-empty">{t(`setup.${key}.empty`)}</span>}
             </div>
         </section>
     );
 }
 
 export function BenchCard({ bench, ui }: { bench: SetupPerson[]; ui: Interaction }) {
-    const t = useT();
-    return (
-        <section className="se-bench" aria-label={t("setup.bench.aria")}>
-            <header className="se-bench-head" data-tip={t("setup.bench.title")} data-tip-sub={t("setup.bench.tip")}>
-                <span className="se-group-title">{t("setup.bench.title")}</span>
-                <span className="se-count">{bench.length}</span>
-            </header>
-            <div className="se-groups se-bench-chunks">
-                {benchChunks(bench).map((slots, i) => <BenchChunk key={i} index={i + 1} slots={slots} ui={ui} />)}
-            </div>
-        </section>
-    );
+    return <SlotRow people={bench} ui={ui} />;
 }
 
 /**
@@ -252,18 +242,7 @@ export function BenchCard({ bench, ui }: { bench: SetupPerson[]; ui: Interaction
  * out of the setup again.
  */
 export function PoolCard({ pool, ui }: { pool: SetupPerson[]; ui: Interaction }) {
-    const t = useT();
-    return (
-        <section className="se-bench se-pool" aria-label={t("setup.pool.aria")}>
-            <header className="se-bench-head" data-tip={t("setup.pool.title")} data-tip-sub={t("setup.pool.tip")}>
-                <span className="se-group-title">{t("setup.pool.title")}</span>
-                <span className="se-count">{pool.length}</span>
-            </header>
-            <div className="se-groups se-bench-chunks">
-                {benchChunks(pool).map((slots, i) => <BenchChunk key={i} index={i + 1} slots={slots} ui={ui} pool />)}
-            </div>
-        </section>
-    );
+    return <SlotRow people={pool} ui={ui} pool />;
 }
 
 /** The approved lineup, read-only — what someone without write access sees. */

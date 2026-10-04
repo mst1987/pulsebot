@@ -73,7 +73,14 @@ class FakePointerEvent extends MouseEvent {
     }
 }
 
+/** The two views (Oct 2026): the board is only in "Karte", the assignment cards only in "Aufgaben". */
+const toTasks = () => fireEvent.click(screen.getByRole("radio", { name: "Aufgaben" }));
+const toMap = () => fireEvent.click(screen.getByRole("radio", { name: "Karte" }));
+
 beforeEach(() => {
+    // the board's tests start in the view "Karte" (the editor opens on "Aufgaben" until one is chosen)
+    window.localStorage.clear();
+    window.localStorage.setItem("eh.raidplan.view", "map");
     // jsdom lays nothing out: the board is 1000 x 625 px at the top left, and nothing is under the pointer
     vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
     vi.stubGlobal("PointerEvent", FakePointerEvent);
@@ -195,7 +202,9 @@ describe("BoardWorkspace: editing and undo / redo", () => {
 
     it("puts a quick insert on the board as one undo step", () => {
         const { save } = setup({ zones: [] });
-        fireEvent.click(screen.getByRole("button", { name: "Pfeil" }));
+        // the tool row's "Zeichnen ▾" holds arrow, line and text
+        fireEvent.click(screen.getByRole("button", { name: "Zeichnen" }));
+        fireEvent.click(screen.getByRole("menuitem", { name: "Pfeil" }));
         const b = save();
         expect(b.lines).toHaveLength(1);
         expect(b.lines[0].kind).toBe("arrow");
@@ -290,8 +299,10 @@ describe("BoardWorkspace: a task row on the map", () => {
     it("puts the raiders of a kick row on the map, drags one, and the row deleted takes them along", () => {
         const { obj, save, container } = setup({ zones: [], assignments: [taskRow("k1", "kick", ["user:u1", "user:u2"])] }, true, ROSTER);
         expect(obj("auto:t:k1:1")).toBeNull();
+        toTasks();
         fireEvent.click(screen.getByRole("button", { name: "Auf Map setzen" }));
         expect(save().assignments[0].onMap).toBe(true);
+        toMap();
         expect(obj("auto:t:k1:1")).not.toBeNull();
         expect(obj("auto:t:k1:2")).not.toBeNull();
         // the tooltip names the task, never a mob
@@ -301,8 +312,10 @@ describe("BoardWorkspace: a task row on the map", () => {
         fireEvent.pointerMove(window, { clientX: 150, clientY: 90 });
         up(150, 90);
         expect(save().autoPos["t:k1:1"]).toBeDefined();
+        toTasks();
         fireEvent.click(screen.getByRole("button", { name: "Einteilung löschen" }));
         expect(save().assignments).toHaveLength(0);
+        toMap();
         expect(obj("auto:t:k1:1")).toBeNull();
         expect(obj("auto:t:k1:2")).toBeNull();
     });
@@ -310,9 +323,11 @@ describe("BoardWorkspace: a task row on the map", () => {
     it("takes the pin off again: the tokens go, the row stays", () => {
         const { obj, save } = setup({ zones: [], assignments: [taskRow("k1", "kick", ["user:u1"], { onMap: true })] }, true, ROSTER);
         expect(obj("auto:t:k1:1")).not.toBeNull();
+        toTasks();
         fireEvent.click(screen.getByRole("button", { name: "Von der Map nehmen" }));
         expect(save().assignments).toHaveLength(1);
         expect(save().assignments[0].onMap).toBeUndefined();
+        toMap();
         expect(obj("auto:t:k1:1")).toBeNull();
     });
 
@@ -342,6 +357,8 @@ describe("BoardWorkspace: a task row on the map", () => {
 
     it("a row of a whole role group has no pin (nobody to put on the map), a tank row neither", () => {
         setup({ zones: [], assignments: [taskRow("k1", "kick", ["role:melee"]), taskRow("t1", "tank", ["user:u1"])] }, true, ROSTER);
+        toTasks();
+        expect(screen.getAllByRole("button", { name: /Zeile bearbeiten/ })).toHaveLength(2);
         expect(screen.queryByRole("button", { name: "Auf Map setzen" })).toBeNull();
     });
 });
@@ -376,7 +393,9 @@ describe("BoardWorkspace: the lines of the rows", () => {
     });
     it("draws nothing when the lines are switched off, and a board without rows has no line layer", () => {
         const { container } = setup({ zones: [], assignments: rows }, true, ROSTER);
+        toTasks();
         fireEvent.click(screen.getByRole("checkbox", { name: "Verbindungen zeigen" }));
+        toMap();
         expect(container.querySelector(".rp-links")).toBeNull();
         const empty = setup({ zones: [] }, true, ROSTER);
         expect(empty.container.querySelector(".rp-links")).toBeNull();

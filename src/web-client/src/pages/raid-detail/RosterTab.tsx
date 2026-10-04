@@ -1,14 +1,14 @@
-// Tab "Roster": the raidplan and the attendance in one place, because both
-// answer the same question — who is coming? Role and status counts as badges,
-// raid groups 1–5 as columns, and below them the two lists a raid lead acts on:
-// who has not reacted, and who reacted but is not in the plan.
+// Tab "Anmeldungen" (id "roster"): the raidplan and the attendance in one place,
+// because both answer the same question — who is coming? No card head repeating
+// the tab: one line with the state and the tab's actions, role and status counts
+// as badges, raid groups 1–5 (an own event: role columns) and below them the two
+// lists a raid lead acts on: who has not reacted, and who reacted but is not in the plan.
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { AttendancePerson, EventSignupEntry, GameRole, SetupPlayer, SetupRole, SignupStatus } from "../../api";
 import { wowIconUrl } from "../../lib/wowIcon";
 import { CAN_ALSO } from "../../lib/signups";
-import { PartHead } from "../../components/ui/PartHead";
-import { Button } from "../../components/ui/Button";
+import { Button, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import Expand from "../../components/ui/Expand";
@@ -139,18 +139,23 @@ function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[];
     );
 }
 
-/** The state badge in the part head when the attendance check cannot run. */
+/**
+ * Why the attendance check cannot run, at the head of the tab: a badge (a state,
+ * never clickable) — and where it can be fixed, its own verb button beside it.
+ */
 function AttendanceState({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
     const { data } = ctx;
     if (!data.attendanceRoleIds.length) {
         return (
-            <Link
-                className="badge mid rd-badge-link" to="/settings?section=kategorien"
-                data-tip={t("raidDetail.roster.noRolesTip")} data-tip-sub={t("raidDetail.roster.noRolesSub")}
-            >
-                {t("raidDetail.roster.noRoles")}
-            </Link>
+            <>
+                <Badge tone="mid" tip={t("raidDetail.roster.noRolesTip")} tipSub={t("raidDetail.roster.noRolesSub")}>
+                    {t("raidDetail.roster.noRoles")}
+                </Badge>
+                <Link className={buttonClass("ghost", "sm")} to="/settings?section=kategorien" data-tip={t("raidDetail.roster.setRoles")} data-tip-sub={t("raidDetail.roster.setRolesSub")}>
+                    {t("raidDetail.roster.setRoles")}
+                </Link>
+            </>
         );
     }
     if (data.event.signupsKnown === false) {
@@ -211,40 +216,45 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
         .map((x) => `${x.n} ${SIGNUP_META[x.s].label.toLowerCase()}`)
         .join(" · ");
 
-    const crumb = data.ownSignups
-        ? `${t("raidDetail.roster.crumbOwn")}${data.categoryName ? ` · ${t("raidDetail.roster.crumbCategory", { name: data.categoryName })}` : ""}`
+    // Where the lineup comes from — only worth a line for a Raid-Helper event (its plan, or the saved snapshot);
+    // an own event's signups are the tab itself, its category is in the head.
+    const source = data.ownSignups
+        ? ""
         : setupFromSnapshot
         ? t("raidDetail.roster.crumbSnapshot", { when: ev.isPast ? t("raidDetail.roster.snapshotRaidDay") : t("raidDetail.roster.snapshotSaved") })
         : `${t("raidDetail.roster.crumbRaidhelper")}${data.categoryName ? ` · ${t("raidDetail.roster.crumbMatched", { name: data.categoryName })}` : ""}`;
 
-    const state = <AttendanceState ctx={ctx} />;
     // An own event (#288): the orga signs somebody up from here as well.
     const addRaider = ctx.canManage && data.ownSignups && ev.status !== "cancelled"
         ? (
-            <Button variant="ghost" size="sm" icon="inv_misc_groupneedmore" onClick={() => openModal("raider")} data-tip={t("raidDetail.roster.addRaider")} data-tip-sub={t("raidDetail.roster.addRaiderSub")}>
+            <Button variant="ghost" icon="inv_misc_groupneedmore" onClick={() => openModal("raider")} data-tip={t("raidDetail.roster.addRaider")} data-tip-sub={t("raidDetail.roster.addRaiderSub")}>
                 {t("raidDetail.roster.addRaider")}
             </Button>
         )
         : null;
     const pingAction = !ev.isPast && missing.length && ev.status !== "cancelled"
         ? (
-            <Button variant="ghost" size="sm" icon="inv_letter_15" onClick={() => openModal("ping")} data-tip={t("raidDetail.roster.pingMissing")} data-tip-sub={t("raidDetail.roster.pingMissingSub")}>
+            <Button variant="ghost" icon="inv_letter_15" onClick={() => openModal("ping")} data-tip={t("raidDetail.roster.pingMissing")} data-tip-sub={t("raidDetail.roster.pingMissingSub")}>
                 {t("raidDetail.roster.pingMissing")}<Badge tone="bad" count>{missing.length}</Badge>
             </Button>
         )
         : null;
-    // The ping (or why the attendance check cannot run) stays; "Raider eintragen" sits beside it.
-    const own = pingAction || (attendanceOk ? null : state);
-    const action = addRaider && own ? <span className="em-head-actions">{addRaider}{own}</span> : addRaider || own;
+    // No card head repeating the tab: one line with the state on the left (why the
+    // attendance check cannot run, where the lineup comes from) and the tab's actions on the right.
+    const state = attendanceOk ? null : <AttendanceState ctx={ctx} />;
+    const bar = state || source || pingAction || addRaider
+        ? (
+            <div className="rd-toolbar rd-tabbar">
+                {state}
+                {source && <span className="rd-muted">{source}</span>}
+                {(pingAction || addRaider) && <span className="rd-tabbar-act">{pingAction}{addRaider}</span>}
+            </div>
+        )
+        : null;
 
     return (
         <section className="panel rd-panel">
-            <PartHead
-                icon="achievement_guildperk_everybodysfriend"
-                title={t("raidDetail.roster.title")}
-                crumb={crumb}
-                action={action}
-            />
+            {bar}
 
             {setupError && <div className="flash flash-err">{t("raidDetail.roster.setupError", { error: setupError })}</div>}
 

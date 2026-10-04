@@ -1,7 +1,8 @@
-// The areas of Historie & Loot (design issue #225): three areas instead of nine
-// tabs, every view in exactly one of them, the open area following from the
-// open view, only the areas the visitor's permissions cover, and the old
-// ?tab=import / ?tab=inbox links from Discord still working.
+// The tabs of Historie & Loot: ONE tab row (Vergaben | Items | Raids |
+// Charaktere) instead of an area switch over a second row. What used to be a
+// tab of its own is a switch inside the tab it belongs to; the old ?tab= links
+// from Discord still land in the right place; only the tabs the visitor's
+// permissions cover show; the import/inbox links keep working.
 //
 // The views themselves have their own tests; here the heavy ones are
 // stand-ins that name themselves.
@@ -23,8 +24,11 @@ vi.mock("../../api", async (orig) => ({
 }));
 
 vi.mock("./LatestLootTab", () => ({ LatestLootTab: () => <div>Ansicht Vergaben</div> }));
-vi.mock("./LootItemsTab", () => ({ LootItemsTab: () => <div>Ansicht Items</div> }));
-vi.mock("./LootReasonsTab", () => ({ LootReasonsTab: () => <div>Ansicht Gründe</div> }));
+vi.mock("./LootItemsTab", () => ({ LootItemsTab: ({ lead }: { lead?: React.ReactNode }) => <div>Ansicht Items{lead}</div> }));
+vi.mock("./LootReasonsTab", () => ({ LootReasonsTab: ({ lead }: { lead?: React.ReactNode }) => <div>Ansicht Gründe{lead}</div> }));
+vi.mock("./LootEventsTab", () => ({ LootEventsTab: ({ lead }: { lead?: React.ReactNode }) => <div>Ansicht Nach Raid{lead}</div> }));
+vi.mock("./LogsTab", () => ({ LogsTab: ({ lead }: { lead?: React.ReactNode }) => <div>Ansicht Logs{lead}</div> }));
+vi.mock("./CharactersTab", () => ({ CharactersTab: () => <div>Ansicht Charaktere</div> }));
 vi.mock("./RaidTable", () => ({ default: () => <div>Raid-Tabelle</div> }));
 vi.mock("./ImportLootDialog", () => ({
     ImportLootDialog: ({ open }: { open: boolean }) => (open ? <div>Import-Dialog offen</div> : null),
@@ -40,97 +44,128 @@ function history(): HistoryData {
 const lootOnly = adminUser({ isAdmin: false, access: { loot: { read: true, write: false } } });
 const historyReader = adminUser({ isAdmin: false, access: { history: { read: true, write: false } } });
 
-/** Where the view with this label sits: its area and its tab. */
-const AREA_OF: Record<string, { area: string; tab: string }> = {
-    awards: { area: "Loot", tab: "Vergaben" },
-    items: { area: "Loot", tab: "Items" },
-    reasons: { area: "Loot", tab: "Gründe" },
-    loot: { area: "Loot", tab: "Nach Raid" },
-    raids: { area: "Raids & Logs", tab: "Raids" },
-    logs: { area: "Raids & Logs", tab: "Warcraft Logs" },
-    chars: { area: "Charaktere", tab: "" },
-};
-
-const areaSwitch = () => screen.getByRole("radiogroup", { name: "Bereich" });
+const tabNames = () => screen.getAllByRole("tab").map((t) => t.textContent);
+const selectedTab = () => screen.getAllByRole("tab").find((t) => t.getAttribute("aria-selected") === "true")?.textContent;
 
 beforeEach(() => {
+    localStorage.clear();
     vi.mocked(api.getHistoryData).mockReset().mockResolvedValue(history());
     vi.mocked(api.getLootStats).mockReset().mockResolvedValue({ characters: [], reasons: [], items: [], contents: [], tiers: [], unknownContentCount: 0 } as unknown as Awaited<ReturnType<typeof api.getLootStats>>);
-    vi.mocked(api.getLootInbox).mockReset().mockResolvedValue({ sessions: [] });
+    vi.mocked(api.getLootInbox).mockReset().mockResolvedValue({ sessions: [{ id: "s1" }, { id: "s2" }] } as unknown as Awaited<ReturnType<typeof api.getLootInbox>>);
     vi.mocked(api.getSession).mockReset().mockResolvedValue({ user: null, csrfToken: null, areas: [], guilds: [{ id: "g1", name: "Pulse" }], activeGuildId: "g1" });
 });
 
-describe("the areas", () => {
-    it("offers three areas, the import and the inbox not among the views", async () => {
+describe("the one tab row", () => {
+    it("offers Vergaben, Items, Raids and Charaktere — and no area switch", async () => {
         renderPage(<HistoryPage />, { route: "/history", path: "/history" });
 
-        const areas = within(await screen.findByRole("radiogroup", { name: "Bereich" })).getAllByRole("radio");
-        expect(areas.map((a) => a.textContent)).toEqual(["Loot", "Raids & Logs", "Charaktere"]);
-        expect(screen.queryByRole("tab", { name: /Import|Inbox/ })).not.toBeInTheDocument();
-        // The import is a dialog from the page head, the inbox a page of its own.
-        expect(screen.getByRole("button", { name: /Loot importieren/ })).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: /Addon-Inbox/ })).toBeInTheDocument();
+        await screen.findByText("Ansicht Items");
+        expect(tabNames()).toEqual(["Vergaben", "Items", "Raids", "Charaktere"]);
+        expect(screen.queryByRole("radiogroup", { name: "Bereich" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("tab", { name: /Import|Inbox|Gründe|Nach Raid/ })).not.toBeInTheDocument();
     });
 
-    it("puts every view in exactly one area", async () => {
+    it("puts the import first and the inbox as a second button with its count", async () => {
+        renderPage(<HistoryPage />, { route: "/history", path: "/history" });
+
+        expect(await screen.findByRole("button", { name: /Addon-Inbox · 2 offen/ })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Loot importieren/ })).toBeInTheDocument();
+    });
+
+    it("switches between the four tabs", async () => {
         const user = userEvent.setup();
         renderPage(<HistoryPage />, { route: "/history", path: "/history" });
-        await screen.findByRole("radiogroup", { name: "Bereich" });
+        await screen.findByText("Ansicht Items");
 
-        const seen: string[] = [];
-        for (const area of within(areaSwitch()).getAllByRole("radio")) {
-            await user.click(area);
-            const tabs = screen.queryAllByRole("tab").map((t) => t.textContent || "");
-            // An area with a single view goes straight to it, without a subnav.
-            seen.push(...(tabs.length ? tabs : [area.textContent || ""]));
-        }
-        expect(seen).toEqual([...new Set(seen)]);
-        expect(seen).toHaveLength(Object.keys(AREA_OF).length);
+        await user.click(screen.getByRole("tab", { name: "Vergaben" }));
+        expect(await screen.findByText("Ansicht Vergaben")).toBeInTheDocument();
+        await user.click(screen.getByRole("tab", { name: "Charaktere" }));
+        expect(await screen.findByText("Ansicht Charaktere")).toBeInTheDocument();
     });
 
-    it("derives the open area from the open view", async () => {
-        for (const [id, where] of Object.entries(AREA_OF)) {
+    it("keeps Gründe inside Items as a switch by player", async () => {
+        const user = userEvent.setup();
+        renderPage(<HistoryPage />, { route: "/history", path: "/history" });
+        await screen.findByText("Ansicht Items");
+
+        await user.click(screen.getByRole("radio", { name: "Nach Spieler" }));
+        expect(await screen.findByText("Ansicht Gründe")).toBeInTheDocument();
+        await user.click(screen.getByRole("radio", { name: "Nach Item" }));
+        expect(await screen.findByText("Ansicht Items")).toBeInTheDocument();
+    });
+
+    it("keeps the raid lists, the loot per raid and the logs inside Raids", async () => {
+        const user = userEvent.setup();
+        renderPage(<HistoryPage />, { route: "/history?tab=raids", path: "/history" });
+
+        expect(await screen.findByText("Raid-Tabelle")).toBeInTheDocument();
+        await user.click(screen.getByRole("radio", { name: /Loot nach Raid/ }));
+        expect(await screen.findByText("Ansicht Nach Raid")).toBeInTheDocument();
+        await user.click(screen.getByRole("radio", { name: /Logs/ }));
+        expect(await screen.findByText("Ansicht Logs")).toBeInTheDocument();
+        await user.click(screen.getByRole("radio", { name: /Kommende/ }));
+        expect(await screen.findByText("Raid-Tabelle")).toBeInTheDocument();
+    });
+});
+
+describe("old ?tab= links", () => {
+    it("maps the former tab ids to their new place", async () => {
+        const cases: [string, string, string][] = [
+            ["awards", "Vergaben", "Ansicht Vergaben"],
+            ["items", "Items", "Ansicht Items"],
+            ["reasons", "Items", "Ansicht Gründe"],
+            ["loot", "Raids", "Ansicht Nach Raid"],
+            ["logs", "Raids", "Ansicht Logs"],
+            ["raids", "Raids", "Raid-Tabelle"],
+            ["chars", "Charaktere", "Ansicht Charaktere"],
+        ];
+        for (const [id, tab, view] of cases) {
+            localStorage.clear();
             const { unmount } = renderPage(<HistoryPage />, { route: `/history?tab=${id}`, path: "/history" });
-            const area = within(await screen.findByRole("radiogroup", { name: "Bereich" })).getByRole("radio", { name: where.area });
-            expect({ id, area: area.getAttribute("aria-checked") }).toEqual({ id, area: "true" });
-            if (where.tab) expect({ id, tab: screen.getByRole("tab", { name: where.tab }).getAttribute("aria-selected") }).toEqual({ id, tab: "true" });
+            expect(await screen.findByText(view)).toBeInTheDocument();
+            expect({ id, tab: selectedTab() }).toEqual({ id, tab });
             unmount();
         }
-    });
-
-    it("opens an area on its first view", async () => {
-        const user = userEvent.setup();
-        renderPage(<HistoryPage />, { route: "/history?tab=logs", path: "/history" });
-
-        await user.click(within(await screen.findByRole("radiogroup", { name: "Bereich" })).getByRole("radio", { name: "Loot" }));
-        expect(screen.getByRole("tab", { name: "Vergaben" })).toHaveAttribute("aria-selected", "true");
-        expect(await screen.findByText("Ansicht Vergaben")).toBeInTheDocument();
     });
 });
 
 describe("what a visitor may see", () => {
-    it("opens only the loot area for the narrower loot permission, without an area switch", async () => {
-        renderPage(<HistoryPage />, { route: "/history?tab=raids", path: "/history", user: lootOnly });
+    it("opens only the loot tabs for the narrower loot permission", async () => {
+        renderPage(<HistoryPage />, { route: "/history?tab=chars", path: "/history", user: lootOnly });
 
-        expect(await screen.findByRole("tab", { name: "Items" })).toHaveAttribute("aria-selected", "true");
-        expect(screen.queryByRole("radiogroup", { name: "Bereich" })).not.toBeInTheDocument();
-        expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Vergaben", "Items", "Gründe", "Nach Raid"]);
+        expect(await screen.findByText("Ansicht Items")).toBeInTheDocument();
+        expect(selectedTab()).toBe("Items");
+        expect(tabNames()).toEqual(["Vergaben", "Items", "Raids"]);
         expect(screen.queryByRole("button", { name: /Addon-Inbox/ })).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: /Loot importieren/ })).not.toBeInTheDocument();
         expect(api.getLootInbox).not.toHaveBeenCalled();
     });
+
+    it("shows a loot-only visitor just the loot per raid under Raids, without the raid and log lists", async () => {
+        renderPage(<HistoryPage />, { route: "/history?tab=raids", path: "/history", user: lootOnly });
+
+        expect(await screen.findByText("Ansicht Nach Raid")).toBeInTheDocument();
+        expect(screen.queryByRole("radiogroup", { name: "Zeitraum" })).not.toBeInTheDocument();
+        expect(screen.queryByText("Raid-Tabelle")).not.toBeInTheDocument();
+    });
+
+    it("sends a loot-only ?tab=logs to the loot per raid instead of the logs", async () => {
+        renderPage(<HistoryPage />, { route: "/history?tab=logs", path: "/history", user: lootOnly });
+        expect(await screen.findByText("Ansicht Nach Raid")).toBeInTheDocument();
+        expect(screen.queryByText("Ansicht Logs")).not.toBeInTheDocument();
+    });
 });
 
-describe("old links", () => {
+describe("old import and inbox links", () => {
     it("opens the import dialog for ?tab=import when the visitor may import", async () => {
         renderPage(<HistoryPage />, { route: "/history?tab=import", path: "/history" });
         expect(await screen.findByText("Import-Dialog offen")).toBeInTheDocument();
-        expect(screen.getByRole("tab", { name: "Items" })).toHaveAttribute("aria-selected", "true");
+        expect(selectedTab()).toBe("Items");
     });
 
     it("opens no import dialog without write access", async () => {
         renderPage(<HistoryPage />, { route: "/history?tab=import", path: "/history", user: historyReader });
-        await screen.findByRole("radiogroup", { name: "Bereich" });
+        await screen.findByText("Ansicht Items");
         expect(screen.queryByText("Import-Dialog offen")).not.toBeInTheDocument();
     });
 
@@ -138,7 +173,7 @@ describe("old links", () => {
         renderPage(<HistoryPage />, { route: "/history?tab=inbox", path: "/history" });
         // /history/inbox is a different route: the page leaves.
         await waitFor(() => expect(screen.queryByRole("heading", { name: "Historie & Loot" })).not.toBeInTheDocument());
-        expect(screen.queryByRole("radiogroup", { name: "Bereich" })).not.toBeInTheDocument();
+        expect(screen.queryAllByRole("tab")).toHaveLength(0);
     });
 
     it("keeps a loot-only visitor on the page for ?tab=inbox", async () => {
@@ -151,16 +186,16 @@ describe("old links", () => {
 describe("in English", () => {
     afterEach(() => switchLang("de"));
 
-    it("names the areas, the views and the head buttons in English", async () => {
+    it("names the tabs, the switches and the head buttons in English", async () => {
         await switchLang("en");
         renderPage(<HistoryPage />, { route: "/history?tab=raids", path: "/history" });
 
-        const areas = within(await screen.findByRole("radiogroup", { name: "Area" })).getAllByRole("radio");
-        expect(areas.map((a) => a.textContent)).toEqual(["Loot", "Raids & logs", "Characters"]);
-        expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Raids", "Warcraft Logs"]);
+        await screen.findByText("Raid-Tabelle");
+        expect(tabNames()).toEqual(["Awards", "Items", "Raids", "Characters"]);
         expect(screen.getByRole("heading", { name: "History & loot" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /Import loot/ })).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: /Addon inbox/ })).toBeInTheDocument();
-        expect(screen.getByText("Past raids")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Addon inbox · 2 open/ })).toBeInTheDocument();
+        const switchRadios = within(screen.getByRole("radiogroup", { name: "Period" })).getAllByRole("radio").map((r) => r.textContent);
+        expect(switchRadios).toEqual(["Past (0)", "Upcoming (0)", "Loot by raid (0)", "Logs (0)"]);
     });
 });

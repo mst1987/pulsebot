@@ -27,6 +27,6 @@ describe("the unsaved state is loud and accessible", () => {
             expect(src).toContain("<UnsavedBar");
             expect(src).toContain("dirtyKeys={unsavedKeys}");
         }
-        expect(read("pages/raid-detail/raidplan/BossNav.tsx")).toContain("is-unsaved");
+        expect(read("pages/raid-detail/raidplan/SectionStrip.tsx")).toContain("is-unsaved");
     });
 });

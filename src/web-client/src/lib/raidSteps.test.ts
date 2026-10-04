@@ -80,6 +80,25 @@ describe("the step bar's words", () => {
         expect(lib.stepTipSub({ ...created, action: null }, true)).toBe(created.hint);
     });
 
+    it("gives the slim bar a short value with a word, never a bare „25 / 25“", () => {
+        const p = progress({ ownSignups: [{ status: "signed" }, { status: "signed" }] });
+        const signup = p.steps.find((s) => s.id === "signup")!;
+        expect(lib.stepShort(signup)).toBe(`${signup.value} angemeldet`);
+        expect(lib.stepShort({ ...signup, value: "25", unit: "/ 25" })).toBe("25 von 25");
+        expect(lib.stepShort({ ...signup, value: "Stand 1", unit: "" })).toBe("Stand 1");
+        // an empty value and one that only repeats the name stay out
+        expect(lib.stepShort({ ...signup, value: "—", unit: "" })).toBe("");
+        expect(lib.stepShort({ ...p.steps[0], value: "angelegt", unit: "" })).toBe("");
+    });
+
+    it("names the open step's strip after its deed, with the explaining sentence", () => {
+        const p = progress();
+        const open = p.steps.find((s) => s.id === p.current)!;
+        expect(lib.stepFocus(open)).toEqual({ title: `Jetzt dran: ${lib.deedLabel(open.action!)}`, text: open.hint });
+        // a reader has no deed: the strip names the step; without a sentence the note stands in
+        expect(lib.stepFocus({ ...open, action: null, hint: "", note: "Entwurf" })).toEqual({ title: `Jetzt dran: ${lib.stepTitle(open)}`, text: "Entwurf" });
+    });
+
     it("hands a reader the same bar without a single deed", () => {
         const p = progress();
         expect(p.action).not.toBeNull();
