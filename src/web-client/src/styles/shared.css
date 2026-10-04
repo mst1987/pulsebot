@@ -255,10 +255,22 @@ nav.menu::-webkit-scrollbar { display: none; }
 .crumbs .crumb-sep { opacity: .45; }
 .top-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
 .ibtn.menu-toggle { display: none; }
-/* One width for every page: tables, boards, lists and grids use it; prose and
-   single form fields keep their own readable measure inside (base.css, the
-   pages' field rules). */
+/* Two page widths. Dense pages (tables, boards, grids: Kaderplaner .kp-page, the
+   roster list, the raid detail .rd-page, the Loot-Council, the settings
+   sections Berechtigungen and Kategorien) use the whole 1440px of .content.
+   Sparse pages (a few rows or a form) take --page-narrow, or they would show
+   more empty space than content. The root classes of the sparse pages are
+   listed here once; a new sparse page joins this list, a dense one stays out.
+   Historie & Loot joins it from historie-loot.css, where its other
+   rules live (a convention keeps that page's prefix out of this file). The settings panel is decided by its open section (data-section). Prose and
+   single form fields keep their own measure inside (base.css, the pages' rules). */
+:root { --page-narrow: 1200px; }
 .content { padding: 24px; max-width: 1440px; width: 100%; min-width: 0; }
+.ov-page, .re-page, .rt-page, .sr-page, .an-page, .pf-page, .rc-page, .kn-page,
+.la-page, .hc-page,
+.settings-panel:not([data-section="berechtigungen"]):not([data-section="kategorien"]) {
+    max-width: var(--page-narrow);
+}
 .page-title { font-size: 24px; font-weight: 800; letter-spacing: -.3px; margin: 0 0 18px; }
 
 /* ===== panel geometry: clipped top-right corner + accent tick, the signature

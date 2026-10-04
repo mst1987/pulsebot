@@ -86,7 +86,7 @@ export default function HistoryCharPage() {
                 ];
 
                 return (
-                    <>
+                    <div className="hc-page">
                         <CharHero data={data} roster={roster} loading={character.loading} onReload={character.reload} />
 
                         <div className="ros-secs" role="tablist" aria-label={t("history.page.areaAria")}>
@@ -123,7 +123,7 @@ export default function HistoryCharPage() {
                         {tab === "attendance" && <AttendanceSection roster={roster} />}
 
                         {!!itemSlot && <ItemDetailModal slot={itemSlot} data={data} roster={roster} onClose={() => setItemSlot("")} />}
-                    </>
+                    </div>
                 );
             }}
         </AsyncView>
