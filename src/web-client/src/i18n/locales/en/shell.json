@@ -62,6 +62,10 @@
     "logoutSub": "Sign out of the guild menu",
     "docs": "Documentation",
     "menuToggle": "Menu",
+    "nav": {
+        "expand": "Expand the entries under {name}",
+        "collapse": "Collapse the entries under {name}"
+    },
     "theme": {
         "tip": "Toggle light / dark",
         "aria": "Toggle theme"
