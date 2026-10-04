@@ -94,10 +94,12 @@
     .rp-tray-unfold { flex-direction: row; justify-content: center; }
 }
 
-/* ---- the view "Aufgaben": the Besetzung as one line, the cards in two columns in the full width ---- */
+/* ---- the view "Aufgaben": the Besetzung as one line, the cards in columns of about 440 px (up to four) ----
+   Two fixed columns made every card half the screen wide on a large monitor: a row needs ~430 px, the rest was empty
+   space and the targets stretched across it. Now a wide screen gets more columns instead of wider cards. */
 .rp-tasksview { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .rp-tasksview .rp-assign { padding: 10px 12px; }
-.rp-tasksview .rp-cards { display: block; columns: 2 420px; column-gap: 12px; }
+.rp-tasksview .rp-cards { display: block; columns: 4 440px; column-gap: 12px; }
 .rp-tasksview .rp-cards > .rp-acard { break-inside: avoid; margin-bottom: 12px; }
 .rp-assign-head .rp-assign-only { margin-left: 2px; }
 .rp-assign-undo { display: inline-flex; align-items: center; gap: 2px; }
