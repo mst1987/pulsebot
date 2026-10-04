@@ -22,6 +22,7 @@ const signupStore = require("../../stores/signupStore");
 const raidplanStore = require("../../stores/raidplanStore");
 const { deleteRaidplanPost } = require("../../stores/raidplanPostStore");
 const signupService = require("../signups/signupService");
+const availability = require("../signups/availability");
 const profiles = require("../../stores/raiderProfileStore");
 const reminderStore = require("../../stores/reminderStore");
 const seriesStore = require("../../stores/eventSeriesStore");
@@ -238,6 +239,8 @@ async function moveEvent({ guildId, eventId, date, time, renameChannel = true, n
     if (updated.error) return fail(400, "invalid_plan", updated.error);
     // A reminder sent for the old date says nothing about the new one.
     for (const kind of ["missing", "signed"]) reminderStore.clearSent(plan.eventId, kind);
+    // Absences and attendances of the new day sign raiders off / up, like for a new raid (not awaited).
+    void availability.applyToEvent(plan.eventId);
 
     let channelError = null;
     let renamed = "";
@@ -494,6 +497,8 @@ async function reopenEvent({ guildId, eventId, user, byName }) {
     if (found.event.status !== "cancelled") return fail(409, "unchanged", "Das Event ist nicht abgesagt.");
     const wasArchived = !!(found.event.cancel && found.event.cancel.archived);
     const event = eventStore.setEventState(found.event.id, { status: "active", signupsClosed: false, cancel: null });
+    // While cancelled the raid was skipped by every absence and attendance — catch up now (not awaited).
+    void availability.applyToEvent(event.id);
     const messageError = await refreshMessage(event.id);
     // A cancelled Discord event cannot be revived — a new one is created (#305).
     const discordEventError = discordEvent.warningOf(await discordEvent.reopenForEvent(event.id).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
