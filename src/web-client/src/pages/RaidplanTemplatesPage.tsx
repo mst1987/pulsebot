@@ -32,7 +32,7 @@ import BoardWorkspace from "./raid-detail/raidplan/BoardWorkspace";
 import { LibraryModal, ProfilesModal } from "./raid-detail/raidplan/ProfileModals";
 import { SaveButton, UnsavedBar, useUnsavedGuard, type SaveStateKind } from "./raid-detail/raidplan/SaveState";
 import { applyTactic, stepsOf } from "../lib/raidplan/steps";
-import BossNav from "./raid-detail/raidplan/BossNav";
+import SectionStrip from "./raid-detail/raidplan/SectionStrip";
 import type { MapRow } from "./raid-detail/raidplan/MapPanel";
 import { useDraftHistory } from "./raid-detail/raidplan/useDraftHistory";
 import "../styles/raidplan/index.css";
@@ -574,7 +574,7 @@ function TemplateEditor({ template, canWrite, version, guilds, profiles, onProfi
                     history={{ undo, redo, canUndo, canRedo }}
                     mapRows={mapRows} onMapsChanged={reloadMaps}
                     defaultRows={boardOf(draft, DEFAULTS_KEY).assignments} onCopyDefaults={copyDefaults}
-                    bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={tpl.bossList} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => histEdit(k, (b) => ({ ...b, inSheet: on })) : undefined} onMap={canWrite ? (k, on) => histEdit(k, (b) => ({ ...b, showMap: on })) : undefined} />}
+                    bossNav={<SectionStrip dirtyKeys={unsavedKeys} bosses={tpl.bossList} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => histEdit(k, (b) => ({ ...b, inSheet: on })) : undefined} onMap={canWrite ? (k, on) => histEdit(k, (b) => ({ ...b, showMap: on })) : undefined} />}
                     saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("planTemplates.conflict")} /> : undefined}
                     actions={canWrite ? (
                         <>

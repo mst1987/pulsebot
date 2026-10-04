@@ -1,4 +1,6 @@
 import type { PointerEvent, RefObject } from "react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useCollapse } from "../../../../hooks/useCollapse";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from "../../../../api";
 import { PlayerName, TokenIcon } from "../../../../components/raidplan/PlanBoard";
 import { useT } from "../../../../i18n";
@@ -18,9 +20,11 @@ export type DockTab = "props" | "layers" | "bg";
  * drop target for taking one off the map) and the dock with the properties of
  * the selection, the layer list and the background.
  */
-export function WorkspaceSide({ isEvent, showPanel, roster, missing, overTray, canWrite, onTrayDown, panelRef, tab, setTab, board, edit, editAll, withAuto, noAuto, boardPx, players, selected, setSelected, multi, auto, rows, focusGroup, setFocusGroup, onLayerSelect, tanks, mapRows, onMapsChanged }: {
+export function WorkspaceSide({ isEvent, showPanel, onClosePanel, roster, missing, overTray, canWrite, onTrayDown, panelRef, tab, setTab, board, edit, editAll, withAuto, noAuto, boardPx, players, selected, setSelected, multi, auto, rows, focusGroup, setFocusGroup, onLayerSelect, tanks, mapRows, onMapsChanged }: {
     isEvent: boolean;
+    /** the properties / layers / background (behind the tool row's "Eigenschaften") */
     showPanel: boolean;
+    onClosePanel?: () => void;
     roster: RaidplanPlayer[];
     /** the players nobody placed yet */
     missing: RaidplanPlayer[];
@@ -52,12 +56,28 @@ export function WorkspaceSide({ isEvent, showPanel, roster, missing, overTray, c
     onMapsChanged: () => void;
 }) {
     const t = useT();
+    // the list folds to a slim strip (still a drop target for taking a player off the map); remembered in this browser
+    const [folded, toggleFolded] = useCollapse("eh.raidplan.collapse.tray");
     const autoSel = !!selected && selected.kind === "auto" && multi.length < 2;
+    const slim = isEvent && folded && !showPanel;
     return (
-        <div className="rp-side">
-            {isEvent && (
+        <div className={`rp-side${showPanel ? " is-docked" : ""}${slim ? " is-folded" : ""}`}>
+            {isEvent && folded && (
+                <section className={`rp-tray rp-tray-slim${overTray ? " is-over" : ""}`} data-rp-tray aria-label={t("raidBoard.tray.title")}>
+                    <button
+                        type="button" className="rp-tray-unfold" aria-expanded={false} aria-label={`${t("raidBoard.tray.title")} · ${missing.length}: ${t("raidBoard.views.trayOpen")}`}
+                        data-tip={t("raidBoard.views.trayOpen")} onClick={toggleFolded}
+                    >
+                        <ChevronLeft size={15} aria-hidden="true" /><b>{missing.length}</b>{!slim && <span className="rp-kicker">{t("raidBoard.tray.title")}</span>}
+                    </button>
+                </section>
+            )}
+            {isEvent && !folded && (
                 <section className={`rp-tray${overTray ? " is-over" : ""}`} data-rp-tray aria-label={t("raidBoard.tray.title")}>
-                    <span className="rp-kicker">{t("raidBoard.tray.title")} · {missing.length}</span>
+                    <div className="rp-tray-head">
+                        <span className="rp-kicker">{t("raidBoard.tray.title")} · {missing.length}</span>
+                        <button type="button" className="ibtn sm rp-tray-fold" aria-expanded aria-label={t("raidBoard.views.trayFold")} data-tip={t("raidBoard.views.trayFold")} onClick={toggleFolded}><ChevronRight size={15} /></button>
+                    </div>
                     {roster.length === 0 && <span className="rp-muted">{t("raidBoard.tray.none")}</span>}
                     {roster.length > 0 && missing.length === 0 && <span className="rp-muted">{t("raidBoard.tray.empty")}</span>}
                     <div className="rp-tray-list">
@@ -73,6 +93,7 @@ export function WorkspaceSide({ isEvent, showPanel, roster, missing, overTray, c
                             </span>
                         ))}
                     </div>
+                    {canWrite && missing.length > 0 && <span className="rp-muted rp-tray-hint">{t("raidBoard.views.trayHint")}</span>}
                 </section>
             )}
             {showPanel && (
@@ -81,6 +102,7 @@ export function WorkspaceSide({ isEvent, showPanel, roster, missing, overTray, c
                         <button type="button" role="tab" aria-selected={tab === "props"} className={tab === "props" ? "is-on" : ""} onClick={() => setTab("props")}>{t("raidBoard.panel.props")}</button>
                         <button type="button" role="tab" aria-selected={tab === "layers"} className={tab === "layers" ? "is-on" : ""} onClick={() => setTab("layers")}>{t("raidBoard.panel.layers")}</button>
                         <button type="button" role="tab" aria-selected={tab === "bg"} className={tab === "bg" ? "is-on" : ""} onClick={() => setTab("bg")}>{t("raidBoard.panel.background")}</button>
+                        {onClosePanel && <button type="button" className="ibtn sm rp-dock-close" aria-label={t("raidBoard.views.propsClose")} data-tip={t("raidBoard.views.propsClose")} onClick={onClosePanel}><X size={15} /></button>}
                     </div>
                     {tab === "props" && autoSel && <AutoInfo plan={auto} id={selected!.id} board={board} players={players} canWrite={canWrite} edit={edit} onRow={(k, mobKey) => (k ? tanks.openRowFromMap(k.rowId) : tanks.pickTankFor(mobKey, null))} />}
                     {tab === "props" && !autoSel && <Inspector board={withAuto(board)} selection={selected} multi={multi} boardPx={boardPx} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={(fn, m) => edit((b) => noAuto(fn(withAuto(b))), m)} editAll={editAll} rows={rows} onSelect={setSelected} focusGroup={focusGroup} onFocusGroup={setFocusGroup} />}

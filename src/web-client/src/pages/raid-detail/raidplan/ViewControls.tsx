@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Bookmark, BookmarkX, BoxSelect, CircleDashed, CircleUser, Hand, Hash, Link2, Map as MapIcon, Maximize, SlidersHorizontal, Star, Type, Wand2, ZoomIn, ZoomOut } from "lucide-react";
+import { useRef, useState, type ReactNode } from "react";
+import { Bookmark, BookmarkX, BoxSelect, ChevronDown, CircleDashed, CircleUser, Hand, Hash, Link2, Map as MapIcon, Maximize, SlidersHorizontal, Star, Type, Wand2, ZoomIn, ZoomOut } from "lucide-react";
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import { SliderField } from "../../../components/raidplan/NumberField";
@@ -14,7 +14,7 @@ import { useDismiss } from "../../../hooks/useDismiss";
  * `sheetView`: what the sheet opens this section with (its saved cutout, else the whole picture). The editor opens with it too; zoomed
  * away from it only to work, ONE button says so and goes back ("Wie im Sheet").
  */
-export function ZoomControls({ view, zoomIn, zoomOut, fit, actual, hand, setHand, canWrite, hasSaved, onSaveView, onClearView, sheetView, onSheetView }: { view: BoardView; zoomIn: () => void; zoomOut: () => void; fit: () => void; actual: () => void; hand: boolean; setHand: (on: boolean) => void; canWrite: boolean; hasSaved: boolean; onSaveView: () => void; onClearView: () => void; sheetView?: BoardView; onSheetView?: () => void }) {
+export function ZoomControls({ view, zoomIn, zoomOut, fit, actual, hand, setHand, canWrite, hasSaved, onSaveView, onClearView, sheetView, onSheetView, bookmarks = true }: { view: BoardView; zoomIn: () => void; zoomOut: () => void; fit: () => void; actual: () => void; hand: boolean; setHand: (on: boolean) => void; canWrite: boolean; hasSaved: boolean; onSaveView: () => void; onClearView: () => void; sheetView?: BoardView; onSheetView?: () => void; bookmarks?: boolean }) {
     const t = useT();
     const offSheet = !!sheetView && !!onSheetView && !sameView(view, sheetView);
     return (
@@ -25,15 +25,20 @@ export function ZoomControls({ view, zoomIn, zoomOut, fit, actual, hand, setHand
             <IconButton size="sm" icon={<Maximize size={17} />} tip={t("raidBoard.zoom.fit")} onClick={fit} />
             <button type="button" className="rp-zoom-pct" data-tip={t("raidBoard.zoom.actualTip")} aria-label={t("raidBoard.zoom.actual")} onClick={actual}>{t("raidBoard.zoom.actual")}</button>
             <IconButton size="sm" icon={<Hand size={17} />} tip={t("raidBoard.zoom.hand")} aria-pressed={hand} className={hand ? "is-on" : ""} onClick={() => setHand(!hand)} />
-            <IconButton size="sm" icon={<Bookmark size={17} />} tip={t("raidBoard.zoom.saveView")} disabled={!canWrite || !(view.z > 1)} onClick={onSaveView} />
-            <IconButton size="sm" icon={<BookmarkX size={17} />} tip={t("raidBoard.zoom.clearView")} disabled={!canWrite || !hasSaved} onClick={onClearView} />
+            {/* the tool row of the view "Karte" has them, with their names, in "Ansicht ▾" (`bookmarks={false}`, workspace/MapToolRow.tsx) */}
+            {bookmarks && <IconButton size="sm" icon={<Bookmark size={17} />} tip={t("raidBoard.zoom.saveView")} disabled={!canWrite || !(view.z > 1)} onClick={onSaveView} />}
+            {bookmarks && <IconButton size="sm" icon={<BookmarkX size={17} />} tip={t("raidBoard.zoom.clearView")} disabled={!canWrite || !hasSaved} onClick={onClearView} />}
             {offSheet && <button type="button" className="rp-zoom-pct rp-zoom-sheet" data-tip={hasSaved ? t("raidBoard.zoom.asSheetTip") : t("raidBoard.zoom.asSheetWholeTip")} onClick={onSheetView}>{t("raidBoard.zoom.asSheet")}</button>}
         </div>
     );
 }
 
-/** The symbol size (tokens, slot icons, marks, boss / mob icons and the names with them) and what the board shows besides the icons. Stored on the board, so the read view looks the same. */
-export function ViewOptions({ board, canWrite, edit, prefs, setPref, links, onLinks }: { board: RaidplanBoard; canWrite: boolean; edit: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void; prefs: ViewPrefs; setPref: (p: Partial<ViewPrefs>) => void; links: boolean; onLinks: (on: boolean) => void }) {
+/**
+ * The symbol size (tokens, slot icons, marks, boss / mob icons and the names with them) and what the board shows besides the icons. Stored on
+ * the board, so the read view looks the same. With `label` it is the tool row's "Ansicht ▾" (a labelled button), and `extra` puts the
+ * editor's own switches (elements, selection mode, sheet preview, map on / off …) at the top of the same pop-up.
+ */
+export function ViewOptions({ board, canWrite, edit, prefs, setPref, links, onLinks, label, extra }: { board: RaidplanBoard; canWrite: boolean; edit: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void; prefs: ViewPrefs; setPref: (p: Partial<ViewPrefs>) => void; links: boolean; onLinks: (on: boolean) => void; label?: string; extra?: ReactNode }) {
     const t = useT();
     const [open, setOpen] = useState(false);
     const box = useRef<HTMLDivElement>(null);
@@ -46,9 +51,16 @@ export function ViewOptions({ board, canWrite, edit, prefs, setPref, links, onLi
     );
     return (
         <div className="rp-viewopts" ref={box}>
-            <IconButton size="sm" icon={<SlidersHorizontal size={17} />} tip={t("raidBoard.view.title")} aria-expanded={open} aria-haspopup="dialog" className={open || board.objectScale !== 1 ? "is-on" : ""} onClick={() => setOpen((v) => !v)} />
+            {label ? (
+                <button type="button" className={`btn btn-ghost btn-sm rp-toolmenu-btn${open ? " is-open" : ""}`} aria-expanded={open} aria-haspopup="dialog" data-tip={open ? undefined : t("raidBoard.view.title")} data-tip-sub={open ? undefined : t("raidBoard.views.viewSub")} onClick={() => setOpen((v) => !v)}>
+                    <SlidersHorizontal size={15} aria-hidden="true" /><span>{label}</span><ChevronDown className="rp-toolmenu-chev" size={14} aria-hidden="true" />
+                </button>
+            ) : (
+                <IconButton size="sm" icon={<SlidersHorizontal size={17} />} tip={t("raidBoard.view.title")} aria-expanded={open} aria-haspopup="dialog" className={open || board.objectScale !== 1 ? "is-on" : ""} onClick={() => setOpen((v) => !v)} />
+            )}
             {open && (
-                <div className="rp-viewopts-pop" role="dialog" aria-label={t("raidBoard.view.title")}>
+                <div className="rp-viewopts-pop" role="dialog" aria-label={label || t("raidBoard.view.title")}>
+                    {extra}
                     <SliderField label={t("raidBoard.view.iconSize")} value={Math.round(board.objectScale * 100)} min={SCALE_MIN * 100} max={SCALE_MAX * 100} step={5} unit="%" disabled={!canWrite} onChange={(v) => canWrite && edit((b) => setObjectScale(b, v / 100), true)} />
                     <button type="button" className="rp-link" disabled={!canWrite || board.objectScale === 1} onClick={() => edit((b) => setObjectScale(b, 1))}>{t("raidBoard.view.reset")}</button>
                     <span className="rp-muted">{t("raidBoard.view.iconSizeHint")}</span>

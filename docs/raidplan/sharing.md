@@ -80,7 +80,7 @@ the event.
   server's); a tab that becomes visible again asks at once. It turns to `current ?? next` when the page shows that section. A
   section picked by hand (a chip, the editor's "open assignments" list) goes through `choose()` and pauses following — only while a
   log is read, so a click before the raid does not switch it off for the night; a deep link `?section=` starts paused.
-- **Chips:** `SheetBossNav` and the editor's `BossNav` take `killedKeys` and `follow`. A killed boss gets `.is-killed` (opacity
+- **Chips:** `SheetBossNav` and the editor's `SectionStrip` (its list; `BossNav` before Oct 2026) take `killedKeys` and `follow`. A killed boss gets `.is-killed` (opacity
   `--rp-done-dim`, `tokens.css`; the icon greyed, full strength when chosen or hovered) and a small check in `--good` at its
   **lower** right (`.rp-bosschip-done`), so the #503 dot at the upper right and the editor's content dot stay free; tooltip and
   label add "Im Log getötet". `AutoFollowToggle` ("Automatisch mitgehen", `aria-pressed`) ends the bar only while `live`.
@@ -89,7 +89,7 @@ the event.
   page. Only the newest linked log with a report id is read.
 - Tests: `test/utils/logcheck/bossProgress.test.js`, `test/services/raidplan/raidplanProgress.test.js`,
   `test/web/apiRoutes/raidplan.progress.test.js`, `src/web-client/src/hooks/useRaidProgress.test.tsx`,
-  `lib/raidplan/progress.test.ts`, `SheetBossNav.test.tsx`, `BossNav.test.tsx`.
+  `lib/raidplan/progress.test.ts`, `SheetBossNav.test.tsx`, `SectionStrip.test.tsx`.
 
 ## Live updates and the section in the address (#555)
 

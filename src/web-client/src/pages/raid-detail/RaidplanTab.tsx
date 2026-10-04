@@ -1,23 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, LayoutTemplate, RotateCw, Send, Share2 } from "lucide-react";
+import { AlertTriangle, LayoutTemplate, Link2, MoreHorizontal, RotateCw, Send } from "lucide-react";
 import {
     applyRaidplanTemplate, getRaidplan, publishRaidplan, saveRaidplan, saveRaidplanGroups,
     type ApiError, type IncludedGroups, type RaidplanBoard, type RaidplanPlayer, type RaidplanView, type RaidplanProfile, type RaidplanTemplateSummary } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { Badge, IconButton, Modal, RaidLoader, useConfirm } from "../../components/ui";
+import { Badge, Button, IconButton, Modal, RaidLoader, useConfirm } from "../../components/ui";
 import { useToast } from "../../components/Jobs";
 import { useOnFocus } from "../../hooks/useOnFocus";
 import { useRaidProgress } from "../../hooks/useRaidProgress";
 import { useT } from "../../i18n";
 import {
-    boardCount, boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, startSection, objectCount, openSlots, planHasContent, sameBosses, sheetIncluded, toSave,
+    boardCount, boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, startSection, objectCount, planHasContent, sameBosses, sheetIncluded, toSave,
 } from "../../lib/raidplan";
 import { hasSectionDeepLink, sectionFromUrl, showSectionInUrl } from "../../lib/raidplan/sectionUrl";
 import type { RaidCtx } from "./meta";
 import { missingNames, openAssignments, type OpenRow } from "../../lib/raidplan/assignLine";
 import { DEFAULTS_KEY } from "../../lib/raidplan/inherit";
 import BoardWorkspace from "./raidplan/BoardWorkspace";
-import BossNav from "./raidplan/BossNav";
+import SectionStrip from "./raidplan/SectionStrip";
+import ToolMenu from "./raidplan/ToolMenu";
 import { LibraryModal, ProfilesModal } from "./raidplan/ProfileModals";
 import { SaveButton, UnsavedBar, useUnsavedGuard, type SaveStateKind } from "./raidplan/SaveState";
 import { applyTactic, stepsOf } from "../../lib/raidplan/steps";
@@ -39,10 +40,10 @@ function rosterOfView(v: RaidplanView | null): { roster: RaidplanPlayer[]; outsi
 
 /**
  * Raid-Detail › Raidplan (an own event, docs/raidplan.md), inside the raid detail's
- * normal frame. The working area (BoardWorkspace) has a sticky tool bar with undo /
- * redo, quick inserts and this page's actions as icons (template, share, save), the
- * boss chips, the players not placed yet, the palette, the board and the properties
- * / background / layers panel.
+ * normal frame. The working area (BoardWorkspace) has a sticky strip: the section choice
+ * (SectionStrip), the views "Aufgaben | Karte" (never side by side), the status (draft /
+ * published, saved) and this page's actions (Link kopieren, Freigeben, Mehr ▾: template,
+ * posting the link, the open assignments) - docs/raidplan/editor.md, "Two views".
  *
  * A plan can start from a raid plan template ("Vorlage"): the server copies it in
  * as a snapshot and fills its open slots from the approved setup; from then on
@@ -129,6 +130,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     // each section with its Besetzung as the editor shows it (a slot reference names whoever stands in that slot); a row of the Standard
     // counts once, in the Standard (#524), not again in every boss that inherits it
     const openRows = useMemo(() => (view ? openAssignments(view.bosses.map((b) => ({ key: b.key, name: b.name, board: ensureBesetzung(boardOf(draft, b.key), besetzung, roster) })), roster, outside) : []), [view, draft, besetzung, roster, outside]);
+    // per section: the strip's badge "2 offen" and the counts in its list
+    const openCounts = useMemo(() => { const out: Record<string, number> = {}; for (const o of openRows) out[o.key] = (out[o.key] || 0) + 1; return out; }, [openRows]);
     const canWrite = !!view && view.canWrite;
     // "Einteilungen posten" (#502) publishes a draft plan on the way: the page's reload after the post brings the new state here
     const postedPath = ctx.data.raidplanPost?.publicPath || "";
@@ -274,8 +277,19 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         { key: boss.key, label: `${t("raidBoard.board.mapForBoss")}: ${boss.name}`, has: boss.ownMap, override: false },
         { key: boss.instanceId, label: `${t("raidBoard.board.mapForInstance")}: ${boss.instanceName}`, has: boss.instanceMap, override: false },
     ] : [];
-    const open = openSlots(board);
     const empty = objectCount(board) === 0;
+    // "Link kopieren": the read view's address, once the plan is shared (before that the button says so instead)
+    const linkReady = published && !!view.plan.publicPath;
+    const copyLink = async () => {
+        if (!linkReady) { toast(t("raidBoard.views.copyLinkOff")); return; }
+        try {
+            await navigator.clipboard.writeText(`${window.location.origin}${view.plan.publicPath}`);
+            toast(t("raidBoard.share.copied"));
+        } catch {
+            // no clipboard permission: the share dialog shows the link to copy by hand
+            setModal("share");
+        }
+    };
 
     return (
         <div className="rp-editor" data-rp-editor>
@@ -289,6 +303,9 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
             {canWrite && !view.rosterSource && !view.hasApprovedSetup && (
                 <p className="rp-warn">{roster.length === 0 ? t("raidBoard.setupHint.none") : t("raidBoard.setupHint.notApproved")}</p>
             )}
+            {canWrite && empty && !view.plan.templateName && offered.own.length > 0 && (
+                <p className="rp-muted rp-tpl-hint"><span>{t("raidBoard.template.hintEmpty")}</span> <Button variant="ghost" size="sm" onClick={() => setModal("template")}>{t("raidBoard.template.pick")}</Button></p>
+            )}
 
             {boss && (
                 <RaidplanBoundary resetKey={selected}>
@@ -299,33 +316,37 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
                     defaultRows={boardOf(draft, DEFAULTS_KEY).assignments}
                     saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("raidBoard.conflict.text")} /> : undefined}
-                    bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={progress.choose} killedKeys={progress.killed} follow={progress.live ? { on: progress.follow, onToggle: () => progress.setFollow(!progress.follow) } : undefined} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} />}
+                    urlView
+                    bossNav={<SectionStrip dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={progress.choose} killedKeys={progress.killed} follow={progress.live ? { on: progress.follow, onToggle: () => progress.setFollow(!progress.follow) } : undefined} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} openCounts={canWrite ? openCounts : undefined} />}
+                    besetzungTools={<PlanGroups roster={view.roster} groupCount={view.besetzung ? view.besetzung.groups : 5} included={included} canWrite={canWrite} busy={groupsBusy} onChange={setGroups} />}
                     status={(
                         <>
-                            <Badge tone={published ? "ok" : undefined}>{published ? t("raidBoard.bar.published") : t("raidBoard.bar.draft")}</Badge>
+                            <Badge tone={published ? "ok" : undefined} tip={published ? t("raidBoard.views.publishedTip") : t("raidBoard.views.draftTip")}>{published ? t("raidBoard.bar.published") : t("raidBoard.bar.draft")}</Badge>
                             {!canWrite && <Badge>{t("raidBoard.bar.readOnly")}</Badge>}
-                            <PlanGroups roster={view.roster} groupCount={view.besetzung ? view.besetzung.groups : 5} included={included} canWrite={canWrite} busy={groupsBusy} onChange={setGroups} />
-                            {canWrite && open > 0 && <Badge tone="mid" tip={t("raidBoard.slot.openTip")}>{t("raidBoard.slot.openCount", { count: open })}</Badge>}
-                            {canWrite && openRows.length > 0 && (
-                                <button type="button" className="rp-openbadge" data-tip={t("raidBoard.aline.openHint")} onClick={() => setModal("open")}>
-                                    <AlertTriangle size={14} aria-hidden="true" />{openRows.length === 1 ? t("raidBoard.aline.openPlanOne") : t("raidBoard.aline.openPlan", { n: openRows.length })}
-                                </button>
-                            )}
-                            {view.plan.templateName && <span className="rp-muted rp-bar-template">{t("raidBoard.template.current", { name: view.plan.templateName })}</span>}
-                            {canWrite && empty && !view.plan.templateName && offered.own.length > 0 && <span className="rp-muted">{t("raidBoard.template.hintEmpty")}</span>}
+                            {canWrite && <SaveButton state={saveState} busy={saving} flash={savedFlash} onSave={save} />}
                         </>
                     )}
-                    actions={canWrite ? (
+                    actions={(
                         <>
-                            <IconButton size="sm" icon={<LayoutTemplate size={17} />} tip={t("raidBoard.template.pick")} onClick={() => setModal("template")} />
-                            <IconButton size="sm" icon={<Share2 size={17} />} tip={t("raidBoard.bar.share")} onClick={() => setModal("share")} />
-                            <IconButton
-                                size="sm" icon={<Send size={17} />} tip={t("raidBoard.bar.postLink")}
-                                tipSub={dirty ? t("raidBoard.bar.postLinkUnsaved") : t("raidBoard.bar.postLinkSub")} onClick={openPost}
-                            />
-                            <SaveButton state={saveState} busy={saving} flash={savedFlash} onSave={save} />
+                            <Button
+                                variant="ghost" size="sm" icon={<Link2 size={15} aria-hidden="true" />} aria-disabled={!linkReady || undefined} className={linkReady ? "" : "rp-copylink-off"}
+                                data-tip={linkReady ? t("raidBoard.views.copyLinkTip") : t("raidBoard.views.copyLinkOff")} onClick={copyLink}
+                            >
+                                {t("raidBoard.views.copyLink")}
+                            </Button>
+                            {canWrite && <Button size="sm" data-tip={published ? t("raidBoard.views.shareTip") : t("raidBoard.views.publishTip")} onClick={() => setModal("share")}>{published ? t("raidBoard.views.share") : t("raidBoard.views.publish")}</Button>}
+                            {canWrite && (
+                                <ToolMenu
+                                    label={t("raidBoard.views.more")} icon={<MoreHorizontal size={16} aria-hidden="true" />} iconOnly align="end" tip={t("raidBoard.views.more")} tipSub={t("raidBoard.views.moreSub")}
+                                    items={[
+                                        { id: "template", label: t("raidBoard.template.pick"), sub: view.plan.templateName ? t("raidBoard.template.current", { name: view.plan.templateName }) : t("raidBoard.template.emptyText"), icon: <LayoutTemplate size={16} />, onSelect: () => setModal("template") },
+                                        { id: "post", label: t("raidBoard.bar.postLink"), sub: dirty ? t("raidBoard.bar.postLinkUnsaved") : t("raidBoard.bar.postLinkSub"), icon: <Send size={16} />, onSelect: openPost },
+                                        { id: "open", label: openRows.length === 1 ? t("raidBoard.aline.openPlanOne") : t("raidBoard.aline.openPlan", { n: openRows.length }), sub: t("raidBoard.views.openListSub"), icon: <AlertTriangle size={16} />, disabled: openRows.length === 0, onSelect: () => setModal("open") },
+                                    ]}
+                                />
+                            )}
                         </>
-                    ) : undefined}
+                    )}
                 />
                 </RaidplanBoundary>
             )}

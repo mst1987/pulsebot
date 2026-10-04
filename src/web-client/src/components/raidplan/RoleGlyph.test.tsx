@@ -81,7 +81,7 @@ describe("role placeholders", () => {
         [
             "../../components/raidplan/PlanBoard.tsx",
             "../../pages/raid-detail/raidplan/{Palette,Besetzung,AssignLine,AssignPanel,AssignModal,StepModal,ReadTables,AssignRosterModal}.tsx",
-            "../../pages/raid-detail/raidplan/workspace/WorkspaceToolbar.tsx",
+            "../../pages/raid-detail/raidplan/workspace/MapToolRow.tsx",
             "../../pages/RaidplanTemplatesPage.tsx",
         ],
         { query: "?raw", import: "default", eager: true },
@@ -98,7 +98,7 @@ describe("role placeholders", () => {
         expect(sources[file]).not.toContain("ROLE_ICONS");
     });
 
-    it.each(["PlanBoard", "Palette", "Besetzung", "WorkspaceToolbar", "RaidplanTemplatesPage", "AssignLine", "ReadTables"])("%s draws with RoleGlyph", (name) => {
+    it.each(["PlanBoard", "Palette", "Besetzung", "MapToolRow", "RaidplanTemplatesPage", "AssignLine", "ReadTables"])("%s draws with RoleGlyph", (name) => {
         const file = Object.keys(sources).find((f) => f.endsWith(`/${name}.tsx`)) as string;
         expect(sources[file]).toContain("RoleGlyph");
     });

@@ -6,9 +6,9 @@ import TypeBadge from "./TypeBadge";
 import AssignLine from "./AssignLine";
 import CollapseToggle from "../../../components/raidplan/CollapseToggle";
 import { useCollapseSet } from "../../../hooks/useCollapse";
-import { Copy, RotateCcw, EyeOff, Swords, Users, Plus, Trash2, X } from "lucide-react";
+import { Copy, RotateCcw, EyeOff, Swords, Users, Plus, Redo2, Trash2, Undo2, X } from "lucide-react";
 import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanPlayer } from "../../../api";
-import { IconButton, useConfirm } from "../../../components/ui";
+import { Badge, IconButton, useConfirm } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import RoleGlyph from "../../../components/raidplan/RoleGlyph";
 import { useToast } from "../../../components/Jobs";
@@ -18,7 +18,7 @@ import {
     ALL_MARKS, CARD_ORDER, SCOPE_TYPES, playersByClass, mobTarget, spellRef, spellsFor, iconForText, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, rowsOfType, patchAssignment, removeAssignment,
     resolveAssignee, resolveTarget, slotChoices, toggleTarget, ROLE_TONE, type AssignCtx, type Resolved,
 } from "../../../lib/raidplan/assign";
-import { cardSummary, lineState } from "../../../lib/raidplan/assignLine";
+import { assigneeItems, cardSummary, lineState } from "../../../lib/raidplan/assignLine";
 import { targetKey } from "../../../lib/raidplan/assignModal";
 import { canPutOnMap, mobTargetsFor, sameTargetAs, setRowOnMap } from "../../../lib/raidplan/autoPlace";
 import { wowIconUrl } from "../../../lib/wowIcon";
@@ -110,8 +110,14 @@ const MOB_TYPES = ["tank", "trashtank", "special", "cc", "kick", "dispel", "othe
  * the others appear with their first row or through "Karte hinzufügen". The old task rows are
  * rows of the type "other".
  */
-export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, groupCount, links, onLinks, catalog, sectionMobs, inherited = [], effective, defaultRows = [], onCopyDefaults, openRequest = null, versionId }: {
+export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, groupCount, links, onLinks, catalog, sectionMobs, inherited = [], effective, defaultRows = [], onCopyDefaults, openRequest = null, versionId, sectionKey = "", history, dialogOnly = false }: {
     scope: string;
+    /** only the row dialog (the view "Karte" opens it from the map), nothing of the cards */
+    dialogOnly?: boolean;
+    /** the section shown (a change ends the "Anzeigen" filter) */
+    sectionKey?: string;
+    /** undo / redo beside the head's tools (the view "Aufgaben" has no tool row) */
+    history?: { undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean };
     /** a template's game version (#544): the suggestions use that version's catalog; an event plan's comes from its event */
     versionId?: string;
     board: RaidplanBoard;
@@ -170,13 +176,36 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const spellRefOf = (id: string) => { const sp = (catalog ? catalog.spells : []).find((x) => x.id === id); return sp ? spellRef(sp) : null; };
     const groups = Array.from({ length: Math.max(1, groupCount) }, (_, i) => i + 1);
     // the map asked for a row's dialog ("Tank wählen …", "Zeile bearbeiten …")
-    useEffect(() => { if (openRequest && openRequest.id) openRow(openRequest.id); }, [openRequest]);
+    // (a request that was there before this panel came - the other view's - is not opened again)
+    const seenRequest = useRef(openRequest ? openRequest.n : 0);
+    useEffect(() => {
+        if (!openRequest || !openRequest.id || openRequest.n === seenRequest.current) return;
+        seenRequest.current = openRequest.n;
+        openRow(openRequest.id);
+    }, [openRequest]);
     // another boss brings its own hand-added cards (a card's fold state stays as it was: it is remembered per type, not per boss)
     useEffect(() => { setExtra([]); }, [scope, eventId]);
 
     const ask = useConfirm();
     const shown = cardTypes(scope, [...board.assignments, ...inherited], extra, !canWrite, board.hiddenCards);
     const addable = addableCards(scope, shown);
+
+    /** A task without a player (an event plan): nobody named yet, or a place the setup cannot fill ("Spieler fehlt", "Jäger 3 fehlt"). */
+    const noPlayer = (a: RaidplanAssignment): boolean => {
+        if (!isEvent) return false;
+        const f = filledOf(a);
+        return lineState(a, f, ctx, isEvent) !== "ok" || assigneeItems(a, f, ctx, [], false, isEvent).length === 0;
+    };
+    const noPlayerN = shown.reduce((n, type) => n + [...rowsOfType(inherited, type), ...rowsOfType(board.assignments, type)].filter(noPlayer).length, 0);
+    // "Anzeigen": only those tasks, and the list scrolled to them; another section shows everything again
+    const [onlyOpen, setOnlyOpen] = useState(false);
+    const panelEl = useRef<HTMLElement>(null);
+    useEffect(() => { setOnlyOpen(false); }, [scope, eventId, sectionKey]);
+    const showOpen = () => {
+        const next = !onlyOpen;
+        setOnlyOpen(next);
+        if (next && panelEl.current && typeof panelEl.current.scrollIntoView === "function") panelEl.current.scrollIntoView({ block: "start", behavior: "smooth" });
+    };
 
     /**
      * A new row of a card's type; a tanking row of a boss starts with the boss as its target. The classes of the row before it come
@@ -304,8 +333,25 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
         }
     };
 
+    const dialog = editing && board.assignments.some((x) => x.id === editing) ? (
+        <AssignModal
+            board={board} rowId={editing} isEvent={isEvent} roster={roster} catalog={catalog} title={t(`raidBoard.assign.type.${(board.assignments.find((x) => x.id === editing) || { type: "other" }).type}`)}
+            assigneeOptions={assigneeOptions} targetOptions={targetOptions} spellOptions={spellOptions}
+            onTarget={toggleTargetKey}
+            onText={(b, id, text) => (b.assignments.find((x) => x.id === id)?.targets.some((x) => x.kind === "text" && x.ref === text) ? b : toggleTarget(b, id, { kind: "text", ref: text }))}
+            onSpell={(b, id, k) => patchAssignment(b, id, { spell: (b.assignments.find((x) => x.id === id)?.spell || { id: "" }).id === k ? null : spellRefOf(k) })}
+            onSuggest={suggestAssignees}
+            onDone={(row, slots) => { edit((b) => ({ ...b, slots: slots || b.slots, assignments: b.assignments.map((x) => (x.id === row.id ? { ...row, suggested: false } : x)) })); setEditing(""); }}
+            onClose={() => setEditing("")}
+            onRemove={() => { const id = editing; setEditing(""); edit((b) => removeAssignment(b, id)); }}
+            players={players} initialSlot={editAt.slot} initialCat={editAt.cat}
+        />
+    ) : null;
+    // the view "Karte": only the row dialog the map asks for ("Tank wählen …", "Zeile bearbeiten …"), no cards
+    if (dialogOnly) return dialog;
+
     return (
-        <section className="rp-assign" aria-label={t("raidBoard.assign.title")}>
+        <section className={`rp-assign${onlyOpen ? " is-only-open" : ""}`} aria-label={t("raidBoard.views.tasksHead")} ref={panelEl}>
             {addAnchor && (
                 <Flyout
                     anchor={addAnchor} title={t("raidBoard.assign.addCard")} multi={false} onClose={() => setAddAnchor(null)}
@@ -313,45 +359,49 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                     onToggle={(x) => { if (shown.indexOf(x) >= 0) return; if (board.hiddenCards.indexOf(x) >= 0) edit((b) => showCard(b, x)); else setExtra([...extra, x]); }}
                 />
             )}
-            {editing && board.assignments.some((x) => x.id === editing) && (
-                <AssignModal
-                    board={board} rowId={editing} isEvent={isEvent} roster={roster} catalog={catalog} title={t(`raidBoard.assign.type.${(board.assignments.find((x) => x.id === editing) || { type: "other" }).type}`)}
-                    assigneeOptions={assigneeOptions} targetOptions={targetOptions} spellOptions={spellOptions}
-                    onTarget={toggleTargetKey}
-                    onText={(b, id, text) => (b.assignments.find((x) => x.id === id)?.targets.some((x) => x.kind === "text" && x.ref === text) ? b : toggleTarget(b, id, { kind: "text", ref: text }))}
-                    onSpell={(b, id, k) => patchAssignment(b, id, { spell: (b.assignments.find((x) => x.id === id)?.spell || { id: "" }).id === k ? null : spellRefOf(k) })}
-                    onSuggest={suggestAssignees}
-                    onDone={(row, slots) => { edit((b) => ({ ...b, slots: slots || b.slots, assignments: b.assignments.map((x) => (x.id === row.id ? { ...row, suggested: false } : x)) })); setEditing(""); }}
-                    onClose={() => setEditing("")}
-                    onRemove={() => { const id = editing; setEditing(""); edit((b) => removeAssignment(b, id)); }}
-                    players={players} initialSlot={editAt.slot} initialCat={editAt.cat}
-                />
-            )}
+            {dialog}
             <div className="rp-assign-head">
-                <h3 className="rp-kicker">{t("raidBoard.assign.title")} · {board.assignments.length}</h3>
+                <h3 className="rp-kicker">{t("raidBoard.views.tasksHead")} · {rowsAll.length}</h3>
+                {noPlayerN > 0 && <Badge tone="mid" tip={t("raidBoard.views.noPlayerTip")}>{noPlayerN === 1 ? t("raidBoard.views.noPlayerOne") : t("raidBoard.views.noPlayerN", { n: noPlayerN })}</Badge>}
+                {(noPlayerN > 0 || onlyOpen) && (
+                    <button type="button" className="btn btn-ghost btn-sm rp-assign-only" aria-pressed={onlyOpen} onClick={showOpen}>{onlyOpen ? t("raidBoard.views.showAll") : t("raidBoard.views.showOpen")}</button>
+                )}
                 <div className="rp-assign-tools">
                     {canWrite && scope === "defaults" && onCopyDefaults && (
                         <button type="button" className="rp-assign-btn" data-tip={t("raidBoard.defaults.copyTip")} onClick={onCopyDefaults}><Copy size={15} aria-hidden="true" /><span>{t("raidBoard.defaults.copy")}</span></button>
                     )}
                     {canWrite && addable.length > 0 && (
-                        <button type="button" className="rp-assign-btn" aria-haspopup="dialog" onClick={(e) => setAddAnchor(addAnchor ? null : e.currentTarget)}>
-                            <Plus size={15} aria-hidden="true" /><span>{t("raidBoard.assign.addCard")}</span>
+                        <button type="button" className="rp-assign-btn" aria-haspopup="dialog" data-tip={t("raidBoard.views.addTaskTip")} onClick={(e) => setAddAnchor(addAnchor ? null : e.currentTarget)}>
+                            <Plus size={15} aria-hidden="true" /><span>{t("raidBoard.views.addTask")}</span>
                         </button>
                     )}
                     {scope !== "general" && board.assignments.some((a) => a.type === "heal") && (
                         <label className="rp-check rp-assign-links"><input type="checkbox" checked={links} onChange={(e) => onLinks(e.target.checked)} /> {t("raidBoard.assign.links")}</label>
+                    )}
+                    {history && (
+                        <span className="rp-tool-group rp-assign-undo">
+                            <IconButton size="sm" icon={<Undo2 size={16} />} tip={`${t("raidBoard.tool.undo")} (Ctrl+Z)`} disabled={!canWrite || !history.canUndo} onClick={history.undo} />
+                            <IconButton size="sm" icon={<Redo2 size={16} />} tip={`${t("raidBoard.tool.redo")} (Ctrl+Y)`} disabled={!canWrite || !history.canRedo} onClick={history.redo} />
+                        </span>
                     )}
                 </div>
             </div>
             {scope === "defaults" && <p className="rp-muted rp-defaults-explain">{t("raidBoard.defaults.explain")}</p>}
             {scope === "defaults" && <p className="rp-muted rp-defaults-explain">{t("raidBoard.defaults.facingHint")}</p>}
             {shown.length === 0 && <p className="rp-muted rp-assign-empty">{t("raidBoard.assign.emptyRead")}</p>}
+            {onlyOpen && noPlayerN === 0 && <p className="rp-muted rp-assign-empty">{t("raidBoard.views.noneOpen")}</p>}
             <div className="rp-cards">
                 {shown.map((type) => {
-                    const rows = rowsOfType(board.assignments, type);
-                    const inh = rowsOfType(inherited, type);
-                    const fold = isFolded(type);
-                    const sum = cardSummary([...inh, ...rows], filled, ctx, isEvent, rows);
+                    const rowsOwn = rowsOfType(board.assignments, type);
+                    const inhAll = rowsOfType(inherited, type);
+                    // "Anzeigen": only the tasks without a player (the card goes when it has none)
+                    const rows = onlyOpen ? rowsOwn.filter(noPlayer) : rowsOwn;
+                    const inh = onlyOpen ? inhAll.filter(noPlayer) : inhAll;
+                    if (onlyOpen && rows.length + inh.length === 0) return null;
+                    const fold = isFolded(type) && !onlyOpen;
+                    const sum0 = cardSummary([...inhAll, ...rowsOwn], filled, ctx, isEvent, rowsOwn);
+                    // a row without a player counts as open in an event plan ("Spieler fehlt"), like a missing class
+                    const sum = isEvent ? { ...sum0, open: [...inhAll, ...rowsOwn].filter(noPlayer).length } : sum0;
                     return (
                         <section key={type} className="rp-acard" aria-label={t(`raidBoard.assign.type.${type}`)}>
                             <header className="rp-acard-head">
@@ -367,7 +417,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                                         <button type="button" className="rp-acard-add" aria-label={t("raidBoard.assign.suggestOne", { type: t(`raidBoard.assign.type.${type}`) })} data-tip={t("raidBoard.assign.suggestOne", { type: t(`raidBoard.assign.type.${type}`) })} disabled={busy === type} onClick={() => suggest(type)}>{t("raidBoard.assign.autoFill")}</button>
                                     )}
                                     {canWrite && <button type="button" className="rp-acard-add" aria-label={t("raidBoard.assign.addRowTo", { type: t(`raidBoard.assign.type.${type}`) })} data-tip={t("raidBoard.assign.addRowTo", { type: t(`raidBoard.assign.type.${type}`) })} onClick={() => { edit((b) => newRow(b, type)); if (fold) toggleFold(type); }}><Plus size={13} aria-hidden="true" />{t("raidBoard.aline.add")}</button>}
-                                    {canWrite && <IconButton size="sm" tone="danger" icon={isDefaultCard(scope, type) ? <EyeOff size={15} /> : <Trash2 size={15} />} tip={t(isDefaultCard(scope, type) ? "raidBoard.assign.hideCard" : "raidBoard.assign.removeCard", { type: t(`raidBoard.assign.type.${type}`) })} onClick={() => dropCard(type, rows.length)} />}
+                                    {canWrite && <IconButton size="sm" tone="danger" icon={isDefaultCard(scope, type) ? <EyeOff size={15} /> : <Trash2 size={15} />} tip={t(isDefaultCard(scope, type) ? "raidBoard.assign.hideCard" : "raidBoard.assign.removeCard", { type: t(`raidBoard.assign.type.${type}`) })} onClick={() => dropCard(type, rowsOwn.length)} />}
                                 </span>
                             </header>
                             {!fold && (
