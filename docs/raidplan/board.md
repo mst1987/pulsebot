@@ -56,8 +56,8 @@ proxy's HTML.
   computed. Template apply and duplicate copy the board as a whole, so the flag travels along.
 - **Sheet / public API** (`raidplan.publicView`): a section with `showMap: false` sends `showMap: false`,
   `mapUrl: ""` and empty tokens / marks / icons / zones / lines / texts (slots stay, `placed: false`).
-  `PlanPublicPage` then drops the right column (`no-board no-map`) and the assignments use the full width
-  (Allgemein keeps its 640px column).
+  `PlanPublicPage` then shows no stage: "Deine Aufgaben" and the tables stand in the page's flow
+  (`.rp-sheet-flat`, at most 1100px wide), like Allgemein.
 - **Order**: `raidplanStore.bossesForInstances` puts "Allgemein" first, then the bosses in raid order, then
   the trash; the template view and the event editor put "Standard" first, before "Allgemein" (`raidplan.withStandard`,
   #524; the read view never lists it). The boss chip numbering is

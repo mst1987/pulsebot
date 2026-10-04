@@ -9,7 +9,8 @@ describe("wiring and texts", () => {
     const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
     it("the workspace shows the panel right at the board, the read view the table", () => {
         expect(readWorkspace()).toContain("<AssignPanel");
-        expect(read("pages/PlanPublicPage.tsx")).toContain("<ReadTables");
+        // the stage's "Alle Aufgaben" (Oct 2026)
+        expect(read("pages/raid-detail/raidplan/stage/TasksPanel.tsx")).toContain("<ReadTables");
         expect(read("pages/PlanPublicPage.tsx")).not.toContain("ByPlayerLog");
         expect(read("components/raidplan/PlanBoard.tsx")).toContain("rp-links");
     });

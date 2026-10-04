@@ -1,0 +1,126 @@
+/* The read view /p/<token> as a stage ("Karte als Bühne", PlanPublicPage.tsx): one bar on top, the map filling the rest of the window
+   on a blurred copy of itself, "Deine Aufgaben" floating lower left, "Alle Aufgaben" as a tab on the right edge that opens a panel.
+   A section without a map (.rp-sheet-flat) shows card and panel in the page's flow. */
+
+.rp-public.rp-sheet { max-width: none; margin: 0; padding: 0; gap: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); }
+.rp-sheet .rp-kicker { font-family: var(--font-mono); font-size: 11px; letter-spacing: .05em; }
+
+/* ---- the bar ---- */
+.rp-sheet-bar { position: relative; z-index: 20; flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); box-shadow: 0 6px 18px var(--shade-28); }
+.rp-sheet-boss { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 1 auto; }
+.rp-sheet-arrow { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); color: var(--text); cursor: pointer; }
+.rp-sheet-arrow:hover:not(:disabled) { border-color: var(--accent); }
+.rp-sheet-arrow:disabled { opacity: .35; cursor: default; }
+.rp-sheet-arrow:focus-visible, .rp-sheet-menubtn:focus-visible, .rp-sheet-groups button:focus-visible, .rp-sheet-iconbtn:focus-visible, .rp-sheet-tab:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.rp-sheet-portrait { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--rp-enemy); object-fit: cover; }
+.rp-sheet-titles { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.rp-sheet-titles .rp-kicker { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-sheet-title { margin: 0; font-size: 22px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-sheet-menuwrap { position: relative; flex: none; }
+.rp-sheet-menubtn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); color: var(--text); font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.rp-sheet-menubtn:hover, .rp-sheet-menubtn.is-on { border-color: var(--accent); }
+.rp-sheet-menubtn.is-on { background: var(--accent-soft); }
+
+/* the section menu */
+.rp-sheet-menu { position: absolute; left: 0; top: calc(100% + 8px); z-index: 30; width: 360px; max-width: calc(100vw - 32px); max-height: min(640px, calc(100dvh - 120px)); overflow-y: auto; box-sizing: border-box; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); box-shadow: 0 18px 44px var(--shade-55); }
+.rp-sheet-menu-head { padding: 8px 10px 6px; font-size: 13px; color: var(--muted); }
+.rp-sheet-menu-run { display: flex; flex-direction: column; gap: 1px; padding: 4px 0; }
+.rp-sheet-menu-run > .rp-kicker { padding: 6px 10px 4px; }
+.rp-sheet-menu-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 12px 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 14.5px; font-weight: 600; text-align: left; cursor: pointer; }
+.rp-sheet-menu-item:hover { background: var(--panel3); }
+.rp-sheet-menu-item:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+.rp-sheet-menu-item.is-on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); font-weight: 800; }
+.rp-sheet-menu-item img, .rp-sheet-menu-ph { flex: none; width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--panel3); }
+.rp-sheet-menu-item.is-killed img { filter: grayscale(1); opacity: var(--rp-done-dim); }
+.rp-sheet-menu-name { flex: 1; min-width: 0; }
+.rp-sheet-tag { flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; }
+.rp-sheet-tag-mine { color: var(--accent); }
+.rp-sheet-tag-killed { color: var(--good); }
+.rp-sheet-menu-only { display: flex; align-items: center; gap: 10px; margin-top: 4px; padding: 12px 10px 8px; border-top: 1px solid var(--line); font-size: 14px; cursor: pointer; }
+.rp-sheet-menu-only input { width: 18px; height: 18px; }
+
+/* the groups: a square field per group (a switch, not navigation) */
+.rp-sheet-groups { display: flex; align-items: center; gap: 6px; flex: none; }
+.rp-sheet-groups button { display: inline-flex; align-items: center; gap: 5px; height: 38px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); color: var(--text); cursor: pointer; }
+.rp-sheet-groups button:hover { border-color: var(--gc); }
+.rp-sheet-groups button.is-on { border: 2px solid var(--gc); background: color-mix(in srgb, var(--gc) 18%, var(--panel2)); }
+.rp-sheet-gnum { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 3px; box-sizing: border-box; border-radius: 5px; background: var(--gc); color: var(--gi); font: 800 12px/1 var(--font-mono); }
+.rp-sheet-tools { display: flex; align-items: center; gap: 10px; flex: none; margin-left: auto; }
+.rp-sheet-tools .rp-autofollow { margin-left: 0; }
+
+/* ---- the stage ---- */
+.rp-sheet-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--rp-board-bg); }
+.rp-sheet-backdrop { position: absolute; inset: -60px; width: calc(100% + 120px); height: calc(100% + 120px); object-fit: cover; filter: blur(26px) brightness(.4); pointer-events: none; }
+.rp-sheet-board { position: absolute; inset: 12px; display: flex; align-items: center; justify-content: center; }
+.rp-sheet-board .rp-board-wrap { width: 100%; }
+.rp-sheet-board .rp-board { box-shadow: 0 12px 40px var(--shade-55); }
+.rp-sheet-stage .rp-zoomctl { right: 64px; bottom: 16px; padding: 5px; border-radius: 12px; box-shadow: 0 8px 24px var(--shade-35); }
+.rp-sheet-stage .rp-zoomctl button { min-width: 34px; height: 34px; }
+.rp-sheet-stage.is-panel .rp-zoomctl { right: calc(min(480px, 100%) + 16px); }
+.rp-sheet-stage .rp-minimap { left: auto; right: 64px; bottom: 70px; }
+.rp-sheet-stage.is-panel .rp-minimap { right: calc(min(480px, 100%) + 16px); }
+
+/* "Deine Aufgaben" */
+.rp-sheet-mine { position: absolute; left: 16px; bottom: 16px; z-index: 8; width: min(400px, calc(100% - 96px)); max-height: calc(100% - 32px); display: flex; flex-direction: column; box-sizing: border-box; border: 2px solid var(--accent); border-radius: 14px; background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--panel); box-shadow: 0 14px 36px var(--shade-50); overflow: hidden; }
+.rp-sheet-mine.is-inline { position: static; width: 100%; max-height: none; box-shadow: none; }
+.rp-sheet-mine.is-note { padding: 14px 16px; border-width: 1px; border-color: var(--line); background: var(--panel); }
+.rp-sheet-mine.is-note p { margin: 0; font-size: 14px; }
+.rp-sheet-mine-head { flex: none; display: flex; align-items: center; gap: 11px; padding: 12px 12px 12px 16px; }
+.rp-sheet-mine:not(.is-collapsed) .rp-sheet-mine-head { border-bottom: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); }
+.rp-sheet-mine-who { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.rp-sheet-mine-who .rp-kicker { color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-sheet-mine-name { font-size: 18px; font-weight: 800; }
+.rp-sheet-mine-group { flex: none; display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; }
+.rp-sheet-mine-body { overflow-y: auto; padding: 4px 16px 14px; display: flex; flex-direction: column; gap: 12px; }
+.rp-sheet-mine-sec { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; }
+.rp-sheet-mine-sec + .rp-sheet-mine-sec { border-top: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); }
+/* the blocks inside the card without a box of their own (the card is the box); the receiver in the visitor's violet, not the old amber */
+.rp-sheet-mine .rp-mineblk { margin-top: 0; padding: 0; border: 0; background: none; }
+.rp-sheet-mine .rp-mineblk + .rp-mineblk { margin-top: 10px; }
+.rp-sheet-mine .rp-mineblk h3 { margin: 0 0 6px; }
+.rp-sheet-mine .rp-recipient { background: var(--accent); color: var(--accent-ink); }
+.rp-sheet-mine-none { margin: 0; font-size: 14.5px; color: var(--muted); }
+.rp-sheet-mine-else { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); }
+.rp-sheet-mine-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-sheet-mine-links button { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px 0 4px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.rp-sheet-mine-links button:hover { border-color: var(--accent); }
+.rp-sheet-mine-links img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+.rp-sheet-iconbtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); color: var(--text); cursor: pointer; }
+.rp-sheet-iconbtn:hover { border-color: var(--accent); }
+
+/* "Alle Aufgaben": the tab on the right edge and its panel */
+.rp-sheet-tab { position: absolute; right: 0; top: 50%; z-index: 8; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 10px; border: 1px solid var(--line); border-right: 0; border-radius: 12px 0 0 12px; background: var(--panel); color: var(--text); box-shadow: -8px 0 24px var(--shade-35); cursor: pointer; }
+.rp-sheet-tab:hover { border-color: var(--accent); }
+.rp-sheet-tab-label, .rp-sheet-tab-sub { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+.rp-sheet-tab-label { font-size: 14px; font-weight: 700; }
+.rp-sheet-tab-sub { font-size: 12px; color: var(--muted); }
+.rp-sheet-panel { position: absolute; top: 0; right: 0; bottom: 0; z-index: 9; width: min(480px, 100%); box-sizing: border-box; display: flex; flex-direction: column; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -24px 0 48px var(--shade-50); }
+.rp-sheet-panel.is-inline { position: static; width: 100%; border: 1px solid var(--line); border-radius: 12px; box-shadow: none; }
+.rp-sheet-panel-head { flex: none; display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.rp-sheet-panel-title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.rp-sheet-panel-title strong { font-size: 18px; font-weight: 800; }
+.rp-sheet-panel-body { flex: 1; overflow-y: auto; padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 16px; }
+.rp-sheet-panel .rp-rgrid { grid-template-columns: minmax(0, 1fr); }
+/* the panel's head already says "Alle Aufgaben": the fold "Alle Einteilungen" and its gap go */
+.rp-sheet-panel .rp-allzone { margin-top: 0; padding-top: 0; border-top: 0; }
+.rp-sheet-panel .rp-allzone > summary { display: none; }
+
+/* ---- a section without a map ---- */
+.rp-sheet-flat { flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; width: 100%; max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; display: flex; flex-direction: column; gap: 18px; }
+
+@media (max-width: 720px) {
+    .rp-sheet-bar { padding: 8px 10px; gap: 8px; }
+    .rp-sheet-boss { flex-basis: 100%; }
+    .rp-sheet-titles { flex: 1; }
+    .rp-sheet-title { font-size: 18px; }
+    /* the menu opens under the whole bar, as wide as the screen */
+    .rp-sheet-menuwrap { position: static; }
+    .rp-sheet-menu { left: 8px; right: 8px; top: calc(100% + 4px); width: auto; max-width: none; }
+    .rp-sheet-portrait { width: 36px; height: 36px; }
+    .rp-sheet-menubtn { padding: 0 10px; font-size: 13px; }
+    .rp-sheet-groups { overflow-x: auto; }
+    .rp-sheet-tools { margin-left: 0; }
+    .rp-sheet-mine { left: 8px; right: 8px; bottom: 8px; width: auto; }
+    .rp-sheet-stage .rp-zoomctl { right: 8px; bottom: auto; top: 8px; }
+    .rp-sheet-tab { top: 60px; transform: none; padding: 12px 8px; }
+}

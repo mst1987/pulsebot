@@ -163,16 +163,32 @@
         "rowsEmpty": "Keine Aufgabenzeilen.",
         "notes": "Notiz",
         "tactic": "Taktik: {name}",
-        "you": "Du stehst auf diesem Boss im Plan.",
-        "youNot": "Du stehst auf diesem Boss nicht im Plan.",
         "loginHint": "Melde dich an, dann wird dein Platz hervorgehoben.",
         "login": "Mit Discord anmelden",
-        "mapOnly": "Nur das Bild (Vollbild)",
-        "mapBack": "Zurück zur Übersicht",
         "thatsYou": "Das bist du",
         "du": "Du",
         "nothingShared": "Noch nichts freigegeben.",
         "updated": "Aktualisiert"
+    },
+    "stage": {
+        "prev": "Vorheriger Abschnitt: {name}",
+        "next": "Nächster Abschnitt: {name}",
+        "place": "{instance} · Boss {i} von {n}",
+        "sections": "Alle {n} Abschnitte",
+        "sectionsTitle": "Abschnitte",
+        "tagMine": "Aufgabe für dich",
+        "tagKilled": "besiegt",
+        "mineAt": "Deine Aufgaben · {boss}",
+        "doing": "Du machst",
+        "noOwn": "Bei diesem Boss hast du keine eigene Aufgabe.",
+        "elsewhere": "Eigene Aufgaben hast du bei",
+        "collapse": "Deine Aufgaben einklappen",
+        "expand": "Deine Aufgaben aufklappen",
+        "allTasks": "Alle Aufgaben",
+        "allTasksCount": "{n} Einteilungen",
+        "close": "Schließen",
+        "noTasks": "In diesem Abschnitt gibt es keine Einteilungen.",
+        "focusGroup": "Gruppe {n} hervorheben"
     },
     "slot": {
         "tank": "Tank {n}",
@@ -771,8 +787,7 @@
         "byGroup": "Nach Gruppe",
         "byHealer": "Nach Heiler",
         "onlyMine": "Nur für mich",
-        "onlyMineTip": "Nur die Abschnitte und Aufgaben, die dich betreffen",
-        "hasMine": "Du hast hier Einteilungen"
+        "onlyMineTip": "Nur die Abschnitte und Aufgaben, die dich betreffen"
     },
     "progress": {
         "follow": "Automatisch mitgehen",

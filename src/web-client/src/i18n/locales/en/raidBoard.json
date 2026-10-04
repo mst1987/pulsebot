@@ -163,16 +163,32 @@
         "rowsEmpty": "No task rows.",
         "notes": "Note",
         "tactic": "Tactic: {name}",
-        "you": "You are in the plan for this boss.",
-        "youNot": "You are not in the plan for this boss.",
         "loginHint": "Log in and your spot is highlighted.",
         "login": "Log in with Discord",
-        "mapOnly": "Map only (full screen)",
-        "mapBack": "Back to the overview",
         "thatsYou": "That is you",
         "du": "You",
         "nothingShared": "Nothing shared yet.",
         "updated": "Updated"
+    },
+    "stage": {
+        "prev": "Previous section: {name}",
+        "next": "Next section: {name}",
+        "place": "{instance} · boss {i} of {n}",
+        "sections": "All {n} sections",
+        "sectionsTitle": "Sections",
+        "tagMine": "task for you",
+        "tagKilled": "killed",
+        "mineAt": "Your tasks · {boss}",
+        "doing": "You do",
+        "noOwn": "You have no task of your own on this boss.",
+        "elsewhere": "You have tasks of your own on",
+        "collapse": "Collapse your tasks",
+        "expand": "Expand your tasks",
+        "allTasks": "All tasks",
+        "allTasksCount": "{n} assignments",
+        "close": "Close",
+        "noTasks": "There are no assignments in this section.",
+        "focusGroup": "Highlight group {n}"
     },
     "slot": {
         "tank": "Tank {n}",
@@ -771,8 +787,7 @@
         "byGroup": "By group",
         "byHealer": "By healer",
         "onlyMine": "Only for me",
-        "onlyMineTip": "Only the sections and tasks that concern you",
-        "hasMine": "You have assignments here"
+        "onlyMineTip": "Only the sections and tasks that concern you"
     },
     "progress": {
         "follow": "Follow automatically",

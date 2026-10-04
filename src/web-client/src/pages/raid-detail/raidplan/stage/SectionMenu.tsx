@@ -1,0 +1,57 @@
+import { Check } from "lucide-react";
+import type { RaidplanPublicBoss } from "../../../../api";
+import { sectionGroups } from "../../../../lib/raidplan/stage";
+import { useT } from "../../../../i18n";
+
+/**
+ * "Alle N Abschnitte" of the stage bar (/p/<token>): every section of the plan in runs of one instance, each with its portrait and,
+ * spelled out, whether the visitor has a task of his own there ("Aufgabe für dich", the old chip's dot) or the log shows the boss
+ * killed ("besiegt", the old chip's check). A pick closes it; Esc and a click outside are the bar's useDismiss. "Nur für mich" sits
+ * at its foot.
+ */
+export default function SectionMenu({ sections, selectedKey, mineKeys, killedKeys, label, head, onlyMine, onPick }: {
+    sections: RaidplanPublicBoss[];
+    selectedKey: string;
+    mineKeys: Set<string>;
+    killedKeys?: Set<string>;
+    label: (b: RaidplanPublicBoss) => string;
+    /** the event's title and time over the list */
+    head: string;
+    /** "Nur für mich" for a visitor who stands in the plan; null = not offered */
+    onlyMine: { on: boolean; toggle: () => void } | null;
+    onPick: (key: string) => void;
+}) {
+    const t = useT();
+    return (
+        <div className="rp-sheet-menu" role="dialog" aria-label={t("raidBoard.stage.sectionsTitle")}>
+            <div className="rp-sheet-menu-head">{head}</div>
+            {sectionGroups(sections).map((run, i) => (
+                <div key={`${run.instance}|${i}`} className="rp-sheet-menu-run">
+                    {run.instance && <span className="rp-kicker">{run.instance}</span>}
+                    {run.items.map((b) => {
+                        const on = b.key === selectedKey;
+                        const killed = !!killedKeys && killedKeys.has(b.key);
+                        const mine = mineKeys.has(b.key);
+                        return (
+                            <button
+                                key={b.key} type="button" className={`rp-sheet-menu-item${on ? " is-on" : ""}${killed ? " is-killed" : ""}`}
+                                aria-current={on ? "true" : undefined} onClick={() => onPick(b.key)}
+                            >
+                                {b.iconUrl ? <img src={b.iconUrl} alt="" width={30} height={30} /> : <span className="rp-sheet-menu-ph" aria-hidden="true" />}
+                                <span className="rp-sheet-menu-name">{label(b)}</span>
+                                {killed && <span className="rp-sheet-tag rp-sheet-tag-killed"><Check size={12} strokeWidth={3} aria-hidden="true" />{t("raidBoard.stage.tagKilled")}</span>}
+                                {!killed && mine && <span className="rp-sheet-tag rp-sheet-tag-mine">{t("raidBoard.stage.tagMine")}</span>}
+                            </button>
+                        );
+                    })}
+                </div>
+            ))}
+            {onlyMine && (
+                <label className="rp-sheet-menu-only" data-tip={t("raidBoard.read.onlyMineTip")}>
+                    <input type="checkbox" checked={onlyMine.on} onChange={onlyMine.toggle} />
+                    {t("raidBoard.read.onlyMine")}
+                </label>
+            )}
+        </div>
+    );
+}

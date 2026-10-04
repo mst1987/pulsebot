@@ -39,7 +39,12 @@ function plan(notes = "Erst stacken"): RaidplanPublic {
         roster: [], me: "", meIds: [], catalog: { mobs: [], spells: [] }, loggedIn: false,
     };
 }
-const chosen = () => screen.getAllByRole("button").find((b) => b.getAttribute("aria-current") === "true");
+/** the open section: the stage bar's heading */
+const chosen = () => screen.getByRole("heading", { level: 1 });
+/** waits for the page and opens "Alle Aufgaben", where the organiser's note stands */
+async function openTasks() {
+    await userEvent.click(await screen.findByRole("button", { name: /Alle Aufgaben/ }));
+}
 
 beforeEach(() => {
     tick = null;
@@ -55,9 +60,11 @@ describe("the read view keeps its section (#555)", () => {
     it("opens on the section of the address and writes a picked one into the address and this browser", async () => {
         window.history.replaceState(null, "", "/p/abc#boss=bt/supremus");
         render(<PlanPublicPage token="abc" />);
+        await openTasks();
         expect(await screen.findByText("Erst stacken")).toBeInTheDocument();
-        expect(chosen()).toHaveAccessibleName(/Supremus/);
-        await userEvent.click(screen.getByRole("button", { name: /Najentus/ }));
+        expect(chosen()).toHaveTextContent("Supremus");
+        await userEvent.click(screen.getByRole("button", { name: /Vorheriger Abschnitt: Najentus/ }));
+        expect(chosen()).toHaveTextContent("Najentus");
         expect(sectionFromHash(window.location.hash)).toBe("bt/najentus");
         expect(window.location.pathname).toBe("/p/abc");
         expect(rememberedSection("p:abc")).toBe("bt/najentus");
@@ -66,6 +73,7 @@ describe("the read view keeps its section (#555)", () => {
     it("without a hash opens on the section last open in this browser", async () => {
         window.localStorage.setItem("eh.raidplan.section.p:abc", "bt/supremus");
         render(<PlanPublicPage token="abc" />);
+        await openTasks();
         expect(await screen.findByText("Erst stacken")).toBeInTheDocument();
         expect(sectionFromHash(window.location.hash)).toBe("bt/supremus");
     });
@@ -75,6 +83,7 @@ describe("live update (#555)", () => {
     async function openOnSupremus() {
         window.history.replaceState(null, "", "/p/abc#boss=bt/supremus");
         render(<PlanPublicPage token="abc" />);
+        await openTasks();
         await screen.findByText("Erst stacken");
         expect(polling).toBe(true);
     }
@@ -87,7 +96,7 @@ describe("live update (#555)", () => {
         // the first round already sends the ETag of the first load
         expect(api.pollRaidplanPublic).toHaveBeenLastCalledWith("abc", "\"v1\"");
         expect(await screen.findByText("Jetzt verteilen")).toBeInTheDocument();
-        expect(chosen()).toHaveAccessibleName(/Supremus/);
+        expect(chosen()).toHaveTextContent("Supremus");
         expect(screen.getByRole("status")).toHaveTextContent("Aktualisiert");
         // the next round sends the ETag it got; a 304 (null) changes nothing
         vi.mocked(api.pollRaidplanPublic).mockResolvedValueOnce(null);
