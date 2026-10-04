@@ -16,7 +16,7 @@ const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeCategorySignupSource,
     normalizeCategorySetupDms, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
-    normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings,
+    normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings, normalizeBotLanguage,
 } = require("./configSchema");
 const { planningOf } = require("../services/events/planning");
 
@@ -137,6 +137,7 @@ function saveConfig(partial) {
     // #541: the main version replaces the stored one; the category map is sent
     // whole (a category back on the main version is left out), like the templates.
     if (partial.mainVersion !== undefined) next.mainVersion = normalizeMainVersion(partial.mainVersion);
+    if (partial.botLanguage !== undefined) next.botLanguage = normalizeBotLanguage(partial.botLanguage);
     if (partial.categoryVersion !== undefined) next.categoryVersion = normalizeCategoryVersion(partial.categoryVersion);
     // #542: merged per version and per field (a block sent for one version leaves the others alone), then normalised.
     if (partial.versionSettings && typeof partial.versionSettings === "object") {

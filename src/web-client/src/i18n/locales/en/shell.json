@@ -68,7 +68,8 @@
     },
     "lang": {
         "tip": "Language",
-        "switchTo": "Switch to {lang}"
+        "switchTo": "Switch to {lang}",
+        "tipSub": "Also applies to the messages the bot sends you."
     },
     "guild": {
         "roleEvent": "Event",

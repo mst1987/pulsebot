@@ -52,4 +52,18 @@ function setLang(userId, lang) {
     return { lang: clean };
 }
 
-module.exports = { useFile, getLang, setLang, normalizeLang, LANGS };
+/** Forgets the account's language: it follows the server language again. Returns whether there was one. */
+function clearLang(userId) {
+    if (!userId) return false;
+    const users = readAll();
+    const entry = users[String(userId)];
+    if (!entry || !entry.lang) return false;
+    const rest = { ...entry };
+    delete rest.lang;
+    if (Object.keys(rest).length) users[String(userId)] = rest;
+    else delete users[String(userId)];
+    writeAll(users);
+    return true;
+}
+
+module.exports = { useFile, getLang, setLang, clearLang, normalizeLang, LANGS };

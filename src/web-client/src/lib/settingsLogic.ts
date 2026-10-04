@@ -135,6 +135,7 @@ export type DraftShape = {
     categoryVersion?: Record<string, string>;
     /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
     hideOtherVersions?: boolean;
+    botLanguage?: "de" | "en";
     /** Settings per version (#542): version id → { field → value }. */
     versionSettings?: Record<string, Record<string, string>>;
     topItems: { id: number }[];
@@ -334,6 +335,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
     }
     if (!!saved.hideOtherVersions !== !!draft.hideOtherVersions) {
         out.push(t(draft.hideOtherVersions ? "settings.changes.hideOtherOn" : "settings.changes.hideOtherOff"));
+    }
+    if ((saved.botLanguage || "de") !== (draft.botLanguage || "de")) {
+        out.push(t("settings.changes.botLanguage", { value: t(draft.botLanguage === "en" ? "settings.botLanguage.en" : "settings.botLanguage.de") }));
     }
     const verWas = saved.categoryVersion || {};
     const verIs = draft.categoryVersion || {};

@@ -7,12 +7,13 @@
 //   archiveOf(event)          null, or { versionId, label, short } of the hidden version
 //   archivedEventId(id)       the same for an event id of either source
 //   archivedRefusal(ids)      the write guard of the web routes (409 "archived", apiHandler)
-//   archivedNotice(event)     the English line a raider gets in Discord
+//   archivedNotice(event)     the line a raider gets in Discord (in their language)
 //
 // Nothing is deleted: switching the setting off makes every one of them a
 // normal event again.
 const { rulesFor } = require("../../config/gameVersions");
 const { versionOfEvent, isVersionVisible, hidesOtherVersions } = require("./mainVersion");
+const { tr } = require("../../utils/i18n/botText");
 
 /** The config handed in, else the stored one (required late: this module sits under apiHandler). */
 function currentConfig(config) {
@@ -77,13 +78,16 @@ function archivedRefusal(ids, { config } = {}) {
 
 /**
  * The line a raider reads when a button under an old Discord message is
- * clicked (English, like every raider text in Discord), or "" when the event
- * is not archived.
+ * clicked (in the reader's language, `lang`), or "" when the event is not
+ * archived. Two lines: the first is the answer's title.
  */
-function archivedNotice(event, { config } = {}) {
+function archivedNotice(event, { config, lang = "de" } = {}) {
     const archive = archiveOf(event, { config });
     if (!archive) return "";
-    return `This raid is archived\n${archive.label} is no longer shown in EventHelper, so signups and changes are closed. Nothing was deleted.`;
+    return [
+        tr(lang, "This raid is archived"),
+        tr(lang, "{version} is no longer shown in EventHelper, so signups and changes are closed. Nothing was deleted.", { version: archive.label }),
+    ].join("\n");
 }
 
 module.exports = { archiveOf, archivedEventId, archivedRefusal, archivedNotice, ARCHIVED_CODE };

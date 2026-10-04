@@ -20,7 +20,7 @@ export default function LangToggle({ account = false }: { account?: boolean }) {
     };
 
     return (
-        <div className="lang-toggle" role="group" aria-label={t("shell.lang.tip")} data-tip={t("shell.lang.tip")}>
+        <div className="lang-toggle" role="group" aria-label={t("shell.lang.tip")} data-tip={t("shell.lang.tip")} data-tip-sub={account ? t("shell.lang.tipSub") : undefined}>
             {(LANGS as Lang[]).map((l) => (
                 <button
                     key={l}

@@ -12,10 +12,17 @@
 //   - whoever is not on the talk server gets a DM instead — but only when the
 //     event channel is not part of the target: with "both" they were already
 //     reached there, and a DM on top would be the same ping twice.
+//
+// The language: a ping in a channel is public — the server language
+// (botLanguage.serverLang); a DM is the recipient's own (botLanguage.langOf).
+// So a text may come as a function `(lang) => string`, drawn once per
+// language; a plain string (the orga's own words) goes out as it is.
 const discord = require("./discord");
 const linkCheck = require("./linkCheck");
 const guildRoles = require("./guildRoles");
 const { getConfig } = require("../../stores/settingsStore");
+const { tr } = require("../../utils/i18n/botText");
+const { serverLang, langOf } = require("./botLanguage");
 
 const PING_TARGETS = ["event", "talk", "both"];
 
@@ -24,6 +31,16 @@ const TARGET_LABELS = {
     talk: "Kommunikations-Discord",
     both: "Event-Kanal und Kommunikations-Discord",
 };
+
+/** The ping's default text in a channel, when the orga wrote none. */
+function missingPingText(lang = "de") {
+    return tr(lang, "Please sign up or sign off for the raid, so the roster is complete.");
+}
+
+/** A text given as a string or as `(lang) => string`, in the language; "" for none. */
+function textIn(text, lang) {
+    return String((typeof text === "function" ? text(lang) : text) || "").trim();
+}
 
 /** A known target, else "event" — the old behaviour is the safe default. */
 function normalizePingTarget(raw) {
@@ -78,12 +95,23 @@ function dmContent(text, event, guildId) {
     return [String(text || "").trim(), head, eventChannelUrl(event, guildId)].filter(Boolean).join("\n");
 }
 
-/** DM each user in turn (sequential: Discord rate-limits DMs hard). Never throws. */
-async function sendDms(userIds, payload) {
+/**
+ * DM each user in turn (sequential: Discord rate-limits DMs hard). Never throws.
+ * `payload` is one payload for all, or `(lang) => payload`: then each user gets
+ * it in their own language (botLanguage.langOf), drawn once per language.
+ */
+async function sendDms(userIds, payload, { config } = {}) {
     const sent = [];
     const failed = [];
+    const drawn = new Map();
+    const payloadFor = (id) => {
+        if (typeof payload !== "function") return payload;
+        const lang = langOf(id, { config });
+        if (!drawn.has(lang)) drawn.set(lang, payload(lang));
+        return drawn.get(lang);
+    };
     for (const id of userIds) {
-        const result = await discord.sendDirectMessage(id, payload);
+        const result = await discord.sendDirectMessage(id, payloadFor(id));
         if (result && result.ok) sent.push(id);
         else failed.push(id);
     }
@@ -97,7 +125,7 @@ async function sendDms(userIds, payload) {
  * @param {string} p.target   "event" | "talk" | "both"
  * @param {object} p.event    { title, startTime, channelId }
  * @param {string[]} p.userIds
- * @param {string} p.text     the message; empty = discord.postMissingPing's default
+ * @param {string|function} p.text the message, or `(lang) => message`; empty = missingPingText()
  * @param {string} p.guildId  the event server (for the jump link in a DM)
  * @returns {Promise<{ target, event: object|null, talk: object|null, mentioned: number, dm: { sent: string[], failed: string[] } | null }>}
  */
@@ -111,17 +139,22 @@ async function deliverUserPing({ target, event, userIds, text = "", guildId = ""
     const onTalk = talk ? await talkMemberIds(talk.guildId) : null;
 
     const result = { target: mode, event: null, talk: null, mentioned: 0, dm: null };
+    // in a channel: the server language
+    const lang = serverLang(config);
+    const posted = textIn(text, lang) || missingPingText(lang);
     if (includesEvent(mode)) {
         if (!event || !event.channelId) throw new Error("Das Event hat keinen Kanal.");
-        result.event = await discord.postMissingPing(event.channelId, users, text);
+        result.event = await discord.postMissingPing(event.channelId, users, posted);
     }
     if (talk) {
         const present = users.filter((id) => onTalk.has(id));
         const absent = users.filter((id) => !onTalk.has(id));
-        if (present.length) result.talk = await discord.postMissingPing(talk.channelId, present, text);
+        if (present.length) result.talk = await discord.postMissingPing(talk.channelId, present, posted);
         result.mentioned = present.length;
         if (!includesEvent(mode) && absent.length) {
-            result.dm = await sendDms(absent, { content: dmContent(text || "Please sign up or sign off for the raid.", event, guildId) });
+            // a DM: each raider's own language
+            const dm = (dmLang) => ({ content: dmContent(textIn(text, dmLang) || tr(dmLang, "Please sign up or sign off for the raid."), event, guildId) });
+            result.dm = await sendDms(absent, dm, { config });
         }
     }
     return result;
@@ -188,7 +221,7 @@ async function deliverAnnouncement({ target, event, channelId, template, roleIds
         result.mentioned = talkPlan.userIds.length;
         if (!includesEvent(mode) && talkPlan.absent.length) {
             const text = [template.title ? `**${template.title}**` : "", template.body || ""].filter(Boolean).join("\n");
-            result.dm = await sendDms(talkPlan.absent, { content: dmContent(text, event, guildId) });
+            result.dm = await sendDms(talkPlan.absent, { content: dmContent(text, event, guildId) }, { config });
         }
     }
     return result;
@@ -206,5 +239,5 @@ function dmSummary(dm) {
 module.exports = {
     PING_TARGETS, TARGET_LABELS,
     normalizePingTarget, talkPingChannel, pingTargetInfo,
-    deliverUserPing, deliverAnnouncement, dmSummary, dmContent, mapRoles, sendDms,
+    deliverUserPing, deliverAnnouncement, dmSummary, dmContent, mapRoles, sendDms, missingPingText,
 };

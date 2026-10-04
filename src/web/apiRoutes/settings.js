@@ -11,6 +11,7 @@ const {
 const discord = require("../../services/discord/discord");
 const guildRoles = require("../../services/discord/guildRoles");
 const roleSync = require("../../services/discord/roleSync");
+const languageChange = require("../../services/discord/languageChange");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { normalizeLootSystem } = require("../../services/loot/lootSystem");
 const { lastReminderRun } = require("../events/reminders");
@@ -494,6 +495,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.categoryVersion = body.categoryVersion && typeof body.categoryVersion === "object" ? body.categoryVersion : {};
     }
     if (body.hideOtherVersions !== undefined) partial.hideOtherVersions = body.hideOtherVersions === true;
+    if (body.botLanguage !== undefined) partial.botLanguage = String(body.botLanguage || "").trim();
     // Per version (#542): only the versions and fields sent, merged by the store.
     if (body.versionSettings !== undefined) {
         const patch = versionSettingsPatch(body.versionSettings);
@@ -509,7 +511,11 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.categoryReminders !== undefined) {
         partial.categoryReminders = body.categoryReminders && typeof body.categoryReminders === "object" ? body.categoryReminders : {};
     }
-    ok(res, { config: publicConfig(saveConfig(partial)) });
+    const langBefore = getConfig().botLanguage;
+    const saved = saveConfig(partial);
+    // A new server language redraws the bot's public messages (not awaited).
+    if (saved.botLanguage !== langBefore) void languageChange.afterServerLangChange({ config: saved });
+    ok(res, { config: publicConfig(saved) });
 });
 
 /**

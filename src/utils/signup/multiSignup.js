@@ -25,8 +25,10 @@
 //   signup-multi:<token>:go:<page>  opens the modal of that page
 //   signup-multi:<token>:m:<page>   the modal (submit)
 //   signup-multi:e:<eventId>:<code> "Mehrere Charaktere …" of one event
+//
+// Only the member sees any of it: every builder takes their language (`lang`).
 const crypto = require("crypto");
-const { shortServerTime, shortServerDate, discordTimestamp } = require("../time");
+const { serverDateTime, discordTimestamp } = require("../time");
 const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
 const eventStore = require("../../stores/eventStore");
@@ -38,16 +40,15 @@ const guildRoles = require("../../services/discord/guildRoles");
 const { getConfig } = require("../../stores/settingsStore");
 const { signupWindow } = require("../../services/signups/signupService");
 const { emojiOption, specEmojiName, statusEmojiName } = require("../../services/discord/appEmojis");
-const { STATUS_CODES, STATUS_BY_CODE, STATUS_LABELS, STATUS_STATE } = require("./signupDialog");
+const { STATUS_CODES, STATUS_BY_CODE, statusLabel, statusState, gearText } = require("./signupDialog");
 const { characterOptions, defaultPick, lastSignupInVersion } = require("./joinPicker");
-const { toEnglish } = require("./botEnglish");
+const { tr, serviceText, specLabel, dateLocale } = require("../i18n/botText");
 
 const PREFIX = "signup-multi";
 const SESSION_TTL = 30 * 60 * 1000;
 const PER_MODAL = 5;
 const MAX_RAIDS = 25;
 const MAX_OPTIONS = 25;
-const GEAR_TEXT = { ready: "raid ready", usable: "usable", none: "no gear" };
 const STATUS_ORDER = ["signed", "tentative", "late", "bench", "absence"];
 
 const sessions = new Map();
@@ -90,9 +91,13 @@ const multiId = (token, action, page) => [PREFIX, token, action, page === undefi
 const oneEventId = (eventId, status) => `${PREFIX}:e:${eventId}:${STATUS_CODES[status] || "s"}`;
 
 // Select options and modal labels cannot render Discord timestamps, so they
-// carry the date as English text in server time: "Wed 24 Sep 19:30".
-const formatStart = shortServerTime;
-const shortDate = shortServerDate;
+// carry the date as text in server time: "Wed 24 Sep 19:30" / "Mi. 24 Sept. 19:30".
+const serverText = (value, format, lang) => {
+    const dt = serverDateTime(value);
+    return dt ? dt.setLocale(dateLocale(lang)).toFormat(format) : "";
+};
+const formatStart = (value, lang = "de") => serverText(value, "ccc d LLL HH:mm", lang);
+const shortDate = (value, lang = "de") => serverText(value, "ccc d LLL", lang);
 const plain = (text) => String(text || "").replace(/[*_`~|[\]\\]/g, "").replace(/\s+/g, " ").trim();
 
 /**
@@ -133,15 +138,14 @@ function preselected(options, userId, eventId) {
 }
 
 /** The select options, the preselected ones first in their order (the order decides the priority). */
-function characterSelectOptions(options, picked, emojis) {
+function characterSelectOptions(options, picked, emojis, lang = "de") {
     const first = picked.map(optionValue);
     const ordered = [...picked, ...options.filter((o) => !first.includes(optionValue(o)))];
     return ordered.slice(0, MAX_OPTIONS).map((o) => {
-        const info = profiles.specInfo(o.spec) || {};
         const option = {
-            label: `${o.name} · ${info.labelEn || info.label || o.spec}`.slice(0, 100),
+            label: `${o.name} · ${specLabel(lang, profiles.specInfo(o.spec)) || o.spec}`.slice(0, 100),
             value: optionValue(o).slice(0, 100),
-            description: (GEAR_TEXT[o.gear] || "").slice(0, 100) || undefined,
+            description: gearText(lang, o.gear).slice(0, 100) || undefined,
             default: first.includes(optionValue(o)),
         };
         const emoji = emojiOption(emojis, specEmojiName(o.spec));
@@ -159,14 +163,14 @@ function orderedPicks(values, optionList) {
     });
 }
 
-function statusSelect(customId, status, emojis) {
+function statusSelect(customId, status, emojis, lang = "de") {
     return {
         type: 3,
         custom_id: customId,
         min_values: 1,
         max_values: 1,
         options: STATUS_ORDER.map((s) => {
-            const option = { label: STATUS_LABELS[s], value: s, default: s === status };
+            const option = { label: statusLabel(lang, s), value: s, default: s === status };
             const emoji = emojiOption(emojis, statusEmojiName(s));
             if (emoji) option.emoji = emoji;
             return option;
@@ -180,53 +184,55 @@ function pageCount(session) {
 }
 
 /** "Raids 6–10" for page 1. */
-function pageRange(session, page) {
+function pageRange(session, page, lang = "de") {
     const from = page * PER_MODAL + 1;
     const to = Math.min(session.selected.length, (page + 1) * PER_MODAL);
-    return from === to ? `Raid ${from}` : `Raids ${from}–${to}`;
+    return from === to ? tr(lang, "Raid {n}", { n: from }) : tr(lang, "Raids {from}–{to}", { from, to });
 }
 
 /** Step 1: which raids, and the status for all of them. */
-function buildRaidPicker(token, session, events, { emojis = {}, notice = "" } = {}) {
+function buildRaidPicker(token, session, events, { emojis = {}, notice = "", lang = "de" } = {}) {
     const byId = new Map(events.map((e) => [e.id, e]));
     const raids = session.eventIds.map((id) => byId.get(id)).filter(Boolean);
     const lines = [
-        "Step 1 of 2 · only visible to you",
+        tr(lang, "Step 1 of 2 · only visible to you"),
         session.mode === "multi"
-            ? "Pick the raids you want to join. Next you pick your characters per raid."
-            : "All coming raids are selected – remove what does not suit you. Next you pick your characters per raid.",
+            ? tr(lang, "Pick the raids you want to join. Next you pick your characters per raid.")
+            : tr(lang, "All coming raids are selected – remove what does not suit you. Next you pick your characters per raid."),
     ];
     if (session.selected.length > PER_MODAL) {
-        lines.push(`${PER_MODAL} raids per window – after submitting, “Next” takes you to the following ones.`);
+        lines.push(tr(lang, "{count} raids per window – after submitting, “Next” takes you to the following ones.", { count: PER_MODAL }));
     }
     if (notice) lines.push("", notice);
     return {
-        embeds: [{ color: embedAccentColor, title: "Which raids?", description: lines.join("\n") }],
+        embeds: [{ color: embedAccentColor, title: tr(lang, "Which raids?"), description: lines.join("\n") }],
         components: [
             {
                 type: 1,
                 components: [{
                     type: 3,
                     custom_id: multiId(token, "r"),
-                    placeholder: "Pick raids …",
+                    placeholder: tr(lang, "Pick raids …"),
                     min_values: 1,
                     max_values: raids.length,
                     options: raids.map((e) => ({
                         label: (plain(e.title) || "Raid").slice(0, 100),
-                        description: [formatStart(e.startTime), plain(e.categoryName)].filter(Boolean).join(" · ").slice(0, 100) || undefined,
+                        description: [formatStart(e.startTime, lang), plain(e.categoryName)].filter(Boolean).join(" · ").slice(0, 100) || undefined,
                         value: e.id,
                         default: session.selected.includes(e.id),
                     })),
                 }],
             },
-            { type: 1, components: [{ ...statusSelect(multiId(token, "s"), session.status, emojis), placeholder: "Status for all" }] },
+            { type: 1, components: [{ ...statusSelect(multiId(token, "s"), session.status, emojis, lang), placeholder: tr(lang, "Status for all") }] },
             {
                 type: 1,
                 components: [{
                     type: 2,
                     style: 1,
                     custom_id: multiId(token, "go", 0),
-                    label: session.selected.length > PER_MODAL ? `Next: characters (${pageRange(session, 0)})` : "Next: characters",
+                    label: session.selected.length > PER_MODAL
+                        ? tr(lang, "Next: characters ({range})", { range: pageRange(session, 0, lang) })
+                        : tr(lang, "Next: characters"),
                     disabled: !session.selected.length,
                 }],
             },
@@ -247,11 +253,11 @@ const labelled = (label, description, component) => ({
  * plus the status; otherwise one select per raid of the page.
  * @returns {object|null} plain modal JSON, null without characters
  */
-function buildCharacterModal(token, session, page, events, profile, { emojis = {} } = {}) {
+function buildCharacterModal(token, session, page, events, profile, { emojis = {}, lang = "de" } = {}) {
     const options = characterOptions(profile);
     if (!options.length) return null;
     const max = Math.min(MAX_CHARACTERS, options.length);
-    const hint = "Topmost pick = 1st choice, the others = “can also come with”";
+    const hint = tr(lang, "Topmost pick = 1st choice, the others = “can also come with”");
     // Discord hands the picks back without their click order: remember the listed order.
     session.orders = session.orders || {};
     const byEvent = new Map(events.map((e) => [e.id, e]));
@@ -263,20 +269,20 @@ function buildCharacterModal(token, session, page, events, profile, { emojis = {
     };
     const select = (field, eventId) => {
         const own = optionsFor(eventId);
-        const list = characterSelectOptions(own, preselected(own, session.userId, eventId), emojis);
+        const list = characterSelectOptions(own, preselected(own, session.userId, eventId), emojis, lang);
         session.orders[`${page}:${field}`] = list.map((o) => o.value);
         return list;
     };
     if (session.mode === "all") {
         return {
             custom_id: multiId(token, "m", 0),
-            title: `Sign up for all ${session.selected.length} raids`.slice(0, 45),
+            title: tr(lang, "Sign up for all {count} raids", { count: session.selected.length }).slice(0, 45),
             components: [
-                labelled("Characters · specs for all raids", `${hint}. What does not fit a raid is skipped.`, {
+                labelled(tr(lang, "Characters · specs for all raids"), `${hint}. ${tr(lang, "What does not fit a raid is skipped.")}`, {
                     type: 3, custom_id: "all", min_values: 1, max_values: max, required: true,
                     options: select("all", ""),
                 }),
-                labelled("Status for all", "", { ...statusSelect("status", session.status, emojis), required: true }),
+                labelled(tr(lang, "Status for all"), "", { ...statusSelect("status", session.status, emojis, lang), required: true }),
             ],
         };
     }
@@ -286,14 +292,14 @@ function buildCharacterModal(token, session, page, events, profile, { emojis = {
     const components = ids.map((id, i) => {
         const event = byId.get(id) || { id, title: id };
         const list = select(`r${i}`, id);
-        return labelled(`${plain(event.title) || "Raid"} · ${shortDate(event.startTime)}`.trim(), session.mode === "one" ? hint : `${hint} · empty = skip`, {
+        return labelled(`${plain(event.title) || "Raid"} · ${shortDate(event.startTime, lang)}`.trim(), session.mode === "one" ? hint : `${hint} · ${tr(lang, "empty = skip")}`, {
             type: 3, custom_id: `r${i}`, min_values: session.mode === "one" ? 1 : 0, max_values: Math.min(max, list.length), required: session.mode === "one",
             options: list,
         });
     });
     return {
         custom_id: multiId(token, "m", page),
-        title: `Which characters?${pages > 1 ? ` (${page + 1}/${pages})` : ""}`.slice(0, 45),
+        title: `${tr(lang, "Which characters?")}${pages > 1 ? ` (${page + 1}/${pages})` : ""}`.slice(0, 45),
         components,
     };
 }
@@ -335,52 +341,54 @@ function entriesFromModal(interaction, session, page) {
 }
 
 /** "Zibbo · Holy" for a stored or requested character. */
-function characterText(profile, c) {
+function characterText(profile, c, lang = "de") {
     const ch = profile ? profiles.findCharacter(profile, c.character) : null;
-    const info = profiles.specInfo(c.spec) || {};
-    return [ch ? ch.name : c.character, info.labelEn || info.label || ""].filter(Boolean).join(" · ");
+    return [ch ? ch.name : c.character, specLabel(lang, profiles.specInfo(c.spec))].filter(Boolean).join(" · ");
 }
 
 /** One result line: "✅ **SSC + TK** · <t:…:D>: Zibbo · Holy, +Zibbowar · Protection". */
-function resultLine(result, profile) {
+function resultLine(result, profile, lang = "de") {
     // An embed renders Discord timestamps: every reader sees their own date format.
     const head = `**${plain(result.title) || "Raid"}**${result.startTime ? ` · ${discordTimestamp(result.startTime, "D")}` : ""}`;
-    const skipped = (result.skipped || []).map((s) => `${characterText(profile, s)} skipped: ${toEnglish(s.reason)}`);
+    const skipped = (result.skipped || []).map((s) => tr(lang, "{character} skipped: {reason}", {
+        character: characterText(profile, s, lang), reason: serviceText(lang, s.reason),
+    }));
     if (result.ok) {
         const s = result.signup || {};
-        const chars = (s.characters || []).map((c, i) => `${i ? "+" : ""}${characterText(profile, c)}`).join(", ");
+        const chars = (s.characters || []).map((c, i) => `${i ? "+" : ""}${characterText(profile, c, lang)}`).join(", ");
         // A "Dabei" the full raid turned into a bench seat says so in words (#306).
         const status = result.waitlisted
-            ? " – **Waiting list (bench)**"
-            : (s.status && s.status !== "signed" ? ` – ${STATUS_STATE[s.status] || s.status}` : "");
-        return `✅ ${head}: ${s.status === "absence" ? "signed off" : chars}${status}${skipped.length ? `\n   ↳ ${skipped.join("; ")}` : ""}`;
+            ? ` – **${tr(lang, "Waiting list (bench)")}**`
+            : (s.status && s.status !== "signed" ? ` – ${statusState(lang, s.status)}` : "");
+        return `✅ ${head}: ${s.status === "absence" ? tr(lang, "signed off") : chars}${status}${skipped.length ? `\n   ↳ ${skipped.join("; ")}` : ""}`;
     }
-    if (result.code === "no_character" && !skipped.length) return `⏭️ ${head}: skipped (no character picked)`;
-    return `⛔ ${head}: ${toEnglish(result.error) || "not saved"}${skipped.length ? ` (${skipped.join("; ")})` : ""}`;
+    if (result.code === "no_character" && !skipped.length) return `⏭️ ${head}: ${tr(lang, "skipped (no character picked)")}`;
+    return `⛔ ${head}: ${serviceText(lang, result.error) || tr(lang, "not saved")}${skipped.length ? ` (${skipped.join("; ")})` : ""}`;
 }
 
 /**
  * The answer after a modal page: every result so far, and "Weiter" when pages are left.
  * @returns {{ embeds: object[], components: object[] }}
  */
-function buildResults(token, session, { nextPage = null, profile = null } = {}) {
+function buildResults(token, session, { nextPage = null, profile = null, lang = "de" } = {}) {
     const results = session.results;
     const saved = results.filter((r) => r.ok).length;
-    const lines = results.map((r) => resultLine(r, profile));
+    const lines = results.map((r) => resultLine(r, profile, lang));
+    const counts = { saved, total: results.length };
     const title = nextPage === null
-        ? `Signup: ${saved} of ${results.length} raids saved`
-        : `So far ${saved} of ${results.length} raids saved`;
+        ? tr(lang, "Signup: {saved} of {total} raids saved", counts)
+        : tr(lang, "So far {saved} of {total} raids saved", counts);
     let description = lines.join("\n");
     if (description.length > 4000) description = `${description.slice(0, 3990)}…`;
     const components = [];
     const buttons = [];
     if (nextPage !== null) {
-        buttons.push({ type: 2, style: 1, custom_id: multiId(token, "go", nextPage), label: `Next: ${pageRange(session, nextPage)}` });
+        buttons.push({ type: 2, style: 1, custom_id: multiId(token, "go", nextPage), label: tr(lang, "Next: {range}", { range: pageRange(session, nextPage, lang) }) });
     }
-    if (/^https?:\/\//.test(publicBaseUrl())) buttons.push({ type: 2, style: 5, label: "My signups", url: `${publicBaseUrl()}/signups` });
+    if (/^https?:\/\//.test(publicBaseUrl())) buttons.push({ type: 2, style: 5, label: tr(lang, "My signups"), url: `${publicBaseUrl()}/signups` });
     if (buttons.length) components.push({ type: 1, components: buttons });
     return {
-        embeds: [{ color: embedAccentColor, title, description: description || "Nothing picked." }],
+        embeds: [{ color: embedAccentColor, title, description: description || tr(lang, "Nothing picked.") }],
         components,
     };
 }

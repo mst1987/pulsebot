@@ -64,10 +64,13 @@ describe("archivedEventId / archivedRefusal", () => {
 });
 
 describe("archivedNotice", () => {
-    it("is an English line for a raider, empty for a normal event", () => {
-        const text = archivedNotice({ versionId: "tbc" });
+    it("is a line in the raider's language, empty for a normal event", () => {
+        const text = archivedNotice({ versionId: "tbc" }, { lang: "en" });
         expect(text).toMatch(/^This raid is archived\n/);
         expect(text).toContain("TBC Anniversary");
         expect(archivedNotice({ versionId: "forever" })).toBe("");
+        const de = archivedNotice({ versionId: "tbc" });
+        expect(de).toMatch(/^Dieser Raid ist archiviert\n/);
+        expect(de).toContain("TBC Anniversary");
     });
 });

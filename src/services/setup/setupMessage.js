@@ -13,12 +13,14 @@
 // posted on the first approval and **edited** on every later one — where it sits
 // is remembered on the event (`event.setupPost`). A message deleted in Discord is
 // posted anew; a cancelled event gets its message marked ("Cancelled"), never a
-// new one. Like every raider-facing Discord text it is in English (#bot-english).
+// new one. The message is public, so it speaks the server language
+// (services/discord/botLanguage.js `serverLang`, German by default).
 //
 // DMs are a switch per category (`config.categorySetupDms`, off by default):
-// placed raiders read "You are in Group 2 as Healer (Zibbo · Holy)", the
-// bench — only while it is posted (#517) — "This time on the bench …" with the proposal's reasons (translated by
-// utils/signup/botEnglish.js). A raider is told once per
+// placed raiders read "Du bist in Gruppe 2 als Heiler (Zibbo · Heilig)", the
+// bench — only while it is posted (#517) — "Diesmal auf der Bank …" with the
+// proposal's reasons — each in the raider's own language (`langOf`; the German
+// reasons through utils/i18n/botText.js `serviceText`). A raider is told once per
 // placement — `setupPost.told[userId]` keeps what they were told, so a new
 // approval only writes to those whose place changed, and a failed DM is tried
 // again on the next run. DMs go out one after the other with a pause between
@@ -39,8 +41,9 @@ const { embedColor } = require("../events/embedLook");
 const eventStore = require("../../stores/eventStore");
 const { getConfig } = require("../../stores/settingsStore");
 const discord = require("../discord/discord");
-const { buildClasses, ROLE_LABELS_EN } = require("../../config/gameVersions/classes");
-const { toEnglish } = require("../../utils/signup/botEnglish");
+const { buildClasses, ROLE_LABELS, ROLE_LABELS_EN } = require("../../config/gameVersions/classes");
+const { tr, serviceText, specLabel: specLabelIn, normalizeLang } = require("../../utils/i18n/botText");
+const { serverLang, langOf } = require("../discord/botLanguage");
 const {
     appEmojiMap, loadAppEmojis, emojiText, specEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName,
     roleEmojiName, emojiStyleOf,
@@ -53,7 +56,6 @@ const LIMITS = { title: 256, description: 4096, fields: 25, fieldValue: 1024, to
 const CANCELLED_COLOR = 0xe0524f;
 // A pause between two DMs — Discord's DM limit is generous, a burst is not.
 const DM_DELAY_MS = 1200;
-const ROLE_LABEL = ROLE_LABELS_EN;
 const ROLE_ORDER = ["tank", "healer", "melee", "ranged"];
 // Reasons that name other raiders (wishes) stay out of a DM.
 const PRIVATE_REASON = /wunsch/i;
@@ -63,7 +65,10 @@ const SPEC_BY_KEY = new Map(CLASSES.flatMap((c) => c.specs.map((s) => [s.key, s]
 
 /** A name as plain text — no bold, links or mentions through markdown. */
 const escapeMd = (text) => String(text || "").replace(/([\\*_~`|>[\]()])/g, "\\$1").replace(/@/g, "@\u200b");
-const specLabel = (key) => { const s = SPEC_BY_KEY.get(key) || {}; return s.labelEn || s.label || ""; };
+const specLabel = (key, lang = "de") => specLabelIn(lang, SPEC_BY_KEY.get(key), "");
+/** A role's name in the language ("Heiler" / "Healer"). */
+const roleLabel = (role, lang = "de") => (normalizeLang(lang) === "en" ? ROLE_LABELS_EN : ROLE_LABELS)[role] || "";
+const benchWord = (lang) => (normalizeLang(lang) === "en" ? "Bench" : "Bank");
 const nameOf = (p) => escapeMd(p.character) || `<@${p.userId}>`;
 
 /** Characters Discord counts against the 6000 of an embed. */
@@ -75,11 +80,11 @@ function embedLength(embed) {
 }
 
 /** "<spec icon> **Name**", without icons "**Name** · Holy". */
-function personText(p, emojis, { icons = true, bold = true } = {}) {
+function personText(p, emojis, { icons = true, bold = true, lang = "de" } = {}) {
     const icon = icons ? emojiText(emojis, specEmojiName(p.spec)) : "";
     const name = bold ? `**${nameOf(p)}**` : nameOf(p);
     if (icon) return `${icon} ${name}`;
-    const label = specLabel(p.spec);
+    const label = specLabel(p.spec, lang);
     return `${name}${label ? ` · ${label}` : ""}`;
 }
 
@@ -100,13 +105,14 @@ function markedPersonText(p, emojis, opts, confirmations) {
 }
 
 /** Items joined into one field value of at most 1024 characters, "+N more" for the rest. */
-function joinClipped(items, sep) {
+function joinClipped(items, sep, lang = "de") {
+    const more = (count) => tr(lang, "+{count} more", { count });
     let out = "";
     for (let i = 0; i < items.length; i++) {
         const rest = items.length - i - 1;
         const next = out ? `${out}${sep}${items[i]}` : items[i];
-        const reserve = rest ? ` +${rest} more`.length : 0;
-        if (next.length + reserve > LIMITS.fieldValue) return `${out} +${items.length - i} more`.trim();
+        const reserve = rest ? ` ${more(rest)}`.length : 0;
+        if (next.length + reserve > LIMITS.fieldValue) return `${out} ${more(items.length - i)}`.trim();
         out = next;
     }
     return out || "\u200b";
@@ -129,14 +135,16 @@ const GRID_COLUMNS = 3;
  * a draft is never turned into a message.
  * @param {object} event     an eventStore event (a cancelled one is marked)
  * @param {object|null} approved the approved snapshot (setupEditor.approvedSetupOf)
- * @param {{ emojis?: object, confirmations?: object }} opts `emojis`: name → { id, name,
+ * @param {{ emojis?: object, confirmations?: object, lang?: string }} opts `emojis`: name → { id, name,
  *   animated }; none = text. `confirmations`: userId → "confirmed" | "declined" (who stands
  *   in a group — setupCore.confirmationsFor; an answer stays through later changes).
+ *   `lang`: the server language ("de" | "en", German by default).
  */
-function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, bench: withBench = false } = {}) {
+function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, bench: withBench = false, lang = "de" } = {}) {
     if (!event || !approved || !Array.isArray(approved.groups)) return null;
     const cancelled = event.status === "cancelled";
-    const title = clip(`${cancelled ? "Cancelled: " : ""}Setup · ${event.title || "Raid"}`, LIMITS.title);
+    const plainTitle = `Setup · ${event.title || "Raid"}`;
+    const title = clip(cancelled ? tr(lang, "Cancelled: {title}", { title: plainTitle }) : plainTitle, LIMITS.title);
     const start = Number(event.startTime) || 0;
 
     if (cancelled) {
@@ -146,7 +154,7 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
             embeds: [{
                 title,
                 color: CANCELLED_COLOR,
-                description: `${[emojiText(emojis, uiEmojiName("absence")), "**Cancelled**"].filter(Boolean).join(" ")}${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}\nThe setup is off.`,
+                description: `${[emojiText(emojis, uiEmojiName("absence")), tr(lang, "**Cancelled**")].filter(Boolean).join(" ")}${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}\n${tr(lang, "The setup is off.")}`,
             }],
             components: [],
         };
@@ -157,7 +165,7 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
         .filter((r) => counts[r])
         // the role icons of the signup message in the event's emoji style, else
         // the flat ones (#303/#320); without them the role's name: "Tank 1"
-        .map((r) => `${emojiText(emojis, roleEmojiName(r, emojiStyleOf(event.emojiStyle))) || emojiText(emojis, roleUiEmojiName(r), ROLE_LABEL[r])} ${counts[r]}`)
+        .map((r) => `${emojiText(emojis, roleEmojiName(r, emojiStyleOf(event.emojiStyle))) || emojiText(emojis, roleUiEmojiName(r), roleLabel(r, lang))} ${counts[r]}`)
         .join("     ·     ");
     // Short date + time + a relative countdown ("in 5 days"), like the signup
     // message's own date/time/start lines — the full weekday-and-all format
@@ -176,15 +184,15 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
     // everyone else to the setup on the public event page (pageRoutes.eventComp).
     // Only with a real PUBLIC_BASE_URL (#537, linkCheck).
     const compUrl = linkCheck.webTarget("comp", event.id);
-    const link = compUrl ? `[View the comp](${compUrl})` : "";
+    const link = compUrl ? `[${tr(lang, "View the comp")}](${compUrl})` : "";
 
     // Tried in order until the embed fits: icons everywhere, a plain bench, plain groups too.
     const variants = [{ groupIcons: true, benchIcons: true }, { groupIcons: true, benchIcons: false }, { groupIcons: false, benchIcons: false }];
     let embed = null;
     for (const v of variants) {
         const fields = groups.map((g) => ({
-            name: `Group ${g.index}`,
-            value: clip(g.slots.map((s) => markedPersonText(s, emojis, { icons: v.groupIcons }, confirmations)).join("\n"), LIMITS.fieldValue),
+            name: tr(lang, "Group {index}", { index: g.index }),
+            value: clip(g.slots.map((s) => markedPersonText(s, emojis, { icons: v.groupIcons, lang }, confirmations)).join("\n"), LIMITS.fieldValue),
             inline: true,
         }));
         // Discord spreads a short last row over the whole width (two fields at half
@@ -193,8 +201,8 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
         while (fields.length % GRID_COLUMNS) fields.push({ name: "\u200b", value: "\u200b", inline: true });
         if (bench.length) {
             fields.push({
-                name: `${[emojiText(emojis, statusEmojiName("bench")), "Bench"].filter(Boolean).join(" ")} (${bench.length})`,
-                value: joinClipped(bench.map((b) => personText(b, emojis, { icons: v.benchIcons, bold: false })), " · "),
+                name: `${[emojiText(emojis, statusEmojiName("bench")), benchWord(lang)].filter(Boolean).join(" ")} (${bench.length})`,
+                value: joinClipped(bench.map((b) => personText(b, emojis, { icons: v.benchIcons, bold: false, lang })), " · ", lang),
                 inline: false,
             });
         }
@@ -204,7 +212,7 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
             color: embedColor(event),
             description: clip(description, LIMITS.description),
             fields: fields.slice(0, LIMITS.fields),
-            footer: { text: `Approved setup · version ${approved.version || 1}` },
+            footer: { text: tr(lang, "Approved setup · version {version}", { version: approved.version || 1 }) },
         };
         if (!embed.description) delete embed.description;
         if (embedLength(embed) <= LIMITS.total) break;
@@ -218,7 +226,7 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
     // "event") — merging the row changes nothing about that.
     const buttons = {
         type: 1,
-        components: [...confirmButtonRow(event.id).components, ...inviteButtonRow(event.id).components, ...pingButtonRow(event.id).components],
+        components: [...confirmButtonRow(event.id, lang).components, ...inviteButtonRow(event.id, lang).components, ...pingButtonRow(event.id, lang).components],
     };
     return { content: "", embeds: [embed], components: [buttons] };
 }
@@ -261,21 +269,24 @@ function fairnessOn(event) {
 }
 
 /**
- * The DM for one raider — pure.
- * "You are in **Group 2** as **Healer** (Zibbo · Holy)." resp. the bench.
+ * The DM for one raider in their language — pure.
+ * "Du bist in **Gruppe 2** als **Heiler** (Zibbo · Heilig)." resp. the bench.
  */
-function buildSetupDm(event, placement, { messageUrl = "", reasons = [], fairness = false } = {}) {
+function buildSetupDm(event, placement, { messageUrl = "", reasons = [], fairness = false, lang = "de" } = {}) {
     const start = Number(event.startTime) || 0;
-    const who = [escapeMd(placement.character), specLabel(placement.spec)].filter(Boolean).join(" · ");
-    const lines = [`**Setup for ${escapeMd(event.title || "Raid")}**${start ? ` · <t:${start}:F>` : ""}`];
+    const name = [escapeMd(placement.character), specLabel(placement.spec, lang)].filter(Boolean).join(" · ");
+    const who = name ? ` (${name})` : "";
+    const lines = [`${tr(lang, "**Setup for {title}**", { title: escapeMd(event.title || "Raid") })}${start ? ` · <t:${start}:F>` : ""}`];
     if (placement.bench) {
-        lines.push(`This time on the **bench**${who ? ` (${who})` : ""}${fairness ? " – next time you have priority." : "."}`);
-        // The proposal's own German wording (reasons.js, no user input), in English.
-        if (reasons.length) lines.push(`Reason: ${reasons.map(toEnglish).join(" · ")}`);
+        lines.push(fairness
+            ? tr(lang, "This time on the **bench**{who} – next time you have priority.", { who })
+            : tr(lang, "This time on the **bench**{who}.", { who }));
+        // The proposal's own German wording (reasons.js, no user input), in the raider's language.
+        if (reasons.length) lines.push(tr(lang, "Reason: {reason}", { reason: reasons.map((r) => serviceText(lang, r)).join(" · ") }));
     } else {
-        lines.push(`You are in **Group ${placement.group}** as **${ROLE_LABEL[placement.role] || "Raider"}**${who ? ` (${who})` : ""}.`);
+        lines.push(tr(lang, "You are in **Group {group}** as **{role}**{who}.", { group: placement.group, role: roleLabel(placement.role, lang) || "Raider", who }));
     }
-    if (messageUrl) lines.push(`[Go to the setup](${messageUrl})`);
+    if (messageUrl) lines.push(`[${tr(lang, "Go to the setup")}](${messageUrl})`);
     return { content: clip(lines.join("\n"), 2000) };
 }
 
@@ -320,7 +331,7 @@ async function sendSetupDms(eventId, { config = getConfig(), delayMs = DM_DELAY_
         for (let i = 0; i < todo.length; i++) {
             const p = todo[i];
             if (i && delayMs > 0) await sleep(delayMs);
-            const payload = buildSetupDm(event, p, { messageUrl, fairness, reasons: p.bench ? benchReasons(event, p.userId) : [] });
+            const payload = buildSetupDm(event, p, { messageUrl, fairness, reasons: p.bench ? benchReasons(event, p.userId) : [], lang: langOf(p.userId, { config }) });
             let result;
             try {
                 result = await discord.sendDirectMessage(p.userId, payload);
@@ -350,7 +361,9 @@ const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.
 
 async function payloadFor(event, approved) {
     await loadAppEmojis(discord.getClient());
-    return buildSetupMessage(event, approved, { emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved), bench: benchPosted(event) });
+    return buildSetupMessage(event, approved, {
+        emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved), bench: benchPosted(event), lang: serverLang(),
+    });
 }
 
 /**
@@ -501,6 +514,24 @@ async function refreshSetupMessage(eventId) {
 }
 
 /**
+ * Redraw every posted setup message of the last two days and the coming ones
+ * (the server language changed — languageChange.js). Each edit runs in its
+ * event's queue, so it never lands over a newer one; never posts a first one.
+ * @returns {Promise<{ edited: number, failed: number }>}
+ */
+async function refreshSetupMessages({ now = Date.now() } = {}) {
+    const since = Math.floor(now / 1000) - 2 * 86400;
+    const out = { edited: 0, failed: 0 };
+    for (const event of eventStore.listEvents("", { sinceSeconds: since })) {
+        if (!event || !event.setupPost || !event.setupPost.messageId) continue;
+        const result = await editSetupMessageQueued(event.id).catch((e) => ({ error: (e && e.message) || String(e) }));
+        if (result && result.action) out.edited += 1;
+        else if (result && result.error) out.failed += 1;
+    }
+    return out;
+}
+
+/**
  * What the editor says about posting — before the approval what *will* happen,
  * after it what did. Pure over event and config.
  */
@@ -555,5 +586,5 @@ module.exports = {
     LIMITS, DM_DELAY_MS,
     buildSetupMessage, buildSetupDm, embedLength, placementsOf, placementSignature, dmsEnabled, benchReasons,
     postOrEditSetupMessage, sendSetupDms, publishSetup, refreshSetupMessage, refreshLiveSetup,
-    editSetupMessageQueued, scheduleSetupEdit, MARK_EDIT_DELAY_MS, publishView, _resetForTests,
+    editSetupMessageQueued, scheduleSetupEdit, MARK_EDIT_DELAY_MS, publishView, refreshSetupMessages, _resetForTests,
 };

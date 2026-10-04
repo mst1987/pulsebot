@@ -18,8 +18,15 @@
 // characters per field, 6000 per embed, 25 select options (the next 25 raids).
 // A channel link crosses servers as a plain URL — `<#id>` only resolves on the
 // server it is posted on.
+//
+// The message is public, so it speaks the server language (Einstellungen,
+// services/discord/botLanguage.js `serverLang`, German by default); the
+// language is hashed with the payload, so a change of it redraws every entry
+// on the next sync (languageChange.js schedules one at once).
 const crypto = require("crypto");
-const { discordTimestamp, shortServerTime } = require("../../utils/time");
+const { discordTimestamp, serverDateTime } = require("../../utils/time");
+const { tr, dateLocale } = require("../../utils/i18n/botText");
+const { serverLang } = require("../discord/botLanguage");
 const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder,
 } = require("discord.js");
@@ -42,8 +49,9 @@ const RAID_SEP = "\n\n";
 // both name and value keeps it invisible.
 const SPACER = "​";
 const spacerField = () => ({ name: SPACER, value: SPACER, inline: false });
-// What a raid line shows instead of a link to a channel that is gone (#537).
+// What a raid line shows instead of a link to a channel that is gone (#537), in English (tr() translates it).
 const CHANNEL_MISSING = "channel missing";
+const NO_CATEGORY = "No category";
 
 const SELECT_ID = "talk-signup";
 // "Für alle Raids anmelden" / "Mehrere Raids wählen …" (#293, commands/signup/talkSignupAll|Multi.js)
@@ -90,22 +98,24 @@ function eventUrl(eventId, baseUrl) {
  * exists (linkCheck), "channel missing" as plain text when it is gone, the bare
  * name while nothing is known (bot offline since the start).
  */
-function channelPart(event, eventGuildId, channelInfo) {
+function channelPart(event, eventGuildId, channelInfo, lang = "de") {
     const name = `#${plain(event.channelName) || "event"}`;
     if (!event.channelId) return "";
     const info = channelInfo(eventGuildId, event.channelId);
     if (info.url) return `[${name}](${info.url})`;
-    if (info.state === "missing") return CHANNEL_MISSING;
+    if (info.state === "missing") return tr(lang, CHANNEL_MISSING);
     return name;
 }
 
 /**
- * "Wed 17 Sep 19:30" in server time (Berlin); start is unix seconds (or ms).
- * For the select options, which cannot render a Discord timestamp — the embed
- * lines use `<t:…:F>` instead, so every reader sees their own time zone.
+ * "Do. 17 Sep. 19:30" / "Thu 17 Sep 19:30" in server time (Berlin); start is
+ * unix seconds (or ms). For the select options, which cannot render a Discord
+ * timestamp — the embed lines use `<t:…:F>` instead, so every reader sees
+ * their own time zone.
  */
-function formatStart(startTime) {
-    return shortServerTime(startTime);
+function formatStart(startTime, lang = "de") {
+    const dt = serverDateTime(startTime);
+    return dt ? dt.setLocale(dateLocale(lang)).toFormat("ccc d LLL HH:mm") : "";
 }
 
 /** Markdown that would break a line's layout (bold, links) taken out of a title. */
@@ -118,9 +128,9 @@ function attendingCount(event) {
     return accountCount(event.signUps || [], signupStatus);
 }
 
-/** "28 signed up" — the accounts alone, no "/size" since #520. */
-function fillText(event) {
-    return signedUpText(attendingCount(event));
+/** "28 angemeldet" / "28 signed up" — the accounts alone, no "/size" since #520. */
+function fillText(event, lang) {
+    return signedUpText(attendingCount(event), lang);
 }
 
 /**
@@ -130,18 +140,18 @@ function fillText(event) {
  * bigger inside an embed, so the title only gets emphasis through bold + the
  * link; the meta line is the one that shrinks.
  */
-function raidLine(event, eventGuildId, { emojis = {}, baseUrl = "", channelInfo = linkCheck.channelInfo } = {}) {
+function raidLine(event, eventGuildId, { emojis = {}, baseUrl = "", channelInfo = linkCheck.channelInfo, lang = "de" } = {}) {
     const title = plain(event.title) || "Raid";
     // A cancelled event (#288) stays listed until its day, struck through, so nobody wonders where it went.
     if (event.status === "cancelled") {
-        return [`~~${title}~~`, "**CANCELLED**", discordTimestamp(event.startTime, "F")].filter(Boolean).join(" · ");
+        return [`~~${title}~~`, tr(lang, "**CANCELLED**"), discordTimestamp(event.startTime, "F")].filter(Boolean).join(" · ");
     }
     const link = event.source === "eventhelper" ? eventUrl(event.id, baseUrl) : "";
     const titleLine = `**${link ? `[${title}](${link})` : title}**`;
     const when = discordTimestamp(event.startTime, "F");
     const dateLine = when ? `${emojiText(emojis, uiEmojiName("date"), "🗓️")} ${when}` : "";
-    const metaParts = [`${emojiText(emojis, uiEmojiName("signups"), "👥")} ${fillText(event)}`];
-    const channel = channelPart(event, eventGuildId, channelInfo);
+    const metaParts = [`${emojiText(emojis, uiEmojiName("signups"), "👥")} ${fillText(event, lang)}`];
+    const channel = channelPart(event, eventGuildId, channelInfo, lang);
     if (channel) metaParts.push(channel);
     if (event.source !== "eventhelper") metaParts.push("Raid-Helper");
     return [titleLine, dateLine, `-# ${metaParts.join(" · ")}`].filter(Boolean).join("\n");
@@ -151,14 +161,14 @@ function raidLine(event, eventGuildId, { emojis = {}, baseUrl = "", channelInfo 
  * The upcoming raids, soonest first, grouped by category — categories ordered by
  * their soonest raid. Only configured event categories when there are any.
  */
-function upcomingGroups(groups, { now = Date.now(), categoryIds = [] } = {}) {
+function upcomingGroups(groups, { now = Date.now(), categoryIds = [], lang = "de" } = {}) {
     const allowed = new Set((categoryIds || []).map(String));
     const nowSec = Math.floor(now / 1000);
     return (groups || [])
         .filter((g) => !allowed.size || allowed.has(String(g.categoryId || "")))
         .map((g) => ({
             categoryId: g.categoryId || "",
-            categoryName: g.categoryName || "No category",
+            categoryName: g.categoryName || tr(lang, NO_CATEGORY),
             events: (g.events || [])
                 .filter((e) => e && e.id && (Number(e.startTime) || 0) >= nowSec)
                 .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0)),
@@ -171,20 +181,24 @@ function upcomingGroups(groups, { now = Date.now(), categoryIds = [] } = {}) {
 /**
  * The message payload (pure — no Discord call).
  * @param {object[]} groups loadEventGroups()'s groups
- * @param {{ eventGuildId?: string, eventGuildName?: string, baseUrl?: string, now?: number, categoryIds?: string[], emojis?: object }} opts
+ * @param {{ eventGuildId?: string, eventGuildName?: string, baseUrl?: string, now?: number, categoryIds?: string[], emojis?: object, lang?: string }} opts
+ *   `lang`: the server language ("de" | "en", German by default)
  * @returns {{ content: string, embeds: object[], components: object[] }} plain API JSON
  */
 function buildOverviewMessage(groups, opts = {}) {
-    const { eventGuildId = "", eventGuildName = "", baseUrl = linkCheck.webBase(), emojis = {}, channelInfo = linkCheck.channelInfo } = opts;
-    const list = upcomingGroups(groups, opts);
+    const { eventGuildId = "", eventGuildName = "", baseUrl = linkCheck.webBase(), emojis = {}, channelInfo = linkCheck.channelInfo, lang = "de" } = opts;
+    const list = upcomingGroups(groups, { ...opts, lang });
     const all = list.flatMap((g) => g.events.map((e) => ({ ...e, categoryName: g.categoryName })));
     // Nobody signs up for a cancelled raid (#288): it is shown, not offered.
     const signable = all.filter((e) => e.status !== "cancelled");
 
-    const title = "Upcoming raids";
-    const description = all.length
-        ? `Updates itself · links lead to the event channel${eventGuildName ? ` on **${plain(eventGuildName)}**` : ""}`
-        : "No raids are planned right now. New raids show up here by themselves.";
+    const title = tr(lang, "Upcoming raids");
+    let description = tr(lang, "No raids are planned right now. New raids show up here by themselves.");
+    if (all.length) {
+        description = eventGuildName
+            ? tr(lang, "Updates itself · links lead to the event channel on **{server}**", { server: plain(eventGuildName) })
+            : tr(lang, "Updates itself · links lead to the event channel");
+    }
     let used = title.length + description.length;
     const fields = [];
     let shown = 0;
@@ -194,11 +208,11 @@ function buildOverviewMessage(groups, opts = {}) {
         // slot in the 25-field budget too.
         const withSpacer = fields.length > 0;
         if (fields.length + (withSpacer ? 2 : 1) > MAX_FIELDS) break;
-        const name = plain(group.categoryName).slice(0, 256) || "No category";
+        const name = plain(group.categoryName).slice(0, 256) || tr(lang, NO_CATEGORY);
         const lines = [];
         let length = 0;
         for (let i = 0; i < group.events.length; i++) {
-            const line = raidLine(group.events[i], eventGuildId, { emojis, baseUrl, channelInfo });
+            const line = raidLine(group.events[i], eventGuildId, { emojis, baseUrl, channelInfo, lang });
             const rest = group.events.length - i - 1;
             // Room for this line, plus a "+N more" line if more follow.
             const reserve = rest ? 24 : 0;
@@ -209,7 +223,7 @@ function buildOverviewMessage(groups, opts = {}) {
         }
         if (!lines.length) break;
         const hidden = group.events.length - lines.length;
-        if (hidden) lines.push(`+${hidden} more`);
+        if (hidden) lines.push(tr(lang, "+{count} more", { count: hidden }));
         const value = lines.join(RAID_SEP);
         if (withSpacer) fields.push(spacerField());
         fields.push({ name, value, inline: false });
@@ -223,23 +237,23 @@ function buildOverviewMessage(groups, opts = {}) {
         .setDescription(description);
     if (fields.length) embed.addFields(fields);
     const missing = all.length - shown;
-    if (missing > 0) embed.setFooter({ text: `+${missing} more raids in the web overview` });
+    if (missing > 0) embed.setFooter({ text: tr(lang, "+{count} more raids in the web overview", { count: missing }) });
 
     const components = [];
     // Several raids at once (#293) — only EventHelper events take a signup here.
     if (signable.some((e) => e.source === "eventhelper")) {
         components.push(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(ALL_BUTTON_ID).setStyle(ButtonStyle.Primary).setLabel("Sign up for all raids").setEmoji("✅"),
-            new ButtonBuilder().setCustomId(MULTI_BUTTON_ID).setStyle(ButtonStyle.Secondary).setLabel("Pick several raids …"),
+            new ButtonBuilder().setCustomId(ALL_BUTTON_ID).setStyle(ButtonStyle.Primary).setLabel(tr(lang, "Sign up for all raids")).setEmoji("✅"),
+            new ButtonBuilder().setCustomId(MULTI_BUTTON_ID).setStyle(ButtonStyle.Secondary).setLabel(tr(lang, "Pick several raids …")),
         ));
     }
     if (signable.length) {
         const select = new StringSelectMenuBuilder()
             .setCustomId(SELECT_ID)
-            .setPlaceholder("Pick a single raid …")
+            .setPlaceholder(tr(lang, "Pick a single raid …"))
             .addOptions(signable.slice(0, MAX_OPTIONS).map((e) => ({
                 label: (plain(e.title) || "Raid").slice(0, 100),
-                description: [formatStart(e.startTime), plain(e.categoryName)].filter(Boolean).join(" · ").slice(0, 100),
+                description: [formatStart(e.startTime, lang), plain(e.categoryName)].filter(Boolean).join(" · ").slice(0, 100),
                 value: String(e.id).slice(0, 100),
             })));
         components.push(new ActionRowBuilder().addComponents(select));
@@ -248,9 +262,9 @@ function buildOverviewMessage(groups, opts = {}) {
     const links = overviewLinks(baseUrl);
     if (links) {
         components.push(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Web overview").setURL(links.web),
-            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("My signups").setURL(links.signups),
-            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("My profile").setURL(links.profile),
+            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "Web overview")).setURL(links.web),
+            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "My signups")).setURL(links.signups),
+            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "My profile")).setURL(links.profile),
         ));
     }
 
@@ -261,9 +275,9 @@ function buildOverviewMessage(groups, opts = {}) {
     };
 }
 
-/** A stable fingerprint of a payload: same content, same hash. */
-function payloadHash(payload) {
-    return crypto.createHash("sha1").update(JSON.stringify(payload)).digest("hex");
+/** A stable fingerprint of a payload and its language: same content in the same language, same hash. */
+function payloadHash(payload, lang = "") {
+    return crypto.createHash("sha1").update(`${lang}|${JSON.stringify(payload)}`).digest("hex");
 }
 
 function isUnknownMessage(e) {
@@ -289,14 +303,16 @@ async function currentPayload({ config = getConfig(), now = Date.now(), guildId 
     // Confirm every listed channel before a line links it (#537).
     await linkCheck.checkChannels((groups || []).flatMap((g) => (g.events || []).map((e) => ({ guildId, channelId: e.channelId }))));
     const guild = discord.getGuild(guildId);
+    const lang = serverLang(config);
     const payload = buildOverviewMessage(groups, {
         eventGuildId: guildId,
         eventGuildName: guild ? guild.name : "",
         now,
         categoryIds: config.categoryIds || [],
         emojis: appEmojiMap(),
+        lang,
     });
-    return { payload, error };
+    return { payload, error, lang };
 }
 
 /** One event server's own sync: builds, then edits/reposts/posts its own message, tracked under its own guild id. */
@@ -309,11 +325,11 @@ async function runSyncOne(entry, { repost = false, now = Date.now(), config = ge
     };
     try {
         if (!discord.isOnline()) return fail("Bot nicht verbunden.");
-        const { payload, error } = await currentPayload({ config, now, guildId: entry.guildId });
+        const { payload, error, lang } = await currentPayload({ config, now, guildId: entry.guildId });
         // A Raid-Helper outage would post a list without its events: leave an
         // existing message as it is and try again on the next sweep.
         if (error && state.messageId && !repost) return fail(`Events nicht vollständig ladbar: ${error}`);
-        const hash = payloadHash(payload);
+        const hash = payloadHash(payload, lang);
         const channel = await discord.fetchTextChannel(entry.overviewChannelId, OVERVIEW_CHANNEL_MISSING);
 
         const sameChannel = state.messageId && state.channelId === entry.overviewChannelId;

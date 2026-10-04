@@ -33,7 +33,7 @@ const member = (roleIds = [], id = "555") => ({ id, roleIds });
 
 beforeEach(() => {
     jest.clearAllMocks();
-    settingsStore.getConfig.mockReturnValue({ guildId: GUILD });
+    settingsStore.getConfig.mockReturnValue({ guildId: GUILD, botLanguage: "en" });
     discord.getGuild.mockReturnValue(null);
     discord.fetchGuildMembersCached.mockResolvedValue([]);
 });
@@ -154,9 +154,15 @@ describe("eventMemberRoles", () => {
 describe("denyMessage", () => {
     it("names the roles of the event guild", () => {
         discord.getGuild.mockReturnValue({ roles: { cache: makeCollection([[ORGA, { name: "Orga" }], [RAIDLEAD, { name: "Raidleiter" }]]) } });
-        expect(denyMessage({ mode: "roles", roleIds: [ORGA, RAIDLEAD] }, GUILD)).toBe("You need @Orga or @Raidleiter for this.");
-        expect(denyMessage({ mode: "roles", roleIds: [ORGA] }, GUILD)).toBe("You need @Orga for this.");
-        expect(denyMessage({ mode: "admins", roleIds: [] }, GUILD)).toBe("This is reserved for admins.");
+        expect(denyMessage({ mode: "roles", roleIds: [ORGA, RAIDLEAD] }, GUILD, "en")).toBe("You need @Orga or @Raidleiter for this.");
+        expect(denyMessage({ mode: "roles", roleIds: [ORGA] }, GUILD, "en")).toBe("You need @Orga for this.");
+        expect(denyMessage({ mode: "admins", roleIds: [] }, GUILD, "en")).toBe("This is reserved for admins.");
+    });
+
+    it("speaks German by default", () => {
+        discord.getGuild.mockReturnValue({ roles: { cache: makeCollection([[ORGA, { name: "Orga" }], [RAIDLEAD, { name: "Raidleiter" }]]) } });
+        expect(denyMessage({ mode: "roles", roleIds: [ORGA, RAIDLEAD] }, GUILD)).toBe("Dafür brauchst du @Orga oder @Raidleiter.");
+        expect(denyMessage({ mode: "admins", roleIds: [] }, GUILD)).toBe("Das ist den Admins vorbehalten.");
     });
 });
 
@@ -172,6 +178,13 @@ describe("guardInteraction", () => {
         const interaction = mockInteraction({ userId: "555" });
         expect(await guardInteraction(interaction, COMMANDS.get("fillsetup"), COMMANDS)).toBe(false);
         expect(interaction.reply).toHaveBeenCalledWith({ content: "This is reserved for admins.", flags: MessageFlags.Ephemeral });
+    });
+
+    it("refuses in the server language German when the user chose none", async () => {
+        settingsStore.getConfig.mockReturnValue({ guildId: GUILD });
+        const interaction = mockInteraction({ userId: "555" });
+        expect(await guardInteraction(interaction, COMMANDS.get("fillsetup"), COMMANDS)).toBe(false);
+        expect(interaction.reply).toHaveBeenCalledWith({ content: "Das ist den Admins vorbehalten.", flags: MessageFlags.Ephemeral });
     });
 
     it("lets a member with a granted role run a button of that command", async () => {

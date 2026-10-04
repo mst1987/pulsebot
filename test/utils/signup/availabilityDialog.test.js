@@ -34,11 +34,12 @@ describe("customIds", () => {
 
 describe("Panel und Modal", () => {
     it("das Panel nennt die Kategorie und trägt drei Knöpfe", () => {
-        const payload = dialog.panelPayload({ categoryId: "cat1", categoryName: "Raids TBC" });
+        const payload = dialog.panelPayload({ categoryId: "cat1", categoryName: "Raids TBC", lang: "en" });
         expect(embedOf(payload).title).toBe("Absence & attendance · Raids TBC");
         expect(embedOf(payload).description).toContain("every **Raids TBC** raid");
         expect(ids(payload)).toEqual(["availability:a:cat1", "availability:p:cat1", "availability:l:cat1"]);
-        expect(embedOf(dialog.panelPayload()).title).toBe("Absence & attendance");
+        expect(embedOf(dialog.panelPayload({ lang: "en" })).title).toBe("Absence & attendance");
+        expect(embedOf(dialog.panelPayload()).title).toBe("Ab- & Anwesenheit");
     });
 
     it("das Modal fragt den Zeitraum, bei der Abwesenheit auch den Grund", () => {
@@ -59,7 +60,8 @@ describe("Charaktere", () => {
 
     it("bietet jede Spec mit brauchbarem Gear an, auf Versionen beschränkbar", () => {
         const profile = profiles.getProfile(ANNA);
-        expect(dialog.characterOptions(profile).map((o) => o.label)).toEqual(["Zibbo · Holy", "Devi Res · Arcane"]);
+        expect(dialog.characterOptions(profile, null, "en").map((o) => o.label)).toEqual(["Zibbo · Holy", "Devi Res · Arcane"]);
+        expect(dialog.characterOptions(profile).map((o) => o.label)).toEqual(["Zibbo · Heilig", "Devi Res · Arkan"]);
         expect(dialog.characterOptions(profile, ["forever"]).map((o) => o.key)).toEqual(["forever~devi res"]);
     });
 
@@ -76,7 +78,7 @@ describe("Auswahl, Liste, Ergebnis", () => {
 
     it("Abwesenheit: alle Raids gewählt, Grund und Hinweis auf spätere Raids", () => {
         const session = { kind: "absence", from: "2030-03-17", to: "2030-03-20", comment: "Urlaub", selected: null };
-        const payload = dialog.pickerPayload("0a1b2c3d", session, raids, {});
+        const payload = dialog.pickerPayload("0a1b2c3d", session, raids, { lang: "en" });
         expect(embedOf(payload).description).toContain("Reason: Urlaub");
         expect(embedOf(payload).description).toContain("(2 of 2)");
         expect(embedOf(payload).description).toContain("Raids created later in this period sign you off automatically.");
@@ -88,7 +90,7 @@ describe("Auswahl, Liste, Ergebnis", () => {
     });
 
     it("ohne Raid im Zeitraum nur Speichern, mit Fehlerhinweis auf Englisch", () => {
-        const payload = dialog.pickerPayload("0a1b2c3d", { kind: "absence", from: "2030-03-17", to: "2030-03-17" }, [], { notice: "⚠️ Höchstens 180 Tage auf einmal." });
+        const payload = dialog.pickerPayload("0a1b2c3d", { kind: "absence", from: "2030-03-17", to: "2030-03-17" }, [], { notice: "⚠️ Höchstens 180 Tage auf einmal.", lang: "en" });
         expect(embedOf(payload).description).toContain("No raid in this period yet.");
         expect(embedOf(payload).description).toContain("⚠️ At most 180 days at once.");
         expect(ids(payload)).toEqual(["availability:0a1b2c3d:save", "availability:0a1b2c3d:x"]);
@@ -97,7 +99,7 @@ describe("Auswahl, Liste, Ergebnis", () => {
     it("Anwesenheit: Charakter-Auswahl mit dem gewählten als Vorgabe", () => {
         profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
         const session = { kind: "presence", from: "2030-03-17", to: "2030-03-20", character: "Zibbo", characterKey: "zibbo", spec: "Priest-Holy", versionId: "tbc", selected: ["eh-b"] };
-        const payload = dialog.pickerPayload("0a1b2c3d", session, raids, { profile: profiles.getProfile(ANNA) });
+        const payload = dialog.pickerPayload("0a1b2c3d", session, raids, { profile: profiles.getProfile(ANNA), lang: "en" });
         expect(embedOf(payload).description).toContain("Character: **Zibbo** · Holy (TBC Anniversary)");
         const chars = payload.components[0].components[0].toJSON();
         expect(chars.options).toEqual([expect.objectContaining({ value: "zibbo|Priest-Holy", default: true })]);
@@ -110,16 +112,17 @@ describe("Auswahl, Liste, Ergebnis", () => {
             { id: "e1", kind: "absence", from: "2030-03-17", to: "2030-03-20", comment: "Urlaub" },
             { id: "e2", kind: "presence", from: "2030-04-01", to: "2030-04-01", character: "Zibbo", spec: "Priest-Holy" },
         ];
-        const payload = dialog.listPayload(entries, { categoryId: "cat1" });
+        const payload = dialog.listPayload(entries, { categoryId: "cat1", lang: "en" });
         expect(embedOf(payload).description).toContain("🏖️ **Away** · Sun 17 Mar 2030 – Wed 20 Mar 2030 · Urlaub");
         expect(embedOf(payload).description).toContain("✅ **There** · Mon 1 Apr 2030 · Zibbo · Holy");
         expect(ids(payload)).toEqual(["availability:del:cat1", "availability:a:cat1", "availability:p:cat1", "availability:l:cat1"]);
-        expect(embedOf(dialog.listPayload([])).description).toBe("No absence or attendance entered.");
+        expect(embedOf(dialog.listPayload([], { lang: "en" })).description).toBe("No absence or attendance entered.");
+        expect(embedOf(dialog.listPayload([])).description).toBe("Keine Ab- oder Anwesenheit eingetragen.");
     });
 
     it("das Ergebnis sagt, wenn die DM nicht ankam", () => {
         const summary = { title: "Absence saved", description: "x" };
-        expect(embedOf(dialog.savedPayload(summary, { kind: "absence", dm: true })).description).toBe("x");
-        expect(embedOf(dialog.savedPayload(summary, { kind: "absence", dm: false })).description).toContain("could not send you a DM");
+        expect(embedOf(dialog.savedPayload(summary, { kind: "absence", dm: true, lang: "en" })).description).toBe("x");
+        expect(embedOf(dialog.savedPayload(summary, { kind: "absence", dm: false, lang: "en" })).description).toContain("could not send you a DM");
     });
 });

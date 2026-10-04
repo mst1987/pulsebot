@@ -22,6 +22,7 @@ const signupStore = require("../../stores/signupStore");
 const raidplanStore = require("../../stores/raidplanStore");
 const { deleteRaidplanPost } = require("../../stores/raidplanPostStore");
 const signupService = require("../signups/signupService");
+const availability = require("../signups/availability");
 const profiles = require("../../stores/raiderProfileStore");
 const reminderStore = require("../../stores/reminderStore");
 const seriesStore = require("../../stores/eventSeriesStore");
@@ -37,6 +38,7 @@ const { refreshSetupMessage, postOrEditSetupMessage } = require("../setup/setupM
 const discordEvent = require("../discord/discordEvent");
 const { scheduleOverviewSync } = require("../talk/talkOverview");
 const { deliverUserPing, sendDms } = require("../discord/pingDelivery");
+const { tr } = require("../../utils/i18n/botText");
 const { getConfig } = require("../../stores/settingsStore");
 const { setupSummary } = require("../setup/setupEditor");
 const { rulesForEvent, versionOfEvent } = require("./mainVersion");
@@ -238,6 +240,8 @@ async function moveEvent({ guildId, eventId, date, time, renameChannel = true, n
     if (updated.error) return fail(400, "invalid_plan", updated.error);
     // A reminder sent for the old date says nothing about the new one.
     for (const kind of ["missing", "signed"]) reminderStore.clearSent(plan.eventId, kind);
+    // Absences and attendances of the new day sign raiders off / up, like for a new raid (not awaited).
+    void availability.applyToEvent(plan.eventId);
 
     let channelError = null;
     let renamed = "";
@@ -262,9 +266,10 @@ async function moveEvent({ guildId, eventId, date, time, renameChannel = true, n
         const event = eventStore.getEvent(plan.eventId);
         const start = plan.to.startTime;
         try {
+            // a note in the event channel: the server language (pingDelivery)
             await deliverUserPing({
                 target: "event", event, userIds: recipients, guildId,
-                text: `📅 **${event.title}** has been moved: now <t:${start}:F> (<t:${start}:R>).`,
+                text: (lang) => tr(lang, "📅 **{title}** has been moved: now {when} ({relative}).", { title: event.title, when: `<t:${start}:F>`, relative: `<t:${start}:R>` }),
             });
             notified = recipients.length;
         } catch (e) {
@@ -395,13 +400,15 @@ async function removeRaider({ guildId, eventId, userId, user, byName }) {
     return { status: 200, body: { message: `${who} ausgetragen.` } };
 }
 
-/** The DM a raider gets when an event is cancelled. */
-function cancelDm(event, reason, guildId) {
+/** The DM a raider gets when an event is cancelled, in their language. */
+function cancelDm(event, reason, guildId, lang = "de") {
     const start = Number(event.startTime) || 0;
     const url = linkCheck.channelLink(guildId, event.channelId);
     return [
-        `❌ **${event.title}**${start ? ` on <t:${start}:F>` : ""} has been cancelled.`,
-        `Reason: ${reason}`,
+        start
+            ? tr(lang, "❌ **{title}** on {when} has been cancelled.", { title: event.title, when: `<t:${start}:F>` })
+            : tr(lang, "❌ **{title}** has been cancelled.", { title: event.title }),
+        tr(lang, "Reason: {reason}", { reason }),
         url,
     ].filter(Boolean).join("\n");
 }
@@ -441,7 +448,7 @@ async function cancelEvent({ guildId, eventId, reason, archiveChannel = false, n
     const recipients = recipientsOf(event.id).map((s) => s.userId);
     if (notify && recipients.length) {
         try {
-            dm = await sendDms(recipients, { content: cancelDm(event, text, event.guildId || guildId) });
+            dm = await sendDms(recipients, (lang) => ({ content: cancelDm(event, text, event.guildId || guildId, lang) }));
         } catch (e) {
             dm = { sent: [], failed: recipients, error: (e && e.message) || "Bot nicht verbunden." };
         }
@@ -494,6 +501,8 @@ async function reopenEvent({ guildId, eventId, user, byName }) {
     if (found.event.status !== "cancelled") return fail(409, "unchanged", "Das Event ist nicht abgesagt.");
     const wasArchived = !!(found.event.cancel && found.event.cancel.archived);
     const event = eventStore.setEventState(found.event.id, { status: "active", signupsClosed: false, cancel: null });
+    // While cancelled the raid was skipped by every absence and attendance — catch up now (not awaited).
+    void availability.applyToEvent(event.id);
     const messageError = await refreshMessage(event.id);
     // A cancelled Discord event cannot be revived — a new one is created (#305).
     const discordEventError = discordEvent.warningOf(await discordEvent.reopenForEvent(event.id).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
@@ -560,10 +569,12 @@ function deletionInfo(event, now = Date.now()) {
     };
 }
 
-/** The DM a raider gets when an event they signed up for is deleted (only on request). */
-function deleteDm(event) {
+/** The DM a raider gets when an event they signed up for is deleted (only on request), in their language. */
+function deleteDm(event, lang = "de") {
     const start = Number(event.startTime) || 0;
-    return `🗑️ **${event.title}**${start ? ` on <t:${start}:F>` : ""} will not take place — the event has been removed.`;
+    return start
+        ? tr(lang, "🗑️ **{title}** on {when} will not take place — the event has been removed.", { title: event.title, when: `<t:${start}:F>` })
+        : tr(lang, "🗑️ **{title}** will not take place — the event has been removed.", { title: event.title });
 }
 
 /**
@@ -632,7 +643,7 @@ async function deleteEvent({ guildId, eventId, archiveChannel = false, notify = 
     let dm = { sent: [], failed: [] };
     if (notify && info.canNotify && recipients.length) {
         try {
-            dm = await sendDms(recipients, { content: deleteDm(event) });
+            dm = await sendDms(recipients, (lang) => ({ content: deleteDm(event, lang) }));
         } catch (e) {
             dm = { sent: [], failed: recipients, error: (e && e.message) || "Bot nicht verbunden." };
         }

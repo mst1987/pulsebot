@@ -34,6 +34,14 @@ describe("the language switch", () => {
         expect(window.localStorage.getItem("eh-lang")).toBe("en");
     });
 
+    it("tells an account user that the choice also applies to the bot's messages", () => {
+        const { unmount } = render(<LangToggle account />);
+        expect(screen.getByRole("group", { name: "Sprache" })).toHaveAttribute("data-tip-sub", t("shell.lang.tipSub"));
+        unmount();
+        render(<LangToggle />);
+        expect(screen.getByRole("group", { name: "Sprache" })).not.toHaveAttribute("data-tip-sub");
+    });
+
     it("does nothing on a click on the active language", async () => {
         render(<LangToggle account />);
         await userEvent.click(screen.getByRole("button", { name: "Deutsch" }));

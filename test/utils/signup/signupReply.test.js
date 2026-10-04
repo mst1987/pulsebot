@@ -90,7 +90,7 @@ describe("signupButtons.savedEmbed", () => {
     const when = `🗓️ <t:${event.startTime}:F> · <t:${event.startTime}:R>`;
 
     it("plain text: title, one line per character, the raid start, the waiting list", () => {
-        expect(savedEmbed(event, signup, profile, { notice: "Der Raid ist voll (10/10) – du stehst auf der Warteliste (Bank). Ob jemand nachrückt, entscheidet die Raidleitung." })).toEqual({
+        expect(savedEmbed(event, signup, profile, { lang: "en", notice: "Der Raid ist voll (10/10) – du stehst auf der Warteliste (Bank). Ob jemand nachrückt, entscheidet die Raidleitung." })).toEqual({
             title: "Saved for Karazhan",
             description: [
                 "`1.` Zibbo · Holy – **Signed up**",
@@ -105,7 +105,7 @@ describe("signupButtons.savedEmbed", () => {
 
     it("with the app emojis: spec and status icons stay in the lines, the head icon in the title", () => {
         appEmojis.setAppEmojis(appEmojis.emojiCatalog().map((e, i) => ({ id: String(900 + i), name: e.name })));
-        const embed = savedEmbed(event, signup, profile, { emojis: appEmojis.appEmojiMap() });
+        const embed = savedEmbed(event, signup, profile, { emojis: appEmojis.appEmojiMap(), lang: "en" });
         const noIds = (s) => s.replace(/:\d+>/g, ">");
         expect(noIds(embed.title)).toBe("<:eh_ui_signed> Saved for Karazhan");
         expect(noIds(embed.description).split("\n")).toEqual([
@@ -116,14 +116,29 @@ describe("signupButtons.savedEmbed", () => {
         ]);
     });
 
+    it("auf Deutsch: Titel, Status-Wörter und der Hinweis des Dienstes bleiben deutsch", () => {
+        expect(savedEmbed(event, signup, profile, { notice: "Der Raid ist voll (10/10) – du stehst auf der Warteliste (Bank). Ob jemand nachrückt, entscheidet die Raidleitung." })).toEqual({
+            title: "Gespeichert für Karazhan",
+            description: [
+                "`1.` Zibbo · Heilig – **Dabei**",
+                "`2.` Zibbowar · Schutz – **Bank**",
+                "",
+                when,
+                "⏳ Der Raid ist voll (10/10) – du stehst auf der Warteliste (Bank). Ob jemand nachrückt, entscheidet die Raidleitung.",
+            ].join("\n"),
+            color: 0x112233,
+        });
+        expect(savedEmbed(event, { status: "absence", comment: "Arbeit" }, profile).title).toBe("Abgemeldet von Karazhan");
+    });
+
     it("a sign-off names the raid in the title and the reason below", () => {
-        expect(savedEmbed(event, { status: "absence", comment: "Arbeit" }, profile)).toEqual({
+        expect(savedEmbed(event, { status: "absence", comment: "Arbeit" }, profile, { lang: "en" })).toEqual({
             title: "Signed off from Karazhan",
             description: `Reason: Arbeit\n\n${when}`,
             color: 0x112233,
         });
         const noStart = ownEvent({ startTime: undefined });
-        expect(savedEmbed(noStart, null, profile)).toEqual({
+        expect(savedEmbed(noStart, null, profile, { lang: "en" })).toEqual({
             title: "Signed off from Karazhan",
             color: embedColor(noStart),
         });

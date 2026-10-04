@@ -379,6 +379,8 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .savebar-list { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; cursor: default; }
 
 /* ===== Spielversion: "Andere Versionen ausblenden" (#563) ===== */
+.bot-lang { margin-bottom: 16px; }
+.bot-lang .seg { align-self: flex-start; }
 .gv-hide { margin-top: 16px; }
 .gv-hide-row { display: flex; align-items: flex-start; gap: 14px; }
 .gv-hide-row .switch { margin-top: 2px; }

@@ -66,7 +66,7 @@ describe("state in customIds", () => {
 describe("buildSignupDialog", () => {
     it("shows the raid head with role counts and picks the main's first spec", () => {
         mocks.signups.set("eh-kara/1", { userId: "1", status: "signed", role: "tank", spec: "Warrior-Protection" });
-        const payload = dialog.buildSignupDialog(mocks.events.get("eh-kara"), ANNA);
+        const payload = dialog.buildSignupDialog(mocks.events.get("eh-kara"), ANNA, { lang: "en" });
         expect(payload.embeds[0].title).toBe("Karazhan");
         expect(payload.embeds[0].description).toContain("Tank 1/2 · Healer 0/3 · DPS 0/5");
         expect(payload.components.length).toBeLessThanOrEqual(5);
@@ -87,7 +87,7 @@ describe("buildSignupDialog", () => {
 
     it("prefills the current signup and names the status", () => {
         mocks.signups.set(`eh-kara/${ANNA}`, { userId: ANNA, character: "Nerasol", spec: "Priest-Holy", role: "healer", status: "late", canAlso: [], comment: "später" });
-        const payload = dialog.buildSignupDialog(mocks.events.get("eh-kara"), ANNA);
+        const payload = dialog.buildSignupDialog(mocks.events.get("eh-kara"), ANNA, { lang: "en" });
         expect(payload.embeds[0].description).toContain("Your status: **Late** · Nerasol · Holy · „später“");
         const [charSelect] = byPrefix(payload, "signup-pick:eh-kara:s");
         expect(charSelect.options.find((o) => o.default).value).toBe("nerasol|Priest-Holy");
@@ -96,7 +96,7 @@ describe("buildSignupDialog", () => {
 
     it("offers class and spec from the rule set without a profile, plus the link to the profile", () => {
         const event = mocks.events.get("eh-kara");
-        let payload = dialog.buildSignupDialog(event, NOBODY);
+        let payload = dialog.buildSignupDialog(event, NOBODY, { lang: "en" });
         expect(payload.embeds[0].description).toContain("[create a profile](https://eh.example/profile)");
         const [classSelect] = byPrefix(payload, "signup-pick:eh-kara:k");
         expect(classSelect.options).toHaveLength(9);
@@ -104,7 +104,7 @@ describe("buildSignupDialog", () => {
         expect(byPrefix(payload, "signup-status:").filter((b) => !b.disabled).map((b) => b.label)).toEqual(["Absence"]);
         expect(flat(payload).some((c) => c.label === "Create profile")).toBe(true);
 
-        payload = dialog.buildSignupDialog(event, NOBODY, { state: { character: "", spec: "Paladin-Holy", canAlso: [] } });
+        payload = dialog.buildSignupDialog(event, NOBODY, { state: { character: "", spec: "Paladin-Holy", canAlso: [] }, lang: "en" });
         const [specSelect] = byPrefix(payload, "signup-pick:eh-kara:s");
         expect(specSelect.options.map((o) => o.value)).toEqual(["|Paladin-Holy", "|Paladin-Protection", "|Paladin-Retribution"]);
         expect(byPrefix(payload, "signup-status:").every((b) => !b.disabled)).toBe(true);
@@ -113,10 +113,27 @@ describe("buildSignupDialog", () => {
 
     it("disables all but Spät and Abmelden after the deadline", () => {
         const event = mocks.ownEvent({ signupDeadline: Math.floor(Date.now() / 1000) - 60 });
-        const payload = dialog.buildSignupDialog(event, ANNA, { notice: "⚠️ Nope" });
+        const payload = dialog.buildSignupDialog(event, ANNA, { notice: "⚠️ Nope", lang: "en" });
         expect(payload.embeds[0].description).toContain("signup deadline has passed");
         expect(payload.embeds[0].description).toContain("⚠️ Nope");
         expect(byPrefix(payload, "signup-status:").filter((b) => !b.disabled).map((b) => b.label)).toEqual(["Late", "Absence"]);
+    });
+
+    it("spricht ohne Sprache Deutsch: Kopf, Auswahl, Buttons und der Hinweis des Dienstes", () => {
+        mocks.signups.set("eh-kara/1", { userId: "1", status: "signed", role: "tank", spec: "Warrior-Protection" });
+        mocks.signups.set(`eh-kara/${ANNA}`, { userId: ANNA, character: "Nerasol", spec: "Priest-Holy", role: "healer", status: "late", canAlso: [], comment: "" });
+        const payload = dialog.buildSignupDialog(mocks.events.get("eh-kara"), ANNA, { notice: "⚠️ Höchstens 3 Charaktere." });
+        const text = payload.embeds[0].description;
+        expect(text).toContain("Tank 1/2 · Heiler 1/3 · DPS 0/5");
+        expect(text).toContain("Dein Status: **Spät** · Nerasol · Heilig");
+        // a German service message stays as the service wrote it
+        expect(text).toContain("⚠️ Höchstens 3 Charaktere.");
+        const [charSelect] = byPrefix(payload, "signup-pick:eh-kara:s");
+        expect(charSelect.options.find((o) => o.value === "nerathil|Mage-Arcane")).toMatchObject({ label: "Nerathil · Arkan", description: "Gear raidbereit" });
+        expect(byPrefix(payload, "signup-status:").map((b) => b.label)).toEqual(["Anmelden", "Vielleicht", "Spät", "Bank", "Abmelden"]);
+        expect(flat(payload).some((c) => c.label === "Im Web öffnen")).toBe(true);
+        expect(dialog.savedNotice({ status: "late", character: "Nerasol", spec: "Priest-Holy" }, profiles.getProfile(ANNA))).toBe("✅ Gespeichert: **Spät** (Nerasol · Heilig)");
+        expect(dialog.buildCommentModal("x").toJSON().title).toBe("Kommentar");
     });
 
     it("ignores a state that names somebody else's character", () => {
@@ -131,7 +148,7 @@ describe("main version (#541)", () => {
     });
 
     it("asks for a last name without a version only when the main version has them", () => {
-        const modal = (opts) => JSON.stringify(dialog.buildCharacterModal("x", opts).toJSON());
+        const modal = (opts) => JSON.stringify(dialog.buildCharacterModal("x", { lang: "en", ...opts }).toJSON());
         expect(modal({})).toBe(modal({ versionId: "tbc" }));
         mockConfig = { mainVersion: "forever" };
         expect(modal({})).toBe(modal({ versionId: "forever" }));

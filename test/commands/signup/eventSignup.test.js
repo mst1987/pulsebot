@@ -25,6 +25,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
+    mocks.access.config = { botLanguage: "en" };
     mocks.events.set("eh-kara", mocks.ownEvent());
 });
 
@@ -46,7 +47,7 @@ describe("commands/signup/eventSignup", () => {
 
     it("refuses a member without the category's raider role instead of opening the dialog", async () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-kara", guildId: "g-event" }));
-        mocks.access.config = { categoryRoles: { "cat-kara": ["role-kara"] } };
+        mocks.access.config = { botLanguage: "en", categoryRoles: { "cat-kara": ["role-kara"] } };
         mocks.access.roleIds = ["role-other"];
         let interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
         await command.execute(interaction);

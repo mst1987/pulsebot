@@ -20,6 +20,7 @@ const {
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 const { tempStoreFile } = require("../../helpers/tempStore");
+const userPrefs = require("../../../src/stores/userPrefsStore");
 
 const ANNA = "200000000000000001";
 const sec = () => Math.floor(Date.now() / 1000);
@@ -38,6 +39,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
+    mocks.access.config = { botLanguage: "en" };
     mocks.events.set("eh-kara", mocks.ownEvent());
 });
 
@@ -309,13 +311,13 @@ describe("commands/signup/eventButton", () => {
         it("a category without messages asks nothing; one that requires them insists", async () => {
             twoCharacters();
             mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
-            mocks.access.config = { categorySignupNotes: { "cat-1": "none" } };
+            mocks.access.config = { botLanguage: "en", categorySignupNotes: { "cat-1": "none" } };
             const plain = click("tentative");
             await command.execute(plain);
             expect(plain.showModal).not.toHaveBeenCalled();
             expect(selectOf(replyOf(plain)).custom_id).toBe("event-btn:eh-kara:pick:t");
 
-            mocks.access.config = { categorySignupNotes: { "cat-1": "required" } };
+            mocks.access.config = { botLanguage: "en", categorySignupNotes: { "cat-1": "required" } };
             const strict = click("tentative");
             await command.execute(strict);
             expect(strict.showModal.mock.calls[0][0].toJSON().components[0].components[0]).toMatchObject({ required: true, min_length: 2 });
@@ -353,7 +355,7 @@ describe("commands/signup/eventButton", () => {
 
             // what the channel sees, built from the same store
             const { _internal: { buildEventMessage } } = require("../../../src/services/events/eventMessage");
-            const payload = buildEventMessage(mocks.events.get("eh-kara"), mocks.signupStore().listSignups("eh-kara"));
+            const payload = buildEventMessage(mocks.events.get("eh-kara"), mocks.signupStore().listSignups("eh-kara"), { lang: "en" });
             const lines = payload.embeds[0].fields.find((f) => !f.inline && /Bench|Absence/.test(f.value)).value.split("\n");
             expect(lines).toEqual(["Bench (1): `1` Devire"]);
         });
@@ -426,7 +428,7 @@ describe("commands/signup/eventButton", () => {
 
         it("follows the category: required insists, none signs off at once", async () => {
             mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
-            mocks.access.config = { categorySignupNotes: { "cat-1": "required" } };
+            mocks.access.config = { botLanguage: "en", categorySignupNotes: { "cat-1": "required" } };
             const btn = click("absence");
             await command.execute(btn);
             expect(btn.showModal.mock.calls[0][0].toJSON().components[0].components[0]).toMatchObject({ required: true, min_length: 2 });
@@ -435,7 +437,7 @@ describe("commands/signup/eventButton", () => {
             expect(answerOf(replyOf(short))).toMatchObject({ title: "", description: "Please leave a short message." });
             expect(stored()).toBeUndefined();
 
-            mocks.access.config = { categorySignupNotes: { "cat-1": "none" } };
+            mocks.access.config = { botLanguage: "en", categorySignupNotes: { "cat-1": "none" } };
             const direct = click("absence");
             await command.execute(direct);
             expect(direct.showModal).not.toHaveBeenCalled();
@@ -445,7 +447,7 @@ describe("commands/signup/eventButton", () => {
 
         it("posts the message to the orga's channel, pinging nobody", async () => {
             twoCharacters();
-            mocks.access.config = { discordServers: { signupNoteChannelId: "777777" } };
+            mocks.access.config = { botLanguage: "en", discordServers: { signupNoteChannelId: "777777" } };
             await command.execute(withComponent(mockInteraction({ customId: "event-btn:eh-kara:pick:s", userId: ANNA, values: ["zibbo|Priest-Holy"] }), null));
             expect(mocks.postNotice).not.toHaveBeenCalled();
             await command.execute(mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } }));
@@ -492,12 +494,13 @@ describe("commands/signup/eventButton", () => {
             await command.execute(cancelled);
             expect(cancelled.showModal).not.toHaveBeenCalled();
             expect(answerOf(replyOf(cancelled))).toMatchObject({ title: "", description: "The event was cancelled." });
-            expect(refusal(null, "signed")).toBe("This event no longer exists.");
+            expect(refusal(null, "signed", Date.now(), "en")).toBe("This event no longer exists.");
+            expect(refusal(null, "signed")).toBe("Dieses Event gibt es nicht mehr.");
         });
 
         it("asks for the raider role before anything else", async () => {
             twoCharacters();
-            mocks.access.config = { categoryRoles: { "cat-1": ["role-raider"] } };
+            mocks.access.config = { botLanguage: "en", categoryRoles: { "cat-1": ["role-raider"] } };
             mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
             mocks.access.roleIds = ["other"];
             const i = click("join");
@@ -522,10 +525,10 @@ describe("commands/signup/eventButton", () => {
 // A hidden game version (#563): the buttons under an old message only say the raid is archived.
 describe("event buttons of an archived raid (#563)", () => {
     beforeEach(() => {
-        mocks.access.config = { mainVersion: "forever", hideOtherVersions: true };
+        mocks.access.config = { botLanguage: "en", mainVersion: "forever", hideOtherVersions: true };
     });
     afterEach(() => {
-        mocks.access.config = {};
+        mocks.access.config = { botLanguage: "en" };
     });
 
     it("answers a click with an ephemeral English embed and saves nothing", async () => {
@@ -550,5 +553,81 @@ describe("event buttons of an archived raid (#563)", () => {
         const i = click("join");
         await command.execute(i);
         expect(answerOf(replyOf(i)).title).not.toBe("This raid is archived");
+    });
+});
+
+// The bot speaks German by default; a raider's own choice (/language) wins over the server language.
+describe("Sprache der Antworten", () => {
+    beforeAll(() => userPrefs.useFile(tempStoreFile("eh-cmd-event-button-prefs.json")));
+    afterAll(() => userPrefs.useFile(null));
+    beforeEach(() => {
+        mocks.access.config = {};
+    });
+    afterEach(() => {
+        userPrefs.clearLang(ANNA);
+    });
+
+    it("antwortet ohne eigene Wahl in der Server-Sprache Deutsch", async () => {
+        profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        const i = click("join");
+        await command.execute(i);
+        expect(answerOf(replyOf(i))).toMatchObject({ title: "Gespeichert für Karazhan", body: "`1.` Zibbo · Heilig – **Dabei**" });
+    });
+
+    it("fragt beim Abmelden auf Deutsch und bestätigt auf Deutsch", async () => {
+        const btn = click("absence");
+        await command.execute(btn);
+        const modal = btn.showModal.mock.calls[0][0].toJSON();
+        expect(modal.title).toBe("Abmelden");
+        expect(modal.components[0].components[0].label).toBe("Nachricht an die Raidleitung (optional)");
+        const submit = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } });
+        await command.execute(submit);
+        expect(answerOf(replyOf(submit))).toMatchObject({ title: "Abgemeldet von Karazhan", body: "Grund: Arbeit" });
+    });
+
+    it("zeigt die Charakter-Auswahl auf Deutsch", async () => {
+        twoCharacters();
+        const i = click("join");
+        await command.execute(i);
+        const payload = replyOf(i);
+        expect(payload.embeds[0].description).toContain("Wähle bis zu 2 Charaktere");
+        expect(selectOf(payload).options[0].description).toBe("raidbereit");
+        expect(payload.components[1].components[0].placeholder).toBe("Oder ein neuer Charakter: Klasse wählen …");
+    });
+
+    it("lässt die Ablehnung des Dienstes (Raider-Rolle) deutsch, wie der Dienst sie schreibt", async () => {
+        twoCharacters();
+        mocks.access.config = { categoryRoles: { "cat-1": ["role-raider"] } };
+        mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
+        mocks.access.roleIds = ["other"];
+        const i = click("join");
+        await command.execute(i);
+        expect(answerOf(replyOf(i)).description).toBe("Für diesen Raid brauchst du eine Raider-Rolle.");
+    });
+
+    it("nennt den Grund einer Ablehnung auf Deutsch", async () => {
+        mocks.events.set("eh-kara", mocks.ownEvent({ size: 0, status: "cancelled" }));
+        const i = click("late");
+        await command.execute(i);
+        expect(answerOf(replyOf(i)).description).toBe("Das Event wurde abgesagt.");
+    });
+
+    it("folgt der eigenen Wahl des Raiders (Englisch) trotz deutscher Server-Sprache", async () => {
+        userPrefs.setLang(ANNA, "en");
+        profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        const i = click("join");
+        await command.execute(i);
+        expect(answerOf(replyOf(i))).toMatchObject({ title: "Saved for Karazhan", body: "`1.` Zibbo · Holy – **Signed up**" });
+    });
+
+    it("folgt der englischen Server-Sprache", async () => {
+        mocks.access.config = { botLanguage: "en" };
+        const gone = mockInteraction({ customId: "event-btn:eh-weg:join", userId: ANNA });
+        await command.execute(gone);
+        expect(answerOf(replyOf(gone)).description).toBe("This event no longer exists.");
+        mocks.access.config = {};
+        const weg = mockInteraction({ customId: "event-btn:eh-weg:join", userId: ANNA });
+        await command.execute(weg);
+        expect(answerOf(replyOf(weg)).description).toBe("Dieses Event gibt es nicht mehr.");
     });
 });

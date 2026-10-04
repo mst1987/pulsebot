@@ -2,6 +2,8 @@ const { getEvent } = require("../../stores/eventStore");
 const { archivedNotice } = require("../../services/events/eventArchive");
 const { PICK_PREFIX, PICK_MINE, messageComponents } = require("../../services/events/eventMessage");
 const { onJoin, onClass, reply, emojisFor } = require("./eventButton");
+const { langOfInteraction } = require("../../services/discord/botLanguage");
+const { tr } = require("../../utils/i18n/botText");
 
 // The public signup select under an EventHelper event message (#303):
 //
@@ -38,8 +40,9 @@ module.exports = {
     async execute(interaction) {
         const [, eventId = ""] = String(interaction.customId || "").split(":");
         const event = getEvent(eventId);
-        if (!event) return reply(interaction, "This event no longer exists.");
-        const archived = archivedNotice(event);
+        const lang = langOfInteraction(interaction);
+        if (!event) return reply(interaction, tr(lang, "This event no longer exists."));
+        const archived = archivedNotice(event, { lang });
         if (archived) return reply(interaction, archived, event);
         await resetSelect(interaction, event);
         const value = String((interaction.values || [])[0] || "");

@@ -22,12 +22,14 @@ const { appEmojiMap, emojiText, statusEmojiName } = require("../discord/appEmoji
 const { messageUrl } = require("../events/eventAnnounce");
 const { embedAccentColor } = require("../../config/variables");
 const { isSnowflake } = require("../../utils/ids");
+const { serverLang } = require("../discord/botLanguage");
+const { tr } = require("../../utils/i18n/botText");
 
 const NOTE_MODES = ["required", "optional", "none"];
 const NOTE_STATUSES = ["tentative", "absence"];
 const MIN_NOTE = 2;
 const MAX_NOTE = 100;
-// What the post calls the status (raider-facing bot text is English).
+// What the post calls the status (English, translated with tr(lang, STATUS_TEXT[status])).
 const STATUS_TEXT = { tentative: "Tentative", absence: "Absent" };
 
 /** The category's note mode: "required" | "optional" | "none" (missing = "optional"). */
@@ -92,8 +94,9 @@ function plainText(text) {
  * bar "Notification received!", who signed up as what with their reason, and
  * a closing line with the raid). `<@id>` shows the name; discord.postNotice
  * pings nobody. Returned as `{ embeds: [...] }`, ready for `discord.postNotice`.
+ * The channel is the orga's, one post for everybody: the server language (`lang`).
  */
-function buildNotePost(event, signup, { emojis = {} } = {}) {
+function buildNotePost(event, signup, { emojis = {}, lang = "de" } = {}) {
     const title = plainText((event && event.title) || "Raid") || "Raid";
     const url = messageUrl(event);
     const start = Number(event && event.startTime) || 0;
@@ -102,7 +105,8 @@ function buildNotePost(event, signup, { emojis = {} } = {}) {
     const who = [mention, characterName(signup) ? `(${plainText(characterName(signup))})` : ""].filter(Boolean).join(" ");
     const raidLink = url ? `[${title}](${url})` : title;
     const footer = [mention, "|", `**${raidLink}**`, start ? `<t:${start}:f>` : ""].filter(Boolean).join(" ");
-    const headline = [`**${who}**`, "signed up as", icon, `**${STATUS_TEXT[signup.status] || signup.status}**`, "with the following reason:"].filter(Boolean).join(" ");
+    const statusText = [icon, `**${STATUS_TEXT[signup.status] ? tr(lang, STATUS_TEXT[signup.status]) : signup.status}**`].filter(Boolean).join(" ");
+    const headline = tr(lang, "{who} signed up as {status} with the following reason:", { who: `**${who}**`, status: statusText });
     const description = [
         headline,
         "",
@@ -110,7 +114,7 @@ function buildNotePost(event, signup, { emojis = {} } = {}) {
         "",
         footer,
     ].join("\n");
-    return { embeds: [{ color: embedAccentColor, title: "Notification received!", description }] };
+    return { embeds: [{ color: embedAccentColor, title: tr(lang, "Notification received!"), description }] };
 }
 
 /**
@@ -126,7 +130,7 @@ async function postSignupNote(event, signup, previous, { config = getConfig(), b
     if (noteMode(event && event.categoryId, config) === "none") return { posted: false, skipped: "off" };
     const channelId = noteChannelFor(event && event.categoryId, config, { reachable: discord.channelVisible });
     if (!channelId) return { posted: false, skipped: "no_channel" };
-    const post = buildNotePost(event, signup, { emojis: appEmojiMap() });
+    const post = buildNotePost(event, signup, { emojis: appEmojiMap(), lang: serverLang(config) });
     // A category's own channel that refuses the post (gone, no rights) falls
     // back to the default channel, so the message is not lost silently.
     const fallback = noteChannelId(config);

@@ -6,7 +6,7 @@ jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupM
 const { answerOf } = require("../../helpers/signupMocks");
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/services/events/eventMessage", () => ({ SIGNUP_BUTTON_PREFIX: "event-signup" }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ botLanguage: "en" })) }));
 jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn(), fetchGuildMembersCached: jest.fn(), getClient: jest.fn() }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));

@@ -50,6 +50,8 @@ export type AdminConfig = {
     categoryVersion?: Record<string, string>;
     /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
     hideOtherVersions?: boolean;
+    /** Language of the bot's public messages and default for every raider; missing = "de". */
+    botLanguage?: "de" | "en";
     /**
      * Settings per game version (#542): armory realm, armory/WCL templates,
      * Wowhead path, softres edition, default raidsheet. Every known version is

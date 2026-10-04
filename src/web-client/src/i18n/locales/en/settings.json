@@ -158,7 +158,8 @@
         "hideOtherOff": "Hide other versions off",
         "followMain": "main version",
         "versionSettings": "Links and armory · {value}",
-        "planning": "{name} · planning → {value}"
+        "planning": "{name} · planning → {value}",
+        "botLanguage": "Bot language: {value}"
     },
     "lootTool": {
         "none": "none"
@@ -929,5 +930,12 @@
     "planning": {
         "raidplan": "Raid plan",
         "sheet": "Sheet"
+    },
+    "botLanguage": {
+        "label": "Bot language",
+        "aria": "Language of the bot messages",
+        "de": "Deutsch",
+        "en": "English",
+        "text": "Language of the bot's public messages (signup message, setup, overview, panels) and the default for every raider. Everyone can pick their own language with /language or the DE/EN switch at the top."
     }
 }
