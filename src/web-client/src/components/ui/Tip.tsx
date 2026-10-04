@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { tipPosition } from "../../lib/popoverPosition";
+import { tipPosition, tipPositionRight } from "../../lib/popoverPosition";
 import { tipParts } from "../../lib/tipParts";
 
 // Tooltips: the page's own box, never the browser's `title`. The native box
@@ -71,9 +71,13 @@ export function TipLayer() {
 
         // The same placement as every other tooltip (lib/popoverPosition.ts, ui/Popover): the one box is
         // driven by the DOM here rather than rendered per anchor, so it only borrows the placement.
+        // `data-tip-side="right"` (the icon rail, components/SectionRail.tsx) puts it beside the anchor.
         const place = (t: Element) => {
             const b = box.getBoundingClientRect();
-            const p = tipPosition(t.getBoundingClientRect(), { width: b.width, height: b.height }, { width: window.innerWidth, height: window.innerHeight });
+            const view = { width: window.innerWidth, height: window.innerHeight };
+            const p = t.getAttribute("data-tip-side") === "right"
+                ? tipPositionRight(t.getBoundingClientRect(), { width: b.width, height: b.height }, view)
+                : tipPosition(t.getBoundingClientRect(), { width: b.width, height: b.height }, view);
             box.style.left = `${p.left}px`;
             box.style.top = `${p.top}px`;
         };
@@ -81,6 +85,10 @@ export function TipLayer() {
             if (cur === t) return;
             const tip = t.getAttribute("data-tip") || "";
             if (!tip) return;
+            // A tip that only repeats the anchor's own label (`data-tip-repeats`,
+            // the label marked `data-tip-label`) stays away while that label is
+            // on screen: the rail's icons get it, the chip row showing the names does not.
+            if (t.hasAttribute("data-tip-repeats") && t.querySelector("[data-tip-label]")?.getClientRects().length) return;
             cur = t;
             const parts = tipParts(tip, t.getAttribute("data-tip-sub"));
             box.replaceChildren();

@@ -186,20 +186,22 @@ describe("the pages", () => {
     it("reaches the template page and the catalog from the menu and the router, in the raidplan area", () => {
         expect(app).toMatch(/path="raids\/plan-templates" element=\{<Guard user=\{user\} areas=\{\["raidplan"\]\}><RaidplanTemplatesPage \/><\/Guard>\}/);
         expect(app).toMatch(/path="raids\/plan-catalog" element=\{<Guard user=\{user\} areas=\{\["raidplan"\]\}><RaidplanCatalogPage \/><\/Guard>\}/);
-        // in the menu (a sub entry of Raid-Events, coloured like it), no longer a button in the page head
+        // sub entries of Raid-Events (coloured like it), no longer a button in the page head: the
+        // pages of the family are linked by the icon rail on all three (components/SectionRail.tsx,
+        // which only offers the pages the account may open — SectionRail.test.tsx)
         expect(read("pages/RaidsPage.tsx")).not.toContain("/raids/plan-templates");
         const menu = require("../../../src/config/menu.json");
         for (const id of ["planTemplates", "planCatalog"]) {
             expect(menu.find((e) => e.id === id)).toMatchObject({ areas: ["raidplan"], area: "raids", sub: true });
         }
-        expect(read("components/Shell.tsx")).toContain("/raids/plan-templates");
-        // both pages write only with raidplan write, and point back to the raid list only for who may open it
+        for (const page of ["pages/RaidsPage.tsx", "pages/RaidplanTemplatesPage.tsx", "pages/RaidplanCatalogPage.tsx"]) {
+            expect(read(page)).toContain("<MenuRailPage user={user} parent=\"raids\">");
+        }
+        // both pages write only with raidplan write; the rail replaced their "back to the raid list" links
         for (const page of ["pages/RaidplanTemplatesPage.tsx", "pages/RaidplanCatalogPage.tsx"]) {
             expect(read(page)).toContain("const canWrite = canAccess(user, \"raidplan\", \"write\");");
+            expect(read(page)).not.toContain("planTemplates.back\"");
         }
-        expect(read("pages/RaidplanCatalogPage.tsx")).toContain("{canAccess(user, \"raids\") && <p className=\"note\"><Link className=\"mlink\" to=\"/raids\">");
-        expect(read("pages/RaidplanTemplatesPage.tsx")).toContain("backToRaids={canAccess(user, \"raids\")}");
-        expect(read("pages/RaidplanTemplatesPage.tsx")).toContain("{backToRaids && <p className=\"note\"><Link className=\"mlink\" to=\"/raids\">");
     });
 });
 
