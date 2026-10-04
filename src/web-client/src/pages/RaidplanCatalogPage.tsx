@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
-import { Link, useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router-dom";
 import {
     canAccess, deleteCatalogEntry, getGameVersions, getRaidplanCatalog, resetCatalogEntry, saveCatalogEntry,
     type ApiError, type CatalogAdmin, type CatalogMob, type CatalogSpell } from "../api";
 import { useApi } from "../hooks/useApi";
 import type { ShellContext } from "../components/Shell";
+import { MenuRailPage } from "../components/SectionRail";
 import { useToast } from "../components/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
@@ -34,10 +35,15 @@ type VersionInfo = { id: string; short: string; label: string };
  * /api/game-versions' `defaultVersion`); a new entry starts in the version shown, the form's chips set its versions.
  */
 export default function RaidplanCatalogPage() {
+    const { user } = useOutletContext<ShellContext>();
+    // beside the rail of Raid-Events' pages (components/SectionRail.tsx)
+    return <MenuRailPage user={user} parent="raids"><Catalog user={user} /></MenuRailPage>;
+}
+
+function Catalog({ user }: ShellContext) {
     const t = useT();
     const toast = useToast();
     const ask = useConfirm();
-    const { user } = useOutletContext<ShellContext>();
     const canWrite = canAccess(user, "raidplan", "write");
     const catalog = useApi(() => getRaidplanCatalog(), []);
     const { data, setData } = catalog;
@@ -130,7 +136,6 @@ export default function RaidplanCatalogPage() {
     const hidden = ((which === "mobs" ? data.hidden.mobs : data.hidden.spells) as (CatalogMob | CatalogSpell)[]).filter((e) => inVersion(e, version));
     return (
         <div className="rp-catalog">
-            {canAccess(user, "raids") && <p className="note"><Link className="mlink" to="/raids">{t("planTemplates.back")}</Link></p>}
             <PageHead
                 icon="inv_misc_book_09" tone="raids" kicker={t("planTemplates.kicker")} title={t("catalog.title")}
                 action={canWrite ? <Button onClick={() => setDraft(which === "mobs" ? { kind: "add", instanceId: "", bossKey: "", versions: [version] } : { type: "curse", classes: [], versions: [version] })}><Plus size={16} /> {t(which === "mobs" ? "catalog.newMob" : "catalog.newSpell")}</Button> : undefined}

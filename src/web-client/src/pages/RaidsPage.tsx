@@ -7,6 +7,7 @@ import { usePersistedSearchParam, usePersistedState } from "../lib/persistedStat
 import { knownContents, raidIconName } from "../lib/raidIcons";
 import type { ShellContext } from "../components/Shell";
 import { UpcomingRaidList, PastRaidList } from "../components/RaidList";
+import { MenuRailPage } from "../components/SectionRail";
 import RaidCreateDialog from "../components/raid-create/RaidCreateDialog";
 import IconTile from "../components/ui/IconTile";
 import Badge from "../components/ui/Badge";
@@ -68,9 +69,14 @@ function ViewSwitch({ value, onChange, counts }: { value: View; onChange: (v: Vi
     );
 }
 
+/** The raid list beside the rail of Raid-Events' pages (Raidplan-Vorlagen, -Katalog; components/SectionRail.tsx). */
 export default function RaidsPage() {
-    const t = useT();
     const { user } = useOutletContext<ShellContext>();
+    return <MenuRailPage user={user} parent="raids"><RaidsList user={user} /></MenuRailPage>;
+}
+
+function RaidsList({ user }: ShellContext) {
+    const t = useT();
     const location = useLocation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();

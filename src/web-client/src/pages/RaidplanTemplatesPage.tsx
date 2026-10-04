@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Copy, RotateCw, Search, Settings2, Trash2 } from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
@@ -12,6 +12,7 @@ import {
     boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, sameBosses, startSection, toSave,
 } from "../lib/raidplan";
 import type { ShellContext } from "../components/Shell";
+import { MenuRailPage } from "../components/SectionRail";
 import { useToast } from "../components/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
@@ -80,13 +81,19 @@ export default function RaidplanTemplatesPage() {
     const templates = loaded.data;
     const setTemplates = loaded.setData;
 
-    if (loaded.error) return <div className="empty">{t("planTemplates.loadError", { message: loaded.error.message })}</div>;
-    if (!templates) return <RaidLoader text={t("planTemplates.loading")} />;
+    // The list sits beside the rail of Raid-Events' pages (components/SectionRail.tsx);
+    // the editor of one template takes the whole width without it.
+    const inRail = (page: ReactNode) => <MenuRailPage user={user} parent="raids">{page}</MenuRailPage>;
+    const editing = !!editor.editId && !editor.isNew;
+    if (loaded.error) {
+        const msg = <div className="empty">{t("planTemplates.loadError", { message: loaded.error.message })}</div>;
+        return editing ? msg : inRail(msg);
+    }
+    if (!templates) return editing ? <RaidLoader text={t("planTemplates.loading")} /> : inRail(<RaidLoader text={t("planTemplates.loading")} />);
 
     const current = editor.editId ? templates.find((x) => x.id === editor.editId) || null : null;
     const versionOf = (id: string) => versions.find((v) => v.id === id) || null;
     const shownVersion = picked || mainVersion;
-
 
     if (current) {
         return (
@@ -97,11 +104,11 @@ export default function RaidplanTemplatesPage() {
         );
     }
 
-    return (
+    return inRail(
         <TemplateList
             templates={ofVersion(templates, shownVersion)} version={versionOf(shownVersion)} versionOf={versionOf} guilds={guilds} canWrite={canWrite}
-            backToRaids={canAccess(user, "raids")} isNew={editor.isNew} onNew={editor.startNew} onCloseNew={editor.close} onOpen={editor.startEdit} onTemplates={setTemplates}
-        />
+            isNew={editor.isNew} onNew={editor.startNew} onCloseNew={editor.close} onOpen={editor.startEdit} onTemplates={setTemplates}
+        />,
     );
 }
 
@@ -150,7 +157,7 @@ function TemplateThumb({ tpl }: { tpl: RaidplanTemplate }) {
 }
 
 /** The overview: search and filters, then one card per template — newest change first. */
-function TemplateList({ templates, version, versionOf, guilds, canWrite, backToRaids, isNew, onNew, onCloseNew, onOpen, onTemplates }: {
+function TemplateList({ templates, version, versionOf, guilds, canWrite, isNew, onNew, onCloseNew, onOpen, onTemplates }: {
     /** the templates of the version shown (#544) */
     templates: RaidplanTemplate[];
     /** the game version shown: its instances, and the version a new template is made for */
@@ -160,7 +167,6 @@ function TemplateList({ templates, version, versionOf, guilds, canWrite, backToR
     guilds: SessionGuild[];
     canWrite: boolean;
     /** the link back to the raid list, only for who may open it (the raid plan is its own area) */
-    backToRaids: boolean;
     isNew: boolean;
     onNew: () => void;
     onCloseNew: () => void;
@@ -207,7 +213,6 @@ function TemplateList({ templates, version, versionOf, guilds, canWrite, backToR
 
     return (
         <div className="rp-templates">
-            {backToRaids && <p className="note"><Link className="mlink" to="/raids">{t("planTemplates.back")}</Link></p>}
             <PageHead
                 icon="inv_misc_map02" tone="raids" kicker={t("planTemplates.kicker")} title={t("planTemplates.title")}
                 meta={<Badge count>{templates.length}</Badge>}

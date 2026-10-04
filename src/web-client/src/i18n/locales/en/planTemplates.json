@@ -1,7 +1,6 @@
 {
     "loadError": "Error while loading the templates: {message}",
     "loading": "Loading templates",
-    "back": "← Back to raid events",
     "backToList": "← All templates",
     "kicker": "Raid events",
     "title": "Raid plan templates",

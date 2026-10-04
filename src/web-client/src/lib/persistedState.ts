@@ -131,8 +131,9 @@ export function useDraftState<T extends object>(key: string, initial: T): [T, (f
  * `mutate` to drop or rewrite the ones that must not survive the switch.
  *
  * `rememberLinked` also remembers a value that arrived through a link — for a
- * page whose views are opened from the main menu's links (the Einstellungen
- * sections), so the plain menu entry later lands on the one opened last.
+ * page whose views are also opened through links from elsewhere (the
+ * Einstellungen sections a hint names), so the plain menu entry later lands on
+ * the one opened last.
  */
 export function usePersistedSearchParam<T extends string>(
     key: string,

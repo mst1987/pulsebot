@@ -31,6 +31,19 @@ export function tipPosition(anchor: Rect, box: Size, viewport: Size, gap = 9): {
     return { left: Math.max(VIEWPORT_MARGIN, Math.min(x, viewport.width - box.width - VIEWPORT_MARGIN)), top: y };
 }
 
+/**
+ * A tooltip to the right of its anchor, vertically centred on it — for a narrow
+ * column of icon buttons (components/SectionRail.tsx), where a box above would
+ * cover the button before it. Without room on the right it falls back to
+ * tipPosition.
+ */
+export function tipPositionRight(anchor: Rect, box: Size, viewport: Size, gap = 9): { left: number; top: number } {
+    const left = anchor.right + gap;
+    if (left + box.width > viewport.width - VIEWPORT_MARGIN) return tipPosition(anchor, box, viewport, gap);
+    const top = anchor.top + anchor.height / 2 - box.height / 2;
+    return { left, top: Math.max(VIEWPORT_MARGIN, Math.min(top, viewport.height - box.height - VIEWPORT_MARGIN)) };
+}
+
 /** A menu under its button, its right edge on the button's right edge. */
 export function belowEndPosition(anchor: Rect, viewport: Size, gap = 6): { top: number; right: number } {
     return { top: anchor.bottom + gap, right: Math.max(VIEWPORT_MARGIN, viewport.width - anchor.right) };

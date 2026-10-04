@@ -1,26 +1,21 @@
-import { Fragment, Suspense, useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Suspense, useState } from "react";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import LangToggle from "./LangToggle";
 import GuildSwitcher from "./GuildSwitcher";
 import ContentSwitch from "./ContentSwitch";
 import ContentVersionProvider from "./ContentVersionProvider";
 import { ViewAsBanner, ViewAsButton } from "./ViewAs";
-import { CrestIcon, BurgerIcon, LogoutIcon, BookIcon, ChevronDownIcon } from "./icons";
+import { CrestIcon, BurgerIcon, LogoutIcon, BookIcon } from "./icons";
 import WowIcon from "./ui/WowIcon";
-import Badge from "./ui/Badge";
-import type { NavBadge } from "./SectionNav";
 import RaidLoader from "./ui/RaidLoader";
 import ChunkErrorBoundary from "./ChunkErrorBoundary";
 import { IconButton } from "./ui/Button";
 import { TipLayer } from "./ui/Tip";
-import { MENU, firstAllowedTab, type MenuEntry } from "../lib/menu";
-import { canAccess, canAccessAny, getVersion, type SessionUser, type SessionGuild, type ContentInfo } from "../api";
+import { MENU, firstAllowedTab, matchesHref, menuLabel, menuLines } from "../lib/menu";
+import { canAccess, getVersion, type SessionUser, type SessionGuild, type ContentInfo } from "../api";
 import { useApi } from "../hooks/useApi";
 import { deployLine } from "../lib/deployVersion";
-import { usePersistedState } from "../lib/persistedState";
-import { groupLabel, resolveSection, sectionLabel, visibleSections } from "../lib/settingsSections";
-import { loadSettingsNav, sectionBadge, useSettingsNav } from "../lib/settingsNav";
 import { t as tr, tOr, useLang, useT } from "../i18n";
 
 export type ShellContext = { user: SessionUser };
@@ -30,22 +25,8 @@ export type ShellContext = { user: SessionUser };
 // permission areas from src/config/permissions.js: a tab appears when the
 // user's rights cover *one* of them (the API enforces it for real, see
 // src/web/apiAccess.js).
-type Tab = MenuEntry;
-export const TABS: Tab[] = MENU;
-
-
-// Matches a tab's own path or one of its sub-routes (e.g. "/raids/new" under "/raids").
-function matchesTab(tabHref: string, pathname: string): boolean {
-    return pathname === tabHref || (tabHref !== "/" && pathname.startsWith(`${tabHref}/`));
-}
-
-/** A menu entry's label in the active language (menu.json holds the German one). */
-function tabLabel(tab: Tab): string {
-    return tOr(`shell.menu.${tab.id}`, tab.label);
-}
-
 function crumbTab(pathname: string) {
-    return TABS.find((t) => matchesTab(t.href, pathname));
+    return MENU.find((t) => matchesHref(t.href, pathname));
 }
 
 // Optional third breadcrumb segment for a page nested one level under its tab
@@ -66,127 +47,20 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
     return null;
 }
 
-/** The folded-out state per entry id; an entry left out opens while its page is the current one. */
-type OpenGroups = Record<string, boolean>;
-
-/** One child of a menu entry: a sub page (Raidplan-Vorlagen) or a settings section. */
-type NavKid = {
-    id: string;
-    href: string;
-    label: string;
-    icon: string;
-    active: boolean;
-    /** The small heading above it (the settings section groups), printed once per run. */
-    group?: string;
-    badge?: NavBadge | null;
-};
-
 /**
- * The children an entry folds out in the menu: the sub entries of menu.json
- * under it (Raid-Events → Raidplan-Vorlagen, Raidplan-Katalog), and for
- * "Einstellungen" the sections of the settings page — the same list, groups,
- * icons and badges the page's own column used to show (lib/settingsNav.ts).
+ * The main menu: short and flat, one line per entry (design "C · Schmale
+ * Icon-Leiste"). A page with sub sections carries them in its own icon rail
+ * (components/SectionRail.tsx) — Einstellungen its sections, Raid-Events the
+ * raid plan's pages — and its line here stays active on every one of them.
  */
-function useNavKids(user: SessionUser, allowed: Tab[]) {
-    const { pathname, search } = useLocation();
-    const settingsNav = useSettingsNav();
-    // a sub entry folds under its parent only while that is shown too (Raidplan-Vorlagen without Raid-Events: its own area)
-    const parentOf = (tab: Tab) => (tab.sub ? allowed.find((o) => !o.sub && o.href !== "/" && tab.href.startsWith(`${o.href}/`)) : undefined);
-    const onSettings = pathname === "/settings";
-    const sections = visibleSections(user.isAdmin);
-    // the page knows the open section (remembered, legacy id); until it said so, the link's own
-    const param = new URLSearchParams(search).get("section");
-    const activeSection = onSettings ? (settingsNav.active || (param ? resolveSection(param, sections) : null)) : null;
-    const kidsOf = (tab: Tab): NavKid[] => {
-        if (tab.id === "settings") {
-            return sections.map((s) => ({
-                id: s.id,
-                href: `/settings?section=${s.id}`,
-                label: sectionLabel(s),
-                icon: s.icon,
-                active: activeSection === s.id,
-                group: groupLabel(s.group),
-                badge: sectionBadge(s.id, settingsNav.counts),
-            }));
-        }
-        return allowed.filter((o) => parentOf(o)?.id === tab.id).map((o) => ({
-            id: o.id, href: o.href, label: tabLabel(o), icon: o.wowIcon, active: matchesTab(o.href, pathname),
-        }));
-    };
-    return { top: allowed.filter((tab) => !parentOf(tab)), kidsOf, onSettings, hasCounts: !!settingsNav.counts };
-}
-
-/**
- * Scrolls the menu just enough to show `el`: its bottom edge first, but never
- * so far that its top (the group's own entry) leaves the menu.
- */
-function revealInMenu(menu: HTMLElement, el: HTMLElement) {
-    const box = menu.getBoundingClientRect();
-    const r = el.getBoundingClientRect();
-    if (r.bottom > box.bottom) menu.scrollTop += Math.min(r.bottom - box.bottom + 8, r.top - box.top - 8);
-    else if (r.top < box.top) menu.scrollTop -= box.top - r.top + 8;
-}
-
 function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => void }) {
     const t = useT();
-    let lastGroup: string | null = null;
     const { pathname } = useLocation();
-    const allowed = TABS.filter((tab) => canAccessAny(user, tab.areas));
-    const { top, kidsOf, onSettings, hasCounts } = useNavKids(user, allowed);
-    // Which groups are folded out, per browser: absent = automatic (open while
-    // its page is the current one), true/false = what the chevron last chose.
-    const [groups, setGroups] = usePersistedState<OpenGroups>("menu-groups", {});
-    const current = top.find((tab) => matchesTab(tab.href, pathname) && kidsOf(tab).length > 0)?.id || null;
-    const isOpen = (tab: Tab) => groups[tab.id] ?? tab.id === current;
-    const forget = (id: string) => setGroups((g) => {
-        if (!(id in g)) return g;
-        const next = { ...g };
-        delete next[id];
-        return next;
-    });
-    // Entering a group's page opens it again, even if it was folded away before.
-    useEffect(() => {
-        if (current) forget(current);
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- only on entering another group
-    }, [current]);
-    // The section badges outside the settings page: loaded once when the
-    // Einstellungen group is folded out before the page published them.
-    const settingsTab = top.find((tab) => tab.id === "settings");
-    const needCounts = !!settingsTab && isOpen(settingsTab) && !onSettings && !hasCounts;
-    useEffect(() => {
-        if (needCounts) void loadSettingsNav(user.isAdmin);
-    }, [needCounts, user.isAdmin]);
-    // Einstellungen sits at the foot of the menu, so its sections fold out below
-    // the fold of a laptop screen: the menu scrolls to the active child, and to
-    // a group the chevron just opened.
-    const navRef = useRef<HTMLElement>(null);
-    const revealRef = useRef<string | null>(null);
-    const activeKid = top.flatMap((tab) => kidsOf(tab)).find((k) => k.active)?.href || null;
-    useEffect(() => {
-        const navEl = navRef.current;
-        if (!navEl) return;
-        const opened = revealRef.current;
-        revealRef.current = null;
-        const target = opened
-            ? document.getElementById(`nav-kids-${opened}`)?.closest<HTMLElement>(".nav-node")
-            : navEl.querySelector<HTMLElement>(".nav-kid.active");
-        if (target) revealInMenu(navEl, target);
-    }, [activeKid, groups]);
-    // The menu gets shorter once the deploy line below it has loaded (or the
-    // window changes): the active child is shown again then.
-    useEffect(() => {
-        const navEl = navRef.current;
-        if (!navEl || typeof ResizeObserver === "undefined") return undefined;
-        const observer = new ResizeObserver(() => {
-            const kid = navEl.querySelector<HTMLElement>(".nav-kid.active");
-            if (kid) revealInMenu(navEl, kid);
-        });
-        observer.observe(navEl);
-        return () => observer.disconnect();
-    }, []);
+    const lines = menuLines(user);
+    let lastGroup: string | null = null;
     // The sidebar is always rendered, so it has to say something when a member's
     // account opens nothing at all — an empty column reads like a broken page.
-    if (!allowed.length) {
+    if (!lines.length) {
         return (
             <nav className="menu">
                 <div className="menu-label">{t("shell.noArea.label")}</div>
@@ -197,81 +71,23 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
         );
     }
     return (
-        <nav className="menu" ref={navRef}>
-            {top.map((tab) => {
-                const label = tab.group !== lastGroup ? tab.group : null;
-                lastGroup = tab.group;
-                const area = `area-${tab.area || tab.id}`;
-                const kids = kidsOf(tab);
-                const open = kids.length > 0 && isOpen(tab);
-                // The entry holds the open page in one of its children: marked,
-                // but not filled like the active entry itself. On the settings
-                // page that is always so — a section is always open there.
-                const holdsActive = kids.some((k) => k.active) || (tab.id === "settings" && onSettings);
-                const name = tabLabel(tab);
-                const kidsId = `nav-kids-${tab.id}`;
-                const link = (
-                    <NavLink
-                        to={tab.href}
-                        end={tab.href === "/"}
-                        // Clicking the entry goes to its page as always; the
-                        // group then opens because it is the current one.
-                        onClick={() => { forget(tab.id); onNavigate(); }}
-                        // the child is the page then, for a screen reader too
-                        aria-current={holdsActive ? "false" : "page"}
-                        className={({ isActive }) => `nav-item ${area}${holdsActive ? " has-active" : isActive ? " active" : ""}`}
-                    >
-                        <WowIcon name={tab.wowIcon} size={24} />
-                        <span>{name}</span>
-                    </NavLink>
-                );
-                let lastKidGroup: string | undefined;
+        <nav className="menu">
+            {lines.map(({ top, entry, hrefs }) => {
+                const label = top.group !== lastGroup ? top.group : null;
+                lastGroup = top.group;
+                const active = hrefs.some((href) => matchesHref(href, pathname));
                 return (
-                    <div key={tab.id}>
+                    <div key={top.id}>
                         {label && <div className="menu-label">{tOr(`shell.group.${label}`, label)}</div>}
-                        {kids.length === 0 ? link : (
-                            <div className={`nav-node${open ? " open" : ""}`}>
-                                <div className="nav-row">
-                                    {link}
-                                    <button
-                                        type="button"
-                                        className="nav-chev"
-                                        aria-expanded={open}
-                                        aria-controls={kidsId}
-                                        aria-label={t(open ? "shell.nav.collapse" : "shell.nav.expand", { name })}
-                                        onClick={() => {
-                                            revealRef.current = open ? null : tab.id;
-                                            setGroups((g) => ({ ...g, [tab.id]: !open }));
-                                        }}
-                                    >
-                                        <ChevronDownIcon />
-                                    </button>
-                                </div>
-                                <div className={`nav-kids ${area}`} id={kidsId} hidden={!open}>
-                                    {open && kids.map((kid) => {
-                                        const kidGroup = kid.group !== lastKidGroup ? kid.group : undefined;
-                                        lastKidGroup = kid.group;
-                                        return (
-                                            <Fragment key={kid.id}>
-                                                {kidGroup && <div className="nav-kid-label">{kidGroup}</div>}
-                                                <Link
-                                                    to={kid.href}
-                                                    onClick={onNavigate}
-                                                    className={`nav-kid${kid.active ? " active" : ""}`}
-                                                    aria-current={kid.active ? "page" : undefined}
-                                                >
-                                                    <WowIcon name={kid.icon} size={18} />
-                                                    <span className="nav-kid-text">{kid.label}</span>
-                                                    {kid.badge && kid.badge.count > 0 && (
-                                                        <Badge count size="sm" tone={kid.badge.tone} tip={kid.badge.tip}>{kid.badge.count}</Badge>
-                                                    )}
-                                                </Link>
-                                            </Fragment>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
+                        <Link
+                            to={entry.href}
+                            onClick={onNavigate}
+                            aria-current={active ? "page" : undefined}
+                            className={`nav-item area-${entry.area || entry.id}${active ? " active" : ""}`}
+                        >
+                            <WowIcon name={entry.wowIcon} size={24} />
+                            <span>{menuLabel(entry)}</span>
+                        </Link>
                     </div>
                 );
             })}
@@ -315,7 +131,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
     const initial = (user.name || "Admin").slice(0, 1).toUpperCase() || "A";
 
     const tab = crumbTab(location.pathname);
-    const label = tab ? tabLabel(tab) : t("shell.menu.home");
+    const label = tab ? menuLabel(tab) : t("shell.menu.home");
     const crumb = subCrumb(location.pathname, new URLSearchParams(location.search));
 
     return (

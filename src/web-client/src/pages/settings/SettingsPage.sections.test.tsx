@@ -1,12 +1,11 @@
-// The Einstellungen page's section chips and save bar: every section opens a
+// The Einstellungen page's section rail and save bar: every section opens a
 // panel, a limited settings user never sees the full-admin sections or the
 // credentials, an old section id lands where its setting lives now, and the
 // save bar follows the draft — sending the access fields only when the server
 // would accept them and never the connection blocks (each modal saves its own).
 //
-// On a wide screen the sections are the main menu's children (Shell.test.tsx);
-// the page publishes the open one and the badge counts for it. The chips are
-// for the narrow screen, where the menu is a drawer — that split is CSS
+// The sections are the page's icon rail (components/SectionRail.tsx) left of
+// the page; below 900 px the same markup is a chip row — that switch is CSS
 // (test/web-client/conventions/sectionNav.test.js).
 //
 // The big panels (permission matrix, category matrix, Discord servers) have
@@ -17,7 +16,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { AdminConfig, SettingsData } from "../../api";
 import { SETTINGS_SECTIONS, sectionLabel, visibleSections } from "../../lib/settingsSections";
-import { getSettingsNav, resetSettingsNav } from "../../lib/settingsNav";
 import { renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
 import SettingsPage from "./SettingsPage";
@@ -90,28 +88,31 @@ const entry = (label: string) => within(nav()).getByRole("button", { name: new R
 
 beforeEach(() => {
     window.localStorage.clear();
-    resetSettingsNav();
     vi.mocked(api.getSettings).mockReset().mockResolvedValue(settings());
     vi.mocked(api.updateSettings).mockReset().mockImplementation(async (partial) => ({ config: { ...config(), ...partial } as AdminConfig }));
     vi.mocked(api.getIngestTokens).mockReset().mockResolvedValue({ tokens: [] });
     vi.mocked(api.getAvailabilityPanels).mockReset().mockResolvedValue({ panels: [{ categoryId: "cat1", channelId: "n1", postedAt: 1, url: "" }] });
 });
 
-describe("what the main menu shows", () => {
-    it("publishes the open section and the badge counts, and takes the section back on leaving", async () => {
-        const view = renderPage(<SettingsPage />, { route: "/settings?section=verbindungen" });
-        // Bot online, but Battle.net, Warcraft Logs, the AI key and a loot-sync token missing; one active category.
-        await waitFor(() => expect(getSettingsNav()).toEqual({ active: "verbindungen", counts: { verbindungen: 4, discordserver: 0, kategorien: 1 } }));
-        view.unmount();
-        expect(getSettingsNav().active).toBeNull();
-        // the counts stay for the menu on the next page
-        expect(getSettingsNav().counts).not.toBeNull();
+describe("the section rail", () => {
+    it("sits left of the page head and the open section, which keeps its width rule", async () => {
+        const { container } = renderPage(<SettingsPage />, { route: "/settings?section=verbindungen" });
+        const rail = await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
+        expect(rail).toHaveClass("srail");
+        const layout = rail.closest(".srail-layout")!;
+        expect(layout).toHaveClass("settings-layout");
+        const main = layout.querySelector(":scope > .srail-main")!;
+        expect(main.querySelector(".settings-head")).not.toBeNull();
+        expect(container.querySelector(".srail-main > .settings-panel")).toHaveAttribute("data-section", "verbindungen");
+        // the section's own head with its name stays in the content
+        expect(main.querySelector(".settings-panel .part-head")).toHaveTextContent("Verbindungen");
     });
 
     it("counts the categories from the draft, so the badge follows an unsaved edit", async () => {
         vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ categoryIds: ["cat1", "cat2"] }) }));
         renderPage(<SettingsPage />, { route: "/settings?section=raidchars" });
-        await waitFor(() => expect(getSettingsNav()).toMatchObject({ active: "kategorien", counts: { kategorien: 2 } }));
+        await waitFor(() => expect(within(entry("Kategorien")).getByText("2")).toBeInTheDocument());
+        expect(entry("Kategorien")).toHaveAccessibleName("Kategorien · 2 aktive Raid-Kategorien");
     });
 
     it("remembers a section opened through a link, so the plain menu entry lands there next time", async () => {
@@ -123,20 +124,23 @@ describe("what the main menu shows", () => {
         await waitFor(() => expect(entry("Log-Auswertung")).toHaveAttribute("aria-current", "true"));
     });
 
-    it("keeps the chips in the page for the narrow screen, with the same badges", async () => {
-        renderPage(<SettingsPage />, { route: "/settings" });
-        const chips = await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
-        expect(chips).toHaveClass("section-nav");
-        expect(chips.closest(".settings-layout")).not.toBeNull();
+    it("keeps the page mounted on a pick, so an unsaved draft survives it", async () => {
+        const user = userEvent.setup();
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+        await user.selectOptions(await screen.findByRole("combobox", { name: "Standard-Kanal" }), "ch1");
+        expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
+        await user.click(entry("Log-Auswertung"));
+        expect(await screen.findByText("Log-Kanäle")).toBeInTheDocument();
+        expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
     });
 });
 
-describe("the section chips", () => {
+describe("the sections", () => {
     it("lists every section under its group heading, each once", async () => {
         renderPage(<SettingsPage />, { route: "/settings" });
         await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
 
-        const labels = within(nav()).getAllByRole("button").map((b) => b.querySelector(".section-nav-text")?.textContent);
+        const labels = within(nav()).getAllByRole("button").map((b) => b.querySelector(".srail-text")?.textContent);
         expect(labels).toEqual(SETTINGS_SECTIONS.map(sectionLabel));
         expect(labels[0]).toBe("Berechtigungen");
         for (const group of ["Zugang", "Raid-Kategorien", "Module"]) {
@@ -165,8 +169,11 @@ describe("the section chips", () => {
             expect({ id: s.id, icon: !!entry(sectionLabel(s)).querySelector(`img[src*="/${s.icon}.jpg"]`) }).toEqual({ id: s.id, icon: true });
         }
         // Bot online, but Battle.net, Warcraft Logs, the AI key and a loot-sync token missing.
-        await waitFor(() => expect(within(entry("Verbindungen")).getByText("4")).toHaveAttribute("data-tip", "4 Verbindungen nicht eingerichtet"));
-        expect(within(entry("Kategorien")).getByText("1")).toHaveAttribute("data-tip", "1 aktive Raid-Kategorien");
+        await waitFor(() => expect(within(entry("Verbindungen")).getByText("4")).toBeInTheDocument());
+        expect(entry("Verbindungen")).toHaveAttribute("data-tip-sub", "4 Verbindungen nicht eingerichtet");
+        expect(entry("Verbindungen")).toHaveAccessibleName("Verbindungen · 4 Verbindungen nicht eingerichtet");
+        expect(within(entry("Kategorien")).getByText("1")).toBeInTheDocument();
+        expect(entry("Kategorien")).toHaveAttribute("data-tip-sub", "1 aktive Raid-Kategorien");
         expect(entry("Raid-Standardwerte").querySelector(".badge")).toBeNull();
     });
 

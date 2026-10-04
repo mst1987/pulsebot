@@ -1,12 +1,13 @@
-// Conventions of the Einstellungen page that a render cannot show: every
-// per-category setting has one home (the category matrix), and explanations sit
-// in tooltips instead of hint paragraphs, and the section chips only show where
-// the main menu does not (on a wide screen the sections are the children of
-// "Einstellungen" in the menu). What the sections, the chips, the menu's
-// children and the save bar do is tested in src/web-client/src/lib/settingsSections.test.ts,
-// components/SectionNav.test.tsx, components/Shell.test.tsx and
-// pages/settings/SettingsPage.sections.test.tsx; the areas of Historie & Loot in
-// pages/history/HistoryPage.areas.test.tsx.
+// Conventions of the pages with sub sections that a render cannot show: the
+// icon rail (components/SectionRail.tsx) turns into the chip row exactly where
+// the main menu becomes the drawer, it stands outside the page's width budget,
+// and the main menu folds nothing out any more (design "C · Schmale
+// Icon-Leiste"). On the Einstellungen page every per-category setting has one
+// home (the category matrix), and explanations sit in tooltips instead of hint
+// paragraphs. What the rail, the sections and the save bar do is tested in
+// src/web-client/src/components/SectionRail.test.tsx, components/Shell.test.tsx,
+// lib/settingsSections.test.ts and pages/settings/SettingsPage.sections.test.tsx;
+// the areas of Historie & Loot in pages/history/HistoryPage.areas.test.tsx.
 const fs = require("fs");
 const path = require("path");
 const { read } = require("../clientSource");
@@ -40,22 +41,52 @@ function cssParts(source) {
     return { outside, blocks };
 }
 
-describe("the section chips and the main menu", () => {
-    it("hides the chips on a wide screen and shows them where the menu is a drawer", () => {
-        const settings = cssParts(readClient("styles", "settings.css"));
-        expect(settings.outside).toMatch(/\.settings-layout > \.section-nav \{ display: none; \}/);
-        expect(settings.blocks["@media (max-width: 900px)"]).toMatch(/\.settings-layout > \.section-nav \{ display: flex; \}/);
+describe("the section rail and the main menu", () => {
+    const shell = cssParts(readClient("styles", "shared.css"));
+    const narrow = shell.blocks["@media (max-width: 900px)"];
+
+    it("is a 64px icon column on a wide screen and the chip row with labels where the menu is a drawer", () => {
+        expect(shell.outside).toMatch(/\.srail-layout \{[^}]*grid-template-columns: 64px minmax\(0, 1fr\)/);
+        expect(shell.outside).toMatch(/\.srail-item \{[^}]*width: 44px; height: 44px;/);
+        expect(shell.outside).toMatch(/\.srail-label, \.srail-text \{ display: none; \}/);
         // the same breakpoint at which the shell's sidebar turns into the drawer
-        const shell = cssParts(readClient("styles", "shared.css"));
-        expect(shell.blocks["@media (max-width: 900px)"]).toMatch(/\.side \{[^}]*position: fixed/);
-        // no own column left: the open section takes the whole width
-        expect(settings.outside).toMatch(/\.settings-layout \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+        expect(narrow).toMatch(/\.side \{[^}]*position: fixed/);
+        expect(narrow).toMatch(/\.srail-layout \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+        expect(narrow).toMatch(/\.srail-list \{[^}]*flex-direction: row; flex-wrap: wrap;/);
+        expect(narrow).toMatch(/\.srail-text \{ display: inline; \}/);
+        expect(narrow).toMatch(/\.srail-label \{ display: block;/);
     });
 
-    it("keeps the page reachable on every route of the menu's section links", () => {
-        // the menu links ?section=<id>; the page reads that param and remembers it
+    it("stands outside the page's width budget: it reaches into the content's padding, never into --page-narrow", () => {
+        expect(shell.outside).toMatch(/\.content \{ padding: 24px;/);
+        expect(shell.outside).toMatch(/\.srail-layout \{[^}]*margin-left: -24px;/);
+        expect(narrow).toMatch(/\.srail-layout \{[^}]*margin-left: 0;/);
+        const capped = shell.outside.match(/([^{}]*)\{\s*max-width: var\(--page-narrow\);\s*\}/)[1];
+        expect(capped).not.toMatch(/srail/);
+    });
+
+    it("leaves the main menu flat: no children, no chevron, no remembered groups", () => {
+        const shellSrc = read("components/Shell.tsx");
+        for (const gone of ["nav-kid", "nav-chev", "menu-groups", "?section=", "settingsNav"]) {
+            expect({ gone, found: shellSrc.includes(gone) }).toEqual({ gone, found: false });
+        }
+        expect(read("index.css")).not.toMatch(/\.nav-(kid|chev|kids|node|row)\b/);
+    });
+
+    it("switches the settings section inside the page and keeps ?section= links working", () => {
+        // a hint elsewhere links ?section=<id>; the page reads that param and remembers it
         expect(settingsSrc).toMatch(/usePersistedSearchParam\(\s*"settings-section", "section", "berechtigungen", SECTION_PARAM_IDS, true,/);
-        expect(read("components/Shell.tsx")).toContain("href: `/settings?section=${s.id}`");
+        expect(settingsSrc).toContain("<SectionRail groups={navGroups} active={active} onSelect={setSection}");
+    });
+
+    it("puts the rail on the raid list and the raid plan's list pages, not on the raid detail or the plan editor", () => {
+        for (const page of ["pages/RaidsPage.tsx", "pages/RaidplanTemplatesPage.tsx", "pages/RaidplanCatalogPage.tsx"]) {
+            expect({ page, rail: read(page).includes("<MenuRailPage user={user} parent=\"raids\">") }).toEqual({ page, rail: true });
+        }
+        expect(read("pages/RaidDetailPage.tsx")).not.toContain("SectionRail");
+        // the template editor returns before the list is wrapped
+        const tpl = read("pages/RaidplanTemplatesPage.tsx");
+        expect(tpl.indexOf("if (current) {")).toBeLessThan(tpl.indexOf("return inRail(\n"));
     });
 });
 
