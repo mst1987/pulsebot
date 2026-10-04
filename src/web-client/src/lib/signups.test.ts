@@ -24,14 +24,16 @@ describe("classesForRows (#541)", () => {
 });
 
 describe("signedUpLabel (#520)", () => {
-    it("writes the accounts alone, in both languages, and matches the server's English", async () => {
+    it("writes the accounts alone, in both languages, and matches the bot's text in each", async () => {
         expect(signedUpLabel(28)).toBe("28 angemeldet");
         expect(signedUpLabel(0)).toBe("0 angemeldet");
+        // the bot writes the same words in its own language (server or reader)
         const { signedUpText } = requireBackend("utils/signup/capacity");
+        for (const n of [0, 12, 28]) expect(signedUpText(n, "de")).toBe(signedUpLabel(n));
         await inLang("en", () => {
             for (const n of [0, 12, 28]) {
                 expect(signedUpLabel(n)).toBe(`${n} signed up`);
-                expect(signedUpText(n)).toBe(signedUpLabel(n));
+                expect(signedUpText(n, "en")).toBe(signedUpLabel(n));
             }
         });
     });
