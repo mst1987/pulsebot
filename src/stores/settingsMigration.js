@@ -54,6 +54,14 @@
 //     setups (services/kader/kaderMigration.js). The characters come from the
 //     planner's own data, else from the Forever characters of the profile.
 //
+//   - config.json, categoryPlanning (Raidplan ODER Sheet): every raid category
+//     (config.categoryIds) without a stored mode gets the one it really used,
+//     written down so the settings card shows it: "sheet" with a fixed sheet
+//     (categorySheets), else whichever its raids used last — a filled sheet
+//     copy (event-sheets.json, filledAt) or a raid plan with boards
+//     (raidplans.json, updatedAt) — else "raidplan". A mode somebody picked is
+//     never touched.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
@@ -65,6 +73,8 @@ const configStore = require("./configStore");
 const raidTemplateStore = require("./raidTemplateStore");
 const eventStore = require("./eventStore");
 const raidplanStore = require("./raidplanStore");
+const eventSheetStore = require("./eventSheetStore");
+const raidEventStore = require("./raidEventStore");
 const raidplanCatalogStore = require("./raidplanCatalogStore");
 const raidplanTemplateStore = require("./raidplanTemplateStore");
 const raidplanProfileStore = require("./raidplanProfileStore");
@@ -254,6 +264,49 @@ function migrateKaderPlanner({ now = new Date().toISOString() } = {}) {
     return done.map((d) => `kader.json: Server ${d.guildId}: ${d.kaders} Kader aus dem alten Format übernommen (${d.roster} im Roster, ${d.bench} auf der Bench, ${d.variants} Beispiel-Setup(s))`);
 }
 
+/** The newest moment per category, from records that name an event: `{ [categoryId]: at }`. */
+function lastUseByCategory(records, categoryOf) {
+    const out = {};
+    for (const { eventId, at } of records) {
+        const cat = categoryOf(eventId);
+        if (cat) out[cat] = Math.max(out[cat] || 0, Number(at) || 0);
+    }
+    return out;
+}
+
+/**
+ * Raidplan ODER Sheet: every raid category without a stored planning mode gets
+ * the one it used — fixed sheet → "sheet", else the newer of its last filled
+ * sheet copy and its last raid plan with boards, else "raidplan". One line, or none.
+ */
+function migrateCategoryPlanning() {
+    const stored = configStore.readStored();
+    const planning = { ...(stored.categoryPlanning || {}) };
+    const cats = (Array.isArray(stored.categoryIds) ? stored.categoryIds : []).map(String).filter((id) => id && !planning[id]);
+    if (!cats.length) return [];
+    const categoryOf = (eventId) => {
+        const own = eventStore.getEvent(eventId);
+        const rh = own ? null : raidEventStore.getRaidEvent(eventId);
+        return String(((own || rh) || {}).categoryId || "");
+    };
+    const sheets = lastUseByCategory(eventSheetStore.listEventSheets()
+        .filter((s) => s.url || s.spreadsheetId)
+        .map((s) => ({ eventId: s.eventId, at: s.filledAt })), categoryOf);
+    const plans = lastUseByCategory(raidplanStore.listPlans()
+        .filter((p) => Object.keys(p.bosses || {}).length)
+        .map((p) => ({ eventId: p.eventId, at: p.updatedAt })), categoryOf);
+    const fixed = stored.categorySheets || {};
+    const set = [];
+    for (const cat of cats) {
+        const usesSheet = !!(fixed[cat] && fixed[cat].url) || (sheets[cat] || 0) > (plans[cat] || 0);
+        const mode = usesSheet ? "sheet" : "raidplan";
+        planning[cat] = mode;
+        set.push(`${cat} ${mode}`);
+    }
+    configStore.writeStored({ ...stored, categoryPlanning: planning });
+    return [`config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - ${set.join(", ")}`];
+}
+
 /**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
@@ -275,6 +328,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateCharacterVersions());
         changes.push(...migrateRecruitmentVersions());
         changes.push(...migrateKaderPlanner());
+        changes.push(...migrateCategoryPlanning());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -284,6 +338,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateCategoryPlanning, raidplanDefaultsLine,
     legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };
