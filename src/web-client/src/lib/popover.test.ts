@@ -42,6 +42,24 @@ describe("tipPosition", () => {
     });
 });
 
+describe("tipPositionRight", () => {
+    const box = { width: 100, height: 40 };
+
+    it("puts the box right of the anchor, centred on it", () => {
+        expect(lib.tipPositionRight(rect(300, 300, 44, 44), box, VIEW)).toEqual({ left: 353, top: 302 });
+    });
+
+    it("stays inside the viewport at the top and bottom", () => {
+        expect(lib.tipPositionRight(rect(300, 0, 44, 20), box, VIEW).top).toBe(8);
+        expect(lib.tipPositionRight(rect(300, 880, 44, 20), box, VIEW).top).toBe(852);
+    });
+
+    it("falls back to the box above when there is no room on the right", () => {
+        const a = rect(1520, 300, 44, 44);
+        expect(lib.tipPositionRight(a, box, VIEW)).toEqual(lib.tipPosition(a, box, VIEW));
+    });
+});
+
 describe("belowEndPosition", () => {
     it("puts a menu under its button, right edges aligned", () => {
         expect(lib.belowEndPosition(rect(1000, 100, 200, 40), VIEW)).toEqual({ top: 146, right: 400 });

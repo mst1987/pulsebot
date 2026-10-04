@@ -62,9 +62,8 @@
     "logoutSub": "Vom Gildenmenü abmelden",
     "docs": "Dokumentation",
     "menuToggle": "Menü",
-    "nav": {
-        "expand": "Unterpunkte von {name} ausklappen",
-        "collapse": "Unterpunkte von {name} einklappen"
+    "rail": {
+        "aria": "Seiten von {name}"
     },
     "theme": {
         "tip": "Hell / Dunkel umschalten",

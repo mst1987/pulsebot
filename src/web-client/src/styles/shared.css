@@ -164,14 +164,14 @@ input[type=checkbox]:checked::after {
 .crest svg { width: 22px; height: 22px; }
 .brand-name { font-weight: 800; font-size: 16px; }
 .brand-sub { font-size: 10.5px; font-family: var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-top: 1px; }
-/* the menu scrolls (wheel, touch, keyboard; it brings the open page into view itself) but shows no scrollbar — an open
-   group such as Einstellungen would otherwise put a bar right beside the entries */
+/* the menu scrolls on a short screen (wheel, touch, keyboard) but shows no scrollbar right beside the entries */
 nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; scrollbar-width: none; }
 nav.menu::-webkit-scrollbar { display: none; }
 .menu-label { font-size: 10.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.3px; color: var(--muted); opacity: .7; padding: 14px 12px 6px; }
 /* Menu entries lead with their WoW icon (src/config/menu.json): slightly
    desaturated at rest, full colour on hover, and ringed in the section's own
-   --area-* colour when active. */
+   --area-* colour when active — also on the sub pages of the entry (the
+   settings sections, the raid plan's pages), which its page's rail lists. */
 .nav-item { --area: var(--accent); --area-soft: var(--accent-soft); display: flex; align-items: center; gap: 12px; padding: 7px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 14.5px; text-decoration: none; border: 1px solid transparent; position: relative; transition: background .12s, color .12s, border-color .12s; }
 .nav-item .wi { width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); flex: 0 0 auto; filter: saturate(.45) brightness(.8); transition: filter .12s, box-shadow .12s, border-color .12s; }
 .nav-item:hover { background: var(--panel2); color: var(--text); }
@@ -180,42 +180,50 @@ nav.menu::-webkit-scrollbar { display: none; }
 .nav-item.active::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--area); }
 .nav-item.active .wi { filter: none; border-color: var(--area); box-shadow: 0 0 0 2px var(--area-soft); }
 .nav-item .nav-n { margin-left: auto; }
-/* An entry that holds the open page in one of its children: its icon in full
-   colour and the text bright, but not filled — the child carries the fill. */
-.nav-item.has-active { color: var(--text); }
-.nav-item.has-active .wi { filter: none; border-color: var(--area); }
-/* Entries with children (Raid-Events, Einstellungen) fold them out under a
-   chevron of their own: the label still goes to the page, the chevron only
-   opens and closes. The children hang off a thin guide line under the icon,
-   smaller than the entries, with the active one filled in the area colour. */
-.nav-row { position: relative; display: flex; align-items: center; }
-.nav-row .nav-item { flex: 1 1 auto; min-width: 0; padding-right: 36px; }
-.nav-chev {
-    position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; display: grid; place-items: center;
-    padding: 0; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--muted); cursor: pointer;
-    transition: color .12s, background .12s, border-color .12s;
+
+/* ===== the icon rail of a page with sub sections (components/SectionRail.tsx,
+   design "C · Schmale Icon-Leiste"): Einstellungen's sections, Raid-Events'
+   pages. A 64 px column flush against the sidebar, left of the page; one
+   44 px button per section, a thin line between groups, the name as the
+   tooltip to its right. The layout reaches into .content's left padding, so
+   the page keeps its own width budget (--page-narrow applies to the page
+   beside the rail, never to the rail). Below 900 px, where the menu is a
+   drawer, the same markup is a wrapping row of chips with their labels. ===== */
+.srail-layout { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 24px; align-items: start; margin-left: -24px; }
+.srail-main { min-width: 0; }
+.srail { --area: var(--accent); --area-soft: var(--accent-soft); align-self: stretch; border-right: 1px solid var(--line); padding: 2px 0; margin-bottom: -24px; }
+/* right under the top bar when it is the page's first block: the line runs from the bar down */
+.srail-layout:first-child > .srail { margin-top: -24px; padding-top: 14px; }
+.srail-list { position: sticky; top: 78px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.srail-group { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.srail-group + .srail-group::before { content: ""; width: 24px; height: 1px; background: var(--line); margin: 5px 0; }
+.srail-label, .srail-text { display: none; }
+.srail-item {
+    position: relative; width: 44px; height: 44px; display: grid; place-items: center; padding: 0; font: inherit; text-decoration: none;
+    background: none; border: 1px solid transparent; border-radius: 10px; color: var(--muted); cursor: pointer;
+    transition: background .12s, border-color .12s, box-shadow .12s;
 }
-.nav-chev svg { width: 15px; height: 15px; transform: rotate(-90deg); transition: transform .15s ease; }
-.nav-node.open .nav-chev svg { transform: none; }
-.nav-chev:hover { color: var(--text); background: var(--panel3); }
-.nav-chev:focus-visible { outline: none; border-color: var(--accent); color: var(--text); }
-.nav-kids { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 6px 23px; padding-left: 9px; border-left: 1px solid var(--line); }
-.nav-kids[hidden] { display: none; }
-.nav-kid-label { font-size: 9.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); opacity: .7; padding: 8px 8px 2px; }
-.nav-kid-label:first-child { padding-top: 4px; }
-.nav-kid {
-    display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; border: 1px solid transparent; position: relative;
-    color: var(--muted); font-weight: 600; font-size: 13px; line-height: 1.3; text-decoration: none; transition: background .12s, color .12s;
+.srail-item .wi { width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); flex: 0 0 auto; filter: saturate(.45) brightness(.8); transition: filter .12s, border-color .12s; }
+.srail-item:hover { background: var(--panel2); }
+.srail-item:hover .wi, .srail-item:focus-visible .wi, .srail-item.active .wi { filter: none; }
+.srail-item:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.srail-item.active { background: var(--area-soft); border-color: var(--area); color: var(--text); }
+.srail-item.active .wi { border-color: var(--area); }
+/* the count on the icon's corner; the button carries its sentence (tooltip, name) */
+.srail-badge { position: absolute; top: -3px; right: -5px; pointer-events: none; box-shadow: 0 0 0 2px var(--bg); }
+@media (max-width: 900px) {
+    .srail-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; margin-left: 0; }
+    .srail, .srail-layout:first-child > .srail { margin: 0; padding: 0 0 14px; border-right: 0; border-bottom: 1px solid var(--line); }
+    .srail-list { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .srail-group { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; flex-basis: 100%; }
+    .srail-group + .srail-group::before { display: none; }
+    .srail-label { display: block; flex-basis: 100%; font-size: 10.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); opacity: .7; padding: 6px 0 0; }
+    .srail-group:first-child .srail-label { padding-top: 0; }
+    .srail-item { width: auto; height: auto; display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-color: var(--line); border-radius: 8px; font-size: 14px; font-weight: 600; text-align: left; }
+    .srail-text { display: inline; }
+    .srail-item:hover { color: var(--text); }
+    .srail-badge { position: static; margin-left: auto; box-shadow: none; }
 }
-.nav-kid .wi { width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--line); flex: 0 0 auto; filter: saturate(.45) brightness(.8); }
-.nav-kid-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nav-kid .badge { margin-left: auto; flex: 0 0 auto; }
-.nav-kid:hover { background: var(--panel2); color: var(--text); }
-.nav-kid:hover .wi, .nav-kid:focus-visible .wi, .nav-kid.active .wi { filter: none; }
-.nav-kid:focus-visible { outline: none; border-color: var(--accent); }
-.nav-kid.active { background: var(--area-soft); color: var(--text); }
-.nav-kid.active::before { content: ""; position: absolute; left: -11px; top: 5px; bottom: 5px; width: 3px; border-radius: 3px; background: var(--area); }
-@media (prefers-reduced-motion: reduce) { .nav-chev svg { transition: none; } }
 /* "Spektrum": every section keeps its own accent for the active state */
 .area-home { --area: var(--area-home); --area-soft: var(--area-home-soft); }
 .area-profile { --area: var(--area-profile); --area-soft: var(--area-profile-soft); }

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, type ApiError, type AvailabilityPanel } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedSearchParam } from "../../lib/persistedState";
@@ -6,7 +6,7 @@ import RolePermissionsEditor from "./RolePermissions";
 import BotCommandAccess from "./BotCommandAccess";
 import Segment from "../../components/ui/Segment";
 import { useToast } from "../../components/Jobs";
-import SectionNav from "../../components/SectionNav";
+import SectionRail, { RailLayout } from "../../components/SectionRail";
 import CategoryMatrix from "./CategoryMatrix";
 import ConnectionsSection from "./SettingsConnections";
 import DiscordServersSection from "./SettingsDiscordServers";
@@ -16,7 +16,7 @@ import {
     SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, groupLabel, sectionCrumb, sectionLabel,
     type SettingsSection } from "../../lib/settingsSections";
 import { areaLabel, draftChanges } from "../../lib/settingsLogic";
-import { publishSettingsNav, sectionBadge, settingsNavCounts } from "../../lib/settingsNav";
+import { sectionBadge, settingsNavCounts } from "../../lib/settingsNav";
 import { tParts, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
 import IconTile from "../../components/ui/IconTile";
@@ -53,9 +53,9 @@ export default function SettingsPage() {
     const content = useContentVersion();
     // In the url as well as remembered, so a hint elsewhere in the menu can link
     // straight at the section it names ("…siehe Einstellungen → Kategorien").
-    // Old ids stay allowed and are redirected by resolveSection(). The sections
-    // are opened through the main menu's links, so a linked one is remembered
-    // too: the plain "Einstellungen" entry lands on the section opened last.
+    // Old ids stay allowed and are redirected by resolveSection(). A section
+    // opened through such a link is remembered too, like one picked in the
+    // rail: the plain "Einstellungen" entry lands on the section opened last.
     const [section, setSection] = usePersistedSearchParam(
         "settings-section", "section", "berechtigungen", SECTION_PARAM_IDS, true,
     );
@@ -75,18 +75,6 @@ export default function SettingsPage() {
         ...(list || []).filter((p) => p.categoryId !== categoryId),
         ...(panel ? [panel] : []),
     ]);
-
-    // What the main menu shows as Einstellungen's children (lib/settingsNav.ts):
-    // the open section and the badge counts, the counts from the draft so they
-    // follow an unsaved edit.
-    const navActive = data ? resolveSection(section, visibleSections(data.canManageAccess)) : null;
-    const navCounts = data && draft
-        ? settingsNavCounts({ data, tokens, canManageAccess: data.canManageAccess, activeCategories: draft.categoryIds.length })
-        : null;
-    useEffect(() => {
-        publishSettingsNav(navCounts ? { active: navActive, counts: navCounts } : { active: navActive });
-    });
-    useEffect(() => () => publishSettingsNav({ active: null }), []);
 
     if (settingsData.error) return <div className="empty">{tParts("settings.page.loadError", { message: settingsData.error.message })}</div>;
     if (!data || !draft) return <RaidLoader text={t("settings.page.loading")} />;
@@ -404,18 +392,21 @@ export default function SettingsPage() {
         }
     };
 
-    // The section chips for a narrow screen, where the main menu is a drawer:
-    // the same entries and badges as the menu's Einstellungen children, so
-    // nobody has to open each section to find the gap.
+    // The icon rail left of the page (design "C · Schmale Icon-Leiste"): every
+    // section the account may open, by group, with the badges of what is open
+    // there — counted from the draft, so they follow an unsaved edit. A pick
+    // keeps the page mounted, so the draft and the save bar survive it.
+    const navCounts = settingsNavCounts({ data, tokens, canManageAccess: data.canManageAccess, activeCategories: draft.categoryIds.length });
     const navGroups = groupedSections(sections).map((g) => ({
         group: groupLabel(g.group),
         items: g.items.map((s) => ({ id: s.id, label: sectionLabel(s), icon: s.icon, badge: sectionBadge(s.id, navCounts) })),
     }));
 
     const inForm = savesWithForm(active);
+    const rail = <SectionRail groups={navGroups} active={active} onSelect={setSection} ariaLabel={t("settings.page.navAria")} />;
 
     return (
-        <>
+        <RailLayout rail={rail} className="settings-layout">
             <div className="page-head settings-head">
                 <IconTile icon="trade_engineering" tone="settings" size="lg" />
                 <div className="ph-text">
@@ -427,26 +418,21 @@ export default function SettingsPage() {
                 </div>
             </div>
 
-            <div className="settings-layout">
-                {/* Only below the shell's breakpoint (styles/settings.css): on a
-                    wide screen the sections are the main menu's children. */}
-                <SectionNav groups={navGroups} active={active} onSelect={setSection} ariaLabel={t("settings.page.navAria")} />
-                <div className={`settings-panel${inForm ? " in-form" : ""}`} data-section={active}>
-                    {panel()}
-                    {changes.length > 0 && (
-                        <div className="savebar" role="status" aria-live="polite">
-                            <IconTile icon={activeSection.icon} tone="settings" />
-                            <b>{t("settings.page.unsaved", { count: changes.length })}</b>
-                            <span className="savebar-list" data-tip={t("settings.page.unsavedTip")} data-tip-sub={changes.join("\n")}>
-                                {changes.slice(0, 2).join(", ")}{changes.length > 2 ? ` +${changes.length - 2}` : ""}
-                            </span>
-                            <span className="grow" />
-                            <Button variant="ghost" onClick={() => setDraft(toDraft(data.config))} disabled={saving}>{t("common.discard")}</Button>
-                            <Button onClick={submit} disabled={saving}>{saving ? t("settings.saving") : t("common.save")}</Button>
-                        </div>
-                    )}
-                </div>
+            <div className={`settings-panel${inForm ? " in-form" : ""}`} data-section={active}>
+                {panel()}
+                {changes.length > 0 && (
+                    <div className="savebar" role="status" aria-live="polite">
+                        <IconTile icon={activeSection.icon} tone="settings" />
+                        <b>{t("settings.page.unsaved", { count: changes.length })}</b>
+                        <span className="savebar-list" data-tip={t("settings.page.unsavedTip")} data-tip-sub={changes.join("\n")}>
+                            {changes.slice(0, 2).join(", ")}{changes.length > 2 ? ` +${changes.length - 2}` : ""}
+                        </span>
+                        <span className="grow" />
+                        <Button variant="ghost" onClick={() => setDraft(toDraft(data.config))} disabled={saving}>{t("common.discard")}</Button>
+                        <Button onClick={submit} disabled={saving}>{saving ? t("settings.saving") : t("common.save")}</Button>
+                    </div>
+                )}
             </div>
-        </>
+        </RailLayout>
     );
 }

@@ -4,6 +4,7 @@
 // drift apart.
 import MENU_JSON from "../../../config/menu.json";
 import { canAccessAny, type SessionUser } from "../api";
+import { tOr } from "../i18n";
 
 /**
  * One menu entry. `areas` are the permission areas from
@@ -21,15 +22,52 @@ export type MenuEntry = {
     /** the colour of another area (a sub entry of Raid-Events keeps the raids colour) */
     area?: string;
     /**
-     * a sub entry: one of the children the entry it belongs to (the one whose
-     * href it lies under) folds out under its chevron in the shell's menu; the
-     * parent then only "holds" the open page. Without that parent shown it is
-     * an entry of its own.
+     * a sub entry: no line of its own in the main menu, but a page of the entry
+     * whose href it lies under (Raidplan-Vorlagen under Raid-Events). Those
+     * pages carry the whole family in their icon rail (components/SectionRail.tsx),
+     * and the parent's menu line stays active on all of them.
      */
     sub?: boolean;
 };
 
 export const MENU: MenuEntry[] = MENU_JSON;
+
+/** A menu entry's label in the active language (menu.json holds the German one). */
+export function menuLabel(entry: MenuEntry): string {
+    return tOr(`shell.menu.${entry.id}`, entry.label);
+}
+
+/** Matches an entry's own path or one of its sub-routes (e.g. "/raids/new" under "/raids"). */
+export function matchesHref(href: string, pathname: string): boolean {
+    return pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+}
+
+/** The top-level entry a sub entry belongs to: the one whose href it lies under. */
+export function parentEntry(entry: MenuEntry): MenuEntry | undefined {
+    if (!entry.sub) return undefined;
+    return MENU.find((o) => !o.sub && o.href !== "/" && entry.href.startsWith(`${o.href}/`));
+}
+
+/** A top-level entry and its sub entries, in menu order: the pages of its rail. */
+export function menuFamily(id: string): MenuEntry[] {
+    return MENU.filter((e) => (e.id === id && !e.sub) || parentEntry(e)?.id === id);
+}
+
+/** One line of the main menu: the entry it shows and every page it stays active on. */
+export type MenuLine = { top: MenuEntry; entry: MenuEntry; hrefs: string[] };
+
+/**
+ * The main menu of an account: one line per top-level entry whose family it
+ * may open. The line shows that entry, or — when the account may only open its
+ * sub pages (the raid plan without the raid events) — the first of those, so
+ * the family stays reachable; the page's rail then offers the rest.
+ */
+export function menuLines(user: SessionUser): MenuLine[] {
+    return MENU.filter((e) => !e.sub).flatMap((top) => {
+        const allowed = menuFamily(top.id).filter((e) => canAccessAny(user, e.areas));
+        return allowed.length ? [{ top, entry: allowed[0], hrefs: allowed.map((e) => e.href) }] : [];
+    });
+}
 
 /**
  * The first entry the user may open — where a limited user lands instead of "/".

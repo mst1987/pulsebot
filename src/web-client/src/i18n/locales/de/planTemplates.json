@@ -1,7 +1,6 @@
 {
     "loadError": "Fehler beim Laden der Vorlagen: {message}",
     "loading": "Vorlagen werden geladen",
-    "back": "← Zurück zu den Raid-Events",
     "backToList": "← Alle Vorlagen",
     "kicker": "Raid-Events",
     "title": "Raidplan-Vorlagen",

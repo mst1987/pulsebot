@@ -84,9 +84,12 @@ describe("web/report/adminChrome", () => {
         expect(CHROME_STYLE).toContain(".topbar");
     });
 
-    it("renders exactly the shared menu of config/menu.js, Roster and Loot-Council included", () => {
-        const { MENU, wowIconUrl } = require("../../../src/config/menu.js");
+    it("renders exactly the top-level entries of config/menu.js, Roster and Loot-Council included", () => {
+        const { MENU: ALL, wowIconUrl } = require("../../../src/config/menu.js");
+        // the sub entries (the raid plan's pages) live in their parent's icon rail, as in the React shell
+        const MENU = ALL.filter((e) => !e.sub);
         expect(TABS.map((t) => t.id)).toEqual(MENU.map((e) => e.id));
+        expect(render()).not.toContain("/raids/plan-templates");
         const html = render();
         const links = [...html.matchAll(/<a class="nav-item[^"]*" href="([^"]+)"><img class="wi" src="([^"]+)" alt=""><span>([^<]+)<\/span><\/a>/g)]
             .map((m) => ({ href: m[1], icon: m[2], label: m[3] }));

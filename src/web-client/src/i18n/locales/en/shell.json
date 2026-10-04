@@ -62,9 +62,8 @@
     "logoutSub": "Sign out of the guild menu",
     "docs": "Documentation",
     "menuToggle": "Menu",
-    "nav": {
-        "expand": "Expand the entries under {name}",
-        "collapse": "Collapse the entries under {name}"
+    "rail": {
+        "aria": "Pages of {name}"
     },
     "theme": {
         "tip": "Toggle light / dark",

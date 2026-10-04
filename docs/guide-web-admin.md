@@ -4,7 +4,7 @@ Diese Seite ist für Orga-Mitglieder, die das **Web-Admin-Panel** benutzen — n
 
 **Content-Umschalter (Spielversion):** Gibt es Daten in mehr als einer Spielversion (z. B. WoW Forever und TBC), steht oben in der Kopfleiste neben der Server-Auswahl ein Umschalter „Forever | TBC“. Er gilt für das ganze Menü – Raids, vergangene Raids, Loot-Historie, Loot-Council, Roster, Raid- und Raidplan-Vorlagen, Katalog, Übersicht, Recruitment und die Auswahlfelder. Start ist die Hauptversion, deine Wahl merkt sich der Browser. Auf dem Handy steht dort ein kleiner Chip mit der aktiven Version; antippen klappt den Umschalter auf. Die einzelnen Seiten haben keinen eigenen Versionsfilter mehr. Sind andere Versionen ausgeblendet (Einstellungen → Spielversion), steht dort nur noch ein stiller Hinweis mit der Hauptversion.
 
-**Menü mit Unterpunkten:** „Raid-Events“ (Raidplan-Vorlagen, Raidplan-Katalog) und „Einstellungen“ (alle Bereiche der Einstellungen, mit ihren Zählern) klappen ihre Unterpunkte direkt im Menü auf. Der Name öffnet die Seite wie immer, der kleine Pfeil daneben klappt nur auf und zu; die Gruppe der offenen Seite ist von selbst offen, alles andere merkt sich der Browser.
+**Menü und Icon-Leiste:** Das Hauptmenü ist kurz und flach, nichts klappt auf. Seiten mit Unterbereichen haben links neben dem Inhalt eine schmale **Icon-Leiste**: „Einstellungen“ alle Bereiche der Einstellungen (in Gruppen, durch feine Linien getrennt, mit Zählern am Icon, z. B. fehlende Verbindungen), „Raid-Events“ die Seiten Raid-Events, Raidplan-Vorlagen und Raidplan-Katalog (nur die, die du öffnen darfst). Fährst du über ein Icon (oder gehst mit Tab darauf), steht der Name daneben, bei einem Zähler auch, was er zählt. Der Menüpunkt bleibt markiert, solange du auf einer seiner Seiten bist. Auf dem Handy wird die Leiste zu einer Reihe beschrifteter Knöpfe über der Seite.
 
 ## Übersicht / Dashboard
 
@@ -244,7 +244,7 @@ Alle Server-Kanäle als Liste; umbenennen, archivieren, löschen (einzeln oder p
 
 Technik: [permissions.md](permissions.md), [discord-servers.md](discord-servers.md)
 
-Die meisten Unterbereiche brauchen Vollzugriff/Admin-Rechte:
+Die Bereiche wählst du in der Icon-Leiste links neben der Seite (Name beim Überfahren, Zähler am Icon); der Wechsel behält ungespeicherte Änderungen. Die meisten Unterbereiche brauchen Vollzugriff/Admin-Rechte:
 
 - **Zugang** — wer ist Bot-Admin.
 - **Berechtigungen** — Rechte je Discord-Rolle oder Einzelkonto pro Bereich (lesen/schreiben), Basiszugang für alle, Bot-Befehl-Rechte, "Ansicht als Rolle" zum Testen. Details: [docs/permissions.md](permissions.md).

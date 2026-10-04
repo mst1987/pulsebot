@@ -1,6 +1,6 @@
-/* Einstellungen (design issue #224): section chips with icons and badges,
-   connection status cards, the permission matrix, the category list and the
-   save bar. Imported by pages/settings/SettingsPage.tsx; everything uses the tokens of
+/* Einstellungen (design issue #224): connection status cards, the permission
+   matrix, the category list and the save bar; the sections are the page's icon
+   rail. Imported by pages/settings/SettingsPage.tsx; everything uses the tokens of
    index.css, so the light theme follows on its own. */
 
 /* ---- page head: the title carries the info button ---- */
@@ -19,34 +19,10 @@
    segment still fits beside it. */
 .settings-panel .part-head .kicker { display: block; font-family: inherit; font-size: 12.5px; text-transform: none; letter-spacing: 0; font-weight: 500; }
 
-/* ---- layout + section chips ----
-   On a wide screen the page is the open section alone, across the full content
-   width: the sections are the children of "Einstellungen" in the main menu
-   (components/Shell.tsx, lib/settingsNav.ts). Below the shell's breakpoint the
-   menu is a drawer, so the page carries the sections itself as a wrapping row
-   of chips, one line per group. */
-.settings-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+/* ---- layout ----
+   The page sits beside its icon rail (components/SectionRail.tsx, the rail and its
+   chip row below 900 px are in shared.css): the page head, then the open section. */
 .settings-panel { min-width: 0; position: relative; }
-.settings-layout > .section-nav { display: none; }
-.section-nav { flex-direction: row; flex-wrap: wrap; gap: 6px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-.section-nav-group { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; flex-basis: 100%; }
-.section-nav-label { flex-basis: 100%; font-size: 10.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); opacity: .7; padding: 6px 0 0; }
-.section-nav-group:first-child .section-nav-label { padding-top: 0; }
-.section-nav-item {
-    appearance: none; background: none; border: 1px solid var(--line); border-radius: 8px; text-align: left; font: inherit;
-    font-size: 14px; font-weight: 600; color: var(--muted); padding: 6px 8px; cursor: pointer;
-    display: flex; align-items: center; gap: 10px; transition: background .12s, color .12s, border-color .12s;
-}
-.section-nav-item .wi { width: 24px; height: 24px; border-radius: 5px; border: 1px solid var(--line); flex: 0 0 auto; }
-.section-nav-item .section-nav-text { flex: 1 1 auto; min-width: 0; }
-.section-nav-item .badge { margin-left: auto; }
-.section-nav-item:hover { background: var(--panel2); color: var(--text); }
-.section-nav-item.active { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--text); }
-.section-nav-item:focus-visible { outline: none; border-color: var(--accent); }
-
-@media (max-width: 900px) {
-    .settings-layout > .section-nav { display: flex; }
-}
 
 /* ---- form controls inside the page's own field wrappers ---- */
 .set-field input:not([type=checkbox]):not([type=radio]), .dlg-field input:not([type=checkbox]):not([type=radio]),
