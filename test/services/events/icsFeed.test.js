@@ -102,8 +102,10 @@ describe("services/events/icsFeed", () => {
 
         it("takes the end from the duration (#305) and three hours without one", () => {
             expect(lineOf(buildIcs(event({ durationMinutes: 240 })), "DTEND")).toBe(`DTEND:${icsTime(START + 4 * 3600)}`);
-            // an event stored before #305 reads as the default duration of 3 h
+            // the duration is optional; a calendar entry still needs a block, so none (or one
+            // stored before #305) ends after the default 3 h
             expect(lineOf(buildIcs(event({ durationMinutes: undefined })), "DTEND")).toBe(`DTEND:${icsTime(START + 3 * 3600)}`);
+            expect(lineOf(buildIcs(event({ durationMinutes: null })), "DTEND")).toBe(`DTEND:${icsTime(START + 3 * 3600)}`);
             expect(lineOf(buildIcs(event()), "DTSTART")).toBe(`DTSTART:${icsTime(START)}`);
         });
 

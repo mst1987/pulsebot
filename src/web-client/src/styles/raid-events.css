@@ -1,7 +1,13 @@
 /* Raid-Events module (design issue #222): the grouped raid list, the create
    dialog and the Aufruf-Vorlagen editor. Built on the shared blocks of
    index.css (badge, bar, ibtn, seg, itile, exp, dlg); only what is specific to
-   these pages lives here. Tokens only, no gold. */
+   these pages lives here. Tokens only, no gold.
+   Imported by RaidsPage, NotifyTemplatesPage AND RaidCreateDialog itself: the
+   dialog also opens on the raid detail page ("Bearbeiten"), which never loads
+   the RaidsPage chunk, and without its own import it rendered bare there. The
+   dialog stays in this file on purpose: its review card and options reuse the
+   list row's vocabulary (re-title, re-sub, re-ev, re-when, re-chan), and a
+   class lives in one module stylesheet only (cssNamespaces.test.js). */
 
 .re-page { min-width: 0; }
 .re-h1 { display: flex; align-items: center; gap: 8px; }
@@ -62,12 +68,7 @@
 .re-row:hover .bar { background: var(--panel3); }
 .re-empty { padding: 18px 16px; color: var(--muted); font-size: 14px; }
 
-/* raid icon: one, or two overlapping for a combined night */
-.raid-ic { position: relative; display: block; width: 52px; height: 40px; flex: 0 0 auto; }
-.raid-ic .wi { position: absolute; width: 36px; height: 36px; border-radius: 7px; box-shadow: 0 0 0 2px var(--panel); }
-.raid-ic .wi.a { left: 0; top: 2px; }
-.raid-ic.duo .wi.a { top: 0; }
-.raid-ic.duo .wi.b { left: 18px; top: 6px; }
+/* the raid icon itself (.raid-ic) is shared.css' — RaidIcon is rendered on several pages */
 .re-row:hover .raid-ic .wi, .re-opt.on .raid-ic .wi { box-shadow: 0 0 0 2px var(--panel2); }
 
 .re-ev { min-width: 0; display: flex; flex-direction: column; }
@@ -103,7 +104,8 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .re-step.done .n { background: var(--good-bg); border-color: color-mix(in srgb, var(--good) 35%, transparent); color: var(--good); }
 .re-step-line { flex: 1; height: 1px; background: var(--line); max-width: 60px; min-width: 12px; }
 
-.re-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-bottom: 7px; font-weight: 600; line-height: 1.3; }
+/* min-height = the "i": a label with and one without it keep the fields of a row on one line */
+.re-label { display: flex; align-items: center; gap: 6px; min-height: 20px; font-size: 13px; color: var(--muted); margin-bottom: 7px; font-weight: 600; line-height: 1.3; }
 .field label.re-label { display: flex; }
 .re-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .re-label-row .re-label { margin-bottom: 7px; }
@@ -166,15 +168,30 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .re-fit { margin: 10px 0 4px; }
 .re-deadline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .re-dlg-body .re-deadline input[type=number] { width: 96px; flex: 0 0 96px; }
-/* Uhrzeit plus the duration in minutes (#305) — the duration stays the small one. */
-.re-clock { display: flex; align-items: center; gap: 8px; }
-.re-clock > input[type=time] { flex: 1 1 auto; min-width: 0; }
-.re-duration { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
-.re-dlg-body .re-duration input[type=number] { width: 72px; flex: 0 0 72px; }
+/* Datum · Uhrzeit · Dauer (optional, #305) in one row; narrow: the date on its own line. */
+.re-grid3 { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; }
+@media (max-width: 560px) {
+    .re-grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .re-grid3 > .re-f-date { grid-column: 1 / -1; }
+}
+/* A number with its unit inside the field ("180 Min."), and a small clear button once there is a value. */
+.re-unit { position: relative; display: flex; align-items: center; max-width: 440px; }
+.re-dlg-body .re-unit input[type=number] { padding-right: 52px; }
+.re-dlg-body .re-unit.has-value input[type=number] { padding-right: 82px; }
+.re-unit-txt { position: absolute; right: 12px; font-size: 13px; color: var(--muted); pointer-events: none; }
+.re-unit.has-value .re-unit-txt { right: 40px; }
+.re-unit-clear {
+    position: absolute; right: 6px; width: 26px; height: 26px; display: inline-grid; place-items: center; padding: 0;
+    border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer;
+}
+.re-unit-clear svg { width: 14px; height: 14px; }
+.re-unit-clear:hover { color: var(--text); background: var(--panel2); }
+.re-unit-clear:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); color: var(--text); }
+.re-end { display: block; margin-top: 5px; font-size: 12.5px; color: var(--muted); }
+.re-muted { color: var(--muted); }
 .re-dlg-body .re-chan-name { font-size: 15px; font-weight: 600; }
-/* Where the name comes from (#285): one badge under the field, the details in its tooltip. */
+/* Where the name comes from (#285): one badge under the field (.naming-badge is shared.css'). */
 .re-naming { margin-top: 6px; display: flex; min-width: 0; }
-.naming-badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .re-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }
 .re-fig { display: flex; flex-direction: column; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); }
 .re-fig-lbl { font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); }

@@ -32,6 +32,9 @@ describe("Raid-Events module hygiene", () => {
     it("styles the module in its own stylesheet, without gold", () => {
         expect(page).toContain("import \"../styles/raid-events.css\";");
         expect(notify).toContain("import \"../styles/raid-events.css\";");
+        // The dialog loads it itself: "Bearbeiten" opens it on the raid detail
+        // page, which never loads RaidsPage's chunk — it rendered bare there.
+        expect(read("components", "raid-create", "RaidCreateDialog.tsx")).toContain("import \"../../styles/raid-events.css\";");
         expect(css).not.toMatch(/:\s*gold\b|goldenrod|#d4af37|#ffd700/i);
         expect(read("index.css")).not.toContain(".re-row");
     });

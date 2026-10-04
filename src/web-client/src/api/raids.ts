@@ -86,8 +86,8 @@ export type OwnEvent = {
     leaderId: string;
     /** unix seconds */
     startTime: number;
-    /** how long the raid takes, in minutes (#305) */
-    durationMinutes: number;
+    /** how long the raid takes, in minutes (#305); null = not set, no planned end */
+    durationMinutes: number | null;
     versionId: string;
     instanceIds: string[];
     size: number;
@@ -174,8 +174,8 @@ export type EventPlanInput = {
     size: number;
     composition: { tank: number; healer: number; melee: RoleRange | null; ranged: RoleRange | null };
     requiredBuffs: string[];
-    /** how long the raid takes, in minutes (#305); 30–600 */
-    durationMinutes: number;
+    /** how long the raid takes, in minutes (#305); 30–600, null = not set (an edit clears it) */
+    durationMinutes: number | null;
     /** hours before the start, 0 = no deadline — counted in Berlin time on the server */
     signupDeadlineHours: number;
     fairness: boolean;

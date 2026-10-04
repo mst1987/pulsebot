@@ -102,7 +102,7 @@ export default function RaidplanLinkModal({ ctx, open, onClose, onDone }: { ctx:
                             {lineup.available && lineup.unmatchedNames > 0 && ` · ${t("raidBoard.rh.unmatched", { count: lineup.unmatchedNames })}`}
                         </p>
                     )}
-                    {lineup && lineup.available && !lineup.hasGroups && <p className="rp-warn em-flash">{t("raidBoard.rh.noGroups")}</p>}
+                    {lineup && lineup.available && !lineup.hasGroups && <p className="flash flash-warn em-flash">{t("raidBoard.rh.noGroups")}</p>}
                 </form>
             )}
         </Modal>

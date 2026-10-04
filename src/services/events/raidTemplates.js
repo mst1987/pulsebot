@@ -28,7 +28,7 @@ const MAX_SIZE = 40;
 // A signup deadline further out than two weeks before the raid is a typo.
 const MAX_DEADLINE_HOURS = 336;
 // How long an evening of this kind takes (#305) — the event inherits it.
-// null = not set, then the event falls back to eventStore's default.
+// null = not set, then the event has no duration either (no planned end).
 const MIN_DURATION = 30;
 const MAX_DURATION = 600;
 

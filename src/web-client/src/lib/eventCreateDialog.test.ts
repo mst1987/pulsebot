@@ -123,12 +123,13 @@ describe("Event anlegen: plan rules (client)", () => {
         };
         expect(logic.planFromEvent(ev)).toEqual({
             raidTemplateId: "tpl", versionId: "tbc", instanceIds: ["bt"], size: 25, tank: 3, healer: 7,
-            melee: { min: 5, max: 8 }, ranged: null, requiredBuffs: ["kings"], deadlineHours: 48, durationMinutes: 180,
+            melee: { min: 5, max: 8 }, ranged: null, requiredBuffs: ["kings"], deadlineHours: 48, durationMinutes: null,
             fairness: false, wishes: true, autoSuggest: true, overflow: "none", lockAtLimit: false,
             color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: "arcane",
         });
-        // the event's own duration wins over the default (#305)
+        // the event's own duration is kept; none stays none — no default is invented (#305)
         expect(logic.planFromEvent({ ...ev, durationMinutes: 240 }).durationMinutes).toBe(240);
+        expect(logic.planFromEvent({ ...ev, durationMinutes: null }).durationMinutes).toBeNull();
         // #306: was das Event gespeichert hat, steht auch im Entwurf.
         expect(logic.planFromEvent({ ...ev, overflow: "refuse", lockAtLimit: true }))
             .toMatchObject({ overflow: "refuse", lockAtLimit: true });
@@ -160,7 +161,7 @@ describe("Event anlegen: plan rules (client)", () => {
         expect(logic.planBody(plan)).toEqual({
             raidTemplateId: "t", versionId: "tbc", instanceIds: ["ssc"], size: 25,
             composition: { tank: 3, healer: 6, melee: { min: 4, max: 6 }, ranged: null },
-            requiredBuffs: [], durationMinutes: 180, signupDeadlineHours: 3, fairness: false, wishes: false, autoSuggest: false,
+            requiredBuffs: [], durationMinutes: null, signupDeadlineHours: 3, fairness: false, wishes: false, autoSuggest: false,
             overflow: "none", lockAtLimit: false, color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: "arcane",
         });
     });
@@ -203,10 +204,27 @@ describe("Event anlegen: plan rules (client)", () => {
 
     it("words a duration outside 30–600 minutes exactly like the server (#305)", () => {
         const base = { ...logic.emptyPlan(v("tbc")), size: 10, tank: 2, healer: 3 };
-        for (const durationMinutes of [180, 30, 600, 29, 601, 0]) {
+        for (const durationMinutes of [180, 30, 600, 29, 601, 0, null]) {
             const plan = { ...base, durationMinutes };
             expect({ durationMinutes, msg: logic.planProblem(plan) }).toEqual({ durationMinutes, msg: serverProblem(plan) });
         }
+        // optional: not set is no problem on either side
+        expect(logic.planProblem({ ...base, durationMinutes: null })).toBe("");
+    });
+
+    it("starts without a duration, and takes a raid template's own one (#305)", () => {
+        expect(logic.emptyPlan(v("tbc")).durationMinutes).toBeNull();
+        const tpl = {
+            id: "t1", name: "Kara", versionId: "tbc", instanceIds: ["kara"], size: 10,
+            composition: { tank: 2, healer: 3, melee: null, ranged: null }, requiredBuffs: [], signupDeadline: null,
+            durationMinutes: 210, fairness: false, wishes: false, raidhelperTemplateId: "",
+        };
+        expect(logic.planFromTemplate(tpl, v("tbc")).durationMinutes).toBe(210);
+        expect(logic.planFromTemplate({ ...tpl, durationMinutes: null }, v("tbc")).durationMinutes).toBeNull();
+        // a version change keeps what was set, also "not set"
+        expect(logic.withVersion(logic.planFromTemplate(tpl, v("tbc")), v("classic")).durationMinutes).toBe(210);
+        // and "not set" goes out as null, which the server stores as not set
+        expect(logic.planBody(logic.emptyPlan(v("tbc"))).durationMinutes).toBeNull();
     });
 
     it("Als Vorlage speichern: a new template, or an update that keeps id and Raid-Helper link", () => {
@@ -215,7 +233,7 @@ describe("Event anlegen: plan rules (client)", () => {
         expect(fresh).toEqual({
             name: "T6 25er", versionId: "tbc", instanceIds: ["hyjal", "bt"], size: 25,
             composition: { tank: 3, healer: 6, melee: null, ranged: null }, requiredBuffs: ["kings"],
-            signupDeadline: { hoursBefore: 24 }, durationMinutes: 180, fairness: false, wishes: false,
+            signupDeadline: { hoursBefore: 24 }, durationMinutes: null, fairness: false, wishes: false,
             overflow: "none", lockAtLimit: false, color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: "arcane", raidhelperTemplateId: "",
         });
         expect(fresh.id).toBeUndefined();

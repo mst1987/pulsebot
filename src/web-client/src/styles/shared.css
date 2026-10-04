@@ -452,6 +452,20 @@ nav.menu::-webkit-scrollbar { display: none; }
 .flash { border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
 .flash-ok { background: var(--good-bg); color: var(--good); border: 1px solid var(--good); }
 .flash-err { background: var(--high-bg); color: var(--high); border: 1px solid var(--high); }
+/* a hint worth acting on, not an error (e.g. the raid plan link without groups) */
+.flash-warn { background: var(--medium-bg); color: var(--medium); border: 1px solid var(--medium); }
+
+/* ===== Components several modules render (components/RaidIcon.tsx, components/channels/NamingBadge.tsx).
+   Their look lives here, not in the stylesheet of the first page that used them: a page
+   stylesheet only loads with its page, and opening another page directly left them bare. ===== */
+/* raid icon: one, or two overlapping for a combined night (the raid list, the signups, the create dialog) */
+.raid-ic { position: relative; display: block; width: 52px; height: 40px; flex: 0 0 auto; }
+.raid-ic .wi { position: absolute; width: 36px; height: 36px; border-radius: 7px; box-shadow: 0 0 0 2px var(--panel); }
+.raid-ic .wi.a { left: 0; top: 2px; }
+.raid-ic.duo .wi.a { top: 0; }
+.raid-ic.duo .wi.b { left: 18px; top: 6px; }
+/* where a channel name comes from (#285): one badge under the field, the details in its tooltip */
+.naming-badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ===== Every weekday its own colour (the raider profile's days, the Kaderplaner's
    weekday answers): an element with data-day="mo"…"so" gets --day (the colour)

@@ -286,8 +286,10 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
     const eh = form.source === "eventhelper";
     const problem = eh ? planProblem(plan) : "";
     const startPreview = date && form.time ? Math.floor(new Date(`${date}T${form.time}:00`).getTime() / 1000) : 0;
-    // When the raid would be over (#305) — shown small under the time.
-    const endPreview = startPreview && plan.durationMinutes > 0 ? eventDay(startPreview + plan.durationMinutes * 60) : null;
+    // When the raid would be over (#305) — shown small under the duration, and
+    // only with one: without a duration the event has no planned end.
+    const minutes = plan.durationMinutes;
+    const endPreview = startPreview && minutes && minutes > 0 ? eventDay(startPreview + minutes * 60) : null;
     const chosenInstances = instancesOf(version, plan.instanceIds);
 
     const changePlan = (next: EventPlan) => patch({ plan: next, planTouched: true });

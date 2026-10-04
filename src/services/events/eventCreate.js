@@ -132,7 +132,7 @@ function templateDefaults(templateId, startTime) {
     if (t.size) out.size = t.size;
     else delete out.composition; // a migrated template without size proposes no composition
     // How long an evening of this kind takes (#305); a template without one
-    // leaves the event at the store's default.
+    // leaves the event without one (null: no planned end).
     if (t.durationMinutes) out.durationMinutes = t.durationMinutes;
     const hours = t.signupDeadline && Number(t.signupDeadline.hoursBefore);
     if (hours > 0) out.signupDeadline = startTime - hours * 3600;
@@ -229,6 +229,9 @@ function planFor(body, categoryId, title, startTime) {
     for (const key of LOOK_KEYS) {
         if (body[key] !== undefined) merged[key] = body[key];
     }
+    // The duration is optional (#305): an emptied field (null or "") in the
+    // dialog means "no duration", even when the raid template has one.
+    if (body.durationMinutes !== undefined) merged.durationMinutes = body.durationMinutes;
     const deadline = deadlineFrom(body, startTime);
     if (deadline !== undefined && given(body, "signupDeadlineHours")) merged.signupDeadline = deadline;
     // Neither the body nor the template names a version: the one the category plays (#541).

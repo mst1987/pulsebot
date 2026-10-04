@@ -374,10 +374,15 @@ describe("services/events/eventCreate", () => {
             expect(eventStore.getEvent(fromTemplate.body.id).durationMinutes).toBe(300);
             const own = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5", durationMinutes: 240 }) });
             expect(eventStore.getEvent(own.body.id).durationMinutes).toBe(240);
-            // a template without one leaves the event at the store's default
+            // the dialog's emptied field (null or "") means "no duration", even with a template that has one
+            const cleared = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5", durationMinutes: null }) });
+            expect(eventStore.getEvent(cleared.body.id).durationMinutes).toBeNull();
+            const emptied = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5", durationMinutes: "" }) });
+            expect(eventStore.getEvent(emptied.body.id).durationMinutes).toBeNull();
+            // a template without one leaves the event without a duration (optional, no default)
             getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? T5 : null));
             const plain = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
-            expect(eventStore.getEvent(plain.body.id).durationMinutes).toBe(180);
+            expect(eventStore.getEvent(plain.body.id).durationMinutes).toBeNull();
             const bad = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", durationMinutes: 900 }) });
             expect(bad.error).toMatchObject({ code: "invalid_plan", message: expect.stringMatching(/Dauer/) });
         });
@@ -585,6 +590,17 @@ describe("services/events/eventCreate", () => {
             expect(eventStore.getEvent(ev.id)).toMatchObject({ title: "Neu", voiceChannelId: "v1" });
             // the two new fields are named in the log
             expect(eventStore.getEvent(ev.id).log[0].detail).toContain("Sprachkanal");
+        });
+
+        it("sets and clears the optional duration from the dialog (#305)", async () => {
+            const ev = own();
+            expect(ev.durationMinutes).toBeNull();
+            const set = await updateEvent({ guildId: "g1", body: { id: ev.id, durationMinutes: 210 } });
+            expect(set.body.event.durationMinutes).toBe(210);
+            expect(eventStore.getEvent(ev.id).log[0].detail).toContain("Dauer");
+            const cleared = await updateEvent({ guildId: "g1", body: { id: ev.id, durationMinutes: null } });
+            expect(cleared.status).toBe(200);
+            expect(eventStore.getEvent(ev.id).durationMinutes).toBeNull();
         });
 
         it("still saves when the message cannot be refreshed, and says so", async () => {

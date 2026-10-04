@@ -132,25 +132,43 @@ function longServerTime(value) {
 // that lives in the store would have to be mocked along with it, which is how a
 // pure calculation quietly turns into four slightly different ones.
 //
-// The duration is a planning field: an event inherits it from its raid
-// template, and without one it is DEFAULT_DURATION.
+// The duration is an OPTIONAL planning field: an event inherits it from its
+// raid template, somebody may set it in the dialog — and otherwise it is not
+// set (null), and the event has no planned end. Only the two places that
+// technically need an end (the Discord event, a calendar entry) fall back to
+// DEFAULT_DURATION, through plannedEndOrDefault(); nothing else invents one.
 // ---------------------------------------------------------------------------
 
 const MIN_DURATION = 30;
 const MAX_DURATION = 600;
 const DEFAULT_DURATION = 180;
 
-/** A stored duration as minutes within bounds; anything missing or odd is the default. */
-function clampDuration(raw) {
+/** A stored duration as whole minutes within bounds; null when it is not set (missing, empty or out of bounds). */
+function durationOf(raw) {
+    if (raw === undefined || raw === null || raw === "") return null;
     const n = Math.floor(Number(raw));
-    if (!Number.isFinite(n) || n < MIN_DURATION || n > MAX_DURATION) return DEFAULT_DURATION;
+    if (!Number.isFinite(n) || n < MIN_DURATION || n > MAX_DURATION) return null;
     return n;
 }
 
-/** When the raid is planned to be over, in unix seconds (start + duration). 0 without a start. */
+/**
+ * When the raid is planned to be over, in unix seconds (start + duration).
+ * 0 without a start or without a duration: "no planned end".
+ */
 function eventEndTime(event) {
     const start = Number(event && event.startTime) || 0;
-    return start ? start + clampDuration(event && event.durationMinutes) * 60 : 0;
+    const minutes = durationOf(event && event.durationMinutes);
+    return start && minutes ? start + minutes * 60 : 0;
+}
+
+/**
+ * The end for the places that MUST have one — a Discord External event needs a
+ * scheduledEndTime, a calendar entry a block: the planned end, else start +
+ * DEFAULT_DURATION. 0 without a start. Nowhere else: a page shows no end then.
+ */
+function plannedEndOrDefault(event) {
+    const start = Number(event && event.startTime) || 0;
+    return start ? eventEndTime(event) || start + DEFAULT_DURATION * 60 : 0;
 }
 
 module.exports = {
@@ -159,5 +177,5 @@ module.exports = {
     // Discord texts
     SERVER_ZONE, STYLES, toSeconds, discordTimestamp, serverDateTime, shortServerTime, shortServerDate, longServerTime,
     // raid duration
-    MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, clampDuration, eventEndTime,
+    MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, durationOf, eventEndTime, plannedEndOrDefault,
 };

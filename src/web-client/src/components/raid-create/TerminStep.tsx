@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { RaidCreateContext } from "../../api";
 import { useT } from "../../i18n";
 import { PLAN_MAX_DURATION, PLAN_MIN_DURATION } from "../../lib/eventPlan";
+import { XIcon } from "../icons";
 import { Button } from "../ui/Button";
 import Expand from "../ui/Expand";
 import WowIcon from "../ui/WowIcon";
@@ -9,7 +10,11 @@ import { EMPTY_ICON } from "./createHelpers";
 import { Label } from "./CreateParts";
 import type { RaidCreateForm } from "./useRaidCreateForm";
 
-/** Step "Termin": title, date, time (and duration), the category; leader and description folded under "Weitere Angaben". */
+/**
+ * Step "Termin": title, date, time (and the optional duration), the category;
+ * leader and description folded under "Weitere Angaben". The duration starts
+ * empty unless a raid template brings one (#305), and can be cleared again.
+ */
 export function TerminStep({ f, ctx, userId, summaryIcon }: { f: RaidCreateForm; ctx: RaidCreateContext; userId: string; summaryIcon: ReactNode }) {
     const t = useT();
     const { form, patch, editing, choice, sourceEvent, baseTemplate, categories, eh, endPreview, moreOpen, setMoreOpen, setStep, changePlan, applyCategory } = f;
@@ -39,25 +44,36 @@ export function TerminStep({ f, ctx, userId, summaryIcon }: { f: RaidCreateForm;
                 <Label text={t("raidCreate.termin.title")} htmlFor="re-title" />
                 <input id="re-title" type="text" value={title} onChange={(e) => patch({ title: e.target.value })} placeholder="Hyjal + Black Temple" required />
             </div>
-            <div className="re-grid2">
-                <div className="field">
+            <div className={eh ? "re-grid3" : "re-grid2"}>
+                <div className="field re-f-date">
                     <Label text={t("raidCreate.termin.date")} htmlFor="re-date" />
                     <input id="re-date" type="date" value={date} onChange={(e) => patch({ date: e.target.value })} required />
                 </div>
                 <div className="field">
                     <Label text={t("raidCreate.termin.time")} htmlFor="re-time" />
-                    <div className="re-clock">
-                        <input id="re-time" type="time" value={time} onChange={(e) => patch({ time: e.target.value })} required />
-                        {eh && (
-                            <label className="re-duration" data-tip={t("raidCreate.termin.duration")} data-tip-sub={t("raidCreate.termin.durationTip", { min: PLAN_MIN_DURATION, max: PLAN_MAX_DURATION })}>
-                                <input type="number" aria-label={t("raidCreate.termin.durationAria")} min={PLAN_MIN_DURATION} max={PLAN_MAX_DURATION} step={15} value={plan.durationMinutes}
-                                    onChange={(e) => changePlan({ ...plan, durationMinutes: Math.floor(Number(e.target.value) || 0) })} />
-                                <span className="re-sub">{t("raidCreate.termin.minutes")}</span>
-                            </label>
-                        )}
-                    </div>
-                    {eh && endPreview && <span className="re-sub">{t("raidCreate.termin.end", { time: endPreview.time })}</span>}
+                    <input id="re-time" type="time" value={time} onChange={(e) => patch({ time: e.target.value })} required />
                 </div>
+                {eh && (
+                    <div className="field">
+                        <Label text={t("raidCreate.termin.durationOptional")} htmlFor="re-duration" tip={t("raidCreate.termin.durationTip", { min: PLAN_MIN_DURATION, max: PLAN_MAX_DURATION })} />
+                        <div className={`re-unit${plan.durationMinutes !== null ? " has-value" : ""}`}>
+                            <input
+                                id="re-duration" type="number" inputMode="numeric" aria-label={t("raidCreate.termin.durationAria")}
+                                min={PLAN_MIN_DURATION} max={PLAN_MAX_DURATION} step={15} placeholder={t("raidCreate.termin.durationPlaceholder")}
+                                value={plan.durationMinutes ?? ""}
+                                onChange={(e) => changePlan({ ...plan, durationMinutes: e.target.value === "" ? null : Math.floor(Number(e.target.value)) })}
+                            />
+                            <span className="re-unit-txt" aria-hidden="true">{t("raidCreate.termin.minutes")}</span>
+                            {plan.durationMinutes !== null && (
+                                <button type="button" className="re-unit-clear" aria-label={t("raidCreate.termin.durationClear")} data-tip={t("raidCreate.termin.durationClear")}
+                                    onClick={() => changePlan({ ...plan, durationMinutes: null })}>
+                                    <XIcon />
+                                </button>
+                            )}
+                        </div>
+                        {endPreview && <span className="re-end">{t("raidCreate.termin.end", { time: endPreview.time })}</span>}
+                    </div>
+                )}
             </div>
             {categories.length > 0 && (
                 <div className="field">

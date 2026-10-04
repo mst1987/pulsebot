@@ -13,6 +13,9 @@ import { TerminStep } from "./TerminStep";
 import { RaidStep } from "./RaidStep";
 import { KanalStep } from "./KanalStep";
 import { CheckStep } from "./CheckStep";
+// The dialog brings its stylesheet along: it opens on /raids AND on the raid
+// detail page ("Bearbeiten"), and a page stylesheet only loads with its page.
+import "../../styles/raid-events.css";
 
 // "Neues Event" as a guided dialog, one step at a time instead of a long page:
 //   Vorlage            — repeat the latest event of a category, start from a raid
