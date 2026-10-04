@@ -121,3 +121,70 @@
 .an-result-title { font-weight: 700; }
 .an-result-text { grid-column: 2; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 2px; }
 .an-result-skip { color: var(--medium); }
+
+/* ---- Ab- & Anwesenheit: the section above the raids and its dialog ---- */
+.an-av {
+    display: flex; flex-direction: column; gap: 6px; padding: 10px 16px;
+    background: var(--panel); border: 1px solid var(--line);
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.an-av-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.an-av-label {
+    margin-right: auto; font: 700 11px/1.4 var(--font-mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted);
+}
+.an-av-note { margin: 0; color: var(--muted); font-size: 13px; }
+@media (max-width: 600px) {
+    /* narrow: the label on its own line, the two buttons share the next */
+    .an-av-label { flex-basis: 100%; }
+    .an-av-head > button { flex: 1 1 auto; }
+}
+.an-av-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.an-av-entry {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+    padding: 8px 0; border-top: 1px solid var(--line);
+}
+.an-av-ic {
+    width: 32px; height: 32px; border-radius: 8px; display: inline-grid; place-items: center;
+    background: var(--panel2); border: 1px solid var(--line);
+}
+.an-av-ic svg { width: 18px; height: 18px; }
+.an-av-absence .an-av-ic { color: var(--sig-absence); }
+.an-av-presence .an-av-ic { color: var(--sig-signed); }
+.an-av-main { min-width: 0; line-height: 1.3; }
+.an-av-period { font-weight: 800; font-size: 15px; }
+.an-av-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.an-av-sub > span { overflow-wrap: anywhere; }
+
+.an-av-form { gap: 12px; }
+.an-av-form .field { margin-bottom: 0; }
+.an-av-form input[type=date] { font-family: var(--font-mono); }
+.an-av-problem { margin: 0; color: var(--high); font-size: 13.5px; }
+.an-av-raids {
+    list-style: none; margin: 0; padding: 0; max-height: 300px; overflow-y: auto;
+    border: 1px solid var(--line); border-radius: 10px;
+}
+.an-av-raids > li + li { border-top: 1px solid var(--line); }
+/* a whole row is the checkbox's label — under .field, so it has to win over the field's block label */
+.field label.an-av-raid {
+    display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px;
+    cursor: pointer; margin: 0; color: var(--text); font-size: inherit; font-weight: 400; line-height: inherit;
+}
+.an-av-raid input { width: 16px; height: 16px; margin: 0; cursor: pointer; }
+.an-av-raid:hover { background: var(--panel2); }
+.an-av-off .an-av-text { opacity: .5; }
+.an-av-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.an-av-title { font-weight: 700; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.an-av-when { color: var(--muted); font: 600 12px/1.4 var(--font-mono); }
+
+/* the orga's "für Raider": one quiet line until it is used */
+.an-av-who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.an-av-search { flex-direction: column; align-items: stretch; }
+.an-av-q { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.an-av-q svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.an-av-q input { flex: 1; min-width: 0; max-width: none; }
+.an-av-hit {
+    display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; text-align: left; cursor: pointer;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font: inherit;
+}
+.an-av-hit:hover { border-color: var(--accent); }
+.an-av-hit span { color: var(--muted); font-size: 12.5px; }

@@ -368,6 +368,27 @@ async function postNotice(channelId, payload) {
 }
 
 /**
+ * Post a whole message (`{ content?, embeds?, components? }`) that pings
+ * nobody — a panel with buttons, say.
+ * @returns {Promise<{ guildId, channelId, messageId, url }>}
+ */
+async function postPayload(channelId, payload) {
+    const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
+    const posted = await channel.send({ ...payload, allowedMentions: { parse: [] } });
+    return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
+}
+
+/** Replace a bot message's content in place (postPayload's counterpart). */
+async function editPayload(channelId, messageId, payload) {
+    if (!client) throw new Error("Bot nicht verbunden.");
+    const channel = await fetchTextChannel(channelId, "Channel nicht gefunden.");
+    const message = await channel.messages.fetch(String(messageId));
+    if (message.author.id !== client.user.id) throw new Error("Diese Nachricht stammt nicht vom Bot.");
+    await message.edit({ ...payload, allowedMentions: { parse: [] } });
+    return { guildId: channel.guildId, channelId: channel.id, messageId: message.id, url: message.url };
+}
+
+/**
  * Whether the bot sees a text channel it may post in (from the cache, no
  * request): false for a deleted channel, one of a server the bot left, one it
  * lost the rights for — and while the bot is offline.
@@ -1012,5 +1033,5 @@ module.exports = {
     listApplications, parseApplicationEmbed,
     postLogButton, finishLogButton, LOG_EVAL_PREFIX,
     LOG_SECTIONS, logButtonRow, logButtonContent,
-    postLink, editLink,
+    postLink, editLink, postPayload, editPayload,
 };

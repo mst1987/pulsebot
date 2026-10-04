@@ -732,7 +732,20 @@
         "folded": {
             "one": "{count} weitere Discord-Kategorie ohne Raid-Events",
             "other": "{count} weitere Discord-Kategorien ohne Raid-Events"
-        }
+        },
+        "panel": "Ab-/Anwesenheits-Panel",
+        "panelSub": "Eine Discord-Nachricht mit Knöpfen, über die Raider für die Raids dieser Kategorie Ab- oder Anwesenheit eintragen. Neu posten ersetzt das alte Panel.",
+        "panelChannelAria": "Kanal für das Panel von {name}",
+        "panelPickChannel": "Kanal wählen …",
+        "panelPost": "Posten",
+        "panelRepost": "Neu posten",
+        "panelView": "Ansehen",
+        "panelPosted": "Panel gepostet.",
+        "panelRemoved": "Panel entfernt.",
+        "panelRemoveTitle": "Panel entfernen?",
+        "panelRemoveText": "Die Nachricht in Discord wird gelöscht. Was Raider schon eingetragen haben, bleibt.",
+        "panelSince": "gepostet {date}",
+        "panelNoChannels": "Keine Textkanäle – ist der Bot online?"
     },
     "botCommands": {
         "mode": {

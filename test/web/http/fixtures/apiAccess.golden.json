@@ -192,7 +192,11 @@
     "/api/kader/accounts": "kader",
     "/api/kader/accounts/remove": "kader",
     "/api/kader/assignments": "kader",
-    "/api/kader/assignments/reset": "kader"
+    "/api/kader/assignments/reset": "kader",
+    "/api/availability": "signup",
+    "/api/availability/preview": "signup",
+    "/api/availability/panels": "settings",
+    "/api/availability/panel": "settings"
   },
   "ungated": [
     "/api/session",

@@ -316,6 +316,11 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 /* #335: the channel of "Vielleicht/Absage" under its segment — one quiet line. */
 .cat-note-channel { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .cat-note-channel > select { flex: 1; min-width: 0; font-size: 13px; }
+/* The absence/attendance panel: channel + post, then where it stands — acts at once, not via the save bar. */
+.cat-panel { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cat-panel > select { flex: 1 1 180px; min-width: 0; font-size: 13px; }
+.cat-panel-state { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.cat-panel-state > .note { margin: 0; }
 .rch-summary { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; flex-wrap: wrap; }
 .sheet-field { display: flex; gap: 10px; align-items: flex-start; }
 .sheet-field > .wi { margin-top: 9px; border-radius: 4px; }

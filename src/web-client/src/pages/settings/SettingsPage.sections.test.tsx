@@ -21,6 +21,7 @@ vi.mock("../../api", async (orig) => ({
     getSettings: vi.fn(),
     updateSettings: vi.fn(),
     getIngestTokens: vi.fn(),
+    getAvailabilityPanels: vi.fn(),
 }));
 
 vi.mock("./RolePermissions", () => ({ default: () => <div>Panel Berechtigungen</div> }));
@@ -30,10 +31,19 @@ vi.mock("./SettingsRaidhelperRetirement", () => ({ default: () => null }));
 // The category matrix edits the per-category maps through its callbacks; the
 // stand-in clears the first category's sheet url the way its field would.
 vi.mock("./CategoryMatrix", () => ({
-    default: ({ onSheet }: { onSheet: (id: string, sheet: { url: string; name: string }) => void }) => (
+    default: ({ onSheet, availabilityPanels }: {
+        onSheet: (id: string, sheet: { url: string; name: string }) => void;
+        availabilityPanels?: { panels: { categoryId: string }[]; channels: { id: string }[]; onChange: (id: string, panel: unknown) => void };
+    }) => (
         <div>
             Panel Kategorien
             <button type="button" onClick={() => onSheet("cat1", { url: "", name: "Montag-Sheet" })}>Sheet-URL leeren</button>
+            {availabilityPanels && (
+                <>
+                    <output data-testid="panels">{availabilityPanels.panels.map((p) => p.categoryId).join(",")}|{availabilityPanels.channels.map((c) => c.id).join(",")}</output>
+                    <button type="button" onClick={() => availabilityPanels.onChange("cat2", { categoryId: "cat2", channelId: "n1", postedAt: 1, url: "" })}>Panel posten</button>
+                </>
+            )}
         </div>
     ),
 }));
@@ -74,6 +84,7 @@ beforeEach(() => {
     vi.mocked(api.getSettings).mockReset().mockResolvedValue(settings());
     vi.mocked(api.updateSettings).mockReset().mockImplementation(async (partial) => ({ config: { ...config(), ...partial } as AdminConfig }));
     vi.mocked(api.getIngestTokens).mockReset().mockResolvedValue({ tokens: [] });
+    vi.mocked(api.getAvailabilityPanels).mockReset().mockResolvedValue({ panels: [{ categoryId: "cat1", channelId: "n1", postedAt: 1, url: "" }] });
 });
 
 describe("the section column", () => {
@@ -216,6 +227,19 @@ describe("the save bar", () => {
             cat1: { url: "", name: "Montag-Sheet" },
             cat2: { url: "https://docs.google.com/b", name: "Mittwoch" },
         });
+    });
+
+    it("hands the posted absence/attendance panels to the categories and keeps a new one out of the draft", async () => {
+        const user = userEvent.setup();
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorien" });
+        // the text channels come from noteChannels — none here
+        expect(await screen.findByTestId("panels")).toHaveTextContent("cat1|");
+        expect(api.getAvailabilityPanels).toHaveBeenCalledTimes(1);
+
+        await user.click(screen.getByRole("button", { name: "Panel posten" }));
+        expect(screen.getByTestId("panels")).toHaveTextContent("cat1,cat2|");
+        // posted at once: nothing waits in the save bar
+        expect(screen.queryByRole("button", { name: "Speichern" })).not.toBeInTheDocument();
     });
 });
 

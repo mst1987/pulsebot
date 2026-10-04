@@ -20,6 +20,7 @@ const { postEventMessage, refreshEventMessage } = require("./eventMessage");
 const discordEvent = require("../discord/discordEvent");
 const { warningOf } = discordEvent;
 const { announceEvent } = require("./eventAnnounce");
+const availability = require("../signups/availability");
 const { scheduleOverviewSync, RAIDHELPER_CREATE_DELAY_MS } = require("../talk/talkOverview");
 const { raidContentIds } = require("./raidListing");
 const { getConfig, getRaidTemplate } = require("../../stores/settingsStore");
@@ -443,7 +444,15 @@ async function publishOwnEvent(eventId, body) {
     const announced = await announceEvent(eventId, {
         want: body.announce === undefined ? undefined : body.announce === true,
     });
+    // Absences and attendances of the period sign raiders off / up (with a DM) —
+    // not awaited: DMs are slow and never hold up or fail the create.
+    void availability.applyToEvent(eventId);
     return { messageError, discordEventError, announced };
+}
+
+/** A raid moved into somebody's absence or attendance follows it, like a new one (not awaited). */
+function followAvailability(id, before, patch) {
+    if (patch.startTime && patch.startTime !== before.startTime) void availability.applyToEvent(id);
 }
 
 /**
@@ -587,6 +596,7 @@ async function updateEvent({ guildId, body = {}, user = null, byName = "" }) {
     const discordEventError = warningOf(await discordEvent.syncForEvent(id).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
     // Title and time also show in the talk server's overview (#257).
     scheduleOverviewSync();
+    followAvailability(id, current, patch);
     return { status: 200, body: { id, source: "eventhelper", event: updated.event, messageError, discordEventError } };
 }
 
