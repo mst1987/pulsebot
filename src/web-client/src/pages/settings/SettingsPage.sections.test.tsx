@@ -1,8 +1,13 @@
-// The Einstellungen page's section column and save bar: every section opens a
+// The Einstellungen page's section chips and save bar: every section opens a
 // panel, a limited settings user never sees the full-admin sections or the
 // credentials, an old section id lands where its setting lives now, and the
 // save bar follows the draft — sending the access fields only when the server
 // would accept them and never the connection blocks (each modal saves its own).
+//
+// On a wide screen the sections are the main menu's children (Shell.test.tsx);
+// the page publishes the open one and the badge counts for it. The chips are
+// for the narrow screen, where the menu is a drawer — that split is CSS
+// (test/web-client/conventions/sectionNav.test.js).
 //
 // The big panels (permission matrix, category matrix, Discord servers) have
 // their own tests; here they are stand-ins that show which panel is open.
@@ -12,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { AdminConfig, SettingsData } from "../../api";
 import { SETTINGS_SECTIONS, sectionLabel, visibleSections } from "../../lib/settingsSections";
+import { getSettingsNav, resetSettingsNav } from "../../lib/settingsNav";
 import { renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
 import SettingsPage from "./SettingsPage";
@@ -83,13 +89,49 @@ const nav = () => screen.getByRole("navigation", { name: "Einstellungs-Bereiche"
 const entry = (label: string) => within(nav()).getByRole("button", { name: new RegExp(`^${label}`) });
 
 beforeEach(() => {
+    window.localStorage.clear();
+    resetSettingsNav();
     vi.mocked(api.getSettings).mockReset().mockResolvedValue(settings());
     vi.mocked(api.updateSettings).mockReset().mockImplementation(async (partial) => ({ config: { ...config(), ...partial } as AdminConfig }));
     vi.mocked(api.getIngestTokens).mockReset().mockResolvedValue({ tokens: [] });
     vi.mocked(api.getAvailabilityPanels).mockReset().mockResolvedValue({ panels: [{ categoryId: "cat1", channelId: "n1", postedAt: 1, url: "" }] });
 });
 
-describe("the section column", () => {
+describe("what the main menu shows", () => {
+    it("publishes the open section and the badge counts, and takes the section back on leaving", async () => {
+        const view = renderPage(<SettingsPage />, { route: "/settings?section=verbindungen" });
+        // Bot online, but Battle.net, Warcraft Logs, the AI key and a loot-sync token missing; one active category.
+        await waitFor(() => expect(getSettingsNav()).toEqual({ active: "verbindungen", counts: { verbindungen: 4, discordserver: 0, kategorien: 1 } }));
+        view.unmount();
+        expect(getSettingsNav().active).toBeNull();
+        // the counts stay for the menu on the next page
+        expect(getSettingsNav().counts).not.toBeNull();
+    });
+
+    it("counts the categories from the draft, so the badge follows an unsaved edit", async () => {
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ categoryIds: ["cat1", "cat2"] }) }));
+        renderPage(<SettingsPage />, { route: "/settings?section=raidchars" });
+        await waitFor(() => expect(getSettingsNav()).toMatchObject({ active: "kategorien", counts: { kategorien: 2 } }));
+    });
+
+    it("remembers a section opened through a link, so the plain menu entry lands there next time", async () => {
+        const first = renderPage(<SettingsPage />, { route: "/settings?section=logs" });
+        expect(await screen.findByText("Log-Kanäle")).toBeInTheDocument();
+        expect(window.localStorage.getItem("eh-settings-section")).toBe("\"logs\"");
+        first.unmount();
+        renderPage(<SettingsPage />, { route: "/settings" });
+        await waitFor(() => expect(entry("Log-Auswertung")).toHaveAttribute("aria-current", "true"));
+    });
+
+    it("keeps the chips in the page for the narrow screen, with the same badges", async () => {
+        renderPage(<SettingsPage />, { route: "/settings" });
+        const chips = await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
+        expect(chips).toHaveClass("section-nav");
+        expect(chips.closest(".settings-layout")).not.toBeNull();
+    });
+});
+
+describe("the section chips", () => {
     it("lists every section under its group heading, each once", async () => {
         renderPage(<SettingsPage />, { route: "/settings" });
         await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });

@@ -80,7 +80,8 @@ button.rd-ck:focus-visible { outline: 2px solid var(--accent); outline-offset: -
 .rd-ck-state { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
 .rd-ck-state .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .rd-ck-note { font-size: 12px; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rd-ck .btn { align-self: flex-start; max-width: 100%; }
+/* A long label („Anmelde-Aufruf posten“) wraps inside the tile instead of running out of it. */
+.rd-ck .btn { align-self: flex-start; max-width: 100%; height: auto; min-height: 30px; white-space: normal; text-align: left; line-height: 1.25; padding-block: 5px; }
 /* Abgesagt: eine Zeile, der Grund und der Weg zurück. */
 .rd-ck-off { display: flex; align-items: center; gap: 12px; padding: 12px 16px; flex-wrap: wrap; }
 .rd-ck-off-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -291,4 +292,4 @@ label.rd-check input { accent-color: var(--accent); margin: 0; }
 
 /* an editor on the page (the raid plan, data-rp-editor) lifts the content width cap; the hero and tabs above it keep the normal width */
 .content:has([data-rp-editor]) .rd-page > .page-hero,
-.content:has([data-rp-editor]) .rd-page > .tabs { max-width: 1032px; }
+.content:has([data-rp-editor]) .rd-page > .tabs { max-width: 1392px; }

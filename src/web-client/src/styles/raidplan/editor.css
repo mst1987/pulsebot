@@ -136,10 +136,10 @@
 }
 
 /* ==== the editor uses the full width next to the main navigation ====
-   Only where an editor is on the page (.rp-editor): the menu's 1080 px content cap is lifted for
+   Only where an editor is on the page (.rp-editor): the menu's 1440 px content cap is lifted for
    that page, and the head, tabs and notes above the editor keep the normal width. */
 .content:has([data-rp-editor]) { max-width: none; }
-.rp-editor > :not(.rp-work) { max-width: 1032px; }
+.rp-editor > :not(.rp-work) { max-width: 1392px; }
 
 /* ---- sizes, icons, split groups ---- */
 .rp-h-size { position: absolute; left: calc(var(--rp-s, 38px) / 2 - 3px); top: calc(var(--rp-s, 38px) / 2 - 3px); width: 12px; height: 12px; border-radius: 3px; cursor: nwse-resize; z-index: 6; }
