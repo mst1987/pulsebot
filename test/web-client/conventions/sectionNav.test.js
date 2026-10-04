@@ -121,7 +121,7 @@ describe("the two page widths", () => {
     });
 
     it("lets Historie & Loot join from its own file, which a convention keeps the hl- prefix in", () => {
-        expect(readClient("styles", "historie-loot.css")).toContain(".hl-page, .hl-page ~ :is(.hl-areas, .subnav, .hl-card) { max-width: var(--page-narrow); }");
+        expect(readClient("styles", "historie-loot.css")).toContain(".hl-page, .hl-page ~ :not(dialog) { max-width: var(--page-narrow); }");
     });
 
     it("has no :has() special case and no other fixed page cap in the shared layer", () => {

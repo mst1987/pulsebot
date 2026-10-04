@@ -149,9 +149,9 @@ button.rbadge:hover { filter: brightness(1.1); box-shadow: 0 0 0 2px var(--accen
 .hl-field > .badge { align-self: flex-start; }
 /* the page head's two actions wrap under the title on a phone */
 /* a sparse page: the narrow width of the shared layer (shared.css, "Two page widths") */
-/* the head is the only thing inside .hl-page; the area switch, subnav and the
-   tab's card are its siblings, so they follow it (not the native dialogs) */
-.hl-page, .hl-page ~ :is(.hl-areas, .subnav, .hl-card) { max-width: var(--page-narrow); }
+/* the head is the only thing inside .hl-page; the tab row and whatever the open
+   tab renders are its siblings, so everything after it follows (not the native dialogs) */
+.hl-page, .hl-page ~ :not(dialog) { max-width: var(--page-narrow); }
 .hl-page .page-head .ph-act { flex-wrap: wrap; }
 @media (max-width: 600px) { .hl-page .page-head .ph-act { margin-left: 0; } }
 .hl-field > .hl-lbl { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
