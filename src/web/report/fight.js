@@ -1,5 +1,5 @@
 // One boss fight on the report page: the topic parts (table + chart), the DPS/HPS
-// strip, the chart dialogs, the Kennzahlenzeile and the whole fight section.
+// strip, the chart dialogs and the whole fight section.
 const { markerChart, ribbonChart, fmtTime, lineChart, PX_PER_SEC } = require("./charts");
 const { dipShare } = require("../../utils/logcheck/fightSeries");
 const { esc } = require("./layout");
@@ -65,16 +65,12 @@ function fightParts(f, linkFor, only, ns = "") {
     const worst = (rows) => (rows.some((r) => r.tone === "high") ? "bad" : rows.some((r) => r.tone === "medium") ? "mid" : "ok");
 
     if (!only && f.debuffs && f.debuffs.length) {
-        const rows = f.debuffs.map((d) => ({
-            label: d.label, icon: d.icon,
-            bands: d.stacks && d.stacks.length ? d.stacks : d.bands,
-            maxStacks: d.maxStacks || 0,
-            value: d.missing ? "fehlte" : (Number.isFinite(d.uptimePct) ? `${d.uptimePct}%` : undefined),
-            sub: debuffSub(d),
-            tone: d.missing ? "high" : (Number.isFinite(d.uptimePct) ? pctTone(d.uptimePct) : undefined),
-        }));
+        const rows = debuffRows(f.debuffs);
+        const expected = f.debuffs.filter((d) => d.expected).length;
         const missing = f.debuffs.filter((d) => d.expected && (d.missing || d.uptimePct === 0)).length;
-        part("debuffs", { count: rows.length, tone: worst(rows), sub: missing ? `${missing} fehlt${missing === 1 ? "" : "en"}` : "", table: topicTable(rows, f.duration, "bands"), chart: ribbonChart({ ...common, rows }) });
+        part("debuffs", { count: rows.length, tone: worst(rows), sub: missing ? `${missing} fehlt${missing === 1 ? "" : "en"}` : "",
+            brief: missing ? `${missing} von ${expected} fehlten` : `${expected} erwartet, alle da`,
+            table: topicTable(rows, f.duration, "bands", { label: "Debuff", fold: true, unit: "Uptime" }), chart: ribbonChart({ ...common, rows }) });
     }
 
     const totems = (f.totems || []).filter((t) => mine(t.name));
@@ -95,6 +91,7 @@ function fightParts(f, linkFor, only, ns = "") {
         }).sort((a, b) => (b.badge.tone === "ok" ? 0 : 1) - (a.badge.tone === "ok" ? 0 : 1));
         part("totems", {
             count: rows.length, tone: worst(rows), sub: twisting ? "Twisting" : "",
+            brief: `${totems.length} ${totems.length === 1 ? "Schamane" : "Schamanen"}${twisting ? " · Twisting" : ""}`,
             table: only ? topicTable(rows, f.duration, "markers") : groupedTable(groups, f.duration, "markers"),
             // One chart per shaman rather than one long list of icons: on a flat
             // chart nothing says whose totem a row is, and with three shamans
@@ -120,20 +117,25 @@ function fightParts(f, linkFor, only, ns = "") {
             const used = pos - mis;
             return { name: p.name, type: p.type, rows: own, missed: mis, open: mis > 0, badge: pos ? { text: `${used} von ${pos} genutzt`, tone: mis === 0 ? "ok" : used * 2 >= pos ? "mid" : "bad" } : { text: (() => { const u = own.reduce((n, r) => n + (r.markers || []).length, 0); return `${u} ${u === 1 ? "Einsatz" : "Einsätze"}`; })(), tone: "" } };
         }).sort((a, b) => b.missed - a.missed || a.name.localeCompare(b.name));
-        part("cooldowns", { count: rows.length, tone: usedPct === null ? "ok" : usedPct >= 80 ? "ok" : usedPct >= 50 ? "mid" : "bad", sub: usedPct === null ? "" : `${usedPct} % genutzt`, table: only ? topicTable(rows, f.duration, "markers") : groupedTable(groups, f.duration, "markers"), chart: markerChart({ ...common, rows, windows: f.cooldowns.windows || [] }) });
+        part("cooldowns", { count: rows.length, tone: usedPct === null ? "ok" : usedPct >= 80 ? "ok" : usedPct >= 50 ? "mid" : "bad", sub: usedPct === null ? "" : `${usedPct} % genutzt`,
+            brief: usedPct === null ? `${rows.length} ${rows.length === 1 ? "Cooldown" : "Cooldowns"}` : `${usedPct} % genutzt`, table: only ? topicTable(rows, f.duration, "markers") : groupedTable(groups, f.duration, "markers"), chart: markerChart({ ...common, rows, windows: f.cooldowns.windows || [] }) });
     }
 
     const activity = (f.activity || []).filter((a) => mine(a.name));
     if (activity.length) {
+        // the least active first; whoever was busy enough folds away
         const rows = activity.map((a) => ({
             label: a.name, icon: a.icon || classIconName(a.type),
             bands: a.bands,
             value: Number.isFinite(a.activePct) ? `${a.activePct}%` : undefined,
             sub: (a.gaps || []).length ? `${a.gaps.length} Lücke${a.gaps.length === 1 ? "" : "n"}` : "",
             tone: Number.isFinite(a.activePct) ? pctTone(a.activePct) : undefined,
-        }));
+            rank: Number.isFinite(a.activePct) ? a.activePct : 101,
+            fold: Number.isFinite(a.activePct) && a.activePct >= FOLD_ACTIVE,
+        })).sort((a, b) => a.rank - b.rank);
         const avg = Math.round(activity.reduce((n, a) => n + (Number(a.activePct) || 0), 0) / activity.length);
-        part("activity", { count: rows.length, tone: worst(rows), sub: `Ø ${avg} %`, table: topicTable(rows, f.duration, "bands"), chart: ribbonChart({ ...common, rows }) });
+        part("activity", { count: rows.length, tone: worst(rows), sub: `Ø ${avg} %`, brief: `Ø ${avg} % aktiv`,
+            table: topicTable(rows, f.duration, "bands", { label: only ? "Zeile" : "Raider", fold: !only, unit: "aktiv" }), chart: ribbonChart({ ...common, rows }) });
     }
 
     const mechRows = mechanicRows(f.mechanics, only);
@@ -147,20 +149,20 @@ function fightParts(f, linkFor, only, ns = "") {
             const avoidable = deaths.filter((d) => d.avoidable).length;
             return { name: p.name, type: p.type, rows: own, hits: n, open: n >= 2 || avoidable > 0, badge: { text: `${n} Treffer`, tone: n >= 3 ? "bad" : n === 2 ? "mid" : "" }, extra: avoidable ? badge(`${avoidable} vermeidbar${avoidable === 1 ? "er Tod" : "e Tode"}`, "bad", "ability_creature_cursed_05") : (deaths.length ? badge(`${deaths.length} ${deaths.length === 1 ? "Tod" : "Tode"}`, "", "ability_creature_cursed_05") : "") };
         }).filter((g) => g.rows.length).sort((a, b) => b.hits - a.hits || a.name.localeCompare(b.name));
-        part("mechanics", { count: hits, tone: worst(mechRows), sub: `${hits} Treffer`, table: only || !groups.length ? topicTable(mechRows, f.duration, "markers") : groupedTable(groups, f.duration, "markers"), chart: markerChart({ ...common, rows: mechRows }) });
+        part("mechanics", { count: hits, tone: worst(mechRows), sub: `${hits} Treffer`, brief: `${hits} Treffer`, table: only || !groups.length ? topicTable(mechRows, f.duration, "markers") : groupedTable(groups, f.duration, "markers"), chart: markerChart({ ...common, rows: mechRows }) });
     }
 
     const healing = healingParts(f, only, common, key("healing"));
-    if (healing) part("healing", { count: healing.count, tone: healing.tone, sub: healing.sub, table: healing.table, chart: healing.chart });
+    if (healing) part("healing", { count: healing.count, tone: healing.tone, sub: healing.sub, brief: healing.sub, table: healing.table, chart: healing.chart });
 
     const buffs = buffParts(f, only, common);
-    if (buffs) part("buffs", { count: buffs.count, tone: buffs.count ? "bad" : "ok", sub: buffs.count ? `${buffs.count} fehlten` : "alle da", table: buffs.table, chart: buffs.chart });
+    if (buffs) part("buffs", { count: buffs.count, tone: buffs.count ? "bad" : "ok", sub: buffs.count ? `${buffs.count} fehlten` : "alle da", brief: buffs.count ? `${buffs.count} fehlten` : "alle da", table: buffs.table, chart: buffs.chart });
 
     if (only) {
         const own = playerSeries(f, only);
-        if (own) part("series", { count: "", tone: "ok", sub: "", table: own.table, chart: own.chart });
+        if (own) part("series", { count: "", tone: "", sub: "", brief: "eigene Kurve", table: own.table, chart: own.chart });
     } else if (f.series && (f.series.dps || f.series.hps)) {
-        part("series", { count: "", tone: "ok", sub: "", table: seriesTable(f), chart: fightSeries(f) });
+        part("series", { count: "", tone: "", sub: "", brief: "DPS und HPS", table: seriesTable(f), chart: fightSeries(f) });
     }
 
     const deaths = only ? (f.deaths || []).filter((d) => d.name === only) : (f.deaths || []);
@@ -168,10 +170,38 @@ function fightParts(f, linkFor, only, ns = "") {
         // nothing but the skeleton yet: the fight itself is the one band, so the
         // axis and the deaths are still there to look at
         const rows = [{ label: f.kill ? "Kampf (Kill)" : "Kampf (Wipe)", bands: [[0, f.duration]], tone: f.kill ? "good" : "high", value: fmtTime(f.duration) }];
-        part("fight", { count: 1, tone: "ok", sub: "", table: topicTable(rows, f.duration, "bands"), chart: ribbonChart({ ...common, deaths, rows }) });
+        part("fight", { count: 1, tone: "", sub: "", brief: fmtTime(f.duration), table: topicTable(rows, f.duration, "bands"), chart: ribbonChart({ ...common, deaths, rows }) });
     }
-    part("deaths", { count: deaths.length, tone: deaths.some((d) => d.avoidable) ? "bad" : deaths.length ? "mid" : "ok", sub: "", table: deathsList(deaths, linkFor), chart: null });
+    const avoidable = deaths.filter((d) => d.avoidable).length;
+    part("deaths", { count: deaths.length, tone: avoidable ? "bad" : deaths.length ? "mid" : "ok", sub: "", brief: deathsBrief(deaths.length, avoidable), table: deathsList(deaths, linkFor), chart: null });
     return parts;
+}
+
+/** The debuff rows worst first: what never landed, then the lowest uptime; the ones in the green fold away in the table. */
+function debuffRows(debuffs) {
+    const pct = (d) => Number.isFinite(d.uptimePct);
+    return debuffs.map((d) => ({
+        label: d.label, icon: d.icon,
+        bands: d.stacks && d.stacks.length ? d.stacks : d.bands,
+        maxStacks: d.maxStacks || 0,
+        value: d.missing ? "fehlte" : (pct(d) ? `${d.uptimePct}%` : undefined),
+        sub: debuffSub(d),
+        tone: d.missing ? "high" : (pct(d) ? pctTone(d.uptimePct) : undefined),
+        rank: d.missing ? -1 : (pct(d) ? d.uptimePct : 101),
+        fold: !d.missing && pct(d) && d.uptimePct >= FOLD_DEBUFF,
+    })).sort((a, b) => a.rank - b.rank);
+}
+
+// From here on a debuff or a raider's activity is good enough to sit behind "n weitere".
+const FOLD_DEBUFF = 85;
+const FOLD_ACTIVE = 90;
+
+/** The deaths of a try in words, for the topic list. */
+function deathsBrief(n, avoidable) {
+    if (!n) return "niemand gestorben";
+    const head = `${n} ${n === 1 ? "Tod" : "Tode"}`;
+    if (!avoidable) return head;
+    return `${head} · ${avoidable === n && n > 1 ? "alle" : avoidable} vermeidbar`;
 }
 
 /** The compact twin of the DPS/HPS strip: means, peaks and where the boss's health ended. */
@@ -243,21 +273,36 @@ function playerSeries(f, name) {
     };
 }
 
-/** Section buttons + panels for the parts of one fight, in `mode` "card" (table, chart behind a dialog button) or "inline" (table and chart stacked). */
+const TONE_RANK = { bad: 0, mid: 1, ok: 2 };
+
+/**
+ * The parts of one fight. `mode` "card" (a boss page): the topics as a list on
+ * the left, worst first, each with its icon, a line in words and a status
+ * dot; the open topic on the right, its chart behind "Verlauf öffnen".
+ * "inline" (the player page): section buttons above, table and chart stacked.
+ */
 function partPanels(f, parts, mode, ctx) {
-    const seg = parts.map((p, i) =>
-        `<button type="button" class="sec${i === 0 ? " active" : ""}" data-show="${p.id}">${hicon(p.icon, "")}${esc(p.label)}${p.count === "" ? "" : `<span class="n${p.tone === "bad" ? " bad" : p.tone === "mid" ? " mid" : ""}">${esc(p.count)}${p.sub ? ` · ${esc(p.sub)}` : ""}</span>`}</button>`).join("");
-    const panels = parts.map((p, i) => {
+    const card = mode !== "inline";
+    const list = card ? parts.map((p, j) => ({ p, j })).sort((a, b) => (TONE_RANK[a.p.tone] ?? 3) - (TONE_RANK[b.p.tone] ?? 3) || a.j - b.j).map((x) => x.p) : parts;
+    const panels = list.map((p, i) => {
         let chart = "";
-        if (p.chart && mode === "inline") chart = `<div class="part-chart">${p.chart}</div>`;
+        if (p.chart && !card) chart = `<div class="part-chart">${p.chart}</div>`;
         else if (p.chart) chart = chartDialog(p, f, ctx);
-        const open = p.chart && mode !== "inline" ? `<button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-${p.id}">${hicon("inv_misc_pocketwatch_01", "")}Verlauf öffnen${LINE.expand}</button>` : "";
-        const crumb = ctx && ctx.crumb ? `<span class="kicker">${esc(ctx.crumb)} › ${esc(p.label)}</span>` : "";
+        const open = p.chart && card ? `<button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-${p.id}">${hicon("inv_misc_pocketwatch_01", "")}Verlauf öffnen${LINE.expand}</button>` : "";
+        const head = card
+            ? `<div class="topic-head"><h3>${esc(p.label)}</h3>${open}</div>`
+            : `<div class="part-head"><div class="part-title">${tile(p.icon, p.tone === "bad" ? "bad" : p.tone === "mid" ? "mid" : p.tone === "ok" ? "ok" : "none")}<div>${esc(p.label)}</div></div></div>`;
         return `<div id="${p.id}" class="fight-part part"${i === 0 ? "" : " hidden"}>
-          <div class="part-head"><div class="part-title">${tile(p.icon, p.tone === "bad" ? "bad" : p.tone === "mid" ? "mid" : p.tone === "ok" ? "ok" : "none")}<div>${esc(p.label)}${ctx && ctx.subject ? ` · ${esc(ctx.subject)}` : ""}${crumb}</div></div>${open}</div>
+          ${head}
           ${p.table}${chart}
         </div>`;
     }).join("");
+    if (card) {
+        const nav = list.map((p, i) => `<button type="button" class="topic${i === 0 ? " active" : ""}" data-show="${p.id}">${hicon(p.icon, "")}<span class="tn"><b>${esc(p.label)}</b>${p.brief ? `<small>${esc(p.brief)}</small>` : ""}</span><span class="dot ${p.tone === "bad" || p.tone === "mid" || p.tone === "ok" ? p.tone : "none"}"></span></button>`).join("");
+        return `<div class="topic-grid"><nav class="topic-nav" aria-label="Bereiche">${nav}</nav><div class="topic-panels">${panels}</div></div>`;
+    }
+    const seg = list.map((p, i) =>
+        `<button type="button" class="sec${i === 0 ? " active" : ""}" data-show="${p.id}">${hicon(p.icon, "")}${esc(p.label)}${p.count === "" ? "" : `<span class="n${p.tone === "bad" ? " bad" : p.tone === "mid" ? " mid" : ""}">${esc(p.count)}${p.sub ? ` · ${esc(p.sub)}` : ""}</span>`}</button>`).join("");
     return `<nav class="secs">${seg}</nav>${panels}`;
 }
 
@@ -271,44 +316,17 @@ function chartDialog(p, f, ctx) {
     </dialog>`;
 }
 
-/** The Kennzahlenzeile of one fight: Raid-DPS/HPS, Bloodlust, mean activity, expected/missing debuffs, deaths. */
-function fightStats(f) {
-    const mean = (arr) => (Array.isArray(arr) && arr.length ? Math.round(arr.reduce((a, v) => a + (Number(v) || 0), 0) / arr.length) : null);
-    // every stat explains itself in the page's tooltip box: what the number is, where it comes from, when it turns yellow or red
-    const stat = (icon, label, value, cls, tip, sub) => `<div class="stat"${tip ? ` data-tip="${esc(tip)}"` : ""}${sub ? ` data-tip-sub="${esc(sub)}"` : ""}><div class="kicker icons">${hicon(icon, "")}${esc(label)}</div><div class="stat-v${cls ? ` ${cls}` : ""}">${value}</div></div>`;
-    const out = [];
-    const s = f.series || {};
-    if (s.dps) out.push(stat("ability_dualwield", "Raid-DPS", fmtK(mean(s.dps)), "", "Schaden des ganzen Raids pro Sekunde, im Mittel über den Kampf", "Aus der 5-Sekunden-Kurve von Warcraft Logs (v2-Zugang). Der Verlauf steht unter „Kampfverlauf“."));
-    if (s.hps) out.push(stat("spell_holy_renew", "Raid-HPS", fmtK(mean(s.hps)), "", "Heilung des ganzen Raids pro Sekunde, im Mittel über den Kampf", "Effektive Heilung ohne Overheal, aus der 5-Sekunden-Kurve von Warcraft Logs."));
-    // no Bloodlust stat: "0:08 · 13 s auseinander" told the raid lead nothing (their words); the windows stay in the Cooldowns chart
-    const act = (f.activity || []).map((a) => Number(a.activePct)).filter(Number.isFinite);
-    if (act.length) {
-        const avg = Math.round(act.reduce((a, v) => a + v, 0) / act.length);
-        out.push(stat("inv_misc_pocketwatch_02", "Aktivität Ø", `${avg} %`, avg >= 95 ? "" : avg >= 85 ? "warn" : "bad", `${avg} % der Kampfzeit war der Raid im Mittel am Wirken`, "Je Spieler der Anteil der Zeit bis zum eigenen Tod, in der ein Zauber oder Angriff lief (GCD belegt), gemittelt über alle. Ab 95 % grün, ab 85 % gelb, darunter rot. Wer wann Lücken hatte, steht unter „Aktivität“."));
-    }
-    if (f.debuffs && f.debuffs.length) {
-        const expected = f.debuffs.filter((d) => d.expected).length;
-        const missing = f.debuffs.filter((d) => d.expected && (d.missing || d.uptimePct === 0)).length;
-        out.push(stat("spell_shadow_chilltouch", "Debuffs erwartet", `${expected} ${missing ? `<small class="bad">· ${missing} fehlte${missing === 1 ? "" : "n"}</small>` : ""}`, "", `${expected} Debuffs, die der Raid nach seiner Aufstellung auf den Boss bringen kann`, missing ? `${missing} davon ${missing === 1 ? "lag" : "lagen"} kein einziges Mal auf dem Boss. Die Uptimes stehen unter „Debuffs“.` : "Alle lagen mindestens zeitweise an; die Uptimes stehen unter „Debuffs“."));
-    }
-    const deaths = f.deaths || [];
-    const first = deaths.find((d) => Number.isFinite(d.at));
-    out.push(stat("ability_creature_cursed_05", "Tode", `${deaths.length} ${first ? `<small>· ${esc(first.name)} ${fmtTime(first.at)}</small>` : ""}`, deaths.some((d) => d.avoidable) ? "bad" : "", `${deaths.length} ${deaths.length === 1 ? "Tod" : "Tode"} in diesem Try${first ? `, der erste ${first.name} bei ${fmtTime(first.at)}` : ""}`, "Rot, wenn ein Tod als vermeidbar gewertet ist: durch eine Mechanik, der man ausweichen kann. Wer woran starb, steht unter „Mechaniken & Tode“."));
-    return `<div class="stats">${out.join("")}</div>`;
-}
-
 /**
- * One try of a boss: the stats row (raid view), then the section buttons and
- * their panels. `mode` "card" keeps the charts behind dialogs, "inline"
- * stacks them under the tables (the player page).
+ * One try of a boss: its topics (see partPanels). `mode` "card" keeps the
+ * charts behind dialogs, "inline" stacks them under the tables and puts the
+ * try in a head line (the player page).
  */
 function renderFightSection(f, linkFor, only, tryNo, tries, active, mode, ns, ctx) {
     const parts = fightParts(f, linkFor, only, ns);
     const deaths = (f.deaths || []).length;
-    const crumb = ctx && ctx.crumb ? `${ctx.crumb}${tries > 1 ? ` › Try ${tryNo}` : ""}` : "";
     return `<section class="fight${f.kill ? "" : " fight-wipe"}" id="${ns}fight-${esc(f.id)}"${active ? "" : " hidden"}>
-      ${only ? `<div class="fight-head"><h3>${esc(f.boss)}</h3><span class="meta">${tries > 1 ? `Try ${tryNo}/${tries} · ` : ""}${esc(fightOutcome(f))} · ${fmtTime(f.duration)} · ${deaths} ${deaths === 1 ? "Tod" : "Tode"}</span></div>` : fightStats(f)}
-      ${partPanels(f, parts, mode, { ...ctx, crumb })}
+      ${only ? `<div class="fight-head"><h3>${esc(f.boss)}</h3><span class="meta">${tries > 1 ? `Try ${tryNo}/${tries} · ` : ""}${esc(fightOutcome(f))} · ${fmtTime(f.duration)} · ${deaths} ${deaths === 1 ? "Tod" : "Tode"}</span></div>` : ""}
+      ${partPanels(f, parts, mode, ctx)}
     </section>`;
 }
 

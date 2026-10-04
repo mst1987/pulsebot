@@ -5,7 +5,7 @@ const { plural } = require("../../utils/text");
 const { fmtTime, PX_PER_SEC } = require("./charts");
 const { ICONS } = require("./adminChrome");
 const { esc } = require("./layout");
-const { wowheadItemLink, iconUrl, classIconUrl, expBtn, tile, badge, LINE, ibtn, armoryButton, dlgClose, detailDialog, barCell, barPct, hicon, iconTile, iconRow, classColorOf, fmtK, fmtSecs, naCell, num } = require("./widgets");
+const { wowheadItemLink, iconUrl, classIconUrl, expBtn, tile, badge, LINE, ibtn, armoryLink, dlgClose, detailDialog, barCell, barPct, hicon, iconTile, iconRow, classColorOf, fmtK, fmtSecs, naCell, num } = require("./widgets");
 const { CONS_HOW } = require("./panels/consumables");
 const { potionCells } = require("./panels/potions");
 const { INFERRED_HOW } = require("./panels/buffs");
@@ -273,8 +273,20 @@ function sendDialog(ctx, p, i, items) {
     </dialog>`;
 }
 
-/** What stands out about a raider, worst first, at most three badges; one in `ok` when nothing does. */
-function raiderBadges(ctx, p) {
+// What makes a raider worth a talk rather than a note: an avoidable death,
+// a long list of gear problems or several serious ones, little activity,
+// running out of mana, hardly any consumables, long output dips.
+const TALK_GEAR = 5;
+const TALK_GEAR_HIGH = 3;
+const TALK_ACTIVE = 80;
+
+/**
+ * What stands out about a raider, worst first: [{ tone, talk, html }]. `talk`
+ * marks a finding that puts the raider into „Gespräch lohnt sich“. With
+ * `raidWideBuffs` the missing-buff finding is left out: when nearly everyone
+ * lacked a buff, that is the raid's matter, not this raider's.
+ */
+function raiderFindings(ctx, p, raidWideBuffs) {
     const name = p.name;
     const issues = ((ctx.gearByName.get(name) || {}).issues || p.issues || []);
     const cons = ctx.consByName.get(name);
@@ -287,26 +299,54 @@ function raiderBadges(ctx, p) {
     const items = recP ? (ctx.reviewer ? recP.items : recP.items.filter((x) => x.approved === true)) : [];
     const open = items.filter((x) => x.approved === null).length;
     const out = [];
-    const add = (tone, text, icon, tip, sub) => out.push({ tone, html: `<span class="badge ${tone}"${tip ? ` data-tip="${esc(tip)}"` : ""}${sub ? ` data-tip-sub="${esc(sub)}"` : ""}>${hicon(icon, "")}${esc(text)}</span>` });
-    if (mech && mech.avoidableDeaths) add("bad", `${mech.avoidableDeaths} vermeidbare${mech.avoidableDeaths === 1 ? "r Tod" : " Tode"}`, "ability_creature_cursed_05", "Tode durch eine Mechanik, der man ausweichen kann");
-    if (issues.length) add(issues.some((x) => x.severity === "high") ? "bad" : "mid", plural(issues.length, "Gear-Problem", "Gear-Probleme"), "inv_shield_06", "Gear-Probleme: Verzauberungen, Sockel, Meta-Gem", "Aus der Ausrüstung, die das Log beim Pull gesehen hat.");
-    if (heal && heal.manaLowFights) add("bad", `${heal.manaLowFights}× unter 10 % Mana`, "inv_potion_137", "Kämpfe, in denen das Mana unter 10 % fiel");
-    if (cons && cons.buffed < 90) add(cons.buffed < 50 ? "bad" : "mid", `Consumables ${cons.buffed} %`, "inv_alchemy_endlessflask_05", "Anteil der Boss-Kämpfe mit Flask oder beiden Elixieren", "Ab 90 % grün, unter 50 % rot.");
-    if (buffs && buffs.missing) add(buffs.missing >= 2 ? "bad" : "mid", `Buff fehlte ${buffs.missing}×`, "spell_magic_greaterblessingofkings", "Kämpfe, in denen ein erwarteter Raid-Buff gar nicht auf dem Raider lag");
-    if (heal && heal.overhealPct >= 35) add(heal.overhealPct >= 50 ? "bad" : "mid", `Overheal ${heal.overhealPct} %`, "spell_holy_flashheal", "Anteil der Heilung über volle Lebenspunkte", "Ab 35 % gelb, ab 50 % rot.");
-    if (!heal && act && act.activeAvg < 85) add("mid", `${act.activeAvg} % aktiv`, "inv_misc_pocketwatch_02", "Anteil der Kampfzeit mit laufenden Zaubern oder Angriffen", "Bis zum eigenen Tod. Unter 85 % gelb.");
-    if (cd && cd.usedPct !== null && cd.usedPct !== undefined && cd.usedPct < 80) add("mid", `Cooldowns ${cd.usedPct} %`, "ability_rogue_preparation", "Genutzte Cooldowns gegen die möglichen");
+    const add = (tone, talk, text, icon, tip, sub) => out.push({ tone, talk, html: `<span class="badge${tone ? ` ${tone}` : ""}"${tip ? ` data-tip="${esc(tip)}"` : ""}${sub ? ` data-tip-sub="${esc(sub)}"` : ""}>${hicon(icon, "")}${esc(text)}</span>` });
+    if (mech && mech.avoidableDeaths) add("bad", true, `${mech.avoidableDeaths} vermeidbare${mech.avoidableDeaths === 1 ? "r Tod" : " Tode"}`, "ability_creature_cursed_05", "Tode durch eine Mechanik, der man ausweichen kann");
+    if (issues.length) {
+        const high = issues.filter((x) => x.severity === "high").length;
+        add(high ? "bad" : "mid", high >= TALK_GEAR_HIGH || issues.length >= TALK_GEAR, plural(issues.length, "Gear-Problem", "Gear-Probleme"), "inv_shield_06", "Gear-Probleme: Verzauberungen, Sockel, Meta-Gem", "Aus der Ausrüstung, die das Log beim Pull gesehen hat.");
+    }
+    if (heal && heal.manaLowFights) add("bad", true, `${heal.manaLowFights}× unter 10 % Mana`, "inv_potion_137", "Kämpfe, in denen das Mana unter 10 % fiel");
+    if (cons && cons.buffed < 90) add(cons.buffed < 50 ? "bad" : "mid", cons.buffed < 50, `Consumables ${cons.buffed} %`, "inv_alchemy_endlessflask_05", "Anteil der Boss-Kämpfe mit Flask oder beiden Elixieren", "Ab 90 % grün, unter 50 % rot.");
+    if (buffs && buffs.missing && !raidWideBuffs) add(buffs.missing >= 2 ? "bad" : "mid", false, `Buff fehlte ${buffs.missing}×`, "spell_magic_greaterblessingofkings", "Kämpfe, in denen ein erwarteter Raid-Buff gar nicht auf dem Raider lag");
+    if (heal && heal.overhealPct >= 35) add(heal.overhealPct >= 50 ? "bad" : "mid", false, `Overheal ${heal.overhealPct} %`, "spell_holy_flashheal", "Anteil der Heilung über volle Lebenspunkte", "Ab 35 % gelb, ab 50 % rot.");
+    if (!heal && act && act.activeAvg < 85) add(act.activeAvg < TALK_ACTIVE ? "bad" : "mid", act.activeAvg < TALK_ACTIVE, `${act.activeAvg} % aktiv`, "inv_misc_pocketwatch_02", "Anteil der Kampfzeit mit laufenden Zaubern oder Angriffen", `Bis zum eigenen Tod. Unter 85 % gelb, unter ${TALK_ACTIVE} % rot.`);
+    if (cd && cd.usedPct !== null && cd.usedPct !== undefined && cd.usedPct < 80) add("mid", false, `Cooldowns ${cd.usedPct} %`, "ability_rogue_preparation", "Genutzte Cooldowns gegen die möglichen");
     const dips = ctx.report.fightSeries && (ctx.report.fightSeries.players || []).find((x) => x && x.name === name);
-    if (dips && Number.isFinite(dips.dipPct) && dips.dipPct >= 25) add(dips.dipPct >= 40 ? "bad" : "mid", `${dips.dipPct} % Einbrüche`, "spell_nature_bloodlust", `Anteil der Kampfzeit, in der ${dips.measure === "hps" ? "HPS" : "DPS"} unter der Hälfte des eigenen Schnitts lag`, `Bis zum eigenen Tod, über ${plural(dips.fights || 0, "Kampf", "Kämpfe")}. Ab 25 % gelb, ab 40 % rot.`);
-    if (open) add("mid", `${open} offen`, "inv_misc_note_01", "Befunde, die noch niemand freigegeben oder verworfen hat");
-    if (!ctx.reviewer && items.length) add("accent", plural(items.length, "Empfehlung", "Empfehlungen"), "inv_misc_note_01", "Freigegebene Empfehlungen für diesen Raider");
-    const rank = { bad: 0, mid: 1, accent: 2 };
-    const shown = out.map((b, j) => ({ ...b, j })).sort((a, b) => rank[a.tone] - rank[b.tone] || a.j - b.j).slice(0, 3);
-    if (shown.length) return shown.map((b) => b.html).join("");
+    if (dips && Number.isFinite(dips.dipPct) && dips.dipPct >= 25) add(dips.dipPct >= 40 ? "bad" : "mid", dips.dipPct >= 40, `${dips.dipPct} % Einbrüche`, "spell_nature_bloodlust", `Anteil der Kampfzeit, in der ${dips.measure === "hps" ? "HPS" : "DPS"} unter der Hälfte des eigenen Schnitts lag`, `Bis zum eigenen Tod, über ${plural(dips.fights || 0, "Kampf", "Kämpfe")}. Ab 25 % gelb, ab 40 % rot.`);
+    // the review state is no finding: neutral, after the findings
+    if (open) add("", false, plural(open, "Empfehlung offen", "Empfehlungen offen"), "inv_misc_note_01", "Befunde, die noch niemand freigegeben oder verworfen hat");
+    if (!ctx.reviewer && items.length) add("accent", false, plural(items.length, "Empfehlung", "Empfehlungen"), "inv_misc_note_01", "Freigegebene Empfehlungen für diesen Raider");
+    const rank = { bad: 0, mid: 1, accent: 2, "": 3 };
+    return out.map((b, j) => ({ ...b, j })).sort((a, b) => (b.talk ? 1 : 0) - (a.talk ? 1 : 0) || rank[a.tone] - rank[b.tone] || a.j - b.j);
+}
+
+/** The group of a raider: "talk" (a finding worth a talk), "minor" (something yellow or red) or "fine". */
+function needOf(findings) {
+    if (findings.some((f) => f.talk)) return "talk";
+    return findings.some((f) => f.tone === "bad" || f.tone === "mid") ? "minor" : "fine";
+}
+
+/** The two badges in a raider's row: the two worst findings, or one in `ok` when nothing stands out. */
+function raiderBadges(ctx, p, findings) {
+    if (findings.length) return findings.slice(0, 2).map((b) => b.html).join("");
+    const act = ctx.actByName.get(p.name);
+    const heal = ctx.healByName.get(p.name);
+    const cons = ctx.consByName.get(p.name);
     if (act) return badge(`${act.activeAvg} % aktiv`, "ok", "inv_misc_pocketwatch_02");
     if (heal) return badge(`Overheal ${heal.overhealPct} %`, "ok", "spell_holy_flashheal");
     if (cons) return badge(`Consumables ${cons.buffed} %`, "ok", "inv_alchemy_endlessflask_05");
     return badge("Gear ok", "ok", "inv_shield_06");
+}
+
+/**
+ * Whether missing buffs are the raid's matter: at least five raiders with
+ * buff data and three in four of them lacked a buff at least once. Then the
+ * raider rows leave it out and the view says it once, above the groups.
+ */
+function raidWideBuffGap(ctx) {
+    const list = (ctx.report.raidBuffs && ctx.report.raidBuffs.players) || [];
+    const lacking = list.filter((b) => (b.missing || 0) > 0).length;
+    return list.length >= 5 && lacking * 4 >= list.length * 3 ? { lacking, of: list.length } : null;
 }
 
 /** The four sections of a raider (Empfehlungen · Vorbereitung · Leistung · Fehler), only those with data: [{ key, label, icon, count, tone, badge, html }] plus their dialogs. */
@@ -329,11 +369,11 @@ function raiderSections(ctx, p, i, items, opts = {}) {
 }
 
 /**
- * One raider card (Sicht Raider): class icon, name, role and fight count, at
- * most three badges, the Kampfverlauf and the Spielerseite as icon buttons in
- * the head; four sections behind buttons; for a reviewer the footer with the
- * phrasing job and the send dialog. The dialogs sit after the card, so they
- * open from a closed card too.
+ * One raider card (Sicht Raider): class icon, name with class and role, the
+ * two worst findings as badges; opened, the labelled links (Kampfverlauf,
+ * Armory, Spielerseite), four sections behind buttons and for a reviewer the
+ * footer with the phrasing job and the send dialog. The dialogs sit after
+ * the card, so they open from a closed card too.
  */
 function raiderCard(ctx, p, i, opts = {}) {
     const { report, reviewer } = ctx;
@@ -367,23 +407,32 @@ function raiderCard(ctx, p, i, opts = {}) {
         foot = `<div class="raider-foot"><span class="note">${approved} freigegeben · ${open} offen · zuletzt gesendet: ${sent ? esc(formatGermanDateTime(sent.at)) : "nie"}</span><span class="rec-send-result" hidden></span><div class="btns"><button type="button" class="btn btn-run btn-sm" data-phrase="player" data-tip="Claude formuliert die Befunde dieses Raiders in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">${hicon("inv_scroll_03", "")}KI-Formulierung</button><button type="button" class="btn btn-sm" data-dialog="send-${i}"${approved ? "" : " disabled"}>${hicon("inv_letter_15", "")}Vorschau &amp; senden</button></div></div>`;
         sendDlg = sendDialog(ctx, p, i, items);
     }
-    const roleIcon = { tank: "inv_shield_06", healer: "spell_holy_flashheal", dps: "ability_dualwield" }[role];
-    const meta = [
-        badge(p.type, ""),
-        ROLE_LABEL[role] ? badge(ROLE_LABEL[role], "accent", roleIcon) : "",
-        fights.length ? badge(plural(fights.length, "Kampf", "Kämpfe"), "", "", true) : "",
-    ].filter(Boolean).join("");
-    const tlBtn = fights.length ? ibtn(hicon("inv_misc_pocketwatch_01", ""), "Kampfverlauf öffnen", `${plural(fights.length, "Kampf", "Kämpfe")} mit eigenen Zeilen: DPS gegen den Raid-Schnitt, Aktivität, Cooldowns, Buffs, Tode.`, `data-dialog="dlg-rt-${i}"`) : "";
+    const meta = [p.type, ROLE_LABEL[role], fights.length ? plural(fights.length, "Kampf", "Kämpfe") : ""].filter(Boolean).join(" · ");
     const href = ctx.linkFor(name);
-    const pageBtn = href ? `<a class="ibtn" href="${esc(href)}" data-tip="Spielerseite öffnen" data-tip-sub="Die freigegebenen Punkte zuerst, dann die Kämpfe je Boss." aria-label="Spielerseite öffnen">${LINE.external}</a>` : "";
-    const armoryBtn = armoryButton(name);
+    const links = [
+        fights.length ? `<button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-rt-${i}" data-tip="${esc(`${plural(fights.length, "Kampf", "Kämpfe")} mit eigenen Zeilen`)}" data-tip-sub="DPS gegen den Raid-Schnitt, Aktivität, Cooldowns, Buffs, Tode.">${hicon("inv_misc_pocketwatch_01", "")}Kampfverlauf</button>` : "",
+        armoryLink(name, "btn btn-ghost btn-sm"),
+        href ? `<a class="btn btn-ghost btn-sm" href="${esc(href)}" data-tip="Spielerseite öffnen" data-tip-sub="Die freigegebenen Punkte zuerst, dann die Kämpfe je Boss.">Spielerseite${LINE.external}</a>` : "",
+    ].filter(Boolean).join("");
     return `<details class="vcard raider-card" id="raider-${esc(name)}" data-name="${esc(name)}" data-role="${role}" data-open="${reviewer ? open : approved}" data-report="${esc(report.id)}" style="--cc:${esc(color)}"${opts.open ? " open" : ""}>
-      <summary><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}"><div class="vcard-main"><div class="vcard-title cn">${esc(name)}</div><div class="vcard-meta">${meta}</div></div><div class="vcard-chips">${raiderBadges(ctx, p)}</div>${tlBtn}${armoryBtn}${pageBtn}${expBtn()}</summary>
-      <div class="vcard-body"><nav class="secs">${buttons}</nav>${panels}${foot}</div>
+      <summary><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}"><div class="vcard-main"><div class="vcard-title cn">${esc(name)}</div><div class="vcard-sub">${esc(meta)}</div></div><div class="vcard-chips">${raiderBadges(ctx, p, opts.findings || [])}</div>${expBtn()}</summary>
+      <div class="vcard-body">${links ? `<div class="raider-links">${links}</div>` : ""}<nav class="secs">${buttons}</nav>${panels}${foot}</div>
     </details>${timelineDialog}${dialogs}${sendDlg}`;
 }
 
-/** Sicht Raider: search, role filter with WoW icons, one icon button for all cards, one card per roster entry. `openName` opens that raider's card. */
+const NEED_GROUPS = [
+    { key: "talk", tone: "bad", label: "Gespräch lohnt sich", hint: "vermeidbare Tode, viele Gear-Probleme, wenig aktiv oder ohne Mana" },
+    { key: "minor", tone: "mid", label: "Kleinigkeiten", hint: "ein, zwei gelbe Punkte, kein Gespräch nötig" },
+    { key: "fine", tone: "ok", label: "Alles in Ordnung", hint: "nichts Auffälliges" },
+];
+
+/**
+ * Sicht Raider: search, role filter with WoW icons, one icon button for all
+ * cards, and the raiders in three groups by how much there is to talk about
+ * (NEED_GROUPS), the worst first within a group. A buff gap that nearly every
+ * raider shares is said once above the groups. `openName` opens that
+ * raider's card.
+ */
 function renderRaiderView(ctx, openName) {
     const roster = ctx.report.roster || [];
     if (!roster.length) return "<div class=\"empty\">Keine Raider gefunden.</div>";
@@ -391,7 +440,22 @@ function renderRaiderView(ctx, openName) {
         const r = ctx.recByName.get(p.name);
         return r && r.items.some((it) => (ctx.reviewer ? it.approved === null : it.approved === true));
     }).length;
-    const cards = roster.map((p, i) => raiderCard(ctx, p, i, { open: openName === p.name })).join("");
+    const buffGap = raidWideBuffGap(ctx);
+    const rows = roster.map((p, i) => {
+        const findings = raiderFindings(ctx, p, !!buffGap);
+        const weight = findings.filter((f) => f.talk).length * 10 + findings.filter((f) => f.tone === "bad").length * 2 + findings.filter((f) => f.tone === "mid").length;
+        return { p, i, findings, need: needOf(findings), weight };
+    });
+    const groups = NEED_GROUPS.map((g) => {
+        const members = rows.filter((r) => r.need === g.key).sort((a, b) => b.weight - a.weight || a.i - b.i);
+        if (!members.length) return "";
+        const cards = members.map((r) => raiderCard(ctx, r.p, r.i, { open: openName === r.p.name, findings: r.findings })).join("");
+        return `<section class="raider-group" data-group="${g.key}"><div class="rg-head"><span class="dot ${g.tone}"></span><b>${esc(g.label)}</b>${badge(plural(members.length, "Raider", "Raider"), "", "", true)}<span class="mute">${esc(g.hint)}</span></div>${cards}</section>`;
+    }).join("");
+    const note = buffGap
+        ? `<div class="raid-note">${hicon("spell_magic_greaterblessingofkings", "")}<span><b>Buffs fehlten bei ${buffGap.lacking} von ${buffGap.of} Raidern</b> – das ist ein Raid-Thema und steht deshalb nicht bei jedem Einzelnen.</span><a class="btn btn-ghost btn-sm" href="#raid">Raid-Buffs ansehen</a></div>`
+        : "";
+    const cards = `${note}${groups}`;
     const btn = (key, label, icon, extra, active) => `<button type="button" class="seg-btn${active ? " active" : ""}" data-rolefilter="${key}">${icon ? hicon(icon, "") : ""}${label}${extra || ""}</button>`;
     return `<div class="view-bar"><div class="raider-tools"><label class="field">${LINE.search}<input type="search" id="raiderSearch" placeholder="Raider suchen…" aria-label="Raider suchen"></label><nav class="seg sm">${btn("all", "Alle", "", "", true)}${btn("tank", "Tank", "inv_shield_06")}${btn("healer", "Heiler", "spell_holy_flashheal")}${btn("dps", "DPS", "ability_dualwield")}${btn("open", ctx.reviewer ? "Offen" : "Empfehlungen", "inv_misc_note_01", ` <span class="n${withOpen ? " mid" : ""}">${withOpen}</span>`)}</nav></div>${ibtn(LINE.expandAll, "Alle auf- oder zuklappen", "Betrifft die Karten, die Suche und Filter gerade zeigen.", "data-cards=\"toggle\"")}</div>
     ${cards}<div class="raider-empty" id="raiderEmpty" hidden>Kein Raider passt zu Suche und Filter.</div>`;

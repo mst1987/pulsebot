@@ -70,7 +70,7 @@ describe("web/report/render — Heilung topic of a fight", () => {
     it("adds a Heilung topic with one block per healer: chips, mana curve with its potion, spell table", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("data-show=\"fp-2-healing\">");
-        expect(html).toMatch(/Heilung<span class="n(?: mid| bad)?">2 · 2 Heiler<\/span>/);
+        expect(html).toMatch(/data-show="fp-2-healing"><img[^>]*><span class="tn"><b>Heilung<\/b><small>2 Heiler<\/small><\/span><span class="dot (?:ok|mid|bad)"><\/span>/);
         expect(html).toContain("<span class=\"cn\">Elun</span>");
         expect(html).toContain("<b>23 %</b> Overheal");
         expect(html).toContain("<b>155k</b> Heilung");

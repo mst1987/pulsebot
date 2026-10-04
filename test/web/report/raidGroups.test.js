@@ -1,4 +1,4 @@
-// Sicht Raid (src/web/report/raidGroups.js): the raid's findings and the three
+// Sicht Raid (src/web/report/raidGroups.js): the three
 // area groups, one metric card and one detail dialog per area.
 const cases = require("../../fixtures/reportGolden/cases.json");
 const { reportContext } = require("../../../src/web/report/context");
@@ -40,17 +40,14 @@ describe("web/report/raidGroups", () => {
         const lead = groupsOf(fixture("case01-report"), LEAD);
         const reader = groupsOf(fixture("case01-report"), null);
 
-        it("puts the findings first for the raid lead, with the send dialog, and leaves them out for a reader without approved ones", () => {
-            expect(lead.map((g) => g.id)).toEqual(["recs", "prep", "perf", "err"]);
+        it("returns only the three area groups, whoever looks: the raid findings moved to Das Wichtigste", () => {
+            expect(lead.map((g) => g.id)).toEqual(["prep", "perf", "err"]);
             expect(reader.map((g) => g.id)).toEqual(["prep", "perf", "err"]);
-            const recs = byId(lead).recs;
-            expect(recs.flagged).toBe(2);
-            expect(recs.html).toContain("<section class=\"gcard\" id=\"rs-rec-raid\">");
-            expect(recs.html).toContain("Raid › Empfehlungen · 2 offen · 0 freigegeben");
-            expect(recs.html).toContain("data-dialog=\"dlg-rs-send\"");
-            expect(recs.html).toContain("<dialog class=\"dlg detail\" id=\"dlg-rs-send\">");
+            const html = lead.map((g) => g.html).join("");
+            expect(html).not.toContain("rs-rec-raid");
+            expect(html).not.toContain("dlg-rs-send");
+            expect(html).not.toContain("Empfehlungen");
         });
-
         it("counts the areas that stand out in each group head", () => {
             const g = byId(lead);
             expect([g.prep.flagged, g.perf.flagged, g.err.flagged]).toEqual([4, 3, 1]);
@@ -109,15 +106,11 @@ describe("web/report/raidGroups", () => {
     describe("hand-built edges", () => {
         const pl = (name, type, over = {}) => ({ name, type, ...over });
 
-        it("shows a reader only the approved raid findings, counted in the head", () => {
+        it("builds no group from raid recommendations alone", () => {
             const report = { id: "x", recommendations: { raid: [{ key: "a", impact: "high", title: "T", text: "t" }], players: [] }, recommendationReview: { raid: { a: { approved: true } } } };
-            const groups = groupsOf(report);
-            expect(groups.map((g) => [g.id, g.flagged])).toEqual([["recs", 0]]);
-            expect(groups[0].html).toContain("Raid › Empfehlungen · 1 Punkt von der Raidleitung");
-            expect(groups[0].html).toContain("<span class=\"badge count\">1</span>");
-            expect(groups[0].html).not.toContain("dlg-rs-send");
+            expect(groupsOf(report)).toEqual([]);
+            expect(groupsOf(report, LEAD)).toEqual([]);
         });
-
         it("puts the RPB tables under the CLA ones for activity and cooldowns", () => {
             const report = {
                 id: "x",

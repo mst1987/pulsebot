@@ -45,31 +45,40 @@ function timeline() {
 }
 
 describe("web/report/render — Kampfverlauf tab", () => {
-    it("shows the tab with one boss tab per boss, carrying the WCL icon and the try count", () => {
+    it("shows the tab with one table row per boss, carrying the WCL icon and the try count", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("class=\"seg-btn active\" data-show=\"view-bosse\"");
         expect(html).toMatch(/Bosse<span class="n(?: mid| bad)?">2<\/span>/);
-        expect(html.match(/<details class="vcard boss-card"/g)).toHaveLength(2);
-        expect(html).toContain("<img class=\"vcard-icon\" src=\"/bosses/649.jpg\" alt=\"\"><div class=\"vcard-main\"><div class=\"vcard-title\">High King Maulgar</div><div class=\"vcard-meta\"><span class=\"badge count\">2 Tries</span>");
-        expect(html).toContain("<img class=\"vcard-icon\" src=\"/bosses/650.jpg\" alt=\"\"><div class=\"vcard-main\"><div class=\"vcard-title\">Gruul the Dragonkiller</div><div class=\"vcard-meta\"><span class=\"badge count\">1 Try</span>");
-        // the first boss card is open, the second closed
-        expect(html).toContain("<details class=\"vcard boss-card\" id=\"boss-e649\" open>");
-        expect(html).toContain("<details class=\"vcard boss-card\" id=\"boss-e650\">");
+        expect(html).not.toContain("boss-card");
+        expect(html.match(/<tr data-boss-open="/g)).toHaveLength(2);
+        expect(html).toContain("<button type=\"button\" class=\"boss-open\" data-boss-open=\"e649\"><img class=\"boss-ico\" src=\"/bosses/649.jpg\" alt=\"\"><b>High King Maulgar</b></button>");
+        expect(html).toContain("<button type=\"button\" class=\"boss-open\" data-boss-open=\"e650\"><img class=\"boss-ico\" src=\"/bosses/650.jpg\" alt=\"\"><b>Gruul the Dragonkiller</b></button>");
+        expect(html).toContain("<span class=\"badge ok\">Kill 3:00</span> <span class=\"mute\">2 Tries</span>");
+        // a boss pulled once carries no tries note
+        expect(html).toContain("<td><span class=\"badge ok\">Kill 3:20</span></td>");
+        // every boss has its page, hidden until its row is clicked
+        expect(html).toContain("<section class=\"boss-detail\" id=\"boss-e649\" data-boss=\"e649\" hidden>");
+        expect(html).toContain("<section class=\"boss-detail\" id=\"boss-e650\" data-boss=\"e650\" hidden>");
     });
 
-    it("sums a boss up in chips: missing debuffs and the raid DPS of the kill", () => {
+    it("sums a boss up in the row: deaths, debuffs and buffs, and has no Raid-DPS chip", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toMatch(/<span class="chip chip-x ok" data-tip="[^"]*" data-tip-sub="[^"]*">(?:<img[^>]*>)?<b>0<\/b> Debuffs fehlten<\/span>/);
-        expect(html).toMatch(/<span class="chip chip-x ok" data-tip="[^"]*" data-tip-sub="[^"]*">(?:<img[^>]*>)?<b>1,0k<\/b> Raid-DPS<\/span>/);
+        const row = html.slice(html.indexOf("<tr data-boss-open=\"e649\">"), html.indexOf("</tr>", html.indexOf("<tr data-boss-open=\"e649\">")));
+        expect(row).toContain("<td><span class=\"badge mid\">1 Tod</span></td><td><span class=\"badge ok\">alle da</span></td><td><span class=\"mute\">–</span></td><td><span class=\"mute\">–</span></td>");
+        expect(html).not.toContain("Raid-DPS</span>");
+        expect(html).not.toContain("chip-x");
     });
 
-    it("puts the fight's numbers in one row: Raid-DPS, mean activity, expected debuffs, deaths — no Bloodlust stat", () => {
+    it("keeps the fight's numbers out of a stats row: the topic list carries them", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("Raid-DPS</div><div class=\"stat-v\">1,0k</div>");
-        expect(html).toContain("Raid-HPS</div><div class=\"stat-v\">300</div>");
-        expect(html).not.toContain("Bloodlust</div><div class=\"stat-v\">"); // dropped on request; the windows stay in the Cooldowns chart
-        expect(html).toContain("Aktivität Ø</div><div class=\"stat-v warn\">94 %</div>");
-        expect(html).toContain("Tode</div><div class=\"stat-v\">1 <small>· Alice 0:30</small></div>");
+        expect(html).not.toContain("class=\"stats\"");
+        expect(html).not.toContain("Raid-HPS</div>");
+        expect(html).not.toContain("Bloodlust</div><div class=\"stat-v\">");
+        expect(html).toContain("<b>Aktivität</b><small>Ø 94 % aktiv</small></span><span class=\"dot mid\"></span>");
+        expect(html).toContain("<b>Tode</b><small>1 Tod</small></span><span class=\"dot mid\"></span>");
+        // the boss page's head carries the mean activity and the deaths instead
+        expect(html).toContain("<div class=\"bfact\"><span class=\"kicker\">Aktivität</span><b class=\"warn\">Ø 94 %</b></div>");
+        expect(html).toContain("<div class=\"bfact\"><span class=\"kicker\">Tode</span><b>1 Tod</b></div>");
     });
 
     it("offers one try pill per pull of a boss and opens the first try", () => {
@@ -99,22 +108,22 @@ describe("web/report/render — Kampfverlauf tab", () => {
         expect(own).not.toContain("<details class=\"grp\"");
     });
 
-    it("switches topics with section buttons, the first topic open, the table first and the chart in a dialog", () => {
+    it("switches topics with the topic list, the worst topic open, the table first and the chart in a dialog", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("class=\"sec active\" data-show=\"fp-3-debuffs\">");
-        expect(html).toMatch(/Debuffs<span class="n(?: mid| bad)?">1<\/span>/);
-        expect(html).toContain("data-show=\"fp-3-totems\">");
-        expect(html).toMatch(/Totems<span class="n(?: mid| bad)?">1<\/span>/);
-        expect(html).toContain("data-show=\"fp-3-cooldowns\">");
-        expect(html).toMatch(/Cooldowns<span class="n(?: mid| bad)?">1<\/span>/); // no possibleUses on the row: no "genutzt" share
-        expect(html).toContain("data-show=\"fp-3-activity\">");
-        expect(html).toMatch(/Aktivität<span class="n(?: mid| bad)?">1 · Ø 94 %<\/span>/);
-        expect(html).toContain("data-show=\"fp-3-deaths\">");
-        expect(html).toMatch(/Tode<span class="n(?: mid| bad)?">0<\/span>/);
-        expect(html).toContain("<div id=\"fp-3-debuffs\" class=\"fight-part part\">");
+        const fight = html.slice(html.indexOf("id=\"fight-3\""), html.indexOf("</section>", html.indexOf("id=\"fight-3\"")));
+        const nav = fight.slice(fight.indexOf("<nav class=\"topic-nav\""), fight.indexOf("</nav>"));
+        // Aktivität (mid) before the ok topics, the neutral Kampfverlauf last
+        expect(nav).toContain("<button type=\"button\" class=\"topic active\" data-show=\"fp-3-activity\">");
+        expect(nav).toContain("<b>Debuffs</b><small>0 erwartet, alle da</small></span><span class=\"dot ok\"></span>");
+        expect(nav).toContain("<b>Totems</b><small>1 Schamane</small></span><span class=\"dot ok\"></span>");
+        expect(nav).toContain("<b>Cooldowns</b><small>1 Cooldown</small></span><span class=\"dot ok\"></span>"); // no possibleUses on the row: no "genutzt" share
+        expect(nav).toContain("<b>Tode</b><small>niemand gestorben</small></span><span class=\"dot ok\"></span>");
+        expect(nav).toContain("<b>Kampfverlauf</b><small>DPS und HPS</small></span><span class=\"dot none\"></span>");
+        expect([...nav.matchAll(/data-show="fp-3-(\w+)"/g)].map((m) => m[1])).toEqual(["activity", "debuffs", "totems", "cooldowns", "deaths", "series"]);
+        expect(html).toContain("<div id=\"fp-3-activity\" class=\"fight-part part\">");
         expect(html).toContain("<div id=\"fp-3-totems\" class=\"fight-part part\" hidden>");
         // the compact table sits in the card, the chart behind "Verlauf öffnen" in a <dialog>
-        expect(html).toContain("<table class=\"idx fc-table topic-table\"><tr><th>Zeile</th><th>Uptime</th><th>Details</th><th>Lücken</th><th>Längste Lücke</th></tr><tr><td><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/ability_warrior_sunder.jpg\" alt=\"\">Sunder Armor</td><td><span class=\"tv good\">100%</span></td><td>5/5 ab 0:08</td><td class=\"mono\">0</td><td class=\"mono\">–</td></tr></table>");
+        expect(html).toContain("<table class=\"idx fc-table topic-table\"><tr><th>Debuff</th><th>Uptime</th><th>Details</th><th>Lücken</th><th>Längste Lücke</th></tr><tr><td><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/ability_warrior_sunder.jpg\" alt=\"\">Sunder Armor</td><td><span class=\"tv good\">100%</span></td><td>5/5 ab 0:08</td><td class=\"mono\">0</td><td class=\"mono\">–</td></tr></table>");
         expect(html).toContain("data-dialog=\"dlg-fp-3-debuffs\"");
         expect(html).toContain("Verlauf öffnen<svg");
         expect(html).toContain("<dialog class=\"dlg chart\" id=\"dlg-fp-3-debuffs\">");
@@ -126,7 +135,6 @@ describe("web/report/render — Kampfverlauf tab", () => {
         expect(html).toContain("<div class=\"fight-series\">");
         expect(html).toContain("Raid-DPS");
     });
-
     it("draws icon-only rows with the name in the tooltip and the value with a sub line", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("data-tip=\"Bob · Windfury\"");
@@ -143,7 +151,7 @@ describe("web/report/render — Kampfverlauf tab", () => {
     it("draws the bare fight axis with its deaths when no analyzer has filled a fight yet", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("data-show=\"fp-2-fight\">");
-        expect(html).toMatch(/Kampf<span class="n(?: mid| bad)?">1<\/span>/);
+        expect(html).toContain("<b>Kampf</b><small>2:00</small></span><span class=\"dot none\"></span>");
         expect(html).toContain("data-tip=\"0:30 Alice\" data-tip-sub=\"† Arcane Explosion\"");
         expect(html).toContain("<li style=\"--cc:#69CCF0\"><b>0:30</b><a class=\"cn\" href=\"/r/abc123def456/p/0\">Alice</a>");
         expect(html).toContain("Niemand ist gestorben.");
@@ -175,7 +183,8 @@ describe("web/report/render — Kampfverlauf tab", () => {
         const html = renderReportPage(report());
         expect(html).toContain("class=\"seg-btn active\" data-show=\"view-raid\"");
         expect(html).toContain("Keine Boss-Kämpfe im Log.");
-        expect(html).not.toContain("class=\"vcard boss-card");
+        expect(html).not.toContain("boss-card");
+        expect(html).not.toContain("boss-table");
     });
 
     it("groups by boss name when the encounter id is missing, without an icon", () => {
@@ -184,7 +193,8 @@ describe("web/report/render — Kampfverlauf tab", () => {
         const html = renderReportPage({ ...report(), timeline: tl });
         expect(html).toContain("id=\"boss-nHigh King Maulgar\"");
         expect(html).not.toContain("/bosses/");
-        expect(html.match(/<details class="vcard boss-card"/g)).toHaveLength(2);
+        expect(html.match(/<tr data-boss-open="/g)).toHaveLength(2);
+        expect(html).toContain("<span class=\"boss-ico\"></span><b>High King Maulgar</b>");
     });
 
     it("includes the chart styles and the switch script once", () => {

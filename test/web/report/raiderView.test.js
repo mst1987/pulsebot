@@ -39,34 +39,149 @@ describe("web/report/raiderView", () => {
             expect(html).toContain("id=\"raider-Elun\" data-name=\"Elun\" data-role=\"healer\" data-open=\"2\"");
             expect(html).not.toContain("raider-foot");
             expect(html).not.toContain("<dialog class=\"dlg send\"");
-            expect(html).toContain("2 Empfehlungen</span>");
+            // the card shows the raider's two worst findings, no review state for a reader
+            expect(html).not.toContain("Empfehlung offen");
+            expect(html).not.toContain("Empfehlungen offen");
         });
 
-        it("shows the raider's badges worst first, at most three", () => {
+        it("shows at most two badges per raider, the talk findings first, then worst first", () => {
             const ctx = reportContext(fixture("case01-report"), LEAD);
             const html = renderRaiderView(ctx, null);
             const chips = (name) => {
                 const at = html.indexOf(`id="raider-${name}"`);
-                return html.slice(html.indexOf("<div class=\"vcard-chips\">", at), html.indexOf("</div>", html.indexOf("<div class=\"vcard-chips\">", at)));
+                const start = html.indexOf("<div class=\"vcard-chips\">", at);
+                return html.slice(start, html.indexOf("</span></div>", start) + 13);
             };
             const brokk = chips("Brokk");
             expect(brokk.match(/<span class="badge /g)).toHaveLength(2);
             expect(brokk).toContain("1 vermeidbarer Tod</span>");
             expect(brokk).toContain("Buff fehlte 1×</span>");
+            expect(brokk.indexOf("badge bad")).toBeLessThan(brokk.indexOf("badge mid"));
+            // Elun has three findings (mana, gear, the open point) and shows only the first two
             const elun = chips("Elun");
-            expect(elun.match(/<span class="badge /g)).toHaveLength(3);
-            expect(elun.indexOf("badge bad")).toBeLessThan(elun.indexOf("badge mid"));
-            expect(elun).toContain("2× unter 10 % Mana</span>");
+            expect(elun.match(/<span class="badge /g)).toHaveLength(2);
+            expect(elun.indexOf("2× unter 10 % Mana")).toBeLessThan(elun.indexOf("1 Gear-Problem"));
+            expect(elun).not.toContain("Empfehlung");
         });
 
+        it("puts the person's facts into a plain-text sub line, not into badges", () => {
+            const ctx = reportContext(fixture("case01-report"), LEAD);
+            const html = renderRaiderView(ctx, null);
+            expect(html).toContain("<div class=\"vcard-title cn\">Elun</div><div class=\"vcard-sub\">Priest · Heiler · 1 Kampf</div>");
+            expect(html).not.toContain("vcard-meta\">Priest");
+        });
+
+        it("groups the raiders by how much there is to talk about, the heaviest first, and leaves out empty groups", () => {
+            const ctx = reportContext(fixture("case01-report"), LEAD);
+            const html = renderRaiderView(ctx, null);
+            expect(html.match(/<section class="raider-group" data-group="/g)).toHaveLength(2);
+            expect(html).toContain("<div class=\"rg-head\"><span class=\"dot bad\"></span><b>Gespräch lohnt sich</b><span class=\"badge count\">2 Raider</span><span class=\"mute\">vermeidbare Tode, viele Gear-Probleme, wenig aktiv oder ohne Mana</span></div>");
+            expect(html).toContain("<section class=\"raider-group\" data-group=\"minor\"><div class=\"rg-head\"><span class=\"dot mid\"></span><b>Kleinigkeiten</b><span class=\"badge count\">1 Raider</span>");
+            expect(html).not.toContain("data-group=\"fine\"");
+            const at = (s) => html.indexOf(s);
+            // Brokk (avoidable death) and Elun (mana) talk, Dorn only has small things
+            expect(at("data-group=\"talk\"")).toBeLessThan(at("id=\"raider-Brokk\""));
+            expect(at("id=\"raider-Elun\"")).toBeLessThan(at("data-group=\"minor\""));
+            expect(at("data-group=\"minor\"")).toBeLessThan(at("id=\"raider-Dorn\""));
+        });
+
+        describe("groups of synthetic raiders", () => {
+            const mk = (players) => ({
+                id: "x",
+                roster: players.map((p) => ({ name: p.name, type: p.type || "Mage", issues: p.issues || [] })),
+                consumables: { players: players.filter((p) => p.cons !== undefined).map((p) => ({ name: p.name, type: "Mage", buffed: p.cons, food: 100, weaponOiled: true })) },
+                activity: { players: players.filter((p) => p.act !== undefined).map((p) => ({ name: p.name, type: "Mage", activeAvg: p.act, gaps: 0, longestGap: 0, unexplainedMs: 0 })) },
+                mechanics: { players: players.filter((p) => p.avoid).map((p) => ({ name: p.name, type: "Mage", hits: 1, deaths: 1, avoidableDeaths: 1, byMechanic: {} })) },
+            });
+            const groupOf = (html, name) => {
+                const at = html.indexOf(`id="raider-${name}"`);
+                return html.slice(0, at).match(/data-group="(\w+)"/g).pop().replace(/data-group="|"/g, "");
+            };
+            const render = (players) => renderRaiderView(reportContext(mk(players), null), null);
+
+            it("sorts talk, minor and fine by their strongest finding", () => {
+                const html = render([
+                    { name: "Fine" },
+                    { name: "Death", avoid: true },
+                    { name: "Lazy", act: 70 },
+                    { name: "Okayish", act: 82 },
+                    { name: "Food", cons: 60 },
+                    { name: "NoFood", cons: 40 },
+                    { name: "Gear5", issues: Array.from({ length: 5 }, (_, i) => ({ itemName: `i${i}`, label: "x", severity: "medium" })) },
+                    { name: "Gear2", issues: [{ itemName: "a", label: "x", severity: "medium" }, { itemName: "b", label: "x", severity: "medium" }] },
+                    { name: "Gear3High", issues: Array.from({ length: 3 }, (_, i) => ({ itemName: `i${i}`, label: "x", severity: "high" })) },
+                ]);
+                for (const talk of ["Death", "Lazy", "NoFood", "Gear5", "Gear3High"]) expect([talk, groupOf(html, talk)]).toEqual([talk, "talk"]);
+                for (const minor of ["Okayish", "Food", "Gear2"]) expect([minor, groupOf(html, minor)]).toEqual([minor, "minor"]);
+                expect(groupOf(html, "Fine")).toBe("fine");
+                expect(html).toContain("<span class=\"dot ok\"></span><b>Alles in Ordnung</b><span class=\"badge count\">1 Raider</span><span class=\"mute\">nichts Auffälliges</span>");
+                // the heaviest first within the talk group (ties keep the roster order): five medium gear problems weigh less than a red finding
+                const order = ["Death", "Lazy", "NoFood", "Gear3High", "Gear5"].map((n) => html.indexOf(`id="raider-${n}"`));
+                expect(order).toEqual([...order].sort((a, b) => a - b));
+                // the group order: talk, minor, fine
+                expect(html.indexOf("data-group=\"talk\"")).toBeLessThan(html.indexOf("data-group=\"minor\""));
+                expect(html.indexOf("data-group=\"minor\"")).toBeLessThan(html.indexOf("data-group=\"fine\""));
+            });
+
+            it("shows a fine raider one green badge", () => {
+                const html = render([{ name: "Fine", act: 99 }]);
+                expect(html).toContain("<span class=\"badge ok\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_misc_pocketwatch_02.jpg\" alt=\"\">99 % aktiv</span>");
+            });
+
+            const buffReport = (lacking, total) => ({
+                ...mk(Array.from({ length: total }, (_, i) => ({ name: `R${i}` }))),
+                raidBuffs: {
+                    rows: [{ key: "kings", label: "Kings", provider: "Paladin", expected: true }],
+                    players: Array.from({ length: total }, (_, i) => ({ name: `R${i}`, type: "Mage", buffs: {}, missing: i < lacking ? 1 : 0, partial: 0, late: 0, wrong: 0 })),
+                },
+            });
+
+            it("says a buff gap that nearly everyone shares once, above the groups, and drops it from the rows", () => {
+                const html = renderRaiderView(reportContext(buffReport(4, 5), null), null);
+                expect(html).toContain("<div class=\"raid-note\">");
+                expect(html).toContain("<b>Buffs fehlten bei 4 von 5 Raidern</b>");
+                expect(html).toContain("<a class=\"btn btn-ghost btn-sm\" href=\"#raid\">Raid-Buffs ansehen</a>");
+                expect(html.indexOf("raid-note")).toBeLessThan(html.indexOf("raider-group"));
+                expect(html).not.toContain("Buff fehlte");
+                // nobody is left with a finding: one group, all fine
+                expect(html).toContain("data-group=\"fine\"");
+                expect(html).not.toContain("data-group=\"minor\"");
+            });
+
+            it("keeps the buff badge per raider when fewer than three in four lacked one or there are fewer than five raiders", () => {
+                const some = renderRaiderView(reportContext(buffReport(3, 5), null), null);
+                expect(some).not.toContain("raid-note");
+                expect(some.match(/Buff fehlte 1×/g)).toHaveLength(3);
+                const few = renderRaiderView(reportContext(buffReport(4, 4), null), null);
+                expect(few).not.toContain("raid-note");
+                expect(few.match(/Buff fehlte 1×/g)).toHaveLength(4);
+            });
+        });
+
+        it("counts the open points as a neutral badge for a reviewer", () => {
+            const report = {
+                id: "x", roster: [{ name: "A", type: "Mage" }],
+                recommendations: { raid: [], players: [{ name: "A", items: [
+                    { key: "k1", impact: "low", title: "t1", text: "x" },
+                    { key: "k2", impact: "low", title: "t2", text: "x" },
+                ] }] },
+            };
+            const html = renderRaiderView(reportContext(report, LEAD), null);
+            expect(html).toContain("<span class=\"badge\" data-tip=\"Befunde, die noch niemand freigegeben oder verworfen hat\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_misc_note_01.jpg\" alt=\"\">2 Empfehlungen offen</span>");
+            expect(html).not.toContain("<span class=\"badge mid\">2 offen");
+            // an open review alone is no finding: the raider stays in the fine group
+            expect(html).toContain("data-group=\"fine\"");
+        });
         it("adds the timeline dialog, the page link and the send dialog to a raider card", () => {
             const ctx = reportContext(fixture("case01-report"), LEAD);
             const html = renderRaiderView(ctx, null);
             expect(html).toContain("<dialog class=\"dlg chart\" id=\"dlg-rt-1\">");
             expect(html).toContain("Kampfverlauf · Elun</div>");
-            expect(html).toContain("<a class=\"btn btn-ghost btn-sm\" href=\"/r/abc123def456/p/1\">Spielerseite");
-            expect(html).toContain("<a class=\"ibtn\" href=\"/r/abc123def456/p/1\" data-tip=\"Spielerseite öffnen\"");
-            expect(html).toContain("data-dialog=\"dlg-rt-1\"");
+            // the three links live in the body as labelled buttons, not as icon buttons in the summary
+            expect(html).toContain("<div class=\"raider-links\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-dialog=\"dlg-rt-1\"");
+            expect(html).toContain("Kampfverlauf</button><a class=\"btn btn-ghost btn-sm\" href=\"https://classic-armory.org/character/eu/tbc-anniversary/thunderstrike/Elun\"");
+            expect(html).toContain("<a class=\"btn btn-ghost btn-sm\" href=\"/r/abc123def456/p/1\" data-tip=\"Spielerseite öffnen\"");
+            expect(html).not.toContain("class=\"ibtn\" href=\"/r/abc123def456/p/1\"");
             expect(html).toContain("<div class=\"raider-foot\"><span class=\"note\">2 freigegeben · 1 offen · zuletzt gesendet: ");
             expect(html).toContain("<dialog class=\"dlg send\" id=\"send-1\" data-report=\"abc123def456\" data-player=\"Elun\">");
             expect(html).toContain("zuletzt gesendet: nie</span>");

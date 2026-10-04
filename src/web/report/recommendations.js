@@ -1,8 +1,8 @@
 // The findings (report.recommendations): one row per finding with the verdict
-// buttons, the raid's list and the "Alle senden" box.
+// buttons, „Das Wichtigste“ and the send box.
 const { applyReview } = require("../../utils/logcheck/recommendations");
 const { esc } = require("./layout");
-const { expBtn, badge, LINE, ibtn, hicon } = require("./widgets");
+const { expBtn, badge, LINE, ibtn, hicon, detailDialog } = require("./widgets");
 const { formatGermanDateTime } = require("../../utils/time");
 
 // ---- Empfehlungen: what each raider and the raid should do differently (report.recommendations) ----
@@ -72,15 +72,51 @@ function recItem(item, scope, player, reviewer, opts = {}) {
     </details>`;
 }
 
-/** The raid's findings (Sicht Raid): every finding with verdict controls for a reviewer, the approved ones for everyone else. */
+/** The raid's findings: every finding with verdict controls for a reviewer, the approved ones for everyone else. */
 function renderRaidRecommendations(rec, reviewer) {
     const raid = reviewer ? (rec.raid || []) : (rec.raid || []).filter((i) => i.approved === true);
     if (!raid.length) return "<div class=\"rlist rec-list\"><div class=\"rec-empty\">Nichts, was den ganzen Raid gekostet hätte.</div></div>";
     return `<div class="rlist rec-list">${raid.map((i) => recItem(i, "raid", "", reviewer)).join("")}</div>`;
 }
 
+const KEY_SHOWN = 5;
+
+const IMPACT_RANK = { high: 0, medium: 1, low: 2 };
+
 /**
- * The body of the "Alle senden" dialog for reviewers: how many raiders have
+ * "Das Wichtigste", above the three views: the raid's findings, the heaviest
+ * first, five in view and the rest behind "n weitere". For a reviewer it is
+ * the page's one main button, "Empfehlungen senden …", which opens the send
+ * dialog for every raider; a reader sees the approved findings and no
+ * section when there are none.
+ */
+function renderKeyFindings(report, rec, reviewer) {
+    if (!rec) return "";
+    const raid = (rec.raid || []).filter((i) => reviewer || i.approved === true)
+        .map((i, j) => ({ i, j })).sort((a, b) => (IMPACT_RANK[a.i.impact] ?? 3) - (IMPACT_RANK[b.i.impact] ?? 3) || a.j - b.j).map((x) => x.i);
+    if (!raid.length && !reviewer) return "";
+    const open = raid.filter((i) => i.approved === null).length;
+    const approved = raid.filter((i) => i.approved === true).length;
+    const players = (rec.players || []).filter((p) => p.items.some((i) => i.approved === true)).length;
+    const sub = reviewer
+        ? `${raid.length} ${raid.length === 1 ? "Punkt" : "Punkte"} für den ganzen Raid · ${open} offen · ${approved} freigegeben`
+        : `${raid.length} ${raid.length === 1 ? "Punkt" : "Punkte"} von der Raidleitung`;
+    const action = reviewer ? `<button type="button" class="btn" data-dialog="dlg-rs-send">${hicon("inv_letter_15", "")}Empfehlungen senden …</button>` : "";
+    const row = (i) => recItem(i, "raid", "", reviewer);
+    const list = raid.length
+        ? `<div class="rlist rec-list">${raid.slice(0, KEY_SHOWN).map(row).join("")}</div>${raid.length > KEY_SHOWN ? `<details class="key-more"><summary>${raid.length - KEY_SHOWN === 1 ? "1 weiterer Punkt" : `${raid.length - KEY_SHOWN} weitere Punkte`} anzeigen</summary><div class="rlist rec-list">${raid.slice(KEY_SHOWN).map(row).join("")}</div></details>` : ""}`
+        : "<div class=\"rec-empty\">Nichts, was den ganzen Raid gekostet hätte.</div>";
+    const dialog = reviewer
+        ? detailDialog("rs-send", "inv_letter_15", "", "Empfehlungen senden", `Versand · ${players} ${players === 1 ? "Raider" : "Raider"} mit freigegebenen Punkten`, renderSendBox(report), "Ein unveränderter Satz wird nie zweimal geschickt.")
+        : "";
+    return `<section class="key-findings" id="rs-rec-raid">
+      <div class="key-head"><div><h2>Das Wichtigste</h2><span class="sub">${esc(sub)}</span></div>${action}</div>
+      ${list}${dialog}
+    </section>`;
+}
+
+/**
+ * The body of the "Empfehlungen senden" dialog for reviewers: how many raiders have
  * approved points, who was already written to, the mapping check, the
  * phrasing job and the button that sends the rest as Discord DMs. The
  * per-raider mapping state is loaded from /api/cla/recommendations/send on
@@ -108,5 +144,5 @@ function renderSendBox(report) {
 }
 
 module.exports = {
-    IMPACT_LABEL, canReview, IMPACT_TONE, recItem, renderRaidRecommendations, renderSendBox,
+    IMPACT_LABEL, canReview, IMPACT_TONE, recItem, renderRaidRecommendations, renderKeyFindings, renderSendBox,
 };

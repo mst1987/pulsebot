@@ -178,7 +178,7 @@ describe("web/report/render — Buffs on the player page", () => {
         const raid = renderReportPage({ ...report(), timeline: tl });
         // the raid page lists her now, with the late chip
         expect(raid).toContain("data-show=\"fp-2-buffs\">");
-        expect(raid).toMatch(/Buffs<span class="n(?: mid| bad)?">3 · 3 fehlten<\/span>/);
+        expect(raid).toMatch(/<b>Buffs<\/b><small>3 fehlten<\/small><\/span><span class="dot (?:mid|bad)"><\/span>/);
         expect(raid).toContain("<span class=\"cn\">Elun</span><span class=\"sritems\">Heiler</span>");
         expect(raid).toContain("Segen der Könige spät gesetzt</span>");
         expect(raid).not.toContain("ausgelaufen");

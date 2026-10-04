@@ -81,13 +81,21 @@ const normBand = (b) => (Array.isArray(b) ? { from: b[0], to: b[1] } : (b && typ
  * toned headline value and its sub line; band rows add gaps and the longest
  * gap, marker rows the count and the times. This is what a card shows first —
  * the chart with the same rows sits behind "Verlauf öffnen".
+ *
+ * `opts.label` names the first column, `opts.fold` hides the rows that are
+ * fine (a row's own `fold`, else its tone in the green) behind one
+ * "n weitere" button when there are rows that are not (the caller sorts them
+ * worst first); `opts.unit` words that button's threshold.
  */
-function topicTable(rows, duration, kind) {
+function topicTable(rows, duration, kind, opts = {}) {
     const isBands = kind === "bands";
+    const first = esc(opts.label || "Zeile");
     const head = isBands
-        ? "<tr><th>Zeile</th><th>Uptime</th><th>Details</th><th>Lücken</th><th>Längste Lücke</th></tr>"
-        : "<tr><th>Zeile</th><th>Anzahl</th><th>Details</th><th>Zeitpunkte</th></tr>";
-    const body = rows.map((r) => {
+        ? `<tr><th>${first}</th><th>Uptime</th><th>Details</th><th>Lücken</th><th>Längste Lücke</th></tr>`
+        : `<tr><th>${first}</th><th>Anzahl</th><th>Details</th><th>Zeitpunkte</th></tr>`;
+    const fine = (r) => (r.fold !== undefined ? r.fold : r.tone === "good");
+    const folded = opts.fold && rows.some((r) => !fine(r)) ? rows.filter(fine) : [];
+    const html = rows.map((r) => {
         const name = `${r.icon ? hicon(r.icon, "") : ""}${esc(r.label)}`;
         const value = r.value !== undefined && r.value !== null ? `<span class="tv${r.tone ? ` ${r.tone}` : ""}">${esc(r.value)}</span>` : "–";
         const sub = r.sub ? esc(r.sub) : "–";
@@ -99,8 +107,14 @@ function topicTable(rows, duration, kind) {
         const marks = (r.markers || []).filter((m) => m && Number.isFinite(m.at));
         const times = marks.slice(0, 8).map((m) => fmtTime(m.at)).join(", ") + (marks.length > 8 ? `, … (${marks.length})` : "");
         return `<tr><td>${name}</td><td>${value}</td><td>${sub}</td><td class="mono">${esc(times) || "–"}</td></tr>`;
-    }).join("");
-    return `<table class="idx fc-table topic-table">${head}${body}</table>`;
+    });
+    if (!folded.length) return `<table class="idx fc-table topic-table">${head}${html.join("")}</table>`;
+    const shown = html.filter((_h, i) => !folded.includes(rows[i])).join("");
+    const hidden = html.filter((_h, i) => folded.includes(rows[i])).map((h) => h.replace("<tr>", "<tr class=\"fold-row\" hidden>")).join("");
+    const lowest = Math.min(...folded.map((r) => parseFloat(r.value)).filter(Number.isFinite));
+    const more = `${folded.length} weitere${Number.isFinite(lowest) ? ` ab ${lowest} %${opts.unit ? ` ${esc(opts.unit)}` : ""}` : ""} anzeigen`;
+    const btn = `<tr class="fold-btn-row"><td colspan="${isBands ? 5 : 4}"><button type="button" class="fold-btn" data-unfold data-more="${esc(more)}" data-less="Weniger anzeigen">${more}</button></td></tr>`;
+    return `<table class="idx fc-table topic-table">${head}${shown}${hidden}${btn}</table>`;
 }
 
 /**
