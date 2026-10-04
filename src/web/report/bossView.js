@@ -1,9 +1,11 @@
-// Sicht Bosse: one card per boss with tries, chips and the fight section, plus a
-// raider's own timeline (player page, raider card).
+// Sicht Bosse: a table of every boss (one row each, worst news per column) and,
+// behind a click on a row, the boss itself: its head, the tries and the fight
+// section with the topics as a list on the left. Plus a raider's own timeline
+// (player page, raider card).
 const { fmtTime } = require("./charts");
 const { bossIconUrl } = require("../../config/bosses");
 const { esc } = require("./layout");
-const { expBtn, badge, hicon, fmtK } = require("./widgets");
+const { badge, LINE } = require("./widgets");
 const { fightOutcome, groupByBoss } = require("./fightTopics");
 const { renderFightSection } = require("./fight");
 const { buffIssues } = require("./panels/buffs");
@@ -17,46 +19,75 @@ function tryPills(b, ns) {
     return `<nav class="try-pills">${pills}</nav>`;
 }
 
-/** The chips in a boss card's head: missing debuffs, players short of buffs, never-removed debuffs, raid DPS of the best try. */
-function bossChips(b) {
-    const chip = (n, label, tone, tip, sub, icon) => `<span class="chip chip-x${tone ? ` ${tone}` : ""}"${tip ? ` data-tip="${esc(tip)}"` : ""}${sub ? ` data-tip-sub="${esc(sub)}"` : ""}>${icon ? hicon(icon, "") : ""}<b>${esc(n)}</b> ${esc(label)}</span>`;
-    const out = [];
-    if (b.fights.some((f) => f.debuffs && f.debuffs.length)) {
+/**
+ * What a boss comes down to, over all its tries: the outcome, deaths, missing
+ * debuffs, raiders short of buffs, undispelled debuffs and the mean activity.
+ * A figure whose source no try carries is null, so its cell says "–".
+ */
+function bossFacts(b) {
+    const fights = b.fights;
+    const kill = fights.find((f) => f.kill);
+    const wipes = fights.filter((f) => !f.kill);
+    const deaths = fights.reduce((s, f) => s + (f.deaths || []).length, 0);
+    const avoidable = fights.reduce((s, f) => s + (f.deaths || []).filter((d) => d.avoidable).length, 0);
+    let debuffs = null;
+    if (fights.some((f) => f.debuffs && f.debuffs.length)) {
+        const expected = new Set();
         const missing = new Set();
-        for (const f of b.fights) for (const d of f.debuffs || []) if (d.expected && (d.missing || d.uptimePct === 0)) missing.add(d.key);
-        out.push(chip(missing.size, `Debuff${missing.size === 1 ? "" : "s"} fehlte${missing.size === 1 ? "" : "n"}`, missing.size ? "bad" : "ok", "Erwartete Debuffs, die in mindestens einem Try kein einziges Mal auf dem Boss lagen", "Erwartet wird, was die Aufstellung hergibt: kein Krieger, kein Sunder. Die Uptimes je Try stehen unter „Debuffs“.", "spell_shadow_chilltouch"));
+        for (const f of fights) {
+            for (const d of f.debuffs || []) {
+                if (!d.expected) continue;
+                expected.add(d.key);
+                if (d.missing || d.uptimePct === 0) missing.add(d.key);
+            }
+        }
+        debuffs = { expected: expected.size, missing: missing.size };
     }
-    if (b.fights.some((f) => f.buffs && (f.buffs.players || []).length)) {
-        const lacking = new Set();
-        for (const f of b.fights) for (const p of (f.buffs && f.buffs.players) || []) if (buffIssues(p) > 0) lacking.add(p.name);
-        out.push(chip(lacking.size, "Buffs fehlten", lacking.size ? "warn" : "ok", "Spieler, denen in mindestens einem Try ein erwarteter Raid-Buff fehlte, spät kam, ausging oder auf der falschen Rolle saß", "Wer was nicht hatte, steht unter „Buffs“.", "spell_magic_greaterblessingofkings"));
+    let lacking = null;
+    if (fights.some((f) => f.buffs && (f.buffs.players || []).length)) {
+        const names = new Set();
+        for (const f of fights) for (const p of (f.buffs && f.buffs.players) || []) if (buffIssues(p) > 0) names.add(p.name);
+        lacking = names.size;
     }
-    if (b.fights.some((f) => f.healers && f.healers.dispels)) {
-        const n = b.fights.reduce((s, f) => s + (((f.healers && f.healers.dispels && f.healers.dispels.missed) || []).length), 0);
-        out.push(chip(n, "nie dispellt", n >= 3 ? "warn" : "", "Dispelbare Debuffs auf Spielern, die in diesem Kampf niemand entfernt hat", "Dispelbar heißt: denselben Debuff hat im Log irgendwann jemand dispellt. Ab 3 gelb.", "spell_holy_dispelmagic"));
-    }
-    const withDps = b.fights.filter((f) => f.series && Array.isArray(f.series.dps) && f.series.dps.length);
-    if (withDps.length) {
-        const best = withDps.find((f) => f.kill) || withDps[withDps.length - 1];
-        const mean = Math.round(best.series.dps.reduce((a, v) => a + (Number(v) || 0), 0) / best.series.dps.length);
-        out.push(chip(fmtK(mean), "Raid-DPS", "ok", `Schaden des ganzen Raids pro Sekunde im ${best.kill ? "Kill-Try" : "letzten Try"}, im Mittel über den Kampf`, "Aus der 5-Sekunden-Kurve von Warcraft Logs (v2-Zugang).", "ability_dualwield"));
-    }
-    return out.join("");
+    const undispelled = fights.some((f) => f.healers && f.healers.dispels)
+        ? fights.reduce((s, f) => s + (((f.healers && f.healers.dispels && f.healers.dispels.missed) || []).length), 0)
+        : null;
+    const act = fights.flatMap((f) => (f.activity || []).map((a) => Number(a.activePct))).filter(Number.isFinite);
+    const activity = act.length ? Math.round(act.reduce((a, v) => a + v, 0) / act.length) : null;
+    return { tries: fights.length, kill, wipes, deaths, avoidable, debuffs, lacking, undispelled, activity };
 }
 
-/** The meta line under a boss's name: tries, outcomes, kill time, deaths. */
-function bossMeta(b) {
-    const n = b.fights.length;
-    const kill = b.fights.find((f) => f.kill);
-    const wipes = b.fights.filter((f) => !f.kill);
-    const deaths = b.fights.reduce((s, f) => s + (f.deaths || []).length, 0);
-    const avoidable = b.fights.reduce((s, f) => s + (f.deaths || []).filter((d) => d.avoidable).length, 0);
-    return [
-        badge(`${n} ${n === 1 ? "Try" : "Tries"}`, "", "", true),
-        wipes.length ? badge(wipes.length === 1 ? fightOutcome(wipes[0]) : `${wipes.length} Wipes`, "bad", "achievement_boss_illidan") : "",
-        kill ? badge(`Kill ${fmtTime(kill.duration)}`, "ok", "achievement_boss_illidan") : "",
-        badge(`${deaths} ${deaths === 1 ? "Tod" : "Tode"}${avoidable ? ` · ${avoidable} vermeidbar` : ""}`, avoidable ? "bad" : deaths ? "mid" : "", "ability_creature_cursed_05"),
-    ].filter(Boolean).join("");
+const triesWord = (n) => `${n} ${n === 1 ? "Try" : "Tries"}`;
+
+/** The outcome in words: the kill with its time, else the one wipe or how many there were. */
+function outcomeText(x) {
+    if (x.kill) return `Kill ${fmtTime(x.kill.duration)}`;
+    return x.wipes.length === 1 ? fightOutcome(x.wipes[0]) : `${x.wipes.length} Wipes`;
+}
+
+/** Deaths in words: "0 Tode", "1 Tod · vermeidbar", "3 Tode · 1 vermeidbar", "2 Tode · alle vermeidbar". */
+function deathsText(x) {
+    const head = `${x.deaths} ${x.deaths === 1 ? "Tod" : "Tode"}`;
+    if (!x.avoidable) return head;
+    if (x.deaths === 1) return `${head} · vermeidbar`;
+    return `${head} · ${x.avoidable === x.deaths ? "alle" : x.avoidable} vermeidbar`;
+}
+
+/** One row of the boss table; the whole row opens the boss. */
+function bossRow(b) {
+    const x = bossFacts(b);
+    const icon = bossIconUrl(b.encounterId);
+    const dash = "<span class=\"mute\">–</span>";
+    const cells = [
+        `<td><button type="button" class="boss-open" data-boss-open="${esc(b.key)}">${icon ? `<img class="boss-ico" src="${esc(icon)}" alt="">` : "<span class=\"boss-ico\"></span>"}<b>${esc(b.name)}</b></button></td>`,
+        `<td>${badge(outcomeText(x), x.kill ? "ok" : "bad")}${x.tries > 1 ? ` <span class="mute">${triesWord(x.tries)}</span>` : ""}</td>`,
+        `<td>${badge(deathsText(x), x.avoidable ? "bad" : x.deaths ? "mid" : "ok")}</td>`,
+        `<td>${x.debuffs === null ? dash : x.debuffs.missing ? badge(`${x.debuffs.missing} von ${x.debuffs.expected} fehlten`, "bad") : badge("alle da", "ok")}</td>`,
+        `<td>${x.lacking === null ? dash : x.lacking ? badge(`${x.lacking} Raider ohne`, "mid") : badge("alle da", "ok")}</td>`,
+        `<td>${x.undispelled === null ? dash : x.undispelled ? badge(`${x.undispelled} nie dispellt`, x.undispelled >= 3 ? "mid" : "") : badge("alles dispellt", "ok")}</td>`,
+        "<td class=\"boss-go\">Öffnen ›</td>",
+    ];
+    return `<tr data-boss-open="${esc(b.key)}">${cells.join("")}</tr>`;
 }
 
 /** Raid recommendations that name this boss in their title, text or evidence. */
@@ -67,21 +98,32 @@ function bossRecommendations(b, raidRecs, reviewer) {
     const items = (raidRecs || []).filter((i) => reviewer || i.approved === true)
         .filter((i) => hit(i.title) || hit(i.text) || hit(i.custom) || hit(i.ai) || (i.evidence || []).some((e) => hit(e.label) || hit(e.value)));
     if (!items.length) return "";
-    return `<div class="boss-recs"><div class="kicker icons">${hicon("inv_misc_note_01", "")}Empfehlungen zu diesem Boss</div><ul class="rec-list">${items.map((i) => recItem(i, "raid", "", reviewer)).join("")}</ul></div>`;
+    return `<div class="boss-recs"><h3>Empfehlungen zu diesem Boss</h3><ul class="rec-list">${items.map((i) => recItem(i, "raid", "", reviewer)).join("")}</ul></div>`;
 }
 
-/** One boss card (Sicht Bosse): head with icon, meta and chips; body with try pills, stats, sections and the boss's recommendations. */
-function bossCard(b, i, linkFor, raidRecs, reviewer) {
+/** One figure in a boss's head: a small label over a big value. */
+function headFact(label, value, sub, tone) {
+    return `<div class="bfact"><span class="kicker">${esc(label)}</span><b${tone ? ` class="${tone}"` : ""}>${esc(value)}${sub ? ` <small>· ${esc(sub)}</small>` : ""}</b></div>`;
+}
+
+/** One boss behind its table row: back button, head with its figures, try pills, the fight sections, its recommendations. Hidden until opened. */
+function bossDetail(b, i, n, linkFor, raidRecs, reviewer) {
+    const x = bossFacts(b);
     const icon = bossIconUrl(b.encounterId);
-    const ctx = { iconUrl: icon, crumb: `Bosse › ${b.name}`, subject: `auf ${b.name}` };
+    const ctx = { iconUrl: icon };
     const sections = b.fights.map((f, j) => renderFightSection(f, linkFor, null, j + 1, b.fights.length, j === 0, "card", "", ctx)).join("");
-    return `<details class="vcard boss-card" id="boss-${esc(b.key)}"${i === 0 ? " open" : ""}>
-      <summary>${icon ? `<img class="vcard-icon" src="${esc(icon)}" alt="">` : "<span class=\"vcard-icon\"></span>"}<div class="vcard-main"><div class="vcard-title">${esc(b.name)}</div><div class="vcard-meta">${bossMeta(b)}</div></div><div class="vcard-chips">${bossChips(b)}</div>${expBtn()}</summary>
-      <div class="vcard-body">${tryPills(b, "")}${sections}${bossRecommendations(b, raidRecs, reviewer)}</div>
-    </details>`;
+    const facts = [
+        headFact("Kampf", outcomeText(x), triesWord(x.tries), x.kill ? "" : "bad"),
+        x.activity === null ? "" : headFact("Aktivität", `Ø ${x.activity} %`, "", x.activity >= 95 ? "" : x.activity >= 85 ? "warn" : "bad"),
+        headFact("Tode", deathsText(x), "", x.avoidable ? "bad" : ""),
+    ].join("");
+    return `<section class="boss-detail" id="boss-${esc(b.key)}" data-boss="${esc(b.key)}" hidden>
+      <div class="boss-head"><button type="button" class="btn btn-ghost btn-sm btn-back" data-boss-back>${LINE.back}Alle Bosse</button>${icon ? `<img class="boss-head-ico" src="${esc(icon)}" alt="">` : ""}<div class="boss-head-main"><span class="kicker">Boss ${i + 1} von ${n}</span><h2>${esc(b.name)}</h2></div><span class="grow"></span><div class="bfacts">${facts}</div></div>
+      ${tryPills(b, "")}${sections}${bossRecommendations(b, raidRecs, reviewer)}
+    </section>`;
 }
 
-/** Sicht Bosse: one card per boss, the first open. */
+/** Sicht Bosse: the table of all bosses, each boss's own page hidden behind its row. */
 function renderBossView(timeline, linkFor, raidRecs, reviewer) {
     const fights = (timeline && timeline.fights) || [];
     if (fights.length === 0) return "<div class=\"empty\">Keine Boss-Kämpfe im Log.</div>";
@@ -90,8 +132,9 @@ function renderBossView(timeline, linkFor, raidRecs, reviewer) {
     // report predates it). Said once, here, instead of an empty gap per fight.
     const noSeries = fights.some((f) => f.series && (f.series.dps || f.series.hps))
         ? ""
-        : "<p class=\"note\">Raid-DPS/HPS und Boss-Leben brauchen den Warcraft-Logs-v2-Zugang (Einstellungen → Verbindungen → Warcraft Logs); bei einer neuen Auswertung erscheinen sie dann in der Kennzahlenzeile und als Bereich „Kampfverlauf“.</p>";
-    return `${noSeries}${bosses.map((b, i) => bossCard(b, i, linkFor, raidRecs, reviewer)).join("")}`;
+        : "<p class=\"note\">Raid-DPS/HPS und Boss-Leben brauchen den Warcraft-Logs-v2-Zugang (Einstellungen → Verbindungen → Warcraft Logs); bei einer neuen Auswertung erscheinen sie dann als Bereich „Kampfverlauf“.</p>";
+    const table = `<div class="boss-index" id="bossIndex">${noSeries}<div class="tbl-wrap"><table class="idx boss-table"><thead><tr><th>Boss</th><th>Kampf</th><th>Tode</th><th>Debuffs</th><th>Buffs</th><th>Dispel</th><th></th></tr></thead><tbody>${bosses.map(bossRow).join("")}</tbody></table></div></div>`;
+    return `${table}${bosses.map((b, i) => bossDetail(b, i, bosses.length, linkFor, raidRecs, reviewer)).join("")}`;
 }
 
 /** The fights a raider shows up in. */
@@ -112,7 +155,7 @@ function playerFights(timeline, name) {
 /**
  * The player's slice of the timeline: only the fights this raider shows up
  * in, boss tabs → try pills → sections, charts inline. `ns` keeps the ids
- * apart from the boss cards' and from the other raiders' slices on the
+ * apart from the boss pages' and from the other raiders' slices on the
  * report page.
  */
 function renderPlayerTimeline(timeline, name, ns = "p-") {
@@ -128,12 +171,12 @@ function renderPlayerTimeline(timeline, name, ns = "p-") {
             + `<span class="boss-tries boss-${kills ? "kill" : "wipe"}">${b.fights.length} ${b.fights.length === 1 ? "Try" : "Tries"}</span></button>`;
     }).join("");
     const panels = bosses.map((b, i) => {
-        const sections = b.fights.map((f, j) => renderFightSection(f, null, name, j + 1, b.fights.length, j === 0, "inline", ns, { crumb: "" })).join("");
+        const sections = b.fights.map((f, j) => renderFightSection(f, null, name, j + 1, b.fights.length, j === 0, "inline", ns, {})).join("");
         return `<div id="${ns}fb-${esc(b.key)}" class="fight-boss"${i === 0 ? "" : " hidden"}>${tryPills(b, ns)}${sections}</div>`;
     }).join("");
     return `<h2>Kampfverlauf</h2><nav class="boss-tabs">${tabs}</nav>${panels}`;
 }
 
 module.exports = {
-    tryPills, renderBossView, playerFights, renderPlayerTimeline,
+    tryPills, bossFacts, renderBossView, playerFights, renderPlayerTimeline,
 };

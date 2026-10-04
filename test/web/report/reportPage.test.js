@@ -43,22 +43,63 @@ describe("web/report/reportPage", () => {
         expect(html).toContain("<a class=\"btn btn-ghost btn-sm\" href=\"/cla\">");
         expect(html).toContain("class=\"seg-btn active\" data-show=\"view-bosse\">");
         expect(html).toContain("<div id=\"view-raid\" class=\"view\" hidden>");
-        expect(html).toMatch(/Raid<span class="n mid">4<\/span>/);
+        // the raid findings are no area group any more: three groups, three flagged
+        expect(html).toMatch(/Raid<span class="n mid">3<\/span>/);
         expect(html).toContain("Raider<span class=\"n\">3</span>");
         const row = kpis(html);
-        expect(row.map((k) => k[0])).toEqual(["Bosse", "Tode", "Offene Empfehlungen", "Flask / Elixiere"]);
+        expect(row.map((k) => k[0])).toEqual(["Bosse", "Tode", "Flask / Elixiere", "Raid-Buffs"]);
         expect(row[1]).toEqual(["Tode", "4", "2 vermeidbar"]);
-        expect(row[2]).toEqual(["Offene Empfehlungen", "4", "bei 2 von 3 Raidern"]);
-        expect(row[3]).toEqual(["Flask / Elixiere", "89 %", "Ø Food 83 %"]);
+        expect(row[2]).toEqual(["Flask / Elixiere", "89 %", "Ø Food 83 %"]);
+        expect(row[3]).toEqual(["Raid-Buffs", "50 %", "1 von 1 lückenhaft"]);
+        expect(html).not.toContain("Offene Empfehlungen");
         // the admin gets the chrome, not the public header
         expect(html).not.toContain("<header class=\"pubbar\">");
     });
 
-    it("shows a reader the approved recommendations instead of the open ones", () => {
+    it("puts Das Wichtigste between the KPI cards and the view switch, with the send button for the raid lead", () => {
+        const html = renderReportPage(fixture("case01-report"), LEAD);
+        const kpiAt = html.indexOf("<div class=\"kpis\">");
+        const keyAt = html.indexOf("<section class=\"key-findings\" id=\"rs-rec-raid\">");
+        const barAt = html.indexOf("<div class=\"view-bar\"><nav class=\"seg views\">");
+        expect(kpiAt).toBeGreaterThan(-1);
+        expect(keyAt).toBeGreaterThan(kpiAt);
+        expect(barAt).toBeGreaterThan(keyAt);
+        expect(html).toContain("<h2>Das Wichtigste</h2><span class=\"sub\">2 Punkte für den ganzen Raid · 2 offen · 0 freigegeben</span>");
+        expect(html).toContain("data-dialog=\"dlg-rs-send\"");
+        // the send dialog lives in the section, not in the Raid view
+        expect(html.indexOf("<dialog class=\"dlg detail\" id=\"dlg-rs-send\">")).toBeLessThan(barAt);
+    });
+
+    it("shows a reader no Das Wichtigste without approved raid findings, and no open-recommendation KPI", () => {
         const html = renderReportPage(fixture("case01-report"), null);
-        const row = kpis(html);
-        expect(row[2]).toEqual(["Empfehlungen", "2", "freigegeben · bei 1 Raidern"]);
+        expect(kpis(html).map((k) => k[0])).toEqual(["Bosse", "Tode", "Flask / Elixiere", "Raid-Buffs"]);
+        expect(html).not.toContain("key-findings");
+        expect(html).not.toContain("Empfehlungen senden");
         expect(html).not.toContain("href=\"/cla\"");
+    });
+
+    it("shows a reader the approved raid findings under Das Wichtigste, without controls", () => {
+        const report = { id: "r", recommendations: { raid: [{ key: "a", impact: "high", title: "T", text: "t" }], players: [] }, recommendationReview: { raid: { a: { approved: true } } } };
+        const html = renderReportPage(report, null);
+        expect(html).toContain("<h2>Das Wichtigste</h2><span class=\"sub\">1 Punkt von der Raidleitung</span>");
+        expect(html).not.toContain("dlg-rs-send");
+        expect(html).not.toContain("data-review");
+    });
+
+    it("adds a Raid-Buffs KPI with the mean coverage, toned by it, and says when all ran through", () => {
+        const buffs = (rows) => ({ id: "r", raidBuffs: { rows, players: [] } });
+        const row = (over) => ({ key: "k", label: "K", expected: true, coveragePct: 100, none: 0, partial: 0, late: 0, ...over });
+        const low = kpis(renderReportPage(buffs([row({ coveragePct: 50, none: 1 }), row({ key: "j", coveragePct: 70, partial: 1 }), row({ key: "i", coveragePct: 100 })]), null));
+        expect(low).toEqual([["Raid-Buffs", "73 %", "2 von 3 lückenhaft"]]);
+        const good = renderReportPage(buffs([row({ coveragePct: 100 }), row({ key: "j", coveragePct: 96 })]), null);
+        expect(kpis(good)).toEqual([["Raid-Buffs", "98 %", "alle durchgehend"]]);
+        expect(good).toContain("<div class=\"kpi-v good\">98 %");
+        const mid = renderReportPage(buffs([row({ coveragePct: 85, late: 1 })]), null);
+        expect(mid).toContain("<div class=\"kpi-v warn\">85 %");
+        expect(renderReportPage(buffs([row({ coveragePct: 40, none: 2 })]), null)).toContain("<div class=\"kpi-v bad\">40 %");
+        // rows that are not expected or have no coverage figure do not count; without any: no card
+        const none = renderReportPage(buffs([row({ expected: false }), row({ coveragePct: null })]), null);
+        expect(none).not.toContain("Raid-Buffs</div>");
     });
 
     it("counts bosses from the uptime rows and deaths from the RPB without a timeline (case02)", () => {
@@ -92,10 +133,12 @@ describe("web/report/reportPage", () => {
         expect(bad).toContain("<div class=\"kpi-v bad\">10 %");
     });
 
-    it("marks no open recommendation as good for the raid lead", () => {
+    it("tells the raid lead there is nothing raid-wide when no raid finding exists", () => {
         const report = { id: "r", roster: [{ name: "A" }], recommendations: { raid: [], players: [{ name: "A", items: [{ key: "k" }] }] }, recommendationReview: { players: { A: { k: { approved: true } } } } };
         const html = renderReportPage(report, LEAD);
-        expect(kpis(html)[0]).toEqual(["Offene Empfehlungen", "0", "bei 0 von 1 Raidern"]);
-        expect(html).toContain("<div class=\"kpi-v good\">0");
+        expect(html).toContain("<div class=\"rec-empty\">Nichts, was den ganzen Raid gekostet hätte.</div>");
+        expect(html).toContain("0 Punkte für den ganzen Raid · 0 offen · 0 freigegeben");
+        expect(html).toContain("Versand · 1 Raider mit freigegebenen Punkten");
+        expect(kpis(html)).toEqual([["Gear-Probleme", "0", "bei 0 Spieler(n)"]]);
     });
 });

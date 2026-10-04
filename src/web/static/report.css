@@ -760,3 +760,60 @@ table.idx th[data-tip] { text-decoration:underline dotted; text-decoration-color
 /* light theme: WoW's class palette is made for a dark ground — darken it for the markers */
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .fchart .fc-death line { stroke:color-mix(in srgb, var(--cc) 70%, #000); } }
 :root[data-theme="light"] .fchart .fc-death line { stroke:color-mix(in srgb, var(--cc) 70%, #000); }
+/* ---- log report redesign (Okt 2026): „Das Wichtigste“, boss table + boss page, raider groups ---- */
+.key-findings { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:12px; margin:0 0 18px; }
+.key-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.key-head h2 { margin:0; font-size:19px; font-weight:800; }
+.key-head .sub { display:block; color:var(--muted); font-size:13px; margin-top:2px; }
+.key-more > summary { cursor:pointer; color:var(--accent); font-weight:600; font-size:13.5px; padding:4px 2px; list-style:none; }
+.key-more > summary::-webkit-details-marker { display:none; }
+.key-more[open] > summary { margin-bottom:8px; }
+.boss-table { width:100%; }
+.boss-table td { vertical-align:middle; }
+.boss-table td:not(:first-child) { white-space:nowrap; }
+.boss-table tbody tr { cursor:pointer; }
+.boss-table tbody tr:hover td { background:var(--panel2); }
+.boss-open { all:unset; cursor:pointer; display:inline-flex; align-items:center; gap:10px; font-size:15px; }
+.boss-open:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:6px; }
+.boss-ico { width:30px; height:30px; border-radius:7px; border:1px solid var(--line); flex:0 0 auto; background:var(--panel2); }
+.boss-go { color:var(--accent); font-weight:600; text-align:right; white-space:nowrap; }
+.boss-head { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:0 0 14px; }
+.boss-head-ico { width:48px; height:48px; border-radius:10px; border:1px solid var(--line); }
+.boss-head-main { display:flex; flex-direction:column; gap:2px; }
+.boss-head-main h2 { margin:0; font-size:24px; font-weight:800; }
+.btn-back { border-color:var(--accent); color:var(--accent); }
+.bfacts { display:flex; gap:24px; flex-wrap:wrap; }
+.bfact { display:flex; flex-direction:column; gap:2px; }
+.bfact b { font-size:17px; font-variant-numeric:tabular-nums; }
+.bfact b.bad { color:var(--high); } .bfact b.warn { color:var(--medium); }
+.bfact small { font-size:13px; font-weight:500; color:var(--muted); }
+.boss-detail .try-pills { margin:0 0 12px; }
+.topic-grid { display:grid; grid-template-columns:260px minmax(0,1fr); gap:16px; align-items:start; }
+.topic-nav { display:flex; flex-direction:column; gap:2px; padding:8px; background:var(--panel); border:1px solid var(--line); border-radius:12px; }
+.topic { display:grid; grid-template-columns:24px minmax(0,1fr) 9px; align-items:center; gap:10px; padding:9px 10px; border:0; border-radius:8px; background:none; color:var(--text); font:inherit; text-align:left; cursor:pointer; }
+.topic .hicon { width:24px; height:24px; margin:0; border-radius:5px; }
+.topic .tn { display:flex; flex-direction:column; gap:1px; min-width:0; }
+.topic .tn b { font-size:14px; font-weight:600; }
+.topic .tn small { font-size:12px; color:var(--muted); }
+.topic:hover { background:var(--panel2); }
+.topic.active { background:var(--accent-soft); box-shadow:inset 0 0 0 1px var(--accent); }
+.topic .dot, .rg-head .dot { width:9px; height:9px; border-radius:50%; background:var(--good); flex:0 0 auto; }
+.topic .dot.mid, .rg-head .dot.mid { background:var(--medium); } .topic .dot.bad, .rg-head .dot.bad { background:var(--high); } .topic .dot.none { background:var(--line); }
+.topic-panels { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; min-width:0; }
+.topic-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 10px; }
+.topic-head h3 { margin:0; font-size:17px; font-weight:800; }
+.boss-detail .boss-recs { margin:16px 0 0; padding:14px 0 0; }
+.boss-recs h3 { margin:0; font-size:15px; font-weight:700; }
+.fold-btn { all:unset; cursor:pointer; color:var(--accent); font-weight:600; font-size:13px; }
+.fold-btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.fold-btn::before { content:"▾ "; }
+.raider-group { display:flex; flex-direction:column; gap:8px; margin:0 0 18px; }
+.rg-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:2px 2px 4px; }
+.rg-head b { font-size:16px; }
+.rg-head .mute { font-size:13px; }
+.raid-note { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px; margin:0 0 16px; border-radius:10px; background:var(--medium-bg); border:1px solid color-mix(in srgb, var(--medium) 35%, transparent); }
+.raid-note > span { flex:1 1 300px; }
+.raid-note .hicon { width:26px; height:26px; margin:0; border-radius:5px; }
+.vcard-sub { color:var(--muted); font-size:13px; margin-top:2px; }
+.raider-links { display:flex; gap:8px; flex-wrap:wrap; padding:12px 0 0; }
+@media (max-width:860px) { .topic-grid { grid-template-columns:1fr; } .bfacts { gap:16px; } .boss-table th:nth-child(5), .boss-table td:nth-child(5), .boss-table th:nth-child(6), .boss-table td:nth-child(6), .boss-table th:nth-child(7), .boss-table td:nth-child(7) { display:none; } }
