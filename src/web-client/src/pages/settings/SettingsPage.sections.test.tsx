@@ -199,6 +199,30 @@ describe("the save bar", () => {
         await waitFor(() => expect(screen.queryByText(/ungespeicherte/)).not.toBeInTheDocument());
     });
 
+    it("shows the saved bot language, marks the draft dirty on a switch and sends it on save", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ botLanguage: "en" }) }));
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+
+        const group = await screen.findByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" });
+        expect(within(group).getByRole("radio", { name: "English" })).toHaveAttribute("aria-checked", "true");
+        expect(screen.queryByText(/ungespeicherte/)).not.toBeInTheDocument();
+
+        await user.click(within(group).getByRole("radio", { name: "Deutsch" }));
+        expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
+        expect(screen.getByText("Bot-Sprache: Deutsch")).toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ botLanguage: "de" });
+    });
+
+    it("defaults the bot language to German when the server sends none", async () => {
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+        const group = await screen.findByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" });
+        expect(within(group).getByRole("radio", { name: "Deutsch" })).toHaveAttribute("aria-checked", "true");
+    });
+
     it("leaves the access fields out for a limited settings user, whom the server would refuse", async () => {
         const user = userEvent.setup();
         vi.mocked(api.getSettings).mockResolvedValue(limited());

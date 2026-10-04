@@ -157,7 +157,8 @@
         "hideOtherOn": "Andere Versionen ausblenden an",
         "hideOtherOff": "Andere Versionen ausblenden aus",
         "followMain": "Hauptversion",
-        "versionSettings": "Links und Armory · {value}"
+        "versionSettings": "Links und Armory · {value}",
+        "botLanguage": "Bot-Sprache: {value}"
     },
     "lootTool": {
         "none": "keins"
@@ -911,5 +912,12 @@
         "defaultsSub": "Setzt die bekannten Werte für {version} ein (Namespace, Armory, Warcraft Logs, Wowhead, Softres). Realm und Raidsheet bleiben, wie sie sind. Gespeichert wird erst mit „Speichern“.",
         "defaultsSame": "Die Standardwerte sind schon eingetragen.",
         "defaultsNone": "Für {version} sind noch keine Standardwerte bekannt."
+    },
+    "botLanguage": {
+        "label": "Bot-Sprache",
+        "aria": "Sprache der Bot-Nachrichten",
+        "de": "Deutsch",
+        "en": "English",
+        "text": "Sprache der öffentlichen Bot-Nachrichten (Anmelde-Nachricht, Setup, Übersicht, Panels) und Standard für alle Raider. Jeder kann seine eigene Sprache mit /language oder dem DE/EN-Schalter oben wählen."
     }
 }

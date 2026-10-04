@@ -44,6 +44,8 @@ export type Draft = {
     categoryVersion: Record<string, string>;
     /** "Andere Versionen ausblenden" (#563). */
     hideOtherVersions: boolean;
+    /** Language of the bot's public messages (default for every raider). */
+    botLanguage: "de" | "en";
     /** Settings per game version (#542), every version the server sent. */
     versionSettings: Record<string, VersionSettingsBlock>;
     topItems: TopItem[];
@@ -78,6 +80,7 @@ export function toDraft(config: AdminConfig): Draft {
         mainVersion: config.mainVersion || "tbc",
         categoryVersion: config.categoryVersion || {},
         hideOtherVersions: config.hideOtherVersions === true,
+        botLanguage: config.botLanguage === "en" ? "en" : "de",
         versionSettings: Object.fromEntries(Object.entries(config.versionSettings || {}).map(([id, block]) => [id, blockOf(block)])),
         topItems: config.topItems || [],
     };

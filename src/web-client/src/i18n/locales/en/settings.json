@@ -157,7 +157,8 @@
         "hideOtherOn": "Hide other versions on",
         "hideOtherOff": "Hide other versions off",
         "followMain": "main version",
-        "versionSettings": "Links and armory · {value}"
+        "versionSettings": "Links and armory · {value}",
+        "botLanguage": "Bot language: {value}"
     },
     "lootTool": {
         "none": "none"
@@ -911,5 +912,12 @@
         "defaultsSub": "Fills in the known values for {version} (namespace, armory, Warcraft Logs, Wowhead, softres). Realm and raidsheet stay as they are. Nothing is stored until you save.",
         "defaultsSame": "The standard values are already filled in.",
         "defaultsNone": "No standard values are known for {version} yet."
+    },
+    "botLanguage": {
+        "label": "Bot language",
+        "aria": "Language of the bot messages",
+        "de": "Deutsch",
+        "en": "English",
+        "text": "Language of the bot's public messages (signup message, setup, overview, panels) and the default for every raider. Everyone can pick their own language with /language or the DE/EN switch at the top."
     }
 }
