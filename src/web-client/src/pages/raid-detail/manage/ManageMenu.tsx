@@ -24,14 +24,16 @@ export default function ManageMenu({ state, entries: given, tipSub, onAction }: 
     const entries = given || (state ? manageMenu(state) : []);
     return (
         <div className="em-menu" ref={anchor}>
+            {/* the label is its own span: on a phone the head shows the icon only (raid-detail.css), the name stays */}
             <Button
                 variant="ghost" icon="inv_misc_note_05" aria-haspopup="menu" aria-expanded={open}
+                aria-label={t("raidDetail.manage.button")}
                 className={open ? "em-open" : undefined}
                 data-tip={open ? undefined : t("raidDetail.manage.tip")}
                 data-tip-sub={open ? undefined : tipSub || t("raidDetail.manage.tipSub")}
                 onClick={() => setOpen((o) => !o)}
             >
-                {t("raidDetail.manage.button")}<span className="em-chev" aria-hidden="true"><ChevronDownIcon /></span>
+                <span className="em-label">{t("raidDetail.manage.button")}</span><span className="em-chev" aria-hidden="true"><ChevronDownIcon /></span>
             </Button>
             {open && (
                 <Popover anchor={anchor} place={belowEndPlacement()} follow="reposition" onClose={() => setOpen(false)} className="em-pop" role="menu">

@@ -71,9 +71,13 @@ describe("raid detail layout", () => {
     it("uses the shared blocks instead of hand-rolled heads and buttons", () => {
         for (const tab of ["RosterTab", "LootTab", "LogsTab"]) {
             const src = read("pages", "raid-detail", `${tab}.tsx`);
-            expect(src).toContain("<PartHead");
             expect(src).not.toMatch(/className="btn[ "]/);
         }
+        for (const tab of ["LootTab", "LogsTab"]) expect(read("pages", "raid-detail", `${tab}.tsx`)).toContain("<PartHead");
+        // the roster (tab "Anmeldungen") repeats no tab name in a card head: one line with its state and actions
+        expect(read("pages", "raid-detail", "RosterTab.tsx")).not.toContain("<PartHead");
+        // the way back is the shared coloured BackButton, not a text link
+        expect(page).toContain("<BackButton to=\"/raids\"");
         expect(read("pages", "raid-detail", "LootTab.tsx")).toContain("<Expand open={open}");
         expect(read("pages", "raid-detail", "RosterTab.tsx")).toContain("<Expand open={missingOpen}");
     });

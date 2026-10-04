@@ -9,6 +9,8 @@
 //                                              post it into the channel / DM it (#290)
 //   POST /api/raids/setup/post                raids write: post or edit the setup (a draft is
 //                                              approved first), send the DMs still outstanding
+//   POST /api/raids/setup/ping                raids write: "Alle pingen" — everybody in the posted
+//                                              setup, in the event channel ({ dryRun } previews)
 //   POST /api/raids/setup/confirm             raids write: set or clear a raider's Confirm/Cancel
 //   POST /api/raids/setup/confirm-all         raids write: the check for everybody without an answer
 //   POST /api/raids/setup/explain             raids write: Claude explains it (background job)
@@ -33,7 +35,8 @@ const setupEditor = require("../../services/setup/setupEditor");
 const profiles = require("../../stores/raiderProfileStore");
 const { refreshEventMessage } = require("../../services/events/eventMessage");
 const setupMessage = require("../../services/setup/setupMessage");
-const { saveSetupPingText } = require("../../services/setup/setupPing");
+const { saveSetupPingText, setupPingPlan, callSetupPing } = require("../../services/setup/setupPing");
+const { activeGuildFor } = require("../http/activeGuild");
 const { setupAttendance } = require("../setup/setupAttendance");
 const { postSearch, textForNeeds } = require("../../services/setup/raidSearch");
 const { startJob, getJob } = require("../logcheck/evalJobs");
@@ -238,6 +241,27 @@ const postPingText = withUser({ write: "raids", csrf: true, body: true, archived
     await answer(res, { event }, user, { message: "Ping-Nachricht gespeichert." });
 });
 
+/**
+ * POST /api/raids/setup/ping — body `{ event, dryRun? }`: the editor's "Alle pingen", the web's twin of the
+ * "Ping everyone" button under the setup message (setupPing.js, one service for both). Everybody in the groups
+ * of the approved setup is pinged in the event channel with the stored ping text, the caller left out.
+ * `dryRun` only answers how many and with what, for the question asked before.
+ */
+const postPing = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+    const event = eventOf(res, body.event);
+    if (!event) return;
+    const guildId = activeGuildFor(req);
+    if (guildId && event.guildId && event.guildId !== String(guildId)) return error(res, 404, "not_found", "Event nicht gefunden.");
+    if (body.dryRun) {
+        const plan = setupPingPlan(event, user.id);
+        if (plan.error) return sendResult(res, plan);
+        return ok(res, { count: plan.userIds.length, text: plan.text });
+    }
+    const result = await callSetupPing({ guildId, eventId: event.id, userId: user.id, byName: user.name || "" });
+    if (result.error) return sendResult(res, result);
+    ok(res, { message: result.message, count: result.count, url: result.url || "" });
+});
+
 /** POST /api/raids/setup/extra-role — body `{ event, userId, role: "tank"|"healer", on }`: mark a raider as an extra tank / healer, or not any more. */
 const postExtraRole = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
@@ -325,6 +349,7 @@ const routes = [
     { method: "POST", path: "/api/raids/setup/approve", handler: postApprove, area: "raids" },
     { method: "POST", path: "/api/raids/setup/post", handler: postPublish, area: "raids" },
     { method: "POST", path: "/api/raids/setup/ping-text", handler: postPingText, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/ping", handler: postPing, area: "raids" },
     { method: "POST", path: "/api/raids/setup/confirm", handler: postConfirm, area: "raids" },
     { method: "POST", path: "/api/raids/setup/confirm-all", handler: postConfirmAll, area: "raids" },
     { method: "POST", path: "/api/raids/setup/extra-role", handler: postExtraRole, area: "raids" },
@@ -336,4 +361,4 @@ const routes = [
     { method: "GET", path: "/api/raids/setup/explain", handler: getExplain, area: "raids" },
 ];
 
-module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postConfirm, postConfirmAll, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION, routes };
+module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postPing, postConfirm, postConfirmAll, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION, routes };

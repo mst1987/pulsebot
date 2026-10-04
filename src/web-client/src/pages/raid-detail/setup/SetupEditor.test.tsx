@@ -1,9 +1,10 @@
 // The setup editor of an own event (#263) as the orga uses it: group cards and
-// the bench as targets (drag or pick-and-target), the raid size in the bar, the
-// compact view, the side column, the state badges, approving and posting, the
-// "nicht zusammen" question and the ping text. The API is mocked at its
-// transport (api/client), so every test also pins the request that is sent.
-// The raider panel, "Suche" and the extra roles: SetupEditor.panel.test.tsx.
+// the bench as targets (drag or pick-and-target), the ONE toolbar line (state,
+// counts, "Mehr", "Alle bestätigen", one primary button), the raid size and the
+// ping text behind "Mehr", the compact view, the summary line and its details,
+// approving, posting and pinging, the "nicht zusammen" question. The API is
+// mocked at its transport (api/client), so every test also pins the request
+// that is sent. The raider drawer, "Suche" and the extra roles: SetupEditor.panel.test.tsx.
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -38,8 +39,21 @@ async function show(data: SetupEditorData = page) {
 
 const group = (index: number) => screen.getByRole("region", { name: t("setup.group.title", { index }) });
 
-/** The raider panel right of the numbers (SlotTip). */
+/** The raider panel in the side drawer a click opens (SlotTip). */
 const panel = () => screen.getByRole("complementary", { name: t("setup.person.tip.aria") });
+const noPanel = () => expect(screen.queryByRole("complementary", { name: t("setup.person.tip.aria") })).not.toBeInTheDocument();
+
+/** An entry of "Mehr ▾": opens the menu and finds it (a switch is a menuitemcheckbox). */
+async function moreItem(user: ReturnType<typeof userEvent.setup>, name: string, role: "menuitem" | "menuitemcheckbox" = "menuitem") {
+    await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+    return screen.getByRole(role, { name: new RegExp(name) });
+}
+
+/** The details of the summary line: role tiles, buffs and the switches (Summary). */
+async function openDetails(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: t("setup.line.details") }));
+    return screen.getByRole("complementary", { name: t("setup.summary.aria") });
+}
 
 /** A raider's line: the element that is picked, dragged and dropped on. */
 function slot(character: string): HTMLElement {
@@ -73,11 +87,12 @@ describe("the setup editor: bench and pool \"Angemeldet\" (#517)", () => {
         const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
         expect(within(pool).getByText("Fluch")).toBeInTheDocument();
         expect(within(pool).getByText(t("setup.pool.benchSignup"))).toBeInTheDocument();
-        // fixing is the panel's: a pool raider has nothing to fix, a bench raider has
+        // fixing is the drawer's: a pool raider has nothing to fix, a bench raider has
         const user = userEvent.setup();
-        await user.hover(slot("Fluch"));
+        await user.click(slot("Fluch"));
         expect(within(panel()).queryByRole("button", { name: new RegExp(t("setup.slot.lock")) })).not.toBeInTheDocument();
-        await user.hover(slot("Schatten"));
+        await user.keyboard("{Escape}");
+        await user.click(slot("Schatten"));
         expect(within(panel()).getByRole("button", { name: new RegExp(t("setup.slot.lock")) })).toBeInTheDocument();
     });
 
@@ -90,7 +105,7 @@ describe("the setup editor: bench and pool \"Angemeldet\" (#517)", () => {
 
     it("takes a raider out of the setup by dropping them on \"Angemeldet\"", async () => {
         await show(editorData({}, { pool: [WARLOCK] }));
-        fireEvent.drop(screen.getByRole("region", { name: t("setup.pool.chunkTitle", { index: 1 }) }), { dataTransfer: { getData: () => MAGE.userId } });
+        fireEvent.drop(screen.getByRole("region", { name: t("setup.pool.aria") }), { dataTransfer: { getData: () => MAGE.userId } });
         await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
         const body = savedBody();
         expect(groupOf(body, MAGE.userId)).toBeUndefined();
@@ -100,21 +115,27 @@ describe("the setup editor: bench and pool \"Angemeldet\" (#517)", () => {
 });
 
 describe("the setup editor: moving raiders", () => {
-    it("draws every group with its five places and the bench as cards of a group's size", async () => {
-        await show(editorData({}, { bench: [ROGUE, person("b2", "Zwei"), person("b3", "Drei"), person("b4", "Vier"), person("b5", "Fuenf"), person("b6", "Sechs")] }));
+    it("draws every group with its five places and the bench as one row under them", async () => {
+        const benched = ["Zwei", "Drei", "Vier", "Fuenf", "Sechs"];
+        await show(editorData({}, { bench: [ROGUE, ...benched.map((n, i) => person(`b${i + 2}`, n))] }));
         // the event's size decides how many groups are drawn, empty ones too
         for (const i of [1, 2, 3, 4, 5]) expect(group(i)).toBeInTheDocument();
         expect(within(group(1)).getByText("Bruno")).toBeInTheDocument();
         // free places are numbered boxes, never the word "leer"
         expect(within(group(2)).getByText("5")).toBeInTheDocument();
         expect(screen.queryByText(/leer/i)).not.toBeInTheDocument();
-        // six on the bench: two bench cards, "Bank 1" and "Bank 2" — never named like a raid group
+        // six on the bench: one row with all six and its count — no bench cards with empty places, never named like a raid group
         const bench = screen.getByRole("region", { name: t("setup.bench.aria") });
-        expect(within(bench).getByRole("region", { name: t("setup.bench.chunkTitle", { index: 1 }) })).toBeInTheDocument();
-        expect(within(bench).getByRole("region", { name: t("setup.bench.chunkTitle", { index: 2 }) })).toBeInTheDocument();
-        expect(t("setup.bench.chunkTitle", { index: 2 })).toBe("Bank 2");
+        for (const name of ["Schatten", ...benched]) expect(within(bench).getByText(name)).toBeInTheDocument();
+        expect(within(bench).getByText("6")).toBeInTheDocument();
+        expect(within(bench).queryByRole("region")).not.toBeInTheDocument();
         // the bench sits under the groups
         expect(group(5).compareDocumentPosition(bench) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("says in one sentence when nobody is on the bench", async () => {
+        await show(editorData({}, { bench: [] }));
+        expect(within(screen.getByRole("region", { name: t("setup.bench.aria") })).getByText(t("setup.bench.empty"))).toBeInTheDocument();
     });
 
     it("moves a picked raider onto the exact free place that is chosen", async () => {
@@ -144,8 +165,8 @@ describe("the setup editor: moving raiders", () => {
         expect(client.send).not.toHaveBeenCalled();
 
         await user.click(slot("Bruno"));
-        const benchCard = screen.getByRole("region", { name: t("setup.bench.chunkTitle", { index: 1 }) });
-        await user.click(within(benchCard).getByRole("button", { name: t("setup.group.here") }));
+        const bench = screen.getByRole("region", { name: t("setup.bench.aria") });
+        await user.click(within(bench).getByRole("button", { name: t("setup.group.here") }));
         await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
         expect(savedBody().bench.map((b) => b.userId)).toContain(TANK.userId);
     });
@@ -164,29 +185,36 @@ describe("the setup editor: moving raiders", () => {
         expect(groupOf(body, "u-priest")).toBe(1);
     });
 
-    it("fixes a raider from the panel — the pick is dropped, the next click picks, never swaps", async () => {
+    it("fixes a raider from the drawer — the pick is dropped, the next click picks, never swaps", async () => {
         const user = userEvent.setup();
         await show();
-        // nothing to click on the line itself any more
+        // nothing stands open before a click, and nothing to click on the line itself
+        noPanel();
         expect(within(slot("Bruno")).queryByRole("button")).not.toBeInTheDocument();
         await user.click(slot("Bruno"));
+        expect(within(panel()).getByText(t("setup.person.tip.pinned"))).toBeInTheDocument();
         await user.click(within(panel()).getByRole("button", { name: new RegExp(t("setup.slot.lock")) }));
         await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
         expect(savedBody().groups[0].slots.find((s) => s.userId === TANK.userId)?.locked).toBe(true);
         expect(slot("Bruno")).toHaveAttribute("aria-pressed", "false");
-        // the panel stays with Bruno although the pointer passes other raiders
+        // the drawer stays with Bruno although the pointer passes other raiders
         await user.hover(slot("Lumen"));
         expect(within(panel()).getByText("Bruno")).toBeInTheDocument();
-        expect(within(panel()).getByText(t("setup.person.tip.pinned"))).toBeInTheDocument();
         // a click on Lumen picks Lumen — no swap with Bruno
         await user.click(slot("Lumen"));
         expect(calls("PUT", "/api/raids/setup")).toHaveLength(1);
         expect(slot("Lumen")).toHaveAttribute("aria-pressed", "true");
         expect(within(panel()).getByText("Lumen")).toBeInTheDocument();
-        // Esc lets go: the panel follows the pointer again
+        // Esc lets go and closes the drawer; hovering opens nothing
         await user.keyboard("{Escape}");
+        noPanel();
         await user.hover(slot("Ignis"));
-        expect(within(panel()).getByText("Ignis")).toBeInTheDocument();
+        noPanel();
+        // its close button does the same
+        await user.click(slot("Ignis"));
+        await user.click(screen.getByRole("button", { name: t("common.close") }));
+        noPanel();
+        expect(slot("Ignis")).toHaveAttribute("aria-pressed", "false");
     });
 });
 
@@ -197,6 +225,10 @@ describe("the setup editor: the bar", () => {
             ? new Promise((resolve) => { answerSize = resolve; })
             : Promise.resolve({ ...page, event: { ...page.event, size: 5 }, groupCount: 1 })));
         await show();
+        // the group count is a dialog behind "Mehr" now, the bar holds no field
+        expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+        const user = userEvent.setup();
+        await user.click(await moreItem(user, t("setup.more.size")));
         const size = screen.getByRole("spinbutton", { name: t("setup.editor.sizeLabel") });
         expect(size).toHaveValue(5);
         expect(t("setup.editor.sizeLabel")).toBe("Gruppen");
@@ -238,28 +270,45 @@ describe("the setup editor: the bar", () => {
         expect(await compact()).toHaveAttribute("aria-checked", "true");
     });
 
-    it("keeps only proposing, confirming everybody and posting in the bar — the rest under \"Mehr\"", async () => {
+    it("keeps one toolbar line: the state, the counts with words, \"Mehr\" and ONE primary button — the rest under \"Mehr\"", async () => {
         const user = userEvent.setup();
-        await show();
-        const bar = document.querySelector<HTMLElement>(".se-bar-act")!;
-        expect(within(bar).queryByRole("button", { name: t("setup.editor.explain") })).not.toBeInTheDocument();
-        expect(within(bar).getByRole("button", { name: t("setup.editor.repropose") })).toBeInTheDocument();
-        await user.click(within(bar).getByRole("button", { name: t("setup.editor.more") }));
-        for (const name of [t("setup.editor.search"), t("setup.editor.explain"), t("setup.summary.weights")]) {
+        const { container } = await show();
+        const bar = document.querySelector<HTMLElement>(".se-bar")!;
+        expect(within(bar).getByText("Entwurf")).toBeInTheDocument();
+        // every number with a word: "3 von 3", never "3/3"
+        expect(bar).toHaveTextContent(/Tanks\s*\d+ von \d+/);
+        expect(bar.textContent).not.toMatch(/\d\/\d/);
+        const act = document.querySelector<HTMLElement>(".se-bar-act")!;
+        expect(within(act).queryByRole("button", { name: t("setup.editor.explain") })).not.toBeInTheDocument();
+        expect(within(act).queryByRole("button", { name: t("setup.editor.repropose") })).not.toBeInTheDocument();
+        // one primary (filled) button: a draft is posted
+        const primaries = within(act).getAllByRole("button").filter((b) => !b.className.includes("btn-ghost"));
+        expect(primaries.map((b) => b.textContent)).toEqual([t("setup.editor.approve")]);
+        await user.click(within(act).getByRole("button", { name: t("setup.editor.more") }));
+        for (const name of [t("setup.editor.repropose"), t("setup.more.size"), t("setup.pingText.title"), t("setup.editor.search"), t("setup.editor.explain"), t("setup.summary.weights")]) {
             expect(screen.getByRole("menuitem", { name: new RegExp(name) })).toBeInTheDocument();
         }
+        for (const name of [t("setup.summary.fairness"), t("setup.summary.wishes"), t("setup.editor.compact")]) {
+            expect(screen.getByRole("menuitemcheckbox", { name: new RegExp(name) })).toBeInTheDocument();
+        }
+        // no ping box, no tiles and no empty raider box standing open; tooltips are data-tip, never the browser's title
+        expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+        expect(screen.queryByRole("complementary", { name: t("setup.summary.aria") })).not.toBeInTheDocument();
+        noPanel();
+        expect(container.querySelector("[title]")).toBeNull();
     });
 
-    it("puts the ping text over the numbers on the left and the raider panel on the right, with no native title anywhere", async () => {
-        const { container } = await show();
-        const ping = screen.getByRole("textbox", { name: t("setup.pingText.label") });
-        const summary = screen.getByRole("complementary", { name: t("setup.summary.aria") });
-        const panel = screen.getByRole("complementary", { name: t("setup.person.tip.aria") });
-        expect(ping.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(summary.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(screen.getByText(t("setup.pingText.hint"))).toBeInTheDocument();
-        // tooltips are data-tip, never the browser's title
-        expect(container.querySelector("[title]")).toBeNull();
+    it("sums the evening up in one line under the groups, its details in a dialog", async () => {
+        const user = userEvent.setup();
+        await show();
+        const line = document.querySelector<HTMLElement>(".se-sumline")!;
+        expect(within(line).getByText(t("setup.line.buffsComplete"))).toBeInTheDocument();
+        expect(line).toHaveTextContent(`${t("setup.summary.fairness")} ${t("setup.line.off")}`);
+        expect(line).toHaveTextContent(t("setup.line.wishesOff"));
+        expect(group(5).compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        const details = await openDetails(user);
+        expect(within(screen.getByRole("dialog")).getByText(t("setup.line.detailsTitle"))).toBeInTheDocument();
+        expect(within(details).getByText(t("setup.summary.buffs"))).toBeInTheDocument();
     });
 
     it("names tank and healer on a line, never melee or ranged — an off-spec tints the spec instead", async () => {
@@ -273,7 +322,7 @@ describe("the setup editor: the bar", () => {
         const user = userEvent.setup();
         await show();
         expect(screen.queryByText("Bringt Arkane Brillanz")).not.toBeInTheDocument();
-        await user.hover(slot("Ignis"));
+        await user.click(slot("Ignis"));
         const panel = screen.getByRole("complementary", { name: t("setup.person.tip.aria") });
         expect(within(panel).getByText(t("setup.person.tip.why"))).toBeInTheDocument();
         expect(within(panel).getByText("Bringt Arkane Brillanz")).toBeInTheDocument();
@@ -281,10 +330,10 @@ describe("the setup editor: the bar", () => {
     });
 });
 
-describe("the setup editor: the side column and the dialogs", () => {
+describe("the setup editor: the details and the dialogs", () => {
     it("holds roles, buffs, fairness and wishes — no weight sliders", async () => {
         await show();
-        const side = screen.getByRole("complementary", { name: t("setup.summary.aria") });
+        const side = await openDetails(userEvent.setup());
         for (const label of [t("wow.rolePlural.tank"), t("wow.rolePlural.healer"), t("setup.summary.dps"), t("setup.summary.buffs"), t("setup.summary.fairness"), t("setup.summary.wishes")]) {
             expect(within(side).getByText(label)).toBeInTheDocument();
         }
@@ -293,12 +342,23 @@ describe("the setup editor: the side column and the dialogs", () => {
         expect(within(side).queryByRole("slider")).not.toBeInTheDocument();
     });
 
-    it("saves the wishes switch through the usual save request", async () => {
+    it("saves the wishes switch through the usual save request — in the details", async () => {
         const user = userEvent.setup();
         await show();
+        await openDetails(user);
         await user.click(screen.getByRole("checkbox", { name: t("setup.summary.wishesAria") }));
         await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
         expect(savedBody()).toMatchObject({ wishes: true, event: EVENT_ID });
+    });
+
+    it("switches fairness from \"Mehr\" as well, through the same save request", async () => {
+        const user = userEvent.setup();
+        await show();
+        const item = await moreItem(user, t("setup.summary.fairness"), "menuitemcheckbox");
+        expect(item).toHaveAttribute("aria-checked", "false");
+        await user.click(item);
+        await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
+        expect(savedBody()).toMatchObject({ fairness: true, event: EVENT_ID });
     });
 
     it("opens the weights and the explanation as dialogs from \"Mehr\"", async () => {
@@ -318,15 +378,29 @@ describe("the setup editor: the side column and the dialogs", () => {
 });
 
 describe("the setup editor: state, approval and posting", () => {
+    const PUBLISH = { channelId: "c1", channelName: "kara-do", cancelled: false, dmsEnabled: true, recipients: 3, pendingDms: 0, posted: null, outdated: false, error: "", errorAt: 0, dms: null };
+    const POSTED = { messageUrl: "", version: 3, postedAt: 1, editedAt: 0 };
+
     it.each([
-        ["an approved setup", { status: "approved" as const }, ["Gepostet"], ["Entwurf"]],
-        ["a setup changed after its approval", { changedSinceApproval: true }, ["geändert seit dem Posten"], ["Gepostet"]],
-        ["a proposal", { origin: "proposal" as const }, ["Entwurf"], ["automatischer Vorschlag"]],
-        ["a draft made at the deadline", { origin: "auto" as const }, ["Entwurf", "automatischer Vorschlag"], []],
-    ])("says what state %s is in", async (_name, setup, shown, hidden) => {
-        await show(editorData({}, setup));
-        for (const text of shown) expect(screen.getAllByText(text).length).toBeGreaterThan(0);
-        for (const text of hidden) expect(screen.queryAllByText(text)).toHaveLength(0);
+        ["a posted setup", { publish: { ...PUBLISH, posted: POSTED } }, { status: "approved" as const }, "Gepostet · Stand 3"],
+        ["an approved setup the bot could not post yet", { publish: PUBLISH }, { status: "approved" as const }, "Freigegeben · nicht gepostet"],
+        ["a setup changed after its posting", { publish: { ...PUBLISH, posted: POSTED } }, { changedSinceApproval: true }, "Entwurf · geändert seit dem Posten"],
+        ["a proposal", {}, { origin: "proposal" as const }, "Entwurf"],
+    ])("says in ONE badge what state %s is in", async (_name, over, setup, label) => {
+        await show(editorData(over, setup));
+        const bar = document.querySelector<HTMLElement>(".se-bar")!;
+        const badge = within(bar).getByText(label);
+        expect(badge.closest(".se-state")).not.toBeNull();
+        expect(bar.querySelectorAll(".se-state")).toHaveLength(1);
+        // never "Gepostet" next to "noch nicht gepostet"
+        if (label.startsWith("Freigegeben")) expect(bar.textContent).not.toMatch(/Gepostet/);
+    });
+
+    it("keeps a draft made at the deadline one badge, its origin in the tooltip", async () => {
+        await show(editorData({}, { origin: "auto", updatedAt: 0 }));
+        const badge = document.querySelector<HTMLElement>(".se-bar .se-state")!;
+        expect(badge).toHaveTextContent("Entwurf");
+        expect(badge.getAttribute("data-tip-sub")).toContain(t("setup.status.autoSub"));
     });
 
     it("asks before approving a setup whose checks fail, then approves the version shown", async () => {
@@ -363,7 +437,7 @@ describe("the setup editor: state, approval and posting", () => {
         expect(await screen.findByText("Bruno")).toBeInTheDocument();
         expect(screen.getByText("Bruno").closest("[data-user]")).not.toHaveAttribute("role");
         expect(screen.queryByRole("button", { name: t("setup.editor.approve") })).not.toBeInTheDocument();
-        expect(screen.queryByRole("complementary", { name: t("setup.summary.aria") })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: t("setup.line.details") })).not.toBeInTheDocument();
     });
 
     it("tells a reader when nothing is approved yet", async () => {
@@ -372,62 +446,85 @@ describe("the setup editor: state, approval and posting", () => {
         expect(await screen.findByText(t("setup.readOnly.notApproved"))).toBeInTheDocument();
     });
 
-    it("shows the setup message's state under the bar and posts it with one button", async () => {
+    it("posts an approved setup the bot could not post yet with the bar's one button, what it will do in the badge's tooltip", async () => {
         const user = userEvent.setup();
-        const publish = { channelId: "c1", channelName: "kara-do", cancelled: false, dmsEnabled: true, recipients: 3, pendingDms: 3, posted: null, outdated: false, error: "", errorAt: 0, dms: null };
-        await show(editorData({ publish }, { status: "approved" }));
-        expect(screen.getByText(t("setup.publish.notPosted", { channel: "#kara-do" }))).toBeInTheDocument();
+        await show(editorData({ publish: { ...PUBLISH, pendingDms: 3 } }, { status: "approved" }));
+        const badge = document.querySelector<HTMLElement>(".se-bar .se-state")!;
+        expect(badge.getAttribute("data-tip-sub")).toContain(t("setup.publish.notPosted", { channel: "#kara-do" }));
         await user.click(screen.getByRole("button", { name: t("setup.publishLine.post") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/post")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: false });
     });
 
-    // #517: "Bench mitposten" — the bench goes out only when the orga ticks it
-    it("posts the bench only with the box ticked, and has no box without a bench", async () => {
+    // #517: "Bench mitposten" — the bench goes out only when the orga ticks it (a switch under "Mehr")
+    it("posts the bench only with the switch on, and has no switch without a bench", async () => {
         const user = userEvent.setup();
-        const publish = { channelId: "c1", channelName: "kara-do", cancelled: false, dmsEnabled: true, recipients: 3, pendingDms: 3, posted: null, outdated: false, error: "", errorAt: 0, dms: null, bench: false, benchCount: 1 };
+        const publish = { ...PUBLISH, pendingDms: 3, bench: false, benchCount: 1 };
         const view = await show(editorData({ publish }, { status: "approved" }));
-        const box = screen.getByRole("checkbox", { name: t("setup.publishLine.bench") });
-        expect(box).not.toBeChecked();
-        await user.click(box);
+        const item = await moreItem(user, t("setup.publishLine.bench"), "menuitemcheckbox");
+        expect(item).toHaveAttribute("aria-checked", "false");
+        await user.click(item);
         await user.click(screen.getByRole("button", { name: t("setup.publishLine.post") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/post")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: true });
         view.unmount();
 
         await show(editorData({ publish }, { status: "approved", bench: [] }));
-        expect(screen.queryByRole("checkbox", { name: t("setup.publishLine.bench") })).not.toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+        expect(screen.queryByRole("menuitemcheckbox", { name: new RegExp(t("setup.publishLine.bench")) })).not.toBeInTheDocument();
     });
 
     it("remembers the event's last choice and approves with it", async () => {
         const user = userEvent.setup();
-        const publish = { channelId: "c1", channelName: "kara-do", cancelled: false, dmsEnabled: false, recipients: 3, pendingDms: 3, posted: null, outdated: false, error: "", errorAt: 0, dms: null, bench: true, benchCount: 1 };
+        const publish = { ...PUBLISH, dmsEnabled: false, pendingDms: 3, bench: true, benchCount: 1 };
         await show(editorData({ publish }));
-        expect(screen.getByRole("checkbox", { name: t("setup.publishLine.bench") })).toBeChecked();
+        expect(await moreItem(user, t("setup.publishLine.bench"), "menuitemcheckbox")).toHaveAttribute("aria-checked", "true");
+        await user.keyboard("{Escape}");
         await user.click(screen.getByRole("button", { name: t("setup.editor.approve") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/approve")[0][2]).toMatchObject({ event: EVENT_ID, bench: true });
     });
 
-    it("has no separate approval: a draft is posted with \"Setup posten\", a posted setup just says so", async () => {
-        const posted = { messageUrl: "", version: 3, postedAt: 1, editedAt: 0 };
-        const publish = { channelId: "c1", channelName: "kara-do", cancelled: false, dmsEnabled: false, recipients: 3, pendingDms: 0, posted, outdated: false, error: "", errorAt: 0, dms: null };
+    it("has no separate approval: a draft is posted with \"Setup posten\", a posted setup's one button pings", async () => {
+        const user = userEvent.setup();
+        const publish = { ...PUBLISH, dmsEnabled: false, posted: POSTED };
         const view = await show(editorData({ publish }));
         expect(screen.getByRole("button", { name: t("setup.editor.approve") })).toBeEnabled();
+        expect(screen.queryByRole("button", { name: t("setup.ping.button") })).not.toBeInTheDocument();
         view.unmount();
 
         await show(editorData({ publish }, { status: "approved" }));
-        expect(screen.getByRole("button", { name: t("setup.editor.approved") })).toBeDisabled();
-        // only the line under the bar still offers "Setup posten" (outstanding DMs, a repost) — the bar has none
-        expect(screen.getAllByRole("button", { name: t("setup.editor.approve") })).toHaveLength(1);
-        expect(screen.getByRole("button", { name: t("setup.editor.approve") }).closest(".se-publish")).not.toBeNull();
+        // posted and current: no "Setup posten" in the bar — posting again (outstanding DMs) sits under "Mehr"
+        expect(screen.queryByRole("button", { name: t("setup.editor.approve") })).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: t("setup.ping.button") })).toBeEnabled();
+        expect(await moreItem(user, t("setup.publishLine.post"))).toBeInTheDocument();
+    });
+
+    it("pings everybody in the posted setup after asking, with how many and the text", async () => {
+        const user = userEvent.setup();
+        vi.mocked(client.send).mockImplementation((_m: string, path: string, body?: unknown) => (path === "/api/raids/setup/ping"
+            ? Promise.resolve((body as { dryRun?: boolean }).dryRun ? { count: 4, text: "Setup steht!" } : { message: "4 Raider aus dem Setup gepingt.", count: 4, url: "" })
+            : Promise.resolve(page)));
+        await show(editorData({ publish: { ...PUBLISH, posted: POSTED } }, { status: "approved" }));
+        await user.click(screen.getByRole("button", { name: t("setup.ping.button") }));
+        const question = await screen.findByRole("dialog");
+        expect(within(question).getByText(t("setup.ping.askText", { count: 4, text: "Setup steht!" }))).toBeInTheDocument();
+        expect(calls("POST", "/api/raids/setup/ping")).toEqual([["POST", "/api/raids/setup/ping", { event: EVENT_ID, dryRun: true }]]);
+        await user.click(within(question).getByRole("button", { name: t("setup.ping.action") }));
+        await waitFor(() => expect(calls("POST", "/api/raids/setup/ping")).toHaveLength(2));
+        expect(calls("POST", "/api/raids/setup/ping")[1][2]).toEqual({ event: EVENT_ID });
+    });
+
+    it("counts the confirmed ones in the bar once the setup is out", async () => {
+        await show(editorData({ publish: { ...PUBLISH, posted: POSTED }, confirmations: { "u-tank": "confirmed", "u-priest": "declined" } }, { status: "approved" }));
+        expect(document.querySelector(".se-bar")).toHaveTextContent(t("setup.bar.confirmed", { count: 1, total: 3 }));
     });
 
     describe("Confirm/Cancel in the editor", () => {
-        /** The panel's check for a raider: hover the line (the panel follows), the button sits in the panel. */
+        /** The drawer's check for a raider: click the line (the drawer opens), the button sits in it. */
         const userRef = { current: userEvent.setup() };
         const confirmButton = async (character: string) => {
-            await userRef.current.hover(slot(character));
+            await userRef.current.click(slot(character));
             return within(panel()).getByRole("button", { name: /Bestätigen|Bestätigt|Abgesagt/ });
         };
         beforeEach(() => { userRef.current = userEvent.setup(); });
@@ -512,7 +609,7 @@ describe("the setup editor: state, approval and posting", () => {
         it("offers no check and no \"Alle bestätigen\" before the setup is posted", async () => {
             const user = userRef.current;
             await show(editorData({ confirmations: {} }));
-            await user.hover(slot("Bruno"));
+            await user.click(slot("Bruno"));
             expect(within(panel()).queryByRole("button", { name: /Bestätigen/ })).not.toBeInTheDocument();
             expect(screen.queryByRole("button", { name: new RegExp(t("setup.editor.confirmAll")) })).not.toBeInTheDocument();
         });
@@ -534,11 +631,14 @@ describe("the setup editor: state, approval and posting", () => {
             const posted = { messageUrl: "", version: 3, postedAt: 1, editedAt: 0 };
             const publish = { channelId: "c1", channelName: "kara-do", cancelled: false, dmsEnabled: true, recipients: 3, pendingDms: 0, posted, outdated: false, error: "", errorAt: 0, dms: { status: "running" as const, version: 3, at: 1, total: 3, sent: 1, failed: [], unchanged: 0 } };
             await show(editorData({ publish }, { status: "approved" }));
-            expect(screen.getByText(new RegExp(t("setup.publish.dmsRunning", { done: 1, total: 3 })))).toBeInTheDocument();
+            const badge = () => document.querySelector<HTMLElement>(".se-bar .se-state")!;
+            expect(badge()).toHaveTextContent(t("setup.state.dmsRunning"));
+            expect(badge().getAttribute("data-tip-sub")).toContain(t("setup.publish.dmsRunning", { done: 1, total: 3 }));
             // meanwhile the server holds another lineup (Bruno on the bench) and the DMs are done
             page = editorData({ publish: { ...publish, dms: { ...publish.dms, status: "done", sent: 3 } } }, { status: "approved", groups: [], bench: [TANK] });
             await act(async () => { await vi.advanceTimersByTimeAsync(3100); });
-            await waitFor(() => expect(screen.getByText(new RegExp(t("setup.publish.dmsSent", { count: 3 })))).toBeInTheDocument());
+            await waitFor(() => expect(badge().getAttribute("data-tip-sub")).toContain(t("setup.publish.dmsSent", { count: 3 })));
+            expect(badge()).not.toHaveTextContent(t("setup.state.dmsRunning"));
             expect(within(group(1)).getByText("Bruno")).toBeInTheDocument();
         });
     });
@@ -548,7 +648,7 @@ describe("the setup editor: „nicht zusammen“", () => {
     it("asks once before a proposal when such pairs stand among the signups", async () => {
         const user = userEvent.setup();
         await show(editorData({ avoidPairs: 2 }));
-        await user.click(screen.getByRole("button", { name: t("setup.editor.repropose") }));
+        await user.click(await moreItem(user, t("setup.editor.repropose")));
         const question = await screen.findByRole("dialog");
         expect(within(question).getByText(/2 Raider-Paare/)).toBeInTheDocument();
         await user.click(within(question).getByRole("button", { name: "Nicht berücksichtigen" }));
@@ -559,16 +659,17 @@ describe("the setup editor: „nicht zusammen“", () => {
     it("does not ask again once the answer is stored, nor without such pairs", async () => {
         const user = userEvent.setup();
         await show(editorData({ avoidPairs: 2 }, { options: { weights: {}, fairness: false, wishes: false, avoid: true } }));
-        await user.click(screen.getByRole("button", { name: t("setup.editor.repropose") }));
+        await user.click(await moreItem(user, t("setup.editor.repropose")));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/propose")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/propose")[0][2]).toEqual({ event: EVENT_ID });
         expect(screen.queryByText(/Raider-Paare/)).not.toBeInTheDocument();
     });
 
-    it("shows a switch with the count in the side column — never who named whom", async () => {
+    it("shows a switch with the count in the details — never who named whom", async () => {
         const user = userEvent.setup();
         await show(editorData({ avoidPairs: 1 }));
-        const side = screen.getByRole("complementary", { name: t("setup.summary.aria") });
+        expect(document.querySelector(".se-sumline")).toHaveTextContent(`${t("setup.summary.avoid")} ${t("setup.line.off")}`);
+        const side = await openDetails(user);
         const label = within(side).getByText(t("setup.summary.avoid"));
         expect(label.getAttribute("data-tip-sub")).toMatch(/Wer wen genannt hat, sieht niemand/);
         await user.click(within(side).getByRole("checkbox", { name: t("setup.summary.avoidAria") }));
@@ -578,15 +679,24 @@ describe("the setup editor: „nicht zusammen“", () => {
 
     it("has no such switch while nobody named anybody", async () => {
         await show();
+        await openDetails(userEvent.setup());
         expect(screen.queryByRole("checkbox", { name: t("setup.summary.avoidAria") })).not.toBeInTheDocument();
     });
 });
 
-describe("the setup editor: the ping text", () => {
+describe("the setup editor: the ping text (a dialog under \"Mehr\")", () => {
+    async function openPingText(user: ReturnType<typeof userEvent.setup>) {
+        const item = await moreItem(user, t("setup.pingText.title"));
+        // the entry shows the text as it stands
+        expect(item).toHaveTextContent("Setup steht!");
+        await user.click(item);
+        return screen.getByRole("textbox", { name: t("setup.pingText.label") });
+    }
+
     it("saves the edited text on blur to its own endpoint — never per keystroke", async () => {
         const user = userEvent.setup();
         await show();
-        const field = screen.getByRole("textbox", { name: t("setup.pingText.label") });
+        const field = await openPingText(user);
         expect(field).toHaveValue("Setup steht!");
         await user.type(field, " Los");
         expect(calls("POST", "/api/raids/setup/ping-text")).toHaveLength(0);
@@ -598,7 +708,7 @@ describe("the setup editor: the ping text", () => {
     it("commits on Enter, and an unchanged text is not sent at all", async () => {
         const user = userEvent.setup();
         await show();
-        const field = screen.getByRole("textbox", { name: t("setup.pingText.label") });
+        const field = await openPingText(user);
         await user.click(field);
         await user.keyboard("{Enter}");
         expect(calls("POST", "/api/raids/setup/ping-text")).toHaveLength(0);

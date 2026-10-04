@@ -1,8 +1,9 @@
 import type { SetupEditorData, StoredSetup } from "../../../api";
-import { dpsCheck, roleTarget } from "../../../lib/setupEditor";
-import { rolePluralLabel } from "../../../lib/wowNames";
 import { useT } from "../../../i18n";
 import Badge from "../../../components/ui/Badge";
+import { Button } from "../../../components/ui/Button";
+import { CheckIcon } from "../../../components/icons";
+import { buffState, roleFigures, summaryOptions } from "./summaryFigures";
 
 function Stat({ label, value, target, ok, tip }: { label: string; value: number; target: string; ok: boolean; tip: string }) {
     const t = useT();
@@ -14,6 +15,55 @@ function Stat({ label, value, target, ok, tip }: { label: string; value: number;
     );
 }
 
+/**
+ * The one line under the bench: "Buffs vollständig ✓ · Fairness an · 2 von 3
+ * Wünschen erfüllt" — and "Details", which opens the tiles and switches (`Summary`).
+ */
+export function SummaryLine({ data, setup, onDetails }: { data: SetupEditorData; setup: StoredSetup; onDetails: () => void }) {
+    const t = useT();
+    const buffs = buffState(setup);
+    const opts = summaryOptions(data, setup);
+    const { wishes } = setup.checks;
+    const together = setup.checks.avoid?.together || 0;
+    const buffText = buffs.missingRequired.length
+        ? t("setup.summary.requiredMissing", { count: buffs.missingRequired.length })
+        : buffs.missingRaid.length ? t("setup.summary.raidMissing", { count: buffs.missingRaid.length }) : t("setup.line.buffsComplete");
+    const buffTone = buffs.missingRequired.length ? "bad" : buffs.missingRaid.length ? "mid" : "ok";
+    return (
+        <div className="se-sumline" aria-label={t("setup.line.aria")}>
+            <span className={`se-sumline-buffs se-tone-${buffTone}`} data-tip={t("setup.summary.buffs")} data-tip-sub={buffs.tip}>
+                <b>{buffText}</b>
+                {buffTone === "ok" && <span className="se-sumline-ok" aria-hidden="true"><CheckIcon /></span>}
+            </span>
+            <span className="se-sumline-dot" aria-hidden="true">·</span>
+            <span data-tip={t("setup.summary.fairness")} data-tip-sub={t("setup.summary.fairnessSub")}>
+                {t("setup.summary.fairness")} <b>{opts.fairness ? t("setup.line.on") : t("setup.line.off")}</b>
+            </span>
+            <span className="se-sumline-dot" aria-hidden="true">·</span>
+            <span data-tip={t("setup.summary.wishes")} data-tip-sub={t("setup.summary.wishesSub")}>
+                {opts.wishes ? t("setup.line.wishesMet", { met: wishes.met, total: wishes.total }) : t("setup.line.wishesOff")}
+            </span>
+            {opts.avoidTotal > 0 && (
+                <>
+                    <span className="se-sumline-dot" aria-hidden="true">·</span>
+                    <span data-tip={t("setup.summary.avoid")} data-tip-sub={t("setup.summary.avoidSub", { count: opts.avoidTotal })}>
+                        {t("setup.summary.avoid")} <b>{opts.avoid ? t("setup.line.on") : t("setup.line.off")}</b>
+                        {opts.avoid && together > 0 && <> ({t("setup.summary.avoidTogether", { count: together })})</>}
+                    </span>
+                </>
+            )}
+            {setup.warnings.length > 0 && (
+                <>
+                    <span className="se-sumline-dot" aria-hidden="true">·</span>
+                    <Badge tone="mid" tip={t("setup.summary.hintsTip")} tipSub={setup.warnings.join("\n")}>{t("setup.summary.hints", { count: setup.warnings.length })}</Badge>
+                </>
+            )}
+            <Button variant="ghost" size="sm" className="se-sumline-btn" onClick={onDetails}>{t("setup.line.details")}</Button>
+        </div>
+    );
+}
+
+/** "Details" of the summary line: the role tiles, buffs, and the switches for fairness, wishes and "nicht zusammen". */
 export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid }: {
     data: SetupEditorData;
     setup: StoredSetup;
@@ -24,34 +74,13 @@ export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid }: {
 }) {
     const t = useT();
     const { checks } = setup;
-    const roles = checks.roles || {};
-    const tank = roles.tank || { count: 0, min: 0, max: 0, ok: true };
-    const healer = roles.healer || { count: 0, min: 0, max: 0, ok: true };
-    const dps = dpsCheck(roles);
-    // the places the plan leaves for damage dealers: size minus the planned tanks and healers
-    const dpsTarget = checks.size.size ? Math.max(0, checks.size.size - (tank.max ?? tank.min) - (healer.max ?? healer.min)) : 0;
-    const missingRequired = checks.buffs.required.filter((b) => !b.present);
-    const missingRaid = checks.buffs.raid.filter((b) => !b.present);
-    const fairness = typeof setup.options?.fairness === "boolean" ? setup.options.fairness : data.event.fairness;
-    const wishesOn = typeof setup.options?.wishes === "boolean" ? setup.options.wishes : data.event.wishes;
-    // "nicht zusammen": only when there are such pairs among the signups; counts, never names
-    const avoidOn = setup.options?.avoid === true;
-    const avoidTotal = Math.max(data.avoidPairs || 0, setup.checks.avoid?.total || 0);
-    const buffTip = [
-        checks.buffs.required.length
-            ? t("setup.summary.required", { list: checks.buffs.required.map((b) => `${b.present ? "✓" : "–"} ${b.label}`).join(", ") })
-            : t("setup.summary.noRequired"),
-        missingRaid.length ? t("setup.summary.missingRaid", { list: missingRaid.map((b) => b.label).join(", ") }) : t("setup.summary.allRaid"),
-    ].join("\n");
+    const [tank, healer, dps] = roleFigures(setup);
+    const { missingRequired, missingRaid, tip: buffTip } = buffState(setup);
+    const { fairness, wishes: wishesOn, avoid: avoidOn, avoidTotal } = summaryOptions(data, setup);
     return (
         <aside className="se-side" aria-label={t("setup.summary.aria")}>
             <div className="se-stats">
-                <Stat label={rolePluralLabel("tank")} value={tank.count} target={roleTarget(tank)} ok={tank.ok} tip={t("setup.summary.planTip")} />
-                <Stat label={rolePluralLabel("healer")} value={healer.count} target={roleTarget(healer)} ok={healer.ok} tip={t("setup.summary.planTip")} />
-                <Stat
-                    label={t("setup.summary.dps")} value={dps.count} target={dpsTarget ? String(dpsTarget) : ""} ok={dps.ok && dps.count >= dpsTarget}
-                    tip={t("setup.summary.dpsTip", { melee: roles.melee?.count || 0, ranged: roles.ranged?.count || 0 })}
-                />
+                {[tank, healer, dps].map((f) => <Stat key={f.key} label={f.label} value={f.value} target={f.target} ok={f.ok} tip={f.tip} />)}
             </div>
             <div className="se-side-row">
                 <span className="kicker">{t("setup.summary.buffs")}</span>

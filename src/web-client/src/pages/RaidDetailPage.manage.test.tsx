@@ -258,6 +258,50 @@ describe("the head and the roster of an own event", () => {
         expect(screen.queryByRole("link", { name: t("raidDetail.hero.eventPostAria") })).not.toBeInTheDocument();
     });
 
+    it("gives the missing channel its own verb button beside the badge, which creates it again (#537)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(client.send).mockResolvedValue({ message: "Kanal #kara-do angelegt.", warnings: [], channelId: "c2", channelName: "kara-do" });
+        await show(raidDetail({}, { channelState: "missing" }));
+        // the badge is a state, never clickable
+        expect(screen.getByText(t("raidDetail.hero.channelMissing")).closest("button, a")).toBeNull();
+        await user.click(screen.getByRole("button", { name: t("raidDetail.hero.recreateChannel") }));
+        await waitFor(() => expect(calls("POST", "/api/raids/manage/recreate-channel")).toHaveLength(1));
+        expect(calls("POST", "/api/raids/manage/recreate-channel")[0][2]).toEqual({ event: OWN_ID });
+    });
+
+    it("offers no channel button to a reader", async () => {
+        await show(raidDetail({}, { channelState: "missing" }), READER);
+        expect(screen.getByText(t("raidDetail.hero.channelMissing"))).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: t("raidDetail.hero.recreateChannel") })).not.toBeInTheDocument();
+    });
+
+    it("has a visible way back to the raid list above the head", async () => {
+        await show();
+        const back = screen.getByRole("link", { name: t("raidDetail.page.back") });
+        expect(back).toHaveAttribute("href", "/raids");
+        expect(back).toHaveClass("back-btn");
+        expect(t("raidDetail.page.back")).toBe("Raid-Events");
+    });
+
+    it("moves the loot system from the head into Verwalten, a reader still reads it in the time line", async () => {
+        const user = userEvent.setup();
+        const lootSystem = { system: "softres" as const, label: "Softres", source: "category" as const, categorySystem: "softres" as const, categoryLabel: "Softres", softresExtra: false, softres: true };
+        await show(raidDetail({ lootSystem }));
+        expect(document.querySelector(".hero-when")).not.toHaveTextContent("Softres");
+        await user.click(manageButton()!);
+        const entry = within(screen.getByRole("menu")).getByRole("menuitem", { name: new RegExp(t("raidDetail.manage.lootSystem")) });
+        expect(entry).toHaveTextContent("Softres");
+        await user.click(entry);
+        expect(dialog()).toBeInTheDocument();
+    });
+
+    it("shows a reader the loot system as plain text", async () => {
+        const lootSystem = { system: "softres" as const, label: "Softres", source: "category" as const, categorySystem: "softres" as const, categoryLabel: "Softres", softresExtra: false, softres: true };
+        await show(raidDetail({ lootSystem }), READER);
+        expect(document.querySelector(".hero-when")).toHaveTextContent("Softres");
+        expect(manageButton()).not.toBeInTheDocument();
+    });
+
     it("marks a closed signup", async () => {
         await show(raidDetail({}, { signupsClosed: true }));
         expect(t("raidDetail.hero.signupsClosed")).toBe("Anmeldung geschlossen");

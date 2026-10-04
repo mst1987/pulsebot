@@ -208,6 +208,16 @@ export function saveSetupPingText(eventId: string, text: string): Promise<SetupE
     return send("POST", "/api/raids/setup/ping-text", { event: eventId, text });
 }
 
+/** "Alle pingen" of a posted setup: who would be pinged and with what (nothing is posted). */
+export function previewSetupPing(eventId: string): Promise<{ count: number; text: string }> {
+    return send("POST", "/api/raids/setup/ping", { event: eventId, dryRun: true });
+}
+
+/** "Alle pingen": everybody in the groups of the posted setup, in the event channel, with the ping text. */
+export function pingSetup(eventId: string): Promise<{ message: string; count: number; url: string }> {
+    return send("POST", "/api/raids/setup/ping", { event: eventId });
+}
+
 /** Mark a raider as an extra tank / healer (`on`), or take the mark away; not part of the setup, a new proposal keeps it. */
 export function saveSetupExtraRole(eventId: string, userId: string, role: "tank" | "healer", on: boolean): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/extra-role", { event: eventId, userId, role, on });

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import type { SetupEditorData, StoredSetup } from "../../../api";
-import { pingTextToSave, publishHint, GROUP_SIZE } from "../../../lib/setupEditor";
+import { pingTextToSave, publishHint, setupState, GROUP_SIZE } from "../../../lib/setupEditor";
 import { belowEndPlacement } from "../../../lib/popoverPosition";
 import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
@@ -11,22 +10,23 @@ import WowIcon from "../../../components/ui/WowIcon";
 import { ChevronDownIcon } from "../../../components/icons";
 import { clock, dateTime, MAX_RAID_SIZE } from "./setupText";
 
-/** One entry of the bar's "Mehr" menu. `on` marks a switch that is on (the compact view). */
+/** One entry of the bar's "Mehr" menu. `on` marks a switch (fairness, the compact view …): checked or not. */
 export type MoreItem = { id: string; label: string; sub: string; icon: string; on?: boolean; disabled?: boolean; onSelect: () => void };
 
 /**
- * "Mehr ▾" in the bar: what is needed now and then (compact view, search, the
- * AI explanation, the weights) — so the bar shows only what the evening turns
- * on: propose, confirm everybody, post. Portalled like "Event verwalten".
+ * "Mehr ▾" in the bar: everything that is not the evening's one action — propose
+ * anew, the group count, the ping text, the switches (fairness, wishes, "nicht
+ * zusammen", bench in the post), the compact view, search, the AI explanation,
+ * the weights. "sep" draws a line between kinds. Portalled like "Event verwalten".
  */
-export function MoreMenu({ items }: { items: MoreItem[] }) {
+export function MoreMenu({ items }: { items: (MoreItem | "sep")[] }) {
     const t = useT();
     const [open, setOpen] = useState(false);
     const anchor = useRef<HTMLDivElement>(null);
     return (
         <div className="se-more" ref={anchor}>
             <Button
-                variant="ghost" size="sm" icon="inv_misc_note_05" aria-haspopup="menu" aria-expanded={open}
+                variant="ghost" size="sm" aria-haspopup="menu" aria-expanded={open}
                 data-tip={open ? undefined : t("setup.editor.more")} data-tip-sub={open ? undefined : t("setup.editor.moreSub")}
                 onClick={() => setOpen((o) => !o)}
             >
@@ -34,7 +34,7 @@ export function MoreMenu({ items }: { items: MoreItem[] }) {
             </Button>
             {open && (
                 <Popover anchor={anchor} place={belowEndPlacement()} follow="reposition" onClose={() => setOpen(false)} className="se-more-pop" role="menu">
-                    {items.map((it) => (
+                    {items.map((it, i) => (it === "sep" ? <div key={`sep-${i}`} className="se-more-sep" role="separator" /> : (
                         <button
                             key={it.id} type="button" role={it.on === undefined ? "menuitem" : "menuitemcheckbox"}
                             aria-checked={it.on === undefined ? undefined : it.on}
@@ -47,7 +47,7 @@ export function MoreMenu({ items }: { items: MoreItem[] }) {
                                 <span className="se-more-sub">{it.sub}</span>
                             </span>
                         </button>
-                    ))}
+                    )))}
                 </Popover>
             )}
         </div>
@@ -90,79 +90,33 @@ export function SizeControl({ size, disabled, onCommit }: { size: number; disabl
     );
 }
 
-export function StatusBadge({ setup }: { setup: StoredSetup }) {
-    const t = useT();
-    if (setup.status === "approved") {
-        return (
-            <Badge
-                tone="ok" tip={t("setup.status.approved")}
-                tipSub={setup.approvedAt ? t("setup.status.approvedSubSince", { time: dateTime(setup.approvedAt) }) : t("setup.status.approvedSub")}
-            >
-                {t("setup.status.approved")}
-            </Badge>
-        );
-    }
-    if (setup.changedSinceApproval) {
-        return (
-            <Badge tone="mid" tip={t("setup.status.changedTip")} tipSub={setup.approved ? t("setup.status.changedSubSince", { time: dateTime(setup.approved.approvedAt) }) : t("setup.status.changedSub")}>
-                {t("setup.status.changed")}
-            </Badge>
-        );
-    }
-    const draft = <Badge tone="mid" tip={t("setup.status.draft")} tipSub={t("setup.status.draftSub")}>{t("setup.status.draft")}</Badge>;
-    if (setup.origin !== "auto") return draft;
-    return (
-        <>
-            {draft}
-            <Badge tone="accent" tip={t("setup.status.autoTip")} tipSub={setup.updatedAt ? t("setup.status.autoSubAt", { time: dateTime(setup.updatedAt) }) : t("setup.status.autoSub")}>
-                {t("setup.status.auto")}
-            </Badge>
-        </>
-    );
-}
-
 /**
- * One calm line under the bar (#290): before the approval what it will post and
- * send, after it what it did — the details in the tooltip, one "Setup posten".
+ * The setup's ONE state, first in the bar (`setupState`): "Entwurf", "Freigegeben ·
+ * nicht gepostet", "Gepostet · Stand 2" … — never "Gepostet" beside "noch nicht
+ * gepostet". What the post will do or did (the old line under the bar, #290:
+ * channel, DMs, failures, an outdated message) is its tooltip; while the DMs run
+ * the badge says so.
  */
-export function PublishLine({ data, setup, busy, posting, onPost, bench = false, onBench }: {
-    data: SetupEditorData;
-    setup: StoredSetup;
-    busy: boolean;
-    posting: boolean;
-    onPost: () => void;
-    /** "Bench mitposten" (#517): whether the next post (the approval's or "Setup posten") carries the bench */
-    bench?: boolean;
-    onBench?: (on: boolean) => void;
-}) {
+export function StatusBadge({ setup, publish }: { setup: StoredSetup; publish: SetupEditorData["publish"] }) {
     const t = useT();
-    const hint = publishHint(data.publish, setup.status === "approved", clock);
-    if (!hint) return null;
+    const state = setupState(setup, publish);
+    const hint = publishHint(publish, setup.status === "approved", clock);
+    const lines: string[] = [];
+    if (hint) lines.push(hint.text);
+    if (state.key === "draft") {
+        lines.push(t("setup.status.draftSub"));
+        if (setup.origin === "auto") lines.push(setup.updatedAt ? t("setup.status.autoSubAt", { time: dateTime(setup.updatedAt) }) : t("setup.status.autoSub"));
+    } else if (state.key === "changed") {
+        lines.push(setup.approved ? t("setup.status.changedSubSince", { time: dateTime(setup.approved.approvedAt) }) : t("setup.status.changedSub"));
+    } else if (state.key === "posted" && setup.approvedAt) {
+        lines.push(t("setup.status.approvedSubSince", { time: dateTime(setup.approvedAt) }));
+    }
+    if (hint && hint.sub) lines.push(hint.sub);
+    const label = hint && hint.running ? `${state.label} · ${t("setup.state.dmsRunning")}` : state.label;
     return (
-        <div className={`se-publish${hint.tone ? ` se-publish-${hint.tone}` : ""}`}>
-            <WowIcon name="inv_letter_15" size={18} />
-            <span className="se-publish-text" data-tip={hint.tip} data-tip-sub={hint.sub}>{hint.text}</span>
-            {!data.publish?.dmsEnabled && !hint.canPost && !data.publish?.cancelled && (
-                <Link className="se-publish-link" to="/settings?section=kategorien">{t("setup.publishLine.enableDms")}</Link>
-            )}
-            {/* only with somebody on the bench — the pool ("Angemeldet") is never posted */}
-            {onBench && setup.bench.length > 0 && !data.publish?.cancelled && (
-                <label className="se-publish-bench" data-tip={t("setup.publishLine.bench")} data-tip-sub={t("setup.publishLine.benchSub")}>
-                    <input type="checkbox" checked={bench} disabled={busy} onChange={(e) => onBench(e.target.checked)} />
-                    {t("setup.publishLine.bench")}
-                </label>
-            )}
-            {hint.canPost && (
-                <Button
-                    variant="ghost" size="sm" icon="inv_letter_15" running={posting || hint.running} disabled={busy}
-                    data-tip={t("setup.publishLine.post")}
-                    data-tip-sub={t("setup.publishLine.postSub")}
-                    onClick={onPost}
-                >
-                    {t("setup.publishLine.post")}
-                </Button>
-            )}
-        </div>
+        <Badge tone={state.tone} className="se-state" tip={state.label} tipSub={lines.filter(Boolean).join("\n")}>
+            {label}
+        </Badge>
     );
 }
 

@@ -16,9 +16,9 @@ import { classColorProps } from "../../components/ClassSpec";
 import { SortLabel, ariaSort } from "../../components/SortTh";
 import type { TableSort } from "../../lib/tableSort";
 import {
-    ArrowLeftIcon, BenchIcon, CheckIcon, CircleIcon, CrestIcon, HourglassIcon, ListChecksIcon, RosterIcon, TentativeIcon, XIcon,
+    BenchIcon, CheckIcon, CircleIcon, CrestIcon, HourglassIcon, ListChecksIcon, RosterIcon, TentativeIcon, XIcon,
 } from "../../components/icons";
-import { WowIcon, buttonClass } from "../../components/ui";
+import { BackButton as SharedBackButton, WowIcon } from "../../components/ui";
 import { useT } from "../../i18n";
 import { ROLE_ICON } from "../../lib/raidplan/assign";
 import { roleLabel } from "../../lib/wowNames";
@@ -294,9 +294,8 @@ export function BackButton({ label, onClick, to, size = "md", disabled = false, 
     /** The full width of its block (the drawer's decision). */
     wide?: boolean;
 }) {
-    const cls = buttonClass("ghost", size, true, `kp-backbtn${wide ? " kp-wide" : ""}`);
-    if (to) return <Link to={to} className={cls}><ArrowLeftIcon />{label}</Link>;
-    return <button type="button" className={cls} disabled={disabled} onClick={onClick}><ArrowLeftIcon />{label}</button>;
+    // the shared look (components/ui/BackButton); kp-backbtn places it in the Kaderplaner's blocks
+    return <SharedBackButton label={label} onClick={onClick} to={to} size={size} disabled={disabled} className={`kp-backbtn${wide ? " kp-wide" : ""}`} />;
 }
 
 /** The head of a sub page (Fragen, Beispiel-Setups): back to its step, kicker and title, actions on the right. */
