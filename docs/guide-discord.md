@@ -4,7 +4,7 @@ Diese Seite ist für alle, die den Bot **im Discord als Raider** benutzen — ni
 
 ## Sprache
 
-Der Bot schreibt **standardmäßig Deutsch**. Mit `/language` (in einem deutschen Discord-Client `/sprache`) wählst du deine eigene Sprache: Deutsch, Englisch oder die Sprache des Servers. Das gilt für alles, was nur du siehst – Dialoge, Antworten und DMs. Nachrichten im Kanal (Anmelde-Nachricht, Setup, Übersicht, Panels) bleiben in der Sprache, die die Orga für den Server eingestellt hat. Der DE/EN-Schalter oben im Web-Menü ist dieselbe Einstellung.
+Der Bot schreibt **standardmäßig Deutsch**. Mit `/language` (im deutschen Discord-Client heißt der Befehl „sprache“) wählst du deine eigene Sprache: Deutsch, Englisch oder die Sprache des Servers. Das gilt für alles, was nur du siehst – Dialoge, Antworten und DMs. Nachrichten im Kanal (Anmelde-Nachricht, Setup, Übersicht, Panels) bleiben in der Sprache, die die Orga für den Server eingestellt hat. Der DE/EN-Schalter oben im Web-Menü ist dieselbe Einstellung.
 
 ## Anmeldung
 
