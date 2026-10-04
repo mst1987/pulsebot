@@ -109,7 +109,7 @@ a.ibtn svg { width: 15px; height: 15px; }
 .kn-more .btn svg { width: 13px; height: 13px; margin-left: 4px; }
 .kn-more-menu { min-width: 190px; }
 .kn-more-menu.up { top: auto; bottom: calc(100% + 6px); right: auto; left: 0; }
-.split-menu button.kn-danger { color: var(--bad, #e5484d); }
+.split-menu button.kn-danger { color: var(--high); }
 .split-menu button.kn-touch-only { display: none; }
 
 .kn-inline-wrap { display: inline-flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
