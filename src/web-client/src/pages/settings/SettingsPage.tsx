@@ -431,7 +431,7 @@ export default function SettingsPage() {
                 {/* Only below the shell's breakpoint (styles/settings.css): on a
                     wide screen the sections are the main menu's children. */}
                 <SectionNav groups={navGroups} active={active} onSelect={setSection} ariaLabel={t("settings.page.navAria")} />
-                <div className={`settings-panel${inForm ? " in-form" : ""}`}>
+                <div className={`settings-panel${inForm ? " in-form" : ""}`} data-section={active}>
                     {panel()}
                     {changes.length > 0 && (
                         <div className="savebar" role="status" aria-live="polite">
