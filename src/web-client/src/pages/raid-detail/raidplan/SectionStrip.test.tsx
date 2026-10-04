@@ -90,6 +90,17 @@ describe("SectionStrip", () => {
         expect(onToggle).toHaveBeenCalled();
     });
 
+    it("shows the waiting chip of #590 without a readable log, inert, with the reason in its tooltip", () => {
+        const onToggle = vi.fn();
+        const { container } = render(<SectionStrip bosses={BOSSES} selected="bt/supremus" draft={{}} onSelect={vi.fn()} follow={{ on: false, onToggle, waiting: "no_log" }} />);
+        const chip = container.querySelector(".rp-autofollow") as HTMLButtonElement;
+        expect(chip.classList.contains("is-waiting")).toBe(true);
+        expect(chip.getAttribute("aria-disabled")).toBe("true");
+        expect(chip.textContent).toBe("Wartet auf Log");
+        fireEvent.click(chip);
+        expect(onToggle).not.toHaveBeenCalled();
+    });
+
     it("switches a section in or out of the sheet with the eye; a section out of it is dimmed; Standard has no eye", () => {
         const onSheet = vi.fn();
         render(<SectionStrip bosses={BOSSES} selected="bt/supremus" draft={{ "bt/trash": { inSheet: false } }} onSelect={vi.fn()} onSheet={onSheet} />);

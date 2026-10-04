@@ -264,8 +264,26 @@ describe("what posting the setup will do / did (#290)", () => {
         expect(lib.publishHint(publish({ cancelled: true }), true, time)).toMatchObject({ canPost: false, text: "Abgesagt – kein Setup im Kanal" });
     });
 
+    it("names ONE state for the bar — never „Gepostet“ for a setup that is not in the channel", () => {
+        const draft = { status: "draft", changedSinceApproval: false, version: 3 };
+        const approved = { status: "approved", changedSinceApproval: false, version: 3 };
+        const posted = { messageUrl: "u", version: 3, postedAt: 100, editedAt: 0 };
+        expect(lib.setupState(draft, publish())).toMatchObject({ key: "draft", label: "Entwurf", tone: "mid", needsPost: true });
+        expect(lib.setupState({ ...draft, changedSinceApproval: true }, publish({ posted }))).toMatchObject({ key: "changed", needsPost: true });
+        expect(lib.setupState(approved, publish())).toMatchObject({ key: "notPosted", label: "Freigegeben · nicht gepostet", needsPost: true });
+        expect(lib.setupState(approved, publish({ posted, error: "Bot offline", errorAt: 200 }))).toMatchObject({ key: "error", tone: "bad", needsPost: true });
+        // an error older than the last post is history
+        expect(lib.setupState(approved, publish({ posted, error: "Bot offline", errorAt: 50 }))).toMatchObject({ key: "posted" });
+        expect(lib.setupState({ ...approved, version: 4 }, publish({ posted, outdated: true }))).toMatchObject({ key: "outdated", label: "Gepostet · Stand 3 · veraltet", needsPost: true });
+        expect(lib.setupState(approved, publish({ posted }))).toMatchObject({ key: "posted", label: "Gepostet · Stand 3", tone: "ok", needsPost: false });
+        expect(lib.setupState(approved, publish({ cancelled: true }))).toMatchObject({ key: "cancelled", needsPost: false });
+        // without publish data (a reader's payload) an approved setup is simply posted
+        expect(lib.setupState(approved, undefined)).toMatchObject({ key: "posted", label: "Gepostet · Stand 3" });
+    });
+
     it("speaks English when the page does", async () => {
         await inLang("en", () => {
+            expect(lib.setupState({ status: "approved", changedSinceApproval: false, version: 2 }, publish({ posted: { messageUrl: "u", version: 2, postedAt: 1, editedAt: 0 } })).label).toBe("Posted · version 2");
             expect(lib.publishHint(publish(), false, time).text).toBe("On posting: posts the setup in #kara-do · DMs to 25 raiders (off)");
             const done = publish({ posted: { messageUrl: "u", version: 1, postedAt: 100, editedAt: 0 }, dmsEnabled: true, pendingDms: 0, dms: { status: "done", version: 1, at: 1, total: 1, sent: 1, failed: [], unchanged: 0 } });
             expect(lib.publishHint(done, true, time).text).toBe("posted T100 in #kara-do · 1 DM");

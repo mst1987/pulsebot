@@ -49,6 +49,18 @@ An evaluation of a raid that is still running is worth little and unfair to the 
 - A report built anyway keeps `raidProgress` on it, so the page says the raid was not finished instead of the reader having to remember.
 - **The same summary drives the Log-Auswertung list** ("Hyjal 3/5", yellow while the final boss stands). It is one list (`reportList.prepareClaList`: every log plus the reports built from a link that no log points at, filters `all|open|unlinked|done`); for a log nobody evaluated yet the raids come from its WCL fight list, read once together with the title (`logChannel.backfillLogTitles`) and stored on the log (`logStore.setLogRaids`). An unfinished raid is read again only while the post is under 12 h old and at most every 10 min — a raid that was called off stays unfinished forever. Karazhan counts 11 encounters: the opera is one, the rare spawns none.
 
+## The message under a log post (embed, checklist)
+
+A Warcraft-Logs link posted into a log channel (`services/logcheck/logChannel.js handleLogMessage`) gets one reply from the bot: an **embed** with the evaluation buttons (`services/discord/discord.js` `logButtonEmbed` / `logButtonPayload`, posted by `postLogButton`, redrawn by `finishLogButton`). It is a checklist (design B, Oct 2026):
+
+- **Head** (author line) by progress — „Warcraft-Logs-Report erkannt“ · „Log-Auswertung läuft“ · „Log vollständig ausgewertet“ — and the **colour bar** with it: orange, blurple, green.
+- **Title** = the report's name, linked to Warcraft Logs (only an `https` link); before the name is known „Warcraft-Logs-Report“.
+- **First line** „So 04.10. · 1 von 2 ausgewertet“ (the report's start in server time, `logDayText`), then one line per analysis: open `⚪ **CLA** – <what it checks>`, finished `✅ **CLA** – ausgewertet · [öffnen](<evaluation>)`. While nothing ran, the footer says „Ein Klick startet die Auswertung · beide landen auf derselben Seite“.
+- **Buttons** below as before: the open analyses (`logButtonRow`), and once one ran *Auswertung öffnen*.
+- **Name and date follow after the post:** the detection knows only the link. Right after posting, `enrichLogButton` (not awaited) reads `report/fights` once, stores the title (`logStore.setLogTitle`) and the start (`logStore.setReportStart`, field `reportStart`) and redraws the message — a slow or failing Warcraft Logs never delays the buttons, the message then keeps „Warcraft-Logs-Report“. The evaluations (`logeval`, `logevalForce`) pass title, link and start on every redraw.
+- A message from before the embed (plain text) becomes the embed at its next redraw (`content: ""`). The texts stay German (orga/logcheck texts of the bot).
+- Tests: `test/services/discord/discord.logButtons.test.js`, `test/services/logcheck/logChannel.test.js`, `test/stores/logStore.test.js`, `test/utils/discord/reply.test.js` (`author`).
+
 ## Progress for the raid plan (#534)
 
 `GET /api/raidplan/progress` (docs/raidplan/sharing.md, "The plan follows the raid") tells the raid plan which of its bosses are

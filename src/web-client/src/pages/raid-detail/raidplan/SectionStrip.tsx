@@ -6,6 +6,7 @@ import Popover from "../../../components/ui/Popover";
 import { Badge, IconButton } from "../../../components/ui";
 import ContextMenu from "./ContextMenu";
 import AutoFollowToggle from "./AutoFollowToggle";
+import type { FollowChip } from "../../../hooks/useRaidProgress";
 import type { RaidplanBoard, RaidplanBoss } from "../../../api";
 import { useT } from "../../../i18n";
 import { sectionPosition } from "./planView";
@@ -31,8 +32,8 @@ export default function SectionStrip({ bosses, selected, draft, onSelect, onShee
     dirtyKeys?: string[];
     /** the sections whose boss the linked log shows killed (#534) */
     killedKeys?: Set<string>;
-    /** the "Automatisch mitgehen" switch; missing = no log is read, no switch */
-    follow?: { on: boolean; onToggle: () => void };
+    /** the "Automatisch mitgehen" chip: a switch while a log is read, "Wartet auf Log" (`waiting`) inside the raid window without one; missing = none */
+    follow?: FollowChip;
     /** per section: how many of its assignments have an open place (an event plan; a template has none) */
     openCounts?: Record<string, number>;
 }) {
@@ -113,7 +114,7 @@ export default function SectionStrip({ bosses, selected, draft, onSelect, onShee
                 <IconButton size="sm" icon={<ChevronRight size={17} />} tip={next ? t("raidBoard.strip.next", { name: label(next) }) : t("raidBoard.strip.last")} disabled={!next} onClick={() => next && onSelect(next.key)} />
             </span>
             {openHere > 0 && <Badge tone="mid" tip={t("raidBoard.strip.openTip")} tipSub={t("raidBoard.aline.openHint")}>{t("raidBoard.aline.open", { n: openHere })}</Badge>}
-            {follow && <AutoFollowToggle on={follow.on} onToggle={follow.onToggle} />}
+            {follow && <AutoFollowToggle on={follow.on} onToggle={follow.onToggle} waiting={follow.waiting} />}
             {open && (
                 <Popover anchor={pick} place={belowStartPlacement(6)} follow="reposition" onClose={() => setOpen(false)} className="rp-strip-pop" role="dialog" aria-label={t("raidBoard.strip.choose")} boxRef={list} onKeyDown={onListKey}>
                     <ul className="rp-strip-list">

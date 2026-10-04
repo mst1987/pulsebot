@@ -5,71 +5,64 @@
 /* one row height for a raider and for a free place, so cards never differ in height whether a place is taken or not */
 .se-editor { --se-row: 46px; display: flex; flex-direction: column; gap: 14px; }
 
-/* the bar: one line across the full width — state, groups, spots, locks on the left, the actions on the right (the drag hint is in the tooltip-free
-   space of the groups' own places, not here) */
+/* the bar: ONE line across the full width — the state badge, the counts ("Tanks 3 von 3 · … · 23 von 25 bestätigt"),
+   then "Mehr", "Alle bestätigen" and the one primary button on the right */
 .se-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; min-height: 60px; box-sizing: border-box; padding: 10px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
-.se-bar-hint { display: none; }
-.se-bar-act { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
-.se-bar-act .btn { min-height: 36px; padding-left: 16px; padding-right: 16px; font-size: 14px; }
+.se-bar-act { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.se-state { flex: 0 0 auto; }
+.se-counts { display: block; flex: 0 1 auto; min-width: 0; font-size: 13.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.se-counts b { color: var(--text); font-weight: 700; }
+.se-counts .se-off b { color: var(--medium); }
+.se-counts .se-counts-ok b { color: var(--good); }
+.se-counts-dot { margin: 0 6px; }
+/* while a raider is picked: where to click next */
+.se-bar-pick { flex: 1 1 auto; min-width: 0; font-size: 12.5px; font-weight: 700; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* wide enough: really one line — the counts give way (each part keeps its tooltip), the buttons never */
+@media (min-width: 1200px) {
+    .se-bar { flex-wrap: nowrap; }
+    .se-counts { flex: 1 1 auto; }
+    .se-bar-act { flex: 0 0 auto; flex-wrap: nowrap; }
+}
+.se-bar-act .btn { min-height: 36px; padding-left: 12px; padding-right: 12px; font-size: 14px; }
 /* the buttons must read as buttons: a visible fill and outline even for the quiet ones, the accent on hover */
 .se-bar-act .btn[class*="ghost"] { background: var(--panel2); border: 1px solid color-mix(in srgb, var(--text) 26%, transparent); color: var(--text); }
 .se-bar-act .btn[class*="ghost"]:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
 .se-bar-act .btn[class*="ghost"][aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 
-/* the raid size, editable right in the bar (#354) */
+/* the raid size (#354), in its dialog behind "Mehr ▾" */
 .se-size { display: flex; align-items: center; gap: 6px; cursor: help; }
 .se-size input { width: 52px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font: 700 13px var(--mono); padding: 3px 6px; text-align: center; }
 .se-size input:disabled { opacity: .6; }
 .se-size-total { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
 .se-size-dirty { color: var(--accent); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
 
-/* the setup in the channel (#290): one line under the bar, the details in its tooltip */
-.se-publish { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: -6px; padding: 6px 14px; border-left: 3px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 12.5px; }
-.se-publish-text { flex: 1 1 200px; min-width: 0; cursor: help; }
-.se-publish-ok { border-left-color: var(--good); }
-.se-publish-ok .se-publish-text { color: var(--text); }
-.se-publish-mid { border-left-color: var(--medium); }
-.se-publish-mid .se-publish-text { color: var(--medium); }
-.se-publish-bad { border-left-color: var(--high); background: var(--high-bg); }
-.se-publish-bad .se-publish-text { color: var(--high); }
-.se-publish-link { color: var(--accent); text-decoration: none; font-size: 12px; }
-.se-publish-link:hover { text-decoration: underline; }
-/* "Bench mitposten" (#517): a small checkbox beside the post line */
-.se-publish-bench { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-size: 12.5px; cursor: pointer; white-space: nowrap; }
-.se-publish-bench input { margin: 0; accent-color: var(--accent); }
-
-/* the top area, below the bar and the channel line: left the ping message over the evening's numbers, right the raider panel. ONE fixed height
-   (330 px) for the whole row — the panel never grows or shrinks with its content, so the groups underneath stay put while the pointer moves
-   from raider to raider. Text that would not fit is cut off inside its box, never spilled into the next one. One column on narrow screens. */
-.se-topline { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); grid-template-rows: 352px; gap: 12px; }
-.se-topline > * { box-sizing: border-box; margin: 0; min-width: 0; min-height: 0; overflow: hidden; }
-.se-topleft { display: flex; flex-direction: column; gap: 14px; }
-/* the ping message: a card of its own — title, field, hint */
-.se-topline .se-pingtext { flex: 0 0 122px; justify-content: center; gap: 8px; padding: 12px 18px; border-radius: 12px; border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--panel); }
-.se-topline .se-pingtext-label { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.se-topline .se-pingtext-input { width: 100%; max-width: none; height: 38px; padding: 0 14px; font-size: 14px; border-radius: 9px; background: var(--bg); }
-.se-pingtext-hint { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* the numbers: big role counts on top, the switches in a 2 x 2 grid under them */
-/* the numbers: every figure and every setting is a tile of its own — border, background, label over value — so nothing runs into its neighbour */
-.se-topline .se-side { flex: 1 1 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 12px; padding: 0; background: none; border: 0; border-radius: 0; }
-.se-topline .se-stats { display: contents; }
-.se-topline .se-stat { justify-content: center; gap: 4px; padding: 10px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
-.se-topline .se-stat-v { font-size: 28px; }
-.se-topline .se-stat-v small { font-size: 15px; }
-.se-topline .se-stat [class~="kicker"] { font-size: 12px; letter-spacing: .08em; }
-/* two lines in every setting tile: the label over its value, so a wide badge ("vollständig") never runs into the label */
-.se-topline .se-side-row { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; align-content: start; align-items: center; gap: 6px; min-height: 0; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; font-size: 14px; }
-.se-topline .se-side-row [class~="kicker"] { font-size: 12px; font-weight: 700; letter-spacing: .07em; color: var(--text); }
-.se-topline .se-side-cap { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; line-height: 1.35; }
-/* anything else in the summary (the hints badge) takes a whole row */
-.se-topline .se-side > :not(.se-side-row):not(.se-stats) { grid-column: 1 / -1; justify-self: start; }
-
-/* the ping text sent with the posted setup: its own card, so it reads as "this is what gets posted" */
-.se-pingtext { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding: 8px 14px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--panel2); }
-.se-pingtext-label { cursor: help; font-size: 12.5px; font-weight: 600; color: var(--text); }
-.se-pingtext-input { width: 100%; max-width: 520px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; color: var(--text); }
+/* the ping text sent with the posted setup ("Ping-Text…" under "Mehr"): its own card, so it reads as "this is what gets posted" */
+.se-pingtext { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--panel2); }
+.se-pingtext-label { cursor: help; font-size: 14px; font-weight: 700; color: var(--text); }
+.se-pingtext-input { width: 100%; max-width: none; box-sizing: border-box; height: 38px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; font-size: 14px; color: var(--text); }
 .se-pingtext-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .se-pingtext-input:disabled { opacity: .6; }
+.se-pingtext-hint { color: var(--muted); font-size: 13px; }
+
+/* the one summary line under the bench: buffs · fairness · wishes, "Details" opens the tiles and switches */
+.se-sumline { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; color: var(--muted); }
+.se-sumline b { color: var(--text); font-weight: 700; }
+.se-sumline-buffs { display: inline-flex; align-items: center; gap: 6px; }
+.se-sumline-buffs.se-tone-mid b { color: var(--medium); }
+.se-sumline-buffs.se-tone-bad b { color: var(--high); }
+.se-sumline-ok { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--good-bg); color: var(--good); }
+.se-sumline-ok svg { width: 11px; height: 11px; }
+.se-sumline-btn { margin-left: auto; }
+
+/* the raider's details: a drawer at the right edge that a click on a raider opens (Esc or X closes it) — never over
+   the bar, scrolling inside itself; on a phone a sheet from the bottom */
+.se-drawer {
+    position: fixed; top: 16px; right: 16px; bottom: 16px; z-index: 50; width: min(440px, calc(100vw - 32px));
+    display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--accent); border-radius: 12px;
+    box-shadow: 0 24px 60px -16px var(--shade-55); overflow: hidden;
+}
+.se-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px 8px 18px; border-bottom: 1px solid var(--line-soft); }
+.se-drawer > .se-tip { flex: 1 1 auto; min-height: 0; overflow-y: auto; border: 0; border-radius: 0; }
 
 /* the setup (groups, bench under a divider) across the full width: five groups side by side where the screen allows */
 .se-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
@@ -90,16 +83,16 @@
     .se-group.se-suggest:not(.se-over) { animation: none; box-shadow: 0 0 0 2px var(--accent-soft), 0 0 14px 1px var(--accent-soft); }
 }
 
-/* the raider panel, right of the ping message and the numbers — three columns (person and attendance · what they bring · why they stand here), roomy
-   type, always complete, never over a group. The topline's fixed height keeps it the same size for every raider. */
-.se-tip { font-family: inherit; font-size: 13.5px; line-height: 1.35; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.2fr) minmax(0, .9fr); grid-template-rows: auto minmax(0, 1fr); gap: 14px 26px; padding: 16px 20px; background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; }
-.se-tip-col { display: flex; flex-direction: column; justify-content: flex-start; gap: 10px; min-width: 0; overflow: hidden; }
-.se-tip-empty { display: flex; align-items: center; justify-content: center; border: 1.5px dashed var(--accent); color: var(--muted); font-size: 13.5px; text-align: center; padding: 22px; }
-.se-tip-top { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line-soft); }
-.se-tip-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+/* the raider panel in the drawer — one column (header with person and attendance · what they bring · why they stand
+   here · plays as / extra · attendance details), roomy type, always complete: the drawer scrolls, the panel never cuts */
+.se-tip { font-family: inherit; font-size: 13.5px; line-height: 1.35; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 16px; padding: 16px 18px; background: var(--panel); }
+.se-tip-col { display: flex; flex-direction: column; justify-content: flex-start; gap: 12px; min-width: 0; }
+.se-tip-col:empty { display: none; }
+.se-tip-top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line-soft); }
+.se-tip-who { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .se-tip-who .se-tip-sub { gap: 4px 14px; }
-/* the attendance is the number that matters: big, on the right of the header */
-.se-tip-attn { flex: 0 0 210px; display: flex; flex-direction: column; gap: 5px; }
+/* the attendance is the number that matters: big, its own row under the name */
+.se-tip-attn { flex: 1 1 100%; display: flex; flex-direction: column; gap: 5px; }
 .se-tip-top img, .se-tip-top [class*="spec-ph"] { width: 40px; height: 40px; }
 .se-tip-row { display: flex; align-items: flex-start; gap: 10px; }
 .se-tip-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
@@ -140,11 +133,18 @@
 .se-tip-reasons { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; font-size: 13.5px; }
 .se-tip-reasons li { padding-left: 2px; }
 
-/* the bench: below the setup, set apart by a divider — its own header, then chunk cards the width of a group */
+/* the bench: below the setup, set apart by a divider — ONE row: its name and count, then its raiders side by side */
 .se-bench { position: relative; margin-top: 14px; }
 .se-bench::before { content: ""; position: absolute; left: 0; right: 0; top: -16px; border-top: 2px solid var(--line); }
 .se-bench-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px 4px; min-height: 40px; }
-.se-bench-chunks { margin-top: 4px; }
+.se-row { display: flex; align-items: center; gap: 12px; border-radius: 10px; transition: box-shadow .12s ease; }
+.se-row + .se-row { margin-top: 0; }
+.se-row + .se-row::before { display: none; }
+.se-row .se-bench-head { flex: 0 0 auto; min-width: 96px; padding: 0 4px 0 0; min-height: 0; }
+.se-row .se-count { margin-left: 0; }
+.se-row-slots { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 220px)); gap: 8px; }
+.se-row-empty { grid-column: 1 / -1; display: flex; align-items: center; min-height: var(--se-row); color: var(--muted); font-size: 13px; }
+.se-row.se-target .se-row-slots, .se-row.se-over .se-row-slots { border-radius: 10px; box-shadow: 0 0 0 2px var(--accent-soft); }
 /* "Angemeldet" (#517): signed up, not in the setup — a little quieter than the bench */
 .se-pool .se-group-title { color: var(--muted); }
 .se-extra.se-extra-lead { margin: 0 6px 0 0; }
@@ -228,19 +228,13 @@
 .se-start-sub { color: var(--muted); font-size: 13px; }
 .se-start .btn { margin-left: auto; }
 
-@media (max-width: 1360px) {
-    .se-topline { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
-    .se-topline > * { overflow: visible; }
-    .se-topline .se-pingtext { flex-basis: auto; }
-    /* stacked: the panel keeps two columns (brings | why here) with the details as one row under them, instead of one long column */
-    .se-tip { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); min-height: 430px; }
-    .se-tip-col:last-child { grid-column: 1 / -1; }
-    .se-tip-col:last-child .se-tip-body { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 20px; }
-    .se-tip-top { flex-wrap: wrap; }
-    .se-tip-attn { flex-basis: 100%; }
-}
 @media (max-width: 760px) {
+    /* the bar wraps: the counts get their own line, the actions under them */
+    .se-counts { flex-basis: 100%; white-space: normal; }
     .se-bar-act { margin-left: 0; }
+    .se-row { flex-direction: column; align-items: stretch; gap: 6px; }
+    .se-row .se-bench-head { flex: 0 0 auto; }
+    .se-row-slots { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 }
 
 /* compact view (off by default, a switch in the bar): one-line raiders on narrower cards — for small screens or a very full raid.
@@ -278,9 +272,10 @@
     .se-search-row { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* a phone: one column again, but the buffs sit two by two */
+/* a phone: the drawer is a sheet from the bottom, the buffs sit two by two */
 @media (max-width: 600px) {
-    .se-tip { grid-template-columns: minmax(0, 1fr); padding: 14px 14px; min-height: 500px; }
+    .se-drawer { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 85vh; }
+    .se-tip { padding: 14px 14px; }
     .se-tip-buffs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 12px; }
     .se-tip-name { font-size: 18px; }
 }
@@ -325,8 +320,8 @@
 .se-more-item.is-on .se-more-label::after { content: " ✓"; color: var(--accent); }
 .se-more-text { display: flex; flex-direction: column; min-width: 0; }
 .se-more-label { font-size: 14px; font-weight: 700; line-height: 1.25; }
-.se-more-sub { font-size: 12px; color: var(--muted); line-height: 1.3; }
-.se-bar-count { margin-left: 2px; padding: 0 6px; border-radius: 999px; background: var(--good-bg); color: var(--good); font-size: 11.5px; font-weight: 800; }
+.se-more-sub { font-size: 12px; color: var(--muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.se-more-sep { height: 1px; margin: 4px 6px; background: var(--line-soft); }
 /* a picked raider holds the panel: a small pin next to the name says so */
 .se-tip-nameline { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .se-tip-pin { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11.5px; font-weight: 700; }

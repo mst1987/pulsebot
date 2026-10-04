@@ -778,7 +778,10 @@
         "follow": "Automatisch mitgehen",
         "followOnTip": "Der Plan blättert anhand des Warcraft-Logs zum Boss, der gerade gepullt wird, sonst zum nächsten. Klick hält an.",
         "followOffTip": "Angehalten, weil du selbst einen Abschnitt gewählt hast. Klick geht wieder mit dem Raid mit.",
-        "killed": "Im Log getötet"
+        "killed": "Im Log getötet",
+        "waiting": "Wartet auf Log",
+        "waitingNoLogTip": "Am Event ist noch kein Warcraft Log verknüpft. Sobald der Live-Log verknüpft ist und der erste Boss gepullt wird, geht der Plan automatisch mit.",
+        "waitingErrorTip": "Der verknüpfte Warcraft Log lässt sich gerade nicht lesen (privat, Warcraft Logs nicht erreichbar oder kein API-Schlüssel). Der Bot fragt jede Minute neu."
     },
     "multi": {
         "count": "{n} ausgewählt",

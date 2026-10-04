@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 import type { RaidplanPublicBoss } from "../../../api";
 import { useT } from "../../../i18n";
 import AutoFollowToggle from "./AutoFollowToggle";
+import type { FollowChip } from "../../../hooks/useRaidProgress";
 
 /**
  * The section chips of the sheet (/p/<token>): "Only for me" first (for a visitor who stands in the plan), then one chip per section with
@@ -16,8 +17,8 @@ export default function SheetBossNav({ bosses, selectedKey, mineKeys, killedKeys
     mineKeys: Set<string>;
     /** the sections whose boss the linked log shows killed (#534) */
     killedKeys?: Set<string>;
-    /** the "Automatisch mitgehen" switch; missing = no log is read, no switch */
-    follow?: { on: boolean; onToggle: () => void };
+    /** the "Automatisch mitgehen" chip: a switch while a log is read, "Wartet auf Log" (`waiting`) inside the raid window without one; missing = none */
+    follow?: FollowChip;
     label: (b: RaidplanPublicBoss) => string;
     showOnlyMine: boolean;
     onlyMine: boolean;
@@ -48,7 +49,7 @@ export default function SheetBossNav({ bosses, selectedKey, mineKeys, killedKeys
                     </button>
                 );
             })}
-            {follow && <AutoFollowToggle on={follow.on} onToggle={follow.onToggle} />}
+            {follow && <AutoFollowToggle on={follow.on} onToggle={follow.onToggle} waiting={follow.waiting} />}
         </nav>
     );
 }

@@ -65,6 +65,27 @@ export function stepSummary(progress: RaidEventSteps): string {
     return `${stepPosition(progress.steps, step.id)} · ${stepTitle(step)}`;
 }
 
+/**
+ * Der kurze Wert in der schmalen Leiste: "25 angemeldet", "25 von 25", "Stand 1".
+ * Eine Zahl steht nie nackt gegen ihr Ziel ("25 / 25" wird "25 von 25"); ein
+ * Wert, der nur den Namen wiederholt ("angelegt") oder leer ist ("—"), entfällt.
+ */
+export function stepShort(step: RaidEventStep): string {
+    const value = step.value && step.value !== "—" ? step.value : "";
+    if (!value || value.toLowerCase() === stepTitle(step).toLowerCase()) return "";
+    const unit = (step.unit || "").startsWith("/ ") ? t("raidDetail.steps.of", { total: step.unit.slice(2) }) : step.unit;
+    return [value, unit].filter(Boolean).join(" ");
+}
+
+/**
+ * Der Streifen unter der Leiste: "Jetzt dran: Einteilungen posten" und der eine
+ * erklärende Satz dazu (sonst die Randnotiz). Ohne Tat (Leser) heißt er nach dem Schritt.
+ */
+export function stepFocus(step: RaidEventStep): { title: string; text: string } {
+    const what = step.action ? deedLabel(step.action) : stepTitle(step);
+    return { title: t("raidDetail.steps.focus", { what }), text: step.hint || step.note || "" };
+}
+
 /** Die Zahl eines Schritts als ein Stück Text, für Vorlesehilfen und Tests. */
 export function stepFigure(step: RaidEventStep): string {
     return [step.value, step.unit, step.note].filter(Boolean).join(" ");

@@ -9,7 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { RaidEventSteps } from "../../api";
 import { t } from "../../i18n";
-import { deedLabel, stepStateLabel, stepSummary, stepTitle } from "../../lib/raidSteps";
+import { deedLabel, stepFocus, stepShort, stepStateLabel, stepSummary, stepTitle } from "../../lib/raidSteps";
 import { requireBackend } from "../../test/backend";
 import { eventStep, ownSteps } from "../../test/fixtures/raidDetail";
 import StepBar from "./StepBar";
@@ -57,8 +57,11 @@ describe("the step bar", () => {
         const items = within(screen.getByRole("list")).getAllByRole("listitem");
         const current = items[1];
         expect(current).toHaveTextContent(stepStateLabel("current"));
-        // the open step's tile is no button itself; its deed is the one button in it
-        const loud = within(current).getByRole("button");
+        // the open step's cell is no button; its deed is the one loud button in the strip under the row
+        expect(within(current).queryByRole("button")).not.toBeInTheDocument();
+        const strip = document.querySelector<HTMLElement>(".rd-ck-focus")!;
+        expect(strip).toHaveTextContent(stepFocus(progress.steps[1]).title);
+        const loud = within(strip).getByRole("button");
         expect(loud).toHaveTextContent(deedLabel(progress.action!));
         await user.click(loud);
         expect(onDeed).toHaveBeenCalledWith(progress.action);
@@ -72,6 +75,24 @@ describe("the step bar", () => {
         expect(within(items[3]).queryByRole("button")).not.toBeInTheDocument();
         // one loud button in the whole bar
         expect(screen.getAllByRole("button").filter((b) => !b.getAttribute("aria-label"))).toHaveLength(1);
+    });
+
+    it("is ONE slim row: name, a short value with a word, a check when done, the number otherwise", () => {
+        const progress = ownSteps();
+        const { container } = draw(progress);
+        const items = within(screen.getByRole("list")).getAllByRole("listitem");
+        progress.steps.forEach((step, i) => {
+            if (step.state !== "current" && stepShort(step)) expect(items[i]).toHaveTextContent(stepShort(step));
+            const mark = items[i].querySelector(".rd-ck-mark")!;
+            if (step.state === "done") expect(mark.querySelector("svg")).not.toBeNull();
+            else expect(mark).toHaveTextContent(String(i + 1));
+        });
+        // no figure stands bare against its target
+        expect(container.querySelector(".rd-ck-steps")!.textContent).not.toMatch(/\d\s*\/\s*\d/);
+        // nothing open: no strip
+        container.remove();
+        draw({ ...progress, current: "", action: null });
+        expect(document.querySelector(".rd-ck-focus")).toBeNull();
     });
 
     it("says „übersprungen“ for a skipped step, with its reason in the tooltip", () => {

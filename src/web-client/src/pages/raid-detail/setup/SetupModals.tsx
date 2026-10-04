@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { explainRaidSetup, getRaidSetupExplain, type SetupEditorData, type StoredSetup } from "../../../api";
 import { useT } from "../../../i18n";
@@ -100,6 +100,32 @@ export function ExplainModal({ open, onClose, ctx, data, setup, onDone }: {
                     </div>
                 )
                 : data.hasApiKey && <p className="se-note">{t("setup.explain.none")}</p>}
+        </Modal>
+    );
+}
+
+/**
+ * The small dialogs behind "Mehr ▾" (the group count, the ping text) and behind
+ * the summary line's "Details" (tiles and switches): what used to stand open in
+ * the bar and the boxes above the groups. The controls inside keep their own
+ * rules (commit on blur or Enter); "Fertig" only closes.
+ */
+export function EditorDialog({ open, onClose, icon, title, kicker, width = 520, children }: {
+    open: boolean;
+    onClose: () => void;
+    icon: string;
+    title: string;
+    kicker?: string;
+    width?: number;
+    children: ReactNode;
+}) {
+    const t = useT();
+    return (
+        <Modal
+            open={open} onClose={onClose} icon={icon} tone="raids" kicker={kicker || t("setup.dialog.kicker")} title={title} width={width}
+            footer={<Button variant="ghost" onClick={onClose}>{t("setup.dialog.done")}</Button>}
+        >
+            {children}
         </Modal>
     );
 }

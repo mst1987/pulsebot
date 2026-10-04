@@ -1,11 +1,17 @@
-// The page head: date block, kicker + category, title, time and the relative
-// day, two icon buttons (event post, raidplan), the one primary action — and
-// under it the progress bar, where every step is figure, status and entry at once.
+// The page head, kept compact: the date tile, the title, one line "17:57 Uhr ·
+// in 7 Tagen · Kategorie", on the right the state of the channel (a badge — and
+// beside it its own verb button, never a clickable badge) and "Verwalten ▾".
+// Under it the steps: an own event's cockpit (#319, StepBar.tsx), a Raid-Helper
+// event's progress bar (#219), where every step is figure, status and entry at once.
 //
 // An own event (#319) hands in its six-step cockpit as `cockpit` instead; it
 // carries the one prominent deed itself, so the head's primary button stays out
 // of the way — the same action twice in one head is exactly the doubling the
 // cockpit exists to end. A Raid-Helper event keeps the bar of #219 unchanged.
+//
+// The loot system used to be a chip beside the category; for whoever may change
+// it, it is an entry of "Verwalten" now (`lootInMenu`) — a reader still reads it
+// in the time line.
 import type { CSSProperties, ReactNode } from "react";
 import type { RaidDetailData, RaidPrimaryAction, RaidStep } from "../../api";
 import { eventTimeParts, relativeDayLabel } from "../../lib/format";
@@ -47,34 +53,26 @@ function StepCell({ step, onOpen }: { step: RaidStep; onOpen: (step: RaidStep) =
     );
 }
 
-/**
- * The raid's loot system beside its category — a button that opens the
- * Lootsystem dialog where the user may change it, else plain text.
- */
-function LootSystemChip({ data, onOpen }: { data: RaidDetailData; onOpen?: () => void }) {
-    const t = useT();
+/** The loot system as plain text in the time line — for a reader, who cannot change it. */
+function lootSystemText(data: RaidDetailData): string {
     const ls = data.lootSystem;
-    if (!ls) return null;
-    const label = `${ls.label}${ls.softresExtra ? " + Softres" : ""}`;
-    const origin = ls.source === "event" ? t("raidDetail.hero.lootOriginEvent") : t("raidDetail.hero.lootOriginCategory", { category: ls.categoryLabel });
-    const sub = `${origin}${onOpen ? ` ${t("raidDetail.hero.lootClickHint")}` : ""}`;
-    const tip = t("raidDetail.hero.lootTip", { label });
-    return onOpen
-        ? <button type="button" className="cat-badge rd-loot-chip" data-tip={tip} data-tip-sub={sub} onClick={onOpen}>{label}</button>
-        : <span className="cat-badge rd-loot-chip" data-tip={tip} data-tip-sub={sub}>{label}</span>;
+    return ls ? `${ls.label}${ls.softresExtra ? " + Softres" : ""}` : "";
 }
 
-export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning, manage, cockpit, onLootSystem }: {
+export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning, manage, cockpit, lootInMenu = false, onRecreateChannel, recreating = false }: {
     data: RaidDetailData;
     onStep: (step: RaidStep) => void;
     onPrimary: (action: RaidPrimaryAction) => void;
     primaryRunning: boolean;
-    /** with raids write: opens the Lootsystem dialog */
-    onLootSystem?: () => void;
-    /** only for an own event and write access: the "Verwalten" menu (#288) — editing (#261) is its first entry */
+    /** the "Verwalten" menu (#288) — editing (#261) is its first entry; absent for a reader */
     manage?: ReactNode;
     /** an own event's step bar (#319); it replaces the progress bar and the primary button */
     cockpit?: ReactNode;
+    /** the loot system is an entry of `manage`: not repeated in the time line */
+    lootInMenu?: boolean;
+    /** an own event whose channel is gone, with raids write: "Kanal anlegen" (#537) */
+    onRecreateChannel?: () => void;
+    recreating?: boolean;
 }) {
     const t = useT();
     const ev = data.event;
@@ -82,8 +80,11 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
     const relDay = relativeDayLabel(ev.startTime);
     const channel = ev.channelName || ev.channelId;
     const cancelled = ev.status === "cancelled";
+    const missing = ev.channelState === "missing";
     // A cancelled raid has no next step to push, and the cockpit brings its own.
     const primary = cancelled || cockpit ? null : data.progress?.primary || null;
+    const loot = lootInMenu ? "" : lootSystemText(data);
+    const ls = data.lootSystem;
 
     return (
         <header className="page-hero rd-hero">
@@ -91,19 +92,24 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                 <div className="hero-date" data-tip={when?.full || undefined}>
                     <span className="hero-date-dow">{when?.weekday || "—"}</span>
                     <span className="hero-date-day">{when?.day || "··"}</span>
-                    <span className="hero-date-mon">{when ? `${when.month} ${when.year}` : ""}</span>
+                    <span className="hero-date-mon">{when?.month || ""}</span>
                 </div>
                 <div className="hero-ident">
-                    <div className="hero-eyebrow">
-                        <span className="kicker">{t("raidDetail.hero.kicker")}</span>
-                        {data.categoryName && <span className="cat-badge">{data.categoryName}</span>}
-                        <LootSystemChip data={data} onOpen={onLootSystem} />
-                    </div>
                     <h1 className="hero-title">{ev.title || t("raidDetail.hero.noTitle")}</h1>
                     <div className="hero-when">
                         <span className="hero-time">{when?.time || "—"}</span>
                         <span className="hero-time-unit">{t("raidDetail.hero.timeUnit")}</span>
-                        {relDay && <Badge tone={ev.isPast ? undefined : "accent"}>{relDay}</Badge>}
+                        {relDay && <><span className="rd-dot" aria-hidden="true">·</span><Badge tone={ev.isPast ? undefined : "accent"}>{relDay}</Badge></>}
+                        {/* the dot travels with the category, so a wrapped line never ends in "·" */}
+                        {data.categoryName && <span className="rd-hero-cat"><span className="rd-dot" aria-hidden="true">·</span>{data.categoryName}</span>}
+                        {loot && ls && (
+                            <span
+                                className="rd-hero-cat" data-tip={t("raidDetail.hero.lootTip", { label: loot })}
+                                data-tip-sub={ls.source === "event" ? t("raidDetail.hero.lootOriginEvent") : t("raidDetail.hero.lootOriginCategory", { category: ls.categoryLabel })}
+                            >
+                                <span className="rd-dot" aria-hidden="true">·</span>{loot}
+                            </span>
+                        )}
                         {cancelled && (
                             <Badge tone="bad" className="em-state" tip={t("raidDetail.hero.cancelledTip")} tipSub={[ev.cancelReason, ev.cancelArchived ? t("raidDetail.hero.channelArchived") : ""].filter(Boolean).join(" · ") || undefined}>
                                 {t("raidDetail.hero.cancelled")}
@@ -117,9 +123,22 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                     </div>
                 </div>
                 <div className="rd-hero-actions">
-                    {manage}
-                    {ev.channelState === "missing" && (
-                        <Badge tone="bad" icon="inv_letter_15" tip={t("raidDetail.hero.channelMissing")} tipSub={t("raidDetail.hero.channelMissingSub")}>{t("raidDetail.hero.channelMissing")}</Badge>
+                    {missing && (
+                        <Badge
+                            tone="bad" icon="inv_letter_15" tip={t("raidDetail.hero.channelMissing")}
+                            tipSub={onRecreateChannel ? t("raidDetail.hero.channelMissingSub") : t("raidDetail.hero.channelMissingSubReader")}
+                        >
+                            {t("raidDetail.hero.channelMissing")}
+                        </Badge>
+                    )}
+                    {missing && onRecreateChannel && (
+                        <Button
+                            variant="ghost" size="sm" running={recreating}
+                            data-tip={t("raidDetail.hero.recreateChannel")} data-tip-sub={t("raidDetail.hero.recreateChannelSub")}
+                            onClick={onRecreateChannel}
+                        >
+                            {t("raidDetail.hero.recreateChannel")}
+                        </Button>
                     )}
                     {eventPostUrl(data.guildId, ev.channelId, ev.id, ev.channelState) && (
                         <a
@@ -154,6 +173,7 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                             </Button>
                         ))}
                 </div>
+                {manage && <div className="rd-hero-manage">{manage}</div>}
             </div>
             {cockpit || (!!data.progress?.steps?.length && (
                 <div className="rd-steps" style={{ "--rd-steps": data.progress.steps.length } as CSSProperties}>

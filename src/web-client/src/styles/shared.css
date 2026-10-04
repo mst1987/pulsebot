@@ -164,7 +164,10 @@ input[type=checkbox]:checked::after {
 .crest svg { width: 22px; height: 22px; }
 .brand-name { font-weight: 800; font-size: 16px; }
 .brand-sub { font-size: 10.5px; font-family: var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-top: 1px; }
-nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; }
+/* the menu scrolls (wheel, touch, keyboard; it brings the open page into view itself) but shows no scrollbar — an open
+   group such as Einstellungen would otherwise put a bar right beside the entries */
+nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; scrollbar-width: none; }
+nav.menu::-webkit-scrollbar { display: none; }
 .menu-label { font-size: 10.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.3px; color: var(--muted); opacity: .7; padding: 14px 12px 6px; }
 /* Menu entries lead with their WoW icon (src/config/menu.json): slightly
    desaturated at rest, full colour on hover, and ringed in the section's own

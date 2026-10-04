@@ -317,7 +317,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     defaultRows={boardOf(draft, DEFAULTS_KEY).assignments}
                     saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("raidBoard.conflict.text")} /> : undefined}
                     urlView
-                    bossNav={<SectionStrip dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={progress.choose} killedKeys={progress.killed} follow={progress.live ? { on: progress.follow, onToggle: () => progress.setFollow(!progress.follow) } : undefined} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} openCounts={canWrite ? openCounts : undefined} />}
+                    bossNav={<SectionStrip dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={progress.choose} killedKeys={progress.killed} follow={progress.chip} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} openCounts={canWrite ? openCounts : undefined} />}
                     besetzungTools={<PlanGroups roster={view.roster} groupCount={view.besetzung ? view.besetzung.groups : 5} included={included} canWrite={canWrite} busy={groupsBusy} onChange={setGroups} />}
                     status={(
                         <>

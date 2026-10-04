@@ -117,24 +117,17 @@
         "waitingTip": "Archivierte Kanäle warten auf Löschung",
         "waitingSub": "{overdue} davon länger als {days} Tage. Gelöscht wird nie automatisch.",
         "waiting": "{count} warten auf Löschung",
-        "figChannels": "Kanäle",
-        "figChannelsTip": "Kanäle in Benutzung",
-        "figChannelsSub": "Alle Kanäle des Servers außerhalb des Archivs.",
-        "figPast": "Vergangene Events",
         "figPastTip": "Kanäle vergangener Events",
         "figPastPick": "Klick wählt sie alle aus — dann unten „Archivieren“.",
         "figPastSub": "Kanäle, deren Event vorbei ist und die noch nicht im Archiv liegen.",
-        "figArchive": "Im Archiv, warten auf Löschung",
-        "figArchiveTip": "Archiv",
-        "figArchiveSub": "Nach {days} Tagen gelb markiert. Gelöscht wird nie automatisch — nur ein Admin im Archiv.",
-        "figArchiveNone": "Noch keine Archiv-Kategorie festgelegt.",
         "purposes": "Zwecke",
         "purposesSub": "Wofür der Bot welche Kanäle nutzt (Log-, Bewerbungs-Kanal …). Am Kanal selbst stehen sie im Tooltip.",
-        "allPurposes": "Alle Zwecke",
-        "allPurposesSub": "Wofür der Bot welche Kanäle nutzt — alle auf einen Blick.",
         "deleteMore": "Löschen …",
         "channelFallback": "Kanal",
-        "archiveFallback": "Archiv"
+        "archiveFallback": "Archiv",
+        "stripPast": "Vergangene Events {count}",
+        "pickPast": "Auswählen",
+        "assignPurposes": "Zwecke zuweisen"
     },
     "jobs": {
         "progress": "{done} von {total}",
@@ -236,7 +229,9 @@
         "noEventTip": "Kein Event",
         "noEventKeepSub": "Der Kanal gehört zu keinem bekannten Event — ohne sein Datum lässt sich der Name nicht ableiten, er bleibt.",
         "noEventEmptySub": "Der Kanal gehört zu keinem bekannten Event, die Datumsteile bleiben leer.",
-        "noDate": "kein Datum"
+        "noDate": "kein Datum",
+        "more": "Mehr",
+        "deleteShort": "Löschen"
     },
     "edit": {
         "title": "#{name} bearbeiten",
@@ -275,7 +270,6 @@
         "deleteSub": "Endgültig aus Discord löschen — mit Namen bestätigen. Zum Aufheben lieber archivieren.",
         "search": "Kanal suchen…",
         "searchLabel": "Kanal suchen",
-        "doubleClick": "Doppelklick auf den Namen bearbeitet",
         "noMatch": "Kein Kanal passt zur Suche.",
         "noChannels": "Keine Kanäle gefunden — ist der Bot verbunden?",
         "selectAll": "Alle in {name} wählen",
@@ -290,7 +284,10 @@
         "ownSchemaTip": "Eigenes Namensschema",
         "ownSchemaSub": "{schema} — gilt für jeden neuen Event-Kanal dieser Kategorie.",
         "schemaOwn": "Neue Event-Kanäle heißen nach {schema}.",
-        "schemaNone": "Neue Event-Kanäle heißen wie der letzte Event-Kanal. Hier ein eigenes Schema festlegen."
+        "schemaNone": "Neue Event-Kanäle heißen wie der letzte Event-Kanal. Hier ein eigenes Schema festlegen.",
+        "archive": "Archivieren",
+        "archiveSub": "Räumt den Kanal ins Archiv — gelöscht wird nichts.",
+        "more": "Weitere Aktionen"
     },
     "purposeList": {
         "label": "Zwecke",
