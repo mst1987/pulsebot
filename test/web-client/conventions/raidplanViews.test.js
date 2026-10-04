@@ -11,7 +11,12 @@ describe("the raid plan's views (Oct 2026)", () => {
         const index = require("fs").readFileSync(require("path").join(__dirname, "../../../src/web-client/src/styles/raidplan/index.css"), "utf8");
         const imports = [...index.matchAll(/@import "\.\/([\w-]+)\.css";/g)].map((m) => m[1]);
         expect(imports[imports.length - 1]).toBe("views");
-        expect(css).toContain(".rp-tasksview .rp-cards { display: block; columns: 2 420px;");
+        expect(css).toContain(".rp-tasksview .rp-cards { display: block; columns: 4 440px;");
+    });
+
+    it("gives a wide screen more task columns, not wider cards", () => {
+        // two fixed columns made each card half a large monitor wide, the targets stretched across the empty space
+        expect(views).not.toMatch(/\.rp-tasksview \.rp-cards \{[^}]*columns: 2\b/);
     });
 
     it("shows a row's icon buttons on hover or keyboard focus only, and only where there is hover", () => {
