@@ -20,7 +20,8 @@ export type ProfileSpec = {
     logs: SpecEvidence;
 };
 
-export type RaiderRef = { userId: string; name: string; main: string; className: string };
+/** Another raider as a profile names them: their first character (of the main version when they have one) — there is no main. */
+export type RaiderRef = { userId: string; name: string; character: string; className: string };
 
 export type ProfileCharacter = {
     key: string;
@@ -29,7 +30,6 @@ export type ProfileCharacter = {
     versionId: string;
     realm: string;
     className: string;
-    main: boolean;
     source: "log" | "armory" | "manual";
     armory: { level: number | null; guild: string; fetchedAt: number } | null;
     armoryUrl: string;
@@ -99,7 +99,9 @@ export type ProfilePatch = {
     avoidEnabled?: boolean;
     avoid?: string[];
     note?: string;
-    characters?: { key: string; main?: boolean; specs?: { key: string; gear: GearLevel }[]; canOfftank?: boolean; canHeal?: boolean }[];
+    characters?: { key: string; specs?: { key: string; gear: GearLevel }[]; canOfftank?: boolean; canHeal?: boolean }[];
+    /** The characters' keys in the raider's order — the first of a version is the one suggested for it (there is no main). */
+    order?: string[];
 };
 
 export type LogCharacterSuggestion = {
@@ -123,7 +125,7 @@ export type CharacterClaim = {
     character: string;
     versionId?: string;
     className: string;
-    claims: { userId: string; name: string; main: boolean }[];
+    claims: { userId: string; name: string }[];
 };
 
 export function getProfile(): Promise<ProfileData> {

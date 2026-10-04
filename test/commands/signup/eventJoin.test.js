@@ -61,7 +61,7 @@ describe("commands/signup/eventJoin", () => {
         expect(joinId("eh-kara", "signed", "c", { character: "x".repeat(90), spec: "Mage-Arcane", canAlso: [] })).toBe("event-join:eh-kara:s:c");
     });
 
-    it("lists the own characters · specs without gear-less specs and preselects the main", async () => {
+    it("lists the own characters · specs without gear-less specs and preselects the raider's first character", async () => {
         twoCharacters();
         const fetch = jest.fn(async () => [{ id: "77", name: "eh_mage_arcane" }]);
         const i = pick("signed", { client: { application: { emojis: { fetch } } } });
@@ -71,7 +71,7 @@ describe("commands/signup/eventJoin", () => {
         expect(payload.embeds[0].description).toContain("Which character?");
         const options = selectOf(payload).options;
         expect(options.map((o) => o.value)).toEqual(["nerathil|Mage-Arcane", "brokk|Warrior-Protection"]);
-        expect(options[0]).toMatchObject({ label: "Nerathil · Arcane", description: "Mage · raid ready · Main", default: true, emoji: { id: "77", name: "eh_mage_arcane" } });
+        expect(options[0]).toMatchObject({ label: "Nerathil · Arcane", description: "Mage · raid ready", default: true, emoji: { id: "77", name: "eh_mage_arcane" } });
         expect(options[1]).toMatchObject({ description: "Warrior · usable · Tank", default: false });
         expect(options[1].emoji).toBeUndefined();
         // "kann auch" belongs to the character: Brokk tanks, the mage Nerathil does not

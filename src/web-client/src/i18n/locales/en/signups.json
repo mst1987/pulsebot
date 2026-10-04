@@ -130,7 +130,6 @@
         "firstChoiceSub": "The character you would most like to bring.",
         "canAlsoWithSub": "The organisers take it if it suits the raid better.",
         "characterAria": "Character {n}",
-        "main": " (Main)",
         "specAria": "Spec {n}",
         "noSpec": "no spec in profile",
         "statusTip": "This character's status",

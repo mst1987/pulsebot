@@ -261,7 +261,7 @@ members, discordRoles, names, kaders, kader, warnings, sharedRev }`
   activeCharacterId, differs, profile, prefill, pickable, availability, attendance, rev, changedBy }` — `attendance` per raid
   category, `rev`/`changedBy` the revision of the planner's character data and who saved it (0/"" without any).
 - **pickable**: what the account dialog offers to assign, "Aus dem Profil zuweisen": every profile character of any game
-  version `{ key, name, className, versionId, main, canTank, canHeal, specs, source: "profile" }` plus the log-linked one
+  version `{ key, name, className, versionId, canTank, canHeal, specs, source: "profile" }` (the raider's order, no main) plus the log-linked one
   (`source: "logs"`). Same whitelisted fields as the rest of the profile (source: `allCharacters`); a pick fills a new
   planner character (Forever: first + last name, other versions: nickname) the lead can still edit.
 - **prefill**: the character a player is prefilled with — `{ name, className, spec, source: planner|profile|logs,

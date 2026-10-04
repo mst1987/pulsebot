@@ -41,3 +41,24 @@ export function groupByVersion<T extends { versionId?: string }>(characters: T[]
 export function charactersOfVersion<T extends { versionId?: string }>(characters: T[], versionId: string): T[] {
     return versionId ? characters.filter((c) => versionOf(c) === versionId) : characters;
 }
+
+/**
+ * The raider's order with `key` moved one place within its own version
+ * (`-1` forward, `+1` back) — there is no main, only this order; the first of a
+ * version is the one suggested for it. The other versions' characters keep
+ * their places. Null when it cannot move (first/last of its version, unknown key).
+ */
+export function moveInVersion<T extends { key: string; versionId?: string }>(characters: T[], key: string, dir: -1 | 1): T[] | null {
+    const from = characters.findIndex((c) => c.key === key);
+    if (from < 0) return null;
+    const version = versionOf(characters[from]);
+    const step = (i: number) => {
+        for (let j = i + dir; j >= 0 && j < characters.length; j += dir) if (versionOf(characters[j]) === version) return j;
+        return -1;
+    };
+    const to = step(from);
+    if (to < 0) return null;
+    const next = [...characters];
+    [next[from], next[to]] = [next[to], next[from]];
+    return next;
+}

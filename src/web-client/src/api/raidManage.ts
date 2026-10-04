@@ -38,7 +38,8 @@ export type ManageSpec = { key: string; label: string; role: GameRole; icon: str
 export type ManageRaider = {
     userId: string;
     name: string;
-    characters: { key: string; name: string; className: string; main: boolean; specs: ManageSpec[] }[];
+    /** The raider's characters of the event's version, in their own order (there is no main). */
+    characters: { key: string; name: string; className: string; specs: ManageSpec[] }[];
     signup: { character: string; spec: string; status: SignupStatus } | null;
 };
 export type ManageCandidates = {

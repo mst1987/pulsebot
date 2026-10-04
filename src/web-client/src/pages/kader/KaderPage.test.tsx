@@ -679,8 +679,8 @@ describe("KaderPage · assigning from the profile", () => {
         const players = base.players.map((p) => (p.userId === U.tank ? {
             ...p,
             pickable: [
-                { key: "forever~aldric sturmwind", name: "Aldric Sturmwind", className: "Warrior", versionId: "forever", main: true, canTank: true, canHeal: false, specs: [{ spec: "Warrior-Protection", main: true, gear: "ready" as const }], source: "profile" as const },
-                { key: "tbc~brakk", name: "Brakk", className: "Warrior", versionId: "tbc", main: false, canTank: false, canHeal: false, specs: [{ spec: "Warrior-Fury", main: true, gear: "usable" as const }], source: "profile" as const },
+                { key: "forever~aldric sturmwind", name: "Aldric Sturmwind", className: "Warrior", versionId: "forever", canTank: true, canHeal: false, specs: [{ spec: "Warrior-Protection", main: true, gear: "ready" as const }], source: "profile" as const },
+                { key: "tbc~brakk", name: "Brakk", className: "Warrior", versionId: "tbc", canTank: false, canHeal: false, specs: [{ spec: "Warrior-Fury", main: true, gear: "usable" as const }], source: "profile" as const },
             ],
         } : p));
         vi.mocked(api.getKader).mockResolvedValue({ ...base, players });
@@ -690,7 +690,8 @@ describe("KaderPage · assigning from the profile", () => {
         const dialog = await screen.findByRole("dialog");
         const group = within(dialog).getByRole("group", { name: t("kader.account.pickTitle") });
         expect(within(group).getByRole("button", { name: "Aldric Sturmwind" })).toBeDisabled();
-        expect(within(group).getByText(t("kader.account.pickMain"))).toBeInTheDocument();
+        // no "Main" badge — the profile only has an order
+        expect(within(group).queryByText("Main")).not.toBeInTheDocument();
         expect(within(group).getByText("Forever")).toBeInTheDocument();
         expect(within(group).getByText("TBC")).toBeInTheDocument();
         await userEvent.click(within(group).getByRole("button", { name: "Brakk" }));

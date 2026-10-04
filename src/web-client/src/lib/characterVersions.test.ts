@@ -1,7 +1,25 @@
 // Characters per game version (#543): grouping for the profile, filtering for the signup.
 import { describe, expect, it } from "vitest";
-import { charactersOfVersion, groupByVersion, versionOf } from "./characterVersions";
+import { charactersOfVersion, groupByVersion, moveInVersion, versionOf } from "./characterVersions";
 import { missingVersionLabel, profileForRows } from "./signups";
+
+describe("moveInVersion — the raider's order, there is no main", () => {
+    const list = [
+        { key: "a", versionId: "tbc" }, { key: "x", versionId: "forever" }, { key: "b", versionId: "tbc" }, { key: "y", versionId: "forever" },
+    ];
+    const keys = (l: { key: string }[] | null) => (l ? l.map((c) => c.key) : null);
+
+    it("moves a character one place within its own version, the others keep their places", () => {
+        expect(keys(moveInVersion(list, "b", -1))).toEqual(["b", "x", "a", "y"]);
+        expect(keys(moveInVersion(list, "x", 1))).toEqual(["a", "y", "b", "x"]);
+    });
+
+    it("cannot move past the first or last of its version, nor an unknown key", () => {
+        expect(moveInVersion(list, "a", -1)).toBeNull();
+        expect(moveInVersion(list, "y", 1)).toBeNull();
+        expect(moveInVersion(list, "nope", 1)).toBeNull();
+    });
+});
 import type { SignupProfile } from "../api";
 
 const VERSIONS = [

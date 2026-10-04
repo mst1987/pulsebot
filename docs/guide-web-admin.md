@@ -53,7 +53,7 @@ Technik: [raidplan.md](raidplan.md)
 Der Raidplan ist ein **eigener Bereich**: Wer Raid-Events verwalten darf, sieht den Raidplan nicht automatisch, und wer nur den Raidplan hat, kann Vorlagen und Katalog pflegen, aber keine Events anlegen oder Setups ändern. Ein Voll-Admin vergibt ihn unter Einstellungen → Berechtigungen (je Rolle oder Einzelkonto). „Einteilungen posten“ (den Link in den Event-Kanal) gibt es nur mit Raidplan schreiben.
 
 - **Raid-Helper-Events:** Über **Verwalten → "Raidplan aktivieren"** bekommt auch ein Raid-Helper-Event einen Raidplan. Der Dialog schlägt Instanz und Größe aus dem Eventnamen vor ("BT 25er" → Black Temple, 25); du prüfst und korrigierst sie. Die **Aufstellung kommt aus Raid-Helper und ist schreibgeschützt** — Änderungen machst du in Raid-Helper, im Plan holt **Neu laden** sie sofort (sonst höchstens einmal pro Minute). Oben im Plan steht, woher die Spieler kommen und von wann der Stand ist.
-  - Namen: Raid-Helper zeigt oft Discord-Namen. Der Plan sucht im Raider-Profil den Charakter der Klasse aus Raid-Helper (Main bevorzugt); findet er keinen, steht der Raid-Helper-Name **kursiv** da ("Name aus Raid-Helper"). Der Tooltip zeigt beide Namen, die Suche findet beide.
+  - Namen: Raid-Helper zeigt oft Discord-Namen. Der Plan sucht im Raider-Profil den Charakter der Klasse aus Raid-Helper (bei mehreren den ersten in der Reihenfolge des Raiders); findet er keinen, steht der Raid-Helper-Name **kursiv** da ("Name aus Raid-Helper"). Der Tooltip zeigt beide Namen, die Suche findet beide.
   - Gruppen: Nennt Raid-Helper keine Gruppen, sind es 5er-Blöcke in Reihenfolge — der Plan warnt dann, Gruppen-Einteilungen sind unzuverlässig.
   - Antwortet Raid-Helper nicht (oder ist es in den Einstellungen abgeschaltet), zeigt der Plan den letzten bzw. gespeicherten Stand; beim Speichern geht dann **kein Spieler verloren**. Wer in Raid-Helper nicht mehr steht, bleibt **durchgestrichen** ("nicht mehr im Setup") auf seinen Plätzen, bis du mit frisch geladener Aufstellung speicherst.
   - **"Raidplan aktiv ✓ – deaktivieren"** (mit Rückfrage) blendet den Tab aus und zieht den öffentlichen Link zurück; der Plan bleibt gespeichert und ist beim erneuten Aktivieren wieder da.
@@ -144,7 +144,8 @@ Technik: [roster-profile.md](roster-profile.md)
 *Bereich "signup" — nicht standardmäßig für alle offen, muss zugewiesen werden*
 
 - Eigene Charaktere pflegen (Klasse/Spec/Gearstand), Verfügbarkeit nach Wochentag, bevorzugte Raids.
-- Jeder Charakter gehört zu einer **Spielversion** (TBC, Classic, WoW Forever). Beim Anlegen fragt das Fenster zuerst die Version (vorgewählt: die Hauptversion); WoW-Forever-Charaktere haben Vor- und Nachnamen (je höchstens 12 Buchstaben). Hast du Charaktere in mehreren Versionen, stehen sie nach Version gruppiert oben, die Hauptversion zuerst.
+- Jeder Charakter gehört zu einer **Spielversion** (TBC, Classic, WoW Forever). Beim Anlegen fragt das Fenster zuerst die Version (vorgewählt: die Hauptversion); WoW-Forever-Charaktere haben Vor- und Nachnamen (je höchstens 12 Buchstaben). Hast du Charaktere in mehreren Versionen, stehen sie nach Version gruppiert oben, die Hauptversion zuerst. Pro Version sind bis zu 12 Charaktere möglich.
+- **Kein Main, nur eine Reihenfolge:** Mit den Pfeilen „Nach vorn / Nach hinten“ in der Charakterkarte sortierst du deine Charaktere je Version. Der erste wird bei der Anmeldung vorgeschlagen; ein „Main“-Etikett gibt es nirgends.
 - Für einen Raid kannst du dich nur mit einem Charakter **seiner** Version anmelden. Fehlt dir einer, sagt die Anmeldung das und verlinkt aufs Profil.
 - Wunschpartner und "nicht zusammen raiden mit" hinterlegen.
 - Persönlichen Kalender-Abo-Link erzeugen, der alle eigenen Anmeldungen enthält.

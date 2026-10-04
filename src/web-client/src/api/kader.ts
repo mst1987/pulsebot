@@ -69,7 +69,6 @@ export type KaderPickable = {
     name: string;
     className: string;
     versionId: string;
-    main: boolean;
     canTank: boolean;
     canHeal: boolean;
     specs: KaderSpecPick[];

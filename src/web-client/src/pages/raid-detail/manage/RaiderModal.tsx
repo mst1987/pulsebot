@@ -54,7 +54,8 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     const pick = (r: ManageRaider) => {
         setUserId(r.userId);
         const current = r.signup ? r.characters.find((c) => c.name === r.signup!.character) : undefined;
-        const first = current || r.characters.find((c) => c.main) || r.characters[0];
+        // the signed-up character, else the raider's first in their own order (there is no main)
+        const first = current || r.characters[0];
         setCharKey(first ? first.key : NEW);
         setNewName("");
         setClassId("");
@@ -119,7 +120,7 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
                         <div className="em-pick" role="listbox" aria-label={t("raidManage.raider.listAria")}>
                             {shown.map((r) => (
                                 <button key={r.userId} type="button" role="option" aria-selected={false} className="em-pick-row" onClick={() => pick(r)}>
-                                    <span className="em-pick-name">{r.characters.find((c) => c.main)?.name || r.name || r.userId}</span>
+                                    <span className="em-pick-name">{r.characters[0]?.name || r.name || r.userId}</span>
                                     <span className="em-sub">{r.name ? `@${r.name}` : ""}{r.characters.length > 1 ? ` · ${t("raidManage.raider.characters", { count: r.characters.length })}` : ""}</span>
                                     {r.signup && <Badge tone={SIGNUP_STATUS[r.signup.status].tone}>{statusBadgeLabel(r.signup.status)}</Badge>}
                                 </button>
@@ -145,7 +146,7 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
                             <div className="em-chips">
                                 {raider.characters.map((c) => (
                                     <button key={c.key} type="button" className={`em-chip${charKey === c.key ? " on" : ""}`} onClick={() => { setCharKey(c.key); setSpec(c.specs[0]?.key || ""); }}>
-                                        {c.name}{c.main && <span className="em-sub">{t("raidManage.raider.main")}</span>}
+                                        {c.name}
                                     </button>
                                 ))}
                                 <button type="button" className={`em-chip${charKey === NEW ? " on" : ""}`} onClick={() => { setCharKey(NEW); setSpec(""); }}>

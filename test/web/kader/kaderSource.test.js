@@ -174,7 +174,7 @@ describe("web/kader/kaderSource", () => {
             expect(aldric.allCharacters.map((c) => c.name)).toEqual(expect.arrayContaining(["Aldric Sturmwind", "Mira Sonnlicht", "Devi"]));
             expect(aldric.allCharacters.find((c) => c.name === "Devi")).toMatchObject({ className: "Priest", versionId: "tbc" });
             expect(oldie.allCharacters).toEqual([expect.objectContaining({ name: "Oldie", versionId: "tbc", className: "Mage" })]);
-            for (const c of aldric.allCharacters) expect(Object.keys(c).sort()).toEqual(["canHeal", "canTank", "className", "key", "main", "name", "specs", "versionId"]);
+            for (const c of aldric.allCharacters) expect(Object.keys(c).sort()).toEqual(["canHeal", "canTank", "className", "key", "name", "specs", "versionId"]);
         });
 
         it("hands a character out in the documented shape with effective tank/heal switches", async () => {

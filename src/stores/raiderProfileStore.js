@@ -38,6 +38,7 @@ const WEEKDAYS = ["mo", "di", "mi", "do", "fr", "sa", "so"];
 // Where a character came from — shown as a small badge, never a permission.
 const CHARACTER_SOURCES = ["log", "armory", "manual"];
 
+// per game version (countInVersion): TBC and Forever characters each have their own 12
 const MAX_CHARACTERS = 12;
 const MAX_WISHES = 10;
 const MAX_AVOID = 10;
@@ -136,7 +137,6 @@ function normalizeCharacter(raw) {
         versionId,
         realm: cleanText(raw.realm, 32),
         className,
-        main: !!raw.main,
         source: CHARACTER_SOURCES.includes(raw.source) ? raw.source : "manual",
         specs: normalizeSpecs(raw.specs, className),
         // Per character: a druid main may tank while the priest twink never does.
@@ -147,10 +147,50 @@ function normalizeCharacter(raw) {
     };
 }
 
-/** Exactly one main when there are characters: the first flagged, else the first. */
-function withOneMain(characters) {
-    const mainIdx = Math.max(0, characters.findIndex((c) => c.main));
-    return characters.map((c, i) => ({ ...c, main: i === mainIdx }));
+/**
+ * How many of `characters` belong to `versionId` — the limit is per game
+ * version: a raider moving from TBC to Forever keeps the old characters and
+ * still has the full MAX_CHARACTERS for the new version.
+ */
+function countInVersion(characters, versionId) {
+    const id = versionId || LEGACY_VERSION;
+    return characters.filter((c) => (c.versionId || LEGACY_VERSION) === id).length;
+}
+
+/**
+ * There is no "main" character — a main/twink split was felt as toxic. The
+ * raider only orders the characters (`order` on save); the first one of a
+ * version is what the system suggests where it must pick one (the signup's
+ * preselection, a setup slot without a name), never labelled "Main".
+ *
+ * A profile stored while mains existed: the flagged character of each version
+ * moves in front of that version's others, so nobody's suggestion changes,
+ * and the flag is gone. Pure, stable otherwise.
+ */
+function legacyMainFirst(list) {
+    if (!list.some((c) => c && typeof c === "object" && c.main === true)) return list;
+    const versionOf = (c) => characterVersion(c && c.versionId);
+    const out = [...list];
+    const seen = new Set();
+    for (const c of list) {
+        if (!c || c.main !== true || seen.has(versionOf(c))) continue;
+        seen.add(versionOf(c));
+        const from = out.indexOf(c);
+        const to = out.findIndex((x) => versionOf(x) === versionOf(c));
+        if (to < from) out.splice(to, 0, ...out.splice(from, 1));
+    }
+    return out;
+}
+
+/**
+ * `characters` in the raider's `order` (keys): the named ones first in that
+ * order, any the list does not name after them as they were. Unknown keys are
+ * ignored, so a save can only reorder, never add or drop.
+ */
+function inOrder(characters, order) {
+    const rank = new Map(order.map((k, i) => [String(k), i]));
+    const named = characters.filter((c) => rank.has(c.key)).sort((a, b) => rank.get(a.key) - rank.get(b.key));
+    return [...named, ...characters.filter((c) => !rank.has(c.key))];
 }
 
 /** A profile in its stored shape, whatever came in. Pure. */
@@ -159,9 +199,9 @@ function normalizeProfile(raw, userId = "") {
     const uid = String(userId || src.userId || "").trim();
     const characters = [];
     const keys = new Set();
-    for (const c of Array.isArray(src.characters) ? src.characters : []) {
+    for (const c of legacyMainFirst(Array.isArray(src.characters) ? src.characters : [])) {
         const clean = normalizeCharacter(c);
-        if (!clean || keys.has(clean.key) || characters.length >= MAX_CHARACTERS) continue;
+        if (!clean || keys.has(clean.key) || countInVersion(characters, clean.versionId) >= MAX_CHARACTERS) continue;
         keys.add(clean.key);
         characters.push(clean);
     }
@@ -180,7 +220,7 @@ function normalizeProfile(raw, userId = "") {
     return {
         userId: uid,
         name: cleanText(src.name, 64),
-        characters: withOneMain(characters),
+        characters,
         // The profile-wide switches from before they moved to the characters —
         // only the fallback of a character without a word of its own.
         canOfftank: tristate(src.canOfftank),
@@ -222,15 +262,17 @@ function store(userId, profile) {
 
 // The fields a raider edits with one save. Characters are added and removed on
 // their own (addCharacter/removeCharacter); a save only changes what is known
-// about the ones already there — specs, gear, which one is the main.
+// about the ones already there — specs, gear, their order.
 const EDITABLE = ["canOfftank", "canHeal", "availability", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note"];
-// What a save may change about a character that is already there, besides specs and main.
+// What a save may change about a character that is already there, besides specs.
 const CHARACTER_EDITABLE = ["canOfftank", "canHeal"];
 
 /**
- * Save the raider's own edits. `patch.characters` may carry `{ key, main, specs, canOfftank, canHeal }`
+ * Save the raider's own edits. `patch.characters` may carry `{ key, specs, canOfftank, canHeal }`
  * per existing character; a key that is not in the profile is ignored, so this
- * path can never add or take over a character. Returns the saved profile.
+ * path can never add or take over a character. `patch.order` (keys) is the
+ * order the raider put the characters in — the first of a version is the one
+ * suggested for it (`firstCharacter`). Returns the saved profile.
  */
 function saveProfile(userId, patch = {}, { name = "" } = {}) {
     const current = getProfile(userId);
@@ -241,12 +283,10 @@ function saveProfile(userId, patch = {}, { name = "" } = {}) {
     }
     if (Array.isArray(patch.characters)) {
         const edits = new Map(patch.characters.filter((c) => c && c.key).map((c) => [String(c.key), c]));
-        const mainKey = patch.characters.find((c) => c && c.main) ? String(patch.characters.find((c) => c && c.main).key) : "";
         next.characters = current.characters.map((c) => {
             const edit = edits.get(c.key);
             const next = {
                 ...c,
-                main: mainKey ? c.key === mainKey : c.main,
                 specs: edit && Array.isArray(edit.specs) ? edit.specs : c.specs,
             };
             for (const field of CHARACTER_EDITABLE) {
@@ -256,6 +296,7 @@ function saveProfile(userId, patch = {}, { name = "" } = {}) {
             return next;
         });
     }
+    if (Array.isArray(patch.order)) next.characters = inOrder(next.characters || current.characters, patch.order);
     return store(userId, next);
 }
 
@@ -277,7 +318,7 @@ function addCharacter(userId, data = {}, { name = "", versionId = "" } = {}) {
     const current = getProfile(userId);
     if (!current) return { error: "Kein Konto." };
     const version = characterVersion(data.versionId || versionId);
-    let clean = normalizeCharacter({ ...data, versionId: version, source: data.source, main: false });
+    let clean = normalizeCharacter({ ...data, versionId: version, source: data.source });
     if (!clean) return { error: String(data.name || "").trim() ? "Bitte eine Klasse angeben." : "Bitte einen Namen angeben." };
     let existing = current.characters.find((c) => c.key === clean.key);
     if (!existing && clean.source !== "log") {
@@ -297,8 +338,11 @@ function addCharacter(userId, data = {}, { name = "", versionId = "" } = {}) {
             armory: clean.armory || c.armory,
         } : c));
     } else {
-        if (current.characters.length >= MAX_CHARACTERS) return { error: `Höchstens ${MAX_CHARACTERS} Charaktere.` };
-        characters = [...current.characters, { ...clean, main: current.characters.length === 0 }];
+        if (countInVersion(current.characters, version) >= MAX_CHARACTERS) {
+            return { error: `Höchstens ${MAX_CHARACTERS} Charaktere je Spielversion (${(rulesFor(version) || {}).label || version}).` };
+        }
+        // a new character goes to the end — the raider moves it forward if it should come first
+        characters = [...current.characters, clean];
     }
     const profile = store(userId, { ...current, name: name || current.name, characters });
     return { profile, character: profile.characters.find((c) => c.key === clean.key) };
@@ -330,14 +374,14 @@ function claimsFor(character, exceptUserId = "", versionId = "") {
 
 /**
  * Characters more than one account has added — the orga's to-do list, shown as
- * a hint on the roster. `[{ key, character, className, claims: [{ userId, name, main }] }]`.
+ * a hint on the roster. `[{ key, character, className, claims: [{ userId, name }] }]`.
  */
 function characterClaims() {
     const byKey = new Map();
     for (const p of listProfiles()) {
         for (const c of p.characters) {
             if (!byKey.has(c.key)) byKey.set(c.key, { key: c.key, character: c.name, versionId: c.versionId, className: c.className, claims: [] });
-            byKey.get(c.key).claims.push({ userId: p.userId, name: p.name, main: c.main });
+            byKey.get(c.key).claims.push({ userId: p.userId, name: p.name });
         }
     }
     return [...byKey.values()].filter((e) => e.claims.length > 1).sort((a, b) => a.key.localeCompare(b.key));
@@ -421,16 +465,24 @@ function migrateCharacterVersions(versionId = LEGACY_VERSION) {
     return changed;
 }
 
-/** The main character of a profile, or null. */
-function mainCharacter(profile) {
-    return (profile && profile.characters.find((c) => c.main)) || null;
+/**
+ * The raider's first character — of `versionId` when given, else of
+ * `preferVersion` (the caller's main game version) when it has one there, else
+ * the first at all. There is no main (legacyMainFirst): the raider's own order
+ * decides. Null without characters.
+ */
+function firstCharacter(profile, versionId = "", { preferVersion = "" } = {}) {
+    if (!profile) return null;
+    if (versionId) return charactersOfVersion(profile, versionId)[0] || null;
+    return (preferVersion && charactersOfVersion(profile, preferVersion)[0]) || profile.characters[0] || null;
 }
 
 /**
  * Search the raiders who have a profile, for the "gerne zusammen raiden mit"
  * picker. Names only — never anybody's wishes, notes or availability.
+ * `preferVersion`: whose characters name a raider (raiderRef).
  */
-function searchRaiders(query, exceptUserId = "", limit = 10) {
+function searchRaiders(query, exceptUserId = "", limit = 10, { preferVersion = "" } = {}) {
     const q = String(query || "").trim().toLowerCase();
     return listProfiles()
         .filter((p) => p.userId !== String(exceptUserId))
@@ -438,20 +490,48 @@ function searchRaiders(query, exceptUserId = "", limit = 10) {
         .filter((p) => !q
             || p.name.toLowerCase().includes(q)
             || p.characters.some((c) => c.name.toLowerCase().includes(q)))
-        .map((p) => raiderRef(p))
+        .map((p) => raiderRef(p, { preferVersion }))
         .sort((a, b) => a.name.localeCompare(b.name))
         .slice(0, limit);
 }
 
-/** How another raider appears in someone's profile: name, main and its class — nothing else. */
-function raiderRef(profile) {
-    const main = mainCharacter(profile);
+/**
+ * How another raider appears in someone's profile: name, their first character
+ * (of `preferVersion` when they have one there) and its class — nothing else.
+ */
+function raiderRef(profile, { preferVersion = "" } = {}) {
+    const first = firstCharacter(profile, "", { preferVersion });
     return {
         userId: profile.userId,
-        name: profile.name || (main && main.name) || profile.userId,
-        main: main ? main.name : "",
-        className: main ? main.className : "",
+        name: profile.name || (first && first.name) || profile.userId,
+        character: first ? first.name : "",
+        className: first ? first.className : "",
     };
+}
+
+/**
+ * One-off upgrade at start (settingsMigration.js): a profile stored while mains
+ * existed is written in the order without them — each version's former main
+ * first, the flag gone (legacyMainFirst). Idempotent.
+ * @returns {number} how many profiles were rewritten
+ */
+function migrateCharacterOrder() {
+    const all = readAll();
+    let changed = 0;
+    for (const [userId, raw] of Object.entries(all)) {
+        const chars = (raw && Array.isArray(raw.characters)) ? raw.characters : [];
+        if (!chars.some((c) => c && typeof c === "object" && "main" in c)) continue;
+        raw.characters = legacyMainFirst(chars).map((c) => {
+            if (!c || typeof c !== "object") return c;
+            const rest = { ...c };
+            delete rest.main;
+            return rest;
+        });
+        all[userId] = raw;
+        changed += 1;
+    }
+    if (changed) writeAll(all);
+    return changed;
 }
 
 /** Drop everything — tests only. */
@@ -461,9 +541,9 @@ function reset() {
 
 module.exports = {
     GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_AVOID, MAX_NOTE,
-    characterKey: characterKeyOf, nameKey: nameKeyOf, characterVersion, charactersOfVersion, findCharacter, migrateCharacterVersions,
+    characterKey: characterKeyOf, nameKey: nameKeyOf, characterVersion, charactersOfVersion, findCharacter, migrateCharacterVersions, migrateCharacterOrder,
     normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles, classCan,
     getProfile, hasProfile, listProfiles, saveProfile, addCharacter, removeCharacter,
-    claimsFor, characterClaims, mainCharacter, searchRaiders, raiderRef, reset, useFile,
+    claimsFor, characterClaims, firstCharacter, searchRaiders, raiderRef, reset, useFile,
     PROFILES_FILE,
 };

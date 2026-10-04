@@ -270,7 +270,6 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
                                         {mainSpec ? <SpecIcon specKey={mainSpec.spec} size={20} /> : <ClassIcon classKey={p.className} size={20} />}
                                         <span className="kp-pickname">{p.name}</span>
                                         <Badge tone="mid" size="sm">{p.source === "logs" ? t("kader.account.pickLogs") : VERSION_LABEL[p.versionId] || p.versionId.toUpperCase()}</Badge>
-                                        {p.main && <Badge tone="accent" size="sm">{t("kader.account.pickMain")}</Badge>}
                                         {have && <span className="kp-sub">{t("kader.account.pickHave")}</span>}
                                     </button>
                                 );

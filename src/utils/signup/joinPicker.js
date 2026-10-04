@@ -56,13 +56,15 @@ function parseJoinId(customId) {
  * Every character · spec of a profile, as select entries. Specs with gear
  * "none" are left out while there are others — they are no real choice. With
  * `versionId` only the characters of that game version (#543, the event's).
- * @returns {{ character: string, name: string, spec: string, gear: string, main: boolean, classId: string }[]}
+ * `first`: the raider's first character in their own order (there is no main).
+ * @returns {{ character: string, name: string, spec: string, gear: string, first: boolean, classId: string }[]}
  */
 function characterOptions(profile, versionId = "") {
     const all = [];
-    for (const c of signableCharacters(profile, versionId)) {
+    const chars = signableCharacters(profile, versionId);
+    for (const c of chars) {
         for (const s of c.specs) {
-            all.push({ character: c.key, name: c.name, spec: s.key, gear: s.gear, main: !!c.main, classId: c.className });
+            all.push({ character: c.key, name: c.name, spec: s.key, gear: s.gear, first: c === chars[0], classId: c.className });
         }
     }
     const fitting = all.filter((o) => o.gear !== "none");
@@ -86,7 +88,7 @@ function lastSignupInVersion(userId, versionId) {
 
 /**
  * The pick to preselect: the current signup, else the spec used last (any
- * event), else the main character's best-geared spec, else the first entry.
+ * event), else the raider's first character's best-geared spec, else the first entry.
  */
 function defaultPick(options, { mine = null, last = null } = {}) {
     if (!options.length) return null;
@@ -98,15 +100,15 @@ function defaultPick(options, { mine = null, last = null } = {}) {
         const hit = options.find((o) => sameOption(o, last.character, last.spec));
         if (hit) return hit;
         // A spec imported from Raid-Helper (#291) knows no profile character:
-        // the spec alone decides, the main first.
+        // the spec alone decides, the raider's first character first.
         if (last.imported) {
             const bySpec = options.filter((o) => o.spec === last.spec);
-            const specHit = bySpec.find((o) => o.main) || bySpec[0];
+            const specHit = bySpec.find((o) => o.first) || bySpec[0];
             if (specHit) return specHit;
         }
     }
-    const mains = options.filter((o) => o.main);
-    const pool = mains.length ? mains : options;
+    const firsts = options.filter((o) => o.first);
+    const pool = firsts.length ? firsts : options;
     return pool.slice().sort((a, b) => (GEAR_RANK[b.gear] || 0) - (GEAR_RANK[a.gear] || 0))[0];
 }
 
@@ -164,7 +166,6 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
             CLASS_LABEL.get(o.classId) || o.classId,
             GEAR_TEXT[o.gear] || "",
             ROLE_TEXT[info.role] || "",
-            o.main ? "Main" : "",
             o === lastOption ? "last used" : "",
         ].filter(Boolean).join(" · ");
         const option = {

@@ -744,7 +744,8 @@ async function raiderCandidates({ guildId, eventId }) {
         const row = add(p.userId, p.name);
         if (!row) continue;
         row.characters = profiles.charactersOfVersion(p, versionOfEvent(event)).map((c) => ({
-            key: c.key, name: c.name, className: c.className, main: c.main, specs: c.specs.map((s) => specOf(s.key)).filter(Boolean),
+            // in the raider's own order — the first is the one to suggest (there is no main)
+            key: c.key, name: c.name, className: c.className, specs: c.specs.map((s) => specOf(s.key)).filter(Boolean),
         }));
     }
     const roleIds = (getConfig().categoryRoles || {})[event.categoryId] || [];

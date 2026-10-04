@@ -141,7 +141,7 @@ function characterSelectOptions(options, picked, emojis) {
         const option = {
             label: `${o.name} · ${info.labelEn || info.label || o.spec}`.slice(0, 100),
             value: optionValue(o).slice(0, 100),
-            description: [o.main ? "Main" : "", GEAR_TEXT[o.gear] || ""].filter(Boolean).join(" · ").slice(0, 100) || undefined,
+            description: (GEAR_TEXT[o.gear] || "").slice(0, 100) || undefined,
             default: first.includes(optionValue(o)),
         };
         const emoji = emojiOption(emojis, specEmojiName(o.spec));

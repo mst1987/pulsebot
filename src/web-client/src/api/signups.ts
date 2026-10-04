@@ -96,7 +96,7 @@ export type SignupEventRow = RaidHelperSignupRow | OwnSignupRow;
 
 export type SignupProfileSpec = { key: string; label: string; icon: string; role: GameRole | ""; gear: GearLevel };
 export type SignupProfileCharacter = {
-    key: string; name: string; className: string; main: boolean; specs: SignupProfileSpec[];
+    key: string; name: string; className: string; specs: SignupProfileSpec[];
     /** The character's game version (#543) — the dialog offers only the event's. */
     versionId?: string;
     /** This character's "kann offtanken / heilen" (signupView.profileForSignup). */

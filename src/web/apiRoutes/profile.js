@@ -75,13 +75,14 @@ const getProfile = withUser({}, async ({ user, res }) => {
 
 /**
  * PUT /api/profile — save the caller's own edits (availability, raids, wishes,
- * avoid list, note; specs/gear/main/off-tank/heal of existing characters). The
+ * avoid list, note; specs/gear/off-tank/heal of existing characters, `order` — the
+ * characters' keys in the raider's order, there is no main). The
  * profile-wide switches are not taken any more — they live on the characters. The body never
  * names an account: whatever `userId` it carries is ignored.
  */
 const putProfile = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
     const patch = {};
-    for (const key of ["availability", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note", "characters"]) {
+    for (const key of ["availability", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note", "characters", "order"]) {
         if (body[key] !== undefined) patch[key] = body[key];
     }
     // A wish (or an avoid) only for someone who has a profile — an id nobody can resolve is a typo.
@@ -154,7 +155,7 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
 /** GET /api/profile/raiders?q= — raiders with a profile, names only, for the wish picker. */
 const getRaiderSearch = withUser({}, async ({ user, res, url }) => {
     const q = String(url.searchParams.get("q") || "").slice(0, 32);
-    ok(res, { raiders: profiles.searchRaiders(q, user.id) });
+    ok(res, { raiders: profiles.searchRaiders(q, user.id, 10, { preferVersion: mainVersionFor({ config: getConfig() }) }) });
 });
 
 /** GET /api/profile/user?id= — one raider's profile for the orga, read-only, with wishes. */

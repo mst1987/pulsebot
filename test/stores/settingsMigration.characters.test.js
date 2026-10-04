@@ -48,7 +48,10 @@ describe("stores/settingsMigration — Charaktere je Spielversion (#543)", () =>
         expect(changes).toEqual([
             "raider-profiles.json: 3 Charakter(e) ohne Spielversion auf versionId \"tbc\" gesetzt (#543)",
             "spec-history.json: 1 importierte Spec(s) ohne Spielversion auf versionId \"tbc\" gesetzt (#543)",
+            // no more mains: the order alone — the former main already stood first here
+            "raider-profiles.json: 2 Profil(e) ohne Main-Markierung gespeichert – der bisherige Main steht je Spielversion vorn",
         ]);
+        expect(stored(PROFILES_FILE).profiles[A].characters.some((c) => "main" in c)).toBe(false);
         expect(log).toHaveBeenCalledWith(expect.stringContaining("raider-profiles.json: 3 Charakter(e)"));
 
         const chars = stored(PROFILES_FILE).profiles[A].characters;

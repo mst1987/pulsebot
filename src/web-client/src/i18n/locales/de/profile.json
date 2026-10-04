@@ -66,8 +66,10 @@
         "manualText": "Name, Klasse und Specs selbst eintragen."
     },
     "char": {
-        "main": "Main",
-        "makeMain": "Als Main",
+        "order": "Reihenfolge",
+        "moveForward": "Nach vorn",
+        "moveBack": "Nach hinten",
+        "orderSub": "Deine Reihenfolge je Spielversion. Der erste Charakter wird bei der Anmeldung vorgeschlagen – einen „Main“ gibt es nicht.",
         "claimed": "Bereits vergeben",
         "claimedChip": "Auch eingetragen von: {names}. Die Orga klärt das.",
         "claimedCard": "Auch eingetragen von: {names}. Die Orga sieht das im Roster und klärt es.",

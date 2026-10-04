@@ -72,7 +72,8 @@ describe("buildSignupDialog", () => {
         expect(payload.components.length).toBeLessThanOrEqual(5);
         const [charSelect] = byPrefix(payload, "signup-pick:eh-kara:s");
         expect(charSelect.options.map((o) => o.label)).toEqual(["Nerathil · Arcane", "Nerathil · Fire", "Nerasol · Holy"]);
-        expect(charSelect.options[0]).toMatchObject({ default: true, description: "Main · gear raid ready" });
+        // the raider's first character is preselected — never labelled "Main"
+        expect(charSelect.options[0]).toMatchObject({ default: true, description: "gear raid ready" });
         const statuses = byPrefix(payload, "signup-status:");
         expect(statuses.map((b) => b.label)).toEqual(["Sign up", "Tentative", "Late", "Bench", "Absence"]);
         expect(statuses.every((b) => !b.disabled)).toBe(true);

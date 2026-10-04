@@ -66,8 +66,10 @@
         "manualText": "Enter name, class and specs yourself."
     },
     "char": {
-        "main": "Main",
-        "makeMain": "Make main",
+        "order": "Order",
+        "moveForward": "Move forward",
+        "moveBack": "Move back",
+        "orderSub": "Your order per game version. The first character is suggested when you sign up — there is no \"main\".",
         "claimed": "Already claimed",
         "claimedChip": "Also added by: {names}. The orga sorts it out.",
         "claimedCard": "Also added by: {names}. The orga sees this in the roster and sorts it out.",

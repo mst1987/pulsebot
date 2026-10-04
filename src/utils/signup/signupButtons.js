@@ -221,7 +221,7 @@ function pickOptions(profile, userId, eventId, { emojis = {}, versionId = "" } =
         const option = {
             label: `${o.name} · ${en(info) || o.spec}`.slice(0, 100),
             value: `${o.character}|${o.spec}`.slice(0, 100),
-            description: [o.main ? "Main" : "", GEAR_TEXT[o.gear] || ""].filter(Boolean).join(" · ").slice(0, 100) || undefined,
+            description: (GEAR_TEXT[o.gear] || "").slice(0, 100) || undefined,
         };
         const emoji = emojiOption(emojis, specEmojiName(o.spec));
         if (emoji) option.emoji = emoji;
@@ -343,7 +343,8 @@ function buildNameModal(event, userId, status, specKey, { displayName = "" } = {
     const profile = profiles.getProfile(userId) || { characters: [] };
     const versionId = versionOfEvent(event);
     const sameClass = profiles.charactersOfVersion(profile, versionId).filter((c) => c.className === info.classId);
-    const known = sameClass.find((c) => c.main) || sameClass[0];
+    // the raider's first character of that class, in their own order
+    const known = sameClass[0];
     const cls = classesFor(event).find((c) => c.id === info.classId);
     return buildCharacterModal(btnId(event.id, "name", codeOf(status), specKey), {
         defaultName: known ? known.name : displayName,

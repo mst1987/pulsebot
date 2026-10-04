@@ -33,7 +33,6 @@ function profileForSignup(profile) {
             // The dialog offers only the characters of the event's game version (#543).
             versionId: c.versionId || LEGACY_VERSION,
             className: c.className,
-            main: c.main,
             ...profileRoles(p, c.key),
             specs: c.specs.map((s) => {
                 const info = profiles.specInfo(s.key) || {};

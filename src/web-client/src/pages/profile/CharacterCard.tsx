@@ -3,7 +3,7 @@ import type { GameClass, GearLevel, ProfileCharacter, ProfileData, ProfileSpec }
 import { Badge, Button, IconButton, PartHead, Segment, WowIcon } from "../../components/ui";
 import { classColorProps } from "../../components/ClassSpec";
 import { type AddWay } from "../../components/profile/AddCharacterDialog";
-import { ExternalIcon, TrashIcon, XIcon } from "../../components/icons";
+import { ChevronLeftIcon, ChevronRightIcon, ExternalIcon, TrashIcon, XIcon } from "../../components/icons";
 import { classLabel, roleLabel, specLabel } from "../../lib/wowNames";
 import { tOr, useT } from "../../i18n";
 
@@ -41,7 +41,6 @@ export function CharChip({ character, cls, active, onClick }: { character: Profi
         <button type="button" role="tab" aria-selected={active} className={`pf-chip${active ? " is-active" : ""}`} onClick={onClick}>
             {cls && <WowIcon name={cls.icon} size={22} />}
             <span className={color.className} style={color.style}>{character.name}</span>
-            {character.main && <span className="pf-chip-main">{t("profile.char.main")}</span>}
             {claimed && (
                 <span className="pf-chip-warn" data-tip={t("profile.char.claimed")} data-tip-sub={t("profile.char.claimedChip", { names: character.claimedBy.map((c) => c.name || t("profile.char.unknown")).join(", ") })}>!</span>
             )}
@@ -49,13 +48,17 @@ export function CharChip({ character, cls, active, onClick }: { character: Profi
     );
 }
 
-export function CharacterCard({ character, cls, data, onMain, onSpecs, onRoles, onRemove, versionLabel = "" }: {
+export function CharacterCard({ character, cls, data, onMove, onSpecs, onRoles, onRemove, versionLabel = "" }: {
     character: ProfileCharacter;
     cls?: GameClass;
     /** The character's game version, shown only when the profile has more than one (#543). */
     versionLabel?: string;
     data: ProfileData;
-    onMain: () => void;
+    /**
+     * One place forward / back within its version — there is no main, only the
+     * raider's order. A direction missing = it already stands first / last.
+     */
+    onMove: { forward?: () => void; back?: () => void };
     onSpecs: (specs: ProfileSpec[]) => void;
     onRoles: (field: RoleField, value: boolean) => void;
     onRemove: () => void;
@@ -89,9 +92,12 @@ export function CharacterCard({ character, cls, data, onMain, onSpecs, onRoles, 
                                 {t("profile.char.claimedBy", { name: character.claimedBy[0].name || t("profile.char.otherAccount") })}
                             </Badge>
                         )}
-                        {character.main
-                            ? <Badge tone="accent">{t("profile.char.main")}</Badge>
-                            : <Button variant="ghost" size="sm" onClick={onMain}>{t("profile.char.makeMain")}</Button>}
+                        {(onMove.forward || onMove.back) && (
+                            <span className="pf-order" role="group" aria-label={t("profile.char.order")}>
+                                <IconButton icon={<ChevronLeftIcon />} size="sm" tip={t("profile.char.moveForward")} tipSub={t("profile.char.orderSub")} disabled={!onMove.forward} onClick={() => onMove.forward?.()} />
+                                <IconButton icon={<ChevronRightIcon />} size="sm" tip={t("profile.char.moveBack")} tipSub={t("profile.char.orderSub")} disabled={!onMove.back} onClick={() => onMove.back?.()} />
+                            </span>
+                        )}
                         {character.armoryUrl && (
                             <a className="ibtn sm" href={character.armoryUrl} target="_blank" rel="noreferrer" aria-label={t("profile.char.armory")} data-tip={t("profile.char.openArmory")}>
                                 <ExternalIcon />
