@@ -48,28 +48,23 @@ beforeEach(() => {
 });
 
 describe("ChannelsPage — one list", () => {
-    it("shows the tree beside three big figures and one purposes panel, with the counts in the tabs", async () => {
+    it("shows the tree full width with the counts in the tabs and the purposes as one slim strip", async () => {
         await openPage();
         expect(screen.getByRole("heading", { level: 1, name: "Kanäle" })).toBeInTheDocument();
         expect(screen.getByText("Discord-Server · Pulse")).toBeInTheDocument();
         expect(screen.getByRole("radio", { name: "Kanäle · 7" })).toHaveAttribute("aria-checked", "true");
         expect(screen.getByRole("radio", { name: "Archiv · 1" })).toBeInTheDocument();
 
-        const side = screen.getByRole("complementary");
-        expect(within(side).getByText("Vergangene Events")).toBeInTheDocument();
-        expect(within(side).getByText("Im Archiv, warten auf Löschung")).toBeInTheDocument();
-        const figures = within(side).getAllByText(/^\d+$/).map((el) => el.textContent);
-        expect(figures).toEqual(["7", "1", "1"]);
-        // the purposes: a label, the counts, one way in — no loose sentence, no archive gear here
-        expect(within(side).getByText("Zwecke")).toHaveAttribute("data-tip-sub", expect.stringContaining("Am Kanal selbst stehen sie im Tooltip"));
-        expect(within(side).getByText("3 gesetzt")).toBeInTheDocument();
-        expect(within(side).getByText("1 fehlt")).toBeInTheDocument();
-        expect(within(side).getByRole("button", { name: "Alle Zwecke" })).toBeInTheDocument();
-        expect(within(side).getAllByRole("button").map((b) => b.getAttribute("aria-label") || b.textContent)).toEqual([
-            expect.stringContaining("Vergangene Events"),
-            expect.stringContaining("Im Archiv"),
-            "Alle Zwecke",
-        ]);
+        expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+        // the purposes: a label, only what needs attention as badges, one way in
+        const strip = within(screen.getByText("Zwecke").closest(".kn-strip") as HTMLElement);
+        expect(strip.getByText("Zwecke")).toHaveAttribute("data-tip-sub", expect.stringContaining("Am Kanal selbst stehen sie im Tooltip"));
+        expect(strip.getByText("1 fehlt")).toBeInTheDocument();
+        expect(strip.queryByText("3 gesetzt")).not.toBeInTheDocument();
+        // the past events keep their count, with a verb button to select them
+        expect(strip.getByText("Vergangene Events 1")).toBeInTheDocument();
+        expect(strip.getByRole("button", { name: "Auswählen" })).toBeInTheDocument();
+        expect(strip.getByRole("button", { name: "Zwecke zuweisen" })).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Archiv-Einstellungen" })).not.toBeInTheDocument();
     });
 
@@ -82,7 +77,7 @@ describe("ChannelsPage — one list", () => {
 
     it("shows the purposes as a dialog, with 'nicht gesetzt' and the server's 'fehlt' for an empty one", async () => {
         await openPage();
-        await userEvent.click(screen.getByRole("button", { name: "Alle Zwecke" }));
+        await userEvent.click(screen.getByRole("button", { name: "Zwecke zuweisen" }));
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText("Wofür der Bot welche Kanäle nutzt")).toBeInTheDocument();
         const bids = within(dialog).getByText("Höchstgebote", { selector: ".tipped" }).closest<HTMLElement>("[role=row]")!;
@@ -259,12 +254,14 @@ describe("ChannelsPage — threads nest under their channel (#361)", () => {
         await openPage();
         const thread = within(row("Bewerbung Fatigatus"));
         expect(thread.getByRole("button", { name: "Umbenennen" })).toBeInTheDocument();
-        expect(thread.getByRole("button", { name: "Löschen" })).toBeInTheDocument();
-        expect(thread.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
-        expect(thread.queryByRole("button", { name: "Duplizieren" })).not.toBeInTheDocument();
+        expect(thread.queryByRole("button", { name: "Archivieren" })).not.toBeInTheDocument();
+        await userEvent.click(thread.getByRole("button", { name: "Weitere Aktionen" }));
+        expect(within(screen.getByRole("menu")).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Umbenennen", "Löschen"]);
+        await userEvent.keyboard("{Escape}");
         const parent = within(row("bewerbungen"));
-        expect(parent.getByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
-        expect(parent.getByRole("button", { name: "Duplizieren" })).toHaveAttribute("data-tip-sub", expect.stringContaining("Klon mit Rechten"));
+        expect(parent.getByRole("button", { name: "Archivieren" })).toBeInTheDocument();
+        await userEvent.click(parent.getByRole("button", { name: "Weitere Aktionen" }));
+        expect(within(screen.getByRole("menu")).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Umbenennen", "Archivieren", "Bearbeiten", "Duplizieren", "Löschen"]);
     });
 
     it("draws a thread with the thread line icon", async () => {
@@ -288,10 +285,10 @@ describe("ChannelsPage — in English", () => {
         expect(screen.getByText("Discord server · Pulse")).toBeInTheDocument();
         expect(screen.getByRole("radio", { name: "Channels · 7" })).toBeInTheDocument();
         expect(screen.getByRole("radio", { name: "Archive · 1" })).toBeInTheDocument();
-        const side = screen.getByRole("complementary");
-        expect(within(side).getByText("Past events")).toBeInTheDocument();
-        expect(within(side).getByText("3 set")).toBeInTheDocument();
-        expect(within(side).getByRole("button", { name: "All purposes" })).toBeInTheDocument();
+        const strip = within(screen.getByText("Purposes").closest(".kn-strip") as HTMLElement);
+        expect(strip.getByText("Past events 1")).toBeInTheDocument();
+        expect(strip.getByText("1 missing")).toBeInTheDocument();
+        expect(strip.getByRole("button", { name: "Assign purposes" })).toBeInTheDocument();
         expect(screen.getByRole("searchbox", { name: "Search channel" })).toHaveAttribute("placeholder", "Search channel…");
         const sub = screen.getByText("bewerbungen", { selector: ".kn-name" }).getAttribute("data-tip-sub");
         expect(sub).toContain("Topic: Hier landen die Bewerbungen");

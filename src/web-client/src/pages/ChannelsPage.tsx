@@ -6,9 +6,8 @@ import {
     type QuickCreateInput, type RenamePreviewRow } from "../api";
 import { useApi } from "../hooks/useApi";
 import type { ShellContext } from "../components/Shell";
-import { Badge, IconButton, PageHead, Segment, SplitButton, useConfirm } from "../components/ui";
+import { Badge, Button, PageHead, Segment, SplitButton, useConfirm } from "../components/ui";
 import { useJobs } from "../components/Jobs";
-import { TagIcon } from "../components/channels/channelBits";
 import {
     AssignChannelDialog, CreateChannelDialog, DuplicateChannelDialog, PurposeDialog } from "../components/channels/ChannelDialogs";
 import { ChannelTree } from "../components/channels/ChannelTree";
@@ -48,26 +47,6 @@ type Dialog =
     | null;
 
 type ArchiveSettingsInput = { archiveCategoryId?: string; archiveDeleteHintDays: number; createArchiveCategory?: string };
-
-/** One big figure of the side panel, optionally a button. */
-function Figure({ label, value, tone, tip, tipSub, onClick }: {
-    label: string;
-    value: number;
-    tone?: "mid";
-    tip: string;
-    tipSub: string;
-    onClick?: () => void;
-}) {
-    const body = (
-        <>
-            <span className="kn-kicker">{label}</span>
-            <span className={`kn-figure-val${tone ? ` ${tone}` : ""}`}>{value}</span>
-        </>
-    );
-    return onClick
-        ? <button type="button" className="kn-figure" data-tip={tip} data-tip-sub={tipSub} onClick={onClick}>{body}</button>
-        : <div className="kn-figure" tabIndex={0} data-tip={tip} data-tip-sub={tipSub}>{body}</div>;
-}
 
 export default function ChannelsPage() {
     const { user } = useOutletContext<ShellContext>();
@@ -216,7 +195,7 @@ export default function ChannelsPage() {
     const deleteNames = dialog?.kind === "delete" ? dialog.ids.map((id) => byId.get(id)?.name || id) : [];
 
     return (
-        <div className={`kn-page${selected.size ? " has-bulk" : ""}`}>
+        <div className="kn-page">
             <PageHead
                 icon="inv_letter_15"
                 tone="channels"
@@ -256,6 +235,22 @@ export default function ChannelsPage() {
                 )}
             </div>
 
+            {tab === "channels" && (
+                <div className="kn-strip">
+                    <span className="kn-kicker" tabIndex={0} data-tip={t("channels.page.purposes")} data-tip-sub={t("channels.page.purposesSub")}>{t("channels.page.purposes")}</span>
+                    <span className="kn-chips">
+                        <PurposeSummaryBadges data={data} compact />
+                    </span>
+                    {past.length > 0 && (
+                        <span className="kn-strip-past">
+                            <Badge tone="mid" tip={t("channels.page.figPastTip")} tipSub={t("channels.page.figPastSub")}>{t("channels.page.stripPast", { count: past.length })}</Badge>
+                            {canWrite && <Button size="sm" variant="ghost" onClick={() => select(past.map((c) => c.id), true)}>{t("channels.page.pickPast")}</Button>}
+                        </span>
+                    )}
+                    <Button size="sm" variant="ghost" className="kn-push" onClick={() => setDialog({ kind: "purposes" })}>{t("channels.page.assignPurposes")}</Button>
+                </div>
+            )}
+
             <div className="kn-layout">
                 {tab === "channels"
                     ? (
@@ -267,6 +262,7 @@ export default function ChannelsPage() {
                             onRename={(channel, name) => applyChanges([channel.id], { name }, t("channels.jobs.renameOne", { name: channel.name }))}
                             onEdit={(channel) => setDialog({ kind: "edit", channel })}
                             onDuplicate={(channel) => setDialog({ kind: "duplicate", channel })}
+                            onArchive={(channel) => archive([channel.id])}
                             onDelete={(channel) => setDialog({ kind: "delete", ids: [channel.id], anywhere: true })}
                             onSchema={(categoryId) => setDialog({ kind: "schema", categoryId })}
                         />
@@ -281,43 +277,6 @@ export default function ChannelsPage() {
                             onSettings={() => setDialog({ kind: "archive-settings" })}
                         />
                     )}
-
-                <aside className="kn-side">
-                    <div className="kn-figures">
-                        <Figure label={t("channels.page.figChannels")} value={inUse} tip={t("channels.page.figChannelsTip")} tipSub={t("channels.page.figChannelsSub")} />
-                        <Figure
-                            label={t("channels.page.figPast")}
-                            value={past.length}
-                            tone={past.length ? "mid" : undefined}
-                            tip={t("channels.page.figPastTip")}
-                            tipSub={canWrite && past.length ? t("channels.page.figPastPick") : t("channels.page.figPastSub")}
-                            onClick={canWrite && past.length ? () => {
-                                if (tab !== "channels") switchTab("channels");
-                                select(past.map((c) => c.id), true);
-                            } : undefined}
-                        />
-                        <Figure
-                            label={t("channels.page.figArchive")}
-                            value={data.archive.count}
-                            tone={data.archive.overdue ? "mid" : undefined}
-                            tip={t("channels.page.figArchiveTip")}
-                            tipSub={data.archive.categoryId ? t("channels.page.figArchiveSub", { days: data.archive.hintDays }) : t("channels.page.figArchiveNone")}
-                            onClick={() => switchTab("archive")}
-                        />
-                    </div>
-                    {/* The purposes as a panel of their own: label, the three counts, one way in.
-                        What used to be a sentence here is the label's tooltip; the archive
-                        settings live in the archive tab, which the figure above opens. */}
-                    <div className="kn-figures kn-purposes">
-                        <div className="kn-purposes-head">
-                            <span className="kn-kicker" tabIndex={0} data-tip={t("channels.page.purposes")} data-tip-sub={t("channels.page.purposesSub")}>{t("channels.page.purposes")}</span>
-                            <IconButton size="sm" icon={<TagIcon />} tip={t("channels.page.allPurposes")} tipSub={t("channels.page.allPurposesSub")} onClick={() => setDialog({ kind: "purposes" })} />
-                        </div>
-                        <span className="kn-chips">
-                            <PurposeSummaryBadges data={data} />
-                        </span>
-                    </div>
-                </aside>
             </div>
 
             {canWrite && tab === "channels" && (

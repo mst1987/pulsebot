@@ -39,11 +39,11 @@ describe("ChannelsPage — archive tab", () => {
         expect(screen.queryByText("regeln")).not.toBeInTheDocument();
     });
 
-    it("switches between the tabs, from the switch and from the archive figure", async () => {
+    it("switches between the tabs", async () => {
         const user = userEvent.setup();
         await openPage(channelsData(), "/channels");
         expect(screen.getByText("regeln", { selector: ".kn-name" })).toBeInTheDocument();
-        await user.click(screen.getByRole("button", { name: /Im Archiv, warten auf Löschung/ }));
+        await user.click(screen.getByRole("radio", { name: "Archiv · 1" }));
         expect(screen.getByText("alt-raid", { selector: ".kn-name" })).toBeInTheDocument();
         await user.click(screen.getByRole("radio", { name: "Kanäle · 7" }));
         expect(screen.queryByText("alt-raid")).not.toBeInTheDocument();
@@ -106,7 +106,6 @@ describe("ChannelsPage — reminds of waiting channels, never deletes by itself"
         const badge = screen.getByText("1 warten auf Löschung");
         expect(badge).toHaveClass("badge", "mid");
         expect(badge).toHaveAttribute("data-tip-sub", "1 davon länger als 14 Tage. Gelöscht wird nie automatisch.");
-        expect(screen.getByRole("button", { name: /Im Archiv, warten auf Löschung/ }).querySelector(".kn-figure-val")).toHaveClass("mid");
     });
 
     it("marks the overdue row in the archive", async () => {
