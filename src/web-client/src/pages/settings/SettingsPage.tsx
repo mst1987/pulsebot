@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, type ApiError, type AvailabilityPanel } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedSearchParam } from "../../lib/persistedState";
@@ -15,7 +15,8 @@ import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import {
     SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, groupLabel, sectionCrumb, sectionLabel,
     type SettingsSection } from "../../lib/settingsSections";
-import { areaLabel, draftChanges, missingConnections, serverIssues } from "../../lib/settingsLogic";
+import { areaLabel, draftChanges } from "../../lib/settingsLogic";
+import { publishSettingsNav, sectionBadge, settingsNavCounts } from "../../lib/settingsNav";
 import { tParts, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
 import IconTile from "../../components/ui/IconTile";
@@ -52,9 +53,11 @@ export default function SettingsPage() {
     const content = useContentVersion();
     // In the url as well as remembered, so a hint elsewhere in the menu can link
     // straight at the section it names ("…siehe Einstellungen → Kategorien").
-    // Old ids stay allowed and are redirected by resolveSection().
+    // Old ids stay allowed and are redirected by resolveSection(). The sections
+    // are opened through the main menu's links, so a linked one is remembered
+    // too: the plain "Einstellungen" entry lands on the section opened last.
     const [section, setSection] = usePersistedSearchParam(
-        "settings-section", "section", "berechtigungen", SECTION_PARAM_IDS,
+        "settings-section", "section", "berechtigungen", SECTION_PARAM_IDS, true,
     );
     // Berechtigungen has two views: the menu's areas and the bot commands.
     const [permView, setPermView] = usePersistedSearchParam<PermView>("settings-perm-view", "perm", "areas", PERM_VIEWS);
@@ -72,6 +75,18 @@ export default function SettingsPage() {
         ...(list || []).filter((p) => p.categoryId !== categoryId),
         ...(panel ? [panel] : []),
     ]);
+
+    // What the main menu shows as Einstellungen's children (lib/settingsNav.ts):
+    // the open section and the badge counts, the counts from the draft so they
+    // follow an unsaved edit.
+    const navActive = data ? resolveSection(section, visibleSections(data.canManageAccess)) : null;
+    const navCounts = data && draft
+        ? settingsNavCounts({ data, tokens, canManageAccess: data.canManageAccess, activeCategories: draft.categoryIds.length })
+        : null;
+    useEffect(() => {
+        publishSettingsNav(navCounts ? { active: navActive, counts: navCounts } : { active: navActive });
+    });
+    useEffect(() => () => publishSettingsNav({ active: null }), []);
 
     if (settingsData.error) return <div className="empty">{tParts("settings.page.loadError", { message: settingsData.error.message })}</div>;
     if (!data || !draft) return <RaidLoader text={t("settings.page.loading")} />;
@@ -389,22 +404,12 @@ export default function SettingsPage() {
         }
     };
 
-    // The badges of the column: what is open in a section, so nobody has to
-    // open each one to find the gap.
-    const missing = missingConnections(data, tokens, data.canManageAccess);
-    const serverGaps = serverIssues(data.servers);
-    const activeCategories = draft.categoryIds.length;
+    // The section chips for a narrow screen, where the main menu is a drawer:
+    // the same entries and badges as the menu's Einstellungen children, so
+    // nobody has to open each section to find the gap.
     const navGroups = groupedSections(sections).map((g) => ({
         group: groupLabel(g.group),
-        items: g.items.map((s) => ({
-            id: s.id,
-            label: sectionLabel(s),
-            icon: s.icon,
-            badge: s.id === "verbindungen" ? { count: missing, tone: "mid" as const, tip: t("settings.page.badgeConnections", { count: missing }) }
-                : s.id === "discordserver" ? { count: serverGaps, tone: "mid" as const, tip: t("settings.page.badgeServers", { count: serverGaps }) }
-                : s.id === "kategorien" ? { count: activeCategories, tip: t("settings.page.badgeCategories", { count: activeCategories }) }
-                    : null,
-        })),
+        items: g.items.map((s) => ({ id: s.id, label: sectionLabel(s), icon: s.icon, badge: sectionBadge(s.id, navCounts) })),
     }));
 
     const inForm = savesWithForm(active);
@@ -423,6 +428,8 @@ export default function SettingsPage() {
             </div>
 
             <div className="settings-layout">
+                {/* Only below the shell's breakpoint (styles/settings.css): on a
+                    wide screen the sections are the main menu's children. */}
                 <SectionNav groups={navGroups} active={active} onSelect={setSection} ariaLabel={t("settings.page.navAria")} />
                 <div className={`settings-panel${inForm ? " in-form" : ""}`}>
                     {panel()}

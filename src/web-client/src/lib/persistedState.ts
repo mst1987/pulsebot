@@ -129,18 +129,27 @@ export function useDraftState<T extends object>(key: string, initial: T): [T, (f
  *
  * `set` keeps the other params (an event id, a character name) intact; pass
  * `mutate` to drop or rewrite the ones that must not survive the switch.
+ *
+ * `rememberLinked` also remembers a value that arrived through a link — for a
+ * page whose views are opened from the main menu's links (the Einstellungen
+ * sections), so the plain menu entry later lands on the one opened last.
  */
 export function usePersistedSearchParam<T extends string>(
     key: string,
     param: string,
     fallback: T,
     allowed: readonly T[],
+    rememberLinked = false,
 ): [T, (next: T, mutate?: (params: URLSearchParams) => void) => void] {
     const [searchParams, setSearchParams] = useSearchParams();
     const fullKey = PREFIX + key;
 
     const pick = (v: string | null): T | null => (v && (allowed as readonly string[]).includes(v) ? v as T : null);
     const value = pick(searchParams.get(param)) ?? pick(read<string>(fullKey, "")) ?? fallback;
+    const linked = rememberLinked ? pick(searchParams.get(param)) : null;
+    useEffect(() => {
+        if (linked) write(fullKey, linked);
+    }, [fullKey, linked]);
 
     const set = (next: T, mutate?: (params: URLSearchParams) => void) => {
         write(fullKey, next);

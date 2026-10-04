@@ -3,7 +3,7 @@
    index.css (badge, bar, ibtn, seg, itile, exp, dlg); only what is specific to
    these pages lives here. Tokens only, no gold. */
 
-.re-page { max-width: 1080px; }
+.re-page { min-width: 0; }
 .re-h1 { display: flex; align-items: center; gap: 8px; }
 
 /* the round "i" that carries a title's or a label's explanation */
