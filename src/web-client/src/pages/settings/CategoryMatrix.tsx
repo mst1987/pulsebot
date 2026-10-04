@@ -15,6 +15,7 @@ import PartHead from "../../components/ui/PartHead";
 import Segment from "../../components/ui/Segment";
 import WowIcon from "../../components/ui/WowIcon";
 import RaiderCharactersModal from "./RaiderCharactersModal";
+import AvailabilityPanelRow, { type AvailabilityPanels } from "./AvailabilityPanelRow";
 import { CheckMark, WarnIcon } from "../../components/settings/settingsUi";
 import { FieldLabel } from "../../components/ui/Field";
 
@@ -72,7 +73,10 @@ export default function CategoryMatrix({
     categoryMessageLook = {}, onMessageLook,
     categorySignupNotes = {}, onSignupNotes, categorySignupNoteChannel = {}, noteChannels, onSignupNoteChannel,
     onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSetupDms, onAnnounce, onDiscordEvent, onVoiceChannel, onSheet, icon, crumb, raidTemplates,
+    availabilityPanels,
 }: {
+    /** The absence/attendance panel per category — posted at once, not through the draft; missing = no row. */
+    availabilityPanels?: AvailabilityPanels;
     /** The message with "Vielleicht" / "Absagen"; missing = "optional". */
     categorySignupNotes?: Record<string, string>;
     onSignupNotes?: (categoryId: string, mode: string) => void;
@@ -297,6 +301,7 @@ export default function CategoryMatrix({
                                     </Button>
                                 </div>
                             </div>
+                            {availabilityPanels && <AvailabilityPanelRow categoryId={cat.id} categoryName={cat.name} panels={availabilityPanels} />}
                         </div>
                         <div className="cat-detail-col">
                             <div>
