@@ -55,7 +55,7 @@ export default function SignupCharacterPicks({ profile, classes, picks, onChange
                             <div className="an-pick">
                                 {cls && <WowIcon name={cls.icon} size={22} />}
                                 <select aria-label={t("signups.picks.characterAria", { n: i + 1 })} value={p.characterKey} disabled={disabled} onChange={(e) => onChange(setPickCharacter(profile, picks, i, e.target.value))} {...classColorProps(cls?.color)}>
-                                    {profile.characters.map((c) => <option key={c.key} value={c.key}>{c.name}{c.main ? t("signups.picks.main") : ""}</option>)}
+                                    {profile.characters.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
                                 </select>
                             </div>
                             <div className="an-pick">

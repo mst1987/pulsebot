@@ -5,11 +5,16 @@
 //
 // The buttons carry the switch in their customId ("profil:tank"), so the same
 // file answers the slash command and the clicks (see bot.js' customId routing).
-// The switches belong to a character; the buttons act on the main — the other
-// characters are switched on the web page.
+// The switches belong to a character; the buttons act on the raider's first
+// character of the main game version (there is no "main", only the raider's
+// order) — the other characters are switched on the web page.
 const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, SlashCommandBuilder } = require("discord.js");
 const profiles = require("../../stores/raiderProfileStore");
+const { mainVersionFor } = require("../../services/events/mainVersion");
 const { publicBaseUrl } = require("../../utils/publicUrl");
+
+/** The character the buttons switch: the first of the main version, else the first at all. */
+const firstOf = (profile) => profiles.firstCharacter(profile, "", { preferVersion: mainVersionFor() });
 
 const GEAR_LABELS = { none: "no gear", usable: "usable", ready: "raid ready" };
 const DAY_LABELS = { mo: "Mon", di: "Tue", mi: "Wed", do: "Thu", fr: "Fri", sa: "Sat", so: "Sun" };
@@ -34,7 +39,7 @@ function summaryLines(profile) {
             .join(", ");
         const roles = profiles.characterRoles(profile, c);
         const also = [roles.canOfftank ? "off-tank" : "", roles.canHeal ? "heal" : ""].filter(Boolean).join(", ");
-        lines.push(`**${c.name}**${c.main ? " · Main" : ""} — ${specs || "no specs"}${also ? ` · can ${also}` : ""}`);
+        lines.push(`**${c.name}** — ${specs || "no specs"}${also ? ` · can ${also}` : ""}`);
     }
     lines.push("");
     lines.push(`Available: ${profile.availability.length ? profile.availability.map((d) => DAY_LABELS[d]).join(" · ") : "not given"}`);
@@ -42,11 +47,11 @@ function summaryLines(profile) {
 }
 
 function buttons(profile) {
-    const main = profiles.mainCharacter(profile);
+    const main = firstOf(profile);
     const roles = profiles.characterRoles(profile, main);
     const link = new ButtonBuilder().setLabel("Open profile").setStyle(ButtonStyle.Link).setURL(profileUrl());
     const row = new ActionRowBuilder();
-    // only the switches the main's class can use at all (a mage gets neither)
+    // only the switches the character's class can use at all (a mage gets neither)
     if (main && roles.possible.canOfftank) {
         row.addComponents(new ButtonBuilder()
             .setCustomId("profil:tank")
@@ -88,7 +93,7 @@ module.exports = {
 
         if (toggle && typeof interaction.isButton === "function" && interaction.isButton()) {
             const profile = profiles.getProfile(userId);
-            const main = profiles.mainCharacter(profile);
+            const main = firstOf(profile);
             if (!main) return interaction.update(message(profile));
             const current = profiles.characterRoles(profile, main);
             if (!current.possible[toggle]) return interaction.update(message(profile));

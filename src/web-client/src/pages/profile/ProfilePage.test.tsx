@@ -42,7 +42,7 @@ const MAGE: GameClass = {
 
 function character(over: Partial<ProfileCharacter>): ProfileCharacter {
     return {
-        key: "borka", name: "Borka", versionId: "tbc", realm: "Thunderstrike", className: "Druid", main: true, source: "manual",
+        key: "borka", name: "Borka", versionId: "tbc", realm: "Thunderstrike", className: "Druid", source: "manual",
         armory: null, armoryUrl: "", specs: [], canOfftank: false, canHeal: false,
         suggested: { canOfftank: true, canHeal: true }, possible: { canOfftank: true, canHeal: true }, claimedBy: [],
         ...over,
@@ -56,14 +56,14 @@ const BORKA = character({
     }],
 });
 const FROSTI = character({
-    key: "frosti", name: "Frosti", className: "Mage", main: false, canHeal: true,
+    key: "frosti", name: "Frosti", className: "Mage", canHeal: true,
     suggested: { canOfftank: false, canHeal: false }, possible: { canOfftank: false, canHeal: false },
 });
 
-const ANNA: RaiderRef = { userId: "u2", name: "anna", main: "Annabelle", className: "Mage" };
-const BERT: RaiderRef = { userId: "u3", name: "bert", main: "Bertram", className: "Druid" };
-const CARL: RaiderRef = { userId: "u4", name: "carl", main: "Carlos", className: "Mage" };
-const DORA: RaiderRef = { userId: "u5", name: "dora", main: "Doris", className: "Druid" };
+const ANNA: RaiderRef = { userId: "u2", name: "anna", character: "Annabelle", className: "Mage" };
+const BERT: RaiderRef = { userId: "u3", name: "bert", character: "Bertram", className: "Druid" };
+const CARL: RaiderRef = { userId: "u4", name: "carl", character: "Carlos", className: "Mage" };
+const DORA: RaiderRef = { userId: "u5", name: "dora", character: "Doris", className: "Druid" };
 const RAIDERS = [ANNA, BERT, CARL, DORA];
 
 function profile(over: Partial<RaiderProfile> = {}): RaiderProfile {
@@ -92,11 +92,12 @@ const NO_TOKENS: CalendarTokens = { tokens: [], max: 3, configured: true };
 
 /** What the server answers to a PUT: the patch applied (characters by key). */
 function applyPatch(p: RaiderProfile, patch: ProfilePatch): RaiderProfile {
-    const { characters, wishes, avoid, ...rest } = patch;
+    const { characters, wishes, avoid, order, ...rest } = patch;
+    const ordered = order ? [...p.characters].sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key)) : p.characters;
     return {
         ...p,
         ...rest,
-        characters: p.characters.map((c) => {
+        characters: ordered.map((c) => {
             const change = characters?.find((x) => x.key === c.key);
             if (!change) return c;
             const { specs, ...fields } = change;
@@ -129,8 +130,27 @@ async function renderProfile(route = "/profile") {
     await screen.findByRole("tablist", { name: t("profile.charactersAria") });
 }
 
+describe("Reihenfolge statt Main", () => {
+    afterEach(() => vi.clearAllMocks());
+
+    it("hat kein „Main“ – der Raider schiebt Charaktere innerhalb ihrer Version nach vorn und hinten", async () => {
+        const { user } = setup();
+        await renderProfile();
+        expect(screen.queryByText("Main")).not.toBeInTheDocument();
+        const chips = () => within(screen.getByRole("tablist", { name: t("profile.charactersAria") })).getAllByRole("tab").map((x) => x.textContent);
+        expect(chips()).toEqual(["Borka", "Frosti"]);
+        // Borka (first, selected by default) cannot move further forward
+        expect(screen.getByRole("button", { name: t("profile.char.moveForward") })).toBeDisabled();
+        await user.click(screen.getByRole("button", { name: t("profile.char.moveBack") }));
+        await waitFor(() => expect(api.saveProfile).toHaveBeenCalledWith({ order: ["frosti", "borka"] }));
+        expect(chips()).toEqual(["Frosti", "Borka"]);
+        expect(screen.getByRole("button", { name: t("profile.char.moveBack") })).toBeDisabled();
+        expect(screen.getByRole("button", { name: t("profile.char.moveForward") })).toBeEnabled();
+    });
+});
+
 describe("Charaktere je Spielversion (#543)", () => {
-    const DEVI = character({ key: "forever~devi res", name: "Devi Res", versionId: "forever", className: "Mage", main: false });
+    const DEVI = character({ key: "forever~devi res", name: "Devi Res", versionId: "forever", className: "Mage" });
     const VERSIONS = [
         { id: "forever", label: "WoW Forever", short: "Forever", lastName: true },
         { id: "tbc", label: "TBC Anniversary", short: "TBC", lastName: false },
@@ -309,7 +329,7 @@ describe("ProfilePage – the selected character", () => {
 
     it("warns about a character another account claimed instead of hiding it", async () => {
         const claimed = character({ ...FROSTI, claimedBy: [{ userId: "u9", name: "Ann" }] });
-        const nameless = character({ key: "tanky", name: "Tanky", main: false, claimedBy: [{ userId: "u8", name: "" }] });
+        const nameless = character({ key: "tanky", name: "Tanky", claimedBy: [{ userId: "u8", name: "" }] });
         const { user } = setup(profile({ characters: [BORKA, claimed, nameless] }));
         await renderProfile();
 

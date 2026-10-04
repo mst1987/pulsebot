@@ -19,17 +19,58 @@ describe("stores/raiderProfileStore", () => {
         expect(store.getProfile("")).toBeNull();
     });
 
-    it("legt Charaktere an, der erste wird Main, Specs nur aus der eigenen Klasse", () => {
+    it("legt Charaktere an – hinten angehängt, ohne Main –, Specs nur aus der eigenen Klasse", () => {
         const first = store.addCharacter(A, {
             name: "Nerathil-Thunderstrike", className: "mage", source: "manual",
             specs: [{ key: "Mage-Arcane", gear: "ready" }, { key: "Priest-Holy", gear: "ready" }, "Mage-Fire"],
         }, { name: "nerathil" });
-        expect(first.character).toMatchObject({ key: "nerathil", name: "Nerathil", className: "Mage", main: true, source: "manual" });
+        expect(first.character).toMatchObject({ key: "nerathil", name: "Nerathil", className: "Mage", source: "manual" });
+        expect(first.character).not.toHaveProperty("main");
         expect(first.character.specs).toEqual([{ key: "Mage-Arcane", gear: "ready" }, { key: "Mage-Fire", gear: "usable" }]);
 
-        const second = store.addCharacter(A, { name: "Nerasol", className: "Priest", source: "log" });
-        expect(second.character.main).toBe(false);
+        store.addCharacter(A, { name: "Nerasol", className: "Priest", source: "log" });
+        expect(store.getProfile(A).characters.map((c) => c.key)).toEqual(["nerathil", "nerasol"]);
+        expect(store.firstCharacter(store.getProfile(A)).key).toBe("nerathil");
         expect(store.getProfile(A).name).toBe("nerathil");
+    });
+
+    it("hält 12 Charaktere je Spielversion – TBC-Charaktere nehmen Forever keinen Platz", () => {
+        const D = "300000000000000005";
+        const names = ["Aa", "Bb", "Cc", "Dd", "Ee", "Ff", "Gg", "Hh", "Ii", "Jj", "Kk", "Ll"];
+        for (const n of names) expect(store.addCharacter(D, { name: n, className: "Mage", source: "log" }).error).toBeUndefined();
+        expect(store.addCharacter(D, { name: "Mm", className: "Mage", source: "log" }).error).toMatch(/Höchstens 12 Charaktere je Spielversion \(TBC/);
+        for (const n of names) {
+            expect(store.addCharacter(D, { name: `${n} Res`, className: "Mage", source: "log", versionId: "forever" }).error).toBeUndefined();
+        }
+        expect(store.addCharacter(D, { name: "Mm Res", className: "Mage", source: "log", versionId: "forever" }).error).toMatch(/je Spielversion/);
+        expect(store.getProfile(D).characters).toHaveLength(24);
+    });
+
+    it("speichert die Reihenfolge des Raiders – der erste je Version wird vorgeschlagen, nur Umsortieren", () => {
+        store.addCharacter(A, { name: "Nerathil", className: "Mage" });
+        store.addCharacter(A, { name: "Nerasol", className: "Priest" });
+        store.addCharacter(A, { name: "Devi Res", className: "Mage", versionId: "forever" });
+        store.addCharacter(A, { name: "Tara Wind", className: "Priest", versionId: "forever" });
+        const saved = store.saveProfile(A, { order: ["forever~tara wind", "nerasol", "fremder", "forever~devi res"] });
+        // named ones in the given order, the rest after them as they were; an unknown key changes nothing
+        expect(saved.characters.map((c) => c.key)).toEqual(["forever~tara wind", "nerasol", "forever~devi res", "nerathil"]);
+        expect(store.firstCharacter(saved, "tbc").key).toBe("nerasol");
+        expect(store.firstCharacter(saved, "forever").key).toBe("forever~tara wind");
+        expect(store.firstCharacter(saved, "", { preferVersion: "tbc" }).key).toBe("nerasol");
+        expect(store.firstCharacter(saved, "classic")).toBeNull();
+        expect(store.firstCharacter(null)).toBeNull();
+    });
+
+    it("liest ein Profil aus der Main-Zeit: der alte Main steht je Version vorn, die Markierung ist weg", () => {
+        const legacy = store.normalizeProfile({
+            characters: [
+                { name: "Alpha", className: "Mage", versionId: "tbc" },
+                { name: "Beta", className: "Priest", versionId: "tbc", main: true },
+                { name: "Devi Res", className: "Mage", versionId: "forever" },
+            ],
+        }, A);
+        expect(legacy.characters.map((c) => c.name)).toEqual(["Beta", "Alpha", "Devi Res"]);
+        expect(legacy.characters.some((c) => "main" in c)).toBe(false);
     });
 
     it("verlangt Name und Klasse", () => {
@@ -129,11 +170,13 @@ describe("stores/raiderProfileStore", () => {
         store.addCharacter(A, { name: "Nerasol", className: "Priest" });
         const saved = store.saveProfile(A, {
             characters: [
+                // a "main" from an old client is ignored — there is none
                 { key: "nerasol", main: true, specs: [{ key: "Priest-Holy", gear: "ready" }] },
-                { key: "fremder", main: false, specs: [] },
+                { key: "fremder", specs: [] },
             ],
         });
-        expect(saved.characters.map((c) => [c.key, c.main])).toEqual([["nerathil", false], ["nerasol", true]]);
+        expect(saved.characters.map((c) => c.key)).toEqual(["nerathil", "nerasol"]);
+        expect(saved.characters.some((c) => "main" in c)).toBe(false);
         expect(saved.characters[1].specs).toEqual([{ key: "Priest-Holy", gear: "ready" }]);
     });
 
@@ -154,17 +197,20 @@ describe("stores/raiderProfileStore", () => {
         expect(store.claimsFor("nerathil", A)).toEqual([{ userId: B, name: "Bert" }]);
         expect(store.characterClaims()).toEqual([{
             key: "nerathil", character: "Nerathil", versionId: "tbc", className: "Mage",
-            claims: [{ userId: A, name: "Anna", main: true }, { userId: B, name: "Bert", main: true }],
+            claims: [{ userId: A, name: "Anna" }, { userId: B, name: "Bert" }],
         }]);
     });
 
-    it("sucht Raider nur mit Namen und Main – ohne Wünsche, Notiz oder Tage", () => {
+    it("sucht Raider nur mit Namen und erstem Charakter – ohne Wünsche, Notiz oder Tage", () => {
         store.addCharacter(B, { name: "Ysolde", className: "Mage" }, { name: "Bert" });
+        store.addCharacter(B, { name: "Bert Stein", className: "Warrior", versionId: "forever" }, { name: "Bert" });
         store.saveProfile(B, { wishes: [A], note: "geheim", availability: ["mo"] }, { name: "Bert" });
         store.addCharacter(A, { name: "Nerathil", className: "Mage" }, { name: "Anna" });
 
         const hits = store.searchRaiders("ysol", A);
-        expect(hits).toEqual([{ userId: B, name: "Bert", main: "Ysolde", className: "Mage" }]);
+        expect(hits).toEqual([{ userId: B, name: "Bert", character: "Ysolde", className: "Mage" }]);
+        // named by their first character of the caller's main version when they have one
+        expect(store.searchRaiders("ysol", A, 10, { preferVersion: "forever" })).toEqual([{ userId: B, name: "Bert", character: "Bert Stein", className: "Warrior" }]);
         expect(store.searchRaiders("", A).map((h) => h.userId)).toEqual([B]);
         expect(JSON.stringify(store.searchRaiders("", C))).not.toMatch(/wishes|geheim|availability/);
     });

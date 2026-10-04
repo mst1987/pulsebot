@@ -374,7 +374,7 @@ shape `raidplan.rosterFrom()` already reads:
 
 **Names.** A Raid-Helper name is not necessarily a character name (often a Discord nickname).
 `characterFor(rh, profile)` looks the raider up by his Discord id in the raider profiles
-(`raiderProfileStore`): a) a character of **Raid-Helper's class** — the main when it is one, else the first;
+(`raiderProfileStore`): a) a character of **Raid-Helper's class** — the raider's first of it in their own order (there is no main);
 b) else a character named like the Raid-Helper name (case and realm ignored); c) else the Raid-Helper name
 itself, marked `nameFromRh` (set in italics, "Name aus Raid-Helper"). The name is display only. Chips, tables
 and the sheet show the resolved name; the tooltip adds "Raid-Helper: <name>" (`lib/raidplan/players.ts rhNote`), the

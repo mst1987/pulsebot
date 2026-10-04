@@ -90,19 +90,19 @@ function logSpecsOf(character, index) {
 }
 
 /**
- * One profile, whitelisted: the characters of the version, and the main
- * character of another version as `other` (what the planner prefills when the
- * raider has no character of the version yet). Null for a profile without any.
+ * One profile, whitelisted: the characters of the version, and the raider's
+ * first character of another version as `other` (what the planner prefills
+ * when the raider has no character of the version yet). Null for a profile
+ * without any. There is no main — `main` here only marks the raider's first
+ * character of the version in their own order, the one the planner starts on.
  */
 function sourceProfile(profile, versionId, index) {
     const all = profiles.charactersOfVersion(profile, "");
     if (!all.length) return null;
     const chars = profiles.charactersOfVersion(profile, versionId);
-    // The stored main is one per account across all versions; inside this
-    // version the first character stands in when the main plays another one.
-    const mainKey = chars.length ? (chars.find((c) => c.main) || chars[0]).key : "";
+    const mainKey = chars.length ? chars[0].key : "";
     const others = all.filter((c) => !chars.includes(c));
-    const otherMain = others.find((c) => c.main) || others[0] || null;
+    const otherMain = others[0] || null;
     return {
         userId: profile.userId,
         displayName: profile.name || "",
@@ -128,7 +128,6 @@ function sourceProfile(profile, versionId, index) {
                 className: c.className,
                 versionId: profiles.characterVersion(c.versionId),
                 specs: (c.specs || []).map((s) => ({ spec: s.key, gear: s.gear })),
-                main: !!c.main,
                 canTank: !!roles.canOfftank,
                 canHeal: !!roles.canHeal,
             };

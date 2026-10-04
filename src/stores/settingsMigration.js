@@ -219,6 +219,9 @@ function migrateCharacterVersions() {
     if (characters) out.push(`raider-profiles.json: ${characters} Charakter(e) ohne Spielversion auf versionId "tbc" gesetzt (#543)`);
     const specs = specHistoryStore.migrateVersions("tbc");
     if (specs) out.push(`spec-history.json: ${specs} importierte Spec(s) ohne Spielversion auf versionId "tbc" gesetzt (#543)`);
+    // no more mains, only the raider's order: each version's former main moves first, the flag goes
+    const ordered = raiderProfileStore.migrateCharacterOrder();
+    if (ordered) out.push(`raider-profiles.json: ${ordered} Profil(e) ohne Main-Markierung gespeichert – der bisherige Main steht je Spielversion vorn`);
     return out;
 }
 
@@ -231,11 +234,9 @@ function migrateRecruitmentVersions() {
     return out;
 }
 
-/** The Forever character of a raider profile as the Kaderplaner's migration reads it: its main (else first) one. */
+/** The Forever character of a raider profile as the Kaderplaner's migration reads it: the raider's first one. */
 function profileCharOf(userId) {
-    const profile = raiderProfileStore.getProfile(userId);
-    const chars = raiderProfileStore.charactersOfVersion(profile, "forever");
-    const c = chars.find((x) => x.main) || chars[0];
+    const c = raiderProfileStore.firstCharacter(raiderProfileStore.getProfile(userId), "forever");
     if (!c || !c.className) return null;
     const specs = (Array.isArray(c.specs) ? c.specs : []).map((s) => String((s && s.key) || "")).filter(Boolean);
     return { className: c.className, specs, mainSpec: specs[0] || "" };

@@ -106,10 +106,18 @@ describe("GET/PUT /api/profile", () => {
         expect(store.hasProfile(BERT.id)).toBe(false);
     });
 
+    it("speichert die Reihenfolge der Charaktere – es gibt keinen Main", async () => {
+        store.addCharacter(ANNA.id, { name: "Nerathil", className: "Mage" }, { name: "Anna" });
+        store.addCharacter(ANNA.id, { name: "Nerasol", className: "Priest" }, { name: "Anna" });
+        const res = await call(route.putProfile, ANNA, { json: { order: ["nerasol", "nerathil"] } });
+        expect(json(res).data.profile.characters.map((c) => c.key)).toEqual(["nerasol", "nerathil"]);
+        expect(json(res).data.profile.characters.some((c) => "main" in c)).toBe(false);
+    });
+
     it("nimmt Wünsche nur für Raider mit Profil an", async () => {
         store.addCharacter(BERT.id, { name: "Ysolde", className: "Mage" }, { name: "Bert" });
         const res = await call(route.putProfile, ANNA, { json: { wishes: [BERT.id, "200000000000000077"] } });
-        expect(json(res).data.profile.wishes).toEqual([{ userId: BERT.id, name: "Bert", main: "Ysolde", className: "Mage" }]);
+        expect(json(res).data.profile.wishes).toEqual([{ userId: BERT.id, name: "Bert", character: "Ysolde", className: "Mage" }]);
     });
 
     it("schlägt Offtank/Heilen je Charakter aus dessen Specs vor, bis der Raider selbst schaltet", async () => {
@@ -145,7 +153,7 @@ describe("Nicht mit X raiden", () => {
         profile = json(await call(route.putProfile, ANNA, { json: { avoid: [BERT.id] } })).data.profile;
         expect(profile.avoid).toEqual([]);
         profile = json(await call(route.putProfile, ANNA, { json: { avoidEnabled: true, avoid: [BERT.id, "200000000000000077"] } })).data.profile;
-        expect(profile).toMatchObject({ avoidEnabled: true, avoid: [{ userId: BERT.id, name: "Bert", main: "Ysolde", className: "Mage" }] });
+        expect(profile).toMatchObject({ avoidEnabled: true, avoid: [{ userId: BERT.id, name: "Bert", character: "Ysolde", className: "Mage" }] });
         profile = json(await call(route.putProfile, ANNA, { json: { avoidEnabled: false } })).data.profile;
         expect(profile).toMatchObject({ avoidEnabled: false, avoid: [] });
         expect(store.getProfile(ANNA.id).avoid).toEqual([]);
@@ -182,18 +190,18 @@ describe("Wünsche bleiben bei der Orga", () => {
         expect(text).not.toContain("wishedBy");
         expect(text).not.toContain("nur für die Orga");
         const profile = JSON.parse(text).profile;
-        expect(profile.wishes).toEqual([{ userId: BERT.id, name: "Bert", main: "Ysolde", className: "Mage" }]);
+        expect(profile.wishes).toEqual([{ userId: BERT.id, name: "Bert", character: "Ysolde", className: "Mage" }]);
     });
 
     it("liefert in der Raider-Suche nur Namen", async () => {
         const data = json(await call(route.getRaiderSearch, ANNA, { query: "q=ys" })).data;
-        expect(data.raiders).toEqual([{ userId: BERT.id, name: "Bert", main: "Ysolde", className: "Mage" }]);
+        expect(data.raiders).toEqual([{ userId: BERT.id, name: "Bert", character: "Ysolde", className: "Mage" }]);
     });
 
     it("zeigt der Orga das Profil mit gegenseitigen Wünschen und wer sich wen wünscht", async () => {
         const data = json(await call(route.getUserProfile, ORGA, { query: `id=${BERT.id}` })).data;
-        expect(data.profile.wishes).toEqual([{ userId: ANNA.id, name: "Anna", main: "Nerathil", className: "Mage", mutual: true }]);
-        expect(data.profile.wishedBy).toEqual([{ userId: ANNA.id, name: "Anna", main: "Nerathil", className: "Mage" }]);
+        expect(data.profile.wishes).toEqual([{ userId: ANNA.id, name: "Anna", character: "Nerathil", className: "Mage", mutual: true }]);
+        expect(data.profile.wishedBy).toEqual([{ userId: ANNA.id, name: "Anna", character: "Nerathil", className: "Mage" }]);
         expect(data.profile.note).toBe("nur für die Orga");
     });
 
@@ -211,7 +219,8 @@ describe("POST /api/profile/characters", () => {
 
         const res = await call(route.postProfileCharacter, ANNA, { json: { source: "log", name: "nerathil", className: "Warrior" } });
         const { character } = json(res).data;
-        expect(character).toMatchObject({ name: "Nerathil", className: "Mage", source: "log", main: true });
+        expect(character).toMatchObject({ name: "Nerathil", className: "Mage", source: "log" });
+        expect(character).not.toHaveProperty("main");
         expect(character.specs).toEqual([expect.objectContaining({ key: "Mage-Arcane", gear: "ready", logs: { status: "seen", reports: 2, source: "wcl" } })]);
     });
 

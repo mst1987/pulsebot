@@ -38,7 +38,8 @@
 .pf-chip .wi { border-radius: 50%; }
 .pf-chip:hover { border-color: var(--muted); }
 .pf-chip.is-active { background: var(--area-profile-soft); border-color: var(--area-profile); }
-.pf-chip-main { font: 700 10px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+/* no main: the raider orders the characters of a version — forward / back in the card's head */
+.pf-order { display: inline-flex; gap: 2px; }
 .pf-chip-warn {
     width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center;
     background: var(--medium-bg); color: var(--medium); font: 800 11px/1 var(--font-mono);

@@ -68,7 +68,7 @@ function profileMap(raw) {
     return map;
 }
 
-/** The profile character a signup names — by name, else the main of that class. */
+/** The profile character a signup names — by name, else the raider's first of that class (their own order). */
 function profileCharacter(profile, character, classId) {
     const chars = (profile && Array.isArray(profile.characters)) ? profile.characters : [];
     const key = characterKeyOf(character);
@@ -77,7 +77,7 @@ function profileCharacter(profile, character, classId) {
         if (hit) return hit;
         return null;
     }
-    return chars.find((c) => c.main && c.className === classId) || chars.find((c) => c.className === classId) || null;
+    return chars.find((c) => c.className === classId) || null;
 }
 
 /**

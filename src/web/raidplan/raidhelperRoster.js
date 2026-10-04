@@ -20,14 +20,15 @@ const nameKey = (name) => str(name).split("-")[0].toLowerCase();
  * The character a Raid-Helper raider plays, for showing only (class and spec stay Raid-Helper's): a) a character of his profile (found
  * by his Discord id) of the class Raid-Helper names - his main when it is one, else the first; b) else the character of his profile
  * named like the Raid-Helper name; c) else the Raid-Helper name itself, marked `fromRh` (it may be a nickname, not a character).
- * `rh` = { name, classId }; `profile` = raiderProfileStore's record ({ characters: [{ name, className, main }] }) or null.
+ * `rh` = { name, classId }; `profile` = raiderProfileStore's record ({ characters: [{ name, className }] }, the raider's
+ * own order — the first of the class wins, there is no main) or null.
  */
 function characterFor(rh, profile) {
     const rhName = str(rh && rh.name);
     const classId = str(rh && rh.classId);
     const chars = profile && Array.isArray(profile.characters) ? profile.characters.filter((c) => c && str(c.name)) : [];
     const ofClass = classId ? chars.filter((c) => c.className === classId) : [];
-    const pick = ofClass.find((c) => c.main) || ofClass[0];
+    const pick = ofClass[0];
     if (pick) return { character: str(pick.name), fromRh: false, rhName };
     const same = rhName ? chars.find((c) => nameKey(c.name) === nameKey(rhName)) : null;
     if (same) return { character: str(same.name), fromRh: false, rhName };

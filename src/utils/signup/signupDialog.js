@@ -152,10 +152,11 @@ function resolveState(event, profile, mine, state) {
             return { character: ch.key, spec: mine.spec, canAlso: mine.canAlso || [] };
         }
     }
-    const main = chars.find((c) => c.main) || chars[0];
-    if (!main) return { character: "", spec: "", canAlso: [] };
-    const spec = main.specs[0].key;
-    return { character: main.key, spec, canAlso: defaultCanAlso(profile, main.key, spec) };
+    // the raider's first character of this version, in their own order (there is no main)
+    const first = chars[0];
+    if (!first) return { character: "", spec: "", canAlso: [] };
+    const spec = first.specs[0].key;
+    return { character: first.key, spec, canAlso: defaultCanAlso(profile, first.key, spec) };
 }
 
 function specLabel(specKey) {
@@ -232,7 +233,7 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
                 if (options.length >= MAX_OPTIONS) break;
                 options.push({
                     label: `${c.name} · ${specLabel(s.key) || s.key}`.slice(0, 100),
-                    description: [c.main ? "Main" : "", GEAR_LABELS[s.gear] || ""].filter(Boolean).join(" · ").slice(0, 100) || undefined,
+                    description: (GEAR_LABELS[s.gear] || "").slice(0, 100) || undefined,
                     value: `${c.key}|${s.key}`.slice(0, 100),
                     default: c.key === picks.character && s.key === picks.spec,
                 });

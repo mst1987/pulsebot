@@ -69,7 +69,8 @@ describe("SignupDialog", () => {
         const user = userEvent.setup();
         show();
         const character = screen.getByRole("combobox", { name: t("signups.picks.characterAria", { n: 1 }) });
-        expect(optionTexts(character)).toEqual([`Zibbo${t("signups.picks.main")}`, "Zibbowar"]);
+        // the raider's own order, no "Main" label
+        expect(optionTexts(character)).toEqual(["Zibbo", "Zibbowar"]);
         expect(character).toHaveValue("zibbo");
         const spec = screen.getByRole("combobox", { name: t("signups.picks.specAria", { n: 1 }) });
         expect(optionTexts(spec)).toEqual([

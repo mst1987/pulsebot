@@ -140,14 +140,13 @@ function pickableOf(profile, logChar) {
         name: c.name,
         className: c.className,
         versionId: c.versionId,
-        main: c.main,
         canTank: c.canTank,
         canHeal: c.canHeal,
         specs: c.specs.map((s, i) => ({ spec: s.spec, main: i === 0, gear: s.gear })),
         source: "profile",
     }));
     if (logChar && logChar.name && !out.some((c) => c.name.toLowerCase() === logChar.name.toLowerCase())) {
-        out.push({ key: "", name: logChar.name, className: logChar.className, versionId: "", main: false, canTank: false, canHeal: false, specs: logChar.spec ? [{ spec: logChar.spec, main: true, gear: "none" }] : [], source: "logs" });
+        out.push({ key: "", name: logChar.name, className: logChar.className, versionId: "", canTank: false, canHeal: false, specs: logChar.spec ? [{ spec: logChar.spec, main: true, gear: "none" }] : [], source: "logs" });
     }
     return out;
 }

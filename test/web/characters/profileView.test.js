@@ -79,7 +79,6 @@ describe("profileView for the owner", () => {
             key: "treeguy",
             name: "Treeguy",
             className: "Druid",
-            main: true,
             source: "manual",
             armory: { level: 70, guild: "Pulse", fetchedAt: 9 },
             armoryUrl: armoryUrlFor("Treeguy"),
@@ -108,12 +107,12 @@ describe("profileView for the owner", () => {
     it("names the wishes without saying whether they are mutual, and never who wished for the owner", () => {
         const view = profileView(mine(), { index: new Map(), all: all() });
         expect(view.wishes).toEqual([
-            { userId: FRIEND, name: "Friend", main: "Bubbles", className: "Paladin" },
-            { userId: GONE, name: "", main: "", className: "" },
+            { userId: FRIEND, name: "Friend", character: "Bubbles", className: "Paladin" },
+            { userId: GONE, name: "", character: "", className: "" },
         ]);
         expect(view.wishedBy).toBeUndefined();
         expect(view.avoidEnabled).toBe(true);
-        expect(view.avoid).toEqual([{ userId: FAN, name: "Sneaky", main: "Sneaky", className: "Rogue" }]);
+        expect(view.avoid).toEqual([{ userId: FAN, name: "Sneaky", character: "Sneaky", className: "Rogue" }]);
         expect(view).toMatchObject({
             availability: ["mi", "do"],
             preferredRaids: [],
@@ -145,21 +144,21 @@ describe("profileView for the orga", () => {
     it("adds mutual wishes and who wished for this raider", () => {
         const view = profileView(mine(), { forOrga: true, index: new Map(), all: all() });
         expect(view.wishes).toEqual([
-            { userId: FRIEND, name: "Friend", main: "Bubbles", className: "Paladin", mutual: true },
-            { userId: GONE, name: "", main: "", className: "", mutual: false },
+            { userId: FRIEND, name: "Friend", character: "Bubbles", className: "Paladin", mutual: true },
+            { userId: GONE, name: "", character: "", className: "", mutual: false },
         ]);
         expect(view.wishedBy).toEqual([
-            { userId: FRIEND, name: "Friend", main: "Bubbles", className: "Paladin" },
-            { userId: FAN, name: "Sneaky", main: "Sneaky", className: "Rogue" },
+            { userId: FRIEND, name: "Friend", character: "Bubbles", className: "Paladin" },
+            { userId: FAN, name: "Sneaky", character: "Sneaky", className: "Rogue" },
         ]);
     });
 
     it("marks a one-sided wish as not mutual", () => {
         const friend = profiles.getProfile(FRIEND);
         const view = profileView({ ...mine(), wishes: [FAN] }, { forOrga: true, index: new Map(), all: [friend, profiles.getProfile(FAN)] });
-        expect(view.wishes).toEqual([{ userId: FAN, name: "Sneaky", main: "Sneaky", className: "Rogue", mutual: true }]);
+        expect(view.wishes).toEqual([{ userId: FAN, name: "Sneaky", character: "Sneaky", className: "Rogue", mutual: true }]);
         const other = profileView(profiles.getProfile(FAN), { forOrga: true, index: new Map(), all: [friend, mine()] });
-        expect(other.wishes).toEqual([{ userId: ME, name: "Nera", main: "Treeguy", className: "Druid", mutual: false }]);
+        expect(other.wishes).toEqual([{ userId: ME, name: "Nera", character: "Treeguy", className: "Druid", mutual: false }]);
     });
 });
 

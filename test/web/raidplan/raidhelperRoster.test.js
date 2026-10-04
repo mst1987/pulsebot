@@ -97,17 +97,18 @@ describe("without a raidplan: the signups", () => {
 });
 
 describe("characterFor: which character a Raid-Helper name stands for", () => {
+    // in the raider's own order — there is no main
     const profile = {
         characters: [
-            { name: "Alt-Magier", className: "Mage", main: false },
-            { name: "Heilbär", className: "Druid", main: false },
-            { name: "Hauptmagier", className: "Mage", main: true },
-            { name: "Zweitdruide", className: "Druid", main: false },
+            { name: "Erstmagier", className: "Mage" },
+            { name: "Heilbär", className: "Druid" },
+            { name: "Zweitmagier", className: "Mage" },
+            { name: "Zweitdruide", className: "Druid" },
         ],
     };
 
-    it("a) the profile's character of Raid-Helper's class, the main first", () => {
-        expect(characterFor({ name: "Nickname", classId: "Mage" }, profile)).toEqual({ character: "Hauptmagier", fromRh: false, rhName: "Nickname" });
+    it("a) the profile's character of Raid-Helper's class, the raider's first of it", () => {
+        expect(characterFor({ name: "Nickname", classId: "Mage" }, profile)).toEqual({ character: "Erstmagier", fromRh: false, rhName: "Nickname" });
     });
 
     it("a) several alts of that class and no main among them: the first", () => {

@@ -13,6 +13,7 @@
 const { getConfig } = require("../../stores/settingsStore");
 const { armoryUrlFor } = require("./charLinks");
 const { blizzardFor } = require("../../services/events/versionSettings");
+const { mainVersionFor } = require("../../services/events/mainVersion");
 const profiles = require("../../stores/raiderProfileStore");
 const { specEvidence, logIndex } = require("./profileLogs");
 
@@ -56,6 +57,8 @@ function effectiveRoles(profile) {
  */
 function profileView(profile, { forOrga = false, index = logIndex(), all = profiles.listProfiles() } = {}) {
     const byId = new Map(all.map((p) => [p.userId, p]));
+    // another raider is named by their first character of the main game version
+    const preferVersion = mainVersionFor({ config: getConfig() });
     const characters = profile.characters.map((c) => {
         const roles = profiles.characterRoles(profile, c);
         return {
@@ -65,7 +68,6 @@ function profileView(profile, { forOrga = false, index = logIndex(), all = profi
             versionId: c.versionId,
             realm: c.realm,
             className: c.className,
-            main: c.main,
             source: c.source,
             armory: c.armory,
             armoryUrl: armoryUrlFor(c.name, c.versionId),
@@ -81,7 +83,7 @@ function profileView(profile, { forOrga = false, index = logIndex(), all = profi
     });
     const refOf = (id) => {
         const other = byId.get(id);
-        return other ? profiles.raiderRef(other) : { userId: id, name: "", main: "", className: "" };
+        return other ? profiles.raiderRef(other, { preferVersion }) : { userId: id, name: "", character: "", className: "" };
     };
     const wishes = profile.wishes.map((id) => {
         const other = byId.get(id);
@@ -105,7 +107,7 @@ function profileView(profile, { forOrga = false, index = logIndex(), all = profi
     if (forOrga) {
         view.wishedBy = all
             .filter((p) => p.userId !== profile.userId && p.wishes.includes(profile.userId))
-            .map((p) => profiles.raiderRef(p));
+            .map((p) => profiles.raiderRef(p, { preferVersion }));
     }
     return view;
 }

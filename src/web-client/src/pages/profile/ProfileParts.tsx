@@ -141,8 +141,8 @@ export function WishPicker({ wishes, max, classes, exclude = [], hint, onChange 
                         const color = colorOf(w.className);
                         return (
                             <span key={w.userId} className="pf-wish">
-                                <span className={color.className} style={color.style}>{w.main || w.name || t("profile.char.unknown")}</span>
-                                {w.main && w.name && <span className="pf-muted">{w.name}</span>}
+                                <span className={color.className} style={color.style}>{w.character || w.name || t("profile.char.unknown")}</span>
+                                {w.character && w.name && <span className="pf-muted">{w.name}</span>}
                                 <IconButton icon={<XIcon />} tip={t("profile.wishes.remove")} size="sm" onClick={() => onChange(wishes.filter((x) => x.userId !== w.userId))} />
                             </span>
                         );
@@ -159,8 +159,8 @@ export function WishPicker({ wishes, max, classes, exclude = [], hint, onChange 
                 const color = colorOf(h.className);
                 return (
                     <button key={h.userId} type="button" className="pf-hit" onClick={() => { onChange([...wishes, h]); setQ(""); }}>
-                        <span className={color.className} style={color.style}>{h.main || h.name}</span>
-                        {h.main && <span className="pf-muted">{h.name}</span>}
+                        <span className={color.className} style={color.style}>{h.character || h.name}</span>
+                        {h.character && <span className="pf-muted">{h.name}</span>}
                     </button>
                 );
             })}

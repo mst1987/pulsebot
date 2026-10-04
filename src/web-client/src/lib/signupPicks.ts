@@ -41,8 +41,9 @@ export function initialPicks(profile: SignupProfile, mine: OwnSignup | null, sta
         out.push({ characterKey: ch.key, spec: c.spec, status: c.status && c.status !== "absence" ? c.status : status });
     }
     if (out.length) return out.slice(0, MAX_CHARACTERS);
-    const main = profile.characters.find((c) => c.main && c.specs.length) || profile.characters.find((c) => c.specs.length);
-    return main ? [{ characterKey: main.key, spec: firstSpec(main), status }] : [];
+    // the raider's first character with a spec, in their own order (there is no main)
+    const first = profile.characters.find((c) => c.specs.length);
+    return first ? [{ characterKey: first.key, spec: firstSpec(first), status }] : [];
 }
 
 /** Whether another character can be added: under the limit and one left that is not picked. */

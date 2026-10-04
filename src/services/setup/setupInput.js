@@ -153,7 +153,8 @@ function collectSetupInput(eventIds, { now = Date.now() } = {}) {
     for (const s of signups) {
         if (attendance[s.userId] !== undefined || s.status === "absence") continue;
         const event = events.find((e) => e.id === s.eventId);
-        const character = s.character || ((profiles.find((p) => p.userId === s.userId) || { characters: [] }).characters.find((c) => c.main) || {}).name || "";
+        // a signup without a name: the raider's first character of the event's version (their own order)
+        const character = s.character || (profileStore.firstCharacter(profiles.find((p) => p.userId === s.userId), event.versionId || "") || {}).name || "";
         if (!event.categoryId || !character) continue;
         attendance[s.userId] = attendanceFor(ctx, event.categoryId, character, [s.userId]).pct;
     }

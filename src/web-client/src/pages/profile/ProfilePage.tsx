@@ -14,7 +14,7 @@ import "../../styles/profil.css";
 import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } from "./ProfileParts";
 import { CharacterCard, CharChip, FirstCharacter } from "./CharacterCard";
 import { CalendarPart } from "./CalendarPart";
-import { groupByVersion } from "../../lib/characterVersions";
+import { charactersOfVersion, groupByVersion, moveInVersion } from "../../lib/characterVersions";
 import { useContentVersion } from "../../hooks/useContentVersion";
 
 export default function ProfilePage() {
@@ -35,7 +35,8 @@ export default function ProfilePage() {
     const setCal = calendar.setData;
 
     const profile = data?.profile || null;
-    const selectedKey = params.get("char") || profile?.characters.find((c) => c.main)?.key || profile?.characters[0]?.key || "";
+    // the main version's first character, else the first at all (there is no main — only the raider's order)
+    const selectedKey = params.get("char") || charactersOfVersion(profile?.characters || [], data?.mainVersion || "")[0]?.key || profile?.characters[0]?.key || "";
     const selected = profile?.characters.find((c) => c.key === selectedKey) || profile?.characters[0] || null;
     // A character's class from its own version's rule set (#543), the main version's as a fallback.
     const classOf = (c: ProfileCharacter) => ((c.versionId && data?.classesByVersion?.[c.versionId]) || data?.classes || []).find((x) => x.id === c.className);
@@ -75,8 +76,18 @@ export default function ProfilePage() {
         }
     };
 
-    const main = profile.characters.find((c) => c.main);
-    const mainClass = main ? classOf(main) : undefined;
+    const first = charactersOfVersion(profile.characters, data.mainVersion || "")[0] || profile.characters[0];
+    const headClass = first ? classOf(first) : undefined;
+
+    /** One place forward / back inside its version, saved as the raider's whole order (optimistic). */
+    const moveOf = (c: ProfileCharacter) => {
+        const to = (dir: -1 | 1) => {
+            const next = moveInVersion(profile.characters, c.key, dir);
+            // the moved character stays the one shown — the default selection is the first, which may now be another
+            return next ? () => { selectChar(c.key); void patch({ order: next.map((x) => x.key) }, { characters: next }); } : undefined;
+        };
+        return { forward: to(-1), back: to(1) };
+    };
     // Grouped by game version, the main version first (#543) — one group needs no heading.
     // Other versions hidden (#563): only the main version's characters are shown (nothing is removed).
     const groups = groupByVersion(profile.characters, data.versions || [], data.mainVersion || "")
@@ -86,7 +97,7 @@ export default function ProfilePage() {
     return (
         <div className="pf-page">
             <PageHead
-                icon={mainClass ? mainClass.icon : "achievement_character_human_male"}
+                icon={headClass ? headClass.icon : "achievement_character_human_male"}
                 tone="profile"
                 kicker={`Discord · ${user.name} · ${t("profile.characters", { count: profile.characters.length })}`}
                 title={t("profile.title")}
@@ -121,10 +132,7 @@ export default function ProfilePage() {
                                     cls={classOf(selected)}
                                     versionLabel={groups.length > 1 ? labelOf(selected.versionId) : ""}
                                     data={data}
-                                    onMain={() => patch(
-                                        { characters: [{ key: selected.key, main: true }] },
-                                        { characters: profile.characters.map((c) => ({ ...c, main: c.key === selected.key })) },
-                                    )}
+                                    onMove={moveOf(selected)}
                                     onSpecs={(specs) => patch(
                                         { characters: [{ key: selected.key, specs: specs.map((s) => ({ key: s.key, gear: s.gear })) }] },
                                         { characters: profile.characters.map((c) => (c.key === selected.key ? { ...c, specs } : c)) },
@@ -174,7 +182,7 @@ export default function ProfilePage() {
 
                             <FoldPart
                                 id="wishes" open={fold} onOpen={setFold} title={t("profile.fold.wishes")}
-                                summary={profile.wishes.length ? profile.wishes.map((w) => w.main || w.name).join(", ") : t("profile.fold.wishesNone")}
+                                summary={profile.wishes.length ? profile.wishes.map((w) => w.character || w.name).join(", ") : t("profile.fold.wishesNone")}
                                 badge={<Badge icon={<EyeOffIcon />} tip={t("profile.fold.orgaOnlyTip")} tipSub={t("profile.fold.orgaOnlySub")}>{t("profile.fold.orgaOnly")}</Badge>}
                             >
                                 <WishPicker
@@ -191,7 +199,7 @@ export default function ProfilePage() {
                                 id="avoid" open={fold} onOpen={setFold} title={t("profile.fold.avoid")}
                                 summary={!profile.avoidEnabled
                                     ? t("profile.fold.avoidOff")
-                                    : profile.avoid.length ? profile.avoid.map((w) => w.main || w.name).join(", ") : t("profile.fold.avoidNone")}
+                                    : profile.avoid.length ? profile.avoid.map((w) => w.character || w.name).join(", ") : t("profile.fold.avoidNone")}
                                 badge={<Badge icon={<EyeOffIcon />} tip={t("profile.fold.orgaOnlyTip")} tipSub={t("profile.avoid.orgaOnlySub")}>{t("profile.fold.orgaOnly")}</Badge>}
                             >
                                 <AvoidPart

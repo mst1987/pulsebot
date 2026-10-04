@@ -34,17 +34,18 @@ describe("commands/profile/profil", () => {
         store.addCharacter(USER, { name: "Bärbel", className: "Druid", specs: ["Druid-Guardian"] });
         const profile = store.saveProfile(USER, { availability: ["mi", "so"] });
         const text = command.summaryLines(profile).join("\n");
-        expect(text).toContain("**Nerathil** · Main — Arcane (raid ready)\n");
+        // no "Main" label — only the raider's order
+        expect(text).toContain("**Nerathil** — Arcane (raid ready)\n");
         expect(text).toContain("**Bärbel** — Feral (Bear) (usable) · can off-tank");
         expect(text).toContain("Available: Wed · Sun");
     });
 
-    it("schaltet per Button am Main um und speichert es im eigenen Profil", async () => {
+    it("schaltet per Button am ersten Charakter um und speichert es im eigenen Profil", async () => {
         store.addCharacter(USER, { name: "Bärbel", className: "Druid", specs: ["Druid-Guardian"] });
         store.addCharacter(USER, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] });
         const interaction = mockInteraction({ userId: USER, customId: "profil:tank" });
         await command.execute(interaction);
-        // vorgeschlagen war "kann Offtank" (Bär), der Klick schaltet es aus — nur am Main
+        // vorgeschlagen war "kann Offtank" (Bär), der Klick schaltet es aus — nur am ersten Charakter (kein Main)
         const saved = store.getProfile(USER);
         expect(saved.characters.find((c) => c.key === "bärbel").canOfftank).toBe(false);
         expect(saved.characters.find((c) => c.key === "nerathil").canOfftank).toBeNull();
@@ -55,7 +56,7 @@ describe("commands/profile/profil", () => {
         expect(store.getProfile(USER).characters[0].canHeal).toBe(true);
     });
 
-    it("zeigt nur die Schalter, die die Klasse des Mains überhaupt kann", async () => {
+    it("zeigt nur die Schalter, die die Klasse des ersten Charakters überhaupt kann", async () => {
         store.addCharacter(USER, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] });
         const interaction = mockInteraction({ userId: USER, commandName: "profil" });
         await command.execute(interaction);
