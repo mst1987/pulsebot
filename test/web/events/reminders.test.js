@@ -101,11 +101,14 @@ describe("runReminders", () => {
         await reminders.runReminders({ now: NOW + 10 * 60 * 1000, config });
         expect(deliverUserPing).toHaveBeenCalledTimes(2);
 
-        const missing = deliverUserPing.mock.calls.find((c) => c[0].text.includes("sign up or sign off"))[0];
+        // the text comes per language: the channel's server language, each DM the raider's own
+        const missing = deliverUserPing.mock.calls.find((c) => c[0].text("en").includes("sign up or sign off"))[0];
         // 1 signed up, 2 signed off — only 3 has not reacted.
         expect(missing).toMatchObject({ target: "talk", userIds: ["3"], guildId: "100000" });
-        const signed = deliverUserPing.mock.calls.find((c) => c[0].text.includes("starts"))[0];
+        const signed = deliverUserPing.mock.calls.find((c) => c[0].text("en").includes("starts"))[0];
         expect(signed.userIds).toEqual(["1", "4"]);
+        expect(missing.text("de")).toMatch(/^Erinnerung: Bitte melde dich für \*\*.+\*\* an oder ab \(Anmeldeschluss <t:\d+:R>\)\.$|^Erinnerung: Bitte melde dich für \*\*.+\*\* an oder ab \(Raidbeginn <t:\d+:F>\)\.$/);
+        expect(signed.text("de")).toMatch(/^Erinnerung: \*\*.+\*\* startet <t:\d+:R>\. Bis gleich!$/);
         expect(reminderStore.getSent("e1")).toEqual({ missing: NOW, signed: NOW });
     });
 

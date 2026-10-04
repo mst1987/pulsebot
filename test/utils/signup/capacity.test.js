@@ -61,9 +61,14 @@ describe("utils/signup/capacity (#516)", () => {
     });
 
     it("signedUpText writes the accounts alone — no /size (#520)", () => {
-        expect(signedUpText(28)).toBe("28 signed up");
-        expect(signedUpText(0)).toBe("0 signed up");
-        expect(signedUpText(undefined)).toBe("0 signed up");
-        expect(signedUpText(-2)).toBe("0 signed up");
+        expect(signedUpText(28, "en")).toBe("28 signed up");
+        expect(signedUpText(0, "en")).toBe("0 signed up");
+        expect(signedUpText(undefined, "en")).toBe("0 signed up");
+        expect(signedUpText(-2, "en")).toBe("0 signed up");
+    });
+
+    it("signedUpText is German by default", () => {
+        expect(signedUpText(28)).toBe("28 angemeldet");
+        expect(signedUpText(3, "de")).toBe("3 angemeldet");
     });
 });

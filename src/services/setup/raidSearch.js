@@ -10,8 +10,9 @@
 // specs that provide the buff (config/gameVersions/buffs.js). Only own events —
 // their setup lives here (setupEditor.js).
 //
-// The text is for raiders, so it is English (like every raider-facing bot text)
-// and uses the English class and spec names; it ends with the link to the signup
+// The text goes into the event channel, so it speaks the server language
+// (services/discord/botLanguage.js `serverLang`, German by default) with the
+// class and spec names of that language; it ends with the link to the signup
 // message. The orga edits it before it goes out.
 const eventStore = require("../../stores/eventStore");
 const discord = require("../discord/discord");
@@ -19,9 +20,15 @@ const linkCheck = require("../discord/linkCheck");
 const { emojiFor, specEmojiName, classEmojiName, roleUiEmojiName } = require("../discord/appEmojis");
 const { rulesForEvent } = require("../events/mainVersion");
 const { fail } = require("../../web/http/apiResult");
+const { tr, specLabel, classLabel, normalizeLang } = require("../../utils/i18n/botText");
+const { serverLang } = require("../discord/botLanguage");
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
-const ROLE_NAME = { tank: ["Tank", "Tanks"], healer: ["Healer", "Healers"], melee: ["Melee DPS", "Melee DPS"], ranged: ["Ranged DPS", "Ranged DPS"] };
+// [one, several] per role and language
+const ROLE_NAME = {
+    en: { tank: ["Tank", "Tanks"], healer: ["Healer", "Healers"], melee: ["Melee DPS", "Melee DPS"], ranged: ["Ranged DPS", "Ranged DPS"] },
+    de: { tank: ["Tank", "Tanks"], healer: ["Heiler", "Heiler"], melee: ["Nahkampf-DPS", "Nahkampf-DPS"], ranged: ["Fernkampf-DPS", "Fernkampf-DPS"] },
+};
 const MAX_TEXT = 1900;
 
 /** The event's rule set; without a version the one its category plays (#541). */
@@ -29,7 +36,7 @@ function rulesOf(event) {
     return rulesForEvent(event);
 }
 
-/** Every spec of a rule set by its key, with its class' English name. */
+/** Every spec of a rule set by its key, with its class' German and English name. */
 function specTable(rules) {
     const map = new Map();
     for (const c of rules.classes) {
@@ -38,8 +45,13 @@ function specTable(rules) {
     return map;
 }
 
+/** The class name of a specTable entry in the language. */
+const classNameOf = (spec, lang) => classLabel(lang, { label: spec.classLabel, labelEn: spec.classLabelEn }, spec.classId);
+
+/** "Schamane (Verstärkung)" / "Shaman (Enhancement)". */
+const specName = (spec, lang = "de") => `${classNameOf(spec, lang)} (${specLabel(lang, spec, spec.id)})`;
 /** "Shaman (Enhancement)". */
-const specNameEn = (spec) => `${spec.classLabelEn} (${spec.labelEn || spec.id})`;
+const specNameEn = (spec) => specName(spec, "en");
 
 /** The app emoji of a name plus a space, or "" while it is not uploaded (the text reads fine without it). */
 const icon = (name) => {
@@ -47,7 +59,7 @@ const icon = (name) => {
     return e ? `${e} ` : "";
 };
 /** A spec with its icon in front: "<emoji> Shaman (Enhancement)". */
-const specWithIcon = (spec) => `${icon(specEmojiName(spec.key))}${specNameEn(spec)}`;
+const specWithIcon = (spec, lang) => `${icon(specEmojiName(spec.key))}${specName(spec, lang)}`;
 
 /** The specs whose own role is `role`. */
 function specsOfRole(specs, role) {
@@ -60,11 +72,11 @@ function eventLink(event) {
     return linkCheck.eventLink(event);
 }
 
-function buildText(event, gap, specs) {
-    const lines = [`**Looking for more raiders – ${event.title || "Raid"}**`];
+function buildText(event, gap, specs, lang = "de") {
+    const lines = [tr(lang, "**Looking for more raiders – {title}**", { title: event.title || "Raid" })];
     const when = Number(event.startTime) ? `<t:${Number(event.startTime)}:F> · ` : "";
-    lines.push(`${when}${gap.placed} of ${gap.size} places filled`);
-    const names = (keys) => keys.map((k) => specs.get(k)).filter(Boolean).map(specWithIcon).join(", ");
+    lines.push(`${when}${tr(lang, "{placed} of {size} places filled", { placed: gap.placed, size: gap.size })}`);
+    const names = (keys) => keys.map((k) => specs.get(k)).filter(Boolean).map((s) => specWithIcon(s, lang)).join(", ");
     // a buff a whole class brings (a totem, a blessing) is "Shaman (any spec)", not every spec of it
     const providers = (keys) => {
         const byClass = new Map();
@@ -74,18 +86,21 @@ function buildText(event, gap, specs) {
         }
         return [...byClass.entries()].map(([classId, list]) => {
             const all = [...specs.values()].filter((s) => s.classId === classId).length;
-            return list.length === all ? `${icon(classEmojiName(classId))}${list[0].classLabelEn} (any spec)` : list.map(specWithIcon).join(", ");
+            return list.length === all
+                ? `${icon(classEmojiName(classId))}${tr(lang, "{class} (any spec)", { class: classNameOf(list[0], lang) })}`
+                : list.map((s) => specWithIcon(s, lang)).join(", ");
         }).join(", ");
     };
     const need = [];
-    for (const r of gap.roles) need.push(`• ${icon(roleUiEmojiName(r.role))}${r.missing}× ${ROLE_NAME[r.role][r.missing > 1 ? 1 : 0]}: ${names(r.specs)}`);
-    for (const b of gap.buffs.filter((x) => x.required)) need.push(`• Needed for a required buff: ${providers(b.specs)}`);
+    const roleNames = ROLE_NAME[normalizeLang(lang)];
+    for (const r of gap.roles) need.push(`• ${icon(roleUiEmojiName(r.role))}${r.missing}× ${roleNames[r.role][r.missing > 1 ? 1 : 0]}: ${names(r.specs)}`);
+    for (const b of gap.buffs.filter((x) => x.required)) need.push(`• ${tr(lang, "Needed for a required buff: {providers}", { providers: providers(b.specs) })}`);
     const nice = gap.buffs.filter((x) => !x.required);
-    if (nice.length) need.push(`• Would also help: ${providers([...new Set(nice.flatMap((b) => b.specs))])}`);
-    if (need.length) lines.push("", "Still needed:", ...need);
-    else if (gap.open > 0) lines.push("", `${gap.open} places open – every class and spec is welcome.`);
+    if (nice.length) need.push(`• ${tr(lang, "Would also help: {providers}", { providers: providers([...new Set(nice.flatMap((b) => b.specs))]) })}`);
+    if (need.length) lines.push("", tr(lang, "Still needed:"), ...need);
+    else if (gap.open > 0) lines.push("", tr(lang, "{open} places open – every class and spec is welcome.", { open: gap.open }));
     const link = eventLink(event);
-    if (link) lines.push("", `Sign up: ${link}`);
+    if (link) lines.push("", tr(lang, "Sign up: {link}", { link }));
     return lines.join("\n").slice(0, MAX_TEXT);
 }
 
@@ -98,8 +113,9 @@ function buildText(event, gap, specs) {
  *   specInfo: Object<string, { label, classLabel, classId, icon, color }>,   every spec of the rule set
  *   roleSpecs: Object<string, string[]>,   role -> the keys of its specs
  *   text: string }}  null without a setup
+ * `lang`: the language of `text`, the server language when left out.
  */
-function suggestSearch(event) {
+function suggestSearch(event, { lang = serverLang() } = {}) {
     const setup = event && event.setup;
     if (!setup) return null;
     const rules = rulesOf(event);
@@ -131,7 +147,7 @@ function suggestSearch(event) {
     // what the page needs to draw a spec (icon, name, class colour) — every spec, so the orga can add one to a role — and which specs a role has
     const specInfo = Object.fromEntries([...specs.values()].map((s) => [s.key, { label: s.label, classLabel: s.classLabel, classId: s.classId, icon: s.icon || "", color: s.classColor }]));
     const roleSpecs = Object.fromEntries(ROLES.map((role) => [role, specsOfRole(specs, role)]));
-    return { ...gap, specInfo, roleSpecs, text: gap.open || roles.length || buffs.length ? buildText(event, gap, specs) : "" };
+    return { ...gap, specInfo, roleSpecs, text: gap.open || roles.length || buffs.length ? buildText(event, gap, specs, lang) : "" };
 }
 
 /**
@@ -142,9 +158,10 @@ function suggestSearch(event) {
  * only buffs the rule set knows.
  * @param {object} event  an eventStore event with a setup
  * @param {{ roles?: { role, missing, specs? }[], buffs?: { key, required?, specs? }[] }} needs
+ * @param {{ lang?: string }} opts the language, the server language when left out
  * @returns {{ text: string } | { error: object }}
  */
-function textForNeeds(event, needs) {
+function textForNeeds(event, needs, { lang = serverLang() } = {}) {
     if (!event || !event.setup) return fail(400, "no_setup", "Es gibt noch kein Setup.");
     const rules = rulesOf(event);
     const specs = specTable(rules);
@@ -167,7 +184,7 @@ function textForNeeds(event, needs) {
     }
     const placed = (event.setup.groups || []).reduce((n, g) => n + (g.slots || []).length, 0);
     const size = Number(event.size) || Number(event.setup.checks && event.setup.checks.size && event.setup.checks.size.size) || 0;
-    return { text: buildText(event, { size, placed, open: Math.max(0, size - placed), roles, buffs }, specs) };
+    return { text: buildText(event, { size, placed, open: Math.max(0, size - placed), roles, buffs }, specs, lang) };
 }
 
 /**

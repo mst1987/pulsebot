@@ -5,6 +5,9 @@
 const AREAS = [
     require("./common"),
     require("./availability"),
+    require("./events"),
+    require("./setup"),
+    require("./talk"),
 ];
 
 const merged = {};

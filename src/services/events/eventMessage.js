@@ -25,10 +25,13 @@
 // lines carry their label ("Date: …") instead — no colourful unicode
 // stand-ins.
 //
-// Everything a raider reads here is English (the community mostly is): the
-// English class/spec labels (`labelEn`), English statuses and buttons, and
-// every date a Discord timestamp, so each reader sees their own language and
-// time zone. The web admin keeps its German labels.
+// The message is one and the same for everybody in the channel, so it speaks
+// the server language (Einstellungen, services/discord/botLanguage.js
+// `serverLang`, German by default): class/spec labels, statuses, buttons and
+// the select through utils/i18n/botText.js; every date stays a Discord
+// timestamp, so each reader sees their own time zone. The language is part of
+// the stored hash — after a change of the server language the sweep (and
+// languageChange.js at once) redraws every recent message.
 //
 // Below it one row with the public select `event-pick:<eventId>` — "My
 // characters …" plus the classes of the event's game version (a public select
@@ -85,15 +88,44 @@ const { getConfig, resolveEventSheetLink } = require("../../stores/configStore")
 const { getEventSheet } = require("../../stores/eventSheetStore");
 const { getEventSoftres } = require("../../stores/eventSoftresStore");
 const { signedUpText } = require("../../utils/signup/capacity");
+const { tr, specLabel, classLabel, normalizeLang } = require("../../utils/i18n/botText");
+const { serverLang } = require("../discord/botLanguage");
 
 /**
  * The head's "Signed up" line (#520): the single Discord accounts, number in
  * bold — "**28** signed up" — and no "/size": nobody reads "25/25 (+3)" as
  * "full" when the setup picks the 25 anyway.
  */
-function signedUpValue(accounts) {
-    return signedUpText(accounts).replace(/^(\d+)/, "**$1**");
+function signedUpValue(accounts, lang) {
+    return signedUpText(accounts, lang).replace(/^(\d+)/, "**$1**");
 }
+
+// The single words of the message as de/en pairs (a word like "Absence" reads
+// "Abgemeldet" in a line and "Absagen" on a button — one catalog entry could not say both).
+const WORDS = {
+    late: { de: "Spät", en: "Late" },
+    tentative: { de: "Vielleicht", en: "Tentative" },
+    bench: { de: "Bank", en: "Bench" },
+    absence: { de: "Abgemeldet", en: "Absence" },
+    absenceButton: { de: "Absagen", en: "Absence" },
+    tank: { de: "Tanks", en: "Tanks" },
+    healer: { de: "Heiler", en: "Healers" },
+    ranged: { de: "Fernkampf", en: "Ranged" },
+    melee: { de: "Nahkampf", en: "Melee" },
+    noSpec: { de: "Ohne Spec", en: "No spec" },
+    leader: { de: "Raidleitung", en: "Leader" },
+    date: { de: "Datum", en: "Date" },
+    voice: { de: "Sprachkanal", en: "Voice channel" },
+    time: { de: "Uhrzeit", en: "Time" },
+    deadline: { de: "Anmeldeschluss", en: "Deadline" },
+    start: { de: "Start", en: "Start" },
+    event: { de: "Event", en: "Event" },
+    signUp: { de: "Anmelden", en: "Sign up" },
+    calendar: { de: "Kalender", en: "Calendar" },
+};
+
+/** One word of WORDS in the language. */
+const word = (lang, key) => WORDS[key][normalizeLang(lang)];
 
 // The old button id — messages posted before #287 carry it and keep working.
 const SIGNUP_BUTTON_PREFIX = "event-signup";
@@ -123,10 +155,10 @@ const STATUS_OPTIONS = {
     bench: { label: "Bench", description: "ready as a backup" },
     absence: { label: "Absence", description: "not attending" },
 };
-// The lines below the class blocks, in this order.
-const OTHER_LINES = [["late", "Late"], ["tentative", "Tentative"], ["bench", "Bench"], ["absence", "Absence"]];
+// The lines below the class blocks, in this order (their label: WORDS).
+const OTHER_LINES = ["late", "tentative", "bench", "absence"];
 // The role totals as Raid-Helper sets them: three columns, Tanks with Healers directly below.
-const ROLE_TOTALS = [[["tank", "Tanks"], ["healer", "Healers"]], [["ranged", "Ranged"]], [["melee", "Melee"]]];
+const ROLE_TOTALS = [["tank", "healer"], ["ranged"], ["melee"]];
 
 const CLASSES = buildClasses();
 const SPEC_BY_KEY = new Map(CLASSES.flatMap((c) => c.specs.map((s) => [s.key, s])));
@@ -226,25 +258,28 @@ function rosterEntries(signups) {
  * words. A raider's further character (`index` > 0, "kann auch mit") is not
  * bold: it is an offer, not a seat.
  */
-function rosterLine(entry, number, emojis) {
+function rosterLine(entry, number, emojis, lang = "de") {
     const icon = emojiText(emojis, specEmojiName(entry.spec));
     const num = `\`${number}\``;
     const name = entry.index > 0 ? nameOf(entry) : `**${nameOf(entry)}**`;
     if (icon) return `${icon} ${num} ${name}`;
     const spec = SPEC_BY_KEY.get(entry.spec);
-    return `${num} ${name}${spec ? ` · ${spec.labelEn || spec.label}` : ""}`;
+    return `${num} ${name}${spec ? ` · ${specLabel(lang, spec)}` : ""}`;
 }
 
+/** "+3 more" / "+3 weitere". */
+const moreText = (count, lang) => tr(lang, "+{count} more", { count });
+
 /** Lines as one field value: at most `maxLines` lines and `max` characters, "+N more" for the rest. */
-function blockValue(lines, maxLines, max = LIMITS.fieldValue) {
+function blockValue(lines, maxLines, max = LIMITS.fieldValue, lang = "de") {
     const out = [];
     let length = 0;
     for (let i = 0; i < lines.length; i++) {
         const after = lines.length - i - 1;
-        const reserve = after ? `\n+${after} more`.length : 0;
+        const reserve = after ? `\n${moreText(after, lang)}`.length : 0;
         const next = length + (out.length ? 1 : 0) + lines[i].length;
         if (out.length >= maxLines || next + reserve > max) {
-            out.push(`+${lines.length - i} more`);
+            out.push(moreText(lines.length - i, lang));
             break;
         }
         out.push(lines[i]);
@@ -313,7 +348,7 @@ const labelled = (emojis, name, label) => [emojiText(emojis, name), label].filte
 const spacer = (inline) => ({ name: ZWS, value: ZWS, inline, spacer: true });
 
 /** The roster fields — Tank block, class blocks, the other statuses — with at most `maxLines` per block. */
-function rosterFields(entries, numbers, emojis, maxLines, style) {
+function rosterFields(entries, numbers, emojis, maxLines, style, lang = "de") {
     const numberOf = (e) => numbers.get(String(e.userId));
     const byNumber = (a, b) => numberOf(a) - numberOf(b) || a.index - b.index;
     const signed = entries.filter((e) => e.status === "signed");
@@ -327,21 +362,21 @@ function rosterFields(entries, numbers, emojis, maxLines, style) {
         // "<icon> __Priest__ (3)"; the empty last line keeps the rows of blocks apart.
         fields.push({
             name: clip(`${icon ? `${icon} ` : ""}__${label}__ (${first.length})`, LIMITS.fieldName),
-            value: `${blockValue(sorted.map((e) => rosterLine(e, numberOf(e), emojis)), maxLines, LIMITS.fieldValue - 2)}\n${ZWS}`,
+            value: `${blockValue(sorted.map((e) => rosterLine(e, numberOf(e), emojis, lang)), maxLines, LIMITS.fieldValue - 2, lang)}\n${ZWS}`,
             inline: true,
         });
     };
     const tanks = signed.filter((e) => e.role === "tank");
     // The Tanks block wears the Protection Warrior's icon — the WoW picture of a
     // tank beside the class blocks' WoW icons; the flat role icon as fallback.
-    if (tanks.length) block(emojiText(emojis, specEmojiName("Warrior-Protection")) || roleIcon(emojis, "tank", style), "Tanks", tanks);
+    if (tanks.length) block(emojiText(emojis, specEmojiName("Warrior-Protection")) || roleIcon(emojis, "tank", style), word(lang, "tank"), tanks);
     for (const cls of CLASSES) {
         const members = signed.filter((e) => e.role !== "tank" && (SPEC_BY_KEY.get(e.spec) || {}).classId === cls.id);
-        if (members.length) block(emojiText(emojis, classEmojiName(cls.id)), cls.labelEn || cls.label, members);
+        if (members.length) block(emojiText(emojis, classEmojiName(cls.id)), classLabel(lang, cls), members);
     }
     // Signed without a known spec (the service does not let that happen) is still shown.
     const unknown = signed.filter((e) => e.role !== "tank" && !SPEC_BY_KEY.get(e.spec));
-    if (unknown.length) block("", "No spec", unknown);
+    if (unknown.length) block("", word(lang, "noSpec"), unknown);
     // Two columns per row, not three: character names were wrapping too early
     // at a third of the embed's (fixed, Discord-controlled) width (#351).
     // Discord spreads a row of fewer than two inline fields over the whole
@@ -350,7 +385,8 @@ function rosterFields(entries, numbers, emojis, maxLines, style) {
     for (let i = fields.length % 2; i && i < 2; i++) fields.push(spacer(true));
 
     const other = [];
-    for (const [status, label] of OTHER_LINES) {
+    for (const status of OTHER_LINES) {
+        const label = word(lang, status);
         // One entry per raider: several characters on the same status share one
         // number and count once ("`3` <spec icon> Darkdisi / <spec icon> Lakunoc").
         const people = new Map();
@@ -364,7 +400,7 @@ function rosterFields(entries, numbers, emojis, maxLines, style) {
         if (!list.length) continue;
         const shown = list.slice(0, maxLines * 2).map((p) => `\`${numberOf(p.entry)}\` ${p.names.join(" / ")}`);
         const more = list.length - shown.length;
-        other.push(`${labelled(emojis, statusEmojiName(status), label)} (${list.length}): ${shown.join(", ")}${more ? ` +${more} more` : ""}`);
+        other.push(`${labelled(emojis, statusEmojiName(status), label)} (${list.length}): ${shown.join(", ")}${more ? ` ${moreText(more, lang)}` : ""}`);
     }
     if (other.length) fields.push({ name: ZWS, value: clip(other.join("\n"), LIMITS.fieldValue), inline: false });
     return fields;
@@ -390,10 +426,10 @@ function fitFields(fields) {
 
 const BUTTON_STYLE = { primary: 1, secondary: 2, success: 3, danger: 4 };
 const BUTTONS = {
-    late: { label: "Late", style: BUTTON_STYLE.secondary, icon: "late" },
-    tentative: { label: "Tentative", style: BUTTON_STYLE.secondary, icon: "tentative" },
-    bench: { label: "Bench", style: BUTTON_STYLE.secondary, icon: "bench" },
-    absence: { label: "Absence", style: BUTTON_STYLE.danger, icon: "absence" },
+    late: { word: "late", style: BUTTON_STYLE.secondary, icon: "late" },
+    tentative: { word: "tentative", style: BUTTON_STYLE.secondary, icon: "tentative" },
+    bench: { word: "bench", style: BUTTON_STYLE.secondary, icon: "bench" },
+    absence: { word: "absenceButton", style: BUTTON_STYLE.danger, icon: "absence" },
 };
 
 /**
@@ -418,12 +454,12 @@ function buttonRows(event, phase, now = Date.now()) {
  * event's game version. The same for everybody — a message component cannot
  * differ per viewer — so the own characters open ephemerally (eventPick.js).
  */
-function pickSelect(event, emojis) {
-    const mine = { label: "My characters …", value: PICK_MINE, description: "from your profile – up to 3 at once" };
+function pickSelect(event, emojis, lang = "de") {
+    const mine = { label: tr(lang, "My characters …"), value: PICK_MINE, description: tr(lang, "from your profile – up to 3 at once") };
     const mineEmoji = emojiOption(emojis, uiEmojiName("signups"));
     if (mineEmoji) mine.emoji = mineEmoji;
     const classes = classesOf(event).map((c) => {
-        const option = { label: c.labelEn || c.label, value: c.id };
+        const option = { label: classLabel(lang, c), value: c.id };
         const emoji = emojiOption(emojis, classEmojiName(c.id));
         if (emoji) option.emoji = emoji;
         return option;
@@ -431,26 +467,45 @@ function pickSelect(event, emojis) {
     return {
         type: 3,
         custom_id: pickSelectId(event.id),
-        placeholder: "Sign up – pick a character or class …",
+        placeholder: tr(lang, "Sign up – pick a character or class …"),
         min_values: 1,
         max_values: 1,
         options: [mine, ...classes].slice(0, LIMITS.options),
     };
 }
 
-/** The select and buttons under the message for the event's current phase, as component rows. */
-function messageComponents(event, { emojis = {}, now = Date.now(), phase = messagePhase(event, now) } = {}) {
+/**
+ * The select and buttons under the message for the event's current phase, as
+ * component rows — in `lang`, the server language when left out (a caller that
+ * resets the components of the posted message, eventPick.js, gets the right one).
+ */
+function messageComponents(event, { emojis = {}, now = Date.now(), phase = messagePhase(event, now), lang = serverLang() } = {}) {
     return buttonRows(event, phase, now).map((row) => ({
         type: 1,
         components: row.map((action) => {
-            if (action === "pick") return pickSelect(event, emojis);
+            if (action === "pick") return pickSelect(event, emojis, lang);
             const b = BUTTONS[action];
-            const button = { type: 2, style: b.style, custom_id: buttonId(event.id, action), label: b.label };
+            const button = { type: 2, style: b.style, custom_id: buttonId(event.id, action), label: word(lang, b.word) };
             const emoji = emojiOption(emojis, uiEmojiName(b.icon));
             if (emoji) button.emoji = emoji;
             return button;
         }),
     }));
+}
+
+/** The description's first line for a phase other than "open" ("" when open). */
+function phaseLine(event, phase, head, lang) {
+    if (phase === "cancelled") {
+        // The store keeps the reason in `cancel.reason` (eventManage.cancelEvent).
+        const reason = (event.cancel && event.cancel.reason) || event.cancelReason || "";
+        return `${head("absence", tr(lang, "**Cancelled**"))}${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}`;
+    }
+    if (phase === "closed") {
+        return `${head("closed", tr(lang, "**Signups closed**"))}${event.signupsClosed ? ` – ${tr(lang, "you can still sign off.")}` : ""}`;
+    }
+    if (phase === "started") return tr(lang, "The raid has started – signups are closed.");
+    if (phase === "deadline") return tr(lang, "The signup deadline has passed – only “Late” or Absence now.");
+    return "";
 }
 
 /**
@@ -461,9 +516,10 @@ function messageComponents(event, { emojis = {}, now = Date.now(), phase = messa
  *   `emojis`: name → { id, name, animated } (appEmojis.appEmojiMap()); none = labels only
  *   `icsUrl`: the calendar link; empty = the event's own `/r/cal/<id>.ics` (#308)
  *   `compUrl`/`srUrl`: the comp sheet and softres.it links (#357); empty = no such link on record, left out
+ *   `lang`: the server language ("de" | "en", German by default)
  */
 function buildEventMessage(event, signups, {
-    emojis = {}, now = Date.now(), icsUrl = "", raidArt = false, titleSize = "normal", compUrl = "", srUrl = "",
+    emojis = {}, now = Date.now(), icsUrl = "", raidArt = false, titleSize = "normal", compUrl = "", srUrl = "", lang = "de",
 } = {}) {
     const list = (signups || []).filter((s) => s && s.userId).map(migrateSignup);
     const c = rosterCounts(list);
@@ -477,17 +533,8 @@ function buildEventMessage(event, signups, {
     const head = (icon, label) => labelled(emojis, uiEmojiName(icon), label);
 
     const desc = [];
-    if (phase === "cancelled") {
-        // The store keeps the reason in `cancel.reason` (eventManage.cancelEvent).
-        const reason = (event.cancel && event.cancel.reason) || event.cancelReason || "";
-        desc.push(`${head("absence", "**Cancelled**")}${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}`);
-    } else if (phase === "closed") {
-        desc.push(`${head("closed", "**Signups closed**")}${event.signupsClosed ? " – you can still sign off." : ""}`);
-    } else if (phase === "started") {
-        desc.push("The raid has started – signups are closed.");
-    } else if (phase === "deadline") {
-        desc.push("The signup deadline has passed – only “Late” or Absence now.");
-    }
+    const phaseText = phaseLine(event, phase, head, lang);
+    if (phaseText) desc.push(phaseText);
     const description = String(event.description || "").trim();
     if (description) {
         if (desc.length) desc.push("");
@@ -505,20 +552,20 @@ function buildEventMessage(event, signups, {
     const column = (lines) => ({ name: ZWS, value: lines.join("\n"), inline: true });
     const headFields = [
         column([
-            headLine("leader", "Leader", event.leaderId ? `<@${event.leaderId}>` : "–"),
-            headLine("date", "Date", start ? `<t:${start}:D>` : "–"),
+            headLine("leader", word(lang, "leader"), event.leaderId ? `<@${event.leaderId}>` : "–"),
+            headLine("date", word(lang, "date"), start ? `<t:${start}:D>` : "–"),
             // where the raid meets (#305), only when there is a channel
-            ...(event.voiceChannelId ? [headLine("voice", "Voice channel", `<#${event.voiceChannelId}>`)] : []),
+            ...(event.voiceChannelId ? [headLine("voice", word(lang, "voice"), `<#${event.voiceChannelId}>`)] : []),
         ]),
         column([
             // "28 signed up" names itself — no label in front, with or without the icon (#520)
-            headLine("signups", "", signedUpValue(c.accounts)),
-            headLine("time", "Time", start ? `<t:${start}:t>` : "–"),
+            headLine("signups", "", signedUpValue(c.accounts, lang)),
+            headLine("time", word(lang, "time"), start ? `<t:${start}:t>` : "–"),
         ]),
         // an empty first line without a deadline keeps the countdown beside date and time
         column([
-            deadline ? headLine("deadline", "Deadline", `<t:${deadline}:f>`) : ZWS,
-            headLine("start", "Start", start ? `<t:${start}:R>` : "–"),
+            deadline ? headLine("deadline", word(lang, "deadline"), `<t:${deadline}:f>`) : ZWS,
+            headLine("start", word(lang, "start"), start ? `<t:${start}:R>` : "–"),
         ]),
     ];
     // Who takes a seat, per role and per person (rosterCounts folds melee and ranged into dps).
@@ -527,9 +574,9 @@ function buildEventMessage(event, signups, {
         if (["signed", "late"].includes(s.status || "signed") && (s.role === "melee" || s.role === "ranged")) seats[s.role] += 1;
     }
     // Tanks with the healers directly below, then Fernkampf, then Nahkampf.
-    const total = (role, label) => `${[roleIcon(emojis, role, style), label].filter(Boolean).join(" ")} **${seats[role]}**${targetText(event, role)}`;
+    const total = (role) => `${[roleIcon(emojis, role, style), word(lang, role)].filter(Boolean).join(" ")} **${seats[role]}**${targetText(event, role)}`;
     const totals = [
-        ...ROLE_TOTALS.map((col) => column(col.map(([role, label]) => total(role, label)))),
+        ...ROLE_TOTALS.map((col) => column(col.map(total))),
         spacer(false),
     ];
 
@@ -548,8 +595,8 @@ function buildEventMessage(event, signups, {
     // The public event page first (#308): it is the link everyone in the channel
     // can open, with or without a menu account. The menu link stays beside it —
     // that is where one signs up and where the orga works.
-    if (base) links.push(`[Event](${base}/e/${id})`);
-    if (base) links.push(`[Sign up](${base}/signups?event=${id})`);
+    if (base) links.push(`[${word(lang, "event")}](${base}/e/${id})`);
+    if (base) links.push(`[${word(lang, "signUp")}](${base}/signups?event=${id})`);
     // "Comp" (#520): one link for everybody, the server sends each reader on —
     // the orga with raid write access into the setup editor, everyone else to
     // the public event page (pageRoutes.js, `/e/<id>/comp`).
@@ -564,10 +611,10 @@ function buildEventMessage(event, signups, {
     if (sheet) links.push(`[Sheet](${sheet})`);
     if (sr) links.push(`[SR](${sr})`);
     const cal = linkCheck.externalLink(icsUrl) || (base ? icsUrlFor(event.id) : "");
-    if (cal) links.push(`[Calendar](${cal})`);
+    if (cal) links.push(`[${word(lang, "calendar")}](${cal})`);
     if (links.length) tail.push({ name: ZWS, value: links.join("  ·  "), inline: false });
 
-    const title = phase === "cancelled" ? `Cancelled: ${event.title || "Raid"}` : (event.title || "Raid");
+    const title = phase === "cancelled" ? tr(lang, "Cancelled: {title}", { title: event.title || "Raid" }) : (event.title || "Raid");
     // The title as letter tiles opens the description — an embed title cannot
     // show emojis. A cancelled event keeps "Cancelled: …" as plain text.
     const tiles = phase === "cancelled" ? null : titleTiles(title, emojis, style);
@@ -586,19 +633,28 @@ function buildEventMessage(event, signups, {
     if (text) embed.description = text;
     // Shorten the blocks until the whole embed fits Discord's 6000 characters.
     for (let maxLines = 40; maxLines >= 1; maxLines -= maxLines > 10 ? 5 : 1) {
-        embed.fields = fitFields([...headFields, ...totals, ...rosterFields(entries, numbers, emojis, maxLines, style), ...tail]);
+        embed.fields = fitFields([...headFields, ...totals, ...rosterFields(entries, numbers, emojis, maxLines, style, lang), ...tail]);
         if (embedLength(embed) <= LIMITS.total) break;
     }
-    return { content: "", embeds: [embed], components: messageComponents(event, { emojis, now, phase }) };
+    return { content: "", embeds: [embed], components: messageComponents(event, { emojis, now, phase, lang }) };
 }
 
-/** What a payload shows, as a short hash — the sweep redraws a message whose hash is outdated. */
-function payloadHash(payload) {
-    return crypto.createHash("sha1").update(JSON.stringify(payload)).digest("hex");
+/**
+ * What a payload shows, as a short hash — the sweep redraws a message whose
+ * hash is outdated. The language is hashed with it: a new server language
+ * outdates every message, even one whose words read the same in both.
+ */
+function payloadHash(payload, lang = "") {
+    return crypto.createHash("sha1").update(`${lang}|${JSON.stringify(payload)}`).digest("hex");
 }
 
-/** The payload with the application emojis (read once per process; labels without them). */
+/** The payload with the application emojis (read once per process; labels without them), and its language. */
 async function payloadFor(event) {
+    const lang = serverLang();
+    return { lang, payload: await buildPayload(event, lang) };
+}
+
+async function buildPayload(event, lang) {
     await loadAppEmojis(discord.getClient());
     // The category's look (Einstellungen › Kategorien): raid picture and title size.
     const look = messageLookOf(getConfig(), event.categoryId);
@@ -610,14 +666,15 @@ async function payloadFor(event) {
         titleSize: look.titleSize,
         compUrl: (sheetLink && sheetLink.url) || "",
         srUrl: (softres && softres.url) || "",
+        lang,
     });
 }
 
-async function postPayload(event, payload) {
+async function postPayload(event, { payload, lang }) {
     const channel = await discord.fetchTextChannel(event.channelId);
     const posted = await channel.send(payload);
     const where = { channelId: channel.id, messageId: posted.id };
-    setEventMessage(event.id, { ...where, hash: payloadHash(payload) });
+    setEventMessage(event.id, { ...where, hash: payloadHash(payload, lang) });
     return where;
 }
 
@@ -645,8 +702,9 @@ async function refreshEventMessage(eventId) {
     if (linkCheck.channelState(event.guildId, event.channelId) === "missing") {
         return { channelId: event.channelId, messageId: "", reposted: false, channelMissing: true };
     }
-    const payload = await payloadFor(event);
-    const hash = payloadHash(payload);
+    const drawn = await payloadFor(event);
+    const { payload } = drawn;
+    const hash = payloadHash(payload, drawn.lang);
     if (event.message) {
         if (event.message.hash === hash) {
             return { channelId: event.message.channelId, messageId: event.message.messageId, reposted: false, unchanged: true };
@@ -662,7 +720,7 @@ async function refreshEventMessage(eventId) {
             if (!(e && (e.code === 10008 || /unknown message/i.test(e.message || "")))) throw e;
         }
     }
-    const where = await postPayload(event, payload);
+    const where = await postPayload(event, drawn);
     return { ...where, reposted: true };
 }
 
@@ -688,14 +746,20 @@ function redrawEventMessage(eventId) {
 /**
  * One sweep over the events of the last two days and the coming ones: every
  * message whose payload changed since it was drawn is edited — a deadline or
- * start that passed, or a roster change whose redraw was lost (a restart).
+ * start that passed, a roster change whose redraw was lost (a restart), or a
+ * new server language (languageChange.js runs it at once).
+ * @returns {Promise<{ checked: number, redrawn: number }>}
  */
 async function sweepEventMessages(now = Date.now()) {
     const since = Math.floor(now / 1000) - 2 * 86400;
+    const out = { checked: 0, redrawn: 0 };
     for (const event of listEvents("", { sinceSeconds: since })) {
         if (!event || !event.id || !event.message) continue;
-        await redrawEventMessage(event.id);
+        const result = await redrawEventMessage(event.id);
+        out.checked += 1;
+        if (result && !result.unchanged && !result.channelMissing) out.redrawn += 1;
     }
+    return out;
 }
 
 let sync = null;
@@ -767,7 +831,7 @@ function stopEventMessageSync() {
 
 module.exports = {
     SIGNUP_BUTTON_PREFIX, JOIN_SELECT_PREFIX, BUTTON_PREFIX, PICK_PREFIX, PICK_MINE, STATUS_OPTIONS, messageComponents, rosterEntries,
-    classesOf, rosterCounts, messagePhase, postEventMessage, refreshEventMessage, startEventMessageSync, stopEventMessageSync,
+    classesOf, rosterCounts, messagePhase, postEventMessage, refreshEventMessage, startEventMessageSync, stopEventMessageSync, sweepEventMessages,
     // only for the tests (#424): not part of the module's API
     _internal: {
         LIMITS, signupButtonId, joinSelectId, buttonId, pickSelectId, signupNumbers, embedLength, blockValue, payloadHash,

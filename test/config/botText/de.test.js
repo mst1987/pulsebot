@@ -37,6 +37,9 @@ const AREA_FILES = fs.readdirSync(DIR).filter((f) => f.endsWith(".js") && f !== 
 const AREAS = {
     "common.js": require("../../../src/config/botText/de/common"),
     "availability.js": require("../../../src/config/botText/de/availability"),
+    "events.js": require("../../../src/config/botText/de/events"),
+    "setup.js": require("../../../src/config/botText/de/setup"),
+    "talk.js": require("../../../src/config/botText/de/talk"),
 };
 
 describe("config/botText/de", () => {

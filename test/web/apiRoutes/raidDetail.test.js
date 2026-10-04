@@ -881,6 +881,13 @@ describe("web/apiRoutes/raidDetail", () => {
             expect(json(res)).toEqual({ data: { message: "1 fehlende Raider gepingt." } });
         });
 
+        it("pings with the default text in the server language when the orga wrote none", async () => {
+            setupDefaults();
+            discord.postMissingPing.mockResolvedValue({ channelId: "chan1", messageId: "m1" });
+            await post("/api/raids/ping-missing", { event: "e1" });
+            expect(discord.postMissingPing).toHaveBeenCalledWith("chan1", ["2"], "Bitte melde dich für den Raid an oder ab, damit das Roster vollständig ist.");
+        });
+
         it("returns 500 with the Discord error message on post failure", async () => {
             setupDefaults();
             discord.postMissingPing.mockRejectedValue(new Error("Channel nicht gefunden."));

@@ -9,6 +9,8 @@ jest.mock("../../../src/stores/eventStore", () => ({
 }));
 const mockPost = jest.fn();
 jest.mock("../../../src/services/discord/discord", () => ({ postNotice: (...a) => mockPost(...a) }));
+// The server language: English here (the old assertions), German where a test says so.
+jest.mock("../../../src/services/discord/botLanguage", () => ({ ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en") }));
 
 const { suggestSearch, textForNeeds, postSearch } = require("../../../src/services/setup/raidSearch");
 const { event: baseEvent } = require("../../factories/events");
@@ -38,6 +40,19 @@ function event(over = {}) {
 }
 
 describe("suggestSearch", () => {
+    it("writes the search in German when asked (the server language)", () => {
+        const { text } = suggestSearch(event(), { lang: "de" });
+        expect(text).toContain("**Wir suchen noch Raider – Gruul's Lair**");
+        expect(text).toContain("18 von 25 Plätzen besetzt");
+        expect(text).toContain("Es fehlen noch:");
+        expect(text).toContain("1× Tank:");
+        expect(text).toContain("2× Heiler:");
+        expect(text).toContain("Nötig für einen Pflicht-Buff: Schamane (jede Spec)");
+        expect(text).toMatch(/Anmelden: https:\/\//);
+        const open = textForNeeds(event(), { roles: [], buffs: [] }, { lang: "de" }).text;
+        expect(open).toContain("7 Plätze frei – jede Klasse und Spec ist willkommen.");
+    });
+
     it("names the roles that are short, with the specs that fill them, and the open places", () => {
         const s = suggestSearch(event());
         expect(s).toMatchObject({ size: 25, placed: 18, open: 7 });

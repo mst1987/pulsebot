@@ -21,6 +21,8 @@ const eventStore = require("../../stores/eventStore");
 const linkCheck = require("../discord/linkCheck");
 const { getConfig } = require("../../stores/settingsStore");
 const { normalizePingTarget, deliverAnnouncement } = require("../discord/pingDelivery");
+const { tr } = require("../../utils/i18n/botText");
+const { serverLang } = require("../discord/botLanguage");
 
 /**
  * The category's announcement setting (#306), or the caller's own choice.
@@ -46,14 +48,15 @@ function messageUrl(event) {
  * The announcement itself: one line with the raid, its date and the link to
  * the signup message — the shape pingDelivery/discord.postAnnouncement expect
  * (`{ title, body }`, rendered as an embed with the role mentions above it).
+ * A public post, so in the server language (`lang`, German by default).
  */
-function buildAnnouncement(event) {
+function buildAnnouncement(event, lang = "de") {
     const title = String((event && event.title) || "Raid").trim() || "Raid";
     const start = Number(event && event.startTime) || 0;
     const url = messageUrl(event);
     const when = start ? `<t:${start}:F> · <t:${start}:R>` : "";
-    const line = [when, url ? `[Sign up](${url})` : ""].filter(Boolean).join("\n");
-    return { title: `New raid: ${title}`, body: line || "A new raid is on the calendar." };
+    const line = [when, url ? tr(lang, "[Sign up]({url})", { url }) : ""].filter(Boolean).join("\n");
+    return { title: tr(lang, "New raid: {title}", { title }), body: line || tr(lang, "A new raid is on the calendar.") };
 }
 
 /**
@@ -79,7 +82,7 @@ async function announceEvent(eventId, { want, config = getConfig(), now = Date.n
             target: setting.target,
             event,
             channelId: event.channelId,
-            template: buildAnnouncement(event),
+            template: buildAnnouncement(event, serverLang(config)),
             roleIds,
             guildId: event.guildId,
             config,

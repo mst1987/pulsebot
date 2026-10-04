@@ -7,6 +7,19 @@
 //
 // A *Bot.js module (the button handlers) may require everything below it; the
 // setup message never requires a *Bot.js — it builds its button row from here.
+//
+// Its texts sit on the public setup message, so they take the server language
+// (the caller passes it: services/discord/botLanguage.js `serverLang`).
+const { tr, normalizeLang } = require("../../utils/i18n/botText");
+
+// The button labels as de/en pairs ("Cancel" is "Absagen" here, not the "Abbrechen" of a dialog).
+const BUTTON_LABELS = {
+    confirm: { de: "Bestätigen", en: "Confirm" },
+    cancel: { de: "Absagen", en: "Cancel" },
+    invite: { de: "Invites callen", en: "Call invites" },
+    ping: { de: "Alle pingen", en: "Ping everyone" },
+};
+const buttonLabel = (lang, key) => BUTTON_LABELS[key][normalizeLang(lang)];
 
 // ---- the approved lineup ------------------------------------------------------
 
@@ -38,14 +51,14 @@ function benchPosted(event) {
 
 // ---- "Ping everyone" ------------------------------------------------------------
 
-/** The line everyone reads without the orga ever setting their own — raider-facing, so English. */
+/** The line everyone reads without the orga ever setting their own — in English here, tr() gives the server language. */
 const PING_TEXT = "📋 The setup is up — you're in!";
 // Kept in sync with eventStore.js's setEventSetupPingText.
 const PING_TEXT_MAX = 300;
 
-/** The orga's own text if they set one (web or the Discord modal), else the default. */
-function pingTextOf(event) {
-    return (event && event.setupPingText) || PING_TEXT;
+/** The orga's own text if they set one (web or the Discord modal), else the default in the language. */
+function pingTextOf(event, lang = "de") {
+    return (event && event.setupPingText) || tr(lang, PING_TEXT);
 }
 
 // ---- Confirm / Cancel ---------------------------------------------------------
@@ -80,29 +93,29 @@ const confirmId = (field, eventId) => `${CONFIRM_PREFIX}:${field}:${eventId}`;
 const inviteId = (field, eventId) => `${INVITE_PREFIX}:${field}:${eventId}`;
 const pingId = (eventId) => `${PING_PREFIX}:${eventId}`;
 
-/** Confirm / Cancel (setupConfirmBot.js) — every raider reads it, so it is English. */
-function confirmButtonRow(eventId) {
+/** Confirm / Cancel (setupConfirmBot.js) — every raider reads it, so it is in the server language. */
+function confirmButtonRow(eventId, lang = "de") {
     return {
         type: 1,
         components: [
-            { type: 2, style: 3, custom_id: confirmId("y", eventId), label: "Confirm" },
-            { type: 2, style: 4, custom_id: confirmId("n", eventId), label: "Cancel" },
+            { type: 2, style: 3, custom_id: confirmId("y", eventId), label: buttonLabel(lang, "confirm") },
+            { type: 2, style: 4, custom_id: confirmId("n", eventId), label: buttonLabel(lang, "cancel") },
         ],
     };
 }
 
 /**
  * "Call invites" (inviteCallBot.js). The label sits on a message every raider
- * reads, so it is English; the private preview behind it is the orga's and
- * stays German, like the other orga texts in the bot.
+ * reads, so it is in the server language; the private preview behind it is the
+ * orga's and stays German, like the other orga texts in the bot.
  */
-function inviteButtonRow(eventId) {
-    return { type: 1, components: [{ type: 2, style: 2, custom_id: inviteId("p", eventId), label: "Call invites", emoji: { name: "📣" } }] };
+function inviteButtonRow(eventId, lang = "de") {
+    return { type: 1, components: [{ type: 2, style: 2, custom_id: inviteId("p", eventId), label: buttonLabel(lang, "invite"), emoji: { name: "📣" } }] };
 }
 
 /** "Ping everyone" (setupPingBot.js), beside "Call invites". */
-function pingButtonRow(eventId) {
-    return { type: 1, components: [{ type: 2, style: 2, custom_id: pingId(eventId), label: "Ping everyone" }] };
+function pingButtonRow(eventId, lang = "de") {
+    return { type: 1, components: [{ type: 2, style: 2, custom_id: pingId(eventId), label: buttonLabel(lang, "ping") }] };
 }
 
 module.exports = {

@@ -36,13 +36,15 @@ const eventStore = require("../../stores/eventStore");
 const { eventEndTime } = require("../../utils/time");
 const { getConfig } = require("../../stores/settingsStore");
 const { str, clip } = require("../../utils/text");
+const { tr } = require("../../utils/i18n/botText");
+const { serverLang } = require("./botLanguage");
 
 // Discord's limits for a scheduled event.
 const LIMITS = { name: 100, description: 1000, location: 100 };
 
 // The sentence that keeps the two rosters apart. Nothing about a Discord event
-// tells us a spec, so "Interested" can never stand in for a signup. English,
-// like every raider-facing Discord text.
+// tells us a spec, so "Interested" can never stand in for a signup. Written in
+// English, put into the server language with tr() — the Discord event is public.
 const SIGNUP_NOTE = "Sign up only through the message in the channel – “Interested” here does not count.";
 
 /** Discord's "this is gone already" for a scheduled event. */
@@ -61,19 +63,25 @@ function eventUrl(event) {
     return linkCheck.eventLink(event);
 }
 
+/** The first line of a cancelled event's description, "" otherwise. */
+function cancelledLine(event, lang) {
+    if (!(event && event.status === "cancelled")) return "";
+    const reason = String((event.cancel && event.cancel.reason) || "").trim();
+    return reason ? tr(lang, "❌ Cancelled: {reason}", { reason: clip(str(reason), 200) }) : tr(lang, "❌ Cancelled");
+}
+
 /**
  * The description of the Discord event: the raid's own description (shortened),
- * the sentence that says where the signup happens, and the link to it.
+ * the sentence that says where the signup happens, and the link to it — in the
+ * server language (`lang`, German by default).
  */
-function describeEvent(event) {
+function describeEvent(event, lang = "de") {
     const own = clip(str(event && event.description), 600);
     const url = eventUrl(event);
-    const cancelled = event && event.status === "cancelled";
-    const reason = cancelled ? String((event.cancel && event.cancel.reason) || "").trim() : "";
     const lines = [
-        cancelled ? `❌ Cancelled${reason ? `: ${clip(str(reason), 200)}` : ""}` : "",
+        cancelledLine(event, lang),
         own,
-        SIGNUP_NOTE,
+        tr(lang, SIGNUP_NOTE),
         url,
     ].filter(Boolean);
     return clip(str(lines.join("\n\n")), LIMITS.description);
@@ -89,14 +97,14 @@ function describeEvent(event) {
  * duration (#305) is not optional here.
  *
  * @param {object} event an eventStore event
- * @param {{ voiceChannelId?: string }} opts the voice channel as it was verified
+ * @param {{ voiceChannelId?: string, lang?: string }} opts the voice channel as it was verified; the server language
  */
-function buildScheduledEvent(event, { voiceChannelId = "" } = {}) {
+function buildScheduledEvent(event, { voiceChannelId = "", lang = "de" } = {}) {
     const start = Number(event && event.startTime) || 0;
     const end = eventEndTime(event);
     const payload = {
         name: clip(str(event && event.title), LIMITS.name) || "Raid",
-        description: describeEvent(event),
+        description: describeEvent(event, lang),
         scheduledStartTime: new Date(start * 1000).toISOString(),
         scheduledEndTime: new Date(end * 1000).toISOString(),
         privacyLevel: GuildScheduledEventPrivacyLevel.GuildOnly,
@@ -189,7 +197,7 @@ async function createForEvent(eventId, { config = getConfig(), now = Date.now() 
     if (!guild || !guild.scheduledEvents) return { skipped: "offline" };
     if (canManageEvents(event.guildId) === false) return noteError(event.id, MISSING_RIGHT);
     try {
-        const created = await guild.scheduledEvents.create(buildScheduledEvent(event, { voiceChannelId: voiceChannelFor(guild, event) }));
+        const created = await guild.scheduledEvents.create(buildScheduledEvent(event, { voiceChannelId: voiceChannelFor(guild, event), lang: serverLang(config) }));
         eventStore.setEventDiscordEvent(event.id, { id: String(created.id), guildId: event.guildId, at: now, error: "" });
         return { id: String(created.id) };
     } catch (e) {
@@ -228,7 +236,7 @@ async function syncForEvent(eventId, { config = getConfig(), now = Date.now() } 
         return { skipped: "closed", id: stored };
     }
     try {
-        await scheduled.edit(buildScheduledEvent(event, { voiceChannelId: voiceChannelFor(guild, event) }));
+        await scheduled.edit(buildScheduledEvent(event, { voiceChannelId: voiceChannelFor(guild, event), lang: serverLang(config) }));
         eventStore.setEventDiscordEvent(event.id, { error: "", at: now });
         return { id: stored };
     } catch (e) {
@@ -262,7 +270,7 @@ async function cancelForEvent(eventId, { now = Date.now() } = {}) {
     try {
         if (scheduled.status === GuildScheduledEventStatus.Scheduled) {
             // Say it is off before it disappears: the description carries the reason.
-            await scheduled.edit({ description: describeEvent(event) }).catch(() => undefined);
+            await scheduled.edit({ description: describeEvent(event, serverLang()) }).catch(() => undefined);
             await scheduled.setStatus(GuildScheduledEventStatus.Canceled);
         } else {
             await scheduled.delete();

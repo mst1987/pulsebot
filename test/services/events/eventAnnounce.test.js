@@ -54,10 +54,19 @@ describe("announceSetting", () => {
 describe("buildAnnouncement", () => {
     it("ist eine Zeile mit Titel, Termin und Link auf die Anmelde-Nachricht", () => {
         const event = makeEvent();
-        const payload = announce.buildAnnouncement(event);
+        const payload = announce.buildAnnouncement(event, "en");
         expect(payload.title).toBe("New raid: SSC + TK");
         expect(payload.body).toContain(`<t:${START}:F>`);
         expect(payload.body).toContain("https://discord.com/channels/g1/c1/msg1");
+        expect(payload.body).toContain("[Sign up](https://discord.com/channels/g1/c1/msg1)");
+    });
+
+    it("spricht ohne Einstellung Deutsch (die Server-Sprache)", () => {
+        const payload = announce.buildAnnouncement(makeEvent());
+        expect(payload.title).toBe("Neuer Raid: SSC + TK");
+        expect(payload.body).toContain("[Anmelden](https://discord.com/channels/g1/c1/msg1)");
+        expect(announce.buildAnnouncement({ title: "X" }).body).toBe("Ein neuer Raid steht im Kalender.");
+        expect(announce.buildAnnouncement({ title: "X" }, "en").body).toBe("A new raid is on the calendar.");
     });
 
     it("verlinkt den Kanal, solange keine Nachricht steht", () => {

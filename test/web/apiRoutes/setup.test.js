@@ -296,9 +296,13 @@ describe("the ping text (#354's follow-up)", () => {
         expect(body(view).pingText).toBe("Kommt alle!");
     });
 
-    it("reads the default once none was set", async () => {
+    it("reads the default once none was set — in the server language", async () => {
+        mockConfig = { botLanguage: "en" };
         const view = await call(route.getSetup, ORGA, null, `event=${ID}`);
         expect(body(view).pingText).toMatch(/setup is up/i);
+        mockConfig = {};
+        const german = await call(route.getSetup, ORGA, null, `event=${ID}`);
+        expect(body(german).pingText).toBe("📋 Das Setup steht – du bist dabei!");
     });
 });
 

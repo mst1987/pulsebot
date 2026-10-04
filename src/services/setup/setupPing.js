@@ -10,6 +10,7 @@ const eventStore = require("../../stores/eventStore");
 const discord = require("../discord/discord");
 const { approvedSetupOf, PING_TEXT_MAX, pingTextOf } = require("./setupCore");
 const { fail } = require("../../web/http/apiResult");
+const { serverLang } = require("../discord/botLanguage");
 
 /** `event.setupPingText`, "" (clear) accepted, trimmed to the same length the store enforces. */
 function saveSetupPingText(eventId, text) {
@@ -31,7 +32,7 @@ function setupPingPlan(event, userId, { text } = {}) {
     const userIds = [...new Set((approved.groups || []).flatMap((g) => (g.slots || []).map((s) => String(s.userId || ""))))]
         .filter((id) => id && id !== String(userId));
     if (!userIds.length) return fail(400, "nobody", "Im Setup steht niemand außer dir.");
-    return { userIds, text: String(text || "").trim() || pingTextOf(event) };
+    return { userIds, text: String(text || "").trim() || pingTextOf(event, serverLang()) };
 }
 
 /**
