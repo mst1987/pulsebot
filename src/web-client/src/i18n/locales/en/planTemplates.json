@@ -42,10 +42,15 @@
         "other": "{count} bosses filled"
     },
     "updated": "changed {date}",
+    "sectionGeneral": "General",
+    "sectionRaid": "Raid",
     "besetzung": "Roster slots",
+    "besetzungSum": "{size} slots · {groups} groups",
     "besetzungHint": "Set the size, tanks and healers, the rest is DPS. {groups} groups. The counts can be changed per boss in the editor.",
     "dpsHint": "What is left of the size after tanks and healers. The DPS slots are DPS 1..n, any damage dealer fits.",
-    "splitDps": "Split DPS into melee / ranged (optional)",
+    "splitDps": "Split DPS into melee and ranged",
+    "stepLess": "{role}: one fewer",
+    "stepMore": "{role}: one more",
     "splitRest": "Rest: {n} x DPS (any)",
     "versionSwitch": "Game version of the templates",
     "noneOfVersion": "There is no template for {version} yet."

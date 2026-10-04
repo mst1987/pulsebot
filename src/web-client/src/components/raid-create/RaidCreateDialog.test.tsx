@@ -203,16 +203,16 @@ describe("Neues Event dialog", () => {
         const overflow = screen.getByRole("radiogroup", { name: t("raidPlan.overflow.label") });
         expect(within(overflow).getByRole("radio", { name: t("raidPlan.overflow.none") })).toHaveAttribute("aria-checked", "true");
         await user.click(within(overflow).getByRole("radio", { name: t("raidPlan.overflow.waitlist") }));
-        const lock = screen.getByRole("checkbox", { name: t("raidCreate.raid.lockAtLimit") });
+        const lock = screen.getByRole("switch", { name: t("raidCreate.raid.lockAtLimit") });
         expect(lock).not.toBeChecked();
         await user.click(lock);
         // the announcement is not part of the raid step
-        expect(screen.queryByRole("checkbox", { name: t("raidCreate.kanal.announce") })).not.toBeInTheDocument();
+        expect(screen.queryByRole("switch", { name: t("raidCreate.kanal.announce") })).not.toBeInTheDocument();
 
         await next(user);
         expect(currentStep()).toHaveTextContent(t("raidPlan.step.kanal"));
         // switched on by the category
-        expect(screen.getByRole("checkbox", { name: t("raidCreate.kanal.announce") })).toBeChecked();
+        expect(screen.getByRole("switch", { name: t("raidCreate.kanal.announce") })).toBeChecked();
         await waitFor(() => expect(field(t("raidCreate.kanal.channel"))).toHaveValue("t6-do-24-09"));
 
         await next(user);
@@ -238,7 +238,7 @@ describe("Neues Event dialog", () => {
         await user.selectOptions(field(t("raidCreate.termin.category")), "c2");
         await next(user);
         await next(user);
-        await user.click(screen.getByRole("checkbox", { name: t("raidCreate.kanal.announce") }));
+        await user.click(screen.getByRole("switch", { name: t("raidCreate.kanal.announce") }));
         await next(user);
         expect(screen.getByText(t("raidCreate.check.announceNone"))).toBeInTheDocument();
         await user.click(screen.getByRole("button", { name: t("raidCreate.footer.create") }));

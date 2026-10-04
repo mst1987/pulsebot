@@ -20,10 +20,15 @@ import PageHead from "../components/ui/PageHead";
 import Badge from "../components/ui/Badge";
 import RaidLoader from "../components/ui/RaidLoader";
 import WowIcon from "../components/ui/WowIcon";
+import { InfoTip } from "../components/ui/Field";
+import Switch from "../components/ui/Switch";
 import RoleGlyph from "../components/raidplan/RoleGlyph";
-import { InstancePicker, NumberInput, SizePicker } from "../components/RaidPlanFields";
+import CompositionEditor from "../components/CompositionEditor";
+import { MinusIcon, PlusIcon } from "../components/icons";
+import { InstancePicker, SizePicker } from "../components/RaidPlanFields";
 import PlanBoard from "../components/raidplan/PlanBoard";
 import { formatDate } from "../lib/format";
+import { rolePluralLabel } from "../lib/wowNames";
 import type { BesetzungCounts } from "../api";
 import { bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../lib/raidplan/assign";
 import { DEFAULTS_KEY, copyDefaultsToAll, differs } from "../lib/raidplan/inherit";
@@ -336,8 +341,29 @@ function TemplateList({ templates, version, versionOf, guilds, canWrite, isNew, 
     );
 }
 
-/** Name, category, description, server and instances of a template — creating one and editing its details. */
-function FieldsModal({ title, initial, version, guilds, onClose, onSave }: {
+/** Melee or ranged as a card like CompositionEditor's tanks and healers: icon, name, the large number, − and +. */
+function SplitCard({ role, value, max, onChange }: { role: "melee" | "ranged"; value: number; max: number; onChange: (value: number) => void }) {
+    const t = useT();
+    const name = rolePluralLabel(role);
+    return (
+        <div className="comp-card">
+            <RoleGlyph role={role} size={32} />
+            <div className="comp-text">
+                <div className="comp-lbl">{name}</div>
+                <div className="comp-num" aria-live="polite">{value}</div>
+            </div>
+            <IconButton icon={<MinusIcon strokeWidth={2.4} />} tip={t("planTemplates.stepLess", { role: name })} disabled={value <= 0} onClick={() => onChange(value - 1)} />
+            <IconButton icon={<PlusIcon strokeWidth={2.4} />} tip={t("planTemplates.stepMore", { role: name })} disabled={value >= max} onClick={() => onChange(value + 1)} />
+        </div>
+    );
+}
+
+/**
+ * Name, category, description, server and instances of a template — creating one and editing its details.
+ * Three sections (the template, the raid, the Besetzung), every label in one style, tanks and healers with
+ * − and + as in the event dialog, and the melee / ranged split as a switch.
+ */
+export function FieldsModal({ title, initial, version, guilds, onClose, onSave }: {
     title: string;
     initial: Fields;
     version: GameVersion | null;
@@ -372,58 +398,59 @@ function FieldsModal({ title, initial, version, guilds, onClose, onSave }: {
                 </>
             )}
         >
-            <div className="rp-form">
-                <label>
-                    <span className="rp-kicker">{t("raidBoard.profile.name")}</span>
-                    <input className="rp-form-name" value={f.name} maxLength={40} placeholder={t("planTemplates.namePlaceholder")} onChange={(e) => setF({ ...f, name: e.target.value })} />
-                </label>
-                <label>
-                    <span className="rp-kicker">{t("raidBoard.profile.category")}</span>
-                    <input value={f.category} maxLength={30} onChange={(e) => setF({ ...f, category: e.target.value })} />
-                </label>
-                <label>
-                    <span className="rp-kicker">{t("planTemplates.description")}</span>
-                    <textarea value={f.description} rows={2} maxLength={200} onChange={(e) => setF({ ...f, description: e.target.value })} />
-                </label>
-                <label>
-                    <span className="rp-kicker">{t("planTemplates.server")}</span>
-                    <select value={f.guildId} onChange={(e) => setF({ ...f, guildId: e.target.value })}>
-                        <option value="">{t("planTemplates.allServers")}</option>
-                        {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-                        {f.guildId && !guilds.some((g) => g.id === f.guildId) && <option value={f.guildId}>{t("planTemplates.otherServer")}</option>}
-                    </select>
-                    <span className="rp-muted">{t("planTemplates.serverHint")}</span>
-                </label>
-                <InstancePicker version={version} value={f.instanceIds} onToggle={toggle} />
-                <SizePicker version={version} instanceIds={f.instanceIds} size={f.size || derived.size} free={freeSize} onFree={setFreeSize} onSize={(n) => setF({ ...f, size: n || 0, counts: null })} />
-                <div className="rt-field">
-                    <span className="rp-kicker">{t("planTemplates.besetzung")} · {derived.size}</span>
-                    <div className="rp-bes-fields">
-                        <span className="rp-bes-field">
-                            <RoleGlyph role="tank" size={24} />
-                            <NumberInput id="bes-tank" label={t("raidBoard.slot.kind.tank")} value={counts.tank} onChange={(v) => setCounts({ tank: v || 0 })} />
-                        </span>
-                        <span className="rp-bes-field">
-                            <RoleGlyph role="healer" size={24} />
-                            <NumberInput id="bes-healer" label={t("raidBoard.slot.kind.healer")} value={counts.healer} onChange={(v) => setCounts({ healer: v || 0 })} />
-                        </span>
-                        <span className="rp-bes-field rp-bes-dps">
-                            <RoleGlyph role="dps" size={24} />
-                            <span className="rp-bes-dpsval" data-tip={t("planTemplates.dpsHint")}><span className="rp-kicker">{t("raidBoard.bes.dpsTotal")}</span><strong>{counts.dps}</strong></span>
-                        </span>
+            <div className="rp-form rp-tform">
+                <section className="rp-tform-sec" aria-labelledby="tform-general">
+                    <h3 className="rp-tform-h" id="tform-general">{t("planTemplates.sectionGeneral")}</h3>
+                    <div className="rp-tform-field">
+                        <label className="rp-kicker" htmlFor="tform-name">{t("raidBoard.profile.name")}</label>
+                        <input id="tform-name" className="rp-form-name" value={f.name} maxLength={40} placeholder={t("planTemplates.namePlaceholder")} onChange={(e) => setF({ ...f, name: e.target.value })} />
                     </div>
-                    <label className="rp-check">
-                        <input type="checkbox" checked={split} onChange={(e) => { setShowSplit(e.target.checked); if (!e.target.checked) setF({ ...f, counts: { ...counts, melee: 0, ranged: 0 } }); }} /> {t("planTemplates.splitDps")}
-                    </label>
+                    <div className="rp-tform-pair">
+                        <div className="rp-tform-field">
+                            <label className="rp-kicker" htmlFor="tform-category">{t("raidBoard.profile.category")}</label>
+                            <input id="tform-category" value={f.category} maxLength={30} onChange={(e) => setF({ ...f, category: e.target.value })} />
+                        </div>
+                        <div className="rp-tform-field">
+                            <span className="rp-tform-lbl">
+                                <label className="rp-kicker" htmlFor="tform-server">{t("planTemplates.server")}</label>
+                                <InfoTip head={t("planTemplates.server")} sub={t("planTemplates.serverHint")} />
+                            </span>
+                            <select id="tform-server" value={f.guildId} onChange={(e) => setF({ ...f, guildId: e.target.value })}>
+                                <option value="">{t("planTemplates.allServers")}</option>
+                                {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                {f.guildId && !guilds.some((g) => g.id === f.guildId) && <option value={f.guildId}>{t("planTemplates.otherServer")}</option>}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="rp-tform-field">
+                        <label className="rp-kicker" htmlFor="tform-description">{t("planTemplates.description")}</label>
+                        <textarea id="tform-description" value={f.description} rows={2} maxLength={200} onChange={(e) => setF({ ...f, description: e.target.value })} />
+                    </div>
+                </section>
+                <section className="rp-tform-sec is-picks" aria-labelledby="tform-raid">
+                    <h3 className="rp-tform-h" id="tform-raid">{t("planTemplates.sectionRaid")}</h3>
+                    <InstancePicker version={version} value={f.instanceIds} onToggle={toggle} />
+                    <SizePicker version={version} instanceIds={f.instanceIds} size={f.size || derived.size} free={freeSize} onFree={setFreeSize} onSize={(n) => setF({ ...f, size: n || 0, counts: null })} />
+                </section>
+                <section className="rp-tform-sec" aria-labelledby="tform-besetzung">
+                    <h3 className="rp-tform-h" id="tform-besetzung">
+                        {t("planTemplates.besetzung")}
+                        <span className="rp-tform-hsub">{t("planTemplates.besetzungSum", { size: derived.size, groups: derived.groups })}</span>
+                        <InfoTip head={t("planTemplates.besetzung")} sub={t("planTemplates.besetzungHint", { groups: derived.groups })} />
+                    </h3>
+                    <CompositionEditor size={derived.size} value={{ tank: counts.tank, healer: counts.healer }} onChange={(c) => setCounts(c)} />
+                    <Switch checked={split} label={t("planTemplates.splitDps")} tip={t("planTemplates.dpsHint")}
+                        onChange={(on) => { setShowSplit(on); if (!on) setF({ ...f, counts: { ...counts, melee: 0, ranged: 0 } }); }} />
                     {split && (
-                        <div className="rp-bes-fields">
-                            <span className="rp-bes-field"><RoleGlyph role="melee" size={24} /><NumberInput id="bes-melee" label={t("raidBoard.slot.kind.melee")} value={counts.melee} onChange={(v) => setCounts({ melee: Math.min(v || 0, counts.dps - counts.ranged) })} /></span>
-                            <span className="rp-bes-field"><RoleGlyph role="ranged" size={24} /><NumberInput id="bes-ranged" label={t("raidBoard.slot.kind.ranged")} value={counts.ranged} onChange={(v) => setCounts({ ranged: Math.min(v || 0, counts.dps - counts.melee) })} /></span>
-                            <span className="rp-muted">{t("planTemplates.splitRest", { n: Math.max(0, counts.dps - counts.melee - counts.ranged) })}</span>
+                        <div className="comp-ed">
+                            <div className="comp-grid">
+                                <SplitCard role="melee" value={counts.melee} max={counts.dps - counts.ranged} onChange={(v) => setCounts({ melee: v })} />
+                                <SplitCard role="ranged" value={counts.ranged} max={counts.dps - counts.melee} onChange={(v) => setCounts({ ranged: v })} />
+                            </div>
+                            <div className="comp-hint">{t("planTemplates.splitRest", { n: Math.max(0, counts.dps - counts.melee - counts.ranged) })}</div>
                         </div>
                     )}
-                    <span className="rp-muted">{t("planTemplates.besetzungHint", { groups: derived.groups })}</span>
-                </div>
+                </section>
             </div>
         </Modal>
     );

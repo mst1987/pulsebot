@@ -213,6 +213,28 @@
 .rp-color { width: 64px; height: 36px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background-color: var(--panel2); cursor: pointer; }
 .rp-form input[type="range"] { padding: 0; }
 .rp-form input[type="number"] { max-width: 120px; }
+/* a switch in a form stays one line (the label rule above stacks every label) */
+.rp-form .switch-row { flex-direction: row; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 600; }
+
+/* ---- the template properties dialog: three sections, every label in one style, the counts with − and + ---- */
+.rp-form.rp-tform { gap: 0; }
+.rp-tform-sec { display: flex; flex-direction: column; gap: 14px; padding: 18px 0; border-top: 1px solid var(--line); }
+.rp-tform-sec:first-child { padding-top: 2px; border-top: 0; }
+.rp-tform-sec:last-child { padding-bottom: 0; }
+.rp-tform-h { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+.rp-tform-hsub { font-size: 13px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rp-tform-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* every label line equally high, so a label with its "i" (Server) stays level with its neighbour (Kategorie) */
+.rp-tform-field > .rp-kicker { min-height: 20px; justify-content: center; }
+.rp-tform-lbl { display: flex; align-items: center; gap: 6px; min-height: 20px; }
+.rp-tform-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+/* the shared instance / size pickers (RaidPlanFields, another module's classes): no own bottom margin, the section's gap
+   spaces them, and their label (the first span) in the same style as the other labels here */
+.rp-tform-sec.is-picks > div { gap: 8px; margin-bottom: 0; }
+.rp-tform-sec.is-picks > div > span:first-child { font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+@media (max-width: 520px) {
+    .rp-tform-pair { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* ---- template list ---- */
 .rp-templates { display: flex; flex-direction: column; gap: 12px; }

@@ -3,6 +3,7 @@ import type { EmbedImage, EmojiStyle, GameVersion, OverflowMode, RoleRange } fro
 import { OVERFLOW_MODES } from "../api";
 import { EMBED_ACCENT, allowedSizes, instancesOf, leadInstance } from "../lib/raidTemplates";
 import Segment from "./ui/Segment";
+import Switch from "./ui/Switch";
 import Badge from "./ui/Badge";
 import WowIcon from "./ui/WowIcon";
 import { WarnIcon } from "./settings/settingsUi";
@@ -243,7 +244,6 @@ export function BuffPicker({ version, value, onToggle }: { version: GameVersion 
     );
 }
 
-/** One labelled switch, its explanation in the tooltip. */
 /**
  * What a full raid does (#306, #516): no limit (default — the setup picks the
  * players), waiting list, or refuse. One segment instead of a switch, since
@@ -260,14 +260,7 @@ export function OverflowField({ value, onChange }: { value: OverflowMode; onChan
     );
 }
 
+/** One labelled switch, its explanation in the tooltip. */
 export function SwitchRow({ label, tip, checked, onChange }: { label: string; tip: string; checked: boolean; onChange: (checked: boolean) => void }) {
-    return (
-        <label className="switch-row" data-tip={label} data-tip-sub={tip}>
-            <span className="switch">
-                <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-                <span className="switch-track"><span className="switch-thumb" /></span>
-            </span>
-            {label}
-        </label>
-    );
+    return <Switch label={label} tip={tip} checked={checked} onChange={onChange} />;
 }
