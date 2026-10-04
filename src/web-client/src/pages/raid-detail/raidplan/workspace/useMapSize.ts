@@ -3,10 +3,11 @@ import { DEFAULT_MAP_SIZE, mapHeight, parseMapSize, type MapSize } from "../../.
 
 /**
  * The map's height: a step (S / M / L) or a custom height dragged at the
- * splitter under the map, remembered per browser. Small screens open on S.
+ * splitter under the map, remembered per browser. Opens on L until one is chosen.
  */
 export function useMapSize() {
-    const [mapSize, setMapSize] = useState<MapSize>(() => { try { const raw = window.localStorage.getItem("eh.raidplan.mapSize"); return raw === null && window.innerHeight <= 1000 ? { step: "S" as const, px: 0 } : parseMapSize(raw); } catch { return DEFAULT_MAP_SIZE; } });
+    // nothing chosen yet: "L" - since Oct 2026 the map has a view of its own ("Karte") and the whole width, nothing else shares the screen
+    const [mapSize, setMapSize] = useState<MapSize>(() => { try { const raw = window.localStorage.getItem("eh.raidplan.mapSize"); return raw === null ? { step: "L" as const, px: 0 } : parseMapSize(raw); } catch { return DEFAULT_MAP_SIZE; } });
     const [winH, setWinH] = useState(() => window.innerHeight);
     const [splitting, setSplitting] = useState(false);
     const splitRef = useRef({ y: 0, h: 0 });

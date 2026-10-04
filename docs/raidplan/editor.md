@@ -3,6 +3,62 @@
 Part of the raid plan docs, see [the entry page](../raidplan.md) for the other parts. Endnutzer-Sicht: siehe
 [guide-web-admin.md#raidplan](../guide-web-admin.md#raidplan).
 
+## Two views per section: "Aufgaben | Karte" (Oct 2026)
+
+The user's key feedback: there is **not enough room to show the map next to the task list** - so they are never side by side
+any more; each gets the full content width. This replaces the layouts described further down (dock beside the board, cards
+under the map, the icon tool strip, the boss chip rows) where they say otherwise; everything those layouts offered is still
+reachable, it only moved. Designs: canvas boards `Plan` and `PlanKarte` (notes `planWas`, `planKarteWas`).
+
+- **The view** (`pages/raid-detail/raidplan/planView.ts`, `usePlanView`): `"tasks"` (default) or `"map"`, chosen in the sticky
+  strip ("Aufgaben | Karte", `ViewSwitch` in `workspace/WorkspaceToolbar.tsx`), remembered in this browser
+  (`eh.raidplan.view`) and, in the event editor, in the address next to the section (`#boss=<key>&view=map`; the default view
+  is left out; `RaidplanTab` passes `urlView`). A page opens on the address's view, then the browser's, then "tasks". The
+  template editor shares the component and the remembered choice, not the address. **Standard and Allgemein** have no map
+  (`noBoard`): there the switch shows "Karte" `aria-disabled` with the reason as its tooltip and the view is always "tasks"; the
+  stored choice is kept for the bosses (chosen over hiding the option, so the strip keeps its layout from section to section).
+  A boss / trash section with its map switched off (`showMap: false`) keeps "Karte", which shows the "ohne Karte" note with
+  "Karte anzeigen".
+- **The section strip** (`SectionStrip.tsx`, replaces `BossNav.tsx` in both editors): "◀ [icon] Teron Gorefiend · Boss 4 von 9 ▾
+  ▶" (`sectionPosition` in `planView.ts`: bosses as "Boss n von m", Standard / Allgemein / trash as "Abschnitt n von m") and the
+  badge "n offen" (the open assignments of THIS section, `openAssignments` per key, a status - not clickable). The ▾ lists
+  every section with what the chips showed: chosen, killed in the log (#534), out of the sheet (dimmed, struck through, the eye
+  beside it switches; right click = the old chip menu with sheet in / out and map on / off), unsaved (amber), content (dot),
+  its open count. Arrow keys / Home / End move, Esc closes and gives the focus back. "Automatisch mitgehen" follows the strip
+  while a log is read. Right side of the strip, the same place in both views: the switch, the status (Entwurf / Freigegeben as a
+  badge, the save button "Gespeichert ✓" / "Speichern"), **Link kopieren** (copies the read view's link; before publishing it
+  says "Erst freigeben" instead), the primary **Freigeben** (opens the share dialog as before; "Teilen" once published) and
+  **Mehr ▾** (`ToolMenu.tsx`): Vorlage wählen (with the current template), Einteilungen in den Event-Kanal posten (#502), the
+  plan-wide "n offene Einteilungen" list (what the amber badge button of the tool bar did). The open-slots badge moved into
+  the Besetzung line; "Gruppen im Plan" (#529) into the opened Besetzung (`besetzungTools`).
+- **View "Aufgaben"** (`.rp-tasksview`): no drawing tools. The **Besetzung is one line** "Besetzung · 25 Spieler · ● 3 Tanks · ●
+  7 Heiler · ● 15 DD" (+ "n offen" for open slots); **Ändern** (`aria-expanded`, remembered as `eh.raidplan.bes.open`) opens
+  today's steppers, chips, "Besetzung zuweisen", the refill and the plan's groups; "Fertig" folds them. This replaces the
+  chevron of #559 for this block (the other blocks keep theirs). Then the cards in **two columns** in the full width (`columns:
+  2 420px`, one under ~850 px), head "Aufgaben · n" with the badge "n Aufgaben ohne Spieler" (event plans: nobody named, or a
+  place the setup cannot fill) and **Anzeigen** (only those rows, the cards without one hidden, the list scrolled to them;
+  "Alle zeigen" / another section ends it), "**Aufgabe hinzufügen …**" (was "Karte hinzufügen …" - renamed so it is not
+  taken for the map view) and undo / redo. A row's icon buttons (pencil, pin, note, trash, "…") are invisible until the row is
+  hovered or has the focus (`opacity`, so Tab reaches them; only with `(hover: hover)`, a switch that is on stays visible). A
+  row with targets but nobody to do it shows the dashed "**Spieler fehlt**" chip in the editor (never in the sheet) and counts
+  as open in its card. Then the mobs, "Meine Aufgaben", the tactic and the notes.
+- **View "Karte"**: ONE labelled tool row (`workspace/MapToolRow.tsx`): **Zeichnen ▾** (arrow, line, text), **Formen ▾**
+  (rectangle, ellipse, melee and ranged area), **Ansicht ▾** (the old view options pop-up with the editor's switches on top:
+  elements palette, Besetzung above the map, selection mode, sheet preview, the map on / off, "Besetzung zuweisen", save /
+  reset the cutout), the zoom (`ZoomControls` without its bookmark icons), "Größe" S / M / L, undo / redo and
+  **Eigenschaften**. The board takes the width (`.rp-mapstage`), sticky under the strip (`--rp-sticky-h`, measured); at its
+  right a slim column (220 px): **Nicht platziert · n**, one chip per line, folds to a 44 px strip that stays the drop target
+  (`eh.raidplan.collapse.tray`). "Eigenschaften" puts the dock (Eigenschaften / Ebenen / Hintergrund, with a close button)
+  above that list (300 px); Enter / double click on an object opens it as before. Under 1000 px everything stacks. The map
+  opens on "L" until a size is chosen. The map's "Tank wählen …" / "Zeile bearbeiten …" open the row dialog in this view too
+  (`AssignPanel` `dialogOnly`); keys that act on the board (Ctrl+A / D / C / V, the arrows, the rubber band) only work while
+  it is in view, undo / redo in both.
+- The public read view `/p/<token>` is unchanged (it never used these parts; `AssignLine`'s new chip is editor-only).
+- Tests: `BoardWorkspace.views.test.tsx` (both views, the tool row and its menus with the keyboard, the dock, the folded list,
+  the dialog from the map, Allgemein), `SectionStrip.test.tsx`, `planView.test.ts`, `Besetzung.test.tsx`, the board tests
+  start in "Karte" (`BoardWorkspace.test.tsx`, `EventStandard.test.tsx`), `test/web-client/conventions/raidplanViews.test.js`
+  (the stylesheet: hover-only buttons, two columns, the slim column).
+
 ## Layout, flyout pickers, cards, chips (Sept 2026)
 
 - **Group markers are always recognisable** (`groupTag` / `ringCover` in `lib/raidplan/labels.ts`, `PlanBoard.tsx`).

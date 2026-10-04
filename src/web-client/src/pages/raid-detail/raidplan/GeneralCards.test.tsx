@@ -1,5 +1,5 @@
 // The "Allgemein" section's cards (#536): soulstone, blessings, totems, curses, debuffs and the warrior's shouts are there even when empty,
-// a debuff row shows its spell, and "Karte hinzufügen" offers the rest (auras, battle res, fear ward, buffs).
+// a debuff row shows its spell, and "Aufgabe hinzufügen" (was "Karte hinzufügen") offers the rest (auras, battle res, fear ward, buffs).
 import { useEffect } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -65,7 +65,7 @@ describe("the Allgemein section (#536)", () => {
     });
     it("offers the other types of the section as cards to add", () => {
         setup();
-        fireEvent.click(screen.getByRole("button", { name: /Karte hinzufügen/ }));
+        fireEvent.click(screen.getByRole("button", { name: /Aufgabe hinzufügen/ }));
         for (const name of ["Auren", "Battle-Rez", "Furchtschutz", "Buff"]) expect(screen.getAllByText(name).length).toBeGreaterThan(0);
     });
 });

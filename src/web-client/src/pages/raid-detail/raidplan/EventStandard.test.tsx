@@ -135,11 +135,13 @@ describe("the Standard of an event plan (#524)", () => {
 
 describe("the map of a boss follows the rows it inherits (#524: auto tokens and lines)", () => {
     beforeEach(() => {
+        // the board is in the view "Karte" (Oct 2026)
+        window.localStorage.setItem("eh.raidplan.view", "map");
         vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1000);
         vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(625);
         vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 1000, bottom: 625, width: 1000, height: 625, x: 0, y: 0, toJSON: () => ({}) } as DOMRect);
     });
-    afterEach(() => { vi.restoreAllMocks(); });
+    afterEach(() => { vi.restoreAllMocks(); window.localStorage.clear(); });
     it("'Tank 1 -> boss of this section' puts the boss and the tank on every boss's map; a heal row on the map draws its line", () => {
         const tank = { ...heal("d0", ["user:t1"], [{ kind: "mob", ref: "b:this", name: "", icon: "" }]), type: "tank" } as RaidplanAssignment;
         const onMap = { ...heal("d4", ["user:h1"], [{ kind: "player", ref: "t1" }]), onMap: true } as RaidplanAssignment;

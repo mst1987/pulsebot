@@ -1,5 +1,5 @@
-// The raid plan tab's "Einteilungen posten" button (#502): beside "Freigeben &
-// teilen" in the tool bar, only with raids write; it opens the page's dialog
+// The raid plan tab's "Einteilungen posten" (#502): in the strip's "Mehr" menu
+// beside "Freigeben", only with write; it opens the page's dialog
 // (after reading the page's data again), and a post that published the plan
 // turns the tab's badge to "Freigegeben" without a reload of the plan.
 import { useMemo, useState } from "react";
@@ -53,16 +53,19 @@ beforeEach(() => {
         : Promise.reject({ code: "not_mocked", message: path })));
 });
 
-const postButton = () => screen.queryByRole("button", { name: t("raidBoard.bar.postLink") });
+const moreButton = () => screen.queryByRole("button", { name: t("raidBoard.views.more") });
 
 describe("RaidplanTab: Einteilungen posten", () => {
-    it("sits beside the share button and opens the page's dialog", async () => {
+    it("sits in 'Mehr' beside the share button (since Oct 2026) and opens the page's dialog", async () => {
         const user = userEvent.setup();
         const c = ctx();
         renderPage(<RaidplanTab ctx={c} />);
-        await screen.findByRole("button", { name: t("raidBoard.bar.share") });
-        expect(postButton()).toHaveAttribute("data-tip-sub", t("raidBoard.bar.postLinkSub"));
-        await user.click(postButton()!);
+        // the strip's primary action: "Freigeben" (a draft)
+        await screen.findByRole("button", { name: t("raidBoard.views.publish") });
+        await user.click(moreButton()!);
+        const post = screen.getByRole("menuitem", { name: new RegExp(t("raidBoard.bar.postLink")) });
+        expect(post).toHaveTextContent(t("raidBoard.bar.postLinkSub"));
+        await user.click(post);
         expect(c.onChanged).toHaveBeenCalledWith("");
         expect(c.openModal).toHaveBeenCalledWith("raidplan");
     });
@@ -71,7 +74,8 @@ describe("RaidplanTab: Einteilungen posten", () => {
         current = view(false);
         renderPage(<RaidplanTab ctx={ctx()} />);
         await screen.findByText(t("raidBoard.bar.readOnly"));
-        expect(postButton()).not.toBeInTheDocument();
+        expect(moreButton()).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: t("raidBoard.views.publish") })).not.toBeInTheDocument();
     });
 
     it("takes over the publication a post made", async () => {
