@@ -3,6 +3,8 @@
 // upcoming and a past event channel, a channel with a thread, a voice channel
 // and one archived channel (with a thread of its own). `channelsData(over)`
 // returns a fresh copy, so a test can change it freely.
+import { screen, within } from "@testing-library/react";
+import type { UserEvent } from "@testing-library/user-event";
 import type { Channel, ChannelPurpose, ChannelsData } from "../api";
 
 export const RAIDS = "cat-raids";
@@ -93,4 +95,16 @@ export function channelsData(over: Partial<ChannelsData> = {}): ChannelsData {
         placeholders: [{ key: "tag", hint: "Wochentag, z.B. mi" }, { key: "raid", hint: "Kürzel des Raids" }],
         ...over,
     };
+}
+
+/** Opens a row's "…" menu and picks an item (the row's own buttons are Umbenennen and Archivieren). */
+export async function rowMenu(user: UserEvent, rowEl: HTMLElement, item: string) {
+    await user.click(within(rowEl).getByRole("button", { name: /^(Weitere Aktionen|More actions)$/ }));
+    await user.click(screen.getByRole("menuitem", { name: item }));
+}
+
+/** Opens the bulk bar's "Mehr" menu and picks an item. */
+export async function barMenu(user: UserEvent, barEl: HTMLElement, item: string) {
+    await user.click(within(barEl).getByRole("button", { name: /^(Mehr|More)$/ }));
+    await user.click(screen.getByRole("menuitem", { name: item }));
 }

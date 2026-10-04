@@ -24,7 +24,6 @@
             "bringsRaid": "für den Raid",
             "why": "Warum hier",
             "aria": "Details zum Raider",
-            "empty": "Raider berühren, um Details zu sehen",
             "pinned": "ausgewählt",
             "pinnedSub": "Das Panel bleibt bei diesem Raider, bis du die Auswahl löst – Esc oder noch einmal auf ihn klicken."
         },
@@ -49,17 +48,11 @@
         "gear": { "label": "Gear", "tip": "„Bereit“ vor „brauchbar“ laut Profil." }
     },
     "status": {
-        "approved": "Gepostet",
-        "approvedSub": "Raider sehen dieses Setup. Jede Änderung geht sofort in die Nachricht.",
         "approvedSubSince": "Raider sehen dieses Setup · seit {time}. Jede Änderung geht sofort in die Nachricht.",
-        "changedTip": "Geändert seit dem Posten",
-        "changed": "geändert seit dem Posten",
         "changedSub": "Raider sehen weiter den geposteten Stand, bis du erneut postest.",
         "changedSubSince": "Raider sehen weiter den Stand vom {time}, bis du erneut postest.",
         "draft": "Entwurf",
         "draftSub": "Raider sehen noch nichts. Erst mit „Setup posten“ erscheint das Setup im Kanal, im Web und im Bot.",
-        "autoTip": "Automatischer Vorschlag",
-        "auto": "automatischer Vorschlag",
         "autoSub": "Zum Anmeldeschluss vom EventHelper erstellt. Prüfen, anpassen, posten.",
         "autoSubAt": "Zum Anmeldeschluss vom EventHelper erstellt ({time}). Prüfen, anpassen, posten."
     },
@@ -83,15 +76,15 @@
         "empty": "leer"
     },
     "bench": {
+        "empty": "Niemand auf der Bank — Raider hierher ziehen.",
         "aria": "Ersatzbank",
         "title": "Bank",
-        "chunkTitle": "Bank {index}",
         "tip": "Nur wer von Hand hierher geschoben wurde. Wird mit dem Setup nur gepostet (und per DM benachrichtigt), wenn „Bench mitposten“ angehakt ist."
     },
     "pool": {
+        "empty": "Alle Angemeldeten stehen im Setup.",
         "aria": "Angemeldet, nicht im Setup",
         "title": "Angemeldet",
-        "chunkTitle": "Angemeldet {index}",
         "tip": "Angemeldet, aber weder eingeplant noch auf der Bank. Wird nie gepostet. Ziehe Leute von hier in eine Gruppe oder auf die Bank.",
         "benchSignup": "Ersatz",
         "benchSignupTip": "Hat sich als Ersatz (Bank) angemeldet"
@@ -206,6 +199,58 @@
     "readOnly": {
         "notApproved": "Das Setup ist noch nicht freigegeben."
     },
+    "state": {
+        "draft": "Entwurf",
+        "changed": "Entwurf · geändert seit dem Posten",
+        "notPosted": "Freigegeben · nicht gepostet",
+        "error": "Posten fehlgeschlagen",
+        "outdated": "Gepostet · Stand {version} · veraltet",
+        "posted": "Gepostet · Stand {version}",
+        "cancelled": "Abgesagt · nicht gepostet",
+        "dmsRunning": "DMs laufen"
+    },
+    "bar": {
+        "ofTarget": "{value} von {target}",
+        "withTarget": "{value} (Soll {target})",
+        "places": "{count} von {size} Plätzen",
+        "confirmed": "{count} von {total} bestätigt",
+        "confirmedTip": "Bestätigt",
+        "confirmedSub": "Wer in den Gruppen bestätigt hat — per Klick unter der Setup-Nachricht oder von der Orga."
+    },
+    "ping": {
+        "button": "Alle pingen",
+        "buttonSub": "Pingt alle Raider aus den Gruppen im Event-Kanal an — mit der Ping-Nachricht.",
+        "askTitle": "Alle pingen?",
+        "askText": { "one": "{count} Raider aus dem Setup wird im Event-Kanal gepingt: „{text}“", "other": "{count} Raider aus dem Setup werden im Event-Kanal gepingt: „{text}“" },
+        "action": "Jetzt pingen",
+        "failed": "Pingen fehlgeschlagen."
+    },
+    "more": {
+        "reproposeSub": "Neuer Vorschlag aus den Anmeldungen — fixierte Plätze bleiben.",
+        "size": "Gruppenzahl",
+        "sizeSub": "{size} Plätze · {groups} × 5",
+        "pingDefault": "Standardtext",
+        "wishesOffSub": "Aus — „gerne zusammen mit“ aus den Profilen",
+        "benchSub": "Die Bank steht beim Posten mit in der Nachricht und bekommt DMs.",
+        "dmsSub": "DMs beim Posten sind für diese Kategorie aus — in den Einstellungen einschalten."
+    },
+    "line": {
+        "aria": "Kurz zusammengefasst",
+        "buffsComplete": "Buffs vollständig",
+        "on": "an",
+        "off": "aus",
+        "wishesMet": "{met} von {total} Wünschen erfüllt",
+        "wishesOff": "Wünsche aus",
+        "details": "Details",
+        "detailsTitle": "Rollen, Buffs und Schalter"
+    },
+    "dialog": {
+        "kicker": "Setup",
+        "done": "Fertig"
+    },
+    "drawer": {
+        "kicker": "Raider"
+    },
     "editor": {
         "saveFailed": "Speichern fehlgeschlagen.",
         "proposalJob": "Setup-Vorschlag",
@@ -213,8 +258,6 @@
         "approveAnywayText": "Das Setup erfüllt nicht alle Prüfungen (Rollen, Größe oder Pflicht-Buffs). Raider sehen es nach dem Posten so, wie es ist.",
         "approve": "Setup posten",
         "approveSub": "Postet das Setup in den Event-Kanal – ab dann gilt es als freigegeben und jede Änderung geht sofort in die Nachricht.",
-        "approved": "Gepostet",
-        "approvedSub": "Das Setup steht im Kanal. Jede Änderung hier aktualisiert die Nachricht sofort.",
         "approveFailed": "Posten fehlgeschlagen.",
         "confirmFailed": "Bestätigung nicht gespeichert.",
         "confirmAll": "Alle bestätigen",
@@ -222,7 +265,7 @@
         "confirmAllNone": "Alle in den Gruppen haben schon geantwortet.",
         "confirmAllDone": { "one": "{count} Raider bestätigt.", "other": "{count} Raider bestätigt." },
         "more": "Mehr",
-        "moreSub": "Kompakte Ansicht, Suche, KI-Begründung und Gewichte",
+        "moreSub": "Neu vorschlagen, Gruppenzahl, Ping-Text, Fairness, Wünsche, Bank, Kompakt, Suche, KI-Begründung und Gewichte",
         "explainSub": "Claude erklärt in ein paar Absätzen, warum das Setup so steht.",
         "weightsSub": "Wie stark Rollen, Buffs, Anwesenheit und Fairness beim Vorschlag zählen.",
         "postFailed": "Posten fehlgeschlagen.",
@@ -240,7 +283,6 @@
         "lockedSub": "Diese Plätze behält ein neuer Vorschlag.",
         "locked": "{count} fixiert",
         "pickTarget": "Ziel wählen – Gruppe, Bank oder Raider · Esc",
-        "dragHint": "Ziehen oder anklicken zum Umstellen",
         "explain": "KI-Begründung",
         "repropose": "Neu vorschlagen",
         "sizeLabel": "Gruppen",

@@ -242,3 +242,8 @@ dialog.dlg.dlg-w { width: min(var(--dlg-w), calc(100vw - 32px)); }
 .ui-pop { left: var(--pop-left, auto); top: var(--pop-top, auto); right: var(--pop-right, auto); bottom: var(--pop-bottom, auto); }
 /* RaidLoader: the party does not swing in step */
 .rl-icon.attack, .rl-icon.flee { animation-delay: var(--rl-delay, 0s); }
+/* ui/BackButton: the coloured "back" (Kaderplaner, Raid-Detail) */
+.btn.btn-ghost.back-btn { background: var(--back-bg); color: var(--back-ink); border-color: var(--back-line); font-weight: 600; text-decoration: none; }
+.btn.btn-ghost.back-btn:hover:not(:disabled), .btn.btn-ghost.back-btn:focus-visible { background: var(--back-bg-hover); border-color: var(--back-ink); }
+.btn.back-btn svg { width: 16px; height: 16px; }
+.btn.btn-sm.back-btn svg { width: 14px; height: 14px; }

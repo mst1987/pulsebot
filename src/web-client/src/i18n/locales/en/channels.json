@@ -117,24 +117,17 @@
         "waitingTip": "Archived channels waiting to be deleted",
         "waitingSub": "{overdue} of them longer than {days} days. Nothing is ever deleted automatically.",
         "waiting": "{count} waiting to be deleted",
-        "figChannels": "Channels",
-        "figChannelsTip": "Channels in use",
-        "figChannelsSub": "All channels of the server outside the archive.",
-        "figPast": "Past events",
         "figPastTip": "Channels of past events",
         "figPastPick": "Click selects them all — then “Archive” below.",
         "figPastSub": "Channels whose event is over and that are not in the archive yet.",
-        "figArchive": "In the archive, waiting to be deleted",
-        "figArchiveTip": "Archive",
-        "figArchiveSub": "Marked yellow after {days} days. Nothing is ever deleted automatically — only by an admin in the archive.",
-        "figArchiveNone": "No archive category set yet.",
         "purposes": "Purposes",
         "purposesSub": "What the bot uses which channels for (log, application channel …). On the channel itself they are in the tooltip.",
-        "allPurposes": "All purposes",
-        "allPurposesSub": "What the bot uses which channels for — all at a glance.",
         "deleteMore": "Delete …",
         "channelFallback": "channel",
-        "archiveFallback": "Archive"
+        "archiveFallback": "Archive",
+        "stripPast": "Past events {count}",
+        "pickPast": "Select",
+        "assignPurposes": "Assign purposes"
     },
     "jobs": {
         "progress": "{done} of {total}",
@@ -236,7 +229,9 @@
         "noEventTip": "No event",
         "noEventKeepSub": "The channel belongs to no known event — without its date the name cannot be derived, so it stays.",
         "noEventEmptySub": "The channel belongs to no known event, the date parts stay empty.",
-        "noDate": "no date"
+        "noDate": "no date",
+        "more": "More",
+        "deleteShort": "Delete"
     },
     "edit": {
         "title": "Edit #{name}",
@@ -275,7 +270,6 @@
         "deleteSub": "Delete from Discord for good — confirm with the name. To put it aside, archive instead.",
         "search": "Search channel…",
         "searchLabel": "Search channel",
-        "doubleClick": "Double-click a name to edit it",
         "noMatch": "No channel matches the search.",
         "noChannels": "No channels found — is the bot connected?",
         "selectAll": "Select all in {name}",
@@ -290,7 +284,10 @@
         "ownSchemaTip": "Own naming schema",
         "ownSchemaSub": "{schema} — applies to every new event channel of this category.",
         "schemaOwn": "New event channels are named by {schema}.",
-        "schemaNone": "New event channels are named like the latest event channel. Set a schema of its own here."
+        "schemaNone": "New event channels are named like the latest event channel. Set a schema of its own here.",
+        "archive": "Archive",
+        "archiveSub": "Moves the channel into the archive — nothing is deleted.",
+        "more": "More actions"
     },
     "purposeList": {
         "label": "Purposes",

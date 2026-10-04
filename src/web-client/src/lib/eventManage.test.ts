@@ -39,6 +39,18 @@ describe("the manage menu", () => {
         expect(ids(lib.manageMenu(base))).toContain("softres");
     });
 
+    it("carries the loot system (it left the head) for whoever may change it, right before the softres list", () => {
+        expect(ids(lib.manageMenu(base))).not.toContain("lootsystem");
+        const menu = lib.manageMenu({ ...base, lootSystem: "Softres" });
+        expect(ids(menu)).toEqual(["move", "signups", "raider", "|", "notify", "sheet", "lootsystem", "softres", "|", "history", "|", "cancel", "delete"]);
+        const entry = menu.find((e) => e !== "sep" && e.id === "lootsystem");
+        expect(entry).toMatchObject({ label: "Lootsystem", danger: false });
+        expect(entry !== "sep" && entry?.sub).toContain("Softres");
+        expect(lib.lootSystemEntry("Loot-Council + Softres")).toMatchObject({ id: "lootsystem" });
+        // a cancelled raid offers no loot system
+        expect(ids(lib.manageMenu({ ...base, cancelled: true, lootSystem: "Softres" }))).not.toContain("lootsystem");
+    });
+
     it("offers the raidsheet only where the category plans with a sheet", () => {
         expect(ids(lib.manageMenu({ ...base, sheet: false }))).not.toContain("sheet");
         expect(ids(lib.manageMenu({ ...base, sheet: true }))).toContain("sheet");

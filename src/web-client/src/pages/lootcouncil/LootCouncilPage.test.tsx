@@ -26,9 +26,9 @@ beforeEach(() => {
 });
 
 describe("loot council page (German)", () => {
-    it("heads the raider tab with its question and the drop check", async () => {
+    it("heads the raider tab with its ordering rule and the drop check", async () => {
         renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
-        expect(await screen.findByText("Wer ist dran?")).toBeInTheDocument();
+        expect(await screen.findByText("Wer am längsten nichts bekommen hat, steht oben.")).toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "Loot-Council" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /Drop prüfen/ })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /Offene BiS-Items/ })).toBeInTheDocument();
@@ -46,7 +46,7 @@ describe("loot council page (German)", () => {
         const user = userEvent.setup();
         vi.mocked(api.getLootCouncil).mockResolvedValue(councilData({ version: "tbc", mainVersion: "tbc" }));
         renderPage(<LootCouncilPage />, { route: "/lootcouncil", content: twoVersions() });
-        expect(await screen.findByText("Wer ist dran?")).toBeInTheDocument();
+        expect(await screen.findByText("Wer am längsten nichts bekommen hat, steht oben.")).toBeInTheDocument();
         expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ version: "tbc" }));
         expect(screen.queryByRole("radiogroup", { name: "Spielversion" })).not.toBeInTheDocument();
 
@@ -62,13 +62,13 @@ describe("loot council page (English)", () => {
 
     it("shows the head, the tabs and the raider list in English", async () => {
         renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
-        expect(await screen.findByText("Whose turn is it?")).toBeInTheDocument();
+        expect(await screen.findByText("Whoever has gone longest without loot is on top.")).toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "Loot council" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /Check drop/ })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Calculate DPS" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /Open BiS items/ })).toBeInTheDocument();
         expect(screen.getByText("Notes")).toBeInTheDocument();
-        expect(screen.queryByText("Wer ist dran?")).not.toBeInTheDocument();
+        expect(screen.queryByText("Wer am längsten nichts bekommen hat, steht oben.")).not.toBeInTheDocument();
     });
 
     it("translates the open BiS items tab", async () => {

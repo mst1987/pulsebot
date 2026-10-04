@@ -55,6 +55,26 @@ function matchesContent(it, contentId) {
     return it.contentId === contentId;
 }
 
+// What each sortable column of the table orders by. Text compares lowercase.
+const SORT_VALUES = {
+    date: (it) => it.awardedAt || 0,
+    item: (it) => String(it.itemName || "").toLowerCase(),
+    character: (it) => String(it.character || "").toLowerCase(),
+    reason: (it) => String(it.reasonLabel || it.reason || "").toLowerCase(),
+    raid: (it) => String(it.contentId || "zzz").toLowerCase(),
+};
+
+/** The rows in a column's order; an unknown column or the default date/desc keeps the store's order. */
+function sortAwards(rows, sort, dir) {
+    const value = SORT_VALUES[sort];
+    if (!value || (sort === "date" && dir !== "asc")) return rows;
+    const mul = dir === "asc" ? 1 : -1;
+    return rows
+        .map((row, index) => ({ row, index, key: value(row) }))
+        .sort((a, b) => (a.key < b.key ? -mul : a.key > b.key ? mul : a.index - b.index))
+        .map((e) => e.row);
+}
+
 /**
  * Awards, newest first, filtered and cut into pages.
  *
@@ -66,14 +86,18 @@ function matchesContent(it, contentId) {
  * and reasons that actually occur in the current scope — offering a raid the
  * guild has never set foot in is noise (same rule as lootStats()).
  *
- * @param {object} [opts] { topOnly, search, categoryId, contentId, reason, page, pageSize, versionId }
+ * @param {object} [opts] { topOnly, search, categoryId, contentId, reason, page, pageSize, versionId, sort, dir }
+ *   sort / dir  the table's column (date, item, character, reason, raid) and its
+ *              direction; the default is the store's own order, newest first.
+ *              Sorted before paging, so a column sorts every page, not just
+ *              the one on screen.
  *   versionId  restrict to awards of one game version (#545, "" = every one)
  *              — derived from the item's event like the roster does (#543):
  *              an own event's version, else TBC.
  */
 function listAwards({
     topOnly = true, search = "", categoryId = "", contentId = "", reason = "", versionId = "",
-    page = 1, pageSize = PAGE_SIZE,
+    page = 1, pageSize = PAGE_SIZE, sort = "date", dir = "desc",
 } = {}) {
     const ids = topItemIds();
     const scoped = topOnly
@@ -91,11 +115,12 @@ function listAwards({
         && (!versionId || eventVersion(versionCtx, it.eventId) === versionId)
     ));
 
+    const ordered = sortAwards(filtered, sort, dir);
     const size = Math.max(1, Number(pageSize) || PAGE_SIZE);
-    const total = filtered.length;
+    const total = ordered.length;
     const totalPages = Math.max(1, Math.ceil(total / size));
     const current = Math.min(Math.max(1, Number(page) || 1), totalPages);
-    const rows = filtered.slice((current - 1) * size, current * size);
+    const rows = ordered.slice((current - 1) * size, current * size);
     // Only read the character store when there is something to annotate.
     const known = rows.length ? characterMap() : {};
 

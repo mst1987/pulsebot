@@ -8,7 +8,6 @@ import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../../compone
 import { SearchBox } from "../../components/loot/LootFilters";
 import { useToast } from "../../components/Jobs";
 import { Button } from "../../components/ui/Button";
-import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
 import { useT } from "../../i18n";
 
@@ -161,28 +160,22 @@ export function CharactersTab({ chars: allChars, categories, onChanged, version 
 
     const missing = chars.filter((c) => !c.className || !c.spec).length;
 
-    const head = (
-        <PartHead
-            icon="achievement_guildperk_everybodysfriend" tone="history" title={t("history.chars.title")} crumb={t("history.chars.title")}
-            tip={t("history.chars.title")} tipSub={t("history.chars.tipSub")}
-            action={chars.length ? (
-                <>
-                {chars.length > 0 && <Button
-                    variant="run"
-                    icon="inv_misc_spyglass_03"
-                    running={busy}
-                    data-tip={t("history.chars.resolve")}
-                    data-tip-sub={t("history.chars.resolveSub")}
-                    onClick={resolve}
-                >
-                    {missing ? t("history.chars.resolveOpen", { count: missing }) : t("history.chars.resolve")}
-                </Button>}
-                </>
-            ) : undefined}
-        />
+    // The one action of the tab sits at the end of the filter line (no card
+    // header repeating the tab's name above it).
+    const resolveButton = chars.length > 0 && (
+        <Button
+            variant="run"
+            icon="inv_misc_spyglass_03"
+            running={busy}
+            data-tip={t("history.chars.resolve")}
+            data-tip-sub={t("history.chars.resolveSub")}
+            onClick={resolve}
+        >
+            {missing ? t("history.chars.resolveOpen", { count: missing }) : t("history.chars.resolve")}
+        </Button>
     );
 
-    if (!chars.length) return <div className="dash-card hl-card">{head}<div className="empty">{t("history.chars.empty")}</div></div>;
+    if (!chars.length) return <div className="dash-card hl-card"><div className="empty">{t("history.chars.empty")}</div></div>;
 
     const searchLower = search.trim().toLowerCase();
     const filtered = chars.filter((c) => {
@@ -212,7 +205,6 @@ export function CharactersTab({ chars: allChars, categories, onChanged, version 
 
     return (
         <div className="dash-card hl-card">
-            {head}
             <div className="filter-bar hl-filters">
                 {/* the module's own search field (icon, tokens, focus ring) —
                     the bare input this used to be was the one control on the
@@ -236,6 +228,7 @@ export function CharactersTab({ chars: allChars, categories, onChanged, version 
                         {t("history.chars.resetFilters")}
                     </Button>
                 )}
+                <span className="hl-count">{resolveButton}</span>
             </div>
             {!sorted.length && <div className="empty">{t("history.chars.noneFound")}</div>}
             {groups.map((g) => (

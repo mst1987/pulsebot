@@ -1,5 +1,5 @@
 // The filter row the loot views share (design issue #225): a search box, the
-// raids as icon chips, the reason as a select, and everything rarer behind one
+// raids as a select, the reason as a select, and everything rarer behind one
 // "Filter" button with a count. What is active below that button shows up as
 // removable badges under the row, so a filter remembered from last week is never
 // invisible.
@@ -7,9 +7,8 @@ import { useRef, useState, type ReactNode } from "react";
 import type { LootContent } from "../../api";
 import { Button } from "../ui/Button";
 import Badge from "../ui/Badge";
-import WowIcon from "../ui/WowIcon";
 import { InfoIcon, SearchIcon } from "../icons";
-import { contentIcon } from "./LootBadges";
+import { contentName } from "../../lib/wowNames";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 
@@ -27,44 +26,28 @@ export function SearchBox({ id, value, onChange, placeholder }: {
     );
 }
 
-/** "Alle Raids" plus one chip per raid, with the raid's boss icon. */
-export function RaidChips({ contents, value, onChange, unknownCount = 0 }: {
+/** "Alle Raids" plus one entry per raid (and the unknown bucket) — one select instead of a row of chips. */
+export function RaidSelect({ id, contents, value, onChange, unknownCount = 0 }: {
+    id: string;
     contents: LootContent[];
     value: string;
     onChange: (contentId: string) => void;
-    /** Items whose raid the table does not know — offered as their own chip. */
+    /** Items whose raid the table does not know — offered as their own entry. */
     unknownCount?: number;
 }) {
     const t = useT();
     return (
-        <div className="hl-chips" role="radiogroup" aria-label={t("history.filters.raidAria")}>
-            <button type="button" role="radio" aria-checked={!value} className={`hl-fchip plain${!value ? " on" : ""}`} onClick={() => onChange("")}>
-                {t("history.filters.allRaids")}
-            </button>
-            {contents.map((c) => (
-                <button
-                    key={c.id} type="button" role="radio" aria-checked={value === c.id}
-                    className={`hl-fchip${value === c.id ? " on" : ""}`}
-                    data-tip={c.label}
-                    onClick={() => onChange(value === c.id ? "" : c.id)}
-                >
-                    <WowIcon name={contentIcon(c.id)} size={22} />
-                    {c.short}
-                </button>
-            ))}
-            {unknownCount > 0 && (
-                <button
-                    type="button" role="radio" aria-checked={value === UNKNOWN_CONTENT}
-                    className={`hl-fchip${value === UNKNOWN_CONTENT ? " on" : ""}`}
-                    data-tip={t("history.shared.raidUnknown")} data-tip-sub={t("history.filters.unknownSub")}
-                    onClick={() => onChange(value === UNKNOWN_CONTENT ? "" : UNKNOWN_CONTENT)}
-                >
-                    <WowIcon name="inv_misc_questionmark" size={22} />
-                    {t("history.filters.unknown")} <span className="rbadge-count">{unknownCount}</span>
-                </button>
-            )}
-        </div>
+        <select id={id} className="hl-sel" aria-label={t("history.filters.raidAria")} value={value} onChange={(e) => onChange(e.target.value)}>
+            <option value="">{t("history.filters.allRaids")}</option>
+            {contents.map((c) => <option key={c.id} value={c.id}>{contentName(c.id, c.label)}</option>)}
+            {unknownCount > 0 && <option value={UNKNOWN_CONTENT}>{t("history.filters.unknown")} ({unknownCount})</option>}
+        </select>
     );
+}
+
+/** The right end of a filter line: how much the list holds, in words ("143 Vergaben"). */
+export function ListCount({ children }: { children: ReactNode }) {
+    return <span className="hl-count">{children}</span>;
 }
 
 /**

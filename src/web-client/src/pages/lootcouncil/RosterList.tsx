@@ -90,7 +90,7 @@ export function BisBar({ raider }: { raider: CouncilRaider }) {
     ].filter(Boolean);
     return (
         <span className="lc-bisbar" data-tip={t("lootcouncil.list.bisTip", { owned: raider.bis.owned, total: raider.bis.total })} data-tip-sub={notes.join(" ") || t("lootcouncil.list.bisTipSub")}>
-            <Bar value={raider.bis.owned} max={raider.bis.total} label={`${raider.bis.owned}/${raider.bis.total}`} />
+            <Bar value={raider.bis.owned} max={raider.bis.total} label={t("lootcouncil.list.bisBar", { owned: raider.bis.owned, total: raider.bis.total })} />
         </span>
     );
 }
@@ -111,7 +111,7 @@ export default function RosterList({ rows, sim, sort, openKey, onOpen }: {
                 <span role="columnheader">#</span>
                 <Head sortKey="character" label={t("lootcouncil.word.raider")} tipSub={t("lootcouncil.list.characterTipSub")} sort={sort} />
                 <Head sortKey="need" label={t("lootcouncil.word.need")} tipSub={t("lootcouncil.list.needTipSub")} sort={sort} />
-                <Head sortKey="last" label={t("lootcouncil.word.days")} tipSub={t("lootcouncil.list.lastTipSub")} sort={sort} />
+                <Head sortKey="last" label={t("lootcouncil.list.lastItem")} tipSub={t("lootcouncil.list.lastTipSub")} sort={sort} />
                 <Head sortKey="loot" label={t("lootcouncil.word.items")} tipSub={t("lootcouncil.list.lootTipSub")} sort={sort} />
                 <Head sortKey="bis" label="BiS" tipSub={t("lootcouncil.list.bisTipSub")} sort={sort} />
                 <Head sortKey="dps" label="DPS" tipSub={t("lootcouncil.list.dpsTipSub")} sort={sort} />
@@ -138,7 +138,7 @@ export default function RosterList({ rows, sim, sort, openKey, onOpen }: {
                         className="lc-num"
                         data-tip={r.lastAwardAt ? t("lootcouncil.waited.lastAward", { date: fmtMs(r.lastAwardAt, false) }) : waitedTip(null)}
                     >
-                        {r.lastAwardAt ? r.daysSinceLoot : "∞"}<span className="lc-unit"> {t("lootcouncil.list.dayUnit")}</span>
+                        {r.lastAwardAt ? t("lootcouncil.list.ago", { count: r.daysSinceLoot ?? 0 }) : t("lootcouncil.word.never")}
                     </span>
                     <LootCount items={r.items} total={r.lootCount} other={r.otherCount} />
                     <BisBar raider={r} />

@@ -106,6 +106,9 @@ export type LootAwardsQuery = {
     content: string;
     reason: string;
     page: number;
+    /** The column the server orders the whole list by (default: date, newest first). */
+    sort?: "date" | "item" | "character" | "reason" | "raid";
+    dir?: "asc" | "desc";
     /** The menu's content version (#563), "" = the server's main version. */
     version?: string;
 };
@@ -133,6 +136,8 @@ export function getLootAwards(q: LootAwardsQuery): Promise<LootAwardsData> {
         page: String(q.page),
     });
     if (q.version) qs.set("version", q.version);
+    if (q.sort) qs.set("sort", q.sort);
+    if (q.dir) qs.set("dir", q.dir);
     return get<LootAwardsData>(`/api/history/loot-awards?${qs.toString()}`);
 }
 

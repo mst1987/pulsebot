@@ -197,4 +197,39 @@ describe("web/loot/lootAwards listAwards", () => {
             expect(charStore.characterMap).not.toHaveBeenCalled();
         });
     });
+
+    describe("sorting", () => {
+        const rows = () => [
+            lootRow({ itemName: "Zeitlos", character: "Anna", awardedAt: 300, reasonLabel: "Offspec", contentId: "tk" }),
+            lootRow({ itemName: "Amulett", character: "Zora", awardedAt: 200, reasonLabel: "BiS", contentId: "ssc" }),
+            lootRow({ itemName: "Mantel", character: "Berta", awardedAt: 100, reasonLabel: "Mainspec", contentId: "bt" }),
+        ];
+        const names = (res) => res.items.map((it) => it.itemName);
+
+        beforeEach(() => lootStore.listAll.mockReturnValue(rows()));
+
+        it("keeps the store's order (newest first) by default", () => {
+            expect(names(listAwards({ topOnly: false }))).toEqual(["Zeitlos", "Amulett", "Mantel"]);
+        });
+
+        it("orders by item name and by player, ascending or descending", () => {
+            expect(names(listAwards({ topOnly: false, sort: "item", dir: "asc" }))).toEqual(["Amulett", "Mantel", "Zeitlos"]);
+            expect(names(listAwards({ topOnly: false, sort: "character", dir: "desc" }))).toEqual(["Amulett", "Mantel", "Zeitlos"]);
+        });
+
+        it("orders by reason, raid and oldest first", () => {
+            expect(names(listAwards({ topOnly: false, sort: "reason", dir: "asc" }))).toEqual(["Amulett", "Mantel", "Zeitlos"]);
+            expect(names(listAwards({ topOnly: false, sort: "raid", dir: "asc" }))).toEqual(["Mantel", "Amulett", "Zeitlos"]);
+            expect(names(listAwards({ topOnly: false, sort: "date", dir: "asc" }))).toEqual(["Mantel", "Amulett", "Zeitlos"]);
+        });
+
+        it("sorts before it pages, so a column orders every page", () => {
+            const res = listAwards({ topOnly: false, sort: "item", dir: "desc", pageSize: 1, page: 1 });
+            expect(names(res)).toEqual(["Zeitlos"]);
+        });
+
+        it("ignores an unknown column", () => {
+            expect(names(listAwards({ topOnly: false, sort: "nope", dir: "asc" }))).toEqual(["Zeitlos", "Amulett", "Mantel"]);
+        });
+    });
 });

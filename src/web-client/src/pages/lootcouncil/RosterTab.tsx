@@ -1,7 +1,7 @@
 import type { CouncilRaider, LootCouncilData, SimResult } from "../../api";
 import { fmtMs } from "../../lib/format";
 import type { TableSort } from "../../lib/tableSort";
-import { Button, PartHead } from "../../components/ui";
+import { Button } from "../../components/ui";
 import { useT } from "../../i18n";
 import type { RosterSortKey, useCouncilSim } from "./council";
 import { FoldRow } from "./ItemBits";
@@ -34,13 +34,13 @@ export function RosterTab({ data, roster, sortedRoster, sim, rosterSort, openRai
     const t = useT();
     return (
         <>
-            <PartHead
-                icon="achievement_guildperk_everybodysfriend"
-                crumb={t("lootcouncil.roster.crumb")}
-                title={t("lootcouncil.roster.title")}
-                tip={t("lootcouncil.roster.title")}
-                tipSub={t("lootcouncil.roster.tipSub")}
-                action={data.sim.available ? (
+            {/* No card header repeating the tab: just the rule the list is
+                ordered by, and the one job this tab starts. */}
+            <div className="lc-rosterbar">
+                <span className="lc-muted tipped" tabIndex={0} data-tip={t("lootcouncil.roster.title")} data-tip-sub={t("lootcouncil.roster.tipSub")}>
+                    {t("lootcouncil.roster.hint")}
+                </span>
+                {data.sim.available ? (
                     <Button
                         variant="run"
                         size="sm"
@@ -52,7 +52,7 @@ export function RosterTab({ data, roster, sortedRoster, sim, rosterSort, openRai
                         {t("lootcouncil.roster.simulate")}
                     </Button>
                 ) : undefined}
-            />
+            </div>
             {roster.length ? (
                 <RosterList
                     rows={sortedRoster}

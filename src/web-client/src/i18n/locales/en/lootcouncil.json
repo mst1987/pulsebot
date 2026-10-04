@@ -126,7 +126,8 @@
         "empty": "No matching raiders. The loot council reads class and spec from the loot imports and the CLA evaluations — without them the list stays empty.",
         "excludedTitle": "Not planned",
         "since": "since {date}",
-        "includeAgain": "Plan again"
+        "includeAgain": "Plan again",
+        "hint": "Whoever has gone longest without loot is on top."
     },
     "list": {
         "characterTipSub": "Spec icon, name and spec.",
@@ -160,7 +161,13 @@
         "noBisTip": "No BiS list",
         "bisBorrowed": "List of {from} (this spec has none of its own).",
         "bisOlder": "Newest available list: {tier}.",
-        "bisTip": "BiS {owned} of {total}"
+        "bisTip": "BiS {owned} of {total}",
+        "bisBar": "BiS {owned} of {total}",
+        "lastItem": "Last item",
+        "ago": {
+            "one": "{count} day ago",
+            "other": "{count} days ago"
+        }
     },
     "gaps": {
         "crumb": "Loot council › Open BiS items",
@@ -321,7 +328,8 @@
         "bisGap": "BiS gap · {owned}/{total}",
         "bisGapNone": "BiS gap · no list",
         "score": "Need {score} of 100",
-        "weighted": "Weighted 50 / 40 / 10: whoever waits long counts most."
+        "weighted": "Weighted 50 / 40 / 10: whoever waits long counts most.",
+        "bar": "Need {score}"
     },
     "filter": {
         "contentTipSub": "Which raids count for loot. Without a choice all loot counts; tiers and single raids can be combined (“T5 plus Hyjal”) while the guild is switching.",
@@ -350,10 +358,16 @@
         },
         "gearAllLog": "All gear comes from the last evaluation — anyone who put on something since is judged with the old set.",
         "gearEnchants": "Enchants still come from the evaluations: Blizzard's enchant ids are not the ones WoWSims expects. A piece that is new since then is calculated unenchanted and comes out a little low.",
-        "gearBadgeArmory": "Gear: {count} armory",
-        "gearBadgeLog": "Gear: evaluation",
         "simTipSub": "{done} of {total} simulatable raiders have a DPS. A gain only appears with a simulation — the page shows no estimates from stat weights.",
-        "simOff": "Sim off"
+        "button": "Filter",
+        "buttonActive": "Filter · {count} active",
+        "done": "Done",
+        "gearSource": "Gear source",
+        "simulation": "Simulation",
+        "gearValueLog": "Evaluation",
+        "gearValueArmory": "{armory} of {count} from the armory",
+        "simValue": "{done} of {total} simulated",
+        "simOffValue": "off"
     },
     "gear": {
         "dpsGear": "DPS gear",

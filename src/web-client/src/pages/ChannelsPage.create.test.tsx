@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../api";
 import ChannelsPage from "./ChannelsPage";
 import { adminUser, renderPage } from "../test/render";
-import { channelsData, purpose, RAIDS } from "./ChannelsPage.fixture";
+import { channelsData, purpose, RAIDS, rowMenu } from "./ChannelsPage.fixture";
 import type { ChannelNaming, ChannelsData, QuickCreateInput } from "../api";
 import { switchLang } from "../test/i18n";
 
@@ -219,7 +219,7 @@ describe("ChannelsPage — duplicate", () => {
     it("opens from a row with the source fixed and leaves the purpose behind", async () => {
         const user = userEvent.setup();
         await openPage();
-        await user.click(within(row("bewerbungen")).getByRole("button", { name: "Duplizieren" }));
+        await rowMenu(user, row("bewerbungen"), "Duplizieren");
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText("Kanal duplizieren")).toBeInTheDocument();
         // no picker for the source: it is the row's channel
@@ -238,7 +238,7 @@ describe("ChannelsPage — purposes", () => {
     it("edits a purpose for whoever may change the settings", async () => {
         const user = userEvent.setup();
         await openPage();
-        await user.click(screen.getByRole("button", { name: "Alle Zwecke" }));
+        await user.click(screen.getByRole("button", { name: "Zwecke zuweisen" }));
         await user.click(screen.getByRole("button", { name: "Raid-Anmeldung zuordnen" }));
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText("Raid-Anmeldung zuordnen", { selector: ".dlg-title" })).toBeInTheDocument();
@@ -254,20 +254,20 @@ describe("ChannelsPage — purposes", () => {
     it("links to Einstellungen instead for someone without write access there", async () => {
         const user = userEvent.setup();
         await openPage(channelsData(), adminUser({ isAdmin: false, access: { channels: { read: true, write: true }, settings: { read: true, write: false } } }));
-        await user.click(screen.getByRole("button", { name: "Alle Zwecke" }));
+        await user.click(screen.getByRole("button", { name: "Zwecke zuweisen" }));
         expect(screen.queryByRole("button", { name: "Raid-Anmeldung zuordnen" })).not.toBeInTheDocument();
         const links = screen.getAllByRole("link", { name: "In Einstellungen öffnen" });
         expect(links[1]).toHaveAttribute("href", "/settings?section=recruitment");
         // nor is "Zweck zuordnen" in the channel's edit
         await user.keyboard("{Escape}");
-        await user.click(within(row("bewerbungen")).getByRole("button", { name: "Bearbeiten" }));
+        await rowMenu(user, row("bewerbungen"), "Bearbeiten");
         expect(within(screen.getByRole("dialog")).queryByRole("button", { name: "Zweck zuordnen" })).not.toBeInTheDocument();
     });
 
     it("assigns purposes from the channel's edit", async () => {
         const user = userEvent.setup();
         await openPage();
-        await user.click(within(row("bewerbungen")).getByRole("button", { name: "Bearbeiten" }));
+        await rowMenu(user, row("bewerbungen"), "Bearbeiten");
         await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Zweck zuordnen" }));
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText("Zweck zuordnen", { selector: ".dlg-title" })).toBeInTheDocument();
@@ -289,7 +289,7 @@ describe("ChannelsPage — purposes", () => {
         }));
         data.channels.find((c) => c.id === "c-loose")!.botCanSend = false;
         await openPage(data);
-        await user.click(screen.getByRole("button", { name: "Alle Zwecke" }));
+        await user.click(screen.getByRole("button", { name: "Zwecke zuweisen" }));
         await user.click(screen.getByRole("button", { name: "Log-Auswertung zuordnen" }));
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText("Nicht auf diesem Server")).toBeInTheDocument();

@@ -52,9 +52,14 @@ a.ibtn svg { width: 15px; height: 15px; }
 .kn-mono { font-family: var(--font-mono); }
 
 /* ---- page layout (issue #259): tabs, the tree, the side panel ---- */
-.kn-page.has-bulk { padding-bottom: 84px; }
 .kn-tabs { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.kn-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
+.kn-layout { min-width: 0; }
+/* the purposes as one slim strip above the list (replaces the side panel) */
+.kn-strip {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 12px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px;
+}
+.kn-strip-past { display: inline-flex; align-items: center; gap: 6px; }
 
 .kn-tree { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 14px; min-width: 0; }
 .kn-tree-tools { display: flex; align-items: center; gap: 10px; padding: 4px 0 6px; flex-wrap: wrap; }
@@ -93,10 +98,19 @@ a.ibtn svg { width: 15px; height: 15px; }
     font-family: var(--font-mono); font-size: 15px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; cursor: default;
 }
-.kn-row-icons { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+.kn-row-icons { margin-left: auto; display: flex; align-items: center; gap: 4px; opacity: 0; transition: opacity .12s; }
 .kn-row:hover .kn-row-icons, .kn-row:focus-within .kn-row-icons,
 .kn-cat-row:hover .kn-row-icons, .kn-cat-row:focus-within .kn-row-icons { opacity: 1; }
 .kn-row-icons .ibtn { border: 0; background: none; }
+.kn-row-icons:has(.kn-more-menu) { opacity: 1; }
+.kn-row-btn { font-weight: 600; }
+/* "…" and "Mehr" menus */
+.kn-more { position: relative; display: inline-flex; }
+.kn-more .btn svg { width: 13px; height: 13px; margin-left: 4px; }
+.kn-more-menu { min-width: 190px; }
+.kn-more-menu.up { top: auto; bottom: calc(100% + 6px); right: auto; left: 0; }
+.split-menu button.kn-danger { color: var(--high); }
+.split-menu button.kn-touch-only { display: none; }
 
 .kn-inline-wrap { display: inline-flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
 .kn-inline {
@@ -104,26 +118,13 @@ a.ibtn svg { width: 15px; height: 15px; }
     box-shadow: 0 0 0 3px var(--accent-soft); border-radius: 6px; font: 600 14px var(--font-mono); outline: none;
 }
 
-.kn-side { display: flex; flex-direction: column; gap: 12px; }
-.kn-figures { display: flex; flex-direction: column; gap: 14px; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
-.kn-figure {
-    display: flex; flex-direction: column; gap: 2px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left;
-}
-button.kn-figure { cursor: pointer; }
-button.kn-figure:hover .kn-figure-val { color: var(--accent); }
-.kn-figure-val { font-size: 22px; font-weight: 800; letter-spacing: -.3px; line-height: 1.1; }
-.kn-figure-val.mid { color: var(--medium); }
-.kn-purposes { gap: 10px; padding-block: 12px 16px; }
-.kn-purposes-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.kn-purposes-head .kn-kicker { cursor: help; }
 
 /* ---- bulk bar ---- */
+/* sticky at the bottom of the list: it stays in view while the list scrolls, but sits in the flow, not over the page */
 .kn-bulk {
-    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 10px;
-    /* width: max-content — with left: 50% the bar would otherwise only get half
-       the viewport and break its buttons onto a second line. */
-    flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100vw - 32px); padding: 10px 12px 10px 18px; background: var(--panel);
-    border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 18px 40px -12px var(--shade-60);
+    position: sticky; bottom: 12px; z-index: 40; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 12px 10px 18px; background: var(--panel); border: 1px solid var(--accent); border-radius: 12px;
+    box-shadow: 0 18px 40px -12px var(--shade-60);
 }
 .kn-bulk-sel { display: flex; flex-direction: column; gap: 1px; margin-right: 6px; line-height: 1.15; }
 .kn-bulk-count { font-weight: 800; font-size: 15px; white-space: nowrap; }
@@ -212,10 +213,16 @@ select.kn-select { padding-right: 34px; }
     .kn-purpose .kn-chips { grid-column: 1 / -1; order: 3; }
     .kn-search { min-width: 0; width: 100%; }
     .kn-type-seg { flex-wrap: wrap; }
-    .kn-layout { grid-template-columns: minmax(0, 1fr); }
     .kn-row-icons { opacity: 1; }
+    .kn-row-btn { display: none; }
+    .split-menu button.kn-touch-only { display: flex; }
     .kn-inline { min-width: 0; width: 100%; }
     .kn-inline-wrap .kn-kicker { display: none; }
     .kn-grid2 { grid-template-columns: minmax(0, 1fr); }
-    .kn-bulk { left: 16px; right: 16px; transform: none; bottom: 12px; }
+}
+/* touch: no hover, so the row's actions are always there (as the "…" menu) */
+@media (hover: none) {
+    .kn-row-icons { opacity: 1; }
+    .kn-row-btn { display: none; }
+    .split-menu button.kn-touch-only { display: flex; }
 }

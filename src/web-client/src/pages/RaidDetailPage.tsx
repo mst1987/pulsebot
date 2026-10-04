@@ -16,15 +16,16 @@
 // Raidplan tab and its switch, "raidplan" the sheet dialog and its menu entry.
 // The steps the server sends are gated the same way.
 import { Suspense, useEffect, useState } from "react";
-import { Link, useOutletContext, useSearchParams } from "react-router-dom";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import {
-    canAccess, getRaidDetail, reopenRaid, setRaidSignupsOpen, setRaidplanLink,
+    canAccess, getRaidDetail, recreateChannel, reopenRaid, setRaidSignupsOpen, setRaidplanLink,
     type ApiError, type RaidDetailModal, type RaidEventSteps,
     type RaidPrimaryAction, type RaidStep, type RaidStepDeed } from "../api";
 import { useApi } from "../hooks/useApi";
 import { useConfirm } from "../components/ui/Modal";
+import BackButton from "../components/ui/BackButton";
 import ArchiveBanner from "../components/ArchiveBanner";
-import { raidhelperMenu, type ManageAction } from "../lib/eventManage";
+import { lootSystemEntry, raidhelperMenu, type ManageAction } from "../lib/eventManage";
 import { withoutDeeds } from "../lib/raidSteps";
 import ManageMenu from "./raid-detail/manage/ManageMenu";
 import MoveModal from "./raid-detail/manage/MoveModal";
@@ -112,6 +113,8 @@ export default function RaidDetailPage() {
     const [player, setPlayer] = useState<PlayerRef | null>(null);
     // "Raidplan aktivieren" of a Raid-Helper event (docs/raidplan.md, "Raid-Helper-Events")
     const [linkOpen, setLinkOpen] = useState(false);
+    // "Kanal anlegen" beside the head's "Kanal fehlt" (#537's action, the dashboard has it too)
+    const [recreating, setRecreating] = useState(false);
 
     // An old ?tab= value: rewrite it to the tab it became (the dialog it maps to
     // was already opened by the initial state above).
@@ -138,8 +141,9 @@ export default function RaidDetailPage() {
     };
     const evaluator = useEvaluate({ onChanged: afterChange });
 
-    const backLink = <p className="note"><Link className="mlink" to="/raids">{t("raidDetail.page.back")}</Link></p>;
-    if (detail.error) return <>{backLink}<div className="empty">{t("raidDetail.page.loadError", { message: detail.error.message })}</div></>;
+    // The way back is a visible button above the head, not the breadcrumb alone.
+    const backLink = <div className="rd-back"><BackButton to="/raids" size="sm" label={t("raidDetail.page.back")} /></div>;
+    if (detail.error) return <div className="rd-page">{backLink}<div className="empty">{t("raidDetail.page.loadError", { message: detail.error.message })}</div></div>;
     if (!data || !ctx) return <RaidLoader text={t("raidDetail.page.loading")} />;
 
     // Only an own event has a setup editor; a Raid-Helper event's setup is its raidplan in the roster.
@@ -182,11 +186,29 @@ export default function RaidDetailPage() {
     // Event verwalten (#288): one menu for an own event, only with raids write.
     // Editing reuses the create dialog (#261), everything else is a dialog or one question.
     const canManage = !!ctx.canManage;
-    // A Raid-Helper event's menu holds only the raid plan switch (raidplan write).
+    // A Raid-Helper event's menu holds the raid plan switch (raidplan write) and the loot system.
     const canSwitchPlan = !ownEvent && !archived && planning !== "sheet" && canAccess(user, "raidplan", "write");
+    // The loot system (once a chip in the head) is a menu entry for whoever may change it (raids write).
+    const lootLabel = canWrite && data.lootSystem ? `${data.lootSystem.label}${data.lootSystem.softresExtra ? " + Softres" : ""}` : "";
+    const raidhelperEntries = ownEvent ? [] : [
+        ...(canSwitchPlan ? raidhelperMenu({ planEnabled: !!data.event.raidplanEnabled, disabled: !!data.event.raidhelperDisabled }) : []),
+        ...(lootLabel ? [lootSystemEntry(lootLabel)] : []),
+    ];
+    const recreate = async () => {
+        setRecreating(true);
+        try {
+            const r = await recreateChannel(data.event.id);
+            afterChange([r.message, ...(r.warnings || [])].join("\n"));
+        } catch (err) {
+            jobs.notify((err as ApiError).message, "err");
+        } finally {
+            setRecreating(false);
+        }
+    };
     const runManage = async (action: ManageAction) => {
         const ev = data.event;
-        if (action === "raidplanOn") setLinkOpen(true);
+        if (action === "lootsystem") setModal("lootsystem");
+        else if (action === "raidplanOn") setLinkOpen(true);
         else if (action === "raidplanOff") {
             const ok = await ask({ title: t("raidDetail.raidplanLink.offTitle"), text: t("raidDetail.raidplanLink.offText"), action: t("raidDetail.raidplanLink.offAction"), tone: "danger", icon: "inv_misc_map02" });
             if (!ok) return;
@@ -254,12 +276,14 @@ export default function RaidDetailPage() {
 
     return (
         <div className="rd-page">
+            {backLink}
             {data.eventsWarning && <div className="flash flash-err">{data.eventsWarning}</div>}
             <ArchiveBanner archive={archived} />
 
             <RaidDetailHero
                 data={data} onStep={archived ? () => undefined : openStep} onPrimary={archived ? () => undefined : runPrimary}
-                onLootSystem={canWrite ? () => setModal("lootsystem") : undefined}
+                lootInMenu={!!lootLabel && (canManage || raidhelperEntries.length > 0)}
+                onRecreateChannel={canManage ? () => void recreate() : undefined} recreating={recreating}
                 primaryRunning={!!primaryEval && evaluator.isRunning(primaryEval.logId, primaryEval.section)}
                 cockpit={cockpit ? (
                     <StepBar
@@ -269,13 +293,13 @@ export default function RaidDetailPage() {
                 ) : undefined}
                 manage={canManage ? (
                     <ManageMenu
-                        state={{ cancelled: data.event.status === "cancelled", signupsClosed: !!data.event.signupsClosed, isPast: !!data.event.isPast, logCount: data.event.logCount || 0, softres: data.lootSystem?.softres, invite: !!data.ownSetup?.approvedAt, sheet: hasSheet }}
+                        state={{ cancelled: data.event.status === "cancelled", signupsClosed: !!data.event.signupsClosed, isPast: !!data.event.isPast, logCount: data.event.logCount || 0, softres: data.lootSystem?.softres, invite: !!data.ownSetup?.approvedAt, sheet: hasSheet, lootSystem: lootLabel || undefined }}
                         onAction={runManage}
                     />
-                ) : canSwitchPlan ? (
+                ) : raidhelperEntries.length > 0 ? (
                     <ManageMenu
-                        entries={raidhelperMenu({ planEnabled: !!data.event.raidplanEnabled, disabled: !!data.event.raidhelperDisabled })}
-                        tipSub={t("raidDetail.manage.tipSubRaidhelper")}
+                        entries={raidhelperEntries}
+                        tipSub={canSwitchPlan ? t("raidDetail.manage.tipSubRaidhelper") : t("raidDetail.manage.tipSubLoot")}
                         onAction={runManage}
                     />
                 ) : undefined}
