@@ -26,6 +26,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
+    mocks.access.config = { botLanguage: "en" };
     mocks.events.set("eh-kara", mocks.ownEvent());
     profiles.addCharacter(ANNA, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] });
 });

@@ -37,14 +37,14 @@ const description = (payload) => (payload.embeds[0].description || "");
 
 describe("signupDialog je Spielversion", () => {
     it("bietet für ein Forever-Event nur Devi Res, für TBC nur Devi", () => {
-        const forever = dialog.buildSignupDialog(mocks.events.get("eh-barrow"), ANNA);
+        const forever = dialog.buildSignupDialog(mocks.events.get("eh-barrow"), ANNA, { lang: "en" });
         expect(selectOf(forever, "signup-pick:eh-barrow:s").options.map((o) => o.value)).toEqual(["forever~devi res|Priest-Shadow"]);
-        const tbc = dialog.buildSignupDialog(mocks.events.get("eh-kara"), ANNA);
+        const tbc = dialog.buildSignupDialog(mocks.events.get("eh-kara"), ANNA, { lang: "en" });
         expect(selectOf(tbc, "signup-pick:eh-kara:s").options.map((o) => o.value)).toEqual(["devi|Priest-Holy"]);
     });
 
     it("sagt einem Raider ohne Charakter der Version, was zu tun ist – mit Link", () => {
-        const payload = dialog.buildSignupDialog(mocks.events.get("eh-barrow"), BERT);
+        const payload = dialog.buildSignupDialog(mocks.events.get("eh-barrow"), BERT, { lang: "en" });
         expect(description(payload)).toContain("No WoW Forever character in your profile yet – create a WoW Forever character in your [profile](https://eh.example/profile)");
         // the class way stays open, and the link button says which character is missing
         expect(selectOf(payload, "signup-pick:eh-barrow:k")).toBeTruthy();
@@ -53,7 +53,7 @@ describe("signupDialog je Spielversion", () => {
     });
 
     it("ohne jeden Charakter bleibt der alte Hinweis", () => {
-        const payload = dialog.buildSignupDialog(mocks.events.get("eh-barrow"), "200000000000000009");
+        const payload = dialog.buildSignupDialog(mocks.events.get("eh-barrow"), "200000000000000009", { lang: "en" });
         expect(description(payload)).toContain("No character in your profile yet");
         expect(dialog.missingVersionLine(profiles.getProfile("200000000000000009"), "forever")).toBe("");
     });
@@ -83,10 +83,16 @@ describe("joinPicker je Spielversion", () => {
     });
 
     it("die Auswahl zeigt nur Charaktere der Event-Version und sonst den Hinweis", () => {
-        const payload = joinPicker.buildJoinPicker(mocks.events.get("eh-barrow"), ANNA, "signed");
+        const payload = joinPicker.buildJoinPicker(mocks.events.get("eh-barrow"), ANNA, "signed", { lang: "en" });
         expect(selectOf(payload, "event-join:eh-barrow").options.map((o) => o.value)).toEqual(["forever~devi res|Priest-Shadow"]);
-        const bert = joinPicker.buildJoinPicker(mocks.events.get("eh-barrow"), BERT, "signed");
+        const bert = joinPicker.buildJoinPicker(mocks.events.get("eh-barrow"), BERT, "signed", { lang: "en" });
         expect(description(bert)).toContain("No WoW Forever character in your profile yet");
+    });
+
+    it("sagt den Hinweis ohne Sprache auf Deutsch", () => {
+        const bert = joinPicker.buildJoinPicker(mocks.events.get("eh-barrow"), BERT, "signed");
+        expect(description(bert)).toContain("Noch kein WoW Forever-Charakter in deinem Profil");
+        expect(description(bert)).toContain("Welcher Charakter? – aus deinem EventHelper-Profil");
     });
 
     it("merkt sich „zuletzt“ je Version und vergleicht über den Namen", () => {

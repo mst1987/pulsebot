@@ -16,6 +16,8 @@ const discord = require("./discord");
 const { logcheckAdminIds, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
 const { eventGuildId } = require("./guildRoles");
 const { normalizeRule, normalizeBotCommandAccess } = require("../../config/botCommands");
+const { langOfInteraction } = require("./botLanguage");
+const { tr } = require("../../utils/i18n/botText");
 
 // accessOf chains are one link deep in practice; the cap only guards a loop.
 const MAX_ACCESS_OF_DEPTH = 5;
@@ -127,18 +129,20 @@ async function eventMemberRoles(interaction, guildId) {
 
 /**
  * "You need @Orga or @Raidleiter for this." — the names come from the event
- * guild. English: whoever is refused is mostly a raider who clicked an orga
- * button (e.g. "Call invites" under the setup message).
+ * guild. In the language of whoever is refused (`lang`): mostly a raider who
+ * clicked an orga button (e.g. "Call invites" under the setup message).
  */
-function denyMessage(rule, guildId) {
-    if (rule.mode !== "roles" || !rule.roleIds.length) return "This is reserved for admins.";
+function denyMessage(rule, guildId, lang = "de") {
+    if (rule.mode !== "roles" || !rule.roleIds.length) return tr(lang, "This is reserved for admins.");
     const guild = discord.getGuild(guildId);
     const names = rule.roleIds.map((id) => {
         const role = guild && guild.roles && guild.roles.cache && guild.roles.cache.get(id);
-        return `@${role ? role.name : "unknown role"}`;
+        return `@${role ? role.name : tr(lang, "unknown role")}`;
     });
-    const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}` : names[0];
-    return `You need ${list} for this.`;
+    const roles = names.length > 1
+        ? tr(lang, "{first} or {last}", { first: names.slice(0, -1).join(", "), last: names[names.length - 1] })
+        : names[0];
+    return tr(lang, "You need {roles} for this.", { roles });
 }
 
 /**
@@ -162,7 +166,7 @@ async function guardInteraction(interaction, command, commands) {
         if (typeof interaction.isAutocomplete === "function" && interaction.isAutocomplete()) {
             await interaction.respond([]);
         } else if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({ content: denyMessage(result.rule, guildId), flags: MessageFlags.Ephemeral });
+            await interaction.reply({ content: denyMessage(result.rule, guildId, langOfInteraction(interaction, { config })), flags: MessageFlags.Ephemeral });
         }
     } catch (e) {
         console.error("botAccess: deny reply failed:", e.message);

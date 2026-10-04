@@ -1,0 +1,22 @@
+// German bot texts of /profil (the raider's own profile in short).
+module.exports = {
+    "My profile": "Mein Profil",
+    "No character yet.": "Noch kein Charakter.",
+    "no specs": "keine Specs",
+    "off-tank": "Offtank",
+    "heal": "heilen",
+    "can {roles}": "kann {roles}",
+    "Available: {days}": "Verfügbar: {days}",
+    "not given": "nicht angegeben",
+    "Mon": "Mo",
+    "Tue": "Di",
+    "Wed": "Mi",
+    "Thu": "Do",
+    "Fri": "Fr",
+    "Sat": "Sa",
+    "Sun": "So",
+    "no off-tank": "kein Offtank",
+    "can off-tank": "kann Offtank",
+    "no healing": "kein Heilen",
+    "can heal": "kann heilen",
+};

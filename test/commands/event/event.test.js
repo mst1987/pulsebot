@@ -71,11 +71,12 @@ describe("/event anlegen — access", () => {
         ]) {
             const i = mockInteraction({ commandName: customId ? undefined : "event", customId, modal });
             expect(await guardInteraction(i, command, commands)).toBe(false);
-            expect(i.reply).toHaveBeenCalledWith({ content: "This is reserved for admins.", flags: MessageFlags.Ephemeral });
+            // the server language (German by default) answers whoever chose none
+            expect(i.reply).toHaveBeenCalledWith({ content: "Das ist den Admins vorbehalten.", flags: MessageFlags.Ephemeral });
             expect(i.showModal).not.toHaveBeenCalled();
         }
 
-        settings.getConfig.mockReturnValue({ categoryIds: [CAT_EH], botCommandAccess: { event: { mode: "roles", roleIds: [ORGA] } } });
+        settings.getConfig.mockReturnValue({ botLanguage: "en", categoryIds: [CAT_EH], botCommandAccess: { event: { mode: "roles", roleIds: [ORGA] } } });
         eventGuildId.mockReturnValue("guild-1");
         const orga = mockInteraction({ customId: draft._internal.formId(state) });
         orga.member = { roles: [ORGA] };

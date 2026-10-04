@@ -4,12 +4,14 @@ const { submitSignup } = require("../../services/signups/signupService");
 const {
     COMMENT_PREFIX, parseCommentId, buildSignupDialog, buildCommentModal, plainUpdate,
 } = require("../../utils/signup/signupDialog");
+const { langOfInteraction } = require("../../services/discord/botLanguage");
+const { tr } = require("../../utils/i18n/botText");
 
 // "Kommentar" in the signup dialog (utils/signup/signupDialog.js). Two interactions
 // share the customId `signup-comment:<eventId>:<state>`, like logevalForce.js:
 // the click opens a modal prefilled with the current comment, the submitted
 // modal saves it onto the existing signup — status, character and spec stay as
-// stored, so the deadline never stands in the way of a comment.
+// stored, so the deadline never stands in the way of a comment. In the member's language.
 module.exports = {
     name: COMMENT_PREFIX,
     description: "Kommentar zur Anmeldung im Anmelde-Dialog",
@@ -18,16 +20,17 @@ module.exports = {
         const { eventId, state } = parseCommentId(interaction.customId);
         const event = getEvent(eventId);
         const uid = interaction.user.id;
+        const lang = langOfInteraction(interaction);
         if (!interaction.isModalSubmit()) {
-            if (!event) return plainUpdate(interaction, "This event no longer exists.");
+            if (!event) return plainUpdate(interaction, tr(lang, "This event no longer exists."));
             const mine = getSignup(event.id, uid);
-            return interaction.showModal(buildCommentModal(interaction.customId, mine ? mine.comment : ""));
+            return interaction.showModal(buildCommentModal(interaction.customId, mine ? mine.comment : "", lang));
         }
 
-        if (!event) return plainUpdate(interaction, "This event no longer exists.");
+        if (!event) return plainUpdate(interaction, tr(lang, "This event no longer exists."));
         const mine = getSignup(event.id, uid);
         if (!mine) {
-            return interaction.update(buildSignupDialog(event, uid, { state, notice: "⚠️ Sign up first – then you can leave a comment." }));
+            return interaction.update(buildSignupDialog(event, uid, { state, notice: `⚠️ ${tr(lang, "Sign up first – then you can leave a comment.")}`, lang }));
         }
         const comment = String(interaction.fields.getTextInputValue("comment") || "").trim();
         const result = await submitSignup(event.id, uid, {
@@ -39,7 +42,7 @@ module.exports = {
         });
         const notice = result.error
             ? `⚠️ ${result.error}`
-            : (comment ? "✅ Comment saved." : "✅ Comment removed.");
-        return interaction.update(buildSignupDialog(event, uid, { state, notice }));
+            : `✅ ${comment ? tr(lang, "Comment saved.") : tr(lang, "Comment removed.")}`;
+        return interaction.update(buildSignupDialog(event, uid, { state, notice, lang }));
     },
 };

@@ -7,10 +7,12 @@ const { archivedNotice } = require("../../services/events/eventArchive");
 const { submitSignup, allowedStatuses, checkRaiderRole, signupWindow, defaultCanAlso } = require("../../services/signups/signupService");
 const { JOIN_SELECT_PREFIX, STATUS_OPTIONS } = require("../../services/events/eventMessage");
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
-const { buildSignupDialog, savedNotice, plainUpdate, missingVersionLine } = require("../../utils/signup/signupDialog");
+const { buildSignupDialog, savedNotice, plainUpdate, missingVersionLine, statusLabel } = require("../../utils/signup/signupDialog");
 const { parseJoinId, characterOptions, buildJoinPicker } = require("../../utils/signup/joinPicker");
 const { answerPayload } = require("../../utils/signup/signupReply");
 const { savedEmbed } = require("../../utils/signup/signupButtons");
+const { langOfInteraction } = require("../../services/discord/botLanguage");
+const { tr } = require("../../utils/i18n/botText");
 
 // The public "Anmelden …" select under an event message (#287) and the
 // components of the character select it opens (utils/signup/joinPicker.js):
@@ -28,18 +30,19 @@ const { savedEmbed } = require("../../utils/signup/signupButtons");
 // select on the message already offers only what is still allowed.
 // A text answer (`{ content }`) and the save confirmation (`{ embed }`) go out as an
 // embed in the raid's colour (#508, utils/signup/signupReply.js); a picker as it is.
+// Everything is in the member's language (langOfInteraction).
 const reply = (interaction, payload, event = null) => {
     if (payload.embed) return interaction.reply(answerPayload(payload.embed));
-    if (payload.content) return interaction.reply(answerPayload(payload.content, { event }));
+    if (payload.content) return interaction.reply(answerPayload(payload.content, { event, lang: langOfInteraction(interaction) }));
     return interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
 };
 
 /** Why a status cannot be chosen right now, or "". */
-function refusal(event, status, now = Date.now()) {
+function refusal(event, status, lang, now = Date.now()) {
     if (allowedStatuses(event, { now }).includes(status)) return "";
     const w = signupWindow(event, now);
-    if (w.started) return "The raid has already started – signups are closed.";
-    return "The signup deadline has passed – you can only sign off or sign up as “Late” now.";
+    if (w.started) return tr(lang, "The raid has already started – signups are closed.");
+    return tr(lang, "The signup deadline has passed – you can only sign off or sign up as “Late” now.");
 }
 
 async function emojisFor(interaction) {
@@ -50,9 +53,10 @@ async function emojisFor(interaction) {
 /** The public select: a status was picked. */
 async function onStatus(interaction, event) {
     const uid = interaction.user.id;
+    const lang = langOfInteraction(interaction);
     const status = String((interaction.values && interaction.values[0]) || "");
-    if (!STATUS_OPTIONS[status]) return reply(interaction, { content: "Unknown status." }, event);
-    const refused = refusal(event, status);
+    if (!STATUS_OPTIONS[status]) return reply(interaction, { content: tr(lang, "Unknown status.") }, event);
+    const refused = refusal(event, status, lang);
     if (refused) return reply(interaction, { content: refused }, event);
     const access = await checkRaiderRole(event, uid);
     if (access.error) return reply(interaction, { content: access.error }, event);
@@ -68,16 +72,17 @@ async function onStatus(interaction, event) {
             comment: mine ? mine.comment : "",
         });
         if (result.error) return reply(interaction, { content: `⚠️ ${result.error}` }, event);
-        return reply(interaction, { embed: savedEmbed(event, result.signup, profiles.getProfile(uid), { emojis: await emojisFor(interaction), notice: result.notice }) });
+        return reply(interaction, { embed: savedEmbed(event, result.signup, profiles.getProfile(uid), { emojis: await emojisFor(interaction), notice: result.notice, lang }) });
     }
 
     const versionId = versionOfEvent(event);
     const options = characterOptions(profile, versionId);
     if (!options.length) {
-        const label = STATUS_OPTIONS[status].label;
+        const label = statusLabel(lang, status);
         // A profile with characters of another version only: the dialog's own line says so (#543).
         return reply(interaction, buildSignupDialog(event, uid, {
-            notice: missingVersionLine(profile, versionId) ? "" : `Pick class and spec, then click “${label}” – the bot then asks for your character's name.`,
+            notice: missingVersionLine(profile, versionId) ? "" : tr(lang, "Pick class and spec, then click “{label}” – the bot then asks for your character's name.", { label }),
+            lang,
         }));
     }
 
@@ -94,10 +99,10 @@ async function onStatus(interaction, event) {
         });
         const notice = result.error
             ? `⚠️ ${result.error}`
-            : [savedNotice(result.signup, profiles.getProfile(uid), versionId), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
-        return reply(interaction, buildJoinPicker(event, uid, status, { notice, emojis }));
+            : [savedNotice(result.signup, profiles.getProfile(uid), versionId, lang), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
+        return reply(interaction, buildJoinPicker(event, uid, status, { notice, emojis, lang }));
     }
-    return reply(interaction, buildJoinPicker(event, uid, status, { emojis }));
+    return reply(interaction, buildJoinPicker(event, uid, status, { emojis, lang }));
 }
 
 module.exports = {
@@ -109,27 +114,28 @@ module.exports = {
     async execute(interaction) {
         const { eventId, status, field, state } = parseJoinId(interaction.customId);
         const event = getEvent(eventId);
+        const lang = langOfInteraction(interaction);
         if (!field) {
-            if (!event) return reply(interaction, { content: "This event no longer exists." });
-            const archived = archivedNotice(event);
-            if (archived) return interaction.reply(answerPayload(archived, { event }));
+            if (!event) return reply(interaction, { content: tr(lang, "This event no longer exists.") });
+            const archived = archivedNotice(event, { lang });
+            if (archived) return interaction.reply(answerPayload(archived, { event, lang }));
             return onStatus(interaction, event);
         }
 
-        if (!event) return plainUpdate(interaction, "This event no longer exists.");
+        if (!event) return plainUpdate(interaction, tr(lang, "This event no longer exists."));
         const uid = interaction.user.id;
-        if (!status) return plainUpdate(interaction, "Unknown status.");
+        if (!status) return plainUpdate(interaction, tr(lang, "Unknown status."));
         if (field === "m") {
-            return interaction.update(buildSignupDialog(event, uid, { state }));
+            return interaction.update(buildSignupDialog(event, uid, { state, lang }));
         }
         if (field === "c") {
             const [character = "", spec = ""] = String((interaction.values && interaction.values[0]) || "").split("|");
             // The same pick keeps its "kann auch", a new one takes the profile's.
             const same = state && state.character === character && state.spec === spec;
             const next = same ? state : nextState(uid, { character, spec }, versionOfEvent(event));
-            return interaction.update(buildJoinPicker(event, uid, status, { state: next, emojis: await emojisFor(interaction) }));
+            return interaction.update(buildJoinPicker(event, uid, status, { state: next, emojis: await emojisFor(interaction), lang }));
         }
-        return plainUpdate(interaction, "Unknown action.");
+        return plainUpdate(interaction, tr(lang, "Unknown action."));
     },
 };
 

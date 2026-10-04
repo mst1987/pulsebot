@@ -35,6 +35,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
+    mocks.access.config = { botLanguage: "en" };
     mocks.events.clear();
 });
 
@@ -235,7 +236,7 @@ describe("Mehrere Charaktere … an einem Event (#293)", () => {
         expect(answerOf(late.reply.mock.calls[0][0]).text).toContain("signup deadline");
 
         mocks.events.set("eh-r2", mocks.ownEvent({ id: "eh-r2", categoryId: "cat" }));
-        mocks.access.config = { guildId: "g", categoryRoles: { cat: ["role"] } };
+        mocks.access.config = { botLanguage: "en", guildId: "g", categoryRoles: { cat: ["role"] } };
         mocks.access.roleIds = [];
         const noRole = mockInteraction({ customId: "signup-multi:e:eh-r2:s", userId: ANNA });
         await step.execute(noRole);
@@ -256,12 +257,45 @@ describe("utils/signup/multiSignup", () => {
         raids(4, (n) => (n === 2 ? { status: "cancelled" } : n === 3 ? { signupsClosed: true } : {}));
         mocks.events.set("eh-begun", mocks.ownEvent({ id: "eh-begun", startTime: sec() - 60 }));
         expect(multi.signableRaids().map((e) => e.id)).toEqual(["eh-r1", "eh-r4"]);
-        mocks.access.config = { categoryIds: ["cat-x"] };
+        mocks.access.config = { botLanguage: "en", categoryIds: ["cat-x"] };
         expect(multi.signableRaids()).toEqual([]);
     });
 
     it("orders the picks as the modal listed them, not as Discord returns them", () => {
         const order = [{ value: "a|X" }, { value: "b|Y" }, { value: "c|Z" }];
         expect(multi.orderedPicks(["c|Z", "a|X", "nope|Q"], order)).toEqual([{ character: "a", spec: "X" }, { character: "c", spec: "Z" }]);
+    });
+});
+
+describe("Deutsch als Standard (Server-Sprache)", () => {
+    it("fragt und antwortet auf Deutsch, die Gründe des Dienstes bleiben deutsch", async () => {
+        mocks.access.config = {};
+        characters();
+        raids(2, (n) => (n === 2 ? { versionId: "andere-version" } : {}));
+        const open = mockInteraction({ customId: "talk-signup-all", userId: ANNA });
+        await all.execute(open);
+        const modal = open.showModal.mock.calls[0][0];
+        expect(modal.title).toBe("Für alle 2 Raids anmelden");
+        expect(modal.components[1].label).toBe("Status für alle");
+        expect(modal.components[1].component.options.map((o) => o.label)).toEqual(["Anmelden", "Vielleicht", "Spät", "Bank", "Abmelden"]);
+        const submit = modalSubmit(modal.custom_id, { all: ["zibbo|Priest-Holy"], status: ["late"] }, { message: { id: "overview" } });
+        await step.execute(submit);
+        const payload = submit.editReply.mock.calls[0][0];
+        expect(payload.embeds[0].title).toBe("Anmeldung: 1 von 2 Raids gespeichert");
+        const lines = payload.embeds[0].description.split("\n");
+        expect(lines[0]).toMatch(/^✅ \*\*Raid 1\*\* · <t:\d+:D>: Zibbo · Heilig – Spät$/);
+        expect(lines[1]).toContain("Keiner der gewählten Charaktere passt (Zibbo · Heilig übersprungen: Klasse passt nicht zu diesem Raid");
+    });
+
+    it("zeigt Schritt 1 auf Deutsch", async () => {
+        mocks.access.config = {};
+        characters();
+        raids(2);
+        const i = mockInteraction({ customId: "talk-signup-multi", userId: ANNA });
+        await pickRaids.execute(i);
+        const payload = i.reply.mock.calls[0][0];
+        expect(payload.embeds[0].title).toBe("Welche Raids?");
+        expect(payload.embeds[0].description).toContain("Schritt 1 von 2 · nur für dich sichtbar");
+        expect(payload.components[2].components[0].label).toBe("Weiter: Charaktere");
     });
 });

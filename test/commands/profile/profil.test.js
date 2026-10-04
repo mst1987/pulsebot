@@ -1,6 +1,10 @@
 // /profil: kurze Zusammenfassung des eigenen Profils, Link ins Web und die
 // Schnell-Schalter "kann Offtank" / "kann heilen".
 const { MessageFlags } = require("discord.js");
+
+// The server language (Einstellungen): English for the old assertions, German by default.
+let mockConfig = { botLanguage: "en" };
+jest.mock("../../../src/stores/settingsStore", () => ({ ...jest.requireActual("../../../src/stores/settingsStore"), getConfig: () => mockConfig }));
 const store = require("../../../src/stores/raiderProfileStore");
 const command = require("../../../src/commands/profile/profil");
 const { mockInteraction } = require("../../helpers/mockInteraction");
@@ -9,6 +13,9 @@ const { tempStoreFile } = require("../../helpers/tempStore");
 const USER = "300000000000000001";
 
 beforeAll(() => store.useFile(tempStoreFile("eh-profiles-cmd.json")));
+beforeEach(() => {
+    mockConfig = { botLanguage: "en" };
+});
 afterEach(() => store.reset());
 afterAll(() => store.useFile(null));
 
@@ -33,7 +40,7 @@ describe("commands/profile/profil", () => {
         store.addCharacter(USER, { name: "Nerathil", className: "Mage", specs: [{ key: "Mage-Arcane", gear: "ready" }] });
         store.addCharacter(USER, { name: "Bärbel", className: "Druid", specs: ["Druid-Guardian"] });
         const profile = store.saveProfile(USER, { availability: ["mi", "so"] });
-        const text = command.summaryLines(profile).join("\n");
+        const text = command.summaryLines(profile, "en").join("\n");
         // no "Main" label — only the raider's order
         expect(text).toContain("**Nerathil** — Arcane (raid ready)\n");
         expect(text).toContain("**Bärbel** — Feral (Bear) (usable) · can off-tank");
@@ -65,5 +72,20 @@ describe("commands/profile/profil", () => {
         // ein alter Button-Klick ändert nichts
         await command.execute(mockInteraction({ userId: USER, customId: "profil:heal" }));
         expect(store.getProfile(USER).characters[0].canHeal).toBeNull();
+    });
+
+    it("spricht ohne eigene Wahl Deutsch (Server-Sprache)", async () => {
+        mockConfig = {};
+        store.addCharacter(USER, { name: "Bärbel", className: "Druid", specs: ["Druid-Guardian"] });
+        const profile = store.saveProfile(USER, { availability: ["mi", "so"] });
+        const text = command.summaryLines(profile).join("\n");
+        expect(text).toContain("(brauchbar) · kann Offtank");
+        expect(text).toContain("Verfügbar: Mi · So");
+        const interaction = mockInteraction({ userId: USER, commandName: "profil" });
+        await command.execute(interaction);
+        const arg = interaction.reply.mock.calls[0][0];
+        expect(arg.embeds[0].data.title).toBe("Mein Profil");
+        const labels = arg.components[0].components.map((c) => c.data.label);
+        expect(labels).toEqual(["Bärbel: kein Offtank", "Bärbel: kann heilen", "Profil öffnen"]);
     });
 });

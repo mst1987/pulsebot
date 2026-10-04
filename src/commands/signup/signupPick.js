@@ -6,6 +6,8 @@ const { ROLES } = require("../../config/gameVersions/classes");
 const {
     PICK_PREFIX, parsePickId, resolveState, classesFor, buildSignupDialog, plainUpdate,
 } = require("../../utils/signup/signupDialog");
+const { langOfInteraction } = require("../../services/discord/botLanguage");
+const { tr } = require("../../utils/i18n/botText");
 
 // The selects of the signup dialog (utils/signup/signupDialog.js):
 //
@@ -22,7 +24,8 @@ module.exports = {
     async execute(interaction) {
         const { eventId, field, state } = parsePickId(interaction.customId);
         const event = getEvent(eventId);
-        if (!event) return plainUpdate(interaction, "This event no longer exists.");
+        const lang = langOfInteraction(interaction);
+        if (!event) return plainUpdate(interaction, tr(lang, "This event no longer exists."));
         const uid = interaction.user.id;
         const profile = profiles.getProfile(uid) || { characters: [] };
         const mine = getSignup(event.id, uid);
@@ -50,6 +53,6 @@ module.exports = {
             next = { ...current, canAlso: ROLES.filter((r) => values.includes(r)) };
         }
 
-        return interaction.update(buildSignupDialog(event, uid, { state: next }));
+        return interaction.update(buildSignupDialog(event, uid, { state: next, lang }));
     },
 };
