@@ -1,7 +1,7 @@
 /* Kanäle (design issue #216) — the page, its two parts and its dialogs.
    Everything is prefixed kn- so it cannot restyle another module. */
 
-.kn-page { max-width: 1240px; display: flex; flex-direction: column; gap: 22px; }
+.kn-page { display: flex; flex-direction: column; gap: 22px; }
 .kn-page .page-head { margin-bottom: 0; }
 .kn-part { display: flex; flex-direction: column; }
 .kn-muted { color: var(--muted); font-size: 13px; }

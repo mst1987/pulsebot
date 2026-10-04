@@ -20,7 +20,12 @@ export type MenuEntry = {
     wowIcon: string;
     /** the colour of another area (a sub entry of Raid-Events keeps the raids colour) */
     area?: string;
-    /** a sub entry: drawn a little indented under the entry it belongs to, and the parent is not active while it is open */
+    /**
+     * a sub entry: one of the children the entry it belongs to (the one whose
+     * href it lies under) folds out under its chevron in the shell's menu; the
+     * parent then only "holds" the open page. Without that parent shown it is
+     * an entry of its own.
+     */
     sub?: boolean;
 };
 
