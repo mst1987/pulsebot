@@ -778,7 +778,10 @@
         "follow": "Follow automatically",
         "followOnTip": "The plan turns to the boss being pulled, else to the next one, as the Warcraft Log shows. Click to pause.",
         "followOffTip": "Paused because you picked a section yourself. Click to follow the raid again.",
-        "killed": "Killed in the log"
+        "killed": "Killed in the log",
+        "waiting": "Waiting for log",
+        "waitingNoLogTip": "No Warcraft Log is linked to this event yet. As soon as the live log is linked and the first boss is pulled, the plan follows the raid.",
+        "waitingErrorTip": "The linked Warcraft Log cannot be read right now (private, Warcraft Logs unreachable or no API key). The bot asks again every minute."
     },
     "multi": {
         "count": "{n} selected",

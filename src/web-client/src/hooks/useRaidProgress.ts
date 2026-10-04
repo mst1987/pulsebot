@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getRaidplanProgress, type RaidplanProgress } from "../api";
+import { getRaidplanProgress, type RaidplanProgress, type RaidplanProgressWaiting } from "../api";
+
+/** What the section bar's "Automatisch mitgehen" chip shows: a switch (`on`), or with `waiting` a disabled chip saying why. */
+export type FollowChip = { on: boolean; onToggle: () => void; waiting?: RaidplanProgressWaiting | null };
 import { followTarget, inRaidWindow, PROGRESS_POLL_MS } from "../lib/raidplan/progress";
 
 /**
@@ -58,5 +61,13 @@ export function useRaidProgress({ source, startTime, keys, select, initialFollow
         if (live) setFollow(false);
     }, [select, live]);
     const killed = useMemo(() => new Set(live && progress ? progress.killed : []), [live, progress]);
-    return { live, killed, follow, setFollow, choose, progress };
+    /**
+     * The "Automatisch mitgehen" chip of the section bar: while a log is read a switch; inside the raid window without a readable
+     * log a disabled chip that says it waits (and why), so nobody wonders where the switch is; else none.
+     */
+    const waiting = !live && progress && progress.waiting ? progress.waiting : null;
+    const chip: FollowChip | undefined = live
+        ? { on: follow, onToggle: () => setFollow(!follow) }
+        : waiting ? { on: false, onToggle: () => {}, waiting } : undefined;
+    return { live, killed, follow, setFollow, choose, progress, chip };
 }

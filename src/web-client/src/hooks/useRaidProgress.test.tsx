@@ -103,6 +103,30 @@ describe("useRaidProgress", () => {
         expect(none.result.current.follow).toBe(true);
     });
 
+    it("hands the section bar its chip: a switch while live, a waiting chip without a readable log, none before any answer", async () => {
+        mockProgress.mockResolvedValue({ live: false, waiting: "no_log", killed: [], current: null, next: null, updatedAt: null });
+        const waiting = mount();
+        expect(waiting.result.current.chip).toBeUndefined();
+        await settle();
+        expect(waiting.result.current.chip).toMatchObject({ on: false, waiting: "no_log" });
+        expect(waiting.select).not.toHaveBeenCalled();
+
+        mockProgress.mockResolvedValue(answer());
+        const live = mount();
+        await settle();
+        expect(live.result.current.chip).toMatchObject({ on: true });
+        expect(live.result.current.chip?.waiting).toBeUndefined();
+        act(() => live.result.current.chip?.onToggle());
+        expect(live.result.current.follow).toBe(false);
+        expect(live.result.current.chip).toMatchObject({ on: false });
+
+        // outside the window (no reason) there is no chip at all
+        mockProgress.mockResolvedValue({ live: false, waiting: null, killed: [], current: null, next: null, updatedAt: null });
+        const outside = mount();
+        await settle();
+        expect(outside.result.current.chip).toBeUndefined();
+    });
+
     it("stops polling when unmounted", async () => {
         const { unmount } = mount();
         await settle();

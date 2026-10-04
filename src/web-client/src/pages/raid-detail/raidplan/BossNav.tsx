@@ -3,6 +3,7 @@ import { Check, Eye, EyeOff } from "lucide-react";
 import { boardCount, boardOf, sectionLabel, severalInstances, sheetIncluded, type MenuItem } from "../../../lib/raidplan";
 import ContextMenu from "./ContextMenu";
 import AutoFollowToggle from "./AutoFollowToggle";
+import type { FollowChip } from "../../../hooks/useRaidProgress";
 import type { RaidplanBoard, RaidplanBoss } from "../../../api";
 import { useT } from "../../../i18n";
 
@@ -15,8 +16,8 @@ import { useT } from "../../../i18n";
 export default function BossNav({ bosses, selected, draft, onSelect, onSheet, onMap, dirtyKeys = [], killedKeys, follow }: {
     /** the sections whose boss the linked log shows killed (#534) */
     killedKeys?: Set<string>;
-    /** the "Automatisch mitgehen" switch; missing = no log is read, no switch */
-    follow?: { on: boolean; onToggle: () => void };
+    /** the "Automatisch mitgehen" chip: a switch while a log is read, "Wartet auf Log" (`waiting`) inside the raid window without one; missing = none */
+    follow?: FollowChip;
     /** the sections with unsaved changes: their chip carries an amber dot (and says so) */
     dirtyKeys?: string[];
     bosses: RaidplanBoss[];
@@ -81,7 +82,7 @@ export default function BossNav({ bosses, selected, draft, onSelect, onSheet, on
                     </span>
                 );
             })}
-            {follow && <AutoFollowToggle on={follow.on} onToggle={follow.onToggle} />}
+            {follow && <AutoFollowToggle on={follow.on} onToggle={follow.onToggle} waiting={follow.waiting} />}
             {menu && menuBoss && (
                 <ContextMenu x={menu.x} y={menu.y} title={menuBoss.general ? t("raidBoard.assign.general") : menuBoss.trash ? t("raidBoard.assign.trash") : menuBoss.name} items={menuItems()} labelFor={menuLabel} onPick={pick} onClose={() => setMenu(null)} />
             )}

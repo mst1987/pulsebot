@@ -40,9 +40,10 @@ describe("raid window", () => {
     it("asks nothing outside the window and answers empty", async () => {
         const c = client();
         const p = await progress.progressFor(event, { now: START_MS + 7 * 3600000, client: c });
-        expect(p).toEqual({ live: false, killed: [], current: null, next: null, updatedAt: null });
+        // outside the window there is nothing to wait for: no reason either
+        expect(p).toEqual({ live: false, waiting: null, killed: [], current: null, next: null, updatedAt: null });
         expect(c.getFights).not.toHaveBeenCalled();
-        expect(await progress.progressFor(null, { client: c })).toMatchObject({ live: false });
+        expect(await progress.progressFor(null, { client: c })).toMatchObject({ live: false, waiting: null });
     });
 });
 
@@ -52,14 +53,14 @@ describe("progressFor", () => {
         const c = client();
         const p = await progress.progressFor(event, { now: START_MS + 3600000, client: c });
         expect(c.getFights).toHaveBeenCalledWith("abcDEF123");
-        expect(p).toEqual({ live: true, killed: ["bt/high-warlord-najentus"], current: null, next: "bt/supremus", updatedAt: START_MS + 3600000 });
+        expect(p).toEqual({ live: true, waiting: null, killed: ["bt/high-warlord-najentus"], current: null, next: "bt/supremus", updatedAt: START_MS + 3600000 });
         expect(progress.reportIdForEvent("eh_1")).toBe("abcDEF123");
     });
 
-    it("answers empty without a linked log", async () => {
+    it("answers empty without a linked log and says it waits for one", async () => {
         logStore.listLogsForEvent.mockReturnValue([]);
         const c = client();
-        expect(await progress.progressFor(event, { now: START_MS, client: c })).toMatchObject({ live: false, killed: [], current: null, next: null });
+        expect(await progress.progressFor(event, { now: START_MS, client: c })).toMatchObject({ live: false, waiting: "no_log", killed: [], current: null, next: null });
         expect(c.getFights).not.toHaveBeenCalled();
     });
 
@@ -77,7 +78,7 @@ describe("progressFor", () => {
     it("caches a failure for the minute too and answers empty (private report, rate limit, no key)", async () => {
         const c = { getFights: jest.fn(async () => { throw Object.assign(new Error("429"), { status: 429 }); }) };
         const now = START_MS;
-        expect(await progress.progressFor(event, { now, client: c })).toMatchObject({ live: false, killed: [] });
+        expect(await progress.progressFor(event, { now, client: c })).toMatchObject({ live: false, waiting: "wcl_error", killed: [] });
         await progress.progressFor(event, { now: now + 30000, client: c });
         expect(c.getFights).toHaveBeenCalledTimes(1);
         // without a client the real class is built; a missing key throws there and ends the same way
