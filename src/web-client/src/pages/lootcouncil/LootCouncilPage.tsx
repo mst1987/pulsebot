@@ -325,6 +325,9 @@ export default function LootCouncilPage() {
                 action={<Button icon="inv_misc_bag_10" onClick={() => navigate(dropHref())}>{t("lootcouncil.page.dropCheck")}</Button>}
             />
 
+            {/* Tabs first, then the one filter line they all share. */}
+            <CouncilTabs tab={tab} patch={patch} rosterCount={roster.length} gapCount={gaps.length} />
+
             <FilterBar
                 data={data}
                 view={view}
@@ -333,8 +336,6 @@ export default function LootCouncilPage() {
                 simulated={simulated}
                 simulatable={simulatable.length}
             />
-
-            <CouncilTabs tab={tab} patch={patch} rosterCount={roster.length} gapCount={gaps.length} />
 
             {tab === "roster" ? (
                 <RosterTab

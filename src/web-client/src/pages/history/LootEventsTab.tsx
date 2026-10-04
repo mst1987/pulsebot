@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { setLootCategory, type ApiError, type LootEventSummary, type Category } from "../../api";
 import { fmtMs } from "../../lib/format";
@@ -7,7 +7,7 @@ import { SortTh } from "../../components/SortTh";
 import { ChevronRightIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { IconButton } from "../../components/ui/Button";
-import { PartHead } from "../../components/ui/PartHead";
+import { ListCount } from "../../components/loot/LootFilters";
 import Badge from "../../components/ui/Badge";
 import { tParts, useT } from "../../i18n";
 
@@ -19,13 +19,15 @@ const LOOT_EVENT_SORT_DEFAULTS: Record<LootEventSortKey, Dir> = {
     event: "asc", date: "desc", category: "asc", count: "desc", source: "asc",
 };
 
-export function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
+export function LootEventsTab({ lootEvents, categories, onChanged, canEdit, lead }: {
     lootEvents: LootEventSummary[];
     categories: Category[];
     onChanged: (msg: string) => void;
     // Without write access to "Historie & Loot" the category is shown, not set —
     // the loot views are read-only (src/config/permissions.js).
     canEdit: boolean;
+    /** The page's view switch, first in the filter line. */
+    lead?: ReactNode;
 }) {
     const t = useT();
     const [saving, setSaving] = useState<string | null>(null);
@@ -57,11 +59,10 @@ export function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
     };
 
     const head = (
-        <PartHead
-            icon="inv_misc_bag_10" tone="history" title={t("history.page.view.loot")} crumb={t("history.event.crumb")}
-            tip={t("history.page.view.loot")} tipSub={t("history.lootEvents.tipSub")}
-            action={<Badge count>{tParts("history.lootEvents.count", { count: lootEvents.length })}</Badge>}
-        />
+        <div className="filter-bar hl-filters">
+            {lead}
+            <ListCount>{tParts("history.lootEvents.count", { count: lootEvents.length })}</ListCount>
+        </div>
     );
 
     if (!lootEvents.length) return <div className="dash-card hl-card">{head}<div className="empty">{t("history.shared.noLoot")}</div></div>;

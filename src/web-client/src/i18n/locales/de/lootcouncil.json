@@ -126,7 +126,8 @@
         "empty": "Keine passenden Raider. Der Loot-Council liest Klasse und Spec aus den Loot-Importen und den CLA-Auswertungen — ohne die bleibt die Liste leer.",
         "excludedTitle": "Nicht eingeplant",
         "since": "seit {date}",
-        "includeAgain": "Wieder einplanen"
+        "includeAgain": "Wieder einplanen",
+        "hint": "Wer am längsten nichts bekommen hat, steht oben."
     },
     "list": {
         "characterTipSub": "Spec-Icon, Name und Spec.",
@@ -160,7 +161,13 @@
         "noBisTip": "Keine BiS-Liste",
         "bisBorrowed": "Liste von {from} (für diese Spec gibt es keine eigene).",
         "bisOlder": "Neueste verfügbare Liste: {tier}.",
-        "bisTip": "BiS {owned} von {total}"
+        "bisTip": "BiS {owned} von {total}",
+        "bisBar": "BiS {owned} von {total}",
+        "lastItem": "Letztes Item",
+        "ago": {
+            "one": "vor {count} Tag",
+            "other": "vor {count} Tagen"
+        }
     },
     "gaps": {
         "crumb": "Loot-Council › Offene BiS-Items",
@@ -321,7 +328,8 @@
         "bisGap": "BiS-Lücke · {owned}/{total}",
         "bisGapNone": "BiS-Lücke · keine Liste",
         "score": "Bedarf {score} von 100",
-        "weighted": "Gewichtet 50 / 40 / 10: wer lange wartet, zählt am meisten."
+        "weighted": "Gewichtet 50 / 40 / 10: wer lange wartet, zählt am meisten.",
+        "bar": "Bedarf {score}"
     },
     "filter": {
         "contentTipSub": "Welche Raids beim Loot zählen. Ohne Auswahl zählt aller Loot; Tiers und einzelne Raids lassen sich kombinieren („T5 plus Hyjal“), wenn die Gilde gerade wechselt.",
@@ -350,10 +358,16 @@
         },
         "gearAllLog": "Alles Gear stammt aus der letzten Auswertung — wer seitdem etwas angezogen hat, wird mit dem alten Set bewertet.",
         "gearEnchants": "Verzauberungen kommen weiter aus den Auswertungen: Blizzards Verzauberungs-IDs sind nicht die, die WoWSims erwartet. Ein seitdem neues Teil wird unverzaubert gerechnet und fällt etwas zu niedrig aus.",
-        "gearBadgeArmory": "Gear: {count} Armory",
-        "gearBadgeLog": "Gear: Auswertung",
         "simTipSub": "{done} von {total} simulierbaren Raidern haben eine DPS. Ein Zugewinn erscheint erst mit einer Simulation — die Seite zeigt keine Schätzungen aus Stat-Gewichten.",
-        "simOff": "Sim aus"
+        "button": "Filter",
+        "buttonActive": "Filter · {count} aktiv",
+        "done": "Fertig",
+        "gearSource": "Gear-Quelle",
+        "simulation": "Simulation",
+        "gearValueLog": "Auswertung",
+        "gearValueArmory": "{armory} von {count} aus der Armory",
+        "simValue": "{done} von {total} simuliert",
+        "simOffValue": "aus"
     },
     "gear": {
         "dpsGear": "DPS-Gear",

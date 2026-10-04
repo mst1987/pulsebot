@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { deleteHistoryLog, type ApiError, type LootLog } from "../../api";
 import { formatEventTime, formatDate } from "../../lib/format";
 import { useTableSort, type Dir } from "../../lib/tableSort";
@@ -6,7 +7,7 @@ import { ExternalIcon, TrashIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { useConfirm } from "../../components/ui/Modal";
 import { IconButton } from "../../components/ui/Button";
-import { PartHead } from "../../components/ui/PartHead";
+import { ListCount } from "../../components/loot/LootFilters";
 import Badge from "../../components/ui/Badge";
 import { tParts, useT } from "../../i18n";
 
@@ -14,7 +15,7 @@ type LogSortKey = "log" | "date" | "zone" | "event" | "status";
 
 const LOG_SORT_DEFAULTS: Record<LogSortKey, Dir> = { log: "asc", date: "desc", zone: "asc", event: "asc", status: "asc" };
 
-export function LogsTab({ logs, onChanged }: { logs: LootLog[]; onChanged: (msg: string) => void }) {
+export function LogsTab({ logs, onChanged, lead }: { logs: LootLog[]; onChanged: (msg: string) => void; lead?: ReactNode }) {
     const t = useT();
     const ask = useConfirm();
     const { sort, dir, onSort, apply } = useTableSort<LogSortKey>("history-logs-sort", LOG_SORT_DEFAULTS, "date");
@@ -31,11 +32,10 @@ export function LogsTab({ logs, onChanged }: { logs: LootLog[]; onChanged: (msg:
     };
 
     const head = (
-        <PartHead
-            icon="inv_misc_pocketwatch_01" tone="history" title={t("history.page.view.logs")} crumb={t("history.logs.crumb")}
-            tip={t("history.page.view.logs")} tipSub={t("history.logs.tipSub")}
-            action={<Badge count>{tParts("history.logs.count", { count: logs.length })}</Badge>}
-        />
+        <div className="filter-bar hl-filters">
+            {lead}
+            <ListCount>{tParts("history.logs.count", { count: logs.length })}</ListCount>
+        </div>
     );
 
     if (!logs.length) return <div className="dash-card hl-card">{head}<div className="empty">{t("history.logs.empty")}</div></div>;

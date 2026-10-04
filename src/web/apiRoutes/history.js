@@ -156,7 +156,8 @@ const getLootStats = withUser({}, async ({ res, url }) => {
  * newest first, filtered and cut into pages of 25 (see lootAwards.js).
  *
  * Query: page, top ("0" widens the list from the configured top items to all
- * loot), q (item name/id or character), category, content, reason.
+ * loot), q (item name/id or character), category, content, reason, sort
+ * (date, item, character, reason, raid) and dir (asc/desc).
  *
  * Paged on the server rather than in the browser: the loot store holds every row
  * ever imported, and the tab only ever shows one page of it.
@@ -173,6 +174,8 @@ const getLootAwards = withUser({}, async ({ res, url }) => {
         contentId: q.get("content") || "",
         reason: q.get("reason") || "",
         page: Number(q.get("page")) || 1,
+        sort: q.get("sort") || "date",
+        dir: q.get("dir") === "asc" ? "asc" : "desc",
         versionId: resolveVersionQuery(q.get("version"), { config: getConfig() }).versionId,
     }));
 });
