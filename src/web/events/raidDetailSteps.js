@@ -318,8 +318,11 @@ function wantsSoftres(d) {
  * @returns {{ steps: object[], next: string, primary: object|null }}
  */
 function raidSteps(d) {
+    // A category plans with the raid plan or a sheet, never both (services/events/planning.js);
+    // a payload without `planning` keeps both steps.
+    const planning = (d && d.planning) || "";
     const steps = [
-        signupStep(d), setupStep(d), sheetStep(d), d.raidplanPost ? raidplanStep(d) : null,
+        signupStep(d), setupStep(d), planning === "raidplan" ? null : sheetStep(d), d.raidplanPost && planning !== "sheet" ? raidplanStep(d) : null,
         wantsSoftres(d) ? softresStep(d) : null, lootStep(d), logsStep(d),
     ].filter(Boolean);
     const before = ["signup", "setup", "sheet", "raidplan", "softres"];
@@ -617,7 +620,8 @@ function afterStep(d) {
  * — „später“ oder „übersprungen“, nie ein Fehler.
  * @param {object} d das Raid-Detail-Payload
  * @param {{ now?: number, plan?: boolean }} [opts] `now`: der Jetzt-Zeitpunkt in ms (Testbarkeit);
- *   `plan: false` lässt „Einteilungen“ weg — wer den Raidplan nicht schreiben darf, postet ihn auch nicht
+ *   `plan: false` lässt „Einteilungen“ weg — wer den Raidplan nicht schreiben darf, postet ihn auch nicht;
+ *   ebenso fehlt der Schritt, wenn die Kategorie mit einem Sheet plant (`d.planning === "sheet"`)
  * @returns {{ steps: object[], current: string, action: object|null, cancelled: boolean, note: string }}
  */
 function eventSteps(d, opts = {}) {
@@ -625,7 +629,7 @@ function eventSteps(d, opts = {}) {
     const ev = (d && d.event) || {};
     const steps = [
         createdStep(d), signupStepOwn(d, now), setupStepOwn(d, now), approvalStep(d, now),
-        opts.plan === false ? null : planStepOwn(d), afterStep(d),
+        opts.plan === false || (d && d.planning) === "sheet" ? null : planStepOwn(d), afterStep(d),
     ].filter(Boolean);
     // Abgesagt: nur „abgesagt“ und der Weg zurück. Kein Schritt ist mehr offen.
     if (ev.status === "cancelled") {

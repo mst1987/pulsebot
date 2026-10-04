@@ -2,7 +2,7 @@ import { get, send } from "./client";
 import type { Area, Access, RolePermissions } from "./session";
 import type { Category } from "./channels";
 import type { DiscordServers, DiscordServerCard } from "./discordServers";
-import type { EventSource } from "./raidDetail";
+import type { EventSource, PlanningMode } from "./raidDetail";
 import type { TextChannel } from "./recruitment";
 import type { BotAccessRule } from "./botCommands";
 import type { VersionSettingsBlock } from "../lib/versionLinks";
@@ -103,6 +103,10 @@ export type AdminConfig = {
     // A fixed Google Sheet per category, keyed by category id. A raid in that
     // category links this sheet unless the app made it a copy of its own.
     categorySheets: Record<string, { url: string; name: string }>;
+    // How a category plans its raids: the raid plan or a Google Sheet, never both.
+    // Only picked modes are listed; without one a category with a fixed sheet is
+    // "sheet", every other "raidplan" (src/services/events/planning.js).
+    categoryPlanning?: Record<string, PlanningMode>;
     // The drops the guild counts as "big", picked from the Wowhead search in
     // Einstellungen → Loot. The dashboard highlights their awards.
     topItems: TopItem[];

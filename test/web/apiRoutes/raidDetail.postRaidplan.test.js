@@ -68,6 +68,18 @@ describe("POST /api/raids/post-raidplan", () => {
         expect(postRaidplanLink).not.toHaveBeenCalled();
     });
 
+    it("refuses with 409 when the event's category plans with a sheet", async () => {
+        const { saveConfig } = require("../../../src/stores/configStore");
+        saveConfig({ categoryPlanning: { cat1: "sheet" } });
+        readJsonBody.mockResolvedValue({ event: "eh-1" });
+        const r = mockRes();
+        await postPostRaidplan({}, r);
+        saveConfig({ categoryPlanning: { cat1: "raidplan" } });
+        expect(status(r)).toBe(409);
+        expect(json(r).error).toEqual({ code: "planning_mismatch", message: expect.stringContaining("plant mit einem Google-Sheet") });
+        expect(postRaidplanLink).not.toHaveBeenCalled();
+    });
+
     it("passes the service's refusal on with its status", async () => {
         postRaidplanLink.mockResolvedValue({ error: { status: 400, code: "empty_plan", message: "Der Raidplan ist noch leer." } });
         readJsonBody.mockResolvedValue({ event: "eh-1" });

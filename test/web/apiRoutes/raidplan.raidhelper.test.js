@@ -113,6 +113,19 @@ describe("the switch", () => {
         expect(status(await activate({ instanceIds: ["nope"] }))).toBe(400);
     });
 
+    it("refuses to switch on in a category that plans with a sheet (409), switching off stays possible", async () => {
+        const { saveConfig } = require("../../../src/stores/configStore");
+        saveConfig({ categoryPlanning: { c: "sheet" } });
+        try {
+            const r = await activate();
+            expect(status(r)).toBe(409);
+            expect(body(r)).toEqual({ code: "planning_mismatch", message: expect.stringContaining("plant mit einem Google-Sheet") });
+            expect(store.getPlan(EV)).toBeNull();
+        } finally {
+            saveConfig({ categoryPlanning: { c: "raidplan" } });
+        }
+    });
+
     it("refuses own events, unknown events and a reader", async () => {
         expect(status(await call(route.postLink, ORGA, { event: "eh_1", enabled: true }))).toBe(400);
         mockGroups.list = [];

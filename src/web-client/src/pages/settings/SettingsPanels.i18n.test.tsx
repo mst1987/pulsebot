@@ -83,7 +83,8 @@ describe("the Einstellungen panels in English", () => {
         expect(screen.getByRole("radio", { name: "Raid categories 1" })).toBeInTheDocument();
         expect(screen.getByText("1 still Raid-Helper")).toBeInTheDocument();
         expect(screen.getByText("1 more Discord category without raid events")).toBeInTheDocument();
-        expect(screen.getByText("no sheet")).toBeInTheDocument();
+        // no fixed sheet and no pick: the category plans with the raid plan
+        expect(screen.getByText("Raid plan")).toBeInTheDocument();
     });
 
     it("words the bot commands", async () => {

@@ -52,8 +52,22 @@ function after542(config) {
         versionDefaultsApplied: ["tbc", "classic"],
     };
 }
-const golden = frozen.map((g) => ({ ...g, config: after542(g.config) }));
-const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)"));
+// Raidplan ODER Sheet: the start fixes every raid category's planning by what it
+// used (settingsMigration.migrateCategoryPlanning); these installs used nothing,
+// so a category with a fixed sheet plans with the sheet, every other with the raid plan.
+// Only the categories the stored file names (a missing file has none — the defaults are not migrated).
+function afterPlanning(config, stored = {}) {
+    const planning = { ...(config.categoryPlanning || {}) };
+    for (const cat of Array.isArray(stored.categoryIds) ? stored.categoryIds : []) {
+        if (planning[cat]) continue;
+        const sheet = (stored.categorySheets || {})[cat];
+        planning[cat] = sheet && sheet.url ? "sheet" : "raidplan";
+    }
+    return { ...config, categoryPlanning: planning };
+}
+const schemaOnly = frozen.map((g) => ({ ...g, config: after542(g.config) }));
+const golden = schemaOnly.map((g, i) => ({ ...g, config: afterPlanning(g.config, cases[i].config || {}) }));
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");
@@ -78,7 +92,7 @@ describe("stores/configSchema golden master (#420)", () => {
         expect(golden.map((g) => g.name)).toEqual(cases.map((c) => c.name));
     });
 
-    describe.each(cases.map((c, i) => [c.name, c, golden[i]]))("%s", (_name, c, expected) => {
+    describe.each(cases.map((c, i) => [c.name, c, golden[i], schemaOnly[i]]))("%s", (_name, c, expected, readOnly) => {
         it("reads the same as before the split once the start-up migration ran", () => {
             load(c);
             migrateSettings({ log: () => {} });
@@ -90,9 +104,9 @@ describe("stores/configSchema golden master (#420)", () => {
             it("needs no migration: the schema alone gives the frozen result", () => {
                 load(c);
                 const { changes } = migrateSettings({ log: () => {} });
-                // every stored config predates #542's versionSettings (see after542)
+                // every stored config predates #542's versionSettings (see after542) and the planning per category (afterPlanning)
                 expect(without542(changes)).toEqual([]);
-                expect(schema.normalizeConfig(c.config || {})).toEqual(expected.config);
+                expect(schema.normalizeConfig(c.config || {})).toEqual(readOnly.config);
             });
         }
 

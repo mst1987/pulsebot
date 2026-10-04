@@ -31,13 +31,15 @@ vi.mock("./SettingsRaidhelperRetirement", () => ({ default: () => null }));
 // The category matrix edits the per-category maps through its callbacks; the
 // stand-in clears the first category's sheet url the way its field would.
 vi.mock("./CategoryMatrix", () => ({
-    default: ({ onSheet, availabilityPanels }: {
+    default: ({ onSheet, onPlanning, availabilityPanels }: {
         onSheet: (id: string, sheet: { url: string; name: string }) => void;
+        onPlanning?: (id: string, mode: "raidplan" | "sheet") => void;
         availabilityPanels?: { panels: { categoryId: string }[]; channels: { id: string }[]; onChange: (id: string, panel: unknown) => void };
     }) => (
         <div>
             Panel Kategorien
             <button type="button" onClick={() => onSheet("cat1", { url: "", name: "Montag-Sheet" })}>Sheet-URL leeren</button>
+            {onPlanning && <button type="button" onClick={() => onPlanning("cat2", "raidplan")}>Mittwoch mit Raidplan</button>}
             {availabilityPanels && (
                 <>
                     <output data-testid="panels">{availabilityPanels.panels.map((p) => p.categoryId).join(",")}|{availabilityPanels.channels.map((c) => c.id).join(",")}</output>
@@ -251,6 +253,19 @@ describe("the save bar", () => {
             cat1: { url: "", name: "Montag-Sheet" },
             cat2: { url: "https://docs.google.com/b", name: "Mittwoch" },
         });
+    });
+
+    it("sends the picked planning and names it in the save bar", async () => {
+        const user = userEvent.setup();
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorien" });
+
+        await user.click(await screen.findByRole("button", { name: "Mittwoch mit Raidplan" }));
+        // cat2 had a fixed sheet, so it planned with the sheet until now
+        expect(screen.getByText(/Mittwoch · Planung → Raidplan/)).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0].categoryPlanning).toEqual({ cat2: "raidplan" });
     });
 
     it("hands the posted absence/attendance panels to the categories and keeps a new one out of the draft", async () => {

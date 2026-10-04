@@ -20,7 +20,7 @@ describe("the pages", () => {
 
     it("is a tab of an own event, and of a Raid-Helper event whose plan is switched on; after the setup; only with raidplan read", () => {
         expect(detail).toMatch(/const TABS: Tab\[\] = \["roster", "setup", "plan", "loot", "logs"\];/);
-        expect(detail).toContain("const hasPlan = canAccess(user, \"raidplan\") && (ownEvent || !!data.event.raidplanEnabled);");
+        expect(detail).toContain("const hasPlan = canAccess(user, \"raidplan\") && planning !== \"sheet\" && (ownEvent || !!data.event.raidplanEnabled);");
         expect(detail).toContain("t === \"plan\" ? hasPlan");
         expect(detail).toContain("{shown === \"plan\" && <Suspense fallback={<RaidLoader />}><RaidplanTab ctx={ctx} /></Suspense>}");
         // the editor is a chunk of its own, loaded only when the tab is opened (#436)

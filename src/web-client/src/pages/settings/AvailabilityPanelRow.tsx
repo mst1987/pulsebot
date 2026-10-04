@@ -3,7 +3,7 @@ import { postAvailabilityPanel, removeAvailabilityPanel, type ApiError, type Ava
 import { useToast } from "../../components/Jobs";
 import { Button, buttonClass } from "../../components/ui/Button";
 import { useConfirm } from "../../components/ui/Modal";
-import { FieldLabel } from "../../components/ui/Field";
+import CategoryField from "./CategoryField";
 import { ExternalIcon, SendIcon } from "../../components/icons";
 import { formatDate } from "../../lib/format";
 import { useT } from "../../i18n";
@@ -61,10 +61,7 @@ export default function AvailabilityPanelRow({ categoryId, categoryName, panels 
     };
 
     return (
-        <div>
-            <FieldLabel htmlFor={`catpanel-${categoryId}`} tip={t("settings.categories.panel")} tipSub={t("settings.categories.panelSub")}>
-                {t("settings.categories.panel")}
-            </FieldLabel>
+        <CategoryField htmlFor={`catpanel-${categoryId}`} label={t("settings.categories.panel")} sub={t("settings.categories.panelSub")}>
             {panels.channels.length ? (
                 <div className="cat-panel">
                     <select id={`catpanel-${categoryId}`} value={channelId} aria-label={t("settings.categories.panelChannelAria", { name: categoryName })}
@@ -88,6 +85,6 @@ export default function AvailabilityPanelRow({ categoryId, categoryName, panels 
                     <Button variant="ghost" size="sm" disabled={busy} onClick={remove}>{t("common.remove")}</Button>
                 </div>
             )}
-        </div>
+        </CategoryField>
     );
 }

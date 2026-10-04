@@ -32,8 +32,10 @@ describe("stores/settingsMigration migrateSettings (#420)", () => {
         fs.__store.set(TEMPLATES_FILE, JSON.stringify(OLD_TEMPLATES));
         const log = jest.fn();
         const { changes } = migrateSettings({ log });
-        expect(changes).toHaveLength(4);
-        expect(log).toHaveBeenCalledTimes(4);
+        // the four upgrades of the old install, plus the planning of its two raid categories (nothing used yet: raid plan)
+        expect(changes).toHaveLength(5);
+        expect(changes[4]).toBe("config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - c1 raidplan, c2 raidplan");
+        expect(log).toHaveBeenCalledTimes(5);
         expect(log.mock.calls.every(([line]) => line.startsWith("[settings] Migration: "))).toBe(true);
 
         expect(stored(TEMPLATES_FILE).templates[0]).toMatchObject({ id: "rh-3", raidhelperTemplateId: "3" });

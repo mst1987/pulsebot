@@ -51,6 +51,7 @@
       "categorySignupNotes": {},
       "categorySignupNoteChannel": {},
       "categorySheets": {},
+      "categoryPlanning": {},
       "categoryRaidTemplate": {},
       "mainVersion": "tbc",
       "categoryVersion": {},
@@ -122,6 +123,7 @@
       "categorySignupNotes": {},
       "categorySignupNoteChannel": {},
       "categorySheets": {},
+      "categoryPlanning": {},
       "categoryRaidTemplate": {},
       "mainVersion": "tbc",
       "categoryVersion": {},
@@ -269,6 +271,7 @@
           "name": "T5 Sheet"
         }
       },
+      "categoryPlanning": {},
       "categoryRaidTemplate": {
         "1300000000000000001": "a1b2c3d4e5f6"
       },
@@ -374,6 +377,7 @@
       "categorySignupNotes": {},
       "categorySignupNoteChannel": {},
       "categorySheets": {},
+      "categoryPlanning": {},
       "categoryRaidTemplate": {},
       "mainVersion": "tbc",
       "categoryVersion": {},
@@ -477,6 +481,7 @@
       "categorySignupNotes": {},
       "categorySignupNoteChannel": {},
       "categorySheets": {},
+      "categoryPlanning": {},
       "categoryRaidTemplate": {
         "1300000000000000001": "rh-3",
         "1300000000000000002": "rh-3"
@@ -610,6 +615,7 @@
       "categorySignupNotes": {},
       "categorySignupNoteChannel": {},
       "categorySheets": {},
+      "categoryPlanning": {},
       "categoryRaidTemplate": {},
       "mainVersion": "tbc",
       "categoryVersion": {},
@@ -709,6 +715,7 @@
       "categorySignupNotes": {},
       "categorySignupNoteChannel": {},
       "categorySheets": {},
+      "categoryPlanning": {},
       "categoryRaidTemplate": {
         "1300000000000000001": "t1"
       },
@@ -816,6 +823,7 @@
       "categorySignupNotes": {},
       "categorySignupNoteChannel": {},
       "categorySheets": {},
+      "categoryPlanning": {},
       "categoryRaidTemplate": {},
       "mainVersion": "tbc",
       "categoryVersion": {},
@@ -927,6 +935,7 @@
           "name": ""
         }
       },
+      "categoryPlanning": {},
       "categoryRaidTemplate": {},
       "mainVersion": "tbc",
       "categoryVersion": {},

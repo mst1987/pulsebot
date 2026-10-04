@@ -39,6 +39,13 @@ describe("the manage menu", () => {
         expect(ids(lib.manageMenu(base))).toContain("softres");
     });
 
+    it("offers the raidsheet only where the category plans with a sheet", () => {
+        expect(ids(lib.manageMenu({ ...base, sheet: false }))).not.toContain("sheet");
+        expect(ids(lib.manageMenu({ ...base, sheet: true }))).toContain("sheet");
+        // an older payload without planning keeps the entry
+        expect(ids(lib.manageMenu(base))).toContain("sheet");
+    });
+
     it("offers Invite callen with an approved setup — also once the raid started, never when cancelled", () => {
         expect(ids(lib.manageMenu(base))).not.toContain("invite");
         expect(ids(lib.manageMenu({ ...base, invite: true }))).toEqual(["move", "signups", "raider", "|", "invite", "notify", "sheet", "softres", "|", "history", "|", "cancel", "delete"]);

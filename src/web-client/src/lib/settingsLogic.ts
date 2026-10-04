@@ -126,6 +126,8 @@ export type DraftShape = {
     /** Where those messages go (#335); missing = the default channel. */
     categorySignupNoteChannel?: Record<string, string>;
     categorySheets: Record<string, { url: string; name: string }>;
+    /** Raid plan or sheet per category; only picked modes. */
+    categoryPlanning?: Record<string, string>;
     categoryRaidTemplate?: Record<string, string>;
     /** The main game version (#541); missing = "tbc". */
     mainVersion?: string;
@@ -199,6 +201,26 @@ export function noteChannelPick(channels: { id: string; name: string }[], defaul
     return { defaultLabel, unreachable: !!value && channels.length > 0 && !channels.some((c) => c.id === value) };
 }
 
+/** The tabs of a category's open card (Einstellungen → Kategorien), in their order. */
+export const CATEGORY_TABS = ["signup", "message", "plan", "loot"] as const;
+export type CategoryTab = (typeof CATEGORY_TABS)[number];
+
+/**
+ * How a category plans its raids - the client's copy of planningOf() in
+ * src/services/events/planning.js: the picked mode, else "sheet" when a fixed
+ * sheet is assigned to the category, else "raidplan".
+ */
+export function planningOf(categoryId: string, planning: Record<string, string> | undefined, sheets: Record<string, { url: string }> | undefined): "raidplan" | "sheet" {
+    const picked = (planning || {})[categoryId];
+    if (picked === "raidplan" || picked === "sheet") return picked;
+    const sheet = (sheets || {})[categoryId];
+    return sheet && String(sheet.url || "").trim() ? "sheet" : "raidplan";
+}
+
+export function planningLabel(mode: string): string {
+    return t(mode === "sheet" ? "settings.planning.sheet" : "settings.planning.raidplan");
+}
+
 /** The title sizes of the signup message (src/web/embedLook.js, TITLE_SIZES). */
 export const TITLE_SIZES: string[] = ["normal", "large", "huge"];
 
@@ -249,6 +271,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categorySignupNotes || {}), ...Object.keys(draft.categorySignupNotes || {}),
         ...Object.keys(saved.categorySignupNoteChannel || {}), ...Object.keys(draft.categorySignupNoteChannel || {}),
         ...Object.keys(saved.categorySheets || {}), ...Object.keys(draft.categorySheets || {}),
+        ...Object.keys(saved.categoryPlanning || {}), ...Object.keys(draft.categoryPlanning || {}),
     ])];
     for (const id of categories) {
         const name = names.category(id);
@@ -288,6 +311,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const noteChWas = (saved.categorySignupNoteChannel || {})[id] || "";
         const noteChIs = (draft.categorySignupNoteChannel || {})[id] || "";
         if (noteChWas !== noteChIs) out.push(t(noteChIs ? "settings.changes.noteChannelSet" : "settings.changes.noteChannelDefault", { name }));
+        const planWas = planningOf(id, saved.categoryPlanning, saved.categorySheets);
+        const planIs = planningOf(id, draft.categoryPlanning, draft.categorySheets);
+        if (planWas !== planIs) out.push(t("settings.changes.planning", { name, value: planningLabel(planIs) }));
         const sheetWas = (saved.categorySheets || {})[id] || { url: "", name: "" };
         const sheetIs = (draft.categorySheets || {})[id] || { url: "", name: "" };
         if ((sheetWas.url || "").trim() !== (sheetIs.url || "").trim() || (sheetWas.name || "").trim() !== (sheetIs.name || "").trim()) {

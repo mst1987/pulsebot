@@ -13,8 +13,9 @@ export type ManageMenuEntry = { id: ManageAction; label: string; icon: string; s
 /**
  * `softres` false = the raid's loot system has no softres list (Loot-Council, …): no menu entry for it.
  * `invite` = an approved setup exists, so "Invite callen" has groups to ping.
+ * `sheet` false = the category plans with the raid plan (src/services/events/planning.js): no Raidsheet entry.
  */
-export type ManageState = { cancelled: boolean; signupsClosed: boolean; isPast: boolean; logCount: number; softres?: boolean; invite?: boolean };
+export type ManageState = { cancelled: boolean; signupsClosed: boolean; isPast: boolean; logCount: number; softres?: boolean; invite?: boolean; sheet?: boolean };
 /**
  * A Raid-Helper event's menu (docs/raidplan.md, "Raid-Helper-Events"): only the raid plan switch. `disabled` = Raid-Helper is
  * switched off in the settings - the entry stays, its line says the plan works from the saved line-up only.
@@ -85,7 +86,8 @@ export function manageMenu(state: ManageState): ManageMenuEntry[] {
     // Raid night: also after the start — the invite goes out right then.
     if (state.invite) out.push(entry("invite", t("raidDetail.manage.invite"), "spell_holy_prayerofspirit", t("raidDetail.manage.inviteSub"), false));
     if (!state.isPast) out.push(entry("notify", t("raidDetail.manage.notify"), "inv_letter_15", t("raidDetail.manage.notifySub"), false));
-    out.push(entry("sheet", t("raidDetail.manage.sheet"), "inv_scroll_03", t("raidDetail.manage.sheetSub"), false));
+    // Raid plan or sheet, never both: a category that plans with the raid plan gets no sheet here.
+    if (state.sheet !== false) out.push(entry("sheet", t("raidDetail.manage.sheet"), "inv_scroll_03", t("raidDetail.manage.sheetSub"), false));
     // Only where the loot system uses one; the chip in the head switches it on for this raid.
     if (state.softres !== false) out.push(entry("softres", t("raidDetail.manage.softres"), "inv_misc_ticket_tarot_madness", t("raidDetail.manage.softresSub"), false));
     out.push(sep(), history);

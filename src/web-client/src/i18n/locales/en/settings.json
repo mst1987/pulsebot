@@ -158,6 +158,7 @@
         "hideOtherOff": "Hide other versions off",
         "followMain": "main version",
         "versionSettings": "Links and armory · {value}",
+        "planning": "{name} · planning → {value}",
         "botLanguage": "Bot language: {value}"
     },
     "lootTool": {
@@ -666,7 +667,6 @@
         "missing": "missing",
         "fixedSheet": "Fixed raidsheet",
         "sheet": "Sheet",
-        "noSheet": "no sheet",
         "chars": "Raider → character",
         "charsSub": "{assigned} of {members} raiders have a fixed character.",
         "noRaidEvents": "no raid events",
@@ -727,7 +727,6 @@
         "sheetUrlPlaceholder": "https://docs.google.com/spreadsheets/… (empty = none)",
         "colActive": "Active",
         "colCategory": "Category",
-        "colRaidsheet": "Raidsheet",
         "colChars": "Chars",
         "noneShown": "No raid category yet — switch on a Discord category below.",
         "folded": {
@@ -746,7 +745,22 @@
         "panelRemoveTitle": "Remove panel?",
         "panelRemoveText": "The message in Discord is deleted. What raiders already entered stays.",
         "panelSince": "posted {date}",
-        "panelNoChannels": "No text channels – is the bot online?"
+        "panelNoChannels": "No text channels – is the bot online?",
+        "tabs": {
+            "signup": "Signup",
+            "message": "Message",
+            "plan": "Setup & planning",
+            "loot": "Loot"
+        },
+        "tabsAria": "Settings of {name}",
+        "colPlanning": "Planning",
+        "planning": "Planning",
+        "planningSub": "How the raids of this category are assigned: raid plan (one board per boss, \"Assignments\" in the channel) or Google Sheet (the fixed sheet, or a copy of a template per raid). Never both. Without a pick: a fixed sheet means sheet, otherwise raid plan.",
+        "planningAria": "Planning {name}",
+        "planningRaidplanTip": "Plans with the raid plan",
+        "planningRaidplanSub": "Raid page with the \"Raid plan\" tab and the \"Assignments\" step; no raidsheet.",
+        "planningCopiesTip": "Plans with a sheet",
+        "planningCopiesSub": "No fixed sheet: each raid fills a copy of a raidsheet template (Modules › Raidsheets)."
     },
     "botCommands": {
         "mode": {
@@ -912,6 +926,10 @@
         "defaultsSub": "Fills in the known values for {version} (namespace, armory, Warcraft Logs, Wowhead, softres). Realm and raidsheet stay as they are. Nothing is stored until you save.",
         "defaultsSame": "The standard values are already filled in.",
         "defaultsNone": "No standard values are known for {version} yet."
+    },
+    "planning": {
+        "raidplan": "Raid plan",
+        "sheet": "Sheet"
     },
     "botLanguage": {
         "label": "Bot language",

@@ -493,6 +493,11 @@ function migrateEventDefaults({ instanceIdsOf = () => [], now = new Date() } = {
     return sum;
 }
 
+/** Every stored plan, normalised (the planning migration reads which categories used one). */
+function listPlans() {
+    return readAll().filter((p) => p && p.eventId).map((p) => normalizePlan(p, p.eventId));
+}
+
 /** Removes the plan of an event (it was deleted). */
 function deletePlan(eventId) {
     const id = str(eventId);
@@ -596,7 +601,7 @@ function mapForBoss(boss, { eventId = "", templateId = "" } = {}) {
 
 module.exports = {
     useFile, LIMITS, bossKeyOf, bossesForInstances, isMapKey, getPlan, getPublishedByToken, emptyPlan, savePlan, applyTemplate, mapScope,
-    templateMapKey, eventMapKey, setPublished, setIncludedGroups, deletePlan, setLink, migrateEventDefaults, playersOf, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
+    templateMapKey, eventMapKey, setPublished, setIncludedGroups, deletePlan, listPlans, setLink, migrateEventDefaults, playersOf, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
     // only for the tests (#424): not part of the module's API
     _internal: {
         slug, normalizeLink, knownAfter, sniffImage,

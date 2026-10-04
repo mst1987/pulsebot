@@ -355,11 +355,29 @@ describe("web/apiRoutes/raidDetail", () => {
 
         it("sends no step bar for a Raid-Helper event — it keeps today's view (#319)", async () => {
             setupDefaults();
+            settingsStore.getConfig.mockReturnValue({ categoryPlanning: { cat1: "sheet" } });
             const res = await get("/api/raids/detail", { event: "e1" });
             const data = json(res).data;
             expect(data.event.source).toBe("raidhelper");
+            expect(data.planning).toBe("sheet");
             expect(data.steps).toBeNull();
             expect(data.progress.steps.length).toBe(6);
+        });
+
+        it("offers the raid plan or the sheet, never both - after the category's planning", async () => {
+            setupDefaults();
+            settingsStore.getConfig.mockReturnValue({});
+            const plan = json(await get("/api/raids/detail", { event: "e1" })).data;
+            expect(plan.planning).toBe("raidplan");
+            expect(plan.progress.steps.map((s) => s.key)).not.toContain("sheet");
+            // a fixed sheet makes "sheet" the default of a category without a pick
+            settingsStore.getConfig.mockReturnValue({ categorySheets: { cat1: { url: "https://fix", name: "Fix" } } });
+            const sheet = json(await get("/api/raids/detail", { event: "e1" })).data;
+            expect(sheet.planning).toBe("sheet");
+            expect(sheet.raidplanPost).toBeNull();
+            expect(sheet.event.raidplanEnabled).toBe(false);
+            expect(sheet.progress.steps.map((s) => s.key)).toContain("sheet");
+            expect(sheet.progress.steps.map((s) => s.key)).not.toContain("raidplan");
         });
 
         it("carries the loot system and leaves the softres step out when it has no softres list", async () => {
@@ -379,6 +397,7 @@ describe("web/apiRoutes/raidDetail", () => {
             settingsStore.getConfig.mockReturnValue({
                 categoryRoles: { cat1: ["role1"] },
                 categoryLootTool: { cat1: "gargul" },
+                categoryPlanning: { cat1: "sheet" },
             });
             discord.listMembersWithRoles.mockResolvedValue({
                 members: [{ id: "1", displayName: "Anna" }, { id: "2", displayName: "Bob" }],
@@ -909,7 +928,29 @@ describe("web/apiRoutes/raidDetail", () => {
             mockDriveCopyFile.mockResolvedValue({ id: "copy-id", url: "https://docs.google.com/spreadsheets/d/copy-id/edit" });
             mockFillSetupSheet.mockResolvedValue({ playerCount: 1 });
             eventSheetStore.markEventSheetFilled.mockReturnValue({});
+            // the events' category plans with a sheet (services/events/planning.js)
+            settingsStore.getConfig.mockReturnValue({ categoryPlanning: { cat1: "sheet" } });
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", channelId: "chan1" }, { id: "eh-1", channelId: "chan1" }] }], error: null,
+            });
         }
+
+        it("refuses with 409 when the event's category plans with the raid plan", async () => {
+            setupDefaults();
+            settingsStore.getConfig.mockReturnValue({ categoryPlanning: { cat1: "raidplan" } });
+            const res = await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
+            expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+            expect(json(res).error).toEqual({ code: "planning_mismatch", message: expect.stringContaining("plant mit dem Raidplan") });
+            expect(mockDriveCopyFile).not.toHaveBeenCalled();
+        });
+
+        it("leaves an event it cannot find to the fill itself (no refusal from the planning)", async () => {
+            setupDefaults();
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper down" });
+            settingsStore.getConfig.mockReturnValue({});
+            const res = await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        });
 
         it("returns 400 when the raidsheet isn't found", async () => {
             setupDefaults();
@@ -1054,7 +1095,17 @@ describe("web/apiRoutes/raidDetail", () => {
             raidEventGroups.loadEventGroups.mockResolvedValue({
                 groups: [{ categoryId: "cat1", categoryName: "Raids", events: [event1] }], error: null,
             });
+            settingsStore.getConfig.mockReturnValue({ categoryPlanning: { cat1: "sheet" } });
         }
+
+        it("refuses with 409 when the event's category plans with the raid plan", async () => {
+            setupDefaults();
+            settingsStore.getConfig.mockReturnValue({});
+            const res = await post("/api/raids/post-sheet", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+            expect(json(res).error.code).toBe("planning_mismatch");
+            expect(discord.postLink).not.toHaveBeenCalled();
+        });
 
         it("returns 400 when neither a filled nor a category sheet exists", async () => {
             setupDefaults();

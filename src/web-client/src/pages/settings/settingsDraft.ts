@@ -1,4 +1,4 @@
-import type { AdminConfig, RolePermissions, Access, TopItem, EventSource } from "../../api";
+import type { AdminConfig, RolePermissions, Access, TopItem, EventSource, PlanningMode } from "../../api";
 import { type CategorySheet } from "./CategoryMatrix";
 import { blockOf, type VersionSettingsBlock } from "../../lib/versionLinks";
 
@@ -37,6 +37,8 @@ export type Draft = {
     /** Where those messages go (#335); missing = the default channel. */
     categorySignupNoteChannel: Record<string, string>;
     categorySheets: Record<string, CategorySheet>;
+    /** Raid plan or sheet per category; only picked modes (see settingsLogic's planningOf). */
+    categoryPlanning: Record<string, PlanningMode>;
     categoryRaidTemplate: Record<string, string>;
     /** Einstellungen → Spielversion (#541). */
     mainVersion: string;
@@ -76,6 +78,7 @@ export function toDraft(config: AdminConfig): Draft {
         categorySignupNotes: config.categorySignupNotes || {},
         categorySignupNoteChannel: config.categorySignupNoteChannel || {},
         categorySheets: config.categorySheets || {},
+        categoryPlanning: config.categoryPlanning || {},
         categoryRaidTemplate: config.categoryRaidTemplate || {},
         mainVersion: config.mainVersion || "tbc",
         categoryVersion: config.categoryVersion || {},
