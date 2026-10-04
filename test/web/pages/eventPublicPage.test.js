@@ -6,12 +6,18 @@
 jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(), setEventMessage: jest.fn(), listEvents: jest.fn(() => []) }));
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []), onSignupsChanged: jest.fn() }));
 jest.mock("../../../src/services/discord/discord", () => ({ getClient: jest.fn(() => null) }));
+// The server language: English here (the old assertions), German where a test says so.
+jest.mock("../../../src/services/discord/botLanguage", () => ({ ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en") }));
 
 const eventStore = require("../../../src/stores/eventStore");
 const signupStore = require("../../../src/stores/signupStore");
-const {
-    VIEW_KEYS, publicEventView, renderPublicEventPage, renderEventPage,
-} = require("../../../src/web/pages/eventPublicPage");
+const page = require("../../../src/web/pages/eventPublicPage");
+const botLanguage = require("../../../src/services/discord/botLanguage");
+
+const { VIEW_KEYS, renderEventPage } = page;
+// View and page in English unless a test passes another language (German is their default).
+const publicEventView = (e, list, opts = {}) => page.publicEventView(e, list, { lang: "en", ...opts });
+const renderPublicEventPage = (view, opts = {}) => page.renderPublicEventPage(view, { lang: "en", ...opts });
 const { ownEvent } = require("../../factories/events");
 
 const NOW = Date.UTC(2026, 8, 20, 12, 0);
@@ -215,6 +221,26 @@ describe("web/pages/eventPublicPage", () => {
             expect(html).toContain("/r/cal/eh-1.ics");
             expect(html).toContain("/signups?event=eh-1");
             expect(html).toContain("Add to calendar");
+        });
+
+        it("speaks German by default — the server language", () => {
+            const view = page.publicEventView(event({ setupPost: { bench: true } }), signups(), { now: NOW });
+            const html = page.renderPublicEventPage(view);
+            expect(html).toContain("<html lang=\"de\">");
+            expect(html).toMatch(/Do\.?, 24\. Sept?\.? 2026, 19:30/);
+            expect(html).toContain("bis 22:30 Serverzeit");
+            expect(html).toContain("25er");
+            for (const word of ["Angemeldet", "Anmeldeschluss", "Priester", "Krieger", "Anmeldungen", "Zum Kalender hinzufügen", "Im Menü anmelden", "Gilden-Raid"]) {
+                expect(html).toContain(word);
+            }
+            for (const english of ["Signed up", "Signup deadline", "Add to calendar", "server time"]) expect(html).not.toContain(english);
+            expect(page.renderPublicEventPage(page.publicEventView(event(), [], { now: NOW }))).toContain("Noch niemand angemeldet.");
+        });
+
+        it("renders the page from the stores in the server language", () => {
+            eventStore.getEvent.mockReturnValue(event());
+            botLanguage.serverLang.mockReturnValueOnce("de");
+            expect(renderEventPage("eh-1", { now: NOW })).toContain("Zum Kalender hinzufügen");
         });
 
         it("is in English with the times written out in server time (no Discord timestamps on the web)", () => {

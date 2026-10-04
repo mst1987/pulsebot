@@ -9,6 +9,8 @@ const {
 } = require("../../utils/signup/multiSignup");
 const { STATUS_CODES } = require("../../utils/signup/signupDialog");
 const { answerPayload, answerUpdate } = require("../../utils/signup/signupReply");
+const { langOfInteraction } = require("../../services/discord/botLanguage");
+const { tr } = require("../../utils/i18n/botText");
 
 // Every step of signing up for several raids at once (#293) after the first
 // click — see utils/signup/multiSignup.js for the flow and the customIds:
@@ -17,8 +19,8 @@ const { answerPayload, answerUpdate } = require("../../utils/signup/signupReply"
 //   signup-multi:<token>:go:<page>   opens the modal of a page (never after a defer)
 //   signup-multi:<token>:m:<page>    the submitted modal — saves through submitSignups
 //   signup-multi:e:<eventId>:<code>  "Mehrere Charaktere …" of one event's character select
-const EXPIRED = "This selection has expired – start the signup again from the raid overview.";
-const NO_CHARACTER = "Your profile has no character with a spec yet – add one first (My profile).";
+// Everything answers only the member, in their language.
+const expired = (lang) => tr(lang, "This selection has expired – start the signup again from the raid overview.");
 
 async function emojisFor(interaction) {
     if (interaction.client) await loadAppEmojis(interaction.client);
@@ -26,14 +28,15 @@ async function emojisFor(interaction) {
 }
 
 // A short answer only the member sees, as an embed (#508).
-const ephemeral = (interaction, content, event = null) => interaction.reply(answerPayload(content, { event }));
+const ephemeral = (interaction, content, event = null) => interaction.reply(answerPayload(content, { event, lang: langOfInteraction(interaction) }));
 
 /** Open the modal of one page (a click, so the modal can still be shown). */
 async function openModal(interaction, token, session, page) {
     const profile = profiles.getProfile(interaction.user.id) || { characters: [] };
     const events = session.eventIds.map((id) => getEvent(id)).filter(Boolean);
-    const modal = buildCharacterModal(token, session, page, events, profile, { emojis: await emojisFor(interaction) });
-    if (!modal) return ephemeral(interaction, NO_CHARACTER);
+    const lang = langOfInteraction(interaction);
+    const modal = buildCharacterModal(token, session, page, events, profile, { emojis: await emojisFor(interaction), lang });
+    if (!modal) return ephemeral(interaction, tr(lang, "Your profile has no character with a spec yet – add one first (My profile)."));
     return interaction.showModal(modal);
 }
 
@@ -41,9 +44,10 @@ async function openModal(interaction, token, session, page) {
 async function onOneEvent(interaction, eventId, status) {
     const uid = interaction.user.id;
     const event = getEvent(eventId);
-    if (!event) return ephemeral(interaction, "This event no longer exists.");
+    const lang = langOfInteraction(interaction);
+    if (!event) return ephemeral(interaction, tr(lang, "This event no longer exists."));
     if (!allowedStatuses(event).includes(status)) {
-        return ephemeral(interaction, "The signup deadline has passed – you can only sign off or sign up as “Late” now.", event);
+        return ephemeral(interaction, tr(lang, "The signup deadline has passed – you can only sign off or sign up as “Late” now."), event);
     }
     const access = await checkRaiderRole(event, uid);
     if (access.error) return ephemeral(interaction, access.error, event);
@@ -65,7 +69,7 @@ async function onSubmit(interaction, token, session, page) {
     const ids = new Set(results.map((r) => r.eventId));
     session.results = [...session.results.filter((r) => !ids.has(r.eventId)), ...results];
     const last = page + 1 >= pageCount(session);
-    const payload = buildResults(token, session, { nextPage: last ? null : page + 1, profile: profiles.getProfile(uid) });
+    const payload = buildResults(token, session, { nextPage: last ? null : page + 1, profile: profiles.getProfile(uid), lang: langOfInteraction(interaction) });
     if (last) endSession(token);
     return interaction.editReply(payload);
 }
@@ -76,13 +80,14 @@ module.exports = {
     accessOf: "talk-signup",
     async execute(interaction) {
         const uid = interaction.user.id;
+        const lang = langOfInteraction(interaction);
         const { token, action, page, eventId, status } = parseMultiId(interaction.customId);
         if (action === "one") return onOneEvent(interaction, eventId, status);
 
         const session = getSession(token, uid);
         if (!session) {
-            if (interaction.isModalSubmit && interaction.isModalSubmit()) return ephemeral(interaction, EXPIRED);
-            return interaction.update(answerUpdate(EXPIRED));
+            if (interaction.isModalSubmit && interaction.isModalSubmit()) return ephemeral(interaction, expired(lang));
+            return interaction.update(answerUpdate(expired(lang), { lang }));
         }
         if (action === "m") return onSubmit(interaction, token, session, page);
         if (action === "go") return openModal(interaction, token, session, page);
@@ -94,9 +99,9 @@ module.exports = {
             const picked = String((interaction.values || [])[0] || "");
             if (STATUS_CODES[picked]) session.status = picked;
         } else {
-            return interaction.update(answerUpdate("Unknown action."));
+            return interaction.update(answerUpdate(tr(lang, "Unknown action."), { lang }));
         }
         const events = session.eventIds.map((id) => getEvent(id)).filter(Boolean);
-        return interaction.update(buildRaidPicker(token, session, events, { emojis: await emojisFor(interaction) }));
+        return interaction.update(buildRaidPicker(token, session, events, { emojis: await emojisFor(interaction), lang }));
     },
 };

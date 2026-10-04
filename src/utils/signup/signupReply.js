@@ -8,10 +8,13 @@
 // A text of several lines takes its first line as the title (bold marks
 // removed — a title is bold anyway) and the rest as the description; a single
 // line stays a description without a title. Every line runs through
-// botEnglish.toEnglish first, so a German service sentence arrives in English.
+// botText.serviceText(lang) first: in English a German service sentence arrives
+// in English (botEnglish), in German it stays as the service wrote it. The
+// caller hands the reader's language (services/discord/botLanguage.js); without
+// one the answer is English, as before the bot spoke German.
 const { buildEmbed, embedPayload } = require("../discord/reply");
 const { embedColor } = require("../../services/events/embedLook");
-const { toEnglish } = require("./botEnglish");
+const { serviceText } = require("../i18n/botText");
 
 /** A title line without Markdown bold marks. */
 const plainTitle = (line) => String(line || "").replace(/\*\*/g, "").trim();
@@ -24,12 +27,13 @@ const colorOf = (event) => (event ? embedColor(event) : undefined);
  * (then the whole text is the description).
  * @returns {{ title?: string, description: string, color?: number }}
  */
-function answerEmbed(text, { event = null, title = "" } = {}) {
-    const english = toEnglish(String(text === null || text === undefined ? "" : text)).trim();
+function answerEmbed(text, { event = null, title = "", lang = "en" } = {}) {
+    const raw = String(text === null || text === undefined ? "" : text);
+    const said = raw.split("\n").map((line) => serviceText(lang, line)).join("\n").trim();
     let head = title;
-    let body = english;
+    let body = said;
     if (!head) {
-        const [first, ...rest] = english.split("\n");
+        const [first, ...rest] = said.split("\n");
         if (rest.length) {
             head = first;
             body = rest.join("\n").trim();
@@ -48,16 +52,16 @@ function toEmbed(answer, opts = {}) {
 }
 
 /** The ephemeral reply / follow-up payload of an answer text (or buildEmbed input). */
-function answerPayload(answer, { event = null, title = "", components = [] } = {}) {
-    return embedPayload(typeof answer === "string" ? answerEmbed(answer, { event, title }) : answer, { components });
+function answerPayload(answer, { event = null, title = "", components = [], lang = "en" } = {}) {
+    return embedPayload(typeof answer === "string" ? answerEmbed(answer, { event, title, lang }) : answer, { components });
 }
 
 /**
  * The payload that turns the member's own ephemeral message into the answer:
  * the embed, no components, no leftover text.
  */
-function answerUpdate(answer, { event = null, title = "" } = {}) {
-    return { content: "", embeds: [toEmbed(answer, { event, title })], components: [] };
+function answerUpdate(answer, { event = null, title = "", lang = "en" } = {}) {
+    return { content: "", embeds: [toEmbed(answer, { event, title, lang })], components: [] };
 }
 
 module.exports = { plainTitle, colorOf, answerEmbed, toEmbed, answerPayload, answerUpdate };

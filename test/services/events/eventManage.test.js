@@ -154,7 +154,11 @@ describe("moving an event", () => {
         expect(reminderStore.getSent(event.id).missing).toBeUndefined();
         expect(refreshEventMessage).toHaveBeenCalledWith(event.id);
         expect(scheduleOverviewSync).toHaveBeenCalled();
-        expect(deliverUserPing).toHaveBeenCalledWith(expect.objectContaining({ target: "event", userIds: [RAIDER], text: expect.stringContaining("has been moved") }));
+        expect(deliverUserPing).toHaveBeenCalledWith(expect.objectContaining({ target: "event", userIds: [RAIDER], text: expect.any(Function) }));
+        // the note in the channel comes in the server language (pingDelivery picks it)
+        const note = deliverUserPing.mock.calls[0][0].text;
+        expect(note("en")).toContain("has been moved");
+        expect(note("de")).toMatch(/^📅 \*\*SSC \+ TK\*\* wurde verschoben: jetzt <t:\d+:F> \(<t:\d+:R>\)\.$/);
         expect(result.body.message).toMatch(/Kanal heißt jetzt #fr-26-09-ssc-tk/);
         expect(moved.log.at(-1)).toMatchObject({ action: "move", by: ORGA.id, byName: "Orga", detail: expect.stringContaining("Kanal #fr-26-09-ssc-tk") });
     });
@@ -254,7 +258,10 @@ describe("cancelling an event", () => {
         expect(result.body).toMatchObject({ archived: true, dm: { sent: 1, failed: 0 } });
         const ev = eventStore.getEvent(event.id);
         expect(ev).toMatchObject({ status: "cancelled", signupsClosed: true, cancel: { reason: "Zu wenig Heiler, wir verschieben auf Do.", by: ORGA.id, archived: true } });
-        expect(sendDms).toHaveBeenCalledWith([RAIDER], { content: expect.stringContaining("Reason: Zu wenig Heiler") });
+        // each DM in the raider's own language (pingDelivery.sendDms draws it per language)
+        expect(sendDms).toHaveBeenCalledWith([RAIDER], expect.any(Function));
+        expect(sendDms.mock.calls[0][1]("en")).toEqual({ content: expect.stringContaining("Reason: Zu wenig Heiler") });
+        expect(sendDms.mock.calls[0][1]("de").content).toMatch(/^❌ \*\*.+\*\* am <t:\d+:F> wurde abgesagt\.\nGrund: Zu wenig Heiler/);
         expect(discordChannels.archiveChannel).toHaveBeenCalledWith("c1", "arch");
         expect(archiveStore.listArchived("g1")).toEqual([expect.objectContaining({ channelId: "c1", by: ORGA.id })]);
         expect(refreshEventMessage).toHaveBeenCalledWith(event.id);
@@ -359,7 +366,9 @@ describe("deleting an event", () => {
         signUp(OTHER, "Ysolde", "Priest-Holy", "absence");
         const result = await manage.deleteEvent({ guildId: "g1", eventId: event.id, archiveChannel: true, notify: true, user: ORGA, byName: "Orga" });
         expect(result.body).toMatchObject({ archived: true, dm: { sent: 1 } });
-        expect(sendDms).toHaveBeenCalledWith([RAIDER], { content: expect.stringContaining("will not take place") });
+        expect(sendDms).toHaveBeenCalledWith([RAIDER], expect.any(Function));
+        expect(sendDms.mock.calls[0][1]("en")).toEqual({ content: expect.stringContaining("will not take place") });
+        expect(sendDms.mock.calls[0][1]("de").content).toContain("findet nicht statt – das Event wurde entfernt.");
         expect(discordChannels.archiveChannel).toHaveBeenCalledWith("c1", "arch");
         expect(archiveStore.listArchived("g1")).toEqual([expect.objectContaining({ channelId: "c1", by: ORGA.id })]);
 

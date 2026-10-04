@@ -20,6 +20,8 @@
 // signed up — no "22/25", no "25/25 (+3)". With no limit by default a raid is
 // never "full" in the counter's sense; the setup picks who plays.
 
+const { tr } = require("../i18n/botText");
+
 const OVERFLOW_MODES = ["none", "waitlist", "refuse"];
 const DEFAULT_OVERFLOW = "none";
 const LEGACY_OVERFLOW = ["bench", "off"];
@@ -70,9 +72,9 @@ function accountCount(signups, statusOf = storedStatus) {
     return seen.size + anonymous;
 }
 
-/** The counter as a raider reads it in Discord: "28 signed up". */
-function signedUpText(accounts) {
-    return `${Math.max(0, Number(accounts) || 0)} signed up`;
+/** The counter as a raider reads it in Discord: "28 angemeldet" / "28 signed up" (utils/i18n/botText.js). */
+function signedUpText(accounts, lang = "de") {
+    return tr(lang, "{count} signed up", { count: Math.max(0, Number(accounts) || 0) });
 }
 
 module.exports = {

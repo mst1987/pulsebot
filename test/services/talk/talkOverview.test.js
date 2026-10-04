@@ -1,5 +1,7 @@
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), getGuild: jest.fn(() => ({ name: "Pulse Events" })) }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+// The server language: English here (the old assertions), German where a test says so.
+jest.mock("../../../src/services/discord/botLanguage", () => ({ ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en") }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 const mockListeners = [];
 jest.mock("../../../src/stores/signupStore", () => ({
@@ -46,12 +48,36 @@ const ev = (over = {}) => baseEvent({
 });
 const signed = (n, status = "signed") => Array.from({ length: n }, (_, i) => ({ userId: `${status}-${i}`, specName: "Arcane", status }));
 
-const opts = { eventGuildId: "111", eventGuildName: "Pulse Events", baseUrl: "https://eh.example/", now: NOW };
+const opts = { eventGuildId: "111", eventGuildName: "Pulse Events", baseUrl: "https://eh.example/", now: NOW, lang: "en" };
 
 describe("services/talk/talkOverview — buildOverviewMessage", () => {
     it("formats the start in Berlin time with a German weekday", () => {
-        expect(formatStart(sec(2026, 9, 17, 17, 30))).toBe("Thu 17 Sep 19:30");
+        expect(formatStart(sec(2026, 9, 17, 17, 30), "en")).toBe("Thu 17 Sep 19:30");
         expect(formatStart(0)).toBe("");
+        expect(formatStart(sec(2026, 9, 17, 17, 30))).toMatch(/^Do\.? 17 Sept?\.? 19:30$/);
+    });
+
+    it("speaks German by default: title, description, meta line, footer, buttons and select", () => {
+        const german = { ...opts };
+        delete german.lang;
+        const events = Array.from({ length: 30 }, (_, i) => ev({ id: `e${i}`, source: "eventhelper", startTime: sec(2026, 9, 17 + i, 17, 30), signUps: signed(2) }));
+        events.push(ev({ id: "x", status: "cancelled" }));
+        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "", events }], german);
+        const embed = payload.embeds[0];
+        expect(embed.title).toBe("Kommende Raids");
+        expect(embed.description).toBe("Aktualisiert sich selbst · Links führen in den Event-Kanal auf **Pulse Events**");
+        expect(embed.fields[0].name).toBe("Ohne Kategorie");
+        expect(embed.fields[0].value).toContain("2 angemeldet");
+        expect(embed.fields[0].value).toContain("**ABGESAGT**");
+        expect(embed.footer.text).toMatch(/^\+\d+ weitere Raids in der Web-Übersicht$/);
+        const labels = payload.components.flatMap((row) => row.components.map((c) => c.label || c.placeholder));
+        expect(labels).toEqual(["Für alle Raids anmelden", "Mehrere Raids wählen …", "Einzelnen Raid wählen …", "Web-Übersicht", "Meine Anmeldungen", "Mein Profil"]);
+        expect(buildOverviewMessage([], german).embeds[0].description).toBe("Gerade sind keine Raids geplant. Neue Raids erscheinen hier von selbst.");
+    });
+
+    it("hashes the language with the payload, so a new server language redraws the overview", () => {
+        const a = buildOverviewMessage([{ categoryId: "k", categoryName: "R", events: [ev()] }], opts);
+        expect(payloadHash(a, "de")).not.toBe(payloadHash(a, "en"));
     });
 
     it("links into the event channel only while it exists — a deleted one reads \"channel missing\" (#537)", () => {

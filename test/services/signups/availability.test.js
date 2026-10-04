@@ -71,7 +71,7 @@ beforeEach(() => {
     for (const e of store.listEntries()) store.removeEntry(e.id);
     mockEvents.clear();
     mockSignups.clear();
-    mockConfig = {};
+    mockConfig = { botLanguage: "en" };
     discord.sendDirectMessage.mockClear();
     discord.sendDirectMessage.mockImplementation(async () => ({ ok: true, messageId: "m1" }));
     for (const e of [raid("eh-a", 2), raid("eh-b", 4), raid("eh-c", 9)]) mockEvents.set(e.id, e);
@@ -236,6 +236,23 @@ describe("applyToEvent – später angelegte Raids", () => {
         await availability.createEntry(ANNA, { kind: "presence", from: today, to: dayPlus(10), character: "nerathil", spec: "Mage-Arcane" }, { now: NOW, dm: false });
         mockEvents.set("eh-forever", raid("eh-forever", 6, { versionId: "forever" }));
         expect(await availability.applyToEvent("eh-forever", { now: NOW })).toEqual([]);
+    });
+});
+
+describe("Sprache", () => {
+    it("schreibt die DM ohne eigene Wahl in der Server-Sprache, Deutsch als Standard", async () => {
+        mockConfig = {};
+        await availability.createEntry(ANNA, { kind: "absence", from: today, to: dayPlus(3), comment: "Urlaub" }, { now: NOW });
+        const dm = dmText(discord.sendDirectMessage.mock.calls[0]);
+        expect(dm.title).toBe("Abwesenheit gespeichert");
+        expect(dm.description).toContain("Grund: Urlaub");
+        expect(dm.description).toContain("**Abgemeldet von:**");
+    });
+
+    it("schreibt den Standard-Kommentar in der Server-Sprache", async () => {
+        mockConfig = {};
+        await availability.createEntry(ANNA, { kind: "absence", from: today, to: dayPlus(3) }, { now: NOW, dm: false });
+        expect(mockSignups.get(`eh-a/${ANNA}`).comment).toMatch(/^Weg \d+\. \S+–\d+\. \S+$/);
     });
 });
 

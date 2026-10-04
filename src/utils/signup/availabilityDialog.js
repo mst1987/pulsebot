@@ -2,6 +2,8 @@
 // the panel a raid category's channel carries, the modals, the raid picker and
 // the list of one's own entries. Pure builders plus the short-lived picker
 // sessions; commands/signup/availability.js wires them to the interactions.
+// Every builder takes the language (utils/i18n/botText.js): the panel the
+// server's, everything else the reader's (services/discord/botLanguage.js).
 //
 // customIds (all `availability:…`, so the slash command's module answers them):
 //   availability:a:<categoryId>   "Enter absence"    → modal availability:ma:<categoryId>
@@ -21,7 +23,7 @@ const {
 const profiles = require("../../stores/raiderProfileStore");
 const { VERSIONS } = require("../../config/gameVersions");
 const { TIMEZONE } = require("../../config/timezone");
-const { toEnglish } = require("./botEnglish");
+const { tr, serviceText, specLabel, dateLocale } = require("../i18n/botText");
 const { buildEmbed } = require("../discord/reply");
 
 const PREFIX = "availability";
@@ -65,28 +67,35 @@ const panelId = (action, categoryId = "") => `${PREFIX}:${action}:${categoryId}`
 const pickId = (token, action) => `${PREFIX}:${token}:${action}`;
 
 /** The three buttons of the panel (and of /availability). */
-function panelButtons(categoryId = "") {
+function panelButtons(categoryId = "", lang = "de") {
     return new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(panelId("a", categoryId)).setLabel("Enter absence").setEmoji("🏖️").setStyle(ButtonStyle.Danger),
-        new ButtonBuilder().setCustomId(panelId("p", categoryId)).setLabel("Enter attendance").setEmoji("✅").setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId(panelId("l", categoryId)).setLabel("My entries").setEmoji("📋").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(panelId("a", categoryId)).setLabel(tr(lang, "Enter absence")).setEmoji("🏖️").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId(panelId("p", categoryId)).setLabel(tr(lang, "Enter attendance")).setEmoji("✅").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(panelId("l", categoryId)).setLabel(tr(lang, "My entries")).setEmoji("📋").setStyle(ButtonStyle.Secondary),
     );
 }
 
-/** The panel message a raid category's channel carries. */
-function panelPayload({ categoryId = "", categoryName = "" } = {}) {
-    const raids = categoryName ? `**${categoryName}** raid` : "raid";
+/** The panel message a raid category's channel carries — in the server language. */
+function panelPayload({ categoryId = "", categoryName = "", lang = "de" } = {}) {
+    const vars = { category: categoryName };
     const description = [
-        `**Away for a while?** Enter your absence and you are signed off from every ${raids} in that period – also from raids created later.`,
+        categoryName
+            ? tr(lang, "**Away for a while?** Enter your absence and you are signed off from every **{category}** raid in that period – also from raids created later.", vars)
+            : tr(lang, "**Away for a while?** Enter your absence and you are signed off from every raid in that period – also from raids created later."),
         "",
-        `**There for sure?** Enter your attendance with a character and you are signed up for every ${raids} in that period as *Signed up*.`,
+        categoryName
+            ? tr(lang, "**There for sure?** Enter your attendance with a character and you are signed up for every **{category}** raid in that period as *Signed up*.", vars)
+            : tr(lang, "**There for sure?** Enter your attendance with a character and you are signed up for every raid in that period as *Signed up*."),
         "",
-        "You pick the raids yourself, and you get a DM for every raid the bot signs you up or off for. Your own signup always stays yours to change.",
+        tr(lang, "You pick the raids yourself, and you get a DM for every raid the bot signs you up or off for. Your own signup always stays yours to change."),
     ].join("\n");
     return {
         content: "",
-        embeds: [buildEmbed({ title: categoryName ? `Absence & attendance · ${categoryName}` : "Absence & attendance", description, color: COLOR_PANEL })],
-        components: [panelButtons(categoryId)],
+        embeds: [buildEmbed({
+            title: categoryName ? tr(lang, "Absence & attendance · {category}", vars) : tr(lang, "Absence & attendance"),
+            description, color: COLOR_PANEL,
+        })],
+        components: [panelButtons(categoryId, lang)],
     };
 }
 
@@ -97,18 +106,18 @@ function dateInput(id, label, placeholder, required = true) {
 }
 
 /** The modal asking for the period (and the absence's reason). */
-function periodModal(kind, categoryId = "") {
+function periodModal(kind, categoryId = "", lang = "de") {
     const absence = kind === "absence";
     const modal = new ModalBuilder()
         .setCustomId(panelId(absence ? "ma" : "mp", categoryId))
-        .setTitle(absence ? "Enter absence" : "Enter attendance")
+        .setTitle(absence ? tr(lang, "Enter absence") : tr(lang, "Enter attendance"))
         .addComponents(
-            dateInput("from", "From (day)", "e.g. 24.10. or 24.10.2026"),
-            dateInput("to", "To (day, empty = the same day)", "e.g. 31.10.", false),
+            dateInput("from", tr(lang, "From (day)"), tr(lang, "e.g. 24.10. or 24.10.2026")),
+            dateInput("to", tr(lang, "To (day, empty = the same day)"), tr(lang, "e.g. 31.10."), false),
         );
     if (absence) {
         modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder()
-            .setCustomId("reason").setLabel("Reason (optional, the raid lead sees it)").setPlaceholder("e.g. holiday, work")
+            .setCustomId("reason").setLabel(tr(lang, "Reason (optional, the raid lead sees it)")).setPlaceholder(tr(lang, "e.g. holiday, work"))
             .setStyle(TextInputStyle.Short).setMaxLength(100).setRequired(false)));
     }
     return modal;
@@ -119,19 +128,18 @@ function versionName(versionId) {
     return v ? v.label : versionId;
 }
 
-function specName(key) {
-    const info = profiles.specInfo(key);
-    return (info && (info.labelEn || info.label)) || key;
+function specName(key, lang = "de") {
+    return specLabel(lang, profiles.specInfo(key), key);
 }
 
 /** Every character · spec of the profile as select options (the profile's order), at most 25. */
-function characterOptions(profile, versions = null) {
+function characterOptions(profile, versions = null, lang = "de") {
     const out = [];
     for (const c of (profile && profile.characters) || []) {
         if (versions && !versions.includes(c.versionId)) continue;
         for (const s of c.specs || []) {
             if (s.gear === "none") continue;
-            out.push({ character: c.name, key: c.key, spec: s.key, versionId: c.versionId, label: `${c.name} · ${specName(s.key)}` });
+            out.push({ character: c.name, key: c.key, spec: s.key, versionId: c.versionId, label: `${c.name} · ${specName(s.key, lang)}` });
         }
     }
     return out.slice(0, MAX_OPTIONS);
@@ -144,49 +152,52 @@ function defaultCharacter(profile, versionId, versions = null) {
     return (first && options.find((o) => o.key === first.key)) || options[0] || null;
 }
 
-/** "Wed 24 Oct, 19:30" in server time — select options render no Discord timestamps. */
-function raidWhen(startTime) {
-    return DateTime.fromSeconds(Number(startTime) || 0, { zone: TIMEZONE }).setLocale("en").toFormat("ccc d LLL, HH:mm");
+/** "Wed 24 Oct, 19:30" / "Mi. 24. Okt., 19:30" in server time — select options render no Discord timestamps. */
+function raidWhen(startTime, lang = "de") {
+    return DateTime.fromSeconds(Number(startTime) || 0, { zone: TIMEZONE }).setLocale(dateLocale(lang)).toFormat("ccc d LLL, HH:mm");
 }
 
-function dayText(day) {
+function dayText(day, lang = "de") {
     const dt = DateTime.fromISO(str(day), { zone: TIMEZONE });
-    return dt.isValid ? dt.setLocale("en").toFormat("ccc d LLL yyyy") : str(day);
+    return dt.isValid ? dt.setLocale(dateLocale(lang)).toFormat("ccc d LLL yyyy") : str(day);
 }
 
-function periodLabel(from, to) {
-    return from === to ? dayText(from) : `${dayText(from)} – ${dayText(to)}`;
+function periodLabel(from, to, lang = "de") {
+    return from === to ? dayText(from, lang) : `${dayText(from, lang)} – ${dayText(to, lang)}`;
 }
 
 /**
  * The picker after the modal: the period, for an attendance the character ·
  * spec select, the raids of the period (all picked at first) and Save.
  */
-function pickerPayload(token, session, raids, { profile, versions = null, notice = "" } = {}) {
+function pickerPayload(token, session, raids, { profile, versions = null, notice = "", lang = "de" } = {}) {
     const absence = session.kind === "absence";
     const selected = session.selected || raids.map((e) => e.id);
-    const lines = [`**${periodLabel(session.from, session.to)}**`];
-    if (absence && session.comment) lines.push(`Reason: ${session.comment}`);
-    if (!absence && session.character) lines.push(`Character: **${session.character}** · ${specName(session.spec)} (${versionName(session.versionId)})`);
+    const counts = { picked: selected.length, total: raids.length };
+    const lines = [`**${periodLabel(session.from, session.to, lang)}**`];
+    if (absence && session.comment) lines.push(tr(lang, "Reason: {reason}", { reason: session.comment }));
+    if (!absence && session.character) {
+        lines.push(tr(lang, "Character: **{character}** · {spec} ({version})", { character: session.character, spec: specName(session.spec, lang), version: versionName(session.versionId) }));
+    }
     lines.push("");
     if (raids.length) {
         lines.push(absence
-            ? `Pick the raids to sign off from (${selected.length} of ${raids.length}).`
-            : `Pick the raids to sign up for (${selected.length} of ${raids.length}).`);
+            ? tr(lang, "Pick the raids to sign off from ({picked} of {total}).", counts)
+            : tr(lang, "Pick the raids to sign up for ({picked} of {total}).", counts));
     } else {
-        lines.push("No raid in this period yet.");
+        lines.push(tr(lang, "No raid in this period yet."));
     }
     lines.push(absence
-        ? "Raids created later in this period sign you off automatically."
-        : "Raids created later in this period sign you up automatically.");
-    if (notice) lines.push("", toEnglish(notice));
+        ? tr(lang, "Raids created later in this period sign you off automatically.")
+        : tr(lang, "Raids created later in this period sign you up automatically."));
+    if (notice) lines.push("", serviceText(lang, notice));
     const rows = [];
     if (!absence) {
-        const options = characterOptions(profile, versions);
+        const options = characterOptions(profile, versions, lang);
         if (options.length) {
             rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder()
                 .setCustomId(pickId(token, "c"))
-                .setPlaceholder("Character · spec")
+                .setPlaceholder(tr(lang, "Character · spec"))
                 .addOptions(options.map((o) => ({
                     label: o.label.slice(0, 100),
                     value: `${o.key}|${o.spec}`.slice(0, 100),
@@ -199,62 +210,70 @@ function pickerPayload(token, session, raids, { profile, versions = null, notice
         const shown = raids.slice(0, MAX_OPTIONS);
         rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder()
             .setCustomId(pickId(token, "r"))
-            .setPlaceholder("No raid picked – only later ones")
+            .setPlaceholder(tr(lang, "No raid picked – only later ones"))
             .setMinValues(0)
             .setMaxValues(shown.length)
             .addOptions(shown.map((e) => ({
                 label: str(e.title || "Raid").slice(0, 100),
                 value: e.id,
-                description: raidWhen(e.startTime),
+                description: raidWhen(e.startTime, lang),
                 default: selected.includes(e.id),
             })))));
     }
     rows.push(new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(pickId(token, "save")).setLabel(absence ? "Save absence" : "Save attendance").setStyle(absence ? ButtonStyle.Danger : ButtonStyle.Success),
-        new ButtonBuilder().setCustomId(pickId(token, "x")).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(pickId(token, "save"))
+            .setLabel(absence ? tr(lang, "Save absence") : tr(lang, "Save attendance"))
+            .setStyle(absence ? ButtonStyle.Danger : ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(pickId(token, "x")).setLabel(tr(lang, "Cancel")).setStyle(ButtonStyle.Secondary),
     ));
     return {
         content: "",
-        embeds: [buildEmbed({ title: absence ? "Enter absence" : "Enter attendance", description: lines.join("\n"), color: absence ? COLOR_ABSENCE : COLOR_PRESENCE })],
+        embeds: [buildEmbed({
+            title: absence ? tr(lang, "Enter absence") : tr(lang, "Enter attendance"),
+            description: lines.join("\n"), color: absence ? COLOR_ABSENCE : COLOR_PRESENCE,
+        })],
         components: rows,
     };
 }
 
 /** One line of an entry in the list. */
-function entryLine(entry) {
-    const period = periodLabel(entry.from, entry.to);
-    if (entry.kind === "absence") return `🏖️ **Away** · ${period}${entry.comment ? ` · ${entry.comment}` : ""}`;
-    return `✅ **There** · ${period} · ${entry.character} · ${specName(entry.spec)}`;
+function entryLine(entry, lang = "de") {
+    const period = periodLabel(entry.from, entry.to, lang);
+    if (entry.kind === "absence") return `🏖️ **${tr(lang, "Away")}** · ${period}${entry.comment ? ` · ${entry.comment}` : ""}`;
+    return `✅ **${tr(lang, "There")}** · ${period} · ${entry.character} · ${specName(entry.spec, lang)}`;
 }
 
 /** "My entries": the raider's entries that are not over yet, with a select to delete one. */
-function listPayload(entries, { categoryId = "", notice = "" } = {}) {
-    const lines = entries.length ? entries.map(entryLine) : ["No absence or attendance entered."];
-    if (entries.length) lines.push("", "Deleting an entry stops it – the signups it made stay as they are.");
-    if (notice) lines.push("", toEnglish(notice));
+function listPayload(entries, { categoryId = "", notice = "", lang = "de" } = {}) {
+    const lines = entries.length ? entries.map((e) => entryLine(e, lang)) : [tr(lang, "No absence or attendance entered.")];
+    if (entries.length) lines.push("", tr(lang, "Deleting an entry stops it – the signups it made stay as they are."));
+    if (notice) lines.push("", serviceText(lang, notice));
     const rows = [];
     if (entries.length) {
         rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder()
             .setCustomId(`${PREFIX}:del:${categoryId}`)
-            .setPlaceholder("Delete an entry …")
-            .addOptions(entries.slice(0, MAX_OPTIONS).map((e) => ({
-                label: (e.kind === "absence" ? `Away ${periodLabel(e.from, e.to)}` : `There ${periodLabel(e.from, e.to)}`).slice(0, 100),
-                value: e.id,
-                description: (e.kind === "absence" ? e.comment || "Absence" : `${e.character} · ${specName(e.spec)}`).slice(0, 100),
-            })))));
+            .setPlaceholder(tr(lang, "Delete an entry …"))
+            .addOptions(entries.slice(0, MAX_OPTIONS).map((e) => {
+                const period = periodLabel(e.from, e.to, lang);
+                return {
+                    label: (e.kind === "absence" ? tr(lang, "Away {period}", { period }) : tr(lang, "There {period}", { period })).slice(0, 100),
+                    value: e.id,
+                    description: (e.kind === "absence" ? e.comment || tr(lang, "Absence") : `${e.character} · ${specName(e.spec, lang)}`).slice(0, 100),
+                };
+            }))));
     }
-    rows.push(panelButtons(categoryId));
+    rows.push(panelButtons(categoryId, lang));
     return {
         content: "",
-        embeds: [buildEmbed({ title: "My absences & attendances", description: lines.join("\n"), color: COLOR_PANEL })],
+        embeds: [buildEmbed({ title: tr(lang, "My absences & attendances"), description: lines.join("\n"), color: COLOR_PANEL })],
         components: rows,
     };
 }
 
 /** The answer after saving: the same summary the DM carries. */
-function savedPayload(summary, { kind, dm }) {
+function savedPayload(summary, { kind, dm, lang = "de" }) {
     const lines = [summary.description];
-    if (dm === false) lines.push("", "⚠️ I could not send you a DM – are your DMs closed for this server?");
+    if (dm === false) lines.push("", tr(lang, "⚠️ I could not send you a DM – are your DMs closed for this server?"));
     return {
         content: "",
         embeds: [buildEmbed({ title: summary.title, description: lines.join("\n"), color: kind === "absence" ? COLOR_ABSENCE : COLOR_PRESENCE })],

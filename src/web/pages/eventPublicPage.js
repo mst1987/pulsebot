@@ -17,7 +17,8 @@
 //
 // The roster grouping is the signup message's (eventMessage.rosterEntries /
 // classesOf / rosterCounts / messagePhase), so the page and the channel can
-// never disagree about who stands where.
+// never disagree about who stands where. Like the message it speaks the server
+// language (services/discord/botLanguage.js `serverLang`, German by default).
 const { rosterEntries, classesOf, rosterCounts, messagePhase } = require("../../services/events/eventMessage");
 const { approvedSetupOf, benchPosted } = require("../../services/setup/setupCore");
 const { getEvent } = require("../../stores/eventStore");
@@ -26,11 +27,12 @@ const { instance } = require("../../config/gameVersions");
 const { clampDuration, eventEndTime } = require("../../utils/time");
 const { wowIconUrl } = require("../../config/menu");
 const { layout, esc } = require("../report/render");
-// The page is for raiders, so it is in English like the bot's Discord texts;
-// times are written out in server time (a web page cannot render a Discord timestamp).
+// Times are written out in server time (a web page cannot render a Discord timestamp).
 const { serverDateTime } = require("../../utils/time");
-const { ROLE_LABELS_EN } = require("../../config/gameVersions/classes");
+const { ROLE_LABELS, ROLE_LABELS_EN } = require("../../config/gameVersions/classes");
 const { str, clip } = require("../../utils/text");
+const { tr, specLabel, classLabel, normalizeLang, dateLocale } = require("../../utils/i18n/botText");
+const { serverLang } = require("../../services/discord/botLanguage");
 
 // Every key the public payload may carry, at every level. The test walks the
 // view against this list — a new personal field cannot slip in unnoticed.
@@ -49,15 +51,34 @@ const VIEW_KEYS = [
     "character", "spec", "specLabel", "specIcon", "role",
 ];
 
-// The statuses below the class blocks, in the order the message uses.
-const OTHER_LINES = [["late", "Late"], ["tentative", "Tentative"], ["bench", "Bench"], ["absence", "Absence"]];
-const ROLE_LABEL = ROLE_LABELS_EN;
+// The single words of the page as de/en pairs.
+const WORDS = {
+    late: { de: "Spät", en: "Late" },
+    tentative: { de: "Vielleicht", en: "Tentative" },
+    bench: { de: "Bank", en: "Bench" },
+    absence: { de: "Abgemeldet", en: "Absence" },
+    other: { de: "Sonstige", en: "Other" },
+    signedUp: { de: "Angemeldet", en: "Signed up" },
+    signups: { de: "Anmeldungen", en: "Signups" },
+    deadline: { de: "Anmeldeschluss", en: "Signup deadline" },
+    none: { de: "keiner", en: "none" },
+    serverTime: { de: "Serverzeit", en: "server time" },
+    guildRaid: { de: "Gilden-Raid", en: "Guild raid" },
+    tank: { de: ["Tank", "Tanks"], en: ["Tank", "Tanks"] },
+    healer: { de: ["Heiler", "Heiler"], en: ["Healer", "Healers"] },
+};
+const word = (lang, key) => WORDS[key][normalizeLang(lang)];
+
+// The statuses below the class blocks, in the order the message uses (their label: WORDS).
+const OTHER_LINES = ["late", "tentative", "bench", "absence"];
 const PHASE_BADGE = {
     cancelled: { label: "Cancelled", tone: "high" },
     started: { label: "Raid in progress", tone: "muted" },
     closed: { label: "Signups closed", tone: "medium" },
     deadline: { label: "Signup deadline passed", tone: "medium" },
 };
+/** A role's name in the language ("Heiler" / "Healer"). */
+const roleLabel = (role, lang) => (normalizeLang(lang) === "en" ? ROLE_LABELS_EN : ROLE_LABELS)[role] || "";
 
 
 /** A spec table of the event's rule set: key → { spec, class }. */
@@ -70,12 +91,12 @@ function specTable(event) {
 }
 
 /** One roster line, stripped to what the public may see. */
-function member(entry, table) {
+function member(entry, table, lang = "de") {
     const hit = table.get(entry.spec) || null;
     return {
         character: str(entry.character) || "?",
         spec: str(entry.spec),
-        specLabel: (hit && (hit.spec.labelEn || hit.spec.label)) || "",
+        specLabel: hit ? specLabel(lang, hit.spec) : "",
         specIcon: (hit && hit.spec.icon) || "",
         role: str(entry.role),
     };
@@ -85,37 +106,38 @@ function member(entry, table) {
  * What the public page shows — pure and deliberately narrow (see VIEW_KEYS).
  * @param {object} event   an eventStore event
  * @param {object[]} signups signupStore signups of that event
- * @param {{ now?: number }} [opts]
+ * @param {{ now?: number, lang?: string }} [opts] `lang`: the labels' language (the server language, German by default)
  * @returns {object|null} null without an event
  */
-function publicEventView(event, signups, { now = Date.now() } = {}) {
+function publicEventView(event, signups, { now = Date.now(), lang = "de" } = {}) {
     if (!event || !event.id) return null;
     const list = (signups || []).filter((s) => s && s.userId);
     const entries = rosterEntries(list);
     const table = specTable(event);
     const counts = rosterCounts(list);
     const phase = messagePhase(event, now);
+    const toMember = (e) => member(e, table, lang);
 
     // The signed-up characters, one block per class of the rule set — the
     // message's order, so the page reads like the channel.
-    const signed = entries.filter((e) => e.status === "signed").map((e) => member(e, table));
+    const signed = entries.filter((e) => e.status === "signed").map(toMember);
     const classes = classesOf(event).map((cls) => {
         const keys = new Set(cls.specs.map((s) => s.key || `${cls.id}-${s.id}`));
         const members = signed.filter((m) => keys.has(m.spec)).sort((a, b) => a.character.localeCompare(b.character, "en"));
-        return { id: cls.id, label: cls.labelEn || cls.label, color: cls.color || "", icon: cls.icon || "", members };
+        return { id: cls.id, label: classLabel(lang, cls), color: cls.color || "", icon: cls.icon || "", members };
     }).filter((c) => c.members.length);
     // A spec the rule set does not know (a version changed under a stored
     // signup) would fall out of every class block — it gets its own.
     const placed = new Set(classes.flatMap((c) => c.members.map((m) => `${m.character}|${m.spec}`)));
     const rest = signed.filter((m) => !placed.has(`${m.character}|${m.spec}`));
-    if (rest.length) classes.push({ id: "", label: "Other", color: "", icon: "", members: rest });
+    if (rest.length) classes.push({ id: "", label: word(lang, "other"), color: "", icon: "", members: rest });
 
-    const other = OTHER_LINES.map(([status, label]) => ({
+    const other = OTHER_LINES.map((status) => ({
         id: status,
-        label,
+        label: word(lang, status),
         color: "",
         icon: "",
-        members: entries.filter((e) => e.status === status).map((e) => member(e, table)),
+        members: entries.filter((e) => e.status === status).map(toMember),
     })).filter((o) => o.members.length);
 
     const approved = approvedSetupOf(event);
@@ -123,9 +145,9 @@ function publicEventView(event, signups, { now = Date.now() } = {}) {
         approvedAt: Number(approved.approvedAt) || 0,
         groups: (approved.groups || [])
             .filter((g) => (g.slots || []).length)
-            .map((g) => ({ index: Number(g.index) || 0, members: (g.slots || []).map((s) => member(s, table)) })),
+            .map((g) => ({ index: Number(g.index) || 0, members: (g.slots || []).map(toMember) })),
         // the bench only when the orga posted it with the setup (#517)
-        bench: benchPosted(event) ? (approved.bench || []).map((b) => member(b, table)) : [],
+        bench: benchPosted(event) ? (approved.bench || []).map(toMember) : [],
     } : null;
 
     return {
@@ -202,10 +224,12 @@ const PAGE_STYLE = `
   .ev-list li span { color:var(--muted); font-size:12.5px; margin-left:auto; }
   .ev-foot { color:var(--muted); font-size:12.5px; margin:28px 0 0; }`;
 
-// "Wed 24 Sep 2026, 19:30" — English, in server time (Europe/Berlin), 24 h.
-const fmtDate = (seconds) => {
+// "Mi., 24. Sept. 2026, 19:30" / "Wed 24 Sep 2026, 19:30" — in server time (Europe/Berlin), 24 h.
+const fmtDate = (seconds, lang = "de") => {
     const dt = serverDateTime(seconds);
-    return dt ? dt.toFormat("ccc d LLL yyyy, HH:mm") : "–";
+    if (!dt) return "–";
+    const de = dateLocale(lang) === "de";
+    return dt.setLocale(dateLocale(lang)).toFormat(de ? "ccc, d. LLL yyyy, HH:mm" : "ccc d LLL yyyy, HH:mm");
 };
 const fmtTime = (seconds) => {
     const dt = serverDateTime(seconds);
@@ -216,98 +240,111 @@ function icon(name, size = 20) {
     return name ? `<img src="${esc(wowIconUrl(name, size))}" alt="" loading="lazy">` : "";
 }
 
-function memberLine(m) {
-    const right = m.specLabel || ROLE_LABEL[m.role] || "";
+function memberLine(m, lang = "de") {
+    const right = m.specLabel || roleLabel(m.role, lang);
     return `<li>${icon(m.specIcon, 18)}<b>${esc(m.character)}</b>${right ? `<span>${esc(right)}</span>` : ""}</li>`;
 }
 
-function block(group) {
+function block(group, lang = "de") {
     const color = group.color ? ` style="--cc:${esc(group.color)}"` : "";
     return `<div class="ev-block"${color}>
       <h3>${icon(group.icon)}${esc(group.label)}<span class="n">${group.members.length}</span></h3>
-      <ul class="ev-list">${group.members.map(memberLine).join("")}</ul>
+      <ul class="ev-list">${group.members.map((m) => memberLine(m, lang)).join("")}</ul>
     </div>`;
 }
 
-/** The page body for a view (the `<div class="wrap">` content of layout()). */
-function renderPublicEventBody(view) {
-    const phase = PHASE_BADGE[view.phase];
-    const badges = [
-        ...(phase ? [`<span class="ev-badge ${phase.tone === "high" ? "high" : phase.tone === "medium" ? "medium" : ""}">${esc(phase.label)}</span>`] : []),
-        ...view.raids.map((r) => `<span class="ev-badge">${icon(r.icon, 18)}${esc(r.label)}</span>`),
-        ...(view.size ? [`<span class="ev-badge">${view.size}-man</span>`] : []),
-    ].join("");
+/** "3 Tanks · 5 Heiler · 12 DPS". */
+function roleCountsText(counts, lang) {
+    const n = (key) => `${counts[key]} ${word(lang, key)[counts[key] === 1 ? 0 : 1]}`;
+    return `${n("tank")} · ${n("healer")} · ${counts.dps} DPS`;
+}
 
-    const facts = [
-        { kicker: "Date · server time", value: fmtDate(view.startTime), sub: view.endTime ? `until ${fmtTime(view.endTime)} server time` : "server time" },
+/** The three fact tiles: date, signed up, deadline. */
+function factsHtml(view, lang) {
+    const serverTime = word(lang, "serverTime");
+    return [
         {
-            kicker: "Signed up",
-            value: String(view.counts.accounts),
-            sub: `${view.counts.tank} ${view.counts.tank === 1 ? "Tank" : "Tanks"} · ${view.counts.healer} ${view.counts.healer === 1 ? "Healer" : "Healers"} · ${view.counts.dps} DPS`,
+            kicker: tr(lang, "Date · server time"),
+            value: fmtDate(view.startTime, lang),
+            sub: view.endTime ? tr(lang, "until {time} server time", { time: fmtTime(view.endTime) }) : serverTime,
         },
+        { kicker: word(lang, "signedUp"), value: String(view.counts.accounts), sub: roleCountsText(view.counts, lang) },
         {
-            kicker: "Signup deadline",
-            value: view.signupDeadline ? fmtDate(view.signupDeadline) : "none",
-            sub: view.signupsClosed ? "Signups closed" : (view.signupDeadline ? "server time" : ""),
+            kicker: word(lang, "deadline"),
+            value: view.signupDeadline ? fmtDate(view.signupDeadline, lang) : word(lang, "none"),
+            sub: view.signupsClosed ? tr(lang, PHASE_BADGE.closed.label) : (view.signupDeadline ? serverTime : ""),
         },
     ].map((f) => `<div class="ev-fact"><span class="kicker">${esc(f.kicker)}</span><b>${esc(f.value)}</b>${f.sub ? `<span>${esc(f.sub)}</span>` : ""}</div>`).join("");
+}
+
+/** The approved setup's blocks, "" without one. */
+function setupHtml(view, lang) {
+    if (!view.setup) return "";
+    return `<h2 class="ev-sec" id="setup">Setup</h2><div class="ev-grid">${[
+        ...view.setup.groups.map((g) => block({ id: "", label: tr(lang, "Group {index}", { index: g.index }), color: "", icon: "", members: g.members }, lang)),
+        ...(view.setup.bench.length ? [block({ id: "", label: word(lang, "bench"), color: "", icon: "", members: view.setup.bench }, lang)] : []),
+    ].join("")}</div>`;
+}
+
+/** The page body for a view (the `<div class="wrap">` content of layout()), in `lang` (German by default). */
+function renderPublicEventBody(view, { lang = "de" } = {}) {
+    const phase = PHASE_BADGE[view.phase];
+    const badges = [
+        ...(phase ? [`<span class="ev-badge ${phase.tone === "high" ? "high" : phase.tone === "medium" ? "medium" : ""}">${esc(tr(lang, phase.label))}</span>`] : []),
+        ...view.raids.map((r) => `<span class="ev-badge">${icon(r.icon, 18)}${esc(r.label)}</span>`),
+        ...(view.size ? [`<span class="ev-badge">${esc(tr(lang, "{size}-man", { size: view.size }))}</span>`] : []),
+    ].join("");
 
     const cancelled = view.status === "cancelled"
-        ? `<div class="ev-desc" style="border-left-color:var(--high)"><strong>Cancelled.</strong>${view.cancelReason ? ` ${esc(view.cancelReason)}` : ""}</div>`
+        ? `<div class="ev-desc" style="border-left-color:var(--high)"><strong>${esc(tr(lang, "Cancelled."))}</strong>${view.cancelReason ? ` ${esc(view.cancelReason)}` : ""}</div>`
         : "";
     const description = view.description ? `<div class="ev-desc">${esc(view.description)}</div>` : "";
 
     const roster = [...view.classes, ...view.other];
     const rosterHtml = roster.length
-        ? `<div class="ev-grid">${roster.map(block).join("")}</div>`
-        : "<div class=\"empty\">Nobody has signed up yet.</div>";
-
-    const setup = view.setup
-        ? `<h2 class="ev-sec" id="setup">Setup</h2><div class="ev-grid">${[
-            ...view.setup.groups.map((g) => block({ id: "", label: `Group ${g.index}`, color: "", icon: "", members: g.members })),
-            ...(view.setup.bench.length ? [block({ id: "", label: "Bench", color: "", icon: "", members: view.setup.bench })] : []),
-        ].join("")}</div>`
-        : "";
+        ? `<div class="ev-grid">${roster.map((g) => block(g, lang)).join("")}</div>`
+        : `<div class="empty">${esc(tr(lang, "Nobody has signed up yet."))}</div>`;
 
     return `<div class="ev-head">
-      <div class="ev-kicker">Guild raid</div>
+      <div class="ev-kicker">${esc(word(lang, "guildRaid"))}</div>
       <h1 class="ev-title">${esc(view.title)}</h1>
       <div class="ev-badges">${badges}</div>
     </div>
     ${cancelled}
-    <div class="ev-facts">${facts}</div>
+    <div class="ev-facts">${factsHtml(view, lang)}</div>
     ${description}
     <div class="ev-actions">
-      <a class="ev-btn primary" href="${esc(view.icsUrl)}">Add to calendar</a>
-      <a class="ev-btn" href="${esc(view.signupUrl)}">Sign up in the menu</a>
+      <a class="ev-btn primary" href="${esc(view.icsUrl)}">${esc(tr(lang, "Add to calendar"))}</a>
+      <a class="ev-btn" href="${esc(view.signupUrl)}">${esc(tr(lang, "Sign up in the menu"))}</a>
     </div>
-    <h2 class="ev-sec">Signups</h2>
+    <h2 class="ev-sec">${esc(word(lang, "signups"))}</h2>
     ${rosterHtml}
-    ${setup}
-    <p class="ev-foot">Public view – no login needed. Sign up in Discord or in the menu.</p>`;
+    ${setupHtml(view, lang)}
+    <p class="ev-foot">${esc(tr(lang, "Public view – no login needed. Sign up in Discord or in the menu."))}</p>`;
 }
 
 /**
- * The whole HTML page for a view. `bare` because layout()'s own footer says
- * "Log-Check" — this page is not one.
+ * The whole HTML page for a view, in `lang` (German by default). `bare`
+ * because layout()'s own footer says "Log-Check" — this page is not one.
  */
-function renderPublicEventPage(view) {
+function renderPublicEventPage(view, { lang = "de" } = {}) {
     const body = `<div class="wrap">
-${renderPublicEventBody(view)}
-<footer>EventHelper · Public event view</footer>
+${renderPublicEventBody(view, { lang })}
+<footer>${esc(tr(lang, "EventHelper · Public event view"))}</footer>
 </div>`;
-    // layout() is shared with the German report pages; this one page is English.
-    return layout(`${view.title} · EventHelper`, body, { bare: true, extraStyle: PAGE_STYLE }).replace("<html lang=\"de\">", "<html lang=\"en\">");
+    // layout() is shared with the German report pages: the page's own language goes into <html lang>.
+    return layout(`${view.title} · EventHelper`, body, { bare: true, extraStyle: PAGE_STYLE }).replace("<html lang=\"de\">", `<html lang="${normalizeLang(lang)}">`);
 }
 
 /**
- * The page for an event id, read from the stores. `null` for an unknown event
- * (the route answers 404 then) — a Raid-Helper id never resolves here.
+ * The page for an event id, read from the stores, in the server language.
+ * `null` for an unknown event (the route answers 404 then) — a Raid-Helper id
+ * never resolves here.
  */
-function renderEventPage(eventId, { now = Date.now() } = {}) {
+function renderEventPage(eventId, { now = Date.now(), lang = serverLang() } = {}) {
     const event = getEvent(eventId);
     if (!event) return null;
-    return renderPublicEventPage(publicEventView(event, listSignups(event.id), { now }));
+    return renderPublicEventPage(publicEventView(event, listSignups(event.id), { now, lang }), { lang });
 }
 
 module.exports = { VIEW_KEYS, publicEventView, renderPublicEventBody, renderPublicEventPage, renderEventPage };

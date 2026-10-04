@@ -31,6 +31,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
+    mocks.access.config = { botLanguage: "en" };
     mocks.events.set("eh-kara", mocks.ownEvent());
 });
 
@@ -51,7 +52,7 @@ describe("commands/signup/talkSignup", () => {
 
     it("refuses to open an own event of a category whose raider role the member lacks", async () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-kara" }));
-        mocks.access.config = { guildId: "event-guild", categoryRoles: { "cat-kara": ["role-kara"] } };
+        mocks.access.config = { botLanguage: "en", guildId: "event-guild", categoryRoles: { "cat-kara": ["role-kara"] } };
         mocks.access.roleIds = [];
         const interaction = mockInteraction({ customId: "talk-signup", values: ["eh-kara"], userId: "200000000000000009" });
         await command.execute(interaction);
@@ -91,5 +92,23 @@ describe("commands/signup/talkSignup", () => {
         interaction = mockInteraction({ values: ["eh-gone"] });
         await command.execute(interaction);
         expect(answerOf(interaction.reply.mock.calls[0][0])).toMatchObject({ title: "", description: "This event no longer exists.", flags: MessageFlags.Ephemeral, embedCount: 1 });
+    });
+});
+
+describe("Deutsch als Standard (Server-Sprache)", () => {
+    it("verweist auf Raid-Helper und sagt fehlende Auswahl auf Deutsch", async () => {
+        mocks.access.config = {};
+        getStoredEvent.mockReturnValue({ id: "123456", title: "Gruul", guildId: "g-1", channelId: "c-1", source: "raidhelper" });
+        const interaction = mockInteraction({ values: ["123456"] });
+        await command.execute(interaction);
+        const payload = interaction.reply.mock.calls[0][0];
+        expect(answerOf(payload)).toMatchObject({
+            title: "Bei Raid-Helper anmelden",
+            description: "Die Anmeldung für **Gruul** läuft über Raid-Helper – melde dich im Event-Kanal an.",
+        });
+        expect(payload.components[0].components[0].label).toBe("Zum Event-Kanal");
+        const none = mockInteraction({ values: [] });
+        await command.execute(none);
+        expect(answerOf(none.reply.mock.calls[0][0]).description).toBe("Kein Raid gewählt.");
     });
 });

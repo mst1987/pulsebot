@@ -9,8 +9,14 @@ jest.mock("../../../src/services/discord/discord", () => ({
     sendDirectMessage: jest.fn(),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+// The raider's own language (a DM); the server language comes from the config (German without one).
+jest.mock("../../../src/services/discord/botLanguage", () => {
+    const actual = jest.requireActual("../../../src/services/discord/botLanguage");
+    return { ...actual, langOf: jest.fn((id, opts) => actual.serverLang(opts && opts.config)) };
+});
 
 const discord = require("../../../src/services/discord/discord");
+const botLanguage = require("../../../src/services/discord/botLanguage");
 const ping = require("../../../src/services/discord/pingDelivery");
 const { event: baseEvent } = require("../../factories/events");
 const { makeGuild, makeChannel } = require("../../helpers/discordClient");
@@ -56,6 +62,30 @@ describe("pingDelivery targets", () => {
 });
 
 describe("deliverUserPing", () => {
+    it("writes the default ping in the server language (German by default)", async () => {
+        await ping.deliverUserPing({ target: "event", event, userIds: ["1"], config: config() });
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1"], "Bitte melde dich für den Raid an oder ab, damit das Roster vollständig ist.");
+        expect(ping.missingPingText("en")).toBe("Please sign up or sign off for the raid, so the roster is complete.");
+    });
+
+    it("takes a text per language: the channel gets the server language, each DM the raider's own", async () => {
+        botLanguage.langOf.mockImplementation((id) => (id === "3" ? "en" : "de"));
+        const text = (lang) => (lang === "en" ? "Reminder in English" : "Erinnerung auf Deutsch");
+        await ping.deliverUserPing({ target: "talk", event, userIds: ["1", "3", "4"], text, guildId: "100000", config: config() });
+        expect(discord.postMissingPing).toHaveBeenCalledWith("210000", ["1"], "Erinnerung auf Deutsch");
+        const dms = Object.fromEntries(discord.sendDirectMessage.mock.calls.map(([id, payload]) => [id, payload.content]));
+        expect(dms["3"]).toContain("Reminder in English");
+        expect(dms["4"]).toContain("Erinnerung auf Deutsch");
+    });
+
+    it("falls back to the default DM text in each raider's language", async () => {
+        botLanguage.langOf.mockImplementation((id) => (id === "3" ? "en" : "de"));
+        await ping.deliverUserPing({ target: "talk", event, userIds: ["3", "4"], guildId: "100000", config: config() });
+        const dms = Object.fromEntries(discord.sendDirectMessage.mock.calls.map(([id, payload]) => [id, payload.content]));
+        expect(dms["3"]).toContain("Please sign up or sign off for the raid.");
+        expect(dms["4"]).toContain("Bitte melde dich für den Raid an oder ab.");
+    });
+
     it("pings only in the event channel for target event, without touching the talk server", async () => {
         const r = await ping.deliverUserPing({ target: "event", event, userIds: ["1", "3"], text: "Hallo", config: config() });
         expect(discord.postMissingPing).toHaveBeenCalledTimes(1);
@@ -78,9 +108,10 @@ describe("deliverUserPing", () => {
     });
 
     it("posts in both channels for target both and sends no DM on top", async () => {
-        const r = await ping.deliverUserPing({ target: "both", event, userIds: ["1", "3"], config: config() });
-        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1", "3"], "");
-        expect(discord.postMissingPing).toHaveBeenCalledWith("210000", ["1"], "");
+        const r = await ping.deliverUserPing({ target: "both", event, userIds: ["1", "3"], config: config({ botLanguage: "en" }) });
+        const fallback = "Please sign up or sign off for the raid, so the roster is complete.";
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1", "3"], fallback);
+        expect(discord.postMissingPing).toHaveBeenCalledWith("210000", ["1"], fallback);
         expect(discord.sendDirectMessage).not.toHaveBeenCalled();
         expect(r.dm).toBeNull();
     });

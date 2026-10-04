@@ -27,6 +27,7 @@ import { RaidsheetsSection } from "./RaidsheetsSection";
 import { ChannelListField, TopItemsField } from "./SettingsFields";
 import GameVersionSection, { VersionSettingsCard } from "./SettingsGameVersion";
 import HideOtherVersionsCard from "./HideOtherVersionsCard";
+import BotLanguageCard from "./BotLanguageCard";
 import { useContentVersion } from "../../hooks/useContentVersion";
 
 /** A module's fields on the panel card, each hint moved into its label's tooltip. */
@@ -150,6 +151,7 @@ export default function SettingsPage() {
                 categoryVersion: Object.fromEntries(Object.entries(draft.categoryVersion).filter(([, id]) => id)),
                 // #563: only the main version everywhere while it is on.
                 hideOtherVersions: draft.hideOtherVersions,
+                botLanguage: draft.botLanguage,
                 // #542: every version's block, merged per field on the server; a wrong value comes back as 400 with its field.
                 versionSettings: draft.versionSettings,
                 // Sent whole: the store replaces the map, so clearing a url is
@@ -325,6 +327,7 @@ export default function SettingsPage() {
             case "raids": return (
                 <>
                     {head(activeSection)}
+                    <BotLanguageCard value={draft.botLanguage} onChange={(botLanguage) => patch({ botLanguage })} />
                     <ModuleCard>
                         <div className="set-field">
                             <FieldLabel htmlFor="set-raid-channel" tip={t("settings.page.raidChannel")} tipSub={t("settings.page.raidChannelSub")}>{t("settings.page.raidChannel")}</FieldLabel>

@@ -162,6 +162,10 @@ const CONFIG_DEFAULTS = {
     // to an event of another version opens it read only (archive). Nothing is
     // deleted, switching it off brings everything back.
     hideOtherVersions: false,
+    // The language of the bot's public messages (event and setup message, talk
+    // overview, panels, announcements) and the fallback for every raider who
+    // chose none (userPrefsStore): "de" | "en". Einstellungen -> Discord-Server.
+    botLanguage: "de",
     // The items the guild considers a "big" drop: [{ id, name, iconUrl, quality }],
     // picked from the Wowhead search in Einstellungen → Loot. Imported loot is
     // matched against these ids for the dashboard's "Latest Loot" card
@@ -225,6 +229,12 @@ function normalizeCategoryRaidTemplate(raw) {
 }
 
 /** A version id a rule set knows, else the default (#541). */
+/** "de" | "en"; anything else is the default, German. */
+function normalizeBotLanguage(raw) {
+    const lang = String(raw || "").trim().toLowerCase();
+    return lang === "en" ? "en" : "de";
+}
+
 function normalizeMainVersion(raw) {
     const id = String(raw || "").trim();
     return id && rulesFor(id) ? id : DEFAULT_VERSION;
@@ -591,6 +601,7 @@ function normalizeConfig(raw) {
         mainVersion: normalizeMainVersion(stored.mainVersion),
         categoryVersion: normalizeCategoryVersion(stored.categoryVersion),
         hideOtherVersions: stored.hideOtherVersions === true,
+        botLanguage: normalizeBotLanguage(stored.botLanguage),
         topItems: normalizeTopItems(stored.topItems),
         roleSync: normalizeRoleSync(stored.roleSync),
         categoryReminders: normalizeCategoryReminders(stored.categoryReminders),
@@ -604,5 +615,5 @@ module.exports = {
     normalizeCategorySetupDms, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
     normalizeRaidhelperRetirement, normalizeCategorySheets, normalizeCategoryRoles,
-    normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings,
+    normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings, normalizeBotLanguage,
 };

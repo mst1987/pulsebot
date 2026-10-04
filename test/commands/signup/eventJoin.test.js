@@ -36,6 +36,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
+    mocks.access.config = { botLanguage: "en" };
     appEmojis.resetAppEmojis();
     mocks.events.set("eh-kara", mocks.ownEvent());
 });
@@ -178,7 +179,7 @@ describe("commands/signup/eventJoin", () => {
     it("answers with the raider-role rule before showing anything", async () => {
         twoCharacters();
         mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat1" }));
-        mocks.access.config = { categoryRoles: { cat1: ["role-raider"] } };
+        mocks.access.config = { botLanguage: "en", categoryRoles: { cat1: ["role-raider"] } };
         mocks.access.roleIds = ["something-else"];
         const i = pick("signed");
         await command.execute(i);
@@ -227,5 +228,19 @@ describe("commands/signup/eventJoin", () => {
         const i = mockInteraction({ customId: "event-join:eh-gone:s:c:::", userId: ANNA, values: ["x|y"] });
         await command.execute(i);
         expect(answerOf(updateOf(i))).toMatchObject({ content: "", title: "", description: "This event no longer exists.", components: [], embedCount: 1 });
+    });
+});
+
+describe("Deutsch als Standard (Server-Sprache)", () => {
+    it("zeigt die Charakter-Auswahl auf Deutsch", async () => {
+        mocks.access.config = {};
+        twoCharacters();
+        const i = pick("signed");
+        await command.execute(i);
+        const payload = replyOf(i);
+        expect(payload.embeds[0].description).toContain("Welcher Charakter? – aus deinem EventHelper-Profil");
+        expect(selectOf(payload).options[0]).toMatchObject({ label: "Nerathil · Arkan", description: "Magier · raidbereit" });
+        const labels = payload.components[1].components.map((c) => c.label);
+        expect(labels.slice(0, 3)).toEqual(["Anmelden", "Kann auch …", "Kommentar"]);
     });
 });
