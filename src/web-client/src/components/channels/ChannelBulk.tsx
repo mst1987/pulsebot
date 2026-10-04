@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
     renamePreview, type ApiError, type Channel, type ChannelChanges, type ChannelsData, type RenamePreviewRow,
 } from "../../api";
-import { Badge, Button, IconButton, Modal } from "../ui";
-import { XIcon } from "../icons";
+import { Badge, Button, Modal } from "../ui";
 import { PencilIcon } from "./channelBits";
+import MoreMenu from "./MoreMenu";
 import NamingBadge from "./NamingBadge";
 import { bulkChanges, KEEP, placeholderHint, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/channels";
 import { tParts, useT } from "../../i18n";
@@ -34,12 +34,21 @@ export function BulkBar({ count, guildName, archiveLabel, onEdit, onRename, onAr
                 <span className="kn-bulk-count">{tParts("channels.bulk.selected", { count })}</span>
                 {guildName && <span className="kn-kicker">{guildName}</span>}
             </span>
-            {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit("category")}>{t("channels.bulk.category")}</Button>}
-            {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit("topic")}>{t("channels.bulk.topic")}</Button>}
-            {onRename && <Button size="sm" variant="ghost" onClick={onRename}>{t("channels.bulk.renameSchema")}</Button>}
-            {onDelete && <Button size="sm" variant="danger" onClick={onDelete}>{t("channels.bulk.delete")}</Button>}
-            <Button size="sm" variant={deleting ? "danger" : "primary"} onClick={onArchive}>{archiveLabel || t("channels.bulk.archive")}</Button>
-            <IconButton size="sm" icon={<XIcon />} tip={t("channels.bulk.clear")} onClick={onClear} />
+            {onEdit && (
+                <MoreMenu
+                    up
+                    label={t("channels.bulk.more")}
+                    tip={t("channels.bulk.more")}
+                    items={[
+                        { id: "category", label: t("channels.bulk.category"), onSelect: () => onEdit("category") },
+                        { id: "topic", label: t("channels.bulk.topic"), onSelect: () => onEdit("topic") },
+                        ...(onRename ? [{ id: "rename", label: t("channels.bulk.renameSchema"), onSelect: onRename }] : []),
+                    ]}
+                />
+            )}
+            <Button size="sm" variant={deleting ? "danger" : "ghost"} onClick={onArchive}>{archiveLabel || t("channels.bulk.archive")}</Button>
+            {onDelete && <Button size="sm" variant="danger" onClick={onDelete}>{t("channels.bulk.deleteShort")}</Button>}
+            <Button size="sm" variant="ghost" className="kn-push" onClick={onClear}>{t("channels.bulk.clear")}</Button>
         </div>
     );
 }

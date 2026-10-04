@@ -9,7 +9,7 @@ import ChannelsPage from "./ChannelsPage";
 import { adminUser, renderPage } from "../test/render";
 import { requireBackend } from "../test/backend";
 import { BULK_DELETE_WORD } from "../lib/channels";
-import { channelsData, TALK } from "./ChannelsPage.fixture";
+import { barMenu, channelsData, rowMenu, TALK } from "./ChannelsPage.fixture";
 import type { ChannelsData } from "../api";
 import { switchLang } from "../test/i18n";
 
@@ -54,7 +54,7 @@ describe("ChannelsPage — the bulk bar", () => {
         expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
         await pick(user, "regeln", "raid-voice");
         const actions = within(bar()).getAllByRole("button").map((b) => b.getAttribute("aria-label") || b.textContent);
-        expect(actions).toEqual(["Kategorie …", "Thema …", "Umbenennen nach Schema …", "Löschen …", "Archivieren", "Auswahl aufheben"]);
+        expect(actions).toEqual(["Mehr", "Archivieren", "Löschen", "Auswahl aufheben"]);
         expect(within(bar()).getByText("2 ausgewählt")).toBeInTheDocument();
         expect(within(bar()).getByText("Pulse")).toBeInTheDocument();
         await user.click(within(bar()).getByRole("button", { name: "Auswahl aufheben" }));
@@ -64,7 +64,7 @@ describe("ChannelsPage — the bulk bar", () => {
     it("selects every past event channel from its figure", async () => {
         const user = userEvent.setup();
         await openPage();
-        await user.click(screen.getByRole("button", { name: /Vergangene Events/ }));
+        await user.click(screen.getByRole("button", { name: "Auswählen" }));
         expect(within(bar()).getByText("1 ausgewählt")).toBeInTheDocument();
         expect(screen.getByRole("checkbox", { name: "#mi-10-09-ssc wählen" })).toBeChecked();
     });
@@ -75,7 +75,7 @@ describe("ChannelsPage — bulk edit", () => {
         const user = userEvent.setup();
         await openPage();
         await pick(user, "mi-17-09-ssc", "mi-10-09-ssc");
-        await user.click(within(bar()).getByRole("button", { name: "Kategorie …" }));
+        await barMenu(user, bar(), "Kategorie …");
 
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText("2 Kanäle bearbeiten")).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe("ChannelsPage — bulk edit", () => {
             .mockResolvedValueOnce({ results: [{ id: "c-old", ok: false, error: "fehlende Rechte" }], done: 0, failed: 1, message: "" });
         await openPage();
         await pick(user, "mi-17-09-ssc", "mi-10-09-ssc");
-        await user.click(within(bar()).getByRole("button", { name: "Thema …" }));
+        await barMenu(user, bar(), "Thema …");
         const dialog = screen.getByRole("dialog");
         await user.click(within(dialog).getByRole("checkbox", { name: "Thema leeren" }));
         expect(within(dialog).getByRole("textbox", { name: "Thema" })).toBeDisabled();
@@ -117,7 +117,7 @@ describe("ChannelsPage — bulk edit", () => {
     it("saves only what changed in the full edit of one channel", async () => {
         const user = userEvent.setup();
         await openPage();
-        await user.click(within(row("bewerbungen")).getByRole("button", { name: "Bearbeiten" }));
+        await rowMenu(user, row("bewerbungen"), "Bearbeiten");
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText("#bewerbungen bearbeiten")).toBeInTheDocument();
         const save = within(dialog).getByRole("button", { name: "Speichern" });
@@ -144,7 +144,7 @@ describe("ChannelsPage — rename by schema", () => {
         });
         await openPage();
         await pick(user, "mi-17-09-ssc", "mi-10-09-ssc");
-        await user.click(within(bar()).getByRole("button", { name: "Umbenennen nach Schema …" }));
+        await barMenu(user, bar(), "Umbenennen nach Schema …");
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByRole("textbox", { name: "Schema" })).toHaveAttribute("placeholder", "leer = wie der letzte Event-Kanal");
 
@@ -164,6 +164,33 @@ describe("ChannelsPage — rename by schema", () => {
         await user.click(within(dialog).getByRole("button", { name: "1 umbenennen" }));
         await waitFor(() => expect(api.patchChannels).toHaveBeenCalledWith(["c-mi"], { name: "mi-17-09-ssc-tk" }));
         expect(api.patchChannels).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("ChannelsPage — row actions without a double click", () => {
+    it("archives one channel from the visible button of its row", async () => {
+        const user = userEvent.setup();
+        await openPage();
+        await user.click(within(row("mi-10-09-ssc")).getByRole("button", { name: "Archivieren" }));
+        await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Archivieren" }));
+        await waitFor(() => expect(api.archiveChannels).toHaveBeenCalledWith(["c-old"]));
+    });
+
+    it("renames from the visible button, and the hint about the double click is gone", async () => {
+        const user = userEvent.setup();
+        await openPage();
+        expect(screen.queryByText(/Doppelklick/)).not.toBeInTheDocument();
+        const line = row("regeln");
+        await user.click(within(line).getByRole("button", { name: "Umbenennen" }));
+        expect(within(line).getByRole("textbox")).toHaveFocus();
+    });
+
+    it("offers rename and archive in the menu as well, for touch screens", async () => {
+        const user = userEvent.setup();
+        await openPage();
+        await user.click(within(row("regeln")).getByRole("button", { name: "Weitere Aktionen" }));
+        expect(screen.getByRole("menuitem", { name: "Umbenennen" })).toHaveClass("kn-touch-only");
+        expect(screen.getByRole("menuitem", { name: "Archivieren" })).toHaveClass("kn-touch-only");
     });
 });
 
@@ -221,7 +248,7 @@ describe("ChannelsPage — deleting from the channel list", () => {
     it("deletes one channel only with its name typed, and names an upcoming event first", async () => {
         const user = userEvent.setup();
         await openPage();
-        await user.click(within(row("mi-17-09-ssc")).getByRole("button", { name: "Löschen" }));
+        await rowMenu(user, row("mi-17-09-ssc"), "Löschen");
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText("#mi-17-09-ssc löschen")).toBeInTheDocument();
         expect(within(dialog).getByText("Kanäle", { selector: ".kicker" })).toBeInTheDocument();
@@ -242,7 +269,7 @@ describe("ChannelsPage — deleting from the channel list", () => {
     it("says nothing about a past event's channel", async () => {
         const user = userEvent.setup();
         await openPage();
-        await user.click(within(row("mi-10-09-ssc")).getByRole("button", { name: "Löschen" }));
+        await rowMenu(user, row("mi-10-09-ssc"), "Löschen");
         expect(within(screen.getByRole("dialog")).queryByText(/Anmelde-Nachricht/)).not.toBeInTheDocument();
     });
 
@@ -250,7 +277,7 @@ describe("ChannelsPage — deleting from the channel list", () => {
         const user = userEvent.setup();
         await openPage();
         await pick(user, "regeln", "raid-voice");
-        await user.click(within(bar()).getByRole("button", { name: "Löschen …" }));
+        await user.click(within(bar()).getByRole("button", { name: "Löschen" }));
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText("2 Kanäle löschen")).toBeInTheDocument();
         expect(within(dialog).getByText("#regeln")).toBeInTheDocument();
@@ -281,10 +308,10 @@ describe("ChannelsPage — bulk bar and edit in English", () => {
         await user.click(screen.getByRole("checkbox", { name: "Select #raid-voice" }));
         const toolbar = screen.getByRole("toolbar", { name: "Edit selection" });
         const actions = within(toolbar).getAllByRole("button").map((b) => b.getAttribute("aria-label") || b.textContent);
-        expect(actions).toEqual(["Category …", "Topic …", "Rename by schema …", "Delete …", "Archive", "Clear selection"]);
+        expect(actions).toEqual(["More", "Archive", "Delete", "Clear selection"]);
         expect(within(toolbar).getByText("2 selected")).toBeInTheDocument();
 
-        await user.click(within(toolbar).getByRole("button", { name: "Category …" }));
+        await barMenu(user, toolbar, "Category …");
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText("Edit 2 channels")).toBeInTheDocument();
         const slow = within(dialog).getByRole("combobox", { name: "Slowmode" });

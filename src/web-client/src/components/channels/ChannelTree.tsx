@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { Channel, ChannelsData } from "../../api";
-import { Badge, IconButton } from "../ui";
-import { ChevronDownIcon, CopyIcon, SearchIcon, SettingsIcon, TrashIcon } from "../icons";
+import { Badge, Button, IconButton } from "../ui";
+import { ChevronDownIcon, SearchIcon } from "../icons";
 import { ChannelTypeIcon, PencilIcon } from "./channelBits";
+import MoreMenu from "./MoreMenu";
 import { channelTip, eventDateLabel, groupByCategory, groupName, ownSchemaOf, purposeLabel } from "../../lib/channels";
 import { normalizeForType } from "../../lib/channelNames";
 import { useT } from "../../i18n";
@@ -94,7 +95,7 @@ function InlineName({ channel, onSave, onCancel }: {
     );
 }
 
-export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEdit, onDuplicate, onDelete, onSchema }: {
+export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEdit, onDuplicate, onArchive, onDelete, onSchema }: {
     data: ChannelsData;
     selected: Set<string>;
     /** Select (true) or deselect (false) these channel ids. */
@@ -103,6 +104,8 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
     onRename: (channel: Channel, name: string) => void;
     onEdit: (channel: Channel) => void;
     onDuplicate: (channel: Channel) => void;
+    /** Move this channel into the archive (asks first). */
+    onArchive: (channel: Channel) => void;
     /** Delete this channel for good (asks for its name first). */
     onDelete: (channel: Channel) => void;
     /** Open the naming schema of this category. */
@@ -203,10 +206,20 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
                 <ChannelStatusBadges channel={c} data={data} />
                 {canWrite && editing !== c.id && (
                     <span className="kn-row-icons">
-                        <IconButton size="sm" icon={<PencilIcon />} tip={t("channels.tree.rename")} tipSub={t("channels.tree.renameSub")} onClick={() => setEditing(c.id)} />
-                        {!nested && <IconButton size="sm" icon={<SettingsIcon />} tip={t("common.edit")} tipSub={t("channels.tree.editSub")} onClick={() => onEdit(c)} />}
-                        {!nested && <IconButton size="sm" icon={<CopyIcon />} tip={t("channels.tree.duplicate")} tipSub={t("channels.tree.duplicateSub")} onClick={() => onDuplicate(c)} />}
-                        <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("common.delete")} tipSub={t("channels.tree.deleteSub")} onClick={() => onDelete(c)} />
+                        <Button size="sm" variant="ghost" className="kn-row-btn" data-tip={t("channels.tree.rename")} data-tip-sub={t("channels.tree.renameSub")} onClick={() => setEditing(c.id)}>{t("channels.tree.rename")}</Button>
+                        {!nested && <Button size="sm" variant="ghost" className="kn-row-btn" data-tip={t("channels.tree.archive")} data-tip-sub={t("channels.tree.archiveSub")} onClick={() => onArchive(c)}>{t("channels.tree.archive")}</Button>}
+                        <MoreMenu
+                            tip={t("channels.tree.more")}
+                            items={[
+                                { id: "rename", label: t("channels.tree.rename"), onSelect: () => setEditing(c.id), touchOnly: true },
+                                ...(nested ? [] : [
+                                    { id: "archive", label: t("channels.tree.archive"), onSelect: () => onArchive(c), touchOnly: true },
+                                    { id: "edit", label: t("common.edit"), onSelect: () => onEdit(c) },
+                                    { id: "duplicate", label: t("channels.tree.duplicate"), onSelect: () => onDuplicate(c) },
+                                ]),
+                                { id: "delete", label: t("common.delete"), onSelect: () => onDelete(c), tone: "danger" as const },
+                            ]}
+                        />
                     </span>
                 )}
             </div>
@@ -220,7 +233,6 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
                     <SearchIcon />
                     <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("channels.tree.search")} aria-label={t("channels.tree.searchLabel")} />
                 </label>
-                {canWrite && <span className="kn-kicker">{t("channels.tree.doubleClick")}</span>}
             </div>
             {!groups.length && <div className="kn-empty">{q ? t("channels.tree.noMatch") : t("channels.tree.noChannels")}</div>}
             {groups.map((g) => {
