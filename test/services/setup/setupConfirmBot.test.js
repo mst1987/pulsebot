@@ -57,7 +57,8 @@ describe("setupConfirmBot", () => {
     });
 
     it("builds the button row — plain labels, no icon (Raid-Helper style)", () => {
-        expect(setupCore.confirmButtonRow("eh-1")).toEqual({
+        expect(setupCore.confirmButtonRow("eh-1").components.map((b) => b.label)).toEqual(["Bestätigen", "Absagen"]);
+        expect(setupCore.confirmButtonRow("eh-1", "en")).toEqual({
             type: 1,
             components: [
                 { type: 2, style: 3, custom_id: "setup-confirm:y:eh-1", label: "Confirm" },

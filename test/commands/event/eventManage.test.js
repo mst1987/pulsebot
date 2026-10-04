@@ -218,7 +218,7 @@ describe("actions", () => {
         const i = interaction({ customId: `event-manage-form:x:${event.id}`, modal: true, options: { reason: "Zu wenig Heiler", archive: "nein" } });
         await formCommand.execute(i);
         expect(eventStore.getEvent(event.id)).toMatchObject({ status: "cancelled", cancel: { reason: "Zu wenig Heiler", archived: false } });
-        expect(sendDms).toHaveBeenCalledWith([RAIDER], expect.any(Object));
+        expect(sendDms).toHaveBeenCalledWith([RAIDER], expect.any(Function));
         const payload = lastPayload(i.editReply);
         expect(payload.embeds[0].title).toBe("ABGESAGT · SSC + TK verwalten");
         expect(buttons(payload).filter((b) => b.disabled).map((b) => b.label || b.placeholder)).toEqual([

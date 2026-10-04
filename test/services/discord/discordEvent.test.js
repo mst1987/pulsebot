@@ -19,7 +19,9 @@ jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn(),
 const { ChannelType, GuildScheduledEventEntityType, GuildScheduledEventStatus } = require("discord.js");
 const discord = require("../../../src/services/discord/discord");
 const eventStore = require("../../../src/stores/eventStore");
-const de = require("../../../src/services/discord/discordEvent");
+const deRaw = require("../../../src/services/discord/discordEvent");
+// The builders in English unless a test passes another language (German is their default).
+const de = { ...deRaw, buildScheduledEvent: (e, o = {}) => deRaw.buildScheduledEvent(e, { lang: "en", ...o }) };
 const { event: baseEvent } = require("../../factories/events");
 const { makeGuild, makeChannel } = require("../../helpers/discordClient");
 const { knownChannels } = require("../../helpers/linkCheck");
@@ -127,6 +129,13 @@ describe("services/discord/discordEvent", () => {
         it("names the cancellation and its reason", () => {
             const payload = de.buildScheduledEvent(event({ status: "cancelled", cancel: { reason: "zu wenige Heiler" } }));
             expect(payload.description).toContain("Cancelled: zu wenige Heiler");
+        });
+
+        it("speaks the server language — German by default", () => {
+            const payload = deRaw.buildScheduledEvent(event({ status: "cancelled", cancel: { reason: "zu wenige Heiler" } }));
+            expect(payload.description).toContain("❌ Abgesagt: zu wenige Heiler");
+            expect(payload.description).toContain("Anmelden nur über die Nachricht im Kanal – „Interessiert“ zählt hier nicht.");
+            expect(deRaw.describeEvent(event({ status: "cancelled" }))).toMatch(/^❌ Abgesagt\n/);
         });
 
         it("keeps Discord's limits", () => {

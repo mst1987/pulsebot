@@ -24,6 +24,10 @@ jest.mock("../../../src/services/discord/discord", () => ({
     editPingMessages: jest.fn(async (channelId, ids) => ({ messageIds: ids })),
 }));
 // Which server counts as the event server is /event's rule, tested with it (test/commands/event).
+// The language: English here (the old assertions), German where a test says so.
+jest.mock("../../../src/services/discord/botLanguage", () => ({
+    ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en"), langOf: jest.fn(() => "en"),
+}));
 jest.mock("../../../src/services/events/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
 
 const eventStore = require("../../../src/stores/eventStore");
@@ -63,7 +67,8 @@ beforeEach(() => {
 
 describe("pingTextOf / saveSetupPingText", () => {
     it("falls back to the default until the orga sets their own", () => {
-        expect(pingTextOf(raid())).toBe(PING_TEXT);
+        expect(pingTextOf(raid(), "en")).toBe(PING_TEXT);
+        expect(pingTextOf(raid())).toBe("📋 Das Setup steht – du bist dabei!");
         saveSetupPingText("eh-abc123", "  Los geht's!  ");
         expect(pingTextOf(mockEvents.get("eh-abc123"))).toBe("Los geht's!");
     });

@@ -39,6 +39,9 @@ const AREAS = {
     "availability.js": require("../../../src/config/botText/de/availability"),
     "signup.js": require("../../../src/config/botText/de/signup"),
     "profile.js": require("../../../src/config/botText/de/profile"),
+    "events.js": require("../../../src/config/botText/de/events"),
+    "setup.js": require("../../../src/config/botText/de/setup"),
+    "talk.js": require("../../../src/config/botText/de/talk"),
 };
 
 describe("config/botText/de", () => {

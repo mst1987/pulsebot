@@ -37,6 +37,7 @@ const { deliverUserPing } = require("../../services/discord/pingDelivery");
 const { loadEventGroups } = require("../../services/events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
 const { computeAttendance, signupStatus, isRosterKnown } = require("../../utils/attendance");
+const { tr } = require("../../utils/i18n/botText");
 
 const HOUR_MS = 60 * 60 * 1000;
 const KINDS = ["missing", "signed"];
@@ -79,14 +80,27 @@ function dueReminders(event, rule, sent = {}, now = Date.now()) {
     return due;
 }
 
-/** The text of a reminder; the start as a Discord timestamp, so everyone reads it in their own time zone. */
-function reminderText(kind, event) {
+/**
+ * The text of a reminder in the language (the channel's server language, each
+ * DM the raider's own — pingDelivery picks); the start as a Discord timestamp,
+ * so everyone reads it in their own time zone.
+ */
+function reminderText(kind, event, lang = "de") {
     const start = Math.floor(toMs(event.startTime) / 1000);
-    const title = event.title ? `**${event.title}**` : "the raid";
-    if (kind === "signed") return `Reminder: ${title} starts <t:${start}:R>. See you soon!`;
+    const title = event.title ? `**${event.title}**` : "";
+    if (kind === "signed") {
+        const when = `<t:${start}:R>`;
+        return title
+            ? tr(lang, "Reminder: {title} starts {when}. See you soon!", { title, when })
+            : tr(lang, "Reminder: the raid starts {when}. See you soon!", { when });
+    }
     const deadline = Math.floor(toMs(event.signupDeadline) / 1000);
-    const until = deadline && deadline < start ? `signup deadline <t:${deadline}:R>` : `raid start <t:${start}:F>`;
-    return `Reminder: please sign up or sign off for ${title} (${until}).`;
+    const until = deadline && deadline < start
+        ? tr(lang, "signup deadline {when}", { when: `<t:${deadline}:R>` })
+        : tr(lang, "raid start {when}", { when: `<t:${start}:F>` });
+    return title
+        ? tr(lang, "Reminder: please sign up or sign off for {title} ({until}).", { title, until })
+        : tr(lang, "Reminder: please sign up or sign off for the raid ({until}).", { until });
 }
 
 /** Who a reminder goes to; `null` = cannot be known right now (try again next sweep). */
@@ -138,7 +152,7 @@ async function runReminders({ now = Date.now(), config = getConfig() } = {}) {
                         if (!userIds.length) continue; // nobody to remind — done for good
                         try {
                             await deliverUserPing({
-                                target: rule.target, event, userIds, text: reminderText(kind, event), guildId, config,
+                                target: rule.target, event, userIds, text: (lang) => reminderText(kind, event, lang), guildId, config,
                             });
                             summary.sent += 1;
                         } catch (e) {

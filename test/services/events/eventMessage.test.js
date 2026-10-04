@@ -10,6 +10,8 @@ jest.mock("../../../src/stores/signupStore", () => ({
     }),
 }));
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn() }));
+// The server language: English here (the old assertions), German where a test says so.
+jest.mock("../../../src/services/discord/botLanguage", () => ({ ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en") }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
 const { getEvent, setEventMessage, listEvents } = require("../../../src/stores/eventStore");
@@ -22,10 +24,14 @@ const { deletedChannels, linkCheck } = require("../../helpers/linkCheck");
 const {
     rosterCounts, rosterEntries, messagePhase, postEventMessage, refreshEventMessage, startEventMessageSync, messageComponents,
     _internal: {
-        buildEventMessage, signupButtonId, joinSelectId, buttonId, signupNumbers, embedLength, blockValue, sweepEventMessages,
+        buildEventMessage: buildRaw, signupButtonId, joinSelectId, buttonId, signupNumbers, embedLength, blockValue, sweepEventMessages,
         redrawEventMessage, LIMITS, pickSelectId, payloadHash,
     },
 } = require("../../../src/services/events/eventMessage");
+const botLanguage = require("../../../src/services/discord/botLanguage");
+
+// The builder in English unless a test passes another language (German is its default).
+const buildEventMessage = (e, list, opts = {}) => buildRaw(e, list, { lang: "en", ...opts });
 
 const NOW = 1999000000 * 1000;
 const event = (over = {}) => baseEvent({
@@ -72,6 +78,52 @@ describe("services/events/eventMessage", () => {
         const embedText = JSON.stringify(payload.embeds[0]);
         expect(embedText).toMatch(/<t:2000000000:D>/);
         expect(embedText).not.toMatch(/\d{1,2}\.\d{1,2}\.(\d{2,4})?/);
+    });
+
+    it("speaks German by default: roles, classes, statuses, buttons, select, head labels, links", () => {
+        const payload = buildRaw(event({ signupDeadline: 1999990000, voiceChannelId: "v9" }), signups, { now: NOW });
+        const text = JSON.stringify(payload);
+        for (const word of ["Heiler", "Fernkampf", "Nahkampf", "Priester", "Spät (1)", "Vielleicht (1)", "Abgemeldet (1)", "Raidleitung: <@7>",
+            "Anmeldeschluss: <t:1999990000:f>", "Sprachkanal: <#v9>", "Uhrzeit: <t:2000000000:t>", "**5** angemeldet",
+            "Anmelden – Charakter oder Klasse wählen …", "Meine Charaktere …", "Krieger", "Druide", "[Anmelden](", "[Kalender](", "· Schutz"]) {
+            expect(text).toContain(word);
+        }
+        const buttons = payload.components[1].components.map((b) => b.label);
+        expect(buttons).toEqual(["Spät", "Vielleicht", "Bank", "Absagen"]);
+        for (const english of ["Healers", "Ranged", "Melee", "Leader", "Deadline", "signed up", "My characters"]) {
+            expect(text).not.toContain(english);
+        }
+    });
+
+    it("writes the phase lines and \"+N more\" in German by default", () => {
+        const cancelled = buildRaw(event({ status: "cancelled", cancel: { reason: "Zu wenige" } }), signups, { now: NOW }).embeds[0];
+        expect(cancelled.title).toBe("Abgesagt: Kara Donnerstag");
+        expect(cancelled.description).toContain("**Abgesagt** – Zu wenige");
+        expect(buildRaw(event({ signupsClosed: true }), signups, { now: NOW }).embeds[0].description)
+            .toContain("**Anmeldung geschlossen** – du kannst dich noch abmelden.");
+        expect(buildRaw(event({ signupDeadline: NOW / 1000 - 10 }), signups, { now: NOW }).embeds[0].description)
+            .toContain("Der Anmeldeschluss ist vorbei");
+        expect(buildRaw(event({ startTime: NOW / 1000 - 10 }), signups, { now: NOW }).embeds[0].description)
+            .toContain("Der Raid hat begonnen");
+        expect(blockValue(["a", "b", "c"], 1, 1024, "de")).toBe("a\n+2 weitere");
+    });
+
+    it("hashes the language with the payload, so a new server language redraws the message", async () => {
+        getEvent.mockReturnValue(event({ message: { channelId: "c1", messageId: "m1" } }));
+        const { message } = fakeDiscord();
+        await refreshEventMessage("eh-1");
+        const hash = setEventMessage.mock.calls[0][1].hash;
+        getEvent.mockReturnValue(event({ message: { channelId: "c1", messageId: "m1", hash } }));
+        await expect(refreshEventMessage("eh-1")).resolves.toMatchObject({ unchanged: true });
+        botLanguage.serverLang.mockReturnValue("de");
+        try {
+            await expect(refreshEventMessage("eh-1")).resolves.toMatchObject({ reposted: false });
+            expect(message.edit).toHaveBeenCalledTimes(2);
+            expect(message.edit.mock.calls[1][0].components[1].components[0].label).toBe("Spät");
+        } finally {
+            botLanguage.serverLang.mockReturnValue("en");
+        }
+        expect(payloadHash({ a: 1 }, "de")).not.toBe(payloadHash({ a: 1 }, "en"));
     });
 
     it("counts who comes per role and who said otherwise", () => {
@@ -463,11 +515,11 @@ describe("services/events/eventMessage", () => {
     });
 
     it("cuts a long block with +N weitere and keeps every field within Discord's limits", () => {
-        expect(blockValue(["a", "b", "c"], 2)).toBe("a\nb\n+1 more");
+        expect(blockValue(["a", "b", "c"], 2, undefined, "en")).toBe("a\nb\n+1 more");
         expect(blockValue(["a", "b"], 2)).toBe("a\nb");
         expect(blockValue([], 2)).toBe(ZWS);
         const long = Array.from({ length: 30 }, (_, i) => "x".repeat(60) + i);
-        const value = blockValue(long, 40);
+        const value = blockValue(long, 40, undefined, "en");
         expect(value.length).toBeLessThanOrEqual(1024);
         expect(value).toMatch(/\+\d+ more$/);
 
@@ -585,7 +637,7 @@ describe("services/events/eventMessage", () => {
         await expect(postEventMessage("eh-1")).resolves.toEqual({ channelId: "c1", messageId: "m-new" });
         const sent = channel.send.mock.calls[0][0];
         expect(sent.components[1].components[2].emoji).toEqual({ id: "55", name: "eh_ui_bench", animated: false });
-        expect(setEventMessage).toHaveBeenCalledWith("eh-1", { channelId: "c1", messageId: "m-new", hash: payloadHash(sent) });
+        expect(setEventMessage).toHaveBeenCalledWith("eh-1", { channelId: "c1", messageId: "m-new", hash: payloadHash(sent, "en") });
     });
 
     it("fails clearly without a bot connection", async () => {
@@ -602,7 +654,7 @@ describe("services/events/eventMessage", () => {
         await expect(refreshEventMessage("eh-1")).resolves.toEqual({ channelId: "c1", messageId: "m1", reposted: false });
         expect(message.edit).toHaveBeenCalledTimes(1);
         expect(channel.send).not.toHaveBeenCalled();
-        const hash = payloadHash(message.edit.mock.calls[0][0]);
+        const hash = payloadHash(message.edit.mock.calls[0][0], "en");
         expect(setEventMessage).toHaveBeenCalledWith("eh-1", { channelId: "c1", messageId: "m1", hash });
 
         getEvent.mockReturnValue(event({ message: { channelId: "c1", messageId: "m1", hash } }));
@@ -624,21 +676,21 @@ describe("services/events/eventMessage", () => {
     it("sweeps: edits a message whose payload changed since it was drawn — a phase that passed, or a lost redraw", async () => {
         const nowSec = Math.floor(Date.now() / 1000);
         const base = event({ id: "eh-sw", signupDeadline: nowSec + 3600, startTime: nowSec + 7200 });
-        const drawn = payloadHash(buildEventMessage(base, signups, { now: Date.now() }));
+        const drawn = payloadHash(buildEventMessage(base, signups, { now: Date.now() }), "en");
         const current = { ...base, message: { channelId: "c1", messageId: "m1", hash: drawn } };
         listEvents.mockReturnValue([current, event({ id: "eh-nomsg" })]);
         getEvent.mockImplementation(() => current);
         const { message } = fakeDiscord();
         // nothing changed: no edit
-        await sweepEventMessages();
+        await expect(sweepEventMessages()).resolves.toEqual({ checked: 1, redrawn: 0 });
         expect(message.edit).not.toHaveBeenCalled();
         // a roster change whose redraw was lost (the bot restarted within the debounce)
         listSignups.mockReturnValue([...signups, su("8", "Devire", "Mage-Arcane", "ranged", "bench")]);
-        await sweepEventMessages();
+        await expect(sweepEventMessages()).resolves.toEqual({ checked: 1, redrawn: 1 });
         expect(message.edit).toHaveBeenCalledTimes(1);
         expect(message.edit.mock.calls[0][0].embeds[0].fields.some((f) => f.value.includes("Bench (1): `8` Devire"))).toBe(true);
         // the deadline passed: the buttons change
-        current.message.hash = payloadHash(message.edit.mock.calls[0][0]);
+        current.message.hash = payloadHash(message.edit.mock.calls[0][0], "en");
         await sweepEventMessages();
         expect(message.edit).toHaveBeenCalledTimes(1);
         current.signupDeadline = nowSec - 60;

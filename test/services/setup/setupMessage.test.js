@@ -13,6 +13,7 @@ jest.mock("../../../src/stores/eventStore", () => ({
         return JSON.parse(JSON.stringify(e));
     }),
     appendEventLog: jest.fn(),
+    listEvents: jest.fn(() => [...mockEvents.values()].map((e) => JSON.parse(JSON.stringify(e)))),
     setEventSetupPingText: jest.fn((id, text) => {
         const e = mockEvents.get(id);
         if (!e) return null;
@@ -24,11 +25,22 @@ let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })), editPingMessages: jest.fn(async (c, ids) => ({ messageIds: ids })) }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
+// The language: English here (the old assertions), German where a test says so.
+jest.mock("../../../src/services/discord/botLanguage", () => ({
+    ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en"), langOf: jest.fn(() => "en"),
+}));
 
 const discord = require("../../../src/services/discord/discord");
 const eventStore = require("../../../src/stores/eventStore");
 const appEmojis = require("../../../src/services/discord/appEmojis");
-const sm = require("../../../src/services/setup/setupMessage");
+const smRaw = require("../../../src/services/setup/setupMessage");
+const botLanguage = require("../../../src/services/discord/botLanguage");
+// The builders in English unless a test passes another language (German is their default).
+const sm = {
+    ...smRaw,
+    buildSetupMessage: (e, a, o = {}) => smRaw.buildSetupMessage(e, a, { lang: "en", ...o }),
+    buildSetupDm: (e, pl, o = {}) => smRaw.buildSetupDm(e, pl, { lang: "en", ...o }),
+};
 const { event: baseEvent } = require("../../factories/events");
 const { makeClient, makeChannel } = require("../../helpers/discordClient");
 
@@ -232,6 +244,28 @@ describe("buildSetupMessage", () => {
     });
 });
 
+describe("refreshSetupMessages (a new server language)", () => {
+    it("redraws every posted setup message in the server language, never posts a first one", async () => {
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 2, postedAt: 1 } });
+        mockEvents.set("eh-2", { ...clone(mockEvents.get("eh-1")), id: "eh-2", setupPost: null });
+        const { channel, message } = fakeChannel();
+        botLanguage.serverLang.mockReturnValue("de");
+        try {
+            expect(await sm.refreshSetupMessages()).toEqual({ edited: 1, failed: 0 });
+        } finally {
+            botLanguage.serverLang.mockReturnValue("en");
+        }
+        expect(channel.send).not.toHaveBeenCalled();
+        expect(message.edit.mock.calls[0][0].embeds[0].fields[0].name).toBe("Gruppe 1");
+    });
+
+    it("counts a message it could not edit", async () => {
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 2, postedAt: 1 } });
+        fakeChannel({ fetchError: new Error("Missing Access") });
+        expect(await sm.refreshSetupMessages()).toEqual({ edited: 0, failed: 1 });
+    });
+});
+
 describe("postOrEditSetupMessage", () => {
     it("posts the first time and remembers where", async () => {
         seed();
@@ -394,6 +428,32 @@ describe("DMs", () => {
         expect(noFair.content).not.toContain("priority");
     });
 
+    it("writes the DM in German by default — the reasons too", () => {
+        const event = seed();
+        const placed = smRaw.buildSetupDm(event, { ...p("2", "Zibbo", "Priest-Holy", "healer"), group: 2 }, { messageUrl: "https://discord.com/channels/g1/c1/m1" });
+        expect(placed.content).toContain("**Setup für Kara Donnerstag**");
+        expect(placed.content).toContain("Du bist in **Gruppe 2** als **Heiler** (Zibbo · Heilig).");
+        expect(placed.content).toContain("[Zum Setup](https://discord.com/channels/g1/c1/m1)");
+        const bench = smRaw.buildSetupDm(event, { ...p("5", "Thalia", "Priest-Shadow", "ranged"), bench: true }, { fairness: true, reasons: ["Raid voll (10/10)"] });
+        expect(bench.content).toContain("Diesmal auf der **Bank** (Thalia · Schatten) – nächstes Mal hast du Vorrang.");
+        expect(bench.content).toContain("Grund: Raid voll (10/10)");
+    });
+
+    it("draws the message in German by default: groups, bench, totals, footer, buttons", () => {
+        const event = seed();
+        const msg = smRaw.buildSetupMessage(event, event.setup.approved, { emojis: {}, bench: true });
+        const embed = msg.embeds[0];
+        expect(embed.fields[0].name).toBe("Gruppe 1");
+        expect(embed.fields.some((f) => f.name === "Bank (1)")).toBe(true);
+        expect(embed.description).toContain("Heiler 1");
+        expect(embed.footer.text).toBe("Freigegebenes Setup · Version 2");
+        expect(embed.fields.some((f) => f.value.includes("[Comp ansehen]("))).toBe(true);
+        expect(msg.components[0].components.map((b) => b.label)).toEqual(["Bestätigen", "Absagen", "Invites callen", "Alle pingen"]);
+        const cancelled = smRaw.buildSetupMessage({ ...event, status: "cancelled" }, event.setup.approved, {}).embeds[0];
+        expect(cancelled.title).toBe("Abgesagt: Setup · Kara Donnerstag");
+        expect(cancelled.description).toContain("Das Setup fällt aus.");
+    });
+
     it("takes bench reasons only from the approved version and never names wish partners", () => {
         const event = seed();
         expect(sm.benchReasons(event, "5")).toEqual(["Raid voll (10/10)"]);
@@ -446,6 +506,22 @@ describe("DMs", () => {
         await sm.sendSetupDms("eh-1", { config: mockConfig, delayMs: 0 });
         expect(discord.sendDirectMessage.mock.calls.map((c) => c[0])).toEqual(["4"]);
         expect(discord.sendDirectMessage.mock.calls[0][1].content).toContain("Group 1");
+    });
+
+    it("writes each DM in the raider's own language", async () => {
+        mockConfig = { categorySetupDms: { cat1: true } };
+        seed({ setupPost: { channelId: "c1", messageId: "m1" } });
+        discord.sendDirectMessage.mockResolvedValue({ ok: true });
+        botLanguage.langOf.mockImplementation((userId) => (userId === "2" ? "de" : "en"));
+        try {
+            await sm.sendSetupDms("eh-1", { config: mockConfig, delayMs: 0 });
+        } finally {
+            botLanguage.langOf.mockImplementation(() => "en");
+        }
+        const dmTo = (id) => discord.sendDirectMessage.mock.calls.find((c) => c[0] === id)[1].content;
+        expect(dmTo("2")).toContain("Du bist in **Gruppe 1** als **Heiler** (Zibbo · Heilig).");
+        expect(dmTo("1")).toContain("You are in **Group 1** as **Tank** (Brokk · Protection).");
+        expect(botLanguage.langOf).toHaveBeenCalledWith("2", { config: mockConfig });
     });
 
     it("sends no DM to the bench while it is not posted (#517)", async () => {
