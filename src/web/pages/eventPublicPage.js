@@ -24,7 +24,7 @@ const { approvedSetupOf, benchPosted } = require("../../services/setup/setupCore
 const { getEvent } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");
 const { instance } = require("../../config/gameVersions");
-const { clampDuration, eventEndTime } = require("../../utils/time");
+const { durationOf, eventEndTime } = require("../../utils/time");
 const { wowIconUrl } = require("../../config/menu");
 const { layout, esc } = require("../report/render");
 // Times are written out in server time (a web page cannot render a Discord timestamp).
@@ -156,7 +156,7 @@ function publicEventView(event, signups, { now = Date.now(), lang = "de" } = {})
         description: clip(str(event.description), 1500),
         startTime: Number(event.startTime) || 0,
         endTime: eventEndTime(event),
-        durationMinutes: clampDuration(event.durationMinutes),
+        durationMinutes: durationOf(event.durationMinutes),
         signupDeadline: Number(event.signupDeadline) || 0,
         size: Number(event.size) || 0,
         status: event.status === "cancelled" ? "cancelled" : "active",

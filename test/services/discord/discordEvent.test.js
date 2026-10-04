@@ -112,10 +112,16 @@ describe("services/discord/discordEvent", () => {
             expect(payload.scheduledEndTime).toBe(new Date((START + 180 * 60) * 1000).toISOString());
         });
 
-        it("takes the duration of the event, and the store's default without one", () => {
+        it("takes the duration of the event, and start + the default 3 h without one — an External event needs an end", () => {
             expect(de.buildScheduledEvent(event({ durationMinutes: 300 })).scheduledEndTime)
                 .toBe(new Date((START + 300 * 60) * 1000).toISOString());
-            expect(de.buildScheduledEvent(event({ durationMinutes: undefined })).scheduledEndTime)
+            for (const durationMinutes of [undefined, null]) {
+                const payload = de.buildScheduledEvent(event({ durationMinutes }));
+                expect(payload.entityType).toBe(GuildScheduledEventEntityType.External);
+                expect(payload.scheduledEndTime).toBe(new Date((START + 180 * 60) * 1000).toISOString());
+            }
+            // a voice event gets the same end, so a switch to External never lacks one
+            expect(de.buildScheduledEvent(event({ durationMinutes: null }), { voiceChannelId: "v1" }).scheduledEndTime)
                 .toBe(new Date((START + 180 * 60) * 1000).toISOString());
         });
 
@@ -178,6 +184,16 @@ describe("services/discord/discordEvent", () => {
             expect((await de.createForEvent(put(event({ id: "eh-c", status: "cancelled" })))).skipped).toBe("cancelled");
             expect((await de.createForEvent(put(event({ id: "eh-e", discordEvent: { id: "d9" } })))).skipped).toBe("exists");
             expect((await de.createForEvent(put(event({ id: "eh-p" })), { now: (START + 10 * 3600) * 1000 })).skipped).toBe("past");
+        });
+
+        it("counts a raid without a duration as over only after start + the default 3 h, not at once", async () => {
+            const { guild } = fakeGuild();
+            const open = put(event({ id: "eh-nd", durationMinutes: null }));
+            const result = await de.createForEvent(open, { now: (START + 3600) * 1000 });
+            expect(result.skipped).toBeUndefined();
+            expect(guild.scheduledEvents.create).toHaveBeenCalled();
+            const over = put(event({ id: "eh-nd2", durationMinutes: null }));
+            expect((await de.createForEvent(over, { now: (START + 181 * 60) * 1000 })).skipped).toBe("past");
         });
 
         it("warns instead of failing when the right is missing, and notes it on the event", async () => {

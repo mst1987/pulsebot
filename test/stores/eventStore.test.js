@@ -4,7 +4,7 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 const fs = require("fs");
 const {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, deleteEvent, normalizePlan, isOwnEventId, setEventSetupPost,
-    setEventSetupPingText, setEventDiscordEvent, eventEndTime, setEventExtraRole,
+    setEventSetupPingText, setEventDiscordEvent, eventEndTime, plannedEndOrDefault, setEventExtraRole,
 } = require("../../src/stores/eventStore");
 
 const base = (over = {}) => ({
@@ -66,7 +66,7 @@ describe("stores/eventStore", () => {
     it("fills size and tanks/healers from the rule set", () => {
         expect(normalizePlan({}).value).toEqual({
             versionId: "tbc", instanceIds: [], size: 25, composition: { tank: 3, healer: 6, melee: 0, ranged: 0 },
-            compositionMax: { melee: null, ranged: null }, requiredBuffs: [], durationMinutes: 180,
+            compositionMax: { melee: null, ranged: null }, requiredBuffs: [], durationMinutes: null,
             // #307: no own look — the rule set of the instances decides.
             color: "", image: { mode: "thumbnail", url: "" },
         });
@@ -92,8 +92,10 @@ describe("stores/eventStore", () => {
         expect(normalizePlan({ durationMinutes: 300 }).value.durationMinutes).toBe(300);
         expect(normalizePlan({ durationMinutes: 30 }).value.durationMinutes).toBe(30);
         expect(normalizePlan({ durationMinutes: 600 }).value.durationMinutes).toBe(600);
-        // empty means "not given" — the default stands
-        expect(normalizePlan({ durationMinutes: "" }).value.durationMinutes).toBe(180);
+        // optional: not given, null or empty is "not set" — no default is invented
+        expect(normalizePlan({}).value.durationMinutes).toBeNull();
+        expect(normalizePlan({ durationMinutes: null }).value.durationMinutes).toBeNull();
+        expect(normalizePlan({ durationMinutes: "" }).value.durationMinutes).toBeNull();
         expect(normalizePlan({ durationMinutes: 29 }).error).toMatch(/Dauer/);
         expect(normalizePlan({ durationMinutes: 601 }).error).toMatch(/Dauer/);
         expect(normalizePlan({ durationMinutes: "lang" }).error).toMatch(/Dauer/);
@@ -105,12 +107,37 @@ describe("stores/eventStore", () => {
         });
         expect(event).toMatchObject({ voiceChannelId: "v1", durationMinutes: 240 });
         expect(eventEndTime(event)).toBe(2000000000 + 240 * 60);
-        // an event stored before #305 reads as the default
-        expect(eventEndTime({ startTime: 2000000000 })).toBe(2000000000 + 180 * 60);
+        // an event without a duration (or stored before #305) has no planned end
+        expect(eventEndTime({ startTime: 2000000000 })).toBe(0);
         expect(eventEndTime({})).toBe(0);
         const changed = updateEvent(event.id, { voiceChannelId: "v2", durationMinutes: 90 });
         expect(changed.event).toMatchObject({ voiceChannelId: "v2", durationMinutes: 90 });
         expect(updateEvent(event.id, { durationMinutes: 5 }).error).toMatch(/Dauer/);
+    });
+
+    it("creates an event without a duration and lets an edit set and clear it (#305: optional)", () => {
+        const { event } = createEvent(base());
+        expect(event.durationMinutes).toBeNull();
+        expect(eventEndTime(event)).toBe(0);
+        expect(plannedEndOrDefault(event)).toBe(2000000000 + 180 * 60);
+        expect(updateEvent(event.id, { durationMinutes: 150 }).event.durationMinutes).toBe(150);
+        // an unrelated planning change keeps it
+        expect(updateEvent(event.id, { size: 10 }).event.durationMinutes).toBe(150);
+        // clearing the field (null or "") takes it away again
+        expect(updateEvent(event.id, { durationMinutes: null }).event.durationMinutes).toBeNull();
+        expect(updateEvent(event.id, { durationMinutes: 200 }).event.durationMinutes).toBe(200);
+        expect(updateEvent(event.id, { durationMinutes: "" }).event.durationMinutes).toBeNull();
+        expect(getEvent(event.id).durationMinutes).toBeNull();
+    });
+
+    it("keeps a stored duration as it is and reads a missing one as not set (no migration)", () => {
+        const { event } = createEvent(base({ durationMinutes: 180 }));
+        expect(getEvent(event.id).durationMinutes).toBe(180);
+        const file = [...fs.__store.keys()].find((k) => k.endsWith("events.json"));
+        const data = JSON.parse(fs.__store.get(file));
+        delete data.events[0].durationMinutes;
+        fs.__store.set(file, JSON.stringify(data));
+        expect(getEvent(event.id).durationMinutes).toBeNull();
     });
 
     it("keeps the Discord event record apart from the plan (#305)", () => {

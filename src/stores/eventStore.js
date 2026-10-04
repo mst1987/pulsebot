@@ -27,10 +27,11 @@ const ID_PREFIX = "eh-";
 const COMPOSITION_ROLES = ["tank", "healer", "melee", "ranged"];
 const MAX_SIZE = 40;
 
-// How long a raid takes (#305): a planning field like the size, inherited from
-// the raid template. The rule itself lives in utils/time/index.js — several
-// readers mock this store, and a pure calculation must not be mocked with it.
-const { MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, clampDuration, eventEndTime } = require("../utils/time");
+// How long a raid takes (#305): an optional planning field, inherited from the
+// raid template; null = not set, the event then has no planned end. The rule
+// itself lives in utils/time/index.js — several readers mock this store, and a
+// pure calculation must not be mocked with it.
+const { MIN_DURATION, MAX_DURATION, durationOf, eventEndTime, plannedEndOrDefault } = require("../utils/time");
 
 // Colour and picture of the event message (#307) — a planning field like the
 // duration, inherited from the raid template. The rules live in embedLook.js.
@@ -145,7 +146,8 @@ function normalizePlan(input = {}) {
         if (max > size) return { error: `${label}: Maximum ist größer als die Größe ${size}.` };
     }
 
-    let durationMinutes = DEFAULT_DURATION;
+    // Not set unless somebody sets it: null, and an empty value clears it.
+    let durationMinutes = null;
     if (input.durationMinutes !== undefined && input.durationMinutes !== null && input.durationMinutes !== "") {
         durationMinutes = Math.floor(Number(input.durationMinutes));
         if (!Number.isFinite(durationMinutes) || durationMinutes < MIN_DURATION || durationMinutes > MAX_DURATION) {
@@ -192,9 +194,10 @@ function complete(e) {
         // Optional maxima of the melee/ranged targets (#261), null = open.
         compositionMax: { melee: null, ranged: null, ...(e.compositionMax || {}) },
         requiredBuffs: Array.isArray(e.requiredBuffs) ? e.requiredBuffs : [],
-        // How long the raid is planned for (#305); an event stored before it
-        // reads as the default. Its end is startTime + durationMinutes * 60.
-        durationMinutes: clampDuration(e.durationMinutes),
+        // How long the raid is planned for (#305); null = not set (an event
+        // stored before #305 too): no planned end. Else the end is
+        // startTime + durationMinutes * 60 (utils/time/index.js).
+        durationMinutes: durationOf(e.durationMinutes),
         // How the event message looks (#307), inherited from the raid template:
         // "" resp. an empty url = the rule set of the instances decides.
         color: normalizeColor(e.color),
@@ -625,7 +628,7 @@ function migrateOverflowModes() {
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft, setEventState,
     appendEventLog, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
-    normalizePlan, isOwnEventId, migrateOverflowModes, useFile: store.useFile, eventEndTime, clampDuration, MIN_DURATION, MAX_DURATION,
+    normalizePlan, isOwnEventId, migrateOverflowModes, useFile: store.useFile, eventEndTime, plannedEndOrDefault, durationOf, MIN_DURATION, MAX_DURATION,
     // only for the tests (#424): not part of the module's API
     _internal: {
         EVENTS_FILE,

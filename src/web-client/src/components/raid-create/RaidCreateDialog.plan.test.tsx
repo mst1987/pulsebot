@@ -150,14 +150,53 @@ describe("Event anlegen: the planning step", () => {
 });
 
 describe("Event anlegen: Termin", () => {
-    it("puts the duration small beside the time and shows the end, not a second field", async () => {
+    const duration = () => screen.getByRole("spinbutton", { name: t("raidCreate.termin.durationAria") });
+    const endText = (time: string) => t("raidCreate.termin.end", { time });
+
+    it("leaves the optional duration empty by default: no value, no end, a placeholder and the label saying so (#305)", async () => {
         const user = userEvent.setup();
         await open({ sourceId: "e1" });
         expect(field(t("raidCreate.termin.time"))).toHaveValue("19:45");
-        const duration = screen.getByRole("spinbutton", { name: t("raidCreate.termin.durationAria") });
-        await user.clear(duration);
-        await user.type(duration, "150");
-        expect(screen.getByText(t("raidCreate.termin.end", { time: "22:15" }))).toBeInTheDocument();
+        expect(screen.getByText(t("raidCreate.termin.durationOptional"))).toBeInTheDocument();
+        expect(duration()).toHaveValue(null);
+        expect(duration()).toHaveAttribute("placeholder", t("raidCreate.termin.durationPlaceholder"));
+        expect(screen.queryByText(/^Ende |^Ends /)).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: t("raidCreate.termin.durationClear") })).not.toBeInTheDocument();
+        // a value shows the end; the small x clears it again
+        await user.type(duration(), "150");
+        expect(screen.getByText(endText("22:15"))).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: t("raidCreate.termin.durationClear") }));
+        expect(duration()).toHaveValue(null);
+        expect(screen.queryByText(endText("22:15"))).not.toBeInTheDocument();
+    });
+
+    it("pre-fills the duration from a raid template that has one", async () => {
+        ctx = context({ categoryRaidTemplates: { c1: "tpl1" } });
+        await open({ sourceId: "e1" });
+        expect(duration()).toHaveValue(180);
+        expect(screen.getByText(endText("22:45"))).toBeInTheDocument();
+    });
+
+    it("checks the bounds only when a value is entered: an emptied field is no problem", async () => {
+        const user = userEvent.setup();
+        await open({ sourceId: "e1" });
+        await user.type(duration(), "5");
+        await user.click(next());
+        expect(screen.getByRole("status")).toHaveTextContent(t("raidPlan.problem.duration", { min: 30, max: 600 }));
+        await user.click(screen.getByRole("button", { name: t("raidCreate.footer.back") }));
+        await user.clear(duration());
+        await user.click(next());
+        expect(screen.getByRole("status")).toHaveTextContent(t("raidCreate.raid.planned", { planned: 5, size: 10 }));
+        expect(next()).toBeEnabled();
+    });
+
+    it("has the duration's texts in both languages", async () => {
+        const keys = ["termin.durationOptional", "termin.durationTip", "termin.durationAria", "termin.durationPlaceholder", "termin.durationClear", "check.durationNone"]
+            .map((k) => `raidCreate.${k}`);
+        for (const key of keys) expect(t(key)).not.toBe(key);
+        await inLang("en", () => {
+            for (const key of keys) expect(t(key)).not.toBe(key);
+        });
     });
 
     it("picks the leader from the creator and the signed-up people, „other id“ opens a text field", async () => {
@@ -249,7 +288,27 @@ describe("Event anlegen: Kanal & Anmeldung", () => {
         await waitFor(() => expect(onCreated).toHaveBeenCalled());
         const [method, path, body] = vi.mocked(client.send).mock.calls[0];
         expect([method, path]).toEqual(["POST", "/api/raids"]);
-        expect(body).toMatchObject({ title: "Kara Donnerstag", signupSource: "eventhelper", voiceChannelId: "v1", durationMinutes: 180 });
+        // no raid template with a duration, nobody typed one: sent as "not set"
+        expect(body).toMatchObject({ title: "Kara Donnerstag", signupSource: "eventhelper", voiceChannelId: "v1", durationMinutes: null });
+    });
+
+    it("says in Prüfen that the raid has no planned end, and the duration with its end when there is one", async () => {
+        const user = userEvent.setup();
+        await open({ sourceId: "e1" });
+        await user.click(next());
+        await user.click(next());
+        await user.click(next());
+        expect(currentStep()).toContain(stepLabel("check"));
+        expect(screen.getByText(t("raidCreate.check.durationNone"))).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: t("raidCreate.footer.back") }));
+        await user.click(screen.getByRole("button", { name: t("raidCreate.footer.back") }));
+        await user.click(screen.getByRole("button", { name: t("raidCreate.footer.back") }));
+        await user.type(screen.getByRole("spinbutton", { name: t("raidCreate.termin.durationAria") }), "240");
+        await user.click(next());
+        await user.click(next());
+        await user.click(next());
+        expect(screen.queryByText(t("raidCreate.check.durationNone"))).not.toBeInTheDocument();
+        expect(screen.getByText(`${t("raidCreate.check.durationValue", { minutes: 240 })} · ${t("raidCreate.termin.end", { time: "23:45" })}`)).toBeInTheDocument();
     });
 
     it("keeps the Raid-Helper template select for a Raid-Helper event", async () => {
@@ -283,6 +342,24 @@ describe("Event anlegen: editing an own event", () => {
         await waitFor(() => expect(onCreated).toHaveBeenCalled());
         const [method, path, body] = vi.mocked(client.send).mock.calls[0];
         expect([method, path]).toEqual(["PATCH", "/api/raids"]);
-        expect(body).toMatchObject({ id: "own1", title: "Kara Freitag" });
+        expect(body).toMatchObject({ id: "own1", title: "Kara Freitag", durationMinutes: 180 });
+    });
+
+    it("clears a stored duration: the emptied field goes out as null", async () => {
+        const user = userEvent.setup();
+        ctx = context({ editEvent: EDIT_EVENT });
+        const { onCreated } = await open({ editEventId: "own1" });
+        const duration = screen.getByRole("spinbutton", { name: t("raidCreate.termin.durationAria") });
+        expect(duration).toHaveValue(180);
+        await user.clear(duration);
+        await user.click(next());
+        await user.click(next());
+        await user.click(next());
+        expect(screen.getByText(t("raidCreate.check.durationNone"))).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: t("common.save") }));
+        await waitFor(() => expect(onCreated).toHaveBeenCalled());
+        const [method, path, body] = vi.mocked(client.send).mock.calls[0];
+        expect([method, path]).toEqual(["PATCH", "/api/raids"]);
+        expect(body).toMatchObject({ id: "own1", durationMinutes: null });
     });
 });

@@ -45,7 +45,11 @@ export function CheckStep({ f, ctx, userId, summaryIcon }: { f: RaidCreateForm; 
                             <dt>{t("raidCreate.check.raid")}</dt>
                             <dd>{chosenInstances.map((i) => i.name).join(" + ") || "—"}{chosenInstances.some((i) => i.status === "incomplete") && <Badge tone="mid">{t("raidCreate.incomplete")}</Badge>}</dd>
                             <dt>{t("raidCreate.check.duration")}</dt>
-                            <dd>{t("raidCreate.check.durationValue", { minutes: plan.durationMinutes })}{endPreview ? ` · ${t("raidCreate.termin.end", { time: endPreview.time })}` : ""}</dd>
+                            <dd>
+                                {plan.durationMinutes
+                                    ? <>{t("raidCreate.check.durationValue", { minutes: plan.durationMinutes })}{endPreview ? ` · ${t("raidCreate.termin.end", { time: endPreview.time })}` : ""}</>
+                                    : <span className="re-muted">{t("raidCreate.check.durationNone")}</span>}
+                            </dd>
                             <dt>{t("raidCreate.check.voice")}</dt>
                             <dd>{voiceChannelId ? (ctx.voiceChannels || []).find((c) => c.id === voiceChannelId)?.name || voiceChannelId : t("raidCreate.check.none")}</dd>
                             <dt>{t("raidCreate.check.deadline")}</dt>

@@ -406,8 +406,8 @@ function formModal(state, { values = null } = {}) {
         input("time", "Uhrzeit", TextInputStyle.Short, { value: v.time, placeholder: "19:30", max: 5 }),
     ];
     if (state.src !== "r") {
-        rows.push(input("comp", "Größe/T/H/Dauer (Min.)", TextInputStyle.Short, {
-            value: v.comp !== undefined ? v.comp : compositionOf(template), placeholder: "25/3/6/240", required: false, max: 12,
+        rows.push(input("comp", "Größe/T/H/Dauer (Dauer optional, Min.)", TextInputStyle.Short, {
+            value: v.comp !== undefined ? v.comp : compositionOf(template), placeholder: "25/3/6 oder 25/3/6/240", required: false, max: 12,
         }));
     }
     rows.push(input("description", "Beschreibung", TextInputStyle.Paragraph, { value: v.description, required: false, max: 1000 }));
@@ -495,7 +495,9 @@ async function buildBody(guildId, rawState, values, { userId, now = Date.now() }
         if (comp && comp.error) return fail(comp.error);
         if (comp) {
             body.size = comp.size;
-            if (comp.durationMinutes !== undefined) body.durationMinutes = comp.durationMinutes;
+            // The field is prefilled with the template's duration; a field
+            // without one means "no duration" (#305: optional, null = not set).
+            body.durationMinutes = comp.durationMinutes !== undefined ? comp.durationMinutes : null;
             if (comp.tank !== undefined) {
                 const tplComp = (template && template.composition) || {};
                 body.composition = {

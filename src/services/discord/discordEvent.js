@@ -33,7 +33,9 @@ const {
 const discord = require("./discord");
 const linkCheck = require("./linkCheck");
 const eventStore = require("../../stores/eventStore");
-const { eventEndTime } = require("../../utils/time");
+// An External event needs an end: the planned one, else start + the default
+// duration — the one place besides the calendar feed that may invent an end.
+const { plannedEndOrDefault } = require("../../utils/time");
 const { getConfig } = require("../../stores/settingsStore");
 const { str, clip } = require("../../utils/text");
 const { tr } = require("../../utils/i18n/botText");
@@ -93,15 +95,17 @@ function describeEvent(event, lang = "de") {
  *
  * `voiceChannelId` is only used when the channel really is a voice (or stage)
  * channel of that server; otherwise the event is an `External` one pointing at
- * the signup message. An external event MUST carry an end time, so the
- * duration (#305) is not optional here.
+ * the signup message. An external event MUST carry an end time, so an event
+ * without a duration (#305, optional) gets start + DEFAULT_DURATION here
+ * (plannedEndOrDefault) — for both kinds, so a switch between them never
+ * leaves an External event without its end.
  *
  * @param {object} event an eventStore event
  * @param {{ voiceChannelId?: string, lang?: string }} opts the voice channel as it was verified; the server language
  */
 function buildScheduledEvent(event, { voiceChannelId = "", lang = "de" } = {}) {
     const start = Number(event && event.startTime) || 0;
-    const end = eventEndTime(event);
+    const end = plannedEndOrDefault(event);
     const payload = {
         name: clip(str(event && event.title), LIMITS.name) || "Raid",
         description: describeEvent(event, lang),
@@ -192,7 +196,8 @@ async function createForEvent(eventId, { config = getConfig(), now = Date.now() 
     if (!enabledFor(event, config)) return { skipped: "disabled" };
     if (event.status === "cancelled") return { skipped: "cancelled" };
     if (event.discordEvent && event.discordEvent.id) return { skipped: "exists", id: event.discordEvent.id };
-    if (eventEndTime(event) * 1000 <= now) return { skipped: "past" };
+    // over = past the end the Discord event would get (no duration: start + the default)
+    if (plannedEndOrDefault(event) * 1000 <= now) return { skipped: "past" };
     const guild = guildOf(event);
     if (!guild || !guild.scheduledEvents) return { skipped: "offline" };
     if (canManageEvents(event.guildId) === false) return noteError(event.id, MISSING_RIGHT);

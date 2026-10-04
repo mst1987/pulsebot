@@ -180,6 +180,10 @@ describe("services/events/eventDraft — the modal", () => {
         expect(Object.keys(fields)).toEqual(["title", "date", "time", "comp", "description"]);
         expect(fields.title.value).toBe("SSC + TK");
         expect(fields.comp.value).toBe("25/3/6");
+        // the duration is the optional fourth part (#305), and the field says so
+        expect(fields.comp.label).toContain("Dauer optional");
+        expect(fields.comp.label.length).toBeLessThanOrEqual(45);
+        expect(fields.comp.required).toBe(false);
         const rh = draft.formModal(state({ cat: CAT_RH, tpl: RH.id, src: "r" })).toJSON();
         expect(rh.components.map((r) => r.components[0].custom_id)).toEqual(["title", "date", "time", "description"]);
     });
@@ -198,7 +202,7 @@ describe("services/events/eventDraft — the modal", () => {
     it("takes the duration as a fourth part of Größe/T/H", () => {
         expect(draft.parseComposition("25/3/6/240")).toEqual({ size: 25, tank: 3, healer: 6, durationMinutes: 240 });
         expect(draft.parseComposition(" 40 / 4 / 10 / 300 ")).toEqual({ size: 40, tank: 4, healer: 10, durationMinutes: 300 });
-        // without it the template's duration stands
+        // without it there is none (the field is prefilled with the template's, so leaving it is keeping it)
         expect(draft.parseComposition("25/3/6").durationMinutes).toBeUndefined();
         expect(draft.parseComposition("25/3/6/20").error).toContain("Dauer");
         expect(draft.parseComposition("25/3/6/900").error).toContain("Dauer");
@@ -225,7 +229,7 @@ describe("services/events/eventDraft — building the create body", () => {
         expect(body).toEqual({
             title: "SSC + TK", date: "2026-09-24", time: "19:30", description: "Flasks Pflicht", leaderId: "42",
             raidTemplateId: T5.id, templateId: "", signupSource: "eventhelper",
-            size: 25, composition: { tank: 4, healer: 7, melee: 0, ranged: 5 },
+            size: 25, composition: { tank: 4, healer: 7, melee: 0, ranged: 5 }, durationMinutes: null,
             newChannel: { name: "do-24-09-ssc-tk", categoryId: CAT_EH, templateChannelId: "400" },
         });
     });
@@ -265,9 +269,13 @@ describe("services/events/eventDraft — building the create body", () => {
     it("hands the duration of the composition field on to createEvent (#305)", async () => {
         const withDuration = await build(state(), values({ comp: "25/4/7/240" }));
         expect(withDuration.body).toMatchObject({ size: 25, durationMinutes: 240 });
-        // without a fourth part nothing is sent, so the template's duration stands
+        // the duration is optional: a field without a fourth part means "no duration" (null) —
+        // the template's duration is in the prefilled field, so it only goes when somebody removes it
         const without = await build(state(), values({ comp: "25/4/7" }));
-        expect(without.body.durationMinutes).toBeUndefined();
+        expect(without.body.durationMinutes).toBeNull();
+        // an empty field sends no plan at all: the template decides
+        const empty = await build(state(), values({ comp: "" }));
+        expect(empty.body).not.toHaveProperty("durationMinutes");
         expect((await build(state(), values({ comp: "25/4/7/10" }))).error).toContain("Dauer");
     });
 });

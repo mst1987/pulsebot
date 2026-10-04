@@ -256,6 +256,16 @@ describe("web/pages/eventPublicPage", () => {
             expect(html).not.toContain("<t:");
         });
 
+        it("shows no end at all when the raid has no duration (#305: optional, no invented end)", () => {
+            const view = publicEventView(event({ durationMinutes: null }), signups(), { now: NOW });
+            expect(view.endTime).toBe(0);
+            expect(view.durationMinutes).toBeNull();
+            const html = renderPublicEventPage(view);
+            expect(html).toContain("Thu 24 Sep 2026, 19:30");
+            expect(html).not.toContain("until ");
+            expect(html).toContain("server time");
+        });
+
         it("escapes a character name instead of letting it write HTML", () => {
             const html = renderPublicEventPage(publicEventView(event(), [su(IDS.brokk, "<img src=x onerror=alert(1)>", "Mage-Fire", "ranged")], { now: NOW }));
             expect(html).not.toContain("<img src=x");

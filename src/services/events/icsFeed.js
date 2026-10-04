@@ -19,11 +19,13 @@
 // newlines), and every time is UTC — a local time would need a VTIMEZONE block,
 // and the store keeps unix seconds anyway.
 //
-// The end comes from the duration (#305, utils/time/index.js); an event without
-// a start has no VEVENT worth writing and answers "".
+// The end comes from the duration (#305, utils/time/index.js); a calendar entry
+// needs a block, so an event without a duration ends start + the default 3 h
+// (plannedEndOrDefault). An event without a start has no VEVENT worth writing
+// and answers "".
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const linkCheck = require("../discord/linkCheck");
-const { eventEndTime } = require("../../utils/time");
+const { plannedEndOrDefault } = require("../../utils/time");
 const { str, clip } = require("../../utils/text");
 
 const PRODID = "-//EventHelper//Raid-Kalender//DE";
@@ -149,7 +151,7 @@ function vevent(event, { now = Date.now(), status = "", changedAt = 0 } = {}) {
         `DTSTAMP:${icsTime(Math.floor(changed / 1000))}`,
         `SEQUENCE:${Math.max(0, Math.floor((changed - SEQUENCE_EPOCH) / 1000))}`,
         `DTSTART:${icsTime(start)}`,
-        `DTEND:${icsTime(eventEndTime(event) || start)}`,
+        `DTEND:${icsTime(plannedEndOrDefault(event) || start)}`,
         `SUMMARY:${escapeText(`${prefix}${event.title || "Raid"}`)}`,
         ...(description.length ? [`DESCRIPTION:${escapeText(description.join("\n"))}`] : []),
         ...(where ? [`LOCATION:${escapeText(where)}`] : []),

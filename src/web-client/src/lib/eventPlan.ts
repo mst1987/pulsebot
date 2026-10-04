@@ -23,8 +23,8 @@ export type EventPlan = {
     melee: RoleRange | null;
     ranged: RoleRange | null;
     requiredBuffs: string[];
-    /** how long the raid takes, in minutes (#305) */
-    durationMinutes: number;
+    /** how long the raid takes, in minutes (#305); null = not set (optional: no planned end) */
+    durationMinutes: number | null;
     /** hours before the start, 0 = no deadline */
     deadlineHours: number;
     fairness: boolean;
@@ -46,11 +46,11 @@ export type StepKey = "start" | "termin" | "raid" | "kanal" | "check";
 
 export const PLAN_MAX_SIZE = 40;
 
-// The duration of a raid (#305) — the same bounds the server checks
-// (src/utils/eventTime.js).
+// The duration of a raid (#305) — optional, and when set within the bounds the
+// server checks (src/utils/time/index.js). Not set (null) = no planned end;
+// nothing here proposes one, only a raid template's own duration pre-fills it.
 export const PLAN_MIN_DURATION = 30;
 export const PLAN_MAX_DURATION = 600;
-export const PLAN_DEFAULT_DURATION = 180;
 
 /** A step's name in the stepper and the "Weiter" button, in the menu language. */
 export function stepLabel(key: StepKey): string {
@@ -106,7 +106,7 @@ export function emptyPlan(version: GameVersion | null | undefined): EventPlan {
     const c = defaultComposition(25);
     return {
         raidTemplateId: "", versionId: version ? version.id : "tbc", instanceIds: [], size: 25, tank: c.tank, healer: c.healer,
-        melee: null, ranged: null, requiredBuffs: [], durationMinutes: PLAN_DEFAULT_DURATION,
+        melee: null, ranged: null, requiredBuffs: [], durationMinutes: null,
         deadlineHours: 0, fairness: false, wishes: false, autoSuggest: false,
         overflow: "none", lockAtLimit: false,
         color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: DEFAULT_EMOJI_STYLE,
@@ -125,7 +125,7 @@ export function planFromTemplate(t: RaidTemplate, version: GameVersion | null | 
         melee: comp.melee ? { min: comp.melee.min || 0, max: comp.melee.max ?? null } : null,
         ranged: comp.ranged ? { min: comp.ranged.min || 0, max: comp.ranged.max ?? null } : null,
         requiredBuffs: [...(t.requiredBuffs || [])],
-        durationMinutes: t.durationMinutes || PLAN_DEFAULT_DURATION,
+        durationMinutes: t.durationMinutes || null,
         deadlineHours: t.signupDeadline ? t.signupDeadline.hoursBefore : 0,
         fairness: !!t.fairness, wishes: !!t.wishes, autoSuggest: false,
         overflow: overflowOf(t.overflow), lockAtLimit: !!t.lockAtLimit,
@@ -143,7 +143,7 @@ export function planFromEvent(ev: OwnEvent): EventPlan {
         raidTemplateId: ev.raidTemplateId || "", versionId: ev.versionId, instanceIds: [...(ev.instanceIds || [])], size: ev.size,
         tank: comp.tank, healer: comp.healer, melee: range(comp.melee, max.melee), ranged: range(comp.ranged, max.ranged),
         requiredBuffs: [...(ev.requiredBuffs || [])],
-        durationMinutes: ev.durationMinutes || PLAN_DEFAULT_DURATION,
+        durationMinutes: ev.durationMinutes || null,
         deadlineHours: ev.signupDeadline ? Math.max(0, Math.round((ev.startTime - ev.signupDeadline) / 3600)) : 0,
         fairness: !!ev.fairness, wishes: !!ev.wishes, autoSuggest: !!ev.autoSuggest,
         overflow: overflowOf(ev.overflow), lockAtLimit: !!ev.lockAtLimit,
@@ -197,8 +197,9 @@ export function planProblem(plan: EventPlan): string {
     // the duration — so the first problem is worded the same on both sides.
     const ranges = maxProblem(t("wow.role.melee"), plan.melee, size) || maxProblem(t("wow.role.ranged"), plan.ranged, size);
     if (ranges) return ranges;
+    // optional: only a value that is there is checked
     const d = plan.durationMinutes;
-    if (!Number.isFinite(d) || Math.floor(d) !== d || d < PLAN_MIN_DURATION || d > PLAN_MAX_DURATION) {
+    if (d !== null && (!Number.isFinite(d) || Math.floor(d) !== d || d < PLAN_MIN_DURATION || d > PLAN_MAX_DURATION)) {
         return t("raidPlan.problem.duration", { min: PLAN_MIN_DURATION, max: PLAN_MAX_DURATION });
     }
     const look = colorProblem(plan.color) || imageProblem(plan.image);
