@@ -26,11 +26,19 @@ describe("step bar conventions", () => {
         expect(skipped).not.toMatch(/line-through|--bad|red/);
     });
 
-    it("collapses to one line on a phone instead of scrolling sideways", () => {
+    it("is one slim row with a strip for the open step's deed", () => {
+        expect(css).toMatch(/\n\.rd-ck-steps \{[^}]*display: flex/);
+        expect(css).toMatch(/\n\.rd-ck \{[^}]*flex-direction: row/);
+        expect(css).toMatch(/\n\.rd-ck-focus \{/);
+    });
+
+    it("collapses to one line plus the strip on a phone instead of scrolling sideways", () => {
         const narrow = css.slice(css.indexOf("@media (max-width: 640px)"));
         expect(narrow).toContain(".rd-ck-sum { display: block; }");
-        expect(narrow).toContain(".rd-ck-steps { grid-template-columns: 1fr; }");
-        expect(narrow).toContain(".rd-ck-steps:has(> li.is-current) > li:not(.is-current) { display: none; }");
+        // with something open: "Schritt 5 von 6 · Einteilungen" and the strip with its full-width button; else all steps, two a row
+        expect(narrow).toContain(".rd-cockpit.has-focus .rd-ck-steps { display: none; }");
+        expect(narrow).toMatch(/\.rd-ck-focus \.btn \{ flex: 1 1 100%;[^}]*min-height: 44px/);
+        expect(narrow).toContain(".rd-ck-steps > li { flex: 1 1 50%;");
         expect(css).not.toMatch(/\.rd-c[k]?[a-z-]*\s*\{[^}]*overflow-x/);
     });
 });

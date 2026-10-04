@@ -73,4 +73,8 @@
     .em-fields { grid-template-columns: 1fr; }
     .em-pop { width: min(300px, calc(100vw - 32px)); }
 }
-.em-head-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+/* a phone: "Verwalten" is its icon in the head's corner (44 px to tap), the name stays its accessible label */
+@media (max-width: 640px) {
+    .em-menu .em-label, .em-menu .em-chev { display: none; }
+    .em-menu > .btn { min-width: 44px; min-height: 44px; padding: 0; justify-content: center; }
+}

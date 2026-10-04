@@ -1,5 +1,5 @@
-// The setup editor's raider panel (the box of the top row that shows the
-// raider touched last), the drag glow, "Im Setup als", the extra tank/healer
+// The setup editor's raider drawer (opened by a click on a raider, showing the
+// raider clicked last), the drag glow, "Im Setup als", the extra tank/healer
 // marks and the "Suche" dialog. The API is mocked at its transport
 // (api/client), so the tests also pin the requests. The rest of the editor:
 // SetupEditor.test.tsx.
@@ -51,6 +51,12 @@ function slot(character: string): HTMLElement {
 }
 
 const panel = () => screen.getByRole("complementary", { name: t("setup.person.tip.aria") });
+
+/** Open a raider's drawer: let go of the one picked before (Esc — else the click would swap the two), then click the line. */
+async function inspect(user: ReturnType<typeof userEvent.setup>, line: HTMLElement) {
+    await user.keyboard("{Escape}");
+    await user.click(line);
+}
 const calls = (method: string, path: string) => vi.mocked(client.send).mock.calls.filter(([m, p]) => m === method && p === path);
 
 /** Group 1: Bruno, Ignis; group 2: Lumen, Fell; bench: Schatten. */
@@ -66,35 +72,41 @@ function withDruid(over: Partial<SetupEditorData> = {}, people: Partial<Record<s
 }
 
 describe("the raider panel", () => {
-    it("is a box of the top row, empty until a raider is touched, then drawn with attendance and a check for a confirmed link", async () => {
+    it("is a drawer a click opens — nothing stands there before — drawn with attendance and a check for a confirmed link", async () => {
         const user = userEvent.setup();
         const { container } = await show(withDruid({ attendance: { [MAGE.userId]: ATTENDANCE, [TANK.userId]: { ...ATTENDANCE, pct: 40, link: "auto" } } }));
-        expect(panel()).toHaveTextContent(t("setup.person.tip.empty"));
-        // never a floating layer: it lives inside the editor, not portalled into <body>
-        expect(container.contains(panel())).toBe(true);
-
+        expect(screen.queryByRole("complementary", { name: t("setup.person.tip.aria") })).not.toBeInTheDocument();
+        // hovering opens nothing
         await user.hover(slot("Ignis"));
+        expect(screen.queryByRole("complementary", { name: t("setup.person.tip.aria") })).not.toBeInTheDocument();
+
+        await inspect(user, slot("Ignis"));
+        // the drawer belongs to the editor, it is not portalled into <body>
+        expect(container.contains(panel())).toBe(true);
+        expect(panel().closest(".se-drawer")).not.toBeNull();
         expect(within(panel()).getByText("Ignis")).toBeInTheDocument();
         expect(within(panel()).getByText("80 %")).toBeInTheDocument();
         expect(within(panel()).queryByText(t("setup.person.tip.autoBadge"))).not.toBeInTheDocument();
 
         // a guessed character link is the small "Auto" badge (not in capitals: the wording is "Auto")
-        await user.hover(slot("Bruno"));
+        await inspect(user, slot("Bruno"));
         expect(within(panel()).getByText("40 %")).toBeInTheDocument();
         expect(t("setup.person.tip.autoBadge")).toBe("Auto");
         expect(within(panel()).getAllByText("Auto").length).toBeGreaterThan(0);
     });
 
-    it("also follows the keyboard focus", async () => {
+    it("opens from the keyboard as well", async () => {
+        const user = userEvent.setup();
         await show(withDruid());
         slot("Lumen").focus();
+        await user.keyboard("{Enter}");
         await waitFor(() => expect(within(panel()).getByText("Lumen")).toBeInTheDocument());
     });
 
     it("lists what a raider brings, a party buff with the small group count", async () => {
         const user = userEvent.setup();
         await show(withDruid({}, { [MAGE.userId]: { brings: [{ key: "ai", label: "Arkane Brillanz", icon: "spell_holy_magicalsentry", scope: "party", count: 4 }] } }));
-        await user.hover(slot("Ignis"));
+        await inspect(user, slot("Ignis"));
         expect(within(panel()).getByText(t("setup.person.tip.brings"))).toBeInTheDocument();
         const buff = within(panel()).getByText("Arkane Brillanz").closest<HTMLElement>("[data-tip]");
         expect(buff).toHaveAttribute("data-tip", "Arkane Brillanz");
@@ -106,7 +118,7 @@ describe("the raider panel", () => {
         const user = userEvent.setup();
         const lastBench = Date.UTC(2026, 8, 12, 18, 0) / 1000;
         await show(withDruid({ attendance: { [MAGE.userId]: { ...ATTENDANCE, link: "auto", lastBench, benchNights: 10 }, [TANK.userId]: { ...ATTENDANCE, lastBench: 0, benchNights: 10 }, [PRIEST.userId]: { ...ATTENDANCE } } }));
-        await user.hover(slot("Ignis"));
+        await inspect(user, slot("Ignis"));
         const row = within(panel()).getByText("12.09.2026").closest<HTMLElement>("[data-tip]");
         expect(row).toHaveAttribute("data-tip", "Zuletzt auf der Bank: 12.09.2026");
         // the character link: the Auto badge with its sentence as tooltip, never a line of text
@@ -115,12 +127,12 @@ describe("the raider panel", () => {
         expect(within(panel()).queryByText(t("setup.person.tip.linkAuto"))).not.toBeInTheDocument();
 
         // not on the bench in the nights looked at: a dash, the count in the tooltip
-        await user.hover(slot("Bruno"));
+        await inspect(user, slot("Bruno"));
         expect(within(panel()).getByText("–").closest("[data-tip]")).toHaveAttribute("data-tip", t("setup.person.tip.benchNever", { count: 10 }));
         expect(await inLang("en", () => t("setup.person.tip.benchNever", { count: 10 }))).toBe("Not on the bench in the last 10 raids");
 
         // no earlier night at all: nothing to say
-        await user.hover(slot("Lumen"));
+        await inspect(user, slot("Lumen"));
         expect(within(panel()).queryByText("–")).not.toBeInTheDocument();
     });
 });
@@ -140,7 +152,7 @@ describe("Im Setup als — a raider who plays several specs", () => {
     it("offers the class's specs as icon buttons and saves the change through the usual request", async () => {
         const user = userEvent.setup();
         await show(withDruid());
-        await user.hover(slot("Fell"));
+        await inspect(user, slot("Fell"));
         expect(within(panel()).getByText("Im Setup als")).toBeInTheDocument();
         const feral = within(panel()).getByRole("button", { name: `${specLabel("druid-feral", "Wildheit")} · ${roleLabel("melee")}` });
         expect(feral).toHaveAttribute("aria-pressed", "true");
@@ -153,7 +165,7 @@ describe("Im Setup als — a raider who plays several specs", () => {
     it("is not offered for a raider on the bench, nor an extra role", async () => {
         const user = userEvent.setup();
         await show(editorData({}, { groups: [{ index: 1, slots: [{ ...TANK, pos: 1 }] }], bench: [DRUID] }));
-        await user.hover(slot("Fell"));
+        await inspect(user, slot("Fell"));
         expect(within(panel()).getByText("Fell")).toBeInTheDocument();
         expect(within(panel()).queryByText(t("setup.person.tip.playsAs"))).not.toBeInTheDocument();
         expect(within(panel()).queryByText(t("setup.person.tip.extra"))).not.toBeInTheDocument();
@@ -167,7 +179,7 @@ describe("Extra tank / healer", () => {
             ? { ...page, extraRoles: { [DRUID.userId]: ["tank"] } }
             : page));
         await show(withDruid());
-        await user.hover(slot("Fell"));
+        await inspect(user, slot("Fell"));
         const tank = within(panel()).getByRole("button", { name: t("wow.role.tank") });
         expect(within(panel()).getByRole("button", { name: t("wow.role.healer") })).toBeInTheDocument();
         // the role played in the setup is not offered again

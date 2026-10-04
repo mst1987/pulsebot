@@ -51,12 +51,8 @@
 .kp-link.kp-danger { color: var(--high); }
 .kp-link.kp-center { align-self: center; }
 .btn.kp-start { align-self: flex-start; }
-/* a step back (BackButton, parts.tsx): the same outlined, tinted button everywhere,
-   in its own colour (--back-*, tokens.css) — never a faint text link */
-.btn.btn-ghost.kp-backbtn { background: var(--back-bg); color: var(--back-ink); border-color: var(--back-line); font-weight: 600; text-decoration: none; }
-.btn.btn-ghost.kp-backbtn:hover:not(:disabled), .btn.btn-ghost.kp-backbtn:focus-visible { background: var(--back-bg-hover); border-color: var(--back-ink); }
-.btn.kp-backbtn svg { width: 16px; height: 16px; }
-.btn.btn-sm.kp-backbtn svg { width: 14px; height: 14px; }
+/* a step back (BackButton, parts.tsx): the shared components/ui/BackButton look
+   (.back-btn in ui.css, --back-* tokens) — never a faint text link */
 .kp-withicon { display: inline-flex; align-items: center; gap: 6px; }
 .kp-withicon svg { width: 14px; height: 14px; flex: none; }
 .kp-warn {

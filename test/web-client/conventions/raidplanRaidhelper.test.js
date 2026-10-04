@@ -11,7 +11,9 @@ describe("the activation dialog", () => {
     it("the page: the menu for a Raid-Helper event with raidplan write, the dialog, the confirmation before switching off", () => {
         const page = read("pages", "RaidDetailPage.tsx");
         expect(page).toContain("const canSwitchPlan = !ownEvent && !archived && planning !== \"sheet\" && canAccess(user, \"raidplan\", \"write\");");
-        expect(page).toContain("entries={raidhelperMenu({ planEnabled: !!data.event.raidplanEnabled, disabled: !!data.event.raidhelperDisabled })}");
+        // the switch is the menu's entry for raidplan write; the loot system (raids write) may stand beside it
+        expect(page).toContain("...(canSwitchPlan ? raidhelperMenu({ planEnabled: !!data.event.raidplanEnabled, disabled: !!data.event.raidhelperDisabled }) : []),");
+        expect(page).toContain("entries={raidhelperEntries}");
         expect(page).toMatch(/action === "raidplanOff"\) \{\n\s+const ok = await ask\(/);
         const modal = read("pages", "raid-detail", "manage", "RaidplanLinkModal.tsx");
         expect(modal).toContain("hint={t(\"raidDetail.raidplanLink.readOnly\")}");

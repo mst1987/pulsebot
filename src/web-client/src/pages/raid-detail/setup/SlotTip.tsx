@@ -112,14 +112,13 @@ function ActionRow({ a }: { a: SlotActions }) {
 }
 
 /**
- * The raider panel, right of the ping message and the numbers (never over a
- * group, always complete). A header across the whole panel — the spec tile, the
- * name (never wrapped, it has the width), spec · role, Discord name and status,
- * the orga's actions (check, fix, signup), and on the right the attendance as
- * the number that matters — and under it three columns: what the raider
- * brings, why they stand here, the attendance in detail. It shows the raider
- * the pointer touched last — or, while one is picked (`pinned`), that one,
- * whatever the pointer touches, so the actions stay put.
+ * The raider panel — the content of the side drawer that a click on a raider
+ * opens (SetupEditor.tsx), never a box that stands there empty. A header — the
+ * spec tile, the name (never wrapped), spec · role, Discord name and status,
+ * the orga's actions (check, fix, signup) and the attendance as the number that
+ * matters — and under it: what the raider brings, why they stand here, the
+ * attendance in detail. It shows the raider clicked last (`pinned`), whatever
+ * the pointer touches on its way, so the actions stay put.
  */
 export function SlotTip({ p, attendance, extra, onSpec, onExtra, actions = {}, pinned = false }: {
     p: SetupPerson; attendance: SetupAttendance | undefined | null; extra: string[];
@@ -222,10 +221,4 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, actions = {}, p
             </div>
         </aside>
     );
-}
-
-/** What the docked panel shows before any raider was touched. */
-export function TipEmpty() {
-    const t = useT();
-    return <aside className="se-tip se-tip-empty" aria-label={t("setup.person.tip.aria")}>{t("setup.person.tip.empty")}</aside>;
 }

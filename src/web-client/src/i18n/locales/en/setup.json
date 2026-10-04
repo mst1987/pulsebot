@@ -24,7 +24,6 @@
             "bringsRaid": "to the raid",
             "why": "Why here",
             "aria": "Raider details",
-            "empty": "Hover a raider to see details",
             "pinned": "selected",
             "pinnedSub": "The panel stays with this raider until you release the selection — Esc or click them again."
         },
@@ -49,17 +48,11 @@
         "gear": { "label": "Gear", "tip": "\"Ready\" before \"usable\" according to the profile." }
     },
     "status": {
-        "approved": "Posted",
-        "approvedSub": "Raiders see this setup. Every change goes into the message right away.",
         "approvedSubSince": "Raiders see this setup · since {time}. Every change goes into the message right away.",
-        "changedTip": "Changed since posting",
-        "changed": "changed since posting",
         "changedSub": "Raiders keep seeing the posted version until you post again.",
         "changedSubSince": "Raiders keep seeing the version from {time} until you post again.",
         "draft": "Draft",
         "draftSub": "Raiders don't see anything yet. Only \"Post setup\" puts it in the channel, on the web and in the bot.",
-        "autoTip": "Automatic proposal",
-        "auto": "automatic proposal",
         "autoSub": "Created by EventHelper at signup close. Check, adjust, post.",
         "autoSubAt": "Created by EventHelper at signup close ({time}). Check, adjust, post."
     },
@@ -83,15 +76,15 @@
         "empty": "empty"
     },
     "bench": {
+        "empty": "Nobody on the bench — drag raiders here.",
         "aria": "Bench",
         "title": "Bench",
-        "chunkTitle": "Bench {index}",
         "tip": "Only who was moved here by hand. Posted with the setup (and told per DM) only when “Post bench” is ticked."
     },
     "pool": {
+        "empty": "Everybody signed up is in the setup.",
         "aria": "Signed up, not in the setup",
         "title": "Signed up",
-        "chunkTitle": "Signed up {index}",
         "tip": "Signed up, but neither placed nor on the bench. Never posted. Drag people from here into a group or onto the bench.",
         "benchSignup": "Sub",
         "benchSignupTip": "Signed up as a substitute (bench)"
@@ -206,6 +199,58 @@
     "readOnly": {
         "notApproved": "The setup has not been approved yet."
     },
+    "state": {
+        "draft": "Draft",
+        "changed": "Draft · changed since posting",
+        "notPosted": "Approved · not posted",
+        "error": "Posting failed",
+        "outdated": "Posted · version {version} · outdated",
+        "posted": "Posted · version {version}",
+        "cancelled": "Cancelled · not posted",
+        "dmsRunning": "sending DMs"
+    },
+    "bar": {
+        "ofTarget": "{value} of {target}",
+        "withTarget": "{value} (target {target})",
+        "places": "{count} of {size} places",
+        "confirmed": "{count} of {total} confirmed",
+        "confirmedTip": "Confirmed",
+        "confirmedSub": "Who in the groups has confirmed — with a click under the setup message, or by the organisers."
+    },
+    "ping": {
+        "button": "Ping everyone",
+        "buttonSub": "Pings every raider in the groups in the event channel — with the ping message.",
+        "askTitle": "Ping everyone?",
+        "askText": { "one": "{count} raider from the setup will be pinged in the event channel: “{text}”", "other": "{count} raiders from the setup will be pinged in the event channel: “{text}”" },
+        "action": "Ping now",
+        "failed": "Ping failed."
+    },
+    "more": {
+        "reproposeSub": "A new proposal from the signups — fixed places stay.",
+        "size": "Number of groups",
+        "sizeSub": "{size} places · {groups} × 5",
+        "pingDefault": "Default text",
+        "wishesOffSub": "Off — the profiles' “gladly with”",
+        "benchSub": "The bench is part of the posted message and gets DMs.",
+        "dmsSub": "DMs on posting are off for this category — switch them on in the settings."
+    },
+    "line": {
+        "aria": "In short",
+        "buffsComplete": "Buffs complete",
+        "on": "on",
+        "off": "off",
+        "wishesMet": "{met} of {total} wishes met",
+        "wishesOff": "Wishes off",
+        "details": "Details",
+        "detailsTitle": "Roles, buffs and switches"
+    },
+    "dialog": {
+        "kicker": "Setup",
+        "done": "Done"
+    },
+    "drawer": {
+        "kicker": "Raider"
+    },
     "editor": {
         "saveFailed": "Saving failed.",
         "proposalJob": "Setup proposal",
@@ -213,8 +258,6 @@
         "approveAnywayText": "The setup doesn't pass every check (roles, size or required buffs). Once posted, raiders see it exactly as it is.",
         "approve": "Post setup",
         "approveSub": "Posts the setup in the event channel — from then on it counts as approved and every change goes into the message right away.",
-        "approved": "Posted",
-        "approvedSub": "The setup is in the channel. Every change here updates the message right away.",
         "approveFailed": "Posting failed.",
         "confirmFailed": "Confirmation not saved.",
         "confirmAll": "Confirm all",
@@ -222,7 +265,7 @@
         "confirmAllNone": "Everybody in the groups has answered already.",
         "confirmAllDone": { "one": "{count} raider confirmed.", "other": "{count} raiders confirmed." },
         "more": "More",
-        "moreSub": "Compact view, search, AI explanation and weights",
+        "moreSub": "Propose anew, number of groups, ping text, fairness, wishes, bench, compact, search, AI explanation and weights",
         "explainSub": "Claude explains in a few paragraphs why the setup stands as it does.",
         "weightsSub": "How much roles, buffs, attendance and fairness count in the proposal.",
         "postFailed": "Posting failed.",
@@ -240,7 +283,6 @@
         "lockedSub": "A new proposal keeps these spots.",
         "locked": "{count} locked",
         "pickTarget": "Pick a target — group, bench or raider · Esc",
-        "dragHint": "Drag or click to rearrange",
         "explain": "AI explanation",
         "repropose": "Propose again",
         "sizeLabel": "Groups",
