@@ -224,10 +224,12 @@ const PAGE_STYLE = `
   .ev-list li span { color:var(--muted); font-size:12.5px; margin-left:auto; }
   .ev-foot { color:var(--muted); font-size:12.5px; margin:28px 0 0; }`;
 
-// "Mi. 24 Sept. 2026, 19:30" / "Wed 24 Sep 2026, 19:30" — in server time (Europe/Berlin), 24 h.
+// "Mi., 24. Sept. 2026, 19:30" / "Wed 24 Sep 2026, 19:30" — in server time (Europe/Berlin), 24 h.
 const fmtDate = (seconds, lang = "de") => {
     const dt = serverDateTime(seconds);
-    return dt ? dt.setLocale(dateLocale(lang)).toFormat("ccc d LLL yyyy, HH:mm") : "–";
+    if (!dt) return "–";
+    const de = dateLocale(lang) === "de";
+    return dt.setLocale(dateLocale(lang)).toFormat(de ? "ccc, d. LLL yyyy, HH:mm" : "ccc d LLL yyyy, HH:mm");
 };
 const fmtTime = (seconds) => {
     const dt = serverDateTime(seconds);

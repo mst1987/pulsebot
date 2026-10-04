@@ -227,7 +227,7 @@ describe("web/pages/eventPublicPage", () => {
             const view = page.publicEventView(event({ setupPost: { bench: true } }), signups(), { now: NOW });
             const html = page.renderPublicEventPage(view);
             expect(html).toContain("<html lang=\"de\">");
-            expect(html).toMatch(/Do\.? 24 Sept?\.? 2026, 19:30/);
+            expect(html).toMatch(/Do\.?, 24\. Sept?\.? 2026, 19:30/);
             expect(html).toContain("bis 22:30 Serverzeit");
             expect(html).toContain("25er");
             for (const word of ["Angemeldet", "Anmeldeschluss", "Priester", "Krieger", "Anmeldungen", "Zum Kalender hinzufügen", "Im Menü anmelden", "Gilden-Raid"]) {
