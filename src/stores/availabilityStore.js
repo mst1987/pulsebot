@@ -90,7 +90,7 @@ function getEntry(id) {
 function addEntry(input = {}, { now = Date.now() } = {}) {
     const entry = complete({ ...input, id: newId(), applied: {}, createdAt: now });
     if (!entry.userId) return { error: "Kein Raider." };
-    const problem = entryProblem(entry);
+    const problem = entryProblem({ ...entry, kind: input.kind });
     if (problem) return { error: problem };
     const data = store.read();
     if (data.entries.filter((e) => e.userId === entry.userId).length >= MAX_ENTRIES) {

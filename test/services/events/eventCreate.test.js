@@ -25,6 +25,7 @@ jest.mock("../../../src/services/discord/discordEvent", () => ({
 }));
 jest.mock("../../../src/services/events/eventAnnounce", () => ({ announceEvent: jest.fn(async () => ({ announced: true, target: "event" })) }));
 jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn(), RAIDHELPER_CREATE_DELAY_MS: 35000 }));
+jest.mock("../../../src/services/signups/availability", () => ({ applyToEvent: jest.fn(async () => []) }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null), listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
@@ -46,6 +47,7 @@ const channelArchiveStore = require("../../../src/stores/channelArchiveStore");
 const raidEventGroups = require("../../../src/services/events/raidEventGroups");
 const eventStore = require("../../../src/stores/eventStore");
 const discordEvent = require("../../../src/services/discord/discordEvent");
+const availability = require("../../../src/services/signups/availability");
 const { createEvent, updateEvent, startTimeOf, schemaChannelName } = require("../../../src/services/events/eventCreate");
 
 const user = { id: "42" };
@@ -99,6 +101,8 @@ describe("services/events/eventCreate", () => {
         });
         expect(postEventMessage).toHaveBeenCalledWith(result.body.id);
         expect(scheduleOverviewSync).toHaveBeenCalledWith();
+        // absences and attendances of the period sign raiders off / up
+        expect(availability.applyToEvent).toHaveBeenCalledWith(result.body.id);
     });
 
     it("starts an event without version and template in the version its category plays (#541)", async () => {
@@ -542,6 +546,14 @@ describe("services/events/eventCreate", () => {
             const ev = own();
             await updateEvent({ guildId: "g1", body: { id: ev.id, date: "2026-10-08" } });
             expect(eventStore.getEvent(ev.id).startTime).toBe(startTimeOf("08-10-2026", "20:00"));
+        });
+
+        it("lets absences and attendances follow a raid moved to another day, not a mere rename", async () => {
+            const ev = own();
+            await updateEvent({ guildId: "g1", body: { id: ev.id, title: "Kara neu" } });
+            expect(availability.applyToEvent).not.toHaveBeenCalled();
+            await updateEvent({ guildId: "g1", body: { id: ev.id, date: "2026-10-08" } });
+            expect(availability.applyToEvent).toHaveBeenCalledWith(ev.id);
         });
 
         it("refuses Raid-Helper events, unknown or foreign events and a bad plan", async () => {

@@ -40,6 +40,19 @@ describe("utils/signup/botEnglish", () => {
         expect(toEnglish("Höchstens 10 Charaktere.")).toBe("At most 10 characters.");
     });
 
+    it("translates every fixed refusal of absences and attendances", () => {
+        const store = fs.readFileSync(path.join(__dirname, "../../../src/stores/availabilityStore.js"), "utf8");
+        const service = fs.readFileSync(path.join(__dirname, "../../../src/services/signups/availability.js"), "utf8");
+        const sentences = [...`${store}\n${service}`.matchAll(/(?:error:|return) "([^"`$]+\.)"/g)].map((m) => m[1]);
+        expect(sentences.length).toBeGreaterThan(6);
+        for (const s of sentences) {
+            const en = toEnglish(s);
+            expect({ s, en }).toEqual({ s, en: expect.not.stringMatching(GERMAN) });
+        }
+        expect(toEnglish("Höchstens 20 Einträge – lösche zuerst einen alten.")).toBe("At most 20 entries – delete an old one first.");
+        expect(toEnglish("Höchstens 180 Tage auf einmal.")).toBe("At most 180 days at once.");
+    });
+
     it("translates every refusal of the character-name rule", () => {
         const { validateCharacterName } = require("../../../src/utils/signup/characterNames");
         const cases = [
