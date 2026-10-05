@@ -1,6 +1,9 @@
 jest.mock("axios", () => require("../helpers/axiosMock").mockAxios());
 
 const { transport, reply, fail, timeout, respond, sent } = require("../helpers/axiosMock");
+const { tempStoreFile } = require("../helpers/tempStore");
+const budgetStore = require("../../src/stores/raidhelperBudgetStore");
+const budget = require("../../src/utils/raidhelper/budget");
 const Raidhelper = require("../../src/classes/raidhelper.js");
 
 // Raid-Helper answers every request with a body, JSON or plain text, whatever
@@ -27,7 +30,11 @@ describe("classes/Raidhelper", () => {
         transport.mockReset();
         process.env.RAIDHELPER_API_KEY = "test-key";
         process.env.RAIDHELPER_SERVER_ID = "server-42";
+        // every test starts with a fresh request budget and no cached answers
+        budgetStore.useFile(tempStoreFile("raidhelper-budget.json"));
+        Raidhelper._resetCacheForTests();
     });
+    afterAll(() => budgetStore.useFile(null));
 
     afterEach(() => {
         if (OLD_KEY === undefined) delete process.env.RAIDHELPER_API_KEY;
@@ -87,12 +94,12 @@ describe("classes/Raidhelper", () => {
 
         it("rejects with the payload when the API reports status failed", async () => {
             respondWith({ status: "failed", message: "bad key" });
-            await expect(new Raidhelper().getAllEvents()).rejects.toEqual({ status: "failed", message: "bad key" });
+            await expect(new Raidhelper().getAllEvents()).rejects.toMatchObject({ status: "failed", message: "Raid-Helper: bad key" });
         });
 
         it("reads a failure payload sent with an HTTP error status the same way", async () => {
             respondWith({ status: "failed", message: "bad key" }, { status: 401 });
-            await expect(new Raidhelper().getAllEvents()).rejects.toEqual({ status: "failed", message: "bad key" });
+            await expect(new Raidhelper().getAllEvents()).rejects.toMatchObject({ status: "failed", message: "Raid-Helper: bad key" });
             expect(transport).toHaveBeenCalledTimes(1);
         });
 
@@ -184,7 +191,7 @@ describe("classes/Raidhelper", () => {
 
         it("rejects when the API fails", async () => {
             respondWith({ status: "failed", message: "bad key" });
-            await expect(new Raidhelper().getPastEvents(1)).rejects.toEqual({ status: "failed", message: "bad key" });
+            await expect(new Raidhelper().getPastEvents(1)).rejects.toMatchObject({ status: "failed", message: "Raid-Helper: bad key" });
         });
     });
 
@@ -277,7 +284,7 @@ describe("classes/Raidhelper", () => {
 
         it("rejects when the API fails", async () => {
             respondWith({ status: "failed", message: "bad key" });
-            await expect(new Raidhelper().getMissingSignUps("u1")).rejects.toEqual({ status: "failed", message: "bad key" });
+            await expect(new Raidhelper().getMissingSignUps("u1")).rejects.toMatchObject({ status: "failed", message: "Raid-Helper: bad key" });
         });
     });
 
@@ -431,6 +438,84 @@ describe("classes/Raidhelper", () => {
             respondWith(null, { error: new Error("ECONNRESET") });
             await expect(new Raidhelper().createEvent({ channelId: "chan-1" })).rejects.toThrow("ECONNRESET");
             expect(transport).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    // #606: Raid-Helper allows 1000 requests a day; the client counts and stops itself
+    describe("request budget", () => {
+        it("counts every attempt that leaves, a retry too", async () => {
+            respond(reply(503, "busy"), reply(200, JSON.stringify({ postedEvents: [] })));
+            await new Raidhelper().fetchEvents(1);
+            expect(transport).toHaveBeenCalledTimes(2);
+            expect(budget.status().used).toBe(2);
+        });
+
+        it("sends nothing once the budget is used up, and says why", async () => {
+            const hour = String(Math.floor(Date.now() / 3600000));
+            budgetStore.writeBudget({ hours: { [hour]: budget.capFor("read") } });
+            respondWith({ postedEvents: [] });
+            await expect(new Raidhelper().fetchEvents(1)).rejects.toMatchObject({ code: "raidhelper_budget" });
+            expect(await new Raidhelper().getSetup("e1")).toBeUndefined();
+            expect(transport).not.toHaveBeenCalled();
+        });
+
+        it("pauses every request after a 429 and shows Raid-Helper's reason", async () => {
+            respondWith({ reason: "Rate limit encountered: 1000 / 24h. Try again in 2 hour(s).", status: "failed" }, { status: 429 });
+            await expect(new Raidhelper().fetchEvents(1)).rejects.toThrow("Raid-Helper: Rate limit encountered: 1000 / 24h");
+            expect(budget.status().blockedUntil).toBeGreaterThan(Date.now() + 2.5 * 3600000);
+
+            transport.mockReset();
+            await expect(new Raidhelper().fetchEvents(1)).rejects.toThrow(/Tageslimit gemeldet/);
+            expect(transport).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("synced list, cache and write hook", () => {
+        it("answers every list read from the snapshot without a request", async () => {
+            const snapshot = jest.fn(() => [{ id: "a", startTime: 1, signUps: [{ userId: "u1", specName: "Arms" }] }]);
+            const client = new Raidhelper({ snapshot });
+            expect((await client.getUserSignUps("u1")).map((e) => e.id)).toEqual(["a"]);
+            expect(await client.fetchEvents(500)).toHaveLength(1);
+            expect(snapshot).toHaveBeenLastCalledWith(500);
+            expect(transport).not.toHaveBeenCalled();
+        });
+
+        it("keeps a raidplan for cacheMs, but never a failed request", async () => {
+            respondWith({ slots: [{ name: "A" }] });
+            const client = new Raidhelper({ cacheMs: 60000 });
+            await client.getSetup("e1");
+            await client.getSetup("e1");
+            expect(transport).toHaveBeenCalledTimes(1);
+
+            transport.mockReset();
+            respondWith(null, { error: new Error("ECONNRESET") });
+            await client.getSetup("e2");
+            respondWith({ slots: [{ name: "B" }] });
+            expect((await client.getSetup("e2")).setup).toEqual([{ name: "B" }]);
+        });
+
+        it("keeps a single event for cacheMs, and forgets it after a signup to it", async () => {
+            respondWith({ id: "e1", title: "Kara" });
+            const onWrite = jest.fn();
+            const client = new Raidhelper({ cacheMs: 60000, onWrite });
+            await client.getEvent("e1");
+            await client.getEvent("e1");
+            expect(transport).toHaveBeenCalledTimes(1);
+
+            await client.signUp("e1", { className: "Warrior", specName: "Arms" }, "u1");
+            expect(onWrite).toHaveBeenCalledTimes(1);
+            await client.getEvent("e1");
+            expect(transport).toHaveBeenCalledTimes(3);
+        });
+
+        it("calls the write hook after a created event, not after a refused one", async () => {
+            const onWrite = jest.fn();
+            respondWith({ status: "failed", reason: "invalid token" });
+            await new Raidhelper({ onWrite }).createEvent({ channelId: "c" });
+            expect(onWrite).not.toHaveBeenCalled();
+            respondWith({ event: { id: "new" } });
+            await new Raidhelper({ onWrite }).createEvent({ channelId: "c" });
+            expect(onWrite).toHaveBeenCalledTimes(1);
         });
     });
 });

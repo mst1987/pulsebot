@@ -9,9 +9,14 @@
 // in server.js, with the application sweep (formerly started by bot.js) last;
 // the jobs that need the Discord gateway (role sync, talk overview, event
 // series) wait for it themselves with a delayed first run.
+//
+// Every job starts inside budget.runInBackground(): the async context carries
+// over to its timers, so whatever a job asks Raid-Helper counts as background
+// work and stops first when the day's requests run short (utils/raidhelper/budget.js).
 const discord = require("../../services/discord/discord");
+const budget = require("../../utils/raidhelper/budget");
 const sheetCleanup = require("../../utils/setup/sheetCleanup");
-const raidEventScan = require("../../services/events/raidEventScan");
+const raidhelperSync = require("../../services/events/raidhelperSync");
 const logAutoLink = require("../../services/logcheck/logAutoLink");
 const eventMessage = require("../../services/events/eventMessage");
 const reminders = require("../events/reminders");
@@ -24,10 +29,10 @@ const availabilityPanel = require("../../services/signups/availabilityPanel");
 const JOBS = [
     // Sweep due raid-sheet copies (deleted a few days after each raid).
     { name: "sheetCleanup", start: () => sheetCleanup.startSheetCleanup(), stop: () => sheetCleanup.stopSheetCleanup() },
-    // Periodically snapshot finished Raid-Helper events into raidEventStore (see
-    // loadRecentEvents), so a raid shows up on the dashboard even if nobody opens
-    // it right after the raid ends.
-    { name: "raidEventScan", start: () => raidEventScan.startRaidEventScan(), stop: () => raidEventScan.stopRaidEventScan() },
+    // The only reader of Raid-Helper's event list (#606): fetch it every few
+    // minutes into a store every page reads, then snapshot the finished raids
+    // into raidEventStore, so a raid stays on the dashboard after Raid-Helper drops it.
+    { name: "raidhelperSync", start: () => raidhelperSync.startRaidhelperSync(), stop: () => raidhelperSync.stopRaidhelperSync() },
     // Assign detected Warcraft-Logs to their raid in the background, so a log the
     // listener could not place at detection time (Raid-Helper unreachable, event
     // not yet known) still ends up linked without an admin clicking anything.
@@ -60,7 +65,7 @@ function startJobs(client) {
     const names = JOBS.map((job) => job.name);
     if (running) return names;
     running = true;
-    for (const job of JOBS) job.start();
+    for (const job of JOBS) budget.runInBackground(() => job.start());
     console.log(`Background jobs started: ${names.join(", ")}`);
     return names;
 }

@@ -7,7 +7,18 @@ const { activeGuildFor } = require("../http/activeGuild");
 const retirement = require("../events/raidhelperRetirement");
 const historyImport = require("../events/raidhelperHistoryImport");
 const guildRoles = require("../../services/discord/guildRoles");
+const raidhelperSync = require("../../services/events/raidhelperSync");
 const { getConfig } = require("../../stores/settingsStore");
+
+/** GET /api/settings/raidhelper-sync — last sync of the event list and the day's request budget (#606). */
+const getSync = withUser({ full: true }, async ({ res }) => {
+    ok(res, raidhelperSync.syncStatus());
+});
+
+/** POST /api/settings/raidhelper-sync — "Jetzt aktualisieren"; at most every 30 s (`throttled`). */
+const postSync = withUser({ full: true, csrf: true }, async ({ res }) => {
+    ok(res, await raidhelperSync.refreshNow());
+});
 
 /** GET /api/settings/raidhelper-retirement — the checklist, computed now. */
 const getRetirement = withUser({ full: true }, async ({ res }) => {
@@ -45,6 +56,8 @@ const routes = [
     { method: "GET", path: "/api/settings/raidhelper-retirement", handler: getRetirement, area: "settings" },
     { method: "POST", path: "/api/settings/raidhelper-retirement", handler: postRetirement, area: "settings" },
     { method: "POST", path: "/api/settings/raidhelper-history-import", handler: postHistoryImport, area: "settings" },
+    { method: "GET", path: "/api/settings/raidhelper-sync", handler: getSync, area: "settings" },
+    { method: "POST", path: "/api/settings/raidhelper-sync", handler: postSync, area: "settings" },
 ];
 
-module.exports = { getRetirement, postRetirement, postHistoryImport, routes };
+module.exports = { getRetirement, postRetirement, postHistoryImport, getSync, postSync, routes };

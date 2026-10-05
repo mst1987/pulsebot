@@ -24,6 +24,26 @@ const APPLICATION_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 // sometimes accepts the connection and never answers.
 const RAIDHELPER_REQUEST_TIMEOUT_MS = 20000;
 
+// Raid-Helper allows 1000 requests per API key in a rolling 24 hours; after
+// that it answers HTTP 429 to everything, a signup included (utils/raidhelper/
+// budget.js). The bot stops itself well before: background jobs at `background`,
+// page loads and bot commands at `read`, writes (create an event, sign up) at
+// `write`. The gap to `limit` is left for the dev instances, which share the key
+// and get `dev` requests in all — and no background ones unless
+// RAIDHELPER_BACKGROUND=1.
+const RAIDHELPER_BUDGET = Object.freeze({
+    limit: 1000,
+    background: 450,
+    read: 750,
+    write: 850,
+    dev: 100,
+});
+
+// How old a cached Raid-Helper event list may be (services/events/raidEventGroups.js):
+// a page load takes it up to a minute old, a background job up to 15 minutes.
+const RAIDHELPER_EVENTS_TTL_MS = 60 * 1000;
+const RAIDHELPER_BACKGROUND_TTL_MS = 15 * 60 * 1000;
+
 module.exports = {
     RAIDHELPER_BOT_ID,
     EMBED_ACCENT_COLOR,
@@ -31,4 +51,7 @@ module.exports = {
     APPLICATION_STALE_AFTER_MS,
     APPLICATION_SWEEP_INTERVAL_MS,
     RAIDHELPER_REQUEST_TIMEOUT_MS,
+    RAIDHELPER_BUDGET,
+    RAIDHELPER_EVENTS_TTL_MS,
+    RAIDHELPER_BACKGROUND_TTL_MS,
 };

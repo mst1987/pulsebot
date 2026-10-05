@@ -25,6 +25,7 @@
     "/api/settings/reminders": "settings",
     "/api/settings/raidhelper-retirement": "settings",
     "/api/settings/raidhelper-history-import": "settings",
+    "/api/settings/raidhelper-sync": "settings",
     "/api/raider-characters": "settings",
     "/api/roster": "roster",
     "/api/roster/hide": "roster",

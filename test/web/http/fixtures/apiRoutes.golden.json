@@ -231,5 +231,7 @@
   "POST /api/kader/accounts",
   "POST /api/kader/accounts/remove",
   "PUT /api/kader/assignments",
-  "POST /api/kader/assignments/reset"
+  "POST /api/kader/assignments/reset",
+  "GET /api/settings/raidhelper-sync",
+  "POST /api/settings/raidhelper-sync"
 ]

@@ -17,7 +17,8 @@ jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: (...a) => mockGetRaidEvent(...a),
 }));
 
-const { scanRaidEvents, scanAllGuilds, startRaidEventScan } = require("../../../src/services/events/raidEventScan.js");
+const { scanRaidEvents, scanAllGuilds, _resetProbesForTests } = require("../../../src/services/events/raidEventScan.js");
+const { runInBackground } = require("../../../src/utils/raidhelper/budget");
 const { RECENT_WINDOW_DAYS } = require("../../../src/services/events/recentEvents.js");
 
 describe("services/events/raidEventScan", () => {
@@ -32,6 +33,7 @@ describe("services/events/raidEventScan", () => {
         mockListGuilds.mockReset().mockReturnValue([]);
         mockSaveRaidEvents.mockReset().mockReturnValue(0);
         mockGetRaidEvent.mockReset().mockReturnValue(null);
+        _resetProbesForTests();
     });
     afterEach(() => nowSpy.mockRestore());
 
@@ -112,14 +114,14 @@ describe("services/events/raidEventScan", () => {
             mockGetChannelCategoryMap.mockReturnValue({ c1: { name: "kara" } });
             mockGetSetup.mockResolvedValue({ setup: [{ name: "Tank", class: "Warrior" }] });
 
-            await scanRaidEvents("g1");
+            await scanRaidEvents("g1", { probeSetups: true });
             expect(mockGetSetup).toHaveBeenCalledWith("e1");
             expect(mockSaveRaidEvents.mock.calls[0][0][0].setup).toEqual([{ name: "Tank", class: "Warrior" }]);
 
             // Second sweep: the event already has a stored setup -> no further call.
             mockGetSetup.mockClear();
             mockGetRaidEvent.mockReturnValue({ id: "e1", setup: [{ name: "Tank", class: "Warrior" }] });
-            await scanRaidEvents("g1");
+            await scanRaidEvents("g1", { probeSetups: true });
             expect(mockGetSetup).not.toHaveBeenCalled();
         });
 
@@ -129,10 +131,37 @@ describe("services/events/raidEventScan", () => {
             );
             mockGetChannelCategoryMap.mockReturnValue({ c1: { name: "kara" } });
 
-            await scanRaidEvents("g1");
+            await scanRaidEvents("g1", { probeSetups: true });
 
             expect(mockGetSetup).toHaveBeenCalledTimes(3);
             expect(mockSaveRaidEvents.mock.calls[0][0]).toHaveLength(6); // all still stored
+        });
+
+        // #606: a page view must not cost Raid-Helper requests
+        it("asks for no raidplan from a page view, only from a background job", async () => {
+            mockGetPastEvents.mockResolvedValue([{ id: "e1", channelId: "c1", title: "Kara", startTime: 100 }]);
+            mockGetChannelCategoryMap.mockReturnValue({ c1: { name: "kara" } });
+
+            await scanRaidEvents("g1");
+            expect(mockGetSetup).not.toHaveBeenCalled();
+            expect(mockSaveRaidEvents.mock.calls[0][0]).toHaveLength(1);
+
+            await runInBackground(() => scanRaidEvents("g1"));
+            expect(mockGetSetup).toHaveBeenCalledWith("e1");
+        });
+
+        it("probes a raid without any raidplan again only after six hours", async () => {
+            mockGetPastEvents.mockResolvedValue([{ id: "e1", channelId: "c1", title: "Kara", startTime: 100 }]);
+            mockGetChannelCategoryMap.mockReturnValue({ c1: { name: "kara" } });
+            mockGetSetup.mockResolvedValue(undefined);
+
+            await scanRaidEvents("g1", { probeSetups: true });
+            await scanRaidEvents("g1", { probeSetups: true });
+            expect(mockGetSetup).toHaveBeenCalledTimes(1);
+
+            nowSpy.mockReturnValue(NOW + 6 * 60 * 60 * 1000 + 1);
+            await scanRaidEvents("g1", { probeSetups: true });
+            expect(mockGetSetup).toHaveBeenCalledTimes(2);
         });
 
         it("keeps scanning when a raidplan fetch fails", async () => {
@@ -183,14 +212,13 @@ describe("services/events/raidEventScan", () => {
             const total = await scanAllGuilds();
             expect(total).toBe(1);
         });
-    });
 
-    describe("startRaidEventScan", () => {
-        it("scans once immediately and returns a timer", () => {
-            const timer = startRaidEventScan({ intervalMs: 60000 });
-            expect(mockListGuilds).toHaveBeenCalled();
-            expect(timer).toBeTruthy();
-            clearInterval(timer);
+        it("passes the options on to every guild's scan", async () => {
+            mockListGuilds.mockReturnValue([{ id: "g1", name: "G1" }]);
+            mockGetPastEvents.mockResolvedValue([{ id: "e1", channelId: "c1", title: "Kara", startTime: 100 }]);
+            mockGetChannelCategoryMap.mockReturnValue({ c1: { name: "kara" } });
+            await scanAllGuilds({ probeSetups: true });
+            expect(mockGetSetup).toHaveBeenCalledWith("e1");
         });
     });
 });

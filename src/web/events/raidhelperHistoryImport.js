@@ -118,7 +118,9 @@ async function collectRaidHelperEvents(guildId, { live = true, now = Date.now() 
     let liveError = null;
     if (live) {
         try {
-            const rh = createRaidhelperClient();
+            // live, not the synced list: the import reaches back further than the
+            // sync, and it is one admin click, not a page view
+            const rh = createRaidhelperClient({ live: true });
             if (!rh.disabled) {
                 const since = Math.floor(now / 1000) - LIVE_LOOKBACK_DAYS * 86400;
                 const catMap = (guildId && discord.getChannelCategoryMap(guildId)) || {};
