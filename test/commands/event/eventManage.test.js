@@ -53,6 +53,7 @@ const stepCommand = require("../../../src/commands/event/eventManageStep");
 const formCommand = require("../../../src/commands/event/eventManageForm");
 const contextCommand = require("../../../src/commands/event/eventManageContext");
 const { mockInteraction } = require("../../helpers/mockInteraction");
+const { cardText } = require("../../helpers/cardText");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 const { makeClient, makeChannel } = require("../../helpers/discordClient");
 
@@ -116,7 +117,7 @@ describe("opening", () => {
         const i = interaction({ commandName: "Event verwalten" });
         i.targetMessage = { id: "1", channelId: "999" };
         await contextCommand.execute(i);
-        expect(lastPayload(i.reply).content).toMatch(/keinem EventHelper-Event/);
+        expect(cardText(lastPayload(i.reply))).toMatch(/keinem EventHelper-Event/);
     });
 
     it("/event verwalten takes the named event, else the channel's", async () => {
@@ -273,6 +274,6 @@ describe("actions", () => {
     it("a click on an event that is gone, or of another server, says so", async () => {
         const i = interaction({ customId: bot._internal.manageId("s", "eh-gone") });
         await stepCommand.execute(i);
-        expect(lastPayload(i.update).content).toMatch(/gibt es nicht/);
+        expect(cardText(lastPayload(i.update))).toMatch(/gibt es nicht/);
     });
 });

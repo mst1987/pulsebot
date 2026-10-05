@@ -7,7 +7,7 @@
 // (services/events/eventDraft.js `guildFor`); the handler then gets `(interaction, guildId)`,
 // otherwise the error is answered — as an ephemeral reply, or with
 // `onGuildError: "update"` by replacing the message the component sits on.
-const { MessageFlags } = require("discord.js");
+const { card } = require("../utils/discord/card");
 const { guildFor } = require("../services/events/eventDraft");
 
 function componentRoute({ name, description, accessOf, handler, guild = true, onGuildError = "reply" }) {
@@ -20,8 +20,8 @@ function componentRoute({ name, description, accessOf, handler, guild = true, on
             const { guildId, error } = guildFor(interaction);
             if (error) {
                 return onGuildError === "update"
-                    ? interaction.update({ content: error, embeds: [], components: [] })
-                    : interaction.reply({ content: error, flags: MessageFlags.Ephemeral });
+                    ? interaction.update(card({ kind: "error", title: error }))
+                    : interaction.reply(card({ kind: "error", title: error, ephemeral: true }));
             }
             return handler(interaction, guildId);
         },

@@ -7,6 +7,7 @@
 //
 // Each one redraws the message with the new state in every customId. "Weiter"
 // is not here: it has to open a modal, see eventCreateModal.js.
+const { card } = require("../../utils/discord/card");
 const { STEP_PREFIX, parseCustomId, guildFor, applyStep, stepMessage } = require("../../services/events/eventDraft");
 
 module.exports = {
@@ -15,10 +16,10 @@ module.exports = {
     accessOf: "event",
     async execute(interaction) {
         const { field, state } = parseCustomId(interaction.customId);
-        if (field === "x") return interaction.update({ content: "Abgebrochen.", embeds: [], components: [] });
+        if (field === "x") return interaction.update(card({ kind: "info", title: "Abgebrochen." }));
 
         const { guildId, error } = guildFor(interaction);
-        if (error) return interaction.update({ content: error, embeds: [], components: [] });
+        if (error) return interaction.update(card({ kind: "error", title: error }));
 
         // Listing a category's events can take longer than Discord's three seconds.
         await interaction.deferUpdate();

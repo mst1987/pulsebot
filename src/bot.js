@@ -8,6 +8,9 @@ require("dotenv").config({ path: envFile, quiet: true });
 process.env.EVENTHELPER_ENV_FILE = path.basename(envFile);
 require("./config/env.js").validateEnv();
 const messages = require("./config/messages.js");
+const { card } = require("./utils/discord/card.js");
+const { tr } = require("./utils/i18n/botText.js");
+const { langOfInteraction } = require("./services/discord/botLanguage.js");
 const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./services/logcheck/logChannel.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
@@ -19,7 +22,7 @@ const { loadCommandModules, kindOf } = require("./commands/loader.js");
 const { startJobs } = require("./web/http/jobs.js");
 const logger = require("./logger.js").child("bot");
 
-const { MessageFlags, Events, Client, GatewayIntentBits, Collection } = require("discord.js");
+const { Events, Client, GatewayIntentBits, Collection } = require("discord.js");
 
 const client = new Client({
     intents: [
@@ -148,10 +151,7 @@ async function handleInteraction(interaction) {
 
     if (!command) {
         if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({
-                content: messages.common.commandNotFound,
-                flags: MessageFlags.Ephemeral,
-            });
+            await interaction.reply(card({ kind: "error", title: tr(langOfInteraction(interaction), "Command not found."), ephemeral: true }));
         }
         return;
     }
@@ -166,11 +166,13 @@ async function handleInteraction(interaction) {
         console.error(`Error executing ${command.name}:`, error);
 
         try {
-            const errorMessage = messages.common.commandExecutionError;
+            const errorCard = card({
+                kind: "error", title: tr(langOfInteraction(interaction), "There was an error executing this command!"), ephemeral: true,
+            });
             if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: errorMessage, flags: MessageFlags.Ephemeral });
+                await interaction.reply(errorCard);
             } else if (interaction.deferred) {
-                await interaction.followUp({ content: errorMessage, flags: MessageFlags.Ephemeral });
+                await interaction.followUp(errorCard);
             }
         } catch (replyError) {
             console.error("Failed to send error response:", replyError.message);

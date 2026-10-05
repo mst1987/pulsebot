@@ -1,4 +1,5 @@
-const { MessageFlags, ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
+const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const { CLASSES } = require("../../config/applyClasses");
 const { pendingApplications } = require("../../utils/recruitment/applicationState");
 const { versionOfApplyButton } = require("../../utils/recruitment/applyVersion");
@@ -36,10 +37,12 @@ module.exports = {
             .setMaxValues(1)
             .addOptions(options);
 
-        await interaction.reply({
-            content: "**Schritt 1:** Wähle deine Klasse:",
-            components: [new ActionRowBuilder().addComponents(select)],
-            flags: MessageFlags.Ephemeral,
-        });
+        await interaction.reply(card({
+            kicker: "Bewerbung",
+            title: "Schritt 1",
+            text: "Wähle deine Klasse:",
+            buttons: [new ActionRowBuilder().addComponents(select)],
+            ephemeral: true,
+        }));
     },
 };

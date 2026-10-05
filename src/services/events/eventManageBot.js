@@ -23,6 +23,7 @@
 // router on every click.
 const { DateTime } = require("luxon");
 const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const manage = require("./eventManage");
 const eventStore = require("../../stores/eventStore");
 const signupStore = require("../../stores/signupStore");
@@ -276,12 +277,12 @@ function noticeOf(result) {
 /** Overview of the event, re-read, with a notice. */
 function overview(eventId, notice = {}) {
     const event = eventStore.getEvent(eventId);
-    if (!event) return { content: "Das Event gibt es nicht mehr.", embeds: [], components: [] };
+    if (!event) return card({ kind: "warn", title: "Das Event gibt es nicht mehr." });
     return manageView(event, notice);
 }
 
 /** Answer when a click names no event this server knows. */
-const GONE = { content: "Das Event gibt es nicht (mehr) oder es gehört zu einem anderen Server.", embeds: [], components: [] };
+const GONE = card({ kind: "warn", title: "Das Event gibt es nicht (mehr) oder es gehört zu einem anderen Server." });
 
 /** The event of a click, checked against the server. */
 function eventOfClick(guildId, eventId) {
