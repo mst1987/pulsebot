@@ -22,6 +22,7 @@ const { rulesForEvent } = require("../events/mainVersion");
 const { fail } = require("../../web/http/apiResult");
 const { tr, specLabel, classLabel, normalizeLang } = require("../../utils/i18n/botText");
 const { serverLang } = require("../discord/botLanguage");
+const { shortWhen } = require("../../utils/time");
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
 // [one, several] per role and language
@@ -74,7 +75,7 @@ function eventLink(event) {
 
 function buildText(event, gap, specs, lang = "de") {
     const lines = [tr(lang, "**Looking for more raiders – {title}**", { title: event.title || "Raid" })];
-    const when = Number(event.startTime) ? `<t:${Number(event.startTime)}:F> · ` : "";
+    const when = Number(event.startTime) ? `${shortWhen(event.startTime)} · ` : "";
     lines.push(`${when}${tr(lang, "{placed} of {size} places filled", { placed: gap.placed, size: gap.size })}`);
     const names = (keys) => keys.map((k) => specs.get(k)).filter(Boolean).map((s) => specWithIcon(s, lang)).join(", ");
     // a buff a whole class brings (a totem, a blessing) is "Shaman (any spec)", not every spec of it

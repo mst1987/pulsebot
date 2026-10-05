@@ -1,4 +1,3 @@
-const { MessageFlags } = require("discord.js");
 const { getEvent } = require("../../stores/eventStore");
 const { getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
@@ -17,6 +16,7 @@ const {
 } = require("../../utils/signup/signupButtons");
 const { answerPayload, answerUpdate } = require("../../utils/signup/signupReply");
 const { noteMode, MIN_NOTE } = require("../../services/signups/signupNotes");
+const { asEphemeral } = require("../../utils/discord/card");
 
 // The signup buttons under an EventHelper event message and every step after
 // them — see utils/signup/signupButtons.js for the flow and the customIds. Every answer
@@ -32,7 +32,7 @@ const reply = (interaction, payload, event = null) => {
     let body;
     if (typeof payload === "string") body = answerPayload(payload, { event, lang: langOfInteraction(interaction) });
     else if (payload && payload.embed) body = answerPayload(payload.embed);
-    else body = { ...payload, flags: MessageFlags.Ephemeral };
+    else body = asEphemeral(payload);
     return interaction.replied || interaction.deferred ? interaction.followUp(body) : interaction.reply(body);
 };
 const done = (interaction, answer, event = null) => interaction.update(answerUpdate(answer, { event, lang: langOfInteraction(interaction) }));

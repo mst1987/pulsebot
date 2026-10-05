@@ -3,7 +3,7 @@
 // (userPrefsStore), so it follows the account everywhere. It covers what only
 // the raider reads (dialogs, answers, DMs); messages in a channel keep the
 // server language (services/discord/botLanguage.js).
-const { MessageFlags, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
 const userPrefs = require("../../stores/userPrefsStore");
 const { serverLang, langOf } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
@@ -42,6 +42,6 @@ module.exports = {
             ? tr(lang, serverLang() === "de" ? "You now get the server language (**German**)." : "You now get the server language (**English**).")
             : tr(lang, lang === "de" ? "Bot language: **German**." : "Bot language: **English**.");
         const note = tr(lang, "Applies to everything only you see: dialogs, answers and DMs. Messages in the channels stay in the server language. The web menu follows the same setting.");
-        return interaction.reply({ ...answerPayload(`${head}\n${note}`, { lang }), flags: MessageFlags.Ephemeral });
+        return interaction.reply(answerPayload(`${head}\n${note}`, { lang }));
     },
 };

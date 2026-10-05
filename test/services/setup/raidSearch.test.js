@@ -72,7 +72,7 @@ describe("suggestSearch", () => {
     it("writes the message for raiders in English, with the roles, the buff providers and the link to the signup", () => {
         const { text } = suggestSearch(event());
         expect(text).toContain("**Looking for more raiders – Gruul's Lair**");
-        expect(text).toContain("<t:2000000000:F> · 18 of 25 places filled");
+        expect(text).toContain("<t:2000000000:d> <t:2000000000:t> · 18 of 25 places filled");
         expect(text).toContain("• 1× Tank: Warrior (Protection)");
         const healers = text.split("\n").find((l) => l.startsWith("• 2× Healers:"));
         expect(healers).toContain("Priest (Holy)");

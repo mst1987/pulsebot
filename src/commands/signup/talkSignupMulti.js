@@ -1,4 +1,3 @@
-const { MessageFlags } = require("discord.js");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const profiles = require("../../stores/raiderProfileStore");
 const { MULTI_BUTTON_ID } = require("../../services/talk/talkOverview");
@@ -8,6 +7,7 @@ const { createSession, getSession, signableRaids, buildRaidPicker } = require(".
 const { answerPayload } = require("../../utils/signup/signupReply");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
+const { asEphemeral } = require("../../utils/discord/card");
 
 // "Mehrere Raids wählen …" under the raid overview on the talk server (#293):
 // step 1, only for the member — the coming raids (all preselected), the status
@@ -41,6 +41,6 @@ module.exports = {
         const token = createSession(uid, { mode: "multi", eventIds: raids.map((e) => e.id) });
         if (interaction.client) await loadAppEmojis(interaction.client);
         const payload = buildRaidPicker(token, getSession(token, uid), raids, { emojis: appEmojiMap(), lang });
-        return interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
+        return interaction.reply(asEphemeral(payload));
     },
 };

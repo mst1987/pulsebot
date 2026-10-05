@@ -43,6 +43,9 @@ const sm = {
 };
 const { event: baseEvent } = require("../../factories/events");
 const { makeClient, makeChannel } = require("../../helpers/discordClient");
+const { cardText, cardButtons, cardColor } = require("../../helpers/cardText");
+const { isCard } = require("../../../src/utils/discord/card");
+const { embedColor } = require("../../../src/services/events/embedLook");
 
 const emojis = Object.fromEntries(appEmojis.emojiCatalog().map((e, i) => [e.name, { id: String(1000 + i), name: e.name, animated: false }]));
 const p = (userId, character, spec, role) => ({ userId, character, classId: spec.split("-")[0], spec, role });
@@ -419,24 +422,36 @@ describe("DMs", () => {
     it("builds the placed and the bench text", () => {
         const event = seed();
         const placed = sm.buildSetupDm(event, { ...p("2", "Zibbo", "Priest-Holy", "healer"), group: 2 }, { messageUrl: "https://discord.com/channels/g1/c1/m1" });
-        expect(placed.content).toContain("You are in **Group 2** as **Healer** (Zibbo · Holy).");
-        expect(placed.content).toContain("[Go to the setup](https://discord.com/channels/g1/c1/m1)");
+        expect(isCard(placed)).toBe(true);
+        expect(placed.content).toBe("");
+        expect(cardText(placed)).toContain("## Group 2 as Healer\nZibbo · Holy");
+        expect(cardButtons(placed)).toEqual([expect.objectContaining({ label: "Go to the setup", url: "https://discord.com/channels/g1/c1/m1" })]);
         const bench = sm.buildSetupDm(event, { ...p("5", "Thalia", "Priest-Shadow", "ranged"), bench: true }, { fairness: true, reasons: ["Raid voll (10/10)"] });
-        expect(bench.content).toContain("This time on the **bench** (Thalia · Shadow) – next time you have priority.");
-        expect(bench.content).toContain("Reason: Raid full (10/10)");
+        expect(cardText(bench)).toContain("This time on the **bench** (Thalia · Shadow) – next time you have priority.");
+        expect(cardText(bench)).toContain("Reason: Raid full (10/10)");
+        expect(cardButtons(bench)).toEqual([]);
         const noFair = sm.buildSetupDm(event, { ...p("5", "Thalia", "Priest-Shadow", "ranged"), bench: true }, { fairness: false });
-        expect(noFair.content).not.toContain("priority");
+        expect(cardText(noFair)).not.toContain("priority");
+    });
+
+    it("carries the event's colour and the start as a short date", () => {
+        const event = seed();
+        const dm = sm.buildSetupDm({ ...event, startTime: 1800000000 }, { ...p("2", "Zibbo", "Priest-Holy", "healer"), group: 2 });
+        expect(cardColor(dm)).toBe(embedColor(event));
+        expect(cardText(dm)).toContain("**Start** <t:1800000000:d> <t:1800000000:t>");
+        expect(cardText(dm)).not.toMatch(/:[Ff]>/);
     });
 
     it("writes the DM in German by default — the reasons too", () => {
         const event = seed();
         const placed = smRaw.buildSetupDm(event, { ...p("2", "Zibbo", "Priest-Holy", "healer"), group: 2 }, { messageUrl: "https://discord.com/channels/g1/c1/m1" });
-        expect(placed.content).toContain("**Setup für Kara Donnerstag**");
-        expect(placed.content).toContain("Du bist in **Gruppe 2** als **Heiler** (Zibbo · Heilig).");
-        expect(placed.content).toContain("[Zum Setup](https://discord.com/channels/g1/c1/m1)");
+        expect(cardText(placed)).toContain("-# Setup für Kara Donnerstag");
+        expect(cardText(placed)).toContain("## Gruppe 2 als Heiler\nZibbo · Heilig");
+        expect(cardButtons(placed)[0]).toMatchObject({ label: "Zum Setup", url: "https://discord.com/channels/g1/c1/m1" });
         const bench = smRaw.buildSetupDm(event, { ...p("5", "Thalia", "Priest-Shadow", "ranged"), bench: true }, { fairness: true, reasons: ["Raid voll (10/10)"] });
-        expect(bench.content).toContain("Diesmal auf der **Bank** (Thalia · Schatten) – nächstes Mal hast du Vorrang.");
-        expect(bench.content).toContain("Grund: Raid voll (10/10)");
+        expect(cardText(bench)).toContain("## Auf der Bank");
+        expect(cardText(bench)).toContain("Diesmal auf der **Bank** (Thalia · Schatten) – nächstes Mal hast du Vorrang.");
+        expect(cardText(bench)).toContain("Grund: Raid voll (10/10)");
     });
 
     it("draws the message in German by default: groups, bench, totals, footer, buttons", () => {
@@ -505,7 +520,7 @@ describe("DMs", () => {
         event.setup = { ...event.setup, version: 3, approved: next };
         await sm.sendSetupDms("eh-1", { config: mockConfig, delayMs: 0 });
         expect(discord.sendDirectMessage.mock.calls.map((c) => c[0])).toEqual(["4"]);
-        expect(discord.sendDirectMessage.mock.calls[0][1].content).toContain("Group 1");
+        expect(cardText(discord.sendDirectMessage.mock.calls[0][1])).toContain("Group 1 as");
     });
 
     it("writes each DM in the raider's own language", async () => {
@@ -518,9 +533,9 @@ describe("DMs", () => {
         } finally {
             botLanguage.langOf.mockImplementation(() => "en");
         }
-        const dmTo = (id) => discord.sendDirectMessage.mock.calls.find((c) => c[0] === id)[1].content;
-        expect(dmTo("2")).toContain("Du bist in **Gruppe 1** als **Heiler** (Zibbo · Heilig).");
-        expect(dmTo("1")).toContain("You are in **Group 1** as **Tank** (Brokk · Protection).");
+        const dmTo = (id) => discord.sendDirectMessage.mock.calls.find((c) => c[0] === id)[1];
+        expect(cardText(dmTo("2"))).toContain("## Gruppe 1 als Heiler\nZibbo · Heilig");
+        expect(cardText(dmTo("1"))).toContain("## Group 1 as Tank\nBrokk · Protection");
         expect(botLanguage.langOf).toHaveBeenCalledWith("2", { config: mockConfig });
     });
 
@@ -547,7 +562,7 @@ describe("DMs", () => {
         expect(on.post).toEqual({ action: "edited" });
         expect(await on.dms).toMatchObject({ sent: 5 });
         // the DMs link the posted message
-        expect(discord.sendDirectMessage.mock.calls[0][1].content).toContain("https://discord.com/channels/g1/c1/m-new");
+        expect(cardButtons(discord.sendDirectMessage.mock.calls[0][1])[0].url).toBe("https://discord.com/channels/g1/c1/m-new");
     });
 
     it("pings everyone placed on the first post, never on a later edit (#354's follow-up)", async () => {

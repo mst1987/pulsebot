@@ -45,6 +45,8 @@ const { refreshEventMessage } = require("../../../src/services/events/eventMessa
 const { refreshSetupMessage } = require("../../../src/services/setup/setupMessage");
 const { scheduleOverviewSync } = require("../../../src/services/talk/talkOverview");
 const { deliverUserPing, sendDms } = require("../../../src/services/discord/pingDelivery");
+const { cardText, cardColor } = require("../../helpers/cardText");
+const { isCard, KIND_COLORS } = require("../../../src/utils/discord/card");
 const discord = require("../../../src/services/discord/discord");
 const settings = require("../../../src/stores/settingsStore");
 const eventStore = require("../../../src/stores/eventStore");
@@ -260,8 +262,15 @@ describe("cancelling an event", () => {
         expect(ev).toMatchObject({ status: "cancelled", signupsClosed: true, cancel: { reason: "Zu wenig Heiler, wir verschieben auf Do.", by: ORGA.id, archived: true } });
         // each DM in the raider's own language (pingDelivery.sendDms draws it per language)
         expect(sendDms).toHaveBeenCalledWith([RAIDER], expect.any(Function));
-        expect(sendDms.mock.calls[0][1]("en")).toEqual({ content: expect.stringContaining("Reason: Zu wenig Heiler") });
-        expect(sendDms.mock.calls[0][1]("de").content).toMatch(/^❌ \*\*.+\*\* am <t:\d+:F> wurde abgesagt\.\nGrund: Zu wenig Heiler/);
+        const cancelEn = sendDms.mock.calls[0][1]("en");
+        expect(isCard(cancelEn)).toBe(true);
+        expect(cancelEn.content).toBe("");
+        expect(cardText(cancelEn)).toContain("Reason: Zu wenig Heiler");
+        expect(cardColor(cancelEn)).toBe(KIND_COLORS.warn);
+        const cancelDe = cardText(sendDms.mock.calls[0][1]("de"));
+        expect(cancelDe).toMatch(/^## .+ wurde abgesagt\nGrund: Zu wenig Heiler/);
+        expect(cancelDe).toMatch(/\*\*Start\*\* <t:\d+:d> <t:\d+:t>/);
+        expect(cancelDe).not.toMatch(/:[Ff]>/);
         expect(discordChannels.archiveChannel).toHaveBeenCalledWith("c1", "arch");
         expect(archiveStore.listArchived("g1")).toEqual([expect.objectContaining({ channelId: "c1", by: ORGA.id })]);
         expect(refreshEventMessage).toHaveBeenCalledWith(event.id);
@@ -367,8 +376,11 @@ describe("deleting an event", () => {
         const result = await manage.deleteEvent({ guildId: "g1", eventId: event.id, archiveChannel: true, notify: true, user: ORGA, byName: "Orga" });
         expect(result.body).toMatchObject({ archived: true, dm: { sent: 1 } });
         expect(sendDms).toHaveBeenCalledWith([RAIDER], expect.any(Function));
-        expect(sendDms.mock.calls[0][1]("en")).toEqual({ content: expect.stringContaining("will not take place") });
-        expect(sendDms.mock.calls[0][1]("de").content).toContain("findet nicht statt – das Event wurde entfernt.");
+        const deleteEn = sendDms.mock.calls[0][1]("en");
+        expect(isCard(deleteEn)).toBe(true);
+        expect(cardText(deleteEn)).toContain("will not take place");
+        expect(cardColor(deleteEn)).toBe(KIND_COLORS.warn);
+        expect(cardText(sendDms.mock.calls[0][1]("de"))).toMatch(/findet nicht statt\nDas Event wurde entfernt\./);
         expect(discordChannels.archiveChannel).toHaveBeenCalledWith("c1", "arch");
         expect(archiveStore.listArchived("g1")).toEqual([expect.objectContaining({ channelId: "c1", by: ORGA.id })]);
 

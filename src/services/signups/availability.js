@@ -37,6 +37,7 @@ const { tr, serviceText, specLabel, dateLocale } = require("../../utils/i18n/bot
 const { langOf, serverLang } = require("../discord/botLanguage");
 const { buildEmbed } = require("../../utils/discord/reply");
 const logger = require("../../logger");
+const { shortWhen } = require("../../utils/time");
 
 /** How far ahead an entry may reach. */
 const MAX_DAYS = 180;
@@ -254,7 +255,7 @@ function raidLine(r) {
     const event = eventStore.getEvent(r.eventId) || { id: r.eventId, title: r.title, startTime: r.startTime };
     const url = linkCheck.eventLink(event);
     const title = url ? `[${event.title || r.title}](${url})` : `**${event.title || r.title}**`;
-    return `${title} · <t:${Number(event.startTime || r.startTime) || 0}:F>`;
+    return `${title} · ${shortWhen(event.startTime || r.startTime)}`;
 }
 
 const SKIP_TEXT = {

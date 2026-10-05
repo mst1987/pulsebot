@@ -17,6 +17,8 @@
 // Discord calls are best-effort after the store changed: a channel that cannot be
 // renamed or a DM that does not arrive is reported, never a rolled-back action.
 const { DateTime } = require("luxon");
+const { ButtonBuilder, ButtonStyle } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const eventStore = require("../../stores/eventStore");
 const signupStore = require("../../stores/signupStore");
 const raidplanStore = require("../../stores/raidplanStore");
@@ -400,17 +402,22 @@ async function removeRaider({ guildId, eventId, userId, user, byName }) {
     return { status: 200, body: { message: `${who} ausgetragen.` } };
 }
 
-/** The DM a raider gets when an event is cancelled, in their language. */
-function cancelDm(event, reason, guildId, lang = "de") {
+/** The start as the card's fact: short date and time. */
+function startFacts(event, lang) {
     const start = Number(event.startTime) || 0;
+    return start ? [[tr(lang, "Start"), `<t:${start}:d> <t:${start}:t>`]] : [];
+}
+
+/** The DM a raider gets when an event is cancelled, in their language: a warn card, the channel as a button. */
+function cancelDm(event, reason, guildId, lang = "de") {
     const url = linkCheck.channelLink(guildId, event.channelId);
-    return [
-        start
-            ? tr(lang, "❌ **{title}** on {when} has been cancelled.", { title: event.title, when: `<t:${start}:F>` })
-            : tr(lang, "❌ **{title}** has been cancelled.", { title: event.title }),
-        tr(lang, "Reason: {reason}", { reason }),
-        url,
-    ].filter(Boolean).join("\n");
+    return card({
+        kind: "warn",
+        title: tr(lang, "{title} has been cancelled", { title: event.title }),
+        text: tr(lang, "Reason: {reason}", { reason }),
+        facts: startFacts(event, lang),
+        buttons: url ? [new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "Go to the raid channel")).setURL(url)] : [],
+    });
 }
 
 /** The archive category of a server, or "" when none is set (Kanäle → Archiv). */
@@ -448,7 +455,7 @@ async function cancelEvent({ guildId, eventId, reason, archiveChannel = false, n
     const recipients = recipientsOf(event.id).map((s) => s.userId);
     if (notify && recipients.length) {
         try {
-            dm = await sendDms(recipients, (lang) => ({ content: cancelDm(event, text, event.guildId || guildId, lang) }));
+            dm = await sendDms(recipients, (lang) => cancelDm(event, text, event.guildId || guildId, lang));
         } catch (e) {
             dm = { sent: [], failed: recipients, error: (e && e.message) || "Bot nicht verbunden." };
         }
@@ -571,10 +578,12 @@ function deletionInfo(event, now = Date.now()) {
 
 /** The DM a raider gets when an event they signed up for is deleted (only on request), in their language. */
 function deleteDm(event, lang = "de") {
-    const start = Number(event.startTime) || 0;
-    return start
-        ? tr(lang, "🗑️ **{title}** on {when} will not take place — the event has been removed.", { title: event.title, when: `<t:${start}:F>` })
-        : tr(lang, "🗑️ **{title}** will not take place — the event has been removed.", { title: event.title });
+    return card({
+        kind: "warn",
+        title: tr(lang, "{title} will not take place", { title: event.title }),
+        text: tr(lang, "The event has been removed."),
+        facts: startFacts(event, lang),
+    });
 }
 
 /**
@@ -643,7 +652,7 @@ async function deleteEvent({ guildId, eventId, archiveChannel = false, notify = 
     let dm = { sent: [], failed: [] };
     if (notify && info.canNotify && recipients.length) {
         try {
-            dm = await sendDms(recipients, (lang) => ({ content: deleteDm(event, lang) }));
+            dm = await sendDms(recipients, (lang) => deleteDm(event, lang));
         } catch (e) {
             dm = { sent: [], failed: recipients, error: (e && e.message) || "Bot nicht verbunden." };
         }
