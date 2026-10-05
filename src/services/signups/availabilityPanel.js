@@ -22,6 +22,7 @@ const settingsStore = require("../../stores/settingsStore");
 const { serverLang } = require("../discord/botLanguage");
 const { organizerPayload } = require("../../utils/signup/organizerPanel");
 const { nextRaidSummary } = require("./organizer");
+const { appEmojiMap } = require("../discord/appEmojis");
 const logger = require("../../logger");
 
 const FIRST_DELAY_MS = 60 * 1000;
@@ -56,6 +57,7 @@ function currentPayload(categoryId, cfg, { now = Date.now() } = {}) {
         lang: serverLang(cfg),
         nextRaid: nextRaidSummary(categoryId, { now }),
         links: store.getLinks(categoryId),
+        emojis: appEmojiMap(),
     });
 }
 
