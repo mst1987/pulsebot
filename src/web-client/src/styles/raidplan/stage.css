@@ -94,6 +94,8 @@
 .rp-sheet-board { position: absolute; inset: 12px; display: flex; align-items: center; justify-content: center; }
 .rp-sheet-board .rp-board-wrap { width: 100%; }
 .rp-sheet-board .rp-board { box-shadow: 0 12px 40px var(--shade-55); }
+/* "Karte daneben": the open panel takes its width from the stage, the map fits what is left (--rp-side, set by PlanPublicPage) */
+.rp-sheet-stage.is-push .rp-sheet-board { right: calc(var(--rp-side) - 4px); }
 .rp-sheet-stage .rp-zoomctl { right: 64px; bottom: 16px; padding: 5px; border-radius: 12px; box-shadow: 0 8px 24px var(--shade-35); }
 .rp-sheet-stage .rp-zoomctl button { min-width: 34px; height: 34px; }
 .rp-sheet-stage.is-panel .rp-zoomctl { right: calc(min(480px, 100%) + 16px); }
@@ -102,8 +104,9 @@
 
 /* "Deine Aufgaben": --mx/--my are its share of the free room (lib/raidplan/sheetLayout.ts MinePos, 0 0 = top left, 1 1 = bottom
    right); the translate by the card's own size keeps every share inside the stage without measuring the card. 16px margin, 64px on
-   the right so the card never covers the "Alle Aufgaben" tab (MineCard.tsx counts the same margins) */
-.rp-sheet-mine { position: absolute; left: calc(16px + (100% - 80px) * var(--mx, 0)); top: calc(16px + (100% - 32px) * var(--my, 1)); transform: translate(calc(var(--mx, 0) * -100%), calc(var(--my, 1) * -100%)); z-index: 8; width: min(400px, calc(100% - 96px)); max-height: calc(100% - 32px); display: flex; flex-direction: column; box-sizing: border-box; border: 2px solid var(--accent); border-radius: 14px; background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--panel); box-shadow: 0 14px 36px var(--shade-50); overflow: hidden; }
+   the right (--rp-side) so the card never covers the "Alle Aufgaben" tab, nor the panel when it stands beside the map (MineCard.tsx
+   counts the same margins) */
+.rp-sheet-mine { position: absolute; left: calc(16px + (100% - 16px - var(--rp-side, 64px)) * var(--mx, 0)); top: calc(16px + (100% - 32px) * var(--my, 1)); transform: translate(calc(var(--mx, 0) * -100%), calc(var(--my, 1) * -100%)); z-index: 8; width: min(400px, calc(100% - 32px - var(--rp-side, 64px))); max-height: calc(100% - 32px); display: flex; flex-direction: column; box-sizing: border-box; border: 2px solid var(--accent); border-radius: 14px; background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--panel); box-shadow: 0 14px 36px var(--shade-50); overflow: hidden; }
 .rp-sheet-mine.is-inline { position: static; width: 100%; max-height: none; box-shadow: none; transform: none; }
 .rp-sheet-mine.is-movable .rp-sheet-mine-head { cursor: grab; touch-action: none; user-select: none; }
 .rp-sheet-mine.is-dragging { box-shadow: 0 20px 48px var(--shade-55); }
@@ -156,7 +159,9 @@
 .rp-sheet-panel-head { flex: none; display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
 .rp-sheet-panel-title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
 .rp-sheet-panel-title strong { font-size: 18px; font-weight: 800; }
-.rp-sheet-panel-body { flex: 1; overflow-y: auto; padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 16px; }
+.rp-sheet-panel-head .rp-sheet-panel-push { flex: none; font-size: 13px; }
+/* the tables inside ask the panel's width (not the window's) whether a three-column row fits: canvas.css @container rp-tables */
+.rp-sheet-panel-body { container: rp-tables / inline-size; flex: 1; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 16px; }
 .rp-sheet-panel .rp-rgrid { grid-template-columns: minmax(0, 1fr); }
 /* the panel's head already says "Alle Aufgaben": the fold "Alle Einteilungen" and its gap go */
 .rp-sheet-panel .rp-allzone { margin-top: 0; padding-top: 0; border-top: 0; }

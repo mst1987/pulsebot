@@ -196,7 +196,9 @@
         "stripTop": "Oben",
         "stripLeft": "Links",
         "allTasksToggle": "Alle Einteilungen",
-        "allTasksTip": "Blendet die Tabellen aller Einteilungen ein oder aus. Bleibt so, bis du es wieder änderst."
+        "allTasksTip": "Blendet die Tabellen aller Einteilungen ein oder aus. Bleibt so, bis du es wieder änderst.",
+        "push": "Karte daneben",
+        "pushTip": "An: Die Karte wird schmaler und bleibt ganz zu sehen. Aus: Die Liste liegt über dem rechten Teil der Karte. Bleibt so, bis du es wieder änderst."
     },
     "slot": {
         "tank": "Tank {n}",

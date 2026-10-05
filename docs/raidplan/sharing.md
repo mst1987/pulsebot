@@ -51,7 +51,13 @@ Redesign", sketch 3). The page is exactly the window (`.rp-sheet`, `styles/raidp
   browser with the rest of the layout (`eh.raidplan.sheetLayout`). On a phone it is pinned to the bottom. Its rows
   wrap inside the card (no shared four-column grid), so nothing sticks out and there is no sideways scrollbar.
 - **"Alle Aufgaben"** is a tab on the right edge (and the switch "Alle Einteilungen" in the bar); it opens `stage/TasksPanel.tsx` over the map: the organiser's
-  note, `ReadTables` without the personal part (`personal={false}`) and the tactic's steps.
+  note, `ReadTables` without the personal part (`personal={false}`) and the tactic's steps. Its head carries **"Karte
+  daneben"** (`push` in `lib/raidplan/sheetLayout.ts`, on by default, remembered): on, the map gets narrower and stays
+  whole beside the panel (`.is-push`, the stage keeps `--rp-side` free on the right, which "Deine Aufgaben" and its drag
+  respect too); off, the panel lies over the map's right side. Only where the stage is at least 900px wide (below, and
+  on a phone, the panel always lies over the map). The panel body is the CSS container `rp-tables`: under 560px of
+  its own width the tank and group heal tables stack as on a phone (`@container` in `canvas.css`), so there is no
+  sideways scrollbar.
 - A section **without a map** (Allgemein, "Karte aus") has no stage: card and tables stand in the page's flow
   (`.rp-sheet-flat`).
 

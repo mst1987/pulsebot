@@ -59,8 +59,10 @@ export default function MineCard({ boss, ctx, roster, meIds, names, loggedIn, lo
         const stage = card && (card.offsetParent as HTMLElement | null);
         // on a phone stage.css pins the card to the bottom (no transform): nothing to drag there
         if (!card || !stage || window.getComputedStyle(card).transform === "none") return;
-        // the room the card can travel: the stage less the card and its margins (16px, 64px on the right for the tab; as in stage.css)
-        const free = { w: stage.clientWidth - 80 - card.offsetWidth, h: stage.clientHeight - 32 - card.offsetHeight };
+        // the room the card can travel: the stage less the card and its margins (16px; on the right --rp-side, the tab's 64px or the
+        // panel beside the map; as in stage.css)
+        const side = parseFloat(window.getComputedStyle(stage).getPropertyValue("--rp-side")) || 64;
+        const free = { w: stage.clientWidth - 16 - side - card.offsetWidth, h: stage.clientHeight - 32 - card.offsetHeight };
         drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, start: at, free };
         e.currentTarget.setPointerCapture(e.pointerId);
         setDragging(true);

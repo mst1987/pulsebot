@@ -2,20 +2,23 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SHEET_LAYOUT, dragMinePos, nudgeMinePos, parseSheetLayout } from "./sheetLayout";
 
 describe("parseSheetLayout", () => {
-    it("nothing stored: the boss strip on the left, the tables closed, the card in its corner", () => {
+    it("nothing stored: the boss strip on the left, the tables closed and beside the map, the card in its corner", () => {
         expect(parseSheetLayout(null)).toEqual(DEFAULT_SHEET_LAYOUT);
-        expect(DEFAULT_SHEET_LAYOUT).toEqual({ strip: "left", allTasks: false, mine: null });
+        expect(DEFAULT_SHEET_LAYOUT).toEqual({ strip: "left", allTasks: false, push: true, mine: null });
     });
     it("a visitor who switched the strip off keeps it off", () => {
         expect(parseSheetLayout(JSON.stringify({ strip: "off" })).strip).toBe("off");
     });
     it("takes a known strip mode and the tables' switch", () => {
-        expect(parseSheetLayout(JSON.stringify({ strip: "left", allTasks: true }))).toEqual({ strip: "left", allTasks: true, mine: null });
+        expect(parseSheetLayout(JSON.stringify({ strip: "left", allTasks: true }))).toEqual({ strip: "left", allTasks: true, push: true, mine: null });
         expect(parseSheetLayout(JSON.stringify({ strip: "top" })).strip).toBe("top");
+    });
+    it("a visitor who wants the tables over the map keeps that", () => {
+        expect(parseSheetLayout(JSON.stringify({ push: false })).push).toBe(false);
     });
     it("broken or unknown values fall back to the default", () => {
         expect(parseSheetLayout("{nope")).toEqual(DEFAULT_SHEET_LAYOUT);
-        expect(parseSheetLayout(JSON.stringify({ strip: "right", allTasks: "yes" }))).toEqual(DEFAULT_SHEET_LAYOUT);
+        expect(parseSheetLayout(JSON.stringify({ strip: "right", allTasks: "yes", push: 1 }))).toEqual(DEFAULT_SHEET_LAYOUT);
     });
     it("takes the card's place, clamped to the stage; a broken one is the corner again", () => {
         expect(parseSheetLayout(JSON.stringify({ mine: { x: 0.5, y: 0.25 } })).mine).toEqual({ x: 0.5, y: 0.25 });

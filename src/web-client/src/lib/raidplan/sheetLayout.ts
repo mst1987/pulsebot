@@ -1,5 +1,6 @@
 // How one visitor lays out the sheet's stage (/p/<token>), remembered in this browser (never in the plan): whether the boss strip
-// shows (off, over the map, or beside it), whether "Alle Einteilungen" stands open, and where "Deine Aufgaben" floats over the map.
+// shows (off, over the map, or beside it), whether "Alle Einteilungen" stands open and makes the map narrower or lies over it, and
+// where "Deine Aufgaben" floats over the map.
 // Pure parsing and the card's drag math; the hook is hooks/useSheetLayout.ts.
 
 /** Where the extra boss strip stands: not at all, as a row under the bar, or as a column left of the map. */
@@ -10,9 +11,10 @@ export type StripMode = "off" | "top" | "left";
  * the bottom at the bottom). null = the default corner, bottom left.
  */
 export type MinePos = { x: number; y: number };
-export type SheetLayout = { strip: StripMode; allTasks: boolean; mine: MinePos | null };
+/** `push`: an open "Alle Einteilungen" stands beside the map (the map gets narrower and stays whole) instead of over its right side */
+export type SheetLayout = { strip: StripMode; allTasks: boolean; push: boolean; mine: MinePos | null };
 
-export const DEFAULT_SHEET_LAYOUT: SheetLayout = { strip: "left", allTasks: false, mine: null };
+export const DEFAULT_SHEET_LAYOUT: SheetLayout = { strip: "left", allTasks: false, push: true, mine: null };
 export const STRIP_MODES: StripMode[] = ["off", "top", "left"];
 /** the card's default corner: bottom left */
 export const MINE_HOME: MinePos = { x: 0, y: 1 };
@@ -29,6 +31,7 @@ export function parseSheetLayout(raw: string | null): SheetLayout {
     const out = { ...DEFAULT_SHEET_LAYOUT };
     if (o && STRIP_MODES.indexOf(o.strip as StripMode) >= 0) out.strip = o.strip as StripMode;
     if (o && typeof o.allTasks === "boolean") out.allTasks = o.allTasks;
+    if (o && typeof o.push === "boolean") out.push = o.push;
     const m = o ? (o.mine as Record<string, unknown> | null) : null;
     if (m && typeof m === "object" && isNum(m.x) && isNum(m.y)) out.mine = { x: clamp01(m.x), y: clamp01(m.y) };
     return out;
