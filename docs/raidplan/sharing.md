@@ -44,7 +44,12 @@ Redesign", sketch 3). The page is exactly the window (`.rp-sheet`, `styles/raidp
 - **"Deine Aufgaben"** (`stage/MineCard.tsx`) floats at the lower left: the visitor's character and group, "Du
   machst" (his own rows, `MineBlocks`) or "Bei diesem Boss hast du keine eigene Aufgabe.", "Wirkt auf dich", and
   quick links to the other sections where he has a task of his own. It folds to its head (folded from the start
-  on a phone). Without a login it is the login hint, outside the plan a single sentence.
+  on a phone). Without a login it is the login hint, outside the plan a single sentence. The visitor **drags it by
+  its head** anywhere over the map (arrow keys on the grip, Pos1 or a double click on the head sends it home); the
+  place is a share of the free room (`MinePos` in `lib/raidplan/sheetLayout.ts`, CSS `--mx`/`--my` with a translate
+  by the card's own size), so it stays inside the map on any window and when it folds, and it is kept in this
+  browser with the rest of the layout (`eh.raidplan.sheetLayout`). On a phone it is pinned to the bottom. Its rows
+  wrap inside the card (no shared four-column grid), so nothing sticks out and there is no sideways scrollbar.
 - **"Alle Aufgaben"** is a tab on the right edge (and the switch "Alle Einteilungen" in the bar); it opens `stage/TasksPanel.tsx` over the map: the organiser's
   note, `ReadTables` without the personal part (`personal={false}`) and the tactic's steps.
 - A section **without a map** (Allgemein, "Karte aus") has no stage: card and tables stand in the page's flow

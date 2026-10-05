@@ -120,6 +120,41 @@ describe("Deine Aufgaben", () => {
         expect(card()).toHaveTextContent("Wirkt auf dich");
     });
 
+    it("moves with the arrow keys on its grip, remembers the place, and goes home on Home or a double click", async () => {
+        const first = await open();
+        expect(card().style.getPropertyValue("--mx")).toBe("0");
+        expect(card().style.getPropertyValue("--my")).toBe("1");
+        within(card()).getByRole("button", { name: "Deine Aufgaben verschieben" }).focus();
+        await userEvent.keyboard("{ArrowRight}{ArrowRight}{ArrowUp}");
+        expect(card().style.getPropertyValue("--mx")).toBe("0.1");
+        expect(card().style.getPropertyValue("--my")).toBe("0.95");
+        expect(JSON.parse(window.localStorage.getItem("eh.raidplan.sheetLayout") || "{}").mine).toEqual({ x: 0.1, y: 0.95 });
+        // a reload keeps the place
+        first.unmount();
+        await open();
+        expect(card().style.getPropertyValue("--mx")).toBe("0.1");
+        within(card()).getByRole("button", { name: "Deine Aufgaben verschieben" }).focus();
+        await userEvent.keyboard("{Home}");
+        expect(card().style.getPropertyValue("--mx")).toBe("0");
+        await userEvent.keyboard("{ArrowRight}");
+        await userEvent.dblClick(within(card()).getByText("Dvra"));
+        expect(card().style.getPropertyValue("--mx")).toBe("0");
+        expect(card().style.getPropertyValue("--my")).toBe("1");
+    });
+
+    it("the fold button's double click does not send it home", async () => {
+        await open();
+        within(card()).getByRole("button", { name: "Deine Aufgaben verschieben" }).focus();
+        await userEvent.keyboard("{ArrowRight}");
+        await userEvent.dblClick(within(card()).getByRole("button", { name: "Deine Aufgaben einklappen" }));
+        expect(card().style.getPropertyValue("--mx")).toBe("0.05");
+    });
+
+    it("a section without a map shows the card in the flow, without a grip", async () => {
+        await open("general");
+        expect(within(card()).queryByRole("button", { name: "Deine Aufgaben verschieben" })).toBeNull();
+    });
+
     it("without a login it is the login hint", async () => {
         await open("bt/najentus", "");
         const note = screen.getByRole("region", { name: "Meine Aufgaben" });

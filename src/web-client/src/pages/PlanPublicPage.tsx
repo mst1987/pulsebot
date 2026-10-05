@@ -4,7 +4,7 @@ import { useVisiblePoll } from "../hooks/useVisiblePoll";
 import { hasSectionDeepLink, sectionFromUrl, showSectionInUrl } from "../lib/raidplan/sectionUrl";
 import { useBoardView } from "../hooks/useBoardView";
 import { useSheetLayout } from "../hooks/useSheetLayout";
-import type { StripMode } from "../lib/raidplan/sheetLayout";
+import type { MinePos, StripMode } from "../lib/raidplan/sheetLayout";
 import { viewFromSaved } from "../lib/raidplan/boardView";
 import MiniMap from "../components/raidplan/MiniMap";
 import { useViewPrefs } from "../hooks/useViewPrefs";
@@ -118,6 +118,8 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const panel = layout.allTasks;
     const togglePanel = useCallback(() => setLayout({ allTasks: !panel }), [setLayout, panel]);
     const setStrip = useCallback((strip: StripMode) => setLayout({ strip }), [setLayout]);
+    // where "Deine Aufgaben" floats over the map, dragged there by this visitor
+    const setMinePos = useCallback((mine: MinePos | null) => setLayout({ mine }), [setLayout]);
     // "Deine Aufgaben" starts folded on a phone, where it would cover half the map
     const [mineFolded, setMineFolded] = useState(() => window.innerWidth < 720);
     const bv = useBoardView({ touchPan: true });
@@ -200,6 +202,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
         <MineCard
             boss={boss} ctx={ctx} roster={planned} meIds={data.meIds} names={names} loggedIn={!!data.me} loginHref={loginHref}
             elsewhere={elsewhere} label={label} onPick={progress.choose} collapsed={hasMap && mineFolded} onToggle={() => setMineFolded((v) => !v)} inline={!hasMap}
+            pos={layout.mine} onMove={setMinePos}
         />
     );
     const tasks = (

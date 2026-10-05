@@ -100,9 +100,17 @@
 .rp-sheet-stage .rp-minimap { left: auto; right: 64px; bottom: 70px; }
 .rp-sheet-stage.is-panel .rp-minimap { right: calc(min(480px, 100%) + 16px); }
 
-/* "Deine Aufgaben" */
-.rp-sheet-mine { position: absolute; left: 16px; bottom: 16px; z-index: 8; width: min(400px, calc(100% - 96px)); max-height: calc(100% - 32px); display: flex; flex-direction: column; box-sizing: border-box; border: 2px solid var(--accent); border-radius: 14px; background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--panel); box-shadow: 0 14px 36px var(--shade-50); overflow: hidden; }
-.rp-sheet-mine.is-inline { position: static; width: 100%; max-height: none; box-shadow: none; }
+/* "Deine Aufgaben": --mx/--my are its share of the free room (lib/raidplan/sheetLayout.ts MinePos, 0 0 = top left, 1 1 = bottom
+   right); the translate by the card's own size keeps every share inside the stage without measuring the card. 16px margin, 64px on
+   the right so the card never covers the "Alle Aufgaben" tab (MineCard.tsx counts the same margins) */
+.rp-sheet-mine { position: absolute; left: calc(16px + (100% - 80px) * var(--mx, 0)); top: calc(16px + (100% - 32px) * var(--my, 1)); transform: translate(calc(var(--mx, 0) * -100%), calc(var(--my, 1) * -100%)); z-index: 8; width: min(400px, calc(100% - 96px)); max-height: calc(100% - 32px); display: flex; flex-direction: column; box-sizing: border-box; border: 2px solid var(--accent); border-radius: 14px; background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--panel); box-shadow: 0 14px 36px var(--shade-50); overflow: hidden; }
+.rp-sheet-mine.is-inline { position: static; width: 100%; max-height: none; box-shadow: none; transform: none; }
+.rp-sheet-mine.is-movable .rp-sheet-mine-head { cursor: grab; touch-action: none; user-select: none; }
+.rp-sheet-mine.is-dragging { box-shadow: 0 20px 48px var(--shade-55); }
+.rp-sheet-mine.is-dragging .rp-sheet-mine-head { cursor: grabbing; }
+.rp-sheet-mine-grip { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 36px; margin: 0 -6px 0 -8px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: inherit; }
+.rp-sheet-mine-grip:hover { color: var(--accent); }
+.rp-sheet-mine-grip:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
 .rp-sheet-mine.is-note { padding: 14px 16px; border-width: 1px; border-color: var(--line); background: var(--panel); }
 .rp-sheet-mine.is-note p { margin: 0; font-size: 14px; }
 .rp-sheet-mine-head { flex: none; display: flex; align-items: center; gap: 11px; padding: 12px 12px 12px 16px; }
@@ -111,7 +119,7 @@
 .rp-sheet-mine-who .rp-kicker { color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rp-sheet-mine-name { font-size: 18px; font-weight: 800; }
 .rp-sheet-mine-group { flex: none; display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; }
-.rp-sheet-mine-body { overflow-y: auto; padding: 4px 16px 14px; display: flex; flex-direction: column; gap: 12px; }
+.rp-sheet-mine-body { overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; padding: 4px 16px 14px; display: flex; flex-direction: column; gap: 12px; }
 .rp-sheet-mine-sec { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; }
 .rp-sheet-mine-sec + .rp-sheet-mine-sec { border-top: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); }
 /* the blocks inside the card without a box of their own (the card is the box); the receiver in the visitor's violet, not the old amber */
@@ -119,12 +127,21 @@
 .rp-sheet-mine .rp-mineblk + .rp-mineblk { margin-top: 10px; }
 .rp-sheet-mine .rp-mineblk h3 { margin: 0 0 6px; }
 .rp-sheet-mine .rp-recipient { background: var(--accent); color: var(--accent-ink); }
+/* the card is narrower than the page's tables: a row is not the shared four-column grid (whose widest row pushed the others out
+   of the card) but wraps on its own — icon, who, arrow, receiver; the receiver goes under when it does not fit, the note always */
+.rp-sheet-mine .rp-mgrid { grid-template-columns: minmax(0, 1fr); }
+.rp-sheet-mine .rp-mcard { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; padding: 7px 10px; }
+.rp-sheet-mine .rp-mcard-who, .rp-sheet-mine .rp-mcard-to { flex: 0 1 auto; overflow-wrap: anywhere; }
+.rp-sheet-mine .rp-mcard-note { flex: 1 1 100%; padding-left: 46px; box-sizing: border-box; overflow-wrap: anywhere; }
+.rp-sheet-mine .rp-mcard-note:empty { display: none; }
+.rp-sheet-mine .rp-mcard-arrow { flex: none; }
 .rp-sheet-mine-none { margin: 0; font-size: 14.5px; color: var(--muted); }
 .rp-sheet-mine-else { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); }
 .rp-sheet-mine-links { display: flex; flex-wrap: wrap; gap: 6px; }
-.rp-sheet-mine-links button { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px 0 4px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.rp-sheet-mine-links button { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; height: 36px; padding: 0 12px 0 4px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
 .rp-sheet-mine-links button:hover { border-color: var(--accent); }
-.rp-sheet-mine-links img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+.rp-sheet-mine-links img { flex: none; width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+.rp-sheet-mine-links span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .rp-sheet-iconbtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); color: var(--text); cursor: pointer; }
 .rp-sheet-iconbtn:hover { border-color: var(--accent); }
 
@@ -170,7 +187,13 @@
     .rp-sheet-menubtn { padding: 0 10px; font-size: 13px; }
     .rp-sheet-groups { overflow-x: auto; }
     .rp-sheet-tools { margin-left: 0; }
-    .rp-sheet-mine { left: 8px; right: 8px; bottom: 8px; width: auto; }
+    /* on a phone the card spans the width at the bottom and does not move (no room to put it anywhere else) */
+    .rp-sheet-mine { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; transform: none; }
+    .rp-sheet-mine.is-movable .rp-sheet-mine-head { cursor: default; touch-action: auto; }
+    .rp-sheet-mine-grip { display: none; }
+    .rp-sheet-mine .rp-mcard-arrow { transform: none; }
+    /* the open card lies over the tab rather than under it (its fold button stays reachable) */
+    .rp-sheet-tab { z-index: 7; }
     .rp-sheet-stage .rp-zoomctl { right: 8px; bottom: auto; top: 8px; }
     .rp-sheet-tab { top: 60px; transform: none; padding: 12px 8px; }
 }
