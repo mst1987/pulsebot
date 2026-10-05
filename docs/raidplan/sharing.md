@@ -38,7 +38,7 @@ Redesign", sketch 3). The page is exactly the window (`.rp-sheet`, `styles/raidp
   Links" at the foot of the section menu adds the old chips back for whoever wants every boss in sight
   (`stage/BossStrip.tsx`): one chip per section in runs of one instance, the accent dot where the visitor has a task
   of his own (#503), the check where the log shows the boss killed (#534), as a row under the bar or a column left
-  of the map (`.rp-sheet-main`). On a phone both are a scrolling row. Off by default.
+  of the map (`.rp-sheet-main`). On a phone both are a scrolling row. Left of the map by default (Oct 2026; a visitor who chose another mode keeps it).
 - **The map** fills the rest of the window as a whole (`PlanBoard` with `maxHeight` = the stage's measured
   height), on a blurred copy of itself; zoom and the view menu float at its lower right.
 - **"Deine Aufgaben"** (`stage/MineCard.tsx`) floats at the lower left: the visitor's character and group, "Du

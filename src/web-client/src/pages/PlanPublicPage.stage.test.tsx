@@ -203,10 +203,14 @@ describe("the visitor's layout (remembered in this browser)", () => {
         expect(screen.queryByRole("complementary")).toBeNull();
     });
 
-    it("the boss strip shows every section as a chip, over the map or beside it, and picks one", async () => {
+    it("the boss strip shows every section as a chip, left of the map by default, over it or off, and picks one", async () => {
         const r = await open();
-        expect(screen.queryByRole("navigation", { name: "Boss-Leiste" })).toBeNull();
+        // by default the strip stands left of the map, in the page's main row
+        expect(screen.getByRole("navigation", { name: "Boss-Leiste" })).toHaveClass("is-left");
+        expect(r.container.querySelector(".rp-sheet-main > .rp-sheet-strip.is-left + .rp-sheet-stage")).not.toBeNull();
         await userEvent.click(screen.getByRole("button", { name: /Alle 4 Abschnitte/ }));
+        await userEvent.click(screen.getByRole("radio", { name: "Aus" }));
+        expect(screen.queryByRole("navigation", { name: "Boss-Leiste" })).toBeNull();
         await userEvent.click(screen.getByRole("radio", { name: "Oben" }));
         const strip = screen.getByRole("navigation", { name: "Boss-Leiste" });
         expect(strip).toHaveClass("is-top");
@@ -218,7 +222,5 @@ describe("the visitor's layout (remembered in this browser)", () => {
         await userEvent.click(screen.getByRole("button", { name: /Alle 4 Abschnitte/ }));
         await userEvent.click(screen.getByRole("radio", { name: "Links" }));
         expect(screen.getByRole("navigation", { name: "Boss-Leiste" })).toHaveClass("is-left");
-        // the strip stands left of the map, in the page's main row
-        expect(r.container.querySelector(".rp-sheet-main > .rp-sheet-strip.is-left + .rp-sheet-stage")).not.toBeNull();
     });
 });
