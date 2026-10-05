@@ -454,7 +454,13 @@ export function missingConnections(data: SettingsLike, tokens: unknown[] | null,
 // ---- Discord-Server: several event servers, each with its own overview target, plus the talk server (#251, #361) ----
 
 export type ServerCardLike = { connected: boolean; permissions: { label: string; ok: boolean }[] | null; missing: string[] };
-export type ServerFields = { eventGuilds: EventGuildEntry[]; talkGuildId: string; talkPingChannelId: string; signupNoteChannelId: string };
+export type ServerFields = {
+    eventGuilds: EventGuildEntry[];
+    talkGuildId: string;
+    talkPingChannelId: string;
+    signupNoteChannelId: string;
+    guildBankChannelId: string;
+};
 export type OverlapLike = { eventCount: number | null; talkCount: number | null; both: number | null; error: string | null };
 
 /**
@@ -488,7 +494,8 @@ export function serverIssues(servers: { events: ServerCardLike[]; talk: ServerCa
  * body sent is already clean: every event-server entry's fields trimmed, a
  * half-set overview target (guild without channel or the reverse) cleared to
  * "", and a talk server equal to one of the event servers cleared to "" (it is
- * no second server). Blank rows (no guild picked yet) are dropped. The note
+ * no second server). Blank rows (no guild picked yet) are dropped. The guild
+ * bank channel, like the note channel, may sit on any server. The note
  * channel may sit on any server and is kept as it is.
  */
 export function discordServersPatch(fields: ServerFields): { discordServers: ServerFields } {
@@ -514,6 +521,7 @@ export function discordServersPatch(fields: ServerFields): { discordServers: Ser
             talkGuildId,
             talkPingChannelId: v(fields.talkPingChannelId),
             signupNoteChannelId: v(fields.signupNoteChannelId),
+            guildBankChannelId: v(fields.guildBankChannelId),
         },
     };
 }

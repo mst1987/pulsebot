@@ -12,6 +12,7 @@ const discord = require("../../services/discord/discord");
 const guildRoles = require("../../services/discord/guildRoles");
 const roleSync = require("../../services/discord/roleSync");
 const languageChange = require("../../services/discord/languageChange");
+const availabilityPanel = require("../../services/signups/availabilityPanel");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { normalizeLootSystem } = require("../../services/loot/lootSystem");
 const { lastReminderRun } = require("../events/reminders");
@@ -184,7 +185,10 @@ const ROLE_SYNC_KEYS = ["roleSync"];
 // Everything a non-admin settings user may neither read nor write.
 const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS];
 
-const DISCORD_SERVER_FIELDS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId"];
+const DISCORD_SERVER_FIELDS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId", "guildBankChannelId"];
+
+/** The guild bank's orga channel of a config ("" = none). */
+const guildBankOf = (config) => String(((config && config.discordServers) || {}).guildBankChannelId || "");
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
 const getSettings = withUser({}, async ({ user, req, res }) => {
@@ -511,10 +515,14 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.categoryReminders !== undefined) {
         partial.categoryReminders = body.categoryReminders && typeof body.categoryReminders === "object" ? body.categoryReminders : {};
     }
-    const langBefore = getConfig().botLanguage;
+    const before = getConfig();
+    const langBefore = before.botLanguage;
     const saved = saveConfig(partial);
     // A new server language redraws the bot's public messages (not awaited).
     if (saved.botLanguage !== langBefore) void languageChange.afterServerLangChange({ config: saved });
+    // The guild bank area of the raider organizers comes and goes with its channel:
+    // redraw them now instead of at the next five-minute sweep (not awaited, never throws).
+    else if (guildBankOf(saved) !== guildBankOf(before)) void availabilityPanel.refreshPanels({ config: saved }).catch(() => {});
     ok(res, { config: publicConfig(saved) });
 });
 

@@ -40,6 +40,19 @@ describe("utils/signup/botEnglish", () => {
         expect(toEnglish("Höchstens 10 Charaktere.")).toBe("At most 10 characters.");
     });
 
+    it("translates every refusal of the guild bank", () => {
+        const store = fs.readFileSync(path.join(__dirname, "../../../src/stores/guildBankStore.js"), "utf8");
+        const service = fs.readFileSync(path.join(__dirname, "../../../src/services/signups/guildBank.js"), "utf8");
+        const sentences = [...`${store}\n${service}`.matchAll(/(?:error: |NOT_SET_UP = )"([^"`$]+\.)"/g)].map((m) => m[1]);
+        expect(sentences.length).toBeGreaterThan(5);
+        for (const s of sentences) {
+            const en = toEnglish(s);
+            expect({ s, en }).toEqual({ s, en: expect.not.stringMatching(GERMAN) });
+        }
+        expect(toEnglish("Die Menge muss eine ganze Zahl von 1 bis 9999 sein.")).toBe("The amount must be a whole number from 1 to 9999.");
+        expect(toEnglish("⚠️ Höchstens 5 offene Anfragen – warte, bis die Orga eine erledigt hat.")).toBe("⚠️ At most 5 open requests – wait until the orga has handled one.");
+    });
+
     it("translates every fixed refusal of absences and attendances", () => {
         const store = fs.readFileSync(path.join(__dirname, "../../../src/stores/availabilityStore.js"), "utf8");
         const service = fs.readFileSync(path.join(__dirname, "../../../src/services/signups/availability.js"), "utf8");

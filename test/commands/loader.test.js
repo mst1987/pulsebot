@@ -9,7 +9,7 @@ const { tempStoreFile } = require("../helpers/tempStore");
 
 // Components that carry their own `group`: the first click of a flow nobody
 // starts with a slash command. Anything else with a group must be a command.
-const COMPONENT_ENTRY_POINTS = ["apply", "event-btn", "event-join", "event-signup", "talk-signup"];
+const COMPONENT_ENTRY_POINTS = ["apply", "event-btn", "event-join", "event-signup", "guildbank", "talk-signup"];
 
 const modules = loadCommandModules();
 const definitions = commandDefinitions(modules);

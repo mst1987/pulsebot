@@ -45,6 +45,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/event-series.json` | `eventSeriesStore.js` | Serien je Kategorie, ihre Läufe je Datum, letzter Lauf | nein |
 | `settings/reminders-sent.json` | `reminderStore.js` | Welche Erinnerung je Event schon raus ist | nein |
 | `settings/availability.json` | `availabilityStore.js` | Ab- und Anwesenheiten der Raider (Zeitraum, Grund bzw. Charakter, je Raid angewandt) und die Panels je Raid-Kategorie | ja (Abwesenheitsgründe) |
+| `settings/guild-bank.json` | `guildBankStore.js` | Gildenbank-Anfragen aus der Raid-Zentrale: `{ requests: [{ id, userId, userName, categoryId, item, amount, purpose, status: open/done/rejected, reason, createdAt, handledBy, handledByName, handledAt, channelId, messageId }] }`; erledigte fallen 90 Tage nach dem Erledigen weg | nein |
 | `settings/talk-overview.json` | `talkOverviewStore.js` | Je Event-Server: Kanal, Nachricht und Hash der Raid-Übersicht | nein |
 | `settings/event-loot-system.json` | `eventLootSystemStore.js` | Loot-System je Event (z. B. softres) | nein |
 | `settings/event-sheets.json` | `eventSheetStore.js` | Welche Events ins Google-Raidsheet geschrieben wurden | nein |

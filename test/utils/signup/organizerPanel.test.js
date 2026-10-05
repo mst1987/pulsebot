@@ -109,6 +109,27 @@ describe("organizerPayload", () => {
         expect(payload.flags).toBe(V2_FLAG);
         expect(customIds(payload)).toEqual(["availability:a:", "availability:p:", "availability:l:", "availability:o:"]);
     });
+
+    it("zeigt die Gildenbank nur mit gesetztem Kanal, zwischen Auswertung und Links", () => {
+        const links = [{ label: "WCL", url: "https://www.warcraftlogs.com/guild/1" }];
+        expect(customIds(organizerPayload({ ...base, links }))).not.toContain("availability:b:cat1");
+        expect(texts(organizerPayload(base)).join("\n")).not.toContain("Gildenbank");
+
+        const payload = organizerPayload({ ...base, links, guildBank: true });
+        expect(customIds(payload)).toEqual(["availability:r:cat1", "availability:a:cat1", "availability:p:cat1", "availability:l:cat1", "availability:o:cat1", "availability:b:cat1"]);
+        const nodes = all(payload);
+        const bank = nodes.filter((c) => c.type === 9).pop();
+        expect(bank.components[0].content).toBe("🏦 **Gildenbank**\n-# Mats, Tränke oder Verzauberungen anfragen – die Orga meldet sich per DM");
+        expect(bank.accessory).toMatchObject({ type: 2, style: 2, custom_id: "availability:b:cat1", label: "Anfrage stellen" });
+        const evaluation = nodes.findIndex((c) => c.type === 10 && c.content.includes("Deine Auswertung"));
+        const linksHead = nodes.findIndex((c) => c.type === 10 && c.content.includes("**Links**"));
+        expect(nodes.indexOf(bank)).toBeGreaterThan(evaluation);
+        expect(nodes.indexOf(bank)).toBeLessThan(linksHead);
+
+        const en = organizerPayload({ ...base, guildBank: true, lang: "en" });
+        expect(buttons(en).map((b) => b.label).pop()).toBe("Make a request");
+        expect(all(en).filter((c) => c.type === 9).pop().components[0].content).toContain("**Guild bank**");
+    });
 });
 
 describe("myRaidPayload", () => {

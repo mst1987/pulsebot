@@ -52,8 +52,9 @@ const CONFIG_DEFAULTS = {
     // talk server for pings and sign-up-per-bot. All empty = no server
     // configured yet. `signupNoteChannelId` is where the messages of
     // "Vielleicht" / "Absagen" land (src/services/signups/signupNotes.js) — a channel on
-    // any server.
-    discordServers: { eventGuilds: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "" },
+    // any server. `guildBankChannelId` is where the guild bank requests of every
+    // raider organizer land (src/services/signups/guildBank.js); empty = no guild bank.
+    discordServers: { eventGuilds: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "", guildBankChannelId: "" },
     // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
     // RAIDHELPER_API_KEY stays in .env — it's a real secret, this id isn't.
     raidhelperServerId: raidhelperServerId || "",
@@ -292,7 +293,7 @@ function normalizeCategoryReminders(raw) {
     return out;
 }
 
-const DISCORD_SERVER_KEYS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId"];
+const DISCORD_SERVER_KEYS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId", "guildBankChannelId"];
 // A sanity bound, not a real product constraint.
 const MAX_EVENT_GUILDS = 10;
 const EVENT_GUILD_LABEL_MAX = 60;
@@ -342,7 +343,7 @@ function normalizeEventGuilds(list) {
 
 /**
  * Normalise the servers block to `{ eventGuilds, talkGuildId,
- * talkPingChannelId, signupNoteChannelId }`. The three scalars stay single
+ * talkPingChannelId, signupNoteChannelId, guildBankChannelId }`. The scalars stay single
  * snowflakes or ""; `eventGuilds` is the list normalised above. A talk server
  * equal to one of the event servers is no second server: it is cleared, so
  * "one server for everything" is stored the same way however it was entered.

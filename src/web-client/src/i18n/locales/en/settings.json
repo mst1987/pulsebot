@@ -484,7 +484,11 @@
         "noSecondOption": "— no second server —",
         "pingTip": "Reminders & pings",
         "pingSub": "Channel for reminders and pings. Whoever is not on the server gets them as a DM.",
-        "noPost": "— do not post —"
+        "noPost": "— do not post —",
+        "bankTip": "Channel for guild bank requests",
+        "bankTipSub": "The requests from the raid hub land here; empty = no guild bank button.",
+        "bankRow": "Guild bank",
+        "noBank": "— no guild bank —"
     },
     "connections": {
         "crumb": "{crumb} · {ready} of {total} set up",

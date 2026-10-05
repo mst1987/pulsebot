@@ -138,6 +138,12 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                                         <dd>{channelName(allChannels, data.discordServers.signupNoteChannelId)}</dd>
                                     </div>
                                 )}
+                                {i === 0 && (
+                                    <div>
+                                        <dt tabIndex={0} data-tip={t("settings.discordServers.bankTip")} data-tip-sub={t("settings.discordServers.bankTipSub")}>{t("settings.discordServers.bankRow")}</dt>
+                                        <dd>{channelName(allChannels, data.discordServers.guildBankChannelId)}</dd>
+                                    </div>
+                                )}
                                 {hasOverview && (
                                     <TalkOverviewRow
                                         guildId={card.id}
@@ -418,6 +424,10 @@ function ServersModal({ data, onClose, onSaved }: {
                     <ChannelPicker id="srv-note" value={fields.signupNoteChannelId} channels={notePicks} placeholder={t("settings.discordServers.noPost")}
                         onChange={(signupNoteChannelId) => setFields({ ...fields, signupNoteChannelId })} />
                 </div>
+                <div className="dlg-field">
+                    <FieldLabel htmlFor="srv-bank" tip={t("settings.discordServers.bankTip")} tipSub={t("settings.discordServers.bankTipSub")}>{t("settings.discordServers.bankTip")}</FieldLabel>
+                    <ChannelPicker id="srv-bank" value={fields.guildBankChannelId} channels={notePicks} placeholder={t("settings.discordServers.noBank")}
+                        onChange={(guildBankChannelId) => setFields({ ...fields, guildBankChannelId })} />                </div>
             </div>
         </Modal>
     );

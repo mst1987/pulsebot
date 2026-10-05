@@ -14,6 +14,8 @@
 //   availability:a|p|l:<categoryId>   absence, attendance, own entries (availabilityDialog.js)
 //   availability:r:<categoryId>       "My raid"       → myRaidPayload
 //   availability:o:<categoryId>       "Evaluation"    → myReportPayload
+//   availability:b:<categoryId>       "Make a request" → the guild bank modal (utils/signup/guildBankPost.js),
+//                                     only while a guild bank channel is set
 const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SectionBuilder, SeparatorBuilder,
     SeparatorSpacingSize, TextDisplayBuilder,
@@ -59,9 +61,10 @@ function shortWhen(seconds) {
  * @param {{ startTime: number, attending: number } | null} [o.nextRaid] the next own raid of the category
  * @param {{ label: string, url: string }[]} [o.links] the category's links (Einstellungen → Kategorien)
  * @param {object} [o.emojis] the bot's application emojis by name (appEmojis.appEmojiMap())
+ * @param {boolean} [o.guildBank] whether the guild bank area shows (a guild bank channel is set)
  * @returns {{ flags: number, components: object[], embeds: [] }} API JSON; `embeds: []` clears an old embed panel on edit
  */
-function organizerPayload({ categoryId = "", categoryName = "", lang = "de", nextRaid = null, links = [], emojis = {} } = {}) {
+function organizerPayload({ categoryId = "", categoryName = "", lang = "de", nextRaid = null, links = [], emojis = {}, guildBank = false } = {}) {
     const category = plainCategoryName(categoryName);
     const vars = { category };
     const c = new ContainerBuilder().setAccentColor(COLOR_PANEL);
@@ -89,6 +92,14 @@ function organizerPayload({ categoryId = "", categoryName = "", lang = "de", nex
         `📊 **${tr(lang, "Your evaluation")}**\n-# ${tr(lang, "Your latest raid, your points, your characters")}`,
         new ButtonBuilder().setCustomId(id("o", categoryId)).setLabel(tr(lang, "Evaluation")).setStyle(ButtonStyle.Secondary),
     ));
+
+    if (guildBank) {
+        c.addSeparatorComponents(line());
+        c.addSectionComponents(section(
+            `🏦 **${tr(lang, "Guild bank")}**\n-# ${tr(lang, "Request mats, potions or enchants – the orga will get back to you by DM")}`,
+            new ButtonBuilder().setCustomId(id("b", categoryId)).setLabel(tr(lang, "Make a request")).setStyle(ButtonStyle.Secondary),
+        ));
+    }
 
     const usable = (links || []).filter((l) => l && l.label && l.url).slice(0, MAX_LINKS);
     if (usable.length) {

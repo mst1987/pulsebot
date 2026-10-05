@@ -12,6 +12,7 @@
         "talkGuildId": "",
         "talkPingChannelId": "",
         "signupNoteChannelId": "",
+        "guildBankChannelId": "",
         "eventGuilds": []
       },
       "raidhelperServerId": "",
@@ -84,6 +85,7 @@
         "talkGuildId": "",
         "talkPingChannelId": "",
         "signupNoteChannelId": "",
+        "guildBankChannelId": "",
         "eventGuilds": []
       },
       "raidhelperServerId": "",
@@ -188,6 +190,7 @@
         "talkGuildId": "1100000000000000002",
         "talkPingChannelId": "1100000000000000004",
         "signupNoteChannelId": "1100000000000000005",
+        "guildBankChannelId": "",
         "eventGuilds": [
           {
             "guildId": "1100000000000000001",
@@ -327,6 +330,7 @@
         "talkGuildId": "1100000000000000002",
         "talkPingChannelId": "1100000000000000004",
         "signupNoteChannelId": "",
+        "guildBankChannelId": "",
         "eventGuilds": [
           {
             "guildId": "1100000000000000001",
@@ -425,6 +429,7 @@
         "talkGuildId": "1100000000000000002",
         "talkPingChannelId": "",
         "signupNoteChannelId": "",
+        "guildBankChannelId": "",
         "eventGuilds": [
           {
             "guildId": "1100000000000000001",
@@ -576,6 +581,7 @@
         "talkGuildId": "",
         "talkPingChannelId": "",
         "signupNoteChannelId": "",
+        "guildBankChannelId": "",
         "eventGuilds": []
       },
       "raidhelperServerId": "",
@@ -678,6 +684,7 @@
         "talkGuildId": "",
         "talkPingChannelId": "",
         "signupNoteChannelId": "",
+        "guildBankChannelId": "",
         "eventGuilds": []
       },
       "raidhelperServerId": "",
@@ -780,6 +787,7 @@
         "talkGuildId": "1100000000000000002",
         "talkPingChannelId": "",
         "signupNoteChannelId": "",
+        "guildBankChannelId": "",
         "eventGuilds": []
       },
       "raidhelperServerId": "",
@@ -861,6 +869,7 @@
         "talkGuildId": "",
         "talkPingChannelId": "",
         "signupNoteChannelId": "",
+        "guildBankChannelId": "",
         "eventGuilds": []
       },
       "raidhelperServerId": "",

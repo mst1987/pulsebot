@@ -10,6 +10,8 @@ jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/sign
 jest.mock("../../../src/services/discord/discord", () => ({
     ...require("../../helpers/signupMocks").discord(),
     sendDirectMessage: jest.fn(async () => ({ ok: true, messageId: "dm" })),
+    // the guild bank's orga post
+    postPayload: jest.fn(async () => ({ guildId: "g1", channelId: "900000", messageId: "m-bank", url: "" })),
 }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
@@ -17,6 +19,7 @@ const mocks = require("../../helpers/signupMocks");
 const discord = require("../../../src/services/discord/discord");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const store = require("../../../src/stores/availabilityStore");
+const bankStore = require("../../../src/stores/guildBankStore");
 const availability = require("../../../src/services/signups/availability");
 const organizer = require("../../../src/services/signups/organizer");
 const command = require("../../../src/commands/signup/availability");
@@ -31,11 +34,13 @@ const dayPlus = (n) => availability.dayOf(sec() + n * DAY);
 beforeAll(() => {
     profiles.useFile(tempStoreFile("eh-cmd-availability-profiles.json"));
     store.useFile(tempStoreFile("eh-cmd-availability.json"));
+    bankStore.useFile(tempStoreFile("eh-cmd-guild-bank.json"));
 });
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);
     store.useFile(null);
+    bankStore.useFile(null);
 });
 beforeEach(() => {
     profiles.reset();
@@ -269,5 +274,64 @@ describe("Raider-Organizer: Mein Raid und Auswertung", () => {
         } finally {
             spy.mockRestore();
         }
+    });
+});
+
+describe("Gildenbank", () => {
+    const BANK = { botLanguage: "en", discordServers: { guildBankChannelId: "900000" } };
+    beforeEach(() => {
+        for (const r of bankStore.listRequests()) bankStore.removeRequest(r.id);
+        discord.postPayload.mockClear();
+    });
+
+    it("Knopf ohne eingerichteten Kanal sagt es, statt das Modal zu öffnen", async () => {
+        const i = click("availability:b:cat1");
+        await command.execute(i);
+        expect(i.showModal).not.toHaveBeenCalled();
+        expect(replyPayload(i).flags).toBe(MessageFlags.Ephemeral);
+        expect(answerOf(replyPayload(i)).description).toBe("The guild bank is not set up right now.");
+    });
+
+    it("Knopf → Modal in der Sprache des Raiders → Absenden postet an die Orga und bestätigt", async () => {
+        mocks.access.config = BANK;
+        const btn = click("availability:b:cat1");
+        await command.execute(btn);
+        const modal = btn.showModal.mock.calls[0][0].toJSON();
+        expect(modal.custom_id).toBe("availability:mb:cat1");
+        expect(modal.title).toBe("Guild bank request");
+
+        const sent = submit("availability:mb:cat1", { item: "Super Mana Potion", amount: "12", purpose: "BT" });
+        await command.execute(sent);
+        expect(sent.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
+        const answer = answerOf(sent.editReply.mock.calls[0][0]);
+        expect(answer.title).toBe("✅ Request sent – the orga will get back to you by DM.");
+        expect(answer.description).toBe("**12× Super Mana Potion**\nFor: BT");
+        expect(discord.postPayload.mock.calls[0][0]).toBe("900000");
+        expect(discord.postPayload.mock.calls[0][1].embeds[0].title).toBe("🏦 Anfrage von tester");
+        expect(bankStore.listRequests()).toEqual([expect.objectContaining({ userId: ANNA, categoryId: "cat1", amount: 12, messageId: "m-bank" })]);
+    });
+
+    it("Fehler kommen auf Englisch zurück: Menge, Grenze von fünf offenen Anfragen", async () => {
+        mocks.access.config = BANK;
+        const bad = submit("availability:mb:cat1", { item: "Flask", amount: "viele" });
+        await command.execute(bad);
+        expect(answerOf(bad.editReply.mock.calls[0][0]).description).toBe("⚠️ The amount must be a whole number from 1 to 9999.");
+
+        for (let n = 0; n < 5; n++) await command.execute(submit("availability:mb:cat1", { item: "Flask", amount: "1" }));
+        const sixth = submit("availability:mb:cat1", { item: "Flask", amount: "1" });
+        await command.execute(sixth);
+        expect(answerOf(sixth.editReply.mock.calls[0][0]).description).toBe("⚠️ At most 5 open requests – wait until the orga has handled one.");
+        expect(discord.postPayload).toHaveBeenCalledTimes(5);
+    });
+
+    it("auf Deutsch für einen deutschen Raider", async () => {
+        mocks.access.config = { ...BANK, botLanguage: "de" };
+        const sent = submit("availability:mb:cat1", { item: "Flask", amount: "2" });
+        await command.execute(sent);
+        expect(answerOf(sent.editReply.mock.calls[0][0]).title).toBe("✅ Anfrage gesendet – die Orga meldet sich per DM.");
+        mocks.access.config = { botLanguage: "de" };
+        const stale = submit("availability:mb:cat1", { item: "Flask", amount: "2" });
+        await command.execute(stale);
+        expect(answerOf(stale.editReply.mock.calls[0][0]).description).toBe("⚠️ Die Gildenbank ist gerade nicht eingerichtet.");
     });
 });
