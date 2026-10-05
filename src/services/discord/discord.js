@@ -278,10 +278,26 @@ async function listHumanMembers(guildId) {
     }
 }
 
+// The pings are cards (Oct 2026, utils/discord/card.js): kind "warn", the mentions
+// as the card's first line — a mention in a container notifies like one in
+// `content` (tried on the dev server) — and the text under them. Aliased, so a
+// `card` import elsewhere in this file can never clash with it.
+const { card: pingCard, CARD_TEXT_LIMIT: PING_CARD_LIMIT } = require("../../utils/discord/card");
+
 /**
- * Ping the given users in a channel, asking them to sign up or off for an event.
- * The mentions live in the plain content so they actually notify; allowedMentions
- * is scoped to exactly those users.
+ * The ping as card parts: the mentions split so each card stays under Discord's
+ * 4000 characters of text (a mention costs about 22 — ~180 missing raiders would
+ * not fit one), the text on the last card. `[{ mentions, text }]`, at least one.
+ */
+function pingParts(users, body) {
+    const chunks = users.length ? mentionChunks(users.map((id) => `<@${id}>`), PING_CARD_LIMIT - body.length - 8) : [""];
+    return chunks.map((mentions, i) => ({ mentions, text: i === chunks.length - 1 ? body : "" }));
+}
+
+/**
+ * Ping the given users in a channel, asking them to sign up or off for an event:
+ * one card (kind "warn") per chunk of mentions, the mentions as its first line so
+ * they actually notify; allowedMentions is scoped to exactly those users.
  * @returns {Promise<{ channelId, messageId, url }>}
  */
 async function postMissingPing(channelId, userIds = [], text = "") {
@@ -291,19 +307,10 @@ async function postMissingPing(channelId, userIds = [], text = "") {
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     const body = String(text || "").trim()
         || "Please sign up or sign off for the raid, so the roster is complete.";
-    // Discord refuses a message over 2000 characters, and a mention costs about
-    // 22 — a roster of ~90 missing raiders would otherwise post nothing at all.
-    // The mentions are split over as many messages as needed, the text rides
-    // on the last one.
-    const chunks = mentionChunks(users.map((id) => `<@${id}>`), MESSAGE_LIMIT - body.length - 1);
     let first = null;
     const messageIds = [];
-    for (let i = 0; i < chunks.length; i++) {
-        const last = i === chunks.length - 1;
-        const posted = await channel.send({
-            content: last ? `${chunks[i]}\n${body}` : chunks[i],
-            allowedMentions: { users },
-        });
+    for (const part of pingParts(users, body)) {
+        const posted = await channel.send(pingCard({ kind: "warn", ...part, allowedMentions: { users } }));
         if (!first) first = posted;
         messageIds.push(String(posted.id));
     }
@@ -315,7 +322,8 @@ async function postMissingPing(channelId, userIds = [], text = "") {
  * split the same way. An edit notifies nobody (and `allowedMentions` parses
  * nothing to be sure) — the list is only kept true. A chunk more than before is
  * posted quietly, a message left over is deleted; a message somebody deleted in
- * Discord stays deleted (its share is moved on to the next message).
+ * Discord stays deleted (its share is moved on to the next message). A ping
+ * posted as plain text before the cards turns into the card on its next edit.
  * @returns {Promise<{ messageIds: string[] }>} the messages the ping consists of now
  */
 async function editPingMessages(channelId, messageIds = [], userIds = [], text = "") {
@@ -323,9 +331,7 @@ async function editPingMessages(channelId, messageIds = [], userIds = [], text =
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     const users = [...new Set((userIds || []).map(String).filter(Boolean))];
     const body = String(text || "").trim();
-    const chunks = users.length ? mentionChunks(users.map((id) => `<@${id}>`), MESSAGE_LIMIT - body.length - 1) : [""];
-    const contents = chunks.map((c, i) => (i === chunks.length - 1 ? [c, body].filter(Boolean).join("\n") : c));
-    const quiet = { parse: [] };
+    const payloads = pingParts(users, body).map((part) => pingCard({ kind: "warn", ...part, allowedMentions: { parse: [] } }));
     // the messages still there, in order
     const messages = [];
     for (const id of (messageIds || []).map(String)) {
@@ -338,16 +344,16 @@ async function editPingMessages(channelId, messageIds = [], userIds = [], text =
     // the whole ping deleted by hand: it stays gone
     if (!messages.length) return { messageIds: [] };
     const kept = [];
-    for (let i = 0; i < contents.length; i++) {
+    for (let i = 0; i < payloads.length; i++) {
         if (messages[i]) {
-            await messages[i].edit({ content: contents[i], allowedMentions: quiet });
+            await messages[i].edit(payloads[i]);
             kept.push(String(messages[i].id));
         } else {
-            const posted = await channel.send({ content: contents[i], allowedMentions: quiet });
+            const posted = await channel.send(payloads[i]);
             kept.push(String(posted.id));
         }
     }
-    for (const left of messages.slice(contents.length)) await left.delete().catch(() => {});
+    for (const left of messages.slice(payloads.length)) await left.delete().catch(() => {});
     return { messageIds: kept };
 }
 

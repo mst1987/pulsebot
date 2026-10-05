@@ -83,7 +83,9 @@ function dueReminders(event, rule, sent = {}, now = Date.now()) {
 /**
  * The text of a reminder in the language (the channel's server language, each
  * DM the raider's own — pingDelivery picks); the start as a Discord timestamp,
- * so everyone reads it in their own time zone.
+ * so everyone reads it in their own time zone — short (`<t:…:d> <t:…:t>`), never
+ * the long `:F`. It goes out as the text of a card (discord.postMissingPing in a
+ * channel, pingDelivery.dmCard in a DM).
  */
 function reminderText(kind, event, lang = "de") {
     const start = Math.floor(toMs(event.startTime) / 1000);
@@ -97,7 +99,7 @@ function reminderText(kind, event, lang = "de") {
     const deadline = Math.floor(toMs(event.signupDeadline) / 1000);
     const until = deadline && deadline < start
         ? tr(lang, "signup deadline {when}", { when: `<t:${deadline}:R>` })
-        : tr(lang, "raid start {when}", { when: `<t:${start}:F>` });
+        : tr(lang, "raid start {when}", { when: `<t:${start}:d> <t:${start}:t>` });
     return title
         ? tr(lang, "Reminder: please sign up or sign off for {title} ({until}).", { title, until })
         : tr(lang, "Reminder: please sign up or sign off for the raid ({until}).", { until });

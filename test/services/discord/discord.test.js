@@ -1,6 +1,11 @@
-const { ChannelType } = require("discord.js");
+const { ChannelType, ComponentType, MessageFlags } = require("discord.js");
 const discord = require("../../../src/services/discord/discord.js");
 const dc = require("../../helpers/discordClient");
+const { KIND_COLORS } = require("../../../src/utils/discord/card");
+
+/** The text lines of a card payload (utils/discord/card.js): one per text display, in order. */
+const cardTexts = (payload) => payload.components[0].components.filter((c) => c.type === ComponentType.TextDisplay).map((c) => c.content);
+const isCardPayload = (payload) => (payload.flags & MessageFlags.IsComponentsV2) === MessageFlags.IsComponentsV2;
 
 // Build a fake channel as it appears in guild.channels.cache.
 function chan(id, name, type, { parent = null, parentId = "", rawPosition = 0 } = {}) {
@@ -485,7 +490,11 @@ describe("services/discord/discord channel management", () => {
             const res = await discord.postMissingPing("chan", ["1", "2", "2"], "Bitte melden");
             expect(res).toEqual({ channelId: "chan", messageId: "m1", messageIds: ["m1"], url: "https://d/m1" });
             const payload = send.mock.calls[0][0];
-            expect(payload.content).toBe("<@1> <@2>\nBitte melden");
+            // one warn card: the mentions its first line (they ping from there), the text under them
+            expect(isCardPayload(payload)).toBe(true);
+            expect(payload.components[0].accent_color).toBe(KIND_COLORS.warn);
+            expect(payload.content).toBe("");
+            expect(cardTexts(payload)).toEqual(["<@1> <@2>", "Bitte melden"]);
             expect(payload.allowedMentions).toEqual({ users: ["1", "2"] });
         });
 
@@ -493,7 +502,7 @@ describe("services/discord/discord channel management", () => {
             const send = jest.fn(async () => ({ id: "m1", url: "u" }));
             setClientWithChannels(dc.makeChannel({ id: "chan", send }));
             await discord.postMissingPing("chan", ["1"], "");
-            expect(send.mock.calls[0][0].content).toMatch(/sign up or sign off/);
+            expect(cardTexts(send.mock.calls[0][0])[1]).toMatch(/sign up or sign off/);
         });
 
         it("throws when there are no users to ping", async () => {
@@ -515,13 +524,17 @@ describe("services/discord/discord channel management", () => {
             const channel = dc.makeChannel({ id: "chan", messages: [m1] });
             setClientWithChannels(channel);
             expect(await discord.editPingMessages("chan", ["m1"], ["1", "3", "3"], "Setup steht")).toEqual({ messageIds: ["m1"] });
-            expect(m1.edit).toHaveBeenCalledWith({ content: "<@1> <@3>\nSetup steht", allowedMentions: { parse: [] } });
+            const payload = m1.edit.mock.calls[0][0];
+            // the same card as the post, turning an old plain-text ping into it (content and embeds emptied)
+            expect(isCardPayload(payload)).toBe(true);
+            expect(payload).toMatchObject({ content: "", embeds: [], allowedMentions: { parse: [] } });
+            expect(cardTexts(payload)).toEqual(["<@1> <@3>", "Setup steht"]);
             expect(channel.send).not.toHaveBeenCalled();
         });
 
         it("posts a chunk more quietly, deletes one left over", async () => {
-            // 120 snowflake-long ids (~22 characters a mention) need two messages
-            const many = Array.from({ length: 120 }, (_, i) => `1000000000000${String(i).padStart(5, "0")}`);
+            // 240 snowflake-long ids (~22 characters a mention) need two cards of 4000 characters
+            const many = Array.from({ length: 240 }, (_, i) => `1000000000000${String(i).padStart(5, "0")}`);
             const m1 = message("m1");
             const grown = dc.makeChannel({ id: "chan", messages: [m1] });
             setClientWithChannels(grown);
@@ -848,15 +861,20 @@ describe("services/discord/discord ping helpers", () => {
         expect(chunks.length).toBeGreaterThan(1);
     });
 
-    it("posts a long ping as several messages, the text on the last", async () => {
+    it("posts a long ping as several cards, every mention whole, the text on the last", async () => {
         const send = jest.fn(async () => ({ id: "m", url: "u" }));
         discordMod.setClient(dc.makeClient({ channels: [dc.makeChannel({ id: "chan", send })] }));
-        const users = Array.from({ length: 120 }, (_, i) => String(100000000000000000n + BigInt(i)));
+        const users = Array.from({ length: 240 }, (_, i) => String(100000000000000000n + BigInt(i)));
         await discordMod.postMissingPing("chan", users, "Bitte melden");
         expect(send.mock.calls.length).toBeGreaterThan(1);
-        for (const [payload] of send.mock.calls) expect(payload.content.length).toBeLessThanOrEqual(2000);
-        expect(send.mock.calls[send.mock.calls.length - 1][0].content.endsWith("Bitte melden")).toBe(true);
-        expect(send.mock.calls[0][0].content.includes("Bitte melden")).toBe(false);
+        // Discord's 4000 characters of text per card, and no mention cut by the card's own limit
+        for (const [payload] of send.mock.calls) expect(cardTexts(payload).join("").length).toBeLessThanOrEqual(4000);
+        const mentioned = send.mock.calls.flatMap(([payload]) => cardTexts(payload)[0].split(" "));
+        expect(mentioned).toEqual(users.map((id) => `<@${id}>`));
+        const last = send.mock.calls[send.mock.calls.length - 1][0];
+        expect(cardTexts(last)[cardTexts(last).length - 1]).toBe("Bitte melden");
+        expect(cardTexts(send.mock.calls[0][0])).not.toContain("Bitte melden");
+        for (const [payload] of send.mock.calls) expect(payload.allowedMentions).toEqual({ users });
     });
 
     it("mentions single users next to the roles of an announcement", async () => {

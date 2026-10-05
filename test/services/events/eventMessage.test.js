@@ -23,6 +23,7 @@ const { makeClient, makeChannel } = require("../../helpers/discordClient");
 const { deletedChannels, linkCheck } = require("../../helpers/linkCheck");
 const {
     rosterCounts, rosterEntries, messagePhase, postEventMessage, refreshEventMessage, startEventMessageSync, messageComponents,
+    MISSING_PREFIX, missingPingId, hasRaiderRoles,
     _internal: {
         buildEventMessage: buildRaw, signupButtonId, joinSelectId, buttonId, signupNumbers, embedLength, blockValue, sweepEventMessages,
         redrawEventMessage, LIMITS, pickSelectId, payloadHash,
@@ -415,6 +416,40 @@ describe("services/events/eventMessage", () => {
         const started = buildEventMessage(event({ startTime: 1998000000 }), signups, { now: NOW });
         expect(started.components).toEqual([]);
         expect(started.embeds[0].description).toContain("The raid has started");
+    });
+
+    it("adds the orga's Ping missing to the status row only for a category with raider roles, before and after the deadline", () => {
+        const ids = (payload) => payload.components.flatMap((r) => r.components.map((c) => c.custom_id));
+        // no roles: the row stays as it is
+        expect(ids(buildEventMessage(event(), signups, { emojis, now: NOW }))).not.toContain("event-missing:eh-1");
+        const open = buildEventMessage(event(), signups, { emojis, now: NOW, pingMissing: true });
+        const row = open.components[1].components;
+        expect(row.map((b) => b.custom_id)).toEqual([
+            "event-btn:eh-1:late", "event-btn:eh-1:tentative", "event-btn:eh-1:bench", "event-btn:eh-1:absence", "event-missing:eh-1",
+        ]);
+        expect(row[4]).toMatchObject({ type: 2, style: 2, label: "Ping missing", emoji: { name: "eh_ui_signups" } });
+        // in the server language: German by default
+        const de = buildRaw(event(), signups, { now: NOW, pingMissing: true });
+        expect(de.components[1].components[4].label).toBe("Fehlende pingen");
+        expect(de.components[1].components[4].emoji).toBeUndefined();
+        const late = buildEventMessage(event({ signupDeadline: 1998000000 }), signups, { now: NOW, pingMissing: true });
+        expect(ids(late)).toEqual(["event-btn:eh-1:late", "event-btn:eh-1:absence", "event-missing:eh-1"]);
+        // started, cancelled, closed: nobody is asked any more
+        expect(buildEventMessage(event({ startTime: 1998000000 }), signups, { now: NOW, pingMissing: true }).components).toEqual([]);
+        expect(ids(buildEventMessage(event({ status: "cancelled" }), signups, { now: NOW, pingMissing: true }))).toEqual([]);
+        expect(ids(buildEventMessage(event({ signupsClosed: true }), signups, { now: NOW, pingMissing: true }))).toEqual(["event-btn:eh-1:absence"]);
+        expect(missingPingId("x")).toBe("event-missing:x");
+        expect(MISSING_PREFIX).toBe("event-missing");
+    });
+
+    it("reads the raider roles of the event's category from the config", () => {
+        const config = { categoryRoles: { cat1: ["500000"], cat2: [] } };
+        expect(hasRaiderRoles(event({ categoryId: "cat1" }), config)).toBe(true);
+        expect(hasRaiderRoles(event({ categoryId: "cat2" }), config)).toBe(false);
+        expect(hasRaiderRoles(event({ categoryId: "cat3" }), config)).toBe(false);
+        expect(hasRaiderRoles(event({ categoryId: "" }), {})).toBe(false);
+        // messageComponents asks the config itself unless told — the select reset (eventPick.js) keeps the button
+        expect(messageComponents(event(), { now: NOW, pingMissing: true, lang: "en" })[1].components.at(-1).custom_id).toBe("event-missing:eh-1");
     });
 
     describe("Farbe und Bild (#307)", () => {

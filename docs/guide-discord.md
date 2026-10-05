@@ -11,7 +11,7 @@ Der Bot schreibt **standardmäßig Deutsch**. Mit `/language` (im deutschen Disc
 Technik: [signups.md](signups.md), [bot-commands.md](bot-commands.md)
 
 - Unter jeder Event-Nachricht im Kanal öffnet ein Button den **Anmelde-Dialog**: Charakter + Spec wählen, "kann auch"-Rollen angeben, Status setzen (Dabei / Vielleicht / Spät / Bank / Abmelden), optional ein Kommentar.
-- Direkt an der Event-Nachricht gibt es außerdem Status-Buttons **Spät · Vielleicht · Bank · Absagen** — ohne den vollen Dialog.
+- Direkt an der Event-Nachricht gibt es außerdem Status-Buttons **Spät · Vielleicht · Bank · Absagen** — ohne den vollen Dialog. Daneben steht bei manchen Raids **Fehlende pingen** — der ist nur für die Orga.
 - Bei "Vielleicht" oder "Absagen" öffnet sich (je nach Kategorie Pflicht oder optional) ein kurzes Textfeld für eine Nachricht an die Raidleitung.
 - Auf der automatischen Übersichtsnachricht im Talk-Server gibt es zusätzlich **"Für alle Raids anmelden"** bzw. **"Mehrere Raids wählen …"**, um mehrere Termine auf einmal zu erledigen.
 - Der Kopf der Event-Nachricht zeigt, **wie viele Discord-Accounts** angemeldet sind („28 signed up“) — wer mit mehreren Charakteren angemeldet ist, zählt einmal; Vielleicht, Bank und Absagen zählen nicht. Eine Obergrenze wie „25/25“ steht dort nicht mehr: wer mitspielt, entscheidet die Orga im Setup. Genauso zählt die Talk-Server-Übersicht und die öffentliche Event-Seite.
@@ -67,6 +67,7 @@ Technik: [events.md](events.md)
 
 - `/event anlegen` — neues Event per geführtem Dialog (Kategorie, Vorlage, Kanal, Termin).
 - `/event verwalten [Event]` bzw. Rechtsklick **"Event verwalten"** auf die Event-Nachricht — bearbeiten, verschieben, Anmeldung öffnen/schließen, Raider ein-/austragen, Fehlende pingen, Setup öffnen, absagen/zurücknehmen, löschen.
+- **"Fehlende pingen"** direkt an der Event-Nachricht (nur bei Raids, deren Kategorie Raider-Rollen hat): zeigt dir erst nur für dich, wer mit Raider-Rolle noch nicht reagiert hat (Anzahl, die ersten 25 Namen), dann **Jetzt pingen** oder **Abbrechen**. Gepingt wird im Event-Kanal; zweimal kurz hintereinander geht nicht. Raider sehen den Knopf auch, dürfen ihn aber nicht benutzen.
 - `/fillsetup [Setup-ID]` — Setup ins Setup-Sheet übernehmen (das freigegebene Setup des Kanals oder ein Raid-Helper-Raidplan).
 - `/createoverview`, `/update-events` — ältere Befehle, inzwischen durch die automatische Talk-Server-Übersicht ersetzt.
 

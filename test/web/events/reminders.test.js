@@ -107,7 +107,9 @@ describe("runReminders", () => {
         expect(missing).toMatchObject({ target: "talk", userIds: ["3"], guildId: "100000" });
         const signed = deliverUserPing.mock.calls.find((c) => c[0].text("en").includes("starts"))[0];
         expect(signed.userIds).toEqual(["1", "4"]);
-        expect(missing.text("de")).toMatch(/^Erinnerung: Bitte melde dich für \*\*.+\*\* an oder ab \(Anmeldeschluss <t:\d+:R>\)\.$|^Erinnerung: Bitte melde dich für \*\*.+\*\* an oder ab \(Raidbeginn <t:\d+:F>\)\.$/);
+        // the start short (date and time), never the long `:F`
+        expect(missing.text("de")).toMatch(/^Erinnerung: Bitte melde dich für \*\*.+\*\* an oder ab \(Raidbeginn <t:(\d+):d> <t:\1:t>\)\.$/);
+        expect(missing.text("en")).not.toMatch(/:[fF]>/);
         expect(signed.text("de")).toMatch(/^Erinnerung: \*\*.+\*\* startet <t:\d+:R>\. Bis gleich!$/);
         expect(reminderStore.getSent("e1")).toEqual({ missing: NOW, signed: NOW });
     });
