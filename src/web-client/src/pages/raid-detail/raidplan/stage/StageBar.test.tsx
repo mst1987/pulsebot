@@ -60,11 +60,11 @@ describe("StageBar", () => {
 
     it("offers 'Nur für mich' only to a visitor in the plan", () => {
         const { menu, toggle, unmount } = show();
-        fireEvent.click(within(menu()).getByRole("checkbox", { name: "Nur für mich" }));
+        fireEvent.click(within(menu()).getByRole("switch", { name: "Nur für mich" }));
         expect(toggle).toHaveBeenCalled();
         unmount();
         show({ onlyMine: null, mineKeys: new Set() }).menu();
-        expect(screen.queryByRole("checkbox")).toBeNull();
+        expect(screen.queryByRole("switch")).toBeNull();
         expect(screen.queryByText("Aufgabe für dich")).toBeNull();
     });
 

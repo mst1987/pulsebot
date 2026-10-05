@@ -16,7 +16,7 @@ import {
     isStale, removeKaderAccount, resetKaderAssignment, saveKaderAssignment,
     type KaderCharacterInput, type KaderDay, type KaderGear, type KaderNameStyle, type KaderPickable, type KaderPlayer, type KaderStaleError,
 } from "../../api";
-import { Badge, Button, Field, Modal, Segment } from "../../components/ui";
+import { Badge, Button, Field, Modal, Segment, Switch } from "../../components/ui";
 import { RefreshIcon, SaveIcon, TrashIcon } from "../../components/icons";
 import { useConfirm } from "../../components/ui/Modal";
 import { useT } from "../../i18n";
@@ -343,12 +343,10 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
                                         <Segment<KaderGear> size="sm" ariaLabel={t("kader.field.gear")} value={main ? main.gear : "none"}
                                             options={GEARS.map((g) => ({ value: g, label: t(`kader.gear.${g}`), disabled: !main }))} onChange={setGear} />
                                         <div className="kp-switches">
-                                            <label className={cls.canTank ? "" : "kp-off"} data-tip={cls.canTank ? undefined : t("kader.account.noTank")}>
-                                                <input type="checkbox" disabled={!cls.canTank} checked={cur.canTank} onChange={(e) => patch((c) => ({ ...c, canTank: e.target.checked }))} /> <RoleIcon role="tank" size={18} /> {t("kader.account.canTank")}
-                                            </label>
-                                            <label className={cls.canHeal ? "" : "kp-off"} data-tip={cls.canHeal ? undefined : t("kader.account.noHeal")}>
-                                                <input type="checkbox" disabled={!cls.canHeal} checked={cur.canHeal} onChange={(e) => patch((c) => ({ ...c, canHeal: e.target.checked }))} /> <RoleIcon role="healer" size={18} /> {t("kader.account.canHeal")}
-                                            </label>
+                                            <Switch className={cls.canTank ? "" : "kp-off"} tipHead={cls.canTank ? undefined : t("kader.account.noTank")} disabled={!cls.canTank} checked={cur.canTank}
+                                                onChange={(on) => patch((c) => ({ ...c, canTank: on }))} label={<><RoleIcon role="tank" size={18} />{t("kader.account.canTank")}</>} />
+                                            <Switch className={cls.canHeal ? "" : "kp-off"} tipHead={cls.canHeal ? undefined : t("kader.account.noHeal")} disabled={!cls.canHeal} checked={cur.canHeal}
+                                                onChange={(on) => patch((c) => ({ ...c, canHeal: on }))} label={<><RoleIcon role="healer" size={18} />{t("kader.account.canHeal")}</>} />
                                         </div>
                                     </div>
                                 </>

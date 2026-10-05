@@ -16,6 +16,7 @@ import Expand from "../../components/ui/Expand";
 import IconTile from "../../components/ui/IconTile";
 import PartHead from "../../components/ui/PartHead";
 import Segment from "../../components/ui/Segment";
+import Switch from "../../components/ui/Switch";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { LockIcon, XIcon } from "../../components/icons";
 import { PenIcon } from "../../components/settings/settingsUi";
@@ -279,10 +280,7 @@ function CommandModal({ command, groupLabel, groupIcon, groupSize, rule, roles, 
                     </Button>
                 </div>
                 {groupSize > 1 && (
-                    <label className="botc-check">
-                        <input type="checkbox" checked={wholeGroup} onChange={(e) => setWholeGroup(e.target.checked)} />
-                        <span>{tParts("settings.botCommands.wholeGroup", { count: groupSize })}</span>
-                    </label>
+                    <Switch className="botc-check" checked={wholeGroup} onChange={setWholeGroup} label={tParts("settings.botCommands.wholeGroup", { count: groupSize })} />
                 )}
             </div>
         </Modal>

@@ -25,6 +25,22 @@ describe("Switch", () => {
         expect(onChange).toHaveBeenCalledWith(false);
     });
 
+    it("shows a mixed state in the middle and switches all on from there", async () => {
+        const onChange = vi.fn();
+        render(<Switch checked={false} mixed label="Name zeigen" onChange={onChange} />);
+        const sw = screen.getByRole("switch", { name: "Name zeigen" }) as HTMLInputElement;
+        expect(sw.indeterminate).toBe(true);
+        await userEvent.click(sw);
+        expect(onChange).toHaveBeenCalledWith(true);
+    });
+
+    it("takes an icon beside its text and a tooltip head of its own", () => {
+        const { container } = render(<Switch checked label={<><svg data-testid="ico" />Namen</>} tipHead="Nur für Heiler-Klassen" onChange={() => {}} />);
+        expect(screen.getByTestId("ico")).toBeInTheDocument();
+        expect(screen.getByRole("switch", { name: "Namen" })).toBeChecked();
+        expect(container.querySelector(".switch-row")).toHaveAttribute("data-tip", "Nur für Heiler-Klassen");
+    });
+
     it("does nothing while disabled and carries its explanation as a tooltip", async () => {
         const onChange = vi.fn();
         const { container } = render(<Switch checked={false} disabled label="Aufteilen" tip="Erklärung" onChange={onChange} />);

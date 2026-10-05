@@ -394,7 +394,7 @@ describe("BoardWorkspace: the lines of the rows", () => {
     it("draws nothing when the lines are switched off, and a board without rows has no line layer", () => {
         const { container } = setup({ zones: [], assignments: rows }, true, ROSTER);
         toTasks();
-        fireEvent.click(screen.getByRole("checkbox", { name: "Verbindungen zeigen" }));
+        fireEvent.click(screen.getByRole("switch", { name: "Verbindungen zeigen" }));
         toMap();
         expect(container.querySelector(".rp-links")).toBeNull();
         const empty = setup({ zones: [] }, true, ROSTER);

@@ -135,12 +135,12 @@ describe("the view 'Karte'", () => {
         fireEvent.click(screen.getByRole("button", { name: "Ansicht" }));
         const view = screen.getByRole("dialog", { name: "Ansicht" });
         for (const label of [/Elemente zum Ziehen/, /Besetzung über der Karte/, /Auswahlmodus/, /Sheet-Vorschau/, /Karte für diesen Abschnitt/, /Namen zeigen/]) {
-            expect(within(view).getByRole("checkbox", { name: label })).toBeTruthy();
+            expect(within(view).getByRole("switch", { name: label })).toBeTruthy();
         }
         expect(within(view).getByRole("button", { name: /Besetzung zuweisen/ })).toBeTruthy();
         // the Besetzung band above the map comes with its switch
         expect(document.querySelector(".rp-bes")).toBeNull();
-        fireEvent.click(within(view).getByRole("checkbox", { name: /Besetzung über der Karte/ }));
+        fireEvent.click(within(view).getByRole("switch", { name: /Besetzung über der Karte/ }));
         expect(document.querySelector(".rp-bes")).not.toBeNull();
     });
 

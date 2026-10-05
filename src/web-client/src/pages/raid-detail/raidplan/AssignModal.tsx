@@ -1,7 +1,7 @@
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, LayoutGrid, MapPin, Minus, Plus, Search, Shield, Skull, Sparkles, Star, Swords, Trash2, Type, User, Wand2, X } from "lucide-react";
 import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from "../../../api";
-import { Button, Modal } from "../../../components/ui";
+import { Button, Modal, Switch } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import ClassRefIcon from "../../../components/raidplan/ClassRefIcon";
 import RoleGlyph from "../../../components/raidplan/RoleGlyph";
@@ -426,7 +426,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                 {prioOn ? prioBlock() : classesFixed(groups)}
                 {!target && (
                     <div className="rp-amb-classfoot">
-                        {own.length > 0 && !prioOn && <label className="rp-check"><input type="checkbox" checked={!!row.allowMulti} onChange={(e) => set((b) => patchAssignment(b, rowId, { allowMulti: e.target.checked }))} /> {t("raidBoard.class.allowMulti")}</label>}
+                        {own.length > 0 && !prioOn && <Switch className="rp-check" checked={!!row.allowMulti} onChange={(on) => set((b) => patchAssignment(b, rowId, { allowMulti: on }))} label={t("raidBoard.class.allowMulti")} />}
                         {classFoot()}
                     </div>
                 )}
@@ -614,7 +614,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                 <>
                     {onRemove && <Button variant="ghost" className="rp-amb-remove" icon={<Trash2 size={16} />} onClick={onRemove}>{t("raidBoard.amb.removeRow")}</Button>}
                     {AUTO_TANK_TYPES.indexOf(type) < 0 && (
-                        <label className="rp-check rp-amb-onmap" data-tip={t("raidBoard.auto.onMapTip")}><input type="checkbox" checked={!!row.onMap} onChange={(e) => set((b) => setRowOnMap(b, rowId, e.target.checked))} /> <MapPin size={15} aria-hidden="true" /> {t("raidBoard.auto.onMap")}</label>
+                        <Switch className="rp-check rp-amb-onmap" tipHead={t("raidBoard.auto.onMapTip")} checked={!!row.onMap} onChange={(on) => set((b) => setRowOnMap(b, rowId, on))} label={<><MapPin size={15} aria-hidden="true" />{t("raidBoard.auto.onMap")}</>} />
                     )}
                     <Button variant="ghost" onClick={onClose}>{t("raidBoard.am.cancel")}</Button>
                     <Button icon={<Check size={16} />} onClick={done}>{t("raidBoard.am.done")}</Button>

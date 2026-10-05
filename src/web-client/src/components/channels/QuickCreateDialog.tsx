@@ -6,6 +6,7 @@ import NamingBadge from "./NamingBadge";
 import { Badge, Button, Modal, Segment } from "../ui";
 import { ChannelsIcon } from "../icons";
 import { SwitchRow } from "../RaidPlanFields";
+import Switch from "../ui/Switch";
 import { PlaceholderChips } from "./ChannelBulk";
 import { isTextLike } from "../../lib/channels";
 import { tParts, useT } from "../../i18n";
@@ -208,10 +209,7 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
                             </select>
                         </div>
                         {categoryId && (
-                            <label className="kn-check">
-                                <input type="checkbox" className="kn-cb" checked={saveSchema} onChange={(e) => setSaveSchema(e.target.checked)} />
-                                {tParts("channels.quick.remember", { name: categoryName })}
-                            </label>
+                            <Switch className="kn-check" checked={saveSchema} onChange={setSaveSchema} label={tParts("channels.quick.remember", { name: categoryName })} />
                         )}
                     </div>
                 </details>

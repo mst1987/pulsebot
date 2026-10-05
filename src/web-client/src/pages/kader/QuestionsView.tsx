@@ -14,7 +14,7 @@ import {
     addKaderQuestion, copyKaderQuestions, deleteKaderQuestion, isStale, orderKaderQuestions, updateKaderQuestion,
     type KaderData, type KaderQuestion, type KaderQuestionType, type KaderStaleError,
 } from "../../api";
-import { Button, IconButton, Modal, Segment } from "../../components/ui";
+import { Button, IconButton, Modal, Segment, Switch } from "../../components/ui";
 import Popover from "../../components/ui/Popover";
 import { useConfirm } from "../../components/ui/Modal";
 import { CheckIcon, ChevronDownIcon, CopyIcon, LockIcon, PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/icons";
@@ -274,10 +274,7 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
                         {question && <span className="kp-hint">{t("kader.questions.renameHint")}</span>}
                     </div>
                 )}
-                <label className="kp-checkline">
-                    <input type="checkbox" checked={draft.required} onChange={(e) => set({ required: e.target.checked })} />
-                    {t("kader.questions.required")}
-                </label>
+                <Switch className="kp-checkline" checked={draft.required} onChange={(on) => set({ required: on })} label={t("kader.questions.required")} />
             </fieldset>
             <Preview draft={draft} />
             {canWrite && (
