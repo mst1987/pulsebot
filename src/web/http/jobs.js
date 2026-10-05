@@ -19,6 +19,7 @@ const roleSync = require("../../services/discord/roleSync");
 const talkOverview = require("../../services/talk/talkOverview");
 const eventSeries = require("../events/eventSeries");
 const applicationState = require("../../utils/recruitment/applicationState");
+const availabilityPanel = require("../../services/signups/availabilityPanel");
 
 const JOBS = [
     // Sweep due raid-sheet copies (deleted a few days after each raid).
@@ -43,6 +44,8 @@ const JOBS = [
     { name: "eventSeries", start: () => eventSeries.startEventSeries(), stop: () => eventSeries.stopEventSeries() },
     // Drop /apply applications that were started and then abandoned.
     { name: "applicationState", start: () => applicationState.start(), stop: () => applicationState.stop() },
+    // Once after the start: redraw the absence/attendance panels whose text a deploy changed.
+    { name: "availabilityPanels", start: () => availabilityPanel.startPanelRefresh(), stop: () => availabilityPanel.stopPanelRefresh() },
 ];
 
 let running = false;

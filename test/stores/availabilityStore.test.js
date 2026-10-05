@@ -59,9 +59,13 @@ describe("Einträge", () => {
 describe("Panels", () => {
     it("merkt sich je Kategorie ein Panel und ersetzt ein früheres", () => {
         store.setPanel({ categoryId: "cat1", guildId: "g", channelId: "c1", messageId: "m1" }, { now: 1 });
-        store.setPanel({ categoryId: "cat1", guildId: "g", channelId: "c2", messageId: "m2", postedBy: "u" }, { now: 2 });
-        expect(store.listPanels()).toEqual([{ categoryId: "cat1", guildId: "g", channelId: "c2", messageId: "m2", postedBy: "u", postedAt: 2 }]);
+        store.setPanel({ categoryId: "cat1", guildId: "g", channelId: "c2", messageId: "m2", postedBy: "u", hash: "abc" }, { now: 2 });
+        expect(store.listPanels()).toEqual([{ categoryId: "cat1", guildId: "g", channelId: "c2", messageId: "m2", postedBy: "u", postedAt: 2, hash: "abc" }]);
         expect(store.getPanel("cat1").messageId).toBe("m2");
+        // a redraw only changes the fingerprint
+        expect(store.markPanelDrawn("cat1", "def")).toBe(true);
+        expect(store.getPanel("cat1")).toMatchObject({ messageId: "m2", postedAt: 2, hash: "def" });
+        expect(store.markPanelDrawn("cat9", "x")).toBe(false);
         expect(store.removePanel("cat1").messageId).toBe("m2");
         expect(store.removePanel("cat1")).toBeNull();
         expect(store.getPanel("cat1")).toBeNull();

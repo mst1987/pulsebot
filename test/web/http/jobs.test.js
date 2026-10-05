@@ -17,13 +17,14 @@ jest.mock("../../../src/services/discord/roleSync", () => mockJob("startRoleSync
 jest.mock("../../../src/services/talk/talkOverview", () => mockJob("startTalkOverview", "stopTalkOverview"));
 jest.mock("../../../src/web/events/eventSeries", () => mockJob("startEventSeries", "stopEventSeries"));
 jest.mock("../../../src/utils/recruitment/applicationState", () => mockJob("start", "stop"));
+jest.mock("../../../src/services/signups/availabilityPanel", () => mockJob("startPanelRefresh", "stopPanelRefresh"));
 
 const discord = require("../../../src/services/discord/discord");
 const { startJobs, stopJobs, JOBS } = require("../../../src/web/http/jobs");
 
 const START_ORDER = [
     "startSheetCleanup", "startRaidEventScan", "startLogAutoLink", "startEventMessageSync",
-    "startReminders", "startRoleSync", "startTalkOverview", "startEventSeries", "start",
+    "startReminders", "startRoleSync", "startTalkOverview", "startEventSeries", "start", "startPanelRefresh",
 ];
 
 beforeEach(() => {
@@ -39,7 +40,7 @@ describe("web/http/jobs", () => {
         expect(mockCalls).toEqual(START_ORDER.map((n) => `start:${n}`));
         expect(names).toEqual([
             "sheetCleanup", "raidEventScan", "logAutoLink", "eventMessageSync",
-            "reminders", "roleSync", "talkOverview", "eventSeries", "applicationState",
+            "reminders", "roleSync", "talkOverview", "eventSeries", "applicationState", "availabilityPanels",
         ]);
         expect(JOBS.map((j) => j.name)).toEqual(names);
     });
@@ -48,7 +49,7 @@ describe("web/http/jobs", () => {
         startJobs();
         startJobs();
         const lines = console.log.mock.calls.map((c) => c[0]).filter((l) => /Background jobs started/.test(l));
-        expect(lines).toEqual(["Background jobs started: sheetCleanup, raidEventScan, logAutoLink, eventMessageSync, reminders, roleSync, talkOverview, eventSeries, applicationState"]);
+        expect(lines).toEqual(["Background jobs started: sheetCleanup, raidEventScan, logAutoLink, eventMessageSync, reminders, roleSync, talkOverview, eventSeries, applicationState, availabilityPanels"]);
     });
 
     it("is idempotent: a second call starts nothing", () => {
@@ -76,7 +77,7 @@ describe("web/http/jobs", () => {
         mockCalls.length = 0;
         stopJobs();
         expect(mockCalls).toEqual([
-            "stop:stop", "stop:stopEventSeries", "stop:stopTalkOverview", "stop:stopRoleSync", "stop:stopReminders",
+            "stop:stopPanelRefresh", "stop:stop", "stop:stopEventSeries", "stop:stopTalkOverview", "stop:stopRoleSync", "stop:stopReminders",
             "stop:stopEventMessageSync", "stop:stopLogAutoLink", "stop:stopRaidEventScan", "stop:stopSheetCleanup",
         ]);
         mockCalls.length = 0;
