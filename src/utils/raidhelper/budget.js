@@ -2,6 +2,7 @@ const { AsyncLocalStorage } = require("async_hooks");
 const { readBudget, writeBudget } = require("../../stores/raidhelperBudgetStore");
 const { RAIDHELPER_BUDGET } = require("../../config/constants");
 const { TIMEZONE } = require("../../config/timezone");
+const { isLiveInstance } = require("../../config/runMode");
 
 // The request budget for raid-helper.xyz.
 //
@@ -22,7 +23,7 @@ const { TIMEZONE } = require("../../config/timezone");
 //     to its cache or the stored snapshots, exactly as during an outage.
 //   - A 429 that still comes back (another instance on the same key) pauses
 //     every request until the time Raid-Helper names, plus an hour.
-//   - Outside production (a local test instance shares the key with the live
+//   - On a test instance (config/runMode.js; it shares the key with the live
 //     bot) all priorities share the small `dev` budget and background jobs ask
 //     nothing at all unless RAIDHELPER_BACKGROUND=1.
 //
@@ -53,7 +54,8 @@ function priorityFor(method) {
     return isBackground() ? "background" : "read";
 }
 
-const isProduction = (env) => (env || process.env).NODE_ENV === "production";
+// Live bot or test instance — not NODE_ENV alone, the server has run without it (config/runMode.js).
+const isProduction = (env) => isLiveInstance(env || process.env);
 
 /** The number of requests a priority may reach in 24 hours. */
 function capFor(priority, env = process.env) {
