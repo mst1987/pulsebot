@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { buildReport, reportSummaryLines, ReportError } = require("../../utils/logcheck/report");
-const { forceButtonRow } = require("./logevalForce");
+const { forceButtonRow, refusalCard } = require("./logevalForce");
 const { botEditReply } = require("../../utils/discord/reply");
 
 module.exports = {
@@ -27,10 +27,10 @@ module.exports = {
             // anyway (see logevalForce.js).
             if (e && e.incomplete) {
                 const reportId = WarcraftLogs.parseReportId(link);
-                return interaction.editReply({
-                    content: `⚠️ ${e.message}`,
-                    components: reportId ? [forceButtonRow("id", reportId, "all")] : [],
-                });
+                return interaction.editReply(refusalCard({ error: e.message }, {
+                    title: "Raid noch nicht abgeschlossen",
+                    buttons: reportId ? [forceButtonRow("id", reportId, "all")] : [],
+                }));
             }
             if (e instanceof ReportError) return botEditReply(interaction, "Fehler", e.message);
             console.error("logcheck failed:", e);

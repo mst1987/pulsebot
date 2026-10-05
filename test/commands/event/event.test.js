@@ -21,6 +21,7 @@ const eventCommand = require("../../../src/commands/event/event");
 const stepCommand = require("../../../src/commands/event/eventCreateStep");
 const formCommand = require("../../../src/commands/event/eventCreateModal");
 const { mockInteraction } = require("../../helpers/mockInteraction");
+const { cardText } = require("../../helpers/cardText");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 const { knownChannels } = require("../../helpers/linkCheck");
 
@@ -72,7 +73,8 @@ describe("/event anlegen — access", () => {
             const i = mockInteraction({ commandName: customId ? undefined : "event", customId, modal });
             expect(await guardInteraction(i, command, commands)).toBe(false);
             // the server language (German by default) answers whoever chose none
-            expect(i.reply).toHaveBeenCalledWith({ content: "Das ist den Admins vorbehalten.", flags: MessageFlags.Ephemeral });
+            expect(cardText(i.reply.mock.calls[0][0])).toContain("Das ist den Admins vorbehalten.");
+            expect(i.reply.mock.calls[0][0].flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
             expect(i.showModal).not.toHaveBeenCalled();
         }
 
@@ -99,7 +101,8 @@ describe("/event anlegen — step 1", () => {
         eventGuildId.mockReturnValue("other-guild");
         const i = mockInteraction({ commandName: "event", options: { __subcommand: "anlegen" } });
         await eventCommand.execute(i);
-        expect(i.reply).toHaveBeenCalledWith({ content: "Events legst du auf dem Event-Server an.", flags: MessageFlags.Ephemeral });
+        expect(cardText(i.reply.mock.calls[0][0])).toContain("Events legst du auf dem Event-Server an.");
+        expect(i.reply.mock.calls[0][0].flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
     });
 
     it("a select redraws the message with the choice in every customId", async () => {
@@ -124,7 +127,7 @@ describe("/event anlegen — step 1", () => {
 
         const cancel = mockInteraction({ customId: draft._internal.stepId("x", state) });
         await stepCommand.execute(cancel);
-        expect(cancel.update).toHaveBeenCalledWith({ content: "Abgebrochen.", embeds: [], components: [] });
+        expect(cardText(cancel.update.mock.calls[0][0])).toContain("Abgebrochen.");
     });
 });
 

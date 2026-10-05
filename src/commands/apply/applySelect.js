@@ -1,4 +1,5 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const { pendingApplications } = require("../../utils/recruitment/applicationState");
 const { getClass } = require("../../config/applyClasses");
 
@@ -29,9 +30,11 @@ module.exports = {
             .setMaxValues(1)
             .addOptions(specOptions);
 
-        await interaction.update({
-            content: `**Schritt 2:** Wähle deinen Spec für **${cls ? cls.label : classValue}**:`,
-            components: [new ActionRowBuilder().addComponents(select)],
-        });
+        await interaction.update(card({
+            kicker: "Bewerbung",
+            title: "Schritt 2",
+            text: `Wähle deinen Spec für **${cls ? cls.label : classValue}**:`,
+            buttons: [new ActionRowBuilder().addComponents(select)],
+        }));
     },
 };

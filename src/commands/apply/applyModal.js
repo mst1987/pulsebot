@@ -1,4 +1,5 @@
 const { MessageFlags, ChannelType, ThreadAutoArchiveDuration } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const { pendingApplications } = require("../../utils/recruitment/applicationState");
 // The armory/WCL templates of the application's game version (#542/#553, Einstellungen → Spielversion).
 const { versionLinks, versionLabel } = require("../../services/events/versionSettings");
@@ -79,7 +80,11 @@ function getEmojiString(guildEmojis, iconName) {
 async function postApplicantAnalysis(thread, characterName, pending, versionId) {
     try {
         if (!applicantSource(versionId).ready) {
-            await thread.send({ content: `Keine Log-Analyse: für **${versionLabel(versionId)}** fehlen Realm, Region oder Warcraft-Logs-Link (Einstellungen → Spielversion).` });
+            await thread.send(card({
+                kind: "warn",
+                title: "Keine Log-Analyse",
+                text: `Für **${versionLabel(versionId)}** fehlen Realm, Region oder Warcraft-Logs-Link (Einstellungen → Spielversion).`,
+            }));
             return;
         }
         const wcl = new WarcraftLogs();
@@ -91,7 +96,7 @@ async function postApplicantAnalysis(thread, characterName, pending, versionId) 
             const embeds = buildApplicantEmbeds(characterName, analysis);
             for (const e of embeds) await thread.send({ embeds: [e] });
         } else {
-            await thread.send({ content: `Keine Warcraft-Logs-Parses für **${characterName}** gefunden.` });
+            await thread.send(card({ kind: "warn", title: "Keine Parses", text: `Keine Warcraft-Logs-Parses für **${characterName}** gefunden.` }));
         }
     } catch (analysisError) {
         console.error("applicant analysis failed:", analysisError.message);
@@ -178,23 +183,21 @@ module.exports = {
                 // never leave an empty thread behind: retry without the embed, so at least
                 // the raw application survives a rejected embed
                 console.error("application embed rejected:", sendError.code || "", sendError.message);
-                const plain = [
-                    notice,
-                    `**Charakter:** ${characterName}`,
-                    `**Klasse / Spec:** ${classSpec}`,
-                    armoryLink ? `**Armory:** ${armoryLink}` : "",
-                    logsLink ? `**WarcraftLogs:** ${logsLink}` : "",
-                ].filter(Boolean).join("\n");
-                await thread.send({ content: truncate(plain, 2000), allowedMentions: mentions });
+                await thread.send(card({
+                    kind: "raid",
+                    color: 0x9b59b6,
+                    mentions: notice,
+                    facts: [["Charakter", characterName], ["Klasse / Spec", classSpec]],
+                    text: [armoryLink ? `**Armory:** ${armoryLink}` : "", logsLink ? `**WarcraftLogs:** ${logsLink}` : ""].filter(Boolean).join("\n"),
+                    allowedMentions: mentions,
+                }));
             }
 
             if (description && (descriptionTooLong || !embedPosted)) {
-                await thread.send({ content: truncate(`**Über den Bewerber:**\n${description}`, 2000) });
+                await thread.send(card({ title: "Über den Bewerber", text: truncate(description, 2000) }));
             }
 
-            await interaction.editReply({
-                content: "Deine Bewerbung wurde eingereicht! Wir melden uns bei dir.",
-            });
+            await interaction.editReply(card({ kind: "ok", title: "Bewerbung eingereicht", text: "Deine Bewerbung wurde eingereicht! Wir melden uns bei dir." }));
 
             await postApplicantAnalysis(thread, characterName, pending, links.versionId);
         } catch (error) {
@@ -207,9 +210,11 @@ module.exports = {
                     console.error("could not remove the empty application thread:", cleanupError.message);
                 }
             }
-            await interaction.editReply({
-                content: "Fehler beim Einreichen der Bewerbung. Bitte versuche es erneut oder kontaktiere einen Officer.",
-            });
+            await interaction.editReply(card({
+                kind: "error",
+                title: "Bewerbung fehlgeschlagen",
+                text: "Fehler beim Einreichen der Bewerbung. Bitte versuche es erneut oder kontaktiere einen Officer.",
+            }));
         }
     },
 };

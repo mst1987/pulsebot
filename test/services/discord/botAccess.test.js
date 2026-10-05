@@ -6,6 +6,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 
 const { MessageFlags } = require("discord.js");
+const { cardText } = require("../../helpers/cardText");
 const settingsStore = require("../../../src/stores/settingsStore");
 const discord = require("../../../src/services/discord/discord");
 const { logcheckAdminIds } = require("../../../src/config/variables");
@@ -177,14 +178,16 @@ describe("guardInteraction", () => {
     it("refuses with a message only the user sees", async () => {
         const interaction = mockInteraction({ userId: "555" });
         expect(await guardInteraction(interaction, COMMANDS.get("fillsetup"), COMMANDS)).toBe(false);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "This is reserved for admins.", flags: MessageFlags.Ephemeral });
+        const sent = interaction.reply.mock.calls[0][0];
+        expect(cardText(sent)).toContain("This is reserved for admins.");
+        expect(sent.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
     });
 
     it("refuses in the server language German when the user chose none", async () => {
         settingsStore.getConfig.mockReturnValue({ guildId: GUILD });
         const interaction = mockInteraction({ userId: "555" });
         expect(await guardInteraction(interaction, COMMANDS.get("fillsetup"), COMMANDS)).toBe(false);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "Das ist den Admins vorbehalten.", flags: MessageFlags.Ephemeral });
+        expect(cardText(interaction.reply.mock.calls[0][0])).toContain("Das ist den Admins vorbehalten.");
     });
 
     it("lets a member with a granted role run a button of that command", async () => {

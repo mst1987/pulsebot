@@ -12,6 +12,7 @@ const { reportSummaryLines } = require("../../../src/utils/logcheck/report.js");
 const logStore = require("../../../src/stores/logStore.js");
 const discord = require("../../../src/services/discord/discord.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
+const { cardText, cardControls } = require("../../helpers/cardText.js");
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -48,8 +49,8 @@ describe("commands/logcheck/logeval", () => {
             doneSections: ["cla"],
         });
         const arg = interaction.editReply.mock.calls[0][0];
-        expect(arg.content).toContain("CLA");
-        expect(arg.content).toContain("https://host/r/abc123");
+        expect(cardText(arg)).toContain("CLA");
+        expect(cardControls(arg)[0]).toMatchObject({ style: 5, url: "https://host/r/abc123" });
     });
 
     it("routes the RPB button to the RPB half", async () => {
@@ -64,7 +65,7 @@ describe("commands/logcheck/logeval", () => {
 
         expect(evaluateLog).toHaveBeenCalledWith("log1", "rpb");
         expect(reportSummaryLines).toHaveBeenCalledWith({ title: "T" }, "rpb");
-        expect(interaction.editReply.mock.calls[0][0].content).toContain("RPB");
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("RPB");
     });
 
     it("treats a legacy button without a section as CLA", async () => {
@@ -88,8 +89,8 @@ describe("commands/logcheck/logeval", () => {
         await command.execute(interaction);
 
         const arg = interaction.editReply.mock.calls[0][0];
-        expect(arg.content).toContain("💀 Tode: **40**");
-        expect(arg.content).toContain("🛑 Unterbrechungen: 9 Spieler");
+        expect(cardText(arg)).toContain("💀 Tode: **40**");
+        expect(cardText(arg)).toContain("🛑 Unterbrechungen: 9 Spieler");
     });
 
     it("does not fail evaluation on a missing tracked button (uses interaction fallback)", async () => {
@@ -114,8 +115,13 @@ describe("commands/logcheck/logeval", () => {
 
         expect(discord.finishLogButton).not.toHaveBeenCalled();
         const arg = interaction.editReply.mock.calls[0][0];
-        expect(arg.content).toContain("Bereits ausgewertet.");
-        expect(arg.content).toContain("/r/old");
+        expect(cardText(arg)).toContain("Bereits ausgewertet.");
+        // "/r/old" is no absolute url: no link button, the text stays
+        expect(cardControls(arg)).toHaveLength(0);
+        const withUrl = mockInteraction({ customId: "logcheck-eval:log1:cla" });
+        evaluateLog.mockResolvedValue({ ok: false, error: "Bereits ausgewertet.", url: "https://host/r/old" });
+        await command.execute(withUrl);
+        expect(cardControls(withUrl.editReply.mock.calls[0][0])[0]).toMatchObject({ url: "https://host/r/old" });
     });
 });
 
@@ -134,7 +140,7 @@ describe("commands/logcheck/logeval — a raid that is still running", () => {
         await command.execute(interaction);
 
         const reply = interaction.editReply.mock.calls[0][0];
-        expect(reply.content).toContain("Der Schwarze Tempel");
+        expect(cardText(reply)).toContain("Der Schwarze Tempel");
         expect(JSON.stringify(reply.components)).toContain("logcheck-force:log:log1:cla");
     });
 
@@ -146,7 +152,7 @@ describe("commands/logcheck/logeval — a raid that is still running", () => {
         await command.execute(interaction);
 
         const reply = interaction.editReply.mock.calls[0][0];
-        expect(reply.content).toContain("Report konnte nicht geladen werden.");
-        expect(reply.components).toBeUndefined();
+        expect(cardText(reply)).toContain("Report konnte nicht geladen werden.");
+        expect(JSON.stringify(reply.components)).not.toContain("logcheck-force");
     });
 });

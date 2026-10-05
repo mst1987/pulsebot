@@ -6,6 +6,7 @@ jest.mock("../../../src/stores/recruitmentStore", () => ({
 }));
 
 const { MessageFlags } = require("discord.js");
+const { cardText, cardControls } = require("../../helpers/cardText");
 const { listRecruitment, saveRecruitmentPost } = require("../../../src/stores/recruitmentStore");
 const { embedAccentColor } = require("../../../src/config/variables");
 const recruitment = require("../../../src/commands/apply/recruitment");
@@ -52,13 +53,13 @@ describe("/recruitment", () => {
         listRecruitment.mockReturnValue([]);
         const { interaction, channel } = await run("Healer");
         expect(interaction.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
-        expect(interaction.editReply).toHaveBeenCalledWith(expect.stringContaining("noch keine Recruitment-Vorlagen"));
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("noch keine Recruitment-Vorlagen");
         expect(channel.send).not.toHaveBeenCalled();
     });
 
     it("lists the available templates for an unknown name", async () => {
         const { interaction, channel } = await run("Tank");
-        const text = interaction.editReply.mock.calls[0][0];
+        const text = cardText(interaction.editReply.mock.calls[0][0]);
         expect(text).toContain("„Tank\"");
         expect(text).toContain("Verfügbare Vorlagen:\n• Healer\n• Plain\n• Empty");
         expect(channel.send).not.toHaveBeenCalled();
@@ -66,7 +67,7 @@ describe("/recruitment", () => {
 
     it("refuses a template with neither title nor body", async () => {
         const { interaction, channel } = await run("empty");
-        expect(interaction.editReply).toHaveBeenCalledWith("Diese Vorlage hat weder Titel noch Text — bitte im Admin-Menü ausfüllen.");
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("Diese Vorlage hat weder Titel noch Text — bitte im Admin-Menü ausfüllen.");
         expect(channel.send).not.toHaveBeenCalled();
     });
 
@@ -86,9 +87,9 @@ describe("/recruitment", () => {
             buttonLabel: "Heiler werden",
             source: "command",
         });
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            "Recruitment-Nachricht „Healer\" gepostet in <#chan-9>: https://discord.com/channels/guild-1/chan-9/msg-1"
-        );
+        const reply = interaction.editReply.mock.calls[0][0];
+        expect(cardText(reply)).toContain("„Healer\" gepostet in <#chan-9>");
+        expect(cardControls(reply)[0]).toMatchObject({ url: "https://discord.com/channels/guild-1/chan-9/msg-1" });
     });
 
     it("leaves the title out when the template has none and uses the default button label", async () => {
@@ -104,8 +105,6 @@ describe("/recruitment", () => {
         const channel = targetChannel({ send: jest.fn(async () => { throw new Error("Missing Permissions"); }) });
         const { interaction } = await run("Healer", channel);
         expect(saveRecruitmentPost).not.toHaveBeenCalled();
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            "Konnte die Nachricht nicht im Ziel-Channel posten (fehlende Berechtigungen oder kein Textkanal?)."
-        );
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("Konnte die Nachricht nicht im Ziel-Channel posten");
     });
 });

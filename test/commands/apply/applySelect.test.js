@@ -1,3 +1,5 @@
+const { MessageFlags } = require("discord.js");
+const { cardText, cardControls } = require("../../helpers/cardText");
 const command = require("../../../src/commands/apply/applySelect.js");
 const { pendingApplications } = require("../../../src/utils/recruitment/applicationState.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
@@ -25,10 +27,12 @@ describe("commands/apply/applySelect", () => {
 
         expect(interaction.update).toHaveBeenCalledTimes(1);
         const arg = interaction.update.mock.calls[0][0];
-        expect(arg.content).toContain("Schritt 2");
-        expect(arg.content).toContain("Warrior");
+        expect(cardText(arg)).toContain("Schritt 2");
+        expect(cardText(arg)).toContain("Warrior");
+        // an update keeps the message's visibility
+        expect(arg.flags & MessageFlags.Ephemeral).toBe(0);
         // spec menu carries one option per warrior spec (Arms/Fury/Protection)
-        const select = arg.components[0].components[0];
+        const select = cardControls(arg)[0];
         expect(select.options).toHaveLength(3);
     });
 
@@ -41,7 +45,7 @@ describe("commands/apply/applySelect", () => {
         const pending = pendingApplications.get("user-99");
         expect(pending).toMatchObject({ class: "notaclass", className: "notaclass" });
         // no specs -> empty spec menu
-        const select = interaction.update.mock.calls[0][0].components[0].components[0];
+        const select = cardControls(interaction.update.mock.calls[0][0])[0];
         expect(select.options).toHaveLength(0);
     });
 

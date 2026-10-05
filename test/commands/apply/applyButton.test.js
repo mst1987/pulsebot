@@ -1,4 +1,5 @@
 const { MessageFlags } = require("discord.js");
+const { cardText, cardControls } = require("../../helpers/cardText");
 const command = require("../../../src/commands/apply/applyButton.js");
 const { CLASSES } = require("../../../src/config/applyClasses.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
@@ -18,11 +19,11 @@ describe("commands/apply/applyButton", () => {
 
         expect(interaction.reply).toHaveBeenCalledTimes(1);
         const arg = interaction.reply.mock.calls[0][0];
-        expect(arg.content).toContain("Schritt 1");
-        expect(arg.flags).toBe(MessageFlags.Ephemeral);
+        expect(cardText(arg)).toContain("Schritt 1");
+        expect(arg.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(arg.components).toHaveLength(1);
         // the select carries one option per configured class
-        const select = arg.components[0].components[0];
+        const select = cardControls(arg)[0];
         expect(select.options).toHaveLength(CLASSES.length);
     });
 
@@ -33,9 +34,9 @@ describe("commands/apply/applyButton", () => {
 
         await command.execute(interaction);
 
-        const select = interaction.reply.mock.calls[0][0].components[0].components[0];
-        const warriorOption = select.options.find((o) => o.data.value === "warrior");
-        expect(warriorOption.data.emoji).toMatchObject({ id: "emoji-1", name: "warrior" });
+        const select = cardControls(interaction.reply.mock.calls[0][0])[0];
+        const warriorOption = select.options.find((o) => o.value === "warrior");
+        expect(warriorOption.emoji).toMatchObject({ id: "emoji-1", name: "warrior" });
     });
 
     it("starts the application with the version its button names (#553)", async () => {

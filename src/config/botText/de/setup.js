@@ -2,6 +2,11 @@
 // (services/setup/setupMessage.js), the default ping (setupCore.js) and the
 // search for more raiders (raidSearch.js).
 module.exports = {
+    // the confirm / cancel buttons (setupConfirmBot.js)
+    "You are not in a group in this setup.": "Du stehst in diesem Setup nicht in einer Gruppe.",
+    "Confirmed — see you there!": "Bestätigt — bis gleich!",
+    "Marked as cancelled.": "Als abgesagt markiert.",
+    "The raid lead will rebench you.": "Die Raidleitung setzt dich auf die Bank.",
     // the setup message
     "The setup is off.": "Das Setup fällt aus.",
     "View the comp": "Comp ansehen",

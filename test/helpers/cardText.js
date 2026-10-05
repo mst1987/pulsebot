@@ -1,27 +1,34 @@
-// Reading a card() payload in a test: the text of all its text displays and its buttons, whatever the nesting.
+// Reading a card() payload (Components V2) in a test: the text of all its text displays, its buttons and controls and its
+// colour, whatever the nesting (builders or API JSON). test/helpers/card.js reads a card the way an old embed was read.
 
-function walk(node, out) {
-    if (!node || typeof node !== "object") return;
-    if (Array.isArray(node)) { node.forEach((n) => walk(n, out)); return; }
-    out.push(node);
-    walk(node.components, out);
-    walk(node.accessory, out);
-}
-
+/** Every component of a payload, nested ones and accessories included, as API JSON. */
 function nodes(payload) {
     const out = [];
-    walk(payload && payload.components, out);
+    const walk = (node) => {
+        if (!node || typeof node !== "object") return;
+        if (Array.isArray(node)) { node.forEach(walk); return; }
+        const json = typeof node.toJSON === "function" ? node.toJSON() : node;
+        out.push(json);
+        walk(json.components);
+        walk(json.accessory);
+    };
+    walk(payload && payload.components);
     return out;
 }
 
-/** All text displays of a card, joined by a newline. */
+/** All text displays of a card, joined by a newline; "" for a payload without components. */
 function cardText(payload) {
-    return nodes(payload).filter((n) => n.type === 10).map((n) => n.content).join("\n");
+    return nodes(payload).filter((n) => n.type === 10 && typeof n.content === "string").map((n) => n.content).join("\n");
 }
 
 /** All buttons of a card (`{ label, url, style, … }`). */
 function cardButtons(payload) {
     return nodes(payload).filter((n) => n.type === 2);
+}
+
+/** Every button / select of a card (flat). */
+function cardControls(payload) {
+    return nodes(payload).filter((n) => n.type === 2 || (n.type >= 3 && n.type <= 8));
 }
 
 /** The accent colour of a card's container. */
@@ -30,4 +37,4 @@ function cardColor(payload) {
     return c ? c.accent_color : undefined;
 }
 
-module.exports = { cardText, cardButtons, cardColor };
+module.exports = { cardText, cardButtons, cardControls, cardColor };

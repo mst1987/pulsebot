@@ -9,6 +9,7 @@
 // services/events/eventManageBot.js on top of services/events/eventManage.js. The message context menu
 // "Event verwalten" (eventManageContext.js) opens the same message.
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const { guildFor, initialState, stepMessage } = require("../../services/events/eventDraft");
 const { openPayload } = require("../../services/events/eventManageBot");
 const { listEvents } = require("../../stores/eventStore");
@@ -34,17 +35,17 @@ module.exports = {
         const sub = interaction.options && typeof interaction.options.getSubcommand === "function"
             ? interaction.options.getSubcommand(false)
             : "";
-        if (sub !== "anlegen" && sub !== "verwalten") return interaction.reply({ content: "Diese Aktion gibt es nicht.", flags: MessageFlags.Ephemeral });
+        if (sub !== "anlegen" && sub !== "verwalten") return interaction.reply(card({ kind: "error", title: "Diese Aktion gibt es nicht.", ephemeral: true }));
 
         const { guildId, error } = guildFor(interaction);
-        if (error) return interaction.reply({ content: error, flags: MessageFlags.Ephemeral });
+        if (error) return interaction.reply(card({ kind: "error", title: error, ephemeral: true }));
 
         if (sub === "verwalten") {
             const eventId = typeof interaction.options.getString === "function" ? String(interaction.options.getString("event") || "").trim() : "";
             const channelId = String(interaction.channelId || (interaction.channel && interaction.channel.id) || "");
             const opened = openPayload(guildId, { eventId, channelId });
-            if (opened.error) return interaction.reply({ content: opened.error, flags: MessageFlags.Ephemeral });
-            return interaction.reply({ ...opened.payload, flags: MessageFlags.Ephemeral });
+            if (opened.error) return interaction.reply(card({ kind: "warn", title: opened.error, ephemeral: true }));
+            return interaction.reply({ ...opened.payload, flags: (Number(opened.payload.flags) || 0) | MessageFlags.Ephemeral });
         }
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });

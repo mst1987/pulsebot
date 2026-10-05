@@ -3,6 +3,8 @@
 const mockGuildFor = jest.fn();
 jest.mock("../../src/services/events/eventDraft", () => ({ guildFor: (...args) => mockGuildFor(...args) }));
 
+const { MessageFlags } = require("discord.js");
+const { cardText } = require("../helpers/cardText");
 const { componentRoute } = require("../../src/commands/componentRoute");
 
 const interaction = () => ({ reply: jest.fn(async () => "replied"), update: jest.fn(async () => "updated") });
@@ -31,14 +33,16 @@ describe("commands/componentRoute", () => {
         const i = interaction();
         await componentRoute({ name: "x", accessOf: "event", handler }).execute(i);
         expect(handler).not.toHaveBeenCalled();
-        expect(i.reply).toHaveBeenCalledWith({ content: "Nicht hier.", flags: expect.any(Number) });
+        expect(cardText(i.reply.mock.calls[0][0])).toContain("Nicht hier.");
+        expect(i.reply.mock.calls[0][0].flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
     });
 
     it("can answer the server error by replacing the message", async () => {
         mockGuildFor.mockReturnValue({ error: "Nicht hier." });
         const i = interaction();
         await componentRoute({ name: "x", accessOf: "event", handler: jest.fn(), onGuildError: "update" }).execute(i);
-        expect(i.update).toHaveBeenCalledWith({ content: "Nicht hier.", embeds: [], components: [] });
+        expect(cardText(i.update.mock.calls[0][0])).toContain("Nicht hier.");
+        expect(i.update.mock.calls[0][0].flags & MessageFlags.Ephemeral).toBe(0);
         expect(i.reply).not.toHaveBeenCalled();
     });
 

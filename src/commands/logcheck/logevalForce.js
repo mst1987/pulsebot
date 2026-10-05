@@ -1,6 +1,7 @@
 const {
     MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const { evaluateLog, SECTION_LABEL } = require("../../services/logcheck/logChannel");
 const { buildReport, reportSummaryLines, ReportError } = require("../../utils/logcheck/report");
 const logStore = require("../../stores/logStore");
@@ -79,13 +80,53 @@ function forceButtonRow(kind, ref, section) {
     );
 }
 
+/** The "Zum Report" link button for a card, or nothing without a (valid) url. */
+function reportLink(url) {
+    return /^https?:\/\//.test(String(url || ""))
+        ? [new ButtonBuilder().setLabel("Zum Report").setStyle(ButtonStyle.Link).setURL(String(url))]
+        : [];
+}
+
+/** The card for a refused or failed evaluation; the link button points at the report when there is one. */
+function refusalCard({ error, url }, { title = "Auswertung nicht möglich", buttons = [] } = {}) {
+    return card({ kind: "warn", title, text: error, buttons: [...buttons, ...reportLink(url)] });
+}
+
+/** The card for a finished evaluation: the report title, the summary lines and the link to the report. */
+function resultCard({ label, reportTitle, summary, url, note }) {
+    return card({
+        kind: "ok",
+        title: label ? `${label} ausgewertet` : "Ausgewertet",
+        text: `**${reportTitle}**\n${summary}`,
+        note,
+        buttons: reportLink(url),
+    });
+}
+
+/**
+ * The reason a refusal gave, read back from the message the "Trotzdem auswerten" button sits under: its plain text, or
+ * for a card the text without the heading and the small lines (the modal shows it prefilled).
+ */
+function refusalStatus(message) {
+    const plain = String((message && message.content) || "").replace(/^⚠️\s*/, "").trim();
+    if (plain) return plain;
+    const texts = [];
+    const walk = (list) => {
+        for (const c of Array.isArray(list) ? list : []) {
+            const json = c && typeof c.toJSON === "function" ? c.toJSON() : c;
+            if (!json) continue;
+            if (json.type === 10 && typeof json.content === "string") texts.push(json.content);
+            walk(json.components);
+        }
+    };
+    walk(message && message.components);
+    return texts.join("\n").split("\n").filter((l) => l.trim() && !/^(##|-#)\s/.test(l)).join("\n").trim();
+}
+
 /** Run the forced evaluation of a tracked log and refresh its button message. */
 async function runForcedLog(interaction, logId, section) {
     const res = await evaluateLog(logId, section, { force: true });
-    if (!res.ok) {
-        const suffix = res.url ? `\n🔗 ${res.url}` : "";
-        return interaction.editReply({ content: `⚠️ ${res.error}${suffix}` });
-    }
+    if (!res.ok) return interaction.editReply(refusalCard(res));
 
     const log = res.log || {};
     try {
@@ -103,9 +144,9 @@ async function runForcedLog(interaction, logId, section) {
 
     const label = SECTION_LABEL[res.section] || res.section.toUpperCase();
     const summary = reportSummaryLines(res.report, res.section).join("\n");
-    return interaction.editReply({
-        content: `✅ **${label}** ausgewertet (Raid war noch nicht abgeschlossen): **${res.report.title}**\n${summary}\n🔗 ${res.url}`,
-    });
+    return interaction.editReply(resultCard({
+        label, reportTitle: res.report.title, summary, url: res.url, note: "Der Raid war noch nicht abgeschlossen.",
+    }));
 }
 
 /** Run the forced evaluation of a bare report id (the /logcheck path). */
@@ -114,14 +155,14 @@ async function runForcedReport(interaction, reportId) {
     try {
         result = await buildReport(`https://classic.warcraftlogs.com/reports/${reportId}`, { force: true });
     } catch (e) {
-        if (e instanceof ReportError) return interaction.editReply({ content: `⚠️ ${e.message}` });
+        if (e instanceof ReportError) return interaction.editReply(refusalCard({ error: e.message }));
         console.error("forced logcheck failed:", e);
-        return interaction.editReply({ content: "⚠️ Unerwarteter Fehler beim Erstellen der Auswertung." });
+        return interaction.editReply(card({ kind: "error", title: "Fehler", text: "Unerwarteter Fehler beim Erstellen der Auswertung." }));
     }
     const summary = reportSummaryLines(result.report).join("\n");
-    return interaction.editReply({
-        content: `✅ Ausgewertet (Raid war noch nicht abgeschlossen): **${result.report.title}**\n${summary}\n🔗 ${result.url}`,
-    });
+    return interaction.editReply(resultCard({
+        reportTitle: result.report.title, summary, url: result.url, note: "Der Raid war noch nicht abgeschlossen.",
+    }));
 }
 
 module.exports = {
@@ -135,6 +176,9 @@ module.exports = {
     parseCustomId,
     forceButtonRow,
     buildForceModal,
+    refusalCard,
+    resultCard,
+    refusalStatus,
 
     async execute(interaction) {
         const { kind, ref, section } = parseCustomId(interaction.customId);
@@ -145,19 +189,16 @@ module.exports = {
         // The reason is taken from the refusal this button sits under; deriving
         // it again would mean fetching the fight list a second time.
         if (!interaction.isModalSubmit()) {
-            const status = (interaction.message && interaction.message.content || "")
-                .replace(/^⚠️\s*/, "")
-                .trim();
+            const status = refusalStatus(interaction.message);
             return interaction.showModal(buildForceModal(interaction.customId, { section, status }));
         }
 
         // Second half: the submitted modal.
         const typed = (interaction.fields.getTextInputValue("confirm") || "").trim().toUpperCase();
         if (typed !== CONFIRM_WORD) {
-            return interaction.reply({
-                content: `Abgebrochen — zum Bestätigen muss **${CONFIRM_WORD}** eingetippt werden.`,
-                flags: MessageFlags.Ephemeral,
-            });
+            return interaction.reply(card({
+                kind: "info", title: "Abgebrochen", text: `Zum Bestätigen muss **${CONFIRM_WORD}** eingetippt werden.`, ephemeral: true,
+            }));
         }
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });

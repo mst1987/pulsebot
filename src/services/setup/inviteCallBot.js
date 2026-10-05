@@ -8,16 +8,14 @@
 //
 // Access is `/event`'s (accessOf in the command file): the orga, checked by the
 // router on every click. Everyone else sees the button and gets told no.
-const { MessageFlags } = require("discord.js");
+const { ButtonBuilder, ButtonStyle, MessageFlags } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const eventStore = require("../../stores/eventStore");
 const { invitePlan, callInvite, INVITE_GROUPS } = require("./inviteCall");
 const { INVITE_PREFIX, inviteId } = require("./setupCore");
 
 const EVENT_ID = /^eh-[a-z0-9]{1,40}$/;
 
-const COLOR = 0x38bdf8;
-const COLOR_OK = 0x57a55a;
-const COLOR_ERR = 0xe5534b;
 
 /** `{ field, eventId }`; eventId "" when it is no own id. */
 function parseInviteId(customId) {
@@ -25,22 +23,20 @@ function parseInviteId(customId) {
     return { field, eventId: EVENT_ID.test(eventId) ? eventId : "" };
 }
 
-const notice = (text, tone) => ({ content: "", embeds: [{ description: text, color: tone === "ok" ? COLOR_OK : COLOR_ERR }], components: [] });
+/** A one-line answer (the card replaces the message it sits on, so no ephemeral flag here). */
+const notice = (text, tone) => card({ kind: tone === "ok" ? "ok" : "error", title: text });
 
 /** The private preview: who, what, and the one button that posts it. */
 function previewMessage(event, plan) {
-    return {
-        content: "",
-        embeds: [{
-            title: `Invite callen · ${event.title || "Raid"}`,
-            color: COLOR,
-            description: [
-                `Pingt **${plan.userIds.length} Raider** aus Gruppe 1–${INVITE_GROUPS} im Event-Kanal mit:`,
-                `\`${plan.text}\``,
-            ].join("\n"),
-        }],
-        components: [{ type: 1, components: [{ type: 2, style: 1, custom_id: inviteId("c", event.id), label: "Jetzt pingen" }] }],
-    };
+    return card({
+        kind: "info",
+        title: `Invite callen · ${event.title || "Raid"}`,
+        text: [
+            `Pingt **${plan.userIds.length} Raider** aus Gruppe 1–${INVITE_GROUPS} im Event-Kanal mit:`,
+            `\`${plan.text}\``,
+        ].join("\n"),
+        buttons: [new ButtonBuilder().setCustomId(inviteId("c", event.id)).setLabel("Jetzt pingen").setStyle(ButtonStyle.Primary)],
+    });
 }
 
 /** Handle both buttons; `guildId` is the server the click came from. */
@@ -50,16 +46,16 @@ async function handleInviteComponent(interaction, guildId) {
     const userId = String((interaction.user && interaction.user.id) || "");
     if (field === "p") {
         const plan = event && event.guildId === guildId ? invitePlan(event, userId) : { error: { message: "Event nicht gefunden." } };
-        const payload = plan.error ? notice(`⚠️ ${plan.error.message}`, "err") : previewMessage(event, plan);
-        return interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
+        const payload = plan.error ? notice(plan.error.message, "err") : previewMessage(event, plan);
+        return interaction.reply({ ...payload, flags: payload.flags | MessageFlags.Ephemeral });
     }
     if (field === "c") {
         const member = interaction.member || {};
         const user = interaction.user || {};
         const result = await callInvite({ guildId, eventId, userId, byName: member.displayName || user.globalName || user.username || "" });
-        return interaction.update(result.error ? notice(`⚠️ ${result.error.message}`, "err") : notice(`✅ ${result.message}`, "ok"));
+        return interaction.update(result.error ? notice(result.error.message, "err") : notice(result.message, "ok"));
     }
-    return interaction.reply({ content: "Diese Aktion gibt es nicht.", flags: MessageFlags.Ephemeral });
+    return interaction.reply(card({ kind: "error", title: "Diese Aktion gibt es nicht.", ephemeral: true }));
 }
 
 module.exports = { INVITE_PREFIX, parseInviteId, previewMessage, handleInviteComponent };

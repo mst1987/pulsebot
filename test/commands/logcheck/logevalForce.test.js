@@ -20,6 +20,7 @@ const { buildReport } = require("../../../src/utils/logcheck/report.js");
 const logStore = require("../../../src/stores/logStore.js");
 const discord = require("../../../src/services/discord/discord.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
+const { cardText, cardControls } = require("../../helpers/cardText.js");
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -41,6 +42,15 @@ describe("commands/logcheck/logevalForce — the click", () => {
         expect(interaction.showModal).toHaveBeenCalledTimes(1);
         expect(evaluateLog).not.toHaveBeenCalled();
         expect(interaction.deferReply).not.toHaveBeenCalled();
+    });
+
+    it("reads the refusal back from a card too", async () => {
+        const message = command.refusalCard({ error: "Der Endboss fehlt noch: **Der Schwarze Tempel**." }, { title: "Raid noch nicht abgeschlossen" });
+        const interaction = mockInteraction({ customId: "logcheck-force:log:log1:cla", message });
+        await command.execute(interaction);
+        const json = JSON.stringify(interaction.showModal.mock.calls[0][0].toJSON());
+        expect(json).toContain("Der Schwarze Tempel");
+        expect(json).not.toContain("\"value\":\"Raid noch nicht");
     });
 
     it("shows the refusal it sits under, so nobody confirms blind", async () => {
@@ -76,9 +86,9 @@ describe("commands/logcheck/logevalForce — the submitted modal", () => {
         await command.execute(interaction);
 
         expect(evaluateLog).toHaveBeenCalledWith("log1", "cla", { force: true });
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ content: expect.stringContaining("https://host/r/abc") }),
-        );
+        const reply = interaction.editReply.mock.calls[0][0];
+        expect(cardControls(reply)[0]).toMatchObject({ url: "https://host/r/abc" });
+        expect(cardText(reply)).toContain("noch nicht abgeschlossen");
     });
 
     it("refreshes the log's button message afterwards", async () => {
@@ -105,10 +115,9 @@ describe("commands/logcheck/logevalForce — the submitted modal", () => {
 
         expect(evaluateLog).not.toHaveBeenCalled();
         expect(interaction.deferReply).not.toHaveBeenCalled();
-        expect(interaction.reply).toHaveBeenCalledWith(expect.objectContaining({
-            content: expect.stringContaining("Abgebrochen"),
-            flags: MessageFlags.Ephemeral,
-        }));
+        const sent = interaction.reply.mock.calls[0][0];
+        expect(cardText(sent)).toContain("Abgebrochen");
+        expect(sent.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
     });
 
     it("builds a bare report id the same way, for the /logcheck path", async () => {
@@ -129,9 +138,7 @@ describe("commands/logcheck/logevalForce — the submitted modal", () => {
         const interaction = submit("logcheck-force:log:gone:cla", "JA");
         await command.execute(interaction);
 
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ content: expect.stringContaining("Log nicht gefunden.") }),
-        );
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("Log nicht gefunden.");
         expect(discord.finishLogButton).not.toHaveBeenCalled();
     });
 });

@@ -1,4 +1,5 @@
 const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const { applyButtonId } = require("../../utils/recruitment/applyVersion");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 
@@ -31,9 +32,11 @@ module.exports = {
             const sourceChannel = await client.channels.fetch(ref.channelId);
             sourceMessage = await sourceChannel.messages.fetch(ref.messageId);
         } catch {
-            return interaction.editReply(
-                "Quell-Nachricht nicht gefunden. Gib eine gültige Message-ID (aus diesem Channel) oder einen Nachrichten-Link an."
-            );
+            return interaction.editReply(card({
+                kind: "error",
+                title: "Quell-Nachricht nicht gefunden",
+                text: "Gib eine gültige Message-ID (aus diesem Channel) oder einen Nachrichten-Link an.",
+            }));
         }
 
         const row = new ActionRowBuilder().addComponents(
@@ -50,12 +53,19 @@ module.exports = {
                 embeds: sourceMessage.embeds.map((e) => e.toJSON()),
                 components: [row],
             });
-            return interaction.editReply(`Bewerbungs-Nachricht gepostet in ${targetChannel}: ${posted.url}`);
+            return interaction.editReply(card({
+                kind: "ok",
+                title: "Bewerbungs-Nachricht gepostet",
+                text: `Gepostet in ${targetChannel}.`,
+                buttons: posted.url ? [new ButtonBuilder().setLabel("Zur Nachricht").setStyle(ButtonStyle.Link).setURL(posted.url)] : [],
+            }));
         } catch (error) {
             console.error("createapplication post failed:", error.message);
-            return interaction.editReply(
-                "Konnte die Nachricht nicht im Ziel-Channel posten (fehlende Berechtigungen oder kein Textkanal?)."
-            );
+            return interaction.editReply(card({
+                kind: "error",
+                title: "Nachricht nicht gepostet",
+                text: "Konnte die Nachricht nicht im Ziel-Channel posten (fehlende Berechtigungen oder kein Textkanal?).",
+            }));
         }
     },
 };

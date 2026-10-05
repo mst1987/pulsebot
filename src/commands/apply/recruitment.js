@@ -1,6 +1,7 @@
 const {
     MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, SlashCommandBuilder,
 } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const { listRecruitment, saveRecruitmentPost } = require("../../stores/recruitmentStore");
 const { embedAccentColor } = require("../../config/variables");
 
@@ -22,19 +23,29 @@ module.exports = {
 
         const templates = listRecruitment();
         if (!templates.length) {
-            return interaction.editReply(
-                "Es sind noch keine Recruitment-Vorlagen angelegt. Erstelle sie im Gildenmenü unter /recruitment."
-            );
+            return interaction.editReply(card({
+                kind: "warn",
+                title: "Keine Vorlagen",
+                text: "Es sind noch keine Recruitment-Vorlagen angelegt. Erstelle sie im Gildenmenü unter /recruitment.",
+            }));
         }
 
         const template = templates.find((t) => (t.name || "").toLowerCase() === wanted.toLowerCase());
         if (!template) {
             const names = templates.map((t) => `• ${t.name}`).join("\n");
-            return interaction.editReply(`Keine Vorlage mit dem Namen „${wanted}" gefunden.\n\nVerfügbare Vorlagen:\n${names}`);
+            return interaction.editReply(card({
+                kind: "warn",
+                title: "Vorlage nicht gefunden",
+                text: `Keine Vorlage mit dem Namen „${wanted}" gefunden.\n\nVerfügbare Vorlagen:\n${names}`,
+            }));
         }
 
         if (!template.title && !template.body) {
-            return interaction.editReply("Diese Vorlage hat weder Titel noch Text — bitte im Admin-Menü ausfüllen.");
+            return interaction.editReply(card({
+                kind: "warn",
+                title: "Vorlage leer",
+                text: "Diese Vorlage hat weder Titel noch Text — bitte im Admin-Menü ausfüllen.",
+            }));
         }
 
         const embed = new EmbedBuilder().setColor(embedAccentColor);
@@ -61,12 +72,19 @@ module.exports = {
                 buttonLabel: template.buttonLabel,
                 source: "command",
             });
-            return interaction.editReply(`Recruitment-Nachricht „${template.name}" gepostet in ${targetChannel}: ${posted.url}`);
+            return interaction.editReply(card({
+                kind: "ok",
+                title: "Recruitment-Nachricht gepostet",
+                text: `„${template.name}" gepostet in ${targetChannel}.`,
+                buttons: posted.url ? [new ButtonBuilder().setLabel("Zur Nachricht").setStyle(ButtonStyle.Link).setURL(posted.url)] : [],
+            }));
         } catch (error) {
             console.error("recruitment post failed:", error.message);
-            return interaction.editReply(
-                "Konnte die Nachricht nicht im Ziel-Channel posten (fehlende Berechtigungen oder kein Textkanal?)."
-            );
+            return interaction.editReply(card({
+                kind: "error",
+                title: "Nachricht nicht gepostet",
+                text: "Konnte die Nachricht nicht im Ziel-Channel posten (fehlende Berechtigungen oder kein Textkanal?).",
+            }));
         }
     },
 };

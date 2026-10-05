@@ -11,9 +11,8 @@
 //
 // Access is `/event`'s (accessOf in the command file): the orga, checked by
 // the router on every click. Everyone else sees the button and gets told no.
-const {
-    MessageFlags, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle,
-} = require("discord.js");
+const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const eventStore = require("../../stores/eventStore");
 const { setupPingPlan, callSetupPing, saveSetupPingText } = require("./setupPing");
 const { PING_PREFIX, PING_TEXT_MAX, pingTextOf, pingId } = require("./setupCore");
@@ -22,8 +21,6 @@ const { serverLang } = require("../discord/botLanguage");
 const EVENT_ID = /^eh-[a-z0-9]{1,40}$/;
 const FIELD_ID = "text";
 
-const COLOR_OK = 0x57a55a;
-const COLOR_ERR = 0xe5534b;
 
 /** `{ eventId }`; "" when the customId names no own event. */
 function parsePingId(customId) {
@@ -39,7 +36,7 @@ function pingModal(event) {
     return new ModalBuilder().setCustomId(pingId(event.id)).setTitle("Alle pingen").addComponents(new ActionRowBuilder().addComponents(field));
 }
 
-const notice = (text, tone) => ({ content: "", embeds: [{ description: text, color: tone === "ok" ? COLOR_OK : COLOR_ERR }] });
+const notice = (text, tone) => card({ kind: tone === "ok" ? "ok" : tone === "warn" ? "warn" : "error", title: text, ephemeral: true });
 
 /** Handle the button (opens the modal) and its submit (saves the text, posts); `guildId` is the server the click came from. */
 async function handlePingComponent(interaction, guildId) {
@@ -49,10 +46,10 @@ async function handlePingComponent(interaction, guildId) {
 
     if (!interaction.isModalSubmit()) {
         if (!event || event.guildId !== guildId) {
-            return interaction.reply({ content: "⚠️ Event nicht gefunden.", flags: MessageFlags.Ephemeral });
+            return interaction.reply(notice("Event nicht gefunden.", "warn"));
         }
         const plan = setupPingPlan(event, userId);
-        if (plan.error) return interaction.reply({ content: `⚠️ ${plan.error.message}`, flags: MessageFlags.Ephemeral });
+        if (plan.error) return interaction.reply(notice(plan.error.message, "warn"));
         return interaction.showModal(pingModal(event));
     }
 
@@ -63,10 +60,7 @@ async function handlePingComponent(interaction, guildId) {
     const result = await callSetupPing({
         guildId, eventId, userId, text, byName: member.displayName || user.globalName || user.username || "",
     });
-    return interaction.reply({
-        ...notice(result.error ? `⚠️ ${result.error.message}` : `✅ ${result.message}`, result.error ? "err" : "ok"),
-        flags: MessageFlags.Ephemeral,
-    });
+    return interaction.reply(notice(result.error ? result.error.message : result.message, result.error ? "err" : "ok"));
 }
 
 module.exports = { PING_PREFIX, parsePingId, pingModal, handlePingComponent };

@@ -21,6 +21,7 @@ const { pendingApplications } = require("../../../src/utils/recruitment/applicat
 const { analyzeApplicant, applicantSource } = require("../../../src/utils/logcheck/applicant.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 const discordClient = require("../../helpers/discordClient.js");
+const { cardText } = require("../../helpers/cardText.js");
 
 function makeClient() {
     const threadSend = jest.fn().mockResolvedValue(undefined);
@@ -34,6 +35,11 @@ function makeClient() {
     client.channels.fetch.mockResolvedValue(channel);
     return { client, threadSend, threadsCreate, threadDelete };
 }
+
+/** The text of every message sent into the thread (plain content or card). */
+const textsOf = (calls) => calls.map((c) => [c[0].content || "", cardText(c[0])].filter(Boolean).join("\n"));
+/** The text of the last editReply to the applicant. */
+const repliedText = (interaction) => cardText(interaction.editReply.mock.calls.slice(-1)[0][0]);
 
 // Discord's limits: 1024 per embed field value, 2000 per message content
 function embedFieldValues(calls) {
@@ -76,13 +82,8 @@ describe("commands/apply/applyModal", () => {
         );
         expect(threadSend).toHaveBeenCalled();
         // the "no parses found" fallback message is sent
-        const sentContents = threadSend.mock.calls
-            .map((c) => c[0] && c[0].content)
-            .filter(Boolean);
-        expect(sentContents.some((c) => c.includes("Keine Warcraft-Logs-Parses"))).toBe(true);
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ content: expect.stringContaining("eingereicht") })
-        );
+        expect(textsOf(threadSend.mock.calls).some((c) => c.includes("Keine Warcraft-Logs-Parses"))).toBe(true);
+        expect(repliedText(interaction)).toContain("eingereicht");
         // pending entry is consumed
         expect(pendingApplications.has("user-5")).toBe(false);
     });
@@ -103,12 +104,9 @@ describe("commands/apply/applyModal", () => {
             expect(value.length).toBeLessThanOrEqual(1024);
         }
         // and the full text is posted separately
-        const contents = threadSend.mock.calls.map((c) => c[0].content || "");
-        const descriptionMessage = contents.find((c) => c.includes("Über den Bewerber"));
+        const descriptionMessage = textsOf(threadSend.mock.calls).find((c) => c.includes("Über den Bewerber"));
         expect(descriptionMessage).toContain(longText);
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ content: expect.stringContaining("eingereicht") })
-        );
+        expect(repliedText(interaction)).toContain("eingereicht");
     });
 
     it("falls back to a plain message when the embed is rejected", async () => {
@@ -123,14 +121,12 @@ describe("commands/apply/applyModal", () => {
 
         await command.execute(interaction, client);
 
-        const contents = threadSend.mock.calls.map((c) => c[0].content || "");
+        const contents = textsOf(threadSend.mock.calls);
         expect(contents.some((c) => c.includes("Fallbackchar"))).toBe(true);
         expect(contents.some((c) => c.includes("kurz"))).toBe(true);
         // the thread is usable, so it must not be removed
         expect(threadDelete).not.toHaveBeenCalled();
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ content: expect.stringContaining("eingereicht") })
-        );
+        expect(repliedText(interaction)).toContain("eingereicht");
     });
 
     it("removes the thread when nothing could be posted into it", async () => {
@@ -144,9 +140,7 @@ describe("commands/apply/applyModal", () => {
         await command.execute(interaction, client);
 
         expect(threadDelete).toHaveBeenCalled();
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ content: expect.stringContaining("Fehler beim Einreichen") })
-        );
+        expect(repliedText(interaction)).toContain("Fehler beim Einreichen");
     });
 
     it("reports an error to the user when thread creation fails", async () => {
@@ -159,9 +153,7 @@ describe("commands/apply/applyModal", () => {
 
         await command.execute(interaction, client);
 
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ content: expect.stringContaining("Fehler beim Einreichen") })
-        );
+        expect(repliedText(interaction)).toContain("Fehler beim Einreichen");
     });
 
     it("uses the links and log lookup of the application's version (#553)", async () => {
@@ -201,7 +193,7 @@ describe("commands/apply/applyModal", () => {
 
         await command.execute(interaction, client);
 
-        const contents = threadSend.mock.calls.map((c) => c[0].content || "");
+        const contents = textsOf(threadSend.mock.calls);
         expect(contents.some((c) => c.includes("Keine Log-Analyse") && c.includes("Classic Era"))).toBe(true);
         expect(analyzeApplicant).not.toHaveBeenCalled();
     });
