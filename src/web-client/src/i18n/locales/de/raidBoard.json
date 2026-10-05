@@ -184,6 +184,8 @@
         "elsewhere": "Eigene Aufgaben hast du bei",
         "collapse": "Deine Aufgaben einklappen",
         "expand": "Deine Aufgaben aufklappen",
+        "move": "Deine Aufgaben verschieben",
+        "moveSub": "Am Kopf ziehen oder mit den Pfeiltasten. Doppelklick oder Pos1 setzt sie zurück nach unten links.",
         "allTasks": "Alle Aufgaben",
         "allTasksCount": "{n} Einteilungen",
         "close": "Schließen",

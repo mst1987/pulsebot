@@ -184,6 +184,8 @@
         "elsewhere": "You have tasks of your own on",
         "collapse": "Collapse your tasks",
         "expand": "Expand your tasks",
+        "move": "Move your tasks",
+        "moveSub": "Drag by the head or use the arrow keys. A double click or Home puts it back bottom left.",
         "allTasks": "All tasks",
         "allTasksCount": "{n} assignments",
         "close": "Close",
