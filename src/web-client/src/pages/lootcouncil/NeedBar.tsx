@@ -1,7 +1,6 @@
 import type { CSSProperties } from "react";
-import { WowIcon } from "../../components/ui";
+import { RichTip, WowIcon } from "../../components/ui";
 import { tParts, useT } from "../../i18n";
-import { RichTip } from "./RichTip";
 
 /** Everything the need bar needs, from a roster row or a candidate alike. */
 export type NeedSubject = {
@@ -31,7 +30,7 @@ export function NeedBar({ subject, width = 150 }: { subject: NeedSubject; width?
             text: subject.bisTotal ? t("lootcouncil.need.bisGap", { owned: subject.bisOwned, total: subject.bisTotal }) : t("lootcouncil.need.bisGapNone") },
     ];
     return (
-        <RichTip
+        <RichTip className="lc-rtip"
             label={t("lootcouncil.need.score", { score })}
             trigger={
                 <span className="lc-needbar" style={{ "--lc-nb": `${width}px` } as CSSProperties}>

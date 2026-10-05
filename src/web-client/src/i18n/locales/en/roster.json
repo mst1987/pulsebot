@@ -119,8 +119,6 @@
         "noRaidsSub": "{category}: no assigned log the character could appear in, and no raider assignment whose signups count.",
         "thisCategory": "This category",
         "category": "Category",
-        "counted": "{category}, counted from signups and logs of the last {total} raids.",
-        "missed": "Missed: {list}.",
         "noneMissed": "No counted raid missed.",
         "attendanceTip": "{attended} of {total} raids · {pct} %",
         "notEvaluated": "not evaluated",
@@ -147,7 +145,21 @@
             "one": "{count} item received",
             "other": "{count} items received"
         },
-        "noLoot": "No loot"
+        "noLoot": "No loot",
+        "ofRaids": "{attended} of {total} raids",
+        "present": "Attended",
+        "raidCount": {
+            "one": "{count} raid",
+            "other": "{count} raids"
+        },
+        "source": "{category} · from signups and logs",
+        "reason": {
+            "notInLog": "Not in the log",
+            "noSignup": "No signup",
+            "absence": "Signed off",
+            "tentative": "Tentative",
+            "bench": "Bench"
+        }
     },
     "slot": {
         "HEAD": "Head",

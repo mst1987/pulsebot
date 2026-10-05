@@ -98,6 +98,8 @@ export type RosterAttendance = {
     /** null when no night could be counted. */
     pct: number | null;
     missed: Omit<RosterNight, "attended">[];
+    /** The attended nights, newest first — the roster's answer (its tooltip lists them under "Dabei"). */
+    present?: Omit<RosterNight, "attended" | "reason">[];
     /** Night by night — only in the character page's answer. */
     raids?: RosterNight[];
 };

@@ -7,9 +7,9 @@ import { Link } from "react-router-dom";
 import type { CharGearReport, CharLootPreview, RosterAttendance, RosterRole } from "../../api";
 import { useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
-import { ROLE_META, attendanceTone, nightLabel } from "../../lib/rosterView";
+import { ROLE_META, attendanceGroups, attendanceTone, nightLabel } from "../../lib/rosterView";
 import { roleLabel } from "../../lib/wowNames";
-import { Badge, WowIcon } from "../ui";
+import { Badge, RichTip, WowIcon } from "../ui";
 
 export function RoleBadge({ role }: { role: RosterRole }) {
     const t = useT();
@@ -27,7 +27,11 @@ export function RoleBadge({ role }: { role: RosterRole }) {
     );
 }
 
-/** The attendance of one category as a fixed-width WCL bar with the missed nights in its tooltip. */
+/**
+ * The attendance of one category as a fixed-width WCL bar. Its tooltip groups the counted nights: "Dabei", then one group per
+ * reason for a missed night ("Nicht im Log", "Abgemeldet" …), each night a small date field — design canvas
+ * "Anwesenheits-Tooltip", variant C.
+ */
 export function AttendanceBar({ attendance, categoryName }: { attendance: RosterAttendance | undefined; categoryName: string }) {
     const t = useT();
     if (!attendance || !attendance.total) {
@@ -41,15 +45,32 @@ export function AttendanceBar({ attendance, categoryName }: { attendance: Roster
             </span>
         );
     }
-    const { attended, total, pct, missed } = attendance;
-    const lines = [t("roster.badge.counted", { category: categoryName || t("roster.badge.category"), total })];
-    if (missed.length) lines.push(t("roster.badge.missed", { list: missed.map((m) => `${nightLabel(m.startTime * 1000)} (${m.reason})`).join(", ") }));
-    else lines.push(t("roster.badge.noneMissed"));
+    const { attended, total, pct } = attendance;
+    const tone = attendanceTone(pct) || "";
+    const { present, absent } = attendanceGroups(attendance);
+    // one group: its word and count on the left, the nights as small date fields on the right
+    const group = (kind: "present" | "absent", label: string, nights: { eventId: string; startTime: number }[], key: string) => (
+        <div key={key} className={`ros-atip-grp ros-atip-${kind}`}>
+            <span className="ros-atip-lbl">{label}<small>{t("roster.badge.raidCount", { count: nights.length })}</small></span>
+            <span className="ros-atip-days">{nights.map((n) => <span key={n.eventId} className="ros-atip-day">{nightLabel(n.startTime * 1000)}</span>)}</span>
+        </div>
+    );
     return (
-        <span className={`bar ros-bar ${attendanceTone(pct) || ""}`} data-tip={t("roster.badge.attendanceTip", { attended, total, pct })} data-tip-sub={lines.join("\n")}>
-            <i style={{ "--fill": `${pct}%` } as CSSProperties} />
-            <span>{pct} %<small>{attended}/{total}</small></span>
-        </span>
+        <RichTip
+            width={360} className="ros-atip" label={t("roster.badge.attendanceTip", { attended, total, pct })}
+            trigger={(
+                <span className={`bar ros-bar ${tone}`}>
+                    <i style={{ "--fill": `${pct}%` } as CSSProperties} />
+                    <span>{pct} %<small>{attended}/{total}</small></span>
+                </span>
+            )}
+        >
+            <div className="ros-atip-head"><b>{t("roster.badge.ofRaids", { attended, total })}</b><span className={`ros-atip-pct ${tone}`}>{pct} %</span></div>
+            {present.length > 0 && group("present", t("roster.badge.present"), present, "present")}
+            {absent.map((g) => group("absent", g.key ? t(`roster.badge.reason.${g.key}`) : g.reason, g.nights, g.reason))}
+            {absent.length === 0 && <div className="ros-atip-none">{t("roster.badge.noneMissed")}</div>}
+            <div className="ros-atip-foot">{t("roster.badge.source", { category: categoryName || t("roster.badge.category") })}</div>
+        </RichTip>
     );
 }
 

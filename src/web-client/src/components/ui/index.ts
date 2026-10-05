@@ -15,6 +15,7 @@ export { default as Tip, TipLayer } from "./Tip";
 export { tipParts } from "../../lib/tipParts";
 export { Modal, ConfirmProvider, useConfirm, type ConfirmFn, type ConfirmOptions } from "./Modal";
 export { default as Popover } from "./Popover";
+export { default as RichTip } from "./RichTip";
 export { default as Field, FieldLabel, InfoTip } from "./Field";
 export { default as Chip } from "./Chip";
 export { default as Switch } from "./Switch";

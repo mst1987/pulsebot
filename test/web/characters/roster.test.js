@@ -69,7 +69,9 @@ describe("web/characters/roster buildRoster", () => {
         mockListAllAssignments.mockReturnValue({ cat2: { u1: "Anna" }, cat3: { u9: "Other" } });
         mockRoleFor.mockReturnValue("dps");
         mockAttendanceFor.mockImplementation((ctx, id) => ({
-            attended: 1, total: 2, pct: 50, raids: [{ eventId: `e-${id}` }], missed: [{ eventId: `e-${id}`, reason: "abgemeldet" }],
+            attended: 1, total: 2, pct: 50,
+            raids: [{ eventId: `p-${id}`, title: "Kara", startTime: 1700, attended: true, reason: "im Log" }, { eventId: `e-${id}`, attended: false }],
+            missed: [{ eventId: `e-${id}`, reason: "abgemeldet" }],
         }));
         mockCategoryInfo.mockImplementation((ctx, id) => ({ raids: 2, contents: ["BT"], icon: `icon-${id}` }));
 
@@ -78,8 +80,12 @@ describe("web/characters/roster buildRoster", () => {
 
         expect(anna.role).toBe("dps");
         expect(Object.keys(anna.attendance)).toEqual(["cat1", "cat2"]);
-        // the night-by-night list stays off the roster row
-        expect(anna.attendance.cat1).toEqual({ attended: 1, total: 2, pct: 50, missed: [{ eventId: "e-cat1", reason: "abgemeldet" }] });
+        // the night-by-night list stays off the roster row; the attended nights come as a slim list (the tooltip's "Dabei")
+        expect(anna.attendance.cat1).toEqual({
+            attended: 1, total: 2, pct: 50,
+            missed: [{ eventId: "e-cat1", reason: "abgemeldet" }],
+            present: [{ eventId: "p-cat1", title: "Kara", startTime: 1700 }],
+        });
         expect(anna).not.toHaveProperty("raiderIdsByCategory");
         const calls = mockAttendanceFor.mock.calls.map((c) => [c[1], c[3]]);
         expect(calls).toEqual(expect.arrayContaining([["cat1", []], ["cat2", ["u1"]]]));

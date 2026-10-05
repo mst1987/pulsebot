@@ -29,7 +29,7 @@ const readAll = (names) => names.map((f) => read("pages", "lootcouncil", f)).joi
 /** The page: its component, its tabs and the view it keeps. */
 const PAGE_FILES = ["LootCouncilPage.tsx", "view.ts", "CouncilTabs.tsx", "RosterTab.tsx", "GapsTab.tsx", "GapCard.tsx", "Part.tsx", "BisListsTab.tsx", "CompareTab.tsx"];
 /** The building blocks both routes draw (formerly parts.tsx). */
-const PART_FILES = ["RichTip.tsx", "NeedBar.tsx", "ItemBits.tsx", "GearBadges.tsx", "CandidateTable.tsx"];
+const PART_FILES = ["NeedBar.tsx", "ItemBits.tsx", "GearBadges.tsx", "CandidateTable.tsx"];
 
 const files = {
     page: readAll(PAGE_FILES),
