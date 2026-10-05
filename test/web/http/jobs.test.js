@@ -9,7 +9,7 @@ function mockJob(startName, stopName) {
 }
 jest.mock("../../../src/services/discord/discord", () => ({ setClient: jest.fn() }));
 jest.mock("../../../src/utils/setup/sheetCleanup", () => mockJob("startSheetCleanup", "stopSheetCleanup"));
-jest.mock("../../../src/services/events/raidEventScan", () => mockJob("startRaidEventScan", "stopRaidEventScan"));
+jest.mock("../../../src/services/events/raidhelperSync", () => mockJob("startRaidhelperSync", "stopRaidhelperSync"));
 jest.mock("../../../src/services/logcheck/logAutoLink", () => mockJob("startLogAutoLink", "stopLogAutoLink"));
 jest.mock("../../../src/services/events/eventMessage", () => mockJob("startEventMessageSync", "stopEventMessageSync"));
 jest.mock("../../../src/web/events/reminders", () => mockJob("startReminders", "stopReminders"));
@@ -23,7 +23,7 @@ const discord = require("../../../src/services/discord/discord");
 const { startJobs, stopJobs, JOBS } = require("../../../src/web/http/jobs");
 
 const START_ORDER = [
-    "startSheetCleanup", "startRaidEventScan", "startLogAutoLink", "startEventMessageSync",
+    "startSheetCleanup", "startRaidhelperSync", "startLogAutoLink", "startEventMessageSync",
     "startReminders", "startRoleSync", "startTalkOverview", "startEventSeries", "start", "startPanelRefresh",
 ];
 
@@ -39,7 +39,7 @@ describe("web/http/jobs", () => {
         const names = startJobs();
         expect(mockCalls).toEqual(START_ORDER.map((n) => `start:${n}`));
         expect(names).toEqual([
-            "sheetCleanup", "raidEventScan", "logAutoLink", "eventMessageSync",
+            "sheetCleanup", "raidhelperSync", "logAutoLink", "eventMessageSync",
             "reminders", "roleSync", "talkOverview", "eventSeries", "applicationState", "availabilityPanels",
         ]);
         expect(JOBS.map((j) => j.name)).toEqual(names);
@@ -49,7 +49,24 @@ describe("web/http/jobs", () => {
         startJobs();
         startJobs();
         const lines = console.log.mock.calls.map((c) => c[0]).filter((l) => /Background jobs started/.test(l));
-        expect(lines).toEqual(["Background jobs started: sheetCleanup, raidEventScan, logAutoLink, eventMessageSync, reminders, roleSync, talkOverview, eventSeries, applicationState, availabilityPanels"]);
+        expect(lines).toEqual(["Background jobs started: sheetCleanup, raidhelperSync, logAutoLink, eventMessageSync, reminders, roleSync, talkOverview, eventSeries, applicationState, availabilityPanels"]);
+    });
+
+    // #608: what a job asks Raid-Helper counts as background work (utils/raidhelper/budget.js)
+    it("starts every job as background work, and the timers it sets keep that", async () => {
+        const raidhelperSync = require("../../../src/services/events/raidhelperSync");
+        const { isBackground } = require("../../../src/utils/raidhelper/budget");
+        let inTimer = null;
+        let atStart = null;
+        raidhelperSync.startRaidhelperSync.mockImplementationOnce(() => {
+            atStart = isBackground();
+            setTimeout(() => { inTimer = isBackground(); }, 0).unref();
+        });
+        startJobs();
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        expect(atStart).toBe(true);
+        expect(inTimer).toBe(true);
+        expect(isBackground()).toBe(false);
     });
 
     it("is idempotent: a second call starts nothing", () => {
@@ -78,7 +95,7 @@ describe("web/http/jobs", () => {
         stopJobs();
         expect(mockCalls).toEqual([
             "stop:stopPanelRefresh", "stop:stop", "stop:stopEventSeries", "stop:stopTalkOverview", "stop:stopRoleSync", "stop:stopReminders",
-            "stop:stopEventMessageSync", "stop:stopLogAutoLink", "stop:stopRaidEventScan", "stop:stopSheetCleanup",
+            "stop:stopEventMessageSync", "stop:stopLogAutoLink", "stop:stopRaidhelperSync", "stop:stopSheetCleanup",
         ]);
         mockCalls.length = 0;
         startJobs();

@@ -18,6 +18,7 @@ import { AdminOnlyBadge, CheckMark, PenIcon, WarnIcon } from "../../components/s
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import RaidLoader from "../../components/ui/RaidLoader";
 import RaidhelperRetirementCard from "./SettingsRaidhelperRetirement";
+import RaidhelperSyncCard from "./SettingsRaidhelperSync";
 import { tParts, t as translate, useT } from "../../i18n";
 
 // Einstellungen → Verbindungen: one status card per foreign system instead of a
@@ -179,6 +180,8 @@ export default function ConnectionsSection({ data, tokens, onConfig, onTokensCha
                 })}
             </div>
             {/* #291: the switch-over checklist — full admins only, like the API. */}
+            {/* #608: the one job that fetches Raid-Helper's event list, with "Jetzt aktualisieren". */}
+            {data.canManageAccess && <RaidhelperSyncCard />}
             {data.canManageAccess && <RaidhelperRetirementCard />}
 
             {editing && editing !== "lootsync" && (

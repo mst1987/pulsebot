@@ -816,6 +816,36 @@
         "default": "Standard",
         "wholeGroup": "für alle {count} Befehle der Gruppe übernehmen"
     },
+    "rhSync": {
+        "title": "Raid-Helper-Abgleich",
+        "infoSub": "Die Seiten fragen Raid-Helper nie selbst nach Events. Ein Job holt die Liste alle {minutes} Minuten mit einer einzigen Anfrage, alle Seiten lesen nur diese Kopie. Raid-Helper erlaubt 1000 Anfragen pro Tag.",
+        "loading": "Lade Abgleich …",
+        "ago": {
+            "one": "vor {count} Minute",
+            "other": "vor {count} Minuten"
+        },
+        "never": "noch nie abgeglichen",
+        "off": "abgeschaltet",
+        "lastSync": "Zuletzt abgeglichen",
+        "lastSyncValue": {
+            "one": "{time} Uhr · {count} Event",
+            "other": "{time} Uhr · {count} Events"
+        },
+        "budget": "Anfragen in 24 Stunden",
+        "budgetSub": "So viele Anfragen gingen in den letzten 24 Stunden an Raid-Helper. Ab {cap} stoppt der Bot selbst, damit das Limit von Raid-Helper nie erreicht wird.",
+        "budgetValue": "{used} von {limit}",
+        "blocked": "Raid-Helper-Sperre",
+        "blockedUntil": "bis {time} Uhr keine Anfragen",
+        "lastError": "Letzter Fehler",
+        "refresh": "Jetzt aktualisieren",
+        "running": "Aktualisiere …",
+        "done": {
+            "one": "Abgeglichen: {count} Event",
+            "other": "Abgeglichen: {count} Events"
+        },
+        "throttled": "Gerade erst abgeglichen, in 30 Sekunden geht es wieder.",
+        "failed": "Abgleich fehlgeschlagen."
+    },
     "retirement": {
         "title": "Umstieg von Raid-Helper",
         "status": {

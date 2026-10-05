@@ -50,6 +50,8 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/event-sheets.json` | `eventSheetStore.js` | Welche Events ins Google-Raidsheet geschrieben wurden | nein |
 | `settings/event-softres.json` | `eventSoftresStore.js` | Angelegte softres.it-Listen je Event (Links) | nein |
 | `settings/raid-events.json` | `raidEventStore.js` | Schnappschuss gesehener Raid-Helper-Events (Cache) | nein |
+| `settings/raidhelper-events.json` | `raidhelperEventsStore.js` | Die Raid-Helper-Eventliste (mit Anmeldungen) des letzten Abgleichs, `syncedAt`, letzter Fehler (Cache, #608) | nein |
+| `settings/raidhelper-budget.json` | `raidhelperBudgetStore.js` | Anfragen an Raid-Helper je Stunde der letzten 24 h, Sperre nach HTTP 429 (#608). Löschen setzt nur den Zähler zurück, nicht den von Raid-Helper | nein |
 | `settings/category-names.json` | `services/discord/categoryNames.js` | Letzte bekannte Namen der Discord-Kategorien (Cache) | nein |
 | `settings/channel-archive.json` | `channelArchiveStore.js` | Archiv-Kategorie, Namensschema, Archiv-Log der Kanäle-Seite | nein |
 | `settings/raidplans.json` | `raidplanStore.js` | Raidpläne: `{ plans: [...] }` mit Boards je Boss, `publicToken` der Freigabe | nein (der Token öffnet nur die Lese-Ansicht) |

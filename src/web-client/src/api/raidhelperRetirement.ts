@@ -46,3 +46,27 @@ export function setRaidhelperDisabled(disabled: boolean): Promise<{ checklist: R
 export function importRaidhelperHistory(body: { perCategory: number; dryRun: boolean }): Promise<HistoryImportResult> {
     return send("POST", "/api/settings/raidhelper-history-import", body);
 }
+
+// ---- Abgleich der Raid-Helper-Events (#608) ---------------------------------
+
+/** The one job that fetches Raid-Helper's event list, and the day's request budget. */
+export type RaidhelperSync = {
+    syncedAt: number;
+    events: number;
+    error: string;
+    errorAt: number;
+    intervalMs: number;
+    disabled: boolean;
+    budget: { used: number; limit: number; caps: { background: number; read: number; write: number }; blockedUntil: number };
+    /** only on "Jetzt aktualisieren": the last attempt was too recent, nothing was sent */
+    throttled?: boolean;
+    ok?: boolean;
+};
+
+export function getRaidhelperSync(): Promise<RaidhelperSync> {
+    return get<RaidhelperSync>("/api/settings/raidhelper-sync");
+}
+
+export function refreshRaidhelperSync(): Promise<RaidhelperSync> {
+    return send("POST", "/api/settings/raidhelper-sync", {});
+}

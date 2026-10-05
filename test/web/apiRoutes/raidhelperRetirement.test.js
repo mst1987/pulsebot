@@ -11,11 +11,17 @@ jest.mock("../../../src/web/events/raidhelperHistoryImport", () => ({
     runImport: jest.fn(async (opts) => ({ dryRun: opts.dryRun, summary: { events: 0 } })),
 }));
 
+jest.mock("../../../src/services/events/raidhelperSync", () => ({
+    syncStatus: jest.fn(() => ({ syncedAt: 5, events: 2 })),
+    refreshNow: jest.fn(async () => ({ syncedAt: 6, throttled: false })),
+}));
+
 const { requireFullAdmin, requireCsrf } = require("../../../src/web/http/apiMiddleware");
+const raidhelperSync = require("../../../src/services/events/raidhelperSync");
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const retirement = require("../../../src/web/events/raidhelperRetirement");
 const historyImport = require("../../../src/web/events/raidhelperHistoryImport");
-const { getRetirement, postRetirement, postHistoryImport } = require("../../../src/web/apiRoutes/raidhelperRetirement");
+const { getRetirement, postRetirement, postHistoryImport, getSync, postSync } = require("../../../src/web/apiRoutes/raidhelperRetirement");
 const { AREA_BY_PATH } = require("../../../src/web/http/apiAccess");
 
 const { mockRes, status, body } = require("../../helpers/http");
@@ -69,5 +75,34 @@ describe("apiRoutes/raidhelperRetirement (#291)", () => {
         await postHistoryImport({}, mockRes());
         expect(retirement.setRaidhelperDisabled).not.toHaveBeenCalled();
         expect(historyImport.runImport).not.toHaveBeenCalled();
+    });
+
+    // #608: the one job that fetches the event list, and "Jetzt aktualisieren"
+    describe("raidhelper-sync", () => {
+        it("is gated as a settings path", () => {
+            expect(AREA_BY_PATH["/api/settings/raidhelper-sync"]).toBe("settings");
+        });
+
+        it("GET answers with the sync status", async () => {
+            const res = mockRes();
+            await getSync({}, res);
+            expect(body(res)).toEqual({ syncedAt: 5, events: 2 });
+        });
+
+        it("POST syncs now", async () => {
+            const res = mockRes();
+            await postSync({}, res);
+            expect(raidhelperSync.refreshNow).toHaveBeenCalledTimes(1);
+            expect(body(res)).toEqual({ syncedAt: 6, throttled: false });
+        });
+
+        it("needs a full admin, and the CSRF token for the refresh", async () => {
+            requireFullAdmin.mockReturnValueOnce(null);
+            await getSync({}, mockRes());
+            expect(raidhelperSync.syncStatus).not.toHaveBeenCalled();
+            requireCsrf.mockReturnValueOnce(false);
+            await postSync({}, mockRes());
+            expect(raidhelperSync.refreshNow).not.toHaveBeenCalled();
+        });
     });
 });

@@ -816,6 +816,36 @@
         "default": "Default",
         "wholeGroup": "apply to all {count} commands of the group"
     },
+    "rhSync": {
+        "title": "Raid-Helper sync",
+        "infoSub": "The pages never ask Raid-Helper for events themselves. One job fetches the list every {minutes} minutes with a single request, and every page reads that copy. Raid-Helper allows 1000 requests a day.",
+        "loading": "Loading sync …",
+        "ago": {
+            "one": "{count} minute ago",
+            "other": "{count} minutes ago"
+        },
+        "never": "never synced",
+        "off": "switched off",
+        "lastSync": "Last synced",
+        "lastSyncValue": {
+            "one": "{time} · {count} event",
+            "other": "{time} · {count} events"
+        },
+        "budget": "Requests in 24 hours",
+        "budgetSub": "This many requests went to Raid-Helper in the last 24 hours. At {cap} the bot stops by itself, so Raid-Helper's limit is never reached.",
+        "budgetValue": "{used} of {limit}",
+        "blocked": "Raid-Helper block",
+        "blockedUntil": "no requests until {time}",
+        "lastError": "Last error",
+        "refresh": "Refresh now",
+        "running": "Refreshing …",
+        "done": {
+            "one": "Synced: {count} event",
+            "other": "Synced: {count} events"
+        },
+        "throttled": "Just synced, try again in 30 seconds.",
+        "failed": "Sync failed."
+    },
     "retirement": {
         "title": "Switching from Raid-Helper",
         "status": {
