@@ -15,7 +15,9 @@ jest.mock("../../../src/services/discord/botLanguage", () => {
     return { ...actual, langOf: jest.fn((id, opts) => actual.serverLang(opts && opts.config)) };
 });
 
+const { ButtonStyle, ComponentType, MessageFlags } = require("discord.js");
 const discord = require("../../../src/services/discord/discord");
+const { KIND_COLORS } = require("../../../src/utils/discord/card");
 const botLanguage = require("../../../src/services/discord/botLanguage");
 const ping = require("../../../src/services/discord/pingDelivery");
 const { event: baseEvent } = require("../../factories/events");
@@ -24,6 +26,18 @@ const { knownChannels } = require("../../helpers/linkCheck");
 
 // The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
 beforeEach(() => knownChannels("110000", "x"));
+
+/** A DM card's text (every text display, joined) — the DMs are cards since Oct 2026. */
+const cardText = (payload) => {
+    const parts = payload.components[0].components;
+    return parts.filter((c) => c.type === ComponentType.TextDisplay).map((c) => c.content).join("\n");
+};
+/** The link buttons of a card. */
+const cardLinks = (payload) => payload.components[0].components
+    .filter((c) => c.type === ComponentType.ActionRow)
+    .flatMap((r) => r.components)
+    .filter((b) => b.style === ButtonStyle.Link);
+const dmTexts = () => Object.fromEntries(discord.sendDirectMessage.mock.calls.map(([id, payload]) => [id, cardText(payload)]));
 
 const config = (over = {}) => ({
     guildId: "100000",
@@ -73,15 +87,18 @@ describe("deliverUserPing", () => {
         const text = (lang) => (lang === "en" ? "Reminder in English" : "Erinnerung auf Deutsch");
         await ping.deliverUserPing({ target: "talk", event, userIds: ["1", "3", "4"], text, guildId: "100000", config: config() });
         expect(discord.postMissingPing).toHaveBeenCalledWith("210000", ["1"], "Erinnerung auf Deutsch");
-        const dms = Object.fromEntries(discord.sendDirectMessage.mock.calls.map(([id, payload]) => [id, payload.content]));
+        const dms = dmTexts();
         expect(dms["3"]).toContain("Reminder in English");
         expect(dms["4"]).toContain("Erinnerung auf Deutsch");
+        // the channel button in the reader's language, too
+        const labels = Object.fromEntries(discord.sendDirectMessage.mock.calls.map(([id, payload]) => [id, cardLinks(payload)[0].label]));
+        expect(labels).toEqual({ 3: "To the channel", 4: "Zum Kanal" });
     });
 
     it("falls back to the default DM text in each raider's language", async () => {
         botLanguage.langOf.mockImplementation((id) => (id === "3" ? "en" : "de"));
         await ping.deliverUserPing({ target: "talk", event, userIds: ["3", "4"], guildId: "100000", config: config() });
-        const dms = Object.fromEntries(discord.sendDirectMessage.mock.calls.map(([id, payload]) => [id, payload.content]));
+        const dms = dmTexts();
         expect(dms["3"]).toContain("Please sign up or sign off for the raid.");
         expect(dms["4"]).toContain("Bitte melde dich für den Raid an oder ab.");
     });
@@ -101,9 +118,16 @@ describe("deliverUserPing", () => {
         expect(discord.sendDirectMessage).toHaveBeenCalledTimes(1);
         const [userId, payload] = discord.sendDirectMessage.mock.calls[0];
         expect(userId).toBe("3");
-        expect(payload.content).toContain("Bitte melden");
-        expect(payload.content).toContain("**Karazhan**");
-        expect(payload.content).toContain("https://discord.com/channels/100000/110000");
+        // a warn card: the raid as its heading, the text, the start short, a button to the channel — nothing pings
+        expect(payload.flags & MessageFlags.IsComponentsV2).toBe(MessageFlags.IsComponentsV2);
+        expect(payload.components[0].accent_color).toBe(KIND_COLORS.warn);
+        expect(payload.allowedMentions).toEqual({ parse: [] });
+        const text = cardText(payload);
+        expect(text).toContain("## Karazhan");
+        expect(text).toContain("Bitte melden");
+        expect(text).toContain("<t:1900000000:d> <t:1900000000:t> · <t:1900000000:R>");
+        expect(text).not.toMatch(/:[fF]>/);
+        expect(cardLinks(payload).map((b) => b.url)).toEqual(["https://discord.com/channels/100000/110000"]);
         expect(r).toMatchObject({ target: "talk", mentioned: 2, dm: { sent: ["3"], failed: [] } });
     });
 
@@ -160,7 +184,9 @@ describe("deliverAnnouncement", () => {
         // 1 is reached by the talk role, 2 by a mention, 3 is not on the talk server.
         expect(discord.postAnnouncement).toHaveBeenCalledTimes(1);
         expect(discord.postAnnouncement).toHaveBeenCalledWith("210000", template, ["600000"], ["2"]);
-        expect(discord.sendDirectMessage).toHaveBeenCalledWith("3", expect.objectContaining({ content: expect.stringContaining("**Anmeldung**") }));
+        expect(discord.sendDirectMessage).toHaveBeenCalledTimes(1);
+        expect(discord.sendDirectMessage.mock.calls[0][0]).toBe("3");
+        expect(dmTexts()["3"]).toContain("**Anmeldung**\nBitte eintragen");
         expect(r.dm).toEqual({ sent: ["3"], failed: [] });
     });
 
@@ -177,5 +203,15 @@ describe("deliverAnnouncement", () => {
         await expect(ping.deliverAnnouncement({ target: "both", event, channelId: "110000", template, roleIds: ["700000"], config: config() }))
             .rejects.toThrow("GuildMembers-Intent fehlt.");
         expect(discord.postAnnouncement).not.toHaveBeenCalled();
+    });
+});
+
+describe("dmCard", () => {
+    it("leaves the date and the button out when the event has neither start nor channel", () => {
+        const payload = ping.dmCard("Hallo", { title: "Gruul" }, "100000");
+        expect(cardText(payload)).toBe("## Gruul\nHallo");
+        expect(cardLinks(payload)).toEqual([]);
+        expect(ping.shortStart(0)).toBe("");
+        expect(ping.shortStart(1900000000)).toBe("<t:1900000000:d> <t:1900000000:t> · <t:1900000000:R>");
     });
 });

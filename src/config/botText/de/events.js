@@ -20,6 +20,8 @@ module.exports = {
     "My characters …": "Meine Charaktere …",
     "from your profile – up to 3 at once": "aus deinem Profil – bis zu 3 auf einmal",
     "Sign up – pick a character or class …": "Anmelden – Charakter oder Klasse wählen …",
+    // the orga's button at the end of the status row (services/events/missingPingBot.js)
+    "Ping missing": "Fehlende pingen",
     // the announcement of a new raid (services/events/eventAnnounce.js)
     "New raid: {title}": "Neuer Raid: {title}",
     "[Sign up]({url})": "[Anmelden]({url})",
@@ -31,6 +33,8 @@ module.exports = {
     // pings (services/discord/pingDelivery.js) without a text of the orga
     "Please sign up or sign off for the raid, so the roster is complete.": "Bitte melde dich für den Raid an oder ab, damit das Roster vollständig ist.",
     "Please sign up or sign off for the raid.": "Bitte melde dich für den Raid an oder ab.",
+    // the link button of a ping's DM card (pingDelivery.dmCard)
+    "To the channel": "Zum Kanal",
     // reminders (web/events/reminders.js)
     "Reminder: {title} starts {when}. See you soon!": "Erinnerung: {title} startet {when}. Bis gleich!",
     "Reminder: the raid starts {when}. See you soon!": "Erinnerung: Der Raid startet {when}. Bis gleich!",

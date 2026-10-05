@@ -40,7 +40,9 @@
 // buttons `event-btn:<eventId>:<action>` Late · Tentative · Bench · Absence
 // (commands/signup/eventButton.js). After the deadline only Late · Absence, a
 // closed signup only Absence, nothing once the raid started or for a cancelled
-// event. Messages posted earlier carry the buttons Anmelden / Klasse wählen
+// event. A category with raider roles adds the orga's "Ping missing"
+// (`event-missing:<eventId>`, missingPingBot.js) to that row, before and after
+// the deadline. Messages posted earlier carry the buttons Anmelden / Klasse wählen
 // (#302), the select `event-join:<eventId>` (#287) or the button
 // `event-signup:<eventId>` (#254); their handlers keep working until the
 // message is redrawn.
@@ -137,6 +139,8 @@ const BUTTON_PREFIX = "event-btn";
 // The public signup select (#303): `event-pick:<eventId>`, value "mine" or a class id.
 const PICK_PREFIX = "event-pick";
 const PICK_MINE = "mine";
+// The orga's "Ping missing" button: `event-missing:<eventId>` (services/events/missingPingBot.js).
+const MISSING_PREFIX = "event-missing";
 const EDIT_DEBOUNCE_MS = 2000;
 const SWEEP_MS = 5 * 60 * 1000;
 const FIRST_SWEEP_MS = 30 * 1000;
@@ -181,6 +185,17 @@ function buttonId(eventId, action) {
 /** customId of the public signup select (#303). */
 function pickSelectId(eventId) {
     return `${PICK_PREFIX}:${eventId}`;
+}
+
+/** customId of the orga's "Ping missing" button (missingPingBot.js). */
+function missingPingId(eventId) {
+    return `${MISSING_PREFIX}:${eventId}`;
+}
+
+/** Whether the event's category has raider roles — the members expected to sign up, so a "missing" exists. */
+function hasRaiderRoles(event, config = getConfig()) {
+    const roles = ((config && config.categoryRoles) || {})[String((event && event.categoryId) || "")];
+    return Array.isArray(roles) && roles.length > 0;
 }
 
 /** A name as plain text — no bold, links or mentions sneaking in through markdown. */
@@ -433,18 +448,35 @@ const BUTTONS = {
 };
 
 /**
+ * "Fehlende pingen" (`event-missing:<eventId>`, services/events/missingPingBot.js):
+ * the orga's button at the end of the status row, only while signing up still
+ * makes sense (before the deadline and after it, up to the start) and only for an
+ * event whose category has raider roles (`config.categoryRoles`) — without them
+ * nobody counts as missing. Everyone sees it (a component cannot differ per
+ * viewer); the click is checked like every orga button (accessOf "event").
+ */
+function missingPingButton(event, emojis, lang) {
+    const button = { type: 2, style: BUTTON_STYLE.secondary, custom_id: missingPingId(event.id), label: tr(lang, "Ping missing") };
+    const emoji = emojiOption(emojis, uiEmojiName("signups"));
+    if (emoji) button.emoji = emoji;
+    return button;
+}
+
+/**
  * Which components a phase offers, as rows: before the deadline the signup
  * select ("pick") and Late · Tentative · Bench · Absence; after it
  * Late · Absence; a closed signup only Absence; nothing once the raid started
- * or the event was cancelled.
+ * or the event was cancelled. `pingMissing` adds the orga's "Ping missing" at
+ * the end of the status row while the signup is open or past its deadline.
  */
-function buttonRows(event, phase, now = Date.now()) {
+function buttonRows(event, phase, now = Date.now(), { pingMissing = false } = {}) {
+    const ping = pingMissing ? ["ping"] : [];
     if (phase === "open") {
         const allowed = allowedStatuses(event, { now });
         const buttons = ["late", "tentative", "bench"].filter((a) => allowed.includes(a));
-        return [allowed.includes("signed") ? ["pick"] : [], [...buttons, "absence"]].filter((r) => r.length);
+        return [allowed.includes("signed") ? ["pick"] : [], [...buttons, "absence", ...ping]].filter((r) => r.length);
     }
-    if (phase === "deadline") return [["late", "absence"]];
+    if (phase === "deadline") return [["late", "absence", ...ping]];
     if (phase === "closed") return event && event.signupsClosed ? [["absence"]] : [];
     return [];
 }
@@ -478,12 +510,17 @@ function pickSelect(event, emojis, lang = "de") {
  * The select and buttons under the message for the event's current phase, as
  * component rows — in `lang`, the server language when left out (a caller that
  * resets the components of the posted message, eventPick.js, gets the right one).
+ * `pingMissing`: whether the category has raider roles — read from the config
+ * when left out, so that caller keeps the button as well.
  */
-function messageComponents(event, { emojis = {}, now = Date.now(), phase = messagePhase(event, now), lang = serverLang() } = {}) {
-    return buttonRows(event, phase, now).map((row) => ({
+function messageComponents(event, {
+    emojis = {}, now = Date.now(), phase = messagePhase(event, now), lang = serverLang(), pingMissing = hasRaiderRoles(event),
+} = {}) {
+    return buttonRows(event, phase, now, { pingMissing }).map((row) => ({
         type: 1,
         components: row.map((action) => {
             if (action === "pick") return pickSelect(event, emojis, lang);
+            if (action === "ping") return missingPingButton(event, emojis, lang);
             const b = BUTTONS[action];
             const button = { type: 2, style: b.style, custom_id: buttonId(event.id, action), label: word(lang, b.word) };
             const emoji = emojiOption(emojis, uiEmojiName(b.icon));
@@ -517,9 +554,11 @@ function phaseLine(event, phase, head, lang) {
  *   `icsUrl`: the calendar link; empty = the event's own `/r/cal/<id>.ics` (#308)
  *   `compUrl`/`srUrl`: the comp sheet and softres.it links (#357); empty = no such link on record, left out
  *   `lang`: the server language ("de" | "en", German by default)
+ *   `pingMissing`: the category has raider roles → the orga's "Ping missing" button (hasRaiderRoles)
  */
 function buildEventMessage(event, signups, {
     emojis = {}, now = Date.now(), icsUrl = "", raidArt = false, titleSize = "normal", compUrl = "", srUrl = "", lang = "de",
+    pingMissing = false,
 } = {}) {
     const list = (signups || []).filter((s) => s && s.userId).map(migrateSignup);
     const c = rosterCounts(list);
@@ -636,7 +675,7 @@ function buildEventMessage(event, signups, {
         embed.fields = fitFields([...headFields, ...totals, ...rosterFields(entries, numbers, emojis, maxLines, style, lang), ...tail]);
         if (embedLength(embed) <= LIMITS.total) break;
     }
-    return { content: "", embeds: [embed], components: messageComponents(event, { emojis, now, phase, lang }) };
+    return { content: "", embeds: [embed], components: messageComponents(event, { emojis, now, phase, lang, pingMissing }) };
 }
 
 /**
@@ -667,6 +706,7 @@ async function buildPayload(event, lang) {
         compUrl: (sheetLink && sheetLink.url) || "",
         srUrl: (softres && softres.url) || "",
         lang,
+        pingMissing: hasRaiderRoles(event),
     });
 }
 
@@ -830,7 +870,8 @@ function stopEventMessageSync() {
 }
 
 module.exports = {
-    SIGNUP_BUTTON_PREFIX, JOIN_SELECT_PREFIX, BUTTON_PREFIX, PICK_PREFIX, PICK_MINE, STATUS_OPTIONS, messageComponents, rosterEntries,
+    SIGNUP_BUTTON_PREFIX, JOIN_SELECT_PREFIX, BUTTON_PREFIX, PICK_PREFIX, PICK_MINE, MISSING_PREFIX, STATUS_OPTIONS, messageComponents, rosterEntries,
+    missingPingId, hasRaiderRoles,
     classesOf, rosterCounts, messagePhase, postEventMessage, refreshEventMessage, startEventMessageSync, stopEventMessageSync, sweepEventMessages,
     // only for the tests (#424): not part of the module's API
     _internal: {

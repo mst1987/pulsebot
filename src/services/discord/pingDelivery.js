@@ -17,7 +17,13 @@
 // (botLanguage.serverLang); a DM is the recipient's own (botLanguage.langOf).
 // So a text may come as a function `(lang) => string`, drawn once per
 // language; a plain string (the orga's own words) goes out as it is.
+//
+// A DM is a card (utils/discord/card.js, kind "warn", `dmCard`): the raid as
+// its heading, the text, the start short (`<t:…:d> <t:…:t>`) and a button to
+// the event channel. The channel pings themselves are discord.postMissingPing's.
+const { ButtonBuilder, ButtonStyle } = require("discord.js");
 const discord = require("./discord");
+const { card } = require("../../utils/discord/card");
 const linkCheck = require("./linkCheck");
 const guildRoles = require("./guildRoles");
 const { getConfig } = require("../../stores/settingsStore");
@@ -88,11 +94,27 @@ function eventChannelUrl(event, guildId) {
     return event ? linkCheck.channelLink(guildId, event.channelId) : "";
 }
 
-/** The DM text: the ping itself plus which raid it is about, since a DM has no channel to say so. */
-function dmContent(text, event, guildId) {
-    const start = Number(event && event.startTime) || 0;
-    const head = event && event.title ? `**${event.title}**${start ? ` · <t:${start}:F>` : ""}` : "";
-    return [String(text || "").trim(), head, eventChannelUrl(event, guildId)].filter(Boolean).join("\n");
+/** A short start: "<t:…:d> <t:…:t> · <t:…:R>" — each reader's own date format and time zone; "" without one. */
+function shortStart(start) {
+    const sec = Number(start) || 0;
+    return sec ? `<t:${sec}:d> <t:${sec}:t> · <t:${sec}:R>` : "";
+}
+
+/**
+ * The DM as a card (kind "warn", nothing in it pings): the raid as its heading —
+ * a DM has no channel to say which one —, the ping, the start and a button to
+ * the event channel, labelled in the reader's language.
+ */
+function dmCard(text, event, guildId, lang = "de") {
+    const when = shortStart(event && event.startTime);
+    const url = eventChannelUrl(event, guildId);
+    return card({
+        kind: "warn",
+        title: event && event.title,
+        text: String(text || "").trim(),
+        facts: when ? [["", when]] : [],
+        buttons: url ? [new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "To the channel")).setURL(url)] : [],
+    });
 }
 
 /**
@@ -153,7 +175,7 @@ async function deliverUserPing({ target, event, userIds, text = "", guildId = ""
         result.mentioned = present.length;
         if (!includesEvent(mode) && absent.length) {
             // a DM: each raider's own language
-            const dm = (dmLang) => ({ content: dmContent(textIn(text, dmLang) || tr(dmLang, "Please sign up or sign off for the raid."), event, guildId) });
+            const dm = (dmLang) => dmCard(textIn(text, dmLang) || tr(dmLang, "Please sign up or sign off for the raid."), event, guildId, dmLang);
             result.dm = await sendDms(absent, dm, { config });
         }
     }
@@ -221,7 +243,7 @@ async function deliverAnnouncement({ target, event, channelId, template, roleIds
         result.mentioned = talkPlan.userIds.length;
         if (!includesEvent(mode) && talkPlan.absent.length) {
             const text = [template.title ? `**${template.title}**` : "", template.body || ""].filter(Boolean).join("\n");
-            result.dm = await sendDms(talkPlan.absent, { content: dmContent(text, event, guildId) }, { config });
+            result.dm = await sendDms(talkPlan.absent, (dmLang) => dmCard(text, event, guildId, dmLang), { config });
         }
     }
     return result;
@@ -239,5 +261,5 @@ function dmSummary(dm) {
 module.exports = {
     PING_TARGETS, TARGET_LABELS,
     normalizePingTarget, talkPingChannel, pingTargetInfo,
-    deliverUserPing, deliverAnnouncement, dmSummary, dmContent, mapRoles, sendDms, missingPingText,
+    deliverUserPing, deliverAnnouncement, dmSummary, dmCard, shortStart, mapRoles, sendDms, missingPingText,
 };
