@@ -85,32 +85,8 @@ function plainCategoryName(name) {
     return raw.replace(/^[^\p{L}\p{N}]+/u, "").trim() || raw;
 }
 
-/**
- * The panel message a raid category's channel carries — in the server
- * language. One sentence, the two kinds of entry side by side as inline
- * fields, the DM note in the footer (design A of the panel canvas, Okt 2026:
- * three paragraphs that named the category three times were too much to read).
- */
-function panelPayload({ categoryId = "", categoryName = "", lang = "de" } = {}) {
-    const category = plainCategoryName(categoryName);
-    const vars = { category };
-    return {
-        content: "",
-        embeds: [buildEmbed({
-            title: category ? tr(lang, "Absence & attendance · {category}", vars) : tr(lang, "Absence & attendance"),
-            description: category
-                ? tr(lang, "Enter a period – the bot signs you off or up for every **{category}** raid in it.", vars)
-                : tr(lang, "Enter a period – the bot signs you off or up for every raid in it."),
-            fields: [
-                { name: tr(lang, "🏖️ Away"), value: tr(lang, "Signed off from every raid in the period – also from ones created later"), inline: true },
-                { name: tr(lang, "✅ There for sure"), value: tr(lang, "Signed up with your character as *Signed up*"), inline: true },
-            ],
-            footer: tr(lang, "One DM per raid · your own signup stays yours to change"),
-            color: COLOR_PANEL,
-        })],
-        components: [panelButtons(categoryId, lang)],
-    };
-}
+// The panel message a raid category's channel carries is the raider organizer
+// now (utils/signup/organizerPanel.js); it uses the three buttons above.
 
 function dateInput(id, label, placeholder, required = true) {
     return new ActionRowBuilder().addComponents(new TextInputBuilder()
@@ -296,6 +272,6 @@ function savedPayload(summary, { kind, dm, lang = "de" }) {
 
 module.exports = {
     PREFIX, createSession, getSession, endSession, parseId, panelId, pickId,
-    panelButtons, panelPayload, periodModal, characterOptions, defaultCharacter, pickerPayload, listPayload, savedPayload,
+    panelButtons, plainCategoryName, periodModal, characterOptions, defaultCharacter, pickerPayload, listPayload, savedPayload,
     entryLine, periodLabel, raidWhen,
 };

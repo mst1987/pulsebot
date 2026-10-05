@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, type ApiError, type AvailabilityPanel } from "../../api";
+import { getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, type ApiError, type AvailabilityLink, type AvailabilityPanel } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedSearchParam } from "../../lib/persistedState";
 import RolePermissionsEditor from "./RolePermissions";
@@ -70,11 +70,18 @@ export default function SettingsPage() {
     const tokens = tokensData.error ? null : tokensData.data;
     const loadTokens = tokensData.reload;
     // The absence/attendance panels per category: posted and removed at once, never through the draft.
-    const panelsData = useApi(() => getAvailabilityPanels().then((r) => r.panels), [], { enabled: !!data });
-    const setPanel = (categoryId: string, panel: AvailabilityPanel | null) => panelsData.setData((list) => [
-        ...(list || []).filter((p) => p.categoryId !== categoryId),
-        ...(panel ? [panel] : []),
-    ]);
+    // The organizer's link buttons come with them and are saved the same way.
+    const panelsData = useApi(() => getAvailabilityPanels().then((r) => ({ panels: r.panels, links: r.links || {}, maxLinks: r.maxLinks || 5 })), [], { enabled: !!data });
+    const setPanel = (categoryId: string, panel: AvailabilityPanel | null) => panelsData.setData((cur) => (cur ? {
+        ...cur,
+        panels: [...cur.panels.filter((p) => p.categoryId !== categoryId), ...(panel ? [panel] : [])],
+    } : cur));
+    const setLinks = (categoryId: string, links: AvailabilityLink[]) => panelsData.setData((cur) => {
+        if (!cur) return cur;
+        const rest = { ...cur.links };
+        delete rest[categoryId];
+        return { ...cur, links: links.length ? { ...rest, [categoryId]: links } : rest };
+    });
 
     if (settingsData.error) return <div className="empty">{tParts("settings.page.loadError", { message: settingsData.error.message })}</div>;
     if (!data || !draft) return <RaidLoader text={t("settings.page.loading")} />;
@@ -290,9 +297,12 @@ export default function SettingsPage() {
                     }}
                     // a failed load leaves the row out rather than offering to post a second panel
                     availabilityPanels={panelsData.data ? {
-                        panels: panelsData.data,
+                        panels: panelsData.data.panels,
+                        links: panelsData.data.links,
+                        maxLinks: panelsData.data.maxLinks,
                         channels: data.noteChannels ? data.noteChannels.channels : [],
                         onChange: setPanel,
+                        onLinks: setLinks,
                     } : undefined}
                     icon={activeSection.icon}
                     crumb={activeCrumb}

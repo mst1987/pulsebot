@@ -12,7 +12,10 @@
 //             (event ids deselected when it was entered), applied ({ [eventId]:
 //             { at, ok, error? } } — every raid it was applied to once, so a
 //             raid is never touched twice), createdBy, createdAt }
-//   panel = { categoryId, guildId, channelId, messageId, postedAt, postedBy }
+//   panel = { categoryId, guildId, channelId, messageId, postedAt, postedBy, hash }
+//   links = { [categoryId]: [{ label, url }] } — the link buttons of a
+//           category's raider organizer (WCL invite, info sheet …), at most
+//           MAX_LINKS, kept apart from the panel so posting anew keeps them
 //
 // Old entries are pruned once their last day is long over; nothing else
 // removes them except the raider or the orga.
@@ -26,12 +29,17 @@ const COMMENT_MAX = 100;
 const MAX_ENTRIES = 20;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Link buttons per category (one Discord action row) and the longest label Discord shows. */
+const MAX_LINKS = 5;
+const LINK_LABEL_MAX = 40;
+
 const store = createJsonStore({
     file: settingsPath("availability.json"),
-    defaults: () => ({ entries: [], panels: [] }),
+    defaults: () => ({ entries: [], panels: [], links: {} }),
     normalize: (data) => ({
         entries: Array.isArray(data && data.entries) ? data.entries.filter((e) => e && e.id && e.userId) : [],
         panels: Array.isArray(data && data.panels) ? data.panels.filter((p) => p && p.channelId && p.messageId) : [],
+        links: data && data.links && typeof data.links === "object" && !Array.isArray(data.links) ? data.links : {},
     }),
 });
 
@@ -181,6 +189,53 @@ function markPanelDrawn(categoryId, hash) {
     return true;
 }
 
+/**
+ * Check a category's links: `{ value: [{ label, url }] }` or `{ error }`
+ * (German). Rows without both a label and an address are dropped quietly — an
+ * empty row in the editor is not a mistake.
+ */
+function checkLinks(list) {
+    const rows = (Array.isArray(list) ? list : [])
+        .map((l) => ({ label: str(l && l.label), url: str(l && l.url) }))
+        .filter((l) => l.label || l.url);
+    if (rows.length > MAX_LINKS) return { error: `Höchstens ${MAX_LINKS} Links je Kategorie.` };
+    for (const l of rows) {
+        if (!l.label) return { error: `Der Link „${l.url}“ braucht einen Text.` };
+        if ([...l.label].length > LINK_LABEL_MAX) return { error: `„${l.label}“ ist zu lang (höchstens ${LINK_LABEL_MAX} Zeichen).` };
+        if (!/^https?:\/\/[^\s<>()]+$/i.test(l.url)) return { error: `„${l.label}“ braucht eine Adresse mit https://.` };
+    }
+    return { value: rows };
+}
+
+/** A category's links, in their order. */
+function getLinks(categoryId) {
+    const list = store.read().links[str(categoryId)];
+    return Array.isArray(list) ? list.map((l) => ({ label: str(l.label), url: str(l.url) })).filter((l) => l.label && l.url) : [];
+}
+
+/** Every category's links: `{ [categoryId]: [{ label, url }] }`. */
+function listLinks() {
+    const out = {};
+    for (const id of Object.keys(store.read().links)) {
+        const list = getLinks(id);
+        if (list.length) out[id] = list;
+    }
+    return out;
+}
+
+/** Replace a category's links (checked by checkLinks); an empty list removes them. `{ links }` or `{ error }`. */
+function setLinks(categoryId, list) {
+    const cat = str(categoryId);
+    if (!cat) return { error: "Keine Kategorie gewählt." };
+    const checked = checkLinks(list);
+    if (checked.error) return checked;
+    const data = store.read();
+    if (checked.value.length) data.links[cat] = checked.value;
+    else delete data.links[cat];
+    store.write(data);
+    return { links: checked.value };
+}
+
 function removePanel(categoryId) {
     const data = store.read();
     const hit = data.panels.find((p) => str(p.categoryId) === str(categoryId));
@@ -194,4 +249,5 @@ module.exports = {
     KINDS, MAX_ENTRIES, COMMENT_MAX,
     listEntries, getEntry, addEntry, removeEntry, markApplied, prune, entryProblem,
     listPanels, getPanel, setPanel, markPanelDrawn, removePanel, useFile,
+    MAX_LINKS, LINK_LABEL_MAX, checkLinks, getLinks, listLinks, setLinks,
 };

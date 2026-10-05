@@ -230,6 +230,7 @@
   "POST /api/kader/variants/auto",
   "POST /api/kader/accounts",
   "POST /api/kader/accounts/remove",
+  "PUT /api/availability/links",
   "PUT /api/kader/assignments",
   "POST /api/kader/assignments/reset",
   "GET /api/settings/raidhelper-sync",

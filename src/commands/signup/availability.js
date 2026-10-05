@@ -9,10 +9,17 @@
 //   availability:ma|mp:<categoryId>  the submitted modal → the raid picker (a session)
 //   availability:l:<categoryId>      "My entries"; availability:del:<categoryId> deletes one
 //   availability:<token>:c|r|save|x  the picker: character · spec, raids, save, cancel
+//   availability:r:<categoryId>      the organizer's "My raid": the category's next raid and the own signup
+//   availability:o:<categoryId>      the organizer's "Evaluation": the newest evaluation with an own character
 const { MessageFlags, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
 const availability = require("../../services/signups/availability");
+const organizer = require("../../services/signups/organizer");
+const { categoryNameFor } = require("../../services/signups/availabilityPanel");
+const linkCheck = require("../../services/discord/linkCheck");
+const { specLabel } = require("../../utils/i18n/botText");
+const { myRaidPayload, myReportPayload } = require("../../utils/signup/organizerPanel");
 const { mainVersionFor, visibleVersions } = require("../../services/events/mainVersion");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { parseGermanDate } = require("../../utils/time");
@@ -74,6 +81,34 @@ async function onModal(interaction, kind, categoryId, lang) {
     const session = { ...checked.value, characterKey: pick ? pick.key : "" };
     const token = createSession(uid, session);
     return ephemeral(interaction, picker(token, getSession(token, uid), config, lang));
+}
+
+/** The organizer's "My raid", for this member. */
+function myRaid(userId, categoryId, config, lang) {
+    const event = organizer.nextRaid(categoryId);
+    const signup = event ? organizer.signupOf(event.id, userId) : null;
+    const first = signup && Array.isArray(signup.characters) && signup.characters[0];
+    const specKey = (first && first.spec) || (signup && signup.spec) || "";
+    return myRaidPayload({
+        event,
+        signup: signup ? { status: signup.status, character: (first && first.character) || signup.character } : null,
+        specText: specKey ? specLabel(lang, profiles.specInfo(specKey), specKey) : "",
+        signupUrl: event ? linkCheck.eventLink(event) : "",
+        planUrl: event ? linkCheck.webTarget("raidplan", event.id) : "",
+        categoryName: categoryNameFor(categoryId, { config }),
+        lang,
+    });
+}
+
+/** The organizer's "Evaluation", for this member. */
+function myReport(userId, lang) {
+    const report = organizer.latestReportFor(userId);
+    return myReportPayload({
+        report,
+        reportUrl: report ? linkCheck.webLink(`/r/${report.id}/p/${report.idx}`) : "",
+        profileUrl: linkCheck.webLink("/profile"),
+        lang,
+    });
 }
 
 function picker(token, session, config, lang, notice = "") {
@@ -145,6 +180,8 @@ module.exports = {
             return interaction.showModal(periodModal("presence", categoryId, lang));
         }
         if (action === "ma" || action === "mp") return onModal(interaction, action === "ma" ? "absence" : "presence", categoryId, lang);
+        if (action === "r") return ephemeral(interaction, myRaid(uid, categoryId, config, lang));
+        if (action === "o") return ephemeral(interaction, myReport(uid, lang));
         if (action === "l") {
             return fromEphemeral(interaction) ? interaction.update(listFor(uid, categoryId, lang)) : ephemeral(interaction, listFor(uid, categoryId, lang));
         }
