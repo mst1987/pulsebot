@@ -251,6 +251,46 @@
     "drawer": {
         "kicker": "Raider"
     },
+    "poolPanel": {
+        "notPlaced": "not placed yet",
+        "search": "Search raider or spec",
+        "filter": "Filter by role",
+        "filters": { "all": "All", "tank": "Tanks", "healer": "Healers", "dps": "DPS" },
+        "sections": { "tank": "Tanks", "healer": "Healers", "melee": "Melee", "ranged": "Ranged" },
+        "noMatch": "Nobody matches the search.",
+        "absent": { "one": "{count} signed off · not part of the setup", "other": "{count} signed off · not part of the setup" },
+        "back": "Back here",
+        "collapse": "Collapse signed up",
+        "expand": "Expand signed up"
+    },
+    "fill": {
+        "kicker": "Setup",
+        "auto": "Fill automatically",
+        "autoSub": "Spreads everybody signed up over groups and bench — by roles, buffs, attendance and fairness. You can move everything afterwards.",
+        "free": "Fill free places",
+        "freeSub": "Fills the free places with raiders who signed up. Whoever stands stays — or let everything be proposed anew.",
+        "question": { "one": "{count} raider is placed already. What should happen?", "other": "{count} raiders are placed already. What should happen?" },
+        "keepTitle": "Fill the free places only",
+        "keepText": { "one": "Whoever stands stays. {count} free place is filled, the rest goes on the bench.", "other": "Whoever stands stays. {count} free places are filled, the rest goes on the bench." },
+        "anewTitle": "Propose everything anew",
+        "anewText": "Only fixed raiders stay, everybody else is placed anew.",
+        "go": "Fill"
+    },
+    "postOptions": {
+        "aria": "What is posted with the setup",
+        "bench": "Post the bench",
+        "benchSub": "On: the bench is in the setup message and the bench players get a DM. Off: the bench stays internal. Applies to the next \"Post setup\" and is remembered for this raid.",
+        "dms": "DMs to players",
+        "dmsSub": "On: everybody in the setup gets a DM with their place (\"Group 2 as healer\"), after a change only those whose place changed. Default from the category, applies to the next \"Post setup\".",
+        "dmsSubOwn": "Set differently for this raid than in the category. Applies to the next \"Post setup\" and is remembered for this raid."
+    },
+    "confirmAll": {
+        "askTitle": "Confirm everybody?",
+        "askText": {
+            "one": "{count} raider in the groups has not answered yet and gets the green check — in the Discord message too. Who cancelled stays cancelled.",
+            "other": "{count} raiders in the groups have not answered yet and get the green check — in the Discord message too. Who cancelled stays cancelled."
+        }
+    },
     "editor": {
         "saveFailed": "Saving failed.",
         "proposalJob": "Setup proposal",
@@ -265,7 +305,7 @@
         "confirmAllNone": "Everybody in the groups has answered already.",
         "confirmAllDone": { "one": "{count} raider confirmed.", "other": "{count} raiders confirmed." },
         "more": "More",
-        "moreSub": "Propose anew, number of groups, ping text, fairness, wishes, bench, compact, search, AI explanation and weights",
+        "moreSub": "Propose anew, number of groups, ping text, fairness, wishes, compact, search, AI explanation and weights",
         "explainSub": "Claude explains in a few paragraphs why the setup stands as it does.",
         "weightsSub": "How much roles, buffs, attendance and fairness count in the proposal.",
         "postFailed": "Posting failed.",

@@ -222,13 +222,18 @@ describe("runAutoSuggest (Vorschlag bei Anmeldeschluss)", () => {
     it("waits for the deadline and skips events without the switch, with a setup, or already started", () => {
         expect(reminders.autoSuggestDue(own({ signupDeadline: sec(NOW + HOUR) }), {}, NOW)).toBe(false);
         expect(reminders.autoSuggestDue(own({ autoSuggest: false }), {}, NOW)).toBe(false);
-        expect(reminders.autoSuggestDue(own({ setup: { status: "draft" } }), {}, NOW)).toBe(false);
+        // the orga already dragged somebody in by hand: that work is never replaced
+        expect(reminders.autoSuggestDue(own({ setup: { status: "draft", groups: [{ index: 1, slots: [{ userId: "u1" }] }], bench: [] } }), {}, NOW)).toBe(false);
+        expect(reminders.autoSuggestDue(own({ setup: { status: "draft", groups: [], bench: [{ userId: "u2" }] } }), {}, NOW)).toBe(false);
+        expect(reminders.autoSuggestDue(own({ setup: { status: "approved", groups: [] } }), {}, NOW)).toBe(false);
         expect(reminders.autoSuggestDue(own({ signupDeadline: 0 }), {}, NOW)).toBe(false);
         expect(reminders.autoSuggestDue(own({ startTime: sec(NOW - 60 * 1000) }), {}, NOW)).toBe(false);
         expect(reminders.autoSuggestDue(own(), { autoSuggest: 1 }, NOW)).toBe(false);
         // a cancelled event (#288) gets no setup proposal
         expect(reminders.autoSuggestDue(own({ status: "cancelled" }), {}, NOW)).toBe(false);
         expect(reminders.autoSuggestDue(own(), {}, NOW)).toBe(true);
+        // a draft dragged empty again is no work of the orga: the proposal still comes
+        expect(reminders.autoSuggestDue(own({ setup: { status: "draft", groups: [{ index: 1, slots: [] }], bench: [], pool: [{ userId: "u1" }] } }), {}, NOW)).toBe(true);
     });
 
     it("takes the mark back when the proposal fails, so the next sweep retries", () => {

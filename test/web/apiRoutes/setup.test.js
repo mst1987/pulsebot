@@ -151,6 +151,18 @@ describe("posting the approved setup (#290)", () => {
         expect(setupMessage.publishSetup.mock.calls[0][1].bench).toBeUndefined();
     });
 
+    it("hands the orga's \"DMs an Spieler\" on to the post, only when it is a yes/no", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version, dms: false });
+        expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga", dms: false });
+        setupMessage.publishSetup.mockClear();
+        await call(route.postPublish, ORGA, { event: ID, dms: true, bench: true });
+        expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga", bench: true, dms: true });
+        setupMessage.publishSetup.mockClear();
+        await call(route.postPublish, ORGA, { event: ID, dms: "on" });
+        expect(setupMessage.publishSetup.mock.calls[0][1].dms).toBeUndefined();
+    });
+
     it("POST /post re-posts and reports a refusal with its code", async () => {
         const ok = await call(route.postPublish, ORGA, { event: ID });
         expect(status(ok)).toBe(200);
@@ -174,6 +186,52 @@ describe("posting the approved setup (#290)", () => {
         expect(mockEvents.get(ID).setup).toMatchObject({ status: "approved", approvedBy: "orga", approvedVersion: version });
         expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga" });
         expect(refreshEventMessage).toHaveBeenCalledWith(ID);
+    });
+});
+
+describe("no proposal needed: the empty start", () => {
+    it("gives the orga empty groups and every signup under \"Angemeldet\" before anything is stored", async () => {
+        const r = await call(route.getSetup, ORGA, null, `event=${ID}`);
+        expect(status(r)).toBe(200);
+        const setup = body(r).setup;
+        expect(setup).toMatchObject({ status: "draft", version: 0, blank: true });
+        expect(setup.groups.every((g) => g.slots.length === 0)).toBe(true);
+        expect(setup.bench).toEqual([]);
+        expect(setup.pool.map((p) => p.userId).sort()).toEqual(mockSignups.map((s) => s.userId).sort());
+        // valued like a hand-made lineup: the counts read 0 of the plan, nothing is ok yet
+        expect(setup.checks.ok).toBe(false);
+        // nothing is written by looking
+        expect(mockEvents.get(ID).setup).toBeNull();
+        // a reader still gets no draft at all
+        expect(body(await call(route.getSetup, READER, null, `event=${ID}`))).not.toHaveProperty("setup");
+    });
+
+    it("stores the first move on the empty start as version 1", async () => {
+        const tank = mockSignups[0];
+        const r = await call(route.putSetup, ORGA, { event: ID, version: 0, groups: [{ index: 1, slots: [{ userId: tank.userId, spec: tank.spec }] }], bench: [] });
+        expect(status(r)).toBe(200);
+        expect(mockEvents.get(ID).setup).toMatchObject({ version: 1, status: "draft", origin: "manual" });
+        expect(body(r).setup.groups[0].slots.map((s) => s.userId)).toEqual([tank.userId]);
+        expect(body(r).setup.blank).toBeUndefined();
+    });
+
+    it("\"Freie Plätze füllen\" keeps everybody where the orga put them, unlocked, and fills the rest", async () => {
+        const [tank, , , mage] = mockSignups;
+        await call(route.putSetup, ORGA, { event: ID, version: 0, groups: [{ index: 2, slots: [{ userId: mage.userId, spec: mage.spec, pos: 4 }] }, { index: 1, slots: [{ userId: tank.userId, spec: tank.spec, locked: true }] }], bench: [] });
+        const r = await call(route.postPropose, ORGA, { event: ID, keep: "placed" });
+        expect(status(r)).toBe(200);
+        expect(body(r).message).toBe("Freie Plätze gefüllt.");
+        const groups = mockEvents.get(ID).setup.groups;
+        const where = (id) => groups.find((g) => g.slots.some((s) => s.userId === id));
+        const slotOf = (id) => where(id).slots.find((s) => s.userId === id);
+        expect(where(mage.userId).index).toBe(2);
+        expect(slotOf(mage.userId)).toMatchObject({ locked: false, pos: 4 });
+        expect(slotOf(mage.userId).reasons).not.toContain("Von der Orga fixiert");
+        // a lock the orga set stays one
+        expect(where(tank.userId).index).toBe(1);
+        expect(slotOf(tank.userId).locked).toBe(true);
+        // the free places got filled
+        expect(groups.reduce((n, g) => n + g.slots.length, 0)).toBeGreaterThan(2);
     });
 });
 
@@ -274,7 +332,7 @@ describe("a posted setup follows every change", () => {
         mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: { channelId: "c", messageId: "sm", version: 1 } });
         const r = await call(route.postPropose, ORGA, { event: ID });
         expect(setupMessage.refreshLiveSetup).toHaveBeenCalledWith(ID, { userId: "orga" });
-        expect(body(r).message).toMatch(/gepostete Setup-Nachricht zeigt ihn schon/);
+        expect(body(r).message).toBe("Neuer Vorschlag erstellt. Die gepostete Setup-Nachricht zeigt es schon.");
         expect(mockEvents.get(ID).setup.status).toBe("approved");
     });
 

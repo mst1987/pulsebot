@@ -626,6 +626,28 @@ describe("publishView", () => {
     });
 });
 
+describe("\"DMs an Spieler\" per raid", () => {
+    it("follows the editor's switch over the category's setting, both ways", () => {
+        const event = seed();
+        const on = { categorySetupDms: { cat1: true } };
+        expect(sm.dmsEnabled(event, on)).toBe(true);
+        expect(sm.dmsEnabled({ ...event, setupPost: { dmsChoice: false } }, on)).toBe(false);
+        expect(sm.dmsEnabled({ ...event, setupPost: { dmsChoice: true } }, {})).toBe(true);
+        // the editor tells "as the category says" from a choice of its own
+        expect(sm.publishView({ ...event, setupPost: { dmsChoice: true } }, { config: {} })).toMatchObject({ dmsEnabled: true, dmsDefault: false });
+    });
+
+    it("keeps the choice made with the post and sends no DMs when it is off", async () => {
+        seed();
+        const { dms } = await sm.publishSetup("eh-1", { config: { categorySetupDms: { cat1: true } }, delayMs: 0, dms: false });
+        expect(mockEvents.get("eh-1").setupPost.dmsChoice).toBe(false);
+        expect(dms).toBeNull();
+        // not sent again = the last choice stands
+        await sm.publishSetup("eh-1", { config: { categorySetupDms: { cat1: true } }, delayMs: 0 });
+        expect(mockEvents.get("eh-1").setupPost.dmsChoice).toBe(false);
+    });
+});
+
 describe("eventStore.setEventSetupPost", () => {
     it("is used for every write (the store merges)", async () => {
         seed();

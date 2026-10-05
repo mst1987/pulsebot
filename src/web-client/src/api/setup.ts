@@ -77,6 +77,8 @@ export type StoredSetup = {
     version: number;
     /** "auto" = drafted at the signup deadline without anybody asking (eventStore.saveSetupDraft). */
     origin: "proposal" | "manual" | "auto";
+    /** the empty start before anything is stored (version 0): every signup under "Angemeldet", no proposal needed */
+    blank?: boolean;
     groups: SetupEditorGroup[];
     /** only who the orga put on the bench (#517) */
     bench: SetupPerson[];
@@ -155,6 +157,8 @@ export type SetupPublish = {
     channelName: string;
     cancelled: boolean;
     dmsEnabled: boolean;
+    /** the category's default — the editor's switch differs from it only by choice */
+    dmsDefault?: boolean;
     recipients: number;
     pendingDms: number;
     posted: { messageUrl: string; version: number; postedAt: number; editedAt: number } | null;
@@ -173,7 +177,7 @@ export type SetupPublish = {
 };
 
 /** Post or update the approved setup; `bench` = "Bench mitposten" (#517), remembered for the event. */
-export function publishRaidSetup(eventId: string, opts: { bench?: boolean; version?: number } = {}): Promise<SetupEditorData> {
+export function publishRaidSetup(eventId: string, opts: { bench?: boolean; dms?: boolean; version?: number } = {}): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/post", { event: eventId, ...opts });
 }
 
@@ -275,7 +279,7 @@ export function getRaidSetup(eventId: string): Promise<SetupEditorData> {
     return get(`/api/raids/setup?event=${encodeURIComponent(eventId)}`);
 }
 
-export function proposeRaidSetup(eventId: string, options: { weights?: SetupWeights; fairness?: boolean; wishes?: boolean; avoid?: boolean } = {}): Promise<SetupEditorData> {
+export function proposeRaidSetup(eventId: string, options: { weights?: SetupWeights; fairness?: boolean; wishes?: boolean; avoid?: boolean; keep?: "placed" } = {}): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/propose", { event: eventId, ...options });
 }
 
@@ -284,7 +288,7 @@ export function saveRaidSetup(eventId: string, input: SetupPlacementInput): Prom
 }
 
 /** Approve the shown version — the approval posts the setup, with the bench when `bench` (#517). */
-export function approveRaidSetup(eventId: string, version: number, opts: { bench?: boolean } = {}): Promise<SetupEditorData> {
+export function approveRaidSetup(eventId: string, version: number, opts: { bench?: boolean; dms?: boolean } = {}): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/approve", { event: eventId, version, ...opts });
 }
 
