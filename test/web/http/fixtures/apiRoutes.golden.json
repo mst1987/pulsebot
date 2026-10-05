@@ -175,6 +175,7 @@
   "POST /api/raids/setup/confirm",
   "POST /api/raids/setup/confirm-all",
   "POST /api/raids/setup/post",
+  "POST /api/raids/setup/presence",
   "POST /api/raids/setup/propose",
   "POST /api/raids/setup/search",
   "POST /api/raids/setup/search/text",

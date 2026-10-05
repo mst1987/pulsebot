@@ -58,7 +58,7 @@ describe("raidSteps", () => {
         const own = raidSteps(base({ event: { ...signedUp, id: "eh-1", source: "eventhelper" } }));
         // no Raid-Helper raidplan: the way leads into the own setup editor
         expect(own.next).toBe("setup");
-        expect(own.primary).toMatchObject({ tab: "setup", label: "Setup vorschlagen" });
+        expect(own.primary).toMatchObject({ tab: "setup", label: "Setup bauen" });
         expect(own.primary.href).toBeUndefined();
         expect(step(own, "setup").tip.sub).toMatch(/EventHelper/);
         expect(step(own, "setup").open).toEqual({ tab: "setup" });
@@ -391,6 +391,18 @@ describe("eventSteps — das Raid-Cockpit (#319)", () => {
         expect(at(draft, "setup")).toMatchObject({ state: "done", value: "24", unit: "/ 25", note: "3 auf der Bank" });
         expect(at(draft, "setup").action).toMatchObject({ tab: "setup", label: "Setup öffnen" });
         expect(draft.current).toBe("approval");
+    });
+
+    it("Setup: sagt, wer von der Orga gerade im Setup arbeitet", () => {
+        const one = at(run(own({ event: { signupsClosed: true }, ownSetupEditors: ["Exitus"] })), "setup");
+        expect(one).toMatchObject({ live: ["Exitus"], note: "Exitus arbeitet dran" });
+        expect(one.hint).toMatch(/Gerade im Setup: Exitus\.$/);
+        const two = at(run(own({ event: { signupsClosed: true }, ownSetup: { status: "draft", placed: 10, size: 25, bench: 0, version: 2, ok: true }, ownSetupEditors: ["Exitus", "Taccop"] })), "setup");
+        expect(two.note).toBe("Exitus und Taccop arbeiten dran");
+        const three = at(run(own({ event: { signupsClosed: true }, ownSetupEditors: ["A", "B", "C"] })), "setup");
+        expect(three.note).toBe("A, B +1 arbeiten dran");
+        // nobody in it: as before
+        expect(at(run(own({ event: { signupsClosed: true } })), "setup")).not.toHaveProperty("live");
     });
 
     it("sagt am Setup-Schritt, dass der Bot zum Anmeldeschluss selbst vorschlägt", () => {

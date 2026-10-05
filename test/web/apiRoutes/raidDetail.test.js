@@ -345,7 +345,7 @@ describe("web/apiRoutes/raidDetail", () => {
             expect(data.attendance.missing.map((m) => m.id)).toEqual(["2"]);
             // no setup yet (#263): the way leads into the setup editor, and the payload names no raider
             expect(data.ownSetup).toBeNull();
-            expect(data.progress.primary).toMatchObject({ tab: "setup", label: "Setup vorschlagen" });
+            expect(data.progress.primary).toMatchObject({ tab: "setup", label: "Setup bauen" });
             // …and the six-step cockpit (#319, #502) rides along, so /raids can use the same answer later
             expect(data.steps.steps.map((s) => s.id)).toEqual(["created", "signup", "setup", "approval", "plan", "after"]);
             expect(data.steps.cancelled).toBe(false);

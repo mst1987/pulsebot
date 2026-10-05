@@ -275,8 +275,41 @@ export type SetupPlacementInput = {
     weights?: SetupWeights;
 };
 
-export function getRaidSetup(eventId: string): Promise<SetupEditorData> {
-    return get(`/api/raids/setup?event=${encodeURIComponent(eventId)}`);
+/** `light`: what an open editor fetches after somebody else changed the setup — no Discord names, no attendance (the page keeps its own). */
+export function getRaidSetup(eventId: string, { light = false }: { light?: boolean } = {}): Promise<SetupEditorData> {
+    return get(`/api/raids/setup?event=${encodeURIComponent(eventId)}${light ? "&light=1" : ""}`);
+}
+
+/** What an orga member in the setup editor holds right now: a raider dragged or picked, or one whose signup they edit. */
+export type SetupPresenceAction = { kind: "drag" | "edit"; userId: string };
+
+/** Somebody else in the same setup editor (services/setup/setupPresence.js). */
+export type SetupPresenceEditor = { userId: string; name: string; action: SetupPresenceAction | null };
+
+/** One line of "Gerade eben": who changed what. */
+export type SetupActivity = {
+    id: number;
+    at: number;
+    by: string;
+    byName: string;
+    kind: "move" | "many" | "fill" | "propose" | "post";
+    userId?: string;
+    character?: string;
+    to?: { group?: number; bench?: boolean; pool?: boolean };
+    count?: number;
+    userIds?: string[];
+};
+
+export type SetupPresenceAnswer = { editors: SetupPresenceEditor[]; version: number; activity: SetupActivity[] };
+
+/** The open editor's heartbeat: who else is in it, the stored version, what changed after `since`. */
+export function setupPresence(eventId: string, body: { action?: SetupPresenceAction | null; since?: number }): Promise<SetupPresenceAnswer> {
+    return send("POST", "/api/raids/setup/presence", { event: eventId, ...body });
+}
+
+/** The editor closes: gone for the others at once. */
+export function leaveSetupPresence(eventId: string): Promise<{ left: boolean }> {
+    return send("POST", "/api/raids/setup/presence", { event: eventId, leave: true });
 }
 
 export function proposeRaidSetup(eventId: string, options: { weights?: SetupWeights; fairness?: boolean; wishes?: boolean; avoid?: boolean; keep?: "placed" } = {}): Promise<SetupEditorData> {

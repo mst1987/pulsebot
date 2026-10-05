@@ -1,4 +1,4 @@
-import { useState, type DragEvent, type KeyboardEvent } from "react";
+import { useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
 import { useZone } from "./useZone";
 import type { SetupAttendance, SetupConfirmation, SetupEditorData, SetupEditorGroup, SetupPerson } from "../../../api";
 import { placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
@@ -35,6 +35,12 @@ export type Interaction = {
     confirmations?: Record<string, SetupConfirmation>;
     /** The raider the panel holds on to (clicked last, no move pending) — framed, so it is clear whose panel it is. */
     pinned?: string | null;
+    /** Raiders another orga member holds right now (drags, picks or edits — setupPresence): ringed in their colour, not to be taken. */
+    held?: Record<string, { name: string; color: string; kind: "drag" | "edit" }>;
+    /** Raiders another orga member just moved: a short glow with their name. */
+    flash?: Record<string, { name: string; color: string }>;
+    /** A click or drop on a raider somebody else holds. */
+    onHeld?: (userId: string) => void;
 };
 
 /**
@@ -50,6 +56,11 @@ export function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerso
     const color = classColorProps(p.classColor);
     const selected = ui.selected === p.userId;
     const confirmation = inGroup ? (ui.confirmations || {})[p.userId] : undefined;
+    // another orga member holds this raider: drawn in their colour, nobody else takes them meanwhile
+    const held = ui.held?.[p.userId];
+    const flash = held ? undefined : ui.flash?.[p.userId];
+    const movable = ui.editable && !held;
+    const who = held || flash;
     const inspect = () => ui.onInspect(p.userId);
     const keyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -60,22 +71,24 @@ export function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerso
     const drop = (e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
+        if (held) return ui.onHeld?.(p.userId);
         ui.onDrop({ userId: p.userId }, e.dataTransfer.getData("text/plain"));
     };
     return (
         <div
-            className={`se-slot${selected ? " se-picked" : ""}${!selected && ui.pinned === p.userId ? " se-pinned" : ""}${p.locked ? " se-locked" : ""}${ui.dragging === p.userId ? " se-dragging" : ""}${confirmation ? ` se-${confirmation}` : ""}`}
+            className={`se-slot${selected ? " se-picked" : ""}${!selected && ui.pinned === p.userId ? " se-pinned" : ""}${p.locked ? " se-locked" : ""}${ui.dragging === p.userId ? " se-dragging" : ""}${confirmation ? ` se-${confirmation}` : ""}${held ? " se-held" : ""}${flash ? " se-flash" : ""}`}
+            style={who ? ({ "--se-who": who.color } as CSSProperties) : undefined}
             role={ui.editable ? "button" : undefined}
             tabIndex={ui.editable ? 0 : undefined}
             aria-pressed={ui.editable ? selected : undefined}
-            draggable={ui.editable}
+            draggable={movable}
             data-user={p.userId}
             onMouseEnter={inspect}
             onFocus={inspect}
-            onClick={ui.editable ? () => ui.onPick(p.userId) : undefined}
-            onKeyDown={ui.editable ? keyDown : undefined}
+            onClick={ui.editable ? () => (held ? ui.onHeld?.(p.userId) : ui.onPick(p.userId)) : undefined}
+            onKeyDown={movable ? keyDown : undefined}
             // the dimmed look is set a tick later: changing the dragged element inside dragstart makes Chrome cancel the drag
-            onDragStart={ui.editable ? (e) => { inspect(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId), 0); } : undefined}
+            onDragStart={movable ? (e) => { inspect(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId), 0); } : undefined}
             onDragEnd={ui.editable ? () => ui.onDrag(null) : undefined}
             onDragOver={ui.editable ? (e) => e.preventDefault() : undefined}
             onDrop={ui.editable ? drop : undefined}
@@ -108,6 +121,12 @@ export function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerso
             {status && <span className={`rd-sig rd-sig-${p.status}`} aria-label={status} />}
             {/* a fixed place only shows it — the panel's button changes it */}
             {p.locked && !inPool && <span className="se-lock-mark" role="img" aria-label={t("setup.slot.locked")}><LockIcon /></span>}
+            {/* who holds or just moved this raider */}
+            {who && (
+                <span className="se-who-tag">
+                    {held ? t(held.kind === "edit" ? "setup.live.editsTag" : "setup.live.holdsTag", { name: held.name }) : who.name}
+                </span>
+            )}
         </div>
     );
 }

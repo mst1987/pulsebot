@@ -68,6 +68,9 @@ function calls(method: string, path: string) {
     return vi.mocked(client.send).mock.calls.filter(([m, p]) => m === method && p === path);
 }
 
+/** Every request but the editor's heartbeat (setupPresence), which runs on its own. */
+const writes = () => vi.mocked(client.send).mock.calls.filter(([, p]) => p !== "/api/raids/setup/presence");
+
 /** The body of the one save request (PUT /api/raids/setup). */
 function savedBody(): SetupPlacementInput & { event: string } {
     const put = calls("PUT", "/api/raids/setup");
@@ -246,7 +249,7 @@ describe("the setup editor: moving raiders", () => {
         expect(slot("Bruno")).toHaveAttribute("aria-pressed", "true");
         await user.keyboard("{Escape}");
         expect(slot("Bruno")).toHaveAttribute("aria-pressed", "false");
-        expect(client.send).not.toHaveBeenCalled();
+        expect(writes()).toHaveLength(0);
 
         await user.click(slot("Bruno"));
         const bench = screen.getByRole("region", { name: t("setup.bench.aria") });
@@ -320,7 +323,7 @@ describe("the setup editor: the bar", () => {
 
         fireEvent.change(size, { target: { value: "1" } });
         // only a typed number: nothing sent, nothing reshuffled yet
-        expect(client.send).not.toHaveBeenCalled();
+        expect(writes()).toHaveLength(0);
         expect(screen.getByText(t("setup.editor.sizeTotal", { perGroup: 5, size: 5 }))).toBeInTheDocument();
         fireEvent.blur(size);
 
@@ -493,7 +496,7 @@ describe("the setup editor: state, approval and posting", () => {
         await user.click(screen.getByRole("button", { name: t("setup.editor.approve") }));
         const question = screen.getByRole("dialog");
         expect(within(question).getByText("Trotzdem posten?")).toBeInTheDocument();
-        expect(client.send).not.toHaveBeenCalled();
+        expect(writes()).toHaveLength(0);
         await user.click(within(question).getByRole("button", { name: t("setup.editor.approve") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/approve")[0][2]).toEqual({ event: EVENT_ID, version: 3, bench: false, dms: false });

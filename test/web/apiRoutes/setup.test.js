@@ -235,6 +235,47 @@ describe("no proposal needed: the empty start", () => {
     });
 });
 
+describe("who else is in the editor (presence)", () => {
+    const presence = require("../../../src/services/setup/setupPresence");
+    const OTHER = { ...ORGA, id: "orga2", name: "Taccop" };
+    beforeEach(() => presence._resetForTests());
+
+    it("answers the others with what they hold, the stored version and what the others changed — never one's own", async () => {
+        await call(route.postPresence, { ...ORGA, name: "Exitus" }, { event: ID, action: { kind: "drag", userId: "tank" } });
+        const tank = mockSignups[0];
+        await call(route.putSetup, OTHER, { event: ID, version: 0, groups: [{ index: 2, slots: [{ userId: tank.userId, spec: tank.spec }] }], bench: [] });
+
+        const mine = body(await call(route.postPresence, { ...ORGA, name: "Exitus" }, { event: ID }));
+        expect(mine.editors).toEqual([]);
+        expect(mine.version).toBe(1);
+        expect(mine.activity).toEqual([expect.objectContaining({ kind: "move", byName: "Taccop", userId: tank.userId, to: { group: 2 } })]);
+        // the one who moved sees the other editor, and not their own move
+        const theirs = body(await call(route.postPresence, OTHER, { event: ID }));
+        expect(theirs.editors).toEqual([{ userId: "orga", name: "Exitus", action: null }]);
+        expect(theirs.activity).toEqual([]);
+        // only what came after the last id the page has
+        expect(body(await call(route.postPresence, { ...ORGA, name: "Exitus" }, { event: ID, since: mine.activity[0].id })).activity).toEqual([]);
+    });
+
+    it("drops one on leaving and notes a proposal and a post", async () => {
+        await call(route.postPresence, OTHER, { event: ID, action: { kind: "edit", userId: "heal1" } });
+        expect(body(await call(route.postPresence, ORGA, { event: ID })).editors).toEqual([{ userId: "orga2", name: "Taccop", action: { kind: "edit", userId: "heal1" } }]);
+        expect(body(await call(route.postPresence, OTHER, { event: ID, leave: true }))).toEqual({ left: true });
+        expect(body(await call(route.postPresence, ORGA, { event: ID })).editors).toEqual([]);
+
+        await call(route.postPropose, OTHER, { event: ID });
+        await call(route.postPublish, OTHER, { event: ID, version: mockEvents.get(ID).setup.version });
+        expect(body(await call(route.postPresence, ORGA, { event: ID })).activity.map((e) => e.kind)).toEqual(["propose", "post"]);
+    });
+
+    it("is for the orga only, and fetches the editor light on request", async () => {
+        expect(status(await call(route.postPresence, READER, { event: ID }))).toBe(403);
+        const light = body(await call(route.getSetup, ORGA, null, `event=${ID}&light=1`));
+        expect(light.setup).toBeTruthy();
+        expect(light).not.toHaveProperty("attendance");
+    });
+});
+
 describe("Confirm/Cancel set by the orga", () => {
     async function posted() {
         await call(route.postPropose, ORGA, { event: ID });
