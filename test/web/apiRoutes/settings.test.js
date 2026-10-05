@@ -14,6 +14,10 @@ jest.mock("../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
+// The raider organizers redraw when the guild bank channel changes; never for real here.
+jest.mock("../../../src/services/signups/availabilityPanel", () => ({
+    refreshPanels: jest.fn(() => Promise.resolve({ edited: 0, failed: 0, unchanged: 0 })),
+}));
 jest.mock("../../../src/stores/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
@@ -936,6 +940,29 @@ describe("web/apiRoutes/settings", () => {
                 readJsonBody.mockResolvedValue({ discordServers: { talkPingChannelId: " 302 ", bogus: "x" } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ discordServers: { talkPingChannelId: "302" } });
+            });
+
+            it("stores the guild bank channel and redraws the organizers when it changes", async () => {
+                const availabilityPanel = require("../../../src/services/signups/availabilityPanel");
+                availabilityPanel.refreshPanels.mockClear();
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.saveConfig.mockReturnValueOnce({ discordServers: { guildBankChannelId: "4001" } });
+                readJsonBody.mockResolvedValue({ discordServers: { guildBankChannelId: " 4001 " } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ discordServers: { guildBankChannelId: "4001" } });
+                expect(availabilityPanel.refreshPanels).toHaveBeenCalledWith({ config: { discordServers: { guildBankChannelId: "4001" } } });
+            });
+
+            it("leaves the organizers alone when the guild bank channel stays the same", async () => {
+                const availabilityPanel = require("../../../src/services/signups/availabilityPanel");
+                availabilityPanel.refreshPanels.mockClear();
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.getConfig.mockReturnValue({ discordServers: { guildBankChannelId: "4001" } });
+                settingsStore.saveConfig.mockReturnValueOnce({ discordServers: { guildBankChannelId: "4001", talkPingChannelId: "302" } });
+                readJsonBody.mockResolvedValue({ discordServers: { guildBankChannelId: "4001", talkPingChannelId: "302" } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(availabilityPanel.refreshPanels).not.toHaveBeenCalled();
+                settingsStore.getConfig.mockReturnValue({});
             });
 
             it("refuses the block for a limited settings user", async () => {

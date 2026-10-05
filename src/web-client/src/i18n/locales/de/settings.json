@@ -484,7 +484,11 @@
         "noSecondOption": "— kein zweiter Server —",
         "pingTip": "Erinnerungen & Pings",
         "pingSub": "Kanal für Erinnerungen und Pings. Wer nicht auf dem Server ist, bekommt sie als DM.",
-        "noPost": "— nicht posten —"
+        "noPost": "— nicht posten —",
+        "bankTip": "Kanal für Gildenbank-Anfragen",
+        "bankTipSub": "Hier landen die Anfragen aus der Raid-Zentrale; leer = kein Gildenbank-Knopf.",
+        "bankRow": "Gildenbank",
+        "noBank": "— keine Gildenbank —"
     },
     "connections": {
         "crumb": "{crumb} · {ready} von {total} eingerichtet",

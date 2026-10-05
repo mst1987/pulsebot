@@ -86,7 +86,7 @@ describe("stores/settingsStore", () => {
 
             it("defaults to no servers (= nothing configured yet)", () => {
                 expect(getConfig().discordServers).toEqual({
-                    eventGuilds: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "",
+                    eventGuilds: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "", guildBankChannelId: "",
                 });
                 expect(getConfig().guildId).toBe(defaultGuildId);
             });
@@ -95,12 +95,12 @@ describe("stores/settingsStore", () => {
                 const saved = saveConfig({
                     discordServers: {
                         eventGuilds: [{ guildId: " 111111 ", label: "PvE", overviewGuildId: "222222", overviewChannelId: "https://discord.com/channels/1/2" }],
-                        talkGuildId: "222222", talkPingChannelId: 333333, signupNoteChannelId: "444444",
+                        talkGuildId: "222222", talkPingChannelId: 333333, signupNoteChannelId: "444444", guildBankChannelId: " 666666 ",
                     },
                 });
                 expect(saved.discordServers).toEqual({
                     eventGuilds: [{ guildId: "111111", label: "PvE", overviewGuildId: "", overviewChannelId: "" }],
-                    talkGuildId: "222222", talkPingChannelId: "333333", signupNoteChannelId: "444444",
+                    talkGuildId: "222222", talkPingChannelId: "333333", signupNoteChannelId: "444444", guildBankChannelId: "666666",
                 });
             });
 
@@ -108,10 +108,15 @@ describe("stores/settingsStore", () => {
                 expect(saveConfig({ discordServers: { signupNoteChannelId: "555555" } }).discordServers.signupNoteChannelId).toBe("555555");
             });
 
+            it("keeps the guild bank channel without any event server and drops one that is no id", () => {
+                expect(saveConfig({ discordServers: { guildBankChannelId: "777777" } }).discordServers.guildBankChannelId).toBe("777777");
+                expect(normalizeDiscordServers({ guildBankChannelId: "#gildenbank" }).guildBankChannelId).toBe("");
+            });
+
             it("clears a talk server that is one of the event servers", () => {
                 expect(normalizeDiscordServers({ eventGuilds: [{ guildId: "111111" }], talkGuildId: "111111" }).talkGuildId).toBe("");
                 expect(normalizeDiscordServers(null)).toEqual({
-                    eventGuilds: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "",
+                    eventGuilds: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "", guildBankChannelId: "",
                 });
                 expect(normalizeDiscordServers(["x"]).eventGuilds).toEqual([]);
             });

@@ -105,7 +105,7 @@ describe("the Einstellungen panels in English", () => {
 
     it("words the Discord servers", async () => {
         const data = {
-            discordServers: { eventGuilds: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "" },
+            discordServers: { eventGuilds: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "", guildBankChannelId: "" },
             events: [], talk: null, overlap: null, guilds: [],
         } as unknown as DiscordServersData;
         vi.mocked(api.getDiscordServers).mockResolvedValue(data);

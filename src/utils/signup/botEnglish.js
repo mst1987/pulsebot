@@ -89,6 +89,15 @@ const RULES = [
     [/^„(.+)“ braucht eine Adresse mit https:\/\/\.$/, "“$1” needs an address starting with https://."],
     [/^Diese Spec hat der Charakter im Profil nicht\.$/, "Your profile does not have this spec for the character."],
     [/^Eintrag nicht gefunden\.$/, "Entry not found."],
+    // services/signups/guildBank.js + stores/guildBankStore.js (guild bank requests)
+    [/^Die Gildenbank ist gerade nicht eingerichtet\.$/, "The guild bank is not set up right now."],
+    [/^Bitte angeben, was du brauchst\.$/, "Please say what you need."],
+    [/^Die Menge muss eine ganze Zahl von (\d+) bis (\d+) sein\.$/, "The amount must be a whole number from $1 to $2."],
+    [/^Höchstens (\d+) offene Anfragen – warte, bis die Orga eine erledigt hat\.$/, "At most $1 open requests – wait until the orga has handled one."],
+    [/^Die Anfrage konnte nicht gepostet werden – versuch es später noch einmal\.$/, "The request could not be posted – try again later."],
+    [/^Anfrage nicht gefunden\.$/, "Request not found."],
+    [/^Diese Anfrage ist schon erledigt\.$/, "This request has already been handled."],
+    [/^Unbekannter Status\.$/, "Unknown status."],
 ];
 
 /**

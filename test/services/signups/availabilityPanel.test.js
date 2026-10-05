@@ -140,6 +140,18 @@ describe("availabilityPanel", () => {
             expect(texts(de)[0]).toContain("## Raid-Zentrale · Raids TBC");
         });
 
+        it("zeichnet das Panel neu, sobald der Gildenbank-Kanal gesetzt oder geleert wird", async () => {
+            await panel.postPanel({ categoryId: "cat1", channelId: "c1" });
+            mockConfig = { botLanguage: "en", discordServers: { guildBankChannelId: "900000" } };
+            expect(await panel.refreshPanels({ onlyStale: true })).toMatchObject({ edited: 1 });
+            expect(customIds(discord.editPayload.mock.calls[0][2])).toContain("availability:b:cat1");
+            expect(await panel.refreshPanels({ onlyStale: true })).toMatchObject({ edited: 0, unchanged: 1 });
+            mockConfig = { botLanguage: "en", discordServers: { guildBankChannelId: "" } };
+            discord.editPayload.mockClear();
+            expect(await panel.refreshPanels({ onlyStale: true })).toMatchObject({ edited: 1 });
+            expect(customIds(discord.editPayload.mock.calls[0][2])).not.toContain("availability:b:cat1");
+        });
+
         it("zeichnet mit categoryId nur das Panel dieser Kategorie neu", async () => {
             store.setPanel({ categoryId: "cat1", channelId: "c1", messageId: "m-c1" });
             store.setPanel({ categoryId: "cat2", channelId: "c2", messageId: "m-c2" });

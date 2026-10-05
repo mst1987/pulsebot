@@ -11,11 +11,15 @@
 //   availability:<token>:c|r|save|x  the picker: character · spec, raids, save, cancel
 //   availability:r:<categoryId>      the organizer's "My raid": the category's next raid and the own signup
 //   availability:o:<categoryId>      the organizer's "Evaluation": the newest evaluation with an own character
+//   availability:b:<categoryId>      the organizer's guild bank: "Make a request" → the modal availability:mb
+//   availability:mb:<categoryId>     the submitted guild bank modal → posted to the orga (services/signups/guildBank.js)
 const { MessageFlags, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
 const availability = require("../../services/signups/availability");
 const organizer = require("../../services/signups/organizer");
+const guildBank = require("../../services/signups/guildBank");
+const { requestModal, requestSummary } = require("../../utils/signup/guildBankPost");
 const { categoryNameFor } = require("../../services/signups/availabilityPanel");
 const linkCheck = require("../../services/discord/linkCheck");
 const { specLabel } = require("../../utils/i18n/botText");
@@ -82,6 +86,30 @@ async function onModal(interaction, kind, categoryId, lang) {
     const session = { ...checked.value, characterKey: pick ? pick.key : "" };
     const token = createSession(uid, session);
     return ephemeral(interaction, picker(token, getSession(token, uid), config, lang));
+}
+
+/** The member's name as the orga reads it: the server nickname, else the Discord name. */
+function displayName(interaction) {
+    const member = interaction.member;
+    const user = interaction.user || {};
+    return String((member && (member.displayName || member.nick)) || user.globalName || user.username || "").trim();
+}
+
+/** The submitted guild bank modal: check, store and post it, answer the member. */
+async function onGuildBankModal(interaction, categoryId, config, lang) {
+    const read = (id) => {
+        try {
+            return String(interaction.fields.getTextInputValue(id) || "").trim();
+        } catch {
+            return "";
+        }
+    };
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const result = await guildBank.createRequest(interaction.user.id, { item: read("item"), amount: read("amount"), purpose: read("purpose") }, {
+        userName: displayName(interaction), categoryId, config,
+    });
+    if (result.error) return interaction.editReply(answerPayload(`⚠️ ${serviceText(lang, result.error)}`, { lang }));
+    return interaction.editReply(answerPayload(`✅ ${tr(lang, "Request sent – the orga will get back to you by DM.")}\n${requestSummary(result.request, lang)}`, { lang }));
 }
 
 /** The organizer's "My raid", for this member. */
@@ -185,6 +213,12 @@ module.exports = {
         if (action === "ma" || action === "mp") return onModal(interaction, action === "ma" ? "absence" : "presence", categoryId, lang);
         if (action === "r") return ephemeral(interaction, myRaid(uid, categoryId, config, lang));
         if (action === "o") return ephemeral(interaction, myReport(uid, lang));
+        if (action === "b") {
+            // a panel drawn before the channel was cleared still has the button
+            if (!guildBank.guildBankChannelId(config)) return ephemeral(interaction, answerPayload(tr(lang, "The guild bank is not set up right now."), { lang }));
+            return interaction.showModal(requestModal(categoryId, lang));
+        }
+        if (action === "mb") return onGuildBankModal(interaction, categoryId, config, lang);
         if (action === "l") {
             return fromEphemeral(interaction) ? interaction.update(listFor(uid, categoryId, lang)) : ephemeral(interaction, listFor(uid, categoryId, lang));
         }

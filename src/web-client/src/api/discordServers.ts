@@ -17,6 +17,8 @@ export type DiscordServers = {
     talkPingChannelId: string;
     /** Where the messages of "Vielleicht" / "Absagen" are posted — a channel on any server. */
     signupNoteChannelId: string;
+    /** Where the guild bank requests of every raider organizer land; "" = no guild bank button. */
+    guildBankChannelId: string;
 };
 
 export type BotPermission = { key: string; label: string; ok: boolean };

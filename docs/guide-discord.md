@@ -24,7 +24,9 @@ Technik: [signups.md](signups.md), [bot-commands.md](bot-commands.md)
 - **Raid-Zentrale:** Im Kanal deiner Raid-Kategorie steht eine Nachricht mit allem für deine Raids:
   - **Nächster Raid** mit Datum, „in 3 Tagen“ und wie viele angemeldet sind. **Mein Raid** zeigt nur dir, ob und mit welchem Charakter du angemeldet bist, mit Links zur Anmeldung und zum Raidplan.
   - **Auswertung** zeigt nur dir die neueste Log-Auswertung mit einem deiner Charaktere und führt zu deiner Seite darin und zu deinem Profil.
+  - **Gildenbank** (wenn die Orga sie eingerichtet hat): **Anfrage stellen** öffnet ein kleines Formular — was du brauchst, wie viel (eine ganze Zahl von 1 bis 9999) und optional wofür. Die Anfrage landet bei der Orga; du siehst „Anfrage gesendet – die Orga meldet sich per DM.“ Sobald die Orga sie erledigt oder ablehnt (mit Grund, wenn sie einen angibt), bekommst du eine DM in deiner Sprache. Du kannst höchstens 5 offene Anfragen gleichzeitig haben.
   - **Links** der Orga, z. B. die Warcraft-Logs-Einladung oder ein Info-Sheet.
+- **Gildenbank-Anfragen für die Orga:** Im Orga-Kanal steht jede Anfrage als Karte (wer, was, wie viel, wofür) mit **Erledigt** und **Ablehnen …** (fragt nach einem optionalen Grund, den der Raider sieht). Drücken darf nur, wer im Web Schreibrecht auf *Raids* hat. Danach zeigt die Karte, wer sie wann erledigt oder abgelehnt hat, und die Knöpfe verschwinden.
 - **Ab- und Anwesenheit:** Mit `/availability` oder den Knöpfen in der Raid-Zentrale trägst du einen Zeitraum ein:
   - **Abwesend eintragen** (Von, Bis, optional ein Grund): Du wirst von den Raids in dieser Zeit abgemeldet, auch wenn du schon angemeldet warst.
   - **Dabei eintragen** (Von, Bis, dann Charakter und Spec): Du wirst für die Raids in dieser Zeit als „Dabei" angemeldet. Eine bestehende An- oder Abmeldung wird dabei nie überschrieben.

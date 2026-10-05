@@ -10,6 +10,7 @@ const AREAS = [
     require("./events"),
     require("./setup"),
     require("./talk"),
+    require("./guildBank"),
 ];
 
 const merged = {};

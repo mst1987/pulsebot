@@ -287,14 +287,14 @@ describe("Discord-Server cards (#251, #361)", () => {
                 { guildId: "", label: "leer", overviewGuildId: "", overviewChannelId: "" },
                 { guildId: "2", label: "", overviewGuildId: "9", overviewChannelId: "91" },
             ],
-            talkGuildId: "9", talkPingChannelId: "92", signupNoteChannelId: " 7 ",
+            talkGuildId: "9", talkPingChannelId: "92", signupNoteChannelId: " 7 ", guildBankChannelId: " 8 ",
         })).toEqual({
             discordServers: {
                 eventGuilds: [
                     { guildId: "1", label: "PvE", overviewGuildId: "", overviewChannelId: "" },
                     { guildId: "2", label: "", overviewGuildId: "9", overviewChannelId: "91" },
                 ],
-                talkGuildId: "9", talkPingChannelId: "92", signupNoteChannelId: "7",
+                talkGuildId: "9", talkPingChannelId: "92", signupNoteChannelId: "7", guildBankChannelId: "8",
             },
         });
     });
@@ -302,11 +302,11 @@ describe("Discord-Server cards (#251, #361)", () => {
     it("clears a talk server equal to one of the event servers — never the note channel", () => {
         expect(logic.discordServersPatch({
             eventGuilds: [{ guildId: "1", label: "", overviewGuildId: "", overviewChannelId: "" }],
-            talkGuildId: "1", talkPingChannelId: "6", signupNoteChannelId: "7",
+            talkGuildId: "1", talkPingChannelId: "6", signupNoteChannelId: "7", guildBankChannelId: "",
         })).toEqual({
             discordServers: {
                 eventGuilds: [{ guildId: "1", label: "", overviewGuildId: "", overviewChannelId: "" }],
-                talkGuildId: "", talkPingChannelId: "6", signupNoteChannelId: "7",
+                talkGuildId: "", talkPingChannelId: "6", signupNoteChannelId: "7", guildBankChannelId: "",
             },
         });
     });
