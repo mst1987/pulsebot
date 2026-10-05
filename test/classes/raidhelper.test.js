@@ -441,7 +441,7 @@ describe("classes/Raidhelper", () => {
         });
     });
 
-    // #606: Raid-Helper allows 1000 requests a day; the client counts and stops itself
+    // #608: Raid-Helper allows 1000 requests a day; the client counts and stops itself
     describe("request budget", () => {
         it("counts every attempt that leaves, a retry too", async () => {
             respond(reply(503, "busy"), reply(200, JSON.stringify({ postedEvents: [] })));

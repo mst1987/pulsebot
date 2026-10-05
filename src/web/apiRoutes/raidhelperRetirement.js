@@ -10,7 +10,7 @@ const guildRoles = require("../../services/discord/guildRoles");
 const raidhelperSync = require("../../services/events/raidhelperSync");
 const { getConfig } = require("../../stores/settingsStore");
 
-/** GET /api/settings/raidhelper-sync — last sync of the event list and the day's request budget (#606). */
+/** GET /api/settings/raidhelper-sync — last sync of the event list and the day's request budget (#608). */
 const getSync = withUser({ full: true }, async ({ res }) => {
     ok(res, raidhelperSync.syncStatus());
 });

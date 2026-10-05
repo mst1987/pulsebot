@@ -1,4 +1,4 @@
-// Einstellungen → Verbindungen, "Raid-Helper-Abgleich" (#606): when the one job
+// Einstellungen → Verbindungen, "Raid-Helper-Abgleich" (#608): when the one job
 // last fetched Raid-Helper's event list, how much of the daily limit is used,
 // and "Jetzt aktualisieren".
 import { screen } from "@testing-library/react";

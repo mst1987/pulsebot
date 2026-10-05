@@ -47,7 +47,7 @@ export function importRaidhelperHistory(body: { perCategory: number; dryRun: boo
     return send("POST", "/api/settings/raidhelper-history-import", body);
 }
 
-// ---- Abgleich der Raid-Helper-Events (#606) ---------------------------------
+// ---- Abgleich der Raid-Helper-Events (#608) ---------------------------------
 
 /** The one job that fetches Raid-Helper's event list, and the day's request budget. */
 export type RaidhelperSync = {

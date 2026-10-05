@@ -180,7 +180,7 @@ export default function ConnectionsSection({ data, tokens, onConfig, onTokensCha
                 })}
             </div>
             {/* #291: the switch-over checklist — full admins only, like the API. */}
-            {/* #606: the one job that fetches Raid-Helper's event list, with "Jetzt aktualisieren". */}
+            {/* #608: the one job that fetches Raid-Helper's event list, with "Jetzt aktualisieren". */}
             {data.canManageAccess && <RaidhelperSyncCard />}
             {data.canManageAccess && <RaidhelperRetirementCard />}
 

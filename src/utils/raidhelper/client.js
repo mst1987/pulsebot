@@ -48,7 +48,7 @@ function disabledClient() {
     };
 }
 
-// The event list comes from the sync job, never from a page (#606): Raid-Helper
+// The event list comes from the sync job, never from a page (#608): Raid-Helper
 // allows 1000 requests a day (budget.js), and pages that asked on every view
 // used them up. Every list read of the default client answers from
 // stores/raidhelperEventsStore.js, which services/events/raidhelperSync.js

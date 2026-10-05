@@ -1,4 +1,4 @@
-// The synced Raid-Helper event list (#606): the one copy every page reads.
+// The synced Raid-Helper event list (#608): the one copy every page reads.
 const fs = require("fs");
 const { tempStoreFile } = require("../helpers/tempStore");
 const store = require("../../src/stores/raidhelperEventsStore");

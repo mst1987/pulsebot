@@ -32,7 +32,7 @@ const budget = require("../utils/raidhelper/budget");
 //     "raidhelper_budget" — each method then answers exactly as it does for a
 //     transport error (getSetup: undefined, getTemplates: [], the rest reject).
 //
-// Two modes (#606). The pages never ask Raid-Helper for the event list
+// Two modes (#608). The pages never ask Raid-Helper for the event list
 // themselves: utils/raidhelper/client.js hands out a client with
 // `opts.snapshot`, a function (sinceSeconds) -> events that answers every list
 // read (fetchEvents and everything built on it) from the list the sync job

@@ -30,7 +30,7 @@ describe("utils/raidhelper/client", () => {
         expect(MockRaidhelper).toHaveBeenCalledWith(expect.objectContaining({ serverId: "" }));
     });
 
-    // #606: the pages read the synced list, only the sync job asks Raid-Helper
+    // #608: the pages read the synced list, only the sync job asks Raid-Helper
     describe("the synced event list", () => {
         beforeEach(() => mockGetConfig.mockReturnValue({ raidhelperServerId: "s" }));
 

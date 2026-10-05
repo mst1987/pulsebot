@@ -1,4 +1,4 @@
-// The stored Raid-Helper request count (#606): hour buckets plus a pause.
+// The stored Raid-Helper request count (#608): hour buckets plus a pause.
 const fs = require("fs");
 const { tempStoreFile } = require("../helpers/tempStore");
 const store = require("../../src/stores/raidhelperBudgetStore");

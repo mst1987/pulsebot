@@ -52,7 +52,7 @@ describe("web/http/jobs", () => {
         expect(lines).toEqual(["Background jobs started: sheetCleanup, raidhelperSync, logAutoLink, eventMessageSync, reminders, roleSync, talkOverview, eventSeries, applicationState, availabilityPanels"]);
     });
 
-    // #606: what a job asks Raid-Helper counts as background work (utils/raidhelper/budget.js)
+    // #608: what a job asks Raid-Helper counts as background work (utils/raidhelper/budget.js)
     it("starts every job as background work, and the timers it sets keep that", async () => {
         const raidhelperSync = require("../../../src/services/events/raidhelperSync");
         const { isBackground } = require("../../../src/utils/raidhelper/budget");

@@ -29,7 +29,7 @@ const availabilityPanel = require("../../services/signups/availabilityPanel");
 const JOBS = [
     // Sweep due raid-sheet copies (deleted a few days after each raid).
     { name: "sheetCleanup", start: () => sheetCleanup.startSheetCleanup(), stop: () => sheetCleanup.stopSheetCleanup() },
-    // The only reader of Raid-Helper's event list (#606): fetch it every few
+    // The only reader of Raid-Helper's event list (#608): fetch it every few
     // minutes into a store every page reads, then snapshot the finished raids
     // into raidEventStore, so a raid stays on the dashboard after Raid-Helper drops it.
     { name: "raidhelperSync", start: () => raidhelperSync.startRaidhelperSync(), stop: () => raidhelperSync.stopRaidhelperSync() },

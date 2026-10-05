@@ -10,7 +10,7 @@ import { InfoTip } from "../../components/ui/Field";
 import { useT } from "../../i18n";
 import { formatTime as clock } from "../../lib/format";
 
-// Einstellungen → Verbindungen → "Raid-Helper-Abgleich" (#606). The pages never
+// Einstellungen → Verbindungen → "Raid-Helper-Abgleich" (#608). The pages never
 // ask Raid-Helper for the event list; one job fetches it every few minutes. This
 // card says when that last happened and how much of Raid-Helper's daily limit
 // is used, and "Jetzt aktualisieren" runs the job right away.

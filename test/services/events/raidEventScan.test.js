@@ -137,7 +137,7 @@ describe("services/events/raidEventScan", () => {
             expect(mockSaveRaidEvents.mock.calls[0][0]).toHaveLength(6); // all still stored
         });
 
-        // #606: a page view must not cost Raid-Helper requests
+        // #608: a page view must not cost Raid-Helper requests
         it("asks for no raidplan from a page view, only from a background job", async () => {
             mockGetPastEvents.mockResolvedValue([{ id: "e1", channelId: "c1", title: "Kara", startTime: 100 }]);
             mockGetChannelCategoryMap.mockReturnValue({ c1: { name: "kara" } });

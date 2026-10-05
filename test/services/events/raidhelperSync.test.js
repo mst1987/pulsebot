@@ -1,4 +1,4 @@
-// The one job that asks Raid-Helper for the event list (#606).
+// The one job that asks Raid-Helper for the event list (#608).
 const mockFetchEvents = jest.fn();
 const mockDisabled = jest.fn(() => false);
 const mockSetAfterWrite = jest.fn();

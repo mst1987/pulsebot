@@ -77,7 +77,7 @@ describe("apiRoutes/raidhelperRetirement (#291)", () => {
         expect(historyImport.runImport).not.toHaveBeenCalled();
     });
 
-    // #606: the one job that fetches the event list, and "Jetzt aktualisieren"
+    // #608: the one job that fetches the event list, and "Jetzt aktualisieren"
     describe("raidhelper-sync", () => {
         it("is gated as a settings path", () => {
             expect(AREA_BY_PATH["/api/settings/raidhelper-sync"]).toBe("settings");

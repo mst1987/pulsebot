@@ -1,4 +1,4 @@
-// The one place that asks Raid-Helper for the event list (#606).
+// The one place that asks Raid-Helper for the event list (#608).
 //
 // Raid-Helper allows 1000 requests per API key and day (utils/raidhelper/
 // budget.js). Pages, bot commands and the other jobs used to ask on every view
