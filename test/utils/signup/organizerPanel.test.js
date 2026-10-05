@@ -58,6 +58,12 @@ describe("organizerPayload", () => {
         expect(section.accessory).toMatchObject({ type: 2, style: 1, custom_id: "availability:r:cat1", label: "Mein Raid" });
     });
 
+    it("nimmt das Datums-Icon des Bots statt 📅, wenn es hochgeladen ist", () => {
+        const payload = organizerPayload({ ...base, emojis: { eh_ui_date: { id: "3", name: "eh_ui_date" } } });
+        const section = all(payload).find((c) => c.type === 9);
+        expect(section.components[0].content).toMatch(/^<:eh_ui_date:3> \*\*Nächster Raid\*\*/);
+    });
+
     it("ohne nächsten Raid fehlt der Mein-Raid-Knopf, der Text sagt es", () => {
         for (const nextRaid of [null, undefined, { startTime: 0, attending: 0 }]) {
             const payload = organizerPayload({ categoryId: "cat1", nextRaid });
@@ -113,8 +119,24 @@ describe("myRaidPayload", () => {
     it("nennt Titel mit Kategorie, Zeit und die Anmeldung", () => {
         const payload = myRaidPayload({ event, signup: { status: "signed", character: "Zibbo" }, specText: "Heilig", categoryName: "╭・ TBC Montag" });
         expect(embedOf(payload).title).toBe("Karazhan · TBC Montag");
-        expect(description(payload)).toBe(`📅 <t:${START}:F> · <t:${START}:R>\n\nDu bist als **Zibbo** · Heilig angemeldet.`);
+        expect(description(payload)).toBe(`📅 <t:${START}:d> <t:${START}:t> · <t:${START}:R>\n\nDu bist als **Zibbo** · Heilig angemeldet.`);
         expect(payload.components).toEqual([]);
+    });
+
+    // The bot's own icons where it has them: spec icon before the name, status and date icons.
+    it("zeigt Spec-, Status- und Datums-Icon des Bots, wenn es sie gibt", () => {
+        const emojis = {
+            eh_mage_arcane: { id: "1", name: "eh_mage_arcane" },
+            eh_ui_signed: { id: "2", name: "eh_ui_signed" },
+            eh_ui_date: { id: "3", name: "eh_ui_date" },
+        };
+        const payload = myRaidPayload({ event, signup: { status: "signed", character: "Devire" }, specText: "Arkan", specKey: "Mage-Arcane", emojis });
+        expect(description(payload)).toBe(`<:eh_ui_date:3> <t:${START}:d> <t:${START}:t> · <t:${START}:R>\n\n<:eh_ui_signed:2> Du bist als **<:eh_mage_arcane:1> Devire** · Arkan angemeldet.`);
+        // an unknown spec or a missing emoji: just the name, no gap
+        const plain = myRaidPayload({ event, signup: { status: "signed", character: "Devire" }, specText: "Arkan", specKey: "Mage-Fire", emojis: {} });
+        expect(description(plain)).toContain("Du bist als **Devire** · Arkan angemeldet.");
+        // no signup: no status icon
+        expect(description(myRaidPayload({ event, emojis })).split("\n\n")[1]).toBe("Du bist noch nicht angemeldet.");
     });
 
     it.each([

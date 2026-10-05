@@ -21,6 +21,12 @@ const {
 const { tr } = require("../i18n/botText");
 const { buildEmbed } = require("../discord/reply");
 const { panelButtons, plainCategoryName } = require("./availabilityDialog");
+const { emojiText, specEmojiName, uiEmojiName, statusEmojiName } = require("../../services/discord/appEmojis");
+
+// The bot's application emojis (services/discord/appEmojis.js) where it has
+// them — the spec icon before a character, the flat date and status icons —
+// else the unicode sign, so a bot without its emojis still reads fine.
+const DATE_ICON = (emojis) => emojiText(emojis, uiEmojiName("date"), "📅");
 
 const COLOR_PANEL = 0x1ea1f1;
 const COLOR_PERSONAL = 0x5865f2;
@@ -52,9 +58,10 @@ function shortWhen(seconds) {
  * @param {string} [o.lang]
  * @param {{ startTime: number, attending: number } | null} [o.nextRaid] the next own raid of the category
  * @param {{ label: string, url: string }[]} [o.links] the category's links (Einstellungen → Kategorien)
+ * @param {object} [o.emojis] the bot's application emojis by name (appEmojis.appEmojiMap())
  * @returns {{ flags: number, components: object[], embeds: [] }} API JSON; `embeds: []` clears an old embed panel on edit
  */
-function organizerPayload({ categoryId = "", categoryName = "", lang = "de", nextRaid = null, links = [] } = {}) {
+function organizerPayload({ categoryId = "", categoryName = "", lang = "de", nextRaid = null, links = [], emojis = {} } = {}) {
     const category = plainCategoryName(categoryName);
     const vars = { category };
     const c = new ContainerBuilder().setAccentColor(COLOR_PANEL);
@@ -65,11 +72,11 @@ function organizerPayload({ categoryId = "", categoryName = "", lang = "de", nex
     c.addSeparatorComponents(line());
     const start = nextRaid && Number(nextRaid.startTime) > 0 ? Math.floor(Number(nextRaid.startTime)) : 0;
     if (start) {
-        const head = `📅 **${tr(lang, "Next raid")}** · ${shortWhen(start)}`;
+        const head = `${DATE_ICON(emojis)} **${tr(lang, "Next raid")}** · ${shortWhen(start)}`;
         const sub = `-# <t:${start}:R> · ${tr(lang, "{count} signed up", { count: Math.max(0, Number(nextRaid.attending) || 0) })}`;
         c.addSectionComponents(section(`${head}\n${sub}`, new ButtonBuilder().setCustomId(id("r", categoryId)).setLabel(tr(lang, "My raid")).setStyle(ButtonStyle.Primary)));
     } else {
-        c.addTextDisplayComponents(text(`📅 **${tr(lang, "Next raid")}**\n-# ${tr(lang, "No raid planned yet.")}`));
+        c.addTextDisplayComponents(text(`${DATE_ICON(emojis)} **${tr(lang, "Next raid")}**\n-# ${tr(lang, "No raid planned yet.")}`));
     }
 
     c.addSeparatorComponents(line());
@@ -111,12 +118,14 @@ const SIGNUP_LINE = {
  * @param {{ title?: string, startTime: number } | null} o.event
  * @param {{ status: string, character?: string } | null} [o.signup]
  * @param {string} [o.specText] the signup's spec in the reader's language
+ * @param {string} [o.specKey] the signup's spec key ("Mage-Arcane"), for its icon
  * @param {string} [o.signupUrl] the signup message, "" when it is gone
  * @param {string} [o.planUrl] the published raid plan, "" without one
  * @param {string} [o.categoryName]
  * @param {string} [o.lang]
+ * @param {object} [o.emojis] the bot's application emojis by name
  */
-function myRaidPayload({ event, signup = null, specText = "", signupUrl = "", planUrl = "", categoryName = "", lang = "de" } = {}) {
+function myRaidPayload({ event, signup = null, specText = "", specKey = "", signupUrl = "", planUrl = "", categoryName = "", lang = "de", emojis = {} } = {}) {
     const category = plainCategoryName(categoryName);
     if (!event) {
         return { embeds: [buildEmbed({ title: tr(lang, "Next raid"), description: tr(lang, "No raid planned yet."), color: COLOR_PERSONAL })], components: [] };
@@ -125,14 +134,20 @@ function myRaidPayload({ event, signup = null, specText = "", signupUrl = "", pl
     let status;
     if (!signup) status = tr(lang, "You are not signed up yet.");
     else if (signup.status === "absence") status = tr(lang, "You signed off from this raid.");
-    else status = tr(lang, SIGNUP_LINE[signup.status] || SIGNUP_LINE.signed, { character: signup.character || "?", spec: specText || "?" });
+    else {
+        // the spec icon before the name, like the signup message draws it
+        const character = [emojiText(emojis, specEmojiName(specKey)), signup.character || "?"].filter(Boolean).join(" ");
+        status = tr(lang, SIGNUP_LINE[signup.status] || SIGNUP_LINE.signed, { character, spec: specText || "?" });
+    }
+    const statusIcon = signup ? emojiText(emojis, statusEmojiName(signup.status)) : "";
+    if (statusIcon) status = `${statusIcon} ${status}`;
     const title = [event.title, category].filter(Boolean).join(" · ") || tr(lang, "Next raid");
     const buttons = [
         signupUrl ? linkButton(signup ? tr(lang, "To the signup") : tr(lang, "Sign up"), signupUrl) : null,
         planUrl ? linkButton(tr(lang, "Raid plan"), planUrl) : null,
     ].filter(Boolean);
     return {
-        embeds: [buildEmbed({ title, description: `📅 <t:${start}:F> · <t:${start}:R>\n\n${status}`, color: COLOR_PERSONAL })],
+        embeds: [buildEmbed({ title, description: `${DATE_ICON(emojis)} ${shortWhen(start)} · <t:${start}:R>\n\n${status}`, color: COLOR_PERSONAL })],
         components: buttons.length ? [new ActionRowBuilder().addComponents(buttons)] : [],
     };
 }
