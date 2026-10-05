@@ -20,6 +20,9 @@ const { linkItemsForImport } = require("../../services/loot/lootVersion");
 const { bestDayMatch } = require("../loot/lootEventMatch");
 const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestTokenStore");
 const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
+const { councilRoster } = require("../loot/lootCouncil");
+const { councilOptsFromQuery, categoryOptions } = require("../loot/councilQuery");
+const { councilSyncPayload } = require("../loot/councilSync");
 
 /** The token behind the request, or null after sending the 401. */
 function requireToken(req, res) {
@@ -263,10 +266,39 @@ async function ingestRaidStatus(req, res) {
     ok(res, { raids });
 }
 
+/**
+ * GET /api/ingest/council - the slim loot-council roster for the sync tool,
+ * same bearer-token auth as the uploads. The tool writes it into a Lua file the
+ * in-game addon reads: each raider's need weighting and what they received.
+ * Query: `category` (raid category id, "" = all), `role` (caster|healer, "" =
+ * both). Stored data only - unlike the council page this never asks the armory.
+ * Shape: councilSync.js (format "eventhelper-council" v1).
+ */
+async function ingestCouncil(req, res, url) {
+    const token = requireToken(req, res);
+    if (!token) return;
+    touchToken(token.id);
+
+    const params = url ? url.searchParams : new URLSearchParams();
+    // Only the two documented filters count; the tool never narrows by tier or version.
+    const opts = councilOptsFromQuery(new URLSearchParams({
+        category: params.get("category") || "",
+        role: params.get("role") || "",
+    }));
+    const built = councilRoster(opts);
+    ok(res, councilSyncPayload(built, {
+        categoryId: opts.categoryId,
+        categories: categoryOptions(activeGuildFor(req)),
+        role: opts.role,
+        bisTierDerived: !opts.bisTier,
+    }));
+}
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "POST", path: "/api/ingest/loot", handler: ingestLoot, auth: "token" },
     { method: "POST", path: "/api/ingest/raids", handler: ingestRaidStatus, auth: "token" },
+    { method: "GET", path: "/api/ingest/council", handler: ingestCouncil, auth: "token" },
 ];
 
-module.exports = { ingestLoot, ingestRaidStatus, computeRaidStatus, routes };
+module.exports = { ingestLoot, ingestRaidStatus, ingestCouncil, computeRaidStatus, routes };

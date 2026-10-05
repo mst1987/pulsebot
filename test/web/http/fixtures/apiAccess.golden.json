@@ -213,6 +213,7 @@
   ],
   "tokenAuth": [
     "/api/ingest/loot",
-    "/api/ingest/raids"
+    "/api/ingest/raids",
+    "/api/ingest/council"
   ]
 }

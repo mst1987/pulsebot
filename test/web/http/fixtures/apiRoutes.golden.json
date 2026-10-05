@@ -27,6 +27,7 @@
   "GET /api/history/loot-awards",
   "GET /api/history/loot-picker",
   "GET /api/history/loot-stats",
+  "GET /api/ingest/council",
   "GET /api/lootcouncil",
   "GET /api/lootcouncil/bislists",
   "GET /api/lootcouncil/export",

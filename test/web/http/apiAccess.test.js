@@ -174,12 +174,13 @@ describe("web/http/apiAccess", () => {
         it("lets the token-authenticated ingest endpoints past the session gate", () => {
             expect(checkAccess("/api/ingest/loot", "POST", null)).toBeNull();
             expect(checkAccess("/api/ingest/raids", "POST", null)).toBeNull();
+            expect(checkAccess("/api/ingest/council", "GET", null)).toBeNull();
         });
 
         // That exemption must stay this deliberate, tiny set, not a hole a
         // future route slips into by accident.
         it("exempts nothing but the loot-sync ingest endpoints from the session gate", () => {
-            expect([...TOKEN_AUTH]).toEqual(["/api/ingest/loot", "/api/ingest/raids"]);
+            expect([...TOKEN_AUTH]).toEqual(["/api/ingest/loot", "/api/ingest/raids", "/api/ingest/council"]);
         });
 
         // Anmeldungen (#256): a member with "signup" reads and writes their own
