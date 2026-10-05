@@ -34,7 +34,7 @@ describe("single checkboxes", () => {
             if (file === "components/ui/Switch.tsx" || LIST_SELECTION[file]) continue;
             const lines = src.split("\n");
             lines.forEach((line, i) => {
-                if (!line.includes('type="checkbox"')) return;
+                if (!line.includes("type=\"checkbox\"")) return;
                 const around = lines.slice(Math.max(0, i - 3), i + 2).join("\n");
                 if (!SWITCH_MARKUP.test(around)) single.push(`${file}:${i + 1}`);
             });
@@ -45,7 +45,7 @@ describe("single checkboxes", () => {
     it("keeps the list of list checkboxes honest: each file still has one", () => {
         const files = new Map(sources);
         for (const file of Object.keys(LIST_SELECTION)) {
-            expect([file, (files.get(file) || "").includes('type="checkbox"')]).toEqual([file, true]);
+            expect([file, (files.get(file) || "").includes("type=\"checkbox\"")]).toEqual([file, true]);
         }
     });
 });
