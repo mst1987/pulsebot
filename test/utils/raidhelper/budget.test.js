@@ -43,7 +43,7 @@ describe("utils/raidhelper/budget", () => {
             expect(RAIDHELPER_BUDGET.write + RAIDHELPER_BUDGET.dev).toBeLessThan(RAIDHELPER_BUDGET.limit);
         });
 
-        // #611: the live server ran without NODE_ENV and was taken for a test instance
+        // #612: the live server ran without NODE_ENV and was taken for a test instance
         it("gives the live bot its full budget without NODE_ENV, by the .env it runs on", () => {
             expect(budget.capFor("background", { EVENTHELPER_ENV_FILE: ".env" })).toBe(RAIDHELPER_BUDGET.background);
             expect(budget.capFor("background", { EVENTHELPER_ENV_FILE: ".env.dev" })).toBe(0);

@@ -64,7 +64,7 @@ describe("config/env", () => {
             expect(loadEnv({ DEV_AUTO_LOGIN: "1", NODE_ENV: "production" }).devAutoLogin).toBe(false);
         });
 
-        // #611: the server has run without NODE_ENV; its .env still marks it as live
+        // #612: the server has run without NODE_ENV; its .env still marks it as live
         it("never enables the dev auto-login on a bot that runs on .env", () => {
             expect(loadEnv({ DEV_AUTO_LOGIN: "1", EVENTHELPER_ENV_FILE: ".env" }).devAutoLogin).toBe(false);
             expect(loadEnv({ DEV_AUTO_LOGIN: "1", EVENTHELPER_ENV_FILE: ".env.dev" }).devAutoLogin).toBe(true);

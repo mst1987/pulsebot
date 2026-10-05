@@ -3,7 +3,7 @@
 // NODE_ENV=production says "live" — but the server has run without it: pm2
 // sets it only on the very first `pm2 start ecosystem.config.js`, and
 // deploy.sh's `pm2 restart --update-env` takes the deploy shell's environment,
-// which has none (fixed there too, #611). A test instance never sets it
+// which has none (fixed there too, #612). A test instance never sets it
 // either, so NODE_ENV alone cannot tell them apart. The second sign is the env
 // file bot.js loaded (EVENTHELPER_ENV_FILE): a test instance always runs on
 // `.env.dev`, the server on `.env`. Anything else — Jest, a script, an

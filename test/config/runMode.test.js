@@ -1,4 +1,4 @@
-// Live bot or test instance (#611): NODE_ENV alone cannot tell, the server has
+// Live bot or test instance (#612): NODE_ENV alone cannot tell, the server has
 // run without it — the env file bot.js loaded is the second sign.
 const { isLiveInstance, runMode } = require("../../src/config/runMode");
 

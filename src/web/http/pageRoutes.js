@@ -116,7 +116,7 @@ function health({ res }) {
         subject: version.subject,
         startedAt: version.startedAt,
         // live bot or test instance (config/runMode.js) — a live bot reporting
-        // "development" asks nothing of Raid-Helper by itself (#611)
+        // "development" asks nothing of Raid-Helper by itself (#612)
         mode: runMode(),
     }));
 }

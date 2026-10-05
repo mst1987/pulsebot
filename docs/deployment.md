@@ -24,7 +24,7 @@ sagt selbst, auf welchem Stand er läuft.
   `GIT_COMMIT` aus der Umgebung). Ist nichts davon da, bleiben die Felder leer —
   der Bot läuft trotzdem.
 
-  `mode` (#611) sagt, ob sich der Prozess für den Live-Bot hält (`src/config/runMode.js`):
+  `mode` (#612) sagt, ob sich der Prozess für den Live-Bot hält (`src/config/runMode.js`):
   `NODE_ENV=production`, oder ohne `NODE_ENV` die `.env` statt der `.env.dev`. Steht
   auf dem Server `development`, behandelt er sich als Testinstanz — u. a. fragt der
   Raid-Helper-Abgleich dann nichts von selbst. Dieselbe Angabe steht in der ersten
@@ -151,7 +151,7 @@ erst ab 512 MB Speicher.
 `pm2 restart pulsebot --update-env` neu, und `--update-env` übernimmt die Umgebung
 der Deploy-Shell — die hat kein `NODE_ENV`. Deshalb setzt `deploy.sh` es dort
 ausdrücklich (`NODE_ENV=production pm2 restart …`, danach `pm2 save`); vorher lief
-der Live-Bot als `development` (#611).
+der Live-Bot als `development` (#612).
 
 ## Docker
 
