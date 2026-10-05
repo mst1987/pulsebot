@@ -109,9 +109,11 @@ describe("web/http/server", () => {
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({ "Content-Type": "application/json; charset=utf-8" }));
             const body = json(res);
             expect(body.status).toBe("ok");
-            expect(Object.keys(body).sort()).toEqual(["commit", "committedAt", "startedAt", "status", "subject"]);
+            expect(Object.keys(body).sort()).toEqual(["commit", "committedAt", "mode", "startedAt", "status", "subject"]);
             // Whatever git said, the fields are strings — no git leaves them empty.
             for (const key of ["commit", "committedAt", "subject", "startedAt"]) expect(typeof body[key]).toBe("string");
+            // live bot or test instance (#612) — Jest is never live
+            expect(body.mode).toBe("development");
             expect(new Date(body.startedAt).getTime()).toBeLessThanOrEqual(Date.now());
         });
 

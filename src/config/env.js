@@ -10,6 +10,7 @@
 // missing or malformed instead of letting a feature fail later without a word.
 
 const defaults = require("./defaults");
+const { isLiveInstance } = require("./runMode");
 
 // Discord IDs
 const adminUserId = process.env.ADMIN_USER_ID || defaults.adminUserId;
@@ -45,8 +46,9 @@ const publicBaseUrl = process.env.PUBLIC_BASE_URL || `http://localhost:${webPort
 
 // Local development: auto-login as the first admin without OAuth, so the web
 // menu works on any port without registering a Discord callback URL. Hard-gated
-// to non-production so it can never bypass auth on the live bot.
-const devAutoLogin = process.env.DEV_AUTO_LOGIN === "1" && process.env.NODE_ENV !== "production";
+// to non-production so it can never bypass auth on the live bot — "live" as
+// config/runMode.js tells it, since the server has run without NODE_ENV.
+const devAutoLogin = process.env.DEV_AUTO_LOGIN === "1" && !isLiveInstance();
 
 // Discord OAuth for the website (login + admin delete)
 const discordClientId = process.env.CLIENT_ID || "";
@@ -103,9 +105,9 @@ function validateEnv(env = process.env, warn = (msg) => console.warn(msg)) {
         invalid.push(name);
         warn(`[env] ${name}="${raw}" is not a whole number between ${min} and ${max} — the default is used instead.`);
     }
-    if (env.DEV_AUTO_LOGIN === "1" && env.NODE_ENV === "production") {
+    if (env.DEV_AUTO_LOGIN === "1" && isLiveInstance(env)) {
         invalid.push("DEV_AUTO_LOGIN");
-        warn("[env] DEV_AUTO_LOGIN=1 is ignored because NODE_ENV=production.");
+        warn("[env] DEV_AUTO_LOGIN=1 is ignored on the live bot (NODE_ENV=production or .env).");
     }
     return { missing, invalid };
 }
