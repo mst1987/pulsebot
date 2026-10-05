@@ -3,6 +3,7 @@
 // before still counts, and a scan reads the version off the button.
 const discord = require("../../../src/services/discord/discord.js");
 const dc = require("../../helpers/discordClient");
+const { asEmbed, cardButtons } = require("../../helpers/card");
 
 const BOT = "bot-1";
 const msg = (customId, over = {}) => ({
@@ -35,7 +36,19 @@ describe("services/discord/discord recruitment messages (#553)", () => {
         discord.setClient(dc.makeClient({ channels: [channel], user: { id: BOT } }));
         await discord.postRecruitment("c1", { content: "Hi", buttonLabel: "Los", versionId: "classic" });
         await discord.postRecruitment("c1", { content: "Hi", buttonLabel: "Los" });
-        const ids = channel.send.mock.calls.map((c) => c[0].components[0].components[0].data.custom_id);
+        // one card each: the template's text and the button inside it
+        const ids = channel.send.mock.calls.map((c) => cardButtons(c[0])[0].custom_id);
         expect(ids).toEqual(["apply:classic", "apply"]);
+        expect(asEmbed(channel.send.mock.calls[0][0]).description).toBe("Hi");
+    });
+
+    it("finds a card post too: the button and the text inside the card (Oct 2026)", () => {
+        const card = (customId) => msg(customId, {
+            content: "",
+            components: [{ type: 17, components: [{ type: 10, content: "Wir suchen!" }, { type: 1, components: [{ customId, label: "Bewerben" }] }] }],
+        });
+        expect(discord.isRecruitmentMessage(card("apply:classic"))).toBe(true);
+        expect(discord.isRecruitmentMessage(card("other"))).toBe(false);
+        expect(discord.extractTemplate(card("apply:classic"))).toEqual({ content: "Wir suchen!", title: "", body: "", buttonLabel: "Bewerben", versionId: "classic" });
     });
 });

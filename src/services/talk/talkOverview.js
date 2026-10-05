@@ -24,7 +24,7 @@
 // language is hashed with the payload, so a change of it redraws every entry
 // on the next sync (languageChange.js schedules one at once).
 const crypto = require("crypto");
-const { discordTimestamp, serverDateTime } = require("../../utils/time");
+const { shortWhen, serverDateTime } = require("../../utils/time");
 const { tr, dateLocale } = require("../../utils/i18n/botText");
 const { serverLang } = require("../discord/botLanguage");
 const {
@@ -110,7 +110,7 @@ function channelPart(event, eventGuildId, channelInfo, lang = "de") {
 /**
  * "Do. 17 Sep. 19:30" / "Thu 17 Sep 19:30" in server time (Berlin); start is
  * unix seconds (or ms). For the select options, which cannot render a Discord
- * timestamp — the embed lines use `<t:…:F>` instead, so every reader sees
+ * timestamp — the embed lines use Discord timestamps (shortWhen) instead, so every reader sees
  * their own time zone.
  */
 function formatStart(startTime, lang = "de") {
@@ -144,11 +144,11 @@ function raidLine(event, eventGuildId, { emojis = {}, baseUrl = "", channelInfo 
     const title = plain(event.title) || "Raid";
     // A cancelled event (#288) stays listed until its day, struck through, so nobody wonders where it went.
     if (event.status === "cancelled") {
-        return [`~~${title}~~`, tr(lang, "**CANCELLED**"), discordTimestamp(event.startTime, "F")].filter(Boolean).join(" · ");
+        return [`~~${title}~~`, tr(lang, "**CANCELLED**"), shortWhen(event.startTime)].filter(Boolean).join(" · ");
     }
     const link = event.source === "eventhelper" ? eventUrl(event.id, baseUrl) : "";
     const titleLine = `**${link ? `[${title}](${link})` : title}**`;
-    const when = discordTimestamp(event.startTime, "F");
+    const when = shortWhen(event.startTime);
     const dateLine = when ? `${emojiText(emojis, uiEmojiName("date"), "🗓️")} ${when}` : "";
     const metaParts = [`${emojiText(emojis, uiEmojiName("signups"), "👥")} ${fillText(event, lang)}`];
     const channel = channelPart(event, eventGuildId, channelInfo, lang);

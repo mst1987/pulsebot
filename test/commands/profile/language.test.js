@@ -35,7 +35,7 @@ describe("/language", () => {
     it("switches to English and answers in English, only for the raider", async () => {
         const { payload, answer } = await run("en");
         expect(userPrefs.getLang(ANNA)).toBe("en");
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(answer.title).toBe("Bot language: English.");
         expect(answer.description).toContain("Messages in the channels stay in the server language.");
     });

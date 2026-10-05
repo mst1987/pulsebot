@@ -8,12 +8,13 @@
 // The switches belong to a character; the buttons act on the raider's first
 // character of the main game version (there is no "main", only the raider's
 // order) — the other characters are switched on the web page.
-const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, SlashCommandBuilder } = require("discord.js");
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, SlashCommandBuilder } = require("discord.js");
 const profiles = require("../../stores/raiderProfileStore");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr, specLabel } = require("../../utils/i18n/botText");
+const { asEphemeral } = require("../../utils/discord/card");
 
 /** The character the buttons switch: the first of the main version, else the first at all. */
 const firstOf = (profile) => profiles.firstCharacter(profile, "", { preferVersion: mainVersionFor() });
@@ -104,6 +105,6 @@ module.exports = {
             return interaction.update(message(saved, lang));
         }
 
-        return interaction.reply({ ...message(profiles.getProfile(userId), lang), flags: MessageFlags.Ephemeral });
+        return interaction.reply(asEphemeral(message(profiles.getProfile(userId), lang)));
     },
 };

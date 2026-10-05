@@ -23,6 +23,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const { normalizePingTarget, deliverAnnouncement } = require("../discord/pingDelivery");
 const { tr } = require("../../utils/i18n/botText");
 const { serverLang } = require("../discord/botLanguage");
+const { shortWhen } = require("../../utils/time");
 
 /**
  * The category's announcement setting (#306), or the caller's own choice.
@@ -54,7 +55,7 @@ function buildAnnouncement(event, lang = "de") {
     const title = String((event && event.title) || "Raid").trim() || "Raid";
     const start = Number(event && event.startTime) || 0;
     const url = messageUrl(event);
-    const when = start ? `<t:${start}:F> · <t:${start}:R>` : "";
+    const when = shortWhen(start, { relative: true });
     const line = [when, url ? tr(lang, "[Sign up]({url})", { url }) : ""].filter(Boolean).join("\n");
     return { title: tr(lang, "New raid: {title}", { title }), body: line || tr(lang, "A new raid is on the calendar.") };
 }

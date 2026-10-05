@@ -16,6 +16,7 @@ const command = require("../../../src/commands/signup/eventPick");
 const buttons = require("../../../src/commands/signup/eventButton");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
+const { cardButtons } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const sec = () => Math.floor(Date.now() / 1000);
@@ -58,11 +59,11 @@ describe("commands/signup/eventPick", () => {
         // the message's components are drawn anew (the embed is left alone), so the pick does not stick
         const reset = i.update.mock.calls[0][0];
         expect(Object.keys(reset)).toEqual(["components"]);
-        expect(reset.components[0].components[0].custom_id).toBe("event-pick:eh-kara");
+        expect(cardButtons(reset)[0].custom_id).toBe("event-pick:eh-kara");
         expect(i.reply).not.toHaveBeenCalled();
 
         const payload = followOf(i);
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(selectOf(payload)).toMatchObject({ custom_id: "event-btn:eh-kara:pick:s", max_values: 3 });
         expect(selectOf(payload).options.map((o) => o.value)).toEqual(["zibbo|Priest-Holy", "zibbo|Priest-Shadow", "zibbowar|Warrior-Protection"]);
         expect(selectOf(payload, 1).custom_id).toBe("event-btn:eh-kara:cls:s");

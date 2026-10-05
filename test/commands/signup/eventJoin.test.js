@@ -18,6 +18,7 @@ const { parseJoinId, joinId, characterOptions, defaultPick } = require("../../..
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 const { tempStoreFile } = require("../../helpers/tempStore");
+const { cardButtons } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const NOBODY = "200000000000000009";
@@ -25,7 +26,7 @@ const sec = () => Math.floor(Date.now() / 1000);
 const replyOf = (i) => i.reply.mock.calls[0][0];
 const updateOf = (i) => i.update.mock.calls[0][0];
 const pick = (status, extra = {}) => mockInteraction({ customId: "event-join:eh-kara", userId: ANNA, values: [status], ...extra });
-const selectOf = (payload) => payload.components[0].components[0];
+const selectOf = (payload) => cardButtons(payload)[0];
 const buttonsOf = (payload) => payload.components[payload.components.length - 1].components;
 
 beforeAll(() => profiles.useFile(tempStoreFile("eh-cmd-event-join.json")));
@@ -68,7 +69,7 @@ describe("commands/signup/eventJoin", () => {
         const i = pick("signed", { client: { application: { emojis: { fetch } } } });
         await command.execute(i);
         const payload = replyOf(i);
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(payload.embeds[0].description).toContain("Which character?");
         const options = selectOf(payload).options;
         expect(options.map((o) => o.value)).toEqual(["nerathil|Mage-Arcane", "brokk|Warrior-Protection"]);
@@ -120,7 +121,7 @@ describe("commands/signup/eventJoin", () => {
         await command.execute(i);
         expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ character: "Brokk", spec: "Warrior-Protection", status: "signed" });
         const payload = replyOf(i);
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(payload.embeds[0].description).toContain("✅ Saved: **Signed up** (Brokk · Protection)");
         expect(buttonsOf(payload)[2]).toMatchObject({ label: "Comment", disabled: false });
     });
@@ -147,9 +148,9 @@ describe("commands/signup/eventJoin", () => {
         const i = mockInteraction({ customId: "event-join:eh-kara", userId: NOBODY, values: ["signed"] });
         await command.execute(i);
         const payload = replyOf(i);
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(payload.embeds[0].description).toContain("Pick class and spec, then click “Sign up”");
-        expect(payload.components[0].components[0].custom_id).toMatch(/^signup-pick:eh-kara:k:/);
+        expect(cardButtons(payload)[0].custom_id).toMatch(/^signup-pick:eh-kara:k:/);
         expect(mocks.signups.size).toBe(0);
     });
 
@@ -159,7 +160,7 @@ describe("commands/signup/eventJoin", () => {
         const refused = pick("signed");
         await command.execute(refused);
         expect(answerOf(replyOf(refused)).text).toContain("signup deadline has passed");
-        expect(replyOf(refused).flags).toBe(MessageFlags.Ephemeral);
+        expect(replyOf(refused).flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
 
         const late = pick("late");
         await command.execute(late);

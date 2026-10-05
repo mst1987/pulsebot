@@ -14,6 +14,7 @@ const profiles = require("../../../src/stores/raiderProfileStore");
 const command = require("../../../src/commands/signup/signupStatus");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
+const { cardButtons } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const NOBODY = "200000000000000009";
@@ -88,7 +89,7 @@ describe("commands/signup/signupStatus", () => {
         expect(click.showModal).toHaveBeenCalledTimes(1);
         const modal = click.showModal.mock.calls[0][0].toJSON();
         expect(modal.custom_id).toBe("signup-status:eh-kara:s::Priest-Holy:");
-        expect(modal.components[0].components[0]).toMatchObject({ custom_id: "character", value: "Ysolde" });
+        expect(cardButtons(modal)[0]).toMatchObject({ custom_id: "character", value: "Ysolde" });
         expect(mocks.signups.size).toBe(0);
 
         const submit = mockInteraction({ customId: "signup-status:eh-kara:s::Priest-Holy:", userId: NOBODY, modal: true, options: { character: "Ysolde" } });

@@ -113,6 +113,13 @@ fields, thumbnail, buttons, note, mentions, allowedMentions, ephemeral })`:
 - One payload for send and edit: it carries `content: ""` and `embeds: []`, so editing an old text or embed message turns it into
   the card (tried on the dev server, as the organizer panel already did). `isCard(payload)` tells a card from an old payload.
 - `cardFromEmbed(spec, opts)` takes a `buildEmbed` spec (title, description, fields, color, footer, author).
+- `botReply` / `botEditReply` / `botFollowup` and the signup answers (`signupReply.answerPayload` / `answerUpdate`) send
+  cards; the link posts (`discord.buildLinkMessage`: raid plan, raidsheet, softres), the announcement, `postNotice` and the
+  recruitment post too. Extra buttons go in through the helper's `components` / the card's `buttons`.
+- Never `{ ...payload, flags: MessageFlags.Ephemeral }` or `{ ...payload, components: [...] }` on a card: the first drops the
+  Components V2 flag (Discord refuses the container), the second wipes the card. `asEphemeral(payload)` keeps the flags.
+- Dates SHORT: `shortWhen(value, { relative })` (utils/time) = `<t:…:d> <t:…:t>` (+ ` · <t:…:R>`), never the long `:F`.
+- Reading a card in a test: `test/helpers/card.js` (`asEmbed`, `cardButtons`, `cardTexts`).
 - Tests: `test/utils/discord/card.test.js`.
 
 ## API Clients

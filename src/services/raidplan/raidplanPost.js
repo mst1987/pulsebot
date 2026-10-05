@@ -12,6 +12,9 @@ const raidplanStore = require("../../stores/raidplanStore");
 const { getRaidplanPost, markRaidplanPosted } = require("../../stores/raidplanPostStore");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
+const { serverLang } = require("../discord/botLanguage");
+const { embedColor } = require("../events/embedLook");
+const { tr } = require("../../utils/i18n/botText");
 
 // What the post says while the plan is not shared (#537): the link would lead nowhere, so it goes.
 const NOT_SHARED = "The raid assignments are not shared right now.";
@@ -29,19 +32,26 @@ function planFilled(plan) {
 }
 
 /**
- * What the raider reads in Discord (English, the start as a Discord timestamp —
- * CLAUDE.md "Language"): the heading, the orga's optional line, the raid start.
+ * What the raider reads in Discord, in the server language (a public message, CLAUDE.md "Language"): the raid's name small
+ * over the heading, the orga's optional line, the start SHORT as Discord timestamps (date + time + "in 3 hours" — the long
+ * `:F` form read like a sentence nobody reads), in the event's colour (discord.buildLinkMessage makes the card).
  */
-function linkMessage({ url, title, startTime, message }) {
+function linkMessage({ url, title, startTime, message, color, lang = serverLang() }) {
     const start = Number(startTime) || 0;
-    const lines = [String(message || "").trim(), start ? `Raid start: <t:${start}:F>` : ""].filter(Boolean);
     return {
         url,
-        title: title ? `Raid assignments – ${title}` : "Raid assignments",
-        message: lines.join("\n"),
-        label: "Open assignments",
-        emoji: "🗺️",
+        kicker: String(title || "").trim(),
+        title: tr(lang, "Raid assignments"),
+        message: String(message || "").trim(),
+        facts: start ? [[tr(lang, "Start"), `<t:${start}:d> <t:${start}:t> · <t:${start}:R>`]] : [],
+        color,
+        label: tr(lang, "Open assignments"),
     };
+}
+
+/** The card's colour: the event's own, its instance's, or the accent colour (services/events/embedLook). */
+function colorOf(event) {
+    try { return embedColor(event); } catch { return undefined; }
 }
 
 /**
@@ -74,7 +84,7 @@ async function postRaidplanLink({ event, message, userId = "" }) {
     const wasPublished = plan.status === "published" && !!plan.publicToken;
     const current = wasPublished ? plan : raidplanStore.setPublished(event.id, true, { userId }).plan;
     const url = `${base}/p/${current.publicToken}`;
-    const opts = linkMessage({ url, title: event.title, startTime: event.startTime, message: text });
+    const opts = linkMessage({ url, title: event.title, startTime: event.startTime, message: text, color: colorOf(event) });
 
     const hadPost = !!(before && before.channelId && before.messageId);
     let posted;
@@ -137,9 +147,10 @@ async function syncRaidplanPost(event) {
     const post = getRaidplanPost(event && event.id);
     if (!post || !post.channelId || !post.messageId) return "none";
     const url = linkCheck.webTarget("raidplan", event.id);
+    const base = { title: event.title, startTime: event.startTime, color: colorOf(event) };
     const opts = url
-        ? linkMessage({ url, title: event.title, startTime: event.startTime, message: post.message })
-        : { ...linkMessage({ url: "", title: event.title, startTime: event.startTime, message: NOT_SHARED }), url: "" };
+        ? linkMessage({ ...base, url, message: post.message })
+        : linkMessage({ ...base, url: "", message: tr(serverLang(), NOT_SHARED) });
     try {
         await discord.editLink(post.channelId, post.messageId, opts);
         return url ? "linked" : "unlinked";
