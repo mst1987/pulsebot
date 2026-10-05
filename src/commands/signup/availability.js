@@ -212,7 +212,13 @@ module.exports = {
         }
         if (action === "ma" || action === "mp") return onModal(interaction, action === "ma" ? "absence" : "presence", categoryId, lang);
         if (action === "r") return ephemeral(interaction, myRaid(uid, categoryId, config, lang));
-        if (action === "o") return ephemeral(interaction, myReport(uid, lang));
+        if (action === "o") {
+            // Walking the newest evaluations reads each report file once after a
+            // start (a couple of MB each) — longer than Discord's three seconds,
+            // so the click is acknowledged first and the answer follows.
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            return interaction.editReply(myReport(uid, lang));
+        }
         if (action === "b") {
             // a panel drawn before the channel was cleared still has the button
             if (!guildBank.guildBankChannelId(config)) return ephemeral(interaction, answerPayload(tr(lang, "The guild bank is not set up right now."), { lang }));

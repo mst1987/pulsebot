@@ -249,9 +249,12 @@ describe("Raider-Organizer: Mein Raid und Auswertung", () => {
         try {
             const i = click("availability:o:cat1");
             await command.execute(i);
-            const payload = replyPayload(i);
+            // acknowledged at once (the walk can outlast Discord's three seconds), answered after
+            expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
+            expect(i.reply).not.toHaveBeenCalled();
+            expect(i.deferReply.mock.invocationCallOrder[0]).toBeLessThan(spy.mock.invocationCallOrder[0]);
+            const payload = i.editReply.mock.calls[0][0];
             expect(spy).toHaveBeenCalledWith(ANNA);
-            expect(payload.flags).toBe(MessageFlags.Ephemeral);
             expect(embedOf(payload).title).toBe("Your evaluation");
             expect(embedOf(payload).description).toBe("**Kara Clear** · <t:1900000000:D>\nYour character: **Zibbo**");
             expect(buttonsOf(payload).map((b) => [b.label, b.url])).toEqual([
@@ -268,7 +271,7 @@ describe("Raider-Organizer: Mein Raid und Auswertung", () => {
         try {
             const i = click("availability:o:cat1");
             await command.execute(i);
-            const payload = replyPayload(i);
+            const payload = i.editReply.mock.calls[0][0];
             expect(embedOf(payload).description).toContain("No evaluation with one of your characters yet.");
             expect(buttonsOf(payload).map((b) => b.label)).toEqual(["My profile"]);
         } finally {
