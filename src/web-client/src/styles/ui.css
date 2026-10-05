@@ -181,6 +181,9 @@ table.idx th[data-tip] { text-decoration: underline dotted; text-decoration-colo
 .rtip-anchor:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft); }
 .tip.rtip { width: var(--rtip-w); white-space: normal; max-width: calc(100vw - 16px); }
 @media (prefers-reduced-motion: reduce) { .tip { transition: none; } }
+/* Wowhead's item tooltip is lifted into the top layer while it shows, as a manual popover
+   (lib/wowheadTooltips.ts) — undo the popover's defaults so it looks and sits as power.js drew it. */
+.wowhead-tooltip[popover] { right: auto; bottom: auto; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; }
 
 /* ---- modal (native <dialog>) and the confirm dialog ---- */
 dialog.dlg { padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--text); box-shadow: 0 24px 60px var(--shade-45); max-height: calc(100vh - 48px); overflow: auto; }
