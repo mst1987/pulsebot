@@ -350,7 +350,6 @@ async function editPingMessages(channelId, messageIds = [], userIds = [], text =
     return { messageIds: kept };
 }
 
-const MESSAGE_LIMIT = 2000;
 
 /**
  * A message that pings nobody, as one card (utils/discord/card.js): a `<@id>` in it shows the name without a notification.

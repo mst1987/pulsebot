@@ -160,7 +160,7 @@ describe("moving an event", () => {
         // the note in the channel comes in the server language (pingDelivery picks it)
         const note = deliverUserPing.mock.calls[0][0].text;
         expect(note("en")).toContain("has been moved");
-        expect(note("de")).toMatch(/^📅 \*\*SSC \+ TK\*\* wurde verschoben: jetzt <t:\d+:F> \(<t:\d+:R>\)\.$/);
+        expect(note("de")).toMatch(/^📅 \*\*SSC \+ TK\*\* wurde verschoben: jetzt <t:\d+:d> <t:\d+:t> \(<t:\d+:R>\)\.$/);
         expect(result.body.message).toMatch(/Kanal heißt jetzt #fr-26-09-ssc-tk/);
         expect(moved.log.at(-1)).toMatchObject({ action: "move", by: ORGA.id, byName: "Orga", detail: expect.stringContaining("Kanal #fr-26-09-ssc-tk") });
     });
