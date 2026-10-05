@@ -101,7 +101,11 @@ mechanism (see "Auto tokens of every task row").
   rows on ONE mob set both to Nr. 1). The chips say "Flame of Azzinoth 2". The number goes along with
   inherited rows (`raidplanInherit.resolveRow`).
 - **One place per player (Dublettenregel)**: a tank who already stands on the map (a free token, a role slot
-  on the map, the ring of his split group) is used as he is, no second token; the same player in a later row
+  on the map) is used as he is, no second token. **A tank never stands in the ring of his split group** (Oct
+  2026): he gets his own auto token in front of his mob, the ring closes (`board.autoUsers`), the mob's wedge and
+  the tank line point at that token, and dragging him moves it (`autoPos`) - before, he stayed a ring member, so
+  the line ended at the group marker and taking him out of the ring broke the wedge (`placeOf(..., { ring: false })`).
+  The same player in a later row
   uses his first auto token; an open slot named by several rows (a template's "Tank 1") is one place. A
   hand-placed icon of a mob (its `mobId`; an older boss portrait without one plays the boss) plays the lowest
   instances instead of an auto icon (in board order). So an older plan with hand-placed icons and slots looks
@@ -132,7 +136,7 @@ mechanism (see "Auto tokens of every task row").
   his own). A row inherited from the Standard becomes the section's own first (a copy that keeps its key, so
   moved tanks stay).
 - **Facing**: `autoFacing` - the wedge of a mob (auto or hand-placed) points at the first tank of its instance
-  that stands on the map (auto token, slot, free token or the drawn place in a group ring); the n-th Flame at
+  that stands on the map (auto token, slot or free token; never a group ring, see above); the n-th Flame at
   the n-th tank. A missing class ("Paladin fehlt") turns nothing: the icon keeps its own facing. An icon the
   rows do not know keeps the older rule (`lib/raidplan/assign.ts facingOf`). In the template the wedge already follows
   the placeholder, so it is identical in the event.
@@ -191,7 +195,7 @@ mechanism as the tanks of a tank row, not a second one: the tokens are **derived
   raider the rule takes or the dimmed "missing" place, like the tanks.
 - **One place per player**: the task rows come **after** all tank rows (whatever their order in the list), so a
   raider who tanks and kicks stands at his tank place once; a free token, a role slot on the map, the ring of his
-  split group or an earlier task row is used as it is (`existing`), no second token.
+  split group (only when no tank row gave him a token) or an earlier task row is used as it is (`existing`), no second token.
 - **Out of a group chip**: a raider on such a token has a place of his own (`board.autoUsers`), so a group that is
   not split leaves him out of its name list and a split group closes its ring - the group itself stays. Every auto
   token of a raider (tank or task) carries his group's badge when a marker of his group stands on the map, split

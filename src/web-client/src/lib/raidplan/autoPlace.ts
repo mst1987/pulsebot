@@ -8,7 +8,7 @@
 //              placed icon (`oid`, "Flame 2" of two Flames on the map) is exactly that icon; a target of the kind alone (older plans, a row
 //              that does not care which) takes the next icon nobody named.
 //   a tank     one token per assignee of the row: the n-th tank of a row goes to the n-th mob of the row (a row with one mob: all of them).
-//              A player who already stands on the map (a free token, a role slot, the ring of his group, an earlier row) is used as he
+//              A player who already stands on the map (a free token, a role slot, an earlier row; the ring of his group only for a task row) is used as he
 //              is - a player is on the map once. A class reference is a placeholder in a template ("rule") and, when nobody of that
 //              class is in the raid, a dimmed "missing" place in an event (never another class).
 //
@@ -100,11 +100,15 @@ export function sameTargetAs(x: RaidplanAssignTarget, y: RaidplanAssignTarget): 
     return x.kind === y.kind && x.ref === y.ref && (x.kind !== "mob" || (x.oid || "") === (y.oid || ""));
 }
 
-/** Where a raider already stands on the board: his free token, a role slot on the map, the ring of his split group; "" = nowhere. */
-export function placeOf(board: RaidplanBoard, userId: string, roster: RaidplanPlayer[]): string {
+/**
+ * Where a raider already stands on the board: his free token, a role slot on the map, the ring of his split group; "" = nowhere.
+ * `ring: false` leaves the group ring out (a tank never stands in it, see deriveAuto).
+ */
+export function placeOf(board: RaidplanBoard, userId: string, roster: RaidplanPlayer[], { ring: inRing = true }: { ring?: boolean } = {}): string {
     if ((board.tokens || []).some((k) => k.userId === userId && !k.hidden)) return `token:${userId}`;
     const slot = (board.slots || []).find((s) => s.userId === userId && s.placed !== false && !s.hidden && s.kind !== "group");
     if (slot) return `slot:${slot.id}`;
+    if (!inRing) return "";
     const p = roster.find((x) => x.userId === userId);
     const ring = p ? (board.slots || []).find((s) => s.kind === "group" && s.n === p.group && s.split && !s.hideMembers && s.placed !== false && !s.hidden) : undefined;
     return ring ? `member:${ring.id}:${userId}` : "";
@@ -202,9 +206,14 @@ export function deriveAuto(rows: RaidplanAssignment[], board: RaidplanBoard, opt
             if (uid) {
                 t.userId = uid;
                 t.state = "player";
-                const where = placeOf(board, uid, roster);
+                // a tank stands on his own, never in the ring of his split group: the ring closes, his mob faces him and the
+                // tank line reaches him, and dragging him moves his token, not a ring member. A raider of a task row (kick ...)
+                // may keep his ring place - unless a tank row already gave him a token of his own.
+                const where = placeOf(board, uid, roster, { ring: false });
+                const ring = task && !where && !byUser[uid] ? placeOf(board, uid, roster) : "";
                 if (where) t.existing = where;
                 else if (byUser[uid]) t.existing = `auto:${byUser[uid]}`;
+                else if (ring) t.existing = ring;
                 else byUser[uid] = t.key;
             }
             // an open slot named by several rows (a template's "Tank 1") is one place too
