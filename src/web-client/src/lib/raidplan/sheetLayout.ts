@@ -12,7 +12,7 @@ export type StripMode = "off" | "top" | "left";
 export type MinePos = { x: number; y: number };
 export type SheetLayout = { strip: StripMode; allTasks: boolean; mine: MinePos | null };
 
-export const DEFAULT_SHEET_LAYOUT: SheetLayout = { strip: "off", allTasks: false, mine: null };
+export const DEFAULT_SHEET_LAYOUT: SheetLayout = { strip: "left", allTasks: false, mine: null };
 export const STRIP_MODES: StripMode[] = ["off", "top", "left"];
 /** the card's default corner: bottom left */
 export const MINE_HOME: MinePos = { x: 0, y: 1 };

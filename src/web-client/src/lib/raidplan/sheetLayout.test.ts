@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SHEET_LAYOUT, dragMinePos, nudgeMinePos, parseSheetLayout } from "./sheetLayout";
 
 describe("parseSheetLayout", () => {
-    it("nothing stored: no strip, the tables closed, the card in its corner", () => {
+    it("nothing stored: the boss strip on the left, the tables closed, the card in its corner", () => {
         expect(parseSheetLayout(null)).toEqual(DEFAULT_SHEET_LAYOUT);
-        expect(DEFAULT_SHEET_LAYOUT).toEqual({ strip: "off", allTasks: false, mine: null });
+        expect(DEFAULT_SHEET_LAYOUT).toEqual({ strip: "left", allTasks: false, mine: null });
+    });
+    it("a visitor who switched the strip off keeps it off", () => {
+        expect(parseSheetLayout(JSON.stringify({ strip: "off" })).strip).toBe("off");
     });
     it("takes a known strip mode and the tables' switch", () => {
         expect(parseSheetLayout(JSON.stringify({ strip: "left", allTasks: true }))).toEqual({ strip: "left", allTasks: true, mine: null });
