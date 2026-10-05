@@ -3,6 +3,11 @@
 // announcement, the Discord event, the pings and reminders, the cancel/delete
 // DMs and the public event page (web/pages/eventPublicPage.js).
 module.exports = {
+    // the raid plan's link post (services/raidplan/raidplanPost.js)
+    "Raid assignments": "Raid-Einteilung",
+    "Open assignments": "Einteilung öffnen",
+    "Start": "Start",
+    "The raid assignments are not shared right now.": "Die Raid-Einteilung ist gerade nicht freigegeben.",
     // the signup message
     "{count} signed up": "{count} angemeldet",
     "+{count} more": "+{count} weitere",

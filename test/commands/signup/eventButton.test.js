@@ -21,13 +21,14 @@ const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const userPrefs = require("../../../src/stores/userPrefsStore");
+const { cardButtons } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const sec = () => Math.floor(Date.now() / 1000);
 const click = (action, extra = {}) => mockInteraction({ customId: `event-btn:eh-kara:${action}`, userId: ANNA, ...extra });
 const replyOf = (i) => i.reply.mock.calls[0][0];
 const updateOf = (i) => i.update.mock.calls[0][0];
-const selectOf = (payload) => payload.components[0].components[0];
+const selectOf = (payload) => cardButtons(payload)[0];
 const stored = () => mocks.signups.get(`eh-kara/${ANNA}`);
 const statuses = () => stored().characters.map((c) => [c.character, c.status]);
 
@@ -120,7 +121,7 @@ describe("commands/signup/eventButton", () => {
             profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }, { key: "Priest-Shadow", gear: "none" }] });
             const i = click("join");
             await command.execute(i);
-            expect(replyOf(i).flags).toBe(MessageFlags.Ephemeral);
+            expect(replyOf(i).flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
             expect(answerOf(replyOf(i))).toMatchObject({ title: "Saved for Karazhan", body: "`1.` Zibbo · Holy – **Signed up**" });
             expect(stored()).toMatchObject({ status: "signed", character: "Zibbo", spec: "Priest-Holy" });
         });
@@ -130,7 +131,7 @@ describe("commands/signup/eventButton", () => {
             const i = click("join");
             await command.execute(i);
             const payload = replyOf(i);
-            expect(payload.flags).toBe(MessageFlags.Ephemeral);
+            expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
             expect(payload.embeds[0].description).toContain("up to 2 characters");
             const select = selectOf(payload);
             expect(select).toMatchObject({ custom_id: "event-btn:eh-kara:pick:s", min_values: 1, max_values: 2 });
@@ -192,7 +193,7 @@ describe("commands/signup/eventButton", () => {
             await command.execute(spec);
             const modal = spec.showModal.mock.calls[0][0].toJSON();
             expect(modal.custom_id).toBe("event-btn:eh-kara:name:b:Priest-Holy");
-            expect(modal.components[0].components[0]).toMatchObject({ custom_id: "character", value: "Anna" });
+            expect(cardButtons(modal)[0]).toMatchObject({ custom_id: "character", value: "Anna" });
 
             const submit = mockInteraction({ customId: modal.custom_id, userId: ANNA, modal: true, options: { character: "Zibbo" } });
             await command.execute(submit);
@@ -224,7 +225,7 @@ describe("commands/signup/eventButton", () => {
             mocks.events.set("eh-kara", mocks.ownEvent({ versionId: "forever", instanceIds: ["forever-barrow"] }));
             const spec = mockInteraction({ customId: "event-btn:eh-kara:spec:s", userId: ANNA, values: ["Priest-Holy"] });
             await command.execute(spec);
-            const input = spec.showModal.mock.calls[0][0].toJSON().components[0].components[0];
+            const input = cardButtons(spec.showModal.mock.calls[0][0].toJSON())[0];
             expect(input).toMatchObject({ max_length: 25, placeholder: expect.stringContaining("First name Last name") });
 
             const submit = mockInteraction({ customId: "event-btn:eh-kara:name:s:Priest-Holy", userId: ANNA, modal: true, options: { character: "aldric sturmwind" } });
@@ -236,7 +237,7 @@ describe("commands/signup/eventButton", () => {
         it("refuses a last name outside Forever, a name over 12 letters and profanity", async () => {
             const spec = mockInteraction({ customId: "event-btn:eh-kara:spec:s", userId: ANNA, values: ["Priest-Holy"] });
             await command.execute(spec);
-            const input = spec.showModal.mock.calls[0][0].toJSON().components[0].components[0];
+            const input = cardButtons(spec.showModal.mock.calls[0][0].toJSON())[0];
             expect(input).toMatchObject({ max_length: 12 });
 
             for (const [name, why] of [
@@ -267,7 +268,7 @@ describe("commands/signup/eventButton", () => {
             await command.execute(withComponent(mockInteraction({ customId: "event-btn:eh-kara:pick:s", userId: ANNA, values: ["zibbo|Priest-Holy", "zibbowar|Warrior-Protection"] }), null));
             const late = click("late");
             await command.execute(late);
-            expect(replyOf(late).flags).toBe(MessageFlags.Ephemeral);
+            expect(replyOf(late).flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
             expect(answerOf(replyOf(late))).toMatchObject({ title: "Saved for Karazhan", body: "`1.` Zibbo · Holy – **Late**\n`2.` Zibbowar · Protection – **Signed up**" });
             expect(stored().status).toBe("late");
             expect(statuses()).toEqual([["Zibbo", "late"], ["Zibbowar", "signed"]]);
@@ -284,7 +285,7 @@ describe("commands/signup/eventButton", () => {
             expect(modal.custom_id).toBe("event-btn:eh-kara:note:t");
             expect(modal.title).toBe("Tentative");
             // "optional" is the default of a category
-            expect(modal.components[0].components[0]).toMatchObject({ custom_id: "reason", required: false });
+            expect(cardButtons(modal)[0]).toMatchObject({ custom_id: "reason", required: false });
 
             const submit = mockInteraction({ customId: modal.custom_id, userId: ANNA, modal: true, options: { reason: "  maybe   work " } });
             await command.execute(submit);
@@ -305,7 +306,7 @@ describe("commands/signup/eventButton", () => {
             const submit = mockInteraction({ customId: "event-btn:eh-kara:note:t", userId: ANNA, modal: true, options: { reason: "late shift" } });
             await command.execute(submit);
             expect(stored()).toMatchObject({ status: "tentative", comment: "late shift" });
-            expect(replyOf(submit).flags).toBe(MessageFlags.Ephemeral);
+            expect(replyOf(submit).flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         });
 
         it("a category without messages asks nothing; one that requires them insists", async () => {
@@ -320,7 +321,7 @@ describe("commands/signup/eventButton", () => {
             mocks.access.config = { botLanguage: "en", categorySignupNotes: { "cat-1": "required" } };
             const strict = click("tentative");
             await command.execute(strict);
-            expect(strict.showModal.mock.calls[0][0].toJSON().components[0].components[0]).toMatchObject({ required: true, min_length: 2 });
+            expect(cardButtons(strict.showModal.mock.calls[0][0].toJSON())[0]).toMatchObject({ required: true, min_length: 2 });
             const empty = mockInteraction({ customId: "event-btn:eh-kara:note:t", userId: ANNA, modal: true, options: { reason: " " } });
             await command.execute(empty);
             expect(answerOf(replyOf(empty))).toMatchObject({ title: "", description: "Please leave a short message." });
@@ -385,7 +386,7 @@ describe("commands/signup/eventButton", () => {
                 "`2` <:eh_warrior_protection> Zibbowar · Protection  ·  <:eh_ui_bench> **Bench**",
             ]);
             const start = mocks.events.get("eh-kara").startTime;
-            expect(saved.description.split("\n").pop()).toBe(`🗓️ <t:${start}:F> · <t:${start}:R>`);
+            expect(saved.description.split("\n").pop()).toBe(`🗓️ <t:${start}:d> <t:${start}:t> · <t:${start}:R>`);
             const submit = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } });
             await command.execute(submit);
             const off = answerOf(replyOf(submit));
@@ -403,7 +404,7 @@ describe("commands/signup/eventButton", () => {
             const modal = btn.showModal.mock.calls[0][0].toJSON();
             expect(modal.custom_id).toBe("event-btn:eh-kara:why");
             expect(modal.title).toBe("Sign off");
-            expect(modal.components[0].components[0]).toMatchObject({ custom_id: "reason", required: false, max_length: 100 });
+            expect(cardButtons(modal)[0]).toMatchObject({ custom_id: "reason", required: false, max_length: 100 });
 
             const submit = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } });
             await command.execute(submit);
@@ -431,7 +432,7 @@ describe("commands/signup/eventButton", () => {
             mocks.access.config = { botLanguage: "en", categorySignupNotes: { "cat-1": "required" } };
             const btn = click("absence");
             await command.execute(btn);
-            expect(btn.showModal.mock.calls[0][0].toJSON().components[0].components[0]).toMatchObject({ required: true, min_length: 2 });
+            expect(cardButtons(btn.showModal.mock.calls[0][0].toJSON())[0]).toMatchObject({ required: true, min_length: 2 });
             const short = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "x" } });
             await command.execute(short);
             expect(answerOf(replyOf(short))).toMatchObject({ title: "", description: "Please leave a short message." });
@@ -442,7 +443,7 @@ describe("commands/signup/eventButton", () => {
             await command.execute(direct);
             expect(direct.showModal).not.toHaveBeenCalled();
             expect(stored()).toMatchObject({ status: "absence" });
-            expect(replyOf(direct).flags).toBe(MessageFlags.Ephemeral);
+            expect(replyOf(direct).flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         });
 
         it("posts the message to the orga's channel, pinging nobody", async () => {
@@ -535,7 +536,7 @@ describe("event buttons of an archived raid (#563)", () => {
         const i = click("join");
         await command.execute(i);
         const payload = replyOf(i);
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         const answer = answerOf(payload);
         expect(answer.title).toBe("This raid is archived");
         expect(answer.description).toContain("TBC Anniversary");
@@ -579,7 +580,7 @@ describe("Sprache der Antworten", () => {
         await command.execute(btn);
         const modal = btn.showModal.mock.calls[0][0].toJSON();
         expect(modal.title).toBe("Abmelden");
-        expect(modal.components[0].components[0].label).toBe("Nachricht an die Raidleitung (optional)");
+        expect(cardButtons(modal)[0].label).toBe("Nachricht an die Raidleitung (optional)");
         const submit = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } });
         await command.execute(submit);
         expect(answerOf(replyOf(submit))).toMatchObject({ title: "Abgemeldet von Karazhan", body: "Grund: Arbeit" });

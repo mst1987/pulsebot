@@ -6,6 +6,9 @@
 //   jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 //
 // The raider profiles use the real store on a temp file (raiderProfileStore.useFile).
+const { MessageFlags } = require("discord.js");
+const { asEmbed, cardButtons, isCardPayload } = require("./card");
+
 const events = new Map();
 const signups = new Map();
 const changed = jest.fn();
@@ -81,14 +84,15 @@ function signupStore() {
 const { ownEvent } = require("../factories/events");
 
 /**
- * The answer embed of a reply / follow-up / update payload (#508): its title,
- * description and colour, the payload's flags, content and components — plus
- * `body`, the description without the raid-start line (its timestamps move with
- * the clock), and `text`, title and body as one string.
+ * The answer of a reply / follow-up / update payload (#508; a card since Oct 2026, read through helpers/card.js): its
+ * title, description and colour, the payload's flags (without the card flag), content and the buttons inside the card as
+ * `components` — plus `body`, the description without the raid-start line (its timestamps move with the clock), `text`,
+ * title and body as one string, and `embedCount` (a card counts as the one answer block, an old embed payload by its embeds).
  */
 function answerOf(payload) {
     const p = payload || {};
-    const e = (p.embeds || [])[0] || {};
+    const card = isCardPayload(p);
+    const e = (card ? asEmbed(p) : (p.embeds || [])[0]) || {};
     const description = String(e.description || "");
     const body = description.split("\n").filter((l) => !l.startsWith("🗓️")).join("\n").trim();
     return {
@@ -97,10 +101,10 @@ function answerOf(payload) {
         body,
         text: [e.title || "", body].filter(Boolean).join("\n"),
         color: e.color,
-        flags: p.flags,
+        flags: card ? (Number(p.flags) & ~MessageFlags.IsComponentsV2) || undefined : p.flags,
         content: p.content,
-        components: p.components,
-        embedCount: (p.embeds || []).length,
+        components: card ? cardButtons(p) : p.components,
+        embedCount: card ? 1 : (p.embeds || []).length,
     };
 }
 

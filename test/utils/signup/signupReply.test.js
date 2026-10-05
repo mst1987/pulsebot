@@ -12,6 +12,7 @@ const profiles = require("../../../src/stores/raiderProfileStore");
 const appEmojis = require("../../../src/services/discord/appEmojis");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { ownEvent } = require("../../helpers/signupMocks");
+const { asEmbed, cardButtons } = require("../../helpers/card");
 const {
     plainTitle, colorOf, answerEmbed, toEmbed, answerPayload, answerUpdate,
 } = require("../../../src/utils/signup/signupReply");
@@ -52,28 +53,28 @@ describe("utils/signup/signupReply", () => {
         expect(toEmbed("x").color).toBe(EMBED_ACCENT_COLOR);
     });
 
-    it("answerPayload is an ephemeral embed with the given components", () => {
+    it("answerPayload is an ephemeral card with the given buttons inside", () => {
         const components = [{ type: 1, components: [{ type: 2, style: 5, label: "Go", url: "https://x.example" }] }];
-        expect(answerPayload("No raid picked.", { components })).toEqual({
-            embeds: [{ color: EMBED_ACCENT_COLOR, description: "No raid picked." }],
-            components,
-            flags: MessageFlags.Ephemeral,
-        });
-        expect(answerPayload({ title: "T", description: "D" }).embeds).toEqual([{ color: EMBED_ACCENT_COLOR, title: "T", description: "D" }]);
+        const p = answerPayload("No raid picked.", { components });
+        expect(p.flags).toBe(MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral);
+        expect(asEmbed(p)).toMatchObject({ color: EMBED_ACCENT_COLOR, description: "No raid picked." });
+        expect(cardButtons(p)).toEqual([expect.objectContaining({ label: "Go", url: "https://x.example" })]);
+        expect(asEmbed(answerPayload({ title: "T", description: "D" }))).toMatchObject({ color: EMBED_ACCENT_COLOR, title: "T", description: "D" });
     });
 
-    it("answerUpdate turns the member's message into the embed, without text or components", () => {
-        expect(answerUpdate("Unknown action.", { event: OWN_COLOR })).toEqual({
-            content: "",
-            embeds: [{ color: 0x112233, description: "Unknown action." }],
-            components: [],
-        });
+    it("answerUpdate turns the member's message into the card, without text, embed or buttons", () => {
+        const p = answerUpdate("Unknown action.", { event: OWN_COLOR });
+        expect(p).toMatchObject({ content: "", embeds: [] });
+        expect(p.flags).toBe(MessageFlags.IsComponentsV2);
+        expect(asEmbed(p)).toMatchObject({ color: 0x112233, description: "Unknown action." });
+        expect(cardButtons(p)).toEqual([]);
     });
 
-    it("clips a text longer than Discord allows instead of failing the reply", () => {
-        const [embed] = answerPayload(`Head\n${"x".repeat(5000)}`).embeds;
+    it("cuts a text longer than Discord allows instead of failing the reply", () => {
+        const embed = asEmbed(answerPayload(`Head\n${"x".repeat(5000)}`));
         expect(embed.title).toBe("Head");
-        expect(embed.description).toHaveLength(4096);
+        expect(embed.text.length).toBeLessThanOrEqual(4000);
+        expect(embed.description.endsWith("…")).toBe(true);
     });
 });
 
@@ -87,7 +88,7 @@ describe("signupButtons.savedEmbed", () => {
         ],
     };
     const profile = { characters: [] };
-    const when = `🗓️ <t:${event.startTime}:F> · <t:${event.startTime}:R>`;
+    const when = `🗓️ <t:${event.startTime}:d> <t:${event.startTime}:t> · <t:${event.startTime}:R>`;
 
     it("plain text: title, one line per character, the raid start, the waiting list", () => {
         expect(savedEmbed(event, signup, profile, { lang: "en", notice: "Der Raid ist voll (10/10) – du stehst auf der Warteliste (Bank). Ob jemand nachrückt, entscheidet die Raidleitung." })).toEqual({

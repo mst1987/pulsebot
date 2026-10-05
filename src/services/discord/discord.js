@@ -10,6 +10,7 @@ const { embedAccentColor } = require("../../config/variables");
 const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const { buildEmbed } = require("../../utils/discord/reply");
+const { card, cardFromEmbed } = require("../../utils/discord/card");
 
 let client = null;
 function setClient(c) {
@@ -119,9 +120,9 @@ function getChannelCategoryMap(guildId) {
 }
 
 /**
- * Post a sign-up announcement into a channel, pinging the given roles.
- * The message body comes from a notify template (title/body → embed); the role
- * mentions live in the plain content so they actually ping.
+ * Post a sign-up announcement into a channel, pinging the given roles: ONE card (utils/discord/card.js) — the role and
+ * member mentions are its first line (they ping from a card, tried on the dev server), then the notify template's title and
+ * body. Before it was mentions in `content` over an embed, two stacked blocks.
  * @returns { guildId, channelId, messageId, url }
  */
 async function postAnnouncement(channelId, template, roleIds = [], userIds = []) {
@@ -132,21 +133,13 @@ async function postAnnouncement(channelId, template, roleIds = [], userIds = [])
     // an event-server role means nothing (see pingDelivery.js).
     const users = [...new Set((userIds || []).map(String).filter(Boolean))];
     const mentions = [...roles.map((id) => `<@&${id}>`), ...users.map((id) => `<@${id}>`)].join(" ");
-    const payload = { allowedMentions: users.length ? { roles, users } : { roles } };
-
-    if (template.title || template.body) {
-        const embed = new EmbedBuilder().setColor(embedAccentColor);
-        if (template.title) embed.setTitle(template.title);
-        if (template.body) embed.setDescription(template.body);
-        payload.embeds = [embed];
-        payload.content = mentions || undefined;
-    } else {
-        // no embed → put everything in the message content
-        payload.content = [mentions, template.body || ""].filter(Boolean).join("\n") || mentions;
-    }
-    if (!payload.content && (!payload.embeds || !payload.embeds.length)) {
+    if (!mentions && !template.title && !template.body) {
         throw new Error("Nachricht ist leer — Vorlage oder Rollen wählen.");
     }
+    const payload = card({
+        mentions, title: template.title, text: template.body,
+        allowedMentions: users.length ? { roles, users } : { roles },
+    });
 
     const posted = await channel.send(payload);
     return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
@@ -354,18 +347,20 @@ async function editPingMessages(channelId, messageIds = [], userIds = [], text =
 const MESSAGE_LIMIT = 2000;
 
 /**
- * A message that pings nobody: a `<@id>` in it shows the name without a
- * notification (allowedMentions parses nothing). `payload` is either plain
- * text, or `{ content?, embeds? }` (a raw embed object works, as elsewhere in
- * this file). Text content is cut to Discord's 2000.
+ * A message that pings nobody, as one card (utils/discord/card.js): a `<@id>` in it shows the name without a notification.
+ * `payload` is plain text (the card's text), or `{ content?, embeds? }` — an embed (a raw object or a builder, as elsewhere in
+ * this file) becomes the card (cardFromEmbed), `content` its text.
  * @returns {Promise<{ channelId, messageId, url }>}
  */
 async function postNotice(channelId, payload) {
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     const data = typeof payload === "string" ? { content: payload } : (payload || {});
-    const send = { allowedMentions: { parse: [] } };
-    if (data.content) send.content = String(data.content).slice(0, MESSAGE_LIMIT);
-    if (data.embeds) send.embeds = data.embeds;
+    const first = Array.isArray(data.embeds) && data.embeds[0] ? data.embeds[0] : null;
+    const embed = first && typeof first.toJSON === "function" ? first.toJSON() : first;
+    const text = data.content ? String(data.content) : "";
+    const send = embed
+        ? cardFromEmbed({ ...embed, description: [text, embed.description || ""].filter(Boolean).join("\n\n") })
+        : card({ text });
     const posted = await channel.send(send);
     return { channelId: channel.id, messageId: posted.id, url: posted.url };
 }
@@ -569,19 +564,15 @@ async function duplicateChannel(channelId, newName) {
 }
 
 /**
- * Build a recruitment message payload from a template: plain message text
- * (`content`, where emojis usually live) plus the apply button. No embed —
- * `embeds: []` also clears any embed a message still had from before this
- * was the case (e.g. one added by hand in Discord).
+ * A recruitment message from a template: one card (utils/discord/card.js) with the template's text (emojis and all) and the
+ * apply button inside it. Editing an older text or embed post turns it into the card (`content: ""`, `embeds: []`).
  */
 function buildRecruitmentMessage(template) {
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId(applyButtonId(template.versionId))
-            .setLabel(template.buttonLabel || "Jetzt bewerben")
-            .setStyle(ButtonStyle.Success)
-    );
-    return { content: template.content || "", embeds: [], components: [row] };
+    const apply = new ButtonBuilder()
+        .setCustomId(applyButtonId(template.versionId))
+        .setLabel(template.buttonLabel || "Jetzt bewerben")
+        .setStyle(ButtonStyle.Success);
+    return card({ text: template.content || "", buttons: [apply] });
 }
 
 /** Post a recruitment template to a channel. Returns { guildId, channelId, messageId, url }. */
@@ -614,26 +605,44 @@ async function deleteMessage(channelId, messageId) {
     }
 }
 
+/**
+ * Every component of a message, nested ones included: a card (Components V2) holds its text, its sections and its button rows
+ * inside a container, an older message has its rows on top. Each item is a discord.js component or its API JSON.
+ */
+function allComponents(list) {
+    const out = [];
+    for (const c of list || []) {
+        if (!c) continue;
+        out.push(c);
+        out.push(...allComponents(c.components));
+        if (c.accessory) out.push(c.accessory);
+    }
+    return out;
+}
+
+const customIdOf = (comp) => comp.customId || comp.custom_id || (comp.data && comp.data.custom_id) || "";
+
 function isRecruitmentMessage(msg) {
     if (!client || msg.author.id !== client.user.id) return false;
-    return (msg.components || []).some((row) =>
-        (row.components || []).some((comp) => isApplyButtonId(comp.customId)));
+    return allComponents(msg.components).some((comp) => isApplyButtonId(customIdOf(comp)));
 }
 
 function extractTemplate(msg) {
     const embed = msg.embeds && msg.embeds[0];
     let buttonLabel = "";
     let versionId = "";
-    for (const row of msg.components || []) {
-        for (const comp of row.components || []) {
-            if (isApplyButtonId(comp.customId)) {
-                buttonLabel = comp.label || "";
-                versionId = versionOfApplyButton(comp.customId);
-            }
+    const all = allComponents(msg.components);
+    for (const comp of all) {
+        if (isApplyButtonId(customIdOf(comp))) {
+            buttonLabel = comp.label || (comp.data && comp.data.label) || "";
+            versionId = versionOfApplyButton(customIdOf(comp));
         }
     }
+    // a card keeps the template's text in its text display (type 10), an older post in `content`
+    const cardText = all.filter((c) => (c.type === 10 || (c.data && c.data.type === 10)) && (c.content || (c.data && c.data.content)))
+        .map((c) => c.content || c.data.content).join("\n");
     return {
-        content: msg.content || "",
+        content: msg.content || cardText || "",
         title: (embed && embed.title) || "",
         body: (embed && embed.description) || "",
         buttonLabel,
@@ -911,23 +920,17 @@ async function finishLogButton(channelId, messageId, opts = {}) {
 }
 
 /**
- * Build a raidsheet/softres link message payload: plain message text
- * (`content`, heading with emoji+title followed by the optional custom
- * message) plus a link button. No embed — mirrors `buildRecruitmentMessage`,
- * which dropped the embed for exactly the same reason (Discord otherwise
- * renders `content` and the embed as two stacked blocks in one message,
- * reading as a duplicate post). `embeds: []` also clears any embed a message
- * still had from before this was the case.
+ * A raid plan / raidsheet / softres link message: ONE raid card (utils/discord/card.js, Oct 2026) — the raid's name small over
+ * the heading, the orga's optional message, the facts (the start, short), the link button inside the card, in the event's
+ * colour. Before it was plain `content` with an emoji heading, because text plus embed showed as two stacked blocks; a card
+ * is one block. The card carries `content: ""` and `embeds: []`, so editing an older text post turns it into the card.
  */
-function buildLinkMessage({ url, title, message, label = "Öffnen", emoji = "📄" } = {}) {
+function buildLinkMessage({ url, title, kicker, message, facts, color, label = "Öffnen" } = {}) {
     // Without a url (a withdrawn share, #537) the message keeps its text and loses the button.
-    const row = url ? new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(url)
-    ) : null;
-    const heading = title ? `${emoji} **${title}**` : "";
-    const text = String(message || "").trim();
-    const content = [heading, text].filter(Boolean).join("\n");
-    return { content, embeds: [], components: row ? [row] : [] };
+    const button = url ? new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(url) : null;
+    return card({
+        kind: "raid", color, kicker, title, text: String(message || "").trim(), facts, buttons: button ? [button] : [],
+    });
 }
 
 /**

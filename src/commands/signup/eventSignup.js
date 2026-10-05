@@ -1,4 +1,3 @@
-const { MessageFlags } = require("discord.js");
 const { getEvent } = require("../../stores/eventStore");
 const { archivedNotice } = require("../../services/events/eventArchive");
 const { SIGNUP_BUTTON_PREFIX } = require("../../services/events/eventMessage");
@@ -7,6 +6,7 @@ const { buildSignupDialog } = require("../../utils/signup/signupDialog");
 const { answerPayload } = require("../../utils/signup/signupReply");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
+const { asEphemeral } = require("../../utils/discord/card");
 
 // The "Anmelden" button under an EventHelper event message
 // (customId `event-signup:<eventId>`, services/events/eventMessage.js). Opens the signup
@@ -28,6 +28,6 @@ module.exports = {
         if (archived) return interaction.reply(answerPayload(archived, { event, lang }));
         const access = await checkRaiderRole(event, interaction.user.id);
         if (access.error) return interaction.reply(answerPayload(access.error, { event, lang }));
-        return interaction.reply({ ...buildSignupDialog(event, interaction.user.id, { lang }), flags: MessageFlags.Ephemeral });
+        return interaction.reply(asEphemeral(buildSignupDialog(event, interaction.user.id, { lang })));
     },
 };

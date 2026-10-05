@@ -86,7 +86,7 @@ describe("/raid", () => {
         await raid.execute(i);
         const e = editEmbed(i);
         expect(e.title).toBe("SSC/TK");
-        expect(e.description).toContain(`<t:${now + 86400}:F>`);
+        expect(e.description).toContain(`<t:${now + 86400}:d> <t:${now + 86400}:t>`);
         expect(e.description).toContain("Montagsraid · <#ch1>");
         expect(e.fields.find((f) => f.name === "Anmeldungen").value).toBe("**3**\n1 kommt später · 1 abgemeldet");
         expect(e.fields.find((f) => f.name === "Du").value).toBe("❌ abgemeldet");

@@ -123,11 +123,11 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
         expect(embed.fields.map((f) => f.name)).toEqual(["Donnerstag-Raid", "​", "PuG"]);
         expect(embed.fields[0].value).toBe([
             "**SSC + TK**",
-            "🗓️ <t:1789666200:F>",
+            "🗓️ <t:1789666200:d> <t:1789666200:t>",
             "-# 👥 9 signed up · [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1) · Raid-Helper",
             "",
             "**[Hyjal + BT](https://eh.example/e/e2)**",
-            "🗓️ <t:1790271000:F>",
+            "🗓️ <t:1790271000:d> <t:1790271000:t>",
             "-# 👥 15 signed up · [#do-hyjal](https://discord.com/channels/111/c2)",
         ].join("\n"));
         expect(embed.fields[2].value).toContain("Karazhan");
@@ -153,7 +153,7 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
             ],
         }], opts);
         const lines = payload.embeds[0].fields[0].value.split("\n");
-        expect(lines).toContain("~~Hyjal~~ · **CANCELLED** · <t:1789752600:F>");
+        expect(lines).toContain("~~Hyjal~~ · **CANCELLED** · <t:1789752600:d> <t:1789752600:t>");
         expect(payload.components[0].components[0].options.map((o) => o.value)).toEqual(["e1"]);
 
         const onlyCancelled = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev({ status: "cancelled" })] }], opts);

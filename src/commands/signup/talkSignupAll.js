@@ -1,4 +1,3 @@
-const { MessageFlags } = require("discord.js");
 const profiles = require("../../stores/raiderProfileStore");
 const { ALL_BUTTON_ID } = require("../../services/talk/talkOverview");
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
@@ -6,6 +5,7 @@ const { characterOptions } = require("../../utils/signup/joinPicker");
 const { createSession, getSession, signableRaids, buildCharacterModal } = require("../../utils/signup/multiSignup");
 const { noCharacterReply, noRaidsReply } = require("./talkSignupMulti");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
+const { asEphemeral } = require("../../utils/discord/card");
 
 // "Für alle Raids anmelden" under the raid overview on the talk server (#293):
 // skips step 1 — every coming raid with an EventHelper signup is chosen — and
@@ -25,7 +25,7 @@ module.exports = {
         const token = createSession(uid, { mode: "all", eventIds: raids.map((e) => e.id) });
         if (interaction.client) await loadAppEmojis(interaction.client);
         const modal = buildCharacterModal(token, getSession(token, uid), 0, raids, profile, { emojis: appEmojiMap(), lang });
-        if (!modal) return interaction.reply({ ...noCharacterReply(lang), flags: MessageFlags.Ephemeral });
+        if (!modal) return interaction.reply(asEphemeral(noCharacterReply(lang)));
         return interaction.showModal(modal);
     },
 };

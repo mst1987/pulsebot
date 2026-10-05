@@ -101,6 +101,17 @@ function discordTimestamp(value, style = "F") {
     return `<t:${s}:${STYLES.includes(style) ? style : "F"}>`;
 }
 
+/**
+ * A start SHORT, as the bot writes it everywhere (Oct 2026: the long `:F` form — "Monday, October 5, 2026 9:00 PM" — reads
+ * like a sentence nobody reads): `<t:…:d> <t:…:t>` ("05.10.2026 21:00" in the reader's language and zone), with
+ * `relative` also " · <t:…:R>" ("in 3 hours"); "" without a time.
+ */
+function shortWhen(value, { relative = false } = {}) {
+    const s = toSeconds(value);
+    if (!s) return "";
+    return `<t:${s}:d> <t:${s}:t>${relative ? ` · <t:${s}:R>` : ""}`;
+}
+
 /** The moment in server time as a luxon DateTime (English), null without a time. */
 function serverDateTime(value) {
     const s = toSeconds(value);
@@ -175,7 +186,7 @@ module.exports = {
     // German dates
     formatTimestampToDateString, formatGermanDateTime, toRaidHelperDate, parseGermanDate, parseClockTime,
     // Discord texts
-    SERVER_ZONE, STYLES, toSeconds, discordTimestamp, serverDateTime, shortServerTime, shortServerDate, longServerTime,
+    SERVER_ZONE, STYLES, toSeconds, discordTimestamp, shortWhen, serverDateTime, shortServerTime, shortServerDate, longServerTime,
     // raid duration
     MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, durationOf, eventEndTime, plannedEndOrDefault,
 };

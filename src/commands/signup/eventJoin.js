@@ -1,4 +1,3 @@
-const { MessageFlags } = require("discord.js");
 const { getEvent } = require("../../stores/eventStore");
 const { getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
@@ -13,6 +12,7 @@ const { answerPayload } = require("../../utils/signup/signupReply");
 const { savedEmbed } = require("../../utils/signup/signupButtons");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
+const { asEphemeral } = require("../../utils/discord/card");
 
 // The public "Anmelden …" select under an event message (#287) and the
 // components of the character select it opens (utils/signup/joinPicker.js):
@@ -34,7 +34,7 @@ const { tr } = require("../../utils/i18n/botText");
 const reply = (interaction, payload, event = null) => {
     if (payload.embed) return interaction.reply(answerPayload(payload.embed));
     if (payload.content) return interaction.reply(answerPayload(payload.content, { event, lang: langOfInteraction(interaction) }));
-    return interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
+    return interaction.reply(asEphemeral(payload));
 };
 
 /** Why a status cannot be chosen right now, or "". */

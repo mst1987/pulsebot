@@ -43,6 +43,22 @@ const { pingMissingRaiders } = require("../../services/events/missingPing");
 const { buildRaidDetail } = require("../events/raidDetailView");
 const { postRaidplanLink } = require("../../services/raidplan/raidplanPost");
 const { userCan } = require("../../config/permissions");
+const { embedColor } = require("../../services/events/embedLook");
+
+/**
+ * The raid part of a raidsheet / softres link card (discord.buildLinkMessage): the raid's name small over the heading, the
+ * start short ("05.10.2026 21:00 · in 3 hours", Discord timestamps in the reader's zone and language), the event's colour.
+ */
+function linkCardOf(found) {
+    const start = Number(found && found.startTime) || 0;
+    let color;
+    try { color = embedColor(found); } catch { color = undefined; }
+    return {
+        kicker: String((found && found.title) || "").trim(),
+        facts: start ? [["Start", `<t:${start}:d> <t:${start}:t> · <t:${start}:R>`]] : [],
+        color,
+    };
+}
 
 /**
  * GET /api/raids/detail?event=<id> — everything the event-detail page needs in
@@ -239,13 +255,7 @@ const postPostSheet = withUser({ csrf: true, body: true, archived: BY_EVENT }, a
     // "message" present (even "") means the caller set it explicitly; otherwise
     // (quick re-post with no edit) keep whatever text was posted last time.
     const message = body.message !== undefined ? body.message : ((es && es.postedMessage) || "");
-    const linkOpts = {
-        url: link.url,
-        title: found.title ? `Raidsheet – ${found.title}` : "Raidsheet",
-        message,
-        label: "Raidsheet öffnen",
-        emoji: "📄",
-    };
+    const linkOpts = { ...linkCardOf(found), url: link.url, title: "Raidsheet", message, label: "Raidsheet öffnen" };
     const alreadyPosted = Boolean(es && es.postedChannelId && es.postedMessageId);
     try {
         let posted;
@@ -277,13 +287,7 @@ const postPostSoftres = withUser({ csrf: true, body: true, archived: BY_EVENT },
     const { found, errorMessage, code } = await resolveEventForPost(req, eventId);
     if (errorMessage) return error(res, code === "not_found" ? 404 : 400, code, errorMessage);
     const message = body.message !== undefined ? body.message : (sr.postedMessage || "");
-    const linkOpts = {
-        url: sr.url,
-        title: found.title ? `Softres – ${found.title}` : "Softres",
-        message,
-        label: "Softres öffnen",
-        emoji: "🎁",
-    };
+    const linkOpts = { ...linkCardOf(found), url: sr.url, title: "Softres", message, label: "Softres öffnen" };
     const alreadyPosted = Boolean(sr.postedChannelId && sr.postedMessageId);
     try {
         let posted;

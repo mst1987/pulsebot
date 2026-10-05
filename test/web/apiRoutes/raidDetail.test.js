@@ -1159,10 +1159,10 @@ describe("web/apiRoutes/raidDetail", () => {
             setupDefaults();
             discord.postLink.mockResolvedValue({ channelId: "chan1", messageId: "m1" });
             const res = await post("/api/raids/post-sheet", { event: "e1", message: "Bitte prüfen" });
-            expect(discord.postLink).toHaveBeenCalledWith("chan1", {
-                url: "https://sheet.example/1", title: "Raidsheet – GDKP Kara", message: "Bitte prüfen",
-                label: "Raidsheet öffnen", emoji: "📄",
-            });
+            // a raid card: the raid small over the heading
+            expect(discord.postLink).toHaveBeenCalledWith("chan1", expect.objectContaining({
+                url: "https://sheet.example/1", kicker: "GDKP Kara", title: "Raidsheet", message: "Bitte prüfen", label: "Raidsheet öffnen",
+            }));
             expect(discord.editLink).not.toHaveBeenCalled();
             expect(eventSheetStore.markEventSheetPosted).toHaveBeenCalledWith("e1", {
                 channelId: "chan1", messageId: "m1", message: "Bitte prüfen", createIfMissing: true,
@@ -1244,10 +1244,9 @@ describe("web/apiRoutes/raidDetail", () => {
             setupDefaults();
             discord.postLink.mockResolvedValue({ channelId: "chan1", messageId: "m1" });
             const res = await post("/api/raids/post-softres", { event: "e1", message: "Bitte prüfen" });
-            expect(discord.postLink).toHaveBeenCalledWith("chan1", {
-                url: "https://softres.it/1", title: "Softres – GDKP Kara", message: "Bitte prüfen",
-                label: "Softres öffnen", emoji: "🎁",
-            });
+            expect(discord.postLink).toHaveBeenCalledWith("chan1", expect.objectContaining({
+                url: "https://softres.it/1", kicker: "GDKP Kara", title: "Softres", message: "Bitte prüfen", label: "Softres öffnen",
+            }));
             expect(eventSoftresStore.markEventSoftresPosted).toHaveBeenCalledWith("e1", { channelId: "chan1", messageId: "m1", message: "Bitte prüfen" });
             expect(json(res)).toEqual({ data: { message: "Softres-Link in den Channel gepostet." } });
         });
