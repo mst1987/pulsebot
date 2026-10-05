@@ -127,7 +127,11 @@ pm2 update
 
 echo "$LOG_TAG Restarting PM2 process..."
 if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
-    pm2 restart "$APP_NAME" --update-env
+    # --update-env hands the bot THIS shell's environment, and the deploy shell
+    # has no NODE_ENV: without it here the live bot ran as "development" — TLS
+    # checks off and the Raid-Helper sync treating it as a test instance (#611).
+    NODE_ENV=production pm2 restart "$APP_NAME" --update-env
+    pm2 save
 else
     echo "$LOG_TAG Process not found — starting fresh..."
     pm2 start ecosystem.config.js --env production
