@@ -1317,6 +1317,8 @@
         "select": "Selection mode",
         "preview": "Sheet preview (no grips, no selection)",
         "showMap": "Show the map for this section",
+        "mapSwitch": "Map",
+        "mapSwitchTip": "Off: this section shows only the assignments, in the read view too. The objects on the map stay saved.",
         "draw": "Draw",
         "drawSub": "Arrow, line, text",
         "shapes": "Shapes",

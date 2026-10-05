@@ -16,8 +16,8 @@ type Toggle = { on: boolean; toggle: () => void };
 /**
  * The tool row of the view "Karte" (Oct 2026): ONE labelled row instead of the icon strip. "Zeichnen ▾" (arrow, line, text),
  * "Formen ▾" (rectangle, ellipse, the melee and ranged areas), "Ansicht ▾" (the elements palette, the Besetzung, selection mode, the
- * sheet preview, the roster dialog, the map on / off - above the board's own view options), the zoom, the map's size S / M / L,
- * then undo / redo and "Eigenschaften" (properties, layers and background beside the board). Every icon of the old strip is here.
+ * sheet preview, the roster dialog - above the board's own view options), the switch "Karte" (this section's map on / off, right
+ * beside the zoom; with the map off it is the row's only map control), the zoom, the map's size S / M / L, then undo / redo and "Eigenschaften" (properties, layers and background beside the board). Every icon of the old strip is here.
  */
 export function MapToolRow({ canWrite, history, onInsert, palette, selectMode, bes, panel, preview, onRoster, board, edit, noMap, mapOff, onMapOff, bv, prefs, setPref, links, onLinks, mapSize, chooseMapSize }: {
     canWrite: boolean;
@@ -69,7 +69,6 @@ export function MapToolRow({ canWrite, history, onInsert, palette, selectMode, b
             {check(t("raidBoard.views.bes"), bes.on, bes.toggle, <Users size={15} aria-hidden="true" />)}
             {!noMap && check(t("raidBoard.views.select"), selectMode.on, selectMode.toggle, <BoxSelect size={15} aria-hidden="true" />, !canWrite)}
             {!noMap && check(t("raidBoard.views.preview"), preview.on, preview.toggle, <Eye size={15} aria-hidden="true" />)}
-            {check(t("raidBoard.views.showMap"), !mapOff, () => onMapOff(!mapOff), mapOff ? <ImageOff size={15} aria-hidden="true" /> : <ImageIcon size={15} aria-hidden="true" />, !canWrite)}
             <button type="button" className="rp-link rp-view-row" onClick={onRoster}><ListChecks size={15} aria-hidden="true" />{t("raidBoard.roster.title")}</button>
             {!noMap && (
                 <>
@@ -84,6 +83,12 @@ export function MapToolRow({ canWrite, history, onInsert, palette, selectMode, b
             {!noMap && <ToolMenu label={t("raidBoard.views.draw")} icon={<MoveUpRight size={15} aria-hidden="true" />} items={draw} tip={t("raidBoard.views.draw")} tipSub={t("raidBoard.views.drawSub")} disabled={!canWrite} />}
             {!noMap && <ToolMenu label={t("raidBoard.views.shapes")} icon={<Shapes size={15} aria-hidden="true" />} items={shapes} tip={t("raidBoard.views.shapes")} tipSub={t("raidBoard.views.shapesSub")} disabled={!canWrite} />}
             <ViewOptions board={board} canWrite={canWrite} edit={edit} prefs={prefs} setPref={setPref} links={links} onLinks={onLinks} label={t("raidBoard.view.menu")} extra={extra} />
+            <span className="rp-tool-sep" aria-hidden="true" />
+            <Switch
+                className="rp-maptoggle" checked={!mapOff} disabled={!canWrite} onChange={(on) => onMapOff(!on)}
+                tipHead={t("raidBoard.views.showMap")} tip={t("raidBoard.views.mapSwitchTip")}
+                label={<>{mapOff ? <ImageOff size={15} aria-hidden="true" /> : <ImageIcon size={15} aria-hidden="true" />}{t("raidBoard.views.mapSwitch")}</>}
+            />
             {!noMap && (
                 <>
                     <span className="rp-tool-sep" aria-hidden="true" />

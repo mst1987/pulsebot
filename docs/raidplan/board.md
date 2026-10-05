@@ -47,7 +47,8 @@ proxy's HTML.
 
 - **`showMap`** (board field, `raidplanBoard.cleanBoard`): `true` unless it is exactly `false`, so every board
   from before the switch keeps its map; a hidden map alone counts as content. The view "Karte" of a boss / trash
-  section has it in "Ansicht ▾" ("Karte für diesen Abschnitt zeigen", since Oct 2026; before: an image icon in the tool bar);
+  section has it as the switch "Karte" in the tool row right before the zoom (`MapToolRow`, #616; before: in "Ansicht ▾",
+  and before Oct 2026 an image icon in the tool bar); with the map off it is the row's only map control;
   "Allgemein" and "Standard" have no map anyway. Off:
   `BoardWorkspace` renders no board, palette, layers, zoom, minimap, map size or inspector, but a dashed note
   "Dieser Abschnitt wird ohne Karte geplant … bleiben gespeichert" with "Karte anzeigen"; Besetzung,

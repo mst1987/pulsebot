@@ -134,14 +134,37 @@ describe("the view 'Karte'", () => {
         expect(screen.queryByRole("menu")).toBeNull();
         fireEvent.click(screen.getByRole("button", { name: "Ansicht" }));
         const view = screen.getByRole("dialog", { name: "Ansicht" });
-        for (const label of [/Elemente zum Ziehen/, /Besetzung über der Karte/, /Auswahlmodus/, /Sheet-Vorschau/, /Karte für diesen Abschnitt/, /Namen zeigen/]) {
+        for (const label of [/Elemente zum Ziehen/, /Besetzung über der Karte/, /Auswahlmodus/, /Sheet-Vorschau/, /Namen zeigen/]) {
             expect(within(view).getByRole("switch", { name: label })).toBeTruthy();
         }
+        // the map's own switch moved out of the menu, next to the zoom
+        expect(within(view).queryByRole("switch", { name: "Karte" })).toBeNull();
         expect(within(view).getByRole("button", { name: /Besetzung zuweisen/ })).toBeTruthy();
         // the Besetzung band above the map comes with its switch
         expect(document.querySelector(".rp-bes")).toBeNull();
         fireEvent.click(within(view).getByRole("switch", { name: /Besetzung über der Karte/ }));
         expect(document.querySelector(".rp-bes")).not.toBeNull();
+    });
+
+    it("switches the section's map off and on right beside the zoom; off, the switch stays as the row's only map control", () => {
+        window.localStorage.setItem("eh.raidplan.view", "map");
+        setup();
+        const tools = () => screen.getByRole("toolbar", { name: "Werkzeuge" });
+        const sw = () => within(tools()).getByRole("switch", { name: "Karte" });
+        expect(sw()).toBeChecked();
+        // it stands right before the zoom
+        const zoom = within(tools()).getByRole("group", { name: "Zoom" });
+        expect(sw().compareDocumentPosition(zoom) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(within(tools()).getByRole("button", { name: "Ansicht" }).compareDocumentPosition(sw()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        fireEvent.click(sw());
+        expect(sw()).not.toBeChecked();
+        expect(board()).toBeNull();
+        expect(within(tools()).queryByRole("group", { name: "Zoom" })).toBeNull();
+        expect(within(tools()).queryByRole("button", { name: "Zeichnen" })).toBeNull();
+        fireEvent.click(sw());
+        expect(sw()).toBeChecked();
+        expect(board()).not.toBeNull();
+        expect(within(tools()).getByRole("group", { name: "Zoom" })).toBeTruthy();
     });
 
     it("opens the menus from the keyboard: the first entry gets the focus, the arrows move, Escape goes back to the button", () => {
