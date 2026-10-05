@@ -49,12 +49,12 @@ describe("availabilityPanel", () => {
         expect(de.components[0].components[0].data.label).toBe("Abwesenheit eintragen");
         mockConfig = { botLanguage: "en" };
         discord.editPayload.mockClear();
-        expect(await panel.refreshPanels()).toEqual({ edited: 1, failed: 0 });
+        expect(await panel.refreshPanels()).toEqual({ edited: 1, failed: 0, unchanged: 0 });
         const en = discord.editPayload.mock.calls[0][2];
         expect(discord.editPayload.mock.calls[0].slice(0, 2)).toEqual(["c1", "m-c1"]);
         expect((en.embeds[0].data || en.embeds[0]).title).toBe("Absence & attendance · Raids TBC");
         discord.editPayload.mockRejectedValueOnce(new Error("Unknown Message"));
-        expect(await panel.refreshPanels()).toEqual({ edited: 0, failed: 1 });
+        expect(await panel.refreshPanels()).toEqual({ edited: 0, failed: 1, unchanged: 0 });
     });
 
     it("ersetzt ein früheres Panel der Kategorie und löscht dessen Nachricht", async () => {
@@ -77,5 +77,64 @@ describe("availabilityPanel", () => {
         expect((await panel.removePanel("cat1")).messageId).toBe("m-c1");
         expect(discord.deleteMessage).toHaveBeenCalledWith("c1", "m-c1");
         expect(await panel.removePanel("cat1")).toBeNull();
+    });
+
+    // Panels posted before a deploy changed their text stayed as they were:
+    // the ones from before #586 kept speaking English.
+    describe("nach einem Deploy", () => {
+        it("merkt sich beim Posten den Fingerabdruck dessen, was das Panel zeigt", async () => {
+            await panel.postPanel({ categoryId: "cat1", channelId: "c1" });
+            const payload = discord.postPayload.mock.calls[0][1];
+            expect(store.getPanel("cat1").hash).toBe(panel.payloadHash(payload));
+            expect(panel.payloadHash(payload)).toMatch(/^[0-9a-f]{16}$/);
+        });
+
+        it("zeichnet mit onlyStale nur Panels neu, deren Inhalt sich geändert hat", async () => {
+            await panel.postPanel({ categoryId: "cat1", channelId: "c1" });
+            // a panel from before the fingerprint, as on the live server
+            store.setPanel({ categoryId: "cat2", channelId: "c2", messageId: "m-c2" });
+            expect(await panel.refreshPanels({ onlyStale: true })).toEqual({ edited: 1, failed: 0, unchanged: 1 });
+            expect(discord.editPayload).toHaveBeenCalledTimes(1);
+            expect(discord.editPayload.mock.calls[0].slice(0, 2)).toEqual(["c2", "m-c2"]);
+            // now it is current too
+            discord.editPayload.mockClear();
+            expect(await panel.refreshPanels({ onlyStale: true })).toEqual({ edited: 0, failed: 0, unchanged: 2 });
+            expect(discord.editPayload).not.toHaveBeenCalled();
+        });
+
+        it("zeichnet ein Panel neu, sobald sich die Sprache geändert hat", async () => {
+            await panel.postPanel({ categoryId: "cat1", channelId: "c1" });
+            mockConfig = {};
+            expect(await panel.refreshPanels({ onlyStale: true })).toMatchObject({ edited: 1 });
+            const de = discord.editPayload.mock.calls[0][2];
+            expect((de.embeds[0].data || de.embeds[0]).title).toBe("Ab- & Anwesenheit · Raids TBC");
+        });
+
+        it("behält den alten Fingerabdruck, wenn das Bearbeiten scheitert, und versucht es beim nächsten Start wieder", async () => {
+            store.setPanel({ categoryId: "cat1", channelId: "c1", messageId: "m-c1" });
+            discord.editPayload.mockRejectedValueOnce(new Error("Unknown Message"));
+            expect(await panel.refreshPanels({ onlyStale: true })).toEqual({ edited: 0, failed: 1, unchanged: 0 });
+            expect(store.getPanel("cat1").hash).toBe("");
+        });
+
+        it("läuft einmal nach dem Start, verzögert und abbrechbar", async () => {
+            jest.useFakeTimers();
+            try {
+                store.setPanel({ categoryId: "cat1", channelId: "c1", messageId: "m-c1" });
+                const t = panel.startPanelRefresh({ firstDelayMs: 1000 });
+                expect(panel.startPanelRefresh()).toBe(t);
+                expect(discord.editPayload).not.toHaveBeenCalled();
+                await jest.advanceTimersByTimeAsync(1000);
+                expect(discord.editPayload).toHaveBeenCalledTimes(1);
+                panel.stopPanelRefresh();
+                panel.startPanelRefresh({ firstDelayMs: 1000 });
+                panel.stopPanelRefresh();
+                await jest.advanceTimersByTimeAsync(2000);
+                expect(discord.editPayload).toHaveBeenCalledTimes(1);
+            } finally {
+                panel.stopPanelRefresh();
+                jest.useRealTimers();
+            }
+        });
     });
 });

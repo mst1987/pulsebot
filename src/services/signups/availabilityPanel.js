@@ -5,6 +5,13 @@
 // panel, so there is never a second one with stale buttons. The panel speaks the
 // server language (services/discord/botLanguage.js); refreshPanels() redraws
 // every posted one in place when it changes.
+//
+// Each panel remembers a fingerprint of what it shows (`hash`). A deploy that
+// changes the panel's text or buttons — a new translation, say — leaves the
+// posted messages as they were; startPanelRefresh() redraws, once after the
+// start, every panel whose fingerprint no longer matches (#586 left the
+// panels posted before it in English until somebody changed the language).
+const crypto = require("crypto");
 const store = require("../../stores/availabilityStore");
 const discord = require("../discord/discord");
 const { eventGuildIds } = require("../discord/guildRoles");
@@ -29,6 +36,16 @@ function categoryNameFor(categoryId, { config } = {}) {
     return "";
 }
 
+/** The fingerprint of a panel payload: embeds and buttons as Discord gets them. */
+function payloadHash(payload) {
+    return crypto.createHash("sha1").update(JSON.stringify({ embeds: payload.embeds, components: payload.components })).digest("hex").slice(0, 16);
+}
+
+/** The payload of a category's panel as it should look now. */
+function currentPayload(categoryId, cfg) {
+    return panelPayload({ categoryId, categoryName: categoryNameFor(categoryId, { config: cfg }), lang: serverLang(cfg) });
+}
+
 /**
  * Post the panel of a category into a channel and drop its earlier one.
  * @returns {Promise<{ panel?: object, url?: string, error?: string }>}
@@ -38,16 +55,16 @@ async function postPanel({ categoryId, channelId, by = "", config } = {}) {
     const channel = str(channelId);
     if (!cat) return { error: "Keine Kategorie gewählt." };
     if (!channel) return { error: "Kein Kanal gewählt." };
-    const categoryName = categoryNameFor(cat, { config });
+    const payload = currentPayload(cat, config || settingsStore.getConfig());
     let posted;
     try {
-        posted = await discord.postPayload(channel, panelPayload({ categoryId: cat, categoryName, lang: serverLang(config) }));
+        posted = await discord.postPayload(channel, payload);
     } catch (e) {
         return { error: `Das Panel konnte nicht gepostet werden: ${(e && e.message) || e}` };
     }
     const earlier = store.getPanel(cat);
     if (earlier && earlier.messageId !== posted.messageId) await discord.deleteMessage(earlier.channelId, earlier.messageId);
-    const panel = store.setPanel({ categoryId: cat, guildId: posted.guildId, channelId: posted.channelId, messageId: posted.messageId, postedBy: by });
+    const panel = store.setPanel({ categoryId: cat, guildId: posted.guildId, channelId: posted.channelId, messageId: posted.messageId, postedBy: by, hash: payloadHash(payload) });
     return { panel, url: posted.url };
 }
 
@@ -59,18 +76,25 @@ async function removePanel(categoryId) {
 }
 
 /**
- * Redraw every posted panel in place (the server language changed). A panel
- * whose message is gone or cannot be edited is logged and left; never throws.
- * @returns {Promise<{ edited: number, failed: number }>}
+ * Redraw the posted panels in place: all of them (the server language
+ * changed), or with `onlyStale` only those whose fingerprint differs from
+ * what they should show now (after a deploy). A panel whose message is gone
+ * or cannot be edited is logged and left; never throws.
+ * @returns {Promise<{ edited: number, failed: number, unchanged: number }>}
  */
-async function refreshPanels({ config } = {}) {
+async function refreshPanels({ config, onlyStale = false } = {}) {
     const cfg = config || settingsStore.getConfig();
-    const lang = serverLang(cfg);
-    const out = { edited: 0, failed: 0 };
+    const out = { edited: 0, failed: 0, unchanged: 0 };
     for (const panel of store.listPanels()) {
         try {
-            const categoryName = categoryNameFor(panel.categoryId, { config: cfg });
-            await discord.editPayload(panel.channelId, panel.messageId, panelPayload({ categoryId: panel.categoryId, categoryName, lang }));
+            const payload = currentPayload(panel.categoryId, cfg);
+            const hash = payloadHash(payload);
+            if (onlyStale && panel.hash === hash) {
+                out.unchanged += 1;
+                continue;
+            }
+            await discord.editPayload(panel.channelId, panel.messageId, payload);
+            store.markPanelDrawn(panel.categoryId, hash);
             out.edited += 1;
         } catch (e) {
             out.failed += 1;
@@ -80,4 +104,30 @@ async function refreshPanels({ config } = {}) {
     return out;
 }
 
-module.exports = { postPanel, removePanel, refreshPanels, categoryNameFor };
+let timer = null;
+
+/**
+ * Once, `firstDelayMs` after the start (the bot is logged in by then), redraw
+ * every panel whose content changed since it was drawn. Idempotent; the timer
+ * never keeps the process alive.
+ */
+function startPanelRefresh({ firstDelayMs = 60 * 1000 } = {}) {
+    if (timer) return timer;
+    timer = setTimeout(() => {
+        refreshPanels({ onlyStale: true })
+            .then((r) => {
+                if (r.edited || r.failed) logger.info(`[availability] Panels nach dem Start: ${r.edited} neu gezeichnet, ${r.failed} fehlgeschlagen, ${r.unchanged} aktuell`);
+            })
+            .catch((e) => logger.warn(`[availability] panel refresh: ${(e && e.message) || e}`));
+    }, firstDelayMs);
+    if (timer.unref) timer.unref();
+    return timer;
+}
+
+/** Cancel a pending start-up refresh (idempotent). */
+function stopPanelRefresh() {
+    if (timer) clearTimeout(timer);
+    timer = null;
+}
+
+module.exports = { postPanel, removePanel, refreshPanels, startPanelRefresh, stopPanelRefresh, categoryNameFor, payloadHash };
