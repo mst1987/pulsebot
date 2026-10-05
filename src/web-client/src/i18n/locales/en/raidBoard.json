@@ -196,7 +196,9 @@
         "stripTop": "Top",
         "stripLeft": "Left",
         "allTasksToggle": "All assignments",
-        "allTasksTip": "Shows or hides the tables of all assignments. Stays that way until you change it."
+        "allTasksTip": "Shows or hides the tables of all assignments. Stays that way until you change it.",
+        "push": "Map beside",
+        "pushTip": "On: the map gets narrower and stays whole. Off: the list lies over the map's right side. Stays that way until you change it."
     },
     "slot": {
         "tank": "Tank {n}",

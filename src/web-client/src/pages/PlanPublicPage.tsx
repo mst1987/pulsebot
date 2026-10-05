@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ChevronLeft, ZoomIn, ZoomOut } from "lucide-react";
 import { useVisiblePoll } from "../hooks/useVisiblePoll";
 import { hasSectionDeepLink, sectionFromUrl, showSectionInUrl } from "../lib/raidplan/sectionUrl";
@@ -32,6 +32,11 @@ import { rememberSection, rememberedSection, rosterMap, sectionLabel, severalIns
 import { cleanNames } from "../lib/raidplan/mention";
 import { useT } from "../i18n";
 import "../styles/raidplan/index.css";
+
+/** the width of "Alle Aufgaben" (stage.css .rp-sheet-panel) */
+const PANEL_W = 480;
+/** below this stage width the panel always lies over the map: beside it the map would be too narrow */
+const PUSH_MIN_W = 900;
 
 /** The stage's own size, read through a ResizeObserver: the map fits it as a whole (0 x 0 until measured). */
 function useStageSize(): [(el: HTMLDivElement | null) => void, { w: number; h: number }] {
@@ -120,6 +125,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const setStrip = useCallback((strip: StripMode) => setLayout({ strip }), [setLayout]);
     // where "Deine Aufgaben" floats over the map, dragged there by this visitor
     const setMinePos = useCallback((mine: MinePos | null) => setLayout({ mine }), [setLayout]);
+    const togglePush = useCallback(() => setLayout({ push: !layout.push }), [setLayout, layout.push]);
     // "Deine Aufgaben" starts folded on a phone, where it would cover half the map
     const [mineFolded, setMineFolded] = useState(() => window.innerWidth < 720);
     const bv = useBoardView({ touchPan: true });
@@ -166,6 +172,12 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const names = cleanNames(data.meIds.map((id) => (players.get(id) || { character: "" }).character));
     const ctx = boss ? { slots: boss.slots, players, catalog: data.catalog, groupColors: boss.groupColors, groupMarks: boss.groupMarks, roles: boss.roles || {}, icons: boss.icons } : null;
     const hasMap = !!boss && !boss.general && boss.showMap !== false;
+    // "Karte daneben": the open "Alle Aufgaben" makes the map narrower instead of lying over it - only where the window has room for
+    // both (a phone's panel is the whole width). --rp-side is the room the stage keeps free on the right (the tab, or the panel), which
+    // the map, "Deine Aufgaben" and its drag (MineCard.tsx) leave alone
+    const pushable = stage.w >= PUSH_MIN_W;
+    const pushed = panel && layout.push && pushable;
+    const side = pushed ? Math.min(PANEL_W, stage.w) + 16 : 64;
     // what the tank rows put on the map, exactly as the editor derives it (the rows arrive resolved from the approved setup)
     const auto = boss && hasMap ? deriveAuto(boss.assignments, boss as unknown as RaidplanBoard, { template: false, roster: planned }) : undefined;
     /** the groups of this section, for the bar's chips that highlight one (the others dim on the map) */
@@ -209,6 +221,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
         <TasksPanel
             boss={boss} title={label(boss)} ctx={ctx} meIds={data.meIds} names={names} loggedIn={!!data.me} loginHref={loginHref}
             focusGroup={focusGroup} onFocusGroup={setFocusGroup} onClose={hasMap ? togglePanel : undefined}
+            push={hasMap && pushable ? { on: layout.push, toggle: togglePush } : null}
         />
     );
 
@@ -233,7 +246,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
             <div className="rp-sheet-main">
             {layout.strip === "left" && strip("left")}
             {hasMap ? (
-                <div ref={stageRef} className={`rp-sheet-stage${panel ? " is-panel" : ""}`}>
+                <div ref={stageRef} className={`rp-sheet-stage${panel ? " is-panel" : ""}${pushed ? " is-push" : ""}`} style={{ "--rp-side": `${side}px` } as CSSProperties}>
                     {boss.mapUrl && <img className="rp-sheet-backdrop" src={boss.mapUrl} alt="" aria-hidden="true" />}
                     <div className="rp-sheet-board">
                         <PlanBoard
