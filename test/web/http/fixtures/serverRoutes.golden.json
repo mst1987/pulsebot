@@ -269,7 +269,7 @@
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store"
     },
-    "body": "{\"status\":\"ok\",\"commit\":\"c0ffee\",\"committedAt\":\"2026-09-01T00:00:00Z\",\"subject\":\"Stand\",\"startedAt\":\"2026-09-02T00:00:00Z\"}"
+    "body": "{\"status\":\"ok\",\"commit\":\"c0ffee\",\"committedAt\":\"2026-09-01T00:00:00Z\",\"subject\":\"Stand\",\"startedAt\":\"2026-09-02T00:00:00Z\",\"mode\":\"development\"}"
   },
   {
     "request": "HEAD /",
@@ -286,7 +286,7 @@
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store"
     },
-    "body": "{\"status\":\"ok\",\"commit\":\"c0ffee\",\"committedAt\":\"2026-09-01T00:00:00Z\",\"subject\":\"Stand\",\"startedAt\":\"2026-09-02T00:00:00Z\"}"
+    "body": "{\"status\":\"ok\",\"commit\":\"c0ffee\",\"committedAt\":\"2026-09-01T00:00:00Z\",\"subject\":\"Stand\",\"startedAt\":\"2026-09-02T00:00:00Z\",\"mode\":\"development\"}"
   },
   {
     "request": "GET /health/",

@@ -80,6 +80,13 @@ describe("deploy.sh", () => {
         // PATH after a version bump.
         expect(deploy).toMatch(/command -v pm2/);
     });
+
+    // #612: --update-env takes the deploy shell's environment, which has no
+    // NODE_ENV — the live bot ran as "development" until this was set here
+    it("restarts the bot with NODE_ENV=production and saves that for a reboot", () => {
+        expect(deploy).toMatch(/NODE_ENV=production pm2 restart "\$APP_NAME" --update-env\n\s*pm2 save/);
+        expect(deploy).not.toMatch(/^\s*pm2 restart/m);
+    });
 });
 
 describe("deploy.sh health check", () => {

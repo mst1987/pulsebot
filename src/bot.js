@@ -3,12 +3,16 @@ const path = require("path");
 const envDev = path.join(__dirname, "../.env.dev");
 const envFile = fs.existsSync(envDev) ? envDev : path.join(__dirname, "../.env");
 require("dotenv").config({ path: envFile, quiet: true });
+// Which file this process runs on: a test instance always has `.env.dev`, the
+// server `.env` — the sign that holds even without NODE_ENV (config/runMode.js).
+process.env.EVENTHELPER_ENV_FILE = path.basename(envFile);
 require("./config/env.js").validateEnv();
 const messages = require("./config/messages.js");
 const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./services/logcheck/logChannel.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
 const { guardInteraction } = require("./services/discord/botAccess.js");
+const { runMode } = require("./config/runMode.js");
 const { ensureAppEmojis } = require("./services/discord/appEmojiSync.js");
 const linkWatch = require("./services/discord/linkWatch.js");
 const { loadCommandModules, kindOf } = require("./commands/loader.js");
@@ -184,7 +188,7 @@ function start() {
     // whatever `node --version` says on the shell — so this line is the only
     // reliable way to see which version the bot actually runs on after an
     // upgrade. Keep it first, before anything can fail.
-    console.log(`PulseBot starting on Node ${process.version} (${process.env.NODE_ENV || "development"})`);
+    console.log(`PulseBot starting on Node ${process.version} (${runMode()}, ${process.env.EVENTHELPER_ENV_FILE}, NODE_ENV=${process.env.NODE_ENV || "-"})`);
     require("./stores/settingsMigration").migrateSettings();
     loadCommands(path.join(__dirname, "commands"));
     startWebServer(client);

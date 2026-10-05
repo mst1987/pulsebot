@@ -25,6 +25,7 @@ const raidplanStore = require("../../stores/raidplanStore");
 const { getEvent } = require("../../stores/eventStore");
 const { approvedSetupOf } = require("../../services/setup/setupCore");
 const { versionInfo } = require("./version");
+const { runMode } = require("../../config/runMode");
 const auth = require("./auth");
 const { userCan, userHasMenuAccess } = require("../../config/permissions");
 const apiRouter = require("./apiRouter");
@@ -114,6 +115,9 @@ function health({ res }) {
         committedAt: version.committedAt,
         subject: version.subject,
         startedAt: version.startedAt,
+        // live bot or test instance (config/runMode.js) — a live bot reporting
+        // "development" asks nothing of Raid-Helper by itself (#612)
+        mode: runMode(),
     }));
 }
 

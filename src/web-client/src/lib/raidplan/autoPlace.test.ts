@@ -120,14 +120,26 @@ describe("placed by hand: kept, never doubled", () => {
         expect(plan.tanks[0].y).toBeGreaterThan(0.3);
     });
 
-    it("a player who stands on the map already is used as he is: free token, role slot, group ring", () => {
+    it("a player who stands on the map already is used as he is: free token, role slot - but a tank never in his group ring", () => {
         const slots = [
             { id: "s1", kind: "tank", n: 1, userId: "u2", x: 0.1, y: 0.1, placed: true, hidden: false },
             { id: "g3", kind: "group", n: 2, userId: "", x: 0.9, y: 0.9, placed: true, hidden: false, split: true, hideMembers: false },
         ];
         const plan = lib.deriveAuto([row("r1", ["user:u1", "user:u2", "user:u3", "slot:tank:1"], [BOSS])], board({ tokens: [{ userId: "u1", x: 0.5, y: 0.9 }], slots }), EVENT);
-        expect(plan.tanks.map((t) => t.existing)).toEqual(["token:u1", "slot:s1", "member:g3:u3", "slot:s1"]);
-        expect(plan.users).toEqual([]);
+        // u3 is in the split group 2: he gets a token of his own in front of the boss, and leaves the ring (plan.users)
+        expect(plan.tanks.map((t) => t.existing)).toEqual(["token:u1", "slot:s1", "", "slot:s1"]);
+        expect(plan.users).toEqual(["u3"]);
+        expect(noOverlap(plan)).toBe(true);
+    });
+
+    it("a raider who tanks and is in a split group: one token of his own, also for his task row after it", () => {
+        const slots = [{ id: "g", kind: "group", n: 2, userId: "", x: 0.9, y: 0.9, placed: true, hidden: false, split: true, hideMembers: false }];
+        const kick = { ...row("k1", ["user:u3"], [BOSS]), type: "kick", onMap: true };
+        const plan = lib.deriveAuto([row("r1", ["user:u3"], [BOSS]), kick], board({ slots }), EVENT);
+        expect(plan.tanks.map((t) => [t.key, t.existing])).toEqual([["t:r1:1", ""], ["t:k1:1", "auto:t:r1:1"]]);
+        // a kicker alone keeps his place in the ring
+        const alone = lib.deriveAuto([kick], board({ slots }), EVENT);
+        expect(alone.tanks[0].existing).toBe("member:g:u3");
     });
 
     it("a slot on the Besetzung only (not on the map) with a player: his auto token; an empty one: an open place", () => {
@@ -172,14 +184,14 @@ describe("the facing follows the tank", () => {
         expect(lib.autoFacing(plan, "zz", { x: 0, y: 0 }, board(), {}, 1.6)).toBe(-1);
     });
 
-    it("the n-th Flame faces the n-th tank, also a hand-placed icon and a tank in a group ring (its drawn place)", () => {
+    it("the n-th Flame faces the n-th tank, also a hand-placed icon and a tank of a split group (his own token, not the ring)", () => {
         const icons = [{ id: "f1", iconKey: "enemy", mobId: "d:flame", x: 0.3, y: 0.5, size: 48, hidden: false }, { id: "f2", iconKey: "enemy", mobId: "d:flame", x: 0.7, y: 0.5, size: 48, hidden: false }];
         const slots = [{ id: "g", kind: "group", n: 2, userId: "", x: 0.9, y: 0.5, placed: true, split: true, hideMembers: false }];
-        const b = board({ icons, slots });
+        const b = board({ icons, slots, autoPos: { "t:r2:1": { x: 0.7, y: 0.8 } } });
         const plan = lib.deriveAuto([row("r1", ["user:u2"], [FLAME()]), row("r2", ["user:u3"], [FLAME()])], b, EVENT);
-        expect(plan.tanks[1].existing).toBe("member:g:u3");
-        // u3 is drawn in the ring straight right of Flame 2
-        expect(lib.autoFacing(plan, "f2", icons[1], b, { u3: { x: 0.9, y: 0.5 } }, 1.6)).toBe(90);
+        expect(plan.tanks[1].existing).toBe("");
+        // u3's token was dragged straight below Flame 2; his drawn ring place no longer counts
+        expect(lib.autoFacing(plan, "f2", icons[1], b, { u3: { x: 0.9, y: 0.5 } }, 1.6)).toBe(180);
         expect(lib.autoFacing(plan, "f1", icons[0], b, {}, 1.6)).toBeGreaterThanOrEqual(0);
     });
 });
