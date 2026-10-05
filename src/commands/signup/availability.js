@@ -13,7 +13,7 @@
 //   availability:o:<categoryId>      the organizer's "Evaluation": the newest evaluation with an own character
 //   availability:b:<categoryId>      the organizer's guild bank: "Make a request" → the modal availability:mb
 //   availability:mb:<categoryId>     the submitted guild bank modal → posted to the orga (services/signups/guildBank.js)
-const { MessageFlags, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { MessageFlags, SlashCommandBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
 const availability = require("../../services/signups/availability");
@@ -35,8 +35,9 @@ const {
     PREFIX, createSession, getSession, endSession, parseId, periodModal, characterOptions, defaultCharacter,
     pickerPayload, listPayload, savedPayload,
 } = require("../../utils/signup/availabilityDialog");
+const { asEphemeral } = require("../../utils/discord/card");
 
-const ephemeral = (interaction, payload) => interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
+const ephemeral = (interaction, payload) => interaction.reply(asEphemeral(payload));
 const fromEphemeral = (interaction) => !!(interaction.message && interaction.message.flags
     && typeof interaction.message.flags.has === "function" && interaction.message.flags.has(MessageFlags.Ephemeral));
 
@@ -52,10 +53,7 @@ function listFor(userId, categoryId, lang, notice = "") {
 /** "Enter attendance" without a character of the version: say so and link the profile. */
 function noCharacterPayload(lang) {
     const link = new ButtonBuilder().setLabel(tr(lang, "Open profile")).setStyle(ButtonStyle.Link).setURL(`${publicBaseUrl()}/profile`);
-    return {
-        ...answerPayload(tr(lang, "Your profile has no character with a usable spec for these raids yet – add one first."), { lang }),
-        components: [new ActionRowBuilder().addComponents(link)],
-    };
+    return answerPayload(tr(lang, "Your profile has no character with a usable spec for these raids yet – add one first."), { lang, components: [link] });
 }
 
 /** The submitted period modal: check it, then the picker in a fresh session. */

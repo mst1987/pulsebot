@@ -1,4 +1,5 @@
-const { MessageFlags, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const { showAllEvents } = require("../../utils/raidhelper/channelEvents");
 
 module.exports = {
@@ -11,16 +12,13 @@ module.exports = {
         .setDescription("Update event overview for the current category"),
     async execute(interaction) {
         if (!interaction.channel.parent) {
-            return interaction.reply({ content: "Dieser Befehl muss in einem Kanal mit einer Kategorie ausgeführt werden.", flags: MessageFlags.Ephemeral });
+            return interaction.reply(card({
+                kind: "warn", title: "Keine Kategorie", text: "Dieser Befehl muss in einem Kanal mit einer Kategorie ausgeführt werden.", ephemeral: true,
+            }));
         }
-        await interaction.update({
-            embeds: [{
-                title: interaction.channel.parent.name,
-                description: await showAllEvents(
-                    interaction,
-                    interaction.channel.parent.id
-                ),
-            }, ],
-        });
+        await interaction.update(card({
+            title: interaction.channel.parent.name,
+            text: await showAllEvents(interaction, interaction.channel.parent.id),
+        }));
     },
 };

@@ -12,6 +12,7 @@
 // orga's, and the real check is the area right below, not a role list of its
 // own. Every answer is ephemeral and German (orga text).
 const { MessageFlags } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const store = require("../../stores/guildBankStore");
 const guildBank = require("../../services/signups/guildBank");
 const { userMayAny } = require("../../services/discord/userAccess");
@@ -30,20 +31,25 @@ function displayName(interaction) {
 
 const mayHandle = (interaction) => userMayAny(interaction.user.id, ["raids"], "write");
 
-/** What the orga reads after handling a request. */
-function doneText(result) {
+/** What the orga reads after handling a request, as a card. */
+function doneCard(result) {
     const r = result.request;
     const name = plain(r.userName);
-    const what = r.status === "done" ? "✅ Erledigt" : "⛔ Abgelehnt";
+    const done = r.status === "done";
     const dm = result.dm ? `${name || "Der Raider"} bekommt eine DM.` : `Die DM an ${name || "den Raider"} kam nicht an – sind die DMs zu?`;
-    return `${what} – ${dm}${result.posted ? "" : "\n⚠️ Der Post im Kanal ließ sich nicht aktualisieren."}`;
+    return card({
+        kind: result.dm ? (done ? "ok" : "warn") : "warn",
+        title: done ? "Erledigt" : "Abgelehnt",
+        text: dm,
+        note: result.posted ? "" : "Der Post im Kanal ließ sich nicht aktualisieren.",
+    });
 }
 
 /** Resolve a request and say how it went (the reply is already deferred). */
 async function resolve(interaction, id, status, reason = "") {
     const result = await guildBank.resolveRequest(id, { by: interaction.user.id, byName: displayName(interaction), status, reason });
-    if (result.error) return interaction.editReply({ content: result.request ? HANDLED : GONE });
-    return interaction.editReply({ content: doneText(result) });
+    if (result.error) return interaction.editReply(card({ kind: "warn", title: result.request ? HANDLED : GONE }));
+    return interaction.editReply(doneCard(result));
 }
 
 module.exports = {
@@ -53,22 +59,22 @@ module.exports = {
     defaultAccess: "everyone",
     async execute(interaction) {
         const { action, id } = parseOrgaId(interaction.customId);
-        const ephemeral = (content) => interaction.reply({ content, flags: MessageFlags.Ephemeral });
+        const ephemeral = (title, kind = "error") => interaction.reply(card({ kind, title, ephemeral: true }));
         if (!id || !["done", "reject", "mreject"].includes(action)) return ephemeral("Unbekannte Aktion.");
         if (action === "reject") {
             // the modal must be the first answer — check before opening it
             if (!(await mayHandle(interaction))) return ephemeral(NO_RIGHTS);
             const request = store.getRequest(id);
-            if (!request) return ephemeral(GONE);
+            if (!request) return ephemeral(GONE, "warn");
             if (request.status !== "open") {
                 // answer first (three seconds), then take the stale buttons off the post
-                await ephemeral(HANDLED);
+                await ephemeral(HANDLED, "warn");
                 return guildBank.redrawPost(request);
             }
             return interaction.showModal(rejectModal(id));
         }
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        if (!(await mayHandle(interaction))) return interaction.editReply({ content: NO_RIGHTS });
+        if (!(await mayHandle(interaction))) return interaction.editReply(card({ kind: "error", title: NO_RIGHTS }));
         if (action === "done") return resolve(interaction, id, "done");
         let reason = "";
         try {

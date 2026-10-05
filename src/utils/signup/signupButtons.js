@@ -46,6 +46,7 @@ const { versionOfEvent } = require("../../services/events/mainVersion");
 const { MIN_NOTE } = require("../../services/signups/signupNotes");
 const { tr, serviceText, specLabel, classLabel } = require("../i18n/botText");
 const { plainTitle, colorOf } = require("./signupReply");
+const { shortWhen } = require("../time");
 
 const MAX_OPTIONS = 25;
 const MAX_REASON = 100;
@@ -140,7 +141,7 @@ function savedEmbed(event, signup, profile, { emojis = {}, notice = "", lang = "
     }
     const start = Number(event && event.startTime) || 0;
     const meta = [
-        start ? `🗓️ <t:${start}:F> · <t:${start}:R>` : "",
+        start ? `🗓️ ${shortWhen(start, { relative: true })}` : "",
         notice ? `⏳ ${serviceText(lang, notice)}` : "",
     ].filter(Boolean).join("\n");
     const out = { title: head };

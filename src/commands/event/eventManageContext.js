@@ -4,6 +4,7 @@
 // that channel). Its `data` is a message command (no description), which
 // `npm run register` collects; the router finds it by its command name.
 const { MessageFlags, ContextMenuCommandBuilder, ApplicationCommandType } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const { openPayload } = require("../../services/events/eventManageBot");
 const { guildFor } = require("../../services/events/eventDraft");
 
@@ -18,13 +19,13 @@ module.exports = {
         .setType(ApplicationCommandType.Message),
     async execute(interaction) {
         const { guildId, error } = guildFor(interaction);
-        if (error) return interaction.reply({ content: error, flags: MessageFlags.Ephemeral });
+        if (error) return interaction.reply(card({ kind: "error", title: error, ephemeral: true }));
         const message = interaction.targetMessage || {};
         const opened = openPayload(guildId, {
             messageId: String(message.id || interaction.targetId || ""),
             channelId: String(message.channelId || interaction.channelId || ""),
         });
-        if (opened.error) return interaction.reply({ content: opened.error, flags: MessageFlags.Ephemeral });
-        return interaction.reply({ ...opened.payload, flags: MessageFlags.Ephemeral });
+        if (opened.error) return interaction.reply(card({ kind: "warn", title: opened.error, ephemeral: true }));
+        return interaction.reply({ ...opened.payload, flags: (Number(opened.payload.flags) || 0) | MessageFlags.Ephemeral });
     },
 };

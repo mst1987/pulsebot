@@ -10,7 +10,9 @@
 // Access is raider-facing (accessOf "event-signup" in the command file):
 // anyone may click, but only the raider's own placement is ever touched —
 // someone not in the lineup is told so, privately.
-const { MessageFlags } = require("discord.js");
+const { card } = require("../../utils/discord/card");
+const { tr } = require("../../utils/i18n/botText");
+const { langOfInteraction } = require("../discord/botLanguage");
 const { CONFIRM_PREFIX } = require("./setupCore");
 const confirm = require("./setupConfirm");
 
@@ -41,13 +43,20 @@ async function setConfirmation(eventId, userId, field) {
 async function handleConfirmComponent(interaction) {
     const { field, eventId } = parseConfirmId(interaction.customId);
     const userId = String((interaction.user && interaction.user.id) || "");
+    const lang = langOfInteraction(interaction);
     if (!eventId || !STATUS_OF_FIELD[field]) {
-        return interaction.reply({ content: "Diese Aktion gibt es nicht.", flags: MessageFlags.Ephemeral });
+        return interaction.reply(card({ kind: "error", title: tr(lang, "Unknown action."), ephemeral: true }));
     }
     const result = await setConfirmation(eventId, userId, field);
-    if (result.code) return interaction.reply({ content: `⚠️ ${result.error}`, flags: MessageFlags.Ephemeral });
-    const text = field === "y" ? "✅ Confirmed — see you there!" : "❌ Marked as cancelled — the raid lead will rebench you.";
-    return interaction.reply({ content: text, flags: MessageFlags.Ephemeral });
+    if (result.code) {
+        const title = result.code === "not_placed" ? tr(lang, "You are not in a group in this setup.") : result.error;
+        return interaction.reply(card({ kind: "warn", title, ephemeral: true }));
+    }
+    return interaction.reply(field === "y"
+        ? card({ kind: "ok", title: tr(lang, "Confirmed — see you there!"), ephemeral: true })
+        : card({
+            kind: "warn", title: tr(lang, "Marked as cancelled."), text: tr(lang, "The raid lead will rebench you."), ephemeral: true,
+        }));
 }
 
 module.exports = { CONFIRM_PREFIX, parseConfirmId, setConfirmation, handleConfirmComponent };

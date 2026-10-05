@@ -56,7 +56,7 @@ describe("buildAnnouncement", () => {
         const event = makeEvent();
         const payload = announce.buildAnnouncement(event, "en");
         expect(payload.title).toBe("New raid: SSC + TK");
-        expect(payload.body).toContain(`<t:${START}:F>`);
+        expect(payload.body).toContain(`<t:${START}:d> <t:${START}:t>`);
         expect(payload.body).toContain("https://discord.com/channels/g1/c1/msg1");
         expect(payload.body).toContain("[Sign up](https://discord.com/channels/g1/c1/msg1)");
     });

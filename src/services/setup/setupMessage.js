@@ -17,7 +17,7 @@
 // (services/discord/botLanguage.js `serverLang`, German by default).
 //
 // DMs are a switch per category (`config.categorySetupDms`, off by default):
-// placed raiders read "Du bist in Gruppe 2 als Heiler (Zibbo · Heilig)", the
+// placed raiders get a card "Gruppe 2 als Heiler" (Zibbo · Heilig), the
 // bench — only while it is posted (#517) — "Diesmal auf der Bank …" with the
 // proposal's reasons — each in the raider's own language (`langOf`; the German
 // reasons through utils/i18n/botText.js `serviceText`). A raider is told once per
@@ -36,6 +36,8 @@
 //
 // Nothing here throws at a caller: Discord errors come back as `{ code, error }`
 // and are stored, so an offline bot never fails an approval.
+const { ButtonBuilder, ButtonStyle } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const linkCheck = require("../discord/linkCheck");
 const { embedColor } = require("../events/embedLook");
 const eventStore = require("../../stores/eventStore");
@@ -270,24 +272,27 @@ function fairnessOn(event) {
 
 /**
  * The DM for one raider in their language — pure.
- * "Du bist in **Gruppe 2** als **Heiler** (Zibbo · Heilig)." resp. the bench.
  */
 function buildSetupDm(event, placement, { messageUrl = "", reasons = [], fairness = false, lang = "de" } = {}) {
     const start = Number(event.startTime) || 0;
     const name = [escapeMd(placement.character), specLabel(placement.spec, lang)].filter(Boolean).join(" · ");
     const who = name ? ` (${name})` : "";
-    const lines = [`${tr(lang, "**Setup for {title}**", { title: escapeMd(event.title || "Raid") })}${start ? ` · <t:${start}:F>` : ""}`];
+    const facts = start ? [[tr(lang, "Start"), `<t:${start}:d> <t:${start}:t>`]] : [];
+    const buttons = messageUrl ? [new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "Go to the setup")).setURL(messageUrl)] : [];
+    const base = { kind: "raid", color: embedColor(event), kicker: tr(lang, "Setup for {title}", { title: escapeMd(event.title || "Raid") }), facts, buttons };
     if (placement.bench) {
-        lines.push(fairness
+        const text = [fairness
             ? tr(lang, "This time on the **bench**{who} – next time you have priority.", { who })
-            : tr(lang, "This time on the **bench**{who}.", { who }));
+            : tr(lang, "This time on the **bench**{who}.", { who })];
         // The proposal's own German wording (reasons.js, no user input), in the raider's language.
-        if (reasons.length) lines.push(tr(lang, "Reason: {reason}", { reason: reasons.map((r) => serviceText(lang, r)).join(" · ") }));
-    } else {
-        lines.push(tr(lang, "You are in **Group {group}** as **{role}**{who}.", { group: placement.group, role: roleLabel(placement.role, lang) || "Raider", who }));
+        if (reasons.length) text.push(tr(lang, "Reason: {reason}", { reason: reasons.map((r) => serviceText(lang, r)).join(" · ") }));
+        return card({ ...base, title: tr(lang, "On the bench"), text: text.join("\n") });
     }
-    if (messageUrl) lines.push(`[${tr(lang, "Go to the setup")}](${messageUrl})`);
-    return { content: clip(lines.join("\n"), 2000) };
+    return card({
+        ...base,
+        title: tr(lang, "Group {group} as {role}", { group: placement.group, role: roleLabel(placement.role, lang) || "Raider" }),
+        text: name,
+    });
 }
 
 function messageUrlOf(event) {

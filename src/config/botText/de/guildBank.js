@@ -16,7 +16,6 @@ module.exports = {
     "Request sent – the orga will get back to you by DM.": "Anfrage gesendet – die Orga meldet sich per DM.",
     "For: {purpose}": "Wofür: {purpose}",
     "The guild bank is not set up right now.": "Die Gildenbank ist gerade nicht eingerichtet.",
-    "🏦 Your request **{amount}× {item}** is done.": "🏦 Deine Anfrage **{amount}× {item}** ist erledigt.",
-    "🏦 Your request **{amount}× {item}** was declined: {reason}": "🏦 Deine Anfrage **{amount}× {item}** wurde abgelehnt: {reason}",
-    "🏦 Your request **{amount}× {item}** was declined.": "🏦 Deine Anfrage **{amount}× {item}** wurde abgelehnt.",
+    "Request done": "Anfrage erledigt",
+    "Request declined": "Anfrage abgelehnt",
 };

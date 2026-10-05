@@ -2,6 +2,7 @@
 // every group of the approved setup is pinged in the event channel with the
 // orga's own text (else a default), the bench never. Stores and Discord are
 // mocks; the approved setup is read by the real setupCore.
+const { cardText } = require("../../helpers/cardText");
 const mockEvents = new Map();
 jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: jest.fn((id) => mockEvents.get(id) || null),
@@ -177,7 +178,7 @@ describe("the Discord button + modal (setupPingBot)", () => {
         const interaction = click("setup-ping:eh-abc123");
         await command.execute(interaction);
         expect(interaction.showModal).not.toHaveBeenCalled();
-        expect(interaction.reply.mock.calls[0][0].content).toMatch(/^⚠️ Im Setup steht niemand außer dir/);
+        expect(cardText(interaction.reply.mock.calls[0][0])).toMatch(/Im Setup steht niemand außer dir/);
     });
 
     it("saves the typed text and posts with it on submit", async () => {
@@ -186,7 +187,7 @@ describe("the Discord button + modal (setupPingBot)", () => {
         await command.execute(interaction);
         expect(eventStore.setEventSetupPingText).toHaveBeenCalledWith("eh-abc123", "Kommt alle!");
         expect(discord.postMissingPing).toHaveBeenCalledWith("c1", ["u2", "u3", "u8"], "Kommt alle!");
-        expect(interaction.reply.mock.calls[0][0].embeds[0].description).toBe("✅ 3 Raider aus dem Setup gepingt.");
+        expect(cardText(interaction.reply.mock.calls[0][0])).toContain("3 Raider aus dem Setup gepingt.");
         expect(interaction.reply.mock.calls[0][0].flags).toBeTruthy();
     });
 

@@ -1,4 +1,4 @@
-const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const linkCheck = require("../../services/discord/linkCheck");
 const { getStoredEvent } = require("../../services/events/eventSources");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
@@ -10,6 +10,7 @@ const { buildSignupDialog } = require("../../utils/signup/signupDialog");
 const { answerPayload } = require("../../utils/signup/signupReply");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
+const { asEphemeral } = require("../../utils/discord/card");
 
 // The select "Raid wählen, um dich anzumelden" under the raid overview on the
 // talk server (customId `talk-signup`, services/talk/talkOverview.js). An own event opens
@@ -35,7 +36,7 @@ module.exports = {
             // the member may not join — the raider-role rule answers here instead.
             const access = await checkRaiderRole(event, interaction.user.id);
             if (access.error) return interaction.reply(answerPayload(access.error, { event, lang }));
-            return interaction.reply({ ...buildSignupDialog(event, interaction.user.id, { lang }), flags: MessageFlags.Ephemeral });
+            return interaction.reply(asEphemeral(buildSignupDialog(event, interaction.user.id, { lang })));
         }
 
         const event = getStoredEvent(eventId);

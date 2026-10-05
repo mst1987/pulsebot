@@ -1,4 +1,5 @@
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
+const { cardText } = require("../../helpers/cardText.js");
 
 jest.mock("../../../src/utils/raidhelper/channelEvents.js");
 
@@ -28,7 +29,7 @@ describe("commands/setup/updateEvents", () => {
         await updateEvents.execute(interaction, {});
 
         expect(interaction.reply).toHaveBeenCalledTimes(1);
-        expect(interaction.reply.mock.calls[0][0].content).toMatch(/Kategorie/);
+        expect(cardText(interaction.reply.mock.calls[0][0])).toMatch(/Kategorie/);
         expect(interaction.update).not.toHaveBeenCalled();
         expect(channelEvents.showAllEvents).not.toHaveBeenCalled();
     });
@@ -42,8 +43,8 @@ describe("commands/setup/updateEvents", () => {
 
         expect(channelEvents.showAllEvents).toHaveBeenCalledWith(interaction, "cat-1");
         expect(interaction.update).toHaveBeenCalledTimes(1);
-        const embed = interaction.update.mock.calls[0][0].embeds[0];
-        expect(embed.title).toBe("GDKP Raids");
-        expect(embed.description).toBe("formatted raids");
+        const text = cardText(interaction.update.mock.calls[0][0]);
+        expect(text).toContain("## GDKP Raids");
+        expect(text).toContain("formatted raids");
     });
 });

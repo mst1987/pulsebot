@@ -29,6 +29,7 @@ jest.mock("discord.js", () => {
 const fs = require("fs");
 const path = require("path");
 const { tempStoreFile } = require("./helpers/tempStore");
+const { cardText } = require("./helpers/cardText");
 const bot = require("../src/bot");
 // Captured before beforeEach clears the mocks: bot.js loads the env on require.
 const dotenvCall = require("dotenv").config.mock.calls[0];
@@ -165,7 +166,7 @@ describe("interactionCreate access gate", () => {
         const interaction = slash("probe");
         await bot.client._h.interactionCreate(interaction);
         expect(component.execute).not.toHaveBeenCalled();
-        expect(interaction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: "Command not found" }));
+        expect(cardText(interaction.reply.mock.calls[0][0])).toContain("Befehl nicht gefunden");
     });
 
     it("never runs the command when the gate refuses it", async () => {

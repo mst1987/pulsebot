@@ -1,7 +1,7 @@
 const { MessageFlags } = require("discord.js");
 const { evaluateLog, SECTION_LABEL } = require("../../services/logcheck/logChannel");
 const { reportSummaryLines } = require("../../utils/logcheck/report");
-const { forceButtonRow } = require("./logevalForce");
+const { forceButtonRow, refusalCard, resultCard } = require("./logevalForce");
 const logStore = require("../../stores/logStore");
 const discord = require("../../services/discord/discord");
 
@@ -28,13 +28,12 @@ module.exports = {
             // The raid is still running: offer the deliberate way past instead of
             // a dead end. The button opens a confirmation modal (logevalForce.js).
             if (res.incomplete) {
-                return interaction.editReply({
-                    content: `⚠️ ${res.error}`,
-                    components: [forceButtonRow("log", logId, section)],
-                });
+                return interaction.editReply(refusalCard({ error: res.error }, {
+                    title: "Raid noch nicht abgeschlossen",
+                    buttons: [forceButtonRow("log", logId, section)],
+                }));
             }
-            const suffix = res.url ? `\n🔗 ${res.url}` : "";
-            return interaction.editReply({ content: `⚠️ ${res.error}${suffix}` });
+            return interaction.editReply(refusalCard(res));
         }
 
         // Refresh the button message: the finished half loses its button, the other
@@ -58,8 +57,6 @@ module.exports = {
         }
 
         const summary = reportSummaryLines(res.report, section).join("\n");
-        return interaction.editReply({
-            content: `✅ **${label}** ausgewertet: **${res.report.title}**\n${summary}\n🔗 ${res.url}`,
-        });
+        return interaction.editReply(resultCard({ label, reportTitle: res.report.title, summary, url: res.url }));
     },
 };

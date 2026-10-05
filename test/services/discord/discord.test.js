@@ -2,10 +2,10 @@ const { ChannelType, ComponentType, MessageFlags } = require("discord.js");
 const discord = require("../../../src/services/discord/discord.js");
 const dc = require("../../helpers/discordClient");
 const { KIND_COLORS } = require("../../../src/utils/discord/card");
+const { asEmbed, cardButtons, isCardPayload } = require("../../helpers/card");
 
 /** The text lines of a card payload (utils/discord/card.js): one per text display, in order. */
 const cardTexts = (payload) => payload.components[0].components.filter((c) => c.type === ComponentType.TextDisplay).map((c) => c.content);
-const isCardPayload = (payload) => (payload.flags & MessageFlags.IsComponentsV2) === MessageFlags.IsComponentsV2;
 
 // Build a fake channel as it appears in guild.channels.cache.
 function chan(id, name, type, { parent = null, parentId = "", rawPosition = 0 } = {}) {
@@ -563,29 +563,32 @@ describe("services/discord/discord channel management", () => {
     });
 
     describe("postLink", () => {
-        it("posts plain content with a link button and no embed", async () => {
+        it("posts ONE raid card: the raid small over the heading, the link button inside, nothing in content or embeds", async () => {
             const send = jest.fn(async () => ({ id: "m9", url: "https://d/m9" }));
             setClientWithChannels(dc.makeChannel({ id: "chan", send }));
-            const res = await discord.postLink("chan", { url: "https://sheet/1", title: "Raidsheet – MC", label: "Sheet öffnen" });
+            const res = await discord.postLink("chan", { url: "https://sheet/1", kicker: "MC", title: "Raidsheet", label: "Sheet öffnen", color: 0x2bb39b, facts: [["Start", "<t:1:d> <t:1:t>"]] });
             expect(res).toEqual({ channelId: "chan", messageId: "m9", url: "https://d/m9" });
             const payload = send.mock.calls[0][0];
-            expect(payload.embeds).toEqual([]);
-            expect(payload.components).toHaveLength(1);
-            expect(payload.content).toContain("Raidsheet – MC");
+            expect(isCardPayload(payload)).toBe(true);
+            expect(payload).toMatchObject({ content: "", embeds: [] });
+            expect(asEmbed(payload)).toMatchObject({ author: { name: "MC" }, title: "Raidsheet", color: 0x2bb39b, fields: [{ name: "Start", value: "<t:1:d> <t:1:t>", inline: true }] });
+            expect(cardButtons(payload)).toEqual([expect.objectContaining({ label: "Sheet öffnen", url: "https://sheet/1" })]);
         });
 
-        it("includes the optional message under the title heading", async () => {
+        it("includes the optional message under the heading", async () => {
             const send = jest.fn(async () => ({ id: "m1", url: "u" }));
             setClientWithChannels(dc.makeChannel({ id: "chan", send }));
             await discord.postLink("chan", { url: "https://sheet/1", title: "X", message: "  Bitte eintragen!  " });
-            expect(send.mock.calls[0][0].content).toBe("📄 **X**\nBitte eintragen!");
+            expect(asEmbed(send.mock.calls[0][0])).toMatchObject({ title: "X", description: "Bitte eintragen!" });
         });
 
         it("posts only the heading when no message is given", async () => {
             const send = jest.fn(async () => ({ id: "m1", url: "u" }));
             setClientWithChannels(dc.makeChannel({ id: "chan", send }));
             await discord.postLink("chan", { url: "https://sheet/1", title: "X" });
-            expect(send.mock.calls[0][0].content).toBe("📄 **X**");
+            const card = asEmbed(send.mock.calls[0][0]);
+            expect(card.title).toBe("X");
+            expect(card.description).toBeUndefined();
         });
 
         it("throws without a url", async () => {
@@ -604,7 +607,7 @@ describe("services/discord/discord channel management", () => {
             return { id: "m9", url: "https://d/m9", author: { id: "bot" }, edit: jest.fn(async () => {}), ...overrides };
         }
 
-        it("edits the message in place with the rebuilt payload", async () => {
+        it("edits the message in place into the card (an older text post loses its text)", async () => {
             const message = botMessage();
             const channel = dc.makeChannel({ id: "chan", messages: [message] });
             const fetchMessages = channel.messages.fetch;
@@ -612,7 +615,9 @@ describe("services/discord/discord channel management", () => {
             const res = await discord.editLink("chan", "m9", { url: "https://sheet/1", title: "X", message: "Neu!" });
             expect(res).toEqual({ channelId: "chan", messageId: "m9", url: "https://d/m9" });
             expect(fetchMessages).toHaveBeenCalledWith("m9");
-            expect(message.edit).toHaveBeenCalledWith(expect.objectContaining({ content: "📄 **X**\nNeu!", embeds: [] }));
+            const payload = message.edit.mock.calls[0][0];
+            expect(payload).toMatchObject({ content: "", embeds: [] });
+            expect(asEmbed(payload)).toMatchObject({ title: "X", description: "Neu!" });
         });
 
         it("throws when the message wasn't posted by the bot", async () => {
@@ -625,7 +630,9 @@ describe("services/discord/discord channel management", () => {
             const message = botMessage();
             setClientWithChannels(dc.makeChannel({ id: "chan", messages: [message] }));
             await discord.editLink("chan", "m9", { url: "", title: "X", message: "Not shared" });
-            expect(message.edit).toHaveBeenCalledWith(expect.objectContaining({ content: "📄 **X**\nNot shared", components: [] }));
+            const payload = message.edit.mock.calls[0][0];
+            expect(asEmbed(payload)).toMatchObject({ title: "X", description: "Not shared" });
+            expect(cardButtons(payload)).toEqual([]);
         });
 
         it("throws when the bot is not connected", async () => {
@@ -882,7 +889,10 @@ describe("services/discord/discord ping helpers", () => {
         discordMod.setClient(dc.makeClient({ channels: [dc.makeChannel({ id: "chan", guildId: "g", send })] }));
         await discordMod.postAnnouncement("chan", { title: "T", body: "B" }, ["r1"], ["u1", "u1"]);
         const payload = send.mock.calls[0][0];
-        expect(payload.content).toBe("<@&r1> <@u1>");
+        // one card: the mentions are its first line (they ping from a card), then the template
+        expect(isCardPayload(payload)).toBe(true);
+        expect(asEmbed(payload).text.split("\n")[0]).toBe("<@&r1> <@u1>");
+        expect(asEmbed(payload)).toMatchObject({ title: "T", description: "B" });
         expect(payload.allowedMentions).toEqual({ roles: ["r1"], users: ["u1"] });
     });
 });

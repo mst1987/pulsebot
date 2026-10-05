@@ -8,6 +8,7 @@ jest.mock("../../../src/services/discord/discord", () => ({ postMissingPing: jes
 // Which server counts as the event server is /event's rule, tested with it (test/commands/event).
 jest.mock("../../../src/services/events/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
 
+const { cardText, cardControls } = require("../../helpers/cardText");
 const eventStore = require("../../../src/stores/eventStore");
 const signupStore = require("../../../src/stores/signupStore");
 const discord = require("../../../src/services/discord/discord");
@@ -124,9 +125,9 @@ describe("the Discord button (inviteCallBot)", () => {
         await command.execute(interaction);
         const payload = interaction.reply.mock.calls[0][0];
         expect(payload.flags).toBeTruthy();
-        expect(payload.embeds[0].description).toContain("**3 Raider**");
-        expect(payload.embeds[0].description).toContain("`/w Naphfß inv`");
-        expect(payload.components[0].components[0]).toMatchObject({ custom_id: "invite-call:c:eh-abc123", label: "Jetzt pingen" });
+        expect(cardText(payload)).toContain("**3 Raider**");
+        expect(cardText(payload)).toContain("`/w Naphfß inv`");
+        expect(cardControls(payload)[0]).toMatchObject({ custom_id: "invite-call:c:eh-abc123", label: "Jetzt pingen" });
         expect(discord.postMissingPing).not.toHaveBeenCalled();
     });
 
@@ -135,14 +136,14 @@ describe("the Discord button (inviteCallBot)", () => {
         const interaction = click("invite-call:c:eh-abc123");
         await command.execute(interaction);
         expect(discord.postMissingPing).toHaveBeenCalledWith("c1", ["u2", "u3", "u5"], "/w Naphfß inv");
-        expect(interaction.update.mock.calls[0][0].embeds[0].description).toBe("✅ 3 Raider aus Gruppe 1–5 gepingt: /w Naphfß inv");
+        expect(cardText(interaction.update.mock.calls[0][0])).toContain("3 Raider aus Gruppe 1–5 gepingt: /w Naphfß inv");
     });
 
     it("tells a caller without a character why, privately", async () => {
         eventStore.getEvent.mockReturnValue(raid());
         const interaction = click("invite-call:p:eh-abc123", "u-stranger");
         await command.execute(interaction);
-        expect(interaction.reply.mock.calls[0][0].embeds[0].description).toMatch(/^⚠️ Du bist für diesen Raid mit keinem Charakter angemeldet/);
+        expect(cardText(interaction.reply.mock.calls[0][0])).toMatch(/Du bist für diesen Raid mit keinem Charakter angemeldet/);
     });
 
     it("ignores ids that are no own event", () => {

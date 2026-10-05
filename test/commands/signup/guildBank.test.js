@@ -1,6 +1,14 @@
 // Die Orga-Knöpfe unter einer Gildenbank-Anfrage: Erledigt, Ablehnen (Modal mit
 // Grund), nur mit Schreibrecht auf Raids, schon erledigte Anfragen.
 const { MessageFlags } = require("discord.js");
+const { cardText } = require("../../helpers/cardText");
+
+/** The text of the first call of a reply mock; `ephemeral` asserts the card is only for the clicker. */
+const said = (fn, ephemeral = false) => {
+    const sent = fn.mock.calls[0][0];
+    if (ephemeral) expect(sent.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+    return cardText(sent);
+};
 
 jest.mock("../../../src/services/discord/userAccess", () => ({ userMayAny: jest.fn(async () => true) }));
 jest.mock("../../../src/services/signups/guildBank", () => ({
@@ -42,15 +50,17 @@ describe("guildbank (Orga-Knöpfe)", () => {
         expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
         expect(userMayAny).toHaveBeenCalledWith(ORGA, ["raids"], "write");
         expect(guildBank.resolveRequest).toHaveBeenCalledWith(open.id, { by: ORGA, byName: "Orga-Olli", status: "done", reason: "" });
-        expect(i.editReply).toHaveBeenCalledWith({ content: "✅ Erledigt – Anna bekommt eine DM." });
+        expect(said(i.editReply)).toContain("Erledigt");
+        expect(said(i.editReply)).toContain("Anna bekommt eine DM.");
     });
 
     it("sagt, wenn die DM nicht ankam oder der Post nicht aktualisiert wurde", async () => {
         guildBank.resolveRequest.mockResolvedValueOnce({ request: { status: "rejected", userName: "" }, posted: false, dm: false });
         const i = click(`guildbank:done:${open.id}`);
         await command.execute(i);
-        const { content } = i.editReply.mock.calls[0][0];
-        expect(content).toContain("⛔ Abgelehnt – Die DM an den Raider kam nicht an");
+        const content = said(i.editReply);
+        expect(content).toContain("Abgelehnt");
+        expect(content).toContain("Die DM an den Raider kam nicht an");
         expect(content).toContain("Der Post im Kanal ließ sich nicht aktualisieren.");
     });
 
@@ -58,11 +68,11 @@ describe("guildbank (Orga-Knöpfe)", () => {
         userMayAny.mockResolvedValue(false);
         const done = click(`guildbank:done:${open.id}`);
         await command.execute(done);
-        expect(done.editReply).toHaveBeenCalledWith({ content: "Das darf nur die Orga mit Raid-Rechten." });
+        expect(said(done.editReply)).toContain("Das darf nur die Orga mit Raid-Rechten.");
         const reject = click(`guildbank:reject:${open.id}`);
         await command.execute(reject);
         expect(reject.showModal).not.toHaveBeenCalled();
-        expect(reject.reply).toHaveBeenCalledWith({ content: "Das darf nur die Orga mit Raid-Rechten.", flags: MessageFlags.Ephemeral });
+        expect(said(reject.reply, true)).toContain("Das darf nur die Orga mit Raid-Rechten.");
         expect(guildBank.resolveRequest).not.toHaveBeenCalled();
     });
 
@@ -81,29 +91,29 @@ describe("guildbank (Orga-Knöpfe)", () => {
         const btn = click(`guildbank:reject:${open.id}`);
         await command.execute(btn);
         expect(btn.showModal).not.toHaveBeenCalled();
-        expect(btn.reply).toHaveBeenCalledWith({ content: "Diese Anfrage ist schon erledigt.", flags: MessageFlags.Ephemeral });
+        expect(said(btn.reply, true)).toContain("Diese Anfrage ist schon erledigt.");
         expect(guildBank.redrawPost).toHaveBeenCalledWith(expect.objectContaining({ id: open.id, status: "done" }));
 
         guildBank.resolveRequest.mockResolvedValueOnce({ error: "Diese Anfrage ist schon erledigt.", request: { id: open.id } });
         const done = click(`guildbank:done:${open.id}`);
         await command.execute(done);
-        expect(done.editReply).toHaveBeenCalledWith({ content: "Diese Anfrage ist schon erledigt." });
+        expect(said(done.editReply)).toContain("Diese Anfrage ist schon erledigt.");
     });
 
     it("eine verschwundene Anfrage und unbekannte Aktionen", async () => {
         const gone = click("guildbank:reject:nope");
         await command.execute(gone);
-        expect(gone.reply).toHaveBeenCalledWith({ content: "Diese Anfrage gibt es nicht mehr.", flags: MessageFlags.Ephemeral });
+        expect(said(gone.reply, true)).toContain("Diese Anfrage gibt es nicht mehr.");
 
         guildBank.resolveRequest.mockResolvedValueOnce({ error: "Anfrage nicht gefunden." });
         const done = click("guildbank:done:nope");
         await command.execute(done);
-        expect(done.editReply).toHaveBeenCalledWith({ content: "Diese Anfrage gibt es nicht mehr." });
+        expect(said(done.editReply)).toContain("Diese Anfrage gibt es nicht mehr.");
 
         for (const id of ["guildbank:what:1", "guildbank:done:"]) {
             const i = click(id);
             await command.execute(i);
-            expect(i.reply).toHaveBeenCalledWith({ content: "Unbekannte Aktion.", flags: MessageFlags.Ephemeral });
+            expect(said(i.reply, true)).toContain("Unbekannte Aktion.");
         }
     });
 });

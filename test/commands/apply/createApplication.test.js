@@ -1,5 +1,6 @@
 
 const command = require("../../../src/commands/apply/createApplication.js");
+const { cardText, cardControls } = require("../../helpers/cardText.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 const discordClient = require("../../helpers/discordClient.js");
 
@@ -48,9 +49,9 @@ describe("commands/apply/createApplication", () => {
         expect(sendArg.components).toHaveLength(1);
         // the button collects applications for the main version (#553)
         expect(sendArg.components[0].components[0].data.custom_id).toMatch(/^apply:(tbc|classic|forever)$/);
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.stringContaining("https://discord/msg/1")
-        );
+        const reply = interaction.editReply.mock.calls[0][0];
+        expect(cardText(reply)).toContain("Bewerbungs-Nachricht gepostet");
+        expect(cardControls(reply)[0]).toMatchObject({ style: 5, url: "https://discord/msg/1" });
     });
 
     it("reports when the source message cannot be fetched", async () => {
@@ -64,9 +65,7 @@ describe("commands/apply/createApplication", () => {
 
         await command.execute(interaction, client);
 
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.stringContaining("Quell-Nachricht nicht gefunden")
-        );
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("Quell-Nachricht nicht gefunden");
         expect(targetChannel.send).not.toHaveBeenCalled();
     });
 });

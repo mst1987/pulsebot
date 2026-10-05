@@ -39,7 +39,7 @@ describe("commands/signup/eventSignup", () => {
         const interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
         await command.execute(interaction);
         const payload = interaction.reply.mock.calls[0][0];
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(payload.embeds[0].title).toBe("Karazhan");
         const ids = payload.components.flatMap((r) => r.components).map((c) => c.custom_id).filter(Boolean);
         expect(ids).toContain("signup-status:eh-kara:s:nerathil:Mage-Arcane:");

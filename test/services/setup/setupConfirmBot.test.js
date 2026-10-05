@@ -2,6 +2,7 @@
 // Platzierung bestaetigen oder absagen, nur markieren (keine automatische
 // Nachbesetzung); eine Bestaetigung bleibt ueber spaetere Aenderungen des Setups erhalten.
 const { MessageFlags } = require("discord.js");
+const { cardText } = require("../../helpers/cardText");
 
 const mockEvents = new Map();
 jest.mock("../../../src/stores/eventStore", () => ({
@@ -119,14 +120,21 @@ describe("setupConfirmBot", () => {
         seed();
         const reply = jest.fn();
         await confirmBot.handleConfirmComponent({ customId: "setup-confirm:y:eh-1", user: { id: "1" }, reply });
-        expect(reply).toHaveBeenCalledWith(expect.objectContaining({ flags: MessageFlags.Ephemeral, content: expect.stringContaining("Confirmed") }));
+        const ok = reply.mock.calls[0][0];
+        expect(ok.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+        expect(ok.content).toBe("");
+        expect(cardText(ok)).toContain("Bestätigt");
+
+        const cancel = jest.fn();
+        await confirmBot.handleConfirmComponent({ customId: "setup-confirm:n:eh-1", user: { id: "2" }, reply: cancel });
+        expect(cardText(cancel.mock.calls[0][0])).toContain("abgesagt");
 
         const refused = jest.fn();
         await confirmBot.handleConfirmComponent({ customId: "setup-confirm:y:eh-1", user: { id: "999" }, reply: refused });
-        expect(refused).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining("nicht in einer Gruppe") }));
+        expect(cardText(refused.mock.calls[0][0])).toContain("nicht in einer Gruppe");
 
         const garbage = jest.fn();
         await confirmBot.handleConfirmComponent({ customId: "nonsense", user: { id: "1" }, reply: garbage });
-        expect(garbage).toHaveBeenCalledWith(expect.objectContaining({ content: "Diese Aktion gibt es nicht." }));
+        expect(cardText(garbage.mock.calls[0][0])).toContain("Unbekannte Aktion");
     });
 });

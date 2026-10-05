@@ -2,13 +2,8 @@ jest.mock("../../../src/config/variables.js", () => ({ publicBaseUrl: "http://lo
 
 const { characterOwners, approvedPerPlayer, buildRaiderMessage, sendApproved, sendStatus, sentSignature } = require("../../../src/web/logcheck/recommendationSend.js");
 
-/** A minimal EmbedBuilder stand-in that records what was set. */
-function fakeEmbed() {
-    const e = { fields: [] };
-    for (const k of ["setTitle", "setDescription", "setURL", "setFooter", "setColor"]) e[k] = (v) => { e[k.slice(3).toLowerCase()] = v; return e; };
-    e.addFields = (f) => { e.fields.push(f); return e; };
-    return e;
-}
+const { cardText, cardButtons } = require("../../helpers/cardText");
+const { isCard } = require("../../../src/utils/discord/card");
 
 function report(review) {
     return {
@@ -57,22 +52,25 @@ describe("recommendationSend — helpers", () => {
     it("builds the DM with a field per point, the lead's wording first, and the player page link", () => {
         const r = report();
         const p = approvedPerPlayer(r)[0];
-        const msg = buildRaiderMessage(r, p, p.items, { embed: fakeEmbed });
-        expect(msg.content).toBe("Deine Auswertung ist da: http://localhost:3005/r/abc123/p/0");
-        const e = msg.embeds[0];
-        expect(e.title).toBe("Deine Auswertung: Gruul");
-        expect(e.url).toBe("http://localhost:3005/r/abc123/p/0");
-        expect(e.description).toContain("Hallo Farin");
-        expect(e.description).toContain("vom 10.9.2026");
-        expect(e.fields).toEqual([{ name: "🔴 Gear", value: "Bitte vor dem Raid verzaubern." }]);
+        const msg = buildRaiderMessage(r, p, p.items);
+        expect(isCard(msg)).toBe(true);
+        expect(msg.content).toBe("");
+        expect(msg.embeds).toEqual([]);
+        const text = cardText(msg);
+        expect(text).toContain("## Deine Auswertung: Gruul");
+        expect(text).toContain("Hallo Farin");
+        expect(text).toContain("vom 10.9.2026");
+        expect(text).toContain("**🔴 Gear**\nBitte vor dem Raid verzaubern.");
+        expect(cardButtons(msg)).toEqual([expect.objectContaining({ url: "http://localhost:3005/r/abc123/p/0" })]);
     });
 
     it("caps the DM at ten points and links the rest", () => {
         const r = report();
         const items = Array.from({ length: 12 }, (_, i) => ({ key: `k${i}`, impact: "low", title: `T${i}`, text: "x" }));
-        const msg = buildRaiderMessage(r, { name: "Farin" }, items, { embed: fakeEmbed });
-        expect(msg.embeds[0].fields).toHaveLength(11);
-        expect(msg.embeds[0].fields[10].value).toBe("und 2 weitere Punkte auf deiner Seite.");
+        const text = cardText(buildRaiderMessage(r, { name: "Farin" }, items));
+        expect(text).toContain("**🟢 T9**");
+        expect(text).not.toContain("T10");
+        expect(text).toContain("**…**\nund 2 weitere Punkte auf deiner Seite.");
     });
 
     it("changes the signature when the set or a rewritten text changes", () => {
@@ -86,7 +84,6 @@ describe("recommendationSend — helpers", () => {
 describe("recommendationSend — sendApproved", () => {
     function discord(fail = []) {
         return {
-            embed: fakeEmbed,
             sendDirectMessage: jest.fn(async (userId) => (fail.includes(userId) ? { ok: false, error: "Cannot send messages to this user" } : { ok: true, messageId: `m-${userId}` })),
         };
     }
@@ -138,7 +135,7 @@ describe("recommendationSend — sendApproved", () => {
 describe("recommendationSend — sendStatus", () => {
     it("tells per raider whether they can be reached and whether the approved set moved since the last send", async () => {
         const r = report();
-        await sendApproved(r, { discord: { embed: fakeEmbed, sendDirectMessage: async () => ({ ok: true }) }, assignments, by: "Lead" });
+        await sendApproved(r, { discord: { sendDirectMessage: async () => ({ ok: true }) }, assignments, by: "Lead" });
         r.recommendationReview.players.Farin.food.approved = true;
         const status = sendStatus(r, assignments);
         expect(status).toEqual([

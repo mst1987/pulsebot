@@ -15,6 +15,7 @@ const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
 const { tr } = require("../i18n/botText");
+const { card } = require("../discord/card");
 const { buildEmbed } = require("../discord/reply");
 const { plainCategoryName } = require("./availabilityDialog");
 const { isSnowflake } = require("../ids");
@@ -79,12 +80,15 @@ function requestSummary(request, lang = "de") {
     return lines.join("\n");
 }
 
-/** The DM a raider gets once the orga handled the request, in their language. */
-function decisionText(request, lang = "de") {
-    const vars = { amount: Number(request.amount) || 0, item: plain(request.item), reason: plain(request.reason) };
-    if (request.status === "done") return tr(lang, "🏦 Your request **{amount}× {item}** is done.", vars);
-    if (str(request.reason)) return tr(lang, "🏦 Your request **{amount}× {item}** was declined: {reason}", vars);
-    return tr(lang, "🏦 Your request **{amount}× {item}** was declined.", vars);
+/** The DM a raider gets once the orga handled the request, in their language: an ok / error card. */
+function decisionCard(request, lang = "de") {
+    const done = request.status === "done";
+    return card({
+        kind: done ? "ok" : "error",
+        kicker: tr(lang, "Guild bank"),
+        title: done ? tr(lang, "Request done") : tr(lang, "Request declined"),
+        text: [`**${amountItem(request)}**`, !done && str(request.reason) ? tr(lang, "Reason: {reason}", { reason: plain(request.reason) }) : ""].filter(Boolean).join("\n"),
+    });
 }
 
 /** The orga post's status line once a request was handled ("" while it is open). German (orga text). */
@@ -150,5 +154,5 @@ function parseOrgaId(customId) {
 }
 
 module.exports = {
-    PREFIX, COLOR_OPEN, guildBankChannelId, plain, requestModal, requestSummary, decisionText, statusLine, orgaPayload, rejectModal, parseOrgaId,
+    PREFIX, COLOR_OPEN, guildBankChannelId, plain, requestModal, requestSummary, decisionCard, statusLine, orgaPayload, rejectModal, parseOrgaId,
 };

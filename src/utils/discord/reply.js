@@ -1,6 +1,6 @@
-// Replies of the slash commands: one embed in the accent color, ephemeral by
-// default, deleted again after `timeout` ms (0 keeps it), plus the lookups of a
-// server emoji. The reply helpers never throw — a failed reply is logged.
+// Replies of the slash commands: one card (utils/discord/card.js, Oct 2026 — before an embed) in the accent color, ephemeral
+// by default, deleted again after `timeout` ms (0 keeps it), plus the lookups of a server emoji. The reply helpers never
+// throw — a failed reply is logged. `buildEmbed` / `embedPayload` stay for code that still builds an embed itself.
 //
 // Every helper takes either its positional arguments (title, message, …) or one
 // options object with an `embed` (#508):
@@ -12,6 +12,7 @@
 // too long would make Discord refuse the whole reply).
 const { MessageFlags, EmbedBuilder } = require("discord.js");
 const { entryFor } = require("../../config/classlist.js");
+const { card, cardFromEmbed } = require("./card");
 const {
     defaultTimeout,
     embedAccentColor,
@@ -122,22 +123,14 @@ async function botReply(
     try {
         if (isOptions(title)) {
             const opts = title;
-            const msg = await interaction.reply(embedPayload(opts.embed, {
+            const msg = await interaction.reply(cardFromEmbed(opts.embed, {
                 ephemeral: opts.ephemeral !== false,
-                components: opts.components || [],
+                buttons: opts.components || [],
             }));
             autoDelete(msg, opts.timeout === undefined ? defaultTimeout : opts.timeout);
             return;
         }
-        const msg = await interaction.reply({
-            embeds: [{
-                title: title,
-                description: message,
-                color: embedAccentColor,
-            }],
-            ...(ephemeral ? { flags: MessageFlags.Ephemeral } : {}),
-            components,
-        });
+        const msg = await interaction.reply(card({ title, text: message, ephemeral: !!ephemeral, buttons: components }));
 
         autoDelete(msg, timeout);
     } catch (error) {
@@ -157,19 +150,12 @@ async function botEditReply(
     components = []
 ) {
     try {
+        // an edit keeps the visibility the reply was deferred with: no ephemeral flag on the card
         if (isOptions(title)) {
-            const { embeds } = embedPayload(title.embed);
-            await interaction.editReply({ content: "", embeds, components: title.components || [] });
+            await interaction.editReply(cardFromEmbed(title.embed, { buttons: title.components || [] }));
             return;
         }
-        await interaction.editReply({
-            embeds: [{
-                title: title,
-                description: message,
-                color: embedAccentColor,
-            }],
-            components,
-        });
+        await interaction.editReply(card({ title, text: message, buttons: components }));
     } catch (error) {
         console.error("Error in botEditReply:", error.message);
     }
@@ -185,20 +171,14 @@ async function botFollowup(
     try {
         if (isOptions(message)) {
             const opts = message;
-            const msg = await interaction.followUp(embedPayload(opts.embed, {
+            const msg = await interaction.followUp(cardFromEmbed(opts.embed, {
                 ephemeral: opts.ephemeral !== false,
-                components: opts.components || [],
+                buttons: opts.components || [],
             }));
             autoDelete(msg, opts.timeout === undefined ? defaultTimeout : opts.timeout);
             return;
         }
-        const msg = await interaction.followUp({
-            embeds: [{
-                description: message,
-            }],
-            ...(ephemeral ? { flags: MessageFlags.Ephemeral } : {}),
-            components,
-        });
+        const msg = await interaction.followUp(card({ text: message, ephemeral: !!ephemeral, buttons: components }));
 
         autoDelete(msg, timeout);
     } catch (error) {

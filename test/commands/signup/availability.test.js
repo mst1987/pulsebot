@@ -75,7 +75,7 @@ describe("/availability", () => {
         const i = mockInteraction({ userId: ANNA, commandName: "availability" });
         await command.execute(i);
         const payload = replyPayload(i);
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(answerOf(payload).description).toContain("No absence or attendance entered.");
         expect(componentIds(payload)).toEqual(["availability:a:", "availability:p:", "availability:l:"]);
     });
@@ -90,7 +90,7 @@ describe("Abwesenheit", () => {
         const modal = submit("availability:ma:cat1", { from: dayPlus(0), to: dayPlus(5), reason: "Urlaub" });
         await command.execute(modal);
         const picker = replyPayload(modal);
-        expect(picker.flags).toBe(MessageFlags.Ephemeral);
+        expect(picker.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(answerOf(picker).description).toContain("Reason: Urlaub");
         expect(answerOf(picker).description).toContain("Pick the raids to sign off from (2 of 2).");
         // only the panel's category, every raid picked at first
@@ -186,7 +186,7 @@ describe("Meine Einträge", () => {
         const list = click("availability:l:cat1");
         await command.execute(list);
         const payload = replyPayload(list);
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(answerOf(payload).description).toMatch(/Away.*Kur/);
 
         const del = select("availability:del:cat1", [entry.id]);
@@ -212,7 +212,7 @@ describe("Raider-Organizer: Mein Raid und Auswertung", () => {
         const i = click("availability:r:cat1");
         await command.execute(i);
         const payload = replyPayload(i);
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(embedOf(payload).title).toBe("Raid eh-a");
         expect(embedOf(payload).description).toContain("You are tentatively signed up as **Zibbo** · Holy.");
         expect(i.showModal).not.toHaveBeenCalled();
@@ -232,7 +232,7 @@ describe("Raider-Organizer: Mein Raid und Auswertung", () => {
         const i = click("availability:r:cat9");
         await command.execute(i);
         const payload = replyPayload(i);
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(embedOf(payload)).toMatchObject({ title: "Next raid", description: "No raid planned yet." });
         expect(payload.components).toEqual([]);
     });
@@ -291,7 +291,7 @@ describe("Gildenbank", () => {
         const i = click("availability:b:cat1");
         await command.execute(i);
         expect(i.showModal).not.toHaveBeenCalled();
-        expect(replyPayload(i).flags).toBe(MessageFlags.Ephemeral);
+        expect(replyPayload(i).flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(answerOf(replyPayload(i)).description).toBe("The guild bank is not set up right now.");
     });
 

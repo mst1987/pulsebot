@@ -1,6 +1,8 @@
 // German bot texts used in several areas, and /language.
 module.exports = {
     "Unknown action.": "Unbekannte Aktion.",
+    "Command not found.": "Befehl nicht gefunden.",
+    "There was an error executing this command!": "Beim Ausführen des Befehls ist ein Fehler aufgetreten!",
     "Open profile": "Profil öffnen",
     "Cancel": "Abbrechen",
     // /language

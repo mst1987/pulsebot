@@ -77,7 +77,7 @@ async function redrawPost(request, { config } = {}) {
 async function notifyRaider(request, { config } = {}) {
     try {
         const lang = langOf(request.userId, { config });
-        const sent = await discord.sendDirectMessage(request.userId, { content: post.decisionText(request, lang) });
+        const sent = await discord.sendDirectMessage(request.userId, post.decisionCard(request, lang));
         if (!sent.ok) logger.warn(`[guildBank] DM an ${request.userId} nicht zugestellt: ${sent.error}`);
         return sent;
     } catch (e) {

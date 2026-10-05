@@ -21,6 +21,7 @@ const pickRaids = require("../../../src/commands/signup/talkSignupMulti");
 const step = require("../../../src/commands/signup/signupMulti");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
+const { cardButtons } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const BERT = "200000000000000002";
@@ -96,7 +97,7 @@ describe("talk overview buttons (#293)", () => {
         await all.execute(none);
         expect(none.showModal).not.toHaveBeenCalled();
         expect(answerOf(none.reply.mock.calls[0][0])).toMatchObject({ flags: MessageFlags.Ephemeral, title: "", description: "To sign up for several raids you need characters with a spec in your profile." });
-        expect(none.reply.mock.calls[0][0].components[0].components[0].url).toBe("https://eh.example/profile");
+        expect(cardButtons(none.reply.mock.calls[0][0])[0].url).toBe("https://eh.example/profile");
 
         characters();
         mocks.events.clear();
@@ -136,13 +137,13 @@ describe("Mehrere Raids wählen … (#293)", () => {
         const i = mockInteraction({ customId: "talk-signup-multi", userId: ANNA });
         await pickRaids.execute(i);
         const payload = i.reply.mock.calls[0][0];
-        const token = tokenOf(payload.components[0].components[0].custom_id);
+        const token = tokenOf(cardButtons(payload)[0].custom_id);
         return { payload, token };
     }
 
     it("shows step 1 only to the member: nothing preselected, status, Weiter disabled until a raid is picked", async () => {
         const { payload, token } = await startStep1();
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(payload.embeds[0].title).toBe("Which raids?");
         const [raidRow, statusRow, goRow] = payload.components;
         expect(raidRow.components[0]).toMatchObject({ custom_id: `signup-multi:${token}:r`, min_values: 1, max_values: 7 });
@@ -155,7 +156,7 @@ describe("Mehrere Raids wählen … (#293)", () => {
         const { token } = await startStep1();
         const pickR = mockInteraction({ customId: `signup-multi:${token}:r`, userId: ANNA, values: ["eh-r1", "eh-r2", "eh-r3", "eh-r4", "eh-r5", "eh-r6"] });
         await step.execute(pickR);
-        expect(pickR.update.mock.calls[0][0].components[0].components[0].options.filter((o) => o.default)).toHaveLength(6);
+        expect(cardButtons(pickR.update.mock.calls[0][0])[0].options.filter((o) => o.default)).toHaveLength(6);
         await step.execute(mockInteraction({ customId: `signup-multi:${token}:s`, userId: ANNA, values: ["tentative"] }));
 
         const go = mockInteraction({ customId: `signup-multi:${token}:go:0`, userId: ANNA });
@@ -175,7 +176,7 @@ describe("Mehrere Raids wählen … (#293)", () => {
         expect(partial.embeds[0].title).toBe("So far 2 of 5 raids saved");
         expect(partial.embeds[0].description).toContain("⏭️ **Raid 3**");
         expect(partial.embeds[0].description).toMatch(/✅ \*\*Raid 1\*\*.*Zibbo · Holy – Tentative/);
-        expect(partial.components[0].components[0]).toMatchObject({ custom_id: `signup-multi:${token}:go:1`, label: "Next: Raid 6" });
+        expect(cardButtons(partial)[0]).toMatchObject({ custom_id: `signup-multi:${token}:go:1`, label: "Next: Raid 6" });
         expect(mocks.signups.get(`eh-r2/${ANNA}`).characters.map((c) => c.character)).toEqual(["Zibbo", "Zibbowar"]);
 
         const go2 = mockInteraction({ customId: `signup-multi:${token}:go:1`, userId: ANNA, message });
