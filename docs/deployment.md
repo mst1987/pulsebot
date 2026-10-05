@@ -16,12 +16,19 @@ sagt selbst, auf welchem Stand er läuft.
 
   ```json
   { "status": "ok", "commit": "a1b2c3d…", "committedAt": "2026-09-12T18:04:11.000Z",
-    "subject": "Merge pull request #313 …", "startedAt": "2026-09-12T18:10:02.311Z" }
+    "subject": "Merge pull request #313 …", "startedAt": "2026-09-12T18:10:02.311Z",
+    "mode": "production" }
   ```
 
   Die Werte liest `src/web/http/version.js` einmal beim Start (`git log -1`, sonst
   `GIT_COMMIT` aus der Umgebung). Ist nichts davon da, bleiben die Felder leer —
   der Bot läuft trotzdem.
+
+  `mode` (#612) sagt, ob sich der Prozess für den Live-Bot hält (`src/config/runMode.js`):
+  `NODE_ENV=production`, oder ohne `NODE_ENV` die `.env` statt der `.env.dev`. Steht
+  auf dem Server `development`, behandelt er sich als Testinstanz — u. a. fragt der
+  Raid-Helper-Abgleich dann nichts von selbst. Dieselbe Angabe steht in der ersten
+  Logzeile (`PulseBot starting on Node … (production, .env, NODE_ENV=production)`).
 
 - **Im Menü**, als eine Zeile unten in der Seitenleiste:
   „Server läuft auf `a1b2c3d` vom 12.09. · main ist 9 Commits weiter“. Details
@@ -139,6 +146,12 @@ Der `commit` dort muss der sein, der gerade auf `main` steht.
 pm2 startet ohne `--env` im Modus `production` (`ecosystem.config.js`);
 `--env development` gibt es nur noch ausdrücklich. Neu gestartet wird der Bot
 erst ab 512 MB Speicher.
+
+⚠️ Das gilt nur für den allerersten `pm2 start`. Jeder Deploy startet mit
+`pm2 restart pulsebot --update-env` neu, und `--update-env` übernimmt die Umgebung
+der Deploy-Shell — die hat kein `NODE_ENV`. Deshalb setzt `deploy.sh` es dort
+ausdrücklich (`NODE_ENV=production pm2 restart …`, danach `pm2 save`); vorher lief
+der Live-Bot als `development` (#612).
 
 ## Docker
 
