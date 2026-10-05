@@ -130,9 +130,10 @@ function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {})
         const gear = issuesByKey[row.key] || null;
         const attendance = {};
         for (const id of row.categoryIds) {
-            // The row carries the verdict and the missed nights (its tooltip);
-            // the night-by-night list belongs to the character page.
+            // The row carries the verdict, the missed nights and the attended ones (its tooltip groups
+            // them: "Dabei", then one group per reason); the full night-by-night list belongs to the character page.
             const summary = attendanceFor(ctx, id, row.character, raiderIdsByCategory[id] || []);
+            summary.present = summary.raids.filter((r) => r.attended).map(({ eventId, title, startTime }) => ({ eventId, title, startTime }));
             delete summary.raids;
             attendance[id] = summary;
         }

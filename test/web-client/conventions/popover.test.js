@@ -23,7 +23,7 @@ describe("ui/Popover", () => {
     });
 
     it.each([
-        ["pages/lootcouncil/RichTip.tsx", "tipPlacement()"],
+        ["components/ui/RichTip.tsx", "tipPlacement()"],
         ["components/HoverPanel.tsx", "panelPlacement("],
         ["pages/raid-detail/manage/ManageMenu.tsx", "belowEndPlacement()"],
         ["pages/raid-detail/raidplan/ContextMenu.tsx", "pointPlacement(x, y)"],

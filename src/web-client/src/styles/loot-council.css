@@ -75,9 +75,6 @@ a.lc-id-name:hover { text-decoration: underline; }
 .lc-needbar .s3, .lc-need-dot.s3 { background: color-mix(in srgb, var(--lc-need-3) 55%, transparent); }
 .lc-needbar i:last-of-type { border-right: 2px solid var(--lc-need-3); }
 .lc-needbar b { position: absolute; left: 8px; top: 0; line-height: 24px; font: 700 13px/24px var(--font-mono); color: var(--text); }
-.lc-rtip-anchor { display: inline-flex; cursor: help; outline: none; border-radius: 5px; }
-.lc-rtip-anchor:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft); }
-.tip.lc-rtip { width: var(--lc-rtip-w); white-space: normal; max-width: calc(100vw - 16px); }
 .lc-need-rows { display: grid; grid-template-columns: 10px 18px 1fr auto; align-items: center; gap: 8px; margin: 4px 0 6px; }
 .lc-need-row { display: contents; }
 .lc-need-dot { width: 10px; height: 10px; border-radius: 2px; }

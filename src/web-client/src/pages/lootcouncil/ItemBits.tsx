@@ -7,7 +7,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { BisSpec, CouncilLootItem } from "../../api";
-import { Badge, Expand, WowIcon } from "../../components/ui";
+import { Badge, Expand, RichTip, WowIcon } from "../../components/ui";
 import { classColorProps } from "../../components/ClassSpec";
 import { ReasonBadge } from "../../components/loot/LootBadges";
 import { tParts, useT } from "../../i18n";
@@ -16,7 +16,6 @@ import { itemQualityProps } from "../../lib/itemQuality";
 import { specClassLabel } from "../../lib/wowNames";
 import { WOWHEAD } from "./council";
 import { useWowheadPath } from "../../lib/versionLinks";
-import { RichTip } from "./RichTip";
 
 /**
  * A raider as spec icon on a tile in their class colour, name and spec — the
@@ -160,7 +159,7 @@ export function LootCount({ items, total, other = 0 }: { items: CouncilLootItem[
     }
     const shown = items.slice(0, TIP_ITEMS);
     return (
-        <RichTip width={440} label={t("lootcouncil.word.itemCount", { count: total })} trigger={<span className="lc-num">{total}</span>}>
+        <RichTip className="lc-rtip" width={440} label={t("lootcouncil.word.itemCount", { count: total })} trigger={<span className="lc-num">{total}</span>}>
             <b>{t("lootcouncil.items.recent")}</b>
             <span className="lc-loot-list">
                 {shown.map((item, i) => (

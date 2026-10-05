@@ -176,6 +176,10 @@ table.idx th[data-tip] { text-decoration: underline dotted; text-decoration-colo
 .tip b:only-child { margin-bottom: 0; }
 .tip i { display: block; font-style: normal; color: var(--muted); }
 .tip-anchor { cursor: help; }
+/* a tooltip with its own markup (<RichTip>): the same box, a set width, its anchor reachable by keyboard */
+.rtip-anchor { display: inline-flex; cursor: help; outline: none; border-radius: 5px; }
+.rtip-anchor:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft); }
+.tip.rtip { width: var(--rtip-w); white-space: normal; max-width: calc(100vw - 16px); }
 @media (prefers-reduced-motion: reduce) { .tip { transition: none; } }
 
 /* ---- modal (native <dialog>) and the confirm dialog ---- */
