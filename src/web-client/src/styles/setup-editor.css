@@ -307,7 +307,7 @@
 .se-slot.se-flash { border-color: var(--se-who); box-shadow: 0 0 0 3px color-mix(in srgb, var(--se-who) 30%, transparent); animation: se-flash 4s ease-out forwards; }
 @keyframes se-flash { 0%, 70% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--se-who) 30%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
 @media (prefers-reduced-motion: reduce) { .se-slot.se-flash { animation: none; } }
-.se-who-tag { position: absolute; top: -8px; right: 6px; max-width: calc(100% - 12px); padding: 0 7px; border-radius: 999px; background: var(--se-who); color: #14112b; font-size: 10px; font-weight: 800; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.se-who-tag { position: absolute; top: -8px; right: 6px; max-width: calc(100% - 12px); padding: 0 7px; border-radius: 999px; background: var(--se-who); color: color-mix(in srgb, var(--se-who) 22%, black); font-size: 10px; font-weight: 800; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .se-feed { padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
 .se-feed-head { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13.5px; margin-bottom: 6px; }
 .se-feed-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
