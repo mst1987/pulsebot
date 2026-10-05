@@ -53,6 +53,48 @@ export function WeightsModal({ open, onClose, data, setup, onApply }: {
     );
 }
 
+/**
+ * "Freie Plätze füllen" once somebody stands in a group: only the free places
+ * (the default — what the orga placed stays exactly there), or everything anew
+ * (fixed places kept). With nobody placed yet the editor fills at once, no question.
+ */
+export function FillModal({ open, onClose, placed, free, onFill }: {
+    open: boolean;
+    onClose: () => void;
+    placed: number;
+    free: number;
+    onFill: (keepPlaced: boolean) => void;
+}) {
+    const t = useT();
+    const [keep, setKeep] = useState(true);
+    useEffect(() => {
+        if (open) setKeep(true);
+    }, [open]);
+    return (
+        <Modal
+            open={open} onClose={onClose} icon="spell_holy_borrowedtime" tone="raids" kicker={t("setup.fill.kicker")} title={t("setup.fill.free")} width={500}
+            footer={(
+                <>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button icon="spell_holy_borrowedtime" onClick={() => onFill(keep)}>{t("setup.fill.go")}</Button>
+                </>
+            )}
+        >
+            <p className="se-note">{t("setup.fill.question", { count: placed })}</p>
+            <div className="se-fill" role="radiogroup" aria-label={t("setup.fill.free")}>
+                <button type="button" role="radio" aria-checked={keep} className={`se-fill-opt${keep ? " is-on" : ""}`} onClick={() => setKeep(true)}>
+                    <b>{t("setup.fill.keepTitle")}</b>
+                    <span>{t("setup.fill.keepText", { count: free })}</span>
+                </button>
+                <button type="button" role="radio" aria-checked={!keep} className={`se-fill-opt${!keep ? " is-on" : ""}`} onClick={() => setKeep(false)}>
+                    <b>{t("setup.fill.anewTitle")}</b>
+                    <span>{t("setup.fill.anewText")}</span>
+                </button>
+            </div>
+        </Modal>
+    );
+}
+
 export function ExplainModal({ open, onClose, ctx, data, setup, onDone }: {
     open: boolean;
     onClose: () => void;

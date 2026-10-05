@@ -89,6 +89,8 @@ async function view(event, user, { names = true } = {}) {
         avoidPairs: write ? setupEditor.avoidPairCount(signups, profiles.listProfiles()) : 0,
         // reads reports and logs — only on the page load, a move must answer at once
         attendance: write && names ? safeAttendance(fresh) : null,
+        // no setup stored yet: the empty start (every signup under "Angemeldet") instead of "no setup"
+        blank: true,
     });
     if (write) out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
     return out;
@@ -147,13 +149,14 @@ async function followLive(result, user) {
     return post.code ? `Setup-Nachricht nicht aktualisiert: ${post.error}` : "";
 }
 
-/** POST /api/raids/setup/propose — body `{ event, weights?, fairness?, wishes? }` */
+/** POST /api/raids/setup/propose — body `{ event, weights?, fairness?, wishes?, keep? }` (`keep: "placed"` = "Freie Plätze füllen") */
 const postPropose = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.proposeEventSetup(String(body.event).trim(), body, { userId: user.id });
     const failed = await followLive(result, user);
-    const message = result.live ? "Neuer Vorschlag erstellt – die gepostete Setup-Nachricht zeigt ihn schon." : "Neuer Vorschlag erstellt.";
-    await answer(res, result, user, { message: failed ? `Neuer Vorschlag erstellt. ${failed}` : message });
+    const done = body.keep === "placed" ? "Freie Plätze gefüllt." : "Neuer Vorschlag erstellt.";
+    const message = result.live ? `${done} Die gepostete Setup-Nachricht zeigt es schon.` : done;
+    await answer(res, result, user, { message: failed ? `${done} ${failed}` : message });
 });
 
 /** PUT /api/raids/setup — body `{ event, version, groups, bench, weights?, fairness?, wishes? }` */
@@ -167,8 +170,10 @@ const putSetup = withUser({ write: "raids", csrf: true, body: true, archived: BY
 
 /** "Bench mitposten" (#517): true/false from the body, undefined = keep the event's last choice. */
 const benchChoice = (body) => (typeof body.bench === "boolean" ? body.bench : undefined);
+/** "DMs an Spieler": true/false from the body, undefined = keep the event's last choice (else the category's). */
+const dmsChoice = (body) => (typeof body.dms === "boolean" ? body.dms : undefined);
 
-/** POST /api/raids/setup/approve — body `{ event, version, bench? }` */
+/** POST /api/raids/setup/approve — body `{ event, version, bench?, dms? }` */
 const postApprove = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.approveEventSetup(String(body.event).trim(), { version: body.version, userId: user.id });
@@ -182,14 +187,14 @@ const postApprove = withUser({ write: "raids", csrf: true, body: true, archived:
     if (!result.already) {
         // The setup's own message (#290): awaited, so the answer says where it went;
         // the DMs run on in the background and the editor polls their outcome.
-        const { post } = await setupMessage.publishSetup(result.event.id, { userId: user.id, bench: benchChoice(body) });
+        const { post } = await setupMessage.publishSetup(result.event.id, { userId: user.id, bench: benchChoice(body), dms: dmsChoice(body) });
         if (post.code) message = `${message} Setup-Nachricht nicht gepostet: ${post.error}`;
     }
     await answer(res, result, user, { message });
 });
 
 /**
- * POST /api/raids/setup/post — body `{ event, version?, bench? }`: post/edit the
+ * POST /api/raids/setup/post — body `{ event, version?, bench?, dms? }`: post/edit the
  * setup and send outstanding DMs. Posting is approving: a draft is approved
  * first (only the `version` the editor showed, when one is sent), so there is
  * no separate approval step for the orga.
@@ -204,7 +209,7 @@ const postPublish = withUser({ write: "raids", csrf: true, body: true, archived:
             refreshEventMessage(event.id).catch((e) => console.error(`[setup] event message ${event.id}:`, e.message));
         }
     }
-    const { post } = await setupMessage.publishSetup(event.id, { userId: user.id, bench: benchChoice(body) });
+    const { post } = await setupMessage.publishSetup(event.id, { userId: user.id, bench: benchChoice(body), dms: dmsChoice(body) });
     if (post.code) return sendFailure(res, post);
     const text = post.action === "edited" ? "Setup-Nachricht aktualisiert." : "Setup gepostet.";
     await answer(res, { event }, user, { message: text });

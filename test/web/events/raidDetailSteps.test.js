@@ -383,7 +383,9 @@ describe("eventSteps — das Raid-Cockpit (#319)", () => {
     it("Setup: kein Vorschlag → offen, ein Entwurf → erledigt", () => {
         const open = run(own({ event: { signupsClosed: true } }));
         expect(at(open, "setup")).toMatchObject({ state: "current", value: "—" });
-        expect(open.action).toMatchObject({ tab: "setup", label: "Setup vorschlagen" });
+        // no proposal needed any more: the orga drags the signups in straight away
+        expect(open.action).toMatchObject({ tab: "setup", label: "Setup bauen" });
+        expect(at(open, "setup").hint).toMatch(/direkt in die Gruppen/);
 
         const draft = run(own({ event: { signupsClosed: true }, ownSetup: { status: "draft", placed: 24, size: 25, bench: 3, version: 2, ok: true } }));
         expect(at(draft, "setup")).toMatchObject({ state: "done", value: "24", unit: "/ 25", note: "3 auf der Bank" });

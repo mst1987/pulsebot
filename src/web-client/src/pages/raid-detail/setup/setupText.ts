@@ -76,3 +76,10 @@ export function storeCompact(on: boolean) {
         // private window or blocked storage — the choice just is not remembered
     }
 }
+
+/** Who the search finds: the character, the Discord name, the spec. */
+export function matchesQuery(p: SetupPerson, query: string): boolean {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return [p.character, p.name, specText(p)].some((x) => String(x || "").toLowerCase().includes(q));
+}

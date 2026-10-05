@@ -489,9 +489,9 @@ function setupStepOwn(d, now) {
     return {
         ...step, state: "open", note: ev.autoSuggest ? "Vorschlag bei Anmeldeschluss" : "",
         hint: ev.autoSuggest
-            ? "Zum Anmeldeschluss legt der Bot von selbst einen Entwurf an. Vorher geht es von Hand: der Editor schlägt Gruppen vor, du verschiebst."
-            : "Noch kein Vorschlag. Der Editor schlägt Gruppen aus den Anmeldungen vor; verschieben und fixieren geht danach.",
-        action: deed("propose", "Setup vorschlagen", "inv_misc_map_01", { tab: "setup" }),
+            ? "Zieh die Angemeldeten direkt in die Gruppen – oder warte: zum Anmeldeschluss legt der Bot einen Entwurf an, solange noch niemand eingeteilt ist."
+            : "Zieh die Angemeldeten direkt in die Gruppen. „Automatisch füllen“ verteilt sie auf Wunsch für dich.",
+        action: deed("propose", "Setup bauen", "inv_misc_map_01", { tab: "setup" }),
     };
 }
 

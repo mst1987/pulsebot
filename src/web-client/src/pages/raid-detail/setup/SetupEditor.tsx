@@ -17,7 +17,6 @@
 // server. Posting carries the bench only with "Bench mitposten" ticked.
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 import { approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { applyLocal, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
@@ -32,12 +31,14 @@ import { LockIcon, XIcon } from "../../../components/icons";
 import type { RaidCtx } from "../meta";
 import "../../../styles/setup-editor.css";
 import { clock, readCompact, storeCompact } from "./setupText";
-import { BenchCard, GroupCard, type Interaction, PoolCard, ReadOnly } from "./Board";
+import { BenchCard, GroupCard, type Interaction, ReadOnly } from "./Board";
+import { PoolPanel } from "./PoolPanel";
 import { MoreMenu, PingTextField, SizeControl, StatusBadge, type MoreItem } from "./Controls";
 import { Summary, SummaryLine } from "./Summary";
 import { roleFigures, summaryOptions } from "./summaryFigures";
 import { SlotTip, type SlotActions } from "./SlotTip";
-import { EditorDialog, ExplainModal, WeightsModal } from "./SetupModals";
+import { EditorDialog, ExplainModal, FillModal, WeightsModal } from "./SetupModals";
+import Switch from "../../../components/ui/Switch";
 import { SearchModal } from "./SearchModal";
 import { SignupEditModal } from "./SignupEditModal";
 
@@ -49,14 +50,15 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const [selected, setSelected] = useState<string | null>(null);
     const [dragging, setDragging] = useState<string | null>(null);
     // the dialogs: the rare tools under "Mehr", and the summary line's "Details"
-    const [dialog, setDialog] = useState<"weights" | "explain" | "search" | "size" | "ping" | "details" | null>(null);
+    const [dialog, setDialog] = useState<"weights" | "explain" | "search" | "size" | "ping" | "details" | "fill" | null>(null);
     const [posting, setPosting] = useState(false);
     const [pinging, setPinging] = useState(false);
-    const navigate = useNavigate();
     // "Anmeldung bearbeiten" (#521): the raider whose signup the dialog changes
     const [editing, setEditing] = useState<string | null>(null);
     // "Bench mitposten" (#517): null = what the event remembered from the last post (off by default)
     const [benchChoice, setBenchChoice] = useState<boolean | null>(null);
+    // "DMs an Spieler": null = what the event (else its category) says; sent with the next post
+    const [dmsChoice, setDmsChoice] = useState<boolean | null>(null);
     const [compact, setCompact] = useState(readCompact);
     const toggleCompact = () => setCompact((on) => {
         storeCompact(!on);
@@ -88,6 +90,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
 
     const setup = data?.setup || null;
     const postBench = benchChoice ?? !!data?.publish?.bench;
+    const postDms = dmsChoice ?? !!data?.publish?.dmsEnabled;
 
     // The DMs of an approval run on in the background: poll only their state, so
     // a move the orga makes meanwhile is never overwritten by an older lineup.
@@ -241,13 +244,14 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         });
     };
 
-    const propose = async (weights?: Record<string, number>) => {
+    /** A proposal: everything anew (fixed places kept), or — `keep: "placed"`, "Freie Plätze füllen" — only the free places. */
+    const propose = async (weights?: Record<string, number>, keep?: "placed") => {
         setDialog(null);
         const avoid = await avoidAnswer();
         setBusy(true);
         await chain.current;
         const next = await jobs.run({ label: t("setup.editor.proposalJob"), detail: data?.event.title || "", icon: "inv_misc_map_01", quiet: true }, () => (
-            proposeRaidSetup(ctx.eventId, { ...(weights ? { weights } : {}), ...(avoid === undefined ? {} : { avoid }) })
+            proposeRaidSetup(ctx.eventId, { ...(weights ? { weights } : {}), ...(avoid === undefined ? {} : { avoid }), ...(keep ? { keep } : {}) })
         ));
         setBusy(false);
         if (next) accept(next, next.message);
@@ -268,7 +272,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         try {
             // approve what is drawn: wait for the moves still on their way first
             await chain.current;
-            const next = await approveRaidSetup(ctx.eventId, confirmedVersion.current, { bench: postBench });
+            const next = await approveRaidSetup(ctx.eventId, confirmedVersion.current, { bench: postBench, dms: postDms });
             accept(next, next.message);
         } catch (e) {
             jobs.notify((e as ApiError).message || t("setup.editor.approveFailed"), "err");
@@ -308,7 +312,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         setPosting(true);
         try {
             await chain.current;
-            const next = await publishRaidSetup(ctx.eventId, { bench: postBench });
+            const next = await publishRaidSetup(ctx.eventId, { bench: postBench, dms: postDms });
             accept(next, next.message);
         } catch (e) {
             jobs.notify((e as ApiError).message || t("setup.editor.postFailed"), "err");
@@ -362,8 +366,16 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         });
     };
 
-    /** "Alle bestätigen": after the marks still on their way, the check for everybody in a group without an answer. */
-    const confirmEveryone = async () => {
+    /** "Alle bestätigen": asked once, then — after the marks still on their way — the check for everybody in a group without an answer. */
+    const confirmEveryone = async (count: number) => {
+        const ok = await ask({
+            title: t("setup.confirmAll.askTitle"),
+            text: t("setup.confirmAll.askText", { count }),
+            action: t("setup.editor.confirmAll"),
+            icon: "achievement_guildperk_everybodysfriend",
+            tone: "primary",
+        });
+        if (!ok) return;
         await markChain.current;
         try {
             const answer = await confirmAllSetup(ctx.eventId);
@@ -465,21 +477,29 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const lockedCount = [...setup.groups.flatMap((g) => g.slots), ...setup.bench].filter((p) => p.locked).length;
     const size = setup.checks.size;
     const approved = setup.status === "approved";
-    // ONE state (never "Gepostet" beside "noch nicht gepostet") and ONE primary button that follows it
-    const state = setupState(setup, data.publish);
-    const hint = publishHint(data.publish, approved, clock);
+    const cancelled = !!data.publish?.cancelled;
+    // ONE state (never "Gepostet" beside "noch nicht gepostet") and ONE primary button that follows it;
+    // the switches "Bank mitposten" / "DMs an Spieler" count as soon as they are flipped, before the post sends them
+    const publish = data.publish ? { ...data.publish, dmsEnabled: postDms } : data.publish;
+    const state = setupState(setup, publish);
+    const hint = publishHint(publish, approved, clock);
+    // a switch flipped after the post: "Setup posten" applies it (the bench into the message, the DMs still open)
+    const optionsChanged = !!data.publish && ((benchChoice !== null && benchChoice !== !!data.publish.bench) || (dmsChoice !== null && dmsChoice !== !!data.publish.dmsEnabled));
+    const poolCount = (setup.pool || []).length;
+    // the proposal is a tool now, not the start: fill everything, or only the free places once somebody stands
+    const canFill = !cancelled && poolCount > 0 && placed < (data.event.size || 0);
+    const fill = () => (placed === 0 ? void propose() : setDialog("fill"));
     const opts = summaryOptions(data, setup);
     const keep = () => toInput(current.current?.setup || setup);
-    const cancelled = !!data.publish?.cancelled;
 
     let primary: ReactNode = null;
     if (!cancelled && !approved) {
         primary = (
-            <Button icon="inv_letter_15" disabled={busy} data-tip={t("setup.editor.approve")} data-tip-sub={t("setup.editor.approveSub")} onClick={approve}>
+            <Button icon="inv_letter_15" disabled={busy || placed === 0} data-tip={t("setup.editor.approve")} data-tip-sub={t("setup.editor.approveSub")} onClick={approve}>
                 {t("setup.editor.approve")}
             </Button>
         );
-    } else if (!cancelled && state.needsPost) {
+    } else if (!cancelled && (state.needsPost || optionsChanged)) {
         primary = (
             <Button icon="inv_letter_15" running={posting || !!hint?.running} disabled={busy} data-tip={t("setup.publishLine.post")} data-tip-sub={t("setup.publishLine.postSub")} onClick={post}>
                 {t("setup.publishLine.post")}
@@ -501,12 +521,9 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         { id: "fairness", label: t("setup.summary.fairness"), sub: t("setup.summary.fairnessCap"), icon: "spell_holy_divineintervention", on: opts.fairness, disabled: busy, onSelect: () => void save(keep(), { fairness: !opts.fairness }) },
         { id: "wishes", label: t("setup.summary.wishes"), sub: opts.wishes ? t("setup.summary.wishesCapOn", { met: setup.checks.wishes.met, total: setup.checks.wishes.total }) : t("setup.more.wishesOffSub"), icon: "inv_valentineschocolate02", on: opts.wishes, disabled: busy, onSelect: () => void save(keep(), { wishes: !opts.wishes }) },
         ...(opts.avoidTotal > 0 ? [{ id: "avoid", label: t("setup.summary.avoid"), sub: t("setup.summary.avoidSub", { count: opts.avoidTotal }), icon: "ability_creature_cursed_02", on: opts.avoid, disabled: busy, onSelect: () => void save(keep(), { avoid: !opts.avoid }) }] : []),
-        // only with somebody on the bench — the pool ("Angemeldet") is never posted
-        ...(setup.bench.length > 0 && !cancelled ? [{ id: "bench", label: t("setup.publishLine.bench"), sub: t("setup.more.benchSub"), icon: "inv_misc_groupneedmore", on: postBench, disabled: busy, onSelect: () => setBenchChoice(!postBench) }] : []),
         "sep",
         // posted and current: posting again sends the DMs a live change left open, or redraws the message
         ...(approved && !state.needsPost && hint?.canPost ? [{ id: "repost", label: t("setup.publishLine.post"), sub: t("setup.publishLine.postSub"), icon: "inv_letter_15", disabled: busy || posting, onSelect: () => void post() }] : []),
-        ...(data.publish && !data.publish.dmsEnabled && !cancelled ? [{ id: "dms", label: t("setup.publishLine.enableDms"), sub: t("setup.more.dmsSub"), icon: "inv_letter_15", onSelect: () => navigate("/settings?section=kategorien") }] : []),
         { id: "compact", label: t("setup.editor.compact"), sub: t("setup.editor.compactSub"), icon: "inv_misc_book_09", on: compact, onSelect: toggleCompact },
         { id: "search", label: t("setup.editor.search"), sub: t("setup.editor.searchSub"), icon: "inv_misc_spyglass_02", disabled: !data.search, onSelect: () => setDialog("search") },
         { id: "explain", label: t("setup.editor.explain"), sub: t("setup.editor.explainSub"), icon: "inv_scroll_03", onSelect: () => setDialog("explain") },
@@ -558,30 +575,53 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                 )}
                 <div className="se-bar-act">
                     <MoreMenu items={more} />
+                    {canFill && (
+                        <Button
+                            variant="ghost" size="sm" icon="spell_holy_borrowedtime" running={busy} disabled={busy}
+                            data-tip={placed === 0 ? t("setup.fill.auto") : t("setup.fill.free")} data-tip-sub={placed === 0 ? t("setup.fill.autoSub") : t("setup.fill.freeSub")}
+                            onClick={fill}
+                        >
+                            {placed === 0 ? t("setup.fill.auto") : t("setup.fill.free")}
+                        </Button>
+                    )}
                     {approved && unanswered > 0 && (
                         <Button
                             variant="ghost" size="sm" icon="achievement_guildperk_everybodysfriend" disabled={busy}
                             data-tip={t("setup.editor.confirmAll")} data-tip-sub={t("setup.editor.confirmAllSub")}
-                            onClick={() => void confirmEveryone()}
+                            onClick={() => void confirmEveryone(unanswered)}
                         >
                             {t("setup.editor.confirmAll")}
                         </Button>
+                    )}
+                    {/* what posting sends along — visible, no detour through "Mehr" */}
+                    {!cancelled && data.publish && (
+                        <div className="se-postopts" role="group" aria-label={t("setup.postOptions.aria")}>
+                            <Switch className="se-postopt" checked={postBench} disabled={busy} label={t("setup.postOptions.bench")} tip={t("setup.postOptions.benchSub")} onChange={setBenchChoice} />
+                            <Switch
+                                className="se-postopt" checked={postDms} disabled={busy} label={t("setup.postOptions.dms")}
+                                tip={postDms === !!data.publish.dmsDefault ? t("setup.postOptions.dmsSub") : t("setup.postOptions.dmsSubOwn")}
+                                onChange={setDmsChoice}
+                            />
+                        </div>
                     )}
                     {primary}
                 </div>
             </div>
 
-            <div className="se-layout">
-                {/* the groups right under the bar, the bench and "Angemeldet" (#517) as rows under them, then one summary line */}
-                <div className="se-main">
-                    <div className="se-groups">
-                        {groups.map((g) => (
-                            <GroupCard key={g.index} group={g} ui={ui} buffs={partyBuffs.filter((b) => b.groups.includes(g.index))} />
-                        ))}
+            {/* a container of its own: the side column for "Angemeldet" or, where too narrow, its dock at the bottom (setup-editor.css) */}
+            <div className="se-stage">
+                <div className={`se-layout${poolCount > 0 ? " se-with-pool" : ""}`}>
+                    {/* the groups right under the bar, the bench as a row under them, then one summary line — "Angemeldet" (#517) beside them */}
+                    <div className="se-main">
+                        <div className="se-groups">
+                            {groups.map((g) => (
+                                <GroupCard key={g.index} group={g} ui={ui} buffs={partyBuffs.filter((b) => b.groups.includes(g.index))} />
+                            ))}
+                        </div>
+                        <BenchCard bench={setup.bench} ui={ui} />
+                        <SummaryLine data={data} setup={setup} onDetails={() => setDialog("details")} />
                     </div>
-                    <BenchCard bench={setup.bench} ui={ui} />
-                    <PoolCard pool={setup.pool || []} ui={ui} />
-                    <SummaryLine data={data} setup={setup} onDetails={() => setDialog("details")} />
+                    <PoolPanel pool={setup.pool || []} ui={ui} absent={data.absent || 0} />
                 </div>
             </div>
 
@@ -616,6 +656,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     onAvoid={(on) => save(keep(), { avoid: on })}
                 />
             </EditorDialog>
+            <FillModal open={dialog === "fill"} onClose={() => setDialog(null)} placed={placed} free={Math.max(0, (data.event.size || 0) - placed)} onFill={(keepPlaced) => void propose(undefined, keepPlaced ? "placed" : undefined)} />
             <WeightsModal open={dialog === "weights"} onClose={() => setDialog(null)} data={data} setup={setup} onApply={(w) => propose(w)} />
             <SearchModal open={dialog === "search"} onClose={() => setDialog(null)} ctx={ctx} search={data.search} />
             {editPerson && <SignupEditModal key={editPerson.userId} eventId={ctx.eventId} person={editPerson} onClose={() => setEditing(null)} onSave={saveSignup} />}

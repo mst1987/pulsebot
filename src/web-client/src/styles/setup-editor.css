@@ -145,8 +145,6 @@
 .se-row-slots { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 220px)); gap: 8px; }
 .se-row-empty { grid-column: 1 / -1; display: flex; align-items: center; min-height: var(--se-row); color: var(--muted); font-size: 13px; }
 .se-row.se-target .se-row-slots, .se-row.se-over .se-row-slots { border-radius: 10px; box-shadow: 0 0 0 2px var(--accent-soft); }
-/* "Angemeldet" (#517): signed up, not in the setup — a little quieter than the bench */
-.se-pool .se-group-title { color: var(--muted); }
 .se-extra.se-extra-lead { margin: 0 6px 0 0; }
 
 /* a free place: an empty box as high as a raider line */
@@ -220,6 +218,81 @@
 .se-explain { display: flex; flex-direction: column; gap: 10px; }
 .se-explain-meta { display: flex; align-items: center; gap: 10px; }
 .se-explain-text { white-space: pre-line; line-height: 1.6; font-size: 14.5px; }
+
+/* what posting sends along, beside the primary button: "Bank mitposten" and "DMs an Spieler" as visible switches */
+.se-postopts { display: flex; align-items: center; gap: 4px 14px; flex-wrap: wrap; padding: 0 4px; }
+.se-postopt { white-space: nowrap; font-size: 13px; }
+
+/* "Freie Plätze füllen": the two ways as big choice cards */
+.se-fill { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.se-fill-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.se-fill-opt b { font-size: 14.5px; }
+.se-fill-opt span { font-size: 13px; color: var(--muted); line-height: 1.4; }
+.se-fill-opt:hover, .se-fill-opt:focus-visible { border-color: var(--accent); outline: none; }
+.se-fill-opt.is-on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+
+/* "Angemeldet" (#517), where the setup starts from: a column beside the groups where the editor is wide enough,
+   else docked at the bottom of the window (one row to scroll sideways). Decided on the editor's own width — the
+   page's side menu makes the window width a poor guide. The container sits around the layout only: containment on
+   the editor itself would trap the fixed raider drawer. */
+.se-stage { container: se-stage / inline-size; }
+.se-poolpanel { display: flex; flex-direction: column; gap: 10px; min-width: 0; box-sizing: border-box; padding: 12px; background: var(--panel); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 12px; transition: box-shadow .12s ease; }
+.se-poolpanel.se-over, .se-poolpanel.se-target { box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); }
+.se-pp-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.se-pp-title { font-weight: 800; font-size: 16px; cursor: help; }
+.se-pp-count { margin-left: 4px; font-size: 20px; color: var(--accent); }
+.se-pp-sub { color: var(--muted); font-size: 12.5px; }
+.se-pp-take { height: 32px; padding: 0 12px; margin-left: auto; }
+.se-pp-toggle { display: none; margin-left: auto; width: 32px; height: 32px; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); cursor: pointer; }
+.se-pp-toggle svg { width: 16px; height: 16px; transition: transform .15s ease; }
+.se-poolpanel.se-pp-collapsed .se-pp-toggle svg { transform: rotate(180deg); }
+.se-pp-take + .se-pp-toggle { margin-left: 0; }
+.se-pp-body { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.se-pp-tools { display: flex; flex-direction: column; gap: 8px; }
+.se-pp-search { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
+.se-pp-search:focus-within { border-color: var(--accent); }
+.se-pp-search svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.se-pp-search input { flex: 1 1 auto; min-width: 0; background: none; border: 0; outline: none; color: var(--text); font: inherit; font-size: 13.5px; }
+.se-pp-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.se-pp-chip { padding: 4px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel2); color: var(--text); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.se-pp-chip small { margin-left: 3px; color: var(--muted); font-weight: 700; }
+.se-pp-chip:hover { border-color: var(--accent); }
+.se-pp-chip.is-on { border-color: var(--accent); background: var(--accent-soft); }
+.se-pp-sections { display: flex; flex-direction: column; gap: 12px; }
+.se-pp-sec { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.se-pp-sec-head { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .03em; color: var(--muted); }
+.se-pp-sec-head small { font-weight: 600; opacity: .8; }
+.se-pp-sec-head::after { content: ""; flex: 1 1 auto; height: 1px; background: var(--line-soft); }
+.se-pp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.se-pp-empty { margin: 0; color: var(--muted); font-size: 13px; }
+.se-pp-absent { margin: 0; padding-top: 8px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; }
+
+/* wide: the groups left, "Angemeldet" as a column on the right that stays in view while the page scrolls —
+   only while somebody is in it; once everybody is placed it is one quiet line under the groups */
+@container se-stage (min-width: 1080px) {
+    .se-layout.se-with-pool { grid-template-columns: minmax(0, 1fr) clamp(280px, 24%, 360px); }
+    /* five groups still side by side next to the column: a little narrower cards while it stands there */
+    .se-with-pool .se-groups { grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)); }
+    .se-with-pool .se-poolpanel { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+}
+/* narrow: docked at the bottom of the window — one row to scroll sideways, folded by its arrow, and folded by
+   itself while one of its raiders is picked, so the free places to tap stay in view */
+@container se-stage (max-width: 1079.98px) {
+    .se-poolpanel { position: sticky; bottom: 0; z-index: 20; padding: 10px 12px; box-shadow: 0 -14px 32px -18px var(--shade-55); }
+    .se-pp-toggle { display: inline-flex; }
+    .se-pp-tools { flex-direction: row; flex-wrap: wrap; align-items: center; }
+    .se-pp-search { flex: 1 1 200px; max-width: 280px; height: 32px; }
+    .se-pp-sections { flex-direction: row; gap: 14px; overflow-x: auto; padding-bottom: 4px; }
+    .se-pp-sec { flex: 0 0 auto; }
+    .se-pp-sec-head::after { display: none; }
+    .se-pp-grid { display: flex; gap: 6px; }
+    .se-pp-grid .se-slot { width: 176px; flex: 0 0 auto; }
+    .se-pp-absent { display: none; }
+    .se-poolpanel.se-pp-collapsed .se-pp-body, .se-poolpanel.se-pp-picking .se-pp-body { display: none; }
+    /* everybody placed: no dock any more, just the quiet line under the groups */
+    .se-poolpanel.se-pp-none { position: static; box-shadow: none; }
+    .se-pp-none .se-pp-toggle { display: none; }
+}
 
 /* before the first proposal */
 .se-start { display: flex; align-items: center; gap: 16px; padding: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
