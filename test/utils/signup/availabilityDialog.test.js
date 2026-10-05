@@ -42,6 +42,32 @@ describe("Panel und Modal", () => {
         expect(embedOf(dialog.panelPayload()).title).toBe("Ab- & Anwesenheit");
     });
 
+    // Design A (Okt 2026): ein Satz, zwei Spalten, der DM-Hinweis in der Fußzeile.
+    it("das Panel sagt es in einem Satz, die zwei Arten nebeneinander und den DM-Hinweis unten", () => {
+        const embed = embedOf(dialog.panelPayload({ categoryId: "cat1", categoryName: "TBC Montag" }));
+        expect(embed.description).toBe("Trag einen Zeitraum ein – der Bot meldet dich für alle **TBC Montag**-Raids darin ab oder an.");
+        expect(embed.fields).toEqual([
+            { name: "🏖️ Nicht da", value: "Abgemeldet von jedem Raid im Zeitraum – auch von später angelegten", inline: true },
+            { name: "✅ Sicher dabei", value: "Angemeldet mit deinem Charakter als *Dabei*", inline: true },
+        ]);
+        expect(embed.footer.text).toBe("Pro Raid bekommst du eine DM · deine Anmeldung bleibt änderbar");
+        expect(embedOf(dialog.panelPayload()).description).toBe("Trag einen Zeitraum ein – der Bot meldet dich für alle Raids darin ab oder an.");
+    });
+
+    it("die Knöpfe sind kürzer als die Fenster, die sie öffnen", () => {
+        const labels = (lang) => dialog.panelPayload({ categoryId: "cat1", lang }).components[0].components.map((b) => b.data.label);
+        expect(labels("de")).toEqual(["Abwesend eintragen", "Dabei eintragen", "Meine Einträge"]);
+        expect(labels("en")).toEqual(["Mark absent", "Mark attending", "My entries"]);
+        expect(dialog.periodModal("absence", "cat1", "de").toJSON().title).toBe("Abwesenheit eintragen");
+    });
+
+    it("lässt die Deko vor dem Kategorienamen weg, behält aber einen Namen, der nur aus Deko besteht", () => {
+        expect(embedOf(dialog.panelPayload({ categoryName: "╭・ TBC Montag" })).title).toBe("Ab- & Anwesenheit · TBC Montag");
+        expect(embedOf(dialog.panelPayload({ categoryName: "🔥・Raids" })).description).toContain("**Raids**-Raids");
+        expect(embedOf(dialog.panelPayload({ categoryName: "  20er Raids " })).title).toBe("Ab- & Anwesenheit · 20er Raids");
+        expect(embedOf(dialog.panelPayload({ categoryName: "★★" })).title).toBe("Ab- & Anwesenheit · ★★");
+    });
+
     it("das Modal fragt den Zeitraum, bei der Abwesenheit auch den Grund", () => {
         const absence = dialog.periodModal("absence", "cat1").toJSON();
         expect(absence.custom_id).toBe("availability:ma:cat1");

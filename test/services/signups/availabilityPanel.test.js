@@ -46,7 +46,7 @@ describe("availabilityPanel", () => {
         await panel.postPanel({ categoryId: "cat1", channelId: "c1" });
         const de = discord.postPayload.mock.calls[0][1];
         expect((de.embeds[0].data || de.embeds[0]).title).toBe("Ab- & Anwesenheit · Raids TBC");
-        expect(de.components[0].components[0].data.label).toBe("Abwesenheit eintragen");
+        expect(de.components[0].components[0].data.label).toBe("Abwesend eintragen");
         mockConfig = { botLanguage: "en" };
         discord.editPayload.mockClear();
         expect(await panel.refreshPanels()).toEqual({ edited: 1, failed: 0, unchanged: 0 });
