@@ -35,10 +35,10 @@ module.exports = {
     "Reminder: please sign up or sign off for the raid ({until}).": "Erinnerung: Bitte melde dich für den Raid an oder ab ({until}).",
     // the event management (services/events/eventManage.js): the note on a move, the DMs
     "📅 **{title}** has been moved: now {when} ({relative}).": "📅 **{title}** wurde verschoben: jetzt {when} ({relative}).",
-    "❌ **{title}** on {when} has been cancelled.": "❌ **{title}** am {when} wurde abgesagt.",
-    "❌ **{title}** has been cancelled.": "❌ **{title}** wurde abgesagt.",
-    "🗑️ **{title}** on {when} will not take place — the event has been removed.": "🗑️ **{title}** am {when} findet nicht statt – das Event wurde entfernt.",
-    "🗑️ **{title}** will not take place — the event has been removed.": "🗑️ **{title}** findet nicht statt – das Event wurde entfernt.",
+    "{title} has been cancelled": "{title} wurde abgesagt",
+    "{title} will not take place": "{title} findet nicht statt",
+    "The event has been removed.": "Das Event wurde entfernt.",
+    "Go to the raid channel": "Zum Raid-Kanal",
     // the public event page (web/pages/eventPublicPage.js)
     "Cancelled": "Abgesagt",
     "Raid in progress": "Raid läuft",

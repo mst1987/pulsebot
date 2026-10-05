@@ -7,6 +7,8 @@
 // assigned to, or that two accounts claim, is reported instead of guessed.
 // Every send is remembered on the report (recommendationSent), so a second
 // click sends nothing twice unless the approved set changed.
+const { ButtonBuilder, ButtonStyle } = require("discord.js");
+const { card } = require("../../utils/discord/card");
 const { applyReview } = require("../../utils/logcheck/recommendations");
 const { publicBaseUrl } = require("../../config/variables");
 
@@ -44,23 +46,26 @@ function approvedPerPlayer(report) {
 const IMPACT_MARK = { high: "🔴", medium: "🟠", low: "🟢" };
 
 /**
- * The DM for one raider: an embed with a field per approved point (the raid
- * lead's own wording wins over the generated one) and the link to their page.
+ * The DM for one raider: one card with a block per approved point (the raid
+ * lead's own wording wins over the generated one) and the link to their page as a button.
  */
-function buildRaiderMessage(report, player, items, { embed }) {
+function buildRaiderMessage(report, player, items) {
     const idx = (report.roster || []).findIndex((p) => p.name === player.name);
     const url = idx >= 0 ? `${publicBaseUrl}/r/${report.id}/p/${idx}` : `${publicBaseUrl}/r/${report.id}`;
-    const e = embed()
-        .setTitle(`Deine Auswertung: ${report.title || "Raid"}`)
-        .setDescription(`Hallo ${player.name}, hier sind die Punkte aus dem Log${report.date ? ` vom ${String(report.date).split(",")[0]}` : ""}, die die Raidleitung für dich freigegeben hat.`)
-        .setURL(url);
-    for (const item of items.slice(0, 10)) {
-        // the raid lead's words, else Claude's phrasing, else the rule's text
-        e.addFields({ name: `${IMPACT_MARK[item.impact] || "•"} ${item.title}`.slice(0, 256), value: String(item.custom || item.ai || item.text || "–").slice(0, 1024) });
-    }
-    if (items.length > 10) e.addFields({ name: "…", value: `und ${items.length - 10} weitere Punkte auf deiner Seite.` });
-    e.setFooter({ text: "Alle Details, Grafiken und dein Gear findest du auf deiner Spielerseite." });
-    return { content: `Deine Auswertung ist da: ${url}`, embeds: [e] };
+    // the raid lead's words, else Claude's phrasing, else the rule's text
+    const fields = items.slice(0, 10).map((item) => ({
+        name: `${IMPACT_MARK[item.impact] || "•"} ${item.title}`.slice(0, 256),
+        value: String(item.custom || item.ai || item.text || "–").slice(0, 300),
+    }));
+    if (items.length > 10) fields.push({ name: "…", value: `und ${items.length - 10} weitere Punkte auf deiner Seite.` });
+    return card({
+        kind: "info",
+        title: `Deine Auswertung: ${report.title || "Raid"}`,
+        text: `Hallo ${player.name}, hier sind die Punkte aus dem Log${report.date ? ` vom ${String(report.date).split(",")[0]}` : ""}, die die Raidleitung für dich freigegeben hat.`,
+        fields,
+        buttons: [new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Zu deiner Auswertung").setURL(url)],
+        note: "Alle Details, Grafiken und dein Gear findest du auf deiner Spielerseite.",
+    });
 }
 
 /** The signature of a raider's approved set, so an unchanged set is not sent twice. */
@@ -72,7 +77,7 @@ function sentSignature(items) {
  * Send every raider their approved points.
  *
  * @param {object} report
- * @param {object} deps  { discord (sendDirectMessage, embed), assignments (raiderCharactersStore.listAllAssignments()), by, force?, only?: string[] }
+ * @param {object} deps  { discord (sendDirectMessage), assignments (raiderCharactersStore.listAllAssignments()), by, force?, only?: string[] }
  * @returns {{ sent: Array, skipped: Array, report: object }}  the report carries the updated recommendationSent
  */
 async function sendApproved(report, { discord, assignments, by = "", force = false, only = null }) {
@@ -88,7 +93,7 @@ async function sendApproved(report, { discord, assignments, by = "", force = fal
         const signature = sentSignature(p.items);
         const previous = record[p.name];
         if (!force && previous && previous.signature === signature) { skipped.push({ name: p.name, reason: "already_sent", message: `Bereits gesendet am ${new Date(previous.at).toLocaleString("de-DE")}.` }); continue; }
-        const payload = buildRaiderMessage(report, p, p.items, discord);
+        const payload = buildRaiderMessage(report, p, p.items);
         const result = await discord.sendDirectMessage(owner.userId, payload);
         if (!result.ok) { skipped.push({ name: p.name, reason: "dm_failed", message: `DM fehlgeschlagen: ${result.error}` }); continue; }
         record[p.name] = { at: Date.now(), by, userId: owner.userId, keys: p.items.map((i) => i.key), signature, messageId: result.messageId || "" };
