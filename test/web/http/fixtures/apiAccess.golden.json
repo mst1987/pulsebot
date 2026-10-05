@@ -198,7 +198,8 @@
     "/api/availability": "signup",
     "/api/availability/preview": "signup",
     "/api/availability/panels": "settings",
-    "/api/availability/panel": "settings"
+    "/api/availability/panel": "settings",
+    "/api/availability/links": "settings"
   },
   "ungated": [
     "/api/session",

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "./client";
 import {
     deleteAvailability, getAvailability, getAvailabilityPanels, postAvailabilityPanel, previewAvailability,
-    removeAvailabilityPanel, saveAvailability,
+    removeAvailabilityPanel, saveAvailability, saveAvailabilityLinks,
 } from "./availability";
 
 vi.mock("./client", async (orig) => ({ ...(await orig<typeof import("./client")>()), get: vi.fn(), send: vi.fn() }));
@@ -40,5 +40,11 @@ describe("availability api", () => {
         expect(client.send).toHaveBeenLastCalledWith("POST", "/api/availability/panel", { categoryId: "c1", channelId: "ch1" });
         await removeAvailabilityPanel("c1");
         expect(client.send).toHaveBeenLastCalledWith("DELETE", "/api/availability/panel", { categoryId: "c1" });
+    });
+
+    it("replaces a category's organizer links with PUT", async () => {
+        const links = [{ label: "WCL", url: "https://www.warcraftlogs.com/x" }];
+        await saveAvailabilityLinks("c1", links);
+        expect(client.send).toHaveBeenLastCalledWith("PUT", "/api/availability/links", { categoryId: "c1", links });
     });
 });

@@ -21,13 +21,17 @@ Technik: [signups.md](signups.md), [bot-commands.md](bot-commands.md)
 - Jede Rückmeldung des Bots zur Anmeldung (gespeichert, abgemeldet, Warteliste, Fehler wie „Event gibt es nicht mehr“) kommt als kleine Karte in der Farbe des Raids, nur für dich sichtbar: oben „Saved for <Raid>“, darunter deine Charaktere mit Spec-Icon und Status, der Raidbeginn in deiner Ortszeit und ggf. der Warteliste-Hinweis.
 - Hat die Orga eine Spielversion ausgeblendet (z. B. TBC nach dem Umstieg auf Forever), antworten die Buttons alter Nachrichten dieser Version nur noch mit der Karte „This raid is archived“ – Anmelden und Ändern gehen dort nicht mehr, gelöscht wird nichts.
 - `/profil` zeigt eine kurze Zusammenfassung des eigenen Profils, mit Buttons um "kann Offtank/Heilen" für deinen ersten Charakter zu setzen, plus Link zur eigenen Profilseite im Web.
-- **Ab- und Anwesenheit:** Mit `/availability` oder den Knöpfen des Panels im Kanal deiner Raid-Kategorie trägst du einen Zeitraum ein:
-  - **Enter absence** (Von, Bis, optional ein Grund): Du wirst von den Raids in dieser Zeit abgemeldet, auch wenn du schon angemeldet warst.
-  - **Enter attendance** (Von, Bis, dann Charakter und Spec): Du wirst für die Raids in dieser Zeit als „Dabei" angemeldet. Eine bestehende An- oder Abmeldung wird dabei nie überschrieben.
+- **Raid-Zentrale:** Im Kanal deiner Raid-Kategorie steht eine Nachricht mit allem für deine Raids:
+  - **Nächster Raid** mit Datum, „in 3 Tagen“ und wie viele angemeldet sind. **Mein Raid** zeigt nur dir, ob und mit welchem Charakter du angemeldet bist, mit Links zur Anmeldung und zum Raidplan.
+  - **Auswertung** zeigt nur dir die neueste Log-Auswertung mit einem deiner Charaktere und führt zu deiner Seite darin und zu deinem Profil.
+  - **Links** der Orga, z. B. die Warcraft-Logs-Einladung oder ein Info-Sheet.
+- **Ab- und Anwesenheit:** Mit `/availability` oder den Knöpfen in der Raid-Zentrale trägst du einen Zeitraum ein:
+  - **Abwesend eintragen** (Von, Bis, optional ein Grund): Du wirst von den Raids in dieser Zeit abgemeldet, auch wenn du schon angemeldet warst.
+  - **Dabei eintragen** (Von, Bis, dann Charakter und Spec): Du wirst für die Raids in dieser Zeit als „Dabei" angemeldet. Eine bestehende An- oder Abmeldung wird dabei nie überschrieben.
   - Vor dem Speichern siehst du die Raids des Zeitraums und kannst einzelne abwählen.
   - Raids, die später in diesem Zeitraum angelegt werden, folgen automatisch.
   - Für jeden Raid, für den der Bot dich an- oder abmeldet, bekommst du eine DM.
-  - **My entries** zeigt deine Einträge. Dort löschst du einen; die An- und Abmeldungen, die er schon gemacht hat, bleiben.
+  - **Meine Einträge** zeigt deine Einträge. Dort löschst du einen; die An- und Abmeldungen, die er schon gemacht hat, bleiben.
 
 Für eine **neue** Anmeldung braucht man ggf. eine Raider-Rolle der jeweiligen Kategorie — eine bereits bestehende Anmeldung lässt sich aber immer noch ändern.
 

@@ -320,6 +320,12 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .cat-panel > select { flex: 1 1 180px; min-width: 0; font-size: 13px; }
 .cat-panel-state { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 .cat-panel-state > .note { margin: 0; }
+.cat-links { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); align-self: stretch; }
+.cat-links > .note { margin: 0; }
+.cat-link-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cat-link-row > input[type="text"] { flex: 1 1 140px; min-width: 0; font-size: 13px; }
+.cat-link-row > input[type="url"] { flex: 2 1 220px; min-width: 0; font-size: 13px; }
+.cat-links-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .rch-summary { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; flex-wrap: wrap; }
 .sheet-field { display: flex; gap: 10px; align-items: flex-start; }
 .sheet-field > .wi { margin-top: 9px; border-radius: 4px; }

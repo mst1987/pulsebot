@@ -91,7 +91,7 @@ beforeEach(() => {
     vi.mocked(api.getSettings).mockReset().mockResolvedValue(settings());
     vi.mocked(api.updateSettings).mockReset().mockImplementation(async (partial) => ({ config: { ...config(), ...partial } as AdminConfig }));
     vi.mocked(api.getIngestTokens).mockReset().mockResolvedValue({ tokens: [] });
-    vi.mocked(api.getAvailabilityPanels).mockReset().mockResolvedValue({ panels: [{ categoryId: "cat1", channelId: "n1", postedAt: 1, url: "" }] });
+    vi.mocked(api.getAvailabilityPanels).mockReset().mockResolvedValue({ panels: [{ categoryId: "cat1", channelId: "n1", postedAt: 1, url: "" }], links: {}, maxLinks: 5 });
 });
 
 describe("the section rail", () => {
