@@ -71,3 +71,81 @@ describe("Panels", () => {
         expect(store.getPanel("cat1")).toBeNull();
     });
 });
+
+describe("Links des Organizers", () => {
+    const link = (label = "WCL", url = "https://www.warcraftlogs.com/x") => ({ label, url });
+    beforeEach(() => {
+        for (const id of Object.keys(store.listLinks())) store.setLinks(id, []);
+    });
+
+    it("prüft die Links: Grenzen, Text, Adresse", () => {
+        expect(store.MAX_LINKS).toBe(5);
+        expect(store.LINK_LABEL_MAX).toBe(40);
+        expect(store.checkLinks([link(), link("Sheet", "http://example.com/a")])).toEqual({ value: [link(), link("Sheet", "http://example.com/a")] });
+        expect(store.checkLinks(Array.from({ length: 6 }, (_, i) => link(`L${i}`))).error).toBe("Höchstens 5 Links je Kategorie.");
+        expect(store.checkLinks([link("", "https://x.example")]).error).toBe("Der Link „https://x.example“ braucht einen Text.");
+        expect(store.checkLinks([link("a".repeat(41))]).error).toBe(`„${"a".repeat(41)}“ ist zu lang (höchstens 40 Zeichen).`);
+        expect(store.checkLinks([link("a".repeat(40))]).value).toHaveLength(1);
+        expect(store.checkLinks([link("Ohne Adresse", "")]).error).toBe("„Ohne Adresse“ braucht eine Adresse mit https://.");
+        for (const url of ["ftp://x.example", "javascript:alert(1)", "www.x.example", "https://x .example", "https://"]) {
+            expect(store.checkLinks([link("Bad", url)]).error).toBe("„Bad“ braucht eine Adresse mit https://.");
+        }
+    });
+
+    it("schneidet Text und Adresse zu und lässt ganz leere Zeilen weg", () => {
+        expect(store.checkLinks([{ label: "  Info  ", url: "  https://x.example  " }, { label: " ", url: "" }, null, {}])).toEqual({ value: [{ label: "Info", url: "https://x.example" }] });
+        expect(store.checkLinks(undefined)).toEqual({ value: [] });
+        expect(store.checkLinks("kaputt")).toEqual({ value: [] });
+    });
+
+    it("zählt beim Text Zeichen, nicht UTF-16-Einheiten", () => {
+        expect(store.checkLinks([link("🔥".repeat(40))]).value).toHaveLength(1);
+        expect(store.checkLinks([link("🔥".repeat(41))]).error).toContain("zu lang");
+    });
+
+    it("speichert die Links je Kategorie und liest sie in Reihenfolge", () => {
+        expect(store.getLinks("cat1")).toEqual([]);
+        expect(store.setLinks("cat1", [link("B"), link("A", "https://a.example")])).toEqual({ links: [link("B"), link("A", "https://a.example")] });
+        store.setLinks("cat2", [link("C", "https://c.example")]);
+        expect(store.getLinks("cat1").map((l) => l.label)).toEqual(["B", "A"]);
+        expect(store.listLinks()).toEqual({ cat1: [link("B"), link("A", "https://a.example")], cat2: [link("C", "https://c.example")] });
+    });
+
+    it("ersetzt die Links einer Kategorie und entfernt sie mit einer leeren Liste", () => {
+        store.setLinks("cat1", [link()]);
+        store.setLinks("cat1", [link("Neu", "https://neu.example")]);
+        expect(store.getLinks("cat1")).toEqual([link("Neu", "https://neu.example")]);
+        expect(store.setLinks("cat1", [])).toEqual({ links: [] });
+        expect(store.getLinks("cat1")).toEqual([]);
+        expect(store.listLinks()).toEqual({});
+        // a list of empty rows counts as empty, too
+        store.setLinks("cat1", [link()]);
+        store.setLinks("cat1", [{ label: "", url: "" }]);
+        expect(store.listLinks()).toEqual({});
+    });
+
+    it("sagt Fehler und speichert dann nichts, auch ohne Kategorie", () => {
+        store.setLinks("cat1", [link()]);
+        expect(store.setLinks("cat1", [link("", "https://x.example")]).error).toContain("braucht einen Text");
+        expect(store.getLinks("cat1")).toEqual([link()]);
+        expect(store.setLinks("", [link()])).toEqual({ error: "Keine Kategorie gewählt." });
+        expect(store.setLinks(undefined, [link()]).error).toBe("Keine Kategorie gewählt.");
+        expect(store.listLinks()).toEqual({ cat1: [link()] });
+    });
+
+    it("behält die Links, wenn das Panel neu gepostet oder entfernt wird", () => {
+        store.setLinks("cat1", [link()]);
+        store.setPanel({ categoryId: "cat1", guildId: "g", channelId: "c1", messageId: "m1" });
+        store.setPanel({ categoryId: "cat1", guildId: "g", channelId: "c2", messageId: "m2" });
+        store.markPanelDrawn("cat1", "h");
+        expect(store.getLinks("cat1")).toEqual([link()]);
+        store.removePanel("cat1");
+        expect(store.getLinks("cat1")).toEqual([link()]);
+    });
+
+    it("liefert Kopien, die den Store nicht verändern", () => {
+        store.setLinks("cat1", [link()]);
+        store.getLinks("cat1")[0].label = "geändert";
+        expect(store.getLinks("cat1")[0].label).toBe("WCL");
+    });
+});

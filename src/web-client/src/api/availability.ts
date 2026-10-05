@@ -106,8 +106,24 @@ export function deleteAvailability(id: string): Promise<{ id: string }> {
     return send("DELETE", "/api/availability", { id });
 }
 
-export function getAvailabilityPanels(): Promise<{ panels: AvailabilityPanel[] }> {
+/** One link button of a category's raider organizer in Discord. */
+export type AvailabilityLink = { label: string; url: string };
+
+export type AvailabilityPanelsData = {
+    panels: AvailabilityPanel[];
+    /** The organizer's link buttons per category id. */
+    links: Record<string, AvailabilityLink[]>;
+    /** How many links one category may have. */
+    maxLinks: number;
+};
+
+export function getAvailabilityPanels(): Promise<AvailabilityPanelsData> {
     return get("/api/availability/panels");
+}
+
+/** Replace a category's link buttons; empty rows are dropped, an empty list removes them. */
+export function saveAvailabilityLinks(categoryId: string, links: AvailabilityLink[]): Promise<{ categoryId: string; links: AvailabilityLink[] }> {
+    return send("PUT", "/api/availability/links", { categoryId, links });
 }
 
 export function postAvailabilityPanel(categoryId: string, channelId: string): Promise<{ panel: AvailabilityPanel }> {

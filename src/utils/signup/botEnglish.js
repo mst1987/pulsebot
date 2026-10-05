@@ -81,6 +81,12 @@ const RULES = [
     [/^Höchstens (\d+) Einträge – lösche zuerst einen alten\.$/, "At most $1 entries – delete an old one first."],
     [/^Der Zeitraum liegt schon in der Vergangenheit\.$/, "That period is already over."],
     [/^Höchstens (\d+) Tage auf einmal\.$/, "At most $1 days at once."],
+    // the organizer's links (availabilityStore.checkLinks)
+    [/^Keine Kategorie gewählt\.$/, "No category picked."],
+    [/^Höchstens (\d+) Links je Kategorie\.$/, "At most $1 links per category."],
+    [/^Der Link „(.+)“ braucht einen Text\.$/, "The link “$1” needs a label."],
+    [/^„(.+)“ ist zu lang \(höchstens (\d+) Zeichen\)\.$/, "“$1” is too long (at most $2 characters)."],
+    [/^„(.+)“ braucht eine Adresse mit https:\/\/\.$/, "“$1” needs an address starting with https://."],
     [/^Diese Spec hat der Charakter im Profil nicht\.$/, "Your profile does not have this spec for the character."],
     [/^Eintrag nicht gefunden\.$/, "Entry not found."],
 ];

@@ -18,6 +18,7 @@ const discord = require("../../../src/services/discord/discord");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const store = require("../../../src/stores/availabilityStore");
 const availability = require("../../../src/services/signups/availability");
+const organizer = require("../../../src/services/signups/organizer");
 const command = require("../../../src/commands/signup/availability");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
@@ -194,5 +195,79 @@ describe("Meine Einträge", () => {
         await command.execute(list);
         expect(list.update).toHaveBeenCalled();
         expect(list.reply).not.toHaveBeenCalled();
+    });
+});
+
+describe("Raider-Organizer: Mein Raid und Auswertung", () => {
+    const embedOf = (payload) => payload.embeds[0].data || payload.embeds[0];
+    const buttonsOf = (payload) => payload.components.flatMap((r) => r.toJSON().components);
+
+    it("Mein Raid nennt den nächsten Raid der Kategorie und die eigene Anmeldung, nur für den Raider", async () => {
+        mocks.signups.set(`eh-a/${ANNA}`, { userId: ANNA, status: "tentative", character: "Zibbo", spec: "Priest-Holy" });
+        const i = click("availability:r:cat1");
+        await command.execute(i);
+        const payload = replyPayload(i);
+        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(embedOf(payload).title).toBe("Raid eh-a");
+        expect(embedOf(payload).description).toContain("You are tentatively signed up as **Zibbo** · Holy.");
+        expect(i.showModal).not.toHaveBeenCalled();
+    });
+
+    it("Mein Raid sagt, wenn der Raider nicht angemeldet ist, und wählt den früheren Raid der Kategorie", async () => {
+        const i = click("availability:r:cat1");
+        await command.execute(i);
+        expect(embedOf(replyPayload(i)).title).toBe("Raid eh-a");
+        expect(embedOf(replyPayload(i)).description).toContain("You are not signed up yet.");
+        const other = click("availability:r:cat2");
+        await command.execute(other);
+        expect(embedOf(replyPayload(other)).title).toBe("Raid eh-c");
+    });
+
+    it("Mein Raid ohne Raid in der Kategorie sagt es und trägt keine Knöpfe", async () => {
+        const i = click("availability:r:cat9");
+        await command.execute(i);
+        const payload = replyPayload(i);
+        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(embedOf(payload)).toMatchObject({ title: "Next raid", description: "No raid planned yet." });
+        expect(payload.components).toEqual([]);
+    });
+
+    it("Mein Raid spricht Deutsch, wenn der Server Deutsch spricht", async () => {
+        mocks.access.config = {};
+        const i = click("availability:r:cat1");
+        await command.execute(i);
+        expect(embedOf(replyPayload(i)).description).toContain("Du bist noch nicht angemeldet.");
+    });
+
+    it("Auswertung zeigt die neueste Auswertung mit eigenem Charakter und die Knöpfe", async () => {
+        const spy = jest.spyOn(organizer, "latestReportFor").mockReturnValue({ id: "abc123", title: "Kara Clear", generatedAt: 1900000000000, character: "Zibbo", idx: 4 });
+        try {
+            const i = click("availability:o:cat1");
+            await command.execute(i);
+            const payload = replyPayload(i);
+            expect(spy).toHaveBeenCalledWith(ANNA);
+            expect(payload.flags).toBe(MessageFlags.Ephemeral);
+            expect(embedOf(payload).title).toBe("Your evaluation");
+            expect(embedOf(payload).description).toBe("**Kara Clear** · <t:1900000000:D>\nYour character: **Zibbo**");
+            expect(buttonsOf(payload).map((b) => [b.label, b.url])).toEqual([
+                ["Open evaluation", "https://eh.example/r/abc123/p/4"],
+                ["My profile", "https://eh.example/profile"],
+            ]);
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
+    it("Auswertung ohne Treffer verweist aufs Profil", async () => {
+        const spy = jest.spyOn(organizer, "latestReportFor").mockReturnValue(null);
+        try {
+            const i = click("availability:o:cat1");
+            await command.execute(i);
+            const payload = replyPayload(i);
+            expect(embedOf(payload).description).toContain("No evaluation with one of your characters yet.");
+            expect(buttonsOf(payload).map((b) => b.label)).toEqual(["My profile"]);
+        } finally {
+            spy.mockRestore();
+        }
     });
 });

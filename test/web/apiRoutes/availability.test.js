@@ -20,6 +20,7 @@ jest.mock("../../../src/services/signups/availabilityPanel", () => ({
     categoryNameFor: (id) => (id === "cat1" ? "Raids TBC" : ""),
     postPanel: jest.fn(),
     removePanel: jest.fn(),
+    refreshPanels: jest.fn(async () => ({ edited: 1, failed: 0, unchanged: 0 })),
 }));
 
 const { readJsonBody } = require("../../../src/web/http/apiBody");
@@ -149,5 +150,67 @@ describe("Panels", () => {
         panel.removePanel.mockResolvedValueOnce({ categoryId: "cat1" }).mockResolvedValueOnce(null);
         expect(json(await call("DELETE", "/api/availability/panel", ORGA, { json: { categoryId: "cat1" } })).data).toEqual({ categoryId: "cat1" });
         expect(status(await call("DELETE", "/api/availability/panel", ORGA, { json: { categoryId: "cat1" } }))).toBe(404);
+    });
+});
+
+describe("Links des Organizers", () => {
+    const wcl = { label: "WCL", url: "https://www.warcraftlogs.com/x" };
+    beforeEach(() => {
+        for (const id of Object.keys(store.listLinks())) store.setLinks(id, []);
+    });
+
+    it("GET panels liefert die Links je Kategorie und die Obergrenze mit", async () => {
+        store.setLinks("cat1", [wcl]);
+        const data = json(await call("GET", "/api/availability/panels", ORGA)).data;
+        expect(data.links).toEqual({ cat1: [wcl] });
+        expect(data.maxLinks).toBe(5);
+        expect(data.panels).toEqual(expect.any(Array));
+    });
+
+    it("GET panels ohne Links liefert ein leeres Objekt", async () => {
+        const data = json(await call("GET", "/api/availability/panels", ORGA)).data;
+        expect(data).toMatchObject({ links: {}, maxLinks: 5 });
+    });
+
+    it("PUT links speichert zugeschnittene Links und zeichnet das Panel der Kategorie neu", async () => {
+        const res = await call("PUT", "/api/availability/links", ORGA, {
+            json: { categoryId: "cat1", links: [{ label: "  WCL ", url: " https://www.warcraftlogs.com/x " }, { label: "", url: "" }] },
+        });
+        expect(status(res)).toBe(200);
+        expect(json(res).data).toEqual({ categoryId: "cat1", links: [wcl] });
+        expect(store.getLinks("cat1")).toEqual([wcl]);
+        expect(panel.refreshPanels).toHaveBeenCalledWith({ categoryId: "cat1" });
+    });
+
+    it("PUT links mit leerer Liste entfernt die Links", async () => {
+        store.setLinks("cat1", [wcl]);
+        const res = await call("PUT", "/api/availability/links", ORGA, { json: { categoryId: "cat1", links: [] } });
+        expect(json(res).data).toEqual({ categoryId: "cat1", links: [] });
+        expect(store.listLinks()).toEqual({});
+    });
+
+    it("PUT links gibt den Fehler als 400 zurück und speichert nichts", async () => {
+        store.setLinks("cat1", [wcl]);
+        const res = await call("PUT", "/api/availability/links", ORGA, { json: { categoryId: "cat1", links: [{ label: "Info", url: "ftp://x" }] } });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.message).toBe("„Info“ braucht eine Adresse mit https://.");
+        expect(store.getLinks("cat1")).toEqual([wcl]);
+        expect(panel.refreshPanels).not.toHaveBeenCalled();
+
+        const noCat = await call("PUT", "/api/availability/links", ORGA, { json: { links: [wcl] } });
+        expect(status(noCat)).toBe(400);
+        expect(json(noCat).error.message).toBe("Keine Kategorie gewählt.");
+    });
+
+    it("PUT links wartet nicht auf Discord und übersteht einen Fehler beim Neuzeichnen", async () => {
+        panel.refreshPanels.mockRejectedValueOnce(new Error("offline"));
+        const res = await call("PUT", "/api/availability/links", ORGA, { json: { categoryId: "cat1", links: [wcl] } });
+        expect(status(res)).toBe(200);
+    });
+
+    it("beide Link-Routen gehören zum Bereich Einstellungen", () => {
+        for (const [method, path] of [["GET", "/api/availability/panels"], ["PUT", "/api/availability/links"]]) {
+            expect(route.routes.find((r) => r.method === method && r.path === path).area).toBe("settings");
+        }
     });
 });

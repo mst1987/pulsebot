@@ -32,40 +32,26 @@ describe("customIds", () => {
     });
 });
 
-describe("Panel und Modal", () => {
-    it("das Panel nennt die Kategorie und trägt drei Knöpfe", () => {
-        const payload = dialog.panelPayload({ categoryId: "cat1", categoryName: "Raids TBC", lang: "en" });
-        expect(embedOf(payload).title).toBe("Absence & attendance · Raids TBC");
-        expect(embedOf(payload).description).toContain("every **Raids TBC** raid");
-        expect(ids(payload)).toEqual(["availability:a:cat1", "availability:p:cat1", "availability:l:cat1"]);
-        expect(embedOf(dialog.panelPayload({ lang: "en" })).title).toBe("Absence & attendance");
-        expect(embedOf(dialog.panelPayload()).title).toBe("Ab- & Anwesenheit");
-    });
-
-    // Design A (Okt 2026): ein Satz, zwei Spalten, der DM-Hinweis in der Fußzeile.
-    it("das Panel sagt es in einem Satz, die zwei Arten nebeneinander und den DM-Hinweis unten", () => {
-        const embed = embedOf(dialog.panelPayload({ categoryId: "cat1", categoryName: "TBC Montag" }));
-        expect(embed.description).toBe("Trag einen Zeitraum ein – der Bot meldet dich für alle **TBC Montag**-Raids darin ab oder an.");
-        expect(embed.fields).toEqual([
-            { name: "🏖️ Nicht da", value: "Abgemeldet von jedem Raid im Zeitraum – auch von später angelegten", inline: true },
-            { name: "✅ Sicher dabei", value: "Angemeldet mit deinem Charakter als *Dabei*", inline: true },
-        ]);
-        expect(embed.footer.text).toBe("Pro Raid bekommst du eine DM · deine Anmeldung bleibt änderbar");
-        expect(embedOf(dialog.panelPayload()).description).toBe("Trag einen Zeitraum ein – der Bot meldet dich für alle Raids darin ab oder an.");
+describe("Knöpfe und Modal", () => {
+    it("die drei Knöpfe tragen die customIds der Kategorie", () => {
+        const row = dialog.panelButtons("cat1", "en").toJSON();
+        expect(row.components.map((b) => b.custom_id)).toEqual(["availability:a:cat1", "availability:p:cat1", "availability:l:cat1"]);
+        expect(dialog.panelButtons().toJSON().components.map((b) => b.custom_id)).toEqual(["availability:a:", "availability:p:", "availability:l:"]);
     });
 
     it("die Knöpfe sind kürzer als die Fenster, die sie öffnen", () => {
-        const labels = (lang) => dialog.panelPayload({ categoryId: "cat1", lang }).components[0].components.map((b) => b.data.label);
+        const labels = (lang) => dialog.panelButtons("cat1", lang).toJSON().components.map((b) => b.label);
         expect(labels("de")).toEqual(["Abwesend eintragen", "Dabei eintragen", "Meine Einträge"]);
         expect(labels("en")).toEqual(["Mark absent", "Mark attending", "My entries"]);
         expect(dialog.periodModal("absence", "cat1", "de").toJSON().title).toBe("Abwesenheit eintragen");
     });
 
     it("lässt die Deko vor dem Kategorienamen weg, behält aber einen Namen, der nur aus Deko besteht", () => {
-        expect(embedOf(dialog.panelPayload({ categoryName: "╭・ TBC Montag" })).title).toBe("Ab- & Anwesenheit · TBC Montag");
-        expect(embedOf(dialog.panelPayload({ categoryName: "🔥・Raids" })).description).toContain("**Raids**-Raids");
-        expect(embedOf(dialog.panelPayload({ categoryName: "  20er Raids " })).title).toBe("Ab- & Anwesenheit · 20er Raids");
-        expect(embedOf(dialog.panelPayload({ categoryName: "★★" })).title).toBe("Ab- & Anwesenheit · ★★");
+        expect(dialog.plainCategoryName("╭・ TBC Montag")).toBe("TBC Montag");
+        expect(dialog.plainCategoryName("🔥・Raids")).toBe("Raids");
+        expect(dialog.plainCategoryName("  20er Raids ")).toBe("20er Raids");
+        expect(dialog.plainCategoryName("★★")).toBe("★★");
+        expect(dialog.plainCategoryName("")).toBe("");
     });
 
     it("das Modal fragt den Zeitraum, bei der Abwesenheit auch den Grund", () => {

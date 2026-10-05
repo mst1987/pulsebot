@@ -9,6 +9,7 @@
 // GET    /api/availability/panels         area settings — the posted Discord panels per raid category
 // POST   /api/availability/panel          area settings — post a category's panel; body { categoryId, channelId }
 // DELETE /api/availability/panel          area settings — take it down; body { categoryId }
+// PUT    /api/availability/links          area settings — a category's organizer links; body { categoryId, links: [{ label, url }] }
 //
 // Everything works on the session's own account. A `userId` of somebody else
 // counts only for the orga (`raids` write), who enters for a raider who told
@@ -147,9 +148,18 @@ function panelView(panel) {
     };
 }
 
-/** GET /api/availability/panels — the posted panels. */
+/** GET /api/availability/panels — the posted panels and every category's links. */
 const getPanels = withUser({}, async ({ res }) => {
-    ok(res, { panels: availabilityStore.listPanels().map(panelView) });
+    ok(res, { panels: availabilityStore.listPanels().map(panelView), links: availabilityStore.listLinks(), maxLinks: availabilityStore.MAX_LINKS });
+});
+
+/** PUT /api/availability/links — replace a category's link buttons; its posted panel is redrawn at once. */
+const putLinks = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const result = availabilityStore.setLinks(body.categoryId, body.links);
+    if (result.error) return apiError(res, 400, "bad_request", result.error);
+    // not awaited: a Discord edit is slow and never holds up the save
+    availabilityPanel.refreshPanels({ categoryId: str(body.categoryId) }).catch(() => {});
+    ok(res, { categoryId: str(body.categoryId), links: result.links });
 });
 
 /** POST /api/availability/panel — post (or move) a category's panel. */
@@ -175,6 +185,7 @@ const routes = [
     { method: "GET", path: "/api/availability/panels", handler: getPanels, area: "settings" },
     { method: "POST", path: "/api/availability/panel", handler: postPanel, area: "settings" },
     { method: "DELETE", path: "/api/availability/panel", handler: deletePanel, area: "settings" },
+    { method: "PUT", path: "/api/availability/links", handler: putLinks, area: "settings" },
 ];
 
 module.exports = { routes, _internal: { entryView, characterChoices, targetOf } };
