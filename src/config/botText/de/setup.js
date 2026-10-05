@@ -7,11 +7,13 @@ module.exports = {
     "View the comp": "Comp ansehen",
     "Group {index}": "Gruppe {index}",
     "Approved setup · version {version}": "Freigegebenes Setup · Version {version}",
-    // the DMs
-    "**Setup for {title}**": "**Setup für {title}**",
+    // the DMs (one card each)
+    "Setup for {title}": "Setup für {title}",
+    "Group {group} as {role}": "Gruppe {group} als {role}",
+    "On the bench": "Auf der Bank",
+    "Start": "Start",
     "This time on the **bench**{who} – next time you have priority.": "Diesmal auf der **Bank**{who} – nächstes Mal hast du Vorrang.",
     "This time on the **bench**{who}.": "Diesmal auf der **Bank**{who}.",
-    "You are in **Group {group}** as **{role}**{who}.": "Du bist in **Gruppe {group}** als **{role}**{who}.",
     "Go to the setup": "Zum Setup",
     // "Ping everyone" without a text of the orga
     "📋 The setup is up — you're in!": "📋 Das Setup steht – du bist dabei!",

@@ -1,5 +1,6 @@
 const { ButtonStyle } = require("discord.js");
 const post = require("../../../src/utils/signup/guildBankPost");
+const { cardText } = require("../../helpers/cardText");
 
 const REQUEST = {
     id: "abc123", userId: "200000000000000001", userName: "Anna_*", categoryId: "cat1",
@@ -29,10 +30,10 @@ describe("utils/signup/guildBankPost", () => {
     });
 
     it("writes the DM in the raider's language", () => {
-        expect(post.decisionText({ ...REQUEST, status: "done" }, "de")).toBe("🏦 Deine Anfrage **12× Super Mana Potion** ist erledigt.");
-        expect(post.decisionText({ ...REQUEST, status: "done" }, "en")).toBe("🏦 Your request **12× Super Mana Potion** is done.");
-        expect(post.decisionText({ ...REQUEST, status: "rejected", reason: "leer" }, "en")).toBe("🏦 Your request **12× Super Mana Potion** was declined: leer");
-        expect(post.decisionText({ ...REQUEST, status: "rejected" }, "de")).toBe("🏦 Deine Anfrage **12× Super Mana Potion** wurde abgelehnt.");
+        expect(cardText(post.decisionCard({ ...REQUEST, status: "done" }, "de"))).toBe("-# Gildenbank\n## Anfrage erledigt\n**12× Super Mana Potion**");
+        expect(cardText(post.decisionCard({ ...REQUEST, status: "done" }, "en"))).toBe("-# Guild bank\n## Request done\n**12× Super Mana Potion**");
+        expect(cardText(post.decisionCard({ ...REQUEST, status: "rejected", reason: "leer" }, "en"))).toBe("-# Guild bank\n## Request declined\n**12× Super Mana Potion**\nReason: leer");
+        expect(cardText(post.decisionCard({ ...REQUEST, status: "rejected" }, "de"))).toBe("-# Gildenbank\n## Anfrage abgelehnt\n**12× Super Mana Potion**");
     });
 
     it("posts an open request to the orga in German, amber, with both buttons", () => {
