@@ -1,22 +1,15 @@
-import { useEffect, useRef } from "react";
 import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BringToFront, Copy, SendToBack, Trash2 } from "lucide-react";
 import type { RaidplanBoard } from "../../../api";
-import { IconButton } from "../../../components/ui";
+import { IconButton, Switch } from "../../../components/ui";
 import { NumberField, SliderField } from "../../../components/raidplan/NumberField";
 import { alignSelection, resizeSelection, deleteSelection, duplicateSelection, lookSummary, optionSummary, patchArrowSelection, reorderSelection, roleZoneSummary, roleZonesOf, scaleSelection, setColorSelection, setFacingSelection, setRingSelection, setBadgeSelection, setRoleZoneSelection, selectionBox, setLookSelection, sharedOptions, type BoardPx, type SelItem } from "../../../lib/raidplan/multiSelect";
 import { AREA_STYLES, ARROW_COLOR, ARROW_MAX, ARROW_MIN, COMPASS, COMPASS_NAMES, LABEL_POS, clampOpacity } from "../../../lib/raidplan";
 import { BADGE_SCALE_MAX, BADGE_SCALE_MIN, badgeScaleOf } from "../../../lib/raidplan/labelScale";
 import { useT } from "../../../i18n";
 
-/** A checkbox that can say "mixed" (some of the selection have it, some not). */
+/** A switch that can say "mixed" (some of the selection have it, some not): the thumb in the middle. */
 function TriCheck({ label, value, disabled, onChange }: { label: string; value: boolean | null; disabled: boolean; onChange: (v: boolean) => void }) {
-    const ref = useRef<HTMLInputElement>(null);
-    useEffect(() => { if (ref.current) ref.current.indeterminate = value === null; }, [value]);
-    return (
-        <label className="rp-check">
-            <input ref={ref} type="checkbox" checked={value === true} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /> {label}
-        </label>
-    );
+    return <Switch className="rp-check" label={label} checked={value === true} mixed={value === null} disabled={disabled} onChange={onChange} />;
 }
 
 const COMPASS_ARROWS = ["\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u2199", "\u2190", "\u2196"];

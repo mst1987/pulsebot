@@ -95,7 +95,7 @@ describe("PlanPublicPage — highlighting a group (#512)", () => {
         const { r, chip } = await open();
         await userEvent.click(chip(2));
         await userEvent.click(screen.getByRole("button", { name: /Alle 1 Abschnitte/ }));
-        await userEvent.click(screen.getByRole("checkbox", { name: /Nur für mich/ }));
+        await userEvent.click(screen.getByRole("switch", { name: /Nur für mich/ }));
         expect(wraps(r.container)[1]).toHaveClass("is-focus");
         expect(wraps(r.container)[0]).toHaveClass("rp-gdim");
         // the open section stays, the visitor's card shows his own task

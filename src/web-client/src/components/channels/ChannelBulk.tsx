@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
     renamePreview, type ApiError, type Channel, type ChannelChanges, type ChannelsData, type RenamePreviewRow,
 } from "../../api";
-import { Badge, Button, Modal } from "../ui";
+import { Badge, Button, Modal, Switch } from "../ui";
 import { PencilIcon } from "./channelBits";
 import MoreMenu from "./MoreMenu";
 import NamingBadge from "./NamingBadge";
@@ -117,10 +117,7 @@ export function BulkEditDialog({ channels, data, focus, onClose, onApply }: {
                     <div className="kn-input">
                         <input id="kn-bulk-topic" type="text" value={clearTopic ? "" : topic} disabled={clearTopic} maxLength={1024} onChange={(e) => setTopic(e.target.value)} placeholder={clearTopic ? t("channels.bulk.topicCleared") : t("channels.unchanged")} />
                     </div>
-                    <label className="kn-check">
-                        <input type="checkbox" className="kn-cb" checked={clearTopic} onChange={(e) => setClearTopic(e.target.checked)} />
-                        {t("channels.bulk.clearTopic")}
-                    </label>
+                    <Switch className="kn-check" checked={clearTopic} onChange={setClearTopic} label={t("channels.bulk.clearTopic")} />
                 </div>
                 <div className="kn-field">
                     <label htmlFor="kn-bulk-slow">{t("channels.slowmode")}</label>

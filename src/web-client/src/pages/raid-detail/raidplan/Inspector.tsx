@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NumberField, SliderField } from "../../../components/raidplan/NumberField";
 import { BringToFront, Copy, Lock, LockOpen, SendToBack, Trash2, UserMinus } from "lucide-react";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanPlayer, RaidplanText, RaidplanZone, RaidplanZoneType } from "../../../api";
-import { IconButton } from "../../../components/ui";
+import { IconButton, Switch } from "../../../components/ui";
 import {
     AREA_STYLES, areaStyleOf, arcSpanOf, arcWidthOf, ARROW_COLOR, ARROW_MAX, ARROW_MIN, ROLE_GROUPS, ROLE_GROUP_COLORS, arrowOf, patchArrow, COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
     setObjectScale, sizeOf, objectPercent, setObjectPercent, LABEL_POS, scaleObject, SIZE_STEPS, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
@@ -36,7 +36,7 @@ export function ArrowFields({ board, kind, id, dis, edit }: { board: RaidplanBoa
     return (
         <div className="rp-field">
             <SliderField label={t("raidBoard.arrow.size")} value={Math.round(a.scale * 100)} min={ARROW_MIN * 100} max={ARROW_MAX * 100} step={5} unit="%" disabled={dis || a.hidden} onChange={(v) => edit((b) => patchArrow(b, kind, id, { scale: v / 100 }), true)} />
-            <label className="rp-check"><input type="checkbox" checked={a.hidden} disabled={dis} onChange={(e) => edit((b) => patchArrow(b, kind, id, { hidden: e.target.checked }))} /> {t("raidBoard.arrow.hide")}</label>
+            <Switch className="rp-check" checked={a.hidden} disabled={dis} onChange={(on) => edit((b) => patchArrow(b, kind, id, { hidden: on }))} label={t("raidBoard.arrow.hide")} />
             {!a.hidden && (
                 <>
                     <div className="rp-field-row">
@@ -169,7 +169,7 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
         </div>
     );
     const ringCheck = (kind === "token" || kind === "slot" || kind === "icon" || kind === "zone") && (
-        <label className="rp-check"><input type="checkbox" checked={look.ring !== false} disabled={dis} onChange={(e) => edit((b) => patchLook(b, kind as ObjectKind, id, { ring: e.target.checked }))} /> {t(kind === "zone" ? "raidBoard.insp.showBorder" : "raidBoard.insp.showRingObj")}</label>
+        <Switch className="rp-check" checked={look.ring !== false} disabled={dis} onChange={(on) => edit((b) => patchLook(b, kind as ObjectKind, id, { ring: on }))} label={t(kind === "zone" ? "raidBoard.insp.showBorder" : "raidBoard.insp.showRingObj")} />
     );
     // size (or the zone's steps), ring and name: the first fields of every kind
     const sizeBlock = (
@@ -182,7 +182,7 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                 <p className="rp-muted rp-name-auto">{t("raidBoard.insp.nameAuto")}</p>
             )}
             {(kind === "token" || kind === "slot" || kind === "icon") && (
-                <label className="rp-check"><input type="checkbox" checked={look.showName !== false} disabled={dis} onChange={(e) => edit((b) => patchLook(b, kind as ObjectKind, id, { showName: e.target.checked }))} /> {t("raidBoard.insp.showName")}</label>
+                <Switch className="rp-check" checked={look.showName !== false} disabled={dis} onChange={(on) => edit((b) => patchLook(b, kind as ObjectKind, id, { showName: on }))} label={t("raidBoard.insp.showName")} />
             )}
         </>
     );
@@ -204,7 +204,7 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                 <span className="rp-kicker">{t("raidBoard.roleGroupUi.count")}</span>
                 <NumberField label={t("raidBoard.roleGroupUi.count")} value={zone.count || 0} min={0} max={40} disabled={dis} onChange={(v) => edit((b) => updateZone(b, id, { count: v }), true)} />
             </label>
-            <label className="rp-check"><input type="checkbox" checked={!!zone.showNames} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { showNames: e.target.checked }))} /> {t("raidBoard.roleGroupUi.showNames")}</label>
+            <Switch className="rp-check" checked={!!zone.showNames} disabled={dis} onChange={(on) => edit((b) => updateZone(b, id, { showNames: on }))} label={t("raidBoard.roleGroupUi.showNames")} />
         </>
     );
     // a role group area is drawn calm or as a ring / arc (#559); a cluster of symbols has no area and no style
@@ -278,15 +278,13 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                 <span className="rp-kicker">{t("raidBoard.icon.label")}</span>
                 <input value={icon.label} maxLength={40} disabled={dis} placeholder={t(`raidBoard.icon.${iconKeyType(icon.iconKey)}`)} onChange={(e) => edit((b) => updateIcon(b, id, { label: e.target.value }), true)} />
             </label>
-            <label className="rp-check"><input type="checkbox" checked={icon.showLabel} disabled={dis} onChange={(e) => edit((b) => updateIcon(b, id, { showLabel: e.target.checked }))} /> {t("raidBoard.icon.showLabel")}</label>
+            <Switch className="rp-check" checked={icon.showLabel} disabled={dis} onChange={(on) => edit((b) => updateIcon(b, id, { showLabel: on }))} label={t("raidBoard.icon.showLabel")} />
         </>
     );
     const iconFacing = icon && canFace(icon.iconKey) && (
         <>
-            <label className="rp-check">
-                <input type="checkbox" checked={icon.autoFace !== false} disabled={dis} onChange={(e) => edit((b) => updateIcon(b, id, { autoFace: e.target.checked }))} /> {t("raidBoard.icon.autoFace")}
-                {followsTank({ ...board, assignments: rows || board.assignments }, icon) && <span className="rp-muted"> · {t("raidBoard.icon.autoFaceOn")}</span>}
-            </label>
+            <Switch className="rp-check" checked={icon.autoFace !== false} disabled={dis} onChange={(on) => edit((b) => updateIcon(b, id, { autoFace: on }))}
+                label={<>{t("raidBoard.icon.autoFace")}{followsTank({ ...board, assignments: rows || board.assignments }, icon) && <span className="rp-muted">· {t("raidBoard.icon.autoFaceOn")}</span>}</>} />
             {icon.autoFace === false && (
                 <span className="rp-manual"><strong>{t("raidBoard.icon.manual")}</strong> <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => updateIcon(b, id, { autoFace: true }))}>{t("raidBoard.icon.backToAuto")}</button></span>
             )}

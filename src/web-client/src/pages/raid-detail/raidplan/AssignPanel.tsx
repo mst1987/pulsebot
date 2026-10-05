@@ -8,7 +8,7 @@ import CollapseToggle from "../../../components/raidplan/CollapseToggle";
 import { useCollapseSet } from "../../../hooks/useCollapse";
 import { Copy, RotateCcw, EyeOff, Swords, Users, Plus, Redo2, Trash2, Undo2, X } from "lucide-react";
 import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanPlayer } from "../../../api";
-import { Badge, IconButton, useConfirm } from "../../../components/ui";
+import { Badge, IconButton, useConfirm, Switch } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import RoleGlyph from "../../../components/raidplan/RoleGlyph";
 import { useToast } from "../../../components/Jobs";
@@ -376,7 +376,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                         </button>
                     )}
                     {scope !== "general" && board.assignments.some((a) => a.type === "heal") && (
-                        <label className="rp-check rp-assign-links"><input type="checkbox" checked={links} onChange={(e) => onLinks(e.target.checked)} /> {t("raidBoard.assign.links")}</label>
+                        <Switch className="rp-check rp-assign-links" checked={links} onChange={onLinks} label={t("raidBoard.assign.links")} />
                     )}
                     {history && (
                         <span className="rp-tool-group rp-assign-undo">

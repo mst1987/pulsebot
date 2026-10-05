@@ -136,6 +136,11 @@ input[type=checkbox]:checked::after {
 .switch input[type=checkbox]:focus-visible + .switch-track { outline: 2px solid var(--accent); outline-offset: 2px; }
 .switch-row.is-disabled { opacity: .5; cursor: not-allowed; }
 .switch-row.is-disabled .switch, .switch-row.is-disabled input[type=checkbox] { cursor: not-allowed; }
+/* "mixed" (some of a selection have it, some not): the thumb in the middle on a half-tinted track */
+.switch input[type=checkbox]:indeterminate + .switch-track { background: var(--accent-soft); border-color: var(--accent); }
+.switch input[type=checkbox]:indeterminate + .switch-track .switch-thumb { transform: translateX(8px); background: var(--accent); }
+/* the label may carry an icon before its text */
+.switch-text { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 
 .sheetcard { background: var(--panel2); border: 1px solid var(--line); border-radius: 0; padding: 14px; margin-bottom: 12px; }
 

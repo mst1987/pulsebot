@@ -6,6 +6,7 @@ import { BADGE_SCALE_MAX, BADGE_SCALE_MIN, badgeScaleOf } from "../../../lib/rai
 import GroupStyle from "./GroupStyle";
 import InspectorTabs from "./InspectorTabs";
 import { useT } from "../../../i18n";
+import Switch from "../../../components/ui/Switch";
 
 type Edit = (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void;
 type GroupTab = "group" | "look" | "badge";
@@ -55,8 +56,8 @@ export default function GroupInspector({ board, slot, dis, canWrite, edit, editA
                                 <input value={slot.label} maxLength={40} disabled={dis} placeholder={slotTitle({ ...slot, label: "" })} onChange={(e) => edit((b) => updateSlot(b, id, { label: e.target.value }), true)} />
                             </label>
                             <p className="rp-muted">{t("raidBoard.slot.groupHint")}</p>
-                            <label className="rp-check"><input type="checkbox" checked={!slot.hideMembers} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { hideMembers: !e.target.checked }))} /> {t("raidBoard.insp.showMembers")}</label>
-                            <label className="rp-check"><input type="checkbox" checked={slot.split} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { split: e.target.checked }))} /> {t("raidBoard.insp.split")}</label>
+                            <Switch className="rp-check" checked={!slot.hideMembers} disabled={dis} onChange={(on) => edit((b) => updateSlot(b, id, { hideMembers: !on }))} label={t("raidBoard.insp.showMembers")} />
+                            <Switch className="rp-check" checked={slot.split} disabled={dis} onChange={(on) => edit((b) => updateSlot(b, id, { split: on }))} label={t("raidBoard.insp.split")} />
                             {slot.split && Object.keys(slot.offsets || {}).length > 0 && (
                                 <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => updateSlot(b, id, { offsets: {} }))}>{t("raidBoard.insp.resetMembers")}</button>
                             )}
@@ -80,9 +81,9 @@ export default function GroupInspector({ board, slot, dis, canWrite, edit, editA
                                 <span aria-hidden="true" />
                             </div>
                             <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => setAllGroupScale(b, scales.gs))}>{t("raidBoard.insp.allGroups")}</button>
-                            <label className="rp-check"><input type="checkbox" checked={slot.ring !== false} disabled={dis} onChange={(e) => edit((b) => patchLook(b, "slot", id, { ring: e.target.checked }))} /> {t("raidBoard.insp.showRingObj")}</label>
+                            <Switch className="rp-check" checked={slot.ring !== false} disabled={dis} onChange={(on) => edit((b) => patchLook(b, "slot", id, { ring: on }))} label={t("raidBoard.insp.showRingObj")} />
                             {slot.showName !== false && nameAuto && <p className="rp-muted rp-name-auto">{t("raidBoard.insp.nameAuto")}</p>}
-                            <label className="rp-check"><input type="checkbox" checked={slot.showName !== false} disabled={dis} onChange={(e) => edit((b) => patchLook(b, "slot", id, { showName: e.target.checked }))} /> {t("raidBoard.insp.showName")}</label>
+                            <Switch className="rp-check" checked={slot.showName !== false} disabled={dis} onChange={(on) => edit((b) => patchLook(b, "slot", id, { showName: on }))} label={t("raidBoard.insp.showName")} />
                             {opacity}
                         </>
                     )}
@@ -92,12 +93,12 @@ export default function GroupInspector({ board, slot, dis, canWrite, edit, editA
                             <span className="rp-kicker">{t("raidBoard.insp.ringHead")}</span>
                             {slot.split ? (
                                 <>
-                                    <label className="rp-check"><input type="checkbox" checked={slot.showRing !== false} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { showRing: e.target.checked }))} /> {t("raidBoard.insp.showRing")}</label>
+                                    <Switch className="rp-check" checked={slot.showRing !== false} disabled={dis} onChange={(on) => edit((b) => updateSlot(b, id, { showRing: on }))} label={t("raidBoard.insp.showRing")} />
                                     {slot.showRing !== false && <SliderField label={t("raidBoard.insp.ringOpacity")} value={Math.round((slot.ringOpacity === undefined ? 0.55 : slot.ringOpacity) * 100)} min={10} max={100} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => updateSlot(b, id, { ringOpacity: v / 100 }), true)} />}
                                 </>
                             ) : <p className="rp-muted">{t("raidBoard.insp.ringOnlySplit")}</p>}
                             <span className="rp-kicker">{t("raidBoard.insp.badgeHead")}</span>
-                            <label className="rp-check"><input type="checkbox" checked={badgeOn} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { showBadge: e.target.checked }))} /> {t("raidBoard.insp.showBadge")}</label>
+                            <Switch className="rp-check" checked={badgeOn} disabled={dis} onChange={(on) => edit((b) => updateSlot(b, id, { showBadge: on }))} label={t("raidBoard.insp.showBadge")} />
                             {badgeOn && (
                                 <SliderField label={t("raidBoard.insp.badgeScale")} value={Math.round(badgeScaleOf(slot.badgeScale) * 100)} min={BADGE_SCALE_MIN * 100} max={BADGE_SCALE_MAX * 100} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => updateSlot(b, id, { badgeScale: badgeScaleOf(v / 100) }), true)} />
                             )}

@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Bookmark, BookmarkX, BoxSelect, ChevronDown, CircleDashed, CircleUser, Hand, Hash, Link2, Map as MapIcon, Maximize, SlidersHorizontal, Star, Type, Wand2, ZoomIn, ZoomOut } from "lucide-react";
 import type { RaidplanBoard } from "../../../api";
-import { IconButton } from "../../../components/ui";
+import { IconButton, Switch } from "../../../components/ui";
 import { SliderField } from "../../../components/raidplan/NumberField";
 import { sameView, type BoardView } from "../../../lib/raidplan/boardView";
 import { SCALE_MAX, SCALE_MIN, setAutoScale, setObjectScale } from "../../../lib/raidplan";
@@ -44,10 +44,10 @@ export function ViewOptions({ board, canWrite, edit, prefs, setPref, links, onLi
     const box = useRef<HTMLDivElement>(null);
     useDismiss(box, open, () => setOpen(false), { event: "pointerdown", capture: true });
     const flag = (key: "showNames" | "showBadges" | "showRoleRings" | "showRings" | "autoPlace", label: string, icon: JSX.Element) => (
-        <label className="rp-check rp-view-row"><input type="checkbox" checked={board[key] !== false} disabled={!canWrite} onChange={(e) => edit((b) => ({ ...b, [key]: e.target.checked }))} />{icon}{label}</label>
+        <Switch className="rp-check rp-view-row" checked={board[key] !== false} disabled={!canWrite} onChange={(on) => edit((b) => ({ ...b, [key]: on }))} label={<>{icon}{label}</>} />
     );
     const local = (label: string, on: boolean, set: (v: boolean) => void, icon: JSX.Element) => (
-        <label className="rp-check rp-view-row"><input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} />{icon}{label}</label>
+        <Switch className="rp-check rp-view-row" checked={on} onChange={set} label={<>{icon}{label}</>} />
     );
     return (
         <div className="rp-viewopts" ref={box}>
@@ -89,7 +89,7 @@ export function SheetViewMenu({ prefs, setPref, hasLinks }: { prefs: ViewPrefs; 
     const box = useRef<HTMLSpanElement>(null);
     useDismiss(box, open, () => setOpen(false), { event: "pointerdown", capture: true });
     const row = (label: string, on: boolean, set: (v: boolean) => void, icon: JSX.Element) => (
-        <label className="rp-check rp-view-row"><input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} />{icon}{label}</label>
+        <Switch className="rp-check rp-view-row" checked={on} onChange={set} label={<>{icon}{label}</>} />
     );
     return (
         <span className="rp-sheetview" ref={box}>

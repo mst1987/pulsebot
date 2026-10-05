@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Bookmark, BookmarkX, BoxSelect, Circle, Eye, Image as ImageIcon, ImageOff, LayoutGrid, ListChecks, Minus, MoveUpRight, PanelRight, Redo2, Shapes, Square, Type, Undo2, Users } from "lucide-react";
 import type { RaidplanBoard } from "../../../../api";
-import { IconButton } from "../../../../components/ui";
+import { IconButton, Switch } from "../../../../components/ui";
 import RoleGlyph from "../../../../components/raidplan/RoleGlyph";
 import { useT } from "../../../../i18n";
 import { savedView, viewFromSaved } from "../../../../lib/raidplan/boardView";
@@ -60,7 +60,7 @@ export function MapToolRow({ canWrite, history, onInsert, palette, selectMode, b
     const saveView = () => edit((b) => ({ ...b, view: savedView(bv.view) }));
     const clearView = () => { edit((b) => ({ ...b, view: null })); bv.fit(); };
     const check = (label: string, on: boolean, flip: () => void, icon: ReactNode, disabled = false) => (
-        <label className="rp-check rp-view-row"><input type="checkbox" checked={on} disabled={disabled} onChange={flip} />{icon}{label}</label>
+        <Switch className="rp-check rp-view-row" checked={on} disabled={disabled} onChange={flip} label={<>{icon}{label}</>} />
     );
     const extra = (
         <>

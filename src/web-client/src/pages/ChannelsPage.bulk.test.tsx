@@ -107,7 +107,7 @@ describe("ChannelsPage — bulk edit", () => {
         await pick(user, "mi-17-09-ssc", "mi-10-09-ssc");
         await barMenu(user, bar(), "Thema …");
         const dialog = screen.getByRole("dialog");
-        await user.click(within(dialog).getByRole("checkbox", { name: "Thema leeren" }));
+        await user.click(within(dialog).getByRole("switch", { name: "Thema leeren" }));
         expect(within(dialog).getByRole("textbox", { name: "Thema" })).toBeDisabled();
         await user.click(within(dialog).getByRole("button", { name: "Übernehmen" }));
         expect(await screen.findByText("1 Kanal geändert, 1 fehlgeschlagen: fehlende Rechte", {}, { timeout: 3000 })).toBeInTheDocument();

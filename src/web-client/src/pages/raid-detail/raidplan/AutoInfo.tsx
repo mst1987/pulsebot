@@ -1,6 +1,6 @@
 import { AlertTriangle, BringToFront, Lock, LockOpen, MapPinOff, RotateCcw, SendToBack, Wand2 } from "lucide-react";
 import type { RaidplanAutoStyle, RaidplanBoard, RaidplanPlayer } from "../../../api";
-import { Button, IconButton } from "../../../components/ui";
+import { Button, IconButton, Switch } from "../../../components/ui";
 import { SliderField } from "../../../components/raidplan/NumberField";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { classPlaceNameFor } from "../../../lib/raidplan/assign";
@@ -86,16 +86,16 @@ export default function AutoInfo({ plan, id, board, players, canWrite, edit, onR
 
             <SliderField label={t("raidBoard.insp.sizePct")} value={pct} min={25} max={400} step={5} unit="%" disabled={dis || !!st.lock} onChange={(v) => edit((b) => setObjectPercent(b, "auto", id, v), true)} />
             <OpacityField label={t("raidBoard.insp.opacity")} value={st.opacity === undefined ? 1 : st.opacity} onChange={(v) => !dis && set({ opacity: v }, true)} />
-            <label className="rp-check"><input type="checkbox" checked={st.ring !== false} disabled={dis} onChange={(e) => set({ ring: e.target.checked })} /> {t("raidBoard.insp.showRingObj")}</label>
-            {tank && <label className="rp-check"><input type="checkbox" checked={st.showName !== false} disabled={dis} onChange={(e) => set({ showName: e.target.checked })} /> {t("raidBoard.insp.showName")}</label>}
+            <Switch className="rp-check" checked={st.ring !== false} disabled={dis} onChange={(on) => set({ ring: on })} label={t("raidBoard.insp.showRingObj")} />
+            {tank && <Switch className="rp-check" checked={st.showName !== false} disabled={dis} onChange={(on) => set({ showName: on })} label={t("raidBoard.insp.showName")} />}
             <label className="rp-field">
                 <span className="rp-kicker">{t("raidBoard.auto.label")}</span>
                 <input value={st.label || ""} maxLength={40} disabled={dis} placeholder={t("raidBoard.auto.labelHint")} onChange={(e) => set({ label: e.target.value }, true)} />
             </label>
-            {mob && <label className="rp-check"><input type="checkbox" checked={!!st.showLabel} disabled={dis} onChange={(e) => set({ showLabel: e.target.checked })} /> {t("raidBoard.icon.showLabel")}</label>}
+            {mob && <Switch className="rp-check" checked={!!st.showLabel} disabled={dis} onChange={(on) => set({ showLabel: on })} label={t("raidBoard.icon.showLabel")} />}
             {mob && (
                 <>
-                    <label className="rp-check"><input type="checkbox" checked={st.autoFace !== false} disabled={dis} onChange={(e) => set({ autoFace: e.target.checked })} /> {t("raidBoard.icon.autoFace")}</label>
+                    <Switch className="rp-check" checked={st.autoFace !== false} disabled={dis} onChange={(on) => set({ autoFace: on })} label={t("raidBoard.icon.autoFace")} />
                     <ArrowFields board={board} kind="auto" id={id} dis={dis} edit={edit} />
                     {st.autoFace === false && (
                         <>
@@ -126,7 +126,7 @@ export default function AutoInfo({ plan, id, board, players, canWrite, edit, onR
             <span className="rp-kicker">{t("raidBoard.auto.section")}</span>
             <SliderField label={t("raidBoard.auto.scale")} value={Math.round((board.autoScale || 1) * 100)} min={40} max={200} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => setAutoScale(b, v / 100), true)} />
             {canWrite && (
-                <label className="rp-check"><input type="checkbox" checked={board.autoPlace !== false} onChange={(e) => edit((b) => ({ ...b, autoPlace: e.target.checked }))} /> {t("raidBoard.auto.place")}</label>
+                <Switch className="rp-check" checked={board.autoPlace !== false} onChange={(on) => edit((b) => ({ ...b, autoPlace: on }))} label={t("raidBoard.auto.place")} />
             )}
         </div>
     );

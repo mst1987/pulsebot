@@ -3,6 +3,7 @@ import type { RaidplanPublicBoss } from "../../../../api";
 import { sectionGroups } from "../../../../lib/raidplan/stage";
 import { STRIP_MODES, type StripMode } from "../../../../lib/raidplan/sheetLayout";
 import { useT } from "../../../../i18n";
+import Switch from "../../../../components/ui/Switch";
 
 const STRIP_LABEL: Record<StripMode, string> = { off: "raidBoard.stage.stripOff", top: "raidBoard.stage.stripTop", left: "raidBoard.stage.stripLeft" };
 
@@ -52,10 +53,7 @@ export default function SectionMenu({ sections, selectedKey, mineKeys, killedKey
                 </div>
             ))}
             {onlyMine && (
-                <label className="rp-sheet-menu-only" data-tip={t("raidBoard.read.onlyMineTip")}>
-                    <input type="checkbox" checked={onlyMine.on} onChange={onlyMine.toggle} />
-                    {t("raidBoard.read.onlyMine")}
-                </label>
+                <Switch className="rp-sheet-menu-only" tipHead={t("raidBoard.read.onlyMineTip")} checked={onlyMine.on} onChange={() => onlyMine.toggle()} label={t("raidBoard.read.onlyMine")} />
             )}
             <div className="rp-sheet-menu-strip" role="radiogroup" aria-label={t("raidBoard.stage.strip")}>
                 <span>{t("raidBoard.stage.strip")}</span>
