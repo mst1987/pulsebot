@@ -20,6 +20,7 @@ const { categoryNameFor } = require("../../services/signups/availabilityPanel");
 const linkCheck = require("../../services/discord/linkCheck");
 const { specLabel } = require("../../utils/i18n/botText");
 const { myRaidPayload, myReportPayload } = require("../../utils/signup/organizerPanel");
+const { appEmojiMap } = require("../../services/discord/appEmojis");
 const { mainVersionFor, visibleVersions } = require("../../services/events/mainVersion");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { parseGermanDate } = require("../../utils/time");
@@ -93,10 +94,12 @@ function myRaid(userId, categoryId, config, lang) {
         event,
         signup: signup ? { status: signup.status, character: (first && first.character) || signup.character } : null,
         specText: specKey ? specLabel(lang, profiles.specInfo(specKey), specKey) : "",
+        specKey,
         signupUrl: event ? linkCheck.eventLink(event) : "",
         planUrl: event ? linkCheck.webTarget("raidplan", event.id) : "",
         categoryName: categoryNameFor(categoryId, { config }),
         lang,
+        emojis: appEmojiMap(),
     });
 }
 
