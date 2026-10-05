@@ -19,6 +19,7 @@ const command = require("../../../src/commands/signup/talkSignup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { knownChannels } = require("../../helpers/linkCheck");
+const { cardButtons } = require("../../helpers/card");
 
 // The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
 beforeEach(() => knownChannels("c-1", "c-2"));
@@ -44,7 +45,7 @@ describe("commands/signup/talkSignup", () => {
         const interaction = mockInteraction({ customId: "talk-signup", values: ["eh-kara"], userId: "200000000000000009" });
         await command.execute(interaction);
         const payload = interaction.reply.mock.calls[0][0];
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(payload.embeds[0].title).toBe("Karazhan");
         expect(payload.embeds[0].description).toContain("create a profile");
         expect(getStoredEvent).not.toHaveBeenCalled();
@@ -67,22 +68,22 @@ describe("commands/signup/talkSignup", () => {
         await command.execute(interaction);
         const payload = interaction.reply.mock.calls[0][0];
         expect(answerOf(payload)).toMatchObject({ title: "Sign up at Raid-Helper", description: "Signups for **Gruul** run through Raid-Helper – sign up in the event channel." });
-        expect(payload.flags).toBe(MessageFlags.Ephemeral);
-        expect(payload.components[0].components[0]).toMatchObject({ label: "Go to the event channel", url: "https://discord.com/channels/g-1/c-1" });
+        expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+        expect(cardButtons(payload)[0]).toMatchObject({ label: "Go to the event channel", url: "https://discord.com/channels/g-1/c-1" });
     });
 
     it("falls back to the event server and then to the web when the channel is unknown", async () => {
         getStoredEvent.mockReturnValue({ id: "123456", title: "Gruul", channelId: "c-2" });
         let interaction = mockInteraction({ values: ["123456"] });
         await command.execute(interaction);
-        expect(interaction.reply.mock.calls[0][0].components[0].components[0].url).toBe("https://discord.com/channels/event-guild/c-2");
+        expect(cardButtons(interaction.reply.mock.calls[0][0])[0].url).toBe("https://discord.com/channels/event-guild/c-2");
 
         getStoredEvent.mockReturnValue(null);
         interaction = mockInteraction({ values: ["123456"] });
         await command.execute(interaction);
         const payload = interaction.reply.mock.calls[0][0];
         expect(answerOf(payload).text).toContain("this raid");
-        expect(payload.components[0].components[0].url).toBe("https://eh.example/raids/detail?event=123456");
+        expect(cardButtons(payload)[0].url).toBe("https://eh.example/raids/detail?event=123456");
     });
 
     it("says so when nothing was chosen or the own event is gone", async () => {
@@ -106,7 +107,7 @@ describe("Deutsch als Standard (Server-Sprache)", () => {
             title: "Bei Raid-Helper anmelden",
             description: "Die Anmeldung für **Gruul** läuft über Raid-Helper – melde dich im Event-Kanal an.",
         });
-        expect(payload.components[0].components[0].label).toBe("Zum Event-Kanal");
+        expect(cardButtons(payload)[0].label).toBe("Zum Event-Kanal");
         const none = mockInteraction({ values: [] });
         await command.execute(none);
         expect(answerOf(none.reply.mock.calls[0][0]).description).toBe("Kein Raid gewählt.");

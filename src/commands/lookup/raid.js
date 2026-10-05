@@ -73,7 +73,7 @@ module.exports = {
         if (channelUrl) links.push({ label: "Zum Kanal", url: channelUrl });
         return lookupReply(interaction, {
             title: event.title || "Raid",
-            description: `${discordTime(event.startTime, "F")} (${discordTime(event.startTime, "R")})${where ? `\n${where}` : ""}`,
+            description: `${discordTime(event.startTime, "d")} ${discordTime(event.startTime, "t")} (${discordTime(event.startTime, "R")})${where ? `\n${where}` : ""}`,
             fields,
         }, links);
     },

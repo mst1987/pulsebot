@@ -13,6 +13,7 @@ const profiles = require("../../../src/stores/raiderProfileStore");
 const command = require("../../../src/commands/signup/signupComment");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
+const { cardButtons } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const ID = "signup-comment:eh-kara:nerathil:Mage-Arcane:";
@@ -42,7 +43,7 @@ describe("commands/signup/signupComment", () => {
         await command.execute(i);
         const modal = i.showModal.mock.calls[0][0].toJSON();
         expect(modal.custom_id).toBe(ID);
-        expect(modal.components[0].components[0]).toMatchObject({ custom_id: "comment", value: "alt", max_length: 300 });
+        expect(cardButtons(modal)[0]).toMatchObject({ custom_id: "comment", value: "alt", max_length: 300 });
     });
 
     it("the submitted modal saves the comment and keeps status and spec", async () => {
