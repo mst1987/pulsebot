@@ -119,8 +119,6 @@
         "noRaidsSub": "{category}: kein zugeordnetes Log, in dem der Charakter vorkommen könnte, und keine Raider-Zuordnung, deren Anmeldungen zählen.",
         "thisCategory": "Diese Kategorie",
         "category": "Kategorie",
-        "counted": "{category}, gezählt aus Anmeldungen und Logs der letzten {total} Raids.",
-        "missed": "Gefehlt: {list}.",
         "noneMissed": "Keinen gezählten Raid verpasst.",
         "attendanceTip": "{attended} von {total} Raids · {pct} %",
         "notEvaluated": "nicht ausgewertet",
@@ -147,7 +145,21 @@
             "one": "{count} Item erhalten",
             "other": "{count} Items erhalten"
         },
-        "noLoot": "Kein Loot"
+        "noLoot": "Kein Loot",
+        "ofRaids": "{attended} von {total} Raids",
+        "present": "Dabei",
+        "raidCount": {
+            "one": "{count} Raid",
+            "other": "{count} Raids"
+        },
+        "source": "{category} · aus Anmeldungen und Logs",
+        "reason": {
+            "notInLog": "Nicht im Log",
+            "noSignup": "Keine Anmeldung",
+            "absence": "Abgemeldet",
+            "tentative": "Vorläufig",
+            "bench": "Ersatzbank"
+        }
     },
     "slot": {
         "HEAD": "Kopf",

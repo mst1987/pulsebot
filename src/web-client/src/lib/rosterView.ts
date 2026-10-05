@@ -26,6 +26,39 @@ export function nightLabel(ms: number): string {
     return formatDayDate(n);
 }
 
+/** The reasons the server gives for a missed night (services/characters/rosterAttendance.js), in the order the tooltip lists them. */
+const ABSENCE_REASONS: Record<string, string> = {
+    "nicht im Log": "notInLog",
+    "keine Anmeldung": "noSignup",
+    abgemeldet: "absence",
+    // the server's word "vorl\u00e4ufig", escaped: the client holds no German text of its own (i18n convention)
+    "vorl\u00e4ufig": "tentative",
+    Ersatzbank: "bench",
+};
+
+type Night = { eventId: string; startTime: number };
+
+/**
+ * The attendance tooltip's groups: the attended nights ("Dabei"; the roster's `present`, else the character page's `raids`),
+ * then the missed ones by reason - the known reasons in a fixed order, an unknown one after them as the server worded it.
+ * Every group newest first.
+ */
+export function attendanceGroups(att: RosterAttendance): { present: Night[]; absent: { reason: string; key: string; nights: Night[] }[] } {
+    const newestFirst = <T extends Night>(list: T[]) => [...list].sort((a, b) => b.startTime - a.startTime);
+    const present = newestFirst(att.present || (att.raids || []).filter((r) => r.attended));
+    const byReason = new Map<string, Night[]>();
+    for (const m of att.missed || []) {
+        const reason = m.reason || "nicht im Log";
+        byReason.set(reason, [...(byReason.get(reason) || []), m]);
+    }
+    const order = Object.keys(ABSENCE_REASONS);
+    const rank = (r: string) => (order.indexOf(r) >= 0 ? order.indexOf(r) : order.length);
+    const absent = [...byReason.entries()]
+        .sort((a, b) => rank(a[0]) - rank(b[0]))
+        .map(([reason, nights]) => ({ reason, key: ABSENCE_REASONS[reason] || "", nights: newestFirst(nights) }));
+    return { present, absent };
+}
+
 /** ok ≥ 80 %, mid ≥ 60 %, bad below — the attendance bar's tone. */
 export function attendanceTone(pct: number | null): "ok" | "mid" | "bad" | undefined {
     if (pct === null || pct === undefined) return undefined;

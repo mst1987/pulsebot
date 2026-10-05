@@ -3,19 +3,20 @@ module.exports = {
     // panel
     "Enter absence": "Abwesenheit eintragen",
     "Enter attendance": "Anwesenheit eintragen",
+    "Mark absent": "Abwesend eintragen",
+    "Mark attending": "Dabei eintragen",
     "My entries": "Meine Einträge",
     "Absence & attendance": "Ab- & Anwesenheit",
     "Absence & attendance · {category}": "Ab- & Anwesenheit · {category}",
-    "**Away for a while?** Enter your absence and you are signed off from every **{category}** raid in that period – also from raids created later.":
-        "**Länger weg?** Trag deine Abwesenheit ein, dann wirst du von jedem **{category}**-Raid in diesem Zeitraum abgemeldet – auch von Raids, die erst später angelegt werden.",
-    "**Away for a while?** Enter your absence and you are signed off from every raid in that period – also from raids created later.":
-        "**Länger weg?** Trag deine Abwesenheit ein, dann wirst du von jedem Raid in diesem Zeitraum abgemeldet – auch von Raids, die erst später angelegt werden.",
-    "**There for sure?** Enter your attendance with a character and you are signed up for every **{category}** raid in that period as *Signed up*.":
-        "**Sicher dabei?** Trag deine Anwesenheit mit einem Charakter ein, dann wirst du für jeden **{category}**-Raid in diesem Zeitraum als *Dabei* angemeldet.",
-    "**There for sure?** Enter your attendance with a character and you are signed up for every raid in that period as *Signed up*.":
-        "**Sicher dabei?** Trag deine Anwesenheit mit einem Charakter ein, dann wirst du für jeden Raid in diesem Zeitraum als *Dabei* angemeldet.",
-    "You pick the raids yourself, and you get a DM for every raid the bot signs you up or off for. Your own signup always stays yours to change.":
-        "Die Raids wählst du selbst, und für jeden Raid, für den dich der Bot an- oder abmeldet, bekommst du eine DM. Deine Anmeldung kannst du jederzeit selbst ändern.",
+    "Enter a period – the bot signs you off or up for every **{category}** raid in it.":
+        "Trag einen Zeitraum ein – der Bot meldet dich für alle **{category}**-Raids darin ab oder an.",
+    "Enter a period – the bot signs you off or up for every raid in it.":
+        "Trag einen Zeitraum ein – der Bot meldet dich für alle Raids darin ab oder an.",
+    "🏖️ Away": "🏖️ Nicht da",
+    "✅ There for sure": "✅ Sicher dabei",
+    "Signed off from every raid in the period – also from ones created later": "Abgemeldet von jedem Raid im Zeitraum – auch von später angelegten",
+    "Signed up with your character as *Signed up*": "Angemeldet mit deinem Charakter als *Dabei*",
+    "One DM per raid · your own signup stays yours to change": "Pro Raid bekommst du eine DM · deine Anmeldung bleibt änderbar",
     // modal
     "From (day)": "Von (Tag)",
     "e.g. 24.10. or 24.10.2026": "z. B. 24.10. oder 24.10.2026",
