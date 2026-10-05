@@ -150,7 +150,11 @@ function getPanel(categoryId) {
     return hit ? { ...hit } : null;
 }
 
-/** Remember a posted panel (replaces the category's earlier one). */
+/**
+ * Remember a posted panel (replaces the category's earlier one). `hash` is
+ * the fingerprint of what the message shows (availabilityPanel.js), so a
+ * deploy that changes the text can tell which panels are stale.
+ */
 function setPanel(panel = {}, { now = Date.now() } = {}) {
     const entry = {
         categoryId: str(panel.categoryId),
@@ -159,11 +163,22 @@ function setPanel(panel = {}, { now = Date.now() } = {}) {
         messageId: str(panel.messageId),
         postedBy: str(panel.postedBy),
         postedAt: now,
+        hash: str(panel.hash),
     };
     const data = store.read();
     data.panels = [...data.panels.filter((p) => str(p.categoryId) !== entry.categoryId), entry];
     store.write(data);
     return { ...entry };
+}
+
+/** Note that a category's panel now shows the content with this `hash`; false when there is no panel. */
+function markPanelDrawn(categoryId, hash) {
+    const data = store.read();
+    const hit = data.panels.find((p) => str(p.categoryId) === str(categoryId));
+    if (!hit) return false;
+    hit.hash = str(hash);
+    store.write(data);
+    return true;
 }
 
 function removePanel(categoryId) {
@@ -178,5 +193,5 @@ function removePanel(categoryId) {
 module.exports = {
     KINDS, MAX_ENTRIES, COMMENT_MAX,
     listEntries, getEntry, addEntry, removeEntry, markApplied, prune, entryProblem,
-    listPanels, getPanel, setPanel, removePanel, useFile,
+    listPanels, getPanel, setPanel, markPanelDrawn, removePanel, useFile,
 };
