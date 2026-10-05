@@ -77,7 +77,7 @@ Short answers in Discord, the big view one click away: every reply is **ephemera
 
 | Folder | What lives there |
 |---|---|
-| `utils/discord/` | `reply.js`: `botReply`, `botEditReply`, `botFollowup` (each with an `{ embed }` option), `buildEmbed`, `embedPayload`, `findServerEmoji`, `getCharacterIcon`; `botLookup.js`: the embeds of the lookup commands (`lookupReply`, `linkRow`, `respondChoices`, …) |
+| `utils/discord/` | `card.js`: `card`, `cardFromEmbed` (every message is one card, see below); `reply.js`: `botReply`, `botEditReply`, `botFollowup` (each with an `{ embed }` option), `buildEmbed`, `embedPayload`, `findServerEmoji`, `getCharacterIcon`; `botLookup.js`: the embeds of the lookup commands (`lookupReply`, `linkRow`, `respondChoices`, …) |
 | `utils/signup/` | Signup buttons, dialog, multi-signup, join picker, character-name rule, `botEnglish.js` (German service messages → English for English readers); the language layer is `utils/i18n/botText.js` |
 | `utils/setup/` | Setup proposal (`model`, `proposal`, `score`, …), `fillSetup.js`, `setupView.js`, `raidsheets.js`, `sheetCleanup.js`, `response.js` (the line per raid of `/mysetups`) |
 | `utils/raidhelper/` | `client.js` (`createRaidhelperClient`, switch-off), `fixture.js` (dev stand-in), `queries.js` (signups/setups of a category), `channelEvents.js` (events of a category from both sources) |
@@ -96,6 +96,24 @@ Used after `interaction.deferReply()`. Call this when the command needs more tha
 
 ### Embed option: `botReply(interaction, { embed, components, ephemeral, timeout })` (#508)
 All three helpers (`botReply`, `botEditReply`, `botFollowup`) also take one options object instead of the positional arguments: `embed` is `{ title, description, fields, color, footer, timestamp, url }`, built by `buildEmbed()` through discord.js' `EmbedBuilder` — accent colour (`embedAccentColor`) unless `color` is given, every text clipped with „…“ to Discord's limits (`EMBED_LIMITS`: title 256, description 4096, field name 256 / value 1024, 25 fields, 6000 in all), so an overlong text never makes Discord refuse the reply. Ephemeral by default (`ephemeral: false` for a public one), `timeout` as before; `botEditReply` sets `content: ""` so no old text stays above the embed. `embedPayload(embed, { ephemeral, components })` gives the same payload for code that calls `interaction.reply/followUp` itself. Callers without `embed` behave exactly as before. The signup flow's answers use it through `utils/signup/signupReply.js` (docs/signups.md).
+
+### Every message is a card: `card()` (Oct 2026)
+Direction C of the "Bot-Nachrichten" canvas: every message of the bot — public post, personal answer, DM, orga reply — is ONE
+Components V2 container built by `utils/discord/card.js`, never plain `content`. `card({ kind, color, kicker, title, text, facts,
+fields, thumbnail, buttons, note, mentions, allowedMentions, ephemeral })`:
+
+- `kind`: `info` (accent `#8A7CFF`), `ok` (`#57A55A`), `warn` (`#E0A33A`), `error` (`#E5534B`), `raid` (pass the event's `color`); the
+  bar of the card. No colour constants of their own in a module any more (`KIND_COLORS`).
+- Layout: `kicker` (small grey line: the raid, the area) over the `## title`, the `text`, a facts line (`facts: [[name, value]]`
+  → "**Gruppe** 3 · **Rolle** Heiler"; `fields` of an embed spec: inline ones join the facts, the others are bold name + value),
+  `thumbnail` (a picture right of the heading), then a divider, the `buttons` INSIDE the card (ButtonBuilders five to a row, or
+  ready rows, select menus too) and the `note` (small grey). Text is cut to Discord's 4000 characters per message.
+- Pings: `mentions` ("<@1> <@2>") is the card's first line and pings — tried on the dev test server: a mention in a
+  container's text notifies like one in `content`. Without `mentions` nothing in a card pings (`allowedMentions: { parse: [] }`).
+- One payload for send and edit: it carries `content: ""` and `embeds: []`, so editing an old text or embed message turns it into
+  the card (tried on the dev server, as the organizer panel already did). `isCard(payload)` tells a card from an old payload.
+- `cardFromEmbed(spec, opts)` takes a `buildEmbed` spec (title, description, fields, color, footer, author).
+- Tests: `test/utils/discord/card.test.js`.
 
 ## API Clients
 
