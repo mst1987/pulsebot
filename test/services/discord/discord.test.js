@@ -1,4 +1,4 @@
-const { ChannelType, ComponentType, MessageFlags } = require("discord.js");
+const { ChannelType, ComponentType } = require("discord.js");
 const discord = require("../../../src/services/discord/discord.js");
 const dc = require("../../helpers/discordClient");
 const { KIND_COLORS } = require("../../../src/utils/discord/card");

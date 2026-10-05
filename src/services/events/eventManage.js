@@ -44,7 +44,7 @@ const { tr } = require("../../utils/i18n/botText");
 const { getConfig } = require("../../stores/settingsStore");
 const { setupSummary } = require("../setup/setupEditor");
 const { rulesForEvent, versionOfEvent } = require("./mainVersion");
-const { toRaidHelperDate } = require("../../utils/time");
+const { toRaidHelperDate, shortWhen } = require("../../utils/time");
 const { SIGNUP_STATUSES } = require("../../utils/attendance");
 const { str } = require("../../utils/text");
 const { isSnowflake } = require("../../utils/ids");
@@ -271,7 +271,7 @@ async function moveEvent({ guildId, eventId, date, time, renameChannel = true, n
             // a note in the event channel: the server language (pingDelivery)
             await deliverUserPing({
                 target: "event", event, userIds: recipients, guildId,
-                text: (lang) => tr(lang, "📅 **{title}** has been moved: now {when} ({relative}).", { title: event.title, when: `<t:${start}:F>`, relative: `<t:${start}:R>` }),
+                text: (lang) => tr(lang, "📅 **{title}** has been moved: now {when} ({relative}).", { title: event.title, when: shortWhen(start), relative: `<t:${start}:R>` }),
             });
             notified = recipients.length;
         } catch (e) {
