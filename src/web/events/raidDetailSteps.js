@@ -285,7 +285,7 @@ function primaryFor(step, d) {
         case "signup": return { label: "Anmelde-Aufruf posten", icon: "inv_letter_15", modal: "notify" };
         // The raidplan link only exists at Raid-Helper; an own event opens its setup editor.
         case "setup": return isOwnEvent(d)
-            ? { label: d.ownSetup && d.ownSetup.placed ? "Setup posten" : "Setup vorschlagen", icon: "inv_misc_map_01", tab: "setup" }
+            ? { label: d.ownSetup && d.ownSetup.placed ? "Setup posten" : "Setup bauen", icon: "inv_misc_map_01", tab: "setup" }
             :{ label: "Raidplan öffnen", icon: "inv_misc_map_01", href: `https://raid-helper.xyz/raidplan/${(d.event || {}).id || ""}` };
         case "sheet": return { label: "Raidsheet füllen", icon: "inv_scroll_03", modal: "sheet" };
         case "raidplan": return { label: "Einteilungen posten", icon: "inv_misc_map02", modal: "raidplan" };
@@ -463,7 +463,22 @@ function setupSkipped(d, now) {
     return !ev.autoSuggest || !!ev.isPast;
 }
 
+/**
+ * Who of the orga is in the setup editor right now (setupPresence, `ownSetupEditors`):
+ * the step says so — note and hint — so nobody starts a second setup beside them.
+ */
+function withEditors(step, d) {
+    const names = (Array.isArray(d.ownSetupEditors) ? d.ownSetupEditors : []).filter(Boolean);
+    if (!names.length) return step;
+    const who = names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(" und ");
+    return { ...step, live: names, note: `${who} ${names.length > 1 ? "arbeiten" : "arbeitet"} dran`, hint: `${step.hint} Gerade im Setup: ${names.join(", ")}.` };
+}
+
 function setupStepOwn(d, now) {
+    return withEditors(setupStepOwnBase(d, now), d);
+}
+
+function setupStepOwnBase(d, now) {
     const s = d.ownSetup || null;
     const ev = d.event || {};
     const size = Number(ev.size) || (s && Number(s.size)) || 0;

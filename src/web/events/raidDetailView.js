@@ -45,6 +45,7 @@ const raidplanStore = require("../../stores/raidplanStore");
 const { raidplanPostState } = require("../../services/raidplan/raidplanPost");
 const linkCheck = require("../../services/discord/linkCheck");
 const { setupSummary } = require("../../services/setup/setupEditor");
+const setupPresence = require("../../services/setup/setupPresence");
 const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 const { planningOf } = require("../../services/events/planning");
 
@@ -193,7 +194,9 @@ async function ownEventPart(guildId, found, eventId) {
     const ownSetup = setupSummary(getEvent(eventId));
     const rows = listSignups(eventId);
     const names = rows.length ? await discord.resolveUserNames(guildId, rows.map((s) => s.userId)) : {};
-    return { ownSignups: eventSignupList(rows, names), ownSetup, ownSetupPost };
+    // who of the orga is in the setup editor right now (only the names; the editor itself polls for more)
+    const ownSetupEditors = setupPresence.editorsOf(eventId).map((p) => p.name);
+    return { ownSignups: eventSignupList(rows, names), ownSetup, ownSetupPost, ownSetupEditors };
 }
 
 /**
@@ -340,6 +343,8 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
         ownSignups: own.ownSignups,
         ownSetup: own.ownSetup,
         ownSetupPost: own.ownSetupPost,
+        // only an own event: who of the orga is in its setup editor right now
+        ownSetupEditors: own.ownSetupEditors,
         attendanceRoleIds: attendanceInfo.categoryRoleIds,
         membersError: attendanceInfo.membersError,
         signupTarget: softresInfo.signupTarget,

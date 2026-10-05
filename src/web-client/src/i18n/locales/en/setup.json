@@ -284,6 +284,30 @@
         "dmsSub": "On: everybody in the setup gets a DM with their place (\"Group 2 as healer\"), after a change only those whose place changed. Default from the category, applies to the next \"Post setup\".",
         "dmsSubOwn": "Set differently for this raid than in the category. Applies to the next \"Post setup\" and is remembered for this raid."
     },
+    "live": {
+        "one": "{name} is here too",
+        "many": "{count} in the setup",
+        "sub": "Changes arrive live",
+        "looking": "{name} is looking",
+        "holdsTip": "{name} is moving {character}",
+        "editsTip": "{name} is editing {character}'s signup",
+        "holdsTag": "{name} moving",
+        "editsTag": "{name} editing",
+        "holdsMsg": "{name} is moving {character} right now. Wait a moment, then it works again.",
+        "editsMsg": "{name} is editing {character}'s signup right now. Wait a moment, then it works again.",
+        "feed": "Just now",
+        "toGroup": "{who} put {character} in group {group}",
+        "toBench": "{who} put {character} on the bench",
+        "toPool": "{who} put {character} back to \"signed up\"",
+        "movedMany": "{who} moved {count} raiders",
+        "filled": { "one": "{who} filled {count} free place", "other": "{who} filled {count} free places" },
+        "proposed": "{who} had everything proposed anew",
+        "posted": "{who} posted the setup",
+        "now": "now",
+        "secondsAgo": "{count} s ago",
+        "minutesAgo": "{count} min ago",
+        "rebased": "Somebody changed it in between — your move was applied to the new state."
+    },
     "confirmAll": {
         "askTitle": "Confirm everybody?",
         "askText": {

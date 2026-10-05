@@ -284,6 +284,30 @@
         "dmsSub": "An: Jeder im Setup bekommt eine DM mit seinem Platz („Gruppe 2 als Heiler“), bei Änderungen nur wessen Platz sich geändert hat. Voreinstellung aus der Kategorie, gilt beim nächsten „Setup posten“.",
         "dmsSubOwn": "Für diesen Raid anders als in der Kategorie eingestellt. Gilt beim nächsten „Setup posten“ und wird für diesen Raid gemerkt."
     },
+    "live": {
+        "one": "{name} ist auch hier",
+        "many": "{count} im Setup",
+        "sub": "Änderungen kommen live",
+        "looking": "{name} schaut zu",
+        "holdsTip": "{name} zieht {character}",
+        "editsTip": "{name} bearbeitet die Anmeldung von {character}",
+        "holdsTag": "{name} zieht",
+        "editsTag": "{name} bearbeitet",
+        "holdsMsg": "{name} hat {character} gerade in der Hand. Warte kurz, dann geht es wieder.",
+        "editsMsg": "{name} bearbeitet gerade die Anmeldung von {character}. Warte kurz, dann geht es wieder.",
+        "feed": "Gerade eben",
+        "toGroup": "{who} hat {character} in Gruppe {group} gesetzt",
+        "toBench": "{who} hat {character} auf die Bank gesetzt",
+        "toPool": "{who} hat {character} zurück zu „Angemeldet“ gelegt",
+        "movedMany": "{who} hat {count} Raider verschoben",
+        "filled": { "one": "{who} hat {count} freien Platz gefüllt", "other": "{who} hat {count} freie Plätze gefüllt" },
+        "proposed": "{who} hat alles neu vorschlagen lassen",
+        "posted": "{who} hat das Setup gepostet",
+        "now": "jetzt",
+        "secondsAgo": "vor {count} s",
+        "minutesAgo": "vor {count} min",
+        "rebased": "Jemand hat zwischendurch geändert – dein Zug wurde auf den neuen Stand gesetzt."
+    },
     "confirmAll": {
         "askTitle": "Alle bestätigen?",
         "askText": {

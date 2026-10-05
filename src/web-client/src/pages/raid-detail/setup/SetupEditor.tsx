@@ -17,7 +17,7 @@
 // server. Posting carries the bench only with "Bench mitposten" ticked.
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput } from "../../../api";
+import { approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupPresenceAction, type StoredSetup } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { applyLocal, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
 import { useT } from "../../../i18n";
@@ -33,6 +33,8 @@ import "../../../styles/setup-editor.css";
 import { clock, readCompact, storeCompact } from "./setupText";
 import { BenchCard, GroupCard, type Interaction, ReadOnly } from "./Board";
 import { PoolPanel } from "./PoolPanel";
+import { ActivityFeed, PresenceChip } from "./LiveParts";
+import { presenceColor, usePresence } from "./usePresence";
 import { MoreMenu, PingTextField, SizeControl, StatusBadge, type MoreItem } from "./Controls";
 import { Summary, SummaryLine } from "./Summary";
 import { roleFigures, summaryOptions } from "./summaryFigures";
@@ -89,6 +91,25 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     }, [selected, pinned]);
 
     const setup = data?.setup || null;
+
+    // Who else is in this editor (setupPresence): what this orga member holds goes out with
+    // every heartbeat, the others are drawn in the bar and on the raiders they hold, and what
+    // they just moved glows a moment with their name.
+    const myAction: SetupPresenceAction | null = dragging ? { kind: "drag", userId: dragging }
+        : selected ? { kind: "drag", userId: selected }
+            : editing ? { kind: "edit", userId: editing } : null;
+    const [flash, setFlash] = useState<Record<string, { name: string; color: string }>>({});
+    const flashFor = (entries: SetupActivity[]) => {
+        const lit: Record<string, { name: string; color: string }> = {};
+        for (const e of entries) {
+            const ids = e.kind === "move" && e.userId ? [e.userId] : e.kind === "many" ? (e.userIds || []) : [];
+            for (const id of ids) lit[id] = { name: e.byName, color: presenceColor(e.by) };
+        }
+        if (!Object.keys(lit).length) return;
+        setFlash((prev) => ({ ...prev, ...lit }));
+        setTimeout(() => setFlash((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => !(id in lit)))), 4000);
+    };
+    const presence = usePresence(ctx.eventId, myAction, { enabled: !!data?.canWrite, onNew: flashFor });
     const postBench = benchChoice ?? !!data?.publish?.bench;
     const postDms = dmsChoice ?? !!data?.publish?.dmsEnabled;
 
@@ -115,6 +136,24 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const chain = useRef<Promise<unknown>>(Promise.resolve());
     useEffect(() => { if (data?.setup && !saving.current) confirmedVersion.current = data.setup.version; }, [data]);
 
+    // Somebody else changed the setup (the heartbeat says a newer version is stored): fetch it
+    // light — no names, no attendance; the page keeps its own — unless a move of ours is on its way.
+    const syncing = useRef(false);
+    useEffect(() => {
+        if (!presence.version || presence.version <= confirmedVersion.current || saving.current || syncing.current) return;
+        syncing.current = true;
+        getRaidSetup(ctx.eventId, { light: true })
+            .then((next) => {
+                if (saving.current || !next.setup || next.setup.version <= confirmedVersion.current) return;
+                confirmedVersion.current = next.setup.version;
+                setData({ ...withNames(next), attendance: current.current?.attendance || next.attendance });
+            })
+            // a failed fetch is no news: the next heartbeat asks again
+            .catch(() => undefined)
+            .finally(() => { syncing.current = false; });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [presence.version]);
+
     /** A server answer, with the Discord names the page already knows (mutations do not resolve them again). */
     const withNames = (raw: SetupEditorData): SetupEditorData => {
         if (!raw.setup) return raw;
@@ -135,7 +174,10 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     // `patch`: other top-level fields to redraw at once alongside the lineup —
     // only the resize uses it, to show the new size/group count instantly
     // instead of waiting for the server's answer.
-    const save = (input: SetupPlacementInput, extra: { fairness?: boolean; wishes?: boolean; avoid?: boolean } = {}, patch: Partial<SetupEditorData> = {}) => {
+    // `redo`: the move once more on a newer lineup — when somebody else saved in
+    // between (409 "conflict"), the move is applied to their lineup and saved again
+    // instead of "changed in the meantime, reload".
+    const save = (input: SetupPlacementInput, extra: { fairness?: boolean; wishes?: boolean; avoid?: boolean } = {}, patch: Partial<SetupEditorData> = {}, redo?: (fresh: StoredSetup) => SetupPlacementInput | null) => {
         const shown = current.current;
         if (!shown?.setup) return chain.current;
         const ticket = ++saving.current;
@@ -151,12 +193,32 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     accept(next, next.message);
                 }
             } catch (e) {
+                if ((e as ApiError).code === "conflict" && redo && await replay(redo, extra, ticket)) return;
                 saving.current = 0;
                 jobs.notify((e as ApiError).message || t("setup.editor.saveFailed"), "err");
                 load();
             }
         });
         return chain.current;
+    };
+
+    /** A move that met a newer lineup: fetch it, apply the move there, save again — true when that worked. */
+    const replay = async (redo: (fresh: StoredSetup) => SetupPlacementInput | null, extra: { fairness?: boolean; wishes?: boolean; avoid?: boolean }, ticket: number) => {
+        try {
+            const fresh = withNames(await getRaidSetup(ctx.eventId, { light: true }));
+            const again = fresh.setup ? redo(withSetupDefaults(fresh.setup)) : null;
+            if (!fresh.setup || !again) return false;
+            const next = await saveRaidSetup(ctx.eventId, { ...again, ...extra, version: fresh.setup.version });
+            if (next.setup) confirmedVersion.current = next.setup.version;
+            if (ticket === saving.current) {
+                saving.current = 0;
+                accept(next, next.message);
+            }
+            jobs.notify(t("setup.live.rebased"));
+            return true;
+        } catch {
+            return false;
+        }
     };
 
     /** Put a raider into the setup as another spec of their class (the third tank, an extra healer) — saved like any move. */
@@ -179,7 +241,11 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         if (!who || !shown?.setup) return;
         const result = moveRaider(toInput(shown.setup), who, target, peopleOf(shown.setup), shown.event.size || 0);
         if ("error" in result && result.error) return jobs.notify(result.error, "err");
-        if (result.input) save(result.input);
+        const redo = (fresh: StoredSetup) => {
+            const again = moveRaider(toInput(fresh), who, target, peopleOf(fresh), shown.event.size || 0);
+            return "input" in again && again.input ? again.input : null;
+        };
+        if (result.input) save(result.input, {}, {}, redo);
     };
 
     const pick = (userId: string) => {
@@ -455,7 +521,15 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const inspectedInGroup = !!inspectedPerson && setup.groups.some((g) => g.slots.some((s) => s.userId === inspectedPerson.userId));
     const confirmations = data.confirmations || {};
     // hovering a raider no longer opens anything — a click does (the drawer)
-    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: () => undefined, onPick: pick, onDrop: move, onDrag: setDragging, onEdit: setEditing, confirmations, pinned: shownId };
+    // what the others hold right now, by raider — ringed in their colour, not to be taken meanwhile
+    const held: NonNullable<Interaction["held"]> = {};
+    for (const e of presence.editors) if (e.action) held[e.action.userId] = { name: e.name, color: presenceColor(e.userId), kind: e.action.kind };
+    const characters = new Map([...peopleOf(setup).values()].map((p) => [p.userId, p.character]));
+    const onHeld = (userId: string) => {
+        const h = held[userId];
+        if (h) jobs.notify(t(h.kind === "edit" ? "setup.live.editsMsg" : "setup.live.holdsMsg", { name: h.name, character: characters.get(userId) || "?" }));
+    };
+    const ui: Interaction = { held, flash, onHeld, editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: () => undefined, onPick: pick, onDrop: move, onDrag: setDragging, onEdit: setEditing, confirmations, pinned: shownId };
     const closeDrawer = () => {
         setPinned(null);
         setSelected(null);
@@ -560,6 +634,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
             {/* ONE toolbar line: the state, the counts, then "Mehr", "Alle bestätigen" and the one primary button */}
             <div className="se-bar">
                 <StatusBadge setup={setup} publish={data.publish} />
+                <PresenceChip editors={presence.editors} names={characters} />
                 {/* while a raider is picked the counts make room for where to click next */}
                 {selected
                     ? <span className="se-bar-pick">{t("setup.editor.pickTarget")}</span>
@@ -620,6 +695,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                         </div>
                         <BenchCard bench={setup.bench} ui={ui} />
                         <SummaryLine data={data} setup={setup} onDetails={() => setDialog("details")} />
+                        <ActivityFeed activity={presence.activity} />
                     </div>
                     <PoolPanel pool={setup.pool || []} ui={ui} absent={data.absent || 0} />
                 </div>

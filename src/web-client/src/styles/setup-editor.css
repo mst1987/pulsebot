@@ -294,6 +294,29 @@
     .se-pp-none .se-pp-toggle { display: none; }
 }
 
+/* who else is in the editor (setupPresence): avatars in the bar, a ring and a name tag on the raider somebody
+   holds, a short glow on what somebody just moved, and "Gerade eben" under the groups. --se-who = their colour. */
+.se-live { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 3px 12px 3px 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel2); cursor: help; }
+.se-live-avatars { display: inline-flex; }
+.se-avatar { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--se-who); background: color-mix(in srgb, var(--se-who) 22%, var(--panel)); color: var(--text); font-size: 10.5px; font-weight: 800; box-sizing: border-box; }
+.se-avatar + .se-avatar { margin-left: -7px; }
+.se-live-text { display: flex; flex-direction: column; line-height: 1.15; white-space: nowrap; }
+.se-live-text b { font-size: 12.5px; }
+.se-live-text small { font-size: 11px; color: var(--muted); }
+.se-slot.se-held { border: 2px solid var(--se-who); opacity: .6; cursor: not-allowed; }
+.se-slot.se-flash { border-color: var(--se-who); box-shadow: 0 0 0 3px color-mix(in srgb, var(--se-who) 30%, transparent); animation: se-flash 4s ease-out forwards; }
+@keyframes se-flash { 0%, 70% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--se-who) 30%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .se-slot.se-flash { animation: none; } }
+.se-who-tag { position: absolute; top: -8px; right: 6px; max-width: calc(100% - 12px); padding: 0 7px; border-radius: 999px; background: var(--se-who); color: #14112b; font-size: 10px; font-weight: 800; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.se-feed { padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.se-feed-head { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13.5px; margin-bottom: 6px; }
+.se-feed-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+.se-feed ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.se-feed li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.se-feed-who { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--se-who); }
+.se-feed-text { flex: 1 1 auto; min-width: 0; }
+.se-feed-at { flex: 0 0 auto; color: var(--muted); font-size: 11.5px; }
+
 /* before the first proposal */
 .se-start { display: flex; align-items: center; gap: 16px; padding: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
 .se-start .wi { border-radius: 8px; }
