@@ -66,34 +66,47 @@ function parseId(customId) {
 const panelId = (action, categoryId = "") => `${PREFIX}:${action}:${categoryId}`;
 const pickId = (token, action) => `${PREFIX}:${token}:${action}`;
 
-/** The three buttons of the panel (and of /availability). */
+/** The three buttons of the panel (and of /availability). Shorter than the modals' titles they open. */
 function panelButtons(categoryId = "", lang = "de") {
     return new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(panelId("a", categoryId)).setLabel(tr(lang, "Enter absence")).setEmoji("🏖️").setStyle(ButtonStyle.Danger),
-        new ButtonBuilder().setCustomId(panelId("p", categoryId)).setLabel(tr(lang, "Enter attendance")).setEmoji("✅").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(panelId("a", categoryId)).setLabel(tr(lang, "Mark absent")).setEmoji("🏖️").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId(panelId("p", categoryId)).setLabel(tr(lang, "Mark attending")).setEmoji("✅").setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId(panelId("l", categoryId)).setLabel(tr(lang, "My entries")).setEmoji("📋").setStyle(ButtonStyle.Secondary),
     );
 }
 
-/** The panel message a raid category's channel carries — in the server language. */
+/**
+ * A category's name as the panel writes it: without the decoration a server
+ * puts in front ("╭・ TBC Montag" → "TBC Montag"); the name itself when it is
+ * nothing but decoration.
+ */
+function plainCategoryName(name) {
+    const raw = str(name);
+    return raw.replace(/^[^\p{L}\p{N}]+/u, "").trim() || raw;
+}
+
+/**
+ * The panel message a raid category's channel carries — in the server
+ * language. One sentence, the two kinds of entry side by side as inline
+ * fields, the DM note in the footer (design A of the panel canvas, Okt 2026:
+ * three paragraphs that named the category three times were too much to read).
+ */
 function panelPayload({ categoryId = "", categoryName = "", lang = "de" } = {}) {
-    const vars = { category: categoryName };
-    const description = [
-        categoryName
-            ? tr(lang, "**Away for a while?** Enter your absence and you are signed off from every **{category}** raid in that period – also from raids created later.", vars)
-            : tr(lang, "**Away for a while?** Enter your absence and you are signed off from every raid in that period – also from raids created later."),
-        "",
-        categoryName
-            ? tr(lang, "**There for sure?** Enter your attendance with a character and you are signed up for every **{category}** raid in that period as *Signed up*.", vars)
-            : tr(lang, "**There for sure?** Enter your attendance with a character and you are signed up for every raid in that period as *Signed up*."),
-        "",
-        tr(lang, "You pick the raids yourself, and you get a DM for every raid the bot signs you up or off for. Your own signup always stays yours to change."),
-    ].join("\n");
+    const category = plainCategoryName(categoryName);
+    const vars = { category };
     return {
         content: "",
         embeds: [buildEmbed({
-            title: categoryName ? tr(lang, "Absence & attendance · {category}", vars) : tr(lang, "Absence & attendance"),
-            description, color: COLOR_PANEL,
+            title: category ? tr(lang, "Absence & attendance · {category}", vars) : tr(lang, "Absence & attendance"),
+            description: category
+                ? tr(lang, "Enter a period – the bot signs you off or up for every **{category}** raid in it.", vars)
+                : tr(lang, "Enter a period – the bot signs you off or up for every raid in it."),
+            fields: [
+                { name: tr(lang, "🏖️ Away"), value: tr(lang, "Signed off from every raid in the period – also from ones created later"), inline: true },
+                { name: tr(lang, "✅ There for sure"), value: tr(lang, "Signed up with your character as *Signed up*"), inline: true },
+            ],
+            footer: tr(lang, "One DM per raid · your own signup stays yours to change"),
+            color: COLOR_PANEL,
         })],
         components: [panelButtons(categoryId, lang)],
     };
