@@ -1317,6 +1317,8 @@
         "select": "Auswahlmodus",
         "preview": "Sheet-Vorschau (ohne Griffe und Auswahl)",
         "showMap": "Karte für diesen Abschnitt zeigen",
+        "mapSwitch": "Karte",
+        "mapSwitchTip": "Aus: Dieser Abschnitt zeigt nur die Einteilungen, auch in der Lese-Ansicht. Die Objekte auf der Karte bleiben gespeichert.",
         "draw": "Zeichnen",
         "drawSub": "Pfeil, Linie, Text",
         "shapes": "Formen",
