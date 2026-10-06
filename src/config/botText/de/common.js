@@ -8,8 +8,8 @@ module.exports = {
     // /language
     "Bot language: **German**.": "Bot-Sprache: **Deutsch**.",
     "Bot language: **English**.": "Bot-Sprache: **Englisch**.",
-    "You now get the server language (**German**).": "Du bekommst jetzt die Server-Sprache (**Deutsch**).",
-    "You now get the server language (**English**).": "Du bekommst jetzt die Server-Sprache (**Englisch**).",
-    "Applies to everything only you see: dialogs, answers and DMs. Messages in the channels stay in the server language. The web menu follows the same setting.":
-        "Gilt für alles, was nur du siehst: Dialoge, Antworten und DMs. Nachrichten in den Kanälen bleiben in der Server-Sprache. Das Web-Menü folgt derselben Einstellung.",
+    "Bot language: **automatic**, it now follows your Discord language (**German**).": "Bot-Sprache: **automatisch**, der Bot folgt jetzt deiner Discord-Sprache (**Deutsch**).",
+    "Bot language: **automatic**, it now follows your Discord language (**English**).": "Bot-Sprache: **automatisch**, der Bot folgt jetzt deiner Discord-Sprache (**Englisch**).",
+    "Applies to everything only you see: dialogs, answers and DMs. Messages in the channels are not personal and stay in the server language. The web menu follows the same setting.":
+        "Gilt für alles, was nur du siehst: Dialoge, Antworten und DMs. Nachrichten in den Kanälen sind nicht persönlich und bleiben in der Server-Sprache. Das Web-Menü folgt derselben Einstellung.",
 };
