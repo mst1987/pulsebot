@@ -58,6 +58,59 @@ describe("utils/loot/wowhead", () => {
         });
     });
 
+    describe("lookupItemDetails", () => {
+        const XML = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><wowhead><item id=\"22854\"><name><![CDATA[Fläschchen des unerbittlichen Angriffs]]></name>"
+            + "<level>75</level><quality id=\"1\">Gewöhnlich</quality><class id=\"0\"><![CDATA[Verbrauchbar]]></class>"
+            + "<subclass id=\"3\"><![CDATA[Fläschchen]]></subclass><icon displayId=\"0\">inv_potion_117</icon></item></wowhead>";
+
+        it("reads the German item XML with class and subclass", async () => {
+            axios.get.mockResolvedValue({ data: XML });
+            expect(await wowhead.lookupItemDetails(22854, { path: "tbc" })).toEqual({
+                id: 22854,
+                name: "Fläschchen des unerbittlichen Angriffs",
+                icon: "inv_potion_117",
+                iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_potion_117.jpg",
+                quality: 1,
+                classId: 0,
+                subclassId: 3,
+                className: "Verbrauchbar",
+                subclassName: "Fläschchen",
+            });
+            expect(axios.get).toHaveBeenCalledTimes(1);
+            expect(axios.get.mock.calls[0][0]).toBe("https://www.wowhead.com/tbc/de/item=22854&xml");
+        });
+
+        it("asks the English page without a locale segment", async () => {
+            axios.get.mockResolvedValue({ data: XML });
+            await wowhead.lookupItemDetails(22854, { path: "classic", locale: "en" });
+            expect(axios.get.mock.calls[0][0]).toBe("https://www.wowhead.com/classic/item=22854&xml");
+        });
+
+        it("falls back to the German tooltip when the XML has no item", async () => {
+            axios.get
+                .mockResolvedValueOnce({ data: "<wowhead><error>Item not found!</error></wowhead>" })
+                .mockResolvedValueOnce({ data: { name: "Netherstoff", icon: "inv_fabric_netherweave", quality: 1 } });
+            expect(await wowhead.lookupItemDetails(21877)).toMatchObject({
+                id: 21877, name: "Netherstoff", icon: "inv_fabric_netherweave", quality: 1, classId: null, className: "",
+            });
+            expect(axios.get.mock.calls[1][0]).toBe("https://nether.wowhead.com/tbc/tooltip/item/21877?locale=3");
+        });
+
+        it("falls back when the XML request fails, and gives null when both fail", async () => {
+            axios.get
+                .mockRejectedValueOnce(new Error("blocked"))
+                .mockResolvedValueOnce({ data: { name: "Netherstoff", icon: "" } });
+            expect(await wowhead.lookupItemDetails(21877, { locale: "en" })).toMatchObject({ name: "Netherstoff", iconUrl: "", quality: null });
+            expect(axios.get.mock.calls[1][0]).toBe("https://nether.wowhead.com/tbc/tooltip/item/21877");
+
+            axios.get.mockRejectedValueOnce(new Error("blocked")).mockRejectedValueOnce(new Error("404"));
+            expect(await wowhead.lookupItemDetails(999999)).toBeNull();
+            axios.get.mockResolvedValueOnce({ data: "" }).mockResolvedValueOnce({ data: { error: "x" } });
+            expect(await wowhead.lookupItemDetails(999998)).toBeNull();
+            expect(await wowhead.lookupItemDetails(0)).toBeNull();
+        });
+    });
+
     describe("lookupItem", () => {
         it("resolves name/icon/quality by id from the tooltip endpoint", async () => {
             axios.get.mockResolvedValue({ data: { name: "Sunhawk Leggings", icon: "inv_pants_plate_07", quality: 4 } });

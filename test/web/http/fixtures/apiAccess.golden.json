@@ -200,7 +200,10 @@
     "/api/availability/preview": "signup",
     "/api/availability/panels": "settings",
     "/api/availability/panel": "settings",
-    "/api/availability/links": "settings"
+    "/api/availability/links": "settings",
+    "/api/settings/guild-banks": "settings",
+    "/api/settings/guild-banks/assign": "settings",
+    "/api/settings/guild-banks/delete": "settings"
   },
   "ungated": [
     "/api/session",
@@ -214,6 +217,7 @@
   ],
   "tokenAuth": [
     "/api/ingest/loot",
-    "/api/ingest/raids"
+    "/api/ingest/raids",
+    "/api/ingest/guildbank"
   ]
 }
