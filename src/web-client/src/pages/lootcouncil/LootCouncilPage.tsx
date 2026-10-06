@@ -27,6 +27,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { getLootCouncil, setCouncilExcluded, getCouncilExport, refreshCouncilArmory, setCouncilRole, canAccess, loadCouncilLogGear, type ApiError, type CouncilRaider, type CouncilExport, type LootCouncilData } from "../../api";
+import { useCategoryViews } from "./categoryViews";
 import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
 import { useJobs, useToast } from "../../components/Jobs";
 import type { ShellContext } from "../../components/Shell";
@@ -56,21 +57,31 @@ const VIEW_DEFAULT: View = {
 
 export default function LootCouncilPage() {
     // The game version of the raiders shown (#563): the menu's content switch.
-    const { version: contentVersion } = useContentVersion();
+    const { version: contentVersion, mainVersion } = useContentVersion();
     const { user } = useOutletContext<ShellContext>();
     // Setting a raider aside is an action on the server, so it takes write.
     const canWrite = canAccess(user, "lootcouncil", "write");
     const navigate = useNavigate();
     const t = useT();
     const ask = useConfirm();
-    const [view, setView] = usePersistedState<View>(VIEW_KEY, VIEW_DEFAULT);
+    const jobs = useJobs();
+    const toast = useToast();
+    const [localView, setLocalView] = usePersistedState<View>(VIEW_KEY, VIEW_DEFAULT);
+    // A picked category brings its own filters from the server (they drive the
+    // in-game council too): lootcouncil/categoryViews.ts.
+    const { filters: view, patch, ready: viewsReady, reachesGame } = useCategoryViews({
+        view: localView,
+        setView: setLocalView,
+        canWrite,
+        version: contentVersion,
+        mainVersion,
+        onError: (message) => toast(message || t("lootcouncil.page.actionFailed"), "err"),
+    });
     // A stored "drop" tab is from before the drop check had its own page.
     const tab = view.tab === "drop" ? "roster" : view.tab;
     const [data, setData] = useState<LootCouncilData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [loading, setLoading] = useState(true);
-    const jobs = useJobs();
-    const toast = useToast();
     // Whether a first load has landed — after it, reloads run as quiet jobs
     // (the full-page loader would lose the reader's place).
     const loaded = useRef(false);
@@ -121,13 +132,14 @@ export default function LootCouncilPage() {
 
     // Wrapped rather than passed directly: `load` returns a promise, and a
     // promise handed to useEffect would be mistaken for a cleanup function.
-    useEffect(() => { load(); }, [load]);
+    // Not before the stored category views are known: a picked category would
+    // otherwise load once with this browser's filters and once with its own.
+    useEffect(() => { if (viewsReady) load(); }, [load, viewsReady]);
 
     // A changed filter changes which raiders and items were simulated, so the
     // old results no longer describe what is on screen.
     useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.bisTier, contentVersion, setSim]);
 
-    const patch = (next: Partial<View>) => setView({ ...view, ...next });
 
     const roster = useMemo(() => (data ? data.roster : []), [data]);
     const gaps = data ? data.gaps : [];
@@ -335,6 +347,8 @@ export default function LootCouncilPage() {
                 armoryCount={armoryCount}
                 simulated={simulated}
                 simulatable={simulatable.length}
+                reachesGame={reachesGame}
+                canWrite={canWrite}
             />
 
             {tab === "roster" ? (

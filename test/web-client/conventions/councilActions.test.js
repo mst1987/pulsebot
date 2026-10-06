@@ -41,7 +41,8 @@ describe("loot council — busy state", () => {
 
     it("does not hand the promise-returning load to useEffect", () => {
         expect(main).not.toMatch(/useEffect\(load,/);
-        expect(main).toMatch(/useEffect\(\(\) => \{ load\(\); \}, \[load\]\)/);
+        // Wrapped, and only once the stored category views are known (categoryViews.ts).
+        expect(main).toMatch(/useEffect\(\(\) => \{ if \(viewsReady\) load\(\); \}, \[load, viewsReady\]\)/);
     });
 });
 

@@ -25,6 +25,7 @@ import {
     CANDIDATE_SORT, FILTER_DEFAULT, VIEW_KEY, WOWHEAD, dropHref, pickVerdict, raiderHref, useCouncilSim, waitedTip,
     type CandidateSortKey, type FilterView } from "./council";
 import { WowheadPathProvider } from "../../lib/versionLinks";
+import { useCategoryViews } from "./categoryViews";
 import { BisSpecs, ContentBadge, FoldRow, LootCount, RaiderIdent } from "./ItemBits";
 import { CandidateTable, ListBadge } from "./CandidateTable";
 import { NeedBar } from "./NeedBar";
@@ -38,8 +39,12 @@ export default function DropCheckPage() {
     const navigate = useNavigate();
     const jobs = useJobs();
     const toast = useToast();
-    // The same filters the council page is set to — read, never written here.
-    const [view] = usePersistedState<FilterView>(VIEW_KEY, FILTER_DEFAULT);
+    // The same filters the council page is set to — read, never written here:
+    // the browser's, or a picked category's stored ones (categoryViews.ts).
+    const [localView] = usePersistedState<FilterView>(VIEW_KEY, FILTER_DEFAULT);
+    const { filters: view, ready: viewsReady } = useCategoryViews({
+        view: localView, setView: () => undefined, canWrite: false, version: "", mainVersion: "", onError: () => undefined,
+    });
     const [focus, setFocus] = useState<CouncilFocus | null>(null);
     const [simAvailable, setSimAvailable] = useState(false);
     // The council's version's Wowhead path (#542); undefined until loaded = the stored (TBC) one
@@ -77,6 +82,7 @@ export default function DropCheckPage() {
 
     useEffect(() => {
         if (!itemId) { setFocus(null); return undefined; }
+        if (!viewsReady) return undefined;
         let alive = true;
         setLoading(true);
         jobs.run({ label: translate("lootcouncil.drop.loading"), quiet: true }, fetchFocus)
@@ -94,7 +100,7 @@ export default function DropCheckPage() {
             .finally(() => { if (alive) setLoading(false); });
         return () => { alive = false; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [itemId, view.role, view.tiers, view.contents, view.category, view.bisTier, jobs]);
+    }, [itemId, view.role, view.tiers, view.contents, view.category, view.bisTier, viewsReady, jobs]);
 
     /** Re-reads the focus after a gear reload — quiet, no page-level spinner. */
     const reloadFocus = async (): Promise<CouncilFocus | null> => {

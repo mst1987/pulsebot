@@ -9,6 +9,8 @@
 //   GET  /api/lootcouncil/bislists    — the lists themselves, per class and spec
 //   POST /api/lootcouncil/sim         — start the DPS simulation in the background
 //   GET  /api/lootcouncil/sim         — poll it
+//   GET  /api/lootcouncil/views       — the stored filters per raid category
+//   POST /api/lootcouncil/view        — store one (the addon uses them too)
 //
 // Everything the page shows works without the simulation; the sim is what
 // puts a gain next to a candidate at all — the page shows no estimates. That
@@ -20,7 +22,7 @@ const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { userCan } = require("../../config/permissions");
-const { councilRoster, bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../loot/lootCouncil");
+const { bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../loot/lootCouncil");
 const { bisLists } = require("../loot/bisLists");
 const { primeArmoryGear, clearArmoryFor } = require("../../services/loot/armoryGear");
 const { loadLogGear, clearLogGear, recentLogs } = require("../../stores/logGearStore");
@@ -35,6 +37,7 @@ const engine = require("../../utils/wowsims/engine");
 const { getConfig } = require("../../stores/settingsStore");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { councilOptsFromQuery, categoryOptions } = require("../loot/councilQuery");
+const { buildCouncilView, councilCategoryIds } = require("../loot/councilView");
 const { settingsForVersion } = require("../../services/events/versionSettings");
 
 /**
@@ -50,20 +53,9 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     // query: see councilQuery.js.
     const opts = councilOptsFromQuery(url.searchParams);
     const { role, tierIds, contentIds, categoryId, bisTier, versionId, config, mainVersion, charVersion } = opts;
-    let built = councilRoster(opts);
-    // A set that still holds a boss-specific piece is the one case the logs
-    // cannot answer — only the armory knows what is on that raider *now*. Asked
-    // then and only then, and only for those names, so a normal council costs
-    // no extra call at all. If it answers, the roster is built again with it.
-    const needArmory = built.rows.filter((r) => r.gear && r.gear.dropped.length).map((r) => r.character);
-    if (needArmory.length) {
-        try {
-            const primed = await primeArmoryGear(needArmory, { versionId });
-            if (primed.answered) built = councilRoster(opts);
-        } catch (e) {
-            console.error("armory gear failed:", e.message);
-        }
-    }
+    // Roster plus the armory step for boss-specific pieces: councilView.js,
+    // shared with the sync tool's endpoint so the game sees the same numbers.
+    const built = await buildCouncilView(opts);
     const {
         rows, avgLootCount, bisTier: usedBisTier, skipped, categorySources, versions,
     } = built;
@@ -191,6 +183,41 @@ const postRole = withUser({ write: "lootcouncil", csrf: true, body: true }, asyn
 
     const entry = councilStore.setRole(character, role, { by: user.name || user.id });
     ok(res, { character, role: entry ? entry.role : "", entry });
+});
+
+/**
+ * GET /api/lootcouncil/views — die gespeicherte Ansicht je Raid-Kategorie
+ * (Rolle, Tiers, Raids, BiS-Liste, Version) und welche Kategorien als
+ * Loot-Council laufen. Mit genau dieser Ansicht rechnet auch das Addon im
+ * Spiel (GET /api/ingest/council?v=2); ohne gespeicherte gilt `defaults`.
+ */
+const getViews = withUser({}, async ({ user, res }) => {
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
+    const views = {};
+    for (const [categoryId, entry] of Object.entries(councilStore.listViews())) {
+        const { role, tiers, contents, bisTier, version } = entry;
+        views[categoryId] = { role, tiers, contents, bisTier, version };
+    }
+    ok(res, {
+        views,
+        defaults: { ...councilStore.VIEW_DEFAULTS, tiers: [], contents: [] },
+        councilCategories: councilCategoryIds(getConfig()),
+    });
+});
+
+/**
+ * POST /api/lootcouncil/view — die Ansicht einer Kategorie speichern.
+ * Body: { category, role, tiers, contents, bisTier, version }
+ *
+ * Ändert, was das Addon im Spiel für diese Kategorie zeigt — deshalb Schreibrecht
+ * wie beim Ausplanen und der Rolle.
+ */
+const postView = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ user, body, res }) => {
+    const category = String(body.category || "").trim();
+    if (!category) return apiError(res, 400, "bad_request", "Keine Kategorie angegeben.");
+    const entry = councilStore.setView(category, body, { by: user.name || user.id });
+    const { role, tiers, contents, bisTier, version } = entry;
+    ok(res, { category, view: { role, tiers, contents, bisTier, version } });
 });
 
 /**
@@ -374,6 +401,8 @@ const routes = [
     { method: "POST", path: "/api/lootcouncil/exclude", handler: postExclude, area: "lootcouncil" },
     { method: "GET", path: "/api/lootcouncil/item-search", handler: getItemSearch, area: "lootcouncil" },
     { method: "POST", path: "/api/lootcouncil/role", handler: postRole, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/views", handler: getViews, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/view", handler: postView, area: "lootcouncil" },
     { method: "POST", path: "/api/lootcouncil/armory", handler: postArmoryRefresh, area: "lootcouncil" },
     { method: "POST", path: "/api/lootcouncil/loggear", handler: postLogGear, area: "lootcouncil" },
     { method: "GET", path: "/api/lootcouncil/bislists", handler: getBisLists, area: "lootcouncil" },
@@ -384,5 +413,6 @@ const routes = [
 module.exports = {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
     getItemSearch, getBisLists, postExclude, postRole, getExport, postArmoryRefresh, postLogGear,
+    getViews, postView,
     routes,
 };

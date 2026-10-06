@@ -3,9 +3,11 @@
 // score and its three parts) and what each raider already received. No gear
 // details, sim data or URLs - the addon needs none of them.
 //
-// Format "eventhelper-council" version 1. The sync tool (repo eventhelper-addon)
-// and its addon read the same shape: when a field changes, VERSION grows on
-// both sides (docs/loot-import.md, "Council-Daten für das Addon").
+// Format "eventhelper-council" version 1 (one category per answer, filters from
+// the query) and version 2 (every Loot-Council category at once, each with its
+// stored page view). The sync tool (repo eventhelper-addon) and its addon read
+// the same shape: when a field changes, the version grows on both sides
+// (docs/loot-import.md, "Council-Daten für das Addon").
 //
 // Pure: `built` is councilRoster()'s answer, everything else is passed in, so
 // the mapping is tested with plain object literals.
@@ -108,4 +110,46 @@ function councilSyncPayload(built, ctx = {}) {
     };
 }
 
-module.exports = { councilSyncPayload, classFileFor, FORMAT, VERSION, MAX_ITEMS };
+const VERSION_2 = 2;
+
+/**
+ * Version 2: every Loot-Council category in one answer, each computed with the
+ * category's stored view exactly like the page (web/loot/councilView.js).
+ * Raiders carry the v1 fields plus a stable `key` (the character key).
+ *
+ * @param {object[]} entries  per category: { id, name, opts, built, instances }
+ *                            (opts = councilOptsFromQuery()'s answer for the view,
+ *                            built = buildCouncilView()'s answer)
+ * @param {{ now?: number }} [ctx]
+ */
+function councilSyncPayloadV2(entries, ctx = {}) {
+    return {
+        format: FORMAT,
+        version: VERSION_2,
+        generatedAt: seconds(ctx.now || Date.now()),
+        weights: {
+            drought: Math.round(NEED_WEIGHTS.drought * 100),
+            share: Math.round(NEED_WEIGHTS.share * 100),
+            need: Math.round(NEED_WEIGHTS.need * 100),
+        },
+        categories: (entries || []).map(({ id, name, opts, built, instances }) => ({
+            id: String(id),
+            name: String(name || id),
+            lootSystem: "lootcouncil",
+            filter: {
+                role: opts.role || "",
+                tiers: opts.tierIds || [],
+                contents: opts.contentIds || [],
+                bisTier: built.bisTier || "",
+                bisTierDerived: !opts.bisTier,
+                // The character version filter: "" = every version.
+                version: opts.charVersion || "",
+            },
+            instances: instances || [],
+            avgLootCount: built.avgLootCount || 0,
+            raiders: (built.rows || []).map((row) => ({ key: String(row.key || ""), ...raiderView(row) })),
+        })),
+    };
+}
+
+module.exports = { councilSyncPayload, councilSyncPayloadV2, classFileFor, FORMAT, VERSION, VERSION_2, MAX_ITEMS };

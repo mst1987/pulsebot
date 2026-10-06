@@ -100,4 +100,31 @@ describe("stores/councilStore", () => {
             expect(store.listRoles()).toEqual({});
         });
     });
+
+    describe("Ansicht je Kategorie", () => {
+        it("gibt ohne gespeicherte Ansicht die Vorgaben der Seite", () => {
+            expect(store.viewFor("c1")).toEqual({ role: "caster", tiers: [], contents: [], bisTier: "", version: "", stored: false });
+            expect(store.viewFor("")).toMatchObject({ stored: false });
+            expect(store.listViews()).toEqual({});
+        });
+
+        it("speichert die Ansicht einer Kategorie bereinigt und mit Urheber", () => {
+            const entry = store.setView("c1", { role: "", tiers: ["t6", "t6", "<b>"], contents: ["bt"], bisTier: "t6", version: "tbc" }, { by: "Raidlead" });
+            expect(entry).toMatchObject({ role: "", tiers: ["t6"], contents: ["bt"], bisTier: "t6", version: "tbc", by: "Raidlead" });
+            expect(entry.at).toBeGreaterThan(0);
+            // "" ist „Alle Rollen“ – keine fehlende Rolle.
+            expect(store.viewFor("c1")).toEqual({ role: "", tiers: ["t6"], contents: ["bt"], bisTier: "t6", version: "tbc", stored: true });
+            expect(Object.keys(store.listViews())).toEqual(["c1"]);
+            expect(store.setView("", {})).toBeNull();
+            store.reset();
+            expect(fs.existsSync(store.VIEWS_FILE)).toBe(false);
+        });
+
+        it("fällt bei unbekannten Werten auf die Vorgaben zurück", () => {
+            expect(store.normalizeView({ role: "tank", tiers: "t6", bisTier: "a b", version: 7 })).toEqual({
+                role: "caster", tiers: [], contents: [], bisTier: "", version: "7",
+            });
+            expect(store.normalizeView(null)).toEqual({ role: "caster", tiers: [], contents: [], bisTier: "", version: "" });
+        });
+    });
 });

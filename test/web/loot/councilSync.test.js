@@ -1,5 +1,5 @@
 // The slim council payload for the sync tool: pure mapping, plain object literals.
-const { councilSyncPayload, classFileFor, MAX_ITEMS } = require("../../../src/web/loot/councilSync");
+const { councilSyncPayload, councilSyncPayloadV2, classFileFor, MAX_ITEMS } = require("../../../src/web/loot/councilSync");
 
 const row = (over = {}) => ({
     key: "gemli",
@@ -108,5 +108,36 @@ describe("councilSyncPayload", () => {
         const [r] = councilSyncPayload(built([row({ className: "", bis: { tier: "", source: "", owned: 0, total: 0, items: [] } })]), ctx).raiders;
         expect(r.classFile).toBe("");
         expect(r.bis).toEqual({ tier: "", source: "", owned: 0, total: 0, missing: [] });
+    });
+});
+
+describe("councilSyncPayloadV2", () => {
+    const opts = { role: "caster", tierIds: ["t6"], contentIds: [], bisTier: "", charVersion: "tbc" };
+
+    it("sends one entry per category with its filter, instances and raiders carrying a key", () => {
+        const p = councilSyncPayloadV2([
+            { id: "c1", name: "Mittwoch", opts, built: built([row()]), instances: [{ id: "bt", name: "Der Schwarze Tempel", short: "BT", zoneNames: [] }] },
+            { id: 2, name: "", opts: { ...opts, role: "", bisTier: "t5", charVersion: "" }, built: { rows: [], bisTier: "t5" } },
+        ], { now: 1791234567890 });
+        expect(p).toMatchObject({ format: "eventhelper-council", version: 2, generatedAt: 1791234567, weights: { drought: 50, share: 40, need: 10 } });
+        expect(p.categories).toHaveLength(2);
+        expect(p.categories[0]).toMatchObject({
+            id: "c1", name: "Mittwoch", lootSystem: "lootcouncil",
+            filter: { role: "caster", tiers: ["t6"], contents: [], bisTier: "t6", bisTierDerived: true, version: "tbc" },
+            instances: [{ id: "bt" }],
+            avgLootCount: 3.4,
+        });
+        expect(p.categories[0].raiders[0]).toMatchObject({ key: "gemli", character: "Gemli", classFile: "PRIEST", need: 82 });
+        // The v1 fields stay as they are, plus the key.
+        expect(Object.keys(p.categories[0].raiders[0])).toEqual(["key", ...Object.keys(councilSyncPayload(built([row()])).raiders[0])]);
+        expect(p.categories[1]).toMatchObject({
+            id: "2", name: "2", instances: [], avgLootCount: 0, raiders: [],
+            filter: { role: "", bisTier: "t5", bisTierDerived: false, version: "" },
+        });
+    });
+
+    it("is an empty list without Loot-Council categories", () => {
+        expect(councilSyncPayloadV2([]).categories).toEqual([]);
+        expect(councilSyncPayloadV2().categories).toEqual([]);
     });
 });

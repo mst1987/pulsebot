@@ -30,6 +30,7 @@ jest.mock("../../../src/web/loot/lootCouncil", () => ({
 
 const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStore");
 const { councilRoster } = require("../../../src/web/loot/lootCouncil");
+const { getConfig } = require("../../../src/stores/settingsStore");
 const ingest = require("../../../src/web/apiRoutes/ingest");
 
 const { get, handle, urlFor } = routerClient(ingest);
@@ -54,6 +55,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     verifyToken.mockReturnValue({ id: "t1", name: "Raidlead-PC" });
     councilRoster.mockReturnValue({ rows: [ROW], avgLootCount: 0, bisTier: "t6" });
+    getConfig.mockReturnValue({ categoryIds: ["c1", "c2"] });
 });
 
 describe("GET /api/ingest/council", () => {
@@ -86,6 +88,22 @@ describe("GET /api/ingest/council", () => {
         });
         expect(data.raiders).toHaveLength(1);
         expect(data.raiders[0]).toMatchObject({ character: "Gemli", classFile: "PRIEST", need: 50, daysSinceLoot: -1, bis: { missing: [7] } });
+    });
+
+    it("answers ?v=2 with every Loot-Council category (version 2), none here", async () => {
+        const res = await authed("/api/ingest/council", { v: "2" });
+        expect(status(res)).toBe(200);
+        expect(body(res)).toMatchObject({ format: "eventhelper-council", version: 2, categories: [] });
+        expect(councilRoster).not.toHaveBeenCalled();
+    });
+
+    it("builds a v2 entry per Loot-Council category with the raider key", async () => {
+        getConfig.mockReturnValue({ categoryIds: ["c1", "c2"], categoryLootSystem: { c1: "lootcouncil" } });
+        const res = await authed("/api/ingest/council", { v: "2" });
+        const data = body(res);
+        expect(data.categories.map((c) => [c.id, c.name])).toEqual([["c1", "SSC/TK Mittwoch"]]);
+        expect(data.categories[0].raiders[0]).toMatchObject({ key: "gemli", character: "Gemli" });
+        expect(councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "c1" }));
     });
 
     it("passes category and role through to the roster", async () => {

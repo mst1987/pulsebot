@@ -64,7 +64,7 @@ function ContentFilter({ data, view, patch }: {
     );
 }
 
-export default function FilterBar({ data, view, patch, armoryCount, simulated, simulatable }: {
+export default function FilterBar({ data, view, patch, armoryCount, simulated, simulatable, reachesGame = false, canWrite = false }: {
     data: LootCouncilData;
     view: FilterView;
     patch: (p: Partial<FilterView>) => void;
@@ -73,6 +73,9 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
     /** Raiders with a simulated DPS, out of those the sim can answer. */
     simulated: number;
     simulatable: number;
+    /** The picked category runs as Loot-Council: its filters are stored and drive the in-game council. */
+    reachesGame?: boolean;
+    canWrite?: boolean;
 }) {
     const t = useT();
     const [open, setOpen] = useState(false);
@@ -160,6 +163,16 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                 ) : null}
             </div>
             <span className="lc-filterbar-badges">
+                {reachesGame ? (
+                    <Badge
+                        tone="accent"
+                        icon="inv_misc_gear_01"
+                        tip={t("lootcouncil.filter.gameTip", { category: o.categories.find((c) => c.id === view.category)?.name || view.category })}
+                        tipSub={canWrite ? t("lootcouncil.filter.gameTipSub") : t("lootcouncil.filter.gameTipReadOnly")}
+                    >
+                        {t("lootcouncil.filter.game")}
+                    </Badge>
+                ) : null}
                 {note ? (
                     <Badge tone={note.empty ? "bad" : undefined} icon="achievement_guildperk_everybodysfriend" tip={note.head} tipSub={note.sub}>
                         {note.empty ? t("lootcouncil.filter.categoryEmpty") : t("lootcouncil.filter.hidden", { count: data.filter.skipped.category + data.filter.skipped.excluded })}

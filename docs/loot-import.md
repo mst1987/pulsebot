@@ -18,6 +18,49 @@ A companion WoW addon (own repo: **eventhelper-addon**) reads the in-game histor
 - **`POST /api/ingest/raids`** (same bearer-token auth, also in `apiRoutes/ingest.js`) is what the sync tool's raid list uses to show, per recent raid, whether it still needs an upload: the tool sends its local sessions' aggregate fields (`sessionId`, `startedAt`, item counts — no item detail), and gets back each recent event's status (`"done"` already has loot or an accepted session, `"pending"` an unconfirmed Addon-Inbox card suggests it — from any uploader, with `inboxItems` — `"ready"` a local session falls on its day and can fill it, `"empty"` none of these). `"pending"` used to be folded into `"done"`, which made the tool show "Importiert" for a raid whose loot page was still empty. The day-match reuses `lootEventMatch.js`'s `bestDayMatch()` — the same function `suggestMatch()` above uses for the real upload — via the pure, separately unit-tested `computeRaidStatus()`, so the tool's preview can never disagree with what an actual upload would do.
 - **`GET /api/ingest/council`** (same bearer token, also in `apiRoutes/ingest.js`) hands the sync tool a slim version of the loot-council roster, which it writes into `CouncilData.lua` for the in-game addon: per raider the need weighting (`need` and its three `parts` drought/share/need, plus the `weights`) and what they already received (`items`, newest first, at most 25; `bis.missing` lists the item ids still lacking). Query `category` (raid category id) and `role` (`caster`|`healer`), both optional. It builds the roster like the council page (`councilRoster()`, options from `web/loot/councilQuery.js`, which the page uses too) from stored data only - no armory call - and the pure `web/loot/councilSync.js` `councilSyncPayload()` cuts it down. All times are Unix **seconds**, percentages integers 0..100, `daysSinceLoot` is `-1` for "never". The format `eventhelper-council` **version 1** is shared with the eventhelper-addon repo: when a field changes, the version grows on **both** sides.
 
+### Council-Daten für das Addon, Version 2 (#641)
+
+`GET /api/ingest/council?v=2` (oder `?categories=council`) **ohne** `category` liefert **jede Raid-Kategorie, deren Lootsystem Loot-Council ist** (`categoryLootSystem()` in `services/loot/lootSystem.js`: gesetzt in Einstellungen → Kategorien, sonst RCLootcouncil als Loot-Addon), in einem Abruf — jede genau so, wie die Loot-Council-Seite sie für diese Kategorie zeigt:
+
+- **Die Filter sind die der Seite.** Wählt man auf der Seite eine Kategorie, kommen Rolle, Content (Tiers + Raids), BiS-Liste und Spielversion vom Server (`GET /api/lootcouncil/views`) und jede Änderung wird dort gespeichert (`POST /api/lootcouncil/view`, Schreibrecht `lootcouncil` wie Ausplanen/Rolle; Client `pages/lootcouncil/categoryViews.ts`, kurz entprellt). Gespeichert wird je Kategorie in `settings/council-views.json` (`councilStore` `viewFor`/`setView`). Ohne gespeicherte Ansicht gelten die Vorgaben der Seite: Rolle `caster`, alle Tiers/Raids, BiS-Liste abgeleitet, Hauptversion. „Alle Raid-Kategorien“ bleibt wie bisher im Browser (localStorage), ebenso Tab, BiS-Listen-Tier usw. Die Spielversion ist die des Menü-Umschalters: zeigt jemand mit Schreibrecht eine Kategorie in einer anderen Version, wird sie mitgespeichert. Die Seite sagt an der Filterzeile „Gilt auch fürs Spiel“, wenn die gewählte Kategorie als Loot-Council läuft; „Drop prüfen“ liest dieselben Filter.
+- **Ein Weg für beide.** `web/loot/councilView.js` `buildCouncilView(opts)` ist Roster plus Armory-Schritt (Teile mit Boss-Drop im Set; Cache/TTL von `armoryGear.js`) und wird von `GET /api/lootcouncil` und vom Sync-Endpunkt benutzt; `categoryCouncil(id)` baut aus der gespeicherten Ansicht dieselbe Query wie der Client (`viewQuery`) und schickt sie durch dasselbe `councilOptsFromQuery()`. Ausgeplante Raider („Nicht eingeplant“) fehlen also in beiden, Rollen-Festlegungen und Gewichte gelten in beiden. `test/web/loot/councilView.parity.test.js` vergleicht Seite und Spiel mit dem echten `councilRoster()`.
+- **Version 1 bleibt.** Eine Anfrage mit `category` (auch zusammen mit `v=2`) oder ohne `v=2`/`categories=council` bekommt Version 1 wie bisher — die Sync-Tools bis 1.9.0 schicken `category`/`role` und prüfen `version === 1`.
+
+Form (innerhalb von `{ "data": … }`):
+
+```json
+{
+  "format": "eventhelper-council",
+  "version": 2,
+  "generatedAt": 1791234567,
+  "weights": { "drought": 50, "share": 40, "need": 10 },
+  "categories": [
+    {
+      "id": "1234567890",
+      "name": "SSC/TK Mittwoch",
+      "lootSystem": "lootcouncil",
+      "filter": { "role": "caster", "tiers": ["t5"], "contents": [], "bisTier": "t5", "bisTierDerived": false, "version": "tbc" },
+      "instances": [{ "id": "ssc", "name": "Höhle des Schlangenschreins", "short": "SSC", "zoneNames": [] }],
+      "avgLootCount": 3.4,
+      "raiders": [
+        {
+          "key": "gemli", "character": "Gemli", "classFile": "PRIEST", "specLabel": "Shadow", "role": "caster",
+          "need": 82, "parts": { "drought": 100, "share": 60, "need": 40 },
+          "lootCount": 2, "lootTotal": 5, "otherCount": 1, "lastAwardAt": 1791000000, "daysSinceLoot": 12,
+          "bis": { "tier": "t5", "source": "wowsims", "owned": 2, "total": 3, "missing": [30000] },
+          "items": [{ "itemId": 30001, "itemName": "…", "awardedAt": 1791000000, "boss": "Lady Vashj", "reason": "Main Spec", "event": "SSC/TK Mittwoch" }]
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `filter.role` `""` = alle Rollen (dann stehen auch Heiler in der Liste); bei `caster` fehlen Heiler, wie auf der Seite. `filter.version` ist der Charakter-Versionsfilter, `""` = alle Versionen.
+- `raiders[]` hat die Felder von Version 1 plus `key` (Charakter-Schlüssel, stabil über Umbenennung der Schreibweise/Realm-Suffix).
+- `instances` sind die Instanzen der Standard-Raidvorlage der Kategorie (`config.categoryRaidTemplate`), `[]` ohne Vorlage — ein Hinweis, damit das Addon die Kategorie über `GetInstanceInfo()` vorwählen kann. Die Namen sind die des Regelsatzes (TBC deutsch, Forever englisch mit „(Forever)“), `zoneNames` die kleingeschriebenen Zonennamen, wo der Regelsatz welche kennt; ein sicherer Schlüssel ist das nicht, nur ein Vorschlag.
+- Keine Loot-Council-Kategorie → `categories: []`.
+
 ## Gildenbank-Scans (`/api/ingest/guildbank`)
 
 The same addon scans the guild bank when someone opens it (eventhelper-addon#16), and the sync tool uploads each new scan once (#631, epic #635). Stored in `src/stores/guildBankStockStore.js` (`data/settings/guild-bank-stock.json`, see docs/data-storage.md); the stock page (#632), requests against the stock (#633) and the handout list (#634) build on it.
