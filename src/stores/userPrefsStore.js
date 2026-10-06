@@ -13,6 +13,8 @@ const store = createJsonStore({
     file: settingsPath("user-prefs.json"),
     defaults: () => ({}),
     normalize: (data) => (data && data.users && typeof data.users === "object" && !Array.isArray(data.users) ? data.users : {}),
+    // read on every interaction (bot.js notes the Discord language): keep it until the file changes
+    cache: true,
 });
 
 /** Tests point the store at a file of their own. */
