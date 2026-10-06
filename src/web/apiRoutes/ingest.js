@@ -1,6 +1,6 @@
 // POST /api/ingest/loot — the main endpoint the loot-sync companion tool talks to
-// (plus /api/ingest/raids for its raid list and /api/ingest/guildbank for guild
-// bank scans).
+// (plus /api/ingest/raids for its raid list, /api/ingest/guildbank for guild
+// bank scans and /api/ingest/guildbank/handouts for the in-game hand-out list).
 //
 // Unlike every other /api/* route this one has no Discord session behind it: the
 // uploader runs unattended on a raidleader's PC and authenticates with a bearer
@@ -26,6 +26,7 @@ const { ingestScan } = require("../../services/guildbank/guildBankStock");
 const { queueLookups } = require("../../services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../services/guildbank/itemEmojis");
 const { GuildBankParseError } = require("../../utils/guildbank/guildBankScan");
+const { handoutList, reportHandouts, HandoutReportError } = require("../../services/guildbank/handouts");
 
 /** The token behind the request, or null after sending the 401. */
 function requireToken(req, res) {
@@ -308,11 +309,46 @@ async function ingestGuildBank(req, res) {
     if (status !== "stale" && bank.counts && bank.counts.give > 0) queueItemEmojiSync();
 }
 
+/**
+ * GET /api/ingest/guildbank/handouts[?bank=<key>] — the confirmed guild bank
+ * requests per bank for the addon's hand-out list (#634), same bearer-token
+ * auth. Format "eventhelper-guildbank-handouts" v1, services/guildbank/handouts.js.
+ */
+async function ingestHandoutList(req, res, url) {
+    const token = requireToken(req, res);
+    if (!token) return;
+    touchToken(token.id);
+    const bankKey = url ? url.searchParams.get("bank") || "" : "";
+    ok(res, handoutList({ token, bankKey }));
+}
+
+/**
+ * POST /api/ingest/guildbank/handouts { done: [id | { id, via, by, at }] } —
+ * what was ticked off (or mailed) in game: each confirmed request is handed
+ * out. Idempotent; per-id results, never a failure for a bad id.
+ */
+async function ingestHandoutReport(req, res) {
+    const token = requireToken(req, res);
+    if (!token) return;
+    const body = await readJsonBody(req);
+    let result;
+    try {
+        result = await reportHandouts(body, { token });
+    } catch (e) {
+        if (e instanceof HandoutReportError) return error(res, 400, "parse_failed", e.message);
+        throw e;
+    }
+    touchToken(token.id);
+    ok(res, result);
+}
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "POST", path: "/api/ingest/loot", handler: ingestLoot, auth: "token" },
     { method: "POST", path: "/api/ingest/raids", handler: ingestRaidStatus, auth: "token" },
     { method: "POST", path: "/api/ingest/guildbank", handler: ingestGuildBank, auth: "token" },
+    { method: "GET", path: "/api/ingest/guildbank/handouts", handler: ingestHandoutList, auth: "token" },
+    { method: "POST", path: "/api/ingest/guildbank/handouts", handler: ingestHandoutReport, auth: "token" },
 ];
 
-module.exports = { ingestLoot, ingestRaidStatus, ingestGuildBank, computeRaidStatus, routes };
+module.exports = { ingestLoot, ingestRaidStatus, ingestGuildBank, ingestHandoutList, ingestHandoutReport, computeRaidStatus, routes };
