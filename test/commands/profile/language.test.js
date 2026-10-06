@@ -38,7 +38,7 @@ describe("/language", () => {
         expect(userPrefs.getLang(ANNA)).toBe("en");
         expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(answer.title).toBe("Bot language: English.");
-        expect(answer.description).toContain("Messages in the channels are not personal and stay in the server language.");
+        expect(answer.description).toContain("Messages in the channels are not personal: they are written in the language of the server or of the raid's category.");
     });
 
     it("switches to German and answers in German", async () => {

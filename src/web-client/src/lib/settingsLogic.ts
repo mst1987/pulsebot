@@ -114,6 +114,7 @@ export type DraftShape = {
     /** The source of a category without an entry (#291); missing = "raidhelper". */
     signupSourceDefault?: string;
     categorySetupDms?: Record<string, boolean>;
+    categoryLanguage?: Record<string, string>;
     /** A Discord event per raid (#305); missing = off. */
     categoryDiscordEvent?: Record<string, boolean>;
     /** The voice channel a category's raids meet in (#305); missing = none. */
@@ -264,6 +265,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categoryLootSystem || {}), ...Object.keys(draft.categoryLootSystem || {}),
         ...Object.keys(saved.categorySignupSource || {}), ...Object.keys(draft.categorySignupSource || {}),
         ...Object.keys(saved.categorySetupDms || {}), ...Object.keys(draft.categorySetupDms || {}),
+        ...Object.keys(saved.categoryLanguage || {}), ...Object.keys(draft.categoryLanguage || {}),
         ...Object.keys(saved.categoryDiscordEvent || {}), ...Object.keys(draft.categoryDiscordEvent || {}),
         ...Object.keys(saved.categoryVoiceChannel || {}), ...Object.keys(draft.categoryVoiceChannel || {}),
         ...Object.keys(saved.categoryMessageLook || {}), ...Object.keys(draft.categoryMessageLook || {}),
@@ -291,6 +293,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const dmsWas = (saved.categorySetupDms || {})[id] === true;
         const dmsIs = (draft.categorySetupDms || {})[id] === true;
         if (dmsWas !== dmsIs) out.push(t(dmsIs ? "settings.changes.setupDmsOn" : "settings.changes.setupDmsOff", { name }));
+        const langWas = (saved.categoryLanguage || {})[id] || "";
+        const langIs = (draft.categoryLanguage || {})[id] || "";
+        if (langWas !== langIs) out.push(t("settings.changes.language", { name, value: langIs === "en" ? "English" : langIs === "de" ? "Deutsch" : t("settings.categories.languageServer") }));
         // #305: the Discord event per raid and the voice channel the raids meet in.
         const deWas = (saved.categoryDiscordEvent || {})[id] === true;
         const deIs = (draft.categoryDiscordEvent || {})[id] === true;

@@ -39,7 +39,7 @@ const { plannedEndOrDefault } = require("../../utils/time");
 const { getConfig } = require("../../stores/settingsStore");
 const { str, clip } = require("../../utils/text");
 const { tr } = require("../../utils/i18n/botText");
-const { serverLang } = require("./botLanguage");
+const { eventLang } = require("./botLanguage");
 
 // Discord's limits for a scheduled event.
 const LIMITS = { name: 100, description: 1000, location: 100 };
@@ -202,7 +202,7 @@ async function createForEvent(eventId, { config = getConfig(), now = Date.now() 
     if (!guild || !guild.scheduledEvents) return { skipped: "offline" };
     if (canManageEvents(event.guildId) === false) return noteError(event.id, MISSING_RIGHT);
     try {
-        const created = await guild.scheduledEvents.create(buildScheduledEvent(event, { voiceChannelId: voiceChannelFor(guild, event), lang: serverLang(config) }));
+        const created = await guild.scheduledEvents.create(buildScheduledEvent(event, { voiceChannelId: voiceChannelFor(guild, event), lang: eventLang(event, config) }));
         eventStore.setEventDiscordEvent(event.id, { id: String(created.id), guildId: event.guildId, at: now, error: "" });
         return { id: String(created.id) };
     } catch (e) {
@@ -241,7 +241,7 @@ async function syncForEvent(eventId, { config = getConfig(), now = Date.now() } 
         return { skipped: "closed", id: stored };
     }
     try {
-        await scheduled.edit(buildScheduledEvent(event, { voiceChannelId: voiceChannelFor(guild, event), lang: serverLang(config) }));
+        await scheduled.edit(buildScheduledEvent(event, { voiceChannelId: voiceChannelFor(guild, event), lang: eventLang(event, config) }));
         eventStore.setEventDiscordEvent(event.id, { error: "", at: now });
         return { id: stored };
     } catch (e) {
@@ -275,7 +275,7 @@ async function cancelForEvent(eventId, { now = Date.now() } = {}) {
     try {
         if (scheduled.status === GuildScheduledEventStatus.Scheduled) {
             // Say it is off before it disappears: the description carries the reason.
-            await scheduled.edit({ description: describeEvent(event, serverLang()) }).catch(() => undefined);
+            await scheduled.edit({ description: describeEvent(event, eventLang(event)) }).catch(() => undefined);
             await scheduled.setStatus(GuildScheduledEventStatus.Canceled);
         } else {
             await scheduled.delete();

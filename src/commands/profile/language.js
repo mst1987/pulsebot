@@ -3,7 +3,7 @@
 // same setting as the DE/EN switch of the web menu (userPrefsStore), so it
 // follows the account everywhere. It covers what only the raider reads
 // (dialogs, answers, DMs); messages in a channel are not personal and keep the
-// server language (services/discord/botLanguage.js).
+// language of the server or of the raid's category (services/discord/botLanguage.js).
 const { SlashCommandBuilder } = require("discord.js");
 const userPrefs = require("../../stores/userPrefsStore");
 const { langOf, langOfInteraction } = require("../../services/discord/botLanguage");
@@ -43,7 +43,7 @@ module.exports = {
         const head = auto
             ? tr(lang, lang === "de" ? "Bot language: **automatic**, it now follows your Discord language (**German**)." : "Bot language: **automatic**, it now follows your Discord language (**English**).")
             : tr(lang, lang === "de" ? "Bot language: **German**." : "Bot language: **English**.");
-        const note = tr(lang, "Applies to everything only you see: dialogs, answers and DMs. Messages in the channels are not personal and stay in the server language. The web menu follows the same setting.");
+        const note = tr(lang, "Applies to everything only you see: dialogs, answers and DMs. Messages in the channels are not personal: they are written in the language of the server or of the raid's category. The web menu follows the same setting.");
         return interaction.reply(answerPayload(`${head}\n${note}`, { lang }));
     },
 };

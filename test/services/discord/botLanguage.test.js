@@ -24,6 +24,20 @@ describe("services/discord/botLanguage", () => {
         expect(botLanguage.serverLang({ botLanguage: "xx" })).toBe("de");
     });
 
+    it("posts an event in its category's language — PuGs in English beside German guild raids — else the server's", () => {
+        mockConfig = { botLanguage: "de", categoryLanguage: { pug: "en", guild: "de" } };
+        expect(botLanguage.categoryLang("pug")).toBe("en");
+        expect(botLanguage.eventLang({ id: "eh-1", categoryId: "pug" })).toBe("en");
+        expect(botLanguage.eventLang({ id: "eh-2", categoryId: "guild" })).toBe("de");
+        // a category without its own, an event without a category, nothing at all: the server language
+        expect(botLanguage.eventLang({ id: "eh-3", categoryId: "other" })).toBe("de");
+        expect(botLanguage.eventLang({ id: "eh-4" })).toBe("de");
+        expect(botLanguage.eventLang(null)).toBe("de");
+        expect(botLanguage.eventLang({ categoryId: "x" }, { botLanguage: "en", categoryLanguage: { x: "fr" } })).toBe("en");
+        // the config handed in wins over the stored one
+        expect(botLanguage.eventLang({ categoryId: "pug" }, { botLanguage: "de", categoryLanguage: {} })).toBe("de");
+    });
+
     it("a raider without a choice gets the server language, with one their own", () => {
         expect(botLanguage.langOf(ANNA)).toBe("de");
         mockConfig = { botLanguage: "en" };

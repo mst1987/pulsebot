@@ -20,7 +20,9 @@ vi.mock("../../api", async (orig) => ({
 
 const noop = () => undefined;
 
-function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning }: {
+function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage }: {
+    languages?: Record<string, string>;
+    onLanguage?: (id: string, lang: string) => void;
     planning?: Record<string, PlanningMode>;
     sheets?: Record<string, CategorySheet>;
     onSheet?: (id: string, sheet: CategorySheet) => void;
@@ -49,6 +51,8 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning }: {
             onDiscordEvent={noop}
             onVoiceChannel={noop}
             onMessageLook={noop}
+            categoryLanguage={languages}
+            onLanguage={onLanguage}
             onSheet={onSheet}
             raidTemplates={{ options: [], value: {}, onChange: noop }}
             icon="inv_banner_03"
@@ -164,6 +168,20 @@ describe("CategoryMatrix: the open card's tabs", () => {
         expect(screen.queryByRole("tablist")).toBeNull();
         await user.click(screen.getByRole("button", { name: "Details" }));
         expect(tab("loot")).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("sets the language of the category's posts in the message tab: the server's, German or English", async () => {
+        const onLanguage = vi.fn();
+        const user = await openCard({ languages: { c1: "en" }, onLanguage });
+        await user.click(tab("message"));
+        expect(tab("message").textContent).toBe(`${t("settings.categories.tabs.message")}6`);
+        const group = screen.getByRole("radiogroup", { name: t("settings.categories.languageAria", { name: "Raids Mittwoch" }) });
+        expect(within(group).getByRole("radio", { name: "English" })).toHaveAttribute("aria-checked", "true");
+        expect(screen.getByText(t("settings.categories.languageSub"))).toBeVisible();
+        await user.click(within(group).getByRole("radio", { name: t("settings.categories.languageServer") }));
+        expect(onLanguage).toHaveBeenCalledWith("c1", "");
+        await user.click(within(group).getByRole("radio", { name: "Deutsch" }));
+        expect(onLanguage).toHaveBeenLastCalledWith("c1", "de");
     });
 
     it("words the tabs in English", async () => {

@@ -26,9 +26,14 @@ jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockCon
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })), editPingMessages: jest.fn(async (c, ids) => ({ messageIds: ids })) }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 // The language: English here (the old assertions), German where a test says so.
-jest.mock("../../../src/services/discord/botLanguage", () => ({
-    ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en"), langOf: jest.fn(() => "en"),
-}));
+jest.mock("../../../src/services/discord/botLanguage", () => {
+    const mocked = {
+        ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en"), langOf: jest.fn(() => "en"),
+    };
+    // no category language in these tests: an event writes in the (mocked) server language
+    mocked.eventLang = jest.fn(() => mocked.serverLang());
+    return mocked;
+});
 
 const discord = require("../../../src/services/discord/discord");
 const eventStore = require("../../../src/stores/eventStore");

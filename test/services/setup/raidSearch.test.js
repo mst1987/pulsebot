@@ -10,7 +10,12 @@ jest.mock("../../../src/stores/eventStore", () => ({
 const mockPost = jest.fn();
 jest.mock("../../../src/services/discord/discord", () => ({ postNotice: (...a) => mockPost(...a) }));
 // The server language: English here (the old assertions), German where a test says so.
-jest.mock("../../../src/services/discord/botLanguage", () => ({ ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en") }));
+jest.mock("../../../src/services/discord/botLanguage", () => {
+    const mocked = { ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en") };
+    // no category language in these tests: an event writes in the (mocked) server language
+    mocked.eventLang = jest.fn(() => mocked.serverLang());
+    return mocked;
+});
 
 const { suggestSearch, textForNeeds, postSearch } = require("../../../src/services/setup/raidSearch");
 const { event: baseEvent } = require("../../factories/events");

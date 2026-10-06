@@ -32,7 +32,7 @@ const { serverDateTime } = require("../../utils/time");
 const { ROLE_LABELS, ROLE_LABELS_EN } = require("../../config/gameVersions/classes");
 const { str, clip } = require("../../utils/text");
 const { tr, specLabel, classLabel, normalizeLang, dateLocale } = require("../../utils/i18n/botText");
-const { serverLang } = require("../../services/discord/botLanguage");
+const { serverLang, eventLang } = require("../../services/discord/botLanguage");
 
 // Every key the public payload may carry, at every level. The test walks the
 // view against this list — a new personal field cannot slip in unnoticed.
@@ -341,8 +341,10 @@ ${renderPublicEventBody(view, { lang })}
  * `null` for an unknown event (the route answers 404 then) — a Raid-Helper id
  * never resolves here.
  */
-function renderEventPage(eventId, { now = Date.now(), lang = serverLang() } = {}) {
+function renderEventPage(eventId, { now = Date.now(), lang: wanted = "" } = {}) {
     const event = getEvent(eventId);
+    // the event's language (its category's), unless the caller asks for one
+    const lang = wanted || (event ? eventLang(event) : serverLang());
     if (!event) return null;
     return renderPublicEventPage(publicEventView(event, listSignups(event.id), { now, lang }), { lang });
 }

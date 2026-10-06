@@ -150,6 +150,9 @@ describe("save bar change list", () => {
         expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Setup-DMs an"]);
         const saved = { ...base(), categorySetupDms: { c1: true } };
         expect(logic.draftChanges(saved, { ...base(), categorySetupDms: { c1: false } }, names)).toEqual(["Hyjal & BT · Setup-DMs aus"]);
+        // the language of a category's posts
+        expect(logic.draftChanges({ ...base(), categoryLanguage: {} }, { ...base(), categoryLanguage: { c1: "en" } }, names)).toEqual(["Hyjal & BT · Sprache der Posts: English"]);
+        expect(logic.draftChanges({ ...base(), categoryLanguage: { c1: "en" } }, { ...base(), categoryLanguage: { c1: "" } }, names)).toEqual(["Hyjal & BT · Sprache der Posts: Wie Server"]);
     });
 
     it("names the Discord-Event switch and the voice channel per category (#305)", () => {

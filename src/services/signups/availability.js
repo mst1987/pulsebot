@@ -34,7 +34,7 @@ const { archiveOf } = require("../events/eventArchive");
 const { spec: specOf } = require("../../config/gameVersions");
 const { TIMEZONE } = require("../../config/timezone");
 const { tr, serviceText, specLabel, dateLocale } = require("../../utils/i18n/botText");
-const { langOf, serverLang } = require("../discord/botLanguage");
+const { langOf, eventLang } = require("../discord/botLanguage");
 const { buildEmbed } = require("../../utils/discord/reply");
 const logger = require("../../logger");
 const { shortWhen } = require("../../utils/time");
@@ -148,8 +148,8 @@ async function applyOutcome(entry, event, { now, config }) {
     const byOrga = !!entry.createdBy && entry.createdBy !== entry.userId;
     if (entry.kind === "absence") {
         if (previous && previous.status === "absence") return { ok: false, skipped: "already_absent" };
-        // the roster and the event message show it: the server language
-        const lang = serverLang(config);
+        // the roster and the event message show it: the event's language (its category's)
+        const lang = eventLang(event, config);
         const comment = entry.comment || tr(lang, "Away {from}–{to}", { from: shortDay(entry.from, lang), to: shortDay(entry.to, lang) });
         const saved = await submitSignup(event.id, entry.userId, { status: "absence", comment }, { byOrga, now, config });
         return saved.error ? { ok: false, error: saved.error } : { ok: true };

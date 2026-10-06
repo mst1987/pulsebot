@@ -263,6 +263,16 @@ describe("stores/settingsStore", () => {
             });
         });
 
+        it("stores a language per category, merged, and drops one set back to the server language", () => {
+            expect(getConfig().categoryLanguage).toEqual({});
+            saveConfig({ categoryLanguage: { pug: "en", guild: "de", odd: "fr" } });
+            expect(getConfig().categoryLanguage).toEqual({ pug: "en", guild: "de" });
+            saveConfig({ categoryLanguage: { other: "en" } });
+            expect(getConfig().categoryLanguage).toEqual({ pug: "en", guild: "de", other: "en" });
+            saveConfig({ categoryLanguage: { guild: "" } });
+            expect(getConfig().categoryLanguage).toEqual({ pug: "en", other: "en" });
+        });
+
         it("keeps setup DMs off by default and stores only switched-on categories (#290)", () => {
             expect(getConfig().categorySetupDms).toEqual({});
             saveConfig({ categorySetupDms: { c1: true, c2: false, c3: "yes" } });

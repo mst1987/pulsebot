@@ -12,7 +12,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const { computeAttendance, hasStarted } = require("../../utils/attendance");
 const discord = require("../discord/discord");
 const { normalizePingTarget, deliverUserPing, dmSummary, TARGET_LABELS, missingPingText } = require("../discord/pingDelivery");
-const { serverLang } = require("../discord/botLanguage");
+const { eventLang } = require("../discord/botLanguage");
 const { fail } = require("../../web/http/apiResult");
 
 /**
@@ -63,8 +63,8 @@ async function pingMissingRaiders({ guildId, eventId, target: rawTarget, text })
     try {
         let delivery = null;
         if (target === "event") {
-            // the orga's own words as they are, else the default in the server language
-            await discord.postMissingPing(event.channelId, missing.map((m) => m.id), String(text || "").trim() || missingPingText(serverLang()));
+            // the orga's own words as they are, else the default in the event's language
+            await discord.postMissingPing(event.channelId, missing.map((m) => m.id), String(text || "").trim() || missingPingText(eventLang(event)));
         } else {
             delivery = await deliverUserPing({
                 target, event, userIds: missing.map((m) => m.id), text, guildId,
