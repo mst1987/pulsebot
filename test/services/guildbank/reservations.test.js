@@ -3,7 +3,7 @@
 // fixtures here write them straight into the store's file.
 const fs = require("fs");
 const store = require("../../../src/stores/guildBankStore");
-const { reservedByItem, reservedRequestCount } = require("../../../src/services/guildbank/reservations");
+const { reservedByItem, handedOutSince, reservedRequestCount } = require("../../../src/services/guildbank/reservations");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 const FILE = tempStoreFile("guild-bank.json");
@@ -38,6 +38,21 @@ describe("services/guildbank/reservations", () => {
         expect(reservedByItem(KEY)).toEqual({ 22854: 6, 24027: 1 });
         expect(reservedRequestCount(KEY)).toBe(3);
         expect(reservedByItem("forever:x:y")).toEqual({ 22854: 10 });
+    });
+
+    it("sums what was handed out after the last scan — the scan before it still counts it", () => {
+        write([
+            request({ amount: 4, status: "handedOut", handedOutAt: 2000 }),
+            request({ amount: 2, status: "handedOut", handedOutAt: 3000 }),
+            request({ amount: 9, status: "handedOut", handedOutAt: 500 }),
+            request({ amount: 9, status: "confirmed", handedOutAt: 0 }),
+            request({ amount: 9, status: "handedOut", handedOutAt: 3000, bankKey: "forever:x:y" }),
+            request({ amount: 9, status: "handedOut", handedOutAt: 3000, itemId: 0 }),
+        ]);
+        expect(handedOutSince(KEY, 1000)).toEqual({ 22854: 6 });
+        expect(handedOutSince(KEY, 2500)).toEqual({ 22854: 2 });
+        expect(handedOutSince(KEY, 0)).toEqual({ 22854: 15 });
+        expect(handedOutSince("", 0)).toEqual({});
     });
 
     it("keeps confirmed requests when old handled ones are pruned", () => {

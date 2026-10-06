@@ -24,6 +24,7 @@ const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestToke
 const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
 const { ingestScan } = require("../../services/guildbank/guildBankStock");
 const { queueLookups } = require("../../services/guildbank/itemMeta");
+const { queueItemEmojiSync } = require("../../services/guildbank/itemEmojis");
 const { GuildBankParseError } = require("../../utils/guildbank/guildBankScan");
 
 /** The token behind the request, or null after sending the 401. */
@@ -303,6 +304,8 @@ async function ingestGuildBank(req, res) {
         newItems: newItems.length,
     }, 201);
     if (lookups.length) queueLookups(bank.gameVersion, lookups);
+    // items already on "give" get (or keep) their emoji (#633); the sync runs in the background
+    if (status !== "stale" && bank.counts && bank.counts.give > 0) queueItemEmojiSync();
 }
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */

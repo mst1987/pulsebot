@@ -6,6 +6,7 @@ jest.mock("../../../src/services/guildbank/itemMeta", () => ({
     ...jest.requireActual("../../../src/services/guildbank/itemMeta"),
     queueLookups: jest.fn(() => 0),
 }));
+jest.mock("../../../src/services/guildbank/itemEmojis", () => ({ queueItemEmojiSync: jest.fn() }));
 jest.mock("../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => [{ id: "g1", name: "Event-Server" }]),
 }));
@@ -17,11 +18,12 @@ const fs = require("fs");
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const { queueLookups } = require("../../../src/services/guildbank/itemMeta");
+const { queueItemEmojiSync } = require("../../../src/services/guildbank/itemEmojis");
 const store = require("../../../src/stores/guildBankStockStore");
 const requests = require("../../../src/stores/guildBankStore");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");
 const {
-    getGuildBank, postGuildBankItem, postGuildBankTab, getGuildBanks, assignGuildBank, deleteGuildBank,
+    getGuildBank, postGuildBankItem, postGuildBankTab, getGuildBankRequests, getGuildBanks, assignGuildBank, deleteGuildBank,
 } = require("../../../src/web/apiRoutes/guildBank");
 const { AREA_BY_PATH } = require("../../../src/web/http/apiAccess");
 const { mockRes, status, body } = require("../../helpers/http");
@@ -119,6 +121,10 @@ describe("apiRoutes/guildBank", () => {
             const res = await call(postGuildBankItem, { payload: { key: bank.key, itemId: 22854, status: "give", reserve: "1", maxPerRequest: 2, category: "Tränke" } });
             expect(status(res)).toBe(200);
             expect(body(res).item).toMatchObject({ itemId: 22854, status: "give", reserve: 1, maxPerRequest: 2, category: "Tränke", group: "Tränke", available: 2 });
+            // a new status queues the item emojis' sync in the background (#633), other changes do not
+            expect(queueItemEmojiSync).toHaveBeenCalledTimes(1);
+            await call(postGuildBankItem, { payload: { key: bank.key, itemId: 22854, reserve: 2 } });
+            expect(queueItemEmojiSync).toHaveBeenCalledTimes(1);
         });
 
         it("refuses wrong values, an empty change, unknown items and another server's bank", async () => {
@@ -142,6 +148,36 @@ describe("apiRoutes/guildBank", () => {
             mockUser = { id: "2", access: { raids: { read: true, write: false } } };
             const res = await call(postGuildBankItem, { payload: { key: bank.key, itemId: 22854, status: "give" } });
             expect(status(res)).toBe(403);
+        });
+    });
+
+    describe("GET /api/guildbank/requests", () => {
+        it("lists the bank's open and confirmed requests with the item's name and icon, open first", async () => {
+            const bank = record("Alpha", "g1");
+            store.setItemMeta("tbc", 22854, { name: "Flask", icon: "inv_flask" }, { source: "wowhead" });
+            writeRequests([
+                { id: "r1", userId: "u1", userName: "Anna", item: "alt", amount: 2, status: "confirmed", bankKey: bank.key, itemId: 22854, createdAt: 1, characterName: "Zibbo", realm: "Spineshatter", handledByName: "Arthas" },
+                { id: "r2", userId: "u2", userName: "Bo", item: "Gone", icon: "inv_gone", amount: 1, status: "open", bankKey: bank.key, itemId: 99, createdAt: 2 },
+                { id: "r3", userId: "u3", item: "x", amount: 1, status: "handedOut", bankKey: bank.key, itemId: 22854 },
+                { id: "r4", userId: "u4", item: "x", amount: 1, status: "open", bankKey: "other", itemId: 22854 },
+                { id: "r5", userId: "u5", item: "Freitext", amount: 1, status: "open" },
+            ]);
+            const res = await call(getGuildBankRequests, { url: `http://x/api/guildbank/requests?key=${encodeURIComponent(bank.key)}` });
+            expect(status(res)).toBe(200);
+            expect(body(res).requests).toEqual([
+                expect.objectContaining({ id: "r2", item: "Gone", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_gone.jpg", status: "open", userName: "Bo" }),
+                expect.objectContaining({
+                    id: "r1", item: "Flask", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_flask.jpg", amount: 2, status: "confirmed",
+                    characterName: "Zibbo", realm: "Spineshatter", handledByName: "Arthas",
+                }),
+            ]);
+        });
+
+        it("answers 404 for another server's bank or none", async () => {
+            const bank = record("Fremd", "g2");
+            expect(status(await call(getGuildBankRequests, { url: `http://x/api/guildbank/requests?key=${encodeURIComponent(bank.key)}` }))).toBe(404);
+            expect(status(await call(getGuildBankRequests, { url: "http://x/api/guildbank/requests" }))).toBe(404);
+            expect(AREA_BY_PATH["/api/guildbank/requests"]).toBe("raids");
         });
     });
 
@@ -192,6 +228,7 @@ describe("apiRoutes/guildBank", () => {
         let res = await call(deleteGuildBank, { payload: { key: bank.key } });
         expect(body(res)).toEqual({ key: bank.key });
         expect(store.getBank(bank.key)).toBeNull();
+        expect(queueItemEmojiSync).toHaveBeenCalledTimes(1);
 
         res = await call(deleteGuildBank, { payload: { key: bank.key } });
         expect(status(res)).toBe(404);

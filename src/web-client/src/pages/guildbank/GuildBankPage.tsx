@@ -27,11 +27,12 @@ import { usePersistedState } from "../../lib/persistedState";
 import { formatDateTime, formatMoney } from "../../lib/format";
 import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
 import { tParts, useT } from "../../i18n";
-import { BANK_TABS, groupItems, groupNames, tabCounts } from "./bankView";
+import { BANK_TABS, REQUESTS_ICON, groupItems, groupNames, tabCounts } from "./bankView";
 import BankFilterLine from "./BankFilterLine";
 import BankList from "./BankList";
 import ItemSettingsDialog from "./ItemSettingsDialog";
 import BankTabsDialog from "./BankTabsDialog";
+import RequestsDialog from "./RequestsDialog";
 import "../../styles/loot-council.css";
 import "../../styles/historie-loot.css";
 import "../../styles/guildbank.css";
@@ -73,6 +74,7 @@ export default function GuildBankPage() {
     const [search, setSearch] = useState("");
     const [editing, setEditing] = useState<GuildBankItem | null>(null);
     const [bankTabsOpen, setBankTabsOpen] = useState(false);
+    const [requestsOpen, setRequestsOpen] = useState(false);
     const [busyItem, setBusyItem] = useState(0);
     const [busyTab, setBusyTab] = useState(0);
 
@@ -144,7 +146,12 @@ export default function GuildBankPage() {
                         )}
                     </>
                 )}
-                action={<Button variant="ghost" icon={<RowsIcon />} onClick={() => setBankTabsOpen(true)}>{t("guildbank.page.bankTabs")}</Button>}
+                action={(
+                    <>
+                        <Button variant="ghost" icon={REQUESTS_ICON} onClick={() => setRequestsOpen(true)}>{t("guildbank.requests.button")}</Button>
+                        <Button variant="ghost" icon={<RowsIcon />} onClick={() => setBankTabsOpen(true)}>{t("guildbank.page.bankTabs")}</Button>
+                    </>
+                )}
             />
 
             <div className="tabs gb-tabs" role="tablist">
@@ -192,6 +199,13 @@ export default function GuildBankPage() {
                     saving={busyItem === editing.itemId}
                     onClose={() => setEditing(null)}
                     onSave={async (patch) => { if (await saveItem(editing, patch)) setEditing(null); }}
+                />
+            )}
+            {requestsOpen && (
+                <RequestsDialog
+                    bankKey={bank.key}
+                    // the orga may have confirmed or handed out meanwhile: read the numbers again
+                    onClose={() => { setRequestsOpen(false); void page.reload(); }}
                 />
             )}
             {bankTabsOpen && (

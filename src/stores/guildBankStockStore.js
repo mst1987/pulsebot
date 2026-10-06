@@ -2,7 +2,13 @@
 // (POST /api/ingest/guildbank, utils/guildbank/guildBankScan.js) and what the
 // orga decided per item. Requests against the stock are guildBankStore.js.
 //
-// `data/settings/guild-bank-stock.json` = { banks: [bank] }
+// `data/settings/guild-bank-stock.json` = { banks: [bank], emojis: { [itemId]: emoji } }
+//
+//   emoji = { id, name ("gb_<itemId>"), icon, createdAt } — the bot's application
+//           emoji of an item's icon (#633, services/guildbank/itemEmojis.js): one
+//           per item id, shared by every bank and version that offers the item;
+//           it lives while at least one bank has the item on "give". Item views
+//           carry its id as `emojiId` ("" = none).
 //
 //   bank = { key            "tbc:spineshatter:die gilde" — version + realm + guild (bankKeyOf)
 //            gameVersion, realm, guild, faction ("Alliance" | "Horde" | "")
@@ -40,9 +46,10 @@ const META_SOURCES = ["", "local", "wowhead"];
 
 const store = createJsonStore({
     file: settingsPath("guild-bank-stock.json"),
-    defaults: () => ({ banks: [] }),
+    defaults: () => ({ banks: [], emojis: {} }),
     normalize: (data) => ({
         banks: Array.isArray(data && data.banks) ? data.banks.filter((b) => b && typeof b === "object" && b.key) : [],
+        emojis: obj(Object(data).emojis),
     }),
     cache: true,
 });
@@ -103,8 +110,8 @@ function tabsOf(bank, scan) {
         .sort((a, b) => a.index - b.index);
 }
 
-/** One item as the readers get it: stock of the last scan + the orga's settings. */
-function itemView(itemId, settings, scan) {
+/** One item as the readers get it: stock of the last scan + the orga's settings (+ its emoji's id). */
+function itemView(itemId, settings, scan, emojis) {
     const stock = obj(scan.items[itemId]);
     const tabs = {};
     for (const [index, count] of Object.entries(obj(stock.tabs))) {
@@ -116,6 +123,7 @@ function itemView(itemId, settings, scan) {
         tabs,
         ...settings,
         iconUrl: iconUrl(settings.icon),
+        emojiId: str(obj(obj(emojis)[String(Number(itemId))]).id, 30),
     };
 }
 
@@ -129,10 +137,10 @@ function byName(a, b) {
  * A bank for the readers. Without `items` the summary: identity, assignment,
  * the scan's facts, the tabs and how many items have which status.
  */
-function bankView(bank, { items = true } = {}) {
+function bankView(bank, { items = true, emojis = {} }) {
     const scan = scanOf(bank);
     const settings = obj(bank.items);
-    const list = Object.keys(settings).map((id) => itemView(id, completeItem(settings[id]), scan));
+    const list = Object.keys(settings).map((id) => itemView(id, completeItem(settings[id]), scan, emojis));
     const counts = { items: list.length, inStock: 0, new: 0, hide: 0, show: 0, give: 0 };
     for (const it of list) {
         counts[it.status] += 1;
@@ -211,8 +219,9 @@ function recordScan(scan, { now = Date.now(), guildId = "", uploadedBy = "" } = 
 
 /** One bank with its items, or null. */
 function getBank(key) {
-    const bank = findBank(store.read(), key);
-    return bank ? bankView(bank) : null;
+    const data = store.read();
+    const bank = findBank(data, key);
+    return bank ? bankView(bank, { emojis: data.emojis }) : null;
 }
 
 /** Every bank as a summary (no items): waiting ones first, then by version, guild and realm. */
@@ -229,7 +238,8 @@ function listBanks() {
 function listForServer(guildId) {
     const id = str(guildId);
     if (!id) return [];
-    return store.read().banks.filter((b) => str(b.guildId) === id).map((b) => bankView(b));
+    const data = store.read();
+    return data.banks.filter((b) => str(b.guildId) === id).map((b) => bankView(b, { emojis: data.emojis }));
 }
 
 /** Assign a bank to a Discord server ("" = back to waiting). Returns the summary or null for an unknown bank. */
@@ -291,7 +301,7 @@ function setItemSettings(key, itemId, patch = {}) {
     items[id] = next;
     bank.items = items;
     store.write(data);
-    return { item: itemView(id, next, scanOf(bank)) };
+    return { item: itemView(id, next, scanOf(bank), data.emojis) };
 }
 
 /** Hide or show a whole bank tab (by its index). Returns `{ bank }` (summary) or `{ error }`. */
@@ -380,9 +390,50 @@ function itemsWithoutWowheadMeta(key) {
         .map(([id]) => Number(id));
 }
 
+/**
+ * The items some bank offers ("give") with an icon: `{ [itemId]: icon }` — the
+ * items that should have an application emoji. Shared across banks and
+ * versions: the first icon found wins (an item id has one icon).
+ */
+function offeredIcons() {
+    const out = {};
+    for (const bank of store.read().banks) {
+        for (const [id, raw] of Object.entries(obj(bank.items))) {
+            const it = completeItem(raw);
+            if (it.status === "give" && it.icon && !out[id]) out[id] = it.icon;
+        }
+    }
+    return out;
+}
+
+/** The stored application emojis of the items: `{ [itemId]: { id, name, icon, createdAt } }`. */
+function itemEmojis() {
+    const out = {};
+    for (const [id, e] of Object.entries(obj(store.read().emojis))) {
+        const emoji = obj(e);
+        if (Number(id) > 0 && str(emoji.id)) out[id] = { id: str(emoji.id, 30), name: str(emoji.name, 32), icon: str(emoji.icon, 100), createdAt: num(emoji.createdAt) };
+    }
+    return out;
+}
+
+/** Remember an item's application emoji (`null` forgets it). */
+function setItemEmoji(itemId, emoji) {
+    const id = String(Number(itemId) || "");
+    if (!id) return;
+    const data = store.read();
+    const emojis = obj(data.emojis);
+    if (emoji && emoji.id) {
+        emojis[id] = { id: str(emoji.id, 30), name: str(emoji.name, 32), icon: str(emoji.icon, 100), createdAt: num(emoji.createdAt) };
+    } else {
+        delete emojis[id];
+    }
+    store.write({ ...data, emojis });
+}
+
 module.exports = {
     STATUSES, SETTABLE_STATUSES, RESERVE_MAX, MAX_PER_REQUEST_MAX, CATEGORY_MAX,
     recordScan, getBank, listBanks, listForServer, assignBank, removeBank,
     setItemSettings, setTabHidden, knownMeta, setItemMeta, itemsWithoutWowheadMeta,
+    offeredIcons, itemEmojis, setItemEmoji,
     useFile,
 };

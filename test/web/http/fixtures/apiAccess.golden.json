@@ -206,7 +206,8 @@
     "/api/settings/guild-banks/delete": "settings",
     "/api/guildbank": "raids",
     "/api/guildbank/item": "raids",
-    "/api/guildbank/tab": "raids"
+    "/api/guildbank/tab": "raids",
+    "/api/guildbank/requests": "raids"
   },
   "ungated": [
     "/api/session",

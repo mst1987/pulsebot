@@ -70,6 +70,19 @@
         "categoryPlaceholderNone": "empty = Other",
         "wholeNumber": "Please enter a whole number from 0."
     },
+    "requests": {
+        "button": "Requests",
+        "title": "Requests",
+        "hint": "Open and set-aside requests from the stock. Confirming, declining and handing out happen on the card in the orga channel in Discord.",
+        "loading": "Loading the requests …",
+        "empty": "No request is waiting right now.",
+        "amountItem": "{amount}× {item}",
+        "to": "to {name}",
+        "purpose": "For: {purpose}",
+        "open": "Open",
+        "confirmed": "Set aside",
+        "confirmedBy": "Set aside by {name}"
+    },
     "tabsDialog": {
         "kicker": "Guild bank",
         "hint": "A hidden bank tab does not count as stock: what lies only there shows up nowhere.",

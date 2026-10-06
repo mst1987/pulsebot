@@ -242,5 +242,6 @@
   "GET /api/guildbank",
   "POST /api/guildbank/item",
   "POST /api/guildbank/tab",
+  "GET /api/guildbank/requests",
   "POST /api/ingest/guildbank"
 ]

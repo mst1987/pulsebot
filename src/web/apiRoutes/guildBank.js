@@ -8,12 +8,15 @@
 //                                           switch's, else the first) with its items
 //   POST /api/guildbank/item                { key, itemId, status?, reserve?, maxPerRequest?, category? }
 //   POST /api/guildbank/tab                 { key, index, hidden } — hide or show a whole bank tab
+//   GET  /api/guildbank/requests?key=       the bank's open and confirmed requests (the "Anfragen" dialog)
 //   GET  /api/settings/guild-banks          every bank (summary) + the event servers to pick from
 //   POST /api/settings/guild-banks/assign   { key, guildId } — "" takes the assignment back
 //   POST /api/settings/guild-banks/delete   { key } — forget a bank with its settings
 //
 // The page's routes only ever touch a bank of the active server: another
-// server's bank answers 404 like an unknown one.
+// server's bank answers 404 like an unknown one. A changed item status (and a
+// forgotten bank) queues the item emojis' sync (services/guildbank/itemEmojis.js)
+// in the background — the answer never waits for Discord.
 const { ok } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { sendFailure } = require("../http/apiResult");
@@ -24,6 +27,9 @@ const stockStore = require("../../stores/guildBankStockStore");
 const stock = require("../../services/guildbank/guildBankStock");
 const view = require("../../services/guildbank/stockView");
 const { queueLookups } = require("../../services/guildbank/itemMeta");
+const { queueItemEmojiSync } = require("../../services/guildbank/itemEmojis");
+const { pendingForBank } = require("../../services/signups/guildBank");
+const { iconUrl } = require("../../utils/loot/wowhead");
 
 const NOT_FOUND = { code: "not_found", error: "Gildenbank nicht gefunden." };
 
@@ -50,7 +56,28 @@ const postGuildBankItem = withUser({ write: "raids", csrf: true, body: true }, a
     if (!Object.keys(patch).length) return sendFailure(res, { code: "invalid", error: "Nichts zu ändern." });
     const result = stockStore.setItemSettings(key, q.int(body, "itemId", { fallback: 0 }), patch);
     if (result.error) return sendFailure(res, { code: "invalid", error: result.error });
+    if (patch.status !== undefined) queueItemEmojiSync();
     ok(res, { item: view.itemForPage(key, result.item) });
+});
+
+/** One request as the page's "Anfragen" dialog lists it. */
+function requestRow(r, items) {
+    const item = items.get(r.itemId);
+    const icon = (item && item.icon) || r.icon;
+    return {
+        id: r.id, itemId: r.itemId, item: (item && item.name) || r.item, iconUrl: iconUrl(icon), amount: r.amount,
+        userId: r.userId, userName: r.userName, characterName: r.characterName, realm: r.realm, purpose: r.purpose,
+        status: r.status, createdAt: r.createdAt, handledByName: r.handledByName, handledAt: r.handledAt,
+    };
+}
+
+/** GET /api/guildbank/requests?key= — the bank's open and confirmed requests. */
+const getGuildBankRequests = withUser(async ({ req, res, query }) => {
+    const key = q.str(query, "key", { max: 200 });
+    const bank = view.bankOfServer(key, activeGuildFor(req));
+    if (!bank) return sendFailure(res, NOT_FOUND);
+    const items = new Map(bank.items.map((it) => [it.itemId, it]));
+    ok(res, { requests: pendingForBank(key).map((r) => requestRow(r, items)) });
 });
 
 /** POST /api/guildbank/tab — hide or show a whole bank tab. */
@@ -81,6 +108,7 @@ const assignGuildBank = withUser({ csrf: true, body: true }, async ({ body, res 
 const deleteGuildBank = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const result = stock.removeBank(body.key);
     if (result.error) return sendFailure(res, result);
+    queueItemEmojiSync();
     ok(res, { key: String(body.key || "") });
 });
 
@@ -89,9 +117,10 @@ const routes = [
     { method: "GET", path: "/api/guildbank", handler: getGuildBank, area: "raids" },
     { method: "POST", path: "/api/guildbank/item", handler: postGuildBankItem, area: "raids" },
     { method: "POST", path: "/api/guildbank/tab", handler: postGuildBankTab, area: "raids" },
+    { method: "GET", path: "/api/guildbank/requests", handler: getGuildBankRequests, area: "raids" },
     { method: "GET", path: "/api/settings/guild-banks", handler: getGuildBanks, area: "settings" },
     { method: "POST", path: "/api/settings/guild-banks/assign", handler: assignGuildBank, area: "settings" },
     { method: "POST", path: "/api/settings/guild-banks/delete", handler: deleteGuildBank, area: "settings" },
 ];
 
-module.exports = { getGuildBank, postGuildBankItem, postGuildBankTab, getGuildBanks, assignGuildBank, deleteGuildBank, routes };
+module.exports = { getGuildBank, postGuildBankItem, postGuildBankTab, getGuildBankRequests, getGuildBanks, assignGuildBank, deleteGuildBank, routes };

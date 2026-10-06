@@ -51,6 +51,10 @@ describe("utils/signup/botEnglish", () => {
         }
         expect(toEnglish("Die Menge muss eine ganze Zahl von 1 bis 9999 sein.")).toBe("The amount must be a whole number from 1 to 9999.");
         expect(toEnglish("⚠️ Höchstens 5 offene Anfragen – warte, bis die Orga eine erledigt hat.")).toBe("⚠️ At most 5 open requests – wait until the orga has handled one.");
+        // the request from the stock (#633): the item, maxPerRequest, what is left
+        expect(toEnglish("Diesen Gegenstand gibt es gerade nicht in der Gildenbank.")).toBe("This item is not available in the guild bank right now.");
+        expect(toEnglish("Höchstens 5 pro Anfrage.")).toBe("At most 5 per request.");
+        expect(toEnglish("Nur noch 3 verfügbar.")).toBe("Only 3 left.");
     });
 
     it("translates every fixed refusal of absences and attendances", () => {

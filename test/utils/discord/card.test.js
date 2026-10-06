@@ -76,3 +76,19 @@ describe("cardFromEmbed", () => {
         expect(p.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
     });
 });
+
+describe("card parts", () => {
+    it("puts its own body of parts between the facts and the buttons: text, a divider, rows", () => {
+        const select = new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId("s:1").setPlaceholder("x").addOptions({ label: "a", value: "a" }));
+        const p = card({ title: "Was brauchst du?", facts: [["A", "1"]], parts: ["---", "**Edelsteine**", select, null, "---", "**Tränke**", select.toJSON()], buttons: [btn("Ok")] });
+        const types = container(p).components.map((c) => c.type);
+        expect(types).toEqual([
+            ComponentType.TextDisplay, ComponentType.TextDisplay,
+            ComponentType.Separator, ComponentType.TextDisplay, ComponentType.ActionRow,
+            ComponentType.Separator, ComponentType.TextDisplay, ComponentType.ActionRow,
+            ComponentType.Separator, ComponentType.ActionRow,
+        ]);
+        expect(texts(p)).toEqual(["## Was brauchst du?", "**A** 1", "**Edelsteine**", "**Tränke**"]);
+        expect(container(p).components[4].components[0]).toMatchObject({ type: ComponentType.StringSelect, custom_id: "s:1" });
+    });
+});
