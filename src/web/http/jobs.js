@@ -25,6 +25,7 @@ const talkOverview = require("../../services/talk/talkOverview");
 const eventSeries = require("../events/eventSeries");
 const applicationState = require("../../utils/recruitment/applicationState");
 const availabilityPanel = require("../../services/signups/availabilityPanel");
+const guildBankItemMeta = require("../../services/guildbank/itemMeta");
 
 const JOBS = [
     // Sweep due raid-sheet copies (deleted a few days after each raid).
@@ -51,6 +52,9 @@ const JOBS = [
     { name: "applicationState", start: () => applicationState.start(), stop: () => applicationState.stop() },
     // Once after the start: redraw the absence/attendance panels whose text a deploy changed.
     { name: "availabilityPanels", start: () => availabilityPanel.startPanelRefresh(), stop: () => availabilityPanel.stopPanelRefresh() },
+    // Once after the start: guild bank items without a current name (none yet, or the
+    // German ones stored before the names turned English) are looked up again.
+    { name: "guildBankItemMeta", start: () => guildBankItemMeta.startMetaRefresh(), stop: () => guildBankItemMeta.stopMetaRefresh() },
 ];
 
 let running = false;

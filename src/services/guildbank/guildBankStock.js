@@ -46,8 +46,10 @@ function ingestScan(body, { token = {}, now = Date.now(), config } = {}) {
     const guildId = serverOfToken(token) || (store.getBank(scan.key) ? "" : onlyEventServer(config));
     const result = store.recordScan(scan, { now, guildId, uploadedBy: (token && token.name) || "" });
     if (result.status === "stale") return { scan, ...result, lookups: [] };
-    itemMeta.applyLocalMeta(scan.gameVersion, result.newItems, { now });
-    return { scan, ...result, lookups: store.itemsWithoutWowheadMeta(scan.key) };
+    // new items and those with stale (German) meta: the local tables name them at once
+    const lookups = store.itemsWithoutWowheadMeta(scan.key);
+    itemMeta.applyLocalMeta(scan.gameVersion, lookups, { now });
+    return { scan, ...result, lookups };
 }
 
 /** The servers a bank can be assigned to: every event server, with its name and label. */

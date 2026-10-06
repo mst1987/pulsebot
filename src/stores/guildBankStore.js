@@ -266,9 +266,33 @@ function prune({ now = Date.now(), days = KEEP_DAYS } = {}) {
     return dropped;
 }
 
+/**
+ * Give the pending (open / confirmed) requests of a stocked item the item's
+ * current name — the bank's item names turned English (guildBankStockStore
+ * META_VERSION 2). Handled requests keep the name they were handled with.
+ * Returns the ids of the requests that changed.
+ * @param {{ bankKeys: string[], itemId: number, name: string }} o
+ */
+function renamePendingItem({ bankKeys = [], itemId = 0, name = "" } = {}) {
+    const keys = new Set((bankKeys || []).map(str).filter(Boolean));
+    const id = Math.max(0, Math.floor(Number(itemId) || 0));
+    const next = str(name).replace(/\s+/g, " ").slice(0, ITEM_MAX);
+    if (!keys.size || !id || !next) return [];
+    const data = store.read();
+    const changed = [];
+    for (const r of data.requests) {
+        const c = complete(r);
+        if (!PENDING_STATUSES.includes(c.status) || c.itemId !== id || !keys.has(c.bankKey) || c.item === next) continue;
+        r.item = next;
+        changed.push(c.id);
+    }
+    if (changed.length) store.write(data);
+    return changed;
+}
+
 module.exports = {
     STATUSES, PENDING_STATUSES, HANDOUT_VIAS, ITEM_MAX, PURPOSE_MAX, REASON_MAX, AMOUNT_MIN, AMOUNT_MAX, MAX_OPEN, KEEP_DAYS,
     parseAmount, checkInput, listRequests, getRequest, countOpen, addRequest, setMessage, resolveRequest,
-    confirmRequest, releaseRequest, handOutRequest, removeRequest, prune,
+    confirmRequest, releaseRequest, handOutRequest, removeRequest, prune, renamePendingItem,
     useFile,
 };

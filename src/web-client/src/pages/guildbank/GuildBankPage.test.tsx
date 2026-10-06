@@ -40,10 +40,10 @@ describe("guild bank page", () => {
         const table = screen.getByRole("table", { name: "Gegenstände der Gildenbank" });
         expect(within(table).getByText("Edelsteine")).toBeInTheDocument();
         expect(within(table).getByText("Fläschchen")).toBeInTheDocument();
-        const ruby = within(table).getByRole("link", { name: "Klobiger lebendiger Rubin" });
+        const ruby = within(table).getByRole("link", { name: "Bold Living Ruby" });
         expect(ruby).toHaveAttribute("href", "https://www.wowhead.com/tbc/item=1");
         expect(within(table).getAllByText("Tab 2: Edelsteine").length).toBe(2);
-        expect(within(table).queryByText("Urmacht")).toBeNull();
+        expect(within(table).queryByText("Primal Might")).toBeNull();
         expect(api.getGuildBank).toHaveBeenCalledWith({ key: "", version: "" });
     });
 
@@ -52,19 +52,19 @@ describe("guild bank page", () => {
         renderPage(<GuildBankPage />, { route: "/guildbank" });
         await user.click(await screen.findByRole("tab", { name: /Neu/ }));
         expect(screen.getByText(/Seit dem letzten Scan neu in der Bank/)).toBeInTheDocument();
-        expect(screen.getByText("Heldentrank")).toBeInTheDocument();
-        expect(screen.queryByText("Schattenstoff")).toBeNull();
+        expect(screen.getByText("Heroic Potion")).toBeInTheDocument();
+        expect(screen.queryByText("Shadowcloth")).toBeNull();
     });
 
     it("sorts an item with the switch and moves it to its new tab", async () => {
         const user = userEvent.setup();
         vi.mocked(api.setGuildBankItem).mockResolvedValue({ item: bankItem({ itemId: 1, status: "show" }) });
         renderPage(<GuildBankPage />, { route: "/guildbank" });
-        const group = await screen.findByRole("radiogroup", { name: "Einordnung von Klobiger lebendiger Rubin" });
+        const group = await screen.findByRole("radiogroup", { name: "Einordnung von Bold Living Ruby" });
         expect(within(group).getByRole("radio", { name: "Ausgebbar" })).toHaveAttribute("aria-checked", "true");
         await user.click(within(group).getByRole("radio", { name: "Nur Bestand" }));
         expect(api.setGuildBankItem).toHaveBeenCalledWith(KEY, 1, { status: "show" });
-        await waitFor(() => expect(screen.queryByText("Klobiger lebendiger Rubin")).toBeNull());
+        await waitFor(() => expect(screen.queryByText("Bold Living Ruby")).toBeNull());
         expect(screen.getByRole("tab", { name: /Nur Bestand 2/ })).toBeInTheDocument();
     });
 
@@ -73,20 +73,20 @@ describe("guild bank page", () => {
         renderPage(<GuildBankPage />, { route: "/guildbank" });
         await user.click(await screen.findByRole("button", { name: /Kategorie: Alle/ }));
         await user.selectOptions(screen.getByRole("combobox", { name: "Kategorie" }), "Fläschchen");
-        expect(screen.queryByText("Klobiger lebendiger Rubin")).toBeNull();
-        expect(screen.getByText("Fläschchen des unerbittlichen Angriffs")).toBeInTheDocument();
+        expect(screen.queryByText("Bold Living Ruby")).toBeNull();
+        expect(screen.getByText("Flask of Relentless Assault")).toBeInTheDocument();
         await user.click(screen.getByRole("button", { name: /Kategorie: Fläschchen/ }));
         await user.selectOptions(screen.getByRole("combobox", { name: "Kategorie" }), "");
-        await user.type(screen.getByPlaceholderText("Gegenstand suchen"), "glatt");
-        expect(screen.getByText("Glatter Dämmerstein")).toBeInTheDocument();
-        expect(screen.queryByText("Klobiger lebendiger Rubin")).toBeNull();
+        await user.type(screen.getByPlaceholderText("Gegenstand suchen"), "smooth");
+        expect(screen.getByText("Smooth Dawnstone")).toBeInTheDocument();
+        expect(screen.queryByText("Bold Living Ruby")).toBeNull();
     });
 
     it("saves reserve, limit and category from the item dialog", async () => {
         const user = userEvent.setup();
         vi.mocked(api.setGuildBankItem).mockResolvedValue({ item: bankItem({ itemId: 1, reserve: 2, maxPerRequest: 5, reserved: 4, available: 4 }) });
         renderPage(<GuildBankPage />, { route: "/guildbank" });
-        await user.click(await screen.findByRole("button", { name: "Reserve und Höchstmenge: Klobiger lebendiger Rubin" }));
+        await user.click(await screen.findByRole("button", { name: "Reserve und Höchstmenge: Bold Living Ruby" }));
         const reserve = screen.getByRole("textbox", { name: "Reserve" });
         await user.clear(reserve);
         await user.type(reserve, "x");
@@ -120,11 +120,11 @@ describe("guild bank page", () => {
         vi.mocked(api.getGuildBankRequests).mockResolvedValue({
             requests: [
                 {
-                    id: "r2", itemId: 2, item: "Glatter Dämmerstein", iconUrl: "", amount: 1, userId: "u2", userName: "Bo", characterName: "",
+                    id: "r2", itemId: 2, item: "Smooth Dawnstone", iconUrl: "", amount: 1, userId: "u2", userName: "Bo", characterName: "",
                     realm: "", purpose: "", status: "open", createdAt: Date.UTC(2026, 9, 6, 18), handledByName: "", handledAt: 0,
                 },
                 {
-                    id: "r1", itemId: 1, item: "Klobiger lebendiger Rubin", iconUrl: "https://example.test/ruby.jpg", amount: 2, userId: "u1",
+                    id: "r1", itemId: 1, item: "Bold Living Ruby", iconUrl: "https://example.test/ruby.jpg", amount: 2, userId: "u1",
                     userName: "Anna", characterName: "Zibbo", realm: "Spine Shatter", purpose: "Gruul", status: "confirmed",
                     createdAt: Date.UTC(2026, 9, 6, 17), handledByName: "Arthas", handledAt: 1,
                 },
@@ -135,9 +135,9 @@ describe("guild bank page", () => {
         const list = await screen.findByRole("list", { name: "Anfragen" });
         const rows = within(list).getAllByRole("listitem");
         expect(rows).toHaveLength(2);
-        expect(within(rows[0]).getByText("1× Glatter Dämmerstein")).toBeInTheDocument();
+        expect(within(rows[0]).getByText("1× Smooth Dawnstone")).toBeInTheDocument();
         expect(within(rows[0]).getByText("Offen")).toBeInTheDocument();
-        expect(within(rows[1]).getByText("2× Klobiger lebendiger Rubin")).toBeInTheDocument();
+        expect(within(rows[1]).getByText("2× Bold Living Ruby")).toBeInTheDocument();
         expect(within(rows[1]).getByText(/^Anna · an Zibbo-SpineShatter · /)).toBeInTheDocument();
         expect(within(rows[1]).getByText("Wofür: Gruul")).toBeInTheDocument();
         expect(within(rows[1]).getByText("Vorgemerkt")).toBeInTheDocument();
@@ -158,7 +158,7 @@ describe("guild bank page", () => {
 
     it("lets a reader look but not change", async () => {
         renderPage(<GuildBankPage />, { route: "/guildbank", user: adminUser({ isAdmin: false, access: { raids: { read: true, write: false } } }) });
-        const group = await screen.findByRole("radiogroup", { name: "Einordnung von Klobiger lebendiger Rubin" });
+        const group = await screen.findByRole("radiogroup", { name: "Einordnung von Bold Living Ruby" });
         expect(within(group).getByRole("radio", { name: "Nur Bestand" })).toBeDisabled();
         expect(screen.queryByRole("button", { name: /Reserve und Höchstmenge:/ })).toBeNull();
     });

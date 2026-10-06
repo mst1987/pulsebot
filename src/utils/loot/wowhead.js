@@ -122,9 +122,11 @@ function xmlId(xml, tag) {
 }
 
 /**
- * One item with its name in a locale (German by default), icon, quality and
- * Wowhead's item class and subclass ("Verbrauchbar" / "Fläschchen") — what the
- * guild bank stock shows and groups by (services/guildbank/itemMeta.js).
+ * One item with its name in a locale (English by default), icon, quality and
+ * Wowhead's item class and subclass (ids plus Wowhead's text in that locale,
+ * "Consumable" / "Flask") — what the guild bank stock shows and groups by
+ * (services/guildbank/itemMeta.js; the German group labels come from the ids,
+ * config/itemClassLabels.js).
  *
  * Asks Wowhead's item XML first, the one answer that carries the class; when
  * that fails, the tooltip endpoint (name, icon, quality, no class). Not cached
@@ -134,11 +136,11 @@ function xmlId(xml, tag) {
  * @param {{ edition?: string, path?: string, locale?: "de"|"en" }} [opts]
  * @returns {Promise<{ id, name, icon, iconUrl, quality, classId, subclassId, className, subclassName }|null>}
  */
-async function lookupItemDetails(itemId, { edition = "tbc", path = "", locale = "de" } = {}) {
+async function lookupItemDetails(itemId, { edition = "tbc", path = "", locale = "en" } = {}) {
     const id = Number(itemId) || 0;
     if (!id) return null;
     const branch = branchFor(edition, path);
-    const loc = LOCALES[locale] || LOCALES.de;
+    const loc = LOCALES[locale] || LOCALES.en;
     const target = wowheadItemId(id);
     const request = { httpsAgent, timeout: 15000, headers: { "User-Agent": "Mozilla/5.0 (EventHelper)" } };
     try {

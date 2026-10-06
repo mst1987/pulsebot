@@ -33,7 +33,7 @@ function seedBank() {
         scannedAt: 1791000000, tabs: [{ index: 1, name: "A", items: [{ itemId: RUBY, count: 14 }, { itemId: FLASK, count: 6 }] }],
     });
     KEY = stockStore.recordScan(scan, { now: 1, guildId: "g1" }).bank.key;
-    stockStore.setItemMeta("tbc", RUBY, { name: "Klobiger lebendiger Rubin", icon: "inv_ruby", classId: 3, className: "Edelsteine" }, { source: "wowhead" });
+    stockStore.setItemMeta("tbc", RUBY, { name: "Bold Living Ruby", icon: "inv_ruby", classId: 3, className: "Gems" }, { source: "wowhead" });
     stockStore.setItemSettings(KEY, RUBY, { status: "give", maxPerRequest: 5, reserve: 2 });
     stockStore.setItemSettings(KEY, FLASK, { status: "show" });
 }
@@ -84,11 +84,11 @@ describe("services/signups/guildBank — requests from the stock", () => {
 
         const { request } = await ask();
         expect(request).toMatchObject({
-            item: "Klobiger lebendiger Rubin", amount: 2, purpose: "Gruul", bankKey: KEY, itemId: RUBY, icon: "inv_ruby", group: "Edelsteine",
+            item: "Bold Living Ruby", amount: 2, purpose: "Gruul", bankKey: KEY, itemId: RUBY, icon: "inv_ruby", group: "Edelsteine",
             characterName: "Zibbo", realm: "Spineshatter", faction: "Alliance", status: "open", messageId: "m1",
         });
         const card = discord.postPayload.mock.calls[0][1];
-        expect(cardText(card)).toContain("-# Gildenbank · Edelsteine\n## 2× Klobiger lebendiger Rubin");
+        expect(cardText(card)).toContain("-# Gildenbank · Edelsteine\n## 2× Bold Living Ruby");
         expect(cardText(card)).toContain("An: Zibbo-Spineshatter");
         expect(cardText(card)).toContain("**Bestand** 14 · **Vorgemerkt** 0 · **Verfügbar** 12 (danach 10)");
         expect(cardButtons(card).map((b) => b.custom_id)).toEqual([`guildbank:confirm:${request.id}`, `guildbank:reject:${request.id}`]);

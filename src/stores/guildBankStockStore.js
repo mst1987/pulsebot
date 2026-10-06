@@ -23,15 +23,15 @@
 //   itemSettings = { status: "new" | "hide" | "show" | "give", reserve, maxPerRequest (0 = no limit),
 //                    category (the orga's own group, "" = none), firstSeenAt,
 //                    name, icon, quality, classId, subclassId, className, subclassName,
-//                    metaSource: "" | "local" | "wowhead", metaAt }
+//                    metaSource: "" | "local" | "wowhead", metaAt, metaVersion }
 //
 // The settings outlive scans: a new scan replaces `lastScan` only. An item id
 // seen for the first time gets status "new"; an item that left the bank keeps
 // its settings and reads with count 0. A scan older than the stored one (a
-// second PC uploading late) is ignored. Item names are German when they come
-// from Wowhead (services/guildbank/itemMeta.js), English from the local item
-// tables only until Wowhead answered (every item without a Wowhead answer is
-// looked up again; the answer replaces the English name).
+// second PC uploading late) is ignored. Item names are English — from the local
+// item tables or from Wowhead (services/guildbank/itemMeta.js); every item
+// without a current Wowhead answer is looked up again for its class and icon.
+// Meta stored before META_VERSION 2 carries German names and is refreshed.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { iconUrl } = require("../utils/loot/wowhead");
@@ -43,6 +43,13 @@ const RESERVE_MAX = 1_000_000;
 const MAX_PER_REQUEST_MAX = 9999;
 const CATEGORY_MAX = 40;
 const META_SOURCES = ["", "local", "wowhead"];
+/**
+ * The version of the stored meta: 1 (#636, no field) = German names from
+ * Wowhead, 2 = English names. Meta of an older version is stale: the item is
+ * looked up again (itemsWithoutWowheadMeta), the local tables may replace its
+ * name meanwhile, and it is never handed on as the cache (knownMeta).
+ */
+const META_VERSION = 2;
 
 const store = createJsonStore({
     file: settingsPath("guild-bank-stock.json"),
@@ -79,6 +86,7 @@ function completeItem(raw) {
         subclassName: str(r.subclassName, 60),
         metaSource: META_SOURCES.includes(r.metaSource) ? r.metaSource : "",
         metaAt: num(r.metaAt),
+        metaVersion: Math.max(0, Math.floor(num(r.metaVersion))),
     };
 }
 
@@ -329,10 +337,13 @@ function knownMeta(gameVersion, itemId) {
     for (const bank of store.read().banks) {
         if (bank.gameVersion !== gameVersion) continue;
         const it = obj(obj(bank.items)[id]);
-        if (it.metaSource === "wowhead" && it.name) return pickMeta(completeItem(it));
+        if (it.metaSource === "wowhead" && it.name && !isStale(completeItem(it))) return pickMeta(completeItem(it));
     }
     return null;
 }
+
+/** Meta of an older META_VERSION (German Wowhead names, #636). */
+const isStale = (item) => Boolean(item.metaSource) && item.metaVersion < META_VERSION;
 
 const META_FIELDS = ["name", "icon", "quality", "classId", "subclassId", "className", "subclassName"];
 
@@ -353,9 +364,10 @@ function mergeMeta(current, next) {
 
 /**
  * Write an item's meta into every bank of `gameVersion` that has the item.
- * A Wowhead answer replaces whatever was there — the German name always wins
- * over the English one of the local tables; a field it lacks (icon, quality)
- * keeps the local value. Local data only fills an item that has nothing yet.
+ * A Wowhead answer replaces whatever was there (both English); a field it
+ * lacks (icon, quality) keeps the local value. Local data only fills an item
+ * that has nothing yet or only stale meta (German names before META_VERSION 2:
+ * the English local name replaces it at once, the ids it has stay).
  * Returns how many banks changed.
  * @param {string} gameVersion
  * @param {number} itemId
@@ -372,8 +384,8 @@ function setItemMeta(gameVersion, itemId, meta, { source, now = Date.now() } = {
         const items = obj(bank.items);
         if (!items[id]) continue;
         const current = completeItem(items[id]);
-        if (source === "local" && current.metaSource) continue;
-        items[id] = completeItem({ ...current, ...mergeMeta(current, completeItem(meta)), metaSource: source, metaAt: now });
+        if (source === "local" && current.metaSource && !isStale(current)) continue;
+        items[id] = completeItem({ ...current, ...mergeMeta(current, completeItem(meta)), metaSource: source, metaAt: now, metaVersion: META_VERSION });
         bank.items = items;
         changed += 1;
     }
@@ -381,13 +393,21 @@ function setItemMeta(gameVersion, itemId, meta, { source, now = Date.now() } = {
     return changed;
 }
 
-/** The item ids of a bank that have no Wowhead answer yet (local data or nothing). */
+/** The item ids of a bank that have no current Wowhead answer yet (local data, nothing, or stale German meta). */
 function itemsWithoutWowheadMeta(key) {
     const bank = findBank(store.read(), key);
     if (!bank) return [];
     return Object.entries(obj(bank.items))
-        .filter(([, it]) => completeItem(it).metaSource !== "wowhead")
+        .filter(([, it]) => completeItem(it).metaSource !== "wowhead" || isStale(completeItem(it)))
         .map(([id]) => Number(id));
+}
+
+/** The keys of the banks of `gameVersion` that have the item. */
+function banksWithItem(gameVersion, itemId) {
+    const id = String(Number(itemId) || "");
+    return store.read().banks
+        .filter((b) => b.gameVersion === gameVersion && id && obj(b.items)[id])
+        .map((b) => b.key);
 }
 
 /**
@@ -431,9 +451,9 @@ function setItemEmoji(itemId, emoji) {
 }
 
 module.exports = {
-    STATUSES, SETTABLE_STATUSES, RESERVE_MAX, MAX_PER_REQUEST_MAX, CATEGORY_MAX,
+    STATUSES, SETTABLE_STATUSES, RESERVE_MAX, MAX_PER_REQUEST_MAX, CATEGORY_MAX, META_VERSION,
     recordScan, getBank, listBanks, listForServer, assignBank, removeBank,
-    setItemSettings, setTabHidden, knownMeta, setItemMeta, itemsWithoutWowheadMeta,
+    setItemSettings, setTabHidden, knownMeta, setItemMeta, itemsWithoutWowheadMeta, banksWithItem,
     offeredIcons, itemEmojis, setItemEmoji,
     useFile,
 };
