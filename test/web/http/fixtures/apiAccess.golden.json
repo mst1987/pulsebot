@@ -222,6 +222,7 @@
   "tokenAuth": [
     "/api/ingest/loot",
     "/api/ingest/raids",
+    "/api/ingest/council",
     "/api/ingest/guildbank",
     "/api/ingest/guildbank/handouts"
   ]

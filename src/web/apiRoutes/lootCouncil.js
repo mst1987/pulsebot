@@ -32,24 +32,10 @@ const { gearFor, charKey } = require("../../services/loot/charGear");
 const { characterMap } = require("../../stores/characterStore");
 const { specFor, ROLES } = require("../../config/casterSpecs");
 const engine = require("../../utils/wowsims/engine");
-const discord = require("../../services/discord/discord");
 const { getConfig } = require("../../stores/settingsStore");
-const { mainVersionFor, resolveVersionQuery } = require("../../services/events/mainVersion");
+const { mainVersionFor } = require("../../services/events/mainVersion");
+const { councilOptsFromQuery, categoryOptions } = require("../loot/councilQuery");
 const { settingsForVersion } = require("../../services/events/versionSettings");
-
-/** Comma-separated query params ("t5,t6") as a clean array. */
-function listParam(url, name) {
-    const raw = url.searchParams.get(name) || "";
-    return raw.split(",").map((s) => s.trim()).filter(Boolean);
-}
-
-/** The raid categories the filter can narrow to, named for the dropdown. */
-function categoryOptions(guildId) {
-    const config = getConfig();
-    const ids = config.categoryIds || [];
-    const known = new Map(discord.listCategories(guildId).map((c) => [c.id, c.name]));
-    return ids.map((id) => ({ id, name: known.get(id) || id }));
-}
 
 /**
  * GET /api/lootcouncil — roster, BiS gaps and filter options.
@@ -59,24 +45,11 @@ function categoryOptions(guildId) {
 const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
 
-    const role = url.searchParams.get("role") || "";
-    const tierIds = listParam(url, "tiers");
-    const contentIds = listParam(url, "contents");
-    const categoryId = url.searchParams.get("category") || "";
-    const bisTier = url.searchParams.get("bisTier") || "";
     const guildId = activeGuildFor(req);
-
-    // The version the council looks at (#542): the category's, else the main
-    // version - its armory links, its realm for the gear, its Wowhead path.
-    const config = getConfig();
-    const versionId = mainVersionFor({ categoryId, config });
-    // The character filter (#545): which raiders are shown at all — separate
-    // from `versionId` above (only the links follow the category). Nothing
-    // asked = the main version, "all" = every one.
-    const { versionId: charVersion, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
-    const opts = {
-        role, tierIds, contentIds, categoryId, bisTier, versionId, config, mainVersion, charVersion,
-    };
+    // The version the council looks at, the character filter and the rest of the
+    // query: see councilQuery.js.
+    const opts = councilOptsFromQuery(url.searchParams);
+    const { role, tierIds, contentIds, categoryId, bisTier, versionId, config, mainVersion, charVersion } = opts;
     let built = councilRoster(opts);
     // A set that still holds a boss-specific piece is the one case the logs
     // cannot answer — only the armory knows what is on that raider *now*. Asked

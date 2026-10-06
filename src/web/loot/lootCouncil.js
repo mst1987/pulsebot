@@ -1016,7 +1016,7 @@ function filterOptions() {
 }
 
 module.exports = {
-    councilRoster, candidateSplit, bisGaps, filterOptions, bisSpecsView, resolveContentFilter, itemView,
+    councilRoster, candidateSplit, bisGaps, filterOptions, bisSpecsView, resolveContentFilter, itemView, NEED_WEIGHTS,
     // only for the tests (#424): not part of the module's API
     _internal: {
         candidatesForItem, currentTier, wornItemView, NEED_WEIGHTS, NON_BIS_WEIGHT, upgradeValue, needScore, gearSpellHit, firstSlotFor,
