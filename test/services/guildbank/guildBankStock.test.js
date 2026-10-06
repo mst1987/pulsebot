@@ -2,6 +2,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => [{ id: "g1", name: "Event-Server" }, { id: "g2", name: "PvP" }, { id: "talk", name: "Talk" }]),
 }));
 
+const fs = require("fs");
 const stock = require("../../../src/services/guildbank/guildBankStock");
 const store = require("../../../src/stores/guildBankStockStore");
 const { GB_FORMAT, GuildBankParseError } = require("../../../src/utils/guildbank/guildBankScan");
@@ -22,7 +23,9 @@ const body = (over = {}) => ({
     ...over,
 });
 
-beforeAll(() => store.useFile(tempStoreFile("guild-bank-stock.json")));
+const FILE = tempStoreFile("guild-bank-stock.json");
+
+beforeAll(() => store.useFile(FILE));
 afterAll(() => store.useFile(null));
 beforeEach(() => {
     for (const b of store.listBanks()) store.removeBank(b.key);
@@ -36,6 +39,22 @@ describe("services/guildbank/guildBankStock", () => {
         expect(result.newItems.sort()).toEqual([22854, 944]);
         expect(result.lookups.sort()).toEqual([22854, 944]);
         expect(store.getBank(result.bank.key).items.find((i) => i.itemId === 944)).toMatchObject({ name: "Elemental Mage Staff", metaSource: "local" });
+    });
+
+    // German names stored before the names turned English (no metaVersion):
+    // the next scan names the items the local tables know in English at once.
+    it("gives an item with a stale German name its local English name on the next scan", () => {
+        const { bank } = stock.ingestScan(body(), { now: NOW, config: CONFIG });
+        store.setItemMeta("tbc", 944, { name: "Elemental Mage Staff", classId: 2, subclassId: 10 }, { source: "wowhead", now: NOW });
+        const data = JSON.parse(fs.readFileSync(FILE, "utf8"));
+        Object.assign(data.banks[0].items["944"], { name: "Elementarmagierstab" });
+        delete data.banks[0].items["944"].metaVersion;
+        fs.writeFileSync(FILE, JSON.stringify(data));
+        store.useFile(FILE);
+
+        const again = stock.ingestScan(body({ scannedAt: 1791003600 }), { now: NOW + 1, config: CONFIG });
+        expect(again.lookups.sort()).toEqual([22854, 944]);
+        expect(store.getBank(bank.key).items.find((i) => i.itemId === 944)).toMatchObject({ name: "Elemental Mage Staff", metaSource: "local", classId: 2 });
     });
 
     it("assigns right away with a token bound to a server", () => {

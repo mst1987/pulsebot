@@ -132,6 +132,28 @@ describe("stores/guildBankStore", () => {
         });
     });
 
+    it("renames the pending requests of a stocked item, never handled or free-text ones", () => {
+        const add = (userId, over = {}) => store.addRequest({ userId, item: "Klobiger lebendiger Rubin", amount: 1, bankKey: "tbc:x:y", itemId: 24027, ...over }, { now: 1 }).request.id;
+        const open = add("u1");
+        const confirmed = add("u2");
+        store.confirmRequest(confirmed, { by: "o" }, { now: 2 });
+        const handed = add("u3");
+        store.confirmRequest(handed, { by: "o" }, { now: 2 });
+        store.handOutRequest(handed, { by: "o" }, { now: 3 });
+        const free = add("u4", { bankKey: "", itemId: 0 });
+        const otherBank = add("u5", { bankKey: "tbc:a:b" });
+
+        expect(store.renamePendingItem({ bankKeys: ["tbc:x:y"], itemId: 24027, name: "  Bold   Living Ruby " }).sort()).toEqual([open, confirmed].sort());
+        const item = (id) => store.getRequest(id).item;
+        expect([item(open), item(confirmed), item(handed), item(free), item(otherBank)])
+            .toEqual(["Bold Living Ruby", "Bold Living Ruby", "Klobiger lebendiger Rubin", "Klobiger lebendiger Rubin", "Klobiger lebendiger Rubin"]);
+        expect(store.renamePendingItem({ bankKeys: ["tbc:x:y"], itemId: 24027, name: "Bold Living Ruby" })).toEqual([]);
+        expect(store.renamePendingItem({ bankKeys: [], itemId: 24027, name: "X" })).toEqual([]);
+        expect(store.renamePendingItem({ bankKeys: ["tbc:x:y"], itemId: 0, name: "X" })).toEqual([]);
+        expect(store.renamePendingItem({ bankKeys: ["tbc:x:y"], itemId: 24027, name: " " })).toEqual([]);
+        expect(store.renamePendingItem()).toEqual([]);
+    });
+
     it("removes a request", () => {
         const { request } = add();
         expect(store.removeRequest(request.id).id).toBe(request.id);

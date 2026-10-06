@@ -13,11 +13,11 @@ describe("guild bank page rules", () => {
     it("groups a tab's items by category, sorted, with search and category filter", () => {
         const groups = groupItems(items(), { tab: "give", category: "", search: "" });
         expect(groups.map((g) => [g.name, g.items.map((i) => i.itemId)])).toEqual([
-            ["Edelsteine", [2, 1]],
+            ["Edelsteine", [1, 2]],
             ["Fläschchen", [3]],
         ]);
         expect(groupItems(items(), { tab: "give", category: "Fläschchen", search: "" }).map((g) => g.name)).toEqual(["Fläschchen"]);
-        expect(groupItems(items(), { tab: "give", category: "", search: "  rubin " })[0].items.map((i) => i.itemId)).toEqual([1]);
+        expect(groupItems(items(), { tab: "give", category: "", search: "  ruby " })[0].items.map((i) => i.itemId)).toEqual([1]);
         expect(groupItems(items(), { tab: "give", category: "", search: "nichts" })).toEqual([]);
     });
 

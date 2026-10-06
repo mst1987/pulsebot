@@ -66,7 +66,7 @@ beforeEach(() => {
         scannedAt: 1791000000, tabs: [{ index: 1, name: "A", items: [{ itemId: RUBY, count: 10 }] }],
     });
     KEY = stockStore.recordScan(scan, { now: 1, guildId: "g1" }).bank.key;
-    stockStore.setItemMeta("tbc", RUBY, { name: "Klobiger lebendiger Rubin", icon: "inv_ruby", classId: 3, className: "Edelsteine" }, { source: "wowhead" });
+    stockStore.setItemMeta("tbc", RUBY, { name: "Bold Living Ruby", icon: "inv_ruby", classId: 3, className: "Gems" }, { source: "wowhead" });
     stockStore.setItemSettings(KEY, RUBY, { status: "give", maxPerRequest: 5 });
 });
 
@@ -79,7 +79,7 @@ describe("Gildenbank aus dem Bestand", () => {
         expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(cardText(payload)).toContain("## Was brauchst du?");
         expect(cardText(payload)).toContain("**Edelsteine**\n-# 1 Sorte");
-        expect(cardControls(payload)[0].options).toEqual([{ label: "Klobiger lebendiger Rubin", description: "Verfügbar: 10 · max. 5 pro Anfrage", value: String(RUBY) }]);
+        expect(cardControls(payload)[0].options).toEqual([{ label: "Bold Living Ruby", description: "Verfügbar: 10 · max. 5 pro Anfrage", value: String(RUBY) }]);
     });
 
     it("ohne etwas Ausgebbares bleibt das Freitext-Formular", async () => {
@@ -119,9 +119,9 @@ describe("Gildenbank aus dem Bestand", () => {
         expect(sent.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
         const answer = answerOf(sent.editReply.mock.calls[0][0]);
         expect(answer.title).toBe("✅ Anfrage gesendet – die Orga meldet sich per DM.");
-        expect(answer.description).toBe("**3× Klobiger lebendiger Rubin**\nWofür: Gruul\nAn: Zibbowar-Spineshatter");
+        expect(answer.description).toBe("**3× Bold Living Ruby**\nWofür: Gruul\nAn: Zibbowar-Spineshatter");
         expect(bankStore.listRequests()).toEqual([expect.objectContaining({ itemId: RUBY, bankKey: KEY, amount: 3, characterName: "Zibbowar", faction: "Horde" })]);
-        expect(cardText(discord.postPayload.mock.calls[0][1])).toContain("## 3× Klobiger lebendiger Rubin");
+        expect(cardText(discord.postPayload.mock.calls[0][1])).toContain("## 3× Bold Living Ruby");
     });
 
     it("ohne Charakterwahl im Formular und ohne Wofür-Feld: der erste Charakter, kein Zweck", async () => {

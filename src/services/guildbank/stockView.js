@@ -10,23 +10,31 @@
 //   available  max(0, count - reserved - handedOut - reserve) — what a raider may still ask for
 //   group      the line the item is listed under: the orga's own category,
 //              else Wowhead's class (gems, recipes) or subclass (consumables,
-//              trade goods: "Fläschchen", "Stoff"), "" when Wowhead has not
-//              answered yet; autoGroup = Wowhead's alone
+//              trade goods: "Fläschchen", "Stoff") — German labels by id
+//              (config/itemClassLabels.js), while the item names are English —
+//              "" when Wowhead has not answered yet; autoGroup = Wowhead's alone
 const stockStore = require("../../stores/guildBankStockStore");
 const { reservedByItem, handedOutSince, reservedRequestCount } = require("./reservations");
 const { wowheadPathFor } = require("./itemMeta");
 const { rulesFor } = require("../../config/gameVersions");
+const { classLabel, subclassLabel } = require("../../config/itemClassLabels");
 
 // Item classes whose subclass is the useful group (Wowhead's ids): consumables
 // (flasks, elixirs, potions) and trade goods (cloth, leather, metal, herbs).
 const BY_SUBCLASS = new Set([0, 7]);
 
-/** The group an item is listed under. */
+/**
+ * The group an item is listed under. The class and subclass labels are German
+ * from their ids (config/itemClassLabels.js); Wowhead's own (English) text
+ * only for an id the table does not know.
+ */
 function itemGroup(item) {
     const it = item || {};
     if (it.category) return it.category;
-    if (BY_SUBCLASS.has(it.classId)) return it.subclassName || it.className || "";
-    return it.className || it.subclassName || "";
+    const cls = classLabel(it.classId) || it.className || "";
+    const sub = subclassLabel(it.classId, it.subclassId) || it.subclassName || "";
+    if (BY_SUBCLASS.has(it.classId)) return sub || cls;
+    return cls || sub;
 }
 
 /** What is left of an item for requests. */

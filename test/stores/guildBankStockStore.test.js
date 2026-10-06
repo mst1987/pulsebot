@@ -149,14 +149,14 @@ describe("stores/guildBankStockStore", () => {
         expect(store.knownMeta("tbc", 22854)).toBeNull();
         expect(store.itemsWithoutWowheadMeta(KEY).sort()).toEqual([21877, 22854, 24027]);
 
-        const meta = { name: "Fläschchen des unerbittlichen Angriffs", icon: "inv_potion_117", quality: 1, classId: 0, subclassId: 3, className: "Verbrauchbar", subclassName: "Fläschchen" };
+        const meta = { name: "Flask of Relentless Assault", icon: "inv_potion_117", quality: 1, classId: 0, subclassId: 3, className: "Consumables", subclassName: "Flasks" };
         expect(store.setItemMeta("tbc", 22854, meta, { source: "wowhead", now: NOW + 5 })).toBe(2);
         expect(store.setItemMeta("tbc", 22854, { name: "Flask" }, { source: "local" })).toBe(0);
         expect(store.knownMeta("tbc", 22854)).toEqual(meta);
         expect(store.knownMeta("classic", 22854)).toBeNull();
         expect(store.itemsWithoutWowheadMeta(KEY).sort()).toEqual([21877, 24027]);
         expect(store.getBank(KEY).items.find((i) => i.itemId === 22854)).toMatchObject({
-            ...meta, metaSource: "wowhead", metaAt: NOW + 5,
+            ...meta, metaSource: "wowhead", metaAt: NOW + 5, metaVersion: store.META_VERSION,
             iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_potion_117.jpg",
         });
         // Sorted by name: the named item before the unnamed ones.
@@ -166,6 +166,31 @@ describe("stores/guildBankStockStore", () => {
         expect(store.setItemMeta("tbc", 22854, meta, { source: "other" })).toBe(0);
         expect(store.setItemMeta("tbc", 4242, meta, { source: "wowhead" })).toBe(0);
         expect(store.itemsWithoutWowheadMeta("nope")).toEqual([]);
+        expect(store.banksWithItem("tbc", 22854).sort()).toEqual([KEY, store.listBanks().find((b) => b.guild === "Andere").key].sort());
+        expect(store.banksWithItem("tbc", 4242)).toEqual([]);
+        expect(store.banksWithItem("tbc", "x")).toEqual([]);
+    });
+
+    // The German names #636 stored (no metaVersion) are stale: looked up again,
+    // never handed on as the cache, and the local English name may replace them.
+    it("treats meta without the current version as stale", () => {
+        store.recordScan(scan(), { now: NOW });
+        store.setItemMeta("tbc", 24027, { name: "Bold Living Ruby", icon: "inv_ruby", classId: 3, subclassId: 0 }, { source: "wowhead", now: NOW });
+        const data = JSON.parse(fs.readFileSync(FILE, "utf8"));
+        Object.assign(data.banks[0].items["24027"], { name: "Klobiger lebendiger Rubin", className: "Edelsteine" });
+        delete data.banks[0].items["24027"].metaVersion;
+        fs.writeFileSync(FILE, JSON.stringify(data));
+        store.useFile(FILE);
+
+        expect(store.getBank(KEY).items.find((i) => i.itemId === 24027)).toMatchObject({ metaSource: "wowhead", metaVersion: 0 });
+        expect(store.knownMeta("tbc", 24027)).toBeNull();
+        expect(store.itemsWithoutWowheadMeta(KEY)).toContain(24027);
+        expect(store.setItemMeta("tbc", 24027, { name: "Bold Living Ruby", icon: "" }, { source: "local", now: NOW + 1 })).toBe(1);
+        expect(store.getBank(KEY).items.find((i) => i.itemId === 24027)).toMatchObject({
+            name: "Bold Living Ruby", icon: "inv_ruby", classId: 3, metaSource: "local", metaVersion: store.META_VERSION,
+        });
+        // current local meta is not replaced by local data again
+        expect(store.setItemMeta("tbc", 24027, { name: "Other" }, { source: "local" })).toBe(0);
     });
 
     it("reads a damaged file as empty and completes broken entries", () => {

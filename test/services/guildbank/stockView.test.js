@@ -29,13 +29,25 @@ beforeEach(() => {
 
 describe("services/guildbank/stockView", () => {
     it("groups by the orga's category, else the subclass of consumables and trade goods, else the class", () => {
-        expect(view.itemGroup({ category: "Raid", classId: 0, subclassName: "Fläschchen" })).toBe("Raid");
-        expect(view.itemGroup({ category: "", classId: 0, className: "Verbrauchbar", subclassName: "Fläschchen" })).toBe("Fläschchen");
-        expect(view.itemGroup({ category: "", classId: 7, className: "Handwerkswaren", subclassName: "Stoff" })).toBe("Stoff");
-        expect(view.itemGroup({ category: "", classId: 3, className: "Edelsteine", subclassName: "Rot" })).toBe("Edelsteine");
-        expect(view.itemGroup({ category: "", classId: 0, className: "Verbrauchbar", subclassName: "" })).toBe("Verbrauchbar");
+        expect(view.itemGroup({ category: "Raid", classId: 0, subclassId: 3, subclassName: "Flasks" })).toBe("Raid");
+        expect(view.itemGroup({ category: "", classId: 0, subclassId: 3, className: "Consumables", subclassName: "Flasks" })).toBe("Fläschchen");
+        expect(view.itemGroup({ category: "", classId: 7, subclassId: 5, className: "Trade Goods", subclassName: "Cloth" })).toBe("Stoff");
+        expect(view.itemGroup({ category: "", classId: 3, subclassId: 0, className: "Gems", subclassName: "Red" })).toBe("Edelsteine");
+        expect(view.itemGroup({ category: "", classId: 0, subclassId: null, className: "Consumables", subclassName: "" })).toBe("Verbrauchbar");
         expect(view.itemGroup({ category: "", classId: null, className: "", subclassName: "" })).toBe("");
         expect(view.itemGroup(null)).toBe("");
+    });
+
+    // Item names are English (Wowhead en), the group labels German by id;
+    // Wowhead's English text only for an id the table does not know.
+    it("labels groups in German from the ids, Wowhead's text only for unknown ids", () => {
+        expect(view.itemGroup({ classId: 7, subclassId: 10, className: "Trade Goods", subclassName: "Elemental" })).toBe("Elementar");
+        expect(view.itemGroup({ classId: 0, subclassId: 2, className: "Consumables", subclassName: "Elixirs" })).toBe("Elixiere");
+        expect(view.itemGroup({ classId: 9, subclassId: 6, className: "Recipes", subclassName: "Alchemy" })).toBe("Rezepte");
+        expect(view.itemGroup({ classId: 7, subclassId: 99, className: "Trade Goods", subclassName: "Something New" })).toBe("Something New");
+        expect(view.itemGroup({ classId: 42, subclassId: 0, className: "Brand New", subclassName: "Sub" })).toBe("Brand New");
+        // German text stored before the switch still groups the same way
+        expect(view.itemGroup({ classId: 3, subclassId: 0, className: "Edelsteine", subclassName: "Rot" })).toBe("Edelsteine");
     });
 
     it("never lets available go below zero", () => {

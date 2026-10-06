@@ -43,7 +43,7 @@ function seed() {
         { index: 2, name: "Verbrauch", items: [{ itemId: RUBY, count: 4 }, { itemId: FLASK, count: 6 }] },
     ]), { now: 1, guildId: "g1" }).bank.key;
     OTHER = stockStore.recordScan(bankScan("Andere Gilde", [{ index: 1, name: "A", items: [{ itemId: RUBY, count: 3 }] }]), { now: 1 }).bank.key;
-    stockStore.setItemMeta("tbc", RUBY, { name: "Klobiger lebendiger Rubin", icon: "inv_jewelcrafting_livingruby_03", quality: 3, classId: 3, className: "Edelsteine" }, { source: "wowhead" });
+    stockStore.setItemMeta("tbc", RUBY, { name: "Bold Living Ruby", icon: "inv_jewelcrafting_livingruby_03", quality: 3, classId: 3, className: "Gems" }, { source: "wowhead" });
     stockStore.setItemSettings(KEY, RUBY, { status: "give" });
     stockStore.setItemSettings(KEY, FLASK, { status: "give" });
 }
@@ -104,7 +104,7 @@ describe("handoutList", () => {
         expect(list.banks[0]).toEqual({
             key: KEY, gameVersion: "tbc", realm: "Spineshatter", guild: "Die Gilde", faction: "Alliance", scannedAt: 1791000000,
             handouts: [{
-                id: r.id, itemId: RUBY, name: "Klobiger lebendiger Rubin", icon: "inv_jewelcrafting_livingruby_03", quality: 3,
+                id: r.id, itemId: RUBY, name: "Bold Living Ruby", icon: "inv_jewelcrafting_livingruby_03", quality: 3,
                 amount: 2, purpose: "Gruul",
                 character: { name: "Zibbo", realm: "Spineshatter", faction: "Alliance", classFile: "PRIEST" },
                 requestedBy: "Anna", requestedAt: 1791049999, confirmedBy: "Arthas", confirmedAt: 1791050000,

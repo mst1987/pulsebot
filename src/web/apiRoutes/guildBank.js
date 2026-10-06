@@ -38,9 +38,9 @@ const getGuildBank = withUser(async ({ req, res, query }) => {
     const guildId = activeGuildFor(req);
     const { versionId } = resolveVersionQuery(query.get("version"));
     const { banks, bank } = view.stockForServer(guildId, { key: q.str(query, "key", { max: 200 }), versionId });
-    // Items still without a German Wowhead answer (a lookup failed, the bot
-    // restarted) are asked again in the background — at most once per item
-    // within itemMeta's retry pause.
+    // Items still without a current Wowhead answer (a lookup failed, the bot
+    // restarted, German names stored before) are asked again in the
+    // background — at most once per item within itemMeta's retry pause.
     if (bank) queueLookups(bank.gameVersion, stockStore.itemsWithoutWowheadMeta(bank.key));
     ok(res, { banks, bank });
 });

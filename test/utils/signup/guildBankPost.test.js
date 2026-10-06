@@ -70,7 +70,7 @@ describe("utils/signup/guildBankPost", () => {
 
     describe("a request from the stock", () => {
         const STOCK_REQUEST = {
-            ...REQUEST, item: "Klobiger lebendiger Rubin", amount: 2, purpose: "Gruul", bankKey: "tbc:x:y", itemId: 32193,
+            ...REQUEST, item: "Bold Living Ruby", amount: 2, purpose: "Gruul", bankKey: "tbc:x:y", itemId: 32193,
             icon: "inv_jewelcrafting_livingruby_03", group: "Edelsteine", characterName: "Zibbo", realm: "Spine Shatter",
         };
         const STOCK = { count: 14, reserved: 4, available: 10, group: "Edelsteine", icon: "inv_jewelcrafting_livingruby_03" };
@@ -79,7 +79,7 @@ describe("utils/signup/guildBankPost", () => {
             const payload = post.orgaPayload(STOCK_REQUEST, { categoryName: "TBC Montag", stock: STOCK });
             expect(cardText(payload)).toBe([
                 "-# Gildenbank · Edelsteine",
-                "## 2× Klobiger lebendiger Rubin",
+                "## 2× Bold Living Ruby",
                 "<@200000000000000001> · <t:1800000000:R>",
                 "Wofür: Gruul",
                 "An: Zibbo-SpineShatter",
@@ -125,18 +125,18 @@ describe("utils/signup/guildBankPost", () => {
         });
 
         it("names the recipient for the raider and in the DMs of confirmation and hand-out", () => {
-            expect(post.requestSummary(STOCK_REQUEST, "en")).toBe("**2× Klobiger lebendiger Rubin**\nFor: Gruul\nTo: Zibbo-SpineShatter");
+            expect(post.requestSummary(STOCK_REQUEST, "en")).toBe("**2× Bold Living Ruby**\nFor: Gruul\nTo: Zibbo-SpineShatter");
             expect(post.recipientName({ characterName: "Zibbo" })).toBe("Zibbo");
             expect(post.recipientName({})).toBe("");
             const confirmed = post.decisionCard({ ...STOCK_REQUEST, status: "confirmed" }, "de");
-            expect(cardText(confirmed)).toBe("-# Gildenbank\n## Anfrage bestätigt\n**2× Klobiger lebendiger Rubin**\nFür dich vorgemerkt – du bekommst es bald im Spiel.\nAn: Zibbo-SpineShatter");
+            expect(cardText(confirmed)).toBe("-# Gildenbank\n## Anfrage bestätigt\n**2× Bold Living Ruby**\nFür dich vorgemerkt – du bekommst es bald im Spiel.\nAn: Zibbo-SpineShatter");
             expect(cardColor(confirmed)).toBe(post.COLOR_CONFIRMED);
             expect(cardText(post.decisionCard({ ...STOCK_REQUEST, status: "handedOut", handoutVia: "discord" }, "en")))
-                .toBe("-# Guild bank\n## Request handed out\n**2× Klobiger lebendiger Rubin**\nHanded out to Zibbo-SpineShatter.");
+                .toBe("-# Guild bank\n## Request handed out\n**2× Bold Living Ruby**\nHanded out to Zibbo-SpineShatter.");
             expect(cardText(post.decisionCard({ ...STOCK_REQUEST, status: "handedOut", handoutVia: "mail" }, "de")))
-                .toBe("-# Gildenbank\n## Anfrage ausgegeben\n**2× Klobiger lebendiger Rubin**\nPer Post an Zibbo-SpineShatter geschickt.");
+                .toBe("-# Gildenbank\n## Anfrage ausgegeben\n**2× Bold Living Ruby**\nPer Post an Zibbo-SpineShatter geschickt.");
             expect(cardText(post.decisionCard({ ...STOCK_REQUEST, characterName: "", status: "handedOut", handoutVia: "mail" }, "en"))).toContain("Sent by mail.");
-            expect(cardText(post.decisionCard({ ...STOCK_REQUEST, characterName: "", status: "handedOut" }, "en"))).toBe("-# Guild bank\n## Request handed out\n**2× Klobiger lebendiger Rubin**");
+            expect(cardText(post.decisionCard({ ...STOCK_REQUEST, characterName: "", status: "handedOut" }, "en"))).toBe("-# Guild bank\n## Request handed out\n**2× Bold Living Ruby**");
         });
     });
 

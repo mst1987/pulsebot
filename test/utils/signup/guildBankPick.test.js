@@ -5,9 +5,9 @@ const { MessageFlags } = require("discord.js");
 const pick = require("../../../src/utils/signup/guildBankPick");
 const { cardText, cardControls } = require("../../helpers/cardText");
 
-const item = (over = {}) => ({ itemId: 32193, name: "Klobiger lebendiger Rubin", available: 10, maxPerRequest: 5, emojiId: "e1", ...over });
+const item = (over = {}) => ({ itemId: 32193, name: "Bold Living Ruby", available: 10, maxPerRequest: 5, emojiId: "e1", ...over });
 const GROUPS = [
-    { name: "Edelsteine", items: [item(), item({ itemId: 32228, name: "Glatter Dämmerstein", available: 7, maxPerRequest: 0, emojiId: "" })] },
+    { name: "Edelsteine", items: [item(), item({ itemId: 32228, name: "Smooth Dawnstone", available: 7, maxPerRequest: 0, emojiId: "" })] },
     { name: "", items: [item({ itemId: 1, name: "", available: 1, maxPerRequest: 0 })] },
 ];
 const BANK = { scannedAt: 1_800_000_000_000 };
@@ -44,8 +44,8 @@ describe("utils/signup/guildBankPick", () => {
             ["availability:bp:cat1:1", "Gegenstand wählen …"],
         ]);
         expect(selects[0].options).toEqual([
-            { label: "Klobiger lebendiger Rubin", description: "Verfügbar: 10 · max. 5 pro Anfrage", value: "32193", emoji: { id: "e1", name: "gb_32193" } },
-            { label: "Glatter Dämmerstein", description: "Verfügbar: 7", value: "32228" },
+            { label: "Bold Living Ruby", description: "Verfügbar: 10 · max. 5 pro Anfrage", value: "32193", emoji: { id: "e1", name: "gb_32193" } },
+            { label: "Smooth Dawnstone", description: "Verfügbar: 7", value: "32228" },
         ]);
         expect(selects[1].options[0]).toMatchObject({ label: "Item 1", value: "1" });
     });
@@ -68,7 +68,7 @@ describe("utils/signup/guildBankPick", () => {
         const modal = pick.itemModal({ categoryId: "cat1", item: item(), characters: [{ key: "zibbo", name: "Zibbo" }], lang: "de" });
         expect(modal.custom_id).toBe("availability:mbi:cat1:32193");
         expect(modal.title).toBe("Gildenbank-Anfrage");
-        expect(modal.components[0]).toEqual({ type: 10, content: "**Klobiger lebendiger Rubin** · Verfügbar: 10 · max. 5" });
+        expect(modal.components[0]).toEqual({ type: 10, content: "**Bold Living Ruby** · Verfügbar: 10 · max. 5" });
         expect(modal.components.slice(1).map((c) => [c.type, c.label, c.component.custom_id, c.component.required])).toEqual([
             [18, "Wie viel?", "amount", true],
             [18, "Wofür? (optional)", "purpose", false],
