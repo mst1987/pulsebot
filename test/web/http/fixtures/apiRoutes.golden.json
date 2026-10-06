@@ -243,5 +243,7 @@
   "POST /api/guildbank/item",
   "POST /api/guildbank/tab",
   "GET /api/guildbank/requests",
-  "POST /api/ingest/guildbank"
+  "POST /api/ingest/guildbank",
+  "GET /api/ingest/guildbank/handouts",
+  "POST /api/ingest/guildbank/handouts"
 ]
