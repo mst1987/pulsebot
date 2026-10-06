@@ -11,8 +11,11 @@
 //   availability:<token>:c|r|save|x  the picker: character · spec, raids, save, cancel
 //   availability:r:<categoryId>      the organizer's "My raid": the category's next raid and the own signup
 //   availability:o:<categoryId>      the organizer's "Evaluation": the newest evaluation with an own character
-//   availability:b:<categoryId>      the organizer's guild bank: "Make a request" → the modal availability:mb
-//   availability:mb:<categoryId>     the submitted guild bank modal → posted to the orga (services/signups/guildBank.js)
+//   availability:b:<categoryId>      the organizer's guild bank: "Make a request" → with stock data the pick card
+//                                    (utils/signup/guildBankPick.js), else the free-text modal availability:mb
+//   availability:mb:<categoryId>     the submitted free-text modal → posted to the orga (services/signups/guildBank.js)
+//   availability:bp:<categoryId>:<n> an item picked in the pick card's n-th group → the item modal
+//   availability:mbi:<categoryId>:<itemId>  the submitted item modal → checked and posted to the orga
 const { MessageFlags, SlashCommandBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
@@ -20,6 +23,7 @@ const availability = require("../../services/signups/availability");
 const organizer = require("../../services/signups/organizer");
 const guildBank = require("../../services/signups/guildBank");
 const { requestModal, requestSummary } = require("../../utils/signup/guildBankPost");
+const { pickPayload, itemModal, itemIdOfModal } = require("../../utils/signup/guildBankPick");
 const { categoryNameFor } = require("../../services/signups/availabilityPanel");
 const linkCheck = require("../../services/discord/linkCheck");
 const { specLabel } = require("../../utils/i18n/botText");
@@ -106,6 +110,60 @@ async function onGuildBankModal(interaction, categoryId, config, lang) {
     const result = await guildBank.createRequest(interaction.user.id, { item: read("item"), amount: read("amount"), purpose: read("purpose") }, {
         userName: displayName(interaction), categoryId, config,
     });
+    if (result.error) return interaction.editReply(answerPayload(`⚠️ ${serviceText(lang, result.error)}`, { lang }));
+    return interaction.editReply(answerPayload(`✅ ${tr(lang, "Request sent – the orga will get back to you by DM.")}\n${requestSummary(result.request, lang)}`, { lang }));
+}
+
+/** The guild bank offer for an organizer click: the clicked server's bank first, then the event servers'. */
+const offerOf = (interaction, categoryId, config) => guildBank.offerFor({ guildIds: [interaction.guildId], categoryId, config });
+
+/** "Make a request": the pick card when the bank offers something, else the free-text modal as before. */
+function onGuildBankButton(interaction, categoryId, config, lang) {
+    // a panel drawn before the channel was cleared still has the button
+    if (!guildBank.guildBankChannelId(config)) return ephemeral(interaction, answerPayload(tr(lang, "The guild bank is not set up right now."), { lang }));
+    const offer = offerOf(interaction, categoryId, config);
+    if (offer.bank && offer.groups.length) return interaction.reply(pickPayload({ categoryId, bank: offer.bank, groups: offer.groups, lang }));
+    return interaction.showModal(requestModal(categoryId, lang));
+}
+
+/** An item picked in the pick card: its modal — or a word that it is gone meanwhile. */
+function onGuildBankPick(interaction, categoryId, config, lang) {
+    const itemId = Number((interaction.values || [])[0]) || 0;
+    const offer = offerOf(interaction, categoryId, config);
+    const item = offer.bank ? offer.groups.flatMap((g) => g.items).find((it) => it.itemId === itemId) : null;
+    if (!item) return ephemeral(interaction, answerPayload(`⚠️ ${serviceText(lang, guildBank.NOT_OFFERED)}`, { lang }));
+    return interaction.showModal(itemModal({ categoryId, item, characters: guildBank.charactersFor(interaction.user.id, offer.bank), lang }));
+}
+
+/** The values of a select in a submitted modal, [] when it is missing (the character select shows only with two or more). */
+function modalValues(interaction, id) {
+    try {
+        const f = interaction.fields;
+        if (f && typeof f.getStringSelectValues === "function") return [...(f.getStringSelectValues(id) || [])];
+    } catch {
+        // not in this modal
+    }
+    return [];
+}
+
+/** The submitted item modal: check against the stock, store and post it, answer the member. */
+async function onGuildBankItemModal(interaction, categoryId, config, lang) {
+    const read = (id) => {
+        try {
+            return String(interaction.fields.getTextInputValue(id) || "").trim();
+        } catch {
+            return "";
+        }
+    };
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const offer = offerOf(interaction, categoryId, config);
+    const result = await guildBank.createStockRequest(interaction.user.id, {
+        bankKey: offer.bank ? offer.bank.key : "",
+        itemId: itemIdOfModal(interaction.customId),
+        amount: read("amount"),
+        purpose: read("purpose"),
+        characterKey: modalValues(interaction, "character")[0] || "",
+    }, { userName: displayName(interaction), categoryId, config });
     if (result.error) return interaction.editReply(answerPayload(`⚠️ ${serviceText(lang, result.error)}`, { lang }));
     return interaction.editReply(answerPayload(`✅ ${tr(lang, "Request sent – the orga will get back to you by DM.")}\n${requestSummary(result.request, lang)}`, { lang }));
 }
@@ -217,12 +275,10 @@ module.exports = {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             return interaction.editReply(myReport(uid, lang));
         }
-        if (action === "b") {
-            // a panel drawn before the channel was cleared still has the button
-            if (!guildBank.guildBankChannelId(config)) return ephemeral(interaction, answerPayload(tr(lang, "The guild bank is not set up right now."), { lang }));
-            return interaction.showModal(requestModal(categoryId, lang));
-        }
+        if (action === "b") return onGuildBankButton(interaction, categoryId, config, lang);
+        if (action === "bp") return onGuildBankPick(interaction, categoryId, config, lang);
         if (action === "mb") return onGuildBankModal(interaction, categoryId, config, lang);
+        if (action === "mbi") return onGuildBankItemModal(interaction, categoryId, config, lang);
         if (action === "l") {
             return fromEphemeral(interaction) ? interaction.update(listFor(uid, categoryId, lang)) : ephemeral(interaction, listFor(uid, categoryId, lang));
         }

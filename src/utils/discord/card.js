@@ -3,8 +3,11 @@
 // facts ("**Gruppe** 3 · **Rolle** Heiler"), an optional picture on the right, the buttons INSIDE the card and a small grey note
 // at its foot. One card replaces the old "text plus embed" pair, which Discord showed as two blocks.
 //
-//   card({ kind, color, kicker, title, text, facts, fields, thumbnail, buttons, note, mentions, allowedMentions, ephemeral })
+//   card({ kind, color, kicker, title, text, facts, fields, parts, thumbnail, buttons, note, mentions, allowedMentions, ephemeral })
 //
+// - parts: a body of its own between the facts and the buttons, in order — a string is a text display, "---" a thin
+//   divider, an action row (builder or JSON, a select menu say) stays a row. For cards that interleave headings and
+//   controls (the guild bank's request form: a heading and a select per group).
 // - kind: "info" (accent), "ok", "warn", "error", "raid" (pass the event's `color`); `color` overrides any kind.
 // - mentions: "<@1> <@2>" — the card's first line. A mention pings from a container as from a text message (tried on the
 //   dev server); without `mentions` nothing in the card pings (`allowedMentions: { parse: [] }`) unless the caller says so.
@@ -63,7 +66,7 @@ function buttonRows(buttons) {
  * @returns {{ flags: number, components: object[], content: "", embeds: [], allowedMentions: object }}
  */
 function card({
-    kind = "info", color, kicker, title, text, facts, fields, thumbnail, buttons, note, mentions, allowedMentions, ephemeral = false,
+    kind = "info", color, kicker, title, text, facts, fields, parts, thumbnail, buttons, note, mentions, allowedMentions, ephemeral = false,
 } = {}) {
     let budget = CARD_TEXT_LIMIT;
     const take = (s) => { const out = cut(s, budget); budget -= out.length; return out; };
@@ -93,6 +96,12 @@ function card({
     const line = factsLine([...(Array.isArray(facts) ? facts : []), ...inline]);
     if (line) add(line);
     for (const f of blocks) add(`**${str(f.name).trim()}**\n${str(f.value).trim()}`);
+    for (const part of Array.isArray(parts) ? parts : []) {
+        if (!part) continue;
+        if (part === "---") c.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+        else if (typeof part === "string") add(part);
+        else c.addActionRowComponents(buttonRows([part]));
+    }
 
     const rows = buttonRows(buttons);
     const foot = str(note).trim();

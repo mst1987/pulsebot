@@ -178,9 +178,19 @@ async function runReminders({ now = Date.now(), config = getConfig() } = {}) {
 
 const AUTO_SUGGEST = "autoSuggest";
 
+/**
+ * Whether the orga has a lineup of its own on the event: anybody in a group or on
+ * the bench. The editor starts empty and the orga drags in by hand — that work is
+ * never replaced by the automatic proposal; a draft left empty again is no work.
+ */
+function hasLineup(setup) {
+    if (!setup) return false;
+    return (setup.groups || []).some((g) => ((g && g.slots) || []).length > 0) || (setup.bench || []).length > 0 || setup.status === "approved" || !!setup.approved;
+}
+
 /** Whether an own event is due for its automatic setup proposal now. */
 function autoSuggestDue(event, sent = {}, now = Date.now()) {
-    if (!event || !event.autoSuggest || event.setup || sent[AUTO_SUGGEST] || event.status === "cancelled") return false;
+    if (!event || !event.autoSuggest || hasLineup(event.setup) || sent[AUTO_SUGGEST] || event.status === "cancelled") return false;
     const deadlineMs = toMs(event.signupDeadline);
     const startMs = toMs(event.startTime);
     return !!deadlineMs && now >= deadlineMs && (!startMs || now < startMs);

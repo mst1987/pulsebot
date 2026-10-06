@@ -1,0 +1,69 @@
+/* ── Gildenbank (pages/guildbank/*, #632) ──────────
+   Built on the shared blocks (page head, tabs, segment, badge, dialog) and the
+   Loot-Council's filter line (lc-filterline, lc-selbtn — loot-council.css) and
+   the loot views' item cell (hl-item, hl-ico, hl-search — historie-loot.css);
+   what is here is only the list itself: one row per item, grouped by
+   category, the columns shared by every row as a subgrid like the council list.
+   Tokens only. */
+
+.gb-formula { margin-left: auto; font-size: 13px; color: var(--muted); }
+.gb-banksel { min-height: var(--ctl-h-sm); padding-top: 4px; padding-bottom: 4px; font-size: 13.5px; width: auto; }
+.gb-notice { margin-bottom: 16px; background: var(--accent-soft); color: var(--text); border: 1px solid var(--accent-soft); }
+.gb-tabs .gb-hot { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+
+/* ---- the list ---- */
+.gb-scroll { overflow-x: auto; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.gb-list {
+    display: grid; column-gap: 12px; min-width: 860px;
+    grid-template-columns: minmax(240px, 1fr) 90px 104px 84px 104px 140px 40px;
+}
+.gb-row {
+    display: grid; grid-column: 1 / -1; grid-template-columns: subgrid;
+    align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line-soft);
+}
+.gb-row > * { min-width: 0; }
+.gb-row:last-child { border-bottom: 0; }
+.gb-row:not(.gb-head):hover { background: color-mix(in srgb, var(--panel2) 60%, transparent); }
+.gb-head { background: var(--panel2); border-bottom: 1px solid var(--line); padding-top: 9px; padding-bottom: 9px; }
+.gb-head, .gb-group {
+    font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+}
+.gb-num { text-align: right; }
+.gb-num.muted { color: var(--muted); font-weight: 500; }
+.gb-center { display: flex; justify-content: center; }
+.gb-end { display: flex; justify-content: flex-end; }
+.gb-group {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 7px 12px;
+    background: color-mix(in srgb, var(--panel2) 55%, var(--panel)); border-bottom: 1px solid var(--line-soft);
+}
+.gb-group-name { color: var(--text); }
+.gb-group-count { padding: 0 7px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); font-weight: 700; }
+.gb-empty-row { grid-column: 1 / -1; }
+.gb-name { text-decoration: none; }
+a.gb-name:hover { text-decoration: underline; }
+
+/* ---- the item dialog and the tab dialog ---- */
+.gb-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+.gb-fields .gb-wide { grid-column: 1 / -1; }
+.gb-tablist { display: flex; flex-direction: column; gap: 4px; }
+.gb-tabrow { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 8px; }
+.gb-tabrow .switch-row { flex: 1; min-width: 0; }
+.gb-tabmeta { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.gb-hint { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
+
+/* ---- the requests dialog (#633) ---- */
+.gb-reqs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.gb-req { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 8px; }
+.gb-req-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.gb-req-title { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+.gb-req-sub { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+
+/* ---- no bank for this server ---- */
+.gb-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 24px; text-align: center; }
+.gb-empty h2 { margin: 6px 0 0; font-size: 18px; color: var(--text); }
+.gb-empty p { margin: 0; max-width: 60ch; }
+
+@media (max-width: 600px) {
+    .gb-formula { margin-left: 0; flex-basis: 100%; }
+    .gb-fields { grid-template-columns: 1fr; }
+}

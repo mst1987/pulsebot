@@ -16,7 +16,7 @@ const { card } = require("../../utils/discord/card");
 const eventStore = require("../../stores/eventStore");
 const { setupPingPlan, callSetupPing, saveSetupPingText } = require("./setupPing");
 const { PING_PREFIX, PING_TEXT_MAX, pingTextOf, pingId } = require("./setupCore");
-const { serverLang } = require("../discord/botLanguage");
+const { eventLang } = require("../discord/botLanguage");
 
 const EVENT_ID = /^eh-[a-z0-9]{1,40}$/;
 const FIELD_ID = "text";
@@ -32,7 +32,7 @@ function parsePingId(customId) {
 function pingModal(event) {
     const field = new TextInputBuilder()
         .setCustomId(FIELD_ID).setLabel("Nachricht").setStyle(TextInputStyle.Paragraph)
-        .setRequired(true).setMaxLength(PING_TEXT_MAX).setValue(pingTextOf(event, serverLang()));
+        .setRequired(true).setMaxLength(PING_TEXT_MAX).setValue(pingTextOf(event, eventLang(event)));
     return new ModalBuilder().setCustomId(pingId(event.id)).setTitle("Alle pingen").addComponents(new ActionRowBuilder().addComponents(field));
 }
 

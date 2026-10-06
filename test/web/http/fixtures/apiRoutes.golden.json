@@ -176,6 +176,7 @@
   "POST /api/raids/setup/confirm",
   "POST /api/raids/setup/confirm-all",
   "POST /api/raids/setup/post",
+  "POST /api/raids/setup/presence",
   "POST /api/raids/setup/propose",
   "POST /api/raids/setup/search",
   "POST /api/raids/setup/search/text",
@@ -235,5 +236,15 @@
   "PUT /api/kader/assignments",
   "POST /api/kader/assignments/reset",
   "GET /api/settings/raidhelper-sync",
-  "POST /api/settings/raidhelper-sync"
+  "POST /api/settings/raidhelper-sync",
+  "GET /api/settings/guild-banks",
+  "POST /api/settings/guild-banks/assign",
+  "POST /api/settings/guild-banks/delete",
+  "GET /api/guildbank",
+  "POST /api/guildbank/item",
+  "POST /api/guildbank/tab",
+  "GET /api/guildbank/requests",
+  "POST /api/ingest/guildbank",
+  "GET /api/ingest/guildbank/handouts",
+  "POST /api/ingest/guildbank/handouts"
 ]

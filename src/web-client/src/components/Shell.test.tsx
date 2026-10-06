@@ -53,7 +53,8 @@ describe("the sidebar", () => {
 
     it("shows only the entries the account's areas open", () => {
         showShell({ id: "u5", name: "Rai", isAdmin: false, access: { raids: { read: true, write: false }, loot: { read: true, write: false } } });
-        expect(hrefs()).toEqual(["/raids", "/history"]);
+        // the guild bank (#632) is read with "raids"
+        expect(hrefs()).toEqual(["/raids", "/history", "/guildbank"]);
     });
 
     it("folds nothing out: no chevron, no sub entries, no settings sections", () => {

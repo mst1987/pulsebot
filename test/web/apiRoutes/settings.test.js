@@ -14,6 +14,8 @@ jest.mock("../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
+// A new language (the server's or a category's) redraws the public messages; never for real here.
+jest.mock("../../../src/services/discord/languageChange", () => ({ afterServerLangChange: jest.fn(async () => ({})) }));
 // The raider organizers redraw when the guild bank channel changes; never for real here.
 jest.mock("../../../src/services/signups/availabilityPanel", () => ({
     refreshPanels: jest.fn(() => Promise.resolve({ edited: 0, failed: 0, unchanged: 0 })),
@@ -773,6 +775,28 @@ describe("web/apiRoutes/settings", () => {
                 readJsonBody.mockResolvedValue({ categoryRaidTemplate: { c1: "k1", c2: "gone" } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryRaidTemplate: { c1: "k1" } });
+            });
+        });
+
+        describe("the language of a category's posts", () => {
+            const languageChange = require("../../../src/services/discord/languageChange");
+            beforeEach(() => {
+                // the store answers what was saved (earlier tests leave fixed answers behind)
+                settingsStore.getConfig.mockReturnValue({});
+                settingsStore.saveConfig.mockImplementation((partial) => ({ ...partial }));
+            });
+
+            it("stores de/en per category, \"\" for back to the server language, and redraws the posts", async () => {
+                readJsonBody.mockResolvedValue({ categoryLanguage: { pug: "en", guild: "DE", other: "server" } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLanguage: { pug: "en", guild: "de", other: "" } });
+                expect(languageChange.afterServerLangChange).toHaveBeenCalledTimes(1);
+            });
+
+            it("redraws nothing when the languages stay as they were", async () => {
+                readJsonBody.mockResolvedValue({ categorySetupDms: { c1: true } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(languageChange.afterServerLangChange).not.toHaveBeenCalled();
             });
         });
 

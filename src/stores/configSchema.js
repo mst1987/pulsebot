@@ -118,6 +118,11 @@ const CONFIG_DEFAULTS = {
     // raider in it (#290), keyed by category id: { [categoryId]: true }. Off by
     // default — only switched categories are stored.
     categorySetupDms: {},
+    // The language of a category's public messages (signup message, setup post,
+    // announcement, pings, Discord event …), keyed by category id: { [categoryId]:
+    // "de" | "en" }. A category without one writes in the server language
+    // (botLanguage) — a PuG category in English beside German guild raids.
+    categoryLanguage: {},
     // Whether an own event of this category also gets a Discord event (a guild
     // scheduled event, #305), keyed by category id: { [categoryId]: true }. Off
     // by default — only switched categories are stored.
@@ -387,6 +392,36 @@ function normalizeTopItems(raw) {
     return out;
 }
 
+/**
+ * Normalise categoryLanguage to `{ [categoryId]: "de" | "en" }` — "" (or anything
+ * else) means "as the server" and is not stored.
+ */
+function normalizeCategoryLanguage(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, lang] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        const clean = String(lang || "").trim().toLowerCase();
+        if (key && (clean === "de" || clean === "en")) out[key] = clean;
+    }
+    return out;
+}
+
+/**
+ * A categoryLanguage change as sent by the settings page: "de" / "en", or "" for
+ * "back to the server language" — kept, so the store's merge drops the category.
+ */
+function normalizeCategoryLanguagePatch(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, lang] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        const clean = String(lang || "").trim().toLowerCase();
+        if (key) out[key] = clean === "de" || clean === "en" ? clean : "";
+    }
+    return out;
+}
+
 /** Normalise categorySetupDms to `{ [categoryId]: true }` — off is the default and not stored. */
 function normalizeCategorySetupDms(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
@@ -597,6 +632,7 @@ function normalizeConfig(raw) {
         ...signupSourcesOf(stored),
         raidhelperRetirement: normalizeRaidhelperRetirement(stored.raidhelperRetirement),
         categorySetupDms: normalizeCategorySetupDms(stored.categorySetupDms),
+        categoryLanguage: normalizeCategoryLanguage(stored.categoryLanguage),
         categoryDiscordEvent: normalizeCategoryFlags(stored.categoryDiscordEvent),
         categoryVoiceChannel: normalizeCategoryVoiceChannel(stored.categoryVoiceChannel),
         categoryMessageLook: normalizeCategoryMessageLook(stored.categoryMessageLook),
@@ -620,7 +656,7 @@ module.exports = {
     CONFIG_DEFAULTS, ROLE_SYNC_DIRECTIONS, REMINDER_TARGETS,
     normalizeConfig, normalizeDiscordServers, normalizeEventGuilds, normalizeEventGuildEntry,
     normalizeRoleSync, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
-    normalizeCategorySetupDms, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
+    normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
     normalizeRaidhelperRetirement, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
     normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings, normalizeBotLanguage,

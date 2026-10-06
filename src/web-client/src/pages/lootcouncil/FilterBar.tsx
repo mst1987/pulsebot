@@ -8,22 +8,13 @@
 import { useRef, useState } from "react";
 import type { LootCouncilData } from "../../api";
 import { Badge, Button, Segment } from "../../components/ui";
-import { ChevronDownIcon } from "../../components/icons";
+import { ChevronDownIcon, FunnelIcon } from "../../components/icons";
 import { ROLE_ICON, categoryNote, roleLabel, type FilterView } from "./council";
 import { useDismiss } from "../../hooks/useDismiss";
 import { tParts, useT } from "../../i18n";
 
 // The short name a tier wears on its badge.
 const TIER_SHORT: Record<string, string> = { t4: "T4", t5: "T5", t6: "T6", t65: "SWP" };
-
-/** A funnel — a pure UI glyph, so a line icon rather than a WoW icon. */
-function FunnelIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M4 5h16l-6 8v6l-4-2v-4z" />
-        </svg>
-    );
-}
 
 /** The content filter's choices: the tiers and raids as toggle buttons, with the chosen ones lit. */
 function ContentFilter({ data, view, patch }: {

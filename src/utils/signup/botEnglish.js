@@ -98,6 +98,13 @@ const RULES = [
     [/^Anfrage nicht gefunden\.$/, "Request not found."],
     [/^Diese Anfrage ist schon erledigt\.$/, "This request has already been handled."],
     [/^Unbekannter Status\.$/, "Unknown status."],
+    [/^Diesen Gegenstand gibt es gerade nicht in der Gildenbank\.$/, "This item is not available in the guild bank right now."],
+    [/^Höchstens (\d+) pro Anfrage\.$/, "At most $1 per request."],
+    [/^Nur noch (\d+) verfügbar\.$/, "Only $1 left."],
+    [/^Diese Anfrage ist keine aus dem Bestand\.$/, "This request is not one from the stock."],
+    [/^Diese Anfrage ist noch nicht vorgemerkt\.$/, "This request has not been confirmed yet."],
+    [/^Diese Anfrage ist schon vorgemerkt\.$/, "This request has already been confirmed."],
+    [/^Diese Anfrage ist schon ausgegeben\.$/, "This request has already been handed out."],
 ];
 
 /**

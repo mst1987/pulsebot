@@ -86,14 +86,17 @@ function benchHistory(events, { guildId, now }) {
     return { source: fromSignups.length ? "signups" : "none", history: fromSignups };
 }
 
-/** The places locked in an event's current draft: `{ userId, eventId, group, spec, role }` or `{ userId, bench }`. */
-function fixedFromSetup(event) {
+/**
+ * The places locked in an event's current draft: `{ userId, eventId, group, spec, role }` or `{ userId, bench }`.
+ * `keepPlaced` ("Freie Plätze füllen"): every raider in a group stays where they stand, locked or not.
+ */
+function fixedFromSetup(event, { keepPlaced = false } = {}) {
     const setup = event.setup;
     if (!setup) return [];
     const out = [];
     for (const g of Array.isArray(setup.groups) ? setup.groups : []) {
         for (const slot of Array.isArray(g.slots) ? g.slots : []) {
-            if (slot && slot.locked && slot.userId) {
+            if (slot && (slot.locked || keepPlaced) && slot.userId) {
                 out.push({ userId: String(slot.userId), eventId: event.id, group: Number(g.index) || null, spec: slot.spec || "", role: slot.role || "", character: slot.character || "" });
             }
         }
@@ -136,7 +139,7 @@ function compositionLimits(event) {
  * run in parallel and share the raiders). Unknown ids are skipped; `null` when
  * none is left.
  */
-function collectSetupInput(eventIds, { now = Date.now() } = {}) {
+function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false } = {}) {
     const events = [...new Set((Array.isArray(eventIds) ? eventIds : [eventIds]).map(String))]
         .map((id) => eventStore.getEvent(id))
         .filter(Boolean);
@@ -176,7 +179,7 @@ function collectSetupInput(eventIds, { now = Date.now() } = {}) {
         attendance,
         history,
         historySource,
-        fixed: events.flatMap(fixedFromSetup),
+        fixed: events.flatMap((e) => fixedFromSetup(e, { keepPlaced })),
     };
 }
 

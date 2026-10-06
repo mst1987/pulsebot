@@ -251,6 +251,70 @@
     "drawer": {
         "kicker": "Raider"
     },
+    "poolPanel": {
+        "notPlaced": "noch nicht eingeteilt",
+        "search": "Raider oder Spec suchen",
+        "filter": "Nach Rolle filtern",
+        "filters": { "all": "Alle", "tank": "Tanks", "healer": "Heiler", "dps": "DD" },
+        "sections": { "tank": "Tanks", "healer": "Heiler", "melee": "Nahkampf", "ranged": "Fernkampf" },
+        "noMatch": "Niemand passt zur Suche.",
+        "absent": { "one": "{count} abgemeldet · kommt nicht ins Setup", "other": "{count} abgemeldet · kommen nicht ins Setup" },
+        "back": "Zurück hierher",
+        "collapse": "Angemeldet einklappen",
+        "expand": "Angemeldet ausklappen"
+    },
+    "fill": {
+        "kicker": "Setup",
+        "auto": "Automatisch füllen",
+        "autoSub": "Verteilt alle Angemeldeten auf Gruppen und Bank – nach Rollen, Buffs, Anwesenheit und Fairness. Danach kannst du alles verschieben.",
+        "free": "Freie Plätze füllen",
+        "freeSub": "Füllt die freien Plätze mit Angemeldeten. Wer schon steht, bleibt stehen – oder du lässt alles neu vorschlagen.",
+        "question": { "one": "{count} Raider steht schon. Was soll passieren?", "other": "{count} Raider stehen schon. Was soll passieren?" },
+        "keepTitle": "Nur freie Plätze füllen",
+        "keepText": { "one": "Wer steht, bleibt stehen. {count} freier Platz wird gefüllt, der Rest kommt auf die Bank.", "other": "Wer steht, bleibt stehen. {count} freie Plätze werden gefüllt, der Rest kommt auf die Bank." },
+        "anewTitle": "Alles neu vorschlagen",
+        "anewText": "Nur fixierte Raider bleiben, alle anderen werden neu verteilt.",
+        "go": "Füllen"
+    },
+    "postOptions": {
+        "aria": "Was mit dem Setup gepostet wird",
+        "bench": "Bank mitposten",
+        "benchSub": "An: Die Bank steht in der Setup-Nachricht, und die Bank-Spieler bekommen eine DM. Aus: Die Bank bleibt intern. Gilt beim nächsten „Setup posten“ und wird für diesen Raid gemerkt.",
+        "dms": "DMs an Spieler",
+        "dmsSub": "An: Jeder im Setup bekommt eine DM mit seinem Platz („Gruppe 2 als Heiler“), bei Änderungen nur wessen Platz sich geändert hat. Voreinstellung aus der Kategorie, gilt beim nächsten „Setup posten“.",
+        "dmsSubOwn": "Für diesen Raid anders als in der Kategorie eingestellt. Gilt beim nächsten „Setup posten“ und wird für diesen Raid gemerkt."
+    },
+    "live": {
+        "one": "{name} ist auch hier",
+        "many": "{count} im Setup",
+        "sub": "Änderungen kommen live",
+        "looking": "{name} schaut zu",
+        "holdsTip": "{name} zieht {character}",
+        "editsTip": "{name} bearbeitet die Anmeldung von {character}",
+        "holdsTag": "{name} zieht",
+        "editsTag": "{name} bearbeitet",
+        "holdsMsg": "{name} hat {character} gerade in der Hand. Warte kurz, dann geht es wieder.",
+        "editsMsg": "{name} bearbeitet gerade die Anmeldung von {character}. Warte kurz, dann geht es wieder.",
+        "feed": "Gerade eben",
+        "toGroup": "{who} hat {character} in Gruppe {group} gesetzt",
+        "toBench": "{who} hat {character} auf die Bank gesetzt",
+        "toPool": "{who} hat {character} zurück zu „Angemeldet“ gelegt",
+        "movedMany": "{who} hat {count} Raider verschoben",
+        "filled": { "one": "{who} hat {count} freien Platz gefüllt", "other": "{who} hat {count} freie Plätze gefüllt" },
+        "proposed": "{who} hat alles neu vorschlagen lassen",
+        "posted": "{who} hat das Setup gepostet",
+        "now": "jetzt",
+        "secondsAgo": "vor {count} s",
+        "minutesAgo": "vor {count} min",
+        "rebased": "Jemand hat zwischendurch geändert – dein Zug wurde auf den neuen Stand gesetzt."
+    },
+    "confirmAll": {
+        "askTitle": "Alle bestätigen?",
+        "askText": {
+            "one": "{count} Raider in den Gruppen hat noch nicht geantwortet und bekommt den grünen Haken – auch in der Discord-Nachricht. Wer abgesagt hat, bleibt abgesagt.",
+            "other": "{count} Raider in den Gruppen haben noch nicht geantwortet und bekommen den grünen Haken – auch in der Discord-Nachricht. Wer abgesagt hat, bleibt abgesagt."
+        }
+    },
     "editor": {
         "saveFailed": "Speichern fehlgeschlagen.",
         "proposalJob": "Setup-Vorschlag",
@@ -265,7 +329,7 @@
         "confirmAllNone": "Alle in den Gruppen haben schon geantwortet.",
         "confirmAllDone": { "one": "{count} Raider bestätigt.", "other": "{count} Raider bestätigt." },
         "more": "Mehr",
-        "moreSub": "Neu vorschlagen, Gruppenzahl, Ping-Text, Fairness, Wünsche, Bank, Kompakt, Suche, KI-Begründung und Gewichte",
+        "moreSub": "Neu vorschlagen, Gruppenzahl, Ping-Text, Fairness, Wünsche, Kompakt, Suche, KI-Begründung und Gewichte",
         "explainSub": "Claude erklärt in ein paar Absätzen, warum das Setup so steht.",
         "weightsSub": "Wie stark Rollen, Buffs, Anwesenheit und Fairness beim Vorschlag zählen.",
         "postFailed": "Posten fehlgeschlagen.",

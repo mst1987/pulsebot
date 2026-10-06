@@ -17,6 +17,7 @@ const CAT = {
     roster: { varName: "--area-roster", label: "Roster" },
     lootcouncil: { varName: "--area-lootcouncil", label: "Loot-Council" },
     history: { varName: "--area-history", label: "Historie & Loot" },
+    bank: { varName: "--area-bank", label: "Gildenbank" },
     cla: { varName: "--area-cla", label: "Log-Auswertung" },
     channels: { varName: "--area-channels", label: "Kanäle" },
     settings: { varName: "--area-settings", label: "Einstellungen" },
@@ -107,6 +108,11 @@ const WEB_GROUPS = [
         "Vergaben, Items, Gründe und Loot nach Raid einsehen.",
         "Loot-Export aus Gargul/RCLootcouncil importieren.",
         "Addon-Inbox: automatisch hochgeladene Loot-Sessions bestätigen und zuordnen.",
+    ] },
+    { cat: "bank", title: "Gildenbank", badge: "Bereich: raids", items: [
+        "Bestand aus dem Addon-Scan mit „Stand …“, Gold und Bank-Tabs.",
+        "Je Gegenstand einordnen: ausgebbar, nur Bestand oder ausgeblendet; neue Gegenstände unter „Neu“.",
+        "Reserve, Höchstmenge pro Anfrage und eigene Kategorie; ganze Bank-Tabs ausblenden. Verfügbar = Bestand - Vorgemerkt - Reserve.",
     ] },
     { cat: "cla", title: "Log-Auswertung (CLA/RPB)", badge: "Bereich: history", items: [
         "Kampfverlauf, Buffs/Debuffs, Cooldown-Nutzung, Heiler-Performance, vermeidbare Tode.",

@@ -12,7 +12,7 @@ import * as client from "../../../api/client";
 import type { SetupEditorData, SetupPlacementInput } from "../../../api";
 import { t } from "../../../i18n";
 import { renderPage } from "../../../test/render";
-import { EVENT_ID, MAGE, ROGUE, TANK, editorData, person, setupCtx } from "../../../test/fixtures/setupEditor";
+import { EVENT_ID, MAGE, PRIEST, ROGUE, TANK, editorData, person, setupCtx } from "../../../test/fixtures/setupEditor";
 import SetupEditor from "./SetupEditor";
 
 vi.mock("../../../api/client", async (orig) => ({ ...(await orig<typeof import("../../../api/client")>()), get: vi.fn(), send: vi.fn() }));
@@ -68,6 +68,9 @@ function calls(method: string, path: string) {
     return vi.mocked(client.send).mock.calls.filter(([m, p]) => m === method && p === path);
 }
 
+/** Every request but the editor's heartbeat (setupPresence), which runs on its own. */
+const writes = () => vi.mocked(client.send).mock.calls.filter(([, p]) => p !== "/api/raids/setup/presence");
+
 /** The body of the one save request (PUT /api/raids/setup). */
 function savedBody(): SetupPlacementInput & { event: string } {
     const put = calls("PUT", "/api/raids/setup");
@@ -111,6 +114,90 @@ describe("the setup editor: bench and pool \"Angemeldet\" (#517)", () => {
         expect(groupOf(body, MAGE.userId)).toBeUndefined();
         expect(body.bench.map((b) => b.userId)).toEqual([ROGUE.userId]);
         expect(body).not.toHaveProperty("pool");
+    });
+});
+
+// No proposal needed: the editor opens on empty groups with everybody under "Angemeldet"
+describe("the setup editor: the empty start and filling", () => {
+    const BLANK = { groups: [], bench: [], pool: [TANK, MAGE, PRIEST, ROGUE], version: 0, origin: "manual" as const, blank: true };
+
+    it("opens on empty groups with every signup under \"Angemeldet\", by role — no proposal first", async () => {
+        await show(editorData({}, BLANK));
+        expect(screen.queryByText(t("setup.editor.noSetup"))).not.toBeInTheDocument();
+        for (const i of [1, 2, 3, 4, 5]) expect(within(group(i)).queryAllByRole("button")).toHaveLength(0);
+        const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
+        const heads = [...pool.querySelectorAll(".se-pp-sec-head")].map((h) => h.firstChild?.textContent?.trim());
+        expect(heads).toEqual(["tank", "healer", "melee", "ranged"].map((role) => t(`setup.poolPanel.sections.${role}`)));
+        expect(within(pool).getByText("Bruno")).toBeInTheDocument();
+        // nothing to post while nobody stands in a group
+        expect(screen.getByRole("button", { name: t("setup.editor.approve") })).toBeDisabled();
+    });
+
+    it("saves the first drag from \"Angemeldet\" on the empty start with version 0", async () => {
+        await show(editorData({}, BLANK));
+        fireEvent.drop(group(3), { dataTransfer: { getData: () => PRIEST.userId } });
+        await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
+        const body = savedBody() as SetupPlacementInput & { version?: number };
+        expect(groupOf(body, PRIEST.userId)).toBe(3);
+        expect(body.version).toBe(0);
+    });
+
+    it("fills an empty setup at once with \"Automatisch füllen\" — no question", async () => {
+        const user = userEvent.setup();
+        await show(editorData({}, BLANK));
+        await user.click(screen.getByRole("button", { name: t("setup.fill.auto") }));
+        await waitFor(() => expect(calls("POST", "/api/raids/setup/propose")).toHaveLength(1));
+        expect(calls("POST", "/api/raids/setup/propose")[0][2]).toEqual({ event: EVENT_ID });
+    });
+
+    it("asks once somebody stands: only the free places by default, or everything anew", async () => {
+        const user = userEvent.setup();
+        await show(editorData({}, { pool: [person("u-x", "Xara")] }));
+        await user.click(screen.getByRole("button", { name: t("setup.fill.free") }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByRole("radio", { name: new RegExp(t("setup.fill.keepTitle")) })).toHaveAttribute("aria-checked", "true");
+        await user.click(within(dialog).getByRole("button", { name: t("setup.fill.go") }));
+        await waitFor(() => expect(calls("POST", "/api/raids/setup/propose")).toHaveLength(1));
+        expect(calls("POST", "/api/raids/setup/propose")[0][2]).toEqual({ event: EVENT_ID, keep: "placed" });
+
+        await user.click(screen.getByRole("button", { name: t("setup.fill.free") }));
+        const again = screen.getByRole("dialog");
+        await user.click(within(again).getByRole("radio", { name: new RegExp(t("setup.fill.anewTitle")) }));
+        await user.click(within(again).getByRole("button", { name: t("setup.fill.go") }));
+        await waitFor(() => expect(calls("POST", "/api/raids/setup/propose")).toHaveLength(2));
+        expect(calls("POST", "/api/raids/setup/propose")[1][2]).toEqual({ event: EVENT_ID });
+    });
+
+    it("offers no filling once nobody is left under \"Angemeldet\"", async () => {
+        await show(editorData({}, { pool: [] }));
+        expect(screen.queryByRole("button", { name: t("setup.fill.free") })).not.toBeInTheDocument();
+        expect(within(screen.getByRole("region", { name: t("setup.pool.aria") })).getByText(t("setup.pool.empty"))).toBeInTheDocument();
+    });
+
+    it("finds raiders in \"Angemeldet\" by name or spec and filters by role", async () => {
+        const user = userEvent.setup();
+        await show(editorData({ absent: 2 }, BLANK));
+        const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
+        await user.type(within(pool).getByRole("searchbox", { name: t("setup.poolPanel.search") }), "heil");
+        expect(within(pool).getByText("Lumen")).toBeInTheDocument();
+        expect(within(pool).queryByText("Bruno")).not.toBeInTheDocument();
+        await user.clear(within(pool).getByRole("searchbox", { name: t("setup.poolPanel.search") }));
+        await user.click(within(pool).getByRole("button", { name: new RegExp(t("setup.poolPanel.filters.dps")) }));
+        expect(within(pool).getByText("Ignis")).toBeInTheDocument();
+        expect(within(pool).getByText("Schatten")).toBeInTheDocument();
+        expect(within(pool).queryByText("Bruno")).not.toBeInTheDocument();
+        expect(within(pool).getByText(t("setup.poolPanel.absent", { count: 2 }))).toBeInTheDocument();
+    });
+
+    it("folds \"Angemeldet\" by its arrow", async () => {
+        const user = userEvent.setup();
+        await show(editorData({}, BLANK));
+        const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
+        const toggle = within(pool).getByRole("button", { name: t("setup.poolPanel.collapse") });
+        expect(toggle).toHaveAttribute("aria-expanded", "true");
+        await user.click(toggle);
+        expect(pool).toHaveClass("se-pp-collapsed");
+        expect(within(pool).getByRole("button", { name: t("setup.poolPanel.expand") })).toHaveAttribute("aria-expanded", "false");
     });
 });
 
@@ -162,7 +249,7 @@ describe("the setup editor: moving raiders", () => {
         expect(slot("Bruno")).toHaveAttribute("aria-pressed", "true");
         await user.keyboard("{Escape}");
         expect(slot("Bruno")).toHaveAttribute("aria-pressed", "false");
-        expect(client.send).not.toHaveBeenCalled();
+        expect(writes()).toHaveLength(0);
 
         await user.click(slot("Bruno"));
         const bench = screen.getByRole("region", { name: t("setup.bench.aria") });
@@ -236,7 +323,7 @@ describe("the setup editor: the bar", () => {
 
         fireEvent.change(size, { target: { value: "1" } });
         // only a typed number: nothing sent, nothing reshuffled yet
-        expect(client.send).not.toHaveBeenCalled();
+        expect(writes()).toHaveLength(0);
         expect(screen.getByText(t("setup.editor.sizeTotal", { perGroup: 5, size: 5 }))).toBeInTheDocument();
         fireEvent.blur(size);
 
@@ -409,10 +496,10 @@ describe("the setup editor: state, approval and posting", () => {
         await user.click(screen.getByRole("button", { name: t("setup.editor.approve") }));
         const question = screen.getByRole("dialog");
         expect(within(question).getByText("Trotzdem posten?")).toBeInTheDocument();
-        expect(client.send).not.toHaveBeenCalled();
+        expect(writes()).toHaveLength(0);
         await user.click(within(question).getByRole("button", { name: t("setup.editor.approve") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(1));
-        expect(calls("POST", "/api/raids/setup/approve")[0][2]).toEqual({ event: EVENT_ID, version: 3, bench: false });
+        expect(calls("POST", "/api/raids/setup/approve")[0][2]).toEqual({ event: EVENT_ID, version: 3, bench: false, dms: false });
     });
 
     it("approves only after the moves still on their way, with the version the server confirmed", async () => {
@@ -428,7 +515,7 @@ describe("the setup editor: state, approval and posting", () => {
         expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(0);
         await act(async () => answerSave({ ...page, setup: { ...page.setup, version: 4 } }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(1));
-        expect(calls("POST", "/api/raids/setup/approve")[0][2]).toEqual({ event: EVENT_ID, version: 4, bench: false });
+        expect(calls("POST", "/api/raids/setup/approve")[0][2]).toEqual({ event: EVENT_ID, version: 4, bench: false, dms: false });
     });
 
     it("shows a reader only the approved lineup, without anything to move", async () => {
@@ -453,23 +540,20 @@ describe("the setup editor: state, approval and posting", () => {
         expect(badge.getAttribute("data-tip-sub")).toContain(t("setup.publish.notPosted", { channel: "#kara-do" }));
         await user.click(screen.getByRole("button", { name: t("setup.publishLine.post") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/post")).toHaveLength(1));
-        expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: false });
+        expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: false, dms: true });
     });
 
-    // #517: "Bench mitposten" — the bench goes out only when the orga ticks it (a switch under "Mehr")
-    it("posts the bench only with the switch on, and has no switch without a bench", async () => {
+    // #517: "Bench mitposten" — the bench goes out only when the orga switches it on; the switch stands in the bar, no detour through "Mehr"
+    it("posts the bench only with the switch on — a visible switch beside the button, not under \"Mehr\"", async () => {
         const user = userEvent.setup();
         const publish = { ...PUBLISH, pendingDms: 3, bench: false, benchCount: 1 };
-        const view = await show(editorData({ publish }, { status: "approved" }));
-        const item = await moreItem(user, t("setup.publishLine.bench"), "menuitemcheckbox");
-        expect(item).toHaveAttribute("aria-checked", "false");
-        await user.click(item);
+        await show(editorData({ publish }, { status: "approved" }));
+        const bench = screen.getByRole("switch", { name: t("setup.postOptions.bench") });
+        expect(bench).not.toBeChecked();
+        await user.click(bench);
         await user.click(screen.getByRole("button", { name: t("setup.publishLine.post") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/post")).toHaveLength(1));
-        expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: true });
-        view.unmount();
-
-        await show(editorData({ publish }, { status: "approved", bench: [] }));
+        expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: true, dms: true });
         await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
         expect(screen.queryByRole("menuitemcheckbox", { name: new RegExp(t("setup.publishLine.bench")) })).not.toBeInTheDocument();
     });
@@ -478,11 +562,28 @@ describe("the setup editor: state, approval and posting", () => {
         const user = userEvent.setup();
         const publish = { ...PUBLISH, dmsEnabled: false, pendingDms: 3, bench: true, benchCount: 1 };
         await show(editorData({ publish }));
-        expect(await moreItem(user, t("setup.publishLine.bench"), "menuitemcheckbox")).toHaveAttribute("aria-checked", "true");
-        await user.keyboard("{Escape}");
+        expect(screen.getByRole("switch", { name: t("setup.postOptions.bench") })).toBeChecked();
+        expect(screen.getByRole("switch", { name: t("setup.postOptions.dms") })).not.toBeChecked();
         await user.click(screen.getByRole("button", { name: t("setup.editor.approve") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(1));
-        expect(calls("POST", "/api/raids/setup/approve")[0][2]).toMatchObject({ event: EVENT_ID, bench: true });
+        expect(calls("POST", "/api/raids/setup/approve")[0][2]).toMatchObject({ event: EVENT_ID, bench: true, dms: false });
+    });
+
+    it("switches the DMs for this raid in the bar, and a switch flipped after the post brings \"Setup posten\" back", async () => {
+        const user = userEvent.setup();
+        const publish = { ...PUBLISH, dmsEnabled: false, dmsDefault: false, posted: POSTED, bench: false };
+        await show(editorData({ publish }, { status: "approved", version: 3 }));
+        // posted and current: the one button pings
+        expect(screen.getByRole("button", { name: t("setup.ping.button") })).toBeInTheDocument();
+        const dms = screen.getByRole("switch", { name: t("setup.postOptions.dms") });
+        expect(dms).not.toBeChecked();
+        await user.click(dms);
+        expect(dms).toBeChecked();
+        // chosen for this raid, unlike the category: the tooltip says so
+        expect(dms.closest("label")).toHaveAttribute("data-tip-sub", t("setup.postOptions.dmsSubOwn"));
+        await user.click(screen.getByRole("button", { name: t("setup.publishLine.post") }));
+        await waitFor(() => expect(calls("POST", "/api/raids/setup/post")).toHaveLength(1));
+        expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: false, dms: true });
     });
 
     it("has no separate approval: a draft is posted with \"Setup posten\", a posted setup's one button pings", async () => {
@@ -599,6 +700,11 @@ describe("the setup editor: state, approval and posting", () => {
                 : Promise.resolve(page)));
             await show(editorData({ confirmations: { "u-priest": "declined" } }, { status: "approved" }));
             await user.click(screen.getByRole("button", { name: new RegExp(t("setup.editor.confirmAll")) }));
+            // asked once first: how many get the check, a cancel stays
+            const question = screen.getByRole("dialog");
+            expect(question).toHaveTextContent(t("setup.confirmAll.askText", { count: 2 }));
+            expect(calls("POST", "/api/raids/setup/confirm-all")).toHaveLength(0);
+            await user.click(within(question).getByRole("button", { name: t("setup.editor.confirmAll") }));
             await waitFor(() => expect(calls("POST", "/api/raids/setup/confirm-all")).toHaveLength(1));
             expect(calls("POST", "/api/raids/setup/confirm-all")[0][2]).toEqual({ event: EVENT_ID });
             await waitFor(() => expect(slot("Bruno")).toHaveClass("se-confirmed"));

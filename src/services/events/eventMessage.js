@@ -91,7 +91,7 @@ const { getEventSheet } = require("../../stores/eventSheetStore");
 const { getEventSoftres } = require("../../stores/eventSoftresStore");
 const { signedUpText } = require("../../utils/signup/capacity");
 const { tr, specLabel, classLabel, normalizeLang } = require("../../utils/i18n/botText");
-const { serverLang } = require("../discord/botLanguage");
+const { eventLang } = require("../discord/botLanguage");
 
 /**
  * The head's "Signed up" line (#520): the single Discord accounts, number in
@@ -514,7 +514,7 @@ function pickSelect(event, emojis, lang = "de") {
  * when left out, so that caller keeps the button as well.
  */
 function messageComponents(event, {
-    emojis = {}, now = Date.now(), phase = messagePhase(event, now), lang = serverLang(), pingMissing = hasRaiderRoles(event),
+    emojis = {}, now = Date.now(), phase = messagePhase(event, now), lang = eventLang(event), pingMissing = hasRaiderRoles(event),
 } = {}) {
     return buttonRows(event, phase, now, { pingMissing }).map((row) => ({
         type: 1,
@@ -689,7 +689,7 @@ function payloadHash(payload, lang = "") {
 
 /** The payload with the application emojis (read once per process; labels without them), and its language. */
 async function payloadFor(event) {
-    const lang = serverLang();
+    const lang = eventLang(event);
     return { lang, payload: await buildPayload(event, lang) };
 }
 

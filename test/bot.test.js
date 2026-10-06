@@ -209,6 +209,24 @@ describe("bot interaction router", () => {
         bot.client.commands = new (require("discord.js").Collection)();
     });
 
+    it("notes the client language of every interaction, best-effort", async () => {
+        const userPrefs = require("../src/stores/userPrefsStore");
+        const spy = jest.spyOn(userPrefs, "noteClientLang").mockImplementation(() => true);
+        bot.client.commands.set("plain", { name: "plain", data: { name: "plain" }, execute: jest.fn() });
+        const i = fakeInteraction("isAutocomplete", { commandName: "plain" });
+        i.user = { id: "u1" };
+        i.locale = "de";
+        await bot.handleInteraction(i);
+        expect(spy).toHaveBeenCalledWith("u1", "de");
+
+        spy.mockImplementation(() => { throw new Error("disk full"); });
+        const j = fakeInteraction("isAutocomplete", { commandName: "plain" });
+        j.user = { id: "u2" };
+        await expect(bot.handleInteraction(j)).resolves.toBeUndefined();
+        expect(j.respond).toHaveBeenCalledWith([]);
+        spy.mockRestore();
+    });
+
     it("gates autocomplete like the command: a refused user gets no suggestions", async () => {
         const cmd = { name: "council", data: { name: "council" }, execute: jest.fn(), autocomplete: jest.fn(async () => {}) };
         bot.client.commands.set("council", cmd);
