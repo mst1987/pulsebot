@@ -44,6 +44,22 @@ describe("services/guildbank/guildBankStock", () => {
         expect(stock.serverOfToken(null)).toBe("");
     });
 
+    it("gives a new bank to the one event server when exactly one is configured", () => {
+        const single = { ...CONFIG, discordServers: { eventGuilds: [{ guildId: "g1", label: "PvE" }] } };
+        const result = stock.ingestScan(body(), { now: NOW, config: single });
+        expect(result.bank).toMatchObject({ guildId: "g1", pending: false });
+        expect(stock.onlyEventServer({ guildId: "g7" })).toBe("g7");
+        expect(stock.onlyEventServer(CONFIG)).toBe("");
+    });
+
+    it("leaves a known bank's assignment alone, also one taken back on purpose", () => {
+        const single = { ...CONFIG, discordServers: { eventGuilds: [{ guildId: "g1", label: "PvE" }] } };
+        const { bank } = stock.ingestScan(body(), { now: NOW, config: CONFIG });
+        expect(bank.pending).toBe(true);
+        const again = stock.ingestScan(body({ scannedAt: 1791003600 }), { now: NOW + 1, config: single });
+        expect(again.bank).toMatchObject({ guildId: "", pending: true });
+    });
+
     it("takes the main version for a client that names none", () => {
         const result = stock.ingestScan(body({ client: {} }), { now: NOW, config: { ...CONFIG, mainVersion: "forever" } });
         expect(result.bank.key).toBe("forever:spineshatter:die gilde");

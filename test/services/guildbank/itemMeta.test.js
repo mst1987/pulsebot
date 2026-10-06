@@ -77,6 +77,16 @@ describe("services/guildbank/itemMeta", () => {
         expect(store.itemsWithoutWowheadMeta(scan.key)).toEqual([]);
     });
 
+    it("replaces a local English name with the German Wowhead answer and keeps the local icon when Wowhead has none", async () => {
+        const { scan } = record([944]);
+        itemMeta.applyLocalMeta("tbc", [944], { now: NOW });
+        expect(store.itemsWithoutWowheadMeta(scan.key)).toEqual([944]);
+        wowhead.lookupItemDetails.mockResolvedValueOnce({ id: 944, name: "Elementarmagierstab", icon: "", quality: null, classId: 2, subclassId: 10, className: "Waffe", subclassName: "Stab" });
+        itemMeta.queueLookups("tbc", store.itemsWithoutWowheadMeta(scan.key));
+        await itemMeta.idle();
+        expect(itemOf(scan.key, 944)).toMatchObject({ name: "Elementarmagierstab", icon: "inv_staff_07", quality: 4, metaSource: "wowhead", className: "Waffe" });
+    });
+
     it("takes an answer another bank of the version already has, without a request", async () => {
         record([22854]);
         itemMeta.queueLookups("tbc", [22854]);

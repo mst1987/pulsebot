@@ -69,6 +69,9 @@
 .seg-opt.active { background: var(--accent-soft); color: var(--accent); }
 .seg-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .seg-opt:disabled { opacity: .5; cursor: not-allowed; }
+/* icons only (a switch in every row of a list): square-ish options, the label is the tooltip */
+.seg.icon-only .seg-opt { width: 40px; padding: 0; justify-content: center; }
+.seg.icon-only .seg-opt > svg { width: 16px; height: 16px; }
 /* On a phone a switch wider than the column wraps its options into a second
    row instead of being cut off at the edge (#551). */
 @media (max-width: 600px) {
@@ -119,6 +122,7 @@ button.badge.chip.accent:hover { color: var(--accent); }
 .itile.t-roster { --tile-bg: var(--area-roster-soft); color: var(--area-roster); }
 .itile.t-history { --tile-bg: var(--area-history-soft); color: var(--area-history); }
 .itile.t-lootcouncil { --tile-bg: var(--area-lootcouncil-soft); color: var(--area-lootcouncil); }
+.itile.t-bank { --tile-bg: var(--area-bank-soft); color: var(--area-bank); }
 .itile.t-kader { --tile-bg: var(--area-kader-soft); color: var(--area-kader); }
 .itile.t-channels { --tile-bg: var(--area-channels-soft); color: var(--area-channels); }
 .itile.t-settings { --tile-bg: var(--area-settings-soft); color: var(--area-settings); }

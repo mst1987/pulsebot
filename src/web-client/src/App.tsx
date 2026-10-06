@@ -40,6 +40,7 @@ const SignupsPage = lazyWithReload(() => import("./pages/SignupsPage"));
 const ClaPage = lazyWithReload(() => import("./pages/cla/ClaPage"));
 const LootCouncilPage = lazyWithReload(() => import("./pages/lootcouncil/LootCouncilPage"));
 const DropCheckPage = lazyWithReload(() => import("./pages/lootcouncil/DropCheckPage"));
+const GuildBankPage = lazyWithReload(() => import("./pages/guildbank/GuildBankPage"));
 const KaderPage = lazyWithReload(() => import("./pages/kader/KaderPage"));
 
 /**
@@ -207,6 +208,8 @@ function MenuApp() {
                                 <Route path="cla" element={<Guard user={user} areas={["cla"]}><ClaPage /></Guard>} />
                                 <Route path="lootcouncil" element={<Guard user={user} areas={["lootcouncil"]}><LootCouncilPage /></Guard>} />
                                 <Route path="lootcouncil/drop/:itemId?" element={<Guard user={user} areas={["lootcouncil"]}><DropCheckPage /></Guard>} />
+                                {/* The guild bank stock (#632): read with "raids", the orga decides with write. */}
+                                <Route path="guildbank" element={<Guard user={user} areas={["raids"]}><GuildBankPage /></Guard>} />
                                 {/* The Kaderplaner (area "kader"): one Kader at a time, /kader opens the one used last. */}
                                 <Route path="kader/:kaderId?/:sub?" element={<Guard user={user} areas={["kader"]}><KaderPage /></Guard>} />
                                 {/* Inside the shell on purpose: a mistyped path should still

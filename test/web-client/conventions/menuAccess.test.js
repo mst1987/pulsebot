@@ -50,7 +50,7 @@ describe("one menu for both front ends", () => {
         expect(groups).toEqual([
             { name: "Start", ids: ["home", "signups", "profile"] },
             { name: "Raids", ids: ["raids", "roster", "cla"] },
-            { name: "Loot", ids: ["history", "lootcouncil"] },
+            { name: "Loot", ids: ["history", "lootcouncil", "bank"] },
             { name: "Gilde", ids: ["recruitment", "kader", "channels"] },
             { name: "System", ids: ["settings"] },
         ]);
@@ -72,6 +72,7 @@ describe("one menu for both front ends", () => {
             roster: "achievement_guildperk_everybodysfriend",
             history: "inv_misc_bag_10",
             lootcouncil: "inv_misc_coin_02",
+            bank: "achievement_guildperk_mobilebanking",
             kader: "inv_misc_groupneedmore",
             channels: "inv_letter_15",
             settings: "trade_engineering",

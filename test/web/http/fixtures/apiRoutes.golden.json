@@ -239,5 +239,8 @@
   "GET /api/settings/guild-banks",
   "POST /api/settings/guild-banks/assign",
   "POST /api/settings/guild-banks/delete",
+  "GET /api/guildbank",
+  "POST /api/guildbank/item",
+  "POST /api/guildbank/tab",
   "POST /api/ingest/guildbank"
 ]

@@ -223,6 +223,18 @@ Technik: [loot-import.md](loot-import.md)
 - Addon-Inbox: automatisch hochgeladene Loot-Sessions bestätigen und zuordnen. Details: [docs/loot-import.md](loot-import.md).
 - Alle Reiter (Vergaben, Items, Raids, Charaktere) zeigen die Spielversion des Content-Umschalters in der Kopfleiste.
 
+## Gildenbank
+
+Technik: [loot-import.md](loot-import.md)
+
+*Bereich "raids" — lesen mit Leserecht, einordnen mit Schreibrecht*
+
+- Der Bestand kommt per Addon: Bank im Spiel öffnen, das EventHelper-Addon scannt sie, das Sync-Tool lädt den Scan hoch. Der Kopf zeigt Spielversion, Realm, „Stand …“ und wer gescannt hat, dazu Gold, Bank-Tabs und vorgemerkte Anfragen.
+- Vier Reiter: **Ausgebbar** (Raider können anfragen), **Nur Bestand** (sichtbar, nicht anfragbar), **Ausgeblendet** (taucht nirgends auf) und **Neu** (kam mit dem letzten Scan, einmal einordnen — danach bleibt es bei jedem Scan so). Eingeordnet wird mit den drei Symbolen in jeder Zeile.
+- Die Liste ist nach Kategorie gruppiert (eigene Kategorie, sonst die von Wowhead), mit Filter und Suche. **Verfügbar = Bestand - Vorgemerkt - Reserve.**
+- Das Regler-Symbol einer Zeile setzt Reserve (bleibt immer in der Bank), Höchstmenge pro Anfrage und eine eigene Kategorie. **Bank-Tabs** blendet ganze Tabs aus — was nur dort liegt, zählt nicht zum Bestand.
+- Gehören mehrere Banken zum Server (z. B. TBC und Forever), folgt die Seite dem Content-Umschalter; eine Auswahl in der Filterzeile wechselt die Bank. Welche Bank zu welchem Server gehört, steht unter Einstellungen → Verbindungen → *Gildenbanken* (mit nur einem Event-Server ordnet sich eine neue Bank selbst zu).
+
 ## Log-Auswertung (CLA/RPB)
 
 Technik: [logcheck.md](logcheck.md)
