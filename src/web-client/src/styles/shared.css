@@ -242,6 +242,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 .area-roster { --area: var(--area-roster); --area-soft: var(--area-roster-soft); }
 .area-history { --area: var(--area-history); --area-soft: var(--area-history-soft); }
 .area-lootcouncil { --area: var(--area-lootcouncil); --area-soft: var(--area-lootcouncil-soft); }
+.area-bank { --area: var(--area-bank); --area-soft: var(--area-bank-soft); }
 .area-kader { --area: var(--area-kader); --area-soft: var(--area-kader-soft); }
 .area-channels { --area: var(--area-channels); --area-soft: var(--area-channels-soft); }
 .area-settings { --area: var(--area-settings); --area-soft: var(--area-settings-soft); }

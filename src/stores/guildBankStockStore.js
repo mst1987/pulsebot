@@ -24,7 +24,8 @@
 // its settings and reads with count 0. A scan older than the stored one (a
 // second PC uploading late) is ignored. Item names are German when they come
 // from Wowhead (services/guildbank/itemMeta.js), English from the local item
-// tables.
+// tables only until Wowhead answered (every item without a Wowhead answer is
+// looked up again; the answer replaces the English name).
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { iconUrl } = require("../utils/loot/wowhead");
@@ -331,10 +332,21 @@ function pickMeta(source) {
     return out;
 }
 
+/** The new meta over the old one; a field the new answer leaves empty keeps its value (an icon from the local tables). */
+function mergeMeta(current, next) {
+    const out = pickMeta(current);
+    for (const f of META_FIELDS) {
+        if (next[f] !== "" && next[f] !== null && next[f] !== undefined) out[f] = next[f];
+    }
+    return out;
+}
+
 /**
  * Write an item's meta into every bank of `gameVersion` that has the item.
- * A Wowhead answer replaces whatever was there; local data only fills an item
- * that has nothing yet. Returns how many banks changed.
+ * A Wowhead answer replaces whatever was there — the German name always wins
+ * over the English one of the local tables; a field it lacks (icon, quality)
+ * keeps the local value. Local data only fills an item that has nothing yet.
+ * Returns how many banks changed.
  * @param {string} gameVersion
  * @param {number} itemId
  * @param {object} meta { name, icon, quality, classId?, subclassId?, className?, subclassName? }
@@ -351,7 +363,7 @@ function setItemMeta(gameVersion, itemId, meta, { source, now = Date.now() } = {
         if (!items[id]) continue;
         const current = completeItem(items[id]);
         if (source === "local" && current.metaSource) continue;
-        items[id] = completeItem({ ...current, ...pickMeta(completeItem(meta)), metaSource: source, metaAt: now });
+        items[id] = completeItem({ ...current, ...mergeMeta(current, completeItem(meta)), metaSource: source, metaAt: now });
         bank.items = items;
         changed += 1;
     }

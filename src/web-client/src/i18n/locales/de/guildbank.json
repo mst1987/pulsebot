@@ -1,0 +1,85 @@
+{
+    "title": "Gildenbank",
+    "page": {
+        "loading": "Lade die Gildenbank …",
+        "kicker": "{version} · {realm} · Stand {date} · gescannt von {name}",
+        "kickerNoScanner": "{version} · {realm} · Stand {date}",
+        "goldTip": "Gold in der Gildenbank",
+        "goldTipSub": "Stand des letzten Scans.",
+        "tabsCount": { "one": "{count} Bank-Tab", "other": "{count} Bank-Tabs" },
+        "tabsHidden": "{count} ausgeblendet",
+        "reserved": { "one": "{count} Anfrage vorgemerkt", "other": "{count} Anfragen vorgemerkt" },
+        "reservedTip": "Bestätigte Anfragen, die auf die Ausgabe im Spiel warten.",
+        "bankTabs": "Bank-Tabs",
+        "pickBank": "Gildenbank wählen"
+    },
+    "tabs": {
+        "give": "Ausgebbar",
+        "show": "Nur Bestand",
+        "hide": "Ausgeblendet",
+        "new": "Neu"
+    },
+    "filter": {
+        "category": "Kategorie: {name}",
+        "categoryLabel": "Kategorie",
+        "allCategories": "Alle",
+        "search": "Gegenstand suchen",
+        "formula": "Verfügbar = Bestand - Vorgemerkt - Reserve"
+    },
+    "newNotice": "Seit dem letzten Scan neu in der Bank. Einmal einordnen, danach bleibt es bei jedem Scan so.",
+    "list": {
+        "aria": "Gegenstände der Gildenbank",
+        "item": "Gegenstand",
+        "stock": "Bestand",
+        "stockTip": "Im letzten Scan in der Bank, ohne ausgeblendete Bank-Tabs.",
+        "reserved": "Vorgemerkt",
+        "reservedTip": "Bestätigte Anfragen, die noch auf die Ausgabe warten.",
+        "reserve": "Reserve",
+        "reserveTip": "Bleibt immer in der Bank und wird nie angeboten.",
+        "available": "Verfügbar",
+        "availableTip": "Was Raider noch anfragen können.",
+        "status": "Einordnung",
+        "tab": "Tab {index}: {name}",
+        "tabNoName": "Tab {index}",
+        "gone": "Nicht mehr in der Bank",
+        "other": "Sonstiges",
+        "itemFallback": "Gegenstand {id}",
+        "empty": "Hier ist gerade nichts.",
+        "settings": "Reserve und Höchstmenge",
+        "settingsSub": "Reserve, Höchstmenge pro Anfrage und Kategorie dieses Gegenstands.",
+        "statusAria": "Einordnung von {name}",
+        "max": "höchstens {count} pro Anfrage"
+    },
+    "status": {
+        "hide": "Ausblenden",
+        "hideTip": "Ausgeblendet: taucht nirgends auf",
+        "show": "Nur Bestand",
+        "showTip": "Nur Bestand: sichtbar, nicht anfragbar",
+        "give": "Ausgebbar",
+        "giveTip": "Ausgebbar: Raider können anfragen"
+    },
+    "dialog": {
+        "kicker": "Gegenstand einstellen",
+        "reserve": "Reserve",
+        "reserveTip": "So viel bleibt immer in der Bank und wird nie angeboten.",
+        "max": "Höchstmenge pro Anfrage",
+        "maxTip": "0 = ohne Grenze.",
+        "category": "Kategorie",
+        "categoryTip": "Eine eigene Gruppe für die Liste und das Anfrage-Formular. Leer = die Gruppe von Wowhead.",
+        "categoryPlaceholder": "leer = {group}",
+        "categoryPlaceholderNone": "leer = Sonstiges",
+        "wholeNumber": "Bitte eine ganze Zahl ab 0 eingeben."
+    },
+    "tabsDialog": {
+        "kicker": "Gildenbank",
+        "hint": "Ein ausgeblendeter Bank-Tab zählt nicht zum Bestand: was nur dort liegt, taucht nirgends auf.",
+        "gone": "Nicht im letzten Scan",
+        "items": { "one": "{count} Gegenstand", "other": "{count} Gegenstände" }
+    },
+    "empty": {
+        "title": "Noch keine Gildenbank",
+        "text": "Die Gildenbank kommt per Addon: Die Bank im Spiel öffnen, das EventHelper-Addon scannt sie, das Sync-Tool lädt den Scan hoch.",
+        "assign": "Ist schon ein Scan angekommen, wartet er vielleicht auf die Zuordnung zu diesem Server.",
+        "toSettings": "Zur Zuordnung"
+    }
+}

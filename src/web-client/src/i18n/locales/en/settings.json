@@ -834,6 +834,25 @@
         "default": "Default",
         "wholeGroup": "apply to all {count} commands of the group"
     },
+    "guildBanks": {
+        "title": "Guild banks",
+        "infoSub": "The EventHelper addon scans the guild bank, the sync tool uploads the scan. A bank belongs to an event server: with just one event server it lands there by itself, otherwise it waits here for the assignment.",
+        "loading": "Loading the guild banks …",
+        "none": "No scan has arrived yet.",
+        "waiting": { "one": "{count} waiting", "other": "{count} waiting" },
+        "allAssigned": "assigned",
+        "waitingBadge": "Waiting for assignment",
+        "server": "Server",
+        "serverAria": "Server for {name}",
+        "noServer": "No server",
+        "scanned": "As of {date} · {count} items",
+        "delete": "Remove guild bank",
+        "deleteTitle": "Remove {name}?",
+        "deleteText": "The bank and everything set for its items (sorting, reserve, limit) are deleted. The next scan creates it anew.",
+        "assigned": "{name} now belongs to {server}.",
+        "unassigned": "{name} is waiting for the assignment again.",
+        "deleted": "{name} removed."
+    },
     "rhSync": {
         "title": "Raid-Helper sync",
         "infoSub": "The pages never ask Raid-Helper for events themselves. One job fetches the list every {minutes} minutes with a single request, and every page reads that copy. Raid-Helper allows 1000 requests a day.",

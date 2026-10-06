@@ -203,7 +203,10 @@
     "/api/availability/links": "settings",
     "/api/settings/guild-banks": "settings",
     "/api/settings/guild-banks/assign": "settings",
-    "/api/settings/guild-banks/delete": "settings"
+    "/api/settings/guild-banks/delete": "settings",
+    "/api/guildbank": "raids",
+    "/api/guildbank/item": "raids",
+    "/api/guildbank/tab": "raids"
   },
   "ungated": [
     "/api/session",

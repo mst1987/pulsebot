@@ -3,7 +3,10 @@
 //
 // Two sources, in this order:
 //   1. the local item tables (TBC only: WoWSims items, the raid loot names) —
-//      synchronous, applied while the upload is stored; English names,
+//      synchronous, applied while the upload is stored; English names, which
+//      only stand in until Wowhead answered (an item with local data is still
+//      queued for the lookup, and the German answer replaces the name; icon
+//      and quality stay when the answer lacks them),
 //   2. one Wowhead lookup per item id and game version (German name, icon,
 //      quality, class/subclass; utils/loot/wowhead.js lookupItemDetails) —
 //      in the background, after the upload has been answered, one request at a

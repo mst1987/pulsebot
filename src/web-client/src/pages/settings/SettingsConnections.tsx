@@ -19,6 +19,7 @@ import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import RaidLoader from "../../components/ui/RaidLoader";
 import RaidhelperRetirementCard from "./SettingsRaidhelperRetirement";
 import RaidhelperSyncCard from "./SettingsRaidhelperSync";
+import GuildBanksCard from "./SettingsGuildBanks";
 import { tParts, t as translate, useT } from "../../i18n";
 
 // Einstellungen → Verbindungen: one status card per foreign system instead of a
@@ -183,6 +184,8 @@ export default function ConnectionsSection({ data, tokens, onConfig, onTokensCha
             {/* #608: the one job that fetches Raid-Helper's event list, with "Jetzt aktualisieren". */}
             {data.canManageAccess && <RaidhelperSyncCard />}
             {data.canManageAccess && <RaidhelperRetirementCard />}
+            {/* #632: the guild banks the sync tool uploaded and their server */}
+            <GuildBanksCard />
 
             {editing && editing !== "lootsync" && (
                 <ConnectionModal

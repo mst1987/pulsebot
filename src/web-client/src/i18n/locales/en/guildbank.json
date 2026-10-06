@@ -1,0 +1,85 @@
+{
+    "title": "Guild bank",
+    "page": {
+        "loading": "Loading the guild bank …",
+        "kicker": "{version} · {realm} · as of {date} · scanned by {name}",
+        "kickerNoScanner": "{version} · {realm} · as of {date}",
+        "goldTip": "Gold in the guild bank",
+        "goldTipSub": "As of the last scan.",
+        "tabsCount": { "one": "{count} bank tab", "other": "{count} bank tabs" },
+        "tabsHidden": "{count} hidden",
+        "reserved": { "one": "{count} request set aside", "other": "{count} requests set aside" },
+        "reservedTip": "Confirmed requests waiting for the hand-out in game.",
+        "bankTabs": "Bank tabs",
+        "pickBank": "Choose guild bank"
+    },
+    "tabs": {
+        "give": "Requestable",
+        "show": "Stock only",
+        "hide": "Hidden",
+        "new": "New"
+    },
+    "filter": {
+        "category": "Category: {name}",
+        "categoryLabel": "Category",
+        "allCategories": "All",
+        "search": "Search item",
+        "formula": "Available = stock - set aside - reserve"
+    },
+    "newNotice": "New in the bank since the last scan. Sort it once, it stays that way with every scan.",
+    "list": {
+        "aria": "Items of the guild bank",
+        "item": "Item",
+        "stock": "Stock",
+        "stockTip": "In the bank at the last scan, without hidden bank tabs.",
+        "reserved": "Set aside",
+        "reservedTip": "Confirmed requests still waiting for the hand-out.",
+        "reserve": "Reserve",
+        "reserveTip": "Always stays in the bank and is never offered.",
+        "available": "Available",
+        "availableTip": "What raiders can still request.",
+        "status": "Sorting",
+        "tab": "Tab {index}: {name}",
+        "tabNoName": "Tab {index}",
+        "gone": "No longer in the bank",
+        "other": "Other",
+        "itemFallback": "Item {id}",
+        "empty": "Nothing here right now.",
+        "settings": "Reserve and limit",
+        "settingsSub": "Reserve, limit per request and category of this item.",
+        "statusAria": "Sorting of {name}",
+        "max": "at most {count} per request"
+    },
+    "status": {
+        "hide": "Hide",
+        "hideTip": "Hidden: shows up nowhere",
+        "show": "Stock only",
+        "showTip": "Stock only: visible, not requestable",
+        "give": "Requestable",
+        "giveTip": "Requestable: raiders can ask for it"
+    },
+    "dialog": {
+        "kicker": "Item settings",
+        "reserve": "Reserve",
+        "reserveTip": "This much always stays in the bank and is never offered.",
+        "max": "Limit per request",
+        "maxTip": "0 = no limit.",
+        "category": "Category",
+        "categoryTip": "A group of your own for the list and the request form. Empty = Wowhead's group.",
+        "categoryPlaceholder": "empty = {group}",
+        "categoryPlaceholderNone": "empty = Other",
+        "wholeNumber": "Please enter a whole number from 0."
+    },
+    "tabsDialog": {
+        "kicker": "Guild bank",
+        "hint": "A hidden bank tab does not count as stock: what lies only there shows up nowhere.",
+        "gone": "Not in the last scan",
+        "items": { "one": "{count} item", "other": "{count} items" }
+    },
+    "empty": {
+        "title": "No guild bank yet",
+        "text": "The guild bank comes from the addon: open the bank in game, the EventHelper addon scans it, the sync tool uploads the scan.",
+        "assign": "If a scan has arrived already, it may be waiting to be assigned to this server.",
+        "toSettings": "To the assignment"
+    }
+}

@@ -6,17 +6,25 @@
 //
 //   request = { id, userId, userName, categoryId (the organizer it came from),
 //               item, amount (1–9999), purpose, status: "open" | "done" |
-//               "rejected", reason (why it was declined), createdAt,
-//               handledBy (user id), handledByName, handledAt,
-//               channelId, messageId (the post in the orga channel) }
+//               "rejected" | "confirmed" | "handedOut", reason (why it was
+//               declined), createdAt, handledBy (user id), handledByName, handledAt,
+//               channelId, messageId (the post in the orga channel),
+//               bankKey, itemId (the stocked item asked for, guildBankStockStore.js;
+//               "" / 0 for a free-text request) }
 //
-// Handled requests are pruned 90 days after they were handled; open ones stay
-// until the orga handles them.
+// "confirmed" (set aside, waits for the hand-out in game) and "handedOut" are
+// the states of a request from the stock (#633/#634); a confirmed request
+// counts as reserved (services/guildbank/reservations.js).
+//
+// Handled requests are pruned 90 days after they were handled; open and
+// confirmed ones stay until the orga handles them.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { newId } = require("../utils/ids");
 
-const STATUSES = ["open", "done", "rejected"];
+const STATUSES = ["open", "done", "rejected", "confirmed", "handedOut"];
+/** The statuses that still wait for the orga or the game: never pruned. */
+const PENDING_STATUSES = ["open", "confirmed"];
 const ITEM_MAX = 80;
 const PURPOSE_MAX = 100;
 const REASON_MAX = 200;
@@ -58,6 +66,8 @@ function complete(r) {
         handledAt: Number(r.handledAt) || 0,
         channelId: str(r.channelId),
         messageId: str(r.messageId),
+        bankKey: str(r.bankKey),
+        itemId: Math.max(0, Math.floor(Number(r.itemId) || 0)),
     };
 }
 
@@ -167,18 +177,18 @@ function removeRequest(id) {
     return complete(hit);
 }
 
-/** Drop handled requests handled more than `days` ago. Returns how many were dropped. */
+/** Drop handled requests handled more than `days` ago (open and confirmed ones stay). Returns how many were dropped. */
 function prune({ now = Date.now(), days = KEEP_DAYS } = {}) {
     const limit = now - days * DAY_MS;
     const data = store.read();
-    const kept = data.requests.filter((r) => (r.status || "open") === "open" || (Number(r.handledAt) || Number(r.createdAt) || 0) >= limit);
+    const kept = data.requests.filter((r) => PENDING_STATUSES.includes(r.status || "open") || (Number(r.handledAt) || Number(r.createdAt) || 0) >= limit);
     const dropped = data.requests.length - kept.length;
     if (dropped) store.write({ ...data, requests: kept });
     return dropped;
 }
 
 module.exports = {
-    STATUSES, ITEM_MAX, PURPOSE_MAX, REASON_MAX, AMOUNT_MIN, AMOUNT_MAX, MAX_OPEN, KEEP_DAYS,
+    STATUSES, PENDING_STATUSES, ITEM_MAX, PURPOSE_MAX, REASON_MAX, AMOUNT_MIN, AMOUNT_MAX, MAX_OPEN, KEEP_DAYS,
     parseAmount, checkInput, listRequests, getRequest, countOpen, addRequest, setMessage, resolveRequest, removeRequest, prune,
     useFile,
 };

@@ -834,6 +834,25 @@
         "default": "Standard",
         "wholeGroup": "für alle {count} Befehle der Gruppe übernehmen"
     },
+    "guildBanks": {
+        "title": "Gildenbanken",
+        "infoSub": "Das EventHelper-Addon scannt die Gildenbank, das Sync-Tool lädt den Scan hoch. Eine Bank gehört zu einem Event-Server: Mit nur einem Event-Server kommt sie dort von selbst an, sonst wartet sie hier auf die Zuordnung.",
+        "loading": "Lade die Gildenbanken …",
+        "none": "Noch kein Scan angekommen.",
+        "waiting": { "one": "{count} wartet", "other": "{count} warten" },
+        "allAssigned": "zugeordnet",
+        "waitingBadge": "Wartet auf Zuordnung",
+        "server": "Server",
+        "serverAria": "Server für {name}",
+        "noServer": "Keinem Server",
+        "scanned": "Stand {date} · {count} Gegenstände",
+        "delete": "Gildenbank entfernen",
+        "deleteTitle": "{name} entfernen?",
+        "deleteText": "Die Bank und alles, was für ihre Gegenstände eingestellt ist (Einordnung, Reserve, Höchstmenge), werden gelöscht. Der nächste Scan legt sie neu an.",
+        "assigned": "{name} gehört jetzt zu {server}.",
+        "unassigned": "{name} wartet wieder auf die Zuordnung.",
+        "deleted": "{name} entfernt."
+    },
     "rhSync": {
         "title": "Raid-Helper-Abgleich",
         "infoSub": "Die Seiten fragen Raid-Helper nie selbst nach Events. Ein Job holt die Liste alle {minutes} Minuten mit einer einzigen Anfrage, alle Seiten lesen nur diese Kopie. Raid-Helper erlaubt 1000 Anfragen pro Tag.",

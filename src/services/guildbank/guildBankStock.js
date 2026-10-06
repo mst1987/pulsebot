@@ -2,7 +2,8 @@
 // Discord server a bank belongs to (Einstellungen, /api/settings/guild-banks).
 //
 // A bank is known by game version + realm + guild. A bank seen for the first
-// time belongs to no server yet and waits for an assignment ("Wartet auf
+// time goes to the one event server when exactly one is configured; with
+// several it belongs to no server yet and waits for an assignment ("Wartet auf
 // Zuordnung") — it is stored all the same, so nothing scanned is lost. An
 // ingest token bound to a server (`token.guildId`; tokens carry none today)
 // assigns a new bank right away. Only an event server can own a bank: that is
@@ -24,6 +25,16 @@ function serverOfToken(token) {
 }
 
 /**
+ * The one event server when exactly one is configured, else "". A bank seen
+ * for the first time goes there right away — with several servers nobody can
+ * know which guild it belongs to, so it waits for the assignment.
+ */
+function onlyEventServer(config = getConfig()) {
+    const ids = guildRoles.eventGuildIds(config || getConfig());
+    return ids.length === 1 ? ids[0] : "";
+}
+
+/**
  * Parse and store an uploaded scan. Fills what the local item tables know at
  * once and returns the items that still need a Wowhead lookup (`lookups`) —
  * the caller queues them after answering (itemMeta.queueLookups).
@@ -32,7 +43,8 @@ function serverOfToken(token) {
  */
 function ingestScan(body, { token = {}, now = Date.now(), config } = {}) {
     const scan = parseGuildBankScan(body, { fallbackVersion: mainVersionFor({ config }) });
-    const result = store.recordScan(scan, { now, guildId: serverOfToken(token), uploadedBy: (token && token.name) || "" });
+    const guildId = serverOfToken(token) || (store.getBank(scan.key) ? "" : onlyEventServer(config));
+    const result = store.recordScan(scan, { now, guildId, uploadedBy: (token && token.name) || "" });
     if (result.status === "stale") return { scan, ...result, lookups: [] };
     itemMeta.applyLocalMeta(scan.gameVersion, result.newItems, { now });
     return { scan, ...result, lookups: store.itemsWithoutWowheadMeta(scan.key) };
@@ -70,4 +82,4 @@ function removeBank(key) {
     return store.removeBank(key) ? { ok: true } : { code: "not_found", error: "Gildenbank nicht gefunden." };
 }
 
-module.exports = { ingestScan, bankServers, assignBank, removeBank, serverOfToken };
+module.exports = { ingestScan, bankServers, assignBank, removeBank, serverOfToken, onlyEventServer };

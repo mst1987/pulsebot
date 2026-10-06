@@ -1,7 +1,7 @@
 // The date formatters every page shares (#440): always the guild's time zone,
 // the menu's language decides the wording.
 import { afterAll, describe, expect, it } from "vitest";
-import { DISPLAY_TZ, formatDateTime, formatDayDate, formatDayMonth, formatTime, formatWeekday, formatWith, isoDay } from "./format";
+import { DISPLAY_TZ, formatDateTime, formatDayDate, formatDayMonth, formatMoney, formatTime, formatWeekday, formatWith, isoDay } from "./format";
 import { inLang, switchLang } from "../test/i18n";
 
 // Thursday 17.09.2026 19:30 in Berlin (CEST, UTC+2)
@@ -37,5 +37,14 @@ describe("lib/format", () => {
         expect(formatTime(0)).toBe("");
         expect(formatDayDate(0)).toBe("");
         expect(formatDateTime(0)).toBe("");
+    });
+
+    it("writes WoW money from copper, zero parts left out, thousands in the menu's language", async () => {
+        expect(formatMoney(48123405)).toBe("4.812 g 34 s 5 c");
+        expect(formatMoney(48120000)).toBe("4.812 g");
+        expect(formatMoney(150)).toBe("1 s 50 c");
+        expect(formatMoney(0)).toBe("0 c");
+        expect(formatMoney(-5)).toBe("0 c");
+        expect(await inLang("en", () => formatMoney(48120000))).toBe("4,812 g");
     });
 });

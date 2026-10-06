@@ -19,7 +19,13 @@ jest.mock("../../../src/services/guildbank/itemMeta", () => ({
     ...jest.requireActual("../../../src/services/guildbank/itemMeta"),
     queueLookups: jest.fn(() => 0),
 }));
+// Two event servers: a new bank cannot know its own and waits.
+jest.mock("../../../src/services/discord/guildRoles", () => ({
+    ...jest.requireActual("../../../src/services/discord/guildRoles"),
+    eventGuildIds: jest.fn(() => ["g1", "g2"]),
+}));
 
+const { eventGuildIds } = require("../../../src/services/discord/guildRoles");
 const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStore");
 const { queueLookups } = require("../../../src/services/guildbank/itemMeta");
 const store = require("../../../src/stores/guildBankStockStore");
@@ -91,6 +97,14 @@ describe("POST /api/ingest/guildbank", () => {
         expect(bank.items.map((i) => [i.itemId, i.count, i.status]).sort()).toEqual([
             [21877, 340, "new"], [22854, 40, "new"], [24027, 14, "new"],
         ]);
+    });
+
+    it("gives a new bank to the only event server", async () => {
+        eventGuildIds.mockReturnValue(["g1"]);
+        const res = await upload(scan());
+        expect(json(res).data.pending).toBe(false);
+        expect(store.getBank(KEY).guildId).toBe("g1");
+        eventGuildIds.mockReturnValue(["g1", "g2"]);
     });
 
     it("keeps the orga's decisions over the next upload", async () => {

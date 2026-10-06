@@ -39,6 +39,19 @@ export function formatDateTime(ms: number): string {
     return ms ? `${formatDayDate(ms)} ${formatTime(ms)}` : "";
 }
 
+/** WoW money from copper: "4.812 g 30 s 5 c" ("4,812 g …" in English); zero parts are left out, nothing is "0 c". */
+export function formatMoney(copper: number): string {
+    const total = Math.max(0, Math.floor(Number(copper) || 0));
+    const gold = Math.floor(total / 10000);
+    const silver = Math.floor(total / 100) % 100;
+    const rest = total % 100;
+    const parts: string[] = [];
+    if (gold) parts.push(`${gold.toLocaleString(locale())} g`);
+    if (silver) parts.push(`${silver} s`);
+    if (rest || !parts.length) parts.push(`${rest} c`);
+    return parts.join(" ");
+}
+
 /** "2026-09-17": the calendar day in DISPLAY_TZ as a key to compare or sort (never shown). */
 export function isoDay(ms: number): string {
     return new Date(ms).toLocaleDateString("en-CA", { timeZone: DISPLAY_TZ });

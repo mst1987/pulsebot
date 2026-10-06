@@ -9,6 +9,7 @@
     { "id": "cla", "label": "Log-Auswertung", "href": "/cla", "group": "Raids", "areas": ["cla"], "wowIcon": "inv_misc_pocketwatch_01" },
     { "id": "history", "label": "Historie & Loot", "href": "/history", "group": "Loot", "areas": ["history", "loot"], "wowIcon": "inv_misc_bag_10" },
     { "id": "lootcouncil", "label": "Loot-Council", "href": "/lootcouncil", "group": "Loot", "areas": ["lootcouncil"], "wowIcon": "inv_misc_coin_02" },
+    { "id": "bank", "label": "Gildenbank", "href": "/guildbank", "group": "Loot", "areas": ["raids"], "wowIcon": "achievement_guildperk_mobilebanking" },
     { "id": "recruitment", "label": "Recruitment", "href": "/recruitment", "group": "Gilde", "areas": ["recruitment"], "wowIcon": "inv_misc_grouplooking" },
     { "id": "kader", "label": "Kaderplaner", "href": "/kader", "group": "Gilde", "areas": ["kader"], "wowIcon": "inv_misc_groupneedmore" },
     { "id": "channels", "label": "Kanäle", "href": "/channels", "group": "Gilde", "areas": ["channels"], "wowIcon": "inv_letter_15" },
