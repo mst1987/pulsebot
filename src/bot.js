@@ -10,6 +10,7 @@ require("./config/env.js").validateEnv();
 const messages = require("./config/messages.js");
 const { card } = require("./utils/discord/card.js");
 const { tr } = require("./utils/i18n/botText.js");
+const userPrefs = require("./stores/userPrefsStore.js");
 const { langOfInteraction } = require("./services/discord/botLanguage.js");
 const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./services/logcheck/logChannel.js");
@@ -143,7 +144,17 @@ async function handleAutocomplete(interaction) {
 
 client.on("interactionCreate", (interaction) => handleInteraction(interaction));
 
+/** Remembers the raider's Discord client language so DMs and reminders follow it (best-effort, never throws). */
+function noteLocale(interaction) {
+    try {
+        if (interaction && interaction.user) userPrefs.noteClientLang(interaction.user.id, interaction.locale);
+    } catch (error) {
+        logger.debug(`Could not note the client language: ${error.message}`);
+    }
+}
+
 async function handleInteraction(interaction) {
+    noteLocale(interaction);
     if (is(interaction, "isAutocomplete")) return handleAutocomplete(interaction);
     if (!is(interaction, "isCommand") && !COMPONENT_GUARDS.some((guard) => is(interaction, guard))) return;
 

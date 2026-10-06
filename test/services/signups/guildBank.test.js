@@ -5,7 +5,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listCategories: jest.fn(() => [{ id: "cat1", name: "╭・ TBC Montag" }]),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/stores/userPrefsStore", () => ({ getLang: jest.fn(() => "") }));
+jest.mock("../../../src/stores/userPrefsStore", () => ({ getLang: jest.fn(() => ""), getClientLang: jest.fn(() => ""), localeToLang: jest.fn(() => "") }));
 
 const discord = require("../../../src/services/discord/discord");
 const settingsStore = require("../../../src/stores/settingsStore");
