@@ -7,7 +7,7 @@ export function bankItem(over: Partial<GuildBankItem> = {}): GuildBankItem {
         status: "give", reserve: 0, maxPerRequest: 0, category: "", firstSeenAt: 1,
         name: "Klobiger lebendiger Rubin", icon: "inv_jewelcrafting_livingruby_03", iconUrl: "https://example.test/ruby.jpg",
         quality: 3, classId: 3, subclassId: 0, className: "Edelsteine", subclassName: "Rot", metaSource: "wowhead",
-        reserved: 0, available: 10, group: "Edelsteine", autoGroup: "Edelsteine",
+        reserved: 0, handedOut: 0, available: 10, emojiId: "", group: "Edelsteine", autoGroup: "Edelsteine",
         ...over,
     };
 }

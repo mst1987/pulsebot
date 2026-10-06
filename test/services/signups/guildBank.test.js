@@ -13,7 +13,7 @@ const userPrefs = require("../../../src/stores/userPrefsStore");
 const store = require("../../../src/stores/guildBankStore");
 const guildBank = require("../../../src/services/signups/guildBank");
 const { tempStoreFile } = require("../../helpers/tempStore");
-const { cardText, cardColor } = require("../../helpers/cardText");
+const { cardText, cardColor, cardButtons } = require("../../helpers/cardText");
 const { isCard, KIND_COLORS } = require("../../../src/utils/discord/card");
 
 const CONFIG = { botLanguage: "de", guildId: "111111", discordServers: { eventGuilds: [{ guildId: "111111" }], guildBankChannelId: "900000" } };
@@ -43,9 +43,9 @@ describe("services/signups/guildBank", () => {
         expect(request).toMatchObject({ userId: "u1", userName: "Anna", item: "Super Mana Potion", amount: 12, status: "open", channelId: "900000", messageId: "m1" });
         const [channelId, payload] = discord.postPayload.mock.calls[0];
         expect(channelId).toBe("900000");
-        expect(payload.embeds[0].title).toBe("🏦 Anfrage von Anna");
-        expect(payload.embeds[0].footer.text).toBe("TBC Montag · offen");
-        expect(payload.components[0].components.map((b) => b.custom_id)).toEqual([`guildbank:done:${request.id}`, `guildbank:reject:${request.id}`]);
+        expect(cardText(payload)).toContain("## 12× Super Mana Potion");
+        expect(cardText(payload)).toContain("-# TBC Montag · offen");
+        expect(cardButtons(payload).map((b) => b.custom_id)).toEqual([`guildbank:done:${request.id}`, `guildbank:reject:${request.id}`]);
         expect(store.getRequest(request.id).messageId).toBe("m1");
     });
 
@@ -72,8 +72,8 @@ describe("services/signups/guildBank", () => {
         expect(result).toMatchObject({ posted: true, dm: true, request: { status: "done", handledBy: "o1", handledByName: "Orga" } });
         const [channelId, messageId, payload] = discord.editPayload.mock.calls[0];
         expect([channelId, messageId]).toEqual(["900000", "m1"]);
-        expect(payload.components).toEqual([]);
-        expect(payload.embeds[0].description).toContain("✅ Erledigt von Orga");
+        expect(cardButtons(payload)).toEqual([]);
+        expect(cardText(payload)).toContain("✅ Erledigt von Orga");
         const dm = discord.sendDirectMessage.mock.calls[0][1];
         expect(isCard(dm)).toBe(true);
         expect(cardText(dm)).toBe("-# Guild bank\n## Request done\n**12× Super Mana Potion**");
@@ -83,7 +83,7 @@ describe("services/signups/guildBank", () => {
     it("declines with a reason, in German for a German raider", async () => {
         const { request } = await create();
         await guildBank.resolveRequest(request.id, { by: "o1", byName: "Orga", status: "rejected", reason: "gerade leer" });
-        expect(discord.editPayload.mock.calls[0][2].embeds[0].description).toContain("⛔ Abgelehnt von Orga: gerade leer");
+        expect(cardText(discord.editPayload.mock.calls[0][2])).toContain("⛔ Abgelehnt von Orga: gerade leer");
         const dm = discord.sendDirectMessage.mock.calls[0][1];
         expect(cardText(dm)).toBe("-# Gildenbank\n## Anfrage abgelehnt\n**12× Super Mana Potion**\nGrund: gerade leer");
         expect(cardColor(dm)).toBe(KIND_COLORS.error);
@@ -116,6 +116,6 @@ describe("services/signups/guildBank", () => {
 
     it("names no category when the bot cannot list them", async () => {
         discord.listCategories.mockImplementationOnce(() => { throw new Error("offline"); });
-        expect(guildBank.postFor({ ...store.addRequest({ userId: "u9", item: "x", amount: 1, categoryId: "cat1" }).request }).embeds[0].footer.text).toBe("offen");
+        expect(cardText(guildBank.postFor({ ...store.addRequest({ userId: "u9", item: "x", amount: 1, categoryId: "cat1" }).request }))).toContain("\n-# offen");
     });
 });

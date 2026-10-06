@@ -28,6 +28,27 @@ function reservedByItem(bankKey) {
     return out;
 }
 
+/**
+ * The amounts per item handed out after the bank's last scan (`scannedAt`, ms):
+ * gone from the bank, but the stored stock still counts them until the next
+ * scan — stockView takes them off "Verfügbar" so the number does not jump
+ * back up when a reservation ends with the hand-out.
+ * @param {string} bankKey
+ * @param {number} scannedAt
+ * @returns {Record<string, number>}
+ */
+function handedOutSince(bankKey, scannedAt) {
+    const key = String(bankKey || "").trim();
+    const since = Number(scannedAt) || 0;
+    const out = {};
+    if (!key) return out;
+    for (const r of store.listRequests({ status: "handedOut" })) {
+        if (r.bankKey !== key || !r.itemId || !(r.amount > 0) || r.handedOutAt <= since) continue;
+        out[r.itemId] = (out[r.itemId] || 0) + r.amount;
+    }
+    return out;
+}
+
 /** How many confirmed requests of one bank wait for the hand-out. */
 function reservedRequestCount(bankKey) {
     const key = String(bankKey || "").trim();
@@ -35,4 +56,4 @@ function reservedRequestCount(bankKey) {
     return store.listRequests({ status: "confirmed" }).filter((r) => r.bankKey === key && r.itemId).length;
 }
 
-module.exports = { reservedByItem, reservedRequestCount };
+module.exports = { reservedByItem, handedOutSince, reservedRequestCount };

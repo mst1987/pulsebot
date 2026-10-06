@@ -18,6 +18,7 @@ const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/role
 const { guardInteraction } = require("./services/discord/botAccess.js");
 const { runMode } = require("./config/runMode.js");
 const { ensureAppEmojis } = require("./services/discord/appEmojiSync.js");
+const { queueItemEmojiSync } = require("./services/guildbank/itemEmojis.js");
 const linkWatch = require("./services/discord/linkWatch.js");
 const { loadCommandModules, kindOf } = require("./commands/loader.js");
 const { startJobs } = require("./web/http/jobs.js");
@@ -58,6 +59,8 @@ client.on(Events.ClientReady, () => {
     // The spec/class/role icons of the event message (#287): create the missing ones, then
     // read them; text icons until then.
     ensureAppEmojis(client).catch((error) => logger.warn("ensureAppEmojis failed:", error.message));
+    // The guild bank items' icons (#633): whatever changed while the bot was offline.
+    queueItemEmojiSync({ delay: 30 * 1000 });
 });
 
 // Watch the configured log channels for Warcraft-Logs links and offer to evaluate them.

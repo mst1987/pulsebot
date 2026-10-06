@@ -39,8 +39,12 @@ export type GuildBankItem = {
     metaSource: "" | "local" | "wowhead";
     /** Confirmed requests waiting for the hand-out. */
     reserved: number;
-    /** count - reserved - reserve, never below 0. */
+    /** Handed out after the last scan: still in `count` until the next scan, no longer in the bank. */
+    handedOut: number;
+    /** count - reserved - handedOut - reserve, never below 0. */
     available: number;
+    /** The item's application emoji in the bot's selects ("" = none yet, #633). */
+    emojiId: string;
     /** The line it is listed under: category, else Wowhead's class/subclass, "" unknown. */
     group: string;
     /** Wowhead's group alone (what an empty category falls back to). */
@@ -95,6 +99,31 @@ export function setGuildBankItem(key: string, itemId: number, patch: GuildBankIt
 /** Hide or show a whole bank tab; answers the bank's tabs. */
 export function setGuildBankTabHidden(key: string, index: number, hidden: boolean): Promise<{ tabs: GuildBankTab[] }> {
     return send<{ tabs: GuildBankTab[] }>("POST", "/api/guildbank/tab", { key, index, hidden });
+}
+
+/** A raider's request from the stock that still waits: open (for the orga) or confirmed (for the hand-out in game). */
+export type GuildBankRequest = {
+    id: string;
+    itemId: number;
+    item: string;
+    iconUrl: string;
+    amount: number;
+    userId: string;
+    userName: string;
+    /** Who receives it in game ("" = no character in the profile). */
+    characterName: string;
+    realm: string;
+    purpose: string;
+    status: "open" | "confirmed";
+    createdAt: number;
+    /** Who confirmed it. */
+    handledByName: string;
+    handledAt: number;
+};
+
+/** The bank's open and confirmed requests (the "Anfragen" dialog), open first. */
+export function getGuildBankRequests(key: string): Promise<{ requests: GuildBankRequest[] }> {
+    return get<{ requests: GuildBankRequest[] }>(`/api/guildbank/requests?key=${encodeURIComponent(key)}`);
 }
 
 /** An event server a bank can be assigned to. */

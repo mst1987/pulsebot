@@ -8,6 +8,9 @@ import { locale, t } from "../../i18n";
 /** The page's tabs, in the order of the design: what raiders see first. */
 export const BANK_TABS: GuildBankStatus[] = ["give", "show", "hide", "new"];
 
+/** The WoW icon of the "Anfragen" button and dialog (#633). */
+export const REQUESTS_ICON = "inv_misc_bag_10";
+
 export type BankFilter = { tab: GuildBankStatus; category: string; search: string };
 
 export type ItemGroup = { name: string; items: GuildBankItem[] };

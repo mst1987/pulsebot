@@ -16,6 +16,7 @@ vi.mock("../../api", async (orig) => ({
     getGuildBank: vi.fn(),
     setGuildBankItem: vi.fn(),
     setGuildBankTabHidden: vi.fn(),
+    getGuildBankRequests: vi.fn(),
 }));
 
 const KEY = "tbc:spineshatter:die gilde";
@@ -112,6 +113,47 @@ describe("guild bank page", () => {
         await user.click(raid);
         expect(api.setGuildBankTabHidden).toHaveBeenCalledWith(KEY, 3, true);
         await waitFor(() => expect(api.getGuildBank).toHaveBeenCalledTimes(2));
+    });
+
+    it("lists the waiting requests in the 'Anfragen' dialog and reads the bank again when it closes", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getGuildBankRequests).mockResolvedValue({
+            requests: [
+                {
+                    id: "r2", itemId: 2, item: "Glatter Dämmerstein", iconUrl: "", amount: 1, userId: "u2", userName: "Bo", characterName: "",
+                    realm: "", purpose: "", status: "open", createdAt: Date.UTC(2026, 9, 6, 18), handledByName: "", handledAt: 0,
+                },
+                {
+                    id: "r1", itemId: 1, item: "Klobiger lebendiger Rubin", iconUrl: "https://example.test/ruby.jpg", amount: 2, userId: "u1",
+                    userName: "Anna", characterName: "Zibbo", realm: "Spine Shatter", purpose: "Gruul", status: "confirmed",
+                    createdAt: Date.UTC(2026, 9, 6, 17), handledByName: "Arthas", handledAt: 1,
+                },
+            ],
+        });
+        renderPage(<GuildBankPage />, { route: "/guildbank" });
+        await user.click(await screen.findByRole("button", { name: "Anfragen" }));
+        const list = await screen.findByRole("list", { name: "Anfragen" });
+        const rows = within(list).getAllByRole("listitem");
+        expect(rows).toHaveLength(2);
+        expect(within(rows[0]).getByText("1× Glatter Dämmerstein")).toBeInTheDocument();
+        expect(within(rows[0]).getByText("Offen")).toBeInTheDocument();
+        expect(within(rows[1]).getByText("2× Klobiger lebendiger Rubin")).toBeInTheDocument();
+        expect(within(rows[1]).getByText(/^Anna · an Zibbo-SpineShatter · /)).toBeInTheDocument();
+        expect(within(rows[1]).getByText("Wofür: Gruul")).toBeInTheDocument();
+        expect(within(rows[1]).getByText("Vorgemerkt")).toBeInTheDocument();
+        expect(api.getGuildBankRequests).toHaveBeenCalledWith(KEY);
+        // the dialog's close button in its foot (the head has an "X" of the same name)
+        const closers = screen.getAllByRole("button", { name: "Schließen" });
+        await user.click(closers[closers.length - 1]);
+        await waitFor(() => expect(api.getGuildBank).toHaveBeenCalledTimes(2));
+    });
+
+    it("says so when no request waits", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [] });
+        renderPage(<GuildBankPage />, { route: "/guildbank" });
+        await user.click(await screen.findByRole("button", { name: "Anfragen" }));
+        expect(await screen.findByText("Gerade wartet keine Anfrage.")).toBeInTheDocument();
     });
 
     it("lets a reader look but not change", async () => {

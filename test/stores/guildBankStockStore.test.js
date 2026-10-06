@@ -180,4 +180,41 @@ describe("stores/guildBankStockStore", () => {
         expect(bank.items).toEqual([expect.objectContaining({ itemId: 1, count: 0, status: "new", quality: null, reserve: 0 })]);
         expect(store.listBanks()).toHaveLength(1);
     });
+
+    it("knows which offered items have an icon, over every bank, and keeps their emojis (#633)", () => {
+        store.recordScan(scan(), { now: NOW, guildId: "g1" });
+        store.recordScan(scan({ project: "forever", items: [[24027, 3, 1]] }), { now: NOW, guildId: "g1" });
+        const forever = store.listBanks().find((b) => b.gameVersion === "forever").key;
+        store.setItemMeta("tbc", 24027, { name: "Rubin", icon: "inv_ruby" }, { source: "wowhead" });
+        store.setItemMeta("tbc", 22854, { name: "Flask", icon: "inv_flask" }, { source: "wowhead" });
+        store.setItemMeta("forever", 24027, { name: "Rubin", icon: "inv_ruby" }, { source: "wowhead" });
+        expect(store.offeredIcons()).toEqual({});
+        store.setItemSettings(KEY, 24027, { status: "give" });
+        store.setItemSettings(forever, 24027, { status: "give" });
+        store.setItemSettings(KEY, 22854, { status: "show" });
+        store.setItemSettings(KEY, 21877, { status: "give" }); // no icon yet
+        expect(store.offeredIcons()).toEqual({ 24027: "inv_ruby" });
+
+        expect(store.itemEmojis()).toEqual({});
+        store.setItemEmoji(24027, { id: "e1", name: "gb_24027", icon: "inv_ruby", createdAt: NOW });
+        expect(store.itemEmojis()).toEqual({ 24027: { id: "e1", name: "gb_24027", icon: "inv_ruby", createdAt: NOW } });
+        expect(store.getBank(KEY).items.find((it) => it.itemId === 24027).emojiId).toBe("e1");
+        expect(store.getBank(forever).items[0].emojiId).toBe("e1");
+        expect(store.listForServer("g1")[0].items.find((it) => it.itemId === 22854).emojiId).toBe("");
+        expect(store.setItemSettings(KEY, 24027, { reserve: 1 }).item.emojiId).toBe("e1");
+        // a scan keeps them
+        store.recordScan(scan({ scannedAt: 1791000500 }), { now: NOW + 1 });
+        expect(store.itemEmojis()[24027].id).toBe("e1");
+        store.setItemEmoji(24027, null);
+        store.setItemEmoji(0, { id: "x" });
+        expect(store.itemEmojis()).toEqual({});
+    });
+
+    it("reads a hand-edited emoji list defensively", () => {
+        fs.writeFileSync(FILE, JSON.stringify({ banks: [], emojis: { 0: { id: "x" }, 5: {}, 6: { id: "e6", name: "gb_6" }, 7: null } }));
+        expect(store.itemEmojis()).toEqual({ 6: { id: "e6", name: "gb_6", icon: "", createdAt: 0 } });
+        fs.writeFileSync(FILE, JSON.stringify({ banks: [], emojis: ["e1"] }));
+        expect(store.itemEmojis()).toEqual({});
+        expect(store.offeredIcons()).toEqual({});
+    });
 });

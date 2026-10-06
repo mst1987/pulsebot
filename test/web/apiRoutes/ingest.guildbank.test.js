@@ -19,6 +19,7 @@ jest.mock("../../../src/services/guildbank/itemMeta", () => ({
     ...jest.requireActual("../../../src/services/guildbank/itemMeta"),
     queueLookups: jest.fn(() => 0),
 }));
+jest.mock("../../../src/services/guildbank/itemEmojis", () => ({ queueItemEmojiSync: jest.fn() }));
 // Two event servers: a new bank cannot know its own and waits.
 jest.mock("../../../src/services/discord/guildRoles", () => ({
     ...jest.requireActual("../../../src/services/discord/guildRoles"),
@@ -28,6 +29,7 @@ jest.mock("../../../src/services/discord/guildRoles", () => ({
 const { eventGuildIds } = require("../../../src/services/discord/guildRoles");
 const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStore");
 const { queueLookups } = require("../../../src/services/guildbank/itemMeta");
+const { queueItemEmojiSync } = require("../../../src/services/guildbank/itemEmojis");
 const store = require("../../../src/stores/guildBankStockStore");
 const { handle } = require("../../../src/web/http/apiRouter");
 const { GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");
@@ -109,9 +111,13 @@ describe("POST /api/ingest/guildbank", () => {
 
     it("keeps the orga's decisions over the next upload", async () => {
         await upload(scan());
+        // nothing offered yet: no emoji sync
+        expect(queueItemEmojiSync).not.toHaveBeenCalled();
         store.setItemSettings(KEY, 22854, { status: "give", reserve: 5 });
         const res = await upload(scan({ scannedAt: 1791003600, tabs: [{ index: 2, name: "Verbrauch", items: [{ itemId: 22854, count: 12 }] }] }));
         expect(json(res).data).toMatchObject({ status: "updated", newItems: 0, items: 1 });
+        // an item already on "give": its emoji is synced in the background (#633)
+        expect(queueItemEmojiSync).toHaveBeenCalledTimes(1);
         const items = Object.fromEntries(store.getBank(KEY).items.map((i) => [i.itemId, i]));
         expect(items[22854]).toMatchObject({ count: 12, status: "give", reserve: 5 });
         expect(items[21877]).toMatchObject({ count: 0, status: "new" });

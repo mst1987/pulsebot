@@ -3,6 +3,7 @@
 // Auswahl, Fehler auf Englisch.
 const { MessageFlags } = require("discord.js");
 const { answerOf } = require("../../helpers/signupMocks");
+const { cardText } = require("../../helpers/cardText");
 
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -310,7 +311,7 @@ describe("Gildenbank", () => {
         expect(answer.title).toBe("✅ Request sent – the orga will get back to you by DM.");
         expect(answer.description).toBe("**12× Super Mana Potion**\nFor: BT");
         expect(discord.postPayload.mock.calls[0][0]).toBe("900000");
-        expect(discord.postPayload.mock.calls[0][1].embeds[0].title).toBe("🏦 Anfrage von tester");
+        expect(cardText(discord.postPayload.mock.calls[0][1])).toContain("## 12× Super Mana Potion\n<@200000000000000001>");
         expect(bankStore.listRequests()).toEqual([expect.objectContaining({ userId: ANNA, categoryId: "cat1", amount: 12, messageId: "m-bank" })]);
     });
 

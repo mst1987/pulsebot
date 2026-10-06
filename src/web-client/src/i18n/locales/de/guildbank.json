@@ -70,6 +70,19 @@
         "categoryPlaceholderNone": "leer = Sonstiges",
         "wholeNumber": "Bitte eine ganze Zahl ab 0 eingeben."
     },
+    "requests": {
+        "button": "Anfragen",
+        "title": "Anfragen",
+        "hint": "Offene und vorgemerkte Anfragen aus dem Bestand. Bestätigen, Ablehnen und Ausgeben geht auf der Karte im Orga-Kanal im Discord.",
+        "loading": "Lade die Anfragen …",
+        "empty": "Gerade wartet keine Anfrage.",
+        "amountItem": "{amount}× {item}",
+        "to": "an {name}",
+        "purpose": "Wofür: {purpose}",
+        "open": "Offen",
+        "confirmed": "Vorgemerkt",
+        "confirmedBy": "Vorgemerkt von {name}"
+    },
     "tabsDialog": {
         "kicker": "Gildenbank",
         "hint": "Ein ausgeblendeter Bank-Tab zählt nicht zum Bestand: was nur dort liegt, taucht nirgends auf.",
