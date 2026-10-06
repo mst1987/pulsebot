@@ -157,13 +157,97 @@ function setRole(character, role, { by = "" } = {}) {
     return all[key];
 }
 
+// ── Die Ansicht je Raid-Kategorie ────────────────────────────────────────────
+//
+// Welche Filter der Council für eine Kategorie benutzt — Rolle, Tiers, Raids,
+// BiS-Liste und Spielversion. Früher stand das nur im Browser des Lesers
+// (localStorage), und das Addon im Spiel bekam einen anderen Stand als die
+// Seite. Jetzt hält der Server es je Kategorie fest: die Seite liest und
+// schreibt es, GET /api/ingest/council?v=2 rechnet jede Loot-Council-Kategorie
+// mit genau dieser Ansicht (web/loot/councilView.js). Ohne gespeicherte
+// Ansicht gelten die Vorgaben der Seite (VIEW_DEFAULTS).
+
+const VIEWS_FILE = settingsPath("council-views.json");
+
+/** What the page shows for a category nobody set a view for. */
+const VIEW_DEFAULTS = Object.freeze({ role: "caster", tiers: [], contents: [], bisTier: "", version: "" });
+// "" = every role ("Alle" on the page).
+const VIEW_ROLES = ["caster", "healer", ""];
+const ID_RE = /^[a-z0-9_-]{1,32}$/i;
+
+const idList = (raw) => [...new Set((Array.isArray(raw) ? raw : [])
+    .map((v) => String(v || "").trim())
+    .filter((v) => ID_RE.test(v)))].slice(0, 32);
+
+/**
+ * A view as the page sends it, cleaned: unknown roles fall back to the default,
+ * ids are short plain strings, `version` is "" (main version), "all" or an id.
+ */
+function normalizeView(raw) {
+    const v = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const role = typeof v.role === "string" && VIEW_ROLES.includes(v.role.trim()) ? v.role.trim() : VIEW_DEFAULTS.role;
+    const bisTier = String(v.bisTier || "").trim();
+    const version = String(v.version || "").trim();
+    return {
+        role,
+        tiers: idList(v.tiers),
+        contents: idList(v.contents),
+        bisTier: ID_RE.test(bisTier) ? bisTier : "",
+        version: ID_RE.test(version) ? version : "",
+    };
+}
+
+const viewsStore = createJsonStore({
+    file: VIEWS_FILE,
+    defaults: () => ({}),
+    normalize: (data) => {
+        const raw = data && typeof data.views === "object" && !Array.isArray(data.views) ? data.views : {};
+        const out = {};
+        for (const [catId, entry] of Object.entries(raw)) {
+            const key = String(catId).trim();
+            if (!key || !entry || typeof entry !== "object") continue;
+            out[key] = { ...normalizeView(entry), at: Number(entry.at) || 0, by: String(entry.by || "") };
+        }
+        return out;
+    },
+});
+
+/** Every stored view as `{ [categoryId]: { role, tiers, contents, bisTier, version, at, by } }`. */
+function listViews() {
+    return viewsStore.read();
+}
+
+/**
+ * The view a category's council uses: the stored one, else VIEW_DEFAULTS.
+ * `stored` says which, so a reader can tell "never set" from "set to the defaults".
+ */
+function viewFor(categoryId) {
+    const key = String(categoryId || "").trim();
+    const entry = key ? viewsStore.read()[key] : null;
+    if (!entry) return { ...VIEW_DEFAULTS, tiers: [], contents: [], stored: false };
+    const { role, tiers, contents, bisTier, version } = entry;
+    return { role, tiers, contents, bisTier, version, stored: true };
+}
+
+/** Store a category's view. Returns the stored entry, or null for a blank category. */
+function setView(categoryId, view, { by = "" } = {}) {
+    const key = String(categoryId || "").trim();
+    if (!key) return null;
+    const all = viewsStore.read();
+    all[key] = { ...normalizeView(view), at: Date.now(), by: String(by || "").trim() };
+    viewsStore.write({ views: all });
+    return all[key];
+}
+
 /** Drop everything — tests only. */
 function reset() {
     store.remove();
     rolesStore.remove();
+    viewsStore.remove();
 }
 
 module.exports = {
     listExcluded, isExcluded, excludedKeys, exclude, include, reset, EXCLUDED_FILE,
     listRoles, plannedRole, plannedRoles, setRole, ROLES_FILE,
+    listViews, viewFor, setView, normalizeView, VIEW_DEFAULTS, VIEWS_FILE,
 };

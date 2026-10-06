@@ -350,6 +350,10 @@
         "bisAutomatic": "BiS-Liste automatisch",
         "bisTier": "BiS-Liste {tier}",
         "categoryEmpty": "Kategorie leer",
+        "game": "Gilt auch fürs Spiel",
+        "gameTip": "Diese Filter gelten für {category} auch im Addon im Spiel.",
+        "gameTipSub": "Rolle, Content, BiS-Liste und Spielversion werden für die ganze Orga gespeichert — das Loot-Council im Spiel zeigt nach dem nächsten Sync genau diese Liste.",
+        "gameTipReadOnly": "Ändern braucht Schreibrecht im Loot-Council; was du hier umstellst, gilt nur für deine Ansicht.",
         "hidden": "{count} ausgeblendet",
         "gearTip": "Gear-Stand",
         "gearArmory": {
