@@ -45,7 +45,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const discord = require("../discord/discord");
 const { buildClasses, ROLE_LABELS, ROLE_LABELS_EN } = require("../../config/gameVersions/classes");
 const { tr, serviceText, specLabel: specLabelIn, normalizeLang } = require("../../utils/i18n/botText");
-const { serverLang, langOf } = require("../discord/botLanguage");
+const { langOf, eventLang } = require("../discord/botLanguage");
 const {
     appEmojiMap, loadAppEmojis, emojiText, specEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName,
     roleEmojiName, emojiStyleOf,
@@ -377,7 +377,7 @@ const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.
 async function payloadFor(event, approved) {
     await loadAppEmojis(discord.getClient());
     return buildSetupMessage(event, approved, {
-        emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved), bench: benchPosted(event), lang: serverLang(),
+        emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved), bench: benchPosted(event), lang: eventLang(event),
     });
 }
 

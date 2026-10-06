@@ -47,6 +47,9 @@ export type CategorySettings = {
     categorySignupSource?: Record<string, EventSource>;
     signupSourceDefault?: EventSource;
     categorySetupDms?: Record<string, boolean>;
+    /** The language of the category's posts: "de" / "en", missing or "" = the server language. */
+    categoryLanguage?: Record<string, string>;
+    onLanguage?: (categoryId: string, lang: string) => void;
     categoryDiscordEvent?: Record<string, boolean>;
     categoryVoiceChannel?: Record<string, string>;
     voiceChannels?: { id: string; name: string; category?: string }[];
@@ -82,6 +85,13 @@ const lootTools = () => ["gargul", "rclc", ""].map((value) => ({ value, label: l
 const lootSystems = () => ["", "softres", "lootcouncil", "gdkp", "other"].map((value) => ({ value, label: lootSystemLabel(value) }));
 
 // "Beim Anlegen ankündigen" (#306) as one control: off, or where the ping goes.
+// The language of the category's posts in the channel: the server's, or its own (PuGs in English).
+const languageModes = () => [
+    { value: "", label: translate("settings.categories.languageServer") },
+    { value: "de", label: "Deutsch" },
+    { value: "en", label: "English" },
+];
+
 const announceModes = () => [
     { value: "", label: translate("settings.categories.announceMode.off") },
     { value: "event", label: translate("settings.categories.announceMode.event") },
@@ -225,7 +235,15 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
 
     function messageFields(): Field[] {
         const out: Field[] = [];
-        const { onAnnounce, onDiscordEvent, onMessageLook, onVoiceChannel } = s;
+        const { onAnnounce, onDiscordEvent, onMessageLook, onVoiceChannel, onLanguage } = s;
+        if (onLanguage) {
+            out.push({ key: "language", node: (
+                <CategoryField label={t("settings.categories.language")} sub={t("settings.categories.languageSub")}>
+                    <Segment ariaLabel={t("settings.categories.languageAria", { name })} value={(s.categoryLanguage || {})[cat.id] || ""}
+                        onChange={(v) => onLanguage(cat.id, v)} options={languageModes()} />
+                </CategoryField>
+            ) });
+        }
         if (onAnnounce) {
             const entry = (s.categoryAnnounce || {})[cat.id];
             out.push({ key: "announce", node: (

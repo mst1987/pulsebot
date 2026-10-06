@@ -7,7 +7,12 @@ jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(), setEve
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []), onSignupsChanged: jest.fn() }));
 jest.mock("../../../src/services/discord/discord", () => ({ getClient: jest.fn(() => null) }));
 // The server language: English here (the old assertions), German where a test says so.
-jest.mock("../../../src/services/discord/botLanguage", () => ({ ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en") }));
+jest.mock("../../../src/services/discord/botLanguage", () => {
+    const mocked = { ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en") };
+    // no category language in these tests: an event writes in the (mocked) server language
+    mocked.eventLang = jest.fn(() => mocked.serverLang());
+    return mocked;
+});
 
 const eventStore = require("../../../src/stores/eventStore");
 const signupStore = require("../../../src/stores/signupStore");

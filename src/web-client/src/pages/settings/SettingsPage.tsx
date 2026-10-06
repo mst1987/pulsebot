@@ -143,6 +143,7 @@ export default function SettingsPage() {
                 categorySignupSource: draft.categorySignupSource,
                 // Merged on the server: a category switched off is sent as false.
                 categorySetupDms: draft.categorySetupDms,
+                categoryLanguage: draft.categoryLanguage,
                 // #305: both merged on the server — a category switched off is
                 // sent as false, a cleared voice channel as "".
                 categoryDiscordEvent: draft.categoryDiscordEvent,
@@ -264,6 +265,7 @@ export default function SettingsPage() {
                     categorySignupSource={draft.categorySignupSource}
                     signupSourceDefault={draft.signupSourceDefault}
                     categorySetupDms={draft.categorySetupDms}
+                    categoryLanguage={draft.categoryLanguage}
                     categoryDiscordEvent={draft.categoryDiscordEvent}
                     categoryVoiceChannel={draft.categoryVoiceChannel}
                     voiceChannels={data.voiceChannels || []}
@@ -284,6 +286,7 @@ export default function SettingsPage() {
                     onLootTool={(id, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [id]: tool } })}
                     onSignupSource={(id, source) => patch({ categorySignupSource: { ...draft.categorySignupSource, [id]: source } })}
                     onSetupDms={(id, on) => patch({ categorySetupDms: { ...draft.categorySetupDms, [id]: on } })}
+                    onLanguage={(id, lang) => patch({ categoryLanguage: { ...draft.categoryLanguage, [id]: lang } })}
                     onDiscordEvent={(id, on) => patch({ categoryDiscordEvent: { ...draft.categoryDiscordEvent, [id]: on } })}
                     onVoiceChannel={(id, channelId) => patch({ categoryVoiceChannel: { ...draft.categoryVoiceChannel, [id]: channelId } })}
                     onAnnounce={(id, mode) => patch({

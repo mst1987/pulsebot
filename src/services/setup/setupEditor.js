@@ -38,7 +38,7 @@ const { rulesForEvent } = require("../events/mainVersion");
 const { str } = require("../../utils/text");
 const { approvedSetupOf, pingTextOf, benchAndPool, confirmationsFor } = require("./setupCore");
 const { suggestSearch } = require("./raidSearch");
-const { serverLang } = require("../discord/botLanguage");
+const { eventLang } = require("../discord/botLanguage");
 
 
 function fail(code, error) {
@@ -605,7 +605,7 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         signupCount: signups.filter((s) => s.status !== "absence").length,
         absent: signups.filter((s) => s.status === "absence").length,
         avoidPairs,
-        pingText: pingTextOf(event, serverLang()),
+        pingText: pingTextOf(event, eventLang(event)),
         // Confirm/Cancel by user id — the raiders' clicks and the orga's own marks (setupConfirm.js)
         confirmations: confirmationsFor(event, approvedSetupOf(event)),
         // raiders marked as an extra tank / healer, by user id

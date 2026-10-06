@@ -12,7 +12,7 @@ const raidplanStore = require("../../stores/raidplanStore");
 const { getRaidplanPost, markRaidplanPosted } = require("../../stores/raidplanPostStore");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
-const { serverLang } = require("../discord/botLanguage");
+const { serverLang, eventLang } = require("../discord/botLanguage");
 const { embedColor } = require("../events/embedLook");
 const { tr } = require("../../utils/i18n/botText");
 
@@ -84,7 +84,7 @@ async function postRaidplanLink({ event, message, userId = "" }) {
     const wasPublished = plan.status === "published" && !!plan.publicToken;
     const current = wasPublished ? plan : raidplanStore.setPublished(event.id, true, { userId }).plan;
     const url = `${base}/p/${current.publicToken}`;
-    const opts = linkMessage({ url, title: event.title, startTime: event.startTime, message: text, color: colorOf(event) });
+    const opts = linkMessage({ url, title: event.title, startTime: event.startTime, message: text, color: colorOf(event), lang: eventLang(event) });
 
     const hadPost = !!(before && before.channelId && before.messageId);
     let posted;
@@ -147,10 +147,10 @@ async function syncRaidplanPost(event) {
     const post = getRaidplanPost(event && event.id);
     if (!post || !post.channelId || !post.messageId) return "none";
     const url = linkCheck.webTarget("raidplan", event.id);
-    const base = { title: event.title, startTime: event.startTime, color: colorOf(event) };
+    const base = { title: event.title, startTime: event.startTime, color: colorOf(event), lang: eventLang(event) };
     const opts = url
         ? linkMessage({ ...base, url, message: post.message })
-        : linkMessage({ ...base, url: "", message: tr(serverLang(), NOT_SHARED) });
+        : linkMessage({ ...base, url: "", message: tr(base.lang, NOT_SHARED) });
     try {
         await discord.editLink(post.channelId, post.messageId, opts);
         return url ? "linked" : "unlinked";

@@ -21,7 +21,7 @@ const { emojiFor, specEmojiName, classEmojiName, roleUiEmojiName } = require("..
 const { rulesForEvent } = require("../events/mainVersion");
 const { fail } = require("../../web/http/apiResult");
 const { tr, specLabel, classLabel, normalizeLang } = require("../../utils/i18n/botText");
-const { serverLang } = require("../discord/botLanguage");
+const { eventLang } = require("../discord/botLanguage");
 const { shortWhen } = require("../../utils/time");
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
@@ -116,7 +116,7 @@ function buildText(event, gap, specs, lang = "de") {
  *   text: string }}  null without a setup
  * `lang`: the language of `text`, the server language when left out.
  */
-function suggestSearch(event, { lang = serverLang() } = {}) {
+function suggestSearch(event, { lang = eventLang(event) } = {}) {
     const setup = event && event.setup;
     if (!setup) return null;
     const rules = rulesOf(event);
@@ -162,7 +162,7 @@ function suggestSearch(event, { lang = serverLang() } = {}) {
  * @param {{ lang?: string }} opts the language, the server language when left out
  * @returns {{ text: string } | { error: object }}
  */
-function textForNeeds(event, needs, { lang = serverLang() } = {}) {
+function textForNeeds(event, needs, { lang = eventLang(event) } = {}) {
     if (!event || !event.setup) return fail(400, "no_setup", "Es gibt noch kein Setup.");
     const rules = rulesOf(event);
     const specs = specTable(rules);

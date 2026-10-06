@@ -22,7 +22,7 @@ const { appEmojiMap, emojiText, statusEmojiName } = require("../discord/appEmoji
 const { messageUrl } = require("../events/eventAnnounce");
 const { embedAccentColor } = require("../../config/variables");
 const { isSnowflake } = require("../../utils/ids");
-const { serverLang } = require("../discord/botLanguage");
+const { eventLang } = require("../discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 
 const NOTE_MODES = ["required", "optional", "none"];
@@ -130,7 +130,7 @@ async function postSignupNote(event, signup, previous, { config = getConfig(), b
     if (noteMode(event && event.categoryId, config) === "none") return { posted: false, skipped: "off" };
     const channelId = noteChannelFor(event && event.categoryId, config, { reachable: discord.channelVisible });
     if (!channelId) return { posted: false, skipped: "no_channel" };
-    const post = buildNotePost(event, signup, { emojis: appEmojiMap(), lang: serverLang(config) });
+    const post = buildNotePost(event, signup, { emojis: appEmojiMap(), lang: eventLang(event, config) });
     // A category's own channel that refuses the post (gone, no rights) falls
     // back to the default channel, so the message is not lost silently.
     const fallback = noteChannelId(config);
