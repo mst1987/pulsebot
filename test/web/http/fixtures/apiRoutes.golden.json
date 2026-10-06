@@ -235,5 +235,9 @@
   "PUT /api/kader/assignments",
   "POST /api/kader/assignments/reset",
   "GET /api/settings/raidhelper-sync",
-  "POST /api/settings/raidhelper-sync"
+  "POST /api/settings/raidhelper-sync",
+  "GET /api/settings/guild-banks",
+  "POST /api/settings/guild-banks/assign",
+  "POST /api/settings/guild-banks/delete",
+  "POST /api/ingest/guildbank"
 ]

@@ -1,4 +1,6 @@
-// POST /api/ingest/loot — the one endpoint the loot-sync companion tool talks to.
+// POST /api/ingest/loot — the main endpoint the loot-sync companion tool talks to
+// (plus /api/ingest/raids for its raid list and /api/ingest/guildbank for guild
+// bank scans).
 //
 // Unlike every other /api/* route this one has no Discord session behind it: the
 // uploader runs unattended on a raidleader's PC and authenticates with a bearer
@@ -20,6 +22,9 @@ const { linkItemsForImport } = require("../../services/loot/lootVersion");
 const { bestDayMatch } = require("../loot/lootEventMatch");
 const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestTokenStore");
 const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
+const { ingestScan } = require("../../services/guildbank/guildBankStock");
+const { queueLookups } = require("../../services/guildbank/itemMeta");
+const { GuildBankParseError } = require("../../utils/guildbank/guildBankScan");
 
 /** The token behind the request, or null after sending the 401. */
 function requireToken(req, res) {
@@ -263,10 +268,48 @@ async function ingestRaidStatus(req, res) {
     ok(res, { raids });
 }
 
+/**
+ * POST /api/ingest/guildbank — a guild bank scan from the sync tool
+ * (`eventhelper-guildbank` v1, utils/guildbank/guildBankScan.js), same
+ * bearer-token auth as the loot upload. The scan replaces the bank's stock;
+ * what the orga decided per item stays (stores/guildBankStockStore.js). Item
+ * names are looked up on Wowhead only after the answer went out.
+ */
+async function ingestGuildBank(req, res) {
+    const token = requireToken(req, res);
+    if (!token) return;
+
+    const body = await readJsonBody(req);
+    let result;
+    try {
+        result = ingestScan(body, { token });
+    } catch (e) {
+        if (e instanceof GuildBankParseError) return error(res, 400, "parse_failed", e.message);
+        throw e;
+    }
+    touchToken(token.id);
+
+    const { scan, status, bank, newItems, lookups } = result;
+    ok(res, {
+        status,
+        bankKey: bank.key,
+        gameVersion: bank.gameVersion,
+        guild: bank.guild,
+        realm: bank.realm,
+        pending: bank.pending,
+        scannedAt: bank.scannedAt,
+        tabs: scan.tabs.length,
+        items: Object.keys(scan.items).length,
+        newItems: newItems.length,
+    }, 201);
+    if (lookups.length) queueLookups(bank.gameVersion, lookups);
+}
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "POST", path: "/api/ingest/loot", handler: ingestLoot, auth: "token" },
     { method: "POST", path: "/api/ingest/raids", handler: ingestRaidStatus, auth: "token" },
+    { method: "POST", path: "/api/ingest/guildbank", handler: ingestGuildBank, auth: "token" },
 ];
 
-module.exports = { ingestLoot, ingestRaidStatus, computeRaidStatus, routes };
+module.exports = { ingestLoot, ingestRaidStatus, ingestGuildBank, computeRaidStatus, routes };
