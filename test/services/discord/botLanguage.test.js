@@ -13,6 +13,7 @@ afterAll(() => userPrefs.useFile(null));
 beforeEach(() => {
     mockConfig = {};
     userPrefs.clearLang(ANNA);
+    userPrefs.useFile(tempStoreFile("eh-bot-language-" + Math.random().toString(36).slice(2) + ".json"));
 });
 
 describe("services/discord/botLanguage", () => {
@@ -31,6 +32,32 @@ describe("services/discord/botLanguage", () => {
         expect(botLanguage.langOf(ANNA)).toBe("de");
         expect(botLanguage.langOfInteraction({ user: { id: ANNA } })).toBe("de");
         expect(botLanguage.langOfInteraction(null)).toBe("en");
+    });
+});
+
+describe("client language", () => {
+    const withLocale = (locale) => ({ user: { id: ANNA }, locale });
+
+    it("langOf: own choice > stored Discord language > server language", () => {
+        mockConfig = { botLanguage: "en" };
+        expect(botLanguage.langOf(ANNA)).toBe("en");
+        userPrefs.noteClientLang(ANNA, "de");
+        expect(botLanguage.langOf(ANNA)).toBe("de");
+        userPrefs.setLang(ANNA, "en");
+        expect(botLanguage.langOf(ANNA)).toBe("en");
+        userPrefs.clearLang(ANNA);
+        expect(botLanguage.langOf(ANNA)).toBe("de");
+    });
+
+    it("langOfInteraction: own choice > this interaction's locale > stored language > server language", () => {
+        mockConfig = { botLanguage: "en" };
+        expect(botLanguage.langOfInteraction(withLocale(undefined))).toBe("en");
+        expect(botLanguage.langOfInteraction(withLocale("de"))).toBe("de");
+        userPrefs.noteClientLang(ANNA, "de");
+        expect(botLanguage.langOfInteraction(withLocale(undefined))).toBe("de");
+        expect(botLanguage.langOfInteraction(withLocale("fr"))).toBe("en");
+        userPrefs.setLang(ANNA, "de");
+        expect(botLanguage.langOfInteraction(withLocale("en-US"))).toBe("de");
     });
 });
 
