@@ -31,12 +31,12 @@ const { myRaidPayload, myReportPayload } = require("../../utils/signup/organizer
 const { appEmojiMap } = require("../../services/discord/appEmojis");
 const { mainVersionFor, visibleVersions } = require("../../services/events/mainVersion");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
-const { parseGermanDate } = require("../../utils/time");
+const { parseDayRange } = require("../../utils/time");
 const { tr, serviceText } = require("../../utils/i18n/botText");
 const { answerPayload, answerUpdate } = require("../../utils/signup/signupReply");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const {
-    PREFIX, createSession, getSession, endSession, parseId, periodModal, characterOptions, defaultCharacter,
+    PREFIX, createSession, getSession, saveSession, endSession, parseId, periodModal, characterOptions, defaultCharacter,
     pickerPayload, listPayload, savedPayload,
 } = require("../../utils/signup/availabilityDialog");
 const { asEphemeral } = require("../../utils/discord/card");
@@ -60,6 +60,12 @@ function noCharacterPayload(lang) {
     return answerPayload(tr(lang, "Your profile has no character with a usable spec for these raids yet – add one first."), { lang, components: [link] });
 }
 
+/** "Try again": the same button as the panel's, so a wrong date is one click from the modal again. */
+function retryButton(kind, categoryId, lang) {
+    return new ButtonBuilder().setCustomId(`${PREFIX}:${kind === "absence" ? "a" : "p"}:${categoryId || ""}`)
+        .setLabel(tr(lang, "Try again")).setEmoji("🔁").setStyle(ButtonStyle.Primary);
+}
+
 /** The submitted period modal: check it, then the picker in a fresh session. */
 async function onModal(interaction, kind, categoryId, lang) {
     const uid = interaction.user.id;
@@ -73,9 +79,14 @@ async function onModal(interaction, kind, categoryId, lang) {
     };
     const fromText = read("from");
     const toText = read("to");
-    const from = parseGermanDate(fromText);
-    const to = toText ? parseGermanDate(toText) : from;
-    const input = { kind, from, to, categoryId, comment: kind === "absence" ? read("reason") : "" };
+    // one field may carry the whole period ("24.10.-31.10."); an end without a year before the start is next year's
+    const period = parseDayRange(toText ? `${fromText} bis ${toText}` : fromText);
+    if (!period) {
+        const wrong = parseDayRange(fromText) ? toText : fromText;
+        const text = tr(lang, "I could not read **{text}** as a date. Write it like **24.10.**, **24.10.2026**, **24 Oct** or a whole period like **24.10.-31.10.**", { text: wrong || "–" });
+        return interaction.reply(answerPayload(`⚠️ ${text}`, { lang, components: [retryButton(kind, categoryId, lang)] }));
+    }
+    const input = { kind, from: period.from, to: period.to, categoryId, comment: kind === "absence" ? read("reason") : "" };
     let pick = null;
     if (kind === "presence") {
         const versions = versionsFor(categoryId, config);
@@ -84,8 +95,10 @@ async function onModal(interaction, kind, categoryId, lang) {
         Object.assign(input, { character: pick.key, spec: pick.spec });
     }
     const checked = availability.checkInput(uid, input);
-    if (checked.error) return interaction.reply(answerPayload(`⚠️ ${serviceText(lang, checked.error)}`, { lang }));
-    const session = { ...checked.value, characterKey: pick ? pick.key : "" };
+    if (checked.error) return interaction.reply(answerPayload(`⚠️ ${serviceText(lang, checked.error)}`, { lang, components: [retryButton(kind, categoryId, lang)] }));
+    // every category (/availability): the raids of categories the raider is no raider of are not offered at all
+    const hidden = categoryId ? [] : await availability.foreignRaids(uid, checked.value, { config });
+    const session = { ...checked.value, characterKey: pick ? pick.key : "", hidden };
     const token = createSession(uid, session);
     return ephemeral(interaction, picker(token, getSession(token, uid), config, lang));
 }
@@ -198,8 +211,14 @@ function myReport(userId, lang) {
     });
 }
 
+/** The raids the picker offers: those of the period, without the ones of categories the raider is no raider of (session.hidden). */
+function offeredRaids(session, config) {
+    const hidden = new Set(session.hidden || []);
+    return availability.raidsInRange(session, { config }).filter((e) => !hidden.has(e.id));
+}
+
 function picker(token, session, config, lang, notice = "") {
-    const raids = availability.raidsInRange(session, { config });
+    const raids = offeredRaids(session, config);
     const versions = versionsFor(session.categoryId, config);
     return pickerPayload(token, session, raids, { profile: profiles.getProfile(session.userId), versions, notice, lang });
 }
@@ -223,18 +242,22 @@ async function onPicker(interaction, token, action, lang) {
             Object.assign(session, { character: option.character, characterKey: option.key, spec: option.spec, versionId: option.versionId });
             // another game version has other raids: start from all of them again
             if (changedVersion) session.selected = null;
+            saveSession(token, session);
         }
         return interaction.update(picker(token, session, config, lang));
     }
     if (action === "r") {
         session.selected = (interaction.values || []).map(String);
+        saveSession(token, session);
         return interaction.update(picker(token, session, config, lang));
     }
     if (action === "save") {
         await interaction.deferUpdate();
         const input = { ...session, character: session.characterKey || session.character };
-        const result = await availability.createEntry(uid, input, { eventIds: session.selected || undefined, config });
-        if (result.error) return interaction.editReply(picker(token, session, config, lang, `⚠️ ${result.error}`));
+        // nothing picked by hand = every raid offered (the hidden ones of other categories stay out)
+        const eventIds = session.selected || ((session.hidden || []).length ? offeredRaids(session, config).map((e) => e.id) : undefined);
+        const result = await availability.createEntry(uid, input, { eventIds, config });
+        if (result.error) return interaction.editReply(picker(token, session, config, lang, `⚠️ ${serviceText(lang, result.error)}`));
         endSession(token);
         const summary = availability.entrySummary(result.entry, result.results, lang);
         return interaction.editReply(savedPayload(summary, { kind: result.entry.kind, dm: result.dm, lang }));

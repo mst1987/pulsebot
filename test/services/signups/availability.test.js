@@ -163,6 +163,42 @@ describe("createEntry – Abwesenheit", () => {
     });
 });
 
+describe("Abwesenheit und Raider-Rolle", () => {
+    const WITHOUT_ROLE = ["r-other"];
+
+    beforeEach(() => {
+        mockConfig = { botLanguage: "en", categoryRoles: { cat1: ["r-raider"] } };
+        discord.memberRoleIds.mockImplementation(async () => WITHOUT_ROLE);
+    });
+    afterEach(() => discord.memberRoleIds.mockImplementation(async () => null));
+
+    it("signs off at a category's panel even without the raider role — saying \"I am away\" needs none", async () => {
+        const res = await availability.createEntry(ANNA, { kind: "absence", from: today, to: dayPlus(5), categoryId: "cat1" }, { now: NOW });
+        expect(res.results.map((r) => [r.eventId, r.ok])).toEqual([["eh-a", true], ["eh-b", true]]);
+        expect(mockSignups.get(`eh-a/${ANNA}`)).toMatchObject({ status: "absence" });
+    });
+
+    it("leaves the raids of categories the raider is no raider of quietly alone for an absence of every category", async () => {
+        mockEvents.set("eh-open", raid("eh-open", 3, { categoryId: "cat2" }));
+        const res = await availability.createEntry(ANNA, { kind: "absence", from: today, to: dayPlus(5) }, { now: NOW });
+        expect(res.results.map((r) => [r.eventId, r.ok, r.skipped || ""])).toEqual([["eh-a", false, "not_raider"], ["eh-open", true, ""], ["eh-b", false, "not_raider"]]);
+        // not a word about them in the DM: they were never the raider's raids
+        const dm = dmText(discord.sendDirectMessage.mock.calls[0]).description;
+        expect(dm).toContain("eh-open");
+        expect(dm).not.toContain("eh-a");
+    });
+
+    it("names those raids up front, so the picker can leave them out", async () => {
+        mockEvents.set("eh-open", raid("eh-open", 3, { categoryId: "cat2" }));
+        // a raid already signed up for stays the raider's
+        mockSignups.set(`eh-b/${ANNA}`, { userId: ANNA, status: "signed", character: "Nerathil", spec: "Mage-Arcane", characters: [] });
+        expect(await availability.foreignRaids(ANNA, { kind: "absence", from: today, to: dayPlus(5) }, { now: NOW })).toEqual(["eh-a"]);
+        // roles that cannot be read keep everything
+        discord.memberRoleIds.mockImplementation(async () => null);
+        expect(await availability.foreignRaids(ANNA, { kind: "absence", from: today, to: dayPlus(5) }, { now: NOW })).toEqual([]);
+    });
+});
+
 describe("createEntry – Anwesenheit", () => {
     it("meldet mit Charakter · Spec als Dabei an, aber nie über eine bestehende Anmeldung", async () => {
         mockSignups.set(`eh-b/${ANNA}`, { userId: ANNA, status: "tentative", character: "Nerathil", spec: "Mage-Arcane", characters: [{ character: "Nerathil", spec: "Mage-Arcane", status: "tentative" }] });

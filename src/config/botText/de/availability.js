@@ -38,8 +38,12 @@ module.exports = {
     "Open evaluation": "Auswertung öffnen",
     "My profile": "Mein Profil",
     // modal
-    "From (day)": "Von (Tag)",
-    "e.g. 24.10. or 24.10.2026": "z. B. 24.10. oder 24.10.2026",
+    "From (day, or the whole period)": "Von (Tag – oder gleich der ganze Zeitraum)",
+    "e.g. 24.10. or 24.10.-31.10.": "z. B. 24.10. oder 24.10.-31.10.",
+    // a period that could not be read: what was typed, examples, and a button to try again
+    "I could not read **{text}** as a date. Write it like **24.10.**, **24.10.2026**, **24 Oct** or a whole period like **24.10.-31.10.**":
+        "**{text}** kann ich nicht als Datum lesen. Schreib es z. B. als **24.10.**, **24.10.2026**, **24. Okt** oder gleich als Zeitraum **24.10.-31.10.**",
+    "Try again": "Nochmal eingeben",
     "To (day, empty = the same day)": "Bis (Tag, leer = derselbe Tag)",
     "e.g. 31.10.": "z. B. 31.10.",
     "Reason (optional, the raid lead sees it)": "Grund (optional, sieht die Raidleitung)",

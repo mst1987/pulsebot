@@ -30,7 +30,9 @@ Technik: [signups.md](signups.md), [bot-commands.md](bot-commands.md)
 - **Ab- und Anwesenheit:** Mit `/availability` oder den Knöpfen in der Raid-Zentrale trägst du einen Zeitraum ein:
   - **Abwesend eintragen** (Von, Bis, optional ein Grund): Du wirst von den Raids in dieser Zeit abgemeldet, auch wenn du schon angemeldet warst.
   - **Dabei eintragen** (Von, Bis, dann Charakter und Spec): Du wirst für die Raids in dieser Zeit als „Dabei" angemeldet. Eine bestehende An- oder Abmeldung wird dabei nie überschrieben.
-  - Vor dem Speichern siehst du die Raids des Zeitraums und kannst einzelne abwählen.
+  - Das Datum darfst du schreiben, wie du magst: `24.10.`, `24.10`, `24.10.2026`, `24/10`, `24. Okt`, `Oct 24`, `heute`, `morgen` – oder gleich den ganzen Zeitraum ins Von-Feld, z. B. `24.10.-31.10.` oder `28.12. bis 3.1.` Versteht der Bot es nicht, sagt er dir, was er nicht lesen konnte, und mit „Nochmal eingeben“ bist du sofort wieder im Fenster.
+  - Abwesend eintragen geht auch ohne Raider-Rolle und ohne Charaktere im Profil. Mit `/availability` (alle Kategorien) bleiben Raids von Kategorien außen vor, in denen du kein Raider bist.
+  - Vor dem Speichern siehst du die Raids des Zeitraums und kannst einzelne abwählen. Die Auswahl bleibt zwei Stunden offen, auch wenn der Bot zwischendurch neu startet.
   - Raids, die später in diesem Zeitraum angelegt werden, folgen automatisch.
   - Für jeden Raid, für den der Bot dich an- oder abmeldet, bekommst du eine DM.
   - **Meine Einträge** zeigt deine Einträge. Dort löschst du einen; die An- und Abmeldungen, die er schon gemacht hat, bleiben.

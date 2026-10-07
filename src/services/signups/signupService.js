@@ -500,7 +500,7 @@ function requestedCharacters(input, previous) {
  * learns it right there, not from the roster.
  * @returns {Promise<{ signup?: object, event?: object, waitlisted?: boolean, locked?: boolean, notice?: string, error?: string, code?: string }>}
  */
-async function submitSignup(eventId, userId, input = {}, { byOrga = false, offProfile = false, now = Date.now(), roleIds, config } = {}) {
+async function submitSignup(eventId, userId, input = {}, { byOrga = false, offProfile = false, now = Date.now(), roleIds, config, roleCheck = true } = {}) {
     const uid = String(userId || "").trim();
     if (!uid) return fail("bad_request", "Kein Nutzer.");
     if (!isOwnEventId(eventId)) {
@@ -513,7 +513,8 @@ async function submitSignup(eventId, userId, input = {}, { byOrga = false, offPr
     if (archive) return fail("archived", `Dieser Raid ist archiviert (${archive.label} ist ausgeblendet) – Anmeldungen sind geschlossen.`);
     const profile = profiles.getProfile(uid);
     const previous = signupStore.getSignup(event.id, uid);
-    const access = await checkRaiderRole(event, uid, { byOrga, previous, roleIds, config });
+    // `roleCheck: false`: an absence entered at a category's panel (availability.js) - saying "I am away" needs no raider role
+    const access = roleCheck ? await checkRaiderRole(event, uid, { byOrga, previous, roleIds, config }) : { ok: true };
     if (access.error) return access;
     const checked = validateSignup(event, input, { profile, previous, byOrga, offProfile: byOrga && offProfile, now });
     if (checked.error) return checked;
