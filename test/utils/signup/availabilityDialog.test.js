@@ -1,17 +1,23 @@
 // Die Discord-Bausteine der Ab-/Anwesenheiten (src/utils/signup/availabilityDialog.js):
 // customIds, Panel, Modal, Auswahl, Liste, Sitzungen.
 const profiles = require("../../../src/stores/raiderProfileStore");
+const sessionStore = require("../../../src/stores/availabilitySessionStore");
 const dialog = require("../../../src/utils/signup/availabilityDialog");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 const ANNA = "200000000000000001";
+const SESSIONS_FILE = tempStoreFile("eh-availability-dialog-sessions.json");
 const embedOf = (payload) => payload.embeds[0].data || payload.embeds[0];
 const ids = (payload) => payload.components.flatMap((r) => r.components.map((c) => c.data.custom_id));
 
-beforeAll(() => profiles.useFile(tempStoreFile("eh-availability-dialog.json")));
+beforeAll(() => {
+    profiles.useFile(tempStoreFile("eh-availability-dialog.json"));
+    sessionStore.useFile(SESSIONS_FILE);
+});
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);
+    sessionStore.useFile(null);
 });
 beforeEach(() => profiles.reset());
 
@@ -22,13 +28,28 @@ describe("customIds", () => {
         expect(dialog.parseId("availability:0a1b2c3d:save")).toEqual({ token: "0a1b2c3d", action: "save", categoryId: "" });
     });
 
-    it("hält Sitzungen nur für den Raider, der sie begonnen hat, und nur 30 Minuten", () => {
+    it("hält Sitzungen nur für den Raider, der sie begonnen hat, und nur zwei Stunden", () => {
         const token = dialog.createSession(ANNA, { kind: "absence" }, 1000);
         expect(dialog.getSession(token, "someone", 1000)).toBeNull();
         expect(dialog.getSession(token, ANNA, 2000)).toMatchObject({ kind: "absence", selected: null });
-        expect(dialog.getSession(token, ANNA, 2000 + 31 * 60 * 1000)).toBeNull();
+        expect(dialog.getSession(token, ANNA, 2000 + 90 * 60 * 1000)).toMatchObject({ kind: "absence" });
+        expect(dialog.getSession(token, ANNA, 2000 + 90 * 60 * 1000 + dialog.SESSION_TTL + 1)).toBeNull();
         dialog.endSession(token);
         expect(dialog.getSession(token, ANNA, 2000)).toBeNull();
+    });
+
+    it("übersteht einen Neustart des Bots: die Auswahl liegt auf der Platte, eine Änderung bleibt mit saveSession", () => {
+        const token = dialog.createSession(ANNA, { kind: "absence", from: "2026-10-24" });
+        const session = dialog.getSession(token, ANNA);
+        session.selected = ["eh-1"];
+        dialog.saveSession(token, session);
+        // a fresh copy of the module (the bot after a deploy) finds it again
+        jest.isolateModules(() => {
+            require("../../../src/stores/availabilitySessionStore").useFile(SESSIONS_FILE);
+            const fresh = require("../../../src/utils/signup/availabilityDialog");
+            expect(fresh.getSession(token, ANNA)).toMatchObject({ kind: "absence", from: "2026-10-24", selected: ["eh-1"] });
+        });
+        dialog.endSession(token);
     });
 });
 
