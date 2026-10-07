@@ -263,6 +263,14 @@ copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches
   the setup on every read, per section with its Besetzung (as before).
 - **Saving**: the route's `bossKeys` are `raidplan.planKeys(event)` (the sections plus `defaults`); the editor view
   lists the Standard first (`raidplan.withStandard`).
+- **Tank order**: the Besetzung (who stands in Tank 1, Tank 2 …) is NOT inherited - every section keeps its own
+  `slots`, filled in setup order the first time it is opened, so a Standard row "Tank 1 -> Boss" means each section's own
+  Tank 1. When the Standard's tank order was changed, the editor asks on leaving the Standard (or on saving while in it)
+  "Tank-Reihenfolge auch für die anderen Bosse?" - only once per change and only when some boss / trash differs
+  (`pages/raid-detail/raidplan/useTankOrderFollow.ts`). Not on every click: a swap through the Besetzung's chips takes
+  two steps. "Für alle übernehmen" reorders, in one undo step, only the players already standing in each section's tank
+  slots (`lib/raidplan/tankOrder.ts applyRoleOrder`: nobody added or removed, a flex role of that boss stays, places on
+  the map stay); "Nur im Standard" changes nothing else.
 - **"Vorlage anwenden"** (`raidplanStore.applyTemplate`): the template's Standard becomes the event's Standard
   (cleaned, under the template's row ids, so `inheritOff`, deviations and moved tanks keep pointing at them); the
   bosses get the template's boards with their `inheritOff` (no copies any more). With a Standard every boss of the

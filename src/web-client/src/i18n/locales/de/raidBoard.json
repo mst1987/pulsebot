@@ -839,6 +839,13 @@
         "explain": "Der Standard ist die Tank- und Heiler-Grundaufstellung, die jeder Boss und jeder Trash übernimmt („Tank 1 → Boss“ zeigt bei jedem Boss dessen Boss). Ein Boss kann davon abweichen oder eine Zeile ausblenden. „Allgemein“ ist etwas anderes: Raid-Utility wie Flüche, einmal für den ganzen Raid.",
         "facingHint": "Tank → Boss folgt automatisch in jedem Boss: der Keil des Boss-Icons zeigt zum platzierten Tank. Allgemein hat keine Map; Tank → Boss gehört hierher, in den Standard."
     },
+    "tankOrder": {
+        "title": "Tank-Reihenfolge auch für die anderen Bosse?",
+        "text": "Im Standard stehen die Tanks jetzt so: {tanks}. Bei {count} Abschnitten ist die Reihenfolge noch anders ({bosses}). Sollen sie die Reihenfolge des Standards übernehmen? Es tauschen nur die Tanks, die dort schon eingeteilt sind; Strg+Z macht es rückgängig.",
+        "textOne": "Im Standard stehen die Tanks jetzt so: {tanks}. Bei {bosses} ist die Reihenfolge noch anders. Soll er die Reihenfolge des Standards übernehmen? Es tauschen nur die Tanks, die dort schon eingeteilt sind; Strg+Z macht es rückgängig.",
+        "action": "Für alle übernehmen",
+        "cancel": "Nur im Standard"
+    },
     "roster": {
         "title": "Besetzung zuweisen",
         "hint": "Slot wählen, dann Spieler anklicken oder auf einen Slot ziehen. Wer schon woanders steht, tauscht den Platz.",
