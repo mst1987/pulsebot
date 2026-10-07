@@ -123,7 +123,7 @@ describe("setupConfirmBot", () => {
         const ok = reply.mock.calls[0][0];
         expect(ok.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(ok.content).toBe("");
-        expect(cardText(ok)).toContain("Bestätigt");
+        expect(cardText(ok)).toContain("Teilnahme bestätigt");
 
         const cancel = jest.fn();
         await confirmBot.handleConfirmComponent({ customId: "setup-confirm:n:eh-1", user: { id: "2" }, reply: cancel });

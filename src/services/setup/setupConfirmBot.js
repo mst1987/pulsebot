@@ -53,7 +53,7 @@ async function handleConfirmComponent(interaction) {
         return interaction.reply(card({ kind: "warn", title, ephemeral: true }));
     }
     return interaction.reply(field === "y"
-        ? card({ kind: "ok", title: tr(lang, "Confirmed — see you there!"), ephemeral: true })
+        ? card({ kind: "ok", title: tr(lang, "Attendance confirmed — thanks!"), ephemeral: true })
         : card({
             kind: "warn", title: tr(lang, "Marked as cancelled."), text: tr(lang, "The raid lead will rebench you."), ephemeral: true,
         }));
