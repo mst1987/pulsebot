@@ -839,6 +839,13 @@
         "explain": "The default is the basic tank and healer set-up every boss and trash section takes over (“Tank 1 -> Boss” shows each boss's own boss). A boss can deviate or hide a row. “General” is something else: raid-wide utility such as curses, once for the whole raid.",
         "facingHint": "Tank -> boss follows automatically in every boss: the wedge of the boss icon points at the placed tank. General has no map; put tank -> boss here, in the Standard."
     },
+    "tankOrder": {
+        "title": "Tank order for the other bosses too?",
+        "text": "The Standard now has the tanks in this order: {tanks}. {count} sections still have a different order ({bosses}). Should they take over the Standard's order? Only the tanks already assigned there change places; Ctrl+Z undoes it.",
+        "textOne": "The Standard now has the tanks in this order: {tanks}. {bosses} still has a different order. Should it take over the Standard's order? Only the tanks already assigned there change places; Ctrl+Z undoes it.",
+        "action": "Apply to all",
+        "cancel": "Standard only"
+    },
     "roster": {
         "title": "Assign the roster",
         "hint": "Pick a slot, then click a player or drag him onto a slot. Whoever stands elsewhere swaps places.",
