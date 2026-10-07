@@ -1,4 +1,6 @@
-// POST /api/ingest/loot — the one endpoint the loot-sync companion tool talks to.
+// POST /api/ingest/loot — the main endpoint the loot-sync companion tool talks to
+// (plus /api/ingest/raids for its raid list, /api/ingest/guildbank for guild
+// bank scans and /api/ingest/guildbank/handouts for the in-game hand-out list).
 //
 // Unlike every other /api/* route this one has no Discord session behind it: the
 // uploader runs unattended on a raidleader's PC and authenticates with a bearer
@@ -20,6 +22,17 @@ const { linkItemsForImport } = require("../../services/loot/lootVersion");
 const { bestDayMatch } = require("../loot/lootEventMatch");
 const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestTokenStore");
 const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
+const { councilRoster } = require("../loot/lootCouncil");
+const { councilOptsFromQuery, categoryOptions } = require("../loot/councilQuery");
+const { councilSyncPayload, councilSyncPayloadV2 } = require("../loot/councilSync");
+const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../loot/councilView");
+const { getConfig } = require("../../stores/settingsStore");
+const { listKnownCategories } = require("../../services/discord/categoryNames");
+const { ingestScan } = require("../../services/guildbank/guildBankStock");
+const { queueLookups } = require("../../services/guildbank/itemMeta");
+const { queueItemEmojiSync } = require("../../services/guildbank/itemEmojis");
+const { GuildBankParseError } = require("../../utils/guildbank/guildBankScan");
+const { handoutList, reportHandouts, HandoutReportError } = require("../../services/guildbank/handouts");
 
 /** The token behind the request, or null after sending the 401. */
 function requireToken(req, res) {
@@ -263,10 +276,138 @@ async function ingestRaidStatus(req, res) {
     ok(res, { raids });
 }
 
+/**
+ * GET /api/ingest/council - the slim loot-council roster for the sync tool,
+ * same bearer-token auth as the uploads. The tool writes it into a Lua file the
+ * in-game addon reads: each raider's need weighting and what they received.
+ *
+ * Two versions (docs/loot-import.md):
+ *   v2 - `?v=2` (or `?categories=council`) and no `category`: every category
+ *        whose loot system is Loot-Council, each built with the view the orga
+ *        stored for it on the council page (role, tiers, raids, BiS list,
+ *        version) through the page's own path, armory step included
+ *        (councilView.js) - the game shows exactly what the page shows.
+ *   v1 - everything else, unchanged for the sync tools up to 1.9.0, which send
+ *        `category`/`role` and accept only version 1: one category, filtered by
+ *        those two only, stored data only.
+ */
+async function ingestCouncil(req, res, url) {
+    const token = requireToken(req, res);
+    if (!token) return;
+    touchToken(token.id);
+
+    const params = url ? url.searchParams : new URLSearchParams();
+    if (!params.has("category") && (params.get("v") === "2" || params.get("categories") === "council")) {
+        return ok(res, await councilPayloadV2(req));
+    }
+    // v1: only the two documented filters count; the tool never narrows by tier or version.
+    const opts = councilOptsFromQuery(new URLSearchParams({
+        category: params.get("category") || "",
+        role: params.get("role") || "",
+    }));
+    const built = councilRoster(opts);
+    ok(res, councilSyncPayload(built, {
+        categoryId: opts.categoryId,
+        categories: categoryOptions(activeGuildFor(req)),
+        role: opts.role,
+        bisTierDerived: !opts.bisTier,
+    }));
+}
+
+/** Every Loot-Council category with its stored view, one after another (the armory cache is shared). */
+async function councilPayloadV2(req) {
+    const config = getConfig();
+    // Live names first, else the ones seen earlier (categoryNames.js) - the
+    // token request has no session, so the active guild may be a guess.
+    const names = new Map(listKnownCategories(activeGuildFor(req)).filter((c) => c.name).map((c) => [c.id, c.name]));
+    const entries = [];
+    for (const id of councilCategoryIds(config)) {
+        const { opts, built } = await categoryCouncil(id);
+        entries.push({ id, name: names.get(id) || id, opts, built, instances: categoryInstances(config, id) });
+    }
+    return councilSyncPayloadV2(entries);
+}
+
+/**
+ * POST /api/ingest/guildbank — a guild bank scan from the sync tool
+ * (`eventhelper-guildbank` v1, utils/guildbank/guildBankScan.js), same
+ * bearer-token auth as the loot upload. The scan replaces the bank's stock;
+ * what the orga decided per item stays (stores/guildBankStockStore.js). Item
+ * names are looked up on Wowhead only after the answer went out.
+ */
+async function ingestGuildBank(req, res) {
+    const token = requireToken(req, res);
+    if (!token) return;
+
+    const body = await readJsonBody(req);
+    let result;
+    try {
+        result = ingestScan(body, { token });
+    } catch (e) {
+        if (e instanceof GuildBankParseError) return error(res, 400, "parse_failed", e.message);
+        throw e;
+    }
+    touchToken(token.id);
+
+    const { scan, status, bank, newItems, lookups } = result;
+    ok(res, {
+        status,
+        bankKey: bank.key,
+        gameVersion: bank.gameVersion,
+        guild: bank.guild,
+        realm: bank.realm,
+        pending: bank.pending,
+        scannedAt: bank.scannedAt,
+        tabs: scan.tabs.length,
+        items: Object.keys(scan.items).length,
+        newItems: newItems.length,
+    }, 201);
+    if (lookups.length) queueLookups(bank.gameVersion, lookups);
+    // items already on "give" get (or keep) their emoji (#633); the sync runs in the background
+    if (status !== "stale" && bank.counts && bank.counts.give > 0) queueItemEmojiSync();
+}
+
+/**
+ * GET /api/ingest/guildbank/handouts[?bank=<key>] — the confirmed guild bank
+ * requests per bank for the addon's hand-out list (#634), same bearer-token
+ * auth. Format "eventhelper-guildbank-handouts" v1, services/guildbank/handouts.js.
+ */
+async function ingestHandoutList(req, res, url) {
+    const token = requireToken(req, res);
+    if (!token) return;
+    touchToken(token.id);
+    const bankKey = url ? url.searchParams.get("bank") || "" : "";
+    ok(res, handoutList({ token, bankKey }));
+}
+
+/**
+ * POST /api/ingest/guildbank/handouts { done: [id | { id, via, by, at }] } —
+ * what was ticked off (or mailed) in game: each confirmed request is handed
+ * out. Idempotent; per-id results, never a failure for a bad id.
+ */
+async function ingestHandoutReport(req, res) {
+    const token = requireToken(req, res);
+    if (!token) return;
+    const body = await readJsonBody(req);
+    let result;
+    try {
+        result = await reportHandouts(body, { token });
+    } catch (e) {
+        if (e instanceof HandoutReportError) return error(res, 400, "parse_failed", e.message);
+        throw e;
+    }
+    touchToken(token.id);
+    ok(res, result);
+}
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "POST", path: "/api/ingest/loot", handler: ingestLoot, auth: "token" },
     { method: "POST", path: "/api/ingest/raids", handler: ingestRaidStatus, auth: "token" },
+    { method: "GET", path: "/api/ingest/council", handler: ingestCouncil, auth: "token" },
+    { method: "POST", path: "/api/ingest/guildbank", handler: ingestGuildBank, auth: "token" },
+    { method: "GET", path: "/api/ingest/guildbank/handouts", handler: ingestHandoutList, auth: "token" },
+    { method: "POST", path: "/api/ingest/guildbank/handouts", handler: ingestHandoutReport, auth: "token" },
 ];
 
-module.exports = { ingestLoot, ingestRaidStatus, computeRaidStatus, routes };
+module.exports = { ingestLoot, ingestRaidStatus, ingestCouncil, ingestGuildBank, ingestHandoutList, ingestHandoutReport, computeRaidStatus, routes };

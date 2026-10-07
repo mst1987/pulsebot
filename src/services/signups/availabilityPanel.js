@@ -19,7 +19,7 @@ const store = require("../../stores/availabilityStore");
 const discord = require("../discord/discord");
 const { eventGuildIds } = require("../discord/guildRoles");
 const settingsStore = require("../../stores/settingsStore");
-const { serverLang } = require("../discord/botLanguage");
+const { categoryLang } = require("../discord/botLanguage");
 const { organizerPayload } = require("../../utils/signup/organizerPanel");
 const { guildBankChannelId } = require("../../utils/signup/guildBankPost");
 const { nextRaidSummary } = require("./organizer");
@@ -55,7 +55,7 @@ function currentPayload(categoryId, cfg, { now = Date.now() } = {}) {
     return organizerPayload({
         categoryId,
         categoryName: categoryNameFor(categoryId, { config: cfg }),
-        lang: serverLang(cfg),
+        lang: categoryLang(categoryId, cfg),
         nextRaid: nextRaidSummary(categoryId, { now }),
         links: store.getLinks(categoryId),
         emojis: appEmojiMap(),

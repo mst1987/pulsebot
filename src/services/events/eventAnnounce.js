@@ -22,7 +22,7 @@ const linkCheck = require("../discord/linkCheck");
 const { getConfig } = require("../../stores/settingsStore");
 const { normalizePingTarget, deliverAnnouncement } = require("../discord/pingDelivery");
 const { tr } = require("../../utils/i18n/botText");
-const { serverLang } = require("../discord/botLanguage");
+const { eventLang } = require("../discord/botLanguage");
 const { shortWhen } = require("../../utils/time");
 
 /**
@@ -83,7 +83,7 @@ async function announceEvent(eventId, { want, config = getConfig(), now = Date.n
             target: setting.target,
             event,
             channelId: event.channelId,
-            template: buildAnnouncement(event, serverLang(config)),
+            template: buildAnnouncement(event, eventLang(event, config)),
             roleIds,
             guildId: event.guildId,
             config,

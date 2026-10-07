@@ -350,6 +350,10 @@
         "bisAutomatic": "BiS list automatic",
         "bisTier": "BiS list {tier}",
         "categoryEmpty": "Category empty",
+        "game": "Also used in game",
+        "gameTip": "These filters apply to {category} in the in-game addon too.",
+        "gameTipSub": "Role, content, BiS list and game version are saved for the whole team — after the next sync the in-game loot council shows exactly this list.",
+        "gameTipReadOnly": "Changing them needs write access to the loot council; what you change here only applies to your view.",
         "hidden": "{count} hidden",
         "gearTip": "Gear status",
         "gearArmory": {

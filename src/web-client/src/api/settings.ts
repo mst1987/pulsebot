@@ -84,6 +84,8 @@ export type AdminConfig = {
     raidhelperRetirement?: { disabled: boolean; at: number; byName: string };
     // Setup-DMs per category (#290): only switched-on categories are listed.
     categorySetupDms?: Record<string, boolean>;
+    /** The language of a category's posts: "de" / "en"; missing = the server language (botLanguage). */
+    categoryLanguage?: Record<string, string>;
     // A Discord event per raid (#305): only switched-on categories are listed.
     categoryDiscordEvent?: Record<string, boolean>;
     // The voice channel a category's raids meet in (#305), keyed by category id.

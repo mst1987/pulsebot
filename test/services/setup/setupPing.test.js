@@ -26,9 +26,14 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 // Which server counts as the event server is /event's rule, tested with it (test/commands/event).
 // The language: English here (the old assertions), German where a test says so.
-jest.mock("../../../src/services/discord/botLanguage", () => ({
-    ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en"), langOf: jest.fn(() => "en"),
-}));
+jest.mock("../../../src/services/discord/botLanguage", () => {
+    const mocked = {
+        ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en"), langOf: jest.fn(() => "en"),
+    };
+    // no category language in these tests: an event writes in the (mocked) server language
+    mocked.eventLang = jest.fn(() => mocked.serverLang());
+    return mocked;
+});
 jest.mock("../../../src/services/events/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
 
 const eventStore = require("../../../src/stores/eventStore");

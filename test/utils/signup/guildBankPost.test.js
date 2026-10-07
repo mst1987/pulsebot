@@ -1,6 +1,7 @@
 const { ButtonStyle } = require("discord.js");
 const post = require("../../../src/utils/signup/guildBankPost");
-const { cardText } = require("../../helpers/cardText");
+const { cardText, cardButtons, cardColor } = require("../../helpers/cardText");
+const { isCard } = require("../../../src/utils/discord/card");
 
 const REQUEST = {
     id: "abc123", userId: "200000000000000001", userName: "Anna_*", categoryId: "cat1",
@@ -36,35 +37,107 @@ describe("utils/signup/guildBankPost", () => {
         expect(cardText(post.decisionCard({ ...REQUEST, status: "rejected" }, "de"))).toBe("-# Gildenbank\n## Anfrage abgelehnt\n**12× Super Mana Potion**");
     });
 
-    it("posts an open request to the orga in German, amber, with both buttons", () => {
+    it("posts an open free-text request to the orga as a card in German, amber, with Erledigt and Ablehnen", () => {
         const payload = post.orgaPayload(REQUEST, { categoryName: "╭・ TBC Montag" });
-        const [embed] = payload.embeds;
-        expect(embed.title).toBe("🏦 Anfrage von Anna\\_\\*");
-        expect(embed.color).toBe(0xe8a33d);
-        expect(embed.description).toBe("<@200000000000000001> · <t:1800000000:R>");
-        expect(embed.fields).toEqual([
-            { name: "Gegenstand", value: "Super Mana Potion", inline: true },
-            { name: "Menge", value: "12", inline: true },
-            { name: "Wofür", value: "BT Donnerstag", inline: true },
-        ]);
-        expect(embed.footer.text).toBe("TBC Montag · offen");
-        const buttons = payload.components[0].components;
-        expect(buttons.map((b) => [b.custom_id, b.label, b.style])).toEqual([
+        expect(isCard(payload)).toBe(true);
+        expect(cardColor(payload)).toBe(0xe8a33d);
+        expect(cardText(payload)).toBe([
+            "-# Gildenbank",
+            "## 12× Super Mana Potion",
+            "<@200000000000000001> · <t:1800000000:R>",
+            "Wofür: BT Donnerstag",
+            "-# TBC Montag · offen",
+        ].join("\n"));
+        expect(cardButtons(payload).map((b) => [b.custom_id, b.label, b.style])).toEqual([
             ["guildbank:done:abc123", "Erledigt", ButtonStyle.Success],
             ["guildbank:reject:abc123", "Ablehnen …", ButtonStyle.Secondary],
         ]);
+        expect(payload.allowedMentions).toEqual({ parse: [] });
     });
 
-    it("shows the status line instead of the buttons once handled", () => {
+    it("shows the status note instead of the buttons once handled", () => {
         const done = post.orgaPayload({ ...REQUEST, purpose: "", status: "done", handledByName: "Orga", handledAt: 1_800_000_100_000 });
-        expect(done.components).toEqual([]);
-        expect(done.embeds[0].description).toContain("✅ Erledigt von Orga · <t:1800000100:R>");
-        expect(done.embeds[0].fields[2].value).toBe("—");
-        expect(done.embeds[0].footer.text).toBe("erledigt");
+        expect(cardButtons(done)).toEqual([]);
+        expect(cardText(done)).toContain("-# ✅ Erledigt von Orga · <t:1800000100:R>");
+        expect(cardText(done)).not.toContain("Wofür");
+        expect(cardColor(done)).toBe(post.COLOR_DONE);
         const rejected = post.orgaPayload({ ...REQUEST, status: "rejected", handledByName: "Orga", reason: "nicht da" });
-        expect(rejected.embeds[0].description).toContain("⛔ Abgelehnt von Orga: nicht da");
+        expect(cardText(rejected)).toContain("⛔ Abgelehnt von Orga: nicht da");
+        expect(cardColor(rejected)).toBe(post.COLOR_REJECTED);
         expect(post.statusLine({ ...REQUEST, status: "rejected", handledByName: "" })).toBe("⛔ Abgelehnt von ?");
         expect(post.statusLine(REQUEST)).toBe("");
+    });
+
+    describe("a request from the stock", () => {
+        const STOCK_REQUEST = {
+            ...REQUEST, item: "Bold Living Ruby", amount: 2, purpose: "Gruul", bankKey: "tbc:x:y", itemId: 32193,
+            icon: "inv_jewelcrafting_livingruby_03", group: "Edelsteine", characterName: "Zibbo", realm: "Spine Shatter",
+        };
+        const STOCK = { count: 14, reserved: 4, available: 10, group: "Edelsteine", icon: "inv_jewelcrafting_livingruby_03" };
+
+        it("open: kicker with the group, icon, the stock's numbers with 'danach', Bestätigen and Ablehnen", () => {
+            const payload = post.orgaPayload(STOCK_REQUEST, { categoryName: "TBC Montag", stock: STOCK });
+            expect(cardText(payload)).toBe([
+                "-# Gildenbank · Edelsteine",
+                "## 2× Bold Living Ruby",
+                "<@200000000000000001> · <t:1800000000:R>",
+                "Wofür: Gruul",
+                "An: Zibbo-SpineShatter",
+                "**Bestand** 14 · **Vorgemerkt** 4 · **Verfügbar** 10 (danach 8)",
+                "-# TBC Montag · offen",
+            ].join("\n"));
+            const section = payload.components[0].components.find((c) => c.type === 9);
+            expect(section.accessory.media.url).toBe("https://wow.zamimg.com/images/wow/icons/large/inv_jewelcrafting_livingruby_03.jpg");
+            expect(cardButtons(payload).map((b) => [b.custom_id, b.label, b.style])).toEqual([
+                ["guildbank:confirm:abc123", "Bestätigen", ButtonStyle.Success],
+                ["guildbank:reject:abc123", "Ablehnen …", ButtonStyle.Secondary],
+            ]);
+            expect(cardColor(payload)).toBe(post.COLOR_OPEN);
+        });
+
+        it("confirmed: blue, no 'danach', Ausgegeben and Vormerkung lösen, who set it aside", () => {
+            const payload = post.orgaPayload({ ...STOCK_REQUEST, status: "confirmed", handledByName: "Arthas" }, { stock: { ...STOCK, reserved: 6, available: 8 } });
+            expect(cardColor(payload)).toBe(post.COLOR_CONFIRMED);
+            expect(cardText(payload)).toContain("**Bestand** 14 · **Vorgemerkt** 6 · **Verfügbar** 8\n");
+            expect(cardText(payload)).toContain("-# Vorgemerkt von Arthas · wartet auf Ausgabe im Spiel");
+            expect(cardButtons(payload).map((b) => [b.custom_id, b.label])).toEqual([
+                ["guildbank:handout:abc123", "Ausgegeben"],
+                ["guildbank:release:abc123", "Vormerkung lösen"],
+            ]);
+        });
+
+        it("handed out: green, no numbers, no buttons, how it went out", () => {
+            const out = { ...STOCK_REQUEST, status: "handedOut", handledByName: "Arthas", handedOutByName: "Jaina" };
+            for (const [via, note] of [["discord", "ausgegeben von Jaina"], ["manual", "ausgegeben von Jaina · im Spiel abgehakt"], ["mail", "per Post ausgegeben von Jaina"]]) {
+                const payload = post.orgaPayload({ ...out, handoutVia: via }, { stock: STOCK });
+                expect(cardText(payload)).toContain(`-# ${note}`);
+                expect(cardText(payload)).not.toContain("Bestand");
+                expect(cardButtons(payload)).toEqual([]);
+                expect(cardColor(payload)).toBe(post.COLOR_DONE);
+            }
+        });
+
+        it("falls back to the request's own group and icon when the bank no longer knows the item", () => {
+            const payload = post.orgaPayload(STOCK_REQUEST, { stock: null });
+            expect(cardText(payload)).toContain("-# Gildenbank · Edelsteine");
+            expect(cardText(payload)).not.toContain("Bestand");
+            expect(post.stockFacts({ ...STOCK_REQUEST, status: "rejected" }, STOCK)).toEqual([]);
+        });
+
+        it("names the recipient for the raider and in the DMs of confirmation and hand-out", () => {
+            expect(post.requestSummary(STOCK_REQUEST, "en")).toBe("**2× Bold Living Ruby**\nFor: Gruul\nTo: Zibbo-SpineShatter");
+            expect(post.recipientName({ characterName: "Zibbo" })).toBe("Zibbo");
+            expect(post.recipientName({})).toBe("");
+            const confirmed = post.decisionCard({ ...STOCK_REQUEST, status: "confirmed" }, "de");
+            expect(cardText(confirmed)).toBe("-# Gildenbank\n## Anfrage bestätigt\n**2× Bold Living Ruby**\nFür dich vorgemerkt – du bekommst es bald im Spiel.\nAn: Zibbo-SpineShatter");
+            expect(cardColor(confirmed)).toBe(post.COLOR_CONFIRMED);
+            expect(cardText(post.decisionCard({ ...STOCK_REQUEST, status: "handedOut", handoutVia: "discord" }, "en")))
+                .toBe("-# Guild bank\n## Request handed out\n**2× Bold Living Ruby**\nHanded out to Zibbo-SpineShatter.");
+            expect(cardText(post.decisionCard({ ...STOCK_REQUEST, status: "handedOut", handoutVia: "mail" }, "de")))
+                .toBe("-# Gildenbank\n## Anfrage ausgegeben\n**2× Bold Living Ruby**\nPer Post an Zibbo-SpineShatter geschickt.");
+            expect(cardText(post.decisionCard({ ...STOCK_REQUEST, characterName: "", status: "handedOut", handoutVia: "mail" }, "en"))).toContain("Sent by mail.");
+            expect(cardText(post.decisionCard({ ...STOCK_REQUEST, characterName: "", status: "handedOut" }, "en"))).toBe("-# Guild bank\n## Request handed out\n**2× Bold Living Ruby**");
+        });
     });
 
     it("builds the orga's decline modal and reads its ids", () => {

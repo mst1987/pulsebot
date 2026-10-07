@@ -223,7 +223,9 @@ describe("loot council — the drop check page", () => {
     });
 
     it("reads the council's filters without writing them", () => {
-        expect(drop).toMatch(/const \[view\] = usePersistedState<FilterView>\(VIEW_KEY, FILTER_DEFAULT\);/);
+        expect(drop).toMatch(/const \[localView\] = usePersistedState<FilterView>\(VIEW_KEY, FILTER_DEFAULT\);/);
+        // A picked category's filters come from the server - the drop check never saves them.
+        expect(drop).toMatch(/useCategoryViews\(\{\s*view: localView, setView: \(\) => undefined, canWrite: false,/);
         expect(page).toMatch(/usePersistedState<View>\(VIEW_KEY, VIEW_DEFAULT\)/);
         expect(council).toMatch(/export const VIEW_KEY = "lootcouncil\.view";/);
     });

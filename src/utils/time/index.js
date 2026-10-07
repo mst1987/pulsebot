@@ -37,27 +37,94 @@ function toRaidHelperDate(value) {
     return "";
 }
 
-// A date as people type it in Discord — "24.09.2026", "24.09.26", "24.09.",
-// "24.9." or "2026-09-24" — as "yyyy-MM-dd"; "" when it is no calendar day.
-// Without a year the coming such day is meant: one more than 60 days back
-// this year (planning January in December) is next year's, a closer one
-// stays this year, so a typo'd yesterday is caught as past, not moved a year.
-function parseGermanDate(value, now = Date.now()) {
-    const str = String(value || "").trim();
-    const iso = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    const de = str.match(/^(\d{1,2})\.(\d{1,2})\.(?:(\d{2}|\d{4}))?$/);
-    if (!iso && !de) return "";
-    const [day, month] = iso ? [Number(iso[3]), Number(iso[2])] : [Number(de[1]), Number(de[2])];
-    const today = DateTime.fromMillis(Number(now), { zone: TIMEZONE }).startOf("day");
-    let year = iso ? Number(iso[1]) : (de[3] ? Number(de[3]) : today.year);
-    if (year < 100) year += 2000;
-    let dt = DateTime.fromObject({ year, month, day }, { zone: TIMEZONE });
-    if (!dt.isValid) return "";
-    if (!iso && !de[3] && today.diff(dt, "days").days > 60) {
-        dt = dt.plus({ years: 1 });
-        if (dt.day !== day) return ""; // 29.02. has no next year
+// Month names as raiders type them, German and English, full or short.
+const MONTH_NAMES = [
+    ["januar", "january", "jan", "jän", "jaen"], ["februar", "february", "feb"], ["märz", "maerz", "march", "mär", "mrz", "mar"],
+    ["april", "apr"], ["mai", "may"], ["juni", "june", "jun"], ["juli", "july", "jul"], ["august", "aug"],
+    ["september", "sept", "sep"], ["oktober", "october", "okt", "oct"], ["november", "nov"], ["dezember", "december", "dez", "dec"],
+];
+// "heute", "morgen" … — days counted from today.
+const RELATIVE_DAYS = { heute: 0, today: 0, morgen: 1, tomorrow: 1, "übermorgen": 2, uebermorgen: 2 };
+
+/** 1–12 for a month name ("okt", "October", "Sept."), 0 when it is none. */
+function monthOf(word) {
+    const w = String(word || "").toLowerCase().replace(/\.$/, "");
+    if (w.length < 3) return 0;
+    const i = MONTH_NAMES.findIndex((names) => names.includes(w) || names.some((n) => n.length > 3 && n.startsWith(w)));
+    return i + 1;
+}
+
+/**
+ * The parts of a typed date: `{ day, month, year }` (year 0 = none typed), or
+ * null. Reads "24.10.", "24.10", "24.10.2026", "24. 10. 26", "24/10", "24-10-2026",
+ * "2026-10-24", "24. Okt", "24 October 2026", "Oct 24", "October 24th, 2026".
+ * A "10/24" whose second number cannot be a month is read the American way.
+ */
+function dateParts(value) {
+    const s = String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+    const iso = s.match(/^(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})\.?$/);
+    if (iso) return { day: Number(iso[3]), month: Number(iso[2]), year: Number(iso[1]) };
+    const num = s.match(/^(\d{1,2})\s*[./-]\s*(\d{1,2})(?:\s*[./-]\s*(\d{4}|\d{2})?)?\s*\.?$/);
+    if (num) {
+        let [day, month] = [Number(num[1]), Number(num[2])];
+        if (month > 12 && day <= 12) [day, month] = [month, day];
+        return { day, month, year: num[3] ? Number(num[3]) : 0 };
     }
-    return dt.toFormat("yyyy-MM-dd");
+    const dayFirst = s.match(/^(\d{1,2})(?:st|nd|rd|th)?\.? ?([a-zäöü]+)\.?,? ?(\d{4}|\d{2})?$/);
+    if (dayFirst && monthOf(dayFirst[2])) return { day: Number(dayFirst[1]), month: monthOf(dayFirst[2]), year: dayFirst[3] ? Number(dayFirst[3]) : 0 };
+    const monthFirst = s.match(/^([a-zäöü]+)\.? ?(\d{1,2})(?:st|nd|rd|th)?\.?,? ?(\d{4})?$/);
+    if (monthFirst && monthOf(monthFirst[1])) return { day: Number(monthFirst[2]), month: monthOf(monthFirst[1]), year: monthFirst[3] ? Number(monthFirst[3]) : 0 };
+    return null;
+}
+
+/** A typed date as a Luxon day plus whether a year was typed, or null. */
+function typedDay(value, now = Date.now()) {
+    const today = DateTime.fromMillis(Number(now), { zone: TIMEZONE }).startOf("day");
+    const word = String(value || "").trim().toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(RELATIVE_DAYS, word)) return { dt: today.plus({ days: RELATIVE_DAYS[word] }), hasYear: true };
+    const parts = dateParts(value);
+    if (!parts) return null;
+    let year = parts.year || today.year;
+    if (year < 100) year += 2000;
+    let dt = DateTime.fromObject({ year, month: parts.month, day: parts.day }, { zone: TIMEZONE });
+    if (!dt.isValid) return null;
+    if (!parts.year && today.diff(dt, "days").days > 60) {
+        dt = dt.plus({ years: 1 });
+        if (dt.day !== parts.day) return null; // 29.02. has no next year
+    }
+    return { dt, hasYear: !!parts.year };
+}
+
+// A date as people type it in Discord — "24.09.2026", "24.09.26", "24.09.",
+// "24.9", "24/9", "24. Sept", "Sep 24", "2026-09-24", "heute", "morgen" — as
+// "yyyy-MM-dd"; "" when it is no calendar day. Without a year the coming such
+// day is meant: one more than 60 days back this year (planning January in
+// December) is next year's, a closer one stays this year, so a typo'd
+// yesterday is caught as past, not moved a year.
+function parseGermanDate(value, now = Date.now()) {
+    const hit = typedDay(value, now);
+    return hit ? hit.dt.toFormat("yyyy-MM-dd") : "";
+}
+
+// A period typed into one field — "24.10.-31.10.", "24.10. bis 31.10.",
+// "24 Oct to 3 Nov", "28.12 – 3.1" — or a single day: `{ from, to }` as
+// "yyyy-MM-dd", null when it is neither. An end without a year that would lie
+// before the start is the next year's (28.12. – 3.1.).
+function parseDayRange(value, now = Date.now()) {
+    const text = String(value || "").trim();
+    const single = typedDay(text, now);
+    if (single) return { from: single.dt.toFormat("yyyy-MM-dd"), to: single.dt.toFormat("yyyy-MM-dd") };
+    const separator = /\s*(?:bis|to|until|till|–|—|-)\s*/gi;
+    let match;
+    while ((match = separator.exec(text))) {
+        const from = typedDay(text.slice(0, match.index), now);
+        const to = typedDay(text.slice(match.index + match[0].length), now);
+        if (!from || !to) continue;
+        let end = to.dt;
+        if (end < from.dt && !to.hasYear) end = end.plus({ years: 1 });
+        return { from: from.dt.toFormat("yyyy-MM-dd"), to: end.toFormat("yyyy-MM-dd") };
+    }
+    return null;
 }
 
 // A time of day as typed — "19:30", "19.30", "1930", "930" or "19" — as
@@ -184,7 +251,7 @@ function plannedEndOrDefault(event) {
 
 module.exports = {
     // German dates
-    formatTimestampToDateString, formatGermanDateTime, toRaidHelperDate, parseGermanDate, parseClockTime,
+    formatTimestampToDateString, formatGermanDateTime, toRaidHelperDate, parseGermanDate, parseDayRange, parseClockTime,
     // Discord texts
     SERVER_ZONE, STYLES, toSeconds, discordTimestamp, shortWhen, serverDateTime, shortServerTime, shortServerDate, longServerTime,
     // raid duration

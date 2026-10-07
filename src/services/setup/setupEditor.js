@@ -38,7 +38,7 @@ const { rulesForEvent } = require("../events/mainVersion");
 const { str } = require("../../utils/text");
 const { approvedSetupOf, pingTextOf, benchAndPool, confirmationsFor } = require("./setupCore");
 const { suggestSearch } = require("./raidSearch");
-const { serverLang } = require("../discord/botLanguage");
+const { eventLang } = require("../discord/botLanguage");
 
 
 function fail(code, error) {
@@ -212,16 +212,32 @@ function ownEvent(eventId) {
 }
 
 /**
+ * "Freie Plätze füllen": everybody the orga placed stood fixed for the run, but
+ * only the ones they locked themselves keep the lock (and its reason) — and each
+ * keeps the place 1–5 they stood on.
+ */
+function keptAsPlaced(result, prev) {
+    const lockedBefore = new Set((prev.groups || []).flatMap((g) => (g.slots || []).filter((s) => s.locked).map((s) => String(s.userId))));
+    const unlock = (s) => (lockedBefore.has(String(s.userId)) ? s : { ...s, locked: false, reasons: (s.reasons || []).filter((r) => r !== "Von der Orga fixiert") });
+    const groups = (result.groups || []).map((g) => ({ ...g, slots: (g.slots || []).map(unlock) }));
+    return { ...result, groups: inPlacedOrder(groups, prev.groups) };
+}
+
+/**
  * A fresh proposal for the event, keeping the places locked in its current
  * draft (setupInput.fixedFromSetup). Stored as a draft.
+ * `body.keep === "placed"` ("Freie Plätze füllen"): everybody already in a group
+ * stays where they are, only the free places and the bench are filled.
  * @returns {{ setup?: object, event?: object, error?: string, code?: string }}
  */
 function proposeEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = {}) {
     const { event, failed } = ownEvent(eventId);
     if (failed) return failed;
     const options = mergeOptions(body, event.setup && event.setup.options);
-    const result = proposeSetup([event.id], runOptions(options, { now }));
-    if (!result) return fail("not_found", "Event nicht gefunden.");
+    const keepPlaced = body.keep === "placed" && !!event.setup;
+    const proposed = proposeSetup([event.id], runOptions(options, { now, keepPlaced }));
+    if (!proposed) return fail("not_found", "Event nicht gefunden.");
+    const result = keepPlaced ? keptAsPlaced(proposed, event.setup) : proposed;
     const setup = nextSetup(event.setup, result, { origin: "proposal", options, userId, now });
     // A proposal that lands on the approved lineup again leaves the approval standing.
     return storeSetup(event, setup, { userId, now });
@@ -530,11 +546,41 @@ function addUnplacedSignups(decorated, signups, table, names) {
 }
 
 /**
+ * The editor's start before anything is stored: no proposal needed — every
+ * group empty, everybody who signed up in the pool ("Angemeldet"), valued like a
+ * hand-made lineup so the counts read "0 von 3". Version 0 and `blank: true`:
+ * nothing is written until the first move (saveEventSetup takes it as the first
+ * version). Should the valuation fail, the groups stay empty all the same and
+ * the pool is filled from the signups (addUnplacedSignups).
+ */
+function emptyValued(event, now) {
+    try {
+        const input = collectSetupInput([event.id], { now });
+        if (!input) return null;
+        return { ...evaluateSetup(input, { groups: [], bench: [] }, runOptions(mergeOptions({}, {}))), historySource: input.historySource };
+    } catch {
+        return null;
+    }
+}
+
+function blankSetup(event, { now = Date.now() } = {}) {
+    const result = emptyValued(event, now);
+    return {
+        ...(result ? stored(result) : { groups: [], bench: [], pool: [] }),
+        status: "draft",
+        version: 0,
+        origin: "manual",
+        blank: true,
+        options: { weights: {}, fairness: null, wishes: null },
+    };
+}
+
+/**
  * GET /api/raids/setup's answer. The orga (`canWrite`) gets the draft with
  * reasons, checks and options; anyone else only the approved lineup — the
  * draft is not in the payload at all.
  */
-function editorView(event, { canWrite = false, names = {}, signups = [], hasApiKey = false, job = null, avoidPairs = 0, attendance = null } = {}) {
+function editorView(event, { canWrite = false, names = {}, signups = [], hasApiKey = false, job = null, avoidPairs = 0, attendance = null, blank = false } = {}) {
     const table = specTable(event.versionId);
     const approved = decorateLineup(approvedSetupOf(event), table, names);
     const head = {
@@ -547,7 +593,8 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         approved,
     };
     if (!canWrite) return head;
-    const setup = event.setup;
+    // nothing stored yet: the empty start the orga drags into (no proposal needed)
+    const setup = event.setup || (blank ? blankSetup(event) : null);
     const groupCount = Math.max(1, Math.ceil((Number(event.size) || 0) / 5));
     return {
         ...head,
@@ -558,13 +605,13 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         signupCount: signups.filter((s) => s.status !== "absence").length,
         absent: signups.filter((s) => s.status === "absence").length,
         avoidPairs,
-        pingText: pingTextOf(event, serverLang()),
+        pingText: pingTextOf(event, eventLang(event)),
         // Confirm/Cancel by user id — the raiders' clicks and the orga's own marks (setupConfirm.js)
         confirmations: confirmationsFor(event, approvedSetupOf(event)),
         // raiders marked as an extra tank / healer, by user id
         extraRoles: event.extraRoles || {},
         // what the raid still needs and the message that looks for it (raidSearch.js)
-        search: setup ? suggestSearch(event) : null,
+        search: setup ? suggestSearch({ ...event, setup }) : null,
         defaults: { weights: DEFAULT_WEIGHTS, maxWeight: MAX_WEIGHT },
         hasApiKey,
         explainJob: job,
@@ -576,6 +623,6 @@ module.exports = {
     avoidPairCount,
     // only for the tests (#424): not part of the module's API
     _internal: {
-        withSetupDefaults, addUnplacedSignups,
+        withSetupDefaults, addUnplacedSignups, blankSetup,
     },
 };

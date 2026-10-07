@@ -5,6 +5,7 @@ const { activeGuildFor } = require("../http/activeGuild");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates,
 } = require("../../stores/settingsStore");
+const { normalizeCategoryLanguagePatch } = require("../../stores/configSchema");
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
 } = require("../../stores/ingestTokenStore");
@@ -475,6 +476,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.categoryLootSystem !== undefined) partial.categoryLootSystem = normalizeCategoryLootSystemPatch(body.categoryLootSystem);
     if (body.categorySignupSource !== undefined) partial.categorySignupSource = normalizeCategorySignupSource(body.categorySignupSource);
     if (body.categorySetupDms !== undefined) partial.categorySetupDms = normalizeCategorySetupDms(body.categorySetupDms);
+    // The language of a category's public messages: "de" / "en", "" = back to the server language.
+    if (body.categoryLanguage !== undefined) partial.categoryLanguage = normalizeCategoryLanguagePatch(body.categoryLanguage);
     if (body.categoryDiscordEvent !== undefined) partial.categoryDiscordEvent = normalizeCategoryDiscordEvent(body.categoryDiscordEvent);
     if (body.categoryVoiceChannel !== undefined) partial.categoryVoiceChannel = normalizeCategoryVoiceChannel(body.categoryVoiceChannel);
     if (body.categoryMessageLook !== undefined) partial.categoryMessageLook = normalizeCategoryMessageLookPatch(body.categoryMessageLook);
@@ -518,8 +521,10 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     const before = getConfig();
     const langBefore = before.botLanguage;
     const saved = saveConfig(partial);
-    // A new server language redraws the bot's public messages (not awaited).
-    if (saved.botLanguage !== langBefore) void languageChange.afterServerLangChange({ config: saved });
+    // A new server language, or a category's own, redraws the bot's public messages (not awaited).
+    if (saved.botLanguage !== langBefore || JSON.stringify(saved.categoryLanguage || {}) !== JSON.stringify(before.categoryLanguage || {})) {
+        void languageChange.afterServerLangChange({ config: saved });
+    }
     // The guild bank area of the raider organizers comes and goes with its channel:
     // redraw them now instead of at the next five-minute sweep (not awaited, never throws).
     else if (guildBankOf(saved) !== guildBankOf(before)) void availabilityPanel.refreshPanels({ config: saved }).catch(() => {});

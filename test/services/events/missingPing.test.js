@@ -3,7 +3,7 @@
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 0) }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ categoryRoles: { cat1: ["500000"] } })) }));
 jest.mock("../../../src/services/discord/discord", () => ({ listMembersWithRoles: jest.fn(), postMissingPing: jest.fn() }));
-jest.mock("../../../src/services/discord/botLanguage", () => ({ serverLang: jest.fn(() => "de"), langOf: jest.fn(() => "de") }));
+jest.mock("../../../src/services/discord/botLanguage", () => ({ serverLang: jest.fn(() => "de"), eventLang: jest.fn(() => "de"), langOf: jest.fn(() => "de") }));
 
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const settingsStore = require("../../../src/stores/settingsStore");

@@ -13,47 +13,54 @@
 //   availability:<token>:save     save the entry (applies it, DM)
 //   availability:<token>:x        cancel
 // An empty categoryId (the /availability command) means every raid category.
-// The picks live in memory under the token for 30 minutes, only for the member
-// who started — a modal cannot carry them and a customId has 100 characters.
+// The picks live under the token for two hours (stores/availabilitySessionStore,
+// on disk, so a restart does not end them), only for the member who started —
+// a modal cannot carry them and a customId has 100 characters.
 const crypto = require("crypto");
 const { DateTime } = require("luxon");
 const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
 const profiles = require("../../stores/raiderProfileStore");
+const sessionStore = require("../../stores/availabilitySessionStore");
 const { VERSIONS } = require("../../config/gameVersions");
 const { TIMEZONE } = require("../../config/timezone");
 const { tr, serviceText, specLabel, dateLocale } = require("../i18n/botText");
 const { buildEmbed } = require("../discord/reply");
 
 const PREFIX = "availability";
-const SESSION_TTL = 30 * 60 * 1000;
+// long enough to look up the raids in between; the picker survives a restart (availabilitySessionStore)
+const SESSION_TTL = 2 * 60 * 60 * 1000;
 const MAX_OPTIONS = 25;
 const COLOR_ABSENCE = 0xef4444;
 const COLOR_PRESENCE = 0x22c55e;
 const COLOR_PANEL = 0x38bdf8;
 
-const sessions = new Map();
-
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
 function createSession(userId, picks, now = Date.now()) {
-    for (const [token, s] of sessions) if (now - s.at > SESSION_TTL) sessions.delete(token);
     let token;
-    do token = crypto.randomBytes(4).toString("hex"); while (sessions.has(token));
-    sessions.set(token, { ...picks, userId: String(userId), selected: null, at: now });
+    do token = crypto.randomBytes(4).toString("hex"); while (sessionStore.has(token));
+    sessionStore.put(token, { ...picks, userId: String(userId), selected: null, at: now }, { ttl: SESSION_TTL, now });
     return token;
 }
 
+/** The raider's open picker (a copy: a change is kept with saveSession), null when gone, someone else's or expired. */
 function getSession(token, userId, now = Date.now()) {
-    const s = sessions.get(String(token || ""));
-    if (!s || s.userId !== String(userId) || now - s.at > SESSION_TTL) return null;
+    const s = sessionStore.get(token);
+    if (!s || s.userId !== String(userId) || now - (Number(s.at) || 0) > SESSION_TTL) return null;
     s.at = now;
+    sessionStore.put(token, s);
     return s;
 }
 
+/** Keep what changed in the picker (a character, the raids picked). */
+function saveSession(token, session) {
+    if (sessionStore.has(token)) sessionStore.put(token, session);
+}
+
 function endSession(token) {
-    sessions.delete(String(token || ""));
+    sessionStore.remove(token);
 }
 
 /** `{ action, categoryId }` of a panel id, or `{ token, action }` of a picker id. */
@@ -91,7 +98,8 @@ function plainCategoryName(name) {
 function dateInput(id, label, placeholder, required = true) {
     return new ActionRowBuilder().addComponents(new TextInputBuilder()
         .setCustomId(id).setLabel(label).setPlaceholder(placeholder)
-        .setStyle(TextInputStyle.Short).setMaxLength(10).setRequired(required));
+        // room for "24.10.2026.", "24. Oktober" or a whole period ("24.10. bis 31.10.")
+        .setStyle(TextInputStyle.Short).setMaxLength(30).setRequired(required));
 }
 
 /** The modal asking for the period (and the absence's reason). */
@@ -101,7 +109,7 @@ function periodModal(kind, categoryId = "", lang = "de") {
         .setCustomId(panelId(absence ? "ma" : "mp", categoryId))
         .setTitle(absence ? tr(lang, "Enter absence") : tr(lang, "Enter attendance"))
         .addComponents(
-            dateInput("from", tr(lang, "From (day)"), tr(lang, "e.g. 24.10. or 24.10.2026")),
+            dateInput("from", tr(lang, "From (day, or the whole period)"), tr(lang, "e.g. 24.10. or 24.10.-31.10.")),
             dateInput("to", tr(lang, "To (day, empty = the same day)"), tr(lang, "e.g. 31.10."), false),
         );
     if (absence) {
@@ -271,7 +279,7 @@ function savedPayload(summary, { kind, dm, lang = "de" }) {
 }
 
 module.exports = {
-    PREFIX, createSession, getSession, endSession, parseId, panelId, pickId,
+    PREFIX, SESSION_TTL, createSession, getSession, saveSession, endSession, parseId, panelId, pickId,
     panelButtons, plainCategoryName, periodModal, characterOptions, defaultCharacter, pickerPayload, listPayload, savedPayload,
     entryLine, periodLabel, raidWhen,
 };

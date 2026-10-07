@@ -3,6 +3,7 @@
 // Auswahl, Fehler auf Englisch.
 const { MessageFlags } = require("discord.js");
 const { answerOf } = require("../../helpers/signupMocks");
+const { cardText } = require("../../helpers/cardText");
 
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -19,6 +20,7 @@ const mocks = require("../../helpers/signupMocks");
 const discord = require("../../../src/services/discord/discord");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const store = require("../../../src/stores/availabilityStore");
+const sessionStore = require("../../../src/stores/availabilitySessionStore");
 const bankStore = require("../../../src/stores/guildBankStore");
 const availability = require("../../../src/services/signups/availability");
 const organizer = require("../../../src/services/signups/organizer");
@@ -34,6 +36,7 @@ const dayPlus = (n) => availability.dayOf(sec() + n * DAY);
 beforeAll(() => {
     profiles.useFile(tempStoreFile("eh-cmd-availability-profiles.json"));
     store.useFile(tempStoreFile("eh-cmd-availability.json"));
+    sessionStore.useFile(tempStoreFile("eh-cmd-availability-sessions.json"));
     bankStore.useFile(tempStoreFile("eh-cmd-guild-bank.json"));
 });
 afterAll(() => {
@@ -120,9 +123,11 @@ describe("Abwesenheit", () => {
     });
 
     it("lehnt ein unlesbares Datum auf Englisch ab", async () => {
-        const modal = submit("availability:ma:", { from: "morgen", to: "" });
+        const modal = submit("availability:ma:", { from: "irgendwann", to: "" });
         await command.execute(modal);
-        expect(answerOf(replyPayload(modal)).description).toBe("⚠️ Please enter a valid start and end date (e.g. 24.10. or 2026-10-24).");
+        // what was typed, how to write it, and one click back into the modal
+        expect(answerOf(replyPayload(modal)).description).toBe("⚠️ I could not read **irgendwann** as a date. Write it like **24.10.**, **24.10.2026**, **24 Oct** or a whole period like **24.10.-31.10.**");
+        expect(answerOf(replyPayload(modal)).components.map((c) => c.custom_id || (c.data && c.data.custom_id))).toEqual(["availability:a:"]);
         expect(store.listEntries()).toEqual([]);
     });
 
@@ -171,9 +176,9 @@ describe("Anwesenheit", () => {
 describe("Deutsch als Standard", () => {
     it("antwortet ohne eigene Wahl in der Server-Sprache Deutsch", async () => {
         mocks.access.config = {};
-        const modal = submit("availability:ma:", { from: "morgen", to: "" });
+        const modal = submit("availability:ma:", { from: "irgendwann", to: "" });
         await command.execute(modal);
-        expect(answerOf(replyPayload(modal)).description).toBe("⚠️ Bitte ein gültiges Von- und Bis-Datum angeben.");
+        expect(answerOf(replyPayload(modal)).description).toBe("⚠️ **irgendwann** kann ich nicht als Datum lesen. Schreib es z. B. als **24.10.**, **24.10.2026**, **24. Okt** oder gleich als Zeitraum **24.10.-31.10.**");
         const btn = click("availability:a:");
         await command.execute(btn);
         expect(btn.showModal.mock.calls[0][0].data.title).toBe("Abwesenheit eintragen");
@@ -310,7 +315,7 @@ describe("Gildenbank", () => {
         expect(answer.title).toBe("✅ Request sent – the orga will get back to you by DM.");
         expect(answer.description).toBe("**12× Super Mana Potion**\nFor: BT");
         expect(discord.postPayload.mock.calls[0][0]).toBe("900000");
-        expect(discord.postPayload.mock.calls[0][1].embeds[0].title).toBe("🏦 Anfrage von tester");
+        expect(cardText(discord.postPayload.mock.calls[0][1])).toContain("## 12× Super Mana Potion\n<@200000000000000001>");
         expect(bankStore.listRequests()).toEqual([expect.objectContaining({ userId: ANNA, categoryId: "cat1", amount: 12, messageId: "m-bank" })]);
     });
 

@@ -256,7 +256,7 @@ describe("services/events/eventDraft — building the create body", () => {
     it("refuses past dates, bad input, a taken channel name and vanished choices", async () => {
         expect((await build(state(), values({ date: "15.09." }))).error).toContain("Vergangenheit");
         expect((await build(state(), values({ date: "16.09.", time: "11:00" }))).error).toContain("Vergangenheit");
-        expect((await build(state(), values({ date: "morgen" }))).error).toContain("kein Datum");
+        expect((await build(state(), values({ date: "irgendwann" }))).error).toContain("kein Datum");
         expect((await build(state(), values({ time: "abends" }))).error).toContain("keine Uhrzeit");
         expect((await build(state(), values({ title: "" }))).error).toContain("Titel");
         expect((await build(state(), values({ comp: "10/9/9" }))).error).toContain("passen nicht");

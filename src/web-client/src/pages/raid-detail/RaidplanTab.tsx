@@ -25,6 +25,7 @@ import { applyTactic, stepsOf } from "../../lib/raidplan/steps";
 import ShareModal from "./raidplan/ShareModal";
 import type { MapRow } from "./raidplan/MapPanel";
 import { useDraftHistory } from "./raidplan/useDraftHistory";
+import { useTankOrderFollow } from "./raidplan/useTankOrderFollow";
 import "../../styles/raidplan/index.css";
 import RaidplanBoundary from "../../components/raidplan/RaidplanBoundary";
 import RhSource from "./raidplan/RhSource";
@@ -162,12 +163,27 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         histEdit(selectedRef.current, (b) => fn(ensureBesetzung(b, besetzung, roster)), coalesce);
     }, [histEdit, besetzung, roster]);
 
+    // a new tank order in the Standard: asked on leaving it (or saving on it) whether the bosses and trash follow
+    const fillBoard = useCallback((b: RaidplanBoard) => ensureBesetzung(b, besetzung, roster), [besetzung, roster]);
+    const followSections = useMemo(() => (view ? view.bosses.filter((b) => !b.general && !b.defaults).map((b) => ({ key: b.key, name: b.name })) : []), [view]);
+    const tankOrder = useTankOrderFollow({
+        draft, selected, version: view ? view.plan.version : 0, sections: followSections, fill: fillBoard, editAll: histEditAll, roster, canWrite: !!view && view.canWrite,
+    });
+    const choose = (key: string) => {
+        tankOrder.leaving(key);
+        progress.choose(key);
+    };
+
     // ---- save / publish -----------------------------------------------------------------------
+    // a ref, not `saving`: a second Ctrl+S while the tank order question is open must not save past it
+    const saveBusy = useRef(false);
     const save = async () => {
-        if (!view || saving) return;
+        if (!view || saving || saveBusy.current) return;
+        saveBusy.current = true;
         setSaving(true);
         try {
-            const v = await saveRaidplan({ event: eventId, version: view.plan.version, bosses: toSave(draft, bossKeys) });
+            const followed = await tankOrder.beforeSave();
+            const v = await saveRaidplan({ event: eventId, version: view.plan.version, bosses: toSave(followed || draft, bossKeys) });
             setView(v);
             reset(v.plan.bosses);
             setConflict(false);
@@ -176,6 +192,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
             const e = err as ApiError;
             if (e.code === "conflict") setConflict(true); else toast(e.message, "err");
         } finally {
+            saveBusy.current = false;
             setSaving(false);
         }
     };
@@ -317,7 +334,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     defaultRows={boardOf(draft, DEFAULTS_KEY).assignments}
                     saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("raidBoard.conflict.text")} /> : undefined}
                     urlView
-                    bossNav={<SectionStrip dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={progress.choose} killedKeys={progress.killed} follow={progress.chip} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} openCounts={canWrite ? openCounts : undefined} />}
+                    bossNav={<SectionStrip dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={choose}killedKeys={progress.killed} follow={progress.chip} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} openCounts={canWrite ? openCounts : undefined} />}
                     besetzungTools={<PlanGroups roster={view.roster} groupCount={view.besetzung ? view.besetzung.groups : 5} included={included} canWrite={canWrite} busy={groupsBusy} onChange={setGroups} />}
                     status={(
                         <>
@@ -355,7 +372,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 <ul className="rp-openlist">
                     {groupOpen(openRows).map((sec) => (
                         <li key={sec.key}>
-                            <button type="button" className="rp-openlist-sec" onClick={() => { progress.choose(sec.key); setModal(""); }}>{sec.name}</button>
+                            <button type="button" className="rp-openlist-sec" onClick={() => { choose(sec.key); setModal(""); }}>{sec.name}</button>
                             <ul>
                                 {sec.rows.map((o) => <li key={o.rowId}><span className="rp-openlist-type">{t(`raidBoard.assign.type.${o.type}`)}</span> {t("raidBoard.aline.missing", { what: o.missing.join(", ") })}</li>)}
                             </ul>

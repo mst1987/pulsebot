@@ -45,7 +45,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const discord = require("../discord/discord");
 const { buildClasses, ROLE_LABELS, ROLE_LABELS_EN } = require("../../config/gameVersions/classes");
 const { tr, serviceText, specLabel: specLabelIn, normalizeLang } = require("../../utils/i18n/botText");
-const { serverLang, langOf } = require("../discord/botLanguage");
+const { langOf, eventLang } = require("../discord/botLanguage");
 const {
     appEmojiMap, loadAppEmojis, emojiText, specEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName,
     roleEmojiName, emojiStyleOf,
@@ -251,9 +251,19 @@ function placementSignature(p) {
     return p.bench ? `bench/${p.spec}` : `g${p.group}/${p.spec}/${p.role}`;
 }
 
-/** Whether DMs are switched on for the event's category. */
-function dmsEnabled(event, config = getConfig()) {
+/** Whether the category sends setup DMs — the default of every event in it. */
+function categoryDms(event, config = getConfig()) {
     return !!(event && event.categoryId && ((config && config.categorySetupDms) || {})[event.categoryId] === true);
+}
+
+/**
+ * Whether this event sends setup DMs: the editor's switch "DMs an Spieler"
+ * (`setupPost.dmsChoice`, stored with the post like "Bench mitposten"), else the
+ * category's setting.
+ */
+function dmsEnabled(event, config = getConfig()) {
+    const choice = event && event.setupPost && event.setupPost.dmsChoice;
+    return typeof choice === "boolean" ? choice : categoryDms(event, config);
 }
 
 /** The bench reasons of the proposal — only while the stored setup is the approved version. */
@@ -367,7 +377,7 @@ const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.
 async function payloadFor(event, approved) {
     await loadAppEmojis(discord.getClient());
     return buildSetupMessage(event, approved, {
-        emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved), bench: benchPosted(event), lang: serverLang(),
+        emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved), bench: benchPosted(event), lang: eventLang(event),
     });
 }
 
@@ -424,7 +434,9 @@ async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now(), 
  * Returns once the message is done; `dms` is the running promise (null when
  * there is nothing to send).
  */
-async function publishSetup(eventId, { userId = "", now = Date.now(), config = getConfig(), delayMs, bench } = {}) {
+async function publishSetup(eventId, { userId = "", now = Date.now(), config = getConfig(), delayMs, bench, dms: dmsChoice } = {}) {
+    // "DMs an Spieler": the orga's choice for this event, kept for the next post (undefined = keep)
+    if (typeof dmsChoice === "boolean" && eventStore.getEvent(eventId)) eventStore.setEventSetupPost(eventId, { dmsChoice });
     const post = await postOrEditSetupMessage(eventId, { userId, now, bench });
     const event = eventStore.getEvent(eventId);
     // The very first post pings everyone placed — same as a manual "Ping
@@ -557,6 +569,8 @@ function publishView(event, { config = getConfig(), channelName = "" } = {}) {
         channelName: channelName || (event && event.channelName) || "",
         cancelled: !!(event && event.status === "cancelled"),
         dmsEnabled: dmsEnabled(event, config),
+        // the category's default, so the editor can tell "chosen for this raid" from "as the category says"
+        dmsDefault: categoryDms(event, config),
         recipients: people.length,
         pendingDms: people.filter((p) => told[p.userId] !== placementSignature(p)).length,
         posted: post.messageId ? {

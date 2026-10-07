@@ -1,4 +1,4 @@
-import type { SetupAttendance, SetupPerson } from "../../../api";
+import type { SetupActivity, SetupAttendance, SetupPerson } from "../../../api";
 import { specLabel } from "../../../lib/wowNames";
 import { t } from "../../../i18n";
 import { formatWith } from "../../../lib/format";
@@ -75,4 +75,37 @@ export function storeCompact(on: boolean) {
     } catch {
         // private window or blocked storage — the choice just is not remembered
     }
+}
+
+/** One line of "Gerade eben" in words: "Taccop hat Cherrylol in Gruppe 2 gesetzt". */
+export function activityText(e: SetupActivity): string {
+    const who = e.byName || "?";
+    switch (e.kind) {
+        case "move": {
+            const character = e.character || "?";
+            if (e.to?.bench) return t("setup.live.toBench", { who, character });
+            if (e.to?.pool) return t("setup.live.toPool", { who, character });
+            return t("setup.live.toGroup", { who, character, group: e.to?.group || "?" });
+        }
+        case "many": return t("setup.live.movedMany", { who, count: e.count || 0 });
+        case "fill": return t("setup.live.filled", { who, count: e.count || 0 });
+        case "propose": return t("setup.live.proposed", { who });
+        case "post": return t("setup.live.posted", { who });
+        default: return who;
+    }
+}
+
+/** "jetzt", "vor 20 s", "vor 3 min" */
+export function agoText(at: number, now: number): string {
+    const s = Math.max(0, Math.round((now - at) / 1000));
+    if (s < 10) return t("setup.live.now");
+    if (s < 60) return t("setup.live.secondsAgo", { count: s });
+    return t("setup.live.minutesAgo", { count: Math.round(s / 60) });
+}
+
+/** Who the search finds: the character, the Discord name, the spec. */
+export function matchesQuery(p: SetupPerson, query: string): boolean {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return [p.character, p.name, specText(p)].some((x) => String(x || "").toLowerCase().includes(q));
 }

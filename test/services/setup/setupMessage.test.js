@@ -26,9 +26,14 @@ jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockCon
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })), editPingMessages: jest.fn(async (c, ids) => ({ messageIds: ids })) }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 // The language: English here (the old assertions), German where a test says so.
-jest.mock("../../../src/services/discord/botLanguage", () => ({
-    ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en"), langOf: jest.fn(() => "en"),
-}));
+jest.mock("../../../src/services/discord/botLanguage", () => {
+    const mocked = {
+        ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en"), langOf: jest.fn(() => "en"),
+    };
+    // no category language in these tests: an event writes in the (mocked) server language
+    mocked.eventLang = jest.fn(() => mocked.serverLang());
+    return mocked;
+});
 
 const discord = require("../../../src/services/discord/discord");
 const eventStore = require("../../../src/stores/eventStore");
@@ -623,6 +628,28 @@ describe("publishView", () => {
         expect(view.outdated).toBe(true);
         expect(view.pendingDms).toBe(3);
         expect(view.dms.failed).toEqual([{ userId: "4", character: "Kael", error: "closed" }]);
+    });
+});
+
+describe("\"DMs an Spieler\" per raid", () => {
+    it("follows the editor's switch over the category's setting, both ways", () => {
+        const event = seed();
+        const on = { categorySetupDms: { cat1: true } };
+        expect(sm.dmsEnabled(event, on)).toBe(true);
+        expect(sm.dmsEnabled({ ...event, setupPost: { dmsChoice: false } }, on)).toBe(false);
+        expect(sm.dmsEnabled({ ...event, setupPost: { dmsChoice: true } }, {})).toBe(true);
+        // the editor tells "as the category says" from a choice of its own
+        expect(sm.publishView({ ...event, setupPost: { dmsChoice: true } }, { config: {} })).toMatchObject({ dmsEnabled: true, dmsDefault: false });
+    });
+
+    it("keeps the choice made with the post and sends no DMs when it is off", async () => {
+        seed();
+        const { dms } = await sm.publishSetup("eh-1", { config: { categorySetupDms: { cat1: true } }, delayMs: 0, dms: false });
+        expect(mockEvents.get("eh-1").setupPost.dmsChoice).toBe(false);
+        expect(dms).toBeNull();
+        // not sent again = the last choice stands
+        await sm.publishSetup("eh-1", { config: { categorySetupDms: { cat1: true } }, delayMs: 0 });
+        expect(mockEvents.get("eh-1").setupPost.dmsChoice).toBe(false);
     });
 });
 

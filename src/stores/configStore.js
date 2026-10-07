@@ -14,7 +14,7 @@ const { normalizeCategoryLootSystem } = require("../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeCategorySignupSource,
-    normalizeCategorySetupDms, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
+    normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
     normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings, normalizeBotLanguage,
 } = require("./configSchema");
@@ -87,6 +87,7 @@ function resolveEventSheetLink(eventSheet, categoryId) {
  * - categorySignupSource: `current` already carries the categories pinned for an
  *   install from before #291 (signupSourcesOf), so a save writes them down;
  * - categorySetupDms, categoryDiscordEvent (#305): a category switched off drops out;
+ * - categoryLanguage: "" = back to the server language, the category drops out;
  * - categoryVoiceChannel (#305), categorySignupNoteChannel (#335): "" = back to the default;
  * - categoryMessageLook: merged per category, one back at the defaults drops out;
  * - categoryAnnounce (#306), categorySignupNotes ("optional" drops out);
@@ -97,6 +98,7 @@ const MERGED_CATEGORY_MAPS = [
     ["categoryLootSystem", normalizeCategoryLootSystem],
     ["categorySignupSource", normalizeCategorySignupSource],
     ["categorySetupDms", normalizeCategorySetupDms],
+    ["categoryLanguage", normalizeCategoryLanguage],
     ["categoryDiscordEvent", normalizeCategoryFlags],
     ["categoryVoiceChannel", normalizeCategoryVoiceChannel],
     ["categoryMessageLook", normalizeCategoryMessageLook],

@@ -28,13 +28,13 @@ const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
-const { submitSignup, signupWindow } = require("./signupService");
+const { submitSignup, signupWindow, checkRaiderRole } = require("./signupService");
 const { versionOfEvent } = require("../events/mainVersion");
 const { archiveOf } = require("../events/eventArchive");
 const { spec: specOf } = require("../../config/gameVersions");
 const { TIMEZONE } = require("../../config/timezone");
 const { tr, serviceText, specLabel, dateLocale } = require("../../utils/i18n/botText");
-const { langOf, serverLang } = require("../discord/botLanguage");
+const { langOf, eventLang } = require("../discord/botLanguage");
 const { buildEmbed } = require("../../utils/discord/reply");
 const logger = require("../../logger");
 const { shortWhen } = require("../../utils/time");
@@ -128,6 +128,26 @@ function checkInput(userId, input = {}, { now = Date.now() } = {}) {
     return { value };
 }
 
+/**
+ * The raids of a period entered for every category (/availability) that are not
+ * the raider's: a category with raider roles the raider holds none of, and no
+ * signup there yet. The picker leaves them out. One role lookup per server.
+ * @returns {Promise<string[]>} event ids
+ */
+async function foreignRaids(userId, scope, { now = Date.now(), config } = {}) {
+    const cfg = config || settingsStore.getConfig();
+    const roleIds = new Map();
+    const out = [];
+    for (const event of raidsInRange(scope, { now, config: cfg })) {
+        if (signupStore.getSignup(event.id, userId)) continue;
+        const guild = event.guildId || cfg.guildId || "";
+        if (!roleIds.has(guild)) roleIds.set(guild, await discord.memberRoleIds(guild, userId));
+        const access = await checkRaiderRole(event, userId, { previous: null, roleIds: roleIds.get(guild), config: cfg });
+        if (access.error) out.push(event.id);
+    }
+    return out;
+}
+
 /** Whether an absence of the raider covers this raid (an attendance then stays out of it). */
 function absentFor(userId, event) {
     return store.listEntries({ userId }).some((e) => e.kind === "absence" && covers(e, event) && !e.skip.includes(event.id));
@@ -148,10 +168,17 @@ async function applyOutcome(entry, event, { now, config }) {
     const byOrga = !!entry.createdBy && entry.createdBy !== entry.userId;
     if (entry.kind === "absence") {
         if (previous && previous.status === "absence") return { ok: false, skipped: "already_absent" };
-        // the roster and the event message show it: the server language
-        const lang = serverLang(config);
+        // Saying "I am away" needs no raider role: an entry made at a category's panel signs off from its raids
+        // whatever the roles say. One for every category (/availability) leaves the raids of categories the
+        // raider is no raider of alone — quietly, they were never theirs.
+        if (!entry.categoryId && !previous && !byOrga) {
+            const access = await checkRaiderRole(event, entry.userId, { previous: null, config });
+            if (access.error) return { ok: false, skipped: "not_raider" };
+        }
+        // the roster and the event message show it: the event's language (its category's)
+        const lang = eventLang(event, config);
         const comment = entry.comment || tr(lang, "Away {from}–{to}", { from: shortDay(entry.from, lang), to: shortDay(entry.to, lang) });
-        const saved = await submitSignup(event.id, entry.userId, { status: "absence", comment }, { byOrga, now, config });
+        const saved = await submitSignup(event.id, entry.userId, { status: "absence", comment }, { byOrga, now, config, roleCheck: false });
         return saved.error ? { ok: false, error: saved.error } : { ok: true };
     }
     if (previous) return { ok: false, skipped: previous.status === "absence" ? "absent" : "already_signed" };
@@ -263,6 +290,8 @@ const SKIP_TEXT = {
     already_signed: "already signed up",
     absent: "you are away",
 };
+// not shown at all: a raid of a category the raider is no raider of (an absence for every category)
+const QUIET_SKIPS = ["not_raider"];
 
 /** The DM after entering: the period, what was done per raid, and that later raids follow. */
 function entryDm(entry, results, lang = "de") {
@@ -271,7 +300,7 @@ function entryDm(entry, results, lang = "de") {
     if (absence && entry.comment) lines.push(tr(lang, "Reason: {reason}", { reason: entry.comment }));
     if (!absence) lines.push(tr(lang, "Character: **{character}** · {spec}", { character: entry.character, spec: specName(entry.spec, lang) }));
     const done = results.filter((r) => r.ok);
-    const skipped = results.filter((r) => !r.ok && r.skipped);
+    const skipped = results.filter((r) => !r.ok && r.skipped && !QUIET_SKIPS.includes(r.skipped));
     const failed = results.filter((r) => !r.ok && !r.skipped);
     lines.push("");
     if (done.length) {
@@ -325,7 +354,7 @@ async function sendDm(userId, { title, description, footer }) {
 
 module.exports = {
     MAX_DAYS, DAY,
-    raidsInRange, checkInput, createEntry, applyToEvent, deleteEntry, activeEntries, covers, today, dayOf, dayStart, shortDay,
+    raidsInRange, foreignRaids, checkInput, createEntry, applyToEvent, deleteEntry, activeEntries, covers, today, dayOf, dayStart, shortDay,
     entrySummary: entryDm,
     // only for the tests: not part of the module's API
     _internal: { raidDm, applyToRaid, absentFor },

@@ -8,22 +8,13 @@
 import { useRef, useState } from "react";
 import type { LootCouncilData } from "../../api";
 import { Badge, Button, Segment } from "../../components/ui";
-import { ChevronDownIcon } from "../../components/icons";
+import { ChevronDownIcon, FunnelIcon } from "../../components/icons";
 import { ROLE_ICON, categoryNote, roleLabel, type FilterView } from "./council";
 import { useDismiss } from "../../hooks/useDismiss";
 import { tParts, useT } from "../../i18n";
 
 // The short name a tier wears on its badge.
 const TIER_SHORT: Record<string, string> = { t4: "T4", t5: "T5", t6: "T6", t65: "SWP" };
-
-/** A funnel — a pure UI glyph, so a line icon rather than a WoW icon. */
-function FunnelIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M4 5h16l-6 8v6l-4-2v-4z" />
-        </svg>
-    );
-}
 
 /** The content filter's choices: the tiers and raids as toggle buttons, with the chosen ones lit. */
 function ContentFilter({ data, view, patch }: {
@@ -73,7 +64,7 @@ function ContentFilter({ data, view, patch }: {
     );
 }
 
-export default function FilterBar({ data, view, patch, armoryCount, simulated, simulatable }: {
+export default function FilterBar({ data, view, patch, armoryCount, simulated, simulatable, reachesGame = false, canWrite = false }: {
     data: LootCouncilData;
     view: FilterView;
     patch: (p: Partial<FilterView>) => void;
@@ -82,6 +73,9 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
     /** Raiders with a simulated DPS, out of those the sim can answer. */
     simulated: number;
     simulatable: number;
+    /** The picked category runs as Loot-Council: its filters are stored and drive the in-game council. */
+    reachesGame?: boolean;
+    canWrite?: boolean;
 }) {
     const t = useT();
     const [open, setOpen] = useState(false);
@@ -169,6 +163,16 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                 ) : null}
             </div>
             <span className="lc-filterbar-badges">
+                {reachesGame ? (
+                    <Badge
+                        tone="accent"
+                        icon="inv_misc_gear_01"
+                        tip={t("lootcouncil.filter.gameTip", { category: o.categories.find((c) => c.id === view.category)?.name || view.category })}
+                        tipSub={canWrite ? t("lootcouncil.filter.gameTipSub") : t("lootcouncil.filter.gameTipReadOnly")}
+                    >
+                        {t("lootcouncil.filter.game")}
+                    </Badge>
+                ) : null}
                 {note ? (
                     <Badge tone={note.empty ? "bad" : undefined} icon="achievement_guildperk_everybodysfriend" tip={note.head} tipSub={note.sub}>
                         {note.empty ? t("lootcouncil.filter.categoryEmpty") : t("lootcouncil.filter.hidden", { count: data.filter.skipped.category + data.filter.skipped.excluded })}

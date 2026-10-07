@@ -13,6 +13,7 @@ afterAll(() => userPrefs.useFile(null));
 beforeEach(() => {
     mockConfig = {};
     userPrefs.clearLang(ANNA);
+    userPrefs.useFile(tempStoreFile("eh-bot-language-" + Math.random().toString(36).slice(2) + ".json"));
 });
 
 describe("services/discord/botLanguage", () => {
@@ -23,6 +24,20 @@ describe("services/discord/botLanguage", () => {
         expect(botLanguage.serverLang({ botLanguage: "xx" })).toBe("de");
     });
 
+    it("posts an event in its category's language — PuGs in English beside German guild raids — else the server's", () => {
+        mockConfig = { botLanguage: "de", categoryLanguage: { pug: "en", guild: "de" } };
+        expect(botLanguage.categoryLang("pug")).toBe("en");
+        expect(botLanguage.eventLang({ id: "eh-1", categoryId: "pug" })).toBe("en");
+        expect(botLanguage.eventLang({ id: "eh-2", categoryId: "guild" })).toBe("de");
+        // a category without its own, an event without a category, nothing at all: the server language
+        expect(botLanguage.eventLang({ id: "eh-3", categoryId: "other" })).toBe("de");
+        expect(botLanguage.eventLang({ id: "eh-4" })).toBe("de");
+        expect(botLanguage.eventLang(null)).toBe("de");
+        expect(botLanguage.eventLang({ categoryId: "x" }, { botLanguage: "en", categoryLanguage: { x: "fr" } })).toBe("en");
+        // the config handed in wins over the stored one
+        expect(botLanguage.eventLang({ categoryId: "pug" }, { botLanguage: "de", categoryLanguage: {} })).toBe("de");
+    });
+
     it("a raider without a choice gets the server language, with one their own", () => {
         expect(botLanguage.langOf(ANNA)).toBe("de");
         mockConfig = { botLanguage: "en" };
@@ -31,6 +46,32 @@ describe("services/discord/botLanguage", () => {
         expect(botLanguage.langOf(ANNA)).toBe("de");
         expect(botLanguage.langOfInteraction({ user: { id: ANNA } })).toBe("de");
         expect(botLanguage.langOfInteraction(null)).toBe("en");
+    });
+});
+
+describe("client language", () => {
+    const withLocale = (locale) => ({ user: { id: ANNA }, locale });
+
+    it("langOf: own choice > stored Discord language > server language", () => {
+        mockConfig = { botLanguage: "en" };
+        expect(botLanguage.langOf(ANNA)).toBe("en");
+        userPrefs.noteClientLang(ANNA, "de");
+        expect(botLanguage.langOf(ANNA)).toBe("de");
+        userPrefs.setLang(ANNA, "en");
+        expect(botLanguage.langOf(ANNA)).toBe("en");
+        userPrefs.clearLang(ANNA);
+        expect(botLanguage.langOf(ANNA)).toBe("de");
+    });
+
+    it("langOfInteraction: own choice > this interaction's locale > stored language > server language", () => {
+        mockConfig = { botLanguage: "en" };
+        expect(botLanguage.langOfInteraction(withLocale(undefined))).toBe("en");
+        expect(botLanguage.langOfInteraction(withLocale("de"))).toBe("de");
+        userPrefs.noteClientLang(ANNA, "de");
+        expect(botLanguage.langOfInteraction(withLocale(undefined))).toBe("de");
+        expect(botLanguage.langOfInteraction(withLocale("fr"))).toBe("en");
+        userPrefs.setLang(ANNA, "de");
+        expect(botLanguage.langOfInteraction(withLocale("en-US"))).toBe("de");
     });
 });
 

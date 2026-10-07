@@ -424,6 +424,35 @@ export function getLootCouncil(filter: CouncilFilter = {}): Promise<LootCouncilD
     return get<LootCouncilData>(`/api/lootcouncil${qs ? `?${qs}` : ""}`);
 }
 
+/**
+ * The council's filters for one raid category, stored on the server — the
+ * in-game addon gets its council with exactly these (GET /api/ingest/council?v=2).
+ * `role` "" = every role, `version` "" = the main version.
+ */
+export type CouncilCategoryView = {
+    role: string;
+    tiers: string[];
+    contents: string[];
+    bisTier: string;
+    version: string;
+};
+
+export type CouncilViews = {
+    views: Record<string, CouncilCategoryView>;
+    /** What a category without a stored view shows. */
+    defaults: CouncilCategoryView;
+    /** The categories whose loot system is Loot-Council — only those reach the game. */
+    councilCategories: string[];
+};
+
+export function getCouncilViews(): Promise<CouncilViews> {
+    return get<CouncilViews>("/api/lootcouncil/views");
+}
+
+export function saveCouncilView(category: string, view: CouncilCategoryView): Promise<{ category: string; view: CouncilCategoryView }> {
+    return send("POST", "/api/lootcouncil/view", { category, ...view });
+}
+
 /** Per raider: their simulated DPS, and what each candidate item would add. */
 export type SimResult = Record<string, {
     baseline: number | null;

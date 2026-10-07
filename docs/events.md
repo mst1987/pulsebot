@@ -30,7 +30,7 @@ One guided dialog, **one step at a time**: *Vorlage* (segment "Letzte Events" / 
 
 ## Kalender-Link und öffentliche Event-Seite (`src/services/events/icsFeed.js`, `src/web/pages/eventPublicPage.js`, #308)
 
-> Öffentliche Event-Seite und Discord-Event sprechen die **Server-Sprache** des Bots (Standard Deutsch, siehe [bot-commands.md](bot-commands.md), „Sprache des Bots“). Die Seite schreibt Zeiten als Text in dieser Sprache in Serverzeit (`<html lang>` passend); die ICS-Zeiten bleiben UTC und der Kalender zeigt sie in der Zeitzone des Lesers.
+> Öffentliche Event-Seite und Discord-Event sprechen die **Sprache der Kategorie** des Events, ohne eigene die Server-Sprache des Bots (Standard Deutsch, siehe [bot-commands.md](bot-commands.md), „Sprache des Bots“). Die Seite schreibt Zeiten als Text in dieser Sprache in Serverzeit (`<html lang>` passend); die ICS-Zeiten bleiben UTC und der Kalender zeigt sie in der Zeitzone des Lesers.
 
 Two paths an own event owns, both **server-rendered and reachable without a login**, both entries of `pageRoutes.js`, matched *above* the SPA fallback (like `/r/<id>`), both with an id pattern of `[A-Za-z0-9_-]+` only — no path can traverse:
 

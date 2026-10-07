@@ -28,7 +28,7 @@ const linkCheck = require("./linkCheck");
 const guildRoles = require("./guildRoles");
 const { getConfig } = require("../../stores/settingsStore");
 const { tr } = require("../../utils/i18n/botText");
-const { serverLang, langOf } = require("./botLanguage");
+const { langOf, eventLang } = require("./botLanguage");
 
 const PING_TARGETS = ["event", "talk", "both"];
 
@@ -161,8 +161,8 @@ async function deliverUserPing({ target, event, userIds, text = "", guildId = ""
     const onTalk = talk ? await talkMemberIds(talk.guildId) : null;
 
     const result = { target: mode, event: null, talk: null, mentioned: 0, dm: null };
-    // in a channel: the server language
-    const lang = serverLang(config);
+    // in a channel: the event's language (its category's)
+    const lang = eventLang(event, config);
     const posted = textIn(text, lang) || missingPingText(lang);
     if (includesEvent(mode)) {
         if (!event || !event.channelId) throw new Error("Das Event hat keinen Kanal.");

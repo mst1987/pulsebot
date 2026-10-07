@@ -558,3 +558,43 @@ export function UserQuestionIcon() {
         </svg>
     );
 }
+
+/** A funnel: a filter button (the Loot-Council's filter, the guild bank's category). */
+export function FunnelIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 5h16l-6 8v6l-4-2v-4z" />
+        </svg>
+    );
+}
+
+/** A wrapped gift: an item raiders may ask for (the guild bank's "Ausgebbar"). */
+export function GiftIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="8" width="18" height="4" rx="1" />
+            <path d="M12 8v13M5 12v9h14v-9" />
+            <path d="M12 8C10 4 6 4 6 6.5S9 8 12 8zm0 0c2-4 6-4 6-1.5S15 8 12 8z" />
+        </svg>
+    );
+}
+
+/** Two sliders: the settings of one row (reserve, limit, category). */
+export function SlidersIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+            <circle cx="16" cy="7" r="2" />
+            <circle cx="10" cy="17" r="2" />
+        </svg>
+    );
+}
+
+/** Three lines: the tabs of a bank (or any list of sections). */
+export function RowsIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 7h18M3 12h18M3 17h18" />
+        </svg>
+    );
+}

@@ -166,6 +166,16 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .rhr-import-row input { width: 80px; }
 .rhr-import-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .rhr-import-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13.5px; }
+/* the guild banks card (SettingsGuildBanks.tsx, #632): name | scan | server | delete */
+.gbs-item { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto auto; }
+.gbs-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.gbs-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gbs-server { display: inline-flex; align-items: center; gap: 8px; justify-self: end; }
+.gbs-select { width: auto; min-height: var(--ctl-h-sm); padding-top: 4px; padding-bottom: 4px; font-size: 13.5px; }
+@media (max-width: 700px) {
+    .gbs-item { grid-template-columns: minmax(0, 1fr) auto; }
+    .gbs-server { justify-self: start; }
+}
 .rhr-import-list strong { min-width: 140px; }
 
 @media (max-width: 760px) {

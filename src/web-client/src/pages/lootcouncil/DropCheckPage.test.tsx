@@ -13,6 +13,8 @@ vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getLootCouncil: vi.fn(),
     searchCouncilItems: vi.fn(),
+    getCouncilViews: vi.fn(),
+    saveCouncilView: vi.fn(),
 }));
 
 const PATH = "/lootcouncil/drop/:itemId?";
@@ -22,6 +24,21 @@ beforeEach(() => {
         focus: councilFocus(),
         sim: { available: false, version: "", hint: "" },
     }));
+    vi.mocked(api.getCouncilViews).mockResolvedValue({
+        views: { c1: { role: "healer", tiers: ["t5"], contents: [], bisTier: "", version: "" } },
+        defaults: { role: "caster", tiers: [], contents: [], bisTier: "", version: "" },
+        councilCategories: ["c1"],
+    });
+});
+
+describe("drop check with a raid category", () => {
+    it("asks with the category's stored filters and never saves them", async () => {
+        localStorage.setItem("eh-lootcouncil.view", JSON.stringify({ category: "c1" }));
+        renderPage(<DropCheckPage />, { route: "/lootcouncil/drop/200", path: PATH });
+        expect(await screen.findByText("Alle, die ihn tragen können")).toBeInTheDocument();
+        expect(api.getLootCouncil).toHaveBeenCalledWith(expect.objectContaining({ category: "c1", role: "healer", tiers: ["t5"], item: 200 }));
+        expect(api.saveCouncilView).not.toHaveBeenCalled();
+    });
 });
 
 describe("drop check (German)", () => {

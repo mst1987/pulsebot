@@ -26,6 +26,7 @@ export type Draft = {
     /** Not saved from here — read so an unset category shows the source it really gets. */
     signupSourceDefault: EventSource;
     categorySetupDms: Record<string, boolean>;
+    categoryLanguage: Record<string, string>;
     categoryDiscordEvent: Record<string, boolean>;
     categoryVoiceChannel: Record<string, string>;
     /** The look of the signup message; missing = raid picture on, title "large". */
@@ -71,6 +72,7 @@ export function toDraft(config: AdminConfig): Draft {
         categorySignupSource: config.categorySignupSource || {},
         signupSourceDefault: config.signupSourceDefault || "raidhelper",
         categorySetupDms: config.categorySetupDms || {},
+        categoryLanguage: config.categoryLanguage || {},
         categoryDiscordEvent: config.categoryDiscordEvent || {},
         categoryVoiceChannel: config.categoryVoiceChannel || {},
         categoryMessageLook: config.categoryMessageLook || {},

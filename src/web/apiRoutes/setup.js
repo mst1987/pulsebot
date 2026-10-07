@@ -2,6 +2,8 @@
 //
 //   GET  /api/raids/setup?event=<id>          area raids (read): the orga gets the draft,
 //                                              everyone else only the approved lineup
+//   POST /api/raids/setup/presence            raids write: the open editor's heartbeat — who else
+//                                              is in it, the stored version, what changed
 //   POST /api/raids/setup/propose             raids write: new proposal, locked places kept
 //   PUT  /api/raids/setup                     raids write: the orga's own lineup — once the
 //                                              setup is posted, live into its message
@@ -43,6 +45,7 @@ const { startJob, getJob } = require("../logcheck/evalJobs");
 const { explainSetup } = require("../../utils/setup/explainText");
 const setupSignup = require("../../services/setup/setupSignup");
 const setupConfirm = require("../../services/setup/setupConfirm");
+const setupPresence = require("../../services/setup/setupPresence");
 
 // A write on an event setup: an archived event (a hidden game version, #563) is read only.
 const BY_EVENT = (body) => body.event;
@@ -89,6 +92,8 @@ async function view(event, user, { names = true } = {}) {
         avoidPairs: write ? setupEditor.avoidPairCount(signups, profiles.listProfiles()) : 0,
         // reads reports and logs — only on the page load, a move must answer at once
         attendance: write && names ? safeAttendance(fresh) : null,
+        // no setup stored yet: the empty start (every signup under "Angemeldet") instead of "no setup"
+        blank: true,
     });
     if (write) out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
     return out;
@@ -120,11 +125,49 @@ function eventOf(res, id) {
     return event;
 }
 
-/** GET /api/raids/setup?event=<id> */
+/**
+ * GET /api/raids/setup?event=<id>[&light=1] — `light`: what an open editor fetches
+ * when somebody else changed the setup: no Discord names, no attendance (the page
+ * keeps the ones it has), so it answers at once.
+ */
 const getSetup = withUser({}, async ({ user, res, url }) => {
     const event = eventOf(res, url.searchParams.get("event"));
     if (!event) return;
-    ok(res, await view(event, user));
+    ok(res, await view(event, user, { names: url.searchParams.get("light") !== "1" }));
+});
+
+/** The characters of an event's signups, by user id — names a raider who left the lineup in the activity. */
+function charactersOf(eventId) {
+    return Object.fromEntries(listSignups(eventId).map((s) => [String(s.userId), s.character || ""]));
+}
+
+/** Who did it, for the other editors' activity line. */
+const actor = (user) => ({ by: user.id, byName: user.name || "" });
+
+/** Placed in a group, for "Freie Plätze gefüllt (n)". */
+const placedCount = (setup) => ((setup && setup.groups) || []).reduce((n, g) => n + ((g && g.slots) || []).length, 0);
+
+/**
+ * POST /api/raids/setup/presence — body `{ event, action?, since?, leave? }`: the
+ * open editor's heartbeat (every few seconds). `action` = `{ kind: "drag"|"edit",
+ * userId }`, what the caller holds right now. Answers who else is in the editor,
+ * the stored version (newer than the page's = somebody else changed it: fetch it
+ * `light`) and what the others did after `since`. `leave: true` when the editor closes.
+ */
+const postPresence = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+    const event = eventOf(res, body.event);
+    if (!event) return;
+    if (body.leave === true) {
+        setupPresence.leave(event.id, user.id);
+        return ok(res, { left: true });
+    }
+    setupPresence.beat(event.id, user, { action: body.action });
+    ok(res, {
+        editors: setupPresence.editorsOf(event.id, { exceptUserId: user.id }),
+        version: (event.setup && Number(event.setup.version)) || 0,
+        // only what the others did: one's own moves are on the page already
+        activity: setupPresence.activityOf(event.id, { since: body.since }).filter((e) => e.by !== String(user.id)),
+    });
 });
 
 async function answer(res, result, user, extra = {}) {
@@ -147,19 +190,28 @@ async function followLive(result, user) {
     return post.code ? `Setup-Nachricht nicht aktualisiert: ${post.error}` : "";
 }
 
-/** POST /api/raids/setup/propose — body `{ event, weights?, fairness?, wishes? }` */
+/** POST /api/raids/setup/propose — body `{ event, weights?, fairness?, wishes?, keep? }` (`keep: "placed"` = "Freie Plätze füllen") */
 const postPropose = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
-    if (!eventOf(res, body.event)) return;
+    const before = eventOf(res, body.event);
+    if (!before) return;
     const result = setupEditor.proposeEventSetup(String(body.event).trim(), body, { userId: user.id });
+    if (!result.error) {
+        const count = placedCount(result.setup) - (body.keep === "placed" ? placedCount(before.setup) : 0);
+        setupPresence.recordNote(before.id, body.keep === "placed" ? "fill" : "propose", { ...actor(user), count: Math.max(0, count) });
+    }
     const failed = await followLive(result, user);
-    const message = result.live ? "Neuer Vorschlag erstellt – die gepostete Setup-Nachricht zeigt ihn schon." : "Neuer Vorschlag erstellt.";
-    await answer(res, result, user, { message: failed ? `Neuer Vorschlag erstellt. ${failed}` : message });
+    const done = body.keep === "placed" ? "Freie Plätze gefüllt." : "Neuer Vorschlag erstellt.";
+    const message = result.live ? `${done} Die gepostete Setup-Nachricht zeigt es schon.` : done;
+    await answer(res, result, user, { message: failed ? `${done} ${failed}` : message });
 });
 
 /** PUT /api/raids/setup — body `{ event, version, groups, bench, weights?, fairness?, wishes? }` */
 const putSetup = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
-    if (!eventOf(res, body.event)) return;
+    const before = eventOf(res, body.event);
+    if (!before) return;
     const result = setupEditor.saveEventSetup(String(body.event).trim(), body, { userId: user.id });
+    // the other editors see who moved whom
+    if (!result.error) setupPresence.recordMoves(before.id, before.setup, result.setup, { ...actor(user), names: charactersOf(before.id) });
     // a move answers quietly; only a failed edit of the posted message is said
     const failed = await followLive(result, user);
     await answer(res, result, user, failed ? { message: failed } : {});
@@ -167,8 +219,10 @@ const putSetup = withUser({ write: "raids", csrf: true, body: true, archived: BY
 
 /** "Bench mitposten" (#517): true/false from the body, undefined = keep the event's last choice. */
 const benchChoice = (body) => (typeof body.bench === "boolean" ? body.bench : undefined);
+/** "DMs an Spieler": true/false from the body, undefined = keep the event's last choice (else the category's). */
+const dmsChoice = (body) => (typeof body.dms === "boolean" ? body.dms : undefined);
 
-/** POST /api/raids/setup/approve — body `{ event, version, bench? }` */
+/** POST /api/raids/setup/approve — body `{ event, version, bench?, dms? }` */
 const postApprove = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.approveEventSetup(String(body.event).trim(), { version: body.version, userId: user.id });
@@ -182,14 +236,15 @@ const postApprove = withUser({ write: "raids", csrf: true, body: true, archived:
     if (!result.already) {
         // The setup's own message (#290): awaited, so the answer says where it went;
         // the DMs run on in the background and the editor polls their outcome.
-        const { post } = await setupMessage.publishSetup(result.event.id, { userId: user.id, bench: benchChoice(body) });
+        const { post } = await setupMessage.publishSetup(result.event.id, { userId: user.id, bench: benchChoice(body), dms: dmsChoice(body) });
         if (post.code) message = `${message} Setup-Nachricht nicht gepostet: ${post.error}`;
+        else setupPresence.recordNote(result.event.id, "post", actor(user));
     }
     await answer(res, result, user, { message });
 });
 
 /**
- * POST /api/raids/setup/post — body `{ event, version?, bench? }`: post/edit the
+ * POST /api/raids/setup/post — body `{ event, version?, bench?, dms? }`: post/edit the
  * setup and send outstanding DMs. Posting is approving: a draft is approved
  * first (only the `version` the editor showed, when one is sent), so there is
  * no separate approval step for the orga.
@@ -204,8 +259,9 @@ const postPublish = withUser({ write: "raids", csrf: true, body: true, archived:
             refreshEventMessage(event.id).catch((e) => console.error(`[setup] event message ${event.id}:`, e.message));
         }
     }
-    const { post } = await setupMessage.publishSetup(event.id, { userId: user.id, bench: benchChoice(body) });
+    const { post } = await setupMessage.publishSetup(event.id, { userId: user.id, bench: benchChoice(body), dms: dmsChoice(body) });
     if (post.code) return sendFailure(res, post);
+    setupPresence.recordNote(event.id, "post", actor(user));
     const text = post.action === "edited" ? "Setup-Nachricht aktualisiert." : "Setup gepostet.";
     await answer(res, { event }, user, { message: text });
 });
@@ -345,6 +401,7 @@ const getExplain = withUser({ write: "raids" }, async ({ res, url }) => {
 const routes = [
     { method: "GET", path: "/api/raids/setup", handler: getSetup, area: "raids" },
     { method: "PUT", path: "/api/raids/setup", handler: putSetup, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/presence", handler: postPresence, area: "raids" },
     { method: "POST", path: "/api/raids/setup/propose", handler: postPropose, area: "raids" },
     { method: "POST", path: "/api/raids/setup/approve", handler: postApprove, area: "raids" },
     { method: "POST", path: "/api/raids/setup/post", handler: postPublish, area: "raids" },
@@ -361,4 +418,4 @@ const routes = [
     { method: "GET", path: "/api/raids/setup/explain", handler: getExplain, area: "raids" },
 ];
 
-module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postPing, postConfirm, postConfirmAll, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION, routes };
+module.exports = { getSetup, postPresence, postPropose, putSetup, postApprove, postPublish, postPingText, postPing, postConfirm, postConfirmAll, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION, routes };

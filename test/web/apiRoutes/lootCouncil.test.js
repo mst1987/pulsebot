@@ -35,6 +35,9 @@ jest.mock("../../../src/stores/councilStore", () => ({
     include: jest.fn(() => true),
     exclude: jest.fn((character, meta) => ({ character, ...meta, at: 5 })),
     setRole: jest.fn((character, role, meta) => (role ? { role, ...meta } : null)),
+    listViews: jest.fn(() => ({})),
+    setView: jest.fn((category, view, meta) => ({ ...jest.requireActual("../../../src/stores/councilStore").normalizeView(view), at: 1, ...meta })),
+    VIEW_DEFAULTS: { role: "caster", tiers: [], contents: [], bisTier: "", version: "" },
 }));
 jest.mock("../../../src/services/loot/charGear", () => ({
     gearFor: jest.fn(() => null),
@@ -73,7 +76,7 @@ const { getConfig } = require("../../../src/stores/settingsStore");
 const routesModule = require("../../../src/web/apiRoutes/lootCouncil");
 const {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim, getItemSearch, getBisLists,
-    postExclude, postRole, getExport, postArmoryRefresh, postLogGear, routes,
+    postExclude, postRole, getExport, postArmoryRefresh, postLogGear, getViews, postView, routes,
 } = routesModule;
 const { mockRes, status, body, json } = require("../../helpers/http");
 
@@ -121,6 +124,8 @@ describe("the route table", () => {
             "POST /api/lootcouncil/exclude",
             "GET /api/lootcouncil/item-search",
             "POST /api/lootcouncil/role",
+            "GET /api/lootcouncil/views",
+            "POST /api/lootcouncil/view",
             "POST /api/lootcouncil/armory",
             "POST /api/lootcouncil/loggear",
             "GET /api/lootcouncil/bislists",
@@ -139,6 +144,7 @@ describe("read access on the GET handlers", () => {
         ["GET /api/lootcouncil/item-search", () => getItemSearch],
         ["GET /api/lootcouncil/bislists", () => getBisLists],
         ["GET /api/lootcouncil/sim", () => getLootCouncilSim],
+        ["GET /api/lootcouncil/views", () => getViews],
     ];
 
     it.each(readers)("%s refuses a user without the lootcouncil area with 403", async (name, handler) => {
@@ -161,6 +167,7 @@ describe("write access on the POST handlers", () => {
         ["sim", () => postLootCouncilSim],
         ["exclude", () => postExclude],
         ["role", () => postRole],
+        ["view", () => postView],
         ["armory", () => postArmoryRefresh],
         ["loggear", () => postLogGear],
     ];
@@ -409,6 +416,42 @@ describe("POST /api/lootcouncil/role", () => {
         expect(status(res)).toBe(400);
         expectError(res, "invalid_input", "Unbekannte Rolle: tank");
         expect(councilStore.setRole).not.toHaveBeenCalled();
+    });
+});
+
+describe("GET /api/lootcouncil/views", () => {
+    it("hands out the stored views, the defaults and the Loot-Council categories", async () => {
+        councilStore.listViews.mockReturnValue({
+            c1: { role: "healer", tiers: ["t6"], contents: [], bisTier: "t6", version: "tbc", at: 5, by: "Admin" },
+        });
+        getConfig.mockReturnValue({ categoryIds: ["c1", "c2", "c3"], categoryLootSystem: { c1: "lootcouncil" }, categoryLootTool: { c3: "rclc" } });
+        mockUser = READER;
+        const res = await call(getViews, "/api/lootcouncil/views");
+        expect(status(res)).toBe(200);
+        expect(body(res)).toEqual({
+            views: { c1: { role: "healer", tiers: ["t6"], contents: [], bisTier: "t6", version: "tbc" } },
+            defaults: { role: "caster", tiers: [], contents: [], bisTier: "", version: "" },
+            councilCategories: ["c1", "c3"],
+        });
+    });
+});
+
+describe("POST /api/lootcouncil/view", () => {
+    it("stores a category's view, cleaned, with who set it", async () => {
+        mockUser = WRITER;
+        mockBody = { category: "c1", role: "boss", tiers: ["t5", "t5", "<x>"], contents: ["bt"], bisTier: "t6", version: "tbc" };
+        const res = await call(postView, "/api/lootcouncil/view");
+        expect(status(res)).toBe(200);
+        expect(councilStore.setView).toHaveBeenCalledWith("c1", mockBody, { by: "3" });
+        expect(body(res)).toEqual({ category: "c1", view: { role: "caster", tiers: ["t5"], contents: ["bt"], bisTier: "t6", version: "tbc" } });
+    });
+
+    it("needs a category", async () => {
+        mockBody = { role: "caster" };
+        const res = await call(postView, "/api/lootcouncil/view");
+        expect(status(res)).toBe(400);
+        expectError(res, "bad_request", "Keine Kategorie angegeben.");
+        expect(councilStore.setView).not.toHaveBeenCalled();
     });
 });
 

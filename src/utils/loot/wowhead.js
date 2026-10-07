@@ -105,6 +105,87 @@ async function lookupItem(itemId, { edition = "tbc", path = "" } = {}) {
     }
 }
 
+// Wowhead's locale numbers for the tooltip endpoint and the path segment of
+// its pages; English is the default and has neither.
+const LOCALES = { de: { number: 3, segment: "de" }, en: { number: 0, segment: "" } };
+
+/** The text of `<tag ...>` in Wowhead's item XML (CDATA unwrapped), "" when missing. */
+function xmlText(xml, tag) {
+    const m = new RegExp(`<${tag}(?:\\s[^>]*)?>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tag}>`).exec(xml);
+    return m ? m[1].trim() : "";
+}
+
+/** The `id` attribute of `<tag id="...">`, null when missing. */
+function xmlId(xml, tag) {
+    const m = new RegExp(`<${tag}\\s+id="(-?\\d+)"`).exec(xml);
+    return m ? Number(m[1]) : null;
+}
+
+/**
+ * One item with its name in a locale (English by default), icon, quality and
+ * Wowhead's item class and subclass (ids plus Wowhead's text in that locale,
+ * "Consumable" / "Flask") — what the guild bank stock shows and groups by
+ * (services/guildbank/itemMeta.js; the German group labels come from the ids,
+ * config/itemClassLabels.js).
+ *
+ * Asks Wowhead's item XML first, the one answer that carries the class; when
+ * that fails, the tooltip endpoint (name, icon, quality, no class). Not cached
+ * here: the caller keeps the answer on disk. Null on a missing id, an unknown
+ * item or any error (best-effort).
+ * @param {number|string} itemId
+ * @param {{ edition?: string, path?: string, locale?: "de"|"en" }} [opts]
+ * @returns {Promise<{ id, name, icon, iconUrl, quality, classId, subclassId, className, subclassName }|null>}
+ */
+async function lookupItemDetails(itemId, { edition = "tbc", path = "", locale = "en" } = {}) {
+    const id = Number(itemId) || 0;
+    if (!id) return null;
+    const branch = branchFor(edition, path);
+    const loc = LOCALES[locale] || LOCALES.en;
+    const target = wowheadItemId(id);
+    const request = { httpsAgent, timeout: 15000, headers: { "User-Agent": "Mozilla/5.0 (EventHelper)" } };
+    try {
+        const segment = loc.segment ? `/${loc.segment}` : "";
+        const { data } = await axios.get(`https://www.wowhead.com/${branch}${segment}/item=${target}&xml`, { ...request, responseType: "text" });
+        const xml = String(data || "");
+        const name = xmlText(xml, "name");
+        if (name && !/<error>/.test(xml)) {
+            const icon = xmlText(xml, "icon");
+            return {
+                id,
+                name,
+                icon,
+                iconUrl: iconUrl(icon),
+                quality: xmlId(xml, "quality"),
+                classId: xmlId(xml, "class"),
+                subclassId: xmlId(xml, "subclass"),
+                className: xmlText(xml, "class"),
+                subclassName: xmlText(xml, "subclass"),
+            };
+        }
+    } catch (e) {
+        console.error("wowhead item xml failed:", e.message);
+    }
+    try {
+        const query = loc.number ? `?locale=${loc.number}` : "";
+        const { data } = await axios.get(`https://nether.wowhead.com/${branch}/tooltip/item/${target}${query}`, request);
+        if (!data || !data.name) return null;
+        return {
+            id,
+            name: String(data.name),
+            icon: data.icon || "",
+            iconUrl: iconUrl(data.icon),
+            quality: typeof data.quality === "number" ? data.quality : null,
+            classId: null,
+            subclassId: null,
+            className: "",
+            subclassName: "",
+        };
+    } catch (e) {
+        console.error("wowhead item lookup failed:", e.message);
+        return null;
+    }
+}
+
 // In-memory cache for findItemByName() — the same gem cuts repeat across every
 // slot of every character, so each distinct name is searched at most once.
 const nameCache = new Map();
@@ -129,4 +210,4 @@ async function findItemByName(name, { edition = "tbc" } = {}) {
     return exact;
 }
 
-module.exports = { searchItems, lookupItem, findItemByName, iconUrl, itemLink, branchFor };
+module.exports = { searchItems, lookupItem, lookupItemDetails, findItemByName, iconUrl, itemLink, branchFor };

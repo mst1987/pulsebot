@@ -10,6 +10,7 @@ require("./config/env.js").validateEnv();
 const messages = require("./config/messages.js");
 const { card } = require("./utils/discord/card.js");
 const { tr } = require("./utils/i18n/botText.js");
+const userPrefs = require("./stores/userPrefsStore.js");
 const { langOfInteraction } = require("./services/discord/botLanguage.js");
 const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./services/logcheck/logChannel.js");
@@ -17,6 +18,7 @@ const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/role
 const { guardInteraction } = require("./services/discord/botAccess.js");
 const { runMode } = require("./config/runMode.js");
 const { ensureAppEmojis } = require("./services/discord/appEmojiSync.js");
+const { queueItemEmojiSync } = require("./services/guildbank/itemEmojis.js");
 const linkWatch = require("./services/discord/linkWatch.js");
 const { loadCommandModules, kindOf } = require("./commands/loader.js");
 const { startJobs } = require("./web/http/jobs.js");
@@ -57,6 +59,8 @@ client.on(Events.ClientReady, () => {
     // The spec/class/role icons of the event message (#287): create the missing ones, then
     // read them; text icons until then.
     ensureAppEmojis(client).catch((error) => logger.warn("ensureAppEmojis failed:", error.message));
+    // The guild bank items' icons (#633): whatever changed while the bot was offline.
+    queueItemEmojiSync({ delay: 30 * 1000 });
 });
 
 // Watch the configured log channels for Warcraft-Logs links and offer to evaluate them.
@@ -143,7 +147,17 @@ async function handleAutocomplete(interaction) {
 
 client.on("interactionCreate", (interaction) => handleInteraction(interaction));
 
+/** Remembers the raider's Discord client language so DMs and reminders follow it (best-effort, never throws). */
+function noteLocale(interaction) {
+    try {
+        if (interaction && interaction.user) userPrefs.noteClientLang(interaction.user.id, interaction.locale);
+    } catch (error) {
+        logger.debug(`Could not note the client language: ${error.message}`);
+    }
+}
+
 async function handleInteraction(interaction) {
+    noteLocale(interaction);
     if (is(interaction, "isAutocomplete")) return handleAutocomplete(interaction);
     if (!is(interaction, "isCommand") && !COMPONENT_GUARDS.some((guard) => is(interaction, guard))) return;
 

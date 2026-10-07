@@ -45,6 +45,8 @@
     "/api/signups/event": "raids",
     "/api/lootcouncil": "lootcouncil",
     "/api/lootcouncil/sim": "lootcouncil",
+    "/api/lootcouncil/views": "lootcouncil",
+    "/api/lootcouncil/view": "lootcouncil",
     "/api/lootcouncil/item-search": "lootcouncil",
     "/api/lootcouncil/bislists": "lootcouncil",
     "/api/lootcouncil/armory": "lootcouncil",
@@ -69,6 +71,7 @@
     "/api/raids/softres/item-search": "raids",
     "/api/raids/loot-system": "raids",
     "/api/raids/setup": "raids",
+    "/api/raids/setup/presence": "raids",
     "/api/raids/setup/propose": "raids",
     "/api/raids/setup/approve": "raids",
     "/api/raids/setup/post": "raids",
@@ -199,7 +202,14 @@
     "/api/availability/preview": "signup",
     "/api/availability/panels": "settings",
     "/api/availability/panel": "settings",
-    "/api/availability/links": "settings"
+    "/api/availability/links": "settings",
+    "/api/settings/guild-banks": "settings",
+    "/api/settings/guild-banks/assign": "settings",
+    "/api/settings/guild-banks/delete": "settings",
+    "/api/guildbank": "raids",
+    "/api/guildbank/item": "raids",
+    "/api/guildbank/tab": "raids",
+    "/api/guildbank/requests": "raids"
   },
   "ungated": [
     "/api/session",
@@ -213,6 +223,9 @@
   ],
   "tokenAuth": [
     "/api/ingest/loot",
-    "/api/ingest/raids"
+    "/api/ingest/raids",
+    "/api/ingest/council",
+    "/api/ingest/guildbank",
+    "/api/ingest/guildbank/handouts"
   ]
 }

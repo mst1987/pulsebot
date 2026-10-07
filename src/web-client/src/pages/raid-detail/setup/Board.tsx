@@ -1,4 +1,5 @@
-import { useState, type DragEvent, type KeyboardEvent } from "react";
+import { useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
+import { useZone } from "./useZone";
 import type { SetupAttendance, SetupConfirmation, SetupEditorData, SetupEditorGroup, SetupPerson } from "../../../api";
 import { placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
 import { wowIconUrl } from "../../../lib/wowIcon";
@@ -34,6 +35,12 @@ export type Interaction = {
     confirmations?: Record<string, SetupConfirmation>;
     /** The raider the panel holds on to (clicked last, no move pending) — framed, so it is clear whose panel it is. */
     pinned?: string | null;
+    /** Raiders another orga member holds right now (drags, picks or edits — setupPresence): ringed in their colour, not to be taken. */
+    held?: Record<string, { name: string; color: string; kind: "drag" | "edit" }>;
+    /** Raiders another orga member just moved: a short glow with their name. */
+    flash?: Record<string, { name: string; color: string }>;
+    /** A click or drop on a raider somebody else holds. */
+    onHeld?: (userId: string) => void;
 };
 
 /**
@@ -43,12 +50,17 @@ export type Interaction = {
  * `inPool` (#517): signed up, not in the setup, a "Bank" signup marked.
  * `inGroup`: a place in a group — only there a Confirm/Cancel is drawn (green resp. red, the mark as a big icon behind the line).
  */
-function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerson; ui: Interaction; inPool?: boolean; inGroup?: boolean }) {
+export function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerson; ui: Interaction; inPool?: boolean; inGroup?: boolean }) {
     const t = useT();
     const status = statusLabel(p.status);
     const color = classColorProps(p.classColor);
     const selected = ui.selected === p.userId;
     const confirmation = inGroup ? (ui.confirmations || {})[p.userId] : undefined;
+    // another orga member holds this raider: drawn in their colour, nobody else takes them meanwhile
+    const held = ui.held?.[p.userId];
+    const flash = held ? undefined : ui.flash?.[p.userId];
+    const movable = ui.editable && !held;
+    const who = held || flash;
     const inspect = () => ui.onInspect(p.userId);
     const keyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -59,22 +71,24 @@ function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerson; ui: 
     const drop = (e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
+        if (held) return ui.onHeld?.(p.userId);
         ui.onDrop({ userId: p.userId }, e.dataTransfer.getData("text/plain"));
     };
     return (
         <div
-            className={`se-slot${selected ? " se-picked" : ""}${!selected && ui.pinned === p.userId ? " se-pinned" : ""}${p.locked ? " se-locked" : ""}${ui.dragging === p.userId ? " se-dragging" : ""}${confirmation ? ` se-${confirmation}` : ""}`}
+            className={`se-slot${selected ? " se-picked" : ""}${!selected && ui.pinned === p.userId ? " se-pinned" : ""}${p.locked ? " se-locked" : ""}${ui.dragging === p.userId ? " se-dragging" : ""}${confirmation ? ` se-${confirmation}` : ""}${held ? " se-held" : ""}${flash ? " se-flash" : ""}`}
+            style={who ? ({ "--se-who": who.color } as CSSProperties) : undefined}
             role={ui.editable ? "button" : undefined}
             tabIndex={ui.editable ? 0 : undefined}
             aria-pressed={ui.editable ? selected : undefined}
-            draggable={ui.editable}
+            draggable={movable}
             data-user={p.userId}
             onMouseEnter={inspect}
             onFocus={inspect}
-            onClick={ui.editable ? () => ui.onPick(p.userId) : undefined}
-            onKeyDown={ui.editable ? keyDown : undefined}
+            onClick={ui.editable ? () => (held ? ui.onHeld?.(p.userId) : ui.onPick(p.userId)) : undefined}
+            onKeyDown={movable ? keyDown : undefined}
             // the dimmed look is set a tick later: changing the dragged element inside dragstart makes Chrome cancel the drag
-            onDragStart={ui.editable ? (e) => { inspect(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId), 0); } : undefined}
+            onDragStart={movable ? (e) => { inspect(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId), 0); } : undefined}
             onDragEnd={ui.editable ? () => ui.onDrag(null) : undefined}
             onDragOver={ui.editable ? (e) => e.preventDefault() : undefined}
             onDrop={ui.editable ? drop : undefined}
@@ -107,21 +121,14 @@ function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerson; ui: 
             {status && <span className={`rd-sig rd-sig-${p.status}`} aria-label={status} />}
             {/* a fixed place only shows it — the panel's button changes it */}
             {p.locked && !inPool && <span className="se-lock-mark" role="img" aria-label={t("setup.slot.locked")}><LockIcon /></span>}
+            {/* who holds or just moved this raider */}
+            {who && (
+                <span className="se-who-tag">
+                    {held ? t(held.kind === "edit" ? "setup.live.editsTag" : "setup.live.holdsTag", { name: held.name }) : who.name}
+                </span>
+            )}
         </div>
     );
-}
-
-/** A drop zone: a group card or the bench. Click/Enter moves the picked raider here. */
-function useZone(target: SetupTarget, ui: Interaction) {
-    const [over, setOver] = useState(false);
-    return {
-        over,
-        props: ui.editable ? {
-            onDragOver: (e: DragEvent<HTMLElement>) => { e.preventDefault(); setOver(true); },
-            onDragLeave: () => setOver(false),
-            onDrop: (e: DragEvent<HTMLElement>) => { e.preventDefault(); setOver(false); ui.onDrop(target, e.dataTransfer.getData("text/plain")); },
-        } : {},
-    };
 }
 
 /**
@@ -204,29 +211,29 @@ export function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs
 }
 
 /**
- * The bench (#354) or the pool "Angemeldet" (#517) as ONE row under the groups:
- * its name and count, then its raiders side by side — never a real group: no
- * roles, no buffs, and dropping anywhere on the row just means "onto the bench"
- * resp. "back into the pool". Picked somebody? A "Hierher" place takes them.
+ * The bench (#354) as ONE row under the groups: its name and count, then its
+ * raiders side by side — never a real group: no roles, no buffs, and dropping
+ * anywhere on the row just means "onto the bench". Picked somebody? A
+ * "Hierher" place takes them. "Angemeldet" (#517) has a panel of its own
+ * (PoolPanel.tsx).
  */
-function SlotRow({ people, ui, pool = false }: { people: SetupPerson[]; ui: Interaction; pool?: boolean }) {
+function SlotRow({ people, ui }: { people: SetupPerson[]; ui: Interaction }) {
     const t = useT();
-    const target: SetupTarget = pool ? { pool: true } : { bench: true };
+    const target: SetupTarget = { bench: true };
     const zone = useZone(target, ui);
     const canTake = ui.editable && !!ui.selected && !people.some((s) => s.userId === ui.selected);
-    const key = pool ? "pool" : "bench";
     return (
-        <section className={`se-bench se-row${pool ? " se-pool" : ""}${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t(`setup.${key}.aria`)}>
-            <header className="se-bench-head" data-tip={t(`setup.${key}.title`)} data-tip-sub={t(`setup.${key}.tip`)}>
-                <span className="se-group-title">{t(`setup.${key}.title`)}</span>
+        <section className={`se-bench se-row${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t("setup.bench.aria")}>
+            <header className="se-bench-head" data-tip={t("setup.bench.title")} data-tip-sub={t("setup.bench.tip")}>
+                <span className="se-group-title">{t("setup.bench.title")}</span>
                 <span className="se-count">{people.length}</span>
             </header>
             <div className="se-row-slots">
-                {people.map((p) => <Slot key={p.userId} p={p} ui={ui} inPool={pool} />)}
+                {people.map((p) => <Slot key={p.userId} p={p} ui={ui} />)}
                 {canTake && (
                     <button type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop(target)}>{t("setup.group.here")}</button>
                 )}
-                {!people.length && !canTake && <span className="se-row-empty">{t(`setup.${key}.empty`)}</span>}
+                {!people.length && !canTake && <span className="se-row-empty">{t("setup.bench.empty")}</span>}
             </div>
         </section>
     );
@@ -234,15 +241,6 @@ function SlotRow({ people, ui, pool = false }: { people: SetupPerson[]; ui: Inte
 
 export function BenchCard({ bench, ui }: { bench: SetupPerson[]; ui: Interaction }) {
     return <SlotRow people={bench} ui={ui} />;
-}
-
-/**
- * "Angemeldet" (#517): everybody signed up who is neither in a group nor on the
- * bench — drawn like the bench, never posted. Dragging somebody here takes them
- * out of the setup again.
- */
-export function PoolCard({ pool, ui }: { pool: SetupPerson[]; ui: Interaction }) {
-    return <SlotRow people={pool} ui={ui} pool />;
 }
 
 /** The approved lineup, read-only — what someone without write access sees. */
