@@ -190,6 +190,9 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .re-end { display: block; margin-top: 5px; font-size: 12.5px; color: var(--muted); }
 .re-muted { color: var(--muted); }
 .re-dlg-body .re-chan-name { font-size: 15px; font-weight: 600; }
+/* the channel name with its emoji button (ui/EmojiPicker) on the right */
+.re-chan-row { display: flex; align-items: center; gap: 8px; }
+.re-chan-row > input { flex: 1; min-width: 0; }
 /* Where the name comes from (#285): one badge under the field (.naming-badge is shared.css'). */
 .re-naming { margin-top: 6px; display: flex; min-width: 0; }
 .re-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }

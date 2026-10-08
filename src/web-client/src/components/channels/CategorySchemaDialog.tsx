@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     quickCreateChannels, saveChannelSchema, type ApiError, type ChannelNaming, type ChannelsData, type QuickCreatePlanRow,
 } from "../../api";
 import NamingBadge from "./NamingBadge";
+import ChannelEmojiPicker from "./ChannelEmojiPicker";
+import { instanceIdsOfTag } from "../../lib/raidEmojis";
 import { Badge, Button, Modal } from "../ui";
 import { ChannelsIcon } from "../icons";
 import { useToast } from "../Jobs";
@@ -43,6 +45,7 @@ export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
     const categoryName = data.categories.find((c) => c.id === categoryId)?.name || t("channels.category");
     const archiveId = data.archive?.categoryId || "";
     const templates = data.channels.filter((c) => isTextLike(c) && c.parentId !== archiveId);
+    const categoryNames = useMemo(() => data.channels.filter((c) => c.parentId === categoryId).map((c) => c.name), [data.channels, categoryId]);
 
     useEffect(() => {
         let alive = true;
@@ -102,6 +105,8 @@ export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
                     </label>
                     <div className="kn-input">
                         <input id="kn-cs-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} placeholder={t("channels.schemaPlaceholder")} />
+                        <ChannelEmojiPicker value={schema || data.defaultSchema} onChange={setSchema}
+                            channelNames={categoryNames} instanceIds={instanceIdsOfTag(raid)} raidLabel={raid.toUpperCase()} />
                     </div>
                 </div>
                 <PlaceholderChips data={data} onPick={(key) => setSchema((s) => `${s}{${key}}`)} />
