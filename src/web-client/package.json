@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "emojibase-data": "^16.0.3",
-    "lucide-react": "^1.47.0",
+    "lucide-react": "^1.52.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0"
@@ -42,7 +42,7 @@
     "jsdom": "^26.1.0",
     "stylelint": "^16.26.1",
     "typescript": "^5.6.3",
-    "typescript-eslint": "^8.70.1",
+    "typescript-eslint": "^8.71.1",
     "vite": "^6.4.3",
     "vitest": "^4.1.11"
   }
