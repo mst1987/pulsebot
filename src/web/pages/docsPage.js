@@ -95,10 +95,13 @@ const WEB_GROUPS = [
         "Wunschpartner und „nicht zusammen raiden mit“ hinterlegen.",
         "Persönlicher Kalender-Abo-Link für alle eigenen Anmeldungen.",
     ] },
+    { cat: "signup", title: "Abwesenheiten", badge: "Bereich: signup oder roster", items: [
+        "Meine Anwesenheit: Quote je Raid-Kategorie, die letzten Raids mit Grund, die nächsten Raids mit dem eigenen Status, eigene Abwesenheiten eintragen.",
+        "Mit roster dazu: wer in den nächsten Wochen fehlt (Zeitleiste) und die kommenden Raids, mit Hinweis bei vielen Einzelabsagen.",
+    ] },
     { cat: "roster", title: "Roster", badge: "Bereich: roster", items: [
         "Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit.",
         "Charaktere ausblenden (ohne Daten zu löschen), z. B. bei Guild-Austritt.",
-        "Abwesenheiten: wer in den nächsten Wochen fehlt (Zeitleiste und je Raid), mit Hinweis bei vielen Einzelabsagen.",
     ] },
     { cat: "lootcouncil", title: "Loot-Council", badge: "Bereich: lootcouncil", items: [
         "Rangliste je Raider nach Bedarf (Drought, Loot-Anteil, BiS-Abstand).",

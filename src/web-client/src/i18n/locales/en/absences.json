@@ -1,11 +1,12 @@
 {
-    "kicker": "Roster",
+    "kicker": "Attendance",
     "title": "Absences",
     "lead": "Who is missing in the coming weeks – from \"Enter absence\" and from single raids signed off.",
     "viewAria": "View",
     "view": {
         "timeline": "Timeline",
-        "raids": "Per raid"
+        "raids": "Per raid",
+        "mine": "My attendance"
     },
     "enter": "Enter absence",
     "loading": "Loading absences",
@@ -92,17 +93,10 @@
     "raids": {
         "empty": "No coming raids in this period.",
         "in": "in",
-        "away": "away",
         "size": {
             "one": "{count} spot",
             "other": "{count} spots"
         },
-        "roleLine": "{role}: {away} away · {have} in (target {need})",
-        "rolesOk": "Roles are covered",
-        "absentAria": "Who is missing",
-        "howPeriod": "Period entered",
-        "howSingle": "Signed off this raid",
-        "until": "until {date}",
         "toSetup": "To the setup"
     },
     "drawer": {
@@ -132,7 +126,8 @@
         "removeText": "The period {period} is deleted. Signups already changed stay as they are.",
         "removed": "Entry deleted",
         "remove": "Delete entry",
-        "byOrga": "entered by the raid lead"
+        "byOrga": "entered by the raid lead",
+        "attendance": "View attendance"
     },
     "history": {
         "in": "in",
@@ -147,5 +142,46 @@
         "single": "single raid signed off",
         "presence": "attendance entered",
         "today": "today"
+    },
+    "mine": {
+        "lead": "How often you were there in the last raids per raid category, your coming raids and the absences you entered.",
+        "leadRaider": "How often the raider was there in the last raids per raid category, their coming raids and the absences they entered.",
+        "loading": "Loading attendance",
+        "back": "Back to the overview",
+        "of": "Attendance of {name}",
+        "entries": "My absences",
+        "entriesOf": "Absences of {name}",
+        "noEntries": "No absence entered.",
+        "noCategories": "You have not signed up for a raid of any category yet – once you are in, your attendance shows here.",
+        "noCategoriesOf": "{name} has not signed up for a raid of any category yet.",
+        "noRaids": "No raids counted yet.",
+        "pct": "{pct}%",
+        "ofRaids": {
+            "one": "{attended} of {count} raid",
+            "other": "{attended} of {count} raids"
+        },
+        "auto": "auto",
+        "autoTip": "Characters matched automatically – from your signups and your profile, not set by the raid lead.",
+        "nightsAria": "Last raids, the newest last",
+        "next": "Next raids",
+        "status": {
+            "signed": "In",
+            "late": "Late",
+            "tentative": "Maybe",
+            "bench": "Bench",
+            "absence": "Signed off",
+            "none": "no signup"
+        },
+        "reason": {
+            "inLog": "in the log",
+            "inLogClass": "in the log (class matches)",
+            "signed": "signed up",
+            "late": "signed up (late)",
+            "absence": "signed off",
+            "notInLog": "not in the log",
+            "noSignup": "no signup",
+            "bench": "bench",
+            "tentative": "tentative"
+        }
     }
 }

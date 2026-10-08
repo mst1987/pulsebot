@@ -49,8 +49,7 @@
         "eventLoot": "Event-Loot",
         "character": "Charakter",
         "editPost": "Nachricht bearbeiten",
-        "planCatalog": "Raidplan-Katalog",
-        "absences": "Abwesenheiten"
+        "planCatalog": "Raidplan-Katalog"
     },
     "noArea": {
         "label": "Kein Bereich freigegeben",

@@ -252,3 +252,43 @@ export function getAbsenceOverview(weeks: number, category = ""): Promise<Absenc
 export function getAbsenceRaider(userId: string): Promise<AbsenceRaiderDetail> {
     return get(`/api/availability/overview/raider?userId=${encodeURIComponent(userId)}`);
 }
+
+// ---- "Meine Anwesenheit": one raider's attendance per raid category and raid (src/web/availability/raiderAttendance.js) ----
+
+/** One counted raid night and its verdict; `reason` is the server's German word ("im Log", "keine Anmeldung" …). */
+export type AttendanceRaid = { eventId: string; title: string; startTime: number; attended: boolean; reason: string };
+
+/** A coming raid of the category with the raider's own signup status ("" = none). */
+export type AttendanceUpcoming = { eventId: string; title: string; startTime: number; status: SignupStatus | ""; url: string };
+
+export type AttendanceCategory = {
+    id: string;
+    name: string;
+    /** 0–100, null while no raid counts. */
+    pct: number | null;
+    attended: number;
+    total: number;
+    /** "auto": the characters were matched automatically, "manual": assigned by the orga. */
+    link: "manual" | "auto";
+    /** How many raids count at most (the last n). */
+    window: number;
+    raids: AttendanceRaid[];
+    upcoming: AttendanceUpcoming[];
+};
+
+export type RaiderAttendanceData = {
+    userId: string;
+    name: string;
+    /** The character of the newest signup, "" none — the name when there is no other. */
+    character?: string;
+    /** The caller's own attendance. */
+    own: boolean;
+    /** Whether the caller is the raid lead (may look at anyone's). */
+    orga: boolean;
+    categories: AttendanceCategory[];
+};
+
+/** The own attendance, or a raider's for the orga. */
+export function getRaiderAttendance(userId = ""): Promise<RaiderAttendanceData> {
+    return get(userId ? `/api/availability/attendance?userId=${encodeURIComponent(userId)}` : "/api/availability/attendance");
+}

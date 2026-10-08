@@ -57,7 +57,7 @@ Technik: [bot-commands.md](bot-commands.md)
 Diese Befehle antworten privat (nur für dich sichtbar) und verlinken meist auf die passende Seite im Web:
 
 - `/raids` — Liste der kommenden Raids. `/raid <Event>` — Details zu einem einzelnen Raid.
-- `/anwesenheit` — eigene Anwesenheit. `/anwesenheit-raider <Name>` — Anwesenheit eines anderen Raiders (Orga).
+- `/anwesenheit` — eigene Anwesenheit. `/anwesenheit-raider <Name>` — Anwesenheit eines anderen Raiders (Orga). Ausführlicher im Web unter **Abwesenheiten → Meine Anwesenheit**: deine Quote je Raid-Kategorie, jeder der letzten Raids mit Grund, deine nächsten Raids mit Status und deine eingetragenen Abwesenheiten.
 - `/report` — Liste der vorhandenen Log-Auswertungen.
 - `/loot ich · item · raider` — eigene Loot-Historie, Historie zu einem Item, oder zu einem Spieler.
 - `/council <Item>` — Loot-Council-Infos zu einem Item (Orga).

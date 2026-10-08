@@ -1,20 +1,24 @@
-// Roster › Abwesenheiten (October 2026): who is away when over the next weeks —
-// from "Abwesend eintragen" and from raids signed off one by one — what that
-// does to the coming raids, and who keeps signing off without saying for how
-// long. Three views: the timeline (default), one card per raid, and a raider
-// in the side drawer. The server builds everything (GET /api/availability/
-// overview, src/services/signups/absenceOverview.js); the layout rules are
-// lib/absences.ts. The raid lead enters an absence for a raider through the
-// signup page's dialog (components/signup/AvailabilityDialog.tsx).
-import { useEffect, useState } from "react";
-import { useOutletContext } from "react-router-dom";
-import { getAbsenceOverview, getAvailability, type AbsenceIdentity, type RaiderRef } from "../../api";
+// Abwesenheiten (October 2026), a menu entry of its own under "Start": who is
+// away when over the next weeks — from "Abwesend eintragen" and from raids
+// signed off one by one — and each raider's own attendance.
+//
+//   Zeitleiste, Pro Raid   the orga's overview (area "roster"): GET /api/availability/
+//                          overview (src/services/signups/absenceOverview.js), a raider
+//                          in the side drawer; layout rules in lib/absences.ts
+//   Meine Anwesenheit      everybody with "signup": the own entries and the quota per
+//                          raid category and raid (MyAttendance.tsx); `?userId=` is
+//                          the same view for one raider, opened by the orga from the drawer
+//
+// A raider without "roster" sees only "Meine Anwesenheit". Entering goes
+// through the signup page's dialog (components/signup/AvailabilityDialog.tsx).
+import { useEffect, useState, type ReactNode } from "react";
+import { useOutletContext, useSearchParams } from "react-router-dom";
+import { canAccess, getAbsenceOverview, getAvailability, type AbsenceIdentity, type RaiderRef } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedState } from "../../lib/persistedState";
 import { visibleRaiders } from "../../lib/absences";
 import { Button, IconTile, Segment, Switch } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { MenuRailPage } from "../../components/SectionRail";
 import { AbsenceIcon, SearchIcon } from "../../components/icons";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
 import type { ShellContext } from "../../components/Shell";
@@ -22,20 +26,22 @@ import { useT } from "../../i18n";
 import AbsenceTimeline from "./AbsenceTimeline";
 import AbsenceRaids from "./AbsenceRaids";
 import RaiderDrawer from "./RaiderDrawer";
+import MyAttendance from "./MyAttendance";
 import { AbsenceTiles, HintCard } from "./AbsenceHead";
 import "../../styles/absences.css";
 
-type ViewMode = "timeline" | "raids";
+type ViewMode = "timeline" | "raids" | "mine";
 type Span = "4" | "8" | "13";
 type View = { mode: ViewMode; category: string; span: Span; presence: boolean };
 
 const VIEW_DEFAULT: View = { mode: "timeline", category: "", span: "8", presence: true };
 const SPANS: Span[] = ["4", "8", "13"];
+const MODES: ViewMode[] = ["timeline", "raids", "mine"];
 
 /** A stored view from an older build or by hand: only known values are read. */
 function cleanView(v: Partial<View>): View {
     return {
-        mode: v.mode === "raids" ? "raids" : "timeline",
+        mode: MODES.includes(v.mode as ViewMode) ? (v.mode as ViewMode) : "timeline",
         category: typeof v.category === "string" ? v.category : "",
         span: SPANS.includes(v.span as Span) ? (v.span as Span) : "8",
         presence: v.presence !== false,
@@ -48,15 +54,64 @@ function refOf(who: Pick<AbsenceIdentity, "userId" | "name" | "character" | "cla
 }
 
 export default function AbsencesPage() {
-    const { user } = useOutletContext<ShellContext>();
-    return <MenuRailPage user={user} parent="roster"><Absences /></MenuRailPage>;
-}
-
-function Absences() {
     const t = useT();
+    const { user } = useOutletContext<ShellContext>();
+    const orgaView = canAccess(user, "roster");
     const [stored, setStored] = usePersistedState<View>("absences-view", VIEW_DEFAULT);
     const view = cleanView(stored);
     const patch = (p: Partial<View>) => setStored(() => ({ ...view, ...p }));
+    const [params, setParams] = useSearchParams();
+    // a raider's attendance, opened from the drawer: the orga's view of one raider
+    const raider = params.get("userId") || "";
+    const mode: ViewMode = !orgaView || raider ? "mine" : view.mode;
+
+    const viewSwitch = orgaView && !raider ? (
+        <Segment<ViewMode>
+            ariaLabel={t("absences.viewAria")}
+            value={mode}
+            onChange={(m) => patch({ mode: m })}
+            options={[
+                { value: "timeline", label: t("absences.view.timeline") },
+                { value: "raids", label: t("absences.view.raids") },
+                { value: "mine", label: t("absences.view.mine") },
+            ]}
+        />
+    ) : null;
+
+    if (mode === "mine") {
+        return (
+            <div className="ab-page">
+                <Head lead={raider ? t("absences.mine.leadRaider") : t("absences.mine.lead")}>{viewSwitch}</Head>
+                <MyAttendance key={raider} userId={raider} onBack={raider ? () => setParams({}) : undefined} />
+            </div>
+        );
+    }
+    return <OrgaViews view={view} patch={patch} viewSwitch={viewSwitch} onAttendance={(id) => setParams({ userId: id })} />;
+}
+
+function Head({ lead, children }: { lead: string; children?: ReactNode }) {
+    const t = useT();
+    return (
+        <div className="page-head">
+            <IconTile icon="spell_nature_timestop" tone="absences" size="lg" />
+            <div className="ph-text">
+                <div className="kicker">{t("absences.kicker")}</div>
+                <h1>{t("absences.title")}</h1>
+                <p className="ab-lead">{lead}</p>
+            </div>
+            {children && <div className="ph-act">{children}</div>}
+        </div>
+    );
+}
+
+/** Zeitleiste and Pro Raid: the orga's overview of who is away when. */
+function OrgaViews({ view, patch, viewSwitch, onAttendance }: {
+    view: View;
+    patch: (p: Partial<View>) => void;
+    viewSwitch: ReactNode;
+    onAttendance: (userId: string) => void;
+}) {
+    const t = useT();
     const [search, setSearch] = useState("");
     const [drawer, setDrawer] = useState("");
     // bumped after a save in the dialog, so an open drawer loads the raider again
@@ -91,28 +146,12 @@ function Absences() {
 
     return (
         <div className="ab-page">
-            <div className="page-head">
-                <IconTile icon="achievement_guildperk_everybodysfriend" tone="roster" size="lg" />
-                <div className="ph-text">
-                    <div className="kicker">{t("absences.kicker")}</div>
-                    <h1>{t("absences.title")}</h1>
-                    <p className="ab-lead">{t("absences.lead")}</p>
-                </div>
-                <div className="ph-act">
-                    <Segment<ViewMode>
-                        ariaLabel={t("absences.viewAria")}
-                        value={view.mode}
-                        onChange={(mode) => patch({ mode })}
-                        options={[
-                            { value: "timeline", label: t("absences.view.timeline") },
-                            { value: "raids", label: t("absences.view.raids") },
-                        ]}
-                    />
-                    {data.canEdit && (
-                        <Button icon={<AbsenceIcon />} disabled={!canEnter} onClick={() => enter(null)}>{t("absences.enter")}</Button>
-                    )}
-                </div>
-            </div>
+            <Head lead={t("absences.lead")}>
+                {viewSwitch}
+                {data.canEdit && (
+                    <Button icon={<AbsenceIcon />} disabled={!canEnter} onClick={() => enter(null)}>{t("absences.enter")}</Button>
+                )}
+            </Head>
 
             <AbsenceTiles data={data} />
 
@@ -155,15 +194,16 @@ function Absences() {
                     <AbsenceTimeline data={data} rows={rows} onOpen={setDrawer} />
                     <Legend />
                 </>
-            ) : <AbsenceRaids data={data} onOpen={setDrawer} />}
+            ) : <AbsenceRaids data={data} />}
 
             {drawer && (
                 <RaiderDrawer
                     key={`${drawer}-${saved}`}
                     userId={drawer}
                     onClose={() => setDrawer("")}
-                    onEnter={(raider) => enter(refOf(raider))}
+                    onEnter={(r) => enter(refOf(r))}
                     onChanged={() => { void overview.reload(); }}
+                    onAttendance={(id) => { setDrawer(""); onAttendance(id); }}
                 />
             )}
             {own.data && (

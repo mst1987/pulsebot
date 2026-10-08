@@ -27,8 +27,8 @@ describe("one menu for both front ends", () => {
     it("gives every entry an id, a label, a group, its areas and a WoW icon", () => {
         for (const entry of MENU) {
             expect(entry).toEqual({
-                // a sub entry keeps its parent's colour (the raid plan pages Raid-Events', Abwesenheiten the roster's)
-                ...(entry.sub ? { area: entry.href.startsWith("/roster/") ? "roster" : "raids", sub: true } : {}),
+                // a sub entry keeps its parent's colour (the raid plan pages under Raid-Events)
+                ...(entry.sub ? { area: "raids", sub: true } : {}),
                 id: expect.stringMatching(/^[a-zA-Z]+$/),
                 label: expect.any(String),
                 href: expect.stringMatching(/^\//),
@@ -40,7 +40,7 @@ describe("one menu for both front ends", () => {
         expect(new Set(MENU.map((e) => e.id)).size).toBe(MENU.length);
     });
 
-    it("groups the menu by what the entries are about, never more than three under one heading", () => {
+    it("groups the menu by what the entries are about, never more than three under one heading (Start four)", () => {
         // one heading with eight entries under it ("Verwaltung") was the raid lead's complaint
         const groups = [];
         for (const entry of MENU.filter((e) => !e.sub)) {
@@ -49,7 +49,8 @@ describe("one menu for both front ends", () => {
             else groups.push({ name: entry.group, ids: [entry.id] });
         }
         expect(groups).toEqual([
-            { name: "Start", ids: ["home", "signups", "profile"] },
+            // Abwesenheiten sits in Start on purpose (Oct 2026): raiders follow their own attendance there
+            { name: "Start", ids: ["home", "signups", "absences", "profile"] },
             { name: "Raids", ids: ["raids", "roster", "cla"] },
             { name: "Loot", ids: ["history", "lootcouncil", "bank"] },
             { name: "Gilde", ids: ["recruitment", "kader", "channels"] },
@@ -57,16 +58,17 @@ describe("one menu for both front ends", () => {
         ]);
         // a group is one contiguous block, so its heading is printed once
         expect(new Set(groups.map((g) => g.name)).size).toBe(groups.length);
-        for (const g of groups) expect(g.ids.length).toBeLessThanOrEqual(3);
+        for (const g of groups) expect(g.ids.length).toBeLessThanOrEqual(g.name === "Start" ? 4 : 3);
     });
 
     it("uses the icons of the approved design", () => {
         const icons = Object.fromEntries(MENU.filter((e) => !e.sub).map((e) => [e.id, e.wowIcon]));
-        expect(Object.fromEntries(MENU.filter((e) => e.sub).map((e) => [e.id, e.wowIcon]))).toEqual({ planTemplates: "inv_misc_map02", planCatalog: "inv_misc_book_11", absences: "spell_nature_timestop" });
+        expect(Object.fromEntries(MENU.filter((e) => e.sub).map((e) => [e.id, e.wowIcon]))).toEqual({ planTemplates: "inv_misc_map02", planCatalog: "inv_misc_book_11" });
         expect(icons).toEqual({
             home: "inv_misc_map_01",
             profile: "achievement_character_human_male",
             signups: "inv_misc_book_09",
+            absences: "spell_nature_timestop",
             recruitment: "inv_misc_grouplooking",
             cla: "inv_misc_pocketwatch_01",
             raids: "inv_misc_note_02",

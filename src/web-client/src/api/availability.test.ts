@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "./client";
 import {
-    deleteAvailability, getAbsenceOverview, getAbsenceRaider, getAvailability, getAvailabilityPanels, postAvailabilityPanel, previewAvailability,
+    deleteAvailability, getAbsenceOverview, getAbsenceRaider, getAvailability, getRaiderAttendance, getAvailabilityPanels, postAvailabilityPanel, previewAvailability,
     removeAvailabilityPanel, saveAvailability, saveAvailabilityLinks,
 } from "./availability";
 
@@ -55,5 +55,12 @@ describe("availability api", () => {
         expect(client.get).toHaveBeenLastCalledWith("/api/availability/overview?weeks=13&category=c+1");
         await getAbsenceRaider("12 34");
         expect(client.get).toHaveBeenLastCalledWith("/api/availability/overview/raider?userId=12%2034");
+    });
+
+    it("loads the own attendance, or a raider's for the orga", async () => {
+        await getRaiderAttendance();
+        expect(client.get).toHaveBeenLastCalledWith("/api/availability/attendance");
+        await getRaiderAttendance("12 34");
+        expect(client.get).toHaveBeenLastCalledWith("/api/availability/attendance?userId=12%2034");
     });
 });

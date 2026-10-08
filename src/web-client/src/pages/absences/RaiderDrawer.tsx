@@ -4,7 +4,7 @@ import { deleteAvailability, getAbsenceRaider, type AbsenceRaiderDetail, type Ap
 import { useApi } from "../../hooks/useApi";
 import { Badge, Button, IconButton, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { AbsenceIcon, TrashIcon, XIcon } from "../../components/icons";
+import { AbsenceIcon, ListChecksIcon, TrashIcon, XIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { currentAbsence, displayName, playsLine } from "../../lib/absences";
 import { dayMs, periodLabel } from "../../lib/availability";
@@ -20,13 +20,15 @@ type Entry = AbsenceRaiderDetail["entries"][number];
 
 const STATE_TONE = { planned: "accent", running: "mid", past: undefined } as const;
 
-export default function RaiderDrawer({ userId, onClose, onEnter, onChanged }: {
+export default function RaiderDrawer({ userId, onClose, onEnter, onChanged, onAttendance }: {
     userId: string;
     onClose: () => void;
     /** "Abwesenheit für … eintragen": the dialog with this raider picked. */
     onEnter: (raider: AbsenceRaiderDetail) => void;
     /** An entry was deleted: the overview reloads. */
     onChanged: () => void;
+    /** "Anwesenheit ansehen": the page's attendance view for this raider (the orga only). */
+    onAttendance?: (userId: string) => void;
 }) {
     const t = useT();
     const state = useApi(() => getAbsenceRaider(userId), [userId]);
@@ -59,6 +61,9 @@ export default function RaiderDrawer({ userId, onClose, onEnter, onChanged }: {
                         <Button icon={<AbsenceIcon />} onClick={() => onEnter(data)}>
                             {t("absences.drawer.enterFor", { name: displayName(data) })}
                         </Button>
+                    )}
+                    {data.canEdit && onAttendance && (
+                        <Button variant="ghost" icon={<ListChecksIcon />} onClick={() => onAttendance(data.userId)}>{t("absences.drawer.attendance")}</Button>
                     )}
                     {data.character && (
                         <Link className="mlink" to={`/roster/char?name=${encodeURIComponent(data.character)}`}>{t("absences.drawer.toCharacter")}</Link>

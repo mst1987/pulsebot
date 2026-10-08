@@ -91,6 +91,23 @@ describe("menu access", () => {
         expect(screen.queryByText(t("shell.app.noRead"))).not.toBeInTheDocument();
     });
 
+    it("gives a raider Abwesenheiten in the menu under Start, right after Anmeldungen, and opens it", async () => {
+        const raider: SessionUser = { id: "u4", name: "Rai", isAdmin: false, access: { signup: { read: true, write: true } } };
+        expect(MENU.find((e) => e.id === "absences")).toMatchObject({ href: "/absences", group: "Start", areas: ["signup", "roster"] });
+        showApp(raider, "/absences");
+        const nav = await screen.findByRole("navigation", {}, SLOW);
+        expect(within(nav).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/signups", "/absences", "/profile"]);
+        expect(await screen.findByText(t("absences.mine.loading"), {}, SLOW)).toBeInTheDocument();
+        expect(screen.queryByText(t("shell.app.noRead"))).not.toBeInTheDocument();
+    });
+
+    it("opens Abwesenheiten with the roster area alone, and the old address under the roster still", async () => {
+        const rosterOnly: SessionUser = { id: "u5", name: "Ros", isAdmin: false, access: { roster: { read: true, write: false } } };
+        showApp(rosterOnly, "/roster/absences?userId=7");
+        expect(await screen.findByText(t("absences.mine.loading"), {}, SLOW)).toBeInTheDocument();
+        expect(document.querySelector(".crumbs")).toHaveTextContent(`${t("shell.crumb.menu")} / ${t("shell.menu.absences")}`);
+    });
+
     it("keeps the addon inbox closed to the read-only loot area", async () => {
         showApp(lootOnly, "/history/inbox");
         expect(await screen.findByText(t("shell.app.noRead"), {}, SLOW)).toBeInTheDocument();

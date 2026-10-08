@@ -29,6 +29,10 @@ jest.mock("../../../src/services/signups/absenceOverview", () => ({
     raiderDetail: jest.fn((userId) => ({ userId, name: userId, entries: [], history: [] })),
 }));
 
+jest.mock("../../../src/web/availability/raiderAttendance", () => ({
+    raiderAttendance: jest.fn((userId) => ({ userId, categories: [{ id: "cat1", pct: 80, raids: [], upcoming: [] }] })),
+}));
+
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const store = require("../../../src/stores/availabilityStore");
@@ -36,6 +40,7 @@ const availability = require("../../../src/services/signups/availability");
 const panel = require("../../../src/services/signups/availabilityPanel");
 const route = require("../../../src/web/apiRoutes/availability");
 const absenceOverview = require("../../../src/services/signups/absenceOverview");
+const { raiderAttendance } = require("../../../src/web/availability/raiderAttendance");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { mockRes, status, json } = require("../../helpers/http");
 
@@ -246,5 +251,20 @@ describe("the orga's overview", () => {
         const { checkAccess } = require("../../../src/web/http/apiAccess");
         expect(checkAccess("/api/availability/overview", "GET", ANNA)).toMatchObject({ status: 403 });
         expect(checkAccess("/api/availability/overview", "GET", { ...ANNA, access: { roster: { read: true } } })).toBeNull();
+    });
+});
+
+describe("Meine Anwesenheit", () => {
+    it("answers a raider their own attendance, never somebody else's", async () => {
+        const res = await call("GET", "/api/availability/attendance", ANNA);
+        expect(status(res)).toBe(200);
+        expect(raiderAttendance).toHaveBeenCalledWith(ANNA.id, expect.objectContaining({ categoryNames: expect.any(Object) }));
+        expect(json(res).data).toMatchObject({ userId: ANNA.id, own: true, orga: false, categories: [{ id: "cat1", pct: 80 }] });
+        expect(status(await call("GET", "/api/availability/attendance", ANNA, { query: "userId=999" }))).toBe(403);
+    });
+
+    it("lets the orga look at any raider", async () => {
+        const res = await call("GET", "/api/availability/attendance", ORGA, { query: "userId=u1" });
+        expect(json(res).data).toMatchObject({ userId: "u1", name: "Bananajoe#discord", own: false, orga: true });
     });
 });
