@@ -8,6 +8,7 @@
   "DELETE /api/raidplan/templates",
   "DELETE /api/raids/series",
   "GET /api/availability",
+  "GET /api/availability/attendance",
   "GET /api/availability/overview",
   "GET /api/availability/overview/raider",
   "GET /api/availability/panels",

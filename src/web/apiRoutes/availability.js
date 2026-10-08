@@ -6,6 +6,7 @@
 // POST   /api/availability/preview        area signup   — the raids a period covers; body { kind, from, to, character, spec, userId? }
 // POST   /api/availability                area signup   — enter one; body { kind, from, to, comment, character, spec, eventIds[], userId? }
 // DELETE /api/availability                area signup   — remove one; body { id }
+// GET    /api/availability/attendance[?userId=]        area signup — own attendance per category and raid (orga: anyone's)
 // GET    /api/availability/overview?weeks=&category=  area roster — the orga's overview: who is away when (absenceOverview.js)
 // GET    /api/availability/overview/raider?userId=    area roster — one raider's entries and last raids
 // GET    /api/availability/panels         area settings — the posted Discord panels per raid category
@@ -29,6 +30,7 @@ const { visibleVersions } = require("../../services/events/mainVersion");
 const linkCheck = require("../../services/discord/linkCheck");
 const discord = require("../../services/discord/discord");
 const absenceOverview = require("../../services/signups/absenceOverview");
+const { raiderAttendance } = require("../availability/raiderAttendance");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const isOrga = (user) => userCanAny(user, ["raids"], "write");
@@ -224,9 +226,24 @@ const getOverviewRaider = withUser({}, async ({ user, query, res }) => {
     ok(res, { ...named(view), canEdit: isOrga(user) });
 });
 
+/**
+ * GET /api/availability/attendance[?userId=] — "Meine Anwesenheit": per raid category the quota and the
+ * verdict of every counted raid, plus the coming raids with the own status. Somebody else's only for the orga.
+ */
+const getAttendance = withUser({}, async ({ user, query, res }) => {
+    const target = targetOf(user, query.get("userId"));
+    if (target.error) return apiError(res, 403, "forbidden", target.error);
+    const config = getConfig();
+    const view = raiderAttendance(target.userId, { config, categoryNames: categoryNamesOf(config), eventUrl: (e) => linkCheck.eventLink(e) });
+    const profile = profiles.getProfile(target.userId);
+    const named = await namerFor([target.userId], config);
+    ok(res, { ...named({ ...view, name: profile.name || "" }), own: target.userId === str(user.id), orga: isOrga(user) });
+});
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/availability", handler: getAvailability, area: "signup" },
+    { method: "GET", path: "/api/availability/attendance", handler: getAttendance, area: "signup" },
     { method: "GET", path: "/api/availability/overview", handler: getOverview, area: "roster" },
     { method: "GET", path: "/api/availability/overview/raider", handler: getOverviewRaider, area: "roster" },
     { method: "POST", path: "/api/availability/preview", handler: postPreview, area: "signup" },
