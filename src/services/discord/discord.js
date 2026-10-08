@@ -972,6 +972,25 @@ async function editLink(channelId, messageId, opts = {}) {
 const NAME_FETCH_MS = 5000;
 
 /**
+ * How long an id Discord did not hand back is left out of the next lookups.
+ * A raider who left the server (or signed up from another one) is never in the
+ * member cache, so without this every page listing them asked Discord again —
+ * and waited for it — on every load. A lookup that failed outright (timeout,
+ * rate limit) is not a "no", so it is only skipped for the shorter time.
+ */
+const ABSENT_MS = 30 * 60 * 1000;
+const FAILED_MS = 5 * 60 * 1000;
+const absentUntil = new Map(); // "<guildId>:<userId>" -> ms timestamp
+
+/** Resolves with null after `ms`, without keeping the process alive. */
+function nullAfter(ms) {
+    return new Promise((resolve) => {
+        const timer = setTimeout(() => resolve(null), ms);
+        if (timer.unref) timer.unref();
+    });
+}
+
+/**
  * Display names for a set of user ids, best-effort.
  *
  * Used for the per-account permission grants (config.userPermissions, a
@@ -982,30 +1001,49 @@ const NAME_FETCH_MS = 5000;
  * bot) instead of a fetch per id — that was one Discord round trip per raider
  * on every Setup-tab load. An id that cannot be resolved (left the server,
  * bot offline, no access) simply has no entry, and the page falls back to
- * showing the id.
+ * showing the id; it is not asked for again for a while (ABSENT_MS).
  *
+ * `waitMs` caps how long the caller waits (the create dialog must not stand
+ * still for Discord): the fetch goes on in the background and fills the
+ * member cache, so the names are there on the next call.
+ *
+ * @param {{ waitMs?: number }} [opts]
  * @returns {Promise<Record<string, string>>} id -> display name
  */
-async function resolveUserNames(guildId, userIds = []) {
+async function resolveUserNames(guildId, userIds = [], { waitMs = NAME_FETCH_MS } = {}) {
     const ids = [...new Set((userIds || []).map(String).filter(Boolean))];
     const guild = getGuild(guildId);
     if (!guild || !ids.length) return {};
     const out = {};
     const missing = [];
+    const now = Date.now();
+    const keyOf = (id) => `${guildId}:${id}`;
     for (const id of ids) {
         const cached = guild.members.cache.get(id);
         if (cached) out[id] = cached.displayName || cached.user.username;
-        else missing.push(id);
+        else if (!(absentUntil.get(keyOf(id)) > now)) missing.push(id);
     }
-    if (missing.length) {
-        try {
-            const fetched = await guild.members.fetch({ user: missing, time: NAME_FETCH_MS });
-            for (const member of fetched.values()) out[member.id] = member.displayName || member.user.username;
-        } catch {
-            // Unknown members / no access — those ids stay out, the page shows the bare id.
-        }
-    }
+    if (!missing.length) return out;
+    const fetching = Promise.resolve()
+        .then(() => guild.members.fetch({ user: missing, time: NAME_FETCH_MS }))
+        .then((fetched) => {
+            const until = Date.now() + ABSENT_MS;
+            for (const id of missing) if (!fetched.has(id)) absentUntil.set(keyOf(id), until);
+            return fetched;
+        }, () => {
+            // Unknown members / no access / timeout — those ids stay out, the page shows the bare id.
+            const until = Date.now() + FAILED_MS;
+            for (const id of missing) absentUntil.set(keyOf(id), until);
+            return null;
+        });
+    const fetched = waitMs < NAME_FETCH_MS ? await Promise.race([fetching, nullAfter(Math.max(0, waitMs))]) : await fetching;
+    if (fetched) for (const member of fetched.values()) out[member.id] = member.displayName || member.user.username;
     return out;
+}
+
+// Test-only: forget which ids Discord did not know.
+function _resetAbsentNamesForTests() {
+    absentUntil.clear();
 }
 
 /**
@@ -1056,7 +1094,7 @@ function embed() {
 module.exports = {
     setClient, getClient, isOnline, fetchTextChannel, textChannelOf, listGuilds, getGuild, listTextChannels, listEmojis,
     sendDirectMessage, embed,
-    resolveUserNames, NAME_FETCH_MS,
+    resolveUserNames, NAME_FETCH_MS, ABSENT_MS, _resetAbsentNamesForTests,
     memberRoleIds,
     listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,

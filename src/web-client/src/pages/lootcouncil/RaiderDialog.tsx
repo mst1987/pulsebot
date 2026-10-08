@@ -19,6 +19,7 @@ import { itemQualityProps } from "../../lib/itemQuality";
 import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
 import { dropHref, gearCounts, roleLabel, wornWowheadUrl } from "./council";
 import { useWowheadPath } from "../../lib/versionLinks";
+import { useBackdropClose } from "../../hooks/useBackdropClose";
 import { ContentBadge, ItemLink, RaiderIdent } from "./ItemBits";
 import { GearBadges, WornIcon } from "./GearBadges";
 import { NeedBar } from "./NeedBar";
@@ -193,6 +194,7 @@ export default function RaiderDialog({
 }) {
     const t = useT();
     const ref = useRef<HTMLDialogElement>(null);
+    const backdrop = useBackdropClose(onClose);
     const [section, setSection] = useState<Section>("gear");
     const [logOpen, setLogOpen] = useState(false);
     const g = r.gear;
@@ -235,7 +237,7 @@ export default function RaiderDialog({
             className="dlg lc-dlg"
             aria-label={t("lootcouncil.list.detailsAria", { character: r.character })}
             onCancel={(e) => { e.preventDefault(); onClose(); }}
-            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+            {...backdrop}
         >
             <div className="dlg-inner">
                 <div className="dlg-head">
