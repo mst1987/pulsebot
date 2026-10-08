@@ -18,32 +18,32 @@
   "dependencies": {
     "emojibase-data": "^16.0.3",
     "lucide-react": "^1.47.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
-    "@eslint/js": "^9.15.0",
+    "@eslint/js": "^10.0.1",
     "@testing-library/dom": "^10.4.2",
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
-    "@types/node": "^22.9.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
-    "dotenv": "^16.4.5",
-    "eslint": "^9.39.5",
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "dotenv": "^18.0.4",
+    "eslint": "^10.11.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
-    "globals": "^15.12.0",
-    "jsdom": "^26.1.0",
-    "stylelint": "^16.26.1",
+    "globals": "^17.12.0",
+    "jsdom": "^30.1.1",
+    "stylelint": "^17.15.0",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.70.1",
     "vite": "^6.4.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.2"
   }
 }
