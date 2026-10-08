@@ -259,3 +259,45 @@ dialog.dlg.dlg-w { width: min(var(--dlg-w), calc(100vw - 32px)); }
 .btn.btn-ghost.back-btn:hover:not(:disabled), .btn.btn-ghost.back-btn:focus-visible { background: var(--back-bg-hover); border-color: var(--back-ink); }
 .btn.back-btn svg { width: 16px; height: 16px; }
 .btn.btn-sm.back-btn svg { width: 14px; height: 14px; }
+
+/* ---- ui/EmojiPicker: the button beside a field and Discord-like panel ---- */
+.emo-trigger {
+    display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; padding: 0; border: 1px solid var(--line);
+    border-radius: var(--ctl-radius); background: var(--panel2); color: var(--muted); cursor: pointer;
+}
+.emo-trigger:hover:not(:disabled), .emo-trigger.is-open { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+.emo-trigger:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); }
+.emo-trigger:disabled { opacity: .5; cursor: not-allowed; }
+.emo-glyph { font-size: 18px; line-height: 1; }
+.emo-panel {
+    position: fixed; z-index: 80; width: var(--pop-width, 360px); max-height: var(--pop-max-h, 430px); display: flex;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 40px -8px var(--shade-50); overflow: hidden;
+}
+.emo-box { display: flex; flex-direction: column; width: 100%; min-height: 0; }
+.emo-search { padding: 10px 10px 6px; }
+.emo-search input {
+    width: 100%; min-height: var(--ctl-h-sm); padding: 0 10px; border: 1px solid var(--line); border-radius: var(--ctl-radius);
+    background: var(--bg); color: var(--text); font: inherit; font-size: 14px;
+}
+.emo-search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.emo-tabs { display: flex; gap: 2px; padding: 0 8px 6px; border-bottom: 1px solid var(--line-soft); overflow-x: auto; }
+.emo-tab { flex: none; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 7px; background: none; font-size: 17px; line-height: 1; cursor: pointer; filter: grayscale(.6); }
+.emo-tab:hover, .emo-tab:focus-visible { filter: none; background: var(--panel2); outline: none; }
+.emo-scroll { flex: 1; min-height: 120px; overflow-y: auto; padding: 0 8px 8px; position: relative; }
+.emo-head {
+    position: sticky; top: 0; z-index: 1; margin: 0; padding: 9px 4px 5px; background: var(--panel);
+    font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted);
+}
+.emo-grid { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 2px; }
+.emo-cell {
+    aspect-ratio: 1; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; background: none;
+    font-size: 22px; line-height: 1; cursor: pointer;
+}
+.emo-cell:hover, .emo-cell:focus-visible { background: var(--panel2); outline: none; }
+.emo-cell:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.emo-cell.is-current { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.emo-note { margin: 10px 4px; font-size: 13px; color: var(--muted); }
+.emo-foot { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 6px 12px; border-top: 1px solid var(--line-soft); background: var(--panel2); }
+.emo-big { font-size: 26px; line-height: 1; }
+.emo-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.emo-hint { font-size: 12.5px; color: var(--muted); }

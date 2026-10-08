@@ -1,0 +1,28 @@
+{
+    "search": "Emoji suchen …",
+    "searchLabel": "Emoji suchen",
+    "sections": "Bereiche",
+    "results": "Suchergebnisse",
+    "none": "Kein Emoji gefunden.",
+    "loading": "Emojis werden geladen …",
+    "loadError": "Die Emojis konnten nicht geladen werden.",
+    "recent": "Zuletzt benutzt",
+    "groups": {
+        "smileys": "Smileys & Emotionen",
+        "people": "Menschen & Körper",
+        "nature": "Tiere & Natur",
+        "food": "Essen & Trinken",
+        "travel": "Reisen & Orte",
+        "activities": "Aktivitäten",
+        "objects": "Gegenstände",
+        "symbols": "Symbole",
+        "flags": "Flaggen"
+    },
+    "channel": {
+        "button": "Emoji für den Kanalnamen",
+        "hint": "Setzt das Emoji an den Anfang des Namens.",
+        "suits": "Passt zu {raid}",
+        "suitsRaid": "Passt zum Raid",
+        "category": "In dieser Kategorie"
+    }
+}

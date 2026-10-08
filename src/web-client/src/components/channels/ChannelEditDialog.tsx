@@ -1,9 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import type { Channel, ChannelChanges, ChannelsData } from "../../api";
 // ChannelChanges is the shape onSave hands over.
 import { Badge, Button, Modal } from "../ui";
 import { ChannelTypeIcon, PurposeBadge, StatusBadge, TagIcon } from "./channelBits";
 import { ChannelStatusBadges } from "./ChannelTree";
+import ChannelEmojiPicker from "./ChannelEmojiPicker";
+import { instanceIdsOfTag } from "../../lib/raidEmojis";
 import { changedFields, isTextLike, rightsStatus, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/channels";
 import { normalizeForType } from "../../lib/channelNames";
 import { useT } from "../../i18n";
@@ -34,6 +36,10 @@ export function ChannelEditDialog({ channel, data, canAssign, onClose, onSave, o
     const purposes = data.purposes.filter((p) => p.kind === "channel" && p.ids.includes(channel.id));
     const rights = rightsStatus(channel, isTextLike(channel) ? "send" : null, data.connected);
     const textLike = isTextLike(channel);
+    const siblingNames = useMemo(
+        () => data.channels.filter((c) => c.parentId === channel.parentId && c.id !== channel.id).map((c) => c.name),
+        [data.channels, channel.parentId, channel.id],
+    );
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -66,6 +72,8 @@ export function ChannelEditDialog({ channel, data, canAssign, onClose, onSave, o
                     <div className="kn-input">
                         {textLike && <span>#</span>}
                         <input id="kn-edit-name" type="text" value={name} maxLength={100} onChange={(e) => setName(normalizeForType(e.target.value, channel.type, false))} />
+                        <ChannelEmojiPicker value={name} onChange={(next) => setName(normalizeForType(next, channel.type, false))}
+                            channelNames={siblingNames} instanceIds={instanceIdsOfTag(name)} />
                     </div>
                 </div>
                 {textLike && (

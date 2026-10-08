@@ -270,6 +270,8 @@ Technik: [channels.md](channels.md)
 
 Alle Server-Kanäle als Liste; umbenennen, archivieren, löschen (einzeln oder per Mehrfachauswahl). Schnellanlage mehrerer Event-Kanäle nach Namensschema, optional gleich mit Event. Details: [docs/channels.md](channels.md).
 
+**Emoji im Kanalnamen:** Neben dem Kanalnamen (Event anlegen, Kanal bearbeiten, Schnellanlage, Namensschema) sitzt ein Smiley-Knopf. Er öffnet eine Emoji-Auswahl wie in Discord, mit Suche („bär“, „drache“ …) und Kategorien. Ganz oben stehen Vorschläge für den Raid (z. B. 🐻 für Zul'Aman) und die Emojis, die die Kategorie schon nutzt. Ein Klick ersetzt das Emoji am Anfang des Namens, z. B. `🐍・mi-14-10-za` → `🐻・mi-14-10-za`.
+
 ## Einstellungen
 
 Technik: [permissions.md](permissions.md), [discord-servers.md](discord-servers.md)

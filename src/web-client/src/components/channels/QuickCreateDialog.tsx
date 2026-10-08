@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     quickCreateChannels, type ApiError, type ChannelNaming, type ChannelsData, type QuickCreateInput, type QuickCreatePlanRow,
 } from "../../api";
 import NamingBadge from "./NamingBadge";
+import ChannelEmojiPicker from "./ChannelEmojiPicker";
+import { instanceIdsOfTag } from "../../lib/raidEmojis";
 import { Badge, Button, Modal, Segment } from "../ui";
 import { ChannelsIcon } from "../icons";
 import { SwitchRow } from "../RaidPlanFields";
@@ -97,6 +99,7 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
     const todo = plan.filter((p) => !p.exists).length;
     const categoryName = categories.find((c) => c.id === categoryId)?.name || t("channels.noCategory");
     const templates = data.channels.filter((c) => isTextLike(c) && c.parentId !== archiveId);
+    const categoryNames = useMemo(() => data.channels.filter((c) => !!categoryId && c.parentId === categoryId).map((c) => c.name), [data.channels, categoryId]);
 
     return (
         <Modal
@@ -190,7 +193,11 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
                         <div className="kn-grid2">
                             <div className="kn-field">
                                 <label htmlFor="kn-qc-schema">{t("channels.namingSchema")}</label>
-                                <div className="kn-input"><input id="kn-qc-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} placeholder={t("channels.schemaPlaceholder")} /></div>
+                                <div className="kn-input">
+                                    <input id="kn-qc-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} placeholder={t("channels.schemaPlaceholder")} />
+                                    <ChannelEmojiPicker value={schema || data.defaultSchema} onChange={setSchema}
+                                        channelNames={categoryNames} instanceIds={instanceIdsOfTag(raid)} raidLabel={raid.toUpperCase()} />
+                                </div>
                             </div>
                             <div className="kn-field">
                                 <label htmlFor="kn-qc-raid">{t("channels.raid")}</label>
