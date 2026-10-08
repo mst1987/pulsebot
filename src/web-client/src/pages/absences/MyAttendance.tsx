@@ -1,4 +1,7 @@
 import { useState } from "react";
+import Chip from "../../components/ui/Chip";
+import { CheckMark } from "../../components/settings/settingsUi";
+import { usePersistedState } from "../../lib/persistedState";
 import {
     deleteAvailability, getAvailability, getRaiderAttendance,
     type ApiError, type AttendanceCategory, type AvailabilityEntry, type SignupStatus,
@@ -34,6 +37,8 @@ export default function MyAttendance({ userId = "", onBack }: {
     const entries = useApi(() => getAvailability(userId), [userId]);
     const caller = useApi(() => getAvailability(), [], { enabled: !!userId });
     const [dialog, setDialog] = useState(false);
+    // one category or all of them; remembered, and ignored once that category is no longer offered
+    const [picked, setPicked] = usePersistedState("absences-mine-category", "");
 
     const data = attendance.data;
     if (attendance.error && !data) return <p className="ab-empty">{t("absences.loadError", { message: attendance.error.message })}</p>;
@@ -42,6 +47,8 @@ export default function MyAttendance({ userId = "", onBack }: {
     const other = !!userId && !data.own;
     const name = data.name || data.character || userId;
     const own = other ? caller.data : entries.data;
+    const pick = data.categories.some((c) => c.id === picked) ? picked : "";
+    const shown = pick ? data.categories.filter((c) => c.id === pick) : data.categories;
 
     return (
         <div className="ab-mine">
@@ -64,9 +71,22 @@ export default function MyAttendance({ userId = "", onBack }: {
                 {entries.data && <EntryList entries={entries.data.entries} today={entries.data.today} onRemoved={() => { void entries.reload(); }} />}
             </section>
 
+            {data.categories.length > 1 && (
+                <div className="chip-row ab-att-filter" role="group" aria-label={t("absences.mine.filterAria")}>
+                    <Chip pressed={!pick} tone={!pick ? "accent" : undefined} icon={!pick ? <CheckMark /> : undefined} onClick={() => setPicked("")}>
+                        {t("absences.mine.allCategories")}
+                    </Chip>
+                    {data.categories.map((c) => (
+                        <Chip key={c.id} pressed={pick === c.id} tone={pick === c.id ? "accent" : undefined} icon={pick === c.id ? <CheckMark /> : undefined} onClick={() => setPicked(c.id)}>
+                            {c.name || c.id}
+                        </Chip>
+                    ))}
+                </div>
+            )}
+
             {data.categories.length ? (
                 <div className="ab-atts">
-                    {data.categories.map((c) => <CategoryCard key={c.id} cat={c} />)}
+                    {shown.map((c) => <CategoryCard key={c.id} cat={c} />)}
                 </div>
             ) : <p className="ab-empty">{other ? t("absences.mine.noCategoriesOf", { name }) : t("absences.mine.noCategories")}</p>}
 
@@ -145,6 +165,7 @@ function CategoryCard({ cat }: { cat: AttendanceCategory }) {
                     <div className="ab-att-figure">
                         <b>{t("absences.mine.pct", { pct: cat.pct })}</b>
                         <span>{t("absences.mine.ofRaids", { attended: cat.attended, count: cat.total })}</span>
+                        <span className="ab-att-window">{t("absences.mine.window", { count: cat.window })}</span>
                     </div>
                     <div className="ab-hist" role="list" aria-label={t("absences.mine.nightsAria")}>
                         {nights.map((r) => (

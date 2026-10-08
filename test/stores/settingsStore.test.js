@@ -273,6 +273,14 @@ describe("stores/settingsStore", () => {
             expect(getConfig().categoryLanguage).toEqual({ pug: "en", other: "en" });
         });
 
+        it("stores attendance per category as a diff from the defaults, and drops one set back", () => {
+            expect(getConfig().categoryAttendance).toEqual({});
+            saveConfig({ categoryAttendance: { pug: { show: false, window: 8 }, guild: { window: 16, absences: false }, odd: { window: 5 } } });
+            expect(getConfig().categoryAttendance).toEqual({ pug: { show: false, window: 8 }, guild: { window: 16, absences: false } });
+            saveConfig({ categoryAttendance: { pug: { show: true, window: 11, absences: true } } });
+            expect(getConfig().categoryAttendance).toEqual({ guild: { window: 16, absences: false } });
+        });
+
         it("keeps setup DMs off by default and stores only switched-on categories (#290)", () => {
             expect(getConfig().categorySetupDms).toEqual({});
             saveConfig({ categorySetupDms: { c1: true, c2: false, c3: "yes" } });

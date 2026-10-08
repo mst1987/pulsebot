@@ -46,6 +46,7 @@
       },
       "categorySetupDms": {},
       "categoryLanguage": {},
+      "categoryAttendance": {},
       "categoryDiscordEvent": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
@@ -120,6 +121,7 @@
       },
       "categorySetupDms": {},
       "categoryLanguage": {},
+      "categoryAttendance": {},
       "categoryDiscordEvent": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
@@ -250,6 +252,7 @@
         "1300000000000000001": true
       },
       "categoryLanguage": {},
+      "categoryAttendance": {},
       "categoryDiscordEvent": {
         "1300000000000000001": true
       },
@@ -378,6 +381,7 @@
       },
       "categorySetupDms": {},
       "categoryLanguage": {},
+      "categoryAttendance": {},
       "categoryDiscordEvent": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
@@ -484,6 +488,7 @@
       },
       "categorySetupDms": {},
       "categoryLanguage": {},
+      "categoryAttendance": {},
       "categoryDiscordEvent": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
@@ -620,6 +625,7 @@
       },
       "categorySetupDms": {},
       "categoryLanguage": {},
+      "categoryAttendance": {},
       "categoryDiscordEvent": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
@@ -722,6 +728,7 @@
       },
       "categorySetupDms": {},
       "categoryLanguage": {},
+      "categoryAttendance": {},
       "categoryDiscordEvent": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
@@ -832,6 +839,7 @@
       },
       "categorySetupDms": {},
       "categoryLanguage": {},
+      "categoryAttendance": {},
       "categoryDiscordEvent": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
@@ -924,6 +932,7 @@
         "a": true
       },
       "categoryLanguage": {},
+      "categoryAttendance": {},
       "categoryDiscordEvent": {
         "a": true
       },

@@ -229,6 +229,17 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
         expect(same).toMatchObject({ attended: RAID_WINDOW, total: RAID_WINDOW, pct: 100 });
     });
 
+    it("counts over the category's own window instead of the last eleven", () => {
+        const nights = Array.from({ length: 20 }, (_, i) => event(`e${i + 1}`, (i + 1) * 3));
+        mockListRaidEvents.mockReturnValue(nights);
+        withReports(nights.map((n, i) => ({ id: `r${i}`, eventId: n.id, names: [i < 4 ? "Anna" : "Bob"] })));
+        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const accounts = [acc("u1", [ch("Anna", "Priest", true)])];
+        expect(attendanceForAccounts(ctx, "cat1", accounts, { window: 4 }).get("u1")).toMatchObject({ attended: 4, total: 4, pct: 100 });
+        expect(attendanceForAccounts(ctx, "cat1", accounts, { window: 16 }).get("u1")).toMatchObject({ attended: 4, total: 16 });
+        expect(attendanceForAccounts(ctx, "cat1", accounts, { window: 16, comparable: () => true }).get("u1").total).toBe(16);
+    });
+
     it("badges the link \"auto\" while only signup characters stand behind it", () => {
         withReports([{ id: "r1", eventId: "e1", names: ["Mainchar"] }, { id: "r2", eventId: "e2", names: ["Mainchar"] }]);
         const ctx = buildAttendanceContext("g1", { now: NOW });

@@ -11,6 +11,7 @@ import type { PlanningMode } from "../../api";
 import { t } from "../../i18n";
 import { switchLang } from "../../test/i18n";
 import { renderPage } from "../../test/render";
+import type { CategoryAttendance } from "../../lib/settingsLogic";
 import CategoryMatrix, { type CategorySheet } from "./CategoryMatrix";
 
 vi.mock("../../api", async (orig) => ({
@@ -20,7 +21,9 @@ vi.mock("../../api", async (orig) => ({
 
 const noop = () => undefined;
 
-function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage }: {
+function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance }: {
+    attendance?: Record<string, Partial<CategoryAttendance>>;
+    onAttendance?: (id: string, value: CategoryAttendance) => void;
     languages?: Record<string, string>;
     onLanguage?: (id: string, lang: string) => void;
     planning?: Record<string, PlanningMode>;
@@ -53,6 +56,8 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
             onMessageLook={noop}
             categoryLanguage={languages}
             onLanguage={onLanguage}
+            categoryAttendance={attendance}
+            onAttendance={onAttendance}
             onSheet={onSheet}
             raidTemplates={{ options: [], value: {}, onChange: noop }}
             icon="inv_banner_03"
@@ -182,6 +187,28 @@ describe("CategoryMatrix: the open card's tabs", () => {
         expect(onLanguage).toHaveBeenCalledWith("c1", "");
         await user.click(within(group).getByRole("radio", { name: "Deutsch" }));
         expect(onLanguage).toHaveBeenLastCalledWith("c1", "de");
+    });
+
+    it("sets attendance in the signup tab: shown or not, over how many raids, in the absence overview or not", async () => {
+        const onAttendance = vi.fn();
+        const user = await openCard({ attendance: { c1: { window: 8 } }, onAttendance });
+        expect(tab("signup").textContent).toBe(`${t("settings.categories.tabs.signup")}7`);
+        const name = "Raids Mittwoch";
+        const windows = screen.getByRole("radiogroup", { name: t("settings.categories.attendanceWindowAria", { name }) });
+        expect(within(windows).getAllByRole("radio").map((r) => r.textContent)).toEqual(["4", "8", "11", "16"]);
+        expect(within(windows).getByRole("radio", { name: "8" })).toHaveAttribute("aria-checked", "true");
+        await user.click(within(windows).getByRole("radio", { name: "16" }));
+        expect(onAttendance).toHaveBeenLastCalledWith("c1", { show: true, window: 16, absences: true });
+        await user.click(screen.getByRole("checkbox", { name: t("settings.categories.absencesAria", { name }) }));
+        expect(onAttendance).toHaveBeenLastCalledWith("c1", { show: true, window: 8, absences: false });
+        await user.click(screen.getByRole("checkbox", { name: t("settings.categories.attendanceAria", { name }) }));
+        expect(onAttendance).toHaveBeenLastCalledWith("c1", { show: false, window: 8, absences: true });
+    });
+
+    it("hides the window while the attendance is not shown", async () => {
+        await openCard({ attendance: { c1: { show: false } }, onAttendance: noop });
+        expect(screen.getByRole("checkbox", { name: t("settings.categories.attendanceAria", { name: "Raids Mittwoch" }) })).not.toBeChecked();
+        expect(screen.queryByRole("radiogroup", { name: t("settings.categories.attendanceWindowAria", { name: "Raids Mittwoch" }) })).toBeNull();
     });
 
     it("words the tabs in English", async () => {

@@ -144,6 +144,8 @@ export default function SettingsPage() {
                 // Merged on the server: a category switched off is sent as false.
                 categorySetupDms: draft.categorySetupDms,
                 categoryLanguage: draft.categoryLanguage,
+                // Each category sent whole ({ show, window, absences }); the store drops one back at the defaults.
+                categoryAttendance: draft.categoryAttendance,
                 // #305: both merged on the server — a category switched off is
                 // sent as false, a cleared voice channel as "".
                 categoryDiscordEvent: draft.categoryDiscordEvent,
@@ -266,6 +268,7 @@ export default function SettingsPage() {
                     signupSourceDefault={draft.signupSourceDefault}
                     categorySetupDms={draft.categorySetupDms}
                     categoryLanguage={draft.categoryLanguage}
+                    categoryAttendance={draft.categoryAttendance}
                     categoryDiscordEvent={draft.categoryDiscordEvent}
                     categoryVoiceChannel={draft.categoryVoiceChannel}
                     voiceChannels={data.voiceChannels || []}
@@ -287,6 +290,7 @@ export default function SettingsPage() {
                     onSignupSource={(id, source) => patch({ categorySignupSource: { ...draft.categorySignupSource, [id]: source } })}
                     onSetupDms={(id, on) => patch({ categorySetupDms: { ...draft.categorySetupDms, [id]: on } })}
                     onLanguage={(id, lang) => patch({ categoryLanguage: { ...draft.categoryLanguage, [id]: lang } })}
+                    onAttendance={(id, value) => patch({ categoryAttendance: { ...draft.categoryAttendance, [id]: value } })}
                     onDiscordEvent={(id, on) => patch({ categoryDiscordEvent: { ...draft.categoryDiscordEvent, [id]: on } })}
                     onVoiceChannel={(id, channelId) => patch({ categoryVoiceChannel: { ...draft.categoryVoiceChannel, [id]: channelId } })}
                     onAnnounce={(id, mode) => patch({

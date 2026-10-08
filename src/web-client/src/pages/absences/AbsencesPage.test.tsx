@@ -352,6 +352,30 @@ describe("Abwesenheiten: Meine Anwesenheit", () => {
         expect(within(wed).queryByText(t("absences.mine.auto"))).not.toBeInTheDocument();
     });
 
+    it("says over how many raids each category counts, and filters to one category", async () => {
+        const user = userEvent.setup();
+        await showMine();
+        const mon = screen.getByRole("region", { name: "TBC Montag" });
+        expect(within(mon).getByText(t("absences.mine.window", { count: 11 }))).toBeInTheDocument();
+
+        const filter = screen.getByRole("group", { name: t("absences.mine.filterAria") });
+        expect(within(filter).getAllByRole("button").map((b) => b.textContent)).toEqual([t("absences.mine.allCategories"), "TBC Montag", "TBC Mittwoch"]);
+        await user.click(within(filter).getByRole("button", { name: "TBC Mittwoch" }));
+        expect(screen.queryByRole("region", { name: "TBC Montag" })).not.toBeInTheDocument();
+        expect(screen.getByRole("region", { name: "TBC Mittwoch" })).toBeInTheDocument();
+        expect(within(filter).getByRole("button", { name: "TBC Mittwoch" })).toHaveAttribute("aria-pressed", "true");
+        // back to all (the pick is remembered)
+        await user.click(within(filter).getByRole("button", { name: t("absences.mine.allCategories") }));
+        expect(screen.getByRole("region", { name: "TBC Montag" })).toBeInTheDocument();
+    });
+
+    it("offers no filter for a single category", async () => {
+        const one = { ...ATTENDANCE, categories: [ATTENDANCE.categories[0]] };
+        vi.mocked(client.get).mockImplementation((path: string) => Promise.resolve(path.startsWith("/api/availability/attendance") ? one : OWN));
+        await showMine();
+        expect(screen.queryByRole("group", { name: t("absences.mine.filterAria") })).not.toBeInTheDocument();
+    });
+
     it("lists the own absences that are not over, enters a new one and deletes one", async () => {
         const user = userEvent.setup();
         await showMine();

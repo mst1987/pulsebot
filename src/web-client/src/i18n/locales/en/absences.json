@@ -155,6 +155,9 @@
         "noCategories": "You have not signed up for a raid of any category yet – once you are in, your attendance shows here.",
         "noCategoriesOf": "{name} has not signed up for a raid of any category yet.",
         "noRaids": "No raids counted yet.",
+        "window": "over the last {count} raids",
+        "filterAria": "Raid category",
+        "allCategories": "All categories",
         "pct": "{pct}%",
         "ofRaids": {
             "one": "{attended} of {count} raid",

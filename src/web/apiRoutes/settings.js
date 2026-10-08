@@ -5,7 +5,7 @@ const { activeGuildFor } = require("../http/activeGuild");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates,
 } = require("../../stores/settingsStore");
-const { normalizeCategoryLanguagePatch } = require("../../stores/configSchema");
+const { normalizeCategoryLanguagePatch, attendanceSettings } = require("../../stores/configSchema");
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
 } = require("../../stores/ingestTokenStore");
@@ -478,6 +478,12 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.categorySetupDms !== undefined) partial.categorySetupDms = normalizeCategorySetupDms(body.categorySetupDms);
     // The language of a category's public messages: "de" / "en", "" = back to the server language.
     if (body.categoryLanguage !== undefined) partial.categoryLanguage = normalizeCategoryLanguagePatch(body.categoryLanguage);
+    // Attendance per category: each category sent whole ({ show, window, absences }); the store drops one at the defaults.
+    if (body.categoryAttendance !== undefined && body.categoryAttendance && typeof body.categoryAttendance === "object") {
+        partial.categoryAttendance = Object.fromEntries(Object.entries(body.categoryAttendance)
+            .filter(([id]) => String(id).trim())
+            .map(([id, value]) => [String(id).trim(), attendanceSettings(value)]));
+    }
     if (body.categoryDiscordEvent !== undefined) partial.categoryDiscordEvent = normalizeCategoryDiscordEvent(body.categoryDiscordEvent);
     if (body.categoryVoiceChannel !== undefined) partial.categoryVoiceChannel = normalizeCategoryVoiceChannel(body.categoryVoiceChannel);
     if (body.categoryMessageLook !== undefined) partial.categoryMessageLook = normalizeCategoryMessageLookPatch(body.categoryMessageLook);

@@ -1,8 +1,8 @@
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import type { EventSource, PlanningMode, Role } from "../../api";
 import {
-    signupNoteMode, noteChannelPick, signupNoteLabel, messageLook, titleSizeLabel, lootSystemLabel, lootToolLabel, planningOf, planningLabel,
-    TITLE_SIZES, CATEGORY_TABS, type CategoryRow, type CategoryTab, type RaiderCharSummary,
+    signupNoteMode, noteChannelPick, signupNoteLabel, messageLook, titleSizeLabel, lootSystemLabel, lootToolLabel, planningOf, planningLabel, attendanceOf,
+    TITLE_SIZES, CATEGORY_TABS, ATTENDANCE_WINDOWS, type CategoryAttendance, type CategoryRow, type CategoryTab, type RaiderCharSummary,
 } from "../../lib/settingsLogic";
 import { tParts, t as translate, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
@@ -50,6 +50,10 @@ export type CategorySettings = {
     /** The language of the category's posts: "de" / "en", missing or "" = the server language. */
     categoryLanguage?: Record<string, string>;
     onLanguage?: (categoryId: string, lang: string) => void;
+    /** Attendance per category (Abwesenheiten page); missing = shown, over the last 11 raids, in the overview. */
+    categoryAttendance?: Record<string, Partial<CategoryAttendance>>;
+    /** Missing = no attendance fields (an older caller). The category's settings are handed over whole. */
+    onAttendance?: (categoryId: string, value: CategoryAttendance) => void;
     categoryDiscordEvent?: Record<string, boolean>;
     categoryVoiceChannel?: Record<string, string>;
     voiceChannels?: { id: string; name: string; category?: string }[];
@@ -98,6 +102,9 @@ const announceModes = () => [
     { value: "talk", label: translate("settings.categories.announceMode.talk") },
     { value: "both", label: translate("settings.categories.announceMode.both") },
 ];
+
+// How many last raids the attendance quota counts (Abwesenheiten › Meine Anwesenheit, the setup tooltip).
+const attendanceWindows = () => ATTENDANCE_WINDOWS.map((n) => ({ value: String(n), label: String(n) }));
 
 // The message with "Vielleicht" / "Absagen" (src/web/signupNotes.js).
 const noteModes = () => ["required", "optional", "none"].map((value) => ({ value, label: signupNoteLabel(value) }));
@@ -199,6 +206,32 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
         ) });
         if (s.onSignupNotes) out.push({ key: "notes", node: notesField(s.onSignupNotes) });
         if (s.availabilityPanels) out.push({ key: "panel", node: <AvailabilityPanelRow categoryId={cat.id} categoryName={name} panels={s.availabilityPanels} /> });
+        if (s.onAttendance) out.push(...attendanceFields(s.onAttendance));
+        return out;
+    }
+
+    // Abwesenheiten per category: whether its attendance is shown, over how many raids, and whether it is in the overview.
+    function attendanceFields(onAttendance: (categoryId: string, value: CategoryAttendance) => void): Field[] {
+        const att = attendanceOf(s.categoryAttendance, cat.id);
+        const set = (change: Partial<CategoryAttendance>) => onAttendance(cat.id, { ...att, ...change });
+        const out: Field[] = [{ key: "attendance", node: (
+            <CategoryField label={t("settings.categories.attendance")} sub={t("settings.categories.attendanceSub")}>
+                <Toggle checked={att.show} onChange={() => set({ show: !att.show })} ariaLabel={t("settings.categories.attendanceAria", { name })} />
+            </CategoryField>
+        ) }];
+        if (att.show) {
+            out.push({ key: "attendanceWindow", node: (
+                <CategoryField label={t("settings.categories.attendanceWindow")} sub={t("settings.categories.attendanceWindowSub")}>
+                    <Segment ariaLabel={t("settings.categories.attendanceWindowAria", { name })} value={String(att.window)}
+                        onChange={(v) => set({ window: Number(v) })} options={attendanceWindows()} />
+                </CategoryField>
+            ) });
+        }
+        out.push({ key: "absences", node: (
+            <CategoryField label={t("settings.categories.absences")} sub={t("settings.categories.absencesSub")}>
+                <Toggle checked={att.absences} onChange={() => set({ absences: !att.absences })} ariaLabel={t("settings.categories.absencesAria", { name })} />
+            </CategoryField>
+        ) });
         return out;
     }
 

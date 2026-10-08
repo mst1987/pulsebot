@@ -108,6 +108,24 @@ describe("buildOverview", () => {
         expect(overview.buildOverview({ now: NOW, categoryId: "wed" }).raiders.map((r) => r.userId)).toEqual(["y"]);
     });
 
+    it("leaves out a category switched off for the overview: its raids, its entries and its hints", () => {
+        mockConfig = { categoryIds: ["mon", "wed"], categoryAttendance: { wed: { absences: false } } };
+        for (const [i, day] of ["2030-02-27", "2030-03-06", "2030-03-13", "2030-03-20"].entries()) {
+            mockEvents.set(`eh-w${i}`, raid(`eh-w${i}`, day, { categoryId: "wed" }));
+            signup(`eh-w${i}`, "often", "absence");
+        }
+        mockEvents.set("eh-1", raid("eh-1", "2030-03-25"));
+        mockEvents.set("eh-2", raid("eh-2", "2030-03-27", { categoryId: "wed" }));
+        entry("x", "2030-03-25", "2030-03-26", { categoryId: "wed" });
+        entry("y", "2030-03-25", "2030-03-26");
+        const view = overview.buildOverview({ now: NOW });
+        expect(view.raids.map((r) => r.id)).toEqual(["eh-1"]);
+        expect(view.categories.map((c) => c.id)).toEqual(["mon"]);
+        expect(view.raiders.map((r) => r.userId)).toEqual(["y"]);
+        expect(view.hints).toEqual([]);
+        expect(overview.raiderDetail("often", { now: NOW }).history).toEqual([]);
+    });
+
     it("names a category after its Discord category, else after the name its raids were created with", () => {
         mockEvents.set("eh-1", raid("eh-1", "2030-03-25", { categoryName: "Montag alt" }));
         mockEvents.set("eh-2", raid("eh-2", "2030-03-27", { categoryId: "wed", categoryName: "Mittwoch alt" }));

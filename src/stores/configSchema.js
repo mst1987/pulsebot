@@ -123,6 +123,10 @@ const CONFIG_DEFAULTS = {
     // "de" | "en" }. A category without one writes in the server language
     // (botLanguage) — a PuG category in English beside German guild raids.
     categoryLanguage: {},
+    // Attendance and absences per category (Abwesenheiten page): { [categoryId]:
+    // { show: false, window: 4|8|11|16, absences: false } } — only what differs
+    // from the default (shown, over the last 11 raids, in the absence overview).
+    categoryAttendance: {},
     // Whether an own event of this category also gets a Discord event (a guild
     // scheduled event, #305), keyed by category id: { [categoryId]: true }. Off
     // by default — only switched categories are stored.
@@ -422,6 +426,43 @@ function normalizeCategoryLanguagePatch(raw) {
     return out;
 }
 
+// How many of a category's last raids its attendance quota counts (the setup tooltip and "Meine Anwesenheit").
+const ATTENDANCE_WINDOWS = [4, 8, 11, 16];
+const ATTENDANCE_DEFAULT_WINDOW = 11;
+
+/** One category's attendance settings with every default filled in. */
+function attendanceSettings(raw) {
+    const src = raw && typeof raw === "object" ? raw : {};
+    const window = Number(src.window);
+    return {
+        show: src.show !== false,
+        window: ATTENDANCE_WINDOWS.includes(window) ? window : ATTENDANCE_DEFAULT_WINDOW,
+        absences: src.absences !== false,
+    };
+}
+
+/** categoryAttendance as stored: per category only what differs from the default; a category at the defaults drops out. */
+function normalizeCategoryAttendance(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, value] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (!key) continue;
+        const s = attendanceSettings(value);
+        const diff = {};
+        if (!s.show) diff.show = false;
+        if (s.window !== ATTENDANCE_DEFAULT_WINDOW) diff.window = s.window;
+        if (!s.absences) diff.absences = false;
+        if (Object.keys(diff).length) out[key] = diff;
+    }
+    return out;
+}
+
+/** A category's attendance settings out of a config, defaults filled in. */
+function categoryAttendanceFor(config, categoryId) {
+    return attendanceSettings(((config && config.categoryAttendance) || {})[String(categoryId || "")]);
+}
+
 /** Normalise categorySetupDms to `{ [categoryId]: true }` — off is the default and not stored. */
 function normalizeCategorySetupDms(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
@@ -633,6 +674,7 @@ function normalizeConfig(raw) {
         raidhelperRetirement: normalizeRaidhelperRetirement(stored.raidhelperRetirement),
         categorySetupDms: normalizeCategorySetupDms(stored.categorySetupDms),
         categoryLanguage: normalizeCategoryLanguage(stored.categoryLanguage),
+        categoryAttendance: normalizeCategoryAttendance(stored.categoryAttendance),
         categoryDiscordEvent: normalizeCategoryFlags(stored.categoryDiscordEvent),
         categoryVoiceChannel: normalizeCategoryVoiceChannel(stored.categoryVoiceChannel),
         categoryMessageLook: normalizeCategoryMessageLook(stored.categoryMessageLook),
@@ -656,7 +698,8 @@ module.exports = {
     CONFIG_DEFAULTS, ROLE_SYNC_DIRECTIONS, REMINDER_TARGETS,
     normalizeConfig, normalizeDiscordServers, normalizeEventGuilds, normalizeEventGuildEntry,
     normalizeRoleSync, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
-    normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
+    normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch,
+    normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOWS, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
     normalizeRaidhelperRetirement, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
     normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings, normalizeBotLanguage,
