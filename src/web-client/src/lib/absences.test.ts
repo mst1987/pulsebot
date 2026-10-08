@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { AbsenceRaid, AbsenceRaider } from "../api";
 import {
     addDays, barLabel, barPlace, categoryTone, currentAbsence, dayIndex, dayWidth, displayName, isoWeek, namesOf,
-    playsLine, raidDays, raidShares, raidShort, roleLines, timelineWeeks, upcomingRaids, visibleRaiders,
+    entryDays, entryState, nightsInOrder, playsLine, raidDays, reasonText, signedShare, timelineWeeks, upcomingRaids, visibleRaiders,
 } from "./absences";
 
 const raider = (userId: string, over: Partial<AbsenceRaider> = {}): AbsenceRaider => ({
@@ -100,20 +100,33 @@ describe("raid cards", () => {
         expect(list.map((r) => r.id)).toEqual(["a", "b"]);
     });
 
-    it("lists a role only when somebody is away from it and marks it short below the target", () => {
-        const r = raid("a", "2026-10-12", { roles: { tank: { need: 2, have: 1, away: 1 }, healer: { need: 5, have: 6, away: 1 } } });
-        expect(roleLines(r).map((l) => [l.role, l.short])).toEqual([["tank", true], ["healer", false]]);
-        expect(raidShort(r)).toBe(true);
-        expect(roleLines(raid("b", "2026-10-12"))).toEqual([]);
-        expect(raidShort(raid("b", "2026-10-12"))).toBe(false);
-    });
-
-    it("splits the bar into in and away", () => {
-        expect(raidShares({ signed: 15, away: 5, size: 25 })).toEqual({ in: 60, away: 20 });
-        expect(raidShares({ signed: 0, away: 0, size: 0 })).toEqual({ in: 0, away: 0 });
+    it("fills the bar with who is in against the places", () => {
+        expect(signedShare({ signed: 15, size: 25 })).toBe(60);
+        expect(signedShare({ signed: 30, size: 25 })).toBe(100);
+        expect(signedShare({ signed: 0, size: 0 })).toBe(0);
     });
 });
 
+describe("Meine Anwesenheit", () => {
+    it("says the server's verdict in the menu's language, an unknown one as sent", () => {
+        expect(reasonText("im Log")).toBe("im Log");
+        expect(reasonText("angemeldet (später)")).toBe("angemeldet (später)");
+        expect(reasonText("vorläufig")).toBe("vorläufig");
+        expect(reasonText("etwas Neues")).toBe("etwas Neues");
+    });
+
+    it("puts the newest raid last", () => {
+        const r = (eventId: string, startTime: number) => ({ eventId, title: "", startTime, attended: true, reason: "" });
+        expect(nightsInOrder([r("b", 20), r("a", 10), r("c", 30)]).map((x) => x.eventId)).toEqual(["a", "b", "c"]);
+    });
+
+    it("gives an own entry its state and length", () => {
+        expect(entryState({ from: "2026-10-01", to: "2026-10-05" }, "2026-10-08")).toBe("past");
+        expect(entryState({ from: "2026-10-07", to: "2026-10-09" }, "2026-10-08")).toBe("running");
+        expect(entryState({ from: "2026-10-12", to: "2026-10-20" }, "2026-10-08")).toBe("planned");
+        expect(entryDays({ from: "2026-10-12", to: "2026-11-08" })).toBe(28);
+    });
+});
 describe("names", () => {
     it("names raiders by character, else by account, and drops unknown ids", () => {
         expect(namesOf(["2", "x", "1"], [raider("1"), raider("2", { character: "" })])).toEqual(["acc-2", "Char1"]);

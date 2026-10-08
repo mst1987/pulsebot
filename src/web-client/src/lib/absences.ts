@@ -3,7 +3,7 @@
 // head, how many are missing on a raid day, what the filters keep, what a
 // raid's role lines say. The server decides who is away (absenceOverview.js);
 // this only lays it out.
-import type { AbsenceIdentity, AbsencePeriod, AbsenceRaid, AbsenceRaider, AbsenceRoleGap } from "../api";
+import type { AbsenceIdentity, AbsencePeriod, AbsenceRaid, AbsenceRaider, AttendanceRaid, AvailabilityEntry } from "../api";
 import { dayMs } from "./availability";
 import { roleLabel, specLabel } from "./wowNames";
 import { t } from "../i18n";
@@ -127,20 +127,6 @@ export function upcomingRaids(raids: AbsenceRaid[], today: string): AbsenceRaid[
     return raids.filter((r) => r.day >= today).sort((a, b) => a.startTime - b.startTime);
 }
 
-export type RoleLine = { role: "tank" | "healer"; gap: AbsenceRoleGap; short: boolean };
-
-/** The role lines of a raid card: tanks and healers, only where somebody is away; short when fewer than needed are in. */
-export function roleLines(raid: AbsenceRaid): RoleLine[] {
-    return (["tank", "healer"] as const)
-        .map((role) => ({ role, gap: raid.roles[role], short: raid.roles[role].have < raid.roles[role].need }))
-        .filter((l) => l.gap.away > 0);
-}
-
-/** Whether a raid comes up short on a role somebody is away from. */
-export function raidShort(raid: AbsenceRaid): boolean {
-    return roleLines(raid).some((l) => l.short);
-}
-
 /** The names of some raiders by id — the character, else the account — in the order given (unknown ids are left out). */
 export function namesOf(ids: string[], raiders: AbsenceRaider[]): string[] {
     const byId = new Map(raiders.map((r) => [r.userId, r]));
@@ -150,10 +136,9 @@ export function namesOf(ids: string[], raiders: AbsenceRaider[]): string[] {
     }).filter(Boolean);
 }
 
-/** The share of a raid that is in, away and open, in percent (for the card's bar). */
-export function raidShares(raid: Pick<AbsenceRaid, "signed" | "away" | "size">): { in: number; away: number } {
-    const total = Math.max(raid.size, raid.signed + raid.away, 1);
-    return { in: Math.round((raid.signed / total) * 100), away: Math.round((raid.away / total) * 100) };
+/** How full a raid is, in percent of its places (for the card's bar). */
+export function signedShare(raid: Pick<AbsenceRaid, "signed" | "size">): number {
+    return Math.min(100, Math.round((raid.signed / Math.max(raid.size, raid.signed, 1)) * 100));
 }
 
 /** The current or next absence of a raider's entries — what the drawer's highlight box shows. */
@@ -170,4 +155,45 @@ export function displayName(who: Pick<AbsenceIdentity, "character" | "name">): s
 /** "Wiederherstellung · Heiler": the small line under a name. */
 export function playsLine(who: Pick<AbsenceIdentity, "spec" | "specLabel" | "role">): string {
     return [who.spec ? specLabel(who.spec, who.specLabel) : "", who.role ? roleLabel(who.role) : ""].filter(Boolean).join(" · ");
+}
+
+// ---- "Meine Anwesenheit" ----
+
+/**
+ * The server's German verdicts of a raid night (rosterAttendance.js), as keys of
+ * absences.mine.reason.* — an unknown one stays as sent. Matched without their
+ * accents ("später" → "spater"), so no German literal sits in the client.
+ */
+const REASON_KEYS: Record<string, string> = {
+    "im Log": "inLog",
+    "im Log (Klasse passt)": "inLogClass",
+    "angemeldet": "signed",
+    "angemeldet (spater)": "late",
+    "abgemeldet": "absence",
+    "nicht im Log": "notInLog",
+    "keine Anmeldung": "noSignup",
+    "Ersatzbank": "bench",
+    "vorlaufig": "tentative",
+};
+
+/** A raid night's verdict in the menu's language. */
+export function reasonText(reason: string): string {
+    const key = REASON_KEYS[reason.normalize("NFD").replace(/[\u0300-\u036f]/g, "")];
+    return key ? t(`absences.mine.reason.${key}`) : reason;
+}
+
+/** The counted nights oldest first, so the newest stands last in the row. */
+export function nightsInOrder(raids: AttendanceRaid[]): AttendanceRaid[] {
+    return [...raids].sort((a, b) => a.startTime - b.startTime);
+}
+
+/** Planned, running or over — for an own entry, which carries no state (today: "yyyy-MM-dd"). */
+export function entryState(entry: Pick<AvailabilityEntry, "from" | "to">, today: string): AbsencePeriod["state"] {
+    if (entry.to < today) return "past";
+    return entry.from > today ? "planned" : "running";
+}
+
+/** How long an entry is, both days counted. */
+export function entryDays(entry: Pick<AvailabilityEntry, "from" | "to">): number {
+    return dayIndex(entry.from, entry.to) + 1;
 }

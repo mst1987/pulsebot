@@ -65,6 +65,12 @@ function Guard({ user, areas, level = "read", children }: {
     );
 }
 
+/** An old address of a page: the same view at its new path, the query kept. */
+function MovedTo({ path }: { path: string }) {
+    const { search } = useLocation();
+    return <Navigate to={`${path}${search}`} replace />;
+}
+
 /** Start page for an account no area is open to — it still gets the shell. */
 function NoAreaNotice() {
     const t = useT();
@@ -202,12 +208,14 @@ function MenuApp() {
                                 <Route path="profile" element={<Guard user={user} areas={["signup"]}><ProfilePage /></Guard>} />
                                 {/* The member's coming raids and their own signup (area "signup", #256). */}
                                 <Route path="signups" element={<Guard user={user} areas={["signup"]}><SignupsPage /></Guard>} />
+                                {/* Abwesenheiten: a raider's own attendance ("signup"), the orga's overview with "roster" on top. */}
+                                <Route path="absences" element={<Guard user={user} areas={["signup", "roster"]}><AbsencesPage /></Guard>} />
+                                {/* its first address, under the roster (PR #646) */}
+                                <Route path="roster/absences" element={<MovedTo path="/absences" />} />
                                 <Route path="roster" element={<Guard user={user} areas={["roster"]}><RosterPage /></Guard>} />
                                 {/* Same character page, reached from the roster — the page keeps
                                     its back-link pointing at wherever it was opened from. */}
                                 <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />
-                                {/* Who is away when, and what it does to the coming raids (the roster's rail). */}
-                                <Route path="roster/absences" element={<Guard user={user} areas={["roster"]}><AbsencesPage /></Guard>} />
                                 <Route path="cla" element={<Guard user={user} areas={["cla"]}><ClaPage /></Guard>} />
                                 <Route path="lootcouncil" element={<Guard user={user} areas={["lootcouncil"]}><LootCouncilPage /></Guard>} />
                                 <Route path="lootcouncil/drop/:itemId?" element={<Guard user={user} areas={["lootcouncil"]}><DropCheckPage /></Guard>} />

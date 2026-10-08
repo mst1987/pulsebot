@@ -240,6 +240,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 .area-cla { --area: var(--area-cla); --area-soft: var(--area-cla-soft); }
 .area-raids { --area: var(--area-raids); --area-soft: var(--area-raids-soft); }
 .area-roster { --area: var(--area-roster); --area-soft: var(--area-roster-soft); }
+.area-absences { --area: var(--area-absences); --area-soft: var(--area-absences-soft); }
 .area-history { --area: var(--area-history); --area-soft: var(--area-history-soft); }
 .area-lootcouncil { --area: var(--area-lootcouncil); --area-soft: var(--area-lootcouncil-soft); }
 .area-bank { --area: var(--area-bank); --area-soft: var(--area-bank-soft); }

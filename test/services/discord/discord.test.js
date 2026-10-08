@@ -457,7 +457,9 @@ describe("services/discord/discord channel management", () => {
             const names = await discord.resolveUserNames("g1", ["1", "2", "3", "2"]);
             expect(names).toEqual({ 1: "Bob", 2: "Alice", 3: "Cara" });
             expect(guild.members.fetch).toHaveBeenCalledTimes(1);
-            expect(guild.members.fetch).toHaveBeenCalledWith({ user: ["2", "3"] });
+            // with a short time limit: without the members intent the gateway never answers, and the page would wait 2 minutes
+            expect(guild.members.fetch).toHaveBeenCalledWith({ user: ["2", "3"], time: discord.NAME_FETCH_MS });
+            expect(discord.NAME_FETCH_MS).toBeLessThanOrEqual(10000);
         });
 
         it("skips ids that Discord cannot resolve, without throwing", async () => {

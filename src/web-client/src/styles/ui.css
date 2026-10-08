@@ -120,6 +120,7 @@ button.badge.chip.accent:hover { color: var(--accent); }
 .itile.t-cla { --tile-bg: var(--area-cla-soft); color: var(--area-cla); }
 .itile.t-raids { --tile-bg: var(--area-raids-soft); color: var(--area-raids); }
 .itile.t-roster { --tile-bg: var(--area-roster-soft); color: var(--area-roster); }
+.itile.t-absences { --tile-bg: var(--area-absences-soft); color: var(--area-absences); }
 .itile.t-history { --tile-bg: var(--area-history-soft); color: var(--area-history); }
 .itile.t-lootcouncil { --tile-bg: var(--area-lootcouncil-soft); color: var(--area-lootcouncil); }
 .itile.t-bank { --tile-bg: var(--area-bank-soft); color: var(--area-bank); }

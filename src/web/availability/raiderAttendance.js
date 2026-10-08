@@ -68,6 +68,19 @@ function categoryView(uid, categoryId, { ctx, nights, upcoming, profile, name })
     };
 }
 
+/**
+ * The name a category's own events were created with, by category id — for a
+ * category the Discord lookup does not name (the bot offline, the category gone).
+ */
+function eventCategoryNames(now) {
+    const out = new Map();
+    for (const e of eventStore.listEvents("", { sinceSeconds: Math.floor(now / 1000) - 120 * 86400 })) {
+        const id = str(e && e.categoryId);
+        if (id && !out.has(id) && str(e.categoryName)) out.set(id, str(e.categoryName));
+    }
+    return out;
+}
+
 function raiderAttendance(userId, { now = Date.now(), config, categoryNames = {}, eventUrl = () => "" } = {}) {
     const uid = str(userId);
     const cfg = config || settingsStore.getConfig();
@@ -78,15 +91,18 @@ function raiderAttendance(userId, { now = Date.now(), config, categoryNames = {}
     const upcomingByCategory = upcomingRaids(uid, { now, active, eventUrl });
     const ids = [...new Set([...all.keys(), ...upcomingByCategory.keys(), ...active].map(String))]
         .filter((id) => !active.length || active.includes(id));
+    const fallbackNames = eventCategoryNames(now);
     const categories = ids
         .map((id) => categoryView(uid, id, {
-            ctx, profile, name: categoryNames[id],
+            ctx, profile, name: categoryNames[id] || fallbackNames.get(id),
             nights: all.get(id) || [],
             upcoming: (upcomingByCategory.get(id) || []).sort((a, b) => a.startTime - b.startTime),
         }))
         .filter(Boolean)
         .sort((a, b) => (b.total - a.total) || a.name.localeCompare(b.name));
-    return { userId: uid, categories };
+    // the character of the newest signup: what the page calls a raider without a Discord or profile name
+    const newest = categories.map((c) => newestSignup(all.get(c.id) || [], uid)).find(Boolean);
+    return { userId: uid, character: str(newest && newest.character), categories };
 }
 
 module.exports = { raiderAttendance };

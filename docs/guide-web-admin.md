@@ -148,6 +148,17 @@ Eigene kommende Raids und den eigenen Anmeldestatus je Charakter verwalten, auch
 - Die Raidleitung kann einen Eintrag auch für einen anderen Raider anlegen, wenn er ihr Bescheid gesagt hat.
 - Löschen stoppt den Eintrag; schon gemachte An- und Abmeldungen bleiben.
 
+## Abwesenheiten
+
+Technik: [roster-profile.md](roster-profile.md#abwesenheiten-absences-areas-signup-or-roster-october-2026)
+
+*Bereich "signup" (Meine Anwesenheit) oder "roster" (dazu Zeitleiste und Pro Raid)* — eigener Menüpunkt unter „Start“, direkt nach „Anmeldungen“.
+
+- **Meine Anwesenheit** (für alle Raider): oben deine eingetragenen Abwesenheiten (löschen, „Abwesenheit eintragen“), darunter je Raid-Kategorie eine Karte mit deiner Quote als große Zahl („82 %“, „9 von 11 Raids“), deinen letzten Raids als Punkte (gefüllt = dabei, oranger Ring = gefehlt; der neueste steht rechts, im Tooltip Datum, Raid und Grund), derselben Liste in Worten und den nächsten Raids mit deinem Status („Dabei“, „Später“, „Vielleicht“, „Ersatz“, „Abgemeldet“, „keine Anmeldung“) als Link zum Event. „auto“ heißt: deine Charaktere wurden automatisch zugeordnet, nicht von der Raidleitung.
+- **Zeitleiste** (Bereich roster): wer in den nächsten 4, 8 oder 13 Wochen fehlt – aus „Abwesend eintragen“ und aus Absagen einzelner Raids. Oben vier Zahlen (heute weg, nächste Woche weg, länger als 2 Wochen, Raid mit der größten Lücke). Je Raider Balken für eingetragene Zeiträume (ab 2 Wochen gefüllt) und Ringe für einzeln abgesagte Raids, darüber je Raid-Tag, wie viele fehlen. Ein **Hinweis** erscheint, wenn jemand 3 der letzten 4 Raids einer Kategorie einzeln abgesagt hat, ohne einen Zeitraum einzutragen.
+- **Pro Raid** (Bereich roster): je kommendem Raid eine ruhige Karte – Datum, Titel, Kategorie, wie viele dabei sind gegen die Plätze, Link zum Setup.
+- Ein Klick auf einen Raider in der Zeitleiste öffnet rechts seine Einträge (löschbar), was sie schon bewirkt haben, und seine letzten 10 Raids; die Raidleitung kommt dort mit „Anwesenheit ansehen“ zu seiner Anwesenheit (zurück über „Zurück zur Übersicht“). Die Raidleitung trägt über „Abwesenheit eintragen“ für einen Raider ein und sieht die Gründe; alle anderen sehen nur Zeiträume.
+
 ## Mein Profil
 
 Technik: [roster-profile.md](roster-profile.md)
@@ -171,7 +182,7 @@ Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit. Charaktere lassen s
 
 Das Roster zeigt die Charaktere der Spielversion des Content-Umschalters in der Kopfleiste; die Anwesenheit zählt nur die Raids dieser Version. Der Reiter „Charaktere“ der Loot-Historie folgt demselben Umschalter.
 
-- **Abwesenheiten** (Roster → zweites Symbol in der Leiste links, `/roster/absences`): wer in den nächsten 4, 8 oder 13 Wochen fehlt – aus „Abwesend eintragen“ und aus Absagen einzelner Raids. Oben vier Zahlen (heute weg, nächste Woche weg, länger als 2 Wochen, Raid mit der größten Lücke). Die **Zeitleiste** zeigt je Raider Balken für eingetragene Zeiträume (ab 2 Wochen gefüllt) und Ringe für einzeln abgesagte Raids, darüber je Raid-Tag, wie viele fehlen. **Pro Raid** zeigt je kommendem Raid, wer dabei und wer weg ist und ob Tanks und Heiler noch reichen (orange, wenn nicht), mit Link zum Setup. Ein Klick auf einen Raider öffnet rechts seine Einträge (löschbar), was sie schon bewirkt haben, und seine letzten 10 Raids. Ein **Hinweis** erscheint, wenn jemand 3 der letzten 4 Raids einer Kategorie einzeln abgesagt hat, ohne einen Zeitraum einzutragen. Die Raidleitung trägt über „Abwesenheit eintragen“ für einen Raider ein und sieht die Gründe; alle anderen sehen nur Zeiträume.
+Wer wann fehlt, steht unter dem eigenen Menüpunkt [Abwesenheiten](#abwesenheiten).
 
 ## Kaderplaner
 

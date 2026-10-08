@@ -1,11 +1,12 @@
 {
-    "kicker": "Roster",
+    "kicker": "Anwesenheit",
     "title": "Abwesenheiten",
     "lead": "Wer in den nächsten Wochen fehlt – aus „Abwesend eintragen“ und aus Absagen einzelner Raids.",
     "viewAria": "Ansicht",
     "view": {
         "timeline": "Zeitleiste",
-        "raids": "Pro Raid"
+        "raids": "Pro Raid",
+        "mine": "Meine Anwesenheit"
     },
     "enter": "Abwesenheit eintragen",
     "loading": "Abwesenheiten werden geladen",
@@ -92,17 +93,10 @@
     "raids": {
         "empty": "Keine kommenden Raids in diesem Zeitraum.",
         "in": "dabei",
-        "away": "weg",
         "size": {
             "one": "{count} Platz",
             "other": "{count} Plätze"
         },
-        "roleLine": "{role}: {away} weg · {have} dabei (Soll {need})",
-        "rolesOk": "Rollen reichen",
-        "absentAria": "Wer fehlt",
-        "howPeriod": "Zeitraum eingetragen",
-        "howSingle": "Einzeln abgesagt",
-        "until": "bis {date}",
         "toSetup": "Zum Setup"
     },
     "drawer": {
@@ -132,7 +126,8 @@
         "removeText": "Der Zeitraum {period} wird gelöscht. Schon geänderte Anmeldungen bleiben, wie sie sind.",
         "removed": "Eintrag gelöscht",
         "remove": "Eintrag löschen",
-        "byOrga": "von der Raidleitung eingetragen"
+        "byOrga": "von der Raidleitung eingetragen",
+        "attendance": "Anwesenheit ansehen"
     },
     "history": {
         "in": "dabei",
@@ -147,5 +142,46 @@
         "single": "einzelner Raid abgesagt",
         "presence": "anwesend eingetragen",
         "today": "heute"
+    },
+    "mine": {
+        "lead": "Wie oft du in den letzten Raids je Raid-Kategorie dabei warst, deine kommenden Raids und deine eingetragenen Abwesenheiten.",
+        "leadRaider": "Wie oft der Raider in den letzten Raids je Raid-Kategorie dabei war, seine kommenden Raids und seine eingetragenen Abwesenheiten.",
+        "loading": "Anwesenheit wird geladen",
+        "back": "Zurück zur Übersicht",
+        "of": "Anwesenheit von {name}",
+        "entries": "Meine Abwesenheiten",
+        "entriesOf": "Abwesenheiten von {name}",
+        "noEntries": "Keine Abwesenheit eingetragen.",
+        "noCategories": "Du hast dich noch für keinen Raid einer Kategorie angemeldet – sobald du dabei bist, steht hier deine Anwesenheit.",
+        "noCategoriesOf": "{name} hat sich noch für keinen Raid einer Kategorie angemeldet.",
+        "noRaids": "Noch keine Raids gezählt.",
+        "pct": "{pct} %",
+        "ofRaids": {
+            "one": "{attended} von {count} Raid",
+            "other": "{attended} von {count} Raids"
+        },
+        "auto": "auto",
+        "autoTip": "Charaktere automatisch zugeordnet – aus deinen Anmeldungen und deinem Profil, nicht von der Raidleitung festgelegt.",
+        "nightsAria": "Letzte Raids, der neueste zuletzt",
+        "next": "Nächste Raids",
+        "status": {
+            "signed": "Dabei",
+            "late": "Später",
+            "tentative": "Vielleicht",
+            "bench": "Ersatz",
+            "absence": "Abgemeldet",
+            "none": "keine Anmeldung"
+        },
+        "reason": {
+            "inLog": "im Log",
+            "inLogClass": "im Log (Klasse passt)",
+            "signed": "angemeldet",
+            "late": "angemeldet (später)",
+            "absence": "abgemeldet",
+            "notInLog": "nicht im Log",
+            "noSignup": "keine Anmeldung",
+            "bench": "Ersatzbank",
+            "tentative": "vorläufig"
+        }
     }
 }

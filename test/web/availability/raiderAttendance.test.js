@@ -58,6 +58,7 @@ describe("raiderAttendance", () => {
         expect(categoryId).toBe("mon");
         expect(accounts[0].chars.map((c) => c.name)).toEqual(["Bananajoe"]);
         expect(opts).toEqual({ nights: true });
+        expect(view.character).toBe("Bananajoe");
     });
 
     it("takes a category the orga assigned a character in, or one with a coming raid signed up for", () => {
@@ -71,6 +72,13 @@ describe("raiderAttendance", () => {
         expect(mon.upcoming).toEqual([{ eventId: "eh-1", title: "Kara", startTime: sec("2030-03-25T19:00:00Z"), status: "absence", url: "https://x/e/eh-1" }]);
         // no characters known in "mon" (only a coming absence): no quota, no error
         expect(mon).toMatchObject({ pct: null, total: 0, raids: [] });
+    });
+
+    it("names a category after its Discord category, else after the name its events were created with", () => {
+        mockAssignments = { mon: { u1: "Zibbi" }, wed: { u1: "Zibbi" } };
+        mockEvents.set("eh-1", { id: "eh-1", title: "Kara", startTime: sec("2030-03-25T19:00:00Z"), categoryId: "wed", categoryName: "Mittwoch alt" });
+        const view = raiderAttendance("u1", { now: NOW, categoryNames: { mon: "TBC Montag" } });
+        expect(Object.fromEntries(view.categories.map((c) => [c.id, c.name]))).toEqual({ mon: "TBC Montag", wed: "Mittwoch alt" });
     });
 
     it("leaves out categories the raider never raided in and cancelled raids", () => {

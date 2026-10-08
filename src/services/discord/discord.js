@@ -978,6 +978,14 @@ async function editLink(channelId, messageId, opts = {}) {
  *
  * @returns {Promise<Record<string, string>>} id -> display name
  */
+/**
+ * How long a name lookup waits for the gateway. Without the privileged members
+ * intent (a dev bot, docs/known-issues.md) Discord never answers a member
+ * request by id, and discord.js' own limit is two minutes — a page asking for
+ * names (Abwesenheiten) would hang that long and then show the bare ids anyway.
+ */
+const NAME_FETCH_MS = 5000;
+
 async function resolveUserNames(guildId, userIds = []) {
     const ids = [...new Set((userIds || []).map(String).filter(Boolean))];
     const guild = getGuild(guildId);
@@ -991,7 +999,7 @@ async function resolveUserNames(guildId, userIds = []) {
     }
     if (missing.length) {
         try {
-            const fetched = await guild.members.fetch({ user: missing });
+            const fetched = await guild.members.fetch({ user: missing, time: NAME_FETCH_MS });
             for (const member of fetched.values()) out[member.id] = member.displayName || member.user.username;
         } catch {
             // Unknown members / no access — those ids stay out, the page shows the bare id.
@@ -1048,7 +1056,7 @@ function embed() {
 module.exports = {
     setClient, getClient, isOnline, fetchTextChannel, textChannelOf, listGuilds, getGuild, listTextChannels, listEmojis,
     sendDirectMessage, embed,
-    resolveUserNames,
+    resolveUserNames, NAME_FETCH_MS,
     memberRoleIds,
     listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,

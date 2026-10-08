@@ -8,7 +8,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../../api/client";
-import type { AbsenceOverview, AbsencePeriod, AbsenceRaider, AbsenceRaiderDetail, AvailabilityData } from "../../api";
+import type { AbsenceOverview, AbsencePeriod, AbsenceRaider, AbsenceRaiderDetail, AvailabilityData, RaiderAttendanceData } from "../../api";
 import { t } from "../../i18n";
 import { renderPage, adminUser } from "../../test/render";
 import { switchLang } from "../../test/i18n";
@@ -74,7 +74,29 @@ const DETAIL: AbsenceRaiderDetail = {
     counts: { in: 1, off: 1, none: 1, other: 0 },
 };
 
-const OWN: AvailabilityData = { userId: "u1", name: "Admin", orga: true, today: "2026-10-08", maxDays: 180, entries: [], characters: [] };
+const OWN: AvailabilityData = {
+    userId: "u1", name: "Admin", orga: true, today: "2026-10-08", maxDays: 180, characters: [],
+    entries: [
+        { id: "own1", kind: "absence", from: "2026-10-19", to: "2026-10-25", comment: "Urlaub", character: "", spec: "", specLabel: "", versionId: "", categoryId: "", categoryName: "", byOrga: false, done: 1 },
+        { id: "old", kind: "absence", from: "2026-09-01", to: "2026-09-03", comment: "", character: "", spec: "", specLabel: "", versionId: "", categoryId: "", categoryName: "", byOrga: false, done: 0 },
+    ],
+};
+
+const night = (eventId: string, day: string, attended: boolean, reason: string) => ({ eventId, title: `Kara ${day}`, startTime: at(day), attended, reason });
+const ATTENDANCE: RaiderAttendanceData = {
+    userId: "u1", name: "Admin", own: true, orga: true,
+    categories: [
+        {
+            id: "mon", name: "TBC Montag", pct: 82, attended: 9, total: 11, link: "auto", window: 11,
+            raids: [night("n3", "2026-10-05", false, "abgemeldet"), night("n1", "2026-09-21", true, "im Log"), night("n2", "2026-09-28", true, "angemeldet (später)")],
+            upcoming: [
+                { eventId: "e1", title: "Kara Montag", startTime: at("2026-10-12"), status: "signed", url: "https://discord.com/channels/1/2/3" },
+                { eventId: "e2", title: "Gruul Montag", startTime: at("2026-10-19"), status: "", url: "" },
+            ],
+        },
+        { id: "wed", name: "TBC Mittwoch", pct: null, attended: 0, total: 0, link: "manual", window: 11, raids: [], upcoming: [] },
+    ],
+};
 
 let data: AbsenceOverview;
 
@@ -83,6 +105,7 @@ beforeEach(() => {
     vi.mocked(client.get).mockReset().mockImplementation((path: string) => {
         if (path.startsWith("/api/availability/overview/raider?")) return Promise.resolve(DETAIL);
         if (path.startsWith("/api/availability/overview?")) return Promise.resolve(data);
+        if (path.startsWith("/api/availability/attendance")) return Promise.resolve(path.includes("userId=") ? { ...ATTENDANCE, userId: "201", name: "", character: "Tankadin", own: false } : ATTENDANCE);
         if (path.startsWith("/api/availability")) return Promise.resolve(OWN);
         return Promise.reject({ code: "not_mocked", message: path });
     });
@@ -92,7 +115,7 @@ beforeEach(() => {
 });
 
 async function show() {
-    const view = renderPage(<AbsencesPage />, { route: "/roster/absences" });
+    const view = renderPage(<AbsencesPage />, { route: "/absences" });
     await screen.findByRole("heading", { name: t("absences.title") });
     return view;
 }
@@ -211,7 +234,7 @@ describe("Abwesenheiten: Zeitleiste", () => {
 });
 
 describe("Abwesenheiten: Pro Raid", () => {
-    it("shows one card per coming raid with the role lines that matter and the absent as chips", async () => {
+    it("shows one calm card per coming raid — how full it is, no absence info", async () => {
         const user = userEvent.setup();
         await show();
         await user.click(screen.getByRole("radio", { name: t("absences.view.raids") }));
@@ -219,23 +242,17 @@ describe("Abwesenheiten: Pro Raid", () => {
         expect(cards.map((c) => c.getAttribute("aria-label"))).toEqual(["Kara Montag", "Gruul Montag", "Mag Mittwoch", "SSC Montag"]);
 
         const kara = cards[0];
-        expect(kara).toHaveClass("ab-short");
-        expect(within(kara).getByText("Tanks: 1 weg · 1 dabei (Soll 2)").closest("li")).toHaveClass("ab-short");
-        expect(within(kara).queryByText(/^Heiler:/)).not.toBeInTheDocument();
+        expect(kara).toHaveTextContent("20 dabei · 25 Plätze");
+        expect(kara.querySelector(".ab-raid-in")?.parentElement?.getAttribute("style")).toContain("--ab-in: 80%");
         expect(within(kara).getByRole("link", { name: "Kara Montag" })).toHaveAttribute("href", "https://discord.com/channels/1/2/3");
         expect(within(kara).getByRole("link", { name: t("absences.raids.toSetup") })).toHaveAttribute("href", "/raids/detail?event=e1&tab=setup");
-        const chip = within(kara).getByRole("button", { name: /Tankadin/ });
-        expect(chip).toHaveTextContent(t("absences.raids.until", { date: "08.11." }));
-        expect(chip).toHaveTextContent("Urlaub");
-        expect(chip.querySelector(".ab-mark-bar")).not.toBeNull();
-
-        const gruul = cards[1];
-        expect(gruul).not.toHaveClass("ab-short");
-        expect(within(gruul).getByText("Heiler: 1 weg · 5 dabei (Soll 5)")).toBeInTheDocument();
-        expect(within(gruul).getByRole("button", { name: /Nwek/ }).querySelector(".ab-mark-ring")).not.toBeNull();
-
-        expect(within(cards[2]).getByText(t("absences.raids.rolesOk"))).toBeInTheDocument();
-        expect(within(cards[3]).getByText("Heiler: 2 weg · 3 dabei (Soll 5)").closest("li")).toHaveClass("ab-short");
+        expect(within(kara).getByText("TBC Montag")).toBeInTheDocument();
+        // the user took the absence info out of the cards
+        for (const card of cards) {
+            expect(card).not.toHaveTextContent(/weg|Soll|Tankadin|Nwek|Urlaub/);
+            expect(within(card).queryAllByRole("button")).toEqual([]);
+            expect(card.className).toBe("ab-raid");
+        }
     });
 });
 
@@ -287,11 +304,128 @@ describe("Abwesenheiten: Raider", () => {
     });
 });
 
+const raiderOnly = () => adminUser({ isAdmin: false, access: { signup: { read: true, write: true } } });
+
+describe("Abwesenheiten: Meine Anwesenheit", () => {
+    async function showMine(user = raiderOnly(), route = "/absences") {
+        const view = renderPage(<AbsencesPage />, { route, user });
+        await screen.findByRole("region", { name: "TBC Montag" });
+        return view;
+    }
+
+    it("shows a raider without the roster area only their own attendance — no overview, no view switch", async () => {
+        await showMine();
+        expect(gets("/api/availability/attendance")).toEqual(["/api/availability/attendance"]);
+        expect(gets("/api/availability/overview")).toEqual([]);
+        expect(screen.queryByRole("radiogroup", { name: t("absences.viewAria") })).not.toBeInTheDocument();
+        expect(screen.getByText(t("absences.mine.lead"))).toBeInTheDocument();
+        expect(document.querySelector(".ab-tl")).toBeNull();
+    });
+
+    it("gives every category a card: the quota large, the raids as dots newest last, a short list and the next raids with the own status", async () => {
+        await showMine();
+        const mon = screen.getByRole("region", { name: "TBC Montag" });
+        expect(within(mon).getByText("82 %")).toBeInTheDocument();
+        expect(within(mon).getByText("9 von 11 Raids")).toBeInTheDocument();
+        expect(within(mon).getByText(t("absences.mine.auto"))).toHaveAttribute("data-tip", t("absences.mine.autoTip"));
+
+        const dots = within(within(mon).getByRole("list", { name: t("absences.mine.nightsAria") })).getAllByRole("listitem");
+        expect(dots.map((d) => d.getAttribute("data-tip-sub"))).toEqual([
+            "Kara 2026-09-21 · im Log", "Kara 2026-09-28 · angemeldet (später)", "Kara 2026-10-05 · abgemeldet",
+        ]);
+        expect(dots.map((d) => d.classList.contains("ab-h-in"))).toEqual([true, true, false]);
+        expect(dots[2]).toHaveClass("ab-h-off");
+
+        // the list: newest first, the verdict in words
+        const rows = [...mon.querySelectorAll(".ab-att-list li")].slice(0, 3);
+        expect(rows.map((r) => r.querySelector(".ab-att-verdict")?.textContent)).toEqual(["abgemeldet", "angemeldet (später)", "im Log"]);
+        expect(rows[0]).toHaveClass("ab-att-out");
+
+        // next raids: the own status as a pill, a link where there is one
+        expect(within(mon).getByText(t("absences.mine.next"))).toBeInTheDocument();
+        expect(within(mon).getByRole("link", { name: t("absences.mine.status.signed") })).toHaveAttribute("href", "https://discord.com/channels/1/2/3");
+        expect(within(mon).getByText(t("absences.mine.status.none"))).toBeInTheDocument();
+
+        // a category without counted raids says so instead of "0 %"
+        const wed = screen.getByRole("region", { name: "TBC Mittwoch" });
+        expect(within(wed).getByText(t("absences.mine.noRaids"))).toBeInTheDocument();
+        expect(within(wed).queryByText(t("absences.mine.auto"))).not.toBeInTheDocument();
+    });
+
+    it("lists the own absences that are not over, enters a new one and deletes one", async () => {
+        const user = userEvent.setup();
+        await showMine();
+        const own = screen.getByRole("region", { name: t("absences.mine.entries") });
+        await within(own).findByText("Urlaub", { exact: false });
+        expect(within(own).getAllByRole("listitem")).toHaveLength(1);
+        expect(within(own).getByText(t("absences.state.planned"))).toBeInTheDocument();
+        expect(within(own).getByText(t("absences.days", { count: 7 }))).toBeInTheDocument();
+
+        await user.click(within(own).getByRole("button", { name: t("absences.drawer.remove") }));
+        await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: t("common.delete") }));
+        await waitFor(() => expect(client.send).toHaveBeenCalledWith("DELETE", "/api/availability", { id: "own1" }));
+
+        await user.click(within(own).getByRole("button", { name: t("absences.enter") }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText(t("signups.availability.dialog.titleAbsence"))).toBeInTheDocument();
+    });
+
+    it("says so when the raider has no category yet", async () => {
+        const empty = { ...ATTENDANCE, categories: [] };
+        vi.mocked(client.get).mockImplementation((path: string) => Promise.resolve(path.startsWith("/api/availability/attendance") ? empty : OWN));
+        renderPage(<AbsencesPage />, { route: "/absences", user: raiderOnly() });
+        expect(await screen.findByText(t("absences.mine.noCategories"))).toBeInTheDocument();
+    });
+
+    it("is the third view for the orga", async () => {
+        const user = userEvent.setup();
+        await show();
+        const views = screen.getByRole("radiogroup", { name: t("absences.viewAria") });
+        expect(within(views).getAllByRole("radio").map((r) => r.textContent)).toEqual([t("absences.view.timeline"), t("absences.view.raids"), t("absences.view.mine")]);
+        await user.click(within(views).getByRole("radio", { name: t("absences.view.mine") }));
+        expect(await screen.findByRole("region", { name: "TBC Montag" })).toBeInTheDocument();
+        expect(gets("/api/availability/attendance")).toEqual(["/api/availability/attendance"]);
+        expect(screen.getByRole("radio", { name: t("absences.view.mine") })).toHaveAttribute("aria-checked", "true");
+    });
+
+    it("opens a raider's attendance from the drawer for the orga, with a way back (named after their character without another name)", async () => {
+        const user = userEvent.setup();
+        await show();
+        await user.click(row("Tankadin"));
+        const drawer = await screen.findByRole("complementary", { name: t("absences.drawer.aria") });
+        await user.click(await within(drawer).findByRole("button", { name: t("absences.drawer.attendance") }));
+
+        expect(await screen.findByRole("heading", { name: t("absences.mine.of", { name: "Tankadin" }) })).toBeInTheDocument();
+        expect(gets("/api/availability/attendance")).toEqual(["/api/availability/attendance?userId=201"]);
+        expect(screen.getByText(t("absences.mine.leadRaider"))).toBeInTheDocument();
+        expect(screen.queryByRole("complementary", { name: t("absences.drawer.aria") })).not.toBeInTheDocument();
+        expect(screen.getByRole("region", { name: t("absences.mine.entriesOf", { name: "Tankadin" }) })).toBeInTheDocument();
+        expect(screen.queryByRole("radiogroup", { name: t("absences.viewAria") })).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: t("absences.mine.back") }));
+        expect(await screen.findByRole("region", { name: t("absences.timeline.aria") })).toBeInTheDocument();
+    });
+
+    it("offers the drawer link only to the raid lead", async () => {
+        const user = userEvent.setup();
+        vi.mocked(client.get).mockImplementation((path: string) => {
+            if (path.startsWith("/api/availability/overview/raider?")) return Promise.resolve({ ...DETAIL, canEdit: false });
+            if (path.startsWith("/api/availability/overview?")) return Promise.resolve(overview({ canEdit: false }));
+            return Promise.resolve(OWN);
+        });
+        await show();
+        await user.click(row("Tankadin"));
+        const drawer = await screen.findByRole("complementary", { name: t("absences.drawer.aria") });
+        await within(drawer).findByText(t("absences.drawer.entries"));
+        expect(within(drawer).queryByRole("button", { name: t("absences.drawer.attendance") })).not.toBeInTheDocument();
+    });
+});
+
 describe("Abwesenheiten in English", () => {
     afterAll(() => switchLang("de"));
     it("speaks English", async () => {
         await switchLang("en");
-        renderPage(<AbsencesPage />, { route: "/roster/absences", user: adminUser() });
+        renderPage(<AbsencesPage />, { route: "/absences", user: adminUser() });
         expect(await screen.findByRole("heading", { name: "Absences" })).toBeInTheDocument();
         expect(screen.getByRole("region", { name: "Note" })).toHaveTextContent("signed off from 3 of the last 4 raids of TBC Montag one by one");
     });
