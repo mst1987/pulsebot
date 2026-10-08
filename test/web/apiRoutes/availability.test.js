@@ -23,12 +23,19 @@ jest.mock("../../../src/services/signups/availabilityPanel", () => ({
     refreshPanels: jest.fn(async () => ({ edited: 1, failed: 0, unchanged: 0 })),
 }));
 
+jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({ u1: "Bananajoe#discord" })) }));
+jest.mock("../../../src/services/signups/absenceOverview", () => ({
+    buildOverview: jest.fn(() => ({ from: "2030-03-18", raiders: [{ userId: "u1", name: "u1" }], hints: [{ userId: "u2", name: "u2" }], raids: [], tiles: {} })),
+    raiderDetail: jest.fn((userId) => ({ userId, name: userId, entries: [], history: [] })),
+}));
+
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const store = require("../../../src/stores/availabilityStore");
 const availability = require("../../../src/services/signups/availability");
 const panel = require("../../../src/services/signups/availabilityPanel");
 const route = require("../../../src/web/apiRoutes/availability");
+const absenceOverview = require("../../../src/services/signups/absenceOverview");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { mockRes, status, json } = require("../../helpers/http");
 
@@ -212,5 +219,32 @@ describe("Links des Organizers", () => {
         for (const [method, path] of [["GET", "/api/availability/panels"], ["PUT", "/api/availability/links"]]) {
             expect(route.routes.find((r) => r.method === method && r.path === path).area).toBe("settings");
         }
+    });
+});
+
+describe("the orga's overview", () => {
+    it("hands the weeks and the category on, the reasons and editing only to the raid lead, with Discord names", async () => {
+        const res = await call("GET", "/api/availability/overview", ORGA, { query: "weeks=4&category=cat1" });
+        expect(status(res)).toBe(200);
+        expect(absenceOverview.buildOverview).toHaveBeenCalledWith(expect.objectContaining({ weeks: 4, categoryId: "cat1", withReasons: true }));
+        expect(json(res).data).toMatchObject({ canEdit: true, withReasons: true, raiders: [{ userId: "u1", name: "Bananajoe#discord" }], hints: [{ userId: "u2", name: "u2" }] });
+
+        const reader = { ...ANNA, access: { roster: { read: true } } };
+        const read = await call("GET", "/api/availability/overview", reader);
+        expect(absenceOverview.buildOverview).toHaveBeenLastCalledWith(expect.objectContaining({ weeks: 8, categoryId: "", withReasons: false }));
+        expect(json(read).data).toMatchObject({ canEdit: false, withReasons: false });
+    });
+
+    it("answers one raider's detail and needs a raider", async () => {
+        const res = await call("GET", "/api/availability/overview/raider", ORGA, { query: "userId=u1" });
+        expect(json(res).data).toMatchObject({ userId: "u1", name: "Bananajoe#discord", canEdit: true });
+        expect(absenceOverview.raiderDetail).toHaveBeenCalledWith("u1", expect.objectContaining({ withReasons: true }));
+        expect(status(await call("GET", "/api/availability/overview/raider", ORGA))).toBe(400);
+    });
+
+    it("is gated on the roster area", () => {
+        const { checkAccess } = require("../../../src/web/http/apiAccess");
+        expect(checkAccess("/api/availability/overview", "GET", ANNA)).toMatchObject({ status: 403 });
+        expect(checkAccess("/api/availability/overview", "GET", { ...ANNA, access: { roster: { read: true } } })).toBeNull();
     });
 });
