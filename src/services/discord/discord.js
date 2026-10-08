@@ -964,6 +964,14 @@ async function editLink(channelId, messageId, opts = {}) {
 }
 
 /**
+ * How long a name lookup waits for the gateway. Without the privileged members
+ * intent (a dev bot, docs/known-issues.md) Discord never answers a member
+ * request by id, and discord.js' own limit is two minutes — a page asking for
+ * names (Abwesenheiten) would hang that long and then show the bare ids anyway.
+ */
+const NAME_FETCH_MS = 5000;
+
+/**
  * Display names for a set of user ids, best-effort.
  *
  * Used for the per-account permission grants (config.userPermissions, a
@@ -978,14 +986,6 @@ async function editLink(channelId, messageId, opts = {}) {
  *
  * @returns {Promise<Record<string, string>>} id -> display name
  */
-/**
- * How long a name lookup waits for the gateway. Without the privileged members
- * intent (a dev bot, docs/known-issues.md) Discord never answers a member
- * request by id, and discord.js' own limit is two minutes — a page asking for
- * names (Abwesenheiten) would hang that long and then show the bare ids anyway.
- */
-const NAME_FETCH_MS = 5000;
-
 async function resolveUserNames(guildId, userIds = []) {
     const ids = [...new Set((userIds || []).map(String).filter(Boolean))];
     const guild = getGuild(guildId);
