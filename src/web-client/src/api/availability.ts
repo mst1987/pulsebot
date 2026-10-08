@@ -133,3 +133,122 @@ export function postAvailabilityPanel(categoryId: string, channelId: string): Pr
 export function removeAvailabilityPanel(categoryId: string): Promise<{ categoryId: string }> {
     return send("DELETE", "/api/availability/panel", { categoryId });
 }
+
+// ---- the orga's overview: Roster › Abwesenheiten (src/services/signups/absenceOverview.js) ----
+
+/** Who a row or chip is: the first character of their latest signup, else of their profile. */
+export type AbsenceIdentity = {
+    userId: string;
+    /** The Discord name, else the profile's, else the character. */
+    name: string;
+    character: string;
+    /** "Druid-Restoration", "" unknown. */
+    spec: string;
+    specLabel: string;
+    classId: string;
+    /** The class colour of the rule set ("#FF7D0A"), "" unknown. */
+    classColor: string;
+    /** The spec's WoW icon name, "" unknown. */
+    specIcon: string;
+    role: string;
+};
+
+export type AbsencePeriodState = "planned" | "running" | "past";
+
+/** One entered period ("Abwesend eintragen" / "Anwesend eintragen"). */
+export type AbsencePeriod = {
+    id: string;
+    kind: AvailabilityKind;
+    /** "yyyy-MM-dd", server time, both counted. */
+    from: string;
+    to: string;
+    days: number;
+    /** The reason; "" for anyone but the raid lead. */
+    comment: string;
+    /** Set when the period holds for one category only. */
+    categoryId: string;
+    categoryName: string;
+    byOrga: boolean;
+    state: AbsencePeriodState;
+};
+
+/** A single raid signed off from without a period covering it. */
+export type AbsenceSingle = { eventId: string; day: string; title: string };
+
+/** "3 of the last 4 raids of a category signed off one by one". */
+export type AbsenceHintInfo = { categoryId: string; categoryName: string; count: number; of: number; days: string[] };
+
+export type AbsenceRaider = AbsenceIdentity & {
+    periods: AbsencePeriod[];
+    singles: AbsenceSingle[];
+    /** Days of the longest absence. */
+    longest: number;
+    long: boolean;
+    awayToday: boolean;
+    hint: AbsenceHintInfo | null;
+    /** Only attendance periods, no absence. */
+    onlyPresence: boolean;
+    firstDay: string;
+};
+
+export type AbsenceHint = AbsenceIdentity & AbsenceHintInfo;
+
+export type AbsenceRoleGap = { need: number; have: number; away: number };
+
+export type AbsenceRaid = {
+    id: string;
+    title: string;
+    /** Unix seconds. */
+    startTime: number;
+    day: string;
+    categoryId: string;
+    categoryName: string;
+    size: number;
+    signed: number;
+    away: number;
+    roles: { tank: AbsenceRoleGap; healer: AbsenceRoleGap };
+    absent: { userId: string; how: "period" | "single"; until: string; comment: string }[];
+    url: string;
+};
+
+export type AbsenceOverview = {
+    /** This Monday … the last day shown, "yyyy-MM-dd". */
+    from: string;
+    to: string;
+    today: string;
+    weeks: number;
+    categories: { id: string; name: string }[];
+    raids: AbsenceRaid[];
+    /** Sorted by the server: away today, the longest, the first day, the name. */
+    raiders: AbsenceRaider[];
+    hints: AbsenceHint[];
+    tiles: {
+        today: string[];
+        nextWeek: string[];
+        long: string[];
+        biggest: null | { raidId: string; day: string; title: string; away: number; healers: number; tanks: number };
+    };
+    /** Whether the caller may enter and delete (the raid lead). */
+    canEdit: boolean;
+    withReasons: boolean;
+};
+
+export type AbsenceHistoryStatus = "in" | "off" | "none" | "other";
+
+export type AbsenceRaiderDetail = AbsenceIdentity & {
+    entries: (AbsencePeriod & { done: number; character: string; spec: string })[];
+    /** The last raids of their categories, oldest first. */
+    history: { eventId: string; day: string; title: string; status: AbsenceHistoryStatus }[];
+    counts: Record<AbsenceHistoryStatus, number>;
+    canEdit: boolean;
+};
+
+export function getAbsenceOverview(weeks: number, category = ""): Promise<AbsenceOverview> {
+    const q = new URLSearchParams({ weeks: String(weeks) });
+    if (category) q.set("category", category);
+    return get(`/api/availability/overview?${q.toString()}`);
+}
+
+export function getAbsenceRaider(userId: string): Promise<AbsenceRaiderDetail> {
+    return get(`/api/availability/overview/raider?userId=${encodeURIComponent(userId)}`);
+}

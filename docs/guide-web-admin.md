@@ -171,6 +171,8 @@ Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit. Charaktere lassen s
 
 Das Roster zeigt die Charaktere der Spielversion des Content-Umschalters in der Kopfleiste; die Anwesenheit zählt nur die Raids dieser Version. Der Reiter „Charaktere“ der Loot-Historie folgt demselben Umschalter.
 
+- **Abwesenheiten** (Roster → zweites Symbol in der Leiste links, `/roster/absences`): wer in den nächsten 4, 8 oder 13 Wochen fehlt – aus „Abwesend eintragen“ und aus Absagen einzelner Raids. Oben vier Zahlen (heute weg, nächste Woche weg, länger als 2 Wochen, Raid mit der größten Lücke). Die **Zeitleiste** zeigt je Raider Balken für eingetragene Zeiträume (ab 2 Wochen gefüllt) und Ringe für einzeln abgesagte Raids, darüber je Raid-Tag, wie viele fehlen. **Pro Raid** zeigt je kommendem Raid, wer dabei und wer weg ist und ob Tanks und Heiler noch reichen (orange, wenn nicht), mit Link zum Setup. Ein Klick auf einen Raider öffnet rechts seine Einträge (löschbar), was sie schon bewirkt haben, und seine letzten 10 Raids. Ein **Hinweis** erscheint, wenn jemand 3 der letzten 4 Raids einer Kategorie einzeln abgesagt hat, ohne einen Zeitraum einzutragen. Die Raidleitung trägt über „Abwesenheit eintragen“ für einen Raider ein und sieht die Gründe; alle anderen sehen nur Zeiträume.
+
 ## Kaderplaner
 
 Technik: [kaderplaner.md](kaderplaner.md)

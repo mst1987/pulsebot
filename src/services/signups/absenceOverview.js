@@ -24,6 +24,7 @@ const signupStore = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
 const { TIMEZONE } = require("../../config/timezone");
+const { CLASSES } = require("../../config/gameVersions/classes");
 
 const HINT_MIN = 3;
 const HINT_OF = 4;
@@ -67,6 +68,13 @@ function raidsBetween(from, to, { categoryId = "", config }) {
         .sort((a, b) => Number(a.startTime) - Number(b.startTime));
 }
 
+/** A category's name: the Discord category's, else the one an event of it was created with. */
+function categoryNameOf(categoryId, categoryNames, events = []) {
+    if (categoryNames[categoryId]) return categoryNames[categoryId];
+    const hit = events.find((e) => str(e.categoryId) === categoryId && str(e.categoryName));
+    return hit ? str(hit.categoryName) : "";
+}
+
 /** Whether an entry covers a raid: its day and, for an entry of one category, that category. */
 function entryCovers(entry, event) {
     const day = dayOf(event.startTime);
@@ -81,16 +89,23 @@ function identityOf(userId, { signup = null, names = {} } = {}) {
     const own = (profile.characters || [])[0];
     const character = (fromSignup && fromSignup.character) || (own && own.name) || "";
     const spec = (fromSignup && fromSignup.spec) || (own && own.specs && own.specs[0] && own.specs[0].key) || "";
-    const info = profiles.specInfo(spec);
+    const { specRole, ...looks } = specLooks(spec);
     return {
         userId,
         name: str(names[userId]) || str(profile.name) || character || userId,
         character,
         spec,
-        specLabel: info ? info.label : "",
-        classId: info ? info.classId : "",
-        role: (signup && signup.role) || (info ? info.role : ""),
+        ...looks,
+        role: (signup && signup.role) || specRole,
     };
+}
+
+/** A spec's label, class, class colour and icon from the rule set — the client never recomputes them. */
+function specLooks(spec) {
+    const info = profiles.specInfo(spec);
+    if (!info) return { specLabel: "", classId: "", classColor: "", specIcon: "", specRole: "" };
+    const cls = CLASSES.find((c) => c.id === info.classId);
+    return { specLabel: info.label, classId: info.classId, classColor: cls ? cls.color : "", specIcon: info.icon || "", specRole: info.role || "" };
 }
 
 /** The latest signup of a raider among some raids (for the character the overview names). */
@@ -155,6 +170,7 @@ function hintsFor({ now, config, entries, categoryNames }) {
         const last = events.sort((a, b) => Number(b.startTime) - Number(a.startTime)).slice(0, HINT_OF);
         if (last.length < HINT_OF) continue;
         const counts = new Map();
+        const signups = new Map();
         for (const event of last) {
             for (const s of signupStore.listSignups(event.id)) {
                 const uid = str(s.userId);
@@ -162,11 +178,13 @@ function hintsFor({ now, config, entries, categoryNames }) {
                 if (entries.some((en) => en.userId === uid && en.kind === "absence" && entryCovers(en, event))) continue;
                 if (!counts.has(uid)) counts.set(uid, []);
                 counts.get(uid).push(dayOf(event.startTime));
+                // the newest of their sign-offs names the character they play
+                if (!signups.has(uid)) signups.set(uid, s);
             }
         }
         for (const [userId, days] of counts) {
             if (days.length < HINT_MIN) continue;
-            out.push({ userId, categoryId, categoryName: categoryNames[categoryId] || "", count: days.length, of: last.length, days: days.sort() });
+            out.push({ userId, categoryId, categoryName: categoryNameOf(categoryId, categoryNames, last), count: days.length, of: last.length, days: days.sort(), signup: signups.get(userId) });
         }
     }
     return out;
@@ -217,7 +235,7 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
             startTime: Number(event.startTime) || 0,
             day: dayOf(event.startTime),
             categoryId: str(event.categoryId),
-            categoryName: categoryNames[str(event.categoryId)] || "",
+            categoryName: categoryNameOf(str(event.categoryId), categoryNames, [event]),
             size: Number(event.size) || 0,
             signed: dabei.length,
             away: away.length,
@@ -243,7 +261,8 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
         const absences = r.periods.filter((p) => p.kind === "absence");
         const longest = absences.reduce((n, p) => Math.max(n, p.days), 0);
         const awayToday = absences.some((p) => p.from <= today && p.to >= today) || r.singles.some((s) => s.day === today);
-        const hint = hints.find((h) => h.userId === r.userId) || null;
+        const found = hints.find((h) => h.userId === r.userId);
+        const hint = found ? { categoryId: found.categoryId, categoryName: found.categoryName, count: found.count, of: found.of, days: found.days } : null;
         const firstDay = [...absences.map((p) => p.from), ...r.singles.map((s) => s.day)].sort()[0] || "9999";
         return { ...id, periods: r.periods, singles: r.singles, longest, long: longest >= LONG_DAYS, awayToday, hint, onlyPresence: !absences.length && !r.singles.length, firstDay };
     }).sort((a, b) => Number(b.awayToday) - Number(a.awayToday) || b.longest - a.longest || a.firstDay.localeCompare(b.firstDay) || a.name.localeCompare(b.name));
@@ -264,10 +283,10 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
 
     return {
         from, to, today, weeks: span,
-        categories: [...new Set(raids.map((r) => str(r.categoryId)))].map((id) => ({ id, name: categoryNames[id] || "" })),
+        categories: [...new Set(raids.map((r) => str(r.categoryId)))].map((id) => ({ id, name: categoryNameOf(id, categoryNames, raids) })),
         raids: raidViews,
         raiders: rows,
-        hints: hints.map((h) => ({ ...h, ...identityOf(h.userId, { names }) })),
+        hints: hints.map(({ signup, ...h }) => ({ ...h, ...identityOf(h.userId, { signup: latestSignup(h.userId, raids) || signup, names }) })),
         tiles,
     };
 }

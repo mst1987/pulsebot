@@ -29,7 +29,8 @@
         "channels": "Kanäle",
         "settings": "Einstellungen",
         "planTemplates": "Raidplan-Vorlagen",
-        "planCatalog": "Raidplan-Katalog"
+        "planCatalog": "Raidplan-Katalog",
+        "absences": "Abwesenheiten"
     },
     "group": {
         "Start": "Start",
@@ -48,7 +49,8 @@
         "eventLoot": "Event-Loot",
         "character": "Charakter",
         "editPost": "Nachricht bearbeiten",
-        "planCatalog": "Raidplan-Katalog"
+        "planCatalog": "Raidplan-Katalog",
+        "absences": "Abwesenheiten"
     },
     "noArea": {
         "label": "Kein Bereich freigegeben",

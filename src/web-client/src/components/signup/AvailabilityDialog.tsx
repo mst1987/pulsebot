@@ -13,6 +13,8 @@ import { countResults, firstSpec, nextTo, resultSummary, staysAsIs } from "../..
 import { classIconName } from "../../lib/rosterView";
 import { specLabel } from "../../lib/wowNames";
 import { useT } from "../../i18n";
+// rendered on more than one page (Anmeldungen, Roster › Abwesenheiten): it brings its stylesheet along
+import "../../styles/signups.css";
 
 // "Abwesenheit / Anwesenheit eintragen": a period, a reason (absence) or a
 // character · spec (attendance), and the raids the period covers right now —
@@ -26,30 +28,33 @@ const PREVIEW_DELAY = 300;
 
 type Preview = { key: string; raids: AvailabilityRaid[] | null; problem: string };
 
-export default function AvailabilityDialog({ kind, own, onClose, onSaved }: {
+export default function AvailabilityDialog({ kind, own, target = null, onClose, onSaved }: {
     /** The kind to start with; null = closed. */
     kind: AvailabilityKind | null;
     /** The caller's own GET /api/availability. */
     own: AvailabilityData;
+    /** The orga enters for this raider from the start (Roster › Abwesenheiten); they can still pick another. */
+    target?: RaiderRef | null;
     onClose: () => void;
     /** After a save: the section and the raid list reload. */
     onSaved: () => void;
 }) {
     // a fresh form per opening: every field starts from scratch
     if (!kind) return null;
-    return <AvailabilityForm initialKind={kind} own={own} onClose={onClose} onSaved={onSaved} />;
+    return <AvailabilityForm initialKind={kind} own={own} initialTarget={own.orga ? target : null} onClose={onClose} onSaved={onSaved} />;
 }
 
-function AvailabilityForm({ initialKind, own, onClose, onSaved }: {
+function AvailabilityForm({ initialKind, own, initialTarget, onClose, onSaved }: {
     initialKind: AvailabilityKind;
     own: AvailabilityData;
+    initialTarget: RaiderRef | null;
     onClose: () => void;
     onSaved: () => void;
 }) {
     const t = useT();
     const toast = useToast();
     const [kind, setKind] = useState<AvailabilityKind>(initialKind);
-    const [target, setTarget] = useState<RaiderRef | null>(null);
+    const [target, setTarget] = useState<RaiderRef | null>(initialTarget);
     const [from, setFrom] = useState(own.today);
     const [to, setTo] = useState(own.today);
     const [comment, setComment] = useState("");

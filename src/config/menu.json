@@ -6,6 +6,7 @@
     { "id": "planTemplates", "label": "Raidplan-Vorlagen", "href": "/raids/plan-templates", "group": "Raids", "areas": ["raidplan"], "wowIcon": "inv_misc_map02", "area": "raids", "sub": true },
     { "id": "planCatalog", "label": "Raidplan-Katalog", "href": "/raids/plan-catalog", "group": "Raids", "areas": ["raidplan"], "wowIcon": "inv_misc_book_11", "area": "raids", "sub": true },
     { "id": "roster", "label": "Roster", "href": "/roster", "group": "Raids", "areas": ["roster"], "wowIcon": "achievement_guildperk_everybodysfriend" },
+    { "id": "absences", "label": "Abwesenheiten", "href": "/roster/absences", "group": "Raids", "areas": ["roster"], "wowIcon": "spell_nature_timestop", "area": "roster", "sub": true },
     { "id": "cla", "label": "Log-Auswertung", "href": "/cla", "group": "Raids", "areas": ["cla"], "wowIcon": "inv_misc_pocketwatch_01" },
     { "id": "history", "label": "Historie & Loot", "href": "/history", "group": "Loot", "areas": ["history", "loot"], "wowIcon": "inv_misc_bag_10" },
     { "id": "lootcouncil", "label": "Loot-Council", "href": "/lootcouncil", "group": "Loot", "areas": ["lootcouncil"], "wowIcon": "inv_misc_coin_02" },

@@ -1,0 +1,253 @@
+/* =====================================================================
+   Roster › Abwesenheiten (pages/absences/, docs/roster-profile.md): the
+   figures, the filter line, the hint cards, the timeline (one row per raider,
+   the weeks across, scrolling sideways inside its box while the names stay),
+   the raid cards and the raider drawer. Everything carries the ab- prefix;
+   away is --ab-away (orange), a category's colour comes as --ab-cat, positions
+   on the timeline as --ab-at / --ab-span (day columns) times --ab-dw.
+   ===================================================================== */
+
+.ab-page { min-width: 0; }
+.ab-page .page-head { flex-wrap: wrap; }
+.ab-page .ph-act { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.ab-lead { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; max-width: 70ch; }
+
+/* ---- the four figures: a big number with its word, the names small ---- */
+.ab-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 16px; }
+.ab-tile { min-width: 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--line); }
+.ab-tile.ab-warn { border-top-color: var(--ab-away); }
+.ab-tile-num { font-size: 13px; color: var(--muted); font-weight: 600; }
+.ab-tile-num b { font-size: 28px; font-weight: 800; color: var(--text); letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; margin-right: 4px; }
+.ab-tile.ab-warn .ab-tile-num b { color: var(--ab-away); }
+.ab-tile-sub { margin-top: 6px; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* ---- filter line ---- */
+.ab-filters { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin: 0 0 14px; min-width: 0; }
+.ab-search {
+    display: flex; align-items: center; gap: 8px; min-height: var(--ctl-h); padding: 0 12px; width: 220px; max-width: 100%; margin-left: auto;
+    border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); color: var(--muted);
+}
+.ab-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.ab-search svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.ab-search input { flex: 1; min-width: 0; border: 0; background: none; color: var(--text); font: inherit; font-size: 14px; outline: none; padding: 0; min-height: 0; box-shadow: none; }
+
+/* ---- a category's colour: a dot on the day row, a pill on a raid card ---- */
+.ab-cat-0 { --ab-cat: var(--opt-blue); }
+.ab-cat-1 { --ab-cat: var(--opt-teal); }
+.ab-cat-2 { --ab-cat: var(--opt-violet); }
+.ab-cat-3 { --ab-cat: var(--opt-amber); }
+.ab-cat-4 { --ab-cat: var(--opt-rose); }
+.ab-cat-5 { --ab-cat: var(--opt-lime); }
+
+/* ---- spec icon on a tile tinted in the class colour (like the setup editor's) ---- */
+.ab-spec { --cc: var(--muted); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 7px; padding: 2px; background: color-mix(in srgb, var(--cc) 22%, transparent); }
+.ab-spec img, .ab-spec-ph { display: block; width: 24px; height: 24px; border-radius: 5px; }
+.ab-spec-ph { background: var(--panel3); }
+.ab-spec-sm { border-radius: 5px; }
+.ab-spec-sm img, .ab-spec-sm .ab-spec-ph { width: 18px; height: 18px; border-radius: 4px; }
+.ab-spec-lg { border-radius: 9px; padding: 3px; }
+.ab-spec-lg img, .ab-spec-lg .ab-spec-ph { width: 34px; height: 34px; border-radius: 7px; }
+
+/* ---- the hint: quiet, one per raider and category ---- */
+.ab-hintcard {
+    display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; padding: 12px 14px; margin: 0 0 12px;
+    background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+}
+.ab-hint-ic { display: inline-flex; color: var(--accent); padding-top: 2px; }
+.ab-hint-ic svg { width: 18px; height: 18px; }
+.ab-hint-main { flex: 1 1 280px; min-width: 0; }
+.ab-hint-main h3 { margin: 0 0 4px; font-size: 11px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.ab-hint-main p { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.ab-hint-days { display: flex; gap: 6px 12px; flex-wrap: wrap; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.ab-hint-day { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+.ab-linkbtn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--text);
+    font: inherit; font-weight: 700; cursor: pointer; vertical-align: middle;
+}
+.ab-linkbtn:hover, .ab-linkbtn:focus-visible { text-decoration: underline; }
+
+/* the two marks: a short bar (a period) and a ring (one raid signed off) */
+.ab-mark-bar, .ab-mark-ring { display: inline-block; flex: 0 0 auto; }
+.ab-mark-bar { width: 12px; height: 5px; border-radius: 3px; background: var(--ab-away); }
+.ab-mark-ring { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--ab-away); }
+
+/* ---- the timeline ---- */
+.ab-tl-box { overflow-x: auto; max-width: 100%; background: var(--panel); border: 1px solid var(--line); }
+.ab-tl-box:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ab-tl { --ab-who: 230px; position: relative; width: calc(var(--ab-who) + var(--ab-days) * var(--ab-dw)); }
+.ab-tl-row {
+    display: grid; grid-template-columns: var(--ab-who) calc(var(--ab-days) * var(--ab-dw));
+    border-bottom: 1px solid var(--line-soft);
+}
+.ab-tl-who {
+    position: sticky; left: 0; z-index: 3; display: flex; align-items: center; gap: 8px; min-width: 0;
+    padding: 6px 10px; background: var(--panel); border-right: 1px solid var(--line);
+}
+.ab-tl-lane { position: relative; display: flex; min-width: 0; }
+.ab-tl-corner { font-size: 11px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+
+.ab-week { flex: 0 0 calc(7 * var(--ab-dw)); display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-left: 1px solid var(--line); min-width: 0; overflow: hidden; white-space: nowrap; }
+.ab-week b { font-size: 12px; }
+.ab-week span { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; text-overflow: ellipsis; overflow: hidden; }
+
+.ab-day { flex: 0 0 var(--ab-dw); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 34px; }
+.ab-day:nth-child(7n + 1) { border-left: 1px solid var(--line); }
+.ab-day-ini { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+.ab-day.is-raid { background: var(--accent-soft); }
+.ab-day.is-raid .ab-day-ini { color: var(--text); }
+.ab-day.is-today .ab-day-ini { color: var(--accent); }
+.ab-day-dots { display: flex; gap: 2px; }
+.ab-day-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--ab-cat); }
+
+.ab-tl-gap .ab-tl-lane { height: 28px; }
+.ab-gap {
+    position: absolute; top: 5px; left: calc(var(--ab-at) * var(--ab-dw)); width: var(--ab-dw); height: 18px;
+    display: grid; place-items: center; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ab-away);
+}
+.ab-gap.ab-gap-none { color: var(--muted); font-weight: 600; }
+.ab-gap.is-many { color: var(--ab-away-ink); background: var(--ab-away); border-radius: 5px; }
+
+/* a raider's row is one button: the drawer opens on a click */
+button.ab-tl-raider {
+    width: 100%; padding: 0; margin: 0; border: 0; border-bottom: 1px solid var(--line-soft); border-radius: 0;
+    background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; min-height: 0;
+}
+button.ab-tl-raider:hover .ab-tl-who, button.ab-tl-raider:hover .ab-tl-lane { background: var(--panel2); }
+button.ab-tl-raider:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ab-tl-raider .ab-tl-lane { min-height: 46px; }
+.ab-who-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.ab-who-name { font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ab-who-sub { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ab-pill {
+    flex: 0 0 auto; padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; white-space: nowrap;
+    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-soft);
+}
+
+.ab-bar {
+    position: absolute; top: 10px; bottom: 10px; z-index: 2; display: flex; align-items: center; gap: 4px; min-width: 0;
+    left: calc(var(--ab-at) * var(--ab-dw) + 2px); width: calc(var(--ab-span) * var(--ab-dw) - 4px);
+    padding: 0 6px; border-radius: 6px; overflow: hidden; white-space: nowrap;
+    background: var(--ab-away-soft); border: 1.5px solid var(--ab-away); color: var(--text); font-size: 11.5px; font-weight: 600;
+}
+.ab-bar.is-long { background: var(--ab-away); color: var(--ab-away-ink); font-weight: 700; }
+.ab-bar.is-presence { background: var(--good-bg); border-color: var(--good); }
+.ab-bar.is-cut-start { left: calc(var(--ab-at) * var(--ab-dw)); width: calc(var(--ab-span) * var(--ab-dw) - 2px); border-left-style: dashed; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.ab-bar.is-cut-end { width: calc(var(--ab-span) * var(--ab-dw) - 2px); border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.ab-bar.is-cut-start.is-cut-end { width: calc(var(--ab-span) * var(--ab-dw)); }
+.ab-bar-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ab-bar-more { margin-left: auto; flex: 0 0 auto; font-weight: 800; }
+
+.ab-single {
+    position: absolute; top: 50%; left: calc((var(--ab-at) + .5) * var(--ab-dw)); z-index: 2;
+    width: 14px; height: 14px; transform: translate(-50%, -50%);
+    border: 2.5px solid var(--ab-away); border-radius: 50%; background: var(--panel);
+}
+
+/* today: one line through the whole timeline, over the rows, under the bars and the sticky names */
+.ab-today {
+    position: absolute; top: 0; bottom: 0; z-index: 1; width: 2px; pointer-events: none;
+    left: calc(var(--ab-who) + (var(--ab-at) + .5) * var(--ab-dw) - 1px); background: var(--accent);
+}
+.ab-tl-empty { margin: 0; padding: 22px 16px; color: var(--muted); font-size: 13.5px; position: sticky; left: 0; max-width: 100vw; }
+
+.ab-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none; padding: 0; margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+.ab-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.ab-legend i { display: inline-block; flex: 0 0 auto; }
+.ab-lg-long, .ab-lg-short, .ab-lg-presence { width: 22px; height: 10px; border-radius: 3px; border: 1.5px solid var(--ab-away); }
+.ab-lg-long { background: var(--ab-away); }
+.ab-lg-short { background: var(--ab-away-soft); }
+.ab-lg-presence { background: var(--good-bg); border-color: var(--good); }
+.ab-lg-single { width: 11px; height: 11px; border-radius: 50%; border: 2.5px solid var(--ab-away); }
+.ab-lg-today { width: 2px; height: 14px; background: var(--accent); }
+
+/* ---- "Pro Raid": one card per coming raid ---- */
+.ab-raids { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 14px; }
+.ab-raid { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); }
+.ab-raid.ab-short { border-color: var(--ab-away); box-shadow: inset 3px 0 0 var(--ab-away); }
+.ab-raid-head { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.ab-date {
+    display: grid; justify-items: center; gap: 1px; flex: 0 0 auto; width: 52px; padding: 6px 0;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
+}
+.ab-date-dow, .ab-date-mon { font-size: 10.5px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; color: var(--muted); }
+.ab-date-day { font-size: 22px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.ab-raid-title { min-width: 0; flex: 1 1 auto; }
+.ab-raid-title > a, .ab-raid-title > b { display: inline-flex; align-items: center; gap: 5px; font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.ab-raid-title > a svg { width: 13px; height: 13px; flex: 0 0 auto; }
+.ab-raid-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.ab-catpill {
+    padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; color: var(--text);
+    border: 1px solid var(--ab-cat); background: color-mix(in srgb, var(--ab-cat) 16%, transparent);
+}
+.ab-raid-bar { display: flex; height: 8px; border-radius: 999px; background: var(--panel3); overflow: hidden; }
+.ab-raid-bar i { display: block; height: 100%; }
+.ab-raid-in { width: var(--ab-in); background: var(--good); }
+.ab-raid-out { width: var(--ab-out); background: var(--ab-away); }
+.ab-raid-count { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.ab-raid-count b { font-size: 18px; color: var(--text); font-variant-numeric: tabular-nums; }
+.ab-raid-awaycount b { color: var(--ab-away); }
+.ab-raid-size { margin-left: auto; }
+.ab-roles { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.ab-roles li { padding: 4px 8px; border-radius: 6px; border: 1px solid transparent; }
+.ab-roles li.ab-short { background: var(--ab-away-soft); border-color: var(--ab-away); font-weight: 700; }
+.ab-roles-ok { margin: 0; font-size: 12.5px; color: var(--muted); }
+.ab-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.ab-chip {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 0; padding: 3px 10px 3px 6px;
+    border: 1px solid var(--line); border-radius: 999px; background: var(--panel2); color: var(--text);
+    font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.ab-chip:hover, .ab-chip:focus-visible { border-color: var(--accent); }
+.ab-chip-sub { color: var(--muted); font-size: 11.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ab-raid-setup { align-self: flex-start; font-size: 13px; margin-top: auto; }
+.ab-empty { margin: 0; padding: 22px 0; color: var(--muted); font-size: 13.5px; }
+
+/* ---- the raider drawer: at the right edge, scrolling inside itself; a sheet from the bottom on a phone ---- */
+.ab-drawer {
+    position: fixed; top: 16px; right: 16px; bottom: 16px; z-index: 50; width: min(420px, calc(100vw - 32px));
+    display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--accent); border-radius: 12px;
+    box-shadow: 0 24px 60px -16px var(--shade-55); overflow: hidden;
+}
+.ab-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px 8px 18px; border-bottom: 1px solid var(--line-soft); }
+.ab-drawer-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 16px; }
+.ab-drawer-foot { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 12px 18px; border-top: 1px solid var(--line-soft); background: var(--panel2); }
+.ab-who-big { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.ab-who-big > div { min-width: 0; }
+.ab-who-bigname { font-size: 20px; font-weight: 800; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.ab-now { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid var(--ab-away); background: var(--ab-away-soft); border-radius: 10px; }
+.ab-now-num { flex: 0 0 auto; font-size: 12px; color: var(--muted); font-weight: 600; text-align: center; }
+.ab-now-num b { display: block; font-size: 30px; font-weight: 800; line-height: 1; color: var(--ab-away); font-variant-numeric: tabular-nums; }
+.ab-now-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; }
+.ab-now-state { font-size: 10.5px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.ab-sec h3 { margin: 0 0 8px; font-size: 11px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.ab-note { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.ab-entries { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ab-entry {
+    display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px;
+    background: var(--panel2); border: 1px solid var(--line); border-left: 3px solid var(--ab-away); border-radius: 8px;
+}
+.ab-entry.is-presence { border-left-color: var(--good); }
+.ab-entry.is-past { opacity: .65; }
+.ab-entry-main { flex: 1 1 auto; min-width: 0; }
+.ab-entry-period { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; font-size: 13.5px; }
+.ab-entry-days { font-size: 12px; color: var(--muted); }
+.ab-entry-sub { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 3px; font-size: 12px; color: var(--muted); }
+.ab-hist { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 8px; }
+.ab-hist-dot { width: 16px; height: 16px; border-radius: 50%; flex: 0 0 auto; }
+.ab-hist-dot.ab-h-in { background: var(--accent); }
+.ab-hist-dot.ab-h-off { border: 2.5px solid var(--ab-away); }
+.ab-hist-dot.ab-h-none { border: 2px dashed var(--muted); }
+.ab-hist-dot.ab-h-other { background: var(--panel3); border: 1px solid var(--line); }
+
+@media (max-width: 1100px) {
+    .ab-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+    .ab-tl { --ab-who: 150px; }
+    .ab-tl-who { gap: 6px; padding: 6px 8px; }
+    .ab-tl-raider .ab-pill { display: none; }
+    .ab-tile { padding: 12px; }
+    .ab-tile-num b { font-size: 24px; }
+    .ab-search { width: 100%; margin-left: 0; }
+    .ab-drawer { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 85vh; }
+}

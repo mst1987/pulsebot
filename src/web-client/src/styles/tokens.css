@@ -62,6 +62,8 @@
     /* ---- signup status (Anwesenheit): icon-only colours, see .sig-ico ---- */
     --sig-signed: #7fd17f; --sig-tentative: #e3cf5c; --sig-late: #eb9440;
     --sig-bench: #6fa8dc; --sig-absence: #e0524f;
+    /* ---- Roster > Abwesenheiten (absences.css): away is orange, a long absence filled ---- */
+    --ab-away: #fb923c; --ab-away-soft: rgba(251, 146, 60, .18); --ab-away-ink: #1f1206;
     /* ---- game versions (#563): the dot of the content switch, and the archive banner of a hidden version ---- */
     --ver-forever: #35d6c4; --ver-tbc: #e0a23a; --ver-classic: #b0b8c4;
     --archive-ink: #f0c27a; --archive-text: #c9b28a; --archive-bg: rgba(224, 162, 58, .10); --archive-line: rgba(224, 162, 58, .35);
@@ -169,6 +171,7 @@
         --reason-bank: #5b616e; --reason-bank-bg: rgba(91, 97, 110, .12);
         --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
         --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
+        --ab-away: #c2410c; --ab-away-soft: rgba(234, 88, 12, .12); --ab-away-ink: #ffffff;
         --ver-forever: #0f8f82; --ver-tbc: #9a6c12; --ver-classic: #5b616e;
         --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
@@ -213,6 +216,7 @@
     --reason-bank: #5b616e; --reason-bank-bg: rgba(91, 97, 110, .12);
     --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
     --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
+    --ab-away: #c2410c; --ab-away-soft: rgba(234, 88, 12, .12); --ab-away-ink: #ffffff;
     --ver-forever: #0f8f82; --ver-tbc: #9a6c12; --ver-classic: #5b616e;
     --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;

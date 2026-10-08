@@ -108,6 +108,14 @@ describe("buildOverview", () => {
         expect(overview.buildOverview({ now: NOW, categoryId: "wed" }).raiders.map((r) => r.userId)).toEqual(["y"]);
     });
 
+    it("names a category after its Discord category, else after the name its raids were created with", () => {
+        mockEvents.set("eh-1", raid("eh-1", "2030-03-25", { categoryName: "Montag alt" }));
+        mockEvents.set("eh-2", raid("eh-2", "2030-03-27", { categoryId: "wed", categoryName: "Mittwoch alt" }));
+        const view = overview.buildOverview({ now: NOW, categoryNames: { mon: "TBC Montag" } });
+        expect(view.categories).toEqual([{ id: "mon", name: "TBC Montag" }, { id: "wed", name: "Mittwoch alt" }]);
+        expect(view.raids.map((r) => r.categoryName)).toEqual(["TBC Montag", "Mittwoch alt"]);
+    });
+
     it("names the coming raid with the most away, with its healers", () => {
         mockEvents.set("eh-1", raid("eh-1", "2030-03-25"));
         mockEvents.set("eh-2", raid("eh-2", "2030-03-27", { categoryId: "wed" }));
@@ -125,6 +133,9 @@ describe("buildOverview", () => {
         entry("holiday", "2030-02-24", "2030-03-12");
         const view = overview.buildOverview({ now: NOW, categoryNames: { mon: "TBC Montag" } });
         expect(view.hints).toEqual([expect.objectContaining({ userId: "often", categoryName: "TBC Montag", count: 3, of: 4, days: ["2030-02-25", "2030-03-04", "2030-03-18"] })]);
+        // named after the character of their sign-offs, without the signup itself
+        expect(view.hints[0]).toMatchObject({ character: "often", spec: "Paladin-Protection", role: "tank", classId: "Paladin" });
+        expect(view.hints[0]).not.toHaveProperty("signup");
     });
 });
 
@@ -143,6 +154,6 @@ describe("raiderDetail", () => {
         // eh-other is a category u1 never raided in
         expect(detail.history.map((h) => [h.eventId, h.status])).toEqual([["eh-0", "in"], ["eh-1", "off"], ["eh-2", "none"], ["eh-3", "in"]]);
         expect(detail.counts).toEqual({ in: 2, off: 1, none: 1, other: 0 });
-        expect(detail).toMatchObject({ userId: "u1", character: "u1", role: "healer" });
+        expect(detail).toMatchObject({ userId: "u1", character: "u1", role: "healer", classId: "Druid", classColor: "#FF7D0A", specIcon: expect.stringMatching(/^[a-z_]+$/) });
     });
 });

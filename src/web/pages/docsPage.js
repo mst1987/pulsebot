@@ -98,6 +98,7 @@ const WEB_GROUPS = [
     { cat: "roster", title: "Roster", badge: "Bereich: roster", items: [
         "Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit.",
         "Charaktere ausblenden (ohne Daten zu löschen), z. B. bei Guild-Austritt.",
+        "Abwesenheiten: wer in den nächsten Wochen fehlt (Zeitleiste und je Raid), mit Hinweis bei vielen Einzelabsagen.",
     ] },
     { cat: "lootcouncil", title: "Loot-Council", badge: "Bereich: lootcouncil", items: [
         "Rangliste je Raider nach Bedarf (Drought, Loot-Anteil, BiS-Abstand).",
