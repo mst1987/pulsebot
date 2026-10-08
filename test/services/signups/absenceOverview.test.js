@@ -108,6 +108,27 @@ describe("buildOverview", () => {
         expect(overview.buildOverview({ now: NOW, categoryId: "wed" }).raiders.map((r) => r.userId)).toEqual(["y"]);
     });
 
+    it("shows several picked categories at once and keeps offering every category of the weeks", () => {
+        mockConfig = { categoryIds: ["mon", "wed", "fri"] };
+        mockEvents.set("eh-1", raid("eh-1", "2030-03-25", { categoryName: "Montag" }));
+        mockEvents.set("eh-2", raid("eh-2", "2030-03-27", { categoryId: "wed", categoryName: "Mittwoch" }));
+        mockEvents.set("eh-3", raid("eh-3", "2030-03-29", { categoryId: "fri", categoryName: "Freitag" }));
+        for (const [i, day] of ["2030-02-22", "2030-03-01", "2030-03-08", "2030-03-15"].entries()) {
+            mockEvents.set(`eh-f${i}`, raid(`eh-f${i}`, day, { categoryId: "fri" }));
+            signup(`eh-f${i}`, "often", "absence");
+        }
+        entry("onlyFri", "2030-03-29", "2030-03-29", { categoryId: "fri" });
+        const view = overview.buildOverview({ now: NOW, categoryId: "mon,wed" });
+        expect(view.raids.map((r) => r.id)).toEqual(["eh-1", "eh-2"]);
+        expect(view.categories.map((c) => c.id)).toEqual(["mon", "wed", "fri"]);
+        expect(view.picked).toEqual(["mon", "wed"]);
+        expect(view.raiders.map((r) => r.userId)).toEqual([]);
+        expect(view.hints).toEqual([]);
+        // a list works as well, and nothing picked is all of them
+        expect(overview.buildOverview({ now: NOW, categoryId: ["fri"] }).hints.map((h) => h.userId)).toEqual(["often"]);
+        expect(overview.buildOverview({ now: NOW }).raids.map((r) => r.id)).toEqual(["eh-1", "eh-2", "eh-3"]);
+    });
+
     it("leaves out a category switched off for the overview: its raids, its entries and its hints", () => {
         mockConfig = { categoryIds: ["mon", "wed"], categoryAttendance: { wed: { absences: false } } };
         for (const [i, day] of ["2030-02-27", "2030-03-06", "2030-03-13", "2030-03-20"].entries()) {

@@ -191,10 +191,31 @@ describe("Abwesenheiten: Zeitleiste", () => {
         await waitFor(() => expect(gets("/api/availability/overview?")).toContain("/api/availability/overview?weeks=4"));
         await user.click(screen.getByRole("radio", { name: t("absences.filter.months", { count: 3 }) }));
         await waitFor(() => expect(gets("/api/availability/overview?")).toContain("/api/availability/overview?weeks=13"));
-        await user.click(screen.getByRole("radio", { name: "TBC Mittwoch" }));
+        await user.click(screen.getByRole("button", { name: "TBC Mittwoch" }));
         await waitFor(() => expect(gets("/api/availability/overview?")).toContain("/api/availability/overview?weeks=13&category=wed"));
-        // the filtered answer names one category only — the segment keeps offering the others
-        expect(screen.getByRole("radio", { name: "TBC Montag" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "TBC Mittwoch" })).toHaveAttribute("aria-pressed", "true");
+        expect(screen.getByRole("button", { name: t("common.all") })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("filters by any number of raid categories, each chip in its timeline colour — all of them or none is „Alle“", async () => {
+        data = overview({ categories: [{ id: "mon", name: "TBC Montag" }, { id: "wed", name: "TBC Mittwoch" }, { id: "fri", name: "TBC Freitag" }] });
+        const user = userEvent.setup();
+        await show();
+        const chips = screen.getByRole("group", { name: t("absences.filter.categoryAria") });
+        expect(within(chips).getAllByRole("button").map((b) => b.textContent)).toEqual([t("common.all"), "TBC Montag", "TBC Mittwoch", "TBC Freitag"]);
+        expect(within(chips).getByRole("button", { name: "TBC Freitag" }).querySelector(".ab-catdot.ab-cat-2")).not.toBeNull();
+
+        await user.click(within(chips).getByRole("button", { name: "TBC Montag" }));
+        await user.click(within(chips).getByRole("button", { name: "TBC Freitag" }));
+        await waitFor(() => expect(gets("/api/availability/overview?")).toContain("/api/availability/overview?weeks=8&category=mon%2Cfri"));
+        expect(within(chips).getByRole("button", { name: "TBC Mittwoch" })).toHaveAttribute("aria-pressed", "false");
+        // the third one as well: that is every category, so „Alle“ again
+        await user.click(within(chips).getByRole("button", { name: "TBC Mittwoch" }));
+        await waitFor(() => expect(within(chips).getByRole("button", { name: t("common.all") })).toHaveAttribute("aria-pressed", "true"));
+        // one picked and off again: „Alle“ as well
+        await user.click(within(chips).getByRole("button", { name: "TBC Mittwoch" }));
+        await user.click(within(chips).getByRole("button", { name: "TBC Mittwoch" }));
+        await waitFor(() => expect(within(chips).getByRole("button", { name: t("common.all") })).toHaveAttribute("aria-pressed", "true"));
     });
 
     it("shows the hint as a quiet „Hinweis“ with one button to enter a period — never a DM", async () => {

@@ -207,13 +207,17 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
     const from = todayDt.minus({ days: todayDt.weekday - 1 }).toFormat("yyyy-MM-dd");
     const to = DateTime.fromISO(from, { zone: TIMEZONE }).plus({ days: span * 7 - 1 }).toFormat("yyyy-MM-dd");
     const today = todayDt.toFormat("yyyy-MM-dd");
-    const cat = str(categoryId);
+    // one category, several ("a,b" or a list) or all of them ("")
+    const picked = (Array.isArray(categoryId) ? categoryId : str(categoryId).split(",")).map(str).filter(Boolean);
+    const inPick = (id) => !picked.length || picked.includes(str(id));
 
     const entries = store.listEntries()
         .filter((e) => e.to >= from && e.from <= to)
-        .filter((e) => !cat || !e.categoryId || e.categoryId === cat)
+        .filter((e) => !e.categoryId || inPick(e.categoryId))
         .filter((e) => !e.categoryId || inOverview(cfg, e.categoryId));
-    const raids = raidsBetween(from, to, { categoryId: cat, config: cfg });
+    // every category of the weeks stays offered (and keeps its colour) while the view shows only the picked ones
+    const allRaids = raidsBetween(from, to, { config: cfg });
+    const raids = allRaids.filter((e) => inPick(e.categoryId));
 
     const raiders = new Map();
     const rowOf = (userId) => {
@@ -261,7 +265,7 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
     });
 
     const hints = hintsFor({ now, config: cfg, entries: store.listEntries(), categoryNames })
-        .filter((h) => !cat || h.categoryId === cat);
+        .filter((h) => inPick(h.categoryId));
 
     const rows = [...raiders.values()].map((r) => {
         const id = identityOf(r.userId, { signup: latestSignup(r.userId, raids), names });
@@ -290,7 +294,8 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
 
     return {
         from, to, today, weeks: span,
-        categories: [...new Set(raids.map((r) => str(r.categoryId)))].map((id) => ({ id, name: categoryNameOf(id, categoryNames, raids) })),
+        categories: [...new Set(allRaids.map((r) => str(r.categoryId)))].map((id) => ({ id, name: categoryNameOf(id, categoryNames, allRaids) })),
+        picked,
         raids: raidViews,
         raiders: rows,
         hints: hints.map(({ signup, ...h }) => ({ ...h, ...identityOf(h.userId, { signup: latestSignup(h.userId, raids) || signup, names }) })),
