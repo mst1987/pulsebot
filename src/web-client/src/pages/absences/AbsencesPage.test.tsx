@@ -191,10 +191,31 @@ describe("Abwesenheiten: Zeitleiste", () => {
         await waitFor(() => expect(gets("/api/availability/overview?")).toContain("/api/availability/overview?weeks=4"));
         await user.click(screen.getByRole("radio", { name: t("absences.filter.months", { count: 3 }) }));
         await waitFor(() => expect(gets("/api/availability/overview?")).toContain("/api/availability/overview?weeks=13"));
-        await user.click(screen.getByRole("radio", { name: "TBC Mittwoch" }));
+        await user.click(screen.getByRole("button", { name: "TBC Mittwoch" }));
         await waitFor(() => expect(gets("/api/availability/overview?")).toContain("/api/availability/overview?weeks=13&category=wed"));
-        // the filtered answer names one category only — the segment keeps offering the others
-        expect(screen.getByRole("radio", { name: "TBC Montag" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "TBC Mittwoch" })).toHaveAttribute("aria-pressed", "true");
+        expect(screen.getByRole("button", { name: t("common.all") })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("filters by any number of raid categories, each chip in its timeline colour — all of them or none is „Alle“", async () => {
+        data = overview({ categories: [{ id: "mon", name: "TBC Montag" }, { id: "wed", name: "TBC Mittwoch" }, { id: "fri", name: "TBC Freitag" }] });
+        const user = userEvent.setup();
+        await show();
+        const chips = screen.getByRole("group", { name: t("absences.filter.categoryAria") });
+        expect(within(chips).getAllByRole("button").map((b) => b.textContent)).toEqual([t("common.all"), "TBC Montag", "TBC Mittwoch", "TBC Freitag"]);
+        expect(within(chips).getByRole("button", { name: "TBC Freitag" }).querySelector(".ab-catdot.ab-cat-2")).not.toBeNull();
+
+        await user.click(within(chips).getByRole("button", { name: "TBC Montag" }));
+        await user.click(within(chips).getByRole("button", { name: "TBC Freitag" }));
+        await waitFor(() => expect(gets("/api/availability/overview?")).toContain("/api/availability/overview?weeks=8&category=mon%2Cfri"));
+        expect(within(chips).getByRole("button", { name: "TBC Mittwoch" })).toHaveAttribute("aria-pressed", "false");
+        // the third one as well: that is every category, so „Alle“ again
+        await user.click(within(chips).getByRole("button", { name: "TBC Mittwoch" }));
+        await waitFor(() => expect(within(chips).getByRole("button", { name: t("common.all") })).toHaveAttribute("aria-pressed", "true"));
+        // one picked and off again: „Alle“ as well
+        await user.click(within(chips).getByRole("button", { name: "TBC Mittwoch" }));
+        await user.click(within(chips).getByRole("button", { name: "TBC Mittwoch" }));
+        await waitFor(() => expect(within(chips).getByRole("button", { name: t("common.all") })).toHaveAttribute("aria-pressed", "true"));
     });
 
     it("shows the hint as a quiet „Hinweis“ with one button to enter a period — never a DM", async () => {
@@ -350,6 +371,30 @@ describe("Abwesenheiten: Meine Anwesenheit", () => {
         const wed = screen.getByRole("region", { name: "TBC Mittwoch" });
         expect(within(wed).getByText(t("absences.mine.noRaids"))).toBeInTheDocument();
         expect(within(wed).queryByText(t("absences.mine.auto"))).not.toBeInTheDocument();
+    });
+
+    it("says over how many raids each category counts, and filters to one category", async () => {
+        const user = userEvent.setup();
+        await showMine();
+        const mon = screen.getByRole("region", { name: "TBC Montag" });
+        expect(within(mon).getByText(t("absences.mine.window", { count: 11 }))).toBeInTheDocument();
+
+        const filter = screen.getByRole("group", { name: t("absences.mine.filterAria") });
+        expect(within(filter).getAllByRole("button").map((b) => b.textContent)).toEqual([t("absences.mine.allCategories"), "TBC Montag", "TBC Mittwoch"]);
+        await user.click(within(filter).getByRole("button", { name: "TBC Mittwoch" }));
+        expect(screen.queryByRole("region", { name: "TBC Montag" })).not.toBeInTheDocument();
+        expect(screen.getByRole("region", { name: "TBC Mittwoch" })).toBeInTheDocument();
+        expect(within(filter).getByRole("button", { name: "TBC Mittwoch" })).toHaveAttribute("aria-pressed", "true");
+        // back to all (the pick is remembered)
+        await user.click(within(filter).getByRole("button", { name: t("absences.mine.allCategories") }));
+        expect(screen.getByRole("region", { name: "TBC Montag" })).toBeInTheDocument();
+    });
+
+    it("offers no filter for a single category", async () => {
+        const one = { ...ATTENDANCE, categories: [ATTENDANCE.categories[0]] };
+        vi.mocked(client.get).mockImplementation((path: string) => Promise.resolve(path.startsWith("/api/availability/attendance") ? one : OWN));
+        await showMine();
+        expect(screen.queryByRole("group", { name: t("absences.mine.filterAria") })).not.toBeInTheDocument();
     });
 
     it("lists the own absences that are not over, enters a new one and deletes one", async () => {

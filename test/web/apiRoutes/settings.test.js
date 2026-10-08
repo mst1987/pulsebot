@@ -793,6 +793,15 @@ describe("web/apiRoutes/settings", () => {
                 expect(languageChange.afterServerLangChange).toHaveBeenCalledTimes(1);
             });
 
+            it("passes attendance settings per category whole, defaults filled in", async () => {
+                readJsonBody.mockResolvedValue({ categoryAttendance: { pug: { show: false, window: "8" }, " ": { show: false }, guild: { window: 3 } } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryAttendance: {
+                    pug: { show: false, window: 8, absences: true },
+                    guild: { show: true, window: 11, absences: true },
+                } });
+            });
+
             it("redraws nothing when the languages stay as they were", async () => {
                 readJsonBody.mockResolvedValue({ categorySetupDms: { c1: true } });
                 await updateSettings({ headers: {} }, mockRes());

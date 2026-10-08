@@ -11,13 +11,14 @@
 //
 // A raider without "roster" sees only "Meine Anwesenheit". Entering goes
 // through the signup page's dialog (components/signup/AvailabilityDialog.tsx).
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { canAccess, getAbsenceOverview, getAvailability, type AbsenceIdentity, type RaiderRef } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedState } from "../../lib/persistedState";
-import { visibleRaiders } from "../../lib/absences";
+import { categoryTone, visibleRaiders } from "../../lib/absences";
 import { Button, IconTile, Segment, Switch } from "../../components/ui";
+import Chip from "../../components/ui/Chip";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { AbsenceIcon, SearchIcon } from "../../components/icons";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
@@ -124,21 +125,12 @@ function OrgaViews({ view, patch, viewSwitch, onAttendance }: {
     // The dialog needs the caller's own availability (and whether they are orga) — only for whoever may enter.
     const own = useApi(() => getAvailability(), [], { enabled: !!data?.canEdit });
 
-    // The categories seen so far: a filtered answer only names its own category,
-    // and the segment must keep offering the others.
-    const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-    useEffect(() => {
-        if (!data) return;
-        setCategories((prev) => {
-            const known = new Map(prev.map((c) => [c.id, c]));
-            // a raid without a category has the id "" — that is "Alle", not an option of its own
-            for (const c of data.categories) if (c.id) known.set(c.id, c);
-            return [...known.values()];
-        });
-    }, [data]);
-
     if (overview.error && !data) return <div className="empty">{t("absences.loadError", { message: overview.error.message })}</div>;
     if (!data) return <RaidLoader text={t("absences.loading")} />;
+
+    // The server names every category of the weeks, whatever is picked; a raid without one ("") is not a chip of its own.
+    const categories = data.categories.filter((c) => c.id);
+    const picked = pickedOf(view.category);
 
     const rows = visibleRaiders(data.raiders, { presence: view.presence, search });
     const canEnter = data.canEdit && !!own.data;
@@ -157,12 +149,7 @@ function OrgaViews({ view, patch, viewSwitch, onAttendance }: {
 
             <div className="ab-filters">
                 {categories.length > 1 && (
-                    <Segment<string>
-                        ariaLabel={t("absences.filter.categoryAria")}
-                        value={view.category}
-                        onChange={(category) => patch({ category })}
-                        options={[{ value: "", label: t("common.all") }, ...categories.map((c) => ({ value: c.id, label: c.name || c.id }))]}
-                    />
+                    <CategoryChips categories={data.categories} picked={picked} onChange={(ids) => patch({ category: ids.join(",") })} />
                 )}
                 <Segment<Span>
                     ariaLabel={t("absences.filter.spanAria")}
@@ -215,6 +202,45 @@ function OrgaViews({ view, patch, viewSwitch, onAttendance }: {
                     onSaved={() => { void overview.reload(); setSaved((n) => n + 1); }}
                 />
             )}
+        </div>
+    );
+}
+
+/** The stored pick ("a,b", "" = all) as a list. */
+function pickedOf(category: string): string[] {
+    return category.split(",").map((id) => id.trim()).filter(Boolean);
+}
+
+/**
+ * Which raid categories the overview shows: "Alle", or any number of them,
+ * each chip in its category's colour (the dots of the timeline). Picking every
+ * one, or the last one off again, is "Alle".
+ */
+function CategoryChips({ categories, picked, onChange }: {
+    categories: { id: string; name: string }[];
+    picked: string[];
+    onChange: (ids: string[]) => void;
+}) {
+    const t = useT();
+    const offered = categories.filter((c) => c.id);
+    // a pick of a category no longer offered (switched off, no raids in these weeks) drops out with the next click
+    const valid = picked.filter((id) => offered.some((c) => c.id === id));
+    const toggle = (id: string) => {
+        const next = valid.includes(id) ? valid.filter((x) => x !== id) : [...valid, id];
+        onChange(next.length === offered.length ? [] : next);
+    };
+    return (
+        <div className="chip-row ab-catchips" role="group" aria-label={t("absences.filter.categoryAria")}>
+            <Chip pressed={!picked.length} tone={!picked.length ? "accent" : undefined} onClick={() => onChange([])}>{t("common.all")}</Chip>
+            {offered.map((c) => {
+                const on = picked.includes(c.id);
+                return (
+                    <Chip key={c.id} pressed={on} tone={on ? "accent" : undefined} onClick={() => toggle(c.id)}
+                        icon={<i className={`ab-catdot ab-cat-${categoryTone(c.id, categories)}`} aria-hidden="true" />}>
+                        {c.name || c.id}
+                    </Chip>
+                );
+            })}
         </div>
     );
 }

@@ -16,6 +16,9 @@ jest.mock("../../../src/services/characters/rosterAttendance", () => ({
     attendanceForAccounts: (...a) => mockCounted(...a),
 }));
 
+let mockConfig = {};
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+
 let mockHistory = [];
 jest.mock("../../../src/services/setup/setupInput", () => ({ benchHistory: () => ({ source: "setups", history: mockHistory }) }));
 
@@ -102,6 +105,17 @@ describe("setupAttendance", () => {
         // never benched in the nights looked at: 0, with the number of nights so the page can say "in the last 3 raids"
         expect(out.u2).toMatchObject({ lastBench: 0, benchNights: 3 });
         mockHistory = [];
+    });
+
+    it("counts over the category's own window from the settings (Einstellungen › Kategorien)", () => {
+        mockSignups.e1 = [{ userId: "u1", character: "Anna", spec: "Priest-Holy", status: "signed" }];
+        mockCounted.mockReturnValue(new Map());
+        mockConfig = { categoryAttendance: { cat: { window: 16 } } };
+        setupAttendance([{ id: "e1", categoryId: "cat", guildId: "g" }]);
+        expect(mockCounted.mock.calls[0][3]).toEqual({ window: 16 });
+        mockConfig = {};
+        setupAttendance([{ id: "e1", categoryId: "cat", guildId: "g", size: 25 }]);
+        expect(mockCounted.mock.calls[1][3]).toEqual({ window: 11, comparable: expect.any(Function) });
     });
 
     it("does nothing for events without a category", () => {

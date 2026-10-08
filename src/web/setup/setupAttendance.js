@@ -13,6 +13,8 @@ const { getCategoryAssignments } = require("../../stores/raiderCharactersStore")
 const { buildAttendanceContext, attendanceForAccounts } = require("../../services/characters/rosterAttendance");
 const { raidContentIds, raidSize } = require("../../services/events/raidListing");
 const { benchHistory } = require("../../services/setup/setupInput");
+const settingsStore = require("../../stores/settingsStore");
+const { categoryAttendanceFor } = require("../../stores/configSchema");
 
 /** "Druid-Feral" -> "Druid". */
 const classOfSpec = (spec) => String(spec || "").split("-")[0];
@@ -103,7 +105,9 @@ function setupAttendance(events, { now = Date.now() } = {}) {
             chars: accountCharacters(userId, categoryId, signup, profiles.get(userId), assignments),
         }));
         const comparable = comparableTo(list.find((e) => e.categoryId === categoryId));
-        for (const [userId, result] of attendanceForAccounts(ctx, categoryId, accounts, comparable ? { comparable } : {})) {
+        // the category's own window (Einstellungen › Kategorien), so the setup tooltip and "Meine Anwesenheit" agree
+        const { window } = categoryAttendanceFor(settingsStore.getConfig(), categoryId);
+        for (const [userId, result] of attendanceForAccounts(ctx, categoryId, accounts, { window, ...(comparable ? { comparable } : {}) })) {
             if (!out[userId]) out[userId] = result;
         }
     }

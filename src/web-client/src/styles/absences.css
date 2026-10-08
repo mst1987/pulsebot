@@ -23,6 +23,8 @@
 
 /* ---- filter line ---- */
 .ab-filters { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin: 0 0 14px; min-width: 0; }
+.ab-catchips { flex-basis: 100%; }
+.ab-catdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--ab-cat); flex: none; }
 .ab-search {
     display: flex; align-items: center; gap: 8px; min-height: var(--ctl-h); padding: 0 12px; width: 220px; max-width: 100%; margin-left: auto;
     border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); color: var(--muted);
@@ -235,6 +237,8 @@ button.ab-tl-raider:focus-visible { outline: 2px solid var(--accent); outline-of
 .ab-att-figure { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .ab-att-figure b { font-size: 34px; font-weight: 800; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .ab-att-figure span { font-size: 13px; color: var(--muted); font-weight: 600; }
+.ab-att-figure .ab-att-window { font-size: 11px; font-weight: 500; }
+.ab-att-filter { margin-bottom: 2px; }
 .ab-att .ab-hist { margin-bottom: 0; }
 .ab-att-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: 12.5px; }
 .ab-att-list li { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line-soft); }

@@ -218,6 +218,8 @@ export type AbsenceOverview = {
     today: string;
     weeks: number;
     categories: { id: string; name: string }[];
+    /** The categories the view is filtered to (`category=a,b`); empty = all. `categories` names every one regardless. */
+    picked?: string[];
     raids: AbsenceRaid[];
     /** Sorted by the server: away today, the longest, the first day, the name. */
     raiders: AbsenceRaider[];

@@ -57,7 +57,7 @@ describe("raiderAttendance", () => {
         const [, categoryId, accounts, opts] = mockAttendance.mock.calls[0];
         expect(categoryId).toBe("mon");
         expect(accounts[0].chars.map((c) => c.name)).toEqual(["Bananajoe"]);
-        expect(opts).toEqual({ nights: true });
+        expect(opts).toEqual({ nights: true, window: 11 });
         expect(view.character).toBe("Bananajoe");
     });
 
@@ -79,6 +79,14 @@ describe("raiderAttendance", () => {
         mockEvents.set("eh-1", { id: "eh-1", title: "Kara", startTime: sec("2030-03-25T19:00:00Z"), categoryId: "wed", categoryName: "Mittwoch alt" });
         const view = raiderAttendance("u1", { now: NOW, categoryNames: { mon: "TBC Montag" } });
         expect(Object.fromEntries(view.categories.map((c) => [c.id, c.name]))).toEqual({ mon: "TBC Montag", wed: "Mittwoch alt" });
+    });
+
+    it("hides a category switched off in the settings and counts each over its own window", () => {
+        mockAssignments = { mon: { u1: "Zibbi" }, wed: { u1: "Zibbi" } };
+        mockConfig = { categoryIds: ["mon", "wed"], categoryAttendance: { mon: { show: false }, wed: { window: 4 } } };
+        const view = raiderAttendance("u1", { now: NOW });
+        expect(view.categories.map((c) => [c.id, c.window])).toEqual([["wed", 4]]);
+        expect(mockAttendance.mock.calls.map((c) => [c[1], c[3]])).toEqual([["wed", { nights: true, window: 4 }]]);
     });
 
     it("leaves out categories the raider never raided in and cancelled raids", () => {

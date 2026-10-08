@@ -3,8 +3,10 @@
 // orga sees of one raider. The same rules as the setup editor's tooltip
 // (setupAttendance / rosterAttendance.attendanceForAccounts): per Discord
 // account, a night counts when any character of the account stands in its log,
-// without a log the signup decides. Per category the last RAID_WINDOW nights
-// with their verdict, and the coming raids with the raider's own status.
+// without a log the signup decides. Per category its last nights with their
+// verdict — as many as its window (config.categoryAttendance, default
+// RAID_WINDOW) — and the coming raids with the raider's own status; a category
+// switched off there ("Anwesenheit anzeigen") is left out.
 //
 // Which categories: the active ones (config.categoryIds, when any are set) the
 // raider signed up for at least once, or was assigned a character in.
@@ -12,6 +14,7 @@ const signupStore = require("../../stores/signupStore");
 const eventStore = require("../../stores/eventStore");
 const profileStore = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
+const { categoryAttendanceFor } = require("../../stores/configSchema");
 const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
 const { buildAttendanceContext, attendanceForAccounts, RAID_WINDOW } = require("../../services/characters/rosterAttendance");
 const { accountCharacters } = require("../setup/setupAttendance");
@@ -49,12 +52,12 @@ function upcomingRaids(uid, { now, active, eventUrl }) {
 }
 
 /** One category's card, or null when the raider has nothing to do with it. */
-function categoryView(uid, categoryId, { ctx, nights, upcoming, profile, name }) {
+function categoryView(uid, categoryId, { ctx, nights, upcoming, profile, name, window = RAID_WINDOW }) {
     const assignments = getCategoryAssignments(categoryId) || {};
     const signup = newestSignup(nights, uid);
     if (!signup && !assignments[uid] && !upcoming.some((r) => r.status)) return null;
     const chars = accountCharacters(uid, categoryId, signup, profile, assignments);
-    const result = (chars.length && attendanceForAccounts(ctx, categoryId, [{ userId: uid, chars }], { nights: true }).get(uid)) || null;
+    const result = (chars.length && attendanceForAccounts(ctx, categoryId, [{ userId: uid, chars }], { nights: true, window }).get(uid)) || null;
     return {
         id: categoryId,
         name: name || "",
@@ -62,7 +65,7 @@ function categoryView(uid, categoryId, { ctx, nights, upcoming, profile, name })
         attended: result ? result.attended : 0,
         total: result ? result.total : 0,
         link: result ? result.link : "auto",
-        window: RAID_WINDOW,
+        window,
         raids: (result && result.raids) || [],
         upcoming: upcoming.slice(0, 6),
     };
@@ -90,11 +93,14 @@ function raiderAttendance(userId, { now = Date.now(), config, categoryNames = {}
     const all = ctx.allRaidsByCategory || ctx.raidsByCategory;
     const upcomingByCategory = upcomingRaids(uid, { now, active, eventUrl });
     const ids = [...new Set([...all.keys(), ...upcomingByCategory.keys(), ...active].map(String))]
-        .filter((id) => !active.length || active.includes(id));
+        .filter((id) => !active.length || active.includes(id))
+        // Einstellungen › Kategorien: "Anwesenheit anzeigen" off hides the category here
+        .filter((id) => categoryAttendanceFor(cfg, id).show);
     const fallbackNames = eventCategoryNames(now);
     const categories = ids
         .map((id) => categoryView(uid, id, {
             ctx, profile, name: categoryNames[id] || fallbackNames.get(id),
+            window: categoryAttendanceFor(cfg, id).window,
             nights: all.get(id) || [],
             upcoming: (upcomingByCategory.get(id) || []).sort((a, b) => a.startTime - b.startTime),
         }))

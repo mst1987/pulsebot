@@ -212,6 +212,15 @@ function attendanceFor(ctx, categoryId, character, userIds = []) {
     };
 }
 
+/** The nights attendanceForAccounts counts: the last `window` (default RAID_WINDOW) of the category, of the comparable ones if asked. */
+function countedNights(ctx, categoryId, opts) {
+    const window = Number(opts.window) > 0 ? Number(opts.window) : RAID_WINDOW;
+    const every = (ctx.allRaidsByCategory || ctx.raidsByCategory).get(categoryId) || [];
+    if (typeof opts.comparable === "function") return every.filter(opts.comparable).slice(0, window);
+    if (window === RAID_WINDOW && !ctx.allRaidsByCategory) return ctx.raidsByCategory.get(categoryId) || [];
+    return every.slice(0, window);
+}
+
 /**
  * Attendance per Discord account rather than per character (the setup editor):
  * a night counts when *any* character of the account stands in the log, so a
@@ -231,7 +240,10 @@ function attendanceFor(ctx, categoryId, character, userIds = []) {
  * With `nights: true` each result also carries `raids` - every counted night with its verdict, newest
  * first (the Kaderplaner, docs/kaderplaner.md); the setup editor leaves it out to keep its payload small.
  *
- * @param {{ comparable?: (raid: {id, title, startTime, signUps, logs}) => boolean, nights?: boolean }} [opts]
+ * `window` (Einstellungen › Kategorien, categoryAttendance): how many of the category's last nights count
+ * instead of RAID_WINDOW.
+ *
+ * @param {{ comparable?: (raid: {id, title, startTime, signUps, logs}) => boolean, nights?: boolean, window?: number }} [opts]
  * @returns {Map<string, {attended: number, total: number, pct: number|null, link: "manual"|"auto",
  *            inferred: number, missed: {eventId, title, startTime, reason}[],
  *            raids?: {eventId, title, startTime, attended, reason}[]}>}
@@ -242,10 +254,7 @@ function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
     const acc = new Map(list.map((a) => [String(a.userId), { raids: [], inferred: 0 }]));
     const classOf = (a) => String((a.chars.find((c) => c.className) || {}).className || "").toLowerCase();
     const notInLog = (r) => r && !r.attended && r.reason === "nicht im Log";
-    const raidNights = typeof opts.comparable === "function"
-        ? ((ctx.allRaidsByCategory || ctx.raidsByCategory).get(categoryId) || []).filter(opts.comparable).slice(0, RAID_WINDOW)
-        : (ctx.raidsByCategory.get(categoryId) || []);
-    for (const raid of raidNights) {
+    for (const raid of countedNights(ctx, categoryId, opts)) {
         const results = new Map();
         for (const a of list) {
             const nights = a.chars.map((c) => nightStatus(raid, characterKeyOf(c.name), [String(a.userId)])).filter(Boolean);

@@ -115,6 +115,8 @@ export type DraftShape = {
     signupSourceDefault?: string;
     categorySetupDms?: Record<string, boolean>;
     categoryLanguage?: Record<string, string>;
+    /** Attendance per category; missing = shown, over the last 11 raids, in the absence overview. */
+    categoryAttendance?: Record<string, Partial<CategoryAttendance>>;
     /** A Discord event per raid (#305); missing = off. */
     categoryDiscordEvent?: Record<string, boolean>;
     /** The voice channel a category's raids meet in (#305); missing = none. */
@@ -222,6 +224,31 @@ export function planningLabel(mode: string): string {
     return t(mode === "sheet" ? "settings.planning.sheet" : "settings.planning.raidplan");
 }
 
+/** How many last raids a category's attendance quota may count (src/stores/configSchema.js, ATTENDANCE_WINDOWS). */
+export const ATTENDANCE_WINDOWS = [4, 8, 11, 16];
+export type CategoryAttendance = { show: boolean; window: number; absences: boolean };
+
+/** One category's attendance settings with the defaults filled in: shown, over the last 11 raids, in the overview. */
+export function attendanceOf(map: Record<string, Partial<CategoryAttendance>> | undefined, id: string): CategoryAttendance {
+    const entry = (map || {})[id] || {};
+    return {
+        show: entry.show !== false,
+        window: ATTENDANCE_WINDOWS.includes(Number(entry.window)) ? Number(entry.window) : 11,
+        absences: entry.absences !== false,
+    };
+}
+
+/** The change lines of one category's attendance settings. */
+function attendanceChanges(saved: DraftShape, draft: DraftShape, id: string, name: string): string[] {
+    const was = attendanceOf(saved.categoryAttendance, id);
+    const is = attendanceOf(draft.categoryAttendance, id);
+    const out: string[] = [];
+    if (was.show !== is.show) out.push(t(is.show ? "settings.changes.attendanceOn" : "settings.changes.attendanceOff", { name }));
+    if (was.window !== is.window) out.push(t("settings.changes.attendanceWindow", { name, count: is.window }));
+    if (was.absences !== is.absences) out.push(t(is.absences ? "settings.changes.absencesOn" : "settings.changes.absencesOff", { name }));
+    return out;
+}
+
 /** The title sizes of the signup message (src/web/embedLook.js, TITLE_SIZES). */
 export const TITLE_SIZES: string[] = ["normal", "large", "huge"];
 
@@ -266,6 +293,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categorySignupSource || {}), ...Object.keys(draft.categorySignupSource || {}),
         ...Object.keys(saved.categorySetupDms || {}), ...Object.keys(draft.categorySetupDms || {}),
         ...Object.keys(saved.categoryLanguage || {}), ...Object.keys(draft.categoryLanguage || {}),
+        ...Object.keys(saved.categoryAttendance || {}), ...Object.keys(draft.categoryAttendance || {}),
         ...Object.keys(saved.categoryDiscordEvent || {}), ...Object.keys(draft.categoryDiscordEvent || {}),
         ...Object.keys(saved.categoryVoiceChannel || {}), ...Object.keys(draft.categoryVoiceChannel || {}),
         ...Object.keys(saved.categoryMessageLook || {}), ...Object.keys(draft.categoryMessageLook || {}),
@@ -296,6 +324,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const langWas = (saved.categoryLanguage || {})[id] || "";
         const langIs = (draft.categoryLanguage || {})[id] || "";
         if (langWas !== langIs) out.push(t("settings.changes.language", { name, value: langIs === "en" ? "English" : langIs === "de" ? "Deutsch" : t("settings.categories.languageServer") }));
+        out.push(...attendanceChanges(saved, draft, id, name));
         // #305: the Discord event per raid and the voice channel the raids meet in.
         const deWas = (saved.categoryDiscordEvent || {})[id] === true;
         const deIs = (draft.categoryDiscordEvent || {})[id] === true;

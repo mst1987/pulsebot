@@ -38,7 +38,7 @@ export default function CategoryMatrix(props: CategorySettings & {
 }) {
     const {
         categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper",
-        categorySetupDms = {}, categoryLanguage = {}, categoryAnnounce = {}, categorySheets, categoryPlanning = {}, savedCategoryRoles,
+        categorySetupDms = {}, categoryLanguage = {}, categoryAttendance = {}, categoryAnnounce = {}, categorySheets, categoryPlanning = {}, savedCategoryRoles,
         categoryDiscordEvent = {}, categoryVoiceChannel = {}, categoryLootSystem = {}, categorySignupNotes = {}, categorySignupNoteChannel = {},
         onToggleCategory, icon, crumb,
     } = props;
@@ -60,6 +60,7 @@ export default function CategoryMatrix(props: CategorySettings & {
         ...Object.keys(categorySignupSource),
         ...Object.keys(categorySetupDms).filter((id) => categorySetupDms[id]),
         ...Object.keys(categoryLanguage).filter((id) => categoryLanguage[id]),
+        ...Object.keys(categoryAttendance),
         ...Object.keys(categoryDiscordEvent).filter((id) => categoryDiscordEvent[id]),
         ...Object.keys(categoryVoiceChannel).filter((id) => categoryVoiceChannel[id]),
         ...Object.keys(categoryAnnounce).filter((id) => categoryAnnounce[id] && categoryAnnounce[id].enabled),

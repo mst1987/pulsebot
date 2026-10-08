@@ -201,7 +201,7 @@ async function namerFor(ids, config) {
     return (x) => (names[x.userId] ? { ...x, name: names[x.userId] } : x);
 }
 
-/** GET /api/availability/overview?weeks=&category= — who is away when, the raids it touches, the hints. */
+/** GET /api/availability/overview?weeks=&category=a,b — who is away when, the raids it touches, the hints (category: one or more, comma-separated; none = all). */
 const getOverview = withUser({}, async ({ user, query, res }) => {
     const config = getConfig();
     const view = absenceOverview.buildOverview({

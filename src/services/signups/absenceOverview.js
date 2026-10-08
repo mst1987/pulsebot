@@ -23,6 +23,7 @@ const eventStore = require("../../stores/eventStore");
 const signupStore = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
+const { categoryAttendanceFor } = require("../../stores/configSchema");
 const { TIMEZONE } = require("../../config/timezone");
 const { CLASSES } = require("../../config/gameVersions/classes");
 
@@ -53,6 +54,9 @@ function activeCategories(config) {
     return Array.isArray(config.categoryIds) ? config.categoryIds.map(String) : [];
 }
 
+/** Whether a category takes part in the overview (Einstellungen › Kategorien: "In Abwesenheiten zeigen"). */
+const inOverview = (config, categoryId) => categoryAttendanceFor(config, categoryId).absences;
+
 /** Own raids of the active categories (or one of them), not cancelled, between two days. */
 function raidsBetween(from, to, { categoryId = "", config }) {
     const cats = activeCategories(config);
@@ -60,6 +64,7 @@ function raidsBetween(from, to, { categoryId = "", config }) {
     return eventStore.listEvents("", { sinceSeconds: since })
         .filter((e) => e && e.startTime && e.status !== "cancelled")
         .filter((e) => !cats.length || cats.includes(str(e.categoryId)))
+        .filter((e) => inOverview(config, e.categoryId))
         .filter((e) => !categoryId || str(e.categoryId) === categoryId)
         .filter((e) => {
             const day = dayOf(e.startTime);
@@ -158,7 +163,8 @@ function hintsFor({ now, config, entries, categoryNames }) {
     const cats = activeCategories(config);
     const past = eventStore.listEvents("", { sinceSeconds: Math.floor(now / 1000) - 120 * 86400 })
         .filter((e) => e && e.startTime && e.status !== "cancelled" && Number(e.startTime) * 1000 < now)
-        .filter((e) => !cats.length || cats.includes(str(e.categoryId)));
+        .filter((e) => !cats.length || cats.includes(str(e.categoryId)))
+        .filter((e) => inOverview(config, e.categoryId));
     const byCategory = new Map();
     for (const e of past) {
         const key = str(e.categoryId);
@@ -201,12 +207,17 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
     const from = todayDt.minus({ days: todayDt.weekday - 1 }).toFormat("yyyy-MM-dd");
     const to = DateTime.fromISO(from, { zone: TIMEZONE }).plus({ days: span * 7 - 1 }).toFormat("yyyy-MM-dd");
     const today = todayDt.toFormat("yyyy-MM-dd");
-    const cat = str(categoryId);
+    // one category, several ("a,b" or a list) or all of them ("")
+    const picked = (Array.isArray(categoryId) ? categoryId : str(categoryId).split(",")).map(str).filter(Boolean);
+    const inPick = (id) => !picked.length || picked.includes(str(id));
 
     const entries = store.listEntries()
         .filter((e) => e.to >= from && e.from <= to)
-        .filter((e) => !cat || !e.categoryId || e.categoryId === cat);
-    const raids = raidsBetween(from, to, { categoryId: cat, config: cfg });
+        .filter((e) => !e.categoryId || inPick(e.categoryId))
+        .filter((e) => !e.categoryId || inOverview(cfg, e.categoryId));
+    // every category of the weeks stays offered (and keeps its colour) while the view shows only the picked ones
+    const allRaids = raidsBetween(from, to, { config: cfg });
+    const raids = allRaids.filter((e) => inPick(e.categoryId));
 
     const raiders = new Map();
     const rowOf = (userId) => {
@@ -254,7 +265,7 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
     });
 
     const hints = hintsFor({ now, config: cfg, entries: store.listEntries(), categoryNames })
-        .filter((h) => !cat || h.categoryId === cat);
+        .filter((h) => inPick(h.categoryId));
 
     const rows = [...raiders.values()].map((r) => {
         const id = identityOf(r.userId, { signup: latestSignup(r.userId, raids), names });
@@ -283,7 +294,8 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
 
     return {
         from, to, today, weeks: span,
-        categories: [...new Set(raids.map((r) => str(r.categoryId)))].map((id) => ({ id, name: categoryNameOf(id, categoryNames, raids) })),
+        categories: [...new Set(allRaids.map((r) => str(r.categoryId)))].map((id) => ({ id, name: categoryNameOf(id, categoryNames, allRaids) })),
+        picked,
         raids: raidViews,
         raiders: rows,
         hints: hints.map(({ signup, ...h }) => ({ ...h, ...identityOf(h.userId, { signup: latestSignup(h.userId, raids) || signup, names }) })),
@@ -307,6 +319,7 @@ function raiderDetail(userId, { now = Date.now(), config, withReasons = false, n
     const past = eventStore.listEvents("", { sinceSeconds: Math.floor(now / 1000) - 120 * 86400 })
         .filter((e) => e && e.startTime && e.status !== "cancelled" && Number(e.startTime) * 1000 < now)
         .filter((e) => !cats.length || cats.includes(str(e.categoryId)))
+        .filter((e) => inOverview(cfg, e.categoryId))
         .sort((a, b) => Number(b.startTime) - Number(a.startTime));
     const theirs = new Set(past.filter((e) => signupStore.getSignup(e.id, uid)).map((e) => str(e.categoryId)));
     const history = past.filter((e) => theirs.has(str(e.categoryId))).slice(0, HISTORY).reverse().map((e) => {

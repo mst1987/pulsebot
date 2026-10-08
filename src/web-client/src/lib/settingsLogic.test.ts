@@ -153,6 +153,12 @@ describe("save bar change list", () => {
         // the language of a category's posts
         expect(logic.draftChanges({ ...base(), categoryLanguage: {} }, { ...base(), categoryLanguage: { c1: "en" } }, names)).toEqual(["Hyjal & BT · Sprache der Posts: English"]);
         expect(logic.draftChanges({ ...base(), categoryLanguage: { c1: "en" } }, { ...base(), categoryLanguage: { c1: "" } }, names)).toEqual(["Hyjal & BT · Sprache der Posts: Wie Server"]);
+        // attendance per category: one line per changed setting, a missing entry is the default
+        expect(logic.draftChanges(base(), { ...base(), categoryAttendance: { c1: { show: false, window: 8, absences: false } } }, names)).toEqual([
+            "Hyjal & BT · Anwesenheit ausgeblendet", "Hyjal & BT · Quote über 8 Raids", "Hyjal & BT · nicht in Abwesenheiten",
+        ]);
+        expect(logic.draftChanges(base(), { ...base(), categoryAttendance: { c1: { show: true, window: 11, absences: true } } }, names)).toEqual([]);
+        expect(logic.attendanceOf({ c1: { window: 5 } }, "c1")).toEqual({ show: true, window: 11, absences: true });
     });
 
     it("names the Discord-Event switch and the voice channel per category (#305)", () => {

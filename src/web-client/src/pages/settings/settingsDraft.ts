@@ -1,6 +1,7 @@
 import type { AdminConfig, RolePermissions, Access, TopItem, EventSource, PlanningMode } from "../../api";
 import { type CategorySheet } from "./CategoryMatrix";
 import { blockOf, type VersionSettingsBlock } from "../../lib/versionLinks";
+import type { CategoryAttendance } from "../../lib/settingsLogic";
 
 export const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -27,6 +28,8 @@ export type Draft = {
     signupSourceDefault: EventSource;
     categorySetupDms: Record<string, boolean>;
     categoryLanguage: Record<string, string>;
+    /** Attendance per category (Abwesenheiten page); missing = the defaults (see settingsLogic's attendanceOf). */
+    categoryAttendance: Record<string, Partial<CategoryAttendance>>;
     categoryDiscordEvent: Record<string, boolean>;
     categoryVoiceChannel: Record<string, string>;
     /** The look of the signup message; missing = raid picture on, title "large". */
@@ -73,6 +76,7 @@ export function toDraft(config: AdminConfig): Draft {
         signupSourceDefault: config.signupSourceDefault || "raidhelper",
         categorySetupDms: config.categorySetupDms || {},
         categoryLanguage: config.categoryLanguage || {},
+        categoryAttendance: config.categoryAttendance || {},
         categoryDiscordEvent: config.categoryDiscordEvent || {},
         categoryVoiceChannel: config.categoryVoiceChannel || {},
         categoryMessageLook: config.categoryMessageLook || {},

@@ -155,6 +155,9 @@
         "noCategories": "Du hast dich noch für keinen Raid einer Kategorie angemeldet – sobald du dabei bist, steht hier deine Anwesenheit.",
         "noCategoriesOf": "{name} hat sich noch für keinen Raid einer Kategorie angemeldet.",
         "noRaids": "Noch keine Raids gezählt.",
+        "window": "über die letzten {count} Raids",
+        "filterAria": "Raid-Kategorie",
+        "allCategories": "Alle Kategorien",
         "pct": "{pct} %",
         "ofRaids": {
             "one": "{attended} von {count} Raid",
