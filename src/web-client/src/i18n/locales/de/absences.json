@@ -1,0 +1,151 @@
+{
+    "kicker": "Roster",
+    "title": "Abwesenheiten",
+    "lead": "Wer in den nächsten Wochen fehlt – aus „Abwesend eintragen“ und aus Absagen einzelner Raids.",
+    "viewAria": "Ansicht",
+    "view": {
+        "timeline": "Zeitleiste",
+        "raids": "Pro Raid"
+    },
+    "enter": "Abwesenheit eintragen",
+    "loading": "Abwesenheiten werden geladen",
+    "loadError": "Fehler beim Laden: {message}",
+    "days": {
+        "one": "{count} Tag",
+        "other": "{count} Tage"
+    },
+    "daysWord": {
+        "one": "Tag",
+        "other": "Tage"
+    },
+    "kind": {
+        "absence": "Abwesend",
+        "presence": "Anwesend"
+    },
+    "onlyCategory": "nur {name}",
+    "byOrga": "von der Raidleitung eingetragen",
+    "state": {
+        "planned": "geplant",
+        "running": "läuft",
+        "past": "vorbei"
+    },
+    "tiles": {
+        "today": "heute weg",
+        "nextWeek": "nächste Woche weg",
+        "long": "länger als 2 Wochen",
+        "biggest": {
+            "one": "größte Lücke: {count} fehlt",
+            "other": "größte Lücke: {count} fehlen"
+        },
+        "ofThem": "davon {list}",
+        "healers": {
+            "one": "{count} Heiler",
+            "other": "{count} Heiler"
+        },
+        "tanks": {
+            "one": "{count} Tank",
+            "other": "{count} Tanks"
+        },
+        "noGap": "Lücken",
+        "noGapSub": "in den kommenden Raids fehlt niemand"
+    },
+    "filter": {
+        "categoryAria": "Raid-Kategorie",
+        "spanAria": "Zeitraum",
+        "weeks": {
+            "one": "{count} Woche",
+            "other": "{count} Wochen"
+        },
+        "months": {
+            "one": "{count} Monat",
+            "other": "{count} Monate"
+        },
+        "presence": "Anwesenheiten zeigen",
+        "presenceTip": "Auch „Anwesend eintragen“ als grüne Balken zeigen.",
+        "searchPlaceholder": "Name oder Charakter …",
+        "searchAria": "Raider suchen"
+    },
+    "timeline": {
+        "aria": "Zeitleiste der Abwesenheiten",
+        "raider": {
+            "one": "{count} Raider",
+            "other": "{count} Raider"
+        },
+        "week": "KW {kw}",
+        "missing": "fehlen",
+        "missingTip": {
+            "zero": "niemand fehlt",
+            "one": "{count} fehlt",
+            "other": "{count} fehlen"
+        },
+        "open": "{name}: Einträge und letzte Raids",
+        "hintPill": "{count} von {of} abgesagt",
+        "single": "Einzelnen Raid abgesagt",
+        "empty": "In diesem Zeitraum fehlt niemand."
+    },
+    "hint": {
+        "title": "Hinweis",
+        "text": "hat {count} der letzten {of} Raids von {category} einzeln abgesagt, aber keinen Zeitraum eingetragen.",
+        "aCategory": "einer Kategorie",
+        "enter": "Zeitraum eintragen"
+    },
+    "raids": {
+        "empty": "Keine kommenden Raids in diesem Zeitraum.",
+        "in": "dabei",
+        "away": "weg",
+        "size": {
+            "one": "{count} Platz",
+            "other": "{count} Plätze"
+        },
+        "roleLine": "{role}: {away} weg · {have} dabei (Soll {need})",
+        "rolesOk": "Rollen reichen",
+        "absentAria": "Wer fehlt",
+        "howPeriod": "Zeitraum eingetragen",
+        "howSingle": "Einzeln abgesagt",
+        "until": "bis {date}",
+        "toSetup": "Zum Setup"
+    },
+    "drawer": {
+        "aria": "Raider-Details",
+        "kicker": "Raider",
+        "loading": "Raider wird geladen",
+        "enterFor": "Abwesenheit für {name} eintragen",
+        "toCharacter": "Zur Charakter-Seite",
+        "nowRunning": "gerade weg",
+        "nowPlanned": "geplant",
+        "entries": "Einträge",
+        "noEntries": "Keine Zeiträume eingetragen.",
+        "effect": "Wirkung",
+        "done": {
+            "one": "Schon von {count} Raid abgemeldet.",
+            "other": "Schon von {count} Raids abgemeldet."
+        },
+        "doneNone": "Noch von keinem Raid abgemeldet.",
+        "later": "Raids, die später angelegt werden, folgen automatisch.",
+        "history": {
+            "one": "Letzter Raid",
+            "other": "Letzte {count} Raids"
+        },
+        "counts": "{in} dabei · {off} abgesagt · {none} ohne Antwort",
+        "noHistory": "Noch keine Raids in den letzten Monaten.",
+        "removeTitle": "Eintrag löschen?",
+        "removeText": "Der Zeitraum {period} wird gelöscht. Schon geänderte Anmeldungen bleiben, wie sie sind.",
+        "removed": "Eintrag gelöscht",
+        "remove": "Eintrag löschen",
+        "byOrga": "von der Raidleitung eingetragen"
+    },
+    "history": {
+        "in": "dabei",
+        "off": "abgesagt",
+        "none": "ohne Antwort",
+        "other": "anders angemeldet"
+    },
+    "legend": {
+        "aria": "Legende",
+        "long": "ab 2 Wochen weg",
+        "short": "kürzer weg",
+        "single": "einzelner Raid abgesagt",
+        "presence": "anwesend eingetragen",
+        "today": "heute"
+    }
+}

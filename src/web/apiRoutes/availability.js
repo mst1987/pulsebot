@@ -6,6 +6,8 @@
 // POST   /api/availability/preview        area signup   — the raids a period covers; body { kind, from, to, character, spec, userId? }
 // POST   /api/availability                area signup   — enter one; body { kind, from, to, comment, character, spec, eventIds[], userId? }
 // DELETE /api/availability                area signup   — remove one; body { id }
+// GET    /api/availability/overview?weeks=&category=  area roster — the orga's overview: who is away when (absenceOverview.js)
+// GET    /api/availability/overview/raider?userId=    area roster — one raider's entries and last raids
 // GET    /api/availability/panels         area settings — the posted Discord panels per raid category
 // POST   /api/availability/panel          area settings — post a category's panel; body { categoryId, channelId }
 // DELETE /api/availability/panel          area settings — take it down; body { categoryId }
@@ -25,6 +27,8 @@ const availabilityPanel = require("../../services/signups/availabilityPanel");
 const { userCanAny } = require("../../config/permissions");
 const { visibleVersions } = require("../../services/events/mainVersion");
 const linkCheck = require("../../services/discord/linkCheck");
+const discord = require("../../services/discord/discord");
+const absenceOverview = require("../../services/signups/absenceOverview");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const isOrga = (user) => userCanAny(user, ["raids"], "write");
@@ -176,9 +180,55 @@ const deletePanel = withUser({ csrf: true, body: true }, async ({ body, res }) =
     ok(res, { categoryId: removed.categoryId });
 });
 
+// --- the orga's overview (Roster › Abwesenheiten) ---
+
+/** Names of the active categories and of every category an entry names. */
+function categoryNamesOf(config) {
+    const ids = new Set([...(Array.isArray(config.categoryIds) ? config.categoryIds : []), ...availabilityStore.listEntries().map((e) => e.categoryId)].map(str).filter(Boolean));
+    return Object.fromEntries([...ids].map((id) => [id, availabilityPanel.categoryNameFor(id, { config }) || ""]));
+}
+
+/** Discord names for the raiders a view names; a failing lookup keeps the names it has. */
+async function namerFor(ids, config) {
+    let names = {};
+    try {
+        names = ids.length ? (await discord.resolveUserNames(config.guildId, ids)) || {} : {};
+    } catch {
+        names = {};
+    }
+    return (x) => (names[x.userId] ? { ...x, name: names[x.userId] } : x);
+}
+
+/** GET /api/availability/overview?weeks=&category= — who is away when, the raids it touches, the hints. */
+const getOverview = withUser({}, async ({ user, query, res }) => {
+    const config = getConfig();
+    const view = absenceOverview.buildOverview({
+        weeks: Number(query.get("weeks")) || 8,
+        categoryId: str(query.get("category")),
+        config,
+        withReasons: isOrga(user),
+        categoryNames: categoryNamesOf(config),
+        eventUrl: (e) => linkCheck.eventLink(e),
+    });
+    const named = await namerFor([...new Set([...view.raiders.map((r) => r.userId), ...view.hints.map((h) => h.userId)])], config);
+    ok(res, { ...view, raiders: view.raiders.map(named), hints: view.hints.map(named), canEdit: isOrga(user), withReasons: isOrga(user) });
+});
+
+/** GET /api/availability/overview/raider?userId= — one raider's entries and their last raids. */
+const getOverviewRaider = withUser({}, async ({ user, query, res }) => {
+    const userId = str(query.get("userId"));
+    if (!userId) return apiError(res, 400, "bad_request", "Kein Raider angegeben.");
+    const config = getConfig();
+    const view = absenceOverview.raiderDetail(userId, { config, withReasons: isOrga(user), categoryNames: categoryNamesOf(config) });
+    const named = await namerFor([userId], config);
+    ok(res, { ...named(view), canEdit: isOrga(user) });
+});
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/availability", handler: getAvailability, area: "signup" },
+    { method: "GET", path: "/api/availability/overview", handler: getOverview, area: "roster" },
+    { method: "GET", path: "/api/availability/overview/raider", handler: getOverviewRaider, area: "roster" },
     { method: "POST", path: "/api/availability/preview", handler: postPreview, area: "signup" },
     { method: "POST", path: "/api/availability", handler: postEntry, area: "signup" },
     { method: "DELETE", path: "/api/availability", handler: deleteEntry, area: "signup" },

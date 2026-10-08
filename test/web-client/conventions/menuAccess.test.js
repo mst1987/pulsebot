@@ -27,7 +27,8 @@ describe("one menu for both front ends", () => {
     it("gives every entry an id, a label, a group, its areas and a WoW icon", () => {
         for (const entry of MENU) {
             expect(entry).toEqual({
-                ...(entry.sub ? { area: "raids", sub: true } : {}),
+                // a sub entry keeps its parent's colour (the raid plan pages Raid-Events', Abwesenheiten the roster's)
+                ...(entry.sub ? { area: entry.href.startsWith("/roster/") ? "roster" : "raids", sub: true } : {}),
                 id: expect.stringMatching(/^[a-zA-Z]+$/),
                 label: expect.any(String),
                 href: expect.stringMatching(/^\//),
@@ -61,7 +62,7 @@ describe("one menu for both front ends", () => {
 
     it("uses the icons of the approved design", () => {
         const icons = Object.fromEntries(MENU.filter((e) => !e.sub).map((e) => [e.id, e.wowIcon]));
-        expect(Object.fromEntries(MENU.filter((e) => e.sub).map((e) => [e.id, e.wowIcon]))).toEqual({ planTemplates: "inv_misc_map02", planCatalog: "inv_misc_book_11" });
+        expect(Object.fromEntries(MENU.filter((e) => e.sub).map((e) => [e.id, e.wowIcon]))).toEqual({ planTemplates: "inv_misc_map02", planCatalog: "inv_misc_book_11", absences: "spell_nature_timestop" });
         expect(icons).toEqual({
             home: "inv_misc_map_01",
             profile: "achievement_character_human_male",

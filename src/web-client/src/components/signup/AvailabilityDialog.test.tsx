@@ -205,4 +205,21 @@ describe("AvailabilityDialog", () => {
         show();
         expect(screen.queryByRole("button", { name: t("signups.availability.dialog.forRaider") })).not.toBeInTheDocument();
     });
+
+    it("starts with a raider the orga picked elsewhere (Roster › Abwesenheiten), who can be taken back", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getAvailability).mockResolvedValue({ ...OWN, userId: "u9", name: "Anna" });
+        const anna = { userId: "u9", name: "Anna", character: "Annadruid", className: "Druid" };
+        renderPage(<AvailabilityDialog kind="absence" own={{ ...OWN, orga: true }} target={anna} onClose={vi.fn()} onSaved={vi.fn()} />);
+        expect(screen.getByText(t("signups.availability.dialog.forName", { name: "Anna" }))).toBeInTheDocument();
+        expect(api.getAvailability).toHaveBeenCalledWith("u9");
+        await waitFor(() => expect(api.previewAvailability).toHaveBeenLastCalledWith({ kind: "absence", from: "2026-10-05", to: "2026-10-05", userId: "u9" }));
+        await user.click(screen.getByRole("button", { name: t("signups.availability.dialog.backToMe") }));
+        expect(screen.getByRole("button", { name: t("signups.availability.dialog.forRaider") })).toBeInTheDocument();
+    });
+
+    it("ignores a picked raider for somebody who is no orga", () => {
+        renderPage(<AvailabilityDialog kind="absence" own={OWN} target={{ userId: "u9", name: "Anna", character: "", className: "" }} onClose={vi.fn()} onSaved={vi.fn()} />);
+        expect(screen.queryByText(t("signups.availability.dialog.forName", { name: "Anna" }))).not.toBeInTheDocument();
+    });
 });

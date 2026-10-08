@@ -199,6 +199,8 @@
     "/api/kader/assignments": "kader",
     "/api/kader/assignments/reset": "kader",
     "/api/availability": "signup",
+    "/api/availability/overview": "roster",
+    "/api/availability/overview/raider": "roster",
     "/api/availability/preview": "signup",
     "/api/availability/panels": "settings",
     "/api/availability/panel": "settings",

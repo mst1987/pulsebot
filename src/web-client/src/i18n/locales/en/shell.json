@@ -29,7 +29,8 @@
         "channels": "Channels",
         "settings": "Settings",
         "planTemplates": "Raid plan templates",
-        "planCatalog": "Raid plan catalog"
+        "planCatalog": "Raid plan catalog",
+        "absences": "Absences"
     },
     "group": {
         "Start": "Start",
@@ -48,7 +49,8 @@
         "eventLoot": "Event loot",
         "character": "Character",
         "editPost": "Edit message",
-        "planCatalog": "Raid plan catalog"
+        "planCatalog": "Raid plan catalog",
+        "absences": "Absences"
     },
     "noArea": {
         "label": "No area unlocked",

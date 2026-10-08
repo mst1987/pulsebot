@@ -27,6 +27,7 @@ import "../../styles/roster-charakter.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { RosterGroup, UNGROUPED } from "./RosterGroup";
 import { ClaimsBadge } from "./ClaimsBadge";
+import { MenuRailPage } from "../../components/SectionRail";
 
 type RoleFilter = "all" | "tank" | "healer" | "dps";
 
@@ -53,7 +54,13 @@ function byRoleThenName(a: RosterChar, b: RosterChar): number {
     return r || a.character.localeCompare(b.character);
 }
 
+/** The roster in its family's rail: Roster and Abwesenheiten (lib/menu.ts, components/SectionRail.tsx). */
 export default function RosterPage() {
+    const { user } = useOutletContext<ShellContext>();
+    return <MenuRailPage user={user} parent="roster"><RosterList /></MenuRailPage>;
+}
+
+function RosterList() {
     const { user } = useOutletContext<ShellContext>();
     // The game version shown (#543): the menu's content switch (#563), "" = the server's main version.
     const { version } = useContentVersion();

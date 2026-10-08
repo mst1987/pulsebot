@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "./client";
 import {
-    deleteAvailability, getAvailability, getAvailabilityPanels, postAvailabilityPanel, previewAvailability,
+    deleteAvailability, getAbsenceOverview, getAbsenceRaider, getAvailability, getAvailabilityPanels, postAvailabilityPanel, previewAvailability,
     removeAvailabilityPanel, saveAvailability, saveAvailabilityLinks,
 } from "./availability";
 
@@ -46,5 +46,14 @@ describe("availability api", () => {
         const links = [{ label: "WCL", url: "https://www.warcraftlogs.com/x" }];
         await saveAvailabilityLinks("c1", links);
         expect(client.send).toHaveBeenLastCalledWith("PUT", "/api/availability/links", { categoryId: "c1", links });
+    });
+
+    it("loads the orga's overview for some weeks and a category, and one raider", async () => {
+        await getAbsenceOverview(8);
+        expect(client.get).toHaveBeenLastCalledWith("/api/availability/overview?weeks=8");
+        await getAbsenceOverview(13, "c 1");
+        expect(client.get).toHaveBeenLastCalledWith("/api/availability/overview?weeks=13&category=c+1");
+        await getAbsenceRaider("12 34");
+        expect(client.get).toHaveBeenLastCalledWith("/api/availability/overview/raider?userId=12%2034");
     });
 });

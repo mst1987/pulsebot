@@ -1,0 +1,151 @@
+{
+    "kicker": "Roster",
+    "title": "Absences",
+    "lead": "Who is missing in the coming weeks – from \"Enter absence\" and from single raids signed off.",
+    "viewAria": "View",
+    "view": {
+        "timeline": "Timeline",
+        "raids": "Per raid"
+    },
+    "enter": "Enter absence",
+    "loading": "Loading absences",
+    "loadError": "Error while loading: {message}",
+    "days": {
+        "one": "{count} day",
+        "other": "{count} days"
+    },
+    "daysWord": {
+        "one": "day",
+        "other": "days"
+    },
+    "kind": {
+        "absence": "Absent",
+        "presence": "Present"
+    },
+    "onlyCategory": "only {name}",
+    "byOrga": "entered by the raid lead",
+    "state": {
+        "planned": "planned",
+        "running": "running",
+        "past": "over"
+    },
+    "tiles": {
+        "today": "away today",
+        "nextWeek": "away next week",
+        "long": "longer than 2 weeks",
+        "biggest": {
+            "one": "biggest gap: {count} missing",
+            "other": "biggest gap: {count} missing"
+        },
+        "ofThem": "of them {list}",
+        "healers": {
+            "one": "{count} healer",
+            "other": "{count} healers"
+        },
+        "tanks": {
+            "one": "{count} tank",
+            "other": "{count} tanks"
+        },
+        "noGap": "gaps",
+        "noGapSub": "nobody is missing in the coming raids"
+    },
+    "filter": {
+        "categoryAria": "Raid category",
+        "spanAria": "Period",
+        "weeks": {
+            "one": "{count} week",
+            "other": "{count} weeks"
+        },
+        "months": {
+            "one": "{count} month",
+            "other": "{count} months"
+        },
+        "presence": "Show attendance",
+        "presenceTip": "Also show \"Enter attendance\" as green bars.",
+        "searchPlaceholder": "Name or character …",
+        "searchAria": "Search raiders"
+    },
+    "timeline": {
+        "aria": "Timeline of absences",
+        "raider": {
+            "one": "{count} raider",
+            "other": "{count} raiders"
+        },
+        "week": "CW {kw}",
+        "missing": "missing",
+        "missingTip": {
+            "zero": "nobody missing",
+            "one": "{count} missing",
+            "other": "{count} missing"
+        },
+        "open": "{name}: entries and last raids",
+        "hintPill": "{count} of {of} signed off",
+        "single": "Single raid signed off",
+        "empty": "Nobody is missing in this period."
+    },
+    "hint": {
+        "title": "Note",
+        "text": "signed off from {count} of the last {of} raids of {category} one by one, but entered no period.",
+        "aCategory": "a category",
+        "enter": "Enter period"
+    },
+    "raids": {
+        "empty": "No coming raids in this period.",
+        "in": "in",
+        "away": "away",
+        "size": {
+            "one": "{count} spot",
+            "other": "{count} spots"
+        },
+        "roleLine": "{role}: {away} away · {have} in (target {need})",
+        "rolesOk": "Roles are covered",
+        "absentAria": "Who is missing",
+        "howPeriod": "Period entered",
+        "howSingle": "Signed off this raid",
+        "until": "until {date}",
+        "toSetup": "To the setup"
+    },
+    "drawer": {
+        "aria": "Raider details",
+        "kicker": "Raider",
+        "loading": "Loading raider",
+        "enterFor": "Enter absence for {name}",
+        "toCharacter": "To the character page",
+        "nowRunning": "away now",
+        "nowPlanned": "planned",
+        "entries": "Entries",
+        "noEntries": "No periods entered.",
+        "effect": "Effect",
+        "done": {
+            "one": "Already signed off from {count} raid.",
+            "other": "Already signed off from {count} raids."
+        },
+        "doneNone": "Not signed off from any raid yet.",
+        "later": "Raids created later follow automatically.",
+        "history": {
+            "one": "Last raid",
+            "other": "Last {count} raids"
+        },
+        "counts": "{in} in · {off} signed off · {none} no answer",
+        "noHistory": "No raids in the last months yet.",
+        "removeTitle": "Delete entry?",
+        "removeText": "The period {period} is deleted. Signups already changed stay as they are.",
+        "removed": "Entry deleted",
+        "remove": "Delete entry",
+        "byOrga": "entered by the raid lead"
+    },
+    "history": {
+        "in": "in",
+        "off": "signed off",
+        "none": "no answer",
+        "other": "signed up otherwise"
+    },
+    "legend": {
+        "aria": "Legend",
+        "long": "away 2 weeks or more",
+        "short": "away shorter",
+        "single": "single raid signed off",
+        "presence": "attendance entered",
+        "today": "today"
+    }
+}

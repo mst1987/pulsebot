@@ -35,6 +35,7 @@ const HistoryEventPage = lazyWithReload(() => import("./pages/history/HistoryEve
 const HistoryInboxPage = lazyWithReload(() => import("./pages/history/HistoryInboxPage"));
 const HistoryCharPage = lazyWithReload(() => import("./pages/history/HistoryCharPage"));
 const RosterPage = lazyWithReload(() => import("./pages/roster/RosterPage"));
+const AbsencesPage = lazyWithReload(() => import("./pages/absences/AbsencesPage"));
 const ProfilePage = lazyWithReload(() => import("./pages/profile/ProfilePage"));
 const SignupsPage = lazyWithReload(() => import("./pages/SignupsPage"));
 const ClaPage = lazyWithReload(() => import("./pages/cla/ClaPage"));
@@ -205,6 +206,8 @@ function MenuApp() {
                                 {/* Same character page, reached from the roster — the page keeps
                                     its back-link pointing at wherever it was opened from. */}
                                 <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />
+                                {/* Who is away when, and what it does to the coming raids (the roster's rail). */}
+                                <Route path="roster/absences" element={<Guard user={user} areas={["roster"]}><AbsencesPage /></Guard>} />
                                 <Route path="cla" element={<Guard user={user} areas={["cla"]}><ClaPage /></Guard>} />
                                 <Route path="lootcouncil" element={<Guard user={user} areas={["lootcouncil"]}><LootCouncilPage /></Guard>} />
                                 <Route path="lootcouncil/drop/:itemId?" element={<Guard user={user} areas={["lootcouncil"]}><DropCheckPage /></Guard>} />
