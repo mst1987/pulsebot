@@ -432,6 +432,8 @@ describe("services/discord/discord channel management", () => {
     });
 
     describe("resolveUserNames", () => {
+        beforeEach(() => discord._resetAbsentNamesForTests());
+
         // A fake member as it appears in guild.members.cache / a fetch() result.
         function fakeMember(id, displayName) {
             return dc.makeMember({ id, displayName });
@@ -473,6 +475,46 @@ describe("services/discord/discord channel management", () => {
             const guild = guildWithMemberFetch(jest.fn(async () => { throw new Error("Used disallowed intents"); }));
             setClientWithGuild(guild);
             await expect(discord.resolveUserNames("g1", ["1"])).resolves.toEqual({});
+        });
+
+        it("does not ask again for an id Discord did not know, until ABSENT_MS has passed", async () => {
+            jest.useFakeTimers({ now: 1_000_000, doNotFake: ["nextTick", "setImmediate"] });
+            try {
+                const guild = guildWithCacheAndFetch([], [fakeMember("1", "Bob")]);
+                setClientWithGuild(guild);
+                expect(await discord.resolveUserNames("g1", ["1", "gone"])).toEqual({ 1: "Bob" });
+                guild.members.fetch.mockClear();
+                // "1" came back but is not in this fake's cache; "gone" is remembered as absent
+                await discord.resolveUserNames("g1", ["gone"]);
+                expect(guild.members.fetch).not.toHaveBeenCalled();
+                // the same id on another server is a different question
+                await discord.resolveUserNames("g2", ["gone"]).catch(() => {});
+                jest.setSystemTime(1_000_000 + discord.ABSENT_MS + 1);
+                await discord.resolveUserNames("g1", ["gone"]);
+                expect(guild.members.fetch).toHaveBeenCalledWith({ user: ["gone"], time: discord.NAME_FETCH_MS });
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        it("skips ids for a while after a failed lookup too, so a page does not wait again", async () => {
+            const guild = guildWithMemberFetch(jest.fn(async () => { throw new Error("timeout"); }));
+            setClientWithGuild(guild);
+            await discord.resolveUserNames("g1", ["9"]);
+            await discord.resolveUserNames("g1", ["9"]);
+            expect(guild.members.fetch).toHaveBeenCalledTimes(1);
+        });
+
+        it("with waitMs answers in time and lets the fetch finish in the background", async () => {
+            let finish;
+            const guild = guildWithMemberFetch(jest.fn(() => new Promise((resolve) => { finish = resolve; })));
+            setClientWithGuild(guild);
+            const started = Date.now();
+            expect(await discord.resolveUserNames("g1", ["7"], { waitMs: 20 })).toEqual({});
+            expect(Date.now() - started).toBeLessThan(1000);
+            // the late answer still lands (discord.js caches the members it fetched) and nothing throws
+            finish(new Map([["7", fakeMember("7", "Late")]]));
+            await new Promise((r) => setImmediate(r));
         });
 
         it("returns {} without a guild or without any ids", async () => {

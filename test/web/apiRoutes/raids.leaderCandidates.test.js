@@ -43,4 +43,18 @@ describe("leaderCandidates", () => {
         mockNames.mockRejectedValue(new Error("offline"));
         expect(await leaderCandidates("g", { id: "me", name: "Orga" }, null)).toEqual([{ id: "me", name: "Orga" }, { id: "u1", name: "" }]);
     });
+
+    it("waits only briefly for Discord and names the others by their signup's character meanwhile", async () => {
+        mockEvents.push({ id: "eh-1" }, { id: "eh-2" });
+        mockSignups["eh-1"] = [{ userId: "u1", character: "Brakk" }, { userId: "u2", character: "Lyra" }];
+        mockSignups["eh-2"] = [{ userId: "u1", character: "Brakktwink" }];
+        mockNames.mockImplementation(async () => ({ u2: "lyra_discord" }));
+        const out = await leaderCandidates("g", { id: "me", name: "Orga" }, null);
+        // the Discord name wins, the first character signed up with is the fallback
+        expect(out).toEqual([{ id: "me", name: "Orga" }, { id: "u1", name: "Brakk" }, { id: "u2", name: "lyra_discord" }]);
+        const [, ids, opts] = mockNames.mock.calls[0];
+        expect(ids).toEqual(["u1", "u2"]);
+        expect(opts.waitMs).toBeGreaterThan(0);
+        expect(opts.waitMs).toBeLessThanOrEqual(1000);
+    });
 });

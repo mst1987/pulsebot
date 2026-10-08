@@ -3,6 +3,7 @@ import IconTile, { type TileTone } from "./IconTile";
 import { Button, IconButton } from "./Button";
 import { TrashIcon, XIcon } from "../icons";
 import { t } from "../../i18n";
+import { useBackdropClose } from "../../hooks/useBackdropClose";
 
 // Modals on the native <dialog>: it brings the backdrop, the focus trap and Esc
 // for free. Head with icon tile, kicker and title plus a close button; body;
@@ -32,6 +33,7 @@ export function Modal({ open, onClose, icon, tone, kicker, title, footer, hint, 
     initialFocus?: string;
 }) {
     const ref = useRef<HTMLDialogElement>(null);
+    const backdrop = useBackdropClose(onClose);
 
     useEffect(() => {
         const dlg = ref.current;
@@ -54,8 +56,9 @@ export function Modal({ open, onClose, icon, tone, kicker, title, footer, hint, 
             // letting the browser close the dialog behind React's back.
             onCancel={(e) => { e.preventDefault(); onClose(); }}
             // A click whose target is the dialog element itself landed on the
-            // backdrop — the content always sits inside the inner wrapper.
-            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+            // backdrop — the content always sits inside the inner wrapper. Only
+            // when the press started there too: a text selection let go outside is no close.
+            {...backdrop}
         >
             {open && (
                 <div className="dlg-inner">

@@ -105,6 +105,9 @@ function editEventFor(url, guildId) {
 /** How many signed-up people at most the leader dropdown lists. */
 const MAX_LEADER_CANDIDATES = 60;
 
+/** How long the create dialog's request waits for Discord's names of the leader candidates. */
+const LEADER_NAMES_WAIT_MS = 400;
+
 /**
  * Who can lead an event, for the create dialog's dropdown: the one creating it
  * (first), the leader of the event being edited, and everybody signed up to the
@@ -117,21 +120,31 @@ const MAX_LEADER_CANDIDATES = 60;
  */
 async function leaderCandidates(guildId, user, editEvent) {
     const ids = [String(user.id)];
+    // the character a raider signed up with — the label while Discord has no name for them
+    const characters = {};
     if (editEvent && editEvent.leaderId) ids.push(String(editEvent.leaderId));
     try {
         const events = editEvent ? [editEvent] : eventStore.listEvents(guildId, { sinceSeconds: eventLookbackSince() });
-        for (const ev of events) for (const s of listSignups(ev.id)) if (s && s.userId) ids.push(String(s.userId));
+        for (const ev of events) {
+            for (const s of listSignups(ev.id)) {
+                if (!s || !s.userId) continue;
+                ids.push(String(s.userId));
+                if (s.character && !characters[s.userId]) characters[s.userId] = String(s.character);
+            }
+        }
     } catch {
         // the store is unreadable: the creator alone is still a valid answer
     }
     const unique = [...new Set(ids)].slice(0, MAX_LEADER_CANDIDATES);
     let names = {};
     try {
-        names = (await discord.resolveUserNames(guildId, unique.filter((id) => id !== String(user.id)))) || {};
+        // The dialog does not wait for Discord: a name not known within LEADER_NAMES_WAIT_MS
+        // shows the signup's character, and the lookup fills the cache for the next open.
+        names = (await discord.resolveUserNames(guildId, unique.filter((id) => id !== String(user.id)), { waitMs: LEADER_NAMES_WAIT_MS })) || {};
     } catch {
         names = {};
     }
-    return unique.map((id) => ({ id, name: id === String(user.id) ? user.name || names[id] || "" : names[id] || "" }));
+    return unique.map((id) => ({ id, name: id === String(user.id) ? user.name || names[id] || "" : names[id] || characters[id] || "" }));
 }
 
 /**

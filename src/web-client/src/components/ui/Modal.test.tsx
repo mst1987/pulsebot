@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ConfirmProvider, Modal, useConfirm, type ConfirmOptions } from "./Modal";
@@ -31,6 +31,24 @@ describe("Modal", () => {
         // a click whose target is the <dialog> itself landed on the backdrop
         await user.click(screen.getByRole("dialog"));
         expect(onClose).toHaveBeenCalledTimes(2);
+    });
+
+    it("stays open when a press inside is let go outside (selecting text out over the edge)", () => {
+        const onClose = vi.fn();
+        render(<Modal open onClose={onClose} title="Raid bearbeiten"><input aria-label="Name" defaultValue="mi-14-10-za" /></Modal>);
+        const dialog = screen.getByRole("dialog");
+        // the browser sends the click to the element press and release share: the <dialog> itself
+        fireEvent.pointerDown(screen.getByRole("textbox", { name: "Name" }));
+        fireEvent.click(dialog);
+        expect(onClose).not.toHaveBeenCalled();
+        // a press on the backdrop that is let go inside the content is no close either
+        fireEvent.pointerDown(dialog);
+        fireEvent.click(screen.getByRole("textbox", { name: "Name" }));
+        expect(onClose).not.toHaveBeenCalled();
+        // pressed and let go on the backdrop: closes
+        fireEvent.pointerDown(dialog);
+        fireEvent.click(dialog);
+        expect(onClose).toHaveBeenCalledTimes(1);
     });
 });
 
