@@ -236,6 +236,28 @@ describe("web/dashboard/dashboardData loadNextRaids", () => {
         expect(raids[1].roles.map((r) => r.filled)).toEqual([0, 1, 0]);
     });
 
+    it("names each raid's category and how it plans (raid plan unless a sheet is set)", async () => {
+        const { getChannelCategoryMap } = require("../../../src/services/discord/discord");
+        getChannelCategoryMap.mockReturnValue({
+            c1: { name: "bt-donnerstag", categoryId: "cat1", categoryName: "Donnerstag-Raid" },
+            c2: { name: "hyjal-montag", categoryId: "cat2", categoryName: "Montag-PuG" },
+        });
+        settingsStore.getConfig.mockReturnValue({ categoryPlanning: { cat2: "sheet" } });
+        rh.getAllEvents.mockResolvedValue([
+            { id: "e1", title: "Black Temple", channelId: "c1", startTime: 100, signUps: [] },
+            { id: "e2", title: "Hyjal", channelId: "c2", startTime: 200, signUps: [] },
+        ]);
+        rh.getSetup.mockResolvedValue({ setup: [] });
+
+        const { raids } = await loadNextRaids("g1", 2);
+
+        expect(raids.map((r) => [r.id, r.categoryName, r.planning])).toEqual([
+            ["e1", "Donnerstag-Raid", "raidplan"],
+            ["e2", "Montag-PuG", "sheet"],
+        ]);
+        settingsStore.getConfig.mockReturnValue({});
+    });
+
     it("puts the EventHelper's own raids between Raid-Helper's, with their planned size and composition", async () => {
         const eventStore = require("../../../src/stores/eventStore");
         const { listSignups } = require("../../../src/stores/signupStore");

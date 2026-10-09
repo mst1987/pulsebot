@@ -166,6 +166,17 @@ describe("web/dashboard/dashboardOverview", () => {
             expect(task.count).toBe(0);
         });
 
+        it("asks for a sheet only where the category plans with one", () => {
+            expect(buildTasks({ nextRaids: [{ id: "n1", title: "BT", startTime: 1, sheet: null, planning: "raidplan" }] })).toEqual([]);
+            const tasks = buildTasks({
+                nextRaids: [
+                    { id: "n1", title: "BT", startTime: 1, sheet: null, planning: "raidplan" },
+                    { id: "n2", title: "Hyjal", startTime: 2, sheet: null, planning: "sheet" },
+                ],
+            });
+            expect(tasks.map((t) => [t.id, t.count, t.href])).toEqual([["sheet", 0, "/raids/detail?event=n2"]]);
+        });
+
         // Issue #259: archived channels wait for an admin, never for a timer.
         it("reminds of archived channels and turns yellow past the deadline", () => {
             expect(buildTasks({ archive: { count: 0, overdue: 0, hintDays: 14 } })).toEqual([]);

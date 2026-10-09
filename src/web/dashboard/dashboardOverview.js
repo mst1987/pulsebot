@@ -228,7 +228,7 @@ function newLootSince(awards, sinceMs) {
  * task leads straight to where it is done; the tooltip says why it is open.
  *
  * @param {object} p
- * @param {object[]} p.nextRaids     from loadNextRaids(): { id, title, startTime, sheet }
+ * @param {object[]} p.nextRaids     from loadNextRaids(): { id, title, startTime, sheet, planning }
  * @param {object[]} p.recentEvents  from loadRecentEvents(): { id, title, startTime, pendingLogCount }
  * @param {object|null} p.report     { id, title, zone, generatedAt, open } of the newest evaluation
  * @param {object[]} p.inbox         pending addon-inbox sessions ({ items })
@@ -256,7 +256,10 @@ function buildTasks({
     // says "channel missing" — one task per raid, with the way out.
     tasks.push(...missingChannelTasks(missingChannels, { canRecreate }));
 
-    const noSheet = (nextRaids || []).filter((r) => !r.sheet);
+    // Only a category that plans with a Google Sheet can miss one — a raid-plan
+    // category never had a sheet to fill (planning.js). No `planning` = an older
+    // caller: count it as a sheet raid, as before.
+    const noSheet = (nextRaids || []).filter((r) => !r.sheet && (r.planning || "sheet") === "sheet");
     if (noSheet.length) {
         const first = noSheet[0];
         tasks.push({

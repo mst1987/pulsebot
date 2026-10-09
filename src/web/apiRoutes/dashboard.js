@@ -1,6 +1,6 @@
 const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
-const { listRecruitmentPosts, getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settingsStore");
 const { activeGuildFor } = require("../http/activeGuild");
 const discord = require("../../services/discord/discord");
 const {
@@ -87,7 +87,7 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
         areas: {
             lastReport: report,
             newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0),
-            recruitment: { posts: listRecruitmentPosts().length },
+
             roster: loadRosterFigures(guildId),
         },
         topLoot: loadTopLoot(5, versionId),
