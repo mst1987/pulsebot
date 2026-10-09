@@ -21,7 +21,7 @@ function categoryOptions(guildId) {
 
 /**
  * The councilRoster() options for a query: role, tiers, contents, category,
- * bisTier, version. `versionId` is the one the council looks at (#542: the
+ * bisTier, version, bench. `versionId` is the one the council looks at (#542: the
  * category's, else the main version - links, gear realm, Wowhead path);
  * `charVersion` is the character filter (#545), separate from it.
  * @param {URLSearchParams} searchParams
@@ -36,6 +36,9 @@ function councilOptsFromQuery(searchParams) {
         contentIds: listParam(searchParams, "contents"),
         categoryId,
         bisTier: searchParams.get("bisTier") || "",
+        // With a roster: Ersatz shown as candidates too (#667). Only the page
+        // asks for it; a stored category view (and so the addon) never does.
+        showBench: searchParams.get("bench") === "1",
         versionId: mainVersionFor({ categoryId, config }),
         config,
         mainVersion,

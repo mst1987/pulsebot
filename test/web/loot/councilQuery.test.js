@@ -31,7 +31,12 @@ describe("councilOptsFromQuery", () => {
 
     it("defaults everything to unfiltered", () => {
         expect(councilOptsFromQuery(new URLSearchParams(""))).toMatchObject({
-            role: "", tierIds: [], contentIds: [], categoryId: "", bisTier: "",
+            role: "", tierIds: [], contentIds: [], categoryId: "", bisTier: "", showBench: false,
         });
+    });
+
+    it("shows Ersatz from the roster only when the page asks for it (bench=1, #667)", () => {
+        expect(councilOptsFromQuery(new URLSearchParams("category=c1&bench=1")).showBench).toBe(true);
+        expect(councilOptsFromQuery(new URLSearchParams("category=c1&bench=0")).showBench).toBe(false);
     });
 });

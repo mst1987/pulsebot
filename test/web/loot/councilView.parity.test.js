@@ -7,6 +7,8 @@ const mockListAll = jest.fn(() => []);
 const mockAnnotated = jest.fn(() => []);
 const mockExcludedKeys = jest.fn(() => new Set());
 const mockViews = {};
+const mockRosters = {};
+const mockProfiles = jest.fn(() => []);
 
 jest.mock("../../../src/stores/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
 jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: (...a) => mockAnnotated(...a) }));
@@ -35,7 +37,8 @@ jest.mock("../../../src/stores/eventStore", () => ({
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => [] }));
 jest.mock("../../../src/stores/logStore", () => ({ listLogs: () => [] }));
 jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null, getReportRoster: () => null }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
+jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: (...a) => mockProfiles(...a) }));
+jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: (id) => mockRosters[id] || null }));
 jest.mock("../../../src/stores/logGearStore", () => ({ loadLogGear: jest.fn(), clearLogGear: jest.fn(), recentLogs: () => [] }));
 jest.mock("../../../src/stores/simStore", () => ({ startCouncilSim: jest.fn(), getJob: jest.fn() }));
 jest.mock("../../../src/services/loot/armoryGear", () => ({
@@ -81,6 +84,8 @@ const slim = (rows) => rows.map((r) => ({ key: r.key, character: r.character, ne
 
 beforeEach(() => {
     for (const k of Object.keys(mockViews)) delete mockViews[k];
+    for (const k of Object.keys(mockRosters)) delete mockRosters[k];
+    mockProfiles.mockReturnValue([]);
     mockListAll.mockReturnValue([
         lootRow({ characterKey: "aktiv", character: "Aktiv", categoryId: "c1", contentId: "bt", awardedAt: now - 2 * DAY }),
         lootRow({ characterKey: "aktiv", character: "Aktiv", categoryId: "c1", contentId: "ssc", itemId: 30000, awardedAt: now - 9 * DAY }),
@@ -149,5 +154,46 @@ describe("council page and in-game council answer alike", () => {
     it("also answers v2 for categories=council", async () => {
         expect((await ingest("categories=council")).version).toBe(2);
         expect((await ingest("")).version).toBe(1);
+    });
+
+    it("with a roster: the same candidates on the page and in game - no stand-ins, no Ersatz (#667)", async () => {
+        mockRosters.c1 = {
+            id: "r1", name: "Mittwoch", categoryId: "c1", versionId: "tbc", allowMultipleChars: false,
+            members: {
+                1001: { status: "core", chars: ["aktiv"], charNames: { aktiv: "Aktiv" } },
+                1002: { status: "bench", chars: ["zweit"], charNames: { zweit: "Zweit" } },
+                1003: { status: "trial", chars: ["neu"], charNames: { neu: "Neu" } },
+            },
+        };
+        // Neu has neither loot nor gear; only the profile knows the class.
+        mockProfiles.mockReturnValue([{ userId: "1003", characters: [{ key: "neu", name: "Neu", className: "Mage", specs: [] }] }]);
+        const data = await ingest("v=2");
+        const web = await page("role=caster&category=c1");
+        const c1 = data.categories[0];
+        expect(c1.raiders.map((r) => ({ key: r.key, character: r.character, need: r.need, lootCount: r.lootCount }))).toEqual(slim(web.roster));
+        expect(web.roster.map((r) => r.character).sort()).toEqual(["Aktiv", "Neu"]);
+        expect(web.roster.find((r) => r.character === "Neu")).toMatchObject({ lootCount: 0, daysSinceLoot: null, status: "trial" });
+        expect(c1.avgLootCount).toBe(web.avgLootCount);
+        // Zweit won loot in c1 but sits on the bench: neither ranked nor a stand-in.
+        expect(web.outsiders).toEqual([]);
+        expect(web.filter.roster).toMatchObject({ name: "Mittwoch", counts: { core: 1, trial: 1, bench: 1, pause: 0 }, showBench: false });
+
+        // "Ersatz zeigen" is the page's own filter; the game keeps the stored view.
+        const withBench = await page("role=caster&category=c1&bench=1");
+        expect(withBench.roster.map((r) => r.character).sort()).toEqual(["Aktiv", "Neu", "Zweit"]);
+        expect(c1.raiders.map((r) => r.character)).not.toContain("Zweit");
+    });
+
+    it("with a roster: a stand-in from the loot shows folded on the page and never in game", async () => {
+        mockRosters.c1 = {
+            id: "r1", name: "Mittwoch", categoryId: "c1", versionId: "tbc", allowMultipleChars: false,
+            members: { 1001: { status: "core", chars: ["aktiv"], charNames: {} } },
+        };
+        const data = await ingest("v=2");
+        const web = await page("role=caster&category=c1");
+        expect(web.roster.map((r) => r.character)).toEqual(["Aktiv"]);
+        expect(web.outsiders.map((r) => r.character)).toEqual(["Zweit"]);
+        expect(data.categories[0].raiders.map((r) => r.character)).toEqual(["Aktiv"]);
+        expect(data.categories[0].raiders.map((r) => ({ key: r.key, character: r.character, need: r.need, lootCount: r.lootCount }))).toEqual(slim(web.roster));
     });
 });

@@ -118,6 +118,9 @@ a.lc-id-name:hover { text-decoration: underline; }
 .lc-fold-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
 .lc-fold-names { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lc-fold-body { border-top: 1px solid var(--line-soft); padding: 8px 12px 12px; }
+.lc-fold-note { margin: 2px 4px 6px; font-size: 12.5px; }
+/* "Nicht im Roster": the item count with its word, right of the last item. */
+.lc-outsider-loot { display: inline-flex; align-items: baseline; gap: 4px; min-width: 64px; justify-content: flex-end; }
 
 /* A plain list of rows (loot, BiS gaps, logs) inside a panel or dialog. */
 .lc-dlist { display: flex; flex-direction: column; }
