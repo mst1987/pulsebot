@@ -71,6 +71,11 @@ const { getLootCouncil } = require("../../../src/web/apiRoutes/lootCouncil");
 const { ingestCouncil } = require("../../../src/web/apiRoutes/ingest");
 const { mockRes, body } = require("../../helpers/http");
 const { lootRow, DAY, now } = require("../../helpers/lootCouncil");
+const councilWeights = require("../../../src/stores/councilWeightsStore");
+const { tempStoreFile } = require("../../helpers/tempStore");
+
+beforeAll(() => councilWeights.useFile(tempStoreFile("council-weights.json")));
+afterAll(() => councilWeights.useFile(null));
 
 async function page(query) {
     const res = mockRes();
@@ -199,5 +204,108 @@ describe("council page and in-game council answer alike", () => {
         expect(web.outsiders.map((r) => r.character)).toEqual(["Zweit"]);
         expect(data.categories[0].raiders.map((r) => r.character)).toEqual(["Aktiv"]);
         expect(data.categories[0].raiders.map((r) => ({ key: r.key, character: r.character, need: r.need, lootCount: r.lootCount }))).toEqual(slim(web.roster));
+    });
+});
+
+// Version 3 (#670): every role, the status, loot points, tenure and the
+// category's own weighting - and still exactly the page's numbers.
+describe("council page and in-game council answer alike - version 3", () => {
+    const v3Raider = (r) => ({
+        key: r.key, character: r.character, role: r.role, need: r.need, parts: r.parts, lootCount: r.lootCount,
+        lootPoints: r.lootPoints, droughtDays: r.droughtDays, tenureDays: r.tenureDays, status: r.status,
+    });
+    const pagePct = (x) => Math.max(0, Math.min(100, Math.round((Number(x) || 0) * 100)));
+    const pageRaider = (r) => ({
+        key: r.key, character: r.character, role: r.role, need: pagePct(r.needScore),
+        parts: { drought: pagePct(r.needParts.drought), share: pagePct(r.needParts.share), need: pagePct(r.needParts.need), tenure: pagePct(r.needParts.tenure) },
+        lootCount: r.lootCount, lootPoints: r.lootPoints, droughtDays: r.droughtDays, tenureDays: r.tenureDays, status: r.status || "",
+    });
+
+    beforeEach(() => {
+        mockListAll.mockReturnValue([
+            lootRow({ characterKey: "aktiv", character: "Aktiv", categoryId: "c1", contentId: "ssc", itemId: 30626, awardedAt: now - 2 * DAY }),
+            lootRow({ characterKey: "aktiv", character: "Aktiv", categoryId: "c1", contentId: "ssc", itemId: 30021, awardedAt: now - 9 * DAY }),
+            lootRow({ characterKey: "zweit", character: "Zweit", categoryId: "c1", contentId: "ssc", itemId: 30245, awardedAt: now - 20 * DAY }),
+            lootRow({ characterKey: "schild", character: "Schild", categoryId: "c1", contentId: "ssc", itemId: 30103, awardedAt: now - 6 * DAY }),
+            lootRow({ characterKey: "hauer", character: "Hauer", categoryId: "c1", contentId: "ssc", itemId: 30099, awardedAt: now - 3 * DAY }),
+            lootRow({ characterKey: "pfeil", character: "Pfeil", categoryId: "c1", contentId: "ssc", itemId: 30021, awardedAt: now - 12 * DAY }),
+        ]);
+        mockAnnotated.mockReturnValue([
+            { key: "aktiv", className: "Priest", spec: "Shadow" },
+            { key: "zweit", className: "Warlock", spec: "Destruction" },
+            { key: "schild", className: "Paladin", spec: "Protection" },
+            { key: "hauer", className: "Warrior", spec: "Fury" },
+            { key: "pfeil", className: "Hunter", spec: "BeastMastery" },
+        ]);
+        mockExcludedKeys.mockReturnValue(new Set());
+        mockViews.c1 = { role: "", tiers: [], contents: [], bisTier: "", version: "" };
+        // c1 weighs on its own: trinkets 3, an exception, other need shares, 30 days to belong.
+        councilWeights.setWeights("c1", {
+            classes: { trinket: 3, bisWeapon: 2, weapon: 1.5, set: 1, normal: 1, frequent: 0.5 },
+            items: { 30099: { weight: 2.5, name: "Frayed Tether" } },
+            need: { drought: 40, share: 20, need: 20, tenure: 20 },
+            tenureDays: 30,
+        });
+    });
+    afterEach(() => councilWeights.resetWeights("c1"));
+
+    it("answers ?v=3 with every role and the page's numbers, points, drought and tenure", async () => {
+        const data = await ingest("v=3");
+        expect(data.version).toBe(3);
+        const web = await page("category=c1");
+        const c1 = data.categories[0];
+        expect(c1.raiders.map((r) => r.role).sort()).toEqual(["caster", "caster", "melee", "ranged", "tank"]);
+        expect(c1.raiders.map(v3Raider)).toEqual(web.roster.map(pageRaider));
+        expect(c1.avgLootCount).toBe(web.avgLootCount);
+        expect(c1.avgLootPoints).toBe(web.avgLootPoints);
+        // The exception and the trinket weight reached both.
+        expect(c1.raiders.find((r) => r.key === "hauer").lootPoints).toBe(2.5);
+        expect(c1.raiders.find((r) => r.key === "aktiv").lootPoints).toBe(3.5);
+    });
+
+    it("carries the category's own weighting exactly as the page computed with it", async () => {
+        const data = await ingest("v=3");
+        const web = await page("category=c1");
+        const c1 = data.categories[0];
+        expect(c1.weights.shares).toEqual(web.weights.needShares);
+        expect(c1.weights).toMatchObject({ drought: 40, share: 20, need: 20, tenure: 20, tenureDays: 30, droughtDays: 30, scope: "category" });
+        expect(c1.itemWeights).toEqual({ classes: web.weights.classes, overrides: { 30099: 2.5 } });
+        expect(c1.itemClasses).toMatchObject({ 30626: "trinket", 30103: "weapon", 30245: "set", 30021: "frequent" });
+        // c2 has no own weighting: the server's.
+        expect(data.categories[1].weights).toMatchObject({ drought: 45, share: 30, need: 10, tenure: 15, scope: "global" });
+    });
+
+    it("is what v2 sends plus the new roles", async () => {
+        const v2 = await ingest("v=2");
+        const v3 = await ingest("v=3");
+        expect(v2.categories[0].raiders.map((r) => r.key).sort()).toEqual(["aktiv", "zweit"]);
+        expect(v3.categories[0].raiders.map((r) => r.key).sort()).toEqual(["aktiv", "hauer", "pfeil", "schild", "zweit"]);
+        // The casters' numbers agree between the two - the field is the same.
+        for (const r of v2.categories[0].raiders) {
+            const same = v3.categories[0].raiders.find((x) => x.key === r.key);
+            expect(same).toMatchObject({ need: r.need, lootCount: r.lootCount, daysSinceLoot: r.daysSinceLoot });
+        }
+    });
+
+    it("with a roster: the status of every candidate, as on the page", async () => {
+        mockRosters.c1 = {
+            id: "r1", name: "Mittwoch", categoryId: "c1", versionId: "tbc", allowMultipleChars: false,
+            members: {
+                1001: { status: "core", chars: ["aktiv"], charNames: { aktiv: "Aktiv" }, since: new Date(now - 40 * DAY).toISOString() },
+                1002: { status: "trial", chars: ["hauer"], charNames: { hauer: "Hauer" }, since: new Date(now - 10 * DAY).toISOString() },
+                1003: { status: "bench", chars: ["pfeil"], charNames: { pfeil: "Pfeil" } },
+            },
+        };
+        const data = await ingest("v=3");
+        const web = await page("category=c1");
+        const c1 = data.categories[0];
+        expect(c1.raiders.map(v3Raider)).toEqual(web.roster.map(pageRaider));
+        expect(Object.fromEntries(c1.raiders.map((r) => [r.key, r.status]))).toEqual({ aktiv: "core", hauer: "trial" });
+        expect(c1.raiders.find((r) => r.key === "aktiv")).toMatchObject({ tenureDays: 40 });
+        expect(c1.raiders.find((r) => r.key === "aktiv").joinedAt).toBe(Math.floor((now - 40 * DAY) / 1000));
+    });
+
+    it("keeps version 1 for v=3 with a category", async () => {
+        expect((await ingest("v=3&category=c1")).version).toBe(1);
     });
 });

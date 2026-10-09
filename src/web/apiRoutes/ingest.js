@@ -24,7 +24,7 @@ const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestToke
 const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
 const { councilRoster } = require("../loot/lootCouncil");
 const { councilOptsFromQuery, categoryOptions } = require("../loot/councilQuery");
-const { councilSyncPayload, councilSyncPayloadV2 } = require("../loot/councilSync");
+const { councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3 } = require("../loot/councilSync");
 const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../loot/councilView");
 const { getConfig } = require("../../stores/settingsStore");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
@@ -281,7 +281,10 @@ async function ingestRaidStatus(req, res) {
  * same bearer-token auth as the uploads. The tool writes it into a Lua file the
  * in-game addon reads: each raider's need weighting and what they received.
  *
- * Two versions (docs/loot-import.md):
+ * Three versions (docs/loot-import.md):
+ *   v3 - `?v=3` (or higher) and no `category`: version 2 with every council
+ *        role, the roster status, loot points, tenure and each category's own
+ *        weighting and item classes (#670) - the sync tools from 1.14.0.
  *   v2 - `?v=2` (or `?categories=council`) and no `category`: every category
  *        whose loot system is Loot-Council, each built with the view the orga
  *        stored for it on the council page (role, tiers, raids, BiS list,
@@ -297,8 +300,11 @@ async function ingestCouncil(req, res, url) {
     touchToken(token.id);
 
     const params = url ? url.searchParams : new URLSearchParams();
+    if (!params.has("category") && Number(params.get("v")) >= 3) {
+        return ok(res, councilSyncPayloadV3(await councilEntries(req)));
+    }
     if (!params.has("category") && (params.get("v") === "2" || params.get("categories") === "council")) {
-        return ok(res, await councilPayloadV2(req));
+        return ok(res, councilSyncPayloadV2(await councilEntries(req)));
     }
     // v1: only the two documented filters count; the tool never narrows by tier or version.
     const opts = councilOptsFromQuery(new URLSearchParams({
@@ -314,8 +320,11 @@ async function ingestCouncil(req, res, url) {
     }));
 }
 
-/** Every Loot-Council category with its stored view, one after another (the armory cache is shared). */
-async function councilPayloadV2(req) {
+/**
+ * Every Loot-Council category with its stored view, one after another (the
+ * armory cache is shared) - what versions 2 and 3 are built from.
+ */
+async function councilEntries(req) {
     const config = getConfig();
     // Live names first, else the ones seen earlier (categoryNames.js) - the
     // token request has no session, so the active guild may be a guess.
@@ -325,7 +334,7 @@ async function councilPayloadV2(req) {
         const { opts, built } = await categoryCouncil(id);
         entries.push({ id, name: names.get(id) || id, opts, built, instances: categoryInstances(config, id) });
     }
-    return councilSyncPayloadV2(entries);
+    return entries;
 }
 
 /**

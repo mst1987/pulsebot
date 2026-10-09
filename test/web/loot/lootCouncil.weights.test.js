@@ -32,7 +32,7 @@ jest.mock("../../../src/stores/rosterStore", () => ({
 }));
 
 const {
-    councilRoster, candidateSplit,
+    councilRoster, candidateSplit, droughtCounter,
     _internal: { needScore, droughtDays, resolveWeights, NEED_WEIGHTS },
 } = require("../../../src/web/loot/lootCouncil");
 const councilWeights = require("../../../src/stores/councilWeightsStore");
@@ -136,6 +136,22 @@ describe("droughtDays — a small item resets the wait only partly", () => {
     it("walks the awards oldest first, whatever order they come in", () => {
         // weight 1 twenty days ago → 0; 16 days later at 16 → × 0.5 = 8; + 4 days = 12
         expect(droughtDays([{ awardedAt: at(4), weight: 0.5 }, { awardedAt: at(20), weight: 1 }], 4)).toBe(12);
+    });
+});
+
+describe("droughtCounter — the walk's state the addon continues (#670)", () => {
+    const at = (daysAgo) => now - daysAgo * DAY;
+
+    it("is null without an award and the counter right after the newest award otherwise", () => {
+        expect(droughtCounter([])).toBeNull();
+        expect(droughtCounter([{ awardedAt: 0, weight: 1 }])).toBeNull();
+        expect(droughtCounter([{ awardedAt: at(4), weight: 0.5 }])).toBe(15);
+        expect(droughtCounter([{ awardedAt: at(4), weight: 0.5 }, { awardedAt: at(20), weight: 1 }])).toBe(8);
+    });
+
+    it("plus the whole days since gives droughtDays", () => {
+        const awards = [{ awardedAt: at(9.5), weight: 0.3 }, { awardedAt: at(30), weight: 1 }];
+        expect(droughtDays(awards, 9)).toBe(Math.round(Math.min(30, droughtCounter(awards) + 9) * 10) / 10);
     });
 });
 

@@ -60,7 +60,55 @@ Form (innerhalb von `{ "data": … }`):
 - `raiders[]` hat die Felder von Version 1 plus `key` (Charakter-Schlüssel, stabil über Umbenennung der Schreibweise/Realm-Suffix).
 - `instances` sind die Instanzen der Standard-Raidvorlage der Kategorie (`config.categoryRaidTemplate`), `[]` ohne Vorlage — ein Hinweis, damit das Addon die Kategorie über `GetInstanceInfo()` vorwählen kann. Die Namen sind die des Regelsatzes (TBC deutsch, Forever englisch mit „(Forever)“), `zoneNames` die kleingeschriebenen Zonennamen, wo der Regelsatz welche kennt; ein sicherer Schlüssel ist das nicht, nur ein Vorschlag.
 - Keine Loot-Council-Kategorie → `categories: []`.
-- **Kategorie mit Roster (#667):** `raiders[]` sind die Kandidaten aus dem Roster — Stamm und Probe; Ersatz nie (der Filter „Ersatz zeigen“ gehört nur der Seite und wird nicht gespeichert), Pause nie. Aushilfen („Nicht im Roster“) stehen nur auf der Seite (`outsiders` von `councilRoster()`), nie im Paket. Das Format bleibt Version 2; der Roster-Status (`status` an der Zeile von `councilRoster()`) geht erst mit dem Council-Format v3 (#670) mit.
+- **Kategorie mit Roster (#667):** `raiders[]` sind die Kandidaten aus dem Roster — Stamm und Probe; Ersatz nie (der Filter „Ersatz zeigen“ gehört nur der Seite und wird nicht gespeichert), Pause nie. Aushilfen („Nicht im Roster“) stehen nur auf der Seite (`outsiders` von `councilRoster()`), nie im Paket. Version 2 trägt keinen Roster-Status; den bringt Version 3 (`status`).
+
+### Council-Daten v3 (#670)
+
+`GET /api/ingest/council?v=3` (oder höher) **ohne** `category` liefert **Version 3** — die Sync-Tools ab 1.14.0 fragen sie an und fallen auf `v=2`, dann auf Version 1 zurück. Dieselben Kategorien und Ansichten wie Version 2 (`councilEntries()` in `apiRoutes/ingest.js`, `buildCouncilView()`), gebaut von `councilSyncPayloadV3()` in `web/loot/councilSync.js`. Mit `category` bleibt es Version 1; `?v=2` und Version 1 sind unverändert (weiter ohne die neuen Rollen, `LEGACY_ROLES`).
+
+Neu gegenüber Version 2:
+
+- **Alle fünf Rollen.** Kein `LEGACY_ROLES`-Filter: `raiders[]` sind genau die `rows` von `councilRoster()`, `role` ist `caster`|`healer`|`tank`|`melee`|`ranged`, `filter.role` eine davon oder `""`.
+- **Je Raider:** `status` (`core`/`trial`/`bench` in einer Kategorie mit Roster, sonst `""`), `lootPoints` (#668), `parts.tenure` (0..100, wie die anderen Teile), `droughtDays` (die effektive Wartezeit mit Teil-Rückstellung, eine Nachkommastelle — genau die Zahl, mit der der Server gerechnet hat), `droughtBase` (der Zähler von `droughtDays()` direkt nach der neuesten zählenden Vergabe, ungerundet bis 6 Stellen, `30` ohne Vergabe — `droughtCounter()` in `lootCouncil.js`), `joinedAt` („dabei seit“, Unix-Sekunden, `0` = unbekannt), `tenureDays`, `bisWeapons` (die Waffen auf der BiS-Liste des Raiders: für ihn ist so ein Drop `bisWeapon`), und je Item `weight`/`weightClass`.
+- **Je Kategorie ihre eigene Gewichtung** (die der Kategorie, sonst die des Servers — `built.weights`): `weights` = die vier Teile in % (gerundet, für Balken und Legende), `shares` = dieselben als exakte Anteile von 1 (damit rechnet `needScore()`; gerundete Prozente würden das Spiel von der Seite wegdriften lassen, z. B. bei 35/30/15/25), `droughtDays` (Deckel der Wartezeit, 30), `tenureDays` (Sättigung der Zugehörigkeit), `scope`. `itemWeights` = `{ classes: { trinket, bisWeapon, weapon, set, normal, frequent }, overrides: { "<itemId>": weight } }`. `itemClasses` = `{ "<itemId>": class }` für jeden Drop der Instanzen der Raidvorlage der Kategorie (`tbcRaidLoot.json`; ohne Vorlage oder ohne bekannte Instanz jeder Raid der Tabelle), Klasse aus `itemWeights.js` `itemClass()` **ohne** Ausnahmen und ohne den raider-abhängigen Teil — eine Waffe steht als `weapon` da. `normal` fehlt (ein unbekanntes Item ist im Addon ohnehin `normal`). Dazu `avgLootPoints`.
+- **Top-level `weights`** = die `weights` der ersten Kategorie (sonst die des Servers), nur der Bequemlichkeit halber.
+
+**Wie das Addon eine Vergabe nach dem Sync gewichtet** (spiegelt `itemWeights.js` und `droughtDays()`): Klasse = `overrides[id]` > `bisWeapon`, wenn `itemClasses[id] == "weapon"` und die Id in `bisWeapons` des Empfängers steht (die Reihenfolge von `itemClass()` — `frequent` und `trinket` vor `weapon` — macht das exakt) > `itemClasses[id]` > `normal`. Wartezeit: `D = lastAwardAt > 0 ? min(30, droughtBase + (t − lastAwardAt) / 1 Tag) : 30`, dann `D × max(0, 1 − w)`; nach der neuesten Vergabe `min(30, D + ganze Tage seit ihr)`, auf eine Stelle gerundet. Punkte `+ w`, Anteil gegen den Schnitt der Punkte aller Raider der Kategorie, Zugehörigkeit `min(1, ganze Tage seit joinedAt / tenureDays)`, Bedarf `Σ shares × Teil`. Die Neuberechnung im Addon gegen den Server prüft ein Fixture aus dem echten `councilRoster()` (eventhelper-addon, `addon-test/fixtures/council-v3-server.json`, Generator daneben).
+
+Form (innerhalb von `{ "data": … }`, gekürzt — ein Raider, drei Item-Klassen):
+
+```json
+{
+  "format": "eventhelper-council",
+  "version": 3,
+  "generatedAt": 1791397800,
+  "weights": { "drought": 33, "share": 29, "need": 14, "tenure": 24,
+               "shares": { "drought": 0.3333333333333333, "share": 0.2857142857142857, "need": 0.14285714285714285, "tenure": 0.23809523809523808 },
+               "droughtDays": 30, "tenureDays": 60, "scope": "category" },
+  "categories": [
+    {
+      "id": "c1", "name": "SSC/TK Mittwoch", "lootSystem": "lootcouncil",
+      "filter": { "role": "", "tiers": [], "contents": [], "bisTier": "t5", "bisTierDerived": true, "version": "tbc" },
+      "instances": [{ "id": "ssc", "name": "Höhle des Schlangenschreins", "short": "SSC", "zoneNames": [] }],
+      "avgLootCount": 1.5, "avgLootPoints": 2.3,
+      "weights": { "drought": 33, "share": 29, "need": 14, "tenure": 24, "shares": { "drought": 0.3333333333333333, "share": 0.2857142857142857, "need": 0.14285714285714285, "tenure": 0.23809523809523808 }, "droughtDays": 30, "tenureDays": 60, "scope": "category" },
+      "itemWeights": { "classes": { "trinket": 3, "bisWeapon": 2, "weapon": 1.5, "set": 1, "normal": 1, "frequent": 0.5 }, "overrides": { "30099": 2.5 } },
+      "itemClasses": { "30626": "trinket", "30082": "weapon", "30245": "set", "30021": "frequent" },
+      "raiders": [
+        {
+          "key": "messer", "character": "Messer", "classFile": "ROGUE", "specLabel": "Kampf-Schurke", "role": "melee",
+          "need": 44, "parts": { "drought": 34, "share": 36, "need": 100, "tenure": 33 },
+          "lootCount": 2, "lootTotal": 2, "otherCount": 0, "lastAwardAt": 1791239400, "daysSinceLoot": 1,
+          "bis": { "tier": "t5", "source": "wowsims", "owned": 0, "total": 17, "missing": [30101, 30082, 29949] },
+          "items": [{ "itemId": 30022, "itemName": "Pendant of the Perilous", "awardedAt": 1791239400, "boss": "Trash", "reason": "Mainspec", "event": "SSC/TK Mittwoch", "weight": 0.5, "weightClass": "frequent" }],
+          "status": "trial", "lootPoints": 1.5, "droughtDays": 10.1, "droughtBase": 9.083333,
+          "joinedAt": 1789669800, "tenureDays": 20, "bisWeapons": [30082, 32027, 29949]
+        }
+      ]
+    }
+  ]
+}
+```
 
 ## Gildenbank-Scans (`/api/ingest/guildbank`)
 
