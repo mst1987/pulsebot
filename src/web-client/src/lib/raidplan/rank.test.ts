@@ -53,10 +53,7 @@ describe.each(twins)("ranking (%s)", (_name, lib) => {
         const ctx = lib.boardContext([row("t", "tank", ["user:mtank"])], [], {});
         expect(lib.scoreCandidate({ type: "kick" }, mageTank, ctx)).toEqual({ score: -43, parts: { role: 0, spell: 0, tank: -40, healer: 0, load: -3 } });
     });
-    it("hard rules only while somebody is left, healers after damage dealers for DPS utility, load, flex role", () => {
-        expect(ids(lib.withoutMisfits({ type: "dispel" }, [bear, tree]))).toEqual(["tree"]);
-        expect(ids(lib.withoutMisfits({ type: "dispel" }, [bear]))).toEqual(["bear"]);
-        expect(ids(lib.withoutMisfits({ type: "kick" }, [tree, enh]))).toEqual(["enh"]);
+    it("load and flex role", () => {
         expect(ids(lib.rankCandidates({ type: "curse" }, [mage2, mageTank], { load: { mage2: 1 } }))).toEqual(["mtank", "mage2"]);
         expect(ids(lib.rankCandidates({ type: "dispel" }, [bear, tree], { roles: { bear: "dps" } }))).toEqual(["bear", "tree"]);
         expect(lib.playerRole(P("x", "Shaman", "dps", "ranged"), { x: "dps" })).toBe("ranged");
@@ -85,8 +82,6 @@ describe("the raid-wide tasks (#536)", () => {
             expect(lib.scoreCandidate({ type: "debuff", spell: { id: "d:sunder-armor" } }, wt).parts.tank).toBe(0);
             expect(lib.scoreCandidate({ type: "debuff", spell: { id: "d:faerie-fire" } }, bear).parts.tank).toBe(0);
             expect(lib.scoreCandidate({ type: "debuff", spell: { id: "d:hunters-mark" } }, wt).parts.tank).toBe(-40);
-            expect(ids(lib.withoutMisfits({ type: "debuff", spell: { id: "d:sunder-armor" } }, [wt, wd]))).toEqual(["wt", "wd"]);
-            expect(ids(lib.withoutMisfits({ type: "debuff" }, [wt, wd]))).toEqual(["wd"]);
             expect(lib.scoreCandidate({ type: "blessing" }, prot).parts.tank).toBe(0);
             expect(lib.scoreCandidate({ type: "aura" }, prot).parts.tank).toBe(0);
             expect(lib.scoreCandidate({ type: "debuff" }, holy).parts.healer).toBe(-20);

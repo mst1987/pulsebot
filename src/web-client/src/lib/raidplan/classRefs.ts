@@ -10,8 +10,6 @@
 // src/web/raidplanAssign.js (expandClassRefs, renumberClassRefs); written with function declarations and one-line signatures only.
 import type { RaidplanAssignment, RaidplanAssignTarget, RaidplanPlayer } from "../../api";
 
-/** The role filters of a class reference (empty = any spec). "dps" = melee or ranged. */
-export const CLASS_ROLES = ["tank", "healer", "dps", "melee", "ranged"];
 /** The "class" of a reference that means any raider of its role. */
 export const ANY = "Any";
 /** The role filter "every spec of the class" (a mage who tanks, a warlock tank): chosen on purpose, the task's own role is not applied. */
@@ -193,14 +191,6 @@ export function classGroups(refs: string[]): { classId: string; role: string; re
     return out;
 }
 
-/** "1", "1-2", "1, 3": the running numbers of a class group as they read on its chip. */
-export function numbersLabel(ns: number[]): string {
-    const s = [...ns].sort((a, b) => a - b);
-    if (s.length === 0) return "";
-    const run = s.every((n, i) => i === 0 || n === s[i - 1] + 1);
-    return run && s.length > 1 ? `${s[0]}-${s[s.length - 1]}` : s.join(", ");
-}
-
 /**
  * Sets how many raiders of a class (and role) a row asks for ("x n", the stepper): more adds references with the next free running
  * numbers of that kind of task (over ALL its rows, so the new place is the next raider of the class), fewer takes the highest numbers of
@@ -360,20 +350,6 @@ export function scoreCandidate(row: RankRow, p: RankPlayer, ctx: RankCtx = {}): 
 /** The raiders in the order a row wants them: the highest points first; a tie keeps the order given (the setup's). */
 export function rankCandidates<T extends RankPlayer>(row: RankRow, list: T[], ctx: RankCtx = {}): T[] {
     return list.map((p, i) => ({ p, i, s: scoreCandidate(row, p, ctx).score })).sort((a, b) => b.s - a.s || a.i - b.i).map((x) => x.p);
-}
-
-/** The hard rules of a suggestion, only while somebody is left: no tank on a task not his, no healer on damage dealers' utility. */
-export function withoutMisfits<T extends RankPlayer>(row: RankRow, list: T[], ctx: RankCtx = {}): T[] {
-    let out = list;
-    if (!tankOk(row)) {
-        const rest = out.filter((p) => !isTankOf(p, ctx));
-        if (rest.length > 0) out = rest;
-    }
-    if (DPS_UTILITY_TYPES.indexOf(row.type) >= 0) {
-        const rest = out.filter((p) => playerRole(p, ctx.roles) !== "healer");
-        if (rest.length > 0) out = rest;
-    }
-    return out;
 }
 
 /** What the ranking knows of a board from the raiders its rows NAME (user refs, filled slots, hand picks): tanks, load, and per row who is in it. */

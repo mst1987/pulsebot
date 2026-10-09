@@ -8,13 +8,12 @@ describe("boards without every array", () => {
     it("the facing of a mob icon works on a board that has no assignments (the map hands over tokens and slots only)", () => {
         const icon = { x: 0.5, y: 0.5, rotation: 30, mobId: "m1", autoFace: true };
         expect(assign.facingOf(bare, icon, 1.6)).toBe(30);
-        expect(assign.tankOfMob(bare, "m1")).toBe(null);
+        expect(assign.tanksOfMob(bare, "m1")).toEqual([]);
         expect(assign.followsTank(bare, icon)).toBe(false);
-        expect(assign.assignmentCount(bare)).toBe(0);
     });
     it("a tank row without targets or assignees is skipped, not a crash", () => {
         const b = { ...bare, assignments: [{ id: "a", type: "tank" }] };
-        expect(assign.tankOfMob(b, "m1")).toBe(null);
+        expect(assign.tanksOfMob(b, "m1")).toEqual([]);
     });
     it("a stored board with nothing in it is completed by boardOf: every array is there", () => {
         const b = raidplan.boardOf({ x: { notes: "n" } }, "x");

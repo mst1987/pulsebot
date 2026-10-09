@@ -19,9 +19,6 @@ describe("count of a class in a row", () => {
             { classId: "Warrior", role: "tank", refs: ["class:Warrior:1:tank"], ns: [1] },
             { classId: "Warrior", role: "", refs: ["class:Warrior:2"], ns: [2] },
         ]);
-        expect(cr.numbersLabel([2, 1])).toBe("1-2");
-        expect(cr.numbersLabel([1, 3])).toBe("1, 3");
-        expect(cr.numbersLabel([4])).toBe("4");
     });
     it("× 2 adds the next running number of the task (over ALL its rows), × 1 takes the highest of the row away with its pick", () => {
         const list = [row("a", "md", ["class:Hunter:1"]), row("b", "md", ["class:Hunter:2"])];

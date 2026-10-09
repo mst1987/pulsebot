@@ -38,11 +38,6 @@ export function includedGroups(stored: unknown, groupCount: number): IncludedGro
     return clean === null ? defaultIncludedGroups(groupCount) : clean;
 }
 
-/** The group numbers of a selection, without "bench". */
-export function groupNumbers(included: IncludedGroups): number[] {
-    return included.filter((v): v is number => typeof v === "number");
-}
-
 /** Whether a raider is part of the plan: a bench raider only with "bench", a raider of a group only when it is on (gone / no group: stays). */
 export function inPlan(player: RaidplanPlayer, included: IncludedGroups): boolean {
     if (player.gone) return true;

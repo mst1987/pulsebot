@@ -84,11 +84,6 @@ export function textShown(text: RaidplanText, selected: boolean): boolean {
     return (text.text || "").trim() !== "" || selected;
 }
 
-/** The players of the setup group a group marker stands for. */
-export function groupMembers(slot: RaidplanSlot, roster: RaidplanPlayer[]): RaidplanPlayer[] {
-    return roster.filter((p) => p.group === slot.n);
-}
-
 /** The height steps of the map (S / M / L: a share of the window's height), or a height set by hand with the splitter (C). */
 type StepShares = Record<string, number>;
 
@@ -172,11 +167,6 @@ export function ringCover(offsets: { dx: number; dy: number }[], padX: number, p
     let ry = 0;
     for (const o of offsets) { rx = Math.max(rx, Math.abs(o.dx)); ry = Math.max(ry, Math.abs(o.dy)); }
     return { rx: rx + padX, ry: ry + padY };
-}
-
-/** How many slots of a board are still open (a group marker and a label are not places to fill). */
-export function openSlots(board: RaidplanBoard): number {
-    return board.slots.filter((s) => (s.kind === "tank" || s.kind === "healer" || s.kind === "melee" || s.kind === "ranged" || s.kind === "dps") && !s.userId).length;
 }
 
 /** The name an object goes by in the layer list and the inspector. */

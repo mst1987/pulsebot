@@ -8,7 +8,6 @@
 export type FlyItem = { key: string; label: string; on: boolean; group: string };
 export type FlySection = { title: string; items: FlyItem[] };
 export type FlyPage = { sections: FlySection[] };
-export type Rect = { left: number; right: number; top: number; bottom: number };
 
 /** What a section's title takes of a page, counted in chips. */
 export const TITLE_COST = 2;
@@ -76,23 +75,4 @@ export function toggleAllKeys(section: FlySection): string[] {
 /** How many entries are ticked. */
 export function ticked(items: FlyItem[]): number {
     return items.filter((i) => i.on).length;
-}
-
-export type FlyPlace = { left: number; top: number; side: string; arrowTop: number };
-
-/**
- * Where the flyout goes: right of \`ref\` (the card or row that opened it), else left of it, so no row of the card
- * is covered; a narrow viewport, or no room on either side, makes it a bottom sheet across the width. \`arrowTop\`
- * is where the arrow points (the trigger's middle, inside the panel).
- */
-export function placeFlyout(ref: Rect, trigger: Rect, panel: { w: number; h: number }, vp: { w: number; h: number }): FlyPlace {
-    const gap = 10;
-    const margin = 8;
-    const top = Math.max(margin, Math.min(trigger.top - 24, vp.h - panel.h - margin));
-    const arrowTop = Math.max(12, Math.min(panel.h - 12, (trigger.top + trigger.bottom) / 2 - top));
-    if (vp.w >= 700) {
-        if (ref.right + gap + panel.w <= vp.w - margin) return { left: ref.right + gap, top, side: "right", arrowTop };
-        if (ref.left - gap - panel.w >= margin) return { left: ref.left - gap - panel.w, top, side: "left", arrowTop };
-    }
-    return { left: 0, top: Math.max(margin, vp.h - panel.h), side: "sheet", arrowTop: 0 };
 }

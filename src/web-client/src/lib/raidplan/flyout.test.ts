@@ -49,20 +49,6 @@ describe("flyout ticking", () => {
     });
 });
 
-describe("flyout placement", () => {
-    const rect = (l, t, r, b) => ({ left: l, top: t, right: r, bottom: b });
-    it("right of the card when there is room, else left, else a bottom sheet", () => {
-        const panel = { w: 400, h: 300 };
-        expect(fly.placeFlyout(rect(100, 100, 400, 500), rect(120, 120, 200, 150), panel, { w: 1440, h: 900 }).side).toBe("right");
-        expect(fly.placeFlyout(rect(900, 100, 1300, 500), rect(920, 120, 1000, 150), panel, { w: 1440, h: 900 }).side).toBe("left");
-        expect(fly.placeFlyout(rect(0, 0, 380, 500), rect(10, 10, 60, 40), panel, { w: 390, h: 800 }).side).toBe("sheet");
-    });
-    it("stays inside the viewport vertically", () => {
-        const p = fly.placeFlyout(rect(100, 700, 400, 890), rect(120, 800, 200, 830), { w: 400, h: 300 }, { w: 1440, h: 900 });
-        expect(p.top + 300).toBeLessThanOrEqual(900);
-    });
-});
-
 describe("hiding and removing cards", () => {
     const row = (id, type) => ({ id, type, targets: [], assignees: [], text: "" });
     const board = (over = {}) => ({ assignments: [], hiddenCards: [], ...over });

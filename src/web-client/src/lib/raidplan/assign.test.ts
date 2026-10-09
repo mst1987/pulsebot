@@ -1,5 +1,5 @@
 // The assignments' client logic (lib/raidplan/assign.ts): resolving references, the multi-select edits,
-// which types a board offers, suggestions merged in, the map lines, "is this row mine".
+// which types a board offers, suggestions merged in, the map lines.
 import { describe, expect, it } from "vitest";
 import * as lib from "./assign";
 import { autoPlaces, deriveAuto } from "./autoPlace";
@@ -32,31 +32,8 @@ describe("resolving references", () => {
     });
 });
 
-describe("is this row mine", () => {
-    const ctx = ctxOf([slot("healer", 1, "me"), slot("tank", 1, "t1")], [player("me", "Ich", "Priest", 4), player("t1", "Tank", "Warrior", 1)]);
-    const a = (assignees, targets) => ({ id: "a", type: "heal", assignees, targets, note: "", suggested: false });
-    it("as assignee through a slot or directly, as a target, or through my group", () => {
-        expect(lib.isMine(a(["slot:healer:1"], []), ctx, ["me"])).toBe(true);
-        expect(lib.isMine(a(["user:me"], []), ctx, ["me"])).toBe(true);
-        expect(lib.isMine(a([], [{ kind: "player", ref: "me" }]), ctx, ["me"])).toBe(true);
-        expect(lib.isMine(a([], [{ kind: "group", ref: "4" }]), ctx, ["me"])).toBe(true);
-        expect(lib.isMine(a(["slot:tank:1"], [{ kind: "group", ref: "2" }]), ctx, ["me"])).toBe(false);
-        expect(lib.isMine(a(["slot:healer:1"], []), ctx, [])).toBe(false);
-        // several players of the same visitor (a main and an alt)
-        expect(lib.isMine(a(["slot:tank:1"], []), ctx, ["nobody", "t1"])).toBe(true);
-    });
-});
-
 describe("types per area", () => {
-    it("boss, trash and the whole raid offer their own types, everything can be 'other'", () => {
-        expect(lib.assignTypes("boss")).toEqual(expect.arrayContaining(["heal", "kick", "md", "ss", "fearward", "special", "other"]));
-        expect(lib.assignTypes("trash")[0]).toBe("trashtank");
-        expect(lib.assignTypes("general")).toEqual(["ss", "brez", "fearward", "buff", "blessing", "aura", "totem", "curse", "debuff", "thunderclap", "demoshout", "other"]);
-        // #536: the debuffs on the boss and the battle res also per boss (and in the Standard)
-        for (const scope of ["boss", "defaults"]) expect(lib.assignTypes(scope)).toEqual(expect.arrayContaining(["debuff", "brez"]));
-        expect(lib.assignTypes("trash")).not.toContain("debuff");
-        expect(lib.assignTypes("nonsense")).toEqual(lib.assignTypes("boss"));
-        for (const scope of ["boss", "trash", "general"]) expect(lib.assignTypes(scope)).toContain("other");
+    it("which area a boss entry is: the whole raid, the trash or a boss", () => {
         expect(lib.scopeOf({ general: true })).toBe("general");
         expect(lib.scopeOf({ trash: true })).toBe("trash");
         expect(lib.scopeOf({})).toBe("boss");

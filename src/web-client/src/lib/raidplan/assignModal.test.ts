@@ -28,7 +28,6 @@ describe("categories of the assignment bar", () => {
         expect(am.categoriesFor("at", "tank", true, false)[0]).toBe("mobs");
         expect(am.categoriesFor("at", "heal", true, false)).toEqual(["people", "groups", "roles", "classes", "marks", "mobs", "text"]);
         expect(am.categoriesFor("at", "heal", false, false)).not.toContain("mobs");
-        expect(am.firstCategory("at", "kick", true, false)).toBe("mobs");
     });
     it("the next slot goes round (Tab / arrows)", () => {
         expect(am.nextSlot("who", 1)).toBe("at");

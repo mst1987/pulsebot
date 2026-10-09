@@ -13,6 +13,8 @@ const slotIns = (b, spec, at) => {
     }
     return lib.insertObject(b, spec, at);
 };
+// A rectangular zone of a type, in its preset colour.
+const zoneIns = (b, type) => lib.insertObject(b, { type: "zone", zoneType: type, shape: "rect" }, null).board;
 
 const player = (userId, role = "dps") => ({ userId, character: userId, classId: "", className: "", classColor: "", spec: "", specLabel: "", role, iconUrl: "", group: 1 });
 
@@ -57,8 +59,6 @@ describe("inserting objects", () => {
         b = lib.addSlot(b, "label", "Boss-Tank");
         expect(b.slots.map((s) => [s.kind, s.n, s.label])).toEqual([["tank", 1, ""], ["tank", 2, ""], ["healer", 1, ""], ["label", 1, "Boss-Tank"]]);
         expect(new Set(b.slots.map((s) => s.id)).size).toBe(4);
-        expect(lib.addMark(lib.emptyBoard(), "star").marks).toHaveLength(1);
-        expect(lib.addZone(lib.emptyBoard(), "healthy", "rect").zones[0].color).toBe("#22c55e");
         // a role slot belongs to the Besetzung: deleting it takes it off the map, a free label is removed
         const gap = lib.removeObject(b, "slot", b.slots[0].id);
         expect(gap.slots.find((s) => s.id === b.slots[0].id).placed).toBe(false);
@@ -200,7 +200,7 @@ describe("zones: scaling", () => {
     });
 
     it("changes a zone's fields without touching the others", () => {
-        let b = lib.addZone(lib.addZone(lib.emptyBoard(), "danger", "rect"), "healthy", "rect");
+        let b = zoneIns(zoneIns(lib.emptyBoard(), "danger"), "healthy");
         b = lib.updateZone(b, b.zones[0].id, { label: "Feuer", color: "#112233", opacity: 0.5 });
         expect(b.zones[0]).toMatchObject({ label: "Feuer", color: "#112233", opacity: 0.5, type: "danger" });
         expect(b.zones[1]).toMatchObject({ label: "", color: "#22c55e" });
@@ -223,7 +223,7 @@ describe("duplicating and ordering", () => {
         expect(s.board.slots[1]).toMatchObject({ kind: "tank", n: 2, userId: "", lock: false });
         expect(lib.duplicateObject(lib.placeToken(b, "u2", 0.5, 0.5), "token", "u2").board.tokens).toHaveLength(1);
         expect(lib.duplicateObject(b, "mark", "nope").sel).toBeNull();
-        const z = lib.duplicateObject(lib.addZone(lib.emptyBoard(), "danger", "rect"), "zone", lib.addZone(lib.emptyBoard(), "danger", "rect").zones[0].id);
+        const z = lib.duplicateObject(zoneIns(lib.emptyBoard(), "danger"), "zone", zoneIns(lib.emptyBoard(), "danger").zones[0].id);
         expect(z.board.zones.length).toBeGreaterThanOrEqual(1);
     });
 

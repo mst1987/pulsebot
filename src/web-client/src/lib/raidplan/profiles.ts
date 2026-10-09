@@ -1,28 +1,7 @@
-import type { RaidplanBoard, RaidplanBoss, RaidplanProfile, RaidplanAssignType } from "../../api";
+import type { RaidplanBoard, RaidplanBoss, RaidplanProfile } from "../../api";
 import { t } from "../../i18n";
-import { boardOf, newRowId } from "./model";
+import { boardOf } from "./model";
 import { objectCount } from "./objects";
-
-/**
- * The board after a profile was applied: its rows replace the board's rows, the
- * note comes along, `profileId` remembers where they came from. Players assigned
- * to a row whose title the profile keeps (ignoring case) stay assigned; tokens,
- * slots, marks and zones are not touched.
- */
-export function applyProfile(board: RaidplanBoard, profile: RaidplanProfile): RaidplanBoard {
-    const own = board.assignments.filter((a) => a.type === "other");
-    const kept = new Map(own.map((a) => [a.title.trim().toLowerCase(), a]));
-    const rows = profile.targets.map((r) => {
-        const old = kept.get(r.title.trim().toLowerCase());
-        return old ? { ...old, title: r.title } : { id: newRowId(), type: "other" as RaidplanAssignType, title: r.title, spell: null, assignees: [], targets: [], note: "", suggested: false };
-    });
-    return { ...board, assignments: [...board.assignments.filter((a) => a.type !== "other"), ...rows], notes: profile.notes || board.notes, profileId: profile.id };
-}
-
-/** The rows of a board as a profile stores them: the titles of its assignments, no players. */
-export function profileRows(board: RaidplanBoard): { title: string }[] {
-    return board.assignments.map((a) => ({ title: a.title.trim() })).filter((r) => r.title);
-}
 
 /** The profiles that fit a boss: made for every boss, for its instance, or for exactly this boss. */
 export function profilesFor(profiles: RaidplanProfile[], bossKey: string): RaidplanProfile[] {

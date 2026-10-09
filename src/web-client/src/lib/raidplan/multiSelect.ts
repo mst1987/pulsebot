@@ -288,9 +288,6 @@ export function pasteSnapshot(board: RaidplanBoard, snap: Snapshot, off: number)
     return { board: out, sel: made };
 }
 
-/** Ways to line the selection up. */
-export const ALIGN_MODES = ["left", "right", "top", "bottom", "centerH", "centerV", "distH", "distV"];
-
 /** Lines the selection up on the box's edge or middle, or spreads it evenly (distH / distV need three or more). Locked objects stay. */
 export function alignSelection(board: RaidplanBoard, sel: SelItem[], mode: string, px: BoardPx): RaidplanBoard {
     const rows = sel.filter((it) => !isLocked(board, it.kind, it.id)).map((it) => ({ it, box: objectBox(board, it, px) })).filter((r): r is { it: SelItem; box: Box } => r.box !== null);
