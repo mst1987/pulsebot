@@ -11,7 +11,7 @@ const { read } = require("../clientSource");
 const page = read("pages", "profile");
 const dialog = read("components", "character", "AddCharacterDialog.tsx");
 const app = read("App.tsx");
-const css = read("styles", "profil.css");
+const css = read("styles", "profile.css");
 
 describe("ProfilePage conventions", () => {
     it("is routed under /profile for the signup area and listed in the menu", () => {
@@ -22,7 +22,7 @@ describe("ProfilePage conventions", () => {
 
     it("uses the shared page head and its own stylesheet, whose selectors stay in the pf- namespace", () => {
         expect(page).toMatch(/<PageHead[\s\S]*tone="profile"/);
-        expect(page).toContain("import \"../../styles/profil.css\";");
+        expect(page).toContain("import \"../../styles/profile.css\";");
         for (const sel of css.replace(/\/\*[\s\S]*?\*\//g, "").match(/\.[a-z][\w-]*/g) || []) {
             expect(sel).toMatch(/^\.(pf-|wi$|kicker$|part-head$|ph-act$|field$|is-|switch)/);
         }

@@ -12,7 +12,7 @@ import { useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
-import "../../styles/historie-loot.css";
+import "../../styles/history-loot.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { tParts, useT } from "../../i18n";
 

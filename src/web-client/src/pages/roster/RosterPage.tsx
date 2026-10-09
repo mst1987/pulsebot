@@ -23,7 +23,7 @@ import { SearchIcon } from "../../components/ui/icons";
 import type { ShellContext } from "../../components/shell/Shell";
 import { useToast } from "../../components/shell/Jobs";
 import { useConfirm } from "../../components/ui/Modal";
-import "../../styles/roster-charakter.css";
+import "../../styles/roster-character.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { RosterGroup, UNGROUPED } from "./RosterGroup";
 import { ClaimsBadge } from "./ClaimsBadge";

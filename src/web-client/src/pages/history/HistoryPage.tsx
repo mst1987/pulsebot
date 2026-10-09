@@ -15,7 +15,7 @@ import { ListCount } from "../../components/loot/LootFilters";
 import PageHead from "../../components/ui/PageHead";
 import Segment from "../../components/ui/Segment";
 import { useContentVersion } from "../../hooks/useContentVersion";
-import "../../styles/historie-loot.css";
+import "../../styles/history-loot.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { LootEventsTab } from "./LootEventsTab";
 import { LogsTab } from "./LogsTab";

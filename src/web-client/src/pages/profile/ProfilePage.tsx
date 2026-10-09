@@ -10,7 +10,7 @@ import { EyeOffIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
 import { specSuggestion } from "../../lib/raidhelperRetirement";
 import { tOr, useT } from "../../i18n";
-import "../../styles/profil.css";
+import "../../styles/profile.css";
 import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } from "./ProfileParts";
 import { CharacterCard, CharChip, FirstCharacter } from "./CharacterCard";
 import { CalendarPart } from "./CalendarPart";

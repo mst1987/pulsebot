@@ -26,8 +26,8 @@ describe("roster & character page: shared rules", () => {
     });
 
     it("keeps its styles in its own stylesheet, imported by both pages", () => {
-        expect(roster).toContain("import \"../../styles/roster-charakter.css\";");
-        expect(charPage).toContain("import \"../../styles/roster-charakter.css\";");
+        expect(roster).toContain("import \"../../styles/roster-character.css\";");
+        expect(charPage).toContain("import \"../../styles/roster-character.css\";");
         // the replaced hero band, gear-issue cards and gear rows are gone from index.css
         const indexCss = read("index.css");
         for (const cls of [".stat-hero", ".stat-tile", ".gi-row", ".gear-row", ".char-hero"]) {
@@ -45,6 +45,6 @@ describe("roster & character page: shared rules", () => {
     });
 
     it("draws attendance as a fixed-width bar, so a short label never makes a longer bar", () => {
-        expect(read("styles/roster-charakter.css")).toMatch(/\.bar\.ros-bar \{ width: 188px;/);
+        expect(read("styles/roster-character.css")).toMatch(/\.bar\.ros-bar \{ width: 188px;/);
     });
 });

@@ -20,7 +20,7 @@ import type { ShellContext } from "../../components/shell/Shell";
 import { useToast } from "../../components/shell/Jobs";
 import { combineAttendance } from "../../lib/rosterView";
 import { PartHead, WowIcon } from "../../components/ui";
-import "../../styles/roster-charakter.css";
+import "../../styles/roster-character.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { CharHero } from "./CharHero";
 import { GearSection } from "./GearSection";

@@ -12,7 +12,7 @@ import { Button, IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import PageHead from "../../components/ui/PageHead";
 import WowIcon from "../../components/ui/WowIcon";
-import "../../styles/log-auswertung.css";
+import "../../styles/logcheck.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { tParts, useT } from "../../i18n";
 import { ANALYSES, EVAL_SECONDS, filterMeta, FILTERS } from "./shared";

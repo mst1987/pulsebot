@@ -117,9 +117,9 @@ describe("Historie & Loot module", () => {
         expect(src["pages/history/HistoryPage.tsx"]).toContain("<PageHead");
         expect(src["pages/history/HistoryPage.tsx"]).toContain("<Segment<RaidsView>");
         for (const file of ["pages/history/HistoryPage.tsx", "pages/history/HistoryEventPage.tsx", "pages/history/HistoryInboxPage.tsx"]) {
-            expect(src[file]).toContain("import \"../../styles/historie-loot.css\";");
+            expect(src[file]).toContain("import \"../../styles/history-loot.css\";");
         }
-        expect(fs.existsSync(path.join(CLIENT, "styles", "historie-loot.css"))).toBe(true);
+        expect(fs.existsSync(path.join(CLIENT, "styles", "history-loot.css"))).toBe(true);
         expect(read("index.css")).not.toContain(".hl-");
     });
 

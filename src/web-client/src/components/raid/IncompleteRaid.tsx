@@ -4,7 +4,7 @@ import Badge from "../ui/Badge";
 import { CheckIcon } from "../ui/icons";
 import { raidCount, raidIcon } from "../../lib/logRaids";
 import { useT } from "../../i18n";
-import "../../styles/log-auswertung.css";
+import "../../styles/logcheck.css";
 
 // The body of the "Raid noch nicht abgeschlossen" question (lib/confirmIncomplete.ts):
 // one sentence, then per unfinished raid its bosses as a grid — down with a

@@ -34,7 +34,7 @@ import ItemSettingsDialog from "./ItemSettingsDialog";
 import BankTabsDialog from "./BankTabsDialog";
 import RequestsDialog from "./RequestsDialog";
 import "../../styles/loot-council.css";
-import "../../styles/historie-loot.css";
+import "../../styles/history-loot.css";
 import "../../styles/guildbank.css";
 
 const BANK_ICON = "achievement_guildperk_mobilebanking";

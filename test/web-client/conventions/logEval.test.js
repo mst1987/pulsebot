@@ -18,8 +18,8 @@ describe("Log-Auswertung: conventions", () => {
     });
 
     it("keeps its styles in its own file", () => {
-        expect(read("pages", "cla", "ClaPage.tsx")).toContain("import \"../../styles/log-auswertung.css\";");
-        const css = read("styles", "log-auswertung.css");
+        expect(read("pages", "cla", "ClaPage.tsx")).toContain("import \"../../styles/logcheck.css\";");
+        const css = read("styles", "logcheck.css");
         expect(css).toContain(".la-row.running { box-shadow: inset 3px 0 0 var(--accent); }");
         expect(css).toContain(".la-boss.miss { border-style: dashed;");
         expect(css).not.toMatch(/gold|#d4af37|#ffd700/i);
