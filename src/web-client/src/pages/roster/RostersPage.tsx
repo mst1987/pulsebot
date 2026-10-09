@@ -16,6 +16,7 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { rolePluralLabel } from "../../lib/wow/wowNames";
 import { ROLE_ICONS, dpsTarget } from "../../lib/roster/rosters";
 import { attendanceTone } from "../../lib/roster/rosterView";
+import { formatDate } from "../../lib/format";
 import { RoleChip, VersionLine } from "./RosterParts";
 import RosterFormDialog from "./RosterFormDialog";
 import "../../styles/rosters.css";
@@ -48,7 +49,16 @@ function TodoBadges({ roster }: { roster: RosterHead }) {
     if (roster.todo.withoutChar) {
         badges.push(<Badge key="char" tone="mid" tipSub={t("roster.overview.withoutCharSub")} tip={t("roster.overview.withoutChar", { count: roster.todo.withoutChar })}>{t("roster.overview.withoutChar", { count: roster.todo.withoutChar })}</Badge>);
     }
-    if (roster.todo.trial) badges.push(<Badge key="trial" tone="accent">{t("roster.overview.trial", { count: roster.todo.trial })}</Badge>);
+    const ending = roster.trialEnding || [];
+    const overdue = ending.filter((e) => e.overdue).length;
+    if (ending.length) {
+        // the trials to decide on soon (#658): a calm hint with the names in the tooltip
+        const lines = ending.map((e) => t(e.overdue ? "roster.overview.trialLineOverdue" : "roster.overview.trialLine", { name: e.displayName, date: formatDate(Date.parse(e.trialUntil)) })).join("\n");
+        const text = overdue ? t("roster.overview.trialOverdue", { count: overdue }) : t("roster.overview.trialEnding", { count: ending.length });
+        badges.push(<Badge key="trialEnd" tone={overdue ? "mid" : "accent"} tip={text} tipSub={lines}>{text}</Badge>);
+    } else if (roster.todo.trial) {
+        badges.push(<Badge key="trial" tone="accent">{t("roster.overview.trial", { count: roster.todo.trial })}</Badge>);
+    }
     return <div className="rn-todo">{badges.length ? badges : <Badge tone="ok">{t("roster.overview.allDone")}</Badge>}</div>;
 }
 

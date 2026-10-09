@@ -60,6 +60,25 @@ describe("RostersPage", () => {
         expect(within(card("Sonntag")).getByText("Nichts offen")).toBeInTheDocument();
     });
 
+    it("names the trials that end soon or ran out instead of the plain trial count (#658)", async () => {
+        await openPage(overview({
+            rosters: [
+                rosterHead({ trialEnding: [{ userId: "u1", displayName: "Brakk", trialUntil: "2026-10-12T00:00:00.000Z", overdue: false }] }),
+                rosterHead({ id: "r2", name: "Sonntag", trialEnding: [
+                    { userId: "u2", displayName: "Syl", trialUntil: "2026-10-01T00:00:00.000Z", overdue: true },
+                    { userId: "u3", displayName: "Varok", trialUntil: "2026-10-12T00:00:00.000Z", overdue: false },
+                ] }),
+            ],
+        }));
+        const first = within(card("Raid Mo / Do"));
+        const soon = first.getByText("Probezeit endet bald: 1");
+        expect(soon).toHaveAttribute("data-tip-sub", "Brakk · Probezeit bis 12.10.2026");
+        expect(first.queryByText("2 in Probezeit")).not.toBeInTheDocument();
+        const late = within(card("Sonntag")).getByText("1 Probezeit abgelaufen");
+        expect(late).toHaveClass("mid");
+        expect(late.getAttribute("data-tip-sub")).toContain("Syl · Probezeit seit 1.10.2026 abgelaufen");
+    });
+
     it("shows a roster without raids and without plan in words, not as 0", async () => {
         await openPage(overview({
             rosters: [rosterHead({ attendance: null, slots: { total: 0, tank: 0, healer: 0, bench: 0 }, places: 9, mainRole: null })],

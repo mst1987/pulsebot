@@ -233,6 +233,8 @@ export type RosterHead = {
     attendanceCounted: number;
     /** `withoutRole` null when the Discord member list is not available. */
     todo: { withoutRole: number | null; withoutChar: number; trial: number };
+    /** Overview cards only (#658): trial members whose end lies within 7 days or has passed, earliest first. */
+    trialEnding?: { userId: string; displayName: string; trialUntil: string; overdue: boolean }[];
 };
 
 export type RosterOverview = {

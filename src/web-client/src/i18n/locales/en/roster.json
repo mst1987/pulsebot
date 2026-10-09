@@ -251,7 +251,17 @@
         "noCategory": "No category",
         "emptyCategory": "This category has no roster yet.",
         "empty": "No roster yet. Rosters are created from the categories with raider roles.",
-        "create": "Create roster"
+        "create": "Create roster",
+        "trialEnding": {
+            "one": "Trial ends soon: {count}",
+            "other": "Trials end soon: {count}"
+        },
+        "trialOverdue": {
+            "one": "{count} trial ran out",
+            "other": "{count} trials ran out"
+        },
+        "trialLine": "{name} · trial until {date}",
+        "trialLineOverdue": "{name} · trial ran out on {date}"
     },
     "detail": {
         "loading": "Loading roster …",

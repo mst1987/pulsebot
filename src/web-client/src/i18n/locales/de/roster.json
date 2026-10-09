@@ -251,7 +251,17 @@
         "noCategory": "Ohne Kategorie",
         "emptyCategory": "Diese Kategorie hat noch kein Roster.",
         "empty": "Noch kein Roster angelegt. Roster entstehen aus den Kategorien mit Raider-Rollen.",
-        "create": "Roster anlegen"
+        "create": "Roster anlegen",
+        "trialEnding": {
+            "one": "Probezeit endet bald: {count}",
+            "other": "Probezeiten enden bald: {count}"
+        },
+        "trialOverdue": {
+            "one": "{count} Probezeit abgelaufen",
+            "other": "{count} Probezeiten abgelaufen"
+        },
+        "trialLine": "{name} · Probezeit bis {date}",
+        "trialLineOverdue": "{name} · Probezeit seit {date} abgelaufen"
     },
     "detail": {
         "loading": "Lade Roster …",
