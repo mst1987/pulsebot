@@ -23,13 +23,14 @@ lassen.
 | `fetch-wowsims-data.js` | Item-DB, BiS-Sets und Rotationen aus WoWSims-TBC | `wowsims/items.json`, `wowsims/bisSets.json`, `wowsims/apls/*.json` | `bis:refresh` | Versionsabgleich in `test/utils/wowsims/engine.test.js` |
 | `get-drive-token.js` | Einmalig: Google-OAuth-Refresh-Token für die Drive-Kopie holen | Token im Terminal, von Hand in `.env` / `.env.dev` eintragen | – | nein |
 | `import-raidhelper-history.js` | Migration: Raid-Helper-Anmeldungen als Spec-Historie importieren; wird mit dem Raid-Helper-Ausstieg gelöscht (`docs/raidhelper-retirement.md`) | `data/settings/spec-history.json` | – | ja |
-| `register-commands.js` | Slash-Commands bei Discord registrieren (sammelt die `data` der Befehlsmodule über den Loader) | Discord-API | `register`, `register:global`, `register:clear`, `register:dev` | ja |
+| `register-commands.js` | Slash-Commands bei Discord registrieren (sammelt die `data` der Befehlsmodule über den Loader); `--print-hash` registriert nichts und gibt nur den Hash der Registrierung aus, mit dem `deploy.sh` entscheidet, ob registriert werden muss | Discord-API | `register`, `register:global`, `register:clear`, `register:dev` | ja |
 | `render-role-swords.js` | Nahkampf-Icon als gekreuzte Schwerter aus den Rollen-Kacheln | `assets/emojis/eh_r<stil>_swords.png` | – | nein |
 | `render-ui-emojis.js` | Die flachen UI-Icons der Event-Nachricht zeichnen (eingecheckt) | `assets/emojis/eh_ui_<name>.png` | `emojis:render` | ja (Icon-Liste, `test/services/discord/appEmojis.test.js`) |
 | `seed-test-raid.js` | Nur Dev: kompletter Testraid mit 25 Anmeldungen, Setup und Raidplan-Vorlage | Stores unter `data/` der Instanz | `dev:seed` | ja |
 | `sync-app-emojis.js` | Fehlende App-Emojis hochladen (macht der Bot beim Start auch) | Discord-API | `emojis:sync` (`-- --dry-run` listet nur) | ja |
 | `lib/png.js` | Kleiner PNG-Codec für `fetch-mob-icons.js` | – | – | ja |
 | `lib/generatedJson.js` | Schreibt die generierten JSON-Dateien mit lesbarem Diff (kurze Zeilen bleiben einzeilig) | – | – | ja |
+| `lib/commandsHash.js` | Deterministischer sha256 über Command-Definitionen und Ziel-Server (für `register-commands.js --print-hash`, docs/deployment.md) | – | – | ja |
 
 ## data-sources/
 

@@ -1,8 +1,9 @@
 # Deployment
 
 Ein Merge nach `main` löst das automatische Deployment aus: GitHub Actions
-(`.github/workflows/ci.yml`) lintet, testet und startet danach `deploy.sh` per
-SSH auf dem Server.
+(`.github/workflows/ci.yml`) lintet, testet, baut den Web-Client, kopiert
+den fertigen Build auf den Server und startet dort `deploy.sh` per SSH. Wie
+das im Einzelnen abläuft: „Ablauf eines Deploys“ weiter unten.
 
 Acht PRs sind einmal hintereinander gemergt worden, ohne dass eine Zeile davon
 auf dem Server ankam — der Deploy-Schritt scheiterte jedes Mal mit
@@ -78,7 +79,7 @@ Pfad zu setzen; an den Dateien im Repo ist nichts zu ändern.
 ## Deploy pausieren und gesammelt nachholen
 
 Landen viele PRs kurz nacheinander auf `main`, deployt sonst jeder Merge
-einzeln (je 5–6 Minuten, Bot-Neustart inklusive). Die Repository-Variable
+einzeln (je etwa eine Minute, Bot-Neustart inklusive). Die Repository-Variable
 `DEPLOY_PAUSED` schaltet den Deploy-Job ab, Lint, Tests und Client-Build
 laufen weiter:
 
@@ -106,6 +107,170 @@ Majors, höchstens drei offene PRs je Ökosystem. Majors von `typescript` und
 `vite` im Client schlägt Dependabot gar nicht vor — die brauchen eine bewusste
 Migration und werden von Hand gemacht.
 
+## Ablauf eines Deploys
+
+Der Server hat 1 vCPU und 921 MB RAM. Bis Oktober 2026 hat `deploy.sh` bei
+**jedem** Merge alles gemacht: `npm ci --omit=dev`, im Client `npm ci` und
+`npm run build` (`tsc -b` allein ~500 MB), Slash-Commands registrieren,
+`pm2 update`, `pm2 restart`. Ein Deploy dauerte so **9–12 Minuten**, in denen der
+Server massiv swappte (vmstat: 20–30 MB/s, 0 % idle) und der Bot kaum antwortete.
+Jetzt wird der Client in GitHub Actions gebaut und auf dem Server läuft nur,
+was sich seit dem letzten Deploy geändert hat — im Normalfall (nur Code
+geändert) bleiben `git reset`, Build austauschen, `pm2 restart` und der
+Health-Check: **etwa eine Minute**, ohne nennenswerten Speicherbedarf.
+
+### In GitHub Actions (`ci.yml`)
+
+1. Job **„Web client“** lintet, testet und baut wie bisher; auf `main` (Push
+   oder manueller Lauf, nicht bei PRs) lädt er `src/web-client/dist/` als
+   Artefakt `web-client-dist` hoch (7 Tage aufbewahrt). Der Build braucht
+   **nichts** aus der `.env` des Servers: der Client liest keine
+   `VITE_*`-Variablen, `vite.config.ts` nutzt `WEB_PORT` nur für den
+   Dev-Server-Proxy, und `import.meta.env.DEV` ist im Build immer `false`.
+2. Job **„Deploy to Production“** lädt genau dieses Artefakt aus demselben Lauf
+   — also vom selben Commit (`DEPLOY_SHA` = `github.sha`, auch beim manuellen
+   Lauf) — und kopiert es per `tar` über SSH nach
+   `$DEPLOY_DIR/.deploy/dist-<sha>` (erst unter `.part`, erst vollständig wird
+   umbenannt; rsync braucht es auf keiner Seite).
+3. Dann holt er per SSH `deploy.sh` **aus dem zu deployenden Commit**
+   (`git show <sha>:deploy.sh`) und startet es mit `DEPLOY_SHA` und
+   `PREBUILT_DIST`. Eine Änderung am Skript wirkt so schon beim Deploy, der sie
+   bringt, nicht erst beim nächsten.
+
+### Auf dem Server (`deploy.sh`)
+
+1. Sperre `.deploy/lock` (`flock`): ein Deploy von Hand und einer aus CI
+   warten aufeinander. Liegengebliebenes aus `.deploy/` (älter als eine Stunde)
+   wird weggeräumt.
+2. `git fetch`, dann `git reset --hard` auf **`DEPLOY_SHA`** (ohne: auf
+   `origin/main`). Ist schon ein neuerer Commit live, der `DEPLOY_SHA` enthält
+   (`DEPLOYED_COMMIT` in der Statusdatei), endet der Deploy sofort mit „nothing
+   to do“ — ein spät drangekommener Lauf setzt nie einen älteren Stand zurück.
+3. Node über nvm: eine **installierte** Version der `.nvmrc`-Linie wird nur
+   aktiviert (`nvm use`). Früher lief bei jedem Deploy `nvm install`, das im
+   Internet nach der neuesten 22.x fragt und jede neue Patch-Version installiert
+   (daher v22.23.1/.2/.3 auf dem Server). Eine neuere Patch-Version holt man
+   jetzt bewusst mit `DEPLOY_FORCE=node`.
+4. `npm ci --omit=dev` nur, wenn sich `package-lock.json` oder die Node-ABI
+   (`process.versions.modules`, ändert sich mit der Major-Version) geändert hat
+   oder `node_modules` fehlt — mit `nice -n 19 ionice -c3`.
+5. Web-Client: der Build aus CI (`PREBUILT_DIST`). Fehlt er (Deploy von Hand),
+   baut `deploy.sh` wie früher selbst — mit `nice`/`ionice`, in ein eigenes
+   Verzeichnis und mit einer Warnung im Log, dass das den Server lange
+   belastet.
+6. Pflicht-Variablen in `.env` prüfen (unverändert).
+7. Slash-Commands nur registrieren, wenn sich die Registrierung geändert hat:
+   `node scripts/register-commands.js --print-hash` liefert einen sha256 über
+   die `data` aller Befehle (genau so gesammelt wie beim Registrieren, Schlüssel
+   sortiert, `scripts/lib/commandsHash.js`), die `CLIENT_ID` und die
+   Ziel-Server. Ein neuer Talk-Server in den Einstellungen zählt also auch als
+   Änderung. Schlägt das Registrieren fehl, wird der Hash nicht gemerkt und der
+   nächste Deploy versucht es wieder.
+8. `pm2 update` nur, wenn sich `node --version` gegenüber dem letzten Deploy
+   geändert hat. Das Verhalten bei einem Versionswechsel bleibt: der
+   PM2-Daemon läuft mit der Node-Version weiter, mit der er gestartet wurde,
+   und nur `pm2 update` bringt eine neue Version wirklich zum Bot. Bei
+   unverändertem Node spart es einen zweiten Neustart.
+9. Build einsetzen: der neue `dist/` wird neben dem alten als `dist.next`
+   zusammengestellt (inklusive der behaltenen Assets, siehe unten) und dann per
+   zwei `mv` umgeschaltet — ein Request sieht nie einen halb kopierten `dist/`.
+   Das passiert direkt vor dem Neustart, damit der alte Prozess die neue
+   `index.html` nur Sekunden lang ausliefert.
+10. `pm2 restart` und Health-Check wie bisher; erst danach wird
+    `DEPLOYED_COMMIT` gemerkt. Die letzte Zeile nennt die Dauer
+    (`Deployment complete. (48 s)`).
+
+Beim Einsetzen des Builds behält es die gehashten Dateien des vorherigen
+Builds (#530): der Inhalt von `dist/assets/` wird mit `cp -an` in den neuen
+Build gelegt (eine Datei, die der neue Build selbst geschrieben hat, wird nie
+überschrieben; `index.html` bleibt immer die neue). Ein Tab, der vor dem
+Deploy geöffnet wurde, lädt so seine alten Chunks weiter. Dateien älter als
+`ASSET_KEEP_DAYS` (14 Tage) löscht `find -mtime` wieder. Fehlt ein Chunk
+trotzdem, antwortet der Server mit 404 und die Seite lädt sich einmal neu
+(docs/web-admin.md, „Nach einem Deploy“). Keiner dieser Schritte kann den
+Deploy scheitern lassen (`|| true`).
+
+### Die Statusdatei `.deploy/state`
+
+Liegt im Checkout (`$DEPLOY_DIR/.deploy/`, git-ignoriert, auch aus dem
+Docker-Kontext), Zeilen `KEY=value`, nach jedem gelungenen Schritt atomar
+geschrieben:
+
+| Schlüssel | Inhalt | steuert |
+|---|---|---|
+| `DEPS` | sha256 von `package-lock.json` + `-abi<NODE_MODULE_VERSION>` | `npm ci --omit=dev` |
+| `COMMANDS` | Hash der Command-Registrierung | `register-commands.js` |
+| `NODE` | `node --version`, mit dem der PM2-Daemon zuletzt neu gestartet wurde | `pm2 update` |
+| `DEPLOYED_COMMIT` | Commit, der zuletzt den Health-Check bestanden hat | „schon neuer live“ |
+
+Fehlt die Datei (oder ein Schlüssel), wird der Schritt einfach ausgeführt.
+Löschen der Datei ist also immer sicher und erzwingt beim nächsten Deploy alles
+einmal. Daneben liegen `lock` und kurzzeitig die Staging-Verzeichnisse
+`dist-<sha>` und `build-<sha>` sowie `deploy-<sha>.sh`.
+
+### Schritte erzwingen
+
+`DEPLOY_FORCE` (Komma-Liste) oder `--force` (= `all`):
+
+| Wert | erzwingt |
+|---|---|
+| `install` | `npm ci --omit=dev` im Root |
+| `register` | Slash-Commands registrieren |
+| `pm2` | `pm2 update` |
+| `node` | `nvm install` (neueste Patch-Version der `.nvmrc`-Linie) |
+| `build` | Client auf dem Server bauen, auch wenn ein CI-Build da ist |
+| `all` | alles oben |
+
+Auf dem Server:
+
+```bash
+DEPLOY_FORCE=register,pm2 ./deploy.sh main
+./deploy.sh main --force
+```
+
+Aus GitHub (Auswahl `none`, `all`, `install`, `register`, `pm2`, `node`, `build`;
+in der Oberfläche unter Actions → CI → Run workflow):
+
+```bash
+gh workflow run ci.yml --ref main -f force=register --repo mst1987/pulsebot
+```
+
+Commands lassen sich weiterhin jederzeit direkt neu registrieren
+(`npm run register` auf dem Server) — der nächste Deploy registriert dann
+eventuell einmal überflüssig, das schadet nicht.
+
+### Mehrere Merges kurz hintereinander
+
+Der Deploy-Job hat `concurrency: deploy-production` mit
+`cancel-in-progress: false`: ein **laufender** Deploy wird nie abgebrochen.
+GitHub hält pro Gruppe höchstens **einen** wartenden Lauf; kommt ein neuerer
+dazu, wird der bisher wartende verworfen (im Actions-Tab „cancelled“). Das ist
+gewollt: der neuere Commit enthält den älteren. Weil jeder Lauf seinen eigenen
+Commit deployt (den, aus dem sein Client gebaut wurde), bleibt ein Lauf, der
+erst nach einem neueren drankommt (z. B. weil seine Tests länger brauchten),
+wirkungslos (Schritt 2). Für viele Merges am Stück bleibt `DEPLOY_PAUSED`
+der bessere Weg.
+
+### Der erste Deploy nach der Umstellung
+
+- Es gibt noch keine `.deploy/state`: `npm ci --omit=dev`, Command-Registrierung
+  und `pm2 update` laufen einmal (ca. 1–3 Minuten statt 9–12, der Client-Build
+  auf dem Server entfällt schon).
+- `deploy.sh` kommt schon aus dem neuen Commit (Workflow-Schritt holt es per
+  `git show`), das alte Skript auf dem Server läuft nicht mehr.
+- Ab dem zweiten Deploy wird nur noch neu gestartet, solange sich Lockfile,
+  Commands und Node nicht ändern.
+
+### Aufräumen auf dem Server (von Hand, optional)
+
+- `src/web-client/node_modules` braucht der Server nicht mehr, solange der
+  Client aus CI kommt. `deploy.sh` löscht es nicht (der Fallback-Build würde es
+  wieder anlegen); wer Platz sparen will: `rm -rf src/web-client/node_modules`.
+- Alte Node-Versionen von nvm: `nvm ls` zeigt sie, `nvm current` die aktive;
+  jede andere 22.x lässt sich mit `nvm uninstall v22.23.1` entfernen. Die
+  aktive Version (`NODE` in `.deploy/state`) nie entfernen — mit ihr laufen
+  PM2-Daemon und Bot.
+
 ## Von Hand deployen
 
 Auf dem Server, als der Benutzer, dem der Checkout gehört:
@@ -115,21 +280,12 @@ cd /var/www/pulsebot      # oder das eigene DEPLOY_DIR
 ./deploy.sh main
 ```
 
-Das Skript holt `origin`, setzt hart auf `origin/main`, schreibt den neuen
-Commit ins Log (`[deploy] Now at a1b2c3d …`), aktiviert die Node-Version aus
-`.nvmrc` über nvm, installiert Abhängigkeiten, baut den Web-Client, prüft die
-Pflicht-Variablen in `.env`, registriert die Slash-Commands und startet den
-Prozess über pm2 neu.
-
-Beim Bauen des Web-Clients behält es die gehashten Dateien des vorherigen
-Builds (#530): `src/web-client/dist/assets/` wird vor dem Build in ein
-Temp-Verzeichnis kopiert und danach mit `cp -an` zurückgelegt (eine Datei, die
-der neue Build selbst geschrieben hat, wird nie überschrieben; `index.html`
-bleibt immer die neue). Ein Tab, der vor dem Deploy geöffnet wurde, lädt so
-seine alten Chunks weiter. Dateien älter als `ASSET_KEEP_DAYS` (14 Tage) löscht
-`find -mtime` wieder. Fehlt ein Chunk trotzdem, antwortet der Server mit 404
-und die Seite lädt sich einmal neu (docs/web-admin.md, „Nach einem Deploy“).
-Keiner dieser Schritte kann den Deploy scheitern lassen (`|| true`).
+Ohne CI gibt es keinen fertigen Build: das Skript baut den Client dann selbst
+(„WARNING: no prebuilt web client …“), mit niedrigster CPU- und I/O-Priorität
+— das dauert auf dem Server mehrere Minuten und lässt ihn swappen. Wenn es
+nicht eilt, ist ein manueller Lauf in GitHub besser
+(`gh workflow run ci.yml --ref main`). Alles andere läuft wie oben
+beschrieben, ohne `DEPLOY_SHA` auf `origin/main`.
 
 Zum Schluss fragt es selbst `GET /health` ab (`curl -fsS`, bis zu 20 Versuche
 im Abstand von 3 s, Port aus `WEB_PORT` in `.env`, sonst 3005). Antwortet der
