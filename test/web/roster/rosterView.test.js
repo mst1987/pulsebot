@@ -138,10 +138,15 @@ describe("buildRosterDetail", () => {
             spec: "Warrior-Protection", specId: "Protection", specLabel: "Schutz", specIcon: "ability_warrior_defensivestance", iconUrl: "", role: "tank",
         }]);
         expect(anna.attendance.present.map((n) => n.eventId)).toEqual(["e2", "e1"]);
+        // #677: every night with its status code; the grid's columns and who may edit them
+        expect(anna.attendance.present[0]).toMatchObject({ status: "present" });
+        expect(anna.attendance.present[0]).not.toHaveProperty("attended");
+        expect(view.nights.map((n) => n.eventId)).toEqual(["e2", "e1"]);
+        expect(view.canEditAttendance).toBe(true);
 
         const bert = view.members.find((m) => m.userId === BERT);
         expect(bert).toMatchObject({ status: "trial", role: "healer", hasRole: false, attendance: { attended: 1, total: 2, pct: 50 } });
-        expect(bert.attendance.missed[0]).toMatchObject({ eventId: "e1", reason: "abgemeldet" });
+        expect(bert.attendance.missed[0]).toMatchObject({ eventId: "e1", status: "absence", reason: "abgemeldet" });
 
         const carl = view.members.find((m) => m.userId === CARL);
         expect(carl.chars[0]).toMatchObject({ name: "Shadowfang", className: "Rogue", specLabel: "Combat", specIcon: "", role: "dps" });
@@ -154,6 +159,7 @@ describe("buildRosterDetail", () => {
     it("sorts the members by name and says who may manage", async () => {
         const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
         expect(view.canManage).toBe(false);
+        expect(view.canEditAttendance).toBe(false);
         expect(view.members.map((m) => m.displayName)).toEqual(["200000000000000004", "Anna Discord", "Bert", "Carl"].sort((a, b) => a.localeCompare(b)));
     });
 
@@ -217,6 +223,7 @@ describe("buildRosterDetail", () => {
         rosterStore.upsertMember(r.id, ANNA, { chars: ["Thorgrim"] });
         const view = await buildRosterDetail({ guildId: G, id: r.id, user: ADMIN, config: CONFIG });
         expect(view.window).toBeNull();
+        expect(view).toMatchObject({ nights: [], canEditAttendance: false });
         expect(view.roster).toMatchObject({ categoryId: null, categoryName: "", contents: [], raids: 0 });
         expect(view.members[0].attendance).toBeNull();
     });

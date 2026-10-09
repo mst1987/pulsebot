@@ -211,7 +211,10 @@ function nightOf(r) {
         eventId: r.eventId,
         title: r.title || "",
         attended: !!r.attended,
+        // the attendance code (#677: present, bench, vacation, absence, noSignup, noShow) - the page words it
+        status: r.status || (r.attended ? "present" : "noShow"),
         reason: r.attended ? null : (r.reason || null),
+        ...(r.override ? { override: r.override } : {}),
     };
 }
 

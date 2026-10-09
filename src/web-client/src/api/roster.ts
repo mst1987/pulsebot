@@ -89,8 +89,23 @@ export type RosterChar = {
 
 export type RosterRole = "tank" | "healer" | "dps" | "";
 
-/** startTime: unix seconds, like every other event startTime — multiply by 1000 before formatting. */
-export type RosterNight = { eventId: string; title: string; startTime: number; attended: boolean; reason: string };
+/**
+ * How one raid night went (#677, services/characters/rosterAttendance.js): "present" and "bench" count for the
+ * quota, the four others are missed. The server sends the code; the client words it (lib/roster/attendanceStatus.ts).
+ */
+export type AttendanceStatus = "present" | "bench" | "vacation" | "absence" | "noSignup" | "noShow";
+
+/** A night the orga set by hand (attendanceOverridesStore): the status, the free-text reason, who and when (ms). */
+export type AttendanceOverride = { status: AttendanceStatus; reason: string; by: string; byName: string; at: number };
+
+/**
+ * startTime: unix seconds, like every other event startTime — multiply by 1000 before formatting. `detail` says why
+ * ("inLog", "signed", "benchSetup", "notInLog", "override" …), `reason` the same in the server's German words (the bot's).
+ */
+export type RosterNight = {
+    eventId: string; title: string; startTime: number; attended: boolean; reason: string;
+    status?: AttendanceStatus; detail?: string; override?: AttendanceOverride;
+};
 
 export type RosterAttendance = {
     attended: number;
@@ -98,7 +113,7 @@ export type RosterAttendance = {
     /** null when no night could be counted. */
     pct: number | null;
     missed: Omit<RosterNight, "attended">[];
-    /** The attended nights, newest first — the roster's answer (its tooltip lists them under "Dabei"). */
+    /** The nights that count (status present or bench), newest first — the roster's answer (its tooltip lists them under "Dabei" and "Bench"). */
     present?: Omit<RosterNight, "attended" | "reason">[];
     /** Night by night — only in the character page's answer. */
     raids?: RosterNight[];
@@ -289,6 +304,10 @@ export type RosterDetail = {
     members: RosterMember[];
     /** The category's attendance window (raids); null without category. */
     window: number | null;
+    /** The counted nights of the category, newest first — the attendance tab's columns (#677). */
+    nights?: { eventId: string; title: string; startTime: number }[];
+    /** The caller may set a night by hand (roster managers, admins, raids write). */
+    canEditAttendance?: boolean;
     membersKnown: boolean;
     canManage: boolean;
     isAdmin: boolean;
@@ -316,4 +335,14 @@ export function getRosters(): Promise<RosterOverview> {
 /** One roster with its members. */
 export function getRosterDetail(id: string): Promise<RosterDetail> {
     return get<RosterDetail>(`/api/rosters/roster?id=${encodeURIComponent(id)}`);
+}
+
+/**
+ * Set one raid night of one Discord account by hand (#677, POST /api/attendance/override); `status: null` = back to
+ * automatic. A refusal arrives as { code } (not_manager, invalid_status, reason_too_long, not_found).
+ */
+export function setAttendanceOverride(input: { eventId: string; userId: string; status: AttendanceStatus | null; reason?: string }): Promise<{
+    eventId: string; userId: string; override: AttendanceOverride | null;
+}> {
+    return send("POST", "/api/attendance/override", input);
 }

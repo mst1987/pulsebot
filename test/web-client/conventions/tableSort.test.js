@@ -45,7 +45,11 @@ function clientSources() {
 //     "Beine, Brust, Füße" and mean nothing.
 //   * "Item" — the corner of the Loot-Vergleich matrix, same reason: its rows
 //     are grouped by raid and run in character-sheet order inside each.
-const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Wer", "Slot", "Item"]);
+//   * "Mitglied · Quote" — the corner of the roster's attendance grid (#677):
+//     the rows run in the members tab's status groups (core, trial, bench,
+//     pause), the columns are the raid nights in time order; it is a matrix
+//     to read across, not a list to rank.
+const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Wer", "Slot", "Item", "Mitglied · Quote"]);
 
 describe("table sorting", () => {
     it("reads a translated header by its German text", () => {

@@ -145,19 +145,11 @@
         },
         "noLoot": "No loot",
         "ofRaids": "{attended} of {total} raids",
-        "present": "Attended",
         "raidCount": {
             "one": "{count} raid",
             "other": "{count} raids"
         },
-        "source": "{category} · from signups and logs",
-        "reason": {
-            "notInLog": "Not in the log",
-            "noSignup": "No signup",
-            "absence": "Signed off",
-            "tentative": "Tentative",
-            "bench": "Bench"
-        }
+        "source": "{category} · from signups and logs"
     },
     "slot": {
         "HEAD": "Head",
@@ -319,6 +311,7 @@
         "noAttendance": "No raid counted",
         "noAttendanceSub": "Without a category or a character there is no attendance",
         "tabComposition": "Composition",
+        "tabAttendance": "Attendance",
         "tabSync": "Sync with Discord",
         "tabHistory": "History",
         "open": {
@@ -377,7 +370,6 @@
             "other": "last {count} raids"
         },
         "attended": "present in {attended} of {total} raids",
-        "missed": "Not present",
         "note": "Officers' note",
         "noteHint": "only officers see it",
         "notePlaceholder": "For example: can switch to healer if needed",

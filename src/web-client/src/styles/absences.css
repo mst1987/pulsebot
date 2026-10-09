@@ -245,8 +245,10 @@ button.ab-tl-raider:focus-visible { outline: 2px solid var(--accent); outline-of
 .ab-att-list li:last-child { border-bottom: 0; }
 .ab-att-date { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ab-att-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ab-att-verdict { color: var(--muted); white-space: nowrap; }
-.ab-att-out .ab-att-verdict { color: var(--ab-away); font-weight: 600; }
+.ab-att-verdict { color: var(--muted); text-align: right; max-width: 22em; }
+/* #677: a missed night's verdict in its status colour (--att from [data-att], shared.css) */
+.ab-att-out .ab-att-verdict { color: var(--att, var(--ab-away)); font-weight: 600; }
+.ab-att .ab-hist-cell { display: inline-flex; }
 .ab-att-next h4 { margin: 0 0 4px; font-size: 11px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .ab-att-next .ab-att-list li { grid-template-columns: 10em minmax(0, 1fr) auto; }
 .ab-att-pill { text-decoration: none; }

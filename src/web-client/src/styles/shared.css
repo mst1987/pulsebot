@@ -640,3 +640,56 @@ nav.menu::-webkit-scrollbar { display: none; }
 .hr-row img { width: 18px; height: 18px; border-radius: 3px; flex: 0 0 auto; }
 .hr-list { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; max-width: 440px; }
 .hr-chip { display: flex; justify-content: space-between; align-items: center; cursor: default; }
+
+/* ===== attendance per night (#677, lib/roster/attendanceStatus.ts) =====
+   [data-att="<status>"] hands its colour on as --att; .att-sq is the one status field the roster's
+   attendance grid, the member drawer and "Meine Anwesenheit" share: the nights that count
+   (present, bench) filled, the missed ones as a ring on a tint - so the status never rests on hue
+   alone - with the status letter inside and a corner dot when the orga set it by hand. */
+[data-att="present"] { --att: var(--att-present); }
+[data-att="bench"] { --att: var(--att-bench); }
+[data-att="vacation"] { --att: var(--att-vacation); }
+[data-att="absence"] { --att: var(--att-absence); }
+[data-att="noSignup"] { --att: var(--att-nosignup); }
+[data-att="noShow"] { --att: var(--att-noshow); }
+.att-sq {
+    position: relative; display: inline-grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; padding: 0;
+    border-radius: 5px; border: 2px solid var(--att, var(--line)); background: color-mix(in srgb, var(--att, var(--line)) 16%, transparent);
+    color: var(--att, var(--muted)); font: 800 11px/1 var(--font-mono); user-select: none;
+}
+.att-sq.is-in { background: var(--att); color: var(--att-ink); }
+.att-sq.is-none { border-style: dashed; border-color: var(--line); background: transparent; color: var(--muted); }
+.att-sq.is-manual::after {
+    content: ""; position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text); box-shadow: 0 0 0 2px var(--panel);
+}
+button.att-sq { cursor: pointer; transition: transform .1s; }
+button.att-sq:hover { transform: scale(1.12); }
+button.att-sq:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.att-sq.is-sm { width: 16px; height: 16px; flex-basis: 16px; border-radius: 4px; font-size: 0; }
+.att-sq.is-sm.is-manual::after { top: -3px; right: -3px; width: 6px; height: 6px; }
+/* the edit menu of a night (components/roster/AttendanceCell.tsx): the six statuses with their meaning, a reason, save or automatic */
+.att-menu {
+    /* left/top from the field (AttendanceCell.tsx): portalled into <body>, above the member drawer */
+    position: fixed; z-index: 90; width: min(340px, calc(100vw - 24px)); max-height: calc(100vh - 16px); overflow-y: auto;
+    padding: 12px; display: flex; flex-direction: column; gap: 10px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 18px 40px -12px var(--shade-55);
+}
+.att-menu-head { display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: var(--muted); }
+.att-menu-head b { font-size: 14px; color: var(--text); }
+.att-menu-now { color: var(--text); }
+.att-menu-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.att-menu-opt {
+    display: flex; align-items: center; gap: 8px; padding: 6px 8px; text-align: left; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--panel2); color: var(--text); font: inherit;
+}
+.att-menu-opt:hover { border-color: var(--att); }
+.att-menu-opt.is-on { border-color: var(--att); box-shadow: inset 0 0 0 1px var(--att); background: color-mix(in srgb, var(--att) 12%, var(--panel2)); }
+.att-menu-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.att-menu-lbl { display: flex; flex-direction: column; gap: 2px; font-size: 13px; font-weight: 700; line-height: 1.25; }
+.att-menu-hint { margin: -2px 0 0; padding-left: 8px; border-left: 3px solid var(--att); font-size: 12px; line-height: 1.35; color: var(--muted); }
+.att-menu-reason { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.att-menu-reason input { min-height: var(--ctl-h); padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); color: var(--text); font: inherit; font-size: 13px; }
+.att-menu-reason input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.att-menu-foot { display: flex; justify-content: space-between; gap: 8px; }
+@media (max-width: 420px) { .att-menu-opts { grid-template-columns: 1fr; } }

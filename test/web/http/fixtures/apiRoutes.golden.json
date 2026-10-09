@@ -99,6 +99,7 @@
   "PATCH /api/raidplan/templates",
   "PATCH /api/raids",
   "PATCH /api/settings",
+  "POST /api/attendance/override",
   "POST /api/availability",
   "POST /api/availability/panel",
   "POST /api/availability/preview",

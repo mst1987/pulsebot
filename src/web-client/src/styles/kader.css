@@ -526,8 +526,9 @@ dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
 .kp-attblock { display: flex; flex-direction: column; gap: 6px; }
 .kp-nights { display: flex; flex-wrap: wrap; gap: 3px; }
 .kp-nights i { width: 14px; height: 14px; border-radius: 3px; background: var(--line); }
-.kp-nights i.on { background: var(--accent-2); }
-.kp-nights i.off { background: var(--high-bg); border: 1px solid var(--high); }
+/* #677: the night's status colour (--att from [data-att], shared.css) - counted ones filled, missed ones a ring */
+.kp-nights i.on { background: var(--att, var(--accent-2)); }
+.kp-nights i.off { background: color-mix(in srgb, var(--att, var(--high)) 16%, transparent); border: 2px solid var(--att, var(--high)); }
 .kp-facts { display: grid; gap: 6px; margin: 0; font-size: 13px; }
 .kp-facts div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 8px; }
 .kp-facts dt { color: var(--muted); }

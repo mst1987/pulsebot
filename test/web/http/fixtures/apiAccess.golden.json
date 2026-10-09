@@ -217,6 +217,10 @@
     "/api/availability/attendance": "signup",
     "/api/availability/overview": "roster",
     "/api/availability/overview/raider": "roster",
+    "/api/attendance/override": [
+      "roster",
+      "raids"
+    ],
     "/api/availability/preview": "signup",
     "/api/availability/panels": "settings",
     "/api/availability/panel": "settings",

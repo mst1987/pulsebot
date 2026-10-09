@@ -9,17 +9,24 @@
 //   * the logs assigned to those events (logStore.js) and the evaluation each
 //     one produced (reportStore.js), whose roster says who actually stood there.
 //
-// How one raid night counts for one character (the issue's open question,
-// answered as "both, the log first"):
-//   - in the log of that night                      -> attended
-//   - the night has a log, the character is not in it -> missed, "nicht im Log"
-//     (an absence signup still says "abgemeldet": the reason is worth more than
-//     the fact that the log confirms it)
-//   - no log, signed up (or late)                   -> attended ("angemeldet")
-//   - no log, signed off / bench / tentative        -> missed with that reason
-//   - no log, no signup from the raider             -> missed, "keine Anmeldung"
-//   - no log and no raider assigned to the character -> not counted at all:
+// How one raid night counts (#677): one status code per night, the first rule
+// that applies wins:
+//   - the orga set the night by hand (attendanceOverridesStore) -> that status
+//   - in the log of that night                              -> "present"
+//   - on the bench: in the setup's explicit bench, or signed
+//     up as bench                                           -> "bench" (counts as present)
+//   - no log, signed up (or late)                           -> "present"
+//   - an absence entry (availabilityStore) covers the raid  -> "vacation" (excused, still missed)
+//   - signed off for this raid                              -> "absence"
+//   - the night has a log, signed/late/tentative, not in it -> "noShow"
+//   - no log, tentative                                     -> "noShow"
+//   - no signup and not in the log                          -> "noSignup"
+//   - no log and no raider assigned to the character        -> not counted at all:
 //     without a Discord account behind the name there is nothing to compare.
+// "present" and "bench" count for the quota (`attended`), the other four are
+// missed. Each night also carries a `detail` code (why: inLog, signed, late,
+// benchSetup, notInLog, ...) and `reason`, the same in German words - kept for
+// the bot's /anwesenheit lines, which read it as they always did.
 // The window is the category's last RAID_WINDOW nights that carry any evidence
 // (a signup or a log), not a calendar span: a raid that runs every week and one
 // that runs every other week both get "the last 11 raids".
@@ -34,6 +41,12 @@ const { characterKeyOf } = require("../../utils/loot/lootImport");
 const { contentsForText, content: contentMeta } = require("../../config/tbcContent");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { knownVersion } = require("../events/mainVersion");
+const { DateTime } = require("luxon");
+const { TIMEZONE } = require("../../config/timezone");
+const eventStore = require("../../stores/eventStore");
+const availabilityStore = require("../../stores/availabilityStore");
+const overridesStore = require("../../stores/attendanceOverridesStore");
+const { benchAndPool } = require("../setup/setupCore");
 
 /** How many raid nights of a category attendance looks back over. */
 const RAID_WINDOW = 11;
@@ -42,11 +55,90 @@ const RAID_WINDOW = 11;
 // recently, without walking years of report files on every page view.
 const MAX_REPORTS = 40;
 
-const SIGNUP_REASONS = {
+/** The status codes of a night, in the order the tooltip lists them. */
+const STATUSES = ["present", "bench", "noSignup", "absence", "vacation", "noShow"];
+/** The statuses that count for the quota. */
+const ATTENDED = new Set(["present", "bench"]);
+
+/** The German words of the detail codes (`reason`, read by the bot's /anwesenheit). */
+const DETAIL_WORDS = {
+    inLog: "im Log",
+    inLogClass: "im Log (Klasse passt)",
+    signed: "angemeldet",
+    late: "angemeldet (später)",
+    benchSetup: "Ersatzbank (Setup)",
+    benchSignup: "Ersatzbank",
+    vacation: "Urlaub",
     absence: "abgemeldet",
-    bench: "Ersatzbank",
+    notInLog: "nicht im Log",
+    noSignup: "keine Anmeldung",
     tentative: "vorläufig",
 };
+const STATUS_WORDS = {
+    present: "dabei", bench: "Ersatzbank", vacation: "Urlaub", absence: "abgemeldet", noSignup: "nicht angemeldet", noShow: "nicht erschienen",
+};
+
+/** One night's verdict from a status and the detail that explains it. */
+function verdict(status, detail) {
+    return { attended: ATTENDED.has(status), status, detail, reason: DETAIL_WORDS[detail] || STATUS_WORDS[status] || "" };
+}
+
+/** A night the orga set by hand: the status, `detail` "override" and the override itself. */
+function overrideVerdict(entry) {
+    return {
+        attended: ATTENDED.has(entry.status),
+        status: entry.status,
+        detail: "override",
+        reason: `${STATUS_WORDS[entry.status] || entry.status} (von Hand)`,
+        override: { status: entry.status, reason: entry.reason || "", by: entry.by || "", byName: entry.byName || "", at: entry.at || 0 },
+    };
+}
+
+/** "yyyy-MM-dd" of a raid's start in server time (an absence entry's days are server days). */
+function serverDay(seconds) {
+    return DateTime.fromSeconds(Number(seconds) || 0, { zone: TIMEZONE }).toFormat("yyyy-MM-dd");
+}
+
+/** The accounts an absence entry (availabilityStore) covers this raid for: its day in the period, its category, not deselected. */
+function vacationIds(entries, ev) {
+    const day = serverDay(ev.startTime);
+    const out = new Set();
+    for (const e of entries) {
+        if (day < e.from || day > e.to) continue;
+        if (e.categoryId && String(ev.categoryId) !== e.categoryId) continue;
+        if ((e.skip || []).includes(String(ev.id))) continue;
+        out.add(String(e.userId));
+    }
+    return out;
+}
+
+/**
+ * Who stood on the bench of an own event's setup: the approved lineup's bench
+ * (the frozen snapshot holds only the explicit bench), else the draft's explicit
+ * bench (#517: the pool "Angemeldet" is no bench) - minus anybody placed in a group.
+ */
+function setupBenchIds(setup) {
+    if (!setup || typeof setup !== "object") return new Set();
+    const snapshot = setup.approved && Array.isArray(setup.approved.groups) ? setup.approved : null;
+    const lineup = snapshot || setup;
+    const placed = new Set();
+    for (const part of [lineup, ...(Array.isArray(lineup.events) ? lineup.events : [])]) {
+        for (const g of Array.isArray(part && part.groups) ? part.groups : []) {
+            for (const slot of Array.isArray(g && g.slots) ? g.slots : []) if (slot && slot.userId) placed.add(String(slot.userId));
+        }
+    }
+    const bench = snapshot ? (Array.isArray(snapshot.bench) ? snapshot.bench : []) : benchAndPool(setup).bench;
+    return new Set(bench.filter((b) => b && b.userId && !placed.has(String(b.userId))).map((b) => String(b.userId)));
+}
+
+/** fn(), or `fallback` when it throws: the extra sources (setups, absences, overrides) are best-effort. */
+function attempt(fn, fallback) {
+    try {
+        return fn();
+    } catch {
+        return fallback;
+    }
+}
 
 // The raid a category mostly runs, as the icon of its final boss. Names checked
 // against the zamimg CDN (the Archimonde icon only exists with its trailing "-").
@@ -141,6 +233,13 @@ function buildAttendanceContext(guildId, opts = {}) {
         reportsByEvent.set(String(log.eventId), list);
     }
 
+    // #677: the setups of own events (who stood on the bench), the absence entries (vacation) and the orga's overrides
+    const setupById = new Map(attempt(() => eventStore.listEvents(guildId), [])
+        .filter((e) => e && e.id && e.setup)
+        .map((e) => [String(e.id), e.setup]));
+    const absences = attempt(() => availabilityStore.listEntries(), []).filter((e) => e && e.kind === "absence" && e.userId);
+    const overrides = attempt(() => overridesStore.listOverrides(), {});
+
     // category id -> its past raid nights with evidence, newest first
     const raidsByCategory = new Map();
     for (const ev of listStoredEvents(guildId)) {
@@ -150,7 +249,12 @@ function buildAttendanceContext(guildId, opts = {}) {
         const signUps = Array.isArray(ev.signUps) ? ev.signUps : [];
         if (!logs.length && !signUps.length) continue;
         const list = raidsByCategory.get(ev.categoryId) || [];
-        list.push({ id: String(ev.id), title: ev.title || "", startTime: ev.startTime, signUps, logs });
+        list.push({
+            id: String(ev.id), title: ev.title || "", startTime: ev.startTime, signUps, logs,
+            bench: setupBenchIds(setupById.get(String(ev.id))),
+            vacation: vacationIds(absences, ev),
+            overrides: overrides[String(ev.id)] || {},
+        });
         raidsByCategory.set(ev.categoryId, list);
     }
     // every night, newest first, for callers that pick their own kind of raid (attendanceForAccounts' `comparable`)
@@ -172,26 +276,56 @@ function buildAttendanceContext(guildId, opts = {}) {
     return { raidsByCategory, allRaidsByCategory, roleByKey };
 }
 
-/** How one night went for one character — see the header for the rules. */
+/**
+ * How one night went for one character of these accounts — see the header for
+ * the rules. `{ attended, status, detail, reason, override? }`, or null when the
+ * night does not count for it.
+ */
 function nightStatus(raid, key, userIds) {
-    const signUp = [...raid.signUps].reverse().find((s) => s && userIds.includes(String(s.userId)));
+    const ids = (userIds || []).map(String);
+    const overrides = raid.overrides || {};
+    const manual = ids.map((id) => overrides[id]).find(Boolean);
+    if (manual) return overrideVerdict(manual);
+    const signUp = [...(raid.signUps || [])].reverse().find((s) => s && ids.includes(String(s.userId)));
     const status = signUp ? String(signUp.status || "signed") : "";
-    if (raid.logs.length) {
-        if (raid.logs.some((r) => r.keys.has(key))) return { attended: true, reason: "im Log" };
-        return { attended: false, reason: SIGNUP_REASONS[status] || "nicht im Log" };
-    }
-    if (!userIds.length) return null;
-    if (!signUp) return { attended: false, reason: "keine Anmeldung" };
-    if (status === "signed" || status === "late") return { attended: true, reason: status === "late" ? "angemeldet (später)" : "angemeldet" };
-    return { attended: false, reason: SIGNUP_REASONS[status] || "abgemeldet" };
+    const logged = (raid.logs || []).length > 0;
+    if (logged && raid.logs.some((r) => r.keys.has(key))) return verdict("present", "inLog");
+    if (!logged && !ids.length) return null;
+    if (ids.some((id) => raid.bench && raid.bench.has(id))) return verdict("bench", "benchSetup");
+    if (status === "bench") return verdict("bench", "benchSignup");
+    if (!logged && (status === "signed" || status === "late")) return verdict("present", status);
+    if (ids.some((id) => raid.vacation && raid.vacation.has(id))) return verdict("vacation", "vacation");
+    if (status === "absence") return verdict("absence", "absence");
+    if (status === "tentative") return verdict("noShow", "tentative");
+    if (logged) return verdict(signUp ? "noShow" : "noSignup", "notInLog");
+    // a status nobody knows (an old Raid-Helper word) says at least "not coming"
+    if (signUp) return verdict("absence", "absence");
+    return verdict("noSignup", "noSignup");
+}
+
+/** A night as the views carry it: the raid's id, title and start with the verdict. */
+function nightEntry(raid, st) {
+    return {
+        eventId: raid.id, title: raid.title, startTime: raid.startTime,
+        attended: st.attended, status: st.status, detail: st.detail, reason: st.reason,
+        ...(st.override ? { override: st.override } : {}),
+    };
+}
+
+/** The missed nights of a night list, without `attended`. */
+function missedOf(raids) {
+    return raids.filter((r) => !r.attended).map(({ attended: _a, ...rest }) => rest);
 }
 
 /**
  * Attendance of one character in one category.
  *
+ * `userIds`: the raiders the character belongs to (their signups, bench places,
+ * absences and overrides count for it).
+ *
  * @returns {{attended: number, total: number, pct: number|null,
- *            raids: {eventId, title, startTime, attended, reason}[],
- *            missed: {eventId, title, startTime, reason}[]}}
+ *            raids: {eventId, title, startTime, attended, status, detail, reason, override?}[],
+ *            missed: {eventId, title, startTime, status, detail, reason, override?}[]}}
  */
 function attendanceFor(ctx, categoryId, character, userIds = []) {
     const key = characterKeyOf(character);
@@ -200,7 +334,7 @@ function attendanceFor(ctx, categoryId, character, userIds = []) {
     for (const raid of ctx.raidsByCategory.get(categoryId) || []) {
         const st = nightStatus(raid, key, ids);
         if (!st) continue;
-        raids.push({ eventId: raid.id, title: raid.title, startTime: raid.startTime, attended: st.attended, reason: st.reason });
+        raids.push(nightEntry(raid, st));
     }
     const attended = raids.filter((r) => r.attended).length;
     return {
@@ -208,7 +342,7 @@ function attendanceFor(ctx, categoryId, character, userIds = []) {
         total: raids.length,
         pct: raids.length ? Math.round((attended / raids.length) * 100) : null,
         raids,
-        missed: raids.filter((r) => !r.attended).map(({ eventId, title, startTime, reason }) => ({ eventId, title, startTime, reason })),
+        missed: missedOf(raids),
     };
 }
 
@@ -245,15 +379,16 @@ function countedNights(ctx, categoryId, opts) {
  *
  * @param {{ comparable?: (raid: {id, title, startTime, signUps, logs}) => boolean, nights?: boolean, window?: number }} [opts]
  * @returns {Map<string, {attended: number, total: number, pct: number|null, link: "manual"|"auto",
- *            inferred: number, missed: {eventId, title, startTime, reason}[],
- *            raids?: {eventId, title, startTime, attended, reason}[]}>}
+ *            inferred: number, missed: {eventId, title, startTime, status, detail, reason, override?}[],
+ *            raids?: {eventId, title, startTime, attended, status, detail, reason, override?}[]}>}
  */
 function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
     const list = (accounts || []).filter((a) => a && a.userId && (a.chars || []).length);
     const claimed = new Set(list.flatMap((a) => a.chars.map((c) => characterKeyOf(c.name))));
     const acc = new Map(list.map((a) => [String(a.userId), { raids: [], inferred: 0 }]));
     const classOf = (a) => String((a.chars.find((c) => c.className) || {}).className || "").toLowerCase();
-    const notInLog = (r) => r && !r.attended && r.reason === "nicht im Log";
+    // only an automatic "not in the log" may be explained by a class match - never a sign-off, a bench place or the orga's word
+    const notInLog = (r) => r && !r.attended && r.detail === "notInLog";
     for (const raid of countedNights(ctx, categoryId, opts)) {
         const results = new Map();
         for (const a of list) {
@@ -274,12 +409,12 @@ function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
         for (const a of list) {
             const cls = classOf(a);
             if (notInLog(results.get(String(a.userId))) && cls && pool[cls] && pool[cls].size >= missing[cls]) {
-                results.set(String(a.userId), { attended: true, reason: "im Log (Klasse passt)", inferred: true });
+                results.set(String(a.userId), { ...verdict("present", "inLogClass"), inferred: true });
             }
         }
         for (const [id, r] of results) {
             const entry = acc.get(id);
-            entry.raids.push({ eventId: raid.id, title: raid.title, startTime: raid.startTime, attended: r.attended, reason: r.reason });
+            entry.raids.push(nightEntry(raid, r));
             if (r.inferred) entry.inferred += 1;
         }
     }
@@ -293,7 +428,7 @@ function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
             pct: raids.length ? Math.round((attended / raids.length) * 100) : null,
             link: a.chars.some((c) => c.manual) && !inferred ? "manual" : "auto",
             inferred,
-            missed: raids.filter((r) => !r.attended).map(({ eventId, title, startTime, reason }) => ({ eventId, title, startTime, reason })),
+            missed: missedOf(raids),
             ...(opts.nights ? { raids } : {}),
         });
     }
@@ -327,7 +462,16 @@ function roleFor(ctx, character, className, spec) {
     return ctx.roleByKey[characterKeyOf(character)] || roleFromSpec(className, spec);
 }
 
+/**
+ * The nights attendanceForAccounts counts for a category with these options
+ * (`window`, `comparable`), newest first, as `{ eventId, title, startTime }` -
+ * the columns of the roster's attendance grid.
+ */
+function categoryNights(ctx, categoryId, opts = {}) {
+    return countedNights(ctx, categoryId, opts).map((r) => ({ eventId: r.id, title: r.title, startTime: r.startTime }));
+}
+
 module.exports = {
-    buildAttendanceContext, attendanceFor, attendanceForAccounts, categoryInfo, roleFor, roleFromSpec,
-    RAID_WINDOW, CONTENT_ICONS,
+    buildAttendanceContext, attendanceFor, attendanceForAccounts, categoryInfo, categoryNights, nightStatus, roleFor, roleFromSpec,
+    RAID_WINDOW, CONTENT_ICONS, STATUSES,
 };

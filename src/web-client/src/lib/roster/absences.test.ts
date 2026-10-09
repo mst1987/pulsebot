@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { AbsenceRaid, AbsenceRaider } from "../../api";
 import {
     addDays, barLabel, barPlace, categoryTone, currentAbsence, dayIndex, dayWidth, displayName, isoWeek, namesOf,
-    entryDays, entryState, nightsInOrder, playsLine, raidDays, reasonText, signedShare, timelineWeeks, upcomingRaids, visibleRaiders,
+    entryDays, entryState, nightsInOrder, playsLine, raidDays, signedShare, timelineWeeks, upcomingRaids, visibleRaiders,
 } from "./absences";
 
 const raider = (userId: string, over: Partial<AbsenceRaider> = {}): AbsenceRaider => ({
@@ -108,13 +108,6 @@ describe("raid cards", () => {
 });
 
 describe("Meine Anwesenheit", () => {
-    it("says the server's verdict in the menu's language, an unknown one as sent", () => {
-        expect(reasonText("im Log")).toBe("im Log");
-        expect(reasonText("angemeldet (später)")).toBe("angemeldet (später)");
-        expect(reasonText("vorläufig")).toBe("vorläufig");
-        expect(reasonText("etwas Neues")).toBe("etwas Neues");
-    });
-
     it("puts the newest raid last", () => {
         const r = (eventId: string, startTime: number) => ({ eventId, title: "", startTime, attended: true, reason: "" });
         expect(nightsInOrder([r("b", 20), r("a", 10), r("c", 30)]).map((x) => x.eventId)).toEqual(["a", "b", "c"]);

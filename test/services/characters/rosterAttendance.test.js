@@ -76,8 +76,9 @@ describe("services/characters/rosterAttendance", () => {
         const a = attendanceFor(ctx, "cat1", "Anna");
 
         expect(a).toMatchObject({ attended: 1, total: 2, pct: 50 });
-        expect(a.missed).toEqual([{ eventId: "e2", title: "Raid e2", startTime: NOW - 14 * DAY, reason: "nicht im Log" }]);
+        expect(a.missed).toEqual([{ eventId: "e2", title: "Raid e2", startTime: NOW - 14 * DAY, status: "noSignup", detail: "notInLog", reason: "nicht im Log" }]);
         expect(a.raids.map((r) => r.attended)).toEqual([true, false]);
+        expect(a.raids[0]).toMatchObject({ status: "present", detail: "inLog" });
     });
 
     it("falls back to the Raid-Helper signups of the assigned raider when a night has no log", () => {
@@ -92,9 +93,14 @@ describe("services/characters/rosterAttendance", () => {
 
         const a = attendanceFor(ctx, "cat1", "Anna", ["u1"]);
 
-        expect(a).toMatchObject({ attended: 2, total: 5, pct: 40 });
-        expect(a.missed.map((m) => [m.eventId, m.reason])).toEqual([
-            ["e2", "abgemeldet"], ["e3", "keine Anmeldung"], ["e4", "Ersatzbank"],
+        // #677: the bench night counts as attended (it was 2 of 5 before)
+        expect(a).toMatchObject({ attended: 3, total: 5, pct: 60 });
+        expect(a.missed.map((m) => [m.eventId, m.status, m.reason])).toEqual([
+            ["e2", "absence", "abgemeldet"], ["e3", "noSignup", "keine Anmeldung"],
+        ]);
+        expect(a.raids.map((r) => [r.eventId, r.status, r.detail])).toEqual([
+            ["e1", "present", "signed"], ["e2", "absence", "absence"], ["e3", "noSignup", "noSignup"],
+            ["e4", "bench", "benchSignup"], ["e5", "present", "late"],
         ]);
     });
 
@@ -259,7 +265,7 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
         ]);
         // u2 was not seen by name, but an unclaimed mage stood in the first night's log; the second night has none
         expect(out.get("u2")).toMatchObject({ attended: 1, total: 2, pct: 50, inferred: 1, link: "auto" });
-        expect(out.get("u2").missed).toEqual([{ eventId: "e2", title: "Raid e2", startTime: NOW - 14 * DAY, reason: "nicht im Log" }]);
+        expect(out.get("u2").missed).toEqual([{ eventId: "e2", title: "Raid e2", startTime: NOW - 14 * DAY, status: "noSignup", detail: "notInLog", reason: "nicht im Log" }]);
         expect(out.get("u1")).toMatchObject({ pct: 100, inferred: 0, link: "manual" });
     });
 
@@ -286,6 +292,165 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
         const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Anna", "Priest", true)]), acc("u2", [])]);
         expect(out.get("u1")).toMatchObject({ total: 0, pct: null });
         expect(out.has("u2")).toBe(false);
+    });
+});
+
+describe("services/characters/rosterAttendance — Status je Abend und Overrides (#677)", () => {
+    const { tempStoreFile, removeTempStores } = require("../../helpers/tempStore");
+    const availabilityStore = require("../../../src/stores/availabilityStore");
+    const overridesStore = require("../../../src/stores/attendanceOverridesStore");
+    const { nightStatus } = require("../../../src/services/characters/rosterAttendance");
+    const { DateTime } = require("luxon");
+    const S = Math.floor(NOW / 1000);
+    // events in unix seconds, as the stores keep them
+    const ev = (id, daysAgo, over = {}) => ({ id, guildId: "g1", categoryId: "cat1", title: `Raid ${id}`, startTime: S - daysAgo * 86400, signUps: [], ...over });
+    const day = (daysAgo) => DateTime.fromSeconds(S - daysAgo * 86400, { zone: "Europe/Berlin" }).toFormat("yyyy-MM-dd");
+    const own = (id, daysAgo, setup) => ({
+        id, source: "eventhelper", guildId: "g1", categoryId: "cat1", categoryName: "Raids", channelId: "c", channelName: "c",
+        title: `EH ${id}`, startTime: S - daysAgo * 86400, versionId: "tbc", instanceIds: [], size: 25, setup,
+    });
+
+    beforeAll(() => {
+        availabilityStore.useFile(tempStoreFile("availability.json"));
+        overridesStore.useFile(tempStoreFile("attendance-overrides.json"));
+    });
+    afterAll(() => {
+        availabilityStore.useFile(null);
+        overridesStore.useFile(null);
+        removeTempStores();
+    });
+    beforeEach(() => {
+        jest.clearAllMocks();
+        withReports([]);
+        mockListRaidEvents.mockReturnValue([]);
+        mockListOwnEvents.mockReturnValue([]);
+        mockListSignups.mockReturnValue([]);
+        for (const e of availabilityStore.listEntries()) availabilityStore.removeEntry(e.id);
+        for (const [eventId, users] of Object.entries(overridesStore.listOverrides())) {
+            for (const userId of Object.keys(users)) overridesStore.clearOverride(eventId, userId);
+        }
+    });
+
+    it("gives every night one of the six statuses: Dabei, Bench, Urlaub, Abgemeldet, Nicht angemeldet, Nicht erschienen", () => {
+        mockListRaidEvents.mockReturnValue([
+            ev("present", 7),
+            ev("benchSignup", 14, { signUps: [{ userId: "u1", status: "bench" }] }),
+            ev("vacation", 21, { signUps: [{ userId: "u1", status: "absence" }] }),
+            ev("absence", 28, { signUps: [{ userId: "u1", status: "absence" }] }),
+            ev("noSignup", 35),
+            ev("noShow", 42, { signUps: [{ userId: "u1", status: "signed" }] }),
+            ev("tentative", 49, { signUps: [{ userId: "u1", status: "tentative" }] }),
+        ]);
+        withReports([
+            { id: "r1", eventId: "present", names: ["Anna"] },
+            { id: "r2", eventId: "benchSignup", names: ["Bob"] },
+            { id: "r5", eventId: "noSignup", names: ["Bob"] },
+            { id: "r6", eventId: "noShow", names: ["Bob"] },
+        ]);
+        availabilityStore.addEntry({ userId: "u1", kind: "absence", from: day(22), to: day(20), categoryId: "" });
+
+        const a = attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]);
+
+        expect(a.raids.map((r) => [r.eventId, r.status, r.attended])).toEqual([
+            ["present", "present", true],
+            ["benchSignup", "bench", true],
+            ["vacation", "vacation", false],
+            ["absence", "absence", false],
+            ["noSignup", "noSignup", false],
+            ["noShow", "noShow", false],
+            ["tentative", "noShow", false],
+        ]);
+        expect(a).toMatchObject({ attended: 2, total: 7, pct: 29 });
+        expect(a.raids.find((r) => r.eventId === "vacation").reason).toBe("Urlaub");
+    });
+
+    it("tells Urlaub from Abgemeldet only by an absence entry of the raider that covers the raid's category and day", () => {
+        mockListRaidEvents.mockReturnValue([
+            ev("a", 7, { signUps: [{ userId: "u1", status: "absence" }] }),
+            ev("b", 14, { categoryId: "cat1", signUps: [{ userId: "u1", status: "absence" }] }),
+        ]);
+        availabilityStore.addEntry({ userId: "u2", kind: "absence", from: day(8), to: day(6), categoryId: "" });
+        availabilityStore.addEntry({ userId: "u1", kind: "absence", from: day(15), to: day(13), categoryId: "otherCat" });
+        const a = attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]);
+        expect(a.raids.map((r) => r.status)).toEqual(["absence", "absence"]);
+
+        const skipped = availabilityStore.addEntry({ userId: "u1", kind: "absence", from: day(8), to: day(6), categoryId: "cat1", skip: ["a"] });
+        expect(attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]).raids[0].status).toBe("absence");
+        availabilityStore.removeEntry(skipped.entry.id);
+        availabilityStore.addEntry({ userId: "u1", kind: "absence", from: day(8), to: day(6), categoryId: "cat1" });
+        expect(attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]).raids[0].status).toBe("vacation");
+    });
+
+    it("counts the setup's explicit bench as Bench — the approved lineup first, the pool never", () => {
+        mockListOwnEvents.mockReturnValue([
+            own("eh-draft", 7, { groups: [], bench: [{ userId: "u1" }], pool: [{ userId: "u2" }] }),
+            own("eh-approved", 14, { groups: [{ index: 1, slots: [{ userId: "u1" }] }], bench: [], pool: [], approved: { groups: [], bench: [{ userId: "u1" }] } }),
+            own("eh-placed", 21, { groups: [{ index: 1, slots: [{ userId: "u1" }] }], bench: [{ userId: "u1" }], pool: [] }),
+        ]);
+        mockListSignups.mockReturnValue([{ userId: "u1", status: "absence" }, { userId: "u2", status: "absence" }]);
+        const ctx = buildAttendanceContext("g1", { now: NOW });
+
+        expect(attendanceFor(ctx, "cat1", "Anna", ["u1"]).raids.map((r) => [r.eventId, r.status, r.detail])).toEqual([
+            ["eh-draft", "bench", "benchSetup"],
+            ["eh-approved", "bench", "benchSetup"],
+            ["eh-placed", "absence", "absence"],
+        ]);
+        // the pool ("Angemeldet") is no bench
+        expect(attendanceFor(ctx, "cat1", "Zed", ["u2"]).raids[0].status).toBe("absence");
+    });
+
+    it("counts a bench night as present for the quota of an account", () => {
+        mockListRaidEvents.mockReturnValue([
+            ev("e1", 7, { signUps: [{ userId: "u1", status: "bench" }] }),
+            ev("e2", 14),
+        ]);
+        withReports([{ id: "r1", eventId: "e1", names: ["Bob"] }, { id: "r2", eventId: "e2", names: ["Anna"] }]);
+        const out = attendanceForAccounts(buildAttendanceContext("g1", { now: NOW }), "cat1", [{ userId: "u1", chars: [{ name: "Anna", className: "Mage", manual: true }] }], { nights: true });
+        expect(out.get("u1")).toMatchObject({ attended: 2, total: 2, pct: 100, missed: [] });
+        expect(out.get("u1").raids.map((r) => r.status)).toEqual(["bench", "present"]);
+    });
+
+    it("lets the orga's override win over the automatic verdict, and 'Automatisch' brings the automatic one back", () => {
+        mockListRaidEvents.mockReturnValue([ev("e1", 7, { signUps: [{ userId: "u1", status: "absence" }] })]);
+        withReports([{ id: "r1", eventId: "e1", names: ["Bob"] }]);
+        overridesStore.setOverride("e1", "u1", { status: "bench", reason: "hat gewartet", by: "m1", byName: "Marc" }, { now: 5 });
+
+        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const one = attendanceFor(ctx, "cat1", "Anna", ["u1"]);
+        expect(one).toMatchObject({ attended: 1, total: 1 });
+        expect(one.raids[0]).toMatchObject({
+            status: "bench", detail: "override", attended: true,
+            override: { status: "bench", reason: "hat gewartet", by: "m1", byName: "Marc", at: 5 },
+        });
+        const acc = attendanceForAccounts(ctx, "cat1", [{ userId: "u1", chars: [{ name: "Anna", className: "Mage" }] }]).get("u1");
+        expect(acc).toMatchObject({ attended: 1, total: 1, pct: 100 });
+
+        // an override may also say "missed" where the log says present
+        overridesStore.setOverride("e1", "u2", { status: "noShow" });
+        expect(attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Bob", ["u2"]).raids[0]).toMatchObject({ status: "noShow", attended: false });
+
+        overridesStore.clearOverride("e1", "u1");
+        const back = attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]);
+        expect(back.raids[0]).toMatchObject({ status: "absence", detail: "absence", attended: false });
+        expect(back.raids[0]).not.toHaveProperty("override");
+    });
+
+    it("never explains an overridden night by a class match", () => {
+        mockListRaidEvents.mockReturnValue([ev("e1", 7)]);
+        withReports([{ id: "r1", eventId: "e1", names: ["Stranger"], classes: { Stranger: "Mage" } }]);
+        overridesStore.setOverride("e1", "u1", { status: "noSignup" });
+        const out = attendanceForAccounts(buildAttendanceContext("g1", { now: NOW }), "cat1", [{ userId: "u1", chars: [{ name: "Mage1", className: "Mage" }] }]);
+        expect(out.get("u1")).toMatchObject({ attended: 0, inferred: 0 });
+    });
+
+    it("decides a single night without the stores (nightStatus)", () => {
+        const raid = { id: "x", logs: [], signUps: [{ userId: "u1", status: "late" }], bench: new Set(), vacation: new Set(), overrides: {} };
+        expect(nightStatus(raid, "anna", ["u1"])).toMatchObject({ status: "present", detail: "late", attended: true });
+        expect(nightStatus(raid, "anna", [])).toBeNull();
+        expect(nightStatus({ ...raid, signUps: [] }, "anna", ["u1"])).toMatchObject({ status: "noSignup", attended: false });
+        expect(nightStatus({ ...raid, signUps: [{ userId: "u1", status: "weird" }] }, "anna", ["u1"])).toMatchObject({ status: "absence" });
+        // old raid objects without the #677 fields still work
+        expect(nightStatus({ id: "y", logs: [], signUps: [{ userId: "u1", status: "signed" }] }, "anna", ["u1"])).toMatchObject({ status: "present" });
     });
 });
 

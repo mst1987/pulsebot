@@ -302,9 +302,9 @@ describe("deleteEntry / activeEntries", () => {
         expect(availability.activeEntries(ANNA, { now: NOW })).toEqual([]);
     });
 
-    it("räumt beim Eintragen Einträge weg, die über 30 Tage vorbei sind", async () => {
-        const old = store.addEntry({ userId: ANNA, kind: "absence", from: dayPlus(-60), to: dayPlus(-40) }).entry;
-        const recent = store.addEntry({ userId: ANNA, kind: "absence", from: dayPlus(-12), to: dayPlus(-10) }).entry;
+    it("räumt beim Eintragen Einträge weg, die über 120 Tage vorbei sind (#677: die Anwesenheit liest sie als Urlaub)", async () => {
+        const old = store.addEntry({ userId: ANNA, kind: "absence", from: dayPlus(-160), to: dayPlus(-140) }).entry;
+        const recent = store.addEntry({ userId: ANNA, kind: "absence", from: dayPlus(-62), to: dayPlus(-60) }).entry;
         await availability.createEntry(ANNA, { kind: "absence", from: today, to: today }, { now: NOW, dm: false });
         const left = store.listEntries({ userId: ANNA }).map((e) => e.id);
         expect(left).not.toContain(old.id);

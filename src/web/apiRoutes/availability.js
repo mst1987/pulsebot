@@ -31,6 +31,7 @@ const linkCheck = require("../../services/discord/linkCheck");
 const discord = require("../../services/discord/discord");
 const absenceOverview = require("../../services/signups/absenceOverview");
 const { raiderAttendance } = require("../availability/raiderAttendance");
+const { canEditAnyAttendance } = require("../../services/characters/attendanceAccess");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const isOrga = (user) => userCanAny(user, ["raids"], "write");
@@ -229,6 +230,7 @@ const getOverviewRaider = withUser({}, async ({ user, query, res }) => {
 /**
  * GET /api/availability/attendance[?userId=] — "Meine Anwesenheit": per raid category the quota and the
  * verdict of every counted raid, plus the coming raids with the own status. Somebody else's only for the orga.
+ * `canEdit`: the caller may set a night by hand (POST /api/attendance/override; admin or raids write, #677).
  */
 const getAttendance = withUser({}, async ({ user, query, res }) => {
     const target = targetOf(user, query.get("userId"));
@@ -237,7 +239,7 @@ const getAttendance = withUser({}, async ({ user, query, res }) => {
     const view = raiderAttendance(target.userId, { config, categoryNames: categoryNamesOf(config), eventUrl: (e) => linkCheck.eventLink(e) });
     const profile = profiles.getProfile(target.userId);
     const named = await namerFor([target.userId], config);
-    ok(res, { ...named({ ...view, name: profile.name || "" }), own: target.userId === str(user.id), orga: isOrga(user) });
+    ok(res, { ...named({ ...view, name: profile.name || "" }), own: target.userId === str(user.id), orga: isOrga(user), canEdit: canEditAnyAttendance(user) });
 });
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
