@@ -60,11 +60,6 @@ export function boardToScreen(v: BoardView, bx: number, by: number, left: number
     return { x: left + (v.ox + bx * v.z) * w, y: top + (v.oy + by * v.z) * h };
 }
 
-/** The board point (fractions 0..1) under a screen point: the inverse of boardToScreen. */
-export function screenToBoard(v: BoardView, x: number, y: number, left: number, top: number, w: number, h: number): { bx: number; by: number } {
-    return { bx: ((x - left) / w - v.ox) / v.z, by: ((y - top) / h - v.oy) / v.z };
-}
-
 /** A saved default view of a board: the zoom and the board point (fractions 0..1) in the middle of the frame. */
 export type SavedView = { zoom: number; cx: number; cy: number };
 

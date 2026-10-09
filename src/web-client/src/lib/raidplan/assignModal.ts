@@ -11,8 +11,6 @@ import type { RaidplanAssignment, RaidplanPlayer, RaidplanSlot } from "../../api
 
 /** The three slots of the assignment bar: who does it, at whom / what, and the task (text and spell). */
 export const BAR_SLOTS = ["who", "at", "task"];
-/** Every category of the navigation, in its order. */
-export const CATEGORY_ORDER = ["people", "classes", "roles", "groups", "marks", "mobs", "spells", "text"];
 /** The filter tabs of the people list. */
 export const PEOPLE_TABS = ["all", "tank", "healer", "dps"];
 /** The roles a class can play in TBC (the spec role of the setup; classes with one role have none to pick). */
@@ -30,10 +28,6 @@ export function categoriesFor(slot: string, type: string, hasMobs: boolean, hasS
     return hasMobs ? out : out.filter((c) => c !== "mobs");
 }
 
-/** The category a slot opens with (its first). */
-export function firstCategory(slot: string, type: string, hasMobs: boolean, hasSpells: boolean): string {
-    return categoriesFor(slot, type, hasMobs, hasSpells)[0];
-}
 
 /** Which group of the people list a slot kind or a spec role belongs to: tank, healer, or dps (melee, ranged, dps). */
 export function peopleGroupOf(kindOrRole: string): string {

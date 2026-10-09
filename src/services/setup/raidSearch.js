@@ -51,8 +51,6 @@ const classNameOf = (spec, lang) => classLabel(lang, { label: spec.classLabel, l
 
 /** "Schamane (Verstärkung)" / "Shaman (Enhancement)". */
 const specName = (spec, lang = "de") => `${classNameOf(spec, lang)} (${specLabel(lang, spec, spec.id)})`;
-/** "Shaman (Enhancement)". */
-const specNameEn = (spec) => specName(spec, "en");
 
 /** The app emoji of a name plus a space, or "" while it is not uploaded (the text reads fine without it). */
 const icon = (name) => {
@@ -213,4 +211,4 @@ async function postSearch({ guildId, eventId, userId = "", byName = "", text = "
     return { message: "Suche im Kanal gepostet.", url: posted && posted.url };
 }
 
-module.exports = { suggestSearch, textForNeeds, postSearch, specNameEn, MAX_TEXT };
+module.exports = { suggestSearch, textForNeeds, postSearch, MAX_TEXT };

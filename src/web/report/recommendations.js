@@ -72,13 +72,6 @@ function recItem(item, scope, player, reviewer, opts = {}) {
     </details>`;
 }
 
-/** The raid's findings: every finding with verdict controls for a reviewer, the approved ones for everyone else. */
-function renderRaidRecommendations(rec, reviewer) {
-    const raid = reviewer ? (rec.raid || []) : (rec.raid || []).filter((i) => i.approved === true);
-    if (!raid.length) return "<div class=\"rlist rec-list\"><div class=\"rec-empty\">Nichts, was den ganzen Raid gekostet hätte.</div></div>";
-    return `<div class="rlist rec-list">${raid.map((i) => recItem(i, "raid", "", reviewer)).join("")}</div>`;
-}
-
 const KEY_SHOWN = 5;
 
 const IMPACT_RANK = { high: 0, medium: 1, low: 2 };
@@ -144,5 +137,5 @@ function renderSendBox(report) {
 }
 
 module.exports = {
-    IMPACT_LABEL, canReview, IMPACT_TONE, recItem, renderRaidRecommendations, renderKeyFindings, renderSendBox,
+    IMPACT_LABEL, canReview, IMPACT_TONE, recItem, renderKeyFindings, renderSendBox,
 };

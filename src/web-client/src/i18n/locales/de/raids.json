@@ -2,7 +2,6 @@
     "page": {
         "noCategory": "Ohne Kategorie",
         "viewAria": "Ansicht",
-        "versionAria": "Spielversion",
         "upcoming": "Kommend",
         "past": "Vergangen",
         "loadError": "Fehler beim Laden der Raid-Events: {message}",
@@ -16,13 +15,11 @@
         "title": "Raid-Events",
         "info": "Alle Events des gewählten Servers aus Raid-Helper, kommende und vergangene. Anmelde-Aufruf, Raidsheet, Logs und Loot findest du im Event selbst.",
         "series": "Serien",
-        "planTemplates": "Raidplan-Vorlagen",
         "raidTemplates": "Raid-Vorlagen",
         "notifyTemplates": "Aufruf-Vorlagen",
         "newEvent": "Neues Event",
         "categoryAria": "Kategorie",
-        "all": "Alle",
-        "planCatalog": "Raidplan-Katalog"
+        "all": "Alle"
     },
     "list": {
         "openEvent": "Event öffnen",

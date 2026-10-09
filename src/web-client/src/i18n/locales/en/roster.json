@@ -9,8 +9,6 @@
         "title": "All characters",
         "infoTip": "All characters per raid category",
         "infoSub": "Who plays which character in which raid is assigned under Settings → Categories; on top of that every raid in which a character got loot counts.\nAttendance from Raid-Helper signups and assigned logs, gear state from the latest evaluation.",
-        "versionAria": "Game version",
-        "versionAllTip": "Characters of every game version – attendance then counts every raid.",
         "listAria": "List",
         "tabActive": "Roster ({count})",
         "tabActiveTip": "Who currently counts",

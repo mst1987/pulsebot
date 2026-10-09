@@ -25,12 +25,6 @@ export function statusOf(entry: KaderEntry): InterviewStatus {
     return entry.interview.startedAt ? "started" : "open";
 }
 
-/** Whether "Gespräch abschließen" is possible: a wish and every required answer. */
-export function canComplete(entry: KaderEntry, questions: KaderQuestion[]): boolean {
-    const p = progress(entry, questions);
-    return p.done === p.total;
-}
-
 /** The labels an answer stands for, in option order; a text answer as it is. */
 export function answerLabels(q: KaderQuestion, value: KaderAnswer | undefined): string[] {
     if (!isAnswered(q, value)) return [];

@@ -167,11 +167,6 @@ export function setGroupScale(board: RaidplanBoard, slotId: string, patch: { gro
     return updateSlot(board, slotId, next);
 }
 
-/** Scales the given groups by a factor, each relative to its own scale (a group keeps its proportion to the others). */
-export function scaleGroups(board: RaidplanBoard, slotIds: string[], factor: number): RaidplanBoard {
-    return { ...board, slots: board.slots.map((s) => (s.kind === "group" && !s.lock && slotIds.indexOf(s.id) >= 0 ? { ...s, groupScale: clampFactor(groupScales(s).gs * factor) } : s)) };
-}
-
 /** Gives every group the same scale. */
 export function setAllGroupScale(board: RaidplanBoard, value: number): RaidplanBoard {
     return { ...board, slots: board.slots.map((s) => (s.kind === "group" && !s.lock ? { ...s, groupScale: clampFactor(value) } : s)) };

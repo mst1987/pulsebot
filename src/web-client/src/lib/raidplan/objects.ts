@@ -84,15 +84,6 @@ export function addSlot(board: RaidplanBoard, kind: RaidplanSlotKind, label: str
     return { ...board, slots: [...board.slots, slot] };
 }
 
-export function addMark(board: RaidplanBoard, mark: RaidplanMarkName): RaidplanBoard {
-    return insertObject(board, { type: "mark", mark }, null).board;
-}
-
-/** Adds a zone of a type in that type's preset colour. */
-export function addZone(board: RaidplanBoard, type: RaidplanZoneType, shape: "rect" | "ellipse"): RaidplanBoard {
-    return insertObject(board, { type: "zone", zoneType: type, shape }, null).board;
-}
-
 // ---- changing ----------------------------------------------------------------------------------
 
 export function patchIn<T>(list: T[], isTarget: (o: T) => boolean, patch: object): T[] {

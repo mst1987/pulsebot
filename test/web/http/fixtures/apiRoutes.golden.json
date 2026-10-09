@@ -85,7 +85,6 @@
   "GET /api/settings/role-sync",
   "GET /api/settings/talk-overview",
   "GET /api/signups",
-  "GET /api/signups/event",
   "GET /api/version",
   "PATCH /api/channels",
   "PATCH /api/raid-templates",

@@ -223,11 +223,6 @@ function listLinked(limit = 10) {
     return out;
 }
 
-/** How many sessions are waiting — for the badge in the nav. */
-function pendingCount() {
-    return readState().pending.length;
-}
-
 module.exports = {
-    listPending, getPending, upsertPending, resolvePending, resolutionFor, pendingCount, noteAppended, listLinked,
+    listPending, getPending, upsertPending, resolvePending, resolutionFor, noteAppended, listLinked,
 };

@@ -127,16 +127,6 @@ describe("stores/calendarTokenStore", () => {
             expect(store.revokeToken("nope", BROKK)).toBe(false);
             expect(store.listTokensFor(BROKK)).toHaveLength(1);
         });
-
-        it("revokeAllFor takes only that raider's links", () => {
-            store.createToken(BROKK);
-            store.createToken(BROKK);
-            store.createToken(ZIBBO);
-            expect(store.revokeAllFor(BROKK)).toBe(2);
-            expect(store.listTokensFor(BROKK)).toEqual([]);
-            expect(store.listTokensFor(ZIBBO)).toHaveLength(1);
-            expect(store.revokeAllFor("")).toBe(0);
-        });
     });
 
     describe("listTokensFor", () => {

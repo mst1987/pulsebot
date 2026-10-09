@@ -37,7 +37,7 @@ function oldApply(templateBosses) {
         const tb = templateBosses[s.key] || {};
         if (s.general) { if (templateBosses[s.key]) out[s.key] = clean(board.reidBoard(tb)); continue; }
         const sec = inherit.sectionOf(s, CATALOG, tb.mobs);
-        const copies = inherit.inheritedRows(DEFAULTS, tb.inheritOff, sec).map((r) => ({ ...r, _key: r.id, id: board.newId(5), origin: "default", suggested: false }));
+        const copies = DEFAULTS.filter((r) => !(tb.inheritOff || []).includes(r.id)).map((r) => inherit.resolveRow(r, sec)).map((r) => ({ ...r, _key: r.id, id: board.newId(5), origin: "default", suggested: false }));
         out[s.key] = clean(board.reidBoard({ ...tb, assignments: [...copies, ...(tb.assignments || [])], tokens: [], inheritOff: [] }));
     }
     return out;

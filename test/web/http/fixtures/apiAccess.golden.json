@@ -46,7 +46,6 @@
     "/api/profile/user": "roster",
     "/api/signups": "signup",
     "/api/signups/bulk": "signup",
-    "/api/signups/event": "raids",
     "/api/lootcouncil": "lootcouncil",
     "/api/lootcouncil/sim": "lootcouncil",
     "/api/lootcouncil/views": "lootcouncil",

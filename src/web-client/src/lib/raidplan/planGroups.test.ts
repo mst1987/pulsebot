@@ -55,7 +55,6 @@ describe("which raiders the plan picks from (twin of the server)", () => {
         ]);
         // a setup with a 6th group offers it too; no bench, no bench chip
         expect(pg.groupChoices([P("x", 6, "Mage", "ranged")], 5).map((c) => c.key)).toEqual([1, 2, 3, 4, 5, 6]);
-        expect(pg.groupNumbers([1, 3, "bench"])).toEqual([1, 3]);
     });
 });
 

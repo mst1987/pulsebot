@@ -190,15 +190,6 @@ describe("setup editor moves (client)", () => {
         expect(original.groups).toHaveLength(5);
     });
 
-    it("splits the bench into group-sized cards, with a fresh empty one once the last is full", () => {
-        const make = (n) => Array.from({ length: n }, (_, i) => person(`b${i}`, "Priest-Holy", "healer"));
-        expect(lib.benchChunks(make(0)).map((c) => c.length)).toEqual([0]);
-        expect(lib.benchChunks(make(3)).map((c) => c.length)).toEqual([3]);
-        expect(lib.benchChunks(make(5)).map((c) => c.length)).toEqual([5, 0]);
-        expect(lib.benchChunks(make(7)).map((c) => c.length)).toEqual([5, 2]);
-        expect(lib.benchChunks(make(10)).map((c) => c.length)).toEqual([5, 5, 0]);
-    });
-
     it("lists every group of the raid, empty ones included", () => {
         expect(lib.withAllGroups(s.groups, 5).map((g) => [g.index, g.slots.length])).toEqual([[1, 5], [2, 1], [3, 0], [4, 0], [5, 0]]);
     });

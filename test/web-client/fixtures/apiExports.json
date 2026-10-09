@@ -387,7 +387,6 @@
     "getDiscordServers",
     "getEvalStatus",
     "getEventSeries",
-    "getEventSignups",
     "getGameVersions",
     "getHistoryChar",
     "getHistoryData",

@@ -140,13 +140,6 @@ const ARMORY_TIP = "Armory öffnen";
 
 const ARMORY_SUB = "Der Charakter, wie er jetzt aussieht. Der Report zeigt die Ausrüstung aus dem Log dieses Abends.";
 
-/** The armory as an icon button, for a card head. */
-function armoryButton(character) {
-    const url = armoryUrlFor(character);
-    if (!url) return "";
-    return `<a class="ibtn" href="${esc(url)}" target="_blank" rel="noopener" data-tip="${esc(ARMORY_TIP)}" data-tip-sub="${esc(ARMORY_SUB)}" aria-label="${esc(ARMORY_TIP)}">${hicon("inv_shirt_guildtabard_01", "")}</a>`;
-}
-
 /** The armory as a labelled link, for a page head. */
 function armoryLink(character, cls) {
     const url = armoryUrlFor(character);
@@ -377,5 +370,5 @@ const avgOf = (list, pick) => ((list || []).length ? Math.round(sumOf(list, pick
 
 module.exports = {
     wowheadItemLink, reportLinks,
-    iconUrl, classIconUrl, classCell, playerCard, pctCell, expBtn, tile, badge, LINE, ibtn, armoryButton, armoryLink, dlgClose, groupHead, detailDialog, whoList, whatList, metricCard, barCell, healBar, HEAL_BAR_HOW, barPct, yesNo, hicon, colHead, ICON_BY_NAME, iconTile, iconRow, classColorOf, pctTone, classIconName, fmtK, fmtSecs, toneCell, naCell, kpi, num, sumOf, avgOf,
+    iconUrl, classIconUrl, classCell, playerCard, pctCell, expBtn, tile, badge, LINE, ibtn, armoryLink, dlgClose, groupHead, detailDialog, whoList, whatList, metricCard, barCell, healBar, HEAL_BAR_HOW, barPct, yesNo, hicon, colHead, ICON_BY_NAME, iconTile, iconRow, classColorOf, pctTone, classIconName, fmtK, fmtSecs, toneCell, naCell, kpi, num, sumOf, avgOf,
 };

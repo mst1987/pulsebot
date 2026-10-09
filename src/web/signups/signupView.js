@@ -161,7 +161,7 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
 }
 
 /**
- * All signups of an own event for the orga (raid detail, `GET /api/signups/event`):
+ * All signups of an own event for the orga (the raid detail's `ownSignups`):
  * the stored signup plus the Discord name, class and spec label — comment and
  * "kann auch" included, sorted by role and then by when they signed up.
  */

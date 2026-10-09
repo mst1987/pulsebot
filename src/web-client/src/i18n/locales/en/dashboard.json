@@ -3,8 +3,7 @@
         "title": "Overview",
         "loading": "Loading overview",
         "loadError": "Failed to load the overview: {message}",
-        "newRaid": "Create raid event",
-        "versionAria": "Game version"
+        "newRaid": "Create raid event"
     },
     "sheet": {
         "doneTip": "Raid sheet ready",

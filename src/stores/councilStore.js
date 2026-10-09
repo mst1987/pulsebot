@@ -45,12 +45,6 @@ function listExcluded() {
     return readAll();
 }
 
-/** Whether this character is currently excluded. */
-function isExcluded(character) {
-    const key = characterKeyOf(character);
-    return !!(key && readAll()[key]);
-}
-
 /** The set of excluded keys, for filtering a whole roster in one pass. */
 function excludedKeys() {
     return new Set(Object.keys(readAll()));
@@ -116,13 +110,6 @@ function writeRoles(roles) {
 /** All role decisions as `{ [characterKey]: { character, role, at, by } }`. */
 function listRoles() {
     return readRoles();
-}
-
-/** The role a character is planned as, or "" when nobody decided. */
-function plannedRole(character) {
-    const key = characterKeyOf(character);
-    const entry = key ? readRoles()[key] : null;
-    return entry ? entry.role : "";
 }
 
 /** Key -> role, for resolving a whole roster in one pass. */
@@ -247,7 +234,7 @@ function reset() {
 }
 
 module.exports = {
-    listExcluded, isExcluded, excludedKeys, exclude, include, reset, EXCLUDED_FILE,
-    listRoles, plannedRole, plannedRoles, setRole, ROLES_FILE,
+    listExcluded, excludedKeys, exclude, include, reset, EXCLUDED_FILE,
+    listRoles, plannedRoles, setRole, ROLES_FILE,
     listViews, viewFor, setView, normalizeView, VIEW_DEFAULTS, VIEWS_FILE,
 };

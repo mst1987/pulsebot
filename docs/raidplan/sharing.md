@@ -9,7 +9,7 @@ Readable width (`.rp-read-assign`, at most 1180 px; the board may stay wide), th
 by side per type** (320-400 px, stacked on a phone), real WoW icons on everything (a row shows its spell's
 icon or the icon a word in its task names — `TEXT_ICONS` / `iconForText` as the fallback —, a slot its role
 icon, a group, a mark, a mob its own; the raider his spec icon). Above them the visitor's own block "Meine
-Einteilungen" (`isMine` in `lib/raidplan/assign.ts`: assignee, target or a name mention in a note or free text). There
+Einteilungen" (`rowMode` / `splitMine` in `lib/raidplan/mineView.ts`: assignee, target or a name mention in a note or free text). There
 is no list of all tasks by player any more (removed: it repeated what the tables say); the derivation helpers
 for it (`tasksByAssignee`, `myTasks`, `taskText`) are gone.
 
@@ -95,7 +95,7 @@ links those sections ("Eigene Aufgaben hast du bei"). Until Oct 2026 it was a sm
 Personal = `lib/raidplan/bossMine.ts` `bossesWithMine`: a row whose
 assignee is one of his players by name or by slot (tank, kick, heal, special task …), a row whose target is him
 or his slot ("Wirkt auf dich"), or a tactic step with `user:<him>` among its participants. Stricter than "Only
-for me" (`isMine` / `mineView`): a `role:<role>` row, a target role group, his raid group ("Gruppe 2") or his
+for me" (`mineView`): a `role:<role>` row, a target role group, his raid group ("Gruppe 2") or his
 name in a note or free text do not mark the section. The editor's chips do not get the mark: their corner dot already says "this section holds something",
 and the editor derives the effective rows (inherited, class references resolved) only for the open section —
 the organiser's own view of it is the "Meine Aufgaben" preview (`MyTasksPreview`). The page has no menu shell, so

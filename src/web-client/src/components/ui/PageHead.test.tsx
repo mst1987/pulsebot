@@ -3,7 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import PageHead from "./PageHead";
-import { PartHead, SectionHead } from "./PartHead";
+import { PartHead } from "./PartHead";
 
 describe("PageHead", () => {
     it("names the page as its one heading, with kicker, meta and action", () => {
@@ -31,9 +31,8 @@ describe("PartHead", () => {
         expect(screen.getByRole("button", { name: "Neu laden" })).toBeInTheDocument();
     });
 
-    it("is not focusable without a tip, and SectionHead is the same head", () => {
-        render(<SectionHead title="Loot-Historie" />);
+    it("is not focusable without a tip", () => {
+        render(<PartHead title="Loot-Historie" />);
         expect(screen.getByText("Loot-Historie")).not.toHaveAttribute("tabindex");
-        expect(SectionHead).toBe(PartHead);
     });
 });

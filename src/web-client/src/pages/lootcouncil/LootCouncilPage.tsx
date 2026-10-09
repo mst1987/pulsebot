@@ -314,7 +314,7 @@ export default function LootCouncilPage() {
         await setExcluded(character, true);
     };
 
-    // the first load in the page body like every other page — the overlay (PageLoader) is for long operations
+    // the first load in the page body like every other page
     if (loading && !data) return <RaidLoader text={t("lootcouncil.page.loading")} />;
     if (error) return <div className="empty">{error.message}</div>;
     if (!data) return null;

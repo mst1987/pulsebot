@@ -9,9 +9,6 @@
     "intro": "A template lays out the coarse plan without players: slots for tanks, healers and DPS, groups, raid marks, zones and task rows per boss. When an event's raid plan is made you pick one, and its slots are filled from the approved setup.",
     "empty": "Make a template, for example \"Monday raid\", lay out the slots, marks and zones per boss and apply it to an event later.",
     "otherServer": "Another server",
-    "bossCount": "{count} bosses filled",
-    "edit": "Edit",
-    "view": "View",
     "created": "Template \"{name}\" created.",
     "namePlaceholder": "e.g. Monday raid",
     "description": "Description",
@@ -52,6 +49,5 @@
     "stepLess": "{role}: one fewer",
     "stepMore": "{role}: one more",
     "splitRest": "Rest: {n} x DPS (any)",
-    "versionSwitch": "Game version of the templates",
     "noneOfVersion": "There is no template for {version} yet."
 }

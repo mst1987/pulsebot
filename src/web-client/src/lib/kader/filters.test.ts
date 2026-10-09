@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chipsOf, cleanState, countFor, passes, pickedCount, toggle, type FilterDef } from "./filters";
+import { chipsOf, cleanState, countFor, passes, toggle, type FilterDef } from "./filters";
 
 type Item = { name: string; cls: string; days: string[] };
 const items: Item[] = [
@@ -33,6 +33,5 @@ describe("lib/kader/filters", () => {
         expect(chipsOf(defs, { class: ["Mage"], day: ["gone"] })).toEqual([{ key: "class", value: "Mage", label: "Klasse: Mage" }]);
         expect(cleanState(defs, { class: ["Mage", "Druid"], nope: ["x"], day: "mi" })).toEqual({ class: ["Mage"] });
         expect(cleanState(defs, null)).toEqual({});
-        expect(pickedCount({ class: ["Mage"], day: ["mi", "do"] })).toBe(3);
     });
 });

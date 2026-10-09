@@ -215,14 +215,10 @@ describe("config/gameVersions", () => {
     });
 
     describe("lookups", () => {
-        it("answers role and buffs of a spec", () => {
+        it("answers the role of a spec", () => {
             expect(gv.roleOfSpec("Druid-Guardian")).toBe("tank");
             expect(gv.roleOfSpec("Hunter-Survival", "classic")).toBe("ranged");
             expect(gv.roleOfSpec("Nope-Nope")).toBe("");
-            const shaman = gv.buffsOf("Shaman-Elemental");
-            expect(shaman.provides.map((b) => b.key)).toEqual(expect.arrayContaining(["totemOfWrath", "wrathOfAir"]));
-            expect(shaman.receives.map((b) => b.key)).toContain("wisdom");
-            expect(gv.buffsOf("Shaman-Elemental", "nope")).toEqual({ provides: [], receives: [] });
         });
 
         it("finds Classic raids by boss and zone, and leaves TBC to tbcContent", () => {

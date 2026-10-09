@@ -1,5 +1,5 @@
 const {
-    ROLES, SPECS, specFor, specByKey, isCasterSpec, weightsFor, hitCapFor,
+    ROLES, SPECS, specFor, specByKey, weightsFor, hitCapFor,
     bisForSpec, aplForSpec, isSimSupported, bisSpecsForItem, HIT_CAP,
 } = require("../../src/config/casterSpecs");
 
@@ -34,7 +34,6 @@ describe("config/casterSpecs", () => {
             expect(specFor("Rogue", "Combat")).toBeNull();
             expect(specFor("Hunter", "Beast Mastery")).toBeNull();
             expect(specFor("Paladin", "Retribution")).toBeNull();
-            expect(isCasterSpec("Warrior", "Arms")).toBe(false);
         });
 
         it("tolerates empty and unknown input", () => {

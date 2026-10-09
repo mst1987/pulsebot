@@ -272,7 +272,6 @@
         "subDone": "geführt {date}",
         "subStarted": "angefangen {date}",
         "subPlanned": "noch nicht begonnen",
-        "nobody": "niemand",
         "aria": "Gespräch mit {name}",
         "prefilled": "vorbelegt",
         "prefilledShort": "vorbelegt",
@@ -409,8 +408,6 @@
         "deleteCommentTitle": "Deinen Kommentar löschen?",
         "decision": "Entscheidung",
         "decisionAria": "Klasse und Spec im Roster",
-        "wishN": "{label} ({n}. Wunsch)",
-        "current": "{label} (bisher)",
         "toRoster": "Ins Roster",
         "changeDecision": "Entscheidung ändern",
         "toRosterDone": "{name} ist im Roster: {pick}",
@@ -623,9 +620,7 @@
     },
     "player": {
         "noChar": "Kein Charakter",
-        "noSpec": "ohne Spec",
-        "canDays": "kann {days}",
-        "noDays": "keine Angabe zu Raidtagen"
+        "noSpec": "ohne Spec"
     },
     "playersN": {
         "one": "{count} Spieler",

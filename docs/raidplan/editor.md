@@ -89,7 +89,7 @@ reachable, it only moved. Designs: canvas boards `Plan` and `PlanKarte` (notes `
   with the toggles in the tool bar; the read view (`/p/<token>`) is not touched.
 - **No scroll containers, no long single-column lists** in the Raidplan UI. Every picker is the shared
   **flyout** (`components/raidplan/Flyout.tsx`, pure logic in `lib/raidplan/flyout.ts`: `sectionsOf`, `filterItems`,
-  `paginate`, `rangeKeys`, `toggleAllKeys`, `placeFlyout`): it opens **beside** the card or chip that opened
+  `paginate`, `rangeKeys`, `toggleAllKeys`): it opens **beside** the card or chip that opened
   it (right, else left, else a bottom sheet on a phone), shows the entries as chips in sections side by side,
   **never scrolls** (when the room ends there are pages, `cap` shrinks until nothing overflows; from 24
   entries a search field and section tabs), ticks several at once (stays open until "Fertig", a click beside
@@ -215,7 +215,7 @@ the icons that are imported end up in the bundle, about 10 KB), as inline SVG co
   card restores. A change of the Standard reaches every boss that did not deviate. "Vorlage anwenden" writes the
   template's Standard into the event's Standard (no copies in the bosses any more), see model.md, "The Standard of
   an event". The badge "n offene Einteilungen" counts a Standard row once (in the Standard), not in every boss.
-  **EFFECTIVE rows** come from ONE rule: `effectiveRows(bosses, key, section)` / `mergeInherited` (client) and its
+  **EFFECTIVE rows** come from ONE rule: `mergeInherited` (client) and its
   server twin `effectiveRows` / `mergeRows`: the Standard's rows in its order (a deviation in the place of its default,
   a hidden one left out), then the section's own rows. The workspace hands them to the lines, the auto tokens,
   "Meine Aufgaben", the suggestions' `context` and `AssignPanel` (`effective`); the server's read view uses the twin.

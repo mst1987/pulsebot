@@ -2,7 +2,7 @@
 // when nothing is stored, who is not placed yet, adding / moving / scaling /
 // duplicating / ordering / locking / removing board objects (player tokens,
 // slots, marks, zones, lines, texts), the right-click menu's items and what they
-// do, undo/redo, applying a tactic profile, grouping profiles for the picker. The
+// do, undo/redo, grouping profiles for the picker. The
 // server checks and cleans every save again; these rules keep the page consistent
 // while the orga works.
 //

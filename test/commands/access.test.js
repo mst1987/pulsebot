@@ -4,7 +4,7 @@
 // admin-only at runtime (fail-closed) — this scan makes sure nobody relies on it
 // by accident, and that no file still carries its own ad-hoc admin check.
 const fs = require("fs");
-const { GROUP_IDS, normalizeRule } = require("../../src/config/botCommands");
+const { BOT_COMMAND_GROUPS, normalizeRule } = require("../../src/config/botCommands");
 const { commandFiles, commandDefinitions } = require("../../src/commands/loader");
 
 const files = commandFiles();
@@ -21,7 +21,7 @@ describe("bot command access declarations", () => {
         const inherited = command.accessOf !== undefined;
         expect({ rel, declares: own !== inherited }).toEqual({ rel, declares: true });
         if (own) {
-            expect(GROUP_IDS).toContain(command.group);
+            expect(BOT_COMMAND_GROUPS.map((g) => g.id)).toContain(command.group);
             expect(normalizeRule(command.defaultAccess)).not.toBeNull();
         } else {
             expect(command.group).toBeUndefined();

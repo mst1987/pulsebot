@@ -306,21 +306,6 @@ describe("POST /api/signups/bulk (#293)", () => {
     });
 });
 
-describe("GET /api/signups/event", () => {
-    it("liefert der Orga alle Anmeldungen mit Name, Kommentar und „kann auch“", async () => {
-        await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", canAlso: ["tank"], comment: "10 min später" } });
-        const data = json(await call(route.getEventSignups, ORGA, { query: "id=eh-kara" })).data;
-        expect(data.signups).toEqual([expect.objectContaining({
-            userId: ANNA.id, name: "anna_discord", character: "Nerathil", className: "Mage", role: "ranged", canAlso: ["tank"], comment: "10 min später",
-        })]);
-    });
-
-    it("antwortet 409 für ein Raid-Helper-Event und 404 für ein unbekanntes", async () => {
-        expect(status(await call(route.getEventSignups, ORGA, { query: "id=1400000000000000001" }))).toBe(409);
-        expect(status(await call(route.getEventSignups, ORGA, { query: "id=eh-weg" }))).toBe(404);
-    });
-});
-
 describe("categoryVisible", () => {
     it("zeigt eine Kategorie, wenn die Rollen des Mitglieds unbekannt sind", () => {
         const config = { categoryRoles: { a: ["r1"] } };

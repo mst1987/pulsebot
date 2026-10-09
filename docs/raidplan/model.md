@@ -252,8 +252,8 @@ plan has the same **Standard** as a template (the section `defaults`, editor.md 
 `bosses.defaults.assignments`; every boss and trash inherits them, "Allgemein" does not. A boss deviates with a
 copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches a row off (`inheritOff` only).
 
-- **Effective rows**: `raidplanInherit.effectiveRows(bosses, key, section)` (server) and
-  `lib/raidplan/inherit.ts effectiveRows` (client twin, the same cases in `inherit.test.ts`): the Standard's rows in
+- **Effective rows**: `raidplanInherit.effectiveRows(bosses, key, section)` (server; the client's
+  `lib/raidplan/inherit.ts mergeInherited` is the twin of its `mergeRows`): the Standard's rows in
   its order, resolved for the section (`b:this` -> the section's boss, a mob it lacks dropped), a deviation in the
   place of its default, a hidden row left out; then the section's own rows. An inherited row keeps the Standard's
   id and carries `origin` = that id, so `rowKey` (auto tokens) is the same in every boss. What reads rows goes

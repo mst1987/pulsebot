@@ -32,18 +32,6 @@ describe("preferred class in the pickers and the rows", () => {
         expect(assign.playersByClass(roster, ["Mage"]).map((x) => x.userId)).toEqual(["c", "a", "b", "d"]);
         expect(assign.playersByClass(roster, [])).toBe(roster);
     });
-    it("rowClasses: the row's own classes win over the type's", () => {
-        expect(assign.rowClasses({ type: "kick", preferredClasses: ["Priest"] })).toEqual(["Priest"]);
-        expect(assign.rowClasses({ type: "kick", preferredClasses: [] })).toEqual(assign.classesForType("kick"));
-        expect(assign.rowClasses({ type: "kick" })).toEqual(assign.classesForType("kick"));
-    });
-    it("outOfClass: only when the row names classes and the person is none of them", () => {
-        expect(assign.outOfClass({ preferredClasses: ["Rogue"] }, p("x", "Mage"))).toBe(true);
-        expect(assign.outOfClass({ preferredClasses: ["Rogue"] }, p("x", "Rogue"))).toBe(false);
-        expect(assign.outOfClass({ preferredClasses: [] }, p("x", "Mage"))).toBe(false);
-        expect(assign.outOfClass({}, p("x", "Mage"))).toBe(false);
-        expect(assign.outOfClass({ preferredClasses: ["Rogue"] }, null)).toBe(false);
-    });
     it("a class has its WoW icon name; a new row starts without preferences", () => {
         expect(assign.classIconOf("Warlock")).toBe("classicon_warlock");
         expect(assign.CLASS_IDS).toHaveLength(9);

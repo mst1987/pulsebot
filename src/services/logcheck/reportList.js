@@ -88,30 +88,6 @@ function snowflakeTimestamp(id) {
 // When the log was POSTED in the channel: prefer the stored postedAt, else derive
 // it from the Discord message id, else fall back to the detection time.
 const logPostedAt = (l) => l.postedAt || snowflakeTimestamp(l && l.messageId) || l.detectedAt || 0;
-const LOG_SORT_KEYS = {
-    date: logPostedAt,
-    title: (l) => String(l.title || l.reportId || "").toLowerCase(),
-    status: (l) => (l.status === "done" ? 1 : 0),
-    // Category and channel are annotated onto the logs from Discord
-    // (annotateLogCategories) — the route has to do that BEFORE sorting, else
-    // only the current page carries them and the order would be arbitrary.
-    category: (l) => String(l.categoryName || "").toLowerCase(),
-    // The logs still waiting for a raid carry no label and lead the ascending
-    // order: they are the ones the page is opened for.
-    event: (l) => String(l.eventLabel || "").toLowerCase(),
-    // The "Quelle" column links to the Discord message; what distinguishes the
-    // rows there is the channel it was posted in.
-    source: (l) => String(l.channelName || "").toLowerCase(),
-};
-
-function prepareLogList(logs, query = {}, opts = {}) {
-    return sortAndPaginate(logs, query, {
-        sortKeys: LOG_SORT_KEYS,
-        defaultSort: "date",
-        pageSize: opts.pageSize,
-        tiebreak: (a, b) => logPostedAt(b) - logPostedAt(a),
-    });
-}
 
 /**
  * Attach the Discord category (and channel name) to each log from a channel→
@@ -294,8 +270,8 @@ function prepareClaList(logs, reports, query = {}, opts = {}) {
 }
 
 module.exports = {
-    prepareReportList, prepareLogList, sortAndPaginate, annotateLogCategories, annotateReportEvents,
+    prepareReportList, sortAndPaginate, annotateLogCategories, annotateReportEvents,
     prepareClaList, claRowFromLog, claRowFromReport, CLA_FILTERS, CLA_SORT_KEYS,
-    DEFAULT_PAGE_SIZE, REPORT_SORT_KEYS, LOG_SORT_KEYS,
+    DEFAULT_PAGE_SIZE, REPORT_SORT_KEYS,
     logPostedAt, snowflakeTimestamp,
 };

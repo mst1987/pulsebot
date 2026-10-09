@@ -173,7 +173,3 @@ export type SaveSignupResult = {
 export function saveSignup(input: SignupInput): Promise<SaveSignupResult> {
     return send("PUT", "/api/signups", input);
 }
-
-export function getEventSignups(eventId: string): Promise<{ eventId: string; counts: SignupCounts; signups: EventSignupEntry[] }> {
-    return get(`/api/signups/event?id=${encodeURIComponent(eventId)}`);
-}

@@ -71,7 +71,7 @@ describe("validation", () => {
 
     it("a default row keeps the number of its mob target in each section", () => {
         const s = inherit.sectionOf({ key: "bt/illidan", name: "Illidan", iconUrl: "", instanceId: "bt" }, [{ id: "d:flame", name: "Flame", icon: "", bossKey: "bt/illidan", kind: "add" }], []);
-        const rows = inherit.inheritedRows([row("d1", "tank", ["slot:tank:2"], [{ kind: "mob", ref: "d:flame", name: "Flame", icon: "", n: 2 }])], [], s);
+        const rows = [row("d1", "tank", ["slot:tank:2"], [{ kind: "mob", ref: "d:flame", name: "Flame", icon: "", n: 2 }])].map((r) => inherit.resolveRow(r, s));
         expect(rows[0].targets).toEqual([{ kind: "mob", ref: "d:flame", name: "Flame", icon: "", n: 2 }]);
     });
 });
@@ -157,7 +157,7 @@ describe("task rows put on the map", () => {
 
     it("an inherited Standard row keeps its flag in every section", () => {
         const section = inherit.sectionOf(BOSS);
-        const rows = inherit.inheritedRows([row("d1", "kick", ["class:Rogue:1"], [], { onMap: true })], [], section);
+        const rows = [row("d1", "kick", ["class:Rogue:1"], [], { onMap: true })].map((r) => inherit.resolveRow(r, section));
         expect(rows[0]).toMatchObject({ onMap: true, origin: "d1" });
     });
 });

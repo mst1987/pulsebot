@@ -38,7 +38,7 @@ describe("stores/guildBankStore", () => {
         expect(add({ userId: "u2" }).request).toBeTruthy();
         const first = store.listRequests({ userId: "u1" })[0];
         store.resolveRequest(first.id, { status: "done", by: "o1", byName: "Orga" });
-        expect(store.countOpen("u1")).toBe(4);
+        expect(store.listRequests({ userId: "u1", status: "open" })).toHaveLength(4);
         expect(add().request).toBeTruthy();
     });
 

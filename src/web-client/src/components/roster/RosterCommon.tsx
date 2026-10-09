@@ -2,7 +2,7 @@
 // badge, the attendance bar with its tooltip, the gear-state badge, the loot
 // badge and the icon link. Built on the shared building blocks in ./ui; the plain
 // helpers behind them live in lib/roster/rosterView.ts.
-import type { ReactNode, CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import type { CharGearReport, CharLootPreview, RosterAttendance, RosterRole } from "../../api";
 import { useT } from "../../i18n";
@@ -137,7 +137,3 @@ export function IconLink({ href, icon, tip, size = "sm" }: { href: string; icon:
     );
 }
 
-/** A dotted-underlined label that explains itself (table heads, KPI labels). */
-export function TipLabel({ tip, sub, className = "", children }: { tip: string; sub?: string; className?: string; children: ReactNode }) {
-    return <span className={`tipped ${className}`.trim()} data-tip={tip} data-tip-sub={sub} tabIndex={0}>{children}</span>;
-}

@@ -101,29 +101,6 @@ describe("tactic profiles", () => {
         expect(lib.hasContent(board({ mapOpacity: 0.5 }))).toBe(true);
     });
 
-    it("applies a profile: its titles become rows, the profile id is kept, typed assignments and players on rows whose title stays are kept", () => {
-        const row = (id, type, title, assignees = []) => ({ id, type, title, assignees, targets: [], note: "", suggested: false });
-        const b = board({
-            tokens: [{ userId: "a", x: 0.5, y: 0.5, ...look() }],
-            assignments: [row("keep", "other", "main-tank", ["user:u1"]), row("old", "other", "Something else", ["user:u2"]), row("heal", "heal", "", ["slot:healer:1"])],
-            notes: "mine",
-        });
-        const r = lib.applyProfile(b, profile());
-        expect(r.profileId).toBe("p1");
-        expect(r.assignments.map((x) => x.title)).toEqual(["", "Main-Tank", "Off-Tank"]);
-        expect(r.assignments[0]).toMatchObject({ id: "heal", type: "heal" });
-        expect(r.assignments[1]).toMatchObject({ id: "keep", assignees: ["user:u1"] });
-        expect(r.assignments[2].assignees).toEqual([]);
-        expect(r.tokens).toEqual(b.tokens);
-        expect(r.notes).toBe("mine");
-        expect(lib.applyProfile(b, profile({ notes: "phase 1" })).notes).toBe("phase 1");
-    });
-
-    it("saves only the task titles as a profile", () => {
-        const row = (title) => ({ id: title, type: "other", title, assignees: ["user:u1"], targets: [], note: "", suggested: false });
-        expect(lib.profileRows(board({ assignments: [row(" MT "), row("  ")] }))).toEqual([{ title: "MT" }]);
-    });
-
     it("offers the profiles for every boss, the boss's instance or exactly this boss", () => {
         const all = profile({ id: "all" });
         const inst = profile({ id: "inst", bossKey: "bt" });

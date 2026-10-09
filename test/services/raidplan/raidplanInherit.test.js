@@ -63,14 +63,14 @@ describe("the sections", () => {
     it("a trash section has no boss, its trash mobs of the instance, and 'Boss' falls back to nothing", () => {
         const s = inherit.sectionOf(boss(TRASH, "Trash", { trash: true }), [{ id: "d:t", name: "T", kind: "trash", instanceId: "bt", bossKey: "" }], []);
         expect(s.bossMob).toBe(null);
-        const rows = inherit.inheritedRows(DEFAULT_ROWS, [], s);
+        const rows = DEFAULT_ROWS.map((r) => inherit.resolveRow(r, s));
         expect(rows[0].targets).toEqual([]);
         expect(rows[1].targets).toEqual([{ kind: "slot", ref: "tank:1" }]);
     });
     it("the relative boss target is the boss of each section, a mob the section lacks is dropped without an error", () => {
         const rows = [row("m", "tank", ["slot:tank:2"], [{ kind: "mob", ref: "b:this", name: "B", icon: "" }, { kind: "mob", ref: "d:gone", name: "G", icon: "" }])];
-        const a = inherit.inheritedRows(rows, [], inherit.sectionOf(boss(BOSS, "Supremus"), [], []));
-        const b = inherit.inheritedRows(rows, [], inherit.sectionOf(boss(OTHER, "Akama"), [], []));
+        const a = rows.map((r) => inherit.resolveRow(r, inherit.sectionOf(boss(BOSS, "Supremus"), [], [])));
+        const b = rows.map((r) => inherit.resolveRow(r, inherit.sectionOf(boss(OTHER, "Akama"), [], [])));
         expect(a[0].targets.map((t) => t.ref)).toEqual([`b:${BOSS}`]);
         expect(b[0].targets.map((t) => t.ref)).toEqual([`b:${OTHER}`]);
     });

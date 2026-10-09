@@ -21,7 +21,6 @@ jest.mock("../../../src/stores/lootInboxStore", () => ({
     listPending: jest.fn(() => []),
     getPending: jest.fn(),
     resolvePending: jest.fn(),
-    pendingCount: jest.fn(() => 0),
     noteAppended: jest.fn(() => true),
     listLinked: jest.fn(() => []),
 }));

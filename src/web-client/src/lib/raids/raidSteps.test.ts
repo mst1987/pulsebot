@@ -39,13 +39,7 @@ describe("the step bar's words", () => {
         expect(STEP_STATES.map(lib.stepStateLabel)).toEqual(["erledigt", "jetzt dran", "später", "übersprungen", "abgesagt"]);
     });
 
-    it("keeps „übersprungen“ out of the error colours", () => {
-        expect(lib.stepStateTone("skipped")).toBeUndefined();
-        expect(lib.stepStateTone("todo")).toBeUndefined();
-        expect(lib.stepStateTone("done")).toBe("ok");
-        expect(lib.stepStateTone("current")).toBe("accent");
-        expect(lib.stepStateTone("cancelled")).toBe("bad");
-        // and no state reads like a fault
+    it("names no state like a fault", () => {
         for (const state of STEP_STATES) expect(lib.stepStateLabel(state)).not.toMatch(/fehlt|Fehler|kaputt/i);
     });
 
@@ -66,16 +60,14 @@ describe("the step bar's words", () => {
         expect(lib.stepSummary(cancelled)).toBe("Abgesagt: Zu wenig Heiler");
     });
 
-    it("puts the clipped note and the deed into the tooltip, and the figure into one string", () => {
+    it("puts the clipped note and the deed into the tooltip", () => {
         const p = progress({ ownSignups: [{ status: "signed" }, { status: "bench" }] });
         const created = p.steps[0];
         expect(lib.stepTipSub(created, true)).toBe(`${created.hint} · Klick: Bearbeiten`);
-        expect(lib.stepFigure(created)).toBe("#mi-23-09");
         // the note is the part the narrow cell cuts off, so it leads the tooltip
         const signup = p.steps[1];
         expect(signup.note).toBe("1 auf der Warteliste");
         expect(lib.stepTipSub(signup, false)).toBe(`${signup.note} · ${signup.hint}`);
-        expect(lib.stepFigure(signup)).toBe("1 angemeldet 1 auf der Warteliste");
         // a step without a deed says only what it is
         expect(lib.stepTipSub({ ...created, action: null }, true)).toBe(created.hint);
     });

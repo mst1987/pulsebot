@@ -64,8 +64,6 @@ export type Corner = "nw" | "ne" | "sw" | "se";
 /** A grip of a zone: a corner (both sides) or the middle of an edge (only that side: height or width alone). */
 export type ZoneGrip = Corner | "n" | "s" | "e" | "w";
 
-export const ZONE_EDGES = ["n", "e", "s", "w"];
-
 /** Where a role group's label may stand: inside, or outside on one side (it stays upright). */
 export const LABEL_POS = ["in", "top", "bottom", "left", "right"];
 

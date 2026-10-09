@@ -15,11 +15,9 @@ describe("needsCompression", () => {
         expect(lib.needsCompression(lib.MAP_TARGET_BYTES + 1)).toBe(true);
         expect(lib.needsCompression(6.3 * MB)).toBe(true);
     });
-    it("aims below the 1 MB default of a reverse proxy, which is below the server's 3 MB limit", () => {
+    it("aims below the 1 MB default of a reverse proxy", () => {
         expect(lib.MAP_TARGET_BYTES).toBe(900 * 1024);
         expect(lib.MAP_TARGET_BYTES).toBeLessThan(1 * MB);
-        expect(lib.MAP_TARGET_BYTES).toBeLessThan(lib.MAP_LIMIT_BYTES);
-        expect(lib.MAP_LIMIT_BYTES).toBe(3 * MB);
     });
 });
 

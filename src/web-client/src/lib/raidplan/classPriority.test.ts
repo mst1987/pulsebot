@@ -2,7 +2,7 @@
 // cases as test/services/raidplan/raidplanPriority.test.js run on BOTH and must agree. Plus the editing helpers of the row dialog.
 import { describe, expect, it } from "vitest";
 import * as cr from "./classRefs";
-import { effectiveRows } from "./inherit";
+import { mergeInherited } from "./inherit";
 import { assigneeItems, lineState, openAssignments, priorityName } from "./assignLine";
 import { previewLines } from "./assignModal";
 import { emptyBoard } from "./model";
@@ -68,7 +68,7 @@ describe.each(twins)("count and class priority (%s)", (_name, lib) => {
             defaults: { assignments: [prio("std", "heal", 1, ["Paladin", "Shaman"])] },
             boss1: { assignments: [prio("own", "heal", 1, ["Paladin", "Shaman"])], inheritOff: [] },
         };
-        const rows = effectiveRows(bosses as never, "boss1", { bossMob: null, mobs: new Map() } as never);
+        const rows = mergeInherited(bosses.defaults.assignments, bosses.boss1, { bossMob: null, mobs: [] });
         const out = lib.expandClassRefs(rows, [], [pal, sham], {});
         expect(who(out, "std")).toEqual(["user:pal"]);
         expect(who(out, "own")).toEqual(["user:sham"]);

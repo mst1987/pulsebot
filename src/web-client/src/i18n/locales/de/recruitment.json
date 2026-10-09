@@ -188,8 +188,6 @@
         "empty": "Noch kein Text."
     },
     "version": {
-        "filter": "Spielversion",
-        "allTip": "Vorlagen, Nachrichten und Bewerbungen aller Spielversionen",
         "tagSub": "Die Spielversion der Bewerbungen: ihre Links, ihr Realm und ihre Loganalyse kommen aus Einstellungen → Spielversion.",
         "label": "Spielversion",
         "labelSub": "Für welche Spielversion diese Vorlage wirbt. Der Bewerben-Knopf einer geposteten Nachricht nimmt sie mit: Armory- und Logs-Links, Realm und Loganalyse der Bewerbung kommen aus den Einstellungen dieser Version."
