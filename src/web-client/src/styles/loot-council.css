@@ -73,7 +73,13 @@ a.lc-id-name:hover { text-decoration: underline; }
 .lc-needbar .s1, .lc-need-dot.s1 { background: color-mix(in srgb, var(--accent) 42%, transparent); }
 .lc-needbar .s2, .lc-need-dot.s2 { background: color-mix(in srgb, var(--accent-2) 38%, transparent); }
 .lc-needbar .s3, .lc-need-dot.s3 { background: color-mix(in srgb, var(--lc-need-3) 55%, transparent); }
+/* #668: belonging ("Zugehörigkeit"), the fourth part */
+.lc-needbar .s4, .lc-need-dot.s4 { background: color-mix(in srgb, var(--good) 40%, transparent); }
 .lc-needbar i:last-of-type { border-right: 2px solid var(--lc-need-3); }
+/* #668: the item count with its loot points under it, and a weight column in the loot tooltip */
+.lc-lootn { display: inline-flex; flex-direction: column; line-height: 1.15; }
+.lc-lootn small { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.lc-rtip .lc-loot-row.lc-loot-roww { grid-template-columns: 1fr auto auto auto auto; }
 .lc-needbar b { position: absolute; left: 8px; top: 0; line-height: 24px; font: 700 13px/24px var(--font-mono); color: var(--text); }
 .lc-need-rows { display: grid; grid-template-columns: 10px 18px 1fr auto; align-items: center; gap: 8px; margin: 4px 0 6px; }
 .lc-need-row { display: contents; }
@@ -90,7 +96,7 @@ a.lc-id-name:hover { text-decoration: underline; }
 .lc-list {
     border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; margin-bottom: 16px;
     display: grid; column-gap: 12px;
-    grid-template-columns: 28px minmax(170px, 1.2fr) 140px 112px 56px 136px 52px minmax(120px, 1fr) auto;
+    grid-template-columns: 28px minmax(170px, 1.2fr) 140px 112px 84px 136px 52px minmax(120px, 1fr) auto;
 }
 .lc-lrow {
     display: grid; grid-column: 1 / -1; grid-template-columns: subgrid;
@@ -134,11 +140,12 @@ dialog.lc-dlg { width: min(960px, calc(100vw - 32px)); }
 .lc-dlg-body { display: flex; flex-direction: column; gap: 14px; }
 .lc-dlg-body .part-head { margin: 0; }
 .lc-dlg-foot { justify-content: flex-start; }
-.lc-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.lc-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .lc-stat2 { padding: 10px 14px; border-right: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .lc-stat2:last-child { border-right: 0; }
 .lc-stat2-v { font: 800 20px/1.1 var(--font-mono); font-variant-numeric: tabular-nums; }
 .lc-stat2-v small { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.lc-stat2-sub { font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .lc-secs { display: flex; gap: 8px; flex-wrap: wrap; }
 .lc-sec {
     display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border: 1px solid var(--line); border-radius: 9px;
@@ -239,4 +246,30 @@ tr.lc-crow-panel > td { padding: 0 14px 16px 50px; border-bottom: 1px solid var(
 @media (max-width: 700px) {
     .lc-fpop { position: static; }
     .lc-fpopmenu { left: 0; right: 0; width: auto; grid-template-columns: 1fr; }
+}
+
+/* ---- Gewichtung (#668): sections with headings, steppers instead of fields ---- */
+.lc-weights { display: flex; flex-direction: column; gap: 22px; padding: 6px 4px 4px; }
+.lc-wsec { display: flex; flex-direction: column; gap: 10px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
+.lc-weights > .lc-wsec:first-of-type { border-top: 0; padding-top: 0; }
+.lc-wsec h3 { margin: 0; font-size: 16px; font-weight: 800; }
+.lc-wsec > p { margin: 0 0 4px; font-size: 13px; }
+.lc-wgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px 22px; }
+.lc-wstep { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; min-width: 0; }
+.lc-wstep-lbl { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13.5px; }
+.lc-wstep-ctl { display: inline-flex; align-items: center; border: 1px solid var(--line); background: var(--panel2); border-radius: var(--ctl-radius); overflow: hidden; }
+.lc-wstep-ctl button { display: grid; place-items: center; width: 38px; height: 38px; border: 0; background: transparent; color: var(--text); cursor: pointer; }
+.lc-wstep-ctl button:hover:not(:disabled) { background: var(--accent-soft); }
+.lc-wstep-ctl button:disabled { color: var(--muted); opacity: .5; cursor: not-allowed; }
+.lc-wstep-ctl button svg { width: 16px; height: 16px; }
+.lc-wstep-ctl b { min-width: 118px; padding: 0 6px; text-align: center; font: 700 15px var(--font-mono); white-space: nowrap; }
+.lc-wlist { display: flex; flex-direction: column; }
+.lc-witem { display: grid; grid-template-columns: minmax(180px, 1fr) auto auto auto; align-items: center; gap: 16px; padding: 10px 2px; border-bottom: 1px solid var(--line-soft); }
+.lc-witem:last-child { border-bottom: 0; }
+.lc-witem .lc-wstep-lbl { display: none; }
+.lc-wempty { padding: 4px 0; }
+.lc-wpicker { max-width: 420px; }
+.lc-wfoot { display: flex; align-items: center; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+@media (max-width: 700px) {
+    .lc-witem { grid-template-columns: 1fr; gap: 8px; }
 }

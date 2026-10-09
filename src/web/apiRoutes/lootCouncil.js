@@ -11,6 +11,9 @@
 //   GET  /api/lootcouncil/sim         — poll it
 //   GET  /api/lootcouncil/views       — the stored filters per raid category
 //   POST /api/lootcouncil/view        — store one (the addon uses them too)
+//   GET  /api/lootcouncil/weights     — the weighting: item classes, item
+//                                       exceptions, need weights, tenure (#668)
+//   POST /api/lootcouncil/weights     — store or reset it (write)
 //
 // Everything the page shows works without the simulation; the sim is what
 // puts a gain next to a candidate at all — the page shows no estimates. That
@@ -30,6 +33,8 @@ const { sourceForItem } = require("../../config/tbcContent");
 const { startCouncilSim, getJob } = require("../../stores/simStore");
 const { searchItems } = require("../../config/wowsims");
 const councilStore = require("../../stores/councilStore");
+const councilWeights = require("../../stores/councilWeightsStore");
+const { itemFacts, itemClass } = require("../../services/loot/itemWeights");
 const { gearFor, charKey } = require("../../services/loot/charGear");
 const { characterMap } = require("../../stores/characterStore");
 const { specFor, ROLES } = require("../../config/casterSpecs");
@@ -57,7 +62,7 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     // shared with the sync tool's endpoint so the game sees the same numbers.
     const built = await buildCouncilView(opts);
     const {
-        rows, avgLootCount, bisTier: usedBisTier, skipped, categorySources, versions,
+        rows, avgLootCount, avgLootPoints, weights, bisTier: usedBisTier, skipped, categorySources, versions,
     } = built;
     const contentFilter = resolveContentFilter({ tierIds, contentIds });
 
@@ -74,6 +79,10 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     ok(res, {
         roster: rows,
         avgLootCount,
+        avgLootPoints,
+        // The weighting the numbers were computed with (#668) — the need bar
+        // is stacked in its shares, the loot points come from its classes.
+        weights,
         // The bot's newest logs, so the log panel at a raider can offer them
         // to pick from instead of asking for a link every time.
         recentLogs: recentLogs(),
@@ -218,6 +227,67 @@ const postView = withUser({ write: "lootcouncil", csrf: true, body: true }, asyn
     const entry = councilStore.setView(category, body, { by: user.name || user.id });
     const { role, tiers, contents, bisTier, version } = entry;
     ok(res, { category, view: { role, tiers, contents, bisTier, version } });
+});
+
+/** The weighting answer for one scope: what applies, what is stored, the defaults. */
+function weightsAnswer(category) {
+    const own = category ? councilWeights.categoryWeights(category) : null;
+    const strip = (s) => (s ? { classes: s.classes, items: s.items, need: s.need, tenureDays: s.tenureDays, at: s.at || 0, by: s.by || "" } : null);
+    const global = councilWeights.globalWeights();
+    // What the page shows next to an exception: the item's icon and the class
+    // it would have without the exception ("statt Trinket · 2,0").
+    const itemInfo = {};
+    for (const id of new Set([...Object.keys(global.items || {}), ...Object.keys((own && own.items) || {})])) {
+        const view = itemView(Number(id));
+        itemInfo[id] = {
+            name: view.name || itemFacts(Number(id)).name || "",
+            iconUrl: view.iconUrl || "",
+            quality: view.quality || null,
+            autoClass: itemClass(Number(id), { items: {} }),
+        };
+    }
+    return {
+        category,
+        itemInfo,
+        // "category" when the picked category has its own weighting, else "global".
+        scope: own ? "category" : "global",
+        global: { ...strip(global), stored: global.stored },
+        own: strip(own),
+        defaults: strip(councilWeights.defaults()),
+        classIds: councilWeights.CLASS_IDS,
+        needIds: councilWeights.NEED_IDS,
+        limits: councilWeights.LIMITS,
+    };
+}
+
+/**
+ * GET /api/lootcouncil/weights?category=… — the weighting (#668): item classes,
+ * item exceptions, need weights, tenure saturation. For the server, and — with
+ * `category` — whether that raid category has its own.
+ */
+const getWeights = withUser({}, async ({ user, res, url }) => {
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
+    ok(res, weightsAnswer(String(url.searchParams.get("category") || "").trim()));
+});
+
+/**
+ * POST /api/lootcouncil/weights — store the weighting.
+ * Body: { category?, weights } stores it (for the server, or as the category's
+ * own); { category?, reset: true } goes back: the server to the defaults, a
+ * category to the server's weighting. Changes every need score and what the
+ * addon gets, so it takes `lootcouncil` write like the other council decisions.
+ */
+const postWeights = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ user, body, res }) => {
+    const category = String(body.category || "").trim();
+    if (body.reset) {
+        councilWeights.resetWeights(category);
+        return ok(res, weightsAnswer(category));
+    }
+    if (!body.weights || typeof body.weights !== "object" || Array.isArray(body.weights)) {
+        return apiError(res, 400, "bad_request", "Keine Gewichtung angegeben.");
+    }
+    councilWeights.setWeights(category, body.weights, { by: user.name || user.id });
+    ok(res, weightsAnswer(category));
 });
 
 /**
@@ -403,6 +473,8 @@ const routes = [
     { method: "POST", path: "/api/lootcouncil/role", handler: postRole, area: "lootcouncil" },
     { method: "GET", path: "/api/lootcouncil/views", handler: getViews, area: "lootcouncil" },
     { method: "POST", path: "/api/lootcouncil/view", handler: postView, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/weights", handler: getWeights, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/weights", handler: postWeights, area: "lootcouncil" },
     { method: "POST", path: "/api/lootcouncil/armory", handler: postArmoryRefresh, area: "lootcouncil" },
     { method: "POST", path: "/api/lootcouncil/loggear", handler: postLogGear, area: "lootcouncil" },
     { method: "GET", path: "/api/lootcouncil/bislists", handler: getBisLists, area: "lootcouncil" },
@@ -413,6 +485,6 @@ const routes = [
 module.exports = {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
     getItemSearch, getBisLists, postExclude, postRole, getExport, postArmoryRefresh, postLogGear,
-    getViews, postView,
+    getViews, postView, getWeights, postWeights,
     routes,
 };

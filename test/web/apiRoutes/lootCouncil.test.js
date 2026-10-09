@@ -126,6 +126,8 @@ describe("the route table", () => {
             "POST /api/lootcouncil/role",
             "GET /api/lootcouncil/views",
             "POST /api/lootcouncil/view",
+            "GET /api/lootcouncil/weights",
+            "POST /api/lootcouncil/weights",
             "POST /api/lootcouncil/armory",
             "POST /api/lootcouncil/loggear",
             "GET /api/lootcouncil/bislists",

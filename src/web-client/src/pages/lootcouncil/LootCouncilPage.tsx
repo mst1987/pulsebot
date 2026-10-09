@@ -49,6 +49,8 @@ import { RosterTab } from "./RosterTab";
 import { GapsTab } from "./GapsTab";
 import { BisListsTab } from "./BisListsTab";
 import { CompareTab } from "./CompareTab";
+import { WeightsTab } from "./WeightsTab";
+import { NeedWeightsProvider } from "./needWeights";
 
 const VIEW_DEFAULT: View = {
     role: "caster", tiers: [], contents: [], category: "", bisTier: "", tab: "roster",
@@ -155,7 +157,8 @@ export default function LootCouncilPage() {
         switch (key) {
             case "character": return r.character.toLowerCase();
             case "need": return r.needScore;
-            case "loot": return r.lootCount;
+            // Loot points (#668) — what the share actually compares; the count for an old answer.
+            case "loot": return r.lootPoints ?? r.lootCount;
             // Never having won anything is further back than any date.
             case "last": return r.lastAwardAt || 0;
             case "bis": return r.bis.total ? r.bis.owned / r.bis.total : -1;
@@ -329,6 +332,7 @@ export default function LootCouncilPage() {
 
     return (
         <WowheadPathProvider path={data.wowheadPath}>
+        <NeedWeightsProvider weights={data.weights}>
             <PageHead
                 icon="inv_misc_coin_02"
                 tone="lootcouncil"
@@ -393,6 +397,16 @@ export default function LootCouncilPage() {
                 Loot wie im Raider-Tab, nur als Matrix statt als Tooltip je Zeile. */}
             {view.tab === "compare" ? <CompareTab roster={roster} view={view} patch={patch} contents={o.contents} /> : null}
 
+            {/* Wie gewichtet wird (#668) — ändert jede Zahl oben, also danach neu laden. */}
+            {tab === "weights" ? (
+                <WeightsTab
+                    category={view.category}
+                    categoryName={o.categories.find((c) => c.id === view.category)?.name || view.category}
+                    canWrite={canWrite}
+                    onSaved={() => { load(); }}
+                />
+            ) : null}
+
             {openRaider ? (
                 <RaiderDialog
                     key={openRaider.key}
@@ -413,6 +427,7 @@ export default function LootCouncilPage() {
                 />
             ) : null}
             <ExportDialog data={exportData} onClose={() => setExportData(null)} />
+        </NeedWeightsProvider>
         </WowheadPathProvider>
     );
 }

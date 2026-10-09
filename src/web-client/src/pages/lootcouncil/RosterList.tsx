@@ -13,6 +13,7 @@ import type { TableSort } from "../../lib/ui/tableSort";
 import { gearCounts, raiderHref, waitedTip, type RosterSortKey } from "./council";
 import { LootCount, RaiderIdent } from "./ItemBits";
 import { NeedBar } from "./NeedBar";
+import { needSubject } from "./needWeights";
 
 /** A sortable column head of the list, with its meaning in the tooltip. */
 function Head({ sortKey, label, tipSub, sort }: {
@@ -129,18 +130,14 @@ export default function RosterList({ rows, sim, sort, openKey, onOpen }: {
                         sub={`${r.specLabel}${r.className ? ` · ${r.className}` : ""}${r.specAssumed ? " *" : ""}`}
                         to={raiderHref(r.character)}
                     />
-                    <NeedBar subject={{
-                        needScore: r.needScore, needParts: r.needParts, daysSinceLoot: r.daysSinceLoot,
-                        lootCount: r.lootCount, bisOwned: r.bis.owned, bisTotal: r.bis.total,
-                    }}
-                    />
+                    <NeedBar subject={needSubject(r)} />
                     <span
                         className="lc-num"
                         data-tip={r.lastAwardAt ? t("lootcouncil.waited.lastAward", { date: fmtMs(r.lastAwardAt, false) }) : waitedTip(null)}
                     >
                         {r.lastAwardAt ? t("lootcouncil.list.ago", { count: r.daysSinceLoot ?? 0 }) : t("lootcouncil.word.never")}
                     </span>
-                    <LootCount items={r.items} total={r.lootCount} other={r.otherCount} />
+                    <LootCount items={r.items} total={r.lootCount} other={r.otherCount} points={r.lootPoints} />
                     <BisBar raider={r} />
                     <DpsCell raider={r} sim={sim} />
                     <RaiderHints raider={r} />

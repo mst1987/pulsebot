@@ -48,8 +48,8 @@ describe("loot council — page structure", () => {
         expect(filterBar).toMatch(/const note = categoryNote\(data\);/);
     });
 
-    it("has four tabs; the drop check left the tab row", () => {
-        for (const t of ["roster", "bis", "bislists", "compare"]) {
+    it("has five tabs (the weighting since #668); the drop check left the tab row", () => {
+        for (const t of ["roster", "bis", "bislists", "compare", "weights"]) {
             expect(page).toContain(`onClick={() => patch({ tab: "${t}" })}`);
         }
         expect(page).not.toContain("patch({ tab: \"drop\" })");
@@ -105,17 +105,22 @@ describe("loot council — the raider list", () => {
         expect(fn(roster, "Head")).toMatch(/aria-sort=\{ariaSort\(sortKey, sort\.sort, sort\.dir\)\}/);
     });
 
-    it("draws the need as a bar stacked 50 / 40 / 10 with the reasoning in the tooltip", () => {
+    it("draws the need as a bar stacked in the council's weights with the reasoning in the tooltip", () => {
         const bar = fn(parts, "NeedBar");
-        expect(bar).toMatch(/w: p\.drought \* 50/);
-        expect(bar).toMatch(/w: p\.share \* 40/);
-        expect(bar).toMatch(/w: p\.need \* 10/);
-        for (const icon of ["inv_misc_pocketwatch_02", "inv_misc_bag_10", "inv_misc_gem_variety_02"]) expect(bar).toContain(icon);
+        // #668: four parts, stacked in the shares the answer was computed with (needWeights.ts)
+        expect(bar).toMatch(/const \{ shares \} = useNeedWeights\(\);/);
+        expect(bar).toMatch(/w: p\.drought \* w\.drought/);
+        expect(bar).toMatch(/w: p\.share \* w\.share/);
+        expect(bar).toMatch(/w: p\.need \* w\.need/);
+        expect(bar).toMatch(/w: \(p\.tenure \|\| 0\) \* w\.tenure/);
+        for (const icon of ["inv_misc_pocketwatch_02", "inv_misc_bag_10", "inv_misc_gem_variety_02", "achievement_reputation_01"]) expect(bar).toContain(icon);
         expect(bar).toMatch(/t\("lootcouncil\.need\.score", \{ score \}\)/);
         expect(text("need.score")).toBe("Bedarf {score} von 100");
-        expect(bar).toMatch(/t\("lootcouncil\.need\.weighted"\)/);
-        expect(text("need.weighted")).toMatch(/Gewichtet 50 \/ 40 \/ 10/);
+        expect(bar).toMatch(/t\("lootcouncil\.need\.weighted", \{ drought: w\.drought, share: w\.share, need: w\.need, tenure: w\.tenure \}\)/);
+        expect(text("need.weighted")).toMatch(/Gewichtet \{drought\} \/ \{share\} \/ \{need\} \/ \{tenure\}/);
         expect(rule(css, ".lc-needbar")).toMatch(/height: 24px/);
+        expect(page).toMatch(/<NeedWeightsProvider weights=\{data\.weights\}>/);
+        expect(drop).toMatch(/<NeedWeightsProvider weights=\{weights\}>/);
     });
 
     it("folds the raiders set aside into one line that can take them back", () => {

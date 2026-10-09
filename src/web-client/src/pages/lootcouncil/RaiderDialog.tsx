@@ -20,9 +20,10 @@ import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { dropHref, gearCounts, roleLabel, wornWowheadUrl } from "./council";
 import { useWowheadPath } from "../../lib/settings/versionLinks";
 import { useBackdropClose } from "../../hooks/useBackdropClose";
-import { ContentBadge, ItemLink, RaiderIdent } from "./ItemBits";
+import { ContentBadge, ItemLink, RaiderIdent, WeightChip } from "./ItemBits";
 import { GearBadges, WornIcon } from "./GearBadges";
 import { NeedBar } from "./NeedBar";
+import { fmtPoints, lootLabel, needSubject } from "./needWeights";
 
 type Section = "gear" | "bis" | "loot";
 type LogPick = { reportId?: string; link?: string };
@@ -275,11 +276,7 @@ export default function RaiderDialog({
                     <div className="lc-stats">
                         <div className="lc-stat2">
                             <span className="lc-th tipped" data-tip={t("lootcouncil.word.need")} data-tip-sub={t("lootcouncil.dialog.needTipSub")}>{t("lootcouncil.word.need")}</span>
-                            <NeedBar width={140} subject={{
-                                needScore: r.needScore, needParts: r.needParts, daysSinceLoot: r.daysSinceLoot,
-                                lootCount: r.lootCount, bisOwned: r.bis.owned, bisTotal: r.bis.total,
-                            }}
-                            />
+                            <NeedBar width={140} subject={needSubject(r)} />
                         </div>
                         <div className="lc-stat2">
                             <span className="lc-th">{t("lootcouncil.word.last")}</span>
@@ -290,6 +287,17 @@ export default function RaiderDialog({
                         <div className="lc-stat2">
                             <span className="lc-th tipped" data-tip={t("lootcouncil.word.items")} data-tip-sub={t("lootcouncil.dialog.itemsTipSub")}>{t("lootcouncil.word.items")}</span>
                             <span className="lc-stat2-v">{r.lootCount} <small>{tParts("lootcouncil.dialog.itemsSub", { total: r.lootTotal })}</small></span>
+                            {r.lootPoints !== undefined ? (
+                                <span className="lc-stat2-sub" data-tip={lootLabel(t, r.lootCount, r.lootPoints)} data-tip-sub={t("lootcouncil.dialog.pointsTipSub")}>
+                                    {t("lootcouncil.items.points", { count: r.lootPoints, points: fmtPoints(r.lootPoints) })}
+                                </span>
+                            ) : null}
+                        </div>
+                        <div className="lc-stat2">
+                            <span className="lc-th tipped" data-tip={t("lootcouncil.dialog.tenure")} data-tip-sub={t("lootcouncil.dialog.tenureTipSub")}>{t("lootcouncil.dialog.tenure")}</span>
+                            <span className="lc-stat2-v" data-tip={r.joinedAt ? t("lootcouncil.dialog.joinedAt", { date: fmtMs(r.joinedAt, false) }) : undefined} data-tip-sub={r.joinedFrom ? t(`lootcouncil.dialog.joinedFrom.${r.joinedFrom}`) : undefined}>
+                                {r.joinedAt ? <>{r.tenureDays} <small>{t("lootcouncil.word.daysUnit")}</small></> : <small>{t("lootcouncil.dialog.tenureUnknown")}</small>}
+                            </span>
                         </div>
                         <div className="lc-stat2">
                             <span className="lc-th">BiS</span>
@@ -407,7 +415,9 @@ export default function RaiderDialog({
                                 crumb={t("lootcouncil.dialog.lootCrumb", { character: r.character })}
                                 tip={t("lootcouncil.dialog.lootTip")}
                                 tipSub={t("lootcouncil.dialog.lootTipSub")}
-                                action={<Badge count>{r.lootCount}</Badge>}
+                                action={r.lootPoints !== undefined
+                                    ? <Badge>{lootLabel(t, r.lootCount, r.lootPoints)}</Badge>
+                                    : <Badge count>{r.lootCount}</Badge>}
                             />
                             {r.items.length ? (
                                 <div className="lc-dlist">
@@ -416,6 +426,7 @@ export default function RaiderDialog({
                                             <ItemLink id={item.itemId} name={item.itemName} iconUrl={item.itemIconUrl} quality={item.itemQuality} />
                                             <ContentBadge contentId={item.contentId} tier={item.tier} />
                                             {item.reasonLabel ? <ReasonBadge label={item.reasonLabel} tone={item.reasonTone} title={item.reason} /> : <span />}
+                                            <WeightChip item={item} />
                                             <span className="lc-muted">{item.eventLabel}</span>
                                             <span className="lc-dlist-date">{item.awardedAt ? fmtMs(item.awardedAt, false) : ""}</span>
                                         </div>

@@ -137,7 +137,7 @@ export function CandidateRow({
                 <td><GainCell candidate={candidate} simDelta={simDelta} simError={simError} gainMax={gainMax} onRetry={onRetry} retrying={retrying} /></td>
                 <td><NeedBar subject={candidate} width={140} /></td>
                 <td><span className="lc-num" data-tip={waitedTip(candidate.daysSinceLoot)}>{candidate.daysSinceLoot === null ? "∞" : candidate.daysSinceLoot}</span></td>
-                <td><LootCount items={candidate.recentItems} total={candidate.lootCount} other={candidate.otherCount} /></td>
+                <td><LootCount items={candidate.recentItems} total={candidate.lootCount} other={candidate.otherCount} points={candidate.lootPoints} /></td>
             </tr>
             {expandable && open ? (
                 <tr className="lc-crow-panel">
@@ -182,7 +182,7 @@ export function CandidateTable({
             case "need": return c.itemNeedScore;
             // Never having won anything is the longest wait there is.
             case "waited": return c.daysSinceLoot === null ? Number.MAX_SAFE_INTEGER : c.daysSinceLoot;
-            case "loot": return c.lootCount;
+            case "loot": return c.lootPoints ?? c.lootCount;
             default: return 0;
         }
     });

@@ -1,7 +1,7 @@
 import { useT } from "../../i18n";
 import type { View } from "./view";
 
-/** The page's four tabs; the counts are the raiders and the open BiS items. */
+/** The page's five tabs; the counts are the raiders and the open BiS items. */
 export function CouncilTabs({ tab, patch, rosterCount, gapCount }: {
     tab: View["tab"];
     patch: (next: Partial<View>) => void;
@@ -22,6 +22,10 @@ export function CouncilTabs({ tab, patch, rosterCount, gapCount }: {
             </button>
             <button type="button" className={`tab-btn${tab === "compare" ? " active" : ""}`} onClick={() => patch({ tab: "compare" })}>
                 {t("lootcouncil.tabs.compare")}
+            </button>
+            {/* #668: how the council weighs — items, need parts, belonging. */}
+            <button type="button" className={`tab-btn${tab === "weights" ? " active" : ""}`} onClick={() => patch({ tab: "weights" })}>
+                {t("lootcouncil.tabs.weights")}
             </button>
         </div>
     );

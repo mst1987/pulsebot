@@ -15,6 +15,7 @@ import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { specClassLabel } from "../../lib/wow/wowNames";
 import { WOWHEAD } from "./council";
+import { fmtPoints, lootLabel } from "./needWeights";
 import { useWowheadPath } from "../../lib/settings/versionLinks";
 
 /**
@@ -147,10 +148,26 @@ export function BisSpecs({ specs }: { specs: BisSpec[] }) {
 const TIP_ITEMS = 6;
 
 /**
+ * What one award counts as (#668): its loot points, with the class in the
+ * tooltip ("Trinket — zählt doppelt"). Calm unless it differs from 1.
+ */
+export function WeightChip({ item }: { item: CouncilLootItem }) {
+    const t = useT();
+    if (item.weight === undefined) return <span />;
+    const cls = item.weightClass || "normal";
+    const tone = item.weight > 1 ? "accent" : item.weight < 1 ? "mid" : undefined;
+    return (
+        <Badge size="sm" tone={tone} tip={t(`lootcouncil.weights.class.${cls}`)} tipSub={t("lootcouncil.weights.chipTip", { points: fmtPoints(item.weight) })}>
+            {t("lootcouncil.weights.chip", { points: fmtPoints(item.weight) })}
+        </Badge>
+    );
+}
+
+/**
  * A loot count, with the newest items behind it in the tooltip. `total` is the
  * real count; off-spec rolls, shards and bank items are named, never counted.
  */
-export function LootCount({ items, total, other = 0 }: { items: CouncilLootItem[]; total: number; other?: number }) {
+export function LootCount({ items, total, other = 0, points }: { items: CouncilLootItem[]; total: number; other?: number; points?: number }) {
     const t = useT();
     if (!total) {
         return other
@@ -158,15 +175,27 @@ export function LootCount({ items, total, other = 0 }: { items: CouncilLootItem[
             : <span className="lc-num lc-muted">—</span>;
     }
     const shown = items.slice(0, TIP_ITEMS);
+    const weighed = points !== undefined;
     return (
-        <RichTip className="lc-rtip" width={440} label={t("lootcouncil.word.itemCount", { count: total })} trigger={<span className="lc-num">{total}</span>}>
-            <b>{t("lootcouncil.items.recent")}</b>
+        <RichTip
+            className="lc-rtip"
+            width={480}
+            label={weighed ? lootLabel(t, total, points) : t("lootcouncil.word.itemCount", { count: total })}
+            trigger={weighed ? (
+                <span className="lc-lootn">
+                    <span className="lc-num">{total}</span>
+                    <small>{t("lootcouncil.items.points", { count: points, points: fmtPoints(points) })}</small>
+                </span>
+            ) : <span className="lc-num">{total}</span>}
+        >
+            <b>{weighed ? lootLabel(t, total, points) : t("lootcouncil.items.recent")}</b>
             <span className="lc-loot-list">
                 {shown.map((item, i) => (
-                    <span key={`${item.itemId}-${item.awardedAt}-${i}`} className="lc-loot-row">
+                    <span key={`${item.itemId}-${item.awardedAt}-${i}`} className={`lc-loot-row${weighed ? " lc-loot-roww" : ""}`}>
                         <ItemLink id={item.itemId} name={item.itemName} iconUrl={item.itemIconUrl} quality={item.itemQuality} />
                         <ContentBadge contentId={item.contentId} tier={item.tier} />
                         {item.reasonLabel ? <ReasonBadge label={item.reasonLabel} tone={item.reasonTone} /> : <span />}
+                        {weighed ? <WeightChip item={item} /> : null}
                         <span className="lc-loot-date">{item.awardedAt ? fmtMs(item.awardedAt, false) : ""}</span>
                     </span>
                 ))}
