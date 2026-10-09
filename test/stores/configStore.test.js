@@ -180,3 +180,21 @@ describe("stores/configStore main version (#541)", () => {
         expect(configStore.saveConfig({ mainVersion: "bogus" }).mainVersion).toBe("tbc");
     });
 });
+
+describe("stores/configStore backup settings (#691)", () => {
+    it("reads the defaults while nothing is stored", () => {
+        expect(configStore.getConfig().backup).toEqual({
+            intervalMinutes: 60,
+            retention: { hourlyHours: 48, dailyDays: 14, weeklyWeeks: 8, monthlyMonths: 12, deployKeep: 10, manualKeep: 10, preRestoreKeep: 10 },
+        });
+    });
+
+    it("merges a save per field and per retention rule, within the bounds", () => {
+        configStore.saveConfig({ backup: { retention: { dailyDays: 7 } } });
+        const saved = configStore.saveConfig({ backup: { intervalMinutes: 5, retention: { deployKeep: 3 } } });
+        expect(saved.backup).toEqual({
+            intervalMinutes: 15,
+            retention: { hourlyHours: 48, dailyDays: 7, weeklyWeeks: 8, monthlyMonths: 12, deployKeep: 3, manualKeep: 10, preRestoreKeep: 10 },
+        });
+    });
+});

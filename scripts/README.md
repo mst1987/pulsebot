@@ -11,6 +11,7 @@ lassen.
 | Script | Zweck | Ausgabe | npm-Alias | Test |
 |---|---|---|---|---|
 | `agent-overview.js` | Übersicht der laufenden Agenten je Worktree: Änderungen, Testinstanz, PR, was zu prüfen ist | Terminal; `--html` schreibt `eventhelper-agent-overview.html` ins Temp-Verzeichnis, `--serve` eine lokale Seite | `agents` | ja |
+| `backup/snapshot.js` | Ein Schnappschuss von `DATA_DIR` ohne laufenden Bot (`--reason manual\|deploy\|pre-restore [--from <sha>] [--to <sha>] [--json]`), dieselbe Logik wie der stündliche Job; für den Deploy (#695) und das Wiederherstellen (#693), siehe docs/data-storage.md | `$BACKUP_DIR/snapshots/<name>/`, `status/snapshot.json`; Exit 0/1/2/3 (fertig/Fehler/Argumente/gesperrt) | `backup:snapshot` | ja (`test/scripts/backupSnapshot.test.js`) |
 | `build-cla-data.js` | CLA-Referenzdaten (Enchant-Blacklist, Sockel, Schattenresistenz, Consumables) aus `data-sources/cla/` und dem git-ignorierten `clasp clone` der Apps-Script-Quelle | `claData.json` | `data:cla` | nein |
 | `build-rpb-data.js` | RPB-Referenzdaten (Konfig-Sheet, Validierung, Spell-Haste, Spell-Icons) aus `data-sources/rpb/` | `rpbData.json` (fehlende Icons fragt es bei Wowhead nach und merkt sie in `data-sources/rpb/spell-icons.json`) | `data:rpb` | nein |
 | `check-main-clean.js` | Meldet alles, was den Haupt-Checkout verschmutzt; auch vom Stop-Hook benutzt | Zeilen + Exit-Code 1, still bei sauberem Stand | `check:main` | ja (`test/claude-hooks/`) |
