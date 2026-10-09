@@ -77,12 +77,14 @@ describe("the step bar", () => {
         expect(screen.getAllByRole("button").filter((b) => !b.getAttribute("aria-label"))).toHaveLength(1);
     });
 
-    it("is ONE slim row: name, a short value with a word, a check when done, the number otherwise", () => {
+    it("is one row of steps, each two lines: the name over its value, a check when done, the number otherwise", () => {
         const progress = ownSteps();
         const { container } = draw(progress);
         const items = within(screen.getByRole("list")).getAllByRole("listitem");
         progress.steps.forEach((step, i) => {
-            if (step.state !== "current" && stepShort(step)) expect(items[i]).toHaveTextContent(stepShort(step));
+            // the name and the value are lines of their own, so neither is cut short for the other
+            expect(items[i].querySelector(".rd-ck-label")).toHaveTextContent(stepTitle(step));
+            if (step.state !== "current" && stepShort(step)) expect(items[i].querySelector(".rd-ck-val")).toHaveTextContent(stepShort(step));
             const mark = items[i].querySelector(".rd-ck-mark")!;
             if (step.state === "done") expect(mark.querySelector("svg")).not.toBeNull();
             else expect(mark).toHaveTextContent(String(i + 1));
