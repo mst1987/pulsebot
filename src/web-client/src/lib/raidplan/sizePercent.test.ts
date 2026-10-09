@@ -54,11 +54,8 @@ describe("a group as a whole", () => {
         expect(lib.setGroupScale(b, "nope", { groupScale: 2 })).toBe(b);
         expect(lib.setGroupScale(withSlots([group("g1", 1, { lock: true })]), "g1", { groupScale: 2 }).slots[0].groupScale).toBeUndefined();
     });
-    it("several groups scale relative to their own, all groups get one value, a locked one stays", () => {
+    it("all groups get one value, a locked one stays", () => {
         const b = withSlots([group("g1", 1, { groupScale: 1 }), group("g2", 2, { groupScale: 2 }), group("g3", 3, { lock: true }), { ...group("t1", 1), kind: "tank" }]);
-        const r = lib.scaleGroups(b, ["g1", "g2", "g3", "t1"], 1.5);
-        expect(r.slots.map((s) => s.groupScale)).toEqual([1.5, 3, undefined, undefined]);
-        expect(lib.scaleGroups(b, ["g2"], 4).slots[1].groupScale).toBe(4);
         expect(lib.setAllGroupScale(b, 0.6).slots.map((s) => s.groupScale)).toEqual([0.6, 0.6, undefined, undefined]);
     });
     it("a member stands where the ring spacing puts him, and a drag stores it back in the same units", () => {

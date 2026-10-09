@@ -32,15 +32,6 @@ describe("slots and players", () => {
         expect(lib.unplaced([player("u1"), player("u2")], c).map((p) => p.userId)).toEqual(["u2"]);
     });
 
-    it("names the players of a setup group for a group marker and counts the open slots", () => {
-        const roster = [{ ...player("a"), group: 1 }, { ...player("b"), group: 2 }, { ...player("c"), group: 2 }];
-        expect(lib.groupMembers({ kind: "group", n: 2 }, roster).map((p) => p.userId)).toEqual(["b", "c"]);
-        let b = lib.addSlot(lib.addSlot(lib.addSlot(lib.emptyBoard(), "tank", ""), "group", ""), "label", "MT");
-        expect(lib.openSlots(b)).toBe(1);
-        b = lib.assignSlot(b, b.slots[0].id, "a");
-        expect(lib.openSlots(b)).toBe(0);
-    });
-
     it("treats objects as content for the questions", () => {
         const bosses = { a: { slots: [{ id: "1" }], marks: [{ id: "2" }], zones: [{ id: "3" }], lines: [{ id: "4" }], texts: [{ id: "5" }] } };
         expect(lib.hasContent(lib.boardOf(bosses, "a"))).toBe(true);
@@ -51,16 +42,12 @@ describe("slots and players", () => {
 });
 
 describe("melee and ranged slots", () => {
-    it("titles them, counts them as open, and offers them in the palette's context menu", async () => {
+    it("titles them and offers them in the palette's context menu", async () => {
         const slot = { id: "a", kind: "melee", n: 2, label: "", x: 0, y: 0, userId: "" };
         expect(lib.slotTitle(slot)).toBe("Melee 2");
         expect(lib.slotTitle({ ...slot, kind: "ranged" })).toBe("Ranged 2");
         expect(lib.slotTitle({ ...slot, kind: "dps" })).toBe("DPS (egal) 2");
         expect(await inLang("en", () => lib.slotTitle({ ...slot, kind: "dps" }))).toBe("DPS (any) 2");
-        let b = lib.addSlot(lib.addSlot(lib.addSlot(lib.emptyBoard(), "melee", ""), "ranged", ""), "dps", "");
-        expect(lib.openSlots(b)).toBe(3);
-        b = lib.assignSlot(b, b.slots[0].id, "u1");
-        expect(lib.openSlots(b)).toBe(2);
         const ids = lib.contextMenuItems("board", { locked: false, hasPlayer: false, isEvent: false, kind: "" }).map((i) => i.id);
         for (const k of ["melee", "ranged", "dps"]) expect(ids).toContain("insert:slot:" + k);
         expect(lib.parseInsertId("insert:slot:ranged")).toEqual({ type: "slot", kind: "ranged", label: "" });

@@ -6,7 +6,6 @@
 //
 // Written to be strippable (src/web-client/src/lib/assign.test.ts runs it, with `t` injected):
 // imports, `export type`, tables and one-line signatures only, no typed locals or casts.
-import { mentionsInRow } from "./mention";
 import { ANY, parseClassRef } from "./classRefs";
 import type { Catalog, CatalogMob, CatalogSpell, RaidplanAssignment, RaidplanAssignTarget, RaidplanAssignType, RaidplanBoard, RaidplanMobRef, RaidplanPlayer, RaidplanSlot, RaidplanSpellRef } from "../../api";
 import { t } from "../../i18n";
@@ -170,24 +169,10 @@ export function scopeOf(boss: { trash?: boolean; general?: boolean; defaults?: b
     return boss.defaults ? "defaults" : boss.general ? "general" : boss.trash ? "trash" : "boss";
 }
 
-export function assignTypes(scope: string): string[] {
-    return SCOPE_TYPES[scope] || SCOPE_TYPES.boss;
-}
-
-/** The classes a row is meant for: its own preferred classes, else the ones that can do its type (none = everybody). */
-export function rowClasses(row: { type: string; preferredClasses?: string[] }, catalog?: Catalog | null): string[] {
-    return row.preferredClasses && row.preferredClasses.length > 0 ? row.preferredClasses : classesForType(row.type, catalog);
-}
-
 /** The WoW classes a row can prefer, and a class's icon name. */
 export const CLASS_IDS = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];
 export function classIconOf(classId: string): string {
     return `classicon_${String(classId || "").toLowerCase()}`;
-}
-
-/** A player whose class is not among the row's preferred ones (the row names none: nobody is out of place). */
-export function outOfClass(row: { preferredClasses?: string[] }, player: { classId: string } | null): boolean {
-    return !!player && !!row.preferredClasses && row.preferredClasses.length > 0 && row.preferredClasses.indexOf(player.classId) < 0;
 }
 
 /** Players of a roster in the order a picker shows them: the preferred classes first (in the order they were chosen), then the rest. */
@@ -436,16 +421,6 @@ export function meInRole(role: string, ctx: AssignCtx, me: string[]): boolean {
     return me.some((id) => { const p = ctx.players.get(id); return !!p && inRoleGroup(role, (ctx.roles || {})[id] || p.role); });
 }
 
-/** Whether the viewer (`me`: their own players' userIds) is part of an assignment: as assignee, as a target, in a targeted group or role group. */
-export function isMine(a: RaidplanAssignment, ctx: AssignCtx, me: string[], names: string[] = []): boolean {
-    if (me.length === 0) return false;
-    if (a.assignees.some((r) => isMe(resolveAssignee(r, ctx), me) || (r.indexOf("role:") === 0 && meInRole(r.slice(5), ctx, me)))) return true;
-    // named in words: the title, the note or a free-text target
-    if (names.length > 0 && mentionsInRow(a, names)) return true;
-    const groups = me.map((id) => (ctx.players.get(id) || { group: -1 }).group);
-    return a.targets.some((tg) => { const r = resolveTarget(tg, ctx); return isMe(r, me) || (r.kind === "group" && groups.indexOf(r.group) >= 0) || (r.kind === "role" && meInRole(r.role, ctx, me)); });
-}
-
 /** Whether a resolved reference is one of the visitor's own players. */
 export function isMe(r: Resolved, me: string[]): boolean {
     return !!r.player && me.indexOf(r.player.userId) >= 0;
@@ -629,12 +604,6 @@ export function tanksOfMob(board: RaidplanBoard, mobId: string, iconId = ""): { 
     return out;
 }
 
-/** The first tank of a mob that stands on the map, or null (then nothing turns by itself). */
-export function tankOfMob(board: RaidplanBoard, mobId: string): { x: number; y: number } | null {
-    const all = tanksOfMob(board, mobId);
-    return all.length > 0 ? all[0] : null;
-}
-
 type FacingIcon = { id?: string; x: number; y: number; rotation: number; mobId?: string; iconKey?: string; autoFace?: boolean };
 
 /** Whether a mob target's placed icon (`oid`) stands on the board for that mob (else the target means the kind again). */
@@ -701,11 +670,6 @@ export function followsTank(board: RaidplanBoard, icon: FacingIcon): boolean {
     if (icon.autoFace === false) return false;
     if (icon.id && icon.mobId && namedIcons(board, icon.mobId).indexOf(icon.id) >= 0) return tanksOfMob(board, icon.mobId, icon.id).length > 0;
     return mobRefsOfIcon(board, icon).some((r) => tanksOfMob(board, r).length > 0);
-}
-
-/** How many assignments a board has (the boss chip's dot counts them too). */
-export function assignmentCount(board: RaidplanBoard): number {
-    return (board.assignments || []).length;
 }
 
 export const ALL_MARKS = MARKS;

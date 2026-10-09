@@ -6,7 +6,6 @@ import { newRowId } from "./model.ts";
 
 /** The key of the board that holds the Standard, and the relative target "the boss of the section this row lands in". */
 export const DEFAULTS_KEY = "defaults";
-const GENERAL_KEY = "general";
 export const THIS_BOSS = "b:this";
 
 /** What a section offers as mob targets: its boss (null in trash) and every mob it has. */
@@ -34,11 +33,6 @@ export function inheritedRows(defaults: RaidplanAssignment[], off: string[], sec
     return defaults.filter((r) => skip.indexOf(r.id) < 0).map((r) => resolveInherited(r, section));
 }
 
-/** Whether a section inherits the Standard: every boss and trash section, not "Allgemein" and not the Standard itself. */
-export function inherits(key: string): boolean {
-    return key !== DEFAULTS_KEY && key !== GENERAL_KEY;
-}
-
 /**
  * The rows a section really has (#524, the twin of the server's `mergeRows`): the Standard's rows in the Standard's order - resolved for
  * the section, a row the section deviated from replaced by its own copy at the same place, a row it switched off left out - then the
@@ -56,13 +50,6 @@ export function mergeInherited(defaults: RaidplanAssignment[], board: Partial<Ra
     }
     for (const a of own) if (!used.has(a)) out.push(a);
     return out;
-}
-
-/** The EFFECTIVE rows of one section of a plan or template (`bosses` = its boards): own + inherited; "Allgemein" and the Standard only their own. */
-export function effectiveRows(bosses: Record<string, Partial<RaidplanBoard>>, key: string, section: InheritSection): RaidplanAssignment[] {
-    const b = bosses[key] || {};
-    if (!inherits(key)) return (b.assignments || []).slice();
-    return mergeInherited((bosses[DEFAULTS_KEY] || {}).assignments || [], b, section);
 }
 
 /** "Vom Standard abweichen": the row becomes the boss's own (a copy with a fresh id that remembers where it comes from), the default row is switched off for this boss. */

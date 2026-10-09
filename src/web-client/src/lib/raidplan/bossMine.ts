@@ -1,5 +1,5 @@
 // Which sections of the sheet (/p/<token>) the visitor is PERSONALLY assigned in, for the mark on their chips (issue #503). Stricter than
-// "Only for me" (mineView.splitMine / isMine): only a row that names him - as the one who does it (his character or his slot) or as its
+// "Only for me" (mineView.splitMine): only a row that names him - as the one who does it (his character or his slot) or as its
 // target (him or his slot, i.e. "Wirkt auf dich") - and a tactic step with him among its participants. A row meant for his role group
 // (`role:<role>`), his raid group ("Gruppe 2") or a name in a note does not count: those are in "Only for me", but they are nobody's
 // own assignment. Pure and tested (bossMine.test.ts); written with function declarations and one-line signatures only.

@@ -39,9 +39,6 @@ describe("Meine Aufgaben / Wirkt auf dich", () => {
         expect(melee.modes).toEqual({ a: "do" });
         const ranged = mv.splitMine(rows, ctx(), ["r"], []);
         expect(ranged.modes).toEqual({ b: "on", c: "do" });
-        expect(assign.isMine(rows[0], ctx(), ["m"])).toBe(true);
-        expect(assign.isMine(rows[0], ctx(), ["r"])).toBe(false);
-        expect(assign.isMine(rows[1], ctx(), ["r"])).toBe(true);
         // a healer who does it does it, the target role group is not him
         expect(mv.splitMine(rows, ctx(), ["h"], []).modes).toEqual({ b: "do" });
     });

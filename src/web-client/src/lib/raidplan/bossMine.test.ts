@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { RaidplanAssignment, RaidplanPlayer, RaidplanSlot, RaidplanStep } from "../../api";
 import { bossesWithMine, hasMine, isPersonalRow, isPersonalStep, type MineSection } from "./bossMine";
-import { isMine } from "./assign";
+import { rowMode } from "./mineView";
 
 const player = (userId: string, character: string, group = 1, role = "healer"): RaidplanPlayer => ({ userId, character, classId: "Priest", className: "", classColor: "", spec: "", specLabel: "", role, group }) as RaidplanPlayer;
 const slot = (kind: string, n: number, userId = ""): RaidplanSlot => ({ id: `${kind}${n}`, kind, n, userId, x: 0.3, y: 0.3, label: "" }) as RaidplanSlot;
@@ -30,7 +30,7 @@ describe("a personal row", () => {
         const onGroup = row("g", "heal", ["user:t1"], [{ kind: "group", ref: "2" }]);
         const inWords = row("w", "other", ["user:t1"], [{ kind: "text", ref: "Heilbert soaks" }], { note: "Heilbert" });
         for (const a of [byRole, onRole, onGroup, inWords]) {
-            expect(isMine(a, ctx, ["h1"], ["Heilbert"])).toBe(true);
+            expect(rowMode(a, ctx, ["h1"], ["Heilbert"])).not.toBeNull();
             expect(isPersonalRow(a, ctx, ["h1"])).toBe(false);
         }
     });

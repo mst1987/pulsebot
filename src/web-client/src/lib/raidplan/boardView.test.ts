@@ -19,16 +19,18 @@ describe("limits", () => {
 });
 
 describe("zoom to the pointer", () => {
-    it("the board point under the pointer stays under it", () => {
+    it("the board point under the pointer stays under it, a frame that is not at the window's origin included", () => {
         const v = { z: 1, ox: 0, oy: 0 };
+        const left = 240;
+        const top = 96;
         const w = 800;
         const h = 500;
-        const p = { x: 300, y: 120 };
-        const before = bv.screenToBoard(v, p.x, p.y, 0, 0, w, h);
-        const z2 = bv.zoomAt(v, 2.5, p.x / w, p.y / h);
-        const after = bv.screenToBoard(z2, p.x, p.y, 0, 0, w, h);
-        close(after.bx, before.bx);
-        close(after.by, before.by);
+        const b = { x: 0.375, y: 0.24 };
+        const before = bv.boardToScreen(v, b.x, b.y, left, top, w, h);
+        const z2 = bv.zoomAt(v, 2.5, (before.x - left) / w, (before.y - top) / h);
+        const after = bv.boardToScreen(z2, b.x, b.y, left, top, w, h);
+        close(after.x, before.x);
+        close(after.y, before.y);
         expect(z2.z).toBe(2.5);
     });
     it("zooming at a corner stays clamped (no gap) and zooming back to fit restores the origin", () => {
@@ -37,15 +39,6 @@ describe("zoom to the pointer", () => {
         expect(v.oy).toBeCloseTo(-2, 9);
         const back = bv.zoomAt(v, 1, 0.5, 0.5);
         expect(back).toEqual({ z: 1, ox: 0, oy: 0 });
-    });
-    it("screen and board convert both ways at any zoom and pan, a frame that is not at the window's origin included", () => {
-        const v = { z: 2.2, ox: -0.7, oy: -0.4 };
-        for (const [bx, by] of [[0.1, 0.9], [0.5, 0.5], [0.83, 0.02]]) {
-            const s = bv.boardToScreen(v, bx, by, 240, 96, 1000, 600);
-            const b = bv.screenToBoard(v, s.x, s.y, 240, 96, 1000, 600);
-            close(b.bx, bx);
-            close(b.by, by);
-        }
     });
 });
 

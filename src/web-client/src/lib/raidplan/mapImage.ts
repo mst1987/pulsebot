@@ -8,14 +8,10 @@
 // Written to be strippable (src/web-client/src/lib/mapImage.test.ts runs it): one-line
 // signatures, no typed locals.
 
-/** What the server accepts (raidplanStore.LIMITS.mapBytes = 3 MB). */
-export const MAP_LIMIT_BYTES = 3 * 1024 * 1024;
 /** What a map is sent as at most: 900 KB, under the 1 MB default limit of a reverse proxy (nginx) with room for the multipart overhead. */
 export const MAP_TARGET_BYTES = 900 * 1024;
 /** The longest edges tried, biggest first (a smaller picture only when the quality alone does not get it under the target). */
 export const MAP_EDGES = [2560, 2048, 1600, 1280, 1024];
-/** The longest edge a map keeps. */
-export const MAP_MAX_EDGE = 2560;
 /** Encoder qualities tried one after the other, best first. */
 export const MAP_QUALITIES = [0.92, 0.85, 0.78, 0.7, 0.6];
 export const MAP_TYPES = ["image/png", "image/jpeg", "image/webp"];

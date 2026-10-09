@@ -320,7 +320,7 @@ drawn by `PlanBoard` into `svg.rp-links`, the same in the editor (`BoardWorkspac
   of every raider of that role, a target `{ kind: "role" }` acts on every raider of that role - his spec role
   from the setup (`resolveRole`), a flex role on this boss (`board.roles`) wins; "dps" = neither tank nor
   healer. No names are split out (the chips stay the role group). Client `lib/raidplan/assign.ts` `inRoleGroup` /
-  `meInRole` (used by `isMine` and `mineView.rowMode`), server twin `raidplanAssign.inRoleGroup` (the same
+  `meInRole` (used by `mineView.rowMode`), server twin `raidplanAssign.inRoleGroup` (the same
   table in the tests). The public view names the raiders of a referenced role in its roster (so the page knows
   the visitor's role) and sends the boss's flex roles (`roles`, lineup players only).
 - **Turned role group**: a role group (`zone.type === "role"`) has `rotation` (0..359, `normAngle`); the grip
