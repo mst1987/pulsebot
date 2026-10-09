@@ -7,8 +7,9 @@
 // here, so the roster is the one source once it exists.
 //
 // The settings page still edits config.categoryRoles; syncRosterRoleIds()
-// carries such a save over to the rosters, so both stay the same until the
-// roster page edits the roles itself.
+// carries such a save over to the rosters, and mirrorCategoryRoles() carries a
+// roster's roles (set on the roster page, #657) back into the settings, so
+// both always stay the same.
 const rosterStore = require("../../stores/rosterStore");
 
 /** The config to read: the one handed in, else the stored one (required late, no cycle). */
@@ -56,4 +57,23 @@ function syncRosterRoleIds(categoryRoles, { actor = "" } = {}) {
     return changed;
 }
 
-module.exports = { expectedRoleIds, syncRosterRoleIds };
+/**
+ * The other direction (#657): the roster page changed a roster's roles, so the
+ * settings value of its category follows - otherwise the next save of the
+ * settings page (syncRosterRoleIds) would hand the roster the old roles back.
+ * A roster without category touches nothing. Returns whether the config changed.
+ * @param {{ categoryId?: string|null, roleIds?: string[] } | null} roster
+ * @returns {boolean}
+ */
+function mirrorCategoryRoles(roster) {
+    const cat = String((roster && roster.categoryId) || "").trim();
+    if (!cat) return false;
+    const configStore = require("../../stores/configStore");
+    const current = (configStore.getConfig() || {}).categoryRoles || {};
+    const next = (roster.roleIds || []).map(String).filter(Boolean);
+    if ((Array.isArray(current[cat]) ? current[cat] : []).map(String).join(",") === next.join(",")) return false;
+    configStore.saveConfig({ categoryRoles: { ...current, [cat]: next } });
+    return true;
+}
+
+module.exports = { expectedRoleIds, syncRosterRoleIds, mirrorCategoryRoles };
