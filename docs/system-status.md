@@ -33,7 +33,7 @@ Der Verlauf liegt nur im Speicher: ein Neustart (Deploy) beginnt ihn von vorn. D
 | `botBottleneck` | Bot-CPU dauerhaft ≥ 85 % eines Kerns, **oder** Event-Loop p99 ≥ 200 ms in ≥ 25 % der Stichproben | rot (CPU oder Loop im Mittel ≥ 1 s), sonst gelb | langsamste Routen optimieren (nennt die drei mit dem höchsten p95 der letzten Stunde); mehr Kerne helfen Node kaum |
 | `otherProcess` | Host-CPU dauerhaft ≥ 85 %, Anteil des Bots < Hälfte davon | rot | den Prozess prüfen/auslagern (nennt den größten fremden Prozess, wenn gemessen) |
 | `hostBusy` | Host-CPU dauerhaft ≥ 85 %, überwiegend durch den Bot, Bot aber nicht am Kern-Limit | gelb | beobachten, sonst mehr/schnellere Kerne |
-| `cpuOverloaded` | Load 5 dauerhaft > Kerne oder Load 15 > Kerne (nicht unter Windows) | gelb, rot ab Load 15 > 2× Kerne | mehr Kerne / größerer Server |
+| `cpuOverloaded` | Load 5 dauerhaft > Kerne oder Load 15 > Kerne, **und** Load 1 jetzt noch > Kerne (sonst hängt die Meldung einem Deploy eine Viertelstunde nach; nicht unter Windows) | gelb, rot ab Load 15 > 2× Kerne | mehr Kerne / größerer Server |
 | `memoryLow` | RAM verfügbar im Mittel der letzten 5 min < 10 % (rot) oder Swap ≥ 50 % belegt (gelb) | | mehr RAM / größerer Server |
 | `diskLow` | freier Platz < 10 % (gelb), < 5 % (rot) – auch schon ohne Verlauf | | `data/` aufräumen / mehr Platz |
 

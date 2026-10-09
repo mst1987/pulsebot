@@ -81,11 +81,17 @@ describe("assess", () => {
     });
 
     it("reports a load above the cores, bad from twice the cores, and not where there is no load average", () => {
-        const warn = assess({ samples: samples(60, { load5: 3, load15: 2.5 }), now: NOW, cores: 2 });
+        const warn = assess({ samples: samples(60, { load1: 3, load5: 3, load15: 2.5 }), now: NOW, cores: 2 });
         expect(warn.findings).toEqual([{ id: "cpuOverloaded", level: "warn", values: { load5: 3, load15: 2.5, cores: 2 } }]);
-        const bad = assess({ samples: samples(60, { load5: 6, load15: 5 }), now: NOW, cores: 2 });
+        const bad = assess({ samples: samples(60, { load1: 6, load5: 6, load15: 5 }), now: NOW, cores: 2 });
         expect(bad.findings[0]).toMatchObject({ id: "cpuOverloaded", level: "bad" });
-        expect(assess({ samples: samples(60, { load5: 6, load15: 5 }), now: NOW, cores: 2, loadSupported: false }).findings).toEqual([]);
+        expect(assess({ samples: samples(60, { load1: 6, load5: 6, load15: 5 }), now: NOW, cores: 2, loadSupported: false }).findings).toEqual([]);
+    });
+
+    it("drops the overload once the 1-minute load is back under the cores (the longer averages still trail a spike)", () => {
+        // a deploy is over: 5 and 15 minutes still remember it, the last minute does not
+        const res = assess({ samples: samples(60, { load1: 0.25, load5: 3.6, load15: 4.6 }), now: NOW, cores: 1 });
+        expect(res.findings).toEqual([]);
     });
 
     it("reports too little memory (bad) and heavy swapping (warn)", () => {
@@ -106,7 +112,7 @@ describe("assess", () => {
 
     it("lists the worst finding first and takes the worst level", () => {
         const res = assess({
-            samples: samples(60, { load5: 3, load15: 2.5, memAvailPct: 3 }),
+            samples: samples(60, { load1: 3, load5: 3, load15: 2.5, memAvailPct: 3 }),
             now: NOW, cores: 2, disk: { known: true, total: 1000, free: 80 },
         });
         expect(res.level).toBe("bad");
