@@ -134,6 +134,10 @@ const WEB_GROUPS = [
         "<strong>Kategorien</strong> — pro Raid-Kategorie in vier Tabs (Anmeldung, Nachricht, Setup &amp; Planung, Loot): Quelle, Rollen, Vorlage, Lootsystem, Setup-DMs, Sprachkanal und die <strong>Planung</strong> — Raidplan oder Sheet, nie beides.",
         "<strong>Spielversion</strong> — Hauptversion, Kategorien einer anderen Version, „Andere Versionen ausblenden“ (nur noch die Hauptversion überall, nichts wird gelöscht) und der Archiv-Export.",
     ] },
+    { cat: "settings", title: "Systemstatus", badge: "nur Admin", items: [
+        "Einschätzung, woher die Last auf dem Server kommt (Bot, anderer Prozess, zu wenig RAM/CPU, voller Datenträger), mit Zahlen und Empfehlung.",
+        "Kacheln mit Verlauf (1 h / 24 h): Server-CPU, Bot-CPU, RAM, Verzögerung, freier Platz; dazu die langsamsten Anfragen, die Prozesse auf dem Server und die größten Ordner unter data/.",
+    ] },
 ];
 
 const DOCS_STYLE = `

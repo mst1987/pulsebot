@@ -45,6 +45,7 @@ const LootCouncilPage = lazyWithReload(() => import("./pages/lootcouncil/LootCou
 const DropCheckPage = lazyWithReload(() => import("./pages/lootcouncil/DropCheckPage"));
 const GuildBankPage = lazyWithReload(() => import("./pages/guildbank/GuildBankPage"));
 const KaderPage = lazyWithReload(() => import("./pages/kader/KaderPage"));
+const SystemPage = lazyWithReload(() => import("./pages/system/SystemPage"));
 
 /**
  * Hides a page the user's rights don't cover. `areas` is an OR — one of them at
@@ -65,6 +66,16 @@ function Guard({ user, areas, level = "read", children }: {
             {level === "write" ? t("shell.app.noWrite") : t("shell.app.noRead")}
         </div>
     );
+}
+
+/**
+ * Hides a page that belongs to no area: full admins only, whatever a role is
+ * granted (the system status). Cosmetic like Guard — the API route is adminOnly.
+ */
+function AdminGuard({ user, children }: { user: SessionUser; children: ReactNode }) {
+    const t = useT();
+    if (user.isAdmin) return <>{children}</>;
+    return <div className="empty">{t("shell.app.adminOnly")}</div>;
 }
 
 /** An old address of a page: the same view at its new path, the query kept. */
@@ -230,6 +241,8 @@ function MenuApp() {
                                 <Route path="guildbank" element={<Guard user={user} areas={["raids"]}><GuildBankPage /></Guard>} />
                                 {/* The Kaderplaner (area "kader"): one Kader at a time, /kader opens the one used last. */}
                                 <Route path="kader/:kaderId?/:sub?" element={<Guard user={user} areas={["kader"]}><KaderPage /></Guard>} />
+                                {/* Systemstatus: full admins only, no area opens it (docs/system-status.md). */}
+                                <Route path="system" element={<AdminGuard user={user}><SystemPage /></AdminGuard>} />
                                 {/* Inside the shell on purpose: a mistyped path should still
                                     leave the menu (and the way back) standing. */}
                                 <Route path="*" element={<NotFound />} />

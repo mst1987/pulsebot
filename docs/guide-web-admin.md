@@ -300,6 +300,23 @@ Alle Server-Kanäle als Liste; umbenennen, archivieren, löschen (einzeln oder p
 
 **Emoji im Kanalnamen:** Neben dem Kanalnamen (Event anlegen, Kanal bearbeiten, Schnellanlage, Namensschema) sitzt ein Smiley-Knopf. Er öffnet eine Emoji-Auswahl wie in Discord, mit Suche („bär“, „drache“ …) und Kategorien. Ganz oben stehen Vorschläge für den Raid (z. B. 🐻 für Zul'Aman) und die Emojis, die die Kategorie schon nutzt. Ein Klick ersetzt das Emoji am Anfang des Namens, z. B. `🐍・mi-14-10-za` → `🐻・mi-14-10-za`.
 
+## Systemstatus
+
+Technik: [system-status.md](system-status.md)
+
+*Nur für Administratoren* (kein Bereich gibt die Seite frei)
+
+Zeigt, ob der Server mit dem Bot gut zurechtkommt – und wenn nicht, woran es liegt. Die Seite aktualisiert sich alle 15 Sekunden, solange sie offen ist.
+
+- **Einschätzung ganz oben:** „Alles im grünen Bereich“, „Es wird eng“ oder „Engpass gefunden“, darunter je Befund ein Satz mit den Zahlen und eine **Empfehlung**. Typische Befunde: *Ein anderer Prozess belastet den Server* (mit seinem Namen – dann hilft es, ihn zu prüfen oder auszulagern), *Der Bot selbst ist der Engpass* (mit den langsamsten Anfragen – die gehören optimiert, ein größerer Server hilft kaum), *Zu wenig Arbeitsspeicher* oder *CPU überlastet* (dann hilft ein größerer Server), *Datenträger fast voll*. Nach einem Neustart braucht die Einschätzung etwa eine Minute Messwerte.
+- **Fünf Kacheln:** Server-CPU, Bot-CPU (100 % = ein Kern voll), RAM verfügbar, Verzögerung p99 (wie lange eine Anfrage im Bot warten muss; ab 200 ms spürbar) und freier Platz auf dem Datenträger. Jede mit einer kleinen Kurve; oben umschaltbar zwischen der letzten Stunde und 24 Stunden. Gelb oder rot wird eine Kachel nur, wenn der Wert einen Blick braucht. Beim Überfahren steht, was die Zahl bedeutet; *Details zu Server und Bot* klappt Kerne, Load, Swap, Speicher, Node-Version und Laufzeiten auf.
+- **Langsamste Anfragen:** jede Seite bzw. API-Anfrage mit Anzahl, Durchschnitt, p95, Maximum und wie viele langsam waren (ab 1 Sekunde) – für die letzte Stunde oder seit dem Start, per Klick auf die Spaltenköpfe sortierbar. Darunter aufklappbar die letzten langsamen Anfragen einzeln.
+- **Prozesse auf dem Server** (nur auf dem Linux-Server): die Programme mit der meisten CPU, der Bot ist markiert. So sieht man, ob etwas anderes (ein zweiter Bot, eine Datenbank, ein Backup) den Server auffrisst.
+- **Speicherplatz:** die größten Ordner unter `data/` als Balken, aufklappbar die größten Dateien.
+- **Neu messen** misst Prozesse und Speicherplatz sofort neu (sonst einmal beim Öffnen bzw. alle 5 Minuten).
+
+Der Verlauf liegt nur im Speicher des Bots: nach einem Neustart oder Deploy fängt er leer an.
+
 ## Einstellungen
 
 Technik: [permissions.md](permissions.md), [discord-servers.md](discord-servers.md)

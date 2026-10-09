@@ -27,8 +27,12 @@ const eventSeries = require("../events/eventSeries");
 const applicationState = require("../../utils/recruitment/applicationState");
 const availabilityPanel = require("../../services/signups/availabilityPanel");
 const guildBankItemMeta = require("../../services/guildbank/itemMeta");
+const systemMonitor = require("../../services/system/systemMonitor");
 
 const JOBS = [
+    // The "Systemstatus" page's samples (docs/system-status.md): host and process figures every 15 s, kept 24 h in memory.
+    // First, so it measures everything the other jobs start.
+    { name: "systemMonitor", start: () => systemMonitor.start(), stop: () => systemMonitor.stop() },
     // Sweep due raid-sheet copies (deleted a few days after each raid).
     { name: "sheetCleanup", start: () => sheetCleanup.startSheetCleanup(), stop: () => sheetCleanup.stopSheetCleanup() },
     // The only reader of Raid-Helper's event list (#608): fetch it every few

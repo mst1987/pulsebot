@@ -1,0 +1,89 @@
+/* "Systemstatus" (pages/system/, docs/system-status.md). Prefix sy-.
+   Calm by default: only the verdict always carries a colour; a tile turns
+   yellow or red only when its figure needs a look. */
+
+.sy-page { min-width: 0; }
+
+/* small uppercase labels, the page's quiet layer */
+.sy-label { font-size: 11.5px; color: var(--muted); font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
+
+/* ---- the verdict ---- */
+.sy-verdict {
+    display: flex; gap: 16px; align-items: flex-start;
+    background: var(--panel); border: 1px solid var(--line); border-left: 5px solid var(--good);
+    padding: 18px 20px; margin: 0 0 18px;
+}
+.sy-verdict.sy-warn { border-left-color: var(--medium); }
+.sy-verdict.sy-bad { border-left-color: var(--high); }
+.sy-verdict-ic { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--good-bg); color: var(--good); }
+.sy-verdict.sy-warn .sy-verdict-ic { background: var(--medium-bg); color: var(--medium); }
+.sy-verdict.sy-bad .sy-verdict-ic { background: var(--high-bg); color: var(--high); }
+.sy-verdict-ic svg { width: 22px; height: 22px; }
+.sy-verdict-body { min-width: 0; flex: 1; }
+.sy-verdict-head { margin: 2px 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -.2px; }
+.sy-verdict-text { margin: 0; font-size: 17px; line-height: 1.45; }
+.sy-finding + .sy-finding { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.sy-verdict-detail { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; overflow-wrap: anywhere; }
+.sy-verdict-advice { margin: 6px 0 0; font-size: 14px; }
+
+/* ---- the tiles ---- */
+.sy-tiles-wrap { margin: 0 0 8px; }
+.sy-tiles-head { display: flex; justify-content: flex-end; margin: 0 0 10px; }
+.sy-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.sy-tile {
+    --sy-ink: var(--accent);
+    background: var(--panel); border: 1px solid var(--line); padding: 16px 18px 12px; min-width: 0;
+    display: flex; flex-direction: column; gap: 4px; outline: none;
+}
+.sy-tile:focus-visible { border-color: var(--accent); }
+.sy-tile.sy-tone-mid { --sy-ink: var(--medium); border-top: 3px solid var(--medium); }
+.sy-tile.sy-tone-bad { --sy-ink: var(--high); border-top: 3px solid var(--high); }
+.sy-value { font-size: 32px; font-weight: 700; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.sy-tile.sy-tone-mid .sy-value { color: var(--medium); }
+.sy-tile.sy-tone-bad .sy-value { color: var(--high); }
+.sy-sub { font-size: 12.5px; color: var(--muted); min-height: 1.3em; }
+.sy-spark { display: block; width: 100%; height: 34px; margin-top: 6px; }
+.sy-spark-empty { border-bottom: 1px dashed var(--line); }
+.sy-spark-line { fill: none; stroke: var(--sy-ink); stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.sy-spark-area { fill: var(--sy-ink); opacity: .12; stroke: none; }
+
+/* ---- details fold ---- */
+.sy-details { margin: 6px 0 22px; }
+.sy-dl { margin: 10px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 24px; background: var(--panel); border: 1px solid var(--line); padding: 14px 18px; }
+.sy-dl-row { min-width: 0; }
+.sy-dl dt { margin: 0 0 2px; }
+.sy-dl dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+
+/* ---- sections ---- */
+.sy-section { margin: 0 0 24px; min-width: 0; }
+.sy-empty { padding: 8px 2px; }
+.sy-table td.sy-route code { font-size: 13px; overflow-wrap: anywhere; }
+.sy-table td.sy-num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sy-slow { margin: 10px 0 0; }
+.sy-slow-list { list-style: none; margin: 8px 0 0; padding: 0; border: 1px solid var(--line); background: var(--panel); }
+.sy-slow-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 7px 12px; border-bottom: 1px solid var(--line-soft); min-width: 0; }
+.sy-slow-list li:last-child { border-bottom: 0; }
+.sy-slow-list code { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+
+/* process and disk rows: name | bar | figure */
+.sy-rows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); background: var(--panel); }
+.sy-rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); }
+.sy-rows li:last-child { border-bottom: 0; }
+.sy-rows li.sy-self { background: var(--accent-soft); }
+.sy-row-name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
+.sy-row-name code { overflow-wrap: anywhere; }
+.sy-row-fig { font-size: 13px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 640px) {
+    .sy-verdict { padding: 14px; gap: 12px; }
+    .sy-verdict-head { font-size: 19px; }
+    .sy-verdict-text { font-size: 15.5px; }
+    .sy-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .sy-tile { padding: 12px 12px 10px; }
+    .sy-value { font-size: 24px; }
+    /* the mean (3rd) and the maximum (5th) column give way; p95 says enough on a phone */
+    .sy-table th:nth-child(3), .sy-table td:nth-child(3), .sy-table th:nth-child(5), .sy-table td:nth-child(5) { display: none; }
+    .sy-table th, .sy-table td { padding: 8px 6px; }
+    .sy-rows li { grid-template-columns: minmax(0, 1fr); }
+    .sy-rows .bar { width: 100%; }
+}
