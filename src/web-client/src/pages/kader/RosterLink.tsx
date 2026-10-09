@@ -7,7 +7,9 @@
 // attendance in is suggested first, e.g. a migrated "Mo-Raider"). Once linked,
 // "Ins Roster übernehmen (n)" (managers of that roster: POST
 // /api/kader/roster/sync) takes the players decided since then into THAT
-// roster, and "Zum Roster" opens it. Only the state (Roster → Stamm, Bench →
+// roster, and "Zum Roster" opens it; a roster running as Loot-Council also
+// gets "Zum Loot-Council" (#676, /lootcouncil?roster=<id>, only for a reader
+// of the council). Only the state (Roster → Stamm, Bench →
 // Ersatz, Tentative → Probe) and the decided character cross; interviews,
 // answers, votes and comments stay here. Members already in the roster are
 // never touched.
@@ -281,6 +283,13 @@ export default function RosterLink() {
                 data-tip={t("kader.roster.openTip", { name: s.roster.name })} data-tip-sub={t("kader.roster.openTipSub", { count: s.roster.members })}>
                 {t("kader.roster.open")}
             </Link>
+            {/* #676: the roster runs as Loot-Council - only its id crosses, nothing of the Kader */}
+            {s.lootCouncil && (
+                <Link to={`/lootcouncil?roster=${encodeURIComponent(s.roster.id)}`} className={buttonClass("ghost", "md", false, "kp-stage-act")}
+                    data-tip={t("kader.roster.councilTip", { name: s.roster.name })}>
+                    {t("kader.roster.council")}
+                </Link>
+            )}
             {s.canLink && (
                 <Button variant="ghost" className="kp-stage-act" onClick={() => setLinking(true)}
                     data-tip={t("kader.roster.relinkTip", { name: s.roster.name })}>

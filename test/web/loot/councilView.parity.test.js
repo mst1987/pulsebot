@@ -2,11 +2,12 @@
 // (GET /api/lootcouncil with the stored view's filters) and the sync tool's
 // GET /api/ingest/council?v=2 go through the real councilRoster() here, with
 // only the data sources mocked, and must answer with the same raiders and the
-// same need numbers. Raiders the council set aside appear in neither.
+// same need numbers. Raiders the council set aside appear in neither. Since
+// #676 the view and the weighting come from the Loot-Council profile of the
+// category (or of its roster) - the real councilProfilesStore on a scratch file.
 const mockListAll = jest.fn(() => []);
 const mockAnnotated = jest.fn(() => []);
 const mockExcludedKeys = jest.fn(() => new Set());
-const mockViews = {};
 const mockRosters = {};
 const mockProfiles = jest.fn(() => []);
 
@@ -27,7 +28,6 @@ jest.mock("../../../src/stores/councilStore", () => {
         listExcluded: () => ({}),
         listViews: () => ({}),
         VIEW_DEFAULTS: actual.VIEW_DEFAULTS,
-        viewFor: (id) => (mockViews[id] ? { ...mockViews[id], stored: true } : { ...actual.VIEW_DEFAULTS, stored: false }),
     };
 });
 jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: () => [] }));
@@ -40,6 +40,7 @@ jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], get
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: (...a) => mockProfiles(...a) }));
 jest.mock("../../../src/stores/rosterStore", () => ({
     rosterForCategory: (id) => mockRosters[id] || null,
+    getRoster: (id) => Object.values(mockRosters).find((r) => r.id === id) || null,
     // every roster: "dabei seit" without a category (#668)
     listRosters: () => Object.values(mockRosters),
 }));
@@ -71,11 +72,22 @@ const { getLootCouncil } = require("../../../src/web/apiRoutes/lootCouncil");
 const { ingestCouncil } = require("../../../src/web/apiRoutes/ingest");
 const { mockRes, body } = require("../../helpers/http");
 const { lootRow, DAY, now } = require("../../helpers/lootCouncil");
-const councilWeights = require("../../../src/stores/councilWeightsStore");
+const councilProfilesStore = require("../../../src/stores/councilProfilesStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
-beforeAll(() => councilWeights.useFile(tempStoreFile("council-weights.json")));
-afterAll(() => councilWeights.useFile(null));
+afterAll(() => councilProfilesStore.useFile(null));
+
+/**
+ * Give a category its own profile with this view (and weighting): on its
+ * roster when it has one (lootProfileId), else as the category's profile.
+ */
+function categoryProfile(categoryId, { view, weights } = {}) {
+    const p = councilProfilesStore.createProfile({ name: `Profil ${categoryId}` });
+    councilProfilesStore.updateProfile(p.id, { ...(view ? { view } : {}), ...(weights ? { weights } : {}) });
+    if (mockRosters[categoryId]) mockRosters[categoryId].lootProfileId = p.id;
+    else councilProfilesStore.setCategoryProfile(categoryId, p.id);
+    return p;
+}
 
 async function page(query) {
     const res = mockRes();
@@ -92,7 +104,7 @@ async function ingest(query) {
 const slim = (rows) => rows.map((r) => ({ key: r.key, character: r.character, need: Math.round(r.needScore * 100), lootCount: r.lootCount }));
 
 beforeEach(() => {
-    for (const k of Object.keys(mockViews)) delete mockViews[k];
+    councilProfilesStore.useFile(tempStoreFile("council-profiles.json"));
     for (const k of Object.keys(mockRosters)) delete mockRosters[k];
     mockProfiles.mockReturnValue([]);
     mockListAll.mockReturnValue([
@@ -115,7 +127,7 @@ beforeEach(() => {
 
 describe("council page and in-game council answer alike", () => {
     it("sends every Loot-Council category, each exactly as the page shows it with its stored view", async () => {
-        mockViews.c1 = { role: "caster", tiers: ["t6"], contents: [], bisTier: "t6", version: "" };
+        categoryProfile("c1", { view: { role: "caster", tiers: ["t6"], contents: [], bisTier: "t6", version: "" } });
         const data = await ingest("v=2");
         expect(data.format).toBe("eventhelper-council");
         expect(data.version).toBe(2);
@@ -146,7 +158,7 @@ describe("council page and in-game council answer alike", () => {
     });
 
     it("follows a stored role and content filter", async () => {
-        mockViews.c1 = { role: "", tiers: [], contents: ["ssc"], bisTier: "", version: "" };
+        categoryProfile("c1", { view: { role: "", tiers: [], contents: ["ssc"], bisTier: "", version: "" } });
         const data = await ingest("v=2");
         const web = await page("contents=ssc&category=c1");
         expect(slim(web.roster)).toEqual(data.categories[0].raiders.map((r) => ({ key: r.key, character: r.character, need: r.need, lootCount: r.lootCount })));
@@ -238,16 +250,17 @@ describe("council page and in-game council answer alike - version 3", () => {
             { key: "pfeil", className: "Hunter", spec: "BeastMastery" },
         ]);
         mockExcludedKeys.mockReturnValue(new Set());
-        mockViews.c1 = { role: "", tiers: [], contents: [], bisTier: "", version: "" };
-        // c1 weighs on its own: trinkets 3, an exception, other need shares, 30 days to belong.
-        councilWeights.setWeights("c1", {
-            classes: { trinket: 3, bisWeapon: 2, weapon: 1.5, set: 1, normal: 1, frequent: 0.5 },
-            items: { 30099: { weight: 2.5, name: "Frayed Tether" } },
-            need: { drought: 40, share: 20, need: 20, tenure: 20 },
-            tenureDays: 30,
+        // c1 weighs by a profile of its own: trinkets 3, an exception, other need shares, 30 days to belong.
+        categoryProfile("c1", {
+            view: { role: "", tiers: [], contents: [], bisTier: "", version: "" },
+            weights: {
+                classes: { trinket: 3, bisWeapon: 2, weapon: 1.5, set: 1, normal: 1, frequent: 0.5 },
+                items: { 30099: { weight: 2.5, name: "Frayed Tether" } },
+                need: { drought: 40, share: 20, need: 20, tenure: 20 },
+                tenureDays: 30,
+            },
         });
     });
-    afterEach(() => councilWeights.resetWeights("c1"));
 
     it("answers ?v=3 with every role and the page's numbers, points, drought and tenure", async () => {
         const data = await ingest("v=3");
@@ -268,7 +281,7 @@ describe("council page and in-game council answer alike - version 3", () => {
         const web = await page("category=c1");
         const c1 = data.categories[0];
         expect(c1.weights.shares).toEqual(web.weights.needShares);
-        expect(c1.weights).toMatchObject({ drought: 40, share: 20, need: 20, tenure: 20, tenureDays: 30, droughtDays: 30, scope: "category" });
+        expect(c1.weights).toMatchObject({ drought: 40, share: 20, need: 20, tenure: 20, tenureDays: 30, droughtDays: 30, scope: "profile" });
         expect(c1.itemWeights).toEqual({ classes: web.weights.classes, overrides: { 30099: 2.5 } });
         expect(c1.itemClasses).toMatchObject({ 30626: "trinket", 30103: "weapon", 30245: "set", 30021: "frequent" });
         // c2 has no own weighting: the server's.
@@ -307,5 +320,35 @@ describe("council page and in-game council answer alike - version 3", () => {
 
     it("keeps version 1 for v=3 with a category", async () => {
         expect((await ingest("v=3&category=c1")).version).toBe(1);
+    });
+
+    it("takes weighting and view from the roster's profile - the page picked by roster sees the same (#676)", async () => {
+        // c1's category profile (from beforeEach) stays, but the roster names its own: the roster's wins.
+        mockRosters.c1 = {
+            id: "r1", name: "Mittwoch-Roster", categoryId: "c1", versionId: "tbc", allowMultipleChars: false,
+            members: {
+                1001: { status: "core", chars: ["aktiv"], charNames: {} },
+                1002: { status: "core", chars: ["zweit"], charNames: {} },
+                1003: { status: "trial", chars: ["hauer"], charNames: {} },
+            },
+        };
+        const p = councilProfilesStore.createProfile({ name: "Main T6" });
+        councilProfilesStore.updateProfile(p.id, {
+            view: { role: "", tiers: [], contents: [], bisTier: "", version: "" },
+            weights: { classes: { trinket: 5 }, need: { drought: 10, share: 70, need: 10, tenure: 10 }, tenureDays: 14 },
+        });
+        mockRosters.c1.lootProfileId = p.id;
+        const data = await ingest("v=3");
+        const web = await page("roster=r1");
+        const c1 = data.categories[0];
+        expect(c1.id).toBe("c1");
+        expect(c1.roster).toEqual({ id: "r1", name: "Mittwoch-Roster" });
+        expect(c1.profile).toEqual({ id: p.id, name: "Main T6" });
+        expect(c1.weights).toMatchObject({ drought: 10, share: 70, need: 10, tenure: 10, tenureDays: 14, scope: "profile" });
+        expect(c1.itemWeights.classes.trinket).toBe(5);
+        expect(c1.raiders.map(v3Raider)).toEqual(web.roster.map(pageRaider));
+        expect(web.council).toMatchObject({ target: "roster", roster: { id: "r1", name: "Mittwoch-Roster" }, profile: { id: p.id, name: "Main T6", source: "roster" } });
+        // c2 has neither roster nor profile: the default.
+        expect(data.categories[1]).toMatchObject({ roster: null, profile: { id: "standard", name: "Standard" } });
     });
 });

@@ -25,13 +25,24 @@ beforeEach(() => {
         sim: { available: false, version: "", hint: "" },
     }));
     vi.mocked(api.getCouncilViews).mockResolvedValue({
-        views: { c1: { role: "healer", tiers: ["t5"], contents: [], bisTier: "", version: "" } },
+        views: { "p-main": { role: "healer", tiers: ["t5"], contents: [], bisTier: "", version: "" } },
+        targets: { "category:c1": "p-main", "roster:r1": "p-main" },
+        defaultId: "standard",
         defaults: { role: "caster", tiers: [], contents: [], bisTier: "", version: "" },
         councilCategories: ["c1"],
+        councilRosters: ["r1"],
     });
 });
 
 describe("drop check with a raid category", () => {
+    it("asks with the roster's profile view and never saves it (#676)", async () => {
+        localStorage.setItem("eh-lootcouncil.view", JSON.stringify({ roster: "r1", category: "" }));
+        renderPage(<DropCheckPage />, { route: "/lootcouncil/drop/200", path: PATH });
+        expect(await screen.findByText("Alle, die ihn tragen können")).toBeInTheDocument();
+        expect(api.getLootCouncil).toHaveBeenCalledWith(expect.objectContaining({ roster: "r1", role: "healer", tiers: ["t5"], item: 200 }));
+        expect(api.saveCouncilView).not.toHaveBeenCalled();
+    });
+
     it("asks with the category's stored filters and never saves them", async () => {
         localStorage.setItem("eh-lootcouncil.view", JSON.stringify({ category: "c1" }));
         renderPage(<DropCheckPage />, { route: "/lootcouncil/drop/200", path: PATH });

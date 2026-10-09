@@ -2,7 +2,8 @@
 // the raid categories of the server (with the roster that has one already),
 // the game versions, the server's Discord roles (whether the bot can hand each
 // out), the Kader of the Kaderplaner (counts only, for a reader of `kader`),
-// and the slots a category's raid template suggests.
+// the slots a category's raid template suggests, and the Loot-Council profiles
+// with the loot systems (#676: names and ids only).
 const discord = require("../discord/discord");
 const { canManageRoles } = require("../discord/roleSync");
 const { roleBelowBot } = require("../discord/memberRoles");
@@ -13,6 +14,8 @@ const { publicVersions } = require("../../config/gameVersions");
 const { getRaidTemplate } = require("../../stores/raidTemplateStore");
 const rosterStore = require("../../stores/rosterStore");
 const { kaderChoices } = require("./rosterCreate");
+const { listProfiles, defaultProfileId } = require("../../stores/councilProfilesStore");
+const { LOOT_SYSTEMS } = require("../loot/lootSystem");
 
 /**
  * The raid categories of a server: the ones marked for events
@@ -96,6 +99,12 @@ function kaderOptions(guildId) {
     });
 }
 
+/** The Loot-Council profiles to pick from (#676): id, name, whether it is the default. */
+function lootProfileOptions() {
+    const def = defaultProfileId();
+    return listProfiles().map((p) => ({ id: p.id, name: p.name, isDefault: p.id === def }));
+}
+
 /**
  * Everything the dialog needs.
  * @param {{ guildId: string, config?: object, canSeeKader?: boolean }} opts
@@ -113,6 +122,8 @@ function rosterOptions({ guildId = "", config = {}, canSeeKader = false } = {}) 
         online: !!(guildId && discord.isOnline() && discord.getGuild(guildId)),
         kaders: canSeeKader ? kaderOptions(guildId) : [],
         templateSlots: templateSlots(categories, config),
+        lootSystems: [...LOOT_SYSTEMS],
+        lootProfiles: lootProfileOptions(),
     };
 }
 

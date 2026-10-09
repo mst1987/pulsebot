@@ -74,7 +74,9 @@
         "unlinkTitle": "Remove the link to “{name}”?",
         "unlinkText": "The roster stays as it is, with all its members. Only “Take into the roster” no longer goes there.",
         "relink": "Link",
-        "relinkTip": "Linked to {name}: change or remove"
+        "relinkTip": "Linked to {name}: change or remove",
+        "council": "To the loot council",
+        "councilTip": "Open the loot council for “{name}”"
     },
     "quote": "“{text}”",
     "state": {

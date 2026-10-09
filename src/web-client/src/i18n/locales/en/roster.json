@@ -462,7 +462,9 @@
         "not_roster_role": "This role does not belong to this roster.",
         "csrf": "The page is out of date. Please reload.",
         "invalid_spec": "This spec does not fit the character's class.",
-        "kader_taken": "This Kader is already linked to another roster."
+        "kader_taken": "This Kader is already linked to another roster.",
+        "invalid_loot_system": "Unknown loot system.",
+        "unknown_profile": "This loot council profile does not exist."
     },
     "sync": {
         "loading": "Loading the sync …",
@@ -755,7 +757,22 @@
         "noKader": "No Kader",
         "kaderGone": "Linked Kader (deleted)",
         "kaderTaken": "{name} – linked to {roster}",
-        "kaderLink": "Kader in the Kaderplaner"
+        "kaderLink": "Kader in the Kaderplaner",
+        "loot": "Loot",
+        "lootSystem": "Loot system",
+        "lootSystems": {
+            "softres": "Softres",
+            "lootcouncil": "Loot council",
+            "gdkp": "GDKP",
+            "other": "Other"
+        },
+        "lootSystemHint": "How loot is handed out in this roster's raids.",
+        "lootSystemCategoryHint": "Applies to the roster's category — the same setting as Settings › Categories.",
+        "lootProfile": "Loot council profile",
+        "lootProfileHint": "Weighting and view the council computes with for this roster. Managers may pick it.",
+        "lootProfileDefault": "{name} (default)",
+        "lootProfileGone": "Profile no longer exists",
+        "lootProfilesManage": "Manage profiles"
     },
     "spec": {
         "title": "Spec in this roster",

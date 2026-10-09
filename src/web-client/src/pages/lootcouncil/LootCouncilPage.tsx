@@ -49,11 +49,13 @@ import { RosterTab } from "./RosterTab";
 import { GapsTab } from "./GapsTab";
 import { BisListsTab } from "./BisListsTab";
 import { CompareTab } from "./CompareTab";
-import { WeightsTab } from "./WeightsTab";
+import { ProfilesTab } from "./ProfilesTab";
+import { CouncilHead } from "./CouncilHead";
+import { pickValue } from "./profiles";
 import { NeedWeightsProvider } from "./needWeights";
 
 const VIEW_DEFAULT: View = {
-    role: "caster", tiers: [], contents: [], category: "", bisTier: "", bench: false, tab: "roster",
+    role: "caster", tiers: [], contents: [], category: "", roster: "", bisTier: "", bench: false, tab: "roster",
     listTier: "t6", listOff: [], listFocus: 0, cmpOff: [],
 };
 
@@ -71,7 +73,28 @@ export default function LootCouncilPage() {
     const [localView, setLocalView] = usePersistedState<View>(VIEW_KEY, VIEW_DEFAULT);
     // A picked category brings its own filters from the server (they drive the
     // in-game council too): lootcouncil/categoryViews.ts.
-    const { filters: view, patch, ready: viewsReady, reachesGame } = useCategoryViews({
+    // A link can preselect the council (#676): ?roster=<id> (the Kaderplaner's
+    // "Zum Loot-Council", the roster settings' "Profile verwalten") and
+    // ?tab=profiles. Taken over into the view once, then dropped from the url.
+    const [params, setParams] = useSearchParams();
+    const linkedRoster = params.get("roster") || "";
+    const linkedTab = params.get("tab") || "";
+    useEffect(() => {
+        if (!linkedRoster && linkedTab !== "profiles") return;
+        setLocalView({
+            ...localView,
+            ...(linkedRoster ? { roster: linkedRoster, category: "" } : {}),
+            ...(linkedTab === "profiles" ? { tab: "profiles" } : {}),
+        });
+        setParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete("roster");
+            next.delete("tab");
+            return next;
+        }, { replace: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [linkedRoster, linkedTab]);
+    const { filters: view, patch, ready: viewsReady, reachesGame, profileId, reload: reloadViews } = useCategoryViews({
         view: localView,
         setView: setLocalView,
         canWrite,
@@ -79,8 +102,8 @@ export default function LootCouncilPage() {
         mainVersion,
         onError: (message) => toast(message || t("lootcouncil.page.actionFailed"), "err"),
     });
-    // A stored "drop" tab is from before the drop check had its own page.
-    const tab = view.tab === "drop" ? "roster" : view.tab;
+    // A stored "drop" tab is from before the drop check had its own page; "weights" became "profiles" (#676).
+    const tab = view.tab === "drop" ? "roster" : view.tab === "weights" ? "profiles" : view.tab;
     const [data, setData] = useState<LootCouncilData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [loading, setLoading] = useState(true);
@@ -102,7 +125,6 @@ export default function LootCouncilPage() {
     const candidateSort = useTableSort<CandidateSortKey>("lootcouncil.candidate-sort", CANDIDATE_SORT, "gain");
     // The raider whose details are open lives in the url (?raider=<name>), so a
     // link from the drop check or from Discord leads straight there.
-    const [params, setParams] = useSearchParams();
     const openName = (params.get("raider") || "").toLowerCase();
 
     // Returns the promise (resolving with the fresh data, or null) so an action
@@ -115,6 +137,7 @@ export default function LootCouncilPage() {
             tiers: view.tiers,
             contents: view.contents,
             category: view.category,
+            roster: view.roster || "",
             bisTier: view.bisTier,
             version: contentVersion,
             bench: !!view.bench,
@@ -128,7 +151,7 @@ export default function LootCouncilPage() {
                 return d;
             })
             .finally(() => setLoading(false));
-    }, [view.role, view.tiers, view.contents, view.category, view.bisTier, view.bench, contentVersion, jobs, t]);
+    }, [view.role, view.tiers, view.contents, view.category, view.roster, view.bisTier, view.bench, contentVersion, jobs, t]);
 
     /** Everything that depends on the raiders' data — every gear-changing action goes through here. */
     const reloadAll = useCallback(async () => load(), [load]);
@@ -141,7 +164,7 @@ export default function LootCouncilPage() {
 
     // A changed filter changes which raiders and items were simulated, so the
     // old results no longer describe what is on screen.
-    useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.bisTier, view.bench, contentVersion, setSim]);
+    useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.roster, view.bisTier, view.bench, contentVersion, setSim]);
 
 
     const roster = useMemo(() => (data ? data.roster : []), [data]);
@@ -328,7 +351,7 @@ export default function LootCouncilPage() {
         o.bisTiers.find((b) => b.id === data.filter.bisTier)?.label || "",
         [...o.tiers.filter((x) => view.tiers.includes(x.id)), ...o.contents.filter((c) => view.contents.includes(c.id))]
             .map((c) => c.label).join(" + ") || t("lootcouncil.page.allLoot"),
-        o.categories.find((c) => c.id === view.category)?.name || t("lootcouncil.page.allRaids"),
+        data.council?.roster?.name || o.categories.find((c) => c.id === view.category)?.name || t("lootcouncil.page.allRaids"),
     ].filter(Boolean).join(" · ");
 
     return (
@@ -341,6 +364,16 @@ export default function LootCouncilPage() {
                 title={t("lootcouncil.title")}
                 action={<Button icon="inv_misc_bag_10" onClick={() => navigate(dropHref())}>{t("lootcouncil.page.dropCheck")}</Button>}
             />
+
+            {/* Who the council works for (#676): roster, profile, linked Kader. */}
+            {data.council ? (
+                <CouncilHead
+                    head={data.council}
+                    value={pickValue(view)}
+                    onPick={(fields) => patch(fields)}
+                    onProfiles={() => patch({ tab: "profiles" })}
+                />
+            ) : null}
 
             {/* Tabs first, then the one filter line they all share. */}
             <CouncilTabs tab={tab} patch={patch} rosterCount={roster.length} gapCount={gaps.length} />
@@ -398,13 +431,13 @@ export default function LootCouncilPage() {
                 Loot wie im Raider-Tab, nur als Matrix statt als Tooltip je Zeile. */}
             {view.tab === "compare" ? <CompareTab roster={roster} view={view} patch={patch} contents={o.contents} /> : null}
 
-            {/* Wie gewichtet wird (#668) — ändert jede Zahl oben, also danach neu laden. */}
-            {tab === "weights" ? (
-                <WeightsTab
-                    category={view.category}
-                    categoryName={o.categories.find((c) => c.id === view.category)?.name || view.category}
+            {/* Die Profile (#676): Gewichtung und Ansicht je Roster — ändert jede Zahl oben, also danach neu laden. */}
+            {tab === "profiles" ? (
+                <ProfilesTab
+                    initialId={profileId || data.council?.profile.id || ""}
+                    options={o}
                     canWrite={canWrite}
-                    onSaved={() => { load(); }}
+                    onSaved={() => { reloadViews(); load(); }}
                 />
             ) : null}
 

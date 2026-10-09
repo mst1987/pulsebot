@@ -62,6 +62,21 @@ function categoryLootSystem(config, categoryId) {
 }
 
 /**
+ * The system a roster's raids run on (#676). With a category it IS the
+ * category's (config.categoryLootSystem stays the one truth - the roster
+ * settings write there); a roster without category keeps its own
+ * `lootSystem` (source "roster"), else Softres ("default").
+ * @param {object} config
+ * @param {{ categoryId?: string|null, lootSystem?: string }|null} roster
+ */
+function rosterLootSystem(config, roster) {
+    if (!roster) return { system: "softres", source: "default" };
+    if (roster.categoryId) return categoryLootSystem(config, roster.categoryId);
+    const own = normalizeLootSystem(roster.lootSystem);
+    return own ? { system: own, source: "roster" } : { system: "softres", source: "default" };
+}
+
+/**
  * Everything a reader needs about one raid's loot system.
  * @param {{ config?: object, categoryId?: string, override?: { system?: string, softres?: boolean }|null, softresList?: object|null }} input
  * @returns {{ system: string, label: string, source: string, categorySystem: string, categoryLabel: string,
@@ -87,5 +102,5 @@ function resolveLootSystem({ config = {}, categoryId = "", override = null, soft
 
 module.exports = {
     LOOT_SYSTEMS, LOOT_SYSTEM_LABELS,
-    normalizeLootSystem, normalizeCategoryLootSystem, categoryLootSystem, resolveLootSystem,
+    normalizeLootSystem, normalizeCategoryLootSystem, categoryLootSystem, rosterLootSystem, resolveLootSystem,
 };

@@ -14,6 +14,8 @@
 //       signupOnly: false,
 //       source: { kind: "manual" | "kader" | "migration", kaderId? },
 //       kaderId | null,                     // the Kader of the Kaderplaner linked to it (1:1, see below)
+//       lootSystem: "" | "softres" | "lootcouncil" | "gdkp" | "other",  // only read WITHOUT category (#676)
+//       lootProfileId: "",                  // its Loot-Council profile ("" = the default profile, #676)
 //       members: { [userId]: {              // ≤ 500
 //         status: "core" | "trial" | "bench" | "pause", since, by,
 //         chars: [charKey],                 // profile keys (characterKeyOf(name, versionId))
@@ -45,12 +47,21 @@
 // for "automatisch". It is cleared when the first character changes; that it
 // belongs to the character's class is the writer's check
 // (services/roster/rosterMembers.js) and the reader's (memberSpec.js).
+//
+// `lootSystem` and `lootProfileId` (#676): a roster WITH category runs on the
+// category's loot system (config.categoryLootSystem, services/loot/lootSystem.js
+// rosterLootSystem) - its stored `lootSystem` is ignored then, so there is one
+// truth; a roster without category keeps its own here. `lootProfileId` names
+// its Loot-Council profile (councilProfilesStore.js); that it exists is the
+// writer's check (services/roster/rosterSettings.js), a reader falls back to
+// the default profile (services/loot/councilProfiles.js).
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { newId } = require("../utils/ids");
 const { characterKeyOf, VERSION_KEY_SEP } = require("../utils/loot/lootImport");
 const { knownVersion, mainVersionFor } = require("../services/events/mainVersion");
 const { spec: specOfVersion } = require("../config/gameVersions");
+const { normalizeLootSystem } = require("../services/loot/lootSystem");
 
 const ROSTERS_FILE = settingsPath("rosters.json");
 
@@ -223,6 +234,8 @@ function normalizeRoster(raw, id = raw && raw.id) {
         signupOnly: raw.signupOnly === true,
         source,
         kaderId,
+        lootSystem: normalizeLootSystem(raw.lootSystem),
+        lootProfileId: /^[a-z0-9_-]{1,40}$/i.test(str(raw.lootProfileId)) ? str(raw.lootProfileId) : "",
         members: normalizeMembers(raw.members, multi, versionId),
         history: normalizeHistory(raw.history),
         createdAt: isoOf(raw.createdAt),
@@ -379,6 +392,21 @@ function updateRoster(id, patch = {}, { actor = "", now = new Date().toISOString
     markMigrated(all, next.categoryId);
     writeAll(all);
     return getRoster(current.id);
+}
+
+/**
+ * The council-profile migration (#676, councilProfilesStore.migrateLegacy):
+ * give a roster its profile without a history line - nobody changed a
+ * setting, the profile only took over what the category had.
+ * @returns {boolean} whether the roster exists
+ */
+function assignLootProfile(rosterId, profileId) {
+    const all = readAll();
+    const roster = all.rosters[str(rosterId)];
+    if (!roster) return false;
+    roster.lootProfileId = str(profileId);
+    writeAll(all);
+    return true;
 }
 
 /** Delete a roster. @returns {boolean} whether there was one */
@@ -564,7 +592,7 @@ function migrateCategories(categories = [], { now = new Date().toISOString() } =
 
 module.exports = {
     listRosters, getRoster, rosterForCategory, rosterForKader, createRoster, updateRoster, deleteRoster,
-    upsertMember, removeMember, appendHistory, setFirstChars, migrateCategories,
+    upsertMember, removeMember, appendHistory, setFirstChars, migrateCategories, assignLootProfile,
     normalizeRoster, normalizeFile, RosterError, LIMITS, STATUSES, SOURCE_KINDS, ROSTERS_FILE,
     useFile: store.useFile,
 };
