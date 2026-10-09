@@ -3,6 +3,7 @@
 const { itemFacts, itemClass, itemWeight, lootPoints } = require("../../../src/services/loot/itemWeights");
 const councilWeights = require("../../../src/stores/councilWeightsStore");
 const wowsims = require("../../../src/config/wowsims");
+const { bisForSpec, specByKey } = require("../../../src/config/councilSpecs");
 
 const S = councilWeights.defaults();
 
@@ -18,6 +19,16 @@ describe("services/loot/itemWeights", () => {
         expect(itemWeight(32374, S, { bisIds })).toEqual({ weight: 2, cls: "bisWeapon" });
         expect(itemWeight(32374, S)).toEqual({ weight: 1.5, cls: "weapon" });
         expect(itemWeight(30910, S, { bisIds })).toEqual({ weight: 1.5, cls: "weapon" });
+    });
+
+    it("finds BiS weapons on the physical specs' lists too (#669)", () => {
+        const bisOf = (key) => new Set(bisForSpec(specByKey(key), "t6").items.map((b) => Number(b.id)));
+        // Warglaive of Azzinoth (main hand) and Serpent Spine Longbow (ranged) for a fury warrior
+        expect(itemWeight(32837, S, { bisIds: bisOf("Warrior-Fury") })).toEqual({ weight: 2, cls: "bisWeapon" });
+        expect(itemWeight(30105, S, { bisIds: bisOf("Warrior-Fury") })).toEqual({ weight: 2, cls: "bisWeapon" });
+        // the same glaive is just a weapon against a protection warrior's list
+        expect(itemWeight(32837, S, { bisIds: bisOf("Warrior-Protection") }).cls).toBe("weapon");
+        expect(itemWeight(32332, S, { bisIds: bisOf("Paladin-Retribution") }).cls).toBe("bisWeapon");
     });
 
     it("does not count a shield, an off-hand or a relic as a weapon", () => {

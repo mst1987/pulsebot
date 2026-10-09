@@ -170,6 +170,17 @@ describe("councilRoster — loot points", () => {
         expect(row.lootPoints).toBe(3.5);
     });
 
+    it("knows a fury warrior's BiS weapon from his own list (#669)", () => {
+        mockAnnotated.mockReturnValue([{ key: "hauer", className: "Warrior", spec: "Fury" }]);
+        mockListAll.mockReturnValue([
+            lootRow({ characterKey: "hauer", character: "Hauer", itemId: 32837, itemName: "Warglaive of Azzinoth", awardedAt: now - 2 * DAY }),
+            lootRow({ characterKey: "hauer", character: "Hauer", itemId: BIS_STAFF, awardedAt: now - 3 * DAY }),
+        ]);
+        const row = councilRoster({ bisTier: "t6" }).rows[0];
+        expect(row.role).toBe("melee");
+        expect(row.items.map((i) => i.weightClass)).toEqual(["bisWeapon", "weapon"]);
+    });
+
     it("lets an item exception beat its class", () => {
         mockListAll.mockReturnValue([lootRow({ itemId: TRINKET })]);
         const weights = { ...councilWeights.defaults(), items: { [TRINKET]: { weight: 0.3, name: "Eye" } } };

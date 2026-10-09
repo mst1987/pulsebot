@@ -21,7 +21,7 @@
         "and": "und",
         "checkAsDrop": "Als Drop prüfen",
         "itemCount": {
-            "one": "{count} Items",
+            "one": "{count} Item",
             "other": "{count} Items"
         },
         "daysCount": {

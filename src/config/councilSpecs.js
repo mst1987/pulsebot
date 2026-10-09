@@ -1,7 +1,7 @@
 // Which specs the loot council covers, and what each of them values: casters,
 // healers, tanks, melee and hunters. Until #669 the council knew casters and
-// healers only, under the name config/casterSpecs.js — that file still
-// re-exports this one, so nothing that requires the old name breaks.
+// healers only, under the name config/casterSpecs.js (the forwarding alias
+// is gone since #668; require this module).
 //
 // The key is `"<Class>-<Spec>"` in Warcraft Logs' own spelling, because that is
 // where class and spec come from (see services/characters/characterInfo.js — the loot exports
