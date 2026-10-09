@@ -215,3 +215,37 @@ describe("stores/raiderProfileStore", () => {
         expect(JSON.stringify(store.searchRaiders("", C))).not.toMatch(/wishes|geheim|availability/);
     });
 });
+
+// Read per raider (roster, absences, setup): cached, parsed once per change,
+// every profile handed out built afresh.
+describe("Cache", () => {
+    const fs = require("fs");
+    afterEach(() => jest.restoreAllMocks());
+
+    it("liest die Datei für beliebig viele Abfragen nur einmal, nach dem Schreiben neu", () => {
+        store.addCharacter(A, { name: "Nerasol", className: "Priest", source: "log" });
+        store.addCharacter(B, { name: "Thorgar", className: "Warrior", source: "log" });
+        const read = jest.spyOn(fs, "readFileSync");
+        const parses = () => read.mock.calls.filter(([p]) => String(p).endsWith("eh-profiles-store.json")).length;
+        for (let i = 0; i < 10; i += 1) {
+            store.getProfile(A);
+            store.hasProfile(B);
+            store.listProfiles();
+        }
+        expect(parses()).toBe(1);
+        store.addCharacter(A, { name: "Zweitchar", className: "Mage", source: "log" });
+        expect(store.getProfile(A).characters.map((c) => c.name)).toEqual(["Nerasol", "Zweitchar"]);
+        expect(parses()).toBe(2);
+    });
+
+    it("gibt Kopien heraus: wer ein Profil ändert, ändert nichts Gespeichertes", () => {
+        store.addCharacter(A, { name: "Nerasol", className: "Priest", source: "log" });
+        const p = store.getProfile(A);
+        p.characters[0].name = "Fremd";
+        p.characters.push({ name: "x" });
+        store.listProfiles()[0].note = "x";
+        expect(store.getProfile(A).characters.map((c) => c.name)).toEqual(["Nerasol"]);
+        expect(store.getProfile(A).note).toBe("");
+        expect(Object.isFrozen(store.getProfile(A).characters)).toBe(false);
+    });
+});

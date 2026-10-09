@@ -136,3 +136,71 @@ describe("stores/raidEventStore", () => {
         expect(saveRaidEvents([event({ id: "e1" }), event({ id: "e3" })])).toBe(1);
     });
 });
+
+// The dashboard scans on every view: a rescan that brings nothing new must not
+// rewrite the file, and the snapshots are read from the cache.
+describe("stores/raidEventStore - only real changes are written", () => {
+    const { RAID_EVENTS_FILE } = require("../../src/stores/raidEventStore.js");
+    const writes = () => fs.renameSync.mock.calls.filter(([, to]) => to === RAID_EVENTS_FILE).length;
+
+    beforeEach(() => {
+        fs.__store.clear();
+        fs.renameSync.mockClear();
+        fs.readFileSync.mockClear();
+    });
+
+    it("leaves the file alone on a rescan with the same content, updatedAt included", () => {
+        const now = jest.spyOn(Date, "now");
+        try {
+            now.mockReturnValue(1000);
+            expect(saveRaidEvents([event({ signUps: [{ userId: "u1", specName: "Fury", status: "signed" }] })])).toBe(1);
+            expect(writes()).toBe(1);
+            now.mockReturnValue(2000);
+            // same scan again, and one that only lacks the (kept) roster
+            expect(saveRaidEvents([event({ signUps: [{ userId: "u1", specName: "Fury", status: "signed" }] })])).toBe(0);
+            expect(saveRaidEvents([event({ signUps: [] })])).toBe(0);
+            expect(writes()).toBe(1);
+            expect(getRaidEvent("e1")).toMatchObject({ firstSeenAt: 1000, updatedAt: 1000 });
+        } finally {
+            now.mockRestore();
+        }
+    });
+
+    it("writes when a field changed, and bumps updatedAt", () => {
+        const now = jest.spyOn(Date, "now");
+        try {
+            now.mockReturnValue(1000);
+            saveRaidEvents([event()]);
+            now.mockReturnValue(2000);
+            saveRaidEvents([event({ channelName: "kara-neu" })]);
+            expect(writes()).toBe(2);
+            expect(getRaidEvent("e1")).toMatchObject({ channelName: "kara-neu", firstSeenAt: 1000, updatedAt: 2000 });
+            now.mockReturnValue(3000);
+            saveRaidEvents([event({ channelName: "kara-neu", signUps: [{ userId: "u2", specName: "Arms" }] })]);
+            expect(writes()).toBe(3);
+            expect(getRaidEvent("e1").updatedAt).toBe(3000);
+        } finally {
+            now.mockRestore();
+        }
+    });
+
+    it("writes nothing for an empty or id-less batch", () => {
+        saveRaidEvents([]);
+        saveRaidEvents([{ title: "ohne id" }]);
+        expect(writes()).toBe(0);
+    });
+
+    it("parses the file once for many lookups and hands out copies", () => {
+        saveRaidEvents([event(), event({ id: "e2" })]);
+        fs.readFileSync.mockClear();
+        for (let i = 0; i < 10; i += 1) {
+            getRaidEvent("e1");
+            listRaidEvents("g1");
+        }
+        expect(fs.readFileSync.mock.calls.filter(([p]) => p === RAID_EVENTS_FILE)).toHaveLength(1);
+        getRaidEvent("e1").title = "x";
+        listRaidEvents("g1")[0].signUps.push({ userId: "x" });
+        expect(getRaidEvent("e1").title).toBe("Kara");
+        expect(listRaidEvents("g1").every((e) => e.signUps.length === 0)).toBe(true);
+    });
+});

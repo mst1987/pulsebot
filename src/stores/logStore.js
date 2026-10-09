@@ -11,6 +11,8 @@ const store = createJsonStore({
     file: LOGS_FILE,
     defaults: () => [],
     normalize: (data) => (Array.isArray(data.logs) ? data.logs : []),
+    // Read on every page that lists it: parsed once per change, not per call.
+    cache: true,
 });
 
 function readAll() {

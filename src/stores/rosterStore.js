@@ -268,6 +268,8 @@ const store = createJsonStore({
     file: ROSTERS_FILE,
     defaults: () => ({ rosters: {}, migratedCategories: [] }),
     normalize: normalizeFile,
+    // Read per roster, per member and on every attendance view: parsed once per change.
+    cache: true,
 });
 
 function readAll() {
