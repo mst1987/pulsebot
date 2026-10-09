@@ -238,6 +238,12 @@ Technik: [loot-council.md](loot-council.md)
 - Gear-Ansicht und Drop-Check für ein konkretes Item.
 - DPS-Simulation einzelner Ausrüstungswechsel (Caster), BiS-Listen je Spec – im Reiter BiS-Listen mit Rollen-Knöpfen, um nur eine Rolle zu zeigen. Details: [docs/loot-council.md](loot-council.md).
 - Welche Charaktere überhaupt auf der Liste stehen, bestimmt der Content-Umschalter in der Kopfleiste (Start: die Hauptversion); ein Charakter ohne eigene Version zählt über seinen Loot oder seine Kategorie.
+- **Raid-Kategorie mit Roster:** Dann ist das Roster die Liste — alle Charaktere mit Status Stamm oder Probe, auch wer noch nie etwas bekommen hat oder noch in keinem Log steht (dann mit „0 Items“ und „nie“ ganz oben beim Warten). Ein Abzeichen „Roster …“ an der Filterzeile sagt, aus welchem Roster die Liste kommt und wie viele Ersatz und Pause nicht drinstehen.
+  - **Ersatz** holst du im Filter mit dem Schalter „Ersatz zeigen“ dazu (Standard aus, gilt nur für deine Ansicht, nicht fürs Addon). **Pause** zählt wie „Nicht eingeplant“.
+  - **Probe** und **Ersatz** stehen als Abzeichen an der Zeile und im Raider-Dialog; für die Rangliste zählt Probe wie Stamm.
+  - **„… ohne Council-Spec“:** Roster-Charaktere, deren Spec der Council (noch) nicht kennt — etwa Tanks und Nahkämpfer —, fehlen in der Liste; das Abzeichen nennt sie im Tooltip.
+  - **„Nicht im Roster (n)“** unter der Liste: wer laut Logs oder Loot in dieser Kategorie dabei war, aber nicht im Roster steht (Aushilfen). Eingeklappt, ohne Rang, und nicht im Addon.
+  - Ohne Roster bleibt alles wie bisher: die Liste kommt aus Logs, Loot und der Charakter-Zuordnung der Kategorie.
 
 ## Historie & Loot
 

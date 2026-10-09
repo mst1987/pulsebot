@@ -29,6 +29,20 @@ function Head({ sortKey, label, tipSub, sort }: {
 }
 
 /**
+ * The roster status as information (#667): Probe or Ersatz as a badge. Stamm is
+ * the normal case and gets none; without a roster there is no status at all.
+ */
+export function StatusBadge({ status }: { status?: CouncilRaider["status"] }) {
+    const t = useT();
+    if (status !== "trial" && status !== "bench") return null;
+    return (
+        <Badge tone={status === "trial" ? "accent" : undefined} tip={t(`roster.status.${status}`)} tipSub={t(`lootcouncil.status.${status}TipSub`)}>
+            {t(`roster.status.${status}`)}
+        </Badge>
+    );
+}
+
+/**
  * The badges that make a raider's numbers special — where the gear comes from
  * when it is not the evaluation, what is wrong with it, whose list they are
  * measured against. At most a handful; the details say the rest.
@@ -37,6 +51,7 @@ export function RaiderHints({ raider }: { raider: CouncilRaider }) {
     const t = useT();
     const g = raider.gear;
     const out: JSX.Element[] = [];
+    if (raider.status === "trial" || raider.status === "bench") out.push(<StatusBadge key="status" status={raider.status} />);
     if (!g) {
         out.push(<Badge key="nogear" tip={t("lootcouncil.candidates.noGearTip")} tipSub={t("lootcouncil.list.noGearTipSub")}>{t("lootcouncil.candidates.noGear")}</Badge>);
     } else {

@@ -25,6 +25,7 @@ const { versionLinks } = require("../../services/events/versionSettings");
 const { buildVersionContext, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { characterKey, characterKeyOf } = require("../../utils/loot/lootImport");
+const { rosterCandidates } = require("./councilRosterSource");
 const { listStoredEvents } = require("../../services/events/eventSources");
 const { listLogs } = require("../../stores/logStore");
 const { listReports, getReportRoster } = require("../../stores/reportStore");
@@ -612,21 +613,37 @@ function bisView(bis, bisItems) {
 }
 
 /**
- * One raider's roster row, or null when they are not on the council (no
- * council spec, or not the role asked for). `ctx` is what councilRoster
- * loaded once: `{ info, charStore, gearMap, loot, planned, role, bisTier, now }`.
+ * Class and spec of one character. Three sources from the data, and all three
+ * are needed: characterInfo only annotates raiders who appear in the loot
+ * history, so a raider who has never won anything — exactly the case this page
+ * exists for — would have no spec and be dropped as "no council spec". The
+ * character store knows them from the log evaluations, and the report's own
+ * roster still knows at least the class. In a category with a roster (#667)
+ * the member's profile character comes last (`ctx.hints`, councilRosterSource.js):
+ * the one source that knows a new raider nobody has logged yet.
  */
-function rosterRow(key, ctx) {
-    // Three sources for class and spec, and all three are needed:
-    // characterInfo only annotates raiders who appear in the loot history,
-    // so a raider who has never won anything — exactly the case this page
-    // exists for — would have no spec and be dropped as "not a caster".
-    // The character store knows them from the log evaluations, and the
-    // report's own roster still knows at least the class.
+function classAndSpec(key, ctx) {
     const known = ctx.info.get(key) || ctx.charStore[key] || {};
     const gear = ctx.gearMap.get(key) || null;
-    const className = known.className || (gear && gear.className) || "";
-    const fromData = specFor(className, known.spec);
+    const hint = (ctx.hints && ctx.hints.get(key)) || null;
+    const className = known.className || (gear && gear.className) || (hint && hint.className) || "";
+    let spec = known.spec || "";
+    if (!spec && hint && hint.className === className) {
+        // The profile can name several specs: the one of the role asked for, else the first the council knows.
+        const fits = hint.specs.filter((s) => specFor(className, s));
+        spec = fits.find((s) => !ctx.role || specFor(className, s).role === ctx.role) || fits[0] || "";
+    }
+    return { gear, hint, className, spec };
+}
+
+/**
+ * One raider's roster row, or null when they are not on the council (no
+ * council spec, or not the role asked for). `ctx` is what councilRoster
+ * loaded once: `{ info, charStore, gearMap, loot, planned, role, bisTier, now, links, hints }`.
+ */
+function rosterRow(key, ctx) {
+    const { gear, hint, className, spec } = classAndSpec(key, ctx);
+    const fromData = specFor(className, spec);
     if (!fromData) return null;
     // Die Festlegung des Raidleads gewinnt, wenn die Klasse sie hergibt —
     // ein Paladin lässt sich nicht als Caster einplanen, ein Magier nicht als
@@ -643,7 +660,7 @@ function rosterRow(key, ctx) {
     const bisIds = new Set(bis.items.map((entry) => Number(entry.id)));
 
     const look = classLook(ctx.charStore, key);
-    const character = bucket.character || (gear && gear.character) || key;
+    const character = bucket.character || (gear && gear.character) || (hint && hint.name) || key;
     return {
         key,
         character,
@@ -654,7 +671,7 @@ function rosterRow(key, ctx) {
         // click to the armory is what makes that checkable instead of
         // something a council has to take on trust.
         armoryUrl: ctx.links.armory(character),
-        spec: known.spec || "",
+        spec,
         specKey: specEntry.key,
         specLabel: specEntry.label,
         specAssumed: !!specEntry.assumedFromClass,
@@ -703,7 +720,9 @@ function scoreRows(rows) {
 
 /**
  * The council roster: every raider with a council spec (caster, healer, tank,
- * melee, hunter — config/councilSpecs.js) and loot history or known gear.
+ * melee, hunter — config/councilSpecs.js) and loot history or known gear —
+ * or, for a category with a roster (#667), the roster's Stamm and Probe
+ * (plus Ersatz with `showBench`), with or without loot and gear.
  *
  * @param {object} opts
  *   role        "caster" | "healer" | "tank" | "melee" | "ranged" | "" (all)
@@ -712,6 +731,7 @@ function scoreRows(rows) {
  *   categoryId  restrict to one raid category (the Monday raid, say)
  *   bisTier     which tier's BiS list to measure against
  *               (default: the tier the guild's newest loot comes from)
+ *   showBench   with a roster: Ersatz (bench) members are candidates too
  *   charVersion restrict to raiders of one game version (#545, "" = every
  *               version) — a character's version like the roster derives it
  *               (services/characters/characterVersions.js): its own when
@@ -733,15 +753,21 @@ function councilRoster(opts = {}) {
     const bisTier = opts.bisTier || currentTier(allLoot);
     const loot = lootByCharacter(allLoot, categoryId, contentFilter);
 
-    // Everyone who could be on the council: known from loot, from a CLA report,
-    // or from both. A raider who has never won an item still belongs on the
-    // list — they are precisely the case the council is looking for.
-    const keys = new Set([...loot.keys(), ...gearMap.keys()]);
+    // A category with a roster (#667): the roster IS the candidate list —
+    // Stamm and Probe, Ersatz with `showBench`, every assigned character. Its
+    // members appear even with no loot and no gear (0 items, the longest wait).
+    const fromRoster = rosterCandidates(categoryId, { showBench: !!opts.showBench });
+
+    // Without one: everyone who could be on the council, known from loot, from
+    // a CLA report, or from both. A raider who has never won an item still
+    // belongs on the list — they are precisely the case the council is looking for.
+    const keys = fromRoster ? new Set(fromRoster.candidates) : new Set([...loot.keys(), ...gearMap.keys()]);
 
     // The category filter narrows *who is on the list*, not just which of their
     // items count. Filtering the loot alone left every other raid's casters
     // standing there with "0 Items" and a maximum drought — and therefore on
-    // top of the very ranking the page is for.
+    // top of the very ranking the page is for. With a roster it no longer
+    // decides who is on the list; it finds who stood there without being in it.
     const members = categoryMembers(categoryId, allLoot);
     // Raiders the council has stopped planning with. Excluded rather than
     // deleted, so the loot history stays whole and the decision is reversible.
@@ -755,24 +781,38 @@ function councilRoster(opts = {}) {
     // and the same values decide who the charVersion filter keeps.
     const versionCtx = buildVersionContext({ config: opts.config });
     const mainVersion = opts.mainVersion || mainVersionFor({ config: opts.config });
-    const ctx = { info, charStore, gearMap, loot, planned, role, bisTier, now, links };
+    const ctx = {
+        info, charStore, gearMap, loot, planned, role, bisTier, now, links,
+        hints: fromRoster ? fromRoster.entries : null,
+    };
     const rows = [];
     const seenVersions = [];
-    const skipped = { category: 0, excluded: 0, version: 0 };
+    const skipped = { category: 0, excluded: 0, version: 0, ...rosterSkipped(fromRoster) };
+    // Roster members whose spec the council does not know (yet): counted and
+    // named rather than left out silently.
+    const noSpec = [];
     for (const key of keys) {
-        if (members && !members.keys.has(key)) { skipped.category += 1; continue; }
+        if (!fromRoster && members && !members.keys.has(key)) { skipped.category += 1; continue; }
         if (excluded.has(key)) { skipped.excluded += 1; continue; }
-        const known = info.get(key) || {};
-        const bucket = loot.get(key);
-        const versionIds = versionsOfCharacter(versionCtx, {
-            name: known.character || (bucket && bucket.character) || key,
-            items: (bucket && bucket.all) || [],
-            categoryIds: known.categoryIds || [],
-        });
+        // A roster member's version is the roster's; everyone else's is derived.
+        const versionIds = fromRoster ? [fromRoster.roster.versionId] : derivedVersions(key, { info, loot, versionCtx });
         seenVersions.push({ versionIds });
         if (charVersion && !versionIds.includes(charVersion)) { skipped.version += 1; continue; }
         const row = rosterRow(key, ctx);
-        if (row) rows.push(row);
+        const entry = fromRoster ? fromRoster.entries.get(key) : null;
+        if (row) {
+            // The roster status as information (only with a roster - without
+            // one the rows stay exactly as before): the page shows Probe/Ersatz
+            // as a badge, and the addon will carry it (#670).
+            if (entry) row.status = entry.status;
+            rows.push(row);
+        } else if (entry) {
+            // Left out by the role filter is not "unknown spec".
+            const { className, spec } = classAndSpec(key, ctx);
+            if (!specFor(className, spec)) {
+                noSpec.push({ key, character: entry.name || key, className, status: entry.status });
+            }
+        }
     }
 
     const avg = scoreRows(rows);
@@ -795,7 +835,59 @@ function councilRoster(opts = {}) {
         // What each source contributed, so an empty list can be explained
         // rather than looking like a bug.
         categorySources: members ? members.sources : null,
+        // With a roster only (#667) - without one the answer is unchanged:
+        //   rosterSource  which roster, how many per status, whether Ersatz is
+        //                 shown, and who it holds without a council spec;
+        //   outsiders     who stood in this category's logs or loot without
+        //                 being in its roster - stand-ins. Shown folded, never
+        //                 ranked, never in the addon (councilSync.js reads `rows` only).
+        ...(fromRoster ? {
+            rosterSource: {
+                id: fromRoster.roster.id,
+                name: fromRoster.roster.name,
+                versionId: fromRoster.roster.versionId,
+                counts: fromRoster.counts,
+                showBench: fromRoster.showBench,
+                noSpec,
+            },
+            outsiders: rosterOutsiders(members, fromRoster, excluded, ctx),
+        } : {}),
     };
+}
+
+/** The roster's own skip counts: Ersatz while hidden, Pause always (it counts like "Nicht eingeplant"). */
+function rosterSkipped(fromRoster) {
+    if (!fromRoster) return {};
+    return { bench: fromRoster.showBench ? 0 : fromRoster.counts.bench, paused: fromRoster.counts.pause };
+}
+
+/** A character's game versions (#545) when no roster says it: characterVersions.js. */
+function derivedVersions(key, { info, loot, versionCtx }) {
+    const known = info.get(key) || {};
+    const bucket = loot.get(key);
+    return versionsOfCharacter(versionCtx, {
+        name: known.character || (bucket && bucket.character) || key,
+        items: (bucket && bucket.all) || [],
+        categoryIds: known.categoryIds || [],
+    });
+}
+
+/**
+ * The stand-ins of a category with a roster: characters the logs or the loot
+ * of this category know (categoryMembers) who are in the roster under no
+ * status, and not set aside. Rows like the roster's, without a need score —
+ * they are not ranked — most loot first.
+ */
+function rosterOutsiders(members, fromRoster, excluded, ctx) {
+    const out = [];
+    for (const key of (members && members.keys) || []) {
+        if (fromRoster.entries.has(key) || excluded.has(key)) continue;
+        const row = rosterRow(key, ctx);
+        if (!row) continue;
+        row.status = "";
+        out.push(row);
+    }
+    return out.sort((a, b) => b.lootCount - a.lootCount || a.character.localeCompare(b.character));
 }
 
 /**

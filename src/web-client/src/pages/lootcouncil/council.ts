@@ -18,12 +18,14 @@ export type FilterView = {
     bisTier: string;
     /** The game version filter (#545): "" = the main version, "all" = every one. */
     version?: string;
+    /** With a roster: Ersatz shown as candidates too ("Ersatz zeigen", #667). */
+    bench?: boolean;
 };
 
 /** The key the council's view is stored under — the drop check reads the same filters. */
 export const VIEW_KEY = "lootcouncil.view";
 
-export const FILTER_DEFAULT: FilterView = { role: "caster", tiers: [], contents: [], category: "", bisTier: "", version: "" };
+export const FILTER_DEFAULT: FilterView = { role: "caster", tiers: [], contents: [], category: "", bisTier: "", version: "", bench: false };
 
 // Wie die Rollen am Raider heißen, und ihr Icon im Segment. Der Name wird beim
 // Rendern übersetzt (lootcouncil.role.*); eine unbekannte Rolle zeigt `fallback`.
@@ -234,6 +236,8 @@ export function useCouncilSim() {
  */
 export function categoryNote(data: LootCouncilData): { head: string; sub: string; empty: boolean } | null {
     const { skipped, categorySources: src, categoryId } = data.filter;
+    // With a roster the roster decides who is on the list — rosterNote says the rest.
+    if (data.filter.roster) return null;
     if (!categoryId && !skipped.excluded) return null;
     const nothingFound = !!src && !src.reports && !src.loot && !src.assigned;
     const parts: string[] = [];
@@ -256,5 +260,27 @@ export function categoryNote(data: LootCouncilData): { head: string; sub: string
         head: nothingFound ? t("lootcouncil.category.headEmpty") : t("lootcouncil.category.headHidden", { count: hidden }),
         sub: parts.join(" "),
         empty: nothingFound,
+    };
+}
+
+/**
+ * The roster a category's council is drawn from (#667), for the badge on the
+ * filter line: which roster, how many candidates, and what is not on the list
+ * and why (Ersatz hidden, Pause, set aside). Null without a roster.
+ */
+export function rosterNote(data: LootCouncilData): { label: string; head: string; sub: string } | null {
+    const src = data.filter.roster;
+    if (!src) return null;
+    const { skipped } = data.filter;
+    const candidates = src.counts.core + src.counts.trial + (src.showBench ? src.counts.bench : 0);
+    const parts = [t("lootcouncil.rosterSource.candidates", { count: candidates })];
+    if (skipped.bench) parts.push(t("lootcouncil.rosterSource.benchHidden", { count: skipped.bench }));
+    if (src.showBench && src.counts.bench) parts.push(t("lootcouncil.rosterSource.benchShown", { count: src.counts.bench }));
+    if (skipped.paused) parts.push(t("lootcouncil.rosterSource.paused", { count: skipped.paused }));
+    if (skipped.excluded) parts.push(t("lootcouncil.category.excluded", { count: skipped.excluded }));
+    return {
+        label: t("lootcouncil.rosterSource.badge", { name: src.name }),
+        head: t("lootcouncil.rosterSource.head", { name: src.name }),
+        sub: parts.join(" "),
     };
 }
