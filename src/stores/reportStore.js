@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { raidSummary } = require("../utils/logcheck/raidProgress");
+const { applyReview } = require("../utils/logcheck/recommendations");
 const { newId } = require("../utils/ids");
 const { dataPath } = require("../config/paths");
 const { writeJsonAtomic, readJsonFile } = require("./jsonStore");
@@ -79,6 +80,12 @@ const metaCache = new Map();
 const rosterCache = new Map();
 const MAX_ROSTER_CACHE = 60;
 
+// What a raider's start page needs from a report: per player, how many
+// recommendations the raid lead approved and where that player's page is.
+// Bounded like the roster: the dashboard asks for the last few raids only.
+const hintsCache = new Map();
+const MAX_HINTS_CACHE = 30;
+
 function stampOf(full) {
     const stat = fs.statSync(full);
     return `${stat.mtimeMs}:${stat.size}`;
@@ -121,6 +128,38 @@ function getReportRoster(id) {
     }
 }
 
+/** The approved recommendations per player of one report, keyed by the lower-cased character name. */
+function hintsOf(report) {
+    const roster = Array.isArray(report.roster) ? report.roster : [];
+    const reviewed = report.recommendations ? applyReview(report.recommendations, report.recommendationReview) : null;
+    const players = {};
+    for (const p of (reviewed && reviewed.players) || []) {
+        const name = String((p && p.name) || "");
+        if (!name) continue;
+        players[name.toLowerCase()] = {
+            name,
+            // the index of the player page /r/<id>/p/<idx> (report/context.js); -1 = no page
+            idx: roster.findIndex((r) => r && r.name === name),
+            approved: (p.items || []).filter((i) => i && i.approved === true).length,
+        };
+    }
+    return { id: report.id, generatedAt: report.generatedAt || 0, players };
+}
+
+/**
+ * Per player of a report: the approved recommendations and the index of their
+ * player page — remembered until the file changes, so the start page does not
+ * parse megabytes of timeline for a count. Null when the report is missing.
+ */
+function getReportHints(id) {
+    if (!/^[a-f0-9]{6,}$/i.test(String(id || ""))) return null;
+    try {
+        return cachedSlice(`${id}.json`, hintsCache, hintsOf, MAX_HINTS_CACHE);
+    } catch {
+        return null;
+    }
+}
+
 function metaOf(report) {
     return {
         id: report.id,
@@ -154,7 +193,7 @@ function listReports() {
             // skip unreadable file
         }
     }
-    for (const cache of [metaCache, rosterCache]) {
+    for (const cache of [metaCache, rosterCache, hintsCache]) {
         for (const f of cache.keys()) if (!seen.has(f)) cache.delete(f);
     }
     out.sort((a, b) => (b.generatedAt || 0) - (a.generatedAt || 0));
@@ -165,6 +204,7 @@ function listReports() {
 function resetCache() {
     metaCache.clear();
     rosterCache.clear();
+    hintsCache.clear();
 }
 
-module.exports = { saveReport, getReport, getReportRoster, deleteReport, listReports, resetCache, REPORTS_DIR };
+module.exports = { saveReport, getReport, getReportRoster, getReportHints, deleteReport, listReports, resetCache, REPORTS_DIR };

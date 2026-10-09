@@ -96,7 +96,8 @@ describe("menu access", () => {
         expect(MENU.find((e) => e.id === "absences")).toMatchObject({ href: "/absences", group: "Start", areas: ["signup", "roster"] });
         showApp(raider, "/absences");
         const nav = await screen.findByRole("navigation", {}, SLOW);
-        expect(within(nav).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/signups", "/absences", "/profile"]);
+        // the start page is the raider's too ("Für dich" comes with their own signup area)
+        expect(within(nav).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/", "/signups", "/absences", "/profile"]);
         expect(await screen.findByText(t("absences.mine.loading"), {}, SLOW)).toBeInTheDocument();
         expect(screen.queryByText(t("shell.app.noRead"))).not.toBeInTheDocument();
     });

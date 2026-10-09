@@ -61,6 +61,8 @@ function task(over: Partial<DashboardTask> = {}): DashboardTask {
 function dashboard(over: Partial<DashboardData> = {}): DashboardData {
     return {
         kicker: { guild: "Pulse", realm: "Thunderstrike" },
+        orga: true,
+        personal: null,
         nextRaid: raid(),
         followingRaid: null,
         nextRaidError: null,

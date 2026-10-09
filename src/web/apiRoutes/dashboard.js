@@ -10,6 +10,7 @@ const {
 } = require("../dashboard/dashboardData");
 const { userCanAny } = require("../../config/permissions");
 const { buildTasks, zoneFor } = require("../dashboard/dashboardOverview");
+const { loadPersonal } = require("../dashboard/dashboardPersonal");
 const { loadDrift } = require("../../services/discord/roleSync");
 const { seriesFailures } = require("../events/eventSeries");
 const { deployStatus } = require("../http/deployStatus");
@@ -38,22 +39,32 @@ function kickerFor(guildId) {
 }
 
 /**
- * GET /api/dashboard[?version=<id>|all] — the start page: the next raid (and
- * the one after), the open tasks, one figure per area, the newest top-item
- * awards and the last raids. See dashboardOverview.js for what decides each
- * part. The three raid/loot tiles share one version filter (#545): the main
- * version unless the page asks for another or "all".
+ * GET /api/dashboard[?version=<id>|all] — the start page, in two parts (design
+ * canvas Oct 2026, direction A):
+ *
+ *   personal  "Für dich", for everyone with their own signup (area `signup`):
+ *             their next raids, attendance, last raids and profile
+ *             (dashboardPersonal.js)
+ *   orga      for whoever reads the raids: the next raid (and the one after),
+ *             one figure per area and the last raids (dashboardOverview.js)
+ *
+ * The open tasks are filtered one by one by the right it takes to do them, so a
+ * raider gets none. The newest top-item awards are for everyone. The raid/loot
+ * parts share one version filter (#545): the main version unless the page asks
+ * for another or "all".
  */
 const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     const config = getConfig();
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
-    const [next, recentEvents] = await Promise.all([
-        loadNextRaids(guildId, 2, { versionId }),
-        loadRecentEvents(guildId, 5, { versionId }),
+    const orga = userCanAny(user, ["raids"], "read");
+    const raidsWrite = userCanAny(user, ["raids"], "write");
+    const [next, recentEvents, personal] = await Promise.all([
+        orga ? loadNextRaids(guildId, 2, { versionId }) : { raids: [], error: null },
+        orga ? loadRecentEvents(guildId, 5, { versionId }) : { events: [], error: null },
+        userCanAny(user, ["signup"], "read") ? loadPersonal(guildId, user, { orga, config, versionId }) : null,
     ]);
-    const report = loadLatestReport();
-    const inbox = loadInbox();
+    const report = orga || userCanAny(user, ["cla"], "read") ? loadLatestReport() : null;
     const lastRaid = recentEvents.events[0];
     // Role-sync drift is a full admin's task: only they can open the section it
     // links to. Nothing configured means no member fetch at all.
@@ -63,40 +74,48 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     // for ten minutes in deployStatus.js, so it never slows the page down twice.
     const deploy = userCanAny(user, ["settings"], "read") ? await deployStatus() : null;
     // Raids whose channel is gone (#537), for whoever sees the raids.
-    const missingChannels = userCanAny(user, ["raids"], "read") ? await loadMissingChannels(guildId) : [];
+    const missingChannels = orga ? await loadMissingChannels(guildId) : [];
     // Trials ending soon (#658), for whoever may change roster members: full admins and the roster's managers.
     const trials = userCanAny(user, ["roster"], "write") ? await loadTrialEndings(guildId, user) : [];
 
     ok(res, {
         kicker: kickerFor(guildId),
+        // which part the page draws: the orga block, and "Für dich" (null without a signup of one's own)
+        orga,
+        personal,
         nextRaid: linkCheck.withChannelState(guildId, next.raids.slice(0, 1))[0] || null,
         followingRaid: linkCheck.withChannelState(guildId, next.raids.slice(1, 2))[0] || null,
         nextRaidError: next.error,
         tasks: buildTasks({
-            nextRaids: next.raids, recentEvents: recentEvents.events, report, inbox,
+            // each task only for whoever can do it where it leads
+            nextRaids: raidsWrite ? next.raids : [],
+            recentEvents: raidsWrite ? recentEvents.events : [],
+            report: userCanAny(user, ["cla"], "write") ? report : null,
+            inbox: userCanAny(user, ["history"], "write") ? loadInbox() : [],
             // Only for whoever can open the archive the task leads to.
             archive: userCanAny(user, ["channels"], "read") ? loadChannelArchive(guildId) : null,
             roleDrift,
             // Failed dates of a recurring event (#289), for whoever can open the series page.
-            seriesFailures: userCanAny(user, ["raids"], "read") ? seriesFailuresFor(guildId) : [],
+            seriesFailures: orga ? seriesFailuresFor(guildId) : [],
             deploy,
             missingChannels,
-            canRecreate: userCanAny(user, ["raids"], "write"),
+            canRecreate: raidsWrite,
             trials,
         }),
-        areas: {
-            lastReport: report,
-            newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0),
-
-            roster: loadRosterFigures(guildId),
-        },
+        areas: orga
+            ? {
+                lastReport: report,
+                newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0),
+                roster: loadRosterFigures(guildId),
+            }
+            : null,
         topLoot: loadTopLoot(5, versionId),
         recentEvents: {
             ...recentEvents,
             events: linkCheck.withChannelState(guildId, recentEvents.events).map((ev) => ({ ...ev, icon: zoneFor(ev.title).icon })),
         },
         activeGuildId: guildId,
-        // The version filter shared by the three raid/loot tiles (#545).
+        // The version filter shared by the raid/loot parts (#545).
         version: versionId,
         mainVersion,
         versions: dashboardVersions(guildId, { config }).versions,
@@ -121,7 +140,8 @@ const getNextRaidDetails = withUser({}, async ({ req, res, url }) => {
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
-    { method: "GET", path: "/api/dashboard", handler: getDashboard, area: "dashboard" },
+    // "Für dich" is every raider's start page: their own signup area opens it too (the orga part stays with the raids)
+    { method: "GET", path: "/api/dashboard", handler: getDashboard, area: ["dashboard", "signup"] },
     { method: "GET", path: "/api/dashboard/next-raid", handler: getNextRaidDetails, area: "dashboard" },
 ];
 

@@ -1,6 +1,11 @@
 // "Übersicht" — the start page (design issue #220). It answers one question:
 // what is coming up, and what is open? Everything else is one click away.
 //
+// Two parts (design canvas Oct 2026, direction A): "Für dich" (PersonalParts.tsx)
+// for everyone with a signup of their own — the next raid with their signup,
+// setup group, softres and raid plan, the raids after it, attendance, profile
+// and their last raids — and, for whoever reads the raids, the orga block below:
+//
 //   row 1: the next raid (its category, role fill, setup/softres — the sheet
 //          only where the category plans with one — and the raid after it)
 //          beside the open tasks — one row per task, only when there is one;
@@ -11,10 +16,12 @@
 // The modal "Raid-Details" (pages/dashboard/RaidDetailsModal.tsx) loads its own data
 // when it opens.
 import { useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import {
-    decideTrial, getDashboard, recreateChannel, type ApiError, type DashboardData, type DashboardRaid, type DashboardTask, type DashboardTaskAction,
+    canAccess, decideTrial, getDashboard, recreateChannel,
+    type ApiError, type DashboardData, type DashboardPersonal, type DashboardRaid, type DashboardTask, type DashboardTaskAction,
 } from "../../api";
+import type { ShellContext } from "../../components/shell/Shell";
 import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import AsyncView from "../../components/ui/AsyncView";
@@ -30,6 +37,7 @@ import TopLootList from "../../components/loot/TopLootList";
 import RaidDetailsModal from "./RaidDetailsModal";
 import { RoleBar, IconLink } from "./OverviewParts";
 import { usesSheet } from "./raidPlanning";
+import { AttendanceDots, MyNextRaid, MyRaids, MyRecentRaids } from "./PersonalParts";
 import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { relativeDayLabel } from "../../lib/format";
 import { longDay, shortDate, dayDate, clock, raidWhen } from "../../lib/raids/overviewDates";
@@ -265,7 +273,7 @@ function AreaTile({ area, icon, label, href, tip, tipSub, children }: {
     );
 }
 
-function AreaTiles({ areas }: { areas: DashboardData["areas"] }) {
+function AreaTiles({ areas }: { areas: NonNullable<DashboardData["areas"]> }) {
     const t = useT();
     const r = areas.lastReport;
     const reportSub = r
@@ -373,8 +381,50 @@ function RecentRaidList({ recent }: { recent: DashboardData["recentEvents"] }) {
     );
 }
 
+/** A thin heading between the page's two parts ("Für dich", "Orga"). */
+function PartDivider({ label, tone }: { label: string; tone: "me" | "orga" }) {
+    return (
+        <div className={`ov-divider ov-divider-${tone}`}>
+            <span className="ov-divider-l">{label}</span>
+            <span className="ov-divider-line" aria-hidden="true" />
+        </div>
+    );
+}
+
+/** The raider's two figures: attendance over the last nights, and the profile. */
+function PersonalTiles({ personal }: { personal: DashboardPersonal }) {
+    const t = useT();
+    const a = personal.attendance;
+    const p = personal.profile;
+    const hint = p.hints[0];
+    return (
+        <div className="ov-grid ov-grid-me-tiles">
+            <AreaTile
+                area="absences" icon="spell_nature_timestop" label={t("dashboard.personal.attendance.label")} href="/absences"
+                tip={t("dashboard.personal.attendance.tip")} tipSub={a ? t("dashboard.personal.attendance.sub", { count: a.bench }) : t("dashboard.personal.attendance.none")}
+            >
+                <span className="ov-area-big">{a ? t("dashboard.personal.attendance.value", { attended: a.attended, total: a.total }) : "–"}</span>
+                {a && a.last.length > 0 && <AttendanceDots nights={a.last} />}
+            </AreaTile>
+            <AreaTile
+                area="profile" icon="achievement_character_human_male" label={t("dashboard.personal.profile.label")} href="/profile"
+                tip={t("dashboard.personal.profile.tip")} tipSub={hint ? t(`dashboard.personal.profile.${hint.kind}`, { character: hint.character }) : t("dashboard.personal.profile.complete")}
+            >
+                <span className="ov-area-val">{hint ? t(`dashboard.personal.profile.${hint.kind}`, { character: hint.character }) : t("dashboard.personal.profile.characters", { count: p.characters })}</span>
+                <span className="ov-badges">
+                    {p.hints.length > 0
+                        ? <Badge tone="mid">{t("dashboard.personal.profile.hints", { count: p.hints.length })}</Badge>
+                        : <Badge tone="ok">{t("dashboard.personal.profile.ok")}</Badge>}
+                    {p.characters > 0 && p.hints.length > 0 && <Badge>{t("dashboard.personal.profile.characters", { count: p.characters })}</Badge>}
+                </span>
+            </AreaTile>
+        </div>
+    );
+}
+
 export default function DashboardPage() {
     const t = useT();
+    const { user } = useOutletContext<ShellContext>();
     // The game version of the raid/loot tiles (#563): the menu's content switch.
     const { version } = useContentVersion();
     const dashboard = useApi(() => getDashboard(version), [version]);
@@ -384,27 +434,52 @@ export default function DashboardPage() {
         <AsyncView state={dashboard} loading={<RaidLoader text={t("dashboard.page.loading")} />} error={(err) => <div className="empty">{t("dashboard.page.loadError", { message: err.message })}</div>}>
             {(data) => {
                 const kicker = [data.kicker.guild, data.kicker.realm, longDay(Date.now())].filter(Boolean).join(" · ");
+                const me = data.personal;
+                // Two parts (design canvas Oct 2026, direction A): "Für dich" for everyone with a signup of their own —
+                // in full for a raider, compact above the orga block — and the orga block for whoever reads the raids.
+                const action = canAccess(user, "raids", "write")
+                    ? <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.page.newRaid")}</Link>
+                    : me
+                        ? <Link className={buttonClass("primary", "md", true)} to="/signups"><WowIcon name="inv_misc_book_09" size={22} />{t("dashboard.personal.toSignups")}</Link>
+                        : undefined;
 
                 return (
                     <div className="ov-page">
-                        <PageHead
-                            icon="inv_misc_map_01" tone="home" kicker={kicker} title={t("dashboard.page.title")}
-                            action={<Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.page.newRaid")}</Link>}
-                        />
+                        <PageHead icon="inv_misc_map_01" tone="home" kicker={kicker} title={t("dashboard.page.title")} action={action} />
 
-                        <div className="ov-grid ov-grid-top">
-                            <NextRaidCard
-                                raid={data.nextRaid} following={data.followingRaid} error={data.nextRaidError}
-                                guildId={data.activeGuildId} onDetails={() => setDetailsOpen(true)}
-                            />
-                            <TaskList tasks={data.tasks} onChanged={() => void dashboard.reload()} />
-                        </div>
+                        {me && (
+                            <>
+                                {data.orga && <PartDivider tone="me" label={t("dashboard.personal.divider")} />}
+                                <div className="ov-grid ov-grid-top">
+                                    <MyNextRaid raid={me.upcoming[0] || null} compact={data.orga} />
+                                    <MyRaids raids={me.upcoming.slice(1, data.orga ? 3 : undefined)} />
+                                </div>
+                                {!data.orga && <PersonalTiles personal={me} />}
+                            </>
+                        )}
 
-                        <AreaTiles areas={data.areas} />
+                        {data.orga && (
+                            <>
+                                {me && <PartDivider tone="orga" label={t("dashboard.orga.divider", { count: data.tasks.length })} />}
+                                <div className="ov-grid ov-grid-top">
+                                    <NextRaidCard
+                                        raid={data.nextRaid} following={data.followingRaid} error={data.nextRaidError}
+                                        guildId={data.activeGuildId} onDetails={() => setDetailsOpen(true)}
+                                    />
+                                    <TaskList tasks={data.tasks} onChanged={() => void dashboard.reload()} />
+                                </div>
+                                {data.areas && <AreaTiles areas={data.areas} />}
+                            </>
+                        )}
+
+                        {/* someone outside the raids with a task of their own (the server's state, the archive) */}
+                        {!data.orga && data.tasks.length > 0 && <TaskList tasks={data.tasks} onChanged={() => void dashboard.reload()} />}
 
                         <div className="ov-grid ov-grid-bottom">
                             <LootCard topLoot={data.topLoot} />
-                            <RecentRaidList recent={data.recentEvents} />
+                            {data.orga
+                                ? <RecentRaidList recent={data.recentEvents} />
+                                : me && <MyRecentRaids recent={me.recent} />}
                         </div>
 
                         {data.nextRaid && (

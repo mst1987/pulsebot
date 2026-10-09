@@ -153,17 +153,79 @@ export type DashboardLastReport = {
     open: number;
 };
 
+// ---- "Für dich" (src/web/dashboard/dashboardPersonal.js) ----
+
+/** The raider's own signup status; "" = not signed up yet. */
+export type PersonalStatus = "" | "signed" | "late" | "tentative" | "bench" | "absence";
+
+/** One of the raider's next raids with their own signup, setup place, softres list and published plan. */
+export type PersonalRaid = {
+    id: string;
+    source: string;
+    title: string;
+    startTime: number;
+    categoryName: string;
+    icon: string;
+    status: PersonalStatus;
+    character: string;
+    spec: string;
+    specIcon: string;
+    /** the approved setup's group, or the bench; null = no approved setup or not placed */
+    placement: { group?: number; bench?: boolean; character?: string } | null;
+    /** signup deadline in seconds; 0 = none */
+    deadline: number;
+    deadlinePassed: boolean;
+    signupsClosed: boolean;
+    cancelled: boolean;
+    rosterOnly: boolean;
+    softresUrl: string;
+    /** a published raid plan's token (/p/<token>); "" = none published */
+    planToken: string;
+};
+
+/** A past night of the raider: their status and that night's evaluation as they see it. */
+export type PersonalNight = {
+    eventId: string;
+    title: string;
+    startTime: number;
+    categoryName: string;
+    icon: string;
+    /** present | bench | vacation | absence | noSignup | noShow (rosterAttendance.js) */
+    status: string;
+    attended: boolean;
+    /** the newest evaluation: their player page and the approved recommendations for them (null hints = not in the log) */
+    report: { url: string; hints: number | null } | null;
+};
+
+export type DashboardPersonal = {
+    upcoming: PersonalRaid[];
+    upcomingError: string | null;
+    attendance: {
+        attended: number;
+        total: number;
+        bench: number;
+        last: { eventId: string; title: string; startTime: number; status: string; attended: boolean }[];
+    } | null;
+    recent: PersonalNight[];
+    profile: { characters: number; hints: { kind: "noCharacters" | "noSpec"; character: string }[] };
+};
+
 export type DashboardData = {
     kicker: { guild: string; realm: string };
+    /** Whether the orga part is shown (raid events readable). */
+    orga: boolean;
+    /** "Für dich"; null without a signup area of one's own. */
+    personal: DashboardPersonal | null;
     nextRaid: DashboardRaid | null;
     followingRaid: DashboardRaid | null;
     nextRaidError: string | null;
     tasks: DashboardTask[];
+    /** The orga's figures; null for a raider. */
     areas: {
         lastReport: DashboardLastReport | null;
         newLoot: { count: number; since: number };
         roster: { total: number; withoutDiscord: number } | null;
-    };
+    } | null;
     recentEvents: { events: (RecentEvent & { icon: string })[]; error: string | null };
     // Latest awards of the items defined as "top items" in Einstellungen → Loot.
     // `configured` is how many are defined at all, which distinguishes "nothing
