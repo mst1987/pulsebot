@@ -41,6 +41,7 @@ const rosterStore = require("../../stores/rosterStore");
 const { getProfile } = require("../../stores/raiderProfileStore");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
 const { trialEnding, extendedTrialUntil } = require("../../services/roster/rosterTrials");
+const { planningOf } = require("../../services/events/planning");
 
 const RH_ERROR = "Events konnten nicht geladen werden (Raid-Helper API).";
 
@@ -103,6 +104,7 @@ async function loadNextRaids(guildId, count = 2, { versionId = "" } = {}) {
         .map((ev) => ({ ...ev, categoryId: (catMap[ev.channelId] || {}).categoryId || ev.categoryId || "" }))
         .filter((ev) => !versionId || versionOfEvent(ev) === versionId)
         .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0)).slice(0, count);
+    const config = getConfig();
     const raids = [];
     for (const ev of next) {
         const own = ev.source === "eventhelper";
@@ -114,6 +116,7 @@ async function loadNextRaids(guildId, count = 2, { versionId = "" } = {}) {
         const size = own && ev.size
             ? ev.size
             : raidSize(zone.contentId, softres.targetSizeForInstances((softresList && softresList.instances) || []));
+        const categoryId = meta.categoryId || ev.categoryId || "";
         raids.push({
             id: ev.id,
             source: ev.source,
@@ -121,15 +124,19 @@ async function loadNextRaids(guildId, count = 2, { versionId = "" } = {}) {
             startTime: ev.startTime,
             channelId: ev.channelId,
             channelName: meta.name || ev.channelName || "",
-            categoryId: meta.categoryId || ev.categoryId || "",
+            categoryId,
+            categoryName: meta.categoryName || ev.categoryName || "",
+            // A category plans with the raid plan or a Google Sheet, never both (planning.js):
+            // only a "sheet" raid can miss its sheet.
+            planning: planningOf(categoryId, config),
             icon: zone.icon,
             size,
             signupCount: (ev.signUps || []).filter(isAttending).length,
             setupCount: slots.length,
             roles: roleFill({ setupSlots: slots, signUps: ev.signUps || [], size, composition: own ? ev.composition : null }),
-            sheet: sheetFor(ev.id, meta.categoryId || ev.categoryId || ""),
+            sheet: sheetFor(ev.id, categoryId),
             softres: softresList && softresList.url ? { url: softresList.url } : null,
-            lootSystem: lootSystemOf(ev.id, meta.categoryId || ev.categoryId || ""),
+            lootSystem: lootSystemOf(ev.id, categoryId),
         });
     }
     return { raids, error: raids.length ? null : error };
@@ -182,6 +189,9 @@ async function loadNextRaidDetails(guildId, eventId) {
             startTime: ev.startTime,
             channelId: ev.channelId,
             channelName: ev.channelName || "",
+            categoryId: g.categoryId || "",
+            categoryName: g.categoryName || "",
+            planning: planningOf(g.categoryId, config),
             icon: zone.icon,
             size,
             signupCount: signUps.filter(isAttending).length,

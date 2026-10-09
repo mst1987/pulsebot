@@ -349,9 +349,10 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.areas).toEqual({
                 lastReport: { id: "r1", zone: "Black Temple", generatedAt: 5, problems: 3, open: 7 },
                 newLoot: { count: 3, since: 1000000 },
-                recruitment: { posts: 2 },
                 roster: { total: 27, withoutDiscord: 2 },
             });
+            // recruitment posts are no figure of the start page any more
+            expect(data.areas.recruitment).toBeUndefined();
             expect(data.recentEvents.events[0]).toMatchObject({ id: "e1", icon: "achievement_boss_archimonde-" });
             expect(data.topLoot).toEqual({ items: [{ itemId: 30883, character: "Kilrogg" }], configured: 3 });
             expect(data.activeGuildId).toBe("guild-1");

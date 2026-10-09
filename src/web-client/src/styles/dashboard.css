@@ -10,7 +10,7 @@
 .ov-page > .page-head { margin-bottom: 2px; }
 .ov-grid { display: grid; gap: 16px; }
 .ov-grid-top { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
-.ov-grid-areas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ov-grid-areas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ov-grid-bottom { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .ov-push { margin-left: auto; }
 .ov-note { font-size: 13px; color: var(--muted); line-height: 1.5; }
@@ -27,6 +27,9 @@
 .ov-next-top { display: flex; gap: 14px; align-items: center; }
 .wi.ov-boss56 { width: 56px; height: 56px; border-radius: 9px; border: 1px solid var(--line); }
 .ov-next-text { flex: 1; min-width: 0; }
+/* the raid's Discord category: a small kicker above the title, a quiet tag in the "Danach" line */
+.ov-cat { display: block; font-size: 11.5px; font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em; color: var(--accent); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-cat-s { font-size: 12px; color: var(--muted); }
 .ov-next-title { display: block; font-size: 20px; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; color: var(--text); text-decoration: none; }
 a.ov-next-title:hover { color: var(--accent); }
 .ov-head-actions { display: inline-flex; gap: 6px; }
@@ -110,6 +113,9 @@ a.toploot-name:hover { text-decoration: underline; }
 .toploot-who { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: 0 0 auto; max-width: 45%; }
 .toploot-char { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; white-space: nowrap; cursor: default; }
 .toploot-char .wi { width: 18px; height: 18px; }
+/* On the start page the winner and the award reason share one line, so a row is
+   as tall as one of "Letzte Raids" beside it and both cards line up. */
+.ov-loot .toploot-who { flex-direction: row; align-items: center; gap: 8px; }
 
 /* ---- raid-details modal ---- */
 .ov-dlg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
