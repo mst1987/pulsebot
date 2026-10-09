@@ -12,11 +12,11 @@
 //     raider is built with the same one (see RACE_BY_CLASS). The council
 //     compares raiders against each other and each raider against themselves
 //     with one more item, and a constant cancels out of both.
-//   - it does not take the raider's talents. See casterSpecs.js — the reference
+//   - it does not take the raider's talents. See councilSpecs.js — the reference
 //     build is what makes two raiders comparable.
 
 const { slotsFor, item: itemInfo } = require("../../config/wowsims");
-const { bisForSpec } = require("../../config/casterSpecs");
+const { bisForSpec } = require("../../config/councilSpecs");
 const { bisTiers } = require("../../config/bisSets");
 const { metaGemActive } = require("../logcheck/gearIssues");
 const claData = require("../../config/claData");

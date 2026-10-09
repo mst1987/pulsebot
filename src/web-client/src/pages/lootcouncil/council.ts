@@ -28,7 +28,26 @@ export const FILTER_DEFAULT: FilterView = { role: "caster", tiers: [], contents:
 // Wie die Rollen am Raider heißen, und ihr Icon im Segment. Der Name wird beim
 // Rendern übersetzt (lootcouncil.role.*); eine unbekannte Rolle zeigt `fallback`.
 export const roleLabel = (id: string, fallback?: string) => tOr(`lootcouncil.role.${id}`, fallback || id);
-export const ROLE_ICON: Record<string, string> = { caster: "spell_holy_magicalsentry", healer: "spell_holy_guardianspirit" };
+// Tank, melee and ranged wear the icons the raid detail uses for its role groups (lib/raidplan/assign.ts).
+export const ROLE_ICON: Record<string, string> = {
+    caster: "spell_holy_magicalsentry",
+    healer: "spell_holy_guardianspirit",
+    tank: "ability_warrior_defensivestance",
+    melee: "ability_dualwield",
+    ranged: "inv_weapon_bow_07",
+};
+
+// The kind of set the server read out of a log (gear.setRole, services/loot/gearProfile.js).
+const SET_LABEL_KEY: Record<string, string> = { caster: "casterGear", healer: "healGear", tank: "tankGear", physical: "physGear" };
+
+/**
+ * The badge for a raider judged on the set of another role: what that set is
+ * ("Heilgear", "Tank-Gear", …) — or "andere Rolle" when the server could not say.
+ */
+export function otherSetLabel(setRole: string): string {
+    const key = SET_LABEL_KEY[setRole];
+    return key ? t(`lootcouncil.gear.${key}`) : t("lootcouncil.gear.otherRole");
+}
 
 /** An item's Wowhead page in the council's version (`path` = the data's wowheadPath, lib/settings/versionLinks.ts). */
 export const WOWHEAD = (id: number, path: string = LEGACY_WOWHEAD_PATH) => wowheadItemUrl(id, [], path);

@@ -29,7 +29,7 @@
 
 const wowsims = require("../../config/wowsims");
 const bis = require("../../config/bisSets");
-const { SPECS } = require("../../config/casterSpecs");
+const { SPECS, ROLE_IDS } = require("../../config/councilSpecs");
 const { TIERS } = require("../../config/tbcContent");
 const { SLOT_NAMES } = require("../../utils/logcheck/gearIssues");
 const { characterProfile } = require("../../utils/setup/setupView");
@@ -81,8 +81,10 @@ function bySlot(specKey, tierId) {
 /**
  * Which lists exist for a tier, with everyone who plays them.
  *
- * A column is one list, not one spec: five columns carry nine specs, and the
- * borrowers ride on the column of the list they play.
+ * A column is one list, not one spec: five caster columns carry nine specs, and
+ * the borrowers ride on the column of the list they play. Columns come in the
+ * order of the council's roles (caster, healer, tank, melee, ranged) and within
+ * a role in the order of the spec table, so the "Alle" view reads as groups.
  */
 function columnsFor(tierId, specs) {
     const out = [];
@@ -106,7 +108,9 @@ function columnsFor(tierId, specs) {
             })),
         });
     }
-    return out;
+    const specIndex = new Map(specs.map((s, i) => [s.key, i]));
+    const rank = (c) => ROLE_IDS.indexOf(c.role) * 1000 + (specIndex.get(c.key) || 0);
+    return out.sort((a, b) => rank(a) - rank(b));
 }
 
 /**

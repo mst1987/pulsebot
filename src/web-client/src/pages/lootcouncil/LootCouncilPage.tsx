@@ -26,7 +26,7 @@
 // wait — a reload, the armory, a simulation — is a job toast (components/shell/Jobs.tsx).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
-import { getLootCouncil, setCouncilExcluded, getCouncilExport, refreshCouncilArmory, setCouncilRole, canAccess, loadCouncilLogGear, type ApiError, type CouncilRaider, type CouncilExport, type LootCouncilData } from "../../api";
+import { getLootCouncil, setCouncilExcluded, getCouncilExport, refreshCouncilArmory, setCouncilRole, canAccess, loadCouncilLogGear, type ApiError, type CouncilRaider, type CouncilRole, type CouncilExport, type LootCouncilData } from "../../api";
 import { useCategoryViews } from "./categoryViews";
 import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { useJobs, useToast } from "../../components/shell/Jobs";
@@ -206,7 +206,7 @@ export default function LootCouncilPage() {
     );
 
     /** Als was ein Raider eingeplant wird — reicht bis ins Gear durch, also danach alles neu. */
-    const setRole = (character: string, role: "" | "caster" | "healer") => runFor(
+    const setRole = (character: string, role: "" | CouncilRole) => runFor(
         `role:${character}`,
         async () => {
             await setCouncilRole(character, role);

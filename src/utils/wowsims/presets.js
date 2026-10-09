@@ -159,9 +159,9 @@ const DRUID_PLAYER = { profession1: "Enchanting", profession2: "Tailoring", dist
 const MAGE_PLAYER = { profession1: "Engineering", profession2: "Tailoring", distanceFromTarget: 20 };
 
 /**
- * The sim configuration per spec key (see config/casterSpecs.js). Specs that
+ * The sim configuration per spec key (see config/councilSpecs.js). Specs that
  * borrow another's rotation (Fire/Frost mage) borrow its entry wholesale — the
- * talent string in casterSpecs.js is what makes them the build WoWSims models.
+ * talent string in councilSpecs.js is what makes them the build WoWSims models.
  */
 const SPEC_PRESETS = {
     "Priest-Shadow": {

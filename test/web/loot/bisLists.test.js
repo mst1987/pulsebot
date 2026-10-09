@@ -7,7 +7,7 @@ const bis = require("../../../src/config/bisSets");
 
 describe("web/loot/bisLists", () => {
     describe("listedSpecs", () => {
-        it("lists the casters and the healers", () => {
+        it("lists the casters, the healers, the tanks, the melee and the hunters", () => {
             const keys = listedSpecs().map((s) => s.key);
             expect(keys).toContain("Priest-Shadow");
             // The healers are on the tab since their lists come from Wowhead —
@@ -15,6 +15,10 @@ describe("web/loot/bisLists", () => {
             expect(keys).toContain("Priest-Holy");
             expect(keys).toContain("Paladin-Holy");
             expect(listedSpecs().filter((s) => s.role === "caster")).toHaveLength(9);
+            // #669: tanks, melee and hunters, with WoWSims' own lists.
+            expect(listedSpecs().filter((s) => s.role === "tank").map((s) => s.key)).toEqual(["Warrior-Protection", "Paladin-Protection", "Druid-Guardian"]);
+            expect(listedSpecs().filter((s) => s.role === "melee")).toHaveLength(8);
+            expect(listedSpecs().filter((s) => s.role === "ranged")).toHaveLength(3);
         });
 
         it("says which list a spec plays and whether it is its own", () => {
@@ -39,13 +43,24 @@ describe("web/loot/bisLists", () => {
     describe("columnsFor", () => {
         it("is one column per list, not per spec", () => {
             const columns = columnsFor("t6", listedSpecs());
-            expect(columns).toHaveLength(9);
+            // 5 caster + 4 healer + 3 tank + 6 melee + 2 hunter lists.
+            expect(columns).toHaveLength(20);
+            const rogue = columns.find((c) => c.key === "Rogue-Combat");
+            expect(rogue.users.map((u) => u.key)).toEqual(["Rogue-Combat", "Rogue-Assassination", "Rogue-Subtlety"]);
             const arcane = columns.find((c) => c.key === "Mage-Arcane");
             expect(arcane.users.map((u) => u.key)).toEqual([
                 "Mage-Arcane", "Mage-Fire", "Mage-Frost",
             ]);
             expect(arcane.users[0].ownList).toBe(true);
             expect(arcane.users[1].ownList).toBe(false);
+        });
+
+        it("orders the columns by role, so the full view reads as groups", () => {
+            const roles = columnsFor("t6", listedSpecs()).map((c) => c.role);
+            const order = ["caster", "healer", "tank", "melee", "ranged"];
+            const ranks = roles.map((r) => order.indexOf(r));
+            expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+            expect(new Set(roles)).toEqual(new Set(order));
         });
 
         it("drops a list the tier does not have", () => {

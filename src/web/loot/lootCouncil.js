@@ -36,9 +36,9 @@ const wowsims = require("../../config/wowsims");
 const bisSource = require("../../config/bisSets");
 const { wearCheck } = require("../../config/wearable");
 const {
-    ROLES, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitCapFor,
+    ROLES, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitStatFor, hitCapFor,
     bisForSpec, isSimSupported, bisSpecsForItem,
-} = require("../../config/casterSpecs");
+} = require("../../config/councilSpecs");
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -208,16 +208,18 @@ function scoreItem(itemId, weights) {
 }
 
 /**
- * The spell hit a raider already has from gear. Needed because hit is the one
+ * The hit a raider already has from gear — spell hit for a caster, physical
+ * hit for everyone else (`stat`, see hitStatFor). Needed because hit is the one
  * stat whose value collapses the moment it is enough: past the cap another
  * point of hit is worth nothing, and a council that ignores that hands the
  * hit-capped raider the hit trinket.
  */
-function gearSpellHit(gear) {
+function gearHit(gear, stat = "spellHit") {
+    if (!stat) return 0;
     let hit = 0;
     for (const it of (gear && gear.items) || []) {
         const item = wowsims.item(it.itemId);
-        if (item && item.stats.spellHit) hit += item.stats.spellHit;
+        if (item && item.stats[stat]) hit += item.stats[stat];
     }
     return hit;
 }
@@ -235,28 +237,31 @@ function gearSpellHit(gear) {
 function upgradeValue({ gear, specEntry, itemId, replaces }) {
     const weights = weightsFor(specEntry);
     const cap = hitCapFor(specEntry);
-    const current = gearSpellHit(gear);
+    // The capped hit: spell hit for a caster, physical hit for melee, hunters
+    // and tanks. A healer has none, and every stat counts at its plain weight.
+    const hitStat = hitStatFor(specEntry);
+    const current = gearHit(gear, hitStat);
 
     const usefulHit = (item, delta) => {
-        if (!cap || !item || !item.stats.spellHit) return 0;
+        if (!cap || !item || !item.stats[hitStat]) return 0;
         // How much of this item's hit is below the cap, given what the raider
         // already wears (minus whatever the replaced item contributed).
         const base = Math.max(0, current + delta);
-        return Math.max(0, Math.min(item.stats.spellHit, cap - base));
+        return Math.max(0, Math.min(item.stats[hitStat], cap - base));
     };
 
     const incoming = wowsims.item(itemId);
     const outgoing = replaces ? wowsims.item(replaces.itemId) : null;
-    const outgoingHit = outgoing ? (outgoing.stats.spellHit || 0) : 0;
+    const outgoingHit = outgoing && hitStat ? (outgoing.stats[hitStat] || 0) : 0;
 
     const scoreOf = (item, hitCounted) => {
         if (!item) return 0;
         let score = 0;
         for (const [stat, value] of Object.entries(item.stats)) {
-            if (stat === "spellHit") continue;
+            if (hitStat && stat === hitStat) continue;
             score += (weights[stat] || 0) * value;
         }
-        return score + (weights.spellHit || 0) * hitCounted;
+        return score + (hitStat ? (weights[hitStat] || 0) * hitCounted : 0);
     };
 
     const inScore = scoreOf(incoming, usefulHit(incoming, -outgoingHit));
@@ -526,7 +531,11 @@ function rosterGearView(gear, specEntry, bisIds, bisTier) {
         reportId: gear.reportId,
         reportTitle: gear.reportTitle,
         itemCount: gear.items.length,
-        spellHit: gearSpellHit(gear),
+        // The hit that counts for this spec, and its cap: spell hit for a
+        // caster, physical hit for melee, hunters and tanks (`hitStat`), none
+        // for a healer (hitCap 0 — the page then shows no hit badge).
+        hit: gearHit(gear, hitStatFor(specEntry)),
+        hitStat: hitStatFor(specEntry),
         hitCap: hitCapFor(specEntry),
         // Whether this really is the raider's damage kit. A shaman who
         // healed last night would otherwise be judged on healing gear:
@@ -604,7 +613,7 @@ function bisView(bis, bisItems) {
 
 /**
  * One raider's roster row, or null when they are not on the council (no
- * caster/healer spec, or not the role asked for). `ctx` is what councilRoster
+ * council spec, or not the role asked for). `ctx` is what councilRoster
  * loaded once: `{ info, charStore, gearMap, loot, planned, role, bisTier, now }`.
  */
 function rosterRow(key, ctx) {
@@ -620,8 +629,8 @@ function rosterRow(key, ctx) {
     const fromData = specFor(className, known.spec);
     if (!fromData) return null;
     // Die Festlegung des Raidleads gewinnt, wenn die Klasse sie hergibt —
-    // ein Paladin lässt sich nicht als Caster einplanen, dann bleibt es bei
-    // dem, was die Daten sagen.
+    // ein Paladin lässt sich nicht als Caster einplanen, ein Magier nicht als
+    // Tank; dann bleibt es bei dem, was die Daten sagen.
     const wanted = ctx.planned.get(key) || "";
     const specEntry = (wanted && wanted !== fromData.role && specForRole(className, wanted)) || fromData;
     if (ctx.role && specEntry.role !== ctx.role) return null;
@@ -693,10 +702,11 @@ function scoreRows(rows) {
 }
 
 /**
- * The council roster: every caster/healer with loot history or known gear.
+ * The council roster: every raider with a council spec (caster, healer, tank,
+ * melee, hunter — config/councilSpecs.js) and loot history or known gear.
  *
  * @param {object} opts
- *   role        "caster" | "healer" | "" (both)
+ *   role        "caster" | "healer" | "tank" | "melee" | "ranged" | "" (all)
  *   tierIds     tier ids to count loot from ([] = all)
  *   contentIds  extra content ids to count loot from
  *   categoryId  restrict to one raid category (the Monday raid, say)
@@ -864,7 +874,7 @@ function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
         // it *is* BiS for is preferred unless the difference is large.
         const bisWeight = isBis ? 1 : NON_BIS_WEIGHT;
         // A baseline the comparison cannot read: what would come off carries no
-        // caster stats at all — a situational trinket the substitution could not
+        // stats at all — a situational trinket the substitution could not
         // replace, a relic, an off-spec piece — so both the stat weights and the
         // simulation measure against an empty slot and credit this raider the
         // item's *full* worth while everyone else only gets the difference. The
@@ -907,7 +917,7 @@ function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
             // can say it rather than showing a bare warning triangle.
             inflatedBy: unreadable.map((off) => ({
                 itemName: off.itemName || `Item ${off.itemId}`,
-                note: (off.situational || {}).note || "trägt keine Casterwerte, zählt im Vergleich wie ein leerer Slot",
+                note: (off.situational || {}).note || "trägt keine passenden Werte, zählt im Vergleich wie ein leerer Slot",
             })),
             isBis,
             bisWeight,
@@ -1019,7 +1029,7 @@ module.exports = {
     councilRoster, candidateSplit, bisGaps, filterOptions, bisSpecsView, resolveContentFilter, itemView, NEED_WEIGHTS,
     // only for the tests (#424): not part of the module's API
     _internal: {
-        candidatesForItem, currentTier, wornItemView, NEED_WEIGHTS, NON_BIS_WEIGHT, upgradeValue, needScore, gearSpellHit, firstSlotFor,
+        candidatesForItem, currentTier, wornItemView, NEED_WEIGHTS, NON_BIS_WEIGHT, upgradeValue, needScore, gearHit, firstSlotFor,
         slotNameFor,
     },
 };

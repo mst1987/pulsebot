@@ -234,8 +234,9 @@ Technik: [loot-council.md](loot-council.md)
 *Bereich "lootcouncil" — für die Raidleitung beim Verteilen von Beute*
 
 - Rangliste je Raider nach Bedarf (Drought, bisheriger Loot-Anteil, BiS-Abstand).
+- Rollen-Schalter über der Liste: **Caster | Heiler | Tank | Nahkampf | Fernkampf | Alle**. Neben Zauberern und Heilern stehen auch Krieger, Schurken, Wilder-Kampf-Druiden (Katze und Bär), Verstärkungs-Schamanen, Vergeltungs- und Schutz-Paladine und Jäger im Council – mit BiS-Liste, Gewichtung und Trefferwert-Grenze. „Fernkampf“ sind die Jäger; Zauberer stehen unter „Caster“. Simuliert wird bisher nur Caster-DPS, alle anderen schlägt die Seite nach Bedarf vor. Im Raider-Fenster lässt sich ein Hybride als andere Rolle einplanen (z. B. ein Krieger als Tank, ein Druide als Bär); die Raid-Kategorie merkt sich die gewählte Rolle für alle.
 - Gear-Ansicht und Drop-Check für ein konkretes Item.
-- DPS-Simulation einzelner Ausrüstungswechsel, BiS-Listen je Spec. Details: [docs/loot-council.md](loot-council.md).
+- DPS-Simulation einzelner Ausrüstungswechsel (Caster), BiS-Listen je Spec – im Reiter BiS-Listen mit Rollen-Knöpfen, um nur eine Rolle zu zeigen. Details: [docs/loot-council.md](loot-council.md).
 - Welche Charaktere überhaupt auf der Liste stehen, bestimmt der Content-Umschalter in der Kopfleiste (Start: die Hauptversion); ein Charakter ohne eigene Version zählt über seinen Loot oder seine Kategorie.
 
 ## Historie & Loot

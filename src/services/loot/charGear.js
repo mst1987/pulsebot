@@ -334,7 +334,8 @@ function fillSituational(snapshot, want, entry, report, wanted) {
  *
  * @param {object} [opts]
  * @param {(key: string) => string} [opts.roleFor] the role a character is judged
- *        as ("caster" | "healer"), by character key. Omit to take any set.
+ *        as (a council role: caster, healer, tank, melee, ranged — compared by
+ *        gear family, see gearProfile.fitsRole), by character key. Omit to take any set.
  * @returns {Map<string, {key, character, className, seenAt, reportId, reportTitle,
  *          items, profile, skippedReports, roleMismatch}>}
  */
