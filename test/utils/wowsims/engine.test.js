@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const engine = require("../../../src/utils/wowsims/engine");
-const { specByKey } = require("../../../src/config/casterSpecs");
+const { specByKey } = require("../../../src/config/councilSpecs");
 
 // No test here runs the binary — buildRequest is pure, and isAvailable() is
 // driven purely by the env var. That is the point of the split: the request

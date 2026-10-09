@@ -16,8 +16,8 @@ const TIER_HUE: Record<string, string> = { t4: "kara", t5: "ssc", t6: "bt", t65:
 const TIER_LABEL: Record<string, string> = { t4: "T4", t5: "T5", t6: "T6", t65: "SWP" };
 
 /**
- * The BiS lists themselves: which gear set is best in slot for which caster DPS
- * class and spec. A matrix, because the question is a comparison: slots are
+ * The BiS lists themselves: which gear set is best in slot for which class and
+ * spec — casters, healers, tanks, melee and hunters. A matrix, because the question is a comparison: slots are
  * rows, the lists are columns. The search goes the other way through the same
  * data: name a piece, see for whom it is BiS, step into the list filtered to
  * exactly that spec.
@@ -29,12 +29,16 @@ const TIER_LABEL: Record<string, string> = { t4: "T4", t5: "T5", t6: "T6", t65: 
 // (Beim Rendern übersetzt: lootcouncil.bisLists.source.*.)
 const sourceNote = (source: string) => tOr(`lootcouncil.bisLists.source.${source}`, "");
 
-// Neun Spalten sind zu viele, um sie einzeln wegzuklicken, wenn man nur eine
-// Hälfte sehen will. Die Namen sind Schlüssel, übersetzt beim Rendern.
+// Zwanzig Spalten (seit #669 auch Tanks, Nahkampf und Jäger) sind zu viele, um
+// sie einzeln wegzuklicken, wenn man nur eine Rolle sehen will. Die Namen sind
+// Schlüssel, übersetzt beim Rendern.
 const LIST_GROUPS = [
     { id: "", labelKey: "common.all" },
     { id: "caster", labelKey: "lootcouncil.role.caster" },
     { id: "healer", labelKey: "lootcouncil.role.healer" },
+    { id: "tank", labelKey: "lootcouncil.role.tank" },
+    { id: "melee", labelKey: "lootcouncil.role.melee" },
+    { id: "ranged", labelKey: "lootcouncil.role.ranged" },
 ];
 
 export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) => void }) {

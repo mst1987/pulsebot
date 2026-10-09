@@ -1,6 +1,6 @@
 const { equipmentFor, playerFor, targetSlotFor, bisFittingFor, SLOT_ORDER } = require("../../../src/utils/wowsims/loadout");
 const wowsims = require("../../../src/config/wowsims");
-const { specByKey, aplForSpec } = require("../../../src/config/casterSpecs");
+const { specByKey, aplForSpec } = require("../../../src/config/councilSpecs");
 const { presetFor } = require("../../../src/utils/wowsims/presets");
 
 // A small snapshot in the shape services/loot/charGear.js produces. Item ids are real

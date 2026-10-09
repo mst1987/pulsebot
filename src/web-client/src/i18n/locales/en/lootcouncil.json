@@ -2,7 +2,10 @@
     "title": "Loot council",
     "role": {
         "caster": "Caster",
-        "healer": "Healer"
+        "healer": "Healer",
+        "tank": "Tank",
+        "melee": "Melee",
+        "ranged": "Ranged"
     },
     "word": {
         "raider": "Raider",
@@ -225,7 +228,7 @@
         "unwearable": "Cannot wear it"
     },
     "candidates": {
-        "noSimTipSub": "There is no simulation for this spec — WoWSims-TBC only simulates caster DPS.",
+        "noSimTipSub": "There is no simulation for this spec — the bot only simulates caster DPS so far. Tanks, melee, hunters and healers are suggested by need and stat weights.",
         "noGearTip": "No gear known",
         "noGearTipSub": "The raider does not appear in any of the latest evaluations.",
         "noGear": "no gear",
@@ -396,7 +399,6 @@
         }
     },
     "gear": {
-        "dpsGear": "DPS gear",
         "healGear": "Healing gear",
         "pvpGear": "PvP gear",
         "noEnchTip": "No enchant",
@@ -465,7 +467,11 @@
         "loadLog": "Load log",
         "armoryFetchNow": "Get gear from the armory now",
         "armoryFetch": "Get gear from the armory",
-        "fullDetails": "Full details"
+        "fullDetails": "Full details",
+        "casterGear": "Caster gear",
+        "tankGear": "Tank gear",
+        "physGear": "Melee gear",
+        "meleeHitTip": "Hit rating (physical)"
     },
     "dialog": {
         "sheet": {
@@ -576,7 +582,7 @@
             "one": "{count} roster character is missing from the list",
             "other": "{count} roster characters are missing from the list"
         },
-        "noSpecTipSub": "The council does not know their spec (yet): {names}. Class and spec come from loot imports, log evaluations and the raider profile; so far the council only covers casters and healers."
+        "noSpecTipSub": "The council does not know their spec (yet): {names}. Class and spec come from loot imports, log evaluations and the raider profile; without a spec only a class with a single role can be placed (mage, warlock, rogue, hunter)."
     },
     "weights": {
         "title": "Weighting",

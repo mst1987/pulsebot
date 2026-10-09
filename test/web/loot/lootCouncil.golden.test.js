@@ -57,7 +57,7 @@ function scenario() {
         lootRow({ contentId: "kara", awardedAt: NOW - 40 * DAY }),        // outside a tier filter
         lootRow({ categoryId: "cat-do", awardedAt: NOW - 5 * DAY }),      // another raid
         lootRow({ characterKey: "", character: "Niemand" }),              // no key: skipped
-        lootRow({ characterKey: "hauer", character: "Hauer" }),           // a warrior: not on the council
+        lootRow({ characterKey: "hauer", character: "Hauer" }),           // a fury warrior: melee since #669
         lootRow({ characterKey: "satt", character: "Satt", awardedAt: NOW - DAY }),
         lootRow({ characterKey: "heala", character: "Heala", categoryId: "cat-do", awardedAt: 0 }),
         lootRow({ characterKey: "magier", character: "Magier", reason: "", awardedAt: NOW - 2 * DAY }),
@@ -74,6 +74,8 @@ function scenario() {
         neu: { className: "Warlock", spec: "Affliction" },
         druide: { className: "Druid", spec: "Restoration" },
         fremd: { className: "Paladin", spec: "Holy" },
+        schild: { className: "Paladin", spec: "Protection" },
+        klinge: { className: "Warrior", spec: "" },                     // fury or protection: no guess
     });
     mockGearByCharacter.mockReturnValue(new Map([
         ["devihra", {
@@ -86,6 +88,8 @@ function scenario() {
         ["neu", { key: "neu", character: "Neu", className: "Warlock", seenAt: NOW - 4 * DAY, reportId: "r2", reportTitle: "BT Donnerstag", items: [item(0, 31064)] }],
         ["heala", { key: "heala", character: "Heala", className: "Priest", seenAt: NOW - DAY, reportId: "r1", reportTitle: "BT Montag", items: [item(0, 31064)], profile: { role: "healer", confident: false } }],
         ["unbekannt", { key: "unbekannt", character: "", className: "", seenAt: 0, items: [] }],
+        ["schild", { key: "schild", character: "Schild", className: "Paladin", seenAt: NOW - DAY, reportId: "r1", reportTitle: "BT Montag", items: [item(0, 31064)] }],
+        ["klinge", { key: "klinge", character: "Klinge", className: "Warrior", seenAt: NOW - DAY, reportId: "r1", reportTitle: "BT Montag", items: [item(0, 31064)] }],
     ]));
     mockExcludedKeys.mockReturnValue(new Set(["satt"]));
     mockPlannedRoles.mockReturnValue(new Map([["heala", "caster"], ["druide", "caster"]]));
@@ -96,6 +100,8 @@ const CASES = {
     all: {},
     casters: { role: "caster" },
     healers: { role: "healer" },
+    tanks: { role: "tank" },
+    melee: { role: "melee" },
     monday: { categoryId: "cat-mo" },
     t6: { tierIds: ["t6"], bisTier: "t6" },
     mondayT6: { categoryId: "cat-mo", tierIds: ["t6"], contentIds: ["kara"], bisTier: "t5" },

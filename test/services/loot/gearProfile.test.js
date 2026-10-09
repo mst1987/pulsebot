@@ -79,6 +79,55 @@ describe("services/loot/gearProfile", () => {
         });
     });
 
+    // #669: tanks, melee and hunters are on the council, so a tank set and a
+    // physical set must be told apart from each other and from the caster sets.
+    describe("tank and physical sets", () => {
+        const { TANK_MIN } = require("../../../src/services/loot/gearProfile");
+        const bisSet = (spec, tier) => gearOf(require("../../../src/config/bisSets").bisFor(spec, tier).items.map((e) => e.id));
+
+        it("reads every WoWSims tank list as a tank set", () => {
+            for (const spec of ["Warrior-Protection", "Paladin-Protection", "Druid-Guardian"]) {
+                for (const tier of ["t4", "t5", "t6"]) {
+                    const p = gearProfile(bisSet(spec, tier));
+                    expect(p.role).toBe("tank");
+                    expect(p.tank).toBeGreaterThanOrEqual(TANK_MIN);
+                }
+            }
+        });
+
+        it("does not mistake a protection paladin's spell power for a caster set", () => {
+            // T6 BiS carries spell power and spell hit, the caster signals.
+            const p = gearProfile(bisSet("Paladin-Protection", "t6"));
+            expect(p.spellHit).toBeGreaterThanOrEqual(MIN_DPS_HIT);
+            expect(p).toMatchObject({ role: "tank", confident: true });
+        });
+
+        it("reads melee and hunter lists as physical sets", () => {
+            for (const spec of ["Warrior-Fury", "Rogue-Combat", "Druid-Feral", "Shaman-Enhancement", "Paladin-Retribution", "Hunter-BeastMastery", "Hunter-Survival"]) {
+                expect(gearProfile(bisSet(spec, "t6"))).toMatchObject({ role: "physical", confident: true });
+            }
+        });
+
+        it("leaves the caster and healer verdicts as they were", () => {
+            expect(gearProfile(dpsSet)).toMatchObject({ role: "caster", tank: 0, physical: 0 });
+            expect(gearProfile(healSet).role).toBe("healer");
+        });
+
+        it("fits a set to the council role's gear family", () => {
+            const tank = gearProfile(bisSet("Warrior-Protection", "t6"));
+            const phys = gearProfile(bisSet("Warrior-Fury", "t6"));
+            expect(fitsRole(tank, "tank")).toBe(true);
+            expect(fitsRole(phys, "melee")).toBe(true);
+            expect(fitsRole(phys, "ranged")).toBe(true);
+            // A fury warrior's newest log in his tank set is not his DPS gear...
+            expect(fitsRole(tank, "melee")).toBe(false);
+            expect(fitsRole(phys, "tank")).toBe(false);
+            // ...and a feral night is not a balance druid's caster set.
+            expect(fitsRole(gearProfile(bisSet("Druid-Feral", "t6")), "caster")).toBe(false);
+            expect(fitsRole(gearProfile(dpsSet), "melee")).toBe(false);
+        });
+    });
+
     describe("fitsRole", () => {
         it("accepts a set of the right role", () => {
             expect(fitsRole(gearProfile(dpsSet), "caster")).toBe(true);

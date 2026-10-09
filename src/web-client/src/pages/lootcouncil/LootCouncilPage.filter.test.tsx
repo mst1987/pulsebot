@@ -66,6 +66,15 @@ describe("loot council filter line", () => {
         expect(await screen.findByRole("button", { name: "Filter" })).toBeInTheDocument();
     });
 
+    it("offers every council role in the segment (#669)", async () => {
+        const user = userEvent.setup();
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        const roles = await screen.findByRole("radiogroup", { name: "Rolle" });
+        expect(within(roles).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Caster", "Heiler", "Tank", "Nahkampf", "Fernkampf", "Alle"]);
+        await user.click(within(roles).getByRole("radio", { name: "Nahkampf" }));
+        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ role: "melee" })));
+    });
+
     it("says its numbers with words", async () => {
         renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
         await screen.findByText("Anna");

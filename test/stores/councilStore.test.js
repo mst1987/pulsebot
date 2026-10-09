@@ -120,10 +120,33 @@ describe("stores/councilStore", () => {
         });
 
         it("fällt bei unbekannten Werten auf die Vorgaben zurück", () => {
-            expect(store.normalizeView({ role: "tank", tiers: "t6", bisTier: "a b", version: 7 })).toEqual({
+            expect(store.normalizeView({ role: "dragon", tiers: "t6", bisTier: "a b", version: 7 })).toEqual({
                 role: "caster", tiers: [], contents: [], bisTier: "", version: "7",
             });
             expect(store.normalizeView(null)).toEqual({ role: "caster", tiers: [], contents: [], bisTier: "", version: "" });
+        });
+
+        it("kennt die neuen Rollen (#669) und lässt alte Ansichten gültig", () => {
+            expect(store.VIEW_ROLES).toEqual(["caster", "healer", "tank", "melee", "ranged", ""]);
+            for (const role of ["tank", "melee", "ranged"]) {
+                expect(store.normalizeView({ role }).role).toBe(role);
+            }
+            // Was vor #669 gespeichert wurde, bleibt, wie es war.
+            for (const role of ["caster", "healer", ""]) {
+                expect(store.normalizeView({ role, tiers: ["t6"] })).toMatchObject({ role, tiers: ["t6"] });
+            }
+        });
+
+        it("liest eine vor #669 gespeicherte Datei unverändert", () => {
+            fs.mkdirSync(require("path").dirname(store.VIEWS_FILE), { recursive: true });
+            fs.writeFileSync(store.VIEWS_FILE, JSON.stringify({ views: {
+                mon: { role: "healer", tiers: ["t5"], contents: [], bisTier: "t5", version: "", at: 1, by: "x" },
+                thu: { role: "", tiers: [], contents: ["bt"], bisTier: "", version: "all", at: 2, by: "y" },
+            } }));
+            expect(store.viewFor("mon")).toEqual({ role: "healer", tiers: ["t5"], contents: [], bisTier: "t5", version: "", stored: true });
+            expect(store.viewFor("thu")).toMatchObject({ role: "", contents: ["bt"], version: "all", stored: true });
+            store.setView("fri", { role: "melee" });
+            expect(store.viewFor("fri")).toMatchObject({ role: "melee", stored: true });
         });
     });
 });

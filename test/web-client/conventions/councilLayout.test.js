@@ -27,7 +27,7 @@ describe("loot council — page structure", () => {
         // Role segment with WoW icons, two badges on the right.
         expect(filterBar).toMatch(/<Segment\s+ariaLabel=\{t\("lootcouncil\.filter\.role"\)\}/);
         expect(text("filter.role")).toBe("Rolle");
-        expect(council).toMatch(/caster: "spell_holy_magicalsentry", healer: "spell_holy_guardianspirit"/);
+        expect(council).toMatch(/caster: "spell_holy_magicalsentry",\s+healer: "spell_holy_guardianspirit",\s+tank: "ability_warrior_defensivestance",\s+melee: "ability_dualwield",\s+ranged: "inv_weapon_bow_07"/);
         // Gear source and simulation are facts inside the one Filter box, said with words.
         expect(filterBar).toContain("t(\"lootcouncil.filter.gearSource\")");
         expect(filterBar).toContain("t(\"lootcouncil.filter.simValue\", { done: simulated, total: simulatable })");
@@ -177,7 +177,7 @@ describe("loot council — the raider dialog", () => {
 
     it("says what is wrong with the set as badges — the stamp and the legend are gone", () => {
         const b = fn(parts, "GearBadges");
-        expect(b).toContain("Hit {g.spellHit}/{g.hitCap}");
+        expect(b).toContain("Hit {g.hit}/{g.hitCap}");
         const badges = { noEnchCount: "ohne VZ", socketsCount: "Sockel leer", pvpGear: "PvP-Gear", armoryPvpTip: "Armory: PvP-Gear", logPvpTip: "Log: PvP-Gear" };
         for (const [key, words] of Object.entries(badges)) {
             expect(b).toMatch(new RegExp(`\\bt(Parts)?\\("lootcouncil\\.gear\\.${key}"`));

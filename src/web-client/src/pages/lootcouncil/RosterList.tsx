@@ -10,7 +10,7 @@ import { SortLabel, ariaSort } from "../../components/ui/SortTh";
 import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import type { TableSort } from "../../lib/ui/tableSort";
-import { gearCounts, raiderHref, waitedTip, type RosterSortKey } from "./council";
+import { gearCounts, otherSetLabel, raiderHref, waitedTip, type RosterSortKey } from "./council";
 import { LootCount, RaiderIdent } from "./ItemBits";
 import { NeedBar } from "./NeedBar";
 import { needSubject } from "./needWeights";
@@ -65,7 +65,7 @@ export function RaiderHints({ raider }: { raider: CouncilRaider }) {
             out.push(<Badge key="pvp" tone="bad" tip={t("lootcouncil.gear.pvpGear")} tipSub={t("lootcouncil.list.pvpTipSub")}>{t("lootcouncil.gear.pvpGear")}</Badge>);
         }
         if (g.roleMismatch) {
-            const label = raider.role === "healer" ? t("lootcouncil.gear.dpsGear") : t("lootcouncil.gear.healGear");
+            const label = otherSetLabel(g.setRole);
             out.push(<Badge key="role" tone="bad" icon="spell_nature_magicimmunity" tip={label} tipSub={t("lootcouncil.list.roleTipSub", { title: t("common.quoted", { text: g.reportTitle }) })}>{label}</Badge>);
         }
         const { noench } = gearCounts(g.items);

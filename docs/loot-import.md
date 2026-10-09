@@ -56,7 +56,7 @@ Form (innerhalb von `{ "data": … }`):
 }
 ```
 
-- `filter.role` `""` = alle Rollen (dann stehen auch Heiler in der Liste); bei `caster` fehlen Heiler, wie auf der Seite. `filter.version` ist der Charakter-Versionsfilter, `""` = alle Versionen.
+- `filter.role` `""` = alle Rollen (dann stehen auch Heiler in der Liste); bei `caster` fehlen Heiler, wie auf der Seite. ⚠️ **Version 1 und 2 kennen nur `caster` und `healer`.** Seit #669 hat der Council auch `tank`, `melee` und `ranged`; ein Addon mit fester Rollenliste darf keine Rolle bekommen, die es nicht einordnen kann. Deshalb lassen beide Formate solche Raider weg (`LEGACY_ROLES` in `councilSync.js`), und eine Kategorie-Ansicht auf einer neuen Rolle meldet `filter.role: ""` mit leerer Liste. Der Bedarf der verbleibenden Raider ist trotzdem gegen das ganze Feld der Ansicht gerechnet, wie auf der Seite. Version 3 (#670) trägt die neuen Rollen. `filter.version` ist der Charakter-Versionsfilter, `""` = alle Versionen.
 - `raiders[]` hat die Felder von Version 1 plus `key` (Charakter-Schlüssel, stabil über Umbenennung der Schreibweise/Realm-Suffix).
 - `instances` sind die Instanzen der Standard-Raidvorlage der Kategorie (`config.categoryRaidTemplate`), `[]` ohne Vorlage — ein Hinweis, damit das Addon die Kategorie über `GetInstanceInfo()` vorwählen kann. Die Namen sind die des Regelsatzes (TBC deutsch, Forever englisch mit „(Forever)“), `zoneNames` die kleingeschriebenen Zonennamen, wo der Regelsatz welche kennt; ein sicherer Schlüssel ist das nicht, nur ein Vorschlag.
 - Keine Loot-Council-Kategorie → `categories: []`.

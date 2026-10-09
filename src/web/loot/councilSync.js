@@ -34,6 +34,21 @@ const VERSION = 1;
 // How many received items one raider carries - the newest ones.
 const MAX_ITEMS = 25;
 
+// The roles versions 1 and 2 know. The council has had tank, melee and ranged
+// raiders since #669, but an addon reading v1/v2 has a fixed role set (caster,
+// healer) and must not be handed a role it cannot place - so both formats
+// leave those raiders out and report a view on one of the new roles as ""
+// (every role). Version 3 (#670) carries them; until then they exist on the
+// page only. The need score of the raiders who remain is still measured against
+// the whole field the view selects, exactly like the page shows it.
+const LEGACY_ROLES = new Set(["caster", "healer"]);
+
+/** The rows an old addon can place: casters and healers. */
+const legacyRows = (rows) => (rows || []).filter((row) => LEGACY_ROLES.has(row.role));
+
+/** A view's role as v1/v2 can carry it: a new role reads as "" (every role). */
+const legacyRole = (role) => (LEGACY_ROLES.has(role) ? role : "");
+
 /** The token the game's class tables use, keyed by the spelling the data may carry. */
 const CLASS_FILES = {
     PRIEST: "PRIEST", MAGE: "MAGE", WARLOCK: "WARLOCK", DRUID: "DRUID", SHAMAN: "SHAMAN", PALADIN: "PALADIN",
@@ -96,7 +111,7 @@ function raiderView(row) {
  * @param {object} ctx
  * @param {string} [ctx.categoryId]     the requested category ("" = all)
  * @param {object[]} [ctx.categories]   [{ id, name }] the choice for the sync tool
- * @param {string} [ctx.role]           "" | "caster" | "healer"
+ * @param {string} [ctx.role]           "" | "caster" | "healer" (tank, melee and ranged read as "")
  * @param {boolean} [ctx.bisTierDerived] no BiS tier was asked for
  * @param {number} [ctx.now]            ms, for generatedAt
  */
@@ -111,14 +126,14 @@ function councilSyncPayload(built, ctx = {}) {
         filter: {
             category: categoryId,
             categoryName: category ? category.name : "",
-            role: ctx.role || "",
+            role: legacyRole(ctx.role || ""),
             bisTier: built.bisTier || "",
             bisTierDerived: !!ctx.bisTierDerived,
         },
         categories,
         weights: weightsPct(built),
         avgLootCount: built.avgLootCount || 0,
-        raiders: (built.rows || []).map(raiderView),
+        raiders: legacyRows(built.rows).map(raiderView),
     };
 }
 
@@ -127,7 +142,8 @@ const VERSION_2 = 2;
 /**
  * Version 2: every Loot-Council category in one answer, each computed with the
  * category's stored view exactly like the page (web/loot/councilView.js).
- * Raiders carry the v1 fields plus a stable `key` (the character key).
+ * Raiders carry the v1 fields plus a stable `key` (the character key). Like
+ * v1 it carries casters and healers only (LEGACY_ROLES).
  *
  * @param {object[]} entries  per category: { id, name, opts, built, instances }
  *                            (opts = councilOptsFromQuery()'s answer for the view,
@@ -148,7 +164,7 @@ function councilSyncPayloadV2(entries, ctx = {}) {
             name: String(name || id),
             lootSystem: "lootcouncil",
             filter: {
-                role: opts.role || "",
+                role: legacyRole(opts.role || ""),
                 tiers: opts.tierIds || [],
                 contents: opts.contentIds || [],
                 bisTier: built.bisTier || "",
@@ -158,9 +174,9 @@ function councilSyncPayloadV2(entries, ctx = {}) {
             },
             instances: instances || [],
             avgLootCount: built.avgLootCount || 0,
-            raiders: (built.rows || []).map((row) => ({ key: String(row.key || ""), ...raiderView(row) })),
+            raiders: legacyRows(built.rows).map((row) => ({ key: String(row.key || ""), ...raiderView(row) })),
         })),
     };
 }
 
-module.exports = { councilSyncPayload, councilSyncPayloadV2, classFileFor, FORMAT, VERSION, VERSION_2, MAX_ITEMS };
+module.exports = { councilSyncPayload, councilSyncPayloadV2, classFileFor, FORMAT, VERSION, VERSION_2, MAX_ITEMS, LEGACY_ROLES };

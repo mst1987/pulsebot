@@ -9,7 +9,7 @@
 // title) has no place for. Same `.dlg` classes, same native <dialog> behaviour.
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import type { CouncilExport, CouncilLog, CouncilRaider, SimResult, WornItem } from "../../api";
+import type { CouncilExport, CouncilLog, CouncilRaider, CouncilRole, SimResult, WornItem } from "../../api";
 import { Badge, Button, IconButton, Modal, PartHead, Segment, WowIcon, buttonClass } from "../../components/ui";
 import { AbsenceIcon, CopyIcon, ExternalIcon, XIcon } from "../../components/ui/icons";
 import { ReasonBadge } from "../../components/loot/LootBadges";
@@ -17,7 +17,7 @@ import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
-import { dropHref, gearCounts, roleLabel, wornWowheadUrl } from "./council";
+import { dropHref, gearCounts, otherSetLabel, roleLabel, wornWowheadUrl } from "./council";
 import { useWowheadPath } from "../../lib/settings/versionLinks";
 import { useBackdropClose } from "../../hooks/useBackdropClose";
 import { ContentBadge, ItemLink, RaiderIdent, WeightChip } from "./ItemBits";
@@ -186,7 +186,7 @@ export default function RaiderDialog({
     busy: Set<string>;
     logs: CouncilLog[];
     onClose: () => void;
-    onRole: (character: string, role: "" | "caster" | "healer") => void;
+    onRole: (character: string, role: "" | CouncilRole) => void;
     onArmory: (character: string) => void;
     /** Resolves true when the log was taken, so the panel can close. */
     onLogLoad: (character: string, pick: LogPick) => Promise<boolean>;
@@ -260,9 +260,9 @@ export default function RaiderDialog({
                             ariaLabel={t("lootcouncil.dialog.roleAria", { character: r.character })}
                             value={r.role}
                             size="sm"
-                            onChange={(role) => onRole(r.character, r.roleOverride === role ? "" : role as "caster" | "healer")}
+                            onChange={(role) => onRole(r.character, r.roleOverride === role ? "" : role)}
                             options={r.roleOptions.map((o) => ({
-                                value: o as "caster" | "healer",
+                                value: o as CouncilRole,
                                 label: roleLabel(o),
                                 disabled: busy.has(`role:${r.character}`),
                                 tip: r.roleOverride === o
@@ -353,7 +353,7 @@ export default function RaiderDialog({
                                 ) : undefined}
                             />
                             <div className="lc-hints lc-gearbadges">
-                                <GearBadges gear={g} bisOwned={r.bis.owned} bisTotal={r.bis.total} character={r.character} roleLabel={r.role === "healer" ? t("lootcouncil.gear.dpsGear") : t("lootcouncil.gear.healGear")} />
+                                <GearBadges gear={g} bisOwned={r.bis.owned} bisTotal={r.bis.total} character={r.character} roleLabel={otherSetLabel(g ? g.setRole : "")} />
                                 {r.armoryUrl ? (
                                     <a className="lc-extlink" href={r.armoryUrl} target="_blank" rel="noopener noreferrer">
                                         {t("lootcouncil.dialog.armoryLink")} <ExternalIcon />

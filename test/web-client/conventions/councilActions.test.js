@@ -20,7 +20,7 @@ describe("loot council — busy state", () => {
     it("routes every per-raider action through that guard, keyed per action and raider", () => {
         expect(main).toMatch(/const showExport = \(character: string\) => runFor\(\s*`export:\$\{character\}`/);
         expect(main).toMatch(/const setExcluded = \(character: string, excluded: boolean\) => runFor\(\s*`exclude:\$\{character\}`/);
-        expect(main).toMatch(/const setRole = \(character: string, role: "" \| "caster" \| "healer"\) => runFor\(\s*`role:\$\{character\}`/);
+        expect(main).toMatch(/const setRole = \(character: string, role: "" \| CouncilRole\) => runFor\(\s*`role:\$\{character\}`/);
         expect(main).toMatch(/runFor\(`loggear:\$\{character\}`/);
         expect(main).toMatch(/loadArmory\(\[character\], `armory:\$\{character\}`\)/);
     });

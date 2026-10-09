@@ -129,8 +129,8 @@ describe("stores/simStore", () => {
         });
 
         it("refuses an unknown spec rather than simulating nonsense", async () => {
-            const res = await simStore.simulateCached({ specKey: "Warrior-Fury", gear: gear([]) });
-            expect(res).toMatchObject({ supported: false, dps: null });
+            const res = await simStore.simulateCached({ specKey: "DK-Blood", gear: gear([]) });
+            expect(res).toMatchObject({ supported: false, dps: null, error: "Unbekannte Spec." });
             expect(mockSimulate).not.toHaveBeenCalled();
         });
     });

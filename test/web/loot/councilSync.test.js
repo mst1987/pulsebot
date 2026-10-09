@@ -1,5 +1,5 @@
 // The slim council payload for the sync tool: pure mapping, plain object literals.
-const { councilSyncPayload, councilSyncPayloadV2, classFileFor, MAX_ITEMS } = require("../../../src/web/loot/councilSync");
+const { councilSyncPayload, councilSyncPayloadV2, classFileFor, MAX_ITEMS, LEGACY_ROLES } = require("../../../src/web/loot/councilSync");
 
 const row = (over = {}) => ({
     key: "gemli",
@@ -139,5 +139,43 @@ describe("councilSyncPayloadV2", () => {
     it("is an empty list without Loot-Council categories", () => {
         expect(councilSyncPayloadV2([]).categories).toEqual([]);
         expect(councilSyncPayloadV2().categories).toEqual([]);
+    });
+});
+
+// #669 put tanks, melee and hunters on the council, but an addon reading v1/v2
+// knows only caster and healer. Those raiders wait for v3 (#670).
+describe("the roles an old addon knows", () => {
+    const mixed = built([
+        row(),
+        row({ key: "heala", character: "Heala", role: "healer" }),
+        row({ key: "schild", character: "Schild", className: "Paladin", role: "tank" }),
+        row({ key: "hauer", character: "Hauer", className: "Warrior", role: "melee" }),
+        row({ key: "pfeil", character: "Pfeil", className: "Hunter", role: "ranged" }),
+    ]);
+
+    it("are caster and healer", () => {
+        expect([...LEGACY_ROLES]).toEqual(["caster", "healer"]);
+    });
+
+    it("v1 leaves tank, melee and ranged raiders out", () => {
+        const p = councilSyncPayload(mixed, { role: "" });
+        expect(p.raiders.map((r) => r.character)).toEqual(["Gemli", "Heala"]);
+        expect(p.raiders.map((r) => r.role)).toEqual(["caster", "healer"]);
+    });
+
+    it("v1 reports a view on a new role as every role", () => {
+        expect(councilSyncPayload(built([row({ role: "melee" })]), { role: "melee" })).toMatchObject({ filter: { role: "" }, raiders: [] });
+        expect(councilSyncPayload(mixed, { role: "healer" }).filter.role).toBe("healer");
+    });
+
+    it("v2 does the same per category", () => {
+        const opts = { role: "", tierIds: [], contentIds: [], bisTier: "", charVersion: "" };
+        const p = councilSyncPayloadV2([
+            { id: "all", name: "Alle", opts, built: mixed },
+            { id: "tanks", name: "Tanks", opts: { ...opts, role: "tank" }, built: built([row({ role: "tank" })]) },
+        ]);
+        expect(p.version).toBe(2);
+        expect(p.categories[0].raiders.map((r) => r.key)).toEqual(["gemli", "heala"]);
+        expect(p.categories[1]).toMatchObject({ filter: { role: "" }, raiders: [] });
     });
 });
