@@ -219,9 +219,11 @@ stage_server_config() {
     fi
     ls "$SRC_HOME/.nvm/versions/node" > "$CONFIG_STAGE/node-versions.txt" 2> /dev/null || true
 
-    # PostgreSQL only if it is installed AND running
+    # PostgreSQL only if it is installed AND running. From /: the postgres user
+    # may not enter root's working directory, and pg_dumpall says so on stderr
+    # ("could not change directory to /root") - which counted as a failure.
     if command -v pg_dumpall > /dev/null 2>&1 && systemctl is-active --quiet postgresql 2> /dev/null; then
-        if runuser -u postgres -- pg_dumpall 2> "$WORK/pg.err" | gzip > "$CONFIG_STAGE/postgres-dumpall.sql.gz" && [ ! -s "$WORK/pg.err" ]; then
+        if (cd / && runuser -u postgres -- pg_dumpall) 2> "$WORK/pg.err" | gzip > "$CONFIG_STAGE/postgres-dumpall.sql.gz" && [ ! -s "$WORK/pg.err" ]; then
             log "postgres dump written"
         else
             log "WARNING: pg_dumpall reported: $(cat "$WORK/pg.err" 2> /dev/null)"

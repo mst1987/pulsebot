@@ -194,6 +194,24 @@ describe("offsite.sh run", () => {
         expect(r.status.ok).toBe(true);
     }));
 
+    run("dumps PostgreSQL from /, where the postgres user may go (not from root's home)", withCtx((ctx) => {
+        fs.writeFileSync(path.join(ctx.bin, "systemctl"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+        // runuser: note the directory it was started in, then run what follows "--"
+        fs.writeFileSync(path.join(ctx.bin, "runuser"),
+            "#!/bin/sh\necho \"runuser-cwd $(pwd)\" >> \"$STUB_LOG\"\nwhile [ \"$1\" != \"--\" ]; do shift; done\nshift\nexec \"$@\"\n",
+            { mode: 0o755 });
+        // pg_dumpall complains like the real one when it cannot use its working directory
+        fs.writeFileSync(path.join(ctx.bin, "pg_dumpall"),
+            "#!/bin/sh\n[ \"$(pwd)\" = \"/\" ] || echo 'could not change directory to \"/root\": Permission denied' >&2\necho '-- dump'\n",
+            { mode: 0o755 });
+        const r = exec(ctx);
+        expect(r.calls).toContain("runuser-cwd /");
+        expect(r.stderr).not.toMatch(/pg_dumpall reported/);
+        expect(r.stderr).toMatch(/postgres dump written/);
+        expect(fs.existsSync(path.join(ctx.dir, "backup", "server-config", "postgres-dumpall.sql.gz"))).toBe(true);
+        expect(r.status.ok).toBe(true);
+    }));
+
     run("skips PostgreSQL when the service is not active", withCtx((ctx) => {
         fs.writeFileSync(path.join(ctx.bin, "systemctl"), "#!/bin/sh\nexit 3\n", { mode: 0o755 });
         fs.writeFileSync(path.join(ctx.bin, "pg_dumpall"), "#!/bin/sh\necho SHOULD-NOT-RUN >> \"$STUB_LOG\"\n", { mode: 0o755 });
