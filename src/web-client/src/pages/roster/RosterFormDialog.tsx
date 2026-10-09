@@ -5,7 +5,9 @@
 // from. A full admin edits everything; a manager of the roster its name, the
 // places and the switches (the rest is greyed out with the reason). After a
 // create the dialog says how many came in and which roles failed; the settings
-// end with "Roster löschen" for a full admin (the Discord roles stay).
+// end with "Roster löschen" for a full admin (the Discord roles stay). In the
+// settings a full admin also links the roster to its Kader of the Kaderplaner
+// ("Kader im Kaderplaner", 1:1 - a Kader another roster holds is greyed out).
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -36,6 +38,8 @@ type FormState = {
     signupOnly: boolean;
     source: RosterSource;
     kaderId: string;
+    /** Settings: the Kader of the Kaderplaner linked to the roster ("" = none). */
+    linkedKaderId: string;
 };
 
 const NO_SLOTS: RosterSlots = { total: 0, tank: 0, healer: 0, bench: 0 };
@@ -56,6 +60,7 @@ function initialCreate(options: RosterOptions, categoryId: string): FormState {
         signupOnly: false,
         source: "role",
         kaderId: "",
+        linkedKaderId: "",
     };
 }
 
@@ -74,6 +79,7 @@ function initialSettings(data: RosterDetail): FormState {
         signupOnly: !!(s && s.signupOnly),
         source: "none",
         kaderId: "",
+        linkedKaderId: (s && s.kaderId) || "",
     };
 }
 
@@ -108,8 +114,27 @@ function patchOf(form: FormState, base: FormState, create: boolean, admin: boole
         if (!same(form.managerRoleIds, base.managerRoleIds) || !same(form.managerUsers.map((u) => u.userId), base.managerUsers.map((u) => u.userId))) {
             out.managers = { roleIds: form.managerRoleIds, userIds: form.managerUsers.map((u) => u.userId) };
         }
+        if (form.linkedKaderId !== base.linkedKaderId) out.kaderId = form.linkedKaderId || null;
     }
     return out;
+}
+
+/** "Kader im Kaderplaner" (settings, full admins): the Kader linked 1:1; one another roster holds is greyed out. */
+function KaderLinkField({ options, rosterId, value, onChange }: { options: RosterOptions; rosterId: string; value: string; onChange: (id: string) => void }) {
+    const t = useT();
+    const known = options.kaders.some((k) => k.id === value);
+    return (
+        <Field label={t("roster.form.kaderLink")} htmlFor="rn-f-kader" hint={t("roster.form.kaderHint")}>
+            <select id="rn-f-kader" value={value} onChange={(e) => onChange(e.target.value)}>
+                <option value="">{t("roster.form.noKader")}</option>
+                {value && !known && <option value={value}>{t("roster.form.kaderGone")}</option>}
+                {options.kaders.map((k) => {
+                    const taken = !!k.rosterId && k.rosterId !== rosterId;
+                    return <option key={k.id} value={k.id} disabled={taken}>{taken ? t("roster.form.kaderTaken", { name: k.name, roster: k.rosterName || "" }) : k.name}</option>;
+                })}
+            </select>
+        </Field>
+    );
 }
 
 /** The summary after a create: who came in, which roles failed. */
@@ -239,6 +264,9 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
                                 })}
                             </select>
                         </Field>
+                        {!create && admin && (options.kaders.length > 0 || !!form.linkedKaderId) && (
+                            <KaderLinkField options={options} rosterId={data?.roster.id || ""} value={form.linkedKaderId} onChange={(linkedKaderId) => set({ linkedKaderId })} />
+                        )}
                         {options.versions.length > 1 && (
                             <div className="rn-field-line" data-tip={lockTip}>
                                 <span className="rn-lbl">{t("roster.form.version")}</span>

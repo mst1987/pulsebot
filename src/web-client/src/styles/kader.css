@@ -428,6 +428,7 @@
 
 /* ---- the planer's dialogs: one rhythm ---- */
 dialog.dlg.kp-dialog .dlg-body { padding: 24px; }
+dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
 .kp-stack { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 .kp-stack .field { margin: 0; }
 .kp-stack .field-label { margin-bottom: 8px; }

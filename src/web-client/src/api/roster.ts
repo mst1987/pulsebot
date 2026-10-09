@@ -222,6 +222,10 @@ export type RosterHead = {
     slots: { total: number; tank: number; healer: number; bench: number };
     allowMultipleChars: boolean;
     source: "manual" | "kader" | "migration";
+    /** The Kader of the Kaderplaner linked to the roster (1:1), null for none. */
+    kaderId: string | null;
+    /** Detail only: the linked Kader's id and name ("" when it is gone). */
+    kader?: { id: string; name: string } | null;
     counts: Record<RosterStatus, number>;
     members: number;
     /** Core and trial members: the ones that take a place. */
@@ -243,6 +247,27 @@ export type RosterOverview = {
     /** Full admins create rosters (#657). */
     canCreate: boolean;
 };
+
+/** Where a member's spec comes from (services/roster/memberSpec.js): the orga, the last signup, the logs, the profile, the class alone. */
+export type RosterSpecSource = "override" | "signup" | "logs" | "profile" | "class" | "";
+
+/** A member's first character as the chain resolved it; `reason` says why spec or class is missing. */
+export type RosterResolvedSpec = {
+    className: string;
+    spec: string;
+    specLabel: string;
+    specIcon: string;
+    role: RosterRole;
+    source: RosterSpecSource;
+    reason: "" | "no_char" | "no_class" | "no_spec";
+    /** The orga's stored choice ("" = automatisch), also when it does not fit the class. */
+    override: string;
+    /** What the chain finds without the orga's choice. */
+    auto: { className: string; spec: string; specLabel: string; specIcon: string; source: RosterSpecSource };
+};
+
+/** A spec the drawer's picker offers (the specs of the first character's class). */
+export type RosterSpecChoice = { key: string; id: string; label: string; labelEn: string; icon: string; role: string };
 
 /** A roster character, resolved by the server (profile of the roster's version, else the character cache). */
 export type RosterMemberChar = {
@@ -272,6 +297,10 @@ export type RosterMember = {
     trialUntil: string | null;
     chars: RosterMemberChar[];
     role: RosterRole;
+    /** Class, spec and role of the first character and where they come from (the Komposition counts the same). */
+    resolved?: RosterResolvedSpec;
+    /** The specs of the first character's class — only for a manager (the drawer's "Spec in diesem Roster"). */
+    specChoices?: RosterSpecChoice[];
     /** Holds one of the roster's Discord roles; null when unknown (no list or no role set). */
     hasRole: boolean | null;
     /** The roster's roles (main, others, trial) this person holds; null when the member list is unavailable. */
@@ -306,6 +335,8 @@ export type RosterSettings = {
     signupOnly: boolean;
     allowMultipleChars: boolean;
     slots: RosterHead["slots"];
+    /** The linked Kader of the Kaderplaner, null for none. */
+    kaderId: string | null;
 };
 
 /** Every roster of the active server as a card. */

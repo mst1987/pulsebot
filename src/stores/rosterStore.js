@@ -13,11 +13,13 @@
 //       allowMultipleChars: false,          // off: a member keeps at most one character
 //       signupOnly: false,
 //       source: { kind: "manual" | "kader" | "migration", kaderId? },
+//       kaderId | null,                     // the Kader of the Kaderplaner linked to it (1:1, see below)
 //       members: { [userId]: {              // ≤ 500
 //         status: "core" | "trial" | "bench" | "pause", since, by,
 //         chars: [charKey],                 // profile keys (characterKeyOf(name, versionId))
 //         charNames: { [charKey]: name },   // the name as it was entered, for display
 //         note,                             // ≤ 500
+//         spec,                             // "" or the orga's spec key for the first character
 //         trialUntil | null } },
 //       history: [{ at, by, userId, what, detail }],   // the newest 500
 //       createdAt, createdBy } },
@@ -32,11 +34,23 @@
 //
 // `migratedCategories` makes the migration (settingsMigration.js) run once per
 // category: a roster deleted afterwards is not created again on the next start.
+//
+// `kaderId` is the explicit link to a Kader of the Kaderplaner, independent of
+// `source` (a migrated roster can be linked too): a Kader belongs to one roster
+// at most ("kader_taken"). A roster stored before the field existed gets the
+// Kader it was created from (`source.kaderId`); `null` stored means unlinked.
+//
+// A member's `spec` is the orga's choice of spec for the first character in
+// this roster ("Spec in diesem Roster"): a spec key of the roster's version, ""
+// for "automatisch". It is cleared when the first character changes; that it
+// belongs to the character's class is the writer's check
+// (services/roster/rosterMembers.js) and the reader's (memberSpec.js).
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { newId } = require("../utils/ids");
 const { characterKeyOf, VERSION_KEY_SEP } = require("../utils/loot/lootImport");
 const { knownVersion, mainVersionFor } = require("../services/events/mainVersion");
+const { spec: specOfVersion } = require("../config/gameVersions");
 
 const ROSTERS_FILE = settingsPath("rosters.json");
 
@@ -125,8 +139,16 @@ function normalizeCharNames(raw, chars) {
     return out;
 }
 
+/** A spec key of the version's rule set ("Druid-Balance"), else "". */
+function specKeyOf(raw, versionId) {
+    const key = str(raw);
+    if (!key) return "";
+    const found = specOfVersion(key, versionId);
+    return found ? found.key : "";
+}
+
 /** One member, or null for something that is not one. */
-function normalizeMember(raw, multi) {
+function normalizeMember(raw, multi, versionId) {
     if (!isMap(raw)) return null;
     const chars = normalizeChars(raw.chars, multi);
     return {
@@ -136,17 +158,19 @@ function normalizeMember(raw, multi) {
         chars,
         charNames: normalizeCharNames(raw.charNames, chars),
         note: text(raw.note, LIMITS.note),
+        // without a character there is nothing a spec could belong to
+        spec: chars.length ? specKeyOf(raw.spec, versionId) : "",
         trialUntil: isoOf(raw.trialUntil, null),
     };
 }
 
-function normalizeMembers(raw, multi) {
+function normalizeMembers(raw, multi, versionId) {
     const out = {};
     let count = 0;
     for (const [userId, member] of Object.entries(isMap(raw) ? raw : {})) {
         if (count >= LIMITS.members) break;
         const uid = idOf(userId);
-        const m = uid ? normalizeMember(member, multi) : null;
+        const m = uid ? normalizeMember(member, multi, versionId) : null;
         if (!m) continue;
         out[uid] = m;
         count += 1;
@@ -181,36 +205,47 @@ function normalizeRoster(raw, id = raw && raw.id) {
     const categoryId = idOf(raw.categoryId) || null;
     const multi = raw.allowMultipleChars === true;
     const managers = isMap(raw.managers) ? raw.managers : {};
+    const versionId = knownVersion(raw.versionId) || mainVersionFor({ categoryId: categoryId || "" });
+    const source = normalizeSource(raw.source);
+    // never stored yet: the Kader it was created from; stored null = unlinked
+    const kaderId = raw.kaderId === undefined ? (source.kaderId || null) : (idOf(raw.kaderId) || null);
     return {
         id: rid,
         guildId: idOf(raw.guildId),
         name: text(raw.name, LIMITS.name) || text(categoryId || rid, LIMITS.name),
         categoryId,
-        versionId: knownVersion(raw.versionId) || mainVersionFor({ categoryId: categoryId || "" }),
+        versionId,
         roleIds: idList(raw.roleIds, LIMITS.roleIds),
         trialRoleId: idOf(raw.trialRoleId) || null,
         managers: { roleIds: idList(managers.roleIds, LIMITS.managers), userIds: idList(managers.userIds, LIMITS.managers) },
         slots: normalizeSlots(raw.slots),
         allowMultipleChars: multi,
         signupOnly: raw.signupOnly === true,
-        source: normalizeSource(raw.source),
-        members: normalizeMembers(raw.members, multi),
+        source,
+        kaderId,
+        members: normalizeMembers(raw.members, multi, versionId),
         history: normalizeHistory(raw.history),
         createdAt: isoOf(raw.createdAt),
         createdBy: idOf(raw.createdBy),
     };
 }
 
-/** The whole file: rosters by id (a second roster of a category drops out) and the migrated categories. */
+/**
+ * The whole file: rosters by id (a second roster of a category drops out, a
+ * second link to the same Kader is cut) and the migrated categories.
+ */
 function normalizeFile(data) {
     const src = isMap(data) ? data : {};
     const rosters = {};
     const categories = new Set();
+    const kaders = new Set();
     for (const [id, raw] of Object.entries(isMap(src.rosters) ? src.rosters : {})) {
         const r = normalizeRoster(raw, id);
         if (!r) continue;
         if (r.categoryId && categories.has(r.categoryId)) continue;
         if (r.categoryId) categories.add(r.categoryId);
+        if (r.kaderId && kaders.has(r.kaderId)) r.kaderId = null;
+        if (r.kaderId) kaders.add(r.kaderId);
         rosters[r.id] = r;
     }
     return { rosters, migratedCategories: idList(src.migratedCategories, 10000) };
@@ -250,6 +285,21 @@ function rosterForCategory(categoryId) {
     return Object.values(readAll().rosters).find((r) => r.categoryId === cat) || null;
 }
 
+const KADER_TAKEN = "Dieser Kader ist schon mit einem anderen Roster verknüpft.";
+
+/** Whether a roster other than `exceptId` is linked to the Kader. */
+function kaderTaken(all, kaderId, exceptId) {
+    return Object.values(all.rosters).some((r) => r.id !== exceptId && r.kaderId === kaderId);
+}
+
+/** The roster linked to a Kader (`kaderId`) on that server ("" = any), or null. */
+function rosterForKader(kaderId, guildId = "") {
+    const id = str(kaderId);
+    const gid = str(guildId);
+    if (!id) return null;
+    return Object.values(readAll().rosters).find((r) => r.kaderId === id && (!gid || r.guildId === gid)) || null;
+}
+
 /** A short, readable id unique in `taken`: the name as a slug plus a random part. */
 function makeId(name, taken) {
     const slug = str(name).toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 20);
@@ -287,6 +337,8 @@ function createRoster(data = {}, { actor = "", now = new Date().toISOString() } 
         throw new RosterError("category_taken", "Diese Kategorie hat schon ein Roster.");
     }
     if (!text(data.name, LIMITS.name) && !categoryId) throw new RosterError("invalid_name", "Name fehlt.");
+    const wantedKader = data.kaderId !== undefined ? idOf(data.kaderId) : idOf(normalizeSource(data.source).kaderId);
+    if (wantedKader && kaderTaken(all, wantedKader, "")) throw new RosterError("kader_taken", KADER_TAKEN);
     const id = makeId(data.name || categoryId, all.rosters);
     const roster = normalizeRoster({
         ...data,
@@ -320,6 +372,7 @@ function updateRoster(id, patch = {}, { actor = "", now = new Date().toISOString
     if (next.categoryId && Object.values(all.rosters).some((r) => r.id !== current.id && r.categoryId === next.categoryId)) {
         throw new RosterError("category_taken", "Diese Kategorie hat schon ein Roster.");
     }
+    if (next.kaderId && kaderTaken(all, next.kaderId, current.id)) throw new RosterError("kader_taken", KADER_TAKEN);
     const changed = Object.keys(clean).filter((k) => JSON.stringify(next[k]) !== JSON.stringify(current[k]));
     if (changed.length) next.history.push(historyEntry({ at: now, by: actor, what: "settings", detail: changed.join(", ") }));
     all.rosters[current.id] = next;
@@ -344,6 +397,7 @@ function memberChange(before, after) {
     if (before.status !== after.status) parts.push(`status ${before.status} → ${after.status}`);
     if (before.chars.join(",") !== after.chars.join(",")) parts.push(`chars ${after.chars.join(", ") || "-"}`);
     if (before.note !== after.note) parts.push("note");
+    if ((before.spec || "") !== (after.spec || "")) parts.push(`spec ${after.spec || "-"}`);
     if (before.trialUntil !== after.trialUntil) parts.push(`trialUntil ${after.trialUntil || "-"}`);
     return parts.join("; ");
 }
@@ -371,8 +425,11 @@ function upsertMember(rosterId, userId, patch = {}, { actor = "", now = new Date
         throw new RosterError("member_limit", `Ein Roster hat höchstens ${LIMITS.members} Mitglieder.`);
     }
     const p = isMap(patch) ? patch : {};
-    const base = before || { status: "core", since: now, by: actor, chars: [], charNames: {}, note: "", trialUntil: null };
+    const base = before || { status: "core", since: now, by: actor, chars: [], charNames: {}, note: "", spec: "", trialUntil: null };
     const chars = p.chars === undefined ? base.chars : (Array.isArray(p.chars) ? p.chars : []).map((c) => characterKeyOf(c, roster.versionId));
+    // the orga's spec belongs to the first character: a new first one starts on "automatisch"
+    const firstChanged = (chars[0] || "") !== (base.chars[0] || "");
+    const spec = p.spec !== undefined ? p.spec : (firstChanged ? "" : base.spec);
     // a name handed in as a char (not a key) is its own display name; charNames sent along win
     const typed = {};
     if (Array.isArray(p.chars)) p.chars.forEach((c, i) => { if (chars[i] && !str(c).includes(VERSION_KEY_SEP)) typed[chars[i]] = str(c); });
@@ -386,7 +443,8 @@ function upsertMember(rosterId, userId, patch = {}, { actor = "", now = new Date
         ...(statusChanged ? { since: now, by: actor } : {}),
         chars,
         charNames,
-    }, roster.allowMultipleChars);
+        spec,
+    }, roster.allowMultipleChars, roster.versionId);
     roster.members[uid] = next;
     const detail = before ? memberChange(before, next) : `${next.status}${next.chars.length ? `, ${next.chars.join(", ")}` : ""}`;
     if (!before || detail) roster.history.push(historyEntry({ at: now, by: actor, userId: uid, what: before ? "member" : "member-added", detail: viaDetail(via, detail) }));
@@ -436,12 +494,13 @@ function setFirstChars(rosterId, firsts = {}, { actor = "", now = new Date().toI
         const member = roster.members[uid];
         if (!member) {
             if (Object.keys(roster.members).length >= LIMITS.members) continue;
-            roster.members[uid] = { status: "core", since: now, by: actor, chars: [key], charNames: { [key]: name }, note: "", trialUntil: null };
+            roster.members[uid] = { status: "core", since: now, by: actor, chars: [key], charNames: { [key]: name }, note: "", spec: "", trialUntil: null };
             log(uid, "member-added", `core, ${key}`);
             continue;
         }
         const chars = roster.allowMultipleChars ? [key, ...member.chars.filter((c) => c !== key)] : [key];
         if (chars.join(",") !== member.chars.join(",")) log(uid, "member", `chars ${chars.join(", ")}`);
+        if (chars[0] !== member.chars[0]) member.spec = "";
         member.chars = chars;
         member.charNames = { ...member.charNames, [key]: name };
     }
@@ -449,6 +508,7 @@ function setFirstChars(rosterId, firsts = {}, { actor = "", now = new Date().toI
         if (firsts[uid] || !member.chars.length) continue;
         member.chars = [];
         member.charNames = {};
+        member.spec = "";
         log(uid, "member", "chars -");
     }
     writeAll(all);
@@ -503,7 +563,7 @@ function migrateCategories(categories = [], { now = new Date().toISOString() } =
 }
 
 module.exports = {
-    listRosters, getRoster, rosterForCategory, createRoster, updateRoster, deleteRoster,
+    listRosters, getRoster, rosterForCategory, rosterForKader, createRoster, updateRoster, deleteRoster,
     upsertMember, removeMember, appendHistory, setFirstChars, migrateCategories,
     normalizeRoster, normalizeFile, RosterError, LIMITS, STATUSES, SOURCE_KINDS, ROSTERS_FILE,
     useFile: store.useFile,

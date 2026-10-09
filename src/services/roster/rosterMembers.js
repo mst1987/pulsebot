@@ -7,7 +7,7 @@
 // a refusal: `code` is a machine code the web translates (DE/EN) -
 // "not_found", "bad_request", "invalid_status", "already_member",
 // "not_member", "member_limit", "single_char_only", "invalid_chars",
-// "note_too_long", "invalid_date"; `roles` is rosterRoleSync's answer
+// "note_too_long", "invalid_date", "invalid_spec"; `roles` is rosterRoleSync's answer
 // ({ ok, skipped?, results }) so the page can say which role could not be
 // given and why.
 //
@@ -22,6 +22,7 @@
 const rosterStore = require("../../stores/rosterStore");
 const raiderProfileStore = require("../../stores/raiderProfileStore");
 const rosterRoleSync = require("./rosterRoleSync");
+const memberSpec = require("./memberSpec");
 const { characterKeyOf, VERSION_KEY_SEP } = require("../../utils/loot/lootImport");
 
 const NO_ROLES = Object.freeze({ ok: true, skipped: "unchanged", results: [] });
@@ -100,7 +101,7 @@ function trialUntilOf(raw) {
 
 /**
  * A member patch from the web, checked: `{ patch }` (as rosterStore.upsertMember
- * takes it) or `{ code }`. `raw`: status, chars, charNames, note, trialUntil -
+ * takes it) or `{ code }`. `raw`: status, chars, charNames, note, trialUntil, spec -
  * each only when present; a new member without chars gets the profile's first.
  */
 function cleanPatch(roster, userId, raw, { isNew = false } = {}) {
@@ -128,7 +129,27 @@ function cleanPatch(roster, userId, raw, { isNew = false } = {}) {
         if (until.code) return until;
         patch.trialUntil = until.value;
     }
+    if (p.spec !== undefined) {
+        const spec = cleanSpec(roster, userId, p.spec, patch.chars || (roster.members[userId] || {}).chars || []);
+        if (spec.code) return spec;
+        patch.spec = spec.value;
+    }
     return { patch };
+}
+
+/**
+ * The orga's spec for the first character ("Spec in diesem Roster"): `{ value }`
+ * ("" = automatisch) or `{ code: "invalid_spec" }` - not a spec of the roster's
+ * version, no character, or a spec of another class than the character is
+ * known as (memberSpec.knownClassOf; an unknown class takes any spec).
+ */
+function cleanSpec(roster, userId, raw, chars) {
+    if (raw === null || raw === "") return { value: "" };
+    if (typeof raw !== "string" || !chars.length) return { code: "invalid_spec" };
+    const rec = memberSpec.specRecord(raw.trim(), roster.versionId);
+    if (!rec) return { code: "invalid_spec" };
+    const known = memberSpec.knownClassOf(roster, userId, chars[0]);
+    return known && known !== rec.classId ? { code: "invalid_spec" } : { value: rec.key };
 }
 
 /**

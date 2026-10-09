@@ -50,8 +50,31 @@
             "kader_not_found": "This Kader no longer exists.",
             "invalid_name": "Please enter a name.",
             "name_too_long": "The name is too long (40 characters at most).",
-            "admin_only": "Only admins create rosters."
-        }
+            "admin_only": "Only admins create rosters.",
+            "kader_taken": "This roster is already linked to another Kader.",
+            "not_found": "This roster no longer exists."
+        },
+        "linkButton": "Link an existing roster",
+        "linkTip": "Link this Kader to a roster that already exists",
+        "linkTipSub": "“Take into the roster” then goes into exactly this roster.",
+        "linkTipSuggestion": "Suggestion: {name} – its category counts in this Kader's attendance.",
+        "linkTitle": "Link an existing roster",
+        "linkHint": "Nothing is copied. Afterwards “Take into the roster” takes newly decided players into exactly this roster. A Kader belongs to one roster at most.",
+        "linkPick": "Roster",
+        "linkPickHint": "Suggested is the roster whose raid category counts in this Kader's attendance.",
+        "linkNone": "No roster on this server",
+        "linkSuggested": "{name} (suggestion)",
+        "linkTaken": "{name} – linked to another Kader",
+        "linkCountCategory": "Count this category's attendance in the Kader",
+        "linkCountCategoryTip": "Adds the roster's raid category to this Kader's attendance (Kader settings).",
+        "link": "Link",
+        "linked": "Linked to {name}.",
+        "unlinked": "Link removed.",
+        "unlink": "Remove link",
+        "unlinkTitle": "Remove the link to “{name}”?",
+        "unlinkText": "The roster stays as it is, with all its members. Only “Take into the roster” no longer goes there.",
+        "relink": "Link",
+        "relinkTip": "Linked to {name}: change or remove"
     },
     "quote": "“{text}”",
     "state": {

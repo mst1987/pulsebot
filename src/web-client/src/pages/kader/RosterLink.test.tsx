@@ -9,7 +9,7 @@ import type { KaderRosterState } from "../../api";
 import { t } from "../../i18n";
 import { switchLang } from "../../test/i18n";
 import { adminUser, renderPage } from "../../test/render";
-import { kaderView } from "./kader.fixture";
+import { CAT, kaderView } from "./kader.fixture";
 import KaderPage from "./KaderPage";
 
 vi.mock("../../api", async (orig) => ({
@@ -21,6 +21,8 @@ vi.mock("../../api", async (orig) => ({
     syncKaderRoster: vi.fn(),
     getKaderRosterCategories: vi.fn(),
     createKaderRoster: vi.fn(),
+    linkKaderRoster: vi.fn(),
+    updateKader: vi.fn(),
 }));
 
 const PATH = "/kader/:kaderId?/:sub?";
@@ -93,6 +95,56 @@ describe("Kaderplaner · Roster aus dem Kader (#658)", () => {
         await show(reader);
         await waitFor(() => expect(api.getKaderRoster).toHaveBeenCalledWith("k1"));
         expect(screen.queryByRole("button", { name: t("kader.roster.createButton") })).not.toBeInTheDocument();
+    });
+
+    it("links an existing roster - the suggestion first - and counts its category in the Kader's attendance", async () => {
+        const rosters = [
+            { id: "mo-raider", name: "Mo-Raider", categoryId: CAT.mo, members: 18, linkedKaderId: null, suggested: true },
+            { id: "pug", name: "PUG", categoryId: CAT.pug, members: 9, linkedKaderId: null, suggested: false },
+            { id: "other", name: "Belegt", categoryId: null, members: 3, linkedKaderId: "k9", suggested: false },
+        ];
+        vi.mocked(api.getKaderRoster).mockResolvedValue(state({ canLink: true, rosters }));
+        vi.mocked(api.linkKaderRoster).mockResolvedValue(withRoster({ roster: { id: "pug", name: "PUG", members: 9 }, canLink: true, rosters }));
+        vi.mocked(api.updateKader).mockImplementation(async () => ({ kader: kaderView().kader, kaders: kaderView().kaders }));
+        await show();
+        const linkButton = await screen.findByRole("button", { name: t("kader.roster.linkButton") });
+        expect(linkButton).toHaveAttribute("data-tip-sub", t("kader.roster.linkTipSuggestion", { name: "Mo-Raider" }));
+        await userEvent.click(linkButton);
+        const dialog = await screen.findByRole("dialog");
+        const select = within(dialog).getByLabelText(t("kader.roster.linkPick"));
+        expect(select).toHaveValue("mo-raider");
+        expect(within(select).getByRole("option", { name: t("kader.roster.linkTaken", { name: "Belegt" }) })).toBeDisabled();
+        // Mo Raid already counts in the Kader: no switch; PUG does not: the switch is offered (on)
+        expect(within(dialog).queryByRole("switch")).not.toBeInTheDocument();
+        await userEvent.selectOptions(select, "pug");
+        expect(within(dialog).getByRole("switch", { name: t("kader.roster.linkCountCategory") })).toBeChecked();
+        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.roster.link") }));
+        expect(api.linkKaderRoster).toHaveBeenCalledWith("k1", "pug");
+        await waitFor(() => expect(api.updateKader).toHaveBeenCalledWith("k1", { attendanceCategories: [CAT.mo, CAT.do, CAT.pug] }));
+        expect(await screen.findByText(t("kader.roster.linked", { name: "PUG" }))).toBeInTheDocument();
+        // linked: no "Roster anlegen" any more, the way to exactly that roster instead
+        expect(await screen.findByRole("link", { name: t("kader.roster.open") })).toHaveAttribute("href", "/roster/r/pug");
+        expect(screen.queryByRole("button", { name: t("kader.roster.createButton") })).not.toBeInTheDocument();
+    });
+
+    it("unlinks after asking, and says a refusal in words", async () => {
+        vi.mocked(api.getKaderRoster).mockResolvedValue(withRoster({ canLink: true, rosters: [{ id: "forever-raid", name: "Forever-Raid", categoryId: null, members: 2, linkedKaderId: null, suggested: false }] }));
+        vi.mocked(api.linkKaderRoster).mockResolvedValue(state({ canLink: true, rosters: [] }));
+        await show();
+        await userEvent.click(await screen.findByRole("button", { name: t("kader.roster.relink") }));
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.roster.unlink") }));
+        const confirms = await screen.findAllByRole("dialog");
+        await userEvent.click(within(confirms[confirms.length - 1]).getByRole("button", { name: t("kader.roster.unlink") }));
+        expect(api.linkKaderRoster).toHaveBeenCalledWith("k1", "");
+        expect(await screen.findByText(t("kader.roster.unlinked"))).toBeInTheDocument();
+    });
+
+    it("offers no link to somebody who may not link", async () => {
+        vi.mocked(api.getKaderRoster).mockResolvedValue(state({ canLink: false, rosters: [] }));
+        await show();
+        await screen.findByRole("button", { name: t("kader.roster.createButton") });
+        expect(screen.queryByRole("button", { name: t("kader.roster.linkButton") })).not.toBeInTheDocument();
     });
 
     it("reads in English", async () => {

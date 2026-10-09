@@ -177,3 +177,33 @@ describe("services/roster/rosterMembers updateMember", () => {
         expect(cleanPatch(fresh(), "100001", null)).toEqual({ patch: {} });
     });
 });
+
+describe("services/roster/rosterMembers the orga's spec (Spec in diesem Roster)", () => {
+    beforeEach(() => {
+        raiderProfileStore.addCharacter("100001", { name: "Gentletwowl", className: "Druid", specs: [{ key: "Druid-Restoration" }] });
+        rosterStore.upsertMember(roster.id, "100001", { chars: ["gentletwowl"] });
+    });
+
+    it("stores a spec of the character's class and clears it with \"\" or null", async () => {
+        const res = await updateMember(roster.id, "100001", { spec: "Druid-Balance" }, { actor: "o1" });
+        expect(res.member.spec).toBe("Druid-Balance");
+        const hist = fresh().history;
+        expect(hist[hist.length - 1]).toMatchObject({ by: "o1", userId: "100001", detail: "spec Druid-Balance" });
+        expect((await updateMember(roster.id, "100001", { spec: "" })).member.spec).toBe("");
+        await updateMember(roster.id, "100001", { spec: "Druid-Balance" });
+        expect((await updateMember(roster.id, "100001", { spec: null })).member.spec).toBe("");
+    });
+
+    it("refuses another class, an unknown spec, a non-string and a member without character", async () => {
+        for (const spec of ["Mage-Frost", "Druid-Moonkin", 5]) expect((await updateMember(roster.id, "100001", { spec })).code).toBe("invalid_spec");
+        rosterStore.upsertMember(roster.id, "100002", {});
+        expect((await updateMember(roster.id, "100002", { spec: "Mage-Frost" })).code).toBe("invalid_spec");
+    });
+
+    it("takes any spec of the version for a character of unknown class, checked against chars sent along", async () => {
+        rosterStore.upsertMember(roster.id, "100003", { chars: ["Unbekannt"] });
+        expect((await updateMember(roster.id, "100003", { spec: "Mage-Frost" })).member.spec).toBe("Mage-Frost");
+        // the new first character is a druid: a mage spec does not fit it
+        expect((await updateMember(roster.id, "100001", { chars: ["Gentletwowl"], spec: "Mage-Frost" })).code).toBe("invalid_spec");
+    });
+});

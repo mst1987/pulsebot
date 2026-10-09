@@ -18,7 +18,7 @@ const { userCan } = require("../../config/permissions");
 const rosterStore = require("../../stores/rosterStore");
 const { getConfig } = require("../../stores/settingsStore");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
-const { createRosterWithSource } = require("../../services/roster/rosterCreate");
+const { createRosterWithSource, kaderExists } = require("../../services/roster/rosterCreate");
 const { updateRosterSettings } = require("../../services/roster/rosterSettings");
 const { rosterOptions, serverRoles } = require("../../services/roster/rosterOptions");
 const { rosterComposition } = require("../../services/roster/rosterComposition");
@@ -30,7 +30,7 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 const STATUS_OF_CODE = {
     not_found: 404, kader_not_found: 404,
     admin_only: 403, not_manager: 403,
-    category_taken: 409,
+    category_taken: 409, kader_taken: 409,
 };
 
 const refuse = (res, code) => apiError(res, STATUS_OF_CODE[code] || 400, code, `Roster: ${code}`);
@@ -71,7 +71,9 @@ const postRosterCreate = withUser({ write: "roster", csrf: true, body: true }, a
 /**
  * POST /api/rosters/update — change a roster's settings.
  * Body: { rosterId, name?, categoryId?, versionId?, roleIds?, trialRoleId?, managers?, slots?,
- *   allowMultipleChars?, signupOnly? } (only what is sent changes; slots and managers merge per key).
+ *   allowMultipleChars?, signupOnly?, kaderId? } (only what is sent changes; slots and managers merge per key).
+ * `kaderId` (full admins): the Kader of the Kaderplaner linked 1:1 (null unlinks; 404 kader_not_found,
+ * 409 kader_taken when another roster holds it).
  * Answer: { roster, trimmedChars } (members cut to one character by switching allowMultipleChars off).
  */
 const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {
@@ -80,7 +82,9 @@ const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, a
     const isAdmin = user.isAdmin === true;
     if (!isAdmin && !(await canManageRosterLive(user, roster))) return refuse(res, "not_manager");
     // rosterId is no settings field - cleanSettings ignores it like any unknown field
-    const result = updateRosterSettings(roster.id, body, { isAdmin, actor: str(user.id), knownRoleIds: knownRoleIds(roster.guildId) });
+    const result = updateRosterSettings(roster.id, body, {
+        isAdmin, actor: str(user.id), knownRoleIds: knownRoleIds(roster.guildId), kaderKnown: (id) => kaderExists(roster.guildId, id),
+    });
     if (!result.ok) return refuse(res, result.code);
     return ok(res, { roster: result.roster, trimmedChars: result.trimmedChars });
 });

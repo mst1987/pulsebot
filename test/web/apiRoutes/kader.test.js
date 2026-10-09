@@ -360,10 +360,13 @@ describe("web/apiRoutes/kader the raid roster (#658)", () => {
     it("says what the roster button offers: create while there is none (admins), take over once there is", async () => {
         const kaderId = await decidedKader();
         let res = await get("/api/kader/roster", { kader: kaderId });
-        expect(body(res)).toEqual({ roster: null, candidates: 1, pending: 1, canCreate: true, canSync: false });
+        expect(body(res)).toEqual({ roster: null, candidates: 1, pending: 1, canCreate: true, canSync: false, canLink: true, rosters: [] });
         const roster = rosterFrom(kaderId);
         res = await get("/api/kader/roster", { kader: kaderId });
-        expect(body(res)).toEqual({ roster: { id: roster.id, name: "Forever-Roster", members: 0 }, candidates: 1, pending: 1, canCreate: false, canSync: true });
+        expect(body(res)).toEqual({
+            roster: { id: roster.id, name: "Forever-Roster", members: 0 }, candidates: 1, pending: 1, canCreate: false, canSync: true, canLink: true,
+            rosters: [{ id: roster.id, name: "Forever-Roster", categoryId: null, members: 0, linkedKaderId: null, suggested: false }],
+        });
         expect(status(await get("/api/kader/roster", { kader: "nope" }))).toBe(404);
     });
 
@@ -400,5 +403,38 @@ describe("web/apiRoutes/kader the raid roster (#658)", () => {
         auth.getUser.mockReturnValue(reader);
         expect(status(await post("/api/kader/roster/sync", { kaderId }))).toBe(403);
         expect(body(await get("/api/kader/roster", { kader: kaderId }))).toMatchObject({ canSync: false });
+    });
+
+    it("links the Kader to an existing (migrated) roster - full admins only - and syncs into exactly that one", async () => {
+        const kaderId = await decidedKader();
+        const migrated = rosterStore.createRoster({ guildId: "g1", name: "Mo-Raider", versionId: "forever", source: { kind: "migration" } });
+        const other = rosterStore.createRoster({ guildId: "g1", name: "Andere", versionId: "forever" });
+        // a writer of the Kaderplaner who is no full admin may not link and sees no rosters
+        const writer = granted("write");
+        auth.getUser.mockReturnValue(writer);
+        expect(body(await get("/api/kader/roster", { kader: kaderId }))).toMatchObject({ canLink: false, rosters: [] });
+        let res = await post("/api/kader/roster/link", { kaderId, rosterId: migrated.id });
+        expect([status(res), body(res).error.code]).toEqual([403, "admin_only"]);
+        auth.getUser.mockReturnValue(ADMIN);
+        res = await post("/api/kader/roster/link", { kaderId, rosterId: migrated.id });
+        expect(status(res)).toBe(200);
+        expect(body(res)).toMatchObject({ roster: { id: migrated.id, name: "Mo-Raider" }, canCreate: false, canSync: true, canLink: true });
+        expect(rosterStore.getRoster(migrated.id).kaderId).toBe(kaderId);
+        expect(body(await post("/api/kader/roster/sync", { kaderId }))).toMatchObject({ rosterId: migrated.id, added: 1 });
+        expect(Object.keys(rosterStore.getRoster(other.id).members)).toEqual([]);
+        // unknown roster 404, unlink with ""
+        expect(status(await post("/api/kader/roster/link", { kaderId, rosterId: "nope" }))).toBe(404);
+        res = await post("/api/kader/roster/link", { kaderId, rosterId: "" });
+        expect(body(res)).toMatchObject({ roster: null, canCreate: true });
+        // nothing private reached the roster through the link
+        const file = JSON.stringify(rosterStore.getRoster(migrated.id));
+        for (const marker of [MARK, "wishes", "votes", "comments"]) expect(file).not.toContain(marker);
+    });
+
+    it("refuses a roster another Kader holds with kader_taken", async () => {
+        const kaderId = await decidedKader();
+        const held = rosterStore.createRoster({ guildId: "g1", name: "Belegt", kaderId: "other-kader" });
+        const res = await post("/api/kader/roster/link", { kaderId, rosterId: held.id });
+        expect([status(res), body(res).error.code]).toEqual([409, "kader_taken"]);
     });
 });

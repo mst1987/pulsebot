@@ -1,6 +1,7 @@
 // One member of a roster in a drawer at the right edge (#655/#656, design
 // canvas "Mitglied"): status as square fields (and the trial's end), the
-// characters of this roster, the roster's Discord roles as switches, the
+// characters of this roster, the spec the first one counts with here ("Spec in
+// diesem Roster"), the roster's Discord roles as switches, the
 // attendance, the orga's note, the person's history, and "Aus dem Roster
 // nehmen". Every change is saved at once; the page reloads the roster after it.
 // Readers without the right to manage see the same facts without a control.
@@ -17,7 +18,7 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { TrashIcon, XIcon } from "../../components/ui/icons";
 import { changedRoleLines, statusSince } from "../../lib/roster/rosterEdit";
 import { HistoryLines } from "./HistoryTab";
-import { AttendanceSection, CharsSection, DrawerSection, NoteSection, RolesSection, TrialUntil } from "./MemberDrawerParts";
+import { AttendanceSection, CharsSection, DrawerSection, NoteSection, RolesSection, SpecSection, TrialUntil } from "./MemberDrawerParts";
 import { MemberAvatar, RoleResults, StatusPicker } from "./RosterParts";
 import { useRosterAction } from "./useRosterAction";
 
@@ -120,6 +121,7 @@ export default function MemberDrawer({ data, userId, onClose, onChanged }: {
                                 {manage && data.roster.trialRole && <p className="rn-sub">{t("roster.drawer.trialRoleHint", { role: `@${data.roster.trialRole.name || data.roster.trialRole.id}` })}</p>}
                             </DrawerSection>
                             <CharsSection member={member} data={data} busy={busy !== ""} onSave={(chars) => save("chars", { chars })} />
+                            <SpecSection member={member} data={data} busy={busy !== ""} onSave={(spec) => save("spec", { spec })} />
                             <RolesSection member={member} data={data} busyRole={busy.startsWith("role-") ? busy : ""} onRole={toggleRole} />
                             <AttendanceSection member={member} data={data} />
                             {manage && <NoteSection member={member} busy={busy === "note"} onSave={(note) => save("note", { note })} />}

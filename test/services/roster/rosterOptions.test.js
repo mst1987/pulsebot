@@ -72,7 +72,7 @@ describe("services/roster/rosterOptions", () => {
         const opts = rosterOptions({ guildId: "g1", config: {}, canSeeKader: true });
         expect(opts).toEqual(expect.objectContaining({
             guildId: "g1", defaultVersion: "tbc", canManageRoles: true, online: true,
-            kaders: [{ id: "k1", name: "K", inRoster: 1, candidates: 1 }],
+            kaders: [{ id: "k1", name: "K", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "" }],
         }));
         expect(opts.versions.map((v) => v.id)).toEqual(expect.arrayContaining(["tbc", "forever"]));
         expect(rosterOptions({ guildId: "g1", canSeeKader: false }).kaders).toEqual([]);

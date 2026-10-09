@@ -81,7 +81,7 @@ describe("services/kader/kaderRoster rosterPlayers", () => {
 
 describe("services/kader/kaderRoster kaderSummaries", () => {
     it("counts only", () => {
-        expect(kaderSummaries("g1")).toEqual([{ id: "k1", name: "Forever 2027", inRoster: 1, candidates: 3 }]);
+        expect(kaderSummaries("g1")).toEqual([{ id: "k1", name: "Forever 2027", inRoster: 1, candidates: 3, attendanceCategories: [] }]);
         expect(kaderSummaries("g2")).toEqual([]);
     });
 });

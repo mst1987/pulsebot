@@ -226,6 +226,24 @@ describe("POST /api/rosters/update", () => {
         const res = await post("/api/rosters/update", { rosterId: roster.id, categoryId: CAT });
         expect([status(res), code(res)]).toEqual([409, "category_taken"]);
     });
+
+    it("links the Kader of the Kaderplaner: admins only, a known Kader, one roster per Kader", async () => {
+        let res = await post("/api/rosters/update", { rosterId: roster.id, kaderId: "nope" });
+        expect([status(res), code(res)]).toEqual([404, "kader_not_found"]);
+        mockUser = MANAGER;
+        res = await post("/api/rosters/update", { rosterId: roster.id, kaderId: "k1" });
+        expect([status(res), code(res)]).toEqual([403, "admin_only"]);
+        mockUser = ADMIN;
+        res = await post("/api/rosters/update", { rosterId: roster.id, kaderId: "k1" });
+        expect(status(res)).toBe(200);
+        expect(data(res).roster.kaderId).toBe("k1");
+        expect(data(await get("/api/rosters/options")).kaders[0]).toMatchObject({ id: "k1", rosterId: roster.id, rosterName: "Raid" });
+        const other = rosterStore.createRoster({ name: "Other", guildId: "g1" });
+        res = await post("/api/rosters/update", { rosterId: other.id, kaderId: "k1" });
+        expect([status(res), code(res)]).toEqual([409, "kader_taken"]);
+        res = await post("/api/rosters/update", { rosterId: roster.id, kaderId: null });
+        expect(data(res).roster.kaderId).toBeNull();
+    });
 });
 
 describe("POST /api/rosters/delete", () => {
@@ -249,7 +267,7 @@ describe("GET /api/rosters/options", () => {
         const d = data(res);
         expect(d.categories).toEqual([{ id: CAT, name: "Donnerstag Raid", versionId: "tbc", rosterId: null, rosterName: "" }]);
         expect(d.roles.map((r) => r.id)).toEqual([ROLE, ROLE2]);
-        expect(d.kaders).toEqual([{ id: "k1", name: "Forever-Kader", inRoster: 1, candidates: 1 }]);
+        expect(d.kaders).toEqual([{ id: "k1", name: "Forever-Kader", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "" }]);
         expect(d.isAdmin).toBe(true);
     });
 

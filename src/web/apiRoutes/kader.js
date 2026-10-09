@@ -26,7 +26,7 @@ const { userCan } = require("../../config/permissions");
 const kaderStore = require("../../stores/kaderStore");
 const rosterStore = require("../../stores/rosterStore");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
-const { kaderRosterState, rosterOfKader, syncRosterFromKader } = require("../../services/roster/rosterCreate");
+const { kaderRosterState, rosterOfKader, syncRosterFromKader, kaderLinkChoices, linkRosterToKader } = require("../../services/roster/rosterCreate");
 const model = require("../../services/kader/kaderModel");
 const players = require("../../services/kader/kaderPlayers");
 const questions = require("../../services/kader/kaderQuestions");
@@ -226,25 +226,52 @@ const resetAssignment = fullWrite((p, body) => model.resetAssignment(p, str(body
 
 /**
  * GET /api/kader/roster?kader=<id> — `{ roster: { id, name, members } | null,
- * candidates, pending, canCreate, canSync }`: the roster the Kader created,
- * how many of its players a roster takes and how many of them are not in it
- * yet (counts only). `canCreate` = full admin and no roster yet, `canSync` =
- * `kader` write and manager of that roster. 404 for an unknown Kader.
+ * candidates, pending, canCreate, canSync, canLink, rosters }`: the roster
+ * LINKED to the Kader (`roster.kaderId`), how many of its players a roster
+ * takes and how many of them are not in it yet (counts only). `canCreate` =
+ * full admin and no roster yet, `canSync` = `kader` write and manager of that
+ * roster, `canLink` = full admin with `kader` write; `rosters` (only with
+ * canLink, else []) = the server's rosters to link to, the one whose category
+ * the Kader counts attendance in first (`suggested`). 404 for an unknown Kader.
  */
 const getKaderRoster = withUser({}, async ({ req, res, query, user }) => {
     const guildId = activeGuildFor(req);
-    const state = kaderRosterState(guildId, str(query, "kader"));
+    const kaderId = str(query, "kader");
+    const state = kaderRosterState(guildId, kaderId);
     if (!state) return apiError(res, 404, "kader_not_found", "Kader nicht gefunden.");
     const roster = state.roster ? rosterStore.getRoster(state.roster.id) : null;
     const canSync = !!roster && userCan(user, "kader", "write") && await canManageRosterLive(user, roster).catch(() => false);
-    return ok(res, { ...state, canCreate: !roster && user.isAdmin === true, canSync });
+    const canLink = user.isAdmin === true && userCan(user, "kader", "write");
+    return ok(res, { ...state, canCreate: !roster && user.isAdmin === true, canSync, canLink, rosters: canLink ? kaderLinkChoices(guildId, kaderId) : [] });
+});
+
+const LINK_STATUS = { kader_not_found: 404, not_found: 404, kader_taken: 409 };
+
+/**
+ * POST /api/kader/roster/link — body: { kaderId, rosterId }: link the Kader to
+ * an existing roster of the active server ("Mit bestehendem Roster
+ * verknüpfen"), or unlink it with rosterId "". Area `kader` write + CSRF and a
+ * full admin (403 `admin_only`); a roster another Kader holds is 409
+ * `kader_taken`. Nothing of the Kader is copied - "Ins Roster übernehmen" does
+ * that afterwards. Answer: the state of GET /api/kader/roster.
+ */
+const linkKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
+    if (user.isAdmin !== true) return apiError(res, 403, "admin_only", "Nur Admins verknüpfen ein Roster.");
+    const guildId = activeGuildFor(req);
+    const kaderId = str(body, "kaderId");
+    const result = linkRosterToKader(kaderId, str(body, "rosterId"), { guildId, actor: String(user.id || "") });
+    if (!result.ok) return apiError(res, LINK_STATUS[result.code] || 400, result.code, `Roster: ${result.code}`);
+    const state = kaderRosterState(guildId, kaderId);
+    const roster = state.roster ? rosterStore.getRoster(state.roster.id) : null;
+    const canSync = !!roster && await canManageRosterLive(user, roster).catch(() => false);
+    return ok(res, { ...state, canCreate: !roster, canSync, canLink: true, rosters: kaderLinkChoices(guildId, kaderId) });
 });
 
 const SYNC_STATUS = { not_found: 404, kader_not_found: 404, not_manager: 403, not_from_kader: 409 };
 
 /**
  * POST /api/kader/roster/sync — body: { kaderId }: "Ins Roster übernehmen".
- * Area `kader` write + CSRF, then manager of the roster the Kader created
+ * Area `kader` write + CSRF, then manager of the roster linked to the Kader
  * (`canManageRosterLive`), else 403 `not_manager`. Players in roster / bench /
  * tentative who are no member yet join (core / bench / trial, the main role
  * given); members already there stay untouched.
@@ -265,6 +292,7 @@ const syncKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
 const routes = [
     { method: "GET", path: "/api/kader/roster", handler: getKaderRoster, area: "kader" },
     { method: "POST", path: "/api/kader/roster/sync", handler: syncKaderRoster, area: "kader" },
+    { method: "POST", path: "/api/kader/roster/link", handler: linkKaderRoster, area: "kader" },
     { method: "GET", path: "/api/kader", handler: getKader, area: "kader" },
     { method: "GET", path: "/api/kader/kader", handler: getKaderOnly, area: "kader" },
     { method: "GET", path: "/api/kader/live", handler: getLive, area: "kader" },
@@ -300,5 +328,5 @@ module.exports = {
     saveInterview, completeInterview, reopenInterview, setVote, addComment, deleteComment,
     addQuestion, updateQuestion, deleteQuestion, orderQuestions, copyQuestions,
     addVariant, saveVariant, deleteVariant, autoVariant,
-    addAccount, removeAccount, saveAssignment, resetAssignment, getKaderRoster, syncKaderRoster, routes,
+    addAccount, removeAccount, saveAssignment, resetAssignment, getKaderRoster, syncKaderRoster, linkKaderRoster, routes,
 };

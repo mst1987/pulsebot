@@ -270,7 +270,15 @@ dialog.rn-dlg .dlg-body > .rn-notice { margin: 14px 0 6px; }
 .rn-buff .rn-ok { color: var(--good); }
 .rn-buff .rn-warn { color: var(--medium); }
 .rn-buff .rn-bad { color: var(--high); }
-.rn-comp-links { display: flex; gap: 10px; flex-wrap: wrap; }
+.rn-comp-links { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+/* members without spec or class: a calm card, one row per person with "Öffnen" */
+.rn-unresolved .rn-lines { list-style: none; padding-left: 0; gap: 6px; }
+.rn-unresolved-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 10px; border: 1px solid var(--line); background: var(--panel2); }
+.rn-unresolved-row b { font-size: 14px; }
+.rn-unresolved-row .rn-sub { flex: 1; min-width: 160px; }
+/* the drawer's "Spec in diesem Roster": toggle chips with the spec icon */
+.rn-spec-pick { margin-top: 8px; }
+.rn-spec-ico { width: 18px; height: 18px; border-radius: 4px; margin-right: 6px; vertical-align: -4px; }
 
 @media (max-width: 1100px) {
     .rn-comp { grid-template-columns: repeat(2, minmax(0, 1fr)); }

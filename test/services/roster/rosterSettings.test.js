@@ -110,6 +110,19 @@ describe("services/roster/rosterSettings updateRosterSettings (admin)", () => {
         expect(res.roster.members["100001"].chars).toEqual(["devi"]);
     });
 
+    it("links and unlinks a Kader (admins only, known Kader, one roster per Kader)", () => {
+        const known = (id) => id === "k1" || id === "k2";
+        expect(updateRosterSettings(roster.id, { kaderId: "k1" }, { isAdmin: false, kaderKnown: known }).code).toBe("admin_only");
+        expect(updateRosterSettings(roster.id, { kaderId: "gone" }, { isAdmin: true, kaderKnown: known }).code).toBe("kader_not_found");
+        expect(updateRosterSettings(roster.id, { kaderId: 5 }, { isAdmin: true }).code).toBe("bad_request");
+        expect(updateRosterSettings(roster.id, { kaderId: "k1" }, { isAdmin: true, kaderKnown: known }).roster.kaderId).toBe("k1");
+        const other = rosterStore.createRoster({ name: "B" });
+        expect(updateRosterSettings(other.id, { kaderId: "k1" }, { isAdmin: true, kaderKnown: known }).code).toBe("kader_taken");
+        // the unchanged link of a whole form passes for a manager; "" unlinks
+        expect(updateRosterSettings(roster.id, { kaderId: "k1", name: "X" }, { isAdmin: false, kaderKnown: known }).ok).toBe(true);
+        expect(updateRosterSettings(roster.id, { kaderId: "" }, { isAdmin: true }).roster.kaderId).toBeNull();
+    });
+
     it("passes an unexpected store error on", () => {
         const spy = jest.spyOn(rosterStore, "updateRoster").mockImplementationOnce(() => { throw new Error("disk"); });
         expect(() => updateRosterSettings(roster.id, { name: "x" }, { isAdmin: true })).toThrow("disk");

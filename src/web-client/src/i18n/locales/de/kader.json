@@ -50,8 +50,31 @@
             "kader_not_found": "Diesen Kader gibt es nicht mehr.",
             "invalid_name": "Bitte einen Namen angeben.",
             "name_too_long": "Der Name ist zu lang (höchstens 40 Zeichen).",
-            "admin_only": "Roster anlegen dürfen nur Admins."
-        }
+            "admin_only": "Roster anlegen dürfen nur Admins.",
+            "kader_taken": "Dieses Roster ist schon mit einem anderen Kader verknüpft.",
+            "not_found": "Dieses Roster gibt es nicht mehr."
+        },
+        "linkButton": "Mit bestehendem Roster verknüpfen",
+        "linkTip": "Diesen Kader mit einem Roster verknüpfen, das es schon gibt",
+        "linkTipSub": "„Ins Roster übernehmen“ geht danach genau in dieses Roster.",
+        "linkTipSuggestion": "Vorschlag: {name} – seine Kategorie zählt in der Anwesenheit dieses Kaders.",
+        "linkTitle": "Mit bestehendem Roster verknüpfen",
+        "linkHint": "Es wird nichts kopiert. Danach nimmt „Ins Roster übernehmen“ neu entschiedene Spieler genau in dieses Roster auf. Ein Kader gehört zu höchstens einem Roster.",
+        "linkPick": "Roster",
+        "linkPickHint": "Vorgeschlagen ist das Roster, dessen Raid-Kategorie in der Anwesenheit dieses Kaders zählt.",
+        "linkNone": "Kein Roster auf diesem Server",
+        "linkSuggested": "{name} (Vorschlag)",
+        "linkTaken": "{name} – mit einem anderen Kader verknüpft",
+        "linkCountCategory": "Anwesenheit dieser Kategorie im Kader zählen",
+        "linkCountCategoryTip": "Nimmt die Raid-Kategorie des Rosters in die Anwesenheit dieses Kaders auf (Einstellungen des Kaders).",
+        "link": "Verknüpfen",
+        "linked": "Mit {name} verknüpft.",
+        "unlinked": "Verknüpfung gelöst.",
+        "unlink": "Verknüpfung lösen",
+        "unlinkTitle": "Verknüpfung mit „{name}“ lösen?",
+        "unlinkText": "Das Roster bleibt, wie es ist, mit allen Mitgliedern. Nur „Ins Roster übernehmen“ geht danach nicht mehr dorthin.",
+        "relink": "Verknüpfung",
+        "relinkTip": "Verknüpft mit {name}: ändern oder lösen"
     },
     "quote": "„{text}“",
     "state": {
