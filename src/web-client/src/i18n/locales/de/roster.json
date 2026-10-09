@@ -6,7 +6,7 @@
             "one": "{count} Raid-Kategorie",
             "other": "{count} Raid-Kategorien"
         },
-        "title": "Roster",
+        "title": "Alle Charaktere",
         "infoTip": "Alle Charaktere je Raid-Kategorie",
         "infoSub": "Wer welchen Char in welchem Raid spielt, wird unter Einstellungen → Kategorien zugeordnet; zusätzlich zählt jeder Raid, in dem ein Char Loot bekommen hat.\nAnwesenheit aus Raid-Helper-Anmeldungen und zugeordneten Logs, Gear-Stand aus der letzten Auswertung.",
         "versionAria": "Spielversion",
@@ -182,5 +182,132 @@
         "OFF_HAND": "Nebenhand",
         "RANGED": "Fernkampf"
     },
-    "finding": "Befund"
+    "finding": "Befund",
+    "status": {
+        "core": "Stamm",
+        "trial": "Probe",
+        "bench": "Ersatz",
+        "pause": "Pause"
+    },
+    "statusSub": {
+        "core": "Fester Platz im Raid",
+        "trial": "Probezeit, nimmt einen Platz ein",
+        "bench": "Springt ein, wenn Plätze frei sind",
+        "pause": "Gerade nicht dabei, bleibt im Roster"
+    },
+    "overview": {
+        "loading": "Lade Roster …",
+        "loadError": "Roster konnten nicht geladen werden: {message}",
+        "title": "Roster",
+        "kicker": {
+            "one": "{count} Roster",
+            "other": "{count} Roster"
+        },
+        "kickerWithout": {
+            "one": "{count} Kategorie ohne Roster",
+            "other": "{count} Kategorien ohne Roster"
+        },
+        "allChars": "Alle Charaktere",
+        "allCharsTip": "Jeder bekannte Charakter der Gilde",
+        "allCharsSub": "Die Liste nach Raid-Kategorie, mit Ausrüstung, Loot und Anwesenheit je Charakter",
+        "cardsAria": "Roster",
+        "inRoster": "Im Roster",
+        "ofPlaces": "von {total} Plätzen",
+        "persons": {
+            "one": "Person",
+            "other": "Personen"
+        },
+        "placesTip": "Stamm und Probe nehmen einen Platz ein",
+        "placesSub": "Ersatz und Pause zählen nicht mit",
+        "attendance": "Anwesenheit",
+        "noRaids": "noch keine Raids",
+        "attendanceSub": {
+            "one": "Mittel über {count} Person",
+            "other": "Mittel über {count} Personen"
+        },
+        "of": "von {target}",
+        "figureTip": "{count} von {target} geplant",
+        "figureNoTarget": "Kein Ziel festgelegt",
+        "withoutRole": {
+            "one": "{count} ohne Discord-Rolle",
+            "other": "{count} ohne Discord-Rolle"
+        },
+        "withoutRoleSub": "Im Roster, aber ohne die Rolle des Rosters im Discord",
+        "withoutChar": {
+            "one": "{count} ohne Charakter",
+            "other": "{count} ohne Charakter"
+        },
+        "withoutCharSub": "Im Roster, aber noch kein Charakter zugewiesen",
+        "trial": {
+            "one": "{count} in Probezeit",
+            "other": "{count} in Probezeit"
+        },
+        "freeSlots": {
+            "one": "{count} Platz frei",
+            "other": "{count} Plätze frei"
+        },
+        "allDone": "Nichts offen",
+        "open": "Roster öffnen",
+        "noRole": "Keine Rolle",
+        "noRoleSub": "Dieses Roster hat noch keine Discord-Rolle",
+        "noCategory": "Ohne Kategorie",
+        "emptyCategory": "Diese Kategorie hat noch kein Roster.",
+        "empty": "Noch kein Roster angelegt. Roster entstehen aus den Kategorien mit Raider-Rollen."
+    },
+    "detail": {
+        "loading": "Lade Roster …",
+        "loadError": "Das Roster konnte nicht geladen werden: {message}",
+        "notFound": "Dieses Roster gibt es nicht (mehr).",
+        "back": "Alle Roster",
+        "places": "{places} von {total} Plätzen",
+        "placesNoTarget": {
+            "one": "{count} Person im Roster",
+            "other": "{count} Personen im Roster"
+        },
+        "attendance": "{pct} % Anwesenheit",
+        "tabsAria": "Bereiche des Rosters",
+        "tabMembers": "Mitglieder",
+        "statusAria": "Status filtern",
+        "statusOn": "Wird gezeigt, klicken zum Ausblenden",
+        "statusOff": "Ausgeblendet, klicken zum Zeigen",
+        "roleAria": "Rolle",
+        "searchPlaceholder": "Name oder Charakter suchen",
+        "searchAria": "Mitglied suchen",
+        "colPerson": "Person",
+        "colChars": "Charaktere",
+        "colCharsSub": "Der erste Charakter ist der, mit dem die Person in diesem Roster spielt",
+        "colRole": "Rolle",
+        "colRoleSub": "Was der erste Charakter zuletzt im Log gespielt hat, sonst seine Spezialisierung",
+        "colDiscord": "Discord-Rolle",
+        "colDiscordSub": "Ob die Person die Rolle des Rosters im Discord hat",
+        "colAttendance": "Anwesenheit",
+        "colAttendanceSub": {
+            "one": "Je Person über den letzten Raid der Kategorie",
+            "other": "Je Person über die letzten {count} Raids der Kategorie"
+        },
+        "colSince": "Seit",
+        "colSinceSub": "Seit wann die Person diesen Status hat",
+        "hasRole": "hat die Rolle",
+        "missingRole": "Rolle fehlt",
+        "missingRoleSub": "Kommt mit dem Abgleich: die Rolle geben oder das Mitglied entfernen",
+        "notOnServer": "nicht auf dem Server",
+        "notOnServerSub": "Das Discord-Konto ist nicht (mehr) auf dem Server",
+        "roleUnknown": "unbekannt",
+        "roleUnknownSub": "Die Mitgliederliste des Discord ist gerade nicht erreichbar",
+        "noRoleSet": "Dieses Roster hat keine Discord-Rolle",
+        "noChar": "Kein Charakter zugewiesen",
+        "charTip": "{class} · {spec}",
+        "firstChar": "Spielt diesen Charakter im Roster",
+        "otherChar": "Weiterer Charakter",
+        "groupCount": {
+            "one": "{count} Person",
+            "other": "{count} Personen"
+        },
+        "trialUntil": "Probezeit bis {date}",
+        "sinceDate": "seit {date}",
+        "empty": "Dieses Roster hat noch keine Mitglieder.",
+        "noMatch": "Kein Mitglied passt zu den Filtern.",
+        "noAttendance": "Kein Raid gezählt",
+        "noAttendanceSub": "Ohne Kategorie oder Charakter gibt es keine Anwesenheit"
+    }
 }

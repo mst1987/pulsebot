@@ -1,4 +1,4 @@
-import { Suspense, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import LangToggle from "./LangToggle";
@@ -15,6 +15,7 @@ import { TipLayer } from "../ui/Tip";
 import { MENU, firstAllowedTab, matchesHref, menuLabel, menuLines } from "../../lib/app/menu";
 import { canAccess, getVersion, type SessionUser, type SessionGuild, type ContentInfo } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { PageCrumbContext } from "../../hooks/usePageCrumb";
 import { deployLine } from "../../lib/app/deployVersion";
 import { t as tr, tOr, useLang, useT } from "../../i18n";
 
@@ -41,6 +42,7 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
     if (pathname === "/raids/plan-catalog") return tr("shell.crumb.planCatalog");
     if (pathname === "/history/event") return tr("shell.crumb.eventLoot");
     if (pathname === "/history/char" || pathname === "/roster/char") return search.get("name") || tr("shell.crumb.character");
+    if (pathname === "/roster/chars") return tr("shell.crumb.allCharacters");
     if (pathname === "/recruitment" && (search.get("view") || "posts") === "posts" && search.get("editpost")) {
         return tr("shell.crumb.editPost");
     }
@@ -132,7 +134,13 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
 
     const tab = crumbTab(location.pathname);
     const label = tab ? menuLabel(tab) : t("shell.menu.home");
-    const crumb = subCrumb(location.pathname, new URLSearchParams(location.search));
+    // a page that knows its own name (one roster) sets it (hooks/usePageCrumb.ts); it counts only on the path it was set for
+    const [pageCrumb, setPageCrumb] = useState<{ path: string; label: string } | null>(null);
+    const setCrumb = useCallback((next: string | null) => {
+        setPageCrumb(next ? { path: location.pathname, label: next } : null);
+    }, [location.pathname]);
+    const crumb = subCrumb(location.pathname, new URLSearchParams(location.search))
+        ?? (pageCrumb && pageCrumb.path === location.pathname ? pageCrumb.label : null);
 
     return (
         <ContentVersionProvider content={content}>
@@ -197,11 +205,13 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                             the menu stays and only the page body shows the loader. A chunk
                             that cannot be loaded (after a deploy, #530) shows the reload
                             notice there too, and the next page tries again. */}
-                        <ChunkErrorBoundary resetKey={location.pathname}>
-                            <Suspense fallback={<RaidLoader />}>
-                                <Outlet context={{ user } satisfies ShellContext} />
-                            </Suspense>
-                        </ChunkErrorBoundary>
+                        <PageCrumbContext.Provider value={setCrumb}>
+                            <ChunkErrorBoundary resetKey={location.pathname}>
+                                <Suspense fallback={<RaidLoader />}>
+                                    <Outlet context={{ user } satisfies ShellContext} />
+                                </Suspense>
+                            </ChunkErrorBoundary>
+                        </PageCrumbContext.Provider>
                     </div>
                 </div>
                 <TipLayer />

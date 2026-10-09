@@ -1,4 +1,5 @@
-// The roster: every known character of the guild, grouped by the raid category
+// "Alle Charaktere" (/roster/chars since #654; /roster is the overview of the
+// raid rosters now): every known character of the guild, grouped by the raid category
 // it belongs to (Discord category = one recurring raid series, e.g.
 // "Montagsraid", "Pug"). A character raiding under several categories shows up
 // in each group.
@@ -17,13 +18,14 @@ import { RosterKpis } from "./RosterHero";
 import { ROLE_ORDER, classIconName } from "../../lib/roster/rosterView";
 import { classLabel, roleLabel } from "../../lib/wow/wowNames";
 import { tParts, useT } from "../../i18n";
-import { IconTile, Segment, WowIcon } from "../../components/ui";
+import { BackButton, IconTile, Segment, WowIcon } from "../../components/ui";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { SearchIcon } from "../../components/ui/icons";
 import type { ShellContext } from "../../components/shell/Shell";
 import { useToast } from "../../components/shell/Jobs";
 import { useConfirm } from "../../components/ui/Modal";
 import "../../styles/roster-character.css";
+import "../../styles/rosters.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { RosterGroup, UNGROUPED } from "./RosterGroup";
 import { ClaimsBadge } from "./ClaimsBadge";
@@ -53,7 +55,7 @@ function byRoleThenName(a: RosterChar, b: RosterChar): number {
     return r || a.character.localeCompare(b.character);
 }
 
-export default function RosterPage() {
+export default function RosterCharsPage() {
     const { user } = useOutletContext<ShellContext>();
     // The game version shown (#543): the menu's content switch (#563), "" = the server's main version.
     const { version } = useContentVersion();
@@ -199,6 +201,8 @@ export default function RosterPage() {
 
     return (
         <>
+            {/* a sub page of the roster overview (#654): the way back to the rosters */}
+            <BackButton to="/roster" label={t("roster.detail.back")} size="sm" className="rn-back" />
             <div className="page-head">
                 <IconTile icon="achievement_guildperk_everybodysfriend" tone="roster" size="lg" />
                 <div className="ph-text">

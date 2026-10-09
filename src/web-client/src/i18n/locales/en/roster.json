@@ -6,7 +6,7 @@
             "one": "{count} raid category",
             "other": "{count} raid categories"
         },
-        "title": "Roster",
+        "title": "All characters",
         "infoTip": "All characters per raid category",
         "infoSub": "Who plays which character in which raid is assigned under Settings → Categories; on top of that every raid in which a character got loot counts.\nAttendance from Raid-Helper signups and assigned logs, gear state from the latest evaluation.",
         "versionAria": "Game version",
@@ -182,5 +182,132 @@
         "OFF_HAND": "Off hand",
         "RANGED": "Ranged"
     },
-    "finding": "Finding"
+    "finding": "Finding",
+    "status": {
+        "core": "Core",
+        "trial": "Trial",
+        "bench": "Bench",
+        "pause": "Paused"
+    },
+    "statusSub": {
+        "core": "Fixed place in the raid",
+        "trial": "On trial, takes a place",
+        "bench": "Steps in when places are free",
+        "pause": "Not raiding right now, stays in the roster"
+    },
+    "overview": {
+        "loading": "Loading rosters …",
+        "loadError": "Could not load the rosters: {message}",
+        "title": "Roster",
+        "kicker": {
+            "one": "{count} roster",
+            "other": "{count} rosters"
+        },
+        "kickerWithout": {
+            "one": "{count} category without roster",
+            "other": "{count} categories without roster"
+        },
+        "allChars": "All characters",
+        "allCharsTip": "Every known character of the guild",
+        "allCharsSub": "The list by raid category, with gear, loot and attendance per character",
+        "cardsAria": "Rosters",
+        "inRoster": "In the roster",
+        "ofPlaces": "of {total} places",
+        "persons": {
+            "one": "person",
+            "other": "people"
+        },
+        "placesTip": "Core and trial members take a place",
+        "placesSub": "Bench and paused members do not count",
+        "attendance": "Attendance",
+        "noRaids": "no raids yet",
+        "attendanceSub": {
+            "one": "Average over {count} person",
+            "other": "Average over {count} people"
+        },
+        "of": "of {target}",
+        "figureTip": "{count} of {target} planned",
+        "figureNoTarget": "No target set",
+        "withoutRole": {
+            "one": "{count} without Discord role",
+            "other": "{count} without Discord role"
+        },
+        "withoutRoleSub": "In the roster, but without the roster's role on Discord",
+        "withoutChar": {
+            "one": "{count} without character",
+            "other": "{count} without character"
+        },
+        "withoutCharSub": "In the roster, but no character assigned yet",
+        "trial": {
+            "one": "{count} on trial",
+            "other": "{count} on trial"
+        },
+        "freeSlots": {
+            "one": "{count} place free",
+            "other": "{count} places free"
+        },
+        "allDone": "Nothing open",
+        "open": "Open roster",
+        "noRole": "No role",
+        "noRoleSub": "This roster has no Discord role yet",
+        "noCategory": "No category",
+        "emptyCategory": "This category has no roster yet.",
+        "empty": "No roster yet. Rosters are created from the categories with raider roles."
+    },
+    "detail": {
+        "loading": "Loading roster …",
+        "loadError": "Could not load the roster: {message}",
+        "notFound": "This roster does not exist (any more).",
+        "back": "All rosters",
+        "places": "{places} of {total} places",
+        "placesNoTarget": {
+            "one": "{count} person in the roster",
+            "other": "{count} people in the roster"
+        },
+        "attendance": "{pct} % attendance",
+        "tabsAria": "Parts of the roster",
+        "tabMembers": "Members",
+        "statusAria": "Filter by status",
+        "statusOn": "Shown, click to hide",
+        "statusOff": "Hidden, click to show",
+        "roleAria": "Role",
+        "searchPlaceholder": "Search name or character",
+        "searchAria": "Search member",
+        "colPerson": "Person",
+        "colChars": "Characters",
+        "colCharsSub": "The first character is the one the person plays in this roster",
+        "colRole": "Role",
+        "colRoleSub": "What the first character last played in a log, else its spec",
+        "colDiscord": "Discord role",
+        "colDiscordSub": "Whether the person has the roster's role on Discord",
+        "colAttendance": "Attendance",
+        "colAttendanceSub": {
+            "one": "Per person over the category's last raid",
+            "other": "Per person over the category's last {count} raids"
+        },
+        "colSince": "Since",
+        "colSinceSub": "Since when the person has this status",
+        "hasRole": "has the role",
+        "missingRole": "Role missing",
+        "missingRoleSub": "Comes with the sync: give the role or remove the member",
+        "notOnServer": "not on the server",
+        "notOnServerSub": "The Discord account is not on the server (any more)",
+        "roleUnknown": "unknown",
+        "roleUnknownSub": "The Discord member list cannot be reached right now",
+        "noRoleSet": "This roster has no Discord role",
+        "noChar": "No character assigned",
+        "charTip": "{class} · {spec}",
+        "firstChar": "Plays this character in the roster",
+        "otherChar": "Further character",
+        "groupCount": {
+            "one": "{count} person",
+            "other": "{count} people"
+        },
+        "trialUntil": "Trial until {date}",
+        "sinceDate": "since {date}",
+        "empty": "This roster has no members yet.",
+        "noMatch": "No member matches the filters.",
+        "noAttendance": "No raid counted",
+        "noAttendanceSub": "Without a category or a character there is no attendance"
+    }
 }

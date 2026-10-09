@@ -65,6 +65,8 @@
     --sig-bench: #6fa8dc; --sig-absence: #e0524f;
     /* ---- Roster > Abwesenheiten (absences.css): away is orange, a long absence filled ---- */
     --ab-away: #fb923c; --ab-away-soft: rgba(251, 146, 60, .18); --ab-away-ink: #1f1206;
+    /* ---- Roster (rosters.css): member status - Stamm, Probe, Ersatz, Pause ---- */
+    --rn-core: #a3e635; --rn-trial: #fbbf24; --rn-bench: #60a5fa; --rn-pause: #94a3b8;
     /* ---- game versions (#563): the dot of the content switch, and the archive banner of a hidden version ---- */
     --ver-forever: #35d6c4; --ver-tbc: #e0a23a; --ver-classic: #b0b8c4;
     --archive-ink: #f0c27a; --archive-text: #c9b28a; --archive-bg: rgba(224, 162, 58, .10); --archive-line: rgba(224, 162, 58, .35);
@@ -174,6 +176,7 @@
         --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
         --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
         --ab-away: #c2410c; --ab-away-soft: rgba(234, 88, 12, .12); --ab-away-ink: #ffffff;
+        --rn-core: #4d7c0f; --rn-trial: #b45309; --rn-bench: #2563eb; --rn-pause: #64748b;
         --ver-forever: #0f8f82; --ver-tbc: #9a6c12; --ver-classic: #5b616e;
         --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
@@ -220,6 +223,7 @@
     --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
     --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
     --ab-away: #c2410c; --ab-away-soft: rgba(234, 88, 12, .12); --ab-away-ink: #ffffff;
+    --rn-core: #4d7c0f; --rn-trial: #b45309; --rn-bench: #2563eb; --rn-pause: #64748b;
     --ver-forever: #0f8f82; --ver-tbc: #9a6c12; --ver-classic: #5b616e;
     --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;

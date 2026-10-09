@@ -49,7 +49,8 @@
         "eventLoot": "Event loot",
         "character": "Character",
         "editPost": "Edit message",
-        "planCatalog": "Raid plan catalog"
+        "planCatalog": "Raid plan catalog",
+        "allCharacters": "All characters"
     },
     "noArea": {
         "label": "No area unlocked",

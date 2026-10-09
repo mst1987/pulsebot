@@ -70,6 +70,8 @@
   "GET /api/roster",
   "GET /api/roster/char",
   "GET /api/roster/character-claims",
+  "GET /api/rosters",
+  "GET /api/rosters/roster",
   "GET /api/rosters/sync",
   "GET /api/session",
   "GET /api/session/view-as",
