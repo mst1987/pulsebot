@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { isDismissKey, isInside, type DismissTarget } from "../lib/dismiss";
+import { isDismissKey, isInside, type DismissTarget } from "../lib/ui/dismiss";
 
 export type DismissOptions = {
     /** The pointer event that counts as a click outside. Default `mousedown`; the pickers close on `click`, the raid plan on `pointerdown`. */

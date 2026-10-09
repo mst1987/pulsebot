@@ -12,16 +12,16 @@
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { KaderEntry, KaderPrefill, KaderQuestion, KaderAnswer, KaderRole, KaderState, KaderVote, KaderWish } from "../../api";
-import { classColorProps } from "../../components/ClassSpec";
-import { SortLabel, ariaSort } from "../../components/SortTh";
-import type { TableSort } from "../../lib/tableSort";
+import { classColorProps } from "../../components/character/ClassSpec";
+import { SortLabel, ariaSort } from "../../components/ui/SortTh";
+import type { TableSort } from "../../lib/ui/tableSort";
 import {
     BenchIcon, CheckIcon, CircleIcon, CrestIcon, HourglassIcon, ListChecksIcon, RosterIcon, TentativeIcon, XIcon,
-} from "../../components/icons";
+} from "../../components/ui/icons";
 import { BackButton as SharedBackButton, WowIcon } from "../../components/ui";
 import { useT } from "../../i18n";
 import { ROLE_ICON } from "../../lib/raidplan/assign";
-import { roleLabel } from "../../lib/wowNames";
+import { roleLabel } from "../../lib/wow/wowNames";
 import { classColor, classIconOf, className, dayOf, historyText, nameOf, playerName, specIconOf, specName, wishLabel } from "../../lib/kader/model";
 import { dayShort, isAnswered, isWeekdays, progress, statusOf } from "../../lib/kader/interview";
 import { toneAttrs, toneOf } from "../../lib/kader/colors";

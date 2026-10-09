@@ -30,7 +30,7 @@ Access is **per area** (one admin-menu section) and **per level** (`read` = open
 
 **Bot commands are a separate axis.** Who may run which command in Discord is not an area and not a `read`/`write` level — it hangs on Discord roles per command (`config.botCommandAccess`, Einstellungen → Berechtigungen → *Bot-Befehle*, see "Who may run a command" in docs/bot-commands.md). Full admins are admins there too; everything else is configured apart from the web areas. **One exception asks the web areas:** the guild bank's orga buttons (`commands/signup/guildBank.js`, *Erledigt* / *Ablehnen …* under a request in the orga channel) let every click through the bot gate and then require `raids` **write** via `userAccess.userMayAny` — the orga that handles requests is the orga that runs the raids in the web (docs/signups.md, „Gildenbank“).
 
-## Ansicht als Rolle (`src/web/http/viewAs.js`, `components/ViewAs.tsx`)
+## Ansicht als Rolle (`src/web/http/viewAs.js`, `components/shell/ViewAs.tsx`)
 
 A full admin can look at the whole menu **with the rights of one or more Discord roles**, like Discord's "View server as role" — to test what the permission matrix really opens up. The eye button in the top bar opens the role picker (roles of the permission server, marked *Admin* / *Rechte* / *ohne Rechte*); no role picked = only the base access. While it runs, a bar above every page names the roles and offers *Ändern* and *Beenden*.
 

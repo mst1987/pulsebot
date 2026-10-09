@@ -14,18 +14,18 @@ import {
     deleteLootItems,
     type ApiError, type CharReasonBucket, type CharReasonRow, type LootCatalogItem, type LootContent, type LootReason, type LootTier,
 } from "../../api";
-import { itemQualityProps } from "../../lib/itemQuality";
-import { contentName } from "../../lib/wowNames";
+import { itemQualityProps } from "../../lib/wow/itemQuality";
+import { contentName } from "../../lib/wow/wowNames";
 import { formatWith } from "../../lib/format";
 import { Modal, useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Expand from "../../components/ui/Expand";
 import WowIcon from "../../components/ui/WowIcon";
-import { ExternalIcon, TrashIcon } from "../../components/icons";
-import { classColorProps } from "../../components/ClassSpec";
+import { ExternalIcon, TrashIcon } from "../../components/ui/icons";
+import { classColorProps } from "../../components/character/ClassSpec";
 import { ItemIcon, ReasonBadge, StackBar, contentIcon, tallyReasons } from "../../components/loot/LootBadges";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { tParts, useT } from "../../i18n";
 
 // Newest awards shown right away; the rest behind the expand control, so a

@@ -1,7 +1,7 @@
 // Wiederkehrende Events (#289) in the client: the page's shape checked on the
 // source — one compact line per category, everything else in one modal that
 // previews the next four dates with their channel names. The rules
-// (lib/eventSeries.ts) run in Vitest (src/web-client/src/lib/eventSeries.test.ts).
+// (lib/raids/eventSeries.ts) run in Vitest (src/web-client/src/lib/raids/eventSeries.test.ts).
 const fs = require("fs");
 const path = require("path");
 
@@ -47,8 +47,8 @@ describe("the page", () => {
 
     it("is routed, crumbed and linked from the Raid-Events head", () => {
         expect(read("App.tsx")).toContain("<Route path=\"raids/series\"");
-        expect(read("components", "Shell.tsx")).toContain("if (pathname === \"/raids/series\") return tr(\"shell.crumb.series\");");
-        expect(read("pages", "RaidsPage.tsx")).toContain("to=\"/raids/series\"");
+        expect(read("components", "shell", "Shell.tsx")).toContain("if (pathname === \"/raids/series\") return tr(\"shell.crumb.series\");");
+        expect(read("pages", "raids", "RaidsPage.tsx")).toContain("to=\"/raids/series\"");
         expect(read("api", "eventSeries.ts")).toContain("\"/api/raids/series\"");
     });
 });

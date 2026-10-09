@@ -6,17 +6,17 @@ import {
     createSoftres, linkSoftres, postRaidSoftres, searchSoftresItems,
     type ApiError, type ItemSearchResult, type SoftresCatalogueGroup,
 } from "../../../api";
-import { useDraftState } from "../../../lib/persistedState";
-import { itemQualityProps } from "../../../lib/itemQuality";
-import { messageLink } from "../../../lib/discordLinks";
+import { useDraftState } from "../../../lib/ui/persistedState";
+import { itemQualityProps } from "../../../lib/wow/itemQuality";
+import { messageLink } from "../../../lib/discord/discordLinks";
 import { Modal } from "../../../components/ui/Modal";
 import { Button, IconButton } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import Segment from "../../../components/ui/Segment";
 import WowIcon from "../../../components/ui/WowIcon";
 import ItemSearchPicker from "../../../components/loot/ItemSearchPicker";
-import { ExternalIcon, XIcon } from "../../../components/icons";
-import { useToast } from "../../../components/Jobs";
+import { ExternalIcon, XIcon } from "../../../components/ui/icons";
+import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import { INSTANCE_ICONS, type RaidCtx } from "../meta";
 

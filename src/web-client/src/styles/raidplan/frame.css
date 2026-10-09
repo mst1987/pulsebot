@@ -223,7 +223,7 @@
 .rp-tform-field > .rp-kicker { min-height: 20px; justify-content: center; }
 .rp-tform-lbl { display: flex; align-items: center; gap: 6px; min-height: 20px; }
 .rp-tform-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-/* the shared instance / size pickers (RaidPlanFields, another module's classes): no own bottom margin, the section's gap
+/* the shared instance / size pickers (RaidFields, another module's classes): no own bottom margin, the section's gap
    spaces them, and their label (the first span) in the same style as the other labels here */
 .rp-tform-sec.is-picks > div { gap: 8px; margin-bottom: 0; }
 .rp-tform-sec.is-picks > div > span:first-child { font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }

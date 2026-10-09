@@ -1,15 +1,15 @@
 // The setup editor in two languages (#i18n): pages/raid-detail/setup/ and
-// lib/setupEditor.ts take every text from the "setup" namespace, never at load
+// lib/signups/setupEditor.ts take every text from the "setup" namespace, never at load
 // time (#435: the source half of the former test/web-client/i18n-setup.test.js;
 // the texts are tested in src/web-client/src/i18n/setup.test.ts).
 const { read, clientSources } = require("../clientSource");
 
 // the editor and its parts (#438), and the moves behind it
-const FILES = [...clientSources("pages/raid-detail/setup").map(([name]) => name), "lib/setupEditor.ts"];
+const FILES = [...clientSources("pages/raid-detail/setup").map(([name]) => name), "lib/signups/setupEditor.ts"];
 
 describe("setup namespace", () => {
     const editor = read("pages/raid-detail/setup");
-    const lib = read("lib/setupEditor.ts");
+    const lib = read("lib/signups/setupEditor.ts");
 
     it("moved the German literals out of the sources", () => {
         for (const text of ["Nahkampf", "Kommt später", "Pflicht-Buffs", "Trotzdem freigeben?", "Speichern fehlgeschlagen.", "Setup wird geladen", "Noch kein Setup", "Neu vorschlagen"]) {
@@ -25,7 +25,7 @@ describe("setup namespace", () => {
         expect(editor).toMatch(/import \{[^}]*\buseT\b[^}]*\} from "\.\.\/\.\.\/\.\.\/i18n";/);
         // dates go through lib/format.ts, which carries the locale (#440)
         expect(editor).toMatch(/import \{[^}]*\bformatWith\b[^}]*\} from "\.\.\/\.\.\/\.\.\/lib\/format";/);
-        expect(lib).toContain("import { t } from \"../i18n\";");
+        expect(lib).toContain("import { t } from \"../../i18n\";");
     });
 
     it("never translates at module top level", () => {

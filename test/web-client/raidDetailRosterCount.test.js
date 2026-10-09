@@ -13,7 +13,7 @@ const fs = require("fs");
 const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
-const page = fs.readFileSync(path.join(CLIENT, "pages", "RaidDetailPage.tsx"), "utf8");
+const page = fs.readFileSync(path.join(CLIENT, "pages", "raid-detail", "RaidDetailPage.tsx"), "utf8");
 
 describe("raid detail roster tab count (#479)", () => {
     it("counts an own event's roster from its signups, not the (always empty) raidplan setup", () => {

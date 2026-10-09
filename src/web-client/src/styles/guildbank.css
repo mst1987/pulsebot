@@ -1,7 +1,7 @@
 /* ── Gildenbank (pages/guildbank/*, #632) ──────────
    Built on the shared blocks (page head, tabs, segment, badge, dialog) and the
    Loot-Council's filter line (lc-filterline, lc-selbtn — loot-council.css) and
-   the loot views' item cell (hl-item, hl-ico, hl-search — historie-loot.css);
+   the loot views' item cell (hl-item, hl-ico, hl-search — history-loot.css);
    what is here is only the list itself: one row per item, grouped by
    category, the columns shared by every row as a subgrid like the council list.
    Tokens only. */

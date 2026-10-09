@@ -11,7 +11,7 @@
 import type { ReactNode, CSSProperties } from "react";
 import type { RosterStats } from "../../api";
 import { IconTile, type TileTone } from "../../components/ui";
-import { attendanceTone, share } from "../../lib/rosterView";
+import { attendanceTone, share } from "../../lib/roster/rosterView";
 import { useT } from "../../i18n";
 
 type KpiTone = "accent" | "ok" | "mid" | "warn" | "none";

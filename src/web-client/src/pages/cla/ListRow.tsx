@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import type { ClaRow, ClaRaid, LogSection } from "../../api";
 import { formatEventTime } from "../../lib/format";
-import { raidCount, raidIcon, raidTip } from "../../lib/logRaids";
-import { CheckIcon, ExternalIcon, TrashIcon } from "../../components/icons";
+import { raidCount, raidIcon, raidTip } from "../../lib/raids/logRaids";
+import { CheckIcon, ExternalIcon, TrashIcon } from "../../components/ui/icons";
 import { Button, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";

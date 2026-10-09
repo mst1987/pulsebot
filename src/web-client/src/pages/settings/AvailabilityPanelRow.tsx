@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { postAvailabilityPanel, removeAvailabilityPanel, saveAvailabilityLinks, type ApiError, type AvailabilityLink, type AvailabilityPanel } from "../../api";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { Button, IconButton, buttonClass } from "../../components/ui/Button";
 import { useConfirm } from "../../components/ui/Modal";
 import CategoryField from "./CategoryField";
-import { ExternalIcon, PlusIcon, SendIcon, TrashIcon } from "../../components/icons";
+import { ExternalIcon, PlusIcon, SendIcon, TrashIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
 import { useT } from "../../i18n";
 

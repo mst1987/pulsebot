@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import type { Application, RecruitmentData } from "../../api";
-import { specsInContent, specEmojiUrl } from "../../lib/recruitmentSpecs";
+import { specsInContent, specEmojiUrl } from "../../lib/discord/recruitmentSpecs";
 import { SpecImg } from "./SpecPicker";
-import { CheckIcon } from "../../components/icons";
+import { CheckIcon } from "../../components/ui/icons";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";
 import { useT } from "../../i18n";

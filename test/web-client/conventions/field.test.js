@@ -2,7 +2,9 @@
 // hint and an error line — one building block instead of each module wiring
 // FieldLabel by hand. The wrappers keep their module's class (field, set-field,
 // dlg-field, …); what is inside looks the same everywhere.
-const { read } = require("../clientSource");
+const fs = require("fs");
+const path = require("path");
+const { read, sourceFiles } = require("../clientSource");
 
 const field = read("components/ui/Field.tsx");
 const settingsUi = read("components/settings/settingsUi.tsx");
@@ -24,6 +26,14 @@ describe("ui/Field", () => {
         expect(field).toMatch(/export function InfoTip\(/);
         expect(settingsUi).not.toMatch(/function (FieldLabel|InfoTip)\(/);
         expect(read("components/ui/index.ts")).toContain("export { default as Field, FieldLabel, InfoTip } from \"./Field\";");
+    });
+
+    it("is the only FieldLabel: the raid fields' label with the tooltip on its text is TipLabel", () => {
+        const others = sourceFiles()
+            .filter((file) => !file.endsWith(path.join("components", "ui", "Field.tsx")))
+            .filter((file) => /function FieldLabel\(/.test(fs.readFileSync(file, "utf8")));
+        expect(others).toEqual([]);
+        expect(read("components/raid/RaidFields.tsx")).toMatch(/export function TipLabel\(/);
     });
 
     it("its styles are shared ones (index.css), not the settings page's", () => {

@@ -1,5 +1,5 @@
 import type { GearItem } from "../../api";
-import { wowheadItemUrl, LEGACY_WOWHEAD_PATH } from "../../lib/wowheadItems";
+import { wowheadItemUrl, LEGACY_WOWHEAD_PATH } from "../../lib/wow/wowheadItems";
 import { t } from "../../i18n";
 
 // Character-sheet order in two columns, weapons underneath. Shirt and tabard

@@ -54,7 +54,7 @@ export type LootItem = {
     itemName: string;
     itemIconUrl?: string;
     /** Wowhead's 0-7 quality scale, resolved at import time; null/absent when
-     *  the lookup never came back — see lib/itemQuality.ts. */
+     *  the lookup never came back — see lib/wow/itemQuality.ts. */
     itemQuality?: number | null;
     itemLink: string;
     character: string;
@@ -82,7 +82,7 @@ export type LootItem = {
 
 // A loot character with its resolved WoW class/spec (or blank if unresolved
 // yet). classColor/iconUrl are computed server-side from config/classlist.js
-// — never duplicated client-side, same rule as lib/recruitmentSpecs.ts's
+// — never duplicated client-side, same rule as lib/discord/recruitmentSpecs.ts's
 // specCatalog. categoryIds are the Discord raid categories (e.g. "Montagsraid",
 // "Pug") the character got loot in — names are resolved client-side against
 // HistoryData.categories, same live Discord list the "Loot-Tool je Kategorie"

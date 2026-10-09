@@ -1,7 +1,7 @@
 // The Kaderplaner without any Kader yet: the flow from Discord to the roster in
 // six steps and the four rules behind it, and the button for the first Kader.
 import { Button, IconTile } from "../../components/ui";
-import { ChevronRightIcon, PlusIcon, RecruitmentIcon, SheetIcon } from "../../components/icons";
+import { ChevronRightIcon, PlusIcon, RecruitmentIcon, SheetIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 import { StateIcon } from "./parts";
 

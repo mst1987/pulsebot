@@ -1,10 +1,10 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { getRaiderCharacters, type Category, type Role } from "../../api";
-import { usePersistedState } from "../../lib/persistedState";
+import { usePersistedState } from "../../lib/ui/persistedState";
 import {
     categoryRows, splitCategoryRows, summarizeRaiderChars, signupNoteMode, planningOf,
     type CategoryRow, type RaiderCharSummary,
-} from "../../lib/settingsLogic";
+} from "../../lib/settings/settingsLogic";
 import { tParts, useT } from "../../i18n";
 import Badge from "../../components/ui/Badge";
 import Expand from "../../components/ui/Expand";
@@ -12,7 +12,7 @@ import PartHead from "../../components/ui/PartHead";
 import Segment from "../../components/ui/Segment";
 import RaiderCharactersModal from "./RaiderCharactersModal";
 import CategoryDetail, { type CategorySettings, type CategoryTab } from "./CategoryDetail";
-import { WarnIcon } from "../../components/settings/settingsUi";
+import { WarnIcon } from "../../components/ui/icons";
 
 // Everything that is configured *per raid category*, as one list instead of a
 // card per Discord category: active switch, raider roles, where new events are

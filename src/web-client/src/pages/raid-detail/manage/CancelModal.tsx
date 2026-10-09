@@ -7,9 +7,9 @@ import { useApi } from "../../../hooks/useApi";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import { SwitchRow } from "../../../components/RaidPlanFields";
-import { useToast } from "../../../components/Jobs";
-import { cancelReasonOk, cancelSummary } from "../../../lib/eventManage";
+import { SwitchRow } from "../../../components/raid/RaidFields";
+import { useToast } from "../../../components/shell/Jobs";
+import { cancelReasonOk, cancelSummary } from "../../../lib/raids/eventManage";
 import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 

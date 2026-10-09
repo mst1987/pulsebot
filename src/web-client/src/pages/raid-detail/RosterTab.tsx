@@ -6,14 +6,14 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { AttendancePerson, EventSignupEntry, GameRole, SetupPlayer, SetupRole, SignupStatus } from "../../api";
-import { wowIconUrl } from "../../lib/wowIcon";
-import { CAN_ALSO } from "../../lib/signups";
+import { wowIconUrl } from "../../lib/wow/wowIcon";
+import { CAN_ALSO } from "../../lib/signups/status";
 import { Button, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import Expand from "../../components/ui/Expand";
 import WowIcon from "../../components/ui/WowIcon";
-import { classColorProps } from "../../components/ClassSpec";
+import { classColorProps } from "../../components/character/ClassSpec";
 import {
     ROLE_META, ROLE_ORDER, SIGNUP_META, SIGNUP_ORDER, byLabel, personLabel, personRef, slotRef,
     type RaidCtx,

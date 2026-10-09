@@ -1,8 +1,8 @@
 import type { CSSProperties } from "react";
 import type { AbsenceIdentity } from "../../api";
-import { classColorProps } from "../../components/ClassSpec";
-import { wowIconUrl } from "../../lib/wowIcon";
-import { displayName } from "../../lib/absences";
+import { classColorProps } from "../../components/character/ClassSpec";
+import { wowIconUrl } from "../../lib/wow/wowIcon";
+import { displayName } from "../../lib/roster/absences";
 
 // Small pieces the three views of Roster › Abwesenheiten share: the spec icon on
 // a tile tinted in the class colour (like the setup editor's SpecTile, its

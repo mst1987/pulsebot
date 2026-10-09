@@ -8,9 +8,9 @@
 // (utils/lootReasons.js); this file only lays them out.
 import { useMemo, useState, type ReactNode } from "react";
 import type { CharReasonRow, LootContent, LootReason, Category } from "../../api";
-import { usePersistedState } from "../../lib/persistedState";
-import { sortRows, type Dir } from "../../lib/tableSort";
-import { SortLabel, ariaSort } from "../../components/SortTh";
+import { usePersistedState } from "../../lib/ui/persistedState";
+import { sortRows, type Dir } from "../../lib/ui/tableSort";
+import { SortLabel, ariaSort } from "../../components/ui/SortTh";
 import Bar from "../../components/ui/Bar";
 import { ReasonBadge, ReasonBadgeButton, RaiderBadge, StackBar } from "../../components/loot/LootBadges";
 import { ActiveFilters, ListCount, SearchBox, type ActiveFilter } from "../../components/loot/LootFilters";

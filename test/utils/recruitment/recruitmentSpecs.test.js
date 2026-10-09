@@ -177,7 +177,7 @@ describe("utils/recruitment/recruitmentSpecs", () => {
         });
 
         it("has a client twin with the same name", () => {
-            const twin = fs.readFileSync(path.join(__dirname, "..", "..", "..", "src", "web-client", "src", "lib", "recruitmentSpecs.ts"), "utf8");
+            const twin = fs.readFileSync(path.join(__dirname, "..", "..", "..", "src", "web-client", "src", "lib", "discord", "recruitmentSpecs.ts"), "utf8");
             expect(twin).toContain("export function specsInContent(");
             expect(twin).toContain(".filter((e) => e.spec)");
         });

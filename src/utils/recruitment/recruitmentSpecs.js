@@ -124,7 +124,7 @@ function removeSpecLine(body, lineIndex) {
  * `{ name, iconName, iconId }` per line that resolves to a known spec. Headings
  * next to the block that are no spec ("## Raidzeiten") are left out. Feeds the
  * "Gesucht" column of the recruitment lists — the client twin lives in
- * src/web-client/src/lib/recruitmentSpecs.ts.
+ * src/web-client/src/lib/discord/recruitmentSpecs.ts.
  */
 function specsInContent(body) {
     return parseWantedBlock(body).entries

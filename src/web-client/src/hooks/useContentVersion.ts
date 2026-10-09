@@ -2,10 +2,10 @@ import { createContext, useContext } from "react";
 import type { ContentVersionRef } from "../api/session";
 
 // The one global game version of the web admin (#563): the shell holds it
-// (components/ContentVersionProvider.tsx), the top bar switches it
-// (components/ContentSwitch.tsx), every page that lists content reads it here
+// (components/shell/ContentVersionProvider.tsx), the top bar switches it
+// (components/shell/ContentSwitch.tsx), every page that lists content reads it here
 // and asks the server with `?version=` — instead of a version filter of its
-// own (#545). Rules in lib/contentVersion.ts.
+// own (#545). Rules in lib/app/contentVersion.ts.
 
 export type ContentVersionState = {
     /** The version shown now — "" only without session content (the server then picks the main version). */

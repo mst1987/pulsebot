@@ -2,14 +2,14 @@
 // (src/web/events/raidDetailSteps.js' eventSteps): the route in the server's order,
 // the open step marked with the one loud button, every other step quiet, the
 // one-line summary a phone falls back to, and no native title or glyph icons.
-// The words behind it run in lib/raidSteps.test.ts; the wiring into the page
+// The words behind it run in lib/raids/raidSteps.test.ts; the wiring into the page
 // in RaidDetailPage.steps.test.tsx.
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { RaidEventSteps } from "../../api";
 import { t } from "../../i18n";
-import { deedLabel, stepFocus, stepShort, stepStateLabel, stepSummary, stepTitle } from "../../lib/raidSteps";
+import { deedLabel, stepFocus, stepShort, stepStateLabel, stepSummary, stepTitle } from "../../lib/raids/raidSteps";
 import { requireBackend } from "../../test/backend";
 import { eventStep, ownSteps } from "../../test/fixtures/raidDetail";
 import StepBar from "./StepBar";

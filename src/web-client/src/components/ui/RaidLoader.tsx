@@ -1,9 +1,9 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import WowIcon from "./WowIcon";
-import { classIconName } from "../../lib/rosterView";
-import { classLabel } from "../../lib/wowNames";
+import { classIconName } from "../../lib/roster/rosterView";
+import { classLabel } from "../../lib/wow/wowNames";
 import { t } from "../../i18n";
-import { RAID_CONTENTS } from "../../lib/raidIcons";
+import { RAID_CONTENTS } from "../../lib/wow/raidIcons";
 
 // The one loading state of the menu: four classes going at a TBC raid boss.
 // "Lade…" in grey said nothing and looked like a dead page; this says the same
@@ -32,7 +32,7 @@ const CLASSES = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "M
 const PARTY_SIZE = 4;
 
 // One end boss per raid, with the icon the rest of the menu already uses for
-// that raid (lib/raidIcons.ts — those names are checked against the CDN).
+// that raid (lib/wow/raidIcons.ts — those names are checked against the CDN).
 const BOSSES: { key: string; label: string }[] = [
     { key: "kara", label: "Malchezaar" },
     { key: "gruul", label: "Gruul" },

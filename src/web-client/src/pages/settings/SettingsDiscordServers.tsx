@@ -4,9 +4,9 @@ import {
     type AdminConfig, type ApiError, type DiscordServerCard, type DiscordServersData,
     type EventGuildEntry, type TalkOverviewStatus, type TextChannel,
 } from "../../api";
-import { discordServersPatch, overlapBadge, serverCardState, type ServerFields } from "../../lib/settingsLogic";
-import { useToast } from "../../components/Jobs";
-import { PlusIcon, TrashIcon } from "../../components/icons";
+import { discordServersPatch, overlapBadge, serverCardState, type ServerFields } from "../../lib/settings/settingsLogic";
+import { useToast } from "../../components/shell/Jobs";
+import { CheckMark, PenIcon, PlusIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
 import RoleSyncPart from "./SettingsRoleSync";
 import RemindersPart from "./SettingsReminders";
 import TalkOverviewRow from "./SettingsTalkOverview";
@@ -16,7 +16,7 @@ import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import PartHead from "../../components/ui/PartHead";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { AdminOnlyBadge, ChannelPicker, CheckMark, PenIcon, WarnIcon } from "../../components/settings/settingsUi";
+import { AdminOnlyBadge, ChannelPicker } from "../../components/settings/settingsUi";
 import { FieldLabel } from "../../components/ui/Field";
 import { t as translate, useT } from "../../i18n";
 

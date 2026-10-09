@@ -2,7 +2,7 @@
 // search, one tab per section and the emojis as a grid; the footer names the
 // emoji under the pointer or the focus. Sections the caller passes (the raid's
 // suggestions, what the category uses) come first, then "zuletzt benutzt",
-// then Unicode's groups. The emoji data (lib/emoji.ts) is downloaded when the
+// then Unicode's groups. The emoji data (lib/discord/emoji.ts) is downloaded when the
 // panel opens for the first time, never with the page.
 //
 // Keyboard: the search has the focus when it opens, ArrowDown moves into the
@@ -10,8 +10,8 @@
 // Escape closes and the focus returns to the button.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useLang, useT } from "../../i18n";
-import { EMOJI_GROUPS, emojiKey, loadEmojis, readRecentEmojis, rememberEmoji, searchEmojis, type Emoji } from "../../lib/emoji";
-import { panelPlacement } from "../../lib/popoverPosition";
+import { EMOJI_GROUPS, emojiKey, loadEmojis, readRecentEmojis, rememberEmoji, searchEmojis, type Emoji } from "../../lib/discord/emoji";
+import { panelPlacement } from "../../lib/ui/popoverPosition";
 import Popover from "./Popover";
 
 /** A row of emojis the caller puts on top ("Passt zu Zul'Aman"). */

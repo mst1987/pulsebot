@@ -8,7 +8,7 @@
 //   * one tooltip layer for the whole menu,
 //   * the blocks' CSS (own .itile, no gold, the popover's centring undone).
 // How the blocks behave is tested in Vitest next to them
-// (components/ui/*.test.tsx, lib/confirmIncomplete.test.ts).
+// (components/ui/*.test.tsx, lib/raids/confirmIncomplete.test.ts).
 const fs = require("fs");
 const path = require("path");
 const { CLIENT, read } = require("../clientSource");
@@ -68,24 +68,24 @@ describe("building blocks", () => {
     });
 
     it("draws the shell's controls with the shared blocks", () => {
-        const shell = read("components/Shell.tsx");
+        const shell = read("components/shell/Shell.tsx");
         expect(shell).toContain("<TipLayer />");
         expect(shell).toContain("<IconButton className=\"menu-toggle\"");
-        expect(read("components/ThemeToggle.tsx")).toContain("<IconButton");
-        expect(read("components/Pager.tsx")).toMatch(/<IconButton size="sm" icon=\{<ChevronLeftIcon \/>\}/);
-        const guild = read("components/GuildSwitcher.tsx");
+        expect(read("components/shell/ThemeToggle.tsx")).toContain("<IconButton");
+        expect(read("components/ui/Pager.tsx")).toMatch(/<IconButton size="sm" icon=\{<ChevronLeftIcon \/>\}/);
+        const guild = read("components/shell/GuildSwitcher.tsx");
         expect(guild).toContain("const GUILD_ICON = \"inv_misc_tabardpvp_01\";");
         expect(guild).not.toContain("← bitte zuerst einen Server wählen");
         expect(guild).toMatch(/<Badge tone="mid"[^>]*>\s*\{t\("shell.guild.notChosen"\)\}/);
     });
 
     it("swaps the glyphs of pager, sort header and toast for icons", () => {
-        expect(read("components/Pager.tsx")).not.toMatch(/‹ Zurück|Weiter ›/);
-        const sort = read("components/SortTh.tsx");
+        expect(read("components/ui/Pager.tsx")).not.toMatch(/‹ Zurück|Weiter ›/);
+        const sort = read("components/ui/SortTh.tsx");
         expect(sort).not.toMatch(/▲|▼/);
         expect(sort).toContain("<ChevronDownIcon />");
         expect(sort).toMatch(/\n\s+tip\?: string;/);
-        const jobs = read("components/Jobs.tsx");
+        const jobs = read("components/shell/Jobs.tsx");
         expect(jobs).not.toMatch(/"✓"|"!"|&times;/);
         expect(jobs).toMatch(/icon\?: string;/);
         expect(jobs).toContain("<WowIcon name={job.icon} size={32} />");
@@ -165,7 +165,7 @@ describe("tooltips and modal dialogs", () => {
         const sources = Object.fromEntries(clientSources());
         // the one other layer: the public plan page (/p/<token>) renders without the menu shell (App.tsx answers it before the session),
         // so it mounts the same TipLayer itself (#503) - still one layer per page
-        const shells = ["components/Shell.tsx", "components/ui/Tip.tsx", "pages/PlanPublicPage.tsx"];
+        const shells = ["components/shell/Shell.tsx", "components/ui/Tip.tsx", "pages/raidplan/PlanPublicPage.tsx"];
         const layers = Object.entries(sources)
             .filter(([name, src]) => shells.indexOf(name) < 0 && /<TipLayer\s*\/>/.test(src))
             .map(([name]) => name);

@@ -1,6 +1,6 @@
 // Einstellungen → Berechtigungen → Bot-Befehle (issue #252): the view in
 // pages/settings/BotCommandAccess.tsx, checked on its source. The rules in
-// lib/botCommandAccess.ts run in Vitest (src/web-client/src/lib/botCommandAccess.test.ts).
+// lib/settings/botCommandAccess.ts run in Vitest (src/web-client/src/lib/settings/botCommandAccess.test.ts).
 const fs = require("fs");
 const path = require("path");
 

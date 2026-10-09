@@ -1,6 +1,6 @@
 import { get, send } from "./client";
 import { setCsrfToken } from "./csrf";
-import type { DeployVersion } from "../lib/deployVersion";
+import type { DeployVersion } from "../lib/app/deployVersion";
 
 // One admin-menu section a role can be given access to (src/config/permissions.js).
 export type Area = { id: string; tab: string; label: string; description: string };

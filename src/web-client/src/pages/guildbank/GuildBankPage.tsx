@@ -17,15 +17,15 @@ import {
     canAccess, getGuildBank, setGuildBankItem, setGuildBankTabHidden,
     type ApiError, type GuildBankItem, type GuildBankItemPatch, type GuildBankPageData, type GuildBankStatus, type GuildBankTab,
 } from "../../api";
-import type { ShellContext } from "../../components/Shell";
+import type { ShellContext } from "../../components/shell/Shell";
 import { Badge, Button, PageHead, RaidLoader, WowIcon, buttonClass } from "../../components/ui";
-import { RowsIcon } from "../../components/icons";
-import { useToast } from "../../components/Jobs";
+import { RowsIcon } from "../../components/ui/icons";
+import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
-import { usePersistedState } from "../../lib/persistedState";
+import { usePersistedState } from "../../lib/ui/persistedState";
 import { formatDateTime, formatMoney } from "../../lib/format";
-import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
+import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { tParts, useT } from "../../i18n";
 import { BANK_TABS, REQUESTS_ICON, groupItems, groupNames, tabCounts } from "./bankView";
 import BankFilterLine from "./BankFilterLine";
@@ -34,7 +34,7 @@ import ItemSettingsDialog from "./ItemSettingsDialog";
 import BankTabsDialog from "./BankTabsDialog";
 import RequestsDialog from "./RequestsDialog";
 import "../../styles/loot-council.css";
-import "../../styles/historie-loot.css";
+import "../../styles/history-loot.css";
 import "../../styles/guildbank.css";
 
 const BANK_ICON = "achievement_guildperk_mobilebanking";

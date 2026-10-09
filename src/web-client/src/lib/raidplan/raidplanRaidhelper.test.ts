@@ -2,7 +2,7 @@
 // activation dialog's start values, the head line of the plan and how a Raid-Helper name reads - the libs run for real, the pages
 // checked on their source.
 import { describe, expect, it } from "vitest";
-import * as manage from "../eventManage";
+import * as manage from "../raids/eventManage";
 import * as plan from ".";
 
 describe("the menu of a Raid-Helper event", () => {

@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import * as api from "../../api";
 import type { RaidplanPlayer, RaidplanPublic, RaidplanPublicBoss, RaidplanZone } from "../../api";
 import PlanBoard from "./PlanBoard";
-import PlanPublicPage from "../../pages/PlanPublicPage";
+import PlanPublicPage from "../../pages/raidplan/PlanPublicPage";
 
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),

@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 
 describe("structure and texts", () => {
-    const dir = path.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan");
+    const dir = path.join(__dirname, "../../../src/web-client/src/components/raidplan/editor");
     const modal = fs.readFileSync(path.join(dir, "AssignModal.tsx"), "utf8");
     const line = fs.readFileSync(path.join(dir, "AssignLine.tsx"), "utf8");
     const panel = fs.readFileSync(path.join(dir, "AssignPanel.tsx"), "utf8");

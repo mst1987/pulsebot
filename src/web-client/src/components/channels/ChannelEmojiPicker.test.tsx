@@ -5,8 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import ChannelEmojiPicker from "./ChannelEmojiPicker";
 
 // a few real emojis instead of the whole grid (test/emoji.ts)
-vi.mock("../../lib/emoji", async (importOriginal) => {
-    const real = await importOriginal<typeof import("../../lib/emoji")>();
+vi.mock("../../lib/discord/emoji", async (importOriginal) => {
+    const real = await importOriginal<typeof import("../../lib/discord/emoji")>();
     const { fewEmojis } = await import("../../test/emoji");
     return { ...real, loadEmojis: (lang: string) => real.loadEmojis(lang).then(fewEmojis) };
 });

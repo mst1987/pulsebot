@@ -1,7 +1,7 @@
-// ui/DataTable (#439): sortable headers through SortTh + lib/tableSort, an
+// ui/DataTable (#439): sortable headers through SortTh + lib/ui/tableSort, an
 // empty state instead of a headless table, and a Pager for client-side pages.
-// The paging is pure (lib/dataTable.ts) and runs in Vitest
-// (src/web-client/src/lib/dataTable.test.ts); the component and its first
+// The paging is pure (lib/ui/dataTable.ts) and runs in Vitest
+// (src/web-client/src/lib/ui/dataTable.test.ts); the component and its first
 // user (the Recruitment templates) are checked by source here.
 const { read } = require("../clientSource");
 

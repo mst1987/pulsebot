@@ -1,4 +1,4 @@
-// The menu is always there (App.tsx + components/Shell.tsx; #435: formerly
+// The menu is always there (App.tsx + components/shell/Shell.tsx; #435: formerly
 // source scans in test/web-client/menuAccess.test.js):
 //   * only a visitor who is not logged in gets no shell,
 //   * a logged-in account with nothing granted still gets the sidebar with its
@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "./api";
 import type { SessionUser } from "./api";
 import { t } from "./i18n";
-import { MENU, firstAllowedTab } from "./lib/menu";
+import { MENU, firstAllowedTab } from "./lib/app/menu";
 import App from "./App";
 
 vi.mock("./api", async (orig) => ({

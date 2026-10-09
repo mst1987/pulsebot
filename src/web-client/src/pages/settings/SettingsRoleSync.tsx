@@ -3,10 +3,10 @@ import {
     getRoleSync, updateSettings,
     type AdminConfig, type ApiError, type RoleSyncData, type RoleSyncRule,
 } from "../../api";
-import { DIRECTION_LABEL, directionText, driftBadge, roleSyncPatch, withRoleRule, type RoleSyncDirection } from "../../lib/settingsLogic";
+import { DIRECTION_LABEL, directionText, driftBadge, roleSyncPatch, withRoleRule, type RoleSyncDirection } from "../../lib/settings/settingsLogic";
 import { tParts, t as translate, useT } from "../../i18n";
-import { useToast } from "../../components/Jobs";
-import { PlusIcon, TrashIcon } from "../../components/icons";
+import { useToast } from "../../components/shell/Jobs";
+import { PenIcon, PlusIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
 import { Modal, useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
@@ -14,7 +14,7 @@ import Expand from "../../components/ui/Expand";
 import PartHead from "../../components/ui/PartHead";
 import RaidLoader from "../../components/ui/RaidLoader";
 import Segment from "../../components/ui/Segment";
-import { AdminOnlyBadge, PenIcon, RolePicker, WarnIcon } from "../../components/settings/settingsUi";
+import { AdminOnlyBadge, RolePicker } from "../../components/settings/settingsUi";
 import { FieldLabel } from "../../components/ui/Field";
 
 // Einstellungen → Verbindungen → Discord-Server, part "Rollen-Abgleich" (#264).

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import WowIcon from "./WowIcon";
-import { XIcon } from "../icons";
+import { XIcon } from "./icons";
 
 // A badge instead of a half-sentence: one word or number, optionally an icon,
 // and a tone. `count` makes it the round counter form, `size="sm"` the compact

@@ -1,5 +1,5 @@
 import { useState, type DragEvent } from "react";
-import type { SetupTarget } from "../../../lib/setupEditor";
+import type { SetupTarget } from "../../../lib/signups/setupEditor";
 import type { Interaction } from "./Board";
 
 /** A drop zone: a group card, the bench or "Angemeldet". Click/Enter moves the picked raider here. */

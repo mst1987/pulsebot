@@ -27,7 +27,7 @@ const FALLBACK_ICON = "inv_misc_questionmark";
  * suffix ("achievement_boss_archimonde-"), so nothing is trimmed off the end.
  * Up to 18 px the medium (36 px) image is plenty, above it the large one.
  *
- * src/web-client/src/lib/wowIcon.ts is the client's twin of this function;
+ * src/web-client/src/lib/wow/wowIcon.ts is the client's twin of this function;
  * test/web-client/uiFoundation.test.js keeps the two in step.
  */
 function wowIconUrl(name, size = 56) {

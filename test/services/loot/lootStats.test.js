@@ -146,7 +146,7 @@ describe("services/loot/lootStats", () => {
             expect(itemCatalog()[0].itemName).toBe("Serpent Spine Longbow");
         });
 
-        // The quality colours the item name in every table (lib/itemQuality.ts).
+        // The quality colours the item name in every table (lib/wow/itemQuality.ts).
         it("carries the item quality and takes it from whichever row has one", () => {
             addImport("ev1", [item({ source: "gargul", rawId: "g1", awardedAt: 500 })], {});
             addImport("ev2", [item({ rawId: "r2", itemQuality: 4, awardedAt: 900 })], {});

@@ -1,11 +1,11 @@
 // The menu's deploy line (#314): a scan that the Shell keeps it to one quiet
-// line with the details in its tooltip. lib/deployVersion.ts itself runs in
-// Vitest (src/web-client/src/lib/deployVersion.test.ts).
+// line with the details in its tooltip. lib/app/deployVersion.ts itself runs in
+// Vitest (src/web-client/src/lib/app/deployVersion.test.ts).
 
 const { read } = require("../clientSource"); // inlines the @imports of index.css (#441)
 
 describe("the menu's version line", () => {
-    const shell = read("components", "Shell.tsx");
+    const shell = read("components", "shell", "Shell.tsx");
 
     it("sits in the sidebar as one line with the details in its tooltip", () => {
         expect(shell).toContain("side-version");
@@ -32,7 +32,7 @@ describe("the menu's version line", () => {
     });
 
     it("lets the dashboard task open an address outside the menu", () => {
-        const page = read("pages", "DashboardPage.tsx");
+        const page = read("pages", "dashboard", "DashboardPage.tsx");
         expect(page).toContain("https?:\\/\\/");
         expect(page).toContain("target=\"_blank\"");
     });

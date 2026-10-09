@@ -5,9 +5,9 @@ const path = require("path");
 const md = require("./support/discordMarkdown");
 
 const { parseInline, parseDiscordMarkdown } = md;
-const TWIN = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web-client", "src", "lib", "discordMarkdown.ts"), "utf8");
+const TWIN = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web-client", "src", "lib", "discord", "discordMarkdown.ts"), "utf8");
 
-describe("web-client lib/discordMarkdown (JS twin)", () => {
+describe("web-client lib/discord/discordMarkdown (JS twin)", () => {
     describe("parseInline", () => {
         it("keeps plain text as one token", () => {
             expect(parseInline("Raidtage: Mi + So")).toEqual([{ type: "text", text: "Raidtage: Mi + So" }]);

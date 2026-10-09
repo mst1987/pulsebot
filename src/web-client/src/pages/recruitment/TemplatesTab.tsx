@@ -1,9 +1,9 @@
 import { deleteRecruitmentTemplate, type ApiError, type RecruitmentData, type RecruitmentTemplate } from "../../api";
-import type { CollectionEditor } from "../../lib/collectionEditor";
-import { useTableSort, type Dir } from "../../lib/tableSort";
-import { specsInContent } from "../../lib/recruitmentSpecs";
-import { TrashIcon } from "../../components/icons";
-import { useToast } from "../../components/Jobs";
+import type { CollectionEditor } from "../../lib/ui/collectionEditor";
+import { useTableSort, type Dir } from "../../lib/ui/tableSort";
+import { specsInContent } from "../../lib/discord/recruitmentSpecs";
+import { TrashIcon } from "../../components/ui/icons";
+import { useToast } from "../../components/shell/Jobs";
 import { useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
@@ -12,7 +12,7 @@ import { PartHead } from "../../components/ui/PartHead";
 import { useT } from "../../i18n";
 import { ICONS } from "./shared";
 import { VersionTag, WantedIcons } from "./RecruitmentBits";
-import { EditIcon } from "../../components/icons";
+import { EditIcon } from "../../components/ui/icons";
 
 type TemplateSortKey = "name" | "wanted" | "button" | "posted";
 

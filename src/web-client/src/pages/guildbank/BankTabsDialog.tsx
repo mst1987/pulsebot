@@ -3,7 +3,7 @@
 // storage tab does not have to be sorted item by item. A switch saves at once.
 import type { GuildBankItem, GuildBankTab } from "../../api";
 import { Button, Modal, Switch } from "../../components/ui";
-import { RowsIcon } from "../../components/icons";
+import { RowsIcon } from "../../components/ui/icons";
 import { tParts, useT } from "../../i18n";
 import { itemsInTab } from "./bankView";
 

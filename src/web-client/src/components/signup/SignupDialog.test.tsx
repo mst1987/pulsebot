@@ -1,14 +1,14 @@
 // The signup dialog (#256/#293/#306/#320) as the raider uses it: rendered with
 // a mocked saveSignup, every check is about what the dialog offers and which
-// signup a click sends. The pure pick rules are in lib/signupsPage.test.ts.
+// signup a click sends. The pure pick rules are in lib/signups/signupPicks.page.test.ts.
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { OwnSignupRow } from "../../api";
 import { t } from "../../i18n";
-import { CAN_ALSO, GEAR_LABEL, SIGNUP_STATUS } from "../../lib/signups";
-import { specLabel } from "../../lib/wowNames";
+import { CAN_ALSO, GEAR_LABEL, SIGNUP_STATUS } from "../../lib/signups/status";
+import { specLabel } from "../../lib/wow/wowNames";
 import { requireBackend } from "../../test/backend";
 import { switchLang } from "../../test/i18n";
 import { renderPage } from "../../test/render";

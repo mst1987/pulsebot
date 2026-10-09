@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "r
 import type { Access, Area, Role, RolePermissions } from "../../api";
 import {
     areaCounts, areaDescription, areaLabel, isDiscordId, levelLabel, levelOf, nextLevel, withLevel, type Grants, type Level,
-} from "../../lib/settingsLogic";
+} from "../../lib/settings/settingsLogic";
 import { t as translate, useT } from "../../i18n";
 import { Button, IconButton } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
@@ -10,8 +10,7 @@ import Badge from "../../components/ui/Badge";
 import Segment from "../../components/ui/Segment";
 import PartHead from "../../components/ui/PartHead";
 import WowIcon from "../../components/ui/WowIcon";
-import { EyeIcon, LockIcon, PlusIcon, TrashIcon, XIcon } from "../../components/icons";
-import { PenIcon } from "../../components/settings/settingsUi";
+import { EyeIcon, LockIcon, PenIcon, PlusIcon, TrashIcon, XIcon } from "../../components/ui/icons";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import { useDismiss } from "../../hooks/useDismiss";
 

@@ -1,6 +1,6 @@
 // The client's API, one file per area (docs/web-admin.md). Everything is
 // re-exported here so a page imports from "../api" as before; the access
-// helpers live in lib/access.ts and stay reachable here for the transition.
+// helpers live in lib/app/access.ts and stay reachable here for the transition.
 export * from "./client";
 export * from "./csrf";
 export * from "./session";
@@ -29,4 +29,4 @@ export * from "./availability";
 export * from "./setup";
 export * from "./raidplan";
 export * from "./kader";
-export { canAccess, canAccessAny } from "../lib/access";
+export { canAccess, canAccessAny } from "../lib/app/access";

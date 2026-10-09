@@ -1,12 +1,12 @@
 // The emoji button beside a channel name or naming schema: picking an emoji
 // puts it at the start of the name — replacing the emoji that stood there, with
-// the separator the category's channels use (lib/emoji.ts setLeadEmoji). The
-// first rows suggest what suits the raid (lib/raidEmojis.ts) and what the
+// the separator the category's channels use (lib/discord/emoji.ts setLeadEmoji). The
+// first rows suggest what suits the raid (lib/raids/raidEmojis.ts) and what the
 // category's channels carry already.
 import { useMemo } from "react";
 import { useT } from "../../i18n";
-import { emojiStyleOf, leadEmojiOf, setLeadEmoji } from "../../lib/emoji";
-import { raidEmojiSuggestions } from "../../lib/raidEmojis";
+import { emojiStyleOf, leadEmojiOf, setLeadEmoji } from "../../lib/discord/emoji";
+import { raidEmojiSuggestions } from "../../lib/raids/raidEmojis";
 import EmojiPicker, { type EmojiSection } from "../ui/EmojiPicker";
 
 export default function ChannelEmojiPicker({ value, onChange, channelNames = [], instanceIds = [], raidLabel = "", host = "dialog", disabled = false }: {

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { searchRaiders, type GameClass, type ProfileData, type RaiderProfile, type RaiderRef } from "../../api";
 import { Expand, IconButton, Segment, WowIcon } from "../../components/ui";
-import { classColorProps } from "../../components/ClassSpec";
-import { XIcon, SearchIcon } from "../../components/icons";
-import { instanceName } from "../../lib/wowNames";
+import { classColorProps } from "../../components/character/ClassSpec";
+import { XIcon, SearchIcon } from "../../components/ui/icons";
+import { instanceName } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 
 // "Mein Profil" (#255): the raider's own page. Deliberately calm — the

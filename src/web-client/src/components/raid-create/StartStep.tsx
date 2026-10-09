@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
 import type { RaidCreateContext, RaidTemplate } from "../../api";
 import { useT } from "../../i18n";
-import { instancesOf } from "../../lib/raidTemplates";
+import { instancesOf } from "../../lib/raids/raidTemplates";
 import Badge from "../ui/Badge";
 import Segment from "../ui/Segment";
 import WowIcon from "../ui/WowIcon";
-import RaidIcon from "../RaidIcon";
+import RaidIcon from "../raid/RaidIcon";
 import { EMPTY_ICON, type StartTab } from "./createHelpers";
 import { EventSub, IconStack, Label, OptionCard } from "./CreateParts";
 import type { RaidCreateForm } from "./useRaidCreateForm";

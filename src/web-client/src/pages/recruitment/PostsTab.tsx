@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { deleteRecruitmentPost, scanRecruitmentPosts, type ApiError, type RecruitmentData, type RecruitmentPost } from "../../api";
-import type { CollectionEditor } from "../../lib/collectionEditor";
-import { useTableSort, type Dir } from "../../lib/tableSort";
-import { specsInContent } from "../../lib/recruitmentSpecs";
-import { messageLink } from "../../lib/discordLinks";
-import { SortTh } from "../../components/SortTh";
-import { ExternalIcon, TrashIcon } from "../../components/icons";
-import { useJobs, useToast } from "../../components/Jobs";
+import type { CollectionEditor } from "../../lib/ui/collectionEditor";
+import { useTableSort, type Dir } from "../../lib/ui/tableSort";
+import { specsInContent } from "../../lib/discord/recruitmentSpecs";
+import { messageLink } from "../../lib/discord/discordLinks";
+import { SortTh } from "../../components/ui/SortTh";
+import { ExternalIcon, TrashIcon } from "../../components/ui/icons";
+import { useJobs, useToast } from "../../components/shell/Jobs";
 import { useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
@@ -14,7 +14,7 @@ import { PartHead } from "../../components/ui/PartHead";
 import { useT } from "../../i18n";
 import { ICONS, openExternal, shortStamp } from "./shared";
 import { VersionTag, WantedIcons } from "./RecruitmentBits";
-import { EditIcon } from "../../components/icons";
+import { EditIcon } from "../../components/ui/icons";
 
 type PostSortKey = "channel" | "wanted" | "template" | "source" | "updated";
 

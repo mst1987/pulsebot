@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { tipPosition, tipPositionRight } from "../../lib/popoverPosition";
-import { tipParts } from "../../lib/tipParts";
+import { tipPosition, tipPositionRight } from "../../lib/ui/popoverPosition";
+import { tipParts } from "../../lib/ui/tipParts";
 
 // Tooltips: the page's own box, never the browser's `title`. The native box
 // appears after a second, cannot be styled and does not exist on touch.
@@ -69,9 +69,9 @@ export function TipLayer() {
         let navAt = 0;
         box.setAttribute("popover", "manual");
 
-        // The same placement as every other tooltip (lib/popoverPosition.ts, ui/Popover): the one box is
+        // The same placement as every other tooltip (lib/ui/popoverPosition.ts, ui/Popover): the one box is
         // driven by the DOM here rather than rendered per anchor, so it only borrows the placement.
-        // `data-tip-side="right"` (the icon rail, components/SectionRail.tsx) puts it beside the anchor.
+        // `data-tip-side="right"` (the icon rail, components/ui/SectionRail.tsx) puts it beside the anchor.
         const place = (t: Element) => {
             const b = box.getBoundingClientRect();
             const view = { width: window.innerWidth, height: window.innerHeight };

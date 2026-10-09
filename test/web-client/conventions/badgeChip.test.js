@@ -46,7 +46,7 @@ describe("ui/Chip", () => {
 describe("the places that use them", () => {
     it("the loot filters' active filters are removable badges", () => {
         expect(read("components/loot/LootFilters.tsx")).toContain("<Badge key={f.key} tone={f.tone} onRemove={f.onRemove}");
-        expect(read("styles/historie-loot.css")).not.toContain(".hl-x");
+        expect(read("styles/history-loot.css")).not.toContain(".hl-x");
     });
 
     it("the roster's small badges use size=\"sm\"", () => {

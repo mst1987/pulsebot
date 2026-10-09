@@ -1,0 +1,144 @@
+// components/ui/Popover.tsx and lib/ui/popoverPosition.ts (#439): one base for the
+// floating boxes that belong to an element — menus, rich tooltips, hover
+// panels, the raid plan's right-click menu.
+// The placements are pure and run here; the component and its users are
+// checked by source in test/web-client/popover.test.js.
+import { describe, expect, it } from "vitest";
+import * as lib from "./popoverPosition";
+
+const VIEW = { width: 1600, height: 900 };
+const rect = (left: number, top: number, width: number, height: number) => ({ left, top, width, height, right: left + width, bottom: top + height });
+
+describe("clampToViewport", () => {
+    it("keeps a box inside the viewport", () => {
+        expect(lib.clampToViewport(100, 100, 200, 300, 1600, 900)).toEqual({ x: 100, y: 100 });
+        expect(lib.clampToViewport(1500, 100, 200, 300, 1600, 900)).toEqual({ x: 1392, y: 100 });
+        expect(lib.clampToViewport(100, 800, 200, 300, 1600, 900)).toEqual({ x: 100, y: 592 });
+        expect(lib.clampToViewport(1590, 890, 200, 300, 1600, 900)).toEqual({ x: 1392, y: 592 });
+        // taller than the viewport: at the top edge, never above it
+        expect(lib.clampToViewport(10, 500, 200, 2000, 1600, 900)).toEqual({ x: 10, y: 8 });
+        expect(lib.clampToViewport(-50, -50, 200, 300, 1600, 900)).toEqual({ x: 8, y: 8 });
+    });
+});
+
+describe("tipPosition", () => {
+    const box = { width: 100, height: 40 };
+
+    it("centres the box above the anchor", () => {
+        expect(lib.tipPosition(rect(500, 300, 60, 20), box, VIEW)).toEqual({ left: 480, top: 251 });
+    });
+
+    it("goes below the anchor when there is no room above", () => {
+        expect(lib.tipPosition(rect(500, 20, 60, 20), box, VIEW)).toEqual({ left: 480, top: 49 });
+    });
+
+    it("never leaves the viewport to the left or right", () => {
+        expect(lib.tipPosition(rect(0, 300, 20, 20), box, VIEW).left).toBe(8);
+        expect(lib.tipPosition(rect(1590, 300, 10, 20), box, VIEW).left).toBe(1492);
+    });
+
+    it("takes another gap", () => {
+        expect(lib.tipPosition(rect(500, 300, 60, 20), box, VIEW, 4).top).toBe(256);
+    });
+});
+
+describe("tipPositionRight", () => {
+    const box = { width: 100, height: 40 };
+
+    it("puts the box right of the anchor, centred on it", () => {
+        expect(lib.tipPositionRight(rect(300, 300, 44, 44), box, VIEW)).toEqual({ left: 353, top: 302 });
+    });
+
+    it("stays inside the viewport at the top and bottom", () => {
+        expect(lib.tipPositionRight(rect(300, 0, 44, 20), box, VIEW).top).toBe(8);
+        expect(lib.tipPositionRight(rect(300, 880, 44, 20), box, VIEW).top).toBe(852);
+    });
+
+    it("falls back to the box above when there is no room on the right", () => {
+        const a = rect(1520, 300, 44, 44);
+        expect(lib.tipPositionRight(a, box, VIEW)).toEqual(lib.tipPosition(a, box, VIEW));
+    });
+});
+
+describe("belowEndPosition", () => {
+    it("puts a menu under its button, right edges aligned", () => {
+        expect(lib.belowEndPosition(rect(1000, 100, 200, 40), VIEW)).toEqual({ top: 146, right: 400 });
+    });
+
+    it("keeps the margin to the right edge", () => {
+        expect(lib.belowEndPosition(rect(1500, 100, 100, 40), VIEW).right).toBe(8);
+    });
+});
+
+describe("belowStartPosition", () => {
+    const box = { width: 300, height: 200 };
+
+    it("puts a menu under its button, left edges aligned", () => {
+        expect(lib.belowStartPosition(rect(400, 100, 120, 30), box, VIEW)).toEqual({ left: 400, top: 136 });
+    });
+
+    it("stays inside the viewport on the right", () => {
+        expect(lib.belowStartPosition(rect(1500, 100, 80, 30), box, VIEW).left).toBe(1600 - 300 - 8);
+    });
+
+    it("opens above the button when there is no room below but room above", () => {
+        expect(lib.belowStartPosition(rect(400, 800, 120, 30), box, VIEW)).toEqual({ left: 400, top: 594 });
+        // no room either way: below, where the page can scroll to it
+        expect(lib.belowStartPosition(rect(400, 100, 120, 30), box, { width: 1600, height: 250 }).top).toBe(136);
+    });
+});
+
+describe("panelPosition", () => {
+    it("opens below the anchor, its right edge on the anchor's", () => {
+        expect(lib.panelPosition(rect(600, 100, 40, 20), VIEW)).toEqual({ left: 300, width: 340, top: 126, maxHeight: 340 });
+    });
+
+    it("flips above when there is more room there and not enough below", () => {
+        expect(lib.panelPosition(rect(600, 800, 40, 20), VIEW)).toEqual({ left: 300, width: 340, bottom: 106, maxHeight: 340 });
+    });
+
+    it("is never wider than the viewport and never past its left edge", () => {
+        const narrow = { width: 300, height: 900 };
+        expect(lib.panelPosition(rect(10, 100, 40, 20), narrow)).toEqual({ left: 8, width: 284, top: 126, maxHeight: 340 });
+    });
+
+    it("caps the height to the room it has", () => {
+        expect(lib.panelPosition(rect(600, 100, 40, 20), { width: 1600, height: 300 }).maxHeight).toBe(166);
+    });
+});
+
+describe("placements", () => {
+    const box = { width: 100, height: 40 };
+
+    it("wrap the positions and return nothing without an anchor", () => {
+        const a = rect(500, 300, 60, 20);
+        expect(lib.tipPlacement()(a, box, VIEW)).toEqual(lib.tipPosition(a, box, VIEW));
+        expect(lib.belowEndPlacement()(a, box, VIEW)).toEqual(lib.belowEndPosition(a, VIEW));
+        expect(lib.belowStartPlacement()(a, box, VIEW)).toEqual(lib.belowStartPosition(a, box, VIEW));
+        expect(lib.belowStartPlacement()(null, box, VIEW)).toEqual({});
+        expect(lib.panelPlacement(200, 100)(a, box, VIEW)).toEqual(lib.panelPosition(a, VIEW, 200, 100));
+        expect(lib.tipPlacement()(null, box, VIEW)).toEqual({});
+        expect(lib.belowEndPlacement()(null, box, VIEW)).toEqual({});
+        expect(lib.panelPlacement()(null, box, VIEW)).toEqual({});
+    });
+
+    it("a point placement needs no anchor and stays inside", () => {
+        expect(lib.pointPlacement(1590, 890)(null, { width: 200, height: 300 }, VIEW)).toEqual({ left: 1392, top: 592 });
+        expect(lib.pointPlacement(100, 100)(null, { width: 200, height: 300 }, VIEW)).toEqual({ left: 100, top: 100 });
+    });
+
+    it("samePosition ends the re-measure loop", () => {
+        expect(lib.samePosition({ left: 1, top: 2 }, { left: 1, top: 2 })).toBe(true);
+        expect(lib.samePosition({ left: 1, top: 2 }, { left: 1, top: 3 })).toBe(false);
+        expect(lib.samePosition(null, null)).toBe(true);
+        expect(lib.samePosition(null, { left: 1 })).toBe(false);
+    });
+});
+
+describe("popoverVars (#441)", () => {
+    it("hands the placement to the stylesheet as custom properties in px, only what it set", () => {
+        expect(lib.popoverVars(null)).toEqual({});
+        expect(lib.popoverVars({ top: 40, right: 12 })).toEqual({ "--pop-top": "40px", "--pop-right": "12px" });
+        expect(lib.popoverVars({ left: 8, width: 340, bottom: 20, maxHeight: 300 })).toEqual({ "--pop-left": "8px", "--pop-width": "340px", "--pop-bottom": "20px", "--pop-max-h": "300px" });
+    });
+});

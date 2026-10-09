@@ -1,11 +1,11 @@
 // Unsaved changes stand out in the plan and template editor: the wiring of the save button, the strip, the chips, Ctrl+S and the
-// warning on leaving (pages/raid-detail/raidplan/SaveState.tsx), checked on the source. Which sections differ from the saved plan
+// warning on leaving (components/raidplan/editor/SaveState.tsx), checked on the source. Which sections differ from the saved plan
 // (lib/raidplan/model.ts dirtyKeys) runs in Vitest: src/web-client/src/lib/raidplan/saveState.test.ts.
 
 const { read } = require("../clientSource"); // inlines the @imports of a stylesheet (#441)
 
 describe("the unsaved state is loud and accessible", () => {
-    const save = read("pages/raid-detail/raidplan/SaveState.tsx");
+    const save = read("components/raidplan/editor/SaveState.tsx");
     const css = read("styles/raidplan/index.css");
     it("Ctrl+S saves (the browser's own is suppressed), the tab title gets a dot, leaving asks", () => {
         expect(save).toMatch(/e\.key\.toLowerCase\(\) === "s"/);
@@ -20,13 +20,13 @@ describe("the unsaved state is loud and accessible", () => {
         expect(css).toContain(".rp-sticky.is-conflict");
     });
     it("both editors use it, and the boss chips mark unsaved sections", () => {
-        for (const f of ["pages/raid-detail/RaidplanTab.tsx", "pages/RaidplanTemplatesPage.tsx"]) {
+        for (const f of ["pages/raid-detail/RaidplanTab.tsx", "pages/raidplan/RaidplanTemplatesPage.tsx"]) {
             const src = read(f);
             expect(src).toContain("useUnsavedGuard(");
             expect(src).toContain("<SaveButton");
             expect(src).toContain("<UnsavedBar");
             expect(src).toContain("dirtyKeys={unsavedKeys}");
         }
-        expect(read("pages/raid-detail/raidplan/SectionStrip.tsx")).toContain("is-unsaved");
+        expect(read("components/raidplan/editor/SectionStrip.tsx")).toContain("is-unsaved");
     });
 });

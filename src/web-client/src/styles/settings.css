@@ -20,7 +20,7 @@
 .settings-panel .part-head .kicker { display: block; font-family: inherit; font-size: 12.5px; text-transform: none; letter-spacing: 0; font-weight: 500; }
 
 /* ---- layout ----
-   The page sits beside its icon rail (components/SectionRail.tsx, the rail and its
+   The page sits beside its icon rail (components/ui/SectionRail.tsx, the rail and its
    chip row below 900 px are in shared.css): the page head, then the open section. */
 .settings-panel { min-width: 0; position: relative; }
 

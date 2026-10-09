@@ -19,15 +19,15 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupPresenceAction, type StoredSetup } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
-import { applyLocal, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
+import { applyLocal, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type SetupTarget } from "../../../lib/signups/setupEditor";
 import { useT } from "../../../i18n";
 import { Button, IconButton } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import { useConfirm } from "../../../components/ui/Modal";
 import RaidLoader from "../../../components/ui/RaidLoader";
 import WowIcon from "../../../components/ui/WowIcon";
-import { useJobs } from "../../../components/Jobs";
-import { LockIcon, XIcon } from "../../../components/icons";
+import { useJobs } from "../../../components/shell/Jobs";
+import { LockIcon, XIcon } from "../../../components/ui/icons";
 import type { RaidCtx } from "../meta";
 import "../../../styles/setup-editor.css";
 import { clock, readCompact, storeCompact } from "./setupText";

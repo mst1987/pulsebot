@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import { stepLabel } from "../../lib/eventPlan";
+import { stepLabel } from "../../lib/raids/eventPlan";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
-import RaidIcon from "../RaidIcon";
+import RaidIcon from "../raid/RaidIcon";
 import RaidLoader from "../ui/RaidLoader";
-import { ChevronRightIcon } from "../icons";
+import { ChevronRightIcon } from "../ui/icons";
 import { useT } from "../../i18n";
 import { IconStack, Stepper } from "./CreateParts";
 import { useRaidCreateForm } from "./useRaidCreateForm";

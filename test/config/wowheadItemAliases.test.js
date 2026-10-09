@@ -21,7 +21,7 @@ describe("config/wowheadItemAliases", () => {
     });
 
     it("keeps the client's copy of the table equal to the server's", () => {
-        const src = fs.readFileSync(path.join(CLIENT, "lib", "wowheadItems.ts"), "utf8");
+        const src = fs.readFileSync(path.join(CLIENT, "lib", "wow", "wowheadItems.ts"), "utf8");
         const client = {};
         for (const m of src.matchAll(/^\s*(\d+): (\d+),/gm)) client[m[1]] = Number(m[2]);
         expect(client).toEqual({ ...WOWHEAD_ITEM_ALIASES });

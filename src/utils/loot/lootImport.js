@@ -424,7 +424,7 @@ function isQuality(q) {
  * stored, so later reads never repeat the network round trip.
  *
  * `itemQuality` is what the item name is coloured with everywhere in the app
- * (see web-client's lib/itemQuality.ts); it is stored rather than derived on
+ * (see web-client's lib/wow/itemQuality.ts); it is stored rather than derived on
  * read because nothing in the repo maps an item id to its quality offline.
  */
 async function enrichItemNames(items) {

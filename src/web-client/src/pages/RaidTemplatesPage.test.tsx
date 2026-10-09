@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../api/client";
 import type { GameVersion, RaidTemplate } from "../api";
 import { t } from "../i18n";
-import { proposeComposition } from "../lib/raidTemplates";
+import { proposeComposition } from "../lib/raids/raidTemplates";
 import { requireBackend } from "../test/backend";
 import { switchLang } from "../test/i18n";
 import { adminUser, CONTENT_ARIA, renderPage, twoVersions } from "../test/render";

@@ -9,7 +9,7 @@ import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import { useConfirm } from "../../components/ui/Modal";
-import { CheckIcon, ExternalIcon, RefreshIcon, XIcon } from "../../components/icons";
+import { CheckIcon, ExternalIcon, RefreshIcon, XIcon } from "../../components/ui/icons";
 import { LOG_ANALYSES, type RaidCtx } from "./meta";
 import type { Evaluator } from "./useEvaluate";
 import { useT } from "../../i18n";

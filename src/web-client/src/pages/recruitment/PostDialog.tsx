@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { postRecruitmentTemplate, type ApiError, type RecruitmentData, type TextChannel } from "../../api";
-import { useDraftState } from "../../lib/persistedState";
+import { useDraftState } from "../../lib/ui/persistedState";
 import DiscordPreview from "./DiscordPreview";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

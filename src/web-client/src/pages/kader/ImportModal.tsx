@@ -6,11 +6,11 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { addKaderPlayers, type KaderMember } from "../../api";
 import { Button, Modal, Segment } from "../../components/ui";
-import { useToast } from "../../components/Jobs";
-import { AlertIcon, CheckIcon, PlusIcon, RecruitmentIcon, SearchIcon } from "../../components/icons";
+import { useToast } from "../../components/shell/Jobs";
+import { AlertIcon, CheckIcon, PlusIcon, RecruitmentIcon, SearchIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
-import { usePersistedState } from "../../lib/persistedState";
-import { useTableSort } from "../../lib/tableSort";
+import { usePersistedState } from "../../lib/ui/persistedState";
+import { useTableSort } from "../../lib/ui/tableSort";
 import { IMPORT_SORT, importParts, sortTable, type ImportSortKey } from "../../lib/kader/sort";
 import { EmptyState, SortHead, SpecTag, TableNote } from "./parts";
 import { useKader } from "./kaderContext";

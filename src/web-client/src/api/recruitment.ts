@@ -1,5 +1,5 @@
 import { get, send } from "./client";
-import type { SpecCatalogEntry } from "../lib/recruitmentSpecs";
+import type { SpecCatalogEntry } from "../lib/discord/recruitmentSpecs";
 
 export type RecruitmentTemplate = {
     id: string;

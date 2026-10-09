@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { saveRecruitmentTemplate, updateRecruitmentPost, type ApiError, type RecruitmentData, type RecruitmentTemplate, type RecruitmentPost } from "../../api";
-import { useDraftState } from "../../lib/persistedState";
-import { messageLink } from "../../lib/discordLinks";
-import { ExternalIcon } from "../../components/icons";
-import { useToast } from "../../components/Jobs";
+import { useDraftState } from "../../lib/ui/persistedState";
+import { messageLink } from "../../lib/discord/discordLinks";
+import { ExternalIcon } from "../../components/ui/icons";
+import { useToast } from "../../components/shell/Jobs";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

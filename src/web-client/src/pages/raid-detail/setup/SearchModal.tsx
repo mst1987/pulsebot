@@ -1,13 +1,13 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { postRaidSearch, previewRaidSearch, type ApiError, type SetupSearch } from "../../../api";
-import { addRole, groupSearchBuffs, removeBuffs, searchNeedsFrom, stepRole, toggleSpec, type SearchNeeds } from "../../../lib/setupEditor";
-import { roleLabel, rolePluralLabel, specLabel } from "../../../lib/wowNames";
+import { addRole, groupSearchBuffs, removeBuffs, searchNeedsFrom, stepRole, toggleSpec, type SearchNeeds } from "../../../lib/signups/setupEditor";
+import { roleLabel, rolePluralLabel, specLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import { Button, IconButton } from "../../../components/ui/Button";
 import { Modal } from "../../../components/ui/Modal";
 import WowIcon from "../../../components/ui/WowIcon";
-import { useJobs } from "../../../components/Jobs";
-import { XIcon } from "../../../components/icons";
+import { useJobs } from "../../../components/shell/Jobs";
+import { XIcon } from "../../../components/ui/icons";
 import type { RaidCtx } from "../meta";
 
 /**

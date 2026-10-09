@@ -5,7 +5,7 @@ import type {
 } from "../../api";
 import type { Tone } from "../../components/ui/Badge";
 import { locale, t } from "../../i18n";
-import { roleLabel, rolePluralLabel } from "../../lib/wowNames";
+import { roleLabel, rolePluralLabel } from "../../lib/wow/wowNames";
 
 /** Everything a tab or dialog of the page needs from the page itself. */
 export type RaidCtx = {

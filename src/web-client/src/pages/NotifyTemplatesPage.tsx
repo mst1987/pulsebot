@@ -4,11 +4,11 @@ import {
     type ApiError, type NotifyTemplate } from "../api";
 import { useApi } from "../hooks/useApi";
 import { formatTime } from "../lib/format";
-import { useDraftState } from "../lib/persistedState";
-import { useCollectionEditor } from "../lib/collectionEditor";
-import { useTableSort, type Dir } from "../lib/tableSort";
-import { TrashIcon, CrestIcon, ChevronDownIcon } from "../components/icons";
-import { useToast } from "../components/Jobs";
+import { useDraftState } from "../lib/ui/persistedState";
+import { useCollectionEditor } from "../lib/ui/collectionEditor";
+import { useTableSort, type Dir } from "../lib/ui/tableSort";
+import { TrashIcon, CrestIcon, ChevronDownIcon } from "../components/ui/icons";
+import { useToast } from "../components/shell/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
 import IconTile from "../components/ui/IconTile";
@@ -19,7 +19,7 @@ import { tParts, t as tr, useT } from "../i18n";
 
 // Aufruf-Vorlagen: the list first, the editor as a dialog over it. The open
 // editor stays in the url (?edit=<id|new>), like every collection editor
-// (lib/collectionEditor.ts) — only it opens over the list instead of in its
+// (lib/ui/collectionEditor.ts) — only it opens over the list instead of in its
 // place, with the Discord message it will post next to the fields.
 
 type SortKey = "name" | "title";
@@ -28,7 +28,7 @@ const SORT_DEFAULTS: Record<SortKey, Dir> = { name: "asc", title: "asc" };
 const FORM_ID = "notify-template-form";
 
 /** Pencil — a plain UI function, so a line icon rather than a WoW one. */
-function PenIcon() {
+function TemplatePenIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
@@ -248,7 +248,7 @@ export default function NotifyTemplatesPage() {
                             </div>
                             <div className="nt-body">{(tpl.body || "").split("\n")[0]}</div>
                             <div className="re-acts">
-                                <IconButton icon={<PenIcon />} size="sm" tip={t("common.edit")} onClick={() => editor.startEdit(tpl.id)} />
+                                <IconButton icon={<TemplatePenIcon />} size="sm" tip={t("common.edit")} onClick={() => editor.startEdit(tpl.id)} />
                                 <IconButton icon={<TrashIcon />} size="sm" tone="danger" tip={t("common.delete")} onClick={() => remove(tpl)} />
                             </div>
                         </div>

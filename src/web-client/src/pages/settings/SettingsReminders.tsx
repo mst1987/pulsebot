@@ -3,17 +3,17 @@ import {
     getReminders, updateSettings,
     type AdminConfig, type ApiError, type PingTarget, type ReminderRule, type RemindersData,
 } from "../../api";
-import { pingTargetOptions, reminderOff, reminderSummary, remindersPatch, targetText } from "../../lib/settingsLogic";
+import { pingTargetOptions, reminderOff, reminderSummary, remindersPatch, targetText } from "../../lib/settings/settingsLogic";
 import { useT } from "../../i18n";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { Modal } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import PartHead from "../../components/ui/PartHead";
 import RaidLoader from "../../components/ui/RaidLoader";
 import Segment from "../../components/ui/Segment";
-import { PenIcon } from "../../components/settings/settingsUi";
 import Field, { FieldLabel } from "../../components/ui/Field";
+import { PenIcon } from "../../components/ui/icons";
 
 // Einstellungen → Verbindungen → Discord-Server, part "Erinnerungen" (#264).
 // One line per raid category: its name, what is set as one short line, and a

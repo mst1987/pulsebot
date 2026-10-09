@@ -9,7 +9,7 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").
 
 describe("the activation dialog", () => {
     it("the page: the menu for a Raid-Helper event with raidplan write, the dialog, the confirmation before switching off", () => {
-        const page = read("pages", "RaidDetailPage.tsx");
+        const page = read("pages", "raid-detail", "RaidDetailPage.tsx");
         expect(page).toContain("const canSwitchPlan = !ownEvent && !archived && planning !== \"sheet\" && canAccess(user, \"raidplan\", \"write\");");
         // the switch is the menu's entry for raidplan write; the loot system (raids write) may stand beside it
         expect(page).toContain("...(canSwitchPlan ? raidhelperMenu({ planEnabled: !!data.event.raidplanEnabled, disabled: !!data.event.raidhelperDisabled }) : []),");
@@ -26,7 +26,7 @@ describe("how a Raid-Helper name reads", () => {
         const board = read("components", "raidplan", "PlanBoard.tsx");
         expect(board).toContain("player.nameFromRh ? \"rp-pname-rh\" : \"\", player.gone ? \"rp-pname-gone\" : \"\"");
         expect(read("lib", "raidplan", "assignModal.ts")).toContain("e.player && e.player.rhName ? e.player.rhName : \"\"");
-        expect(read("pages", "raid-detail", "raidplan", "AssignRosterModal.tsx")).toContain("c.player.rhName || \"\"");
+        expect(read("components", "raidplan", "editor", "AssignRosterModal.tsx")).toContain("c.player.rhName || \"\"");
         const tab = read("pages", "raid-detail", "RaidplanTab.tsx");
         expect(tab).toContain("{view.rosterSource && <RhSource src={view.rosterSource} busy={reloading} onReload={reloadRoster} />}");
         expect(tab).toContain("getRaidplan(eventId, true)");

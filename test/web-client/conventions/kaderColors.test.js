@@ -38,7 +38,7 @@ describe("Kaderplaner answer colours", () => {
         for (const day of ["mo", "di", "mi", "do", "fr", "sa", "so"]) {
             expect(shared).toContain(`[data-day="${day}"] { --day: var(--day-${day}); --day-dark: var(--day-${day}-dark); }`);
             expect(kader).not.toContain(`[data-day="${day}"]`);
-            expect(read("styles", "profil.css")).not.toContain(`[data-day="${day}"]`);
+            expect(read("styles", "profile.css")).not.toContain(`[data-day="${day}"]`);
         }
         expect(kader).toMatch(/\.kp-week i\[data-day\][^{]*\{ --tone: var\(--day\); \}/);
     });

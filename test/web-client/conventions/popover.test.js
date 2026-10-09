@@ -1,7 +1,7 @@
-// components/ui/Popover.tsx and lib/popoverPosition.ts (#439): one base for the
+// components/ui/Popover.tsx and lib/ui/popoverPosition.ts (#439): one base for the
 // floating boxes that belong to an element — menus, rich tooltips, hover
 // panels, the raid plan's right-click menu.
-// The placements run in src/web-client/src/lib/popover.test.ts (Vitest);
+// The placements run in src/web-client/src/lib/ui/popoverPosition.popover.test.ts (Vitest);
 // the component and its users are checked by source here.
 const { read } = require("../clientSource");
 
@@ -24,9 +24,9 @@ describe("ui/Popover", () => {
 
     it.each([
         ["components/ui/RichTip.tsx", "tipPlacement()"],
-        ["components/HoverPanel.tsx", "panelPlacement("],
+        ["components/ui/HoverPanel.tsx", "panelPlacement("],
         ["pages/raid-detail/manage/ManageMenu.tsx", "belowEndPlacement()"],
-        ["pages/raid-detail/raidplan/ContextMenu.tsx", "pointPlacement(x, y)"],
+        ["components/raidplan/editor/ContextMenu.tsx", "pointPlacement(x, y)"],
     ])("%s is built on it", (file, placement) => {
         const s = read(file);
         expect(s).toContain("<Popover");

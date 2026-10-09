@@ -11,8 +11,8 @@ import type { ClaData, ClaFilter, ClaRow } from "../../api";
 import { renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
 import { t } from "../../i18n";
-import { LOG_FALLBACK_ICON, raidIcon } from "../../lib/logRaids";
-import { RAID_CONTENTS } from "../../lib/raidIcons";
+import { LOG_FALLBACK_ICON, raidIcon } from "../../lib/raids/logRaids";
+import { RAID_CONTENTS } from "../../lib/wow/raidIcons";
 import ClaPage from "./ClaPage";
 
 vi.mock("../../api", async (orig) => ({

@@ -1,7 +1,7 @@
 import type { AdminConfig, RolePermissions, Access, TopItem, EventSource, PlanningMode } from "../../api";
 import { type CategorySheet } from "./CategoryMatrix";
-import { blockOf, type VersionSettingsBlock } from "../../lib/versionLinks";
-import type { CategoryAttendance } from "../../lib/settingsLogic";
+import { blockOf, type VersionSettingsBlock } from "../../lib/settings/versionLinks";
+import type { CategoryAttendance } from "../../lib/settings/settingsLogic";
 
 export const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 

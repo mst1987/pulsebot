@@ -1,7 +1,7 @@
 // The pure helpers of "Neues Event" (RaidCreateDialog.tsx): dates of a
 // repeated event, the channel name for a new date, the start step's list.
 import type { ReusableEvent } from "../../api";
-import { eventDay } from "../../lib/raidTime";
+import { eventDay } from "../../lib/raids/raidTime";
 import { DISPLAY_TZ } from "../../lib/format";
 
 export type Choice = { kind: "event" | "template" | "empty"; id: string } | null;
