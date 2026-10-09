@@ -165,6 +165,20 @@ describe("POST /api/rosters/members", () => {
         expect(status(res)).toBe(403);
         expect(rosterStore.getRoster(roster.id).members["100001"]).toBeUndefined();
     });
+
+    it("sets the orga's spec for the first character - managers only, of the character's class", async () => {
+        await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" });
+        let res = await post("/api/rosters/members", { rosterId: roster.id, userId: "100001", spec: "Priest-Shadow" });
+        expect(status(res)).toBe(200);
+        expect(data(res).member.spec).toBe("Priest-Shadow");
+        expect(rosterStore.getRoster(roster.id).history.slice(-1)[0]).toEqual(expect.objectContaining({ by: MANAGER.id, detail: "spec Priest-Shadow" }));
+        res = await post("/api/rosters/members", { rosterId: roster.id, userId: "100001", spec: "Mage-Frost" });
+        expect([status(res), code(res)]).toEqual([400, "invalid_spec"]);
+        mockUser = WRITER;
+        res = await post("/api/rosters/members", { rosterId: roster.id, userId: "100001", spec: "" });
+        expect([status(res), code(res)]).toEqual([403, "not_manager"]);
+        expect(rosterStore.getRoster(roster.id).members["100001"].spec).toBe("Priest-Shadow");
+    });
 });
 
 describe("POST /api/rosters/members/remove", () => {

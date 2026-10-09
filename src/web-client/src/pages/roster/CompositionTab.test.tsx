@@ -3,6 +3,7 @@
 // open places as one sentence, the ways to Rekrutierung and Kaderplaner only
 // for whoever may open them, and English.
 import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import CompositionTab from "./CompositionTab";
@@ -26,9 +27,11 @@ const BUFFS = [
     { key: "coe", label: "Fluch der Elemente", labelEn: "Curse of the Elements", icon: "spell_shadow_chilltouch", scope: "raid", providers: [], covered: false },
 ];
 
-async function open(user = adminUser(), comp = composition({ buffs: BUFFS })) {
+const LINKED = detail(MEMBERS, { roster: { ...detail(MEMBERS).roster, kaderId: "k1", kader: { id: "k1", name: "Forever-Kader" } } });
+
+async function open(user = adminUser(), comp = composition({ buffs: BUFFS }), data = LINKED, extra: { onOpen?: (id: string) => void; onSettings?: () => void } = {}) {
     vi.mocked(api.getRosterComposition).mockResolvedValue(comp);
-    renderPage(<CompositionTab data={detail(MEMBERS)} user={user} reloadKey={0} />);
+    renderPage(<CompositionTab data={data} user={user} reloadKey={0} {...extra} />);
     await waitFor(() => expect(document.querySelector(".rn-comp-page")).not.toBeNull());
 }
 
@@ -60,10 +63,41 @@ describe("CompositionTab", () => {
         expect(within(buff("Fluch der Elemente")).getByText("niemand im Roster")).toBeInTheDocument();
     });
 
-    it("shows the ways to Rekrutierung and Kaderplaner only with their areas", async () => {
+    it("shows the ways to Rekrutierung and the linked Kader only with their areas", async () => {
         await open();
         expect(screen.getByRole("link", { name: "Zur Rekrutierung" })).toHaveAttribute("href", "/recruitment");
-        expect(screen.getByRole("link", { name: "Zum Kaderplaner" })).toHaveAttribute("href", "/kader");
+        expect(screen.getByRole("link", { name: "Zum Kaderplaner" })).toHaveAttribute("href", "/kader/k1/roster");
+    });
+
+    it("says when no Kader is linked and lets an admin go to the settings", async () => {
+        const onSettings = vi.fn();
+        await open(adminUser(), composition({ buffs: BUFFS }), detail(MEMBERS, { isAdmin: true, canManage: true }), { onSettings });
+        expect(screen.queryByRole("link", { name: "Zum Kaderplaner" })).not.toBeInTheDocument();
+        await userEvent.click(screen.getByRole("button", { name: "Kein Kader verknüpft" }));
+        expect(onSettings).toHaveBeenCalled();
+    });
+
+    it("names the members without spec or class with the reason and opens their drawer", async () => {
+        const onOpen = vi.fn();
+        await open(adminUser(), composition({
+            buffs: BUFFS,
+            unresolved: [
+                { userId: "u-t", displayName: "Thorgrim", character: "Thorgrim", className: "Warrior", reason: "no_spec" },
+                { userId: "u-x", displayName: "Fremd", character: "Handname", className: "", reason: "no_class" },
+            ],
+            sources: { override: 1, signup: 3, logs: 2, profile: 5, class: 1 },
+        }), LINKED, { onOpen });
+        const card = screen.getByRole("region", { name: "2 Mitglieder ohne Spec oder Klasse" });
+        expect(within(card).getByText("Krieger, Spec unbekannt")).toBeInTheDocument();
+        expect(within(card).getByText(/Handname · Klasse unbekannt/)).toBeInTheDocument();
+        await userEvent.click(within(card).getAllByRole("button", { name: "Öffnen" })[1]);
+        expect(onOpen).toHaveBeenCalledWith("u-x");
+        expect(screen.getByText(/Spec aus: 3× Anmeldung · 2× Log · 5× Profil · 1× Orga · 1× Klasse/)).toBeInTheDocument();
+    });
+
+    it("shows no such card when everybody has a spec", async () => {
+        await open(adminUser(), composition({ buffs: BUFFS, unresolved: [] }));
+        expect(screen.queryByText(/ohne Spec oder Klasse/)).not.toBeInTheDocument();
     });
 
     it("leaves them out for a roster reader without those areas", async () => {

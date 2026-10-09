@@ -13,7 +13,11 @@
 //   * characters: a member's roster characters (profile keys) resolved through
 //     the raider profile of the roster's game version (spec, class, colour,
 //     icon), else the character cache the loot and logs fill, else the name.
-//   * role: what the character last played in a log, else its spec's role.
+//   * class, spec and role of the FIRST character: services/roster/memberSpec.js
+//     (the orga's spec, the last signup in the category, the logs, the profile,
+//     the class alone) - the same answer the Komposition tab counts with. Each
+//     row carries it as `resolved` (with where it came from); a manager also
+//     gets `specChoices`, the specs of the character's class for the drawer.
 //   * attendance per PERSON (rosterAttendance.attendanceForAccounts): a night
 //     counts when any character of the account stands in its log; the window is
 //     the category's own (Einstellungen > Kategorien, categoryAttendance), the
@@ -38,6 +42,8 @@ const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView"
 const { characterKeyOf, nameKeyOf } = require("../../utils/loot/lootImport");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
 const { trialEnding } = require("../../services/roster/rosterTrials");
+const { resolveMemberSpec, specContext, specChoices } = require("../../services/roster/memberSpec");
+const { kaderChoices } = require("../../services/roster/rosterCreate");
 
 const STATUSES = rosterStore.STATUSES;
 /** Statuses that take a place in the roster. */
@@ -135,6 +141,34 @@ function characterView(key, member, profile, versionId, ctx) {
     };
 }
 
+/** A spec key as the page shows it: `{ spec, specLabel, specIcon }` ("" each for none). */
+function specLook(specKey) {
+    const info = specKey ? profiles.specInfo(specKey) : null;
+    return info ? { spec: info.key, specLabel: info.label, specIcon: info.icon || "" } : { spec: "", specLabel: "", specIcon: "" };
+}
+
+/** The first character with the chain's class, spec and role (memberSpec.js), so table and Komposition agree. */
+function withResolvedSpec(char, resolved) {
+    const className = char.className || resolved.className;
+    const out = { ...char, className, classColor: char.classColor || classColor(className), role: resolved.role };
+    if (!resolved.spec) return out;
+    const info = profiles.specInfo(resolved.spec);
+    return { ...out, spec: info.key, specId: info.id, specLabel: info.label, specIcon: info.icon || "", iconUrl: "" };
+}
+
+/** What a row says about the chain: the result, where it came from, the orga's choice and what the chain finds without it. */
+function resolvedView(resolved) {
+    return {
+        className: resolved.className,
+        ...specLook(resolved.spec),
+        role: resolved.role,
+        source: resolved.source,
+        reason: resolved.reason,
+        override: resolved.override,
+        auto: { className: resolved.auto.className, ...specLook(resolved.auto.spec), source: resolved.auto.source },
+    };
+}
+
 /** The profile characters of the version the member does not play in this roster yet, as character views. */
 function otherCharacters(member, profile, versionId, ctx) {
     if (!profile) return [];
@@ -194,16 +228,20 @@ function memberRows(roster, { ctx, discordData, config, manage = false }) {
     const { members: discordMembers } = discordData;
     const roleIds = roster.roleIds || [];
     const rosterRoleIds = [...roleIds, roster.trialRoleId].filter(Boolean);
+    const sctx = attempt(() => specContext(roster, ctx), { versionId: roster.versionId, signups: new Map(), charMap: {}, roleByKey: {} });
     const rows = Object.entries(roster.members).map(([userId, member]) => {
         const profile = profiles.getProfile(userId);
         const dm = discordMembers ? discordMembers.get(userId) : null;
         const chars = member.chars.map((key) => characterView(key, member, profile, roster.versionId, ctx));
+        const resolved = resolveMemberSpec(userId, member, sctx);
+        if (chars[0]) chars[0] = withResolvedSpec(chars[0], resolved);
         let hasRole = null;
         if (discordMembers && roleIds.length) hasRole = !!dm && (dm.roleIds || []).some((id) => roleIds.includes(String(id)));
         const held = dm ? (dm.roleIds || []).map(String) : [];
         const extra = manage ? {
             note: member.note || "",
             otherChars: otherCharacters(member, profile, roster.versionId, ctx),
+            specChoices: specChoices(resolved.auto.className || resolved.className, roster.versionId),
         } : {};
         return {
             userId,
@@ -214,7 +252,8 @@ function memberRows(roster, { ctx, discordData, config, manage = false }) {
             since: member.since || "",
             trialUntil: member.trialUntil || null,
             chars,
-            role: chars[0] ? chars[0].role : "",
+            role: resolved.role,
+            resolved: resolvedView(resolved),
             hasRole,
             // the roster's roles this person holds (main, others, trial); null when the member list is unavailable
             heldRoles: discordMembers ? rosterRoleIds.filter((id) => held.includes(id)) : null,
@@ -302,6 +341,7 @@ function rosterHead(roster, { ctx, names, discordData, figures, guildId }) {
         slots: { ...roster.slots },
         allowMultipleChars: roster.allowMultipleChars,
         source: roster.source.kind,
+        kaderId: roster.kaderId || null,
         ...figures,
     };
 }
@@ -329,7 +369,15 @@ function rosterSettingsView(roster, discordData) {
         signupOnly: roster.signupOnly,
         allowMultipleChars: roster.allowMultipleChars,
         slots: { ...roster.slots },
+        kaderId: roster.kaderId || null,
     };
+}
+
+/** The linked Kader's id and name (names only, rosterCreate.kaderChoices); a link to a Kader that is gone keeps its id with name "". */
+function linkedKader(roster) {
+    if (!roster.kaderId) return null;
+    const hit = attempt(() => kaderChoices(roster.guildId), []).find((k) => k.id === roster.kaderId);
+    return { id: roster.kaderId, name: hit ? hit.name : "" };
 }
 
 /**
@@ -380,7 +428,7 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     });
     const window = roster.categoryId ? categoryAttendanceFor(config, roster.categoryId).window : null;
     return {
-        roster: head,
+        roster: { ...head, kader: linkedKader(roster) },
         members,
         window,
         // the attendance grid's columns (#677): the counted nights of the category, newest first

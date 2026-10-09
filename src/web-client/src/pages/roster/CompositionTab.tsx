@@ -2,21 +2,62 @@
 // places per role against the plan as squares (bench as outlined squares), the
 // classes of core and trial, the important buffs of the game version (covered
 // by two or more, "knapp" with one, missing) and what is still open - with the
-// way to Rekrutierung and Kaderplaner for whoever may open them.
+// way to Rekrutierung and the LINKED Kader of the Kaderplaner for whoever may
+// open them. Class and spec of each member come from the server's chain
+// (services/roster/memberSpec.js: Orga, Anmeldung, Log, Profil, Klasse) - the
+// kicker says how many came from where, a calm card names who has no spec or
+// class and opens their drawer.
 import { Link } from "react-router-dom";
 import { getRosterComposition, type RosterComposition, type RosterDetail, type SessionUser } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { useLang, useT } from "../../i18n";
-import { AsyncView, IconTile, WowIcon, buttonClass } from "../../components/ui";
+import { AsyncView, Button, IconTile, WowIcon, buttonClass } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { AlertIcon, CheckIcon, XIcon } from "../../components/ui/icons";
 import { canAccess } from "../../lib/app/access";
-import { roleLabel, rolePluralLabel } from "../../lib/wow/wowNames";
+import { classLabel, roleLabel, rolePluralLabel } from "../../lib/wow/wowNames";
 import { ROLE_ICONS } from "../../lib/roster/rosters";
 import { classIconName } from "../../lib/roster/rosterView";
 import { buffState, errorText, slotSquares } from "../../lib/roster/rosterEdit";
 
 type RoleRow = RosterComposition["roles"][number];
+type Unresolved = NonNullable<RosterComposition["unresolved"]>[number];
+
+const SOURCE_ORDER = ["signup", "logs", "profile", "override", "class"] as const;
+
+/** "Spec aus: 3 Anmeldung · 2 Log · 5 Profil": how many specs came from which source. */
+function sourcesLine(sources: RosterComposition["sources"], t: ReturnType<typeof useT>): string {
+    if (!sources) return "";
+    const parts = SOURCE_ORDER.filter((k) => sources[k] > 0).map((k) => `${sources[k]}× ${t(`roster.spec.source.${k}`)}`);
+    return parts.length ? t("roster.comp.specFrom", { parts: parts.join(" · ") }) : "";
+}
+
+/** The calm card of members without spec or class: who, why, and their drawer one click away. */
+function UnresolvedCard({ list, nameOf, onOpen }: { list: Unresolved[]; nameOf: (id: string) => string; onOpen?: (userId: string) => void }) {
+    const t = useT();
+    if (!list.length) return null;
+    return (
+        <section className="rn-panel rn-pad rn-comp-sec rn-unresolved" aria-label={t("roster.comp.unresolvedTitle", { count: list.length })}>
+            <div className="rn-sec-head">
+                <h2 className="rn-h3">{t("roster.comp.unresolvedTitle", { count: list.length })}</h2>
+                <span className="rn-sub">{t("roster.comp.unresolvedSub")}</span>
+            </div>
+            <ul className="rn-lines">
+                {list.map((u) => {
+                    const name = nameOf(u.userId) || u.displayName;
+                    const reason = t(`roster.comp.reason.${u.reason}`, { cls: u.className ? classLabel(u.className, u.className) : "" });
+                    return (
+                        <li key={u.userId} className="rn-unresolved-row">
+                            <b>{name}</b>
+                            <span className="rn-sub">{[u.character !== name ? u.character : "", reason].filter(Boolean).join(" · ")}</span>
+                            {onOpen && <Button size="sm" variant="ghost" onClick={() => onOpen(u.userId)}>{t("roster.comp.openMember")}</Button>}
+                        </li>
+                    );
+                })}
+            </ul>
+        </section>
+    );
+}
 
 /** "1 Tank", "2 Tanks": the role in the number it is counted with. */
 function roleWord(role: RoleRow["role"], count: number): string {
@@ -87,7 +128,10 @@ function openSentence(comp: RosterComposition, t: ReturnType<typeof useT>): stri
     return parts.length ? parts.join(" · ") : t("roster.comp.allFilled");
 }
 
-function Composition({ comp, data, user }: { comp: RosterComposition; data: RosterDetail; user: SessionUser | null }) {
+function Composition({ comp, data, user, onOpen, onSettings }: {
+    comp: RosterComposition; data: RosterDetail; user: SessionUser | null;
+    onOpen?: (userId: string) => void; onSettings?: () => void;
+}) {
     const t = useT();
     const lang = useLang();
     const placed = data.members.filter((m) => m.status === "core" || m.status === "trial");
@@ -97,6 +141,8 @@ function Composition({ comp, data, user }: { comp: RosterComposition; data: Rost
     const recruitment = canAccess(user, "recruitment");
     const kader = canAccess(user, "kader");
     const sentence = openSentence(comp, t);
+    const fromLine = sourcesLine(comp.sources, t);
+    const linked = data.roster.kader || null;
     const anyOpen = comp.roles.some((r) => r.target > r.actual) || comp.open > 0;
     return (
         <div className="rn-comp-page">
@@ -107,7 +153,12 @@ function Composition({ comp, data, user }: { comp: RosterComposition; data: Rost
             </div>
 
             <section className="rn-panel rn-pad rn-comp-sec">
-                <div className="rn-sec-head"><h2 className="rn-h3">{t("roster.comp.classes")}</h2><span className="rn-sub">{t("roster.comp.classesSub")}</span></div>
+                <div className="rn-sec-head">
+                    <h2 className="rn-h3">{t("roster.comp.classes")}</h2>
+                    <span className="rn-sub" data-tip={t("roster.comp.specFromTip")} data-tip-sub={t("roster.comp.specFromTipSub")}>
+                        {[t("roster.comp.classesSub"), fromLine].filter(Boolean).join(" · ")}
+                    </span>
+                </div>
                 {comp.classes.length ? (
                     <div className="rn-classgrid">
                         {comp.classes.map((c) => (
@@ -120,6 +171,8 @@ function Composition({ comp, data, user }: { comp: RosterComposition; data: Rost
                     </div>
                 ) : <p className="rn-sub">{t("roster.comp.noClasses")}</p>}
             </section>
+
+            <UnresolvedCard list={comp.unresolved || []} nameOf={(id) => data.members.find((m) => m.userId === id)?.displayName || ""} onOpen={onOpen} />
 
             <section className="rn-panel rn-pad rn-comp-sec">
                 <div className="rn-sec-head"><h2 className="rn-h3">{t("roster.comp.buffs")}</h2><span className="rn-sub">{t("roster.comp.buffsSub")}</span></div>
@@ -146,7 +199,17 @@ function Composition({ comp, data, user }: { comp: RosterComposition; data: Rost
                 {(recruitment || kader) && (
                     <div className="rn-comp-links">
                         {recruitment && <Link className={buttonClass("ghost", "sm")} to="/recruitment">{t("roster.comp.toRecruitment")}</Link>}
-                        {kader && <Link className={buttonClass("ghost", "sm")} to="/kader">{t("roster.comp.toKader")}</Link>}
+                        {kader && linked && (
+                            <Link className={buttonClass("ghost", "sm")} to={`/kader/${encodeURIComponent(linked.id)}/roster`}
+                                data-tip={t("roster.comp.toKaderTip", { name: linked.name || linked.id })}>
+                                {t("roster.comp.toKader")}
+                            </Link>
+                        )}
+                        {kader && !linked && (
+                            data.isAdmin && onSettings
+                                ? <Button size="sm" variant="ghost" onClick={onSettings} data-tip={t("roster.comp.noKaderTip")}>{t("roster.comp.noKader")}</Button>
+                                : <span className="rn-sub" data-tip={t("roster.comp.noKaderTip")}>{t("roster.comp.noKader")}</span>
+                        )}
                     </div>
                 )}
             </section>
@@ -154,12 +217,18 @@ function Composition({ comp, data, user }: { comp: RosterComposition; data: Rost
     );
 }
 
-export default function CompositionTab({ data, user, reloadKey }: { data: RosterDetail; user: SessionUser | null; reloadKey: number }) {
+export default function CompositionTab({ data, user, reloadKey, onOpen, onSettings }: {
+    data: RosterDetail; user: SessionUser | null; reloadKey: number;
+    /** Opens a member's drawer (the card of members without spec). */
+    onOpen?: (userId: string) => void;
+    /** Opens the roster's settings (no Kader linked yet, full admins). */
+    onSettings?: () => void;
+}) {
     const t = useT();
     const state = useApi(() => getRosterComposition(data.roster.id), [data.roster.id, reloadKey]);
     return (
         <AsyncView state={state} loading={<RaidLoader compact text={t("roster.comp.loading")} />} error={(e) => <p className="rn-empty">{errorText(e)}</p>}>
-            {(comp) => <Composition comp={comp} data={data} user={user} />}
+            {(comp) => <Composition comp={comp} data={data} user={user} onOpen={onOpen} onSettings={onSettings} />}
         </AsyncView>
     );
 }

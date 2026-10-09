@@ -171,6 +171,45 @@ describe("RosterFormDialog — settings", () => {
     });
 });
 
+describe("RosterFormDialog — Kader im Kaderplaner", () => {
+    const KADERS = [
+        { id: "k1", name: "Forever-Kader", inRoster: 12, candidates: 30, rosterId: null, rosterName: "" },
+        { id: "k2", name: "Alter Kader", inRoster: 3, candidates: 5, rosterId: "other", rosterName: "PuG" },
+    ];
+    function linkSettings(isAdmin = true, kaderId: string | null = null) {
+        vi.mocked(api.getRosterOptions).mockResolvedValue(options({ isAdmin, kaders: KADERS }));
+        const data = detail([member("Thorgrim")], { canManage: true, isAdmin, settings: settings({ kaderId }), roster: rosterHead() });
+        renderPage(<RosterFormDialog mode="settings" data={data} onClose={vi.fn()} onSaved={vi.fn()} />);
+    }
+
+    it("links a Kader for an admin and greys out one another roster holds", async () => {
+        linkSettings();
+        const d = within(await waitFor(() => dialog()));
+        const select = await d.findByRole("combobox", { name: "Kader im Kaderplaner" });
+        expect(within(select).getByRole("option", { name: "Alter Kader – verknüpft mit PuG" })).toBeDisabled();
+        await userEvent.selectOptions(select, "k1");
+        await userEvent.click(d.getByRole("button", { name: "Speichern" }));
+        expect(api.updateRoster).toHaveBeenCalledWith("raid-mo-do-abc", { kaderId: "k1" });
+    });
+
+    it("unlinks with \"Kein Kader\"", async () => {
+        linkSettings(true, "k1");
+        const d = within(await waitFor(() => dialog()));
+        const select = await d.findByRole("combobox", { name: "Kader im Kaderplaner" });
+        expect(select).toHaveValue("k1");
+        await userEvent.selectOptions(select, "");
+        await userEvent.click(d.getByRole("button", { name: "Speichern" }));
+        expect(api.updateRoster).toHaveBeenCalledWith("raid-mo-do-abc", { kaderId: null });
+    });
+
+    it("shows no picker to a manager who is no admin", async () => {
+        linkSettings(false);
+        const d = within(await waitFor(() => dialog()));
+        await d.findByText("Raid Mo / Do einstellen");
+        expect(d.queryByRole("combobox", { name: "Kader im Kaderplaner" })).not.toBeInTheDocument();
+    });
+});
+
 describe("RosterFormDialog — in English", () => {
     it("translates the form", async () => {
         await switchLang("en");

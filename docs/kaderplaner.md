@@ -59,17 +59,29 @@ A raid roster (docs/roster-profile.md "Roster anlegen und einstellen") can be cr
 `rosterPlayers(guildId, kaderId)` answers per player **only** `{ userId, state, decision, characterName }` (states
 roster, bench, tentative; `characterName` = the planner's active character), built field by field — never a wish, an
 answer, a note, a vote, a comment, the Verlauf or the activity log; `kaderSummaries(guildId)` gives the create dialog
-id, name and two counts. `rosterCreate.js` is the only module outside the Kaderplaner that requires it, and it requires
+and the roster link id, name, two counts and the Kader's `attendanceCategories` (category ids, no person in them). `rosterCreate.js` is the only module outside the Kaderplaner that requires it, and it requires
 nothing else of the planner (`test/stores/kaderStore.test.js`); `test/services/kader/kaderRoster.test.js` and the
 roster suites fill every private field with a marker and assert it never reaches the answer or `rosters.json`. The
 roster maps roster → core, bench → bench, tentative → trial; the character is the planner's active one as the profile
 key of the roster's version when the profile has it, else the name as typed, else a profile character of the decided
 class, else the profile's first. Afterwards the roster is independent: nothing flows back into the Kader.
 
+**The link (October 2026):** a Kader belongs to exactly one roster through the roster's own field `kaderId` (1:1,
+`rosterStore`; a roster created from the Kader starts linked, a roster stored before the field gets its
+`source.kaderId`). `rosterCreate.rosterOfKader` reads that link, so "Ins Roster übernehmen" goes into the linked
+roster and nowhere else — a migrated roster ("Mo-Raider") that the Kader is meant for is linked instead of a second
+roster being created. Linking copies nothing of the Kader; the privacy rule stays: only status and the decided
+character cross, and only through "Ins Roster übernehmen".
+
 **In the planner (#658):** the bar of the decision page (`/kader/<id>/roster`, `pages/kader/RosterLink.tsx`, beside
 "Beispiel-Setups") shows the roster action:
 
-- **"Roster anlegen"** — while no roster has `source.kaderId` = this Kader, for full admins only. A dialog with the
+- **"Mit bestehendem Roster verknüpfen"** — while the Kader has no roster, for full admins with `kader` write. A
+  dialog with the server's rosters (the one whose category the Kader counts attendance in first, "Vorschlag"; one
+  another Kader holds greyed out), then `POST /api/kader/roster/link`. When the picked roster's category is not among
+  the Kader's attendance categories, a switch (on) adds it through the ordinary `PUT /api/kader/kaders` — the
+  Kader's own route and rights.
+- **"Roster anlegen"** — while the Kader has no roster, for full admins only. A dialog with the
   name (default the Kader's) and an optional raid category (only categories without roster, from `GET
   /api/rosters/options`), then `POST /api/rosters/create` with `source: "kader"`; the toast says how many came along.
   Without a category the roster plays the planner's version (Forever when that rule set exists — the characters are
@@ -80,10 +92,17 @@ class, else the profile's first. Afterwards the roster is independent: nothing f
   them in the same way (status, character, main role); **members already in the roster are never touched**, and nobody
   is taken out because the Kader moved them back. Role failures are counted in the toast.
 - **"Zum Roster"** — the link to `/roster/r/<id>`: name, members, status and roles are edited there.
+- **"Verknüpfung"** — full admins: the same dialog to link another roster or "Verknüpfung lösen" (the roster stays
+  with all its members). The roster page links back: its Komposition's "Zum Kaderplaner" opens `/kader/<kaderId>/roster`
+  of the linked Kader, and the roster settings ("Kader im Kaderplaner") set or clear the same link from that side.
 
 `GET /api/kader/roster?kader=<id>` (area `kader` read, `rosterCreate.kaderRosterState`) answers counts only: `{ roster:
-{ id, name, members } | null, candidates, pending, canCreate, canSync }`; the button refetches it when the counts of
-the decided states change. The kader route requires `services/roster/rosterCreate.js` and `rosterStore` — never the
+{ id, name, members } | null, candidates, pending, canCreate, canSync, canLink, rosters }` — `rosters` (only with
+`canLink` = full admin with `kader` write) are `[{ id, name, categoryId, members, linkedKaderId, suggested }]`
+(`rosterCreate.kaderLinkChoices`); the button refetches it when the counts of the decided states change. `POST
+/api/kader/roster/link` `{ kaderId, rosterId }` (area `kader` write + CSRF, full admins, else 403 `admin_only`;
+`rosterId` `""` unlinks; 404 `kader_not_found` / `not_found`, 409 `kader_taken`) moves the link
+(`rosterCreate.linkRosterToKader`: the old roster is unlinked first, a history line on both) and answers the state. The kader route requires `services/roster/rosterCreate.js` and `rosterStore` — never the
 other way round —, so `kaderRoster.js` stays the only door (`test/stores/kaderStore.test.js`); the route test fills an
 interview note and a comment with a marker and asserts neither reaches the roster.
 

@@ -21,6 +21,7 @@ export function rosterHead(over: Partial<RosterHead> = {}): RosterHead {
         slots: { total: 25, tank: 3, healer: 7, bench: 0 },
         allowMultipleChars: false,
         source: "migration",
+        kaderId: null,
         counts: { core: 19, trial: 2, bench: 2, pause: 1 },
         members: 24,
         places: 21,
@@ -90,6 +91,7 @@ export function settings(over: Partial<RosterSettings> = {}): RosterSettings {
         signupOnly: false,
         allowMultipleChars: false,
         slots: { total: 25, tank: 3, healer: 7, bench: 0 },
+        kaderId: null,
         ...over,
     };
 }

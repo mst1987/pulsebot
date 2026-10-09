@@ -460,7 +460,9 @@
         "no_category": "Für „Aus den letzten Raids“ braucht das Roster eine Kategorie.",
         "no_guild": "Das Roster gehört zu keinem Discord-Server.",
         "not_roster_role": "Diese Rolle gehört nicht zu diesem Roster.",
-        "csrf": "Die Seite ist veraltet. Bitte neu laden."
+        "csrf": "Die Seite ist veraltet. Bitte neu laden.",
+        "invalid_spec": "Dieser Spec passt nicht zur Klasse des Charakters.",
+        "kader_taken": "Dieser Kader ist schon mit einem anderen Roster verknüpft."
     },
     "sync": {
         "loading": "Lade den Abgleich …",
@@ -559,7 +561,24 @@
         "thinTip": "Nur eine Person bringt den Buff mit: fehlt sie, fehlt der Buff.",
         "missingBuff": "fehlt",
         "toRecruitment": "Zur Rekrutierung",
-        "toKader": "Zum Kaderplaner"
+        "toKader": "Zum Kaderplaner",
+        "specFrom": "Spec aus: {parts}",
+        "specFromTip": "Woher Klasse und Spec kommen",
+        "specFromTipSub": "Zuerst die Wahl der Orga, dann die letzte Anmeldung in dieser Kategorie, dann die Logs, dann das Raider-Profil. Ohne Spec zählt nur die Klasse.",
+        "unresolvedTitle": {
+            "one": "{count} Mitglied ohne Spec oder Klasse",
+            "other": "{count} Mitglieder ohne Spec oder Klasse"
+        },
+        "unresolvedSub": "zählen nicht bei Rollen und Buffs",
+        "reason": {
+            "no_char": "kein Charakter in diesem Roster",
+            "no_class": "Klasse unbekannt: nicht im Profil, in keiner Anmeldung, in keinem Log",
+            "no_spec": "{cls}, Spec unbekannt"
+        },
+        "openMember": "Öffnen",
+        "toKaderTip": "Kader „{name}“ im Kaderplaner öffnen",
+        "noKader": "Kein Kader verknüpft",
+        "noKaderTip": "In den Einstellungen des Rosters lässt sich ein Kader des Kaderplaners verknüpfen."
     },
     "hist": {
         "title": "Verlauf",
@@ -731,6 +750,30 @@
         "delete": "Roster löschen",
         "deleteTitle": "„{name}“ löschen?",
         "deleteText": "Das Roster mit Mitgliedern und Verlauf verschwindet. Im Discord ändert sich nichts: die Rollen bleiben, niemandem wird eine genommen.",
-        "deleted": "„{name}“ gelöscht"
+        "deleted": "„{name}“ gelöscht",
+        "kaderHint": "„Ins Roster übernehmen“ im Kaderplaner geht genau in dieses Roster. Ein Kader gehört zu höchstens einem Roster.",
+        "noKader": "Kein Kader",
+        "kaderGone": "Verknüpfter Kader (gelöscht)",
+        "kaderTaken": "{name} – verknüpft mit {roster}",
+        "kaderLink": "Kader im Kaderplaner"
+    },
+    "spec": {
+        "title": "Spec in diesem Roster",
+        "hint": "wirkt sofort",
+        "auto": "automatisch",
+        "autoTip": "Spec aus Anmeldung, Log oder Profil",
+        "autoFound": "Automatisch: {spec} (aus {source})",
+        "autoNone": "Automatisch ist noch kein Spec bekannt.",
+        "now": "Zählt hier als {spec} · {cls} (aus {source})",
+        "unknown": "{cls}, Spec unbekannt",
+        "noClass": "Klasse unbekannt",
+        "pickTip": "In diesem Roster als {spec} zählen",
+        "source": {
+            "override": "Orga",
+            "signup": "Anmeldung",
+            "logs": "Log",
+            "profile": "Profil",
+            "class": "Klasse"
+        }
     }
 }

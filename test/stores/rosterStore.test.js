@@ -24,7 +24,7 @@ describe("stores/rosterStore normalizeRoster", () => {
             id: "r1", guildId: "", name: "Donnerstag", categoryId: null, versionId: "tbc",
             roleIds: [], trialRoleId: null, managers: { roleIds: [], userIds: [] },
             slots: { total: 0, tank: 0, healer: 0, bench: 0 },
-            allowMultipleChars: false, signupOnly: false, source: { kind: "manual" },
+            allowMultipleChars: false, signupOnly: false, source: { kind: "manual" }, kaderId: null,
             members: {}, history: [], createdAt: "", createdBy: "",
         });
     });
@@ -67,7 +67,7 @@ describe("stores/rosterStore normalizeRoster", () => {
             status: "boss", since: 0, trialUntil: "nope", chars: ["Kes"], charNames: { kes: "Kes", other: "X" }, by: "1".repeat(40),
         } } });
         expect(r.members.u).toEqual({
-            status: "core", since: "1970-01-01T00:00:00.000Z", by: "", chars: ["kes"], charNames: { kes: "Kes" }, note: "", trialUntil: null,
+            status: "core", since: "1970-01-01T00:00:00.000Z", by: "", chars: ["kes"], charNames: { kes: "Kes" }, note: "", spec: "", trialUntil: null,
         });
         const t = normalizeRoster({ id: "r", members: { u: { status: "trial", trialUntil: NOW } } });
         expect(t.members.u).toMatchObject({ status: "trial", trialUntil: NOW });
@@ -180,6 +180,36 @@ describe("stores/rosterStore create / read / update / delete", () => {
         expect(updateRoster(b.id, { categoryId: "c3" }).categoryId).toBe("c3");
     });
 
+    it("links a Kader to one roster at most (kaderId), independent of the source", () => {
+        const a = createRoster({ name: "A", source: { kind: "kader", kaderId: "k1" } });
+        expect(a.kaderId).toBe("k1");
+        expect(rosterStore.rosterForKader("k1").id).toBe(a.id);
+        expect(() => createRoster({ name: "B", kaderId: "k1" })).toThrow(expect.objectContaining({ code: "kader_taken" }));
+        const b = createRoster({ name: "B", source: { kind: "migration" } });
+        expect(() => updateRoster(b.id, { kaderId: "k1" })).toThrow(expect.objectContaining({ code: "kader_taken" }));
+        // unlinked stays unlinked, although the source still names the Kader
+        expect(updateRoster(a.id, { kaderId: null }).kaderId).toBeNull();
+        expect(getRoster(a.id).source).toEqual({ kind: "kader", kaderId: "k1" });
+        expect(updateRoster(b.id, { kaderId: "k1" }, { actor: "o1" }).kaderId).toBe("k1");
+        const hist = getRoster(b.id).history;
+        expect(hist[hist.length - 1]).toMatchObject({ what: "settings", detail: "kaderId" });
+        expect(rosterStore.rosterForKader("k1", "other-guild")).toBeNull();
+        expect(rosterStore.rosterForKader("")).toBeNull();
+    });
+
+    it("migrates the link from source.kaderId and cuts a second link to the same Kader", () => {
+        const file = normalizeFile({ rosters: {
+            r1: { name: "A", source: { kind: "kader", kaderId: "k1" } },
+            r2: { name: "B", source: { kind: "kader", kaderId: "k1" } },
+            r3: { name: "C", source: { kind: "kader", kaderId: "k2" }, kaderId: null },
+            r4: { name: "D", kaderId: "k3" },
+        } });
+        expect(file.rosters.r1.kaderId).toBe("k1");
+        expect(file.rosters.r2.kaderId).toBeNull();
+        expect(file.rosters.r3.kaderId).toBeNull();
+        expect(file.rosters.r4.kaderId).toBe("k3");
+    });
+
     it("deletes a roster", () => {
         const r = createRoster({ name: "A" });
         expect(deleteRoster(r.id)).toBe(true);
@@ -192,7 +222,7 @@ describe("stores/rosterStore members and history", () => {
     it("adds a member as core with char keys of the roster's version and its typed name", () => {
         const r = createRoster({ name: "F", versionId: "forever" });
         const m = upsertMember(r.id, "u1", { chars: ["Devi Res"] }, { actor: "o1", now: NOW });
-        expect(m).toEqual({ status: "core", since: NOW, by: "o1", chars: ["forever~devi res"], charNames: { "forever~devi res": "Devi Res" }, note: "", trialUntil: null });
+        expect(m).toEqual({ status: "core", since: NOW, by: "o1", chars: ["forever~devi res"], charNames: { "forever~devi res": "Devi Res" }, note: "", spec: "", trialUntil: null });
         const hist = getRoster(r.id).history;
         expect(hist[hist.length - 1]).toEqual({ at: NOW, by: "o1", userId: "u1", what: "member-added", detail: "core, forever~devi res" });
     });
@@ -207,6 +237,31 @@ describe("stores/rosterStore members and history", () => {
         // nothing changed: no new line
         upsertMember(r.id, "u1", { status: "trial" }, { actor: "o2", now: NOW });
         expect(getRoster(r.id).history).toHaveLength(hist.length);
+    });
+
+    it("keeps the orga's spec of the version, clears it with a new first character and logs it", () => {
+        const r = createRoster({ name: "A" });
+        upsertMember(r.id, "u1", { chars: ["Owl"] });
+        expect(upsertMember(r.id, "u1", { spec: "Druid-Balance" }, { actor: "o1", now: NOW }).spec).toBe("Druid-Balance");
+        const hist = getRoster(r.id).history;
+        expect(hist[hist.length - 1].detail).toBe("spec Druid-Balance");
+        // not a spec of the rule set: dropped
+        expect(upsertMember(r.id, "u1", { spec: "Druid-Moonkin" }).spec).toBe("");
+        upsertMember(r.id, "u1", { spec: "Druid-Balance" });
+        // a note leaves it alone, another first character starts on "automatisch"
+        expect(upsertMember(r.id, "u1", { note: "x" }).spec).toBe("Druid-Balance");
+        expect(upsertMember(r.id, "u1", { chars: ["Other"] }).spec).toBe("");
+        // no character, no spec
+        expect(normalizeRoster({ id: "r", members: { u: { spec: "Druid-Balance" } } }).members.u.spec).toBe("");
+    });
+
+    it("setFirstChars clears the spec of a member whose first character changes", () => {
+        const r = createRoster({ name: "A" });
+        upsertMember(r.id, "u1", { chars: ["Owl"], spec: "Druid-Balance" });
+        upsertMember(r.id, "u2", { chars: ["Keep"], spec: "Mage-Frost" });
+        setFirstChars(r.id, { u1: { key: "tree", name: "Tree" }, u2: { key: "keep", name: "Keep" } });
+        expect(getRoster(r.id).members.u1.spec).toBe("");
+        expect(getRoster(r.id).members.u2.spec).toBe("Mage-Frost");
     });
 
     it("keeps one char without allowMultipleChars", () => {
@@ -298,7 +353,7 @@ describe("stores/rosterStore migrateCategories", () => {
         ]);
         const r = rosterForCategory("c1");
         expect(r).toMatchObject({ source: { kind: "migration" }, createdAt: NOW, roleIds: ["10"], versionId: "tbc" });
-        expect(r.members.u1).toEqual({ status: "core", since: NOW, by: "", chars: ["kes"], charNames: { kes: "Kes-Realm" }, note: "", trialUntil: null });
+        expect(r.members.u1).toEqual({ status: "core", since: NOW, by: "", chars: ["kes"], charNames: { kes: "Kes-Realm" }, note: "", spec: "", trialUntil: null });
         expect(stored().migratedCategories).toEqual(["c1", "c2"]);
         const before = fs.__store.get(ROSTERS_FILE);
         fs.writeFileSync.mockClear();

@@ -144,6 +144,53 @@ describe("MemberDrawer — a manager", () => {
     });
 });
 
+describe("MemberDrawer — Spec in diesem Roster", () => {
+    const OWL = member("Gentletwowl", {
+        userId: "u-thorgrim",
+        chars: [memberChar("Gentletwowl", { className: "Druid", spec: "Druid-Balance", specId: "Balance", specLabel: "Gleichgewicht", specIcon: "spell_nature_starfall", role: "dps" })],
+        resolved: {
+            className: "Druid", spec: "Druid-Balance", specLabel: "Gleichgewicht", specIcon: "spell_nature_starfall", role: "dps",
+            source: "signup", reason: "", override: "",
+            auto: { className: "Druid", spec: "Druid-Balance", specLabel: "Gleichgewicht", specIcon: "spell_nature_starfall", source: "signup" },
+        },
+        specChoices: [
+            { key: "Druid-Balance", id: "Balance", label: "Gleichgewicht", labelEn: "Balance", icon: "spell_nature_starfall", role: "ranged" },
+            { key: "Druid-Feral", id: "Feral", label: "Wildheit", labelEn: "Feral", icon: "ability_racial_bearform", role: "melee" },
+            { key: "Druid-Restoration", id: "Restoration", label: "Wiederherstellung", labelEn: "Restoration", icon: "spell_nature_healingtouch", role: "healer" },
+        ],
+    });
+    const owlDrawer = () => screen.getByRole("complementary", { name: /Mitglied Gentletwowl/ });
+
+    it("says what the chain found and from where, and sets the orga's spec at once", async () => {
+        open(detail([OWL], { canManage: true, roster: head() }));
+        const d = within(owlDrawer());
+        const group = d.getByRole("group", { name: "Spec in diesem Roster" });
+        expect(within(group).getByRole("button", { name: "automatisch" })).toHaveAttribute("aria-pressed", "true");
+        expect(d.getAllByText(/Automatisch: Gleichgewicht \(aus Anmeldung\)/).length).toBeGreaterThan(0);
+        expect(d.getByText("Zählt hier als Gleichgewicht · Druide (aus Anmeldung)")).toBeInTheDocument();
+        expect(within(group).getByRole("button", { name: "Wiederherstellung" }).querySelector("img")).not.toBeNull();
+        await userEvent.click(within(group).getByRole("button", { name: "Wiederherstellung" }));
+        expect(api.saveRosterMember).toHaveBeenCalledWith("raid-mo-do-abc", "u-thorgrim", { spec: "Druid-Restoration" }, "update");
+    });
+
+    it("goes back to automatisch", async () => {
+        const chosen = { ...OWL, resolved: { ...OWL.resolved!, spec: "Druid-Feral", specLabel: "Wildheit", source: "override" as const, override: "Druid-Feral" } };
+        open(detail([chosen], { canManage: true, roster: head() }));
+        const group = within(owlDrawer()).getByRole("group", { name: "Spec in diesem Roster" });
+        expect(within(group).getByRole("button", { name: /Wilder Kampf/ })).toHaveAttribute("aria-pressed", "true");
+        await userEvent.click(within(group).getByRole("button", { name: "automatisch" }));
+        expect(api.saveRosterMember).toHaveBeenCalledWith("raid-mo-do-abc", "u-thorgrim", { spec: "" }, "update");
+    });
+
+    it("shows a reader the spec and its source without a control", () => {
+        const plain = { ...OWL, specChoices: undefined };
+        open(detail([plain], { canManage: false, roster: head() }));
+        const d = within(owlDrawer());
+        expect(d.getByText("Zählt hier als Gleichgewicht · Druide (aus Anmeldung)")).toBeInTheDocument();
+        expect(d.queryByRole("group", { name: "Spec in diesem Roster" })).not.toBeInTheDocument();
+    });
+});
+
 describe("MemberDrawer — a reader", () => {
     it("shows the facts without a control and without the note", async () => {
         const plain = { ...THORGRIM, note: undefined, otherChars: undefined };

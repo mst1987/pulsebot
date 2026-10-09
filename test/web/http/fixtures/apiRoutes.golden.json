@@ -256,6 +256,7 @@
   "PUT /api/kader/assignments",
   "POST /api/kader/assignments/reset",
   "GET /api/kader/roster",
+  "POST /api/kader/roster/link",
   "POST /api/kader/roster/sync",
   "GET /api/settings/raidhelper-sync",
   "POST /api/settings/raidhelper-sync",

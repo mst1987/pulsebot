@@ -21,6 +21,8 @@ export type StoredRosterMember = {
     chars: string[];
     charNames: Record<string, string>;
     note: string;
+    /** The orga's spec for the first character, "" = automatisch. */
+    spec?: string;
     trialUntil: string | null;
 };
 
@@ -31,6 +33,8 @@ export type RosterMemberPatch = {
     charNames?: Record<string, string>;
     note?: string;
     trialUntil?: string | null;
+    /** The orga's spec for the first character ("Spec in diesem Roster"), "" = automatisch. */
+    spec?: string;
 };
 
 /** Take someone in (mode "add") or change a member (mode "update"); left out: add when no member yet. */
@@ -104,7 +108,7 @@ export type RosterOptions = {
     canManageRoles: boolean;
     online: boolean;
     /** Only for a reader of the Kaderplaner. */
-    kaders: { id: string; name: string; inRoster: number; candidates: number }[];
+    kaders: { id: string; name: string; inRoster: number; candidates: number; attendanceCategories?: string[]; rosterId?: string | null; rosterName?: string }[];
     templateSlots: Record<string, RosterTemplateSlots>;
     isAdmin: boolean;
 };
@@ -127,6 +131,8 @@ export type RosterSettingsPatch = {
     slots?: Partial<RosterSlots>;
     allowMultipleChars?: boolean;
     signupOnly?: boolean;
+    /** Full admins: the Kader of the Kaderplaner to link (null unlinks). */
+    kaderId?: string | null;
 };
 
 export type RosterSource = "role" | "kader" | "raids" | "none";
@@ -144,7 +150,7 @@ export type RosterInitial = {
 export type StoredRoster = { id: string; name: string; categoryId: string | null; versionId: string; guildId: string };
 
 /** Create a roster on the active server (full admins). */
-export function createRoster(body: RosterSettingsPatch & { source?: RosterSource; kaderId?: string }): Promise<{ roster: StoredRoster; initial: RosterInitial }> {
+export function createRoster(body: RosterSettingsPatch & { source?: RosterSource; kaderId?: string | null }): Promise<{ roster: StoredRoster; initial: RosterInitial }> {
     return send("POST", "/api/rosters/create", body);
 }
 
@@ -171,6 +177,12 @@ export type RosterComposition = {
     classes: { className: string; label: string; labelEn: string; color: string; icon: string; count: number }[];
     buffs: { key: string; label: string; labelEn: string; icon: string; scope: string; providers: string[]; covered: boolean }[];
     buffsAvailable: boolean;
+    /** Core and trial members as the chain resolved them. */
+    members?: { userId: string; className: string; spec: string; role: RosterRole; source: string }[];
+    /** Who counts without spec or class, and why. */
+    unresolved?: { userId: string; displayName: string; character: string; className: string; reason: "no_char" | "no_class" | "no_spec" }[];
+    /** How many specs came from which source. */
+    sources?: { override: number; signup: number; logs: number; profile: number; class: number };
     canManage: boolean;
 };
 

@@ -410,7 +410,19 @@ export type KaderRosterState = {
     canCreate: boolean;
     /** Area `kader` write and manager of the roster. */
     canSync: boolean;
+    /** Full admin with `kader` write: may link the Kader to an existing roster. */
+    canLink?: boolean;
+    /** With canLink: the server's rosters to link to, suggested first (its category counts in the Kader's attendance). */
+    rosters?: KaderLinkRoster[];
 };
+
+/** A roster the Kader can be linked to; `linkedKaderId` = another Kader holds it. */
+export type KaderLinkRoster = { id: string; name: string; categoryId: string | null; members: number; linkedKaderId: string | null; suggested: boolean };
+
+/** Link the Kader to an existing roster ("" unlinks); answers the new state. */
+export function linkKaderRoster(kaderId: string, rosterId: string): Promise<KaderRosterState> {
+    return send("POST", "/api/kader/roster/link", { kaderId, rosterId });
+}
 
 export function getKaderRoster(kaderId: string): Promise<KaderRosterState> {
     return get<KaderRosterState>(`/api/kader/roster?kader=${encodeURIComponent(kaderId)}`);

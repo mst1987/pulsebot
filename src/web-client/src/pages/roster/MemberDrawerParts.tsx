@@ -1,14 +1,17 @@
 // The sections of the member drawer (#655/#656, MemberDrawer.tsx): the
-// characters of this roster (order, remove, assign, typed by hand), the
-// roster's Discord roles as switches, the attendance as dots, the orga's note.
+// characters of this roster (order, remove, assign, typed by hand), the spec
+// the first one counts with here, the roster's Discord roles as switches, the
+// attendance as dots, the orga's note.
 // Each change is saved at once by the drawer (onSave / onRole); read-only
 // readers see the same facts without a control.
 import { useState, type CSSProperties, type ReactNode } from "react";
 import type { RosterDetail, RosterMember, RosterMemberChar } from "../../api";
-import { useT } from "../../i18n";
-import { Button, IconButton, Switch } from "../../components/ui";
+import { useLang, useT } from "../../i18n";
+import { Button, Chip, IconButton, Switch } from "../../components/ui";
 import { ChevronDownIcon, PlusIcon, XIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
+import { wowIconUrl } from "../../lib/wow/wowIcon";
+import { classLabel, specLabel } from "../../lib/wow/wowNames";
 import { assignChar, charIcon, charLine, dateInputValue, moveChar } from "../../lib/roster/rosterEdit";
 import { attendanceTone } from "../../lib/roster/rosterView";
 import AttendanceCell from "../../components/roster/AttendanceCell";
@@ -109,6 +112,58 @@ export function CharsSection({ member, data, busy, onSave }: {
                     <span className="rn-sub">{multi ? t("roster.drawer.firstCounts") : t("roster.drawer.singleOnly")}</span>
                 </div>
             )}
+        </DrawerSection>
+    );
+}
+
+/** "Anmeldung", "Log", "Profil", "Orga", "Klasse": where a spec came from, as one word. */
+function specSourceWord(source: string, t: ReturnType<typeof useT>): string {
+    return source ? t(`roster.spec.source.${source}`) : "";
+}
+
+/**
+ * "Spec in diesem Roster": the spec the first character counts with here. A
+ * manager picks one of the class's specs (toggle chips with the spec icon) or
+ * "automatisch" - which says what the chain found and from where; a reader
+ * sees the spec and its source. Without a class nothing can be picked.
+ */
+export function SpecSection({ member, data, busy, onSave }: {
+    member: RosterMember;
+    data: RosterDetail;
+    busy: boolean;
+    onSave: (spec: string) => void;
+}) {
+    const t = useT();
+    const lang = useLang();
+    const r = member.resolved;
+    if (!r || !member.chars.length) return null;
+    const choices = member.specChoices || [];
+    const manage = data.canManage && choices.length > 0;
+    const override = r.source === "override" ? r.override : "";
+    const autoText = r.auto.spec
+        ? t("roster.spec.autoFound", { spec: specLabel(r.auto.spec, r.auto.specLabel), source: specSourceWord(r.auto.source, t) })
+        : t("roster.spec.autoNone");
+    const now = r.spec
+        ? t("roster.spec.now", { spec: specLabel(r.spec, r.specLabel), cls: classLabel(r.className, r.className), source: specSourceWord(r.source, t) })
+        : r.className ? t("roster.spec.unknown", { cls: classLabel(r.className, r.className) }) : t("roster.spec.noClass");
+    return (
+        <DrawerSection title={t("roster.spec.title")} hint={manage ? t("roster.spec.hint") : undefined}>
+            <p className="rn-sub">{now}</p>
+            {manage && (
+                <div className="chip-row rn-spec-pick" role="group" aria-label={t("roster.spec.title")}>
+                    <Chip pressed={!override} disabled={busy} onClick={() => onSave("")} tip={t("roster.spec.autoTip")} tipSub={autoText}>
+                        {t("roster.spec.auto")}
+                    </Chip>
+                    {choices.map((s) => (
+                        <Chip key={s.key} pressed={override === s.key} disabled={busy} onClick={() => onSave(s.key)}
+                            icon={s.icon ? <img className="rn-spec-ico" src={wowIconUrl(s.icon, 36)} alt="" width={18} height={18} loading="lazy" /> : undefined}
+                            tip={t("roster.spec.pickTip", { spec: lang === "en" ? s.labelEn : s.label })}>
+                            {specLabel(s.key, lang === "en" ? s.labelEn : s.label)}
+                        </Chip>
+                    ))}
+                </div>
+            )}
+            {manage && <p className="rn-sub">{autoText}</p>}
         </DrawerSection>
     );
 }
