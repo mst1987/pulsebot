@@ -25,6 +25,10 @@ const run = canRun ? it : it.skip;
 
 const STUB_RESTIC = `#!/usr/bin/env bash
 echo "restic $*" >> "$STUB_LOG"
+# like the real one: no cache dir, no HOME, no XDG_CACHE_HOME -> it gives up (as under systemd)
+if [ -z "\${RESTIC_CACHE_DIR:-}" ] && [ -z "\${XDG_CACHE_HOME:-}" ] && [ -z "\${HOME:-}" ]; then
+  echo "unable to locate cache directory: neither \\$XDG_CACHE_HOME nor \\$HOME are defined" >&2; exit 1
+fi
 case "$1" in
   -o) shift 2 ;;
 esac
@@ -191,6 +195,31 @@ describe("offsite.sh run", () => {
     run("skips PostgreSQL without pg_dumpall", withCtx((ctx) => {
         const r = exec(ctx);
         expect(fs.existsSync(path.join(ctx.dir, "backup", "server-config", "postgres-dumpall.sql.gz"))).toBe(false);
+        expect(r.status.ok).toBe(true);
+    }));
+
+    run("runs without HOME, as a systemd service does: the restic cache sits in BACKUP_DIR", withCtx((ctx) => {
+        const r = exec(ctx, { extraEnv: { HOME: "", XDG_CACHE_HOME: "" } });
+        expect(r.stderr).not.toMatch(/unable to locate cache directory/);
+        expect(r.status.ok).toBe(true);
+        expect(fs.statSync(path.join(ctx.dir, "backup", ".restic-cache")).isDirectory()).toBe(true);
+    }));
+
+    run("dumps PostgreSQL from /, where the postgres user may go (not from root's home)", withCtx((ctx) => {
+        fs.writeFileSync(path.join(ctx.bin, "systemctl"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+        // runuser: note the directory it was started in, then run what follows "--"
+        fs.writeFileSync(path.join(ctx.bin, "runuser"),
+            "#!/bin/sh\necho \"runuser-cwd $(pwd)\" >> \"$STUB_LOG\"\nwhile [ \"$1\" != \"--\" ]; do shift; done\nshift\nexec \"$@\"\n",
+            { mode: 0o755 });
+        // pg_dumpall complains like the real one when it cannot use its working directory
+        fs.writeFileSync(path.join(ctx.bin, "pg_dumpall"),
+            "#!/bin/sh\n[ \"$(pwd)\" = \"/\" ] || echo 'could not change directory to \"/root\": Permission denied' >&2\necho '-- dump'\n",
+            { mode: 0o755 });
+        const r = exec(ctx);
+        expect(r.calls).toContain("runuser-cwd /");
+        expect(r.stderr).not.toMatch(/pg_dumpall reported/);
+        expect(r.stderr).toMatch(/postgres dump written/);
+        expect(fs.existsSync(path.join(ctx.dir, "backup", "server-config", "postgres-dumpall.sql.gz"))).toBe(true);
         expect(r.status.ok).toBe(true);
     }));
 
