@@ -18,7 +18,7 @@
 // body (`/api/raids/detail?event=<id>`), never in the path.
 const MODULES = [
     "session", "dashboard", "version", "channels", "settings", "talkOverview", "raidhelperRetirement",
-    "ingest", "kader", "botCommands", "raiderCharacters", "roster", "rosters", "profile", "signups", "lootCouncil",
+    "ingest", "kader", "botCommands", "raiderCharacters", "roster", "rosters", "rosterRoles", "profile", "signups", "lootCouncil",
     "raids", "raidDetail", "setup", "raidplan", "eventManage", "eventSeries", "gameVersions",
     "notifyTemplates", "raidTemplates", "recruitment", "history", "cla", "availability", "guildBank",
 ];

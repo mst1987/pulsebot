@@ -337,13 +337,20 @@ function memberChange(before, after) {
     return parts.join("; ");
 }
 
+/** The history detail with where a change came from: "via Discord" (#656) before the rest. */
+function viaDetail(via, detail) {
+    if (via !== "discord") return detail;
+    return detail ? `via Discord · ${detail}` : "via Discord";
+}
+
 /**
  * Add a member or change one. `patch`: status, chars (keys or names - made keys
  * of the roster's version), charNames, note, trialUntil. A new member starts as
  * "core" since `now`. Throws RosterError "member_limit" past 500 members.
+ * `via: "discord"` marks the history line as caused by a Discord role (#656).
  * @returns {object|null} the stored member, null without roster or user id
  */
-function upsertMember(rosterId, userId, patch = {}, { actor = "", now = new Date().toISOString() } = {}) {
+function upsertMember(rosterId, userId, patch = {}, { actor = "", now = new Date().toISOString(), via = "" } = {}) {
     const all = readAll();
     const roster = all.rosters[str(rosterId)];
     const uid = idOf(userId);
@@ -371,19 +378,19 @@ function upsertMember(rosterId, userId, patch = {}, { actor = "", now = new Date
     }, roster.allowMultipleChars);
     roster.members[uid] = next;
     const detail = before ? memberChange(before, next) : `${next.status}${next.chars.length ? `, ${next.chars.join(", ")}` : ""}`;
-    if (!before || detail) roster.history.push(historyEntry({ at: now, by: actor, userId: uid, what: before ? "member" : "member-added", detail }));
+    if (!before || detail) roster.history.push(historyEntry({ at: now, by: actor, userId: uid, what: before ? "member" : "member-added", detail: viaDetail(via, detail) }));
     writeAll(all);
     return getRoster(roster.id).members[uid];
 }
 
-/** Remove a member. @returns {boolean} whether they were one */
-function removeMember(rosterId, userId, { actor = "", now = new Date().toISOString() } = {}) {
+/** Remove a member (`via` as in upsertMember). @returns {boolean} whether they were one */
+function removeMember(rosterId, userId, { actor = "", now = new Date().toISOString(), via = "" } = {}) {
     const all = readAll();
     const roster = all.rosters[str(rosterId)];
     const uid = idOf(userId);
     if (!roster || !uid || !roster.members[uid]) return false;
     delete roster.members[uid];
-    roster.history.push(historyEntry({ at: now, by: actor, userId: uid, what: "member-removed" }));
+    roster.history.push(historyEntry({ at: now, by: actor, userId: uid, what: "member-removed", detail: viaDetail(via, "") }));
     writeAll(all);
     return true;
 }
