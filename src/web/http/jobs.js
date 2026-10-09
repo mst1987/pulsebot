@@ -26,6 +26,7 @@ const talkOverview = require("../../services/talk/talkOverview");
 const eventSeries = require("../events/eventSeries");
 const applicationState = require("../../utils/recruitment/applicationState");
 const availabilityPanel = require("../../services/signups/availabilityPanel");
+const softresDetect = require("../../services/loot/softresDetect");
 const guildBankItemMeta = require("../../services/guildbank/itemMeta");
 const systemMonitor = require("../../services/system/systemMonitor");
 
@@ -62,6 +63,8 @@ const JOBS = [
     // Once after the start: guild bank items without a current name (none yet, or the
     // German ones stored before the names turned English) are looked up again.
     { name: "guildBankItemMeta", start: () => guildBankItemMeta.startMetaRefresh(), stop: () => guildBankItemMeta.stopMetaRefresh() },
+    // Softres lists the raid leads made on softres.it and posted into the raid channel while the bot was away.
+    { name: "softresDetect", start: () => softresDetect.startSoftresDetect(), stop: () => softresDetect.stopSoftresDetect() },
 ];
 
 let running = false;
