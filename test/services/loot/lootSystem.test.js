@@ -1,6 +1,6 @@
 const {
     LOOT_SYSTEMS, LOOT_SYSTEM_LABELS, normalizeLootSystem, normalizeCategoryLootSystem,
-    categoryLootSystem, resolveLootSystem,
+    categoryLootSystem, resolveLootSystem, rosterLootSystem,
 } = require("../../../src/services/loot/lootSystem");
 
 describe("lootSystem", () => {
@@ -32,6 +32,16 @@ describe("lootSystem", () => {
             expect(categoryLootSystem({ categoryLootTool: { c1: "gargul" } }, "c1")).toEqual({ system: "softres", source: "default" });
             expect(categoryLootSystem({}, "")).toEqual({ system: "softres", source: "default" });
             expect(categoryLootSystem(undefined, "c1")).toEqual({ system: "softres", source: "default" });
+        });
+    });
+
+    describe("rosterLootSystem (#676)", () => {
+        it("is the category's system for a roster with category, its own without", () => {
+            const config = { categoryLootSystem: { c1: "lootcouncil" } };
+            expect(rosterLootSystem(config, { categoryId: "c1", lootSystem: "gdkp" })).toEqual({ system: "lootcouncil", source: "category" });
+            expect(rosterLootSystem(config, { categoryId: null, lootSystem: "gdkp" })).toEqual({ system: "gdkp", source: "roster" });
+            expect(rosterLootSystem(config, { categoryId: null, lootSystem: "" })).toEqual({ system: "softres", source: "default" });
+            expect(rosterLootSystem(config, null)).toEqual({ system: "softres", source: "default" });
         });
     });
 

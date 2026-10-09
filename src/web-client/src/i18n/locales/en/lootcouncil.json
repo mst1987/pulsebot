@@ -120,7 +120,7 @@
         "gaps": "Open BiS items",
         "bisLists": "BiS lists",
         "compare": "Loot comparison",
-        "weights": "Weighting"
+        "profiles": "Profiles"
     },
     "roster": {
         "title": "Whose turn is it?",
@@ -585,15 +585,6 @@
         "noSpecTipSub": "The council does not know their spec (yet): {names}. Class and spec come from loot imports, log evaluations and the raider profile; without a spec only a class with a single role can be placed (mage, warlock, rogue, hunter)."
     },
     "weights": {
-        "title": "Weighting",
-        "hint": "How the council counts: what an item is worth, how the four parts of the need weigh and when belonging counts in full. Also used by the in-game addon.",
-        "loading": "Loading the weighting …",
-        "saving": "Saving the weighting",
-        "saved": "Weighting saved — the numbers are recalculated.",
-        "scopeGlobal": "Applies to the server",
-        "scopeOwn": "Own for {name}",
-        "ownSwitch": "Own weighting for {name}",
-        "ownSwitchTip": "Off: this category follows the server's weighting. On: it gets its own, used only for its raids.",
         "readOnly": "Read only — changing it needs write access to the loot council",
         "classesTitle": "Item weights",
         "classesSub": "What an item counts in the loot share. An item below 1 resets the wait only partly — one of 0.5 halves it.",
@@ -652,6 +643,77 @@
             "share": "How few loot points someone has compared to the average.",
             "need": "How far the gear still is from the BiS list.",
             "tenure": "How long someone has been in the raid."
+        }
+    },
+    "head": {
+        "label": "Who the council works for",
+        "pick": "Council for",
+        "unknownPick": "No longer available",
+        "rosters": "Rosters with loot council",
+        "categories": "Categories without roster",
+        "rosterOption": "{name} · {category}",
+        "roster": "Roster",
+        "profile": "Profile",
+        "profileTip": "Profile “{name}” — weighting and view",
+        "profileFromRoster": "Picked in the roster. A click opens the profile in the “Profiles” tab.",
+        "profileFromCategory": "The category's profile. A click opens it in the “Profiles” tab.",
+        "profileDefault": "The default profile — applies while nothing else is picked. A click opens it in the “Profiles” tab.",
+        "kader": "Squad",
+        "kaderUnnamed": "Linked",
+        "toRoster": "To the roster",
+        "toKader": "To the squad"
+    },
+    "profiles": {
+        "title": "Profiles",
+        "hint": "A profile is weighting plus view. Every roster on loot council uses one — set in the roster. Applies to the in-game addon too.",
+        "loading": "Loading profiles …",
+        "listLabel": "Profiles",
+        "listTitle": {
+            "one": "{count} profile",
+            "other": "{count} profiles"
+        },
+        "create": "New profile",
+        "createTitle": "New profile",
+        "createAction": "Create",
+        "created": "Profile “{name}” created.",
+        "default": "Default",
+        "usedBy": {
+            "one": "used by {count} roster",
+            "other": "used by {count} rosters"
+        },
+        "usedByCategories": {
+            "one": "used by {count} category",
+            "other": "used by {count} categories"
+        },
+        "usedByNone": "applies where nothing is picked",
+        "unused": "not used",
+        "usedByNames": "Used by: {names}",
+        "name": "Name",
+        "nameHint": "At most 40 characters, e.g. “Main raid T6” or “PuG night”.",
+        "rename": "Rename",
+        "renameTitle": "Rename “{name}”",
+        "renamed": "Renamed to “{name}”.",
+        "copy": "Copy",
+        "copyTitle": "Copy “{name}”",
+        "copyName": "{name} (copy)",
+        "delete": "Delete",
+        "deleteTitle": "Delete profile “{name}”?",
+        "deleteText": "The profile is removed. No roster uses it right now, no number changes.",
+        "deleted": "Profile “{name}” deleted.",
+        "inUseTip": "Still in use: {names}. Pick another profile in the roster first.",
+        "viewTitle": "View",
+        "viewSub": "Role, content and BiS list the page and the addon compute with. Changed on the page, it lands here too.",
+        "viewRole": "Role of the profile",
+        "saving": "Saving profile",
+        "saved": "Profile “{name}” saved — the numbers are recomputed.",
+        "err": {
+            "name_taken": "A profile already has this name.",
+            "invalid_name": "Please enter a name.",
+            "name_too_long": "At most 40 characters.",
+            "profile_in_use": "A roster or a category still uses this profile.",
+            "profile_default": "The default profile always stays.",
+            "profile_limit": "No more than 50 profiles.",
+            "not_found": "This profile no longer exists."
         }
     }
 }

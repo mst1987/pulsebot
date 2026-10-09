@@ -9,6 +9,7 @@ const mockGearByCharacter = jest.fn(() => new Map());
 const mockCharacterMap = jest.fn(() => ({}));
 const mockExcludedKeys = jest.fn(() => new Set());
 const mockRosterForCategory = jest.fn(() => null);
+const mockGetRoster = jest.fn(() => null);
 const mockListProfiles = jest.fn(() => []);
 
 jest.mock("../../../src/stores/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
@@ -20,7 +21,11 @@ jest.mock("../../../src/stores/councilStore", () => ({
     excludedKeys: (...a) => mockExcludedKeys(...a),
     plannedRoles: () => new Map(),
 }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: (...a) => mockRosterForCategory(...a) }));
+jest.mock("../../../src/stores/rosterStore", () => ({
+    rosterForCategory: (...a) => mockRosterForCategory(...a),
+    getRoster: (...a) => mockGetRoster(...a),
+    listRosters: () => [],
+}));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: (...a) => mockListProfiles(...a) }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: () => [] }));
 jest.mock("../../../src/stores/eventStore", () => ({
@@ -52,6 +57,26 @@ beforeEach(() => {
 });
 
 describe("lootCouncil with a roster (#667)", () => {
+    it("a roster picked by id (#676) is the candidate list even without category - every loot counts", () => {
+        mockGetRoster.mockReturnValue({
+            id: "r9", name: "PuG", categoryId: null, versionId: "tbc", lootProfileId: "",
+            members: { 1001: { status: "core", chars: ["devihra"], charNames: {} } },
+        });
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }, { key: "zweit", className: "Mage", spec: "Arcane" }]);
+        mockListAll.mockReturnValue([
+            lootRow({ categoryId: "c1", awardedAt: now - 2 * DAY }),
+            lootRow({ categoryId: "c2", awardedAt: now - 4 * DAY }),
+            lootRow({ characterKey: "zweit", character: "Zweit", categoryId: "c1" }),
+        ]);
+        const built = councilRoster({ rosterId: "r9", categoryId: "", now });
+        expect(built.rows.map((r) => r.key)).toEqual(["devihra"]);
+        expect(built.rows[0]).toMatchObject({ status: "core", lootCount: 2 });
+        expect(built.rosterSource).toMatchObject({ id: "r9", name: "PuG" });
+        expect(built.outsiders).toEqual([]);
+        expect(built.weights.scope).toBe("global");
+        mockGetRoster.mockReturnValue(null);
+    });
+
     it("without a roster everything stays as before - no status, no roster fields", () => {
         mockListAll.mockReturnValue([lootRow({ characterKey: "aktiv", character: "Aktiv" })]);
         mockAnnotated.mockReturnValue([{ key: "aktiv", className: "Mage", spec: "Arcane" }]);

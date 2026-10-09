@@ -41,7 +41,7 @@ export default function DropCheckPage() {
     const jobs = useJobs();
     const toast = useToast();
     // The same filters the council page is set to — read, never written here:
-    // the browser's, or a picked category's stored ones (categoryViews.ts).
+    // the browser's, or the picked roster's / category's profile view (categoryViews.ts).
     const [localView] = usePersistedState<FilterView>(VIEW_KEY, FILTER_DEFAULT);
     const { filters: view, ready: viewsReady } = useCategoryViews({
         view: localView, setView: () => undefined, canWrite: false, version: "", mainVersion: "", onError: () => undefined,
@@ -78,7 +78,7 @@ export default function DropCheckPage() {
     autoSimRef.current = simulateDrop;
 
     const fetchFocus = () => getLootCouncil({
-        role: view.role, tiers: view.tiers, contents: view.contents, category: view.category, bisTier: view.bisTier,
+        role: view.role, tiers: view.tiers, contents: view.contents, category: view.category, roster: view.roster || "", bisTier: view.bisTier,
         version: view.version,
         bench: !!view.bench,
         item: itemId,
@@ -105,7 +105,7 @@ export default function DropCheckPage() {
             .finally(() => { if (alive) setLoading(false); });
         return () => { alive = false; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [itemId, view.role, view.tiers, view.contents, view.category, view.bisTier, view.bench, viewsReady, jobs]);
+    }, [itemId, view.role, view.tiers, view.contents, view.category, view.roster, view.bisTier, view.bench, viewsReady, jobs]);
 
     /** Re-reads the focus after a gear reload — quiet, no page-level spinner. */
     const reloadFocus = async (): Promise<CouncilFocus | null> => {

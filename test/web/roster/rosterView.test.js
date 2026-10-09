@@ -187,6 +187,7 @@ describe("buildRosterDetail", () => {
             categoryId: "cat1", versionId: "tbc", roleIds: ["role-main"], trialRoleId: "role-trial",
             managers: { roleIds: ["role-lead"], userIds: [ANNA, "300000000000000009"], users: [{ userId: ANNA, displayName: "Anna Discord" }, { userId: "300000000000000009", displayName: "300000000000000009" }] },
             signupOnly: true, allowMultipleChars: false, slots: { total: 25, tank: 3, healer: 7, bench: 0 }, kaderId: null,
+            lootSystem: "softres", lootSystemSource: "default", lootProfileId: "",
         });
         // the drawer's spec picker: the specs of the first character's class
         expect(anna.specChoices.map((s) => s.key)).toEqual(["Warrior-Arms", "Warrior-Fury", "Warrior-Protection"]);

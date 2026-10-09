@@ -83,7 +83,7 @@ describe("loot council — no estimates", () => {
     });
 
     it("drops stale sim results when the filter changes", () => {
-        expect(page).toMatch(/useEffect\(\(\) => \{ setSim\(null\); \}, \[view\.role, view\.tiers, view\.contents, view\.category, view\.bisTier, view\.bench, contentVersion, setSim\]\);/);
+        expect(page).toMatch(/useEffect\(\(\) => \{ setSim\(null\); \}, \[view\.role, view\.tiers, view\.contents, view\.category, view\.roster, view\.bisTier, view\.bench, contentVersion, setSim\]\);/);
     });
 });
 

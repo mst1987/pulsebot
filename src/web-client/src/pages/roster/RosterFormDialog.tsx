@@ -8,15 +8,19 @@
 // end with "Roster löschen" for a full admin (the Discord roles stay). In the
 // settings a full admin also links the roster to its Kader of the Kaderplaner
 // ("Kader im Kaderplaner", 1:1 - a Kader another roster holds is greyed out).
+// The settings' section "Loot" (#676): the loot system as a segment (full
+// admins - with a category it is the category's system, one truth with
+// Einstellungen → Kategorien) and, on Loot-Council, the "Loot-Council-Profil"
+// (admins and the roster's managers) with a link "Profile verwalten".
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
     createRoster, deleteRoster, getRosterOptions, updateRoster,
     type RosterDetail, type RosterInitial, type RosterOptions, type RosterSettingsPatch, type RosterSlots, type RosterSource, type StoredRoster,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
-import { AsyncView, Button, Field, Modal, Segment, Switch, WowIcon, useConfirm } from "../../components/ui";
+import { AsyncView, Button, Field, Modal, Segment, Switch, WowIcon, buttonClass, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { TrashIcon } from "../../components/ui/icons";
 import { errorText, roleCodeText } from "../../lib/roster/rosterEdit";
@@ -40,6 +44,9 @@ type FormState = {
     kaderId: string;
     /** Settings: the Kader of the Kaderplaner linked to the roster ("" = none). */
     linkedKaderId: string;
+    /** Settings (#676): what the roster runs on and its Loot-Council profile ("" = the default). */
+    lootSystem: string;
+    lootProfileId: string;
 };
 
 const NO_SLOTS: RosterSlots = { total: 0, tank: 0, healer: 0, bench: 0 };
@@ -61,6 +68,8 @@ function initialCreate(options: RosterOptions, categoryId: string): FormState {
         source: "role",
         kaderId: "",
         linkedKaderId: "",
+        lootSystem: "",
+        lootProfileId: "",
     };
 }
 
@@ -80,6 +89,8 @@ function initialSettings(data: RosterDetail): FormState {
         source: "none",
         kaderId: "",
         linkedKaderId: (s && s.kaderId) || "",
+        lootSystem: (s && s.lootSystem) || "softres",
+        lootProfileId: (s && s.lootProfileId) || "",
     };
 }
 
@@ -103,6 +114,8 @@ function patchOf(form: FormState, base: FormState, create: boolean, admin: boole
     if (create) return all;
     const out: RosterSettingsPatch = {};
     if (all.name !== base.name) out.name = all.name;
+    // the council profile: admins and managers alike (#676)
+    if (form.lootProfileId !== base.lootProfileId) out.lootProfileId = form.lootProfileId;
     if (!same(form.slots, base.slots)) out.slots = form.slots;
     if (form.allowMultipleChars !== base.allowMultipleChars) out.allowMultipleChars = form.allowMultipleChars;
     if (form.signupOnly !== base.signupOnly) out.signupOnly = form.signupOnly;
@@ -115,8 +128,59 @@ function patchOf(form: FormState, base: FormState, create: boolean, admin: boole
             out.managers = { roleIds: form.managerRoleIds, userIds: form.managerUsers.map((u) => u.userId) };
         }
         if (form.linkedKaderId !== base.linkedKaderId) out.kaderId = form.linkedKaderId || null;
+        if (form.lootSystem !== base.lootSystem) out.lootSystem = form.lootSystem;
     }
     return out;
+}
+
+const LOOT_SYSTEMS = ["softres", "lootcouncil", "gdkp", "other"];
+
+/**
+ * "Loot" (settings, #676): the loot system (full admins; a manager sees it
+ * greyed out) and, on Loot-Council, the profile (admins and managers) with
+ * "Profile verwalten" for whoever may open the council.
+ */
+function LootSection({ options, form, set, admin, rosterId, hasCategory }: {
+    options: RosterOptions;
+    form: FormState;
+    set: (p: Partial<FormState>) => void;
+    admin: boolean;
+    rosterId: string;
+    hasCategory: boolean;
+}) {
+    const t = useT();
+    const systems = options.lootSystems && options.lootSystems.length ? options.lootSystems : LOOT_SYSTEMS;
+    const profiles = options.lootProfiles || [];
+    const defaultProfile = profiles.find((p) => p.isDefault) || null;
+    const lockTip = admin ? undefined : t("roster.form.adminOnly");
+    // the default named explicitly reads as "" (the default)
+    const shownProfile = defaultProfile && form.lootProfileId === defaultProfile.id ? "" : form.lootProfileId;
+    return (
+        <section className="rn-dlg-sec">
+            <h3 className="rn-lbl">{t("roster.form.loot")}</h3>
+            <div className="rn-field-line" data-tip={lockTip}>
+                <span className="rn-lbl">{t("roster.form.lootSystem")}</span>
+                {admin
+                    ? <Segment ariaLabel={t("roster.form.lootSystem")} value={form.lootSystem} onChange={(lootSystem) => set({ lootSystem })} options={systems.map((id) => ({ value: id, label: t(`roster.form.lootSystems.${id}`) }))} />
+                    : <b>{t(`roster.form.lootSystems.${form.lootSystem || "softres"}`)}</b>}
+            </div>
+            <p className="rn-sub">{hasCategory ? t("roster.form.lootSystemCategoryHint") : t("roster.form.lootSystemHint")}</p>
+            {form.lootSystem === "lootcouncil" ? (
+                <Field label={t("roster.form.lootProfile")} htmlFor="rn-f-lootprofile" hint={t("roster.form.lootProfileHint")}>
+                    <select id="rn-f-lootprofile" value={shownProfile} onChange={(e) => set({ lootProfileId: e.target.value })}>
+                        <option value="">{t("roster.form.lootProfileDefault", { name: defaultProfile ? defaultProfile.name : "Standard" })}</option>
+                        {shownProfile && !profiles.some((p) => p.id === shownProfile) ? <option value={shownProfile}>{t("roster.form.lootProfileGone")}</option> : null}
+                        {profiles.filter((p) => !p.isDefault).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                </Field>
+            ) : null}
+            {form.lootSystem === "lootcouncil" && options.canOpenCouncil ? (
+                <div>
+                    <Link className={buttonClass("ghost", "sm")} to={`/lootcouncil?roster=${encodeURIComponent(rosterId)}&tab=profiles`}>{t("roster.form.lootProfilesManage")}</Link>
+                </div>
+            ) : null}
+        </section>
+    );
 }
 
 /** "Kader im Kaderplaner" (settings, full admins): the Kader linked 1:1; one another roster holds is greyed out. */
@@ -309,6 +373,10 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
                             {!slotsBad && template && create ? ` ${t("roster.form.fromTemplate", { name: template.templateName })}` : ""}
                         </p>
                     </section>
+
+                    {!create && data && (
+                        <LootSection options={options} form={form} set={set} admin={admin} rosterId={data.roster.id} hasCategory={!!form.categoryId} />
+                    )}
 
                     <section className="rn-dlg-sec">
                         <h3 className="rn-lbl">{t("roster.form.rules")}</h3>

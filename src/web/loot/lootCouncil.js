@@ -41,6 +41,7 @@ const {
     bisForSpec, isSimSupported, bisSpecsForItem,
 } = require("../../config/councilSpecs");
 const councilWeights = require("../../stores/councilWeightsStore");
+const councilProfiles = require("../../services/loot/councilProfiles");
 const { itemWeight } = require("../../services/loot/itemWeights");
 const { tenureContext, tenureDays: tenureDaysOf } = require("../../services/loot/councilTenure");
 
@@ -485,7 +486,7 @@ function needScore(input, weights = NEED_WEIGHTS, tenureSaturation = councilWeig
 
 /** The weighting a council request runs with: the stored settings plus the shares of 1 the score uses. */
 function resolveWeights(settings) {
-    const s = settings || councilWeights.weightsFor("");
+    const s = settings || councilProfiles.weightsFor({});
     return { ...s, needShares: councilWeights.effectiveNeedWeights(s.need) };
 }
 
@@ -870,7 +871,8 @@ function councilRoster(opts = {}) {
     // A category with a roster (#667): the roster IS the candidate list —
     // Stamm and Probe, Ersatz with `showBench`, every assigned character. Its
     // members appear even with no loot and no gear (0 items, the longest wait).
-    const fromRoster = rosterCandidates(categoryId, { showBench: !!opts.showBench });
+    // A roster picked on the page (#676, `rosterId`) may have no category at all.
+    const fromRoster = rosterCandidates(categoryId, { showBench: !!opts.showBench, rosterId: opts.rosterId || "" });
 
     // Without one: everyone who could be on the council, known from loot, from
     // a CLA report, or from both. A raider who has never won an item still
@@ -895,9 +897,10 @@ function councilRoster(opts = {}) {
     // and the same values decide who the charVersion filter keeps.
     const versionCtx = buildVersionContext({ config: opts.config });
     const mainVersion = opts.mainVersion || mainVersionFor({ config: opts.config });
-    // How items and the need parts weigh (#668): the category's own settings,
-    // else the server's; `opts.weights` lets a caller (a test) pass them in.
-    const weights = resolveWeights(opts.weights || councilWeights.weightsFor(categoryId));
+    // How items and the need parts weigh (#668): the profile of the roster or
+    // category (#676, services/loot/councilProfiles.js), else the default
+    // profile; `opts.weights` lets a caller (a test) pass them in.
+    const weights = resolveWeights(opts.weights || councilProfiles.weightsFor({ rosterId: opts.rosterId || "", categoryId }));
     // "Dabei seit" per raider, read once for the whole roster.
     const joinedAtFor = opts.joinedAtFor || tenureContext({ categoryId, allLoot, now });
     const ctx = {

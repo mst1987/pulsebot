@@ -25,6 +25,8 @@ const { q } = require("../http/apiParams");
 const { userCan } = require("../../config/permissions");
 const kaderStore = require("../../stores/kaderStore");
 const rosterStore = require("../../stores/rosterStore");
+const { getConfig } = require("../../stores/settingsStore");
+const { rosterLootSystem } = require("../../services/loot/lootSystem");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
 const { kaderRosterState, rosterOfKader, syncRosterFromKader, kaderLinkChoices, linkRosterToKader } = require("../../services/roster/rosterCreate");
 const model = require("../../services/kader/kaderModel");
@@ -232,7 +234,9 @@ const resetAssignment = fullWrite((p, body) => model.resetAssignment(p, str(body
  * full admin and no roster yet, `canSync` = `kader` write and manager of that
  * roster, `canLink` = full admin with `kader` write; `rosters` (only with
  * canLink, else []) = the server's rosters to link to, the one whose category
- * the Kader counts attendance in first (`suggested`). 404 for an unknown Kader.
+ * the Kader counts attendance in first (`suggested`); `lootCouncil` (#676) = the
+ * linked roster runs as Loot-Council and the caller may open the council (the
+ * page links /lootcouncil?roster=<id>). 404 for an unknown Kader.
  */
 const getKaderRoster = withUser({}, async ({ req, res, query, user }) => {
     const guildId = activeGuildFor(req);
@@ -242,7 +246,9 @@ const getKaderRoster = withUser({}, async ({ req, res, query, user }) => {
     const roster = state.roster ? rosterStore.getRoster(state.roster.id) : null;
     const canSync = !!roster && userCan(user, "kader", "write") && await canManageRosterLive(user, roster).catch(() => false);
     const canLink = user.isAdmin === true && userCan(user, "kader", "write");
-    return ok(res, { ...state, canCreate: !roster && user.isAdmin === true, canSync, canLink, rosters: canLink ? kaderLinkChoices(guildId, kaderId) : [] });
+    // #676: "Zum Loot-Council" - only the roster id crosses, nothing of the Kader
+    const lootCouncil = !!roster && userCan(user, "lootcouncil", "read") && rosterLootSystem(getConfig(), roster).system === "lootcouncil";
+    return ok(res, { ...state, canCreate: !roster && user.isAdmin === true, canSync, canLink, lootCouncil, rosters: canLink ? kaderLinkChoices(guildId, kaderId) : [] });
 });
 
 const LINK_STATUS = { kader_not_found: 404, not_found: 404, kader_taken: 409 };

@@ -69,6 +69,15 @@
 //     roster is never touched, a deleted one never comes back
 //     (rosterStore.migrateCategories, services/roster/rosterMigration.js).
 //
+//   - council-profiles.json (#676): the loot council weighs by profiles. The
+//     server weighting (council-weights.json `global`) becomes the default
+//     profile "Standard"; every category with its own weighting or a stored
+//     view (council-views.json) becomes a profile named after the category,
+//     assigned to the category's roster (`lootProfileId`) or, without one,
+//     kept as the category's profile. Runs after the rosters, once
+//     (councilProfilesStore.migrateLegacy, `migrated`); the old files stay
+//     untouched on disk.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
@@ -95,6 +104,9 @@ const raiderCharactersStore = require("./raiderCharactersStore");
 const { readJsonFile } = require("./jsonStore");
 const { settingsPath } = require("../config/paths");
 const { categoriesToMigrate, migrationLine } = require("../services/roster/rosterMigration");
+const councilProfilesStore = require("./councilProfilesStore");
+const councilWeightsStore = require("./councilWeightsStore");
+const councilStore = require("./councilStore");
 
 /**
  * The event-server list an old single-server block stands for: its
@@ -337,6 +349,41 @@ function migrateCategoryRosters({ now = new Date().toISOString() } = {}) {
     return line ? [line] : [];
 }
 
+/** A category's name for its migrated council profile: the name snapshot, else its newest event's, else "". */
+function councilCategoryName(snapshot, events) {
+    const names = new Map();
+    for (const byCategory of Object.values(snapshot || {})) {
+        for (const [id, name] of Object.entries(byCategory || {})) if (name && !names.has(id)) names.set(id, String(name));
+    }
+    return (categoryId) => {
+        if (names.has(categoryId)) return names.get(categoryId);
+        const newest = events
+            .filter((e) => e && String(e.categoryId || "") === categoryId && e.categoryName)
+            .sort((a, b) => Number(b.startTime || b.start || 0) - Number(a.startTime || a.start || 0))[0];
+        return newest ? String(newest.categoryName) : "";
+    };
+}
+
+/** Loot-Council profiles from #668's weighting and views (#676), once. One line, or none. */
+function migrateCouncilProfiles({ now = Date.now() } = {}) {
+    if (councilProfilesStore.isMigrated()) return [];
+    const stored = councilWeightsStore.storedWeights();
+    const views = councilStore.listViews();
+    // Nothing set before (a fresh install): the virtual "Standard" already is the defaults - no file, no line.
+    if (!stored.global && !Object.keys(stored.categories).length && !Object.keys(views).length) return [];
+    const result = councilProfilesStore.migrateLegacy({
+        global: stored.global,
+        categories: stored.categories,
+        views,
+        nameOf: councilCategoryName(categoryNameSnapshot(), [...raidEventStore.listRaidEvents(""), ...eventStore.listEvents("")]),
+        rosterFor: (categoryId) => rosterStore.rosterForCategory(categoryId),
+        assign: (rosterId, profileId) => rosterStore.assignLootProfile(rosterId, profileId),
+    }, { now });
+    if (!result.ran) return [];
+    const parts = result.created.map((c) => `"${c.name}" (${c.rosterId ? `Roster ${c.rosterId}` : `Kategorie ${c.categoryId}`})`);
+    return [`council-profiles.json: Loot-Council-Profile angelegt (#676) - "Standard"${stored.global ? " aus der Server-Gewichtung" : " mit den Vorgaben"}${parts.length ? `, ${parts.join(", ")}` : ""}`];
+}
+
 /**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
@@ -360,6 +407,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateKaderPlanner());
         changes.push(...migrateCategoryPlanning());
         changes.push(...migrateCategoryRosters());
+        changes.push(...migrateCouncilProfiles());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -369,6 +417,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateCategoryPlanning, migrateCategoryRosters, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateCategoryPlanning, migrateCategoryRosters, migrateCouncilProfiles, raidplanDefaultsLine,
     legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

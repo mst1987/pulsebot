@@ -1,6 +1,7 @@
 // The council's filter line under the tabs: the role segment and ONE "Filter"
-// button that opens Content, raid category, BiS list, gear source and simulation.
-// Changes apply live; the button counts the three real filters.
+// button that opens Content, BiS list, gear source and simulation (the roster or
+// category is the head's picker since #676). Changes apply live; the button
+// counts the real filters.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -46,13 +47,13 @@ describe("loot council filter line", () => {
 
         const box = screen.getByRole("dialog", { name: "Filter" });
         expect(within(box).getByText("Content", { exact: false })).toBeInTheDocument();
-        expect(within(box).getByLabelText("Raid-Kategorie")).toBeInTheDocument();
+        expect(within(box).queryByLabelText("Raid-Kategorie")).not.toBeInTheDocument();
         expect(within(box).getByLabelText("BiS-Liste")).toBeInTheDocument();
         expect(within(box).getByText("Gear-Quelle")).toBeInTheDocument();
         expect(within(box).getByText("Simulation")).toBeInTheDocument();
 
-        await user.selectOptions(within(box).getByLabelText("Raid-Kategorie"), "c1");
-        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ category: "c1" })));
+        await user.selectOptions(within(box).getByLabelText("BiS-Liste"), "t5");
+        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ bisTier: "t5" })));
         expect(await screen.findByRole("button", { name: "Filter · 1 aktiv" })).toBeInTheDocument();
     });
 
@@ -60,9 +61,9 @@ describe("loot council filter line", () => {
         const user = userEvent.setup();
         renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
         await user.click(await screen.findByRole("button", { name: "Filter" }));
-        await user.selectOptions(screen.getByLabelText("Raid-Kategorie"), "c1");
+        await user.selectOptions(screen.getByLabelText("BiS-Liste"), "t5");
         await user.click(await screen.findByRole("button", { name: "Zurücksetzen" }));
-        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ category: "" })));
+        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ bisTier: "" })));
         expect(await screen.findByRole("button", { name: "Filter" })).toBeInTheDocument();
     });
 

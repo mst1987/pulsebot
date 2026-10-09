@@ -3,6 +3,7 @@
 // (GET /api/ingest/council) so both answer from the same roster.
 const { getConfig } = require("../../stores/settingsStore");
 const discord = require("../../services/discord/discord");
+const { getRoster } = require("../../stores/rosterStore");
 const { mainVersionFor, resolveVersionQuery } = require("../../services/events/mainVersion");
 
 /** Comma-separated query params ("t5,t6") as a clean array. */
@@ -20,14 +21,29 @@ function categoryOptions(guildId) {
 }
 
 /**
- * The councilRoster() options for a query: role, tiers, contents, category,
- * bisTier, version, bench. `versionId` is the one the council looks at (#542: the
- * category's, else the main version - links, gear realm, Wowhead path);
- * `charVersion` is the character filter (#545), separate from it.
- * @param {URLSearchParams} searchParams
+ * The roster a `roster` query names (#676), or null: unknown, or of another
+ * server than `guildId` (when both are known).
  */
-function councilOptsFromQuery(searchParams) {
-    const categoryId = searchParams.get("category") || "";
+function queriedRoster(searchParams, guildId = "") {
+    const id = String(searchParams.get("roster") || "").trim();
+    const roster = id ? getRoster(id) : null;
+    if (!roster) return null;
+    return guildId && roster.guildId && roster.guildId !== guildId ? null : roster;
+}
+
+/**
+ * The councilRoster() options for a query: roster, role, tiers, contents,
+ * category, bisTier, version, bench. A `roster` (#676) wins over `category`:
+ * its category (or none) and its game version count. `versionId` is the one the
+ * council looks at (#542: the roster's, else the category's, else the main
+ * version - links, gear realm, Wowhead path); `charVersion` is the character
+ * filter (#545), separate from it.
+ * @param {URLSearchParams} searchParams
+ * @param {{ guildId?: string }} [ctx]  the active server - a roster of another one is ignored
+ */
+function councilOptsFromQuery(searchParams, { guildId = "" } = {}) {
+    const roster = queriedRoster(searchParams, guildId);
+    const categoryId = roster ? (roster.categoryId || "") : (searchParams.get("category") || "");
     const config = getConfig();
     const { versionId: charVersion, mainVersion } = resolveVersionQuery(searchParams.get("version"), { config });
     return {
@@ -35,15 +51,16 @@ function councilOptsFromQuery(searchParams) {
         tierIds: listParam(searchParams, "tiers"),
         contentIds: listParam(searchParams, "contents"),
         categoryId,
+        rosterId: roster ? roster.id : "",
         bisTier: searchParams.get("bisTier") || "",
         // With a roster: Ersatz shown as candidates too (#667). Only the page
         // asks for it; a stored category view (and so the addon) never does.
         showBench: searchParams.get("bench") === "1",
-        versionId: mainVersionFor({ categoryId, config }),
+        versionId: roster ? roster.versionId : mainVersionFor({ categoryId, config }),
         config,
         mainVersion,
         charVersion,
     };
 }
 
-module.exports = { listParam, categoryOptions, councilOptsFromQuery };
+module.exports = { listParam, categoryOptions, councilOptsFromQuery, queriedRoster };

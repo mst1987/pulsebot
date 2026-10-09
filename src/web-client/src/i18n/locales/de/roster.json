@@ -462,7 +462,9 @@
         "not_roster_role": "Diese Rolle gehört nicht zu diesem Roster.",
         "csrf": "Die Seite ist veraltet. Bitte neu laden.",
         "invalid_spec": "Dieser Spec passt nicht zur Klasse des Charakters.",
-        "kader_taken": "Dieser Kader ist schon mit einem anderen Roster verknüpft."
+        "kader_taken": "Dieser Kader ist schon mit einem anderen Roster verknüpft.",
+        "invalid_loot_system": "Unbekanntes Lootsystem.",
+        "unknown_profile": "Dieses Loot-Council-Profil gibt es nicht."
     },
     "sync": {
         "loading": "Lade den Abgleich …",
@@ -755,7 +757,22 @@
         "noKader": "Kein Kader",
         "kaderGone": "Verknüpfter Kader (gelöscht)",
         "kaderTaken": "{name} – verknüpft mit {roster}",
-        "kaderLink": "Kader im Kaderplaner"
+        "kaderLink": "Kader im Kaderplaner",
+        "loot": "Loot",
+        "lootSystem": "Lootsystem",
+        "lootSystems": {
+            "softres": "Softres",
+            "lootcouncil": "Loot-Council",
+            "gdkp": "GDKP",
+            "other": "Sonstiges"
+        },
+        "lootSystemHint": "Wie in den Raids dieses Rosters gelootet wird.",
+        "lootSystemCategoryHint": "Gilt für die Kategorie des Rosters — dieselbe Einstellung wie unter Einstellungen › Kategorien.",
+        "lootProfile": "Loot-Council-Profil",
+        "lootProfileHint": "Gewichtung und Ansicht, mit denen der Council für dieses Roster rechnet. Manager dürfen es wählen.",
+        "lootProfileDefault": "{name} (Vorgabe)",
+        "lootProfileGone": "Profil gibt es nicht mehr",
+        "lootProfilesManage": "Profile verwalten"
     },
     "spec": {
         "title": "Spec in diesem Roster",

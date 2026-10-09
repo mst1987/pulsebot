@@ -1,8 +1,9 @@
 // The roster of a category as the council's candidate list (#667): which
 // characters, with which status, and the profile's class and spec as hint.
 const mockRosterForCategory = jest.fn(() => null);
+const mockGetRoster = jest.fn(() => null);
 const mockListProfiles = jest.fn(() => []);
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: (...a) => mockRosterForCategory(...a) }));
+jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: (...a) => mockRosterForCategory(...a), getRoster: (...a) => mockGetRoster(...a) }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: (...a) => mockListProfiles(...a) }));
 
 const { rosterCandidates, specIdOf, CANDIDATE_STATUSES } = require("../../../src/web/loot/councilRosterSource");
@@ -11,6 +12,19 @@ beforeEach(() => {
     jest.clearAllMocks();
     mockRosterForCategory.mockReturnValue(null);
     mockListProfiles.mockReturnValue([]);
+});
+
+describe("councilRosterSource with a roster id (#676)", () => {
+    it("reads the named roster instead of the category's - also one without category", () => {
+        mockGetRoster.mockReturnValue({ id: "r9", name: "PuG", versionId: "tbc", members: { 1001: { status: "trial", chars: ["devi"], charNames: {} } } });
+        const out = rosterCandidates("", { rosterId: "r9" });
+        expect(mockGetRoster).toHaveBeenCalledWith("r9");
+        expect(mockRosterForCategory).not.toHaveBeenCalled();
+        expect(out.roster).toEqual({ id: "r9", name: "PuG", versionId: "tbc" });
+        expect(out.candidates).toEqual(["devi"]);
+        mockGetRoster.mockReturnValue(null);
+        expect(rosterCandidates("c1", { rosterId: "gone" })).toBeNull();
+    });
 });
 
 describe("councilRosterSource", () => {

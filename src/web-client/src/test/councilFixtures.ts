@@ -1,7 +1,7 @@
 // Loot council data for the client tests (pages/lootcouncil/*.test.tsx): one
 // caster raider with a worn set, a BiS gap with its candidate, and the filter
 // options the page renders — the smallest payload every part of the page draws.
-import type { BisListsData, CouncilCandidate, CouncilFocus, CouncilItem, CouncilRaider, LootCouncilData, WornItem } from "../api";
+import type { BisListsData, CouncilCandidate, CouncilFocus, CouncilHead, CouncilItem, CouncilRaider, LootCouncilData, WornItem } from "../api";
 
 export function wornItem(over: Partial<WornItem> = {}): WornItem {
     return {
@@ -59,6 +59,21 @@ export function councilFocus(over: Partial<CouncilFocus> = {}): CouncilFocus {
     return { item: councilItem(), candidates: [councilCandidate()], unwearable: [], ...over };
 }
 
+/** The head of the council page (#676): one Loot-Council roster with a profile and a Kader, one category without roster. */
+export function councilHeadData(over: Partial<CouncilHead> = {}): CouncilHead {
+    return {
+        target: "all",
+        roster: null,
+        profile: { id: "standard", name: "Standard", isDefault: true, source: "default" },
+        rosters: [{ id: "r1", name: "Mittwoch-Roster", categoryId: "c1", categoryName: "Montagsraid", profileId: "p-main", profileName: "Main T6" }],
+        categories: [{ id: "c2", name: "Softres-Raid", profileId: "standard", profileName: "Standard" }],
+        canOpenRoster: true,
+        canOpenKader: true,
+        canEditProfile: true,
+        ...over,
+    };
+}
+
 export function councilData(over: Partial<LootCouncilData> = {}): LootCouncilData {
     const item = councilItem();
     return {
@@ -84,6 +99,7 @@ export function councilData(over: Partial<LootCouncilData> = {}): LootCouncilDat
         },
         sim: { available: true, version: "1.0", hint: "" },
         activeGuildId: "g1",
+        council: councilHeadData(),
         ...over,
     };
 }

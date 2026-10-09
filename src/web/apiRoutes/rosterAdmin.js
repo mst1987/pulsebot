@@ -50,7 +50,8 @@ function knownRoleIds(guildId) {
  */
 const getRosterOptions = withUser({}, async ({ user, req, res }) => {
     const options = rosterOptions({ guildId: activeGuildFor(req), config: getConfig(), canSeeKader: userCan(user, "kader", "read") });
-    return ok(res, { ...options, isAdmin: user.isAdmin === true });
+    // #676: the Loot-Council profiles to pick from (names only) and whether "Profile verwalten" may link to the council
+    return ok(res, { ...options, isAdmin: user.isAdmin === true, canOpenCouncil: userCan(user, "lootcouncil", "read") });
 });
 
 /**
@@ -74,6 +75,9 @@ const postRosterCreate = withUser({ write: "roster", csrf: true, body: true }, a
  *   allowMultipleChars?, signupOnly?, kaderId? } (only what is sent changes; slots and managers merge per key).
  * `kaderId` (full admins): the Kader of the Kaderplaner linked 1:1 (null unlinks; 404 kader_not_found,
  * 409 kader_taken when another roster holds it).
+ * `lootSystem` (full admins, #676): "softres" | "lootcouncil" | "gdkp" | "other" - with a category it is
+ * written to config.categoryLootSystem; 400 invalid_loot_system. `lootProfileId` (admins and the roster's
+ * managers): a Loot-Council profile id, "" = the default profile; 400 unknown_profile.
  * Answer: { roster, trimmedChars } (members cut to one character by switching allowMultipleChars off).
  */
 const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {
@@ -84,6 +88,7 @@ const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, a
     // rosterId is no settings field - cleanSettings ignores it like any unknown field
     const result = updateRosterSettings(roster.id, body, {
         isAdmin, actor: str(user.id), knownRoleIds: knownRoleIds(roster.guildId), kaderKnown: (id) => kaderExists(roster.guildId, id),
+        config: getConfig(),
     });
     if (!result.ok) return refuse(res, result.code);
     return ok(res, { roster: result.roster, trimmedChars: result.trimmedChars });

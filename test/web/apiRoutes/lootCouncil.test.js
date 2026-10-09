@@ -126,8 +126,11 @@ describe("the route table", () => {
             "POST /api/lootcouncil/role",
             "GET /api/lootcouncil/views",
             "POST /api/lootcouncil/view",
-            "GET /api/lootcouncil/weights",
-            "POST /api/lootcouncil/weights",
+            "GET /api/lootcouncil/profiles",
+            "GET /api/lootcouncil/profile",
+            "POST /api/lootcouncil/profiles/create",
+            "POST /api/lootcouncil/profiles/update",
+            "POST /api/lootcouncil/profiles/delete",
             "POST /api/lootcouncil/armory",
             "POST /api/lootcouncil/loggear",
             "GET /api/lootcouncil/bislists",
@@ -201,7 +204,7 @@ describe("GET /api/lootcouncil", () => {
         const res = await call(getLootCouncil, "/api/lootcouncil", "?role=caster&tiers=t5, t6,&contents=ssc&category=c1");
         expect(status(res)).toBe(200);
         expect(lc.councilRoster).toHaveBeenCalledWith({
-            role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", bisTier: "", showBench: false, versionId: "tbc",
+            role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", rosterId: "", bisTier: "", showBench: false, versionId: "tbc",
             config: { categoryIds: ["c1", "c2"] }, mainVersion: "tbc", charVersion: "tbc",
         });
         expect(lc.resolveContentFilter).toHaveBeenCalledWith({ tierIds: ["t5", "t6"], contentIds: ["ssc"] });
@@ -449,41 +452,8 @@ describe("POST /api/lootcouncil/role", () => {
     });
 });
 
-describe("GET /api/lootcouncil/views", () => {
-    it("hands out the stored views, the defaults and the Loot-Council categories", async () => {
-        councilStore.listViews.mockReturnValue({
-            c1: { role: "healer", tiers: ["t6"], contents: [], bisTier: "t6", version: "tbc", at: 5, by: "Admin" },
-        });
-        getConfig.mockReturnValue({ categoryIds: ["c1", "c2", "c3"], categoryLootSystem: { c1: "lootcouncil" }, categoryLootTool: { c3: "rclc" } });
-        mockUser = READER;
-        const res = await call(getViews, "/api/lootcouncil/views");
-        expect(status(res)).toBe(200);
-        expect(body(res)).toEqual({
-            views: { c1: { role: "healer", tiers: ["t6"], contents: [], bisTier: "t6", version: "tbc" } },
-            defaults: { role: "caster", tiers: [], contents: [], bisTier: "", version: "" },
-            councilCategories: ["c1", "c3"],
-        });
-    });
-});
-
-describe("POST /api/lootcouncil/view", () => {
-    it("stores a category's view, cleaned, with who set it", async () => {
-        mockUser = WRITER;
-        mockBody = { category: "c1", role: "boss", tiers: ["t5", "t5", "<x>"], contents: ["bt"], bisTier: "t6", version: "tbc" };
-        const res = await call(postView, "/api/lootcouncil/view");
-        expect(status(res)).toBe(200);
-        expect(councilStore.setView).toHaveBeenCalledWith("c1", mockBody, { by: "3" });
-        expect(body(res)).toEqual({ category: "c1", view: { role: "caster", tiers: ["t5"], contents: ["bt"], bisTier: "t6", version: "tbc" } });
-    });
-
-    it("needs a category", async () => {
-        mockBody = { role: "caster" };
-        const res = await call(postView, "/api/lootcouncil/view");
-        expect(status(res)).toBe(400);
-        expectError(res, "bad_request", "Keine Kategorie angegeben.");
-        expect(councilStore.setView).not.toHaveBeenCalled();
-    });
-});
+// GET /api/lootcouncil/views and POST /api/lootcouncil/view work on the
+// Loot-Council profiles since #676: lootCouncil.profiles.test.js (real stores).
 
 describe("GET /api/lootcouncil/export", () => {
     const SPEC = { key: "Mage-Fire", label: "Feuer-Magier", role: "caster", simSpec: "mage" };

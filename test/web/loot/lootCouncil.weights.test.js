@@ -29,6 +29,7 @@ jest.mock("../../../src/stores/reportStore", () => ({
 jest.mock("../../../src/stores/rosterStore", () => ({
     listRosters: (...a) => mockRosters(...a),
     rosterForCategory: (id) => mockRosters().find((r) => r.categoryId === id) || null,
+    getRoster: (id) => mockRosters().find((r) => r.id === id) || null,
 }));
 
 const {
@@ -36,6 +37,7 @@ const {
     _internal: { needScore, droughtDays, resolveWeights, NEED_WEIGHTS },
 } = require("../../../src/web/loot/lootCouncil");
 const councilWeights = require("../../../src/stores/councilWeightsStore");
+const councilProfilesStore = require("../../../src/stores/councilProfilesStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { DAY, now, lootRow, gearOf } = require("../../helpers/lootCouncil");
 
@@ -48,12 +50,10 @@ const OTHER_WEAPON = 30910; // Tempest of Chaos — a weapon, not on that list
 const iso = (ms) => new Date(ms).toISOString();
 const shadow = (key = "devihra") => ({ key, className: "Priest", spec: "Shadow" });
 
-beforeAll(() => councilWeights.useFile(tempStoreFile("council-weights.json")));
-afterAll(() => councilWeights.useFile(null));
+afterAll(() => councilProfilesStore.useFile(null));
 beforeEach(() => {
     jest.clearAllMocks();
-    councilWeights.resetWeights("");
-    councilWeights.resetWeights("cat-mo");
+    councilProfilesStore.useFile(tempStoreFile("council-profiles.json"));
     mockListAll.mockReturnValue([]);
     mockAnnotated.mockReturnValue([shadow()]);
     mockGearByCharacter.mockReturnValue(new Map());
@@ -240,11 +240,13 @@ describe("councilRoster — loot points", () => {
         });
     });
 
-    it("uses a category's own weighting from the store", () => {
-        councilWeights.setWeights("cat-mo", { classes: { trinket: 4 } });
+    it("uses the weighting of the category's profile (#676)", () => {
+        const p = councilProfilesStore.createProfile({ name: "Montag" });
+        councilProfilesStore.updateProfile(p.id, { weights: { classes: { trinket: 4 } } });
+        councilProfilesStore.setCategoryProfile("cat-mo", p.id);
         mockListAll.mockReturnValue([lootRow({ itemId: TRINKET })]);
         const built = councilRoster({ categoryId: "cat-mo" });
-        expect(built.weights.scope).toBe("category");
+        expect(built.weights.scope).toBe("profile");
         expect(built.rows[0].lootPoints).toBe(4);
         expect(councilRoster({}).rows[0].lootPoints).toBe(2);
     });

@@ -210,6 +210,46 @@ describe("RosterFormDialog — Kader im Kaderplaner", () => {
     });
 });
 
+describe("RosterFormDialog — Loot (#676)", () => {
+    const lootOptions = (isAdmin: boolean) => options({
+        isAdmin,
+        lootSystems: ["softres", "lootcouncil", "gdkp", "other"],
+        lootProfiles: [{ id: "standard", name: "Standard", isDefault: true }, { id: "p-main", name: "Main T6", isDefault: false }],
+        canOpenCouncil: true,
+    });
+    function open(isAdmin: boolean, over: Parameters<typeof settings>[0] = {}) {
+        vi.mocked(api.getRosterOptions).mockResolvedValue(lootOptions(isAdmin));
+        const data = detail([member("Thorgrim")], { canManage: true, isAdmin, settings: settings({ lootSystem: "softres", lootProfileId: "", ...over }), roster: rosterHead() });
+        renderPage(<RosterFormDialog mode="settings" data={data} onClose={vi.fn()} onSaved={vi.fn()} />);
+    }
+
+    it("lets a full admin switch to Loot-Council and pick a profile, sending both", async () => {
+        const user = userEvent.setup();
+        open(true);
+        const d = within(await waitFor(() => dialog()));
+        expect(d.getByRole("heading", { name: "Loot" })).toBeInTheDocument();
+        expect(d.queryByLabelText("Loot-Council-Profil")).not.toBeInTheDocument();
+        await user.click(within(d.getByRole("radiogroup", { name: "Lootsystem" })).getByRole("radio", { name: "Loot-Council" }));
+        const select = d.getByLabelText("Loot-Council-Profil");
+        expect(within(select).getAllByRole("option").map((o) => o.textContent)).toEqual(["Standard (Vorgabe)", "Main T6"]);
+        await user.selectOptions(select, "p-main");
+        expect(d.getByRole("link", { name: "Profile verwalten" })).toHaveAttribute("href", "/lootcouncil?roster=raid-mo-do-abc&tab=profiles");
+        await user.click(d.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateRoster).toHaveBeenCalledWith("raid-mo-do-abc", { lootSystem: "lootcouncil", lootProfileId: "p-main" }));
+    });
+
+    it("shows a manager the loot system read-only but lets him pick the profile", async () => {
+        const user = userEvent.setup();
+        open(false, { lootSystem: "lootcouncil" });
+        const d = within(await waitFor(() => dialog()));
+        expect(d.queryByRole("radiogroup", { name: "Lootsystem" })).not.toBeInTheDocument();
+        expect(d.getByText("Loot-Council", { selector: "b" })).toBeInTheDocument();
+        await user.selectOptions(d.getByLabelText("Loot-Council-Profil"), "p-main");
+        await user.click(d.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateRoster).toHaveBeenCalledWith("raid-mo-do-abc", { lootProfileId: "p-main" }));
+    });
+});
+
 describe("RosterFormDialog — in English", () => {
     it("translates the form", async () => {
         await switchLang("en");

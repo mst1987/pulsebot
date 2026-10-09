@@ -3,15 +3,16 @@
 // (GET /api/ingest/council?v=2 and ?v=3), so what the addon shows in game is exactly
 // what the page shows - same filters, same armory step, same numbers.
 //
-// A category's filters (role, tiers, raids, BiS list, version) are stored on
-// the server per category (councilStore viewFor/setView). The page edits them,
+// A council's filters (role, tiers, raids, BiS list, version) are the view of
+// its Loot-Council profile (#676: the roster's profile, else the category's,
+// else the default - services/loot/councilProfiles.js). The page edits them,
 // the ingest endpoint reads them for every category whose loot system is
 // "lootcouncil" (services/loot/lootSystem.js).
 const { councilRoster } = require("./lootCouncil");
 const { councilOptsFromQuery } = require("./councilQuery");
 const { primeArmoryGear } = require("../../services/loot/armoryGear");
 const { categoryLootSystem } = require("../../services/loot/lootSystem");
-const councilStore = require("../../stores/councilStore");
+const councilProfiles = require("../../services/loot/councilProfiles");
 const { getRaidTemplate } = require("../../stores/raidTemplateStore");
 const { instanceById } = require("../../config/gameVersions");
 
@@ -80,13 +81,20 @@ function categoryInstances(config, categoryId) {
 
 /**
  * One category's council exactly as the page shows it for that category:
- * its stored view, the options the page's query would give, and the built roster.
+ * its profile's view (#676: the profile of the category's roster, else the
+ * category's own, else the default), the options the page's query would give,
+ * and the built roster. `profile` and `roster` name where the values came from.
  */
 async function categoryCouncil(categoryId) {
-    const view = councilStore.viewFor(categoryId);
+    const { profile, roster, source } = councilProfiles.resolveProfile({ categoryId });
+    const view = councilProfiles.viewFor({ categoryId });
     const opts = councilOptsFromQuery(viewQuery(categoryId, view));
     const built = await buildCouncilView(opts);
-    return { view, opts, built };
+    return {
+        view, opts, built,
+        profile: councilProfiles.profileHead(profile, source),
+        roster: roster ? { id: roster.id, name: roster.name } : null,
+    };
 }
 
 module.exports = { buildCouncilView, viewQuery, councilCategoryIds, categoryInstances, categoryCouncil };

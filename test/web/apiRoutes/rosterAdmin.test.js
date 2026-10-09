@@ -246,6 +246,49 @@ describe("POST /api/rosters/update", () => {
     });
 });
 
+describe("POST /api/rosters/update - loot system and Loot-Council profile (#676)", () => {
+    const councilProfilesStore = require("../../../src/stores/councilProfilesStore");
+    let roster;
+    afterAll(() => councilProfilesStore.useFile(null));
+    beforeEach(() => {
+        councilProfilesStore.useFile(tempStoreFile("council-profiles.json"));
+        roster = rosterStore.createRoster({ name: "Raid", guildId: "g1", categoryId: CAT, managers: { userIds: [MANAGER.id] } });
+    });
+
+    it("lets a full admin switch the loot system - with a category it lands in the settings", async () => {
+        const res = await post("/api/rosters/update", { rosterId: roster.id, lootSystem: "lootcouncil" });
+        expect(status(res)).toBe(200);
+        expect(configStore.getConfig().categoryLootSystem[CAT]).toBe("lootcouncil");
+        const detail = await post("/api/rosters/update", { rosterId: roster.id, lootSystem: "nope" });
+        expect([status(detail), code(detail)]).toEqual([400, "invalid_loot_system"]);
+    });
+
+    it("lets a manager pick the profile but not the loot system", async () => {
+        const p = councilProfilesStore.createProfile({ name: "PuG-Nacht" });
+        mockUser = MANAGER;
+        let res = await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: p.id });
+        expect(status(res)).toBe(200);
+        expect(data(res).roster.lootProfileId).toBe(p.id);
+        res = await post("/api/rosters/update", { rosterId: roster.id, lootSystem: "gdkp" });
+        expect([status(res), code(res)]).toEqual([403, "admin_only"]);
+        res = await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: "p-gone" });
+        expect([status(res), code(res)]).toEqual([400, "unknown_profile"]);
+        mockUser = WRITER;
+        res = await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: p.id });
+        expect([status(res), code(res)]).toEqual([403, "not_manager"]);
+    });
+
+    it("offers the profiles and the loot systems in the options, and whether the council may be opened", async () => {
+        councilProfilesStore.createProfile({ name: "Main T6" });
+        const d = data(await get("/api/rosters/options"));
+        expect(d.lootSystems).toEqual(["softres", "lootcouncil", "gdkp", "other"]);
+        expect(d.lootProfiles.map((p) => [p.name, p.isDefault])).toEqual([["Standard", true], ["Main T6", false]]);
+        expect(d.canOpenCouncil).toBe(true);
+        mockUser = READER;
+        expect(data(await get("/api/rosters/options")).canOpenCouncil).toBe(false);
+    });
+});
+
 describe("POST /api/rosters/delete", () => {
     it("deletes as a full admin, refuses everyone else", async () => {
         const roster = rosterStore.createRoster({ name: "Weg", guildId: "g1", managers: { userIds: [MANAGER.id] } });
