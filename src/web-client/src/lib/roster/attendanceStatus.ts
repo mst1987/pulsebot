@@ -12,12 +12,18 @@ import { t } from "../../i18n";
 import { formatDayMonth } from "../format";
 
 /** The order the tooltip groups the nights in (issue #677). */
-export const STATUS_ORDER: AttendanceStatus[] = ["present", "bench", "noSignup", "absence", "vacation", "noShow"];
+export const STATUS_ORDER: AttendanceStatus[] = ["present", "bench", "noSignup", "absence", "vacation", "noShow", "tentative"];
 
 /** The order the edit menu offers them in. */
 export const EDIT_ORDER: AttendanceStatus[] = ["present", "bench", "vacation", "absence", "noSignup", "noShow"];
 
 /** The statuses that count for the quota. */
+/** Whether a night counts for the quota at all: a "maybe" the setup left out (tentative) does not (Oct 2026). */
+export function countsForQuota(status: AttendanceStatus): boolean {
+    return status !== "tentative";
+}
+
+/** Whether a night counts as there; "tentative" (not set up) counts neither way - see countsForQuota. */
 export function countsAsPresent(status: AttendanceStatus): boolean {
     return status === "present" || status === "bench";
 }
@@ -60,7 +66,7 @@ export function statusHint(status: AttendanceStatus): string {
     return t(`attendance.hint.${status}`);
 }
 
-const DETAILS = new Set(["inLog", "inLogClass", "signed", "late", "benchSetup", "benchSignup", "benchNotInLog", "vacation", "absence", "notInLog", "noSignup", "tentative"]);
+const DETAILS = new Set(["inLog", "inLogClass", "signed", "late", "benchSetup", "benchSignup", "benchNotInLog", "vacation", "absence", "notInLog", "noSignup", "tentative", "tentativePlaced", "tentativeNotPlaced"]);
 
 /** Why the night has its status ("im Log", "angemeldet (später)" …), "" when the server named no reason. */
 export function detailText(detail: string | undefined): string {

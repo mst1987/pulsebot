@@ -189,7 +189,7 @@ function attendanceChars(chars, profile, versionId) {
 
 /**
  * Attendance of the shape the roster's AttendanceBar reads, from attendanceForAccounts with `nights`:
- * `present` = the nights that count (status present or bench, #677), `missed` the others - each with
+ * `present` = the nights that count (status present or bench, #677), `missed` the others (a neutral "tentative" too) - each with
  * its status code, detail and the orga's override when there is one.
  */
 function attendanceView(result) {
@@ -199,7 +199,9 @@ function attendanceView(result) {
         total: result.total,
         pct: result.pct,
         link: result.link,
-        missed: result.missed,
+        // every night not attended - a "maybe" the setup left out (status tentative) rides along so the grid shows it;
+        // the quota above already leaves it out
+        missed: result.raids ? result.raids.filter((r) => !r.attended).map(({ attended: _a, ...night }) => night) : result.missed,
         present: (result.raids || []).filter((r) => r.attended).map(({ attended: _a, reason: _r, ...night }) => night),
     };
 }

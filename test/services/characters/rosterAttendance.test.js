@@ -27,6 +27,12 @@ jest.mock("../../../src/stores/eventStore", () => ({
 }));
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: (...a) => mockListSignups(...a) }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
+// the orga's character assignments over every category ({ categoryId: { userId: name } })
+const mockAssignments = jest.fn(() => ({}));
+jest.mock("../../../src/stores/raiderCharactersStore", () => ({
+    ...jest.requireActual("../../../src/stores/raiderCharactersStore"),
+    listAllAssignments: (...a) => mockAssignments(...a),
+}));
 
 const {
     buildAttendanceContext, attendanceFor, attendanceForAccounts, categoryInfo, roleFor, roleFromSpec, RAID_WINDOW,
@@ -331,7 +337,7 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
         }
     });
 
-    it("gives every night one of the six statuses: Dabei, Bench, Urlaub, Abgemeldet, Nicht angemeldet, Nicht erschienen", () => {
+    it("gives every night one of the statuses: Dabei, Bench, Urlaub, Abgemeldet, Nicht angemeldet, Nicht erschienen, Vielleicht", () => {
         mockListRaidEvents.mockReturnValue([
             ev("present", 7),
             ev("benchSignup", 14, { signUps: [{ userId: "u1", status: "bench" }] }),
@@ -359,14 +365,16 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
             ["noSignup", "noSignup", false],
             // signed up, the night has a log, not in it: counted as bench for now (Oct 2026)
             ["noShow", "bench", true],
-            ["tentative", "noShow", false],
+            // tentative and not set up: shown, but neutral - neither attended nor missed
+            ["tentative", "tentative", false],
         ]);
-        expect(a).toMatchObject({ attended: 3, total: 7, pct: 43 });
+        expect(a).toMatchObject({ attended: 3, total: 6, pct: 50 });
+        expect(a.missed.map((m) => m.eventId)).not.toContain("tentative");
         expect(a.raids.find((r) => r.eventId === "vacation").reason).toBe("Urlaub");
         expect(a.raids.find((r) => r.eventId === "noShow")).toMatchObject({ detail: "benchNotInLog", reason: "angemeldet, nicht im Log (Ersatzbank)" });
     });
 
-    it("counts a signup (also late) missing from the night's log as bench, a tentative one still as not shown", () => {
+    it("counts a signup (also late) missing from the night's log as bench, a tentative one not set up as neutral", () => {
         mockListRaidEvents.mockReturnValue([
             ev("signed", 7, { signUps: [{ userId: "u1", status: "signed" }] }),
             ev("late", 14, { signUps: [{ userId: "u1", status: "late" }] }),
@@ -385,9 +393,65 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
         expect(a.raids.map((r) => [r.eventId, r.status, r.detail, r.attended])).toEqual([
             ["signed", "bench", "benchNotInLog", true],
             ["late", "bench", "benchNotInLog", true],
-            ["tentative", "noShow", "tentative", false],
+            ["tentative", "tentative", "tentativeNotPlaced", false],
             ["none", "noSignup", "notInLog", false],
         ]);
+        expect(a.raids.find((n) => n.eventId === "tentative").reason).toBe("vorläufig, nicht aufgestellt (zählt nicht)");
+        expect(a).toMatchObject({ attended: 2, total: 3 });
+    });
+
+    it("expects a tentative only when the setup placed them: missing from the log is then not shown", () => {
+        const placed = { groups: [{ index: 1, slots: [{ userId: "u1" }] }], bench: [], pool: [], approved: { groups: [{ index: 1, slots: [{ userId: "u1" }] }], bench: [] } };
+        const other = { groups: [{ index: 1, slots: [{ userId: "u9" }] }], bench: [], pool: [], approved: { groups: [{ index: 1, slots: [{ userId: "u9" }] }], bench: [] } };
+        mockListOwnEvents.mockReturnValue([own("eh-placed", 7, placed), own("eh-left-out", 14, other), own("eh-no-log", 21, placed)]);
+        mockListSignups.mockReturnValue([{ userId: "u1", status: "tentative" }]);
+        withReports([
+            { id: "r1", eventId: "eh-placed", names: ["Bob"] },
+            { id: "r2", eventId: "eh-left-out", names: ["Bob"] },
+        ]);
+
+        const a = attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]);
+
+        expect(a.raids.map((r) => [r.eventId, r.status, r.detail])).toEqual([
+            ["eh-placed", "noShow", "tentativePlaced"],
+            ["eh-left-out", "tentative", "tentativeNotPlaced"],
+            ["eh-no-log", "present", "tentativePlaced"],
+        ]);
+        expect(a).toMatchObject({ attended: 1, total: 2 });
+    });
+
+    it("finds an account in the log by a character assigned to it in another category, or by the one its signup named", () => {
+        mockListRaidEvents.mockReturnValue([
+            ev("rogue", 7, { categoryId: "pug", signUps: [{ userId: "u1", status: "signed" }] }),
+            ev("named", 14, { categoryId: "pug", signUps: [{ userId: "u1", status: "signed", character: "Zweitchar" }] }),
+            ev("missing", 21, { categoryId: "pug", signUps: [{ userId: "u1", status: "signed" }] }),
+        ]);
+        withReports([
+            { id: "r1", eventId: "rogue", names: ["Schleich"] },
+            { id: "r2", eventId: "named", names: ["Zweitchar"] },
+            { id: "r3", eventId: "missing", names: ["Bob"] },
+        ]);
+        // the rogue is assigned to u1 under another category only
+        mockAssignments.mockReturnValue({ montag: { u1: "Schleich" }, pug: {} });
+
+        const out = attendanceForAccounts(buildAttendanceContext("g1", { now: NOW }), "pug", [{ userId: "u1", chars: [{ name: "Heilbert", className: "Priest", manual: true }] }], { nights: true });
+
+        expect(out.get("u1").raids.map((r) => [r.eventId, r.status, r.detail])).toEqual([
+            ["rogue", "present", "inLog"],
+            ["named", "present", "inLog"],
+            ["missing", "bench", "benchNotInLog"],
+        ]);
+        expect(out.get("u1")).toMatchObject({ attended: 3, total: 3, link: "manual" });
+        mockAssignments.mockReturnValue({});
+    });
+
+    it("counts an account with no character of its own but one assigned elsewhere", () => {
+        mockListRaidEvents.mockReturnValue([ev("e1", 7, { categoryId: "pug", signUps: [{ userId: "u1", status: "signed" }] })]);
+        withReports([{ id: "r1", eventId: "e1", names: ["Schleich"] }]);
+        mockAssignments.mockReturnValue({ montag: { u1: "Schleich" } });
+        const out = attendanceForAccounts(buildAttendanceContext("g1", { now: NOW }), "pug", [{ userId: "u1", chars: [] }]);
+        expect(out.get("u1")).toMatchObject({ attended: 1, total: 1 });
+        mockAssignments.mockReturnValue({});
     });
 
     it("tells Urlaub from Abgemeldet only by an absence entry of the raider that covers the raid's category and day", () => {

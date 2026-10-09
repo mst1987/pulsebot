@@ -93,7 +93,8 @@ export type RosterRole = "tank" | "healer" | "dps" | "";
  * How one raid night went (#677, services/characters/rosterAttendance.js): "present" and "bench" count for the
  * quota, the four others are missed. The server sends the code; the client words it (lib/roster/attendanceStatus.ts).
  */
-export type AttendanceStatus = "present" | "bench" | "vacation" | "absence" | "noSignup" | "noShow";
+/** "tentative": a "maybe" the setup left out - shown, but neither attended nor missed (not in `total`). */
+export type AttendanceStatus = "present" | "bench" | "vacation" | "absence" | "noSignup" | "noShow" | "tentative";
 
 /** A night the orga set by hand (attendanceOverridesStore): the status, the free-text reason, who and when (ms). */
 export type AttendanceOverride = { status: AttendanceStatus; reason: string; by: string; byName: string; at: number };

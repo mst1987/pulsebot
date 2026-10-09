@@ -12,7 +12,7 @@ import { AbsenceIcon, CheckMark, TrashIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
 import { entryDays, entryState, nightsInOrder } from "../../lib/roster/absences";
-import { countsAsPresent, statusOf, verdictText } from "../../lib/roster/attendanceStatus";
+import { countsAsPresent, countsForQuota, statusOf, verdictText } from "../../lib/roster/attendanceStatus";
 import AttendanceCell from "../../components/roster/AttendanceCell";
 import { periodLabel } from "../../lib/signups/availability";
 import { formatDayDate, formatTime } from "../../lib/format";
@@ -183,7 +183,7 @@ function CategoryCard({ cat, userId, name, canEdit, onSaved }: { cat: Attendance
                     </div>
                     <ul className="ab-att-list">
                         {[...nights].reverse().map((r) => (
-                            <li key={r.eventId} className={countsAsPresent(statusOf(r)) ? "ab-att-in" : "ab-att-out"} data-att={statusOf(r)}>
+                            <li key={r.eventId} className={countsAsPresent(statusOf(r)) ? "ab-att-in" : countsForQuota(statusOf(r)) ? "ab-att-out" : "ab-att-neutral"} data-att={statusOf(r)}>
                                 <span className="ab-att-date">{formatDayDate(r.startTime * 1000)}</span>
                                 <span className="ab-att-title">{r.title}</span>
                                 <span className="ab-att-verdict">{verdictText(r)}</span>

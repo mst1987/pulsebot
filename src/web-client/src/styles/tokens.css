@@ -68,7 +68,7 @@
     /* ---- Roster (rosters.css): member status - Stamm, Probe, Ersatz, Pause ---- */
     --rn-core: #a3e635; --rn-trial: #fbbf24; --rn-bench: #60a5fa; --rn-pause: #94a3b8;
     /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
-    --att-present: #4ade80; --att-bench: #3b82f6; --att-vacation: #a78bfa; --att-absence: #f59e0b; --att-nosignup: #6b7280; --att-noshow: #f87171; --att-ink: #0b0f14;
+    --att-present: #4ade80; --att-bench: #3b82f6; --att-vacation: #a78bfa; --att-absence: #f59e0b; --att-nosignup: #6b7280; --att-noshow: #f87171; --att-tentative: #2dd4bf; --att-ink: #0b0f14;
     /* ---- game versions (#563): the dot of the content switch, and the archive banner of a hidden version ---- */
     --ver-forever: #35d6c4; --ver-tbc: #e0a23a; --ver-classic: #b0b8c4;
     --archive-ink: #f0c27a; --archive-text: #c9b28a; --archive-bg: rgba(224, 162, 58, .10); --archive-line: rgba(224, 162, 58, .35);
@@ -180,7 +180,7 @@
         --ab-away: #c2410c; --ab-away-soft: rgba(234, 88, 12, .12); --ab-away-ink: #ffffff;
         --rn-core: #4d7c0f; --rn-trial: #b45309; --rn-bench: #2563eb; --rn-pause: #64748b;
         /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
-        --att-present: #2b9440; --att-bench: #1d4ed8; --att-vacation: #7c3aed; --att-absence: #b45309; --att-nosignup: #9aa3b2; --att-noshow: #dc2626; --att-ink: #ffffff;
+        --att-present: #2b9440; --att-bench: #1d4ed8; --att-vacation: #7c3aed; --att-absence: #b45309; --att-nosignup: #9aa3b2; --att-noshow: #dc2626; --att-tentative: #0f766e; --att-ink: #ffffff;
         --ver-forever: #0f8f82; --ver-tbc: #9a6c12; --ver-classic: #5b616e;
         --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
@@ -229,7 +229,7 @@
     --ab-away: #c2410c; --ab-away-soft: rgba(234, 88, 12, .12); --ab-away-ink: #ffffff;
     --rn-core: #4d7c0f; --rn-trial: #b45309; --rn-bench: #2563eb; --rn-pause: #64748b;
     /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
-    --att-present: #2b9440; --att-bench: #1d4ed8; --att-vacation: #7c3aed; --att-absence: #b45309; --att-nosignup: #9aa3b2; --att-noshow: #dc2626; --att-ink: #ffffff;
+    --att-present: #2b9440; --att-bench: #1d4ed8; --att-vacation: #7c3aed; --att-absence: #b45309; --att-nosignup: #9aa3b2; --att-noshow: #dc2626; --att-tentative: #0f766e; --att-ink: #ffffff;
     --ver-forever: #0f8f82; --ver-tbc: #9a6c12; --ver-classic: #5b616e;
     --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
