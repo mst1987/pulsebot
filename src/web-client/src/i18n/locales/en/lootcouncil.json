@@ -119,7 +119,8 @@
         "roster": "Raiders",
         "gaps": "Open BiS items",
         "bisLists": "BiS lists",
-        "compare": "Loot comparison"
+        "compare": "Loot comparison",
+        "weights": "Weighting"
     },
     "roster": {
         "title": "Whose turn is it?",
@@ -317,7 +318,12 @@
         "otherTipSub": "{count} item(s) for off-spec, disenchant or the bank — do not count as loot received.",
         "recent": "Received last",
         "more": "… and {count} more — the full list is in the details.",
-        "otherNote": "Plus {count} × off-spec, disenchant or bank — does not count as loot received."
+        "otherNote": "Plus {count} × off-spec, disenchant or bank — does not count as loot received.",
+        "points": {
+            "one": "{points} point",
+            "other": "{points} points"
+        },
+        "countPoints": "{items} · {points}"
     },
     "need": {
         "waitNever": "Waiting · never anything",
@@ -332,8 +338,21 @@
         "bisGap": "BiS gap · {owned}/{total}",
         "bisGapNone": "BiS gap · no list",
         "score": "Need {score} of 100",
-        "weighted": "Weighted 50 / 40 / 10: whoever waits long counts most.",
-        "bar": "Need {score}"
+        "weighted": "Weighted {drought} / {share} / {need} / {tenure}: wait, loot share, BiS gap, belonging.",
+        "bar": "Need {score}",
+        "waitCounted": {
+            "one": "Wait · {count} day, counts as {counted}",
+            "other": "Wait · {count} days, counts as {counted}"
+        },
+        "sharePoints": {
+            "one": "Loot share · {count} item, {points} points",
+            "other": "Loot share · {count} items, {points} points"
+        },
+        "tenure": {
+            "one": "Belonging · in the raid for {count} day",
+            "other": "Belonging · in the raid for {count} days"
+        },
+        "tenureNone": "Belonging · not known yet"
     },
     "filter": {
         "contentTipSub": "Which raids count for loot. Without a choice all loot counts; tiers and single raids can be combined (“T5 plus Hyjal”) while the guild is switching.",
@@ -520,7 +539,17 @@
         "lootCrumb": "{character} › Loot",
         "lootTip": "In the content filter",
         "lootTipSub": "Off-spec, disenchant and bank do not count as loot received.",
-        "noLoot": "Received nothing in the chosen content."
+        "noLoot": "Received nothing in the chosen content.",
+        "pointsTipSub": "Every item counts with its weight: a trinket or a BiS weapon more, a frequent drop less. The weights are in the Weighting tab.",
+        "tenure": "In the raid since",
+        "tenureTipSub": "The earlier of the first raid in this category (log, signup or loot) and the date in the roster. The longer, the higher the need — up to the saturation.",
+        "tenureUnknown": "unknown",
+        "joinedAt": "In the raid since {date}",
+        "joinedFrom": {
+            "roster": "From the roster",
+            "raid": "First raid in this category",
+            "loot": "First item in this category"
+        }
     },
     "status": {
         "trialTipSub": "On trial in the roster. For the council a trial counts like core — the status is just for information.",
@@ -554,5 +583,75 @@
             "other": "{count} roster characters are missing from the list"
         },
         "noSpecTipSub": "The council does not know their spec (yet): {names}. Class and spec come from loot imports, log evaluations and the raider profile; without a spec only a class with a single role can be placed (mage, warlock, rogue, hunter)."
+    },
+    "weights": {
+        "title": "Weighting",
+        "hint": "How the council counts: what an item is worth, how the four parts of the need weigh and when belonging counts in full. Also used by the in-game addon.",
+        "loading": "Loading the weighting …",
+        "saving": "Saving the weighting",
+        "saved": "Weighting saved — the numbers are recalculated.",
+        "scopeGlobal": "Applies to the server",
+        "scopeOwn": "Own for {name}",
+        "ownSwitch": "Own weighting for {name}",
+        "ownSwitchTip": "Off: this category follows the server's weighting. On: it gets its own, used only for its raids.",
+        "readOnly": "Read only — changing it needs write access to the loot council",
+        "classesTitle": "Item weights",
+        "classesSub": "What an item counts in the loot share. An item below 1 resets the wait only partly — one of 0.5 halves it.",
+        "itemsTitle": "Exceptions",
+        "itemsSub": "Single items with their own weight. An exception beats every class.",
+        "noItems": "No exceptions yet.",
+        "searchItem": "Search an item to add an exception …",
+        "insteadOf": "instead of {cls} · {points}",
+        "remove": "Remove",
+        "removeItem": "Remove the exception for {name}",
+        "needTitle": "Need",
+        "needSub": "How the four parts of the need weigh. The sum is scaled to 100.",
+        "tenureTitle": "Belonging",
+        "tenureSub": "Whoever has been in the raid longer gets more. The value grows evenly up to the saturation.",
+        "tenureDays": "Full after",
+        "tenureDaysTip": "After this many days belonging counts in full. Before that in part: half of it after half the time.",
+        "points": {
+            "one": "{points} point",
+            "other": "{points} points"
+        },
+        "share": "{value} · {pct} %",
+        "chip": "{points} pts",
+        "chipTip": "Counts {points} in the loot share and resets the wait accordingly.",
+        "less": "Decrease {label}",
+        "more": "Increase {label}",
+        "reset": "Reset to defaults",
+        "resetTitle": "Reset to defaults?",
+        "resetText": "The form gets the defaults (trinket 2.0, BiS weapon 2.0, other weapon 1.5, set 1.0, normal 1.0, frequent drop 0.5; need 45 / 30 / 10 / 15; full after 90 days). Nothing is stored before you press “Save”.",
+        "unsaved": "Not saved",
+        "save": "Save",
+        "class": {
+            "trinket": "Trinket",
+            "bisWeapon": "BiS weapon",
+            "weapon": "Other weapon",
+            "set": "Set piece / tier token",
+            "normal": "Normal item",
+            "frequent": "Frequent drop",
+            "override": "Exception"
+        },
+        "classTip": {
+            "trinket": "An item for a trinket slot.",
+            "bisWeapon": "A weapon (wands included) on the BiS list of the raider who received it.",
+            "weapon": "Any other weapon. Shields, off-hand items and relics are not weapons.",
+            "set": "A piece of an item set or a tier token (“… of the Forgotten Conqueror”).",
+            "normal": "Everything else, also items the bot does not know.",
+            "frequent": "Drops from several bosses, from trash or from the Zul'Aman chest. Comes before every other class."
+        },
+        "need": {
+            "drought": "Wait",
+            "share": "Loot share",
+            "need": "BiS gap",
+            "tenure": "Belonging"
+        },
+        "needTip": {
+            "drought": "How long someone has received nothing — full after 30 days.",
+            "share": "How few loot points someone has compared to the average.",
+            "need": "How far the gear still is from the BiS list.",
+            "tenure": "How long someone has been in the raid."
+        }
     }
 }

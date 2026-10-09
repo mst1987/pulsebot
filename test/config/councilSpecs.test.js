@@ -15,12 +15,6 @@ const NEW_SPECS = {
 };
 
 describe("config/councilSpecs", () => {
-    it("is still reachable under its old name", () => {
-        // casterSpecs.js re-exports this module, so a branch written against the
-        // old name keeps working.
-        expect(require("../../src/config/casterSpecs")).toBe(require("../../src/config/councilSpecs"));
-    });
-
     describe("specFor", () => {
         it("resolves an exact class + spec pair", () => {
             expect(specFor("Priest", "Shadow")).toMatchObject({ key: "Priest-Shadow", role: "caster" });

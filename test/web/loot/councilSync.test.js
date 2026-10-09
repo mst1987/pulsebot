@@ -57,7 +57,7 @@ describe("councilSyncPayload", () => {
             generatedAt: 1791234567,
             filter: { category: "123", categoryName: "SSC/TK Mittwoch", role: "caster", bisTier: "t6", bisTierDerived: true },
             categories: [{ id: "123", name: "SSC/TK Mittwoch" }],
-            weights: { drought: 50, share: 40, need: 10 },
+            weights: { drought: 45, share: 30, need: 10 },
             avgLootCount: 3.4,
             raiders: [],
         });
@@ -119,7 +119,7 @@ describe("councilSyncPayloadV2", () => {
             { id: "c1", name: "Mittwoch", opts, built: built([row()]), instances: [{ id: "bt", name: "Der Schwarze Tempel", short: "BT", zoneNames: [] }] },
             { id: 2, name: "", opts: { ...opts, role: "", bisTier: "t5", charVersion: "" }, built: { rows: [], bisTier: "t5" } },
         ], { now: 1791234567890 });
-        expect(p).toMatchObject({ format: "eventhelper-council", version: 2, generatedAt: 1791234567, weights: { drought: 50, share: 40, need: 10 } });
+        expect(p).toMatchObject({ format: "eventhelper-council", version: 2, generatedAt: 1791234567, weights: { drought: 45, share: 30, need: 10 } });
         expect(p.categories).toHaveLength(2);
         expect(p.categories[0]).toMatchObject({
             id: "c1", name: "Mittwoch", lootSystem: "lootcouncil",

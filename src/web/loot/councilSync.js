@@ -13,6 +13,22 @@
 // the mapping is tested with plain object literals.
 const { NEED_WEIGHTS } = require("./lootCouncil");
 
+/**
+ * The need weights in % as the addon reads them: drought, share, need. Since
+ * #668 the score has a fourth part (tenure) and the weights are the council's
+ * own (built.weights); the format stays v1/v2 until #670, so the three known
+ * parts go out with their real shares (with the defaults 45/30/10 — the rest,
+ * 15, is tenure, which is already inside `need` of every raider).
+ */
+function weightsPct(built) {
+    const shares = (built && built.weights && built.weights.needShares) || NEED_WEIGHTS;
+    return {
+        drought: Math.round((shares.drought || 0) * 100),
+        share: Math.round((shares.share || 0) * 100),
+        need: Math.round((shares.need || 0) * 100),
+    };
+}
+
 const FORMAT = "eventhelper-council";
 const VERSION = 1;
 // How many received items one raider carries - the newest ones.
@@ -115,11 +131,7 @@ function councilSyncPayload(built, ctx = {}) {
             bisTierDerived: !!ctx.bisTierDerived,
         },
         categories,
-        weights: {
-            drought: Math.round(NEED_WEIGHTS.drought * 100),
-            share: Math.round(NEED_WEIGHTS.share * 100),
-            need: Math.round(NEED_WEIGHTS.need * 100),
-        },
+        weights: weightsPct(built),
         avgLootCount: built.avgLootCount || 0,
         raiders: legacyRows(built.rows).map(raiderView),
     };
@@ -143,11 +155,10 @@ function councilSyncPayloadV2(entries, ctx = {}) {
         format: FORMAT,
         version: VERSION_2,
         generatedAt: seconds(ctx.now || Date.now()),
-        weights: {
-            drought: Math.round(NEED_WEIGHTS.drought * 100),
-            share: Math.round(NEED_WEIGHTS.share * 100),
-            need: Math.round(NEED_WEIGHTS.need * 100),
-        },
+        // Top-level like before. A category with its own weighting (#668)
+        // can differ; v2 has no per-category weights yet (#670), so this is
+        // the first category's, else the defaults.
+        weights: weightsPct((entries && entries[0] && entries[0].built) || null),
         categories: (entries || []).map(({ id, name, opts, built, instances }) => ({
             id: String(id),
             name: String(name || id),

@@ -27,7 +27,16 @@ export type CouncilLootItem = {
     reasonTone: string;
     awardedAt: number;
     eventLabel: string;
+    /** What this award counts as in loot points (#668), and why. */
+    weight?: number;
+    weightClass?: ItemWeightClass;
 };
+
+/** The item classes of the weighting ("override" = a per-item exception). */
+export type ItemWeightClass = "trinket" | "bisWeapon" | "weapon" | "set" | "normal" | "frequent" | "override";
+/** The four parts of the need score. */
+export type NeedParts = { drought: number; share: number; need: number; tenure?: number };
+export type NeedShares = { drought: number; share: number; need: number; tenure: number };
 
 /**
  * One piece a raider currently wears, as the gear row under their name and the
@@ -159,9 +168,14 @@ export type CouncilCandidate = {
     itemNeedScore: number;
     /** The fairness half — the same numbers the roster table shows. */
     needScore: number;
-    needParts: { drought: number; share: number; need: number };
+    needParts: NeedParts;
     lootCount: number;
+    /** See CouncilRaider.lootPoints. */
+    lootPoints?: number;
     lootTotal: number;
+    droughtDays?: number;
+    tenureDays?: number;
+    joinedAt?: number;
     /** See CouncilRaider.otherCount — off-spec, shards, bank. */
     otherCount: number;
     /** Their newest awards, so the loot count can be opened in a hover. */
@@ -233,7 +247,15 @@ export type CouncilRaider = {
     roleOptions: string[];
     /** Items in the current content filter; lootTotal counts all of them. */
     lootCount: number;
+    /** The same items weighed by class (#668): what the share part compares. */
+    lootPoints?: number;
     lootTotal: number;
+    /** The wait as it counts: a small item resets it only partly (0..30). */
+    droughtDays?: number;
+    /** "Dabei seit" (ms, 0 = unknown), where it came from, and the days since. */
+    joinedAt?: number;
+    joinedFrom?: "roster" | "raid" | "loot" | "";
+    tenureDays?: number;
     /**
      * Off-spec rolls, shards and bank items. Deliberately *not* part of
      * lootCount: they did nothing for the raider's set, and counting them would
@@ -334,7 +356,7 @@ export type CouncilRaider = {
     simSupported: boolean;
     /** 0..1, higher = more due for an item. needParts shows what it is made of. */
     needScore: number;
-    needParts: { drought: number; share: number; need: number };
+    needParts: NeedParts;
     /**
      * The roster status, only in a category with a roster (#667): Stamm and
      * Probe are candidates, Ersatz with "Ersatz zeigen"; "" for a stand-in.
@@ -361,6 +383,57 @@ export type CouncilRosterSource = {
     /** Candidates whose spec the council does not know (yet): counted, not left out silently. */
     noSpec: { key: string; character: string; className: string; status: RosterStatus }[];
 };
+
+/** The weighting a council answer was computed with (#668). */
+export type CouncilWeightsView = {
+    scope: "global" | "category";
+    classes: Record<Exclude<ItemWeightClass, "override">, number>;
+    items: Record<string, { weight: number; name: string }>;
+    /** As stored, 0..100 each. */
+    need: NeedShares;
+    /** The same as shares of 1 — what the score multiplies by. */
+    needShares: NeedShares;
+    tenureDays: number;
+    droughtDays: number;
+};
+
+/** One stored weighting block (GET/POST /api/lootcouncil/weights). */
+export type CouncilWeightSettings = {
+    classes: Record<Exclude<ItemWeightClass, "override">, number>;
+    items: Record<string, { weight: number; name: string }>;
+    need: NeedShares;
+    tenureDays: number;
+    at?: number;
+    by?: string;
+};
+
+export type CouncilWeightsData = {
+    category: string;
+    /** Per stored exception: icon, name and the class it would have without it. */
+    itemInfo: Record<string, { name: string; iconUrl: string; quality: number | null; autoClass: ItemWeightClass }>;
+    scope: "global" | "category";
+    global: CouncilWeightSettings & { stored: boolean };
+    /** The category's own weighting, null when it follows the server's. */
+    own: CouncilWeightSettings | null;
+    defaults: CouncilWeightSettings;
+    classIds: Exclude<ItemWeightClass, "override">[];
+    needIds: (keyof NeedShares)[];
+    limits: { weightMax: number; needMax: number; tenureMin: number; tenureMax: number; items: number; name: number };
+};
+
+export function getCouncilWeights(category = ""): Promise<CouncilWeightsData> {
+    return get<CouncilWeightsData>(`/api/lootcouncil/weights${category ? `?category=${encodeURIComponent(category)}` : ""}`);
+}
+
+/** Store the weighting: the server's, or (with a category) that category's own. */
+export function saveCouncilWeights(category: string, weights: CouncilWeightSettings): Promise<CouncilWeightsData> {
+    return send("POST", "/api/lootcouncil/weights", { category, weights });
+}
+
+/** Back to the defaults (server) or to the server's weighting (category). */
+export function resetCouncilWeights(category: string): Promise<CouncilWeightsData> {
+    return send("POST", "/api/lootcouncil/weights", { category, reset: true });
+}
 
 export type CouncilGap = CouncilItem & {
     wantedBy: { key: string; character: string; specKey: string; specLabel: string; needScore: number }[];
@@ -399,6 +472,9 @@ export type LootCouncilData = {
     /** With a roster: who stood there without being in it (#667). */
     outsiders?: CouncilOutsider[];
     avgLootCount: number;
+    avgLootPoints?: number;
+    /** The weighting the numbers were computed with (#668). */
+    weights?: CouncilWeightsView;
     recentLogs: CouncilLog[];
     /** Set aside, and offerable back. */
     excluded: ExcludedRaider[];

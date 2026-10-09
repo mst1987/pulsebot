@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
     getLootCouncil, loadCouncilLogGear, refreshCouncilArmory, searchCouncilItems,
-    type ApiError, type CouncilCandidate, type CouncilFocus, type ItemSearchResult } from "../../api";
+    type ApiError, type CouncilCandidate, type CouncilFocus, type CouncilWeightsView, type ItemSearchResult } from "../../api";
 import { useJobs, useToast } from "../../components/shell/Jobs";
 import ItemSearchPicker from "../../components/loot/ItemSearchPicker";
 import RaidLoader from "../../components/ui/RaidLoader";
@@ -25,6 +25,7 @@ import {
     CANDIDATE_SORT, FILTER_DEFAULT, VIEW_KEY, WOWHEAD, dropHref, pickVerdict, raiderHref, useCouncilSim, waitedTip,
     type CandidateSortKey, type FilterView } from "./council";
 import { WowheadPathProvider } from "../../lib/settings/versionLinks";
+import { NeedWeightsProvider } from "./needWeights";
 import { useCategoryViews } from "./categoryViews";
 import { BisSpecs, ContentBadge, FoldRow, LootCount, RaiderIdent } from "./ItemBits";
 import { CandidateTable, ListBadge } from "./CandidateTable";
@@ -49,6 +50,8 @@ export default function DropCheckPage() {
     const [simAvailable, setSimAvailable] = useState(false);
     // The council's version's Wowhead path (#542); undefined until loaded = the stored (TBC) one
     const [wowheadPath, setWowheadPath] = useState<string | undefined>(undefined);
+    // The weighting the need bars are stacked in (#668), from the same answer.
+    const [weights, setWeights] = useState<CouncilWeightsView | undefined>(undefined);
     const [error, setError] = useState<ApiError | null>(null);
     const [loading, setLoading] = useState(false);
     const [unwearableOpen, setUnwearableOpen] = useState(false);
@@ -94,6 +97,7 @@ export default function DropCheckPage() {
                 setFocus(d.focus);
                 setSimAvailable(d.sim.available);
                 setWowheadPath(d.wowheadPath);
+                setWeights(d.weights);
                 // Ohne Simulation gibt es keinen Zugewinn und keine Empfehlung —
                 // also wird der Drop sofort gerechnet, nicht erst auf Klick.
                 if (d.focus && d.sim.available) autoSimRef.current(d.focus);
@@ -171,6 +175,7 @@ export default function DropCheckPage() {
 
     return (
         <WowheadPathProvider path={wowheadPath}>
+        <NeedWeightsProvider weights={weights}>
             <div className="page-head lc-drophead">
                 <Button variant="ghost" size="sm" icon={<ChevronLeftIcon />} onClick={() => navigate("/lootcouncil")}>{t("lootcouncil.drop.back")}</Button>
                 <div className="ph-text">
@@ -256,7 +261,7 @@ export default function DropCheckPage() {
                                 <span className="lc-vsep" />
                                 <span className="lc-vstat2"><span className="lc-th">{t("lootcouncil.word.need")}</span><NeedBar subject={best} width={140} /></span>
                                 <span className="lc-vstat2"><span className="lc-th">{t("lootcouncil.word.last")}</span><span className="lc-num" data-tip={waitedTip(best.daysSinceLoot)}>{best.daysSinceLoot === null ? t("lootcouncil.word.never") : t("lootcouncil.word.daysCount", { count: best.daysSinceLoot })}</span></span>
-                                <span className="lc-vstat2"><span className="lc-th">{t("lootcouncil.word.items")}</span><LootCount items={best.recentItems} total={best.lootCount} other={best.otherCount} /></span>
+                                <span className="lc-vstat2"><span className="lc-th">{t("lootcouncil.word.items")}</span><LootCount items={best.recentItems} total={best.lootCount} other={best.otherCount} points={best.lootPoints} /></span>
                                 <span className="lc-vstat2 lc-vstat2-end"><span className="lc-th">{t("lootcouncil.word.replaces")}</span><SlotOptions candidate={best} /></span>
                             </div>
                         ) : (
@@ -322,6 +327,7 @@ export default function DropCheckPage() {
                     ) : null}
                 </>
             )}
+        </NeedWeightsProvider>
         </WowheadPathProvider>
     );
 }

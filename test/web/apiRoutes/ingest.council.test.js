@@ -84,7 +84,7 @@ describe("GET /api/ingest/council", () => {
             version: 1,
             filter: { category: "", categoryName: "", role: "", bisTier: "t6", bisTierDerived: true },
             categories: [{ id: "c1", name: "SSC/TK Mittwoch" }, { id: "c2", name: "c2" }],
-            weights: { drought: 50, share: 40, need: 10 },
+            weights: { drought: 45, share: 30, need: 10 },
         });
         expect(data.raiders).toHaveLength(1);
         expect(data.raiders[0]).toMatchObject({ character: "Gemli", classFile: "PRIEST", need: 50, daysSinceLoot: -1, bis: { missing: [7] } });

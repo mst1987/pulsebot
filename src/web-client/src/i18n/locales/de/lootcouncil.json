@@ -21,7 +21,7 @@
         "and": "und",
         "checkAsDrop": "Als Drop prüfen",
         "itemCount": {
-            "one": "{count} Items",
+            "one": "{count} Item",
             "other": "{count} Items"
         },
         "daysCount": {
@@ -119,7 +119,8 @@
         "roster": "Raider",
         "gaps": "Offene BiS-Items",
         "bisLists": "BiS-Listen",
-        "compare": "Loot-Vergleich"
+        "compare": "Loot-Vergleich",
+        "weights": "Gewichtung"
     },
     "roster": {
         "title": "Wer ist dran?",
@@ -317,7 +318,12 @@
         "otherTipSub": "{count} Item(s) für Offspec, Entzaubern oder die Bank — zählen nicht als erhaltener Loot.",
         "recent": "Zuletzt bekommen",
         "more": "… und {count} weitere — die volle Liste steht in den Details.",
-        "otherNote": "Dazu {count} × Offspec, Entzaubern oder Bank — zählt nicht als erhaltener Loot."
+        "otherNote": "Dazu {count} × Offspec, Entzaubern oder Bank — zählt nicht als erhaltener Loot.",
+        "points": {
+            "one": "{points} Punkt",
+            "other": "{points} Punkte"
+        },
+        "countPoints": "{items} · {points}"
     },
     "need": {
         "waitNever": "Wartezeit · noch nie etwas",
@@ -332,8 +338,21 @@
         "bisGap": "BiS-Lücke · {owned}/{total}",
         "bisGapNone": "BiS-Lücke · keine Liste",
         "score": "Bedarf {score} von 100",
-        "weighted": "Gewichtet 50 / 40 / 10: wer lange wartet, zählt am meisten.",
-        "bar": "Bedarf {score}"
+        "weighted": "Gewichtet {drought} / {share} / {need} / {tenure}: Wartezeit, Loot-Anteil, BiS-Lücke, Zugehörigkeit.",
+        "bar": "Bedarf {score}",
+        "waitCounted": {
+            "one": "Wartezeit · {count} Tag, zählt wie {counted}",
+            "other": "Wartezeit · {count} Tage, zählt wie {counted}"
+        },
+        "sharePoints": {
+            "one": "Loot-Anteil · {count} Item, {points} Punkte",
+            "other": "Loot-Anteil · {count} Items, {points} Punkte"
+        },
+        "tenure": {
+            "one": "Zugehörigkeit · dabei seit {count} Tag",
+            "other": "Zugehörigkeit · dabei seit {count} Tagen"
+        },
+        "tenureNone": "Zugehörigkeit · noch unbekannt"
     },
     "filter": {
         "contentTipSub": "Welche Raids beim Loot zählen. Ohne Auswahl zählt aller Loot; Tiers und einzelne Raids lassen sich kombinieren („T5 plus Hyjal“), wenn die Gilde gerade wechselt.",
@@ -520,7 +539,17 @@
         "lootCrumb": "{character} › Loot",
         "lootTip": "Im Content-Filter",
         "lootTipSub": "Offspec, Entzaubern und Bank zählen nicht als erhaltener Loot.",
-        "noLoot": "Im gewählten Content nichts bekommen."
+        "noLoot": "Im gewählten Content nichts bekommen.",
+        "pointsTipSub": "Jedes Item zählt mit seinem Gewicht: ein Trinket oder eine BiS-Waffe mehr, ein häufiger Drop weniger. Die Gewichte stehen im Tab Gewichtung.",
+        "tenure": "Dabei seit",
+        "tenureTipSub": "Das frühere von erstem Raid in dieser Kategorie (Log, Anmeldung oder Loot) und dem Datum im Roster. Je länger, desto höher der Bedarf — bis zur Sättigung.",
+        "tenureUnknown": "unbekannt",
+        "joinedAt": "Dabei seit {date}",
+        "joinedFrom": {
+            "roster": "Aus dem Roster",
+            "raid": "Erster Raid in dieser Kategorie",
+            "loot": "Erstes Item in dieser Kategorie"
+        }
     },
     "status": {
         "trialTipSub": "Steht im Roster auf Probe. Für den Council zählt Probe wie Stamm — der Status ist nur zur Info.",
@@ -554,5 +583,75 @@
             "other": "{count} Roster-Charaktere fehlen in der Liste"
         },
         "noSpecTipSub": "Der Council kennt ihre Spec (noch) nicht: {names}. Klasse und Spec kommen aus Loot-Importen, Log-Auswertungen und dem Raider-Profil; ohne Spec lässt sich nur einordnen, wessen Klasse eine einzige Rolle hat (Magier, Hexenmeister, Schurke, Jäger)."
+    },
+    "weights": {
+        "title": "Gewichtung",
+        "hint": "Wie der Council rechnet: was ein Item zählt, wie die vier Teile des Bedarfs gewichtet sind und wann Zugehörigkeit voll zählt. Gilt auch fürs Addon im Spiel.",
+        "loading": "Gewichtung wird geladen …",
+        "saving": "Gewichtung wird gespeichert",
+        "saved": "Gewichtung gespeichert — die Zahlen sind neu berechnet.",
+        "scopeGlobal": "Gilt für den Server",
+        "scopeOwn": "Eigene für {name}",
+        "ownSwitch": "Eigene Gewichtung für {name}",
+        "ownSwitchTip": "Aus: Diese Kategorie folgt der Gewichtung des Servers. An: Sie bekommt eine eigene, die nur für ihre Raids gilt.",
+        "readOnly": "Nur lesen — Ändern braucht Schreibrecht im Loot-Council",
+        "classesTitle": "Item-Gewichte",
+        "classesSub": "Was ein Item im Loot-Anteil zählt. Ein Item unter 1 setzt die Wartezeit nur anteilig zurück — eines mit 0,5 halbiert sie.",
+        "itemsTitle": "Ausnahmen",
+        "itemsSub": "Einzelne Items mit eigenem Gewicht. Eine Ausnahme schlägt jede Klasse.",
+        "noItems": "Noch keine Ausnahmen.",
+        "searchItem": "Item suchen, um eine Ausnahme anzulegen …",
+        "insteadOf": "statt {cls} · {points}",
+        "remove": "Entfernen",
+        "removeItem": "Ausnahme für {name} entfernen",
+        "needTitle": "Bedarf",
+        "needSub": "Wie die vier Teile des Bedarfs gewichtet sind. Die Summe wird auf 100 umgerechnet.",
+        "tenureTitle": "Zugehörigkeit",
+        "tenureSub": "Wer länger dabei ist, bekommt mehr. Der Wert steigt gleichmäßig bis zur Sättigung.",
+        "tenureDays": "Voll nach",
+        "tenureDaysTip": "Nach so vielen Tagen zählt die Zugehörigkeit voll. Davor anteilig: nach der Hälfte die Hälfte.",
+        "points": {
+            "one": "{points} Punkt",
+            "other": "{points} Punkte"
+        },
+        "share": "{value} · {pct} %",
+        "chip": "{points} Pkt.",
+        "chipTip": "Zählt {points} im Loot-Anteil und setzt die Wartezeit entsprechend zurück.",
+        "less": "{label} verringern",
+        "more": "{label} erhöhen",
+        "reset": "Auf Vorgaben zurücksetzen",
+        "resetTitle": "Auf Vorgaben zurücksetzen?",
+        "resetText": "Das Formular bekommt die Vorgaben (Trinket 2,0, BiS-Waffe 2,0, andere Waffe 1,5, Set 1,0, normal 1,0, häufiger Drop 0,5; Bedarf 45 / 30 / 10 / 15; voll nach 90 Tagen). Gespeichert wird erst mit „Speichern“.",
+        "unsaved": "Nicht gespeichert",
+        "save": "Speichern",
+        "class": {
+            "trinket": "Trinket",
+            "bisWeapon": "BiS-Waffe",
+            "weapon": "Andere Waffe",
+            "set": "Set-Teil / Tier-Token",
+            "normal": "Normales Item",
+            "frequent": "Häufiger Drop",
+            "override": "Ausnahme"
+        },
+        "classTip": {
+            "trinket": "Ein Item für den Schmuck-Platz.",
+            "bisWeapon": "Eine Waffe (auch Zauberstab), die auf der BiS-Liste des Raiders steht, der sie bekommen hat.",
+            "weapon": "Jede andere Waffe. Schilde, Nebenhand-Gegenstände und Relikte sind keine Waffen.",
+            "set": "Ein Teil eines Sets oder ein Tier-Token („… of the Forgotten Conqueror“).",
+            "normal": "Alles andere, auch Items, die der Bot nicht kennt.",
+            "frequent": "Droppt bei mehreren Bossen, im Trash oder aus der Truhe in Zul'Aman. Geht jeder anderen Klasse vor."
+        },
+        "need": {
+            "drought": "Wartezeit",
+            "share": "Loot-Anteil",
+            "need": "BiS-Lücke",
+            "tenure": "Zugehörigkeit"
+        },
+        "needTip": {
+            "drought": "Wie lange jemand nichts bekommen hat — voll nach 30 Tagen.",
+            "share": "Wie wenige Loot-Punkte jemand im Vergleich zum Durchschnitt hat.",
+            "need": "Wie weit das Gear noch von der BiS-Liste entfernt ist.",
+            "tenure": "Wie lange jemand schon dabei ist."
+        }
     }
 }

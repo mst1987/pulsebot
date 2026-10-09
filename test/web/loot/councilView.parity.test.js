@@ -38,7 +38,11 @@ jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => [] }));
 jest.mock("../../../src/stores/logStore", () => ({ listLogs: () => [] }));
 jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null, getReportRoster: () => null }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: (...a) => mockProfiles(...a) }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: (id) => mockRosters[id] || null }));
+jest.mock("../../../src/stores/rosterStore", () => ({
+    rosterForCategory: (id) => mockRosters[id] || null,
+    // every roster: "dabei seit" without a category (#668)
+    listRosters: () => Object.values(mockRosters),
+}));
 jest.mock("../../../src/stores/logGearStore", () => ({ loadLogGear: jest.fn(), clearLogGear: jest.fn(), recentLogs: () => [] }));
 jest.mock("../../../src/stores/simStore", () => ({ startCouncilSim: jest.fn(), getJob: jest.fn() }));
 jest.mock("../../../src/services/loot/armoryGear", () => ({

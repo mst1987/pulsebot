@@ -39,7 +39,7 @@ jest.mock("../../../src/stores/reportStore", () => ({
 const {
     councilRoster,
     _internal: {
-        candidatesForItem, needScore, upgradeValue, gearHit, NEED_WEIGHTS,
+        candidatesForItem, upgradeValue, gearHit,
     },
 } = require("../../../src/web/loot/lootCouncil");
 const { specByKey, hitCapFor } = require("../../../src/config/councilSpecs");
@@ -63,48 +63,8 @@ beforeEach(() => {
 });
 
 describe("web/loot/lootCouncil", () => {
-    describe("needScore", () => {
-        it("is made of three visible parts", () => {
-            const { score, parts } = needScore({ daysSinceLoot: 15, lootCount: 1, avgLootCount: 2, bisOwned: 5, bisTotal: 10 });
-            expect(parts).toEqual({ drought: 0.5, share: 0.5, need: 0.5 });
-            expect(score).toBeCloseTo(0.5, 5);
-        });
-
-        it("weighs the wait most, the loot share next and the BiS gap least", () => {
-            expect(NEED_WEIGHTS).toEqual({ drought: 0.5, share: 0.4, need: 0.1 });
-            const only = (over) => needScore({ daysSinceLoot: 0, lootCount: 5, avgLootCount: 1, bisOwned: 10, bisTotal: 10, ...over }).score;
-            expect(only({ daysSinceLoot: 30 })).toBeCloseTo(0.5, 5);
-            expect(only({ lootCount: 0, avgLootCount: 4 })).toBeCloseTo(0.4, 5);
-            expect(only({ bisOwned: 0 })).toBeCloseTo(0.1, 5);
-        });
-
-        it("caps the drought at 30 days, so an ancient date cannot dominate", () => {
-            const a = needScore({ daysSinceLoot: 30, lootCount: 0, avgLootCount: 0, bisOwned: 0, bisTotal: 0 });
-            const b = needScore({ daysSinceLoot: 900, lootCount: 0, avgLootCount: 0, bisOwned: 0, bisTotal: 0 });
-            expect(a.parts.drought).toBe(1);
-            expect(b.parts.drought).toBe(1);
-        });
-
-        it("treats 'never got anything' as the full drought", () => {
-            expect(needScore({ daysSinceLoot: null, lootCount: 0, avgLootCount: 1, bisOwned: 0, bisTotal: 1 }).parts.drought).toBe(1);
-        });
-
-        it("gives a raider above the average no negative share", () => {
-            expect(needScore({ daysSinceLoot: 1, lootCount: 10, avgLootCount: 2, bisOwned: 0, bisTotal: 0 }).parts.share).toBe(0);
-        });
-
-        it("stays in 0..1", () => {
-            const extremes = [
-                { daysSinceLoot: 0, lootCount: 99, avgLootCount: 1, bisOwned: 10, bisTotal: 10 },
-                { daysSinceLoot: 999, lootCount: 0, avgLootCount: 9, bisOwned: 0, bisTotal: 10 },
-            ];
-            for (const input of extremes) {
-                const { score } = needScore(input);
-                expect(score).toBeGreaterThanOrEqual(0);
-                expect(score).toBeLessThanOrEqual(1);
-            }
-        });
-    });
+    // needScore, the partial drought reset, loot points and belonging (#668):
+    // lootCouncil.weights.test.js.
 
     describe("upgradeValue", () => {
         const shadow = specByKey("Priest-Shadow");

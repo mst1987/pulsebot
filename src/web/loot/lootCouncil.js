@@ -40,6 +40,9 @@ const {
     ROLES, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitStatFor, hitCapFor,
     bisForSpec, isSimSupported, bisSpecsForItem,
 } = require("../../config/councilSpecs");
+const councilWeights = require("../../stores/councilWeightsStore");
+const { itemWeight } = require("../../services/loot/itemWeights");
+const { tenureContext, tenureDays: tenureDaysOf } = require("../../services/loot/councilTenure");
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -373,44 +376,116 @@ function wornItemView(item, bisIds, tierId = "") {
 /**
  * How urgently a raider should be considered for the next drop, and why.
  *
- * Three inputs, each capped so no single one can dominate:
- *   - drought: how long since their last item (the fairness half a council
- *     argues about out loud)
- *   - share:   how few items they got in the filtered content compared to the
- *              other casters in the same filter
+ * Four inputs, each capped to 0..1 so no single one can dominate:
+ *   - drought: how long they have waited — the effective days of droughtDays(),
+ *              in which a small item resets the wait only partly (the fairness
+ *              half a council argues about out loud)
+ *   - share:   how few loot points they got in the filtered content compared to
+ *              the field's average
  *   - need:    how far their gear still is from the BiS list (the "would it
  *              even help them" half)
+ *   - tenure:  how long they have belonged to the raid (councilTenure.js),
+ *              linear up to the saturation (default 90 days)
  *
- * Deliberately transparent rather than clever: the components go out with the
- * score so the page can show the reasoning, and a council can disagree with a
- * number it can see the parts of.
+ * The weights are the council's (stores/councilWeightsStore.js, default
+ * 45 / 30 / 10 / 15), normalised to a sum of 1, so the score stays 0..1 whatever
+ * is set. Deliberately transparent rather than clever: the components go out
+ * with the score so the page can show the reasoning, and a council can disagree
+ * with a number it can see the parts of.
  */
-// How the three parts of the need score weigh: the wait counts most, the loot
-// share next, the BiS gap least — a raider far from BiS is not owed an item,
-// a raider who has waited is. (Changed from 40/30/30 on the raid lead's call.)
-const NEED_WEIGHTS = { drought: 0.5, share: 0.4, need: 0.1 };
+// The default weights as shares of 1: the wait counts most, the loot share
+// next, belonging after that and the BiS gap least — a raider far from BiS is
+// not owed an item, a raider who has waited and stayed is. (50/40/10 until
+// #668 added belonging and made them adjustable.)
+const NEED_WEIGHTS = Object.freeze(councilWeights.effectiveNeedWeights(councilWeights.DEFAULTS.need));
 
 // A candidate for whom the drop is not on their BiS list is weighed at this
 // share of their need and gain: the item still helps them, but somebody it is
 // BiS for should come first unless the numbers are far apart.
 const NON_BIS_WEIGHT = 0.5;
 
-function needScore({ daysSinceLoot, lootCount, avgLootCount, bisOwned, bisTotal }) {
-    // 30 days without an item is as much drought as this counts.
-    const drought = Math.min(1, (daysSinceLoot === null ? 30 : daysSinceLoot) / 30);
+// Days without an item at which the drought part is full.
+const DROUGHT_DAYS = 30;
+
+/**
+ * The wait as effective days, with a partial reset per award (#668).
+ *
+ * A running counter D (days, capped at DROUGHT_DAYS) walks the awards oldest
+ * first. Before the first award it is full (never got anything = the full
+ * drought). Between two awards it grows by the days in between, capped again.
+ * At an award of weight w it becomes D × max(0, 1 − w): an item of weight 1 or
+ * more resets the wait completely, one of 0.5 halves it, one of 0 leaves it.
+ * After the newest award it grows by the whole days since (`daysSinceLoot`).
+ *
+ * With every weight ≥ 1 this is exactly the old rule, min(30, days since the
+ * last item); weights above 1 cannot reset more than fully — they count extra
+ * in the share instead.
+ *
+ * @param {{ awardedAt: number, weight: number }[]} awards  the counted awards (any order)
+ * @param {number|null} daysSinceLoot  whole days since the newest one (null = never)
+ * @returns {number} effective days, 0..DROUGHT_DAYS, one decimal
+ */
+function droughtDays(awards, daysSinceLoot) {
+    const list = (awards || []).filter((a) => a && a.awardedAt).sort((a, b) => a.awardedAt - b.awardedAt);
+    if (!list.length || daysSinceLoot === null || daysSinceLoot === undefined) return DROUGHT_DAYS;
+    let d = DROUGHT_DAYS;
+    let prev = 0;
+    for (const a of list) {
+        if (prev) d = Math.min(DROUGHT_DAYS, d + (a.awardedAt - prev) / DAY);
+        d *= Math.max(0, 1 - (Number(a.weight) || 0));
+        prev = a.awardedAt;
+    }
+    d = Math.min(DROUGHT_DAYS, d + daysSinceLoot);
+    return Math.round(d * 10) / 10;
+}
+
+/**
+ * @param {object} input
+ *   droughtDays    effective days (droughtDays()); null = never got anything
+ *   lootPoints     their loot points in the filter
+ *   avgLootPoints  the field's average loot points
+ *   bisOwned, bisTotal
+ *   tenureDays     days since "dabei seit" (0 without a date)
+ * @param {object} [weights]  { drought, share, need, tenure } as shares of 1
+ * @param {number} [tenureSaturation]  days at which the tenure part is full
+ */
+function needScore(input, weights = NEED_WEIGHTS, tenureSaturation = councilWeights.DEFAULTS.tenureDays) {
+    const { bisOwned, bisTotal } = input;
+    const days = input.droughtDays === null || input.droughtDays === undefined ? DROUGHT_DAYS : input.droughtDays;
+    const points = Number(input.lootPoints) || 0;
+    const avg = Number(input.avgLootPoints) || 0;
+    const drought = Math.min(1, days / DROUGHT_DAYS);
     // Half the average is "clearly behind", twice it is "clearly ahead".
-    const share = avgLootCount > 0
-        ? Math.max(0, Math.min(1, (avgLootCount - lootCount) / Math.max(1, avgLootCount)))
+    const share = avg > 0
+        ? Math.max(0, Math.min(1, (avg - points) / Math.max(1, avg)))
         : 0.5;
     const need = bisTotal > 0 ? 1 - (bisOwned / bisTotal) : 0.5;
-    const score = NEED_WEIGHTS.drought * drought + NEED_WEIGHTS.share * share + NEED_WEIGHTS.need * need;
+    const tenure = Math.min(1, Math.max(0, Number(input.tenureDays) || 0) / Math.max(1, tenureSaturation));
+    const w = { drought: 0, share: 0, need: 0, tenure: 0, ...weights };
+    const score = w.drought * drought + w.share * share + w.need * need + w.tenure * tenure;
+    const r3 = (x) => Math.round(x * 1000) / 1000;
     return {
-        score: Math.round(score * 1000) / 1000,
-        parts: {
-            drought: Math.round(drought * 1000) / 1000,
-            share: Math.round(share * 1000) / 1000,
-            need: Math.round(need * 1000) / 1000,
-        },
+        score: r3(score),
+        parts: { drought: r3(drought), share: r3(share), need: r3(need), tenure: r3(tenure) },
+    };
+}
+
+/** The weighting a council request runs with: the stored settings plus the shares of 1 the score uses. */
+function resolveWeights(settings) {
+    const s = settings || councilWeights.weightsFor("");
+    return { ...s, needShares: councilWeights.effectiveNeedWeights(s.need) };
+}
+
+/** The weighting as the page and the addon get it. */
+function weightsView(w) {
+    return {
+        scope: w.scope || "global",
+        classes: w.classes,
+        items: w.items,
+        need: w.need,
+        needShares: w.needShares,
+        tenureDays: w.tenureDays,
+        droughtDays: DROUGHT_DAYS,
     };
 }
 
@@ -497,9 +572,15 @@ function bisItemsFor(bis, gear, bisTier) {
     });
 }
 
-/** One awarded item as the roster row lists it. */
-function awardedItemView(it) {
+/**
+ * One awarded item as the roster row lists it. `w` is what it counts as
+ * ({ weight, cls } from services/loot/itemWeights.js), resolved against the
+ * recipient's BiS list.
+ */
+function awardedItemView(it, w = { weight: 1, cls: "normal" }) {
     return {
+        weight: w.weight,
+        weightClass: w.cls,
         itemId: it.itemId,
         // The import fills the name in (enrichItemNames), but a row from
         // before that existed — or one Wowhead was unreachable for —
@@ -655,9 +736,16 @@ function rosterRow(key, ctx) {
     const bucket = ctx.loot.get(key) || { all: [], filtered: [], other: 0, character: "" };
     const filtered = bucket.filtered.sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
     const lastAwardAt = filtered.length ? filtered[0].awardedAt : 0;
+    const daysSinceLoot = lastAwardAt ? Math.floor((ctx.now - lastAwardAt) / DAY) : null;
     const bis = bisForSpec(specEntry, ctx.bisTier);
     const bisItems = bisItemsFor(bis, gear, ctx.bisTier);
     const bisIds = new Set(bis.items.map((entry) => Number(entry.id)));
+    // What each award counts as (#668): its weight decides the loot points and
+    // how far it reset the wait. A weapon is a BiS weapon against *this*
+    // raider's list.
+    const weighed = filtered.map((it) => ({ it, w: itemWeight(it.itemId, ctx.weights, { bisIds, itemName: it.itemName }) }));
+    const lootPoints = Math.round(weighed.reduce((n, x) => n + x.w.weight, 0) * 10) / 10;
+    const joined = ctx.joinedAtFor(key);
 
     const look = classLook(ctx.charStore, key);
     const character = bucket.character || (gear && gear.character) || (hint && hint.name) || key;
@@ -683,14 +771,24 @@ function rosterRow(key, ctx) {
         roleOptions: rolesForClass(className),
         role: specEntry.role,
         lootCount: filtered.length,
+        // The same awards weighed by item class (#668): what the share part
+        // compares, shown as "3 Items · 5,5 Punkte".
+        lootPoints,
         lootTotal: bucket.all.length,
         // Off-spec rolls, shards and bank items: they exist, but they did
         // nothing for this raider's set, so they do not count towards what
         // they have already been given (see countsAsLoot).
         otherCount: bucket.other || 0,
         lastAwardAt,
-        daysSinceLoot: lastAwardAt ? Math.floor((ctx.now - lastAwardAt) / DAY) : null,
-        items: filtered.map(awardedItemView),
+        daysSinceLoot,
+        // The wait as it counts: small items reset it only partly (droughtDays).
+        droughtDays: droughtDays(weighed.map((x) => ({ awardedAt: x.it.awardedAt, weight: x.w.weight })), daysSinceLoot),
+        // "Dabei seit" (councilTenure.js): the date, where it came from, and
+        // the whole days since — 0 / "" when nothing is known.
+        joinedAt: joined.joinedAt,
+        joinedFrom: joined.source,
+        tenureDays: tenureDaysOf(joined.joinedAt, ctx.now),
+        items: weighed.map((x) => awardedItemView(x.it, x.w)),
         gear: rosterGearView(gear, specEntry, bisIds, ctx.bisTier),
         bis: bisView(bis, bisItems),
         simSupported: isSimSupported(specEntry),
@@ -702,20 +800,23 @@ function rosterRow(key, ctx) {
  * measured against, so it is added once the whole roster is known. Returns the
  * field's average loot count.
  */
-function scoreRows(rows) {
+function scoreRows(rows, weights = resolveWeights()) {
     const avg = rows.length ? rows.reduce((n, r) => n + r.lootCount, 0) / rows.length : 0;
+    // The share compares loot points, not item counts (#668).
+    const avgPoints = rows.length ? rows.reduce((n, r) => n + (r.lootPoints || 0), 0) / rows.length : 0;
     for (const row of rows) {
         const { score, parts } = needScore({
-            daysSinceLoot: row.daysSinceLoot,
-            lootCount: row.lootCount,
-            avgLootCount: avg,
+            droughtDays: row.droughtDays,
+            lootPoints: row.lootPoints,
+            avgLootPoints: avgPoints,
             bisOwned: row.bis.owned,
             bisTotal: row.bis.total,
-        });
+            tenureDays: row.tenureDays,
+        }, weights.needShares, weights.tenureDays);
         row.needScore = score;
         row.needParts = parts;
     }
-    return avg;
+    return { avg, avgPoints };
 }
 
 /**
@@ -781,8 +882,13 @@ function councilRoster(opts = {}) {
     // and the same values decide who the charVersion filter keeps.
     const versionCtx = buildVersionContext({ config: opts.config });
     const mainVersion = opts.mainVersion || mainVersionFor({ config: opts.config });
+    // How items and the need parts weigh (#668): the category's own settings,
+    // else the server's; `opts.weights` lets a caller (a test) pass them in.
+    const weights = resolveWeights(opts.weights || councilWeights.weightsFor(categoryId));
+    // "Dabei seit" per raider, read once for the whole roster.
+    const joinedAtFor = opts.joinedAtFor || tenureContext({ categoryId, allLoot, now });
     const ctx = {
-        info, charStore, gearMap, loot, planned, role, bisTier, now, links,
+        info, charStore, gearMap, loot, planned, role, bisTier, now, links, weights, joinedAtFor,
         hints: fromRoster ? fromRoster.entries : null,
     };
     const rows = [];
@@ -815,7 +921,7 @@ function councilRoster(opts = {}) {
         }
     }
 
-    const avg = scoreRows(rows);
+    const { avg, avgPoints } = scoreRows(rows, weights);
     rows.sort((a, b) => b.needScore - a.needScore || a.character.localeCompare(b.character));
     // bisTier goes back out so the page can show which list it is measuring
     // against — especially when nobody picked one and it was derived. The
@@ -824,6 +930,10 @@ function councilRoster(opts = {}) {
     return {
         rows,
         avgLootCount: Math.round(avg * 10) / 10,
+        avgLootPoints: Math.round(avgPoints * 10) / 10,
+        // The weighting the numbers were computed with — the need bar is
+        // stacked in exactly these shares.
+        weights: weightsView(weights),
         bisTier,
         // The version filter's own choices (#545): every version a candidate
         // of this category has, plus the main version even with none.
@@ -1026,7 +1136,11 @@ function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
             needScore: row.needScore,
             needParts: row.needParts,
             lootCount: row.lootCount,
+            lootPoints: row.lootPoints,
             lootTotal: row.lootTotal,
+            droughtDays: row.droughtDays,
+            tenureDays: row.tenureDays,
+            joinedAt: row.joinedAt,
             otherCount: row.otherCount,
             // What they were actually given lately, so "4 Items" can be opened
             // up on the spot. A council arguing about a drop asks "ja was hat
@@ -1119,9 +1233,10 @@ function filterOptions() {
 
 module.exports = {
     councilRoster, candidateSplit, bisGaps, filterOptions, bisSpecsView, resolveContentFilter, itemView, NEED_WEIGHTS,
+    DROUGHT_DAYS,
     // only for the tests (#424): not part of the module's API
     _internal: {
         candidatesForItem, currentTier, wornItemView, NEED_WEIGHTS, NON_BIS_WEIGHT, upgradeValue, needScore, gearHit, firstSlotFor,
-        slotNameFor,
+        slotNameFor, droughtDays, resolveWeights,
     },
 };
