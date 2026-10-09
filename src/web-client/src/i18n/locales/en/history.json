@@ -61,7 +61,6 @@
         "loading": "Loading history",
         "statsLoading": "Loading overview",
         "areaAria": "Area",
-        "versionAria": "Game version",
         "view": {
             "awards": "Awards",
             "items": "Items",
@@ -252,13 +251,10 @@
         "unknownItem": "unknown – item not in the raid loot table"
     },
     "chars": {
-        "versionAria": "Game version",
         "colCharacter": "Character",
         "colClass": "Class & spec",
         "itemsSub": "Hovering the number shows the items.",
         "sourceSub": "Where class and spec come from.",
-        "title": "Characters",
-        "tipSub": "Every character with loot, grouped by raid category. The name opens the loot history including the armory.",
         "resolve": "Fill in classes & specs",
         "resolveOpen": "Fill in classes & specs ({count} open)",
         "resolveSub": "Takes the class from the loot export or an existing evaluation and reads the rest from the raid's Warcraft log.",
@@ -336,8 +332,6 @@
         "responsePrefix": "“{response}” · "
     },
     "latest": {
-        "crumb": "Loot › Awards",
-        "tipSub": "Every award on its own, newest first. “Top items only” shows the same list as the overview.",
         "searchPlaceholder": "Item, item ID or character …",
         "topOnly": "Top items only",
         "topOnlyTip": "Only the top items set in the settings",
@@ -354,8 +348,6 @@
         "removeText": "“{name}” will be removed from the list.",
         "logFallback": "Log",
         "deleted": "Deleted.",
-        "crumb": "Raids & logs › Warcraft Logs",
-        "tipSub": "The logs posted in the log channels. Log channels are set up in the settings.",
         "count": {
             "one": "{count} log",
             "other": "{count} logs"
@@ -373,7 +365,6 @@
     },
     "lootEvents": {
         "categorySet": "Category set ({count} item(s)).",
-        "tipSub": "The imported loot per event. The category files loot without a Raid-Helper event under a raid series.",
         "count": {
             "one": "{count} event",
             "other": "{count} events"
@@ -389,8 +380,6 @@
         "sortAwards": "awards",
         "sortItem": "item",
         "sortRecipients": "recipients",
-        "crumb": "Loot › Items",
-        "tipSub": "Every item once, with all its awards. Clicking a row shows who got it, when and why.",
         "searchPlaceholder": "Item or ID …",
         "tier": "Tier",
         "allTiers": "All tiers",
@@ -412,8 +401,6 @@
         "foot": "{shown} of {total} · sorted by {sort}"
     },
     "reasons": {
-        "crumb": "Loot › Reasons",
-        "tipSub": "Per raider, what they got items for. The reasons come from the RCLootcouncil/Gargul export.",
         "raiders": {
             "one": "{count} raider",
             "other": "{count} raiders"
@@ -450,7 +437,6 @@
     "filters": {
         "raidAria": "Raid",
         "allRaids": "All raids",
-        "unknownSub": "Items that are not in the content table (scripts/fetch-tbc-loot.js).",
         "unknown": "Unknown",
         "filter": "Filter",
         "moreAria": "More filters",

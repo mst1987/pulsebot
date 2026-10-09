@@ -155,7 +155,6 @@
         "tipSub": "Enter when you are away or sure to be there – the bot signs you off from or up for every raid in that period, also for raids created later.",
         "addAbsence": "Enter absence",
         "addPresence": "Enter attendance",
-        "none": "Nothing entered.",
         "loadError": "Could not load absence & attendance: {message}",
         "kind": {
             "absence": "Away",

@@ -8,8 +8,6 @@ import { inLang } from "../test/i18n";
 describe("setup namespace", () => {
     it("reads well in English", async () => {
         await inLang("en", () => {
-            expect(t("setup.status.draft")).toBe("Draft");
-            expect(t("setup.editor.placesBadge", { count: 24, size: 25 })).toBe("24/25 spots");
             expect(t("setup.summary.hints", { count: 1 })).toBe("1 note");
             expect(t("setup.summary.hints", { count: 3 })).toBe("3 notes");
             expect(t("setup.publish.dmsSent", { count: 2 })).toBe("2 DMs");

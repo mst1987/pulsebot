@@ -2,7 +2,6 @@
     "page": {
         "noCategory": "No category",
         "viewAria": "View",
-        "versionAria": "Game version",
         "upcoming": "Upcoming",
         "past": "Past",
         "loadError": "Failed to load the raid events: {message}",
@@ -16,13 +15,11 @@
         "title": "Raid events",
         "info": "All events of the selected server from Raid-Helper, upcoming and past. Signup call, raid sheet, logs and loot are inside the event itself.",
         "series": "Series",
-        "planTemplates": "Raid plan templates",
         "raidTemplates": "Raid templates",
         "notifyTemplates": "Call templates",
         "newEvent": "New event",
         "categoryAria": "Category",
-        "all": "All",
-        "planCatalog": "Raid plan catalog"
+        "all": "All"
     },
     "list": {
         "openEvent": "Open event",

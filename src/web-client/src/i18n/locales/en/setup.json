@@ -51,7 +51,6 @@
         "approvedSubSince": "Raiders see this setup · since {time}. Every change goes into the message right away.",
         "changedSub": "Raiders keep seeing the posted version until you post again.",
         "changedSubSince": "Raiders keep seeing the version from {time} until you post again.",
-        "draft": "Draft",
         "draftSub": "Raiders don't see anything yet. Only \"Post setup\" puts it in the channel, on the web and in the bot.",
         "autoSub": "Created by EventHelper at signup close. Check, adjust, post.",
         "autoSubAt": "Created by EventHelper at signup close ({time}). Check, adjust, post."
@@ -72,8 +71,7 @@
     "group": {
         "title": "Group {index}",
         "buffSub": "Party buff in this group",
-        "here": "Move here",
-        "empty": "empty"
+        "here": "Move here"
     },
     "bench": {
         "empty": "Nobody on the bench — drag raiders here.",
@@ -114,10 +112,6 @@
         "wishesCapOff": "Off – switch on here",
         "wishesCapOn": "{met} of {total} met",
         "wishes": "Wishes",
-        "wishesMet": "Wishes met",
-        "wishesMetSub": "\"Happy to be with\" pairs in the same group. Only visible to the organisers.",
-        "wishesOff": "Wishes off",
-        "wishesOffSub": "Wishes are not considered for this event.",
         "avoid": "Not together",
         "avoidSub": {
             "one": "{count} pair of raiders would rather not raid together, per their profiles. On: separate groups (separate raids when raids run in parallel). Nobody sees who named whom.",
@@ -127,7 +121,6 @@
         "avoidTogetherTip": "Still together",
         "avoidTogetherSub": "This many pairs still stand in the same group. \"Propose again\" separates them as far as it can.",
         "avoidTogether": { "one": "{count} together", "other": "{count} together" },
-        "off": "off",
         "weights": "Weights…",
         "hintsTip": "Notes",
         "hints": { "one": "{count} note", "other": "{count} notes" }
@@ -162,11 +155,8 @@
         "none": "No explanation for this setup yet."
     },
     "publishLine": {
-        "enableDms": "Turn on DMs",
         "post": "Post setup",
-        "postSub": "Posts the approved setup to the event channel or updates the message there, and sends any DMs still missing. A draft is never posted.",
-        "bench": "Post bench",
-        "benchSub": "Ticked, the bench is in the setup message and the bench players get a DM. Unticked, it stays internal. The choice applies to approving and “Post setup” and is remembered per event."
+        "postSub": "Posts the approved setup to the event channel or updates the message there, and sends any DMs still missing. A draft is never posted."
     },
     "search": {
         "kicker": "Raid search",
@@ -174,7 +164,6 @@
         "hint": "The message goes into the event channel (in English). You can change the numbers, specs and buffs, and the text by hand.",
         "open": "{open} of {size} places are still open.",
         "required": "Required buff",
-        "roleCount": "{count}× {role}",
         "buffCount": "{count} buffs",
         "fewer": "One fewer",
         "more": "One more",
@@ -230,9 +219,7 @@
         "size": "Number of groups",
         "sizeSub": "{size} places · {groups} × 5",
         "pingDefault": "Default text",
-        "wishesOffSub": "Off — the profiles' “gladly with”",
-        "benchSub": "The bench is part of the posted message and gets DMs.",
-        "dmsSub": "DMs on posting are off for this category — switch them on in the settings."
+        "wishesOffSub": "Off — the profiles' “gladly with”"
     },
     "line": {
         "aria": "In short",
@@ -342,7 +329,6 @@
         "createProposal": "Create proposal",
         "placesTip": "Spots",
         "placesSub": "{count} of {size} spots filled · {bench} on the bench",
-        "placesBadge": "{count}/{size} spots",
         "lockedTip": "Locked",
         "lockedSub": "A new proposal keeps these spots.",
         "locked": "{count} locked",

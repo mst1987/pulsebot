@@ -155,7 +155,6 @@
         "tipSub": "Trag ein, wann du weg bist oder sicher dabei – der Bot meldet dich für alle Raids im Zeitraum ab oder an, auch für Raids, die erst später angelegt werden.",
         "addAbsence": "Abwesenheit eintragen",
         "addPresence": "Anwesenheit eintragen",
-        "none": "Nichts eingetragen.",
         "loadError": "Ab- & Anwesenheit konnte nicht geladen werden: {message}",
         "kind": {
             "absence": "Abwesend",

@@ -56,7 +56,6 @@
     "iconSearch": "Icon suchen (Art oder Name)",
     "versions": "Spielversion",
     "versionsHint": "Mindestens eine. Ein Raidplan zeigt nur die Einträge seiner Spielversion (ein Forever-Plan keine TBC-Mobs und -Spells).",
-    "versionSwitch": "Spielversion des Katalogs",
     "versionNone": "In {version} gibt es noch keine Einträge. Lege sie mit „Neuer Mob“ bzw. „Neuer Spell“ an.",
     "alsoIn": "auch {versions}"
 }

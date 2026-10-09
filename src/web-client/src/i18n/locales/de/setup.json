@@ -51,7 +51,6 @@
         "approvedSubSince": "Raider sehen dieses Setup · seit {time}. Jede Änderung geht sofort in die Nachricht.",
         "changedSub": "Raider sehen weiter den geposteten Stand, bis du erneut postest.",
         "changedSubSince": "Raider sehen weiter den Stand vom {time}, bis du erneut postest.",
-        "draft": "Entwurf",
         "draftSub": "Raider sehen noch nichts. Erst mit „Setup posten“ erscheint das Setup im Kanal, im Web und im Bot.",
         "autoSub": "Zum Anmeldeschluss vom EventHelper erstellt. Prüfen, anpassen, posten.",
         "autoSubAt": "Zum Anmeldeschluss vom EventHelper erstellt ({time}). Prüfen, anpassen, posten."
@@ -72,8 +71,7 @@
     "group": {
         "title": "Gruppe {index}",
         "buffSub": "Gruppen-Buff in dieser Gruppe",
-        "here": "Hierher",
-        "empty": "leer"
+        "here": "Hierher"
     },
     "bench": {
         "empty": "Niemand auf der Bank — Raider hierher ziehen.",
@@ -114,10 +112,6 @@
         "wishesCapOff": "Aus – hier einschalten",
         "wishesCapOn": "{met} von {total} erfüllt",
         "wishes": "Wünsche",
-        "wishesMet": "Wünsche erfüllt",
-        "wishesMetSub": "„Gerne zusammen mit“-Paare in derselben Gruppe. Nur für die Orga sichtbar.",
-        "wishesOff": "Wünsche aus",
-        "wishesOffSub": "Für dieses Event werden Wünsche nicht berücksichtigt.",
         "avoid": "Nicht zusammen",
         "avoidSub": {
             "one": "{count} Raider-Paar soll laut Profil nicht zusammen raiden. An: getrennte Gruppen (bei parallelen Raids getrennte Raids). Wer wen genannt hat, sieht niemand.",
@@ -127,7 +121,6 @@
         "avoidTogetherTip": "Noch zusammen",
         "avoidTogetherSub": "So viele Paare stehen noch in derselben Gruppe. „Neu vorschlagen“ trennt sie, soweit es geht.",
         "avoidTogether": { "one": "{count} zusammen", "other": "{count} zusammen" },
-        "off": "aus",
         "weights": "Gewichte…",
         "hintsTip": "Hinweise",
         "hints": { "one": "{count} Hinweis", "other": "{count} Hinweise" }
@@ -162,11 +155,8 @@
         "none": "Noch keine Begründung für dieses Setup."
     },
     "publishLine": {
-        "enableDms": "DMs einschalten",
         "post": "Setup posten",
-        "postSub": "Postet das freigegebene Setup in den Event-Kanal oder aktualisiert die Nachricht dort und schickt DMs, die noch fehlen. Ein Entwurf wird nie gepostet.",
-        "bench": "Bench mitposten",
-        "benchSub": "Mit Haken steht die Bank in der Setup-Nachricht und die Bank-Spieler bekommen eine DM. Ohne Haken bleibt sie intern. Die Wahl gilt für das Freigeben und „Setup posten“ und wird je Event gemerkt."
+        "postSub": "Postet das freigegebene Setup in den Event-Kanal oder aktualisiert die Nachricht dort und schickt DMs, die noch fehlen. Ein Entwurf wird nie gepostet."
     },
     "search": {
         "kicker": "Raid-Suche",
@@ -174,7 +164,6 @@
         "hint": "Die Nachricht geht in den Event-Kanal (auf Englisch). Anzahl, Specs und Buffs kannst du anpassen, den Text auch von Hand.",
         "open": "{open} von {size} Plätzen sind noch offen.",
         "required": "Pflicht-Buff",
-        "roleCount": "{count}× {role}",
         "buffCount": "{count} Buffs",
         "fewer": "Einen weniger",
         "more": "Einen mehr",
@@ -230,9 +219,7 @@
         "size": "Gruppenzahl",
         "sizeSub": "{size} Plätze · {groups} × 5",
         "pingDefault": "Standardtext",
-        "wishesOffSub": "Aus — „gerne zusammen mit“ aus den Profilen",
-        "benchSub": "Die Bank steht beim Posten mit in der Nachricht und bekommt DMs.",
-        "dmsSub": "DMs beim Posten sind für diese Kategorie aus — in den Einstellungen einschalten."
+        "wishesOffSub": "Aus — „gerne zusammen mit“ aus den Profilen"
     },
     "line": {
         "aria": "Kurz zusammengefasst",
@@ -342,7 +329,6 @@
         "createProposal": "Vorschlag erstellen",
         "placesTip": "Plätze",
         "placesSub": "{count} von {size} Plätzen besetzt · {bench} auf der Bank",
-        "placesBadge": "{count}/{size} Plätze",
         "lockedTip": "Fixiert",
         "lockedSub": "Diese Plätze behält ein neuer Vorschlag.",
         "locked": "{count} fixiert",

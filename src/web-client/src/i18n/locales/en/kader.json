@@ -272,7 +272,6 @@
         "subDone": "done {date}",
         "subStarted": "started {date}",
         "subPlanned": "not started yet",
-        "nobody": "nobody",
         "aria": "Interview with {name}",
         "prefilled": "prefilled",
         "prefilledShort": "prefilled",
@@ -409,8 +408,6 @@
         "deleteCommentTitle": "Delete your comment?",
         "decision": "Decision",
         "decisionAria": "Class and spec in the roster",
-        "wishN": "{label} (wish {n})",
-        "current": "{label} (so far)",
         "toRoster": "To roster",
         "changeDecision": "Change decision",
         "toRosterDone": "{name} is in the roster: {pick}",
@@ -623,9 +620,7 @@
     },
     "player": {
         "noChar": "No character",
-        "noSpec": "no spec",
-        "canDays": "can do {days}",
-        "noDays": "no raid days given"
+        "noSpec": "no spec"
     },
     "playersN": {
         "one": "{count} player",

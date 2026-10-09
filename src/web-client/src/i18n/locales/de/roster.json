@@ -9,8 +9,6 @@
         "title": "Roster",
         "infoTip": "Alle Charaktere je Raid-Kategorie",
         "infoSub": "Wer welchen Char in welchem Raid spielt, wird unter Einstellungen → Kategorien zugeordnet; zusätzlich zählt jeder Raid, in dem ein Char Loot bekommen hat.\nAnwesenheit aus Raid-Helper-Anmeldungen und zugeordneten Logs, Gear-Stand aus der letzten Auswertung.",
-        "versionAria": "Spielversion",
-        "versionAllTip": "Charaktere aller Spielversionen – die Anwesenheit zählt dann jeden Raid.",
         "listAria": "Liste",
         "tabActive": "Roster ({count})",
         "tabActiveTip": "Wer aktuell zählt",

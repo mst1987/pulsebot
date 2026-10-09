@@ -61,7 +61,6 @@
         "loading": "Historie wird geladen",
         "statsLoading": "Übersicht wird geladen",
         "areaAria": "Bereich",
-        "versionAria": "Spielversion",
         "view": {
             "awards": "Vergaben",
             "items": "Items",
@@ -252,13 +251,10 @@
         "unknownItem": "unbekannt – Item nicht in der Raid-Loot-Tabelle"
     },
     "chars": {
-        "versionAria": "Spielversion",
         "colCharacter": "Charakter",
         "colClass": "Klasse & Spec",
         "itemsSub": "Hover über die Zahl zeigt die Items.",
         "sourceSub": "Woher Klasse und Spec stammen.",
-        "title": "Charaktere",
-        "tipSub": "Jeder Charakter mit Loot, gruppiert nach Raid-Kategorie. Der Name öffnet die Loot-Historie samt Armory.",
         "resolve": "Klassen & Specs ergänzen",
         "resolveOpen": "Klassen & Specs ergänzen ({count} offen)",
         "resolveSub": "Nimmt die Klasse aus dem Loot-Export bzw. einer vorhandenen Auswertung und liest den Rest aus dem Warcraft-Log des Raids.",
@@ -336,8 +332,6 @@
         "responsePrefix": "„{response}\" · "
     },
     "latest": {
-        "crumb": "Loot › Vergaben",
-        "tipSub": "Jede Vergabe einzeln, neueste zuerst. „Nur Top-Items“ zeigt dieselbe Liste wie die Übersicht.",
         "searchPlaceholder": "Item, Item-ID oder Charakter …",
         "topOnly": "Nur Top-Items",
         "topOnlyTip": "Nur die in den Einstellungen festgelegten Top-Items",
@@ -354,8 +348,6 @@
         "removeText": "„{name}\" wird aus der Liste entfernt.",
         "logFallback": "Log",
         "deleted": "Gelöscht.",
-        "crumb": "Raids & Logs › Warcraft Logs",
-        "tipSub": "Die in den Log-Channels geposteten Logs. Log-Channels werden in den Einstellungen konfiguriert.",
         "count": {
             "one": "{count} Logs",
             "other": "{count} Logs"
@@ -373,7 +365,6 @@
     },
     "lootEvents": {
         "categorySet": "Kategorie gesetzt ({count} Item(s)).",
-        "tipSub": "Der importierte Loot je Event. Die Kategorie ordnet Loot ohne Raid-Helper-Event einer Raid-Serie zu.",
         "count": {
             "one": "{count} Events",
             "other": "{count} Events"
@@ -389,8 +380,6 @@
         "sortAwards": "Vergaben",
         "sortItem": "Item",
         "sortRecipients": "Empfänger",
-        "crumb": "Loot › Items",
-        "tipSub": "Jedes Item einmal, mit allen Vergaben. Klick auf eine Zeile zeigt, wer es wann und warum bekommen hat.",
         "searchPlaceholder": "Item oder ID …",
         "tier": "Tier",
         "allTiers": "Alle Tiers",
@@ -412,8 +401,6 @@
         "foot": "{shown} von {total} · sortiert nach {sort}"
     },
     "reasons": {
-        "crumb": "Loot › Gründe",
-        "tipSub": "Je Raider, wofür er Items bekommen hat. Die Gründe stammen aus dem RCLootcouncil-/Gargul-Export.",
         "raiders": {
             "one": "{count} Raider",
             "other": "{count} Raider"
@@ -450,7 +437,6 @@
     "filters": {
         "raidAria": "Raid",
         "allRaids": "Alle Raids",
-        "unknownSub": "Items, die nicht in der Content-Tabelle stehen (scripts/fetch-tbc-loot.js).",
         "unknown": "Unbekannt",
         "filter": "Filter",
         "moreAria": "Weitere Filter",

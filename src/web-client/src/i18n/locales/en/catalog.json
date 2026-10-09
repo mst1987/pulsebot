@@ -56,7 +56,6 @@
     "iconSearch": "Search icons (kind or name)",
     "versions": "Game version",
     "versionsHint": "At least one. A raid plan only shows the entries of its game version (a Forever plan no TBC mobs and spells).",
-    "versionSwitch": "Game version of the catalog",
     "versionNone": "There are no entries for {version} yet. Add them with “New mob” or “New spell”.",
     "alsoIn": "also {versions}"
 }
