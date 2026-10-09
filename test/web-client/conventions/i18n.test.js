@@ -101,7 +101,7 @@ describe("i18n: no hard-coded German left in the client", () => {
         expect(names).toEqual(expect.arrayContaining([
             "App.tsx", "pages/ChannelsPage.tsx", "pages/settings/SettingsPage.tsx", "pages/history/HistoryPage.tsx",
             "pages/lootcouncil/LootCouncilPage.tsx", "pages/cla/ClaPage.tsx", "pages/recruitment/RecruitmentPage.tsx",
-            "pages/roster/RosterPage.tsx", "pages/EventSeriesPage.tsx", "lib/format.ts",
+            "pages/roster/RosterCharsPage.tsx", "pages/EventSeriesPage.tsx", "lib/format.ts",
         ]));
         expect(names.some((rel) => /\.test\.tsx?$/.test(rel))).toBe(false);
         // every .tsx of the app is scanned

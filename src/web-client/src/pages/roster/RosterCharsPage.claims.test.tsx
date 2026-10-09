@@ -6,7 +6,7 @@ import { switchLang } from "../../test/i18n";
 import * as api from "../../api";
 import type { CharacterClaim, RosterData } from "../../api";
 import { renderPage } from "../../test/render";
-import RosterPage from "./RosterPage";
+import RosterCharsPage from "./RosterCharsPage";
 
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
@@ -35,10 +35,10 @@ beforeEach(() => {
     vi.mocked(api.getRoster).mockResolvedValue(EMPTY_ROSTER);
 });
 
-describe("RosterPage – double-claimed characters", () => {
+describe("RosterCharsPage – double-claimed characters", () => {
     it("shows them as one badge with the list in its tooltip", async () => {
         vi.mocked(api.getCharacterClaims).mockResolvedValue({ claims: CLAIMS });
-        renderPage(<RosterPage />, { route: "/roster" });
+        renderPage(<RosterCharsPage />, { route: "/roster/chars" });
 
         const badge = await screen.findByText("2 doppelt vergeben");
         expect(badge).toHaveAttribute("data-tip", "2 Charaktere doppelt beansprucht");
@@ -48,21 +48,21 @@ describe("RosterPage – double-claimed characters", () => {
 
     it("shows nothing when no character is claimed twice, or when the claims cannot be loaded", async () => {
         vi.mocked(api.getCharacterClaims).mockResolvedValue({ claims: [] });
-        const { unmount } = renderPage(<RosterPage />, { route: "/roster" });
-        await screen.findByRole("heading", { name: /Roster/ });
+        const { unmount } = renderPage(<RosterCharsPage />, { route: "/roster/chars" });
+        await screen.findByRole("heading", { name: /Alle Charaktere/ });
         expect(screen.queryByText(/doppelt vergeben/)).not.toBeInTheDocument();
         unmount();
 
         vi.mocked(api.getCharacterClaims).mockRejectedValue({ code: "forbidden", message: "nope" });
-        renderPage(<RosterPage />, { route: "/roster" });
-        await screen.findByRole("heading", { name: /Roster/ });
+        renderPage(<RosterCharsPage />, { route: "/roster/chars" });
+        await screen.findByRole("heading", { name: /Alle Charaktere/ });
         expect(screen.queryByText(/doppelt vergeben/)).not.toBeInTheDocument();
     });
 
     it("says it in English, too", async () => {
         await switchLang("en");
         vi.mocked(api.getCharacterClaims).mockResolvedValue({ claims: CLAIMS });
-        renderPage(<RosterPage />, { route: "/roster" });
+        renderPage(<RosterCharsPage />, { route: "/roster/chars" });
         const badge = await screen.findByText("2 claimed twice");
         expect(badge).toHaveAttribute("data-tip", "2 characters claimed twice");
         expect(screen.getByText("0 raid categories")).toBeInTheDocument();

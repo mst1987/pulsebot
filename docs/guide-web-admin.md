@@ -180,9 +180,11 @@ Technik: [roster-profile.md](roster-profile.md)
 
 *Bereich "roster"*
 
-Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit. Charaktere lassen sich ausblenden (ohne Daten zu löschen), z. B. bei Guild-Austritt.
+**Übersicht** (`/roster`): eine Karte je Raid-Roster – Name, Spielversion und zuletzt gespielte Raids, die Haupt-Discord-Rolle, „n von m Plätzen“ (Stamm und Probe nehmen einen Platz ein), Tanks/Heiler/DPS gegen das geplante Ziel, die mittlere Anwesenheit und was noch offen ist (freie Plätze, ohne Discord-Rolle, ohne Charakter, in Probezeit). Eine Raid-Kategorie ohne Roster erscheint als gestrichelte Karte. Ein Klick auf eine Karte öffnet das Roster.
 
-Das Roster zeigt die Charaktere der Spielversion des Content-Umschalters in der Kopfleiste; die Anwesenheit zählt nur die Raids dieser Version. Der Reiter „Charaktere“ der Loot-Historie folgt demselben Umschalter.
+**Ein Roster** (`/roster/r/<id>`): Kopf mit Rolle, Plätzen und Anwesenheit, darunter der Reiter **Mitglieder** – nach Status gruppiert (Stamm, Probe, Ersatz, Pause), mit eckigen Status-Feldern zum Ein- und Ausblenden (Pause ist anfangs aus), Rollen-Schalter und Suche nach Name oder Charakter. Spalten: Person, Charaktere (der erste ist der, mit dem die Person in diesem Roster spielt), Rolle, Discord-Rolle („hat die Rolle“ / „Rolle fehlt“ / „nicht auf dem Server“), Anwesenheit je Person über das Fenster der Kategorie und seit wann der Status gilt. Jede Spalte sortiert per Klick auf den Kopf. Bearbeiten (Mitglieder, Status, Rollen geben) folgt in den nächsten Ausbaustufen; die Seite ist vorerst nur lesend.
+
+**Alle Charaktere** (`/roster/chars`, Knopf auf der Übersicht): die bisherige Liste aller bekannten Charaktere je Raid-Kategorie mit Anwesenheit. Charaktere lassen sich dort ausblenden (ohne Daten zu löschen), z. B. bei Guild-Austritt. Sie zeigt die Charaktere der Spielversion des Content-Umschalters in der Kopfleiste; die Anwesenheit zählt nur die Raids dieser Version. Der Reiter „Charaktere“ der Loot-Historie folgt demselben Umschalter.
 
 Wer wann fehlt, steht unter dem eigenen Menüpunkt [Abwesenheiten](#abwesenheiten).
 

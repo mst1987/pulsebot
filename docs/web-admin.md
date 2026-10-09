@@ -35,7 +35,7 @@ The bot ships its website as a **single React SPA** — `src/web-client/` (Vite 
 | `src/web/http/` | Server, Router, Routen-Tabelle, Zugriff, Body/Antwort/Ergebnis-Helfer, Seitenrouten, Login, aktiver Server, Ansicht-als, Client-Auslieferung, Version, Deploy-Stand, Hintergrundjobs |
 | `src/web/apiRoutes/` | ein Modul je API-Bereich (unverändert) |
 | `src/web/report/`, `src/web/pages/`, `src/web/static/` | serverseitig gerenderte Seiten: der Log-Report (samt `render.js`, `charts.js`, `adminChrome.js`), `/docs`, die öffentliche Event-Seite, der Kalender-Feed |
-| `src/web/<bereich>/` | was nur das Web liest: `events/` (Raid-Detail, Serien, Erinnerungen, Raid-Helper-Umstieg), `signups/`, `setup/`, `raidplan/`, `loot/` (Loot-Council, BiS, Import), `characters/` (Roster, Profil), `logcheck/`, `dashboard/`, `channels/`, `recruitment/` |
+| `src/web/<bereich>/` | was nur das Web liest: `events/` (Raid-Detail, Serien, Erinnerungen, Raid-Helper-Umstieg), `signups/`, `setup/`, `raidplan/`, `loot/` (Loot-Council, BiS, Import), `characters/` (Alle Charaktere, Profil), `roster/` (Roster-Seiten, #654), `logcheck/`, `dashboard/`, `channels/`, `recruitment/` |
 
 **Die Regel:** `src/commands/` und `src/utils/` laden nie aus `src/web/`; `src/services/` und `src/stores/` auch nicht, bis auf `web/http/apiResult.js` (die `fail(status, code, message)`-Form, die einige Services ihrer Route zurückgeben). `test/docs/layering.test.js` prüft das, `test/web/noCycles.test.js` dazu, dass nirgends ein Ring entsteht. Braucht ein Befehl ein Modul aus `src/web/<bereich>/`, zieht es nach `src/services/<bereich>/` um (samt Test, gespiegelt).
 

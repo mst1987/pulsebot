@@ -7,7 +7,8 @@
 // out. The sub pages of an entry — the raid plan's templates and catalog under
 // Raid-Events, the settings sections — live in the page's icon rail
 // (SectionRail.test.tsx), and the entry stays active on all of them.
-import { screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { SessionUser } from "../../api";
@@ -15,6 +16,9 @@ import { t, tOr } from "../../i18n";
 import { MENU } from "../../lib/app/menu";
 import { adminUser, renderPage } from "../../test/render";
 import Shell from "./Shell";
+import { JobsProvider } from "./Jobs";
+import { ConfirmProvider } from "../ui/Modal";
+import { usePageCrumb } from "../../hooks/usePageCrumb";
 
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
@@ -100,5 +104,47 @@ describe("the active entry", () => {
         // one line for the family, not one per page — the rail offers the catalog
         expect(hrefs()).toEqual(["/raids/plan-templates"]);
         expect(entry("Raidplan-Vorlagen")).toHaveClass("nav-item", "area-raids", "active");
+    });
+});
+
+describe("the roster's sub pages (#654)", () => {
+    function NamedPage() {
+        usePageCrumb("Raid Mo / Do");
+        return <p>page</p>;
+    }
+
+    function showWithPage(route: string) {
+        const user = adminUser();
+        return render(
+            <JobsProvider>
+                <ConfirmProvider>
+                    <MemoryRouter initialEntries={[route]}>
+                        <Routes>
+                            <Route element={<Shell user={user} guilds={[]} activeGuildId="" />}>
+                                <Route path="roster/r/:rosterId" element={<NamedPage />} />
+                                <Route path="roster/chars" element={<p>chars</p>} />
+                            </Route>
+                        </Routes>
+                    </MemoryRouter>
+                </ConfirmProvider>
+            </JobsProvider>,
+        );
+    }
+
+    it.each([["/roster/r/raid-mo-do"], ["/roster/chars"]])("%s keeps Roster active", (route) => {
+        showShell(adminUser(), route);
+        expect(entry("Roster")).toHaveClass("active");
+    });
+
+    it("shows the name a page sets as the third crumb, with Roster as a link back", async () => {
+        showWithPage("/roster/r/raid-mo-do");
+        const crumbs = document.querySelector(".crumbs") as HTMLElement;
+        expect(await within(crumbs).findByText("Raid Mo / Do")).toBeInTheDocument();
+        expect(within(crumbs).getByRole("link", { name: "Roster" })).toHaveAttribute("href", "/roster");
+    });
+
+    it("names the character list in the crumbs", () => {
+        showWithPage("/roster/chars");
+        expect(within(document.querySelector(".crumbs") as HTMLElement).getByText("Alle Charaktere")).toBeInTheDocument();
     });
 });
