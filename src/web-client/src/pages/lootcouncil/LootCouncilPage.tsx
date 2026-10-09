@@ -53,7 +53,7 @@ import { WeightsTab } from "./WeightsTab";
 import { NeedWeightsProvider } from "./needWeights";
 
 const VIEW_DEFAULT: View = {
-    role: "caster", tiers: [], contents: [], category: "", bisTier: "", tab: "roster",
+    role: "caster", tiers: [], contents: [], category: "", bisTier: "", bench: false, tab: "roster",
     listTier: "t6", listOff: [], listFocus: 0, cmpOff: [],
 };
 
@@ -117,6 +117,7 @@ export default function LootCouncilPage() {
             category: view.category,
             bisTier: view.bisTier,
             version: contentVersion,
+            bench: !!view.bench,
         });
         const request = loaded.current
             ? jobs.run({ label: t("lootcouncil.page.loading"), quiet: true }, fetchData)
@@ -127,7 +128,7 @@ export default function LootCouncilPage() {
                 return d;
             })
             .finally(() => setLoading(false));
-    }, [view.role, view.tiers, view.contents, view.category, view.bisTier, contentVersion, jobs, t]);
+    }, [view.role, view.tiers, view.contents, view.category, view.bisTier, view.bench, contentVersion, jobs, t]);
 
     /** Everything that depends on the raiders' data — every gear-changing action goes through here. */
     const reloadAll = useCallback(async () => load(), [load]);
@@ -140,7 +141,7 @@ export default function LootCouncilPage() {
 
     // A changed filter changes which raiders and items were simulated, so the
     // old results no longer describe what is on screen.
-    useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.bisTier, contentVersion, setSim]);
+    useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.bisTier, view.bench, contentVersion, setSim]);
 
 
     const roster = useMemo(() => (data ? data.roster : []), [data]);

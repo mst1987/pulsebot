@@ -127,7 +127,10 @@
         "excludedTitle": "Nicht eingeplant",
         "since": "seit {date}",
         "includeAgain": "Wieder einplanen",
-        "hint": "Wer am längsten nichts bekommen hat, steht oben."
+        "hint": "Wer am längsten nichts bekommen hat, steht oben.",
+        "outsidersTitle": "Nicht im Roster",
+        "outsidersNote": "Waren laut Logs oder Loot in dieser Kategorie dabei, stehen aber nicht im Roster. Sie zählen nicht für die Rangliste und nicht fürs Addon.",
+        "emptyRoster": "Im Roster {name} steht niemand, den der Council mit diesen Filtern zeigt. Fehlt jemand, steht er vielleicht auf Ersatz oder Pause, oder der Council kennt seine Spec noch nicht."
     },
     "list": {
         "characterTipSub": "Spec-Icon, Name und Spec.",
@@ -385,7 +388,12 @@
         "gearValueLog": "Auswertung",
         "gearValueArmory": "{armory} von {count} aus der Armory",
         "simValue": "{done} von {total} simuliert",
-        "simOffValue": "aus"
+        "simOffValue": "aus",
+        "bench": "Ersatz zeigen",
+        "benchTip": {
+            "one": "Nimmt den {count} Ersatz aus dem Roster mit in die Liste. Gilt nur für deine Ansicht, nicht fürs Addon.",
+            "other": "Nimmt die {count} Ersatz-Spieler aus dem Roster mit in die Liste. Gilt nur für deine Ansicht, nicht fürs Addon."
+        }
     },
     "gear": {
         "dpsGear": "DPS-Gear",
@@ -536,6 +544,39 @@
             "raid": "Erster Raid in dieser Kategorie",
             "loot": "Erstes Item in dieser Kategorie"
         }
+    },
+    "status": {
+        "trialTipSub": "Steht im Roster auf Probe. Für den Council zählt Probe wie Stamm — der Status ist nur zur Info.",
+        "benchTipSub": "Steht im Roster als Ersatz und ist nur dabei, weil „Ersatz zeigen“ an ist."
+    },
+    "rosterSource": {
+        "badge": "Roster {name}",
+        "head": "Die Kandidaten kommen aus dem Roster {name}",
+        "candidates": {
+            "one": "{count} Charakter mit Stamm oder Probe.",
+            "other": "{count} Charaktere mit Stamm oder Probe."
+        },
+        "benchHidden": {
+            "one": "{count} Ersatz ausgeblendet (Filter „Ersatz zeigen“).",
+            "other": "{count} Ersatz ausgeblendet (Filter „Ersatz zeigen“)."
+        },
+        "benchShown": {
+            "one": "{count} Ersatz eingeblendet.",
+            "other": "{count} Ersatz eingeblendet."
+        },
+        "paused": {
+            "one": "{count} in Pause zählt wie „nicht eingeplant“.",
+            "other": "{count} in Pause zählen wie „nicht eingeplant“."
+        },
+        "noSpec": {
+            "one": "{count} ohne Council-Spec",
+            "other": "{count} ohne Council-Spec"
+        },
+        "noSpecTip": {
+            "one": "{count} Roster-Charakter fehlt in der Liste",
+            "other": "{count} Roster-Charaktere fehlen in der Liste"
+        },
+        "noSpecTipSub": "Der Council kennt ihre Spec (noch) nicht: {names}. Klasse und Spec kommen aus Loot-Importen, Log-Auswertungen und dem Raider-Profil; der Council rechnet bisher nur Caster und Heiler."
     },
     "weights": {
         "title": "Gewichtung",

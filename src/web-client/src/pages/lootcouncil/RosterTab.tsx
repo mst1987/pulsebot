@@ -1,13 +1,57 @@
-import type { CouncilRaider, LootCouncilData, SimResult } from "../../api";
+import { useState } from "react";
+import type { CouncilOutsider, CouncilRaider, LootCouncilData, SimResult } from "../../api";
 import { fmtMs } from "../../lib/format";
 import type { TableSort } from "../../lib/ui/tableSort";
 import { Button } from "../../components/ui";
 import { useT } from "../../i18n";
-import type { RosterSortKey, useCouncilSim } from "./council";
-import { FoldRow } from "./ItemBits";
+import { waitedTip, type RosterSortKey, type useCouncilSim } from "./council";
+import { FoldRow, LootCount, RaiderIdent } from "./ItemBits";
 import RosterList from "./RosterList";
 
 type CouncilSim = ReturnType<typeof useCouncilSim>;
+
+/**
+ * "Nicht im Roster (n)" (#667): who stood in this category's logs or loot
+ * without being in its roster — stand-ins. Folded, one plain line each, no
+ * rank and no need bar: they count neither for the ranking nor for the addon.
+ */
+function OutsiderFold({ outsiders }: { outsiders: CouncilOutsider[] }) {
+    const t = useT();
+    const [open, setOpen] = useState(false);
+    if (!outsiders.length) return null;
+    return (
+        <FoldRow
+            icon="inv_misc_groupneedmore"
+            title={t("lootcouncil.roster.outsidersTitle")}
+            count={outsiders.length}
+            names={outsiders.map((o) => o.character).join(", ")}
+            open={open}
+            onToggle={() => setOpen((v) => !v)}
+        >
+            <p className="lc-muted lc-fold-note">{t("lootcouncil.roster.outsidersNote")}</p>
+            <div className="lc-dlist">
+                {outsiders.map((o) => (
+                    <div key={o.key} className="lc-dlist-row">
+                        <RaiderIdent
+                            name={o.character}
+                            classColor={o.classColor}
+                            specIconUrl={o.specIconUrl}
+                            className={o.className}
+                            size={26}
+                            sub={o.specLabel}
+                        />
+                        <span className="lc-dlist-act lc-muted" data-tip={waitedTip(o.daysSinceLoot)}>
+                            {t("lootcouncil.list.lastItem")}: {o.lastAwardAt ? t("lootcouncil.list.ago", { count: o.daysSinceLoot ?? 0 }) : t("lootcouncil.word.never")}
+                        </span>
+                        <span className="lc-outsider-loot">
+                            <LootCount items={o.items} total={o.lootCount} other={o.otherCount} /> <small className="lc-muted">{t("lootcouncil.word.items")}</small>
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </FoldRow>
+    );
+}
 
 /**
  * The Raider tab — "Wer ist dran?": one compact line per raider, the raiders
@@ -63,9 +107,10 @@ export function RosterTab({ data, roster, sortedRoster, sim, rosterSort, openRai
                 />
             ) : (
                 <div className="lc-panel empty">
-                    {t("lootcouncil.roster.empty")}
+                    {data.filter.roster ? t("lootcouncil.roster.emptyRoster", { name: data.filter.roster.name }) : t("lootcouncil.roster.empty")}
                 </div>
             )}
+            <OutsiderFold outsiders={data.outsiders || []} />
             {data.excluded.length ? (
                 <FoldRow
                     icon="ability_rogue_feigndeath"

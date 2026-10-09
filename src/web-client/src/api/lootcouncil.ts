@@ -2,6 +2,7 @@ import { get, send } from "./client";
 import type { ApiError } from "./client";
 import type { ItemSearchResult } from "./settings";
 import type { VersionChoice } from "./raidTemplates";
+import type { RosterStatus } from "./roster";
 import { t } from "../i18n";
 
 // ── Loot-Council ─────────────────────────────────────────────────────────────
@@ -346,6 +347,31 @@ export type CouncilRaider = {
     /** 0..1, higher = more due for an item. needParts shows what it is made of. */
     needScore: number;
     needParts: NeedParts;
+    /**
+     * The roster status, only in a category with a roster (#667): Stamm and
+     * Probe are candidates, Ersatz with "Ersatz zeigen"; "" for a stand-in.
+     */
+    status?: RosterStatus | "";
+};
+
+/**
+ * Somebody the logs or the loot of a roster category know who is not in its
+ * roster (#667): shown folded under "Nicht im Roster", never ranked, never in
+ * the addon - so without a need score.
+ */
+export type CouncilOutsider = Omit<CouncilRaider, "needScore" | "needParts">;
+
+/** The roster a category's council is drawn from (#667). */
+export type CouncilRosterSource = {
+    id: string;
+    name: string;
+    versionId: string;
+    /** Characters per status - Stamm and Probe are the candidates. */
+    counts: Record<RosterStatus, number>;
+    /** Whether Ersatz is shown as candidates ("Ersatz zeigen"). */
+    showBench: boolean;
+    /** Candidates whose spec the council does not know (yet): counted, not left out silently. */
+    noSpec: { key: string; character: string; className: string; status: RosterStatus }[];
 };
 
 /** The weighting a council answer was computed with (#668). */
@@ -433,6 +459,8 @@ export type CouncilLog = {
 
 export type LootCouncilData = {
     roster: CouncilRaider[];
+    /** With a roster: who stood there without being in it (#667). */
+    outsiders?: CouncilOutsider[];
     avgLootCount: number;
     avgLootPoints?: number;
     /** The weighting the numbers were computed with (#668). */
@@ -449,8 +477,11 @@ export type LootCouncilData = {
         bisTier: string;
         /** True when nobody picked one and it came from the guild's newest loot. */
         bisTierDerived: boolean;
-        /** How many raiders each filter removed — so a short list is explained. */
-        skipped: { category: number; excluded: number };
+        /**
+         * How many raiders each filter removed — so a short list is explained.
+         * With a roster: Ersatz while hidden (`bench`) and Pause (`paused`) too.
+         */
+        skipped: { category: number; excluded: number; bench?: number; paused?: number };
         /**
          * What each source contributed to "who raids this category" — the logs
          * of its raids, the loot awarded there, and the maintained
@@ -459,6 +490,8 @@ export type LootCouncilData = {
          * what to fix. null when no category is picked.
          */
         categorySources: { reports: number; loot: number; assigned: number } | null;
+        /** The category's roster, which is then the candidate list (#667); null without one. */
+        roster?: CouncilRosterSource | null;
     };
     sim: { available: boolean; version: string; hint: string };
     activeGuildId: string;
@@ -485,6 +518,8 @@ export type CouncilFilter = {
     item?: number;
     /** A version id, or "all" for every version; unset = the main version (#545). */
     version?: string;
+    /** With a roster: Ersatz shown as candidates too (#667). */
+    bench?: boolean;
 };
 
 export function getLootCouncil(filter: CouncilFilter = {}): Promise<LootCouncilData> {
@@ -496,6 +531,7 @@ export function getLootCouncil(filter: CouncilFilter = {}): Promise<LootCouncilD
     if (filter.bisTier) params.set("bisTier", filter.bisTier);
     if (filter.item) params.set("item", String(filter.item));
     if (filter.version) params.set("version", filter.version);
+    if (filter.bench) params.set("bench", "1");
     const qs = params.toString();
     return get<LootCouncilData>(`/api/lootcouncil${qs ? `?${qs}` : ""}`);
 }

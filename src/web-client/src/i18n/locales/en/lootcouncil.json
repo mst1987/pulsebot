@@ -127,7 +127,10 @@
         "excludedTitle": "Not planned",
         "since": "since {date}",
         "includeAgain": "Plan again",
-        "hint": "Whoever has gone longest without loot is on top."
+        "hint": "Whoever has gone longest without loot is on top.",
+        "outsidersTitle": "Not in the roster",
+        "outsidersNote": "Logs or loot show them in this category, but they are not in the roster. They count neither for the ranking nor for the addon.",
+        "emptyRoster": "Nobody in the roster {name} matches these filters. If someone is missing, they may be on the bench or on pause, or the council does not know their spec yet."
     },
     "list": {
         "characterTipSub": "Spec icon, name and spec.",
@@ -385,7 +388,12 @@
         "gearValueLog": "Evaluation",
         "gearValueArmory": "{armory} of {count} from the armory",
         "simValue": "{done} of {total} simulated",
-        "simOffValue": "off"
+        "simOffValue": "off",
+        "bench": "Show bench",
+        "benchTip": {
+            "one": "Adds the {count} bench player from the roster to the list. Only for your view, not for the addon.",
+            "other": "Adds the {count} bench players from the roster to the list. Only for your view, not for the addon."
+        }
     },
     "gear": {
         "dpsGear": "DPS gear",
@@ -536,6 +544,39 @@
             "raid": "First raid in this category",
             "loot": "First item in this category"
         }
+    },
+    "status": {
+        "trialTipSub": "On trial in the roster. For the council a trial counts like core — the status is just for information.",
+        "benchTipSub": "On the roster's bench, and only listed because \"Show bench\" is on."
+    },
+    "rosterSource": {
+        "badge": "Roster {name}",
+        "head": "The candidates come from the roster {name}",
+        "candidates": {
+            "one": "{count} character on core or trial.",
+            "other": "{count} characters on core or trial."
+        },
+        "benchHidden": {
+            "one": "{count} bench hidden (filter \"Show bench\").",
+            "other": "{count} bench hidden (filter \"Show bench\")."
+        },
+        "benchShown": {
+            "one": "{count} bench shown.",
+            "other": "{count} bench shown."
+        },
+        "paused": {
+            "one": "{count} on pause counts as \"not planned\".",
+            "other": "{count} on pause count as \"not planned\"."
+        },
+        "noSpec": {
+            "one": "{count} without council spec",
+            "other": "{count} without council spec"
+        },
+        "noSpecTip": {
+            "one": "{count} roster character is missing from the list",
+            "other": "{count} roster characters are missing from the list"
+        },
+        "noSpecTipSub": "The council does not know their spec (yet): {names}. Class and spec come from loot imports, log evaluations and the raider profile; so far the council only covers casters and healers."
     },
     "weights": {
         "title": "Weighting",

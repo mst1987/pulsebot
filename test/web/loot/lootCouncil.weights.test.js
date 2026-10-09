@@ -290,6 +290,22 @@ describe("councilRoster — belonging (dabei seit)", () => {
         expect(fresh.needParts.tenure).toBe(0);
     });
 
+    it("leaves stand-ins outside the roster out of the share's average (#667)", () => {
+        mockAnnotated.mockReturnValue([shadow(), shadow("fremd")]);
+        mockRosters.mockReturnValue([roster({ u1: { status: "core", since: iso(now - 20 * DAY), chars: ["devihra"] } })]);
+        mockListAll.mockReturnValue([
+            lootRow({ itemId: SET, awardedAt: now - 3 * DAY }),
+            lootRow({ characterKey: "fremd", character: "Fremd", itemId: TRINKET, awardedAt: now - 3 * DAY }),
+            lootRow({ characterKey: "fremd", character: "Fremd", itemId: TRINKET, awardedAt: now - 4 * DAY }),
+        ]);
+        const built = councilRoster({ categoryId: "cat-mo" });
+        expect(built.rows.map((r) => r.key)).toEqual(["devihra"]);
+        expect(built.avgLootPoints).toBe(1);
+        const outsider = (built.outsiders || []).find((o) => o.key === "fremd");
+        expect(outsider).toMatchObject({ lootPoints: 4 });
+        expect(outsider.needScore).toBeUndefined();
+    });
+
     it("only counts the category's own raids and loot", () => {
         mockListAll.mockReturnValue([
             lootRow({ awardedAt: now - 3 * DAY }),

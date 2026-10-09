@@ -60,6 +60,7 @@ Form (innerhalb von `{ "data": … }`):
 - `raiders[]` hat die Felder von Version 1 plus `key` (Charakter-Schlüssel, stabil über Umbenennung der Schreibweise/Realm-Suffix).
 - `instances` sind die Instanzen der Standard-Raidvorlage der Kategorie (`config.categoryRaidTemplate`), `[]` ohne Vorlage — ein Hinweis, damit das Addon die Kategorie über `GetInstanceInfo()` vorwählen kann. Die Namen sind die des Regelsatzes (TBC deutsch, Forever englisch mit „(Forever)“), `zoneNames` die kleingeschriebenen Zonennamen, wo der Regelsatz welche kennt; ein sicherer Schlüssel ist das nicht, nur ein Vorschlag.
 - Keine Loot-Council-Kategorie → `categories: []`.
+- **Kategorie mit Roster (#667):** `raiders[]` sind die Kandidaten aus dem Roster — Stamm und Probe; Ersatz nie (der Filter „Ersatz zeigen“ gehört nur der Seite und wird nicht gespeichert), Pause nie. Aushilfen („Nicht im Roster“) stehen nur auf der Seite (`outsiders` von `councilRoster()`), nie im Paket. Das Format bleibt Version 2; der Roster-Status (`status` an der Zeile von `councilRoster()`) geht erst mit dem Council-Format v3 (#670) mit.
 
 ## Gildenbank-Scans (`/api/ingest/guildbank`)
 

@@ -6,6 +6,8 @@ export type View = {
     contents: string[];
     category: string;
     bisTier: string;
+    /** With a roster: Ersatz shown as candidates too (#667) — this browser's own, never stored for the game. */
+    bench?: boolean;
     /** "drop" is a stored value from before the drop check became its own page; it opens the Raider tab. */
     tab: "roster" | "bis" | "drop" | "bislists" | "compare" | "weights";
     /** BiS-Listen: which tier's sets, which specs are switched off, what is marked. */

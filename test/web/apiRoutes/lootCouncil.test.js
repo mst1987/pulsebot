@@ -201,7 +201,7 @@ describe("GET /api/lootcouncil", () => {
         const res = await call(getLootCouncil, "/api/lootcouncil", "?role=caster&tiers=t5, t6,&contents=ssc&category=c1");
         expect(status(res)).toBe(200);
         expect(lc.councilRoster).toHaveBeenCalledWith({
-            role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", bisTier: "", versionId: "tbc",
+            role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", bisTier: "", showBench: false, versionId: "tbc",
             config: { categoryIds: ["c1", "c2"] }, mainVersion: "tbc", charVersion: "tbc",
         });
         expect(lc.resolveContentFilter).toHaveBeenCalledWith({ tierIds: ["t5", "t6"], contentIds: ["ssc"] });
@@ -232,6 +232,24 @@ describe("GET /api/lootcouncil", () => {
         // The version filter (#545): nothing asked = the main version.
         expect(data.version).toBe("tbc");
         expect(data.mainVersion).toBe("tbc");
+    });
+
+    it("hands the category's roster and its stand-ins to the page, and asks for Ersatz only with bench=1 (#667)", async () => {
+        const rosterSource = { id: "r1", name: "Mittwoch", versionId: "tbc", counts: { core: 2, trial: 1, bench: 1, pause: 1 }, showBench: true, noSpec: [] };
+        const outsiders = [{ key: "aushilfe", character: "Aushilfe", status: "" }];
+        lc.councilRoster.mockReturnValue({ rows: [], avgLootCount: 0, bisTier: "t5", skipped: {}, categorySources: {}, rosterSource, outsiders });
+        mockUser = READER;
+
+        const res = await call(getLootCouncil, "/api/lootcouncil", "?category=c1&bench=1");
+        expect(lc.councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "c1", showBench: true }));
+        expect(body(res).filter.roster).toEqual(rosterSource);
+        expect(body(res).outsiders).toEqual(outsiders);
+
+        lc.councilRoster.mockReturnValue({ rows: [], avgLootCount: 0, bisTier: "t5", skipped: {}, categorySources: null });
+        const plain = await call(getLootCouncil, "/api/lootcouncil", "");
+        expect(lc.councilRoster).toHaveBeenLastCalledWith(expect.objectContaining({ showBench: false }));
+        expect(body(plain).filter.roster).toBeNull();
+        expect(body(plain).outsiders).toEqual([]);
     });
 
     it("passes the game version filter through, and 'all' lifts it (#545)", async () => {

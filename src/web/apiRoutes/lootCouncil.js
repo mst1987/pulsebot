@@ -48,7 +48,8 @@ const { settingsForVersion } = require("../../services/events/versionSettings");
 /**
  * GET /api/lootcouncil — roster, BiS gaps and filter options.
  *
- * Query: role, tiers, contents, category, bisTier, item (candidates for one item)
+ * Query: role, tiers, contents, category, bisTier, bench (Ersatz from the
+ * category's roster as candidates), item (candidates for one item)
  */
 const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
@@ -63,6 +64,7 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     const built = await buildCouncilView(opts);
     const {
         rows, avgLootCount, avgLootPoints, weights, bisTier: usedBisTier, skipped, categorySources, versions,
+        rosterSource, outsiders,
     } = built;
     const contentFilter = resolveContentFilter({ tierIds, contentIds });
 
@@ -78,6 +80,8 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
 
     ok(res, {
         roster: rows,
+        // With a roster: who stood there without being in it, folded and unranked (#667).
+        outsiders: outsiders || [],
         avgLootCount,
         avgLootPoints,
         // The weighting the numbers were computed with (#668) — the need bar
@@ -105,6 +109,9 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
             // reads as a bug rather than as the filter doing its job.
             skipped,
             categorySources,
+            // The category's roster (#667): name, counts per status, whether
+            // Ersatz is shown, and who it holds without a council spec.
+            roster: rosterSource || null,
         },
         sim: {
             available: engine.isAvailable(),
