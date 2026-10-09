@@ -12,6 +12,7 @@ const http = require("http");
 const zlib = require("zlib");
 const { promisify } = require("util");
 const log = require("../../logger").child("http");
+const requestStats = require("../../services/system/requestStats");
 
 const brotli = promisify(zlib.brotliCompress);
 const gzip = promisify(zlib.gzip);
@@ -22,7 +23,6 @@ const MIN_BYTES = 1024;
 const DYNAMIC_BROTLI_QUALITY = 4;
 /** Brotli quality for the immutable build files, compressed once and kept (staticClient.js). */
 const STATIC_BROTLI_QUALITY = 11;
-const DEFAULT_SLOW_MS = 1000;
 /** Paths that get a timing: the JSON API, the report pages and the public raid plan pages. */
 const TIMED_PREFIXES = ["/api/", "/r/", "/p/"];
 
@@ -85,23 +85,23 @@ function withVary(existing) {
     return `${current}, Accept-Encoding`;
 }
 
-/** SLOW_REQUEST_MS, read per call so it can be changed without a restart of the module; default 1000. */
-function slowThresholdMs() {
-    const raw = process.env.SLOW_REQUEST_MS;
-    if (raw === undefined || raw === "") return DEFAULT_SLOW_MS;
-    const n = Number(raw);
-    return Number.isFinite(n) && n >= 0 ? n : DEFAULT_SLOW_MS;
-}
+// SLOW_REQUEST_MS (default 1000) is read by the request statistics, which also count the slow requests.
+const { slowThresholdMs, DEFAULT_SLOW_MS } = requestStats;
 
 function isTimed(pathname) {
     return TIMED_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
-/** Logs one finished request: warn from the slow threshold on, debug below. Path only - never the query string. */
+/**
+ * Logs one finished request: warn from the slow threshold on, debug below. Path only - never the query string.
+ * The same request goes into the route statistics of the "Systemstatus" page (services/system/requestStats.js).
+ */
 function logRequest(method, pathname, status, ms) {
     const line = `${method} ${pathname} -> ${status} in ${Math.round(ms)} ms`;
-    if (ms >= slowThresholdMs()) log.warn(`slow request: ${line}`);
+    const slow = ms >= slowThresholdMs();
+    if (slow) log.warn(`slow request: ${line}`);
     else log.debug(line);
+    requestStats.record(method, pathname, status, ms, slow);
 }
 
 /**

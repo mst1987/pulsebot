@@ -142,6 +142,7 @@ Dieses Dokument ist der Einstieg und bleibt kurz: hier steht nur, was *jeder* Ag
 | [docs/known-issues.md](docs/known-issues.md) | Bekannte Fallstricke, die schon einmal Zeit gekostet haben |
 | [docs/testing.md](docs/testing.md) | Test-Helfer und Fabriken (`test/helpers/`, `test/factories/`), was `test/setup/` jeder Suite mitgibt, Mock-Konvention und Coverage-Schwellen |
 | [docs/deployment.md](docs/deployment.md) | Wie ein Merge auf den Server kommt und woran man den laufenden Stand sieht |
+| [docs/system-status.md](docs/system-status.md) | Systemstatus-Seite (nur Voll-Admins): Monitor, Request-Statistik, Datenträger, Host-Prozesse, Einschätzung, wo die Last herkommt |
 | [docs/data-storage.md](docs/data-storage.md) | Alle Dateien unter `data/`: Eigentümer-Modul, Inhalt, sensibel ja/nein, Sichern und Wiederherstellen |
 | [docs/guide-discord.md](docs/guide-discord.md) | Endnutzer-Guide für Raider: alle Slash-Commands und Bot-Interaktionen im Discord |
 | [docs/guide-web-admin.md](docs/guide-web-admin.md) | Endnutzer-Guide für die Orga: alle Bereiche des Web-Admin-Panels und was man dort tun kann |

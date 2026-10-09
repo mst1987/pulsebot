@@ -14,5 +14,6 @@
     { "id": "recruitment", "label": "Recruitment", "href": "/recruitment", "group": "Gilde", "areas": ["recruitment"], "wowIcon": "inv_misc_grouplooking" },
     { "id": "bank", "label": "Gildenbank", "href": "/guildbank", "group": "Gilde", "areas": ["raids"], "wowIcon": "achievement_guildperk_mobilebanking" },
     { "id": "channels", "label": "Kanäle", "href": "/channels", "group": "System", "areas": ["channels"], "wowIcon": "inv_letter_15" },
-    { "id": "settings", "label": "Einstellungen", "href": "/settings", "group": "System", "areas": ["settings"], "wowIcon": "trade_engineering" }
+    { "id": "settings", "label": "Einstellungen", "href": "/settings", "group": "System", "areas": ["settings"], "wowIcon": "trade_engineering" },
+    { "id": "system", "label": "Systemstatus", "href": "/system", "group": "System", "areas": [], "adminOnly": true, "wowIcon": "inv_gizmo_02" }
 ]

@@ -30,7 +30,8 @@
         "settings": "Settings",
         "planTemplates": "Raid plan templates",
         "planCatalog": "Raid plan catalog",
-        "absences": "Absences"
+        "absences": "Absences",
+        "system": "System status"
     },
     "group": {
         "Start": "Start",
@@ -121,6 +122,7 @@
     "app": {
         "noWrite": "You lack write access for this area.",
         "noRead": "Your role has no access to this area.",
+        "adminOnly": "This page is for administrators only.",
         "noAccess": "Your Discord account has no access to this menu yet.",
         "noAccessHint": "An admin can unlock areas for you in the settings under \"Permissions\".",
         "notFound": "This page does not exist.",
