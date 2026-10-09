@@ -186,7 +186,7 @@ describe("web/apiRoutes/raiderCharacters", () => {
 
             const res = await post("/api/raider-characters", { categoryId: "cat1", assignments: { u1: "Elesham", u2: "" } });
 
-            expect(raiderCharactersStore.setCategoryAssignments).toHaveBeenCalledWith("cat1", { u1: "Elesham", u2: "" });
+            expect(raiderCharactersStore.setCategoryAssignments).toHaveBeenCalledWith("cat1", { u1: "Elesham", u2: "" }, { actor: "1" });
             expect(json(res)).toEqual({ data: { assignments: { u1: "Elesham" } } });
         });
     });

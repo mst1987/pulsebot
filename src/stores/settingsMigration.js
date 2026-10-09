@@ -62,6 +62,13 @@
 //     (raidplans.json, updatedAt) — else "raidplan". A mode somebody picked is
 //     never touched.
 //
+//   - rosters.json (#653): every raid category with expected raider roles
+//     (config.categoryRoles) or character assignments (raider-characters.json)
+//     gets a roster (source "migration"): its roles, its assigned raiders as
+//     "core" members with that character. Once per category - an existing
+//     roster is never touched, a deleted one never comes back
+//     (rosterStore.migrateCategories, services/roster/rosterMigration.js).
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
@@ -83,6 +90,11 @@ const specHistoryStore = require("./specHistoryStore");
 const recruitmentStore = require("./recruitmentStore");
 const kaderStore = require("./kaderStore");
 const { charOfAssignments } = require("../services/kader/kaderMigration");
+const rosterStore = require("./rosterStore");
+const raiderCharactersStore = require("./raiderCharactersStore");
+const { readJsonFile } = require("./jsonStore");
+const { settingsPath } = require("../config/paths");
+const { categoriesToMigrate, migrationLine } = require("../services/roster/rosterMigration");
 
 /**
  * The event-server list an old single-server block stands for: its
@@ -307,6 +319,24 @@ function migrateCategoryPlanning() {
     return [`config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - ${set.join(", ")}`];
 }
 
+/** The category name snapshot of services/discord/categoryNames.js (guildId -> { categoryId: name }), read here without Discord. */
+function categoryNameSnapshot() {
+    const data = readJsonFile(settingsPath("category-names.json"), {});
+    return (data && typeof data.guilds === "object" && data.guilds) || {};
+}
+
+/** Rosters per raid category (#653): one per category with roles or assignments, once. One line, or none. */
+function migrateCategoryRosters({ now = new Date().toISOString() } = {}) {
+    const categories = categoriesToMigrate({
+        config: configStore.getConfig(),
+        assignments: raiderCharactersStore.readLegacyAssignments(),
+        snapshot: categoryNameSnapshot(),
+        events: [...raidEventStore.listRaidEvents(""), ...eventStore.listEvents("")],
+    });
+    const line = migrationLine(rosterStore.migrateCategories(categories, { now }));
+    return line ? [line] : [];
+}
+
 /**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
@@ -329,6 +359,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateRecruitmentVersions());
         changes.push(...migrateKaderPlanner());
         changes.push(...migrateCategoryPlanning());
+        changes.push(...migrateCategoryRosters());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -338,6 +369,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateCategoryPlanning, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateCategoryPlanning, migrateCategoryRosters, raidplanDefaultsLine,
     legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

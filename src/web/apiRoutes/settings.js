@@ -31,6 +31,7 @@ const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = requi
 // Makes Excel read the umlauts of an archive CSV as UTF-8.
 const BOM = String.fromCharCode(0xfeff);
 const { defaultVersionSettings } = require("../../stores/versionSettingsSchema");
+const { expectedRoleIds, syncRosterRoleIds } = require("../../services/roster/categoryRoles");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -327,7 +328,7 @@ const getReminders = withUser({}, async ({ res }) => {
     const ids = [...new Set([...(config.categoryIds || []), ...Object.keys(config.categoryReminders || {})])];
     ok(res, {
         categoryReminders: config.categoryReminders || {},
-        categories: ids.map((id) => ({ id, name: names.get(id) || "", roleCount: ((config.categoryRoles || {})[id] || []).length })),
+        categories: ids.map((id) => ({ id, name: names.get(id) || "", roleCount: expectedRoleIds(id, config).length })),
         pingTargets: pingTargetInfo(config),
         lastRun: lastReminderRun(),
     });
@@ -421,7 +422,7 @@ function versionSettingsPatch(raw) {
  * adminRoleIds/rolePermissions (ACCESS_KEYS) and the Anthropic/WCL
  * credentials (CREDENTIAL_KEYS) are full-admin-only.
  */
-const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
     const touchesGuarded = FULL_ADMIN_KEYS.some((k) => body[k] !== undefined);
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
     const partial = {};
@@ -527,6 +528,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     const before = getConfig();
     const langBefore = before.botLanguage;
     const saved = saveConfig(partial);
+    // The settings still edit a category's raider roles; a category with a roster follows them (#653).
+    if (partial.categoryRoles !== undefined) syncRosterRoleIds(saved.categoryRoles, { actor: String((user && user.id) || "") });
     // A new server language, or a category's own, redraws the bot's public messages (not awaited).
     if (saved.botLanguage !== langBefore || JSON.stringify(saved.categoryLanguage || {}) !== JSON.stringify(before.categoryLanguage || {})) {
         void languageChange.afterServerLangChange({ config: saved });

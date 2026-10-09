@@ -51,6 +51,7 @@ const { isSnowflake } = require("../../utils/ids");
 
 const { TIMEZONE } = require("../../config/timezone");
 const { fail } = require("../../web/http/apiResult");
+const { expectedRoleIds } = require("../roster/categoryRoles");
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MIN_REASON = 3;
 const MAX_REASON = 300;
@@ -768,7 +769,7 @@ async function raiderCandidates({ guildId, eventId }) {
             key: c.key, name: c.name, className: c.className, specs: c.specs.map((s) => specOf(s.key)).filter(Boolean),
         }));
     }
-    const roleIds = (getConfig().categoryRoles || {})[event.categoryId] || [];
+    const roleIds = expectedRoleIds(event.categoryId, getConfig());
     if (roleIds.length) {
         try {
             const { members = [] } = (await discord.listMembersWithRoles(event.guildId || guildId, roleIds)) || {};

@@ -43,6 +43,7 @@ const { spec: specOf, rulesFor } = require("../../config/gameVersions");
 const { versionOfEvent } = require("../events/mainVersion");
 const { archiveOf } = require("../events/eventArchive");
 const { normalizeOverflow, accountCount } = require("../../utils/signup/capacity");
+const { expectedRoleIds } = require("../roster/categoryRoles");
 
 // Statuses a member may still pick once the deadline has passed.
 const AFTER_DEADLINE = ["absence", "late"];
@@ -291,7 +292,7 @@ const RAIDER_ROLE_ERROR = "Für diesen Raid brauchst du eine Raider-Rolle.";
  * no secret, a missing raid is a real loss.
  */
 function categoryRoleAllowed(categoryId, { config = {}, roleIds = null } = {}) {
-    const roles = ((config.categoryRoles || {})[String(categoryId || "")] || []).map(String);
+    const roles = expectedRoleIds(categoryId, config);
     if (!roles.length || !Array.isArray(roleIds)) return true;
     return roles.some((r) => roleIds.map(String).includes(r));
 }
@@ -319,7 +320,7 @@ function categoryVisible(categoryId, { config = {}, roleIds = null, orga = false
 async function checkRaiderRole(event, userId, { byOrga = false, previous, roleIds, config } = {}) {
     if (byOrga || !event) return { ok: true };
     const cfg = config || settingsStore.getConfig();
-    const roles = (cfg.categoryRoles || {})[String(event.categoryId || "")] || [];
+    const roles = expectedRoleIds(event.categoryId, cfg);
     if (!roles.length) return { ok: true };
     const uid = String(userId || "");
     const prev = previous === undefined ? signupStore.getSignup(event.id, uid) : previous;
@@ -605,7 +606,7 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
             continue;
         }
         let roleIds;
-        const needsRoles = ((cfg.categoryRoles || {})[String(event.categoryId || "")] || []).length > 0;
+        const needsRoles = expectedRoleIds(event.categoryId, cfg).length > 0;
         if (needsRoles && !byOrga) {
             const guild = event.guildId || cfg.guildId || "";
             if (!roleCache.has(guild)) roleCache.set(guild, await discord.memberRoleIds(guild, uid));

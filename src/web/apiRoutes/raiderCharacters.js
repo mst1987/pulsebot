@@ -8,6 +8,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const { getCategoryAssignments, setCategoryAssignments } = require("../../stores/raiderCharactersStore");
 const { listCharacters } = require("../../stores/characterStore");
 const discord = require("../../services/discord/discord");
+const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 
 /**
  * GET /api/raider-characters?category=<id> — the category's expected raiders
@@ -19,7 +20,7 @@ const getRaiderCharacters = withUser({}, async ({ req, res, url }) => {
     const guildId = activeGuildFor(req);
     const categoryId = (url.searchParams.get("category") || "").trim();
     if (!categoryId) return error(res, 400, "missing_category", "Kategorie fehlt.");
-    const roleIds = (getConfig().categoryRoles || {})[categoryId] || [];
+    const roleIds = expectedRoleIds(categoryId, getConfig());
     let members = [];
     let membersError = null;
     if (roleIds.length) {
@@ -41,13 +42,13 @@ const getRaiderCharacters = withUser({}, async ({ req, res, url }) => {
  * map in one call. Body: { categoryId, assignments: { [userId]: characterName } }.
  * A blank characterName removes that raider's assignment.
  */
-const saveRaiderCharacters = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const saveRaiderCharacters = withUser({ csrf: true, body: true }, async ({ body, res, user }) => {
     const categoryId = String(body.categoryId || "").trim();
     if (!categoryId) return error(res, 400, "missing_category", "Kategorie fehlt.");
     if (!body.assignments || typeof body.assignments !== "object") {
         return error(res, 400, "invalid", "Zuordnungen fehlen.");
     }
-    ok(res, { assignments: setCategoryAssignments(categoryId, body.assignments) });
+    ok(res, { assignments: setCategoryAssignments(categoryId, body.assignments, { actor: String((user && user.id) || "") }) });
 });
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */

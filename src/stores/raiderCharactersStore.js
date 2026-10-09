@@ -1,6 +1,9 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const characterStore = require("./characterStore");
+const rosterStore = require("./rosterStore");
+const raiderProfileStore = require("./raiderProfileStore");
+const { characterKeyOf, nameKeyOf } = require("../utils/loot/lootImport");
 
 // Manual, per-raid-category mapping of a raider (Discord user id) to the WoW
 // character they play there — raiders often play a different character on
@@ -9,6 +12,13 @@ const characterStore = require("./characterStore");
 // reliably from past signups alone. Used to enrich the "missing" list on the
 // raid-event detail page with the character (and class/spec) that is
 // actually expected, even when the raider hasn't signed up recently.
+//
+// A facade since the rosters (#653, rosterStore.js): a category that has a
+// roster is read from it - every member with a character, his first one, as
+// the name it was assigned under - and setCategoryAssignments writes into that
+// roster. Only categories without a roster still live in raider-characters.json
+// (the file stays as it was after the migration; nothing reads it for a
+// category with a roster). The API and its answers are the same either way.
 const RAIDER_CHARACTERS_FILE = settingsPath("raider-characters.json");
 
 const store = createJsonStore({
@@ -17,33 +27,72 @@ const store = createJsonStore({
     normalize: (data) => (data && typeof data === "object" && !Array.isArray(data) ? data : {}),
 });
 
-function readAll() {
-    return store.read();
+const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+
+/** raider-characters.json as stored, rosters left aside: { [categoryId]: { [userId]: name } } (the migration's input). */
+function readLegacyAssignments() {
+    const out = {};
+    for (const [categoryId, map] of Object.entries(store.read())) {
+        if (isMap(map)) out[categoryId] = { ...map };
+    }
+    return out;
 }
 
-function writeAll(byCategory) {
-    store.write(byCategory);
+/**
+ * The name a member's character key is shown as: the name it was assigned
+ * under, else the raider's profile character, else what the character cache
+ * knows, else the name part of the key.
+ */
+function nameOfKey(userId, key, member) {
+    const stored = member.charNames && member.charNames[key];
+    if (stored) return stored;
+    const own = raiderProfileStore.findCharacter(raiderProfileStore.getProfile(userId), key);
+    if (own && own.name) return own.name;
+    const cached = characterStore.getCharacter(key);
+    return (cached && cached.character) || nameKeyOf(key);
+}
+
+/** A roster's members as { [userId]: name }: everyone with a character, his first one. */
+function rosterAssignments(roster) {
+    const out = {};
+    for (const [userId, member] of Object.entries(roster.members || {})) {
+        const key = member.chars && member.chars[0];
+        if (key) out[userId] = nameOfKey(userId, key, member);
+    }
+    return out;
 }
 
 /** Raider (userId) -> character name assigned for one category. Never undefined. */
 function getCategoryAssignments(categoryId) {
     const key = String(categoryId || "").trim();
     if (!key) return {};
-    const raw = readAll()[key];
-    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const roster = rosterStore.rosterForCategory(key);
+    if (roster) return rosterAssignments(roster);
+    const raw = store.read()[key];
+    return isMap(raw) ? raw : {};
 }
 
 /**
  * Every category's assignments at once: { [categoryId]: { [userId]: character } }.
  * The roster overview needs all of them to answer "welche Chars gehören zu
- * welchem Raid" without one read per configured category.
+ * welchem Raid" without one read per configured category. The file's
+ * categories in their order (one with a roster read from the roster), then the
+ * rosters' categories the file does not have. A roster without any character
+ * is left out, like a category whose last assignment was removed.
  */
 function listAllAssignments() {
-    const all = readAll();
+    const rosters = new Map(rosterStore.listRosters("").filter((r) => r.categoryId).map((r) => [r.categoryId, r]));
     const out = {};
-    for (const [categoryId, map] of Object.entries(all)) {
-        if (!map || typeof map !== "object" || Array.isArray(map)) continue;
-        out[categoryId] = { ...map };
+    const addRoster = (categoryId) => {
+        const map = rosterAssignments(rosters.get(categoryId));
+        if (Object.keys(map).length) out[categoryId] = map;
+    };
+    for (const [categoryId, map] of Object.entries(readLegacyAssignments())) {
+        if (rosters.has(categoryId)) addRoster(categoryId);
+        else out[categoryId] = map;
+    }
+    for (const categoryId of rosters.keys()) {
+        if (!(categoryId in out)) addRoster(categoryId);
     }
     return out;
 }
@@ -52,8 +101,13 @@ function listAllAssignments() {
  * Replace the whole raider->character map of one category. Entries with a
  * blank character name are dropped (that's how an assignment is removed).
  * Returns the normalized, saved map.
+ *
+ * With a roster: every raider in the map gets the character as his first one
+ * (a raider not yet in the roster joins it as "core"); a member left out loses
+ * his characters but stays in the roster with his status (rosterStore
+ * setFirstChars). Reading the category back gives exactly the returned map.
  */
-function setCategoryAssignments(categoryId, map) {
+function setCategoryAssignments(categoryId, map, { actor = "" } = {}) {
     const key = String(categoryId || "").trim();
     if (!key) return {};
     const clean = {};
@@ -62,13 +116,20 @@ function setCategoryAssignments(categoryId, map) {
         const name = String(characterName || "").trim();
         if (uid && name) clean[uid] = name;
     }
-    const all = readAll();
+    const roster = rosterStore.rosterForCategory(key);
+    if (roster) {
+        const firsts = {};
+        for (const [uid, name] of Object.entries(clean)) firsts[uid] = { key: characterKeyOf(name, roster.versionId), name };
+        rosterStore.setFirstChars(roster.id, firsts, { actor });
+        return clean;
+    }
+    const all = store.read();
     if (Object.keys(clean).length) {
         all[key] = clean;
     } else {
         delete all[key];
     }
-    writeAll(all);
+    store.write(all);
     return clean;
 }
 
@@ -112,5 +173,5 @@ function charactersForUser(userId) {
 
 module.exports = {
     getCategoryAssignments, listAllAssignments, setCategoryAssignments, resolveAssignmentProfiles, charactersForUser,
-    RAIDER_CHARACTERS_FILE, useFile: store.useFile,
+    readLegacyAssignments, RAIDER_CHARACTERS_FILE, useFile: store.useFile,
 };
