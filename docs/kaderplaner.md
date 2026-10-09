@@ -46,10 +46,25 @@ single-account grant, the CSRF refusal and the lead rule.
 
 Wishes, interview answers, notes, votes and comments **never leave the Kaderplaner**: not into the raider profile,
 the roster pages, other APIs or the logs. `src/stores/kaderStore.js` is required only by
-`src/stores/settingsMigration.js` and `src/web/apiRoutes/kader.js` (`test/stores/kaderStore.test.js` keeps that list),
-and the route test serialises the other areas' answers and asserts none of it appears. In the other direction a
+`src/stores/settingsMigration.js`, `src/web/apiRoutes/kader.js` and `src/services/kader/kaderRoster.js` (the roster
+door below; `test/stores/kaderStore.test.js` keeps that list), and the route test serialises the other areas' answers and asserts none of it appears. In the other direction a
 profile leaves `kaderSource.js` as a whitelist (characters, specs, gear, main, tank/heal, raid days, the saved
 name) — never `avoid`, wishes, the note, preferred raids or calendar tokens (`test/web/kader/kaderSource.test.js`).
+
+### Roster aus einem Kader (#657)
+
+A raid roster (docs/roster-profile.md "Roster anlegen und einstellen") can be created from a Kader: `POST
+/api/rosters/create` with `source: "kader"`, or `services/roster/rosterCreate.js createRosterFromKader(kaderId, opts)`
+(the entry the Kaderplaner's button of #658 builds on). The one door is `src/services/kader/kaderRoster.js`:
+`rosterPlayers(guildId, kaderId)` answers per player **only** `{ userId, state, decision, characterName }` (states
+roster, bench, tentative; `characterName` = the planner's active character), built field by field — never a wish, an
+answer, a note, a vote, a comment, the Verlauf or the activity log; `kaderSummaries(guildId)` gives the create dialog
+id, name and two counts. `rosterCreate.js` is the only module outside the Kaderplaner that requires it, and it requires
+nothing else of the planner (`test/stores/kaderStore.test.js`); `test/services/kader/kaderRoster.test.js` and the
+roster suites fill every private field with a marker and assert it never reaches the answer or `rosters.json`. The
+roster maps roster → core, bench → bench, tentative → trial; the character is the planner's active one as the profile
+key of the roster's version when the profile has it, else the name as typed, else a profile character of the decided
+class, else the profile's first. Afterwards the roster is independent: nothing flows back into the Kader.
 
 ## The version and the server
 
