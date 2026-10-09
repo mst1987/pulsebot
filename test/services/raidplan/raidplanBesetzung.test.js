@@ -40,11 +40,9 @@ describe("counts", () => {
     it("an older object without dps: its melee + ranged are the DPS, so every slot that existed still exists", () => {
         const c = bes.cleanCounts({ tank: 3, healer: 7, melee: 8, ranged: 7 });
         expect(c).toEqual({ tank: 3, healer: 7, dps: 15, melee: 8, ranged: 7 });
-        expect(bes.slotCounts(c)).toEqual({ tank: 3, healer: 7, dps: 0, melee: 8, ranged: 7 });
     });
-    it("melee + ranged never exceed the DPS; the rest of a split is 'DPS n'", () => {
+    it("melee + ranged never exceed the DPS", () => {
         expect(bes.cleanCounts({ tank: 2, healer: 6, dps: 5, melee: 4, ranged: 4 }).dps).toBe(8);
-        expect(bes.slotCounts(bes.cleanCounts({ tank: 3, healer: 7, dps: 15, melee: 5, ranged: 4 }))).toEqual({ tank: 3, healer: 7, dps: 6, melee: 5, ranged: 4 });
     });
     it("effective Besetzung: the plan's own counts, else the raid type's; split is only on when somebody split", () => {
         const own = bes.effectiveBesetzung(["bt"], 25, { tank: 2, healer: 6, dps: 17 });

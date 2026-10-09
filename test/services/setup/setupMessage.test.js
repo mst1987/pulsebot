@@ -49,7 +49,7 @@ const sm = {
 const { event: baseEvent } = require("../../factories/events");
 const { makeClient, makeChannel } = require("../../helpers/discordClient");
 const { cardText, cardButtons, cardColor } = require("../../helpers/cardText");
-const { isCard } = require("../../../src/utils/discord/card");
+const { isCardPayload } = require("../../helpers/card");
 const { embedColor } = require("../../../src/services/events/embedLook");
 
 const emojis = Object.fromEntries(appEmojis.emojiCatalog().map((e, i) => [e.name, { id: String(1000 + i), name: e.name, animated: false }]));
@@ -427,7 +427,7 @@ describe("DMs", () => {
     it("builds the placed and the bench text", () => {
         const event = seed();
         const placed = sm.buildSetupDm(event, { ...p("2", "Zibbo", "Priest-Holy", "healer"), group: 2 }, { messageUrl: "https://discord.com/channels/g1/c1/m1" });
-        expect(isCard(placed)).toBe(true);
+        expect(isCardPayload(placed)).toBe(true);
         expect(placed.content).toBe("");
         expect(cardText(placed)).toContain("## Group 2 as Healer\nZibbo · Holy");
         expect(cardButtons(placed)).toEqual([expect.objectContaining({ label: "Go to the setup", url: "https://discord.com/channels/g1/c1/m1" })]);

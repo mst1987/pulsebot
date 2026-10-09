@@ -122,17 +122,6 @@ function revokeToken(id, userId) {
     return true;
 }
 
-/** Drop every token of an account (it asked for all of them to go). */
-function revokeAllFor(userId) {
-    const uid = String(userId || "");
-    if (!uid) return 0;
-    const tokens = readAll();
-    const next = tokens.filter((t) => !(t && t.userId === uid));
-    if (next.length === tokens.length) return 0;
-    writeAll(next);
-    return tokens.length - next.length;
-}
-
 /**
  * Look up the token behind a feed URL. Compares hashes in constant time so a
  * wrong token cannot be narrowed down by timing the response.
@@ -167,6 +156,6 @@ function touchToken(id) {
 }
 
 module.exports = {
-    listTokensFor, createToken, revokeToken, revokeAllFor, verifyToken, touchToken, useFile,
+    listTokensFor, createToken, revokeToken, verifyToken, touchToken, useFile,
     TOKEN_PREFIX, MAX_PER_USER, MAX_NAME, DEFAULT_FILE,
 };

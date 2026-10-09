@@ -54,12 +54,6 @@ function resolveRow(row, section) {
     return { ...row, targets, origin: row.id };
 }
 
-/** The rows a section inherits: every default row that is not switched off for it (`off`), resolved; ids stay the default's. */
-function inheritedRows(defaultRows, off, section) {
-    const skip = new Set(off || []);
-    return (defaultRows || []).filter((r) => !skip.has(r.id)).map((r) => resolveRow(r, section));
-}
-
 /** Whether a section inherits the Standard: every boss and trash section, not "Allgemein" (the raid-wide rows) and not the Standard itself. */
 function inherits(key) {
     return key !== DEFAULTS_KEY && key !== GENERAL_KEY;
@@ -97,4 +91,4 @@ function effectiveRows(bosses, key, section) {
     return mergeRows((all[DEFAULTS_KEY] || {}).assignments || [], b, section);
 }
 
-module.exports = { DEFAULTS_KEY, GENERAL_KEY, THIS_BOSS, bossIconKey, sectionOf, resolveRow, inheritedRows, inherits, mergeRows, effectiveRows };
+module.exports = { DEFAULTS_KEY, GENERAL_KEY, THIS_BOSS, bossIconKey, sectionOf, resolveRow, inherits, mergeRows, effectiveRows };

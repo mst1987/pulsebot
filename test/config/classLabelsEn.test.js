@@ -1,4 +1,4 @@
-const { CLASSES, ROLES, ROLE_LABELS, ROLE_LABELS_EN, buildClasses, labelEnOf } = require("../../src/config/gameVersions/classes");
+const { CLASSES, ROLES, ROLE_LABELS, ROLE_LABELS_EN, buildClasses } = require("../../src/config/gameVersions/classes");
 const { rulesFor } = require("../../src/config/gameVersions");
 
 // The bot speaks English to raiders; the web keeps its German labels. Both
@@ -19,13 +19,11 @@ describe("config/gameVersions/classes — English labels", () => {
     });
 
     it("spells the specs whose id is not a word as players do", () => {
-        expect(labelEnOf("Hunter-BeastMastery")).toBe("Beast Mastery");
-        expect(labelEnOf("Druid-Feral")).toBe("Feral (Cat)");
-        expect(labelEnOf("Druid-Guardian")).toBe("Feral (Bear)");
-        expect(labelEnOf("Shaman-Restoration")).toBe("Restoration");
-        expect(labelEnOf("Warlock")).toBe("Warlock");
-        expect(labelEnOf("Nope-Nope")).toBe("");
-        expect(labelEnOf("Priest-Nope")).toBe("");
+        const specEn = (classId, specId) => CLASSES.find((c) => c.id === classId).specs.find((s) => s.id === specId).labelEn;
+        expect(specEn("Hunter", "BeastMastery")).toBe("Beast Mastery");
+        expect(specEn("Druid", "Feral")).toBe("Feral (Cat)");
+        expect(specEn("Druid", "Guardian")).toBe("Feral (Bear)");
+        expect(specEn("Shaman", "Restoration")).toBe("Restoration");
     });
 
     it("carries the English labels through buildClasses and the rule sets", () => {

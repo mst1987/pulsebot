@@ -203,11 +203,6 @@ function gemQualityIssue(item, id, base, ctx) {
     }
 }
 
-/** Format a structured issue object as a plain string (for Discord). */
-function formatIssue(issue) {
-    return `${issue.itemName} [${issue.label}]`;
-}
-
 function isGemBad(gem, gemsToConsider) {
     if (gem === undefined || gem === null) return false;
     if (UNCUT.has(String(gem.id))) return true;
@@ -278,4 +273,4 @@ function buildGearIssues(table, opts = {}) {
     return results;
 }
 
-module.exports = { analyzePlayerGear, buildGearIssues, buildArmory, formatIssue, isEnchantBad, getBadEnchantName, metaGemActive, SLOT_NAMES };
+module.exports = { analyzePlayerGear, buildGearIssues, buildArmory, isEnchantBad, getBadEnchantName, metaGemActive, SLOT_NAMES };

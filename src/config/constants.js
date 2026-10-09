@@ -39,11 +39,6 @@ const RAIDHELPER_BUDGET = Object.freeze({
     dev: 100,
 });
 
-// How old a cached Raid-Helper event list may be (services/events/raidEventGroups.js):
-// a page load takes it up to a minute old, a background job up to 15 minutes.
-const RAIDHELPER_EVENTS_TTL_MS = 60 * 1000;
-const RAIDHELPER_BACKGROUND_TTL_MS = 15 * 60 * 1000;
-
 module.exports = {
     RAIDHELPER_BOT_ID,
     EMBED_ACCENT_COLOR,
@@ -52,6 +47,4 @@ module.exports = {
     APPLICATION_SWEEP_INTERVAL_MS,
     RAIDHELPER_REQUEST_TIMEOUT_MS,
     RAIDHELPER_BUDGET,
-    RAIDHELPER_EVENTS_TTL_MS,
-    RAIDHELPER_BACKGROUND_TTL_MS,
 };

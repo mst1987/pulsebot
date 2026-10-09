@@ -14,7 +14,8 @@ const store = require("../../../src/stores/guildBankStore");
 const guildBank = require("../../../src/services/signups/guildBank");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { cardText, cardColor, cardButtons } = require("../../helpers/cardText");
-const { isCard, KIND_COLORS } = require("../../../src/utils/discord/card");
+const { KIND_COLORS } = require("../../../src/utils/discord/card");
+const { isCardPayload } = require("../../helpers/card");
 
 const CONFIG = { botLanguage: "de", guildId: "111111", discordServers: { eventGuilds: [{ guildId: "111111" }], guildBankChannelId: "900000" } };
 const INPUT = { item: "Super Mana Potion", amount: "12", purpose: "BT" };
@@ -75,7 +76,7 @@ describe("services/signups/guildBank", () => {
         expect(cardButtons(payload)).toEqual([]);
         expect(cardText(payload)).toContain("✅ Erledigt von Orga");
         const dm = discord.sendDirectMessage.mock.calls[0][1];
-        expect(isCard(dm)).toBe(true);
+        expect(isCardPayload(dm)).toBe(true);
         expect(cardText(dm)).toBe("-# Guild bank\n## Request done\n**12× Super Mana Potion**");
         expect(cardColor(dm)).toBe(KIND_COLORS.ok);
     });

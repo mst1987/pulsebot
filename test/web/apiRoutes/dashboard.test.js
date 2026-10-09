@@ -99,9 +99,6 @@ jest.mock("../../../src/services/logcheck/reportList", () => ({
     prepareReportList: jest.fn((reports, query) => ({
         items: reports, sort: (query && query.sort) || "date", dir: (query && query.dir) || "desc", page: 1, totalPages: 1, total: reports.length, pageSize: 15,
     })),
-    prepareLogList: jest.fn((logs, query) => ({
-        items: logs, sort: (query && query.sort) || "date", dir: (query && query.dir) || "desc", page: 1, totalPages: 1, total: logs.length, pageSize: 15,
-    })),
     annotateLogCategories: jest.fn((items) => items),
     annotateReportEvents: jest.fn((reports) => reports),
     logPostedAt: jest.fn((l) => (l && l.postedAt) || 0),

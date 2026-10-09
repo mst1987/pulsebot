@@ -88,7 +88,6 @@ function parseMultiId(customId) {
 }
 
 const multiId = (token, action, page) => [PREFIX, token, action, page === undefined ? null : page].filter((x) => x !== null).join(":");
-const oneEventId = (eventId, status) => `${PREFIX}:e:${eventId}:${STATUS_CODES[status] || "s"}`;
 
 // Select options and modal labels cannot render Discord timestamps, so they
 // carry the date as text in server time: "Wed 24 Sep 19:30" / "Mi. 24 Sept. 19:30".
@@ -395,7 +394,7 @@ function buildResults(token, session, { nextPage = null, profile = null, lang = 
 
 module.exports = {
     PREFIX, PER_MODAL, SESSION_TTL, MAX_RAIDS,
-    createSession, getSession, endSession, parseMultiId, multiId, oneEventId,
+    createSession, getSession, endSession, parseMultiId, multiId,
     signableRaids, preselected, characterSelectOptions, orderedPicks, pageCount, pageRange,
     buildRaidPicker, buildCharacterModal, modalValues, entriesFromModal, resultLine, buildResults,
 };

@@ -55,11 +55,6 @@ function cleanCounts(raw) {
     return { tank: num(raw.tank), healer: num(raw.healer), dps: Math.max(dps, melee + ranged), melee, ranged };
 }
 
-/** How many slots of each kind the counts make: the DPS that is not split into melee / ranged is "DPS n". */
-function slotCounts(counts) {
-    return { tank: counts.tank, healer: counts.healer, dps: Math.max(0, counts.dps - counts.melee - counts.ranged), melee: counts.melee, ranged: counts.ranged };
-}
-
 /** The Besetzung a plan or template shows: its own counts when it has them, else the raid type's. */
 function effectiveBesetzung(instanceIds, size, counts) {
     const base = defaultBesetzung(instanceIds, size);
@@ -67,4 +62,4 @@ function effectiveBesetzung(instanceIds, size, counts) {
     return own ? { ...base, counts: own, split: own.melee > 0 || own.ranged > 0 } : base;
 }
 
-module.exports = { ROLES, MAX_SIZE, MAX_COUNT, defaultSize, cleanSize, defaultBesetzung, cleanCounts, slotCounts, effectiveBesetzung };
+module.exports = { ROLES, MAX_SIZE, MAX_COUNT, defaultSize, cleanSize, defaultBesetzung, cleanCounts, effectiveBesetzung };

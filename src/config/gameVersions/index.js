@@ -65,20 +65,6 @@ function roleOfSpec(specKey, versionId = DEFAULT_VERSION) {
 }
 
 /**
- * The buffs a spec brings and the ones it benefits from.
- * @returns {{ provides: object[], receives: object[] }} party and raid buffs together
- */
-function buffsOf(specKey, versionId = DEFAULT_VERSION) {
-    const rules = rulesFor(versionId);
-    if (!rules) return { provides: [], receives: [] };
-    const all = [...rules.partyBuffs, ...rules.raidBuffs];
-    return {
-        provides: all.filter((b) => b.providers.includes(specKey)),
-        receives: all.filter((b) => b.beneficiaries.includes(specKey)),
-    };
-}
-
-/**
  * A suggested number of tanks and healers for a raid size, for an instance
  * without its own suggestion. 10 → 2/3, 20 → 2/5, 25 → 3/6, 40 → 4/10; other
  * sizes on the same curve, never more than the raid holds. The version is
@@ -179,7 +165,7 @@ function publicVersions() {
 
 module.exports = {
     VERSIONS, DEFAULT_VERSION, LEGACY_VERSION, ROLES,
-    rulesFor, instance, instanceById, spec, roleOfSpec, buffsOf,
+    rulesFor, instance, instanceById, spec, roleOfSpec,
     defaultComposition, compositionFor, finalBossesOf, bossesOf,
     instanceForBoss, instanceForZone, publicVersions,
 };

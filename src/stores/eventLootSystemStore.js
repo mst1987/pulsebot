@@ -59,16 +59,6 @@ function setEventLootSystem(eventId, { system = "", softres = false, by = "", by
     return all[id];
 }
 
-/** Forget a raid's override (the event was deleted). True when one was removed. */
-function deleteEventLootSystem(eventId) {
-    const id = String(eventId || "").trim();
-    const all = readAll();
-    if (!id || !all[id]) return false;
-    delete all[id];
-    writeAll(all);
-    return true;
-}
-
 /**
  * The resolved loot system of one raid (lootSystem.resolveLootSystem) from the
  * stored config, this raid's override and its softres list — the one call the
@@ -83,4 +73,4 @@ function lootSystemOf(eventId, categoryId) {
     });
 }
 
-module.exports = { useFile, getEventLootSystem, setEventLootSystem, deleteEventLootSystem, lootSystemOf };
+module.exports = { useFile, getEventLootSystem, setEventLootSystem, lootSystemOf };

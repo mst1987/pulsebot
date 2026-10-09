@@ -35,13 +35,6 @@ describe("eventLootSystemStore", () => {
         expect(store.setEventLootSystem("", { system: "gdkp" })).toBeNull();
     });
 
-    it("forgets a deleted raid", () => {
-        store.setEventLootSystem("e1", { system: "other" });
-        expect(store.deleteEventLootSystem("e1")).toBe(true);
-        expect(store.deleteEventLootSystem("e1")).toBe(false);
-        expect(store.getEventLootSystem("e1")).toBeNull();
-    });
-
     it("resolves a raid from config, override and softres list", () => {
         getConfig.mockReturnValue({ categoryLootTool: { c1: "rclc" } });
         expect(store.lootSystemOf("e1", "c1")).toMatchObject({ system: "lootcouncil", softres: false });

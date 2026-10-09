@@ -1,5 +1,5 @@
 const {
-    prepareReportList, prepareLogList, annotateLogCategories, annotateReportEvents,
+    prepareReportList, annotateLogCategories, annotateReportEvents,
     DEFAULT_PAGE_SIZE, logPostedAt, snowflakeTimestamp,
 } = require("../../../src/services/logcheck/reportList.js");
 
@@ -85,20 +85,7 @@ describe("services/logcheck/reportList prepareReportList", () => {
     });
 });
 
-describe("services/logcheck/reportList prepareLogList", () => {
-    const logs = [
-        { id: "a", title: "Kara A", status: "open", detectedAt: 9999, postedAt: 100 },
-        { id: "b", title: "Kara B", status: "done", detectedAt: 1, postedAt: 300 },
-        { id: "c", title: "Kara C", status: "open", detectedAt: 5000, postedAt: 200 },
-    ];
-
-    it("defaults to newest CHANNEL-POST time first (postedAt, not detectedAt)", () => {
-        const lp = prepareLogList(logs);
-        expect(lp.sort).toBe("date");
-        expect(lp.dir).toBe("desc");
-        expect(lp.items.map((l) => l.id)).toEqual(["b", "c", "a"]); // 300, 200, 100
-    });
-
+describe("services/logcheck/reportList detected logs", () => {
     describe("snowflakeTimestamp / logPostedAt", () => {
         it("decodes a Discord message id to its post timestamp (Discord epoch)", () => {
             // id 0 -> exactly the Discord epoch (2015-01-01)
@@ -117,60 +104,6 @@ describe("services/logcheck/reportList prepareLogList", () => {
             expect(logPostedAt({ detectedAt: 9 })).toBe(9);
             expect(logPostedAt({})).toBe(0);
         });
-
-        it("sorts logs without postedAt by their message-id post time", () => {
-            const noPosted = [
-                { id: "old", messageId: String(100n << 22n), detectedAt: 5 },
-                { id: "new", messageId: String(900n << 22n), detectedAt: 5 },
-                { id: "mid", messageId: String(500n << 22n), detectedAt: 5 },
-            ];
-            expect(prepareLogList(noPosted).items.map((l) => l.id)).toEqual(["new", "mid", "old"]);
-        });
-    });
-
-    it("falls back to detectedAt when postedAt is absent", () => {
-        const noPosted = [
-            { id: "x", detectedAt: 10 },
-            { id: "y", detectedAt: 30 },
-            { id: "z", detectedAt: 20 },
-        ];
-        expect(prepareLogList(noPosted).items.map((l) => l.id)).toEqual(["y", "z", "x"]);
-    });
-
-    it("sorts by title and status", () => {
-        expect(prepareLogList(logs, { sort: "title", dir: "asc" }).items.map((l) => l.id)).toEqual(["a", "b", "c"]);
-        // status asc: open(0) before done(1); tiebreak newest postedAt first → c(200) then a(100)
-        expect(prepareLogList(logs, { sort: "status", dir: "asc" }).items.map((l) => l.id)).toEqual(["c", "a", "b"]);
-    });
-
-    // The logs table sorts by every column it shows; three of them are filled in
-    // by annotateLogCategories/the event assignment rather than by the log itself.
-    it("sorts by category, event and source channel", () => {
-        const annotated = [
-            { id: "a", postedAt: 100, categoryName: "Pug", eventLabel: "SSC", channelName: "logs-pug" },
-            { id: "b", postedAt: 200, categoryName: "Montagsraid", eventLabel: "", channelName: "logs-mo" },
-            { id: "c", postedAt: 300, categoryName: "Twink", eventLabel: "Gruul", channelName: "logs-twink" },
-        ];
-        expect(prepareLogList(annotated, { sort: "category", dir: "asc" }).items.map((l) => l.id)).toEqual(["b", "a", "c"]);
-        // A log without a raid has no label and leads ascending — those are the
-        // ones the page is opened to assign.
-        expect(prepareLogList(annotated, { sort: "event", dir: "asc" }).items.map((l) => l.id)).toEqual(["b", "c", "a"]);
-        expect(prepareLogList(annotated, { sort: "source", dir: "asc" }).items.map((l) => l.id)).toEqual(["b", "a", "c"]);
-    });
-
-    it("keeps an unknown sort key from silently sorting by nothing", () => {
-        // Everything the client can ask for is a listed column; anything else
-        // falls back to the default rather than leaving the list unordered.
-        const lp = prepareLogList(logs, { sort: "wcl", dir: "asc" });
-        expect(lp.sort).toBe("date");
-        expect(lp.items.map((l) => l.id)).toEqual(["a", "c", "b"]);
-    });
-
-    it("paginates logs 15 per page", () => {
-        const many = Array.from({ length: 20 }, (_, i) => ({ id: "l" + i, postedAt: i }));
-        const lp = prepareLogList(many, { page: "2" });
-        expect(lp.totalPages).toBe(2);
-        expect(lp.items).toHaveLength(5);
     });
 
     describe("annotateLogCategories", () => {

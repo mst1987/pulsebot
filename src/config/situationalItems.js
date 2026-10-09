@@ -53,9 +53,4 @@ function situationalItem(itemId) {
     return SITUATIONAL_ITEMS[Number(itemId)] || null;
 }
 
-/** Whether this item's worth depends on the boss. */
-function isSituational(itemId) {
-    return !!situationalItem(itemId);
-}
-
-module.exports = { SITUATIONAL_ITEMS, situationalItem, isSituational };
+module.exports = { SITUATIONAL_ITEMS, situationalItem };

@@ -3,7 +3,7 @@ jest.mock("../../../src/config/variables.js", () => ({ publicBaseUrl: "http://lo
 const { characterOwners, approvedPerPlayer, buildRaiderMessage, sendApproved, sendStatus, sentSignature } = require("../../../src/web/logcheck/recommendationSend.js");
 
 const { cardText, cardButtons } = require("../../helpers/cardText");
-const { isCard } = require("../../../src/utils/discord/card");
+const { isCardPayload } = require("../../helpers/card");
 
 function report(review) {
     return {
@@ -53,7 +53,7 @@ describe("recommendationSend — helpers", () => {
         const r = report();
         const p = approvedPerPlayer(r)[0];
         const msg = buildRaiderMessage(r, p, p.items);
-        expect(isCard(msg)).toBe(true);
+        expect(isCardPayload(msg)).toBe(true);
         expect(msg.content).toBe("");
         expect(msg.embeds).toEqual([]);
         const text = cardText(msg);

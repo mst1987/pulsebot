@@ -1,21 +1,20 @@
 // The list of items whose worth depends on the boss, and the reason it exists:
 // they carry no caster stats, so every comparison reads such a slot as empty.
-const { SITUATIONAL_ITEMS, situationalItem, isSituational } = require("../../src/config/situationalItems");
+const { SITUATIONAL_ITEMS, situationalItem } = require("../../src/config/situationalItems");
 const wowsims = require("../../src/config/wowsims");
 
 describe("config/situationalItems", () => {
     it("knows both halves of Mark of the Champion", () => {
-        expect(isSituational(23206)).toBe(true);
-        expect(isSituational(23207)).toBe(true);
+        expect(situationalItem(23206)).toBeTruthy();
         expect(situationalItem(23207).name).toBe("Mark of the Champion");
     });
 
     it("takes a string id too — a log row carries ids as strings", () => {
-        expect(isSituational("23207")).toBe(true);
+        expect(situationalItem("23207")).toBe(situationalItem(23207));
     });
 
     it("leaves ordinary gear alone", () => {
-        expect(isSituational(31064)).toBe(false);
+        expect(situationalItem(31064)).toBeNull();
         expect(situationalItem(0)).toBeNull();
         expect(situationalItem(undefined)).toBeNull();
     });

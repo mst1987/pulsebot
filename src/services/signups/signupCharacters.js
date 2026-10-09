@@ -47,9 +47,4 @@ function migrateSignup(signup) {
     return out;
 }
 
-/** The alternates of a signup ("kann auch mit"): every character after the first. */
-function alternatesOf(signup) {
-    return (migrateSignup(signup) || { characters: [] }).characters.slice(1);
-}
-
-module.exports = { MAX_CHARACTERS, CHARACTER_STATUSES, characterStatus, migrateSignup, alternatesOf };
+module.exports = { MAX_CHARACTERS, CHARACTER_STATUSES, characterStatus, migrateSignup };

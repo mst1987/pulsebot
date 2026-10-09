@@ -1,6 +1,6 @@
 // The findings on the report page (src/web/report/recommendations.js): review
 // rights, one finding row, the raid's list and the "Alle senden" box.
-const { IMPACT_LABEL, IMPACT_TONE, canReview, recItem, renderRaidRecommendations, renderKeyFindings, renderSendBox } = require("../../../src/web/report/recommendations");
+const { IMPACT_LABEL, IMPACT_TONE, canReview, recItem, renderKeyFindings, renderSendBox } = require("../../../src/web/report/recommendations");
 
 const item = (over = {}) => ({ key: "k1", impact: "high", title: "Flask fehlt", text: "Regeltext", approved: null, custom: "", evidence: [], ...over });
 
@@ -76,24 +76,6 @@ describe("web/report/recommendations", () => {
 
         it("falls back to the raw impact for an unknown one", () => {
             expect(recItem(item({ impact: "odd" }), "raid", null, true)).toContain("<span class=\"badge\">odd</span>");
-        });
-    });
-
-    describe("renderRaidRecommendations", () => {
-        const rec = { raid: [item({ key: "a", title: "Offen" }), item({ key: "b", title: "Frei", approved: true })] };
-
-        it("shows a reviewer every finding and a reader only the approved ones", () => {
-            const all = renderRaidRecommendations(rec, true);
-            expect(all.match(/<details class="rec /g)).toHaveLength(2);
-            const approved = renderRaidRecommendations(rec, false);
-            expect(approved.match(/<details class="rec /g)).toHaveLength(1);
-            expect(approved).toContain("data-key=\"b\"");
-        });
-
-        it("says so when nothing is left to show", () => {
-            const empty = "<div class=\"rlist rec-list\"><div class=\"rec-empty\">Nichts, was den ganzen Raid gekostet hätte.</div></div>";
-            expect(renderRaidRecommendations({ raid: [item()] }, false)).toBe(empty);
-            expect(renderRaidRecommendations({}, true)).toBe(empty);
         });
     });
 

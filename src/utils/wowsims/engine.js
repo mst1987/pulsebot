@@ -242,25 +242,8 @@ async function simulate({ gear, specEntry, swap = null, iterations, duration }) 
     };
 }
 
-/**
- * What one item would do for this raider: the DPS with it in, minus the DPS of
- * their current gear.
- *
- * The baseline is passed in rather than measured again per item — the caller
- * sims a raider's bare gear once and then every candidate against it, which
- * halves the runs and, more importantly, keeps every delta measured against the
- * exact same baseline number.
- *
- * @returns {Promise<{dps, delta, available, supported, error}>}
- */
-async function simulateSwap({ gear, specEntry, swap, baselineDps, iterations, duration }) {
-    const run = await simulate({ gear, specEntry, swap, iterations, duration });
-    const delta = run.dps !== null && typeof baselineDps === "number" ? run.dps - baselineDps : null;
-    return { ...run, delta };
-}
-
 module.exports = {
-    isAvailable, binaryPath, buildRequest, runRequest, simulate, simulateSwap,
+    isAvailable, binaryPath, buildRequest, runRequest, simulate,
     parseUnknownGemId, stripGem, buildIndividualExport,
     ITERATIONS, FIGHT_DURATION, WOWSIMS_VERSION, REPO,
 };

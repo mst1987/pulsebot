@@ -24,7 +24,6 @@ const BOT_COMMAND_GROUPS = [
     { id: "recruitment", label: "Recruitment", icon: "inv_misc_grouplooking" },
 ];
 
-const GROUP_IDS = BOT_COMMAND_GROUPS.map((g) => g.id);
 const MODES = ["everyone", "roles", "admins"];
 
 const SNOWFLAKE = /^\d{17,20}$/;
@@ -69,6 +68,6 @@ function normalizeBotCommandAccess(raw) {
 }
 
 module.exports = {
-    BOT_COMMAND_GROUPS, GROUP_IDS, MODES,
+    BOT_COMMAND_GROUPS, MODES,
     normalizeRule, normalizeBotCommandAccess, cleanRoleIds,
 };

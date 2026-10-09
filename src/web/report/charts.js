@@ -24,9 +24,6 @@ const PAD_RIGHT = 28;    // room for the last axis label
 const PX_PER_SEC = 6;    // the fixed time scale
 const MIN_PLOT_W = 700;  // a short fight still fills a reasonable width
 const LINE_H = 180;      // the DPS/HPS plot height
-const BAR_ROW_H = 28;
-const BAR_LABEL_W = 170;
-const BAR_VALUE_W = 60;
 
 function esc(s) {
     return String(s === undefined || s === null ? "" : s)
@@ -277,40 +274,6 @@ function markerTable(rows) {
 }
 
 /**
- * Horizontal bars, one per row, for a percentage or count across bosses or
- * players. Thin bars with a rounded data end, value at the tip, optional link.
- * Not a timeline: it keeps its labels and fits the container.
- *
- * @param {object} chart
- * @param {Array<{ label, value, max?, display?, href?, tone? }>} chart.rows
- * @param {number} [chart.max]   scale maximum (default: 100 or the largest value)
- */
-function barChart(chart) {
-    const rows = chart.rows || [];
-    if (rows.length === 0) return "<div class=\"fc-empty\">Keine Daten.</div>";
-    const width = chart.width || 900;
-    const plotW = width - BAR_LABEL_W - BAR_VALUE_W;
-    const max = Math.max(1, chart.max || Math.max(100, ...rows.map((r) => Number(r.value) || 0)));
-    const height = PAD_TOP * 2 + rows.length * BAR_ROW_H;
-    const body = rows.map((row, i) => {
-        const y = PAD_TOP + i * BAR_ROW_H;
-        const v = Math.max(0, Math.min(max, Number(row.value) || 0));
-        const w = (v / max) * plotW;
-        const display = row.display !== undefined ? row.display : `${row.value}`;
-        const text = `<text class="fc-label" x="6" y="${y + BAR_ROW_H / 2 + 4}" data-tip="${esc(row.label)}">${esc(row.label)}</text>`;
-        const label = row.href ? `<a href="${esc(row.href)}">${text}</a>` : text;
-        // rounded at the data end only: square at the baseline
-        const bar = w > 0
-            ? `<path class="fc-bar${row.tone ? ` fc-${row.tone}` : ""}" d="M${BAR_LABEL_W},${y + 6} h${Math.max(0, w - 4).toFixed(1)} a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-${Math.max(0, w - 4).toFixed(1)} z" data-tip="${esc(row.label)}" data-tip-sub="${esc(display)}"/>`
-            : "";
-        return `<g class="fc-row">${label}<line class="fc-track" x1="${BAR_LABEL_W}" y1="${y + BAR_ROW_H / 2}" x2="${BAR_LABEL_W + plotW}" y2="${y + BAR_ROW_H / 2}"/>${bar}<text class="fc-value" x="${(BAR_LABEL_W + w + 6).toFixed(1)}" y="${y + BAR_ROW_H / 2 + 4}">${esc(display)}</text></g>`;
-    }).join("");
-    const svg = `<svg class="fchart fc-bars" viewBox="0 0 ${width} ${height}" width="100%" role="img" aria-label="${esc(chart.title || "Balken")}">${body}</svg>`;
-    const table = `<table class="idx fc-table"><tr><th>Zeile</th><th>Wert</th></tr>${rows.map((r) => `<tr><td>${esc(r.label)}</td><td>${esc(r.display !== undefined ? r.display : r.value)}</td></tr>`).join("")}</table>`;
-    return `<figure class="fc-figure">${chart.title ? `<figcaption class="fc-title">${esc(chart.title)}</figcaption>` : ""}${svg}<details class="fc-details"><summary>Als Tabelle</summary>${table}</details></figure>`;
-}
-
-/**
  * Line chart over the fight: up to two series (DPS and HPS, say) on one axis,
  * plus an optional boss-health line on its own 0–100 % scale drawn as a faint
  * reference — never a second numeric axis. Values are equally spaced buckets of
@@ -398,7 +361,6 @@ function fmtNumber(v) {
 module.exports = {
     ribbonChart,
     markerChart,
-    barChart,
     lineChart,
     fmtTime,
     axisTicks,

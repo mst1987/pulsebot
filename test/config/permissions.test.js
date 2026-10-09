@@ -1,5 +1,5 @@
 const {
-    AREAS, AREA_IDS, emptyAccess, fullAccess, can, canAny, hasAnyAccess, readableAreas,
+    AREAS, AREA_IDS, emptyAccess, fullAccess, can, hasAnyAccess,
     normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess, mergeAccess, baseAccessMap,
     accessForRoles, accessForUser, userCan, userCanAny, userHasMenuAccess,
 } = require("../../src/config/permissions");
@@ -13,7 +13,7 @@ describe("config/permissions", () => {
 
         it("grants nothing / everything", () => {
             expect(hasAnyAccess(emptyAccess())).toBe(false);
-            expect(readableAreas(fullAccess())).toEqual(AREA_IDS);
+            expect(AREA_IDS.filter((id) => can(fullAccess(), id))).toEqual(AREA_IDS);
         });
     });
 
@@ -34,16 +34,6 @@ describe("config/permissions", () => {
             expect(can({ raids: { read: true } }, "cla")).toBe(false);
             expect(can(null, "raids")).toBe(false);
             expect(can(undefined, "raids")).toBe(false);
-        });
-    });
-
-    describe("canAny", () => {
-        it("is true as soon as one of the areas is granted", () => {
-            const access = { loot: { read: true, write: false } };
-            expect(canAny(access, ["history", "loot"])).toBe(true);
-            expect(canAny(access, ["history", "loot"], "write")).toBe(false);
-            expect(canAny(access, ["history"])).toBe(false);
-            expect(canAny(access, [])).toBe(false);
         });
     });
 

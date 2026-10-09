@@ -9,7 +9,8 @@ const { listByCharacter } = require("../../../src/stores/lootStore");
 const { itemCatalog } = require("../../../src/services/loot/lootStats");
 const { annotatedCharacters } = require("../../../src/services/characters/characterInfo");
 const { myCharacters: charactersForUser } = require("../../../src/services/characters/userCharacters");
-const { EMBED_LIMITS, embedSize } = require("../../../src/utils/discord/botLookup");
+const { EMBED_LIMITS } = require("../../../src/utils/discord/botLookup");
+const { embedSize } = require("../../helpers/embed");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 

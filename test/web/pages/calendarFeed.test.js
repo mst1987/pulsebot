@@ -45,8 +45,7 @@ function haveEvents(list) {
 beforeEach(() => {
     jest.clearAllMocks();
     tokens.useFile(FILE);
-    tokens.revokeAllFor(BROKK);
-    tokens.revokeAllFor(ZIBBO);
+    for (const uid of [BROKK, ZIBBO]) for (const t of tokens.listTokensFor(uid)) tokens.revokeToken(t.id, uid);
     clearCache();
     haveEvents([]);
     signupStore.signupsOfUser.mockReturnValue({});

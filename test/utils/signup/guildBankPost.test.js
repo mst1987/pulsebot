@@ -1,7 +1,7 @@
 const { ButtonStyle } = require("discord.js");
 const post = require("../../../src/utils/signup/guildBankPost");
 const { cardText, cardButtons, cardColor } = require("../../helpers/cardText");
-const { isCard } = require("../../../src/utils/discord/card");
+const { isCardPayload } = require("../../helpers/card");
 
 const REQUEST = {
     id: "abc123", userId: "200000000000000001", userName: "Anna_*", categoryId: "cat1",
@@ -39,7 +39,7 @@ describe("utils/signup/guildBankPost", () => {
 
     it("posts an open free-text request to the orga as a card in German, amber, with Erledigt and Ablehnen", () => {
         const payload = post.orgaPayload(REQUEST, { categoryName: "╭・ TBC Montag" });
-        expect(isCard(payload)).toBe(true);
+        expect(isCardPayload(payload)).toBe(true);
         expect(cardColor(payload)).toBe(0xe8a33d);
         expect(cardText(payload)).toBe([
             "-# Gildenbank",
