@@ -72,6 +72,7 @@
   "GET /api/roster/character-claims",
   "GET /api/rosters",
   "GET /api/rosters/roster",
+  "GET /api/rosters/history",
   "GET /api/rosters/sync",
   "GET /api/rosters/member-search",
   "GET /api/rosters/options",

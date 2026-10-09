@@ -18,7 +18,13 @@ jest.mock("../../../src/web/roster/rosterView", () => ({
     buildRosterDetail: jest.fn(async ({ id }) => (id === "r1" ? { roster: { id: "r1" }, members: [], canManage: false } : null)),
 }));
 
+jest.mock("../../../src/web/roster/activeRoster", () => ({ activeRoster: jest.fn((req, id) => (id === "r1" ? { id: "r1", guildId: "g1", history: [] } : null)) }));
+jest.mock("../../../src/web/roster/rosterHistoryView", () => ({
+    buildRosterHistory: jest.fn(async () => ({ entries: [{ what: "created" }], total: 1, offset: 0, limit: 50 })),
+}));
+
 const auth = require("../../../src/web/http/auth");
+const { buildRosterHistory } = require("../../../src/web/roster/rosterHistoryView");
 const view = require("../../../src/web/roster/rosterView");
 const { emptyAccess } = require("../../../src/config/permissions");
 const { get } = routerClient(require("../../../src/web/apiRoutes/rosters"));
@@ -72,5 +78,23 @@ describe("GET /api/rosters/roster", () => {
         auth.getUser.mockReturnValue(MEMBER);
         expect(status(await get("/api/rosters/roster", { id: "r1" }))).toBe(403);
         expect(view.buildRosterDetail).not.toHaveBeenCalled();
+    });
+});
+
+describe("GET /api/rosters/history", () => {
+    it("answers a page of the history of a roster of the active server, for roster readers", async () => {
+        auth.getUser.mockReturnValue(READER);
+        const res = await get("/api/rosters/history", { id: "r1", userId: "100001", offset: "50", limit: "20" });
+        expect(status(res)).toBe(200);
+        expect(body(res)).toEqual({ entries: [{ what: "created" }], total: 1, offset: 0, limit: 50 });
+        expect(buildRosterHistory).toHaveBeenCalledWith({ id: "r1", guildId: "g1", history: [] }, { userId: "100001", offset: "50", limit: "20" });
+    });
+
+    it("asks for an id, answers 404 for an unknown roster (or another server's) and stays shut without the area", async () => {
+        expect(status(await get("/api/rosters/history"))).toBe(400);
+        expect(status(await get("/api/rosters/history", { id: "nope" }))).toBe(404);
+        auth.getUser.mockReturnValue(MEMBER);
+        expect(status(await get("/api/rosters/history", { id: "r1" }))).toBe(403);
+        expect(buildRosterHistory).not.toHaveBeenCalled();
     });
 });

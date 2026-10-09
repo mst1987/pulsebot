@@ -6,7 +6,7 @@ import { RemoveX, type Tone } from "./Badge";
 // a category) or taken out again (`onRemove`, e.g. a log channel). Several go
 // in a `.chip-row`. A plain label is a Badge, not a chip.
 
-export default function Chip({ tone, icon, pressed, onClick, onRemove, removeLabel, tip, tipSub, className = "", children }: {
+export default function Chip({ tone, icon, pressed, onClick, onRemove, removeLabel, tip, tipSub, disabled, className = "", children }: {
     tone?: Tone;
     /** A line icon before the text (e.g. the check of a chip that is on). */
     icon?: ReactNode;
@@ -17,13 +17,15 @@ export default function Chip({ tone, icon, pressed, onClick, onRemove, removeLab
     removeLabel?: string;
     tip?: string;
     tipSub?: string;
+    /** A toggle chip that cannot be switched (the reason goes in `tip` / `tipSub`). */
+    disabled?: boolean;
     className?: string;
     children: ReactNode;
 }) {
     const cls = ["badge", "chip", tone || "", className].filter(Boolean).join(" ");
     if (onClick) {
         return (
-            <button type="button" className={cls} aria-pressed={pressed} data-tip={tip} data-tip-sub={tipSub} onClick={onClick}>
+            <button type="button" className={cls} aria-pressed={pressed} disabled={disabled} data-tip={tip} data-tip-sub={tipSub} onClick={onClick}>
                 {icon}{children}
             </button>
         );

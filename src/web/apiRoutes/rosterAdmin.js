@@ -8,6 +8,8 @@
 //                             allowMultipleChars and signupOnly - a changed
 //                             admin-only field answers 403 "admin_only", anyone
 //                             else 403 "not_manager" (services/roster/rosterSettings.js)
+// A roster of another server than the active one is 404 "not_found" for
+// update, delete and composition (web/roster/activeRoster.js).
 // Errors answer with a code the client translates (DE/EN).
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
@@ -20,6 +22,7 @@ const { createRosterWithSource } = require("../../services/roster/rosterCreate")
 const { updateRosterSettings } = require("../../services/roster/rosterSettings");
 const { rosterOptions, serverRoles } = require("../../services/roster/rosterOptions");
 const { rosterComposition } = require("../../services/roster/rosterComposition");
+const { activeRoster } = require("../roster/activeRoster");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
@@ -71,8 +74,8 @@ const postRosterCreate = withUser({ write: "roster", csrf: true, body: true }, a
  *   allowMultipleChars?, signupOnly? } (only what is sent changes; slots and managers merge per key).
  * Answer: { roster, trimmedChars } (members cut to one character by switching allowMultipleChars off).
  */
-const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, async ({ user, body, res }) => {
-    const roster = rosterStore.getRoster(str(body.rosterId));
+const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const roster = activeRoster(req, body.rosterId);
     if (!roster) return refuse(res, "not_found");
     const isAdmin = user.isAdmin === true;
     if (!isAdmin && !(await canManageRosterLive(user, roster))) return refuse(res, "not_manager");
@@ -87,10 +90,10 @@ const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, a
  * stay where they are, nobody's roles are touched; the category's raider roles
  * in the settings keep the roster's last roles. Body: { rosterId }. Answer: { rosterId, deleted: true }.
  */
-const postRosterDelete = withUser({ write: "roster", csrf: true, body: true }, async ({ user, body, res }) => {
+const postRosterDelete = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {
     if (user.isAdmin !== true) return refuse(res, "admin_only");
     const id = str(body.rosterId);
-    if (!rosterStore.deleteRoster(id)) return refuse(res, "not_found");
+    if (!activeRoster(req, id) || !rosterStore.deleteRoster(id)) return refuse(res, "not_found");
     return ok(res, { rosterId: id, deleted: true });
 });
 
@@ -98,8 +101,8 @@ const postRosterDelete = withUser({ write: "roster", csrf: true, body: true }, a
  * GET /api/rosters/composition?id=<rosterId> — the Komposition tab
  * (services/roster/rosterComposition.js) plus whether the caller may manage the roster.
  */
-const getRosterComposition = withUser({}, async ({ user, query, res }) => {
-    const roster = rosterStore.getRoster(str(query.get("id")));
+const getRosterComposition = withUser({}, async ({ user, req, query, res }) => {
+    const roster = activeRoster(req, query.get("id"));
     if (!roster) return refuse(res, "not_found");
     return ok(res, { ...rosterComposition(roster), canManage: await canManageRosterLive(user, roster) });
 });

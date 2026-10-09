@@ -1,5 +1,6 @@
-// The roster overview (#654): one card per roster with its figures and open
-// tasks, a dashed card per category without roster, the way to "Alle Charaktere".
+// The roster overview (#654, #657): one card per roster with its figures and open
+// tasks, a dashed card per category without roster (with "Roster anlegen" for a
+// full admin), the way to "Alle Charaktere" and the head's "Roster anlegen".
 import { screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
@@ -59,6 +60,25 @@ describe("RostersPage", () => {
         expect(within(card("Sonntag")).getByText("Nichts offen")).toBeInTheDocument();
     });
 
+    it("names the trials that end soon or ran out instead of the plain trial count (#658)", async () => {
+        await openPage(overview({
+            rosters: [
+                rosterHead({ trialEnding: [{ userId: "u1", displayName: "Brakk", trialUntil: "2026-10-12T00:00:00.000Z", overdue: false }] }),
+                rosterHead({ id: "r2", name: "Sonntag", trialEnding: [
+                    { userId: "u2", displayName: "Syl", trialUntil: "2026-10-01T00:00:00.000Z", overdue: true },
+                    { userId: "u3", displayName: "Varok", trialUntil: "2026-10-12T00:00:00.000Z", overdue: false },
+                ] }),
+            ],
+        }));
+        const first = within(card("Raid Mo / Do"));
+        const soon = first.getByText("Probezeit endet bald: 1");
+        expect(soon).toHaveAttribute("data-tip-sub", "Brakk · Probezeit bis 12.10.2026");
+        expect(first.queryByText("2 in Probezeit")).not.toBeInTheDocument();
+        const late = within(card("Sonntag")).getByText("1 Probezeit abgelaufen");
+        expect(late).toHaveClass("mid");
+        expect(late.getAttribute("data-tip-sub")).toContain("Syl · Probezeit seit 1.10.2026 abgelaufen");
+    });
+
     it("shows a roster without raids and without plan in words, not as 0", async () => {
         await openPage(overview({
             rosters: [rosterHead({ attendance: null, slots: { total: 0, tank: 0, healer: 0, bench: 0 }, places: 9, mainRole: null })],
@@ -71,18 +91,26 @@ describe("RostersPage", () => {
         expect(screen.getByText("1 Roster")).toBeInTheDocument();
     });
 
-    it("draws a category without roster as a dashed card without a button", async () => {
+    it("draws a category without roster as a dashed card with \"Roster anlegen\" for a full admin", async () => {
         await openPage();
         const empty = card("PuG Karazhan");
         expect(empty).toHaveClass("rn-card-empty");
         expect(within(empty).getByText("Diese Kategorie hat noch kein Roster.")).toBeInTheDocument();
-        expect(within(empty).queryByRole("button")).not.toBeInTheDocument();
+        expect(within(empty).getByRole("button", { name: "Roster anlegen" })).toHaveClass("btn-ghost");
         expect(within(empty).queryByRole("link")).not.toBeInTheDocument();
     });
 
-    it("leads to all characters and has no primary button yet", async () => {
+    it("leads to all characters and has one primary button, \"Roster anlegen\"", async () => {
         await openPage();
         expect(screen.getByRole("link", { name: "Alle Charaktere" })).toHaveAttribute("href", "/roster/chars");
+        const primary = document.querySelectorAll(".btn:not(.btn-ghost)");
+        expect(primary).toHaveLength(1);
+        expect(primary[0]).toHaveTextContent("Roster anlegen");
+    });
+
+    it("offers no creating to someone who may not create rosters", async () => {
+        await openPage(overview({ canCreate: false }));
+        expect(screen.queryByRole("button", { name: "Roster anlegen" })).not.toBeInTheDocument();
         expect(document.querySelectorAll(".btn:not(.btn-ghost)")).toHaveLength(0);
     });
 

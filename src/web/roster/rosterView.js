@@ -1,6 +1,9 @@
 // What the roster pages read (#654, docs/roster-profile.md "Roster-Seiten"):
 // the overview's cards (GET /api/rosters) and one roster with its members
-// (GET /api/rosters/roster?id=). Read only - editing comes with #655-#657.
+// (GET /api/rosters/roster?id=). The writes are web/apiRoutes/rosterMembers.js,
+// rosterRoles.js and rosterAdmin.js (#655-#657); for a caller who may manage the
+// roster the detail adds what the editing needs: each member's note and further
+// profile characters of the version (`otherChars`), and the roster's `settings`.
 //
 // The data is rosterStore.js (#653); everything else is looked up on read and
 // best-effort:
@@ -131,6 +134,14 @@ function characterView(key, member, profile, versionId, ctx) {
     };
 }
 
+/** The profile characters of the version the member does not play in this roster yet, as character views. */
+function otherCharacters(member, profile, versionId, ctx) {
+    if (!profile) return [];
+    return profiles.charactersOfVersion(profile, versionId)
+        .filter((c) => !member.chars.includes(c.key))
+        .map((c) => characterView(c.key, { charNames: {} }, profile, versionId, ctx));
+}
+
 /** The characters attendance is counted with: the roster's, then every profile character of the version. */
 function attendanceChars(chars, profile, versionId) {
     const out = chars.map((c) => ({ name: c.name, className: c.className, manual: true }));
@@ -174,15 +185,21 @@ function contextCache(guildId) {
  * Every member of a roster as a row: identity, status, characters, role,
  * whether the Discord role is there and the attendance per person.
  */
-function memberRows(roster, { ctx, discordData, config }) {
+function memberRows(roster, { ctx, discordData, config, manage = false }) {
     const { members: discordMembers } = discordData;
     const roleIds = roster.roleIds || [];
+    const rosterRoleIds = [...roleIds, roster.trialRoleId].filter(Boolean);
     const rows = Object.entries(roster.members).map(([userId, member]) => {
         const profile = profiles.getProfile(userId);
         const dm = discordMembers ? discordMembers.get(userId) : null;
         const chars = member.chars.map((key) => characterView(key, member, profile, roster.versionId, ctx));
         let hasRole = null;
         if (discordMembers && roleIds.length) hasRole = !!dm && (dm.roleIds || []).some((id) => roleIds.includes(String(id)));
+        const held = dm ? (dm.roleIds || []).map(String) : [];
+        const extra = manage ? {
+            note: member.note || "",
+            otherChars: otherCharacters(member, profile, roster.versionId, ctx),
+        } : {};
         return {
             userId,
             displayName: str(dm && dm.displayName) || str(profile && profile.name) || (chars[0] && chars[0].name) || userId,
@@ -194,7 +211,10 @@ function memberRows(roster, { ctx, discordData, config }) {
             chars,
             role: chars[0] ? chars[0].role : "",
             hasRole,
+            // the roster's roles this person holds (main, others, trial); null when the member list is unavailable
+            heldRoles: discordMembers ? rosterRoleIds.filter((id) => held.includes(id)) : null,
             attendance: null,
+            ...extra,
             _attendanceChars: attendanceChars(chars, profile, roster.versionId),
         };
     });
@@ -272,11 +292,38 @@ function rosterHead(roster, { ctx, names, discordData, figures, guildId }) {
         raids: info.raids,
         icon: info.icon || DEFAULT_ICON,
         mainRole: roleView(discordData.roles, roster.roleIds[0]),
+        trialRole: roleView(discordData.roles, roster.trialRoleId),
         discordRoles: roster.roleIds.map((id) => roleView(discordData.roles, id)),
         slots: { ...roster.slots },
         allowMultipleChars: roster.allowMultipleChars,
         source: roster.source.kind,
         ...figures,
+    };
+}
+
+/**
+ * What the settings dialog starts from (managers and admins only): the stored
+ * fields a head does not carry, the manager accounts with their names.
+ */
+function rosterSettingsView(roster, discordData) {
+    const nameOf = (userId) => {
+        const dm = discordData.members ? discordData.members.get(userId) : null;
+        const p = profiles.getProfile(userId);
+        return str(dm && dm.displayName) || str(p && p.name) || userId;
+    };
+    return {
+        categoryId: roster.categoryId,
+        versionId: roster.versionId,
+        roleIds: [...roster.roleIds],
+        trialRoleId: roster.trialRoleId,
+        managers: {
+            roleIds: [...roster.managers.roleIds],
+            userIds: [...roster.managers.userIds],
+            users: roster.managers.userIds.map((userId) => ({ userId, displayName: nameOf(userId) })),
+        },
+        signupOnly: roster.signupOnly,
+        allowMultipleChars: roster.allowMultipleChars,
+        slots: { ...roster.slots },
     };
 }
 
@@ -321,17 +368,19 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     if (!roster || (guildId && roster.guildId && roster.guildId !== guildId)) return null;
     const discordData = await loadDiscord(roster.guildId || guildId);
     const ctx = contextCache(roster.guildId || guildId)(roster.versionId);
-    const members = memberRows(roster, { ctx, discordData, config });
+    const canManage = await canManageRosterLive(user, roster).catch(() => false);
+    const members = memberRows(roster, { ctx, discordData, config, manage: canManage });
     const head = rosterHead(roster, {
         ctx, names: categoryNames(roster.guildId || guildId), discordData, figures: rosterFigures(members), guildId: roster.guildId || guildId,
     });
-    const canManage = await canManageRosterLive(user, roster).catch(() => false);
     return {
         roster: head,
         members,
         window: roster.categoryId ? categoryAttendanceFor(config, roster.categoryId).window : null,
         membersKnown: !!discordData.members,
         canManage,
+        isAdmin: !!(user && user.isAdmin === true),
+        settings: canManage ? rosterSettingsView(roster, discordData) : null,
     };
 }
 

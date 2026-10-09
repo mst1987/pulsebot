@@ -216,6 +216,8 @@ export type RosterHead = {
     raids: number;
     icon: string;
     mainRole: RosterDiscordRole | null;
+    /** The extra role of status trial; null when the roster has none. */
+    trialRole: RosterDiscordRole | null;
     discordRoles: (RosterDiscordRole | null)[];
     slots: { total: number; tank: number; healer: number; bench: number };
     allowMultipleChars: boolean;
@@ -231,6 +233,8 @@ export type RosterHead = {
     attendanceCounted: number;
     /** `withoutRole` null when the Discord member list is not available. */
     todo: { withoutRole: number | null; withoutChar: number; trial: number };
+    /** Overview cards only (#658): trial members whose end lies within 7 days or has passed, earliest first. */
+    trialEnding?: { userId: string; displayName: string; trialUntil: string; overdue: boolean }[];
 };
 
 export type RosterOverview = {
@@ -270,6 +274,12 @@ export type RosterMember = {
     role: RosterRole;
     /** Holds one of the roster's Discord roles; null when unknown (no list or no role set). */
     hasRole: boolean | null;
+    /** The roster's roles (main, others, trial) this person holds; null when the member list is unavailable. */
+    heldRoles: string[] | null;
+    /** The orga's note — only for a caller who may manage the roster. */
+    note?: string;
+    /** Further profile characters of the roster's version, not assigned here — only for a manager. */
+    otherChars?: RosterMemberChar[];
     /** Per person over the category's window; null without category or without characters. */
     attendance: (RosterAttendance & { link?: "manual" | "auto" }) | null;
 };
@@ -281,6 +291,21 @@ export type RosterDetail = {
     window: number | null;
     membersKnown: boolean;
     canManage: boolean;
+    isAdmin: boolean;
+    /** What the settings dialog starts from; null for a caller who may not manage the roster. */
+    settings: RosterSettings | null;
+};
+
+/** The stored settings of a roster a head does not carry (GET /api/rosters/roster, managers and admins). */
+export type RosterSettings = {
+    categoryId: string | null;
+    versionId: string;
+    roleIds: string[];
+    trialRoleId: string | null;
+    managers: { roleIds: string[]; userIds: string[]; users: { userId: string; displayName: string }[] };
+    signupOnly: boolean;
+    allowMultipleChars: boolean;
+    slots: RosterHead["slots"];
 };
 
 /** Every roster of the active server as a card. */
