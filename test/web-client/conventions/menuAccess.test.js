@@ -51,14 +51,14 @@ describe("one menu for both front ends", () => {
         expect(groups).toEqual([
             // Abwesenheiten sits in Start on purpose (Oct 2026): raiders follow their own attendance there
             { name: "Start", ids: ["home", "signups", "absences", "profile"] },
-            { name: "Raids", ids: ["raids", "roster", "cla"] },
-            { name: "Loot", ids: ["history", "lootcouncil", "bank"] },
-            { name: "Gilde", ids: ["recruitment", "kader", "channels"] },
-            { name: "System", ids: ["settings"] },
+            // Oct 2026: loot pages moved under Raids (no own Loot group), Roster + Gildenbank under Gilde, Kanäle under System
+            { name: "Raids", ids: ["raids", "cla", "history", "lootcouncil"] },
+            { name: "Gilde", ids: ["roster", "kader", "recruitment", "bank"] },
+            { name: "System", ids: ["channels", "settings"] },
         ]);
         // a group is one contiguous block, so its heading is printed once
         expect(new Set(groups.map((g) => g.name)).size).toBe(groups.length);
-        for (const g of groups) expect(g.ids.length).toBeLessThanOrEqual(g.name === "Start" ? 4 : 3);
+        for (const g of groups) expect(g.ids.length).toBeLessThanOrEqual(4);
     });
 
     it("uses the icons of the approved design", () => {
