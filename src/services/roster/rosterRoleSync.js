@@ -282,7 +282,8 @@ async function reconcile(guildId, { now = Date.now() } = {}) {
     try {
         let list;
         try {
-            list = await discord.fetchGuildMembersCached(gid, guild);
+            // a fresh list: the reconcile adds and removes members from it
+            list = await discord.fetchGuildMembersCached(gid, guild, { fresh: true });
         } catch (e) {
             out.error = (e && e.message) || "members_unavailable";
             return finish();

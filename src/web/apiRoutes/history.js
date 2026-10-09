@@ -18,6 +18,7 @@ const { lootCatalog, suggestedContents } = require("../loot/lootCatalog");
 const { reasonCatalog } = require("../../utils/loot/lootReasons");
 const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../../services/characters/characterInfo");
 const { getCharacter } = require("../../stores/characterStore");
+const { loadCharGear } = require("../../services/characters/charGear");
 const { issuesForCharacter } = require("../characters/charGearIssues");
 const { parseLoot, buildManualItem, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("../loot/lootEventMatch");
@@ -589,13 +590,15 @@ const getHistoryChar = withUser({}, async ({ res, url }) => {
     let gearError = bz.reason === "version_not_configured" ? bz.message : "";
     let charSummary = null;
     if (gearConfigured && name) {
-        // Summary first — its level/last-login reveal whether the profile is
-        // the right character (a level 60/80 hit on a level-70 TBC char means
-        // a wrong-namespace match → wrong-era gear).
-        charSummary = await client.getCharacterSummary(name);
-        gear = await client.getEquipment(name);
+        // The summary's level/last-login reveal whether the profile is the right
+        // character (a level 60/80 hit on a level-70 TBC char means a
+        // wrong-namespace match → wrong-era gear). Both requests side by side,
+        // a found character kept for 10 minutes (services/characters/charGear.js).
+        const loaded = await loadCharGear(bz, name);
+        charSummary = loaded.charSummary;
+        gear = loaded.gear;
         if (gear === null) {
-            const e = client.lastError || {};
+            const e = loaded.error || {};
             if (e.status === 404) gearError = `Charakter „${name}" nicht in der Blizzard-API gefunden (404, Namespace ${gearNamespace}). Realm-Slug „${bz.realmSlug}"/Schreibweise prüfen oder den Namespace in Einstellungen → Spielversion ändern.`;
             else if (e.status === 403) gearError = "Zugriff verweigert (403) — die Profile-API ist für diesen Realm evtl. nicht freigegeben.";
             else if (e.status === 401) gearError = "Authentifizierung fehlgeschlagen (401) — Battle.net Client-ID/Secret prüfen.";

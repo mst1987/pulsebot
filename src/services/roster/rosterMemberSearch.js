@@ -1,6 +1,6 @@
 // "Mitglied hinzufügen" (#655): search the Discord members of a roster's server
-// (the cached full member list, discord.fetchGuildMembersCached - a minute old
-// at most) by display name, account name or a profile character's name, with
+// (the cached full member list, discord.fetchGuildMembersCached, stale-while-revalidate:
+// joins and leaves show up after its next refresh) by display name, account name or a profile character's name, with
 // each person's profile characters of the roster's version as the suggestion
 // (the first one is preselected). Best effort: without the bot or the member
 // list it answers a code ("offline", "members_unavailable") instead of an

@@ -139,6 +139,7 @@ class Blizzard {
         this.locale = opts.locale || "en_GB";
         this._token = null;
         this._tokenExpiry = 0; // epoch ms
+        this._tokenRequest = null; // the token request in flight, shared by parallel callers
         // Reason the last getEquipment() returned null, for UI diagnostics:
         // { status, message } or { reason: "not_configured" | "no_name" }.
         this.lastError = null;
@@ -166,6 +167,14 @@ class Blizzard {
      */
     async getToken() {
         if (this._token && Date.now() < this._tokenExpiry) return this._token;
+        // Two requests side by side (summary + gear, services/characters/charGear.js) share one token request.
+        if (!this._tokenRequest) {
+            this._tokenRequest = this._requestToken().finally(() => { this._tokenRequest = null; });
+        }
+        return this._tokenRequest;
+    }
+
+    async _requestToken() {
         const res = await this.http.post(this.tokenUrl, "grant_type=client_credentials", {
             auth: { username: this.clientId, password: this.clientSecret },
             headers: { "Content-Type": "application/x-www-form-urlencoded" },

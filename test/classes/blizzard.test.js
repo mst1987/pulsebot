@@ -336,6 +336,25 @@ describe("classes/Blizzard", () => {
             expect(await new Blizzard().getCharacterSummary("Foo")).toBeNull();
             expect(axios.get).not.toHaveBeenCalled();
         });
+
+        it("summary and gear side by side share one token request", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockResolvedValue({ data: { name: "Foo", equipped_items: [] } });
+            const c = configured();
+            await Promise.all([c.getCharacterSummary("Foo"), c.getEquipment("Foo")]);
+            expect(axios.post).toHaveBeenCalledTimes(1);
+            expect(axios.get).toHaveBeenCalledTimes(2);
+        });
+
+        it("asks for a token again after a failed token request", async () => {
+            axios.post.mockRejectedValueOnce({ response: { status: 401 } });
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockResolvedValue({ data: { name: "Foo" } });
+            const c = configured();
+            expect(await c.getCharacterSummary("Foo")).toBeNull();
+            expect(await c.getCharacterSummary("Foo")).toMatchObject({ name: "Foo" });
+            expect(axios.post).toHaveBeenCalledTimes(2);
+        });
     });
 
     describe("transport (classes/httpClient)", () => {
