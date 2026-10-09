@@ -26,7 +26,7 @@ import { useT } from "../../i18n";
 type Tone = "ok" | "mid" | "bad" | "accent" | undefined;
 
 const STATUS_TONE: Record<string, Tone> = { signed: "ok", late: "mid", tentative: "mid", bench: undefined, absence: undefined };
-const NIGHT_TONE: Record<string, Tone> = { present: "ok", bench: undefined, vacation: undefined, absence: undefined, noSignup: "mid", noShow: "bad" };
+const NIGHT_TONE: Record<string, Tone> = { present: "ok", bench: undefined, vacation: undefined, absence: undefined, noSignup: "mid", noShow: "bad", tentative: undefined };
 
 /** Where the raider signs up for one raid: the "Anmeldungen" page opened on it. */
 function signupHref(eventId: string): string {
@@ -223,7 +223,7 @@ export function MyRaids({ raids }: { raids: PersonalRaid[] }) {
     );
 }
 
-const LETTER_STATUS = ["present", "bench", "vacation", "absence", "noSignup", "noShow"];
+const LETTER_STATUS = ["present", "bench", "vacation", "absence", "noSignup", "noShow", "tentative"];
 
 /** The last nights as fields: colour and letter per status (the attendance grid's), newest on the right. */
 export function AttendanceDots({ nights }: { nights: NonNullable<DashboardPersonal["attendance"]>["last"] }) {

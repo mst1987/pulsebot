@@ -8,7 +8,7 @@ import type { CharGearReport, CharLootPreview, RosterAttendance, RosterRole } fr
 import { useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { ROLE_META, attendanceGroups, attendanceTone, nightLabel } from "../../lib/roster/rosterView";
-import { countsAsPresent, overrideLine, statusLabel } from "../../lib/roster/attendanceStatus";
+import { countsAsPresent, countsForQuota, overrideLine, statusLabel } from "../../lib/roster/attendanceStatus";
 import { roleLabel } from "../../lib/wow/wowNames";
 import { Badge, RichTip, WowIcon } from "../ui";
 
@@ -49,11 +49,12 @@ export function AttendanceBar({ attendance, categoryName }: { attendance: Roster
     const { attended, total, pct } = attendance;
     const tone = attendanceTone(pct) || "";
     const groups = attendanceGroups(attendance);
-    const missed = groups.filter((g) => !countsAsPresent(g.status));
+    // a "maybe" the setup left out is no missed night
+    const missed = groups.filter((g) => !countsAsPresent(g.status) && countsForQuota(g.status));
     const manual = groups.flatMap((g) => g.nights).filter((n) => n.override).sort((a, b) => b.startTime - a.startTime);
     // one group: its colour, word and count on the left, the nights as small date fields on the right
     const group = (g: (typeof groups)[number]) => (
-        <div key={g.status} className={`ros-atip-grp ros-atip-${countsAsPresent(g.status) ? "present" : "absent"}`} data-att={g.status}>
+        <div key={g.status} className={`ros-atip-grp ros-atip-${countsAsPresent(g.status) ? "present" : countsForQuota(g.status) ? "absent" : "neutral"}`} data-att={g.status}>
             <span className="ros-atip-lbl"><i className="ros-atip-sw" aria-hidden="true" />{statusLabel(g.status)}<small>{t("roster.badge.raidCount", { count: g.nights.length })}</small></span>
             <span className="ros-atip-days">
                 {g.nights.map((n) => (

@@ -5,7 +5,8 @@
         "vacation": "Urlaub",
         "absence": "Abgemeldet",
         "noSignup": "Nicht angemeldet",
-        "noShow": "Nicht erschienen"
+        "noShow": "Nicht erschienen",
+        "tentative": "Vielleicht"
     },
     "letter": {
         "present": "D",
@@ -13,7 +14,8 @@
         "vacation": "U",
         "absence": "A",
         "noSignup": "?",
-        "noShow": "X"
+        "noShow": "X",
+        "tentative": "V"
     },
     "hint": {
         "present": "Im Log, oder ohne Log angemeldet. Zählt.",
@@ -21,7 +23,8 @@
         "vacation": "Eine eingetragene Abwesenheit deckt den Raid. Entschuldigt, zählt aber als gefehlt.",
         "absence": "Für diesen Raid abgemeldet.",
         "noSignup": "Keine Anmeldung und nicht im Log.",
-        "noShow": "Angemeldet oder vorläufig, aber nicht im Log."
+        "noShow": "Angemeldet (oder vorläufig und aufgestellt), aber nicht im Log.",
+        "tentative": "Vorläufig angemeldet und nicht aufgestellt. Zählt weder für noch gegen die Quote."
     },
     "detail": {
         "inLog": "im Log",
@@ -35,7 +38,9 @@
         "absence": "für diesen Raid abgemeldet",
         "notInLog": "nicht im Log",
         "noSignup": "keine Anmeldung",
-        "tentative": "vorläufig"
+        "tentative": "vorläufig",
+        "tentativePlaced": "vorläufig, aufgestellt",
+        "tentativeNotPlaced": "vorläufig, nicht aufgestellt – zählt nicht"
     },
     "override": {
         "line": "von Hand: {status} ({who})",

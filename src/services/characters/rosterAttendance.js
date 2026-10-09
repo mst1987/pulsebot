@@ -20,12 +20,15 @@
 //   - signed off for this raid                              -> "absence"
 //   - the night has a log, signed/late, not in it            -> "bench" (detail
 //     benchNotInLog; for now the orga counts these as bench, Oct 2026)
-//   - tentative and not in the log (or no log)              -> "noShow"
+//   - tentative, placed in the approved setup, not in the
+//     log                                                   -> "noShow" (no log: "present")
+//   - tentative and not placed (or no setup known)          -> "tentative": neutral,
+//     the night is shown but counts neither for nor against the quota (Oct 2026)
 //   - no signup and not in the log                          -> "noSignup"
 //   - no log and no raider assigned to the character        -> not counted at all:
 //     without a Discord account behind the name there is nothing to compare.
-// "present" and "bench" count for the quota (`attended`), the other four are
-// missed. Each night also carries a `detail` code (why: inLog, signed, late,
+// "present" and "bench" count for the quota (`attended`), "tentative" not at all
+// (not in `total`), the other four are missed. Each night also carries a `detail` code (why: inLog, signed, late,
 // benchSetup, notInLog, ...) and `reason`, the same in German words - kept for
 // the bot's /anwesenheit lines, which read it as they always did.
 // The window is the category's last RAID_WINDOW nights that carry any evidence
@@ -35,6 +38,11 @@
 // Role (the second open question): what the character last played in a log —
 // a hybrid's spec in the loot export says little about whether they healed
 // last Thursday — and the spec only when no log knows them.
+//
+// Which characters count for an account (attendanceForAccounts): the ones the
+// caller names, every character the orga assigned the account in ANY category
+// (raiderCharactersStore - a rogue assigned under "TBC Montag" also stands for
+// the account in "PUG Raids"), and per night the characters of its own signup.
 const { listStoredEvents } = require("../events/eventSources");
 const { listLogs } = require("../../stores/logStore");
 const { listReports, getReport } = require("../../stores/reportStore");
@@ -48,6 +56,7 @@ const eventStore = require("../../stores/eventStore");
 const availabilityStore = require("../../stores/availabilityStore");
 const overridesStore = require("../../stores/attendanceOverridesStore");
 const { benchAndPool } = require("../setup/setupCore");
+const { listAllAssignments } = require("../../stores/raiderCharactersStore");
 
 /** How many raid nights of a category attendance looks back over. */
 const RAID_WINDOW = 11;
@@ -57,9 +66,11 @@ const RAID_WINDOW = 11;
 const MAX_REPORTS = 40;
 
 /** The status codes of a night, in the order the tooltip lists them. */
-const STATUSES = ["present", "bench", "noSignup", "absence", "vacation", "noShow"];
+const STATUSES = ["present", "bench", "noSignup", "absence", "vacation", "noShow", "tentative"];
 /** The statuses that count for the quota. */
 const ATTENDED = new Set(["present", "bench"]);
+/** Whether a night counts at all: "tentative" (not placed) is shown, but neither attended nor missed. */
+const counts = (night) => night.status !== "tentative";
 
 /** The German words of the detail codes (`reason`, read by the bot's /anwesenheit). */
 const DETAIL_WORDS = {
@@ -75,9 +86,12 @@ const DETAIL_WORDS = {
     notInLog: "nicht im Log",
     noSignup: "keine Anmeldung",
     tentative: "vorläufig",
+    tentativePlaced: "vorläufig, aufgestellt",
+    tentativeNotPlaced: "vorläufig, nicht aufgestellt (zählt nicht)",
 };
 const STATUS_WORDS = {
     present: "dabei", bench: "Ersatzbank", vacation: "Urlaub", absence: "abgemeldet", noSignup: "nicht angemeldet", noShow: "nicht erschienen",
+    tentative: "vorläufig (zählt nicht)",
 };
 
 /** One night's verdict from a status and the detail that explains it. */
@@ -115,12 +129,13 @@ function vacationIds(entries, ev) {
 }
 
 /**
- * Who stood on the bench of an own event's setup: the approved lineup's bench
- * (the frozen snapshot holds only the explicit bench), else the draft's explicit
- * bench (#517: the pool "Angemeldet" is no bench) - minus anybody placed in a group.
+ * Who an own event's setup placed in a group (`placed`: a tentative among them
+ * was expected) and who stood on its bench: the approved lineup's bench (the
+ * frozen snapshot holds only the explicit bench), else the draft's explicit bench
+ * (#517: the pool "Angemeldet" is no bench) - minus anybody placed in a group.
  */
-function setupBenchIds(setup) {
-    if (!setup || typeof setup !== "object") return new Set();
+function setupPlaces(setup) {
+    if (!setup || typeof setup !== "object") return { placed: new Set(), bench: new Set() };
     const snapshot = setup.approved && Array.isArray(setup.approved.groups) ? setup.approved : null;
     const lineup = snapshot || setup;
     const placed = new Set();
@@ -130,7 +145,7 @@ function setupBenchIds(setup) {
         }
     }
     const bench = snapshot ? (Array.isArray(snapshot.bench) ? snapshot.bench : []) : benchAndPool(setup).bench;
-    return new Set(bench.filter((b) => b && b.userId && !placed.has(String(b.userId))).map((b) => String(b.userId)));
+    return { placed, bench: new Set(bench.filter((b) => b && b.userId && !placed.has(String(b.userId))).map((b) => String(b.userId))) };
 }
 
 /** fn(), or `fallback` when it throws: the extra sources (setups, absences, overrides) are best-effort. */
@@ -251,9 +266,12 @@ function buildAttendanceContext(guildId, opts = {}) {
         const signUps = Array.isArray(ev.signUps) ? ev.signUps : [];
         if (!logs.length && !signUps.length) continue;
         const list = raidsByCategory.get(ev.categoryId) || [];
+        const places = setupPlaces(setupById.get(String(ev.id)));
         list.push({
             id: String(ev.id), title: ev.title || "", startTime: ev.startTime, signUps, logs,
-            bench: setupBenchIds(setupById.get(String(ev.id))),
+            bench: places.bench,
+            // who stood in a group: a tentative who did was expected, one who did not was not
+            placed: places.placed,
             vacation: vacationIds(absences, ev),
             overrides: overrides[String(ev.id)] || {},
         });
@@ -298,7 +316,11 @@ function nightStatus(raid, key, userIds) {
     if (!logged && (status === "signed" || status === "late")) return verdict("present", status);
     if (ids.some((id) => raid.vacation && raid.vacation.has(id))) return verdict("vacation", "vacation");
     if (status === "absence") return verdict("absence", "absence");
-    if (status === "tentative") return verdict("noShow", "tentative");
+    if (status === "tentative") {
+        // only somebody the orga set up was expected; a "maybe" left out of the setup missed nothing
+        if (ids.some((id) => raid.placed && raid.placed.has(id))) return verdict(logged ? "noShow" : "present", "tentativePlaced");
+        return verdict("tentative", "tentativeNotPlaced");
+    }
     // signed up but missing from the log: counted as bench for now (the orga's call, Oct 2026)
     if (logged && (status === "signed" || status === "late")) return verdict("bench", "benchNotInLog");
     if (logged) return verdict(signUp ? "noShow" : "noSignup", "notInLog");
@@ -318,7 +340,14 @@ function nightEntry(raid, st) {
 
 /** The missed nights of a night list, without `attended`. */
 function missedOf(raids) {
-    return raids.filter((r) => !r.attended).map(({ attended: _a, ...rest }) => rest);
+    return raids.filter((r) => !r.attended && counts(r)).map(({ attended: _a, ...rest }) => rest);
+}
+
+/** attended / total / pct of a night list; neutral nights are in neither. */
+function quota(raids) {
+    const counted = raids.filter(counts);
+    const attended = counted.filter((r) => r.attended).length;
+    return { attended, total: counted.length, pct: counted.length ? Math.round((attended / counted.length) * 100) : null };
 }
 
 /**
@@ -340,11 +369,8 @@ function attendanceFor(ctx, categoryId, character, userIds = []) {
         if (!st) continue;
         raids.push(nightEntry(raid, st));
     }
-    const attended = raids.filter((r) => r.attended).length;
     return {
-        attended,
-        total: raids.length,
-        pct: raids.length ? Math.round((attended / raids.length) * 100) : null,
+        ...quota(raids),
         raids,
         missed: missedOf(raids),
     };
@@ -386,8 +412,48 @@ function countedNights(ctx, categoryId, opts) {
  *            inferred: number, missed: {eventId, title, startTime, status, detail, reason, override?}[],
  *            raids?: {eventId, title, startTime, attended, status, detail, reason, override?}[]}>}
  */
+/**
+ * The characters the orga assigned each account, over every category — read once per call.
+ * @returns {Map<string, string[]>} userId -> character names
+ */
+function assignedByUser() {
+    const out = new Map();
+    for (const map of Object.values(attempt(() => listAllAssignments(), {}) || {})) {
+        for (const [userId, name] of Object.entries(map || {})) {
+            const clean = String(name || "").trim();
+            if (!clean) continue;
+            const list = out.get(String(userId)) || [];
+            if (!list.some((n) => n.toLowerCase() === clean.toLowerCase())) list.push(clean);
+            out.set(String(userId), list);
+        }
+    }
+    return out;
+}
+
+/** An account's characters plus the ones assigned to it anywhere, one entry per name. */
+function withAssigned(account, assigned) {
+    const chars = [...(account.chars || [])];
+    const known = new Set(chars.map((c) => characterKeyOf(c.name)));
+    for (const name of assigned.get(String(account.userId)) || []) {
+        const key = characterKeyOf(name);
+        if (known.has(key)) continue;
+        known.add(key);
+        chars.push({ name, className: "", manual: true });
+    }
+    return { ...account, chars };
+}
+
+/** The character keys an account's own signup names for one night (several in priority order, or one). */
+function signupKeys(raid, userId) {
+    const signUp = [...(raid.signUps || [])].reverse().find((s) => s && String(s.userId) === userId);
+    if (!signUp) return [];
+    const named = Array.isArray(signUp.characters) && signUp.characters.length ? signUp.characters.map((ch) => ch && ch.character) : [signUp.character];
+    return named.map((n) => String(n || "").trim()).filter(Boolean).map(characterKeyOf);
+}
+
 function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
-    const list = (accounts || []).filter((a) => a && a.userId && (a.chars || []).length);
+    const assigned = assignedByUser();
+    const list = (accounts || []).filter((a) => a && a.userId).map((a) => withAssigned(a, assigned)).filter((a) => a.chars.length);
     const claimed = new Set(list.flatMap((a) => a.chars.map((c) => characterKeyOf(c.name))));
     const acc = new Map(list.map((a) => [String(a.userId), { raids: [], inferred: 0 }]));
     const classOf = (a) => String((a.chars.find((c) => c.className) || {}).className || "").toLowerCase();
@@ -396,8 +462,11 @@ function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
     for (const raid of countedNights(ctx, categoryId, opts)) {
         const results = new Map();
         for (const a of list) {
-            const nights = a.chars.map((c) => nightStatus(raid, characterKeyOf(c.name), [String(a.userId)])).filter(Boolean);
-            const hit = nights.find((n) => n.attended) || nights[0];
+            // the account's characters, and whatever its signup of this night named (the character it actually brought)
+            const keys = [...new Set([...a.chars.map((c) => characterKeyOf(c.name)), ...signupKeys(raid, String(a.userId))])];
+            const nights = keys.map((key) => nightStatus(raid, key, [String(a.userId)])).filter(Boolean);
+            // a character in the log wins over another one's bench (signed up, not in the log), which wins over the rest
+            const hit = nights.find((n) => n.status === "present") || nights.find((n) => n.attended) || nights[0];
             if (hit) results.set(String(a.userId), hit);
         }
         // class guess: unclaimed log players by class against the accounts still missing
@@ -425,11 +494,8 @@ function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
     const out = new Map();
     for (const a of list) {
         const { raids, inferred } = acc.get(String(a.userId));
-        const attended = raids.filter((r) => r.attended).length;
         out.set(String(a.userId), {
-            attended,
-            total: raids.length,
-            pct: raids.length ? Math.round((attended / raids.length) * 100) : null,
+            ...quota(raids),
             link: a.chars.some((c) => c.manual) && !inferred ? "manual" : "auto",
             inferred,
             missed: missedOf(raids),

@@ -151,6 +151,8 @@
 .ros-atip-lbl small { display: block; margin-top: 1px; font-size: 11.5px; font-weight: 500; color: var(--muted); }
 .ros-atip-sw { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; border-radius: 3px; background: var(--att); }
 .ros-atip-absent .ros-atip-sw { background: transparent; border: 2px solid var(--att); }
+/* a "maybe" the setup left out counts neither way: a dashed swatch */
+.ros-atip-neutral .ros-atip-sw { background: transparent; border: 2px dashed var(--att); }
 .ros-atip-days { display: flex; flex-wrap: wrap; gap: 4px; }
 .ros-atip-day { position: relative; display: inline-flex; align-items: center; height: 22px; padding: 0 7px; border-radius: 5px; font: 600 11.5px/1 var(--font-mono); white-space: nowrap; color: var(--text); background: color-mix(in srgb, var(--att) 16%, transparent); }
 .ros-atip-absent .ros-atip-day { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--att) 55%, transparent); }

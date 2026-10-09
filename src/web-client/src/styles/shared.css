@@ -653,6 +653,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 [data-att="absence"] { --att: var(--att-absence); }
 [data-att="noSignup"] { --att: var(--att-nosignup); }
 [data-att="noShow"] { --att: var(--att-noshow); }
+[data-att="tentative"] { --att: var(--att-tentative); }
 .att-sq {
     position: relative; display: inline-grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; padding: 0;
     border-radius: 5px; border: 2px solid var(--att, var(--line)); background: color-mix(in srgb, var(--att, var(--line)) 16%, transparent);

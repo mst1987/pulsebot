@@ -5,7 +5,8 @@
         "vacation": "Vacation",
         "absence": "Signed off",
         "noSignup": "Not signed up",
-        "noShow": "No-show"
+        "noShow": "No-show",
+        "tentative": "Tentative"
     },
     "letter": {
         "present": "P",
@@ -13,7 +14,8 @@
         "vacation": "V",
         "absence": "O",
         "noSignup": "?",
-        "noShow": "X"
+        "noShow": "X",
+        "tentative": "T"
     },
     "hint": {
         "present": "In the log, or signed up without a log. Counts.",
@@ -21,7 +23,8 @@
         "vacation": "An absence entered for this period covers the raid. Excused, but counts as missed.",
         "absence": "Signed off for this raid.",
         "noSignup": "No signup and not in the log.",
-        "noShow": "Signed up or tentative, but not in the log."
+        "noShow": "Signed up (or tentative and set up), but not in the log.",
+        "tentative": "Signed up as tentative and not set up. Counts neither for nor against the quota."
     },
     "detail": {
         "inLog": "in the log",
@@ -35,7 +38,9 @@
         "absence": "signed off for this raid",
         "notInLog": "not in the log",
         "noSignup": "no signup",
-        "tentative": "tentative"
+        "tentative": "tentative",
+        "tentativePlaced": "tentative, set up",
+        "tentativeNotPlaced": "tentative, not set up – does not count"
     },
     "override": {
         "line": "set by hand: {status} ({who})",

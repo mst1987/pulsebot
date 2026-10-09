@@ -132,6 +132,7 @@ a.badge.ov-me-boss:hover { border-color: var(--accent); }
 .ov-dot.att-absence { background: var(--att-absence); }
 .ov-dot.att-nosignup { background: var(--att-nosignup); }
 .ov-dot.att-noshow { background: var(--att-noshow); }
+.ov-dot.att-tentative { background: var(--att-tentative); }
 
 /* ---- Latest Loot (shared with the Historie tab) ---- */
 .toploot { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
