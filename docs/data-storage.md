@@ -59,7 +59,14 @@ $BACKUP_DIR/                              Rechte 700
                                           mit dem Inhalt "snapshots/<neuester>" – lesen immer über latestSnapshot()
   status/snapshot.json                    { at, ok, reason, durationMs, bytes, error? } – Ergebnis des letzten Laufs
   .snapshot.lock                          Sperre eines laufenden Schnappschusses (Bot oder Befehl)
+  status/offsite.json, offsite-stage/,    gehören der Kopie außer Haus (#692, docs/backup.md)
+  server-config/
 ```
+
+**Auf dem Server einmal:** Der Bot muss `BACKUP_DIR` anlegen bzw. beschreiben dürfen. Läuft er nicht als root,
+das Verzeichnis vorher für seinen Benutzer anlegen: `install -d -m 700 -o <bot-user> -g <bot-user>
+/var/backups/pulsebot`. Sonst scheitert jeder Lauf mit `EACCES` (Logzeile `[backup]`; der Status lässt sich dann
+auch nicht schreiben).
 
 Ein Schnappschuss entsteht unter `snapshots/.<name>.part/` und wird erst am Ende umbenannt; erst danach wird
 `latest` umgesetzt. Leser ignorieren Namen mit Punkt. Dateien sind 600, Verzeichnisse 700 (unter Windows nur so
