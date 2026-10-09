@@ -19,6 +19,8 @@ vi.mock("../../api", async (orig) => ({
     // the live poll answers nothing here (KaderLive.test.tsx tests it)
     getKaderLive: vi.fn(),
     leaveKaderLive: vi.fn(),
+    // the roster button of the decision page (#658, RosterLink.test.tsx tests it)
+    getKaderRoster: vi.fn(async () => null),
     createKader: vi.fn(),
     setKaderState: vi.fn(),
     addKaderPlayers: vi.fn(),

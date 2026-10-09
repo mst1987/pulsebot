@@ -139,6 +139,11 @@ function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[];
     );
 }
 
+/** Whether anybody is expected to sign up: the category has a roster (#658) or raider roles. */
+function expectsRaiders(data: RaidCtx["data"]): boolean {
+    return data.attendanceSource ? true : data.attendanceSource === null ? false : !!data.attendanceRoleIds.length;
+}
+
 /**
  * Why the attendance check cannot run, at the head of the tab: a badge (a state,
  * never clickable) — and where it can be fixed, its own verb button beside it.
@@ -146,7 +151,7 @@ function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[];
 function AttendanceState({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
     const { data } = ctx;
-    if (!data.attendanceRoleIds.length) {
+    if (!expectsRaiders(data)) {
         return (
             <>
                 <Badge tone="mid" tip={t("raidDetail.roster.noRolesTip")} tipSub={t("raidDetail.roster.noRolesSub")}>
@@ -179,7 +184,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
     const { data, openModal, openPlayer } = ctx;
     const { setup, setupError, setupFromSnapshot, attendance, event: ev } = data;
-    const attendanceOk = !!data.attendanceRoleIds.length && ev.signupsKnown !== false && !data.membersError;
+    const attendanceOk = expectsRaiders(data) && ev.signupsKnown !== false && !data.membersError;
     const missing = attendanceOk ? [...attendance.missing].sort(byLabel) : [];
     const responded = useMemo(() => (attendanceOk ? attendance.responded : []), [attendanceOk, attendance.responded]);
 

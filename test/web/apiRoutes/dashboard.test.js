@@ -57,6 +57,7 @@ jest.mock("../../../src/web/dashboard/dashboardData", () => ({
     loadTopLoot: jest.fn(() => ({ items: [], configured: 0 })),
     loadChannelArchive: jest.fn(() => null),
     loadMissingChannels: jest.fn(() => Promise.resolve([])),
+    loadTrialEndings: jest.fn(() => Promise.resolve([])),
     dashboardVersions: jest.fn(() => ({ mainVersion: "tbc", versions: [{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 0 }] })),
 }));
 // The dashboard asks GitHub how far the server is behind main. Unmocked, this
@@ -288,6 +289,24 @@ describe("web/apiRoutes/dashboard", () => {
                 title: "Kanal von Karazhan fehlt", tone: "bad", href: "/raids/detail?event=eh-1",
                 action: { kind: "recreateChannel", eventId: "eh-1", label: "Kanal neu anlegen" },
             });
+        });
+
+        it("lists a trial ending soon as a calm task with take-over / extend (#658)", async () => {
+            const user = { id: "1", name: "Admin", isAdmin: true };
+            auth.getUser.mockReturnValue(user);
+            activeGuildFor.mockReturnValue("guild-1");
+            dashboardData.loadTrialEndings.mockResolvedValueOnce([{
+                rosterId: "r1", rosterName: "Donnerstag", userId: "222222222222222222", displayName: "Zibbo",
+                trialUntil: "2026-10-12T18:00:00.000Z", overdue: false, extendTo: "2026-10-26T18:00:00.000Z",
+            }]);
+            const res = await get("/api/dashboard");
+            expect(dashboardData.loadTrialEndings).toHaveBeenCalledWith("guild-1", expect.objectContaining({ id: "1" }));
+            const task = json(res).data.tasks.find((t) => t.id === "trial:r1:222222222222222222");
+            expect(task).toMatchObject({
+                tone: "accent", href: "/roster/r/r1", ref: { title: "Donnerstag" },
+                action: { kind: "rosterTrial", rosterId: "r1", userId: "222222222222222222", extendTo: "2026-10-26T18:00:00.000Z" },
+            });
+            expect(task.title).toContain("Zibbo");
         });
 
         it("returns 403 for a logged-in non-admin", async () => {

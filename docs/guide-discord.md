@@ -39,6 +39,8 @@ Technik: [signups.md](signups.md), [bot-commands.md](bot-commands.md)
 
 Für eine **neue** Anmeldung braucht man ggf. eine Raider-Rolle der jeweiligen Kategorie — eine bereits bestehende Anmeldung lässt sich aber immer noch ändern.
 
+Manche Raids nehmen **nur Anmeldungen aus dem Roster** an (Schalter „Anmeldung nur für das Roster“ am Roster der Kategorie). Dann dürfen sich nur Mitglieder mit Status **Stamm, Probe oder Ersatz** anmelden; wer nicht im Roster ist oder auf **Pause** steht, bekommt statt des Dialogs: „Für diesen Raid melden sich nur Mitglieder des Rosters an (Stamm, Probe oder Ersatz). Frag die Raidleitung.“ (auf Englisch: „Only members of the roster (core, trial or bench) sign up for this raid. Ask the raid lead.“). Eine schon bestehende Anmeldung lässt sich auch hier ändern oder zurückziehen, und die Raidleitung kann dich jederzeit eintragen.
+
 ## Setup (Gruppeneinteilung)
 
 Technik: [setup.md](setup.md)

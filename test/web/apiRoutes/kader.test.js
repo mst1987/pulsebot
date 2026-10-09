@@ -23,6 +23,11 @@ jest.mock("../../../src/services/events/eventSources", () => ({
     ...jest.requireActual("../../../src/services/events/eventSources"),
     listStoredEvents: jest.fn(() => []),
 }));
+jest.mock("../../../src/services/roster/rosterRoleSync", () => ({
+    applyMemberAdded: jest.fn(async () => ({ ok: true, results: [] })),
+    applyMemberRemoved: jest.fn(async () => ({ ok: true, results: [] })),
+    applyStatusChange: jest.fn(async () => ({ ok: true, results: [] })),
+}));
 jest.mock("../../../src/web/characters/profileLogs", () => ({
     ...jest.requireActual("../../../src/web/characters/profileLogs"),
     logIndex: jest.fn(() => new Map()),
@@ -33,6 +38,7 @@ const discord = require("../../../src/services/discord/discord");
 const { listStoredEvents } = require("../../../src/services/events/eventSources");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const kaderStore = require("../../../src/stores/kaderStore");
+const rosterStore = require("../../../src/stores/rosterStore");
 const { emptyAccess, mergeAccess, accessForUser } = require("../../../src/config/permissions");
 const { get, post, request } = routerClient(require("../../../src/web/apiRoutes/kader"));
 const put = (pathname, payload) => request("PUT", pathname, payload);
@@ -70,6 +76,7 @@ beforeAll(() => {
 afterAll(() => {
     profiles.useFile(null);
     kaderStore.useFile(null);
+    rosterStore.useFile(null);
 });
 
 let storeCount = 0;
@@ -77,6 +84,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     storeCount += 1;
     kaderStore.useFile(tempStoreFile(`kader-${storeCount}.json`));
+    rosterStore.useFile(tempStoreFile(`rosters-${storeCount}.json`));
     auth.getUser.mockReturnValue(ADMIN);
     auth.checkCsrf.mockReturnValue(true);
     discord.listHumanMembers.mockResolvedValue({ members: [
@@ -331,5 +339,66 @@ describe("web/apiRoutes/kader", () => {
             expect(body(res).players.find((p) => p.userId === U1).hasOverride).toBe(false);
             expect(fs.readFileSync(profileFile, "utf8")).toBe(profileBefore);
         });
+    });
+});
+
+describe("web/apiRoutes/kader the raid roster (#658)", () => {
+    const MARK = "KADER-GEHEIM";
+    /** A Kader with Aldric decided into the roster, interview note and comment carrying a marker. */
+    async function decidedKader() {
+        const { kaderId } = await kaderWithPlayers();
+        await post("/api/kader/players/state", { kaderId, userIds: [U1], to: "selected" });
+        await put("/api/kader/interview", { kaderId, userId: U1, wishes: [{ className: "Warrior", spec: "Warrior-Fury" }], note: MARK, lead: LEAD });
+        await post("/api/kader/comments", { kaderId, userId: U1, text: MARK });
+        await post("/api/kader/interview/complete", { kaderId, userId: U1 });
+        await post("/api/kader/players/state", { kaderId, userIds: [U1], to: "provisional" });
+        await post("/api/kader/players/state", { kaderId, userIds: [U1], to: "roster", decision: { className: "Warrior", spec: "Warrior-Fury" } });
+        return kaderId;
+    }
+    const rosterFrom = (kaderId, extra = {}) => rosterStore.createRoster({ guildId: "g1", name: "Forever-Roster", versionId: "forever", source: { kind: "kader", kaderId }, ...extra });
+
+    it("says what the roster button offers: create while there is none (admins), take over once there is", async () => {
+        const kaderId = await decidedKader();
+        let res = await get("/api/kader/roster", { kader: kaderId });
+        expect(body(res)).toEqual({ roster: null, candidates: 1, pending: 1, canCreate: true, canSync: false });
+        const roster = rosterFrom(kaderId);
+        res = await get("/api/kader/roster", { kader: kaderId });
+        expect(body(res)).toEqual({ roster: { id: roster.id, name: "Forever-Roster", members: 0 }, candidates: 1, pending: 1, canCreate: false, canSync: true });
+        expect(status(await get("/api/kader/roster", { kader: "nope" }))).toBe(404);
+    });
+
+    it("takes the decided players into the roster - status and character only, nothing private", async () => {
+        const kaderId = await decidedKader();
+        const roster = rosterFrom(kaderId);
+        const res = await post("/api/kader/roster/sync", { kaderId });
+        expect(status(res)).toBe(200);
+        expect(body(res)).toEqual({ rosterId: roster.id, added: 1, skipped: 0, kept: 0, roleFailures: [] });
+        expect(rosterStore.getRoster(roster.id).members[U1]).toEqual(expect.objectContaining({ status: "core", chars: ["forever~aldric sturmwind"], by: LEAD }));
+        const file = JSON.stringify(rosterStore.getRoster(roster.id));
+        for (const marker of [MARK, "PRIVATE-NOTE", "wishes", "votes", "comments"]) expect(file).not.toContain(marker);
+        // a second run finds nobody new and touches nobody
+        expect(body(await post("/api/kader/roster/sync", { kaderId }))).toMatchObject({ added: 0, kept: 1 });
+        expect(fs.readFileSync(profileFile, "utf8")).toBe(profileBefore);
+    });
+
+    it("lets only a manager of that roster with kader write take players over", async () => {
+        const kaderId = await decidedKader();
+        expect(status(await post("/api/kader/roster/sync", { kaderId }))).toBe(404);
+        const roster = rosterFrom(kaderId);
+        const writer = granted("write");
+        auth.getUser.mockReturnValue(writer);
+        let res = await post("/api/kader/roster/sync", { kaderId });
+        expect(status(res)).toBe(403);
+        expect(body(res).error.code).toBe("not_manager");
+        expect(body(await get("/api/kader/roster", { kader: kaderId }))).toMatchObject({ canCreate: false, canSync: false });
+        rosterStore.updateRoster(roster.id, { managers: { roleIds: [], userIds: [writer.id] } });
+        expect(body(await get("/api/kader/roster", { kader: kaderId }))).toMatchObject({ canSync: true });
+        res = await post("/api/kader/roster/sync", { kaderId });
+        expect(body(res)).toMatchObject({ added: 1 });
+        // a read grant never writes, manager or not
+        const reader = granted("read", writer.id);
+        auth.getUser.mockReturnValue(reader);
+        expect(status(await post("/api/kader/roster/sync", { kaderId }))).toBe(403);
+        expect(body(await get("/api/kader/roster", { kader: kaderId }))).toMatchObject({ canSync: false });
     });
 });

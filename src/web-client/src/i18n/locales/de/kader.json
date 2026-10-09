@@ -2,6 +2,57 @@
     "loading": "Lade den Kaderplaner …",
     "error": "Das hat nicht geklappt.",
     "system": "System",
+    "roster": {
+        "createButton": "Roster anlegen",
+        "createTip": "Ein Raid-Roster aus diesem Kader anlegen",
+        "createTipSub": {
+            "one": "{count} Spieler geht mit: Roster → Stamm, Bench → Ersatz, Tentative → Probe. Gespräche, Antworten, Stimmen und Kommentare bleiben im Kaderplaner.",
+            "other": "{count} Spieler gehen mit: Roster → Stamm, Bench → Ersatz, Tentative → Probe. Gespräche, Antworten, Stimmen und Kommentare bleiben im Kaderplaner."
+        },
+        "createTitle": "Roster aus dem Kader anlegen",
+        "createHint": "Es gehen nur der Status und der entschiedene Charakter mit. Danach ist im Roster alles bearbeitbar – Name, Mitglieder, Status, Rollen.",
+        "create": "Anlegen",
+        "category": "Raid-Kategorie",
+        "noCategory": "Ohne Kategorie",
+        "categoryHint": "Mit Kategorie gelten Erinnerungen, „fehlt“-Listen und der Setup-Vorschlag für dieses Roster. Sie lässt sich im Roster später ändern.",
+        "created": {
+            "one": "Roster angelegt – {count} Spieler übernommen.",
+            "other": "Roster angelegt – {count} Spieler übernommen."
+        },
+        "syncButton": {
+            "one": "Ins Roster übernehmen ({count})",
+            "other": "Ins Roster übernehmen ({count})"
+        },
+        "syncTip": "Neu entschiedene Spieler ins Roster übernehmen",
+        "syncTipSub": "Wer schon im Roster ist, bleibt unverändert. Es gehen nur Status und Charakter mit.",
+        "syncTitle": "In „{name}“ übernehmen?",
+        "syncText": {
+            "one": "{count} Spieler kommt neu ins Roster und bekommt die Roster-Rolle. Wer schon drin ist, bleibt unverändert.",
+            "other": "{count} Spieler kommen neu ins Roster und bekommen die Roster-Rolle. Wer schon drin ist, bleibt unverändert."
+        },
+        "sync": "Übernehmen",
+        "synced": {
+            "one": "{count} Spieler ins Roster übernommen.",
+            "other": "{count} Spieler ins Roster übernommen."
+        },
+        "roleFailures": {
+            "one": "Bei {count} Spieler konnte die Rolle nicht vergeben werden.",
+            "other": "Bei {count} Spielern konnte die Rolle nicht vergeben werden."
+        },
+        "open": "Zum Roster",
+        "openTip": "{name} öffnen",
+        "openTipSub": {
+            "one": "{count} Mitglied. Dort sind Name, Mitglieder, Status und Rollen bearbeitbar.",
+            "other": "{count} Mitglieder. Dort sind Name, Mitglieder, Status und Rollen bearbeitbar."
+        },
+        "error": {
+            "category_taken": "Diese Kategorie hat schon ein Roster.",
+            "kader_not_found": "Diesen Kader gibt es nicht mehr.",
+            "invalid_name": "Bitte einen Namen angeben.",
+            "name_too_long": "Der Name ist zu lang (höchstens 40 Zeichen).",
+            "admin_only": "Roster anlegen dürfen nur Admins."
+        }
+    },
     "quote": "„{text}“",
     "state": {
         "pool": "Pool",

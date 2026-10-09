@@ -53,7 +53,13 @@
     "tasks": {
         "title": "Open tasks",
         "allDone": "All done",
-        "allDoneNote": "Sheets filled, logs assigned, recommendations reviewed."
+        "allDoneNote": "Sheets filled, logs assigned, recommendations reviewed.",
+        "trial": {
+            "adopt": "Take over",
+            "extend": "Extend",
+            "adopted": "Taken over – now core.",
+            "extended": "Trial extended until {date}."
+        }
     },
     "areas": {
         "bosses": { "one": "{count} boss", "other": "{count} bosses" },

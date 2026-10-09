@@ -84,7 +84,9 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
     const noteStatus = absent || signupStatusOf(picks, status) === "tentative";
     const noteMode = noteStatus ? row.noteMode || "optional" : "none";
     const noteMissing = noteMode === "required" && comment.trim().length < 2;
-    const canSubmit = !busy && !closed && !noteMissing && (absent || (!!character && !!spec));
+    // "Anmeldung nur für das Roster" (#658): no roster member with status core, trial or bench — the server refuses too
+    const rosterOnly = !!row.rosterOnly;
+    const canSubmit = !busy && !closed && !rosterOnly && !noteMissing && (absent || (!!character && !!spec));
     // What the segment shows as chosen: the status every character shares, "" when they differ (#320).
     const shared = absent ? "absence" : commonStatus(picks, status);
     const pickStatus = (s: SignupStatus) => {
@@ -118,7 +120,8 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
             if (res.notice) toast(res.notice, res.waitlisted ? "err" : undefined);
             else toast(absent ? t("signups.dialog.toastAbsent", { title: row.title }) : t("signups.dialog.toastSaved", { title: row.title, status: SIGNUP_STATUS[signupStatusOf(picks, status)].label }));
         } catch (e) {
-            toast((e as ApiError).message, "err");
+            const err = e as ApiError;
+            toast(err.code === "roster_only" ? t("signups.dialog.rosterOnly") : err.message, "err");
         } finally {
             setBusy(false);
         }
@@ -140,9 +143,11 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
             kicker={kicker}
             title={`${row.title} · ${mine ? t("signups.dialog.change") : t("signups.signUp")}`}
             width={720}
-            hint={closed
-                ? t("signups.dialog.started")
-                : row.deadlinePassed ? t("signups.dialog.deadlineHint") : undefined}
+            hint={rosterOnly
+                ? t("signups.dialog.rosterOnly")
+                : closed
+                    ? t("signups.dialog.started")
+                    : row.deadlinePassed ? t("signups.dialog.deadlineHint") : undefined}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>

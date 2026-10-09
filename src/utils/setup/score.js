@@ -14,11 +14,11 @@
 // setting can trade a missing healer for a nicer group.
 
 const { ROLES } = require("../../config/gameVersions");
-const { GROUP_SIZE, STATUS_FACTOR, GEAR_FACTOR } = require("./model");
+const { GROUP_SIZE, STATUS_FACTOR, GEAR_FACTOR, ROSTER_FACTOR } = require("./model");
 
 const FILL = 10000;
 const ROLE_MIN = 30000;
-const BENCH_STATUS = 6000;
+const BENCH_STATUS = 7000;
 const MAX_WEIGHT = 500;
 // A party buff everybody wants (Blood Pact, Healing Stream) is worth having, but
 // it must not outbid a targeted one for the same totem slot (Mana Spring for casters).
@@ -44,6 +44,9 @@ const UNIVERSAL_FACTOR = 0.5;
  *   avoid          a penalty for an "nicht zusammen" pair in the same group (one raid)
  *                  or the same raid (parallel raids). Off unless the orga asks for it
  *                  (`options.avoid`) — it separates, it never benches anybody on its own
+ *   roster         the roster status in a category with a roster (#658): core 1, trial
+ *                  0.6, bench 0.3, no member 0 — so the roster comes first, non-members
+ *                  after. Without a roster nobody has a status and it changes nothing
  */
 const DEFAULT_WEIGHTS = {
     partyBuffs: 60,
@@ -57,6 +60,7 @@ const DEFAULT_WEIGHTS = {
     attendance: 40,
     wishes: 60,
     avoid: 100,
+    roster: 200,
 };
 
 /** Defaults overridden by whatever numbers `given` carries, each clamped to 0…MAX_WEIGHT. */
@@ -101,6 +105,7 @@ function staticParts(model, cand, opt, weights) {
         gear: weights.gear * (GEAR_FACTOR[opt.gear] === undefined ? 0.5 : GEAR_FACTOR[opt.gear]),
         fairness: fairOn ? weights.fairness * cand.fairness.priority : 0,
         attendance: weights.attendance * att,
+        roster: weights.roster * (ROSTER_FACTOR[cand.roster] || 0),
     };
 }
 
@@ -178,7 +183,7 @@ function makeScorer(model) {
     const avoidPairs = model.avoidOverride === true ? model.avoidPairs || [] : [];
 
     function run(opt, grp, detail) {
-        const parts = detail ? { fill: 0, benchStatus: 0, status: 0, mainSpec: 0, preferredCharacter: 0, gear: 0, fairness: 0, attendance: 0, roles: 0, raidBuffs: 0, requiredBuffs: 0, partyBuffs: 0, wishes: 0, avoid: 0 } : null;
+        const parts = detail ? { fill: 0, benchStatus: 0, status: 0, mainSpec: 0, preferredCharacter: 0, gear: 0, fairness: 0, attendance: 0, roster: 0, roles: 0, raidBuffs: 0, requiredBuffs: 0, partyBuffs: 0, wishes: 0, avoid: 0 } : null;
         let total = 0;
         const ev = events.map((e) => ({
             count: 0,

@@ -66,6 +66,27 @@ roster maps roster → core, bench → bench, tentative → trial; the character
 key of the roster's version when the profile has it, else the name as typed, else a profile character of the decided
 class, else the profile's first. Afterwards the roster is independent: nothing flows back into the Kader.
 
+**In the planner (#658):** the bar of the decision page (`/kader/<id>/roster`, `pages/kader/RosterLink.tsx`, beside
+"Beispiel-Setups") shows the roster action:
+
+- **"Roster anlegen"** — while no roster has `source.kaderId` = this Kader, for full admins only. A dialog with the
+  name (default the Kader's) and an optional raid category (only categories without roster, from `GET
+  /api/rosters/options`), then `POST /api/rosters/create` with `source: "kader"`; the toast says how many came along.
+  Without a category the roster plays the planner's version (Forever when that rule set exists — the characters are
+  looked up there), with one the category's version.
+- **"Ins Roster übernehmen (n)"** — once the roster exists, for whoever has `kader` write and manages that roster
+  (`canManageRosterLive`: full admin, a manager account or role). `n` = players in roster / bench / tentative who are
+  not in the roster yet; after a confirmation `POST /api/kader/roster/sync` (`rosterCreate.syncRosterFromKader`) takes
+  them in the same way (status, character, main role); **members already in the roster are never touched**, and nobody
+  is taken out because the Kader moved them back. Role failures are counted in the toast.
+- **"Zum Roster"** — the link to `/roster/r/<id>`: name, members, status and roles are edited there.
+
+`GET /api/kader/roster?kader=<id>` (area `kader` read, `rosterCreate.kaderRosterState`) answers counts only: `{ roster:
+{ id, name, members } | null, candidates, pending, canCreate, canSync }`; the button refetches it when the counts of
+the decided states change. The kader route requires `services/roster/rosterCreate.js` and `rosterStore` — never the
+other way round —, so `kaderRoster.js` stays the only door (`test/stores/kaderStore.test.js`); the route test fills an
+interview note and a comment with a marker and asserts neither reaches the roster.
+
 ## The version and the server
 
 - Version: `forever` when that rule set exists, else the main version (`kaderSource.plannerVersion()`); the content
@@ -314,9 +335,11 @@ Parameters in the body; `kaderId` names the Kader.
 | `POST /api/kader/accounts` | `{ userId, displayName, kaderId?, character? }` — with `kaderId` also into that Kader's pool (whole view) |
 | `POST /api/kader/accounts/remove` | `{ kaderId, userId }` — only an account added by hand |
 | `PUT /api/kader/assignments` · `POST …/reset` | `{ kaderId, userId, characters, activeCharacterId, baseRev?, force? }` · `{ kaderId, userId }` |
+| `POST /api/kader/roster/sync` | `{ kaderId }` — "Ins Roster übernehmen" (#658): `kader` write **and** manager of the roster the Kader created → `{ rosterId, added, skipped, kept, roleFailures }` |
 
 `baseRev`/`force`: see "Live" — a save from an older revision answers 409 `stale`. The reads: `GET /api/kader`
-(the view), `GET /api/kader/kader?kader=<id>` (only the Kader), `GET /api/kader/live` (the poll).
+(the view), `GET /api/kader/kader?kader=<id>` (only the Kader), `GET /api/kader/live` (the poll),
+`GET /api/kader/roster?kader=<id>` (the roster button, "Roster aus einem Kader").
 
 ## The page
 

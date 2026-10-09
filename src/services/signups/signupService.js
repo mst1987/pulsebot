@@ -26,7 +26,11 @@
 //     from holders of one of them (`raider_role`) — the rule that also hides such
 //     events on the page (categoryVisible). Roles that cannot be read let the
 //     signup through, an existing own signup may still be changed or withdrawn,
-//     the orga is exempt.
+//     the orga is exempt;
+//   * "Anmeldung nur für das Roster" (#658): where the category's roster has
+//     `signupOnly`, the roster replaces the role rule — only members with status
+//     core, trial or bench take a new signup (`roster_only`; paused members do
+//     not). Same exemptions: the orga, and an existing own signup.
 //
 // Saving goes through signupStore.saveSignup, whose change event already edits
 // the event message (eventMessage.js) and feeds every other listener.
@@ -44,6 +48,7 @@ const { versionOfEvent } = require("../events/mainVersion");
 const { archiveOf } = require("../events/eventArchive");
 const { normalizeOverflow, accountCount } = require("../../utils/signup/capacity");
 const { expectedRoleIds } = require("../roster/categoryRoles");
+const rosterStore = require("../../stores/rosterStore");
 
 // Statuses a member may still pick once the deadline has passed.
 const AFTER_DEADLINE = ["absence", "late"];
@@ -284,6 +289,24 @@ function lockIfFull(event, { now = Date.now() } = {}) {
 }
 
 const RAIDER_ROLE_ERROR = "Für diesen Raid brauchst du eine Raider-Rolle.";
+const ROSTER_ONLY_ERROR = "Für diesen Raid melden sich nur Mitglieder des Rosters an (Stamm, Probe oder Ersatz). Frag die Raidleitung.";
+// Who may sign up where the roster says "Anmeldung nur für das Roster" (#658): pause is out.
+const ROSTER_SIGNUP_STATUSES = ["core", "trial", "bench"];
+
+/**
+ * "Anmeldung nur für das Roster" (#658, `roster.signupOnly`): null when the
+ * category's roster does not ask for it (or there is no roster) - then the
+ * raider-role rule applies -, else whether the user is a member with status
+ * core, trial or bench (a paused member is not).
+ * @returns {boolean|null}
+ */
+function rosterOnlyAccess(categoryId, userId) {
+    const cat = String(categoryId || "").trim();
+    const roster = cat ? rosterStore.rosterForCategory(cat) : null;
+    if (!roster || !roster.signupOnly) return null;
+    const member = roster.members[String(userId || "")];
+    return !!member && ROSTER_SIGNUP_STATUSES.includes(member.status);
+}
 
 /**
  * Whether a member's roles let them into a category with raider roles
@@ -320,11 +343,14 @@ function categoryVisible(categoryId, { config = {}, roleIds = null, orga = false
 async function checkRaiderRole(event, userId, { byOrga = false, previous, roleIds, config } = {}) {
     if (byOrga || !event) return { ok: true };
     const cfg = config || settingsStore.getConfig();
-    const roles = expectedRoleIds(event.categoryId, cfg);
-    if (!roles.length) return { ok: true };
     const uid = String(userId || "");
+    const only = rosterOnlyAccess(event.categoryId, uid);
+    const roles = only === null ? expectedRoleIds(event.categoryId, cfg) : [];
+    if (only === null && !roles.length) return { ok: true };
     const prev = previous === undefined ? signupStore.getSignup(event.id, uid) : previous;
     if (prev) return { ok: true };
+    // "Anmeldung nur für das Roster" (#658): the roster decides, not the Discord role
+    if (only !== null) return only ? { ok: true } : fail("roster_only", ROSTER_ONLY_ERROR);
     const ids = roleIds !== undefined ? roleIds : await discord.memberRoleIds(event.guildId || cfg.guildId, uid);
     return categoryRoleAllowed(event.categoryId, { config: cfg, roleIds: ids }) ? { ok: true } : fail("raider_role", RAIDER_ROLE_ERROR);
 }
@@ -633,13 +659,13 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
 /** HTTP status for a service error code. */
 function httpStatusFor(code) {
     if (code === "not_found") return 404;
-    if (code === "raider_role") return 403;
+    if (code === "raider_role" || code === "roster_only") return 403;
     if (code === "deadline" || code === "started" || code === "raidhelper" || code === "closed" || code === "cancelled" || code === "full") return 409;
     return 400;
 }
 
 module.exports = {
-    categoryVisible, checkRaiderRole, rosterCounts, roleCounts, signupWindow, allowedStatuses, findCharacter, profileRoles, defaultCanAlso,
+    categoryVisible, checkRaiderRole, rosterOnlyAccess, rosterCounts, roleCounts, signupWindow, allowedStatuses, findCharacter, profileRoles, defaultCanAlso,
     wishPartnersSignedUp, submitSignup, submitSignups, httpStatusFor, MAX_CHARACTERS,
     // only for the tests (#424): not part of the module's API
     _internal: {

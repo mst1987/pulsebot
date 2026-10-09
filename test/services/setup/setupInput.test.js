@@ -4,6 +4,7 @@ jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: jest.
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), getRaidTemplate: jest.fn() }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(), attendanceFor: jest.fn() }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn() }));
+jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null) }));
 
 const eventStore = require("../../../src/stores/eventStore");
 const signupStore = require("../../../src/stores/signupStore");
@@ -11,7 +12,8 @@ const profileStore = require("../../../src/stores/raiderProfileStore");
 const settingsStore = require("../../../src/stores/settingsStore");
 const attendance = require("../../../src/services/characters/rosterAttendance");
 const { listStoredEvents } = require("../../../src/services/events/eventSources");
-const { collectSetupInput, proposeSetup, setupMembers, fixedFromSetup } = require("../../../src/services/setup/setupInput");
+const rosterStore = require("../../../src/stores/rosterStore");
+const { collectSetupInput, proposeSetup, setupMembers, fixedFromSetup, rosterStatusFor } = require("../../../src/services/setup/setupInput");
 const { ownEvent } = require("../../factories/events");
 
 const event = (over = {}) => ownEvent({
@@ -44,6 +46,19 @@ beforeEach(() => {
 });
 
 describe("setupInput", () => {
+    it("hands the proposal the roster status of the category's roster (#658), nothing without one", () => {
+        expect(collectSetupInput(["eh-new"], { now: 5000 }).rosterStatus).toEqual({});
+        rosterStore.rosterForCategory.mockImplementation((cat) => {
+            if (cat === "cat") return { members: { u1: { status: "core" }, u2: { status: "bench" }, u7: { status: "pause" } } };
+            if (cat === "cat2") return { members: { u1: { status: "trial" }, u8: { status: "trial" } } };
+            return null;
+        });
+        expect(collectSetupInput(["eh-new"], { now: 5000 }).rosterStatus).toEqual({ u1: "core", u2: "bench", u7: "pause" });
+        // parallel raids: the first event's roster wins for somebody in both
+        expect(rosterStatusFor([{ categoryId: "cat" }, { categoryId: "cat2" }, { categoryId: "" }])).toEqual({ u1: "core", u2: "bench", u7: "pause", u8: "trial" });
+        rosterStore.rosterForCategory.mockImplementation(() => null);
+    });
+
     it("collects event, signups, profiles, attendance, required buffs and fixed places", () => {
         const input = collectSetupInput(["eh-new", "missing"], { now: 5000 });
         expect(input.versionId).toBe("tbc");

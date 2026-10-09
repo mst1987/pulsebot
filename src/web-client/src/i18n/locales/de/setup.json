@@ -45,6 +45,7 @@
         "avoid": { "label": "Nicht zusammen", "tip": "Abzug, wenn ein „nicht zusammen“-Paar in derselben Gruppe steht (bei parallelen Raids: im selben Raid). Nur wenn „nicht zusammen“ an ist." },
         "raidBuffs": { "label": "Raid-Buffs", "tip": "Jeder Raid-Buff, den jemand im Raid mitbringt." },
         "attendance": { "label": "Anwesenheit", "tip": "Anwesenheit in dieser Kategorie." },
+        "roster": { "label": "Roster-Status", "tip": "Stamm vor Probe vor Ersatz, wer nicht im Roster ist, danach. Nur wenn die Kategorie ein Roster hat." },
         "gear": { "label": "Gear", "tip": "„Bereit“ vor „brauchbar“ laut Profil." }
     },
     "status": {

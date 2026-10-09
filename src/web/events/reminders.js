@@ -3,8 +3,9 @@
 // Two kinds, both configured in Einstellungen → Verbindungen → Discord-Server
 // (`config.categoryReminders[categoryId]`):
 //
-//   missing — `missingHours` before the sign-up deadline to the members holding
-//             the category's raider roles who have not reacted yet. Raid-Helper
+//   missing — `missingHours` before the sign-up deadline to the expected raiders
+//             who have not reacted yet: the core and trial members of the
+//             category's roster (#658), else the holders of its raider roles. Raid-Helper
 //             events have no deadline, so there the raid start stands in; an
 //             event that carries `signupDeadline` (EventHelper's own events,
 //             #254) is measured against that.
@@ -29,7 +30,6 @@
 //             nothing happens once the raid has started. Marked in reminderStore
 //             like a reminder (kind "autoSuggest"), so it runs once.
 const guildRoles = require("../../services/discord/guildRoles");
-const discord = require("../../services/discord/discord");
 const reminderStore = require("../../stores/reminderStore");
 const eventStore = require("../../stores/eventStore");
 const { proposeSetup } = require("../../services/setup/setupInput");
@@ -38,7 +38,7 @@ const { loadEventGroups } = require("../../services/events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
 const { computeAttendance, signupStatus, isRosterKnown } = require("../../utils/attendance");
 const { tr } = require("../../utils/i18n/botText");
-const { expectedRoleIds } = require("../../services/roster/categoryRoles");
+const { hasExpected, listExpectedMembers } = require("../../services/roster/expectedRaiders");
 
 const HOUR_MS = 60 * 60 * 1000;
 const KINDS = ["missing", "signed"];
@@ -113,9 +113,9 @@ async function recipients(kind, event, categoryId, guildId, config) {
             .filter((s) => s && s.userId && ["signed", "late"].includes(signupStatus(s)))
             .map((s) => String(s.userId));
     }
-    const roleIds = expectedRoleIds(categoryId, config);
-    if (!roleIds.length || !isRosterKnown(event)) return null;
-    const { members, error } = await discord.listMembersWithRoles(guildId, roleIds);
+    // a category with a roster: its core + trial members (#658), else the holders of its roles
+    if (!hasExpected(categoryId, config) || !isRosterKnown(event)) return null;
+    const { members, error } = await listExpectedMembers(guildId, categoryId, config);
     if (error) return null;
     return computeAttendance(members, event.signUps || []).missing.map((m) => String(m.id));
 }

@@ -76,6 +76,7 @@
         "size": "{size}er",
         "change": "Anmeldung ändern",
         "started": "Der Raid hat begonnen.",
+        "rosterOnly": "Für diesen Raid melden sich nur Mitglieder des Rosters an (Stamm, Probe oder Ersatz). Frag die Raidleitung.",
         "deadlineHint": "Anmeldeschluss vorbei – nur noch Abmelden oder Spät.",
         "signOff": "Abmelden",
         "noCharBefore": "In deinem Profil steht noch kein Charakter.",

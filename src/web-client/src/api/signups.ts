@@ -90,6 +90,8 @@ export type OwnSignupRow = SignupEventBase & {
     mine: OwnSignup | null;
     /** Where the approved setup puts the member (#263) — never a draft; null before an approval. */
     placement?: SetupPlacement | null;
+    /** "Anmeldung nur für das Roster" (#658): true when the member is no roster member with status core, trial or bench. */
+    rosterOnly?: boolean;
 };
 
 export type SignupEventRow = RaidHelperSignupRow | OwnSignupRow;

@@ -278,3 +278,29 @@ describe("missingChannelTasks (#537)", () => {
         expect(tasks.map((t) => t.id)).toEqual(["channel-missing:eh-1"]);
     });
 });
+
+describe("trialTasks (#658)", () => {
+    const { buildTasks: tasksFor, trialTasks } = require("../../../src/web/dashboard/dashboardOverview");
+    const soon = {
+        rosterId: "r1", rosterName: "Donnerstag", userId: "111", displayName: "Zibbo",
+        trialUntil: "2026-10-12T18:00:00.000Z", overdue: false, extendTo: "2026-10-26T18:00:00.000Z",
+    };
+
+    it("is a calm row per trial with take-over / extend, yellow once overdue", () => {
+        const [task] = trialTasks([soon]);
+        expect(task).toMatchObject({
+            id: "trial:r1:111", tone: "accent", tile: "roster", title: "Probezeit endet: Zibbo",
+            ref: { title: "Donnerstag", at: Date.parse(soon.trialUntil) }, count: 0, href: "/roster/r/r1",
+            action: { kind: "rosterTrial", rosterId: "r1", userId: "111", extendTo: soon.extendTo },
+        });
+        expect(task.tip).toContain("12.10.");
+        const [late] = trialTasks([{ ...soon, overdue: true }]);
+        expect(late).toMatchObject({ tone: "mid", tile: "mid", title: "Probezeit abgelaufen: Zibbo" });
+        expect(trialTasks(null)).toEqual([]);
+    });
+
+    it("comes last in the task list", () => {
+        const tasks = tasksFor({ nextRaids: [{ id: "n1", title: "BT", startTime: 1, sheet: null }], trials: [soon] });
+        expect(tasks.map((t) => t.id)).toEqual(["sheet", "trial:r1:111"]);
+    });
+});
