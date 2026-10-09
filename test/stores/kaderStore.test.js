@@ -123,13 +123,23 @@ describe("the Kaderplaner's data stays in the Kaderplaner", () => {
     }
     const OWN = (rel) => rel.startsWith("services/kader/") || rel.startsWith("web/kader/") || rel === "web/apiRoutes/kader.js" || rel === "stores/kaderStore.js";
 
+    // services/kader/kaderRoster.js (#657) is the one door to the raid rosters: it answers only
+    // { userId, state, decision, characterName } per player (test/services/kader/kaderRoster.test.js).
     it("is read by the Kaderplaner alone (and the start's migration)", () => {
-        expect(modulesMatching(/require\(\s*["'][^"']*kaderStore["']\s*\)/)).toEqual(["stores/settingsMigration.js", "web/apiRoutes/kader.js"]);
+        expect(modulesMatching(/require\(\s*["'][^"']*kaderStore["']\s*\)/))
+            .toEqual(["services/kader/kaderRoster.js", "stores/settingsMigration.js", "web/apiRoutes/kader.js"]);
     });
 
     it("keeps its rules and its view to itself: nothing else requires them", () => {
-        const users = modulesMatching(/require\(\s*["'][^"']*(services\/kader\/|\/kader\/kader|\.\/kader(Model|Players|Questions|Setups|Migration|AutoAssign|View|Source))[^"']*["']\s*\)/);
-        expect(users.filter((rel) => !OWN(rel))).toEqual(["stores/settingsMigration.js"]);
+        const users = modulesMatching(/require\(\s*["'][^"']*(services\/kader\/|\/kader\/kader|\.\/kader(Model|Players|Questions|Setups|Migration|AutoAssign|View|Source|Roster))[^"']*["']\s*\)/);
+        // rosterCreate.js builds a roster from a Kader (#657) - through kaderRoster.js and nothing else (next test)
+        expect(users.filter((rel) => !OWN(rel))).toEqual(["services/roster/rosterCreate.js", "stores/settingsMigration.js"]);
+    });
+
+    it("lets the roster side in through kaderRoster.js only", () => {
+        const src = fs.readFileSync(path.join(SRC, "services", "roster", "rosterCreate.js"), "utf8");
+        const kaderRequires = [...src.matchAll(/require\(\s*["']([^"']*kader[^"']*)["']\s*\)/gi)].map((m) => m[1]);
+        expect(kaderRequires).toEqual(["../kader/kaderRoster"]);
     });
 
     it("writes nothing of a Kader into a log", () => {

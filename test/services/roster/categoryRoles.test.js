@@ -3,7 +3,8 @@ jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 const fs = require("fs");
 const { settingsPath } = require("../../../src/config/paths");
 const rosterStore = require("../../../src/stores/rosterStore");
-const { expectedRoleIds, syncRosterRoleIds } = require("../../../src/services/roster/categoryRoles");
+const configStore = require("../../../src/stores/configStore");
+const { expectedRoleIds, syncRosterRoleIds, mirrorCategoryRoles } = require("../../../src/services/roster/categoryRoles");
 
 const config = { categoryRoles: { c1: ["10", "11"], c2: ["20"] } };
 
@@ -52,5 +53,26 @@ describe("services/roster/categoryRoles syncRosterRoleIds", () => {
         expect(hist[hist.length - 1]).toMatchObject({ by: "u1", what: "settings", detail: "roleIds" });
         expect(syncRosterRoleIds(null)).toEqual([]);
         expect(rosterStore.getRoster(a.id).roleIds).toEqual(["10", "11"]);
+    });
+});
+
+describe("services/roster/categoryRoles mirrorCategoryRoles (#657)", () => {
+    it("writes a roster's roles into its category's settings value, so a settings save keeps them", () => {
+        configStore.saveConfig({ categoryRoles: { c2: ["20"] } });
+        const a = rosterStore.createRoster({ name: "A", categoryId: "c1", roleIds: ["10", "11"] });
+        expect(mirrorCategoryRoles(a)).toBe(true);
+        expect(configStore.getConfig().categoryRoles).toEqual({ c1: ["10", "11"], c2: ["20"] });
+        expect(mirrorCategoryRoles(a)).toBe(false);
+        // the settings page saving the map now carries the same roles back
+        expect(syncRosterRoleIds(configStore.getConfig().categoryRoles)).toEqual([]);
+        expect(rosterStore.getRoster(a.id).roleIds).toEqual(["10", "11"]);
+    });
+
+    it("drops the category when the roster has no roles, and leaves a roster without category alone", () => {
+        configStore.saveConfig({ categoryRoles: { c1: ["10"] } });
+        expect(mirrorCategoryRoles({ categoryId: "c1", roleIds: [] })).toBe(true);
+        expect(configStore.getConfig().categoryRoles).toEqual({});
+        expect(mirrorCategoryRoles({ categoryId: null, roleIds: ["1"] })).toBe(false);
+        expect(mirrorCategoryRoles(null)).toBe(false);
     });
 });

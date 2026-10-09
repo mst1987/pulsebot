@@ -321,3 +321,14 @@ describe("stores/rosterStore migrateCategories", () => {
         expect(fs.__store.has(ROSTERS_FILE)).toBe(false);
     });
 });
+
+describe("stores/rosterStore migratedCategories (#657)", () => {
+    it("counts a category that got a roster in the tool as migrated, also when moved to one", () => {
+        const a = createRoster({ name: "A", categoryId: "c1" });
+        const b = createRoster({ name: "B" });
+        updateRoster(b.id, { categoryId: "c2" });
+        expect(stored().migratedCategories).toEqual(["c1", "c2"]);
+        deleteRoster(a.id);
+        expect(stored().migratedCategories).toEqual(["c1", "c2"]);
+    });
+});

@@ -263,6 +263,15 @@ function historyEntry({ at, by, userId = "", what, detail = "" }) {
     return normalizeHistoryEntry({ at, by, userId, what, detail });
 }
 
+/**
+ * A category that got a roster in the tool counts as migrated: deleting that
+ * roster later must not bring a migrated one back on the next start (its roles
+ * are mirrored into config.categoryRoles, which the migration reads).
+ */
+function markMigrated(all, categoryId) {
+    if (categoryId && !all.migratedCategories.includes(categoryId)) all.migratedCategories.push(categoryId);
+}
+
 const FIXED_FIELDS = ["id", "members", "history", "createdAt", "createdBy"];
 
 /**
@@ -288,6 +297,7 @@ function createRoster(data = {}, { actor = "", now = new Date().toISOString() } 
         history: [historyEntry({ at: now, by: actor, what: "created", detail: text(data.name, LIMITS.name) })],
     }, id);
     all.rosters[id] = roster;
+    markMigrated(all, categoryId);
     writeAll(all);
     return getRoster(id);
 }
@@ -313,6 +323,7 @@ function updateRoster(id, patch = {}, { actor = "", now = new Date().toISOString
     const changed = Object.keys(clean).filter((k) => JSON.stringify(next[k]) !== JSON.stringify(current[k]));
     if (changed.length) next.history.push(historyEntry({ at: now, by: actor, what: "settings", detail: changed.join(", ") }));
     all.rosters[current.id] = next;
+    markMigrated(all, next.categoryId);
     writeAll(all);
     return getRoster(current.id);
 }
