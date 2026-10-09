@@ -19,6 +19,7 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { characterKeyOf } = require("../utils/loot/lootImport");
+const { ROLE_IDS } = require("../config/councilSpecs");
 
 const EXCLUDED_FILE = settingsPath("council-excluded.json");
 
@@ -89,7 +90,7 @@ function include(character) {
 // Eine Entscheidung des Raidleads also, kein Rateschluss — und damit die zweite
 // Sache, die der Council selbst über einen Raider festhält. Sie überschreibt
 // nur die *Rolle*; welche Spec das ist, folgt daraus (specForRole in
-// config/casterSpecs.js).
+// config/councilSpecs.js).
 
 const ROLES_FILE = settingsPath("council-roles.json");
 
@@ -122,8 +123,9 @@ function plannedRoles() {
 }
 
 /**
- * Plan this character as a caster or a healer. An empty role takes the decision
- * back, and the page falls to what the data says again.
+ * Plan this character in a council role (caster, healer, tank, melee, ranged —
+ * ROLES in config/councilSpecs.js; the route checks it). An empty role takes
+ * the decision back, and the page falls to what the data says again.
  */
 function setRole(character, role, { by = "" } = {}) {
     const key = characterKeyOf(character);
@@ -158,8 +160,10 @@ const VIEWS_FILE = settingsPath("council-views.json");
 
 /** What the page shows for a category nobody set a view for. */
 const VIEW_DEFAULTS = Object.freeze({ role: "caster", tiers: [], contents: [], bisTier: "", version: "" });
-// "" = every role ("Alle" on the page).
-const VIEW_ROLES = ["caster", "healer", ""];
+// "" = every role ("Alle" on the page). Grows with the council's roles (#669:
+// tank, melee, ranged); a view stored before that only ever holds caster,
+// healer or "", all still valid. An unknown role falls back to the default.
+const VIEW_ROLES = [...ROLE_IDS, ""];
 const ID_RE = /^[a-z0-9_-]{1,32}$/i;
 
 const idList = (raw) => [...new Set((Array.isArray(raw) ? raw : [])
@@ -236,5 +240,5 @@ function reset() {
 module.exports = {
     listExcluded, excludedKeys, exclude, include, reset, EXCLUDED_FILE,
     listRoles, plannedRoles, setRole, ROLES_FILE,
-    listViews, viewFor, setView, normalizeView, VIEW_DEFAULTS, VIEWS_FILE,
+    listViews, viewFor, setView, normalizeView, VIEW_DEFAULTS, VIEW_ROLES, VIEWS_FILE,
 };

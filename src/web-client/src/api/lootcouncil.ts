@@ -201,6 +201,12 @@ export type CouncilFocus = {
     unwearable: CouncilUnwearable[];
 };
 
+/**
+ * The council's roles (config/councilSpecs.js ROLES). Ranged damage is split by
+ * what it scales with: a shadow priest is a "caster", a hunter "ranged".
+ */
+export type CouncilRole = "caster" | "healer" | "tank" | "melee" | "ranged";
+
 export type CouncilRaider = {
     key: string;
     character: string;
@@ -214,7 +220,7 @@ export type CouncilRaider = {
     specAssumed: boolean;
     /** Their armory page, for checking the gear this page derived from a log. */
     armoryUrl: string;
-    role: "caster" | "healer";
+    role: CouncilRole;
     /**
      * Als was der Raidlead sie eingeplant hat ("" = wie in den Daten). Ein
      * Heiler im Offspec ist für diesen Abend ein DPS, und das steht nirgends in
@@ -242,13 +248,17 @@ export type CouncilRaider = {
         reportId: string;
         reportTitle: string;
         itemCount: number;
-        spellHit: number;
+        /** Gear hit rating that counts for the spec: spell hit for a caster, physical hit otherwise (`hitStat`). */
+        hit: number;
+        /** "spellHit" | "meleeHit" | "" (a healer has no hit cap). */
+        hitStat: string;
+        /** 0 = no hit cap to chase (healers) — no hit badge. */
         hitCap: number;
         /**
-         * Whether the set read out of the log is this raider's damage kit or
-         * their healing one ("caster" | "healer" | "" when too little is known).
-         * Shamans and druids heal a night regularly, and judging them on that
-         * set would mean no DPS and drops "replacing" healing pieces.
+         * Which kind of set was read out of the log: "caster" (damage kit),
+         * "healer", "tank", "physical" (melee and hunters) or "" when too
+         * little is known. Shamans and druids heal a night regularly, and judging
+         * them on that set would mean no DPS and drops "replacing" healing pieces.
          */
         setRole: string;
         /** False when the two signals (heal ratio, spell hit) disagree. */
@@ -652,7 +662,7 @@ export function setCouncilExcluded(
  */
 export function setCouncilRole(
     character: string,
-    role: "" | "caster" | "healer",
+    role: "" | CouncilRole,
 ): Promise<{ character: string; role: string }> {
     return send("POST", "/api/lootcouncil/role", { character, role });
 }

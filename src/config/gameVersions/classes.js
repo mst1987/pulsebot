@@ -2,7 +2,7 @@
 // and WoW Forever share the same nine classes and talent trees).
 //
 // A spec's key is `"<Class>-<Spec>"` in Warcraft Logs' own spelling — the same
-// key config/casterSpecs.js uses — so a spec from a log, from the loot council
+// key config/councilSpecs.js uses — so a spec from a log, from the loot council
 // and from the rule set are one and the same string.
 //
 // `role` is what a setup counts a raider as: tank / healer / melee / ranged.

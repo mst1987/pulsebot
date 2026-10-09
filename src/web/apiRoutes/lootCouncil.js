@@ -1,4 +1,4 @@
-// The caster loot council endpoints.
+// The loot council endpoints (casters, healers, tanks, melee and hunters).
 //
 // Two speeds, deliberately split:
 //   GET  /api/lootcouncil             — the whole picture from stored data, one
@@ -32,7 +32,7 @@ const { searchItems } = require("../../config/wowsims");
 const councilStore = require("../../stores/councilStore");
 const { gearFor, charKey } = require("../../services/loot/charGear");
 const { characterMap } = require("../../stores/characterStore");
-const { specFor, ROLES } = require("../../config/casterSpecs");
+const { specFor, ROLES } = require("../../config/councilSpecs");
 const engine = require("../../utils/wowsims/engine");
 const { getConfig } = require("../../stores/settingsStore");
 const { mainVersionFor } = require("../../services/events/mainVersion");
@@ -175,7 +175,8 @@ const postExclude = withUser({ write: "lootcouncil", csrf: true, body: true }, a
 /**
  * POST /api/lootcouncil/role — als was ein Raider eingeplant ist.
  *
- * Body: { character, role: "caster" | "healer" | "" }
+ * Body: { character, role: "caster" | "healer" | "tank" | "melee" | "ranged" | "" }
+ * (the council roles, ROLES in config/councilSpecs.js)
  *
  * Ein Heiler, der heute Offspec spielt, ist für diesen Abend ein DPS — mit
  * Casterset, Caster-BiS und Caster-Simulation. Aus den Daten geht das nicht
@@ -250,7 +251,7 @@ const getExport = withUser({}, async ({ user, res, url }) => {
     if (!gear) return apiError(res, 404, "not_found", `Für ${character} ist kein Gear bekannt — der Charakter taucht in keiner der letzten CLA-Auswertungen auf.`);
 
     const specEntry = knownSpec || specFor(gear.className, known.spec);
-    if (!specEntry) return apiError(res, 400, "spec_required", `Für ${character} ist keine Caster-Spec bekannt.`);
+    if (!specEntry) return apiError(res, 400, "spec_required", `Für ${character} ist keine Council-Spec bekannt.`);
 
     const built = engine.buildIndividualExport({ gear, specEntry });
     if (!built.supported) return apiError(res, 400, "unsupported", built.warnings.join(" ") || "Diese Spec lässt sich nicht exportieren.");

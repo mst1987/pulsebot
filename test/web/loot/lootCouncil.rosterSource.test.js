@@ -108,6 +108,21 @@ describe("lootCouncil with a roster (#667)", () => {
         expect(councilRoster({ categoryId: "cat-mo", role: "healer" }).rows[0].specKey).toBe("Priest-Holy");
     });
 
+    it("picks the profile spec of the new roles too (#669)", () => {
+        mockRosterForCategory.mockReturnValue(roster({
+            1001: member("core", ["klinge"], { klinge: "Klinge" }),
+            1002: member("core", ["pfote"], { pfote: "Pfote" }),
+        }));
+        mockListProfiles.mockReturnValue([
+            { userId: "1001", characters: [{ key: "klinge", name: "Klinge", className: "Warrior", specs: [{ key: "Warrior-Fury" }, { key: "Warrior-Protection" }] }] },
+            { userId: "1002", characters: [{ key: "pfote", name: "Pfote", className: "Druid", specs: [{ key: "Druid-Feral" }, { key: "Druid-Guardian" }] }] },
+        ]);
+        const specs = (role) => Object.fromEntries(councilRoster({ categoryId: "cat-mo", role }).rows.map((r) => [r.key, r.specKey]));
+        expect(specs("tank")).toEqual({ klinge: "Warrior-Protection", pfote: "Druid-Guardian" });
+        expect(specs("melee")).toEqual({ klinge: "Warrior-Fury", pfote: "Druid-Feral" });
+        expect(councilRoster({ categoryId: "cat-mo", role: "tank" }).rosterSource.noSpec).toEqual([]);
+    });
+
     it("matches a Forever character's key against loot and gear keyed by its bare name", () => {
         mockRosterForCategory.mockReturnValue(roster({ 1001: member("core", ["forever~devi res"], { "forever~devi res": "Devi Res" }) }, { versionId: "forever" }));
         mockListAll.mockReturnValue([lootRow({ characterKey: "devi res", character: "Devi Res", awardedAt: now - 4 * DAY })]);
@@ -186,9 +201,10 @@ describe("lootCouncil with a roster (#667)", () => {
         ]);
         const built = councilRoster({ categoryId: "cat-mo", role: "caster" });
         expect(built.rows).toEqual([]);
-        // The holy priest is left out by the role filter, which is not "unknown".
+        expect(councilRoster({ categoryId: "cat-mo", role: "melee" }).rows.map((r) => r.key)).toEqual(["krieger"]);
+        // The holy priest and the fury warrior (melee since #669) are left out
+        // by the role filter, which is not "unknown".
         expect(built.rosterSource.noSpec).toEqual([
-            { key: "krieger", character: "Krieger", className: "Warrior", status: "core" },
             { key: "priester", character: "Priester", className: "Priest", status: "trial" },
             { key: "unbekannt", character: "Unbekannt", className: "", status: "core" },
         ]);

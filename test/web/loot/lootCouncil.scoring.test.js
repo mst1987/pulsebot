@@ -39,10 +39,10 @@ jest.mock("../../../src/stores/reportStore", () => ({
 const {
     councilRoster,
     _internal: {
-        candidatesForItem, needScore, upgradeValue, gearSpellHit, NEED_WEIGHTS,
+        candidatesForItem, needScore, upgradeValue, gearHit, NEED_WEIGHTS,
     },
 } = require("../../../src/web/loot/lootCouncil");
-const { specByKey, hitCapFor } = require("../../../src/config/casterSpecs");
+const { specByKey, hitCapFor } = require("../../../src/config/councilSpecs");
 const wowsims = require("../../../src/config/wowsims");
 const { DAY, now, lootRow, gearOf, item } = require("../../helpers/lootCouncil");
 
@@ -154,9 +154,40 @@ describe("web/loot/lootCouncil", () => {
                 }
             }
             const capped = gearOf(cappedItems);
-            expect(gearSpellHit(capped)).toBeGreaterThanOrEqual(cap);
+            expect(gearHit(capped)).toBeGreaterThanOrEqual(cap);
             const gainCapped = upgradeValue({ gear: capped, specEntry: shadow, itemId: Number(hitId), replaces: null });
             expect(gainCapped).toBeLessThan(gainUncapped);
+        });
+
+        it("caps physical hit for a melee the same way (#669)", () => {
+            const fury = specByKey("Warrior-Fury");
+            const cap = hitCapFor(fury);
+            const table = require("../../../src/config/generated/wowsims/items.json").items;
+            const [hitId] = Object.entries(table).find(([, it]) => it.stats.meleeHit >= 15 && it.slots.includes(12));
+            const gainUncapped = upgradeValue({ gear: gearOf([]), specEntry: fury, itemId: Number(hitId), replaces: null });
+            const cappedItems = [];
+            let hit = 0;
+            for (const [id, it] of Object.entries(table)) {
+                if (hit >= cap) break;
+                if (it.stats.meleeHit > 0 && !it.slots.includes(12)) {
+                    cappedItems.push(item(it.slots[0], Number(id)));
+                    hit += it.stats.meleeHit;
+                }
+            }
+            const capped = gearOf(cappedItems);
+            expect(gearHit(capped, "meleeHit")).toBeGreaterThanOrEqual(cap);
+            // Spell hit is not what a warrior counts.
+            expect(gearHit(capped, "spellHit")).toBe(0);
+            expect(upgradeValue({ gear: capped, specEntry: fury, itemId: Number(hitId), replaces: null })).toBeLessThan(gainUncapped);
+        });
+
+        it("scores a melee item for a melee and not for a caster", () => {
+            const table = require("../../../src/config/generated/wowsims/items.json").items;
+            const [apId] = Object.entries(table).find(([, it]) => it.stats.attackPower >= 40 && !it.stats.spellPower);
+            const forFury = upgradeValue({ gear: gearOf([]), specEntry: specByKey("Warrior-Fury"), itemId: Number(apId), replaces: null });
+            const forShadow = upgradeValue({ gear: gearOf([]), specEntry: shadow, itemId: Number(apId), replaces: null });
+            expect(forFury).toBeGreaterThan(40);
+            expect(forShadow).toBeLessThan(forFury);
         });
 
         it("returns 0 for an item the table does not know", () => {

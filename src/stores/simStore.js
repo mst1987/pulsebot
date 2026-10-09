@@ -20,7 +20,7 @@ const { dataPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 
 const engine = require("../utils/wowsims/engine");
-const { specByKey } = require("../config/casterSpecs");
+const { specByKey } = require("../config/councilSpecs");
 const { canWear } = require("../config/wearable");
 const { equipmentFor, targetSlotFor, bisFittingFor } = require("../utils/wowsims/loadout");
 const { gearByCharacter } = require("../services/loot/charGear");

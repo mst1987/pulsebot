@@ -86,18 +86,52 @@ describe("web/loot/lootCouncil", () => {
     });
 
     describe("councilRoster", () => {
-        it("keeps casters and drops everyone else", () => {
+        it("keeps every council spec and drops a class it cannot place", () => {
             mockListAll.mockReturnValue([
                 lootRow(),
                 lootRow({ characterKey: "hauer", character: "Hauer" }),
+                lootRow({ characterKey: "klinge", character: "Klinge" }),
             ]);
             mockAnnotated.mockReturnValue([
                 { key: "devihra", className: "Priest", spec: "Shadow" },
                 { key: "hauer", className: "Warrior", spec: "Fury" },
+                // A warrior without a spec could be fury or protection.
+                { key: "klinge", className: "Warrior", spec: "" },
             ]);
             const { rows } = councilRoster();
-            expect(rows.map((r) => r.character)).toEqual(["Devihra"]);
-            expect(rows[0].specKey).toBe("Priest-Shadow");
+            expect(rows.map((r) => r.character).sort()).toEqual(["Devihra", "Hauer"]);
+            const hauer = rows.find((r) => r.character === "Hauer");
+            expect(hauer).toMatchObject({ specKey: "Warrior-Fury", role: "melee", roleOptions: ["tank", "melee"], simSupported: false });
+        });
+
+        it("filters by the new roles (#669)", () => {
+            mockListAll.mockReturnValue([
+                lootRow(),
+                lootRow({ characterKey: "hauer", character: "Hauer" }),
+                lootRow({ characterKey: "schild", character: "Schild" }),
+                lootRow({ characterKey: "pfeil", character: "Pfeil" }),
+            ]);
+            mockAnnotated.mockReturnValue([
+                { key: "devihra", className: "Priest", spec: "Shadow" },
+                { key: "hauer", className: "Warrior", spec: "Fury" },
+                { key: "schild", className: "Paladin", spec: "Protection" },
+                { key: "pfeil", className: "Hunter", spec: "Survival" },
+            ]);
+            const names = (role) => councilRoster({ role }).rows.map((r) => r.character);
+            expect(names("melee")).toEqual(["Hauer"]);
+            expect(names("tank")).toEqual(["Schild"]);
+            expect(names("ranged")).toEqual(["Pfeil"]);
+            expect(names("caster")).toEqual(["Devihra"]);
+            expect(names("").sort()).toEqual(["Devihra", "Hauer", "Pfeil", "Schild"]);
+        });
+
+        it("plans a warrior as a tank when the raid lead says so", () => {
+            mockListAll.mockReturnValue([lootRow({ characterKey: "hauer", character: "Hauer" })]);
+            mockAnnotated.mockReturnValue([{ key: "hauer", className: "Warrior", spec: "Fury" }]);
+            mockPlannedRoles.mockReturnValue(new Map([["hauer", "tank"]]));
+            const [row] = councilRoster({ role: "tank" }).rows;
+            expect(row).toMatchObject({ specKey: "Warrior-Protection", role: "tank", roleOverride: "tank", roleFromData: "melee" });
+            expect(row.gear).toBeNull();
         });
 
         it("filters by game version (#545): a character's own profile version, else TBC", () => {

@@ -110,7 +110,7 @@ export function GearBadges({ gear: g, bisOwned, bisTotal, character, roleLabel }
     bisTotal: number;
     /** For the "Log abgelehnt"/"Set der anderen Rolle"-Badges' tooltip. */
     character: string;
-    /** "DPS-Gear"/"Heilgear" for a role mismatch — omitted where the role is not known here. */
+    /** "Heilgear"/"Tank-Gear"/… for a role mismatch (otherSetLabel) — omitted where it is not known here. */
     roleLabel?: string;
 }) {
     const t = useT();
@@ -125,7 +125,9 @@ export function GearBadges({ gear: g, bisOwned, bisTotal, character, roleLabel }
         out.push(<Badge key="src" icon="inv_misc_pocketwatch_01" tip={t("lootcouncil.gear.logTip", { title: g.reportTitle })} tipSub={g.skippedReports ? t("lootcouncil.gear.logSkipped", { count: g.skippedReports }) : t("lootcouncil.gear.logDefault")}>{t("lootcouncil.gear.evaluation")} · {fmtMs(g.seenAt, false)}</Badge>);
     }
     if (g.hitCap > 0) {
-        out.push(<Badge key="hit" tone={g.spellHit >= g.hitCap ? "ok" : "mid"} tip={t("lootcouncil.gear.hitTip")} tipSub={t("lootcouncil.gear.hitTipSub")}>Hit {g.spellHit}/{g.hitCap}</Badge>);
+        // Spell hit for a caster, physical hit for melee, hunters and tanks.
+        const hitTip = g.hitStat === "meleeHit" ? t("lootcouncil.gear.meleeHitTip") : t("lootcouncil.gear.hitTip");
+        out.push(<Badge key="hit" tone={g.hit >= g.hitCap ? "ok" : "mid"} tip={hitTip} tipSub={t("lootcouncil.gear.hitTipSub")}>Hit {g.hit}/{g.hitCap}</Badge>);
     }
     if (bisTotal) out.push(<Badge key="bis" tone="ok" tip={t("lootcouncil.gear.bisTip")} tipSub={t("lootcouncil.gear.bisTipSub")}>BiS {bisOwned}/{bisTotal}</Badge>);
     if (noench) out.push(<Badge key="noench" tone="bad" tip={t("lootcouncil.gear.noEnchTip")} tipSub={t("lootcouncil.gear.noEnchTipSub")}>{tParts("lootcouncil.gear.noEnchCount", { count: noench })}</Badge>);

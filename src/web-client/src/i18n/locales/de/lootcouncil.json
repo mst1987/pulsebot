@@ -2,7 +2,10 @@
     "title": "Loot-Council",
     "role": {
         "caster": "Caster",
-        "healer": "Heiler"
+        "healer": "Heiler",
+        "tank": "Tank",
+        "melee": "Nahkampf",
+        "ranged": "Fernkampf"
     },
     "word": {
         "raider": "Raider",
@@ -224,7 +227,7 @@
         "unwearable": "Können es nicht tragen"
     },
     "candidates": {
-        "noSimTipSub": "Für diese Spec gibt es keine Simulation — WoWSims-TBC rechnet nur Caster-DPS.",
+        "noSimTipSub": "Für diese Spec gibt es keine Simulation — der Bot simuliert bisher nur Caster-DPS. Tanks, Nahkampf, Jäger und Heiler werden nach Bedarf und Stat-Gewichten vorgeschlagen.",
         "noGearTip": "Kein Gear bekannt",
         "noGearTipSub": "Der Raider taucht in keiner der letzten Auswertungen auf.",
         "noGear": "kein Gear",
@@ -377,7 +380,6 @@
         }
     },
     "gear": {
-        "dpsGear": "DPS-Gear",
         "healGear": "Heilgear",
         "pvpGear": "PvP-Gear",
         "noEnchTip": "Ohne Verzauberung",
@@ -446,7 +448,11 @@
         "loadLog": "Log laden",
         "armoryFetchNow": "Gear jetzt aus Armory holen",
         "armoryFetch": "Gear aus Armory holen",
-        "fullDetails": "Vollständige Details"
+        "fullDetails": "Vollständige Details",
+        "casterGear": "Caster-Gear",
+        "tankGear": "Tank-Gear",
+        "physGear": "Nahkampf-Gear",
+        "meleeHitTip": "Trefferwertung (physisch)"
     },
     "dialog": {
         "sheet": {
@@ -547,6 +553,6 @@
             "one": "{count} Roster-Charakter fehlt in der Liste",
             "other": "{count} Roster-Charaktere fehlen in der Liste"
         },
-        "noSpecTipSub": "Der Council kennt ihre Spec (noch) nicht: {names}. Klasse und Spec kommen aus Loot-Importen, Log-Auswertungen und dem Raider-Profil; der Council rechnet bisher nur Caster und Heiler."
+        "noSpecTipSub": "Der Council kennt ihre Spec (noch) nicht: {names}. Klasse und Spec kommen aus Loot-Importen, Log-Auswertungen und dem Raider-Profil; ohne Spec lässt sich nur einordnen, wessen Klasse eine einzige Rolle hat (Magier, Hexenmeister, Schurke, Jäger)."
     }
 }

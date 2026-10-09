@@ -44,8 +44,8 @@ jest.mock("../../../src/services/loot/charGear", () => ({
     charKey: jest.fn((name) => String(name).toLowerCase()),
 }));
 jest.mock("../../../src/stores/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
-jest.mock("../../../src/config/casterSpecs", () => ({
-    ...jest.requireActual("../../../src/config/casterSpecs"),
+jest.mock("../../../src/config/councilSpecs", () => ({
+    ...jest.requireActual("../../../src/config/councilSpecs"),
     specFor: jest.fn(() => null),
 }));
 jest.mock("../../../src/utils/wowsims/engine", () => ({
@@ -69,7 +69,7 @@ const { searchItems } = require("../../../src/config/wowsims");
 const councilStore = require("../../../src/stores/councilStore");
 const { gearFor } = require("../../../src/services/loot/charGear");
 const { characterMap } = require("../../../src/stores/characterStore");
-const { specFor } = require("../../../src/config/casterSpecs");
+const { specFor } = require("../../../src/config/councilSpecs");
 const engine = require("../../../src/utils/wowsims/engine");
 const discord = require("../../../src/services/discord/discord");
 const { getConfig } = require("../../../src/stores/settingsStore");
@@ -429,11 +429,21 @@ describe("POST /api/lootcouncil/role", () => {
         expect(status(res)).toBe(400);
         expectError(res, "bad_request", "Kein Charakter angegeben.");
 
-        mockBody = { character: "Alpha", role: "tank" };
+        mockBody = { character: "Alpha", role: "dragon" };
         res = await call(postRole, "/api/lootcouncil/role");
         expect(status(res)).toBe(400);
-        expectError(res, "invalid_input", "Unbekannte Rolle: tank");
+        expectError(res, "invalid_input", "Unbekannte Rolle: dragon");
         expect(councilStore.setRole).not.toHaveBeenCalled();
+    });
+
+    it("accepts the roles the council gained with #669", async () => {
+        for (const role of ["tank", "melee", "ranged"]) {
+            councilStore.setRole.mockClear();
+            mockBody = { character: "Alpha", role };
+            const res = await call(postRole, "/api/lootcouncil/role");
+            expect(status(res)).toBe(200);
+            expect(councilStore.setRole).toHaveBeenCalledWith("Alpha", role, expect.anything());
+        }
     });
 });
 
@@ -546,11 +556,12 @@ describe("GET /api/lootcouncil/export", () => {
         expectError(res, "not_found", "Für Ghost ist kein Gear bekannt — der Charakter taucht in keiner der letzten CLA-Auswertungen auf.");
     });
 
-    it("rejects a character without a caster spec", async () => {
+    it("rejects a character without a council spec", async () => {
+        // A warrior without a spec could be fury or protection — no guess.
         gearFor.mockReturnValue(gear({ className: "Warrior" }));
         const res = await call(getExport, "/api/lootcouncil/export", "?character=Alpha");
         expect(status(res)).toBe(400);
-        expectError(res, "spec_required", "Für Alpha ist keine Caster-Spec bekannt.");
+        expectError(res, "spec_required", "Für Alpha ist keine Council-Spec bekannt.");
     });
 
     it("passes on why the engine cannot export a spec, with a default sentence", async () => {

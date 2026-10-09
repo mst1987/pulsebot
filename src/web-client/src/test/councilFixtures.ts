@@ -27,7 +27,7 @@ export function councilRaider(over: Partial<CouncilRaider> = {}): CouncilRaider 
         roleOverride: "", roleFromData: "caster", roleOptions: ["caster"],
         lootCount: 2, lootTotal: 3, otherCount: 0, lastAwardAt: 0, daysSinceLoot: null, items: [],
         gear: {
-            seenAt: 1_700_000_000_000, reportId: "r1", reportTitle: "SSC Mittwoch", itemCount: 1, spellHit: 150, hitCap: 202,
+            seenAt: 1_700_000_000_000, reportId: "r1", reportTitle: "SSC Mittwoch", itemCount: 1, hit: 150, hitStat: "spellHit", hitCap: 202,
             setRole: "caster", setConfident: true, roleMismatch: false, skippedReports: 0, source: "log",
             armoryAt: 0, wclAt: 0, logRejected: "", armoryRejected: "", pvpGear: false, unverifiedEnchants: 0,
             situational: 0, substituted: 0, dropped: [], items: [wornItem()],
@@ -69,7 +69,10 @@ export function councilData(over: Partial<LootCouncilData> = {}): LootCouncilDat
         gaps: [{ ...item, wantedBy: [{ key: "anna", character: "Anna", specKey: "mage-arcane", specLabel: "Arkan", needScore: 0.5 }], candidates: [councilCandidate()], best: null }],
         focus: null,
         options: {
-            roles: [{ id: "caster", label: "Caster" }, { id: "healer", label: "Heiler" }],
+            roles: [
+                { id: "caster", label: "Caster-DPS" }, { id: "healer", label: "Heiler" }, { id: "tank", label: "Tank" },
+                { id: "melee", label: "Nahkampf" }, { id: "ranged", label: "Fernkampf" },
+            ],
             tiers: [{ id: "t5", label: "T5" }],
             contents: [{ id: "ssc", label: "Serpentshrine Cavern", short: "SSC", tier: "t5" }],
             bisTiers: [{ id: "t5", label: "T5" }],
