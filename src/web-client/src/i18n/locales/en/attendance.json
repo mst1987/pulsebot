@@ -30,6 +30,7 @@
         "late": "signed up (late)",
         "benchSetup": "on the setup's bench",
         "benchSignup": "signed up as bench",
+        "benchNotInLog": "signed up, not in the log – counted as bench",
         "vacation": "absence entered",
         "absence": "signed off for this raid",
         "notInLog": "not in the log",

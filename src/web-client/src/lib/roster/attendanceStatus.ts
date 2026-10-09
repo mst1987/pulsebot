@@ -60,7 +60,7 @@ export function statusHint(status: AttendanceStatus): string {
     return t(`attendance.hint.${status}`);
 }
 
-const DETAILS = new Set(["inLog", "inLogClass", "signed", "late", "benchSetup", "benchSignup", "vacation", "absence", "notInLog", "noSignup", "tentative"]);
+const DETAILS = new Set(["inLog", "inLogClass", "signed", "late", "benchSetup", "benchSignup", "benchNotInLog", "vacation", "absence", "notInLog", "noSignup", "tentative"]);
 
 /** Why the night has its status ("im Log", "angemeldet (später)" …), "" when the server named no reason. */
 export function detailText(detail: string | undefined): string {

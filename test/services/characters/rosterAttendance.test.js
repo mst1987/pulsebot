@@ -357,11 +357,37 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
             ["vacation", "vacation", false],
             ["absence", "absence", false],
             ["noSignup", "noSignup", false],
-            ["noShow", "noShow", false],
+            // signed up, the night has a log, not in it: counted as bench for now (Oct 2026)
+            ["noShow", "bench", true],
             ["tentative", "noShow", false],
         ]);
-        expect(a).toMatchObject({ attended: 2, total: 7, pct: 29 });
+        expect(a).toMatchObject({ attended: 3, total: 7, pct: 43 });
         expect(a.raids.find((r) => r.eventId === "vacation").reason).toBe("Urlaub");
+        expect(a.raids.find((r) => r.eventId === "noShow")).toMatchObject({ detail: "benchNotInLog", reason: "angemeldet, nicht im Log (Ersatzbank)" });
+    });
+
+    it("counts a signup (also late) missing from the night's log as bench, a tentative one still as not shown", () => {
+        mockListRaidEvents.mockReturnValue([
+            ev("signed", 7, { signUps: [{ userId: "u1", status: "signed" }] }),
+            ev("late", 14, { signUps: [{ userId: "u1", status: "late" }] }),
+            ev("tentative", 21, { signUps: [{ userId: "u1", status: "tentative" }] }),
+            ev("none", 28),
+        ]);
+        withReports([
+            { id: "r1", eventId: "signed", names: ["Bob"] },
+            { id: "r2", eventId: "late", names: ["Bob"] },
+            { id: "r3", eventId: "tentative", names: ["Bob"] },
+            { id: "r4", eventId: "none", names: ["Bob"] },
+        ]);
+
+        const a = attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]);
+
+        expect(a.raids.map((r) => [r.eventId, r.status, r.detail, r.attended])).toEqual([
+            ["signed", "bench", "benchNotInLog", true],
+            ["late", "bench", "benchNotInLog", true],
+            ["tentative", "noShow", "tentative", false],
+            ["none", "noSignup", "notInLog", false],
+        ]);
     });
 
     it("tells Urlaub from Abgemeldet only by an absence entry of the raider that covers the raid's category and day", () => {

@@ -30,6 +30,7 @@
         "late": "angemeldet (später)",
         "benchSetup": "im Setup auf der Bank",
         "benchSignup": "als Bench angemeldet",
+        "benchNotInLog": "angemeldet, nicht im Log – als Bench gewertet",
         "vacation": "Abwesenheit eingetragen",
         "absence": "für diesen Raid abgemeldet",
         "notInLog": "nicht im Log",
