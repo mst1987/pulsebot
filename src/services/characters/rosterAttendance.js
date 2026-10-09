@@ -18,8 +18,9 @@
 //   - no log, signed up (or late)                           -> "present"
 //   - an absence entry (availabilityStore) covers the raid  -> "vacation" (excused, still missed)
 //   - signed off for this raid                              -> "absence"
-//   - the night has a log, signed/late/tentative, not in it -> "noShow"
-//   - no log, tentative                                     -> "noShow"
+//   - the night has a log, signed/late, not in it            -> "bench" (detail
+//     benchNotInLog; for now the orga counts these as bench, Oct 2026)
+//   - tentative and not in the log (or no log)              -> "noShow"
 //   - no signup and not in the log                          -> "noSignup"
 //   - no log and no raider assigned to the character        -> not counted at all:
 //     without a Discord account behind the name there is nothing to compare.
@@ -68,6 +69,7 @@ const DETAIL_WORDS = {
     late: "angemeldet (später)",
     benchSetup: "Ersatzbank (Setup)",
     benchSignup: "Ersatzbank",
+    benchNotInLog: "angemeldet, nicht im Log (Ersatzbank)",
     vacation: "Urlaub",
     absence: "abgemeldet",
     notInLog: "nicht im Log",
@@ -297,6 +299,8 @@ function nightStatus(raid, key, userIds) {
     if (ids.some((id) => raid.vacation && raid.vacation.has(id))) return verdict("vacation", "vacation");
     if (status === "absence") return verdict("absence", "absence");
     if (status === "tentative") return verdict("noShow", "tentative");
+    // signed up but missing from the log: counted as bench for now (the orga's call, Oct 2026)
+    if (logged && (status === "signed" || status === "late")) return verdict("bench", "benchNotInLog");
     if (logged) return verdict(signUp ? "noShow" : "noSignup", "notInLog");
     // a status nobody knows (an old Raid-Helper word) says at least "not coming"
     if (signUp) return verdict("absence", "absence");
