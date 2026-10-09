@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { CollectionEditor } from "../../lib/collectionEditor";
+import type { CollectionEditor } from "../../lib/ui/collectionEditor";
 import { useT } from "../../i18n";
 
 // The two halves of a "list of things you can edit" section, so all of them

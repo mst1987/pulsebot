@@ -11,9 +11,9 @@ import SignupDialog from "../components/signup/SignupDialog";
 import BulkSignupDialog from "../components/signup/BulkSignupDialog";
 import AvailabilitySection from "../components/signup/AvailabilitySection";
 import { ExternalIcon, XIcon } from "../components/ui/icons";
-import { SIGNUP_STATUS, classesForRows, fillTone, missingVersionLabel, profileForRows, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups";
-import { specLabel } from "../lib/wowNames";
-import { weekBands } from "../lib/raidTime";
+import { SIGNUP_STATUS, classesForRows, fillTone, missingVersionLabel, profileForRows, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups/status";
+import { specLabel } from "../lib/wow/wowNames";
+import { weekBands } from "../lib/raids/raidTime";
 import { useT } from "../i18n";
 import "../styles/signups.css";
 

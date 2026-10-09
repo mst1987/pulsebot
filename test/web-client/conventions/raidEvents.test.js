@@ -16,8 +16,8 @@ const MODULE_FILES = {
     dialog: read("components", "raid-create"),
     templates: read("pages", "RaidTemplatesPage.tsx"),
     createPage: read("pages", "RaidCreatePage.tsx"),
-    icons: read("lib", "raidIcons.ts"),
-    time: read("lib", "raidTime.ts"),
+    icons: read("lib", "wow", "raidIcons.ts"),
+    time: read("lib", "raids", "raidTime.ts"),
     icon: read("components", "raid", "RaidIcon.tsx"),
 };
 

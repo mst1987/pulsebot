@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import WowIcon from "./WowIcon";
 import Badge, { type Tone } from "./Badge";
 import { canAccessAny, type SessionUser } from "../../api";
-import { matchesHref, menuFamily, menuLabel } from "../../lib/menu";
+import { matchesHref, menuFamily, menuLabel } from "../../lib/app/menu";
 import { useT } from "../../i18n";
 
 // The secondary navigation of a page with sub sections (design "C · Schmale
@@ -96,7 +96,7 @@ function activeOf(items: { id: string; href: string }[], pathname: string): stri
 }
 
 /**
- * A page of a main menu entry's family inside the family's rail (lib/menu.ts:
+ * A page of a main menu entry's family inside the family's rail (lib/app/menu.ts:
  * the entry and its sub entries — Raid-Events, Raidplan-Vorlagen,
  * Raidplan-Katalog), as links, only the pages the account may open. One page
  * alone needs no rail: then the page stands on its own.

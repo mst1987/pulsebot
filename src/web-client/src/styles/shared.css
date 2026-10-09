@@ -467,7 +467,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 :root[data-theme="light"] .class-colored { color: color-mix(in srgb, var(--cc) 55%, var(--ink-shade)); }
 
 /* Item names in their WoW quality colour (epic purple, rare blue, legendary
-   orange, …), handed in as --iq by lib/itemQuality.ts — same mechanism and the
+   orange, …), handed in as --iq by lib/wow/itemQuality.ts — same mechanism and the
    same light-theme darkening as the class colours above, for the same reason:
    raw #1eff00 or #ff8000 washes out on a white panel. The doubled base selector
    only exists so a name inside a hover popover — which sets its own colour —

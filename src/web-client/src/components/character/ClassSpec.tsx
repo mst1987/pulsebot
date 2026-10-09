@@ -2,7 +2,7 @@
 // renderAdmin.js's classSpecCell()/charLink()/charClassSuffix()/specIcon().
 // Colour and icon URL always come from the API response (never recomputed
 // client-side — same rule the app already follows for the recruitment spec
-// catalog, see lib/recruitmentSpecs.ts's header comment).
+// catalog, see lib/discord/recruitmentSpecs.ts's header comment).
 import { Link } from "react-router-dom";
 import { t, useT } from "../../i18n";
 

@@ -3,7 +3,7 @@ import {
     getRoleSync, updateSettings,
     type AdminConfig, type ApiError, type RoleSyncData, type RoleSyncRule,
 } from "../../api";
-import { DIRECTION_LABEL, directionText, driftBadge, roleSyncPatch, withRoleRule, type RoleSyncDirection } from "../../lib/settingsLogic";
+import { DIRECTION_LABEL, directionText, driftBadge, roleSyncPatch, withRoleRule, type RoleSyncDirection } from "../../lib/settings/settingsLogic";
 import { tParts, t as translate, useT } from "../../i18n";
 import { useToast } from "../../components/shell/Jobs";
 import { PenIcon, PlusIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";

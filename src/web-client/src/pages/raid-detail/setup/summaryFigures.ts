@@ -2,8 +2,8 @@
 // switches as they are set, the buffs. The bar's counts, the summary line and
 // the "Details" tiles all read these (Summary.tsx, SetupEditor.tsx).
 import type { SetupEditorData, StoredSetup } from "../../../api";
-import { dpsCheck, roleTarget } from "../../../lib/setupEditor";
-import { rolePluralLabel } from "../../../lib/wowNames";
+import { dpsCheck, roleTarget } from "../../../lib/signups/setupEditor";
+import { rolePluralLabel } from "../../../lib/wow/wowNames";
 import { t } from "../../../i18n";
 
 /** One role against the plan: "Tanks 3 von 3" in the bar, a big tile in the details. */

@@ -8,10 +8,10 @@
 import { useEffect, useState } from "react";
 import { getSetupSignup, type ApiError, type SetupPerson, type SetupSignupEdit, type SetupSignupInput } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
-import { initialPick, optionOf, outsideProfile, pickChanged, pickCharacter, signupEditInput, type SignupEditPick } from "../../../lib/setupSignupEdit";
-import { SIGNUP_STATUS } from "../../../lib/signups";
-import { wowIconUrl } from "../../../lib/wowIcon";
-import { roleLabel, specLabel } from "../../../lib/wowNames";
+import { initialPick, optionOf, outsideProfile, pickChanged, pickCharacter, signupEditInput, type SignupEditPick } from "../../../lib/signups/setupSignupEdit";
+import { SIGNUP_STATUS } from "../../../lib/signups/status";
+import { wowIconUrl } from "../../../lib/wow/wowIcon";
+import { roleLabel, specLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
 import Field from "../../../components/ui/Field";

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { saveRaidsheet, deleteRaidsheet, type ApiError, type Raidsheet } from "../../api";
-import { useTableSort, type Dir } from "../../lib/tableSort";
+import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { SortTh } from "../../components/ui/SortTh";
 import { ExternalIcon, PenIcon, TrashIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { ListSection } from "../../components/ui/ListSection";
-import { useCollectionEditor } from "../../lib/collectionEditor";
+import { useCollectionEditor } from "../../lib/ui/collectionEditor";
 import Field from "../../components/ui/Field";
 import { useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";

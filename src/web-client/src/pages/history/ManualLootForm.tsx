@@ -14,7 +14,7 @@ import {
     addLootItem, getLootPicker,
     type ApiError, type RaidDropItem, type LootPickerCharacter, type LootPickerData,
 } from "../../api";
-import { itemQualityProps } from "../../lib/itemQuality";
+import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { classColorProps } from "../../components/character/ClassSpec";
 import { useToast } from "../../components/shell/Jobs";
 import { Modal } from "../../components/ui/Modal";

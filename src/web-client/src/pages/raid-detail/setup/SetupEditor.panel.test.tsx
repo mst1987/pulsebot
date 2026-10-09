@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../../../api/client";
 import type { SetupAttendance, SetupEditorData, SetupPerson, SetupPlacementInput, SetupSearch } from "../../../api";
 import { t } from "../../../i18n";
-import { roleLabel, specLabel } from "../../../lib/wowNames";
+import { roleLabel, specLabel } from "../../../lib/wow/wowNames";
 import { inLang } from "../../../test/i18n";
 import { renderPage } from "../../../test/render";
 import { EVENT_ID, MAGE, PRIEST, ROGUE, TANK, editorData, person, setupCtx } from "../../../test/fixtures/setupEditor";

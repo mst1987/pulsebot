@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { resolveCharacters, type ApiError, type AnnotatedCharacter, type Category } from "../../api";
-import { usePersistedState } from "../../lib/persistedState";
-import { sortRows, type Dir } from "../../lib/tableSort";
+import { usePersistedState } from "../../lib/ui/persistedState";
+import { sortRows, type Dir } from "../../lib/ui/tableSort";
 import { SortTh } from "../../components/ui/SortTh";
 import { CharLootHover } from "./CharLootHover";
 import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../../components/character/ClassSpec";

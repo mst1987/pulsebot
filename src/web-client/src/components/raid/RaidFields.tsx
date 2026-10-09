@@ -1,12 +1,12 @@
 import type { ReactNode, CSSProperties } from "react";
 import type { EmbedImage, EmojiStyle, GameVersion, OverflowMode, RoleRange } from "../../api";
 import { OVERFLOW_MODES } from "../../api";
-import { EMBED_ACCENT, allowedSizes, instancesOf, leadInstance } from "../../lib/raidTemplates";
+import { EMBED_ACCENT, allowedSizes, instancesOf, leadInstance } from "../../lib/raids/raidTemplates";
 import Segment from "../ui/Segment";
 import Switch from "../ui/Switch";
 import Badge from "../ui/Badge";
 import WowIcon from "../ui/WowIcon";
-import { roleLabel } from "../../lib/wowNames";
+import { roleLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 import "../../styles/raid-templates.css";
 import { WarnIcon } from "../ui/icons";

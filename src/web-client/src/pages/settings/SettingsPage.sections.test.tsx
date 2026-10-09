@@ -15,7 +15,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { AdminConfig, SettingsData } from "../../api";
-import { SETTINGS_SECTIONS, sectionLabel, visibleSections } from "../../lib/settingsSections";
+import { SETTINGS_SECTIONS, sectionLabel, visibleSections } from "../../lib/settings/settingsSections";
 import { renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
 import SettingsPage from "./SettingsPage";

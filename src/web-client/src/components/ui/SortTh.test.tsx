@@ -4,7 +4,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { useTableSort, type Dir } from "../../lib/tableSort";
+import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { SortTh, ariaSort } from "./SortTh";
 
 type Col = "name" | "date";

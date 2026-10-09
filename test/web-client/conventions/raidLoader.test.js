@@ -36,11 +36,11 @@ describe("RaidLoader", () => {
     });
 
     it("draws the boss with the icons the menu already checked, never a new name", () => {
-        expect(loader).toContain("import { RAID_CONTENTS } from \"../../lib/raidIcons\";");
+        expect(loader).toContain("import { RAID_CONTENTS } from \"../../lib/wow/raidIcons\";");
         expect(loader).toContain("RAID_CONTENTS[boss.key].icon");
         // the bosses the loader lists, by the content id each one belongs to
         const keys = [...loader.match(/const BOSSES[\s\S]*?\];/)[0].matchAll(/key: "(\w+)"/g)].map((m) => m[1]);
-        const known = read("lib", "raidIcons.ts");
+        const known = read("lib", "wow", "raidIcons.ts");
         for (const key of keys) expect({ key, known: known.includes(`    ${key}: {`) }).toEqual({ key, known: true });
         expect(keys.length).toBeGreaterThan(4);
     });

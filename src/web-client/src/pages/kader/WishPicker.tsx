@@ -12,7 +12,7 @@ import type { KaderEntry, KaderWish } from "../../api";
 import Popover from "../../components/ui/Popover";
 import { CheckIcon, ChevronDownIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
-import { belowStartPlacement } from "../../lib/popoverPosition";
+import { belowStartPlacement } from "../../lib/ui/popoverPosition";
 import { wishLabel, wishOptions, type WishOption } from "../../lib/kader/model";
 import { PickIcon, PickLabel, StateIcon } from "./parts";
 import { useKader } from "./kaderContext";

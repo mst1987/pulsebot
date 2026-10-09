@@ -4,7 +4,7 @@
 //
 // `aria-sort` is what tells a screen reader that the column is sorted and in
 // which direction — the chevron alone is decoration it never announces.
-import type { Dir } from "../../lib/tableSort";
+import type { Dir } from "../../lib/ui/tableSort";
 import { ChevronDownIcon } from "./icons";
 
 export type SortLabelProps<K extends string> = {

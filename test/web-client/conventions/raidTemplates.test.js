@@ -3,7 +3,7 @@
 // fields of the event dialog (no copies), and its own stylesheet. The page is
 // rendered in Vitest (src/web-client/src/pages/RaidTemplatesPage.test.tsx,
 // components/raid/RaidFields.test.tsx, components/raid/CompositionEditor.test.tsx),
-// the rules in lib/raidTemplates.test.ts.
+// the rules in lib/raids/raidTemplates.test.ts.
 const fs = require("fs");
 const path = require("path");
 

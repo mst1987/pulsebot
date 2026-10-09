@@ -11,7 +11,7 @@ import Popover from "../../components/ui/Popover";
 import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 import { formatDayMonth } from "../../lib/format";
-import { belowStartPlacement } from "../../lib/popoverPosition";
+import { belowStartPlacement } from "../../lib/ui/popoverPosition";
 import { attendanceCategoriesOf, attendanceOf, attPartsText, attText, categoryLabel, togglePick } from "../../lib/kader/model";
 import { useKader } from "./kaderContext";
 

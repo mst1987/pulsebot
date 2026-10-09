@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { postRaidplanLink, type ApiError } from "../../../api";
 import { fmtMs } from "../../../lib/format";
-import { messageLink } from "../../../lib/discordLinks";
+import { messageLink } from "../../../lib/discord/discordLinks";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";

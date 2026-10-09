@@ -2,11 +2,11 @@ import type { CSSProperties } from "react";
 import type { ClaRaid } from "../../api";
 import Badge from "../ui/Badge";
 import { CheckIcon } from "../ui/icons";
-import { raidCount, raidIcon } from "../../lib/logRaids";
+import { raidCount, raidIcon } from "../../lib/raids/logRaids";
 import { useT } from "../../i18n";
 import "../../styles/logcheck.css";
 
-// The body of the "Raid noch nicht abgeschlossen" question (lib/confirmIncomplete.ts):
+// The body of the "Raid noch nicht abgeschlossen" question (lib/raids/confirmIncomplete.ts):
 // one sentence, then per unfinished raid its bosses as a grid — down with a
 // check, still standing dashed — and the raids as count badges. Replaces the
 // browser's confirm box, which could only say it in a sentence.

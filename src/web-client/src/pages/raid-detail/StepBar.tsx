@@ -10,9 +10,9 @@
 //
 // Welche Zustände es gibt und welche Tat ansteht, entscheidet der Server
 // (src/web/raidDetailSteps.js' eventSteps); die Texte drumherum stehen rein in
-// lib/raidSteps.ts. Hier wird nur gezeichnet.
+// lib/raids/raidSteps.ts. Hier wird nur gezeichnet.
 import type { RaidEventStep, RaidEventSteps, RaidStepDeed } from "../../api";
-import { deedLabel, stepFocus, stepShort, stepStateLabel, stepSummary, stepTipSub, stepTitle } from "../../lib/raidSteps";
+import { deedLabel, stepFocus, stepShort, stepStateLabel, stepSummary, stepTipSub, stepTitle } from "../../lib/raids/raidSteps";
 import { Button } from "../../components/ui/Button";
 import IconTile from "../../components/ui/IconTile";
 import WowIcon from "../../components/ui/WowIcon";

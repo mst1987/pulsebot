@@ -71,11 +71,11 @@ describe("src/api/ replaces api.ts", () => {
         expect(client).toMatch(/^export async function pollJob\(/m);
     });
 
-    it("moved the access helpers to lib/access.ts and keeps them reachable from the api for now", () => {
-        const access = read("lib", "access.ts");
+    it("moved the access helpers to lib/app/access.ts and keeps them reachable from the api for now", () => {
+        const access = read("lib", "app", "access.ts");
         expect(access).toMatch(/^export function canAccess\(/m);
         expect(access).toMatch(/^export function canAccessAny\(/m);
-        expect(index).toContain("export { canAccess, canAccessAny } from \"../lib/access\";");
+        expect(index).toContain("export { canAccess, canAccessAny } from \"../lib/app/access\";");
         for (const file of apiFiles()) expect(read("api", file)).not.toMatch(/function canAccess/);
     });
 });

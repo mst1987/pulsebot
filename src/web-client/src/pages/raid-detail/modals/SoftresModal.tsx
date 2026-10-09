@@ -6,9 +6,9 @@ import {
     createSoftres, linkSoftres, postRaidSoftres, searchSoftresItems,
     type ApiError, type ItemSearchResult, type SoftresCatalogueGroup,
 } from "../../../api";
-import { useDraftState } from "../../../lib/persistedState";
-import { itemQualityProps } from "../../../lib/itemQuality";
-import { messageLink } from "../../../lib/discordLinks";
+import { useDraftState } from "../../../lib/ui/persistedState";
+import { itemQualityProps } from "../../../lib/wow/itemQuality";
+import { messageLink } from "../../../lib/discord/discordLinks";
 import { Modal } from "../../../components/ui/Modal";
 import { Button, IconButton } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";

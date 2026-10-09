@@ -170,7 +170,7 @@ const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermi
 // acts through (the Anthropic key, the Warcraft Logs API client). Full-admin
 // only as well: a limited settings user neither sees whether one is set nor
 // can replace it with their own. The client mirrors this with `adminOnly` on
-// the section (src/web-client/src/lib/settingsSections.ts).
+// the section (src/web-client/src/lib/settings/settingsSections.ts).
 const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2"];
 
 // Which Discord server is the event server and which the talk server (#251).

@@ -57,7 +57,7 @@ describe("the language switch", () => {
 const ALLOWED = new Set([
     // the confirmation word of a bulk delete: the server checks exactly this
     // word (BULK_DELETE_WORD in the channels service), in every language
-    "lib/channels.ts: LÖSCHEN",
+    "lib/discord/channels.ts: LÖSCHEN",
 ]);
 
 // Files whose German literals are data the code reads, not texts it shows.

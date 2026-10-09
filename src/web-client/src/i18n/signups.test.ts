@@ -3,7 +3,7 @@
 // test/web-client/conventions/i18n-signups.test.js).
 import { describe, expect, it } from "vitest";
 import { t } from ".";
-import { GEAR_LABEL, SIGNUP_STATUS } from "../lib/signups";
+import { GEAR_LABEL, SIGNUP_STATUS } from "../lib/signups/status";
 import { inLang } from "../test/i18n";
 
 describe("signups namespace", () => {
@@ -20,7 +20,7 @@ describe("signups namespace", () => {
         });
     });
 
-    // lib/signups.ts keeps its tables behind getters: read at render time, a
+    // lib/signups/status.ts keeps its tables behind getters: read at render time, a
     // label follows a language switch instead of freezing the one the page loaded in
     it("reads the status and gear labels in the language active at the time", async () => {
         expect(SIGNUP_STATUS.signed.label).toBe(t("signups.status.signed"));

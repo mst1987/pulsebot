@@ -1,5 +1,5 @@
 import { get, send } from "./client";
-import type { ChannelState } from "../lib/discordLinks";
+import type { ChannelState } from "../lib/discord/discordLinks";
 import type { LootSystemKey, LootSystem } from "./dashboard";
 import type { Role, PingTarget, PingTargetInfo, ItemSearchResult, Raidsheet } from "./settings";
 import type { NotifyTemplate } from "./notifyTemplates";
@@ -52,7 +52,7 @@ export type RaidStepDeed = {
     id: string;
     label: string;
     icon: string;
-    /** Ein Eintrag von „Event verwalten“ (lib/eventManage.ts' ManageAction). */
+    /** Ein Eintrag von „Event verwalten“ (lib/raids/eventManage.ts' ManageAction). */
     manage?: "edit" | "signups" | "reopen";
     modal?: RaidDetailModal;
     tab?: "roster" | "setup" | "loot" | "logs" | "plan";

@@ -15,10 +15,10 @@ import { AbsenceIcon, CopyIcon, ExternalIcon, XIcon } from "../../components/ui/
 import { ReasonBadge } from "../../components/loot/LootBadges";
 import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
-import { itemQualityProps } from "../../lib/itemQuality";
-import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
+import { itemQualityProps } from "../../lib/wow/itemQuality";
+import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { dropHref, gearCounts, roleLabel, wornWowheadUrl } from "./council";
-import { useWowheadPath } from "../../lib/versionLinks";
+import { useWowheadPath } from "../../lib/settings/versionLinks";
 import { useBackdropClose } from "../../hooks/useBackdropClose";
 import { ContentBadge, ItemLink, RaiderIdent } from "./ItemBits";
 import { GearBadges, WornIcon } from "./GearBadges";

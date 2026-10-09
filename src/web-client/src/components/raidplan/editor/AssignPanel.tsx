@@ -21,7 +21,7 @@ import {
 import { assigneeItems, cardSummary, lineState } from "../../../lib/raidplan/assignLine";
 import { targetKey } from "../../../lib/raidplan/assignModal";
 import { canPutOnMap, mobTargetsFor, sameTargetAs, setRowOnMap } from "../../../lib/raidplan/autoPlace";
-import { wowIconUrl } from "../../../lib/wowIcon";
+import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { canRestore, deviate, hideInherited, isDeviation, restoreInherited } from "../../../lib/raidplan/inherit";import { portraitUrl } from "../../../lib/raidplan";
 import { effectiveClasses } from "../../../lib/raidplan/rosterAssign";
 import { carryClasses, expandClassRefs } from "../../../lib/raidplan/classRefs";

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { RosterChar, RosterHiddenNote } from "../../api";
-import { sortRows, type Dir } from "../../lib/tableSort";
+import { sortRows, type Dir } from "../../lib/ui/tableSort";
 import { ClassSpecIdentity } from "../../components/character/ClassSpec";
 import { AttendanceBar, GearStateBadge, IconLink, LootBadge, RoleBadge } from "../../components/roster/RosterCommon";
 import { SortLabel } from "../../components/ui/SortTh";
-import { ROLE_ORDER } from "../../lib/rosterView";
+import { ROLE_ORDER } from "../../lib/roster/rosterView";
 import { Badge, Expand, IconButton, IconTile } from "../../components/ui";
 import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";

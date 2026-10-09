@@ -4,9 +4,9 @@ import {
     type ApiError, type NotifyTemplate } from "../api";
 import { useApi } from "../hooks/useApi";
 import { formatTime } from "../lib/format";
-import { useDraftState } from "../lib/persistedState";
-import { useCollectionEditor } from "../lib/collectionEditor";
-import { useTableSort, type Dir } from "../lib/tableSort";
+import { useDraftState } from "../lib/ui/persistedState";
+import { useCollectionEditor } from "../lib/ui/collectionEditor";
+import { useTableSort, type Dir } from "../lib/ui/tableSort";
 import { TrashIcon, CrestIcon, ChevronDownIcon } from "../components/ui/icons";
 import { useToast } from "../components/shell/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
@@ -19,7 +19,7 @@ import { tParts, t as tr, useT } from "../i18n";
 
 // Aufruf-Vorlagen: the list first, the editor as a dialog over it. The open
 // editor stays in the url (?edit=<id|new>), like every collection editor
-// (lib/collectionEditor.ts) — only it opens over the list instead of in its
+// (lib/ui/collectionEditor.ts) — only it opens over the list instead of in its
 // place, with the Discord message it will post next to the fields.
 
 type SortKey = "name" | "title";

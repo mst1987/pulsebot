@@ -4,7 +4,7 @@
 // deleting with its switches — plus the head's state badges and "Raider
 // eintragen" in the roster. The API is mocked at its transport (api/client), so
 // the tests also pin the requests. The rules behind menu and dialogs run in
-// lib/eventManage.test.ts.
+// lib/raids/eventManage.test.ts.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";
@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../../api/client";
 import type { ManageInfo, MovePlan, RaidCreateContext, RaidDetailData, SessionUser } from "../../api";
 import { t } from "../../i18n";
-import { cancelSummary, manageMenu } from "../../lib/eventManage";
+import { cancelSummary, manageMenu } from "../../lib/raids/eventManage";
 import { adminUser, renderPage } from "../../test/render";
 import { OWN_ID, raidDetail, raidhelperDetail } from "../../test/fixtures/raidDetail";
 import RaidDetailPage from "./RaidDetailPage";
@@ -87,7 +87,7 @@ async function choose(user: ReturnType<typeof userEvent.setup>, label: string) {
 const dialog = () => screen.getByRole("dialog");
 
 describe("the Verwalten menu", () => {
-    it("is one button in the head of an own event, opening the menu of lib/eventManage", async () => {
+    it("is one button in the head of an own event, opening the menu of lib/raids/eventManage", async () => {
         const user = userEvent.setup();
         await show();
         const button = manageButton()!;

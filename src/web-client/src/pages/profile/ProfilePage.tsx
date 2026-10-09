@@ -8,13 +8,13 @@ import { useToast } from "../../components/shell/Jobs";
 import AddCharacterDialog, { type AddWay } from "../../components/character/AddCharacterDialog";
 import { EyeOffIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
-import { specSuggestion } from "../../lib/raidhelperRetirement";
+import { specSuggestion } from "../../lib/settings/raidhelperRetirement";
 import { tOr, useT } from "../../i18n";
 import "../../styles/profile.css";
 import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } from "./ProfileParts";
 import { CharacterCard, CharChip, FirstCharacter } from "./CharacterCard";
 import { CalendarPart } from "./CalendarPart";
-import { charactersOfVersion, groupByVersion, moveInVersion } from "../../lib/characterVersions";
+import { charactersOfVersion, groupByVersion, moveInVersion } from "../../lib/roster/characterVersions";
 import { useContentVersion } from "../../hooks/useContentVersion";
 
 export default function ProfilePage() {

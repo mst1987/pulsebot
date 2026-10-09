@@ -4,11 +4,11 @@ import { JobsProvider } from "./components/shell/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
 import { canAccess, canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
 import { getLang, langReady, setLang, useT } from "./i18n";
-import { firstAllowedTab } from "./lib/menu";
+import { firstAllowedTab } from "./lib/app/menu";
 import RaidLoader from "./components/ui/RaidLoader";
 import LangToggle from "./components/shell/LangToggle";
 import ChunkErrorBoundary from "./components/shell/ChunkErrorBoundary";
-import { lazyWithReload } from "./lib/chunkReload";
+import { lazyWithReload } from "./lib/app/chunkReload";
 
 // Every page, the shell around them and the public plan view are their own
 // chunk (#436): the first load carries only this router, the session and the
@@ -170,7 +170,7 @@ function MenuApp() {
     // after its page is gone.
     // The outer Suspense only waits for the shell's own chunk on the very first
     // view; from then on the shell's Suspense catches the page chunks.
-    // A chunk that is gone after a deploy reloads the page (lib/chunkReload.ts);
+    // A chunk that is gone after a deploy reloads the page (lib/app/chunkReload.ts);
     // should it fail again, ChunkErrorBoundary offers the reload as a button (#530).
     return (
         <ChunkErrorBoundary>

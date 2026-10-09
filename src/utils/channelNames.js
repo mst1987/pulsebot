@@ -4,7 +4,7 @@
 // Pure on purpose — the inline rename, the bulk "Umbenennen nach Schema" and the
 // quick-create series all go through here, so the rules are tested once. The
 // client keeps a twin of normalizeChannelName() in
-// src/web-client/src/lib/channelNames.ts (the regex and the limit are held
+// src/web-client/src/lib/discord/channelNames.ts (the regex and the limit are held
 // identical by test/utils/channelNames.test.js), so what the admin sees while
 // typing is what Discord will store.
 

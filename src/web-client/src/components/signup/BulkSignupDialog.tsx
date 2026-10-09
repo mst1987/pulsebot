@@ -8,9 +8,9 @@ import { CheckIcon } from "../ui/icons";
 import { useToast } from "../shell/Jobs";
 import SignupCharacterPicks from "./SignupCharacterPicks";
 import { formatEventTime } from "../../lib/format";
-import { SIGNUP_STATUS, SIGNUP_STATUS_ORDER } from "../../lib/signups";
-import { initialPicks, picksToInput, type CharacterPick } from "../../lib/signupPicks";
-import { specLabel } from "../../lib/wowNames";
+import { SIGNUP_STATUS, SIGNUP_STATUS_ORDER } from "../../lib/signups/status";
+import { initialPicks, picksToInput, type CharacterPick } from "../../lib/signups/signupPicks";
+import { specLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 
 // "Für alle gewählten anmelden" (#293): one choice of characters and status for

@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { AbsenceOverview, AbsencePeriod, AbsenceRaider } from "../../api";
-import { barLabel, barPlace, categoryTone, dayIndex, dayWidth, displayName, LONG_DAYS, MANY_AWAY, playsLine, raidDays, timelineWeeks } from "../../lib/absences";
-import { dayMs, periodLabel } from "../../lib/availability";
+import { barLabel, barPlace, categoryTone, dayIndex, dayWidth, displayName, LONG_DAYS, MANY_AWAY, playsLine, raidDays, timelineWeeks } from "../../lib/roster/absences";
+import { dayMs, periodLabel } from "../../lib/signups/availability";
 import { formatDayDate, formatDayMonth, formatWeekday } from "../../lib/format";
 import { useT } from "../../i18n";
 import { AbSpec, ClassName } from "./parts";

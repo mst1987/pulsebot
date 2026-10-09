@@ -7,7 +7,7 @@ import {
     type ApiError, type GameVersion, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplate, type SessionGuild,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { useCollectionEditor } from "../../lib/collectionEditor";
+import { useCollectionEditor } from "../../lib/ui/collectionEditor";
 import {
     boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, sameBosses, startSection, toSave,
 } from "../../lib/raidplan";
@@ -28,7 +28,7 @@ import { MinusIcon, PlusIcon } from "../../components/ui/icons";
 import { InstancePicker, SizePicker } from "../../components/raid/RaidFields";
 import PlanBoard from "../../components/raidplan/PlanBoard";
 import { formatDate } from "../../lib/format";
-import { rolePluralLabel } from "../../lib/wowNames";
+import { rolePluralLabel } from "../../lib/wow/wowNames";
 import type { BesetzungCounts } from "../../api";
 import { bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../../lib/raidplan/assign";
 import { DEFAULTS_KEY, copyDefaultsToAll, differs } from "../../lib/raidplan/inherit";

@@ -9,9 +9,9 @@ import { Button, Modal, Segment, WowIcon } from "../ui";
 import { AbsenceIcon, CheckIcon, SignedIcon } from "../ui/icons";
 import { useToast } from "../shell/Jobs";
 import { RaidChecklist, RaiderPick, ResultList } from "./AvailabilityParts";
-import { countResults, firstSpec, nextTo, resultSummary, staysAsIs } from "../../lib/availability";
-import { classIconName } from "../../lib/rosterView";
-import { specLabel } from "../../lib/wowNames";
+import { countResults, firstSpec, nextTo, resultSummary, staysAsIs } from "../../lib/signups/availability";
+import { classIconName } from "../../lib/roster/rosterView";
+import { specLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 // rendered on more than one page (Anmeldungen, Roster › Abwesenheiten): it brings its stylesheet along
 import "../../styles/signups.css";

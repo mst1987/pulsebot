@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../../api/client";
 import type { Channel, GameVersion, RaidCreateContext } from "../../api";
 import { t } from "../../i18n";
-import { PLAN_MAX_DURATION, PLAN_MIN_DURATION, stepLabel } from "../../lib/eventPlan";
+import { PLAN_MAX_DURATION, PLAN_MIN_DURATION, stepLabel } from "../../lib/raids/eventPlan";
 import { requireBackend } from "../../test/backend";
 import { renderPage } from "../../test/render";
 import RaidCreateDialog from "./RaidCreateDialog";

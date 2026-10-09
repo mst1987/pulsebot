@@ -17,8 +17,8 @@ import { useConfirm } from "../../components/ui/Modal";
 import { BoltIcon, CheckIcon, CopyIcon, EditIcon, PlusIcon, RosterIcon, SaveIcon, TrashIcon, XIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useT } from "../../i18n";
-import { usePersistedState } from "../../lib/persistedState";
-import { rolePluralLabel } from "../../lib/wowNames";
+import { usePersistedState } from "../../lib/ui/persistedState";
+import { rolePluralLabel } from "../../lib/wow/wowNames";
 import { classColor, classOfSpec, playerName, ROLES, SETUP_STATES } from "../../lib/kader/model";
 import {
     GROUP_SIZE, defaultSpec, groupHints, moveToSlot, placedIds, removeFromGroups, setSlotSpec, setupText, slotRoles, unplaced, visibleGroups, type Groups,

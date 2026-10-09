@@ -7,7 +7,7 @@
 // Shared by the Historie tab's Charaktere table and the Roster overview.
 import type { CharLootPreview } from "../../api";
 import { fmtMs } from "../../lib/format";
-import { itemQualityProps } from "../../lib/itemQuality";
+import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { HoverPanel } from "../../components/ui/HoverPanel";
 import { LootResponseBadge } from "../../components/loot/LootTable";
 import { useT } from "../../i18n";

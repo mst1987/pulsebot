@@ -1,4 +1,4 @@
-// Guards for the list/editor pattern (src/web-client/src/lib/collectionEditor.ts
+// Guards for the list/editor pattern (src/web-client/src/lib/ui/collectionEditor.ts
 // and src/web-client/src/components/ui/ListSection.tsx).
 //
 // A section that manages a collection shows the list first and exactly one
@@ -17,7 +17,7 @@ const shared = require("../clientSource");
 // LF line endings whatever the checkout (the patterns below match on \n)
 const readClient = shared.read;
 
-const editorSrc = readClient("lib", "collectionEditor.ts");
+const editorSrc = readClient("lib", "ui", "collectionEditor.ts");
 const sectionSrc = readClient("components", "ui", "ListSection.tsx");
 
 /** Every page/component file of the client, as [name, source]. */

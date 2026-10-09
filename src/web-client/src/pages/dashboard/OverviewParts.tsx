@@ -3,7 +3,7 @@ import type { DashboardRole } from "../../api";
 import Bar from "../../components/ui/Bar";
 import WowIcon from "../../components/ui/WowIcon";
 import { useT } from "../../i18n";
-import { roleLabel } from "../../lib/wowNames";
+import { roleLabel } from "../../lib/wow/wowNames";
 
 /**
  * How full a role is, as a bar tone: full is ok, one short in a big role is

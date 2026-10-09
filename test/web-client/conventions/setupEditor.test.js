@@ -3,7 +3,7 @@
 // checked in a real browser (one fixed top row, the stacked panel, row heights,
 // the lock mark, nothing clickable on a line). What the editor does is rendered in Vitest:
 // src/web-client/src/pages/raid-detail/setup/SetupEditor.test.tsx and
-// SetupEditor.panel.test.tsx; the moves behind it in lib/setupEditor.test.ts.
+// SetupEditor.panel.test.tsx; the moves behind it in lib/signups/setupEditor.test.ts.
 const { read } = require("../clientSource");
 
 describe("setup editor conventions", () => {

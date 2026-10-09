@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { getHistoryData, getLootStats, getLootInbox, getSession, canAccess } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { usePersistedState, usePersistedSearchParam } from "../../lib/persistedState";
+import { usePersistedState, usePersistedSearchParam } from "../../lib/ui/persistedState";
 import RaidTable from "./RaidTable";
 import { LootReasonsTab } from "./LootReasonsTab";
 import { LootItemsTab } from "./LootItemsTab";

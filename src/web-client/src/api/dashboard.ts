@@ -1,5 +1,5 @@
 import { get } from "./client";
-import type { ChannelState } from "../lib/discordLinks";
+import type { ChannelState } from "../lib/discord/discordLinks";
 import type { VersionChoice } from "./raidTemplates";
 
 export type EventLog = {

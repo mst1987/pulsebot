@@ -4,9 +4,9 @@ import {
     type AdminConfig, type ApiError, type IngestToken, type SettingsData,
 } from "../../api";
 import { fmtMs } from "../../lib/format";
-import { useTableSort, type Dir } from "../../lib/tableSort";
+import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { SortTh } from "../../components/ui/SortTh";
-import { connectionInputs, connectionPatch, connectionState, visibleConnections, type ConnectionId } from "../../lib/settingsLogic";
+import { connectionInputs, connectionPatch, connectionState, visibleConnections, type ConnectionId } from "../../lib/settings/settingsLogic";
 import { useToast } from "../../components/shell/Jobs";
 import { useConfirm, Modal } from "../../components/ui/Modal";
 import { Button, IconButton, buttonClass } from "../../components/ui/Button";

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { deleteHistoryLog, type ApiError, type LootLog } from "../../api";
 import { formatEventTime, formatDate } from "../../lib/format";
-import { useTableSort, type Dir } from "../../lib/tableSort";
+import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { SortTh } from "../../components/ui/SortTh";
 import { ExternalIcon, TrashIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";

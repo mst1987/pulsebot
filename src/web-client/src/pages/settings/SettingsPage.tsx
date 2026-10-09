@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, type ApiError, type AvailabilityLink, type AvailabilityPanel } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { usePersistedSearchParam } from "../../lib/persistedState";
+import { usePersistedSearchParam } from "../../lib/ui/persistedState";
 import RolePermissionsEditor from "./RolePermissions";
 import BotCommandAccess from "./BotCommandAccess";
 import Segment from "../../components/ui/Segment";
@@ -14,9 +14,9 @@ import { ChannelPicker, RolePicker } from "../../components/settings/settingsUi"
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import {
     SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, groupLabel, sectionCrumb, sectionLabel,
-    type SettingsSection } from "../../lib/settingsSections";
-import { areaLabel, draftChanges } from "../../lib/settingsLogic";
-import { sectionBadge, settingsNavCounts } from "../../lib/settingsNav";
+    type SettingsSection } from "../../lib/settings/settingsSections";
+import { areaLabel, draftChanges } from "../../lib/settings/settingsLogic";
+import { sectionBadge, settingsNavCounts } from "../../lib/settings/settingsNav";
 import { tParts, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
 import IconTile from "../../components/ui/IconTile";

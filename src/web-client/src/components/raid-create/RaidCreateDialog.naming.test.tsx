@@ -7,7 +7,7 @@ import * as api from "../../api";
 import RaidCreateDialog from "./RaidCreateDialog";
 import { renderPage } from "../../test/render";
 import { t } from "../../i18n";
-import { stepLabel } from "../../lib/eventPlan";
+import { stepLabel } from "../../lib/raids/eventPlan";
 import type { ChannelNameSuggestion, RaidCreateContext } from "../../api";
 
 vi.mock("../../api", async (orig) => ({

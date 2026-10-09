@@ -1,6 +1,6 @@
 import type { RosterCharData } from "../../api";
 import { AttendanceBar } from "../../components/roster/RosterCommon";
-import { nightLabel } from "../../lib/rosterView";
+import { nightLabel } from "../../lib/roster/rosterView";
 import { Badge, PartHead } from "../../components/ui";
 import { useT } from "../../i18n";
 

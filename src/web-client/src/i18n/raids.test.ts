@@ -1,7 +1,7 @@
 // The Raid-Events list and the raid table in two languages (namespace `raids`),
 // with the real `t` (#435: formerly test/web-client/i18n-raids.test.js; the
 // source rules are in test/web-client/conventions/i18n-raids.test.js, the time
-// bands in lib/raidTime.test.ts).
+// bands in lib/raids/raidTime.test.ts).
 import { describe, expect, it } from "vitest";
 import { t } from ".";
 import { inLang } from "../test/i18n";

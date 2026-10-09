@@ -1,6 +1,6 @@
 import WowIcon from "../ui/WowIcon";
 import { useT } from "../../i18n";
-import { knownContents, raidIconName, raidLabel, raidSourceText, RAID_ICON_FALLBACK } from "../../lib/raidIcons";
+import { knownContents, raidIconName, raidLabel, raidSourceText, RAID_ICON_FALLBACK } from "../../lib/wow/raidIcons";
 
 // The raid a row is, as its final boss' achievement icon — two overlapping when
 // a night combines raids ("Hyjal + BT"). Nothing recognised shows the plain note,

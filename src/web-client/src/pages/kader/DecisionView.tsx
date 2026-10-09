@@ -23,7 +23,7 @@ import { BenchIcon, CheckIcon, CommentIcon, EditIcon, SendIcon, TentativeIcon, X
 import { useToast } from "../../components/shell/Jobs";
 import { useT } from "../../i18n";
 import { relativeDayLabel } from "../../lib/format";
-import { rolePluralLabel } from "../../lib/wowNames";
+import { rolePluralLabel } from "../../lib/wow/wowNames";
 import { canMove, classColor, dayOf, entriesIn, mainPick, nameOf, playerName, ROLES, roleCounts, wishLabel, wishOptions } from "../../lib/kader/model";
 import { classColorProps } from "../../components/character/ClassSpec";
 import { leadHue } from "../../lib/kader/leads";

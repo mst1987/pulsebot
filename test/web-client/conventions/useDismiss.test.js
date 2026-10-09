@@ -1,7 +1,7 @@
 // hooks/useDismiss.ts (#439): one hook closes every popover, menu and picker on
 // a click outside and on Escape. There used to be 13 hand-written copies of the
 // same listener pair; the scan below keeps them from coming back. The pure
-// rules (lib/dismiss.ts) run in src/web-client/src/lib/useDismiss.test.ts (Vitest).
+// rules (lib/ui/dismiss.ts) run in src/web-client/src/lib/ui/dismiss.useDismiss.test.ts (Vitest).
 const fs = require("fs");
 const path = require("path");
 const { CLIENT, read } = require("../clientSource");

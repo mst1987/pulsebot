@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Emoji } from "../../api";
 import {
     parseWantedBlock, insertSpecLine, removeSpecLine, findGuildEmoji, specEmojiUrl, type SpecCatalogEntry,
-} from "../../lib/recruitmentSpecs";
+} from "../../lib/discord/recruitmentSpecs";
 import { Button } from "../../components/ui/Button";
 import WowIcon from "../../components/ui/WowIcon";
 import { XIcon } from "../../components/ui/icons";

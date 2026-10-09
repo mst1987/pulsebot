@@ -4,7 +4,7 @@ import { Badge, Button, IconButton, PartHead, Segment, WowIcon } from "../../com
 import { classColorProps } from "../../components/character/ClassSpec";
 import { type AddWay } from "../../components/character/AddCharacterDialog";
 import { ChevronLeftIcon, ChevronRightIcon, ExternalIcon, TrashIcon, XIcon } from "../../components/ui/icons";
-import { classLabel, roleLabel, specLabel } from "../../lib/wowNames";
+import { classLabel, roleLabel, specLabel } from "../../lib/wow/wowNames";
 import { tOr, useT } from "../../i18n";
 
 const LOG_TONE: Record<ProfileSpec["logs"]["status"], "ok" | "mid" | undefined> = { seen: "ok", other: "mid", unknown: undefined };

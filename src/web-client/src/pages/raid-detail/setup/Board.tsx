@@ -1,9 +1,9 @@
 import { useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
 import { useZone } from "./useZone";
 import type { SetupAttendance, SetupConfirmation, SetupEditorData, SetupEditorGroup, SetupPerson } from "../../../api";
-import { placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
-import { wowIconUrl } from "../../../lib/wowIcon";
-import { roleLabel } from "../../../lib/wowNames";
+import { placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/signups/setupEditor";
+import { wowIconUrl } from "../../../lib/wow/wowIcon";
+import { roleLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import WowIcon from "../../../components/ui/WowIcon";
 import { CheckIcon, LockIcon, XIcon } from "../../../components/ui/icons";

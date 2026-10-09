@@ -1,7 +1,7 @@
 import { deleteRecruitmentTemplate, type ApiError, type RecruitmentData, type RecruitmentTemplate } from "../../api";
-import type { CollectionEditor } from "../../lib/collectionEditor";
-import { useTableSort, type Dir } from "../../lib/tableSort";
-import { specsInContent } from "../../lib/recruitmentSpecs";
+import type { CollectionEditor } from "../../lib/ui/collectionEditor";
+import { useTableSort, type Dir } from "../../lib/ui/tableSort";
+import { specsInContent } from "../../lib/discord/recruitmentSpecs";
 import { TrashIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useConfirm } from "../../components/ui/Modal";

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FALLBACK_ICON, wowIconUrl } from "../../lib/wowIcon";
+import { FALLBACK_ICON, wowIconUrl } from "../../lib/wow/wowIcon";
 
 // A WoW icon from the zamimg CDN — the standard icon wherever something has a
 // game meaning (a menu section, an action, a boss). Decorative by design: the

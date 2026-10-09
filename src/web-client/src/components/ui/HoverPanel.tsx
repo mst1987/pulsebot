@@ -6,12 +6,12 @@
 // so the comments stay with the behaviour they explain.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Popover from "./Popover";
-import { panelPlacement } from "../../lib/popoverPosition";
+import { panelPlacement } from "../../lib/ui/popoverPosition";
 
 const POP_WIDTH = 340;
 const POP_MAX_HEIGHT = 340;
 
-// Where the panel goes: lib/popoverPosition.ts' panelPosition. Fixed
+// Where the panel goes: lib/ui/popoverPosition.ts' panelPosition. Fixed
 // coordinates, because the panel is portalled to <body> (ui/Popover) —
 // .dash-card carries the redesign's notched clip-path, and a clip-path cuts off
 // positioned descendants no matter what their overflow/z-index says, so an

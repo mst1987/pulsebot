@@ -7,7 +7,7 @@ import { useT } from "../../i18n";
 import {
     BLIZZARD_REGIONS, SOFTRES_EDITIONS, applyDefaults, blockOf, blockProblems, defaultsDiff, versionLinks,
     type VersionSettingsBlock,
-} from "../../lib/versionLinks";
+} from "../../lib/settings/versionLinks";
 
 const SOFTRES_LABELS: Record<string, string> = { classic: "Classic", tbc: "The Burning Crusade", wotlk: "Wrath of the Lich King" };
 // A name to show the links with, so the orga sees where a template leads before saving.

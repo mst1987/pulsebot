@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Segment } from "../../ui";
-import { usePersistedState } from "../../../lib/persistedState";
+import { usePersistedState } from "../../../lib/ui/persistedState";
 
 export type InspectorTab<V extends string> = { value: V; label: string };
 

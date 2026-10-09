@@ -2,7 +2,7 @@
 // of the category's recent raids they were in and what they got lately.
 import { Link } from "react-router-dom";
 import { fmtMs } from "../../../lib/format";
-import { itemQualityProps } from "../../../lib/itemQuality";
+import { itemQualityProps } from "../../../lib/wow/itemQuality";
 import { Modal } from "../../../components/ui/Modal";
 import { Button, buttonClass } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";

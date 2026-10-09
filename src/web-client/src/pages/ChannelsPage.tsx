@@ -17,7 +17,7 @@ import { QuickCreateDialog } from "../components/channels/QuickCreateDialog";
 import { CategorySchemaDialog } from "../components/channels/CategorySchemaDialog";
 import { ArchiveSettingsDialog, ArchiveTab, DeleteChannelsDialog } from "../components/channels/ArchiveTab";
 import { PurposesDialog, PurposeSummaryBadges } from "../components/channels/PurposeList";
-import { BULK_DELETE_WORD, deleteWarnings, pastEventChannels, resultMessage, runInSteps } from "../lib/channels";
+import { BULK_DELETE_WORD, deleteWarnings, pastEventChannels, resultMessage, runInSteps } from "../lib/discord/channels";
 import "../styles/channels.css";
 import RaidLoader from "../components/ui/RaidLoader";
 import { tParts, useT } from "../i18n";

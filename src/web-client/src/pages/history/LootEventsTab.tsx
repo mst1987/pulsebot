@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { setLootCategory, type ApiError, type LootEventSummary, type Category } from "../../api";
 import { fmtMs } from "../../lib/format";
-import { useTableSort, type Dir } from "../../lib/tableSort";
+import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { SortTh } from "../../components/ui/SortTh";
 import { ChevronRightIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";

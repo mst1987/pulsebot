@@ -6,8 +6,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { AttendancePerson, EventSignupEntry, GameRole, SetupPlayer, SetupRole, SignupStatus } from "../../api";
-import { wowIconUrl } from "../../lib/wowIcon";
-import { CAN_ALSO } from "../../lib/signups";
+import { wowIconUrl } from "../../lib/wow/wowIcon";
+import { CAN_ALSO } from "../../lib/signups/status";
 import { Button, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";

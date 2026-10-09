@@ -1,10 +1,10 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { getRaiderCharacters, type Category, type Role } from "../../api";
-import { usePersistedState } from "../../lib/persistedState";
+import { usePersistedState } from "../../lib/ui/persistedState";
 import {
     categoryRows, splitCategoryRows, summarizeRaiderChars, signupNoteMode, planningOf,
     type CategoryRow, type RaiderCharSummary,
-} from "../../lib/settingsLogic";
+} from "../../lib/settings/settingsLogic";
 import { tParts, useT } from "../../i18n";
 import Badge from "../../components/ui/Badge";
 import Expand from "../../components/ui/Expand";

@@ -12,10 +12,10 @@ import RaidLoader from "../ui/RaidLoader";
 import ChunkErrorBoundary from "./ChunkErrorBoundary";
 import { IconButton } from "../ui/Button";
 import { TipLayer } from "../ui/Tip";
-import { MENU, firstAllowedTab, matchesHref, menuLabel, menuLines } from "../../lib/menu";
+import { MENU, firstAllowedTab, matchesHref, menuLabel, menuLines } from "../../lib/app/menu";
 import { canAccess, getVersion, type SessionUser, type SessionGuild, type ContentInfo } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { deployLine } from "../../lib/deployVersion";
+import { deployLine } from "../../lib/app/deployVersion";
 import { t as tr, tOr, useLang, useT } from "../../i18n";
 
 export type ShellContext = { user: SessionUser };

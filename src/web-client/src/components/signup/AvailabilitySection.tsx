@@ -5,8 +5,8 @@ import { Badge, Button, IconButton, useConfirm } from "../ui";
 import { AbsenceIcon, SignedIcon, TrashIcon } from "../ui/icons";
 import { useToast } from "../shell/Jobs";
 import AvailabilityDialog from "./AvailabilityDialog";
-import { periodLabel } from "../../lib/availability";
-import { specLabel } from "../../lib/wowNames";
+import { periodLabel } from "../../lib/signups/availability";
+import { specLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 
 // "Ab- & Anwesenheit" on the signup page: the raider's entries that are not over

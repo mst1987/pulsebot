@@ -4,7 +4,7 @@ import RoleGlyph from "../RoleGlyph";
 import { MarkIcon } from "../MarkIcon";
 import { ZONE_GLYPHS } from "../PlanBoard";
 import { RAID_MARKS, ZONE_COLORS, ZONE_TYPES, iconKeyForBoss, type InsertSpec } from "../../../lib/raidplan";
-import { wowIconUrl } from "../../../lib/wowIcon";
+import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import type { RaidplanBoss, RaidplanMarkName, RaidplanZoneType } from "../../../api";
 import { useT } from "../../../i18n";
 

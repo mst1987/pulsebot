@@ -12,7 +12,7 @@ import {
     type ApiError, type HistoryData, type ImportPreview,
 } from "../../api";
 import { formatEventTime } from "../../lib/format";
-import { useDraftState } from "../../lib/persistedState";
+import { useDraftState } from "../../lib/ui/persistedState";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { stepLabel } from "../../lib/eventPlan";
+import { stepLabel } from "../../lib/raids/eventPlan";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import RaidIcon from "../raid/RaidIcon";

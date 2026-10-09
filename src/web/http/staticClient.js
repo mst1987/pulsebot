@@ -12,7 +12,7 @@
 // an open tab still asks for after a deploy — is a plain 404. Answering it with
 // index.html made the browser refuse the "text/html" module script and left the
 // page blank; on the 404 the client reloads itself once instead
-// (src/web-client/src/lib/chunkReload.ts).
+// (src/web-client/src/lib/app/chunkReload.ts).
 const fs = require("fs/promises");
 const path = require("path");
 

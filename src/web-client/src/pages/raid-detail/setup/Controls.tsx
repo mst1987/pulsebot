@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { SetupEditorData, StoredSetup } from "../../../api";
-import { pingTextToSave, publishHint, setupState, GROUP_SIZE } from "../../../lib/setupEditor";
-import { belowEndPlacement } from "../../../lib/popoverPosition";
+import { pingTextToSave, publishHint, setupState, GROUP_SIZE } from "../../../lib/signups/setupEditor";
+import { belowEndPlacement } from "../../../lib/ui/popoverPosition";
 import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";

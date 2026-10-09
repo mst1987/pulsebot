@@ -8,7 +8,7 @@
 //   * one tooltip layer for the whole menu,
 //   * the blocks' CSS (own .itile, no gold, the popover's centring undone).
 // How the blocks behave is tested in Vitest next to them
-// (components/ui/*.test.tsx, lib/confirmIncomplete.test.ts).
+// (components/ui/*.test.tsx, lib/raids/confirmIncomplete.test.ts).
 const fs = require("fs");
 const path = require("path");
 const { CLIENT, read } = require("../clientSource");

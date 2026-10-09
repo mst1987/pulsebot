@@ -22,7 +22,7 @@ import { useToast } from "../../components/shell/Jobs";
 import { useT } from "../../i18n";
 import { dayShort, isWeekdays } from "../../lib/kader/interview";
 import { DAY_KEYS, OPTION_COLORS, optionColors, toneAttrs, type OptionColor } from "../../lib/kader/colors";
-import { belowStartPlacement } from "../../lib/popoverPosition";
+import { belowStartPlacement } from "../../lib/ui/popoverPosition";
 import { changedSince, personName } from "../../lib/kader/live";
 import { Grip, SubHead } from "./parts";
 import { useKader } from "./kaderContext";

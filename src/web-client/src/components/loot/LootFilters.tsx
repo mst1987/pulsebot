@@ -8,7 +8,7 @@ import type { LootContent } from "../../api";
 import { Button } from "../ui/Button";
 import Badge from "../ui/Badge";
 import { InfoIcon, SearchIcon } from "../ui/icons";
-import { contentName } from "../../lib/wowNames";
+import { contentName } from "../../lib/wow/wowNames";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 

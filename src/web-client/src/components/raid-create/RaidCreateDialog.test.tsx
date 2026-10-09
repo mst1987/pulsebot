@@ -3,7 +3,7 @@
 // result as a toast (the dialog closes, nothing navigates), the waiting list
 // behind "Mehr" and the announcement in the channel step (#306), and the
 // Raid-Helper templates the raid templates link. The steps' own rules are in
-// lib/eventCreateDialog.test.ts.
+// lib/raids/eventPlan.createDialog.test.ts.
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";

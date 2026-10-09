@@ -1,8 +1,8 @@
 import type { CSSProperties } from "react";
 import type { SetupAttendance, SetupConfirmation, SetupPerson } from "../../../api";
-import { tipReasons } from "../../../lib/setupEditor";
-import { wowIconUrl } from "../../../lib/wowIcon";
-import { roleLabel, specLabel } from "../../../lib/wowNames";
+import { tipReasons } from "../../../lib/signups/setupEditor";
+import { wowIconUrl } from "../../../lib/wow/wowIcon";
+import { roleLabel, specLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import WowIcon from "../../../components/ui/WowIcon";
 import { BenchIcon, CheckIcon, EditIcon, LockIcon, SignedIcon, UnlockIcon, XIcon } from "../../../components/ui/icons";

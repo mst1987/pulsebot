@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "./api";
 import type { SessionUser } from "./api";
 import { t } from "./i18n";
-import { MENU, firstAllowedTab } from "./lib/menu";
+import { MENU, firstAllowedTab } from "./lib/app/menu";
 import App from "./App";
 
 vi.mock("./api", async (orig) => ({

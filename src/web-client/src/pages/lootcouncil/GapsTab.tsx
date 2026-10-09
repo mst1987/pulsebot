@@ -1,5 +1,5 @@
 import type { CouncilGap, LootCouncilData, SimResult } from "../../api";
-import type { TableSort } from "../../lib/tableSort";
+import type { TableSort } from "../../lib/ui/tableSort";
 import { Button, PartHead } from "../../components/ui";
 import { tParts, useT } from "../../i18n";
 import type { CandidateSortKey, useCouncilSim } from "./council";

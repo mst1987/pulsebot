@@ -4,12 +4,12 @@ import {
     type ApiError, type ChannelNameSuggestion, type EventSource, type RaidCreateContext,
 } from "../../api";
 import { useT } from "../../i18n";
-import { eventDay } from "../../lib/raidTime";
-import { instancesOf } from "../../lib/raidTemplates";
+import { eventDay } from "../../lib/raids/raidTime";
+import { instancesOf } from "../../lib/raids/raidTemplates";
 import {
     categoryVersionOf, emptyPlan, planBody, planFromEvent, planFromTemplate, planProblem, raidTag, schemaName, sourceOf, stepsFor, templateFromPlan, withInstance,
     type EventPlan, type StepKey,
-} from "../../lib/eventPlan";
+} from "../../lib/raids/eventPlan";
 import { useToast } from "../shell/Jobs";
 import { berlinDay, channelNameForDate, clockOf, latestPerCategory, nextSameWeekday, type ChannelMode, type Choice, type StartTab, type TemplateMode } from "./createHelpers";
 

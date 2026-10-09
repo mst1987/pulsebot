@@ -3,7 +3,7 @@ import {
     getReminders, updateSettings,
     type AdminConfig, type ApiError, type PingTarget, type ReminderRule, type RemindersData,
 } from "../../api";
-import { pingTargetOptions, reminderOff, reminderSummary, remindersPatch, targetText } from "../../lib/settingsLogic";
+import { pingTargetOptions, reminderOff, reminderSummary, remindersPatch, targetText } from "../../lib/settings/settingsLogic";
 import { useT } from "../../i18n";
 import { useToast } from "../../components/shell/Jobs";
 import { Modal } from "../../components/ui/Modal";

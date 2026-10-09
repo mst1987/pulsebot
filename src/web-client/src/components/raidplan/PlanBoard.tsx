@@ -12,7 +12,7 @@ import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
 import RoleGlyph from "./RoleGlyph";
 import { MarkIcon } from "./MarkIcon";
-import { wowIconUrl } from "../../lib/wowIcon";
+import { wowIconUrl } from "../../lib/wow/wowIcon";
 import { SIZE_RANGES, autoBadgeGroup, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, badgeShown, groupBadgeLook, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, areaStyleOf, arcSpanOf, arcWidthOf, arcPath, arcLayout, calmBadgeAt, areaBadgeMetrics, areaBadgeWidth, chipWidthOf, turnedBox, uprightInner, roleNamesLayout, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import { classPlaceNameFor, classRefIcon, facingOf, linkClass, offRole, type AssignLink } from "../../lib/raidplan/assign";

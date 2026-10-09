@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { getSession, type ContentInfo } from "../../api/session";
 import { ContentVersionContext, type ContentVersionState } from "../../hooks/useContentVersion";
-import { EMPTY_CONTENT, readStoredVersion, resolveContentVersion, writeStoredVersion } from "../../lib/contentVersion";
+import { EMPTY_CONTENT, readStoredVersion, resolveContentVersion, writeStoredVersion } from "../../lib/app/contentVersion";
 
 // Holds the global content version (#563) for everything inside the shell:
 // seeded from the session's `content`, the user's pick from localStorage.

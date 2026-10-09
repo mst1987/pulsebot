@@ -7,8 +7,8 @@ import { Badge, Button, Modal, RaidLoader, Segment, WowIcon } from "../ui";
 import { classColorProps } from "./ClassSpec";
 import { SearchIcon } from "../ui/icons";
 import { formatDate } from "../../lib/format";
-import type { CharacterSuggestion } from "../../lib/raidhelperRetirement";
-import { classLabel, specLabel as specName } from "../../lib/wowNames";
+import type { CharacterSuggestion } from "../../lib/settings/raidhelperRetirement";
+import { classLabel, specLabel as specName } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 
 // "Charakter hinzufügen" — the three ways of #255 behind one segment:

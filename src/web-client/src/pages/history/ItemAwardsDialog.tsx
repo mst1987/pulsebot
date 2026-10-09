@@ -14,8 +14,8 @@ import {
     deleteLootItems,
     type ApiError, type CharReasonBucket, type CharReasonRow, type LootCatalogItem, type LootContent, type LootReason, type LootTier,
 } from "../../api";
-import { itemQualityProps } from "../../lib/itemQuality";
-import { contentName } from "../../lib/wowNames";
+import { itemQualityProps } from "../../lib/wow/itemQuality";
+import { contentName } from "../../lib/wow/wowNames";
 import { formatWith } from "../../lib/format";
 import { Modal, useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton, buttonClass } from "../../components/ui/Button";

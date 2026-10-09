@@ -26,13 +26,13 @@ import { ChevronRightIcon } from "../../components/ui/icons";
 import TopLootList from "../../components/loot/TopLootList";
 import RaidDetailsModal from "./RaidDetailsModal";
 import { RoleBar, IconLink } from "./OverviewParts";
-import { eventPostUrl, raidplanUrl } from "../../lib/discordLinks";
+import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { relativeDayLabel } from "../../lib/format";
-import { longDay, shortDate, dayDate, clock, raidWhen } from "../../lib/overviewDates";
+import { longDay, shortDate, dayDate, clock, raidWhen } from "../../lib/raids/overviewDates";
 import "../../styles/dashboard.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { useT } from "../../i18n";
-import { roleLabel } from "../../lib/wowNames";
+import { roleLabel } from "../../lib/wow/wowNames";
 
 /**
  * A link inside the SPA, or a plain anchor for the server-rendered report pages

@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { useT } from "../../i18n";
-import { isChunkLoadError } from "../../lib/chunkReload";
+import { isChunkLoadError } from "../../lib/app/chunkReload";
 
 /** The notice when a page's code could not be loaded even after the automatic reload. */
 function NewVersionNotice() {
@@ -15,7 +15,7 @@ function NewVersionNotice() {
 }
 
 /**
- * Catches a chunk that could not be loaded (#530, lib/chunkReload.ts) and shows
+ * Catches a chunk that could not be loaded (#530, lib/app/chunkReload.ts) and shows
  * the reload notice in place of a white page. Every other error is thrown on,
  * exactly as without this boundary. A new `resetKey` (another page) tries again.
  */

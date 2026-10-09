@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../../api/client";
 import type { RaidDetailData, RaidStepDeed, SessionUser } from "../../api";
 import { t } from "../../i18n";
-import { deedLabel } from "../../lib/raidSteps";
+import { deedLabel } from "../../lib/raids/raidSteps";
 import { adminUser, renderPage } from "../../test/render";
 import { OWN_ID, ownSteps, raidDetail, raidhelperDetail } from "../../test/fixtures/raidDetail";
 import { editorData } from "../../test/fixtures/setupEditor";

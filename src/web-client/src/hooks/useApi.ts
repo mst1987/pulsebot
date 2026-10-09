@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DependencyList, type SetStateAction } from "react";
 import type { ApiError } from "../api";
-import { initialState, settled, started, stopped, type AsyncState } from "../lib/asyncState";
+import { initialState, settled, started, stopped, type AsyncState } from "../lib/ui/asyncState";
 
 /**
  * One request and its state — the one way a page loads what it shows (#437).
@@ -12,7 +12,7 @@ import { initialState, settled, started, stopped, type AsyncState } from "../lib
  * request's inputs — an id from the url, a filter); `reload()` runs it again by
  * hand after a change was saved. The newest call always wins: an answer to an
  * older call, to a call whose inputs have since changed or to a call the page
- * left behind is dropped (lib/asyncState.ts). A failed reload keeps the last
+ * left behind is dropped (lib/ui/asyncState.ts). A failed reload keeps the last
  * data and records the error; a successful one clears it. `setData` changes
  * the loaded data in place — for an answer the page already knows (an
  * optimistic edit, the result a save returned).

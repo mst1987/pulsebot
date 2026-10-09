@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { notifyRaid, type ApiError, type PingTarget } from "../../../api";
 import TargetField from "./TargetField";
-import { targetHint } from "../../../lib/settingsLogic";
+import { targetHint } from "../../../lib/settings/settingsLogic";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import { useToast } from "../../../components/shell/Jobs";

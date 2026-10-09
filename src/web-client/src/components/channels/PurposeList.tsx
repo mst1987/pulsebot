@@ -3,7 +3,7 @@ import type { ChannelPurpose, ChannelsData } from "../../api";
 import { Badge, IconButton, IconTile, Modal } from "../ui";
 import { CheckIcon } from "../ui/icons";
 import { ChannelChip, PencilIcon, StatusBadge } from "./channelBits";
-import { purposeHint, purposeLabel } from "../../lib/channels";
+import { purposeHint, purposeLabel } from "../../lib/discord/channels";
 import { tParts, useT } from "../../i18n";
 
 // What the bot uses which channel for (design issue #216). Since the tree

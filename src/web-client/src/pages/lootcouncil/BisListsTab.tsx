@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { searchCouncilItems, getBisLists, type ApiError, type BisListsData, type CouncilItemHit } from "../../api";
 import { t as translate, tOr, useT } from "../../i18n";
-import { itemQualityProps } from "../../lib/itemQuality";
-import { slotLabel, specClassLabel } from "../../lib/wowNames";
+import { itemQualityProps } from "../../lib/wow/itemQuality";
+import { slotLabel, specClassLabel } from "../../lib/wow/wowNames";
 import { classColorProps } from "../../components/character/ClassSpec";
 import { ContentBadge, ItemLink } from "./ItemBits";
 import type { View } from "./view";

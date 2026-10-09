@@ -3,7 +3,7 @@ import type { EventSource, PlanningMode, Role } from "../../api";
 import {
     signupNoteMode, noteChannelPick, signupNoteLabel, messageLook, titleSizeLabel, lootSystemLabel, lootToolLabel, planningOf, planningLabel, attendanceOf,
     TITLE_SIZES, CATEGORY_TABS, ATTENDANCE_WINDOWS, type CategoryAttendance, type CategoryRow, type CategoryTab, type RaiderCharSummary,
-} from "../../lib/settingsLogic";
+} from "../../lib/settings/settingsLogic";
 import { tParts, t as translate, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

@@ -7,7 +7,7 @@
 // of being duplicated per page.
 import { useEffect, useRef, useState } from "react";
 import type { ItemSearchResult } from "../../api";
-import { itemQualityProps } from "../../lib/itemQuality";
+import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { useT } from "../../i18n";
 import { useDismiss } from "../../hooks/useDismiss";
 

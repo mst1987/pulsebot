@@ -1,6 +1,6 @@
 // The menu's deploy line (#314): a scan that the Shell keeps it to one quiet
-// line with the details in its tooltip. lib/deployVersion.ts itself runs in
-// Vitest (src/web-client/src/lib/deployVersion.test.ts).
+// line with the details in its tooltip. lib/app/deployVersion.ts itself runs in
+// Vitest (src/web-client/src/lib/app/deployVersion.test.ts).
 
 const { read } = require("../clientSource"); // inlines the @imports of index.css (#441)
 

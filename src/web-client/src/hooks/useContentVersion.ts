@@ -5,7 +5,7 @@ import type { ContentVersionRef } from "../api/session";
 // (components/shell/ContentVersionProvider.tsx), the top bar switches it
 // (components/shell/ContentSwitch.tsx), every page that lists content reads it here
 // and asks the server with `?version=` — instead of a version filter of its
-// own (#545). Rules in lib/contentVersion.ts.
+// own (#545). Rules in lib/app/contentVersion.ts.
 
 export type ContentVersionState = {
     /** The version shown now — "" only without session content (the server then picks the main version). */

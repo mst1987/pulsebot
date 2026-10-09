@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "r
 import type { Access, Area, Role, RolePermissions } from "../../api";
 import {
     areaCounts, areaDescription, areaLabel, isDiscordId, levelLabel, levelOf, nextLevel, withLevel, type Grants, type Level,
-} from "../../lib/settingsLogic";
+} from "../../lib/settings/settingsLogic";
 import { t as translate, useT } from "../../i18n";
 import { Button, IconButton } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";

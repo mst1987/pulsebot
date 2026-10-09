@@ -4,12 +4,12 @@ import {
 } from "../../api";
 import NamingBadge from "./NamingBadge";
 import ChannelEmojiPicker from "./ChannelEmojiPicker";
-import { instanceIdsOfTag } from "../../lib/raidEmojis";
+import { instanceIdsOfTag } from "../../lib/raids/raidEmojis";
 import { Badge, Button, Modal } from "../ui";
 import { ChannelsIcon } from "../ui/icons";
 import { useToast } from "../shell/Jobs";
 import { PlaceholderChips } from "./ChannelBulk";
-import { isTextLike, ownSchemaOf } from "../../lib/channels";
+import { isTextLike, ownSchemaOf } from "../../lib/discord/channels";
 import { useT } from "../../i18n";
 
 // A category's naming schema on its own place (the pencil on the category head

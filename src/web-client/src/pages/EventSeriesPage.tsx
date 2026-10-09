@@ -5,9 +5,9 @@ import {
     type ApiError, type EventSeriesData, type EventSeriesInput, type SeriesCategory, type SeriesDate, type SeriesPreview } from "../api";
 import { useApi } from "../hooks/useApi";
 import AsyncView from "../components/ui/AsyncView";
-import { useCollectionEditor } from "../lib/collectionEditor";
+import { useCollectionEditor } from "../lib/ui/collectionEditor";
 import {
-    WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, lastCreatedLine, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday, weekdayLong, weekdayShort } from "../lib/eventSeries";
+    WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, lastCreatedLine, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday, weekdayLong, weekdayShort } from "../lib/raids/eventSeries";
 import { tParts, useT } from "../i18n";
 import { useToast } from "../components/shell/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";

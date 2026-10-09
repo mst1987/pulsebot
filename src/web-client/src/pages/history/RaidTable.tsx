@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
 import type { RaidRow } from "../../api";
 import { formatEventTime } from "../../lib/format";
-import { eventPostUrl, raidplanUrl } from "../../lib/discordLinks";
-import { useTableSort, type Dir } from "../../lib/tableSort";
+import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
+import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { SortTh } from "../../components/ui/SortTh";
 import { useT } from "../../i18n";
 

@@ -6,7 +6,7 @@ import {
 } from "../../api";
 import {
     disabledSince, headLook, importSummary, itemTip, statusLook, switchState, unmappedText,
-} from "../../lib/raidhelperRetirement";
+} from "../../lib/settings/raidhelperRetirement";
 import { useToast } from "../../components/shell/Jobs";
 import { Modal, useConfirm } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";

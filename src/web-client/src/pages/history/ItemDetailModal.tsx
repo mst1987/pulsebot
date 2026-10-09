@@ -1,8 +1,8 @@
 import type { CSSProperties } from "react";
 import type { HistoryCharData, RosterCharData } from "../../api";
 import { fmtMs } from "../../lib/format";
-import { itemQualityColor, qualityName } from "../../lib/itemQuality";
-import { SLOT_LABELS, findingLabel, findingsForSlot, nightLabel } from "../../lib/rosterView";
+import { itemQualityColor, qualityName } from "../../lib/wow/itemQuality";
+import { SLOT_LABELS, findingLabel, findingsForSlot, nightLabel } from "../../lib/roster/rosterView";
 import { Badge, Button, IconTile, Modal, buttonClass } from "../../components/ui";
 import { gearWowheadUrl, isEnchantable, SOCKET_DE, socketIconUrl } from "./charGear";
 import { EvaluationLink } from "./GearSection";

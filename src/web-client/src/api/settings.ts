@@ -5,7 +5,7 @@ import type { DiscordServers, DiscordServerCard } from "./discordServers";
 import type { EventSource, PlanningMode } from "./raidDetail";
 import type { TextChannel } from "./recruitment";
 import type { BotAccessRule } from "./botCommands";
-import type { VersionSettingsBlock } from "../lib/versionLinks";
+import type { VersionSettingsBlock } from "../lib/settings/versionLinks";
 
 /** `color`: the role's Discord colour as hex, "" when it has none. */
 export type Role = { id: string; name: string; color?: string };

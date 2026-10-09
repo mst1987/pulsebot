@@ -11,7 +11,7 @@ import type { PlanningMode } from "../../api";
 import { t } from "../../i18n";
 import { switchLang } from "../../test/i18n";
 import { renderPage } from "../../test/render";
-import type { CategoryAttendance } from "../../lib/settingsLogic";
+import type { CategoryAttendance } from "../../lib/settings/settingsLogic";
 import CategoryMatrix, { type CategorySheet } from "./CategoryMatrix";
 
 vi.mock("../../api", async (orig) => ({

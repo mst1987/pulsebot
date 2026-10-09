@@ -1,11 +1,11 @@
-// WoW icons (design issue #221): the zamimg url (lib/wowIcon.ts, twin of
+// WoW icons (design issue #221): the zamimg url (lib/wow/wowIcon.ts, twin of
 // wowIconUrl() in src/config/menu.js), the icon itself, the icon tile and the bar.
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import WowIcon from "./WowIcon";
 import IconTile from "./IconTile";
 import Bar from "./Bar";
-import { FALLBACK_ICON, wowIconUrl } from "../../lib/wowIcon";
+import { FALLBACK_ICON, wowIconUrl } from "../../lib/wow/wowIcon";
 import { requireBackend } from "../../test/backend";
 
 const backend = requireBackend<{ wowIconUrl: (name?: string | null, size?: number) => string; FALLBACK_ICON: string }>("config/menu");

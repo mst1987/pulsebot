@@ -3,8 +3,8 @@ import {
     getRaids, getPastRaids, canAccess,
     type PastRaidsData, type RaidsData, type PastRaid, type UpcomingRaid } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { usePersistedSearchParam, usePersistedState } from "../../lib/persistedState";
-import { knownContents, raidIconName } from "../../lib/raidIcons";
+import { usePersistedSearchParam, usePersistedState } from "../../lib/ui/persistedState";
+import { knownContents, raidIconName } from "../../lib/wow/raidIcons";
 import type { ShellContext } from "../../components/shell/Shell";
 import { UpcomingRaidList, PastRaidList } from "./RaidList";
 import { MenuRailPage } from "../../components/ui/SectionRail";

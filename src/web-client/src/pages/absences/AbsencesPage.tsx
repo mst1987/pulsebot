@@ -4,7 +4,7 @@
 //
 //   Zeitleiste, Pro Raid   the orga's overview (area "roster"): GET /api/availability/
 //                          overview (src/services/signups/absenceOverview.js), a raider
-//                          in the side drawer; layout rules in lib/absences.ts
+//                          in the side drawer; layout rules in lib/roster/absences.ts
 //   Meine Anwesenheit      everybody with "signup": the own entries and the quota per
 //                          raid category and raid (MyAttendance.tsx); `?userId=` is
 //                          the same view for one raider, opened by the orga from the drawer
@@ -15,8 +15,8 @@ import { useState, type ReactNode } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { canAccess, getAbsenceOverview, getAvailability, type AbsenceIdentity, type RaiderRef } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { usePersistedState } from "../../lib/persistedState";
-import { categoryTone, visibleRaiders } from "../../lib/absences";
+import { usePersistedState } from "../../lib/ui/persistedState";
+import { categoryTone, visibleRaiders } from "../../lib/roster/absences";
 import { Button, IconTile, Segment, Switch } from "../../components/ui";
 import Chip from "../../components/ui/Chip";
 import RaidLoader from "../../components/ui/RaidLoader";

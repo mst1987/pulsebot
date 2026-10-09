@@ -36,9 +36,9 @@ describe("utils/channelNames — Discord's naming rules (#285)", () => {
     it("keeps the web client's twins on the same rule", () => {
         const source = names.NAME_STRIP_RE.source;
         const read = (...p) => fs.readFileSync(path.join(__dirname, "..", "..", "src", "web-client", "src", ...p), "utf8");
-        expect(read("lib", "channelNames.ts")).toContain(`/${source}/gu`);
-        // schemaName() in lib/eventPlan.ts inlines the same regex
-        expect(read("lib", "eventPlan.ts")).toContain(`.replace(/${source}/gu, "")`);
+        expect(read("lib", "discord", "channelNames.ts")).toContain(`/${source}/gu`);
+        // schemaName() in lib/raids/eventPlan.ts inlines the same regex
+        expect(read("lib", "raids", "eventPlan.ts")).toContain(`.replace(/${source}/gu, "")`);
     });
 });
 

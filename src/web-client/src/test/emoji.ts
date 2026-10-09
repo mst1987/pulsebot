@@ -1,9 +1,9 @@
 // A few real emojis instead of all ~1,700 for the picker's component tests:
 // rendering the whole grid in every test is slow enough to time out under the
-// full suite's load. Names and groups stay emojibase's own (lib/emoji.ts).
-// Only a type import from lib/emoji: the tests mock that module and load this
+// full suite's load. Names and groups stay emojibase's own (lib/discord/emoji.ts).
+// Only a type import from lib/discord/emoji: the tests mock that module and load this
 // file from the mock's factory, so a real import would wait for itself.
-import type { Emoji } from "../lib/emoji";
+import type { Emoji } from "../lib/discord/emoji";
 
 const FEW = ["😀", "😂", "🐻", "🦅", "🐆", "🐉", "🌴", "🗿", "🐍", "🔥", "💀", "🌳", "🧸", "❤", "🏁"];
 

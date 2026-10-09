@@ -25,8 +25,8 @@ import { useApi } from "../../hooks/useApi";
 import { useConfirm } from "../../components/ui/Modal";
 import BackButton from "../../components/ui/BackButton";
 import ArchiveBanner from "../../components/raid/ArchiveBanner";
-import { lootSystemEntry, raidhelperMenu, type ManageAction } from "../../lib/eventManage";
-import { withoutDeeds } from "../../lib/raidSteps";
+import { lootSystemEntry, raidhelperMenu, type ManageAction } from "../../lib/raids/eventManage";
+import { withoutDeeds } from "../../lib/raids/raidSteps";
 import ManageMenu from "./manage/ManageMenu";
 import MoveModal from "./manage/MoveModal";
 import CancelModal from "./manage/CancelModal";
@@ -37,7 +37,7 @@ import InviteModal from "./manage/InviteModal";
 import RaidplanLinkModal from "./manage/RaidplanLinkModal";
 import "../../styles/event-manage.css";
 import RaidCreateDialog from "../../components/raid-create/RaidCreateDialog";
-import { usePersistedSearchParam } from "../../lib/persistedState";
+import { usePersistedSearchParam } from "../../lib/ui/persistedState";
 import type { ShellContext } from "../../components/shell/Shell";
 import { useJobs } from "../../components/shell/Jobs";
 import WowIcon from "../../components/ui/WowIcon";
@@ -61,7 +61,7 @@ import type { PlayerRef, RaidCtx } from "./meta";
 import "../../styles/raid-detail.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { useT } from "../../i18n";
-import { lazyWithReload } from "../../lib/chunkReload";
+import { lazyWithReload } from "../../lib/app/chunkReload";
 
 // The raidplan editor (board, workspace, its css) is by far the heaviest part
 // of this page and only one of five tabs — it is a chunk of its own (#436).

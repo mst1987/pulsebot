@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import type { RaidCreateContext, RaidTemplate } from "../../api";
 import { useT } from "../../i18n";
-import { instancesOf } from "../../lib/raidTemplates";
+import { instancesOf } from "../../lib/raids/raidTemplates";
 import Badge from "../ui/Badge";
 import Segment from "../ui/Segment";
 import WowIcon from "../ui/WowIcon";

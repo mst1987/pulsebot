@@ -1,5 +1,5 @@
 // The sidebar (components/shell/Shell.tsx) draws the one shared menu
-// (src/config/menu.json via lib/menu.ts): every entry the account may open as a
+// (src/config/menu.json via lib/app/menu.ts): every entry the account may open as a
 // link with its WoW icon, grouped under its heading, and the logout always in
 // the foot (#435: formerly source scans in test/web-client/menuAccess.test.js).
 //
@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { SessionUser } from "../../api";
 import { t, tOr } from "../../i18n";
-import { MENU } from "../../lib/menu";
+import { MENU } from "../../lib/app/menu";
 import { adminUser, renderPage } from "../../test/render";
 import Shell from "./Shell";
 

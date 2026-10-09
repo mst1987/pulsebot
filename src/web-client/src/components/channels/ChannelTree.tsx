@@ -4,8 +4,8 @@ import { Badge, Button, IconButton } from "../ui";
 import { ChevronDownIcon, SearchIcon } from "../ui/icons";
 import { ChannelTypeIcon, PencilIcon } from "./channelBits";
 import MoreMenu from "./MoreMenu";
-import { channelTip, eventDateLabel, groupByCategory, groupName, ownSchemaOf, purposeLabel } from "../../lib/channels";
-import { normalizeForType } from "../../lib/channelNames";
+import { channelTip, eventDateLabel, groupByCategory, groupName, ownSchemaOf, purposeLabel } from "../../lib/discord/channels";
+import { normalizeForType } from "../../lib/discord/channelNames";
 import { useT } from "../../i18n";
 
 // The Discord sidebar of the Kanäle page (issue #259): categories that fold,

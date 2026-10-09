@@ -11,7 +11,7 @@ import { ChannelTypeIcon, PurposeBadge, PurposeChip, StatusBadge } from "./chann
 import {
     groupByCategory, groupName, isTextLike, purposeHint, purposeLabel, rightsStatus,
     TYPE_ANNOUNCEMENT, TYPE_FORUM, TYPE_STAGE, TYPE_TEXT, TYPE_VOICE,
-} from "../../lib/channels";
+} from "../../lib/discord/channels";
 import { useT } from "../../i18n";
 
 // The four dialogs of the Kanäle page (design issue #216): purpose → channels,

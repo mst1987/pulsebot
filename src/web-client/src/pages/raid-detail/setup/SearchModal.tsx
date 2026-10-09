@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { postRaidSearch, previewRaidSearch, type ApiError, type SetupSearch } from "../../../api";
-import { addRole, groupSearchBuffs, removeBuffs, searchNeedsFrom, stepRole, toggleSpec, type SearchNeeds } from "../../../lib/setupEditor";
-import { roleLabel, rolePluralLabel, specLabel } from "../../../lib/wowNames";
+import { addRole, groupSearchBuffs, removeBuffs, searchNeedsFrom, stepRole, toggleSpec, type SearchNeeds } from "../../../lib/signups/setupEditor";
+import { roleLabel, rolePluralLabel, specLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import { Button, IconButton } from "../../../components/ui/Button";
 import { Modal } from "../../../components/ui/Modal";

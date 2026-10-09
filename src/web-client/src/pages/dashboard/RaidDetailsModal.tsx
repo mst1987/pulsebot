@@ -11,11 +11,11 @@ import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import WowIcon from "../../components/ui/WowIcon";
 import { classColorProps } from "../../components/character/ClassSpec";
-import { eventPostUrl, raidplanUrl } from "../../lib/discordLinks";
-import { dayDate, clock, fetchedAt } from "../../lib/overviewDates";
+import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
+import { dayDate, clock, fetchedAt } from "../../lib/raids/overviewDates";
 import { RoleBar, IconLink } from "./OverviewParts";
 import { tOr, useT } from "../../i18n";
-import { classLabel, roleLabel } from "../../lib/wowNames";
+import { classLabel, roleLabel } from "../../lib/wow/wowNames";
 
 const STATUS_TONE = { tentative: "mid", none: undefined, bench: undefined, absence: "bad" } as const;
 

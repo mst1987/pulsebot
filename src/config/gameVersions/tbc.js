@@ -5,7 +5,7 @@
 // raid list and the logcheck guard already read. This file only adds what a
 // raid *plan* needs on top — the raid size and a suggested number of tanks and
 // healers — and the boss icon the menu shows (the same one as
-// src/web-client/src/lib/raidIcons.ts).
+// src/web-client/src/lib/wow/raidIcons.ts).
 
 const { CONTENTS, encountersFor, finalBossesFor } = require("../tbcContent");
 const { buildClasses } = require("./classes");

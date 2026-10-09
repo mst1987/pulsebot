@@ -1,5 +1,5 @@
 // The "signups" namespace (#i18n): the signup page, its dialogs, the character
-// picks, the spec picker and lib/signups.ts read their texts from
+// picks, the spec picker and lib/signups/status.ts read their texts from
 // i18n/locales/<lang>/signups.json instead of German literals (#435: the source
 // half of the former test/web-client/i18n-signups.test.js; the texts and the
 // labels following a language switch are tested in
@@ -12,7 +12,7 @@ const FILES = [
     "components/signup/BulkSignupDialog.tsx",
     "components/signup/SignupCharacterPicks.tsx",
     "pages/recruitment/SpecPicker.tsx",
-    "lib/signups.ts",
+    "lib/signups/status.ts",
 ];
 const src = Object.fromEntries(FILES.map((f) => [f, read(f)]));
 
@@ -24,7 +24,7 @@ describe("signups namespace", () => {
             "components/signup/BulkSignupDialog.tsx": ["nicht gespeichert", "Warteliste"],
             "components/signup/SignupCharacterPicks.tsx": ["kein Spec im Profil", "Nach oben"],
             "pages/recruitment/SpecPicker.tsx": ["Spec hinzufügen", "Keine Treffer."],
-            "lib/signups.ts": ["\"Dabei\"", "\"Offtank\"", "raidbereit", "über Raid-Helper"],
+            "lib/signups/status.ts": ["\"Dabei\"", "\"Offtank\"", "raidbereit", "über Raid-Helper"],
         };
         for (const [file, literals] of Object.entries(moved)) {
             for (const literal of literals) expect(src[file]).not.toContain(literal);
@@ -33,7 +33,7 @@ describe("signups namespace", () => {
 
     it("imports the translation function everywhere", () => {
         for (const file of FILES) {
-            if (file.startsWith("lib/")) expect(src[file]).toContain("import { t } from \"../i18n\";");
+            if (file.startsWith("lib/")) expect(src[file]).toContain("import { t } from \"../../i18n\";");
             else expect(src[file]).toMatch(/import \{ useT \} from "(\.\.\/)+i18n";/);
         }
     });

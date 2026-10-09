@@ -3,8 +3,8 @@ import { searchRaiders, type AvailabilityKind, type AvailabilityRaid, type Avail
 import { Badge, Button, IconButton } from "../ui";
 import { RosterIcon, SearchIcon, XIcon } from "../ui/icons";
 import { formatDayDate, formatTime } from "../../lib/format";
-import { SIGNUP_STATUS, statusBadgeLabel } from "../../lib/signups";
-import { skipReason, staysAsIs } from "../../lib/availability";
+import { SIGNUP_STATUS, statusBadgeLabel } from "../../lib/signups/status";
+import { skipReason, staysAsIs } from "../../lib/signups/availability";
 import { useT } from "../../i18n";
 
 // The parts of the absence/attendance dialog (AvailabilityDialog.tsx): the raids

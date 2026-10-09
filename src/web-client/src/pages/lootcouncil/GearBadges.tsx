@@ -5,9 +5,9 @@ import { Badge, Button } from "../../components/ui";
 import { AlertIcon, EmptySlotIcon, ExternalIcon } from "../../components/ui/icons";
 import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
-import { itemQualityProps } from "../../lib/itemQuality";
+import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { gearCounts, raiderHref, wornWowheadUrl } from "./council";
-import { useWowheadPath } from "../../lib/versionLinks";
+import { useWowheadPath } from "../../lib/settings/versionLinks";
 
 /** The shape `CouncilCandidate.gear` and `CouncilRaider.gear` share. */
 type CouncilGear = NonNullable<CouncilCandidate["gear"]>;

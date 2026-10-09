@@ -9,10 +9,10 @@
 // sharded is out of the table by default (see DISENCHANT).
 import { useMemo, useState, type ReactNode } from "react";
 import type { Category, LootAward, LootCatalogItem, LootContent, LootReason, LootTier } from "../../api";
-import { itemQualityProps } from "../../lib/itemQuality";
-import { contentName } from "../../lib/wowNames";
-import { usePersistedState } from "../../lib/persistedState";
-import { sortRows, type Dir } from "../../lib/tableSort";
+import { itemQualityProps } from "../../lib/wow/itemQuality";
+import { contentName } from "../../lib/wow/wowNames";
+import { usePersistedState } from "../../lib/ui/persistedState";
+import { sortRows, type Dir } from "../../lib/ui/tableSort";
 import { SortLabel, ariaSort } from "../../components/ui/SortTh";
 import Badge from "../../components/ui/Badge";
 import Bar from "../../components/ui/Bar";

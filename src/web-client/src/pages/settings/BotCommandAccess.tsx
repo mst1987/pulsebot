@@ -6,7 +6,7 @@ import {
 import {
     commandLabel, commandsOfGroup, customizedCount, groupSummary, modeLabel, ruleOf, ruleValid, sameRule,
     withGroupRule, withRule, type AccessMap,
-} from "../../lib/botCommandAccess";
+} from "../../lib/settings/botCommandAccess";
 import { tParts, t as translate, useT } from "../../i18n";
 import { useToast } from "../../components/shell/Jobs";
 import { Button, IconButton } from "../../components/ui/Button";

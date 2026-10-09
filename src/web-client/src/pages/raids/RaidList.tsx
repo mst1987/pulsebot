@@ -1,10 +1,10 @@
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { PastRaid, UpcomingRaid } from "../../api";
-import { useTableSort, type Dir } from "../../lib/tableSort";
-import { eventPostUrl, raidplanUrl } from "../../lib/discordLinks";
+import { useTableSort, type Dir } from "../../lib/ui/tableSort";
+import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { relativeDayLabel } from "../../lib/format";
-import { eventDay, monthBands, weekBands, type TimeBand } from "../../lib/raidTime";
+import { eventDay, monthBands, weekBands, type TimeBand } from "../../lib/raids/raidTime";
 import RaidIcon from "../../components/raid/RaidIcon";
 import WowIcon from "../../components/ui/WowIcon";
 import Badge from "../../components/ui/Badge";

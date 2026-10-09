@@ -355,7 +355,7 @@ describe("the context menu", () => {
         expect(lib.applyMenuAction(b, "duplicate", "", "", null).board).toBe(b);
     });
 
-    // keeping the menu inside the viewport: lib/popoverPosition.ts clampToViewport, tested in popover.test.js
+    // keeping the menu inside the viewport: lib/ui/popoverPosition.ts clampToViewport, tested in popover.test.js
 });
 
 describe("undo and redo", () => {

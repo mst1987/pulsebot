@@ -6,7 +6,7 @@ import { Badge, Button, Modal, Switch } from "../ui";
 import { PencilIcon } from "./channelBits";
 import MoreMenu from "./MoreMenu";
 import NamingBadge from "./NamingBadge";
-import { bulkChanges, KEEP, placeholderHint, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/channels";
+import { bulkChanges, KEEP, placeholderHint, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/discord/channels";
 import { tParts, useT } from "../../i18n";
 
 // Several channels at once (issue #259): the bar that appears at the bottom as

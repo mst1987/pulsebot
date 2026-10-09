@@ -20,7 +20,7 @@ import { Badge, Button, Field, Modal, Segment, Switch } from "../../components/u
 import { RefreshIcon, SaveIcon, TrashIcon } from "../../components/ui/icons";
 import { useConfirm } from "../../components/ui/Modal";
 import { useT } from "../../i18n";
-import { roleLabel } from "../../lib/wowNames";
+import { roleLabel } from "../../lib/wow/wowNames";
 import { className, classDef, specName } from "../../lib/kader/model";
 import { personName } from "../../lib/kader/live";
 import { inferNameStyle, nameOk, splitName, switchNameStyle } from "../../lib/kader/names";

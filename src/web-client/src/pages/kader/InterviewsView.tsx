@@ -23,8 +23,8 @@ import { AlertIcon, BookIcon, CheckIcon, ChevronDownIcon, CircleIcon, EditIcon, 
 import { useToast } from "../../components/shell/Jobs";
 import { useT } from "../../i18n";
 import { LEAD_ALL, LEAD_ME, LEAD_NONE, cleanLeadPick, interviewersOf, leadMatches } from "../../lib/kader/leads";
-import { usePersistedState } from "../../lib/persistedState";
-import { roleLabel } from "../../lib/wowNames";
+import { usePersistedState } from "../../lib/ui/persistedState";
+import { roleLabel } from "../../lib/wow/wowNames";
 import { toneAttrs, toneOf } from "../../lib/kader/colors";
 import { personName } from "../../lib/kader/live";
 import { classDef, className, dayOf, mainPick, nameOf, playerName, specName, specRole } from "../../lib/kader/model";

@@ -18,7 +18,7 @@
 // change.
 import { Link } from "react-router-dom";
 import type { LootReason } from "../../api";
-import { itemQualityColor } from "../../lib/itemQuality";
+import { itemQualityColor } from "../../lib/wow/itemQuality";
 import { classColorProps } from "../character/ClassSpec";
 import { useT } from "../../i18n";
 

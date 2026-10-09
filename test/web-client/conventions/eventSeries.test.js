@@ -1,7 +1,7 @@
 // Wiederkehrende Events (#289) in the client: the page's shape checked on the
 // source — one compact line per category, everything else in one modal that
 // previews the next four dates with their channel names. The rules
-// (lib/eventSeries.ts) run in Vitest (src/web-client/src/lib/eventSeries.test.ts).
+// (lib/raids/eventSeries.ts) run in Vitest (src/web-client/src/lib/raids/eventSeries.test.ts).
 const fs = require("fs");
 const path = require("path");
 

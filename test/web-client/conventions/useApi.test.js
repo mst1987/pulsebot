@@ -1,8 +1,8 @@
 // One way to load what a page shows (#437): hooks/useApi.ts over the pure
-// rules in lib/asyncState.ts, drawn by components/ui/AsyncView.tsx. The race
+// rules in lib/ui/asyncState.ts, drawn by components/ui/AsyncView.tsx. The race
 // protection is what matters most and is tested here without React: a call is
 // numbered when it starts, and only the newest call's answer counts.
-// The rules themselves run in src/web-client/src/lib/useApi.test.ts (Vitest).
+// The rules themselves run in src/web-client/src/lib/ui/asyncState.useApi.test.ts (Vitest).
 const fs = require("fs");
 const path = require("path");
 const { CLIENT, read, sourceFiles } = require("../clientSource");

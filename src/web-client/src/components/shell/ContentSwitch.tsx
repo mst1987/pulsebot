@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useContentVersion } from "../../hooks/useContentVersion";
-import { canSwitch, versionRef } from "../../lib/contentVersion";
+import { canSwitch, versionRef } from "../../lib/app/contentVersion";
 import { useT } from "../../i18n";
 
 // The content switch in the top bar (#563, design "Content-Umschalter"): one

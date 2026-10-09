@@ -21,7 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { canAccess, getKader, getKaderOnly, type ApiError, type KaderChange, type KaderLive, type KaderView } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { usePersistedState } from "../../lib/persistedState";
+import { usePersistedState } from "../../lib/ui/persistedState";
 import { byId } from "../../lib/kader/model";
 import { liveToast } from "../../lib/kader/live";
 import { useToast } from "../../components/shell/Jobs";

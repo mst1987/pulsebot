@@ -4,9 +4,9 @@ import {
     getRaidTemplates, getGameVersions, saveRaidTemplate, deleteRaidTemplate, importRaidTemplates, canAccess,
     type ApiError, type GameVersion, type RaidTemplate, type RaidTemplateInput } from "../api";
 import { useApi } from "../hooks/useApi";
-import { useCollectionEditor } from "../lib/collectionEditor";
+import { useCollectionEditor } from "../lib/ui/collectionEditor";
 import {
-    allowedSizes, draftOf, emojiStyleOf, filterByVersion, instancesOf, newDraft, proposeComposition, templateLabel, validateDraft } from "../lib/raidTemplates";
+    allowedSizes, draftOf, emojiStyleOf, filterByVersion, instancesOf, newDraft, proposeComposition, templateLabel, validateDraft } from "../lib/raids/raidTemplates";
 import { AppearanceFields, BuffPicker, TipLabel, InstancePicker, NumberInput, OverflowField, RoleRanges, SizePicker, SwitchRow } from "../components/raid/RaidFields";
 import type { ShellContext } from "../components/shell/Shell";
 import { useToast } from "../components/shell/Jobs";

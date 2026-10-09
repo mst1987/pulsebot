@@ -215,7 +215,7 @@ function channelInfo(guildId, channelId) {
 /**
  * Event rows for the web lists with `channelState` beside their `channelId`
  * ("ok" | "missing" | "unknown"): the client links the Discord post only on
- * "ok" (lib/discordLinks.ts) and says "Kanal fehlt" on "missing".
+ * "ok" (lib/discord/discordLinks.ts) and says "Kanal fehlt" on "missing".
  */
 function withChannelState(guildId, rows) {
     return (rows || []).map((row) => (row && row.channelId

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ClaRow, MatchCandidate } from "../../api";
 import { formatEventTime } from "../../lib/format";
-import { raidIcon } from "../../lib/logRaids";
+import { raidIcon } from "../../lib/raids/logRaids";
 import { TrashIcon } from "../../components/ui/icons";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";

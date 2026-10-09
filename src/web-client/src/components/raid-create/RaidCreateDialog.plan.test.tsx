@@ -5,14 +5,14 @@
 // touching the event, and the same dialog editing an own event. Rule set: the
 // server's real one; the API is mocked at its transport (api/client). The walk
 // through the steps and the toasts: RaidCreateDialog.test.tsx; the plan rules:
-// lib/eventCreateDialog.test.ts.
+// lib/raids/eventPlan.createDialog.test.ts.
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../../api/client";
 import type { Channel, GameVersion, OwnEvent, RaidCreateContext, RaidTemplate } from "../../api";
 import { t } from "../../i18n";
-import { stepLabel, stepsFor } from "../../lib/eventPlan";
+import { stepLabel, stepsFor } from "../../lib/raids/eventPlan";
 import { requireBackend } from "../../test/backend";
 import { inLang } from "../../test/i18n";
 import { renderPage } from "../../test/render";

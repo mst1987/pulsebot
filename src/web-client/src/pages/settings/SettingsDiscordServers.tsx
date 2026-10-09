@@ -4,7 +4,7 @@ import {
     type AdminConfig, type ApiError, type DiscordServerCard, type DiscordServersData,
     type EventGuildEntry, type TalkOverviewStatus, type TextChannel,
 } from "../../api";
-import { discordServersPatch, overlapBadge, serverCardState, type ServerFields } from "../../lib/settingsLogic";
+import { discordServersPatch, overlapBadge, serverCardState, type ServerFields } from "../../lib/settings/settingsLogic";
 import { useToast } from "../../components/shell/Jobs";
 import { CheckMark, PenIcon, PlusIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
 import RoleSyncPart from "./SettingsRoleSync";

@@ -7,7 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { GameVersion } from "../../api";
 import { t } from "../../i18n";
-import { EMBED_ACCENT, allowedSizes, leadInstance } from "../../lib/raidTemplates";
+import { EMBED_ACCENT, allowedSizes, leadInstance } from "../../lib/raids/raidTemplates";
 import { requireBackend } from "../../test/backend";
 import { AppearanceFields, InstancePicker, SizePicker } from "./RaidFields";
 

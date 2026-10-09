@@ -2,7 +2,7 @@ import { ANY } from "../../../lib/raidplan/classRefs";
 import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { AlertTriangle, ArrowRight, EyeOff, Lock, MapPin, MoreHorizontal, Pencil, StickyNote, Trash2 } from "lucide-react";
 import Popover from "../../ui/Popover";
-import { belowEndPlacement } from "../../../lib/popoverPosition";
+import { belowEndPlacement } from "../../../lib/ui/popoverPosition";
 import { CLASS_COLOR } from "../../../lib/raidplan/classRefs";
 import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../ui/WowIcon";

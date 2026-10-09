@@ -1,7 +1,7 @@
 // Event verwalten (#288): the rule a render cannot see — everything is styled
 // in its own stylesheet under em-. The menu, the dialogs and the head's badges
 // are rendered in Vitest (src/web-client/src/pages/raid-detail/RaidDetailPage.manage.test.tsx),
-// the rules behind them run in lib/eventManage.test.ts.
+// the rules behind them run in lib/raids/eventManage.test.ts.
 const fs = require("fs");
 const path = require("path");
 

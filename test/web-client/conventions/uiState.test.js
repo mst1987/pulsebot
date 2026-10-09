@@ -1,4 +1,4 @@
-// Guards for the admin client's remembered UI state (src/web-client/src/lib/persistedState.ts
+// Guards for the admin client's remembered UI state (src/web-client/src/lib/ui/persistedState.ts
 // and its callers).
 //
 // The hooks themselves are TSX-only and there is no React test renderer in this
@@ -15,7 +15,7 @@ const shared = require("../clientSource");
 // LF line endings whatever the checkout (the patterns below match on \n)
 const readClient = shared.read;
 
-const persistedState = readClient("lib", "persistedState.ts");
+const persistedState = readClient("lib", "ui", "persistedState.ts");
 
 // Every page/component file of the client, as [name, source].
 function clientSources() {
@@ -131,7 +131,7 @@ describe("client state persistence", () => {
 
     it("never reuses a storage key across two features", () => {
         const seen = new Map();
-        for (const [name, src] of clientSources().concat([["lib/persistedState.ts", ""]])) {
+        for (const [name, src] of clientSources().concat([["lib/ui/persistedState.ts", ""]])) {
             for (const [, key] of src.matchAll(/usePersisted(?:State|SearchParam)(?:<[^>]*>)?\(\s*"([^"]+)"/g)) {
                 expect(seen.has(key) ? `${key} also in ${seen.get(key)}` : key).toBe(key);
                 seen.set(key, name);

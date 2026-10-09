@@ -1,7 +1,7 @@
 import { FieldLabel } from "../../components/ui/Field";
 import { buttonClass } from "../../components/ui/Button";
 import { VersionDot } from "../../components/shell/ContentSwitch";
-import { otherUpcoming, type UpcomingRaidRef } from "../../lib/contentVersion";
+import { otherUpcoming, type UpcomingRaidRef } from "../../lib/app/contentVersion";
 import { formatDayDate } from "../../lib/format";
 import { useT } from "../../i18n";
 import type { GameVersionOption } from "./SettingsGameVersion";

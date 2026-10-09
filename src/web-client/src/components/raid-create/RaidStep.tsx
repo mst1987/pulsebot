@@ -1,5 +1,5 @@
 import { useT } from "../../i18n";
-import { plannedSeats, withInstance, withSize, withVersion } from "../../lib/eventPlan";
+import { plannedSeats, withInstance, withSize, withVersion } from "../../lib/raids/eventPlan";
 import { Button } from "../ui/Button";
 import Badge from "../ui/Badge";
 import Segment from "../ui/Segment";

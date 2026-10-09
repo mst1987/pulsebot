@@ -330,7 +330,7 @@ that event are replaced), refuses to run with `NODE_ENV=production`, writes only
 no Discord. Run it in the worktree whose test instance you look at.
 
 **A setup missing parts never crashes the editor:** `setupEditor.withSetupDefaults` (server, in `editorView`)
-and `lib/setupEditor.ts`'s `withSetupDefaults` (client, on every answer) give a stored setup without `checks`,
+and `lib/signups/setupEditor.ts`'s `withSetupDefaults` (client, on every answer) give a stored setup without `checks`,
 `options`, `warnings` and so on neutral defaults ("not ok"). A hand-written setup without `checks.buffs` once
 turned the Setup tab white (`Cannot read properties of undefined (reading 'buffs')`).
 
