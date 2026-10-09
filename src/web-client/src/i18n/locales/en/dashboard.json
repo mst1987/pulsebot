@@ -156,5 +156,98 @@
         "fillSheet": "Fill sheet",
         "openRaid": "Open raid",
         "loading": "Loading signups…"
+    },
+    "personal": {
+        "divider": "For you",
+        "toSignups": "My signups",
+        "signUp": "Sign up",
+        "closed": "Signup closed",
+        "closedTip": "Signup is closed or the deadline has passed.",
+        "rosterOnly": "Roster only",
+        "rosterOnlyTip": "Only members of the roster sign up for this raid.",
+        "status": {
+            "signed": "In",
+            "late": "Late",
+            "tentative": "Tentative",
+            "bench": "Bench",
+            "absence": "Signed off",
+            "cancelled": "Cancelled"
+        },
+        "next": {
+            "title": "Your next raid",
+            "toSignup": "To signup",
+            "empty": "No upcoming raid in your categories."
+        },
+        "box": {
+            "signup": "Signup",
+            "notYet": "Open",
+            "setup": "Setup",
+            "softres": "Softres"
+        },
+        "setup": {
+            "none": "No setup yet",
+            "noneSub": "The raid lead is still building it.",
+            "bench": "Bench",
+            "group": "Group {group}"
+        },
+        "softres": {
+            "ready": "List ready",
+            "none": "No list",
+            "open": "Open softres"
+        },
+        "plan": {
+            "title": "Your assignments in the raid plan",
+            "open": "Open raid plan",
+            "loading": "Reading the raid plan …",
+            "error": "The raid plan could not be loaded.",
+            "none": "No personal assignment – still have a look at the plan."
+        },
+        "list": {
+            "title": "Your next raids",
+            "all": "All",
+            "empty": "Nothing else coming up.",
+            "deadline": "until {when}"
+        },
+        "attendance": {
+            "label": "Your attendance",
+            "value": "{attended} of {total}",
+            "tip": "Attendance over your last raids",
+            "sub": "Bench counts ({count}× bench). Click to open your attendance.",
+            "none": "No counted raid yet."
+        },
+        "profile": {
+            "label": "Your profile",
+            "tip": "Your raider profile",
+            "complete": "All there. Click to open your profile.",
+            "ok": "complete",
+            "hints": {
+                "one": "{count} hint",
+                "other": "{count} hints"
+            },
+            "characters": {
+                "one": "{count} character",
+                "other": "{count} characters"
+            },
+            "noCharacters": "No character yet",
+            "noSpec": "{character} has no spec"
+        },
+        "recent": {
+            "title": "Your last raids",
+            "attendance": "Attendance",
+            "empty": "No raid of yours counted yet.",
+            "noReport": "no evaluation",
+            "report": "Evaluation",
+            "hints": {
+                "one": "{count} hint for you",
+                "other": "{count} hints for you"
+            },
+            "allGood": "all good"
+        }
+    },
+    "orga": {
+        "divider": {
+            "one": "Orga · {count} open task",
+            "other": "Orga · {count} open tasks"
+        }
     }
 }

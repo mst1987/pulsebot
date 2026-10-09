@@ -1,5 +1,5 @@
 [
-    { "id": "home", "label": "Übersicht", "href": "/", "group": "Start", "areas": ["dashboard"], "wowIcon": "inv_misc_map_01" },
+    { "id": "home", "label": "Übersicht", "href": "/", "group": "Start", "areas": ["dashboard", "signup"], "wowIcon": "inv_misc_map_01" },
     { "id": "signups", "label": "Anmeldungen", "href": "/signups", "group": "Start", "areas": ["signup"], "wowIcon": "inv_misc_book_09" },
     { "id": "absences", "label": "Abwesenheiten", "href": "/absences", "group": "Start", "areas": ["signup", "roster"], "wowIcon": "spell_nature_timestop" },
     { "id": "profile", "label": "Mein Profil", "href": "/profile", "group": "Start", "areas": ["signup"], "wowIcon": "achievement_character_human_male" },

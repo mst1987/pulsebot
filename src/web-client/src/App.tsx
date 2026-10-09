@@ -2,7 +2,7 @@ import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { JobsProvider } from "./components/shell/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
-import { canAccess, canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
+import { canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
 import { getLang, langReady, setLang, useT } from "./i18n";
 import { firstAllowedTab } from "./lib/app/menu";
 import RaidLoader from "./components/ui/RaidLoader";
@@ -162,9 +162,11 @@ function MenuApp() {
     // says what is (not) open to them and, above all, the logout is in it. What
     // they may actually open is decided per tab and per route below.
     const start = firstAllowedTab(user);
-    // A user without the "Übersicht" area would land on an empty start page —
+    // The start page is every raider's ("Für dich" comes with their own signup
+    // area) and the orga's; anyone with neither would land on an empty page —
     // send them to the first section they may actually open instead.
-    const home = canAccess(user, "dashboard") ? null : start;
+    const homeAreas = ["dashboard", "signup"];
+    const home = canAccessAny(user, homeAreas) ? null : start;
 
     // JobsProvider wraps the router, not a page: that is what lets a running
     // CLA/RPB evaluation survive navigating to another section.
@@ -182,7 +184,7 @@ function MenuApp() {
                         <Routes>
                             <Route element={<Shell user={user} guilds={guilds} activeGuildId={activeGuildId} content={state.session.content} />}>
                                 <Route index element={
-                                    canAccess(user, "dashboard")
+                                    canAccessAny(user, homeAreas)
                                         ? <DashboardPage />
                                         : home
                                             ? <Navigate to={home.href} replace />

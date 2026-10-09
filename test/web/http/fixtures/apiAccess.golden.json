@@ -1,6 +1,6 @@
 {
   "areaByPath": {
-    "/api/dashboard": "dashboard",
+    "/api/dashboard": ["dashboard", "signup"],
     "/api/dashboard/next-raid": "dashboard",
     "/api/version": "settings",
     "/api/channels": "channels",

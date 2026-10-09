@@ -156,5 +156,98 @@
         "fillSheet": "Sheet füllen",
         "openRaid": "Raid öffnen",
         "loading": "Lade Anmeldungen…"
+    },
+    "personal": {
+        "divider": "Für dich",
+        "toSignups": "Zu meinen Anmeldungen",
+        "signUp": "Anmelden",
+        "closed": "Anmeldung zu",
+        "closedTip": "Die Anmeldung ist geschlossen oder der Anmeldeschluss vorbei.",
+        "rosterOnly": "Nur Roster",
+        "rosterOnlyTip": "Für diesen Raid melden sich nur Mitglieder des Rosters an.",
+        "status": {
+            "signed": "Dabei",
+            "late": "Später",
+            "tentative": "Vielleicht",
+            "bench": "Bank",
+            "absence": "Abgemeldet",
+            "cancelled": "Abgesagt"
+        },
+        "next": {
+            "title": "Dein nächster Raid",
+            "toSignup": "Zur Anmeldung",
+            "empty": "Kein anstehender Raid in deinen Kategorien."
+        },
+        "box": {
+            "signup": "Anmeldung",
+            "notYet": "Noch offen",
+            "setup": "Setup",
+            "softres": "Softres"
+        },
+        "setup": {
+            "none": "Noch kein Setup",
+            "noneSub": "Die Raidleitung stellt es noch auf.",
+            "bench": "Bank",
+            "group": "Gruppe {group}"
+        },
+        "softres": {
+            "ready": "Liste steht",
+            "none": "Keine Liste",
+            "open": "Softres öffnen"
+        },
+        "plan": {
+            "title": "Deine Einteilung im Raidplan",
+            "open": "Raidplan öffnen",
+            "loading": "Raidplan wird gelesen …",
+            "error": "Der Raidplan ließ sich nicht laden.",
+            "none": "Keine persönliche Aufgabe – schau trotzdem in den Plan."
+        },
+        "list": {
+            "title": "Deine nächsten Raids",
+            "all": "Alle",
+            "empty": "Danach steht nichts an.",
+            "deadline": "Schluss {when}"
+        },
+        "attendance": {
+            "label": "Deine Anwesenheit",
+            "value": "{attended} von {total}",
+            "tip": "Anwesenheit über deine letzten Raids",
+            "sub": "Bank zählt mit ({count}× Bank). Klick öffnet deine Anwesenheit.",
+            "none": "Noch kein gezählter Raid."
+        },
+        "profile": {
+            "label": "Dein Profil",
+            "tip": "Dein Raider-Profil",
+            "complete": "Alles drin. Klick öffnet dein Profil.",
+            "ok": "vollständig",
+            "hints": {
+                "one": "{count} Hinweis",
+                "other": "{count} Hinweise"
+            },
+            "characters": {
+                "one": "{count} Charakter",
+                "other": "{count} Charaktere"
+            },
+            "noCharacters": "Noch kein Charakter angelegt",
+            "noSpec": "{character} hat keine Spec"
+        },
+        "recent": {
+            "title": "Deine letzten Raids",
+            "attendance": "Anwesenheit",
+            "empty": "Noch kein Raid von dir gezählt.",
+            "noReport": "keine Auswertung",
+            "report": "Auswertung",
+            "hints": {
+                "one": "{count} Hinweis für dich",
+                "other": "{count} Hinweise für dich"
+            },
+            "allGood": "alles gut"
+        }
+    },
+    "orga": {
+        "divider": {
+            "one": "Orga · {count} offene Aufgabe",
+            "other": "Orga · {count} offene Aufgaben"
+        }
     }
 }

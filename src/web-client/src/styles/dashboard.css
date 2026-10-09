@@ -87,12 +87,51 @@ a.ov-row:hover .ov-go { color: var(--accent); }
 .dash-card.ov-area-history { --ov-area: var(--area-history); }
 .dash-card.ov-area-recruitment { --ov-area: var(--area-recruitment); }
 .dash-card.ov-area-roster { --ov-area: var(--area-roster); }
+.dash-card.ov-area-absences { --ov-area: var(--area-absences); }
+.dash-card.ov-area-profile { --ov-area: var(--area-profile); }
 .ov-area-hd { display: flex; align-items: center; gap: 10px; }
 .ov-area-lbl { font-size: 11.5px; color: var(--muted); font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
 .ov-area-val { font-size: 17px; font-weight: 700; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ov-area-big { font-size: 30px; font-weight: 700; font-family: var(--font-mono); line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .ov-badges { display: flex; gap: 6px; flex-wrap: wrap; }
 @media (prefers-reduced-motion: reduce) { .dash-card.ov-area { transition: none; } }
+
+/* ---- "Für dich" (pages/dashboard/PersonalParts.tsx) ---- */
+.ov-grid-me-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ov-divider { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.ov-divider-l { font-size: 11.5px; font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
+.ov-divider-orga .ov-divider-l { color: var(--medium); }
+.ov-divider-line { flex: 1; height: 1px; background: var(--line); }
+.ov-me-boxes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ov-me-box { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); }
+.ov-me-box.ok { background: var(--good-bg); border-color: color-mix(in srgb, var(--good) 35%, transparent); }
+.ov-me-box.ok .ov-area-lbl { color: var(--good); }
+.ov-me-box.mid { background: var(--medium-bg); border-color: color-mix(in srgb, var(--medium) 35%, transparent); }
+.ov-me-box.mid .ov-area-lbl { color: var(--medium); }
+.ov-me-box.accent { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.ov-me-box.accent .ov-area-lbl { color: var(--accent); }
+.ov-me-box-v { font-size: 17px; font-weight: 800; line-height: 1.25; }
+.ov-me-box-s { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-me-plan { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.ov-me-plan-hd { display: flex; align-items: center; gap: 10px; }
+.ov-me-plan-all { margin-left: auto; font-size: 13px; }
+a.badge.ov-me-boss { text-decoration: none; }
+a.badge.ov-me-boss:hover { border-color: var(--accent); }
+.ov-me-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 16px; }
+.ov-me-line-t { font-size: 17px; font-weight: 800; margin-right: 4px; }
+.ov-me-compact-plan { padding: 0 16px 14px; }
+.ov-me-line a.badge { text-decoration: none; }
+.ov-row.ov-row-open { background: var(--accent-soft); }
+.ov-row a.badge { text-decoration: none; }
+/* the last nights: the attendance grid's colours, and its letter so the status never rests on hue alone */
+.ov-dots { display: flex; flex-wrap: wrap; gap: 4px; }
+.ov-dot { width: 18px; height: 18px; border-radius: 4px; display: inline-grid; place-items: center; font-size: 10px; font-weight: 700; font-family: var(--font-mono); color: var(--att-ink); }
+.ov-dot.att-present { background: var(--att-present); }
+.ov-dot.att-bench { background: var(--att-bench); }
+.ov-dot.att-vacation { background: var(--att-vacation); }
+.ov-dot.att-absence { background: var(--att-absence); }
+.ov-dot.att-nosignup { background: var(--att-nosignup); }
+.ov-dot.att-noshow { background: var(--att-noshow); }
 
 /* ---- Latest Loot (shared with the Historie tab) ---- */
 .toploot { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -141,6 +180,7 @@ a.toploot-name:hover { text-decoration: underline; }
 }
 @media (max-width: 700px) {
     .ov-dlg-grid { grid-template-columns: minmax(0, 1fr); }
+    .ov-me-boxes, .ov-grid-me-tiles { grid-template-columns: minmax(0, 1fr); }
     .ov-classes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .toploot-row { flex-wrap: wrap; }
     .toploot-who { margin-left: 48px; align-items: flex-start; max-width: none; }

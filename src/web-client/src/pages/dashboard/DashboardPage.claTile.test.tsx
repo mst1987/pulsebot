@@ -17,6 +17,8 @@ vi.mock("../../api", async (orig) => ({
 function dashboard(lastReport: DashboardLastReport | null): DashboardData {
     return {
         kicker: { guild: "Pulse", realm: "Thunderstrike" },
+        orga: true,
+        personal: null,
         nextRaid: null,
         followingRaid: null,
         nextRaidError: null,
