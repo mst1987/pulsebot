@@ -741,10 +741,6 @@ table.idx th[data-tip] { text-decoration:underline dotted; text-decoration-color
 .fchart .fc-band.fc-medium { fill:var(--medium); }
 .fchart .fc-band.fc-high { fill:var(--high); }
 .fchart .fc-band-soft { fill:var(--accent); fill-opacity:.45; }
-.fchart .fc-bar { fill:var(--accent); }
-.fchart .fc-bar.fc-good { fill:var(--good); }
-.fchart .fc-bar.fc-medium { fill:var(--medium); }
-.fchart .fc-bar.fc-high { fill:var(--high); }
 .fchart .fc-window { fill:var(--accent-2); fill-opacity:.12; }
 .fchart .fc-marker { fill:var(--accent); stroke:var(--panel); stroke-width:2; }
 .fchart .fc-mark:hover .fc-marker { fill:var(--accent-2); }
