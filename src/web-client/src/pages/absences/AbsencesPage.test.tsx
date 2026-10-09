@@ -428,6 +428,35 @@ describe("Abwesenheiten: Meine Anwesenheit", () => {
         expect(within(dialog).getByText(t("signups.availability.dialog.titleAbsence"))).toBeInTheDocument();
     });
 
+    it("tells an absence from a present-only entry, with the category's icon and its plain name", async () => {
+        const entry = { ...OWN.entries[0], categoryId: "", categoryName: "" };
+        const own = {
+            ...OWN,
+            entries: [
+                { ...entry, id: "a1" },
+                { ...entry, id: "a2", kind: "presence" as const, categoryId: "mon", categoryName: "◜ · TBC Montag" },
+                { ...entry, id: "a3", kind: "presence" as const, categoryId: "gone", categoryName: "PUG Raids" },
+            ],
+        };
+        const withIcon = { ...ATTENDANCE, categories: [{ ...ATTENDANCE.categories[0], icon: "achievement_boss_illidan" }, ATTENDANCE.categories[1]] };
+        vi.mocked(client.get).mockImplementation((path: string) => Promise.resolve(path.startsWith("/api/availability/attendance") ? withIcon : own));
+        await showMine();
+        const box = screen.getByRole("region", { name: t("absences.mine.entries") });
+        await within(box).findByText(t("absences.mine.entry.absent"));
+        const [absent, only, unknown] = within(box).getAllByRole("listitem");
+        expect(absent).toHaveClass("is-absence");
+        expect(only).toHaveClass("is-presence");
+        expect(within(only).getByText(t("absences.mine.entry.presentOnly"))).toBeInTheDocument();
+        // plain name, the category's own icon; an unknown category gets the neutral icon, never a bare glyph
+        expect(within(only).getByText("TBC Montag")).toBeInTheDocument();
+        expect(only.querySelector("img.wi")?.getAttribute("src")).toContain("achievement_boss_illidan");
+        expect(unknown.querySelector("img.wi")?.getAttribute("src")).toContain("achievement_dungeon_gloryoftheraider");
+        // the card header and the filter chip carry the icon as well
+        expect(screen.getByRole("region", { name: "TBC Montag" }).querySelector("img.wi")?.getAttribute("src")).toContain("achievement_boss_illidan");
+        const chip = within(screen.getByRole("group", { name: t("absences.mine.filterAria") })).getByRole("button", { name: "TBC Montag" });
+        expect(chip.querySelector("img.wi")).not.toBeNull();
+    });
+
     it("says so when the raider has no category yet", async () => {
         const empty = { ...ATTENDANCE, categories: [] };
         vi.mocked(client.get).mockImplementation((path: string) => Promise.resolve(path.startsWith("/api/availability/attendance") ? empty : OWN));

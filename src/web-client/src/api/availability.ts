@@ -273,6 +273,8 @@ export type AttendanceUpcoming = { eventId: string; title: string; startTime: nu
 export type AttendanceCategory = {
     id: string;
     name: string;
+    /** WoW icon of the raid the category mostly runs, "" when none is known. */
+    icon?: string;
     /** 0–100, null while no raid counts. */
     pct: number | null;
     attended: number;

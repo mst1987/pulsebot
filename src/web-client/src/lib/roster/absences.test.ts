@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { AbsenceRaid, AbsenceRaider } from "../../api";
 import {
+    CATEGORY_FALLBACK_ICON, categoryIcon, entryWording, plainCategoryName,
     addDays, barLabel, barPlace, categoryTone, currentAbsence, dayIndex, dayWidth, displayName, isoWeek, namesOf,
     entryDays, entryState, nightsInOrder, playsLine, raidDays, signedShare, timelineWeeks, upcomingRaids, visibleRaiders,
 } from "./absences";
@@ -132,5 +133,27 @@ describe("names", () => {
         expect(currentAbsence([e("2026-11-01", "planned"), e("2026-10-20", "planned"), e("2026-09-01", "past")])?.from).toBe("2026-10-20");
         expect(currentAbsence([e("2026-11-01", "planned"), e("2026-10-01", "running")])?.from).toBe("2026-10-01");
         expect(currentAbsence([e("2026-10-01", "running", "presence")])).toBeNull();
+    });
+});
+
+describe("own entries and category names", () => {
+    it("drops the decoration in front of a category name", () => {
+        expect(plainCategoryName("◜ · TBC Montag")).toBe("TBC Montag");
+        expect(plainCategoryName("╭・ PUG Raids")).toBe("PUG Raids");
+        expect(plainCategoryName("◜ ·")).toBe("◜ ·");
+        expect(plainCategoryName(undefined)).toBe("");
+    });
+
+    it("falls back to a neutral raid icon", () => {
+        expect(categoryIcon("achievement_boss_illidan")).toBe("achievement_boss_illidan");
+        expect(categoryIcon("")).toBe(CATEGORY_FALLBACK_ICON);
+        expect(categoryIcon(undefined)).toBe(CATEGORY_FALLBACK_ICON);
+    });
+
+    it("tells an absence from a present-only entry and names the category", () => {
+        expect(entryWording({ kind: "absence", categoryName: "" })).toEqual({ icon: "absent", key: "absences.mine.entry.absent", category: "" });
+        expect(entryWording({ kind: "absence", categoryName: "◜ · PUG Raids" })).toEqual({ icon: "absent", key: "absences.mine.entry.absentIn", category: "PUG Raids" });
+        expect(entryWording({ kind: "presence", categoryName: "TBC Montag" })).toEqual({ icon: "present", key: "absences.mine.entry.presentOnly", category: "TBC Montag" });
+        expect(entryWording({ kind: "presence", categoryName: "" }).key).toBe("absences.mine.entry.present");
     });
 });

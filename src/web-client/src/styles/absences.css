@@ -225,13 +225,28 @@ button.ab-tl-raider:focus-visible { outline: 2px solid var(--accent); outline-of
 .ab-hist-dot.ab-h-other { background: var(--panel3); border: 1px solid var(--line); }
 
 /* ---- "Meine Anwesenheit": the own entries, then one card per raid category ---- */
-.ab-mine { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.ab-mine { display: flex; flex-direction: column; gap: 16px; min-width: 0; max-width: var(--page-narrow); }
+/* the entries left (a narrow column), the filter and the category cards right; stacked below 1000 px */
+.ab-mine-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; min-width: 0; }
+.ab-mine-main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.ab-entry-ico { flex: 0 0 auto; display: inline-flex; margin-top: 1px; color: var(--ab-away); }
+.ab-entry.is-presence .ab-entry-ico { color: var(--good); }
+.ab-entry-ico svg { width: 18px; height: 18px; }
+.ab-entry-type { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 13.5px; }
+.ab-cat { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
+.ab-cat .wi { border-radius: 3px; flex: 0 0 auto; }
+.ab-entry-main .ab-entry-period { margin-top: 2px; font-size: 12.5px; color: var(--muted); }
+.ab-att-head .wi { border-radius: 4px; flex: 0 0 auto; }
+@media (min-width: 1000px) {
+    .ab-mine-grid { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); }
+    .ab-own { position: sticky; top: 12px; }
+}
 .ab-mine-back { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .ab-mine-back h2 { margin: 0; font-size: 18px; }
 .ab-own { padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); }
 .ab-own-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .ab-own-head h3, .ab-att-head h3 { margin: 0; font-size: 15px; }
-.ab-atts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 14px; }
+.ab-atts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 14px; align-items: start; }
 .ab-att { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--area-absences); }
 .ab-att-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ab-att-figure { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }

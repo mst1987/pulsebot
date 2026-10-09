@@ -6,12 +6,12 @@ import {
     type ApiError, type AttendanceCategory, type AvailabilityEntry, type SignupStatus,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { Badge, BackButton, Button, IconButton, useConfirm, type Tone } from "../../components/ui";
+import { Badge, BackButton, Button, IconButton, WowIcon, useConfirm, type Tone } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { AbsenceIcon, CheckMark, TrashIcon } from "../../components/ui/icons";
+import { AbsenceIcon, CheckIcon, CheckMark, TrashIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
-import { entryDays, entryState, nightsInOrder } from "../../lib/roster/absences";
+import { categoryIcon, entryDays, entryState, entryWording, nightsInOrder, plainCategoryName } from "../../lib/roster/absences";
 import { countsAsPresent, statusOf, verdictText } from "../../lib/roster/attendanceStatus";
 import AttendanceCell from "../../components/roster/AttendanceCell";
 import { periodLabel } from "../../lib/signups/availability";
@@ -50,6 +50,8 @@ export default function MyAttendance({ userId = "", onBack }: {
     const own = other ? caller.data : entries.data;
     const pick = data.categories.some((c) => c.id === picked) ? picked : "";
     const shown = pick ? data.categories.filter((c) => c.id === pick) : data.categories;
+    // the icon of each category, for the entries that name one
+    const known = Object.fromEntries(data.categories.map((c) => [c.id, { icon: c.icon || "", name: c.name }]));
 
     return (
         <div className="ab-mine">
@@ -60,6 +62,7 @@ export default function MyAttendance({ userId = "", onBack }: {
                 </div>
             )}
 
+            <div className="ab-mine-grid">
             <section className="ab-own" aria-label={other ? t("absences.mine.entriesOf", { name }) : t("absences.mine.entries")}>
                 <div className="ab-own-head">
                     <h3>{other ? t("absences.mine.entriesOf", { name }) : t("absences.mine.entries")}</h3>
@@ -69,17 +72,23 @@ export default function MyAttendance({ userId = "", onBack }: {
                         </Button>
                     )}
                 </div>
-                {entries.data && <EntryList entries={entries.data.entries} today={entries.data.today} onRemoved={() => { void entries.reload(); }} />}
+                {entries.data && (
+                    <EntryList
+                        entries={entries.data.entries} today={entries.data.today} known={known}
+                        onRemoved={() => { void entries.reload(); }}
+                    />
+                )}
             </section>
 
+            <div className="ab-mine-main">
             {data.categories.length > 1 && (
                 <div className="chip-row ab-att-filter" role="group" aria-label={t("absences.mine.filterAria")}>
                     <Chip pressed={!pick} tone={!pick ? "accent" : undefined} icon={!pick ? <CheckMark /> : undefined} onClick={() => setPicked("")}>
                         {t("absences.mine.allCategories")}
                     </Chip>
                     {data.categories.map((c) => (
-                        <Chip key={c.id} pressed={pick === c.id} tone={pick === c.id ? "accent" : undefined} icon={pick === c.id ? <CheckMark /> : undefined} onClick={() => setPicked(c.id)}>
-                            {c.name || c.id}
+                        <Chip key={c.id} pressed={pick === c.id} tone={pick === c.id ? "accent" : undefined} icon={<WowIcon name={categoryIcon(c.icon)} size={16} />} onClick={() => setPicked(c.id)}>
+                            {plainCategoryName(c.name || c.id)}
                         </Chip>
                     ))}
                 </div>
@@ -95,6 +104,8 @@ export default function MyAttendance({ userId = "", onBack }: {
                     ))}
                 </div>
             ) : <p className="ab-empty">{other ? t("absences.mine.noCategoriesOf", { name }) : t("absences.mine.noCategories")}</p>}
+            </div>
+            </div>
 
             {own && (
                 <AvailabilityDialog
@@ -109,22 +120,23 @@ export default function MyAttendance({ userId = "", onBack }: {
     );
 }
 
-function EntryList({ entries, today, onRemoved }: { entries: AvailabilityEntry[]; today: string; onRemoved: () => void }) {
+function EntryList({ entries, today, known, onRemoved }: { entries: AvailabilityEntry[]; today: string; known: Record<string, { icon: string; name: string }>; onRemoved: () => void }) {
     const t = useT();
     const shown = entries.filter((e) => entryState(e, today) !== "past");
     if (!shown.length) return <p className="ab-note">{t("absences.mine.noEntries")}</p>;
     return (
         <ul className="ab-entries">
-            {shown.map((e) => <OwnEntry key={e.id} entry={e} today={today} onRemoved={onRemoved} />)}
+            {shown.map((e) => <OwnEntry key={e.id} entry={e} today={today} category={known[e.categoryId]} onRemoved={onRemoved} />)}
         </ul>
     );
 }
 
-function OwnEntry({ entry, today, onRemoved }: { entry: AvailabilityEntry; today: string; onRemoved: () => void }) {
+function OwnEntry({ entry, today, category, onRemoved }: { entry: AvailabilityEntry; today: string; category?: { icon: string; name: string }; onRemoved: () => void }) {
     const t = useT();
     const ask = useConfirm();
     const toast = useToast();
     const state = entryState(entry, today);
+    const wording = entryWording({ kind: entry.kind, categoryName: entry.categoryName || (category && category.name) || "" });
     const remove = async () => {
         if (!(await ask({ title: t("absences.drawer.removeTitle"), text: t("absences.drawer.removeText", { period: periodLabel(entry.from, entry.to) }), action: t("common.delete") }))) return;
         try {
@@ -137,18 +149,23 @@ function OwnEntry({ entry, today, onRemoved }: { entry: AvailabilityEntry; today
     };
     return (
         <li className={`ab-entry is-${entry.kind}`}>
+            <span className="ab-entry-ico" aria-hidden="true">{wording.icon === "present" ? <CheckIcon /> : <AbsenceIcon />}</span>
             <div className="ab-entry-main">
-                <div className="ab-entry-period">
+                <div className="ab-entry-type">
+                    <b>{t(wording.key)}</b>
+                    {wording.category && <CategoryLabel icon={category && category.icon} name={wording.category} />}
                     <Badge size="sm" tone={state === "running" ? "mid" : "accent"}>{t(`absences.state.${state}`)}</Badge>
-                    <b>{periodLabel(entry.from, entry.to)}</b>
+                </div>
+                <div className="ab-entry-period">
+                    <span>{periodLabel(entry.from, entry.to)}</span>
                     <span className="ab-entry-days">{t("absences.days", { count: entryDays(entry) })}</span>
                 </div>
-                <div className="ab-entry-sub">
-                    <span>{t(`absences.kind.${entry.kind}`)}</span>
-                    {entry.comment && <span>{t("common.quoted", { text: entry.comment })}</span>}
-                    {entry.categoryName && <span>{t("absences.onlyCategory", { name: entry.categoryName })}</span>}
-                    {entry.byOrga && <span>{t("absences.drawer.byOrga")}</span>}
-                </div>
+                {(entry.comment || entry.byOrga) && (
+                    <div className="ab-entry-sub">
+                        {entry.comment && <span>{t("common.quoted", { text: entry.comment })}</span>}
+                        {entry.byOrga && <span>{t("absences.drawer.byOrga")}</span>}
+                    </div>
+                )}
             </div>
             <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("absences.drawer.remove")} onClick={() => void remove()} />
         </li>
@@ -162,7 +179,8 @@ function CategoryCard({ cat, userId, name, canEdit, onSaved }: { cat: Attendance
     return (
         <section className="ab-att" aria-label={cat.name || cat.id}>
             <div className="ab-att-head">
-                <h3>{cat.name || cat.id}</h3>
+                <WowIcon name={categoryIcon(cat.icon)} size={24} />
+                <h3>{plainCategoryName(cat.name || cat.id)}</h3>
                 {cat.link === "auto" && <Badge size="sm" tip={t("absences.mine.autoTip")}>{t("absences.mine.auto")}</Badge>}
             </div>
             {cat.pct === null || !cat.total ? (
@@ -207,6 +225,16 @@ function CategoryCard({ cat, userId, name, canEdit, onSaved }: { cat: Attendance
                 </div>
             )}
         </section>
+    );
+}
+
+/** A category as the entries name it: its raid icon (a neutral one when unknown) and the plain name. */
+function CategoryLabel({ icon, name }: { icon?: string; name: string }) {
+    return (
+        <span className="ab-cat">
+            <WowIcon name={categoryIcon(icon)} size={16} />
+            <span>{plainCategoryName(name)}</span>
+        </span>
     );
 }
 

@@ -16,7 +16,7 @@ const profileStore = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
 const { categoryAttendanceFor } = require("../../stores/configSchema");
 const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
-const { buildAttendanceContext, attendanceForAccounts, RAID_WINDOW } = require("../../services/characters/rosterAttendance");
+const { buildAttendanceContext, attendanceForAccounts, categoryInfo, RAID_WINDOW } = require("../../services/characters/rosterAttendance");
 const { accountCharacters } = require("../setup/setupAttendance");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
@@ -61,6 +61,8 @@ function categoryView(uid, categoryId, { ctx, nights, upcoming, profile, name, w
     return {
         id: categoryId,
         name: name || "",
+        // the final-boss icon of the raid the category mostly runs; "" = none known (the client shows a neutral one)
+        icon: categoryInfo(ctx, categoryId).icon,
         pct: result ? result.pct : null,
         attended: result ? result.attended : 0,
         total: result ? result.total : 0,
