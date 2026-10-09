@@ -12,8 +12,8 @@ import Badge from "../../components/ui/Badge";
 import PartHead from "../../components/ui/PartHead";
 import RaidLoader from "../../components/ui/RaidLoader";
 import Segment from "../../components/ui/Segment";
-import { PenIcon } from "../../components/settings/settingsUi";
 import Field, { FieldLabel } from "../../components/ui/Field";
+import { PenIcon } from "../../components/ui/icons";
 
 // Einstellungen → Verbindungen → Discord-Server, part "Erinnerungen" (#264).
 // One line per raid category: its name, what is set as one short line, and a

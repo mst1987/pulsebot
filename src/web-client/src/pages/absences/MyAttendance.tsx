@@ -1,6 +1,5 @@
 import { useState } from "react";
 import Chip from "../../components/ui/Chip";
-import { CheckMark } from "../../components/settings/settingsUi";
 import { usePersistedState } from "../../lib/persistedState";
 import {
     deleteAvailability, getAvailability, getRaiderAttendance,
@@ -9,7 +8,7 @@ import {
 import { useApi } from "../../hooks/useApi";
 import { Badge, BackButton, Button, IconButton, useConfirm, type Tone } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { AbsenceIcon, TrashIcon } from "../../components/ui/icons";
+import { AbsenceIcon, CheckMark, TrashIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
 import { entryDays, entryState, nightsInOrder, reasonText } from "../../lib/absences";

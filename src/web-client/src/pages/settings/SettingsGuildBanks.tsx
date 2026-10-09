@@ -7,8 +7,7 @@ import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { InfoTip } from "../../components/ui/Field";
-import { CheckMark, WarnIcon } from "../../components/settings/settingsUi";
-import { TrashIcon } from "../../components/ui/icons";
+import { CheckMark, TrashIcon, WarnIcon } from "../../components/ui/icons";
 import { formatDateTime } from "../../lib/format";
 import { tParts, useT } from "../../i18n";
 

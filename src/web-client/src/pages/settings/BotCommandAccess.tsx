@@ -18,8 +18,7 @@ import PartHead from "../../components/ui/PartHead";
 import Segment from "../../components/ui/Segment";
 import Switch from "../../components/ui/Switch";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { LockIcon, XIcon } from "../../components/ui/icons";
-import { PenIcon } from "../../components/settings/settingsUi";
+import { LockIcon, PenIcon, XIcon } from "../../components/ui/icons";
 import { FieldLabel } from "../../components/ui/Field";
 
 // Einstellungen → Berechtigungen → Bot-Befehle (issue #252): who may use which

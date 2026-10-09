@@ -9,7 +9,7 @@ import type { GameVersionOption } from "./SettingsGameVersion";
 // How many dates the warning names before it stops listing.
 const MAX_DATES = 4;
 
-function WarnIcon() {
+function HideWarnIcon() {
     return (
         <svg className="gv-hide-warn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 9v4M12 17h.01" />
@@ -69,7 +69,7 @@ export default function HideOtherVersionsCard({ versions, mainVersion, hidden, u
             </div>
             {hidden && coming.length > 0 && (
                 <div className="gv-hide-warn" role="status">
-                    <WarnIcon />
+                    <HideWarnIcon />
                     <p>{t("settings.gameVersion.upcoming", { count: coming.length, dates })}</p>
                 </div>
             )}

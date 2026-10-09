@@ -6,7 +6,7 @@ import {
 } from "../../api";
 import { discordServersPatch, overlapBadge, serverCardState, type ServerFields } from "../../lib/settingsLogic";
 import { useToast } from "../../components/shell/Jobs";
-import { PlusIcon, TrashIcon } from "../../components/ui/icons";
+import { CheckMark, PenIcon, PlusIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
 import RoleSyncPart from "./SettingsRoleSync";
 import RemindersPart from "./SettingsReminders";
 import TalkOverviewRow from "./SettingsTalkOverview";
@@ -16,7 +16,7 @@ import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import PartHead from "../../components/ui/PartHead";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { AdminOnlyBadge, ChannelPicker, CheckMark, PenIcon, WarnIcon } from "../../components/settings/settingsUi";
+import { AdminOnlyBadge, ChannelPicker } from "../../components/settings/settingsUi";
 import { FieldLabel } from "../../components/ui/Field";
 import { t as translate, useT } from "../../i18n";
 

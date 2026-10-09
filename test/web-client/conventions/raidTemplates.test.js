@@ -20,7 +20,7 @@ describe("raid templates conventions", () => {
     });
 
     it("builds the editor from the shared plan fields of the event dialog, not its own copies", () => {
-        expect(page).toContain("import { AppearanceFields, BuffPicker, FieldLabel, InstancePicker, NumberInput, OverflowField, RoleRanges, SizePicker, SwitchRow } from \"../components/raid/RaidFields\";");
+        expect(page).toContain("import { AppearanceFields, BuffPicker, TipLabel, InstancePicker, NumberInput, OverflowField, RoleRanges, SizePicker, SwitchRow } from \"../components/raid/RaidFields\";");
         for (const copy of ["function NumberField", "function RangeField", "className={`rt-inst", "className={`rt-buff", "className=\"switch-row\"", "{ value: FREE, label: \"frei\" }"]) {
             expect({ copy, inPage: page.includes(copy) }).toEqual({ copy, inPage: false });
         }

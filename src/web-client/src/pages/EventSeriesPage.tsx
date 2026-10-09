@@ -17,8 +17,7 @@ import Badge from "../components/ui/Badge";
 import RaidLoader from "../components/ui/RaidLoader";
 import NamingBadge from "../components/channels/NamingBadge";
 import { SwitchRow } from "../components/raid/RaidFields";
-import { RefreshIcon } from "../components/ui/icons";
-import { PenIcon, WarnIcon } from "../components/settings/settingsUi";
+import { PenIcon, RefreshIcon, WarnIcon } from "../components/ui/icons";
 import "../styles/series.css";
 
 // Wiederkehrende Events (#289): one compact line per event category —

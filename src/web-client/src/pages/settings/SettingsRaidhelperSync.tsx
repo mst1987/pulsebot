@@ -5,10 +5,11 @@ import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { AdminOnlyBadge, CheckMark, WarnIcon } from "../../components/settings/settingsUi";
+import { AdminOnlyBadge } from "../../components/settings/settingsUi";
 import { InfoTip } from "../../components/ui/Field";
 import { useT } from "../../i18n";
 import { formatTime as clock } from "../../lib/format";
+import { CheckMark, WarnIcon } from "../../components/ui/icons";
 
 // Einstellungen → Verbindungen → "Raid-Helper-Abgleich" (#608). The pages never
 // ask Raid-Helper for the event list; one job fetches it every few minutes. This

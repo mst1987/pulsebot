@@ -13,8 +13,8 @@ import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { ChevronRightIcon } from "../../components/ui/icons";
-import { AdminOnlyBadge, CheckMark, WarnIcon } from "../../components/settings/settingsUi";
+import { CheckMark, ChevronRightIcon, WarnIcon } from "../../components/ui/icons";
+import { AdminOnlyBadge } from "../../components/settings/settingsUi";
 import { InfoTip } from "../../components/ui/Field";
 import { tParts, useT } from "../../i18n";
 

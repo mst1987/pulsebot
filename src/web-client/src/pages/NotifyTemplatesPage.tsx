@@ -28,7 +28,7 @@ const SORT_DEFAULTS: Record<SortKey, Dir> = { name: "asc", title: "asc" };
 const FORM_ID = "notify-template-form";
 
 /** Pencil — a plain UI function, so a line icon rather than a WoW one. */
-function PenIcon() {
+function TemplatePenIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
@@ -248,7 +248,7 @@ export default function NotifyTemplatesPage() {
                             </div>
                             <div className="nt-body">{(tpl.body || "").split("\n")[0]}</div>
                             <div className="re-acts">
-                                <IconButton icon={<PenIcon />} size="sm" tip={t("common.edit")} onClick={() => editor.startEdit(tpl.id)} />
+                                <IconButton icon={<TemplatePenIcon />} size="sm" tip={t("common.edit")} onClick={() => editor.startEdit(tpl.id)} />
                                 <IconButton icon={<TrashIcon />} size="sm" tone="danger" tip={t("common.delete")} onClick={() => remove(tpl)} />
                             </div>
                         </div>

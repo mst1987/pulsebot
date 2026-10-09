@@ -4,34 +4,10 @@ import { LockIcon } from "../ui/icons";
 import { tParts, useT } from "../../i18n";
 
 // Small pieces the Einstellungen page shares between its sections: the
-// "Nur Voll-Admins" badge, the few line icons only this module draws (the
-// shared ones are in ./icons) and the channel/role pickers that replace typed
-// Discord ids (design issue #224). Field labels and the round info button are
-// shared building blocks now: ./ui/Field.
-
-export function PenIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-        </svg>
-    );
-}
-
-export function WarnIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
-        </svg>
-    );
-}
-
-export function CheckMark() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m5 12 5 5 9-10" />
-        </svg>
-    );
-}
+// "Nur Voll-Admins" badge and the channel/role pickers that replace typed
+// Discord ids (design issue #224). Its line icons (pen, warning, check mark)
+// joined the one icon source, ../ui/icons; field labels and the round info
+// button are shared building blocks too: ../ui/Field.
 
 export function AdminOnlyBadge() {
     const t = useT();

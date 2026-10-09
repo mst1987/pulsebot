@@ -10,9 +10,9 @@ import Badge from "../../components/ui/Badge";
 import Chip from "../../components/ui/Chip";
 import Segment from "../../components/ui/Segment";
 import WowIcon from "../../components/ui/WowIcon";
-import { CheckMark } from "../../components/settings/settingsUi";
 import CategoryField from "./CategoryField";
 import AvailabilityPanelRow, { type AvailabilityPanels } from "./AvailabilityPanelRow";
+import { CheckMark } from "../../components/ui/icons";
 
 // The expanded card of one raid category (Einstellungen → Kategorien), design
 // "B · Tabs in der Karte": its ~16 settings sorted into four tabs instead of two

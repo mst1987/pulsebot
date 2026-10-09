@@ -6,10 +6,10 @@ import Segment from "../ui/Segment";
 import Switch from "../ui/Switch";
 import Badge from "../ui/Badge";
 import WowIcon from "../ui/WowIcon";
-import { WarnIcon } from "../settings/settingsUi";
 import { roleLabel } from "../../lib/wowNames";
 import { useT } from "../../i18n";
 import "../../styles/raid-templates.css";
+import { WarnIcon } from "../ui/icons";
 
 // The fields of a raid plan besides CompositionEditor, shared by the "Event
 // anlegen" dialog (#261) and the Raid-Vorlagen editor (#266): instance chips from
@@ -25,7 +25,7 @@ const FREE = "free";
 const EMOJI_STYLES: EmojiStyle[] = ["arcane", "gold", "parchment", "plain"];
 
 /** A small label with its explanation in the tooltip. */
-export function FieldLabel({ text, tip }: { text: string; tip?: string }) {
+export function TipLabel({ text, tip }: { text: string; tip?: string }) {
     return <span className="rt-flabel" data-tip={tip ? text : undefined} data-tip-sub={tip}>{text}</span>;
 }
 
@@ -39,7 +39,7 @@ export function InstancePicker({ version, value, onToggle }: {
     const chosen = instancesOf(version, value);
     return (
         <div className="rt-field">
-            <FieldLabel text={t("raidPlan.fields.instances")} tip={t("raidPlan.fields.instancesTip")} />
+            <TipLabel text={t("raidPlan.fields.instances")} tip={t("raidPlan.fields.instancesTip")} />
             <div className="rt-insts" role="group" aria-label={t("raidPlan.fields.instances")}>
                 {(version?.instances || []).map((inst) => {
                     const on = value.includes(inst.id);
@@ -77,7 +77,7 @@ export function SizePicker({ version, instanceIds, size, free, onFree, onSize, c
     const isFree = free || (size !== null && !sizes.includes(size));
     return (
         <div className="rt-field">
-            <FieldLabel text={t("raidPlan.fields.size")} tip={t("raidPlan.fields.sizeTip")} />
+            <TipLabel text={t("raidPlan.fields.size")} tip={t("raidPlan.fields.sizeTip")} />
             <div className="rt-sizes">
                 <Segment
                     size="sm"
@@ -181,7 +181,7 @@ export function AppearanceFields({ version, instanceIds, color, image, emojiStyl
 
     return (
         <div className="rt-field">
-            <FieldLabel text={t("raidPlan.fields.look")} tip={t("raidPlan.fields.lookTip")} />
+            <TipLabel text={t("raidPlan.fields.look")} tip={t("raidPlan.fields.lookTip")} />
             <div className="rt-look">
                 <div className="rt-look-prev" aria-hidden="true">
                     <span className="rt-look-bar" style={{ "--rt-look": shown } as CSSProperties} />
@@ -228,7 +228,7 @@ export function BuffPicker({ version, value, onToggle }: { version: GameVersion 
     const buffs = version ? [...version.raidBuffs, ...version.partyBuffs] : [];
     return (
         <div className="rt-field">
-            <FieldLabel text={t("raidPlan.fields.buffs")} tip={t("raidPlan.fields.buffsTip")} />
+            <TipLabel text={t("raidPlan.fields.buffs")} tip={t("raidPlan.fields.buffsTip")} />
             <div className="rt-buffs">
                 {buffs.map((b) => {
                     const on = value.includes(b.key);
@@ -253,7 +253,7 @@ export function OverflowField({ value, onChange }: { value: OverflowMode; onChan
     const t = useT();
     return (
         <div className="rt-field">
-            <FieldLabel text={t("raidPlan.overflow.label")} tip={t("raidPlan.overflow.tip")} />
+            <TipLabel text={t("raidPlan.overflow.label")} tip={t("raidPlan.overflow.tip")} />
             <Segment<OverflowMode> size="sm" ariaLabel={t("raidPlan.overflow.label")} value={value} onChange={onChange}
                 options={OVERFLOW_MODES.map((m) => ({ value: m, label: t(`raidPlan.overflow.${m}`) }))} />
         </div>
