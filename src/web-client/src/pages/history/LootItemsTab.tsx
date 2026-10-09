@@ -9,17 +9,17 @@
 // sharded is out of the table by default (see DISENCHANT).
 import { useMemo, useState, type ReactNode } from "react";
 import type { Category, LootAward, LootCatalogItem, LootContent, LootReason, LootTier } from "../../api";
-import { itemQualityProps } from "../../lib/itemQuality";
-import { contentName } from "../../lib/wowNames";
-import { usePersistedState } from "../../lib/persistedState";
-import { sortRows, type Dir } from "../../lib/tableSort";
-import { SortLabel, ariaSort } from "../../components/SortTh";
+import { itemQualityProps } from "../../lib/wow/itemQuality";
+import { contentName } from "../../lib/wow/wowNames";
+import { usePersistedState } from "../../lib/ui/persistedState";
+import { sortRows, type Dir } from "../../lib/ui/tableSort";
+import { SortLabel, ariaSort } from "../../components/ui/SortTh";
 import Badge from "../../components/ui/Badge";
 import Bar from "../../components/ui/Bar";
 import WowIcon from "../../components/ui/WowIcon";
 import { IconButton } from "../../components/ui/Button";
-import { ChevronRightIcon } from "../../components/icons";
-import Pager from "../../components/Pager";
+import { ChevronRightIcon } from "../../components/ui/icons";
+import Pager from "../../components/ui/Pager";
 import { ItemIcon, RaiderChip, StackBar, contentIcon, tallyReasons } from "../../components/loot/LootBadges";
 import { ActiveFilters, FilterPopover, ListCount, RaidSelect, SearchBox, SwitchRow, UNKNOWN_CONTENT, type ActiveFilter } from "../../components/loot/LootFilters";
 import { ItemAwardsDialog } from "./ItemAwardsDialog";

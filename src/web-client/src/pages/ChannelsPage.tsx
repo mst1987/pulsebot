@@ -5,9 +5,9 @@ import {
     type Channel, type ChannelChanges, type ChannelPurpose, type ChannelResult,
     type QuickCreateInput, type RenamePreviewRow } from "../api";
 import { useApi } from "../hooks/useApi";
-import type { ShellContext } from "../components/Shell";
+import type { ShellContext } from "../components/shell/Shell";
 import { Badge, Button, PageHead, Segment, SplitButton, useConfirm } from "../components/ui";
-import { useJobs } from "../components/Jobs";
+import { useJobs } from "../components/shell/Jobs";
 import {
     AssignChannelDialog, CreateChannelDialog, DuplicateChannelDialog, PurposeDialog } from "../components/channels/ChannelDialogs";
 import { ChannelTree } from "../components/channels/ChannelTree";
@@ -17,7 +17,7 @@ import { QuickCreateDialog } from "../components/channels/QuickCreateDialog";
 import { CategorySchemaDialog } from "../components/channels/CategorySchemaDialog";
 import { ArchiveSettingsDialog, ArchiveTab, DeleteChannelsDialog } from "../components/channels/ArchiveTab";
 import { PurposesDialog, PurposeSummaryBadges } from "../components/channels/PurposeList";
-import { BULK_DELETE_WORD, deleteWarnings, pastEventChannels, resultMessage, runInSteps } from "../lib/channels";
+import { BULK_DELETE_WORD, deleteWarnings, pastEventChannels, resultMessage, runInSteps } from "../lib/discord/channels";
 import "../styles/channels.css";
 import RaidLoader from "../components/ui/RaidLoader";
 import { tParts, useT } from "../i18n";

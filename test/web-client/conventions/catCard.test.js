@@ -97,7 +97,7 @@ describe("Kategorien list", () => {
     });
 
     it("sorts the open card's settings into four real tabs", () => {
-        const logic = fs.readFileSync(path.join(CLIENT, "lib", "settingsLogic.ts"), "utf8");
+        const logic = fs.readFileSync(path.join(CLIENT, "lib", "settings", "settingsLogic.ts"), "utf8");
         expect(logic).toContain("export const CATEGORY_TABS = [\"signup\", \"message\", \"plan\", \"loot\"] as const;");
         expect(detail).toContain("role=\"tablist\"");
         expect(detail).toContain("role=\"tab\"");

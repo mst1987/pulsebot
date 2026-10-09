@@ -13,7 +13,7 @@ describe("wiring", () => {
         expect(ws).toContain("deriveAuto(filledRows, board, { template: !isEvent, roster })");
         expect(ws).toContain("raidBoard.auto.noDelete");
         expect(ws).toContain("autoUsers: auto.users");
-        const sheet = read("pages/PlanPublicPage.tsx");
+        const sheet = read("pages/raidplan/PlanPublicPage.tsx");
         expect(sheet).toContain("deriveAuto(boss.assignments");
         expect(sheet).toContain("boss && hasMap ? deriveAuto");
         const pb = read("components/raidplan/PlanBoard.tsx");

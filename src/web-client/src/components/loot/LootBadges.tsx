@@ -18,8 +18,8 @@
 // change.
 import { Link } from "react-router-dom";
 import type { LootReason } from "../../api";
-import { itemQualityColor } from "../../lib/itemQuality";
-import { classColorProps } from "../ClassSpec";
+import { itemQualityColor } from "../../lib/wow/itemQuality";
+import { classColorProps } from "../character/ClassSpec";
 import { useT } from "../../i18n";
 
 // Tones the stylesheet knows (.rbadge-*, --reason-*). Anything else falls back to

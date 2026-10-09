@@ -1,7 +1,6 @@
 import { useState } from "react";
 import Chip from "../../components/ui/Chip";
-import { CheckMark } from "../../components/settings/settingsUi";
-import { usePersistedState } from "../../lib/persistedState";
+import { usePersistedState } from "../../lib/ui/persistedState";
 import {
     deleteAvailability, getAvailability, getRaiderAttendance,
     type ApiError, type AttendanceCategory, type AvailabilityEntry, type SignupStatus,
@@ -9,11 +8,11 @@ import {
 import { useApi } from "../../hooks/useApi";
 import { Badge, BackButton, Button, IconButton, useConfirm, type Tone } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { AbsenceIcon, TrashIcon } from "../../components/icons";
-import { useToast } from "../../components/Jobs";
+import { AbsenceIcon, CheckMark, TrashIcon } from "../../components/ui/icons";
+import { useToast } from "../../components/shell/Jobs";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
-import { entryDays, entryState, nightsInOrder, reasonText } from "../../lib/absences";
-import { periodLabel } from "../../lib/availability";
+import { entryDays, entryState, nightsInOrder, reasonText } from "../../lib/roster/absences";
+import { periodLabel } from "../../lib/signups/availability";
 import { formatDayDate, formatTime } from "../../lib/format";
 import { useT } from "../../i18n";
 

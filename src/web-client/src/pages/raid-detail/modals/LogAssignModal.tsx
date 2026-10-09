@@ -2,11 +2,11 @@
 // Logs link that was never posted anywhere.
 import { useState } from "react";
 import { linkLog, linkLogUrl, type ApiError } from "../../../api";
-import { useDraftState } from "../../../lib/persistedState";
+import { useDraftState } from "../../../lib/ui/persistedState";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import Segment from "../../../components/ui/Segment";
-import { useToast } from "../../../components/Jobs";
+import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 

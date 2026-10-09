@@ -15,7 +15,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { RaidDetailData, RaidPrimaryAction, RaidStep } from "../../api";
 import { eventTimeParts, relativeDayLabel } from "../../lib/format";
-import { eventPostUrl, raidplanUrl } from "../../lib/discordLinks";
+import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { Button, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";

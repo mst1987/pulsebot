@@ -5,8 +5,8 @@
 import { useState } from "react";
 import { addKaderAccount, addKaderPlayers, type KaderMember, type KaderNameStyle } from "../../api";
 import { Button, Field, Modal, Segment } from "../../components/ui";
-import { useToast } from "../../components/Jobs";
-import { CheckIcon, PlusIcon, SearchIcon } from "../../components/icons";
+import { useToast } from "../../components/shell/Jobs";
+import { CheckIcon, PlusIcon, SearchIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 import { className } from "../../lib/kader/model";
 import { nameOk } from "../../lib/kader/names";

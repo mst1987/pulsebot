@@ -4,13 +4,13 @@ import {
 } from "../../api";
 import NamingBadge from "./NamingBadge";
 import ChannelEmojiPicker from "./ChannelEmojiPicker";
-import { instanceIdsOfTag } from "../../lib/raidEmojis";
+import { instanceIdsOfTag } from "../../lib/raids/raidEmojis";
 import { Badge, Button, Modal, Segment } from "../ui";
-import { ChannelsIcon } from "../icons";
-import { SwitchRow } from "../RaidPlanFields";
+import { ChannelsIcon } from "../ui/icons";
+import { SwitchRow } from "../raid/RaidFields";
 import Switch from "../ui/Switch";
 import { PlaceholderChips } from "./ChannelBulk";
-import { isTextLike } from "../../lib/channels";
+import { isTextLike } from "../../lib/discord/channels";
 import { tParts, useT } from "../../i18n";
 
 const SOURCE_LABELS = { raidhelper: "Raid-Helper", eventhelper: "EventHelper" } as const;

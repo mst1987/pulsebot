@@ -9,11 +9,11 @@ const read = (f) => fs.readFileSync(path.join(dir, f), "utf8").replace(/\r\n/g, 
 
 describe("the editor and the sheet use it", () => {
     it("the dialogs offer one tile per icon and hide the count / number for such a mob; the map menu offers 'Tankt -> Flame 2'", () => {
-        expect(read("pages/raid-detail/raidplan/AssignPanel.tsx")).toContain("for (const tg of mobTargetsFor(board, mobTarget(m))) push(tg, t(\"raidBoard.assign.pickMobs\"))");
-        expect(read("pages/raid-detail/raidplan/AssignModal.tsx")).toContain("!x.oid && mobIconsOf(tmp, x.ref).length < 2");
+        expect(read("components/raidplan/editor/AssignPanel.tsx")).toContain("for (const tg of mobTargetsFor(board, mobTarget(m))) push(tg, t(\"raidBoard.assign.pickMobs\"))");
+        expect(read("components/raidplan/editor/AssignModal.tsx")).toContain("!x.oid && mobIconsOf(tmp, x.ref).length < 2");
         const ws = readWorkspace();
         expect(ws).toContain("icons.map((ic) => it(`tankt:${m.id}@${ic.id}`, \"tank\"))");
         expect(ws).toContain("iconTarget(board, mobTarget(fallback), iconId)");
-        expect(read("pages/PlanPublicPage.tsx")).toContain("icons: b.icons");
+        expect(read("pages/raidplan/PlanPublicPage.tsx")).toContain("icons: b.icons");
     });
 });

@@ -1,7 +1,7 @@
 // The floating bar of a list with marked rows: how many are marked and what can
 // be done with them at once. Only while something is marked.
 import type { ReactNode } from "react";
-import { XIcon } from "../../components/icons";
+import { XIcon } from "../../components/ui/icons";
 import { IconButton } from "../../components/ui";
 import { useT } from "../../i18n";
 

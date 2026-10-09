@@ -9,9 +9,9 @@ import { deleteRaid, getManageInfo, type ApiError } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
-import { SwitchRow } from "../../../components/RaidPlanFields";
-import { useToast } from "../../../components/Jobs";
-import { deleteLines, deleteReady, deleteSummary } from "../../../lib/eventManage";
+import { SwitchRow } from "../../../components/raid/RaidFields";
+import { useToast } from "../../../components/shell/Jobs";
+import { deleteLines, deleteReady, deleteSummary } from "../../../lib/raids/eventManage";
 import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 

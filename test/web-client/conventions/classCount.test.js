@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 
 describe("the row dialog", () => {
-    const src = fs.readFileSync(path.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan/AssignModal.tsx"), "utf8");
+    const src = fs.readFileSync(path.join(__dirname, "../../../src/web-client/src/components/raidplan/editor/AssignModal.tsx"), "utf8");
     it("shows the general tanks on tanking rows and edits counts through setClassCount", () => {
         expect(src).toMatch(/TANK_TYPES\.indexOf\(type\)/);
         expect(src).toMatch(/TANK_CLASSES\.map/);

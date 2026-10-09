@@ -8,7 +8,7 @@ import * as api from "../api";
 import ChannelsPage from "./ChannelsPage";
 import { adminUser, renderPage } from "../test/render";
 import { requireBackend } from "../test/backend";
-import { BULK_DELETE_WORD } from "../lib/channels";
+import { BULK_DELETE_WORD } from "../lib/discord/channels";
 import { barMenu, channelsData, rowMenu, TALK } from "./ChannelsPage.fixture";
 import type { ChannelsData } from "../api";
 import { switchLang } from "../test/i18n";

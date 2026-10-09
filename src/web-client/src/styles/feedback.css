@@ -6,7 +6,7 @@
    overlay, previously missing from this React admin (which fell back to inline
    .flash banners and disabled buttons).
 
-   Extended by the background-job variant (.toast-run, see components/Jobs.tsx):
+   Extended by the background-job variant (.toast-run, see components/shell/Jobs.tsx):
    a running job's toast IS its whole UI, so it carries the action name, what it
    runs on, the elapsed time and a progress bar — and never auto-dismisses while
    the job is still going. ===== */
@@ -62,7 +62,7 @@
    "Lade…" in grey read like a page that had given up. This says the same in
    the game's own vocabulary and is the same scene in all three places it can
    appear: a page body, a card, and the overlay of a long operation
-   (components/ui/RaidLoader.tsx, components/PageLoader.tsx). Decorative only —
+   (components/ui/RaidLoader.tsx, components/ui/PageLoader.tsx). Decorative only —
    the icons are the ones the menu already mirrors, and nothing moves under
    prefers-reduced-motion. */
 .rl { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 30px 18px; }

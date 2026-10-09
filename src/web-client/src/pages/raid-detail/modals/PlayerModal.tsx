@@ -2,13 +2,13 @@
 // of the category's recent raids they were in and what they got lately.
 import { Link } from "react-router-dom";
 import { fmtMs } from "../../../lib/format";
-import { itemQualityProps } from "../../../lib/itemQuality";
+import { itemQualityProps } from "../../../lib/wow/itemQuality";
 import { Modal } from "../../../components/ui/Modal";
 import { Button, buttonClass } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import WowIcon from "../../../components/ui/WowIcon";
 import { reasonToneClass } from "../../../components/loot/LootBadges";
-import { classColorProps } from "../../../components/ClassSpec";
+import { classColorProps } from "../../../components/character/ClassSpec";
 import { ROLE_META, SIGNUP_META, type PlayerRef, type RaidCtx } from "../meta";
 import SpecTile from "../SpecTile";
 import { useT, type TFunction } from "../../../i18n";

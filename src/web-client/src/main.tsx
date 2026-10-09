@@ -4,14 +4,14 @@ import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import App from "./App.tsx";
 import { langReady } from "./i18n";
-import { installPreloadErrorReload } from "./lib/chunkReload";
-import { installWowheadTooltipLift } from "./lib/wowheadTooltips";
+import { installPreloadErrorReload } from "./lib/app/chunkReload";
+import { installWowheadTooltipLift } from "./lib/wow/wowheadTooltips";
 
 // A deploy removes the chunks of the previous build; a tab opened before it
-// reloads once instead of going blank (#530, lib/chunkReload.ts).
+// reloads once instead of going blank (#530, lib/app/chunkReload.ts).
 installPreloadErrorReload();
 
-// Wowhead's item tooltip shows above an open modal (lib/wowheadTooltips.ts).
+// Wowhead's item tooltip shows above an open modal (lib/wow/wowheadTooltips.ts).
 installWowheadTooltipLift();
 
 // A browser that chose English loads those texts as a chunk of their own

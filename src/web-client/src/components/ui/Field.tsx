@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { InfoMarkIcon } from "../icons";
+import { InfoMarkIcon } from "./icons";
 
 // A form field's parts (#439): the name, the round "i" that carries what used
 // to be a paragraph of explanation, a hint line and an error line. The field

@@ -1,33 +1,33 @@
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
-import { JobsProvider } from "./components/Jobs";
+import { JobsProvider } from "./components/shell/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
 import { canAccess, canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
 import { getLang, langReady, setLang, useT } from "./i18n";
-import { firstAllowedTab } from "./lib/menu";
+import { firstAllowedTab } from "./lib/app/menu";
 import RaidLoader from "./components/ui/RaidLoader";
-import LangToggle from "./components/LangToggle";
-import ChunkErrorBoundary from "./components/ChunkErrorBoundary";
-import { lazyWithReload } from "./lib/chunkReload";
+import LangToggle from "./components/shell/LangToggle";
+import ChunkErrorBoundary from "./components/shell/ChunkErrorBoundary";
+import { lazyWithReload } from "./lib/app/chunkReload";
 
 // Every page, the shell around them and the public plan view are their own
 // chunk (#436): the first load carries only this router, the session and the
 // loader, and a page's code arrives when it is opened. /p/<token> therefore
 // never downloads the menu, and the menu never downloads the pages nobody
 // opens. The shell shows the loader in its body while a page chunk is on its
-// way (components/Shell.tsx), so the menu stays standing.
-const Shell = lazyWithReload(() => import("./components/Shell"));
-const PlanPublicPage = lazyWithReload(() => import("./pages/PlanPublicPage"));
-const DashboardPage = lazyWithReload(() => import("./pages/DashboardPage"));
+// way (components/shell/Shell.tsx), so the menu stays standing.
+const Shell = lazyWithReload(() => import("./components/shell/Shell"));
+const PlanPublicPage = lazyWithReload(() => import("./pages/raidplan/PlanPublicPage"));
+const DashboardPage = lazyWithReload(() => import("./pages/dashboard/DashboardPage"));
 const ChannelsPage = lazyWithReload(() => import("./pages/ChannelsPage"));
 const SettingsPage = lazyWithReload(() => import("./pages/settings/SettingsPage"));
-const RaidsPage = lazyWithReload(() => import("./pages/RaidsPage"));
+const RaidsPage = lazyWithReload(() => import("./pages/raids/RaidsPage"));
 const RaidCreatePage = lazyWithReload(() => import("./pages/RaidCreatePage"));
-const RaidDetailPage = lazyWithReload(() => import("./pages/RaidDetailPage"));
+const RaidDetailPage = lazyWithReload(() => import("./pages/raid-detail/RaidDetailPage"));
 const NotifyTemplatesPage = lazyWithReload(() => import("./pages/NotifyTemplatesPage"));
 const RaidTemplatesPage = lazyWithReload(() => import("./pages/RaidTemplatesPage"));
-const RaidplanTemplatesPage = lazyWithReload(() => import("./pages/RaidplanTemplatesPage"));
-const RaidplanCatalogPage = lazyWithReload(() => import("./pages/RaidplanCatalogPage"));
+const RaidplanTemplatesPage = lazyWithReload(() => import("./pages/raidplan/RaidplanTemplatesPage"));
+const RaidplanCatalogPage = lazyWithReload(() => import("./pages/raidplan/RaidplanCatalogPage"));
 const EventSeriesPage = lazyWithReload(() => import("./pages/EventSeriesPage"));
 const RecruitmentPage = lazyWithReload(() => import("./pages/recruitment/RecruitmentPage"));
 const HistoryPage = lazyWithReload(() => import("./pages/history/HistoryPage"));
@@ -170,7 +170,7 @@ function MenuApp() {
     // after its page is gone.
     // The outer Suspense only waits for the shell's own chunk on the very first
     // view; from then on the shell's Suspense catches the page chunks.
-    // A chunk that is gone after a deploy reloads the page (lib/chunkReload.ts);
+    // A chunk that is gone after a deploy reloads the page (lib/app/chunkReload.ts);
     // should it fail again, ChunkErrorBoundary offers the reload as a button (#530).
     return (
         <ChunkErrorBoundary>

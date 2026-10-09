@@ -1,7 +1,7 @@
 // hooks/useDismiss.ts (#439): one hook closes every popover, menu and picker on
 // a click outside and on Escape. There used to be 13 hand-written copies of the
 // same listener pair; the scan below keeps them from coming back. The pure
-// rules (lib/dismiss.ts) run in src/web-client/src/lib/useDismiss.test.ts (Vitest).
+// rules (lib/ui/dismiss.ts) run in src/web-client/src/lib/ui/dismiss.useDismiss.test.ts (Vitest).
 const fs = require("fs");
 const path = require("path");
 const { CLIENT, read } = require("../clientSource");
@@ -43,9 +43,9 @@ describe("no hand-written click-outside listener is left", () => {
         "components/loot/LootFilters.tsx", "pages/cla/RowMenu.tsx", "pages/lootcouncil/FilterBar.tsx",
         "pages/recruitment/EmojiPicker.tsx", "components/loot/ItemSearchPicker.tsx", "pages/history/ManualLootForm.tsx", "components/raidplan/Flyout.tsx",
         "pages/settings/RolePermissions.tsx", "pages/recruitment/SpecPicker.tsx",
-        "pages/raid-detail/raidplan/ViewControls.tsx", "components/ui/Button.tsx",
+        "components/raidplan/editor/ViewControls.tsx", "components/ui/Button.tsx",
     ];
-    const VIA_POPOVER = ["pages/raid-detail/manage/ManageMenu.tsx", "pages/raid-detail/raidplan/ContextMenu.tsx"];
+    const VIA_POPOVER = ["pages/raid-detail/manage/ManageMenu.tsx", "components/raidplan/editor/ContextMenu.tsx"];
 
     test.each(USERS)("%s uses useDismiss", (rel) => {
         expect(read(rel)).toMatch(/useDismiss\(/);

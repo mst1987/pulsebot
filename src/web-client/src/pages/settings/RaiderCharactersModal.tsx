@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getRaiderCharacters, saveRaiderCharacters, type ApiError, type RaiderCharactersData } from "../../api";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

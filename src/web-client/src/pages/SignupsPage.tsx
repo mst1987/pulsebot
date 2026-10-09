@@ -1,19 +1,19 @@
 import { useState, type MouseEvent, type CSSProperties } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
-import type { ShellContext } from "../components/Shell";
+import type { ShellContext } from "../components/shell/Shell";
 import {
     getSignups,
     type BulkSignupResult, type OwnSignup, type OwnSignupRow, type SignupCounts, type SignupEventRow } from "../api";
 import { useApi } from "../hooks/useApi";
 import { Badge, Bar, Button, IconButton, PageHead, RaidLoader, WowIcon } from "../components/ui";
-import RaidIcon from "../components/RaidIcon";
+import RaidIcon from "../components/raid/RaidIcon";
 import SignupDialog from "../components/signup/SignupDialog";
 import BulkSignupDialog from "../components/signup/BulkSignupDialog";
 import AvailabilitySection from "../components/signup/AvailabilitySection";
-import { ExternalIcon, XIcon } from "../components/icons";
-import { SIGNUP_STATUS, classesForRows, fillTone, missingVersionLabel, profileForRows, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups";
-import { specLabel } from "../lib/wowNames";
-import { weekBands } from "../lib/raidTime";
+import { ExternalIcon, XIcon } from "../components/ui/icons";
+import { SIGNUP_STATUS, classesForRows, fillTone, missingVersionLabel, profileForRows, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups/status";
+import { specLabel } from "../lib/wow/wowNames";
+import { weekBands } from "../lib/raids/raidTime";
 import { useT } from "../i18n";
 import "../styles/signups.css";
 

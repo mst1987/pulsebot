@@ -1,14 +1,14 @@
 // Pieces the roster and the character page share (design issue #218): the role
 // badge, the attendance bar with its tooltip, the gear-state badge, the loot
 // badge and the icon link. Built on the shared building blocks in ./ui; the plain
-// helpers behind them live in lib/rosterView.ts.
+// helpers behind them live in lib/roster/rosterView.ts.
 import type { ReactNode, CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import type { CharGearReport, CharLootPreview, RosterAttendance, RosterRole } from "../../api";
 import { useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
-import { ROLE_META, attendanceGroups, attendanceTone, nightLabel } from "../../lib/rosterView";
-import { roleLabel } from "../../lib/wowNames";
+import { ROLE_META, attendanceGroups, attendanceTone, nightLabel } from "../../lib/roster/rosterView";
+import { roleLabel } from "../../lib/wow/wowNames";
 import { Badge, RichTip, WowIcon } from "../ui";
 
 export function RoleBadge({ role }: { role: RosterRole }) {

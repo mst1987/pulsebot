@@ -1,4 +1,4 @@
-// Highlighting a group (#512): which elements carry .rp-gdim is a render test (src/web-client/src/pages/PlanPublicPage.groupFocus.test.tsx);
+// Highlighting a group (#512): which elements carry .rp-gdim is a render test (src/web-client/src/pages/raidplan/PlanPublicPage.groupFocus.test.tsx);
 // that the class really dims is CSS jsdom cannot compute, so it is held here. The wrapper of a group marker is `display: contents`
 // (it draws no box, so an opacity of its own never shows - the chips did nothing for that reason); .rp-gdim only sets a factor that the
 // board objects multiply into their own opacity, which carries !important since #441.

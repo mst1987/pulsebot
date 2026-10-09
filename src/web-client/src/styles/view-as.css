@@ -1,4 +1,4 @@
-/* "Ansicht als Rolle" (components/ViewAs.tsx): the top-bar button, the role
+/* "Ansicht als Rolle" (components/shell/ViewAs.tsx): the top-bar button, the role
    picker and the bar above every page while a view runs. Prefix va-. */
 
 /* The bar: unmistakable, so nobody forgets they are looking through a role's eyes. */

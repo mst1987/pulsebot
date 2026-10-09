@@ -1,5 +1,5 @@
 // The raid plan editor's two views (Oct 2026), checked on the stylesheet: the behaviour (which view shows what, the strip,
-// the tool row, the slim list) runs in Vitest (src/web-client/src/pages/raid-detail/raidplan/BoardWorkspace.views.test.tsx,
+// the tool row, the slim list) runs in Vitest (src/web-client/src/components/raidplan/editor/BoardWorkspace.views.test.tsx,
 // SectionStrip.test.tsx, planView.test.ts). Here only what a render in jsdom cannot see.
 const { read } = require("../clientSource");
 

@@ -8,10 +8,10 @@
 import { useEffect, useState } from "react";
 import { getSetupSignup, type ApiError, type SetupPerson, type SetupSignupEdit, type SetupSignupInput } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
-import { initialPick, optionOf, outsideProfile, pickChanged, pickCharacter, signupEditInput, type SignupEditPick } from "../../../lib/setupSignupEdit";
-import { SIGNUP_STATUS } from "../../../lib/signups";
-import { wowIconUrl } from "../../../lib/wowIcon";
-import { roleLabel, specLabel } from "../../../lib/wowNames";
+import { initialPick, optionOf, outsideProfile, pickChanged, pickCharacter, signupEditInput, type SignupEditPick } from "../../../lib/signups/setupSignupEdit";
+import { SIGNUP_STATUS } from "../../../lib/signups/status";
+import { wowIconUrl } from "../../../lib/wow/wowIcon";
+import { roleLabel, specLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
 import Field from "../../../components/ui/Field";
@@ -19,7 +19,7 @@ import { Modal } from "../../../components/ui/Modal";
 import Segment from "../../../components/ui/Segment";
 import WowIcon from "../../../components/ui/WowIcon";
 import RaidLoader from "../../../components/ui/RaidLoader";
-import { classColorProps } from "../../../components/ClassSpec";
+import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 
 function CharacterChips({ data, pick, onPick }: { data: SetupSignupEdit; pick: SignupEditPick; onPick: (key: string) => void }) {

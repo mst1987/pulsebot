@@ -4,10 +4,10 @@
 // import the same rules instead of two copies drifting apart.
 import { useCallback, useRef, useState } from "react";
 import { runCouncilSim, type LootCouncilData, type CouncilCandidate, type SimResult, type WornItem } from "../../api";
-import { useJobs } from "../../components/Jobs";
+import { useJobs } from "../../components/shell/Jobs";
 import { t, tOr } from "../../i18n";
-import type { Dir } from "../../lib/tableSort";
-import { wowheadItemUrl, LEGACY_WOWHEAD_PATH } from "../../lib/wowheadItems";
+import type { Dir } from "../../lib/ui/tableSort";
+import { wowheadItemUrl, LEGACY_WOWHEAD_PATH } from "../../lib/wow/wowheadItems";
 
 /** The part of the persisted view both routes read: who is counted, which loot, which BiS list. */
 export type FilterView = {
@@ -30,7 +30,7 @@ export const FILTER_DEFAULT: FilterView = { role: "caster", tiers: [], contents:
 export const roleLabel = (id: string, fallback?: string) => tOr(`lootcouncil.role.${id}`, fallback || id);
 export const ROLE_ICON: Record<string, string> = { caster: "spell_holy_magicalsentry", healer: "spell_holy_guardianspirit" };
 
-/** An item's Wowhead page in the council's version (`path` = the data's wowheadPath, lib/versionLinks.ts). */
+/** An item's Wowhead page in the council's version (`path` = the data's wowheadPath, lib/settings/versionLinks.ts). */
 export const WOWHEAD = (id: number, path: string = LEGACY_WOWHEAD_PATH) => wowheadItemUrl(id, [], path);
 
 /**

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { SetupPerson } from "../../../api";
 import { useT } from "../../../i18n";
-import { ChevronDownIcon, SearchIcon } from "../../../components/icons";
+import { ChevronDownIcon, SearchIcon } from "../../../components/ui/icons";
 import { Slot, type Interaction } from "./Board";
 import { useZone } from "./useZone";
 import { matchesQuery } from "./setupText";

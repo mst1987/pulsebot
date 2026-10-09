@@ -4,12 +4,12 @@ import {
     getRaidTemplates, getGameVersions, saveRaidTemplate, deleteRaidTemplate, importRaidTemplates, canAccess,
     type ApiError, type GameVersion, type RaidTemplate, type RaidTemplateInput } from "../api";
 import { useApi } from "../hooks/useApi";
-import { useCollectionEditor } from "../lib/collectionEditor";
+import { useCollectionEditor } from "../lib/ui/collectionEditor";
 import {
-    allowedSizes, draftOf, emojiStyleOf, filterByVersion, instancesOf, newDraft, proposeComposition, templateLabel, validateDraft } from "../lib/raidTemplates";
-import { AppearanceFields, BuffPicker, FieldLabel, InstancePicker, NumberInput, OverflowField, RoleRanges, SizePicker, SwitchRow } from "../components/RaidPlanFields";
-import type { ShellContext } from "../components/Shell";
-import { useToast } from "../components/Jobs";
+    allowedSizes, draftOf, emojiStyleOf, filterByVersion, instancesOf, newDraft, proposeComposition, templateLabel, validateDraft } from "../lib/raids/raidTemplates";
+import { AppearanceFields, BuffPicker, TipLabel, InstancePicker, NumberInput, OverflowField, RoleRanges, SizePicker, SwitchRow } from "../components/raid/RaidFields";
+import type { ShellContext } from "../components/shell/Shell";
+import { useToast } from "../components/shell/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
 import PageHead from "../components/ui/PageHead";
@@ -18,9 +18,8 @@ import { useContentVersion } from "../hooks/useContentVersion";
 import Badge from "../components/ui/Badge";
 import WowIcon from "../components/ui/WowIcon";
 import RaidLoader from "../components/ui/RaidLoader";
-import CompositionEditor from "../components/CompositionEditor";
-import { RefreshIcon } from "../components/icons";
-import { WarnIcon } from "../components/settings/settingsUi";
+import CompositionEditor from "../components/raid/CompositionEditor";
+import { RefreshIcon, WarnIcon } from "../components/ui/icons";
 import "../styles/raid-templates.css";
 import { tParts, useT } from "../i18n";
 
@@ -31,7 +30,7 @@ import { tParts, useT } from "../i18n";
 //
 // Instances come only from the rule set (GET /api/game-versions). The open
 // editor lives in the url (?edit=<id|new>) like every collection editor. The
-// plan fields are the shared ones of components/RaidPlanFields.tsx, the same the
+// plan fields are the shared ones of components/raid/RaidFields.tsx, the same the
 // "Event anlegen" dialog uses (#261).
 
 const NO_ICON = "inv_misc_note_01";
@@ -156,7 +155,7 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
                 <input id="rt-name" type="text" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder={t("raidTemplates.editor.namePlaceholder")} />
             </div>
             <div className="rt-field">
-                <FieldLabel text={t("raidTemplates.version")} />
+                <TipLabel text={t("raidTemplates.version")} />
                 <Segment size="sm" ariaLabel={t("raidTemplates.version")} value={draft.versionId} onChange={changeVersion}
                     options={versions.map((v) => ({ value: v.id, label: v.short, tip: v.label }))} />
             </div>

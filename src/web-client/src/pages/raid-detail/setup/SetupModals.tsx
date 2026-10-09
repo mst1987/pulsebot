@@ -5,7 +5,7 @@ import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import { Modal } from "../../../components/ui/Modal";
-import { useJobs } from "../../../components/Jobs";
+import { useJobs } from "../../../components/shell/Jobs";
 import type { RaidCtx } from "../meta";
 import { dateTime, weightLabels } from "./setupText";
 

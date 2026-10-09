@@ -1,5 +1,5 @@
 // Guards that every admin action reports its result through the shared toast
-// channel (src/web-client/src/components/Jobs.tsx's useToast/notify).
+// channel (src/web-client/src/components/shell/Jobs.tsx's useToast/notify).
 //
 // The client is TSX and this project has no React test renderer, so what is
 // checked here is the invariant behind the bug that prompted this: a page used
@@ -20,7 +20,7 @@ function clientSources() {
 
 describe("action results are toasts", () => {
     it("exposes one shared toast channel", () => {
-        const jobs = readClient("components", "Jobs.tsx");
+        const jobs = readClient("components", "shell", "Jobs.tsx");
         expect(jobs).toContain("export function useToast()");
         // The provider has to sit above the router, or a toast would be torn down
         // by the very navigation the action triggers (RaidCreateDialog closes by
@@ -52,7 +52,7 @@ describe("action results are toasts", () => {
         // writing the message into the job's own toast.
         const offenders = [];
         for (const [name, src] of clientSources()) {
-            if (name === "components/Jobs.tsx") continue;
+            if (name === "components/shell/Jobs.tsx") continue;
             const catches = src.match(/catch \(err\) \{[\s\S]*?\n {4,}\}/g) || [];
             for (const block of catches) {
                 const reports = /toast\(|notify\(|onChanged\(|onDone\(|onImported\(|setError\(/.test(block);

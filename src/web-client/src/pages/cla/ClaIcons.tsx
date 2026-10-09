@@ -1,6 +1,6 @@
 
 
-// Line icons for pure UI functions that components/icons.tsx does not carry.
+// Line icons for pure UI functions that components/ui/icons.tsx does not carry.
 export function DotsIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

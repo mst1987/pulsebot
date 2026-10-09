@@ -4,7 +4,7 @@
 // active picks show as removable chips (FilterChips).
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Chip } from "../../components/ui";
-import { CheckIcon, ChevronDownIcon } from "../../components/icons";
+import { CheckIcon, ChevronDownIcon } from "../../components/ui/icons";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 import { chipsOf, countFor, toggle, type FilterDef, type FilterState } from "../../lib/kader/filters";

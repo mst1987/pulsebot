@@ -2,9 +2,9 @@ import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { HistoryCharData, RosterCharData } from "../../api";
 import { fmtMs } from "../../lib/format";
-import { classColorProps } from "../../components/ClassSpec";
+import { classColorProps } from "../../components/character/ClassSpec";
 import { IconLink, RoleBadge } from "../../components/roster/RosterCommon";
-import { attendanceTone, combineAttendance, nightLabel } from "../../lib/rosterView";
+import { attendanceTone, combineAttendance, nightLabel } from "../../lib/roster/rosterView";
 import { Badge, Button, WowIcon, buttonClass } from "../../components/ui";
 import { tParts, useT } from "../../i18n";
 

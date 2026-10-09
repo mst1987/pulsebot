@@ -23,22 +23,22 @@
 //
 // The DPS numbers come from a background simulation (wowsimcli). There are no
 // estimates: a gain is shown once it has been simulated and not before. Every
-// wait — a reload, the armory, a simulation — is a job toast (components/Jobs.tsx).
+// wait — a reload, the armory, a simulation — is a job toast (components/shell/Jobs.tsx).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { getLootCouncil, setCouncilExcluded, getCouncilExport, refreshCouncilArmory, setCouncilRole, canAccess, loadCouncilLogGear, type ApiError, type CouncilRaider, type CouncilExport, type LootCouncilData } from "../../api";
 import { useCategoryViews } from "./categoryViews";
-import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
-import { useJobs, useToast } from "../../components/Jobs";
-import type { ShellContext } from "../../components/Shell";
+import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
+import { useJobs, useToast } from "../../components/shell/Jobs";
+import type { ShellContext } from "../../components/shell/Shell";
 import { fmtMs } from "../../lib/format";
 import { useT } from "../../i18n";
-import { usePersistedState } from "../../lib/persistedState";
-import { useTableSort } from "../../lib/tableSort";
+import { usePersistedState } from "../../lib/ui/persistedState";
+import { useTableSort } from "../../lib/ui/tableSort";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { Button, PageHead, useConfirm } from "../../components/ui";
 import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
-import { WowheadPathProvider } from "../../lib/versionLinks";
+import { WowheadPathProvider } from "../../lib/settings/versionLinks";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import FilterBar from "./FilterBar";
 import RaiderDialog, { ExportDialog } from "./RaiderDialog";

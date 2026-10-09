@@ -8,7 +8,7 @@
 import { useRef, useState } from "react";
 import type { LootCouncilData } from "../../api";
 import { Badge, Button, Segment } from "../../components/ui";
-import { ChevronDownIcon, FunnelIcon } from "../../components/icons";
+import { ChevronDownIcon, FunnelIcon } from "../../components/ui/icons";
 import { ROLE_ICON, categoryNote, roleLabel, type FilterView } from "./council";
 import { useDismiss } from "../../hooks/useDismiss";
 import { tParts, useT } from "../../i18n";

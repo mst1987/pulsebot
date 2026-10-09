@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import type { RaidCreateContext } from "../../api";
 import { useT } from "../../i18n";
-import { PLAN_MAX_DURATION, PLAN_MIN_DURATION } from "../../lib/eventPlan";
-import { XIcon } from "../icons";
+import { PLAN_MAX_DURATION, PLAN_MIN_DURATION } from "../../lib/raids/eventPlan";
+import { XIcon } from "../ui/icons";
 import { Button } from "../ui/Button";
 import Expand from "../ui/Expand";
 import WowIcon from "../ui/WowIcon";

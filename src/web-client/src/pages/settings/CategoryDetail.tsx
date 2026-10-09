@@ -3,16 +3,16 @@ import type { EventSource, PlanningMode, Role } from "../../api";
 import {
     signupNoteMode, noteChannelPick, signupNoteLabel, messageLook, titleSizeLabel, lootSystemLabel, lootToolLabel, planningOf, planningLabel, attendanceOf,
     TITLE_SIZES, CATEGORY_TABS, ATTENDANCE_WINDOWS, type CategoryAttendance, type CategoryRow, type CategoryTab, type RaiderCharSummary,
-} from "../../lib/settingsLogic";
+} from "../../lib/settings/settingsLogic";
 import { tParts, t as translate, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Chip from "../../components/ui/Chip";
 import Segment from "../../components/ui/Segment";
 import WowIcon from "../../components/ui/WowIcon";
-import { CheckMark } from "../../components/settings/settingsUi";
 import CategoryField from "./CategoryField";
 import AvailabilityPanelRow, { type AvailabilityPanels } from "./AvailabilityPanelRow";
+import { CheckMark } from "../../components/ui/icons";
 
 // The expanded card of one raid category (Einstellungen → Kategorien), design
 // "B · Tabs in der Karte": its ~16 settings sorted into four tabs instead of two

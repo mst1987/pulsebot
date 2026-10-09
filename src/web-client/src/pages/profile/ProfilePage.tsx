@@ -1,20 +1,20 @@
 import { useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
-import type { ShellContext } from "../../components/Shell";
+import type { ShellContext } from "../../components/shell/Shell";
 import { getProfile, saveProfile, removeProfileCharacter, getCalendarTokens, type ApiError, type ProfileCharacter, type ProfilePatch, type RaiderProfile } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { Badge, Button, PageHead, RaidLoader, useConfirm } from "../../components/ui";
-import { useToast } from "../../components/Jobs";
-import AddCharacterDialog, { type AddWay } from "../../components/profile/AddCharacterDialog";
-import { EyeOffIcon } from "../../components/icons";
+import { useToast } from "../../components/shell/Jobs";
+import AddCharacterDialog, { type AddWay } from "../../components/character/AddCharacterDialog";
+import { EyeOffIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
-import { specSuggestion } from "../../lib/raidhelperRetirement";
+import { specSuggestion } from "../../lib/settings/raidhelperRetirement";
 import { tOr, useT } from "../../i18n";
-import "../../styles/profil.css";
+import "../../styles/profile.css";
 import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } from "./ProfileParts";
 import { CharacterCard, CharChip, FirstCharacter } from "./CharacterCard";
 import { CalendarPart } from "./CalendarPart";
-import { charactersOfVersion, groupByVersion, moveInVersion } from "../../lib/characterVersions";
+import { charactersOfVersion, groupByVersion, moveInVersion } from "../../lib/roster/characterVersions";
 import { useContentVersion } from "../../hooks/useContentVersion";
 
 export default function ProfilePage() {

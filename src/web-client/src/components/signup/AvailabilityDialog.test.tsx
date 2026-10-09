@@ -1,6 +1,6 @@
 // "Abwesenheit / Anwesenheit eintragen" as the raider and the orga use it: the
 // API is mocked, every check is about what the dialog lists and which entry a
-// click sends. The pure rules are in lib/availability.test.ts.
+// click sends. The pure rules are in lib/signups/availability.test.ts.
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";

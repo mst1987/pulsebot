@@ -9,14 +9,14 @@ const { readWorkspace, read, stripComments, dictionary } = require("../clientSou
 describe("the pages", () => {
     const tab = read("pages/raid-detail/RaidplanTab.tsx");
     const work = readWorkspace();
-    const tpl = read("pages/RaidplanTemplatesPage.tsx");
+    const tpl = read("pages/raidplan/RaidplanTemplatesPage.tsx");
     const board2 = read("components/raidplan/PlanBoard.tsx");
-    const detail = read("pages/RaidDetailPage.tsx");
+    const detail = read("pages/raid-detail/RaidDetailPage.tsx");
     const app = read("App.tsx");
-    const pub = read("pages/PlanPublicPage.tsx");
+    const pub = read("pages/raidplan/PlanPublicPage.tsx");
     const css = read("styles/raidplan/index.css");
-    const menu = read("pages/raid-detail/raidplan/ContextMenu.tsx");
-    const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
+    const menu = read("components/raidplan/editor/ContextMenu.tsx");
+    const insp = read("components/raidplan/editor/Inspector.tsx");
 
     it("is a tab of an own event, and of a Raid-Helper event whose plan is switched on; after the setup; only with raidplan read", () => {
         expect(detail).toMatch(/const TABS: Tab\[\] = \["roster", "setup", "plan", "loot", "logs"\];/);
@@ -24,7 +24,7 @@ describe("the pages", () => {
         expect(detail).toContain("t === \"plan\" ? hasPlan");
         expect(detail).toContain("{shown === \"plan\" && <Suspense fallback={<RaidLoader />}><RaidplanTab ctx={ctx} /></Suspense>}");
         // the editor is a chunk of its own, loaded only when the tab is opened (#436)
-        expect(detail).toContain("const RaidplanTab = lazyWithReload(() => import(\"./raid-detail/RaidplanTab\"));");
+        expect(detail).toContain("const RaidplanTab = lazyWithReload(() => import(\"./RaidplanTab\"));");
     });
 
     it("drags with Pointer Events on window, never with HTML5 drag and drop", () => {
@@ -96,8 +96,8 @@ describe("the pages", () => {
         expect(css).toMatch(/\.rp-sticky \{ position: sticky; top: 62px/);
         for (const needle of ["<Palette", "<Inspector", "<LayerList", "<MapPanel", "rp-toolbar2", "role=\"toolbar\"", "data-rp-tray"]) expect(work).toContain(needle);
         // the edits that used to hide in dialogs are gone; only the rare things keep one
-        expect(fs.existsSync(path.join(__dirname, "..", "..", "..", "src", "web-client", "src", "pages", "raid-detail", "raidplan", "ObjectModals.tsx"))).toBe(false);
-        expect(fs.existsSync(path.join(__dirname, "..", "..", "..", "src", "web-client", "src", "pages", "raid-detail", "raidplan", "MapModal.tsx"))).toBe(false);
+        expect(fs.existsSync(path.join(__dirname, "..", "..", "..", "src", "web-client", "src", "components", "raidplan", "editor", "ObjectModals.tsx"))).toBe(false);
+        expect(fs.existsSync(path.join(__dirname, "..", "..", "..", "src", "web-client", "src", "components", "raidplan", "editor", "MapModal.tsx"))).toBe(false);
         expect(stripComments(work)).not.toContain("<Modal");
         expect(stripComments(insp)).not.toContain("<Modal");
         // rows and the players not placed are open, not folded away
@@ -123,7 +123,7 @@ describe("the pages", () => {
         expect(work).toContain("mod && e.key.toLowerCase() === \"z\"");
         expect(work).toContain("history.undo");
         expect(work).toContain("history.redo");
-        expect(read("pages/raid-detail/raidplan/useDraftHistory.ts")).toContain("historyRecord");
+        expect(read("components/raidplan/editor/useDraftHistory.ts")).toContain("historyRecord");
     });
 
     it("uses icon buttons with a tooltip and an accessible name instead of text buttons", () => {
@@ -173,7 +173,7 @@ describe("the pages", () => {
     });
 
     it("lets a map be reset to its default from the background tab", () => {
-        const panel = read("pages/raid-detail/raidplan/MapPanel.tsx");
+        const panel = read("components/raidplan/editor/MapPanel.tsx");
         expect(panel).toContain("raidBoard.board.mapReset");
         expect(tab).toContain("e/${eventId}/${boss.key}");
         expect(tpl).toContain("t/${tpl.id}/${boss.key}");
@@ -188,18 +188,18 @@ describe("the pages", () => {
         expect(app).toMatch(/path="raids\/plan-templates" element=\{<Guard user=\{user\} areas=\{\["raidplan"\]\}><RaidplanTemplatesPage \/><\/Guard>\}/);
         expect(app).toMatch(/path="raids\/plan-catalog" element=\{<Guard user=\{user\} areas=\{\["raidplan"\]\}><RaidplanCatalogPage \/><\/Guard>\}/);
         // sub entries of Raid-Events (coloured like it), no longer a button in the page head: the
-        // pages of the family are linked by the icon rail on all three (components/SectionRail.tsx,
+        // pages of the family are linked by the icon rail on all three (components/ui/SectionRail.tsx,
         // which only offers the pages the account may open — SectionRail.test.tsx)
-        expect(read("pages/RaidsPage.tsx")).not.toContain("/raids/plan-templates");
+        expect(read("pages/raids/RaidsPage.tsx")).not.toContain("/raids/plan-templates");
         const menu = require("../../../src/config/menu.json");
         for (const id of ["planTemplates", "planCatalog"]) {
             expect(menu.find((e) => e.id === id)).toMatchObject({ areas: ["raidplan"], area: "raids", sub: true });
         }
-        for (const page of ["pages/RaidsPage.tsx", "pages/RaidplanTemplatesPage.tsx", "pages/RaidplanCatalogPage.tsx"]) {
+        for (const page of ["pages/raids/RaidsPage.tsx", "pages/raidplan/RaidplanTemplatesPage.tsx", "pages/raidplan/RaidplanCatalogPage.tsx"]) {
             expect(read(page)).toContain("<MenuRailPage user={user} parent=\"raids\">");
         }
         // both pages write only with raidplan write; the rail replaced their "back to the raid list" links
-        for (const page of ["pages/RaidplanTemplatesPage.tsx", "pages/RaidplanCatalogPage.tsx"]) {
+        for (const page of ["pages/raidplan/RaidplanTemplatesPage.tsx", "pages/raidplan/RaidplanCatalogPage.tsx"]) {
             expect(read(page)).toContain("const canWrite = canAccess(user, \"raidplan\", \"write\");");
             expect(read(page)).not.toContain("planTemplates.back\"");
         }
@@ -211,9 +211,9 @@ describe("the texts", () => {
         const de = dictionary("de");
         const en = dictionary("en");
         const files = [
-            "pages/RaidplanTemplatesPage.tsx", "pages/raid-detail/raidplan/BoardWorkspace.tsx", "pages/raid-detail/raidplan/workspace", "pages/raid-detail/raidplan/Inspector.tsx", "pages/raid-detail/raidplan/LayerList.tsx",
-            "pages/raid-detail/raidplan/Palette.tsx", "pages/raid-detail/raidplan/MapPanel.tsx", "pages/raid-detail/raidplan/SectionStrip.tsx", "pages/raid-detail/raidplan/Palette.tsx", "pages/raid-detail/RaidplanTab.tsx",
-            "pages/raid-detail/raidplan/TargetsPanel.tsx", "pages/raid-detail/raidplan/ProfileModals.tsx", "pages/raid-detail/raidplan/ShareModal.tsx", "pages/PlanPublicPage.tsx",
+            "pages/raidplan/RaidplanTemplatesPage.tsx", "components/raidplan/editor/BoardWorkspace.tsx", "components/raidplan/editor/workspace", "components/raidplan/editor/Inspector.tsx", "components/raidplan/editor/LayerList.tsx",
+            "components/raidplan/editor/Palette.tsx", "components/raidplan/editor/MapPanel.tsx", "components/raidplan/editor/SectionStrip.tsx", "components/raidplan/editor/Palette.tsx", "pages/raid-detail/RaidplanTab.tsx",
+            "components/raidplan/editor/TargetsPanel.tsx", "components/raidplan/editor/ProfileModals.tsx", "components/raidplan/editor/ShareModal.tsx", "pages/raidplan/PlanPublicPage.tsx",
             "components/raidplan/PlanBoard.tsx",
         ];
         const keys = new Set();
@@ -246,10 +246,10 @@ describe("the texts", () => {
 describe("the new pages", () => {
     const work = readWorkspace();
     const board2 = read("components/raidplan/PlanBoard.tsx");
-    const palette = read("pages/raid-detail/raidplan/Palette.tsx");
-    const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
+    const palette = read("components/raidplan/editor/Palette.tsx");
+    const insp = read("components/raidplan/editor/Inspector.tsx");
     const css = read("styles/raidplan/index.css");
-    const pub = read("pages/PlanPublicPage.tsx");
+    const pub = read("pages/raidplan/PlanPublicPage.tsx");
 
     it("scales objects by a grip, by + / -, by Alt + wheel and by the inspector; Shift keeps a zone's proportions", () => {
         expect(board2).toContain("rp-h-size");
@@ -282,7 +282,7 @@ describe("the new pages", () => {
 });
 
 describe("template overview", () => {
-    const tpl = read("pages/RaidplanTemplatesPage.tsx");
+    const tpl = read("pages/raidplan/RaidplanTemplatesPage.tsx");
     it("has search, filters, duplicate, confirmed delete and an empty state", () => {
         expect(tpl).toContain("function TemplateList");
         expect(tpl).toContain("duplicateRaidplanTemplate");
@@ -312,13 +312,13 @@ describe("\"All assignments\" never cuts a name (feature/raidplan-16)", () => {
     it("a name in a table is never broken; on a phone the tank and group heal tables become blocks (no sideways scrolling)", () => {
         expect(css).toContain(".rp-rtable .rp-who .class-colored, .rp-rtable .rp-who > strong, .rp-rtable .rp-who-open { white-space: nowrap; overflow-wrap: normal; word-break: keep-all; }");
         expect(css).toMatch(/@media \(max-width: 560px\) \{[\s\S]*\.rp-gheal \.rp-rtable thead \{ display: none; \}[\s\S]*\.rp-tanktable thead \{ display: none; \}/);
-        const read = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan/ReadTables.tsx"), "utf8");
+        const read = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/components/raidplan/editor/ReadTables.tsx"), "utf8");
         expect(read).toContain("<td data-label={t(\"raidBoard.read.colHealedBy\")}>");
         expect(read).toContain("<table className=\"rp-rtable rp-tanktable\">");
     });
 
     it("the sheet's chips carry the full name in their tooltip", () => {
-        const line = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan/AssignLine.tsx"), "utf8");
+        const line = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/components/raidplan/editor/AssignLine.tsx"), "utf8");
         expect(line).toContain(": readOnly ? playerLabel(r.player) : undefined}");
     });
 });
@@ -327,12 +327,12 @@ describe("the section bar names every section (feature/raidplan-16)", () => {
     it("editor (the strip's list, Oct 2026) and sheet (the stage's section menu) show the name of every section", () => {
         const fs = require("fs");
         const p = require("path");
-        const nav = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan/SectionStrip.tsx"), "utf8");
+        const nav = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/components/raidplan/editor/SectionStrip.tsx"), "utf8");
         expect(nav).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
         expect(nav).not.toContain("rp-bosschip-no");
-        const sheet = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/PlanPublicPage.tsx"), "utf8");
+        const sheet = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raidplan/PlanPublicPage.tsx"), "utf8");
         // the sheet's sections are the stage bar's menu since Oct 2026 (one row per section, its name in full); the page hands it the label
-        const sheetMenu = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan/stage/SectionMenu.tsx"), "utf8");
+        const sheetMenu = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raidplan/stage/SectionMenu.tsx"), "utf8");
         expect(sheetMenu).toContain("<span className=\"rp-sheet-menu-name\">{label(b)}</span>");
         expect(sheet).toContain("<StageBar");
         expect(sheet).toContain("const label = (b: RaidplanPublicBoss) => sectionLabel(b, several);");

@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from "react";
 import type { ChannelsData } from "../../api";
 import { Badge, Button, IconButton, Modal } from "../ui";
-import { TrashIcon } from "../icons";
+import { TrashIcon } from "../ui/icons";
 import { ChannelTypeIcon } from "./channelBits";
-import { archivedLabel, BULK_DELETE_WORD } from "../../lib/channels";
+import { archivedLabel, BULK_DELETE_WORD } from "../../lib/discord/channels";
 import { tParts, useT } from "../../i18n";
 
 // The archive (issue #259): channels nobody needs any more wait here until an

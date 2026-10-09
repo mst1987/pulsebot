@@ -8,8 +8,8 @@ import type {
     KaderCharacter, KaderClassDef, KaderData, KaderDiscordRole, KaderEntry, KaderHistoryItem, KaderNight, KaderPlayer, KaderRaidCategory, KaderRole,
     KaderState, KaderView, KaderWish,
 } from "../../api";
-import { classLabel, specLabel } from "../wowNames";
-import { classIconName } from "../rosterView";
+import { classLabel, specLabel } from "../wow/wowNames";
+import { classIconName } from "../roster/rosterView";
 import { formatDayMonth, formatTime } from "../format";
 import { t } from "../../i18n";
 

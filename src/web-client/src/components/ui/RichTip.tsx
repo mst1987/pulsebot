@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode, type CSSProperties } from "react";
 import Popover from "./Popover";
-import { tipPlacement } from "../../lib/popoverPosition";
+import { tipPlacement } from "../../lib/ui/popoverPosition";
 
 /**
  * A tooltip with more than a head and a sentence — the loot council's need bar and loot list, the roster's attendance

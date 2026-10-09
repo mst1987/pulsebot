@@ -1,4 +1,4 @@
-// "Ansicht als Rolle" in the menu (components/ViewAs.tsx). The client has no
+// "Ansicht als Rolle" in the menu (components/shell/ViewAs.tsx). The client has no
 // React test renderer, so these are source scans for what matters: the button
 // only for a real full admin, the bar with its way back on every page, and a
 // reload so the new rights reach every part of the menu.
@@ -9,8 +9,8 @@ const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src"
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
 describe("Ansicht als Rolle (client)", () => {
-    const view = read("components", "ViewAs.tsx");
-    const shell = read("components", "Shell.tsx");
+    const view = read("components", "shell", "ViewAs.tsx");
+    const shell = read("components", "shell", "Shell.tsx");
 
     it("sits in the shell: the button in the top bar, the bar above every page", () => {
         expect(shell).toContain("<ViewAsButton user={user} />");

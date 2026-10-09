@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useDismiss, type DismissOptions } from "../../hooks/useDismiss";
-import { nodeOf, type DismissTarget } from "../../lib/dismiss";
-import { popoverVars, samePosition, type Placement, type PopoverStyle } from "../../lib/popoverPosition";
+import { nodeOf, type DismissTarget } from "../../lib/ui/dismiss";
+import { popoverVars, samePosition, type Placement, type PopoverStyle } from "../../lib/ui/popoverPosition";
 
 /**
  * The base of every floating box that belongs to an element on the page — a
@@ -12,7 +12,7 @@ import { popoverVars, samePosition, type Placement, type PopoverStyle } from "..
  *   dialog the anchor sits in): panels with the redesign's clipped corners cut
  *   off anything positioned inside them, and a modal <dialog> sits in the top
  *   layer above everything outside it.
- * - **Placed** with fixed coordinates from `place` (lib/popoverPosition.ts),
+ * - **Placed** with fixed coordinates from `place` (lib/ui/popoverPosition.ts),
  *   measured after it is drawn and before it is painted, so it never flashes
  *   in the wrong spot and never leaves the viewport.
  * - **Follows** the page: on scroll or resize it closes (`follow="close"`, the

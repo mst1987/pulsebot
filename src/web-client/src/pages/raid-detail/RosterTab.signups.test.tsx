@@ -7,7 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { EventSignupEntry, RaidDetailData } from "../../api";
 import { t } from "../../i18n";
-import { CAN_ALSO } from "../../lib/signups";
+import { CAN_ALSO } from "../../lib/signups/status";
 import { renderPage } from "../../test/render";
 import { ROLE_META, type RaidCtx } from "./meta";
 import RosterTab from "./RosterTab";

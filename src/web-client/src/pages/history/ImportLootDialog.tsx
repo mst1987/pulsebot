@@ -12,14 +12,14 @@ import {
     type ApiError, type HistoryData, type ImportPreview,
 } from "../../api";
 import { formatEventTime } from "../../lib/format";
-import { useDraftState } from "../../lib/persistedState";
+import { useDraftState } from "../../lib/ui/persistedState";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Segment from "../../components/ui/Segment";
 import Expand from "../../components/ui/Expand";
 import IconTile from "../../components/ui/IconTile";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { InfoTip } from "../../components/loot/LootFilters";
 import { contentIcon } from "../../components/loot/LootBadges";
 import { tParts, useT, type TFunction } from "../../i18n";

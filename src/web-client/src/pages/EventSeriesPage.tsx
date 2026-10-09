@@ -5,20 +5,19 @@ import {
     type ApiError, type EventSeriesData, type EventSeriesInput, type SeriesCategory, type SeriesDate, type SeriesPreview } from "../api";
 import { useApi } from "../hooks/useApi";
 import AsyncView from "../components/ui/AsyncView";
-import { useCollectionEditor } from "../lib/collectionEditor";
+import { useCollectionEditor } from "../lib/ui/collectionEditor";
 import {
-    WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, lastCreatedLine, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday, weekdayLong, weekdayShort } from "../lib/eventSeries";
+    WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, lastCreatedLine, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday, weekdayLong, weekdayShort } from "../lib/raids/eventSeries";
 import { tParts, useT } from "../i18n";
-import { useToast } from "../components/Jobs";
+import { useToast } from "../components/shell/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
 import PageHead from "../components/ui/PageHead";
 import Badge from "../components/ui/Badge";
 import RaidLoader from "../components/ui/RaidLoader";
 import NamingBadge from "../components/channels/NamingBadge";
-import { SwitchRow } from "../components/RaidPlanFields";
-import { RefreshIcon } from "../components/icons";
-import { PenIcon, WarnIcon } from "../components/settings/settingsUi";
+import { SwitchRow } from "../components/raid/RaidFields";
+import { PenIcon, RefreshIcon, WarnIcon } from "../components/ui/icons";
 import "../styles/series.css";
 
 // Wiederkehrende Events (#289): one compact line per event category —

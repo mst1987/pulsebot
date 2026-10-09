@@ -3,7 +3,7 @@
 // item page redirects to "not found". Links and lookups go to the original
 // item instead — same name, icon and slot; only the item level differs.
 // Source: wowsims/tbc-new#530, which paired each id by name, slot and icon.
-// The client keeps a copy (src/web-client/src/lib/wowheadItems.ts), held equal
+// The client keeps a copy (src/web-client/src/lib/wow/wowheadItems.ts), held equal
 // by test/config/wowheadItemAliases.test.js. Drop an entry once Wowhead knows
 // the new id.
 const WOWHEAD_ITEM_ALIASES = Object.freeze({

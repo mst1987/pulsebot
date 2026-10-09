@@ -10,11 +10,11 @@
 import type { ReactElement } from "react";
 import { render, type RenderResult } from "@testing-library/react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom";
-import { JobsProvider } from "../components/Jobs";
+import { JobsProvider } from "../components/shell/Jobs";
 import { ConfirmProvider } from "../components/ui/Modal";
 import type { ContentInfo, SessionUser } from "../api";
-import ContentVersionProvider from "../components/ContentVersionProvider";
-import ContentSwitch from "../components/ContentSwitch";
+import ContentVersionProvider from "../components/shell/ContentVersionProvider";
+import ContentSwitch from "../components/shell/ContentSwitch";
 
 /** A full admin: every area open. Override fields to test a narrower account. */
 export function adminUser(over: Partial<SessionUser> = {}): SessionUser {

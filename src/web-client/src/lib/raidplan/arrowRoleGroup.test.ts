@@ -60,10 +60,10 @@ describe("a role group placeholder", () => {
         const menu = raidplan.contextMenuItems("board", { locked: false, hasPlayer: false, isEvent: true, kind: "" }).map((m) => m.id);
         expect(menu).toEqual(expect.arrayContaining(["insert:role:melee", "insert:role:ranged"]));
         expect(raidplan.insertObject(board(), { type: "zone", zoneType: "role", shape: "ellipse", role: "nope" }, null).board.zones[0].role).toBe("melee");
-        const pal = read("pages/raid-detail/raidplan/Palette.tsx");
+        const pal = read("components/raidplan/editor/Palette.tsx");
         expect(pal.indexOf("\"melee\"")).toBeLessThan(pal.indexOf("\"ranged\""));
         expect(pal.indexOf("ROLE_GROUP_KINDS = [\"melee\", \"ranged\"")).toBeGreaterThan(-1);
-        expect(read("pages/raid-detail/raidplan/workspace/MapToolRow.tsx")).toContain("zoneType: \"role\", shape: \"ellipse\", role: \"melee\"");
+        expect(read("components/raidplan/editor/workspace/MapToolRow.tsx")).toContain("zoneType: \"role\", shape: \"ellipse\", role: \"melee\"");
     });
 
     it("moves and scales like any area (it is a zone), and is not a player: nobody is placed by it", () => {

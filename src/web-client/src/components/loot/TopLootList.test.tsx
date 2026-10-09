@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import type { TopLootAward } from "../../api";
 import { t } from "../../i18n";
-import { shortDate } from "../../lib/overviewDates";
+import { shortDate } from "../../lib/raids/overviewDates";
 import TopLootList from "./TopLootList";
 
 function award(over: Partial<TopLootAward> = {}): TopLootAward {

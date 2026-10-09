@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import type { RecruitmentData } from "../../api";
-import { DISCORD_CONTENT_LIMIT } from "../../lib/discordMarkdown";
+import { DISCORD_CONTENT_LIMIT } from "../../lib/discord/discordMarkdown";
 import EmojiPicker from "./EmojiPicker";
 import SpecPicker from "./SpecPicker";
 import DiscordPreview from "./DiscordPreview";

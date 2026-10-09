@@ -5,9 +5,9 @@ import { Badge, Button, Modal } from "../ui";
 import { ChannelTypeIcon, PurposeBadge, StatusBadge, TagIcon } from "./channelBits";
 import { ChannelStatusBadges } from "./ChannelTree";
 import ChannelEmojiPicker from "./ChannelEmojiPicker";
-import { instanceIdsOfTag } from "../../lib/raidEmojis";
-import { changedFields, isTextLike, rightsStatus, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/channels";
-import { normalizeForType } from "../../lib/channelNames";
+import { instanceIdsOfTag } from "../../lib/raids/raidEmojis";
+import { changedFields, isTextLike, rightsStatus, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/discord/channels";
+import { normalizeForType } from "../../lib/discord/channelNames";
 import { useT } from "../../i18n";
 
 // The full edit of one channel (issue #259): name, topic, category, slowmode,

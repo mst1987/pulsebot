@@ -1,5 +1,5 @@
 import type { SetupActivity, SetupAttendance, SetupPerson } from "../../../api";
-import { specLabel } from "../../../lib/wowNames";
+import { specLabel } from "../../../lib/wow/wowNames";
 import { t } from "../../../i18n";
 import { formatWith } from "../../../lib/format";
 

@@ -1,11 +1,11 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { SortTh } from "../SortTh";
-import Pager from "../Pager";
-import { pageSlice } from "../../lib/dataTable";
-import type { SortValue, TableSort } from "../../lib/tableSort";
+import { SortTh } from "./SortTh";
+import Pager from "./Pager";
+import { pageSlice } from "../../lib/ui/dataTable";
+import type { SortValue, TableSort } from "../../lib/ui/tableSort";
 
-// A table of the admin menu (#439): sortable headers (components/SortTh +
-// lib/tableSort), the rows, an empty state instead of a headless table, and a
+// A table of the admin menu (#439): sortable headers (components/ui/SortTh +
+// lib/ui/tableSort), the rows, an empty state instead of a headless table, and a
 // Pager when `pageSize` is set. The look stays the module's: `className` is
 // the table's class (`idx` by default) and `wrapClassName` the scroll wrapper
 // around it, as the pages had them.

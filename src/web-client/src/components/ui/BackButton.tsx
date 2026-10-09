@@ -3,7 +3,7 @@
 // Kaderplaner's steps and the Raid-Detail's "Raid-Events" (styles in ui.css).
 import { Link } from "react-router-dom";
 import { buttonClass } from "./Button";
-import { ArrowLeftIcon } from "../icons";
+import { ArrowLeftIcon } from "./icons";
 
 export default function BackButton({ label, onClick, to, size = "md", disabled = false, className = "" }: {
     label: string;

@@ -5,14 +5,14 @@ import { useApi } from "../../hooks/useApi";
 import AsyncView from "../../components/ui/AsyncView";
 import { LootTable } from "../../components/loot/LootTable";
 import ManualLootForm from "./ManualLootForm";
-import type { ShellContext } from "../../components/Shell";
-import { ChevronLeftIcon, TrashIcon } from "../../components/icons";
-import { useToast } from "../../components/Jobs";
+import type { ShellContext } from "../../components/shell/Shell";
+import { ChevronLeftIcon, TrashIcon } from "../../components/ui/icons";
+import { useToast } from "../../components/shell/Jobs";
 import { useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
-import "../../styles/historie-loot.css";
+import "../../styles/history-loot.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { tParts, useT } from "../../i18n";
 

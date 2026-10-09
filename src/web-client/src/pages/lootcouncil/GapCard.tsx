@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import type { CouncilGap, SimResult } from "../../api";
-import type { TableSort } from "../../lib/tableSort";
+import type { TableSort } from "../../lib/ui/tableSort";
 import { Badge, Expand, WowIcon, buttonClass } from "../../components/ui";
 import { useT } from "../../i18n";
 import { dropHref, pickVerdict, type CandidateSortKey, type Verdict } from "./council";

@@ -4,7 +4,7 @@
 import { useRef, useState } from "react";
 import type { GuildBankSummary } from "../../api";
 import { SearchBox } from "../../components/loot/LootFilters";
-import { ChevronDownIcon, FunnelIcon } from "../../components/icons";
+import { ChevronDownIcon, FunnelIcon } from "../../components/ui/icons";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 

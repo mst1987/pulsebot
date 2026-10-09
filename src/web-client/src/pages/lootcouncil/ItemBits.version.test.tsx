@@ -3,7 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ItemLink } from "./ItemBits";
-import { WowheadPathProvider } from "../../lib/versionLinks";
+import { WowheadPathProvider } from "../../lib/settings/versionLinks";
 
 describe("ItemLink per game version (#542)", () => {
     it("links TBC without a provider, like every page before #542", () => {

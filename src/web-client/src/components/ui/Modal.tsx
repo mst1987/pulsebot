@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import IconTile, { type TileTone } from "./IconTile";
 import { Button, IconButton } from "./Button";
-import { TrashIcon, XIcon } from "../icons";
+import { TrashIcon, XIcon } from "./icons";
 import { t } from "../../i18n";
 import { useBackdropClose } from "../../hooks/useBackdropClose";
 

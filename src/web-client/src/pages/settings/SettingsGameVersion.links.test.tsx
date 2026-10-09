@@ -7,7 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { VersionSettingsCard } from "./SettingsGameVersion";
-import { blockOf, emptyBlock, type VersionSettingsBlock } from "../../lib/versionLinks";
+import { blockOf, emptyBlock, type VersionSettingsBlock } from "../../lib/settings/versionLinks";
 import { inLang } from "../../test/i18n";
 
 const VERSIONS = [

@@ -3,16 +3,16 @@
 // locales/<lang>/raids.json, and nothing is translated at module load (#435:
 // the source half of the former test/web-client/i18n-raids.test.js; the texts
 // are tested in src/web-client/src/i18n/raids.test.ts, the time bands in
-// lib/raidTime.test.ts).
+// lib/raids/raidTime.test.ts).
 const { read } = require("../clientSource");
 
 const FILES = [
-    "pages/RaidsPage.tsx",
+    "pages/raids/RaidsPage.tsx",
     "pages/RaidCreatePage.tsx",
-    "components/RaidList.tsx",
+    "pages/raids/RaidList.tsx",
     "pages/history/RaidTable.tsx",
-    "components/RaidIcon.tsx",
-    "lib/raidTime.ts",
+    "components/raid/RaidIcon.tsx",
+    "lib/raids/raidTime.ts",
 ];
 
 describe("raids namespace", () => {
@@ -35,10 +35,10 @@ describe("raids namespace", () => {
     });
 
     it("imports the translation helpers", () => {
-        for (const f of ["pages/RaidsPage.tsx", "components/RaidList.tsx", "pages/history/RaidTable.tsx", "components/RaidIcon.tsx"]) {
+        for (const f of ["pages/raids/RaidsPage.tsx", "pages/raids/RaidList.tsx", "pages/history/RaidTable.tsx", "components/raid/RaidIcon.tsx"]) {
             expect({ f, useT: /import \{ useT \} from "(\.\.\/)+i18n";/.test(read(f)) }).toEqual({ f, useT: true });
         }
-        expect(read("lib/raidTime.ts")).toContain("import { locale, t } from \"../i18n\";");
+        expect(read("lib/raids/raidTime.ts")).toContain("import { locale, t } from \"../../i18n\";");
     });
 
     it("never translates at module top level", () => {

@@ -189,7 +189,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 .nav-item.active .wi { filter: none; border-color: var(--area); box-shadow: 0 0 0 2px var(--area-soft); }
 .nav-item .nav-n { margin-left: auto; }
 
-/* ===== the icon rail of a page with sub sections (components/SectionRail.tsx,
+/* ===== the icon rail of a page with sub sections (components/ui/SectionRail.tsx,
    design "C · Schmale Icon-Leiste"): Einstellungen's sections, Raid-Events'
    pages. A 64 px column flush against the sidebar, left of the page; one
    44 px button per section, a thin line between groups, the name as the
@@ -279,7 +279,7 @@ nav.menu::-webkit-scrollbar { display: none; }
    Sparse pages (a few rows or a form) take --page-narrow, or they would show
    more empty space than content. The root classes of the sparse pages are
    listed here once; a new sparse page joins this list, a dense one stays out.
-   Historie & Loot joins it from historie-loot.css, where its other
+   Historie & Loot joins it from history-loot.css, where its other
    rules live (a convention keeps that page's prefix out of this file). The settings panel is decided by its open section (data-section). Prose and
    single form fields keep their own measure inside (base.css, the pages' rules). */
 :root { --page-narrow: 1200px; }
@@ -467,7 +467,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 :root[data-theme="light"] .class-colored { color: color-mix(in srgb, var(--cc) 55%, var(--ink-shade)); }
 
 /* Item names in their WoW quality colour (epic purple, rare blue, legendary
-   orange, …), handed in as --iq by lib/itemQuality.ts — same mechanism and the
+   orange, …), handed in as --iq by lib/wow/itemQuality.ts — same mechanism and the
    same light-theme darkening as the class colours above, for the same reason:
    raw #1eff00 or #ff8000 washes out on a white panel. The doubled base selector
    only exists so a name inside a hover popover — which sets its own colour —
@@ -485,7 +485,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 /* a hint worth acting on, not an error (e.g. the raid plan link without groups) */
 .flash-warn { background: var(--medium-bg); color: var(--medium); border: 1px solid var(--medium); }
 
-/* ===== Components several modules render (components/RaidIcon.tsx, components/channels/NamingBadge.tsx).
+/* ===== Components several modules render (components/raid/RaidIcon.tsx, components/channels/NamingBadge.tsx).
    Their look lives here, not in the stylesheet of the first page that used them: a page
    stylesheet only loads with its page, and opening another page directly left them bare. ===== */
 /* raid icon: one, or two overlapping for a combined night (the raid list, the signups, the create dialog) */

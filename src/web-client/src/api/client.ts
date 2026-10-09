@@ -122,7 +122,7 @@ export type IncompleteRaidError = ApiError & { raids?: ClaRaid[] };
 /**
  * The error code a refused evaluation carries — the raid was still running.
  * Not a failure: the caller asks whether to run it anyway and retries with
- * force (see lib/confirmIncomplete.ts).
+ * force (see lib/raids/confirmIncomplete.ts).
  */
 export const RAID_INCOMPLETE = "raid_incomplete";
 

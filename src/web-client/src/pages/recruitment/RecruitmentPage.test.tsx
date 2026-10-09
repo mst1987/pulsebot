@@ -7,7 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { Application, RecruitmentData, RecruitmentPost, RecruitmentTemplate } from "../../api";
-import { DISCORD_CONTENT_LIMIT } from "../../lib/discordMarkdown";
+import { DISCORD_CONTENT_LIMIT } from "../../lib/discord/discordMarkdown";
 import { renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
 import RecruitmentPage from "./RecruitmentPage";

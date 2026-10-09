@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from "react";
 import type { Application, RecruitmentData } from "../../api";
-import { useTableSort, type Dir } from "../../lib/tableSort";
-import { channelUrl } from "../../lib/discordLinks";
-import { SortTh } from "../../components/SortTh";
-import { ExternalIcon } from "../../components/icons";
-import { classColorProps } from "../../components/ClassSpec";
+import { useTableSort, type Dir } from "../../lib/ui/tableSort";
+import { channelUrl } from "../../lib/discord/discordLinks";
+import { SortTh } from "../../components/ui/SortTh";
+import { ExternalIcon } from "../../components/ui/icons";
+import { classColorProps } from "../../components/character/ClassSpec";
 import { Modal } from "../../components/ui/Modal";
 import { Button, IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

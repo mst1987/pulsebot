@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { ApiError } from "../../api";
-import type { AsyncState } from "../../lib/asyncState";
+import type { AsyncState } from "../../lib/ui/asyncState";
 import RaidLoader from "./RaidLoader";
 
 /**

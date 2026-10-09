@@ -4,10 +4,10 @@ import { deleteAvailability, getAbsenceRaider, type AbsenceRaiderDetail, type Ap
 import { useApi } from "../../hooks/useApi";
 import { Badge, Button, IconButton, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { AbsenceIcon, ListChecksIcon, TrashIcon, XIcon } from "../../components/icons";
-import { useToast } from "../../components/Jobs";
-import { currentAbsence, displayName, playsLine } from "../../lib/absences";
-import { dayMs, periodLabel } from "../../lib/availability";
+import { AbsenceIcon, ListChecksIcon, TrashIcon, XIcon } from "../../components/ui/icons";
+import { useToast } from "../../components/shell/Jobs";
+import { currentAbsence, displayName, playsLine } from "../../lib/roster/absences";
+import { dayMs, periodLabel } from "../../lib/signups/availability";
 import { formatDayDate } from "../../lib/format";
 import { useT } from "../../i18n";
 import { AbSpec, ClassName } from "./parts";

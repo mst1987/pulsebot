@@ -5,16 +5,16 @@ import {
     type ApiError, type GameRole, type OwnSignup, type OwnSignupRow, type SignupClass, type SignupCounts, type SignupProfile, type SignupStatus,
 } from "../../api";
 import { Badge, Button, Modal, WowIcon } from "../ui";
-import { CheckIcon } from "../icons";
-import { useToast } from "../Jobs";
+import { CheckIcon } from "../ui/icons";
+import { useToast } from "../shell/Jobs";
 import SignupCharacterPicks from "./SignupCharacterPicks";
 import { formatEventTime } from "../../lib/format";
 import {
     CAN_ALSO, ROLE_ORDER, SIGNUP_STATUS, SIGNUP_STATUS_ORDER, defaultCanAlso, roleCountText, signedUpLabel,
-} from "../../lib/signups";
+} from "../../lib/signups/status";
 import {
     commonStatus, initialPicks, picksToInput, setAllStatuses, signupStatusOf, type CharacterPick,
-} from "../../lib/signupPicks";
+} from "../../lib/signups/signupPicks";
 import { useT } from "../../i18n";
 
 // The signup dialog (#256): characters and specs from the profile (several since
@@ -33,7 +33,7 @@ import { useT } from "../../i18n";
 
 export default function SignupDialog({ row, profile, classes, onClose, onSaved, missingVersion = "" }: {
     row: OwnSignupRow | null;
-    /** Only the characters of the event's game version (#543, lib/signups profileForRows). */
+    /** Only the characters of the event's game version (#543, lib/signups/status profileForRows). */
     profile: SignupProfile;
     /** The event's version when the profile has characters, but none of it — the dialog says so. */
     missingVersion?: string;

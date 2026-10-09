@@ -1,5 +1,5 @@
 // Sorting the Kaderplaner's tables (Pool, Vorauswahl · Übersicht, the import's
-// member list) through the shared table sort: useTableSort (lib/tableSort.ts)
+// member list) through the shared table sort: useTableSort (lib/ui/tableSort.ts)
 // remembers the column per table, sortRows orders. What this adds is the value
 // of a column as a list of parts compared one after the other — numbers as
 // numbers, text in the menu language's alphabet ("Ä" beside "A", "10" after
@@ -9,7 +9,7 @@
 // reads alphabetically. Pure.
 import type { KaderAnswer, KaderClassDef, KaderData, KaderEntry, KaderMember, KaderPlayer, KaderQuestion, KaderView, KaderWish } from "../../api";
 import { locale } from "../../i18n";
-import { sortRows, type Dir } from "../tableSort";
+import { sortRows, type Dir } from "../ui/tableSort";
 import { isAnswered, progress, statusOf, type InterviewStatus } from "./interview";
 import { attendanceOf, className, playerName, ROLES, rolesOf, specName, specRole, STATES } from "./model";
 

@@ -6,13 +6,13 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { fillRaidsheet, postRaidSheet, type ApiError } from "../../../api";
 import { fmtMs } from "../../../lib/format";
-import { messageLink } from "../../../lib/discordLinks";
+import { messageLink } from "../../../lib/discord/discordLinks";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import IconTile from "../../../components/ui/IconTile";
-import { ExternalIcon } from "../../../components/icons";
-import { useJobs, useToast } from "../../../components/Jobs";
+import { ExternalIcon } from "../../../components/ui/icons";
+import { useJobs, useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 

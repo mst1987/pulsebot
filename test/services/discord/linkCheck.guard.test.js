@@ -3,7 +3,7 @@
 // hands it out only for a channel/message that exists. A new overview gluing
 // `discord.com/channels/` together itself would skip that check — this scan
 // refuses it. The web client cannot check anything itself: it builds its links
-// in lib/discordLinks.ts only, from the `channelState` the server sends.
+// in lib/discord/discordLinks.ts only, from the `channelState` the server sends.
 const fs = require("fs");
 const path = require("path");
 
@@ -33,16 +33,16 @@ describe("#537 guard: Discord links only through linkCheck", () => {
         expect(offenders).toEqual(["src/services/discord/linkCheck.js"]);
     });
 
-    it("builds discord.com/channels/ links only in lib/discordLinks.ts (web client, tests aside)", () => {
+    it("builds discord.com/channels/ links only in lib/discord/discordLinks.ts (web client, tests aside)", () => {
         const offenders = walk(path.join(CLIENT, "src"))
             .filter((f) => /\.(ts|tsx)$/.test(f) && !/\.test\.(ts|tsx)$/.test(f) && !f.includes(`${path.sep}test${path.sep}`))
             .filter((f) => fs.readFileSync(f, "utf8").includes(NEEDLE))
             .map(rel);
-        expect(offenders).toEqual(["src/web-client/src/lib/discordLinks.ts"]);
+        expect(offenders).toEqual(["src/web-client/src/lib/discord/discordLinks.ts"]);
     });
 
     it("keeps the web client's post link behind the server's channelState", () => {
-        const lib = fs.readFileSync(path.join(CLIENT, "src", "lib", "discordLinks.ts"), "utf8");
+        const lib = fs.readFileSync(path.join(CLIENT, "src", "lib", "discord", "discordLinks.ts"), "utf8");
         expect(lib).toMatch(/ChannelState/);
         expect(lib).toMatch(/!channelLinkable\(state\)/);
     });

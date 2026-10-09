@@ -24,8 +24,8 @@ const SHARED_FILES = ["tokens.css", "base.css", "shared.css", "feedback.css", "l
 
 // [file, stylesheet, why the page-level miss is not a real one]
 const ALLOWED = [
-    ["components/ClassSpec.tsx", "styles/roster-charakter.css", "only ClassSpecIdentity uses spec-ident-*, and only the roster renders it"],
-    ["components/loot/LootBadges.tsx", "styles/historie-loot.css", "only ItemIcon/StackBar use hl-ico/hl-stack, rendered by the history pages alone"],
+    ["components/character/ClassSpec.tsx", "styles/roster-character.css", "only ClassSpecIdentity uses spec-ident-*, and only the roster renders it"],
+    ["components/loot/LootBadges.tsx", "styles/history-loot.css", "only ItemIcon/StackBar use hl-ico/hl-stack, rendered by the history pages alone"],
 ];
 
 const rel = (abs) => path.relative(CLIENT, abs).split(path.sep).join("/");
@@ -116,7 +116,7 @@ function namedClasses(file, known) {
 function pageContexts() {
     const main = path.join(CLIENT, "main.tsx");
     const app = path.join(CLIENT, "App.tsx");
-    const shell = path.join(CLIENT, "components", "Shell.tsx");
+    const shell = path.join(CLIENT, "components", "shell", "Shell.tsx");
     const base = graph([main]);
     const contexts = [];
     const visit = (entry, loaded) => {
@@ -140,7 +140,7 @@ describe("a component's stylesheet is loaded wherever it is rendered", () => {
 
     it("finds the pages and their stylesheets", () => {
         expect(contexts.length).toBeGreaterThan(20);
-        const detail = contexts.find(([name]) => name === "pages/RaidDetailPage.tsx");
+        const detail = contexts.find(([name]) => name === "pages/raid-detail/RaidDetailPage.tsx");
         expect(detail).toBeDefined();
         expect([...detail[1]].map(rel)).toContain("styles/raid-detail.css");
         expect(contexts.map(([name]) => name)).toContain("pages/raid-detail/RaidplanTab.tsx");
@@ -148,7 +148,7 @@ describe("a component's stylesheet is loaded wherever it is rendered", () => {
     });
 
     it("loads the create/edit dialog's stylesheet on the raid detail page", () => {
-        const [, files] = contexts.find(([name]) => name === "pages/RaidDetailPage.tsx");
+        const [, files] = contexts.find(([name]) => name === "pages/raid-detail/RaidDetailPage.tsx");
         const names = [...files].map(rel);
         expect(names).toContain("components/raid-create/RaidCreateDialog.tsx");
         expect(names).toContain("styles/raid-events.css");

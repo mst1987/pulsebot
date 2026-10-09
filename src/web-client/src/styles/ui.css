@@ -187,7 +187,7 @@ table.idx th[data-tip] { text-decoration: underline dotted; text-decoration-colo
 .tip.rtip { width: var(--rtip-w); white-space: normal; max-width: calc(100vw - 16px); }
 @media (prefers-reduced-motion: reduce) { .tip { transition: none; } }
 /* Wowhead's item tooltip is lifted into the top layer while it shows, as a manual popover
-   (lib/wowheadTooltips.ts) — undo the popover's defaults so it looks and sits as power.js drew it. */
+   (lib/wow/wowheadTooltips.ts) — undo the popover's defaults so it looks and sits as power.js drew it. */
 .wowhead-tooltip[popover] { right: auto; bottom: auto; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; }
 
 /* ---- modal (native <dialog>) and the confirm dialog ---- */
@@ -250,7 +250,7 @@ table.idx.flush { margin: 0; }
 th.th-w { width: var(--th-w); }
 /* ui/Modal's width prop; the modules that pin a dialog's width do so with !important */
 dialog.dlg.dlg-w { width: min(var(--dlg-w), calc(100vw - 32px)); }
-/* ui/Popover: the coordinates its placement measured (lib/popoverPosition.ts popoverVars) */
+/* ui/Popover: the coordinates its placement measured (lib/ui/popoverPosition.ts popoverVars) */
 .ui-pop { left: var(--pop-left, auto); top: var(--pop-top, auto); right: var(--pop-right, auto); bottom: var(--pop-bottom, auto); }
 /* RaidLoader: the party does not swing in step */
 .rl-icon.attack, .rl-icon.flee { animation-delay: var(--rl-delay, 0s); }

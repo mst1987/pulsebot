@@ -214,7 +214,7 @@ mechanism as the tanks of a tank row, not a second one: the tokens are **derived
 - Tests: "task rows put on the map" in `src/web-client/src/lib/raidplan/autoPlace.test.ts` (tokens, keys, role groups
   skipped, one place per player with a tank row, token, split ring and a second task row, template / event, moved
   positions, the switch), "a task row on the map" in
-  `src/web-client/src/pages/raid-detail/raidplan/BoardWorkspace.test.tsx` (pin -> tokens, drag, delete the row,
+  `src/web-client/src/components/raidplan/editor/BoardWorkspace.test.tsx` (pin -> tokens, drag, delete the row,
   pin off, tank + kick = one token, group badge, the menu), "task rows put on the map" in
   `test/services/raidplan/raidplanAutoPlace.test.js` (validation, reidBoard, inherited rows) and the public API in
   `test/web/apiRoutes/raidplan.test.js`.
@@ -260,7 +260,7 @@ drawn by `PlanBoard` into `svg.rp-links`, the same in the editor (`BoardWorkspac
   the visitor's own line (`is-yours`) is solid, 4 px and glows in the colour of its type (before: the accent colour).
   The lines have no tooltip and no pointer events (`aria-hidden`), no arrow heads.
 - Tests: "lines on the map" in `src/web-client/src/lib/raidplan/assign.test.ts` (types, auto places, tank to his mob,
-  mob icons, slot fallback), "the lines of the rows" in `pages/raid-detail/raidplan/BoardWorkspace.test.tsx`
+  mob icons, slot fallback), "the lines of the rows" in `components/raidplan/editor/BoardWorkspace.test.tsx`
   (rendered heal / tank / kick lines with their class and no stroke of their own) and the CSS guard in
   `test/web-client/conventions/assign.test.js` (every type's class points at a variable of `tokens.css`, nothing
   hides `.rp-links`).
@@ -371,7 +371,7 @@ Besides:
 
 Tests: `src/web-client/src/lib/raidplan/labelScale.test.ts` (also "group badge metrics" and "a group's own badge size"),
 `src/web-client/src/lib/raidplan/badgeOptions.test.ts` (switch, look per group, menu, multi-selection), "a group's badge" in
-`test/services/raidplan/raidplanBoard.test.js`, "names on a group ring" in `src/web-client/src/lib/raidplan/raidplan.roleGroups.test.ts`, "the group badge" in `src/web-client/src/pages/raid-detail/raidplan/BoardWorkspace.test.tsx`.
+`test/services/raidplan/raidplanBoard.test.js`, "names on a group ring" in `src/web-client/src/lib/raidplan/raidplan.roleGroups.test.ts`, "the group badge" in `src/web-client/src/components/raidplan/editor/BoardWorkspace.test.tsx`.
 
 **A group's own "Token size" (feature/raidplan-15).** Two more causes, both only with a token size away from
 the default:
@@ -487,7 +487,7 @@ and for several at once in the multi-selection. Chosen in the design canvas "Fl√
 
 Tests: `src/web-client/src/lib/raidplan/areaStyle.test.ts` (defaults, band, path, badge and name places), `src/web-client/src/components/raidplan/PlanBoard.areas.test.tsx`
 (both styles rendered, the read view against the editor), "a role group area switches between calm and arc" in
-`src/web-client/src/pages/raid-detail/raidplan/Inspector.tabs.test.tsx`, "the area style for all of them at once" in
+`src/web-client/src/components/raidplan/editor/Inspector.tabs.test.tsx`, "the area style for all of them at once" in
 `src/web-client/src/lib/raidplan/multiOptions.test.ts`, "a role group area's style: calm or arc (#559)" in `test/services/raidplan/raidplanBoard.test.js`.
 
 ## Section bar and boss icons (feature/raidplan-16, part 3)

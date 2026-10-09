@@ -1,6 +1,6 @@
 import type { ClaFilter, ClaRow, LogSection } from "../../api";
 import { formatDateTime, formatDayDate } from "../../lib/format";
-import { messageLink } from "../../lib/discordLinks";
+import { messageLink } from "../../lib/discord/discordLinks";
 import { t } from "../../i18n";
 
 export const FILTERS: ClaFilter[] = ["all", "open", "unlinked", "done"];

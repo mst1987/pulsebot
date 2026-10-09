@@ -11,20 +11,20 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
     getLootCouncil, loadCouncilLogGear, refreshCouncilArmory, searchCouncilItems,
     type ApiError, type CouncilCandidate, type CouncilFocus, type ItemSearchResult } from "../../api";
-import { useJobs, useToast } from "../../components/Jobs";
+import { useJobs, useToast } from "../../components/shell/Jobs";
 import ItemSearchPicker from "../../components/loot/ItemSearchPicker";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { Badge, Button, PartHead } from "../../components/ui";
-import { ChevronLeftIcon } from "../../components/icons";
+import { ChevronLeftIcon } from "../../components/ui/icons";
 import { t as translate, useT } from "../../i18n";
-import { usePersistedState } from "../../lib/persistedState";
-import { useTableSort } from "../../lib/tableSort";
-import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
-import { itemQualityProps } from "../../lib/itemQuality";
+import { usePersistedState } from "../../lib/ui/persistedState";
+import { useTableSort } from "../../lib/ui/tableSort";
+import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
+import { itemQualityProps } from "../../lib/wow/itemQuality";
 import {
     CANDIDATE_SORT, FILTER_DEFAULT, VIEW_KEY, WOWHEAD, dropHref, pickVerdict, raiderHref, useCouncilSim, waitedTip,
     type CandidateSortKey, type FilterView } from "./council";
-import { WowheadPathProvider } from "../../lib/versionLinks";
+import { WowheadPathProvider } from "../../lib/settings/versionLinks";
 import { useCategoryViews } from "./categoryViews";
 import { BisSpecs, ContentBadge, FoldRow, LootCount, RaiderIdent } from "./ItemBits";
 import { CandidateTable, ListBadge } from "./CandidateTable";

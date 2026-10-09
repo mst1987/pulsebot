@@ -3,7 +3,7 @@
 // and ping channel there is nothing to choose and nothing is rendered.
 import type { PingTarget, PingTargetInfo } from "../../../api";
 import Segment from "../../../components/ui/Segment";
-import { pingTargetOptions } from "../../../lib/settingsLogic";
+import { pingTargetOptions } from "../../../lib/settings/settingsLogic";
 import { useT } from "../../../i18n";
 
 export default function TargetField({ info, value, onChange }: {

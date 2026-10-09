@@ -4,7 +4,7 @@
 // save bar follows the draft — sending the access fields only when the server
 // would accept them and never the connection blocks (each modal saves its own).
 //
-// The sections are the page's icon rail (components/SectionRail.tsx) left of
+// The sections are the page's icon rail (components/ui/SectionRail.tsx) left of
 // the page; below 900 px the same markup is a chip row — that switch is CSS
 // (test/web-client/conventions/sectionNav.test.js).
 //
@@ -15,7 +15,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { AdminConfig, SettingsData } from "../../api";
-import { SETTINGS_SECTIONS, sectionLabel, visibleSections } from "../../lib/settingsSections";
+import { SETTINGS_SECTIONS, sectionLabel, visibleSections } from "../../lib/settings/settingsSections";
 import { renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
 import SettingsPage from "./SettingsPage";

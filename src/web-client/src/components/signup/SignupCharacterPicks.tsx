@@ -1,14 +1,14 @@
 import type { CSSProperties } from "react";
 import type { SignupClass, SignupProfile, SignupStatus } from "../../api";
 import { IconButton, WowIcon } from "../ui";
-import { classColorProps } from "../ClassSpec";
-import { ChevronDownIcon, XIcon } from "../icons";
-import { CHARACTER_STATUS_ORDER, GEAR_LABEL, SIGNUP_STATUS } from "../../lib/signups";
+import { classColorProps } from "../character/ClassSpec";
+import { ChevronDownIcon, XIcon } from "../ui/icons";
+import { CHARACTER_STATUS_ORDER, GEAR_LABEL, SIGNUP_STATUS } from "../../lib/signups/status";
 import {
     MAX_CHARACTERS, addPick, canAddPick, movePick, removePick, setPickCharacter, setPickSpec, setPickStatus,
     type CharacterPick,
-} from "../../lib/signupPicks";
-import { specLabel } from "../../lib/wowNames";
+} from "../../lib/signups/signupPicks";
+import { specLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 
 // The characters of a signup (#293): one line per character · spec, numbered —

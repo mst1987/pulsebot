@@ -2,8 +2,8 @@
 // structure checked on the source — a compact line per item with the rest in
 // tooltips, the switch only for full admins, the import as a dry run first,
 // and the category list saying which categories still use Raid-Helper. The
-// rules (lib/raidhelperRetirement.ts) run in Vitest
-// (src/web-client/src/lib/raidhelperRetirement.test.ts).
+// rules (lib/settings/raidhelperRetirement.ts) run in Vitest
+// (src/web-client/src/lib/settings/raidhelperRetirement.test.ts).
 const fs = require("fs");
 const path = require("path");
 
@@ -12,7 +12,7 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").
 
 describe("the profile's suggestion from Raid-Helper", () => {
     it("prefills only the manual way and says where it came from", () => {
-        const dialog = read("components", "profile", "AddCharacterDialog.tsx");
+        const dialog = read("components", "character", "AddCharacterDialog.tsx");
         expect(dialog).toContain("if (way === \"manual\") applySuggestion(firstVersion);");
         expect(dialog).toContain("t(\"profile.add.fromRaidhelper\")");
         expect(require("../clientSource").dictionary("de")["profile.add.fromRaidhelper"]).toBe("aus Raid-Helper");

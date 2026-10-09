@@ -356,7 +356,7 @@ module.exports = {
 // die Raid-Liste später dieselbe Antwort benutzen, und deshalb hängen die Regeln
 // in plain Jest statt ungetestet im TSX.
 
-/** Die fünf Zustände eines Schritts; der Client spiegelt sie in lib/raidSteps.ts. */
+/** Die fünf Zustände eines Schritts; der Client spiegelt sie in lib/raids/raidSteps.ts. */
 const STEP_STATES = ["done", "current", "todo", "skipped", "cancelled"];
 /** Die Strecke, in ihrer Reihenfolge. */
 const STEP_IDS = ["created", "signup", "setup", "approval", "plan", "after"];

@@ -1,4 +1,4 @@
-/* Raid-Vorlagen (#266): pages/RaidTemplatesPage.tsx and components/CompositionEditor.tsx.
+/* Raid-Vorlagen (#266): pages/RaidTemplatesPage.tsx and components/raid/CompositionEditor.tsx.
    Namespaces: rt- (the page and its modal), comp- (the tanks/healers editor). */
 
 .rt-page { display: flex; flex-direction: column; gap: 18px; }

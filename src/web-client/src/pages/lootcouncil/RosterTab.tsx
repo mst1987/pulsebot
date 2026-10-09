@@ -1,6 +1,6 @@
 import type { CouncilRaider, LootCouncilData, SimResult } from "../../api";
 import { fmtMs } from "../../lib/format";
-import type { TableSort } from "../../lib/tableSort";
+import type { TableSort } from "../../lib/ui/tableSort";
 import { Button } from "../../components/ui";
 import { useT } from "../../i18n";
 import type { RosterSortKey, useCouncilSim } from "./council";

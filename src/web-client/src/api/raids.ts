@@ -1,5 +1,5 @@
 import { get, send } from "./client";
-import type { ChannelState } from "../lib/discordLinks";
+import type { ChannelState } from "../lib/discord/discordLinks";
 import type { EventLog } from "./dashboard";
 import type { Channel, ChannelNameSuggestion } from "./channels";
 import type { EventSource } from "./raidDetail";

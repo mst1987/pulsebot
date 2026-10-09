@@ -6,7 +6,7 @@ const {
     normalizeChannelName, normalizeForType, renderChannelName, seriesDays, planChannels, parseDay,
 } = names;
 
-const TWIN = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web-client", "src", "lib", "channelNames.ts"), "utf8");
+const TWIN = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web-client", "src", "lib", "discord", "channelNames.ts"), "utf8");
 
 describe("utils/channelNames", () => {
     describe("normalizeChannelName", () => {
