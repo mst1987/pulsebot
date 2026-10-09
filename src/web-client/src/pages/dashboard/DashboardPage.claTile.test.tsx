@@ -24,7 +24,6 @@ function dashboard(lastReport: DashboardLastReport | null): DashboardData {
         areas: {
             lastReport,
             newLoot: { count: 0, since: 0 },
-            recruitment: { posts: 0 },
             roster: { total: 40, withoutDiscord: 0 },
         },
         recentEvents: { events: [], error: null },

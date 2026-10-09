@@ -93,6 +93,10 @@ export type DashboardRaid = {
     /** Whether the channel still exists (#537). */
     channelState?: ChannelState;
     categoryId: string;
+    /** The Discord category the raid's channel sits in ("" = none known). */
+    categoryName: string;
+    /** How the category plans: the raid plan or a Google Sheet (planning.js) — only "sheet" raids have a sheet to miss. */
+    planning: "raidplan" | "sheet";
     /** WoW icon name of the raid's final boss. */
     icon: string;
     size: number;
@@ -158,7 +162,6 @@ export type DashboardData = {
     areas: {
         lastReport: DashboardLastReport | null;
         newLoot: { count: number; since: number };
-        recruitment: { posts: number };
         roster: { total: number; withoutDiscord: number } | null;
     };
     recentEvents: { events: (RecentEvent & { icon: string })[]; error: string | null };

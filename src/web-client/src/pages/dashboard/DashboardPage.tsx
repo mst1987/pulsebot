@@ -1,11 +1,12 @@
 // "Übersicht" — the start page (design issue #220). It answers one question:
 // what is coming up, and what is open? Everything else is one click away.
 //
-//   row 1: the next raid (role fill, sheet/setup/softres, the raid after it)
+//   row 1: the next raid (its category, role fill, setup/softres — the sheet
+//          only where the category plans with one — and the raid after it)
 //          beside the open tasks — one row per task, only when there is one;
-//   row 2: one compact tile per area (last evaluation, new loot, recruitment,
-//          roster), each a link, the details in its tooltip;
-//   row 3: the newest top-item awards beside the last raids.
+//   row 2: one compact tile per area (last evaluation, new loot, roster),
+//          each a link, the details in its tooltip;
+//   row 3: the newest top-item awards beside the last raids, rows of one height.
 //
 // The modal "Raid-Details" (pages/dashboard/RaidDetailsModal.tsx) loads its own data
 // when it opens.
@@ -28,6 +29,7 @@ import { ChevronRightIcon } from "../../components/ui/icons";
 import TopLootList from "../../components/loot/TopLootList";
 import RaidDetailsModal from "./RaidDetailsModal";
 import { RoleBar, IconLink } from "./OverviewParts";
+import { usesSheet } from "./raidPlanning";
 import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { relativeDayLabel } from "../../lib/format";
 import { longDay, shortDate, dayDate, clock, raidWhen } from "../../lib/raids/overviewDates";
@@ -52,8 +54,10 @@ function RowLink({ href, className, tip, tipSub, children }: {
         : <Link to={href} {...props}>{children}</Link>;
 }
 
+/** The sheet badge — only for a category that plans with a Google Sheet; a raid-plan category has none to miss. */
 function SheetBadge({ raid }: { raid: DashboardRaid }) {
     const t = useT();
+    if (!usesSheet(raid)) return null;
     return raid.sheet
         ? <Badge tone="ok" icon="inv_misc_note_02" tip={t("dashboard.sheet.doneTip")} tipSub={raid.sheet.playerCount ? t("dashboard.sheet.doneSubCount", { count: raid.sheet.playerCount }) : t("dashboard.sheet.doneSubFixed")}>{t("dashboard.sheet.done")}</Badge>
         : <Badge tone="bad" icon="inv_misc_note_02" tip={t("dashboard.sheet.missingTip")} tipSub={t("dashboard.sheet.missingSub")}>{t("dashboard.sheet.missing")}</Badge>;
@@ -106,6 +110,7 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                         <div className="ov-next-top">
                             <WowIcon name={raid.icon} size={56} className="ov-boss56" />
                             <div className="ov-next-text">
+                                {raid.categoryName && <span className="ov-cat" data-tip={t("dashboard.next.categoryTip")}>{raid.categoryName}</span>}
                                 <Link className="ov-next-title" to={raidDetailHref(raid.id)}>{raid.title}</Link>
                                 <div className="ov-next-when">{raidWhen(raid.startTime)}{raid.channelName ? ` · #${raid.channelName}` : ""}</div>
                             </div>
@@ -138,6 +143,7 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                                 <Link className="ov-following-t" to={raidDetailHref(following.id)}>
                                     {following.title} – {dayDate(following.startTime * 1000)} {clock(following.startTime * 1000)}
                                 </Link>
+                                {following.categoryName && <span className="ov-cat-s">{following.categoryName}</span>}
                                 <span className="ov-push"><SheetBadge raid={following} /></span>
                             </div>
                         )}
@@ -296,14 +302,6 @@ function AreaTiles({ areas }: { areas: DashboardData["areas"] }) {
                     {areas.newLoot.since > 0 && <Badge>{t("dashboard.areas.since", { date: dayDate(areas.newLoot.since).split(" ")[0] })}</Badge>}
                 </span>
             </AreaTile>
-            <AreaTile area="recruitment" icon="inv_misc_grouplooking" label={t("dashboard.areas.recruitment")} href="/recruitment" tip={t("dashboard.areas.recruitmentTip")} tipSub={t("dashboard.areas.recruitmentSub")}>
-                <span className="ov-area-big">{areas.recruitment.posts}</span>
-                <span className="ov-badges">
-                    {areas.recruitment.posts
-                        ? <Badge tone="ok">{t("dashboard.areas.postsActive")}</Badge>
-                        : <Badge>{t("dashboard.areas.noPosts")}</Badge>}
-                </span>
-            </AreaTile>
             <AreaTile area="roster" icon="achievement_guildperk_everybodysfriend" label={t("dashboard.areas.roster")} href="/roster" tip={t("dashboard.areas.rosterTip")} tipSub={areas.roster ? t("dashboard.areas.rosterSub", { count: areas.roster.withoutDiscord }) : t("dashboard.areas.rosterError")}>
                 <span className="ov-area-big">{areas.roster ? areas.roster.total : "–"}</span>
                 <span className="ov-badges">
@@ -318,7 +316,7 @@ function AreaTiles({ areas }: { areas: DashboardData["areas"] }) {
 function LootCard({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
     const t = useT();
     return (
-        <section className="dash-card ov-card">
+        <section className="dash-card ov-card ov-loot">
             <PartHead
                 icon="inv_misc_bag_10" tone="history" title={t("dashboard.loot.title")} crumb={t("dashboard.loot.crumb")}
                 action={<Link className={buttonClass("ghost", "sm")} to="/history?tab=awards">{t("dashboard.loot.historyLink")}</Link>}
@@ -356,7 +354,7 @@ function RecentRaidList({ recent }: { recent: DashboardData["recentEvents"] }) {
                                     <WowIcon name={ev.icon} size={36} className="ov-ico36" />
                                     <span className="grow">
                                         <span className="t1">{ev.title}</span>
-                                        <span className="t2">{dayDate(ev.startTime * 1000)}{ev.channelName ? ` · #${ev.channelName}` : ""}</span>
+                                        <span className="t2">{[ev.categoryName, dayDate(ev.startTime * 1000), ev.channelName ? `#${ev.channelName}` : ""].filter(Boolean).join(" · ")}</span>
                                     </span>
                                     {pending > 0
                                         ? <Badge tone="mid" icon="inv_misc_pocketwatch_01" tip={t("dashboard.recent.pendingTip")} tipSub={t("dashboard.recent.pendingSub")}>{t("dashboard.recent.pendingLogs", { count: pending })}</Badge>

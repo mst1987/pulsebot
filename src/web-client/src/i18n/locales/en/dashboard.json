@@ -29,6 +29,7 @@
         "details": "Details",
         "openTip": "Open raid",
         "openSub": "The raid's page in EventHelper: signups, setup, Softres, loot, logs.",
+        "categoryTip": "The raid's category (the Discord category of its channel)",
         "open": "Open",
         "empty": "No upcoming raid on Raid-Helper.",
         "roleSubSetup": "{filled} of {target} filled per setup. Target from the raid size ({size}).",
@@ -53,7 +54,7 @@
     "tasks": {
         "title": "Open tasks",
         "allDone": "All done",
-        "allDoneNote": "Sheets filled, logs assigned, recommendations reviewed.",
+        "allDoneNote": "Logs assigned, recommendations reviewed, inbox empty.",
         "trial": {
             "adopt": "Take over",
             "extend": "Extend",
@@ -82,11 +83,6 @@
         "newLootNone": "No past raid known yet.",
         "topItems": "Top items",
         "since": "since {date}",
-        "recruitment": "Recruitment",
-        "recruitmentTip": "Posted recruitment messages",
-        "recruitmentSub": "Click to open Recruitment.",
-        "postsActive": "Posts active",
-        "noPosts": "no posts",
         "roster": "Roster",
         "rosterTip": "Characters in the roster",
         "rosterSub": "{count} known only from loot, not linked to a Discord account. Click to open the roster.",
