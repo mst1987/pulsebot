@@ -98,11 +98,15 @@ function hostFinding(recent, nCores, processes, procBusy) {
     return { id: "hostBusy", level: "warn", values: { hostCpu: round1(hostAvg), botCpu: round1(botHostShare), cores: nCores } };
 }
 
-/** The load average: more runnable work than cores, for a longer time. */
+/**
+ * The load average: more runnable work than cores, for a longer time - and still now. The 5- and 15-minute
+ * averages trail a spike (a deploy) by a quarter of an hour; without the 1-minute value the page kept saying
+ * "overloaded" long after the server had calmed down.
+ */
 function loadFinding(recent, nCores) {
     const last = recent[recent.length - 1];
     const loadHigh = share(recent, (s) => s.load5 > nCores) >= SUSTAINED_SHARE || last.load15 > nCores;
-    if (!loadHigh) return null;
+    if (!loadHigh || !(last.load1 > nCores)) return null;
     return {
         id: "cpuOverloaded",
         level: last.load15 > 2 * nCores ? "bad" : "warn",
