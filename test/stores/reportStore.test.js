@@ -56,6 +56,7 @@ const {
     saveReport,
     getReport,
     getReportRoster,
+    getReportHints,
     deleteReport,
     listReports,
     resetCache,
@@ -295,5 +296,49 @@ describe("stores/reportStore", () => {
             fs.__store.set(path.join(REPORTS_DIR, "cafebabe01.json"), "{kaputt");
             expect(getReportRoster("cafebabe01")).toBeNull();
         });
+    });
+});
+
+describe("getReportHints", () => {
+    const report = () => ({
+        title: "BT",
+        roster: [{ name: "Thrall" }, { name: "Heilbert" }],
+        recommendations: {
+            raid: [],
+            players: [
+                { name: "Heilbert", type: "healer", items: [{ key: "k1", title: "a" }, { key: "k2", title: "b" }, { key: "k3", title: "c" }] },
+                { name: "Thrall", type: "dps", items: [{ key: "k1", title: "a" }] },
+                { name: "Gone", type: "dps", items: [{ key: "k1", title: "a" }] },
+            ],
+        },
+        recommendationReview: { players: { Heilbert: { k1: { approved: true }, k2: { approved: false }, k3: { approved: true } } } },
+    });
+
+    it("counts the approved recommendations per player and finds their player page", () => {
+        const id = saveReport(report());
+        const hints = getReportHints(id);
+        expect(hints.id).toBe(id);
+        expect(hints.players).toEqual({
+            heilbert: { name: "Heilbert", idx: 1, approved: 2 },
+            thrall: { name: "Thrall", idx: 0, approved: 0 },
+            gone: { name: "Gone", idx: -1, approved: 0 },
+        });
+    });
+
+    it("reads the file once until it changes", () => {
+        const id = saveReport(report());
+        getReportHints(id);
+        const reads = fs.readFileSync.mock.calls.length;
+        getReportHints(id);
+        expect(fs.readFileSync.mock.calls.length).toBe(reads);
+        saveReport({ ...report(), recommendationReview: {} }, id);
+        expect(getReportHints(id).players.heilbert.approved).toBe(0);
+    });
+
+    it("is null for a bad id or a missing report, and empty without recommendations", () => {
+        expect(getReportHints("../x")).toBeNull();
+        expect(getReportHints("abcdef99")).toBeNull();
+        const id = saveReport({ title: "old", roster: [] });
+        expect(getReportHints(id).players).toEqual({});
     });
 });

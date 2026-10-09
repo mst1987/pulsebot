@@ -30,6 +30,8 @@ function raid(over: Partial<DashboardRaid> = {}): DashboardRaid {
         channelId: "c1",
         channelName: "bt-donnerstag",
         categoryId: "cat1",
+        categoryName: "Donnerstag-Raid",
+        planning: "sheet",
         icon: "achievement_boss_illidan",
         size: 25,
         signupCount: 20,
@@ -59,6 +61,8 @@ function task(over: Partial<DashboardTask> = {}): DashboardTask {
 function dashboard(over: Partial<DashboardData> = {}): DashboardData {
     return {
         kicker: { guild: "Pulse", realm: "Thunderstrike" },
+        orga: true,
+        personal: null,
         nextRaid: raid(),
         followingRaid: null,
         nextRaidError: null,
@@ -66,7 +70,6 @@ function dashboard(over: Partial<DashboardData> = {}): DashboardData {
         areas: {
             lastReport: null,
             newLoot: { count: 0, since: 0 },
-            recruitment: { posts: 0 },
             roster: { total: 40, withoutDiscord: 0 },
         },
         recentEvents: { events: [], error: null },
@@ -111,7 +114,6 @@ describe("Übersicht (DashboardPage)", () => {
             t("dashboard.tasks.title"),
             t("dashboard.areas.lastReport"),
             t("dashboard.areas.newLoot"),
-            t("dashboard.areas.recruitment"),
             t("dashboard.areas.roster"),
             t("dashboard.loot.title"),
             t("dashboard.recent.title"),
@@ -120,6 +122,33 @@ describe("Übersicht (DashboardPage)", () => {
             expect(parts[i - 1].compareDocumentPosition(parts[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         }
         expect(screen.getByText("Pulse · Thunderstrike", { exact: false })).toBeInTheDocument();
+        // recruitment is no tile of the start page any more
+        expect(screen.queryByText("Recruitment")).not.toBeInTheDocument();
+    });
+
+    it("names the category of the next raid, of the raid after it and of every last raid", async () => {
+        const recent = {
+            id: "r1", title: "T6 + Gruul", startTime: now - DAY, channelId: "c7", channelName: "raid-07", categoryName: "Mittwoch-PuG",
+            logs: [], lootCount: 0, softres: null, icon: "achievement_boss_gruul",
+        };
+        await showPage(dashboard({
+            followingRaid: raid({ id: "1401", title: "Hyjal", categoryName: "Montag-Raid" }),
+            recentEvents: { events: [recent], error: null },
+        }));
+        expect(screen.getByText("Donnerstag-Raid")).toHaveAttribute("data-tip", t("dashboard.next.categoryTip"));
+        expect(screen.getByText("Montag-Raid")).toBeInTheDocument();
+        expect(screen.getByText(/^Mittwoch-PuG · /)).toBeInTheDocument();
+    });
+
+    it("shows the sheet only for a category that plans with one", async () => {
+        await showPage(dashboard({ nextRaid: raid({ planning: "raidplan", sheet: null }) }));
+        expect(screen.queryByText(t("dashboard.sheet.missing"))).not.toBeInTheDocument();
+        expect(screen.queryByText(t("dashboard.sheet.done"))).not.toBeInTheDocument();
+    });
+
+    it("says 'Sheet fehlt' for a sheet category without one", async () => {
+        await showPage(dashboard({ nextRaid: raid({ planning: "sheet", sheet: null }) }));
+        expect(screen.getByText(t("dashboard.sheet.missing"))).toBeInTheDocument();
     });
 
     it("offers a new raid event with a WoW icon, no line icon", async () => {
@@ -300,6 +329,16 @@ describe("Raid-Details modal", () => {
         // the footer button (the corner x carries the same name)
         await user.click(within(dialog).getByText("Schließen", { selector: "button" }));
         await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    });
+
+    it("leaves the sheet out of a raid-plan category: no row, 'Raid öffnen' as the way", async () => {
+        vi.mocked(api.getNextRaidDetails).mockResolvedValue({ raid: details({ planning: "raidplan", sheet: null }), activeGuildId: "g1" });
+        await showPage(dashboard());
+        await userEvent.setup().click(screen.getByRole("button", { name: "Details" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(await within(dialog).findByRole("link", { name: "Raid öffnen" })).toHaveAttribute("href", "/raids/detail?event=1400");
+        expect(within(dialog).queryByText(t("dashboard.raidDetails.raidsheet"))).not.toBeInTheDocument();
+        expect(within(dialog).queryByRole("link", { name: "Sheet füllen" })).not.toBeInTheDocument();
     });
 
     it("gives the softres row to the loot system where no list is used", async () => {

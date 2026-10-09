@@ -22,6 +22,8 @@ const { runMode } = require("./config/runMode.js");
 const { ensureAppEmojis } = require("./services/discord/appEmojiSync.js");
 const { queueItemEmojiSync } = require("./services/guildbank/itemEmojis.js");
 const linkWatch = require("./services/discord/linkWatch.js");
+const discord = require("./services/discord/discord.js");
+const { configuredGuildIds } = require("./services/discord/guildRoles.js");
 const { loadCommandModules, kindOf } = require("./commands/loader.js");
 const { startJobs } = require("./web/http/jobs.js");
 const logger = require("./logger.js").child("bot");
@@ -63,6 +65,13 @@ client.on(Events.ClientReady, () => {
     ensureAppEmojis(client).catch((error) => logger.warn("ensureAppEmojis failed:", error.message));
     // The guild bank items' icons (#633): whatever changed while the bot was offline.
     queueItemEmojiSync({ delay: 30 * 1000 });
+    // The member lists of the configured servers, in the background: the first raid detail,
+    // roster or dashboard after a restart then finds them cached (services/discord/discord.js).
+    try {
+        discord.warmGuildMembers(configuredGuildIds());
+    } catch (error) {
+        logger.warn("member list warm-up failed:", error.message);
+    }
 });
 
 // Watch the configured log channels for Warcraft-Logs links and offer to evaluate them.

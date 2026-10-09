@@ -45,6 +45,10 @@ jest.mock("../../../src/stores/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+// "Für dich" has its own test (test/web/dashboard/dashboardPersonal.test.js); here only who gets it
+jest.mock("../../../src/web/dashboard/dashboardPersonal", () => ({
+    loadPersonal: jest.fn(async () => ({ upcoming: [], upcomingError: null, attendance: null, recent: [], profile: { characters: 0, hints: [] } })),
+}));
 jest.mock("../../../src/web/dashboard/dashboardData", () => ({
     loadNextRaids: jest.fn(() => Promise.resolve({ raids: [], error: null })),
     loadNextRaidDetails: jest.fn(() => Promise.resolve({ error: "Event nicht gefunden.", notFound: true })),
@@ -264,6 +268,7 @@ const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const dashboardData = require("../../../src/web/dashboard/dashboardData");
+const { loadPersonal } = require("../../../src/web/dashboard/dashboardPersonal");
 const discord = require("../../../src/services/discord/discord");
 const { handle, get } = routerClient(require("../../../src/web/apiRoutes/dashboard"));
 
@@ -309,6 +314,50 @@ describe("web/apiRoutes/dashboard", () => {
             expect(task.title).toContain("Zibbo");
         });
 
+        it("gives a raider (own signup only) \"Für dich\" and the top items, nothing of the orga", async () => {
+            const raider = { id: "7", name: "Rai", isAdmin: false, access: { signup: { read: true, write: true } } };
+            auth.getUser.mockReturnValue(raider);
+            activeGuildFor.mockReturnValue("guild-1");
+            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, open: 7 });
+            dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1] }]);
+            dashboardData.loadNextRaids.mockClear();
+            dashboardData.loadRecentEvents.mockClear();
+            dashboardData.loadTopLoot.mockReturnValue({ items: [{ itemId: 1 }], configured: 1 });
+
+            const data = json(await get("/api/dashboard")).data;
+
+            expect(loadPersonal).toHaveBeenCalledWith("guild-1", raider, expect.objectContaining({ orga: false, versionId: "tbc" }));
+            expect(data.orga).toBe(false);
+            expect(data.personal).toMatchObject({ upcoming: [], recent: [] });
+            expect(dashboardData.loadNextRaids).not.toHaveBeenCalled();
+            expect(dashboardData.loadRecentEvents).not.toHaveBeenCalled();
+            expect(data.nextRaid).toBeNull();
+            expect(data.areas).toBeNull();
+            expect(data.tasks).toEqual([]);
+            expect(data.topLoot.items).toHaveLength(1);
+        });
+
+        it("hands each task only to whoever can do it: reading the raids is not reviewing or importing", async () => {
+            const reader = { id: "8", name: "Lead", isAdmin: false, access: { raids: { read: true, write: false }, dashboard: { read: true, write: false } } };
+            auth.getUser.mockReturnValue(reader);
+            activeGuildFor.mockReturnValue("guild-1");
+            dashboardData.loadNextRaids.mockResolvedValue({ raids: [{ id: "n1", title: "BT", startTime: 2000, sheet: null, planning: "sheet" }], error: null });
+            dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "e1", title: "Hyjal", startTime: 1000, pendingLogCount: 2, logs: [] }], error: null });
+            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, open: 7 });
+            dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1] }]);
+            loadPersonal.mockClear();
+
+            const data = json(await get("/api/dashboard")).data;
+
+            expect(data.orga).toBe(true);
+            // no own signup area: no "Für dich"
+            expect(loadPersonal).not.toHaveBeenCalled();
+            expect(data.personal).toBeNull();
+            expect(data.nextRaid).toMatchObject({ id: "n1" });
+            expect(data.areas).toMatchObject({ lastReport: { id: "r1" } });
+            expect(data.tasks.map((t) => t.id)).toEqual([]);
+        });
+
         it("returns 403 for a logged-in non-admin", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Bob", isAdmin: false });
             const res = mockRes();
@@ -349,9 +398,10 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.areas).toEqual({
                 lastReport: { id: "r1", zone: "Black Temple", generatedAt: 5, problems: 3, open: 7 },
                 newLoot: { count: 3, since: 1000000 },
-                recruitment: { posts: 2 },
                 roster: { total: 27, withoutDiscord: 2 },
             });
+            // recruitment posts are no figure of the start page any more
+            expect(data.areas.recruitment).toBeUndefined();
             expect(data.recentEvents.events[0]).toMatchObject({ id: "e1", icon: "achievement_boss_archimonde-" });
             expect(data.topLoot).toEqual({ items: [{ itemId: 30883, character: "Kilrogg" }], configured: 3 });
             expect(data.activeGuildId).toBe("guild-1");

@@ -31,11 +31,26 @@ const store = createJsonStore({
     file: SIGNUPS_FILE,
     defaults: () => ({}),
     normalize: (data) => (data && data.signups && typeof data.signups === "object" ? data.signups : {}),
+    // Read per event and per raider (absences, attendance, every event list): parsed once per change.
+    cache: true,
 });
 
+/** Every signup, as a copy to change and write back. */
 function readAll() {
     return store.read();
 }
+
+/**
+ * Every signup, read-only: the cached value itself, frozen (jsonStore peek()).
+ * The accessors below copy each signup they hand out, so no caller ever holds
+ * a piece of the cache - and a lookup per event costs that event, not the file.
+ */
+function peekAll() {
+    return store.peek();
+}
+
+/** One stored signup as the readers get it: a copy of its own, in the shape since #293. */
+const handOut = (s) => migrateSignup(structuredClone(s));
 
 function writeAll(signups) {
     store.write({ signups });
@@ -59,18 +74,18 @@ function onSignupsChanged(fn) {
 
 /** An event's signups, oldest first (the order people reacted in). */
 function listSignups(eventId) {
-    const byUser = readAll()[String(eventId || "")] || {};
+    const byUser = peekAll()[String(eventId || "")] || {};
     return Object.values(byUser)
         .filter((s) => s && s.userId)
-        .map(migrateSignup)
+        .map(handOut)
         .sort((a, b) => (Number(a.at) || 0) - (Number(b.at) || 0));
 }
 
 /** One user's signup to an event, or null. */
 function getSignup(eventId, userId) {
-    const byUser = readAll()[String(eventId || "")] || {};
+    const byUser = peekAll()[String(eventId || "")] || {};
     const found = byUser[String(userId || "")];
-    return found ? migrateSignup(found) : null;
+    return found ? handOut(found) : null;
 }
 
 /**
@@ -157,7 +172,7 @@ function lastOwnSignupOf(userId, keep = null) {
     if (!uid) return null;
     let best = null;
     let bestAt = -1;
-    for (const [eventId, byUser] of Object.entries(readAll())) {
+    for (const [eventId, byUser] of Object.entries(peekAll())) {
         const s = byUser && byUser[uid];
         if (!s || !s.spec || s.status === "absence") continue;
         if (keep && !keep(eventId)) continue;
@@ -179,9 +194,9 @@ function signupsOfUser(userId) {
     const uid = String(userId || "");
     const out = {};
     if (!uid) return out;
-    for (const [eventId, byUser] of Object.entries(readAll())) {
+    for (const [eventId, byUser] of Object.entries(peekAll())) {
         const s = byUser && byUser[uid];
-        if (s && s.userId) out[eventId] = migrateSignup(s);
+        if (s && s.userId) out[eventId] = handOut(s);
     }
     return out;
 }

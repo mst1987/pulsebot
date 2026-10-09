@@ -2,9 +2,10 @@
 // meta, raidplan setup, attendance vs. role holders, softres/sheet links
 // already created, the loot already imported, the logs, the step bar. The
 // route (apiRoutes/raidDetail.js) only speaks HTTP; this module builds the
-// payload from one small builder per part, in the order the old handler ran
-// them — the setup (Raid-Helper) before the member list (Discord) before the
-// own signups before the log titles, so the outside calls go out as before.
+// payload from one small builder per part. The parts that go outside — the
+// setup (Raid-Helper), the member list (Discord), the own signups' names
+// (Discord), the log titles (Warcraft Logs) — run in parallel; only the softres
+// part waits, it reads the attendance.
 //
 // Some fields (notifyTemplates, roles, matchedSheetId, tankCandidates,
 // softresCatalogue/Edition/Suggested) are only consumed by the page's action
@@ -69,8 +70,8 @@ function eventVersionSettings(found, config) {
 const isOwn = (found) => found.e.source === "eventhelper";
 
 /** The state "Event verwalten" (#288) sets on an own event, for the page head and the menu. */
-function manageState(eventId) {
-    const ev = getEvent(eventId) || {};
+function manageState(eventId, stored = getEvent(eventId)) {
+    const ev = stored || {};
     return {
         status: ev.status || "active",
         signupsClosed: !!ev.signupsClosed,
@@ -94,8 +95,8 @@ function raidplanSwitchedOn(eventId) {
  * Freigabe step says: is it out, which state does it show, how many DMs went.
  * Deliberately no `told` map and no failed user ids — the bar names numbers.
  */
-function setupPostState(eventId) {
-    const post = (getEvent(eventId) || {}).setupPost;
+function setupPostState(eventId, stored = getEvent(eventId)) {
+    const post = (stored || {}).setupPost;
     if (!post || !post.messageId) return null;
     const dms = post.dms || null;
     return {
@@ -194,10 +195,10 @@ async function attendancePart(guildId, found, signupsKnown) {
  * itself comes from GET /api/raids/setup, which hands a draft to nobody but
  * the orga.
  */
-async function ownEventPart(guildId, found, eventId) {
+async function ownEventPart(guildId, found, eventId, stored = isOwn(found) ? getEvent(eventId) : null) {
     if (!isOwn(found)) return { ownSignups: null, ownSetup: null, ownSetupPost: null };
-    const ownSetupPost = setupPostState(eventId);
-    const ownSetup = setupSummary(getEvent(eventId));
+    const ownSetupPost = setupPostState(eventId, stored);
+    const ownSetup = setupSummary(stored);
     const rows = listSignups(eventId);
     const names = rows.length ? await discord.resolveUserNames(guildId, rows.map((s) => s.userId)) : {};
     // who of the orga is in the setup editor right now (only the names; the editor itself polls for more)
@@ -240,7 +241,7 @@ async function logsPart(guildId, eventId) {
 }
 
 /** The page head's event: what every source has, plus what only an own event plans with. */
-function eventMeta(found, eventId, { isPast, signupsKnown, guildId = "", planning = "raidplan" }) {
+function eventMeta(found, eventId, { isPast, signupsKnown, guildId = "", planning = "raidplan", stored }) {
     return {
         id: found.e.id,
         source: found.e.source || "raidhelper",
@@ -260,7 +261,7 @@ function eventMeta(found, eventId, { isPast, signupsKnown, guildId = "", plannin
         // plus what only an own event plans with: the cockpit's Anmeldung step
         // measures against the size and ends at the signup deadline (#319).
         ...(isOwn(found) ? {
-            ...manageState(eventId),
+            ...manageState(eventId, stored),
             size: Number(found.e.size) || 0,
             signupDeadline: Number(found.e.signupDeadline) || 0,
         } : {}),
@@ -300,20 +301,27 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
     const version = eventVersionSettings(found, config);
     const raidsheets = listRaidsheets();
     const matched = pickRaidsheet(raidsheets, found.e.title, { ownId: version.raidsheetId, otherIds: version.otherSheetIds });
-    const setupInfo = await setupPart(found, eventId);
     // A raid that is over and whose signups Raid-Helper no longer returns (and
     // that was never snapshotted) has an UNKNOWN roster — not an empty one.
     // Reporting it as "0 Anmeldungen, alle fehlen" is what made past raids look
     // like nobody had ever reacted.
     const isPast = hasStarted(found.e);
     const signupsKnown = isRosterKnown(found.e);
-    const attendanceInfo = await attendancePart(guildId, found, signupsKnown);
-    const own = await ownEventPart(guildId, found, eventId);
+    // The own event's stored record, read once for the head, the setup state and its post.
+    const stored = isOwn(found) ? getEvent(eventId) : null;
+    // The four outside reads do not depend on each other — Raid-Helper's setup,
+    // Discord's member list, Discord's names for the own signups, Warcraft Logs'
+    // titles — so they run side by side: the page waits for the slowest, not the sum.
+    const [setupInfo, attendanceInfo, own, logs] = await Promise.all([
+        setupPart(found, eventId),
+        attendancePart(guildId, found, signupsKnown),
+        ownEventPart(guildId, found, eventId, stored),
+        logsPart(guildId, eventId),
+    ]);
     const softresInfo = softresPart(found, eventId, attendanceInfo, version.softresEdition);
-    const logs = await logsPart(guildId, eventId);
 
     const payload = {
-        event: eventMeta(found, eventId, { isPast, signupsKnown, guildId, planning }),
+        event: eventMeta(found, eventId, { isPast, signupsKnown, guildId, planning, stored }),
         // "raidplan" | "sheet": which of the two this raid's category plans with (Einstellungen → Kategorien).
         planning,
         setupFromSnapshot: setupInfo.setupFromSnapshot,

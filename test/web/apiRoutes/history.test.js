@@ -279,6 +279,7 @@ const charGearIssues = require("../../../src/web/characters/charGearIssues");
 const lootImport = require("../../../src/utils/loot/lootImport");
 const lootEventMatch = require("../../../src/web/loot/lootEventMatch");
 const reportList = require("../../../src/services/logcheck/reportList");
+const charGear = require("../../../src/services/characters/charGear");
 const { emptyAccess } = require("../../../src/config/permissions");
 const { post, get } = routerClient(require("../../../src/web/apiRoutes/history"));
 
@@ -1014,6 +1015,8 @@ describe("web/apiRoutes/history", () => {
             lootStore.listByCharacter.mockReturnValue([]);
             settingsStore.getConfig.mockReturnValue({});
             characterStore.getCharacter.mockReturnValue(null);
+            // every test asks Blizzard afresh: a found character is kept for 10 minutes (charGear.js)
+            charGear._resetForTests();
         });
 
         it("returns 401 for an anonymous caller", async () => {
@@ -1115,6 +1118,19 @@ describe("web/apiRoutes/history", () => {
                 classColor: "#F58CBA",
                 iconUrl: "https://wow.zamimg.com/images/wow/icons/large/classicon_paladin.jpg",
             });
+        });
+
+        it("asks Blizzard once for a character opened twice in a row", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            mockGetCharacterSummary.mockResolvedValue({ name: "Anna", level: 70 });
+            mockGetEquipment.mockResolvedValue([{ slot: "Head", itemId: 123, name: "Helm" }]);
+
+            await get("/api/history/char", { name: "Anna" });
+            const again = json(await get("/api/history/char", { name: "Anna" })).data;
+
+            expect(mockGetEquipment).toHaveBeenCalledTimes(1);
+            expect(mockGetCharacterSummary).toHaveBeenCalledTimes(1);
+            expect(again.gear).toEqual([{ slot: "Head", itemId: 123, name: "Helm" }]);
         });
 
         it("builds the 404 gearError with name/namespace/realm when the profile is not found", async () => {

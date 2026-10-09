@@ -15,6 +15,7 @@
 // (src/web-client/src/lib/app/chunkReload.ts).
 const fs = require("fs/promises");
 const path = require("path");
+const compression = require("./compression");
 
 const DIST_DIR = path.join(__dirname, "..", "..", "web-client", "dist");
 
@@ -59,6 +60,28 @@ function cacheControlFor(rel) {
     return rel.startsWith("assets/") ? IMMUTABLE : NO_CACHE;
 }
 
+// Compressed copies of the hashed files under assets/ (they never change): "<path>|<encoding>" -> Buffer.
+// The slow brotli level is paid once per file and encoding, not per request.
+const compressedCache = new Map();
+
+async function compressedAsset(rel, data, encoding) {
+    const key = `${rel}|${encoding}`;
+    if (!compressedCache.has(key)) {
+        compressedCache.set(key, compression.compress(data, encoding, { brotliQuality: compression.STATIC_BROTLI_QUALITY }));
+    }
+    try {
+        return await compressedCache.get(key);
+    } catch (e) {
+        compressedCache.delete(key);
+        throw e;
+    }
+}
+
+/** Test hook: forget the compressed copies. */
+function clearCompressedCache() {
+    compressedCache.clear();
+}
+
 function reply(req, res, status, headers, body) {
     res.writeHead(status, headers);
     res.end(req.method === "HEAD" ? undefined : body);
@@ -79,7 +102,18 @@ async function serve(req, res, pathname) {
         const data = await readFromDist(rel);
         if (data) {
             const contentType = CONTENT_TYPES[path.extname(rel).toLowerCase()] || "application/octet-stream";
-            reply(req, res, 200, { "Content-Type": contentType, "Cache-Control": cacheControlFor(rel) }, data);
+            const headers = { "Content-Type": contentType, "Cache-Control": cacheControlFor(rel) };
+            const encoding = req.method === "GET" && rel.startsWith("assets/") && data.length >= compression.MIN_BYTES && compression.isCompressible(contentType)
+                ? compression.pickEncoding(req.headers && req.headers["accept-encoding"])
+                : "";
+            if (encoding) {
+                try {
+                    const packed = await compressedAsset(rel, data, encoding);
+                    reply(req, res, 200, { ...headers, "Content-Encoding": encoding, Vary: "Accept-Encoding", "Content-Length": packed.length }, packed);
+                    return true;
+                } catch { /* fall through to the plain file */ }
+            }
+            reply(req, res, 200, headers, data);
             return true;
         }
         if (isFilePath(rel)) {
@@ -98,4 +132,4 @@ async function serve(req, res, pathname) {
     return true;
 }
 
-module.exports = { serve, isFilePath, cacheControlFor };
+module.exports = { serve, isFilePath, cacheControlFor, clearCompressedCache };

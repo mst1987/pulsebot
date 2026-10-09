@@ -18,6 +18,8 @@ const store = createJsonStore({
     file: EVENTS_FILE,
     defaults: () => [],
     normalize: (data) => (Array.isArray(data.events) ? data.events : []),
+    // Read on every page and per event (getEvent): parsed once per change.
+    cache: true,
 });
 
 // Own ids carry a prefix, so an id alone says which source it belongs to —
@@ -41,9 +43,21 @@ const { emojiStyleOf } = require("../services/discord/appEmojis");
 const { str } = require("../utils/text");
 const { normalizeOverflow, isLegacyOverflow, normalizeLockAtLimit } = require("../utils/signup/capacity");
 
+/** Every stored event, as a copy to change and write back. */
 function readAll() {
     return store.read();
 }
+
+/**
+ * Every stored event, read-only: the cached list itself, frozen (jsonStore
+ * peek()). Readers pick their events from it and copy only those (handOut).
+ */
+function peekAll() {
+    return store.peek();
+}
+
+/** A stored event as readers get it: a copy of its own, every field present. */
+const handOut = (e) => complete(structuredClone(e));
 
 function writeAll(events) {
     store.write({ events });
@@ -268,10 +282,10 @@ function listEvents(guildId, opts = {}) {
     const gid = str(guildId);
     const since = Number(opts.sinceSeconds) || 0;
     const until = Number(opts.untilSeconds) || 0;
-    return readAll()
+    return peekAll()
         .filter((e) => e && e.id && (!gid || e.guildId === gid))
         .filter((e) => (!since || (Number(e.startTime) || 0) >= since) && (!until || (Number(e.startTime) || 0) <= until))
-        .map(complete)
+        .map(handOut)
         .sort((a, b) => b.startTime - a.startTime);
 }
 
@@ -279,8 +293,8 @@ function listEvents(guildId, opts = {}) {
 function getEvent(id) {
     const key = str(id);
     if (!key) return null;
-    const hit = readAll().find((e) => e && e.id === key);
-    return hit ? complete(hit) : null;
+    const hit = peekAll().find((e) => e && e.id === key);
+    return hit ? handOut(hit) : null;
 }
 
 /**

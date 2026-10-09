@@ -34,7 +34,7 @@ describe("web/http/routeTable", () => {
     });
 
     it("finds a route by method and path, and nothing for the wrong method", () => {
-        expect(find("GET", "/api/dashboard")).toMatchObject({ path: "/api/dashboard", area: "dashboard", module: "dashboard" });
+        expect(find("GET", "/api/dashboard")).toMatchObject({ path: "/api/dashboard", area: ["dashboard", "signup"], module: "dashboard" });
         expect(find("POST", "/api/dashboard")).toBeNull();
         expect(find("GET", "/api/nope")).toBeNull();
     });

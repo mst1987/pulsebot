@@ -17,6 +17,8 @@ const store = createJsonStore({
     file: LOOT_FILE,
     defaults: () => [],
     normalize: (data) => (Array.isArray(data.items) ? data.items : []),
+    // Read on every page that lists it: parsed once per change, not per call.
+    cache: true,
 });
 
 function readAll() {
