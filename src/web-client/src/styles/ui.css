@@ -128,6 +128,7 @@ button.badge.chip:disabled { opacity: .45; cursor: not-allowed; border-color: va
 .itile.t-kader { --tile-bg: var(--area-kader-soft); color: var(--area-kader); }
 .itile.t-channels { --tile-bg: var(--area-channels-soft); color: var(--area-channels); }
 .itile.t-settings { --tile-bg: var(--area-settings-soft); color: var(--area-settings); }
+.itile.t-system { --tile-bg: var(--area-system-soft); color: var(--area-system); }
 .itile.t-ok { --tile-bg: var(--good-bg); color: var(--good); }
 .itile.t-mid { --tile-bg: var(--medium-bg); color: var(--medium); }
 .itile.t-bad { --tile-bg: var(--high-bg); color: var(--high); }

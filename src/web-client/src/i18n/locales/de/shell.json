@@ -30,7 +30,8 @@
         "settings": "Einstellungen",
         "planTemplates": "Raidplan-Vorlagen",
         "planCatalog": "Raidplan-Katalog",
-        "absences": "Abwesenheiten"
+        "absences": "Abwesenheiten",
+        "system": "Systemstatus"
     },
     "group": {
         "Start": "Start",
@@ -121,6 +122,7 @@
     "app": {
         "noWrite": "Für diesen Bereich fehlen dir die Schreibrechte.",
         "noRead": "Für diesen Bereich hat deine Rolle keine Berechtigung.",
+        "adminOnly": "Diese Seite ist nur für Administratoren.",
         "noAccess": "Dein Discord-Konto hat noch keinen Zugang zu diesem Menü.",
         "noAccessHint": "Ein Admin kann dir in den Einstellungen unter „Berechtigungen\" Bereiche freischalten.",
         "notFound": "Diese Seite gibt es nicht.",

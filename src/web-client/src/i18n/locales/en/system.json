@@ -1,0 +1,156 @@
+{
+    "kicker": "System",
+    "title": "System status",
+    "loading": "Loading measurements",
+    "refresh": "Measure again",
+    "refreshTip": "Measure processes and disk space again now (takes about a second)",
+    "meta": {
+        "uptime": "Bot up for {time}",
+        "uptimeTip": "Uptime of the bot process",
+        "uptimeSub": "The server itself has been up for {host}.",
+        "runtimeTip": "How the bot was started",
+        "pm2": "pm2",
+        "docker": "Docker",
+        "live": "updated every 15 s",
+        "liveTip": "The page asks again every 15 seconds while it is visible. The history lives in memory only: it starts over after a restart."
+    },
+    "verdict": {
+        "aria": "Assessment",
+        "ok": "All good",
+        "okText": "Server and bot have room to spare: no lasting load, enough memory and space.",
+        "warn": "Getting tight",
+        "bad": "Bottleneck found",
+        "warmingUp": "Not enough measurements yet - the assessment follows after about a minute.",
+        "warmingUpPartial": "Only a few measurements yet - CPU and memory are judged after about a minute.",
+        "advice": "Recommendation"
+    },
+    "findings": {
+        "otherProcess": {
+            "text": "Another process is loading the server: {hostCpu} CPU in total, the bot itself only {botCpu}.",
+            "named": "Another process is loading the server: \"{process}\" takes {processCpu} CPU, {hostCpu} in total, the bot itself only {botCpu}.",
+            "advice": "Check what this process does - or move it to a server of its own. A bigger server only helps if it has to keep running."
+        },
+        "botBottleneck": {
+            "cpu": "The bot itself is the bottleneck: it keeps {procCpu} of one CPU core busy.",
+            "loop": "The bot itself is the bottleneck: requests wait up to {loopP99} for each other (over 200 ms in {loopShare} of the measurements).",
+            "routes": "Slowest requests: {routes}.",
+            "advice": "More cores hardly help - Node computes on one core. Optimise the slowest requests; a faster core helps a little."
+        },
+        "hostBusy": {
+            "text": "The server is busy: {hostCpu} CPU, {botCpu} of it from the bot ({cores} cores).",
+            "advice": "Keep an eye on it. If it stays like this, a server with more or faster cores helps."
+        },
+        "cpuOverloaded": {
+            "text": "CPU overloaded: load {load5} (5 minutes) and {load15} (15 minutes) on {cores} cores - more work is waiting than there are cores.",
+            "advice": "More CPU cores or a bigger server."
+        },
+        "memoryLow": {
+            "ram": "Not enough memory: only {memAvailPct} available ({memAvail} of {memTotal}).",
+            "swap": "Not enough memory: the swap space is {swapUsedPct} full - that slows everything down.",
+            "advice": "More RAM or a bigger server."
+        },
+        "diskLow": {
+            "text": "Disk almost full: only {freePct} free ({free} of {total}).",
+            "advice": "Clean up old reports and data under data/ or book more disk space."
+        }
+    },
+    "units": {
+        "days": { "one": "{count} day", "other": "{count} days" },
+        "hours": { "one": "{count} h", "other": "{count} h" },
+        "minutes": { "one": "{count} min", "other": "{count} min" },
+        "seconds": { "one": "{count} s", "other": "{count} s" }
+    },
+    "tiles": {
+        "aria": "Key figures",
+        "range": "Time span of the charts",
+        "hour": "1 hour",
+        "day": "24 hours",
+        "noSample": "The first measurement comes 15 seconds after the start.",
+        "hostCpu": "Server CPU",
+        "hostCpuTip": "Load of all CPU cores of the server",
+        "hostCpuSub": "Everything that runs on the server - the bot and every other process.",
+        "cores": { "one": "{count} core", "other": "{count} cores" },
+        "load": "Load {load}",
+        "noLoad": "Load n/a",
+        "procCpu": "Bot CPU",
+        "procCpuTip": "CPU of the bot process, relative to one core",
+        "procCpuSub": "100 % means one core is full. Node computes on one core - from there on every request waits.",
+        "elu": "Event loop {elu} busy",
+        "mem": "RAM available",
+        "memSub": "{pct} of {total}",
+        "memTip": "Memory that programs can still get",
+        "swap": "Swap: {used} of {total} in use",
+        "memSubNoSwap": "Swap cannot be measured here.",
+        "loop": "Delay p99",
+        "loopSub": "Peak {max}",
+        "loopTip": "How long a request has to wait in the bot before its turn",
+        "loopSub2": "99 % of the waits of the last 15 seconds were shorter. From 200 ms on it shows in the menu.",
+        "disk": "Disk free",
+        "diskSub": "{free} of {total}",
+        "diskUnknown": "not measurable",
+        "diskTip": "Free space on the disk of the data directory",
+        "diskSub2": "Measured again at most every 5 minutes."
+    },
+    "details": {
+        "toggle": "Details on server and bot",
+        "cpu": "Processor",
+        "load": "Load 1 · 5 · 15 min",
+        "na": "n/a",
+        "swap": "Swap",
+        "rss": "Bot memory (RSS)",
+        "heap": "Heap",
+        "heapValue": "{used} of {total} · external {external}",
+        "loop": "Event loop",
+        "loopValue": "p50 {p50} · p99 {p99} · peak {max}",
+        "node": "Node",
+        "runtime": "Started by",
+        "pm2": "pm2 (process {id})",
+        "plain": "node directly",
+        "processUptime": "Bot up for",
+        "hostUptime": "Server up for"
+    },
+    "routes": {
+        "title": "Slowest requests",
+        "since": "counted since {time}",
+        "tip": "Every page and every API request, measured in the bot. Ids and tokens in the path are replaced by :id. Slow means: {ms} ms or more.",
+        "window": "Time span",
+        "hour": "Last hour",
+        "total": "Since start",
+        "route": "Path",
+        "count": "Requests",
+        "countTip": "Number of requests",
+        "avg": "Avg",
+        "avgTip": "Average duration",
+        "p95": "p95",
+        "p95Tip": "95 % of the requests were faster",
+        "max": "Max",
+        "maxTip": "Longest request",
+        "slow": "Slow",
+        "slowTip": "Requests of {ms} ms or more",
+        "empty": "No requests in this time span yet.",
+        "slowList": { "zero": "No slow requests", "one": "Last slow request", "other": "Last {count} slow requests" },
+        "noSlow": "No request took longer than {ms} ms since the start."
+    },
+    "procs": {
+        "title": "Processes on the server",
+        "at": "measured at {time}",
+        "tip": "The processes with the most CPU in the second of the measurement. Name and number only - no command lines.",
+        "tipPs": "The processes with the most CPU according to ps - there it is the average since the process started. Name and number only - no command lines.",
+        "self": "Bot",
+        "pid": "PID {pid}",
+        "cpu": "{cpu} CPU",
+        "cpuTip": "Share of one core; over 100 % means more than one core",
+        "mem": "{mem} RAM · {rss}",
+        "memTip": "Share of the server's memory"
+    },
+    "disk": {
+        "title": "Disk space",
+        "at": "measured at {time}",
+        "tip": "The biggest folders and files in the bot's data directory (data/).",
+        "empty": "The data directory is empty.",
+        "files": { "one": "{count} file", "other": "{count} files" },
+        "truncated": "Very many files - the sizes are lower bounds.",
+        "biggest": { "one": "Biggest file", "other": "Biggest {count} files" },
+        "noSpace": "The free space of the disk cannot be measured here."
+    }
+}

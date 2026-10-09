@@ -247,6 +247,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 .area-kader { --area: var(--area-kader); --area-soft: var(--area-kader-soft); }
 .area-channels { --area: var(--area-channels); --area-soft: var(--area-channels-soft); }
 .area-settings { --area: var(--area-settings); --area-soft: var(--area-settings-soft); }
+.area-system { --area: var(--area-system); --area-soft: var(--area-system-soft); }
 /* Which commit the server runs (#314). One quiet line above the user block —
    small, muted, the details in its tooltip; only the dot carries the tone. */
 .side-version { padding: 8px 14px; border-top: 1px solid var(--line-soft); display: flex; align-items: flex-start; gap: 8px; font-size: 11px; line-height: 1.4; color: var(--muted); cursor: default; }
@@ -285,7 +286,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 :root { --page-narrow: 1200px; }
 .content { padding: 24px; max-width: 1440px; width: 100%; min-width: 0; }
 .ov-page, .re-page, .rt-page, .sr-page, .an-page, .pf-page, .rc-page, .kn-page,
-.la-page, .hc-page,
+.la-page, .hc-page, .sy-page,
 .settings-panel:not([data-section="berechtigungen"]):not([data-section="kategorien"]) {
     max-width: var(--page-narrow);
 }

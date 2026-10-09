@@ -34,6 +34,7 @@
     --area-history: #f472b6; --area-history-soft: rgba(244, 114, 182, .16);
     --area-channels: #4dd0c8; --area-channels-soft: rgba(77, 208, 200, .16);
     --area-settings: #b083f0; --area-settings-soft: rgba(176, 131, 240, .16);
+    --area-system: #7fa7d9; --area-system-soft: rgba(127, 167, 217, .16);
     --area-home: #8a7cff; --area-home-soft: rgba(138, 124, 255, .16);
     --area-profile: #38bdf8; --area-profile-soft: rgba(56, 189, 248, .16);
     --area-signups: #4ade80; --area-signups-soft: rgba(74, 222, 128, .16);
@@ -154,6 +155,7 @@
         --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
         --area-channels: #1f978c; --area-channels-soft: rgba(31, 151, 140, .12);
         --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
+        --area-system: #3f6fae; --area-system-soft: rgba(63, 111, 174, .12);
         --area-home: #6a4fe0; --area-home-soft: rgba(106, 79, 224, .12);
         --area-profile: #0e7fb8; --area-profile-soft: rgba(14, 127, 184, .12);
         --area-signups: #16a34a; --area-signups-soft: rgba(22, 163, 74, .12);
@@ -203,6 +205,7 @@
     --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
     --area-channels: #1f978c; --area-channels-soft: rgba(31, 151, 140, .12);
     --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
+    --area-system: #3f6fae; --area-system-soft: rgba(63, 111, 174, .12);
     --area-home: #6a4fe0; --area-home-soft: rgba(106, 79, 224, .12);
     --area-profile: #0e7fb8; --area-profile-soft: rgba(14, 127, 184, .12);
     --area-signups: #16a34a; --area-signups-soft: rgba(22, 163, 74, .12);

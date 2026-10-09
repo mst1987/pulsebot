@@ -226,6 +226,27 @@ describe("slow request log", () => {
         out.mockRestore();
     });
 
+    // The "Systemstatus" page reads the same timing (services/system/requestStats.js).
+    it("counts every timed request in the route statistics, the slow ones as slow, no query string", async () => {
+        const requestStats = require("../../../src/services/system/requestStats");
+        requestStats.reset();
+        jest.spyOn(console, "warn").mockImplementation(() => {});
+        server = await serve((req, res) => {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end("{}");
+        });
+        process.env.SLOW_REQUEST_MS = "0";
+        await get(server, "/r/aBcD1234eFgH5678?token=secret");
+        process.env.SLOW_REQUEST_MS = "100000";
+        await get(server, "/api/fast");
+        await get(server, "/assets/app.js"); // not timed, not counted
+        const snap = requestStats.snapshot();
+        expect(snap.routes.map((r) => [r.route, r.total.count, r.total.slow]).sort()).toEqual([["/api/fast", 1, 0], ["/r/:id", 1, 1]]);
+        expect(snap.slow).toEqual([expect.objectContaining({ method: "GET", path: "/r/:id", status: 200 })]);
+        expect(JSON.stringify(snap)).not.toContain("secret");
+        console.warn.mockRestore();
+    });
+
     it("defaults to 1000 ms for a missing or invalid value", () => {
         delete process.env.SLOW_REQUEST_MS;
         expect(compression.slowThresholdMs()).toBe(1000);

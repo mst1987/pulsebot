@@ -29,11 +29,13 @@ describe("one menu for both front ends", () => {
             expect(entry).toEqual({
                 // a sub entry keeps its parent's colour (the raid plan pages under Raid-Events)
                 ...(entry.sub ? { area: "raids", sub: true } : {}),
+                // an adminOnly entry (Systemstatus) belongs to no area: full admins only
+                ...(entry.adminOnly ? { adminOnly: true } : {}),
                 id: expect.stringMatching(/^[a-zA-Z]+$/),
                 label: expect.any(String),
                 href: expect.stringMatching(/^\//),
                 group: expect.stringMatching(/^(Start|Raids|Loot|Gilde|System)$/),
-                areas: expect.arrayContaining([expect.any(String)]),
+                areas: entry.adminOnly ? [] : expect.arrayContaining([expect.any(String)]),
                 wowIcon: expect.stringMatching(/^[a-z0-9_'-]+$/),
             });
         }
@@ -54,7 +56,8 @@ describe("one menu for both front ends", () => {
             // Oct 2026: loot pages moved under Raids (no own Loot group), Roster + Gildenbank under Gilde, Kanäle under System
             { name: "Raids", ids: ["raids", "cla", "history", "lootcouncil"] },
             { name: "Gilde", ids: ["roster", "kader", "recruitment", "bank"] },
-            { name: "System", ids: ["channels", "settings"] },
+            // Systemstatus (Oct 2026): full admins only
+            { name: "System", ids: ["channels", "settings", "system"] },
         ]);
         // a group is one contiguous block, so its heading is printed once
         expect(new Set(groups.map((g) => g.name)).size).toBe(groups.length);
@@ -79,6 +82,7 @@ describe("one menu for both front ends", () => {
             kader: "inv_misc_groupneedmore",
             channels: "inv_letter_15",
             settings: "trade_engineering",
+            system: "inv_gizmo_02",
         });
     });
 

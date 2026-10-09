@@ -1,0 +1,156 @@
+{
+    "kicker": "System",
+    "title": "Systemstatus",
+    "loading": "Messwerte werden geladen",
+    "refresh": "Neu messen",
+    "refreshTip": "Prozesse und Speicherplatz jetzt neu messen (dauert etwa eine Sekunde)",
+    "meta": {
+        "uptime": "Bot läuft seit {time}",
+        "uptimeTip": "Laufzeit des Bot-Prozesses",
+        "uptimeSub": "Der Server selbst läuft seit {host}.",
+        "runtimeTip": "Wie der Bot gestartet wurde",
+        "pm2": "pm2",
+        "docker": "Docker",
+        "live": "alle 15 s aktuell",
+        "liveTip": "Die Seite fragt alle 15 Sekunden neu, solange sie sichtbar ist. Der Verlauf liegt nur im Speicher: nach einem Neustart beginnt er von vorn."
+    },
+    "verdict": {
+        "aria": "Einschätzung",
+        "ok": "Alles im grünen Bereich",
+        "okText": "Server und Bot haben Luft: keine dauerhafte Last, genug Arbeitsspeicher und Platz.",
+        "warn": "Es wird eng",
+        "bad": "Engpass gefunden",
+        "warmingUp": "Noch zu wenige Messwerte – die Einschätzung kommt nach etwa einer Minute.",
+        "warmingUpPartial": "Erst wenige Messwerte – CPU und Arbeitsspeicher werden nach etwa einer Minute beurteilt.",
+        "advice": "Empfehlung"
+    },
+    "findings": {
+        "otherProcess": {
+            "text": "Ein anderer Prozess belastet den Server: {hostCpu} CPU insgesamt, der Bot selbst nur {botCpu}.",
+            "named": "Ein anderer Prozess belastet den Server: „{process}“ braucht {processCpu} CPU, insgesamt sind es {hostCpu}, der Bot selbst nur {botCpu}.",
+            "advice": "Prüfen, was dieser Prozess tut – oder ihn auf einen eigenen Server verlegen. Ein größerer Server hilft nur, wenn er weiterlaufen muss."
+        },
+        "botBottleneck": {
+            "cpu": "Der Bot selbst ist der Engpass: er braucht dauerhaft {procCpu} eines CPU-Kerns.",
+            "loop": "Der Bot selbst ist der Engpass: Anfragen warten bis zu {loopP99} aufeinander (in {loopShare} der Messungen über 200 ms).",
+            "routes": "Langsamste Anfragen: {routes}.",
+            "advice": "Mehr Kerne helfen kaum – Node rechnet auf einem Kern. Die langsamsten Anfragen optimieren; ein schnellerer Kern hilft etwas."
+        },
+        "hostBusy": {
+            "text": "Der Server ist stark ausgelastet: {hostCpu} CPU, davon {botCpu} durch den Bot ({cores} Kerne).",
+            "advice": "Beobachten. Bleibt es so, hilft ein Server mit mehr oder schnelleren Kernen."
+        },
+        "cpuOverloaded": {
+            "text": "CPU überlastet: Load {load5} (5 Minuten) und {load15} (15 Minuten) bei {cores} Kernen – es wartet mehr Arbeit, als Kerne da sind.",
+            "advice": "Mehr CPU-Kerne oder ein größerer Server."
+        },
+        "memoryLow": {
+            "ram": "Zu wenig Arbeitsspeicher: nur {memAvailPct} verfügbar ({memAvail} von {memTotal}).",
+            "swap": "Zu wenig Arbeitsspeicher: der Auslagerungsspeicher (Swap) ist zu {swapUsedPct} belegt – das macht alles langsam.",
+            "advice": "Mehr RAM oder ein größerer Server."
+        },
+        "diskLow": {
+            "text": "Datenträger fast voll: nur {freePct} frei ({free} von {total}).",
+            "advice": "Alte Reports und Daten unter data/ aufräumen oder mehr Speicherplatz buchen."
+        }
+    },
+    "units": {
+        "days": { "one": "{count} Tag", "other": "{count} Tage" },
+        "hours": { "one": "{count} Std.", "other": "{count} Std." },
+        "minutes": { "one": "{count} Min.", "other": "{count} Min." },
+        "seconds": { "one": "{count} s", "other": "{count} s" }
+    },
+    "tiles": {
+        "aria": "Kennzahlen",
+        "range": "Zeitraum der Verläufe",
+        "hour": "1 Stunde",
+        "day": "24 Stunden",
+        "noSample": "Die erste Messung kommt 15 Sekunden nach dem Start.",
+        "hostCpu": "Server-CPU",
+        "hostCpuTip": "Auslastung aller CPU-Kerne des Servers",
+        "hostCpuSub": "Alles, was auf dem Server läuft – der Bot und jeder andere Prozess.",
+        "cores": { "one": "{count} Kern", "other": "{count} Kerne" },
+        "load": "Load {load}",
+        "noLoad": "Load n/v",
+        "procCpu": "Bot-CPU",
+        "procCpuTip": "CPU des Bot-Prozesses, bezogen auf einen Kern",
+        "procCpuSub": "100 % heißt: ein Kern ist voll. Node rechnet auf einem Kern – ab hier wartet jede Anfrage.",
+        "elu": "Event-Loop zu {elu} ausgelastet",
+        "mem": "RAM verfügbar",
+        "memSub": "{pct} von {total}",
+        "memTip": "Arbeitsspeicher, den Programme noch bekommen können",
+        "swap": "Swap: {used} von {total} belegt",
+        "memSubNoSwap": "Swap ist hier nicht messbar.",
+        "loop": "Verzögerung p99",
+        "loopSub": "Spitze {max}",
+        "loopTip": "Wie lange eine Anfrage im Bot warten muss, bevor sie dran ist",
+        "loopSub2": "99 % der Wartezeiten der letzten 15 Sekunden liegen darunter. Ab 200 ms merkt man es im Menü.",
+        "disk": "Datenträger frei",
+        "diskSub": "{free} von {total}",
+        "diskUnknown": "nicht messbar",
+        "diskTip": "Freier Platz auf dem Datenträger des Datenverzeichnisses",
+        "diskSub2": "Wird höchstens alle 5 Minuten neu gemessen."
+    },
+    "details": {
+        "toggle": "Details zu Server und Bot",
+        "cpu": "Prozessor",
+        "load": "Load 1 · 5 · 15 Min.",
+        "na": "n/v",
+        "swap": "Swap",
+        "rss": "Bot-Speicher (RSS)",
+        "heap": "Heap",
+        "heapValue": "{used} von {total} · extern {external}",
+        "loop": "Event-Loop",
+        "loopValue": "p50 {p50} · p99 {p99} · Spitze {max}",
+        "node": "Node",
+        "runtime": "Gestartet über",
+        "pm2": "pm2 (Prozess {id})",
+        "plain": "node direkt",
+        "processUptime": "Bot läuft seit",
+        "hostUptime": "Server läuft seit"
+    },
+    "routes": {
+        "title": "Langsamste Anfragen",
+        "since": "gezählt seit {time} Uhr",
+        "tip": "Jede Seite und jede API-Anfrage, gemessen im Bot. IDs und Tokens im Pfad sind durch :id ersetzt. Langsam heißt: ab {ms} ms.",
+        "window": "Zeitraum",
+        "hour": "Letzte Stunde",
+        "total": "Seit Start",
+        "route": "Pfad",
+        "count": "Anfragen",
+        "countTip": "Anzahl der Anfragen",
+        "avg": "Ø",
+        "avgTip": "Durchschnittliche Dauer",
+        "p95": "p95",
+        "p95Tip": "95 % der Anfragen waren schneller",
+        "max": "Max",
+        "maxTip": "Längste Anfrage",
+        "slow": "Langsam",
+        "slowTip": "Anfragen ab {ms} ms",
+        "empty": "In diesem Zeitraum gab es noch keine Anfragen.",
+        "slowList": { "zero": "Keine langsamen Anfragen", "one": "Letzte langsame Anfrage", "other": "Letzte {count} langsamen Anfragen" },
+        "noSlow": "Seit dem Start war keine Anfrage langsamer als {ms} ms."
+    },
+    "procs": {
+        "title": "Prozesse auf dem Server",
+        "at": "gemessen um {time} Uhr",
+        "tip": "Die Prozesse mit der meisten CPU in der Sekunde der Messung. Nur Name und Nummer – keine Befehlszeilen.",
+        "tipPs": "Die Prozesse mit der meisten CPU laut ps – dort ist es der Durchschnitt seit dem Start des Prozesses. Nur Name und Nummer – keine Befehlszeilen.",
+        "self": "Bot",
+        "pid": "PID {pid}",
+        "cpu": "{cpu} CPU",
+        "cpuTip": "Anteil eines Kerns; über 100 % heißt mehr als ein Kern",
+        "mem": "{mem} RAM · {rss}",
+        "memTip": "Anteil am Arbeitsspeicher des Servers"
+    },
+    "disk": {
+        "title": "Speicherplatz",
+        "at": "gemessen um {time} Uhr",
+        "tip": "Die größten Ordner und Dateien im Datenverzeichnis (data/) des Bots.",
+        "empty": "Das Datenverzeichnis ist leer.",
+        "files": { "one": "{count} Datei", "other": "{count} Dateien" },
+        "truncated": "Sehr viele Dateien – die Größen sind Mindestwerte.",
+        "biggest": { "one": "Größte Datei", "other": "Größte {count} Dateien" },
+        "noSpace": "Der freie Platz des Datenträgers lässt sich hier nicht messen."
+    }
+}

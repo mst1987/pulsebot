@@ -28,9 +28,20 @@ export type MenuEntry = {
      * and the parent's menu line stays active on all of them.
      */
     sub?: boolean;
+    /**
+     * full admins only, whatever areas an account holds (the system status,
+     * docs/system-status.md): its API route is `adminOnly` too, and `areas` is empty.
+     */
+    adminOnly?: boolean;
 };
 
 export const MENU: MenuEntry[] = MENU_JSON;
+
+/** Whether the account may open an entry: one of its areas, or full admin for an adminOnly entry. */
+export function mayOpen(user: SessionUser | null, entry: MenuEntry): boolean {
+    if (entry.adminOnly) return !!(user && user.isAdmin);
+    return canAccessAny(user, entry.areas);
+}
 
 /** A menu entry's label in the active language (menu.json holds the German one). */
 export function menuLabel(entry: MenuEntry): string {
@@ -64,7 +75,7 @@ export type MenuLine = { top: MenuEntry; entry: MenuEntry; hrefs: string[] };
  */
 export function menuLines(user: SessionUser): MenuLine[] {
     return MENU.filter((e) => !e.sub).flatMap((top) => {
-        const allowed = menuFamily(top.id).filter((e) => canAccessAny(user, e.areas));
+        const allowed = menuFamily(top.id).filter((e) => mayOpen(user, e));
         return allowed.length ? [{ top, entry: allowed[0], hrefs: allowed.map((e) => e.href) }] : [];
     });
 }
@@ -76,5 +87,5 @@ export function menuLines(user: SessionUser): MenuLine[] {
  * (App.tsx, #436).
  */
 export function firstAllowedTab(user: SessionUser): MenuEntry | null {
-    return MENU.find((t) => canAccessAny(user, t.areas)) || null;
+    return MENU.find((t) => mayOpen(user, t)) || null;
 }
