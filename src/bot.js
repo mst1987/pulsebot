@@ -14,6 +14,7 @@ const userPrefs = require("./stores/userPrefsStore.js");
 const { langOfInteraction } = require("./services/discord/botLanguage.js");
 const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./services/logcheck/logChannel.js");
+const softresDetect = require("./services/loot/softresDetect.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
 const rosterRoleSync = require("./services/roster/rosterRoleSync.js");
 const { guardInteraction } = require("./services/discord/botAccess.js");
@@ -77,6 +78,12 @@ client.on(Events.ClientReady, () => {
 client.on("messageCreate", async(message) => {
     try {
         if (!message.guild) return;
+        // A softres.it link a raid lead posts into a raid channel is tied to that raid; never breaks the log detection.
+        try {
+            softresDetect.onMessage(message);
+        } catch (error) {
+            console.error("softresDetect error:", error.message);
+        }
         await handleLogMessage(message);
     } catch (error) {
         console.error("messageCreate handler error:", error.message);

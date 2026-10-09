@@ -74,6 +74,7 @@ const ACTION_LABELS = {
     signupEdit: "Anmeldung geändert (Orga)",
     channelGone: "Kanal in Discord gelöscht",
     channel: "Kanal neu angelegt",
+    softresLinked: "Softres-Liste aus dem Kanal verknüpft",
 };
 
 const STATUS_LABELS = {
