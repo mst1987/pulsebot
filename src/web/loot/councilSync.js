@@ -4,14 +4,21 @@
 // details, sim data or URLs - the addon needs none of them.
 //
 // Format "eventhelper-council" version 1 (one category per answer, filters from
-// the query) and version 2 (every Loot-Council category at once, each with its
-// stored page view). The sync tool (repo eventhelper-addon) and its addon read
-// the same shape: when a field changes, the version grows on both sides
-// (docs/loot-import.md, "Council-Daten für das Addon").
+// the query), version 2 (every Loot-Council category at once, each with its
+// stored page view) and version 3 (#670: version 2 plus every role, the roster
+// status, the loot points and the category's own weighting, so the addon can
+// weigh an award made after the sync like the server). The sync tool (repo
+// eventhelper-addon) and its addon read the same shape: when a field changes,
+// the version grows on both sides (docs/loot-import.md, "Council-Daten für das
+// Addon").
 //
 // Pure: `built` is councilRoster()'s answer, everything else is passed in, so
-// the mapping is tested with plain object literals.
-const { NEED_WEIGHTS } = require("./lootCouncil");
+// the mapping is tested with plain object literals. (Version 3 reads the item
+// tables for the item classes, which are fixed data.)
+const { NEED_WEIGHTS, DROUGHT_DAYS, droughtCounter } = require("./lootCouncil");
+const { itemClass, itemFacts } = require("../../services/loot/itemWeights");
+const { RAID_LOOT } = require("../../config/tbcContent");
+const councilWeights = require("../../stores/councilWeightsStore");
 
 /**
  * The need weights in % as the addon reads them: drought, share, need. Since
@@ -68,21 +75,32 @@ function classFileFor(className) {
 const pct = (x) => Math.max(0, Math.min(100, Math.round((Number(x) || 0) * 100)));
 const seconds = (ms) => (Number(ms) > 0 ? Math.floor(Number(ms) / 1000) : 0);
 
-function raiderView(row) {
+/** One received item; version 3 adds what it counted as (#668). */
+function itemView(it, v3) {
+    const out = {
+        itemId: Number(it.itemId) || 0,
+        itemName: it.itemName || "",
+        awardedAt: seconds(it.awardedAt),
+        boss: it.boss || "",
+        reason: it.reasonLabel || it.reason || "",
+        event: it.eventLabel || "",
+    };
+    if (v3) {
+        const w = Number(it.weight);
+        out.weight = Number.isFinite(w) ? w : 1;
+        out.weightClass = it.weightClass || "normal";
+    }
+    return out;
+}
+
+function raiderView(row, v3 = false) {
     const bis = row.bis || {};
     const parts = row.needParts || {};
     const items = (row.items || [])
         .slice()
         .sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0))
         .slice(0, MAX_ITEMS)
-        .map((it) => ({
-            itemId: Number(it.itemId) || 0,
-            itemName: it.itemName || "",
-            awardedAt: seconds(it.awardedAt),
-            boss: it.boss || "",
-            reason: it.reasonLabel || it.reason || "",
-            event: it.eventLabel || "",
-        }));
+        .map((it) => itemView(it, v3));
     return {
         character: row.character,
         classFile: classFileFor(row.className),
@@ -133,7 +151,7 @@ function councilSyncPayload(built, ctx = {}) {
         categories,
         weights: weightsPct(built),
         avgLootCount: built.avgLootCount || 0,
-        raiders: legacyRows(built.rows).map(raiderView),
+        raiders: legacyRows(built.rows).map((row) => raiderView(row)),
     };
 }
 
@@ -156,27 +174,176 @@ function councilSyncPayloadV2(entries, ctx = {}) {
         version: VERSION_2,
         generatedAt: seconds(ctx.now || Date.now()),
         // Top-level like before. A category with its own weighting (#668)
-        // can differ; v2 has no per-category weights yet (#670), so this is
-        // the first category's, else the defaults.
+        // can differ; v2 has no per-category weights (version 3 has), so
+        // this is the first category's, else the defaults.
         weights: weightsPct((entries && entries[0] && entries[0].built) || null),
-        categories: (entries || []).map(({ id, name, opts, built, instances }) => ({
-            id: String(id),
-            name: String(name || id),
-            lootSystem: "lootcouncil",
-            filter: {
-                role: legacyRole(opts.role || ""),
-                tiers: opts.tierIds || [],
-                contents: opts.contentIds || [],
-                bisTier: built.bisTier || "",
-                bisTierDerived: !opts.bisTier,
-                // The character version filter: "" = every version.
-                version: opts.charVersion || "",
-            },
-            instances: instances || [],
-            avgLootCount: built.avgLootCount || 0,
-            raiders: legacyRows(built.rows).map((row) => ({ key: String(row.key || ""), ...raiderView(row) })),
+        categories: (entries || []).map((entry) => ({
+            ...categoryHead(entry, legacyRole(entry.opts.role || "")),
+            raiders: legacyRows(entry.built.rows).map((row) => ({ key: String(row.key || ""), ...raiderView(row) })),
         })),
     };
 }
 
-module.exports = { councilSyncPayload, councilSyncPayloadV2, classFileFor, FORMAT, VERSION, VERSION_2, MAX_ITEMS, LEGACY_ROLES };
+/** What versions 2 and 3 say about a category before its raiders. */
+function categoryHead({ id, name, opts, built, instances }, role) {
+    return {
+        id: String(id),
+        name: String(name || id),
+        lootSystem: "lootcouncil",
+        filter: {
+            role,
+            tiers: opts.tierIds || [],
+            contents: opts.contentIds || [],
+            bisTier: built.bisTier || "",
+            bisTierDerived: !opts.bisTier,
+            // The character version filter: "" = every version.
+            version: opts.charVersion || "",
+        },
+        instances: instances || [],
+        avgLootCount: built.avgLootCount || 0,
+    };
+}
+
+// ---- version 3 (#670) ---------------------------------------------------------
+
+const VERSION_3 = 3;
+const r6 = (x) => Math.round((Number(x) || 0) * 1e6) / 1e6;
+
+/**
+ * A category's need weighting as version 3 carries it: the four parts in %
+ * (rounded, for the bar and the legend) and as exact shares of 1 (`shares`,
+ * what needScore() multiplies with - a rounded percent would let the game's
+ * score drift from the page's), the drought cap and the tenure saturation.
+ * `built.weights` is councilRoster()'s weightsView(); without it the server's.
+ */
+function weightsV3(built) {
+    const w = (built && built.weights) || weightsViewDefaults();
+    const shares = w.needShares || NEED_WEIGHTS;
+    const out = {};
+    for (const id of councilWeights.NEED_IDS) out[id] = Math.round((Number(shares[id]) || 0) * 100);
+    out.shares = {};
+    for (const id of councilWeights.NEED_IDS) out.shares[id] = Number(shares[id]) || 0;
+    out.droughtDays = Number(w.droughtDays) || DROUGHT_DAYS;
+    out.tenureDays = Number(w.tenureDays) || councilWeights.DEFAULTS.tenureDays;
+    out.scope = w.scope || "global";
+    return out;
+}
+
+/** The server's own weighting as councilRoster() would report it. */
+function weightsViewDefaults() {
+    const s = councilWeights.weightsFor("");
+    return { ...s, needShares: councilWeights.effectiveNeedWeights(s.need), droughtDays: DROUGHT_DAYS };
+}
+
+/**
+ * The item weighting in effect for the category (its own settings, else the
+ * server's): the weight of each item class and the per-item exceptions
+ * ({ itemId: weight }).
+ */
+function itemWeightsV3(built) {
+    const w = (built && built.weights) || weightsViewDefaults();
+    const classes = {};
+    for (const id of councilWeights.CLASS_IDS) {
+        const v = Number((w.classes || {})[id]);
+        classes[id] = Number.isFinite(v) ? v : councilWeights.DEFAULTS.classes[id];
+    }
+    const overrides = {};
+    for (const [id, entry] of Object.entries(w.items || {})) {
+        const v = Number(entry && typeof entry === "object" ? entry.weight : entry);
+        if (Number(id) > 0 && Number.isFinite(v)) overrides[String(Number(id))] = v;
+    }
+    return { classes, overrides };
+}
+
+const classesCache = new Map();
+
+/**
+ * Item id -> class for every drop of the category's raids (the instances of
+ * its raid template; without any, every raid of the loot table), so the addon
+ * can weigh an award itself. Without the raider-specific half: a weapon reads
+ * "weapon" here and the addon makes it "bisWeapon" for a raider whose
+ * `bisWeapons` hold it - the order of itemWeights.js (frequent and trinket
+ * come before weapon) makes that upgrade exact. Exceptions are not applied
+ * (they come separately in `itemWeights.overrides` and win). "normal" is
+ * left out: an id the map does not know is "normal" in the addon anyway.
+ */
+function itemClassesFor(instances) {
+    const known = (instances || []).map((i) => i && i.id).filter((id) => RAID_LOOT[id]);
+    const contentIds = known.length ? known : Object.keys(RAID_LOOT);
+    const cacheKey = contentIds.join(",");
+    if (classesCache.has(cacheKey)) return classesCache.get(cacheKey);
+    const out = {};
+    for (const contentId of contentIds) {
+        for (const ids of Object.values(RAID_LOOT[contentId])) {
+            for (const id of ids) {
+                const cls = itemClass(id, { classes: {}, items: {} });
+                if (cls !== "normal") out[String(id)] = cls;
+            }
+        }
+    }
+    classesCache.set(cacheKey, out);
+    return out;
+}
+
+/** One raider in version 3: the v2 fields plus status, points, tenure and the drought state. */
+function raiderViewV3(row) {
+    const base = raiderView(row, true);
+    const parts = row.needParts || {};
+    const bisWeapons = [...new Set(((row.bis && row.bis.items) || [])
+        .map((i) => Number(i.id) || 0)
+        .filter((id) => id && itemFacts(id).weapon))];
+    const counter = droughtCounter((row.items || []).map((it) => ({ awardedAt: it.awardedAt, weight: it.weight })));
+    const fallbackDrought = row.daysSinceLoot === null || row.daysSinceLoot === undefined
+        ? DROUGHT_DAYS : Math.min(DROUGHT_DAYS, row.daysSinceLoot);
+    return {
+        key: String(row.key || ""),
+        ...base,
+        parts: { ...base.parts, tenure: pct(parts.tenure) },
+        // core / trial / bench in a category with a roster (#667), else "".
+        status: row.status || "",
+        lootPoints: typeof row.lootPoints === "number" ? row.lootPoints : (row.lootCount || 0),
+        // The wait as it counts (one decimal, what the score used) and the
+        // counter right after the newest award (droughtCounter(); the full
+        // DROUGHT_DAYS without one) - the addon continues the walk from there.
+        droughtDays: typeof row.droughtDays === "number" ? row.droughtDays : fallbackDrought,
+        droughtBase: counter === null ? DROUGHT_DAYS : r6(counter),
+        joinedAt: seconds(row.joinedAt),
+        tenureDays: row.tenureDays || 0,
+        // The weapons on this raider's BiS list: for them such a drop is a "bisWeapon".
+        bisWeapons,
+    };
+}
+
+/**
+ * Version 3: version 2 with every council role (caster, healer, tank, melee,
+ * ranged - no LEGACY_ROLES filter), the roster status, loot points, tenure and
+ * the drought state per raider, and per category its own weighting
+ * (`weights`, `itemWeights`) and the item classes of its raids
+ * (`itemClasses`). The top-level `weights` is the first category's (else the
+ * server's), for a reader that wants one.
+ *
+ * @param {object[]} entries  as for councilSyncPayloadV2()
+ * @param {{ now?: number }} [ctx]
+ */
+function councilSyncPayloadV3(entries, ctx = {}) {
+    const categories = (entries || []).map((entry) => ({
+        ...categoryHead(entry, entry.opts.role || ""),
+        avgLootPoints: entry.built.avgLootPoints || 0,
+        weights: weightsV3(entry.built),
+        itemWeights: itemWeightsV3(entry.built),
+        itemClasses: itemClassesFor(entry.instances),
+        raiders: (entry.built.rows || []).map(raiderViewV3),
+    }));
+    return {
+        format: FORMAT,
+        version: VERSION_3,
+        generatedAt: seconds(ctx.now || Date.now()),
+        weights: categories.length ? categories[0].weights : weightsV3(null),
+        categories,
+    };
+}
+
+module.exports = {
+    councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3, classFileFor, itemClassesFor,
+    FORMAT, VERSION, VERSION_2, VERSION_3, MAX_ITEMS, LEGACY_ROLES,
+};

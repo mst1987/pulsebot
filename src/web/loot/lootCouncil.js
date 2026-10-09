@@ -426,8 +426,22 @@ const DROUGHT_DAYS = 30;
  * @returns {number} effective days, 0..DROUGHT_DAYS, one decimal
  */
 function droughtDays(awards, daysSinceLoot) {
+    const d = droughtCounter(awards);
+    if (d === null || daysSinceLoot === null || daysSinceLoot === undefined) return DROUGHT_DAYS;
+    return Math.round(Math.min(DROUGHT_DAYS, d + daysSinceLoot) * 10) / 10;
+}
+
+/**
+ * The counter of droughtDays() right after the newest award, before the days
+ * since then are added — unrounded; null without any award. The addon format
+ * v3 carries it (`droughtBase`, councilSync.js), so the game can continue the
+ * walk with an award made after the sync exactly like this function would.
+ * @param {{ awardedAt: number, weight: number }[]} awards  any order, ms
+ * @returns {number|null}
+ */
+function droughtCounter(awards) {
     const list = (awards || []).filter((a) => a && a.awardedAt).sort((a, b) => a.awardedAt - b.awardedAt);
-    if (!list.length || daysSinceLoot === null || daysSinceLoot === undefined) return DROUGHT_DAYS;
+    if (!list.length) return null;
     let d = DROUGHT_DAYS;
     let prev = 0;
     for (const a of list) {
@@ -435,8 +449,7 @@ function droughtDays(awards, daysSinceLoot) {
         d *= Math.max(0, 1 - (Number(a.weight) || 0));
         prev = a.awardedAt;
     }
-    d = Math.min(DROUGHT_DAYS, d + daysSinceLoot);
-    return Math.round(d * 10) / 10;
+    return d;
 }
 
 /**
@@ -1233,7 +1246,7 @@ function filterOptions() {
 
 module.exports = {
     councilRoster, candidateSplit, bisGaps, filterOptions, bisSpecsView, resolveContentFilter, itemView, NEED_WEIGHTS,
-    DROUGHT_DAYS,
+    DROUGHT_DAYS, droughtCounter,
     // only for the tests (#424): not part of the module's API
     _internal: {
         candidatesForItem, currentTier, wornItemView, NEED_WEIGHTS, NON_BIS_WEIGHT, upgradeValue, needScore, gearHit, firstSlotFor,

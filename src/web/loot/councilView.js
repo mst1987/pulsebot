@@ -1,6 +1,6 @@
 // One council view, built the same way for every reader: the council page
 // (GET /api/lootcouncil) and the sync tool's token endpoint
-// (GET /api/ingest/council?v=2), so what the addon shows in game is exactly
+// (GET /api/ingest/council?v=2 and ?v=3), so what the addon shows in game is exactly
 // what the page shows - same filters, same armory step, same numbers.
 //
 // A category's filters (role, tiers, raids, BiS list, version) are stored on

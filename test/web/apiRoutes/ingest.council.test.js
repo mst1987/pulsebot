@@ -106,6 +106,27 @@ describe("GET /api/ingest/council", () => {
         expect(councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "c1" }));
     });
 
+    it("answers ?v=3 with version 3: every role, status and the category's weighting (#670)", async () => {
+        getConfig.mockReturnValue({ categoryIds: ["c1", "c2"], categoryLootSystem: { c1: "lootcouncil" } });
+        councilRoster.mockReturnValue({
+            rows: [ROW, { ...ROW, key: "hauer", character: "Hauer", className: "Warrior", specLabel: "Fury", role: "melee", status: "trial", lootPoints: 0 }],
+            avgLootCount: 0, avgLootPoints: 0, bisTier: "t6",
+        });
+        const res = await authed("/api/ingest/council", { v: "3" });
+        expect(status(res)).toBe(200);
+        const data = body(res);
+        expect(data).toMatchObject({ format: "eventhelper-council", version: 3, weights: { drought: 45, share: 30, need: 10, tenure: 15 } });
+        expect(data.categories.map((c) => c.id)).toEqual(["c1"]);
+        expect(data.categories[0].raiders.map((r) => [r.key, r.role, r.status])).toEqual([["gemli", "caster", ""], ["hauer", "melee", "trial"]]);
+        expect(data.categories[0]).toHaveProperty("itemWeights.classes.trinket", 2);
+        expect(data.categories[0]).toHaveProperty("itemClasses");
+    });
+
+    it("answers a higher version than it knows with version 3, and v=3 with a category with version 1", async () => {
+        expect(body(await authed("/api/ingest/council", { v: "4" })).version).toBe(3);
+        expect(body(await authed("/api/ingest/council", { v: "3", category: "c1" })).version).toBe(1);
+    });
+
     it("passes category and role through to the roster", async () => {
         const res = await authed("/api/ingest/council", { category: "c1", role: "healer", tiers: "t5" });
         expect(councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "c1", role: "healer", tierIds: [], bisTier: "" }));
