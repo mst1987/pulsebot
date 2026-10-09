@@ -92,6 +92,7 @@ const { getEventSoftres } = require("../../stores/eventSoftresStore");
 const { signedUpText } = require("../../utils/signup/capacity");
 const { tr, specLabel, classLabel, normalizeLang } = require("../../utils/i18n/botText");
 const { eventLang } = require("../discord/botLanguage");
+const { expectedRoleIds } = require("../roster/categoryRoles");
 
 /**
  * The head's "Signed up" line (#520): the single Discord accounts, number in
@@ -194,8 +195,7 @@ function missingPingId(eventId) {
 
 /** Whether the event's category has raider roles — the members expected to sign up, so a "missing" exists. */
 function hasRaiderRoles(event, config = getConfig()) {
-    const roles = ((config && config.categoryRoles) || {})[String((event && event.categoryId) || "")];
-    return Array.isArray(roles) && roles.length > 0;
+    return expectedRoleIds(event && event.categoryId, config || {}).length > 0;
 }
 
 /** A name as plain text — no bold, links or mentions sneaking in through markdown. */

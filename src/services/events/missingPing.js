@@ -14,6 +14,7 @@ const discord = require("../discord/discord");
 const { normalizePingTarget, deliverUserPing, dmSummary, TARGET_LABELS, missingPingText } = require("../discord/pingDelivery");
 const { eventLang } = require("../discord/botLanguage");
 const { fail } = require("../../web/http/apiResult");
+const { expectedRoleIds } = require("../roster/categoryRoles");
 
 /**
  * Who of the category's role holders has not reacted to the event yet.
@@ -29,7 +30,7 @@ async function findMissingRaiders({ guildId, eventId }) {
     const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
     if (!found) return fail(404, "not_found", "Event nicht gefunden.");
     if (found.e.status === "cancelled") return fail(400, "cancelled", "Das Event ist abgesagt — da wird niemand mehr gepingt.");
-    const roleIds = (getConfig().categoryRoles || {})[found.g.categoryId] || [];
+    const roleIds = expectedRoleIds(found.g.categoryId, getConfig());
     if (!roleIds.length) {
         return fail(400, "no_roles", "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Kategorien).");
     }

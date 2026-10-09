@@ -48,6 +48,7 @@ const { setupSummary } = require("../../services/setup/setupEditor");
 const setupPresence = require("../../services/setup/setupPresence");
 const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 const { planningOf } = require("../../services/events/planning");
+const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 
 /**
  * The version of the event on this page and its settings (#542): an own event
@@ -153,7 +154,7 @@ async function setupPart(found, eventId) {
  * land in "missing" and the page would invite a pointless mass ping.
  */
 async function attendancePart(guildId, found, signupsKnown) {
-    const categoryRoleIds = (getConfig().categoryRoles || {})[found.g.categoryId] || [];
+    const categoryRoleIds = expectedRoleIds(found.g.categoryId, getConfig());
     let attendance = { responded: [], missing: [] };
     let membersError = null;
     if (categoryRoleIds.length && signupsKnown) {

@@ -38,6 +38,7 @@ const { loadEventGroups } = require("../../services/events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
 const { computeAttendance, signupStatus, isRosterKnown } = require("../../utils/attendance");
 const { tr } = require("../../utils/i18n/botText");
+const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 
 const HOUR_MS = 60 * 60 * 1000;
 const KINDS = ["missing", "signed"];
@@ -112,7 +113,7 @@ async function recipients(kind, event, categoryId, guildId, config) {
             .filter((s) => s && s.userId && ["signed", "late"].includes(signupStatus(s)))
             .map((s) => String(s.userId));
     }
-    const roleIds = (config.categoryRoles || {})[categoryId] || [];
+    const roleIds = expectedRoleIds(categoryId, config);
     if (!roleIds.length || !isRosterKnown(event)) return null;
     const { members, error } = await discord.listMembersWithRoles(guildId, roleIds);
     if (error) return null;

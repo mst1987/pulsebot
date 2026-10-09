@@ -69,7 +69,8 @@ Zugangsdaten, Token oder Sitzungen.
 | `reports/<id>.json` | `reportStore.js` | Die gespeicherten Log-Auswertungen (Report-Seiten `/r/`) | nein |
 | `settings/logGear.json` | `logGearStore.js` | Aus einem WCL-Report geladenes Gear je Raider | nein |
 | `settings/characters.json` | `characterStore.js` | Klasse/Spec je Charakter (Cache aus Loot und Logs) | nein |
-| `settings/raider-characters.json` | `raiderCharactersStore.js` | Charakter je Raider und Raid-Kategorie (Orga-Zuordnung) | nein |
+| `settings/raider-characters.json` | `raiderCharactersStore.js` | Charakter je Raider und Raid-Kategorie (Orga-Zuordnung) — nur noch für Kategorien ohne Roster; nach der Roster-Migration (#653) bleibt die Datei unverändert liegen, gelesen und geschrieben wird für Kategorien mit Roster `rosters.json` | nein |
+| `settings/rosters.json` | `rosterStore.js` | Raid-Roster (#653): `{ rosters: { [id]: { id, guildId, name, categoryId, versionId, roleIds, trialRoleId, managers: { roleIds, userIds }, slots, allowMultipleChars, signupOnly, source, members: { [userId]: { status, since, by, chars, charNames, note, trialUntil } }, history (die letzten 500), createdAt, createdBy } }, migratedCategories }` — höchstens ein Roster je Kategorie; `migratedCategories` = Kategorien, die die Start-Migration schon übernommen hat (ein gelöschtes Roster entsteht nicht neu); siehe [roster-profile.md](roster-profile.md#roster-je-kategorie-store) | nein (Notizen der Orga zu Mitgliedern, nur intern) |
 | `settings/raider-profiles.json` | `raiderProfileStore.js` | „Mein Profil“: Charaktere (je mit `versionId`, #543), Specs, Wünsche der Raider | nein |
 | `settings/spec-history.json` | `specHistoryStore.js` | Spec-Historie (u. a. aus dem Raid-Helper-Import), je Eintrag `versionId` (#543) | nein |
 | `settings/roster-hidden.json` | `rosterHiddenStore.js` | Im Roster ausgeblendete Charaktere | nein |

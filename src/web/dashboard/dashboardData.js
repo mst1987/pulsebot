@@ -36,6 +36,7 @@ const linkCheck = require("../../services/discord/linkCheck");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
 const { versionOfEvent, mainVersionFor } = require("../../services/events/mainVersion");
 const { versionChoices } = require("../../services/characters/characterVersions");
+const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 
 const RH_ERROR = "Events konnten nicht geladen werden (Raid-Helper API).";
 
@@ -152,7 +153,7 @@ async function loadNextRaidDetails(guildId, eventId) {
         : raidSize(zone.contentId, softres.targetSizeForInstances((softresList && softresList.instances) || []));
     const signUps = ev.signUps || [];
 
-    const roleIds = (getConfig().categoryRoles || {})[g.categoryId] || [];
+    const roleIds = expectedRoleIds(g.categoryId, getConfig());
     let missing = [];
     let membersError = null;
     let specHistory = {};

@@ -382,6 +382,21 @@ describe("web/apiRoutes/settings", () => {
                 });
             });
 
+            it("carries saved category roles over to the category's roster (#653)", async () => {
+                const rosterStore = require("../../../src/stores/rosterStore");
+                const roster = rosterStore.createRoster({ name: "R", categoryId: "catRoster", roleIds: ["old"] });
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.saveConfig.mockReturnValueOnce({ categoryRoles: { catRoster: ["new1", "new2"] } });
+                await patch("/api/settings", { categoryRoles: { catRoster: ["new1", "new2"] } });
+                expect(rosterStore.getRoster(roster.id).roleIds).toEqual(["new1", "new2"]);
+                // a save without roles leaves the roster alone
+                settingsStore.saveConfig.mockReturnValueOnce({});
+                await patch("/api/settings", { officerRoleId: "x" });
+                expect(rosterStore.getRoster(roster.id).roleIds).toEqual(["new1", "new2"]);
+                rosterStore.deleteRoster(roster.id);
+            });
+
             it("forwards the main version and the category map (#541)", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
