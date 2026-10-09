@@ -21,6 +21,7 @@ const logAutoLink = require("../../services/logcheck/logAutoLink");
 const eventMessage = require("../../services/events/eventMessage");
 const reminders = require("../events/reminders");
 const roleSync = require("../../services/discord/roleSync");
+const rosterRoleSync = require("../../services/roster/rosterRoleSync");
 const talkOverview = require("../../services/talk/talkOverview");
 const eventSeries = require("../events/eventSeries");
 const applicationState = require("../../utils/recruitment/applicationState");
@@ -44,6 +45,8 @@ const JOBS = [
     // and the talk server (#264). Both do nothing until configured.
     { name: "reminders", start: () => reminders.startReminders(), stop: () => reminders.stopReminders() },
     { name: "roleSync", start: () => roleSync.startRoleSync(), stop: () => roleSync.stopRoleSync() },
+    // Rosters and their Discord roles (#656): the reconcile at start and every 10 minutes; nothing without a roster with roles.
+    { name: "rosterRoleSync", start: () => rosterRoleSync.startRosterRoleSync(), stop: () => rosterRoleSync.stopRosterRoleSync() },
     // The raid overview on the talk server (#257); does nothing until configured.
     { name: "talkOverview", start: () => talkOverview.startTalkOverview(), stop: () => talkOverview.stopTalkOverview() },
     // Recurring events per category (#289): creates each date's event in time; nothing until a series exists.

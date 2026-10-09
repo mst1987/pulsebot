@@ -15,6 +15,7 @@ const { langOfInteraction } = require("./services/discord/botLanguage.js");
 const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./services/logcheck/logChannel.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
+const rosterRoleSync = require("./services/roster/rosterRoleSync.js");
 const { guardInteraction } = require("./services/discord/botAccess.js");
 const { runMode } = require("./config/runMode.js");
 const { ensureAppEmojis } = require("./services/discord/appEmojiSync.js");
@@ -76,11 +77,15 @@ client.on("messageCreate", async(message) => {
 // Role sync between the event and the talk server (#264): a member whose roles
 // changed, or who just joined one of the two, gets the mapped roles on the
 // other one. Only adds — see src/services/discord/roleSync.js.
+// Rosters (#656): gaining a roster role takes the member into that roster,
+// losing its last role drops them out — see src/services/roster/rosterRoleSync.js.
 client.on("guildMemberUpdate", (oldMember, newMember) => {
+    rosterRoleSync.onGuildMemberUpdate(oldMember, newMember);
     Promise.resolve(handleMemberUpdate(oldMember, newMember))
         .catch((error) => console.error("guildMemberUpdate handler error:", error.message));
 });
 client.on("guildMemberAdd", (member) => {
+    rosterRoleSync.onGuildMemberAdd(member);
     Promise.resolve(handleMemberAdd(member))
         .catch((error) => console.error("guildMemberAdd handler error:", error.message));
 });
