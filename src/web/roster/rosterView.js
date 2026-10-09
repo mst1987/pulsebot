@@ -39,6 +39,15 @@ const STATUSES = rosterStore.STATUSES;
 const PLACE_STATUSES = new Set(["core", "trial"]);
 const DEFAULT_ICON = "achievement_guildperk_everybodysfriend";
 
+/** fn(), or `fallback` when it throws: every lookup here is best-effort. */
+function attempt(fn, fallback) {
+    try {
+        return fn();
+    } catch {
+        return fallback;
+    }
+}
+
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
 /** "tank" | "healer" | "dps" from a rule set's spec role ("melee"/"ranged" are damage). */
@@ -99,12 +108,7 @@ function roleView(roles, roleId) {
  */
 function characterView(key, member, profile, versionId, ctx) {
     const pc = profile ? (profiles.findCharacter(profile, key, versionId) || profiles.findCharacter(profile, key)) : null;
-    let cached = null;
-    try {
-        cached = characterStore.getCharacter(nameKeyOf(key));
-    } catch {
-        cached = null;
-    }
+    const cached = attempt(() => characterStore.getCharacter(nameKeyOf(key)), null);
     const name = str(member.charNames && member.charNames[key]) || (pc && pc.name) || (cached && cached.character) || nameFromKey(key);
     const className = (pc && pc.className) || (cached && cached.className) || "";
     const specKey = pc && pc.specs && pc.specs[0] ? pc.specs[0].key : "";
@@ -196,12 +200,7 @@ function memberRows(roster, { ctx, discordData, config }) {
     if (roster.categoryId) {
         const window = categoryAttendanceFor(config, roster.categoryId).window;
         const accounts = rows.map((r) => ({ userId: r.userId, chars: r._attendanceChars }));
-        let results = new Map();
-        try {
-            results = attendanceForAccounts(ctx, roster.categoryId, accounts, { nights: true, window });
-        } catch {
-            results = new Map();
-        }
+        const results = attempt(() => attendanceForAccounts(ctx, roster.categoryId, accounts, { nights: true, window }), new Map());
         for (const r of rows) r.attendance = attendanceView(results.get(r.userId));
     }
     for (const r of rows) delete r._attendanceChars;
@@ -322,12 +321,7 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     const head = rosterHead(roster, {
         ctx, names: categoryNames(roster.guildId || guildId), discordData, figures: rosterFigures(members), guildId: roster.guildId || guildId,
     });
-    let canManage = false;
-    try {
-        canManage = await canManageRosterLive(user, roster);
-    } catch {
-        canManage = false;
-    }
+    const canManage = await canManageRosterLive(user, roster).catch(() => false);
     return {
         roster: head,
         members,
