@@ -1,5 +1,5 @@
 const {
-    BOT_COMMAND_GROUPS, GROUP_IDS, normalizeRule, normalizeBotCommandAccess,
+    BOT_COMMAND_GROUPS, normalizeRule, normalizeBotCommandAccess,
 } = require("../../src/config/botCommands");
 
 const ROLE_A = "123456789012345678";
@@ -7,7 +7,7 @@ const ROLE_B = "223456789012345678";
 
 describe("config/botCommands", () => {
     it("names every group once, with a label and a WoW icon", () => {
-        expect(new Set(GROUP_IDS).size).toBe(BOT_COMMAND_GROUPS.length);
+        expect(new Set(BOT_COMMAND_GROUPS.map((g) => g.id)).size).toBe(BOT_COMMAND_GROUPS.length);
         for (const g of BOT_COMMAND_GROUPS) {
             expect(g).toEqual({ id: expect.any(String), label: expect.any(String), icon: expect.stringMatching(/^[a-z0-9_]+$/) });
         }

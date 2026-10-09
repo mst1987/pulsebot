@@ -12,12 +12,7 @@
 // is *last seen in a log*, not live, and a council arguing over a drop wants to
 // be able to check that in one click rather than trust it.
 
-const { fillChar, versionLinks } = require("../../services/events/versionSettings");
-
-/** Fill a {char} template for a character name. "" when no template is set (or the link would not work). */
-function fillCharTemplate(tpl, character) {
-    return fillChar(tpl, character);
-}
+const { versionLinks } = require("../../services/events/versionSettings");
 
 /**
  * The armory page of a character, or "" when its version has no template.
@@ -33,4 +28,4 @@ function wclUrlFor(character, versionId) {
     return versionLinks(versionId).wcl(character);
 }
 
-module.exports = { fillCharTemplate, armoryUrlFor, wclUrlFor };
+module.exports = { armoryUrlFor, wclUrlFor };

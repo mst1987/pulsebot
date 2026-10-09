@@ -155,12 +155,6 @@ function armoryItemInSlot(character, slot) {
     return item;
 }
 
-/** Whether an armory answer exists for this character at all. */
-function hasArmoryGear(character) {
-    const hit = cache.get(characterKeyOf(character));
-    return !!(hit && hit.rows && hit.rows.length);
-}
-
 /** Test seam, and the way a settings change drops stale answers. */
 function clearArmoryCache() {
     cache.clear();
@@ -176,6 +170,6 @@ function clearArmoryFor(character) {
 }
 
 module.exports = {
-    primeArmoryGear, armoryItemInSlot, armorySetFor, hasArmoryGear, clearArmoryCache, clearArmoryFor,
+    primeArmoryGear, armoryItemInSlot, armorySetFor, clearArmoryCache, clearArmoryFor,
     toArmoryRows, SLOT_BY_TYPE, TTL_MS,
 };

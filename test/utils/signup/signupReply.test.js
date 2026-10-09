@@ -14,7 +14,7 @@ const { tempStoreFile } = require("../../helpers/tempStore");
 const { ownEvent } = require("../../helpers/signupMocks");
 const { asEmbed, cardButtons } = require("../../helpers/card");
 const {
-    plainTitle, colorOf, answerEmbed, toEmbed, answerPayload, answerUpdate,
+    plainTitle, colorOf, answerEmbed, answerPayload, answerUpdate,
 } = require("../../../src/utils/signup/signupReply");
 const { savedEmbed } = require("../../../src/utils/signup/signupButtons");
 
@@ -50,7 +50,6 @@ describe("utils/signup/signupReply", () => {
         expect(answerEmbed("x", { event: OWN_COLOR }).color).toBe(0x112233);
         expect(colorOf(ownEvent())).toBe(embedColor(ownEvent()));
         expect(colorOf(null)).toBeUndefined();
-        expect(toEmbed("x").color).toBe(EMBED_ACCENT_COLOR);
     });
 
     it("answerPayload is an ephemeral card with the given buttons inside", () => {

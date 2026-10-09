@@ -1,5 +1,5 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, MessageFlags, StringSelectMenuBuilder } = require("discord.js");
-const { card, cardFromEmbed, isCard, factsLine, KIND_COLORS, CARD_TEXT_LIMIT } = require("../../../src/utils/discord/card");
+const { card, cardFromEmbed, factsLine, KIND_COLORS, CARD_TEXT_LIMIT } = require("../../../src/utils/discord/card");
 
 const container = (payload) => payload.components[0];
 const texts = (payload) => container(payload).components
@@ -14,8 +14,6 @@ describe("card", () => {
         expect(p).toMatchObject({ content: "", embeds: [], allowedMentions: { parse: [] } });
         expect(p.components).toHaveLength(1);
         expect(container(p).type).toBe(ComponentType.Container);
-        expect(isCard(p)).toBe(true);
-        expect(isCard({ content: "x" })).toBe(false);
     });
 
     it("colours its bar by kind; a colour of its own wins (the event's)", () => {

@@ -12,13 +12,13 @@ describe("stores/councilStore", () => {
             const entry = store.exclude("Devihra", { reason: "Gilde verlassen", by: "Raidlead" });
             expect(entry).toMatchObject({ character: "Devihra", reason: "Gilde verlassen", by: "Raidlead" });
             expect(entry.at).toBeGreaterThan(0);
-            expect(store.isExcluded("devihra-Thunderstrike")).toBe(true);
+            expect(store.excludedKeys().has("devihra")).toBe(true);
         });
 
         it("nimmt jemanden wieder auf", () => {
             store.exclude("Devihra");
             expect(store.include("Devihra")).toBe(true);
-            expect(store.isExcluded("Devihra")).toBe(false);
+            expect(store.excludedKeys().has("devihra")).toBe(false);
             // Zweimal aufnehmen ist kein Fehler, ändert aber nichts.
             expect(store.include("Devihra")).toBe(false);
         });
@@ -28,19 +28,19 @@ describe("stores/councilStore", () => {
         it("hält die Festlegung samt Urheber fest", () => {
             const entry = store.setRole("Heala", "caster", { by: "Raidlead" });
             expect(entry).toMatchObject({ character: "Heala", role: "caster", by: "Raidlead" });
-            expect(store.plannedRole("heala")).toBe("caster");
+            expect(store.plannedRoles().get("heala")).toBe("caster");
         });
 
         it("nimmt sie mit einer leeren Rolle zurück", () => {
             store.setRole("Heala", "caster");
             expect(store.setRole("Heala", "")).toBeNull();
             // Danach folgt die Seite wieder dem, was die Daten sagen.
-            expect(store.plannedRole("Heala")).toBe("");
+            expect(store.plannedRoles().has("heala")).toBe(false);
         });
 
         it("liest den Realm-Zusatz weg wie der Rest der App", () => {
             store.setRole("Heala-Thunderstrike", "healer");
-            expect(store.plannedRole("heala")).toBe("healer");
+            expect(store.plannedRoles().get("heala")).toBe("healer");
         });
 
         it("gibt den ganzen Satz als Map für einen Durchlauf", () => {
@@ -57,13 +57,12 @@ describe("stores/councilStore", () => {
             // darf die andere nicht mitnehmen.
             store.setRole("Heala", "caster");
             store.exclude("Heala");
-            expect(store.plannedRole("Heala")).toBe("caster");
+            expect(store.plannedRoles().get("heala")).toBe("caster");
             store.include("Heala");
-            expect(store.plannedRole("Heala")).toBe("caster");
+            expect(store.plannedRoles().get("heala")).toBe("caster");
         });
 
         it("antwortet leer, solange nichts geschrieben wurde", () => {
-            expect(store.plannedRole("Niemand")).toBe("");
             expect(store.plannedRoles().size).toBe(0);
             expect(store.setRole("", "caster")).toBeNull();
         });

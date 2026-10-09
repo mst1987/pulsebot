@@ -1,8 +1,9 @@
 const {
-    EMBED_LIMITS, clip, webUrl, clampEmbed, embedSize, linkRow, lookupReply, deferLookup,
+    EMBED_LIMITS, clip, webUrl, clampEmbed, linkRow, lookupReply, deferLookup,
     rankChoices, respondChoices, focusedName, discordTime, plural,
 } = require("../../../src/utils/discord/botLookup");
 const { MessageFlags } = require("discord.js");
+const { embedSize } = require("../../helpers/embed");
 const { publicBaseUrl } = require("../../../src/config/variables");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 

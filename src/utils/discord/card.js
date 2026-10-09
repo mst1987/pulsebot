@@ -137,13 +137,10 @@ function cardFromEmbed(embed = {}, opts = {}) {
     });
 }
 
-/** Whether a payload is a card (Components V2): an edit of it must not send `content` or `embeds` of its own. */
-const isCard = (payload) => !!payload && (Number(payload.flags) & MessageFlags.IsComponentsV2) === MessageFlags.IsComponentsV2;
-
 /**
  * `payload` as an ephemeral reply, KEEPING its own flags. Never `{ ...payload, flags: MessageFlags.Ephemeral }`: that drops a
  * card's Components V2 flag, and Discord refuses a container without it.
  */
 const asEphemeral = (payload) => ({ ...(payload || {}), flags: (Number(payload && payload.flags) || 0) | MessageFlags.Ephemeral });
 
-module.exports = { card, cardFromEmbed, isCard, asEphemeral, factsLine, KIND_COLORS, CARD_TEXT_LIMIT };
+module.exports = { card, cardFromEmbed, asEphemeral, factsLine, KIND_COLORS, CARD_TEXT_LIMIT };

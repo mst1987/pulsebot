@@ -205,11 +205,6 @@ function rolesForClass(className) {
     return [...new Set(SPECS.filter((s) => s.className === cls).map((s) => s.role))];
 }
 
-/** Whether this class/spec belongs on the caster council at all. */
-function isCasterSpec(className, spec) {
-    return !!specFor(className, spec);
-}
-
 /** The stat weights a spec is judged by. */
 function weightsFor(specEntry) {
     if (!specEntry) return CASTER_WEIGHTS;
@@ -308,6 +303,6 @@ function bisSpecsForItem(itemId, tierId) {
 
 module.exports = {
     ROLES, SPECS, CASTER_WEIGHTS, HEALER_WEIGHTS, HIT_CAP,
-    specFor, specByKey, specForRole, rolesForClass, isCasterSpec, weightsFor, hitCapFor,
+    specFor, specByKey, specForRole, rolesForClass, weightsFor, hitCapFor,
     bisForSpec, aplForSpec, isSimSupported, bisSpecsForItem,
 };

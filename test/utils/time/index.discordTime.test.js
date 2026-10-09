@@ -1,5 +1,5 @@
 const {
-    toSeconds, discordTimestamp, shortServerTime, shortServerDate, longServerTime, SERVER_ZONE,
+    toSeconds, discordTimestamp, serverDateTime, SERVER_ZONE,
 } = require("../../../src/utils/time");
 
 // Thu 17 Sep 2026, 17:30 UTC = 19:30 in Berlin (CEST).
@@ -23,13 +23,10 @@ describe("utils/time: Discord texts", () => {
         expect(discordTimestamp(0)).toBe("");
     });
 
-    it("writes English text in server time where no timestamp can render", () => {
+    it("reads a moment in server time, in English, where no timestamp can render", () => {
         expect(SERVER_ZONE).toBe("Europe/Berlin");
-        expect(shortServerTime(THU)).toBe("Thu 17 Sep 19:30");
-        expect(shortServerDate(THU)).toBe("Thu 17 Sep");
-        expect(shortServerTime(WINTER)).toBe("Mon 14 Dec 19:00");
-        expect(longServerTime(THU)).toBe("Thursday, 17 September 2026 · 19:30 server time");
-        expect(shortServerTime(0)).toBe("");
-        expect(longServerTime(null)).toBe("");
+        expect(serverDateTime(THU).toFormat("ccc d LLL HH:mm")).toBe("Thu 17 Sep 19:30");
+        expect(serverDateTime(WINTER).toFormat("ccc d LLL HH:mm")).toBe("Mon 14 Dec 19:00");
+        expect(serverDateTime(0)).toBeNull();
     });
 });

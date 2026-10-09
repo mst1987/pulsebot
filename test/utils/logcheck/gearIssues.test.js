@@ -1,5 +1,5 @@
 const {
-    analyzePlayerGear, buildGearIssues, buildArmory, formatIssue,
+    analyzePlayerGear, buildGearIssues, buildArmory,
     isEnchantBad, getBadEnchantName, metaGemActive, SLOT_NAMES,
 } = require("../../../src/utils/logcheck/gearIssues");
 
@@ -145,13 +145,6 @@ describe("gearIssues analyzePlayerGear", () => {
     test("onlyGems skips missing-item and enchant checks", () => {
         // no gear at all, but onlyGems means required-slot check is skipped
         expect(analyzePlayerGear(playerWith([]), { onlyGems: true })).toEqual([]);
-    });
-});
-
-describe("gearIssues formatIssue", () => {
-    test("renders item name and label", () => {
-        expect(formatIssue({ itemName: "Spellstrike Hood", label: "keine Verzauberung" }))
-            .toBe("Spellstrike Hood [keine Verzauberung]");
     });
 });
 

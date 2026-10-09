@@ -78,19 +78,9 @@ function can(access, area, level = "read") {
     return level === "write" ? !!entry.write : !!(entry.read || entry.write);
 }
 
-/** Whether an access map grants `level` on at least one of `areas`. */
-function canAny(access, areas, level = "read") {
-    return (areas || []).some((area) => can(access, area, level));
-}
-
 /** True when the map grants at least read on at least one area. */
 function hasAnyAccess(access) {
     return AREA_IDS.some((id) => can(access, id, "read"));
-}
-
-/** The area ids readable with this access map, in sidebar order. */
-function readableAreas(access) {
-    return AREA_IDS.filter((id) => can(access, id, "read"));
 }
 
 /**
@@ -222,7 +212,7 @@ function userCanAny(user, areas, level = "read") {
 
 module.exports = {
     AREAS, AREA_IDS, LEVELS,
-    emptyAccess, fullAccess, can, canAny, hasAnyAccess, readableAreas,
+    emptyAccess, fullAccess, can, hasAnyAccess,
     normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
     mergeAccess, baseAccessMap, accessForRoles, accessForUser,
     userCan, userCanAny, userHasMenuAccess,

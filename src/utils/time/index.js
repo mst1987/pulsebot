@@ -185,24 +185,6 @@ function serverDateTime(value) {
     return s ? DateTime.fromSeconds(s, { zone: SERVER_ZONE }).setLocale("en-US") : null;
 }
 
-/** "Wed 17 Sep 19:30" — short, for select options; "" without a time. */
-function shortServerTime(value) {
-    const dt = serverDateTime(value);
-    return dt ? dt.toFormat("ccc d LLL HH:mm") : "";
-}
-
-/** "Wed 17 Sep" — the day alone; "" without a time. */
-function shortServerDate(value) {
-    const dt = serverDateTime(value);
-    return dt ? dt.toFormat("ccc d LLL") : "";
-}
-
-/** "Wednesday, 17 September 2026 · 19:30 server time" — the long form for pages; "" without a time. */
-function longServerTime(value) {
-    const dt = serverDateTime(value);
-    return dt ? `${dt.toFormat("cccc, d LLLL yyyy · HH:mm")} server time` : "";
-}
-
 // ---------------------------------------------------------------------------
 // How long a raid takes and when it is over (#305) — the one rule, kept apart
 // from eventStore.js on purpose: the signup message, the Discord event and the
@@ -253,7 +235,7 @@ module.exports = {
     // German dates
     formatTimestampToDateString, formatGermanDateTime, toRaidHelperDate, parseGermanDate, parseDayRange, parseClockTime,
     // Discord texts
-    SERVER_ZONE, STYLES, toSeconds, discordTimestamp, shortWhen, serverDateTime, shortServerTime, shortServerDate, longServerTime,
+    SERVER_ZONE, STYLES, toSeconds, discordTimestamp, shortWhen, serverDateTime,
     // raid duration
     MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, durationOf, eventEndTime, plannedEndOrDefault,
 };

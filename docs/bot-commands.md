@@ -112,7 +112,7 @@ fields, thumbnail, buttons, note, mentions, allowedMentions, ephemeral })`:
 - Pings: `mentions` ("<@1> <@2>") is the card's first line and pings — tried on the dev test server: a mention in a
   container's text notifies like one in `content`. Without `mentions` nothing in a card pings (`allowedMentions: { parse: [] }`).
 - One payload for send and edit: it carries `content: ""` and `embeds: []`, so editing an old text or embed message turns it into
-  the card (tried on the dev server, as the organizer panel already did). `isCard(payload)` tells a card from an old payload.
+  the card (tried on the dev server, as the organizer panel already did).
 - `cardFromEmbed(spec, opts)` takes a `buildEmbed` spec (title, description, fields, color, footer, author).
 - `botReply` / `botEditReply` / `botFollowup` and the signup answers (`signupReply.answerPayload` / `answerUpdate`) send
   cards; the link posts (`discord.buildLinkMessage`: raid plan, raidsheet, softres), the announcement, `postNotice` and the

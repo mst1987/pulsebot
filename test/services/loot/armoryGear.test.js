@@ -13,7 +13,7 @@ jest.mock("../../../src/classes/blizzard", () => jest.fn().mockImplementation(()
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: (...a) => mockGetConfig(...a) }));
 
 const {
-    primeArmoryGear, armoryItemInSlot, armorySetFor, hasArmoryGear, clearArmoryCache, toArmoryRows,
+    primeArmoryGear, armoryItemInSlot, armorySetFor, clearArmoryCache, toArmoryRows,
 } = require("../../../src/services/loot/armoryGear");
 
 const equipped = (slot, id, over = {}) => ({
@@ -88,7 +88,6 @@ describe("services/loot/armoryGear", () => {
             await primeArmoryGear(["Wer?"]);
             expect(mockGetEquipment).toHaveBeenCalledTimes(1);
             expect(armoryItemInSlot("Wer?", 12)).toBeNull();
-            expect(hasArmoryGear("Wer?")).toBe(false);
         });
 
         it("matches a character regardless of realm suffix and case", async () => {

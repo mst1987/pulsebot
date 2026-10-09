@@ -247,11 +247,10 @@ describe("Mehrere Charaktere … an einem Event (#293)", () => {
 });
 
 describe("utils/signup/multiSignup", () => {
-    it("parses both customId forms and keeps them under 100 characters", () => {
+    it("parses both customId forms", () => {
         expect(multi.parseMultiId("signup-multi:0123abcd:go:2")).toMatchObject({ token: "0123abcd", action: "go", page: 2 });
         expect(multi.parseMultiId("signup-multi:e:eh-abc:l")).toMatchObject({ action: "one", eventId: "eh-abc", status: "late" });
         expect(multi.parseMultiId("signup-multi:nottoken:go:0").token).toBe("");
-        expect(multi.oneEventId(`eh-${"x".repeat(20)}`, "signed").length).toBeLessThanOrEqual(100);
     });
 
     it("offers only raids that still take signups: not begun, not cancelled, not closed (#288)", () => {

@@ -142,27 +142,6 @@ function hasteDivisor(hasteRating) {
     return 1 + ((hasteRating / HASTE_RATING_PER_PERCENT) / 100);
 }
 
-/** Sum the `total` of every entry whose guid is in `ids`. */
-function sumForIds(entries, ids) {
-    const wanted = new Set(ids.map(String));
-    let total = 0;
-    for (const e of entries || []) {
-        if (wanted.has(String(e.guid))) total += e.total || 0;
-    }
-    return total;
-}
-
-/** Format ms as "1h 23m" / "4m 12s" for headings. */
-function formatDuration(ms) {
-    const s = Math.round(ms / 1000);
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = s % 60;
-    if (h > 0) return `${h}h ${m}m`;
-    if (m > 0) return `${m}m ${sec}s`;
-    return `${sec}s`;
-}
-
 module.exports = {
     ROLES,
     EXCLUDE_KALECGOS,
@@ -172,6 +151,4 @@ module.exports = {
     roleForClass,
     collectFromSummaries,
     hasteDivisor,
-    sumForIds,
-    formatDuration,
 };

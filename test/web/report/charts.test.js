@@ -1,5 +1,5 @@
 const {
-    ribbonChart, markerChart, barChart, lineChart, fmtTime, axisTicks, plotWidth, bandStats, PX_PER_SEC,
+    ribbonChart, markerChart, lineChart, fmtTime, axisTicks, plotWidth, bandStats, PX_PER_SEC,
 } = require("../../../src/web/report/charts.js");
 
 const classColor = (type) => ({ Mage: "#69CCF0", Priest: "#FFFFFF" }[type] || "");
@@ -169,32 +169,6 @@ describe("web/report/charts — markerChart", () => {
 
     it("renders a placeholder without rows", () => {
         expect(markerChart({ duration: 1, rows: [] })).toContain("fc-empty");
-    });
-});
-
-describe("web/report/charts — barChart", () => {
-    it("draws a bar per row with a rounded data end, value at the tip and optional link", () => {
-        const html = barChart({
-            title: "Tode pro Boss",
-            rows: [{ label: "Gruul", value: 3, href: "#fight-3", tone: "high" }, { label: "Maulgar", value: 0, tone: "good" }],
-            max: 3,
-        });
-        expect(html).toContain("<svg class=\"fchart fc-bars\"");
-        expect(html.match(/<path class="fc-bar/g)).toHaveLength(1); // a zero draws no bar
-        expect(html).toContain("a4,4 0 0 1 4,4");
-        expect(html).toContain("<a href=\"#fight-3\">");
-        expect(html).toContain(">3</text>");
-        expect(html).toContain("<tr><td>Maulgar</td><td>0</td></tr>");
-    });
-
-    it("scales to 100 by default and clamps larger values", () => {
-        const html = barChart({ rows: [{ label: "a", value: 250, display: "250%" }] });
-        expect(html).toContain("h666.0"); // full plot width (900 - 170 - 60) minus the rounded end
-        expect(html).toContain("250%");
-    });
-
-    it("renders a placeholder without rows", () => {
-        expect(barChart({ rows: [] })).toContain("fc-empty");
     });
 });
 

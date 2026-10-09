@@ -51,13 +51,6 @@ function clampEmbed(embed = {}) {
     return out;
 }
 
-/** The size Discord counts for an embed (title, description, footer, fields). */
-function embedSize(embed = {}) {
-    return (embed.title || "").length + (embed.description || "").length
-        + (embed.footer ? String(embed.footer.text || "").length : 0)
-        + (embed.fields || []).reduce((n, f) => n + String(f.name).length + String(f.value).length, 0);
-}
-
 /** One row of link buttons: `[{ label, url }]`, the first one usually "Im Web öffnen". */
 function linkRow(links = []) {
     const buttons = links
@@ -144,6 +137,6 @@ function discordTime(time, style = "d") {
 
 module.exports = {
     EMBED_LIMITS, MAX_CHOICES, CHOICE_TEXT_MAX,
-    clip, webUrl, clampEmbed, embedSize, linkRow, lookupReply, deferLookup,
+    clip, webUrl, clampEmbed, linkRow, lookupReply, deferLookup,
     focusedText, focusedName, rankChoices, respondChoices, discordTime, plural,
 };

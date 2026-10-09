@@ -184,14 +184,4 @@ function buildClasses(classes = CLASSES) {
     }));
 }
 
-/** The English label of a class (by id) or of a spec (by key "Priest-Shadow"); "" when unknown. */
-function labelEnOf(idOrKey) {
-    const [classId, specId] = String(idOrKey || "").split("-");
-    const cls = CLASSES.find((c) => c.id === classId);
-    if (!cls) return "";
-    if (!specId) return cls.labelEn;
-    const spec = cls.specs.find((sp) => sp.id === specId);
-    return spec ? spec.labelEn : "";
-}
-
-module.exports = { CLASSES, RAID_HELPER_ONLY_CLASSES, RAID_HELPER_NAMES, ROLES, ROLE_LABELS, ROLE_LABELS_EN, buildClasses, labelEnOf };
+module.exports = { CLASSES, RAID_HELPER_ONLY_CLASSES, RAID_HELPER_NAMES, ROLES, ROLE_LABELS, ROLE_LABELS_EN, buildClasses };

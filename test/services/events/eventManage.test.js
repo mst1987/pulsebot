@@ -46,7 +46,8 @@ const { refreshSetupMessage } = require("../../../src/services/setup/setupMessag
 const { scheduleOverviewSync } = require("../../../src/services/talk/talkOverview");
 const { deliverUserPing, sendDms } = require("../../../src/services/discord/pingDelivery");
 const { cardText, cardColor } = require("../../helpers/cardText");
-const { isCard, KIND_COLORS } = require("../../../src/utils/discord/card");
+const { KIND_COLORS } = require("../../../src/utils/discord/card");
+const { isCardPayload } = require("../../helpers/card");
 const discord = require("../../../src/services/discord/discord");
 const settings = require("../../../src/stores/settingsStore");
 const eventStore = require("../../../src/stores/eventStore");
@@ -263,7 +264,7 @@ describe("cancelling an event", () => {
         // each DM in the raider's own language (pingDelivery.sendDms draws it per language)
         expect(sendDms).toHaveBeenCalledWith([RAIDER], expect.any(Function));
         const cancelEn = sendDms.mock.calls[0][1]("en");
-        expect(isCard(cancelEn)).toBe(true);
+        expect(isCardPayload(cancelEn)).toBe(true);
         expect(cancelEn.content).toBe("");
         expect(cardText(cancelEn)).toContain("Reason: Zu wenig Heiler");
         expect(cardColor(cancelEn)).toBe(KIND_COLORS.warn);
@@ -377,7 +378,7 @@ describe("deleting an event", () => {
         expect(result.body).toMatchObject({ archived: true, dm: { sent: 1 } });
         expect(sendDms).toHaveBeenCalledWith([RAIDER], expect.any(Function));
         const deleteEn = sendDms.mock.calls[0][1]("en");
-        expect(isCard(deleteEn)).toBe(true);
+        expect(isCardPayload(deleteEn)).toBe(true);
         expect(cardText(deleteEn)).toContain("will not take place");
         expect(cardColor(deleteEn)).toBe(KIND_COLORS.warn);
         expect(cardText(sendDms.mock.calls[0][1]("de"))).toMatch(/findet nicht statt\nDas Event wurde entfernt\./);

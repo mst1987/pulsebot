@@ -6,8 +6,6 @@ const {
     roleForClass,
     collectFromSummaries,
     hasteDivisor,
-    sumForIds,
-    formatDuration,
 } = require("../../../../src/utils/logcheck/rpb/common");
 
 const fights = {
@@ -161,22 +159,5 @@ describe("rpb/common maths helpers", () => {
         // 15.77 rating = 1% haste -> divisor 1.01
         expect(hasteDivisor(15.77)).toBeCloseTo(1.01, 5);
         expect(hasteDivisor(157.7)).toBeCloseTo(1.1, 5);
-    });
-
-    test("sumForIds adds totals of matching guids only", () => {
-        const entries = [
-            { guid: 1, total: 5 },
-            { guid: 2, total: 7 },
-            { guid: 3, total: 9 },
-        ];
-        expect(sumForIds(entries, ["1", "3"])).toBe(14);
-        expect(sumForIds(entries, [])).toBe(0);
-        expect(sumForIds(null, ["1"])).toBe(0);
-    });
-
-    test("formatDuration renders hours, minutes and seconds", () => {
-        expect(formatDuration(45_000)).toBe("45s");
-        expect(formatDuration(125_000)).toBe("2m 5s");
-        expect(formatDuration(3_725_000)).toBe("1h 2m");
     });
 });

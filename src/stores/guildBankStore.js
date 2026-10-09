@@ -136,11 +136,6 @@ function getRequest(id) {
     return hit ? complete(hit) : null;
 }
 
-/** How many open requests a raider has. */
-function countOpen(userId) {
-    return listRequests({ userId, status: "open" }).length;
-}
-
 /**
  * Store a new open request. Checks the fields and the limit of MAX_OPEN open
  * requests per raider. Returns `{ request }` or `{ error }` (German).
@@ -292,7 +287,7 @@ function renamePendingItem({ bankKeys = [], itemId = 0, name = "" } = {}) {
 
 module.exports = {
     STATUSES, PENDING_STATUSES, HANDOUT_VIAS, ITEM_MAX, PURPOSE_MAX, REASON_MAX, AMOUNT_MIN, AMOUNT_MAX, MAX_OPEN, KEEP_DAYS,
-    parseAmount, checkInput, listRequests, getRequest, countOpen, addRequest, setMessage, resolveRequest,
+    parseAmount, checkInput, listRequests, getRequest, addRequest, setMessage, resolveRequest,
     confirmRequest, releaseRequest, handOutRequest, removeRequest, prune, renamePendingItem,
     useFile,
 };

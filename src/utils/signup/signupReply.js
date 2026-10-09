@@ -10,7 +10,6 @@
 // in English (botEnglish), in German it stays as the service wrote it. The
 // caller hands the reader's language (services/discord/botLanguage.js); without
 // one the answer is English, as before the bot spoke German.
-const { buildEmbed } = require("../discord/reply");
 const { cardFromEmbed } = require("../discord/card");
 const { embedColor } = require("../../services/events/embedLook");
 const { serviceText } = require("../i18n/botText");
@@ -45,11 +44,6 @@ function answerEmbed(text, { event = null, title = "", lang = "en" } = {}) {
     return out;
 }
 
-/** An answer (text or buildEmbed input) as the embed object Discord takes. */
-function toEmbed(answer, opts = {}) {
-    return buildEmbed(typeof answer === "string" ? answerEmbed(answer, opts) : answer);
-}
-
 /**
  * The ephemeral reply / follow-up payload of an answer text (or buildEmbed input): one card, `components` (rows or buttons)
  * inside it. A caller adds buttons through `components`, never by overwriting the payload's own `components` or `flags`.
@@ -67,4 +61,4 @@ function answerUpdate(answer, { event = null, title = "", lang = "en" } = {}) {
     return cardFromEmbed(typeof answer === "string" ? answerEmbed(answer, { event, title, lang }) : answer);
 }
 
-module.exports = { plainTitle, colorOf, answerEmbed, toEmbed, answerPayload, answerUpdate };
+module.exports = { plainTitle, colorOf, answerEmbed, answerPayload, answerUpdate };

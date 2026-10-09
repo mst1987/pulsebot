@@ -14,7 +14,7 @@ jest.mock("../../../src/stores/reportStore.js", () => ({
 jest.mock("../../../src/web/http/apiMiddleware.js", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser, csrf: () => mockCsrf, fullAdmin: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody.js", () => require("../../helpers/http").apiBodyMock({ body: () => mockBody }));
 jest.mock("../../../src/web/http/activeGuild.js", () => ({ activeGuildFor: () => "g1" }));
-jest.mock("../../../src/services/logcheck/reportList.js", () => ({ prepareReportList: jest.fn(), prepareLogList: jest.fn(), annotateLogCategories: jest.fn(), annotateReportEvents: jest.fn() }));
+jest.mock("../../../src/services/logcheck/reportList.js", () => ({ prepareReportList: jest.fn(), annotateLogCategories: jest.fn(), annotateReportEvents: jest.fn() }));
 jest.mock("../../../src/stores/logStore.js", () => ({ listLogs: jest.fn(), getLog: jest.fn(), getByReportRefId: jest.fn(), deleteLog: jest.fn(), clearEvaluation: jest.fn(), clearSection: jest.fn(), evaluatedSections: jest.fn(), linkEvent: jest.fn(), unlinkEvent: jest.fn() }));
 jest.mock("../../../src/services/logcheck/logEventMatch.js", () => ({ annotateMatches: jest.fn(), autoMatches: jest.fn() }));
 jest.mock("../../../src/services/logcheck/logChannel.js", () => ({ evaluateLog: jest.fn(), scanLogChannels: jest.fn(), backfillLogTitles: jest.fn() }));

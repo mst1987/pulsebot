@@ -3,7 +3,7 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const {
-    listPending, getPending, upsertPending, resolvePending, resolutionFor, pendingCount, noteAppended, listLinked,
+    listPending, getPending, upsertPending, resolvePending, resolutionFor, noteAppended, listLinked,
 } = require("../../src/stores/lootInboxStore.js");
 
 beforeEach(() => {
@@ -33,7 +33,7 @@ describe("stores/lootInboxStore", () => {
                 sessionId: "s1", instance: "Serpentshrine Cavern", itemCount: 1,
                 realm: "Thunderstrike", reporter: "Lead-Thunderstrike", tokenName: "Raidlead-PC",
             });
-            expect(pendingCount()).toBe(1);
+            expect(listPending().length).toBe(1);
         });
 
         // The sync tool re-uploads the whole raid on every flush, so this is the
@@ -46,7 +46,7 @@ describe("stores/lootInboxStore", () => {
             expect(created).toBe(false);
             expect(added).toBe(1);
             expect(entry.itemCount).toBe(2);
-            expect(pendingCount()).toBe(1);
+            expect(listPending().length).toBe(1);
         });
 
         it("never double-counts an award already in the entry", () => {
@@ -90,7 +90,7 @@ describe("stores/lootInboxStore", () => {
         it("keeps separate sessions apart", () => {
             upsertPending(session());
             upsertPending(session({ sessionId: "s2" }));
-            expect(pendingCount()).toBe(2);
+            expect(listPending().length).toBe(2);
         });
     });
 
@@ -103,7 +103,7 @@ describe("stores/lootInboxStore", () => {
 
         it("is empty before anything was uploaded", () => {
             expect(listPending()).toEqual([]);
-            expect(pendingCount()).toBe(0);
+            expect(listPending().length).toBe(0);
         });
     });
 
@@ -123,7 +123,7 @@ describe("stores/lootInboxStore", () => {
                 eventId: "e1", eventLabel: "SSC", categoryId: "cat1",
             });
             expect(removed.sessionId).toBe("s1");
-            expect(pendingCount()).toBe(0);
+            expect(listPending().length).toBe(0);
             expect(resolutionFor("s1")).toMatchObject({
                 action: "accepted", eventId: "e1", eventLabel: "SSC", categoryId: "cat1",
             });
