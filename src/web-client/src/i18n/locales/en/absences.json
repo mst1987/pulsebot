@@ -149,9 +149,15 @@
         "loading": "Loading attendance",
         "back": "Back to the overview",
         "of": "Attendance of {name}",
-        "entries": "My absences",
-        "entriesOf": "Absences of {name}",
-        "noEntries": "No absence entered.",
+        "entries": "My entries",
+        "entriesOf": "Entries of {name}",
+        "noEntries": "Nothing entered.",
+        "entry": {
+            "absent": "Absent",
+            "absentIn": "Absent from",
+            "present": "Present",
+            "presentOnly": "Only there for"
+        },
         "noCategories": "You have not signed up for a raid of any category yet – once you are in, your attendance shows here.",
         "noCategoriesOf": "{name} has not signed up for a raid of any category yet.",
         "noRaids": "No raids counted yet.",
