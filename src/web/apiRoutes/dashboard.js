@@ -6,7 +6,7 @@ const discord = require("../../services/discord/discord");
 const {
     loadNextRaids, loadNextRaidDetails, loadRecentEvents, loadTopLoot,
     loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive, loadMissingChannels,
-    dashboardVersions,
+    dashboardVersions, loadTrialEndings,
 } = require("../dashboard/dashboardData");
 const { userCanAny } = require("../../config/permissions");
 const { buildTasks, zoneFor } = require("../dashboard/dashboardOverview");
@@ -64,6 +64,8 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     const deploy = userCanAny(user, ["settings"], "read") ? await deployStatus() : null;
     // Raids whose channel is gone (#537), for whoever sees the raids.
     const missingChannels = userCanAny(user, ["raids"], "read") ? await loadMissingChannels(guildId) : [];
+    // Trials ending soon (#658), for whoever may change roster members: full admins and the roster's managers.
+    const trials = userCanAny(user, ["roster"], "write") ? await loadTrialEndings(guildId, user) : [];
 
     ok(res, {
         kicker: kickerFor(guildId),
@@ -80,6 +82,7 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
             deploy,
             missingChannels,
             canRecreate: userCanAny(user, ["raids"], "write"),
+            trials,
         }),
         areas: {
             lastReport: report,

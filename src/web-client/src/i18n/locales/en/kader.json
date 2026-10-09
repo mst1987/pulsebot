@@ -2,6 +2,57 @@
     "loading": "Loading the roster planner …",
     "error": "That did not work.",
     "system": "System",
+    "roster": {
+        "createButton": "Create roster",
+        "createTip": "Create a raid roster from this Kader",
+        "createTipSub": {
+            "one": "{count} player comes along: Roster → Core, Bench → Bench, Tentative → Trial. Interviews, answers, votes and comments stay in the planner.",
+            "other": "{count} players come along: Roster → Core, Bench → Bench, Tentative → Trial. Interviews, answers, votes and comments stay in the planner."
+        },
+        "createTitle": "Create a roster from the Kader",
+        "createHint": "Only the status and the decided character come along. Afterwards everything is editable in the roster – name, members, status, roles.",
+        "create": "Create",
+        "category": "Raid category",
+        "noCategory": "No category",
+        "categoryHint": "With a category, reminders, \"missing\" lists and the setup proposal use this roster. It can be changed in the roster later.",
+        "created": {
+            "one": "Roster created – {count} player taken over.",
+            "other": "Roster created – {count} players taken over."
+        },
+        "syncButton": {
+            "one": "Take into roster ({count})",
+            "other": "Take into roster ({count})"
+        },
+        "syncTip": "Take newly decided players into the roster",
+        "syncTipSub": "Whoever is in the roster already stays as they are. Only status and character come along.",
+        "syncTitle": "Take over into \"{name}\"?",
+        "syncText": {
+            "one": "{count} player joins the roster and gets the roster role. Whoever is in it already stays as they are.",
+            "other": "{count} players join the roster and get the roster role. Whoever is in it already stays as they are."
+        },
+        "sync": "Take over",
+        "synced": {
+            "one": "{count} player taken into the roster.",
+            "other": "{count} players taken into the roster."
+        },
+        "roleFailures": {
+            "one": "The role could not be given to {count} player.",
+            "other": "The role could not be given to {count} players."
+        },
+        "open": "Open roster",
+        "openTip": "Open {name}",
+        "openTipSub": {
+            "one": "{count} member. Name, members, status and roles are edited there.",
+            "other": "{count} members. Name, members, status and roles are edited there."
+        },
+        "error": {
+            "category_taken": "This category already has a roster.",
+            "kader_not_found": "This Kader no longer exists.",
+            "invalid_name": "Please enter a name.",
+            "name_too_long": "The name is too long (40 characters at most).",
+            "admin_only": "Only admins create rosters."
+        }
+    },
     "quote": "“{text}”",
     "state": {
         "pool": "Pool",

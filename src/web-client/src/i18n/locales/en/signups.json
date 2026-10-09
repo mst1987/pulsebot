@@ -76,6 +76,7 @@
         "size": "{size}-man",
         "change": "Change signup",
         "started": "The raid has started.",
+        "rosterOnly": "Only members of the roster (core, trial or bench) sign up for this raid. Ask the raid lead.",
         "deadlineHint": "Signup deadline passed – only Sign off or Late now.",
         "signOff": "Sign off",
         "noCharBefore": "Your profile has no character yet.",

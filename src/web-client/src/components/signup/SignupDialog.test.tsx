@@ -208,6 +208,24 @@ describe("SignupDialog", () => {
         expect(await screen.findByText("Anmeldung geschlossen")).toBeInTheDocument();
         expect(onSaved).not.toHaveBeenCalled();
     });
+
+    // "Anmeldung nur für das Roster" (#658): who is no roster member (core, trial, bench) is told before trying
+    it("says up front that only the roster signs up, and keeps the button off", async () => {
+        show(ownRow({ rosterOnly: true }));
+        expect(screen.getByText(t("signups.dialog.rosterOnly"))).toBeInTheDocument();
+        expect(submitButton()).toBeDisabled();
+        await switchLang("en");
+        expect(await screen.findByText(/Only members of the roster \(core, trial or bench\)/)).toBeInTheDocument();
+    });
+
+    it("words the server's roster refusal in the menu's language", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.saveSignup).mockRejectedValue({ code: "roster_only", message: "Für diesen Raid melden sich nur Mitglieder des Rosters an" });
+        await switchLang("en");
+        show();
+        await user.click(screen.getByRole("button", { name: "Sign up" }));
+        expect(await screen.findByText(/Only members of the roster/)).toBeInTheDocument();
+    });
 });
 
 // #320: the web sets the status per character, the way Discord has since #302.

@@ -15,12 +15,14 @@ jest.mock("../../../src/stores/settingsStore", () => ({
 }));
 jest.mock("../../../src/services/discord/discord", () => ({
     listMembersWithRoles: jest.fn(),
+    listHumanMembers: jest.fn(async () => ({ members: [], error: null })),
     listRoles: jest.fn(() => [{ id: "r1", name: "Raider" }]),
     resolveUserNames: jest.fn(async (g, ids) => Object.fromEntries(ids.map((id) => [id, `Name ${id}`]))),
     getGuild: jest.fn(() => null),
 }));
 jest.mock("../../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn(), raidhelperDisabled: jest.fn(() => false) }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null) }));
+jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null), listRosters: jest.fn(() => []) }));
 jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(() => null) }));
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
 jest.mock("../../../src/stores/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));
@@ -105,7 +107,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
             "event", "planning", "setupFromSnapshot", "categoryName", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
             "softresCatalogue", "softresEdition", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "ownSetupPost",
-            "ownSetupEditors", "attendanceRoleIds", "membersError", "signupTarget", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
+            "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
             "progress", "steps", "playerSummaries",
         ]);
         expect(body.event).toEqual({
@@ -232,6 +234,24 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         const without = (await buildRaidDetail({ guildId: "g1", eventId: "eh-1", planPost: false })).body;
         expect(ids(without)).toEqual(ids(all).filter((id) => id !== "plan"));
         expect(without.raidplanPost).toBeNull();
+    });
+
+    it("measures the missing list against the roster's core and trial members where the category has a roster (#658)", async () => {
+        const rosterStore = require("../../../src/stores/rosterStore");
+        rosterStore.rosterForCategory.mockReturnValue({ roleIds: [], members: { u1: { status: "core" }, u5: { status: "trial" }, u6: { status: "bench" } } });
+        discord.listHumanMembers.mockResolvedValueOnce({ members: [{ id: "u1", displayName: "Tanki" }, { id: "u5", displayName: "Neu" }, { id: "u6", displayName: "Bank" }], error: null });
+        try {
+            loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
+            const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
+            expect(body.attendanceSource).toBe("roster");
+            expect(body.attendanceRoleIds).toEqual([]);
+            expect(body.attendance.missing.map((m) => m.id)).toEqual(["u5"]);
+            expect(body.attendance.responded.map((m) => m.id)).toEqual(["u1"]);
+            expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
+            expect(body.signupTarget).toBe(2);
+        } finally {
+            rosterStore.rosterForCategory.mockReturnValue(null);
+        }
     });
 
     it("leaves the member list alone when the roster of a past raid is unknown", async () => {

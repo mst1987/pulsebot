@@ -26,6 +26,7 @@ const rosterRoleSync = require("../../../src/services/roster/rosterRoleSync");
 const { buildAttendanceContext } = require("../../../src/services/characters/rosterAttendance");
 const {
     createRosterWithSource, createRosterFromKader, kaderChoices, presentInRaids, kaderCharacter,
+    rosterOfKader, kaderRosterState, syncRosterFromKader,
 } = require("../../../src/services/roster/rosterCreate");
 
 const CAT = "700000000000000001";
@@ -123,7 +124,8 @@ describe("services/roster/rosterCreate source role", () => {
 describe("services/roster/rosterCreate source kader", () => {
     it("maps the states, picks the characters and gives the roles through rosterMembers", async () => {
         rosterRoleSync.applyMemberAdded.mockResolvedValueOnce({ ok: false, results: [{ roleId: ROLE, give: true, ok: false, code: "no_permission" }] });
-        const res = await createRosterFromKader("k1", { guildId: "g1", actor: "1", roleIds: [ROLE], trialRoleId: TRIAL });
+        // the profiles here are TBC characters; a Kader roster without category would play Forever (next test)
+        const res = await createRosterFromKader("k1", { guildId: "g1", actor: "1", roleIds: [ROLE], trialRoleId: TRIAL, versionId: "tbc" });
         expect(res.ok).toBe(true);
         expect(res.roster).toEqual(expect.objectContaining({ name: "Forever-Kader", source: { kind: "kader", kaderId: "k1" } }));
         const m = res.roster.members;
@@ -137,6 +139,11 @@ describe("services/roster/rosterCreate source kader", () => {
         expect(rosterRoleSync.applyMemberAdded).toHaveBeenCalledTimes(3);
         expect(res.initial).toEqual(expect.objectContaining({ source: "kader", added: 3, skipped: 0 }));
         expect(res.initial.roleFailures).toEqual([{ userId: expect.any(String), roleId: ROLE, code: "no_permission" }]);
+    });
+
+    it("plays the Kaderplaner's version (Forever) without a category, the category's version with one (#658)", async () => {
+        expect((await createRosterFromKader("k1", { guildId: "g1" })).roster.versionId).toBe("forever");
+        expect((await createRosterFromKader("k1", { guildId: "g1", categoryId: CAT })).roster.versionId).toBe("tbc");
     });
 
     it("copies nothing private of the Kader into the roster file", async () => {
@@ -184,5 +191,53 @@ describe("services/roster/rosterCreate source raids", () => {
         expect(res.initial).toEqual(expect.objectContaining({ source: "raids", added: 4 }));
         expect(res.roster.members[U.a]).toEqual(expect.objectContaining({ status: "core", chars: ["keslight"] }));
         expect(rosterRoleSync.applyMemberAdded).toHaveBeenCalledTimes(4);
+    });
+});
+
+describe("services/roster/rosterCreate syncRosterFromKader (#658)", () => {
+    it("takes the newly decided players over and leaves every member already in the roster as it is", async () => {
+        const created = await createRosterFromKader("k1", { guildId: "g1", roleIds: [ROLE] });
+        rosterStore.upsertMember(created.roster.id, U.a, { status: "pause", note: "vom Manager" });
+        // U.d is decided later (roster), U.b moved back to the pool in the Kader
+        const planner = kaderPlanner();
+        planner.kaders[0].players[U.d].state = "roster";
+        planner.kaders[0].players[U.b].state = "pool";
+        kaderStore.writePlanner("g1", planner);
+        expect(kaderRosterState("g1", "k1")).toEqual({ roster: { id: created.roster.id, name: "Forever-Kader", members: 3 }, candidates: 3, pending: 1 });
+        rosterRoleSync.applyMemberAdded.mockClear();
+
+        const res = await syncRosterFromKader("k1", { guildId: "g1", actor: "9" });
+        expect(res).toEqual(expect.objectContaining({ ok: true, added: 1, skipped: 0, kept: 2, roleFailures: [] }));
+        const m = res.roster.members;
+        expect(m[U.d]).toEqual(expect.objectContaining({ status: "core", by: "9" }));
+        // untouched: status, note - and nobody is taken out because the Kader moved them back
+        expect(m[U.a]).toEqual(expect.objectContaining({ status: "pause", note: "vom Manager" }));
+        expect(m[U.b]).toEqual(expect.objectContaining({ status: "bench" }));
+        expect(rosterRoleSync.applyMemberAdded).toHaveBeenCalledTimes(1);
+        expect(kaderRosterState("g1", "k1").pending).toBe(0);
+    });
+
+    it("copies nothing private of the Kader into the roster file when taking players over", async () => {
+        await createRosterFromKader("k1", { guildId: "g1" });
+        const planner = kaderPlanner();
+        planner.kaders[0].players[U.d].state = "tentative";
+        kaderStore.writePlanner("g1", planner);
+        expect((await syncRosterFromKader("k1", { guildId: "g1" })).added).toBe(1);
+        const file = fs.__store.get(rosterStore.ROSTERS_FILE);
+        for (const marker of [SECRET, "Mage-Frost", "wishes", "votes", "interview", "comments"]) expect(file).not.toContain(marker);
+    });
+
+    it("answers a code: no roster for the Kader, a roster from elsewhere, a Kader that is gone", async () => {
+        expect(await syncRosterFromKader("k1", { guildId: "g1" })).toEqual({ ok: false, code: "not_found" });
+        expect(kaderRosterState("g1", "k1")).toEqual({ roster: null, candidates: 3, pending: 3 });
+        expect(kaderRosterState("g1", "nope")).toBeNull();
+        const other = await createRosterWithSource({ name: "Manuell" }, { guildId: "g1" });
+        expect(await syncRosterFromKader("k1", { guildId: "g1", rosterId: other.roster.id })).toEqual({ ok: false, code: "not_from_kader" });
+        const fromKader = await createRosterFromKader("k1", { guildId: "g1" });
+        expect(rosterOfKader("g1", "k1").id).toBe(fromKader.roster.id);
+        expect(rosterOfKader("g2", "k1")).toBeNull();
+        expect(rosterOfKader("g1", "")).toBeNull();
+        kaderStore.writePlanner("g1", { ...kaderPlanner(), kaders: [] });
+        expect(await syncRosterFromKader("k1", { guildId: "g1" })).toEqual({ ok: false, code: "kader_not_found" });
     });
 });

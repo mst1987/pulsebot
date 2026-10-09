@@ -17,6 +17,8 @@ const HISTORY_WINDOW = 10;
 // Statuses a raider can be placed with, and how much each is worth.
 const STATUS_FACTOR = { signed: 1, late: 0.5, tentative: 0.3, bench: 0 };
 const GEAR_FACTOR = { ready: 1, "": 0.5, usable: 0 };
+// The roster status of a category with a roster (#658): core before trial before bench, everyone else 0.
+const ROSTER_FACTOR = { core: 1, trial: 0.6, bench: 0.3 };
 
 
 /** A composition entry as `{ min, max }` — max null = no upper bound. */
@@ -160,6 +162,12 @@ function attendanceOf(raw, userId) {
     return pct === null || pct === undefined || !Number.isFinite(Number(pct)) ? null : Math.max(0, Math.min(100, Number(pct)));
 }
 
+/** A raider's roster status from `input.rosterStatus` (`{ userId: status }`), "" for none or an unknown one. */
+function rosterStatusOf(raw, userId) {
+    const v = raw && typeof raw === "object" ? raw[userId] : "";
+    return typeof v === "string" && v in ROSTER_FACTOR ? v : "";
+}
+
 /** The class's spec to play a role as, preferring what the profile says the raider has geared. */
 function specForRole(classInfo, role, profileChar) {
     const fits = classInfo.specs.filter((s) => (role === "tank" ? s.canTank : role === "healer" ? s.canHeal : s.role === role));
@@ -272,10 +280,12 @@ function latestSignupPerEvent(list) {
         .filter((s, i, sorted) => i === 0 || sorted[i - 1].eventIdx !== s.eventIdx);
 }
 
-function newCandidate(idx, userId, profile, fairness, attendance) {
+function newCandidate(idx, userId, profile, fairness, attendance, roster = "") {
     return {
         idx,
         userId,
+        // the roster status in the event's category (#658), "" = no member / no roster
+        roster,
         name: str(profile && profile.name),
         options: [],
         absentIn: new Set(),
@@ -349,7 +359,7 @@ function buildCandidates(input, ctx) {
     for (const userId of candidateOrder(ctx.byUser)) {
         const signups = latestSignupPerEvent(ctx.byUser.get(userId));
         const profile = ctx.profiles.get(userId) || null;
-        const cand = newCandidate(cands.length, userId, profile, fairness.get(userId), attendanceOf(input.attendance, userId));
+        const cand = newCandidate(cands.length, userId, profile, fairness.get(userId), attendanceOf(input.attendance, userId), rosterStatusOf(input.rosterStatus, userId));
         for (const s of signups) addSignupOptions(cand, s, profile, ctx);
         cands.push(cand);
     }
@@ -527,6 +537,8 @@ function buildModel(input = {}, weights) {
         cands,
         pairs,
         wishOn: events.some((e) => e.wishes),
+        // a category with a roster (#658): somebody among the signups has a roster status
+        hasRoster: cands.some((c) => c.roster),
         avoidPairs,
         partyBuffs,
         raidBuffs,
@@ -536,4 +548,4 @@ function buildModel(input = {}, weights) {
     };
 }
 
-module.exports = { buildModel, limitFor, fairnessMap, signupCharacters, characterStatus, characterFlags, GROUP_SIZE, HISTORY_WINDOW, STATUS_FACTOR, GEAR_FACTOR, charKey: characterKeyOf };
+module.exports = { buildModel, limitFor, fairnessMap, signupCharacters, characterStatus, characterFlags, GROUP_SIZE, HISTORY_WINDOW, STATUS_FACTOR, GEAR_FACTOR, ROSTER_FACTOR, charKey: characterKeyOf };

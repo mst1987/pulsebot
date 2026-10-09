@@ -14,6 +14,9 @@
 //               stored separately. As long as no setup was approved yet, the
 //               stored signups stand in (signed/late = placed, "Ersatzbank" = bench).
 //   fixed       the places the orga locked in the event's current setup draft
+//   rosterStatus  the roster of the event's category (#658): `{ userId: status }`
+//               of its members — core before trial before bench in the proposal;
+//               empty for a category without roster
 //
 // Only own events (`source: "eventhelper"`) have a setup; Raid-Helper events
 // keep theirs at Raid-Helper.
@@ -22,6 +25,7 @@ const eventStore = require("../../stores/eventStore");
 const signupStore = require("../../stores/signupStore");
 const profileStore = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
+const rosterStore = require("../../stores/rosterStore");
 const { buildAttendanceContext, attendanceFor } = require("../characters/rosterAttendance");
 const { listStoredEvents } = require("../events/eventSources");
 const { buildSetupProposal } = require("../../utils/setup/proposal");
@@ -163,6 +167,7 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false } = 
     }
 
     const { history, source: historySource } = benchHistory(events, { guildId, now });
+    const rosterStatus = rosterStatusFor(events);
     return {
         versionId: events[0].versionId,
         events: events.map((e) => ({
@@ -180,7 +185,25 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false } = 
         history,
         historySource,
         fixed: events.flatMap((e) => fixedFromSetup(e, { keepPlaced })),
+        rosterStatus,
     };
+}
+
+/**
+ * The roster status of every member of the events' categories' rosters (#658):
+ * `{ userId: "core" | "trial" | "bench" | "pause" }`, the first event's roster
+ * first; empty when no category has a roster.
+ */
+function rosterStatusFor(events) {
+    const out = {};
+    for (const e of events) {
+        const roster = e.categoryId ? rosterStore.rosterForCategory(String(e.categoryId)) : null;
+        if (!roster) continue;
+        for (const [userId, member] of Object.entries(roster.members)) {
+            if (out[userId] === undefined) out[userId] = member.status;
+        }
+    }
+    return out;
 }
 
 /** Collect and propose in one go — for the setup editor (#263). `null` for unknown events. */
@@ -190,4 +213,4 @@ function proposeSetup(eventIds, options = {}) {
     return { ...buildSetupProposal(input, options), historySource: input.historySource };
 }
 
-module.exports = { collectSetupInput, proposeSetup, benchHistory, fixedFromSetup, setupMembers, approvedLineup, HISTORY_NIGHTS };
+module.exports = { collectSetupInput, proposeSetup, benchHistory, fixedFromSetup, setupMembers, approvedLineup, rosterStatusFor, HISTORY_NIGHTS };

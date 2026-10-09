@@ -210,6 +210,8 @@
     "/api/kader/accounts/remove": "kader",
     "/api/kader/assignments": "kader",
     "/api/kader/assignments/reset": "kader",
+    "/api/kader/roster": "kader",
+    "/api/kader/roster/sync": "kader",
     "/api/availability": "signup",
     "/api/availability/attendance": "signup",
     "/api/availability/overview": "roster",

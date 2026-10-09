@@ -33,6 +33,8 @@ const RULES = [
         "The raid is full ($1/$2) – you are on the waiting list (bench). The raid lead decides who moves up."],
     [/^Der Raid ist damit voll – die Anmeldung ist jetzt geschlossen\.$/, "The raid is now full – signups are closed."],
     [/^Für diesen Raid brauchst du eine Raider-Rolle\.$/, "You need a raider role for this raid."],
+    [/^Für diesen Raid melden sich nur Mitglieder des Rosters an \(Stamm, Probe oder Ersatz\)\. Frag die Raidleitung\.$/,
+        "Only members of the roster (core, trial or bench) sign up for this raid. Ask the raid lead."],
     [/^Kein Nutzer\.$/, "No user."],
     [/^Keiner der gewählten Charaktere passt$/, "None of the picked characters fits"],
     [/^Kein Charakter gewählt$/, "No character picked"],

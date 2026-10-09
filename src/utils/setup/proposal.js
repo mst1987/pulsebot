@@ -421,6 +421,8 @@ function search(model, scorer) {
  *   stays a matter for the whole person.
  * @param {object[]|object} [input.profiles]  raiderProfileStore profiles (array or by user id)
  * @param {object} [input.attendance]  `{ [userId]: pct | { pct } }`
+ * @param {object} [input.rosterStatus]  `{ [userId]: "core" | "trial" | "bench" | "pause" }` — the roster of the
+ *   event's category (#658); core before trial before bench, everyone else after. Empty without a roster.
  * @param {object[]} [input.history]  earlier nights: `{ eventId, startTime, placed: userId[], bench: userId[] }`
  * @param {object[]} [input.fixed]  the orga's fixed places: `{ userId, eventId?, group? (1-based), spec?, role? }`
  *   or `{ userId, bench: true }`
@@ -470,6 +472,8 @@ function prepare(input, options) {
     const wishOn = model.wishesOverride !== undefined ? model.wishesOverride : model.events.some((e) => e.wishes);
     if (!fairOn) effective.fairness = 0;
     if (!wishOn) effective.wishes = 0;
+    // without a roster in the category (#658) nobody has a status: the weight does nothing
+    if (!model.hasRoster) effective.roster = 0;
     return { model, effective };
 }
 

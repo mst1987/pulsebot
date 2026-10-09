@@ -6,7 +6,7 @@
 const profiles = require("../../stores/raiderProfileStore");
 const { getEvent } = require("../../stores/eventStore");
 // categoryVisible lives in the service: the same raider-role rule guards saving a signup (submitSignup).
-const { categoryVisible, profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("../../services/signups/signupService");
+const { categoryVisible, rosterOnlyAccess, profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("../../services/signups/signupService");
 const { upcomingRows } = require("../../services/events/raidListing");
 const { instanceById, VERSIONS, LEGACY_VERSION } = require("../../config/gameVersions");
 const { versionOfEvent } = require("../../services/events/mainVersion");
@@ -156,6 +156,9 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
                 mine: signupSummary(own),
                 // Where the *approved* setup puts the member (#263) — a draft is never shown.
                 placement: approvedPlacementFor(stored, uid),
+                // "Anmeldung nur für das Roster" (#658): true when this member may not sign up (no roster member
+                // with status core / trial / bench, no own signup, not the orga) - the dialog says so up front
+                rosterOnly: !orga && !own && rosterOnlyAccess(stored.categoryId || row.categoryId, uid) === false,
             };
         });
 }

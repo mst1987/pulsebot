@@ -26,11 +26,17 @@
 // (the decision of #659, "Rolle im Discord bekommen = im Roster").
 //
 // Creating is for full admins - the route checks that, not this module.
+//
+// Later (#658, the Kaderplaner's "Ins Roster übernehmen"): syncRosterFromKader
+// takes the Kader's players of those three states who are no member yet into
+// the roster it created (`source.kaderId`), the same way; members already in
+// it stay exactly as they are - status, characters, note. Who may do it (area
+// `kader` write plus manager of that roster) is the route's business.
 const rosterStore = require("../../stores/rosterStore");
 const raiderProfileStore = require("../../stores/raiderProfileStore");
 const discord = require("../discord/discord");
 const { listKnownCategories } = require("../discord/categoryNames");
-const { mainVersionFor } = require("../events/mainVersion");
+const { mainVersionFor, knownVersion } = require("../events/mainVersion");
 const { buildAttendanceContext } = require("../characters/rosterAttendance");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
 const { rosterPlayers, kaderSummaries } = require("../kader/kaderRoster");
@@ -42,6 +48,9 @@ const SOURCES = ["role", "kader", "raids", "none"];
 const RAIDS_BACK = 4;
 const STATUS_OF_KADER_STATE = { roster: "core", bench: "bench", tentative: "trial" };
 const PRESENT = ["signed", "late"];
+// The Kaderplaner plans for WoW Forever (web/kader/kaderSource.plannerVersion): a roster from a Kader
+// without a category plays that version when the rule set exists (#658); a category's version wins.
+const KADER_VERSION = "forever";
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -159,7 +168,7 @@ function prepare(input, { guildId, config, knownRoleIds }) {
         guildId,
         name: name.slice(0, rosterStore.LIMITS.name),
         categoryId,
-        versionId: fields.versionId || mainVersionFor({ categoryId: categoryId || "", config }),
+        versionId: fields.versionId || (kader && !categoryId && knownVersion(KADER_VERSION)) || mainVersionFor({ categoryId: categoryId || "", config }),
         source: kader ? { kind: "kader", kaderId: kader.id } : { kind: "manual" },
     };
     return { data, source, kader };
@@ -201,6 +210,62 @@ async function createRosterWithSource(input, { guildId = "", actor = "", config,
     return { ok: true, roster: rosterStore.getRoster(roster.id), initial };
 }
 
+/** The roster a Kader created (`source.kind` "kader", `source.kaderId`) on that server, or null. */
+function rosterOfKader(guildId, kaderId) {
+    const id = str(kaderId);
+    if (!id) return null;
+    return rosterStore.listRosters(str(guildId)).find((r) => r.source.kind === "kader" && r.source.kaderId === id) || null;
+}
+
+/** The Kader's players a roster takes (kaderRoster.rosterPlayers) who are no member of `roster` yet. */
+function pendingPlayers(roster, kader) {
+    return kader.players.filter((p) => !roster.members[p.userId]);
+}
+
+/**
+ * What the Kaderplaner's roster button needs for one Kader (counts only):
+ * `{ roster: { id, name, members } | null, candidates, pending }` -
+ * `candidates` = players in roster / bench / tentative, `pending` = those of
+ * them not in the roster yet (all of them while there is no roster). Null for
+ * an unknown Kader.
+ */
+function kaderRosterState(guildId, kaderId) {
+    const kader = rosterPlayers(str(guildId), str(kaderId));
+    if (!kader) return null;
+    const roster = rosterOfKader(guildId, kader.id);
+    return {
+        roster: roster ? { id: roster.id, name: roster.name, members: Object.keys(roster.members).length } : null,
+        candidates: kader.players.length,
+        pending: roster ? pendingPlayers(roster, kader).length : kader.players.length,
+    };
+}
+
+/**
+ * "Ins Roster übernehmen" (#658): the Kader's players in roster / bench /
+ * tentative who are not in the roster yet are taken in like createRosterFromKader
+ * does it (status by state, the character, the main role through
+ * rosterMembers.addMember); members already in the roster are left untouched.
+ * @param {string} kaderId
+ * @param {{ guildId?: string, actor?: string, rosterId?: string }} [opts]  `rosterId` defaults to the roster the Kader created
+ * @returns {Promise<{ ok: true, roster: object, added: number, skipped: number, kept: number, roleFailures: object[] } | { ok: false, code: string }>}
+ *   codes: "not_found" (no roster for that Kader), "not_from_kader" (the roster was not created from it), "kader_not_found"
+ */
+async function syncRosterFromKader(kaderId, { guildId = "", actor = "", rosterId = "" } = {}) {
+    const roster = rosterId ? rosterStore.getRoster(str(rosterId)) : rosterOfKader(guildId, kaderId);
+    if (!roster) return { ok: false, code: "not_found" };
+    if (roster.source.kind !== "kader" || roster.source.kaderId !== str(kaderId)) return { ok: false, code: "not_from_kader" };
+    const kader = rosterPlayers(roster.guildId || str(guildId), str(kaderId));
+    if (!kader) return { ok: false, code: "kader_not_found" };
+    const pending = pendingPlayers(roster, kader);
+    const result = { added: 0, skipped: 0, roleFailures: [] };
+    const entries = pending.map((p) => ({
+        userId: p.userId,
+        patch: { status: STATUS_OF_KADER_STATE[p.state], chars: kaderCharacter(p, roster.versionId) },
+    }));
+    await takeIn(roster, entries, actor, result);
+    return { ok: true, roster: rosterStore.getRoster(roster.id), ...result, kept: kader.players.length - pending.length };
+}
+
 /**
  * A roster from a Kader (#657; #658 puts a button for it into the Kaderplaner):
  * the same as createRosterWithSource with source "kader".
@@ -214,5 +279,6 @@ function createRosterFromKader(kaderId, opts = {}) {
 
 module.exports = {
     createRosterWithSource, createRosterFromKader, kaderChoices, presentInRaids, kaderCharacter, categoryName,
+    rosterOfKader, kaderRosterState, syncRosterFromKader,
     SOURCES, RAIDS_BACK, STATUS_OF_KADER_STATE,
 };

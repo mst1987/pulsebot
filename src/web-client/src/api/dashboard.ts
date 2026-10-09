@@ -1,4 +1,4 @@
-import { get } from "./client";
+import { get, send } from "./client";
 import type { ChannelState } from "../lib/discord/discordLinks";
 import type { VersionChoice } from "./raidTemplates";
 
@@ -106,8 +106,13 @@ export type DashboardRaid = {
 
 export type DashboardTaskTone = "ok" | "mid" | "bad" | "accent";
 
-/** What a task's own button does (#537): "Kanal neu anlegen" for a raid whose channel is gone. */
-export type DashboardTaskAction = { kind: "recreateChannel"; eventId: string; label: string };
+/**
+ * What a task's own button does: "Kanal neu anlegen" for a raid whose channel is gone (#537), or — for a
+ * trial ending soon (#658) — "Übernehmen" (status core) and "Verlängern" (trialUntil = `extendTo`).
+ */
+export type DashboardTaskAction =
+    | { kind: "recreateChannel"; eventId: string; label: string }
+    | { kind: "rosterTrial"; rosterId: string; userId: string; extendTo: string; label: string };
 
 export type DashboardTask = {
     /** "sheet", "logs", … — or "channel-missing:<eventId>", one per raid. */
@@ -195,4 +200,13 @@ export type NextRaidDetails = DashboardRaid & {
 /** The "Raid-Details" modal of the start page, loaded when it opens. */
 export function getNextRaidDetails(eventId: string): Promise<{ raid: NextRaidDetails; activeGuildId: string }> {
     return get(`/api/dashboard/next-raid?event=${encodeURIComponent(eventId)}`);
+}
+
+/**
+ * The dashboard's trial row (#658): take a trial member over as core, or extend the trial to `extendTo`
+ * (POST /api/rosters/members — area `roster` write and manager of that roster).
+ */
+export function decideTrial(action: { rosterId: string; userId: string; extendTo: string }, decision: "adopt" | "extend"): Promise<{ userId: string }> {
+    const patch = decision === "adopt" ? { status: "core", trialUntil: null } : { trialUntil: action.extendTo };
+    return send("POST", "/api/rosters/members", { rosterId: action.rosterId, userId: action.userId, mode: "update", ...patch });
 }

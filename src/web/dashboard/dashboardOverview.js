@@ -236,10 +236,11 @@ function newLootSince(awards, sinceMs) {
  * @param {object|null} p.roleDrift  from roleSync.loadDrift(): { groups, total }
  * @param {object[]} p.seriesFailures from eventSeries.seriesFailures(): { categoryId, categoryName, date, error }
  * @param {object|null} p.deploy     from deployStatus(): { status, behind, behindSince, short, … }
+ * @param {object[]} p.trials        from loadTrialEndings(): trials ending soon in rosters the caller manages (trialTasks)
  */
 function buildTasks({
     nextRaids = [], recentEvents = [], report = null, inbox = [], archive = null, roleDrift = null, seriesFailures = [], deploy = null,
-    missingChannels = [], canRecreate = false,
+    missingChannels = [], canRecreate = false, trials = [],
 }) {
     const tasks = [];
 
@@ -322,6 +323,9 @@ function buildTasks({
 
     const driftTask = roleDriftTask(roleDrift);
     if (driftTask) tasks.push(driftTask);
+
+    // Last and calm (#658): a trial that ends soon is a decision, not a fire.
+    tasks.push(...trialTasks(trials));
 
     return tasks;
 }
@@ -428,9 +432,34 @@ function deployTask(deploy, now = Date.now()) {
     };
 }
 
+/**
+ * "Probezeit endet: Zibbo" (#658) — a calm row per trial member whose trial
+ * ends within a week (accent) or has run out (yellow), for the managers of
+ * that roster. Two buttons beside it: "Übernehmen" (status core) and
+ * "Verlängern" (`extendTo`, 14 days on) — POST /api/rosters/members.
+ * @param {{ rosterId: string, rosterName: string, userId: string, displayName: string, trialUntil: string, overdue: boolean, extendTo: string }[]} list
+ */
+function trialTasks(list) {
+    return (list || []).map((m) => {
+        const at = new Date(m.trialUntil).getTime() || 0;
+        const day = at ? DateTime.fromMillis(at, { zone: TIMEZONE }).setLocale("de").toFormat("dd.MM.") : "";
+        return {
+            id: `trial:${m.rosterId}:${m.userId}`, tone: m.overdue ? "mid" : "accent", tile: m.overdue ? "mid" : "roster",
+            icon: "spell_holy_borrowedtime",
+            title: m.overdue ? `Probezeit abgelaufen: ${m.displayName}` : `Probezeit endet: ${m.displayName}`,
+            ref: { title: m.rosterName, at },
+            count: 0,
+            href: `/roster/r/${encodeURIComponent(m.rosterId)}`,
+            tip: m.overdue ? `Die Probezeit lief am ${day} ab` : `Die Probezeit endet am ${day}`,
+            tipSub: "Übernehmen macht die Person zum Stamm, Verlängern schiebt das Ende um 14 Tage. Von selbst ändert sich nichts. Öffnet sonst das Roster.",
+            action: { kind: "rosterTrial", rosterId: m.rosterId, userId: m.userId, extendTo: m.extendTo, label: "" },
+        };
+    });
+}
+
 module.exports = {
     zoneFor, zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
-    isAttending,
+    isAttending, trialTasks,
     // only for the tests (#424): not part of the module's API
     _internal: {
         eventSeriesTask, deployTask, DEPLOY_GUIDE_URL, FALLBACK_ZONE_ICON, roleBucket, roleDriftTask, missingChannelTasks,

@@ -3,7 +3,8 @@
 // activity log ("Aktivität"), the settings — and the status bar: how many players
 // stand in each state (Pool → Vorauswahl → Vorläufig → Roster · Bench ·
 // Tentative), each state with its icon and its count, the states of the open
-// page marked.
+// page marked. On the decision page the bar ends with the raid roster action
+// (RosterLink.tsx, #658) and the example setups.
 import { Fragment, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { KaderState } from "../../api";
@@ -14,6 +15,7 @@ import { useT } from "../../i18n";
 import { countStates } from "../../lib/kader/model";
 import { StateIcon } from "./parts";
 import { HeaderPeople } from "./Presence";
+import RosterLink from "./RosterLink";
 import { useKader, type KaderSub } from "./kaderContext";
 
 /** Which page shows a state. */
@@ -109,6 +111,7 @@ export function StageNav({ sub }: { sub: KaderSub }) {
             {sub === "roster" && (
                 <>
                     <span className="kp-grow" />
+                    <RosterLink />
                     <Link to={`/kader/${kader.id}/setups`} className={buttonClass("ghost", "md", false, "kp-stage-act")}>{t("kader.nav.setups")}</Link>
                 </>
             )}

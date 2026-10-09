@@ -36,7 +36,11 @@ const linkCheck = require("../../services/discord/linkCheck");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
 const { versionOfEvent, mainVersionFor } = require("../../services/events/mainVersion");
 const { versionChoices } = require("../../services/characters/characterVersions");
-const { expectedRoleIds } = require("../../services/roster/categoryRoles");
+const { hasExpected, listExpectedMembers } = require("../../services/roster/expectedRaiders");
+const rosterStore = require("../../stores/rosterStore");
+const { getProfile } = require("../../stores/raiderProfileStore");
+const { canManageRosterLive } = require("../../services/roster/rosterAccess");
+const { trialEnding, extendedTrialUntil } = require("../../services/roster/rosterTrials");
 
 const RH_ERROR = "Events konnten nicht geladen werden (Raid-Helper API).";
 
@@ -153,12 +157,14 @@ async function loadNextRaidDetails(guildId, eventId) {
         : raidSize(zone.contentId, softres.targetSizeForInstances((softresList && softresList.instances) || []));
     const signUps = ev.signUps || [];
 
-    const roleIds = expectedRoleIds(g.categoryId, getConfig());
+    // a category with a roster expects its core + trial members (#658), else the role holders
+    const config = getConfig();
+    const expects = hasExpected(g.categoryId, config);
     let missing = [];
     let membersError = null;
     let specHistory = {};
-    if (roleIds.length) {
-        const result = await discord.listMembersWithRoles(guildId, roleIds);
+    if (expects) {
+        const result = await listExpectedMembers(guildId, g.categoryId, config);
         membersError = result.error;
         const attendance = computeAttendance(result.members, signUps);
         specHistory = buildSpecHistory(g.events);
@@ -186,7 +192,7 @@ async function loadNextRaidDetails(guildId, eventId) {
             softres: softresList && softresList.url ? { url: softresList.url } : null,
             lootSystem: lootSystemOf(ev.id, g.categoryId),
             notSignedUp: missing,
-            rolesConfigured: roleIds.length > 0,
+            rolesConfigured: expects,
             membersError,
             fetchedAt: Date.now(),
         },
@@ -380,7 +386,42 @@ async function loadMissingChannels(guildId, now = Date.now()) {
     }
 }
 
+/**
+ * Trials ending within a week or overdue (#658) in the rosters of the server
+ * the caller manages (full admin, or a manager of that roster) — the
+ * dashboard's calm "Probezeit endet" rows. Names from the Discord member list
+ * when the bot can read it, else the profile, else the id. Best-effort: a
+ * failure is no task.
+ * @returns {Promise<{ rosterId, rosterName, userId, displayName, trialUntil, overdue, extendTo }[]>}
+ */
+async function loadTrialEndings(guildId, user, { now = Date.now() } = {}) {
+    try {
+        const out = [];
+        for (const roster of rosterStore.listRosters(guildId || "")) {
+            const ending = trialEnding(roster, { now });
+            if (!ending.length || !(await canManageRosterLive(user, roster).catch(() => false))) continue;
+            const names = await discord.resolveUserNames(roster.guildId || guildId, ending.map((m) => m.userId)).catch(() => ({}));
+            for (const m of ending) {
+                const profile = getProfile(m.userId);
+                out.push({
+                    rosterId: roster.id,
+                    rosterName: roster.name,
+                    userId: m.userId,
+                    displayName: (names && names[m.userId]) || (profile && profile.name) || m.userId,
+                    trialUntil: m.trialUntil,
+                    overdue: m.overdue,
+                    extendTo: extendedTrialUntil(m.trialUntil, { now }),
+                });
+            }
+        }
+        return out;
+    } catch (e) {
+        console.error("dashboard trial endings failed:", e.message);
+        return [];
+    }
+}
+
 module.exports = {
     loadNextRaids, loadNextRaidDetails, loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive, loadMissingChannels,
-    loadRecentEvents, annotateUpcomingExtras, loadTopLoot, dashboardVersions,
+    loadRecentEvents, annotateUpcomingExtras, loadTopLoot, dashboardVersions, loadTrialEndings,
 };

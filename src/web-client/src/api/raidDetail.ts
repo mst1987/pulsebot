@@ -208,6 +208,8 @@ export type RaidDetailData = {
     /** Wo die freigegebene Setup-Nachricht steht (#290), soweit die Leiste sie nennt. */
     ownSetupPost?: { channelId: string; messageId: string; version: number; dms: { total: number; sent: number; failed: number } | null } | null;
     attendanceRoleIds: string[];
+    /** Who the "fehlt" list measures against (#658): the roster (core + trial), the raider roles, or nobody. */
+    attendanceSource?: "roster" | "roles" | null;
     membersError: string | null;
     signupTarget: number;
     lootItems: LootItem[];

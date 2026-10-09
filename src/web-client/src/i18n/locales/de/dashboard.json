@@ -53,7 +53,13 @@
     "tasks": {
         "title": "Offene Aufgaben",
         "allDone": "Alles erledigt",
-        "allDoneNote": "Sheets gefüllt, Logs zugeordnet, Empfehlungen geprüft."
+        "allDoneNote": "Sheets gefüllt, Logs zugeordnet, Empfehlungen geprüft.",
+        "trial": {
+            "adopt": "Übernehmen",
+            "extend": "Verlängern",
+            "adopted": "Übernommen – jetzt im Stamm.",
+            "extended": "Probezeit verlängert bis {date}."
+        }
     },
     "areas": {
         "bosses": { "one": "{count} Boss", "other": "{count} Bosse" },
