@@ -93,6 +93,9 @@ describe("runRoleSync", () => {
         expect(r).toMatchObject({ added: 1, failed: 0, missingPermission: [], error: null });
         expect(t1.roles.add).toHaveBeenCalledWith(RAIDER_T, "EventHelper Rollen-Abgleich");
         for (const m of [e1, e2, t1, t2]) expect(m.roles.remove).not.toHaveBeenCalled();
+        // the sweep gives roles from the list, so it reads a fresh one, not the pages' cached one
+        expect(discord.fetchGuildMembersCached).toHaveBeenCalledWith(EVENT, expect.anything(), { fresh: true });
+        expect(discord.fetchGuildMembersCached).toHaveBeenCalledWith(TALK, expect.anything(), { fresh: true });
     });
 
     it("does nothing on a server where the bot may not manage roles, and says so", async () => {
@@ -185,6 +188,8 @@ describe("drift", () => {
         );
         const drift = await roleSync.loadDrift(config("toTalk"));
         expect(drift.error).toBeNull();
+        // a page: the cached list is good enough
+        expect(discord.fetchGuildMembersCached.mock.calls.every((c) => c.length === 2)).toBe(true);
         expect(drift.total).toBe(2);
         expect(drift.groups).toHaveLength(1);
         expect(drift.groups[0]).toMatchObject({ side: "talk", roleName: "Raider", guildName: "Pulse Talk" });

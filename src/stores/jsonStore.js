@@ -14,6 +14,7 @@
 //   store.write({ events });      // the whole document, atomically
 //   store.update((events) => ...) // read, change, write
 //   store.useFile(tmp)            // tests: another file; null = back to the default
+//   store.peek()                  // the cached value itself: frozen, never copied
 //
 // Writing goes to a temporary file in the same directory, which is then
 // renamed over the real one. A rename within one directory is atomic, so a
@@ -23,6 +24,14 @@
 // `cache: true` keeps the normalised value and reads the file again only when
 // its mtime, size or inode changed (an edit by hand counts). Every read hands
 // out a copy, so a caller changing what it got cannot change the cache.
+//
+// That copy is a structuredClone of the whole file, which costs about as much
+// as parsing it. A lookup that runs once per event or per raider (a signup, a
+// profile) uses `peek()` instead: the cached value itself, deep-frozen, no
+// copy. It is for a store's own read-only accessors, which pick out what they
+// need and copy only that - nothing frozen ever leaves a store. Changing a
+// peeked value throws in strict code and is silently ignored otherwise, so
+// every write starts from read().
 const fs = require("fs");
 const path = require("path");
 const { newId } = require("../utils/ids");
@@ -92,6 +101,14 @@ function readJsonFile(file, fallback) {
 
 const copy = (value) => (value === undefined ? undefined : structuredClone(value));
 
+/** Freeze `value` and everything below it; returns it. */
+function deepFreeze(value) {
+    if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+    Object.freeze(value);
+    for (const key of Object.keys(value)) deepFreeze(value[key]);
+    return value;
+}
+
 /**
  * A store over one JSON file.
  *
@@ -134,16 +151,34 @@ function createJsonStore({ file, defaults, normalize, cache = false, space = 2 }
         }
     }
 
-    /** The stored value (normalised), or the defaults. */
-    function read() {
-        if (!cache) return load();
+    /** The cached value, loaded again when the file changed; null for a missing file. */
+    function cachedValue() {
         const key = statKey();
         if (key === null) {
             cached = null;
-            return fallback();
+            return null;
         }
         if (!cached || cached.key !== key) cached = { key, value: load() };
-        return copy(cached.value);
+        return cached.value;
+    }
+
+    /** The stored value (normalised), or the defaults - a copy the caller may change. */
+    function read() {
+        if (!cache) return load();
+        const value = cachedValue();
+        return value === null ? fallback() : copy(value);
+    }
+
+    /**
+     * The stored value (normalised), or the defaults - NOT copied, deep-frozen:
+     * never change it, copy what you hand on. Without `cache` it is a fresh
+     * load, frozen all the same, so a mistake shows in either mode. (Frozen
+     * on the first peek, so a store that never peeks never freezes anything.)
+     */
+    function peek() {
+        if (!cache) return deepFreeze(load());
+        const value = cachedValue();
+        return deepFreeze(value === null ? fallback() : value);
     }
 
     /** Replace the whole file with `value`, atomically. */
@@ -186,10 +221,10 @@ function createJsonStore({ file, defaults, normalize, cache = false, space = 2 }
     }
 
     return {
-        read, write, update, ensureDir, remove, useFile,
+        read, peek, write, update, ensureDir, remove, useFile,
         get file() { return current; },
         defaultFile,
     };
 }
 
-module.exports = { createJsonStore, writeFileAtomic, writeJsonAtomic, readJsonFile, tempPathFor };
+module.exports = { createJsonStore, writeFileAtomic, writeJsonAtomic, readJsonFile, tempPathFor, deepFreeze };

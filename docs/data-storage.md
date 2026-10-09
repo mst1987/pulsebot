@@ -10,6 +10,27 @@ JSON-Dateien der Stores liegen in `DATA_DIR/settings/`. Wie ein Store liest und 
 `data/` ist git-ignoriert und steht nur auf der Platte des Servers (bzw. im Docker-Volume `/app/data`). Nichts
 davon lässt sich aus GitHub wiederherstellen.
 
+## Welche Stores cachen
+
+Die großen, ständig gelesenen Dateien hält ihr Store im Speicher (`createJsonStore({ cache: true })`) und liest
+sie nur neu, wenn sich mtime, Größe oder Inode ändern (auch eine Änderung von Hand zählt). Das gilt für
+`signups.json`, `events.json`, `raider-profiles.json`, `raid-events.json`, `rosters.json`, `characters.json`,
+`logs.json` und `loot.json`, außerdem für `config.json`, `attendance-overrides.json`,
+`availability-sessions.json`, `guild-bank-stock.json`, `raidhelper-budget.json`, `raidhelper-events.json` und
+`user-prefs.json`.
+
+- `read()` gibt eine Kopie heraus (structuredClone der ganzen Datei), die der Aufrufer ändern und zurückschreiben
+  darf.
+- `peek()` gibt den Cache selbst heraus, tief eingefroren und ohne Kopie. Das ist nur für die lesenden Zugriffe
+  eines Stores gedacht, die einzelne Einträge suchen und nur diese kopiert herausgeben (`getSignup`,
+  `listSignups`, `getEvent`, `listEvents`, `getProfile`, `getRaidEvent`, …). Dadurch kostet eine Abfrage je
+  Event oder Raider nur diesen Eintrag und nicht die ganze Datei; vorher war z. B. die Abwesenheitsübersicht
+  quadratisch in der Zahl der Raids (sekundenlang). Nichts Eingefrorenes verlässt einen Store; Schreibpfade
+  beginnen immer mit `read()`.
+- `raid-events.json` wird nur noch geschrieben, wenn ein Scan wirklich etwas Neues bringt. `updatedAt` ist der
+  Zeitpunkt der letzten echten Änderung, nicht des letzten Scans.
+- Wer eine dieser Dateien bei laufendem Bot von Hand ändert, braucht keinen Neustart: Die neue mtime genügt.
+
 ## Sichern und Wiederherstellen
 
 - **pm2-Server**: den ganzen Ordner `data/` im Deploy-Verzeichnis sichern (siehe

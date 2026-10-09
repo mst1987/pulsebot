@@ -11,6 +11,7 @@ const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const { buildEmbed } = require("../../utils/discord/reply");
 const { card, cardFromEmbed } = require("../../utils/discord/card");
+const logger = require("../../logger").child("discord");
 
 let client = null;
 function setClient(c) {
@@ -150,31 +151,96 @@ async function postAnnouncement(channelId, template, roleIds = [], userIds = [])
 // detail page does it once, and the ping that follows it seconds later used to
 // pay for it a second time; together with the Raid-Helper round trip that
 // pushed POST /api/raids/ping-missing past the reverse proxy's 60s ceiling, so
-// the admin got a 504 and nothing was ever posted. Cache the fetched list
-// briefly per guild: the ping then pings exactly the roster the page just
-// showed, and role changes are picked up again after the TTL.
+// the admin got a 504 and nothing was ever posted. So the fetched list is kept
+// per guild — the ping then pings exactly the roster the page just showed — and
+// served stale-while-revalidate:
+//   - younger than MEMBERS_CACHE_TTL_MS: served as it is;
+//   - older, but younger than MEMBERS_STALE_MAX_MS: served at once, and ONE
+//     refresh starts in the background (a page never waits on Discord for it);
+//   - older than that, or nothing there yet: the caller waits for a fetch.
+// Fetches are shared per guild: parallel callers (the cold first fetch
+// included) wait on the same promise, so a burst of requests costs one fetch.
+// A failed fetch is never cached; a failed background refresh keeps the old list.
+//
+// How old the data really is: the GuildMember objects in the list are the ones
+// in discord.js' own member cache, which the GuildMembers intent keeps current —
+// a role change patches them in place (GUILD_MEMBER_UPDATE). What the list can
+// miss until the next refresh is who joined or left the server: at most
+// MEMBERS_STALE_MAX_MS, in practice the time since the last read, and the two
+// role-sync jobs (roleSync, rosterRoleSync) fetch with { fresh: true } every
+// 10 minutes. Serving guild.members.cache itself instead was considered and
+// left out: after a reconnect, or without the intent, it silently holds a
+// partial list, and nothing tells a partial list from a complete one.
 const MEMBERS_CACHE_TTL_MS = 60_000;
+const MEMBERS_STALE_MAX_MS = 30 * 60_000;
 // Cap the fetch itself too — discord.js waits 120s by default, which is already
 // twice the proxy's patience.
 const MEMBERS_FETCH_TIMEOUT_MS = 25_000;
 const membersCache = new Map(); // guildId -> { at, members: Array<GuildMember> }
+const membersInFlight = new Map(); // guildId -> Promise<Array<GuildMember>>
 
 /** Test-only: drop the member cache. Production code never calls this. */
 function _resetMembersCacheForTests() {
     membersCache.clear();
+    membersInFlight.clear();
+}
+
+/** One full fetch of a guild's members into the cache; a fetch already running is joined, not repeated. */
+function refreshGuildMembers(guildId, guild) {
+    const running = membersInFlight.get(guildId);
+    if (running) return running;
+    const fetching = (async () => {
+        const fetched = await guild.members.fetch({ time: MEMBERS_FETCH_TIMEOUT_MS });
+        const members = [...fetched.values()];
+        membersCache.set(guildId, { at: Date.now(), members });
+        return members;
+    })();
+    membersInFlight.set(guildId, fetching);
+    const done = () => {
+        if (membersInFlight.get(guildId) === fetching) membersInFlight.delete(guildId);
+    };
+    fetching.then(done, done);
+    return fetching;
 }
 
 /**
- * All members of a guild, cached for MEMBERS_CACHE_TTL_MS. Throws whatever the
- * fetch throws (missing GuildMembers intent, timeout) — a failure is never cached.
+ * All members of a guild, stale-while-revalidate (see above). Throws whatever
+ * the fetch throws (missing GuildMembers intent, timeout) when the caller has
+ * to wait for one — a failure is never cached.
+ * @param {{ fresh?: boolean }} [opts] `fresh` waits for a list fetched now (or
+ *   joins the fetch already running): for the background jobs that write roles
+ *   from the list, never for a page.
  */
-async function fetchGuildMembersCached(guildId, guild) {
-    const cached = membersCache.get(guildId);
-    if (cached && Date.now() - cached.at < MEMBERS_CACHE_TTL_MS) return cached.members;
-    const fetched = await guild.members.fetch({ time: MEMBERS_FETCH_TIMEOUT_MS });
-    const members = [...fetched.values()];
-    membersCache.set(guildId, { at: Date.now(), members });
-    return members;
+async function fetchGuildMembersCached(guildId, guild, { fresh = false } = {}) {
+    const key = String(guildId);
+    const cached = membersCache.get(key);
+    const age = cached ? Date.now() - cached.at : Infinity;
+    if (!fresh && age < MEMBERS_CACHE_TTL_MS) return cached.members;
+    if (!fresh && age < MEMBERS_STALE_MAX_MS) {
+        refreshGuildMembers(key, guild).catch((e) => {
+            logger.warn(`member list refresh of ${key} failed, keeping the list from ${Math.round(age / 1000)} s ago:`, (e && e.message) || e);
+        });
+        return cached.members;
+    }
+    return refreshGuildMembers(key, guild);
+}
+
+/**
+ * Fetch the member lists of these guilds in the background (bot ready), so the
+ * first page after a restart does not wait for them. Never rejects; a guild the
+ * bot is not on is skipped. Returns the promise for the tests.
+ */
+function warmGuildMembers(guildIds = []) {
+    const ids = [...new Set((guildIds || []).map(String).filter(Boolean))];
+    return Promise.all(ids.map(async (id) => {
+        const guild = getGuild(id);
+        if (!guild) return;
+        try {
+            await refreshGuildMembers(id, guild);
+        } catch (e) {
+            logger.warn(`member list warm-up of ${id} failed:`, (e && e.message) || e);
+        }
+    }));
 }
 
 // What the bot needs on a server (Einstellungen → Verbindungen → Discord-Server).
@@ -1099,7 +1165,7 @@ module.exports = {
     listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
     listMembersWithRoles, listHumanMembers, postMissingPing, editPingMessages, postNotice, channelVisible, mentionChunks, _resetMembersCacheForTests,
-    fetchGuildMembersCached, botPermissionsIn, REQUIRED_BOT_PERMISSIONS,
+    fetchGuildMembersCached, warmGuildMembers, MEMBERS_CACHE_TTL_MS, MEMBERS_STALE_MAX_MS, botPermissionsIn, REQUIRED_BOT_PERMISSIONS,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,
     listApplications, parseApplicationEmbed,

@@ -60,8 +60,9 @@ describe("RosterFormDialog — create", () => {
         create();
         expect(await screen.findByText("PuG Karazhan bekommt ein Roster")).toBeInTheDocument();
         const d = within(dialog());
+        // The title is in the DOM before the <dialog> is open, and a closed one has no accessible roles: wait for it.
+        expect(await d.findByRole("combobox", { name: "Kategorie" })).toHaveValue("cat2");
         expect(d.getByLabelText("Name des Rosters")).toHaveValue("PuG Karazhan");
-        expect(d.getByRole("combobox", { name: "Kategorie" })).toHaveValue("cat2");
         expect(d.getByRole("group", { name: "Gesamt" })).toHaveTextContent("10");
         expect(d.getByRole("group", { name: "Tanks" })).toHaveTextContent("2");
         expect(d.getByText("DPS ergibt sich: 5 Plätze. Vorbelegt aus der Raid-Vorlage „Karazhan“.")).toBeInTheDocument();

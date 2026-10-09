@@ -157,11 +157,13 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false } = 
 
     const attendance = {};
     const ctx = buildAttendanceContext(guildId, { now });
+    const eventById = new Map(events.map((e) => [e.id, e]));
+    const profileById = new Map(profiles.map((p) => [p.userId, p]));
     for (const s of signups) {
         if (attendance[s.userId] !== undefined || s.status === "absence") continue;
-        const event = events.find((e) => e.id === s.eventId);
+        const event = eventById.get(s.eventId);
         // a signup without a name: the raider's first character of the event's version (their own order)
-        const character = s.character || (profileStore.firstCharacter(profiles.find((p) => p.userId === s.userId), event.versionId || "") || {}).name || "";
+        const character = s.character || (profileStore.firstCharacter(profileById.get(String(s.userId)), event.versionId || "") || {}).name || "";
         if (!event.categoryId || !character) continue;
         attendance[s.userId] = attendanceFor(ctx, event.categoryId, character, [s.userId]).pct;
     }

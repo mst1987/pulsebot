@@ -159,3 +159,58 @@ describe("web/http/staticClient helpers", () => {
         expect(cacheControlFor("bosses/a.png")).toBe("no-cache");
     });
 });
+
+describe("web/http/staticClient compression of hashed assets", () => {
+    const zlib = require("zlib");
+    const { clearCompressedCache } = require("../../../src/web/http/staticClient");
+    const BIG_JS = `export const x = ${JSON.stringify("lorem ipsum ".repeat(300))};`;
+
+    beforeEach(() => {
+        fs.readFile.mockReset();
+        clearCompressedCache();
+    });
+
+    it("serves a brotli copy of an asset and compresses it only once", async () => {
+        distFiles({ "assets/app-1.js": BIG_JS });
+        const first = mockRes();
+        await serve({ method: "GET", headers: { "accept-encoding": "br, gzip" } }, first, "/assets/app-1.js");
+        const [status, headers] = first.writeHead.mock.calls[0];
+        expect(status).toBe(200);
+        expect(headers["Content-Encoding"]).toBe("br");
+        expect(headers.Vary).toBe("Accept-Encoding");
+        expect(headers["Cache-Control"]).toBe(IMMUTABLE);
+        const body = first.end.mock.calls[0][0];
+        expect(headers["Content-Length"]).toBe(body.length);
+        expect(zlib.brotliDecompressSync(body).toString()).toBe(BIG_JS);
+
+        const second = mockRes();
+        await serve({ method: "GET", headers: { "accept-encoding": "br" } }, second, "/assets/app-1.js");
+        expect(second.end.mock.calls[0][0]).toBe(body); // the very same cached buffer
+    });
+
+    it("uses gzip when brotli is not offered, identity when nothing is", async () => {
+        distFiles({ "assets/app-2.js": BIG_JS });
+        const gz = mockRes();
+        await serve({ method: "GET", headers: { "accept-encoding": "gzip" } }, gz, "/assets/app-2.js");
+        expect(gz.writeHead.mock.calls[0][1]["Content-Encoding"]).toBe("gzip");
+        expect(zlib.gunzipSync(gz.end.mock.calls[0][0]).toString()).toBe(BIG_JS);
+
+        const plain = mockRes();
+        await serve({ method: "GET", headers: {} }, plain, "/assets/app-2.js");
+        expect(plain.writeHead.mock.calls[0][1]["Content-Encoding"]).toBeUndefined();
+        expect(plain.end).toHaveBeenCalledWith(Buffer.from(BIG_JS));
+    });
+
+    it("sends HEAD, tiny files and images uncompressed", async () => {
+        distFiles({ "assets/app-3.js": BIG_JS, "assets/tiny.css": "a{}", "assets/pic.png": "x".repeat(5000) });
+        const head = mockRes();
+        await serve({ method: "HEAD", headers: { "accept-encoding": "br" } }, head, "/assets/app-3.js");
+        expect(head.writeHead.mock.calls[0][1]["Content-Encoding"]).toBeUndefined();
+        expect(head.end).toHaveBeenCalledWith(undefined);
+        for (const p of ["/assets/tiny.css", "/assets/pic.png"]) {
+            const res = mockRes();
+            await serve({ method: "GET", headers: { "accept-encoding": "br" } }, res, p);
+            expect(res.writeHead.mock.calls[0][1]["Content-Encoding"]).toBeUndefined();
+        }
+    });
+});
