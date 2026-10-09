@@ -10,7 +10,7 @@ import { Badge, Expand, IconButton, IconTile } from "../../components/ui";
 import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
 import { tParts, useT } from "../../i18n";
-import type { SortKey } from "./RosterPage";
+import type { SortKey } from "./RosterCharsPage";
 
 /** Rows a long group shows before "n weitere zeigen". */
 const GROUP_PREVIEW = 11;

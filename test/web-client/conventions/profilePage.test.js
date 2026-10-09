@@ -3,7 +3,7 @@
 // (icon sizes, weekday colours in light and dark, the locked switch). What the
 // page does is rendered in src/web-client/src/pages/profile/ProfilePage.test.tsx,
 // components/character/AddCharacterDialog.test.tsx, api/profile.test.ts and
-// pages/roster/RosterPage.claims.test.tsx.
+// pages/roster/RosterCharsPage.claims.test.tsx.
 
 const { read } = require("../clientSource");
 

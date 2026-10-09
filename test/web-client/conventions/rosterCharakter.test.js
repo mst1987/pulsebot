@@ -1,7 +1,7 @@
 // Conventions of the roster and the character page (design issue #218) that a
 // render cannot show: no glyph icons, their own stylesheet, the shared building
 // blocks and the fixed-width attendance bar. What the pages do is tested in
-// Vitest next to them: pages/roster/RosterPage.test.tsx, pages/history/HistoryCharPage.test.tsx,
+// Vitest next to them: pages/roster/RosterCharsPage.test.tsx, pages/history/HistoryCharPage.test.tsx,
 // components/roster/RosterCommon.test.tsx and lib/roster/rosterView.character.test.ts.
 // (No native `title` anywhere is the client-wide guard in conventions/uiFoundation.test.js.)
 const { read } = require("../clientSource");

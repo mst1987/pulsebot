@@ -7,11 +7,11 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { RosterChar, RosterData } from "../../api";
-import RosterPage from "./RosterPage";
+import RosterCharsPage from "./RosterCharsPage";
 import { adminUser, CONTENT_ARIA, renderPage, twoVersions } from "../../test/render";
 import { t } from "../../i18n";
 import { switchLang } from "../../test/i18n";
-import { gearWithIssues, rosterChar, rosterData } from "./RosterPage.fixture";
+import { gearWithIssues, rosterChar, rosterData } from "./RosterCharsPage.fixture";
 
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
@@ -24,7 +24,7 @@ const READER = adminUser({ isAdmin: false, access: { roster: { read: true, write
 
 async function openPage(data: RosterData, user = adminUser()) {
     vi.mocked(api.getRoster).mockResolvedValue(data);
-    renderPage(<RosterPage />, { route: "/roster", user });
+    renderPage(<RosterCharsPage />, { route: "/roster/chars", user });
     await screen.findByRole("radiogroup", { name: "Rolle" });
 }
 
@@ -51,7 +51,7 @@ beforeEach(() => {
     vi.mocked(api.setRosterHidden).mockImplementation(async (character, hidden) => ({ character, hidden }));
 });
 
-describe("RosterPage — filters", () => {
+describe("RosterCharsPage — filters", () => {
     it("filters with search, role switch and class chips — no selects, checkboxes or reset button", async () => {
         await openPage(rosterData([rosterChar("Alpha"), rosterChar("Beta", { role: "healer", className: "Priest", spec: "Holy" })]));
         expect(screen.getByRole("searchbox", { name: "Charakter suchen" })).toBeInTheDocument();
@@ -113,7 +113,7 @@ describe("RosterPage — filters", () => {
     });
 });
 
-describe("RosterPage — remembered view", () => {
+describe("RosterCharsPage — remembered view", () => {
     it("reads only the known fields of a stored view and falls back on what it does not trust", async () => {
         const hidden = { ...rosterChar("Gone"), hidden: { character: "Gone", reason: "", at: 0, by: "" } };
         window.localStorage.setItem("eh-roster-view", JSON.stringify({ role: "bogus", tab: "hidden", open: "c1" }));
@@ -139,7 +139,7 @@ describe("RosterPage — remembered view", () => {
     });
 });
 
-describe("RosterPage — groups", () => {
+describe("RosterCharsPage — groups", () => {
     it("sorts by column head, inside each group, against that group's attendance", async () => {
         const att = (pct: number) => ({ attended: pct / 10, total: 10, pct, missed: [] });
         window.localStorage.setItem("eh-roster-view", JSON.stringify({ open: ["c1", "c2"] }));
@@ -185,14 +185,14 @@ describe("RosterPage — groups", () => {
     });
 });
 
-describe("RosterPage — hiding a character", () => {
+describe("RosterCharsPage — hiding a character", () => {
     function withAlpha(): RosterData {
         return rosterData([rosterChar("Alpha"), rosterChar("Beta")]);
     }
 
     it("asks first, then moves the character into the hidden list without deleting anything", async () => {
         vi.mocked(api.getRoster).mockResolvedValueOnce(withAlpha()).mockReturnValue(new Promise<RosterData>(() => undefined));
-        renderPage(<RosterPage />, { route: "/roster" });
+        renderPage(<RosterCharsPage />, { route: "/roster/chars" });
         await screen.findByRole("radiogroup", { name: "Rolle" });
         const user = userEvent.setup();
 
@@ -234,13 +234,13 @@ describe("RosterPage — hiding a character", () => {
     });
 });
 
-describe("RosterPage — in English", () => {
+describe("RosterCharsPage — in English", () => {
     afterEach(() => switchLang("de"));
 
     it("names filters, class chips, columns and figures in English", async () => {
         await switchLang("en");
         vi.mocked(api.getRoster).mockResolvedValue(rosterData([rosterChar("Alpha"), rosterChar("Beta", { role: "healer", className: "Priest", spec: "Holy" })]));
-        renderPage(<RosterPage />, { route: "/roster" });
+        renderPage(<RosterCharsPage />, { route: "/roster/chars" });
         await screen.findByRole("radiogroup", { name: "Role" });
         expect(screen.getByRole("searchbox", { name: "Search character" })).toHaveAttribute("placeholder", "Search character …");
         expect(screen.getByRole("radio", { name: "Healer" })).toBeInTheDocument();
@@ -252,12 +252,12 @@ describe("RosterPage — in English", () => {
     });
 });
 
-describe("RosterPage per game version (#543, #563)", () => {
+describe("RosterCharsPage per game version (#543, #563)", () => {
     it("has no filter of its own and reloads the roster when the menu's content switch changes", async () => {
         localStorage.removeItem("eh-content-version");
         const user = userEvent.setup();
         vi.mocked(api.getRoster).mockResolvedValue({ ...rosterData([rosterChar("Anna")]), version: "tbc", mainVersion: "tbc" });
-        renderPage(<RosterPage />, { route: "/roster", content: twoVersions() });
+        renderPage(<RosterCharsPage />, { route: "/roster/chars", content: twoVersions() });
         await screen.findByRole("radiogroup", { name: "Rolle" });
         expect(api.getRoster).toHaveBeenLastCalledWith("tbc");
         expect(screen.queryByRole("radiogroup", { name: "Spielversion" })).not.toBeInTheDocument();

@@ -21,7 +21,7 @@ describe("RaidLoader", () => {
             // the component's own default text and the comment explaining it
             .filter((f) => f !== path.join("components", "ui", "RaidLoader.tsx"));
         expect(offenders).toEqual([]);
-        for (const page of ["history/HistoryPage", "roster/RosterPage", "settings/SettingsPage", "ChannelsPage", "raids/RaidsPage", "cla/ClaPage", "recruitment/RecruitmentPage", "dashboard/DashboardPage"]) {
+        for (const page of ["history/HistoryPage", "roster/RosterCharsPage", "settings/SettingsPage", "ChannelsPage", "raids/RaidsPage", "cla/ClaPage", "recruitment/RecruitmentPage", "dashboard/DashboardPage"]) {
             expect({ page, uses: read("pages", `${page}.tsx`).includes("<RaidLoader") }).toEqual({ page, uses: true });
         }
     });

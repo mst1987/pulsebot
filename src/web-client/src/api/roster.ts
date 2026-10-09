@@ -190,3 +190,105 @@ export function getRosterChar(name: string, itemIds: number[] = []): Promise<Ros
     const items = itemIds.length ? `&items=${itemIds.join(",")}` : "";
     return get<RosterCharData>(`/api/roster/char?name=${encodeURIComponent(name)}${items}`);
 }
+
+// ===== Raid rosters per category (#654, read only) =====
+// Built server-side by src/web/roster/rosterView.js from rosterStore.js: names,
+// characters (class, spec, colour, icon), roles and attendance come from the
+// server and are never recomputed here.
+
+/** A member's status in a roster (rosterStore STATUSES). */
+export type RosterStatus = "core" | "trial" | "bench" | "pause";
+
+/** A Discord role as the roster pages show it; `name` "" when Discord does not list it (bot offline). */
+export type RosterDiscordRole = { id: string; name: string; color: string };
+
+/** What a roster card and a roster's head share. */
+export type RosterHead = {
+    id: string;
+    name: string;
+    categoryId: string | null;
+    categoryName: string;
+    versionId: string;
+    versionLabel: string;
+    /** The raids the category ran lately (short names), from its logs or event titles. */
+    contents: string[];
+    /** Counted raid nights of the category. */
+    raids: number;
+    icon: string;
+    mainRole: RosterDiscordRole | null;
+    discordRoles: (RosterDiscordRole | null)[];
+    slots: { total: number; tank: number; healer: number; bench: number };
+    allowMultipleChars: boolean;
+    source: "manual" | "kader" | "migration";
+    counts: Record<RosterStatus, number>;
+    members: number;
+    /** Core and trial members: the ones that take a place. */
+    places: number;
+    /** Roles of the members that take a place, by their first character. */
+    roleCounts: { tank: number; healer: number; dps: number; unknown: number };
+    /** Mean attendance in percent over everybody but paused members; null without a counted night. */
+    attendance: number | null;
+    attendanceCounted: number;
+    /** `withoutRole` null when the Discord member list is not available. */
+    todo: { withoutRole: number | null; withoutChar: number; trial: number };
+};
+
+export type RosterOverview = {
+    rosters: RosterHead[];
+    categoriesWithoutRoster: { id: string; name: string; versionId: string; versionLabel: string }[];
+    /** Full admins create rosters (#657). */
+    canCreate: boolean;
+};
+
+/** A roster character, resolved by the server (profile of the roster's version, else the character cache). */
+export type RosterMemberChar = {
+    key: string;
+    name: string;
+    className: string;
+    classColor: string;
+    /** The spec key ("Warrior-Protection") or, from the cache, a spec name. */
+    spec: string;
+    specId: string;
+    specLabel: string;
+    /** A WoW icon name; "" when only `iconUrl` is known. */
+    specIcon: string;
+    iconUrl: string;
+    role: RosterRole;
+};
+
+export type RosterMember = {
+    userId: string;
+    displayName: string;
+    avatarUrl: string;
+    /** null when the Discord member list is not available. */
+    onServer: boolean | null;
+    status: RosterStatus;
+    /** ISO time of the last status change. */
+    since: string;
+    trialUntil: string | null;
+    chars: RosterMemberChar[];
+    role: RosterRole;
+    /** Holds one of the roster's Discord roles; null when unknown (no list or no role set). */
+    hasRole: boolean | null;
+    /** Per person over the category's window; null without category or without characters. */
+    attendance: (RosterAttendance & { link?: "manual" | "auto" }) | null;
+};
+
+export type RosterDetail = {
+    roster: RosterHead;
+    members: RosterMember[];
+    /** The category's attendance window (raids); null without category. */
+    window: number | null;
+    membersKnown: boolean;
+    canManage: boolean;
+};
+
+/** Every roster of the active server as a card. */
+export function getRosters(): Promise<RosterOverview> {
+    return get<RosterOverview>("/api/rosters");
+}
+
+/** One roster with its members. */
+export function getRosterDetail(id: string): Promise<RosterDetail> {
+    return get<RosterDetail>(`/api/rosters/roster?id=${encodeURIComponent(id)}`);
+}

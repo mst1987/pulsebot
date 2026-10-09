@@ -1,4 +1,4 @@
-// Small roster answers for the RosterPage tests (design issue #218).
+// Small roster answers for the RosterCharsPage tests (design issue #218).
 import type { CharGearReport, RosterChar, RosterData, RosterHiddenNote, RosterStats } from "../../api";
 
 /** One character; the key is the lower-case name, the category "c1" unless given. */

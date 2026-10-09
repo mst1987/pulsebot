@@ -34,7 +34,9 @@ const HistoryPage = lazyWithReload(() => import("./pages/history/HistoryPage"));
 const HistoryEventPage = lazyWithReload(() => import("./pages/history/HistoryEventPage"));
 const HistoryInboxPage = lazyWithReload(() => import("./pages/history/HistoryInboxPage"));
 const HistoryCharPage = lazyWithReload(() => import("./pages/history/HistoryCharPage"));
-const RosterPage = lazyWithReload(() => import("./pages/roster/RosterPage"));
+const RostersPage = lazyWithReload(() => import("./pages/roster/RostersPage"));
+const RosterDetailPage = lazyWithReload(() => import("./pages/roster/RosterDetailPage"));
+const RosterCharsPage = lazyWithReload(() => import("./pages/roster/RosterCharsPage"));
 const AbsencesPage = lazyWithReload(() => import("./pages/absences/AbsencesPage"));
 const ProfilePage = lazyWithReload(() => import("./pages/profile/ProfilePage"));
 const SignupsPage = lazyWithReload(() => import("./pages/SignupsPage"));
@@ -212,7 +214,10 @@ function MenuApp() {
                                 <Route path="absences" element={<Guard user={user} areas={["signup", "roster"]}><AbsencesPage /></Guard>} />
                                 {/* its first address, under the roster (PR #646) */}
                                 <Route path="roster/absences" element={<MovedTo path="/absences" />} />
-                                <Route path="roster" element={<Guard user={user} areas={["roster"]}><RosterPage /></Guard>} />
+                                {/* The raid rosters (#654): the overview, one roster with its tabs, and the old character list. */}
+                                <Route path="roster" element={<Guard user={user} areas={["roster"]}><RostersPage /></Guard>} />
+                                <Route path="roster/r/:rosterId/:tab?" element={<Guard user={user} areas={["roster"]}><RosterDetailPage /></Guard>} />
+                                <Route path="roster/chars" element={<Guard user={user} areas={["roster"]}><RosterCharsPage /></Guard>} />
                                 {/* Same character page, reached from the roster — the page keeps
                                     its back-link pointing at wherever it was opened from. */}
                                 <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />
