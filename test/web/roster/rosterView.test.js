@@ -95,6 +95,14 @@ describe("buildRosterOverview", () => {
         expect(card.icon).toBeTruthy();
     });
 
+    it("names the trials ending within a week or overdue on the card (#658)", async () => {
+        expect((await buildRosterOverview({ guildId: G, user: ADMIN, config: CONFIG })).rosters[0].trialEnding).toEqual([]);
+        const until = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+        rosterStore.upsertMember(rosterId(), BERT, { trialUntil: until });
+        const view = await buildRosterOverview({ guildId: G, user: ADMIN, config: CONFIG });
+        expect(view.rosters[0].trialEnding).toEqual([{ userId: BERT, displayName: "Bert", trialUntil: until, overdue: false }]);
+    });
+
     it("lists the categories without a roster and leaves another server's out", async () => {
         const view = await buildRosterOverview({ guildId: G, user: READER, config: { categoryIds: ["cat1", "cat2", "other-guild"] } });
         expect(view.canCreate).toBe(false);

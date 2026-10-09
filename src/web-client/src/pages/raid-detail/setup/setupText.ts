@@ -18,6 +18,7 @@ export const specText = (p: SetupPerson) => specLabel(p.spec, p.specLabel || p.s
 export function weightLabels(): { key: string; label: string; tip: string }[] {
     return [
         { key: "requiredBuffs", label: t("setup.weights.requiredBuffs.label"), tip: t("setup.weights.requiredBuffs.tip") },
+        { key: "roster", label: t("setup.weights.roster.label"), tip: t("setup.weights.roster.tip") },
         { key: "mainSpec", label: t("setup.weights.mainSpec.label"), tip: t("setup.weights.mainSpec.tip") },
         { key: "preferredCharacter", label: t("setup.weights.preferredCharacter.label"), tip: t("setup.weights.preferredCharacter.tip") },
         { key: "fairness", label: t("setup.weights.fairness.label"), tip: t("setup.weights.fairness.tip") },

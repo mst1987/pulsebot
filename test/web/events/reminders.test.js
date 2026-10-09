@@ -4,7 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
-jest.mock("../../../src/services/discord/discord", () => ({ listMembersWithRoles: jest.fn() }));
+jest.mock("../../../src/services/discord/discord", () => ({ listMembersWithRoles: jest.fn(), listHumanMembers: jest.fn() }));
+jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn() }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 jest.mock("../../../src/services/discord/pingDelivery", () => ({ deliverUserPing: jest.fn() }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["100000"]) }));
@@ -19,6 +20,7 @@ const { loadEventGroups } = require("../../../src/services/events/raidEventGroup
 const { deliverUserPing } = require("../../../src/services/discord/pingDelivery");
 const reminderStore = require("../../../src/stores/reminderStore");
 const reminders = require("../../../src/web/events/reminders");
+const rosterStore = require("../../../src/stores/rosterStore");
 
 const HOUR = 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 8, 20, 12, 0, 0);
@@ -112,6 +114,19 @@ describe("runReminders", () => {
         expect(missing.text("en")).not.toMatch(/:[fF]>/);
         expect(signed.text("de")).toMatch(/^Erinnerung: \*\*.+\*\* startet <t:\d+:R>\. Bis gleich!$/);
         expect(reminderStore.getSent("e1")).toEqual({ missing: NOW, signed: NOW });
+    });
+
+    it("reminds the roster's core and trial members where the category has a roster (#658)", async () => {
+        rosterStore.rosterForCategory.mockReturnValue({ roleIds: ["500000"], members: {
+            1: { status: "core" }, 3: { status: "bench" }, 5: { status: "trial" }, 6: { status: "pause" },
+        } });
+        discord.listHumanMembers.mockResolvedValue({ members: [{ id: "1" }, { id: "3" }, { id: "5" }, { id: "6" }], error: null });
+        loadEventGroups.mockResolvedValue(groups([soon]));
+        await reminders.runReminders({ now: NOW, config });
+        const missing = deliverUserPing.mock.calls.find((c) => c[0].text("en").includes("sign up or sign off"))[0];
+        // 1 is signed up, 3 is bench and 6 paused - only the trial member 5 is expected and missing
+        expect(missing.userIds).toEqual(["5"]);
+        expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
     });
 
     it("never reminds anybody of a cancelled event (#288)", async () => {

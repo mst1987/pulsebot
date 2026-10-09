@@ -8,6 +8,7 @@ import * as api from "../../api";
 import type { DashboardData, DashboardRaid, DashboardTask, NextRaidDetails } from "../../api";
 import { t } from "../../i18n";
 import { CONTENT_ARIA, renderPage, twoVersions } from "../../test/render";
+import { dayDate } from "../../lib/raids/overviewDates";
 import DashboardPage from "./DashboardPage";
 
 vi.mock("../../api", async (orig) => ({
@@ -15,6 +16,7 @@ vi.mock("../../api", async (orig) => ({
     getDashboard: vi.fn(),
     getNextRaidDetails: vi.fn(),
     recreateChannel: vi.fn(),
+    decideTrial: vi.fn(),
 }));
 
 const DAY = 86400;
@@ -217,6 +219,25 @@ describe("Übersicht (DashboardPage)", () => {
         await userEvent.click(button);
         expect(api.recreateChannel).toHaveBeenCalledWith("eh-1");
         expect(await screen.findByText("Kanal #mi-kara angelegt, Anmelde-Nachricht gepostet.")).toBeInTheDocument();
+        await waitFor(() => expect(screen.getByText(t("dashboard.tasks.allDone"))).toBeInTheDocument());
+    });
+
+    it("offers take-over and extend beside a trial ending soon, then reloads (#658)", async () => {
+        const action = { kind: "rosterTrial" as const, rosterId: "r1", userId: "111", extendTo: "2026-10-26T18:00:00.000Z", label: "" };
+        const trial = task({ id: "trial:r1:111", tone: "accent", title: "Probezeit endet: Zibbo", href: "/roster/r/r1", action });
+        vi.mocked(api.decideTrial).mockResolvedValue({ userId: "111" });
+        await showPage(dashboard({ tasks: [trial] }));
+        const link = screen.getByRole("link", { name: /Probezeit endet: Zibbo/ });
+        const adopt = screen.getByRole("button", { name: t("dashboard.tasks.trial.adopt") });
+        const extend = screen.getByRole("button", { name: t("dashboard.tasks.trial.extend") });
+        expect(link.contains(adopt) || link.contains(extend)).toBe(false);
+        await userEvent.click(extend);
+        expect(api.decideTrial).toHaveBeenCalledWith(action, "extend");
+        expect(await screen.findByText(t("dashboard.tasks.trial.extended", { date: dayDate(Date.parse(action.extendTo)) }))).toBeInTheDocument();
+        vi.mocked(api.getDashboard).mockResolvedValue(dashboard({ tasks: [] }));
+        await userEvent.click(screen.getByRole("button", { name: t("dashboard.tasks.trial.adopt") }));
+        expect(api.decideTrial).toHaveBeenLastCalledWith(action, "adopt");
+        expect(await screen.findByText(t("dashboard.tasks.trial.adopted"))).toBeInTheDocument();
         await waitFor(() => expect(screen.getByText(t("dashboard.tasks.allDone"))).toBeInTheDocument());
     });
 

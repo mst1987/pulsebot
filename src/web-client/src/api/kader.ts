@@ -393,3 +393,39 @@ export function saveKaderAssignment(kaderId: string, userId: string, characters:
 export function resetKaderAssignment(kaderId: string, userId: string): Promise<KaderView> {
     return send("POST", "/api/kader/assignments/reset", { kaderId, userId });
 }
+
+// ----- the raid roster of a Kader (#658): create one, or take newly decided players over.
+// Only status and character cross; nothing flows back into the Kader.
+
+/** GET /api/kader/roster: the roster the Kader created (counts only) and what the caller may do. */
+export type KaderRosterState = {
+    roster: { id: string; name: string; members: number } | null;
+    /** Players in roster / bench / tentative — what a roster takes. */
+    candidates: number;
+    /** Of them, not in the roster yet (all while there is none). */
+    pending: number;
+    /** Full admin and no roster yet. */
+    canCreate: boolean;
+    /** Area `kader` write and manager of the roster. */
+    canSync: boolean;
+};
+
+export function getKaderRoster(kaderId: string): Promise<KaderRosterState> {
+    return get<KaderRosterState>(`/api/kader/roster?kader=${encodeURIComponent(kaderId)}`);
+}
+
+export function syncKaderRoster(kaderId: string): Promise<{ rosterId: string; added: number; skipped: number; kept: number; roleFailures: { userId: string; roleId: string; code: string }[] }> {
+    return send("POST", "/api/kader/roster/sync", { kaderId });
+}
+
+/** The raid categories a new roster can belong to (GET /api/rosters/options, full admins): those without a roster. */
+export type KaderRosterCategory = { id: string; name: string; rosterId: string | null };
+
+export function getKaderRosterCategories(): Promise<{ categories: KaderRosterCategory[] }> {
+    return get<{ categories: KaderRosterCategory[] }>("/api/rosters/options");
+}
+
+/** "Roster anlegen" from a Kader (POST /api/rosters/create, source "kader", full admins). */
+export function createKaderRoster(kaderId: string, input: { name: string; categoryId?: string }): Promise<{ roster: { id: string; name: string }; initial: { added: number; skipped: number; roleFailures: unknown[] } }> {
+    return send("POST", "/api/rosters/create", { source: "kader", kaderId, name: input.name, ...(input.categoryId ? { categoryId: input.categoryId } : {}) });
+}

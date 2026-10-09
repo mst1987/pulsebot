@@ -61,6 +61,33 @@ describe("commands/signup/eventSignup", () => {
         expect(interaction.reply.mock.calls[0][0].embeds[0].title).toBe("Karazhan");
     });
 
+    it("refuses somebody outside the roster where the roster takes signups only from its members (#658)", async () => {
+        const rosterStore = require("../../../src/stores/rosterStore");
+        rosterStore.useFile(tempStoreFile("eh-cmd-event-signup-rosters.json"));
+        try {
+            mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-kara", guildId: "g-event" }));
+            const roster = rosterStore.createRoster({ name: "Kara", guildId: "g-event", categoryId: "cat-kara", roleIds: ["role-kara"], signupOnly: true });
+            mocks.access.roleIds = ["role-kara"];
+            let interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
+            await command.execute(interaction);
+            expect(answerOf(interaction.reply.mock.calls[0][0])).toMatchObject({
+                description: "Only members of the roster (core, trial or bench) sign up for this raid. Ask the raid lead.", flags: MessageFlags.Ephemeral,
+            });
+            // German by default: the service's own sentence
+            mocks.access.config = { botLanguage: "de" };
+            interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
+            await command.execute(interaction);
+            expect(answerOf(interaction.reply.mock.calls[0][0]).description).toContain("nur Mitglieder des Rosters");
+            // a bench member gets the dialog
+            rosterStore.upsertMember(roster.id, ANNA, { status: "bench" });
+            interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
+            await command.execute(interaction);
+            expect(interaction.reply.mock.calls[0][0].embeds[0].title).toBe("Karazhan");
+        } finally {
+            rosterStore.useFile(null);
+        }
+    });
+
     it("says so when the event is gone", async () => {
         const interaction = mockInteraction({ customId: "event-signup:eh-9" });
         await command.execute(interaction);

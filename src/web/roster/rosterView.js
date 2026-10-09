@@ -33,6 +33,7 @@ const { buildAttendanceContext, attendanceForAccounts, categoryInfo, roleFromSpe
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
 const { characterKeyOf, nameKeyOf } = require("../../utils/loot/lootImport");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
+const { trialEnding } = require("../../services/roster/rosterTrials");
 
 const STATUSES = rosterStore.STATUSES;
 /** Statuses that take a place in the roster. */
@@ -292,7 +293,10 @@ async function buildRosterOverview({ guildId = "", user = null, config = {} } = 
     const rosters = list.map((roster) => {
         const ctx = ctxFor(roster.versionId);
         const rows = memberRows(roster, { ctx, discordData, config });
-        return rosterHead(roster, { ctx, names, discordData, figures: rosterFigures(rows), guildId });
+        const head = rosterHead(roster, { ctx, names, discordData, figures: rosterFigures(rows), guildId });
+        // trials ending within a week or overdue (#658): the managers' hint
+        const nameOf = new Map(rows.map((r) => [r.userId, r.displayName]));
+        return { ...head, trialEnding: trialEnding(roster, { nameOf: (id) => nameOf.get(id) || id }) };
     });
     const taken = new Set(list.map((r) => r.categoryId).filter(Boolean));
     const categoriesWithoutRoster = (Array.isArray(config.categoryIds) ? config.categoryIds : [])

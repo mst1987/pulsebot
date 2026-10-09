@@ -18,12 +18,15 @@
 // page's revision, who else is in the Kader); GET /api/kader/kader the light
 // refetch of one Kader. A save that names the revision it started from
 // (`baseRev`) and finds a newer one answers 409 `stale` with who changed it.
-const { ok, sendJson } = require("../http/apiResponse");
+const { ok, sendJson, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { q } = require("../http/apiParams");
 const { userCan } = require("../../config/permissions");
 const kaderStore = require("../../stores/kaderStore");
+const rosterStore = require("../../stores/rosterStore");
+const { canManageRosterLive } = require("../../services/roster/rosterAccess");
+const { kaderRosterState, rosterOfKader, syncRosterFromKader } = require("../../services/roster/rosterCreate");
 const model = require("../../services/kader/kaderModel");
 const players = require("../../services/kader/kaderPlayers");
 const questions = require("../../services/kader/kaderQuestions");
@@ -215,8 +218,53 @@ const saveAssignment = fullWrite((p, body, ctx) => model.setAssignment(p, str(bo
 /** POST /api/kader/assignments/reset — body: { userId }; the profile shows again. */
 const resetAssignment = fullWrite((p, body) => model.resetAssignment(p, str(body, "userId")));
 
+// ------------------------------------------------ the raid roster (#658)
+// A Kader can create a raid roster (POST /api/rosters/create with source
+// "kader", full admins) or, once it has one, take its newly decided players
+// over. Only status and character cross (services/kader/kaderRoster.js);
+// nothing flows back into the Kader.
+
+/**
+ * GET /api/kader/roster?kader=<id> — `{ roster: { id, name, members } | null,
+ * candidates, pending, canCreate, canSync }`: the roster the Kader created,
+ * how many of its players a roster takes and how many of them are not in it
+ * yet (counts only). `canCreate` = full admin and no roster yet, `canSync` =
+ * `kader` write and manager of that roster. 404 for an unknown Kader.
+ */
+const getKaderRoster = withUser({}, async ({ req, res, query, user }) => {
+    const guildId = activeGuildFor(req);
+    const state = kaderRosterState(guildId, str(query, "kader"));
+    if (!state) return apiError(res, 404, "kader_not_found", "Kader nicht gefunden.");
+    const roster = state.roster ? rosterStore.getRoster(state.roster.id) : null;
+    const canSync = !!roster && userCan(user, "kader", "write") && await canManageRosterLive(user, roster).catch(() => false);
+    return ok(res, { ...state, canCreate: !roster && user.isAdmin === true, canSync });
+});
+
+const SYNC_STATUS = { not_found: 404, kader_not_found: 404, not_manager: 403, not_from_kader: 409 };
+
+/**
+ * POST /api/kader/roster/sync — body: { kaderId }: "Ins Roster übernehmen".
+ * Area `kader` write + CSRF, then manager of the roster the Kader created
+ * (`canManageRosterLive`), else 403 `not_manager`. Players in roster / bench /
+ * tentative who are no member yet join (core / bench / trial, the main role
+ * given); members already there stay untouched.
+ * Answer: `{ rosterId, added, skipped, kept, roleFailures: [{ userId, roleId, code }] }`.
+ */
+const syncKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
+    const guildId = activeGuildFor(req);
+    const kaderId = str(body, "kaderId");
+    const roster = rosterOfKader(guildId, kaderId);
+    if (!roster) return apiError(res, 404, "not_found", "Kein Roster zu diesem Kader.");
+    if (!(await canManageRosterLive(user, roster).catch(() => false))) return apiError(res, SYNC_STATUS.not_manager, "not_manager", "Nur Manager dieses Rosters.");
+    const result = await syncRosterFromKader(kaderId, { guildId, actor: String(user.id || ""), rosterId: roster.id });
+    if (!result.ok) return apiError(res, SYNC_STATUS[result.code] || 400, result.code, `Roster: ${result.code}`);
+    return ok(res, { rosterId: roster.id, added: result.added, skipped: result.skipped, kept: result.kept, roleFailures: result.roleFailures });
+});
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
+    { method: "GET", path: "/api/kader/roster", handler: getKaderRoster, area: "kader" },
+    { method: "POST", path: "/api/kader/roster/sync", handler: syncKaderRoster, area: "kader" },
     { method: "GET", path: "/api/kader", handler: getKader, area: "kader" },
     { method: "GET", path: "/api/kader/kader", handler: getKaderOnly, area: "kader" },
     { method: "GET", path: "/api/kader/live", handler: getLive, area: "kader" },
@@ -252,5 +300,5 @@ module.exports = {
     saveInterview, completeInterview, reopenInterview, setVote, addComment, deleteComment,
     addQuestion, updateQuestion, deleteQuestion, orderQuestions, copyQuestions,
     addVariant, saveVariant, deleteVariant, autoVariant,
-    addAccount, removeAccount, saveAssignment, resetAssignment, routes,
+    addAccount, removeAccount, saveAssignment, resetAssignment, getKaderRoster, syncKaderRoster, routes,
 };

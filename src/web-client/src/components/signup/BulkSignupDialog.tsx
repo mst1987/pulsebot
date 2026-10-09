@@ -133,7 +133,7 @@ function ResultRow({ result }: { result: BulkSignupResult }) {
             </Badge>
             <span className="an-result-title">{result.title}</span>
             <span className="an-result-text">
-                {result.ok ? (s && s.status === "absence" ? t("signups.bulk.absent") : `${chars}${s && s.status !== "signed" ? ` – ${SIGNUP_STATUS[s.status].label}` : ""}`) : result.error}
+                {result.ok ? (s && s.status === "absence" ? t("signups.bulk.absent") : `${chars}${s && s.status !== "signed" ? ` – ${SIGNUP_STATUS[s.status].label}` : ""}`) : result.code === "roster_only" ? t("signups.dialog.rosterOnly") : result.error}
                 {result.notice && <span className="an-result-skip">{result.notice}</span>}
                 {skipped && <span className="an-result-skip">{skipped}</span>}
             </span>

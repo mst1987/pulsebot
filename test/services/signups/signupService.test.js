@@ -405,6 +405,54 @@ describe("Raider-Rollen der Kategorie", () => {
         expect(discord.memberRoleIds).not.toHaveBeenCalled();
     });
 
+    describe("Anmeldung nur für das Roster (#658)", () => {
+        const rosterStore = require("../../../src/stores/rosterStore");
+        const ONLY = "Für diesen Raid melden sich nur Mitglieder des Rosters an (Stamm, Probe oder Ersatz). Frag die Raidleitung.";
+        let rosterId;
+        beforeEach(() => {
+            rosterStore.useFile(tempStoreFile("eh-signup-rosters.json"));
+            withRoles();
+            const roster = rosterStore.createRoster({ name: "T5", guildId: "g-event", categoryId: "cat-t5", roleIds: ["role-t5"], signupOnly: true });
+            rosterId = roster.id;
+        });
+        afterAll(() => rosterStore.useFile(null));
+
+        it("takes core, trial and bench - the roster decides, not the role", async () => {
+            for (const status of ["core", "trial", "bench"]) {
+                rosterStore.upsertMember(rosterId, ANNA, { status });
+                mockSignups.clear();
+                mockRoleIds = [];
+                expect((await service.submitSignup("eh-kara", ANNA, signup, { now: NOW })).signup).toBeTruthy();
+            }
+            expect(discord.memberRoleIds).not.toHaveBeenCalled();
+            expect(service.rosterOnlyAccess("cat-t5", ANNA)).toBe(true);
+        });
+
+        it("refuses a paused member and a non-member, even holding the raider role", async () => {
+            mockRoleIds = ["role-t5"];
+            expect(await service.submitSignup("eh-kara", ANNA, signup, { now: NOW })).toEqual({ code: "roster_only", error: ONLY });
+            rosterStore.upsertMember(rosterId, ANNA, { status: "pause" });
+            expect(await service.checkRaiderRole(mockEvents.get("eh-kara"), ANNA)).toEqual({ code: "roster_only", error: ONLY });
+            expect(mockSignups.size).toBe(0);
+            expect(service.httpStatusFor("roster_only")).toBe(403);
+        });
+
+        it("lets the orga and an existing own signup through, and falls back to the roles without the switch", async () => {
+            expect((await service.submitSignup("eh-kara", ANNA, signup, { now: NOW, byOrga: true })).signup).toBeTruthy();
+            expect((await service.submitSignup("eh-kara", ANNA, { ...signup, status: "absence" }, { now: NOW })).signup).toBeTruthy();
+            mockSignups.clear();
+            rosterStore.updateRoster(rosterId, { signupOnly: false });
+            expect(service.rosterOnlyAccess("cat-t5", ANNA)).toBeNull();
+            mockRoleIds = ["role-other"];
+            expect(await service.submitSignup("eh-kara", ANNA, signup, { now: NOW })).toMatchObject({ code: "raider_role" });
+        });
+
+        it("refuses in the several-raids path too", async () => {
+            const results = await service.submitSignups(ANNA, [{ eventId: "eh-kara", characters: [{ character: "Nerathil", spec: "Mage-Arcane" }], status: "signed" }], { now: NOW });
+            expect(results.map((r) => [r.ok, r.code])).toEqual([[false, "roster_only"]]);
+        });
+    });
+
     it("categoryVisible nutzt dieselbe Regel", () => {
         const config = { categoryIds: ["a", "b"], categoryRoles: { a: ["r1"] } };
         expect(service.categoryVisible("a", { config, roleIds: ["r2"] })).toBe(false);

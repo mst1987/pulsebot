@@ -127,4 +127,20 @@ describe("the tab's one line instead of a card head", () => {
         expect(fix).toHaveAttribute("href", "/settings?section=kategorien");
         expect(fix).toHaveClass("btn");
     });
+
+    // #658: a category with a roster expects its core + trial members, roles or not
+    it("lists the missing ones for a roster without raider roles, and nothing when nobody is expected", () => {
+        const c = ctx();
+        c.data = { ...c.data, attendanceRoleIds: [], attendanceSource: "roster" };
+        renderPage(<RosterTab ctx={c} />);
+        expect(screen.queryByText(t("raidDetail.roster.noRoles"))).not.toBeInTheDocument();
+        expect(screen.getByText(t("raidDetail.roster.noReactionCount", { count: 2 }))).toBeInTheDocument();
+    });
+
+    it("takes a null source as nobody expected, even with roles listed", () => {
+        const c = ctx();
+        c.data = { ...c.data, attendanceRoleIds: ["r1"], attendanceSource: null };
+        renderPage(<RosterTab ctx={c} />);
+        expect(screen.getByText(t("raidDetail.roster.noRoles"))).toBeInTheDocument();
+    });
 });

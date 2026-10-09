@@ -45,6 +45,7 @@
         "avoid": { "label": "Not together", "tip": "Penalty when a \"not together\" pair stands in the same group (parallel raids: in the same raid). Only when \"not together\" is on." },
         "raidBuffs": { "label": "Raid buffs", "tip": "Every raid buff somebody in the raid brings." },
         "attendance": { "label": "Attendance", "tip": "Attendance in this category." },
+        "roster": { "label": "Roster status", "tip": "Core before trial before bench, whoever is not in the roster after them. Only when the category has a roster." },
         "gear": { "label": "Gear", "tip": "\"Ready\" before \"usable\" according to the profile." }
     },
     "status": {

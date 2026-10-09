@@ -49,6 +49,7 @@ const setupPresence = require("../../services/setup/setupPresence");
 const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 const { planningOf } = require("../../services/events/planning");
 const { expectedRoleIds } = require("../../services/roster/categoryRoles");
+const { expectedRosterIds, listExpectedMembers } = require("../../services/roster/expectedRaiders");
 
 /**
  * The version of the event on this page and its settings (#542): an own event
@@ -148,17 +149,21 @@ async function setupPart(found, eventId) {
 }
 
 /**
- * Attendance: who (holding a role assigned to this event's category) has not
- * reacted to the signup yet. Empty roleIds → the feature stays inactive.
- * Skipped entirely when the roster is unknown: every expected raider would
+ * Attendance: who of the expected raiders has not reacted to the signup yet —
+ * the core and trial members of the category's roster (#658, `attendanceSource`
+ * "roster"), else the holders of a role assigned to the category ("roles").
+ * Neither → the feature stays inactive (`attendanceSource` null).
+ * Skipped entirely when the signups are unknown: every expected raider would
  * land in "missing" and the page would invite a pointless mass ping.
  */
 async function attendancePart(guildId, found, signupsKnown) {
-    const categoryRoleIds = expectedRoleIds(found.g.categoryId, getConfig());
+    const config = getConfig();
+    const categoryRoleIds = expectedRoleIds(found.g.categoryId, config);
+    const attendanceSource = expectedRosterIds(found.g.categoryId) !== null ? "roster" : (categoryRoleIds.length ? "roles" : null);
     let attendance = { responded: [], missing: [] };
     let membersError = null;
-    if (categoryRoleIds.length && signupsKnown) {
-        const membersResult = await discord.listMembersWithRoles(guildId, categoryRoleIds);
+    if (attendanceSource && signupsKnown) {
+        const membersResult = await listExpectedMembers(guildId, found.g.categoryId, config);
         membersError = membersResult.error;
         attendance = computeAttendance(membersResult.members, found.e.signUps || []);
         // Enrich with class/spec/colour from each member's most recent signup in
@@ -179,7 +184,7 @@ async function attendancePart(guildId, found, signupsKnown) {
             missing: withCharacterAssignments(attendance.missing, assignmentProfiles),
         };
     }
-    return { categoryRoleIds, attendance, membersError };
+    return { categoryRoleIds, attendanceSource, attendance, membersError };
 }
 
 /**
@@ -207,7 +212,7 @@ async function ownEventPart(guildId, found, eventId) {
  * list, else the expected headcount from the attendance role(s); an own event
  * names the size it is planned for, which beats both guesses.
  */
-function softresPart(found, eventId, { categoryRoleIds, attendance }, edition = "tbc") {
+function softresPart(found, eventId, { attendanceSource, attendance }, edition = "tbc") {
     const ownCodes = edition && isOwn(found) ? softres.codesForRulesetInstances(found.e.instanceIds, edition) : [];
     const suggestedInstances = ownCodes.length
         ? ownCodes.map((code) => ({ code }))
@@ -215,7 +220,7 @@ function softresPart(found, eventId, { categoryRoleIds, attendance }, edition = 
     const eventSoftres = getEventSoftres(eventId);
     let signupTarget = eventSoftres && eventSoftres.instances && eventSoftres.instances.length
         ? softres.targetSizeForInstances(eventSoftres.instances)
-        : (categoryRoleIds.length ? (attendance.responded.length + attendance.missing.length) : 0);
+        : (attendanceSource ? (attendance.responded.length + attendance.missing.length) : 0);
     if (isOwn(found) && found.e.size) signupTarget = found.e.size;
     return { eventSoftres, suggestedInstances, signupTarget };
 }
@@ -347,6 +352,8 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
         // only an own event: who of the orga is in its setup editor right now
         ownSetupEditors: own.ownSetupEditors,
         attendanceRoleIds: attendanceInfo.categoryRoleIds,
+        // who the "fehlt" list measures against (#658): "roster" (core + trial), "roles" or null (nobody expected)
+        attendanceSource: attendanceInfo.attendanceSource,
         membersError: attendanceInfo.membersError,
         signupTarget: softresInfo.signupTarget,
         lootItems: withLootClassLook(listLootByEvent(eventId)),

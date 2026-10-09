@@ -229,6 +229,31 @@ describe("PUT /api/signups", () => {
         expect(status(await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane" } }))).toBe(200);
     });
 
+    it("weist außerhalb des Rosters mit 403 roster_only ab und markiert die Zeile vorab (#658)", async () => {
+        const rosterStore = require("../../../src/stores/rosterStore");
+        rosterStore.useFile(tempStoreFile("eh-signups-route-rosters.json"));
+        try {
+            const roster = rosterStore.createRoster({ name: "Kara", guildId: "g1", categoryId: "cat-kara", signupOnly: true });
+            mockRoleIds = [];
+            let rows = json(await call(route.getSignups, ANNA)).data.events;
+            expect(rows.find((r) => r.id === "eh-kara").rosterOnly).toBe(true);
+            const res = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", status: "signed" } });
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("roster_only");
+            expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(false);
+            // the orga sees no lock
+            rows = json(await call(route.getSignups, ORGA)).data.events;
+            expect(rows.find((r) => r.id === "eh-kara").rosterOnly).toBe(false);
+            // a trial member signs up
+            rosterStore.upsertMember(roster.id, ANNA.id, { status: "trial" });
+            rows = json(await call(route.getSignups, ANNA)).data.events;
+            expect(rows.find((r) => r.id === "eh-kara").rosterOnly).toBe(false);
+            expect(status(await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", status: "signed" } }))).toBe(200);
+        } finally {
+            rosterStore.useFile(null);
+        }
+    });
+
     it("weist einen fremden Charakter ab", async () => {
         const res = await call(route.putSignup, BERT, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane" } });
         expect(status(res)).toBe(400);

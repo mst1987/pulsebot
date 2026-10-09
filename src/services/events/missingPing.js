@@ -1,5 +1,6 @@
-// "Fehlende pingen": ping the raiders who hold a role of the event's category
-// but have not reacted to the signup yet. One function for the raid detail
+// "Fehlende pingen": ping the raiders who are expected in the event's category
+// (the roster's core + trial members, else the holders of its raider roles —
+// services/roster/expectedRaiders.js, #658) but have not reacted to the signup yet. One function for the raid detail
 // (POST /api/raids/ping-missing), "Event verwalten" in Discord (#288) and the
 // button "Fehlende pingen" under the signup message (missingPingBot.js), so
 // all of them ping exactly the same people.
@@ -14,10 +15,11 @@ const discord = require("../discord/discord");
 const { normalizePingTarget, deliverUserPing, dmSummary, TARGET_LABELS, missingPingText } = require("../discord/pingDelivery");
 const { eventLang } = require("../discord/botLanguage");
 const { fail } = require("../../web/http/apiResult");
-const { expectedRoleIds } = require("../roster/categoryRoles");
+const { hasExpected, listExpectedMembers } = require("../roster/expectedRaiders");
 
 /**
- * Who of the category's role holders has not reacted to the event yet.
+ * Who of the expected raiders has not reacted to the event yet: the core and
+ * trial members of the category's roster (#658), else the holders of its roles.
  * @param {{ guildId: string, eventId: string }} p
  * @returns {Promise<{ event: object, missing: Array<{ id: string, displayName: string }>, roleIds: string[], timings: object }
  *   | { error: { status: number, code: string, message: string } }>}
@@ -30,8 +32,8 @@ async function findMissingRaiders({ guildId, eventId }) {
     const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
     if (!found) return fail(404, "not_found", "Event nicht gefunden.");
     if (found.e.status === "cancelled") return fail(400, "cancelled", "Das Event ist abgesagt — da wird niemand mehr gepingt.");
-    const roleIds = expectedRoleIds(found.g.categoryId, getConfig());
-    if (!roleIds.length) {
+    const config = getConfig();
+    if (!hasExpected(found.g.categoryId, config)) {
         return fail(400, "no_roles", "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Kategorien).");
     }
     // A raid that already started expects no further signups — and once
@@ -40,7 +42,8 @@ async function findMissingRaiders({ guildId, eventId }) {
     if (hasStarted(found.e)) {
         return fail(400, "event_past", "Der Raid hat bereits begonnen — fehlende Raider zu pingen ergibt hier keinen Sinn mehr.");
     }
-    const { members, error: membersError } = await discord.listMembersWithRoles(guildId, roleIds);
+    // a category with a roster expects its core + trial members (#658), else the role holders
+    const { members, error: membersError, roleIds } = await listExpectedMembers(guildId, found.g.categoryId, config);
     const tMembers = Date.now();
     if (membersError) return fail(400, "members_unavailable", membersError);
     const { missing } = computeAttendance(members, found.e.signUps || []);

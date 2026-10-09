@@ -42,7 +42,11 @@ jest.mock("../../../src/utils/raidhelper/client", () => ({ createRaidhelperClien
 jest.mock("../../../src/services/discord/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     listMembersWithRoles: jest.fn(() => Promise.resolve({ members: [], error: null })),
+    listHumanMembers: jest.fn(() => Promise.resolve({ members: [], error: null })),
+    resolveUserNames: jest.fn(async () => ({})),
+    memberRoleIds: jest.fn(async () => []),
 }));
+jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null), listRosters: jest.fn(() => []) }));
 
 const lootStore = require("../../../src/stores/lootStore");
 const settingsStore = require("../../../src/stores/settingsStore");
@@ -55,9 +59,10 @@ const lootInboxStore = require("../../../src/stores/lootInboxStore");
 const { buildRoster } = require("../../../src/web/characters/roster");
 const { createRaidhelperClient } = require("../../../src/utils/raidhelper/client");
 const discord = require("../../../src/services/discord/discord");
+const rosterStore = require("../../../src/stores/rosterStore");
 const {
     loadTopLoot, loadNextRaids, loadNextRaidDetails, loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot,
-    dashboardVersions,
+    dashboardVersions, loadTrialEndings,
 } = require("../../../src/web/dashboard/dashboardData");
 
 // A loot row as lootStore.listAll() hands it out (already decorated).
@@ -385,6 +390,16 @@ describe("web/dashboard/dashboardData loadNextRaidDetails", () => {
         expect(raid.fetchedAt).toEqual(expect.any(Number));
     });
 
+    it("expects the roster's core and trial members where the category has a roster (#658)", async () => {
+        rosterStore.rosterForCategory.mockReturnValue({ roleIds: [], members: { u1: { status: "core" }, u3: { status: "trial" }, u4: { status: "pause" } } });
+        discord.listHumanMembers.mockResolvedValueOnce({ members: [{ id: "u1", displayName: "Brokk" }, { id: "u3", displayName: "Frostbart" }, { id: "u4", displayName: "Pause" }], error: null });
+        const { raid } = await loadNextRaidDetails("g1", "e1");
+        expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
+        expect(raid.rolesConfigured).toBe(true);
+        expect(raid.notSignedUp.map((p) => [p.name, p.status])).toEqual([["Frostbart", "none"]]);
+        rosterStore.rosterForCategory.mockReturnValue(null);
+    });
+
     it("skips the member lookup when the category has no raider roles", async () => {
         const { raid } = await loadNextRaidDetails("g1", "e1");
         expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
@@ -467,5 +482,39 @@ describe("web/dashboard/dashboardData loadMissingChannels (#537)", () => {
         expect(await loadMissingChannels("")).toEqual([]);
         eventStore.listEvents.mockImplementationOnce(() => { throw new Error("disk"); });
         expect(await loadMissingChannels("g1")).toEqual([]);
+    });
+});
+
+describe("web/dashboard/dashboardData loadTrialEndings (#658)", () => {
+    const NOW = Date.parse("2026-10-09T12:00:00.000Z");
+    const DAY = 24 * 60 * 60 * 1000;
+    const roster = (over = {}) => ({
+        id: "r1", guildId: "g1", name: "Donnerstag", managers: { roleIds: [], userIds: [] },
+        members: {
+            "111111111111111111": { status: "trial", trialUntil: new Date(NOW + 2 * DAY).toISOString() },
+            "222222222222222222": { status: "trial", trialUntil: new Date(NOW + 30 * DAY).toISOString() },
+        },
+        ...over,
+    });
+
+    it("lists the trials ending soon in rosters the caller manages, with the name and the extended end", async () => {
+        rosterStore.listRosters.mockReturnValueOnce([roster()]);
+        discord.resolveUserNames.mockResolvedValueOnce({ "111111111111111111": "Zibbo" });
+        const list = await loadTrialEndings("g1", { id: "9", isAdmin: true }, { now: NOW });
+        expect(rosterStore.listRosters).toHaveBeenCalledWith("g1");
+        expect(list).toEqual([{
+            rosterId: "r1", rosterName: "Donnerstag", userId: "111111111111111111", displayName: "Zibbo",
+            trialUntil: new Date(NOW + 2 * DAY).toISOString(), overdue: false, extendTo: new Date(NOW + 16 * DAY).toISOString(),
+        }]);
+    });
+
+    it("leaves out rosters the caller does not manage, and swallows a failure", async () => {
+        rosterStore.listRosters.mockReturnValueOnce([roster()]);
+        expect(await loadTrialEndings("g1", { id: "9", isAdmin: false }, { now: NOW })).toEqual([]);
+        rosterStore.listRosters.mockReturnValueOnce([roster({ managers: { roleIds: [], userIds: ["9"] } })]);
+        expect(await loadTrialEndings("g1", { id: "9", isAdmin: false }, { now: NOW })).toHaveLength(1);
+        rosterStore.listRosters.mockImplementationOnce(() => { throw new Error("disk"); });
+        jest.spyOn(console, "error").mockImplementationOnce(() => {});
+        expect(await loadTrialEndings("g1", { id: "9", isAdmin: true }, { now: NOW })).toEqual([]);
     });
 });

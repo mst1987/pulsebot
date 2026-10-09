@@ -11,7 +11,9 @@
 // when it opens.
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { getDashboard, recreateChannel, type ApiError, type DashboardData, type DashboardRaid, type DashboardTask } from "../../api";
+import {
+    decideTrial, getDashboard, recreateChannel, type ApiError, type DashboardData, type DashboardRaid, type DashboardTask, type DashboardTaskAction,
+} from "../../api";
 import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import AsyncView from "../../components/ui/AsyncView";
@@ -160,6 +162,7 @@ function TaskAction({ task, onDone }: { task: DashboardTask; onDone?: () => void
     const toast = useToast();
     const [busy, setBusy] = useState(false);
     const action = task.action;
+    if (action && action.kind === "rosterTrial") return <TrialActions action={action} onDone={onDone} />;
     if (!action || action.kind !== "recreateChannel") return null;
     const run = () => {
         setBusy(true);
@@ -172,6 +175,32 @@ function TaskAction({ task, onDone }: { task: DashboardTask; onDone?: () => void
             .finally(() => setBusy(false));
     };
     return <Button size="sm" variant="ghost" running={busy} onClick={run}>{action.label}</Button>;
+}
+
+/**
+ * The two buttons of a trial ending soon (#658): "Übernehmen" makes the member core, "Verlängern" moves the
+ * end 14 days on (the server's `extendTo`). Says what happened and reloads the dashboard.
+ */
+function TrialActions({ action, onDone }: { action: Extract<DashboardTaskAction, { kind: "rosterTrial" }>; onDone?: () => void }) {
+    const t = useT();
+    const toast = useToast();
+    const [busy, setBusy] = useState<"" | "adopt" | "extend">("");
+    const run = (decision: "adopt" | "extend") => {
+        setBusy(decision);
+        decideTrial(action, decision)
+            .then(() => {
+                toast(decision === "adopt" ? t("dashboard.tasks.trial.adopted") : t("dashboard.tasks.trial.extended", { date: dayDate(new Date(action.extendTo).getTime()) }));
+                if (onDone) onDone();
+            })
+            .catch((err: ApiError) => toast(err.message, "err"))
+            .finally(() => setBusy(""));
+    };
+    return (
+        <span className="ov-task-btns">
+            <Button size="sm" variant="ghost" running={busy === "adopt"} disabled={!!busy} onClick={() => run("adopt")}>{t("dashboard.tasks.trial.adopt")}</Button>
+            <Button size="sm" variant="ghost" running={busy === "extend"} disabled={!!busy} onClick={() => run("extend")}>{t("dashboard.tasks.trial.extend")}</Button>
+        </span>
+    );
 }
 
 /** The open tasks: one row per task that exists, each leading straight to where it is done. */
@@ -210,7 +239,7 @@ export function TaskList({ tasks, onChanged }: { tasks: DashboardTask[]; onChang
                             );
                             // A task with its own button: the button sits beside the link, never inside it.
                             return t.action
-                                ? <div key={t.id} className="ov-task-act">{row}<TaskAction task={t} onDone={onChanged} /></div>
+                                ? <div key={t.id} className={`ov-task-act${t.action.kind === "rosterTrial" ? " ov-task-act-two" : ""}`}>{row}<TaskAction task={t} onDone={onChanged} /></div>
                                 : row;
                         })}
                     </div>

@@ -21,6 +21,8 @@ vi.mock("../../api", async (orig) => ({
     getKaderOnly: vi.fn(),
     getKaderLive: vi.fn(),
     leaveKaderLive: vi.fn(),
+    // the roster button of the decision page (#658, RosterLink.test.tsx tests it)
+    getKaderRoster: vi.fn(async () => null),
     saveKaderInterview: vi.fn(),
     saveKaderAssignment: vi.fn(),
 }));
