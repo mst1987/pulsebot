@@ -1,7 +1,7 @@
 // Role group areas in two styles (#559, docs/raidplan/board.md "Role group areas: calm or arc"): calm (light fill, thin line - dashed for
 // ranged -, the badge with symbol, label and count on the top edge, names inside) and arc (a ring / arc band drawn as SVG, the badge on
 // its outer edge, the names along the band). The editor and the read view /p/<token> draw them with the same board.
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { RaidplanPlayer, RaidplanPublic, RaidplanPublicBoss, RaidplanZone } from "../../api";
@@ -117,9 +117,10 @@ describe("the read view draws both styles like the editor", () => {
         vi.mocked(api.getRaidplanPublic).mockResolvedValue({ data, etag: "" });
         const { container } = render(<PlanPublicPage token="abc" />);
         await screen.findAllByText("Supremus");
+        // The board settles after the page's first render; on a busy CI runner the areas come a tick later.
+        await waitFor(() => expect(container.querySelector(".rp-board .rp-zone[data-zone='m'] path.rp-arc-band")).not.toBeNull());
         const sheet = container.querySelector(".rp-board") as HTMLElement;
         expect(sheet.querySelector(".rp-zone[data-zone='m']")).toHaveClass("is-arc");
-        expect(sheet.querySelector(".rp-zone[data-zone='m'] path.rp-arc-band")).not.toBeNull();
         expect(sheet.querySelector(".rp-zone[data-zone='r']")).toHaveClass("is-calm", "is-dashed");
         expect(sheet.querySelectorAll(".rp-rg-badge")).toHaveLength(2);
         // the same markup as the editor's board for the same zones
