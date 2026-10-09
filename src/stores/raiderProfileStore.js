@@ -82,13 +82,25 @@ const profilesStore = createJsonStore({
     file: PROFILES_FILE,
     defaults: () => ({}),
     normalize: (data) => (data && data.profiles && typeof data.profiles === "object" && !Array.isArray(data.profiles) ? data.profiles : {}),
+    // Read per raider on the roster, the absences and the setup: parsed once per change.
+    cache: true,
 });
 
 /** Tests point the store at a file of their own; null = the default again. */
 const useFile = profilesStore.useFile;
 
+/** Every profile, as a copy to change and write back. */
 function readAll() {
     return profilesStore.read();
+}
+
+/**
+ * Every profile, read-only: the cached value itself, frozen (jsonStore peek()).
+ * Only for readers that hand out normalizeProfile()'s result, which is built
+ * fresh and never shares a piece of what it read.
+ */
+function peekAll() {
+    return profilesStore.peek();
 }
 
 function writeAll(profiles) {
@@ -239,17 +251,17 @@ function normalizeProfile(raw, userId = "") {
 function getProfile(userId) {
     const uid = String(userId || "").trim();
     if (!uid) return null;
-    return normalizeProfile(readAll()[uid] || {}, uid);
+    return normalizeProfile(peekAll()[uid] || {}, uid);
 }
 
 /** Whether the account has saved anything yet. */
 function hasProfile(userId) {
-    return !!readAll()[String(userId || "").trim()];
+    return !!peekAll()[String(userId || "").trim()];
 }
 
 /** Every stored profile, normalized. */
 function listProfiles() {
-    return Object.entries(readAll()).map(([uid, p]) => normalizeProfile(p, uid));
+    return Object.entries(peekAll()).map(([uid, p]) => normalizeProfile(p, uid));
 }
 
 function store(userId, profile) {

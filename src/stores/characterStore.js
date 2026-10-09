@@ -19,6 +19,8 @@ const store = createJsonStore({
     file: CHARACTERS_FILE,
     defaults: () => [],
     normalize: (data) => (Array.isArray(data.characters) ? data.characters : []),
+    // Read on every page that lists it: parsed once per change, not per call.
+    cache: true,
 });
 
 function readAll() {

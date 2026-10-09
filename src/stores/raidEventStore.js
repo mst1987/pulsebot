@@ -14,8 +14,11 @@ const store = createJsonStore({
     file: RAID_EVENTS_FILE,
     defaults: () => [],
     normalize: (data) => (Array.isArray(data.events) ? data.events : []),
+    // Read on the dashboard, the raid lists and per event (getRaidEvent): parsed once per change.
+    cache: true,
 });
 
+/** Every snapshot, as a copy to change and write back. */
 function readAll() {
     return store.read();
 }
@@ -24,18 +27,28 @@ function writeAll(events) {
     store.write({ events });
 }
 
-/** All persisted events for a guild, newest start first. */
+/** All persisted events for a guild, newest start first. Copies, the caller may change them. */
 function listRaidEvents(guildId) {
     const id = String(guildId || "").trim();
-    return readAll()
+    return store.peek()
         .filter((e) => e && (!id || e.guildId === id))
+        .map((e) => structuredClone(e))
         .sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
 }
 
-/** A single persisted event by its Raid-Helper id, or null. */
+/** A single persisted event by its Raid-Helper id (a copy), or null. */
 function getRaidEvent(id) {
     if (!id) return null;
-    return readAll().find((e) => e.id === id) || null;
+    const hit = store.peek().find((e) => e.id === id);
+    return hit ? structuredClone(hit) : null;
+}
+
+// What a scan refreshes on a snapshot; `updatedAt` follows only a real change.
+const SNAPSHOT_FIELDS = ["guildId", "title", "channelId", "channelName", "categoryId", "categoryName", "startTime", "signUps", "setup", "firstSeenAt"];
+
+/** Whether `merged` says anything `existing` does not already hold. */
+function snapshotChanged(existing, merged) {
+    return SNAPSHOT_FIELDS.some((key) => JSON.stringify(existing[key]) !== JSON.stringify(merged[key]));
 }
 
 /**
@@ -52,12 +65,16 @@ function getRaidEvent(id) {
  * captured while it was still there — that emptiness means "we no longer know",
  * not "nobody signed up". This is what lets a past raid's detail page show the
  * roster as it was at raid time instead of "0 Anmeldungen, alle fehlen".
+ *
+ * The file is written only when a snapshot was added or changed; `updatedAt`
+ * is the moment of the last real change, not of the last scan.
  */
 function saveRaidEvents(list) {
     const events = readAll();
     const byId = new Map(events.map((e) => [e.id, e]));
     const now = Date.now();
     let added = 0;
+    let changed = 0;
     for (const data of list || []) {
         const id = String((data && data.id) || "").trim();
         if (!id) continue;
@@ -79,14 +96,18 @@ function saveRaidEvents(list) {
             updatedAt: now,
         };
         if (existing) {
+            // A rescan that brings nothing new leaves the snapshot - and the file - alone.
+            if (!snapshotChanged(existing, merged)) continue;
             Object.assign(existing, merged);
+            changed += 1;
         } else {
             events.push(merged);
             byId.set(id, merged);
             added += 1;
         }
     }
-    if (list && list.length) writeAll(events);
+    // The dashboard scans on every view; rewriting an unchanged file each time was pure cost.
+    if (added || changed) writeAll(events);
     return added;
 }
 

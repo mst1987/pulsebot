@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const { tempStoreFile } = require("../helpers/tempStore");
 const {
-    createJsonStore, writeFileAtomic, writeJsonAtomic, readJsonFile, tempPathFor,
+    createJsonStore, writeFileAtomic, writeJsonAtomic, readJsonFile, tempPathFor, deepFreeze,
 } = require("../../src/stores/jsonStore");
 
 const listStore = (file, extra = {}) => createJsonStore({
@@ -218,6 +218,84 @@ describe("stores/jsonStore", () => {
             expect(store.read()).toEqual([2]);
             fs.unlinkSync(file);
             expect(store.read()).toEqual([]);
+        });
+    });
+
+    describe("peek", () => {
+        it("hands out the cached value itself, deep-frozen, and reads the file once", () => {
+            const file = tempStoreFile("items.json");
+            const store = listStore(file, { cache: true });
+            store.write({ items: [{ a: 1, tags: ["x"] }] });
+            const read = jest.spyOn(fs, "readFileSync");
+            const first = store.peek();
+            expect(store.peek()).toBe(first);
+            expect(read.mock.calls.filter(([p]) => p === file)).toHaveLength(1);
+            expect(Object.isFrozen(first)).toBe(true);
+            expect(Object.isFrozen(first[0])).toBe(true);
+            expect(Object.isFrozen(first[0].tags)).toBe(true);
+            expect(() => {
+                "use strict";
+                first[0].a = 2;
+            }).toThrow(TypeError);
+        });
+
+        it("leaves read() a copy the caller may change, and the cache untouched by it", () => {
+            const file = tempStoreFile("items.json");
+            const store = listStore(file, { cache: true });
+            store.write({ items: [{ a: 1 }] });
+            store.peek();
+            const copy = store.read();
+            expect(Object.isFrozen(copy)).toBe(false);
+            copy[0].a = 99;
+            expect(store.peek()).toEqual([{ a: 1 }]);
+        });
+
+        it("sees a write and a change from outside", () => {
+            const file = tempStoreFile("items.json");
+            const store = listStore(file, { cache: true });
+            store.write({ items: [1] });
+            expect(store.peek()).toEqual([1]);
+            store.write({ items: [2] });
+            expect(store.peek()).toEqual([2]);
+            fs.writeFileSync(file, JSON.stringify({ items: [3, 4] }));
+            expect(store.peek()).toEqual([3, 4]);
+        });
+
+        it("hands out frozen defaults while there is no file", () => {
+            const store = listStore(tempStoreFile("items.json"), { cache: true });
+            expect(store.peek()).toEqual([]);
+            expect(Object.isFrozen(store.peek())).toBe(true);
+            // the defaults stay fresh for read()
+            expect(Object.isFrozen(store.read())).toBe(false);
+        });
+
+        it("loads afresh without the cache, frozen all the same", () => {
+            const file = tempStoreFile("items.json");
+            const store = listStore(file);
+            store.write({ items: [{ a: 1 }] });
+            const first = store.peek();
+            expect(first).toEqual([{ a: 1 }]);
+            expect(Object.isFrozen(first[0])).toBe(true);
+            expect(store.peek()).not.toBe(first);
+        });
+
+        it("freezes nothing for a store that only reads", () => {
+            const file = tempStoreFile("items.json");
+            const store = listStore(file, { cache: true });
+            store.write({ items: [{ a: 1 }] });
+            store.read();
+            // the cached value is still unfrozen: read() never freezes, only peek() does
+            expect(Object.isFrozen(store.read()[0])).toBe(false);
+        });
+    });
+
+    describe("deepFreeze", () => {
+        it("freezes nested objects and arrays, leaves primitives alone", () => {
+            const value = { a: { b: [1, { c: 2 }] }, n: null };
+            expect(deepFreeze(value)).toBe(value);
+            expect(Object.isFrozen(value.a.b[1])).toBe(true);
+            expect(deepFreeze(5)).toBe(5);
+            expect(deepFreeze(null)).toBeNull();
         });
     });
 
