@@ -1,6 +1,6 @@
 // Who may manage one raid roster (#653, docs/roster-profile.md):
 //
-//   - a full admin (user.isAdmin) - every roster, and only he creates rosters
+//   - a full admin (user.isAdmin) - every roster; only full admins create rosters
 //     and sets their managers,
 //   - an account listed in roster.managers.userIds,
 //   - a member holding one of roster.managers.roleIds on the roster's server.
