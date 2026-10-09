@@ -278,7 +278,7 @@ export default function RaiderDialog({
                     <div className="lc-stats">
                         <div className="lc-stat2">
                             <span className="lc-th tipped" data-tip={t("lootcouncil.word.need")} data-tip-sub={t("lootcouncil.dialog.needTipSub")}>{t("lootcouncil.word.need")}</span>
-                            <NeedBar width={140} subject={needSubject(r)} />
+                            <NeedBar width={118} subject={needSubject(r)} />
                         </div>
                         <div className="lc-stat2">
                             <span className="lc-th">{t("lootcouncil.word.last")}</span>

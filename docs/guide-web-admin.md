@@ -233,7 +233,10 @@ Technik: [loot-council.md](loot-council.md)
 
 *Bereich "lootcouncil" — für die Raidleitung beim Verteilen von Beute*
 
-- Rangliste je Raider nach Bedarf (Drought, bisheriger Loot-Anteil, BiS-Abstand).
+- Rangliste je Raider nach Bedarf aus vier Teilen: Wartezeit, bisheriger Loot-Anteil, BiS-Abstand und Zugehörigkeit (wie lange jemand schon dabei ist). Der Balken zeigt die vier Teile in ihren Gewichten, der Tooltip die Gründe.
+- **Loot-Punkte:** Nicht jedes Item zählt gleich. Neben der Anzahl steht, was die Items wert sind, z. B. „3 Items · 5,5 Punkte“; im Raider-Dialog hat jedes erhaltene Item sein Gewicht als kleines Abzeichen. Ein Item unter 1 Punkt setzt die Wartezeit nur anteilig zurück.
+- **Dabei seit** steht im Raider-Dialog: das frühere von erstem Raid in der Kategorie (Log, Anmeldung oder Loot) und dem Datum im Roster.
+- **Tab „Gewichtung“:** Hier stellst du mit −/+ ein, was ein Item zählt (Vorgaben: Trinket 2,0 · BiS-Waffe 2,0 · andere Waffe 1,5 · Set-Teil/Tier-Token 1,0 · normales Item 1,0 · häufiger Drop 0,5), legst über die Item-Suche Ausnahmen für einzelne Items an, gewichtest die vier Bedarfs-Teile (Vorgabe 45 / 30 / 10 / 15, die Summe wird auf 100 umgerechnet) und bestimmst, nach wie vielen Tagen die Zugehörigkeit voll zählt (Vorgabe 90). „Auf Vorgaben zurücksetzen“ füllt nur das Formular — gespeichert wird mit „Speichern“. Mit gewählter Raid-Kategorie kann sie per Schalter eine eigene Gewichtung bekommen. Ändern braucht Schreibrecht im Loot-Council, alle anderen sehen die Werte. Die Gewichtung gilt auch fürs Addon im Spiel.
 - Gear-Ansicht und Drop-Check für ein konkretes Item.
 - DPS-Simulation einzelner Ausrüstungswechsel, BiS-Listen je Spec. Details: [docs/loot-council.md](loot-council.md).
 - Welche Charaktere überhaupt auf der Liste stehen, bestimmt der Content-Umschalter in der Kopfleiste (Start: die Hauptversion); ein Charakter ohne eigene Version zählt über seinen Loot oder seine Kategorie.
