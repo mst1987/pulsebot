@@ -92,6 +92,7 @@ character cross, and only through "Ins Roster übernehmen".
   them in the same way (status, character, main role); **members already in the roster are never touched**, and nobody
   is taken out because the Kader moved them back. Role failures are counted in the toast.
 - **"Zum Roster"** — the link to `/roster/r/<id>`: name, members, status and roles are edited there.
+- **"Zum Loot-Council"** (#676) — when the linked roster runs as Loot-Council (`rosterLootSystem`) and the caller may read the loot council, a link `/lootcouncil?roster=<id>` next to "Zum Roster" opens the council with that roster picked (`GET /api/kader/roster` → `lootCouncil: true`). Only the roster id crosses; interviews, votes and notes stay here.
 - **"Verknüpfung"** — full admins: the same dialog to link another roster or "Verknüpfung lösen" (the roster stays
   with all its members). The roster page links back: its Komposition's "Zum Kaderplaner" opens `/kader/<kaderId>/roster`
   of the linked Kader, and the roster settings ("Kader im Kaderplaner") set or clear the same link from that side.

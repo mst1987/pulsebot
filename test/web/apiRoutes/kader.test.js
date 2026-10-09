@@ -360,14 +360,22 @@ describe("web/apiRoutes/kader the raid roster (#658)", () => {
     it("says what the roster button offers: create while there is none (admins), take over once there is", async () => {
         const kaderId = await decidedKader();
         let res = await get("/api/kader/roster", { kader: kaderId });
-        expect(body(res)).toEqual({ roster: null, candidates: 1, pending: 1, canCreate: true, canSync: false, canLink: true, rosters: [] });
-        const roster = rosterFrom(kaderId);
+        expect(body(res)).toEqual({ roster: null, candidates: 1, pending: 1, canCreate: true, canSync: false, canLink: true, lootCouncil: false, rosters: [] });
+        // #676: a roster running as Loot-Council offers "Zum Loot-Council" (only its id crosses)
+        const roster = rosterFrom(kaderId, { lootSystem: "lootcouncil" });
         res = await get("/api/kader/roster", { kader: kaderId });
         expect(body(res)).toEqual({
-            roster: { id: roster.id, name: "Forever-Roster", members: 0 }, candidates: 1, pending: 1, canCreate: false, canSync: true, canLink: true,
+            roster: { id: roster.id, name: "Forever-Roster", members: 0 }, candidates: 1, pending: 1, canCreate: false, canSync: true, canLink: true, lootCouncil: true,
             rosters: [{ id: roster.id, name: "Forever-Roster", categoryId: null, members: 0, linkedKaderId: null, suggested: false }],
         });
         expect(status(await get("/api/kader/roster", { kader: "nope" }))).toBe(404);
+    });
+
+    it("offers the council link only to a reader of the loot council (#676)", async () => {
+        const kaderId = await decidedKader();
+        rosterFrom(kaderId, { lootSystem: "lootcouncil" });
+        auth.getUser.mockReturnValue(granted("read"));
+        expect(body(await get("/api/kader/roster", { kader: kaderId })).lootCouncil).toBe(false);
     });
 
     it("takes the decided players into the roster - status and character only, nothing private", async () => {

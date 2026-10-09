@@ -65,8 +65,8 @@ describe("services/roster/rosterSettings cleanSettings", () => {
 });
 
 describe("services/roster/rosterSettings permission split", () => {
-    it("lets managers change name, slots, allowMultipleChars and signupOnly only", () => {
-        expect(MANAGER_FIELDS).toEqual(["name", "slots", "allowMultipleChars", "signupOnly"]);
+    it("lets managers change name, slots, allowMultipleChars, signupOnly and the council profile only", () => {
+        expect(MANAGER_FIELDS).toEqual(["name", "slots", "allowMultipleChars", "signupOnly", "lootProfileId"]);
         const { fields } = cleanSettings({ name: "X", roleIds: [R1], managers: { userIds: ["100001"] } }, { current: roster });
         // roleIds unchanged passes, the new manager does not
         expect(adminOnlyChanges(fields, roster)).toEqual(["managers"]);
@@ -127,5 +127,54 @@ describe("services/roster/rosterSettings updateRosterSettings (admin)", () => {
         const spy = jest.spyOn(rosterStore, "updateRoster").mockImplementationOnce(() => { throw new Error("disk"); });
         expect(() => updateRosterSettings(roster.id, { name: "x" }, { isAdmin: true })).toThrow("disk");
         spy.mockRestore();
+    });
+});
+
+describe("services/roster/rosterSettings loot system and Loot-Council profile (#676)", () => {
+    const councilProfilesStore = require("../../../src/stores/councilProfilesStore");
+    const { rosterLootSystem } = require("../../../src/services/loot/lootSystem");
+    const CAT = "700000000000000001";
+
+    it("writes the loot system of a roster WITH category into config.categoryLootSystem (one truth)", () => {
+        const res = updateRosterSettings(roster.id, { lootSystem: "lootcouncil" }, { isAdmin: true, actor: "1" });
+        expect(res.ok).toBe(true);
+        expect(configStore.getConfig().categoryLootSystem[CAT]).toBe("lootcouncil");
+        expect(res.roster.lootSystem).toBe("");
+        expect(rosterLootSystem(configStore.getConfig(), res.roster)).toEqual({ system: "lootcouncil", source: "category" });
+        expect(res.roster.history.at(-1)).toMatchObject({ by: "1", what: "settings", detail: "lootSystem" });
+    });
+
+    it("keeps the loot system of a roster WITHOUT category on the roster", () => {
+        const solo = rosterStore.createRoster({ name: "PuG", guildId: "g1" });
+        const res = updateRosterSettings(solo.id, { lootSystem: "gdkp" }, { isAdmin: true });
+        expect(res.roster.lootSystem).toBe("gdkp");
+        expect(configStore.getConfig().categoryLootSystem || {}).toEqual({});
+        expect(rosterLootSystem(configStore.getConfig(), res.roster)).toEqual({ system: "gdkp", source: "roster" });
+    });
+
+    it("lets only admins change the loot system; the unchanged value of a whole form passes for a manager", () => {
+        expect(updateRosterSettings(roster.id, { lootSystem: "lootcouncil" }, { isAdmin: false }).code).toBe("admin_only");
+        // the category follows Softres by default: sending that back changes nothing
+        expect(updateRosterSettings(roster.id, { lootSystem: "softres", name: "Do" }, { isAdmin: false }).ok).toBe(true);
+        expect(updateRosterSettings(roster.id, { lootSystem: "dkp" }, { isAdmin: true }).code).toBe("invalid_loot_system");
+        expect(updateRosterSettings(roster.id, { lootSystem: 3 }, { isAdmin: true }).code).toBe("invalid_loot_system");
+    });
+
+    it("lets admins and managers pick a profile that exists, '' goes back to the default", () => {
+        const p = councilProfilesStore.createProfile({ name: "Main T6" });
+        const byManager = updateRosterSettings(roster.id, { lootProfileId: p.id }, { isAdmin: false, actor: "100001" });
+        expect(byManager.ok).toBe(true);
+        expect(byManager.roster.lootProfileId).toBe(p.id);
+        expect(byManager.roster.history.at(-1)).toMatchObject({ what: "settings", detail: "lootProfileId" });
+        expect(updateRosterSettings(roster.id, { lootProfileId: "p-nope" }, { isAdmin: true }).code).toBe("unknown_profile");
+        expect(updateRosterSettings(roster.id, { lootProfileId: 7 }, { isAdmin: true }).code).toBe("unknown_profile");
+        expect(updateRosterSettings(roster.id, { lootProfileId: "" }, { isAdmin: true }).roster.lootProfileId).toBe("");
+        // the default profile exists even while only virtual
+        expect(updateRosterSettings(roster.id, { lootProfileId: "standard" }, { isAdmin: false }).roster.lootProfileId).toBe("standard");
+    });
+
+    it("never takes the loot fields on create (settings only)", () => {
+        const { fields } = cleanSettings({ name: "Neu", lootSystem: "gdkp", lootProfileId: "x" });
+        expect(fields).toEqual({ name: "Neu" });
     });
 });

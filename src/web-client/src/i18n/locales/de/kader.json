@@ -74,7 +74,9 @@
         "unlinkTitle": "Verknüpfung mit „{name}“ lösen?",
         "unlinkText": "Das Roster bleibt, wie es ist, mit allen Mitgliedern. Nur „Ins Roster übernehmen“ geht danach nicht mehr dorthin.",
         "relink": "Verknüpfung",
-        "relinkTip": "Verknüpft mit {name}: ändern oder lösen"
+        "relinkTip": "Verknüpft mit {name}: ändern oder lösen",
+        "council": "Zum Loot-Council",
+        "councilTip": "Loot-Council für „{name}“ öffnen"
     },
     "quote": "„{text}“",
     "state": {

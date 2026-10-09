@@ -356,6 +356,11 @@ export type RosterSettings = {
     slots: RosterHead["slots"];
     /** The linked Kader of the Kaderplaner, null for none. */
     kaderId: string | null;
+    /** What the roster runs on (#676; with a category the category's system) and where that came from. */
+    lootSystem?: string;
+    lootSystemSource?: "category" | "addon" | "default" | "roster";
+    /** Its Loot-Council profile, "" = the default. */
+    lootProfileId?: string;
 };
 
 /** Every roster of the active server as a card. */

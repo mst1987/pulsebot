@@ -44,6 +44,7 @@ const { canManageRosterLive } = require("../../services/roster/rosterAccess");
 const { trialEnding } = require("../../services/roster/rosterTrials");
 const { resolveMemberSpec, specContext, specChoices } = require("../../services/roster/memberSpec");
 const { kaderChoices } = require("../../services/roster/rosterCreate");
+const { rosterLootSystem } = require("../../services/loot/lootSystem");
 
 const STATUSES = rosterStore.STATUSES;
 /** Statuses that take a place in the roster. */
@@ -350,7 +351,7 @@ function rosterHead(roster, { ctx, names, discordData, figures, guildId }) {
  * What the settings dialog starts from (managers and admins only): the stored
  * fields a head does not carry, the manager accounts with their names.
  */
-function rosterSettingsView(roster, discordData) {
+function rosterSettingsView(roster, discordData, config = {}) {
     const nameOf = (userId) => {
         const dm = discordData.members ? discordData.members.get(userId) : null;
         const p = profiles.getProfile(userId);
@@ -370,6 +371,10 @@ function rosterSettingsView(roster, discordData) {
         allowMultipleChars: roster.allowMultipleChars,
         slots: { ...roster.slots },
         kaderId: roster.kaderId || null,
+        // #676: what the roster runs on (with a category: the category's system) and its council profile ("" = default)
+        lootSystem: rosterLootSystem(config, roster).system,
+        lootSystemSource: rosterLootSystem(config, roster).source,
+        lootProfileId: roster.lootProfileId || "",
     };
 }
 
@@ -438,7 +443,7 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
         membersKnown: !!discordData.members,
         canManage,
         isAdmin: !!(user && user.isAdmin === true),
-        settings: canManage ? rosterSettingsView(roster, discordData) : null,
+        settings: canManage ? rosterSettingsView(roster, discordData, config) : null,
     };
 }
 

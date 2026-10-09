@@ -111,6 +111,12 @@ export type RosterOptions = {
     kaders: { id: string; name: string; inRoster: number; candidates: number; attendanceCategories?: string[]; rosterId?: string | null; rosterName?: string }[];
     templateSlots: Record<string, RosterTemplateSlots>;
     isAdmin: boolean;
+    /** The loot systems (#676) - softres, lootcouncil, gdkp, other. */
+    lootSystems?: string[];
+    /** The Loot-Council profiles to pick from (#676). */
+    lootProfiles?: { id: string; name: string; isDefault: boolean }[];
+    /** The caller may open the loot council ("Profile verwalten"). */
+    canOpenCouncil?: boolean;
 };
 
 /** What the create dialog and the settings offer for the active server. */
@@ -133,6 +139,10 @@ export type RosterSettingsPatch = {
     signupOnly?: boolean;
     /** Full admins: the Kader of the Kaderplaner to link (null unlinks). */
     kaderId?: string | null;
+    /** Full admins (#676): with a category written to the category's loot system. */
+    lootSystem?: string;
+    /** Admins and managers (#676): the Loot-Council profile, "" = the default. */
+    lootProfileId?: string;
 };
 
 export type RosterSource = "role" | "kader" | "raids" | "none";

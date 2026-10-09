@@ -97,6 +97,20 @@ describe("Kaderplaner · Roster aus dem Kader (#658)", () => {
         expect(screen.queryByRole("button", { name: t("kader.roster.createButton") })).not.toBeInTheDocument();
     });
 
+    it("links a roster running as Loot-Council to the council, preselecting it (#676)", async () => {
+        vi.mocked(api.getKaderRoster).mockResolvedValue(withRoster({ lootCouncil: true }));
+        await show();
+        const link = await screen.findByRole("link", { name: t("kader.roster.council") });
+        expect(link).toHaveAttribute("href", "/lootcouncil?roster=forever-raid");
+    });
+
+    it("has no council link when the server says no (other loot system, or no council access)", async () => {
+        vi.mocked(api.getKaderRoster).mockResolvedValue(withRoster({ lootCouncil: false }));
+        await show();
+        await screen.findByRole("link", { name: t("kader.roster.open") });
+        expect(screen.queryByRole("link", { name: t("kader.roster.council") })).not.toBeInTheDocument();
+    });
+
     it("links an existing roster - the suggestion first - and counts its category in the Kader's attendance", async () => {
         const rosters = [
             { id: "mo-raider", name: "Mo-Raider", categoryId: CAT.mo, members: 18, linkedKaderId: null, suggested: true },

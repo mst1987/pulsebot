@@ -20,8 +20,11 @@
 // Nothing stored means the defaults (DEFAULTS), so a fresh install weighs
 // exactly like the issue's table.
 //
-// Read by web/loot/lootCouncil.js (councilRoster) through weightsFor(); the item
-// classes themselves are resolved in services/loot/itemWeights.js.
+// Since #676 the council weighs by Loot-Council profiles (councilProfilesStore.js,
+// resolved per roster in services/loot/councilProfiles.js): this file keeps the
+// shape and the normalisers they reuse, and its stored data is only read once,
+// by the migration into profiles (storedWeights()). The item classes themselves
+// are resolved in services/loot/itemWeights.js.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 
@@ -195,6 +198,15 @@ function effectiveNeedWeights(need) {
     return out;
 }
 
+/**
+ * Everything stored, as read: { global: Settings|null, categories }. Since #676
+ * the council reads its weighting from profiles (councilProfilesStore.js); this
+ * file is only the source of the one-off migration.
+ */
+function storedWeights() {
+    return store.read();
+}
+
 /** Tests: another file (null = back to the default). */
 function useFile(file) {
     store.useFile(file);
@@ -203,5 +215,5 @@ function useFile(file) {
 module.exports = {
     WEIGHTS_FILE, CLASS_IDS, NEED_IDS, DEFAULTS, LIMITS,
     normalizeSettings, defaults, globalWeights, categoryWeights, weightsFor, setWeights, resetWeights,
-    effectiveNeedWeights, useFile,
+    effectiveNeedWeights, storedWeights, useFile,
 };

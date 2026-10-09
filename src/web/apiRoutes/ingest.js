@@ -321,8 +321,16 @@ async function ingestCouncil(req, res, url) {
 }
 
 /**
- * Every Loot-Council category with its stored view, one after another (the
+ * Every Loot-Council category with its profile's view, one after another (the
  * armory cache is shared) - what versions 2 and 3 are built from.
+ *
+ * Since #676 a council runs per roster: a roster with category runs on the
+ * category's loot system, so "every Loot-Council roster with category" plus
+ * "every Loot-Council category without roster" is exactly the list of
+ * Loot-Council categories - `id` stays the category id, weights and view come
+ * from the roster's profile (categoryCouncil). A roster WITHOUT category is
+ * left out: the addon picks a council by the raid's instances, and such a
+ * roster has no raid template to name them (docs/loot-import.md).
  */
 async function councilEntries(req) {
     const config = getConfig();
@@ -331,8 +339,8 @@ async function councilEntries(req) {
     const names = new Map(listKnownCategories(activeGuildFor(req)).filter((c) => c.name).map((c) => [c.id, c.name]));
     const entries = [];
     for (const id of councilCategoryIds(config)) {
-        const { opts, built } = await categoryCouncil(id);
-        entries.push({ id, name: names.get(id) || id, opts, built, instances: categoryInstances(config, id) });
+        const { opts, built, profile, roster } = await categoryCouncil(id);
+        entries.push({ id, name: names.get(id) || id, opts, built, instances: categoryInstances(config, id), profile, roster });
     }
     return entries;
 }

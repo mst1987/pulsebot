@@ -4,14 +4,18 @@
 jest.mock("../../../src/web/loot/lootCouncil", () => ({ councilRoster: jest.fn() }));
 jest.mock("../../../src/services/loot/armoryGear", () => ({ primeArmoryGear: jest.fn() }));
 jest.mock("../../../src/stores/raidTemplateStore", () => ({ getRaidTemplate: jest.fn(() => null) }));
-jest.mock("../../../src/stores/councilStore", () => ({ viewFor: jest.fn() }));
+jest.mock("../../../src/services/loot/councilProfiles", () => ({
+    viewFor: jest.fn(),
+    resolveProfile: jest.fn(() => ({ profile: { id: "standard", name: "Standard" }, source: "default", roster: null })),
+    profileHead: (p, source) => ({ id: p.id, name: p.name, isDefault: p.id === "standard", source }),
+}));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/services/discord/discord", () => ({ listCategories: jest.fn(() => []) }));
 
 const { councilRoster } = require("../../../src/web/loot/lootCouncil");
 const { primeArmoryGear } = require("../../../src/services/loot/armoryGear");
 const { getRaidTemplate } = require("../../../src/stores/raidTemplateStore");
-const councilStore = require("../../../src/stores/councilStore");
+const councilProfiles = require("../../../src/services/loot/councilProfiles");
 const {
     buildCouncilView, viewQuery, councilCategoryIds, categoryInstances, categoryCouncil,
 } = require("../../../src/web/loot/councilView");
@@ -98,12 +102,16 @@ describe("categoryInstances", () => {
 });
 
 describe("categoryCouncil", () => {
-    it("builds the category with its stored view", async () => {
-        councilStore.viewFor.mockReturnValue({ role: "healer", tiers: ["t6"], contents: [], bisTier: "t6", version: "", stored: true });
+    it("builds the category with its profile's view (#676) and names profile and roster", async () => {
+        councilProfiles.viewFor.mockReturnValue({ role: "healer", tiers: ["t6"], contents: [], bisTier: "t6", version: "", stored: true });
+        councilProfiles.resolveProfile.mockReturnValue({ profile: { id: "p-1", name: "Main T6" }, source: "roster", roster: { id: "r1", name: "Mittwoch" } });
         councilRoster.mockReturnValue({ rows: [] });
-        const { view, opts } = await categoryCouncil("c1");
+        const { view, opts, profile, roster } = await categoryCouncil("c1");
+        expect(councilProfiles.viewFor).toHaveBeenCalledWith({ categoryId: "c1" });
         expect(view.role).toBe("healer");
         expect(opts).toMatchObject({ role: "healer", tierIds: ["t6"], categoryId: "c1", bisTier: "t6" });
         expect(councilRoster).toHaveBeenCalledWith(opts);
+        expect(profile).toEqual({ id: "p-1", name: "Main T6", isDefault: false, source: "roster" });
+        expect(roster).toEqual({ id: "r1", name: "Mittwoch" });
     });
 });

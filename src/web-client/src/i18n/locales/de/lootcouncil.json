@@ -120,7 +120,7 @@
         "gaps": "Offene BiS-Items",
         "bisLists": "BiS-Listen",
         "compare": "Loot-Vergleich",
-        "weights": "Gewichtung"
+        "profiles": "Profile"
     },
     "roster": {
         "title": "Wer ist dran?",
@@ -585,15 +585,6 @@
         "noSpecTipSub": "Der Council kennt ihre Spec (noch) nicht: {names}. Klasse und Spec kommen aus Loot-Importen, Log-Auswertungen und dem Raider-Profil; ohne Spec lässt sich nur einordnen, wessen Klasse eine einzige Rolle hat (Magier, Hexenmeister, Schurke, Jäger)."
     },
     "weights": {
-        "title": "Gewichtung",
-        "hint": "Wie der Council rechnet: was ein Item zählt, wie die vier Teile des Bedarfs gewichtet sind und wann Zugehörigkeit voll zählt. Gilt auch fürs Addon im Spiel.",
-        "loading": "Gewichtung wird geladen …",
-        "saving": "Gewichtung wird gespeichert",
-        "saved": "Gewichtung gespeichert — die Zahlen sind neu berechnet.",
-        "scopeGlobal": "Gilt für den Server",
-        "scopeOwn": "Eigene für {name}",
-        "ownSwitch": "Eigene Gewichtung für {name}",
-        "ownSwitchTip": "Aus: Diese Kategorie folgt der Gewichtung des Servers. An: Sie bekommt eine eigene, die nur für ihre Raids gilt.",
         "readOnly": "Nur lesen — Ändern braucht Schreibrecht im Loot-Council",
         "classesTitle": "Item-Gewichte",
         "classesSub": "Was ein Item im Loot-Anteil zählt. Ein Item unter 1 setzt die Wartezeit nur anteilig zurück — eines mit 0,5 halbiert sie.",
@@ -652,6 +643,77 @@
             "share": "Wie wenige Loot-Punkte jemand im Vergleich zum Durchschnitt hat.",
             "need": "Wie weit das Gear noch von der BiS-Liste entfernt ist.",
             "tenure": "Wie lange jemand schon dabei ist."
+        }
+    },
+    "head": {
+        "label": "Für wen der Council rechnet",
+        "pick": "Council für",
+        "unknownPick": "Nicht mehr verfügbar",
+        "rosters": "Roster mit Loot-Council",
+        "categories": "Kategorien ohne Roster",
+        "rosterOption": "{name} · {category}",
+        "roster": "Roster",
+        "profile": "Profil",
+        "profileTip": "Profil „{name}“ — Gewichtung und Ansicht",
+        "profileFromRoster": "Im Roster gewählt. Ein Klick öffnet das Profil im Tab „Profile“.",
+        "profileFromCategory": "Das Profil der Kategorie. Ein Klick öffnet es im Tab „Profile“.",
+        "profileDefault": "Das Standard-Profil — gilt, solange nichts anderes gewählt ist. Ein Klick öffnet es im Tab „Profile“.",
+        "kader": "Kader",
+        "kaderUnnamed": "Verknüpft",
+        "toRoster": "Zum Roster",
+        "toKader": "Zum Kader"
+    },
+    "profiles": {
+        "title": "Profile",
+        "hint": "Ein Profil ist Gewichtung plus Ansicht. Jedes Roster mit Loot-Council nutzt eines — eingestellt im Roster. Gilt auch fürs Addon im Spiel.",
+        "loading": "Profile werden geladen …",
+        "listLabel": "Profile",
+        "listTitle": {
+            "one": "{count} Profil",
+            "other": "{count} Profile"
+        },
+        "create": "Neues Profil",
+        "createTitle": "Neues Profil",
+        "createAction": "Anlegen",
+        "created": "Profil „{name}“ angelegt.",
+        "default": "Vorgabe",
+        "usedBy": {
+            "one": "von {count} Roster genutzt",
+            "other": "von {count} Rostern genutzt"
+        },
+        "usedByCategories": {
+            "one": "von {count} Kategorie genutzt",
+            "other": "von {count} Kategorien genutzt"
+        },
+        "usedByNone": "gilt, wo nichts gewählt ist",
+        "unused": "nicht genutzt",
+        "usedByNames": "Genutzt von: {names}",
+        "name": "Name",
+        "nameHint": "Höchstens 40 Zeichen, z. B. „Main-Raid T6“ oder „PuG-Nacht“.",
+        "rename": "Umbenennen",
+        "renameTitle": "„{name}“ umbenennen",
+        "renamed": "Umbenannt in „{name}“.",
+        "copy": "Kopieren",
+        "copyTitle": "„{name}“ kopieren",
+        "copyName": "{name} (Kopie)",
+        "delete": "Löschen",
+        "deleteTitle": "Profil „{name}“ löschen?",
+        "deleteText": "Das Profil wird entfernt. Kein Roster nutzt es gerade, an den Zahlen ändert sich nichts.",
+        "deleted": "Profil „{name}“ gelöscht.",
+        "inUseTip": "Wird noch genutzt: {names}. Erst im Roster ein anderes Profil wählen.",
+        "viewTitle": "Ansicht",
+        "viewSub": "Rolle, Content und BiS-Liste, mit denen Seite und Addon rechnen. Auf der Seite geändert, landet es auch hier.",
+        "viewRole": "Rolle des Profils",
+        "saving": "Profil wird gespeichert",
+        "saved": "Profil „{name}“ gespeichert — die Zahlen sind neu berechnet.",
+        "err": {
+            "name_taken": "Diesen Namen hat schon ein Profil.",
+            "invalid_name": "Bitte einen Namen eingeben.",
+            "name_too_long": "Höchstens 40 Zeichen.",
+            "profile_in_use": "Das Profil wird noch von einem Roster oder einer Kategorie genutzt.",
+            "profile_default": "Das Standard-Profil bleibt immer.",
+            "profile_limit": "Mehr als 50 Profile gehen nicht.",
+            "not_found": "Das Profil gibt es nicht mehr."
         }
     }
 }

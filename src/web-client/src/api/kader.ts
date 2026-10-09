@@ -414,6 +414,8 @@ export type KaderRosterState = {
     canLink?: boolean;
     /** With canLink: the server's rosters to link to, suggested first (its category counts in the Kader's attendance). */
     rosters?: KaderLinkRoster[];
+    /** The linked roster runs as Loot-Council and the caller may open the council (#676): "Zum Loot-Council". */
+    lootCouncil?: boolean;
 };
 
 /** A roster the Kader can be linked to; `linkedKaderId` = another Kader holds it. */

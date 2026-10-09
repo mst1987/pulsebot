@@ -23,9 +23,9 @@ export function CouncilTabs({ tab, patch, rosterCount, gapCount }: {
             <button type="button" className={`tab-btn${tab === "compare" ? " active" : ""}`} onClick={() => patch({ tab: "compare" })}>
                 {t("lootcouncil.tabs.compare")}
             </button>
-            {/* #668: how the council weighs — items, need parts, belonging. */}
-            <button type="button" className={`tab-btn${tab === "weights" ? " active" : ""}`} onClick={() => patch({ tab: "weights" })}>
-                {t("lootcouncil.tabs.weights")}
+            {/* #676 (before #668's "Gewichtung"): the profiles - weighting and view per roster. */}
+            <button type="button" className={`tab-btn${tab === "profiles" || tab === "weights" ? " active" : ""}`} onClick={() => patch({ tab: "profiles" })}>
+                {t("lootcouncil.tabs.profiles")}
             </button>
         </div>
     );

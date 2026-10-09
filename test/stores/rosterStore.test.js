@@ -25,6 +25,7 @@ describe("stores/rosterStore normalizeRoster", () => {
             roleIds: [], trialRoleId: null, managers: { roleIds: [], userIds: [] },
             slots: { total: 0, tank: 0, healer: 0, bench: 0 },
             allowMultipleChars: false, signupOnly: false, source: { kind: "manual" }, kaderId: null,
+            lootSystem: "", lootProfileId: "",
             members: {}, history: [], createdAt: "", createdBy: "",
         });
     });

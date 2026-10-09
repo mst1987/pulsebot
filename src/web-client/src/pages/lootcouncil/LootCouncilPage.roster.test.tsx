@@ -73,16 +73,15 @@ describe("loot council with a roster (#667)", () => {
     it("offers \"Ersatz zeigen\" only with a roster and asks the server for the bench when it is on", async () => {
         const user = userEvent.setup();
         renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        await user.selectOptions(await screen.findByLabelText("Council für"), "roster:r1");
+        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ roster: "r1", bench: false })));
         await user.click(await screen.findByRole("button", { name: /^Filter/ }));
-        const box = screen.getByRole("dialog", { name: "Filter" });
-        await user.selectOptions(within(box).getByLabelText("Raid-Kategorie"), "c1");
-        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ category: "c1", bench: false })));
         const toggle = within(screen.getByRole("dialog", { name: "Filter" })).getByRole("switch", { name: "Ersatz zeigen" });
         expect(toggle).not.toBeChecked();
 
         await user.click(toggle);
-        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ category: "c1", bench: true })));
-        expect(await screen.findByRole("button", { name: "Filter · 2 aktiv" })).toBeInTheDocument();
+        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ roster: "r1", bench: true })));
+        expect(await screen.findByRole("button", { name: "Filter · 1 aktiv" })).toBeInTheDocument();
     });
 
     it("has no bench switch without a roster", async () => {
