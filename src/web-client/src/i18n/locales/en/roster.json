@@ -468,7 +468,9 @@
         "no_category": "“From the last raids” needs a category on the roster.",
         "no_guild": "The roster belongs to no Discord server.",
         "not_roster_role": "This role does not belong to this roster.",
-        "csrf": "The page is out of date. Please reload."
+        "csrf": "The page is out of date. Please reload.",
+        "invalid_spec": "This spec does not fit the character's class.",
+        "kader_taken": "This Kader is already linked to another roster."
     },
     "sync": {
         "loading": "Loading the sync …",
@@ -567,7 +569,24 @@
         "thinTip": "Only one person brings the buff: if they are missing, the buff is missing.",
         "missingBuff": "missing",
         "toRecruitment": "To recruitment",
-        "toKader": "To the squad planner"
+        "toKader": "To the squad planner",
+        "specFrom": "Spec from: {parts}",
+        "specFromTip": "Where class and spec come from",
+        "specFromTipSub": "First the orga's choice, then the last signup in this category, then the logs, then the raider profile. Without a spec only the class counts.",
+        "unresolvedTitle": {
+            "one": "{count} member without spec or class",
+            "other": "{count} members without spec or class"
+        },
+        "unresolvedSub": "not counted in roles and buffs",
+        "reason": {
+            "no_char": "no character in this roster",
+            "no_class": "class unknown: not in the profile, in no signup, in no log",
+            "no_spec": "{cls}, spec unknown"
+        },
+        "openMember": "Open",
+        "toKaderTip": "Open the Kader “{name}” in the Kaderplaner",
+        "noKader": "No Kader linked",
+        "noKaderTip": "A Kader of the Kaderplaner can be linked in the roster's settings."
     },
     "hist": {
         "title": "History",
@@ -739,6 +758,30 @@
         "delete": "Delete roster",
         "deleteTitle": "Delete “{name}”?",
         "deleteText": "The roster with its members and history disappears. Nothing changes in Discord: the roles stay, nobody loses one.",
-        "deleted": "“{name}” deleted"
+        "deleted": "“{name}” deleted",
+        "kaderHint": "“Take into the roster” in the Kaderplaner goes into exactly this roster. A Kader belongs to one roster at most.",
+        "noKader": "No Kader",
+        "kaderGone": "Linked Kader (deleted)",
+        "kaderTaken": "{name} – linked to {roster}",
+        "kaderLink": "Kader in the Kaderplaner"
+    },
+    "spec": {
+        "title": "Spec in this roster",
+        "hint": "applies at once",
+        "auto": "automatic",
+        "autoTip": "Spec from signup, log or profile",
+        "autoFound": "Automatic: {spec} (from {source})",
+        "autoNone": "No spec is known automatically yet.",
+        "now": "Counts here as {spec} · {cls} (from {source})",
+        "unknown": "{cls}, spec unknown",
+        "noClass": "Class unknown",
+        "pickTip": "Count as {spec} in this roster",
+        "source": {
+            "override": "orga",
+            "signup": "signup",
+            "logs": "log",
+            "profile": "profile",
+            "class": "class"
+        }
     }
 }

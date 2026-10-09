@@ -4,7 +4,8 @@
 // Permission split:
 //   full admin           everything - name, category, game version, Discord
 //                        roles (roleIds, trialRoleId), managers, slots,
-//                        allowMultipleChars, signupOnly; creating and deleting
+//                        allowMultipleChars, signupOnly, the linked Kader
+//                        (kaderId); creating and deleting
 //   manager of a roster  name, slots, allowMultipleChars, signupOnly of that
 //                        roster - not its managers, roles, category or version
 //                        (an admin-only field sent with a *changed* value
@@ -21,12 +22,12 @@
 // Every refusal is a code the web translates (DE/EN): "invalid_name",
 // "name_too_long", "bad_request", "invalid_version", "invalid_roles",
 // "unknown_role", "invalid_managers", "invalid_slots", "admin_only",
-// "category_taken", "not_found".
+// "category_taken", "kader_taken", "kader_not_found", "not_found".
 const rosterStore = require("../../stores/rosterStore");
 const { knownVersion } = require("../events/mainVersion");
 const { mirrorCategoryRoles } = require("./categoryRoles");
 
-const ADMIN_FIELDS = ["name", "categoryId", "versionId", "roleIds", "trialRoleId", "managers", "slots", "allowMultipleChars", "signupOnly"];
+const ADMIN_FIELDS = ["name", "categoryId", "versionId", "roleIds", "trialRoleId", "managers", "slots", "allowMultipleChars", "signupOnly", "kaderId"];
 const MANAGER_FIELDS = ["name", "slots", "allowMultipleChars", "signupOnly"];
 const SLOT_KEYS = ["total", "tank", "healer", "bench"];
 
@@ -87,6 +88,13 @@ function cleanManagers(raw, current) {
     return { value: out };
 }
 
+/** The linked Kader (admins): an id, or null to unlink. Whether it exists is the caller's `kaderKnown`. */
+function cleanKader(raw) {
+    if (raw === null || raw === "") return { value: null };
+    const id = str(raw);
+    return typeof raw === "string" && id && id.length <= 32 ? { value: id } : { code: "bad_request" };
+}
+
 function cleanBool(raw) {
     return typeof raw === "boolean" ? { value: raw } : { code: "bad_request" };
 }
@@ -130,6 +138,7 @@ function cleanSettings(raw, { current = null, knownRoleIds = null } = {}) {
         ["managers", () => cleanManagers(p.managers, current && current.managers)],
         ["allowMultipleChars", () => cleanBool(p.allowMultipleChars)],
         ["signupOnly", () => cleanBool(p.signupOnly)],
+        ["kaderId", () => cleanKader(p.kaderId)],
     ];
     for (const [key, check] of steps) {
         if (p[key] === undefined) continue;
@@ -157,12 +166,14 @@ function adminOnlyChanges(fields, current) {
  * route asks rosterAccess.canManageRosterLive before).
  * @returns {{ ok: true, roster: object, trimmedChars: number } | { ok: false, code: string }}
  */
-function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", knownRoleIds = null } = {}) {
+function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", knownRoleIds = null, kaderKnown = null } = {}) {
     const current = rosterStore.getRoster(rosterId);
     if (!current) return { ok: false, code: "not_found" };
     const clean = cleanSettings(raw, { current, knownRoleIds });
     if (clean.code) return { ok: false, code: clean.code };
     if (!isAdmin && adminOnlyChanges(clean.fields, current).length) return { ok: false, code: "admin_only" };
+    const kaderId = clean.fields.kaderId;
+    if (kaderId && kaderId !== current.kaderId && typeof kaderKnown === "function" && !kaderKnown(kaderId)) return { ok: false, code: "kader_not_found" };
     // switching "mehrere Charaktere" off keeps each member's first character only (the store cuts the rest)
     const trimmedChars = clean.fields.allowMultipleChars === false && current.allowMultipleChars
         ? Object.values(current.members).filter((m) => m.chars.length > 1).length

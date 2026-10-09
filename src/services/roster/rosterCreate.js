@@ -29,9 +29,11 @@
 //
 // Later (#658, the Kaderplaner's "Ins Roster übernehmen"): syncRosterFromKader
 // takes the Kader's players of those three states who are no member yet into
-// the roster it created (`source.kaderId`), the same way; members already in
-// it stay exactly as they are - status, characters, note. Who may do it (area
-// `kader` write plus manager of that roster) is the route's business.
+// the roster LINKED to the Kader (`roster.kaderId`, 1:1 - a roster created from
+// a Kader starts linked, any other roster can be linked later, e.g. a migrated
+// one: linkRosterToKader), the same way; members already in it stay exactly as
+// they are - status, characters, note. Who may do it (area `kader` write plus
+// manager of that roster) is the route's business.
 const rosterStore = require("../../stores/rosterStore");
 const raiderProfileStore = require("../../stores/raiderProfileStore");
 const discord = require("../discord/discord");
@@ -210,11 +212,62 @@ async function createRosterWithSource(input, { guildId = "", actor = "", config,
     return { ok: true, roster: rosterStore.getRoster(roster.id), initial };
 }
 
-/** The roster a Kader created (`source.kind` "kader", `source.kaderId`) on that server, or null. */
+/** The roster linked to a Kader (`roster.kaderId`) on that server, or null. */
 function rosterOfKader(guildId, kaderId) {
+    return rosterStore.rosterForKader(str(kaderId), str(guildId));
+}
+
+/** Whether the server's planner has this Kader (names only, through kaderRoster.js). */
+function kaderExists(guildId, kaderId) {
     const id = str(kaderId);
-    if (!id) return null;
-    return rosterStore.listRosters(str(guildId)).find((r) => r.source.kind === "kader" && r.source.kaderId === id) || null;
+    return !!id && kaderSummaries(str(guildId)).some((k) => k.id === id);
+}
+
+/**
+ * The rosters of the server a Kader can be linked to, for the Kaderplaner's
+ * "Mit bestehendem Roster verknüpfen": `[{ id, name, categoryId, members,
+ * linkedKaderId, suggested }]` - `suggested` = its category is one the Kader
+ * counts attendance in (`attendanceCategories`) and no other Kader holds it;
+ * suggested first.
+ */
+function kaderLinkChoices(guildId, kaderId) {
+    const id = str(kaderId);
+    const kader = kaderSummaries(str(guildId)).find((k) => k.id === id);
+    const cats = new Set((kader && kader.attendanceCategories) || []);
+    return rosterStore.listRosters(str(guildId))
+        .map((r) => ({
+            id: r.id,
+            name: r.name,
+            categoryId: r.categoryId,
+            members: Object.keys(r.members).length,
+            linkedKaderId: r.kaderId && r.kaderId !== id ? r.kaderId : null,
+            suggested: !!r.categoryId && cats.has(r.categoryId) && (!r.kaderId || r.kaderId === id),
+        }))
+        .sort((a, b) => Number(b.suggested) - Number(a.suggested) || a.name.localeCompare(b.name));
+}
+
+/**
+ * Link a Kader to an existing roster of the server, or unlink it (`rosterId`
+ * ""): the Kader's previous roster is unlinked first, then the new one takes
+ * `kaderId` (a history line on both). Nothing of the Kader is copied.
+ * @returns {{ ok: true, roster: object|null } | { ok: false, code: string }}
+ *   codes: "kader_not_found", "not_found" (no such roster on that server), "kader_taken"
+ */
+function linkRosterToKader(kaderId, rosterId, { guildId = "", actor = "" } = {}) {
+    const id = str(kaderId);
+    if (!kaderExists(guildId, id)) return { ok: false, code: "kader_not_found" };
+    const target = str(rosterId) ? rosterStore.getRoster(str(rosterId)) : null;
+    if (str(rosterId) && (!target || (str(guildId) && target.guildId !== str(guildId)))) return { ok: false, code: "not_found" };
+    if (target && target.kaderId && target.kaderId !== id) return { ok: false, code: "kader_taken" };
+    const previous = rosterOfKader(guildId, id);
+    try {
+        if (previous && (!target || previous.id !== target.id)) rosterStore.updateRoster(previous.id, { kaderId: null }, { actor });
+        if (target && target.kaderId !== id) rosterStore.updateRoster(target.id, { kaderId: id }, { actor });
+    } catch (e) {
+        if (e && e.name === "RosterError") return { ok: false, code: e.code };
+        throw e;
+    }
+    return { ok: true, roster: target ? rosterStore.getRoster(target.id) : null };
 }
 
 /** The Kader's players a roster takes (kaderRoster.rosterPlayers) who are no member of `roster` yet. */
@@ -246,14 +299,14 @@ function kaderRosterState(guildId, kaderId) {
  * does it (status by state, the character, the main role through
  * rosterMembers.addMember); members already in the roster are left untouched.
  * @param {string} kaderId
- * @param {{ guildId?: string, actor?: string, rosterId?: string }} [opts]  `rosterId` defaults to the roster the Kader created
+ * @param {{ guildId?: string, actor?: string, rosterId?: string }} [opts]  `rosterId` defaults to the roster linked to the Kader
  * @returns {Promise<{ ok: true, roster: object, added: number, skipped: number, kept: number, roleFailures: object[] } | { ok: false, code: string }>}
- *   codes: "not_found" (no roster for that Kader), "not_from_kader" (the roster was not created from it), "kader_not_found"
+ *   codes: "not_found" (no roster for that Kader), "not_from_kader" (the roster is not linked to it), "kader_not_found"
  */
 async function syncRosterFromKader(kaderId, { guildId = "", actor = "", rosterId = "" } = {}) {
     const roster = rosterId ? rosterStore.getRoster(str(rosterId)) : rosterOfKader(guildId, kaderId);
     if (!roster) return { ok: false, code: "not_found" };
-    if (roster.source.kind !== "kader" || roster.source.kaderId !== str(kaderId)) return { ok: false, code: "not_from_kader" };
+    if (roster.kaderId !== str(kaderId)) return { ok: false, code: "not_from_kader" };
     const kader = rosterPlayers(roster.guildId || str(guildId), str(kaderId));
     if (!kader) return { ok: false, code: "kader_not_found" };
     const pending = pendingPlayers(roster, kader);
@@ -279,6 +332,6 @@ function createRosterFromKader(kaderId, opts = {}) {
 
 module.exports = {
     createRosterWithSource, createRosterFromKader, kaderChoices, presentInRaids, kaderCharacter, categoryName,
-    rosterOfKader, kaderRosterState, syncRosterFromKader,
+    rosterOfKader, kaderRosterState, syncRosterFromKader, kaderExists, kaderLinkChoices, linkRosterToKader,
     SOURCES, RAIDS_BACK, STATUS_OF_KADER_STATE,
 };

@@ -26,7 +26,7 @@ const STATUS_OF_CODE = {
     already_member: 409, member_limit: 409,
     offline: 503, members_unavailable: 503,
 };
-const MEMBER_FIELDS = ["status", "chars", "charNames", "note", "trialUntil"];
+const MEMBER_FIELDS = ["status", "chars", "charNames", "note", "trialUntil", "spec"];
 
 const refuse = (res, code) => apiError(res, STATUS_OF_CODE[code] || 400, code, `Roster: ${code}`);
 
@@ -49,10 +49,12 @@ async function managedRoster(req, res, user, rosterId) {
 
 /**
  * POST /api/rosters/members — take a member in or change one.
- * Body: { rosterId, userId, mode?: "add" | "update", status?, chars?, charNames?, note?, trialUntil? }
+ * Body: { rosterId, userId, mode?: "add" | "update", status?, chars?, charNames?, note?, trialUntil?, spec? }
  * `mode` left out: add when the user is no member yet, else update. `chars`:
  * profile keys of the roster's version or names typed by hand, in order (the
  * first counts; one at most without allowMultipleChars -> 400 single_char_only).
+ * `spec`: the orga's spec for the first character ("" = automatisch, a spec key
+ * of the character's class in the roster's version, else 400 invalid_spec).
  * Answer: { userId, created, member, roles }.
  */
 const postRosterMember = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {

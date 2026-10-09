@@ -1,18 +1,23 @@
 // The Kader's raid roster (#658, docs/kaderplaner.md "Roster aus einem Kader"):
-// on the decision page (/kader/<id>/roster) the Kader either creates a roster
-// ("Roster anlegen", full admins: POST /api/rosters/create with source "kader")
-// or, once it has one, takes the players decided since then over ("Ins Roster
-// übernehmen", managers of that roster: POST /api/kader/roster/sync). Only the
-// state (Roster → Stamm, Bench → Ersatz, Tentative → Probe) and the decided
-// character cross; interviews, answers, votes and comments stay here. Members
-// already in the roster are never touched — afterwards everything is edited on
-// the roster page ("Zum Roster").
+// on the decision page (/kader/<id>/roster) the Kader is linked to exactly one
+// roster (`roster.kaderId`, 1:1). Without a link a full admin either creates a
+// roster ("Roster anlegen": POST /api/rosters/create with source "kader") or
+// links an existing one ("Mit bestehendem Roster verknüpfen": POST
+// /api/kader/roster/link - the roster whose category the Kader counts
+// attendance in is suggested first, e.g. a migrated "Mo-Raider"). Once linked,
+// "Ins Roster übernehmen (n)" (managers of that roster: POST
+// /api/kader/roster/sync) takes the players decided since then into THAT
+// roster, and "Zum Roster" opens it. Only the state (Roster → Stamm, Bench →
+// Ersatz, Tentative → Probe) and the decided character cross; interviews,
+// answers, votes and comments stay here. Members already in the roster are
+// never touched.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
-    createKaderRoster, getKaderRoster, getKaderRosterCategories, syncKaderRoster, type ApiError, type KaderRosterCategory,
+    createKaderRoster, getKaderRoster, getKaderRosterCategories, linkKaderRoster, syncKaderRoster, updateKader,
+    type ApiError, type KaderLinkRoster, type KaderRosterCategory, type KaderRosterState,
 } from "../../api";
-import { Button, Field, Modal, buttonClass } from "../../components/ui";
+import { Button, Field, Modal, Switch, buttonClass } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
 import { PlusIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
@@ -22,7 +27,9 @@ import { countStates } from "../../lib/kader/model";
 import { useKader } from "./kaderContext";
 
 /** The refusals the create dialog says in words; anything else shows the server's message. */
-const CREATE_CODES = ["category_taken", "kader_not_found", "invalid_name", "name_too_long", "admin_only"];
+const CREATE_CODES = ["category_taken", "kader_not_found", "invalid_name", "name_too_long", "admin_only", "kader_taken"];
+/** The refusals of a link in words. */
+const LINK_CODES = ["kader_taken", "kader_not_found", "not_found"];
 
 function CreateRosterModal({ kaderId, kaderName, onClose, onCreated }: {
     kaderId: string; kaderName: string; onClose: () => void; onCreated: (rosterId: string, added: number) => void;
@@ -84,10 +91,98 @@ function CreateRosterModal({ kaderId, kaderName, onClose, onCreated }: {
     );
 }
 
+/** One roster as the link picker names it: "Mo-Raider (Vorschlag)", "PuG · verknüpft mit einem anderen Kader". */
+function rosterOption(r: KaderLinkRoster, t: ReturnType<typeof useT>): string {
+    if (r.linkedKaderId) return t("kader.roster.linkTaken", { name: r.name });
+    return r.suggested ? t("kader.roster.linkSuggested", { name: r.name }) : r.name;
+}
+
 /**
- * The roster action in the decision page's bar: "Roster anlegen", or "Ins
- * Roster übernehmen (n)" plus "Zum Roster" once the Kader has one. Nothing for
- * somebody who may do neither and no roster to show.
+ * "Mit bestehendem Roster verknüpfen": pick a roster of the server (the
+ * suggestion first), optionally count its category in the Kader's attendance,
+ * link. With a link already there it also offers to unlink.
+ */
+function LinkRosterModal({ state, onClose, onLinked }: { state: KaderRosterState; onClose: () => void; onLinked: (next: KaderRosterState) => void }) {
+    const t = useT();
+    const ask = useConfirm();
+    const { kader, run } = useKader();
+    const rosters = state.rosters || [];
+    const first = state.roster?.id || rosters.find((r) => r.suggested && !r.linkedKaderId)?.id || rosters.find((r) => !r.linkedKaderId)?.id || "";
+    const [rosterId, setRosterId] = useState(first);
+    const [countCategory, setCountCategory] = useState(true);
+    const [busy, setBusy] = useState(false);
+    const [problem, setProblem] = useState("");
+    const picked = rosters.find((r) => r.id === rosterId) || null;
+    const counted = kader.attendanceCategories || [];
+    const offerCategory = !!picked && !!picked.categoryId && !counted.includes(picked.categoryId);
+
+    const send = async (target: string) => {
+        setBusy(true);
+        setProblem("");
+        try {
+            const next = await linkKaderRoster(kader.id, target);
+            if (target && offerCategory && countCategory && picked?.categoryId) {
+                await run(updateKader(kader.id, { attendanceCategories: [...counted, picked.categoryId] }));
+            }
+            onLinked(next);
+        } catch (e) {
+            const err = e as ApiError;
+            setProblem(LINK_CODES.includes(err.code) ? t(`kader.roster.error.${err.code}`) : err.message || t("kader.error"));
+        } finally {
+            setBusy(false);
+        }
+    };
+    const unlink = async () => {
+        if (!state.roster) return;
+        const ok = await ask({
+            title: t("kader.roster.unlinkTitle", { name: state.roster.name }),
+            text: t("kader.roster.unlinkText"),
+            action: t("kader.roster.unlink"),
+            tone: "primary",
+            icon: "inv_misc_groupneedmore",
+        });
+        if (ok) await send("");
+    };
+    return (
+        <Modal
+            open
+            onClose={onClose}
+            icon="inv_misc_groupneedmore"
+            tone="kader"
+            title={t("kader.roster.linkTitle")}
+            width={520}
+            className="kp-dialog"
+            hint={t("kader.roster.linkHint")}
+            footer={(
+                <>
+                    {state.roster && <Button variant="ghost" className="kp-foot-left" disabled={busy} onClick={() => void unlink()}>{t("kader.roster.unlink")}</Button>}
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button disabled={!rosterId || rosterId === state.roster?.id || !!picked?.linkedKaderId} running={busy} onClick={() => void send(rosterId)}>{t("kader.roster.link")}</Button>
+                </>
+            )}
+        >
+            <div className="kp-stack">
+                <Field label={t("kader.roster.linkPick")} htmlFor="kp-roster-link">
+                    <select id="kp-roster-link" value={rosterId} onChange={(e) => setRosterId(e.target.value)}>
+                        {!rosters.length && <option value="">{t("kader.roster.linkNone")}</option>}
+                        {rosters.map((r) => <option key={r.id} value={r.id} disabled={!!r.linkedKaderId}>{rosterOption(r, t)}</option>)}
+                    </select>
+                </Field>
+                <div className="hint">{t("kader.roster.linkPickHint")}</div>
+                {offerCategory && (
+                    <Switch checked={countCategory} onChange={setCountCategory} label={t("kader.roster.linkCountCategory")} tip={t("kader.roster.linkCountCategoryTip")} />
+                )}
+                {problem && <p className="kp-livehint" role="alert">{problem}</p>}
+            </div>
+        </Modal>
+    );
+}
+
+/**
+ * The roster action in the decision page's bar: without a link "Mit
+ * bestehendem Roster verknüpfen" and "Roster anlegen" (full admins); with one
+ * "Ins Roster übernehmen (n)", "Zum Roster" and, for full admins, "Verknüpfung".
+ * Nothing for somebody who may do none of it and no roster to show.
  */
 export default function RosterLink() {
     const t = useT();
@@ -99,6 +194,7 @@ export default function RosterLink() {
     const decided = `${counts.roster}/${counts.bench}/${counts.tentative}`;
     const state = useApi(() => getKaderRoster(kader.id), [kader.id, decided]);
     const [creating, setCreating] = useState(false);
+    const [linking, setLinking] = useState(false);
     const [busy, setBusy] = useState(false);
     const s = state.data;
     if (!s) return null;
@@ -127,14 +223,36 @@ export default function RosterLink() {
         }
     };
 
+    const linkModal = linking && (
+        <LinkRosterModal
+            state={s}
+            onClose={() => setLinking(false)}
+            onLinked={(next) => {
+                setLinking(false);
+                toast(next.roster ? t("kader.roster.linked", { name: next.roster.name }) : t("kader.roster.unlinked"));
+                state.setData(next);
+            }}
+        />
+    );
+
     if (!s.roster) {
-        if (!s.canCreate) return null;
+        const canLink = !!s.canLink && (s.rosters || []).length > 0;
+        if (!s.canCreate && !canLink) return null;
+        const suggestion = (s.rosters || []).find((r) => r.suggested && !r.linkedKaderId);
         return (
             <>
-                <Button variant="ghost" icon={<PlusIcon />} className="kp-stage-act" onClick={() => setCreating(true)}
-                    data-tip={t("kader.roster.createTip")} data-tip-sub={t("kader.roster.createTipSub", { count: s.candidates })}>
-                    {t("kader.roster.createButton")}
-                </Button>
+                {canLink && (
+                    <Button variant="ghost" className="kp-stage-act" onClick={() => setLinking(true)}
+                        data-tip={t("kader.roster.linkTip")} data-tip-sub={suggestion ? t("kader.roster.linkTipSuggestion", { name: suggestion.name }) : t("kader.roster.linkTipSub")}>
+                        {t("kader.roster.linkButton")}
+                    </Button>
+                )}
+                {s.canCreate && (
+                    <Button variant="ghost" icon={<PlusIcon />} className="kp-stage-act" onClick={() => setCreating(true)}
+                        data-tip={t("kader.roster.createTip")} data-tip-sub={t("kader.roster.createTipSub", { count: s.candidates })}>
+                        {t("kader.roster.createButton")}
+                    </Button>
+                )}
                 {creating && (
                     <CreateRosterModal
                         kaderId={kader.id}
@@ -147,6 +265,7 @@ export default function RosterLink() {
                         }}
                     />
                 )}
+                {linkModal}
             </>
         );
     }
@@ -162,6 +281,13 @@ export default function RosterLink() {
                 data-tip={t("kader.roster.openTip", { name: s.roster.name })} data-tip-sub={t("kader.roster.openTipSub", { count: s.roster.members })}>
                 {t("kader.roster.open")}
             </Link>
+            {s.canLink && (
+                <Button variant="ghost" className="kp-stage-act" onClick={() => setLinking(true)}
+                    data-tip={t("kader.roster.relinkTip", { name: s.roster.name })}>
+                    {t("kader.roster.relink")}
+                </Button>
+            )}
+            {linkModal}
         </>
     );
 }

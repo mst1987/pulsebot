@@ -87,6 +87,15 @@ function templateSlots(categories, config = {}) {
     return out;
 }
 
+/** The Kader (counts only) with the roster each one is linked to: `rosterId` / `rosterName`, null / "" for none. */
+function kaderOptions(guildId) {
+    const rosters = rosterStore.listRosters(guildId);
+    return kaderChoices(guildId).map((k) => {
+        const linked = rosters.find((r) => r.kaderId === k.id) || null;
+        return { ...k, rosterId: linked ? linked.id : null, rosterName: linked ? linked.name : "" };
+    });
+}
+
 /**
  * Everything the dialog needs.
  * @param {{ guildId: string, config?: object, canSeeKader?: boolean }} opts
@@ -102,7 +111,7 @@ function rosterOptions({ guildId = "", config = {}, canSeeKader = false } = {}) 
         roles: serverRoles(guildId),
         canManageRoles: guildId ? canManageRoles(guildId) : false,
         online: !!(guildId && discord.isOnline() && discord.getGuild(guildId)),
-        kaders: canSeeKader ? kaderChoices(guildId) : [],
+        kaders: canSeeKader ? kaderOptions(guildId) : [],
         templateSlots: templateSlots(categories, config),
     };
 }

@@ -143,9 +143,11 @@ describe("buildRosterDetail", () => {
         expect(bert).toMatchObject({ status: "trial", role: "healer", hasRole: false, attendance: { attended: 1, total: 2, pct: 50 } });
         expect(bert.attendance.missed[0]).toMatchObject({ eventId: "e1", reason: "abgemeldet" });
 
+        // no profile: class and spec from the logs (character cache), as the Komposition counts him
         const carl = view.members.find((m) => m.userId === CARL);
-        expect(carl.chars[0]).toMatchObject({ name: "Shadowfang", className: "Rogue", specLabel: "Combat", specIcon: "", role: "dps" });
-        expect(carl.chars[0].iconUrl).toMatch(/^https:\/\/wow\.zamimg\.com\//);
+        expect(carl.chars[0]).toMatchObject({ name: "Shadowfang", className: "Rogue", spec: "Rogue-Combat", specLabel: "Kampf", specIcon: "ability_backstab", iconUrl: "", role: "dps" });
+        expect(carl.resolved).toMatchObject({ className: "Rogue", spec: "Rogue-Combat", source: "logs", reason: "", role: "dps" });
+        expect(anna.resolved).toMatchObject({ spec: "Warrior-Protection", source: "profile", override: "" });
 
         const dora = view.members.find((m) => m.userId === DORA);
         expect(dora).toMatchObject({ displayName: DORA, onServer: false, hasRole: false, chars: [], role: "", attendance: null });
@@ -178,8 +180,23 @@ describe("buildRosterDetail", () => {
         expect(view.settings).toEqual({
             categoryId: "cat1", versionId: "tbc", roleIds: ["role-main"], trialRoleId: "role-trial",
             managers: { roleIds: ["role-lead"], userIds: [ANNA, "300000000000000009"], users: [{ userId: ANNA, displayName: "Anna Discord" }, { userId: "300000000000000009", displayName: "300000000000000009" }] },
-            signupOnly: true, allowMultipleChars: false, slots: { total: 25, tank: 3, healer: 7, bench: 0 },
+            signupOnly: true, allowMultipleChars: false, slots: { total: 25, tank: 3, healer: 7, bench: 0 }, kaderId: null,
         });
+        // the drawer's spec picker: the specs of the first character's class
+        expect(anna.specChoices.map((s) => s.key)).toEqual(["Warrior-Arms", "Warrior-Fury", "Warrior-Protection"]);
+        expect(view.roster.kader).toBeNull();
+    });
+
+    it("uses the orga's spec for the first character in the table, the role and the cards (#roster-comp)", async () => {
+        const id = rosterId();
+        profiles.addCharacter(BERT, { name: "Lunaria", className: "Paladin", specs: [{ key: "Paladin-Holy" }, { key: "Paladin-Retribution" }] });
+        rosterStore.upsertMember(id, BERT, { spec: "Paladin-Retribution" });
+        const view = await buildRosterDetail({ guildId: G, id, user: ADMIN, config: CONFIG });
+        const bert = view.members.find((m) => m.userId === BERT);
+        expect(bert.role).toBe("dps");
+        expect(bert.chars[0]).toMatchObject({ spec: "Paladin-Retribution", role: "dps" });
+        expect(bert.resolved).toMatchObject({ source: "override", override: "Paladin-Retribution", auto: { spec: "Paladin-Holy", source: "profile" } });
+        expect(view.roster.roleCounts).toEqual({ tank: 1, healer: 0, dps: 1, unknown: 0 });
     });
 
     it("keeps notes, further characters and settings from a reader; held roles unknown without the member list", async () => {

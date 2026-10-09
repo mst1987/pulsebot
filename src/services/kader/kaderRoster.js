@@ -47,9 +47,10 @@ function rosterPlayers(guildId, kaderId) {
 }
 
 /**
- * The Kader of a server for the "Roster anlegen" dialog: `[{ id, name,
- * inRoster, candidates }]` - counts only (`inRoster` = state roster,
- * `candidates` = every state a roster takes).
+ * The Kader of a server for the "Roster anlegen" dialog and the roster link:
+ * `[{ id, name, inRoster, candidates, attendanceCategories }]` - counts only
+ * (`inRoster` = state roster, `candidates` = every state a roster takes) and
+ * the raid categories the Kader counts attendance in (ids, no person in them).
  */
 function kaderSummaries(guildId) {
     return kaderStore.readPlanner(guildId).kaders.map((k) => {
@@ -59,6 +60,7 @@ function kaderSummaries(guildId) {
             name: k.name,
             inRoster: states.filter((s) => s === "roster").length,
             candidates: states.filter((s) => ROSTER_STATES.includes(s)).length,
+            attendanceCategories: [...(k.attendanceCategories || [])].map(str),
         };
     });
 }

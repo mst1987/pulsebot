@@ -26,7 +26,7 @@ const rosterRoleSync = require("../../../src/services/roster/rosterRoleSync");
 const { buildAttendanceContext } = require("../../../src/services/characters/rosterAttendance");
 const {
     createRosterWithSource, createRosterFromKader, kaderChoices, presentInRaids, kaderCharacter,
-    rosterOfKader, kaderRosterState, syncRosterFromKader,
+    rosterOfKader, kaderRosterState, syncRosterFromKader, kaderExists, kaderLinkChoices, linkRosterToKader,
 } = require("../../../src/services/roster/rosterCreate");
 
 const CAT = "700000000000000001";
@@ -142,7 +142,12 @@ describe("services/roster/rosterCreate source kader", () => {
     });
 
     it("plays the Kaderplaner's version (Forever) without a category, the category's version with one (#658)", async () => {
-        expect((await createRosterFromKader("k1", { guildId: "g1" })).roster.versionId).toBe("forever");
+        const first = (await createRosterFromKader("k1", { guildId: "g1" })).roster;
+        expect(first.versionId).toBe("forever");
+        expect(first.kaderId).toBe("k1");
+        // a Kader belongs to one roster: a second one from it is refused until the first is gone
+        expect(await createRosterFromKader("k1", { guildId: "g1", categoryId: CAT })).toEqual({ ok: false, code: "kader_taken" });
+        rosterStore.deleteRoster(first.id);
         expect((await createRosterFromKader("k1", { guildId: "g1", categoryId: CAT })).roster.versionId).toBe("tbc");
     });
 
@@ -163,7 +168,7 @@ describe("services/roster/rosterCreate source kader", () => {
     });
 
     it("kaderChoices hands the create dialog counts only", () => {
-        expect(kaderChoices("g1")).toEqual([{ id: "k1", name: "Forever-Kader", inRoster: 1, candidates: 3 }]);
+        expect(kaderChoices("g1")).toEqual([{ id: "k1", name: "Forever-Kader", inRoster: 1, candidates: 3, attendanceCategories: [] }]);
     });
 });
 
@@ -239,5 +244,51 @@ describe("services/roster/rosterCreate syncRosterFromKader (#658)", () => {
         expect(rosterOfKader("g1", "")).toBeNull();
         kaderStore.writePlanner("g1", { ...kaderPlanner(), kaders: [] });
         expect(await syncRosterFromKader("k1", { guildId: "g1" })).toEqual({ ok: false, code: "kader_not_found" });
+    });
+});
+
+describe("services/roster/rosterCreate linking a Kader to an existing roster", () => {
+    let migrated;
+    beforeEach(() => {
+        const planner = kaderPlanner();
+        planner.kaders[0].attendanceCategories = [CAT];
+        planner.kaders.push({ id: "k2", name: "Anderer Kader", leads: [], questions: [], players: {} });
+        kaderStore.writePlanner("g1", planner);
+        // the Mo-Raider roster of the bug report: migrated, no source.kaderId
+        migrated = rosterStore.createRoster({ guildId: "g1", name: "Mo-Raider", categoryId: CAT, source: { kind: "migration" } });
+        rosterStore.createRoster({ guildId: "g1", name: "Aaa PuG" });
+    });
+
+    it("suggests the roster of a category the Kader counts attendance in, first", () => {
+        const choices = kaderLinkChoices("g1", "k1");
+        expect(choices[0]).toEqual({ id: migrated.id, name: "Mo-Raider", categoryId: CAT, members: 0, linkedKaderId: null, suggested: true });
+        expect(choices[1]).toMatchObject({ name: "Aaa PuG", suggested: false });
+        expect(kaderLinkChoices("g1", "k2").every((c) => !c.suggested)).toBe(true);
+    });
+
+    it("links, takes players over into exactly that roster, relinks and unlinks", async () => {
+        expect(kaderExists("g1", "k1")).toBe(true);
+        expect(kaderExists("g1", "nope")).toBe(false);
+        expect(linkRosterToKader("k1", migrated.id, { guildId: "g1", actor: "1" })).toEqual({ ok: true, roster: expect.objectContaining({ id: migrated.id, kaderId: "k1" }) });
+        expect(kaderRosterState("g1", "k1").roster).toEqual({ id: migrated.id, name: "Mo-Raider", members: 0 });
+        const res = await syncRosterFromKader("k1", { guildId: "g1", actor: "1" });
+        expect(res).toMatchObject({ ok: true, added: 3 });
+        expect(Object.keys(rosterStore.getRoster(migrated.id).members).sort()).toEqual([U.a, U.b, U.c].sort());
+        // another Kader cannot take it; linking k1 elsewhere moves the link
+        expect(linkRosterToKader("k2", migrated.id, { guildId: "g1" })).toEqual({ ok: false, code: "kader_taken" });
+        const pug = rosterStore.listRosters("g1").find((r) => r.name === "Aaa PuG");
+        expect(linkRosterToKader("k1", pug.id, { guildId: "g1" }).roster.kaderId).toBe("k1");
+        expect(rosterStore.getRoster(migrated.id).kaderId).toBeNull();
+        expect(linkRosterToKader("k1", "", { guildId: "g1" })).toEqual({ ok: true, roster: null });
+        expect(rosterOfKader("g1", "k1")).toBeNull();
+        // the members stay where they are
+        expect(Object.keys(rosterStore.getRoster(migrated.id).members)).toHaveLength(3);
+    });
+
+    it("answers a code for an unknown Kader or roster, and a roster of another server", () => {
+        expect(linkRosterToKader("nope", migrated.id, { guildId: "g1" })).toEqual({ ok: false, code: "kader_not_found" });
+        expect(linkRosterToKader("k1", "nope", { guildId: "g1" })).toEqual({ ok: false, code: "not_found" });
+        const elsewhere = rosterStore.createRoster({ guildId: "g2", name: "Woanders" });
+        expect(linkRosterToKader("k1", elsewhere.id, { guildId: "g1" })).toEqual({ ok: false, code: "not_found" });
     });
 });

@@ -125,7 +125,7 @@ export default function RosterDetailPage() {
             {back}
             <RosterHeadBlock data={data} tab={tab} open={sync.data ? syncOpenCount(sync.data) : null} onSettings={() => setSettings(true)} onAdd={() => setAdding({ prefill: null })} />
             {tab === "members" && <MembersTab data={data} busy={busy} onOpen={setDrawer} onGiveRole={giveRole} />}
-            {tab === "composition" && <CompositionTab data={data} user={user} reloadKey={reloadKey} />}
+            {tab === "composition" && <CompositionTab data={data} user={user} reloadKey={reloadKey} onOpen={setDrawer} onSettings={data.canManage ? () => setSettings(true) : undefined} />}
             {tab === "sync" && (
                 sync.data
                     ? <SyncTab data={data} sync={sync.data} onChanged={reloadAll} onAdd={(prefill) => setAdding({ prefill })} onOpen={setDrawer} />
