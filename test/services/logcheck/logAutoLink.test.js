@@ -14,6 +14,10 @@ jest.mock("../../../src/services/logcheck/matchableEvents", () => ({
     eventLinkFields: jest.requireActual("../../../src/services/logcheck/matchableEvents").eventLinkFields,
 }));
 
+// the sweep also fills the log titles a page did not wait for (logTitles.backfillAllLogTitles)
+const mockBackfillAll = jest.fn(async () => 0);
+jest.mock("../../../src/services/logcheck/logTitles", () => ({ backfillAllLogTitles: (...a) => mockBackfillAll(...a) }));
+
 const { autoLinkLogs, autoLinkAllGuilds, startLogAutoLink, _resetTimerForTests } = require("../../../src/services/logcheck/logAutoLink.js");
 
 const HOUR = 3600000;
@@ -144,6 +148,19 @@ describe("services/logcheck/logAutoLink", () => {
             jest.advanceTimersByTime(2000);
             expect(mockListGuilds).toHaveBeenCalledTimes(3);
             jest.useRealTimers();
+        });
+
+        it("fills the missing log titles after each assignment pass, even when that pass failed", async () => {
+            _resetTimerForTests();
+            mockBackfillAll.mockClear();
+            mockListGuilds.mockImplementationOnce(() => { throw new Error("offline"); });
+            const error = jest.spyOn(console, "error").mockImplementation(() => {});
+            startLogAutoLink({ intervalMs: 60 * 60 * 1000 });
+            await new Promise((resolve) => setImmediate(resolve));
+            expect(mockBackfillAll).toHaveBeenCalledTimes(1);
+            expect(error).toHaveBeenCalledWith("[logAutoLink]", "offline");
+            error.mockRestore();
+            _resetTimerForTests();
         });
     });
 });

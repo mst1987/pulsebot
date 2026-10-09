@@ -222,6 +222,44 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(body.softresSuggested).toEqual(expect.any(Array));
         expect(Array.isArray(body.steps.steps || body.steps)).toBe(true);
         expect(body.eventsWarning).toBe("Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.");
+        // the stored record is read once for the head, the setup state and its post
+        expect(getEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it("sends the outside reads out side by side: Raid-Helper, Discord and Warcraft Logs do not wait for each other", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
+        settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["r1"] } });
+        let answerSetup;
+        rhClient(() => new Promise((resolve) => { answerSetup = resolve; }));
+        const pending = buildRaidDetail({ guildId: "g1", eventId: "rh1" });
+        await new Promise((resolve) => setImmediate(resolve));
+        // Raid-Helper has not answered yet, and the member list and the log titles are already asked
+        expect(discord.listMembersWithRoles).toHaveBeenCalledTimes(1);
+        expect(backfillLogTitles).toHaveBeenCalledTimes(1);
+        answerSetup({ setup: SLOTS });
+        const { body } = await pending;
+        expect(body.setup.groups).toHaveLength(1);
+        expect(body.attendance.missing.map((m) => m.id)).toEqual(["u9"]);
+    });
+
+    it("waits for the slowest outside read, not for the sum of them", async () => {
+        jest.useFakeTimers();
+        try {
+            loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["r1"] } });
+            const after = (ms, value) => new Promise((resolve) => setTimeout(() => resolve(value), ms));
+            rhClient(() => after(1000, { setup: SLOTS }));
+            discord.listMembersWithRoles.mockImplementation(() => after(1000, { members: [{ id: "u1", name: "Tanki" }], error: null }));
+            backfillLogTitles.mockImplementation(() => after(1000, 0));
+            let done = false;
+            const pending = buildRaidDetail({ guildId: "g1", eventId: "rh1" }).then((r) => { done = true; return r; });
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(done).toBe(true); // in sequence it would still need two more seconds
+            expect((await pending).body.setup.groups).toHaveLength(1);
+        } finally {
+            jest.useRealTimers();
+            backfillLogTitles.mockImplementation(async () => {});
+        }
     });
 
     // Posting the plan's link is a raid plan write (docs/permissions.md): without it there is no step to nudge.

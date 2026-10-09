@@ -16,6 +16,7 @@ const logStore = require("../../stores/logStore");
 const discord = require("../discord/discord");
 const { autoMatches } = require("./logEventMatch");
 const { loadMatchableEvents, eventLinkFields } = require("./matchableEvents");
+const { backfillAllLogTitles } = require("./logTitles");
 
 /**
  * Assign every still-unlinked log of one guild to its unambiguous event.
@@ -62,7 +63,10 @@ let timer = null;
  */
 function startLogAutoLink({ intervalMs = 10 * 60 * 1000 } = {}) {
     if (timer) return timer;
-    const run = () => autoLinkAllGuilds().catch((e) => console.error("[logAutoLink]", e.message));
+    const run = () => autoLinkAllGuilds()
+        .catch((e) => console.error("[logAutoLink]", e.message))
+        // The log titles a page did not wait for (logTitles.backfillLogTitles reads only a few per view). Never throws.
+        .then(() => backfillAllLogTitles());
     run();
     timer = setInterval(run, intervalMs);
     if (timer.unref) timer.unref();

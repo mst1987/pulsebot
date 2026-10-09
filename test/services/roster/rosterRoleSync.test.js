@@ -207,6 +207,8 @@ describe("services/roster/rosterRoleSync reconcile", () => {
         expect(res).toEqual(expect.objectContaining({ added: 2, removed: 0, error: null }));
         expect(Object.keys(fresh().members).sort()).toEqual(["100001", "100002", "100009"]);
         expect(sync.lastReconcile("g1")).toEqual(res);
+        // it adds and removes members from the list, so it reads a fresh one
+        expect(discord.fetchGuildMembersCached).toHaveBeenCalledWith("g1", expect.anything(), { fresh: true });
     });
 
     it("is idempotent: a second run changes nothing", async () => {
