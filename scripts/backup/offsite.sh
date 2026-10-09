@@ -168,6 +168,13 @@ if [ -n "${RESTIC_PASSWORD_FILE:-}" ] && [ ! -r "$RESTIC_PASSWORD_FILE" ]; then
 fi
 command -v restic > /dev/null 2>&1 || fail "restic is not installed"
 
+# restic keeps a local cache under $XDG_CACHE_HOME or $HOME - and a systemd
+# service has neither, so the first timer run died with "unable to locate cache
+# directory". One fixed place next to the snapshots (a dot name, which the
+# snapshot readers skip) serves the timer and a run by hand alike.
+export RESTIC_CACHE_DIR="${RESTIC_CACHE_DIR:-$BACKUP_DIR/.restic-cache}"
+mkdir -p "$RESTIC_CACHE_DIR" && chmod 700 "$RESTIC_CACHE_DIR" 2> /dev/null || true
+
 RESTIC=(restic)
 case "$RESTIC_REPOSITORY" in
     s3:*) RESTIC+=(-o "s3.region=${OFFSITE_S3_REGION:-auto}") ;;

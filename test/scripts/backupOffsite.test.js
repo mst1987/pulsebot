@@ -25,6 +25,10 @@ const run = canRun ? it : it.skip;
 
 const STUB_RESTIC = `#!/usr/bin/env bash
 echo "restic $*" >> "$STUB_LOG"
+# like the real one: no cache dir, no HOME, no XDG_CACHE_HOME -> it gives up (as under systemd)
+if [ -z "\${RESTIC_CACHE_DIR:-}" ] && [ -z "\${XDG_CACHE_HOME:-}" ] && [ -z "\${HOME:-}" ]; then
+  echo "unable to locate cache directory: neither \\$XDG_CACHE_HOME nor \\$HOME are defined" >&2; exit 1
+fi
 case "$1" in
   -o) shift 2 ;;
 esac
@@ -192,6 +196,13 @@ describe("offsite.sh run", () => {
         const r = exec(ctx);
         expect(fs.existsSync(path.join(ctx.dir, "backup", "server-config", "postgres-dumpall.sql.gz"))).toBe(false);
         expect(r.status.ok).toBe(true);
+    }));
+
+    run("runs without HOME, as a systemd service does: the restic cache sits in BACKUP_DIR", withCtx((ctx) => {
+        const r = exec(ctx, { extraEnv: { HOME: "", XDG_CACHE_HOME: "" } });
+        expect(r.stderr).not.toMatch(/unable to locate cache directory/);
+        expect(r.status.ok).toBe(true);
+        expect(fs.statSync(path.join(ctx.dir, "backup", ".restic-cache")).isDirectory()).toBe(true);
     }));
 
     run("dumps PostgreSQL from /, where the postgres user may go (not from root's home)", withCtx((ctx) => {
