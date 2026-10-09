@@ -11,7 +11,7 @@ describe("building blocks", () => {
     it("are all reachable from the one index the pages import", () => {
         for (const name of [
             "WowIcon", "Button", "IconButton", "SplitButton", "Segment", "Badge", "IconTile", "Expand", "Bar",
-            "PageHead", "PartHead", "SectionHead", "Tip", "TipLayer", "Modal", "ConfirmProvider", "useConfirm", "Popover",
+            "PageHead", "PartHead", "Tip", "TipLayer", "Modal", "ConfirmProvider", "useConfirm", "Popover",
         ]) {
             expect({ name, type: typeof (ui as Record<string, unknown>)[name] }).toEqual({ name, type: "function" });
         }

@@ -35,41 +35,12 @@ export function MoonIcon() {
     );
 }
 
-export function HomeIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <rect x="3" y="3" width="7" height="9" rx="1.5" />
-            <rect x="14" y="3" width="7" height="5" rx="1.5" />
-            <rect x="14" y="12" width="7" height="9" rx="1.5" />
-            <rect x="3" y="16" width="7" height="5" rx="1.5" />
-        </svg>
-    );
-}
-
 export function RecruitmentIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
             <circle cx="9" cy="7" r="4" />
             <path d="M19 8v6M22 11h-6" />
-        </svg>
-    );
-}
-
-export function ClaIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 3v16a2 2 0 0 0 2 2h16" />
-            <path d="m7 14 3-4 3 3 4-6" />
-        </svg>
-    );
-}
-
-export function RaidsIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <path d="M16 2v4M8 2v4M3 10h18" />
         </svg>
     );
 }
@@ -112,58 +83,12 @@ export function RosterIcon() {
     );
 }
 
-// How much a raider has already been given — a loot bag, next to the count.
-export function LootBagIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 9h14l-1.2 10.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8Z" />
-            <path d="M9 9V6.5a3 3 0 0 1 6 0V9" />
-        </svg>
-    );
-}
-
 // An equip slot with nothing in it — better news for a drop than any item.
 export function EmptySlotIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <rect x="4.5" y="4.5" width="15" height="15" rx="2.5" strokeDasharray="3 2.5" />
             <path d="M12 9v6M9 12h6" />
-        </svg>
-    );
-}
-
-// Loot council: a scale, for weighing who a drop should go to.
-export function CouncilIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 4v16" />
-            <path d="M6 20h12" />
-            <path d="M4 7h16" />
-            <path d="M4 7 1.5 13a3 3 0 0 0 5 0Z" />
-            <path d="M20 7l2.5 6a3 3 0 0 1-5 0Z" />
-            <path d="M12 4a1.5 1.5 0 1 0 0-.01Z" />
-        </svg>
-    );
-}
-
-export function HistoryIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 3v5h5" />
-            <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
-            <path d="M12 7v5l3 2" />
-        </svg>
-    );
-}
-
-/** A big drop — the treasure chest on the dashboard's "Latest Loot" card. */
-export function LootIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 10.5 5 5.5h14l2 5" />
-            <rect x="3" y="10.5" width="18" height="8" rx="1.5" />
-            <path d="M3 14h18" />
-            <path d="M10.5 10.5h3v4h-3z" />
         </svg>
     );
 }
@@ -182,30 +107,11 @@ export function BoltIcon() {
 // of the emoji labels the raid page used to mix into its text. They all share
 // the 24-box + currentColor of the nav icons, so .btn svg can size them once.
 
-/** Start an analysis (CLA/RPB) — a play triangle in a ring. */
-export function RunIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M10 8.5v7l5.5-3.5-5.5-3.5Z" />
-        </svg>
-    );
-}
-
 export function SearchIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="7" />
             <path d="m20 20-3.6-3.6" />
-        </svg>
-    );
-}
-
-export function LinkIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.1" />
-            <path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.1" />
         </svg>
     );
 }
@@ -320,16 +226,6 @@ export function TentativeIcon() {
             <circle cx="12" cy="12" r="9" />
             <path d="M9.3 9.2a2.8 2.8 0 0 1 5.4.9c0 1.9-2.7 2.3-2.7 4" />
             <path d="M12 17.4h.01" strokeWidth="2.6" />
-        </svg>
-    );
-}
-
-/** Late — a clock, for "coming, but not on time". */
-export function LateIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 7v5.3l3.3 2" />
         </svg>
     );
 }

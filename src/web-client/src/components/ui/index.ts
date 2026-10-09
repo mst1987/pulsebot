@@ -10,7 +10,7 @@ export { default as Bar } from "./Bar";
 export { default as RaidLoader } from "./RaidLoader";
 export { default as AsyncView } from "./AsyncView";
 export { default as PageHead } from "./PageHead";
-export { PartHead, SectionHead } from "./PartHead";
+export { PartHead } from "./PartHead";
 export { default as Tip, TipLayer } from "./Tip";
 export { tipParts } from "../../lib/ui/tipParts";
 export { Modal, ConfirmProvider, useConfirm, type ConfirmFn, type ConfirmOptions } from "./Modal";

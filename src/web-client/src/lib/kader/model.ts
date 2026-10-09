@@ -5,7 +5,7 @@
 // deviates from the profile, the prefill source, the nights per category)
 // comes with the view model; this only names, counts, sums and sorts.
 import type {
-    KaderCharacter, KaderClassDef, KaderData, KaderDiscordRole, KaderEntry, KaderHistoryItem, KaderNight, KaderPlayer, KaderRaidCategory, KaderRole,
+    KaderClassDef, KaderData, KaderDiscordRole, KaderEntry, KaderHistoryItem, KaderNight, KaderPlayer, KaderRaidCategory, KaderRole,
     KaderState, KaderView, KaderWish,
 } from "../../api";
 import { classLabel, specLabel } from "../wow/wowNames";
@@ -15,8 +15,6 @@ import { t } from "../../i18n";
 
 export const ROLES: KaderRole[] = ["tank", "healer", "melee", "ranged"];
 export const STATES: KaderState[] = ["pool", "selected", "provisional", "roster", "bench", "tentative"];
-/** The four steps of the pipeline, in the order of the status bar. */
-export const STAGES: KaderState[] = ["pool", "selected", "provisional", "roster"];
 /** Who may stand in an example setup. */
 export const SETUP_STATES: KaderState[] = ["roster", "provisional", "bench", "tentative"];
 
@@ -32,12 +30,6 @@ export const MOVES: Record<KaderState, KaderState[]> = {
 export const canMove = (from: KaderState, to: KaderState): boolean => from !== to && MOVES[from].includes(to);
 
 export const byId = (players: KaderPlayer[]): Map<string, KaderPlayer> => new Map(players.map((p) => [p.userId, p]));
-
-/** The character the planner uses for a player (the planner's pick, else the profile's main). */
-export function activeOf(p: KaderPlayer | undefined | null): KaderCharacter | null {
-    if (!p) return null;
-    return p.characters.find((c) => c.id === p.activeCharacterId) || null;
-}
 
 export function classDef(classes: KaderClassDef[], key: string | undefined | null): KaderClassDef | null {
     return (key && classes.find((c) => c.key === key)) || null;

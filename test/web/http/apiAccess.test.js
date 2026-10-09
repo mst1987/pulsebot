@@ -202,11 +202,6 @@ describe("web/http/apiAccess", () => {
                 expect(checkAccess("/api/signups", "PUT", member)).toBeNull();
             });
 
-            it("keeps every signup of an event with the raids area", () => {
-                expect(checkAccess("/api/signups/event", "GET", member)).toMatchObject({ status: 403 });
-                expect(checkAccess("/api/signups/event", "GET", limited({ raids: { read: true, write: false } }))).toBeNull();
-            });
-
             it("refuses signing up with read access only", () => {
                 expect(checkAccess("/api/signups", "PUT", limited({ signup: { read: true, write: false } }))).toMatchObject({ status: 403 });
             });

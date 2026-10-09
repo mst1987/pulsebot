@@ -3,7 +3,7 @@ import type { KaderVariant } from "../../api";
 import { kader, kaderView, U } from "../../pages/kader/kader.fixture";
 import { switchLang } from "../../test/i18n";
 import {
-    buffLabel, defaultSpec, groupHints, moveToSlot, placedIds, removeFromGroups, setSlotSpec, setupText, slotRoles, specsFor, unplaced, visibleGroups,
+    buffLabel, defaultSpec, groupHints, moveToSlot, placedIds, removeFromGroups, setSlotSpec, setupText, slotRoles, unplaced, visibleGroups,
 } from "./setup";
 
 const view = kaderView();
@@ -27,9 +27,8 @@ describe("lib/kader/setup", () => {
         expect(unplaced(view, k, variant(), ["roster", "provisional", "bench", "tentative"])).toEqual([U.heal, U.sham, U.tent]);
     });
 
-    it("offers the decision and the wishes as specs, the decision first in the roster", () => {
+    it("puts the decision first as the default spec", () => {
         const k = kader();
-        expect(specsFor(k.players[U.heal])).toEqual(["Shaman-Restoration", "Shaman-Enhancement"]);
         expect(defaultSpec(k.players[U.tank])).toBe("Warrior-Protection");
         expect(defaultSpec(k.players[U.heal])).toBe("Shaman-Restoration");
     });

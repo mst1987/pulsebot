@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { entry, QUESTIONS } from "../../pages/kader/kader.fixture";
 import {
-    answerLabels, canComplete, dayShort, draftOf, isAnswered, isWeekdays, moveWish, patchOf, placeWish, progress, statusOf, toggleAnswer,
+    answerLabels, dayShort, draftOf, isAnswered, isWeekdays, moveWish, patchOf, placeWish, progress, statusOf, toggleAnswer,
 } from "./interview";
 
 const [days, voice, remark] = QUESTIONS;
@@ -23,10 +23,8 @@ describe("lib/kader/interview", () => {
         expect(progress(open, QUESTIONS)).toMatchObject({ done: 0, total: 2 });
         const half = entry({ wishes: [mage] });
         expect(progress(half, QUESTIONS).missing.map((q) => q.id)).toEqual(["q1"]);
-        expect(canComplete(half, QUESTIONS)).toBe(false);
         const full = entry({ wishes: [mage], interview: { ...half.interview, answers: { q1: ["d3"] } } });
         expect(progress(full, QUESTIONS)).toMatchObject({ done: 2, total: 2 });
-        expect(canComplete(full, QUESTIONS)).toBe(true);
     });
 
     it("tells open, started and held apart", () => {

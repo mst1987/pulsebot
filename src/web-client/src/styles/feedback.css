@@ -54,15 +54,10 @@
 @keyframes toast-spin { to { transform: rotate(360deg) } }
 @media (prefers-reduced-motion: reduce) { .toast-spin, .toast-ico .st.run i, .toast-bar.is-indeterminate i { animation: none; } }
 
-.page-loader { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center;
-    background: var(--overlay-loader); backdrop-filter: blur(5px) saturate(1.1); -webkit-backdrop-filter: blur(5px) saturate(1.1);
-    animation: pl-fade .18s ease both; }
-@keyframes pl-fade { from { opacity: 0 } to { opacity: 1 } }
 /* ---- the loading state, everywhere: a party going at a raid boss ----
    "Lade…" in grey read like a page that had given up. This says the same in
-   the game's own vocabulary and is the same scene in all three places it can
-   appear: a page body, a card, and the overlay of a long operation
-   (components/ui/RaidLoader.tsx, components/ui/PageLoader.tsx). Decorative only —
+   the game's own vocabulary and is the same scene wherever it appears: a page
+   body or a card (components/ui/RaidLoader.tsx). Decorative only —
    the icons are the ones the menu already mirrors, and nothing moves under
    prefers-reduced-motion. */
 .rl { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 30px 18px; }
@@ -96,11 +91,6 @@
 .rl-compact .rl-icon .wi { width: 26px; height: 26px; border-radius: 6px; }
 .rl-compact .rl-boss .wi { width: 38px; height: 38px; }
 .rl-compact .rl-clash svg { width: 17px; height: 17px; }
-/* the overlay: the same scene, on a panel over the dimmed page */
-.page-loader .rl { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 18px 50px var(--shade-50); }
-.page-loader .rl-caption { color: var(--text); font-weight: 700; }
-/* the overlay fades in on its own — its panel must not lag behind the dimmed page */
-.page-loader .rl.rl-fresh { animation: none; }
 @keyframes rl-attack {
     0%, 100% { transform: translateX(0) rotate(0); }
     40% { transform: translateX(14px) rotate(-9deg); }
@@ -118,7 +108,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
     .rl-icon, .rl-clash, .rl-boss .wi { animation: none; }
-    .page-loader { animation-duration: .001ms; animation-iteration-count: 1; }
 }
 .hr-chip img { width: 18px; height: 18px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
 

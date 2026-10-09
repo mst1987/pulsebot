@@ -3,7 +3,6 @@
 // GET /api/signups              area signup — upcoming events the caller may see, own status, profile
 // PUT /api/signups              area signup — the caller's own signup; body { eventId, characters[] | character+spec, status, canAlso, comment }
 // POST /api/signups/bulk        area signup — the caller for several raids at once (#293); body { eventIds[], characters[], status }
-// GET /api/signups/event?id=    area raids  — every signup of one own event, for the orga
 //
 // The PUT works on `user.id` from the session and nothing else: a `userId` in
 // the body is ignored, so nobody changes someone else's signup through it. The
@@ -18,7 +17,7 @@ const profiles = require("../../stores/raiderProfileStore");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");
 const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../../services/signups/signupService");
-const { memberEventRows, profileForSignup, signupSummary, eventSignupList } = require("../signups/signupView");
+const { memberEventRows, profileForSignup, signupSummary } = require("../signups/signupView");
 const { noteMode, isNoteStatus, MIN_NOTE } = require("../../services/signups/signupNotes");
 const { userCanAny } = require("../../config/permissions");
 const { VERSIONS } = require("../../config/gameVersions");
@@ -119,23 +118,11 @@ const postSignupsBulk = withUser({ csrf: true, body: true, archived: (body) => (
     });
 });
 
-/** GET /api/signups/event?id= — all signups of an own event with names, "kann auch" and comment. */
-const getEventSignups = withUser({}, async ({ res, url }) => {
-    const id = String(url.searchParams.get("id") || "").trim();
-    if (!isOwnEventId(id)) return apiError(res, 409, "raidhelper", "Die Anmeldungen dieses Events liegen bei Raid-Helper.");
-    const event = getEvent(id);
-    if (!event) return apiError(res, 404, "not_found", "Event nicht gefunden.");
-    const signups = listSignups(id);
-    const names = await discord.resolveUserNames(event.guildId, signups.map((s) => s.userId));
-    ok(res, { eventId: id, counts: roleCounts(event, signups), signups: eventSignupList(signups, names) });
-});
-
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/signups", handler: getSignups, area: "signup" },
     { method: "PUT", path: "/api/signups", handler: putSignup, area: "signup" },
     { method: "POST", path: "/api/signups/bulk", handler: postSignupsBulk, area: "signup" },
-    { method: "GET", path: "/api/signups/event", handler: getEventSignups, area: "raids" },
 ];
 
-module.exports = { getSignups, putSignup, postSignupsBulk, getEventSignups, routes };
+module.exports = { getSignups, putSignup, postSignupsBulk, routes };

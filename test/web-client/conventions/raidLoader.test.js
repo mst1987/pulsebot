@@ -26,12 +26,9 @@ describe("RaidLoader", () => {
         }
     });
 
-    it("is the same scene in the overlay of a long operation", () => {
-        const overlay = read("components", "ui", "PageLoader.tsx");
-        expect(overlay).toContain("import RaidLoader from \"./RaidLoader\";");
-        expect(overlay).toContain("<RaidLoader text={text || t(\"jobs.pageLoader.busy\")} />");
-        // the old rune is gone from both the component and the stylesheet
-        expect(overlay).not.toContain("pl-rune");
+    it("has no full-page overlay any more: long operations run as background jobs", () => {
+        expect(fs.existsSync(path.join(CLIENT, "components", "ui", "PageLoader.tsx"))).toBe(false);
+        expect(css).not.toContain(".page-loader");
         expect(css).not.toContain(".pl-rune");
     });
 

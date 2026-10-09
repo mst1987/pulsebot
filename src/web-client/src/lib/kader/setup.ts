@@ -35,14 +35,6 @@ export function unplaced(view: KaderView, kader: KaderData, v: KaderVariant, sou
         .map(([id]) => id);
 }
 
-/** The specs a player can stand for: their decision and their wishes. */
-export function specsFor(entry: KaderEntry): string[] {
-    const out: string[] = [];
-    if (entry.decision) out.push(entry.decision.spec);
-    for (const w of entry.wishes) if (!out.includes(w.spec)) out.push(w.spec);
-    return out;
-}
-
 /** The spec a player stands for by default: the decision in the roster, else the first wish. */
 export function defaultSpec(entry: KaderEntry): string {
     if (entry.state === "roster" && entry.decision) return entry.decision.spec;

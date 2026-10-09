@@ -29,7 +29,4 @@ export function PartHead({ icon, tone, title, crumb, tip, tipSub, action }: {
     );
 }
 
-/** The same head under the name the design issue's module list uses for it. */
-export const SectionHead = PartHead;
-
 export default PartHead;

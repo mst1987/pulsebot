@@ -7,7 +7,6 @@
 // Rümpfen), damit src/web-client/src/lib/raids/raidSteps.test.ts sie wirklich ausführt und
 // gegen die Server-Regel hält.
 import type { RaidEventStep, RaidEventStepState, RaidEventSteps, RaidStepDeed } from "../../api";
-import type { Tone } from "../../components/ui/Badge";
 import { t, tOr } from "../../i18n";
 
 /**
@@ -37,14 +36,6 @@ export function stepStateLabel(state: RaidEventStepState): string {
     if (state === "skipped") return t("raidDetail.steps.state.skipped");
     if (state === "cancelled") return t("raidDetail.steps.state.cancelled");
     return t("raidDetail.steps.state.later");
-}
-
-/** Der Ton eines Zustands — „übersprungen“ bleibt farblos, nie rot. */
-export function stepStateTone(state: RaidEventStepState): Tone | undefined {
-    if (state === "done") return "ok";
-    if (state === "current") return "accent";
-    if (state === "cancelled") return "bad";
-    return undefined;
 }
 
 /** "Schritt 3 von 5" — die Kopfzeile der zusammengeklappten Leiste. */
@@ -84,11 +75,6 @@ export function stepShort(step: RaidEventStep): string {
 export function stepFocus(step: RaidEventStep): { title: string; text: string } {
     const what = step.action ? deedLabel(step.action) : stepTitle(step);
     return { title: t("raidDetail.steps.focus", { what }), text: step.hint || step.note || "" };
-}
-
-/** Die Zahl eines Schritts als ein Stück Text, für Vorlesehilfen und Tests. */
-export function stepFigure(step: RaidEventStep): string {
-    return [step.value, step.unit, step.note].filter(Boolean).join(" ");
 }
 
 /**

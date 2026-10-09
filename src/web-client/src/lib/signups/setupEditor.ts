@@ -288,18 +288,6 @@ export function resizeLineup(input: SetupPlacementInput, newSize: number, groupS
     return out;
 }
 
-/**
- * The bench split into cards the size of a group (#354) — always at least
- * one, and a fresh empty one once the last is full, so there is always room
- * to drop somebody without the last card looking closed off.
- */
-export function benchChunks(bench: SetupPerson[], groupSize = GROUP_SIZE): SetupPerson[][] {
-    const chunks: SetupPerson[][] = [];
-    for (let i = 0; i < bench.length; i += groupSize) chunks.push(bench.slice(i, i + groupSize));
-    if (!chunks.length || chunks[chunks.length - 1].length >= groupSize) chunks.push([]);
-    return chunks;
-}
-
 /** Lock or unlock a raider's place. */
 export function toggleLock(current: SetupPlacementInput, userId: string): SetupPlacementInput {
     const input = cloneInput(current);

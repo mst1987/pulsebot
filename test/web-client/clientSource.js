@@ -94,7 +94,7 @@ const SPLIT_FOLDERS = [
     "pages/raids", "pages/dashboard",
     "components/loot", "components/settings", "components/signup", "components/roster", "components/raid-create",
     "components/shell", "components/raid", "components/character",
-    ["components/ui", ["SortTh.tsx", "Pager.tsx", "HoverPanel.tsx", "PageLoader.tsx", "SectionRail.tsx", "ListSection.tsx", "icons.tsx"]],
+    ["components/ui", ["SortTh.tsx", "Pager.tsx", "HoverPanel.tsx", "SectionRail.tsx", "ListSection.tsx", "icons.tsx"]],
     ["pages/raid-detail", ["RaidDetailPage.tsx"]],
     ["pages/raidplan", ["PlanPublicPage.tsx", "RaidplanTemplatesPage.tsx", "RaidplanCatalogPage.tsx"]],
     ["pages/lootcouncil", ["LootCouncilPage.tsx", "CouncilTabs.tsx", "RosterTab.tsx", "GapsTab.tsx", "GapCard.tsx", "Part.tsx", "BisListsTab.tsx", "CompareTab.tsx"]],

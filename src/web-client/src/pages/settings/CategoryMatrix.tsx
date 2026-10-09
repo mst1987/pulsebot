@@ -26,7 +26,7 @@ import { WarnIcon } from "../../components/ui/icons";
 // segment shows them all. A configured id Discord no longer knows stays visible
 // with a `bad` badge — dropping it would delete its settings on the next save.
 
-export type { CategorySheet, CategoryRaidTemplates } from "./CategoryDetail";
+export type { CategorySheet } from "./CategoryDetail";
 
 export default function CategoryMatrix(props: CategorySettings & {
     categories: Category[];

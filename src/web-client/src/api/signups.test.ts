@@ -2,7 +2,7 @@
 // each call sends. The transport (api/client) is mocked, nothing leaves the test.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "./client";
-import { getEventSignups, getSignups, saveSignup, saveSignupsBulk } from "./signups";
+import { getSignups, saveSignup, saveSignupsBulk } from "./signups";
 
 vi.mock("./client", async (orig) => ({ ...(await orig<typeof import("./client")>()), get: vi.fn(), send: vi.fn() }));
 
@@ -27,10 +27,5 @@ describe("signups api", () => {
         const input = { eventIds: ["a", "b"], characters: [{ character: "Zibbo", spec: "Priest-Holy" }], status: "signed" as const };
         await saveSignupsBulk(input);
         expect(client.send).toHaveBeenCalledWith("POST", "/api/signups/bulk", input);
-    });
-
-    it("loads one event's signups for the orga, the id encoded", async () => {
-        await getEventSignups("eh kara");
-        expect(client.get).toHaveBeenCalledWith("/api/signups/event?id=eh%20kara");
     });
 });

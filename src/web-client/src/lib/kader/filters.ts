@@ -63,4 +63,3 @@ export function cleanState<T>(defs: FilterDef<T>[], raw: unknown): FilterState {
     return out;
 }
 
-export const pickedCount = (state: FilterState): number => Object.values(state).reduce((n, l) => n + l.length, 0);
