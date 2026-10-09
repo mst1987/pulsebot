@@ -221,6 +221,10 @@ testen kann**.
   Rohdaten aus, `--all` zeigt auch Worktrees ohne Änderungen und Agenten,
   `--hours N` bestimmt, wie weit zurück Agenten zählen (Standard 24).
 
+## Reverse proxy: compression
+
+The bot compresses its own text answers with brotli/gzip (`src/web/http/compression.js`, docs/web-admin.md, "Kompression & Zeitmessung"). nginx does not compress a response that already carries `Content-Encoding`, so nothing is compressed twice; `gzip on;` in the proxy stays harmless (it then only covers what the bot sends uncompressed, e.g. clients without `Accept-Encoding`). Do not enable `proxy_set_header Accept-Encoding ""` — that would make the bot send everything plain.
+
 ## Reverse proxy: upload size
 
 A reverse proxy in front of the bot (nginx) has its own body limit: `client_max_body_size` defaults to **1 MB** and answers larger uploads with an HTML "413 Request Entity Too Large" before the bot ever sees them. The bot's own limit for room maps is 3 MB, so the browser shrinks every map to at most 900 KB first (`lib/raidplan/mapImage.ts`, `MAP_TARGET_BYTES`), and the client turns a 413 / 502 / 503 / 504 answer without JSON into a readable message (the HTML only goes to the browser console). If bigger files should get through, raise the limit **in the proxy config** (outside this repo), e.g. `location /api/raidplan/ { client_max_body_size 4m; }`; the client-side shrinking stays below it either way.
