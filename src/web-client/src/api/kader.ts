@@ -1,4 +1,5 @@
 import { get, getKeepalive, send, type ApiError } from "./client";
+import type { AttendanceStatus } from "./roster";
 
 // ===== Kaderplaner (docs/kaderplaner.md) =====
 // Raid rosters for WoW Forever, area "kader". Several Kader per server; every
@@ -48,7 +49,8 @@ export type KaderCharacter = {
     gear: KaderGear;
 };
 
-export type KaderNight = { date: string; title: string; attended: boolean; reason: string | null };
+/** One counted night; status = the attendance code (#677, present/bench count), reason the server's German word. */
+export type KaderNight = { date: string; title: string; attended: boolean; status?: AttendanceStatus; reason: string | null };
 /** One raid category's last nights for an account (rosterAttendance.js: the last 11 with a signup or a log). */
 export type KaderCategoryAttendance = { attended: number; counted: number; nights: KaderNight[] };
 /**

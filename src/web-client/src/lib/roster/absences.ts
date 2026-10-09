@@ -159,28 +159,7 @@ export function playsLine(who: Pick<AbsenceIdentity, "spec" | "specLabel" | "rol
 
 // ---- "Meine Anwesenheit" ----
 
-/**
- * The server's German verdicts of a raid night (rosterAttendance.js), as keys of
- * absences.mine.reason.* — an unknown one stays as sent. Matched without their
- * accents ("später" → "spater"), so no German literal sits in the client.
- */
-const REASON_KEYS: Record<string, string> = {
-    "im Log": "inLog",
-    "im Log (Klasse passt)": "inLogClass",
-    "angemeldet": "signed",
-    "angemeldet (spater)": "late",
-    "abgemeldet": "absence",
-    "nicht im Log": "notInLog",
-    "keine Anmeldung": "noSignup",
-    "Ersatzbank": "bench",
-    "vorlaufig": "tentative",
-};
-
-/** A raid night's verdict in the menu's language. */
-export function reasonText(reason: string): string {
-    const key = REASON_KEYS[reason.normalize("NFD").replace(/[\u0300-\u036f]/g, "")];
-    return key ? t(`absences.mine.reason.${key}`) : reason;
-}
+// A night's verdict in words: lib/roster/attendanceStatus.ts verdictText (#677, the server's status codes).
 
 /** The counted nights oldest first, so the newest stands last in the row. */
 export function nightsInOrder(raids: AttendanceRaid[]): AttendanceRaid[] {

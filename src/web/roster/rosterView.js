@@ -36,7 +36,8 @@ const { rulesFor } = require("../../config/gameVersions");
 const { CLASSES } = require("../../config/gameVersions/classes");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { categoryAttendanceFor } = require("../../stores/configSchema");
-const { buildAttendanceContext, attendanceForAccounts, categoryInfo, roleFromSpec } = require("../../services/characters/rosterAttendance");
+const { buildAttendanceContext, attendanceForAccounts, categoryInfo, categoryNights, roleFromSpec } = require("../../services/characters/rosterAttendance");
+const { canEditAnyAttendance } = require("../../services/characters/attendanceAccess");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
 const { characterKeyOf, nameKeyOf } = require("../../utils/loot/lootImport");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
@@ -185,7 +186,11 @@ function attendanceChars(chars, profile, versionId) {
     return out;
 }
 
-/** Attendance of the shape the roster's AttendanceBar reads, from attendanceForAccounts with `nights`. */
+/**
+ * Attendance of the shape the roster's AttendanceBar reads, from attendanceForAccounts with `nights`:
+ * `present` = the nights that count (status present or bench, #677), `missed` the others - each with
+ * its status code, detail and the orga's override when there is one.
+ */
 function attendanceView(result) {
     if (!result) return null;
     return {
@@ -194,7 +199,7 @@ function attendanceView(result) {
         pct: result.pct,
         link: result.link,
         missed: result.missed,
-        present: (result.raids || []).filter((r) => r.attended).map(({ eventId, title, startTime }) => ({ eventId, title, startTime })),
+        present: (result.raids || []).filter((r) => r.attended).map(({ attended: _a, reason: _r, ...night }) => night),
     };
 }
 
@@ -421,10 +426,15 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     const head = rosterHead(roster, {
         ctx, names: categoryNames(roster.guildId || guildId), discordData, figures: rosterFigures(members), guildId: roster.guildId || guildId,
     });
+    const window = roster.categoryId ? categoryAttendanceFor(config, roster.categoryId).window : null;
     return {
         roster: { ...head, kader: linkedKader(roster) },
         members,
-        window: roster.categoryId ? categoryAttendanceFor(config, roster.categoryId).window : null,
+        window,
+        // the attendance grid's columns (#677): the counted nights of the category, newest first
+        nights: roster.categoryId ? attempt(() => categoryNights(ctx, roster.categoryId, { window }), []) : [],
+        // set a night by hand: the roster's managers, admins and `raids` write (attendanceAccess.js)
+        canEditAttendance: !!roster.categoryId && (canManage || canEditAnyAttendance(user)),
         membersKnown: !!discordData.members,
         canManage,
         isAdmin: !!(user && user.isAdmin === true),

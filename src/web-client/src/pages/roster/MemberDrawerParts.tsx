@@ -14,6 +14,7 @@ import { wowIconUrl } from "../../lib/wow/wowIcon";
 import { classLabel, specLabel } from "../../lib/wow/wowNames";
 import { assignChar, charIcon, charLine, dateInputValue, moveChar } from "../../lib/roster/rosterEdit";
 import { attendanceTone } from "../../lib/roster/rosterView";
+import AttendanceCell from "../../components/roster/AttendanceCell";
 
 
 /** A drawer section: a small heading, its hint on the right, the content. */
@@ -212,8 +213,11 @@ export function RolesSection({ member, data, busyRole, onRole }: {
     );
 }
 
-/** The attendance: the share large, "n von m Raids", one square per counted raid (oldest first). */
-export function AttendanceSection({ member, data }: { member: RosterMember; data: RosterDetail }) {
+/**
+ * The attendance: the share large, "n von m Raids", one status field per counted raid (oldest first, #677: the
+ * colour and letter of its status, a corner dot when set by hand); whoever may correct attendance clicks one.
+ */
+export function AttendanceSection({ member, data, onChanged }: { member: RosterMember; data: RosterDetail; onChanged?: () => void }) {
     const t = useT();
     const att = member.attendance;
     const window = data.window || 0;
@@ -221,8 +225,8 @@ export function AttendanceSection({ member, data }: { member: RosterMember; data
         return <DrawerSection title={t("roster.drawer.attendance")}><p className="rn-sub">{t("roster.detail.noAttendanceSub")}</p></DrawerSection>;
     }
     const nights = [
-        ...(att.present || []).map((n) => ({ ...n, in: true })),
-        ...(att.missed || []).map((n) => ({ ...n, in: false })),
+        ...(att.present || []).map((n) => ({ ...n, attended: true })),
+        ...(att.missed || []).map((n) => ({ ...n, attended: false })),
     ].sort((a, b) => a.startTime - b.startTime);
     const tone = attendanceTone(att.pct);
     return (
@@ -231,9 +235,9 @@ export function AttendanceSection({ member, data }: { member: RosterMember; data
                 <span className={`rn-big${tone ? ` rn-tone-${tone}` : ""}`}>{att.pct}<small>%</small></span>
                 <span className="rn-sub">{t("roster.drawer.attended", { attended: att.attended, total: att.total })}</span>
             </div>
-            <div className="rn-dots" role="img" aria-label={t("roster.drawer.attended", { attended: att.attended, total: att.total })}>
+            <div className="rn-att-dots" role="group" aria-label={t("roster.drawer.attended", { attended: att.attended, total: att.total })}>
                 {nights.map((n) => (
-                    <i key={n.eventId} className={n.in ? "" : "off"} data-tip={formatDate(n.startTime * 1000)} data-tip-sub={n.in ? t("roster.badge.present") : t("roster.drawer.missed")} />
+                    <AttendanceCell key={n.eventId} night={n} userId={member.userId} name={member.displayName} canEdit={!!data.canEditAttendance} onSaved={onChanged} />
                 ))}
             </div>
         </DrawerSection>

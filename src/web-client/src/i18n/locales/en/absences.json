@@ -174,17 +174,6 @@
             "bench": "Bench",
             "absence": "Signed off",
             "none": "no signup"
-        },
-        "reason": {
-            "inLog": "in the log",
-            "inLogClass": "in the log (class matches)",
-            "signed": "signed up",
-            "late": "signed up (late)",
-            "absence": "signed off",
-            "notInLog": "not in the log",
-            "noSignup": "no signup",
-            "bench": "bench",
-            "tentative": "tentative"
         }
     }
 }

@@ -12,6 +12,7 @@ import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../components/ui/icons
 import { useT } from "../../i18n";
 import { formatDayMonth } from "../../lib/format";
 import { belowStartPlacement } from "../../lib/ui/popoverPosition";
+import { statusOf, verdictText } from "../../lib/roster/attendanceStatus";
 import { attendanceCategoriesOf, attendanceOf, attPartsText, attText, categoryLabel, togglePick } from "../../lib/kader/model";
 import { useKader } from "./kaderContext";
 
@@ -77,9 +78,9 @@ export function AttendanceNights({ player }: { player: KaderPlayer }) {
             <span className="kp-sub kp-wrap">{t("kader.att.from", { cats: attPartsText(att) })}</span>
             <div className="kp-nights">
                 {att.nights.map((n, i) => (
-                    <i key={`${n.date}-${n.category}-${i}`} className={n.attended ? "on" : "off"}
+                    <i key={`${n.date}-${n.category}-${i}`} className={n.attended ? "on" : "off"} data-att={statusOf(n)}
                         data-tip={`${t("kader.att.nightTip", { date: n.date ? formatDayMonth(Date.parse(`${n.date}T12:00:00Z`)) : "", category: n.category })} · ${n.title}`}
-                        data-tip-sub={n.attended ? t("kader.account.there") : (n.reason || t("kader.account.missed"))} />
+                        data-tip-sub={verdictText(n)} />
                 ))}
             </div>
             <span className="kp-sub kp-wrap">{t("kader.account.nights", { n: att.counted, there: att.attended, missed: att.counted - att.attended })}</span>

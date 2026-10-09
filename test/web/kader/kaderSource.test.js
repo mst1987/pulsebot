@@ -262,11 +262,11 @@ describe("web/kader/kaderSource", () => {
             expect(byUser.get(U1)).toEqual({
                 c1: {
                     attended: 2, counted: 2, nights: [
-                        { date: "2026-12-18", eventId: "e1", title: "Hyjal", attended: true, reason: null },
-                        { date: "2026-12-17", eventId: "e3", title: "Kara", attended: true, reason: null },
+                        { date: "2026-12-18", eventId: "e1", title: "Hyjal", attended: true, status: "present", reason: null },
+                        { date: "2026-12-17", eventId: "e3", title: "Kara", attended: true, status: "present", reason: null },
                     ],
                 },
-                c2: { attended: 0, counted: 1, nights: [{ date: "2026-12-15", eventId: "e2", title: "Ony", attended: false, reason: "abgemeldet" }] },
+                c2: { attended: 0, counted: 1, nights: [{ date: "2026-12-15", eventId: "e2", title: "Ony", attended: false, status: "absence", reason: "abgemeldet" }] },
             });
             // an account with a TBC character only is counted on every night of the category
             expect(byUser.get(U2).c1).toMatchObject({ attended: 0, counted: 2 });

@@ -8,7 +8,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../../api/client";
-import type { AbsenceOverview, AbsencePeriod, AbsenceRaider, AbsenceRaiderDetail, AvailabilityData, RaiderAttendanceData } from "../../api";
+import type { AbsenceOverview, AbsencePeriod, AbsenceRaider, AbsenceRaiderDetail, AttendanceStatus, AvailabilityData, RaiderAttendanceData } from "../../api";
 import { t } from "../../i18n";
 import { renderPage, adminUser } from "../../test/render";
 import { switchLang } from "../../test/i18n";
@@ -82,13 +82,19 @@ const OWN: AvailabilityData = {
     ],
 };
 
-const night = (eventId: string, day: string, attended: boolean, reason: string) => ({ eventId, title: `Kara ${day}`, startTime: at(day), attended, reason });
+const night = (eventId: string, day: string, attended: boolean, reason: string, status?: AttendanceStatus, detail?: string) => (
+    { eventId, title: `Kara ${day}`, startTime: at(day), attended, reason, ...(status ? { status, detail } : {}) }
+);
 const ATTENDANCE: RaiderAttendanceData = {
-    userId: "u1", name: "Admin", own: true, orga: true,
+    userId: "u1", name: "Admin", own: true, orga: true, canEdit: true,
     categories: [
         {
             id: "mon", name: "TBC Montag", pct: 82, attended: 9, total: 11, link: "auto", window: 11,
-            raids: [night("n3", "2026-10-05", false, "abgemeldet"), night("n1", "2026-09-21", true, "im Log"), night("n2", "2026-09-28", true, "angemeldet (später)")],
+            raids: [
+                night("n3", "2026-10-05", false, "abgemeldet", "absence", "absence"),
+                night("n1", "2026-09-21", true, "im Log", "present", "inLog"),
+                night("n2", "2026-09-28", true, "angemeldet (später)", "bench", "benchSetup"),
+            ],
             upcoming: [
                 { eventId: "e1", title: "Kara Montag", startTime: at("2026-10-12"), status: "signed", url: "https://discord.com/channels/1/2/3" },
                 { eventId: "e2", title: "Gruul Montag", startTime: at("2026-10-19"), status: "", url: "" },
@@ -350,17 +356,24 @@ describe("Abwesenheiten: Meine Anwesenheit", () => {
         expect(within(mon).getByText("9 von 11 Raids")).toBeInTheDocument();
         expect(within(mon).getByText(t("absences.mine.auto"))).toHaveAttribute("data-tip", t("absences.mine.autoTip"));
 
+        // #677: every night a status field in its colour with its letter, oldest first; the orga may correct it (a button)
         const dots = within(within(mon).getByRole("list", { name: t("absences.mine.nightsAria") })).getAllByRole("listitem");
-        expect(dots.map((d) => d.getAttribute("data-tip-sub"))).toEqual([
-            "Kara 2026-09-21 · im Log", "Kara 2026-09-28 · angemeldet (später)", "Kara 2026-10-05 · abgemeldet",
+        const cells = dots.map((d) => d.querySelector(".att-sq") as HTMLElement);
+        expect(cells.map((c) => c.getAttribute("data-att"))).toEqual(["present", "bench", "absence"]);
+        expect(cells.map((c) => c.textContent)).toEqual(["D", "B", "A"]);
+        expect(cells.map((c) => c.getAttribute("data-tip-sub")?.split("\n")[0])).toEqual([
+            "Dabei · im Log", "Bench · im Setup auf der Bank", "Abgemeldet · für diesen Raid abgemeldet",
         ]);
-        expect(dots.map((d) => d.classList.contains("ab-h-in"))).toEqual([true, true, false]);
-        expect(dots[2]).toHaveClass("ab-h-off");
+        expect(cells.map((c) => c.classList.contains("is-in"))).toEqual([true, true, false]);
+        expect(cells[0].tagName).toBe("BUTTON");
 
         // the list: newest first, the verdict in words
         const rows = [...mon.querySelectorAll(".ab-att-list li")].slice(0, 3);
-        expect(rows.map((r) => r.querySelector(".ab-att-verdict")?.textContent)).toEqual(["abgemeldet", "angemeldet (später)", "im Log"]);
+        expect(rows.map((r) => r.querySelector(".ab-att-verdict")?.textContent)).toEqual([
+            "Abgemeldet · für diesen Raid abgemeldet", "Bench · im Setup auf der Bank", "Dabei · im Log",
+        ]);
         expect(rows[0]).toHaveClass("ab-att-out");
+        expect(rows[1]).toHaveClass("ab-att-in");
 
         // next raids: the own status as a pill, a link where there is one
         expect(within(mon).getByText(t("absences.mine.next"))).toBeInTheDocument();

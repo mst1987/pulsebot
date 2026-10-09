@@ -223,3 +223,28 @@ describe("MemberDrawer — in English", () => {
         expect(await d.findByText("Status Trial → Core")).toBeInTheDocument();
     });
 });
+
+describe("MemberDrawer — attendance by status (#677)", () => {
+    it("shows each night as a status field oldest first; whoever may correct attendance opens the edit menu", async () => {
+        const withStatus = member("Thorgrim", {
+            userId: "u-thorgrim",
+            attendance: {
+                attended: 2, total: 3, pct: 67,
+                missed: [{ eventId: "e2", title: "BT", startTime: 1900100000, reason: "", status: "vacation" }],
+                present: [{ eventId: "e1", title: "BT", startTime: 1900000000, status: "present" }, { eventId: "e3", title: "BT", startTime: 1900200000, status: "bench" }],
+            },
+        });
+        open(detail([withStatus], { canManage: true, canEditAttendance: true, roster: head() }));
+        const fields = [...drawer().querySelectorAll(".rn-att-dots .att-sq")] as HTMLElement[];
+        expect(fields.map((f) => f.getAttribute("data-att"))).toEqual(["present", "vacation", "bench"]);
+        await userEvent.setup().click(fields[1]);
+        expect(screen.getByRole("dialog", { name: "Abend korrigieren" })).toBeInTheDocument();
+    });
+
+    it("keeps the fields read only without the right", () => {
+        open(detail([THORGRIM], { canManage: false, canEditAttendance: false, roster: head() }));
+        const fields = [...drawer().querySelectorAll(".rn-att-dots .att-sq")];
+        expect(fields).toHaveLength(3);
+        expect(fields.every((f) => f.tagName === "SPAN")).toBe(true);
+    });
+});

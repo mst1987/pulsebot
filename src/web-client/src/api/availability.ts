@@ -1,5 +1,6 @@
 import { get, send } from "./client";
 import type { SignupStatus } from "./raidDetail";
+import type { AttendanceOverride, AttendanceStatus } from "./roster";
 
 // ---- Ab- & Anwesenheit (src/web/apiRoutes/availability.js) ----
 // "Away from … to …" signs a raider off from every raid of that period, "there
@@ -257,8 +258,14 @@ export function getAbsenceRaider(userId: string): Promise<AbsenceRaiderDetail> {
 
 // ---- "Meine Anwesenheit": one raider's attendance per raid category and raid (src/web/availability/raiderAttendance.js) ----
 
-/** One counted raid night and its verdict; `reason` is the server's German word ("im Log", "keine Anmeldung" …). */
-export type AttendanceRaid = { eventId: string; title: string; startTime: number; attended: boolean; reason: string };
+/**
+ * One counted raid night and its verdict: `status` the code (#677), `detail` why, `override` when the orga set it by
+ * hand; `reason` is the server's German word ("im Log", "keine Anmeldung" …), kept for older answers.
+ */
+export type AttendanceRaid = {
+    eventId: string; title: string; startTime: number; attended: boolean; reason: string;
+    status?: AttendanceStatus; detail?: string; override?: AttendanceOverride;
+};
 
 /** A coming raid of the category with the raider's own signup status ("" = none). */
 export type AttendanceUpcoming = { eventId: string; title: string; startTime: number; status: SignupStatus | ""; url: string };
@@ -287,6 +294,8 @@ export type RaiderAttendanceData = {
     own: boolean;
     /** Whether the caller is the raid lead (may look at anyone's). */
     orga: boolean;
+    /** The caller may set a night by hand (admin or raids write, #677). */
+    canEdit?: boolean;
     categories: AttendanceCategory[];
 };
 

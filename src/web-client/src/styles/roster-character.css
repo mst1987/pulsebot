@@ -135,8 +135,10 @@
 .bar.ros-bar small { font-weight: 500; font-size: 11.5px; color: var(--muted); }
 .bar.ros-bar.is-empty > span { color: var(--muted); }
 
-/* its tooltip (<RichTip className="ros-atip">): the count and the share on top, then "Dabei" and one group per
-   reason for a missed night, each night a small date field (design canvas "Anwesenheits-Tooltip", variant C) */
+/* its tooltip (<RichTip className="ros-atip">): the count and the share on top, then one group per status (#677:
+   Dabei, Bench, Nicht angemeldet, Abgemeldet, Urlaub, Nicht erschienen) in its colour (--att from [data-att],
+   shared.css), each night a small date field, a night set by hand with a corner mark and listed at the foot
+   (design canvas "Anwesenheits-Tooltip", variant C) */
 .ros-atip { padding: 10px 14px 8px; }
 .ros-atip-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
 .ros-atip-head b { margin: 0; font-size: 14px; font-weight: 800; }
@@ -145,14 +147,16 @@
 .ros-atip-pct.mid { color: var(--medium); }
 .ros-atip-pct.bad { color: var(--high); }
 .ros-atip-grp { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); }
-.ros-atip-lbl { display: flex; flex-direction: column; gap: 1px; font-size: 12.5px; font-weight: 700; line-height: 1.3; }
-.ros-atip-lbl small { font-size: 11.5px; font-weight: 500; color: var(--muted); }
-.ros-atip-present .ros-atip-lbl { color: var(--good); }
-.ros-atip-absent .ros-atip-lbl { color: var(--high); }
+.ros-atip-lbl { display: block; font-size: 12.5px; font-weight: 700; line-height: 1.3; color: var(--text); }
+.ros-atip-lbl small { display: block; margin-top: 1px; font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.ros-atip-sw { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; border-radius: 3px; background: var(--att); }
+.ros-atip-absent .ros-atip-sw { background: transparent; border: 2px solid var(--att); }
 .ros-atip-days { display: flex; flex-wrap: wrap; gap: 4px; }
-.ros-atip-day { display: inline-flex; align-items: center; height: 22px; padding: 0 7px; border-radius: 5px; font: 600 11.5px/1 var(--font-mono); white-space: nowrap; }
-.ros-atip-present .ros-atip-day { background: var(--good-bg); color: var(--text); }
-.ros-atip-absent .ros-atip-day { background: var(--high-bg); color: var(--text); }
+.ros-atip-day { position: relative; display: inline-flex; align-items: center; height: 22px; padding: 0 7px; border-radius: 5px; font: 600 11.5px/1 var(--font-mono); white-space: nowrap; color: var(--text); background: color-mix(in srgb, var(--att) 16%, transparent); }
+.ros-atip-absent .ros-atip-day { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--att) 55%, transparent); }
+.ros-atip-day.is-manual::after { content: ""; position: absolute; top: 2px; right: 2px; width: 5px; height: 5px; border-radius: 50%; background: var(--text); }
+.ros-atip-manual { list-style: none; margin: 0; padding: 7px 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--muted); }
+.ros-atip-manual b { font: 600 11.5px/1 var(--font-mono); color: var(--text); }
 .ros-atip-none { padding: 8px 0; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--good); }
 .ros-atip-foot { padding-top: 7px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
 

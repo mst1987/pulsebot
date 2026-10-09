@@ -1,0 +1,83 @@
+{
+    "status": {
+        "present": "Dabei",
+        "bench": "Bench",
+        "vacation": "Urlaub",
+        "absence": "Abgemeldet",
+        "noSignup": "Nicht angemeldet",
+        "noShow": "Nicht erschienen"
+    },
+    "letter": {
+        "present": "D",
+        "bench": "B",
+        "vacation": "U",
+        "absence": "A",
+        "noSignup": "?",
+        "noShow": "X"
+    },
+    "hint": {
+        "present": "Im Log, oder ohne Log angemeldet. Zählt.",
+        "bench": "Auf der Ersatzbank eingeteilt oder so angemeldet. Zählt wie dabei.",
+        "vacation": "Eine eingetragene Abwesenheit deckt den Raid. Entschuldigt, zählt aber als gefehlt.",
+        "absence": "Für diesen Raid abgemeldet.",
+        "noSignup": "Keine Anmeldung und nicht im Log.",
+        "noShow": "Angemeldet oder vorläufig, aber nicht im Log."
+    },
+    "detail": {
+        "inLog": "im Log",
+        "inLogClass": "im Log (Klasse passt)",
+        "signed": "angemeldet",
+        "late": "angemeldet (später)",
+        "benchSetup": "im Setup auf der Bank",
+        "benchSignup": "als Bench angemeldet",
+        "vacation": "Abwesenheit eingetragen",
+        "absence": "für diesen Raid abgemeldet",
+        "notInLog": "nicht im Log",
+        "noSignup": "keine Anmeldung",
+        "tentative": "vorläufig"
+    },
+    "override": {
+        "line": "von Hand: {status} ({who})",
+        "lineNoWho": "von Hand: {status}",
+        "marker": "von Hand gesetzt"
+    },
+    "edit": {
+        "title": "Abend korrigieren",
+        "auto": "Automatisch",
+        "autoHint": "Zurück zur Automatik aus Log, Anmeldung und Setup",
+        "reason": "Grund (optional)",
+        "reasonPlaceholder": "z. B. hat für jemanden gewartet",
+        "reasonLeft": "noch {count} Zeichen",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "saved": "{name}: {status} am {date} gespeichert",
+        "reset": "{name}: {date} wieder automatisch",
+        "now": "Jetzt: {status}",
+        "aria": "Anwesenheit am {date} korrigieren",
+        "err": {
+            "not_manager": "Nur Admins, die Raidleitung und Manager dieses Rosters dürfen das.",
+            "invalid_status": "Unbekannter Status.",
+            "reason_too_long": "Der Grund ist zu lang (höchstens 200 Zeichen).",
+            "not_found": "Diesen Raid gibt es nicht mehr.",
+            "bad_request": "Raid oder Raider fehlt.",
+            "other": "Konnte nicht speichern: {message}"
+        }
+    },
+    "grid": {
+        "aria": "Anwesenheit: Mitglieder und die letzten Raids",
+        "member": "Mitglied · Quote",
+        "quota": "Quote",
+        "quotaValue": "{pct} % · {attended} von {total}",
+        "noQuota": "–",
+        "noNights": "Noch keine gezählten Raids in dieser Kategorie.",
+        "noCategory": "Dieses Roster hat keine Raid-Kategorie, ohne sie gibt es keine Anwesenheit.",
+        "noMembers": "Noch keine Mitglieder.",
+        "noChars": "kein Charakter",
+        "notCounted": "nicht gezählt",
+        "editHint": "Klick auf ein Feld korrigiert den Abend.",
+        "readHint": "Die letzten {count} Raids der Kategorie, neueste rechts.",
+        "legend": "Legende",
+        "nightTip": "{date} · {title}",
+        "pause": "Pause"
+    }
+}

@@ -8,6 +8,7 @@ import type { CharGearReport, CharLootPreview, RosterAttendance, RosterRole } fr
 import { useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { ROLE_META, attendanceGroups, attendanceTone, nightLabel } from "../../lib/roster/rosterView";
+import { countsAsPresent, overrideLine, statusLabel } from "../../lib/roster/attendanceStatus";
 import { roleLabel } from "../../lib/wow/wowNames";
 import { Badge, RichTip, WowIcon } from "../ui";
 
@@ -28,9 +29,9 @@ export function RoleBadge({ role }: { role: RosterRole }) {
 }
 
 /**
- * The attendance of one category as a fixed-width WCL bar. Its tooltip groups the counted nights: "Dabei", then one group per
- * reason for a missed night ("Nicht im Log", "Abgemeldet" …), each night a small date field — design canvas
- * "Anwesenheits-Tooltip", variant C.
+ * The attendance of one category as a fixed-width WCL bar. Its tooltip groups the counted nights by status (#677):
+ * Dabei, Bench, Nicht angemeldet, Abgemeldet, Urlaub, Nicht erschienen — each group with its colour, each night a small
+ * date field, a night set by hand marked — design canvas "Anwesenheits-Tooltip", variant C.
  */
 export function AttendanceBar({ attendance, categoryName }: { attendance: RosterAttendance | undefined; categoryName: string }) {
     const t = useT();
@@ -47,12 +48,20 @@ export function AttendanceBar({ attendance, categoryName }: { attendance: Roster
     }
     const { attended, total, pct } = attendance;
     const tone = attendanceTone(pct) || "";
-    const { present, absent } = attendanceGroups(attendance);
-    // one group: its word and count on the left, the nights as small date fields on the right
-    const group = (kind: "present" | "absent", label: string, nights: { eventId: string; startTime: number }[], key: string) => (
-        <div key={key} className={`ros-atip-grp ros-atip-${kind}`}>
-            <span className="ros-atip-lbl">{label}<small>{t("roster.badge.raidCount", { count: nights.length })}</small></span>
-            <span className="ros-atip-days">{nights.map((n) => <span key={n.eventId} className="ros-atip-day">{nightLabel(n.startTime * 1000)}</span>)}</span>
+    const groups = attendanceGroups(attendance);
+    const missed = groups.filter((g) => !countsAsPresent(g.status));
+    const manual = groups.flatMap((g) => g.nights).filter((n) => n.override).sort((a, b) => b.startTime - a.startTime);
+    // one group: its colour, word and count on the left, the nights as small date fields on the right
+    const group = (g: (typeof groups)[number]) => (
+        <div key={g.status} className={`ros-atip-grp ros-atip-${countsAsPresent(g.status) ? "present" : "absent"}`} data-att={g.status}>
+            <span className="ros-atip-lbl"><i className="ros-atip-sw" aria-hidden="true" />{statusLabel(g.status)}<small>{t("roster.badge.raidCount", { count: g.nights.length })}</small></span>
+            <span className="ros-atip-days">
+                {g.nights.map((n) => (
+                    <span key={n.eventId} className={`ros-atip-day${n.override ? " is-manual" : ""}`} aria-label={n.override ? `${nightLabel(n.startTime * 1000)} · ${overrideLine(n.override)}` : undefined}>
+                        {nightLabel(n.startTime * 1000)}
+                    </span>
+                ))}
+            </span>
         </div>
     );
     return (
@@ -66,9 +75,17 @@ export function AttendanceBar({ attendance, categoryName }: { attendance: Roster
             )}
         >
             <div className="ros-atip-head"><b>{t("roster.badge.ofRaids", { attended, total })}</b><span className={`ros-atip-pct ${tone}`}>{pct} %</span></div>
-            {present.length > 0 && group("present", t("roster.badge.present"), present, "present")}
-            {absent.map((g) => group("absent", g.key ? t(`roster.badge.reason.${g.key}`) : g.reason, g.nights, g.reason))}
-            {absent.length === 0 && <div className="ros-atip-none">{t("roster.badge.noneMissed")}</div>}
+            {groups.map(group)}
+            {missed.length === 0 && <div className="ros-atip-none">{t("roster.badge.noneMissed")}</div>}
+            {manual.length > 0 && (
+                <ul className="ros-atip-manual">
+                    {manual.map((n) => (
+                        <li key={n.eventId}>
+                            <b>{nightLabel(n.startTime * 1000)}</b> {n.override ? overrideLine(n.override) : ""}{n.override?.reason ? ` · ${n.override.reason}` : ""}
+                        </li>
+                    ))}
+                </ul>
+            )}
             <div className="ros-atip-foot">{t("roster.badge.source", { category: categoryName || t("roster.badge.category") })}</div>
         </RichTip>
     );

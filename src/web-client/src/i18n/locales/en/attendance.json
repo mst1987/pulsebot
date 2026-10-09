@@ -1,0 +1,83 @@
+{
+    "status": {
+        "present": "Present",
+        "bench": "Bench",
+        "vacation": "Vacation",
+        "absence": "Signed off",
+        "noSignup": "Not signed up",
+        "noShow": "No-show"
+    },
+    "letter": {
+        "present": "P",
+        "bench": "B",
+        "vacation": "V",
+        "absence": "O",
+        "noSignup": "?",
+        "noShow": "X"
+    },
+    "hint": {
+        "present": "In the log, or signed up without a log. Counts.",
+        "bench": "Put on the bench or signed up as bench. Counts as present.",
+        "vacation": "An absence entered for this period covers the raid. Excused, but counts as missed.",
+        "absence": "Signed off for this raid.",
+        "noSignup": "No signup and not in the log.",
+        "noShow": "Signed up or tentative, but not in the log."
+    },
+    "detail": {
+        "inLog": "in the log",
+        "inLogClass": "in the log (class matches)",
+        "signed": "signed up",
+        "late": "signed up (late)",
+        "benchSetup": "on the setup's bench",
+        "benchSignup": "signed up as bench",
+        "vacation": "absence entered",
+        "absence": "signed off for this raid",
+        "notInLog": "not in the log",
+        "noSignup": "no signup",
+        "tentative": "tentative"
+    },
+    "override": {
+        "line": "set by hand: {status} ({who})",
+        "lineNoWho": "set by hand: {status}",
+        "marker": "set by hand"
+    },
+    "edit": {
+        "title": "Correct this night",
+        "auto": "Automatic",
+        "autoHint": "Back to what log, signup and setup say",
+        "reason": "Reason (optional)",
+        "reasonPlaceholder": "e.g. waited in for somebody",
+        "reasonLeft": "{count} characters left",
+        "save": "Save",
+        "cancel": "Cancel",
+        "saved": "{name}: {status} on {date} saved",
+        "reset": "{name}: {date} automatic again",
+        "now": "Now: {status}",
+        "aria": "Correct the attendance of {date}",
+        "err": {
+            "not_manager": "Only admins, the raid lead and managers of this roster may do that.",
+            "invalid_status": "Unknown status.",
+            "reason_too_long": "The reason is too long (200 characters at most).",
+            "not_found": "This raid no longer exists.",
+            "bad_request": "Raid or raider missing.",
+            "other": "Could not save: {message}"
+        }
+    },
+    "grid": {
+        "aria": "Attendance: members and the last raids",
+        "member": "Member · quota",
+        "quota": "Quota",
+        "quotaValue": "{pct} % · {attended} of {total}",
+        "noQuota": "–",
+        "noNights": "No counted raids in this category yet.",
+        "noCategory": "This roster has no raid category; without one there is no attendance.",
+        "noMembers": "No members yet.",
+        "noChars": "no character",
+        "notCounted": "not counted",
+        "editHint": "Click a field to correct the night.",
+        "readHint": "The category's last {count} raids, newest on the right.",
+        "legend": "Legend",
+        "nightTip": "{date} · {title}",
+        "pause": "Paused"
+    }
+}

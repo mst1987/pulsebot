@@ -69,10 +69,10 @@ function rosterFacts(): RosterCharData {
         attendance: {
             c1: {
                 attended: 1, total: 2, pct: 50,
-                missed: [{ eventId: "e2", title: "Kara", startTime: SECONDS + 7 * 86400, reason: "nicht im Log" }],
+                missed: [{ eventId: "e2", title: "Kara", startTime: SECONDS + 7 * 86400, reason: "nicht im Log", status: "noShow", detail: "notInLog" }],
                 raids: [
-                    { eventId: "e1", title: "Kara Montag", startTime: SECONDS, attended: true, reason: "im Log" },
-                    { eventId: "e2", title: "Kara Montag", startTime: SECONDS + 7 * 86400, attended: false, reason: "nicht im Log" },
+                    { eventId: "e1", title: "Kara Montag", startTime: SECONDS, attended: true, reason: "im Log", status: "present", detail: "inLog" },
+                    { eventId: "e2", title: "Kara Montag", startTime: SECONDS + 7 * 86400, attended: false, reason: "nicht im Log", status: "noShow", detail: "notInLog" },
                 ],
             },
         },
@@ -208,8 +208,11 @@ describe("HistoryCharPage — loot and attendance", () => {
         expect(await screen.findByText("Mo 15.06.")).toBeInTheDocument();
         expect(screen.getByText("Mo 22.06.")).toBeInTheDocument();
         expect(screen.queryByText(/\.01\.$/)).not.toBeInTheDocument();
-        expect(screen.getByText("da")).toBeInTheDocument();
-        expect(screen.getByText("gefehlt")).toBeInTheDocument();
+        // #677: the night's status and why, worded from the server's codes
+        expect(screen.getAllByText("Dabei").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("Nicht erschienen").length).toBeGreaterThan(0);
+        expect(screen.getByText("im Log")).toBeInTheDocument();
+        expect(screen.getByText("nicht im Log")).toBeInTheDocument();
     });
 });
 
@@ -229,7 +232,8 @@ describe("HistoryCharPage — in English", () => {
 
         const user = userEvent.setup();
         await user.click(screen.getByRole("tab", { name: /Attendance/ }));
-        expect(await screen.findByText("present")).toBeInTheDocument();
-        expect(screen.getByText("missed")).toBeInTheDocument();
+        expect((await screen.findAllByText("Present")).length).toBeGreaterThan(0);
+        expect(screen.getAllByText("No-show").length).toBeGreaterThan(0);
+        expect(screen.getByText("not in the log")).toBeInTheDocument();
     });
 });

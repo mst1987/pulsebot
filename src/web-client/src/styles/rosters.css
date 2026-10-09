@@ -314,3 +314,43 @@ dialog.rn-dlg .dlg-body > .rn-notice { margin: 14px 0 6px; }
     .rn-tbl tbody tr.rn-grp { padding: 8px 14px; background: var(--panel2); border-bottom: 1px solid var(--line); }
     .rn-tbl td:nth-child(-n + 2) { flex: 1 1 100%; }
 }
+
+/* ===== the attendance tab (#677, pages/roster/AttendanceTab.tsx): members x the last counted raids =====
+   The status fields are the shared .att-sq (shared.css); the name column is sticky while the raids
+   scroll sideways in their own box. */
+.rn-att { display: flex; flex-direction: column; gap: 12px; }
+.rn-att-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.rn-att-top .rn-sub { margin: 0; }
+.rn-att-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); }
+.rn-att-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.rn-att-legend .att-sq { width: 18px; height: 18px; flex-basis: 18px; font-size: 10px; }
+.rn-att-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.rn-att-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rn-att-grid { border-collapse: separate; border-spacing: 0; min-width: 100%; }
+.rn-att-grid th, .rn-att-grid td { padding: 6px 5px; border-bottom: 1px solid var(--line-soft); text-align: center; vertical-align: middle; }
+.rn-att-grid tbody tr:last-child > * { border-bottom: 0; }
+.rn-att-grid thead th { font-size: 11.5px; font-weight: 700; color: var(--muted); white-space: nowrap; background: var(--panel2); }
+.rn-att-night span { font-family: var(--font-mono); }
+.rn-att-name {
+    position: sticky; left: 0; z-index: 1; text-align: left !important; min-width: 190px; max-width: 240px;
+    background: var(--panel); box-shadow: 1px 0 0 var(--line);
+}
+.rn-att-grid thead .rn-att-name { background: var(--panel2); z-index: 2; padding-left: 12px; }
+.rn-att-who { display: flex; align-items: center; gap: 8px; width: 100%; padding: 2px 6px; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; border-radius: 6px; }
+.rn-att-who:hover { background: var(--panel2); }
+.rn-att-who:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rn-att-who .rn-ava { width: 26px; height: 26px; font-size: 11px; }
+.rn-att-who-text { display: flex; flex-direction: column; min-width: 0; }
+.rn-att-who-text b { font-size: 13.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rn-att-who-text small { font: 600 11.5px/1.3 var(--font-mono); color: var(--muted); }
+.rn-att-who-text small.rn-tone-ok { color: var(--good); }
+.rn-att-who-text small.rn-tone-mid { color: var(--medium); }
+.rn-att-who-text small.rn-tone-bad { color: var(--high); }
+.rn-att-grid tr.is-pause .rn-att-who-text b { color: var(--muted); }
+.rn-att-grid tr.is-pause td { opacity: .6; }
+@media (max-width: 700px) {
+    .rn-att-name { min-width: 140px; max-width: 160px; }
+    .rn-att-who .rn-ava { display: none; }
+}
+/* the member drawer's attendance: the same fields, small */
+.rn-att-dots { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }

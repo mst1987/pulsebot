@@ -41,6 +41,8 @@ const { shortWhen } = require("../../utils/time");
 
 /** How far ahead an entry may reach. */
 const MAX_DAYS = 180;
+/** How long an absence entry is kept after its last day (rosterAttendance reads it as "Urlaub"). */
+const KEEP_DAYS = 120;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
@@ -205,8 +207,9 @@ async function createEntry(userId, input = {}, { by = "", eventIds, now = Date.n
     const raids = raidsInRange(checked.value, { now, config: cfg });
     const picked = Array.isArray(eventIds) ? new Set(eventIds.map(str)) : null;
     const skip = picked ? raids.filter((e) => !picked.has(e.id)).map((e) => e.id) : [];
-    // entries long over go here: nothing else ever needs them
-    store.prune(today(now));
+    // entries long over go here - after KEEP_DAYS: the attendance (#677) still tells "Urlaub" from a plain
+    // sign-off by them, over its longest window (16 raids of a weekly category)
+    store.prune(today(now), KEEP_DAYS);
     const added = store.addEntry({ ...checked.value, skip, createdBy: str(by) || checked.value.userId }, { now });
     if (added.error) return added;
     const results = [];

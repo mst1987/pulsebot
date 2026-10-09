@@ -123,7 +123,7 @@ export default function MemberDrawer({ data, userId, onClose, onChanged }: {
                             <CharsSection member={member} data={data} busy={busy !== ""} onSave={(chars) => save("chars", { chars })} />
                             <SpecSection member={member} data={data} busy={busy !== ""} onSave={(spec) => save("spec", { spec })} />
                             <RolesSection member={member} data={data} busyRole={busy.startsWith("role-") ? busy : ""} onRole={toggleRole} />
-                            <AttendanceSection member={member} data={data} />
+                            <AttendanceSection member={member} data={data} onChanged={() => { void onChanged(); }} />
                             {manage && <NoteSection member={member} busy={busy === "note"} onSave={(note) => save("note", { note })} />}
                             <DrawerSection title={t("roster.drawer.history")}>
                                 {history.data

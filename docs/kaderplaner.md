@@ -126,6 +126,9 @@ of the Kader joins must not pull everybody down, a Thursday Kader only cares for
   (`rosterAttendance.attendanceForAccounts`, `RAID_WINDOW`), whatever version they were played in; the account's
   characters are the profile's of every version plus the characters assigned per category. `player.attendance` is
   `{ [categoryId]: { attended, counted, nights } }`, only the categories that counted a night; `null` without any.
+  A night carries its attendance code `status` (#677, docs/roster-profile.md "Anwesenheit: Status je Abend"): a bench
+  night counts as attended, the orga's overrides win; the account dialog colours each night by it and words it
+  (`attendanceStatus.ts verdictText`).
 - **The sum is the page's** (`lib/kader/model.ts` `attendanceOf`): attended and counted nights added up over the
   picked categories, each category's share for the tooltip ("Mo Raid 9/11 · Do Raid 7/10"), the nights newest
   first with their category — so a new pick needs no second request. "Automatisch verteilen" sums the same way on

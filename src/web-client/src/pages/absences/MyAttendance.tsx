@@ -11,7 +11,9 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { AbsenceIcon, CheckMark, TrashIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
-import { entryDays, entryState, nightsInOrder, reasonText } from "../../lib/roster/absences";
+import { entryDays, entryState, nightsInOrder } from "../../lib/roster/absences";
+import { countsAsPresent, statusOf, verdictText } from "../../lib/roster/attendanceStatus";
+import AttendanceCell from "../../components/roster/AttendanceCell";
 import { periodLabel } from "../../lib/signups/availability";
 import { formatDayDate, formatTime } from "../../lib/format";
 import { useT } from "../../i18n";
@@ -85,7 +87,12 @@ export default function MyAttendance({ userId = "", onBack }: {
 
             {data.categories.length ? (
                 <div className="ab-atts">
-                    {shown.map((c) => <CategoryCard key={c.id} cat={c} />)}
+                    {shown.map((c) => (
+                        <CategoryCard
+                            key={c.id} cat={c} userId={data.userId} name={name} canEdit={!!data.canEdit}
+                            onSaved={() => { void attendance.reload(); }}
+                        />
+                    ))}
                 </div>
             ) : <p className="ab-empty">{other ? t("absences.mine.noCategoriesOf", { name }) : t("absences.mine.noCategories")}</p>}
 
@@ -148,7 +155,8 @@ function OwnEntry({ entry, today, onRemoved }: { entry: AvailabilityEntry; today
     );
 }
 
-function CategoryCard({ cat }: { cat: AttendanceCategory }) {
+/** One category: the quota, every counted night as a status field (#677; the orga may correct one) and as a list, the coming raids. */
+function CategoryCard({ cat, userId, name, canEdit, onSaved }: { cat: AttendanceCategory; userId: string; name: string; canEdit: boolean; onSaved: () => void }) {
     const t = useT();
     const nights = nightsInOrder(cat.raids);
     return (
@@ -168,22 +176,17 @@ function CategoryCard({ cat }: { cat: AttendanceCategory }) {
                     </div>
                     <div className="ab-hist" role="list" aria-label={t("absences.mine.nightsAria")}>
                         {nights.map((r) => (
-                            <span
-                                key={r.eventId}
-                                role="listitem"
-                                className={`ab-hist-dot ${r.attended ? "ab-h-in" : "ab-h-off"}`}
-                                aria-label={`${formatDayDate(r.startTime * 1000)} · ${reasonText(r.reason)}`}
-                                data-tip={formatDayDate(r.startTime * 1000)}
-                                data-tip-sub={[r.title, reasonText(r.reason)].filter(Boolean).join(" · ")}
-                            />
+                            <span key={r.eventId} role="listitem" className="ab-hist-cell">
+                                <AttendanceCell night={r} userId={userId} name={name} canEdit={canEdit} onSaved={onSaved} />
+                            </span>
                         ))}
                     </div>
                     <ul className="ab-att-list">
                         {[...nights].reverse().map((r) => (
-                            <li key={r.eventId} className={r.attended ? "ab-att-in" : "ab-att-out"}>
+                            <li key={r.eventId} className={countsAsPresent(statusOf(r)) ? "ab-att-in" : "ab-att-out"} data-att={statusOf(r)}>
                                 <span className="ab-att-date">{formatDayDate(r.startTime * 1000)}</span>
                                 <span className="ab-att-title">{r.title}</span>
-                                <span className="ab-att-verdict">{reasonText(r.reason)}</span>
+                                <span className="ab-att-verdict">{verdictText(r)}</span>
                             </li>
                         ))}
                     </ul>

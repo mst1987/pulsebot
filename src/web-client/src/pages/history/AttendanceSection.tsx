@@ -1,6 +1,7 @@
 import type { RosterCharData } from "../../api";
 import { AttendanceBar } from "../../components/roster/RosterCommon";
 import { nightLabel } from "../../lib/roster/rosterView";
+import { detailText, statusLabel, statusOf, verdictText } from "../../lib/roster/attendanceStatus";
 import { Badge, PartHead } from "../../components/ui";
 import { useT } from "../../i18n";
 
@@ -30,9 +31,9 @@ export function AttendanceSection({ roster }: { roster: RosterCharData | null })
                                             <span className="ros-night-date">{nightLabel(r.startTime * 1000)}</span>
                                             <span className="ros-night-title">{r.title || t("history.attendance.raidFallback")}</span>
                                             <Badge tone={r.attended ? "ok" : "bad"} icon={r.attended ? "ability_warrior_rallyingcry" : undefined}>
-                                                {r.attended ? t("history.attendance.present") : t("history.attendance.absent")}
+                                                {statusLabel(statusOf(r))}
                                             </Badge>
-                                            <span className="sub">{r.reason}</span>
+                                            <span className="sub">{r.override ? verdictText(r) : detailText(r.detail)}</span>
                                         </div>
                                     ))}
                                 </div>

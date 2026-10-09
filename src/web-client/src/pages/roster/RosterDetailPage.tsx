@@ -2,7 +2,8 @@
 // head (version and raids, main role, places, attendance, "Einstellungen" and
 // "Mitglied hinzufügen" for whoever may manage it) and its tabs, each its own
 // address (/roster/r/<id>/<tab>): Mitglieder (MembersTab), Komposition,
-// Abgleich mit Discord (with "n offen") and Verlauf. A member opens in the
+// Anwesenheit (the grid of members x raids, #677), Abgleich mit Discord (with
+// "n offen") and Verlauf. A member opens in the
 // drawer at the right edge. Names, characters, roles and attendance come from
 // the server (GET /api/rosters/roster); every change reloads the roster.
 import { useState } from "react";
@@ -17,6 +18,7 @@ import { PlusIcon, SettingsIcon } from "../../components/ui/icons";
 import type { ShellContext } from "../../components/shell/Shell";
 import { changedRoleLines, syncOpenCount } from "../../lib/roster/rosterEdit";
 import AddMemberDialog, { type AddPrefill } from "./AddMemberDialog";
+import AttendanceTab from "./AttendanceTab";
 import CompositionTab from "./CompositionTab";
 import HistoryTab from "./HistoryTab";
 import MemberDrawer from "./MemberDrawer";
@@ -28,10 +30,11 @@ import { useRosterAction } from "./useRosterAction";
 import "../../styles/roster-character.css";
 import "../../styles/rosters.css";
 
-type TabId = "members" | "composition" | "sync" | "history";
+type TabId = "members" | "composition" | "attendance" | "sync" | "history";
 const TABS: { id: TabId; icon: string; label: string }[] = [
     { id: "members", icon: "achievement_guildperk_everybodysfriend", label: "roster.detail.tabMembers" },
     { id: "composition", icon: "inv_misc_groupneedmore", label: "roster.detail.tabComposition" },
+    { id: "attendance", icon: "inv_misc_note_01", label: "roster.detail.tabAttendance" },
     { id: "sync", icon: "spell_nature_astralrecal", label: "roster.detail.tabSync" },
     { id: "history", icon: "inv_misc_book_09", label: "roster.detail.tabHistory" },
 ];
@@ -126,6 +129,7 @@ export default function RosterDetailPage() {
             <RosterHeadBlock data={data} tab={tab} open={sync.data ? syncOpenCount(sync.data) : null} onSettings={() => setSettings(true)} onAdd={() => setAdding({ prefill: null })} />
             {tab === "members" && <MembersTab data={data} busy={busy} onOpen={setDrawer} onGiveRole={giveRole} />}
             {tab === "composition" && <CompositionTab data={data} user={user} reloadKey={reloadKey} onOpen={setDrawer} onSettings={data.canManage ? () => setSettings(true) : undefined} />}
+            {tab === "attendance" && <AttendanceTab data={data} onOpen={setDrawer} onChanged={() => { void state.reload(); }} />}
             {tab === "sync" && (
                 sync.data
                     ? <SyncTab data={data} sync={sync.data} onChanged={reloadAll} onAdd={(prefill) => setAdding({ prefill })} onOpen={setDrawer} />

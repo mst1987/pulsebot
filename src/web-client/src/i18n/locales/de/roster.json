@@ -145,19 +145,11 @@
         },
         "noLoot": "Kein Loot",
         "ofRaids": "{attended} von {total} Raids",
-        "present": "Dabei",
         "raidCount": {
             "one": "{count} Raid",
             "other": "{count} Raids"
         },
-        "source": "{category} · aus Anmeldungen und Logs",
-        "reason": {
-            "notInLog": "Nicht im Log",
-            "noSignup": "Keine Anmeldung",
-            "absence": "Abgemeldet",
-            "tentative": "Vorläufig",
-            "bench": "Ersatzbank"
-        }
+        "source": "{category} · aus Anmeldungen und Logs"
     },
     "slot": {
         "HEAD": "Kopf",
@@ -319,6 +311,7 @@
         "noAttendance": "Kein Raid gezählt",
         "noAttendanceSub": "Ohne Kategorie oder Charakter gibt es keine Anwesenheit",
         "tabComposition": "Komposition",
+        "tabAttendance": "Anwesenheit",
         "tabSync": "Abgleich mit Discord",
         "tabHistory": "Verlauf",
         "open": {
@@ -377,7 +370,6 @@
             "other": "letzte {count} Raids"
         },
         "attended": "{attended} von {total} Raids dabei",
-        "missed": "Nicht dabei",
         "note": "Notiz der Orga",
         "noteHint": "nur für die Orga sichtbar",
         "notePlaceholder": "Zum Beispiel: kann bei Bedarf auf Heiler wechseln",
