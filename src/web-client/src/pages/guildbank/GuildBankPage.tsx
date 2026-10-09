@@ -17,10 +17,10 @@ import {
     canAccess, getGuildBank, setGuildBankItem, setGuildBankTabHidden,
     type ApiError, type GuildBankItem, type GuildBankItemPatch, type GuildBankPageData, type GuildBankStatus, type GuildBankTab,
 } from "../../api";
-import type { ShellContext } from "../../components/Shell";
+import type { ShellContext } from "../../components/shell/Shell";
 import { Badge, Button, PageHead, RaidLoader, WowIcon, buttonClass } from "../../components/ui";
-import { RowsIcon } from "../../components/icons";
-import { useToast } from "../../components/Jobs";
+import { RowsIcon } from "../../components/ui/icons";
+import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { usePersistedState } from "../../lib/persistedState";

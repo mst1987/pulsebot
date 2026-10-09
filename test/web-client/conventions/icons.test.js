@@ -1,4 +1,4 @@
-// One home for the menu's own line icons (#439): components/icons.tsx. The
+// One home for the menu's own line icons (#439): components/ui/icons.tsx. The
 // settings module and the loot filters used to carry their own copies of
 // EyeIcon, LockIcon, PlusIcon and InfoIcon; the raid plan draws with
 // lucide-react. This keeps a second definition of a shared icon from coming back.
@@ -6,12 +6,12 @@ const fs = require("fs");
 const path = require("path");
 const { CLIENT, read, sourceFiles } = require("../clientSource");
 
-const icons = read("components/icons.tsx");
+const icons = read("components/ui/icons.tsx");
 const shared = [...icons.matchAll(/^export function (\w+Icon)\(/gm)].map((m) => m[1]);
 
 const clientFiles = () => sourceFiles();
 
-describe("components/icons.tsx", () => {
+describe("components/ui/icons.tsx", () => {
     it("has the icons that used to be duplicated", () => {
         for (const name of ["EyeIcon", "LockIcon", "PlusIcon", "InfoIcon"]) expect(shared).toContain(name);
     });
@@ -19,7 +19,7 @@ describe("components/icons.tsx", () => {
     it("no other file defines an icon of the shared set again", () => {
         const dupes = [];
         for (const file of clientFiles()) {
-            if (file.endsWith(path.join("components", "icons.tsx"))) continue;
+            if (file.endsWith(path.join("components", "ui", "icons.tsx"))) continue;
             const src = fs.readFileSync(file, "utf8");
             for (const name of shared) {
                 if (new RegExp(`function ${name}\\(`).test(src)) dupes.push(`${path.relative(CLIENT, file)}: ${name}`);
@@ -29,10 +29,10 @@ describe("components/icons.tsx", () => {
     });
 
     it("the settings module and the loot filters take theirs from it", () => {
-        expect(read("pages/settings/RolePermissions.tsx")).toMatch(/import \{[^}]*\bEyeIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?)icons";/);
-        expect(read("pages/settings/BotCommandAccess.tsx")).toMatch(/import \{[^}]*\bLockIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?)icons";/);
-        expect(read("pages/settings/SettingsRoleSync.tsx")).toMatch(/import \{[^}]*\bPlusIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?)icons";/);
-        expect(read("components/loot/LootFilters.tsx")).toMatch(/import \{[^}]*\bInfoIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?)icons";/);
-        expect(read("pages/history/LootInboxTab.tsx")).toMatch(/import \{[^}]*\bInfoIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?)icons";/);
+        expect(read("pages/settings/RolePermissions.tsx")).toMatch(/import \{[^}]*\bEyeIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?(ui\/)?)icons";/);
+        expect(read("pages/settings/BotCommandAccess.tsx")).toMatch(/import \{[^}]*\bLockIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?(ui\/)?)icons";/);
+        expect(read("pages/settings/SettingsRoleSync.tsx")).toMatch(/import \{[^}]*\bPlusIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?(ui\/)?)icons";/);
+        expect(read("components/loot/LootFilters.tsx")).toMatch(/import \{[^}]*\bInfoIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?(ui\/)?)icons";/);
+        expect(read("pages/history/LootInboxTab.tsx")).toMatch(/import \{[^}]*\bInfoIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?(ui\/)?)icons";/);
     });
 });

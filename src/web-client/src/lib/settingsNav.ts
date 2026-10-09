@@ -1,8 +1,8 @@
 // The counts behind the badges of the Einstellungen sections in the page's icon
-// rail (components/SectionRail.tsx): missing connections, servers that need
+// rail (components/ui/SectionRail.tsx): missing connections, servers that need
 // attention, active raid categories. The page computes them from its draft, so
 // a badge follows an unsaved edit.
-import type { NavBadge } from "../components/SectionRail";
+import type { NavBadge } from "../components/ui/SectionRail";
 import type { SettingsData } from "../api";
 import { t } from "../i18n";
 import { missingConnections, serverIssues } from "./settingsLogic";

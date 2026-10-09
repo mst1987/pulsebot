@@ -1,11 +1,11 @@
 // Conventions of the pages with sub sections that a render cannot show: the
-// icon rail (components/SectionRail.tsx) turns into the chip row exactly where
+// icon rail (components/ui/SectionRail.tsx) turns into the chip row exactly where
 // the main menu becomes the drawer, it stands outside the page's width budget,
 // and the main menu folds nothing out any more (design "C · Schmale
 // Icon-Leiste"). On the Einstellungen page every per-category setting has one
 // home (the category matrix), and explanations sit in tooltips instead of hint
 // paragraphs. What the rail, the sections and the save bar do is tested in
-// src/web-client/src/components/SectionRail.test.tsx, components/Shell.test.tsx,
+// src/web-client/src/components/ui/SectionRail.test.tsx, components/shell/Shell.test.tsx,
 // lib/settingsSections.test.ts and pages/settings/SettingsPage.sections.test.tsx;
 // the areas of Historie & Loot in pages/history/HistoryPage.areas.test.tsx.
 const fs = require("fs");
@@ -66,7 +66,7 @@ describe("the section rail and the main menu", () => {
     });
 
     it("leaves the main menu flat: no children, no chevron, no remembered groups", () => {
-        const shellSrc = read("components/Shell.tsx");
+        const shellSrc = read("components/shell/Shell.tsx");
         for (const gone of ["nav-kid", "nav-chev", "menu-groups", "?section=", "settingsNav"]) {
             expect({ gone, found: shellSrc.includes(gone) }).toEqual({ gone, found: false });
         }
@@ -80,12 +80,12 @@ describe("the section rail and the main menu", () => {
     });
 
     it("puts the rail on the raid list and the raid plan's list pages, not on the raid detail or the plan editor", () => {
-        for (const page of ["pages/RaidsPage.tsx", "pages/RaidplanTemplatesPage.tsx", "pages/RaidplanCatalogPage.tsx"]) {
+        for (const page of ["pages/raids/RaidsPage.tsx", "pages/raidplan/RaidplanTemplatesPage.tsx", "pages/raidplan/RaidplanCatalogPage.tsx"]) {
             expect({ page, rail: read(page).includes("<MenuRailPage user={user} parent=\"raids\">") }).toEqual({ page, rail: true });
         }
-        expect(read("pages/RaidDetailPage.tsx")).not.toContain("SectionRail");
+        expect(read("pages/raid-detail/RaidDetailPage.tsx")).not.toContain("SectionRail");
         // the template editor returns before the list is wrapped
-        const tpl = read("pages/RaidplanTemplatesPage.tsx");
+        const tpl = read("pages/raidplan/RaidplanTemplatesPage.tsx");
         expect(tpl.indexOf("if (current) {")).toBeLessThan(tpl.indexOf("return inRail(\n"));
     });
 });

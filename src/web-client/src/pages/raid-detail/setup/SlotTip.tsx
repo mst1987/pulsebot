@@ -5,8 +5,8 @@ import { wowIconUrl } from "../../../lib/wowIcon";
 import { roleLabel, specLabel } from "../../../lib/wowNames";
 import { useT } from "../../../i18n";
 import WowIcon from "../../../components/ui/WowIcon";
-import { BenchIcon, CheckIcon, EditIcon, LockIcon, SignedIcon, UnlockIcon, XIcon } from "../../../components/icons";
-import { classColorProps } from "../../../components/ClassSpec";
+import { BenchIcon, CheckIcon, EditIcon, LockIcon, SignedIcon, UnlockIcon, XIcon } from "../../../components/ui/icons";
+import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 import { attendanceTone, benchText, specText, statusLabel } from "./setupText";
 

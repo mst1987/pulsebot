@@ -8,7 +8,7 @@
 //   * `sortRows()` — the comparator, so "Datum" sorts the same everywhere,
 //   * `useTableSort()` — the remembered sort state for a table that has no view
 //     state of its own,
-//   * `components/SortTh.tsx` — the header button that drives them.
+//   * `components/ui/SortTh.tsx` — the header button that drives them.
 //
 // Tables that already persist a whole view object (filters + sort in one key,
 // e.g. the Items tab) keep that and only use `sortRows()` + `SortTh` — moving

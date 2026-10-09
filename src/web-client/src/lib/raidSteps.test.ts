@@ -2,7 +2,7 @@
 // src/web-client/src/lib/raidSteps.ts wirklich ausgeführt (mit dem echten
 // `t`, Deutsch) und gegen die Server-Regel (src/web/raidDetailSteps.js)
 // gehalten. Die gezeichnete Leiste: pages/raid-detail/StepBar.test.tsx, ihre
-// Verdrahtung in der Seite: pages/RaidDetailPage.steps.test.tsx.
+// Verdrahtung in der Seite: pages/raid-detail/RaidDetailPage.steps.test.tsx.
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";

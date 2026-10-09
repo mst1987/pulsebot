@@ -1,6 +1,6 @@
 import { useApi } from "../../hooks/useApi";
 import { assignGuildBank, deleteGuildBank, getGuildBankSettings, type ApiError, type GuildBankAdminRow, type GuildBankSettings } from "../../api";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { IconButton } from "../../components/ui/Button";
 import { useConfirm } from "../../components/ui/Modal";
 import Badge from "../../components/ui/Badge";
@@ -8,7 +8,7 @@ import IconTile from "../../components/ui/IconTile";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { InfoTip } from "../../components/ui/Field";
 import { CheckMark, WarnIcon } from "../../components/settings/settingsUi";
-import { TrashIcon } from "../../components/icons";
+import { TrashIcon } from "../../components/ui/icons";
 import { formatDateTime } from "../../lib/format";
 import { tParts, useT } from "../../i18n";
 

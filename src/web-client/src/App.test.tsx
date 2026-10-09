@@ -1,4 +1,4 @@
-// The menu is always there (App.tsx + components/Shell.tsx; #435: formerly
+// The menu is always there (App.tsx + components/shell/Shell.tsx; #435: formerly
 // source scans in test/web-client/menuAccess.test.js):
 //   * only a visitor who is not logged in gets no shell,
 //   * a logged-in account with nothing granted still gets the sidebar with its

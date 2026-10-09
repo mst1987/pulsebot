@@ -7,7 +7,7 @@ import { useState } from "react";
 import { createKader, deleteKader, updateKader, type KaderChange, type KaderView } from "../../api";
 import { Button, Field, FieldLabel, IconButton, Modal } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
-import { PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/icons";
+import { PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 import { nameOf, togglePick } from "../../lib/kader/model";
 import { changedSince } from "../../lib/kader/live";

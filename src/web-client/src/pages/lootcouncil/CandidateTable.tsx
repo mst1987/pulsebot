@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { CouncilCandidate, SimResult } from "../../api";
 import { Badge, Bar, Expand, IconButton } from "../../components/ui";
-import { RefreshIcon } from "../../components/icons";
-import { SortTh } from "../../components/SortTh";
+import { RefreshIcon } from "../../components/ui/icons";
+import { SortTh } from "../../components/ui/SortTh";
 import { useT } from "../../i18n";
 import type { TableSort } from "../../lib/tableSort";
 import { deltaFor, gainFor, raiderHref, simErrorFor, waitedTip, type CandidateSortKey } from "./council";

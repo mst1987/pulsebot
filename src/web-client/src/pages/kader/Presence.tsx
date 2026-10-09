@@ -9,7 +9,7 @@
 import type { CSSProperties } from "react";
 import type { KaderPresence, KaderPresenceWhat } from "../../api";
 import { Button } from "../../components/ui";
-import { AlertIcon, EyeIcon, RefreshIcon, SaveIcon } from "../../components/icons";
+import { AlertIcon, EyeIcon, RefreshIcon, SaveIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 import { leadHue } from "../../lib/kader/leads";
 import { personName, presenceOn, presenceText, presenceTip } from "../../lib/kader/live";

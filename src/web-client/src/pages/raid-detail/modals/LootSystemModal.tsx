@@ -7,8 +7,8 @@ import { setRaidLootSystem, type ApiError, type LootSystemKey } from "../../../a
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import Segment from "../../../components/ui/Segment";
-import { SwitchRow } from "../../../components/RaidPlanFields";
-import { useToast } from "../../../components/Jobs";
+import { SwitchRow } from "../../../components/raid/RaidFields";
+import { useToast } from "../../../components/shell/Jobs";
 import { useT, type TFunction } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 

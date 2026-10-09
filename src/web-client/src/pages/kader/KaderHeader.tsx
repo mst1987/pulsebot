@@ -7,7 +7,7 @@
 import { Fragment, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { KaderState } from "../../api";
-import { ChevronDownIcon, ChevronRightIcon, ClockIcon, PlusIcon, SettingsIcon } from "../../components/icons";
+import { ChevronDownIcon, ChevronRightIcon, ClockIcon, PlusIcon, SettingsIcon } from "../../components/ui/icons";
 import { IconButton, IconTile, buttonClass } from "../../components/ui";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";

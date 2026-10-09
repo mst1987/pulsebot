@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { AbsenceIdentity } from "../../api";
-import { classColorProps } from "../../components/ClassSpec";
+import { classColorProps } from "../../components/character/ClassSpec";
 import { wowIconUrl } from "../../lib/wowIcon";
 import { displayName } from "../../lib/absences";
 

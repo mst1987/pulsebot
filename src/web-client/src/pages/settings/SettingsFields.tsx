@@ -2,7 +2,7 @@ import { useState } from "react";
 import { searchSettingsItems, type TopItem, type TextChannel } from "../../api";
 import ItemSearchPicker from "../../components/loot/ItemSearchPicker";
 import { itemQualityProps } from "../../lib/itemQuality";
-import { XIcon } from "../../components/icons";
+import { XIcon } from "../../components/ui/icons";
 import { ChannelPicker } from "../../components/settings/settingsUi";
 import { FieldLabel } from "../../components/ui/Field";
 import Chip from "../../components/ui/Chip";

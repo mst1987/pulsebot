@@ -13,7 +13,7 @@ import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import Segment from "../../../components/ui/Segment";
 import WowIcon from "../../../components/ui/WowIcon";
-import { useToast } from "../../../components/Jobs";
+import { useToast } from "../../../components/shell/Jobs";
 import { SIGNUP_STATUS, statusBadgeLabel } from "../../../lib/signups";
 import { filterRaiders, orgaStatuses, raiderInputOk, specsOfClass } from "../../../lib/eventManage";
 import { classLabel, specLabel } from "../../../lib/wowNames";

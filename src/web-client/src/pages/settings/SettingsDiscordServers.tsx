@@ -5,8 +5,8 @@ import {
     type EventGuildEntry, type TalkOverviewStatus, type TextChannel,
 } from "../../api";
 import { discordServersPatch, overlapBadge, serverCardState, type ServerFields } from "../../lib/settingsLogic";
-import { useToast } from "../../components/Jobs";
-import { PlusIcon, TrashIcon } from "../../components/icons";
+import { useToast } from "../../components/shell/Jobs";
+import { PlusIcon, TrashIcon } from "../../components/ui/icons";
 import RoleSyncPart from "./SettingsRoleSync";
 import RemindersPart from "./SettingsReminders";
 import TalkOverviewRow from "./SettingsTalkOverview";

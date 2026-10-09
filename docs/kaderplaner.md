@@ -323,10 +323,10 @@ start page shows the flow and "Ersten Kader anlegen".
 - **Status icons** (`pages/kader/parts.tsx`): interview open = empty circle, running = a ring filled to x/n, held =
   check (also beside the name); answered question = check, required and open = "!"; state icons Pool = people,
   Vorauswahl = checklist, Vorläufig = hourglass, Roster = shield, Bench, Tentative = question mark; votes dafür =
-  check, unsicher = question mark, dagegen = x. Line icons come from `components/icons.tsx`, always with text or a
+  check, unsicher = question mark, dagegen = x. Line icons come from `components/ui/icons.tsx`, always with text or a
   label. Empty lists show a quiet icon above their text.
 - **Every table sorts** (Pool, Übersicht, the import's member list): each column head is the shared `SortLabel`
-  (`components/SortTh.tsx`) inside a `SortHead` (`pages/kader/parts.tsx`) — a button, so the keyboard sorts too,
+  (`components/ui/SortTh.tsx`) inside a `SortHead` (`pages/kader/parts.tsx`) — a button, so the keyboard sorts too,
   `aria-sort` on the `role="columnheader"`, the chevron on the active column, a long label cut with "…" and the
   rule in the tooltip. `useTableSort` remembers the column per table (`kader-pool-sort`, `kader-overview-sort`,
   `kader-import-sort`); `lib/kader/sort.ts` turns a column into parts compared one after the other — numbers as

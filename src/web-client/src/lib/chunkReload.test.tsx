@@ -8,7 +8,7 @@ import {
     RELOAD_MARKER, RELOAD_WINDOW_MS, claimReload, installPreloadErrorReload, isChunkLoadError, lazyWithReload,
     reloadForNewVersion, resetReloadState,
 } from "./chunkReload";
-import ChunkErrorBoundary from "../components/ChunkErrorBoundary";
+import ChunkErrorBoundary from "../components/shell/ChunkErrorBoundary";
 
 /** A sessionStorage stand-in. */
 function memoryStorage(initial: Record<string, string> = {}) {

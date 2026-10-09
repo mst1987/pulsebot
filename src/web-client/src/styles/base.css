@@ -103,7 +103,7 @@ select:focus { background-image: var(--ctl-arrow-hi); }
    palette: .btn = the one primary action of a form/section, .btn-ghost = every
    secondary action next to it, .btn-run = "start this analysis" (CLA/RPB — an
    action that then takes a while and reports back through a job toast),
-   .btn-danger = destructive. Icons come from components/icons.tsx and are sized
+   .btn-danger = destructive. Icons come from components/ui/icons.tsx and are sized
    here, so a button never has to hard-code one (and never carries an emoji). */
 .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 7px;

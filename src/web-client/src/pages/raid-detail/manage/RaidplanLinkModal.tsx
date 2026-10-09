@@ -6,7 +6,7 @@ import { getRaidplanLink, setRaidplanLink, type ApiError } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
-import { useToast } from "../../../components/Jobs";
+import { useToast } from "../../../components/shell/Jobs";
 import { linkSizes, linkStart } from "../../../lib/eventManage";
 import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";

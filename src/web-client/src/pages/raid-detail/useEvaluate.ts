@@ -3,7 +3,7 @@ import type { LogSection, RaidLogRow } from "../../api";
 import { evalLog } from "../../api";
 import { withIncompleteConfirm } from "../../lib/confirmIncomplete";
 import { useConfirm } from "../../components/ui/Modal";
-import { useJobs } from "../../components/Jobs";
+import { useJobs } from "../../components/shell/Jobs";
 import { t } from "../../i18n";
 import { EVAL_SECONDS } from "./meta";
 

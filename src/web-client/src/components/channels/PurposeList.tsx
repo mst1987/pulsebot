@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import type { ChannelPurpose, ChannelsData } from "../../api";
 import { Badge, IconButton, IconTile, Modal } from "../ui";
-import { CheckIcon } from "../icons";
+import { CheckIcon } from "../ui/icons";
 import { ChannelChip, PencilIcon, StatusBadge } from "./channelBits";
 import { purposeHint, purposeLabel } from "../../lib/channels";
 import { tParts, useT } from "../../i18n";

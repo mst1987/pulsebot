@@ -10,7 +10,7 @@ const COMPASS_NAMES = JSON.parse(read("lib/raidplan/facing.ts").match(/^export c
 
 describe("facing and board labels", () => {
     it("has the facing UI and its texts", () => {
-        const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
+        const insp = read("components/raidplan/editor/Inspector.tsx");
         expect(insp).toContain("rp-compass");
         const ws = readWorkspace();
         expect(ws).toContain("angleTo(");

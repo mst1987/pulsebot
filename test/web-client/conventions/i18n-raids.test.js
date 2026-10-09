@@ -7,11 +7,11 @@
 const { read } = require("../clientSource");
 
 const FILES = [
-    "pages/RaidsPage.tsx",
+    "pages/raids/RaidsPage.tsx",
     "pages/RaidCreatePage.tsx",
-    "components/RaidList.tsx",
+    "pages/raids/RaidList.tsx",
     "pages/history/RaidTable.tsx",
-    "components/RaidIcon.tsx",
+    "components/raid/RaidIcon.tsx",
     "lib/raidTime.ts",
 ];
 
@@ -35,7 +35,7 @@ describe("raids namespace", () => {
     });
 
     it("imports the translation helpers", () => {
-        for (const f of ["pages/RaidsPage.tsx", "components/RaidList.tsx", "pages/history/RaidTable.tsx", "components/RaidIcon.tsx"]) {
+        for (const f of ["pages/raids/RaidsPage.tsx", "pages/raids/RaidList.tsx", "pages/history/RaidTable.tsx", "components/raid/RaidIcon.tsx"]) {
             expect({ f, useT: /import \{ useT \} from "(\.\.\/)+i18n";/.test(read(f)) }).toEqual({ f, useT: true });
         }
         expect(read("lib/raidTime.ts")).toContain("import { locale, t } from \"../i18n\";");

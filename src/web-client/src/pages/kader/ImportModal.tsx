@@ -6,8 +6,8 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { addKaderPlayers, type KaderMember } from "../../api";
 import { Button, Modal, Segment } from "../../components/ui";
-import { useToast } from "../../components/Jobs";
-import { AlertIcon, CheckIcon, PlusIcon, RecruitmentIcon, SearchIcon } from "../../components/icons";
+import { useToast } from "../../components/shell/Jobs";
+import { AlertIcon, CheckIcon, PlusIcon, RecruitmentIcon, SearchIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { useTableSort } from "../../lib/tableSort";

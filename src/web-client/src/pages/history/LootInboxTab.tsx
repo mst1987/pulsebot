@@ -20,14 +20,14 @@ import {
 } from "../../api";
 import { formatEventTime, formatTime as hhmm } from "../../lib/format";
 import { LootTable } from "../../components/loot/LootTable";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { Modal, useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Expand from "../../components/ui/Expand";
 import IconTile from "../../components/ui/IconTile";
 import WowIcon from "../../components/ui/WowIcon";
-import { InfoIcon, TrashIcon } from "../../components/icons";
+import { InfoIcon, TrashIcon } from "../../components/ui/icons";
 import { ItemIcon, contentIcon } from "../../components/loot/LootBadges";
 import { shortDay } from "./ItemAwardsDialog";
 import { tParts, useT } from "../../i18n";

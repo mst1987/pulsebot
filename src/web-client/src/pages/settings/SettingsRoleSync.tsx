@@ -5,8 +5,8 @@ import {
 } from "../../api";
 import { DIRECTION_LABEL, directionText, driftBadge, roleSyncPatch, withRoleRule, type RoleSyncDirection } from "../../lib/settingsLogic";
 import { tParts, t as translate, useT } from "../../i18n";
-import { useToast } from "../../components/Jobs";
-import { PlusIcon, TrashIcon } from "../../components/icons";
+import { useToast } from "../../components/shell/Jobs";
+import { PlusIcon, TrashIcon } from "../../components/ui/icons";
 import { Modal, useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

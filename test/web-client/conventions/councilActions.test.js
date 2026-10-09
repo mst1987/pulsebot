@@ -89,7 +89,7 @@ describe("loot council — no estimates", () => {
 
 describe("loot council — waits are toasts", () => {
     it("reports through the shared job channel", () => {
-        expect(page).toMatch(/import \{ useJobs, useToast \} from "\.\.\/\.\.\/components\/Jobs";/);
+        expect(page).toMatch(/import \{ useJobs, useToast \} from "\.\.\/\.\.\/components\/shell\/Jobs";/);
         const labels = { loading: "Loot-Council wird geladen", armoryLoading: "Armory wird geladen", logLoading: "Log wird geladen" };
         for (const [key, label] of Object.entries(labels)) {
             expect(page).toContain(`label: t("lootcouncil.page.${key}")`);

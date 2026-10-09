@@ -5,7 +5,7 @@ import {
 } from "../../lib/recruitmentSpecs";
 import { Button } from "../../components/ui/Button";
 import WowIcon from "../../components/ui/WowIcon";
-import { XIcon } from "../../components/icons";
+import { XIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 import { useDismiss } from "../../hooks/useDismiss";
 

@@ -16,9 +16,9 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
 | Room-map delivery | `/rp-map/<instance>[/<boss>]` in `server.js` |
 | Editor (tab of the raid detail) | `src/web-client/src/pages/raid-detail/RaidplanTab.tsx` and `raidplan/` |
 | The working area of a boss, shared by the event editor and the template editor | `raidplan/BoardWorkspace.tsx` (+ `Palette.tsx`, `Inspector.tsx`, `LayerList.tsx`, `MapPanel.tsx`, `ContextMenu.tsx`, `useDraftHistory.ts`) |
-| Template admin page (`/raids/plan-templates`) | `src/web-client/src/pages/RaidplanTemplatesPage.tsx` |
+| Template admin page (`/raids/plan-templates`) | `src/web-client/src/pages/raidplan/RaidplanTemplatesPage.tsx` |
 | Board, token, slot, zone, player icon (both editors and the read view) | `src/web-client/src/components/raidplan/PlanBoard.tsx`, `MarkIcon.tsx` |
-| Read view | `src/web-client/src/pages/PlanPublicPage.tsx`, route `/p/<token>` |
+| Read view | `src/web-client/src/pages/raidplan/PlanPublicPage.tsx`, route `/p/<token>` |
 | Pure board logic | `src/web-client/src/lib/raidplan/` (one import, `index.ts`, over the topic files `model`, `players`, `objects`, `geometry`, `labels`, `besetzung` …; the other raid plan libs such as `assign.ts`, `autoPlace.ts`, `steps.ts` sit beside them) |
 | Styles (prefix `rp-`) / texts | `styles/raidplan/` (`index.css` imports the parts: `frame`, `editor`, `assign`, `layout`, `canvas`, `tactic`, `objects`) / `i18n/locales/{de,en}/raidBoard.json` |
 
@@ -267,7 +267,7 @@ copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches
   `slots`, filled in setup order the first time it is opened, so a Standard row "Tank 1 -> Boss" means each section's own
   Tank 1. When the Standard's tank order was changed, the editor asks on leaving the Standard (or on saving while in it)
   "Tank-Reihenfolge auch für die anderen Bosse?" - only once per change and only when some boss / trash differs
-  (`pages/raid-detail/raidplan/useTankOrderFollow.ts`). Not on every click: a swap through the Besetzung's chips takes
+  (`components/raidplan/editor/useTankOrderFollow.ts`). Not on every click: a swap through the Besetzung's chips takes
   two steps. "Für alle übernehmen" reorders, in one undo step, only the players already standing in each section's tank
   slots (`lib/raidplan/tankOrder.ts applyRoleOrder`: nobody added or removed, a flex role of that boss stays, places on
   the map stay); "Nur im Standard" changes nothing else.
@@ -297,7 +297,7 @@ copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches
   rows of every section identical before / after; idempotent; backup), `raidplanInherit.test.js` (apply, merge,
   twins), `test/stores/settingsMigration.test.js` (log line), `test/web/apiRoutes/raidplan.test.js` (save, read
   view), `src/web-client/src/lib/raidplan/inherit.test.ts` (client twin against the server) and
-  `pages/raid-detail/raidplan/EventStandard.test.tsx` (the Standard tab, inherited rows in a boss, swap, deviate,
+  `components/raidplan/editor/EventStandard.test.tsx` (the Standard tab, inherited rows in a boss, swap, deviate,
   hide / restore, auto tokens and lines of inherited rows).
 
 ## Permissions

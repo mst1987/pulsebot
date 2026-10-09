@@ -44,10 +44,10 @@ function readFile(full) {
 
 /**
  * The raid plan's working area as one source: BoardWorkspace.tsx and the hooks
- * and parts it was split into (pages/raid-detail/raidplan/workspace/, #438).
+ * and parts it was split into (components/raidplan/editor/workspace/, #438).
  */
 function readWorkspace() {
-    return [read("pages/raid-detail/raidplan/BoardWorkspace.tsx"), read("pages/raid-detail/raidplan/workspace")].join("\n");
+    return [read("components/raidplan/editor/BoardWorkspace.tsx"), read("components/raidplan/editor/workspace")].join("\n");
 }
 
 /** Whether a path belongs to the tests rather than the app. */
@@ -85,9 +85,18 @@ function clientSources(dir = "", ext = /\.tsx?$/, options = {}) {
 // components/: a scan over "every page and component" reads them too. The loot
 // council's folder is older than that and only its former LootCouncilPage.tsx
 // counts (the drop check and the dialog were never part of these scans).
+// Since the components/ cleanup no file lies flat in components/ any more: the
+// shell, the raid and the character pieces are folders of their own, the former
+// flat building blocks joined ui/ (only they count here, the kit has scans of
+// its own), and a page that got its folder counts with just its former files.
 const SPLIT_FOLDERS = [
     "pages/recruitment", "pages/cla", "pages/history", "pages/profile", "pages/settings", "pages/roster", "pages/kader", "pages/guildbank", "pages/absences",
+    "pages/raids", "pages/dashboard",
     "components/loot", "components/settings", "components/signup", "components/roster", "components/raid-create",
+    "components/shell", "components/raid", "components/character",
+    ["components/ui", ["SortTh.tsx", "Pager.tsx", "HoverPanel.tsx", "PageLoader.tsx", "SectionRail.tsx", "ListSection.tsx", "icons.tsx"]],
+    ["pages/raid-detail", ["RaidDetailPage.tsx"]],
+    ["pages/raidplan", ["PlanPublicPage.tsx", "RaidplanTemplatesPage.tsx", "RaidplanCatalogPage.tsx"]],
     ["pages/lootcouncil", ["LootCouncilPage.tsx", "CouncilTabs.tsx", "RosterTab.tsx", "GapsTab.tsx", "GapCard.tsx", "Part.tsx", "BisListsTab.tsx", "CompareTab.tsx"]],
 ];
 

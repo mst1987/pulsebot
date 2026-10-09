@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getRaidhelperSync, refreshRaidhelperSync, type ApiError, type RaidhelperSync } from "../../api";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";

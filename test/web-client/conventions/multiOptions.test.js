@@ -11,7 +11,7 @@ const read = (f) => fs.readFileSync(path.join(dir, f), "utf8").replace(/\r\n/g, 
 
 describe("the options a multi-selection shares", () => {
     it("the inspector shows them, one mark per option ('gemischt' in the label), no native select", () => {
-        const src = read("pages/raid-detail/raidplan/MultiInspector.tsx");
+        const src = read("components/raidplan/editor/MultiInspector.tsx");
         expect(src).toContain("{has.facing && (");
         expect(src).toContain("setFacingSelection(b, sel, { rotation: a })");
         expect(src).toContain("patchArrowSelection(b, sel, { color: e.target.value })");
@@ -25,7 +25,7 @@ describe("the editor opens a board as the sheet does", () => {
         expect(ws).toContain("useEffect(() => { bv.set(viewFromSaved(board.view)); }, [boss.key, savedKey]);");
         expect(ws).toContain("sheetView={viewFromSaved(board.view)} onSheetView={() => bv.set(viewFromSaved(board.view))}");
         // the sheet: on open and when the saved view changes - not on every live update (#555)
-        expect(read("pages/PlanPublicPage.tsx")).toContain("useEffect(() => { bv.set(viewFromSaved(savedView)); }, [selected, savedViewKey]);");
-        expect(read("pages/raid-detail/raidplan/ViewControls.tsx")).toContain("{offSheet && <button");
+        expect(read("pages/raidplan/PlanPublicPage.tsx")).toContain("useEffect(() => { bv.set(viewFromSaved(savedView)); }, [selected, savedViewKey]);");
+        expect(read("components/raidplan/editor/ViewControls.tsx")).toContain("{offSheet && <button");
     });
 });

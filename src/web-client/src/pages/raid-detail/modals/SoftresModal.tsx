@@ -15,8 +15,8 @@ import Badge from "../../../components/ui/Badge";
 import Segment from "../../../components/ui/Segment";
 import WowIcon from "../../../components/ui/WowIcon";
 import ItemSearchPicker from "../../../components/loot/ItemSearchPicker";
-import { ExternalIcon, XIcon } from "../../../components/icons";
-import { useToast } from "../../../components/Jobs";
+import { ExternalIcon, XIcon } from "../../../components/ui/icons";
+import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import { INSTANCE_ICONS, type RaidCtx } from "../meta";
 

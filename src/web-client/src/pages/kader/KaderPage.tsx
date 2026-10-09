@@ -24,9 +24,9 @@ import { useApi } from "../../hooks/useApi";
 import { usePersistedState } from "../../lib/persistedState";
 import { byId } from "../../lib/kader/model";
 import { liveToast } from "../../lib/kader/live";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import RaidLoader from "../../components/ui/RaidLoader";
-import type { ShellContext } from "../../components/Shell";
+import type { ShellContext } from "../../components/shell/Shell";
 import { useT } from "../../i18n";
 import {
     KaderContext, SUBS, type KaderCtx, type KaderFocus, type KaderFocusSource, type KaderModal, type KaderRunOptions, type KaderSub,

@@ -1,6 +1,6 @@
 import type { ChannelPurpose, PurposeStatus } from "../../api";
 import { Badge, WowIcon } from "../ui";
-import { ChannelsIcon } from "../icons";
+import { ChannelsIcon } from "../ui/icons";
 import {
     purposeHint, purposeLabel,
     TYPE_ANNOUNCEMENT, TYPE_ANNOUNCEMENT_THREAD, TYPE_FORUM, TYPE_PRIVATE_THREAD, TYPE_PUBLIC_THREAD, TYPE_STAGE, TYPE_VOICE,

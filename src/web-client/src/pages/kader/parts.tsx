@@ -12,12 +12,12 @@
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { KaderEntry, KaderPrefill, KaderQuestion, KaderAnswer, KaderRole, KaderState, KaderVote, KaderWish } from "../../api";
-import { classColorProps } from "../../components/ClassSpec";
-import { SortLabel, ariaSort } from "../../components/SortTh";
+import { classColorProps } from "../../components/character/ClassSpec";
+import { SortLabel, ariaSort } from "../../components/ui/SortTh";
 import type { TableSort } from "../../lib/tableSort";
 import {
     BenchIcon, CheckIcon, CircleIcon, CrestIcon, HourglassIcon, ListChecksIcon, RosterIcon, TentativeIcon, XIcon,
-} from "../../components/icons";
+} from "../../components/ui/icons";
 import { BackButton as SharedBackButton, WowIcon } from "../../components/ui";
 import { useT } from "../../i18n";
 import { ROLE_ICON } from "../../lib/raidplan/assign";

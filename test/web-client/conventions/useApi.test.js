@@ -69,7 +69,7 @@ describe("the pages load through useApi", () => {
     });
 
     it("uses useApi on the pages the issue named", () => {
-        for (const rel of ["pages/roster/RosterPage.tsx", "pages/history/HistoryPage.tsx", "pages/RaidsPage.tsx", "pages/settings/SettingsPage.tsx", "pages/RaidDetailPage.tsx", "pages/DashboardPage.tsx"]) {
+        for (const rel of ["pages/roster/RosterPage.tsx", "pages/history/HistoryPage.tsx", "pages/raids/RaidsPage.tsx", "pages/settings/SettingsPage.tsx", "pages/raid-detail/RaidDetailPage.tsx", "pages/dashboard/DashboardPage.tsx"]) {
             const src = files.find((f) => f.rel === rel).src;
             expect({ rel, uses: /useApi\(/.test(src) }).toEqual({ rel, uses: true });
         }

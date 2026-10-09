@@ -7,11 +7,11 @@ import { Link, useNavigate } from "react-router-dom";
 import {
     getHistoryData, getLootInbox } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";
-import { ChevronLeftIcon } from "../../components/icons";
+import { ChevronLeftIcon } from "../../components/ui/icons";
 import { InboxSessionCard, LinkedSessions } from "./LootInboxTab";
 import { InfoTip } from "../../components/loot/LootFilters";
 import "../../styles/historie-loot.css";

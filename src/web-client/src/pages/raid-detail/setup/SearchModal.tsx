@@ -6,8 +6,8 @@ import { useT } from "../../../i18n";
 import { Button, IconButton } from "../../../components/ui/Button";
 import { Modal } from "../../../components/ui/Modal";
 import WowIcon from "../../../components/ui/WowIcon";
-import { useJobs } from "../../../components/Jobs";
-import { XIcon } from "../../../components/icons";
+import { useJobs } from "../../../components/shell/Jobs";
+import { XIcon } from "../../../components/ui/icons";
 import type { RaidCtx } from "../meta";
 
 /**

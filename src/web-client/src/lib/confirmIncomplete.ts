@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { RAID_INCOMPLETE, type IncompleteRaidError } from "../api";
 import type { ConfirmFn } from "../components/ui/Modal";
-import IncompleteRaid from "../components/IncompleteRaid";
+import IncompleteRaid from "../components/raid/IncompleteRaid";
 import { raidIcon } from "./logRaids";
 import { t } from "../i18n";
 

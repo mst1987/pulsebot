@@ -71,7 +71,7 @@ export function TipLayer() {
 
         // The same placement as every other tooltip (lib/popoverPosition.ts, ui/Popover): the one box is
         // driven by the DOM here rather than rendered per anchor, so it only borrows the placement.
-        // `data-tip-side="right"` (the icon rail, components/SectionRail.tsx) puts it beside the anchor.
+        // `data-tip-side="right"` (the icon rail, components/ui/SectionRail.tsx) puts it beside the anchor.
         const place = (t: Element) => {
             const b = box.getBoundingClientRect();
             const view = { width: window.innerWidth, height: window.innerHeight };

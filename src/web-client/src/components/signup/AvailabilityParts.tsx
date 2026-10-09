@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { searchRaiders, type AvailabilityKind, type AvailabilityRaid, type AvailabilityResult, type RaiderRef } from "../../api";
 import { Badge, Button, IconButton } from "../ui";
-import { RosterIcon, SearchIcon, XIcon } from "../icons";
+import { RosterIcon, SearchIcon, XIcon } from "../ui/icons";
 import { formatDayDate, formatTime } from "../../lib/format";
 import { SIGNUP_STATUS, statusBadgeLabel } from "../../lib/signups";
 import { skipReason, staysAsIs } from "../../lib/availability";

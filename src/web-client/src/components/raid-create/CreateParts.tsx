@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { useT } from "../../i18n";
 import { stepLabel, type StepKey } from "../../lib/eventPlan";
 import WowIcon from "../ui/WowIcon";
-import { CheckIcon } from "../icons";
+import { CheckIcon } from "../ui/icons";
 import { EMPTY_ICON } from "./createHelpers";
 
 /** A label with its explanation in the tooltip instead of a hint paragraph under the field. */

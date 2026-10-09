@@ -1,8 +1,8 @@
 // Guards for the admin client's table sorting across every table
-// (src/web-client/src/lib/tableSort.ts, components/SortTh.tsx and their users;
+// (src/web-client/src/lib/tableSort.ts, components/ui/SortTh.tsx and their users;
 // #435: the structural half of the former test/web-client/tableSort.test.js —
 // the comparator and the remembered sort are tested in lib/tableSort.test.ts,
-// the header in components/SortTh.test.tsx):
+// the header in components/ui/SortTh.test.tsx):
 //   * every column header is sortable — a plain <th> is only allowed for the
 //     documented exceptions (button/link columns and the permission matrix),
 //   * nobody re-implements the sort header or the comparator locally again
@@ -71,7 +71,7 @@ describe("table sorting", () => {
         // The button carries the .sort-link class; finding it anywhere but in
         // SortTh.tsx means a table grew its own header again.
         const offenders = clientSources()
-            .filter(([name, src]) => name !== "components/SortTh.tsx" && src.includes("sort-link"))
+            .filter(([name, src]) => name !== "components/ui/SortTh.tsx" && src.includes("sort-link"))
             .map(([name]) => name);
         expect(offenders).toEqual([]);
     });

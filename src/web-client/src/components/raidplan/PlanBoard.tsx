@@ -7,7 +7,7 @@ import { groupScales, rhNote } from "../../lib/raidplan";
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
 import { AlertTriangle, Crosshair, Swords, Users } from "lucide-react";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
-import { classColorProps } from "../ClassSpec";
+import { classColorProps } from "../character/ClassSpec";
 import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
 import RoleGlyph from "./RoleGlyph";

@@ -19,7 +19,7 @@ import { Modal } from "../../../components/ui/Modal";
 import Segment from "../../../components/ui/Segment";
 import WowIcon from "../../../components/ui/WowIcon";
 import RaidLoader from "../../../components/ui/RaidLoader";
-import { classColorProps } from "../../../components/ClassSpec";
+import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 
 function CharacterChips({ data, pick, onPick }: { data: SetupSignupEdit; pick: SignupEditPick; onPick: (key: string) => void }) {

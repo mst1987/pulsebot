@@ -5,7 +5,7 @@
 // filter of the Gespräche list. The colour never stands alone: initial and name
 // are always there.
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { CheckIcon, ChevronDownIcon, UserQuestionIcon } from "../../components/icons";
+import { CheckIcon, ChevronDownIcon, UserQuestionIcon } from "../../components/ui/icons";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 import { nameOf } from "../../lib/kader/model";

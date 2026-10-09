@@ -1,4 +1,4 @@
-import RaidsPage from "./RaidsPage";
+import RaidsPage from "./raids/RaidsPage";
 
 // /raids/new is no page of its own any more: it is the raid list with the
 // guided "Neues Raid-Event" dialog open over it (components/raid-create/RaidCreateDialog.tsx).

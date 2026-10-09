@@ -5,8 +5,8 @@ import {
     type ApiError, type Channel, type ChannelPurpose, type ChannelsData,
 } from "../../api";
 import { Badge, Button, Modal } from "../ui";
-import { CopyIcon, SearchIcon } from "../icons";
-import { useToast } from "../Jobs";
+import { CopyIcon, SearchIcon } from "../ui/icons";
+import { useToast } from "../shell/Jobs";
 import { ChannelTypeIcon, PurposeBadge, PurposeChip, StatusBadge } from "./channelBits";
 import {
     groupByCategory, groupName, isTextLike, purposeHint, purposeLabel, rightsStatus,

@@ -8,7 +8,7 @@ import TargetField from "./TargetField";
 import { targetHint } from "../../../lib/settingsLogic";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
-import { useToast } from "../../../components/Jobs";
+import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 

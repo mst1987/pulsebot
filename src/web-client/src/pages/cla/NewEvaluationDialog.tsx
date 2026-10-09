@@ -1,7 +1,7 @@
 import { createReport } from "../../api";
 import { withIncompleteConfirm } from "../../lib/confirmIncomplete";
 import { useDraftState } from "../../lib/persistedState";
-import { useJobs } from "../../components/Jobs";
+import { useJobs } from "../../components/shell/Jobs";
 import { useConfirm, Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

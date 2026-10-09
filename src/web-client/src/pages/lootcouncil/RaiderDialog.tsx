@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { CouncilExport, CouncilLog, CouncilRaider, SimResult, WornItem } from "../../api";
 import { Badge, Button, IconButton, Modal, PartHead, Segment, WowIcon, buttonClass } from "../../components/ui";
-import { AbsenceIcon, CopyIcon, ExternalIcon, XIcon } from "../../components/icons";
+import { AbsenceIcon, CopyIcon, ExternalIcon, XIcon } from "../../components/ui/icons";
 import { ReasonBadge } from "../../components/loot/LootBadges";
 import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";

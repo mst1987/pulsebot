@@ -2,14 +2,14 @@
 // menu entry, the shared page head and its own stylesheet, and the CSS rules
 // (icon sizes, weekday colours in light and dark, the locked switch). What the
 // page does is rendered in src/web-client/src/pages/profile/ProfilePage.test.tsx,
-// components/profile/AddCharacterDialog.test.tsx, api/profile.test.ts and
+// components/character/AddCharacterDialog.test.tsx, api/profile.test.ts and
 // pages/roster/RosterPage.claims.test.tsx.
 
 const { read } = require("../clientSource");
 
 // the page and its parts (pages/profile/, #438)
 const page = read("pages", "profile");
-const dialog = read("components", "profile", "AddCharacterDialog.tsx");
+const dialog = read("components", "character", "AddCharacterDialog.tsx");
 const app = read("App.tsx");
 const css = read("styles", "profil.css");
 

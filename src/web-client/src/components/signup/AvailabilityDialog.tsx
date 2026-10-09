@@ -6,8 +6,8 @@ import {
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { Button, Modal, Segment, WowIcon } from "../ui";
-import { AbsenceIcon, CheckIcon, SignedIcon } from "../icons";
-import { useToast } from "../Jobs";
+import { AbsenceIcon, CheckIcon, SignedIcon } from "../ui/icons";
+import { useToast } from "../shell/Jobs";
 import { RaidChecklist, RaiderPick, ResultList } from "./AvailabilityParts";
 import { countResults, firstSpec, nextTo, resultSummary, staysAsIs } from "../../lib/availability";
 import { classIconName } from "../../lib/rosterView";

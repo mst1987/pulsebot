@@ -48,21 +48,21 @@ describe("the routes are loaded lazily", () => {
 
     it("imports no page and not the shell statically", () => {
         expect(app).not.toMatch(/^import [^;]*from "\.\/pages\//m);
-        expect(app).not.toMatch(/^import (?!type\s)[^;]*from "\.\/components\/Shell";/m);
-        expect(app).toContain("const Shell = lazyWithReload(() => import(\"./components/Shell\"));");
-        expect(app).toContain("const PlanPublicPage = lazyWithReload(() => import(\"./pages/PlanPublicPage\"));");
+        expect(app).not.toMatch(/^import (?!type\s)[^;]*from "\.\/components\/shell\/Shell";/m);
+        expect(app).toContain("const Shell = lazyWithReload(() => import(\"./components/shell/Shell\"));");
+        expect(app).toContain("const PlanPublicPage = lazyWithReload(() => import(\"./pages/raidplan/PlanPublicPage\"));");
     });
 
     it("has a lazy component for every page a route renders", () => {
         const rendered = new Set([...app.matchAll(/<(\w+Page) \/>/g)].map((m) => m[1]));
         expect(rendered.size).toBeGreaterThan(20);
         for (const page of rendered) {
-            expect(app).toMatch(new RegExp(`const ${page} = lazyWithReload\\(\\(\\) => import\\("\\./pages/[\\w/]+"\\)\\);`));
+            expect(app).toMatch(new RegExp(`const ${page} = lazyWithReload\\(\\(\\) => import\\("\\./pages/[\\w/-]+"\\)\\);`));
         }
     });
 
     it("keeps the menu standing while a page chunk loads", () => {
-        const shell = read("components/Shell.tsx");
+        const shell = read("components/shell/Shell.tsx");
         expect(shell).toMatch(/<Suspense fallback=\{<RaidLoader \/>\}>\s*<Outlet /);
         expect(app).toMatch(/<Suspense fallback=\{<RaidLoader text=\{t\("shell\.app\.loadingMenu"\)\} \/>\}>\s*<JobsProvider>/);
     });
@@ -71,33 +71,33 @@ describe("the routes are loaded lazily", () => {
         const entry = staticGraph("main.tsx");
         expect(entry).toContain("App.tsx");
         expect(entry.filter((f) => f.startsWith("pages/"))).toEqual([]);
-        expect(entry).not.toContain("components/Shell.tsx");
+        expect(entry).not.toContain("components/shell/Shell.tsx");
     });
 
     it("never pulls the admin menu into the public plan page", () => {
-        const pub = staticGraph("pages/PlanPublicPage.tsx");
-        for (const menuOnly of ["components/Shell.tsx", "App.tsx", "pages/RaidDetailPage.tsx", "pages/raid-detail/RaidplanTab.tsx"]) {
+        const pub = staticGraph("pages/raidplan/PlanPublicPage.tsx");
+        for (const menuOnly of ["components/shell/Shell.tsx", "App.tsx", "pages/raid-detail/RaidDetailPage.tsx", "pages/raid-detail/RaidplanTab.tsx"]) {
             expect(pub).not.toContain(menuOnly);
         }
     });
 
     it("loads the raidplan editor only when its tab is opened", () => {
-        const detail = read("pages/RaidDetailPage.tsx");
-        expect(detail).not.toMatch(/^import [^;]*from "\.\/raid-detail\/RaidplanTab";/m);
-        expect(detail).toContain("const RaidplanTab = lazyWithReload(() => import(\"./raid-detail/RaidplanTab\"));");
-        expect(staticGraph("pages/RaidDetailPage.tsx")).not.toContain("pages/raid-detail/RaidplanTab.tsx");
+        const detail = read("pages/raid-detail/RaidDetailPage.tsx");
+        expect(detail).not.toMatch(/^import [^;]*from "\.\/RaidplanTab";/m);
+        expect(detail).toContain("const RaidplanTab = lazyWithReload(() => import(\"./RaidplanTab\"));");
+        expect(staticGraph("pages/raid-detail/RaidDetailPage.tsx")).not.toContain("pages/raid-detail/RaidplanTab.tsx");
     });
 
     // #530: after a deploy the old chunks are gone; a plain lazy() left an open
     // tab blank. Every lazy chunk goes through lazyWithReload, the entry installs
     // the vite:preloadError handler, and a boundary catches what still fails.
     it("reloads once instead of going blank when a chunk is gone after a deploy", () => {
-        for (const file of ["App.tsx", "pages/RaidDetailPage.tsx"]) {
+        for (const file of ["App.tsx", "pages/raid-detail/RaidDetailPage.tsx"]) {
             expect(read(file)).not.toMatch(/\blazy\(/);
         }
         expect(read("main.tsx")).toContain("installPreloadErrorReload();");
         expect(read("App.tsx")).toMatch(/<ChunkErrorBoundary>\s*<Suspense fallback=\{<RaidLoader text=/);
-        expect(read("components/Shell.tsx")).toMatch(/<ChunkErrorBoundary resetKey=\{location\.pathname\}>\s*<Suspense fallback=\{<RaidLoader \/>\}>/);
+        expect(read("components/shell/Shell.tsx")).toMatch(/<ChunkErrorBoundary resetKey=\{location\.pathname\}>\s*<Suspense fallback=\{<RaidLoader \/>\}>/);
     });
 });
 

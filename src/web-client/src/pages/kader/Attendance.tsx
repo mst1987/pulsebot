@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { updateKader, type KaderPlayer, type KaderView } from "../../api";
 import Popover from "../../components/ui/Popover";
-import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../components/icons";
+import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 import { formatDayMonth } from "../../lib/format";
 import { belowStartPlacement } from "../../lib/popoverPosition";

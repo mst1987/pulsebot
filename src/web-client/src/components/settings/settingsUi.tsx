@@ -1,6 +1,6 @@
 import type { Role, TextChannel } from "../../api";
 import Badge from "../ui/Badge";
-import { LockIcon } from "../icons";
+import { LockIcon } from "../ui/icons";
 import { tParts, useT } from "../../i18n";
 
 // Small pieces the Einstellungen page shares between its sections: the

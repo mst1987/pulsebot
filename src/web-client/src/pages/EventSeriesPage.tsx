@@ -9,15 +9,15 @@ import { useCollectionEditor } from "../lib/collectionEditor";
 import {
     WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, lastCreatedLine, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday, weekdayLong, weekdayShort } from "../lib/eventSeries";
 import { tParts, useT } from "../i18n";
-import { useToast } from "../components/Jobs";
+import { useToast } from "../components/shell/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
 import PageHead from "../components/ui/PageHead";
 import Badge from "../components/ui/Badge";
 import RaidLoader from "../components/ui/RaidLoader";
 import NamingBadge from "../components/channels/NamingBadge";
-import { SwitchRow } from "../components/RaidPlanFields";
-import { RefreshIcon } from "../components/icons";
+import { SwitchRow } from "../components/raid/RaidFields";
+import { RefreshIcon } from "../components/ui/icons";
 import { PenIcon, WarnIcon } from "../components/settings/settingsUi";
 import "../styles/series.css";
 

@@ -4,9 +4,9 @@ import { getClaData, evalLog, resetEval, scanLogs, deleteLogEntry, linkLog, unli
 import { useApi } from "../../hooks/useApi";
 import { withIncompleteConfirm } from "../../lib/confirmIncomplete";
 import { usePersistedState, usePersistedSearchParam } from "../../lib/persistedState";
-import { SortLabel, ariaSort } from "../../components/SortTh";
-import { useJobs } from "../../components/Jobs";
-import Pager from "../../components/Pager";
+import { SortLabel, ariaSort } from "../../components/ui/SortTh";
+import { useJobs } from "../../components/shell/Jobs";
+import Pager from "../../components/ui/Pager";
 import { useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

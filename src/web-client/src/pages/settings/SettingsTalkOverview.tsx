@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { repostTalkOverview, type ApiError, type TalkOverviewStatus } from "../../api";
 import { talkOverviewBadge } from "../../lib/settingsLogic";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import { useT } from "../../i18n";

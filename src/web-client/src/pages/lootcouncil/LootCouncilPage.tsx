@@ -23,14 +23,14 @@
 //
 // The DPS numbers come from a background simulation (wowsimcli). There are no
 // estimates: a gain is shown once it has been simulated and not before. Every
-// wait — a reload, the armory, a simulation — is a job toast (components/Jobs.tsx).
+// wait — a reload, the armory, a simulation — is a job toast (components/shell/Jobs.tsx).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { getLootCouncil, setCouncilExcluded, getCouncilExport, refreshCouncilArmory, setCouncilRole, canAccess, loadCouncilLogGear, type ApiError, type CouncilRaider, type CouncilExport, type LootCouncilData } from "../../api";
 import { useCategoryViews } from "./categoryViews";
 import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
-import { useJobs, useToast } from "../../components/Jobs";
-import type { ShellContext } from "../../components/Shell";
+import { useJobs, useToast } from "../../components/shell/Jobs";
+import type { ShellContext } from "../../components/shell/Shell";
 import { fmtMs } from "../../lib/format";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";

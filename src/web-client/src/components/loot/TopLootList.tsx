@@ -15,7 +15,7 @@ import type { TopLootAward } from "../../api";
 import { fmtMs } from "../../lib/format";
 import { shortDate } from "../../lib/overviewDates";
 import { itemQualityProps, itemQualityColor } from "../../lib/itemQuality";
-import { CharacterLink } from "../ClassSpec";
+import { CharacterLink } from "../character/ClassSpec";
 import { LootResponseBadge } from "./LootTable";
 import WowIcon from "../ui/WowIcon";
 import { t as translate, useT } from "../../i18n";

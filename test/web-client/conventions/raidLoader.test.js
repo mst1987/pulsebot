@@ -21,14 +21,14 @@ describe("RaidLoader", () => {
             // the component's own default text and the comment explaining it
             .filter((f) => f !== path.join("components", "ui", "RaidLoader.tsx"));
         expect(offenders).toEqual([]);
-        for (const page of ["history/HistoryPage", "roster/RosterPage", "settings/SettingsPage", "ChannelsPage", "RaidsPage", "cla/ClaPage", "recruitment/RecruitmentPage", "DashboardPage"]) {
+        for (const page of ["history/HistoryPage", "roster/RosterPage", "settings/SettingsPage", "ChannelsPage", "raids/RaidsPage", "cla/ClaPage", "recruitment/RecruitmentPage", "dashboard/DashboardPage"]) {
             expect({ page, uses: read("pages", `${page}.tsx`).includes("<RaidLoader") }).toEqual({ page, uses: true });
         }
     });
 
     it("is the same scene in the overlay of a long operation", () => {
-        const overlay = read("components", "PageLoader.tsx");
-        expect(overlay).toContain("import RaidLoader from \"./ui/RaidLoader\";");
+        const overlay = read("components", "ui", "PageLoader.tsx");
+        expect(overlay).toContain("import RaidLoader from \"./RaidLoader\";");
         expect(overlay).toContain("<RaidLoader text={text || t(\"jobs.pageLoader.busy\")} />");
         // the old rune is gone from both the component and the stylesheet
         expect(overlay).not.toContain("pl-rune");

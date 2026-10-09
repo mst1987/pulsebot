@@ -5,7 +5,7 @@ import {
 } from "../../api";
 import { pingTargetOptions, reminderOff, reminderSummary, remindersPatch, targetText } from "../../lib/settingsLogic";
 import { useT } from "../../i18n";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { Modal } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

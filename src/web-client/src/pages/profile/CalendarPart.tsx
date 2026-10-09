@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { createCalendarToken, revokeCalendarToken, type ApiError, type CalendarToken, type CalendarTokens } from "../../api";
 import { Badge, Button, IconButton, RaidLoader, useConfirm } from "../../components/ui";
-import { useToast } from "../../components/Jobs";
-import { TrashIcon, CopyIcon, CheckIcon } from "../../components/icons";
+import { useToast } from "../../components/shell/Jobs";
+import { TrashIcon, CopyIcon, CheckIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
 import { useT } from "../../i18n";
 

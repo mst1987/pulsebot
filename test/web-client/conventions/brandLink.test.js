@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
-const shellSrc = fs.readFileSync(path.join(CLIENT, "components", "Shell.tsx"), "utf8");
+const shellSrc = fs.readFileSync(path.join(CLIENT, "components", "shell", "Shell.tsx"), "utf8");
 const css = require("../clientSource").read("index.css");
 
 describe("brand link", () => {

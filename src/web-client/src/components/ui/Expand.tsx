@@ -1,4 +1,4 @@
-import { ChevronDownIcon } from "../icons";
+import { ChevronDownIcon } from "./icons";
 
 // The one way to fold something open: "Details" plus a round 30-px chevron
 // button that fills and turns when open — never a bare ▸ glyph, which was too

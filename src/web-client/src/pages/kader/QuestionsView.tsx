@@ -17,8 +17,8 @@ import {
 import { Button, IconButton, Modal, Segment, Switch } from "../../components/ui";
 import Popover from "../../components/ui/Popover";
 import { useConfirm } from "../../components/ui/Modal";
-import { CheckIcon, ChevronDownIcon, CopyIcon, LockIcon, PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/icons";
-import { useToast } from "../../components/Jobs";
+import { CheckIcon, ChevronDownIcon, CopyIcon, LockIcon, PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/ui/icons";
+import { useToast } from "../../components/shell/Jobs";
 import { useT } from "../../i18n";
 import { dayShort, isWeekdays } from "../../lib/kader/interview";
 import { DAY_KEYS, OPTION_COLORS, optionColors, toneAttrs, type OptionColor } from "../../lib/kader/colors";

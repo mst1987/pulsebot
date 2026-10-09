@@ -8,7 +8,7 @@ import { Button, buttonClass } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import WowIcon from "../../../components/ui/WowIcon";
 import { reasonToneClass } from "../../../components/loot/LootBadges";
-import { classColorProps } from "../../../components/ClassSpec";
+import { classColorProps } from "../../../components/character/ClassSpec";
 import { ROLE_META, SIGNUP_META, type PlayerRef, type RaidCtx } from "../meta";
 import SpecTile from "../SpecTile";
 import { useT, type TFunction } from "../../../i18n";

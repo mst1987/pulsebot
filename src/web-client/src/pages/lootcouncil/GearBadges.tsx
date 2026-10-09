@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { CouncilCandidate, WornItem } from "../../api";
 import { Badge, Button } from "../../components/ui";
-import { AlertIcon, EmptySlotIcon, ExternalIcon } from "../../components/icons";
+import { AlertIcon, EmptySlotIcon, ExternalIcon } from "../../components/ui/icons";
 import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";

@@ -1,5 +1,5 @@
 // Guards for the list/editor pattern (src/web-client/src/lib/collectionEditor.ts
-// and src/web-client/src/components/ListSection.tsx).
+// and src/web-client/src/components/ui/ListSection.tsx).
 //
 // A section that manages a collection shows the list first and exactly one
 // editor at a time, in the list's place. The client is TSX and there is no React
@@ -18,7 +18,7 @@ const shared = require("../clientSource");
 const readClient = shared.read;
 
 const editorSrc = readClient("lib", "collectionEditor.ts");
-const sectionSrc = readClient("components", "ListSection.tsx");
+const sectionSrc = readClient("components", "ui", "ListSection.tsx");
 
 /** Every page/component file of the client, as [name, source]. */
 function clientSources() {

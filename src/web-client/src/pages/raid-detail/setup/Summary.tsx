@@ -2,7 +2,7 @@ import type { SetupEditorData, StoredSetup } from "../../../api";
 import { useT } from "../../../i18n";
 import Badge from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
-import { CheckIcon } from "../../../components/icons";
+import { CheckIcon } from "../../../components/ui/icons";
 import { buffState, roleFigures, summaryOptions } from "./summaryFigures";
 
 function Stat({ label, value, target, ok, tip }: { label: string; value: number; target: string; ok: boolean; tip: string }) {

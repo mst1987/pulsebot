@@ -1,6 +1,6 @@
 // Event verwalten (#288): the rule a render cannot see — everything is styled
 // in its own stylesheet under em-. The menu, the dialogs and the head's badges
-// are rendered in Vitest (src/web-client/src/pages/RaidDetailPage.manage.test.tsx),
+// are rendered in Vitest (src/web-client/src/pages/raid-detail/RaidDetailPage.manage.test.tsx),
 // the rules behind them run in lib/eventManage.test.ts.
 const fs = require("fs");
 const path = require("path");
@@ -13,6 +13,6 @@ describe("event manage conventions", () => {
         const css = read("styles", "event-manage.css").replace(/\/\*[\s\S]*?\*\//g, "");
         const classes = [...css.matchAll(/\.([a-z][\w-]*)/g)].map((m) => m[1]).filter((c) => !["btn", "wi", "badge", "danger", "on", "is-loading"].includes(c));
         for (const c of classes) expect({ c, ok: c.startsWith("em-") }).toEqual({ c, ok: true });
-        expect(read("pages", "RaidDetailPage.tsx")).toContain("import \"../styles/event-manage.css\";");
+        expect(read("pages", "raid-detail", "RaidDetailPage.tsx")).toContain("import \"../../styles/event-manage.css\";");
     });
 });

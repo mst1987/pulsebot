@@ -13,7 +13,7 @@ import { useMemo, useRef, useState } from "react";
 import type { KaderEntry } from "../../api";
 import { Modal, buttonClass } from "../../components/ui";
 import Popover from "../../components/ui/Popover";
-import { ClockIcon } from "../../components/icons";
+import { ClockIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { belowStartPlacement } from "../../lib/popoverPosition";

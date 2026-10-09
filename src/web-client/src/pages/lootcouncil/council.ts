@@ -4,7 +4,7 @@
 // import the same rules instead of two copies drifting apart.
 import { useCallback, useRef, useState } from "react";
 import { runCouncilSim, type LootCouncilData, type CouncilCandidate, type SimResult, type WornItem } from "../../api";
-import { useJobs } from "../../components/Jobs";
+import { useJobs } from "../../components/shell/Jobs";
 import { t, tOr } from "../../i18n";
 import type { Dir } from "../../lib/tableSort";
 import { wowheadItemUrl, LEGACY_WOWHEAD_PATH } from "../../lib/wowheadItems";

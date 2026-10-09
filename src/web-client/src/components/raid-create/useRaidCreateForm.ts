@@ -10,7 +10,7 @@ import {
     categoryVersionOf, emptyPlan, planBody, planFromEvent, planFromTemplate, planProblem, raidTag, schemaName, sourceOf, stepsFor, templateFromPlan, withInstance,
     type EventPlan, type StepKey,
 } from "../../lib/eventPlan";
-import { useToast } from "../Jobs";
+import { useToast } from "../shell/Jobs";
 import { berlinDay, channelNameForDate, clockOf, latestPerCategory, nextSameWeekday, type ChannelMode, type Choice, type StartTab, type TemplateMode } from "./createHelpers";
 
 /** What the dialog sends: the event's fields, where it is posted and how people sign up. */

@@ -5,9 +5,9 @@ import {
     type Channel, type ChannelChanges, type ChannelPurpose, type ChannelResult,
     type QuickCreateInput, type RenamePreviewRow } from "../api";
 import { useApi } from "../hooks/useApi";
-import type { ShellContext } from "../components/Shell";
+import type { ShellContext } from "../components/shell/Shell";
 import { Badge, Button, PageHead, Segment, SplitButton, useConfirm } from "../components/ui";
-import { useJobs } from "../components/Jobs";
+import { useJobs } from "../components/shell/Jobs";
 import {
     AssignChannelDialog, CreateChannelDialog, DuplicateChannelDialog, PurposeDialog } from "../components/channels/ChannelDialogs";
 import { ChannelTree } from "../components/channels/ChannelTree";

@@ -8,7 +8,7 @@ import { Fragment } from "react";
 import type { GuildBankItem, GuildBankStatus, GuildBankTab } from "../../api";
 import { Badge, IconButton, Segment } from "../../components/ui";
 import { ItemIcon } from "../../components/loot/LootBadges";
-import { EyeIcon, EyeOffIcon, GiftIcon, SlidersIcon } from "../../components/icons";
+import { EyeIcon, EyeOffIcon, GiftIcon, SlidersIcon } from "../../components/ui/icons";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { wowheadItemUrl } from "../../lib/wowheadItems";
 import { useT } from "../../i18n";

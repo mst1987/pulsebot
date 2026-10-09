@@ -8,7 +8,7 @@ import {
     withGroupRule, withRule, type AccessMap,
 } from "../../lib/botCommandAccess";
 import { tParts, t as translate, useT } from "../../i18n";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { Button, IconButton } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
 import Badge from "../../components/ui/Badge";
@@ -18,7 +18,7 @@ import PartHead from "../../components/ui/PartHead";
 import Segment from "../../components/ui/Segment";
 import Switch from "../../components/ui/Switch";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { LockIcon, XIcon } from "../../components/icons";
+import { LockIcon, XIcon } from "../../components/ui/icons";
 import { PenIcon } from "../../components/settings/settingsUi";
 import { FieldLabel } from "../../components/ui/Field";
 

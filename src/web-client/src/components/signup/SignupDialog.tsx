@@ -5,8 +5,8 @@ import {
     type ApiError, type GameRole, type OwnSignup, type OwnSignupRow, type SignupClass, type SignupCounts, type SignupProfile, type SignupStatus,
 } from "../../api";
 import { Badge, Button, Modal, WowIcon } from "../ui";
-import { CheckIcon } from "../icons";
-import { useToast } from "../Jobs";
+import { CheckIcon } from "../ui/icons";
+import { useToast } from "../shell/Jobs";
 import SignupCharacterPicks from "./SignupCharacterPicks";
 import { formatEventTime } from "../../lib/format";
 import {

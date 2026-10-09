@@ -3,7 +3,7 @@ import { searchCouncilItems, getBisLists, type ApiError, type BisListsData, type
 import { t as translate, tOr, useT } from "../../i18n";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { slotLabel, specClassLabel } from "../../lib/wowNames";
-import { classColorProps } from "../../components/ClassSpec";
+import { classColorProps } from "../../components/character/ClassSpec";
 import { ContentBadge, ItemLink } from "./ItemBits";
 import type { View } from "./view";
 import { Part } from "./Part";

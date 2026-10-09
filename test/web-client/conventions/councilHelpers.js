@@ -42,7 +42,7 @@ const files = {
     css: read("styles", "loot-council.css"),
     app: read("App.tsx"),
     api: read("api", "lootcouncil.ts"),
-    jobs: read("components", "Jobs.tsx"),
+    jobs: read("components", "shell", "Jobs.tsx"),
 };
 
 /** The body of one top-level function (exported or not) in a source. */

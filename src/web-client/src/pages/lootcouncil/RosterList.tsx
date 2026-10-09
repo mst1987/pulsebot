@@ -5,8 +5,8 @@
 // a few badges for what makes a raider's numbers special.
 import type { CouncilRaider, SimResult } from "../../api";
 import { Badge, Bar, Button } from "../../components/ui";
-import { ChevronRightIcon } from "../../components/icons";
-import { SortLabel, ariaSort } from "../../components/SortTh";
+import { ChevronRightIcon } from "../../components/ui/icons";
+import { SortLabel, ariaSort } from "../../components/ui/SortTh";
 import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import type { TableSort } from "../../lib/tableSort";

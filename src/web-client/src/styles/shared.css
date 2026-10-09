@@ -189,7 +189,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 .nav-item.active .wi { filter: none; border-color: var(--area); box-shadow: 0 0 0 2px var(--area-soft); }
 .nav-item .nav-n { margin-left: auto; }
 
-/* ===== the icon rail of a page with sub sections (components/SectionRail.tsx,
+/* ===== the icon rail of a page with sub sections (components/ui/SectionRail.tsx,
    design "C · Schmale Icon-Leiste"): Einstellungen's sections, Raid-Events'
    pages. A 64 px column flush against the sidebar, left of the page; one
    44 px button per section, a thin line between groups, the name as the
@@ -485,7 +485,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 /* a hint worth acting on, not an error (e.g. the raid plan link without groups) */
 .flash-warn { background: var(--medium-bg); color: var(--medium); border: 1px solid var(--medium); }
 
-/* ===== Components several modules render (components/RaidIcon.tsx, components/channels/NamingBadge.tsx).
+/* ===== Components several modules render (components/raid/RaidIcon.tsx, components/channels/NamingBadge.tsx).
    Their look lives here, not in the stylesheet of the first page that used them: a page
    stylesheet only loads with its page, and opening another page directly left them bare. ===== */
 /* raid icon: one, or two overlapping for a combined night (the raid list, the signups, the create dialog) */

@@ -1,7 +1,7 @@
 // Event verwalten (#288) in the raid detail: the rules behind the menu and the
 // dialogs (src/web-client/src/lib/eventManage.ts), run for real with the real
 // `t` (German). The menu and the dialogs are rendered in
-// pages/RaidDetailPage.manage.test.tsx.
+// pages/raid-detail/RaidDetailPage.manage.test.tsx.
 import { describe, expect, it } from "vitest";
 import * as lib from "./eventManage";
 import type { ManageMenuEntry } from "./eventManage";

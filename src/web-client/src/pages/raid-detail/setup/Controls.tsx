@@ -7,7 +7,7 @@ import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import Popover from "../../../components/ui/Popover";
 import WowIcon from "../../../components/ui/WowIcon";
-import { ChevronDownIcon } from "../../../components/icons";
+import { ChevronDownIcon } from "../../../components/ui/icons";
 import { clock, dateTime, MAX_RAID_SIZE } from "./setupText";
 
 /** One entry of the bar's "Mehr" menu. `on` marks a switch (fairness, the compact view …): checked or not. */

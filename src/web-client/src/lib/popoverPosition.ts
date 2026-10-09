@@ -33,7 +33,7 @@ export function tipPosition(anchor: Rect, box: Size, viewport: Size, gap = 9): {
 
 /**
  * A tooltip to the right of its anchor, vertically centred on it — for a narrow
- * column of icon buttons (components/SectionRail.tsx), where a box above would
+ * column of icon buttons (components/ui/SectionRail.tsx), where a box above would
  * cover the button before it. Without room on the right it falls back to
  * tipPosition.
  */

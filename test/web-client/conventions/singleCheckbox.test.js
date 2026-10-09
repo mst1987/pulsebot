@@ -12,14 +12,14 @@ const LIST_SELECTION = {
     "components/channels/ArchiveTab.tsx": "archived channels to restore or delete, plus 'select all'",
     "components/channels/ChannelTree.tsx": "channels and categories of the tree for the bulk bar",
     "components/signup/AvailabilityParts.tsx": "the raids a signup is available for",
-    "components/ViewAs.tsx": "the roles to view the menu as",
+    "components/shell/ViewAs.tsx": "the roles to view the menu as",
     "pages/EventSeriesPage.tsx": "the dates of a series to skip",
     "pages/kader/ImportModal.tsx": "the members to import",
     "pages/kader/OverviewView.tsx": "rows of the overview for a batch action, plus 'mark all'",
     "pages/kader/PoolView.tsx": "rows of the pool for a batch action, plus 'mark all'",
     "pages/raid-detail/modals/NotifyModal.tsx": "the roles to ping",
     "pages/raid-detail/modals/SoftresModal.tsx": "the instances of the soft reserve",
-    "pages/raid-detail/raidplan/ShareModal.tsx": "the bosses on the shared sheet",
+    "components/raidplan/editor/ShareModal.tsx": "the bosses on the shared sheet",
     "pages/SignupsPage.tsx": "signup rows for a batch action",
 };
 

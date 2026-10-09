@@ -19,7 +19,7 @@ import Badge from "../../components/ui/Badge";
 import Segment from "../../components/ui/Segment";
 import Expand from "../../components/ui/Expand";
 import IconTile from "../../components/ui/IconTile";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { InfoTip } from "../../components/loot/LootFilters";
 import { contentIcon } from "../../components/loot/LootBadges";
 import { tParts, useT, type TFunction } from "../../i18n";

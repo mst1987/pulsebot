@@ -8,7 +8,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { BisSpec, CouncilLootItem } from "../../api";
 import { Badge, Expand, RichTip, WowIcon } from "../../components/ui";
-import { classColorProps } from "../../components/ClassSpec";
+import { classColorProps } from "../../components/character/ClassSpec";
 import { ReasonBadge } from "../../components/loot/LootBadges";
 import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";

@@ -5,7 +5,7 @@ import AsyncView from "../../components/ui/AsyncView";
 import { usePersistedSearchParam } from "../../lib/persistedState";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { useCollectionEditor } from "../../lib/collectionEditor";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { Button } from "../../components/ui/Button";
 import PageHead from "../../components/ui/PageHead";
 import WowIcon from "../../components/ui/WowIcon";

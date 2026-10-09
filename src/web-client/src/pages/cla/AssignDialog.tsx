@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { ClaRow, MatchCandidate } from "../../api";
 import { formatEventTime } from "../../lib/format";
 import { raidIcon } from "../../lib/logRaids";
-import { TrashIcon } from "../../components/icons";
+import { TrashIcon } from "../../components/ui/icons";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

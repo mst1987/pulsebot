@@ -1,5 +1,5 @@
 // Guards for the Raid-Detail page's new layout (design issue #219):
-// src/web-client/src/pages/RaidDetailPage.tsx and pages/raid-detail/**.
+// src/web-client/src/pages/raid-detail/RaidDetailPage.tsx and pages/raid-detail/**.
 //
 // No React renderer here, so the invariants are checked in the source:
 //   * three tabs instead of six, and the old ?tab= values still land somewhere,
@@ -14,10 +14,11 @@ const path = require("path");
 const { CLIENT, clientSources } = require("../clientSource");
 
 const read = (...p) => fs.readFileSync(path.join(CLIENT, ...p), "utf8");
-const page = read("pages", "RaidDetailPage.tsx");
+const page = read("pages", "raid-detail", "RaidDetailPage.tsx");
 
 function moduleSources() {
-    return [["pages/RaidDetailPage.tsx", page], ...clientSources("pages/raid-detail")];
+    // the page with its folder, the raid plan editor its plan tab draws and the plan's read-only stage
+    return ["pages/raid-detail", "components/raidplan/editor", "pages/raidplan/stage"].flatMap((dir) => clientSources(dir));
 }
 
 describe("raid detail layout", () => {
@@ -93,7 +94,7 @@ describe("raid detail layout", () => {
     });
 
     it("keeps its styles in its own file", () => {
-        expect(page).toContain("import \"../styles/raid-detail.css\";");
+        expect(page).toContain("import \"../../styles/raid-detail.css\";");
         const css = read("styles", "raid-detail.css");
         expect(css).toMatch(/\n\.rd-steps \{/);
         expect(css).not.toMatch(/:\s*gold\b|goldenrod|#d4af37|#ffd700/i);

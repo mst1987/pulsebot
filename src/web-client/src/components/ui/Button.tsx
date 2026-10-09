@@ -1,6 +1,6 @@
 import { useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import WowIcon from "./WowIcon";
-import { ChevronDownIcon } from "../icons";
+import { ChevronDownIcon } from "./icons";
 import { t } from "../../i18n";
 import { useDismiss } from "../../hooks/useDismiss";
 

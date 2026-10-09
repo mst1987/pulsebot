@@ -5,7 +5,7 @@ import { fmtMs } from "../../lib/format";
 import { itemQualityColor, itemQualityProps } from "../../lib/itemQuality";
 import { SLOT_LABELS, findingLabel, findingsForSlot } from "../../lib/rosterView";
 import { Badge, PartHead, WowIcon, buttonClass } from "../../components/ui";
-import { CheckIcon, XIcon } from "../../components/icons";
+import { CheckIcon, XIcon } from "../../components/ui/icons";
 import { GEAR_BOTTOM, GEAR_LEFT, GEAR_RIGHT, isEnchantable, NO_RAID_VALUE, SOCKET_DE, socketIconUrl } from "./charGear";
 import { tParts, useT } from "../../i18n";
 

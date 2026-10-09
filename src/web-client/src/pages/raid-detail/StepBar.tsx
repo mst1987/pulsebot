@@ -16,7 +16,7 @@ import { deedLabel, stepFocus, stepShort, stepStateLabel, stepSummary, stepTipSu
 import { Button } from "../../components/ui/Button";
 import IconTile from "../../components/ui/IconTile";
 import WowIcon from "../../components/ui/WowIcon";
-import { CheckIcon } from "../../components/icons";
+import { CheckIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 
 /** Rechts in der Zeile: der Haken eines erledigten Schritts, sonst seine Nummer. */

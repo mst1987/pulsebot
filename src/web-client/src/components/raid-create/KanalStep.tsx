@@ -9,7 +9,7 @@ import Segment from "../ui/Segment";
 import WowIcon from "../ui/WowIcon";
 import NamingBadge from "../channels/NamingBadge";
 import ChannelEmojiPicker from "../channels/ChannelEmojiPicker";
-import { SwitchRow } from "../RaidPlanFields";
+import { SwitchRow } from "../raid/RaidFields";
 import type { ChannelMode } from "./createHelpers";
 import { Label } from "./CreateParts";
 import type { RaidCreateForm } from "./useRaidCreateForm";

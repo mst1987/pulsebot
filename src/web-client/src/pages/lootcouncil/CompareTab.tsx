@@ -3,7 +3,7 @@ import type { CouncilLootItem, CouncilRaider } from "../../api";
 import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
-import { classColorProps, ClassSpecIcon } from "../../components/ClassSpec";
+import { classColorProps, ClassSpecIcon } from "../../components/character/ClassSpec";
 import { ReasonBadge } from "../../components/loot/LootBadges";
 import { ContentBadge, ItemLink } from "./ItemBits";
 import type { View } from "./view";

@@ -7,7 +7,7 @@ import { useRef, useState, type ReactNode } from "react";
 import type { LootContent } from "../../api";
 import { Button } from "../ui/Button";
 import Badge from "../ui/Badge";
-import { InfoIcon, SearchIcon } from "../icons";
+import { InfoIcon, SearchIcon } from "../ui/icons";
 import { contentName } from "../../lib/wowNames";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
@@ -101,7 +101,7 @@ export function ActiveFilters({ filters, onReset }: { filters: ActiveFilter[]; o
 
 /**
  * The line "i" for an explanation that lives in the tooltip. Kept here rather
- * than in components/icons.tsx, which belongs to the shared foundation.
+ * than in components/ui/icons.tsx, which belongs to the shared foundation.
  */
 /** An info icon whose explanation opens in the tooltip box. */
 export function InfoTip({ tip, sub }: { tip: string; sub: string }) {

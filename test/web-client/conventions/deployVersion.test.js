@@ -5,7 +5,7 @@
 const { read } = require("../clientSource"); // inlines the @imports of index.css (#441)
 
 describe("the menu's version line", () => {
-    const shell = read("components", "Shell.tsx");
+    const shell = read("components", "shell", "Shell.tsx");
 
     it("sits in the sidebar as one line with the details in its tooltip", () => {
         expect(shell).toContain("side-version");
@@ -32,7 +32,7 @@ describe("the menu's version line", () => {
     });
 
     it("lets the dashboard task open an address outside the menu", () => {
-        const page = read("pages", "DashboardPage.tsx");
+        const page = read("pages", "dashboard", "DashboardPage.tsx");
         expect(page).toContain("https?:\\/\\/");
         expect(page).toContain("target=\"_blank\"");
     });

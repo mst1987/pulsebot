@@ -10,8 +10,8 @@ describe("wiring and texts", () => {
     it("the workspace shows the panel right at the board, the read view the table", () => {
         expect(readWorkspace()).toContain("<AssignPanel");
         // the stage's "Alle Aufgaben" (Oct 2026)
-        expect(read("pages/raid-detail/raidplan/stage/TasksPanel.tsx")).toContain("<ReadTables");
-        expect(read("pages/PlanPublicPage.tsx")).not.toContain("ByPlayerLog");
+        expect(read("pages/raidplan/stage/TasksPanel.tsx")).toContain("<ReadTables");
+        expect(read("pages/raidplan/PlanPublicPage.tsx")).not.toContain("ByPlayerLog");
         expect(read("components/raidplan/PlanBoard.tsx")).toContain("rp-links");
     });
 });

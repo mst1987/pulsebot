@@ -80,9 +80,9 @@ describe("role placeholders", () => {
     const sources = import.meta.glob(
         [
             "../../components/raidplan/PlanBoard.tsx",
-            "../../pages/raid-detail/raidplan/{Palette,Besetzung,AssignLine,AssignPanel,AssignModal,StepModal,ReadTables,AssignRosterModal}.tsx",
-            "../../pages/raid-detail/raidplan/workspace/MapToolRow.tsx",
-            "../../pages/RaidplanTemplatesPage.tsx",
+            "./editor/{Palette,Besetzung,AssignLine,AssignPanel,AssignModal,StepModal,ReadTables,AssignRosterModal}.tsx",
+            "./editor/workspace/MapToolRow.tsx",
+            "../../pages/raidplan/RaidplanTemplatesPage.tsx",
         ],
         { query: "?raw", import: "default", eager: true },
     ) as Record<string, string>;

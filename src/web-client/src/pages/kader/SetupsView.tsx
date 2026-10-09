@@ -14,8 +14,8 @@ import {
 } from "../../api";
 import { Button, Field, IconButton, Modal } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
-import { BoltIcon, CheckIcon, CopyIcon, EditIcon, PlusIcon, RosterIcon, SaveIcon, TrashIcon, XIcon } from "../../components/icons";
-import { useToast } from "../../components/Jobs";
+import { BoltIcon, CheckIcon, CopyIcon, EditIcon, PlusIcon, RosterIcon, SaveIcon, TrashIcon, XIcon } from "../../components/ui/icons";
+import { useToast } from "../../components/shell/Jobs";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { rolePluralLabel } from "../../lib/wowNames";
@@ -23,7 +23,7 @@ import { classColor, classOfSpec, playerName, ROLES, SETUP_STATES } from "../../
 import {
     GROUP_SIZE, defaultSpec, groupHints, moveToSlot, placedIds, removeFromGroups, setSlotSpec, setupText, slotRoles, unplaced, visibleGroups, type Groups,
 } from "../../lib/kader/setup";
-import { classColorProps } from "../../components/ClassSpec";
+import { classColorProps } from "../../components/character/ClassSpec";
 import { dragProps, useDropZone } from "./dnd";
 import { Count, EmptyState, PickIcon, RoleIcon, StateIcon, SubHead, WishIcons } from "./parts";
 import WishPicker from "./WishPicker";

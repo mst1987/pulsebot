@@ -2,7 +2,7 @@
    Log-Auswertung (pages/cla/, design issue #217): one list with a
    filter segment, a row menu, the "Neue Auswertung" and "Raid-Event
    zuordnen" modals and the boss grid of the "Raid noch nicht abgeschlossen"
-   question (components/IncompleteRaid.tsx). Built on the shared blocks in
+   question (components/raid/IncompleteRaid.tsx). Built on the shared blocks in
    index.css (.badge, .btn, .ibtn, .seg, .part-head, dialog.dlg); tokens only.
    ===================================================================== */
 

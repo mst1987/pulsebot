@@ -10,7 +10,7 @@ import { useRef, useState } from "react";
 import { manageMenu, type ManageAction, type ManageMenuEntry, type ManageState } from "../../../lib/eventManage";
 import { Button } from "../../../components/ui/Button";
 import WowIcon from "../../../components/ui/WowIcon";
-import { ChevronDownIcon } from "../../../components/icons";
+import { ChevronDownIcon } from "../../../components/ui/icons";
 import { useT } from "../../../i18n";
 import Popover from "../../../components/ui/Popover";
 import { belowEndPlacement } from "../../../lib/popoverPosition";

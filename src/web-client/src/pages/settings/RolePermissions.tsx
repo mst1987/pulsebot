@@ -10,7 +10,7 @@ import Badge from "../../components/ui/Badge";
 import Segment from "../../components/ui/Segment";
 import PartHead from "../../components/ui/PartHead";
 import WowIcon from "../../components/ui/WowIcon";
-import { EyeIcon, LockIcon, PlusIcon, TrashIcon, XIcon } from "../../components/icons";
+import { EyeIcon, LockIcon, PlusIcon, TrashIcon, XIcon } from "../../components/ui/icons";
 import { PenIcon } from "../../components/settings/settingsUi";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import { useDismiss } from "../../hooks/useDismiss";

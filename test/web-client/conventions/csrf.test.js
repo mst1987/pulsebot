@@ -47,6 +47,6 @@ describe("no csrfToken is handed around any more", () => {
     });
 
     it("the shell's outlet context carries the user only", () => {
-        expect(read("components/Shell.tsx")).toContain("export type ShellContext = { user: SessionUser };");
+        expect(read("components/shell/Shell.tsx")).toContain("export type ShellContext = { user: SessionUser };");
     });
 });

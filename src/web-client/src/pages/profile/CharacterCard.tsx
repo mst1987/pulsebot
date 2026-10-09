@@ -1,9 +1,9 @@
 import { useState } from "react";
 import type { GameClass, GearLevel, ProfileCharacter, ProfileData, ProfileSpec } from "../../api";
 import { Badge, Button, IconButton, PartHead, Segment, WowIcon } from "../../components/ui";
-import { classColorProps } from "../../components/ClassSpec";
-import { type AddWay } from "../../components/profile/AddCharacterDialog";
-import { ChevronLeftIcon, ChevronRightIcon, ExternalIcon, TrashIcon, XIcon } from "../../components/icons";
+import { classColorProps } from "../../components/character/ClassSpec";
+import { type AddWay } from "../../components/character/AddCharacterDialog";
+import { ChevronLeftIcon, ChevronRightIcon, ExternalIcon, TrashIcon, XIcon } from "../../components/ui/icons";
 import { classLabel, roleLabel, specLabel } from "../../lib/wowNames";
 import { tOr, useT } from "../../i18n";
 

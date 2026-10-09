@@ -2,7 +2,7 @@
 // it is shrunk in the browser before it is sent, so the orga is not turned away by
 // the server's 3 MB limit - or, in front of it, by a reverse proxy: nginx refuses a body
 // over its default client_max_body_size of 1 MB with an HTML "413 Request Entity Too Large". Only the numbers live here (sizes, steps, the text shown);
-// the canvas work is in pages/raid-detail/raidplan/mapUpload.ts. The server still
+// the canvas work is in components/raidplan/editor/mapUpload.ts. The server still
 // checks the type by its first bytes and the size (the safety net stays).
 //
 // Written to be strippable (src/web-client/src/lib/mapImage.test.ts runs it): one-line

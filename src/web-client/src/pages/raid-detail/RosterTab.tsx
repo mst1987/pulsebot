@@ -13,7 +13,7 @@ import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import Expand from "../../components/ui/Expand";
 import WowIcon from "../../components/ui/WowIcon";
-import { classColorProps } from "../../components/ClassSpec";
+import { classColorProps } from "../../components/character/ClassSpec";
 import {
     ROLE_META, ROLE_ORDER, SIGNUP_META, SIGNUP_ORDER, byLabel, personLabel, personRef, slotRef,
     type RaidCtx,

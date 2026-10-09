@@ -9,8 +9,8 @@ import {
 import { useApi } from "../../hooks/useApi";
 import { Badge, BackButton, Button, IconButton, useConfirm, type Tone } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { AbsenceIcon, TrashIcon } from "../../components/icons";
-import { useToast } from "../../components/Jobs";
+import { AbsenceIcon, TrashIcon } from "../../components/ui/icons";
+import { useToast } from "../../components/shell/Jobs";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
 import { entryDays, entryState, nightsInOrder, reasonText } from "../../lib/absences";
 import { periodLabel } from "../../lib/availability";

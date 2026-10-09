@@ -1,6 +1,6 @@
 /* =====================================================================
-   Übersicht — the start page (pages/DashboardPage.tsx, design issue #220),
-   its raid-details modal (components/RaidDetailsModal.tsx) and the Latest-Loot
+   Übersicht — the start page (pages/dashboard/DashboardPage.tsx, design issue #220),
+   its raid-details modal (pages/dashboard/RaidDetailsModal.tsx) and the Latest-Loot
    list it shares with the Historie tab (components/loot/TopLootList.tsx).
    Built on the shared blocks of index.css (.dash-card, .part-head, .badge,
    .itile, .bar, .ibtn, dialog.dlg); only the layout lives here.

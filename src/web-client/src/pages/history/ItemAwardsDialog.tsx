@@ -22,10 +22,10 @@ import { Button, IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Expand from "../../components/ui/Expand";
 import WowIcon from "../../components/ui/WowIcon";
-import { ExternalIcon, TrashIcon } from "../../components/icons";
-import { classColorProps } from "../../components/ClassSpec";
+import { ExternalIcon, TrashIcon } from "../../components/ui/icons";
+import { classColorProps } from "../../components/character/ClassSpec";
 import { ItemIcon, ReasonBadge, StackBar, contentIcon, tallyReasons } from "../../components/loot/LootBadges";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { tParts, useT } from "../../i18n";
 
 // Newest awards shown right away; the rest behind the expand control, so a

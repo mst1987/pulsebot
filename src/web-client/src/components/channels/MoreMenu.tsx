@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Button, IconButton } from "../ui";
-import { ChevronDownIcon } from "../icons";
+import { ChevronDownIcon } from "../ui/icons";
 import { useDismiss } from "../../hooks/useDismiss";
 
 // The "…" of a channel row and the "Mehr" of the bulk bar: a small menu for the actions that

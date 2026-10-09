@@ -5,15 +5,15 @@ import {
 } from "../../api";
 import { fmtMs } from "../../lib/format";
 import { useTableSort, type Dir } from "../../lib/tableSort";
-import { SortTh } from "../../components/SortTh";
+import { SortTh } from "../../components/ui/SortTh";
 import { connectionInputs, connectionPatch, connectionState, visibleConnections, type ConnectionId } from "../../lib/settingsLogic";
-import { useToast } from "../../components/Jobs";
+import { useToast } from "../../components/shell/Jobs";
 import { useConfirm, Modal } from "../../components/ui/Modal";
 import { Button, IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import PartHead from "../../components/ui/PartHead";
-import { CheckIcon, CopyIcon, ExternalIcon, TrashIcon } from "../../components/icons";
+import { CheckIcon, CopyIcon, ExternalIcon, TrashIcon } from "../../components/ui/icons";
 import { AdminOnlyBadge, CheckMark, PenIcon, WarnIcon } from "../../components/settings/settingsUi";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import RaidLoader from "../../components/ui/RaidLoader";

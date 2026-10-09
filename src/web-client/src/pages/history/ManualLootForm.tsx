@@ -15,8 +15,8 @@ import {
     type ApiError, type RaidDropItem, type LootPickerCharacter, type LootPickerData,
 } from "../../api";
 import { itemQualityProps } from "../../lib/itemQuality";
-import { classColorProps } from "../../components/ClassSpec";
-import { useToast } from "../../components/Jobs";
+import { classColorProps } from "../../components/character/ClassSpec";
+import { useToast } from "../../components/shell/Jobs";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import { useDismiss } from "../../hooks/useDismiss";
