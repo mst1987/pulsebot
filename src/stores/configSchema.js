@@ -16,6 +16,7 @@ const { normalizeCategoryPlanning } = require("../services/events/planning");
 const { isSnowflake } = require("../utils/ids");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { versionSettingsOf, normalizeVersionSettings, versionsWithDefaults } = require("./versionSettingsSchema");
+const { normalizeBackupSettings } = require("../services/backup/backupConfig");
 
 // General bot config editable from the admin menu (kept out of .env on purpose).
 // Defaults come from config/variables (env / historical hard-codes); values saved
@@ -204,6 +205,10 @@ const CONFIG_DEFAULTS = {
     // deadline (else the raid start) to the members still missing, hours before
     // the raid to the signed-up ones; 0 = off. See src/web/events/reminders.js.
     categoryReminders: {},
+    // Data snapshots (#691, services/backup/): how often the bot takes one (minutes) and how many it keeps
+    // (grandfather-father-son over the hourly ones, the newest n of deploy/manual/pre-restore). The directory and
+    // the on/off switch are env (BACKUP_DIR, BACKUP_ENABLED), see services/backup/backupConfig.js.
+    backup: normalizeBackupSettings(null),
 };
 
 const ROLE_SYNC_DIRECTIONS = ["toTalk", "toEvent", "both"];
@@ -691,6 +696,7 @@ function normalizeConfig(raw) {
         topItems: normalizeTopItems(stored.topItems),
         roleSync: normalizeRoleSync(stored.roleSync),
         categoryReminders: normalizeCategoryReminders(stored.categoryReminders),
+        backup: normalizeBackupSettings(stored.backup),
     };
 }
 

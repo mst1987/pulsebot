@@ -65,7 +65,13 @@ function afterPlanning(config, stored = {}) {
     }
     return { ...config, categoryPlanning: planning };
 }
-const schemaOnly = frozen.map((g) => ({ ...g, config: after542(g.config) }));
+// #691 adds the data snapshots' schedule and retention with their defaults.
+const BACKUP_DEFAULTS = {
+    intervalMinutes: 60,
+    retention: { hourlyHours: 48, dailyDays: 14, weeklyWeeks: 8, monthlyMonths: 12, deployKeep: 10, manualKeep: 10, preRestoreKeep: 10 },
+};
+const after691 = (config) => ({ ...config, backup: BACKUP_DEFAULTS });
+const schemaOnly = frozen.map((g) => ({ ...g, config: after691(after542(g.config)) }));
 const golden = schemaOnly.map((g, i) => ({ ...g, config: afterPlanning(g.config, cases[i].config || {}) }));
 const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie"));
 

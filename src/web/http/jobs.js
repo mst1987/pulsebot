@@ -29,6 +29,8 @@ const availabilityPanel = require("../../services/signups/availabilityPanel");
 const softresDetect = require("../../services/loot/softresDetect");
 const guildBankItemMeta = require("../../services/guildbank/itemMeta");
 const systemMonitor = require("../../services/system/systemMonitor");
+const backupSnapshots = require("../../services/backup/snapshotJob");
+const { versionInfo } = require("./version");
 
 const JOBS = [
     // The "Systemstatus" page's samples (docs/system-status.md): host and process figures every 15 s, kept 24 h in memory.
@@ -65,6 +67,8 @@ const JOBS = [
     { name: "guildBankItemMeta", start: () => guildBankItemMeta.startMetaRefresh(), stop: () => guildBankItemMeta.stopMetaRefresh() },
     // Softres lists the raid leads made on softres.it and posted into the raid channel while the bot was away.
     { name: "softresDetect", start: () => softresDetect.startSoftresDetect(), stop: () => softresDetect.stopSoftresDetect() },
+    // Hourly snapshot of DATA_DIR into BACKUP_DIR (#691, docs/data-storage.md); only on the live bot unless BACKUP_ENABLED=1.
+    { name: "backupSnapshots", start: () => backupSnapshots.startBackupJob({ commit: () => versionInfo().commit }), stop: () => backupSnapshots.stopBackupJob() },
 ];
 
 let running = false;

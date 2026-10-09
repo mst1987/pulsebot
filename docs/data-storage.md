@@ -33,15 +33,105 @@ sie nur neu, wenn sich mtime, Größe oder Inode ändern (auch eine Änderung vo
 
 ## Sichern und Wiederherstellen
 
-- **pm2-Server**: den ganzen Ordner `data/` im Deploy-Verzeichnis sichern (siehe
-  [deployment.md](deployment.md#das-zielverzeichnis)), am besten bei gestopptem Bot oder direkt nach einem
-  `pm2 stop`, damit keine Datei mitten im Schreiben erwischt wird. Die Stores schreiben atomar (Temp-Datei +
-  Umbenennen), eine Kopie im laufenden Betrieb ist also dateiweise konsistent, aber nicht über Dateien hinweg.
+Der Bot legt selbst Schnappschüsse von `DATA_DIR` an (#691, Teil des Epics #690). Die Kopie außer Haus (#692),
+das Wiederherstellen (#693), der Schnappschuss vor dem Deploy (#695) und die Überwachung (#696) bauen auf dem
+Verzeichnisaufbau unten auf – er ist ein Vertrag zwischen diesen Teilen und ändert sich nur mit allen zusammen.
+
+### Schnappschüsse (`src/services/backup/`)
+
+| Datei | Aufgabe |
+|---|---|
+| `snapshot.js` | Ein Schnappschuss (`createSnapshot`), dazu `latestSnapshot(backupDir)`, `listSnapshots`, `readManifest`, `readStatus` für die lesenden Teile |
+| `retention.js` | Welche Schnappschüsse bleiben (rein, ohne Platte) |
+| `snapshotJob.js` | Der Hintergrund-Job (`backupSnapshots` in `src/web/http/jobs.js`) und `runSnapshot()` für „Jetzt sichern“ |
+| `backupConfig.js` | `BACKUP_DIR`, `BACKUP_ENABLED`, Vorgaben und Normalisierung des Einstellungsblocks `backup` |
+
+**Ablage** (`BACKUP_DIR`, Env; Standard auf dem Live-Server `/var/backups/pulsebot`, sonst – Windows, Dev-Checkout –
+`<repo>/../pulsebot-backups`; immer außerhalb von Repo und `DATA_DIR`, ineinander verschachtelt lehnt der Lauf ab):
+
+```
+$BACKUP_DIR/                              Rechte 700
+  snapshots/<YYYYMMDD-HHMMSS>-<reason>/   Zeit in UTC; reason: hourly | deploy | manual | pre-restore
+    manifest.json                         { version: 1, createdAt, reason, commit, fromCommit?, toCommit?,
+                                            files: { "<relpath>": { size, sha256 } }, counts: { ... } }
+    data/...                              Spiegel von DATA_DIR
+  latest -> snapshots/<neuester>          Symlink; wo das OS keinen erlaubt (Windows ohne Recht), eine Datei
+                                          mit dem Inhalt "snapshots/<neuester>" – lesen immer über latestSnapshot()
+  status/snapshot.json                    { at, ok, reason, durationMs, bytes, error? } – Ergebnis des letzten Laufs
+  .snapshot.lock                          Sperre eines laufenden Schnappschusses (Bot oder Befehl)
+  status/offsite.json, offsite-stage/,    gehören der Kopie außer Haus (#692, docs/backup.md)
+  server-config/
+```
+
+**Auf dem Server einmal:** Der Bot muss `BACKUP_DIR` anlegen bzw. beschreiben dürfen. Läuft er nicht als root,
+das Verzeichnis vorher für seinen Benutzer anlegen: `install -d -m 700 -o <bot-user> -g <bot-user>
+/var/backups/pulsebot`. Sonst scheitert jeder Lauf mit `EACCES` (Logzeile `[backup]`; der Status lässt sich dann
+auch nicht schreiben).
+
+Ein Schnappschuss entsteht unter `snapshots/.<name>.part/` und wird erst am Ende umbenannt; erst danach wird
+`latest` umgesetzt. Leser ignorieren Namen mit Punkt. Dateien sind 600, Verzeichnisse 700 (unter Windows nur so
+weit, wie das OS es kennt). `counts` hält Plausibilitätswerte für das Wiederherstellen: `events`, `signups`,
+`rosters`, `raidplans`, `reports`, `raidplanMaps`, `sessions` und `files`.
+
+**Ablauf eines Laufs:**
+
+1. Sperre (`.snapshot.lock`, auch gegen den Befehl in einem anderen Prozess; eine Sperre eines beendeten Prozesses
+   oder älter als 2 h gilt als verwaist) und Platz-Wächter: unter **10 %** freiem Speicher auf dem Dateisystem von
+   `BACKUP_DIR` entsteht kein Schnappschuss, der Status hält `ok: false` mit Grund fest.
+2. `settings/` und `sessions.json` werden **synchron in einem Event-Loop-Tick** kopiert. Alle Stores schreiben
+   synchron (`jsonStore.js`: `writeFileSync` + `rename`), dazwischen kann also kein Schreiben landen – der Stand ist
+   über alle Dateien hinweg stimmig, besser als ein `cp`/`rsync` von außen. Asynchrone Schreiber unter `settings/`
+   gibt es nicht (geprüft für #691). `sessions.json` (`web/http/auth.js`) und `settings/category-names.json`
+   (`services/discord/categoryNames.js`) schreiben zwar nicht atomar, aber ebenfalls synchron – für den
+   Schnappschuss genügt das.
+3. Alles andere (`reports/`, `raidplan-maps/`, `sim/`, …) asynchron Datei für Datei: Stimmen Größe und mtime mit
+   der Kopie im vorigen Schnappschuss überein, wird die Datei per **Hardlink** übernommen und ihr sha256 aus dem
+   vorigen Manifest gelesen (nicht neu berechnet); sonst wird sie gestreamt kopiert und dabei gehasht, und die Kopie
+   behält die mtime des Originals. Hat eine geänderte mtime denselben Inhalt (gleicher sha256), wird die Kopie
+   wieder durch einen Hardlink ersetzt. Wo kein Hardlink geht (anderes Dateisystem), bleibt es bei der Kopie.
+   Temp-Dateien der Stores (`.*.tmp`) und Symlinks kommen nie mit.
+4. `manifest.json` schreiben, `.part` umbenennen, `latest` umsetzen, dann nach der Aufbewahrung aufräumen.
+5. `status/snapshot.json` und eine Logzeile (`[backup]`) – auch bei einem Fehler. Ein Fehler wird nie geworfen, ein
+   halber `.part`-Ordner wird entfernt (oder spätestens vom nächsten Lauf).
+
+Gemessen (Windows-Entwicklungsrechner, 8 MB in `settings/`, 40 MB Reports, 5 MB Karten): synchroner Teil
+32–45 ms, erster Lauf ~330 ms, folgende Läufe ~120 ms (nur `settings/` und `sessions.json` neu kopiert).
+
+**Zeitplan und Aufbewahrung** stehen im Einstellungsblock `backup` von `config.json` (`configSchema.js`; noch
+ohne Formular im Menü):
+
+| Feld | Standard | Bedeutung |
+|---|---|---|
+| `intervalMinutes` | 60 | Abstand der stündlichen Schnappschüsse (15–1440). Der Job prüft jede Minute den neuesten `hourly`-Schnappschuss auf der Platte, ein Neustart löst also keinen zusätzlichen aus |
+| `retention.hourlyHours` | 48 | jeder stündliche der letzten 48 Stunden |
+| `retention.dailyDays` | 14 | der neueste stündliche je Kalendertag (UTC), die letzten 14 Tage |
+| `retention.weeklyWeeks` | 8 | der neueste je ISO-Woche (Mo–So), die letzten 8 Wochen |
+| `retention.monthlyMonths` | 12 | der neueste je Kalendermonat, die letzten 12 Monate |
+| `retention.deployKeep` | 10 | die neuesten 10 `deploy`-Schnappschüsse |
+| `retention.manualKeep` | 10 | die neuesten 10 `manual`-Schnappschüsse |
+| `retention.preRestoreKeep` | 10 | die neuesten 10 `pre-restore`-Schnappschüsse |
+
+Der neueste Schnappschuss überhaupt bleibt immer (auf ihn zeigt `latest`).
+
+**An oder aus:** `BACKUP_ENABLED=1` schaltet die stündlichen Schnappschüsse ein, `0` aus. Ohne Wert macht sie nur
+die Live-Instanz (`config/runMode.js`); eine Dev- oder Testinstanz legt also nichts an, solange man es nicht
+ausdrücklich will (dann am besten mit eigenem `BACKUP_DIR` in ihrer `.env.dev`).
+
+**Von Hand / vor dem Deploy:** `npm run backup:snapshot -- --reason manual` bzw.
+`node scripts/backup/snapshot.js --reason deploy --from <sha> --to <sha> [--json]` – dieselbe Logik ohne
+laufenden Bot (liest `.env.dev`, sonst `.env`, wie `bot.js`; `BACKUP_ENABLED` gilt hier nicht). Exit-Code 0 =
+fertig, 1 = fehlgeschlagen, 2 = falsche Argumente, 3 = ein anderer Schnappschuss läuft gerade.
+
+### Sonst
+
+- **Ohne die Schnappschüsse** (z. B. vor einem Umzug von Hand): den Ordner `data/` bei gestopptem Bot kopieren.
+  Eine Kopie im laufenden Betrieb ist dateiweise konsistent (atomare Writes), aber nicht über Dateien hinweg.
 - **Docker**: das Volume sichern, das auf `/app/data` liegt ([deployment.md](deployment.md#docker)).
-- **Wiederherstellen**: Bot stoppen, `data/` zurückkopieren, Bot starten. Fehlt eine Datei, startet der Store
-  mit seinem leeren Standard; eine kaputte (kein JSON) liest er ebenfalls als leer, also vor dem Start prüfen.
-- Die Sicherung enthält **sensible** Dateien (Tabelle unten): wie die `.env` behandeln, nicht in ein Ticket, einen
-  Chat oder ein öffentliches Repo legen.
+- **Wiederherstellen**: Bot stoppen, `data/` aus `snapshots/<name>/data/` zurückkopieren, Bot starten. Fehlt eine
+  Datei, startet der Store mit seinem leeren Standard; eine kaputte (kein JSON) liest er ebenfalls als leer, also
+  vor dem Start gegen `manifest.json` (sha256, `counts`) prüfen.
+- Die Sicherung enthält **sensible** Dateien (Tabelle unten, u. a. `config.json` mit API-Schlüsseln und
+  `sessions.json`): wie die `.env` behandeln, nicht in ein Ticket, einen Chat oder ein öffentliches Repo legen.
 - Ohne Verlust wegwerfbar sind nur die Caches (`sim/results.json`, `settings/characters.json`,
   `settings/raid-events.json`, `settings/category-names.json`); sie füllen sich von selbst wieder.
 
