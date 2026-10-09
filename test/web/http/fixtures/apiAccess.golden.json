@@ -34,6 +34,8 @@
       "history"
     ],
     "/api/roster/character-claims": "roster",
+    "/api/rosters/roles": "roster",
+    "/api/rosters/sync": "roster",
     "/api/profile": "signup",
     "/api/profile/log-characters": "signup",
     "/api/profile/characters": "signup",
