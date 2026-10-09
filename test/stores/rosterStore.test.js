@@ -239,6 +239,15 @@ describe("stores/rosterStore members and history", () => {
         expect(hist[hist.length - 1]).toEqual({ at: NOW, by: "o1", userId: "u1", what: "member-removed", detail: "" });
     });
 
+    it("marks a change caused by a Discord role as \"via Discord\" (#656)", () => {
+        const r = createRoster({ name: "A" });
+        upsertMember(r.id, "u1", { chars: ["Devi"] }, { now: NOW, via: "discord" });
+        removeMember(r.id, "u1", { now: NOW, via: "discord" });
+        const [, added, removed] = getRoster(r.id).history;
+        expect(added).toEqual({ at: NOW, by: "", userId: "u1", what: "member-added", detail: "via Discord · core, devi" });
+        expect(removed).toEqual({ at: NOW, by: "", userId: "u1", what: "member-removed", detail: "via Discord" });
+    });
+
     it("appends history lines and caps them at the newest 500", () => {
         const r = createRoster({ name: "A" });
         expect(appendHistory(r.id, { by: "o1", userId: "u1", what: "role", detail: "added" }, { now: NOW })).toBe(true);
