@@ -149,6 +149,45 @@ describe("buildRosterDetail", () => {
         expect(view.members.map((m) => m.displayName)).toEqual(["200000000000000004", "Anna Discord", "Bert", "Carl"].sort((a, b) => a.localeCompare(b)));
     });
 
+    it("adds for a manager the notes, the further profile characters, the held roles and the settings", async () => {
+        const id = rosterId();
+        rosterStore.updateRoster(id, { trialRoleId: "role-trial", managers: { userIds: [ANNA, "300000000000000009"], roleIds: ["role-lead"] }, signupOnly: true });
+        rosterStore.upsertMember(id, ANNA, { note: "Kann Hexer" });
+        profiles.addCharacter(ANNA, { name: "Grimbrew", className: "Druid", specs: [{ key: "Druid-Feral", gear: "usable" }] });
+        discord.listHumanMembers.mockResolvedValue({
+            error: null,
+            members: [{ id: ANNA, displayName: "Anna Discord", roleIds: ["role-main", "role-trial", "other"] }, { id: BERT, displayName: "Bert", roleIds: ["role-trial"] }],
+        });
+        discord.listRoles.mockReturnValue([{ id: "role-main", name: "Raider Mo/Do", color: "#e67e22" }, { id: "role-trial", name: "Probe", color: "" }]);
+        const view = await buildRosterDetail({ guildId: G, id, user: ADMIN, config: CONFIG });
+        expect(view.isAdmin).toBe(true);
+        expect(view.roster.trialRole).toEqual({ id: "role-trial", name: "Probe", color: "" });
+        const anna = view.members.find((m) => m.userId === ANNA);
+        expect(anna).toMatchObject({ note: "Kann Hexer", heldRoles: ["role-main", "role-trial"] });
+        expect(anna.otherChars.map((c) => [c.name, c.className, c.specId])).toEqual([["Grimbrew", "Druid", "Feral"]]);
+        expect(view.members.find((m) => m.userId === BERT).heldRoles).toEqual(["role-trial"]);
+        expect(view.members.find((m) => m.userId === DORA)).toMatchObject({ heldRoles: [], otherChars: [], note: "" });
+        expect(view.settings).toEqual({
+            categoryId: "cat1", versionId: "tbc", roleIds: ["role-main"], trialRoleId: "role-trial",
+            managers: { roleIds: ["role-lead"], userIds: [ANNA, "300000000000000009"], users: [{ userId: ANNA, displayName: "Anna Discord" }, { userId: "300000000000000009", displayName: "300000000000000009" }] },
+            signupOnly: true, allowMultipleChars: false, slots: { total: 25, tank: 3, healer: 7, bench: 0 },
+        });
+    });
+
+    it("keeps notes, further characters and settings from a reader; held roles unknown without the member list", async () => {
+        rosterStore.upsertMember(rosterId(), ANNA, { note: "geheim" });
+        let view = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
+        expect(view.settings).toBeNull();
+        expect(view.isAdmin).toBe(false);
+        const anna = view.members.find((m) => m.userId === ANNA);
+        expect(anna.note).toBeUndefined();
+        expect(anna.otherChars).toBeUndefined();
+        expect(JSON.stringify(view)).not.toContain("geheim");
+        discord.listHumanMembers.mockResolvedValue({ members: [], error: "offline" });
+        view = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
+        expect(view.members.find((m) => m.userId === ANNA).heldRoles).toBeNull();
+    });
+
     it("lets a manager of the roster manage it", async () => {
         rosterStore.updateRoster(rosterId(), { managers: { userIds: [READER.id] } });
         const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });

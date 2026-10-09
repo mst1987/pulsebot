@@ -102,6 +102,7 @@
 .badge.chip { font-size: 12.5px; padding: 5px 10px; cursor: pointer; font-family: var(--font-mono); }
 button.badge.chip:hover { border-color: var(--accent); color: var(--text); }
 button.badge.chip.accent:hover { color: var(--accent); }
+button.badge.chip:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); color: var(--muted); }
 .badge.chip .badge-x { width: auto; height: auto; border-radius: 0; opacity: .75; }
 .badge.chip .badge-x svg { width: 12px; height: 12px; }
 .badge.chip .badge-x:hover { background: none; }

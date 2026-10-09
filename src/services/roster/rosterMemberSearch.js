@@ -7,19 +7,34 @@
 // empty list that would read as "nobody found".
 const discord = require("../discord/discord");
 const raiderProfileStore = require("../../stores/raiderProfileStore");
+const { CLASSES } = require("../../config/gameVersions/classes");
 
 const MAX_RESULTS = 25;
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
-/** A profile's characters of one version as the dialog shows them. */
+/** A class's colour from the shared class table, "" when unknown. */
+function classColor(className) {
+    const cls = CLASSES.find((c) => c.id === className);
+    return (cls && cls.color) || "";
+}
+
+/** A profile's characters of one version as the dialog shows them: the first spec's key, id, label and icon, the class colour. */
 function charsOf(userId, versionId) {
-    return raiderProfileStore.charactersOfVersion(raiderProfileStore.getProfile(userId), versionId).map((c) => ({
-        key: c.key,
-        name: c.name,
-        className: c.className,
-        spec: c.specs[0] ? c.specs[0].key : "",
-    }));
+    return raiderProfileStore.charactersOfVersion(raiderProfileStore.getProfile(userId), versionId).map((c) => {
+        const spec = c.specs[0] ? c.specs[0].key : "";
+        const info = spec ? raiderProfileStore.specInfo(spec) : null;
+        return {
+            key: c.key,
+            name: c.name,
+            className: c.className,
+            spec,
+            specId: info ? info.id : "",
+            specLabel: info ? info.label : "",
+            specIcon: info ? info.icon || "" : "",
+            classColor: classColor(c.className),
+        };
+    });
 }
 
 /**

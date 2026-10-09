@@ -30,6 +30,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 
 const auth = require("../../../src/web/http/auth");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const rosterStore = require("../../../src/stores/rosterStore");
 const raiderProfileStore = require("../../../src/stores/raiderProfileStore");
 const discord = require("../../../src/services/discord/discord");
@@ -59,6 +60,7 @@ afterAll(() => {
 beforeEach(() => {
     jest.clearAllMocks();
     auth.checkCsrf.mockReturnValue(true);
+    activeGuildFor.mockReturnValue("g1");
     for (const r of rosterStore.listRosters("")) rosterStore.deleteRoster(r.id);
     raiderProfileStore.reset();
     roster = rosterStore.createRoster({ name: "Donnerstag", guildId: "g1", roleIds: ["900000000000000001"], managers: { userIds: [MANAGER.id], roleIds: [] } });
@@ -204,5 +206,26 @@ describe("GET /api/rosters/member-search", () => {
         const res = await get("/api/rosters/member-search", { id: roster.id });
         expect([status(res), code(res)]).toEqual([503, "offline"]);
         expect(status(await get("/api/rosters/member-search", { id: "nope" }))).toBe(404);
+    });
+});
+
+describe("a roster of another server than the active one", () => {
+    it("is 404 not_found for every route of this module, and nothing changes", async () => {
+        await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" });
+        activeGuildFor.mockReturnValue("g2");
+        mockUser = ADMIN;
+        let res = await post("/api/rosters/members", { rosterId: roster.id, userId: "100002" });
+        expect([status(res), code(res)]).toEqual([404, "not_found"]);
+        res = await post("/api/rosters/members/remove", { rosterId: roster.id, userId: "100001" });
+        expect([status(res), code(res)]).toEqual([404, "not_found"]);
+        res = await get("/api/rosters/member-search", { id: roster.id, q: "a" });
+        expect([status(res), code(res)]).toEqual([404, "not_found"]);
+        expect(searchMembers).not.toHaveBeenCalled();
+        expect(Object.keys(rosterStore.getRoster(roster.id).members)).toEqual(["100001"]);
+    });
+
+    it("is reachable when the bot sees no server at all (empty active server)", async () => {
+        activeGuildFor.mockReturnValue("");
+        expect(status(await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" }))).toBe(200);
     });
 });

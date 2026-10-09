@@ -4,11 +4,12 @@
 // Area `roster` (write for the POST, read for the GET) is the gate; on top a
 // role change needs the right to manage that one roster - a full admin or one
 // of its managers (rosterAccess.canManageRosterLive), else 403 "not_manager".
-// Errors answer with a code the client translates (DE/EN).
+// A roster of another server than the active one is 404 "not_found"
+// (web/roster/activeRoster.js). Errors answer with a code the client translates (DE/EN).
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
-const rosterStore = require("../../stores/rosterStore");
 const { getConfig } = require("../../stores/settingsStore");
+const { activeRoster } = require("../roster/activeRoster");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
 const { applyRoleChange } = require("../../services/roster/rosterRoleSync");
 const { rosterSyncView } = require("../../services/roster/rosterSyncView");
@@ -26,8 +27,8 @@ const STATUS_OF_CODE = { bad_request: 400, not_roster_role: 400, offline: 503, u
  * Membership follows from Discord: taking someone's last roster role drops
  * them from the roster, giving it to a non-member takes them in (rosterRoleSync).
  */
-const postRosterRole = withUser({ write: "roster", csrf: true, body: true }, async ({ user, body, res }) => {
-    const roster = rosterStore.getRoster(str(body.rosterId));
+const postRosterRole = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const roster = activeRoster(req, body.rosterId);
     if (!roster) return apiError(res, 404, "not_found", "Roster nicht gefunden.");
     if (!(await canManageRosterLive(user, roster))) return apiError(res, 403, "not_manager", "Nur Admins und die Manager dieses Rosters ändern Rollen.");
     if (!validUserId(body.userId)) return apiError(res, 400, "bad_request", "Kein gültiges Discord-Konto angegeben.");
@@ -48,8 +49,8 @@ const postRosterRole = withUser({ write: "roster", csrf: true, body: true }, asy
  * (services/roster/rosterSyncView.js), the roster's roles, whether the bot may
  * manage roles there, the role-sync mirrors, and whether the caller may act.
  */
-const getRosterSync = withUser({}, async ({ user, query, res }) => {
-    const roster = rosterStore.getRoster(str(query.get("id")));
+const getRosterSync = withUser({}, async ({ user, req, query, res }) => {
+    const roster = activeRoster(req, query.get("id"));
     if (!roster) return apiError(res, 404, "not_found", "Roster nicht gefunden.");
     const [view, canManage] = await Promise.all([
         rosterSyncView(roster, { config: getConfig() }),

@@ -11,6 +11,7 @@ export * from "./discordServers";
 export * from "./raidhelperRetirement";
 export * from "./botCommands";
 export * from "./roster";
+export * from "./rosterEdit";
 export * from "./raids";
 export * from "./raidTemplates";
 export * from "./notifyTemplates";

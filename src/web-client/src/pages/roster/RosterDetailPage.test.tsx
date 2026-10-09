@@ -1,6 +1,7 @@
 // One roster (#654): head, the members tab grouped by status, the square status
 // fields, role and search filter, sorting by the column heads, the Discord role
-// as a word (no action yet), attendance per person, and English.
+// as a word for a reader (no action), attendance per person, and English. The
+// manager's actions: RosterDetailPage.manage.test.tsx.
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,11 +9,12 @@ import * as api from "../../api";
 import RosterDetailPage from "./RosterDetailPage";
 import { renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
-import { detail, member, memberChar } from "./rosters.fixture";
+import { detail, member, memberChar, sync } from "./rosters.fixture";
 
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getRosterDetail: vi.fn(),
+    getRosterSync: vi.fn(),
 }));
 
 const MEMBERS = [
@@ -26,6 +28,7 @@ const MEMBERS = [
 
 async function openPage(data = detail(MEMBERS)) {
     vi.mocked(api.getRosterDetail).mockResolvedValue(data);
+    vi.mocked(api.getRosterSync).mockResolvedValue(sync({ canManage: false }));
     renderPage(<RosterDetailPage />, { route: "/roster/r/raid-mo-do-abc", path: "/roster/r/:rosterId/:tab?" });
     await screen.findByRole("heading", { name: "Raid Mo / Do" });
 }
@@ -92,7 +95,8 @@ describe("RosterDetailPage — members", () => {
 
         const lunaria = screen.getByText("Lunaria", { selector: ".rn-person b" }).closest("tr") as HTMLElement;
         expect(within(lunaria).getByText("Rolle fehlt")).toBeInTheDocument();
-        expect(within(lunaria).queryByRole("button")).not.toBeInTheDocument();
+        // a reader: the name opens the member, nothing else is a button
+        expect(within(lunaria).getAllByRole("button").map((b) => b.textContent)).toEqual(["LLunaria"]);
 
         const syl = screen.getByText("Syl", { selector: ".rn-person b" }).closest("tr") as HTMLElement;
         expect(within(syl).getByText("Kein Charakter zugewiesen")).toBeInTheDocument();

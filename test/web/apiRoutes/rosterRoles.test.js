@@ -12,8 +12,10 @@ jest.mock("../../../src/services/roster/rosterSyncView", () => ({
     rosterSyncView: jest.fn(async (roster) => ({ rosterId: roster.id, inRosterWithoutRole: [], roleWithoutRoster: [], withoutChar: [], logCharsWithoutPerson: [], mirrored: [] })),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ roleSync: [] })) }));
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 
 const { readJsonBody } = require("../../../src/web/http/apiBody");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const { requireCsrf } = require("../../../src/web/http/apiMiddleware");
 const rosterStore = require("../../../src/stores/rosterStore");
 const { canManageRosterLive } = require("../../../src/services/roster/rosterAccess");
@@ -42,6 +44,19 @@ beforeEach(() => {
     mockUser = { id: "200001", isAdmin: false, access: { roster: { read: true, write: true } } };
     rosterStore.getRoster.mockImplementation((id) => (id === "r1" ? ROSTER : null));
     canManageRosterLive.mockResolvedValue(true);
+    activeGuildFor.mockReturnValue("g1");
+});
+
+describe("apiRoutes/rosterRoles - a roster of another server", () => {
+    it("answers 404 for both routes while another server is active, and touches nothing", async () => {
+        activeGuildFor.mockReturnValue("g2");
+        const res = await post({ rosterId: "r1", userId: "100001", give: true });
+        expect(status(res)).toBe(404);
+        expect(body(res).error.code).toBe("not_found");
+        expect(status(await get("r1"))).toBe(404);
+        expect(applyRoleChange).not.toHaveBeenCalled();
+        expect(rosterSyncView).not.toHaveBeenCalled();
+    });
 });
 
 describe("apiRoutes/rosterRoles routes", () => {

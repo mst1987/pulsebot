@@ -12,10 +12,10 @@
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
-const rosterStore = require("../../stores/rosterStore");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
 const rosterMembers = require("../../services/roster/rosterMembers");
 const { searchMembers } = require("../../services/roster/rosterMemberSearch");
+const { activeRoster } = require("../roster/activeRoster");
 const { knownVersion, mainVersionFor } = require("../../services/events/mainVersion");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
@@ -30,9 +30,12 @@ const MEMBER_FIELDS = ["status", "chars", "charNames", "note", "trialUntil"];
 
 const refuse = (res, code) => apiError(res, STATUS_OF_CODE[code] || 400, code, `Roster: ${code}`);
 
-/** The roster of a write and the caller's right to manage it: the roster, or null after the refusal was sent. */
-async function managedRoster(res, user, rosterId) {
-    const roster = rosterStore.getRoster(str(rosterId));
+/**
+ * The roster of a write (on the active server - another server's roster is 404)
+ * and the caller's right to manage it: the roster, or null after the refusal was sent.
+ */
+async function managedRoster(req, res, user, rosterId) {
+    const roster = activeRoster(req, rosterId);
     if (!roster) {
         refuse(res, "not_found");
         return null;
@@ -52,8 +55,8 @@ async function managedRoster(res, user, rosterId) {
  * first counts; one at most without allowMultipleChars -> 400 single_char_only).
  * Answer: { userId, created, member, roles }.
  */
-const postRosterMember = withUser({ write: "roster", csrf: true, body: true }, async ({ user, body, res }) => {
-    const roster = await managedRoster(res, user, body.rosterId);
+const postRosterMember = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const roster = await managedRoster(req, res, user, body.rosterId);
     if (!roster) return undefined;
     const mode = body.mode === undefined || body.mode === null || body.mode === "" ? "" : body.mode;
     if (mode && mode !== "add" && mode !== "update") return refuse(res, "bad_request");
@@ -73,8 +76,8 @@ const postRosterMember = withUser({ write: "roster", csrf: true, body: true }, a
  * POST /api/rosters/members/remove — take a member out (every roster role is taken from them).
  * Body: { rosterId, userId }. Answer: { userId, removed: true, roles }.
  */
-const postRosterMemberRemove = withUser({ write: "roster", csrf: true, body: true }, async ({ user, body, res }) => {
-    const roster = await managedRoster(res, user, body.rosterId);
+const postRosterMemberRemove = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const roster = await managedRoster(req, res, user, body.rosterId);
     if (!roster) return undefined;
     const result = await rosterMembers.removeMember(roster.id, str(body.userId), { actor: str(user.id) });
     if (!result.ok) return refuse(res, result.code);
@@ -94,7 +97,7 @@ const getRosterMemberSearch = withUser({}, async ({ req, query, res }) => {
     const id = str(query.get("id"));
     let scope;
     if (id) {
-        const roster = rosterStore.getRoster(id);
+        const roster = activeRoster(req, id);
         if (!roster) return refuse(res, "not_found");
         scope = { guildId: roster.guildId, versionId: roster.versionId, members: roster.members };
     } else {

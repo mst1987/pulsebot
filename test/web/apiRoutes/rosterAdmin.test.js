@@ -36,6 +36,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 jest.mock("../../../src/services/discord/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
 
 const auth = require("../../../src/web/http/auth");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const rosterStore = require("../../../src/stores/rosterStore");
 const raiderProfileStore = require("../../../src/stores/raiderProfileStore");
 const kaderStore = require("../../../src/stores/kaderStore");
@@ -81,6 +82,7 @@ afterAll(() => {
 beforeEach(() => {
     jest.clearAllMocks();
     auth.checkCsrf.mockReturnValue(true);
+    activeGuildFor.mockReturnValue("g1");
     discord.isOnline.mockReturnValue(true);
     discord.getGuild.mockImplementation((id) => (id === "g1" ? GUILD : null));
     for (const r of rosterStore.listRosters("")) rosterStore.deleteRoster(r.id);
@@ -269,5 +271,19 @@ describe("GET /api/rosters/composition", () => {
         expect(data(res)).toEqual(expect.objectContaining({ rosterId: roster.id, canManage: false, open: 9 }));
         expect(data(res).roles[1]).toEqual({ role: "healer", target: 3, actual: 1 });
         expect(status(await get("/api/rosters/composition", { id: "nope" }))).toBe(404);
+    });
+});
+
+describe("a roster of another server than the active one", () => {
+    it("is 404 not_found for update, delete and composition, and nothing changes", async () => {
+        const roster = rosterStore.createRoster({ name: "Fremd", guildId: "g1", slots: { total: 10 } });
+        activeGuildFor.mockReturnValue("g2");
+        let res = await post("/api/rosters/update", { rosterId: roster.id, name: "Gekapert" });
+        expect([status(res), code(res)]).toEqual([404, "not_found"]);
+        res = await post("/api/rosters/delete", { rosterId: roster.id });
+        expect([status(res), code(res)]).toEqual([404, "not_found"]);
+        res = await get("/api/rosters/composition", { id: roster.id });
+        expect([status(res), code(res)]).toEqual([404, "not_found"]);
+        expect(rosterStore.getRoster(roster.id)).toEqual(expect.objectContaining({ name: "Fremd" }));
     });
 });

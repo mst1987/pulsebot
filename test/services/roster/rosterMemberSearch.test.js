@@ -32,12 +32,12 @@ describe("services/roster/rosterMemberSearch", () => {
     it("finds by name and by a profile character of the roster's version, without bots, non-members first", async () => {
         const all = await searchMembers({ guildId: "g1", versionId: "tbc", members: { "100001": {} } });
         expect(all.results.map((r) => r.userId)).toEqual(["100002", "100004", "100001"]);
-        expect(all.results[0]).toEqual({ userId: "100002", displayName: "Bert", inRoster: false, chars: [{ key: "keslight", name: "Keslight", className: "Mage", spec: "Mage-Frost" }] });
+        expect(all.results[0]).toEqual({ userId: "100002", displayName: "Bert", inRoster: false, chars: [{ key: "keslight", name: "Keslight", className: "Mage", spec: "Mage-Frost", specId: "Frost", specLabel: "Frost", specIcon: expect.any(String), classColor: "#69CCF0" }] });
         expect(all.results[2].inRoster).toBe(true);
         expect((await searchMembers({ guildId: "g1", versionId: "tbc", query: "kes" })).results.map((r) => r.userId)).toEqual(["100002"]);
         expect((await searchMembers({ guildId: "g1", versionId: "tbc", query: "aldric" })).results).toEqual([]);
         const forever = await searchMembers({ guildId: "g1", versionId: "forever", query: "aldric" });
-        expect(forever.results[0].chars).toEqual([{ key: "forever~aldric sturmwind", name: "Aldric Sturmwind", className: "Warrior", spec: "" }]);
+        expect(forever.results[0].chars).toEqual([{ key: "forever~aldric sturmwind", name: "Aldric Sturmwind", className: "Warrior", spec: "", specId: "", specLabel: "", specIcon: "", classColor: "#C79C6E" }]);
     });
 
     it("cuts to the limit", async () => {

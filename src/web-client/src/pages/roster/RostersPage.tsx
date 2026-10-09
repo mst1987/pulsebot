@@ -2,18 +2,22 @@
 // one card per raid roster — its version and raids, the main Discord role, how
 // many places are taken, tanks/healers/damage against the plan, the attendance
 // and what is still open (without role, without character, on trial). A raid
-// category without a roster is a dashed card; creating one comes with #657.
+// category without a roster is a dashed card with "Roster anlegen" (#657, full
+// admins), the head's primary button opens the same dialog without category.
 // The character list that used to live here is "Alle Charaktere" (/roster/chars).
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getRosters, type RosterHead, type RosterOverview } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { tParts, useT } from "../../i18n";
-import { Badge, IconTile, PageHead, WowIcon, buttonClass } from "../../components/ui";
+import { Badge, Button, IconTile, PageHead, WowIcon, buttonClass } from "../../components/ui";
+import { PlusIcon } from "../../components/ui/icons";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { rolePluralLabel } from "../../lib/wow/wowNames";
 import { ROLE_ICONS, dpsTarget } from "../../lib/roster/rosters";
 import { attendanceTone } from "../../lib/roster/rosterView";
 import { RoleChip, VersionLine } from "./RosterParts";
+import RosterFormDialog from "./RosterFormDialog";
 import "../../styles/rosters.css";
 
 /** Tanks, healers or damage of the places against the roster's plan. */
@@ -96,8 +100,8 @@ function RosterCard({ roster }: { roster: RosterHead }) {
     );
 }
 
-/** A raid category without a roster: a dashed card. Creating the roster comes with #657. */
-function EmptyCategoryCard({ category }: { category: RosterOverview["categoriesWithoutRoster"][number] }) {
+/** A raid category without a roster: a dashed card, with "Roster anlegen" for a full admin. */
+function EmptyCategoryCard({ category, onCreate }: { category: RosterOverview["categoriesWithoutRoster"][number]; onCreate: ((categoryId: string) => void) | null }) {
     const t = useT();
     return (
         <li className="rn-card rn-card-empty">
@@ -109,6 +113,11 @@ function EmptyCategoryCard({ category }: { category: RosterOverview["categoriesW
                 </div>
             </div>
             <p className="rn-sub">{t("roster.overview.emptyCategory")}</p>
+            {onCreate && (
+                <div className="rn-card-foot">
+                    <Button size="sm" variant="ghost" icon={<PlusIcon />} onClick={() => onCreate(category.id)}>{t("roster.overview.create")}</Button>
+                </div>
+            )}
         </li>
     );
 }
@@ -116,6 +125,7 @@ function EmptyCategoryCard({ category }: { category: RosterOverview["categoriesW
 export default function RostersPage() {
     const t = useT();
     const state = useApi(() => getRosters(), []);
+    const [creating, setCreating] = useState<{ categoryId: string } | null>(null);
     if (state.error) return <div className="empty">{tParts("roster.overview.loadError", { message: state.error.message })}</div>;
     const data = state.data;
     if (!data) return <RaidLoader text={t("roster.overview.loading")} />;
@@ -131,9 +141,12 @@ export default function RostersPage() {
                 kicker={kicker.join(" · ")}
                 title={t("roster.overview.title")}
                 action={(
-                    <Link className={buttonClass("ghost")} to="/roster/chars" data-tip={t("roster.overview.allCharsTip")} data-tip-sub={t("roster.overview.allCharsSub")}>
-                        {t("roster.overview.allChars")}
-                    </Link>
+                    <>
+                        <Link className={buttonClass("ghost")} to="/roster/chars" data-tip={t("roster.overview.allCharsTip")} data-tip-sub={t("roster.overview.allCharsSub")}>
+                            {t("roster.overview.allChars")}
+                        </Link>
+                        {data.canCreate && <Button icon={<PlusIcon />} onClick={() => setCreating({ categoryId: "" })}>{t("roster.overview.create")}</Button>}
+                    </>
                 )}
             />
             {!data.rosters.length && !data.categoriesWithoutRoster.length
@@ -141,9 +154,10 @@ export default function RostersPage() {
                 : (
                     <ul className="rn-cards" aria-label={t("roster.overview.cardsAria")}>
                         {data.rosters.map((r) => <RosterCard key={r.id} roster={r} />)}
-                        {data.categoriesWithoutRoster.map((c) => <EmptyCategoryCard key={c.id} category={c} />)}
+                        {data.categoriesWithoutRoster.map((c) => <EmptyCategoryCard key={c.id} category={c} onCreate={data.canCreate ? (categoryId) => setCreating({ categoryId }) : null} />)}
                     </ul>
                 )}
+            {creating && <RosterFormDialog mode="create" presetCategory={creating.categoryId} onClose={() => setCreating(null)} onSaved={() => { void state.reload(); }} />}
         </div>
     );
 }
