@@ -7,9 +7,9 @@
 // used to be a paragraph is the tooltip of the control it explains.
 import { useRef, useState } from "react";
 import type { LootCouncilData } from "../../api";
-import { Badge, Button, Segment } from "../../components/ui";
+import { Badge, Button, Segment, Switch } from "../../components/ui";
 import { ChevronDownIcon, FunnelIcon } from "../../components/ui/icons";
-import { ROLE_ICON, categoryNote, roleLabel, type FilterView } from "./council";
+import { ROLE_ICON, categoryNote, roleLabel, rosterNote, type FilterView } from "./council";
 import { useDismiss } from "../../hooks/useDismiss";
 import { tParts, useT } from "../../i18n";
 
@@ -84,10 +84,15 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
     const o = data.options;
     const derivedTier = data.filter.bisTierDerived ? o.bisTiers.find((b) => b.id === data.filter.bisTier) : null;
     const note = categoryNote(data);
+    // A category with a roster (#667): the roster is the candidate list.
+    const fromRoster = rosterNote(data);
+    const noSpec = data.filter.roster ? data.filter.roster.noSpec : [];
     const roster = data.roster.length;
-    // The three filters the button counts: Content (tiers and raids together),
-    // the raid category and the BiS list. Gear source and simulation are facts.
-    const active = (view.tiers.length || view.contents.length ? 1 : 0) + (view.category ? 1 : 0) + (view.bisTier ? 1 : 0);
+    // The filters the button counts: Content (tiers and raids together), the
+    // raid category, the BiS list and — with a roster — "Ersatz zeigen".
+    // Gear source and simulation are facts.
+    const benchOn = !!(view.bench && data.filter.roster);
+    const active = (view.tiers.length || view.contents.length ? 1 : 0) + (view.category ? 1 : 0) + (view.bisTier ? 1 : 0) + (benchOn ? 1 : 0);
 
     return (
         <div className="lc-filterline">
@@ -121,6 +126,14 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                                 <option value="">{t("lootcouncil.filter.allCategories")}</option>
                                 {o.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
+                            {data.filter.roster ? (
+                                <Switch
+                                    checked={!!view.bench}
+                                    onChange={(bench) => patch({ bench })}
+                                    label={t("lootcouncil.filter.bench")}
+                                    tip={t("lootcouncil.filter.benchTip", { count: data.filter.roster.counts.bench })}
+                                />
+                            ) : null}
                         </div>
                         <div
                             className="lc-field"
@@ -156,7 +169,7 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                             </span>
                         </div>
                         <div className="lc-fpop-foot">
-                            <Button variant="ghost" size="sm" disabled={!active} onClick={() => patch({ tiers: [], contents: [], category: "", bisTier: "" })}>{t("common.reset")}</Button>
+                            <Button variant="ghost" size="sm" disabled={!active} onClick={() => patch({ tiers: [], contents: [], category: "", bisTier: "", bench: false })}>{t("common.reset")}</Button>
                             <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>{t("lootcouncil.filter.done")}</Button>
                         </div>
                     </div>
@@ -171,6 +184,21 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                         tipSub={canWrite ? t("lootcouncil.filter.gameTipSub") : t("lootcouncil.filter.gameTipReadOnly")}
                     >
                         {t("lootcouncil.filter.game")}
+                    </Badge>
+                ) : null}
+                {fromRoster ? (
+                    <Badge icon="achievement_guildperk_everybodysfriend" tip={fromRoster.head} tipSub={fromRoster.sub}>
+                        {fromRoster.label}
+                    </Badge>
+                ) : null}
+                {noSpec.length ? (
+                    <Badge
+                        tone="mid"
+                        icon="inv_misc_questionmark"
+                        tip={t("lootcouncil.rosterSource.noSpecTip", { count: noSpec.length })}
+                        tipSub={t("lootcouncil.rosterSource.noSpecTipSub", { names: noSpec.map((m) => m.character).join(", ") })}
+                    >
+                        {t("lootcouncil.rosterSource.noSpec", { count: noSpec.length })}
                     </Badge>
                 ) : null}
                 {note ? (

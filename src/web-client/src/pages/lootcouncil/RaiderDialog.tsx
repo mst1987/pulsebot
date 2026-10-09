@@ -23,6 +23,7 @@ import { useBackdropClose } from "../../hooks/useBackdropClose";
 import { ContentBadge, ItemLink, RaiderIdent } from "./ItemBits";
 import { GearBadges, WornIcon } from "./GearBadges";
 import { NeedBar } from "./NeedBar";
+import { StatusBadge } from "./RosterList";
 
 type Section = "gear" | "bis" | "loot";
 type LogPick = { reportId?: string; link?: string };
@@ -251,6 +252,7 @@ export default function RaiderDialog({
                         sub={<span className="kicker">{tParts("lootcouncil.dialog.kicker", { rank, total })}</span>}
                     />
                     <span className="lc-dlg-spec">{r.specLabel}{r.className ? ` ${r.className}` : ""}</span>
+                    <StatusBadge status={r.status} />
                     <span className="lc-grow" />
                     {canWrite && r.roleOptions.length > 1 ? (
                         <Segment

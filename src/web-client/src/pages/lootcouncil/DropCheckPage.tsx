@@ -77,6 +77,7 @@ export default function DropCheckPage() {
     const fetchFocus = () => getLootCouncil({
         role: view.role, tiers: view.tiers, contents: view.contents, category: view.category, bisTier: view.bisTier,
         version: view.version,
+        bench: !!view.bench,
         item: itemId,
     });
 
@@ -100,7 +101,7 @@ export default function DropCheckPage() {
             .finally(() => { if (alive) setLoading(false); });
         return () => { alive = false; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [itemId, view.role, view.tiers, view.contents, view.category, view.bisTier, viewsReady, jobs]);
+    }, [itemId, view.role, view.tiers, view.contents, view.category, view.bisTier, view.bench, viewsReady, jobs]);
 
     /** Re-reads the focus after a gear reload — quiet, no page-level spinner. */
     const reloadFocus = async (): Promise<CouncilFocus | null> => {
