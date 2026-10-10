@@ -190,7 +190,9 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                             {crumb && <> <span className="crumb-sep">/</span> <b>{crumb}</b></>}
                         </div>
                         <div className="top-actions">
-                            <ContentSwitch />
+                            {/* A page without game content (menu.json `neutral`: Kanäle, Einstellungen,
+                                Systemstatus) shows no version state (#741); every other page follows it. */}
+                            {!tab?.neutral && <ContentSwitch />}
                             <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} />
                             <ViewAsButton user={user} />
                             {/* A real link, not a button: it leaves the SPA for the

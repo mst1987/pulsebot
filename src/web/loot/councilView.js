@@ -88,7 +88,8 @@ function categoryInstances(config, categoryId) {
 async function categoryCouncil(categoryId) {
     const { profile, roster, source } = councilProfiles.resolveProfile({ categoryId });
     const view = councilProfiles.viewFor({ categoryId });
-    const opts = councilOptsFromQuery(viewQuery(categoryId, view));
+    // A view stored before the web was split by version (#741) may still say "all": the sync tool keeps it.
+    const opts = councilOptsFromQuery(viewQuery(categoryId, view), { allowAll: true });
     const built = await buildCouncilView(opts);
     return {
         view, opts, built,

@@ -148,6 +148,8 @@ export type KaderData = {
     leads: string[];
     createdAt: string;
     createdBy: string;
+    /** The game version the Kader is for (#741): the page lists it only under that version. */
+    versionId?: string;
     /** The raid categories attendance counts in (empty: none picked yet, the page shows "—"). */
     attendanceCategories: string[];
     questions: KaderQuestion[];
@@ -202,7 +204,7 @@ export const isStale = (e: unknown): e is KaderStaleError => !!e && typeof e ===
 /** A save that names the revision it started from; `force` overwrites a newer one ("Trotzdem speichern"). */
 export type KaderBase = { baseRev?: number; force?: boolean };
 
-export type KaderSummary = { id: string; name: string; leads: string[]; createdAt: string; createdBy: string; counts: Record<KaderState, number>; questions: number };
+export type KaderSummary = { id: string; name: string; leads: string[]; createdAt: string; createdBy: string; versionId?: string; counts: Record<KaderState, number>; questions: number };
 
 export type KaderView = {
     versionId: string;
@@ -257,8 +259,13 @@ export type KaderCharacterInput = {
 export type KaderInterviewPatch = { wishes?: KaderWish[]; answers?: Record<string, KaderAnswer>; note?: string; lead?: string };
 export type KaderQuestionInput = { text: string; type: KaderQuestionType; options: { id?: string; label: string; color?: string }[]; required: boolean };
 
-export function getKader(kaderId = ""): Promise<KaderView> {
-    return get<KaderView>(kaderId ? `/api/kader?kader=${encodeURIComponent(kaderId)}` : "/api/kader");
+export function getKader(kaderId = "", version = ""): Promise<KaderView> {
+    // `version`: the menu's content version (#741) — the picker lists its Kader only
+    const q = new URLSearchParams();
+    if (kaderId) q.set("kader", kaderId);
+    if (version) q.set("version", version);
+    const qs = q.toString();
+    return get<KaderView>(`/api/kader${qs ? `?${qs}` : ""}`);
 }
 
 /** Only the Kader as stored and the summaries: the light refetch after a change somebody else made inside it. */
@@ -291,8 +298,9 @@ export function leaveKaderLive(kaderId: string, where: KaderLiveWhere): void {
 }
 
 // ----- Kader
-export function createKader(name: string): Promise<KaderChange> {
-    return send("POST", "/api/kader/kaders", { name });
+/** A new Kader of `versionId` (#741: the version the page shows; "" = the planner's own). */
+export function createKader(name: string, versionId = ""): Promise<KaderChange> {
+    return send("POST", "/api/kader/kaders", versionId ? { name, versionId } : { name });
 }
 
 export function updateKader(kaderId: string, input: { name?: string; leads?: string[]; attendanceCategories?: string[] }): Promise<KaderChange> {

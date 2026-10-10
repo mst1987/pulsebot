@@ -21,19 +21,32 @@ const { memberEventRows, profileForSignup, signupSummary } = require("../signups
 const { noteMode, isNoteStatus, MIN_NOTE } = require("../../services/signups/signupNotes");
 const { userCanAny } = require("../../config/permissions");
 const { VERSIONS } = require("../../config/gameVersions");
-const { mainVersionFor, classesOfVersion, visibleRows, versionOfEvent } = require("../../services/events/mainVersion");
+const { mainVersionFor, classesOfVersion, resolveVersionQuery, versionOfEvent } = require("../../services/events/mainVersion");
 
-/** GET /api/signups — the caller's upcoming raids, their status in each, and their characters. */
-const getSignups = withUser({}, async ({ user, req, res }) => {
+/**
+ * GET /api/signups[?version=<id>][&event=<id>] — the caller's upcoming raids of
+ * one game version (#741: the menu's content switch, else the main version),
+ * their status in each, and their characters. With `event` also that raid's
+ * version (`eventVersion`, "" when the caller has no such raid).
+ */
+const getSignups = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     const { groups, error: err } = await loadEventGroups(guildId);
     const orga = userCanAny(user, ["raids"], "read");
     const roleIds = orga ? null : await discord.memberRoleIds(guildId, user.id);
     const profile = profiles.getProfile(user.id);
     const config = getConfig();
+    // One version at a time (#741); with other versions hidden (#563) always the main one.
+    const { versionId } = resolveVersionQuery(url && url.searchParams.get("version"), { config });
+    const rows = memberEventRows(groups, { userId: user.id, guildId, config, roleIds, orga, profile });
+    // A link to one raid (`?event=`, the Discord post's button) names its version,
+    // so the page can switch to it when the menu shows another one.
+    const linkedId = String((url && url.searchParams.get("event")) || "").trim();
+    const linked = linkedId ? rows.find((e) => e.id === linkedId) : null;
     ok(res, {
-        // Other versions hidden (#563): only the raids of the main version.
-        events: visibleRows(memberEventRows(groups, { userId: user.id, guildId, config, roleIds, orga, profile }), (e) => versionOfEvent(e, { config }), config),
+        events: rows.filter((e) => versionOfEvent(e, { config }) === versionId),
+        version: versionId,
+        eventVersion: linked ? versionOfEvent(linked, { config }) : "",
         profile: profileForSignup(profile),
         // Class colour and icon for the character picker (#541): per version,
         // the dialog takes the list of the event's version; `classes` is the

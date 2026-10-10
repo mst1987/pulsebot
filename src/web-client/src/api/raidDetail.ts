@@ -171,6 +171,11 @@ export type RaidplanPostState = {
 
 export type RaidDetailData = {
     event: RaidDetailEvent;
+    /**
+     * The raid's stored game version (#737): a link to a raid of another version
+     * switches the menu's content version to it (#741, hooks/useFollowVersion).
+     */
+    versionId?: string;
     /** An event of a hidden game version (#563): the page opens as a read-only archive; null/missing = a normal event. */
     archived?: { versionId: string; label: string; short: string } | null;
     categoryName: string;

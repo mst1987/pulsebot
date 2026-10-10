@@ -23,6 +23,7 @@ const { parseReportLink } = require("../../utils/logcheck/logLinks");
 const { LEGACY_VERSION, VERSIONS } = require("../../config/gameVersions");
 const { knownVersion, versionOfEvent, mainVersionFor } = require("../events/mainVersion");
 const { versionLinks, versionLabel } = require("../events/versionSettings");
+const { versionOfLog } = require("../events/storedVersion");
 
 const capabilities = require("../events/versionCapabilities");
 
@@ -147,6 +148,28 @@ function linkConflict(log, event, { config } = {}) {
 }
 
 /**
+ * Whether a log or a report belongs in one version's list (#741, the web shows
+ * one version at a time):
+ *   - a log without a raid: in every version, as "nicht zugeordnet" — it waits
+ *     for its raid, and whoever looks at either version may link it;
+ *   - a log with a raid: only in the version of that raid (its stored version,
+ *     storedVersion.versionOfLog; the version stamped at linking when the raid
+ *     is no longer stored);
+ *   - a report without a log (built from a pasted link): in its own version.
+ * `versionId` "" lets everything through.
+ * @param {{ kind?: string, eventId?: string, versionId?: string }} record  a stored log, or a row
+ *   of the log list (reportList.js: kind "log" or "report")
+ * @param {string} versionId
+ */
+function inVersionList(record, versionId) {
+    if (!versionId) return true;
+    const r = record || {};
+    const eventId = str(r.eventId);
+    if (!eventId && r.kind !== "report") return true;
+    return ((eventId && versionOfLog(r)) || recordVersion(r)) === versionId;
+}
+
+/**
  * The German refusal for a version the log check does not read (web and orga):
  * switched off in the settings (#761) says so, anything else "not yet".
  */
@@ -158,5 +181,5 @@ function unsupportedMessage(versionId, opts) {
 
 module.exports = {
     versionOfHost, linkVersion, resolveReportVersion, recordVersion, knownLogVersion, categoryVersion,
-    logcheckCapability, logcheckSupported, wclApiSite, wclClientFor, reportLink, linkConflict, unsupportedMessage,
+    logcheckCapability, logcheckSupported, wclApiSite, wclClientFor, reportLink, linkConflict, unsupportedMessage, inVersionList,
 };

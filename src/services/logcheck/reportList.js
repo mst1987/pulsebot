@@ -256,17 +256,20 @@ const CLA_SORT_KEYS = {
  * @param {object[]} logs      tracked logs of the active guild
  * @param {object[]} reports   report metadata (listReports())
  * @param {object} query       { filter, sort, dir, page }
- * @param {object} [opts]      { pageSize, allLogs } — allLogs: every guild's logs, so a
- *   report whose log lives in another guild is not mistaken for a link report
+ * @param {object} [opts]      { pageSize, allLogs, inVersion } — allLogs: every guild's logs, so a
+ *   report whose log lives in another guild is not mistaken for a link report; inVersion(row):
+ *   whether a row belongs to the version shown (#741, logVersion.inVersionList) — counted
+ *   and listed are only those
  * @returns {{ page, filter, counts: {all,open,unlinked,done} }}
  */
 function prepareClaList(logs, reports, query = {}, opts = {}) {
     const reportById = new Map((reports || []).map((r) => [r.id, r]));
     const referenced = new Set((opts.allLogs || logs || []).map((l) => l && l.reportRefId).filter(Boolean));
+    const inVersion = typeof opts.inVersion === "function" ? opts.inVersion : () => true;
     const rows = [
         ...(logs || []).map((l) => claRowFromLog(l, reportById.get(l.reportRefId))),
         ...(reports || []).filter((r) => !referenced.has(r.id)).map(claRowFromReport),
-    ];
+    ].filter(inVersion);
     const counts = {};
     for (const f of CLA_FILTERS) counts[f] = rows.filter(CLA_FILTER_TESTS[f]).length;
     const filter = CLA_FILTERS.includes(query.filter) ? query.filter : "all";
