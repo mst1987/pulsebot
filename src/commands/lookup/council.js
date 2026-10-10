@@ -9,7 +9,7 @@ const { versionOfEvent } = require("../../services/events/mainVersion");
 const { versionLinks } = require("../../services/events/versionSettings");
 const { webUrl, lookupReply, respondChoices, clip } = require("../../utils/discord/botLookup");
 const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
-const { councilContentFor } = require("../../config/councilContent");
+const { councilContent: councilContentFor } = require("../../services/events/versionCapabilities");
 
 /** The game version the command answers for: the `version` option, else the channel category's, else the main version (#743, #748). */
 function versionOfInteraction(interaction) {

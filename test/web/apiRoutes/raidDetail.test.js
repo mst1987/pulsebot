@@ -1348,6 +1348,16 @@ describe("web/apiRoutes/raidDetail", () => {
             expect(json(res)).toEqual({ data: { message: "Softres-Liste erstellt." } });
         });
 
+        it("refuses with 409 while softres is switched off for the event's version (#761)", async () => {
+            setupDefaults();
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", versionSettings: { tbc: { softresEdition: "tbc", disabled: ["softres"] } } });
+            const res = await post("/api/raids/softres", { event: "e1", instanceCodes: ["kara"], faction: "Horde" });
+            expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+            expect(json(res)).toEqual({ error: { code: "feature_off", message: "Softres ist für TBC Anniversary ausgeschaltet (Einstellungen → Spielversion)." } });
+            expect(softres.createRaid).not.toHaveBeenCalled();
+            settingsStore.getConfig.mockReturnValue({});
+        });
+
         it("passes protection: false through when the caller opts out", async () => {
             setupDefaults();
             softres.createRaid.mockResolvedValue({ raidId: "r1", token: "tok1", url: "u", editUrl: "e" });

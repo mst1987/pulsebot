@@ -18,7 +18,7 @@ const {
 const { pickRaidsheet } = require("../../utils/setup/raidsheets");
 const { versionOfEvent } = require("../../services/events/mainVersion");
 const { archiveOf } = require("../../services/events/eventArchive");
-const { settingsForVersion } = require("../../services/events/versionSettings");
+const { settingsForVersion, versionLinks } = require("../../services/events/versionSettings");
 const { buildSetupView, tankCandidates } = require("../../utils/setup/setupView");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
@@ -49,7 +49,7 @@ const { setupSummary } = require("../../services/setup/setupEditor");
 const setupPresence = require("../../services/setup/setupPresence");
 const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 const { planningOf } = require("../../services/events/planning");
-const { hasSheetLayout } = require("../../config/gameVersions");
+const { featureState, sheetOffered } = require("../../services/events/versionCapabilities");
 const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 const { expectedRosterIds, listExpectedMembers } = require("../../services/roster/expectedRaiders");
 
@@ -301,9 +301,13 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
 
     const config = getConfig();
     // Raid plan or Google Sheet, never both: the category's choice gates the plan's tab and step and the sheet's.
-    // A version without a Google raid sheet layout (everything but TBC, #751) always plans with the raid plan.
+    // A version without a Google raid sheet layout (everything but TBC, #751), or with the raid sheet switched off
+    // (#761, Einstellungen → Spielversion), always plans with the raid plan.
     const version = eventVersionSettings(found, config);
-    const planning = hasSheetLayout(version.versionId) ? planningOf(found.g.categoryId, config) : "raidplan";
+    const planning = sheetOffered(version.versionId, { config }) ? planningOf(found.g.categoryId, config) : "raidplan";
+    // Softres only where the version has an edition and it is not switched off (#761).
+    const softresState = featureState(version.versionId, "softres", { config });
+    const softresEdition = softresState.on ? version.softresEdition : "";
     const raidsheets = listRaidsheets();
     const matched = pickRaidsheet(raidsheets, found.e.title, { ownId: version.raidsheetId, otherIds: version.otherSheetIds });
     // A raid that is over and whose signups Raid-Helper no longer returns (and
@@ -323,7 +327,7 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
         ownEventPart(guildId, found, eventId, stored),
         logsPart(guildId, eventId),
     ]);
-    const softresInfo = softresPart(found, eventId, attendanceInfo, version.softresEdition);
+    const softresInfo = softresPart(found, eventId, attendanceInfo, softresEdition);
 
     const payload = {
         event: eventMeta(found, eventId, { isPast, signupsKnown, guildId, planning, stored }),
@@ -350,11 +354,13 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
         // or in a category that plans with a sheet.
         raidplanPost: planPost && planning === "raidplan" ? raidplanPostState(found.e) : null,
         eventSoftres: softresInfo.eventSoftres,
-        softresCatalogue: version.softresEdition ? softres.catalogue().filter((g) => g.edition === version.softresEdition) : [],
-        softresEdition: version.softresEdition,
+        softresCatalogue: softresEdition ? softres.catalogue().filter((g) => g.edition === softresEdition) : [],
+        softresEdition,
+        // Softres switched off for the version (#761): the dialog says so instead of "no edition".
+        softresOff: softresState.reason === "disabled",
         // The event's version and its Wowhead path (#542) for the softres item search.
         versionId: version.versionId,
-        wowheadPath: version.wowheadPath,
+        wowheadPath: versionLinks(version.versionId, { config }).wowheadPath,
         // A hidden game version (#563): the page opens as a read-only archive (null = a normal event).
         archived: archiveOf({ versionId: version.versionId, categoryId: found.g.categoryId }, { config }),
         softresSuggested: softresInfo.suggestedInstances.map((i) => i.code),

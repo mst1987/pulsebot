@@ -189,6 +189,15 @@ describe("GET /api/lootcouncil for a version without council content (#748)", ()
         expect(answer.sim.available).toBe(true);
         expect(lc.bisGaps).toHaveBeenCalled();
     });
+
+    it("treats BiS and the simulation switched off for TBC (#761) like no content, and says they are off", async () => {
+        getConfig.mockReturnValue({ mainVersion: "tbc", versionSettings: { tbc: { wowheadPath: "tbc", disabled: ["lootCouncilBis", "simulation"] } } });
+        const answer = body(await call(getLootCouncil));
+        expect(answer.content).toEqual({ bis: false, sim: false, tiers: false, itemTable: false, off: true });
+        expect(answer.gaps).toEqual([]);
+        expect(answer.sim.available).toBe(false);
+        expect(answer.sim.hint).toBe("Simulation ist für TBC Anniversary ausgeschaltet (Einstellungen → Spielversion).");
+    });
 });
 
 describe("write access on the POST handlers", () => {

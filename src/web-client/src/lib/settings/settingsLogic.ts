@@ -7,6 +7,7 @@
 // relies on exactly that; keep it when adding a function here.
 import type { AreaAccess, EventGuildEntry, PingTarget, PingTargetInfo, ReminderRule, RoleSyncRule, TalkOverviewStatus } from "../../api";
 import { t, tOr } from "../../i18n";
+import { changedFeatureVersions } from "./versionFeatures";
 
 export type Level = "none" | "read" | "write";
 export type Grants = Record<string, AreaAccess | undefined>;
@@ -142,6 +143,8 @@ export type DraftShape = {
     botLanguage?: "de" | "en";
     /** Settings per version (#542): version id → { field → value }. */
     versionSettings?: Record<string, Record<string, string>>;
+    /** The features switched off per version (#761). */
+    versionDisabled?: Record<string, string[]>;
     topItems: { id: number }[];
 };
 
@@ -393,6 +396,10 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const is = vsIs[id] || {};
         const changed = [...new Set([...Object.keys(was), ...Object.keys(is)])].some((k) => String(was[k] || "").trim() !== String(is[k] || "").trim());
         if (changed) out.push(t("settings.changes.versionSettings", { value: versionName(id) }));
+    }
+    // "Funktionen je Version" (#761): one line per version whose switches changed.
+    for (const id of changedFeatureVersions(saved.versionDisabled, draft.versionDisabled)) {
+        out.push(t("settings.changes.versionFeatures", { value: versionName(id) }));
     }
 
     for (const [key, labelKey] of SIMPLE_FIELDS) {

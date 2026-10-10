@@ -6,6 +6,7 @@ import type { EventSource, PlanningMode } from "./raidDetail";
 import type { TextChannel } from "./recruitment";
 import type { BotAccessRule } from "./botCommands";
 import type { VersionSettingsBlock } from "../lib/settings/versionLinks";
+import type { CapabilityMatrix } from "../lib/settings/versionFeatures";
 
 /** `color`: the role's Discord colour as hex, "" when it has none. */
 export type Role = { id: string; name: string; color?: string };
@@ -70,8 +71,9 @@ export type AdminConfig = {
      * Settings per game version (#542): armory realm, armory/WCL templates,
      * Wowhead path, softres edition, default raidsheet. Every known version is
      * present; an empty field = not there for that version (no link).
+     * `disabled` (#761): the features switched off for the version, only when there are any.
      */
-    versionSettings?: Record<string, VersionSettingsBlock>;
+    versionSettings?: Record<string, VersionSettingsBlock & { disabled?: string[] }>;
     blizzard: BlizzardConfig;
     // Claude phrases the log recommendations for the raiders. The key itself
     // never comes back from the server — only whether one is stored.
@@ -224,6 +226,8 @@ export type SettingsData = {
      * button takes over; an all-empty block = the version has none yet.
      */
     versionDefaults?: Record<string, VersionSettingsBlock>;
+    /** "Funktionen je Version" (#761): per version and feature possible / on / why not, from the saved settings. */
+    versionCapabilities?: CapabilityMatrix;
     /** The coming raids per version (#563), for the warning before hiding the other versions. */
     upcomingByVersion?: Record<string, { id: string; title: string; startTime: number }[]>;
     /** The versions something is stored for (#563): the archive export names only those. */

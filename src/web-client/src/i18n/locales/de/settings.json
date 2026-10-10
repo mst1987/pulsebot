@@ -220,6 +220,7 @@
         "hideOtherOff": "Andere Versionen ausblenden aus",
         "followMain": "Hauptversion",
         "versionSettings": "Links und Armory · {value}",
+        "versionFeatures": "Funktionen je Version · {value}",
         "planning": "{name} · Planung → {value}",
         "botLanguage": "Bot-Sprache: {value}"
     },
@@ -1070,6 +1071,52 @@
         "defaultsSub": "Setzt die bekannten Werte für {version} ein (Namespace, Armory, Warcraft Logs, Wowhead, Softres). Realm und Raidsheet bleiben, wie sie sind. Gespeichert wird erst mit „Speichern“.",
         "defaultsSame": "Die Standardwerte sind schon eingetragen.",
         "defaultsNone": "Für {version} sind noch keine Standardwerte bekannt."
+    },
+    "versionFeatures": {
+        "title": "Funktionen je Version",
+        "titleSub": "Was jede Spielversion kann. Möglich ist eine Funktion, wenn Daten, Regeln oder Einstellungen für die Version da sind. Nur dann gibt es einen Schalter. Gespeichert wird mit „Speichern“.",
+        "hint": "„Möglich“ richtet sich nach den gespeicherten Einstellungen.",
+        "feature": "Funktion",
+        "on": "an",
+        "off": "aus",
+        "impossible": "nicht möglich",
+        "cellAria": "{feature} · {version}",
+        "onSub": "Eingeschaltet. Aus verhält sich wie „nicht möglich“.",
+        "features": {
+            "logcheck": "Logcheck",
+            "lootCouncilBis": "BiS-Listen",
+            "simulation": "Simulation",
+            "raidSheet": "Raidsheet",
+            "softres": "Softres",
+            "armory": "Armory-Abruf",
+            "wowheadLinks": "Wowhead-Links",
+            "raidplanCatalog": "Raidplan-Katalog"
+        },
+        "featureSub": {
+            "logcheck": "Auswertung von Warcraft-Logs-Berichten.",
+            "lootCouncilBis": "BiS-Listen, Item-Tabelle und Tier-Filter im Loot-Council.",
+            "simulation": "DPS-Simulation (WoWSims) im Loot-Council.",
+            "raidSheet": "Google-Raidsheet füllen. Ohne plant der Raid mit dem Raidplan.",
+            "softres": "Softres-Liste auf der Raid-Seite anlegen.",
+            "armory": "Ausrüstung und Charakterdaten von Battle.net abrufen.",
+            "wowheadLinks": "Links auf Wowhead für Items und Zauber.",
+            "raidplanCatalog": "Mobs und Zauber des Katalogs im Raidplan."
+        },
+        "reason": {
+            "disabled": "Für {version} ausgeschaltet.",
+            "unknown_version": "Unbekannte Spielversion.",
+            "unknown_feature": "Unbekannte Funktion.",
+            "no_rules": "Keine Logcheck-Regeln für {version}.",
+            "rules_not_ready": "Logcheck-Regeln für {version} noch nicht fertig ({count} offen).",
+            "no_site": "Keine Warcraft-Logs-Seite für {version} eingetragen.",
+            "no_bis_data": "Keine BiS-Daten für {version}.",
+            "no_sim_data": "Keine Simulationsdaten für {version}.",
+            "no_sheet_layout": "Kein Raidsheet-Layout für {version}.",
+            "no_softres_edition": "Keine Softres-Edition für {version} eingetragen.",
+            "armory_not_configured": "Armory für {version} nicht eingerichtet (Region, Realm, Namespace).",
+            "no_wowhead_path": "Kein Wowhead-Pfad für {version} eingetragen.",
+            "no_catalog_entries": "Keine Katalog-Einträge für {version}."
+        }
     },
     "planning": {
         "raidplan": "Raidplan",

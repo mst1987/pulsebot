@@ -269,6 +269,13 @@ describe("web/apiRoutes/settings", () => {
                 expect(data.versionDefaults.classic).toMatchObject({ wowheadPath: "classic", softresEdition: "classic", blizzardRealmSlug: "" });
                 // Forever: only its Wowhead section (#750), no realm, armory or log site
                 expect(data.versionDefaults.forever).toMatchObject({ wowheadPath: "forever", blizzardRealmSlug: "", blizzardNamespace: "", armoryUrlTemplate: "", wclUrlTemplate: "" });
+                // "Funktionen je Version" (#761): every version with every feature, from the one source
+                expect(data.versionCapabilities.features).toEqual(["logcheck", "lootCouncilBis", "simulation", "raidSheet", "softres", "armory", "wowheadLinks", "raidplanCatalog"]);
+                expect(Object.keys(data.versionCapabilities.versions)).toEqual(["tbc", "classic", "forever"]);
+                expect(data.versionCapabilities.versions.tbc.raidSheet).toMatchObject({ possible: true, enabled: true, on: true, reason: "" });
+                expect(data.versionCapabilities.versions.forever.wowheadLinks).toMatchObject({ on: true });
+                expect(data.versionCapabilities.versions.forever.logcheck).toMatchObject({ possible: false, reason: "rules_not_ready" });
+                expect(data.versionCapabilities.versions.forever.raidSheet).toMatchObject({ possible: false, reason: "no_sheet_layout" });
             });
 
             // A role with write on "Einstellungen" may edit the bot config, but must
@@ -843,6 +850,21 @@ describe("web/apiRoutes/settings", () => {
                 const res = await patch("/api/settings", { versionSettings: { tbc: { raidsheetId: "gone" } } });
                 expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
                 expect(json(res).error.message).toBe("TBC Anniversary: Raidsheet nicht gefunden.");
+            });
+
+            it("takes the features switched off as a list of known ids, in the matrix order (#761)", async () => {
+                const res = await patch("/api/settings", { versionSettings: { tbc: { disabled: ["softres", "logcheck", "logcheck"] }, forever: { disabled: [] } } });
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ versionSettings: { tbc: { disabled: ["logcheck", "softres"] }, forever: { disabled: [] } } });
+            });
+
+            it("refuses an unknown feature or a list that is none, naming the version (#761)", async () => {
+                const unknown = await patch("/api/settings", { versionSettings: { tbc: { disabled: ["logcheck", "teleport"] } } });
+                expect(unknown.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(unknown).error).toEqual({ code: "invalid_version_settings", message: "TBC Anniversary: unbekannte Funktion „teleport“." });
+                const notAList = await patch("/api/settings", { versionSettings: { forever: { disabled: "logcheck" } } });
+                expect(json(notAList).error.message).toBe("WoW Forever: disabled ist ungültig.");
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
         });
 

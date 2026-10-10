@@ -26,6 +26,8 @@ const {
 const { normalizeBotCommandAccess } = require("../../config/botCommands");
 const { VERSIONS } = require("../../config/gameVersions");
 const versionSettings = require("../../services/events/versionSettings");
+const { capabilityMatrix } = require("../../services/events/versionCapabilities");
+const { isVersionFeature, normalizeDisabled } = require("../../config/versionFeatures");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { normalizeCategoryPlanning } = require("../../services/events/planning");
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../services/events/contentVersions");
@@ -226,6 +228,8 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // The standard values per version (#553) for "Standardwerte übernehmen";
         // an all-empty block = the version has none yet (Forever).
         versionDefaults: defaultVersionSettings(config.versionSettings),
+        // "Funktionen je Version" (#761): per version and feature: possible, switched on, why not.
+        versionCapabilities: capabilityMatrix({ config }),
         // "Andere Versionen ausblenden" (#563): the coming raids per version, for the warning.
         upcomingByVersion: upcomingByVersion({ config }),
         // The versions with data (#563): the archive export names only those.
@@ -410,6 +414,15 @@ function versionSettingsPatch(raw) {
             if (sent && !clean[field]) return { error: `${v.label}: ${field} ist ungültig.`, field, versionId: v.id };
             if (field === "raidsheetId" && clean[field] && !sheets.has(clean[field])) return { error: `${v.label}: Raidsheet nicht gefunden.`, field, versionId: v.id };
             partial[v.id][field] = clean[field];
+        }
+        // The features switched off (#761): a list of known feature ids, sent whole.
+        if (block.disabled !== undefined) {
+            const list = Array.isArray(block.disabled) ? block.disabled : null;
+            const unknown = list ? list.find((f) => !isVersionFeature(f)) : "";
+            if (!list || unknown !== undefined) {
+                return { error: unknown ? `${v.label}: unbekannte Funktion „${unknown}“.` : `${v.label}: disabled ist ungültig.`, field: "disabled", versionId: v.id };
+            }
+            partial[v.id].disabled = normalizeDisabled(list);
         }
     }
     return { partial };

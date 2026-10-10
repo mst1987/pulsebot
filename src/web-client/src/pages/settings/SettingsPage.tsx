@@ -31,6 +31,8 @@ import CategorySwitchDialog, { type CategorySwitchChoice } from "./CategorySwitc
 import { categoryVersionsToSave, isVersionSwitch, savedCategoryVersion, switchFixesToSend } from "../../lib/settings/categoryVersions";
 import HideOtherVersionsCard from "./HideOtherVersionsCard";
 import BotLanguageCard from "./BotLanguageCard";
+import VersionFeaturesCard from "./VersionFeaturesCard";
+import { withDisabled } from "../../lib/settings/versionFeatures";
 import { useContentVersion } from "../../hooks/useContentVersion";
 
 /** A module's fields on the panel card, each hint moved into its label's tooltip. */
@@ -202,7 +204,8 @@ export default function SettingsPage() {
                 hideOtherVersions: draft.hideOtherVersions,
                 botLanguage: draft.botLanguage,
                 // #542: every version's block, merged per field on the server; a wrong value comes back as 400 with its field.
-                versionSettings: draft.versionSettings,
+                // #761: with each version's features switched off, sent whole.
+                versionSettings: withDisabled(draft.versionSettings, draft.versionDisabled),
                 // Sent whole: the store replaces the map, so clearing a url is
                 // what removes that category's sheet.
                 categorySheets: Object.fromEntries(
@@ -399,6 +402,12 @@ export default function SettingsPage() {
                         dataVersions={data.dataVersions}
                         canExport={data.canManageAccess}
                         onChange={(hideOtherVersions) => patch({ hideOtherVersions })}
+                    />
+                    <VersionFeaturesCard
+                        versions={data.gameVersions || []}
+                        matrix={data.versionCapabilities}
+                        disabled={draft.versionDisabled}
+                        onChange={(id, list) => patch({ versionDisabled: { ...draft.versionDisabled, [id]: list } })}
                     />
                     <VersionSettingsCard
                         versions={data.gameVersions || []}

@@ -15,6 +15,10 @@
 //   raidsheetId         id of a raidsheet (Einstellungen → Raidsheets)
 //   color               "#rrggbb"                         the version's colour in the web admin (#742);
 //                       "" = the rule set's colour (config/gameVersions/<id>.js color, see colorOf)
+//   disabled            ["logcheck", …]                   the features switched off for this version (#761,
+//                       config/versionFeatures.js). Only in a block that switches something off:
+//                       missing = every possible feature on, so a stored config needs no migration.
+//                       A list, so it is not one of FIELDS (the text fields of the form and the standard values)
 //
 // A value that does not pass is "", and "" means "not there for this version".
 //
@@ -24,6 +28,7 @@
 const { VERSIONS, LEGACY_VERSION } = require("../config/gameVersions");
 const { INSTANCES: SOFTRES_INSTANCES } = require("../config/softresInstances");
 const vars = require("../config/variables");
+const { normalizeDisabled } = require("../config/versionFeatures");
 
 const FIELDS = [
     "blizzardRegion", "blizzardRealmSlug", "blizzardNamespace",
@@ -57,6 +62,23 @@ function normalizeTemplate(raw) {
     }
 }
 
+/**
+ * The Warcraft Logs site of a version: the origin of its log template
+ * ("https://vanilla.warcraftlogs.com"), "" without one or when it is no
+ * warcraftlogs.com address — the applicant check (#553) asks this site's v1
+ * API and links its reports there, the log check (#746) its reports.
+ */
+function wclSiteOf(template) {
+    const text = str(template);
+    if (!text) return "";
+    try {
+        const url = new URL(text.replace(/\{(char|region|realm)\}/g, "x"));
+        return /(^|\.)warcraftlogs\.com$/i.test(url.hostname) && url.protocol === "https:" ? url.origin : "";
+    } catch {
+        return "";
+    }
+}
+
 /** One version's block with every field in its final shape: a valid value or "". */
 function normalizeBlock(raw) {
     const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
@@ -67,6 +89,7 @@ function normalizeBlock(raw) {
     const edition = str(src.softresEdition).toLowerCase();
     const sheet = str(src.raidsheetId);
     const color = str(src.color).toLowerCase();
+    const disabled = normalizeDisabled(src.disabled);
     return {
         blizzardRegion: REGIONS.includes(region) ? region : "",
         blizzardRealmSlug: SLUG.test(realm) ? realm : "",
@@ -77,6 +100,8 @@ function normalizeBlock(raw) {
         softresEdition: SOFTRES_EDITIONS.includes(edition) ? edition : "",
         raidsheetId: RAIDSHEET_ID.test(sheet) ? sheet : "",
         color: HEX_COLOR.test(color) ? color : "",
+        // #761: only when something is switched off (see the head)
+        ...(disabled.length ? { disabled } : {}),
     };
 }
 
@@ -198,7 +223,7 @@ function versionSettingsOf(stored) {
 
 module.exports = {
     FIELDS, REGIONS, SOFTRES_EDITIONS,
-    normalizeTemplate, normalizeBlock, normalizeVersionSettings, legacyTbcBlock, versionSettingsOf,
+    normalizeTemplate, normalizeBlock, normalizeVersionSettings, legacyTbcBlock, versionSettingsOf, wclSiteOf,
     defaultColorOf, colorOf,
     settingsDefaultsOf, versionsWithDefaults, defaultBlock, defaultVersionSettings, fillDefaults,
 };

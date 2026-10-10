@@ -146,7 +146,7 @@ export default function SoftresModal({ ctx, open, onClose }: { ctx: RaidCtx; ope
                 <Segment<Mode> ariaLabel="Softres" size="sm" value={mode} onChange={setMode} options={modes} />
 
                 {mode === "create" && noEdition && (
-                    <p className="rd-muted" role="note">{t("raidModals.softres.noEdition")}</p>
+                    <p className="rd-muted" role="note">{t(data.softresOff ? "raidModals.softres.off" : "raidModals.softres.noEdition")}</p>
                 )}
                 {mode === "create" && !noEdition && (
                     <form id="rd-softres-form" className="rd-form" onSubmit={create}>

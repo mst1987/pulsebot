@@ -109,6 +109,13 @@ describe("save bar change list", () => {
         expect(logic.draftChanges(base(), { ...base(), mainVersion: "classic" }, names)).toEqual(["Hauptversion → classic"]);
     });
 
+    it("names a version whose features were switched (#761), not one whose list only changed its order", () => {
+        const version = (id: string) => ({ tbc: "TBC" } as Record<string, string>)[id] || id;
+        const saved = { ...base(), versionDisabled: { tbc: ["logcheck", "softres"] } };
+        expect(logic.draftChanges(saved, { ...base(), versionDisabled: { tbc: ["softres", "logcheck"] } }, { ...names, version })).toEqual([]);
+        expect(logic.draftChanges(saved, { ...base(), versionDisabled: { tbc: ["softres"] } }, { ...names, version })).toEqual(["Funktionen je Version · TBC"]);
+    });
+
     it("is empty when nothing changed, even if the order of a list or an empty entry differs", () => {
         const draft = base();
         draft.categoryRoles = { c1: ["r2", "r1"] };

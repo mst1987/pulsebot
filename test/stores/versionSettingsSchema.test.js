@@ -65,6 +65,19 @@ describe("stores/versionSettingsSchema", () => {
             expect(schema.normalizeTemplate(tpl)).toBe(tpl);
             expect(schema.normalizeTemplate("https://x.test/{region}/{realm}")).toBe("");
         });
+
+        it("keeps the features switched off (#761) only when there are any, known ids in the matrix order", () => {
+            expect(schema.normalizeBlock({ disabled: ["softres", "teleport", "logcheck"] }).disabled).toEqual(["logcheck", "softres"]);
+            expect(schema.normalizeBlock({ disabled: [] })).not.toHaveProperty("disabled");
+            expect(schema.normalizeBlock({ disabled: "logcheck" })).not.toHaveProperty("disabled");
+            expect(schema.normalizeBlock({})).not.toHaveProperty("disabled");
+            expect(schema.FIELDS).not.toContain("disabled");
+        });
+
+        it("reads the Warcraft Logs site of a template", () => {
+            expect(schema.wclSiteOf("https://fresh.warcraftlogs.com/character/{region}/{realm}/{char}")).toBe("https://fresh.warcraftlogs.com");
+            expect(schema.wclSiteOf("https://armory.test/{char}")).toBe("");
+        });
     });
 
     describe("normalizeVersionSettings", () => {
