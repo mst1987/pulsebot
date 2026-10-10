@@ -256,6 +256,14 @@
         "trialLine": "{name} · trial until {date}",
         "trialLineOverdue": "{name} · trial ran out on {date}"
     },
+    "closed": {
+        "badge": "Closed",
+        "tip": "Closed on {date}",
+        "reasonSwitch": "The category now plays another game version.",
+        "reasonOther": "This roster was closed.",
+        "readOnly": "Read only: no new members, no changes, no sync with Discord. Whoever holds a role of this roster keeps it.",
+        "title": "Closed on {date}"
+    },
     "detail": {
         "loading": "Loading roster …",
         "loadError": "Could not load the roster: {message}",
@@ -447,7 +455,8 @@
         "single_char_only": "This roster allows only one character per person.",
         "note_too_long": "The note is too long (500 characters at most).",
         "invalid_date": "The date is invalid.",
-        "category_taken": "This category already has a roster.",
+        "category_taken": "This category already has a roster for this game version.",
+        "roster_closed": "This roster is closed and read only.",
         "kader_not_found": "This squad does not exist (any more).",
         "invalid_name": "Please enter a name or pick a category.",
         "name_too_long": "The name is too long (40 characters at most).",
@@ -601,6 +610,13 @@
         "viaDiscord": "(via Discord)",
         "created": "Roster created",
         "createdMigration": "Roster taken over from the category's raider roles",
+        "closed": "Roster closed",
+        "closedSwitch": "Roster closed: the category now plays another game version",
+        "reopened": "Roster opened again",
+        "membersCopied": {
+            "one": "{count} person taken over from “{from}” (as trial, without a character)",
+            "other": "{count} people taken over from “{from}” (as trial, without a character)"
+        },
         "settings": "Settings changed: {fields}",
         "field": {
             "name": "name",

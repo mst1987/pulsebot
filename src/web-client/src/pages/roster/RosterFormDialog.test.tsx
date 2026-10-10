@@ -170,7 +170,28 @@ describe("RosterFormDialog — settings", () => {
         await d.findByText("Raid Mo / Do einstellen");
         await userEvent.selectOptions(d.getByRole("combobox", { name: "Kategorie" }), "");
         await userEvent.click(d.getByRole("button", { name: "Speichern" }));
-        expect(await screen.findByText("Diese Kategorie hat schon ein Roster.")).toBeInTheDocument();
+        expect(await screen.findByText("Diese Kategorie hat für diese Spielversion schon ein Roster.")).toBeInTheDocument();
+    });
+});
+
+describe("RosterFormDialog — one roster per category and version (#739)", () => {
+    it("takes a category whose roster is of another version, and refuses the version that has one", async () => {
+        const opts = options();
+        // PuG Karazhan has a closed TBC roster; it plays Forever now
+        const cat2 = opts.categories.find((c) => c.id === "cat2");
+        if (cat2) Object.assign(cat2, { versionId: "forever", rosters: [{ id: "old-tbc", name: "Kara alt", versionId: "tbc", closed: true }] });
+        create("cat2", opts);
+        const d = within(await waitFor(() => dialog()));
+        expect(await d.findByRole("combobox", { name: "Kategorie" })).toHaveValue("cat2");
+        const submit = d.getByRole("button", { name: "Roster anlegen" });
+        // the default source "Alle mit der Rolle" needs a role
+        await userEvent.click(within(d.getByRole("group", { name: "Discord-Rolle des Rosters" })).getByRole("button", { name: /@Kara-Team/ }));
+        expect(d.queryByText("Diese Kategorie hat für diese Spielversion schon ein Roster.")).toBeNull();
+        expect(submit).toBeEnabled();
+        expect(d.getByRole("radio", { name: "WoW Forever" })).toHaveAttribute("aria-checked", "true");
+        await userEvent.click(d.getByRole("radio", { name: "WoW TBC" }));
+        expect(d.getByText("Diese Kategorie hat für diese Spielversion schon ein Roster.")).toBeInTheDocument();
+        expect(submit).toBeDisabled();
     });
 });
 

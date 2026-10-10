@@ -100,6 +100,19 @@ describe("RostersPage", () => {
         expect(within(empty).queryByRole("link")).not.toBeInTheDocument();
     });
 
+    it("marks a closed roster under its version, without open-work badges (#739)", async () => {
+        await openPage(overview({ rosters: [rosterHead({ closed: true, closedAt: "2026-10-11T12:00:00.000Z", closedReason: "version_switch" })] }));
+        const el = card("Raid Mo / Do");
+        expect(el.querySelector(".rn-card")).toHaveClass("rn-card-closed");
+        const badge = within(el).getByText("Abgeschlossen");
+        expect(badge).toHaveAttribute("data-tip", "Abgeschlossen am 11.10.2026");
+        expect(badge).toHaveAttribute("data-tip-sub", "Die Kategorie spielt jetzt eine andere Spielversion.");
+        expect(within(el).queryByText("4 Plätze frei")).not.toBeInTheDocument();
+        expect(within(el).queryByText("Nichts offen")).not.toBeInTheDocument();
+        // still a link to the roster
+        expect(within(el).getByRole("link")).toHaveAttribute("href", "/roster/r/raid-mo-do-abc");
+    });
+
     it("leads to all characters and has one primary button, \"Roster anlegen\"", async () => {
         await openPage();
         expect(screen.getByRole("link", { name: "Alle Charaktere" })).toHaveAttribute("href", "/roster/chars");

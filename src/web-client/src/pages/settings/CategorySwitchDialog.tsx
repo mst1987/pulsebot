@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getCategorySwitch, type ApiError, type CategorySwitchPreview } from "../../api";
+import { getCategorySwitch, type ApiError, type CategorySwitchPreview, type Role, type RosterSwitchChoice } from "../../api";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { formatDayDate } from "../../lib/format";
 import { useT } from "../../i18n";
+import CategorySwitchRoster from "./CategorySwitchRoster";
 
-/** What the orga chose in the dialog: the series' fix ("pause" / a template id / "") and the new default template ("" = none, undefined = unchanged). */
-export type CategorySwitchChoice = { series: string; defaultTemplateId?: string };
+/**
+ * What the orga chose in the dialog: the series' fix ("pause" / a template id / ""), the new default template
+ * ("" = none, undefined = unchanged) and the roster (#739; undefined when the category has none to close or open).
+ */
+export type CategorySwitchChoice = { series: string; defaultTemplateId?: string; roster?: RosterSwitchChoice };
 
 // How many coming raids the dialog lists before it only counts them.
 const MAX_RAIDS = 6;
@@ -23,10 +27,12 @@ const MAX_RAIDS = 6;
  * would no longer fit (a series of another version creates no event). The
  * choice goes into the page draft; the save bar makes it happen.
  */
-export default function CategorySwitchDialog({ categoryId, categoryName, versionId, onCancel, onConfirm }: {
+export default function CategorySwitchDialog({ categoryId, categoryName, versionId, roles = [], onCancel, onConfirm }: {
     categoryId: string;
     categoryName: string;
     versionId: string;
+    /** The server's Discord roles, for the new roster's roles (#739). */
+    roles?: Role[];
     onCancel: () => void;
     onConfirm: (choice: CategorySwitchChoice) => void;
 }) {
@@ -35,6 +41,8 @@ export default function CategorySwitchDialog({ categoryId, categoryName, version
     const [loadError, setLoadError] = useState("");
     const [series, setSeries] = useState("pause");
     const [defaultTemplate, setDefaultTemplate] = useState("");
+    // #739: a roster for the new version with the people taken over, no Discord role unless picked
+    const [roster, setRoster] = useState<RosterSwitchChoice>({ create: true, copyMembers: true, roleIds: [] });
 
     useEffect(() => {
         let live = true;
@@ -49,9 +57,11 @@ export default function CategorySwitchDialog({ categoryId, categoryName, version
     const to = preview ? preview.to.short : "";
     const seriesNeedsFix = !!preview && !!preview.series && !preview.series.fits;
     const defaultNeedsFix = !!preview && !!preview.defaultTemplate && !preview.defaultTemplate.fits;
+    const rosterInfo = preview && preview.roster;
     const confirm = () => onConfirm({
         series: seriesNeedsFix ? series : "",
         ...(defaultNeedsFix ? { defaultTemplateId: defaultTemplate } : {}),
+        ...(rosterInfo && (rosterInfo.closing || rosterInfo.existing) ? { roster } : {}),
     });
 
     return (
@@ -102,6 +112,8 @@ export default function CategorySwitchDialog({ categoryId, categoryName, version
                             </>
                         )}
                     </section>
+
+                    <CategorySwitchRoster preview={preview} roles={roles} value={roster} onChange={setRoster} />
 
                     {(preview.series || preview.defaultTemplate) && (
                         <section className="csw-part" aria-label={t("settings.categorySwitch.templatesTitle")}>

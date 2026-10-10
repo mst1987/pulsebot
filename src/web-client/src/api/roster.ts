@@ -259,6 +259,13 @@ export type RosterHead = {
     trialEnding?: { userId: string; displayName: string; trialUntil: string; overdue: boolean }[];
     /** Overview cards: the caller is the orga of this roster; false = no attendance, no open-work badges (epic #723). */
     isOrga?: boolean;
+    /**
+     * Closed (#739): its category switched to another game version - read only under its version, no Discord role
+     * sync, no new members; a full admin may still delete it. `closedReason` "version_switch" (later more).
+     */
+    closed?: boolean;
+    closedAt?: string | null;
+    closedReason?: string;
 };
 
 export type RosterOverview = {

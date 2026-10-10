@@ -18,7 +18,7 @@ import { rolePluralLabel } from "../../lib/wow/wowNames";
 import { ROLE_ICONS, dpsTarget } from "../../lib/roster/rosters";
 import { attendanceTone } from "../../lib/roster/rosterView";
 import { formatDate } from "../../lib/format";
-import { RoleChip, VersionLine } from "./RosterParts";
+import { ClosedBadge, RoleChip, VersionLine } from "./RosterParts";
 import RosterFormDialog from "./RosterFormDialog";
 import "../../styles/rosters.css";
 
@@ -69,15 +69,18 @@ function RosterCard({ roster }: { roster: RosterHead }) {
     const orga = roster.isOrga !== false;
     const tone = attendanceTone(roster.attendance);
     const total = roster.slots.total;
+    // closed (#739): listed under its version, marked, nothing left to do in it
+    const closed = !!roster.closed;
     return (
         <li>
-            <Link className="rn-panel rn-card" to={`/roster/r/${encodeURIComponent(roster.id)}`}>
+            <Link className={`rn-panel rn-card${closed ? " rn-card-closed" : ""}`} to={`/roster/r/${encodeURIComponent(roster.id)}`}>
                 <div className="rn-card-top">
                     <IconTile icon={roster.icon} tone="roster" size="lg" />
                     <div className="rn-card-title">
                         <b>{roster.name}</b>
                         <VersionLine versionId={roster.versionId} parts={[roster.versionLabel, ...(roster.categoryId ? roster.contents : [t("roster.overview.noCategory")])]} />
                     </div>
+                    {closed && <ClosedBadge roster={roster} />}
                 </div>
                 <div className="rn-card-nums">
                     <div data-tip={t("roster.overview.placesTip")} data-tip-sub={t("roster.overview.placesSub")}>
@@ -105,7 +108,7 @@ function RosterCard({ roster }: { roster: RosterHead }) {
                     <RoleFigure role="healer" count={roster.roleCounts.healer} target={roster.slots.healer} />
                     <RoleFigure role="dps" count={roster.roleCounts.dps} target={dpsTarget(roster.slots)} />
                 </div>
-                {orga && <TodoBadges roster={roster} />}
+                {orga && !closed && <TodoBadges roster={roster} />}
                 <div className="rn-card-foot">
                     <RoleChip role={roster.mainRole} />
                     <span className={buttonClass("ghost", "sm", false, "rn-open")}>{t("roster.overview.open")}</span>

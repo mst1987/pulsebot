@@ -149,7 +149,29 @@
         "confirm": "Switch to {version}",
         "loading": "Loading what the switch affects …",
         "error": "Could not be loaded: {message}",
-        "switched": "{name}: new section with {version}"
+        "switched": "{name}: new section with {version}",
+        "rosterTitle": "Roster",
+        "rosterCloses": "Roster “{name}” is closed. It stays readable under {from}, without sync with Discord – nobody loses a role.",
+        "rosterReopens": "The {to} roster “{name}” is opened again.",
+        "rosterExists": "There already is the roster “{name}” for {to}.",
+        "rosterCreate": "Create a {to} roster",
+        "rosterCreateTip": "With the name, managers, places and settings of the old roster.",
+        "rosterCopy": "Take the people over",
+        "rosterCopyTip": {
+            "one": "{count} person joins the new roster as trial, without a character – they pick their {to} character themselves.",
+            "other": "{count} people join the new roster as trial, without a character – each picks their {to} character themselves."
+        },
+        "rosterRoles": "Discord roles of the new roster",
+        "rosterRolesNone": "No role picked: the new roster has no Discord role for now. Set it later in the roster's settings.",
+        "rosterRolesSome": {
+            "one": "{count} role picked. Nobody gets it automatically – the sync tab shows who lacks it.",
+            "other": "{count} roles picked. Nobody gets them automatically – the sync tab shows who lacks them."
+        },
+        "rosterCreated": {
+            "one": "Roster “{name}” created for {version}, {count} person taken over",
+            "other": "Roster “{name}” created for {version}, {count} people taken over"
+        },
+        "rosterReopened": "Roster “{name}” opened again"
     },
     "level": {
         "none": "off",

@@ -2,11 +2,14 @@
 // roster's name, its main Discord role as a chip, a member's avatar, a
 // character chip (spec icon, name in class colour), the square status fields
 // to pick one status, a −/+ stepper, and the calm notice that lists the role
-// writes that did not go through. Styles in styles/rosters.css.
+// writes that did not go through, and the marks of a closed roster (#739).
+// Styles in styles/rosters.css.
 import type { CSSProperties, ReactNode } from "react";
 import type { RosterHead, RosterMember, RosterRoleResult, RosterStatus } from "../../api";
 import { useT } from "../../i18n";
 import { InfoIcon, MinusIcon, PlusIcon } from "../../components/ui/icons";
+import Badge from "../../components/ui/Badge";
+import { formatDate } from "../../lib/format";
 import { STATUS_ORDER, initialOf } from "../../lib/roster/rosters";
 import { charIcon, charLine, failedRoleLines, type AnyChar } from "../../lib/roster/rosterEdit";
 
@@ -17,6 +20,34 @@ export function VersionLine({ versionId, parts }: { versionId: string; parts: st
             <i className={`ver-dot ver-${versionId}`} aria-hidden="true" />
             {parts.filter(Boolean).join(" · ")}
         </span>
+    );
+}
+
+/** Why a roster was closed (#739), in words: the version switch, else the plain sentence. */
+function closedReasonText(t: ReturnType<typeof useT>, roster: Pick<RosterHead, "closedReason">): string {
+    return roster.closedReason === "version_switch" ? t("roster.closed.reasonSwitch") : t("roster.closed.reasonOther");
+}
+
+/** The calm "Abgeschlossen" badge of a closed roster (#739), with the date and the reason as tooltip. */
+export function ClosedBadge({ roster }: { roster: Pick<RosterHead, "closedAt" | "closedReason"> }) {
+    const t = useT();
+    const at = roster.closedAt ? Date.parse(roster.closedAt) : NaN;
+    return (
+        <Badge tone="mid" className="rn-closed-badge" tip={Number.isNaN(at) ? t("roster.closed.badge") : t("roster.closed.tip", { date: formatDate(at) })} tipSub={closedReasonText(t, roster)}>
+            {t("roster.closed.badge")}
+        </Badge>
+    );
+}
+
+/** The roster page's line for a closed roster: since when, why, and that it is read only. */
+export function ClosedNotice({ roster }: { roster: Pick<RosterHead, "closedAt" | "closedReason"> }) {
+    const t = useT();
+    const at = roster.closedAt ? Date.parse(roster.closedAt) : NaN;
+    return (
+        <Notice>
+            <b>{Number.isNaN(at) ? t("roster.closed.badge") : t("roster.closed.title", { date: formatDate(at) })}</b>
+            {" "}{closedReasonText(t, roster)} {t("roster.closed.readOnly")}
+        </Notice>
     );
 }
 

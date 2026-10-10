@@ -533,6 +533,20 @@ function reopenRoster(id, { actor = "", now = new Date().toISOString() } = {}) {
     return getRoster(roster.id);
 }
 
+/** The display names of characters handed in as names (not keys): `{ [key]: name }`, by position. */
+function typedNames(raw, keys) {
+    const out = {};
+    if (Array.isArray(raw)) raw.forEach((c, i) => { if (keys[i] && !str(c).includes(VERSION_KEY_SEP)) out[keys[i]] = str(c); });
+    return out;
+}
+
+/** A roster of `all` to change, null when there is none; a closed one throws "roster_closed" (#739). */
+function writableRoster(all, rosterId) {
+    const roster = all.rosters[str(rosterId)] || null;
+    if (isClosed(roster)) throw new RosterError("roster_closed", CLOSED);
+    return roster;
+}
+
 /** Delete a roster (a closed one too). @returns {boolean} whether there was one */
 function deleteRoster(id) {
     const all = readAll();
@@ -570,10 +584,9 @@ function viaDetail(via, detail) {
  */
 function upsertMember(rosterId, userId, patch = {}, { actor = "", now = new Date().toISOString(), via = "" } = {}) {
     const all = readAll();
-    const roster = all.rosters[str(rosterId)];
+    const roster = writableRoster(all, rosterId);
     const uid = idOf(userId);
     if (!roster || !uid) return null;
-    if (isClosed(roster)) throw new RosterError("roster_closed", CLOSED);
     const before = roster.members[uid] || null;
     if (!before && Object.keys(roster.members).length >= LIMITS.members) {
         throw new RosterError("member_limit", `Ein Roster hat höchstens ${LIMITS.members} Mitglieder.`);
@@ -585,9 +598,7 @@ function upsertMember(rosterId, userId, patch = {}, { actor = "", now = new Date
     const firstChanged = (chars[0] || "") !== (base.chars[0] || "");
     const spec = p.spec !== undefined ? p.spec : (firstChanged ? "" : base.spec);
     // a name handed in as a char (not a key) is its own display name; charNames sent along win
-    const typed = {};
-    if (Array.isArray(p.chars)) p.chars.forEach((c, i) => { if (chars[i] && !str(c).includes(VERSION_KEY_SEP)) typed[chars[i]] = str(c); });
-    const charNames = { ...base.charNames, ...typed, ...(isMap(p.charNames) ? p.charNames : {}) };
+    const charNames = { ...base.charNames, ...typedNames(p.chars, chars), ...(isMap(p.charNames) ? p.charNames : {}) };
     const statusChanged = p.status !== undefined && p.status !== base.status;
     const next = normalizeMember({
         ...base,

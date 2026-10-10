@@ -43,6 +43,8 @@ const { normalizeLootSystem, rosterLootSystem } = require("../loot/lootSystem");
 const ADMIN_FIELDS = ["name", "categoryId", "versionId", "roleIds", "trialRoleId", "managers", "slots", "allowMultipleChars", "signupOnly", "publicRaids", "kaderId", "lootSystem", "lootProfileId"];
 const MANAGER_FIELDS = ["name", "slots", "allowMultipleChars", "signupOnly", "publicRaids", "lootProfileId"];
 const SLOT_KEYS = ["total", "tank", "healer", "bench"];
+// a change of these decides whether the roster's roles are its category's raider roles (#657, #739)
+const MIRRORED_FIELDS = ["roleIds", "categoryId", "versionId"];
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -205,7 +207,7 @@ function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", know
         if (e && e.name === "RosterError") return { ok: false, code: e.code };
         throw e;
     }
-    if (clean.fields.roleIds !== undefined || clean.fields.categoryId !== undefined || clean.fields.versionId !== undefined) mirrorCategoryRoles(roster);
+    if (MIRRORED_FIELDS.some((key) => clean.fields[key] !== undefined)) mirrorCategoryRoles(roster);
     if (systemChanged) roster = writeLootSystem(roster, loot.lootSystem, { actor, saveConfig: saveConfig || settingsStore.saveConfig });
     return { ok: true, roster, trimmedChars };
 }

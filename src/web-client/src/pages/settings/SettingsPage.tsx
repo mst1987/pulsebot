@@ -126,7 +126,8 @@ export default function SettingsPage() {
         const { id, versionId } = switching;
         patch({
             categoryVersion: { ...draft.categoryVersion, [id]: versionId },
-            categorySwitchFixes: { ...draft.categorySwitchFixes, [id]: { series: choice.series } },
+            // #739: the roster choice rides along; the save closes the old roster and maybe starts the new one
+            categorySwitchFixes: { ...draft.categorySwitchFixes, [id]: { series: choice.series, ...(choice.roster ? { roster: choice.roster } : {}) } },
             ...(choice.defaultTemplateId !== undefined ? { categoryRaidTemplate: { ...draft.categoryRaidTemplate, [id]: choice.defaultTemplateId } } : {}),
         });
         setSwitching(null);
@@ -216,7 +217,13 @@ export default function SettingsPage() {
             toast(t("settings.savedToast"));
             // #738: each switched category started a new section.
             for (const sw of switchedCategories) {
-                toast(t("settings.categorySwitch.switched", { name: categoryNames.get(sw.categoryId) || sw.name || sw.categoryId, version: versionNames.get(sw.toVersion) || sw.toVersion }));
+                const name = categoryNames.get(sw.categoryId) || sw.name || sw.categoryId;
+                const version = versionNames.get(sw.toVersion) || sw.toVersion;
+                toast(t("settings.categorySwitch.switched", { name, version }));
+                // #739: what happened to its roster
+                const roster = sw.roster;
+                if (roster && roster.created) toast(t("settings.categorySwitch.rosterCreated", { name: roster.created.name, version, count: roster.created.members }));
+                else if (roster && roster.reopened) toast(t("settings.categorySwitch.rosterReopened", { name: roster.reopened.name }));
             }
             // a changed version colour (#742) is read from the session too
             const colors = (map?: Record<string, { color?: string }>) => Object.entries(map || {}).map(([id, b]) => `${id}=${b?.color || ""}`).sort().join();
@@ -379,6 +386,7 @@ export default function SettingsPage() {
                             categoryId={switching.id}
                             categoryName={categoryNames.get(switching.id) || ""}
                             versionId={switching.versionId}
+                            roles={data.roles}
                             onCancel={() => setSwitching(null)}
                             onConfirm={confirmSwitch}
                         />
