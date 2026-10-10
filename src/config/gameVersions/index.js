@@ -31,6 +31,15 @@ for (const v of VERSIONS) {
     for (const i of v.instances) INSTANCE_BY_ID.set(i.id, { ...i, versionId: v.id });
 }
 
+/**
+ * Whether the version has a Google raid sheet layout (#751): the sheet fill
+ * (utils/setup/fillSetup.js) writes TBC's template - other versions have none.
+ */
+function hasSheetLayout(versionId) {
+    const rules = rulesFor(versionId);
+    return Boolean(rules && rules.sheetLayout);
+}
+
 /** The rule set of a version, or null for an unknown id. */
 function rulesFor(versionId) {
     return BY_ID.get(String(versionId || "")) || null;
@@ -67,13 +76,15 @@ function roleOfSpec(specKey, versionId = DEFAULT_VERSION) {
 /**
  * A suggested number of tanks and healers for a raid size, for an instance
  * without its own suggestion. 10 → 2/3, 20 → 2/5, 25 → 3/6, 40 → 4/10; other
- * sizes on the same curve, never more than the raid holds. The version is
- * accepted for when a version needs its own curve; today they share one.
+ * sizes on the same curve, never more than the raid holds. A version may list
+ * its own `composition` per size, which wins for those sizes.
  * @returns {{ tanks: number, healers: number }}
  */
-// eslint-disable-next-line no-unused-vars
 function defaultComposition(size, versionId = DEFAULT_VERSION) {
     const n = Math.max(0, Math.floor(Number(size) || 0));
+    // A version with its own curve (Forever, #751) answers for the sizes it lists.
+    const own = (rulesFor(versionId) || {}).composition;
+    if (own && own[n]) return { tanks: own[n].tanks, healers: own[n].healers };
     if (n <= 1) return { tanks: n, healers: 0 };
     if (n <= 5) return { tanks: 1, healers: 1 };
     const tanks = n <= 20 ? 2 : (n <= 25 ? 3 : 4);
@@ -165,7 +176,7 @@ function publicVersions() {
 
 module.exports = {
     VERSIONS, DEFAULT_VERSION, LEGACY_VERSION, ROLES,
-    rulesFor, instance, instanceById, spec, roleOfSpec,
+    rulesFor, hasSheetLayout, instance, instanceById, spec, roleOfSpec,
     defaultComposition, compositionFor, finalBossesOf, bossesOf,
     instanceForBoss, instanceForZone, publicVersions,
 };

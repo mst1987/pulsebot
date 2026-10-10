@@ -188,7 +188,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
 
     const ask = useConfirm();
     const shown = cardTypes(scope, [...board.assignments, ...inherited], extra, !canWrite, board.hiddenCards);
-    const addable = addableCards(scope, shown);
+    const addable = addableCards(scope, shown, catalog ? catalog.types : undefined);
 
     /** A task without a player (an event plan): nobody named yet, or a place the setup cannot fill ("Spieler fehlt", "Jäger 3 fehlt"). */
     const noPlayer = (a: RaidplanAssignment): boolean => {

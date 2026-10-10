@@ -8,6 +8,14 @@ const { rulesFor, LEGACY_VERSION } = require("../../config/gameVersions");
 
 // softres.it instance code -> the rule set's instance id (TBC)
 const TBC_ID = { kara: "kara", gruul: "gruul", magtheridon: "mag", za: "za", ssc: "ssc", tempestkeep: "tk", blacktemple: "bt", hyjal: "hyjal", sunwellplateau: "swp" };
+// ... Classic Era (#751)
+const CLASSIC_ID = { mc: "mc", bwl: "bwl", onyxia: "ony", zg: "zg", aq20: "aq20", aq40: "aq40", naxxramas: "naxx" };
+// WoW Forever has no softres.it edition: its own keywords per rule-set instance (#751)
+const FOREVER_KEYWORDS = {
+    "forever-barrow": ["barrow", "barrow deeps", "barrowdeeps"],
+    "forever-hyjal": ["hyjal", "mount hyjal"],
+    "forever-ony": ["ony", "onyxia"],
+};
 // title keywords that are not sure enough to name a raid by themselves
 const UNSAFE = new Set(["gl", "mag", "aman", "plateau", "serpent", "tempest", "mh"]);
 
@@ -21,6 +29,15 @@ function hasWord(norm, keyword) {
     return new RegExp(`(^|[^a-z0-9])${k}([^a-z0-9]|$)`).test(norm);
 }
 
+/** The title keywords per rule-set instance of a version: softres.it's for TBC and Classic, our own for Forever. */
+function keywordsOf(versionId) {
+    if (versionId === "forever") return Object.entries(FOREVER_KEYWORDS).map(([id, keywords]) => ({ id, keywords }));
+    const ids = versionId === "classic" ? CLASSIC_ID : TBC_ID;
+    return Object.entries(INSTANCES)
+        .filter(([code, inst]) => ids[code] && inst.edition === versionId)
+        .map(([code, inst]) => ({ id: ids[code], keywords: inst.keywords || [] }));
+}
+
 /**
  * The instances a title names (rule-set ids, in raid order), the size it names ("10er", "25 man", "(25)"), else the default size of
  * the (largest) instance, and the game version ("tbc"). `{ instanceIds: [], size: 0, versionId }` when nothing is sure.
@@ -29,12 +46,9 @@ function instancesFromTitle(title, versionId = LEGACY_VERSION) {
     const rules = rulesFor(versionId) || rulesFor(LEGACY_VERSION);
     const norm = normalize(title);
     const out = { instanceIds: [], size: 0, versionId: rules.id };
-    // only the TBC keywords are mapped to rule-set ids so far; other versions are picked by hand
-    if (!norm || out.versionId !== "tbc") return out;
-    for (const [code, inst] of Object.entries(INSTANCES)) {
-        const id = TBC_ID[code];
-        if (!id || inst.edition !== "tbc") continue;
-        if ((inst.keywords || []).some((kw) => !UNSAFE.has(kw) && hasWord(norm, kw))) out.instanceIds.push(id);
+    if (!norm) return out;
+    for (const { id, keywords } of keywordsOf(out.versionId)) {
+        if (keywords.some((kw) => !UNSAFE.has(kw) && hasWord(norm, kw))) out.instanceIds.push(id);
     }
     // in the rule set's order (Kara before Gruul ...)
     const order = (rules.instances || []).map((i) => i.id);

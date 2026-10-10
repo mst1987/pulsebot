@@ -18,14 +18,17 @@ export default function RaidplanLinkModal({ ctx, open, onClose, onDone }: { ctx:
     const [chosen, setChosen] = useState<string[]>([]);
     const [size, setSize] = useState(0);
     const [busy, setBusy] = useState(false);
+    // the game version picked in the select ("" = what the server suggests); a change asks the server again for that version's instances
+    const [picked, setPicked] = useState("");
 
     // Asked each time the dialog opens (nothing to pick from while it loads); a failed load is a toast, the dialog stays.
-    const linkData = useApi(() => getRaidplanLink(eventId).then((v) => {
+    const linkData = useApi(() => getRaidplanLink(eventId, picked).then((v) => {
         const start = linkStart(v.link, v.suggestion);
         setChosen(start.instanceIds);
         setSize(start.size);
         return v;
-    }), [eventId], { enabled: open });
+    }), [eventId, picked], { enabled: open });
+    useEffect(() => { if (!open) setPicked(""); }, [open]);
     const view = linkData.loading ? null : linkData.data;
     useEffect(() => { if (linkData.error) toast(linkData.error.message, "err"); }, [linkData.error, toast]);
 
@@ -91,8 +94,8 @@ export default function RaidplanLinkModal({ ctx, open, onClose, onDone }: { ctx:
                         </div>
                         <div className="field">
                             <label htmlFor="em-rplink-version">{t("raidDetail.raidplanLink.version")}</label>
-                            <select id="em-rplink-version" value={view.suggestion.versionId} disabled>
-                                <option value="tbc">{t("raidDetail.raidplanLink.versionTbc")}</option>
+                            <select id="em-rplink-version" value={view.suggestion.versionId} disabled={!view.versions || view.versions.length < 2} onChange={(e) => setPicked(e.target.value)}>
+                                {(view.versions && view.versions.length ? view.versions : [{ id: "tbc", label: t("raidDetail.raidplanLink.versionTbc") }]).map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
                             </select>
                         </div>
                     </div>

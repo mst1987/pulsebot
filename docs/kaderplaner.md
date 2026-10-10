@@ -165,7 +165,7 @@ of the Kader joins must not pull everybody down, a Thursday Kader only cares for
   attendanceCategories: [categoryId] (≤ 20, the raid categories attendance counts in; [] = none picked yet),
   questions: [{ id, text (≤ 200), type: single|multi|text, options: [{ id, label (≤ 60), color? }] (≤ 20), required }] (≤ 30),
   players: { [userId]: entry } (≤ 500),
-  setups: [{ id, name, size: 10|20, groups: [[{ userId, spec } | null] × 5] × 4 }] (1–6) }
+  setups: [{ id, name, size: 10|20|40, groups: [[{ userId, spec } | null] × 5] × 8 }] (1–6) }
 ```
 
 A player's **entry**:
@@ -224,12 +224,12 @@ An answer is recognised at a glance before it is read (`lib/kader/colors.ts`):
 
 ### Example setups
 
-A variant is always four groups of five; `size` 10 shows groups 1–2 and keeps 3–4 untouched (switching the size is
-non-destructive). A slot is `{ userId, spec }` — the spec is one of the player's wishes (or the decision). Only
+A variant is always eight groups of five (`GROUP_COUNT`); `size` shows the first `size / 5` of them and keeps the others untouched (switching the size is
+non-destructive). The sizes are those of the planner version's instances (`kaderModel.setupSizesOf`: Forever 10, 20, 40, #751); the view sends them as `setupSizes`. A variant stored with four groups is padded to eight. A slot is `{ userId, spec }` — the spec is one of the player's wishes (or the decision). Only
 players in `roster`, `provisional`, `bench` or `tentative` may stand in a setup, each once; a setup **never changes a
 state**. "Automatisch verteilen" (sources: roster + provisional by default, bench/tentative switchable) fills the
 visible groups — roster before provisional, then by attendance over the Kader's raid categories — with the heuristic of `kaderAutoAssign.js` (tanks
-one per group, healers and shamans spread, melee to a shaman or warrior, casters to a healer or shaman).
+one per group, healers and classes with totems spread, melee to a group with a supporting class, casters to a healer or such a class; which classes spread/support comes from the rule set's party buffs, `supportOf()` — Shaman and Warrior in Classic-like versions).
 
 ## Live: changes, presence, conflicts
 

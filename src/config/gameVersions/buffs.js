@@ -92,12 +92,20 @@ function allBuffs() {
  * The party and raid buffs of a rule set.
  *
  * @param {object[]} classes  buildClasses() output of the version
- * @param {{ exclude?: string[] }} [options]  buff keys the version does not have
+ * @param {{ exclude?: string[], scopes?: Object<string, "party"|"raid">, sharedSlots?: string[], specProviders?: Object<string, string[]> }} [options]
+ *   `exclude`: buff keys the version does not have. `scopes`: buffs whose reach differs from
+ *   the TBC default. `sharedSlots`: slots in which buffs do not stack, even across casters
+ *   (Forever's air totems): one provider in the party fills the slot, a second shaman adds
+ *   nothing (`sharedSlot` on the entry). `specProviders`: talent buffs by spec key,
+ *   overriding SPEC_PROVIDERS per key.
  * @returns {{ partyBuffs: object[], raidBuffs: object[] }} each entry
- *   `{ key, label, labelEn, icon, scope, slot, providers: specKey[], beneficiaries: specKey[] }`
+ *   `{ key, label, labelEn, icon, scope, slot, sharedSlot, providers: specKey[], beneficiaries: specKey[] }`
  */
 function buildBuffs(classes, options = {}) {
     const exclude = new Set(options.exclude || []);
+    const scopes = options.scopes || {};
+    const sharedSlots = new Set(options.sharedSlots || []);
+    const talents = { ...SPEC_PROVIDERS, ...(options.specProviders || {}) };
     const specs = classes.flatMap((c) => c.specs);
     const entries = allBuffs()
         .filter((b) => !exclude.has(b.key))
@@ -106,12 +114,13 @@ function buildBuffs(classes, options = {}) {
             label: b.label,
             labelEn: b.labelEn,
             icon: b.icon,
-            scope: b.scope,
+            scope: scopes[b.key] || b.scope,
             // One buff per provider per slot: a totem's element (a shaman drops
             // one air totem), a warrior's shout. "" for everything else.
             slot: b.slot || "",
-            providers: SPEC_PROVIDERS[b.key]
-                ? SPEC_PROVIDERS[b.key].filter((key) => specs.some((s) => s.key === key))
+            sharedSlot: Boolean(b.slot) && sharedSlots.has(b.slot),
+            providers: talents[b.key]
+                ? talents[b.key].filter((key) => specs.some((s) => s.key === key))
                 : specs.filter((s) => s.classId === b.providerClass).map((s) => s.key),
             beneficiaries: specs
                 .filter((s) => b.roles.includes(s.buffRole) || b.classes.includes(s.classId))

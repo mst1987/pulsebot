@@ -597,7 +597,7 @@
         "emptyGroup": "empty",
         "missing": "no {buff}",
         "moreBuffs": "+{n} buffs",
-        "hiddenGroups": "Groups 3 and 4 are kept and show again in the 20-man setup.",
+        "hiddenGroups": "The hidden groups are kept and show again in a larger setup.",
         "none": "No variant.",
         "groupFill": "{n} of {max} spots",
         "placedOf": {

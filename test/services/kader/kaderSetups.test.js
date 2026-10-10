@@ -38,7 +38,7 @@ describe("services/kader/kaderSetups", () => {
             { userId: "nobody", spec: "x" },
         ]] });
         expect(variant(p).groups[0]).toEqual([{ userId: U.a, spec: "Warrior-Fury" }, { userId: U.b, spec: "Priest-Holy" }, null, null, null]);
-        expect(variant(p).groups).toHaveLength(4);
+        expect(variant(p).groups).toHaveLength(8);
     });
 
     it("switches between 10er and 20er without throwing anybody out", () => {
@@ -103,5 +103,24 @@ describe("services/kader/kaderSetups", () => {
         const a = planner.kaders[0].players[U.a];
         expect(setups.specsOf(a)).toEqual(["Warrior-Protection", "Warrior-Fury"]);
         expect(setups.defaultSpec(a)).toBe("Warrior-Protection");
+    });
+});
+
+describe("services/kader/kaderSetups sizes from the version's instances (#751)", () => {
+    it("offers 10, 20 and 40 (Barrow Deeps, Hyjal, Onyxia of Forever) and stores eight groups", () => {
+        expect(model.SETUP_SIZES).toEqual([10, 20, 40]);
+        expect(model.GROUP_COUNT).toBe(8);
+        expect(model.setupSizesOf("tbc")).toEqual([10, 25]);
+        expect(model.setupSizesOf("nope")).toEqual([10, 20]);
+    });
+
+    it("saves a 40er, refuses other sizes and shows all eight groups when auto-assigning", () => {
+        const { planner, kaderId, variantId } = setup();
+        let p = setups.saveVariant(planner, { kaderId, variantId, size: 40 });
+        expect(variant(p).size).toBe(40);
+        expect(() => setups.saveVariant(planner, { kaderId, variantId, size: 25 })).toThrow(/10er, 20er oder ein 40er/);
+        const classes = new Map([["Warrior", { key: "Warrior", specs: [{ key: "Warrior-Protection", role: "tank" }] }]]);
+        p = setups.autoVariant(p, { kaderId, variantId }, { ...ctx, classes });
+        expect(variant(p).groups).toHaveLength(8);
     });
 });

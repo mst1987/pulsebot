@@ -57,6 +57,8 @@ module.exports = {
     id: "tbc",
     label: "TBC Anniversary",
     short: "TBC",
+    // The Google raid sheet (utils/setup/fillSetup.js) is laid out for TBC raids only (#751).
+    sheetLayout: true,
     classes,
     instances,
     // Everything raidBuffs.js/totems.js know is TBC 2.4.3, so nothing is dropped.

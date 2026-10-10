@@ -12,7 +12,7 @@ const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { getConfig, getNotify, getRaidsheet, resolveEventSheetLink } = require("../../stores/settingsStore");
-const { planningRefusal } = require("../../services/events/planning");
+const { planningRefusal, sheetVersionRefusal } = require("../../services/events/planning");
 const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../../stores/eventSheetStore");
 const { sourceOfEventId } = require("../../services/events/eventSources");
 const {
@@ -22,7 +22,7 @@ const softres = require("../../utils/loot/softres");
 const { setEventLootSystem, lootSystemOf } = require("../../stores/eventLootSystemStore");
 const { normalizeLootSystem } = require("../../services/loot/lootSystem");
 const wowhead = require("../../utils/loot/wowhead");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor, versionOfEvent } = require("../../services/events/mainVersion");
 
 // Every write here changes one event: an archived one (a hidden game version, #563) is read only.
 const BY_EVENT = (body) => body.event;
@@ -177,6 +177,12 @@ const postFill = withUser({ csrf: true, body: true, archived: BY_EVENT }, async 
     // A category that plans with the raid plan gets no sheet (Einstellungen → Kategorien).
     const blocked = await planningBlock(req, eventId, "sheet");
     if (blocked) return error(res, blocked.status, blocked.code, blocked.message);
+    // The sheet is laid out for TBC only (#751): another version never gets a wrongly filled TBC sheet.
+    const resolved = await resolveEventForPost(req, eventId);
+    if (resolved.found) {
+        const noLayout = sheetVersionRefusal(versionOfEvent({ versionId: resolved.found.versionId, categoryId: resolved.categoryId }, { config: getConfig() }));
+        if (noLayout) return error(res, noLayout.status, noLayout.code, noLayout.message);
+    }
     // An own event fills the sheet from its approved setup (#263) — never from a draft.
     const own = sourceOfEventId(eventId) === "eventhelper";
     const ownSlots = own ? raidHelperSlots(getEvent(eventId)) : null;

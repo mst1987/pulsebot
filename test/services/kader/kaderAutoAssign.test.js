@@ -32,3 +32,33 @@ describe("services/kader/kaderAutoAssign", () => {
         expect(unassigned).toEqual(["m1", "m0"]);
     });
 });
+
+describe("services/kader/kaderAutoAssign supportOf (#751)", () => {
+    const { supportOf, SPREAD_CLASSES } = require("../../../src/services/kader/kaderAutoAssign");
+    const { rulesFor } = require("../../../src/config/gameVersions");
+    const classes = rulesFor("forever").classes.map((c) => ({ key: c.id, specs: c.specs.map((s) => ({ key: s.key, role: s.role })) }));
+    const party = rulesFor("forever").partyBuffs.map((b) => ({ ...b, important: ["windfury", "battleShout", "manaSpring"].includes(b.key) }));
+
+    it("reads the supporting classes from the rule set's party buffs", () => {
+        const s = supportOf(party, classes);
+        expect(s.spread).toContain("Shaman");
+        expect(s.spread).not.toContain("Warrior");
+        expect(s.melee.sort()).toEqual(["Shaman", "Warrior"]);
+        expect(s.caster).toContain("Shaman");
+    });
+
+    it("falls back to the Classic/TBC answer without buffs", () => {
+        expect(supportOf([], classes).spread).toEqual(SPREAD_CLASSES);
+        expect(supportOf(undefined, undefined).melee).toEqual(["Shaman", "Warrior"]);
+    });
+
+    it("spreads over the eight groups of a 40er", () => {
+        const members = [
+            ...Array.from({ length: 8 }, (_, i) => p(`s${i}`, "melee", "Shaman")),
+            ...Array.from({ length: 32 }, (_, i) => p(`r${i}`, "melee", "Rogue")),
+        ];
+        const { groups, unassigned } = autoAssign(members, 8, supportOf(party, classes));
+        expect(unassigned).toEqual([]);
+        expect(groups.every((g) => g.filter((id) => id && id.startsWith("s")).length === 1)).toBe(true);
+    });
+});

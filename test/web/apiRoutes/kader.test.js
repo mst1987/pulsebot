@@ -256,7 +256,7 @@ describe("web/apiRoutes/kader", () => {
             // an example setup: never a change of state
             const variantId = body(res).kader.setups[0].id;
             res = await put("/api/kader/variants", { kaderId, variantId, size: 10, groups: [[{ userId: U1, spec: "Warrior-Protection" }, { userId: U2, spec: "x" }]] });
-            expect(body(res).kader.setups[0]).toMatchObject({ size: 10, groups: [[{ userId: U1, spec: "Warrior-Protection" }, null, null, null, null], expect.any(Array), expect.any(Array), expect.any(Array)] });
+            expect(body(res).kader.setups[0]).toMatchObject({ size: 10, groups: [[{ userId: U1, spec: "Warrior-Protection" }, null, null, null, null], expect.any(Array), expect.any(Array), expect.any(Array), expect.any(Array), expect.any(Array), expect.any(Array), expect.any(Array)] });
             res = await post("/api/kader/variants/auto", { kaderId, variantId });
             expect(body(res).kader.setups[0].groups[0][0]).toEqual({ userId: U1, spec: "Warrior-Fury" });
             expect(body(res).kader.players[U1].state).toBe("roster");

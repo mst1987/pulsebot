@@ -1,6 +1,6 @@
 // The example setups of a Kader (docs/kaderplaner.md, "Beispiel-Setups"): who
 // stands where, who is still without a group, the buff hints of a group and the
-// text for Discord. A 10er shows groups 1–2; whoever stands in 3–4 counts as
+// text for Discord. A 10er shows groups 1–2; whoever stands in the others counts as
 // unplaced until it is a 20er again. Pure.
 import type { KaderClassDef, KaderData, KaderEntry, KaderPartyBuff, KaderRaidBuff, KaderRole, KaderSlot, KaderState, KaderVariant, KaderView } from "../../api";
 import { getLang, t } from "../../i18n";
@@ -14,7 +14,7 @@ export function buffLabel(buff: KaderRaidBuff): string {
 export const GROUP_SIZE = 5;
 export type Groups = KaderSlot[][];
 
-/** How many groups a size shows: 2 for a 10er, 4 for a 20er. */
+/** How many groups a size shows: 2 for a 10er, 4 for a 20er, 8 for a 40er. */
 export const visibleGroups = (v: KaderVariant): number => Math.max(1, Math.min(v.groups.length, v.size / GROUP_SIZE));
 
 /** The players standing in the groups the size shows. */

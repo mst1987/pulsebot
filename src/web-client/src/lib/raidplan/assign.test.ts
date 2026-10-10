@@ -66,6 +66,11 @@ describe("cards", () => {
         expect(lib.cardTypes("boss", [row("cc"), row("kick"), row("heal")], ["md"], false, [])).toEqual(["tank", "heal", "kick", "md", "cc"]);
         expect(lib.cardTypes("boss", [row("other")], [], false, [])).toEqual(["tank", "heal", "other"]);
     });
+    it("takes the class list from the catalog's rule set, the nine of every version without", () => {
+        expect(lib.classIdsOf({ classes: ["Warrior", "Mage"] })).toEqual(["Warrior", "Mage"]);
+        expect(lib.classIdsOf(null)).toBe(lib.CLASS_IDS);
+        expect(lib.classIdsOf({ classes: [] })).toBe(lib.CLASS_IDS);
+    });
     it("the read view shows only cards with content, in the same order", () => {
         expect(lib.cardTypes("boss", [], [], true, [])).toEqual([]);
         expect(lib.cardTypes("boss", [row("kick"), row("tank")], ["md"], true, [])).toEqual(["tank", "kick"]);
@@ -73,6 +78,9 @@ describe("cards", () => {
     it("offers to add the area's other types, and a row of a card has the card's type", () => {
         expect(lib.addableCards("boss", ["tank", "heal"])).toEqual(["kick", "md", "ss", "brez", "fearward", "special", "dispel", "cc", "buff", "debuff", "other"]);
         expect(lib.addableCards("general", ["ss", "blessing", "totem", "curse", "debuff", "thunderclap", "demoshout"])).toEqual(["brez", "fearward", "buff", "aura", "other"]);
+        // only the types the plan's game version has (the catalog carries them, #751): no Misdirection card in a Forever plan
+        expect(lib.addableCards("boss", ["tank", "heal"], ["tank", "heal", "kick", "ss"])).toEqual(["kick", "ss"]);
+        expect(lib.addableCards("boss", ["tank", "heal"], undefined)).toContain("md");
         const r = lib.addRowOfType(board(), "tank");
         expect(r.board.assignments[0].type).toBe("tank");
         expect(lib.rowsOfType([row("tank"), row("heal"), row("tank")], "tank")).toHaveLength(2);

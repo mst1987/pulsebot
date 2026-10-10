@@ -54,7 +54,7 @@ describe("services/kader/kaderModel", () => {
             // a setup holds only players who may stand in one, each once; the size is 10 or 20
             expect(k.setups[0]).toMatchObject({ name: "Variante", size: 20 });
             expect(k.setups[0].groups[0]).toEqual([{ userId: U.b, spec: "Mage-Fire" }, null, null, null, null]);
-            expect(k.setups[0].groups).toHaveLength(4);
+            expect(k.setups[0].groups).toHaveLength(8);
         });
 
         it("never makes up ids while repairing, so two reads are the same", () => {

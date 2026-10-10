@@ -142,6 +142,7 @@ export function kaderView(over: Partial<KaderView> = {}): KaderView {
             ] },
         ],
         raidCategories: RAID_CATEGORIES,
+        setupSizes: [10, 20, 40],
         buffs: {
             raid: [],
             party: [{ key: "windfury", label: "Totem des Windzorns", labelEn: "Windfury Totem", icon: "", providers: ["Shaman-Enhancement", "Shaman-Restoration"], beneficiaries: ["Warrior-Protection", "Warrior-Fury", "Shaman-Enhancement"], important: true }],

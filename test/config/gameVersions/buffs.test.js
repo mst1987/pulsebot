@@ -59,7 +59,7 @@ describe("config/gameVersions/buffs", () => {
 
     it("shapes every entry the same way", () => {
         for (const b of [...all.partyBuffs, ...all.raidBuffs]) {
-            expect(Object.keys(b).sort()).toEqual(["beneficiaries", "icon", "key", "label", "labelEn", "providers", "scope", "slot"]);
+            expect(Object.keys(b).sort()).toEqual(["beneficiaries", "icon", "key", "label", "labelEn", "providers", "scope", "sharedSlot", "slot"]);
             expect(b.providers.length).toBeGreaterThan(0);
         }
     });
@@ -87,10 +87,11 @@ describe("config/gameVersions/buffs", () => {
             expect(keys).toContain("battleShout");
         });
 
-        it("keeps Classic's buffs for Forever", () => {
+        it("gives Forever Classic's buffs, with the air slot shared (#751)", () => {
             expect(forever.id).toBe("forever");
-            expect(forever.partyBuffs).toBe(classic.partyBuffs);
-            expect(forever.raidBuffs).toBe(classic.raidBuffs);
+            const strip = (list) => list.map(({ sharedSlot: _s, ...b }) => b);
+            expect(strip(forever.partyBuffs)).toEqual(strip(classic.partyBuffs));
+            expect(forever.raidBuffs).toEqual(classic.raidBuffs);
         });
     });
 });
