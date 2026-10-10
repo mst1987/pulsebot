@@ -210,7 +210,17 @@ function userCanAny(user, areas, level = "read") {
     return (areas || []).some((area) => userCan(user, area, level));
 }
 
+/**
+ * Whether the user counts as orga: a full admin, or holding one of the orga roles
+ * (config.orgaRoleIds, set on the session by userAccess.computeAccess). Not an area:
+ * a raider role may hold any area the guild hands it and still is no orga.
+ */
+function userIsOrga(user) {
+    return !!(user && (user.isAdmin || user.isOrga));
+}
+
 module.exports = {
+    userIsOrga,
     AREAS, AREA_IDS, LEVELS,
     emptyAccess, fullAccess, can, hasAnyAccess,
     normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,

@@ -45,7 +45,8 @@ const { tempStoreFile } = require("../../helpers/tempStore");
 const { mockRes, status, json } = require("../../helpers/http");
 
 const ANNA = { id: "200000000000000001", name: "Anna", isAdmin: false, access: { signup: { read: true, write: true } } };
-const ORGA = { id: "200000000000000009", name: "Orga", isAdmin: false, access: { signup: { read: true, write: true }, raids: { read: true, write: true } } };
+// an orga role (config.orgaRoleIds) that may change raids: the raid lead
+const ORGA = { id: "200000000000000009", name: "Orga", isAdmin: false, isOrga: true, access: { signup: { read: true, write: true }, raids: { read: true, write: true } } };
 
 const handler = (method, path) => route.routes.find((r) => r.method === method && r.path === path).handler;
 async function call(method, path, user, { json: payload = {}, query = "" } = {}) {
@@ -234,10 +235,21 @@ describe("the orga's overview", () => {
         expect(absenceOverview.buildOverview).toHaveBeenCalledWith(expect.objectContaining({ weeks: 4, categoryId: "cat1", withReasons: true }));
         expect(json(res).data).toMatchObject({ canEdit: true, withReasons: true, raiders: [{ userId: "u1", name: "Bananajoe#discord" }], hints: [{ userId: "u2", name: "u2" }] });
 
-        const reader = { ...ANNA, access: { roster: { read: true } } };
+        // an orga role that may not change raids: the overview, without reasons and editing
+        const reader = { ...ANNA, isOrga: true, access: { roster: { read: true } } };
         const read = await call("GET", "/api/availability/overview", reader);
         expect(absenceOverview.buildOverview).toHaveBeenLastCalledWith(expect.objectContaining({ weeks: 8, categoryId: "", withReasons: false }));
         expect(json(read).data).toMatchObject({ canEdit: false, withReasons: false });
+    });
+
+    it("keeps everybody's absences from a raider role, even one that may read the roster", async () => {
+        const raider = { ...ANNA, access: { roster: { read: true }, raids: { read: true, write: true } } };
+        absenceOverview.buildOverview.mockClear();
+        const res = await call("GET", "/api/availability/overview", raider);
+        expect(status(res)).toBe(403);
+        expect(json(res).error.code).toBe("orga_only");
+        expect(absenceOverview.buildOverview).not.toHaveBeenCalled();
+        expect(status(await call("GET", "/api/availability/overview/raider", raider, { query: "userId=u1" }))).toBe(403);
     });
 
     it("answers one raider's detail and needs a raider", async () => {

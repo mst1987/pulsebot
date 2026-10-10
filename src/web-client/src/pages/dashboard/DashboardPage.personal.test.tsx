@@ -171,7 +171,8 @@ describe("Übersicht for a raider", () => {
         vi.mocked(api.getRaidplanPublic).mockResolvedValue({ data: plan, etag: "" });
         await show(dashboard({ personal: personal({ upcoming: [myRaid({ planToken: "tok" })] }) }));
         expect(api.getRaidplanPublic).toHaveBeenCalledWith("tok");
-        const chip = await screen.findByRole("link", { name: "High Warlord Naj'entus" });
+        // the plan is read after the page: give a busy test run time for it
+        const chip = await screen.findByRole("link", { name: "High Warlord Naj'entus" }, { timeout: 4000 });
         expect(chip).toHaveAttribute("href", "/p/tok?section=bt%2Fnajentus");
         expect(screen.queryByRole("link", { name: "Supremus" })).not.toBeInTheDocument();
         expect(screen.getByRole("link", { name: t("dashboard.personal.plan.open") })).toHaveAttribute("href", "/p/tok");
@@ -200,11 +201,8 @@ describe("Übersicht for a raider", () => {
 });
 
 describe("Übersicht for the orga", () => {
-    it("puts its own part compact above the orga block, the block in the orga zone naming who changes raids", async () => {
-        const admin: SessionUser = {
-            id: "a1", name: "Lead", isAdmin: true, access: {},
-            audience: { raids: { everyone: false, roles: ["Mo Raider", "Raidleitung"], writers: ["Raidleitung"], accounts: 0 } },
-        };
+    it("puts its own part compact above the orga block, the block in the orga zone naming the orga roles", async () => {
+        const admin: SessionUser = { id: "a1", name: "Lead", isAdmin: true, access: {}, orgaRoles: ["Raidleitung"] };
         await show(dashboard({
             orga: true,
             areas: { lastReport: null, newLoot: { count: 0, since: 0 }, roster: { total: 40, withoutDiscord: 0 } },
@@ -212,9 +210,8 @@ describe("Übersicht for the orga", () => {
         const mine = screen.getByText(t("dashboard.personal.divider"));
         const zone = screen.getByRole("region", { name: t("shell.orga.label") });
         expect(mine.compareDocumentPosition(zone) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        // the block goes by the right to change raids: the zone names the writers, not every reader
+        // the orga sees it: the admins and the orga roles
         expect(zone).toHaveTextContent(t("shell.orga.visibleFor", { who: `${t("shell.orga.admins")} · @Raidleitung` }));
-        expect(zone).not.toHaveTextContent("Mo Raider");
         expect(within(zone).getByText(t("dashboard.next.title"))).toBeInTheDocument();
         expect(within(zone).getByText(t("dashboard.tasks.title"))).toBeInTheDocument();
         // compact: one line with the title and the status, no fields

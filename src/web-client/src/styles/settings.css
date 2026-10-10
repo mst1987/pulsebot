@@ -235,6 +235,10 @@ td.perm-empty { color: var(--muted); font-size: 13px; }
 tr.perm-unknown .perm-who-label { color: var(--high); }
 
 .perm-who { display: flex; align-items: center; gap: 10px; position: relative; min-width: 0; }
+/* a role row: the name, then whether the role is orga or a raider role */
+.perm-who-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.perm-who-row > .perm-who { flex: 1 1 auto; }
+.perm-orga { flex: 0 0 auto; }
 .perm-avatar {
     --rc: var(--accent); width: 30px; height: 30px; border-radius: 7px; display: inline-grid; place-items: center; flex: 0 0 auto;
     background: color-mix(in srgb, var(--rc) 14%, transparent); border: 1px solid color-mix(in srgb, var(--rc) 40%, transparent);

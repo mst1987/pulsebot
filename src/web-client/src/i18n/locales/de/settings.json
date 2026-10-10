@@ -125,6 +125,8 @@
         "write": "Schreiben"
     },
     "changes": {
+        "orgaAdded": "{name} ist jetzt Orga",
+        "orgaRemoved": "{name} ist jetzt Raider-Rolle",
         "perm": "{owner} · {area} → {level}",
         "added": "{name} hinzugefügt",
         "removed": "{name} entfernt",
@@ -587,6 +589,11 @@
         "revokeTip": "Token zurückziehen"
     },
     "permissions": {
+        "orgaOn": "Orga",
+        "orgaOff": "Raider",
+        "orgaOnTip": "{name} ist eine Orga-Rolle – klicken macht sie zur Raider-Rolle",
+        "orgaOffTip": "{name} ist eine Raider-Rolle – klicken macht sie zur Orga-Rolle",
+        "orgaSub": "Orga sehen die Orga-Teile (Orga-Block der Übersicht, Abwesenheiten aller). Ein Bereich, den nur Admins und Orga-Rollen öffnen, ist als „Orga-Bereich“ markiert. Welche Bereiche die Rolle öffnet, stellst du unabhängig davon in der Zeile ein.",
         "cellAria": "{owner} · {area}: {level}",
         "cellSub": "{level} — Klick schaltet auf {next}",
         "rowSub": "Klick: ganze Zeile auf Lesen, Schreiben oder aus setzen",

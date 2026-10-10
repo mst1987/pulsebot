@@ -63,21 +63,19 @@ describe("OrgaBar", () => {
 });
 
 describe("OrgaZone", () => {
-    it("frames the orga's part of a page and names its readers, or its writers for a part that goes by the right to change", () => {
-        const { rerender } = render(<OrgaZone user={lead} areas={["raids"]}><p>Inhalt</p></OrgaZone>);
+    it("frames the orga's part of a page and names the orga: admins and the orga roles", () => {
+        render(<OrgaZone user={{ ...lead, orgaRoles: ["Gildenleitung", "Raidleitung"] }}><p>Inhalt</p></OrgaZone>);
         const zone = screen.getByRole("region", { name: t("shell.orga.label") });
         expect(zone).toHaveTextContent("Inhalt");
         expect(zone).toHaveTextContent(t("shell.orga.zoneHidden"));
-        expect(zone).toHaveTextContent("@Mo Raider");
-        rerender(<OrgaZone user={lead} areas={["raids"]} level="write"><p>Inhalt</p></OrgaZone>);
-        expect(screen.getByRole("region", { name: t("shell.orga.label") })).not.toHaveTextContent("Mo Raider");
+        expect(zone).toHaveTextContent(t("shell.orga.visibleFor", { who: "Admins · @Gildenleitung · @Raidleitung" }));
+        // a raider role never: it is no orga, whatever it may read
+        expect(zone).not.toHaveTextContent("Mo Raider");
     });
 
-    it("still frames the part without the server's audience, just without names", () => {
-        render(<OrgaZone user={{ ...lead, audience: undefined }} areas={["raids"]}><p>Inhalt</p></OrgaZone>);
-        const zone = screen.getByRole("region", { name: t("shell.orga.label") });
-        expect(zone).toHaveTextContent(t("shell.orga.zoneHidden"));
-        expect(zone).not.toHaveTextContent(t("shell.orga.admins"));
+    it("names the admins alone while no orga role is set", () => {
+        render(<OrgaZone user={{ ...lead, orgaRoles: undefined }}><p>Inhalt</p></OrgaZone>);
+        expect(screen.getByRole("region", { name: t("shell.orga.label") })).toHaveTextContent(t("shell.orga.visibleFor", { who: t("shell.orga.admins") }));
     });
 });
 

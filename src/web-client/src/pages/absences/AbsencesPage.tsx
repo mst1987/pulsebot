@@ -29,6 +29,7 @@ import AbsenceRaids from "./AbsenceRaids";
 import RaiderDrawer from "./RaiderDrawer";
 import MyAttendance from "./MyAttendance";
 import { OrgaZone } from "../../components/ui/OrgaZone";
+import { isOrga } from "../../lib/app/orgaArea";
 import { AbsenceTiles, HintCard } from "./AbsenceHead";
 import "../../styles/absences.css";
 
@@ -58,7 +59,8 @@ function refOf(who: Pick<AbsenceIdentity, "userId" | "name" | "character" | "cla
 export default function AbsencesPage() {
     const t = useT();
     const { user } = useOutletContext<ShellContext>();
-    const orgaView = canAccess(user, "roster");
+    // everybody's absences are the orga's (full admins, orga roles); a raider role with the roster area sees its own
+    const orgaView = isOrga(user) && canAccess(user, "roster");
     const [stored, setStored] = usePersistedState<View>("absences-view", VIEW_DEFAULT);
     const view = cleanView(stored);
     const patch = (p: Partial<View>) => setStored(() => ({ ...view, ...p }));
@@ -148,7 +150,7 @@ function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
             </Head>
 
             {/* everybody's absences are the orga's (design canvas Oct 2026, B); "Meine Anwesenheit" stays outside */}
-            <OrgaZone user={user} areas={["roster"]}>
+            <OrgaZone user={user}>
             <AbsenceTiles data={data} />
 
             <div className="ab-filters">

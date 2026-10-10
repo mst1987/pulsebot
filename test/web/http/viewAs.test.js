@@ -45,6 +45,17 @@ describe("viewAs", () => {
         expect(accessAsRoles(config, [LEAD], [LEAD]).isAdmin).toBe(true);
     });
 
+    it("makes the view orga when one of the viewed roles is an orga role, never the admin's own flag", () => {
+        const orgaConfig = { ...config, orgaRoleIds: [LEAD] };
+        expect(accessAsRoles(orgaConfig, [LEAD]).isOrga).toBe(true);
+        expect(accessAsRoles(orgaConfig, [RAIDER]).isOrga).toBeUndefined();
+        const now = Date.now();
+        const asRaider = effectiveUser({ id: "u1", isAdmin: true, isOrga: true, access: fullAccess(), viewAs: { roleIds: [RAIDER], at: now } }, orgaConfig, [], now);
+        expect(asRaider.isOrga).toBeUndefined();
+        const asLead = effectiveUser({ id: "u1", isAdmin: true, access: fullAccess(), viewAs: { roleIds: [LEAD], at: now } }, orgaConfig, [], now);
+        expect(asLead).toMatchObject({ isAdmin: false, isOrga: true });
+    });
+
     it("ends after MAX_AGE_MS", () => {
         const now = 10 * MAX_AGE_MS;
         expect(viewAsActive({ roleIds: [], at: now - 1000 }, now)).toBe(true);

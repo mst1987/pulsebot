@@ -125,6 +125,8 @@
         "write": "Write"
     },
     "changes": {
+        "orgaAdded": "{name} is orga now",
+        "orgaRemoved": "{name} is a raider role now",
         "perm": "{owner} · {area} → {level}",
         "added": "{name} added",
         "removed": "{name} removed",
@@ -587,6 +589,11 @@
         "revokeTip": "Revoke token"
     },
     "permissions": {
+        "orgaOn": "Orga",
+        "orgaOff": "Raider",
+        "orgaOnTip": "{name} is an orga role – click to make it a raider role",
+        "orgaOffTip": "{name} is a raider role – click to make it an orga role",
+        "orgaSub": "Orga see the orga's parts (the dashboard's orga block, everybody's absences). An area only admins and orga roles open is marked “Orga area”. Which areas the role opens is set in its row, independently.",
         "cellAria": "{owner} · {area}: {level}",
         "cellSub": "{level} — click switches to {next}",
         "rowSub": "Click: set the whole row to read, write or off",

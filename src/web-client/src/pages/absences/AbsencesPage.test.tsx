@@ -334,6 +334,13 @@ describe("Abwesenheiten: Raider", () => {
 const raiderOnly = () => adminUser({ isAdmin: false, access: { signup: { read: true, write: true } } });
 
 describe("Abwesenheiten: Meine Anwesenheit", () => {
+    it("shows a raider role its own attendance even with the roster area - everybody's absences are the orga's", async () => {
+        const rosterRaider = adminUser({ isAdmin: false, access: { signup: { read: true, write: true }, roster: { read: true, write: false } } });
+        await showMine(rosterRaider);
+        expect(screen.getByText(t("absences.mine.lead"))).toBeInTheDocument();
+        expect(screen.queryByRole("radiogroup", { name: t("absences.viewAria") })).not.toBeInTheDocument();
+    });
+
     async function showMine(user = raiderOnly(), route = "/absences") {
         const view = renderPage(<AbsencesPage />, { route, user });
         await screen.findByRole("region", { name: "TBC Montag" });

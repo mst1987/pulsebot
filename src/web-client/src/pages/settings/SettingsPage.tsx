@@ -130,6 +130,7 @@ export default function SettingsPage() {
                     rolePermissions: draft.rolePermissions,
                     baseAccess: draft.baseAccess,
                     userPermissions: draft.userPermissions,
+                    orgaRoleIds: draft.orgaRoleIds,
                 } : {}),
                 officerRoleId: draft.officerRoleId.trim(),
                 applicationChannelId: draft.applicationChannelId.trim(),
@@ -225,6 +226,8 @@ export default function SettingsPage() {
                     onBaseAccessChange={(baseAccess) => patch({ baseAccess })}
                     userPermissions={draft.userPermissions}
                     onUserPermissionsChange={(userPermissions) => patch({ userPermissions })}
+                    orgaRoleIds={draft.orgaRoleIds}
+                    onOrgaRoleIds={(orgaRoleIds) => patch({ orgaRoleIds })}
                     userNames={data.userNames || {}}
                     icon={activeSection.icon}
                     crumb={activeCrumb}

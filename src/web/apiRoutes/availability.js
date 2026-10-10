@@ -25,7 +25,7 @@ const availabilityStore = require("../../stores/availabilityStore");
 const { getSignup } = require("../../stores/signupStore");
 const availability = require("../../services/signups/availability");
 const availabilityPanel = require("../../services/signups/availabilityPanel");
-const { userCanAny } = require("../../config/permissions");
+const { userCanAny, userIsOrga } = require("../../config/permissions");
 const { visibleVersions } = require("../../services/events/mainVersion");
 const linkCheck = require("../../services/discord/linkCheck");
 const discord = require("../../services/discord/discord");
@@ -203,7 +203,11 @@ async function namerFor(ids, config) {
 }
 
 /** GET /api/availability/overview?weeks=&category=a,b — who is away when, the raids it touches, the hints (category: one or more, comma-separated; none = all). */
+/** Everybody's absences are the orga's (full admins, orga roles) - a raider role with `roster` read sees only its own. */
+const ORGA_ONLY = "Die Übersicht aller Raider sieht nur die Orga.";
+
 const getOverview = withUser({}, async ({ user, query, res }) => {
+    if (!userIsOrga(user)) return apiError(res, 403, "orga_only", ORGA_ONLY);
     const config = getConfig();
     const view = absenceOverview.buildOverview({
         weeks: Number(query.get("weeks")) || 8,
@@ -219,6 +223,7 @@ const getOverview = withUser({}, async ({ user, query, res }) => {
 
 /** GET /api/availability/overview/raider?userId= — one raider's entries and their last raids. */
 const getOverviewRaider = withUser({}, async ({ user, query, res }) => {
+    if (!userIsOrga(user)) return apiError(res, 403, "orga_only", ORGA_ONLY);
     const userId = str(query.get("userId"));
     if (!userId) return apiError(res, 400, "bad_request", "Kein Raider angegeben.");
     const config = getConfig();

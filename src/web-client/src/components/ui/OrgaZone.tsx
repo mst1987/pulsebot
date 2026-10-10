@@ -10,7 +10,7 @@
 // nothing is marked rather than guessed.
 import { useState, type ReactNode } from "react";
 import { setViewAs, type ApiError, type SessionUser } from "../../api";
-import { audienceText, orgaAudience, type OrgaAudience } from "../../lib/app/orgaArea";
+import { audienceText, orgaOnly, type OrgaAudience } from "../../lib/app/orgaArea";
 import { useT } from "../../i18n";
 import { useToast } from "../shell/Jobs";
 import "../../styles/orga-mark.css";
@@ -54,18 +54,15 @@ export function OrgaBar({ user, audience }: { user: SessionUser; audience: OrgaA
     );
 }
 
-/**
- * The orga's part of a page everybody sees. `areas`/`level` name who sees it — the
- * dashboard's block goes by the right to change raids, so it asks for the writers.
- */
-export function OrgaZone({ user, areas, level = "read", children }: { user: SessionUser; areas: string[]; level?: "read" | "write"; children: ReactNode }) {
+/** The orga's part of a page everybody sees — shown to the orga only, so it names the orga: admins and the orga roles. */
+export function OrgaZone({ user, children }: { user: SessionUser; children: ReactNode }) {
     const t = useT();
-    const audience = orgaAudience(user, areas, level);
+    const audience = orgaOnly(user);
     return (
         <section className="orga-zone" aria-label={t("shell.orga.label")}>
             <span className="orga-zone-lbl"><ShieldIcon />{t("shell.orga.label")}</span>
             <span className="orga-zone-sub">
-                {t("shell.orga.zoneHidden")}{audience ? ` · ${t("shell.orga.visibleFor", { who: audienceText(audience) })}` : ""}
+                {t("shell.orga.zoneHidden")} · {t("shell.orga.visibleFor", { who: audienceText(audience) })}
             </span>
             <div className="orga-zone-body">{children}</div>
         </section>

@@ -570,6 +570,20 @@ describe("web/apiRoutes/settings", () => {
                 });
             });
 
+            it("saves which roles count as orga, trimmed - and only for a full admin", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { orgaRoleIds: [" r-lead ", "", "r-officer"] });
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ orgaRoleIds: ["r-lead", "r-officer"] });
+
+                settingsStore.saveConfig.mockClear();
+                auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), settings: { read: true, write: true } } });
+                const res = await patch("/api/settings", { orgaRoleIds: ["r-mo"] });
+                // a settings writer must not make their own raider role orga
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
             // Otherwise a role with write access to "Einstellungen" could grant
             // itself (or anyone) full admin.
             it("refuses adminRoleIds/rolePermissions from a non-admin settings user", async () => {
