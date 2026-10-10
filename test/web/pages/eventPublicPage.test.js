@@ -231,7 +231,7 @@ describe("web/pages/eventPublicPage", () => {
         it("speaks German by default — the server language", () => {
             const view = page.publicEventView(event({ setupPost: { bench: true } }), signups(), { now: NOW });
             const html = page.renderPublicEventPage(view);
-            expect(html).toContain("<html lang=\"de\">");
+            expect(html).toMatch(/<html lang="de"( data-version="[a-z]+")?>/);
             expect(html).toMatch(/Do\.?, 24\. Sept?\.? 2026, 19:30/);
             expect(html).toContain("bis 22:30 Serverzeit");
             expect(html).toContain("25er");
@@ -250,7 +250,7 @@ describe("web/pages/eventPublicPage", () => {
 
         it("is in English with the times written out in server time (no Discord timestamps on the web)", () => {
             const html = renderPublicEventPage(publicEventView(event(), signups(), { now: NOW }));
-            expect(html).toContain("<html lang=\"en\">");
+            expect(html).toMatch(/<html lang="en"( data-version="[a-z]+")?>/);
             // 17:30 UTC on 24 Sep 2026 is 19:30 in Berlin; the end three hours later
             expect(html).toContain("Thu 24 Sep 2026, 19:30");
             expect(html).toContain("until 22:30 server time");

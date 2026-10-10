@@ -128,6 +128,8 @@ module.exports = {
     id: "classic",
     label: "Classic Era",
     short: "Classic",
+    // The version's colour in the web admin (#742, dark theme); see tbc.js. A neutral grey-blue.
+    color: "#9fb0c8",
     classes,
     instances,
     ...buildBuffs(classes, { exclude: EXCLUDED_BUFFS }),

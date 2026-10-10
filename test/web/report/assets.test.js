@@ -12,7 +12,7 @@ const urlOf = (u) => new URL(u, "http://localhost");
 
 describe("web/report/assets", () => {
     it("links every file under its content hash", () => {
-        expect(Object.keys(FILES).sort()).toEqual(["report.css", "report.js"]);
+        expect(Object.keys(FILES).sort()).toEqual(["report-version.css", "report.css", "report.js"]);
         for (const name of Object.keys(FILES)) {
             expect(assetUrl(name)).toBe(`${PREFIX}${name}?v=${hashOf(name)}`);
         }

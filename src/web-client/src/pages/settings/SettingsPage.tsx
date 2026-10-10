@@ -180,7 +180,10 @@ export default function SettingsPage() {
             setData({ ...data, config });
             setDraft(toDraft(config));
             toast(t("settings.savedToast"));
-            if ((config.mainVersion || "tbc") !== (saved.mainVersion || "tbc") || !!config.hideOtherVersions !== saved.hideOtherVersions) {
+            // a changed version colour (#742) is read from the session too
+            const colors = (map?: Record<string, { color?: string }>) => Object.entries(map || {}).map(([id, b]) => `${id}=${b?.color || ""}`).sort().join();
+            if ((config.mainVersion || "tbc") !== (saved.mainVersion || "tbc") || !!config.hideOtherVersions !== saved.hideOtherVersions
+                || colors(config.versionSettings) !== colors(saved.versionSettings)) {
                 void content.refresh();
             }
         } catch (err) {

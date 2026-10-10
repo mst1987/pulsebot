@@ -57,6 +57,8 @@ module.exports = {
     id: "tbc",
     label: "TBC Anniversary",
     short: "TBC",
+    // The version's colour in the web admin (#742, dark theme): the accent while this version is shown. Editable per version in Einstellungen → Spielversion.
+    color: "#9bd45a",
     // The Google raid sheet (utils/setup/fillSetup.js) is laid out for TBC raids only (#751).
     sheetLayout: true,
     classes,

@@ -7,16 +7,37 @@ const defaults = require("../../src/config/defaults");
 const TBC_ARMORY = "https://classic-armory.org/character/eu/tbc-anniversary/thunderstrike/{char}";
 
 describe("stores/versionSettingsSchema", () => {
+    describe("colour (#742)", () => {
+        it("keeps only a #rrggbb, lower-cased", () => {
+            expect(schema.normalizeBlock({ color: "#AbCdEf" }).color).toBe("#abcdef");
+            for (const bad of ["abcdef", "#abc", "#abcdeg", "red", "#1234567", null, 5]) expect(schema.normalizeBlock({ color: bad }).color).toBe("");
+        });
+
+        it("falls back to the rule set's colour; every version has one", () => {
+            expect(schema.defaultColorOf("forever")).toBe("#4da3ff");
+            expect(schema.defaultColorOf("tbc")).toBe("#9bd45a");
+            expect(schema.defaultColorOf("classic")).toMatch(/^#[0-9a-f]{6}$/);
+            expect(schema.defaultColorOf("wotlk")).toBe("");
+            expect(schema.colorOf({}, "forever")).toBe("#4da3ff");
+            expect(schema.colorOf({ color: "#112233" }, "forever")).toBe("#112233");
+        });
+
+        it("is not part of the standard values button: the default blocks carry no colour", () => {
+            expect(schema.defaultBlock("forever").color).toBe("");
+            expect(schema.defaultBlock("tbc").color).toBe("");
+        });
+    });
+
     describe("normalizeBlock", () => {
         it("keeps valid values and trims, lower-cases and slugs them", () => {
             expect(schema.normalizeBlock({
                 blizzardRegion: " EU ", blizzardRealmSlug: "Die Aldor", blizzardNamespace: "Profile-Classic1x-EU",
                 armoryUrlTemplate: TBC_ARMORY, wclUrlTemplate: "https://fresh.warcraftlogs.com/character/eu/x/{char}",
-                wowheadPath: "/classic/", softresEdition: "TBC", raidsheetId: "tier45",
+                wowheadPath: "/classic/", softresEdition: "TBC", raidsheetId: "tier45", color: " #4DA3FF",
             })).toEqual({
                 blizzardRegion: "eu", blizzardRealmSlug: "die-aldor", blizzardNamespace: "profile-classic1x-eu",
                 armoryUrlTemplate: TBC_ARMORY, wclUrlTemplate: "https://fresh.warcraftlogs.com/character/eu/x/{char}",
-                wowheadPath: "classic", softresEdition: "tbc", raidsheetId: "tier45",
+                wowheadPath: "classic", softresEdition: "tbc", raidsheetId: "tier45", color: "#4da3ff",
             });
         });
 
@@ -63,7 +84,7 @@ describe("stores/versionSettingsSchema", () => {
             expect(out.tbc).toEqual({
                 blizzardRegion: "us", blizzardRealmSlug: "nightslayer", blizzardNamespace: "profile-classicann-us",
                 armoryUrlTemplate: defaults.applyArmoryUrlTemplate, wclUrlTemplate: defaults.applyWclUrlTemplate,
-                wowheadPath: "tbc", softresEdition: "tbc", raidsheetId: "",
+                wowheadPath: "tbc", softresEdition: "tbc", raidsheetId: "", color: "",
             });
             expect(out.forever).toEqual(schema.defaultBlock("forever"));
             expect(out.classic).toEqual(schema.defaultBlock("classic"));
@@ -87,7 +108,7 @@ describe("stores/versionSettingsSchema", () => {
             blizzardRegion: "eu", blizzardRealmSlug: "", blizzardNamespace: "profile-classic1x-eu",
             armoryUrlTemplate: "https://classic-armory.org/character/{region}/vanilla/{realm}/{char}",
             wclUrlTemplate: "https://vanilla.warcraftlogs.com/character/{region}/{realm}/{char}",
-            wowheadPath: "classic", softresEdition: "classic", raidsheetId: "",
+            wowheadPath: "classic", softresEdition: "classic", raidsheetId: "", color: "",
         };
 
         it("builds Classic's block from its rule set, without a realm", () => {

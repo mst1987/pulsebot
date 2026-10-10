@@ -55,6 +55,9 @@
 .gv-hint { margin: 0; color: var(--muted); font-size: 13px; }
 .gv-group { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .gv-group-title { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.gv-color { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.gv-links .set-field .gv-color input[type="color"] { flex: 0 0 48px; width: 48px; max-width: 48px; min-height: 0; height: var(--ctl-h-sm); padding: 2px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); cursor: pointer; }
+.gv-links .set-field .gv-color input:not([type="color"]) { flex: 0 0 140px; width: 140px; max-width: 140px; font-family: var(--font-mono); }
 .gv-preview { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; font-size: 13px; }
 .gv-preview-label { color: var(--muted); }
 .gv-preview-off { color: var(--muted); text-decoration: line-through; }

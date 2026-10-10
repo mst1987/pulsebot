@@ -12,6 +12,7 @@
 // visibleVersions), and the export only reads.
 const { VERSIONS, LEGACY_VERSION } = require("../../config/gameVersions");
 const { mainVersionFor, knownVersion, versionOfEvent, visibleVersions, hidesOtherVersions, otherVersions } = require("./mainVersion");
+const { versionColor } = require("./versionSettings");
 const eventStore = require("../../stores/eventStore");
 const { listRaidEvents } = require("../../stores/raidEventStore");
 const lootStore = require("../../stores/lootStore");
@@ -19,9 +20,10 @@ const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
 const { buildVersionContext, eventVersion } = require("../characters/characterVersions");
 
-/** `{ id, label, short }` of a version for the client. */
-function versionInfo(v) {
-    return { id: v.id, label: v.label, short: v.short || v.label };
+/** `{ id, label, short, color, custom }` of a version for the client: its colour (#742) and whether the setting changed it. */
+function versionInfo(v, config) {
+    const { color, custom } = versionColor(v.id, { config });
+    return { id: v.id, label: v.label, short: v.short || v.label, color, custom };
 }
 
 /** Every version something is stored for: events, categories, templates, characters, loot. */
@@ -42,7 +44,7 @@ function versionsWithData(config) {
  * What the menu's content switch offers: the main version first, then every
  * other version that has data or a category — none while the other versions
  * are hidden. One version only = the switch stays away.
- * @returns {{ mainVersion: string, hideOtherVersions: boolean, versions: { id, label, short }[] }}
+ * @returns {{ mainVersion: string, hideOtherVersions: boolean, versions: { id, label, short, color, custom }[] }}
  */
 function contentVersions({ config } = {}) {
     const cfg = config || settingsStore.getConfig();
@@ -52,7 +54,7 @@ function contentVersions({ config } = {}) {
     const withData = hidden ? new Set() : versionsWithData(cfg);
     const main = VERSIONS.find((v) => v.id === mainVersion);
     const rest = VERSIONS.filter((v) => v.id !== mainVersion && visible.has(v.id) && withData.has(v.id));
-    return { mainVersion, hideOtherVersions: hidden, versions: [main, ...rest].filter(Boolean).map(versionInfo) };
+    return { mainVersion, hideOtherVersions: hidden, versions: [main, ...rest].filter(Boolean).map((v) => versionInfo(v, cfg)) };
 }
 
 /**

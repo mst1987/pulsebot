@@ -47,7 +47,7 @@ describe("contentVersions", () => {
     it("offers only the main version without any other data", () => {
         expect(contentVersions()).toEqual({
             mainVersion: "forever", hideOtherVersions: false,
-            versions: [{ id: "forever", label: "WoW Forever", short: "Forever" }],
+            versions: [{ id: "forever", label: "WoW Forever", short: "Forever", color: "#4da3ff", custom: false }],
         });
     });
 
@@ -71,7 +71,7 @@ describe("contentVersions", () => {
         mockConfig = { mainVersion: "forever", hideOtherVersions: true };
         expect(contentVersions()).toEqual({
             mainVersion: "forever", hideOtherVersions: true,
-            versions: [{ id: "forever", label: "WoW Forever", short: "Forever" }],
+            versions: [{ id: "forever", label: "WoW Forever", short: "Forever", color: "#4da3ff", custom: false }],
         });
     });
 });

@@ -15,11 +15,13 @@ export type VersionSettingsBlock = {
     wowheadPath: string;
     softresEdition: string;
     raidsheetId: string;
+    /** The version's colour in the web admin, "#rrggbb" (#742); "" = the rule set's. */
+    color: string;
 };
 
 export const VERSION_SETTING_FIELDS: (keyof VersionSettingsBlock)[] = [
     "blizzardRegion", "blizzardRealmSlug", "blizzardNamespace",
-    "armoryUrlTemplate", "wclUrlTemplate", "wowheadPath", "softresEdition", "raidsheetId",
+    "armoryUrlTemplate", "wclUrlTemplate", "wowheadPath", "softresEdition", "raidsheetId", "color",
 ];
 
 export const BLIZZARD_REGIONS = ["eu", "us", "kr", "tw"];
@@ -28,7 +30,7 @@ export const SOFTRES_EDITIONS = ["classic", "tbc", "wotlk"];
 export function emptyBlock(): VersionSettingsBlock {
     return {
         blizzardRegion: "", blizzardRealmSlug: "", blizzardNamespace: "", armoryUrlTemplate: "",
-        wclUrlTemplate: "", wowheadPath: "", softresEdition: "", raidsheetId: "",
+        wclUrlTemplate: "", wowheadPath: "", softresEdition: "", raidsheetId: "", color: "",
     };
 }
 
@@ -75,6 +77,7 @@ export function blockProblems(block: VersionSettingsBlock): (keyof VersionSettin
     if (!templateOk(block.armoryUrlTemplate)) out.push("armoryUrlTemplate");
     if (!templateOk(block.wclUrlTemplate)) out.push("wclUrlTemplate");
     if (!slug(block.wowheadPath.replace(/^\/+|\/+$/g, ""))) out.push("wowheadPath");
+    if (block.color.trim() && !/^#[0-9a-f]{6}$/i.test(block.color.trim())) out.push("color");
     return out;
 }
 

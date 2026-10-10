@@ -30,7 +30,7 @@ const { normalizeCategoryPlanning } = require("../../services/events/planning");
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../services/events/contentVersions");
 // Makes Excel read the umlauts of an archive CSV as UTF-8.
 const BOM = String.fromCharCode(0xfeff);
-const { defaultVersionSettings } = require("../../stores/versionSettingsSchema");
+const { defaultVersionSettings, defaultColorOf } = require("../../stores/versionSettingsSchema");
 const { expectedRoleIds, syncRosterRoleIds } = require("../../services/roster/categoryRoles");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
@@ -220,7 +220,7 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // settings user needs no raid rights to pick one.
         raidTemplates: listRaidTemplates().map((t) => ({ id: t.id, name: t.name, versionId: t.versionId, size: t.size })),
         // Einstellungen → Spielversion (#541): the versions to pick from, names only.
-        gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short })),
+        gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short, color: defaultColorOf(v.id) })),
         // The standard values per version (#553) for "Standardwerte übernehmen";
         // an all-empty block = the version has none yet (Forever).
         versionDefaults: defaultVersionSettings(config.versionSettings),

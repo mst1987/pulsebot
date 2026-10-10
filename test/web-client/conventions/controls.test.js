@@ -19,7 +19,7 @@ const css = require("../clientSource").read("index.css");
 function themeBlocks() {
     return css
         .split(/\n(?=:root|@media|\S)/)
-        .filter((block) => block.includes("--accent:"));
+        .filter((block) => block.includes("--accent:") && !block.includes("data-version"));
 }
 
 describe("web-client control styles", () => {
