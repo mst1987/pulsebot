@@ -26,6 +26,13 @@
 #   pm2       respawn the PM2 daemon
 #   node      look for a newer Node patch release of the .nvmrc line (nvm install)
 #   all       everything above
+#
+# Before anything restarts the bot on the new code, a data snapshot is taken
+# (#695, scripts/backup/snapshot.js --reason deploy): only where backups run,
+# and a failed one never stops the deploy (see take_deploy_snapshot).
+#   DEPLOY_SNAPSHOT=0|1             never | always (default: where backups run)
+#   DEPLOY_SNAPSHOT_RETRY_DELAY=30  seconds to wait while the hourly one holds the lock
+#   DEPLOY_SNAPSHOT_TIMEOUT=600     seconds before a hanging snapshot is given up
 set -euo pipefail
 
 APP_NAME="pulsebot"
@@ -47,6 +54,12 @@ DIST_DIR="src/web-client/dist"
 # new page load gets the new build. A tab that asks for a chunk that is gone
 # anyway reloads itself (lib/app/chunkReload.ts).
 ASSET_KEEP_DAYS=14
+SNAPSHOT_RETRY_DELAY="${DEPLOY_SNAPSHOT_RETRY_DELAY:-30}"
+SNAPSHOT_TIMEOUT="${DEPLOY_SNAPSHOT_TIMEOUT:-600}"
+# Set by take_deploy_snapshot: the snapshot's name, or why there is none.
+SNAPSHOT_NAME=""
+SNAPSHOT_WARNING=""
+SNAPSHOT_JSON=""
 
 log() {
     echo "$LOG_TAG $*"
@@ -165,6 +178,159 @@ health_get() {
     fi
 }
 
+# --- data snapshot before the restart (#695) ---------------------------------------
+#
+# Taken by the CLI (scripts/backup/snapshot.js), not by the running bot: the
+# bot may be the very thing this deploy fixes (hanging, crash-looping), and a
+# route into it would need its own auth. The CLI copies settings/ and
+# sessions.json in one synchronous pass too; only a store write of the old bot
+# landing within those few milliseconds could tear it - the bot's hourly
+# snapshot, at most an hour old, stays the fallback (docs/deployment.md).
+
+# KEY's value in an env file (the last line wins), without surrounding quotes.
+read_env_value() {
+    local file="$1"
+    [ -f "$file" ] || return 0
+    grep -E "^[[:space:]]*$2=" "$file" | tail -n 1 | cut -d'=' -f2- | tr -d '\r' \
+        | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e "s/^[\"']//" -e "s/[\"']\$//" || true
+}
+
+# The env file the bot (and the snapshot CLI) reads: .env.dev wins over .env.
+bot_env_file() {
+    if [ -f "$APP_DIR/.env.dev" ]; then echo "$APP_DIR/.env.dev"; else echo "$APP_DIR/.env"; fi
+}
+
+# A setting as the bot sees it: exported in this shell, else from its env file.
+bot_setting() {
+    local value="${!1:-}"
+    if [ -z "$value" ]; then value="$(read_env_value "$(bot_env_file)" "$1")"; fi
+    echo "$value"
+}
+
+# "on", "off" or nothing for a switch value (1/true/yes/on, 0/false/no/off).
+switch_value() {
+    case "$(echo "$1" | tr '[:upper:]' '[:lower:]')" in
+        1|true|yes|on) echo on ;;
+        0|false|no|off) echo off ;;
+    esac
+}
+
+# Where the snapshots go - the rule of resolveBackupDir()
+# (src/services/backup/backupConfig.js): BACKUP_DIR (relative = from the
+# checkout), else /var/backups/pulsebot for the live bot (runMode.js: NODE_ENV
+# production, or none and the .env), else ../pulsebot-backups.
+backup_dir() {
+    local dir node_env
+    dir="$(bot_setting BACKUP_DIR)"
+    if [ -n "$dir" ]; then
+        case "$dir" in
+            # (a drive letter only in the tests under Git Bash)
+            /* | [A-Za-z]:/*) echo "$dir" ;;
+            *) echo "$APP_DIR/$dir" ;;
+        esac
+        return 0
+    fi
+    node_env="$(bot_setting NODE_ENV)"
+    if [ "$node_env" = "production" ] || { [ -z "$node_env" ] && [ "$(basename "$(bot_env_file)")" = ".env" ]; }; then
+        echo "/var/backups/pulsebot"
+    else
+        echo "$(dirname "$APP_DIR")/pulsebot-backups"
+    fi
+}
+
+# Whether this deploy takes a snapshot into $1. DEPLOY_SNAPSHOT=0 never, =1
+# always; otherwise only where backups run: not switched off with
+# BACKUP_ENABLED, and the snapshot directory exists (the bot's hourly job makes
+# it on the live server within minutes of its start; a test or staging checkout
+# has none). Says why not.
+snapshot_wanted() {
+    local flag
+    flag="$(switch_value "${DEPLOY_SNAPSHOT:-}")"
+    if [ "$flag" = off ]; then
+        log "No data snapshot before the restart: DEPLOY_SNAPSHOT=$DEPLOY_SNAPSHOT."
+        return 1
+    fi
+    if [ "$flag" = on ]; then return 0; fi
+    if [ "$(switch_value "$(bot_setting BACKUP_ENABLED)")" = off ]; then
+        log "No data snapshot before the restart: backups are off here (BACKUP_ENABLED)."
+        return 1
+    fi
+    if [ ! -d "$1" ]; then
+        log "No data snapshot before the restart: no backup directory at $1 (backups are not set up here; DEPLOY_SNAPSHOT=1 takes one anyway)."
+        return 1
+    fi
+}
+
+# One run of the snapshot CLI at the lowest CPU and I/O priority, with a time
+# limit. Prints its log lines indented, keeps its JSON result in SNAPSHOT_JSON
+# and returns its exit code (0 done, 1 failed, 2 arguments, 3 locked, 124 timeout).
+run_snapshot_cli() {
+    local dir="$1" from="$2" to="$3" out rc=0
+    local -a args=(--reason deploy)
+    local -a limit=()
+    if [ -n "$from" ]; then args+=(--from "$from"); fi
+    args+=(--to "$to" --json)
+    if command -v timeout > /dev/null 2>&1; then limit=(timeout "$SNAPSHOT_TIMEOUT"); fi
+    # BACKUP_DIR handed over: the CLI writes exactly where this script looked.
+    out="$(low_prio env BACKUP_DIR="$dir" ${limit[@]+"${limit[@]}"} node scripts/backup/snapshot.js "${args[@]}" 2>&1 9>&-)" || rc=$?
+    SNAPSHOT_JSON="$(printf '%s\n' "$out" | grep -E '^\{.*\}$' | tail -n 1 || true)"
+    if [ -n "$out" ]; then
+        printf '%s\n' "$out" | grep -vE '^\{.*\}$' | sed "s/^/$LOG_TAG   /" || true
+    fi
+    return "$rc"
+}
+
+# $BACKUP_DIR/status/deploy-snapshot.json for the monitoring (#696): the CLI's
+# own status/snapshot.json is overwritten by the next hourly run and stays
+# untouched when the lock was taken, so a failed deploy snapshot would vanish.
+# { at, ok, exitCode, attempts, fromCommit, toCommit, error?, result } - result
+# is the CLI's JSON (name, error, durationMs, ...) or null.
+write_snapshot_status() {
+    local dir="$1" rc="$2" from="$3" to="$4" attempts="$5" error="$6"
+    local file="$dir/status/deploy-snapshot.json" ok=false
+    if [ "$rc" -eq 0 ]; then ok=true; fi
+    (
+        umask 077
+        mkdir -p "$dir/status" \
+            && printf '{"at":"%s","ok":%s,"exitCode":%s,"attempts":%s,"fromCommit":"%s","toCommit":"%s"%s,"result":%s}\n' \
+                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$ok" "$rc" "$attempts" "$from" "$to" \
+                "${error:+,\"error\":\"$error\"}" "${SNAPSHOT_JSON:-null}" > "$file.tmp.$$" \
+            && mv "$file.tmp.$$" "$file"
+    ) || log "WARNING: could not write $file."
+}
+
+# The snapshot of the data as the running code left it, marked with the commit
+# that runs ($1) and the one coming ($2). Never fails the deploy: a failure is a
+# WARNING here, at the end of the log and in status/deploy-snapshot.json. While
+# the bot's hourly snapshot holds the lock (exit 3) it waits once and retries.
+take_deploy_snapshot() {
+    local from="$1" to="$2" dir rc=0 attempts=1 error="" started=$SECONDS
+    dir="$(backup_dir)"
+    snapshot_wanted "$dir" || return 0
+    log "Taking a data snapshot before the restart (${from:0:7} -> ${to:0:7}) in $dir..."
+    run_snapshot_cli "$dir" "$from" "$to" || rc=$?
+    if [ "$rc" -eq 3 ]; then
+        log "Another snapshot holds the lock (most likely the bot's hourly one) - trying again in $SNAPSHOT_RETRY_DELAY s..."
+        sleep "$SNAPSHOT_RETRY_DELAY"
+        attempts=2
+        rc=0
+        run_snapshot_cli "$dir" "$from" "$to" || rc=$?
+    fi
+    case "$rc" in
+        0) SNAPSHOT_NAME="$(printf '%s' "$SNAPSHOT_JSON" | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')"
+           log "Data snapshot ${SNAPSHOT_NAME:-?} taken ($((SECONDS - started)) s)." ;;
+        3) error="another snapshot still held the lock after $attempts attempts" ;;
+        124) error="timed out after $SNAPSHOT_TIMEOUT s" ;;
+        2) error="the snapshot CLI refused its arguments (exit 2)" ;;
+        *) error="the snapshot CLI failed (exit $rc)" ;;
+    esac
+    if [ -n "$error" ]; then
+        SNAPSHOT_WARNING="$error"
+        log "WARNING: no data snapshot before this deploy - $error. The deploy goes on; the newest earlier snapshot under $dir/snapshots is the fallback."
+    fi
+    write_snapshot_status "$dir" "$rc" "$from" "$to" "$attempts" "$error"
+}
+
 # --- the deploy -------------------------------------------------------------------
 
 main() {
@@ -224,6 +390,10 @@ main() {
         fi
         TARGET="$DEPLOY_SHA"
     fi
+
+    # The commit the bot runs now - "from" of the snapshot before the restart.
+    local PREV_COMMIT
+    PREV_COMMIT="$(git rev-parse --verify -q HEAD 2>/dev/null || true)"
 
     echo "$LOG_TAG Checking out $BRANCH..."
     git checkout "$BRANCH"
@@ -340,6 +510,13 @@ main() {
         exit 1
     fi
 
+    # The data as the running code left it, before anything restarts the bot on
+    # the new code: pm2 update below does, and the start-up migrations
+    # (settingsMigration.js) run with the new code's first start. As late as
+    # that allows - nothing after it touches the data.
+    take_deploy_snapshot "$PREV_COMMIT" "$COMMIT" \
+        || log "WARNING: the data snapshot step failed unexpectedly - the deploy goes on."
+
     # The PM2 daemon keeps running under whatever Node it was started with and
     # spawns the app with that very binary. Without `pm2 update` a Node upgrade
     # never reaches the bot: `pm2 restart` would happily bring the process back up
@@ -406,10 +583,16 @@ main() {
         echo "$LOG_TAG ERROR: $APP_NAME did not answer on $HEALTH_URL after $((HEALTH_ATTEMPTS * HEALTH_DELAY)) s — the deploy failed."
         echo "$LOG_TAG Last log lines:"
         pm2 logs "$APP_NAME" --lines 40 --nostream || true
+        if [ -n "$SNAPSHOT_NAME" ]; then
+            log "The data from before this deploy: snapshot $SNAPSHOT_NAME (restore: docs/backup.md)."
+        fi
         exit 1
     fi
 
     state_set DEPLOYED_COMMIT "$COMMIT"
+    if [ -n "$SNAPSHOT_WARNING" ]; then
+        log "WARNING: this deploy ran without a fresh data snapshot ($SNAPSHOT_WARNING)."
+    fi
     echo "$LOG_TAG Deployment complete. ($SECONDS s)"
 }
 

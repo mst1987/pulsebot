@@ -258,12 +258,81 @@ describe("deploy.sh state file and forced steps", () => {
     });
 });
 
+// #695: the data snapshot before the restart - where it goes, when it is
+// taken and that it can never fail the deploy.
+describe("deploy.sh data snapshot before the restart (#695)", () => {
+    const deploy = read("deploy.sh");
+    const main = deploy.slice(deploy.indexOf("main() {"));
+
+    it("is taken after the reset and before pm2 update, the new dist and the restart", () => {
+        const at = main.indexOf("take_deploy_snapshot \"$PREV_COMMIT\" \"$COMMIT\"");
+        expect(at).toBeGreaterThan(main.indexOf("git reset --hard \"$TARGET\""));
+        expect(at).toBeLessThan(main.indexOf("\n        pm2 update\n"));
+        expect(at).toBeLessThan(main.indexOf("\n    install_dist \"$NEW_DIST\"\n"));
+        expect(at).toBeLessThan(main.indexOf("NODE_ENV=production pm2 restart"));
+        // "from" is what ran before the reset
+        expect(main.indexOf("PREV_COMMIT=\"$(git rev-parse --verify -q HEAD")).toBeLessThan(main.indexOf("git reset --hard"));
+    });
+
+    it("never fails the deploy and runs the CLI at low priority with a time limit", () => {
+        expect(main).toMatch(/take_deploy_snapshot "\$PREV_COMMIT" "\$COMMIT" \\\n\s+\|\| log "WARNING:/);
+        expect(deploy).toContain("low_prio env BACKUP_DIR=\"$dir\" ${limit[@]+\"${limit[@]}\"} node scripts/backup/snapshot.js \"${args[@]}\"");
+        expect(deploy).toContain("limit=(timeout \"$SNAPSHOT_TIMEOUT\")");
+        expect(deploy).toContain("args=(--reason deploy)");
+    });
+
+    (hasBash ? it : it.skip)("looks for the snapshots where the bot puts them (resolveBackupDir)", () => {
+        const dir = scratch("eh-deploy-snap-");
+        try {
+            const where = (env = {}, files = {}) => {
+                for (const name of [".env", ".env.dev"]) fs.rmSync(path.join(dir, name), { force: true });
+                for (const [name, content] of Object.entries(files)) writeFile(path.join(dir, name), content);
+                return sourced(dir, ["backup_dir"], { BACKUP_DIR: "", NODE_ENV: "", ...env }).trim();
+            };
+            const app = posix(dir);
+            expect(where({ BACKUP_DIR: "/srv/snaps" })).toBe("/srv/snaps");
+            expect(where({}, { ".env": "X=1\nBACKUP_DIR=\"/srv/from-env\"\r\n" })).toBe("/srv/from-env");
+            expect(where({}, { ".env": "BACKUP_DIR=../rel\n" })).toBe(`${app}/../rel`);
+            // the live server: .env, no NODE_ENV
+            expect(where({}, { ".env": "A=1\n" })).toBe("/var/backups/pulsebot");
+            expect(where({ NODE_ENV: "production" }, { ".env.dev": "A=1\n" })).toBe("/var/backups/pulsebot");
+            // a test instance: .env.dev wins, or NODE_ENV says so
+            const sibling = `${posix(path.dirname(dir))}/pulsebot-backups`;
+            expect(where({}, { ".env": "A=1\n", ".env.dev": "A=1\n" })).toBe(sibling);
+            expect(where({}, { ".env": "NODE_ENV=development\n" })).toBe(sibling);
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    (hasBash ? it : it.skip)("reads the switches the way the bot does", () => {
+        const dir = scratch("eh-deploy-snap-");
+        try {
+            const check = "for v in 1 TRUE yes On 0 false NO off '' maybe; do printf '%s,' \"$(switch_value \"$v\")\"; done";
+            expect(sourced(dir, [check]).trim()).toBe("on,on,on,on,off,off,off,off,,,");
+            const wanted = (env, files = {}) => {
+                for (const [name, content] of Object.entries(files)) writeFile(path.join(dir, name), content);
+                return sourced(dir, [`if snapshot_wanted "${posix(dir)}"; then echo YES; else echo NO; fi`], { DEPLOY_SNAPSHOT: "", BACKUP_ENABLED: "", ...env }).trim().split("\n").pop();
+            };
+            expect(wanted({})).toBe("YES");
+            expect(wanted({ DEPLOY_SNAPSHOT: "off" })).toBe("NO");
+            expect(wanted({ BACKUP_ENABLED: "0" })).toBe("NO");
+            expect(wanted({}, { ".env": "BACKUP_ENABLED=false\n" })).toBe("NO");
+            expect(wanted({ DEPLOY_SNAPSHOT: "1" })).toBe("YES");
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+});
+
 // The whole script against a scratch git repository, with node, npm, pm2 and
 // curl replaced by stubs that write down how they were called.
 describe("deploy.sh does only what changed since the last deploy", () => {
     let dir;
     let app;
     let calls;
+    let backups;
+    let publish;
     const sha = {};
 
     const git = (cwd, ...args) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd, stdio: "pipe" }).toString().trim();
@@ -277,8 +346,9 @@ describe("deploy.sh does only what changed since the last deploy", () => {
     const state = () => Object.fromEntries(fs.readFileSync(path.join(app, ".deploy", "state"), "utf8").trim().split("\n").map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]));
     const run = (args = [], env = {}) => {
         fs.writeFileSync(calls, "");
+        fs.rmSync(`${calls}.snap`, { force: true });
         const clean = { ...process.env };
-        for (const key of ["DEPLOY_FORCE", "DEPLOY_SHA", "PREBUILT_DIST", "WEB_PORT", "NODE_ENV"]) delete clean[key];
+        for (const key of ["DEPLOY_FORCE", "DEPLOY_SHA", "PREBUILT_DIST", "WEB_PORT", "NODE_ENV", "DEPLOY_SNAPSHOT", "BACKUP_ENABLED"]) delete clean[key];
         const res = spawnSync("bash", [DEPLOY_SH, ...args], {
             cwd: app,
             env: {
@@ -288,6 +358,9 @@ describe("deploy.sh does only what changed since the last deploy", () => {
                 NVM_DIR: posix(path.join(dir, "no-nvm")),
                 CALLS: posix(calls),
                 DISCORDJS_BOT_TOKEN: "t", CLIENT_ID: "c", GUILD_ID: "g", RAIDHELPER_API_KEY: "k", RAIDHELPER_SERVER_ID: "s",
+                // no snapshot directory: backups are not set up (#695 tests set one)
+                BACKUP_DIR: posix(path.join(dir, "no-backups")),
+                DEPLOY_SNAPSHOT_RETRY_DELAY: "0",
                 ...env,
             },
             encoding: "utf8",
@@ -302,6 +375,7 @@ describe("deploy.sh does only what changed since the last deploy", () => {
         if (!hasBash) return;
         dir = scratch("eh-deploy-run-");
         calls = path.join(dir, "calls.log");
+        backups = path.join(dir, "backups");
         stub("node", [
             "echo \"node $*\" >> \"$CALLS\"",
             "case \"$1\" in",
@@ -310,6 +384,14 @@ describe("deploy.sh does only what changed since the last deploy", () => {
             "  scripts/register-commands.js)",
             "    if [ \"${2:-}\" = \"--print-hash\" ]; then echo 'a module logging while it loads'; echo \"commands-hash: ${FAKE_COMMANDS_HASH:-aaa}\"; exit 0; fi",
             "    [ -z \"${FAKE_REGISTER_FAIL:-}\" ] ;;",
+            // #695: FAKE_SNAPSHOT_EXITS = the exit code of each call in turn ("3,0")
+            "  scripts/backup/snapshot.js)",
+            "    n=$(( $(cat \"$CALLS.snap\" 2>/dev/null || echo 0) + 1 )); echo \"$n\" > \"$CALLS.snap\"",
+            "    IFS=, read -ra codes <<< \"${FAKE_SNAPSHOT_EXITS:-0}\"; code=\"${codes[$((n - 1))]:-0}\"",
+            "    echo \"snapshot dist=$(cat src/web-client/dist/index.html) head=$(git rev-parse HEAD) dir=$BACKUP_DIR\" >> \"$CALLS\"",
+            "    echo '[info] [backup] snapshot stub'",
+            "    if [ \"$code\" = 0 ]; then echo '{\"ok\":true,\"reason\":\"deploy\",\"name\":\"20261010-120000-deploy\"}'; else echo \"{\\\"ok\\\":false,\\\"error\\\":\\\"stub $code\\\"}\"; fi",
+            "    exit \"$code\" ;;",
             "esac",
         ].join("\n"));
         stub("npm", [
@@ -342,6 +424,10 @@ describe("deploy.sh does only what changed since the last deploy", () => {
         commit("c2", { "src/a.txt": "2\n" });
         commit("c3", { "package-lock.json": "{\"v\":2}\n" });
         git(work, "push", "-q", "origin", "main");
+        publish = (name, files) => {
+            commit(name, files);
+            git(work, "push", "-q", "origin", "main");
+        };
         git(dir, "clone", "-q", origin, app);
         writeFile(path.join(app, "src", "web-client", "dist", "assets", "app-OLD.js"), "old");
         writeFile(path.join(app, "src", "web-client", "dist", "index.html"), "old");
@@ -435,6 +521,88 @@ describe("deploy.sh does only what changed since the last deploy", () => {
         // "build" is forced too: the server builds although a CI build came along
         expect(has(c, "npm ci (web-client)")).toBe(true);
     }, 60000);
+
+    // #695: a data snapshot before the restart, marked with both commits
+    const snapshotStatus = () => JSON.parse(fs.readFileSync(path.join(backups, "status", "deploy-snapshot.json"), "utf8"));
+    const snapshotCalls = (c) => c.filter((l) => l.startsWith("node scripts/backup/snapshot.js"));
+    const withBackups = (env = {}) => ({ BACKUP_DIR: posix(backups), FAKE_COMMANDS_HASH: "ccc", FAKE_NODE_VERSION: "v22.2.0", ...env });
+
+    step("takes a snapshot of the old state before pm2 update, the new dist and the restart", () => {
+        fs.mkdirSync(backups, { recursive: true });
+        publish("c4", { "src/a.txt": "4\n" });
+        const before = fs.readFileSync(path.join(app, "src", "web-client", "dist", "index.html"), "utf8").trim();
+        const { out, calls: c } = run(["main"], withBackups({ DEPLOY_SHA: sha.c4, PREBUILT_DIST: prebuilt(sha.c4, "seven"), FAKE_NODE_VERSION: "v22.3.0" }));
+        expect(snapshotCalls(c)).toEqual([`node scripts/backup/snapshot.js --reason deploy --from ${sha.c3} --to ${sha.c4} --json`]);
+        const at = c.findIndex((l) => l.startsWith("snapshot "));
+        // the old client is still in place, the checkout already on the new commit
+        expect(c[at]).toBe(`snapshot dist=${before} head=${sha.c4} dir=${posix(backups)}`);
+        expect(at).toBeLessThan(c.indexOf("pm2 update"));
+        expect(at).toBeLessThan(c.indexOf("pm2 restart pulsebot --update-env"));
+        expect(at).toBeGreaterThan(c.indexOf("node scripts/register-commands.js --print-hash"));
+        expect(out).toContain("[deploy]   [info] [backup] snapshot stub");
+        expect(out).toMatch(/Data snapshot 20261010-120000-deploy taken/);
+        expect(out).not.toMatch(/WARNING/);
+        expect(out).not.toContain("{\"ok\"");
+        expect(out).toContain("Deployment complete.");
+        expect(snapshotStatus()).toEqual(expect.objectContaining({
+            ok: true, exitCode: 0, attempts: 1, fromCommit: sha.c3, toCommit: sha.c4,
+            result: { ok: true, reason: "deploy", name: "20261010-120000-deploy" },
+        }));
+        expect(snapshotStatus().error).toBeUndefined();
+    }, 60000);
+
+    step("takes none when the commit is already live", () => {
+        const { out, calls: c } = run(["main"], withBackups({ DEPLOY_SHA: sha.c3, PREBUILT_DIST: prebuilt(sha.c3, "late2") }));
+        expect(out).toMatch(/already contains/);
+        expect(snapshotCalls(c)).toEqual([]);
+    }, 60000);
+
+    step("a failed snapshot warns loudly but never stops the deploy", () => {
+        const { out, calls: c } = run(["main"], withBackups({ DEPLOY_SHA: sha.c4, PREBUILT_DIST: prebuilt(sha.c4, "eight"), FAKE_SNAPSHOT_EXITS: "1" }));
+        expect(snapshotCalls(c)).toHaveLength(1);
+        expect(out).toMatch(/WARNING: no data snapshot before this deploy - the snapshot CLI failed \(exit 1\)/);
+        expect(out).toMatch(/WARNING: this deploy ran without a fresh data snapshot \(the snapshot CLI failed \(exit 1\)\)/);
+        expect(has(c, "pm2 restart pulsebot --update-env")).toBe(true);
+        expect(out).toContain("Deployment complete.");
+        expect(state().DEPLOYED_COMMIT).toBe(sha.c4);
+        expect(snapshotStatus()).toEqual(expect.objectContaining({
+            ok: false, exitCode: 1, error: "the snapshot CLI failed (exit 1)", result: { ok: false, error: "stub 1" },
+        }));
+    }, 60000);
+
+    step("waits once while the hourly snapshot holds the lock, then takes it", () => {
+        const { out, calls: c } = run(["main"], withBackups({ DEPLOY_SHA: sha.c4, PREBUILT_DIST: prebuilt(sha.c4, "nine"), FAKE_SNAPSHOT_EXITS: "3,0" }));
+        expect(snapshotCalls(c)).toHaveLength(2);
+        expect(out).toMatch(/holds the lock .* trying again in 0 s/);
+        expect(out).toMatch(/Data snapshot 20261010-120000-deploy taken/);
+        expect(out).not.toMatch(/WARNING/);
+        expect(snapshotStatus()).toEqual(expect.objectContaining({ ok: true, attempts: 2 }));
+    }, 60000);
+
+    step("goes on without one when the lock is still held after the retry", () => {
+        const { out, calls: c } = run(["main"], withBackups({ DEPLOY_SHA: sha.c4, PREBUILT_DIST: prebuilt(sha.c4, "ten"), FAKE_SNAPSHOT_EXITS: "3,3" }));
+        expect(snapshotCalls(c)).toHaveLength(2);
+        expect(out).toMatch(/WARNING: no data snapshot before this deploy - another snapshot still held the lock after 2 attempts/);
+        expect(out).toContain("Deployment complete.");
+        expect(snapshotStatus()).toEqual(expect.objectContaining({ ok: false, exitCode: 3, attempts: 2 }));
+    }, 60000);
+
+    step("is switched off by DEPLOY_SNAPSHOT=0 or BACKUP_ENABLED=0 and skipped without a backup directory", () => {
+        const deploy = (marker, env) => run(["main"], withBackups({ DEPLOY_SHA: sha.c4, PREBUILT_DIST: prebuilt(sha.c4, marker), ...env }));
+        const off = deploy("eleven", { DEPLOY_SNAPSHOT: "0" });
+        expect(snapshotCalls(off.calls)).toEqual([]);
+        expect(off.out).toMatch(/No data snapshot before the restart: DEPLOY_SNAPSHOT=0/);
+        expect(off.out).toContain("Deployment complete.");
+        const disabled = deploy("twelve", { BACKUP_ENABLED: "false" });
+        expect(snapshotCalls(disabled.calls)).toEqual([]);
+        expect(disabled.out).toMatch(/backups are off here \(BACKUP_ENABLED\)/);
+        const missing = deploy("thirteen", { BACKUP_DIR: posix(path.join(dir, "no-backups")) });
+        expect(snapshotCalls(missing.calls)).toEqual([]);
+        expect(missing.out).toMatch(/no backup directory at \S*no-backups/);
+        // DEPLOY_SNAPSHOT=1 takes one anyway (the CLI creates the directory)
+        const forced = deploy("fourteen", { BACKUP_DIR: posix(path.join(dir, "new-backups")), DEPLOY_SNAPSHOT: "1" });
+        expect(snapshotCalls(forced.calls)).toHaveLength(1);
+    }, 60000);
 });
 
 describe("deploy.sh skips what is unchanged", () => {
@@ -509,6 +677,12 @@ describe("Dockerfile", () => {
         expect(docker).toMatch(/^VOLUME \/app\/data$/m);
         expect(docker).toMatch(/HEALTHCHECK[\s\S]*\$\{WEB_PORT\}\/health/);
         expect(docker).toMatch(/^USER node$/m);
+    });
+
+    it("keeps the data snapshots on a volume of their own that `node` may write (#691, #695)", () => {
+        expect(docker).toMatch(/^ENV BACKUP_DIR=\/app\/backups$/m);
+        expect(docker).toMatch(/chown node:node \/app\/data \/app\/backups/);
+        expect(docker).toMatch(/^VOLUME \/app\/backups$/m);
     });
 });
 
