@@ -4,7 +4,7 @@
 const { getConfig } = require("../../stores/settingsStore");
 const discord = require("../../services/discord/discord");
 const { getRoster } = require("../../stores/rosterStore");
-const { mainVersionFor, resolveVersionQuery } = require("../../services/events/mainVersion");
+const { mainVersionFor, resolveVersionQuery, knownVersion } = require("../../services/events/mainVersion");
 
 /** Comma-separated query params ("t5,t6") as a clean array. */
 function listParam(searchParams, name) {
@@ -46,6 +46,12 @@ function councilOptsFromQuery(searchParams, { guildId = "" } = {}) {
     const categoryId = roster ? (roster.categoryId || "") : (searchParams.get("category") || "");
     const config = getConfig();
     const { versionId: charVersion, mainVersion } = resolveVersionQuery(searchParams.get("version"), { config });
+    // Without a roster or a category of its own version, the content switch (an explicit
+    // `version`) decides what the council looks at (#748): a Forever view gets no TBC content.
+    const rawVersion = String(searchParams.get("version") || "").trim();
+    const explicit = rawVersion && rawVersion !== "all" && charVersion === knownVersion(rawVersion) ? charVersion : "";
+    const catMap = config.categoryVersion && typeof config.categoryVersion === "object" ? config.categoryVersion : {};
+    const categoryOwn = categoryId ? knownVersion(catMap[categoryId]) : "";
     return {
         role: searchParams.get("role") || "",
         tierIds: listParam(searchParams, "tiers"),
@@ -56,7 +62,7 @@ function councilOptsFromQuery(searchParams, { guildId = "" } = {}) {
         // With a roster: Ersatz shown as candidates too (#667). Only the page
         // asks for it; a stored category view (and so the addon) never does.
         showBench: searchParams.get("bench") === "1",
-        versionId: roster ? roster.versionId : mainVersionFor({ categoryId, config }),
+        versionId: roster ? roster.versionId : (categoryOwn || explicit || mainVersionFor({ categoryId, config })),
         config,
         mainVersion,
         charVersion,

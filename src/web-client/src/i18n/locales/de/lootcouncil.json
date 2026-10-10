@@ -1,5 +1,9 @@
 {
     "title": "Loot-Council",
+    "noContent": {
+        "text": "Für diese Spielversion gibt es noch keine BiS-Listen und keine Simulation. Bedarf, Wünsche, erhaltener Loot und die Gewichtung nach Anwesenheit und Zugehörigkeit gelten weiter.",
+        "drop": "Für diese Spielversion gibt es noch keine Item-Tabelle und keine Simulation, der Drop-Check kann keine Kandidaten bestimmen."
+    },
     "role": {
         "caster": "Caster",
         "healer": "Heiler",

@@ -519,6 +519,9 @@ export type CouncilLog = {
     link: string;
 };
 
+/** What the council has content data for in a game version: BiS lists, simulation, tier/raid filter, item table (#748). */
+export type CouncilContent = { bis: boolean; sim: boolean; tiers: boolean; itemTable: boolean };
+
 export type LootCouncilData = {
     roster: CouncilRaider[];
     /** With a roster: who stood there without being in it (#667). */
@@ -558,6 +561,8 @@ export type LootCouncilData = {
         roster?: CouncilRosterSource | null;
     };
     sim: { available: boolean; version: string; hint: string };
+    /** Which content data the council's version has (#748); missing in an older answer = all. */
+    content?: CouncilContent;
     activeGuildId: string;
     /** The game version the council looks at (#542): the category's, else the main one. */
     versionId?: string;
@@ -709,9 +714,10 @@ export async function runCouncilSim(
  * candidate list needs. Same result shape as the other item pickers, so
  * ItemSearchPicker takes it as-is.
  */
-export function searchCouncilItems(q: string, tier = ""): Promise<{ items: CouncilItemHit[] }> {
+export function searchCouncilItems(q: string, tier = "", versionId = ""): Promise<{ items: CouncilItemHit[] }> {
     const qs = new URLSearchParams({ q });
     if (tier) qs.set("tier", tier);
+    if (versionId) qs.set("v", versionId);
     return get<{ items: CouncilItemHit[] }>(`/api/lootcouncil/item-search?${qs.toString()}`);
 }
 

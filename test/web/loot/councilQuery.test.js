@@ -40,6 +40,23 @@ describe("councilOptsFromQuery with a roster (#676)", () => {
     });
 });
 
+describe("councilOptsFromQuery: the council's version without a roster (#748)", () => {
+    const config = require("../../../src/stores/settingsStore").getConfig;
+    afterEach(() => config.mockReturnValue({ categoryIds: ["c1", "c2"] }));
+
+    it("follows an explicit content switch, but not \"all\"", () => {
+        expect(councilOptsFromQuery(new URLSearchParams("version=forever")).versionId).toBe("forever");
+        expect(councilOptsFromQuery(new URLSearchParams("version=all")).versionId).toBe("tbc");
+        expect(councilOptsFromQuery(new URLSearchParams("")).versionId).toBe("tbc");
+    });
+
+    it("lets a category with its own version win over the switch", () => {
+        config.mockReturnValue({ categoryIds: ["c1"], categoryVersion: { c1: "forever" } });
+        expect(councilOptsFromQuery(new URLSearchParams("category=c1&version=tbc")).versionId).toBe("forever");
+        expect(councilOptsFromQuery(new URLSearchParams("category=c2&version=tbc")).versionId).toBe("tbc");
+    });
+});
+
 describe("councilOptsFromQuery", () => {
     it("reads role, tiers, contents, category and bisTier", () => {
         const opts = councilOptsFromQuery(new URLSearchParams("role=healer&tiers=t5,t6&contents=ssc&category=c1&bisTier=t6"));
