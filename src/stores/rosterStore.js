@@ -56,12 +56,19 @@
 // its Loot-Council profile (councilProfilesStore.js); that it exists is the
 // writer's check (services/roster/rosterSettings.js), a reader falls back to
 // the default profile (services/loot/councilProfiles.js).
+//
+// `versionId` is stored, never derived from the live config on read (#737):
+// a new roster gets the version its category plays at creation
+// (createRoster, migrateCategories), a roster stored without one is stamped
+// once at start with its category's version of that day (migrateVersions,
+// settingsMigration.js) — switching the main or category version afterwards
+// moves no roster. Read without one it is LEGACY_VERSION (TBC).
 const { settingsPath } = require("../config/paths");
-const { createJsonStore } = require("./jsonStore");
+const { createJsonStore, readJsonFile } = require("./jsonStore");
 const { newId } = require("../utils/ids");
 const { characterKeyOf, VERSION_KEY_SEP } = require("../utils/loot/lootImport");
 const { knownVersion, mainVersionFor } = require("../services/events/mainVersion");
-const { spec: specOfVersion } = require("../config/gameVersions");
+const { spec: specOfVersion, LEGACY_VERSION } = require("../config/gameVersions");
 const { normalizeLootSystem } = require("../services/loot/lootSystem");
 
 const ROSTERS_FILE = settingsPath("rosters.json");
@@ -217,7 +224,8 @@ function normalizeRoster(raw, id = raw && raw.id) {
     const categoryId = idOf(raw.categoryId) || null;
     const multi = raw.allowMultipleChars === true;
     const managers = isMap(raw.managers) ? raw.managers : {};
-    const versionId = knownVersion(raw.versionId) || mainVersionFor({ categoryId: categoryId || "" });
+    // stored, not today's setting (#737): a new roster is stamped by its writer
+    const versionId = knownVersion(raw.versionId) || LEGACY_VERSION;
     const source = normalizeSource(raw.source);
     // never stored yet: the Kader it was created from; stored null = unlinked
     const kaderId = raw.kaderId === undefined ? (source.kaderId || null) : (idOf(raw.kaderId) || null);
@@ -361,6 +369,8 @@ function createRoster(data = {}, { actor = "", now = new Date().toISOString() } 
         ...data,
         id,
         categoryId,
+        // the version its category plays now, stored for good (#737)
+        versionId: knownVersion(data.versionId) || mainVersionFor({ categoryId: categoryId || "" }),
         createdAt: isoOf(data.createdAt, now),
         createdBy: actor || data.createdBy,
         history: [historyEntry({ at: now, by: actor, what: "created", detail: text(data.name, LIMITS.name) })],
@@ -576,7 +586,7 @@ function migrateCategories(categories = [], { now = new Date().toISOString() } =
             guildId: c.guildId,
             name: c.name,
             categoryId,
-            versionId: c.versionId,
+            versionId: knownVersion(c.versionId) || mainVersionFor({ categoryId }),
             roleIds: c.roleIds,
             source: { kind: "migration" },
             members,
@@ -594,9 +604,32 @@ function migrateCategories(categories = [], { now = new Date().toISOString() } =
     return created;
 }
 
+/**
+ * One-off upgrade at start (#737, settingsMigration.js): every roster stored
+ * without a (known) version gets the version its category plays today (the
+ * main version without a category) — written down once, so a later switch of
+ * the main or category version moves no roster. Works on the raw file: the
+ * normalised read already says LEGACY_VERSION, and members' specs are
+ * normalised in the stamped version. Idempotent.
+ * @returns {Record<string, number>} how many rosters got which version
+ */
+function migrateVersions() {
+    const raw = readJsonFile(store.file, null);
+    if (!isMap(raw) || !isMap(raw.rosters)) return {};
+    const kept = new Set(Object.keys(normalizeFile(raw).rosters));
+    const counts = {};
+    for (const [id, roster] of Object.entries(raw.rosters)) {
+        if (!kept.has(id) || !isMap(roster) || knownVersion(roster.versionId)) continue;
+        roster.versionId = mainVersionFor({ categoryId: idOf(roster.categoryId) });
+        counts[roster.versionId] = (counts[roster.versionId] || 0) + 1;
+    }
+    if (Object.keys(counts).length) writeAll(raw);
+    return counts;
+}
+
 module.exports = {
     listRosters, getRoster, rosterForCategory, rosterForKader, createRoster, updateRoster, deleteRoster,
-    upsertMember, removeMember, appendHistory, setFirstChars, migrateCategories, assignLootProfile,
+    upsertMember, removeMember, appendHistory, setFirstChars, migrateCategories, migrateVersions, assignLootProfile,
     normalizeRoster, normalizeFile, RosterError, LIMITS, STATUSES, SOURCE_KINDS, ROSTERS_FILE,
     useFile: store.useFile,
 };

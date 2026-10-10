@@ -391,3 +391,61 @@ describe("stores/rosterStore migratedCategories (#657)", () => {
         expect(stored().migratedCategories).toEqual(["c1", "c2"]);
     });
 });
+
+// #737: a roster's version is stored, never derived from today's setting on read.
+describe("stores/rosterStore versionId", () => {
+    const configStore = require("../../src/stores/configStore");
+    const setConfig = (cfg) => configStore.writeStored(cfg);
+
+    it("stamps a new roster with the version its category plays at creation", () => {
+        setConfig({ mainVersion: "tbc", categoryVersion: { fri: "forever" } });
+        expect(createRoster({ name: "Freitag", categoryId: "fri" }).versionId).toBe("forever");
+        expect(createRoster({ name: "Ohne" }).versionId).toBe("tbc");
+        expect(createRoster({ name: "Klassik", versionId: "classic" }).versionId).toBe("classic");
+        expect(Object.values(stored().rosters).map((r) => r.versionId).sort()).toEqual(["classic", "forever", "tbc"]);
+    });
+
+    it("keeps a stored roster's version when the main or category version is switched", () => {
+        setConfig({ mainVersion: "tbc" });
+        const r = createRoster({ name: "Montag", categoryId: "mon" });
+        setConfig({ mainVersion: "forever", categoryVersion: { mon: "forever" } });
+        expect(getRoster(r.id).versionId).toBe("tbc");
+        expect(updateRoster(r.id, { name: "Montag neu" }).versionId).toBe("tbc");
+    });
+
+    it("reads a roster stored without version as TBC, not as today's setting", () => {
+        setConfig({ mainVersion: "forever" });
+        fs.writeFileSync(ROSTERS_FILE, JSON.stringify({ rosters: { r1: { id: "r1", name: "Alt", categoryId: "mon" } } }));
+        expect(getRoster("r1").versionId).toBe("tbc");
+    });
+
+    it("migrateVersions stamps every roster without version once with its category's version", () => {
+        setConfig({ mainVersion: "tbc", categoryVersion: { fri: "forever" } });
+        fs.writeFileSync(ROSTERS_FILE, JSON.stringify({
+            rosters: {
+                r1: { id: "r1", name: "Montag", categoryId: "mon", members: { "100000000000000001": { status: "core", chars: ["devi"], spec: "Priest-Holy" } } },
+                r2: { id: "r2", name: "Freitag", categoryId: "fri" },
+                r3: { id: "r3", name: "Klassik", categoryId: "sun", versionId: "classic" },
+                r4: { id: "r4", name: "Ohne Kategorie" },
+            },
+            migratedCategories: ["mon"],
+        }));
+        expect(rosterStore.migrateVersions()).toEqual({ tbc: 2, forever: 1 });
+        expect(Object.fromEntries(Object.values(stored().rosters).map((r) => [r.id, r.versionId])))
+            .toEqual({ r1: "tbc", r2: "forever", r3: "classic", r4: "tbc" });
+        expect(stored().rosters.r1.members["100000000000000001"]).toMatchObject({ status: "core", chars: ["devi"], spec: "Priest-Holy" });
+        expect(stored().migratedCategories).toEqual(["mon"]);
+
+        // idempotent, and later switches move nothing
+        const before = fs.__store.get(ROSTERS_FILE);
+        setConfig({ mainVersion: "forever", categoryVersion: { mon: "forever" } });
+        expect(rosterStore.migrateVersions()).toEqual({});
+        expect(fs.__store.get(ROSTERS_FILE)).toBe(before);
+        expect(getRoster("r1").versionId).toBe("tbc");
+    });
+
+    it("migrateVersions does nothing without a file", () => {
+        expect(rosterStore.migrateVersions()).toEqual({});
+        expect(fs.__store.has(ROSTERS_FILE)).toBe(false);
+    });
+});

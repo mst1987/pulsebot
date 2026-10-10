@@ -639,6 +639,18 @@ function migrateOverflowModes() {
     return count;
 }
 
+// The one version resolver (mainVersion.versionOfEvent, #737) reads an own
+// event's stored version by id through this; it cannot require this store
+// back (cycle). A test's stand-in of mainVersion may lack the hook.
+const versionHook = require("../services/events/mainVersion").registerOwnEventVersions;
+if (typeof versionHook === "function") {
+    versionHook((id) => {
+        if (!isOwnEventId(id)) return null;
+        const hit = peekAll().find((e) => e && e.id === str(id));
+        return hit ? (hit.versionId || LEGACY_VERSION) : "";
+    });
+}
+
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft, setEventState,
     appendEventLog, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,

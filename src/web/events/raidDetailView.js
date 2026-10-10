@@ -54,12 +54,13 @@ const { expectedRosterIds, listExpectedMembers } = require("../../services/roste
 
 /**
  * The version of the event on this page and its settings (#542): an own event
- * carries its version, a Raid-Helper one plays its category's. The softres
- * edition and the default raidsheet follow it - a version without a softres
- * edition (Forever until softres.it has it) offers no list at all.
+ * carries its version, a scanned Raid-Helper one its stored version (#737),
+ * one not scanned yet plays its category's. The softres edition and the
+ * default raidsheet follow it - a version without a softres edition (Forever
+ * until softres.it has it) offers no list at all.
  */
 function eventVersionSettings(found, config) {
-    const versionId = versionOfEvent({ versionId: found.e.versionId, categoryId: found.g.categoryId }, { config });
+    const versionId = versionOfEvent({ id: found.e.id, versionId: found.e.versionId, categoryId: found.g.categoryId }, { config });
     const all = config.versionSettings || {};
     return {
         ...settingsForVersion(versionId, { config }),

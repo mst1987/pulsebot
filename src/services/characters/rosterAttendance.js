@@ -48,8 +48,7 @@ const { listLogs } = require("../../stores/logStore");
 const { listReports, getReport } = require("../../stores/reportStore");
 const { characterKeyOf } = require("../../utils/loot/lootImport");
 const { contentsForText, content: contentMeta } = require("../../config/tbcContent");
-const { LEGACY_VERSION } = require("../../config/gameVersions");
-const { knownVersion } = require("../events/mainVersion");
+const { versionOfEvent } = require("../events/mainVersion");
 const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const eventStore = require("../../stores/eventStore");
@@ -231,7 +230,7 @@ function condenseReport(meta) {
  *
  * @param {string} guildId  only events of this guild count ("" = all)
  * @param {{now?: number, maxReports?: number, versionId?: string}} opts  `versionId` (#543): only
- *   raid nights of that game version count — an own event's version, TBC for every other one
+ *   raid nights of that game version count — the raid's stored version (#737, versionOfEvent)
  */
 function buildAttendanceContext(guildId, opts = {}) {
     const now = opts.now || Date.now();
@@ -261,7 +260,7 @@ function buildAttendanceContext(guildId, opts = {}) {
     const raidsByCategory = new Map();
     for (const ev of listStoredEvents(guildId)) {
         if (!ev || !ev.categoryId || !ev.startTime || ev.startTime > now) continue;
-        if (opts.versionId && (knownVersion(ev.versionId) || LEGACY_VERSION) !== opts.versionId) continue;
+        if (opts.versionId && versionOfEvent(ev) !== opts.versionId) continue;
         const logs = reportsByEvent.get(String(ev.id)) || [];
         const signUps = Array.isArray(ev.signUps) ? ev.signUps : [];
         if (!logs.length && !signUps.length) continue;

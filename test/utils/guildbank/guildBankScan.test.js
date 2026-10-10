@@ -90,6 +90,15 @@ describe("utils/guildbank/guildBankScan", () => {
         const parsed = parseGuildBankScan(scan({ client: {} }), { fallbackVersion: "forever" });
         expect(parsed).toMatchObject({ gameVersion: "forever", versionGuessed: true, key: "forever:spineshatter:die gilde" });
         expect(() => parseGuildBankScan(scan({ client: null }))).toThrow("keine bekannte Client-Version");
+        // #737: the fallback may be asked with realm and guild; no answer = refused
+        const ask = jest.fn(() => "tbc");
+        expect(parseGuildBankScan(scan({ client: {} }), { fallbackVersion: ask })).toMatchObject({ gameVersion: "tbc", versionGuessed: true });
+        expect(ask).toHaveBeenCalledWith({ realm: "Spineshatter", guild: "Die Gilde" });
+        expect(() => parseGuildBankScan(scan({ client: {} }), { fallbackVersion: () => "" })).toThrow("keine eindeutige Gildenbank");
+        // a client that names its version never asks
+        ask.mockClear();
+        parseGuildBankScan(scan(), { fallbackVersion: ask });
+        expect(ask).not.toHaveBeenCalled();
     });
 
     describe("versionOfClient", () => {
