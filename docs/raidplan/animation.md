@@ -75,12 +75,25 @@ loop   { id, obj, path: [[x, y]], closed, period, from, to, trail }
 
 ## In the sheet (`/p/<token>`)
 
-A section with a playable scene shows **"Animation ansehen"** (several: "Animationen (n)") at the bottom of the map.
-It opens the player (`components/raidplan/ScenePlayerBar.tsx`): the scenes as tabs, back / play-pause / forward by
-frame, the time line with a dot per frame (a click jumps there), the time, the speed, the loop and "Schließen" back to
-the plan. The caption ("Takt 2 von 6" + the frame's sentence) stands big at the top of the map. While it plays, the
-assignment lines are hidden, "Deine Aufgaben" makes room for the bar and the zoom stands above it; switching the
-section closes the animation. Phone: the bar takes the width at the bottom.
+A section with a playable scene shows **"Animation ansehen"** (several: "Animationen (n)") at the top of the map, in the
+middle (the bottom belongs to "Deine Aufgaben" and the zoom). It opens the player
+(`components/raidplan/ScenePlayerBar.tsx`): the scenes as tabs, back / play-pause / forward by frame, the time line with
+a dot per frame (a click jumps there), the time, the speed, **"Meine Gruppe hervorheben"** (only for a visitor who stands
+in the plan: his group stays bright, the others dim - the same `focusGroup` as the bar's group chips), the loop and
+"Schließen" back to the plan. The caption ("Takt 2 von 6" + the frame's sentence) takes the button's place at the top.
+While it plays, the assignment lines are hidden, "Deine Aufgaben" makes room for the bar and the zoom stands above it;
+switching the section closes the animation. Phone: the bar takes the width at the bottom.
+
+**At tactic steps (#713):** a scene with a `stepId` puts **"Animation"** into its step's line in "Alle Aufgaben"
+(`ReadSteps` - in "Was tue ich?" and in "Alle Schritte"); a click plays that scene, and a panel that lies over the map
+closes for it ("Karte daneben" keeps it open beside the map). In the editor the scene's step is chosen in the panel
+("Gehört zum Taktik-Schritt", the board's steps by number and sentence), and the step's line in the task view carries a
+small clapperboard with the scene's title as its tip. Copies keep the link (`reidBoard` renames the step and the scene's
+`stepId` together); a scene whose step was deleted loses the link on the next save.
+
+**Reuse:** a raid plan template carries its scenes (applied to an event or duplicated, every reference follows its
+object). The tactic library (profiles) does not: a profile holds steps without a board, and a scene names board
+objects - mapping them onto another board (by slot kind and number) is a follow-up of its own (#719).
 
 ## In the editor (view "Animation", #711)
 
@@ -142,7 +155,7 @@ and Allgemein have none, "Karte aus" shows the note). `components/raidplan/edito
 `test/services/raidplan/raidplanScenes.test.js` (validation, limits, the board's cleaning, `reidBoard`),
 `test/web/apiRoutes/raidplan.templates.test.js` (the sheet sends the scenes, none without the map),
 `src/web-client/src/lib/raidplan/scene.test.ts` (easing, blending, take-over, paths, loops, auto objects, frames),
-`src/web-client/src/pages/raidplan/PlanPublicPage.anim.test.tsx` (the player in the sheet),
+`src/web-client/src/pages/raidplan/PlanPublicPage.anim.test.tsx` (the player in the sheet, a step's "Animation", the group highlight),
 `src/web-client/src/lib/raidplan/sceneEdit.test.ts` (editing on the timeline),
 `src/web-client/src/components/raidplan/editor/BoardWorkspace.anim.test.tsx` (the editor's view: create, add a frame, drag,
-panel, preview, delete).
+panel, preview, delete, ways and loops, the step a scene stands at).

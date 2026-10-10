@@ -92,6 +92,13 @@ export default function AnimPanel({ board, drawn, scene, frame, sel, canWrite, p
                     onChange={(e) => upd((s) => ({ ...s, title: e.target.value }), true)}
                 />
                 <Switch checked={scene.loop} disabled={off} onChange={(v) => upd((s) => ({ ...s, loop: v }))} label={t("raidBoard.anim.loopScene")} tip={t("raidBoard.anim.loopSceneTip")} />
+                <label className="rp-anim-steppick">
+                    <span className="rp-anim-plabel" data-tip={t("raidBoard.anim.stepTip")}>{t("raidBoard.anim.step")}</span>
+                    <select className="sel-sm rp-anim-input" value={scene.stepId} disabled={off} onChange={(e) => upd((s) => ({ ...s, stepId: e.target.value }))}>
+                        <option value="">{t("raidBoard.anim.noStep")}</option>
+                        {(board.steps || []).map((st, i) => <option key={st.id} value={st.id}>{`${i + 1}. ${st.sentence || t(`raidBoard.steps.actions.${st.action}`)}`.slice(0, 70)}</option>)}
+                    </select>
+                </label>
                 {canWrite && (
                     <button
                         type="button" className={buttonClass("ghost", "sm", true, "rp-anim-del")}

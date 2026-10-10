@@ -58,8 +58,10 @@ function gurtoggDemo(key) {
     return {
         slots: [group(1, [0.3, 0.33]), group(2, [0.7, 0.33]), group(3, back), group(4, left), group(5, right)],
         icons: [{ id: "bbboss", iconKey: "bosspos", label: "Gurtogg", showLabel: true, x: 0.5, y: 0.14, size: 56, rotation: 180, mobId: `b:${key}`, autoFace: true, opacity: 1, lock: false, hidden: false }],
+        // the tactic step the scene stands at: the sheet shows "Animation" beside it (#713)
+        steps: [{ id: "bbst", action: "soak", participants: ["group:3", "group:4", "group:5"], sentence: "tauschen bei Bloodboil: wer ihn hat, läuft nach vorne", targets: [], timing: { kind: "interval", from: 10 } }],
         scenes: [{
-            id: "bbrot", title: "Bloodboil-Rotation", loop: false, length: 13,
+            id: "bbrot", title: "Bloodboil-Rotation", loop: false, length: 13, stepId: "bbst",
             frames: [
                 { id: "f1", at: 0, caption: "Gruppe 3 steht hinten, 4 und 5 warten vorne", changes: [] },
                 { id: "f2", at: 2, caption: "Bloodboil trifft die fünf Entferntesten: Gruppe 3", changes: [debuff(3)] },
@@ -154,7 +156,8 @@ function seedPlan(eventId, event) {
             slots: autoDemo ? [] : [tk(1, 0.5, 0.86), tk(2, 0.14, 0.3), tk(3, 0.86, 0.3)],
             icons: autoDemo ? [] : [mk("illidanb", "boss:609", 0.5, 0.5, `b:${key}`), mk("flame1", "mob:22997", 0.28, 0.42, "d:flame-of-azzinoth"), mk("flame2", "mob:22997", 0.72, 0.42, "d:flame-of-azzinoth")],
             assignments: [row("illt1", 1, `b:${key}`, "Illidan Stormrage", ""), row("illt2", 2, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), row("illt3", 3, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), ...bosses[key].assignments.filter((x) => x.type !== "tank")],
-            scenes: autoDemo ? [] : [flameKiteDemo()],
+            steps: autoDemo ? [] : [{ id: "illkite", action: "kite", participants: ["slot:tank:2", "slot:tank:3"], sentence: "kiten je eine Flamme von Azzinoth auf ihrer Seite", targets: [{ kind: "mob", ref: "d:flame-of-azzinoth", name: "Flame of Azzinoth", icon: "mob:22997" }], timing: { kind: "phase", from: 2 } }],
+            scenes: autoDemo ? [] : [{ ...flameKiteDemo(), stepId: "illkite" }],
         };
     }
     // Gurtogg: the five groups as split markers and the animation "Bloodboil-Rotation" (docs/raidplan/animation.md): Bloodboil hits the

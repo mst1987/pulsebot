@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
-import type { RaidplanIcon, RaidplanPublic, RaidplanPublicBoss, RaidplanScene } from "../../api";
+import type { RaidplanIcon, RaidplanPlayer, RaidplanPublic, RaidplanPublicBoss, RaidplanScene, RaidplanStep } from "../../api";
 import PlanPublicPage from "./PlanPublicPage";
 
 vi.mock("../../api", async (orig) => ({
@@ -32,12 +32,13 @@ function section(extra: Partial<RaidplanPublicBoss> = {}): RaidplanPublicBoss {
         notes: "", profileName: "", mapOpacity: 1, objectScale: 1, scenes: [rotation, { ...rotation, id: "s2", title: "Zweite" }], ...extra,
     };
 }
-function plan(boss: RaidplanPublicBoss): RaidplanPublic {
-    return { event: { title: "BT", startTime: 0 }, bosses: [boss], roster: [], me: "", meIds: [], catalog: { mobs: [], spells: [] }, loggedIn: false };
+const raider: RaidplanPlayer = { userId: "u1", character: "Heilbert", classId: "Priest", className: "Priest", classColor: "", spec: "", specLabel: "", role: "healer", iconUrl: "", group: 3 };
+function plan(boss: RaidplanPublicBoss, me = ""): RaidplanPublic {
+    return { event: { title: "BT", startTime: 0 }, bosses: [boss], roster: me ? [raider] : [], me, meIds: me ? [me] : [], catalog: { mobs: [], spells: [] }, loggedIn: !!me };
 }
-async function open(boss = section()) {
+async function open(boss = section(), me = "") {
     window.history.replaceState(null, "", "/p/abc#boss=bt/gurtogg");
-    vi.mocked(api.getRaidplanPublic).mockResolvedValue({ data: plan(boss), etag: "" });
+    vi.mocked(api.getRaidplanPublic).mockResolvedValue({ data: plan(boss, me), etag: "" });
     render(<PlanPublicPage token="abc" />);
     await screen.findByRole("heading", { level: 1 });
 }
@@ -92,5 +93,32 @@ describe("animations in the sheet", () => {
     it("offers nothing without a playable scene or without the map", async () => {
         await open(section({ scenes: [{ ...rotation, frames: rotation.frames.slice(0, 1) }] }));
         expect(screen.queryByRole("button", { name: /Animation/ })).toBeNull();
+    });
+
+    it("a tactic step with an animation plays it from 'Alle Aufgaben', and the panel makes room (#713)", async () => {
+        const step: RaidplanStep = { id: "st1", action: "kite", participants: ["group:3"], sentence: "laufen nach vorne", targets: [], timing: { kind: "", from: null, to: null, text: "" } };
+        await open(section({ steps: [step], scenes: [{ ...rotation, stepId: "st1" }, { ...rotation, id: "s2", title: "Zweite" }] }));
+        await userEvent.click(screen.getByRole("button", { name: /Alle Aufgaben/ }));
+        await userEvent.click(screen.getByRole("button", { name: "Animation ansehen: Bloodboil-Rotation" }));
+        expect(screen.getByRole("tab", { name: "Bloodboil-Rotation" })).toHaveAttribute("aria-selected", "true");
+        expect(screen.queryByRole("complementary", { name: "Alle Aufgaben" })).toBeNull();
+        expect(screen.queryByRole("button", { name: "Animation ansehen: Zweite" })).toBeNull();
+    });
+
+    it("lets a visitor in the plan highlight his group while it plays", async () => {
+        await open(section(), "u1");
+        await userEvent.click(screen.getByRole("button", { name: /Animationen/ }));
+        const focus = screen.getByRole("button", { name: "Meine Gruppe hervorheben" });
+        expect(focus).toHaveAttribute("aria-pressed", "false");
+        await userEvent.click(focus);
+        expect(focus).toHaveAttribute("aria-pressed", "true");
+        await userEvent.click(focus);
+        expect(focus).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("offers no group highlight to a visitor who is not in the plan", async () => {
+        await open();
+        await userEvent.click(screen.getByRole("button", { name: /Animationen/ }));
+        expect(screen.queryByRole("button", { name: "Meine Gruppe hervorheben" })).toBeNull();
     });
 });
