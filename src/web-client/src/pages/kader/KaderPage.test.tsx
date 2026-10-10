@@ -143,6 +143,18 @@ describe("KaderPage · Pool", () => {
         expect(screen.getAllByText(t("kader.state.roster")).length).toBeGreaterThan(0);
     });
 
+    it("shows each player's Discord picture beside the name, else the initial", async () => {
+        const view = kaderView();
+        view.players = view.players.map((p) => (p.userId === U.tank ? { ...p, avatarUrl: "https://cdn.discordapp.com/avatars/aldric.png" } : p));
+        vi.mocked(api.getKader).mockResolvedValue(view);
+        await show("/kader/k1/pool");
+        const rowOf = (name: string) => screen.getByRole("button", { name }).closest("[role='row']") as HTMLElement;
+        expect(rowOf("Aldric").querySelector("img.kp-pava")).toHaveAttribute("src", "https://cdn.discordapp.com/avatars/aldric.png");
+        // Neuling has no picture: the initial stands in
+        expect(rowOf("Neuling").querySelector("img.kp-pava")).toBeNull();
+        expect(rowOf("Neuling").querySelector(".kp-pava")).toHaveTextContent("N");
+    });
+
     it("takes the members of a Discord role into the pool", async () => {
         vi.mocked(api.addKaderPlayers).mockResolvedValue({ ...kaderView(), added: 1, already: 0 });
         await show("/kader/k1/pool");
