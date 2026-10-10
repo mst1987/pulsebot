@@ -59,9 +59,10 @@ export type AdminConfig = {
     categoryEras?: Record<string, CategoryEra[]>;
     /**
      * Write only, with a version switch (#738): what the confirmation dialog
-     * chose for the category's series — "pause" or a template id of the new version.
+     * chose for the category's series — "pause" or a template id of the new version —
+     * and for its roster (#739): start one for the new version, with the people, with roles.
      */
-    categorySwitchFixes?: Record<string, { series: string }>;
+    categorySwitchFixes?: Record<string, { series: string; roster?: RosterSwitchChoice }>;
     /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
     hideOtherVersions?: boolean;
     /** Language of the bot's public messages and default for every raider; missing = "de". */
@@ -258,9 +259,21 @@ export function getSettings(): Promise<SettingsData> {
 /** A section of a category (#738): `from` = ms of the switch (0 = always), `name` = the category name then. */
 export type CategoryEra = { versionId: string; from: number; name: string };
 
-/** A category the save switched to another version (#738), with what happened to its series. */
+/** The switch dialog's choice for the roster (#739): a roster for the new version, the people taken over, its Discord roles. */
+export type RosterSwitchChoice = { create: boolean; copyMembers: boolean; roleIds: string[] };
+
+/** What a switch did to the category's roster (#739). */
+export type SwitchRosterResult = {
+    closed: { id: string; name: string } | null;
+    reopened: { id: string; name: string } | null;
+    created: { id: string; name: string; members: number } | null;
+    mirrored: boolean;
+};
+
+/** A category the save switched to another version (#738), with what happened to its series and its roster (#739). */
 export type SwitchedCategory = {
     categoryId: string; fromVersion: string; toVersion: string; at: number; name: string; series: "" | "paused" | "template";
+    roster?: SwitchRosterResult;
 };
 
 export function updateSettings(partial: Partial<AdminConfig>): Promise<{ config: AdminConfig; switchedCategories?: SwitchedCategory[]; deactivatedCategories?: DeactivatedCategory[] }> {
@@ -284,6 +297,15 @@ export type CategorySwitchPreview = {
     defaultTemplate: { id: string; name: string; versionId: string; fits: boolean } | null;
     /** The templates of the new version, to pick one for the series or as the default. */
     templates: { id: string; name: string }[];
+    /**
+     * The roster (#739): the one of the old version that will be closed, the one of the new version that already
+     * exists (`reopens`: a switch closed it, it opens again), and whether a new one can be created (only from an old one).
+     */
+    roster?: {
+        closing: { id: string; name: string; members: number } | null;
+        existing: { id: string; name: string; closed: boolean; reopens: boolean } | null;
+        canCreate: boolean;
+    };
 };
 
 export function getCategorySwitch(categoryId: string, versionId: string): Promise<CategorySwitchPreview> {
@@ -314,7 +336,8 @@ export type MissingCategory = {
     settings: string[];
     councilProfile: boolean;
     kaders: { kaderId: string; name: string }[];
-    rosters: { id: string; name: string }[];
+    /** The category's rosters, one per game version (#739); closing the category closes them. */
+    rosters: { id: string; name: string; versionId?: string; closed?: boolean }[];
     upcoming: number;
 };
 
@@ -322,7 +345,8 @@ export type CategoryCloseResult = {
     ok: true;
     name: string;
     removed: { series: boolean; reminders: boolean; settings: string[]; active: boolean; councilProfile: boolean; kaders: number };
-    rosters: { id: string; name: string }[];
+    /** The category's rosters, now closed (#739). */
+    rosters: { id: string; name: string; versionId?: string; closed?: boolean }[];
     config: AdminConfig;
     missingCategories: MissingCategory[];
 };

@@ -36,6 +36,11 @@
 //   - the member list is cached for a minute, so what the tool itself just
 //     wrote (memberRoles.recentWrite) wins over the cached roles.
 // Pause members are members like any other: they keep their role.
+//
+// A closed roster (#739, rosterStore.closeRoster - its category switched to
+// another game version) is out of all of it: no role is given or taken for it,
+// gaining or losing its roles changes nothing, the reconcile skips it. Whoever
+// holds one of its roles keeps it until the orga removes it in Discord.
 const rosterStore = require("../../stores/rosterStore");
 const raiderProfileStore = require("../../stores/raiderProfileStore");
 const memberRoles = require("../discord/memberRoles");
@@ -89,6 +94,7 @@ async function applyPlan(rosterOrId, userId, planOf, { actor = "" } = {}) {
     try {
         const roster = resolveRoster(rosterOrId);
         if (!roster) return { ok: false, skipped: "no_roster", results: [] };
+        if (roster.closedAt) return { ok: true, skipped: "closed", results: [] };
         if (!roster.guildId) return { ok: true, skipped: "no_guild", results: [] };
         const plan = planOf(roster);
         if (!plan.length) return { ok: true, skipped: "no_roles", results: [] };
@@ -175,10 +181,10 @@ function removeFromDiscord(roster, userId) {
     return rosterStore.removeMember(roster.id, userId, { actor: "", via: "discord" });
 }
 
-/** The rosters of a server that name at least one role. */
+/** The open rosters of a server that name at least one role (a closed one never syncs, #739). */
 function rostersWithRoles(guildId) {
     const gid = str(guildId);
-    return gid ? rosterStore.listRosters(gid).filter((r) => r.roleIds.length) : [];
+    return gid ? rosterStore.listRosters(gid).filter((r) => r.roleIds.length && !r.closedAt) : [];
 }
 
 // rosterId -> { sig, holders: Set<userId> } as the last reconcile saw them
@@ -238,7 +244,7 @@ const lastRuns = new Map();
  */
 function reconcileRoster(rosterId, humans, { roleExists, holds }, out) {
     const roster = rosterStore.getRoster(rosterId);
-    if (!roster || !roster.roleIds.length) return;
+    if (!roster || !roster.roleIds.length || roster.closedAt) return;
     const roleIds = roster.roleIds.filter(roleExists);
     if (!roleIds.length) return; // every role of it deleted on the server: leave the roster alone
     const sig = roster.roleIds.join(",");
@@ -307,7 +313,7 @@ async function reconcile(guildId, { now = Date.now() } = {}) {
 
 /** Every server that has a roster with roles, reconciled one after the other. */
 async function reconcileAll(opts = {}) {
-    const guilds = [...new Set(rosterStore.listRosters("").filter((r) => r.guildId && r.roleIds.length).map((r) => r.guildId))];
+    const guilds = [...new Set(rosterStore.listRosters("").filter((r) => r.guildId && r.roleIds.length && !r.closedAt).map((r) => r.guildId))];
     const results = [];
     for (const gid of guilds) results.push(await reconcile(gid, opts));
     return results;

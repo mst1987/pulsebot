@@ -21,7 +21,9 @@
 //                 and offers "Kategorie abschließen".
 //   closed        closeCategory(): its series is deleted, its settings and
 //                 reminders are removed, its Loot-Council profile entry and
-//                 its place in every Kader's attendance categories go. Raids,
+//                 its place in every Kader's attendance categories go, its
+//                 rosters are closed (#739, rosterStore.closeRoster, reason
+//                 "category_closed": readable, no role sync, nobody loses a role). Raids,
 //                 loot, logs, the category's version (`categoryVersion`,
 //                 `categoryEras`) and its remembered name (category-names.json)
 //                 stay, so the history keeps reading under its version and name.
@@ -100,10 +102,11 @@ function seriesInfo(categoryId) {
     return s ? { enabled: s.enabled !== false, weekdays: s.weekdays || [], time: s.time || "" } : null;
 }
 
-/** The rosters of a category: `[{ id, name }]` (one today; #739 adds one per version). */
+/** The rosters of a category, one per game version (#739): `[{ id, name, versionId, closed }]`. */
 function rostersOf(categoryId) {
     try {
-        return rosterStore.listRosters("").filter((r) => str(r.categoryId) === categoryId).map((r) => ({ id: r.id, name: r.name || "" }));
+        return rosterStore.listRosters("").filter((r) => str(r.categoryId) === categoryId)
+            .map((r) => ({ id: r.id, name: r.name || "", versionId: r.versionId || "", closed: !!r.closedAt }));
     } catch {
         return [];
     }
@@ -221,7 +224,7 @@ function missingCategories({ config, nameOf = () => "" } = {}) {
  * state is unknown (503). Returns what was removed.
  * @returns {{ ok: true, removed: object } | { error: { status: number, code: string, message: string } }}
  */
-function closeCategory(categoryId, { config } = {}) {
+function closeCategory(categoryId, { config, actor = "" } = {}) {
     const cfg = configOf(config);
     const id = str(categoryId);
     if (!id) return { error: { status: 400, code: "invalid", message: "Keine Kategorie angegeben." } };
@@ -241,8 +244,13 @@ function closeCategory(categoryId, { config } = {}) {
         }
     }
     const kaders = dropAttendanceCategory(id);
-    // TODO(#739): close the category's rosters here once rosterStore.closeRoster(id, { reason })
-    // exists. Until then they are only listed (the dialog links each one) and stay as they are.
+    // #739: every roster of the category is closed - readable under its version, no role sync,
+    // nobody loses a role; a roster closed before stays as it is
+    const rosters = preview.rosters.map((r) => {
+        if (r.closed) return r;
+        const closed = rosterStore.closeRoster(r.id, { reason: "category_closed", actor: str(actor) });
+        return { ...r, closed: !!(closed && closed.closedAt) };
+    });
     return {
         ok: true,
         removed: {
@@ -253,7 +261,7 @@ function closeCategory(categoryId, { config } = {}) {
             councilProfile,
             kaders,
         },
-        rosters: preview.rosters,
+        rosters,
     };
 }
 

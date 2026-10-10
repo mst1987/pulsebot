@@ -447,6 +447,16 @@ describe("Raider-Rollen der Kategorie", () => {
             expect(await service.submitSignup("eh-kara", ANNA, signup, { now: NOW })).toMatchObject({ code: "raider_role" });
         });
 
+        it("asks the roster of the raid's version (#739): another version's roster does not lock", () => {
+            rosterStore.upsertMember(rosterId, ANNA, { status: "core" });
+            expect(service.rosterOnlyAccess("cat-t5", ANNA, { versionId: "tbc" })).toBe(true);
+            expect(service.rosterOnlyAccess("cat-t5", ANNA, { versionId: "forever" })).toBeNull();
+            const forever = rosterStore.createRoster({ name: "T5 F", guildId: "g-event", categoryId: "cat-t5", versionId: "forever", signupOnly: true });
+            expect(service.rosterOnlyAccess("cat-t5", ANNA, { versionId: "forever" })).toBe(false);
+            rosterStore.upsertMember(forever.id, ANNA, { status: "trial" });
+            expect(service.rosterOnlyAccess("cat-t5", ANNA, { versionId: "forever" })).toBe(true);
+        });
+
         it("refuses in the several-raids path too", async () => {
             const results = await service.submitSignups(ANNA, [{ eventId: "eh-kara", characters: [{ character: "Nerathil", spec: "Mage-Arcane" }], status: "signed" }], { now: NOW });
             expect(results.map((r) => [r.ok, r.code])).toEqual([[false, "roster_only"]]);

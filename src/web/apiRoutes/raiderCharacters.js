@@ -9,6 +9,7 @@ const { getCategoryAssignments, setCategoryAssignments } = require("../../stores
 const { listCharacters } = require("../../stores/characterStore");
 const discord = require("../../services/discord/discord");
 const { expectedRoleIds } = require("../../services/roster/categoryRoles");
+const { mainVersionFor } = require("../../services/events/mainVersion");
 
 /**
  * GET /api/raider-characters?category=<id> — the category's expected raiders
@@ -32,7 +33,8 @@ const getRaiderCharacters = withUser({}, async ({ req, res, url }) => {
         members,
         membersError,
         roleIds,
-        assignments: getCategoryAssignments(categoryId),
+        // the version the category plays now - the roster a save writes into (#739)
+        assignments: getCategoryAssignments(categoryId, { versionId: mainVersionFor({ categoryId }) }),
         knownCharacters: listCharacters().map((c) => c.character),
     });
 });

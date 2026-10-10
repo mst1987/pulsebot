@@ -70,10 +70,19 @@ describe("CategoryCloseDialog (#744)", () => {
         expect(screen.getByText(/2 Kategorie-Einstellungen werden entfernt/)).toBeInTheDocument();
         expect(screen.getByText("Sie zählt im Kader Forever-Kader nicht mehr zur Anwesenheit.")).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "Montag-Roster" })).toHaveAttribute("href", "/roster/r/ros1");
+        // #739: the rosters are closed with the category, nobody loses a role
+        expect(screen.getByText(/werden abgeschlossen: Sie bleiben unter ihrer Version lesbar/)).toBeInTheDocument();
+        expect(screen.queryByText("schon abgeschlossen")).not.toBeInTheDocument();
         expect(screen.getByText(/Raids, Loot, Logs sowie Version und Name/)).toBeInTheDocument();
         await user.click(screen.getByRole("button", { name: "Abschließen" }));
         expect(api.closeCategory).toHaveBeenCalledWith("gone");
         expect(onClosed).toHaveBeenCalledWith(result);
+    });
+
+    it("marks a roster an earlier switch already closed (#739)", () => {
+        renderPage(<CategoryCloseDialog category={{ ...GONE, rosters: [{ id: "ros0", name: "Montag TBC", versionId: "tbc", closed: true }, { id: "ros1", name: "Montag-Roster", versionId: "forever", closed: false }] }} onCancel={() => {}} onClosed={() => {}} />);
+        expect(screen.getByRole("link", { name: "Montag TBC" }).closest("li")).toHaveTextContent("schon abgeschlossen");
+        expect(screen.getByRole("link", { name: "Montag-Roster" }).closest("li")).not.toHaveTextContent("schon abgeschlossen");
     });
 
     it("shows the server's refusal and stays open", async () => {

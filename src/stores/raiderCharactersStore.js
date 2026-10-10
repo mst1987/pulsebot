@@ -4,6 +4,7 @@ const characterStore = require("./characterStore");
 const rosterStore = require("./rosterStore");
 const raiderProfileStore = require("./raiderProfileStore");
 const { characterKeyOf, nameKeyOf } = require("../utils/loot/lootImport");
+const { mainVersionFor } = require("../services/events/mainVersion");
 
 // Manual, per-raid-category mapping of a raider (Discord user id) to the WoW
 // character they play there — raiders often play a different character on
@@ -19,6 +20,14 @@ const { characterKeyOf, nameKeyOf } = require("../utils/loot/lootImport");
 // roster. Only categories without a roster still live in raider-characters.json
 // (the file stays as it was after the migration; nothing reads it for a
 // category with a roster). The API and its answers are the same either way.
+//
+// One roster per category and version (#739): a reader naming a version
+// (`{ versionId }`) reads that version's roster; without one, the category's
+// rosters are merged - the roster of the version it plays now first, the
+// others (a closed one of the old version) fill in who has no character there,
+// so a raider copied into the new roster without a character keeps his old
+// one for the old raids. Writes go to the roster of the version the category
+// plays now.
 const RAIDER_CHARACTERS_FILE = settingsPath("raider-characters.json");
 
 const store = createJsonStore({
@@ -62,12 +71,44 @@ function rosterAssignments(roster) {
     return out;
 }
 
-/** Raider (userId) -> character name assigned for one category. Never undefined. */
-function getCategoryAssignments(categoryId) {
+/** The version a category plays now. */
+function currentVersionOf(categoryId) {
+    return mainVersionFor({ categoryId });
+}
+
+/**
+ * The assignments of several rosters of one category, merged: the first
+ * roster's character of a raider wins, the later ones fill in (#739).
+ */
+function mergedAssignments(rosters) {
+    const out = {};
+    for (const roster of rosters) {
+        for (const [userId, name] of Object.entries(rosterAssignments(roster))) if (!(userId in out)) out[userId] = name;
+    }
+    return out;
+}
+
+/** A category's rosters, the one of the version it plays now first (#739). */
+function categoryRosters(categoryId) {
+    const all = rosterStore.rostersForCategory(categoryId);
+    const now = currentVersionOf(categoryId);
+    return [...all.filter((r) => r.versionId === now), ...all.filter((r) => r.versionId !== now)];
+}
+
+/**
+ * Raider (userId) -> character name assigned for one category. Never undefined.
+ * `versionId` (#739): only that version's roster; none = every roster of the
+ * category merged (the current version's first).
+ */
+function getCategoryAssignments(categoryId, { versionId = "" } = {}) {
     const key = String(categoryId || "").trim();
     if (!key) return {};
-    const roster = rosterStore.rosterForCategory(key);
-    if (roster) return rosterAssignments(roster);
+    const rosters = categoryRosters(key);
+    if (rosters.length) {
+        if (!versionId) return mergedAssignments(rosters);
+        const own = rosters.find((r) => r.versionId === versionId);
+        return own ? rosterAssignments(own) : {};
+    }
     const raw = store.read()[key];
     return isMap(raw) ? raw : {};
 }
@@ -78,13 +119,17 @@ function getCategoryAssignments(categoryId) {
  * welchem Raid" without one read per configured category. The file's
  * categories in their order (one with a roster read from the roster), then the
  * rosters' categories the file does not have. A roster without any character
- * is left out, like a category whose last assignment was removed.
+ * is left out, like a category whose last assignment was removed. A category
+ * with rosters of several versions merges them (getCategoryAssignments).
  */
 function listAllAssignments() {
-    const rosters = new Map(rosterStore.listRosters("").filter((r) => r.categoryId).map((r) => [r.categoryId, r]));
+    const rosters = new Map();
+    for (const r of rosterStore.listRosters("")) {
+        if (r.categoryId && !rosters.has(r.categoryId)) rosters.set(r.categoryId, categoryRosters(r.categoryId));
+    }
     const out = {};
     const addRoster = (categoryId) => {
-        const map = rosterAssignments(rosters.get(categoryId));
+        const map = mergedAssignments(rosters.get(categoryId));
         if (Object.keys(map).length) out[categoryId] = map;
     };
     for (const [categoryId, map] of Object.entries(readLegacyAssignments())) {
@@ -106,6 +151,9 @@ function listAllAssignments() {
  * (a raider not yet in the roster joins it as "core"); a member left out loses
  * his characters but stays in the roster with his status (rosterStore
  * setFirstChars). Reading the category back gives exactly the returned map.
+ * The roster is the one of the version the category plays now (#739); when
+ * that one is missing or closed while the category has rosters of other
+ * versions, nothing is written and the merged map as it stands comes back.
  */
 function setCategoryAssignments(categoryId, map, { actor = "" } = {}) {
     const key = String(categoryId || "").trim();
@@ -116,8 +164,10 @@ function setCategoryAssignments(categoryId, map, { actor = "" } = {}) {
         const name = String(characterName || "").trim();
         if (uid && name) clean[uid] = name;
     }
-    const roster = rosterStore.rosterForCategory(key);
-    if (roster) {
+    const rosters = categoryRosters(key);
+    if (rosters.length) {
+        const roster = rosters.find((r) => r.versionId === currentVersionOf(key) && !rosterStore.isClosed(r));
+        if (!roster) return getCategoryAssignments(key);
         const firsts = {};
         for (const [uid, name] of Object.entries(clean)) firsts[uid] = { key: characterKeyOf(name, roster.versionId), name };
         rosterStore.setFirstChars(roster.id, firsts, { actor });
@@ -139,8 +189,8 @@ function setCategoryAssignments(categoryId, map, { actor = "" } = {}) {
  * character name plus its class/spec, when known (see characterStore.js).
  * @returns {Object<string, {character:string, className?:string, spec?:string}>}
  */
-function resolveAssignmentProfiles(categoryId) {
-    const raw = getCategoryAssignments(categoryId);
+function resolveAssignmentProfiles(categoryId, { versionId = "" } = {}) {
+    const raw = getCategoryAssignments(categoryId, { versionId });
     const profiles = {};
     for (const [userId, characterName] of Object.entries(raw)) {
         const rec = characterStore.getCharacter(characterName);

@@ -255,6 +255,8 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
     const slotsBad = form.slots.tank + form.slots.healer > form.slots.total && form.slots.total > 0;
     const sourceBad = create && ((form.source === "role" && !form.roleIds.length) || (form.source === "kader" && !form.kaderId) || (form.source === "raids" && !form.categoryId));
     const nameBad = !form.name.trim() && !form.categoryId;
+    // one roster per category and version (#739): the category may have one of another version
+    const pairTaken = !!category && (category.rosters || []).some((r) => r.versionId === form.versionId && r.id !== data?.roster.id);
     const patch = patchOf(form, base, create, admin);
     const nothing = !create && !Object.keys(patch).length;
 
@@ -301,7 +303,7 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
         <>
             {!create && admin && <Button variant="danger" icon={<TrashIcon />} className="rn-foot-left" running={busy === "delete"} onClick={remove}>{t("roster.form.delete")}</Button>}
             <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-            <Button disabled={slotsBad || sourceBad || nameBad || nothing} running={busy === "save"} onClick={submit}>{create ? t("roster.form.create") : t("roster.form.save")}</Button>
+            <Button disabled={slotsBad || sourceBad || nameBad || nothing || pairTaken} running={busy === "save"} onClick={submit}>{create ? t("roster.form.create") : t("roster.form.save")}</Button>
         </>
     );
 
@@ -324,7 +326,7 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
                         <Field label={t("roster.form.name")} htmlFor="rn-f-name" hint={t("roster.form.nameHint")} error={nameBad ? t("roster.err.invalid_name") : undefined}>
                             <input id="rn-f-name" value={form.name} maxLength={40} onChange={(e) => set({ name: e.target.value })} />
                         </Field>
-                        <Field label={t("roster.form.category")} htmlFor="rn-f-cat" hint={locked ? lockTip : t("roster.form.categoryHint")}>
+                        <Field label={t("roster.form.category")} htmlFor="rn-f-cat" hint={locked ? lockTip : t("roster.form.categoryHint")} error={pairTaken ? t("roster.err.category_taken") : undefined}>
                             <select id="rn-f-cat" value={form.categoryId} disabled={locked} onChange={(e) => pickCategory(e.target.value)}>
                                 <option value="">{t("roster.form.noCategory")}</option>
                                 {options.categories.map((c) => {

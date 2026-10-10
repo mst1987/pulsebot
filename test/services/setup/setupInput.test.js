@@ -59,6 +59,15 @@ describe("setupInput", () => {
         rosterStore.rosterForCategory.mockImplementation(() => null);
     });
 
+    it("reads the roster of the event's own version (#739)", () => {
+        rosterStore.rosterForCategory.mockImplementation((cat, version) => (version === "forever"
+            ? { members: { u5: { status: "trial" } } }
+            : { members: { u1: { status: "core" } } }));
+        expect(rosterStatusFor([{ id: "x1", categoryId: "cat", versionId: "forever" }])).toEqual({ u5: "trial" });
+        expect(rosterStatusFor([{ id: "x2", categoryId: "cat", versionId: "tbc" }])).toEqual({ u1: "core" });
+        rosterStore.rosterForCategory.mockImplementation(() => null);
+    });
+
     it("collects event, signups, profiles, attendance, required buffs and fixed places", () => {
         const input = collectSetupInput(["eh-new", "missing"], { now: 5000 });
         expect(input.versionId).toBe("tbc");

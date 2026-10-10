@@ -36,6 +36,7 @@ const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = requi
 const BOM = String.fromCharCode(0xfeff);
 const { defaultVersionSettings, defaultColorOf } = require("../../stores/versionSettingsSchema");
 const { expectedRoleIds, syncRosterRoleIds } = require("../../services/roster/categoryRoles");
+const { switchRosterPreview } = require("../../services/roster/rosterVersionSwitch");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -556,10 +557,15 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // #744: what deactivating pauses (series, reminders), for the save's answer.
     const deactivated = deactivationOf(partial, before);
     const saved = saveConfig(partial);
-    const switchedCategories = afterCategorySwitches(versions.switches, body.categorySwitchFixes, { user });
-    await notifyCategoryVersionSwitch(switchedCategories, { config: saved, user });
-    // The settings still edit a category's raider roles; a category with a roster follows them (#653).
-    if (partial.categoryRoles !== undefined) syncRosterRoleIds(saved.categoryRoles, { actor: String((user && user.id) || "") });
+    // The settings still edit a category's raider roles; the roster of the version a category plays
+    // follows them (#653) - not for a category switched just now: its roster changes below (#739).
+    const switchedIds = new Set(versions.switches.map((sw) => sw.categoryId));
+    if (partial.categoryRoles !== undefined) syncRosterRoleIds(saved.categoryRoles, { actor: String((user && user.id) || ""), config: saved, skip: switchedIds });
+    // #739: the listeners (the roster: close the old one, maybe a new one) get the dialog's choices
+    const switchedCategories = await notifyCategoryVersionSwitch(
+        afterCategorySwitches(versions.switches, body.categorySwitchFixes, { user }),
+        { config: saved, user, fixes: body.categorySwitchFixes && typeof body.categorySwitchFixes === "object" ? body.categorySwitchFixes : {} },
+    );
     // A new server language, or a category's own, redraws the bot's public messages (not awaited).
     if (saved.botLanguage !== langBefore || JSON.stringify(saved.categoryLanguage || {}) !== JSON.stringify(before.categoryLanguage || {})) {
         void languageChange.afterServerLangChange({ config: saved });
@@ -567,7 +573,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // The guild bank area of the raider organizers comes and goes with its channel:
     // redraw them now instead of at the next five-minute sweep (not awaited, never throws).
     else if (guildBankOf(saved) !== guildBankOf(before)) void availabilityPanel.refreshPanels({ config: saved }).catch(() => {});
-    ok(res, { config: publicConfig(saved), switchedCategories, deactivatedCategories: deactivated });
+    // a switch may have changed the raider roles (#739: they mirror the new roster) - answer what is stored now
+    ok(res, { config: publicConfig(switchedCategories.length ? getConfig() : saved), switchedCategories, deactivatedCategories: deactivated });
 });
 
 /** The categories a PATCH takes out of the active list, with what pauses (#744) — logged once. */
@@ -619,14 +626,16 @@ const getCategoryDeactivate = withUser({}, async ({ res, url }) => {
 /**
  * POST /api/settings/category-close { categoryId } — "Kategorie abschließen"
  * (#744) for a category deleted in Discord: its series, settings, reminders,
- * Loot-Council profile entry and Kader attendance entries go; raids, loot and
+ * Loot-Council profile entry and Kader attendance entries go, its rosters are
+ * closed (#739: readable, no role sync); raids, loot and
  * logs stay. 409 while Discord still has it, 503 while that is unknown.
  */
 const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body, res, user }) => {
     const categoryId = String((body && body.categoryId) || "").trim();
     const config = getConfig();
     const name = categoryNamesOf(config).get(categoryId) || "";
-    const result = categoryLifecycle.closeCategory(categoryId, { config });
+    // #739: its rosters are closed too, by this caller
+    const result = categoryLifecycle.closeCategory(categoryId, { config, actor: String((user && user.id) || "") });
     if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
     console.log(`[settings] Kategorie ${name || categoryId} abgeschlossen (#744) von ${(user && (user.name || user.id)) || "?"}`);
     ok(res, { ...result, name, config: publicConfig(getConfig()), missingCategories: missingCategoriesOf(getConfig()) });
@@ -695,7 +704,9 @@ const getCategorySwitch = withUser({}, async ({ res, url }) => {
     if (!VERSIONS.some((v) => v.id === versionId)) return error(res, 400, "invalid", "Unbekannte Spielversion.");
     const config = getConfig();
     const preview = switchPreview({ categoryId, versionId, config, listTemplates: listRaidTemplates });
-    ok(res, { ...preview, name: categoryNamesOf(config).get(categoryId) || "" });
+    // #739: the roster that is closed, the one of the new version, whether one can be created
+    const roster = switchRosterPreview(categoryId, { fromVersion: preview.from.id, toVersion: preview.switching ? preview.to.id : "" });
+    ok(res, { ...preview, roster, name: categoryNamesOf(config).get(categoryId) || "" });
 });
 
 /**

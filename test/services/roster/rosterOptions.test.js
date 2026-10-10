@@ -45,9 +45,27 @@ describe("services/roster/rosterOptions", () => {
     it("lists the raid categories with the roster each has", () => {
         const r = rosterStore.createRoster({ name: "Do", guildId: "g1", categoryId: "700000000000000001" });
         expect(rosterCategories("g1", { categoryIds: ["700000000000000001", "700000000000000002"] })).toEqual([
-            { id: "700000000000000001", name: "Donnerstag", active: true, versionId: "tbc", rosterId: r.id, rosterName: "Do" },
-            { id: "700000000000000002", name: "Freitag", active: true, versionId: "tbc", rosterId: null, rosterName: "" },
+            {
+                id: "700000000000000001", name: "Donnerstag", active: true, versionId: "tbc", rosterId: r.id, rosterName: "Do",
+                rosters: [{ id: r.id, name: "Do", versionId: "tbc", closed: false }],
+            },
+            { id: "700000000000000002", name: "Freitag", active: true, versionId: "tbc", rosterId: null, rosterName: "", rosters: [] },
         ]);
+    });
+
+    it("names the roster of the version the category plays and lists every version's (#739)", () => {
+        const tbc = rosterStore.createRoster({ name: "Do", guildId: "g1", categoryId: "700000000000000001", versionId: "tbc" });
+        rosterStore.closeRoster(tbc.id, { reason: "version_switch" });
+        const forever = rosterStore.createRoster({ name: "Do F", guildId: "g1", categoryId: "700000000000000001", versionId: "forever" });
+        const config = { categoryIds: ["700000000000000001"], categoryVersion: { "700000000000000001": "forever" } };
+        const [cat] = rosterCategories("g1", config);
+        expect(cat).toMatchObject({ versionId: "forever", rosterId: forever.id, rosterName: "Do F" });
+        expect(cat.rosters).toEqual(expect.arrayContaining([
+            { id: tbc.id, name: "Do", versionId: "tbc", closed: true },
+            { id: forever.id, name: "Do F", versionId: "forever", closed: false },
+        ]));
+        // played in TBC (before the switch): the closed TBC roster is the category's
+        expect(rosterCategories("g1", { categoryIds: ["700000000000000001"] })[0]).toMatchObject({ versionId: "tbc", rosterId: tbc.id });
     });
 
     it("offers no deactivated category - one that has a roster stays, marked inactive (#744)", () => {

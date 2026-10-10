@@ -40,6 +40,7 @@ jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], get
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: (...a) => mockProfiles(...a) }));
 jest.mock("../../../src/stores/rosterStore", () => ({
     rosterForCategory: (id) => mockRosters[id] || null,
+    rostersForCategory: (id) => (mockRosters[id] ? [mockRosters[id]] : []),
     getRoster: (id) => Object.values(mockRosters).find((r) => r.id === id) || null,
     // every roster: "dabei seit" without a category (#668)
     listRosters: () => Object.values(mockRosters),

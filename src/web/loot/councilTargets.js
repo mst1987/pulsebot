@@ -10,6 +10,7 @@ const { userCan } = require("../../config/permissions");
 const rosterStore = require("../../stores/rosterStore");
 const { rosterLootSystem } = require("../../services/loot/lootSystem");
 const councilProfiles = require("../../services/loot/councilProfiles");
+const { currentRoster } = require("../../services/roster/categoryRoster");
 const { kaderChoices } = require("../../services/roster/rosterCreate");
 const { categoryOptions } = require("./councilQuery");
 
@@ -38,7 +39,8 @@ function councilHead({ guildId = "", user = null, opts = {}, config = {} } = {})
         const p = councilProfiles.resolveProfile({ rosterId: r.id }).profile;
         return { id: r.id, name: r.name, categoryId: r.categoryId || "", categoryName: r.categoryId ? (catName.get(r.categoryId) || r.categoryId) : "", profileId: p.id, profileName: p.name };
     });
-    const withoutRoster = categories.filter((c) => !rosterStore.rosterForCategory(c.id)).map((c) => {
+    // without a roster of the version the category plays now (#739)
+    const withoutRoster = categories.filter((c) => !currentRoster(c.id, { config })).map((c) => {
         const p = councilProfiles.resolveProfile({ categoryId: c.id }).profile;
         return { id: c.id, name: c.name, profileId: p.id, profileName: p.name };
     });

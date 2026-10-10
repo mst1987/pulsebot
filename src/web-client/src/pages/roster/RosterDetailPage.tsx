@@ -8,14 +8,14 @@
 // the server (GET /api/rosters/roster); every change reloads the roster.
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
-import { getRosterDetail, getRosterSync, setRosterRole, type RosterDetail, type RosterMember, type SessionUser } from "../../api";
+import { deleteRoster, getRosterDetail, getRosterSync, setRosterRole, type RosterDetail, type RosterMember, type SessionUser } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { useFollowVersion } from "../../hooks/useFollowVersion";
 import { usePageCrumb } from "../../hooks/usePageCrumb";
 import { tParts, useT } from "../../i18n";
-import { BackButton, Badge, Button, IconTile, WowIcon } from "../../components/ui";
+import { BackButton, Badge, Button, IconTile, WowIcon, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { PlusIcon, SettingsIcon } from "../../components/ui/icons";
+import { PlusIcon, SettingsIcon, TrashIcon } from "../../components/ui/icons";
 import { OrgaZone } from "../../components/ui/OrgaZone";
 import type { ShellContext } from "../../components/shell/Shell";
 import { changedRoleLines, syncOpenCount } from "../../lib/roster/rosterEdit";
@@ -27,7 +27,7 @@ import MemberDrawer from "./MemberDrawer";
 import MembersTab from "./MembersTab";
 import RosterFormDialog from "./RosterFormDialog";
 import SyncTab from "./SyncTab";
-import { RoleChip, VersionLine } from "./RosterParts";
+import { ClosedBadge, ClosedNotice, RoleChip, VersionLine } from "./RosterParts";
 import { useRosterAction } from "./useRosterAction";
 import "../../styles/roster-character.css";
 import "../../styles/rosters.css";
@@ -50,6 +50,20 @@ function tabOf(raw: string | undefined, orga: boolean): TabId {
 /** The tabs that show people data: attendance, members, Discord sync and history belong to the orga. */
 const ORGA_TABS: TabId[] = ["members", "attendance", "sync", "history"];
 
+/** A full admin's one action on a closed roster (#739): delete it, after asking. */
+function DeleteClosedButton({ data }: { data: RosterDetail }) {
+    const t = useT();
+    const ask = useConfirm();
+    const navigate = useNavigate();
+    const { run, busy } = useRosterAction();
+    const remove = async () => {
+        if (!(await ask({ title: t("roster.form.deleteTitle", { name: data.roster.name }), text: t("roster.form.deleteText"), action: t("roster.form.delete"), tone: "danger" }))) return;
+        const result = await run("delete", () => deleteRoster(data.roster.id), () => t("roster.form.deleted", { name: data.roster.name }));
+        if (result) navigate("/roster");
+    };
+    return <Button variant="danger" icon={<TrashIcon />} running={busy === "delete"} onClick={remove}>{t("roster.form.delete")}</Button>;
+}
+
 function RosterHeadBlock({ data, tab, open, orga, onSettings, onAdd }: { data: RosterDetail; tab: TabId; open: number | null; orga: boolean; onSettings: () => void; onAdd: () => void }) {
     const t = useT();
     const r = data.roster;
@@ -66,6 +80,7 @@ function RosterHeadBlock({ data, tab, open, orga, onSettings, onAdd }: { data: R
                     <VersionLine versionId={r.versionId} parts={[r.versionLabel, ...(r.categoryId ? r.contents : [t("roster.overview.noCategory")])]} />
                     <h1 className="rn-h1">{r.name}</h1>
                     <div className="rn-head-meta">
+                        {r.closed && <ClosedBadge roster={r} />}
                         <RoleChip role={r.mainRole} />
                         <span className="rn-sub">{line.join(" · ")}</span>
                     </div>
@@ -76,7 +91,9 @@ function RosterHeadBlock({ data, tab, open, orga, onSettings, onAdd }: { data: R
                         {tab === "members" && <Button icon={<PlusIcon />} onClick={onAdd}>{t("roster.detail.add")}</Button>}
                     </div>
                 )}
+                {r.closed && data.isAdmin && <div className="rn-head-actions"><DeleteClosedButton data={data} /></div>}
             </div>
+            {r.closed && <ClosedNotice roster={r} />}
             {orga && (
                 <nav className="rn-tabs" aria-label={t("roster.detail.tabsAria")}>
                     {TABS.map((tb) => (

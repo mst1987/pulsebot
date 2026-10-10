@@ -4,7 +4,10 @@ jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: je
 jest.mock("../../../src/stores/eventSeriesStore", () => ({ getSeries: jest.fn(), listSeries: jest.fn(() => ({})), deleteSeries: jest.fn(() => true) }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
-jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: jest.fn(() => []) }));
+jest.mock("../../../src/stores/rosterStore", () => ({
+    listRosters: jest.fn(() => []),
+    closeRoster: jest.fn((id) => ({ id, closedAt: "2026-10-11T00:00:00.000Z" })),
+}));
 jest.mock("../../../src/stores/councilProfilesStore", () => ({
     categoryProfiles: jest.fn(() => ({})), categoryProfileId: jest.fn(() => ""), setCategoryProfile: jest.fn(),
 }));
@@ -112,7 +115,7 @@ describe("services/events/categoryLifecycle", () => {
             const gone = out.find((c) => c.categoryId === "gone");
             expect(gone).toMatchObject({
                 name: "TBC Montag", active: true, series: null, reminders: true, settings: ["categoryRoles", "categoryReminders"],
-                councilProfile: false, kaders: [{ kaderId: "k1", name: "Kader" }], rosters: [{ id: "ros1", name: "Gone-Roster" }],
+                councilProfile: false, kaders: [{ kaderId: "k1", name: "Kader" }], rosters: [{ id: "ros1", name: "Gone-Roster", versionId: "", closed: false }],
             });
         });
 
@@ -136,10 +139,17 @@ describe("services/events/categoryLifecycle", () => {
             seriesStore.getSeries.mockReturnValue({ ...SERIES, categoryId: "gone" });
             councilProfiles.categoryProfileId.mockReturnValue("p1");
             kaderCategories.dropAttendanceCategory.mockReturnValue(2);
-            rosterStore.listRosters.mockReturnValue([{ id: "ros1", name: "Gone-Roster", categoryId: "gone" }]);
+            rosterStore.listRosters.mockReturnValue([
+                { id: "ros1", name: "Gone-Roster", categoryId: "gone", versionId: "forever", closedAt: null },
+                { id: "ros0", name: "Gone-Alt", categoryId: "gone", versionId: "tbc", closedAt: "2026-09-01T00:00:00.000Z" },
+            ]);
             configStore.dropCategoryEntries.mockReturnValue({ config: {}, removed: ["categoryIds", "categoryRoles", "categoryReminders"] });
 
-            const out = lifecycle.closeCategory("gone", { config: { categoryIds: ["gone"] } });
+            const out = lifecycle.closeCategory("gone", { config: { categoryIds: ["gone"] }, actor: "u1" });
+
+            // #739: the open roster is closed with the reason and the caller, a closed one stays as it is
+            expect(rosterStore.closeRoster).toHaveBeenCalledTimes(1);
+            expect(rosterStore.closeRoster).toHaveBeenCalledWith("ros1", { reason: "category_closed", actor: "u1" });
 
             expect(seriesStore.deleteSeries).toHaveBeenCalledWith("gone");
             expect(configStore.dropCategoryEntries).toHaveBeenCalledWith("gone", lifecycle.SETTINGS_KEYS);
@@ -148,7 +158,10 @@ describe("services/events/categoryLifecycle", () => {
             expect(out).toEqual({
                 ok: true,
                 removed: { series: true, reminders: true, settings: ["categoryRoles", "categoryReminders"], active: true, councilProfile: true, kaders: 2 },
-                rosters: [{ id: "ros1", name: "Gone-Roster" }],
+                rosters: [
+                    { id: "ros1", name: "Gone-Roster", versionId: "forever", closed: true },
+                    { id: "ros0", name: "Gone-Alt", versionId: "tbc", closed: true },
+                ],
             });
         });
 

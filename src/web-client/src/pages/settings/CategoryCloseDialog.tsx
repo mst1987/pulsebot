@@ -12,7 +12,8 @@ import { useToast } from "../../components/shell/Jobs";
  * (its series, settings and reminders, its Loot-Council profile entry, its place
  * in the Kader's attendance categories) and what stays (raids, loot, logs, the
  * category's version and name — all readable under their version). Its rosters
- * are listed with a link: closing a roster is the roster page's step.
+ * are listed with a link and closed with it (#739: readable, no Discord sync,
+ * nobody loses a role).
  */
 export default function CategoryCloseDialog({ category, onCancel, onClosed }: {
     category: MissingCategory;
@@ -74,7 +75,10 @@ export default function CategoryCloseDialog({ category, onCancel, onClosed }: {
                         <p>{t("settings.categoryClose.rosters")}</p>
                         <ul className="csw-raids">
                             {category.rosters.map((r) => (
-                                <li key={r.id}><Link className="mlink" to={`/roster/r/${encodeURIComponent(r.id)}`} target="_blank">{r.name || r.id}</Link></li>
+                                <li key={r.id}>
+                                    <Link className="mlink" to={`/roster/r/${encodeURIComponent(r.id)}`} target="_blank">{r.name || r.id}</Link>
+                                    {r.closed && <span className="csw-quiet">{t("settings.categoryClose.rosterClosed")}</span>}
+                                </li>
                             ))}
                         </ul>
                     </section>

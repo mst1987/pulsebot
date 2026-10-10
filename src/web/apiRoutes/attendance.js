@@ -15,6 +15,7 @@ const { withUser } = require("../http/apiHandler");
 const overridesStore = require("../../stores/attendanceOverridesStore");
 const { getStoredEvent } = require("../../services/events/eventSources");
 const { canEditAttendance } = require("../../services/characters/attendanceAccess");
+const { versionOfEvent } = require("../../services/events/mainVersion");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
@@ -39,7 +40,8 @@ const postOverride = withUser({ csrf: true, body: true }, async ({ user, body, r
     if (str(body.reason).length > overridesStore.REASON_MAX) return refuse(res, "reason_too_long");
     const event = eventOf(eventId);
     if (!event) return refuse(res, "not_found");
-    if (!(await canEditAttendance(user, str(event.categoryId)))) return refuse(res, "not_manager");
+    // the managers of the roster of the night's version (#739)
+    if (!(await canEditAttendance(user, str(event.categoryId), { versionId: versionOfEvent(event) }))) return refuse(res, "not_manager");
     if (auto) {
         overridesStore.clearOverride(eventId, userId);
         return ok(res, { eventId, userId, override: null });

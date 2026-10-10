@@ -32,7 +32,7 @@
 // "name_too_long", "bad_request", "invalid_version", "invalid_roles",
 // "unknown_role", "invalid_managers", "invalid_slots", "admin_only",
 // "category_taken", "kader_taken", "kader_not_found", "not_found",
-// "invalid_loot_system", "unknown_profile".
+// "invalid_loot_system", "unknown_profile", "roster_closed" (#739, a closed roster).
 const rosterStore = require("../../stores/rosterStore");
 const councilProfilesStore = require("../../stores/councilProfilesStore");
 const settingsStore = require("../../stores/settingsStore");
@@ -43,6 +43,8 @@ const { normalizeLootSystem, rosterLootSystem } = require("../loot/lootSystem");
 const ADMIN_FIELDS = ["name", "categoryId", "versionId", "roleIds", "trialRoleId", "managers", "slots", "allowMultipleChars", "signupOnly", "publicRaids", "kaderId", "lootSystem", "lootProfileId"];
 const MANAGER_FIELDS = ["name", "slots", "allowMultipleChars", "signupOnly", "publicRaids", "lootProfileId"];
 const SLOT_KEYS = ["total", "tank", "healer", "bench"];
+// a change of these decides whether the roster's roles are its category's raider roles (#657, #739)
+const MIRRORED_FIELDS = ["roleIds", "categoryId", "versionId"];
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -183,6 +185,8 @@ function adminOnlyChanges(fields, current) {
 function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", knownRoleIds = null, kaderKnown = null, config = null, saveConfig = null } = {}) {
     const current = rosterStore.getRoster(rosterId);
     if (!current) return { ok: false, code: "not_found" };
+    // a closed roster (#739) is read only - only a full admin may still delete it
+    if (current.closedAt) return { ok: false, code: "roster_closed" };
     const clean = cleanSettings(raw, { current, knownRoleIds });
     if (clean.code) return { ok: false, code: clean.code };
     const loot = lootChanges(raw, current, config || settingsStore.getConfig());
@@ -203,7 +207,7 @@ function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", know
         if (e && e.name === "RosterError") return { ok: false, code: e.code };
         throw e;
     }
-    if (clean.fields.roleIds !== undefined || clean.fields.categoryId !== undefined) mirrorCategoryRoles(roster);
+    if (MIRRORED_FIELDS.some((key) => clean.fields[key] !== undefined)) mirrorCategoryRoles(roster);
     if (systemChanged) roster = writeLootSystem(roster, loot.lootSystem, { actor, saveConfig: saveConfig || settingsStore.saveConfig });
     return { ok: true, roster, trimmedChars };
 }

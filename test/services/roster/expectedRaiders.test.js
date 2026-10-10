@@ -47,6 +47,21 @@ describe("services/roster/expectedRaiders expectedRosterIds / hasExpected", () =
         expect(hasExpected("c2", config)).toBe(true);
         expect(hasExpected("c9", config)).toBe(false);
     });
+
+    it("a raid expects the roster of its own version: the closed TBC roster for a TBC raid, the new one for Forever (#739)", async () => {
+        const tbc = rosterWithEveryStatus();
+        rosterStore.closeRoster(tbc.id, { reason: "version_switch" });
+        const forever = rosterStore.createRoster({ name: "Neu", guildId: "g1", categoryId: "c1", versionId: "forever", roleIds: [] });
+        rosterStore.upsertMember(forever.id, U.bench, { status: "trial" });
+        const switched = { ...config, categoryVersion: { c1: "forever" } };
+        expect(expectedRosterIds("c1", { versionId: "tbc", config: switched }).sort()).toEqual([U.core, U.trial, U.gone].sort());
+        expect(expectedRosterIds("c1", { versionId: "forever", config: switched })).toEqual([U.bench]);
+        expect(expectedRosterIds("c1", { config: switched })).toEqual([U.bench]);
+        expect(hasExpected("c1", switched, { versionId: "forever" })).toBe(true);
+        discord.listHumanMembers.mockResolvedValueOnce({ members: [{ id: U.bench, displayName: "Bank" }], error: null });
+        const res = await listExpectedMembers("g1", "c1", switched, { versionId: "forever" });
+        expect(res).toMatchObject({ source: "roster", members: [{ id: U.bench, displayName: "Bank" }], roleIds: [] });
+    });
 });
 
 describe("services/roster/expectedRaiders listExpectedMembers", () => {

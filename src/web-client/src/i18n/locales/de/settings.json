@@ -149,7 +149,29 @@
         "confirm": "Auf {version} umstellen",
         "loading": "Lade, was das Umstellen betrifft …",
         "error": "Konnte nicht geladen werden: {message}",
-        "switched": "{name}: neuer Abschnitt mit {version}"
+        "switched": "{name}: neuer Abschnitt mit {version}",
+        "rosterTitle": "Roster",
+        "rosterCloses": "Roster „{name}“ wird abgeschlossen. Es bleibt unter {from} lesbar, ohne Abgleich mit Discord – niemand verliert eine Rolle.",
+        "rosterReopens": "Das {to}-Roster „{name}“ wird wieder geöffnet.",
+        "rosterExists": "Für {to} gibt es schon das Roster „{name}“.",
+        "rosterCreate": "{to}-Roster anlegen",
+        "rosterCreateTip": "Mit Namen, Managern, Plätzen und Einstellungen des bisherigen Rosters.",
+        "rosterCopy": "Personen übernehmen",
+        "rosterCopyTip": {
+            "one": "{count} Person kommt als Probe ins neue Roster, ohne Charakter – sie wählt ihren {to}-Charakter selbst.",
+            "other": "{count} Personen kommen als Probe ins neue Roster, ohne Charakter – jeder wählt seinen {to}-Charakter selbst."
+        },
+        "rosterRoles": "Discord-Rollen des neuen Rosters",
+        "rosterRolesNone": "Keine Rolle gewählt: Das neue Roster hat erst einmal keine Discord-Rolle. Du setzt sie später in den Roster-Einstellungen.",
+        "rosterRolesSome": {
+            "one": "{count} Rolle gewählt. Niemand bekommt sie automatisch – der Abgleich zeigt, wem sie fehlt.",
+            "other": "{count} Rollen gewählt. Niemand bekommt sie automatisch – der Abgleich zeigt, wem sie fehlt."
+        },
+        "rosterCreated": {
+            "one": "Roster „{name}“ für {version} angelegt, {count} Person übernommen",
+            "other": "Roster „{name}“ für {version} angelegt, {count} Personen übernommen"
+        },
+        "rosterReopened": "Roster „{name}“ wieder geöffnet"
     },
     "level": {
         "none": "aus",
@@ -1160,7 +1182,8 @@
             "other": "{count} kommende Raids stehen noch in der Kategorie – bitte absagen."
         },
         "rostersTitle": "Roster",
-        "rosters": "Diese Roster gehören zur Kategorie und bleiben bestehen. Bitte auf der Roster-Seite prüfen:",
+        "rosters": "Diese Roster gehören zur Kategorie und werden abgeschlossen: Sie bleiben unter ihrer Version lesbar, ohne Abgleich mit Discord – niemand verliert eine Rolle. Löschen kann sie ein Voll-Admin später auf der Roster-Seite.",
+        "rosterClosed": "schon abgeschlossen",
         "keep": "Es bleiben: Raids, Loot, Logs sowie Version und Name der Kategorie – alles bleibt unter seiner Version lesbar.",
         "confirm": "Abschließen",
         "done": "{name} abgeschlossen"

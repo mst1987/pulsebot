@@ -132,6 +132,9 @@ describe("POST /api/rosters/create", () => {
         await post("/api/rosters/create", { categoryId: CAT });
         const res = await post("/api/rosters/create", { categoryId: CAT, name: "Noch eins" });
         expect([status(res), code(res)]).toEqual([409, "category_taken"]);
+        // another game version of the same category is free (#739)
+        const forever = await post("/api/rosters/create", { categoryId: CAT, name: "Forever", versionId: "forever" });
+        expect([status(forever), data(forever).roster.versionId]).toEqual([200, "forever"]);
     });
 
     it("validates: name, roles the server does not have, slots, source", async () => {
@@ -315,6 +318,19 @@ describe("POST /api/rosters/delete", () => {
         expect(rosterStore.getRoster(roster.id)).toBeNull();
         expect(status(await post("/api/rosters/delete", { rosterId: roster.id }))).toBe(404);
     });
+
+    it("a closed roster refuses every change with 409 roster_closed, a full admin may still delete it (#739)", async () => {
+        const roster = rosterStore.createRoster({ name: "Alt", guildId: "g1", categoryId: CAT, managers: { userIds: [MANAGER.id] } });
+        rosterStore.closeRoster(roster.id, { reason: "version_switch" });
+        let res = await post("/api/rosters/update", { rosterId: roster.id, name: "Neu" });
+        expect([status(res), code(res)]).toEqual([409, "roster_closed"]);
+        mockUser = MANAGER;
+        res = await post("/api/rosters/update", { rosterId: roster.id, name: "Neu" });
+        expect([status(res), code(res)]).toEqual([409, "roster_closed"]);
+        expect(data(await get("/api/rosters/composition", { id: roster.id })).canManage).toBe(false);
+        mockUser = ADMIN;
+        expect(data(await post("/api/rosters/delete", { rosterId: roster.id }))).toEqual({ rosterId: roster.id, deleted: true });
+    });
 });
 
 describe("GET /api/rosters/options", () => {
@@ -323,7 +339,7 @@ describe("GET /api/rosters/options", () => {
         const res = await get("/api/rosters/options");
         expect(status(res)).toBe(200);
         const d = data(res);
-        expect(d.categories).toEqual([{ id: CAT, name: "Donnerstag Raid", active: true, versionId: "tbc", rosterId: null, rosterName: "" }]);
+        expect(d.categories).toEqual([{ id: CAT, name: "Donnerstag Raid", active: true, versionId: "tbc", rosterId: null, rosterName: "", rosters: [] }]);
         expect(d.roles.map((r) => r.id)).toEqual([ROLE, ROLE2]);
         expect(d.kaders).toEqual([{ id: "k1", name: "Forever-Kader", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "" }]);
         expect(d.isAdmin).toBe(true);

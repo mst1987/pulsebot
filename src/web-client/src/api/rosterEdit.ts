@@ -101,7 +101,14 @@ export type RosterTemplateSlots = { total: number; tank: number; healer: number;
 
 export type RosterOptions = {
     guildId: string;
-    categories: { id: string; name: string; versionId: string; rosterId: string | null; rosterName: string }[];
+    /**
+     * `rosterId`: the roster of the version the category plays now (`versionId`); `rosters`: every roster of the
+     * category, one per version (#739) - a roster can be created for a version that has none.
+     */
+    categories: {
+        id: string; name: string; versionId: string; rosterId: string | null; rosterName: string;
+        rosters?: { id: string; name: string; versionId: string; closed: boolean }[];
+    }[];
     versions: { id: string; label: string; short: string }[];
     defaultVersion: string;
     roles: RosterOptionRole[];

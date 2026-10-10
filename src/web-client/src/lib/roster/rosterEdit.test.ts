@@ -64,6 +64,12 @@ describe("historyText", () => {
         expect(historyText(entry("created", "Raid", { userId: "", userName: "" }))).toBe("Roster angelegt");
         expect(historyText(entry("created", "migration"))).toBe("Roster aus den Raider-Rollen der Kategorie übernommen");
         expect(historyText(entry("settings", "name, slots, roleIds"))).toBe("Einstellungen geändert: Name, Plätze, Discord-Rollen");
+        // #739: closing at a version switch, opening again, the people taken over
+        expect(historyText(entry("closed", "version_switch"))).toBe("Roster abgeschlossen: Die Kategorie spielt jetzt eine andere Spielversion");
+        expect(historyText(entry("closed", "category_deleted"))).toBe("Roster abgeschlossen");
+        expect(historyText(entry("reopened", ""))).toBe("Roster wieder geöffnet");
+        expect(historyText(entry("members-copied", "12 · Montag"))).toBe("12 Personen aus „Montag“ übernommen (als Probe, ohne Charakter)");
+        expect(historyText(entry("members-copied", "1 · Montag"))).toBe("1 Person aus „Montag“ übernommen (als Probe, ohne Charakter)");
         expect(historyText(entry("member-added", "trial, devi, forever~grim bart"))).toBe("Devi aufgenommen als Probe mit Devi, Grim Bart");
         expect(historyText(entry("member-added", "via Discord · core, devi"))).toBe("Devi aufgenommen als Stamm mit Devi (über Discord)");
         expect(historyText(entry("member", "status core → bench; chars a, b; note; trialUntil -"))).toBe("Devi: Status Stamm → Ersatz, Charaktere: A, B, Notiz geändert, Probezeit ohne Enddatum");

@@ -67,7 +67,8 @@ function upcomingRaids(uid, { now, active, eventUrl, versionId, config }) {
 function categoryView(uid, categoryId, { ctx, nights, upcoming, profile, name, window = RAID_WINDOW, playsVersion = true }) {
     const signup = newestSignup(nights, uid);
     if (!nights.length && !upcoming.length && !playsVersion) return null;
-    const assignments = getCategoryAssignments(categoryId) || {};
+    // the roster of the version counted (#739)
+    const assignments = getCategoryAssignments(categoryId, { versionId: ctx.versionId || "" }) || {};
     const signedBefore = playsVersion && !!(ctx.signedAnyVersion && ctx.signedAnyVersion.get(categoryId) && ctx.signedAnyVersion.get(categoryId).has(uid));
     if (!signup && !assignments[uid] && !upcoming.some((r) => r.status) && !signedBefore) return null;
     const chars = accountCharacters(uid, categoryId, signup, profile, assignments);

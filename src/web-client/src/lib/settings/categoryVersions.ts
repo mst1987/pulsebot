@@ -5,7 +5,11 @@
 // version of a category that was already active is a switch — a new section —
 // and goes through the confirmation dialog first.
 
-export type SwitchFix = { series: string };
+/**
+ * The dialog's choices for one switched category: the series' fix (#738) and the
+ * roster (#739) - create one for the new version, take the people over, its roles.
+ */
+export type SwitchFix = { series: string; roster?: { create: boolean; copyMembers: boolean; roleIds: string[] } };
 
 /** The version a category's row shows: its own, else the main version (a category switched on just now). */
 export function categoryVersionOf(map: Record<string, string>, id: string, mainVersion: string): string {
@@ -40,5 +44,5 @@ export function switchFixesToSend(
     saved: Parameters<typeof savedCategoryVersion>[0],
     draftMap: Record<string, string>,
 ): Record<string, SwitchFix> {
-    return Object.fromEntries(Object.entries(fixes).filter(([id, fix]) => !!fix.series && !!draftMap[id] && isVersionSwitch(saved, id, draftMap[id])));
+    return Object.fromEntries(Object.entries(fixes).filter(([id, fix]) => (!!fix.series || !!fix.roster) && !!draftMap[id] && isVersionSwitch(saved, id, draftMap[id])));
 }

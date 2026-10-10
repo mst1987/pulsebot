@@ -48,6 +48,53 @@ describe("CategorySwitchDialog (#738)", () => {
         expect(screen.getByText(/Für Forever gibt es noch keine Raid-Vorlage/)).toBeInTheDocument();
     });
 
+    it("says the roster closes and offers a roster for the new version with the people and picked roles (#739)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getCategorySwitch).mockResolvedValue({
+            ...fitting,
+            roster: { closing: { id: "r-tbc", name: "Montag", members: 12 }, existing: null, canCreate: true },
+        });
+        const onConfirm = vi.fn();
+        const roles = [{ id: "500000000000000001", name: "Raider" }, { id: "500000000000000002", name: "Forever-Raider" }];
+        renderPage(<CategorySwitchDialog categoryId="cat1" categoryName="Montag" versionId="forever" roles={roles} onCancel={() => {}} onConfirm={onConfirm} />);
+        expect(await screen.findByText(/Roster „Montag“ wird abgeschlossen. Es bleibt unter TBC lesbar/)).toBeInTheDocument();
+        const create = screen.getByRole("switch", { name: "Forever-Roster anlegen" });
+        const copy = screen.getByRole("switch", { name: "Personen übernehmen" });
+        expect(create).toBeChecked();
+        expect(copy).toBeChecked();
+        expect(copy.closest("label")).toHaveAttribute("data-tip-sub", "12 Personen kommen als Probe ins neue Roster, ohne Charakter – jeder wählt seinen Forever-Charakter selbst.");
+        expect(screen.getByText(/Keine Rolle gewählt/)).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "@Forever-Raider" }));
+        expect(screen.getByRole("button", { name: "@Forever-Raider" })).toHaveAttribute("aria-pressed", "true");
+        await user.click(copy);
+        await user.click(screen.getByRole("button", { name: "Auf Forever umstellen" }));
+        expect(onConfirm).toHaveBeenCalledWith({ series: "", roster: { create: true, copyMembers: false, roleIds: ["500000000000000002"] } });
+    });
+
+    it("can switch without a new roster", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getCategorySwitch).mockResolvedValue({
+            ...fitting,
+            roster: { closing: { id: "r-tbc", name: "Montag", members: 3 }, existing: null, canCreate: true },
+        });
+        const onConfirm = vi.fn();
+        renderPage(<CategorySwitchDialog categoryId="cat1" categoryName="Montag" versionId="forever" onCancel={() => {}} onConfirm={onConfirm} />);
+        await user.click(await screen.findByRole("switch", { name: "Forever-Roster anlegen" }));
+        expect(screen.queryByRole("switch", { name: "Personen übernehmen" })).not.toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Auf Forever umstellen" }));
+        expect(onConfirm).toHaveBeenCalledWith({ series: "", roster: { create: false, copyMembers: true, roleIds: [] } });
+    });
+
+    it("names an existing roster of the new version that opens again, offering no new one", async () => {
+        vi.mocked(api.getCategorySwitch).mockResolvedValue({
+            ...fitting,
+            roster: { closing: { id: "r-fe", name: "Montag F", members: 3 }, existing: { id: "r-tbc", name: "Montag", closed: true, reopens: true }, canCreate: false },
+        });
+        renderPage(<CategorySwitchDialog categoryId="cat1" categoryName="Montag" versionId="forever" onCancel={() => {}} onConfirm={() => {}} />);
+        expect(await screen.findByText("Das Forever-Roster „Montag“ wird wieder geöffnet.")).toBeInTheDocument();
+        expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    });
+
     it("shows a load error and keeps the switch disabled", async () => {
         vi.mocked(api.getCategorySwitch).mockRejectedValue(Object.assign(new Error("kaputt"), { status: 500 }));
         const onCancel = vi.fn();

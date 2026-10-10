@@ -9,7 +9,8 @@
 //                             admin-only field answers 403 "admin_only", anyone
 //                             else 403 "not_manager" (services/roster/rosterSettings.js)
 // A roster of another server than the active one is 404 "not_found" for
-// update, delete and composition (web/roster/activeRoster.js).
+// update, delete and composition (web/roster/activeRoster.js). A closed roster
+// (#739) answers update with 409 "roster_closed"; a full admin may still delete it.
 // Errors answer with a code the client translates (DE/EN).
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
@@ -30,7 +31,7 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 const STATUS_OF_CODE = {
     not_found: 404, kader_not_found: 404,
     admin_only: 403, not_manager: 403,
-    category_taken: 409, kader_taken: 409,
+    category_taken: 409, kader_taken: 409, roster_closed: 409,
 };
 
 const refuse = (res, code) => apiError(res, STATUS_OF_CODE[code] || 400, code, `Roster: ${code}`);
@@ -113,7 +114,8 @@ const postRosterDelete = withUser({ write: "roster", csrf: true, body: true }, a
 const getRosterComposition = withUser({}, async ({ user, req, query, res }) => {
     const roster = activeRoster(req, query.get("id"));
     if (!roster) return refuse(res, "not_found");
-    return ok(res, { ...rosterComposition(roster), canManage: await canManageRosterLive(user, roster) });
+    // a closed roster (#739) is read only for everybody
+    return ok(res, { ...rosterComposition(roster), canManage: !roster.closedAt && await canManageRosterLive(user, roster) });
 });
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */

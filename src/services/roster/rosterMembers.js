@@ -7,7 +7,7 @@
 // a refusal: `code` is a machine code the web translates (DE/EN) -
 // "not_found", "bad_request", "invalid_status", "already_member",
 // "not_member", "member_limit", "single_char_only", "invalid_chars",
-// "note_too_long", "invalid_date", "invalid_spec"; `roles` is rosterRoleSync's answer
+// "note_too_long", "invalid_date", "invalid_spec", "roster_closed" (#739); `roles` is rosterRoleSync's answer
 // ({ ok, skipped?, results }) so the page can say which role could not be
 // given and why.
 //
@@ -36,6 +36,8 @@ const refuse = (code) => ({ ok: false, code, roles: NO_ROLES });
 function target(rosterId, userId) {
     const roster = rosterStore.getRoster(rosterId);
     if (!roster) return { refusal: refuse("not_found") };
+    // a closed roster (#739) is read only: no member, status or character changes
+    if (roster.closedAt) return { refusal: refuse("roster_closed") };
     if (!validUserId(userId)) return { refusal: refuse("bad_request") };
     return { roster, uid: str(userId) };
 }

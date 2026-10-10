@@ -39,12 +39,17 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 // `${guildId}:${userId}:${roleId}` -> { has, at }
 const writes = new Map();
 
-/** Every role id some roster of that server names: roleIds and trialRoleId. */
+/**
+ * Every role id some open roster of that server names: roleIds and trialRoleId.
+ * A closed roster's roles (#739) are no roster roles any more - nothing gives
+ * or takes them for it.
+ */
 function rosterRoleIds(guildId) {
     const gid = str(guildId);
     const out = new Set();
     if (!gid) return out;
     for (const roster of rosterStore.listRosters(gid)) {
+        if (roster.closedAt) continue;
         for (const id of roster.roleIds) out.add(String(id));
         if (roster.trialRoleId) out.add(String(roster.trialRoleId));
     }

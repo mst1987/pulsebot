@@ -25,6 +25,7 @@ const { tr } = require("../../utils/i18n/botText");
 const { eventLang } = require("../discord/botLanguage");
 const { shortWhen } = require("../../utils/time");
 const { expectedRoleIds } = require("../roster/categoryRoles");
+const { versionOfEvent } = require("./mainVersion");
 
 /**
  * The category's announcement setting (#306), or the caller's own choice.
@@ -78,7 +79,7 @@ async function announceEvent(eventId, { want, config = getConfig(), now = Date.n
     const setting = announceSetting(event.categoryId, { config, want });
     if (!setting.enabled) return { announced: false, skipped: "off" };
 
-    const roleIds = expectedRoleIds(event.categoryId, config);
+    const roleIds = expectedRoleIds(event.categoryId, config, { versionId: versionOfEvent(event, { config }) });
     try {
         const delivery = await deliverAnnouncement({
             target: setting.target,

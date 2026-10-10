@@ -878,7 +878,8 @@ function councilRoster(opts = {}) {
     // Stamm and Probe, Ersatz with `showBench`, every assigned character. Its
     // members appear even with no loot and no gear (0 items, the longest wait).
     // A roster picked on the page (#676, `rosterId`) may have no category at all.
-    const fromRoster = rosterCandidates(categoryId, { showBench: !!opts.showBench, rosterId: opts.rosterId || "" });
+    // The category's roster of the council's version (#739): a TBC view reads the closed TBC roster.
+    const fromRoster = rosterCandidates(categoryId, { showBench: !!opts.showBench, rosterId: opts.rosterId || "", versionId: opts.versionId });
 
     // Without one: everyone who could be on the council, known from loot, from
     // a CLA report, or from both. A raider who has never won an item still

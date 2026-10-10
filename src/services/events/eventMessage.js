@@ -75,7 +75,7 @@ const discord = require("../discord/discord");
 // The counting rule lives in the signup service, so the page and the message agree.
 const { rosterCounts, allowedStatuses, signupWindow } = require("../signups/signupService");
 const { buildClasses } = require("../../config/gameVersions/classes");
-const { rulesForEvent } = require("./mainVersion");
+const { rulesForEvent, versionOfEvent } = require("./mainVersion");
 const {
     appEmojiMap, loadAppEmojis, emojiText, emojiOption,
     specEmojiName, classEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName, tileEmojiName, roleEmojiName, emojiStyleOf,
@@ -196,8 +196,9 @@ function missingPingId(eventId) {
 
 /** Whether the event's category has raider roles — the members expected to sign up, so a "missing" exists. */
 function hasRaiderRoles(event, config = getConfig()) {
-    // a roster (#658: its core + trial members) counts like raider roles
-    return hasExpected(event && event.categoryId, config || {});
+    // a roster (#658: its core + trial members) counts like raider roles - the roster of the raid's version (#739)
+    const cfg = config || {};
+    return hasExpected(event && event.categoryId, cfg, { versionId: event ? versionOfEvent(event, { config: cfg }) : "" });
 }
 
 /** A name as plain text — no bold, links or mentions sneaking in through markdown. */

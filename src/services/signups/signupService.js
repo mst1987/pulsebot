@@ -48,7 +48,7 @@ const { versionOfEvent } = require("../events/mainVersion");
 const { archiveOf } = require("../events/eventArchive");
 const { normalizeOverflow, accountCount } = require("../../utils/signup/capacity");
 const { expectedRoleIds } = require("../roster/categoryRoles");
-const rosterStore = require("../../stores/rosterStore");
+const { rosterOfCategory } = require("../roster/categoryRoster");
 
 // Statuses a member may still pick once the deadline has passed.
 const AFTER_DEADLINE = ["absence", "late"];
@@ -297,12 +297,12 @@ const ROSTER_SIGNUP_STATUSES = ["core", "trial", "bench"];
  * "Anmeldung nur für das Roster" (#658, `roster.signupOnly`): null when the
  * category's roster does not ask for it (or there is no roster) - then the
  * raider-role rule applies -, else whether the user is a member with status
- * core, trial or bench (a paused member is not).
+ * core, trial or bench (a paused member is not). The roster is the one of the
+ * raid's version (`versionId`, #739; none = the version the category plays now).
  * @returns {boolean|null}
  */
-function rosterOnlyAccess(categoryId, userId) {
-    const cat = String(categoryId || "").trim();
-    const roster = cat ? rosterStore.rosterForCategory(cat) : null;
+function rosterOnlyAccess(categoryId, userId, { versionId = "" } = {}) {
+    const roster = rosterOfCategory(categoryId, { versionId });
     if (!roster || !roster.signupOnly) return null;
     const member = roster.members[String(userId || "")];
     return !!member && ROSTER_SIGNUP_STATUSES.includes(member.status);
@@ -312,10 +312,10 @@ function rosterOnlyAccess(categoryId, userId) {
  * Whether a member's roles let them into a category with raider roles
  * (`config.categoryRoles`). No roles on the category, or roles that cannot be
  * read (`roleIds` null/undefined), let everyone in — an event post in Discord is
- * no secret, a missing raid is a real loss.
+ * no secret, a missing raid is a real loss. `versionId`: the raid's (#739).
  */
-function categoryRoleAllowed(categoryId, { config = {}, roleIds = null } = {}) {
-    const roles = expectedRoleIds(categoryId, config);
+function categoryRoleAllowed(categoryId, { config = {}, roleIds = null, versionId = "" } = {}) {
+    const roles = expectedRoleIds(categoryId, config, { versionId });
     if (!roles.length || !Array.isArray(roleIds)) return true;
     return roles.some((r) => roleIds.map(String).includes(r));
 }
@@ -344,15 +344,17 @@ async function checkRaiderRole(event, userId, { byOrga = false, previous, roleId
     if (byOrga || !event) return { ok: true };
     const cfg = config || settingsStore.getConfig();
     const uid = String(userId || "");
-    const only = rosterOnlyAccess(event.categoryId, uid);
-    const roles = only === null ? expectedRoleIds(event.categoryId, cfg) : [];
+    // the roster of the raid's version (#739)
+    const versionId = versionOfEvent(event, { config: cfg });
+    const only = rosterOnlyAccess(event.categoryId, uid, { versionId });
+    const roles = only === null ? expectedRoleIds(event.categoryId, cfg, { versionId }) : [];
     if (only === null && !roles.length) return { ok: true };
     const prev = previous === undefined ? signupStore.getSignup(event.id, uid) : previous;
     if (prev) return { ok: true };
     // "Anmeldung nur für das Roster" (#658): the roster decides, not the Discord role
     if (only !== null) return only ? { ok: true } : fail("roster_only", ROSTER_ONLY_ERROR);
     const ids = roleIds !== undefined ? roleIds : await discord.memberRoleIds(event.guildId || cfg.guildId, uid);
-    return categoryRoleAllowed(event.categoryId, { config: cfg, roleIds: ids }) ? { ok: true } : fail("raider_role", RAIDER_ROLE_ERROR);
+    return categoryRoleAllowed(event.categoryId, { config: cfg, roleIds: ids, versionId }) ? { ok: true } : fail("raider_role", RAIDER_ROLE_ERROR);
 }
 
 /**
@@ -632,7 +634,7 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
             continue;
         }
         let roleIds;
-        const needsRoles = expectedRoleIds(event.categoryId, cfg).length > 0;
+        const needsRoles = expectedRoleIds(event.categoryId, cfg, { versionId: versionOfEvent(event, { config: cfg }) }).length > 0;
         if (needsRoles && !byOrga) {
             const guild = event.guildId || cfg.guildId || "";
             if (!roleCache.has(guild)) roleCache.set(guild, await discord.memberRoleIds(guild, uid));

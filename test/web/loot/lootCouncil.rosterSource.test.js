@@ -23,6 +23,7 @@ jest.mock("../../../src/stores/councilStore", () => ({
 }));
 jest.mock("../../../src/stores/rosterStore", () => ({
     rosterForCategory: (...a) => mockRosterForCategory(...a),
+    rostersForCategory: (id) => [mockRosterForCategory(id, "tbc")].filter(Boolean),
     getRoster: (...a) => mockGetRoster(...a),
     listRosters: () => [],
 }));

@@ -90,7 +90,8 @@ function setupAttendance(events, { now = Date.now() } = {}) {
     if (!list.length) return out;
     // the version of the raid the setup belongs to (#740): its nights count, no other version's
     // (raids set up together share one version, as collectSetupInput's versionId says)
-    const ctx = buildAttendanceContext(list[0].guildId, { now, versionId: versionOfEvent(list[0]) });
+    const versionId = versionOfEvent(list[0]);
+    const ctx = buildAttendanceContext(list[0].guildId, { now, versionId });
     const profiles = new Map(profileStore.listProfiles().map((p) => [String(p.userId), p]));
     const byCategory = new Map();
     for (const event of list) {
@@ -102,7 +103,8 @@ function setupAttendance(events, { now = Date.now() } = {}) {
         }
     }
     for (const [categoryId, signups] of byCategory) {
-        const assignments = getCategoryAssignments(categoryId);
+        // the roster of the raid's version (#739)
+        const assignments = getCategoryAssignments(categoryId, { versionId });
         const accounts = [...signups].map(([userId, signup]) => ({
             userId,
             chars: accountCharacters(userId, categoryId, signup, profiles.get(userId), assignments),

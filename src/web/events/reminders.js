@@ -115,9 +115,10 @@ async function recipients(kind, event, categoryId, guildId, config) {
             .filter((s) => s && s.userId && ["signed", "late"].includes(signupStatus(s)))
             .map((s) => String(s.userId));
     }
-    // a category with a roster: its core + trial members (#658), else the holders of its roles
-    if (!hasExpected(categoryId, config) || !isRosterKnown(event)) return null;
-    const { members, error } = await listExpectedMembers(guildId, categoryId, config);
+    // a category with a roster: its core + trial members (#658) - the roster of the raid's version (#739) -, else the holders of its roles
+    const versionId = versionOfEvent({ ...event, categoryId: event.categoryId || categoryId }, { config });
+    if (!hasExpected(categoryId, config, { versionId }) || !isRosterKnown(event)) return null;
+    const { members, error } = await listExpectedMembers(guildId, categoryId, config, { versionId });
     if (error) return null;
     return computeAttendance(members, event.signUps || []).missing.map((m) => String(m.id));
 }

@@ -756,7 +756,8 @@ describe("web/apiRoutes/raidDetail", () => {
                 2: { character: "Elesham", className: "Shaman", spec: "Elemental" },
             });
             const res = await get("/api/raids/detail", { event: "e1" });
-            expect(raiderCharactersStore.resolveAssignmentProfiles).toHaveBeenCalledWith("cat1");
+            // the assignment of the raid's version (#739)
+            expect(raiderCharactersStore.resolveAssignmentProfiles).toHaveBeenCalledWith("cat1", { versionId: "tbc" });
             const data = json(res).data;
             expect(data.attendance.missing).toEqual([{
                 id: "2",

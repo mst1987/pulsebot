@@ -33,4 +33,11 @@ describe("lib/settings/categoryVersions (#738)", () => {
         expect(switchFixesToSend(fixes, saved, { c1: "forever", c2: "forever", c3: "tbc" })).toEqual({ c1: { series: "pause" } });
         expect(switchFixesToSend({ c1: { series: "" } }, saved, { c1: "forever" })).toEqual({});
     });
+
+    it("sends the roster choice of a switch even without a series fix (#739)", () => {
+        const roster = { create: false, copyMembers: true, roleIds: [] };
+        expect(switchFixesToSend({ c1: { series: "", roster } }, saved, { c1: "forever" })).toEqual({ c1: { series: "", roster } });
+        // not switched (back to the saved version): nothing
+        expect(switchFixesToSend({ c1: { series: "", roster } }, saved, { c1: "tbc" })).toEqual({});
+    });
 });
