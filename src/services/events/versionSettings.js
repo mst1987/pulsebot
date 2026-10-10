@@ -99,7 +99,8 @@ function versionLinks(versionId, opts = {}) {
     const wowhead = (kind, id, params = []) => {
         const n = Number(id) || 0;
         if (!s.wowheadPath || n <= 0) return "";
-        const target = kind === "item" ? wowheadItemId(n) : n;
+        // the re-issues are TBC Anniversary's: another version's section knows no such id
+        const target = kind === "item" && s.wowheadPath === "tbc" ? wowheadItemId(n) : n;
         const query = params && params.length ? `?${params.join("&")}` : "";
         return externalLink(`https://www.wowhead.com/${s.wowheadPath}/${kind}=${target}${query}`);
     };
@@ -154,6 +155,8 @@ function blizzardFor(versionId, opts = {}) {
         region: s.blizzardRegion,
         realmSlug: s.blizzardRealmSlug,
         namespace: s.blizzardNamespace,
+        versionId: s.versionId,
+        wowheadPath: s.wowheadPath,
     });
     if (!client.isConfigured()) {
         return { ...base, client: null, reason: "not_configured", message: "Battle.net-Zugang nicht eingerichtet (Einstellungen → Verbindungen)." };

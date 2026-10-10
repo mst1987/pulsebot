@@ -20,7 +20,7 @@ const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveM
 const { getCharacter } = require("../../stores/characterStore");
 const { loadCharGear } = require("../../services/characters/charGear");
 const { issuesForCharacter } = require("../characters/charGearIssues");
-const { parseLoot, buildManualItem, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
+const { parseLoot, buildManualItem, detectImportDate, LootParseError } = require("../../utils/loot/lootImport");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("../loot/lootEventMatch");
 const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
@@ -33,7 +33,7 @@ const { armoryUrlFor, wclUrlFor } = require("../characters/charLinks");
 const { buildVersionContext, versionsOfCharacter, versionChoices, eventVersion } = require("../../services/characters/characterVersions");
 const { versionLinks, blizzardFor } = require("../../services/events/versionSettings");
 const { mainVersionFor, knownVersion, resolveVersionQuery, visibleRows, visibleVersions, versionOfEvent } = require("../../services/events/mainVersion");
-const { linkItemsForImport } = require("../../services/loot/lootVersion");
+const { linkItemsForImport, enrichForImport } = require("../../services/loot/lootVersion");
 const { userCan } = require("../../config/permissions");
 const discord = require("../../services/discord/discord");
 const linkCheck = require("../../services/discord/linkCheck");
@@ -288,8 +288,6 @@ const importLoot = withUser({ csrf: true, body: true }, async ({ body, req, res 
     if (!items.length) return error(res, 400, "empty", "Keine Loot-Einträge im Export gefunden.");
     const picked = pickedCategory(req, body.categoryId);
     if (picked.error) return error(res, 400, "bad_category", picked.error);
-    await enrichItemNames(items);
-
     const target = await resolveImportTarget(req, {
         event: body.event,
         manualLabel: body.manualLabel,
@@ -302,6 +300,7 @@ const importLoot = withUser({ csrf: true, body: true }, async ({ body, req, res 
     const categoryId = target.categoryId || picked.id;
     // The Wowhead links of the event's version (#542).
     linkItemsForImport(items, { eventId, categoryId });
+    await enrichForImport(items, { eventId, categoryId });
 
     const { added, skipped } = addLootImport(eventId, items, { categoryId, eventLabel });
     // RCLootcouncil exports carry the raider's class — keep it right away, so the
@@ -394,11 +393,10 @@ const addLootItem = withUser({ csrf: true, body: true }, async ({ user, body, re
     // anything it doesn't list (a badge item, a BoE) — the same enrichment the
     // Gargul import runs, so a hand-entered row is indistinguishable from an
     // imported one in the table.
-    await enrichItemNames([item]);
-
     const target = await resolveImportTarget(req, { event: eventId, manualLabel: body.manualLabel, items: [item] });
     if (target.error) return error(res, target.status, target.code, target.error);
     linkItemsForImport([item], target);
+    await enrichForImport([item], target);
 
     const { added, skipped } = addLootImport(target.eventId, [item], {
         categoryId: target.categoryId,

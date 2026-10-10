@@ -37,7 +37,10 @@ const ENCHANTABLE_SLOTS = new Set(["HEAD", "SHOULDER", "CHEST", "LEGS", "FEET", 
 
 // An off-hand *held* item (tome, orb) takes no enchant — only shields and
 // off-hand weapons do. Same heuristic as the CLA (gearIssues.js's isShieldMisc).
-export function isEnchantable(g: GearItem, slot: string): boolean {
+// Only TBC knows this rule: another version (Forever, Classic) has no enchant
+// audit yet, so no slot is marked as missing one there (#750).
+export function isEnchantable(g: GearItem, slot: string, versionId: string = "tbc"): boolean {
+    if (versionId !== "tbc") return false;
     if (!ENCHANTABLE_SLOTS.has(slot)) return false;
     if (slot === "OFF_HAND" && g.iconUrl.indexOf("_misc_") > -1) return false;
     return true;

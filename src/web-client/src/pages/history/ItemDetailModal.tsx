@@ -16,7 +16,7 @@ export function ItemDetailModal({ slot, data, roster, onClose }: { slot: string;
     const facts = g.itemId ? roster?.items[String(g.itemId)] : undefined;
     const received = data.items.filter((it) => g.itemId && it.itemId === g.itemId).sort((a, b) => b.awardedAt - a.awardedAt)[0];
     const q = qualityName(g.quality).toLowerCase();
-    const enchantable = isEnchantable(g, slot);
+    const enchantable = isEnchantable(g, slot, data.versionId);
     const kicker = [SLOT_LABELS[slot] || slot, g.level ? `iLvl ${g.level}` : "", facts?.tier || ""].filter(Boolean).join(" · ");
     const report = data.gearIssues;
     const reportName = report?.reportTitle || report?.zone || "";

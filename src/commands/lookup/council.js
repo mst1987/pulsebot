@@ -5,7 +5,8 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { RAID_ITEMS } = require("../../config/tbcLootNames");
 const { itemCatalog } = require("../../services/loot/lootStats");
-const { itemLink } = require("../../utils/loot/wowhead");
+const { versionOfEvent } = require("../../services/events/mainVersion");
+const { versionLinks } = require("../../services/events/versionSettings");
 const { webUrl, lookupReply, respondChoices, clip } = require("../../utils/discord/botLookup");
 
 /** Every item the council can be asked about: all raid drops plus whatever was ever looted. */
@@ -19,6 +20,17 @@ function councilItems() {
         if (item.itemId && item.itemName && !byId.has(item.itemId)) byId.set(item.itemId, item.itemName);
     }
     return [...byId.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * The Wowhead link of an item in the game version of the channel's category
+ * (main version when the channel has none or the version has no Wowhead path).
+ */
+function itemLinkFor(itemId, channel) {
+    const inThread = channel && typeof channel.isThread === "function" && channel.isThread();
+    const holder = inThread ? channel.parent : channel;
+    const categoryId = (holder && holder.parentId) || "";
+    return versionLinks(versionOfEvent({ categoryId })).wowheadItem(itemId);
 }
 
 /** The item an option value names: an id (autocomplete, or typed) or a name. */
@@ -42,6 +54,7 @@ module.exports = {
         .setDescription("Loot-Council: Drop-Check für ein Item öffnen")
         .addStringOption((o) => o.setName("item").setDescription("Item").setRequired(true).setAutocomplete(true)),
     findCouncilItem,
+    itemLinkFor,
     async execute(interaction) {
         const value = interaction.options.getString("item");
         const item = findCouncilItem(value);
@@ -57,7 +70,7 @@ module.exports = {
             : "Noch nie vergeben.";
         return lookupReply(interaction, {
             title: item.name,
-            url: itemLink(item.id),
+            url: itemLinkFor(item.id, interaction.channel),
             description: `${history}\nKandidaten, BiS und Simulation stehen im Drop-Check.`,
         }, [{ label: "Drop prüfen", url: webUrl(`/lootcouncil/drop/${item.id}`) }]);
     },

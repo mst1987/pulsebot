@@ -87,3 +87,10 @@ describe("{region}/{realm} templates and standard values (#553)", () => {
         expect(applyDefaults(own, emptyBlock())).toEqual(own);
     });
 });
+
+describe("Forever's own Wowhead section (#750)", () => {
+    it("links the item as it is, without the TBC re-issue aliases", () => {
+        expect(wowheadItemUrl(281893, [], "forever")).toBe("https://www.wowhead.com/forever/item=281893");
+        expect(wowheadItemUrl(281893, [], "tbc")).toBe("https://www.wowhead.com/tbc/item=37128");
+    });
+});
