@@ -37,6 +37,11 @@ const instances = [
         icon: "achievement_boss_archimonde-",
         art: "the-battle-for-mount-hyjal",
         color: "#2f7a4f",
+        // What a log or a title says: Forever's Hyjal Summit, not TBC's ("hyjal").
+        zoneNames: ["hyjal summit", "hyjalgipfel", "hyjal"],
+        // Encounter names known before the raid is filled in: they place a log in
+        // this raid without making it a final boss (the guard stays off).
+        bossHints: ["Archimonde"],
         bosses: [], finalBoss: "", finalBossNames: [],
         composition: {},
         status: "incomplete",
@@ -46,6 +51,8 @@ const instances = [
         icon: "achievement_boss_onyxia",
         art: "onyxias-lair",
         color: "#8b2f4f",
+        zoneNames: ["onyxia's lair", "onyxias hort"],
+        bossHints: ["Onyxia"],
         bosses: [], finalBoss: "", finalBossNames: [],
         composition: {},
         status: "incomplete",
@@ -61,9 +68,11 @@ module.exports = {
     instances,
     partyBuffs: classic.partyBuffs,
     raidBuffs: classic.raidBuffs,
-    // No standard values yet (#553): the beta's namespace, armory and log sites
-    // are not known (Epic #540 phase 2). Once they are, they go here in the
-    // shape of classic.js' settingsDefaults, and the start-up migration fills
-    // the empty fields once.
-    settingsDefaults: {},
+    // Wowhead has a section of its own for Forever (www.wowhead.com/forever,
+    // #750). The beta's namespace, armory and log sites are not known (Epic
+    // #540 phase 2): once they are, they go here in the shape of classic.js'
+    // settingsDefaults, and the start-up migration fills the empty fields once.
+    settingsDefaults: {
+        wowheadPath: "forever",
+    },
 };

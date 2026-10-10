@@ -19,7 +19,7 @@ function FindingBadge({ issue }: { issue: GearIssue }) {
     );
 }
 
-function GearRow({ g, slot, issues, onOpen }: { g?: GearItem; slot: string; issues: GearIssue[]; onOpen: (slot: string) => void }) {
+function GearRow({ g, slot, issues, versionId, onOpen }: { g?: GearItem; slot: string; issues: GearIssue[]; versionId?: string; onOpen: (slot: string) => void }) {
     const t = useT();
     const label = SLOT_LABELS[slot] || slot;
     const flagged = issues.some((i) => i.severity === "high");
@@ -36,7 +36,7 @@ function GearRow({ g, slot, issues, onOpen }: { g?: GearItem; slot: string; issu
         );
     }
     const color = itemQualityColor(g.quality) || "var(--line)";
-    const enchantable = isEnchantable(g, slot);
+    const enchantable = isEnchantable(g, slot, versionId);
     const gems = g.sockets.map((s) => (s.gemName || s.gemText) || t("history.gear.emptySocket", { type: SOCKET_DE[s.type] || s.type || "?" }));
     const tipSub = [
         g.enchants.length ? t("history.gear.enchant", { list: g.enchants.join(", ") }) : (enchantable ? t("history.gear.noEnchant") : ""),
@@ -113,7 +113,7 @@ export function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (
         list.forEach((i) => matched.add(i));
         return list;
     };
-    const row = (slot: string) => <GearRow key={slot} slot={slot} g={bySlot.get(slot)} issues={rowIssues(slot)} onOpen={onOpen} />;
+    const row = (slot: string) => <GearRow key={slot} slot={slot} g={bySlot.get(slot)} issues={rowIssues(slot)} versionId={data.versionId} onOpen={onOpen} />;
 
     let body: ReactNode;
     if (gear.length) {

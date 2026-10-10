@@ -19,12 +19,17 @@ function branchFor(edition, path = "") {
     return "tbc";
 }
 
+// The re-issues are TBC Anniversary's: another branch knows no such id.
+function aliasFor(branch, itemId) {
+    return branch === "tbc" ? wowheadItemId(itemId) : itemId;
+}
+
 function iconUrl(icon) {
     return icon ? `${ICON_BASE}/${String(icon).toLowerCase()}.jpg` : "";
 }
 
 function itemLink(itemId, edition = "tbc", path = "") {
-    return itemId ? `https://www.wowhead.com/${branchFor(edition, path)}/item=${wowheadItemId(itemId)}` : "";
+    return itemId ? `https://www.wowhead.com/${branchFor(edition, path)}/item=${aliasFor(branchFor(edition, path), itemId)}` : "";
 }
 
 /**
@@ -84,7 +89,7 @@ async function lookupItem(itemId, { edition = "tbc", path = "" } = {}) {
     const key = `${branch}:${id}`;
     if (itemCache.has(key)) return itemCache.get(key);
     try {
-        const { data } = await axios.get(`https://nether.wowhead.com/${branch}/tooltip/item/${wowheadItemId(id)}`, {
+        const { data } = await axios.get(`https://nether.wowhead.com/${branch}/tooltip/item/${aliasFor(branch, id)}`, {
             httpsAgent,
             timeout: 15000,
             headers: { "User-Agent": "Mozilla/5.0 (EventHelper)" },
@@ -141,7 +146,7 @@ async function lookupItemDetails(itemId, { edition = "tbc", path = "", locale = 
     if (!id) return null;
     const branch = branchFor(edition, path);
     const loc = LOCALES[locale] || LOCALES.en;
-    const target = wowheadItemId(id);
+    const target = aliasFor(branch, id);
     const request = { httpsAgent, timeout: 15000, headers: { "User-Agent": "Mozilla/5.0 (EventHelper)" } };
     try {
         const segment = loc.segment ? `/${loc.segment}` : "";
@@ -196,14 +201,15 @@ const nameCache = new Map();
  * returns { id, name, icon, iconUrl, quality } or null when no exact match
  * (best-effort like the other lookups).
  * @param {string} name
- * @param {object} [opts] { edition }
+ * @param {object} [opts] { edition, path } - `path` a version's Wowhead path, wins over the edition
  */
-async function findItemByName(name, { edition = "tbc" } = {}) {
-    const key = String(name || "").trim().toLowerCase();
-    if (!key) return null;
+async function findItemByName(name, { edition = "tbc", path = "" } = {}) {
+    const text = String(name || "").trim().toLowerCase();
+    if (!text) return null;
+    const key = path ? `${path}:${text}` : text;
     if (nameCache.has(key)) return nameCache.get(key);
-    const results = await searchItems(key, { edition, limit: 8 });
-    const exact = results.find((r) => r.name.toLowerCase() === key) || null;
+    const results = await searchItems(text, { edition, limit: 8, path });
+    const exact = results.find((r) => r.name.toLowerCase() === text) || null;
     // Cache misses too — a name that resolves to nothing will not start
     // resolving mid-process, and re-searching it per page view is wasted I/O.
     nameCache.set(key, exact);

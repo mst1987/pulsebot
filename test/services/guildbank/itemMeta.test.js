@@ -63,16 +63,16 @@ beforeEach(() => {
 });
 
 describe("services/guildbank/itemMeta", () => {
-    it("asks Wowhead on the version's own path, Classic's for Forever until it has one", () => {
+    it("asks Wowhead on the version's own path, Forever's own section (#750)", () => {
         expect(itemMeta.wowheadPathFor("tbc")).toBe("tbc");
-        expect(itemMeta.wowheadPathFor("forever")).toBe("classic");
+        expect(itemMeta.wowheadPathFor("forever")).toBe("forever");
         expect(itemMeta.wowheadPathFor("classic")).toBe("classic");
         settingsForVersion.mockImplementationOnce(() => ({ versionId: "tbc", wowheadPath: "tbc" }));
         expect(itemMeta.wowheadPathFor("wotlk")).toBe("tbc");
         settingsForVersion.mockImplementationOnce(() => {
             throw new Error("no config");
         });
-        expect(itemMeta.wowheadPathFor("forever")).toBe("classic");
+        expect(itemMeta.wowheadPathFor("forever")).toBe("forever");
     });
 
     it("knows TBC items from the WoWSims table and the raid loot names, nothing for other versions", () => {

@@ -48,8 +48,8 @@ function after542(config) {
         wowheadPath: "classic", softresEdition: "classic", raidsheetId: "",
     };
     return {
-        ...config, blizzard: credentials, versionSettings: { tbc, classic, forever: EMPTY_BLOCK },
-        versionDefaultsApplied: ["tbc", "classic"],
+        ...config, blizzard: credentials, versionSettings: { tbc, classic, forever: { ...EMPTY_BLOCK, blizzardRegion: "eu", wowheadPath: "forever" } },
+        versionDefaultsApplied: ["tbc", "classic", "forever"],
     };
 }
 // Raidplan ODER Sheet: the start fixes every raid category's planning by what it

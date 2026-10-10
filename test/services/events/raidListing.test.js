@@ -38,6 +38,21 @@ describe("services/events/raidListing", () => {
             expect(raidContentIds({ title: "Karazhan", categoryName: "Gruul Twinks" }).contentIds).toEqual(["kara"]);
         });
 
+        it("keeps the planned instances of every version (#749)", () => {
+            expect(raidContentIds({ title: "Mittwoch", instanceIds: ["forever-ony"] })).toEqual({ contentIds: ["forever-ony"], sources: ["event"] });
+            expect(raidContentIds({ title: "Kara", instanceIds: ["mc", "forever-hyjal", "hyjal"] }).contentIds).toEqual(["hyjal", "mc", "forever-hyjal"]);
+            // an id no rule set knows is dropped, the title speaks
+            expect(raidContentIds({ title: "Kara", instanceIds: ["nope"] })).toEqual({ contentIds: ["kara"], sources: ["title"] });
+        });
+
+        it("reads the wording only within the event's version (#749)", () => {
+            expect(raidContentIds({ title: "Hyjal Summit (Forever)", versionId: "forever" }).contentIds).toEqual(["forever-hyjal"]);
+            expect(raidContentIds({ title: "Archimonde night, Hyjal", versionId: "forever" }).contentIds).toEqual(["forever-hyjal"]);
+            expect(raidContentIds({ title: "Hyjal", versionId: "tbc" }).contentIds).toEqual(["hyjal"]);
+            expect(raidContentIds({ title: "Kara", versionId: "forever" }).contentIds).toEqual([]);
+            expect(raidContentIds({ title: "T6", zones: ["Hyjal Summit"], versionId: "forever" }).contentIds).toEqual(["forever-hyjal"]);
+        });
+
         it("adds what a past raid's logs and loot prove", () => {
             const r = raidContentIds({
                 title: "T6 Main", zones: ["Hyjal Summit"],
@@ -54,6 +69,11 @@ describe("services/events/raidListing", () => {
             expect(raidSize(["za"])).toEqual({ size: 10, known: true });
             expect(raidSize(["kara", "gruul"])).toEqual({ size: 25, known: true });
             expect(raidSize(["hyjal", "bt"])).toEqual({ size: 25, known: true });
+        });
+
+        it("reads the size of an instance of any version (#749)", () => {
+            expect(raidSize(["forever-hyjal"])).toEqual({ size: 20, known: true });
+            expect(raidSize(["forever-ony"])).toEqual({ size: 40, known: true });
         });
 
         it("defaults to 25 and says so when the content is unknown", () => {

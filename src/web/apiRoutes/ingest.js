@@ -17,8 +17,8 @@ const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { addImport: addLootImport, eventsWithLoot } = require("../../stores/lootStore");
 const { rememberFromLoot } = require("../../services/characters/characterInfo");
-const { parseEventHelperSessions, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
-const { linkItemsForImport } = require("../../services/loot/lootVersion");
+const { parseEventHelperSessions, LootParseError } = require("../../utils/loot/lootImport");
+const { linkItemsForImport, enrichForImport } = require("../../services/loot/lootVersion");
 const { bestDayMatch } = require("../loot/lootEventMatch");
 const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestTokenStore");
 const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
@@ -118,7 +118,11 @@ async function ingestLoot(req, res) {
             results.push({ sessionId: session.sessionId, status: "dismissed", added: 0 });
             continue;
         }
-        await enrichItemNames(session.items);
+        // A confirmed session asks the Wowhead section of its event's version;
+        // a pending one has no event yet and asks the main version's (#750).
+        await enrichForImport(session.items, prior && prior.action === "accepted" && prior.eventId
+            ? { eventId: prior.eventId, categoryId: prior.categoryId }
+            : {});
 
         if (prior && prior.action === "accepted" && prior.eventId) {
             // Already confirmed once — the rest of the raid needs no second click.

@@ -7,6 +7,7 @@
 const { getEvent } = require("../../stores/eventStore");
 const { versionOfEvent } = require("../events/mainVersion");
 const { versionLinks } = require("../events/versionSettings");
+const { enrichItemNames } = require("../../utils/loot/lootImport");
 
 /** The version of an import target `{ eventId, categoryId }`. */
 function versionOfImport({ eventId = "", categoryId = "" } = {}) {
@@ -26,4 +27,9 @@ function linkItemsForImport(items, target) {
     return relinkItems(items, versionOfImport(target));
 }
 
-module.exports = { versionOfImport, relinkItems, linkItemsForImport };
+/** Fill in names/icons/qualities from the Wowhead section of the version `target` is filed under. */
+function enrichForImport(items, target) {
+    return enrichItemNames(items, { versionId: versionOfImport(target) });
+}
+
+module.exports = { versionOfImport, relinkItems, linkItemsForImport, enrichForImport };
