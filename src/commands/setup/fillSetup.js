@@ -6,7 +6,7 @@ const { botEditReply } = require("../../utils/discord/reply");
 const { isOwnEventId, getEvent } = require("../../stores/eventStore");
 const { ownEventInChannel } = require("../../services/events/eventSources");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
-const { sheetVersionRefusal } = require("../../services/events/planning");
+const { sheetVersionRefusal } = require("../../services/events/versionCapabilities");
 const { versionOfEvent } = require("../../services/events/mainVersion");
 
 /**

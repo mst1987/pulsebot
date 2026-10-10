@@ -1,10 +1,12 @@
-import { useState, type MouseEvent, type CSSProperties } from "react";
+import { useRef, useState, type MouseEvent, type CSSProperties } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../components/shell/Shell";
 import {
     getSignups,
     type BulkSignupResult, type OwnSignup, type OwnSignupRow, type SignupCounts, type SignupEventRow } from "../api";
 import { useApi } from "../hooks/useApi";
+import { useContentVersion } from "../hooks/useContentVersion";
+import { useFollowVersion } from "../hooks/useFollowVersion";
 import { Badge, Bar, Button, IconButton, PageHead, RaidLoader, WowIcon } from "../components/ui";
 import RaidIcon from "../components/raid/RaidIcon";
 import SignupDialog from "../components/signup/SignupDialog";
@@ -28,9 +30,15 @@ import "../styles/signups.css";
 export default function SignupsPage() {
     const t = useT();
     const { user } = useOutletContext<ShellContext>();
-    const signups = useApi(() => getSignups(), []);
-    const { data, setData } = signups;
     const [params, setParams] = useSearchParams();
+    // One game version at a time (#741): the menu's content version; a switch loads again.
+    const { version } = useContentVersion();
+    // The raid a link opened (the Discord post's button): its version comes back with the
+    // list, and a raid of another version switches the menu to it.
+    const linkedEvent = useRef(params.get("event") || "");
+    const signups = useApi(() => getSignups(version, linkedEvent.current), [version]);
+    const { data, setData } = signups;
+    useFollowVersion(data?.eventVersion, () => { linkedEvent.current = ""; });
     // Several raids at once (#293): the picked own raids, and the raids the open bulk
     // dialog works on — kept apart, so clearing the selection after saving does not
     // close the dialog before it has shown the results.

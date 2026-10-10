@@ -11,6 +11,7 @@ const { listLogs } = require("../../stores/logStore");
 const { buildRecentEvents, matchLogsForEvent, pendingLogsForEvent } = require("../../services/events/recentEvents");
 const { autoLinkLogs } = require("../../services/logcheck/logAutoLink");
 const { logPostedAt } = require("../../services/logcheck/reportList");
+const { recordVersion } = require("../../services/logcheck/logVersion");
 const { listAwards } = require("../loot/lootAwards");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const discord = require("../../services/discord/discord");
@@ -213,10 +214,11 @@ async function loadNextRaidDetails(guildId, eventId) {
  * The newest evaluation as the "Letzte Auswertung" tile needs it, plus how many
  * of its recommendations are still unreviewed (the "Empfehlungen prüfen" task).
  * Reads one report file; null when there is none or it cannot be read.
+ * @param {{ versionId?: string }} [opts] the newest report of that game version (#741, "" = of any)
  */
-function loadLatestReport() {
+function loadLatestReport({ versionId = "" } = {}) {
     try {
-        const summary = listReports()[0];
+        const summary = listReports().find((r) => !versionId || recordVersion(r) === versionId);
         if (!summary) return null;
         const report = getReport(summary.id);
         const area = lastReportArea(summary, report);
@@ -230,10 +232,13 @@ function loadLatestReport() {
     }
 }
 
-/** Roster size and how many characters have no Discord account assigned; null when the roster cannot be built. */
-function loadRosterFigures(guildId) {
+/**
+ * Roster size and how many characters have no Discord account assigned; null when the roster cannot be built.
+ * @param {{ versionId?: string }} [opts] only the characters of that game version (#741, "" = every one)
+ */
+function loadRosterFigures(guildId, { versionId = "" } = {}) {
     try {
-        const stats = rosterStats(buildRoster(guildId).chars);
+        const stats = rosterStats(buildRoster(guildId, { versionId }).chars);
         return { total: stats.total, withoutDiscord: stats.fromLootOnly };
     } catch (e) {
         console.error("dashboard roster failed:", e.message);
@@ -268,9 +273,12 @@ function loadChannelArchive(guildId) {
     }
 }
 
-/** Top-item awards since the newest past raid started — the "Neuer Loot" tile. */
-function loadNewLoot(sinceStartTime) {
-    const { items } = listAwards({ topOnly: true, page: 1, pageSize: 500 });
+/**
+ * Top-item awards since the newest past raid started — the "Neuer Loot" tile.
+ * @param {{ versionId?: string }} [opts] only the loot of that game version's raids (#741, "" = every one)
+ */
+function loadNewLoot(sinceStartTime, { versionId = "" } = {}) {
+    const { items } = listAwards({ topOnly: true, page: 1, pageSize: 500, versionId });
     const sinceMs = (Number(sinceStartTime) || 0) * 1000;
     return { count: newLootSince(items, sinceMs), since: sinceMs };
 }

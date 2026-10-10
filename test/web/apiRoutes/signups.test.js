@@ -121,11 +121,30 @@ describe("GET /api/signups", () => {
         let data = json(await call(route.getSignups, ANNA)).data;
         expect(data.classes).toEqual(shape("tbc"));
         expect(data.classesByVersion).toEqual({ tbc: shape("tbc"), classic: shape("classic"), forever: shape("forever") });
-        // the own event keeps its version, whatever the main version says
+        // the own event keeps its version, whatever the main version says: it is listed under TBC
         mockConfig = { mainVersion: "forever" };
-        data = json(await call(route.getSignups, ANNA)).data;
+        data = json(await call(route.getSignups, ANNA, { query: "version=tbc" })).data;
         expect(data.classes).toEqual(shape("forever"));
         expect(data.events[0].versionId).toBe("tbc");
+    });
+
+    it("listet nur die Raids der gezeigten Spielversion: unter Forever kein TBC-Raid (#741)", async () => {
+        mockConfig = { categoryVersion: { "cat-t5": "forever" } };
+        const forever = json(await call(route.getSignups, ANNA, { query: "version=forever" })).data;
+        // the Raid-Helper raid of the Forever category; the own TBC event stays out
+        expect(forever.events.map((e) => e.id)).toEqual(["1400000000000000001"]);
+        expect(forever.version).toBe("forever");
+        // without a version: the main version (TBC), never a mixed list - "all" included
+        for (const query of ["", "version=all"]) {
+            const shown = json(await call(route.getSignups, ANNA, { query })).data;
+            expect(shown.events.map((e) => e.id)).toEqual(["eh-kara"]);
+            expect(shown.version).toBe("tbc");
+        }
+        // a link to one raid names its version, also from another version's list
+        const linked = json(await call(route.getSignups, ANNA, { query: "version=tbc&event=1400000000000000001" })).data;
+        expect(linked.eventVersion).toBe("forever");
+        expect(linked.events.map((e) => e.id)).toEqual(["eh-kara"]);
+        expect(json(await call(route.getSignups, ANNA, { query: "event=gibtsnicht" })).data.eventVersion).toBe("");
     });
 
     it("gibt jedem Charakter seine Version mit, jeder eigenen Zeile eine Version und die Versionsnamen (#543)", async () => {
@@ -133,7 +152,7 @@ describe("GET /api/signups", () => {
         mockEvents.set("eh-kara", { ...ownEvent, versionId: "" });
         mockGroups[0].events[0].versionId = "";
         mockConfig = { categoryVersion: { "cat-kara": "forever" } };
-        const data = json(await call(route.getSignups, ANNA)).data;
+        const data = json(await call(route.getSignups, ANNA, { query: "version=forever" })).data;
         expect(data.profile.characters.map((c) => [c.name, c.versionId])).toEqual([["Nerathil", "tbc"], ["Devi Res", "forever"]]);
         // an event without a version plays its category's (the dialog filters by it)
         expect(data.events[0].versionId).toBe("forever");

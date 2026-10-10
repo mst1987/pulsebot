@@ -12,6 +12,9 @@
         "textPublic": "Diese Version ist ausgeblendet. Der Raidplan bleibt über den Link lesbar.",
         "readOnly": "Nur lesen"
     },
+    "followVersion": {
+        "switched": "Du bist jetzt in {version}"
+    },
     "brandSub": "Gildenmenü",
     "toHome": "Zur Übersicht",
     "menu": {

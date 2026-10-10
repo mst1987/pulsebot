@@ -9,7 +9,7 @@ import * as api from "../../api";
 import type { KaderData } from "../../api";
 import { t } from "../../i18n";
 import { switchLang } from "../../test/i18n";
-import { adminUser, renderPage } from "../../test/render";
+import { CONTENT_ARIA, adminUser, renderPage, twoVersions } from "../../test/render";
 import { CAT, kader as kaderData, kaderView, ME, U } from "./kader.fixture";
 import KaderPage from "./KaderPage";
 
@@ -736,5 +736,31 @@ describe("KaderPage · removing a character in the account dialog", () => {
         expect(within(confirm).getByText(t("kader.account.removeCharText"))).toBeInTheDocument();
         await userEvent.click(within(confirm).getByRole("button", { name: t("common.remove") }));
         await waitFor(() => expect(within(dialog).queryByRole("tab", { name: /Aldric Sturmwind/ })).toBeNull());
+    });
+});
+
+// One game version at a time (#741): the picker lists the Kader of the menu's version.
+describe("KaderPage per game version", () => {
+    it("asks for the Kader of the shown version and creates a new one in it", async () => {
+        localStorage.setItem("eh-content-version", "forever");
+        vi.mocked(api.getKader).mockResolvedValue(kaderView({ kaders: [], kader: null }));
+        vi.mocked(api.createKader).mockResolvedValue({ ...change(), kaderId: "k1" });
+        renderPage(<KaderPage />, { route: "/kader", path: PATH, content: twoVersions() });
+        await screen.findByRole("heading", { name: t("kader.start.title") });
+        expect(api.getKader).toHaveBeenLastCalledWith("", "forever");
+        await userEvent.click(screen.getByRole("button", { name: t("kader.start.create") }));
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.type(within(dialog).getByRole("textbox"), "Forever-Kader 2027");
+        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.settings.create") }));
+        expect(api.createKader).toHaveBeenCalledWith("Forever-Kader 2027", "forever");
+    });
+
+    it("switches the TBC view to the version of a linked Forever Kader and says so", async () => {
+        vi.mocked(api.getKader).mockImplementation(async () => kaderView({ kader: { ...kaderData(), versionId: "forever" } }));
+        renderPage(<KaderPage />, { route: "/kader/k1/pool", path: PATH, content: twoVersions() });
+        expect(await screen.findByText(t("shell.followVersion.switched", { version: "Forever" }))).toBeInTheDocument();
+        const segment = screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0];
+        await waitFor(() => expect(within(segment).getByRole("radio", { checked: true })).toHaveAccessibleName("Forever"));
+        await waitFor(() => expect(api.getKader).toHaveBeenLastCalledWith("k1", "forever"));
     });
 });

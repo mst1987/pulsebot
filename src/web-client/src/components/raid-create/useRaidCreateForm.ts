@@ -11,6 +11,7 @@ import {
     type EventPlan, type StepKey,
 } from "../../lib/raids/eventPlan";
 import { useToast } from "../shell/Jobs";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { berlinDay, channelNameForDate, clockOf, latestPerCategory, nextSameWeekday, type ChannelMode, type Choice, type StartTab, type TemplateMode } from "./createHelpers";
 
 /** What the dialog sends: the event's fields, where it is posted and how people sign up. */
@@ -64,6 +65,7 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
 }) {
     const t = useT();
     const toast = useToast();
+    const { version: contentVersion } = useContentVersion();
     const editing = !!editEventId;
     const [ctx, setCtx] = useState<RaidCreateContext | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -186,7 +188,8 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
         setMoreOpen(false);
         setTplOpen(false);
         setLoadError(null);
-        getRaidCreateContext(editEventId)
+        // The raids to repeat are those of the menu's content version (#741).
+        (contentVersion ? getRaidCreateContext(editEventId, contentVersion) : getRaidCreateContext(editEventId))
             .then((data) => {
                 setCtx(data);
                 patch({ leaderId: data.leaderId, leaderOther: false });
@@ -224,7 +227,7 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
             })
             .catch((err: ApiError) => setLoadError(err.message));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, sourceId, editEventId]);
+    }, [open, sourceId, editEventId, contentVersion]);
 
     // The channel name follows date, category and raid until it is typed by hand.
     // The server names it like the category's previous event channel (#285) and

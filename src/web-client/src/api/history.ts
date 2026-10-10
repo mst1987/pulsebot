@@ -140,11 +140,13 @@ export type HistoryData = {
     versions?: { id: string; label: string; short: string; count: number }[];
 };
 
-export function getHistoryData(): Promise<HistoryData> {
-    return get<HistoryData>("/api/history");
+/** `version`: the menu's content version (#741) — the logs of it; "" = the server's main version. */
+export function getHistoryData(version = ""): Promise<HistoryData> {
+    return get<HistoryData>(`/api/history${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
-export type HistoryEventData = { eventId: string; label: string; items: LootItem[] };
+/** `versionId`: the version of the raid (#741) — a link from another version switches the menu to it. */
+export type HistoryEventData = { eventId: string; label: string; items: LootItem[]; versionId?: string };
 
 export function getHistoryEvent(eventId: string): Promise<HistoryEventData> {
     return get<HistoryEventData>(`/api/history/event?event=${encodeURIComponent(eventId)}`);
@@ -234,6 +236,7 @@ export type HistoryCharData = {
     gearIssues: CharGearReport | null;
 };
 
-export function getHistoryChar(name: string): Promise<HistoryCharData> {
-    return get<HistoryCharData>(`/api/history/char?name=${encodeURIComponent(name)}`);
+/** `version`: the menu's content version (#741) — realm, armory and Wowhead of it; "" = the character's own. */
+export function getHistoryChar(name: string, version = ""): Promise<HistoryCharData> {
+    return get<HistoryCharData>(`/api/history/char?name=${encodeURIComponent(name)}${version ? `&version=${encodeURIComponent(version)}` : ""}`);
 }

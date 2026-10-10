@@ -379,7 +379,7 @@ export default function LootCouncilPage() {
             ) : null}
 
             {/* A version without content data says so, instead of showing TBC's (#748). */}
-            {!content.bis ? <div className="lc-panel empty" role="note">{t("lootcouncil.noContent.text")}</div> : null}
+            {!content.bis ? <div className="lc-panel empty" role="note">{t(content.off ? "lootcouncil.noContent.off" : "lootcouncil.noContent.text")}</div> : null}
 
             {/* Tabs first, then the one filter line they all share. */}
             <CouncilTabs tab={shownTab} patch={patch} rosterCount={roster.length} gapCount={gaps.length} hasBis={content.bis} />

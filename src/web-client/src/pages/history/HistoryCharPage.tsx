@@ -9,9 +9,11 @@
 // and BiS specs of the worn items). The second is best-effort — without it the
 // page loses those parts, never the rest.
 import { useEffect, useMemo, type ReactNode } from "react";
-import { useOutletContext, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { getHistoryChar, getRosterChar, deleteLootItems, canAccess, type ApiError, type LootItem } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useContentVersion } from "../../hooks/useContentVersion";
+import { useFollowVersion } from "../../hooks/useFollowVersion";
 import AsyncView from "../../components/ui/AsyncView";
 import { usePersistedSearchParam } from "../../lib/ui/persistedState";
 import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
@@ -39,6 +41,8 @@ export default function HistoryCharPage() {
     const canEdit = canAccess(user, "history", "write");
     const [tab, switchTab] = usePersistedSearchParam<CharTab>("history-char-tab", "tab", "gear", CHAR_TABS);
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const location = useLocation();
     const name = searchParams.get("name") || "";
     // The open item-details modal is in the url (?item=<slot>), so a link can
     // point straight at a piece and the back button closes it.
@@ -49,7 +53,16 @@ export default function HistoryCharPage() {
         setSearchParams(params);
     };
 
-    const character = useApi(() => getHistoryChar(name), [name]);
+    // One game version at a time (#741): the character in the menu's content version when it
+    // plays it, else in its own, and the menu follows (a link from another version). Switching
+    // the menu to a version the character has not leads back to the character list.
+    const { version } = useContentVersion();
+    const character = useApi(() => (version ? getHistoryChar(name, version) : getHistoryChar(name)), [name, version]);
+    const charData = character.data;
+    useFollowVersion(
+        charData ? [charData.versionId || "", ...(charData.versionIds || [])] : [],
+        () => navigate(location.pathname.startsWith("/roster/") ? "/roster/chars" : "/history?tab=chars"),
+    );
     const toast = useToast();
     // The second answer follows the first (it needs the worn items) and is
     // best-effort: the page stands without role, attendance and BiS facts.

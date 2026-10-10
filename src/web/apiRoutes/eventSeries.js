@@ -12,18 +12,29 @@ const { withUser } = require("../http/apiHandler");
 const { sendResult } = require("../http/apiResult");
 const { activeGuildFor } = require("../http/activeGuild");
 const { userCan } = require("../../config/permissions");
-const { listRaidTemplates } = require("../../stores/settingsStore");
+const { listRaidTemplates, getConfig } = require("../../stores/settingsStore");
+const { mainVersionFor, knownVersion, resolveVersionQuery } = require("../../services/events/mainVersion");
 const store = require("../../stores/eventSeriesStore");
 const series = require("../events/eventSeries");
 
 const q = (url, key) => String((url && url.searchParams && url.searchParams.get(key)) || "").trim();
 const list = (value) => value.split(",").map((s) => s.trim()).filter(Boolean);
 
-const getSeries = withUser({}, async ({ user, req, res }) => {
-    const overview = await series.seriesOverview({ guildId: activeGuildFor(req) });
+/**
+ * GET /api/raids/series[?version=<id>] — the series of the categories that play
+ * the shown game version (#741: a series creates the raids of its category's
+ * version), and the raid templates of that version.
+ */
+const getSeries = withUser({}, async ({ user, req, res, url }) => {
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(url && url.searchParams.get("version"), { config });
+    const overview = await series.seriesOverview({ guildId: activeGuildFor(req), config });
     ok(res, {
         ...overview,
-        templates: listRaidTemplates().map((t) => ({ id: t.id, name: t.name || "", instanceIds: t.instanceIds || [], size: t.size || null })),
+        categories: overview.categories.filter((c) => mainVersionFor({ categoryId: c.id, config }) === versionId),
+        templates: listRaidTemplates()
+            .filter((t) => (knownVersion(t.versionId) || mainVersionFor({ config })) === versionId)
+            .map((t) => ({ id: t.id, name: t.name || "", instanceIds: t.instanceIds || [], size: t.size || null })),
         canWrite: userCan(user, "raids", "write"),
         limits: { minDaysBefore: series.MIN_DAYS_BEFORE, maxDaysBefore: series.MAX_DAYS_BEFORE },
     });

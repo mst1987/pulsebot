@@ -109,8 +109,13 @@ interview note and a comment with a marker and asserts neither reaches the roste
 
 ## The version and the server
 
-- Version: `forever` when that rule set exists, else the main version (`kaderSource.plannerVersion()`); the content
-  switch does not apply.
+- Version: `forever` when that rule set exists, else the main version (`kaderSource.plannerVersion()`) — the rule
+  set the planner works with.
+- **Each Kader has a game version** (#741, `versionId`, `kaderModel.kaderVersion`: one stored before has none and is
+  Forever). The picker lists only the Kader of the menu's content version (`GET /api/kader?version=`,
+  `kaderView.kadersShown`); a change inside a Kader answers the list of its version; a new Kader takes the version
+  the page shows. A link to a Kader of another version opens it and switches the menu to its version
+  (`hooks/useFollowVersion`); switching the menu away goes back to `/kader`.
 - Server: the **active guild** of the session (`activeGuildFor(req)`): its members and roles, its events for
   attendance, and the planner is stored under its id.
 

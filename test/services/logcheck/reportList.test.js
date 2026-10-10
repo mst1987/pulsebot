@@ -194,6 +194,15 @@ describe("prepareClaList — the Log-Auswertung's one list", () => {
         expect(page.items[0]).toMatchObject({ kind: "log", source: "channel", sections: [], report: null, raids: [hyjal] });
     });
 
+    it("lists and counts only the rows `inVersion` lets through (#741)", () => {
+        const inVersion = (row) => row.id !== "legacy" && row.id !== "report:r3";
+        const { page, counts } = prepareClaList(logs, reports, {}, { inVersion });
+        expect(page.items.map((r) => r.id)).toEqual(["open", "half"]);
+        expect(counts).toMatchObject({ all: 2, done: 1 });
+        // the report of a log that is not shown is still no link report
+        expect(page.items.some((r) => r.id === "report:r2")).toBe(false);
+    });
+
     it("carries the report's numbers and raids on the log's row, and reads a legacy done log as CLA", () => {
         const { page } = prepareClaList(logs, reports, {});
         const half = page.items.find((r) => r.id === "half");

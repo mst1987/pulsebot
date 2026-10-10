@@ -11,8 +11,9 @@
 // outside every Discord category) has no fixed sheet either, so it is "raidplan".
 //
 // Pure: takes the config, never reads a store (configStore requires this module).
-
-const { hasSheetLayout, rulesFor } = require("../../config/gameVersions");
+// Whether a version may fill the Google raid sheet at all is the feature
+// "raidSheet" of services/events/versionCapabilities.js (#761: sheetOffered,
+// sheetVersionRefusal) — not here, since that one reads the config.
 
 const PLANNING_MODES = ["raidplan", "sheet"];
 
@@ -56,20 +57,4 @@ function planningRefusal(action, categoryId, config) {
     return planningOf(categoryId, config) === action ? null : { status: 409, code: "planning_mismatch", message: PLANNING_REFUSALS[action] };
 }
 
-/**
- * The Google raid sheet is laid out for TBC raids only (gameVersions' `sheetLayout`):
- * filling it for another version would write a wrongly filled TBC sheet. Null when the
- * version has the layout, else the 409 refusal naming the version (#751).
- */
-function sheetVersionRefusal(versionId) {
-    if (hasSheetLayout(versionId)) return null;
-    const rules = rulesFor(versionId);
-    const label = (rules && rules.label) || String(versionId || "");
-    return {
-        status: 409,
-        code: "no_sheet_layout",
-        message: `Für ${label} gibt es keine Raidsheet-Vorlage – das Google-Sheet lässt sich nur für TBC-Raids füllen. Plane diesen Raid mit dem Raidplan.`,
-    };
-}
-
-module.exports = { PLANNING_MODES, normalizeCategoryPlanning, planningOf, planningRefusal, sheetVersionRefusal };
+module.exports = { PLANNING_MODES, normalizeCategoryPlanning, planningOf, planningRefusal };

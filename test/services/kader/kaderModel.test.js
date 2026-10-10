@@ -88,6 +88,18 @@ describe("services/kader/kaderModel", () => {
             expect(refusal(() => model.createKader(model.emptyPlanner(), { name: "" }, ctx)).status).toBe(400);
         });
 
+        it("gives every Kader a game version: the one asked for, else the planner's own (#741)", () => {
+            expect(withKader().kader.versionId).toBe("forever");
+            const tbc = model.createKader(model.emptyPlanner(), { name: "TBC", versionId: "tbc" }, ctx);
+            expect(tbc.planner.kaders[0].versionId).toBe("tbc");
+            expect(model.createKader(model.emptyPlanner(), { name: "X", versionId: "wotlk" }, ctx).planner.kaders[0].versionId).toBe("forever");
+            // stored before #741 without a version: Forever
+            expect(model.normalizeKader({ id: "k", name: "Alt" }).versionId).toBe("forever");
+            expect(model.kaderInVersion({ versionId: "tbc" }, "tbc")).toBe(true);
+            expect(model.kaderInVersion({}, "tbc")).toBe(false);
+            expect(model.kaderInVersion({ versionId: "tbc" }, "")).toBe(true);
+        });
+
         it("renames, changes the leads (never none) and deletes", () => {
             const { planner, kaderId } = withKader();
             let next = model.updateKader(planner, { kaderId, name: "Mittwoch", leads: [U.lead, U.lead2] }, ctx);

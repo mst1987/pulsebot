@@ -1,4 +1,4 @@
-const { json, routerClient } = require("../../helpers/http");
+const { json, jsonRequest, mockRes, routerClient } = require("../../helpers/http");
 
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
@@ -199,7 +199,7 @@ const evalJobs = require("../../../src/web/logcheck/evalJobs");
 const flushJobs = () => new Promise((r) => setImmediate(r));
 const manualLog = require("../../../src/web/logcheck/manualLog");
 const { buildReport, ReportError } = require("../../../src/utils/logcheck/report");
-const { post, get } = routerClient(require("../../../src/web/apiRoutes/cla"));
+const { post, get, handle, urlFor } = routerClient(require("../../../src/web/apiRoutes/cla"));
 
 describe("web/apiRoutes/cla", () => {
     describe("GET /api/cla", () => {
@@ -247,7 +247,7 @@ describe("web/apiRoutes/cla", () => {
         it("passes filter/sort/dir/page through to prepareClaList", async () => {
             await get("/api/cla", { filter: "unlinked", sort: "event", dir: "asc", page: "2" });
             expect(reportList.prepareClaList).toHaveBeenCalledWith(
-                [], [], { filter: "unlinked", sort: "event", dir: "asc", page: "2" }, { allLogs: [] },
+                [], [], { filter: "unlinked", sort: "event", dir: "asc", page: "2" }, { allLogs: [], inVersion: expect.any(Function) },
             );
         });
 
@@ -315,6 +315,54 @@ describe("web/apiRoutes/cla", () => {
                 expect.any(Array),
                 [{ id: "e1", source: "raidhelper", title: "Kara", startTime: 100, channelId: "c1", channelName: "log-chan", categoryId: "cat1", categoryName: "Raids", versionId: "tbc" }],
             );
+        });
+
+        it("lists one game version (#741): unlinked logs under every version, linked ones and link reports only under theirs", async () => {
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc" });
+            logStore.listLogs.mockReturnValue([
+                { id: "tbc-log", eventId: "rh-tbc", versionId: "tbc", postedAt: 4 },
+                { id: "forever-log", eventId: "rh-forever", versionId: "forever", postedAt: 3 },
+                { id: "waiting", postedAt: 2 },
+            ]);
+            reportStore.listReports.mockReturnValue([
+                { id: "r-tbc", generatedAt: 1, versionId: "tbc" },
+                { id: "r-forever", generatedAt: 0, versionId: "forever" },
+            ]);
+            const forever = json(await get("/api/cla", { version: "forever" })).data;
+            expect(forever.page.items.map((r) => r.id)).toEqual(["forever-log", "waiting", "report:r-forever"]);
+            expect(forever.counts).toMatchObject({ all: 3, unlinked: 1 });
+            expect(forever.version).toBe("forever");
+            const tbc = json(await get("/api/cla")).data;
+            expect(tbc.page.items.map((r) => r.id)).toEqual(["tbc-log", "waiting", "report:r-tbc"]);
+            // "all" is no answer any more: the main version
+            expect(json(await get("/api/cla", { version: "all" })).data.version).toBe("tbc");
+        });
+
+        it("offers only the raids of the shown version as candidates and for auto-assign (#741)", async () => {
+            activeGuildFor.mockReturnValue("guild-1");
+            const config = { mainVersion: "tbc", categoryVersion: { "cat-forever": "forever" } };
+            settingsStore.getConfig.mockReturnValue(config);
+            // the matchable events resolve their version from the stored config (mainVersion.js)
+            const configSpy = jest.spyOn(require("../../../src/stores/configStore"), "getConfig").mockReturnValue(config);
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1" }]);
+            discord.getChannelCategoryMap.mockReturnValue({
+                c1: { name: "kara", categoryId: "cat-tbc", categoryName: "TBC" },
+                c2: { name: "bd", categoryId: "cat-forever", categoryName: "Forever" },
+            });
+            mockGetPastEvents.mockResolvedValue([
+                { id: "e-tbc", title: "Kara", startTime: 100, channelId: "c1" },
+                { id: "e-forever", title: "Barrow Deeps", startTime: 200, channelId: "c2" },
+            ]);
+            await get("/api/cla", { version: "forever" });
+            expect(logEventMatch.annotateMatches.mock.lastCall[1].map((e) => e.id)).toEqual(["e-forever"]);
+            expect(logEventMatch.autoMatches.mock.lastCall[1].map((e) => e.id)).toEqual(["e-forever"]);
+
+            logEventMatch.autoMatches.mockClear();
+            auth.checkCsrf.mockReturnValue(true);
+            const req = jsonRequest("POST", "/api/cla/log-automatch", {}, { "x-csrf-token": "tok" });
+            await handle("/api/cla/log-automatch", req, mockRes(), urlFor("/api/cla/log-automatch", { version: "tbc" }));
+            expect(logEventMatch.autoMatches.mock.lastCall[1].map((e) => e.id)).toEqual(["e-tbc"]);
+            configSpy.mockRestore();
         });
 
         it("surfaces the Raid-Helper error as matchEventsError and offers no auto-assign", async () => {

@@ -12,6 +12,9 @@
         "textPublic": "This version is hidden. The raid plan stays readable through the link.",
         "readOnly": "Read only"
     },
+    "followVersion": {
+        "switched": "You are now in {version}"
+    },
     "brandSub": "Guild menu",
     "toHome": "Go to overview",
     "menu": {

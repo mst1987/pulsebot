@@ -520,7 +520,11 @@ export type CouncilLog = {
 };
 
 /** What the council has content data for in a game version: BiS lists, simulation, tier/raid filter, item table (#748). */
-export type CouncilContent = { bis: boolean; sim: boolean; tiers: boolean; itemTable: boolean };
+export type CouncilContent = {
+    bis: boolean; sim: boolean; tiers: boolean; itemTable: boolean;
+    /** The version has BiS data, but it is switched off in Einstellungen → Spielversion (#761). */
+    off?: boolean;
+};
 
 export type LootCouncilData = {
     roster: CouncilRaider[];
@@ -587,7 +591,7 @@ export type CouncilFilter = {
     category?: string;
     bisTier?: string;
     item?: number;
-    /** A version id, or "all" for every version; unset = the main version (#545). */
+    /** A version id; unset = the main version (#545) — the page never asks for every version (#741). */
     version?: string;
     /** With a roster: Ersatz shown as candidates too (#667). */
     bench?: boolean;

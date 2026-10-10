@@ -4,6 +4,7 @@ import {
     deleteEventSeries, getEventSeries, previewEventSeries, runEventSeries, saveEventSeries,
     type ApiError, type EventSeriesData, type EventSeriesInput, type SeriesCategory, type SeriesDate, type SeriesPreview } from "../api";
 import { useApi } from "../hooks/useApi";
+import { useContentVersion } from "../hooks/useContentVersion";
 import AsyncView from "../components/ui/AsyncView";
 import { useCollectionEditor } from "../lib/ui/collectionEditor";
 import {
@@ -277,7 +278,9 @@ export default function EventSeriesPage() {
     const t = useT();
     const editor = useCollectionEditor("edit");
     const toast = useToast();
-    const series = useApi(() => getEventSeries(), []);
+    // The series of the categories that play the menu's content version (#741).
+    const { version } = useContentVersion();
+    const series = useApi(() => (version ? getEventSeries(version) : getEventSeries()), [version]);
     const [running, setRunning] = useState(false);
 
     return (

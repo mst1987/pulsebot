@@ -10,26 +10,22 @@
 //   3. LEGACY_VERSION (TBC) — also what every log and report stored before
 //      #746 counts as
 //
-// Whether the log check can read a version is logcheckCapability (#747): its
+// Whether the log check CAN read a version is logcheckCapability (#747): its
 // rule set (utils/logcheck/rules.js) must be ready AND a Warcraft-Logs site
 // must be known for it. Today that is TBC only — Forever's rule set is
-// prepared but not ready, and its site is not known yet. A log of any other
-// version is refused with a clear message before a single request goes to
-// Warcraft Logs (UnsupportedVersionError in utils/logcheck/report.js).
+// prepared but not ready, and its site is not known yet. Whether it DOES is
+// the feature "logcheck" of services/events/versionCapabilities.js (#761):
+// possible as above, and not switched off in Einstellungen → Spielversion.
+// A log of any other version is refused with a clear message before a single
+// request goes to Warcraft Logs (UnsupportedVersionError in utils/logcheck/report.js).
 const WarcraftLogs = require("../../classes/warcraftlogs");
-const { parseReportLink, WCL_LEGACY_SITE } = require("../../utils/logcheck/logLinks");
-const { logcheckRules } = require("../../utils/logcheck/rules");
+const { parseReportLink } = require("../../utils/logcheck/logLinks");
 const { LEGACY_VERSION, VERSIONS } = require("../../config/gameVersions");
 const { knownVersion, versionOfEvent, mainVersionFor } = require("../events/mainVersion");
 const { versionLinks, versionLabel } = require("../events/versionSettings");
+const { versionOfLog } = require("../events/storedVersion");
 
-// The v1 site the log check asks for a version, where it is fixed in code.
-// TBC keeps the classic host the CLA port has always asked (it serves the
-// fresh reports too), so nothing changes for TBC; every other version asks the
-// Warcraft-Logs site of its settings (Einstellungen → Spielversion).
-const LOGCHECK_VERSIONS = {
-    tbc: { apiSite: WCL_LEGACY_SITE },
-};
+const capabilities = require("../events/versionCapabilities");
 
 const str = (v) => (v === undefined || v === null ? "" : String(v)).trim();
 
@@ -105,37 +101,17 @@ function categoryVersion(log, { config } = {}) {
 }
 
 /**
- * Whether the log check can read a version, and why not — the hook the
- * per-version feature matrix (#761) reads. Possible only when the version's
- * rule set is ready AND a Warcraft-Logs site is known for it.
- * @param {string} versionId
- * @param {{ config?: object }} [opts]
- * @returns {{ possible: boolean, reason: ""|"unknown_version"|"no_rules"|"rules_not_ready"|"no_site", message: string, missing: string[] }}
- *   `message` is the German reason for a tooltip, `missing` what the rule set still lacks
+ * Whether the log check reads a version: possible (log rule set ready, Warcraft-Logs
+ * site known: versionCapabilities.logcheckCapability) and not switched off for it
+ * (#761) - asked through the one source.
  */
-function logcheckCapability(versionId, { config } = {}) {
-    const id = knownVersion(versionId);
-    const no = (reason, message, missing = []) => ({ possible: false, reason, message, missing });
-    if (!id) return no("unknown_version", "Unbekannte Spielversion.");
-    const label = versionLabel(id);
-    const rules = logcheckRules(id);
-    if (!rules) return no("no_rules", `Für ${label} gibt es keine Logcheck-Regeln.`);
-    if (!rules.ready) return no("rules_not_ready", `Die Logcheck-Regeln für ${label} sind noch nicht fertig.`, [...rules.missing]);
-    if (!wclApiSite(id, { config })) return no("no_site", `Für ${label} ist keine Warcraft-Logs-Seite eingetragen.`);
-    return { possible: true, reason: "", message: "", missing: [] };
-}
-
-/** Whether the log check reads a version: its rule set is ready and its Warcraft-Logs site known. */
 function logcheckSupported(versionId, opts) {
-    return logcheckCapability(versionId, opts).possible;
+    return capabilities.featureOn(versionId, "logcheck", opts);
 }
 
-/** The v1 site the log check asks for a version, "" when it has none. */
-function wclApiSite(versionId, { config } = {}) {
-    const own = LOGCHECK_VERSIONS[str(versionId)];
-    if (own && own.apiSite) return own.apiSite;
-    return knownVersion(versionId) ? versionLinks(versionId, { config }).wclSite : "";
-}
+// The possibility and the v1 site live with the feature source (#761); kept here
+// under their old names for the log check's callers.
+const { logcheckCapability, wclApiSite } = capabilities;
 
 /**
  * A v1 client for a version's site. Throws like the constructor without an API
@@ -171,13 +147,39 @@ function linkConflict(log, event, { config } = {}) {
     return `Dieses Log ist von ${versionLabel(logVersion)}, der Raid von ${versionLabel(eventVersion)}. Ein Log gehört nur zu einem Raid seiner Version.`;
 }
 
-/** The German refusal for a version the log check has no rules for (web and orga). */
-function unsupportedMessage(versionId) {
+/**
+ * Whether a log or a report belongs in one version's list (#741, the web shows
+ * one version at a time):
+ *   - a log without a raid: in every version, as "nicht zugeordnet" — it waits
+ *     for its raid, and whoever looks at either version may link it;
+ *   - a log with a raid: only in the version of that raid (its stored version,
+ *     storedVersion.versionOfLog; the version stamped at linking when the raid
+ *     is no longer stored);
+ *   - a report without a log (built from a pasted link): in its own version.
+ * `versionId` "" lets everything through.
+ * @param {{ kind?: string, eventId?: string, versionId?: string }} record  a stored log, or a row
+ *   of the log list (reportList.js: kind "log" or "report")
+ * @param {string} versionId
+ */
+function inVersionList(record, versionId) {
+    if (!versionId) return true;
+    const r = record || {};
+    const eventId = str(r.eventId);
+    if (!eventId && r.kind !== "report") return true;
+    return ((eventId && versionOfLog(r)) || recordVersion(r)) === versionId;
+}
+
+/**
+ * The German refusal for a version the log check does not read (web and orga):
+ * switched off in the settings (#761) says so, anything else "not yet".
+ */
+function unsupportedMessage(versionId, opts) {
+    const state = capabilities.featureState(versionId, "logcheck", opts);
+    if (state.possible && !state.enabled) return state.message;
     return `Logs von ${versionLabel(versionId)} werden noch nicht ausgewertet.`;
 }
 
 module.exports = {
-    LOGCHECK_VERSIONS,
     versionOfHost, linkVersion, resolveReportVersion, recordVersion, knownLogVersion, categoryVersion,
-    logcheckCapability, logcheckSupported, wclApiSite, wclClientFor, reportLink, linkConflict, unsupportedMessage,
+    logcheckCapability, logcheckSupported, wclApiSite, wclClientFor, reportLink, linkConflict, unsupportedMessage, inVersionList,
 };
