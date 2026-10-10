@@ -134,7 +134,12 @@ export type DashboardTask = {
     tipSub: string;
     /** A button beside the row (orga with raid write access only). */
     action?: DashboardTaskAction;
+    /** The fields above as keys under `dashboard.task.` with their params — the client words them (lib/dashboard/taskText.ts). */
+    texts?: Partial<Record<"title" | "ref" | "tip" | "tipSub" | "action", DashboardTaskText | DashboardTaskText[]>>;
 };
+
+/** One task text: a key with its params (`date`/`day` in ms), or a raw text (a name, the server's own error sentence). */
+export type DashboardTaskText = { key?: string; params?: Record<string, string | number>; text?: string };
 
 export type DashboardLastReport = {
     id: string;
@@ -168,6 +173,8 @@ export type PersonalRaid = {
     icon: string;
     status: PersonalStatus;
     character: string;
+    /** the spec's key ("Rogue-Combat", a Raid-Helper specName) — worded by wowNames.specLabel; `spec` is the server's German fallback */
+    specKey?: string;
     spec: string;
     specIcon: string;
     /** the approved setup's group, or the bench; null = no approved setup or not placed */

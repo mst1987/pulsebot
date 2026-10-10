@@ -112,6 +112,8 @@ a.ov-row:hover .ov-go { color: var(--accent); }
 .ov-me-box.accent .ov-area-lbl { color: var(--accent); }
 .ov-me-box-v { font-size: 17px; font-weight: 800; line-height: 1.25; }
 .ov-me-box-s { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-me-spec { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; }
+.ov-me-spec .wi { width: 16px; height: 16px; border-radius: 3px; flex: 0 0 auto; }
 .ov-me-plan { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
 .ov-me-plan-hd { display: flex; align-items: center; gap: 10px; }
 .ov-me-plan-all { margin-left: auto; font-size: 13px; }

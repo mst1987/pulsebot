@@ -8,6 +8,7 @@ import * as api from "../../api";
 import type { DashboardData, DashboardPersonal, PersonalRaid, RaidplanPublic, SessionUser } from "../../api";
 import { t } from "../../i18n";
 import { renderPage } from "../../test/render";
+import { switchLang } from "../../test/i18n";
 import DashboardPage from "./DashboardPage";
 
 vi.mock("../../api", async (orig) => ({
@@ -126,7 +127,8 @@ describe("Übersicht for a raider", () => {
         expect(within(rows[0]).getByRole("link", { name: t("dashboard.personal.signUp") })).toHaveAttribute("href", "/signups?event=eh-2");
         expect(within(rows[0]).getByText(/Pulse Montag/)).toHaveTextContent(t("dashboard.personal.list.deadline", { when: "" }).trim());
         expect(within(rows[1]).getByText(t("dashboard.personal.closed"))).toBeInTheDocument();
-        expect(within(rows[2]).getByText(t("dashboard.personal.status.tentative"))).toBeInTheDocument();
+        // a "maybe" names the spec it would bring too
+        expect(within(rows[2]).getByText(`${t("dashboard.personal.status.tentative")} · Holy`)).toBeInTheDocument();
         // the next raid is not repeated in the list
         expect(within(card).queryByText("Hyjal+BT+Gruul")).not.toBeInTheDocument();
     });
@@ -173,6 +175,21 @@ describe("Übersicht for a raider", () => {
         expect(chip).toHaveAttribute("href", "/p/tok?section=bt%2Fnajentus");
         expect(screen.queryByRole("link", { name: "Supremus" })).not.toBeInTheDocument();
         expect(screen.getByRole("link", { name: t("dashboard.personal.plan.open") })).toHaveAttribute("href", "/p/tok");
+    });
+
+    it("shows the spec as its icon and its name in the reader's language, never the server's German label", async () => {
+        const raid = myRaid({ specKey: "Rogue-Combat", spec: "Kampf", specIcon: "ability_backstab", character: "Schleich" });
+        await switchLang("en");
+        try {
+            await show(dashboard({ personal: personal({ upcoming: [raid, myRaid({ id: "eh-2", specKey: "Rogue-Combat", spec: "Kampf", specIcon: "ability_backstab" })] }) }));
+            expect(screen.queryByText(/Kampf/)).not.toBeInTheDocument();
+            const badge = screen.getByText(`${t("dashboard.personal.status.signed")} · Combat`);
+            expect(badge.closest(".badge")!.querySelector("img")!.getAttribute("src")).toContain("ability_backstab");
+            const box = screen.getByText("Schleich · Combat").closest(".ov-me-spec")!;
+            expect(box.querySelector("img")!.getAttribute("src")).toContain("ability_backstab");
+        } finally {
+            await switchLang("de");
+        }
     });
 
     it("says so when no raid is coming up", async () => {

@@ -224,6 +224,15 @@ function newLootSince(awards, sinceMs) {
 
 
 /**
+ * A task text the client words in the reader's language: the key under
+ * `dashboard.task.` with what it needs (counts, names; `date`/`day` as ms the
+ * client formats). The German fields stay as they are - the fallback for a key
+ * the client does not know. A field may also be a list of pieces (joined with
+ * " · " for the reference line, a space otherwise), or a raw `{ text }`.
+ */
+const txt = (key, params = {}) => ({ key, params });
+
+/**
  * The open tasks, one row each and only when there is something to do. Every
  * task leads straight to where it is done; the tooltip says why it is open.
  *
@@ -269,6 +278,7 @@ function buildTasks({
             href: `/raids/detail?event=${encodeURIComponent(first.id)}`,
             tip: noSheet.length > 1 ? `${noSheet.length} Raids ohne Raidsheet` : "Raidsheet fehlt",
             tipSub: "Für den Raid wurde noch kein Sheet gefüllt, und seiner Kategorie ist kein festes Sheet zugewiesen. Öffnet das Raid-Event.",
+            texts: { title: txt("sheet.title"), tip: txt("sheet.tip", { count: noSheet.length }), tipSub: txt("sheet.tipSub") },
         });
     }
 
@@ -280,6 +290,7 @@ function buildTasks({
             href: `/r/${encodeURIComponent(report.id)}#raid`,
             tip: `${plural(report.open, "Empfehlung", "Empfehlungen")} ungeprüft`,
             tipSub: "Niemand hat sie freigegeben oder verworfen – erst freigegebene Punkte gehen an die Raider. Öffnet den Report in der Sicht Raid.",
+            texts: { title: txt("recommendations.title"), tip: txt("recommendations.tip", { count: report.open }), tipSub: txt("recommendations.tipSub") },
         });
     }
 
@@ -294,6 +305,7 @@ function buildTasks({
             href: `/raids/detail?event=${encodeURIComponent(first.id)}&tab=logs`,
             tip: `${plural(logs, "Log passt", "Logs passen")} zu mehreren Raids`,
             tipSub: "Zeitlich kommen mehrere Raids am selben Abend in Frage; die automatische Zuordnung hat keinen gewählt. Öffnet den Logs-Tab des Raids.",
+            texts: { title: txt("logs.title"), tip: txt("logs.tip", { count: logs }), tipSub: txt("logs.tipSub") },
         });
     }
 
@@ -306,6 +318,10 @@ function buildTasks({
             href: "/history?tab=inbox",
             tip: "Hochgeladener Loot wartet",
             tipSub: "Das Addon hat Loot hochgeladen, der noch keinem Raid zugeordnet ist. Öffnet die Addon-Inbox unter Historie & Loot.",
+            texts: {
+                title: txt("inbox.title"), ref: [txt("inbox.sessions", { count: inbox.length }), txt("inbox.items", { count: items })],
+                tip: txt("inbox.tip"), tipSub: txt("inbox.tipSub"),
+            },
         });
     }
 
@@ -321,6 +337,11 @@ function buildTasks({
             href: "/channels?tab=archive",
             tip: `${plural(archive.count, "archivierter Kanal wartet", "archivierte Kanäle warten")} auf Löschung`,
             tipSub: "Archivierte Kanäle werden nie automatisch gelöscht. Öffnet das Archiv der Kanäle-Seite, wo ein Admin sie löscht.",
+            texts: {
+                title: txt("channels.title"),
+                ref: overdue ? txt("channels.refOverdue", { count: overdue, days: archive.hintDays }) : txt("channels.refWaiting", { count: archive.count }),
+                tip: txt("channels.tip", { count: archive.count }), tipSub: txt("channels.tipSub"),
+            },
         });
     }
 
@@ -351,6 +372,14 @@ function roleDriftTask(roleDrift) {
         href: "/settings?section=discordserver",
         tip: `${plural(total, "Mitglied trägt", "Mitglieder tragen")} eine abgeglichene Rolle ohne ihre Ursprungsrolle`,
         tipSub: "Der Rollen-Abgleich vergibt nur und entfernt nie. Wer die Rolle auf einem Server verloren hat, behält sie auf dem anderen, bis jemand sie in Discord entfernt. Öffnet Einstellungen → Discord-Server.",
+        texts: {
+            title: txt("rolesync.title"),
+            ref: [
+                txt(first.guildName ? "rolesync.ref" : "rolesync.refOther", { count: first.members.length, role: first.roleName, guild: first.guildName || "" }),
+                ...(groups.length > 1 ? [txt("rolesync.more", { count: groups.length - 1 })] : []),
+            ],
+            tip: txt("rolesync.tip", { count: total }), tipSub: txt("rolesync.tipSub"),
+        },
     };
 }
 
@@ -372,6 +401,10 @@ function missingChannelTasks(list, { canRecreate = false } = {}) {
         tip: "Der Discord-Kanal des Raids existiert nicht mehr",
         tipSub: "Mit ihm ist die Anmelde-Nachricht weg; die Übersichten zeigen „channel missing“ statt eines Links. „Kanal neu anlegen“ legt ihn nach der Namensregel in der Kategorie des Events an und postet die Anmelde-Nachricht dort. Öffnet sonst das Raid-Event.",
         ...(canRecreate ? { action: { kind: "recreateChannel", eventId: m.eventId, label: "Kanal neu anlegen" } } : {}),
+        texts: {
+            title: txt("channelMissing.title", { title: m.title || "Raid" }), tip: txt("channelMissing.tip"), tipSub: txt("channelMissing.tipSub"),
+            ...(canRecreate ? { action: txt("channelMissing.action") } : {}),
+        },
     }));
 }
 
@@ -396,6 +429,16 @@ function eventSeriesTask(failures) {
         href: "/raids/series",
         tip: first.error || (list.length > 1 ? `${list.length} Termine von Serien fehlgeschlagen` : "Termin einer Serie fehlgeschlagen"),
         tipSub: "Die Serie hat das Event dieses Termins nicht anlegen können. Sie versucht es höchstens dreimal im Abstand von 10 Minuten, danach nur noch auf Knopfdruck. Öffnet Raid-Events › Serien mit Grund und „Erneut versuchen“.",
+        texts: {
+            // the reason is the server's own error sentence: it stays as it came
+            title: txt("series.title", { reason }),
+            ref: [
+                ...(first.categoryName ? [{ text: first.categoryName }] : []),
+                day.isValid ? txt("series.day", { day: day.toMillis() }) : { text: String(first.date || "") },
+            ],
+            tip: first.error ? { text: first.error } : txt("series.tip", { count: list.length }),
+            tipSub: txt("series.tipSub"),
+        },
     };
 }
 
@@ -432,6 +475,14 @@ function deployTask(deploy, now = Date.now()) {
         href: DEPLOY_GUIDE_URL,
         tip: `${plural(behind, "Commit ist", "Commits sind")} auf main, aber nicht auf dem Server`,
         tipSub: "Das automatische Deployment hat den Stand nicht übernommen. Öffnet die Anleitung: welche Secrets es braucht und wie man von Hand deployt.",
+        texts: {
+            title: [txt("deploy.title", { count: behind }), ...(since ? [txt("deploy.since", { count: days })] : [])],
+            ref: [
+                deploy.short ? txt("deploy.running", { commit: deploy.short }) : txt("deploy.unknown"),
+                ...(deploy.latest && deploy.latest.short ? [txt("deploy.main", { commit: deploy.latest.short })] : []),
+            ],
+            tip: txt("deploy.tip", { count: behind }), tipSub: txt("deploy.tipSub"),
+        },
     };
 }
 
@@ -456,6 +507,11 @@ function trialTasks(list) {
             tip: m.overdue ? `Die Probezeit lief am ${day} ab` : `Die Probezeit endet am ${day}`,
             tipSub: "Übernehmen macht die Person zum Stamm, Verlängern schiebt das Ende um 14 Tage. Von selbst ändert sich nichts. Öffnet sonst das Roster.",
             action: { kind: "rosterTrial", rosterId: m.rosterId, userId: m.userId, extendTo: m.extendTo, label: "" },
+            texts: {
+                title: txt(m.overdue ? "trial.titleOverdue" : "trial.title", { name: m.displayName }),
+                tip: txt(m.overdue ? "trial.tipOverdue" : "trial.tip", { date: at }),
+                tipSub: txt("trial.tipSub"),
+            },
         };
     });
 }

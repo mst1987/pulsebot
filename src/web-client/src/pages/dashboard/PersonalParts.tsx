@@ -16,6 +16,7 @@ import { PartHead } from "../../components/ui/PartHead";
 import { buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";
+import { specLabel } from "../../lib/wow/wowNames";
 import { bossesWithMine } from "../../lib/raidplan/bossMine";
 import { rosterMap } from "../../lib/raidplan/players";
 import { sectionLabel } from "../../lib/raidplan/profiles";
@@ -33,6 +34,11 @@ function signupHref(eventId: string): string {
     return `/signups?event=${encodeURIComponent(eventId)}`;
 }
 
+/** The raider's spec in the reader's language: from its key, the server's German label only when the key is unknown. */
+function mySpec(raid: PersonalRaid): string {
+    return raid.specKey ? specLabel(raid.specKey, raid.spec) : raid.spec;
+}
+
 /** Whether "Anmelden" still works for a raid without the raider's signup. */
 function canSignUp(raid: PersonalRaid): boolean {
     return !raid.status && !raid.cancelled && !raid.signupsClosed && !raid.deadlinePassed && !raid.rosterOnly;
@@ -47,7 +53,14 @@ export function MyStatus({ raid }: { raid: PersonalRaid }) {
         return <Badge tip={t(raid.rosterOnly ? "dashboard.personal.rosterOnlyTip" : "dashboard.personal.closedTip")}>{t(raid.rosterOnly ? "dashboard.personal.rosterOnly" : "dashboard.personal.closed")}</Badge>;
     }
     const label = t(`dashboard.personal.status.${raid.status}`);
-    return <Badge tone={STATUS_TONE[raid.status]}>{raid.status === "signed" && raid.spec ? `${label} · ${raid.spec}` : label}</Badge>;
+    // the spec shows as its icon and its name in the reader's language, so "which spec" is seen at a glance
+    const spec = mySpec(raid);
+    const showSpec = raid.status !== "absence" && !!spec;
+    return (
+        <Badge tone={STATUS_TONE[raid.status]} icon={showSpec && raid.specIcon ? raid.specIcon : undefined}>
+            {showSpec ? `${label} · ${spec}` : label}
+        </Badge>
+    );
 }
 
 type PlanMine = { state: "none" | "loading" | "error" | "done"; bosses: { key: string; label: string }[] };
@@ -175,7 +188,7 @@ export function MyNextRaid({ raid, compact = false }: { raid: PersonalRaid | nul
                         label={t("dashboard.personal.box.signup")}
                         value={raid.status ? t(`dashboard.personal.status.${raid.status}`) : t("dashboard.personal.box.notYet")}
                         sub={raid.status
-                            ? [raid.character, raid.spec].filter(Boolean).join(" · ")
+                            ? <span className="ov-me-spec">{raid.specIcon && <WowIcon name={raid.specIcon} size={16} />}{[raid.character, mySpec(raid)].filter(Boolean).join(" · ")}</span>
                             : canSignUp(raid) ? <Link to={signupHref(raid.id)}>{t("dashboard.personal.signUp")}</Link> : null}
                     />
                     <Box label={t("dashboard.personal.box.setup")} value={setupText(raid, t)} sub={signed && !raid.placement ? t("dashboard.personal.setup.noneSub") : undefined} />
