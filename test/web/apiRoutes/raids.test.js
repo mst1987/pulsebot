@@ -314,6 +314,15 @@ describe("web/apiRoutes/raids", () => {
                 expect(discord.memberRoleIds).toHaveBeenCalledWith("guild-1", "u1");
             });
 
+            it("gets no Raid-Helper sync message - it points into the orga's settings", async () => {
+                const groups = await raidEventGroups.loadEventGroups();
+                raidEventGroups.loadEventGroups.mockResolvedValue({ ...groups, error: "Raid-Helper nicht abgeglichen." });
+                auth.getUser.mockReturnValue(RAIDER);
+                expect(json(await get("/api/raids")).data.error).toBeNull();
+                auth.getUser.mockReturnValue(ORGA_ROLE);
+                expect(json(await get("/api/raids")).data.error).toBe("Raid-Helper nicht abgeglichen.");
+            });
+
             it("sees a category of their raider role", async () => {
                 discord.memberRoleIds.mockResolvedValue(["r-mo"]);
                 expect(await ids(RAIDER)).toEqual(["e-mo", "e-mi", "e-mine"]);

@@ -41,7 +41,8 @@ const getRaids = withUser({}, async ({ user, req, res, url }) => {
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
     const events = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
     ok(res, {
-        events, error: err, activeGuildId: guildId, guildName: (guild && guild.name) || "",
+        // the Raid-Helper sync message points into the settings: the orga's, a raider just gets the list
+        events, error: viewer.orga ? err : null, activeGuildId: guildId, guildName: (guild && guild.name) || "",
         version: versionId, mainVersion, versions: versionChoices(rows.map((r) => ({ versionIds: [r.versionId] })), mainVersion),
     });
 });
@@ -64,7 +65,7 @@ const getPastRaids = withUser({}, async ({ user, req, res, url }) => {
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
     const events = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
     ok(res, {
-        events, error: err, activeGuildId: guildId,
+        events, error: viewer.orga ? err : null, activeGuildId: guildId,
         version: versionId, mainVersion, versions: versionChoices(rows.map((r) => ({ versionIds: [r.versionId] })), mainVersion),
     });
 });

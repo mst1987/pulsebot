@@ -428,7 +428,8 @@ describe("a raider's read (Oct 2026: raids of foreign categories and the orga's 
 
     it("leaves the orga's parts out: logs, attendance, other people's comments, summaries, steps, dialog data", async () => {
         settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["r1"] } });
-        loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+        // a stale event list: the orga would read the sync warning, a raider does not
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent(), { stale: true, error: "Raid-Helper down" }));
         getEvent.mockReturnValue({ status: "active", setup: null, log: [{ action: "x" }, { action: "y" }] });
         signupStore.listSignups.mockReturnValue(signups);
         getEventSoftres.mockReturnValue({ url: "https://softres.it/raid/abc", editUrl: "https://softres.it/raid/abc?token=t", token: "t", instances: ["kara"], amount: 2, postedMessage: "hi" });
@@ -452,6 +453,7 @@ describe("a raider's read (Oct 2026: raids of foreign categories and the orga's 
         expect(d.steps).toBeNull();
         expect(d.progress).toEqual({ steps: [], next: "", primary: null });
         expect(d.event.logCount).toBe(0);
+        expect(d.eventsWarning).toBeNull();
         expect(d).not.toHaveProperty("pingTargets");
         // the softres link stays, the edit link and the posted message do not
         expect(d.eventSoftres).toEqual({ url: "https://softres.it/raid/abc", editUrl: "", edition: "", instances: ["kara"], amount: 2, hardReserveCount: 0 });

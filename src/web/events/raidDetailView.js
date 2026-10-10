@@ -312,6 +312,8 @@ function forRaider(payload, userId) {
     const out = {
         ...payload,
         event,
+        // the Raid-Helper sync message points into the settings: the orga's
+        eventsWarning: null,
         notifyTemplates: [],
         roles: [],
         raidsheets: [],
