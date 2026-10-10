@@ -326,6 +326,8 @@ function publicView(plan, event, { me = "" } = {}) {
                 })), slots, roster, board.roles || {}),
                 // the tactic: each step resolved on its own from the approved setup (a missing class stays its reference: an open chip)
                 steps: stepsOf.resolveSteps(board.steps || [], { slots, roster, roles: board.roles || {}, known }),
+                // the animations move objects of the map: none without it (a reference to an object left out above simply moves nothing)
+                scenes: mapOn ? board.scenes || [] : [],
                 notes: board.notes,
                 profileName: (profileStore.getProfile(board.profileId) || {}).name || "",
             };

@@ -46,6 +46,33 @@ function demoSlots() {
         ...Array.from({ length: 5 }, (_, i) => ({ kind: "group", n: i + 1, x: 0.12 + 0.19 * i, y: 0.92 }))];
 }
 
+/**
+ * Gurtogg's board of the demo: the boss, the melee groups 1-2 at him, the ranged groups 3-5 at their places, and the scene in which
+ * Bloodboil hits the group at the back, which runs to the front while the next group falls back (twice).
+ */
+function gurtoggDemo(key) {
+    const back = [0.5, 0.8], left = [0.18, 0.72], right = [0.82, 0.72];
+    const group = (n, [x, y]) => ({ id: `bbg${n}`, kind: "group", n, label: "", x, y, split: true, groupScale: 0.75 });
+    const move = (n, [x, y], extra = {}) => ({ obj: `slot:bbg${n}`, x, y, dur: 2, ease: "inout", ...extra });
+    const debuff = (n) => ({ obj: `slot:bbg${n}`, badge: "spell_shadow_bloodboil", pulse: true, dur: 0 });
+    return {
+        slots: [group(1, [0.3, 0.33]), group(2, [0.7, 0.33]), group(3, back), group(4, left), group(5, right)],
+        icons: [{ id: "bbboss", iconKey: "bosspos", label: "Gurtogg", showLabel: true, x: 0.5, y: 0.14, size: 56, rotation: 180, mobId: `b:${key}`, autoFace: true, opacity: 1, lock: false, hidden: false }],
+        scenes: [{
+            id: "bbrot", title: "Bloodboil-Rotation", loop: false, length: 13,
+            frames: [
+                { id: "f1", at: 0, caption: "Gruppe 3 steht hinten, 4 und 5 warten vorne", changes: [] },
+                { id: "f2", at: 2, caption: "Bloodboil trifft die fünf Entferntesten: Gruppe 3", changes: [debuff(3)] },
+                { id: "f3", at: 3.5, caption: "Gruppe 3 läuft nach vorne, Gruppe 4 rückt nach hinten", changes: [move(3, left, { pulse: false, path: [[0.33, 0.86]] }), move(4, back, { delay: 0.4, path: [[0.36, 0.66]] })] },
+                { id: "f4", at: 6.5, caption: "Nächster Bloodboil: Gruppe 4", changes: [debuff(4)] },
+                { id: "f5", at: 8, caption: "Gruppe 4 nach vorne, Gruppe 5 nach hinten", changes: [move(4, right, { pulse: false, path: [[0.67, 0.86]] }), move(5, back, { delay: 0.4, path: [[0.64, 0.66]] })] },
+                { id: "f6", at: 11, caption: "Bloodboil: Gruppe 5 - und so weiter", changes: [debuff(5)] },
+            ],
+            loops: [],
+        }],
+    };
+}
+
 function arg(name) {
     const i = process.argv.indexOf(`--${name}`);
     return i >= 0 ? String(process.argv[i + 1] || "") : "";
@@ -107,6 +134,12 @@ function seedPlan(eventId, event) {
             icons: autoDemo ? [] : [mk("illidanb", "boss:609", 0.5, 0.5, `b:${key}`), mk("flame1", "mob:22997", 0.28, 0.42, "d:flame-of-azzinoth"), mk("flame2", "mob:22997", 0.72, 0.42, "d:flame-of-azzinoth")],
             assignments: [row("illt1", 1, `b:${key}`, "Illidan Stormrage", ""), row("illt2", 2, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), row("illt3", 3, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), ...bosses[key].assignments.filter((x) => x.type !== "tank")],
         };
+    }
+    // Gurtogg: the five groups as split markers and the animation "Bloodboil-Rotation" (docs/raidplan/animation.md): Bloodboil hits the
+    // group standing farthest away, it runs to the front and the next group falls back
+    {
+        const key = "bt/gurtogg-bloodboil";
+        bosses[key] = { ...bosses[key], ...gurtoggDemo(key) };
     }
     bosses.general = { notes: "Allgemeine Einteilungen: Fluecke, Donnerknall, Demoralisierender Ruf." };
 

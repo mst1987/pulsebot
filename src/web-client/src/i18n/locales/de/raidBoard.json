@@ -1370,5 +1370,24 @@
         "moreSub": "Vorlage, in den Kanal posten, offene Einteilungen",
         "openListSub": "Je Abschnitt; ein Klick öffnet ihn",
         "saveViewHint": "Erst hineinzoomen – das Sheet öffnet den Abschnitt dann mit diesem Ausschnitt."
+    },
+    "anim": {
+        "player": "Animation abspielen",
+        "scenes": "Animationen dieses Abschnitts",
+        "prev": "Vorheriger Takt",
+        "next": "Nächster Takt",
+        "play": "Abspielen",
+        "pause": "Anhalten",
+        "time": "Zeit in der Animation",
+        "frameN": "Takt {n}: {caption}",
+        "frameShort": "Takt {n}",
+        "frameOf": "Takt {n} von {of}",
+        "speed": "Tempo {v}-fach",
+        "speedTip": "Tempo: 0,5× · 1× · 2×",
+        "loop": "Wiederholen",
+        "close": "Animation schließen, zurück zum Plan",
+        "open": "Animation ansehen",
+        "openN": "Animationen ({n})",
+        "openTip": "Zeigt im Ablauf, wer wann wohin läuft"
     }
 }

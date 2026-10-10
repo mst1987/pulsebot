@@ -226,6 +226,20 @@ describe("the public view of the newer objects", () => {
         expect(b.zones).toHaveLength(1);
         expect(b.zones[0].opacity).toBe(0.8);
     });
+
+    it("carries the animations of a section with its map, none without it (docs/raidplan/animation.md)", async () => {
+        const scene = { id: "s1", title: "Kiten", frames: [{ at: 0, changes: [] }, { at: 2, changes: [{ obj: "mark:m1", x: 0.8, y: 0.8 }] }] };
+        await call(route.putPlan, ORGA, { event: "eh-1", version: 0, bosses: { [BOSS]: { marks: [{ id: "m1", mark: "skull", x: 0.2, y: 0.2 }], scenes: [scene] } } });
+        const on = body(await call(route.postPublish, ORGA, { event: "eh-1", published: true }));
+        const token = on.plan.publicPath.replace("/p/", "");
+        const read = async () => { const r = mockRes(); await route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${token}`)); return body(r).bosses[0]; };
+        const b = await read();
+        expect(b.scenes).toHaveLength(1);
+        expect(b.scenes[0].frames[1].changes[0]).toMatchObject({ obj: "mark:m1", x: 0.8, y: 0.8, dur: 1 });
+        const d = body(await call(route.getPlan, ORGA, null, "event=eh-1"));
+        await call(route.putPlan, ORGA, { event: "eh-1", version: d.plan.version, bosses: { [BOSS]: { ...d.plan.bosses[BOSS], showMap: false } } });
+        expect((await read()).scenes).toEqual([]);
+    });
 });
 
 describe("duplicating and deleting a template", () => {

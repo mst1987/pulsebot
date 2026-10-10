@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ChevronLeft, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, Clapperboard, ZoomIn, ZoomOut } from "lucide-react";
 import { useVisiblePoll } from "../../hooks/useVisiblePoll";
 import { hasSectionDeepLink, sectionFromUrl, showSectionInUrl } from "../../lib/raidplan/sectionUrl";
 import { useBoardView } from "../../hooks/useBoardView";
@@ -15,6 +15,9 @@ import { getRaidplanPublic, pollRaidplanPublic, type RaidplanBoard, type Raidpla
 import { useApi } from "../../hooks/useApi";
 import { autoPlaces, deriveAuto } from "../../lib/raidplan/autoPlace";
 import PlanBoard from "../../components/raidplan/PlanBoard";
+import ScenePlayerBar, { SceneCaption } from "../../components/raidplan/ScenePlayerBar";
+import { useScenePlayer } from "../../hooks/useScenePlayer";
+import { autoAtOf, boardAfter, boardAt, frameAt, playable } from "../../lib/raidplan/scene";
 import StageBar from "./stage/StageBar";
 import BossStrip from "./stage/BossStrip";
 import MineCard from "./stage/MineCard";
@@ -129,6 +132,13 @@ export default function PlanPublicPage({ token }: { token: string }) {
     // "Deine Aufgaben" starts folded on a phone, where it would cover half the map
     const [mineFolded, setMineFolded] = useState(() => window.innerWidth < 720);
     const bv = useBoardView({ touchPan: true });
+    // the animation that is open ("" = the plan as it is): it closes with its section
+    const [animId, setAnimId] = useState("");
+    useEffect(() => { setAnimId(""); }, [selected]);
+    const animBoss = data ? data.bosses.find((x) => x.key === selected) || null : null;
+    const scenes = useMemo(() => (animBoss && animBoss.showMap !== false && !animBoss.general ? playable(animBoss.scenes) : []), [animBoss]);
+    const scene = scenes.find((s) => s.id === animId) || null;
+    const player = useScenePlayer(scene, { autoplay: true });
     const [prefs, setPref] = useViewPrefs("eh.raidplan.sheetPrefs");
     const [stageRef, stage] = useStageSize();
     // a section opens with the view the organiser saved for it (the whole picture when there is none); a live update keeps the
@@ -179,7 +189,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const pushed = panel && layout.push && pushable;
     const side = pushed ? Math.min(PANEL_W, stage.w) + 16 : 64;
     // what the tank rows put on the map, exactly as the editor derives it (the rows arrive resolved from the approved setup)
-    const auto = boss && hasMap ? deriveAuto(boss.assignments, boss as unknown as RaidplanBoard, { template: false, roster: planned }) : undefined;
+    const baseAuto = boss && hasMap ? deriveAuto(boss.assignments, boss as unknown as RaidplanBoard, { template: false, roster: planned }) : undefined;
     /** the groups of this section, for the bar's chips that highlight one (the others dim on the map) */
     const groupNs = boss ? Array.from(new Set(boss.slots.filter((sl) => sl.kind === "group").map((sl) => sl.n))).sort((a, b) => a - b) : [];
     // "Only for me": the sections that concern the visitor (he does something, or something acts on him); the open one always stays
@@ -209,6 +219,12 @@ export default function PlanPublicPage({ token }: { token: string }) {
             </div>
         );
     }
+
+    // an open animation moves the objects (lib/raidplan/scene.ts): the board at the player's time, the tank rows' objects from where they stand;
+    // with less motion asked for, frame by frame. `drawn` is what the map shows: the plan as it is, or that moment of the animation
+    const anim = scene ? (player.still ? boardAfter(boss, scene, frameAt(scene, player.t), autoAtOf(baseAuto)) : boardAt(boss, scene, player.t, autoAtOf(baseAuto))) : null;
+    const drawn = anim ? anim.board : boss;
+    const auto = anim ? deriveAuto(drawn.assignments, drawn as unknown as RaidplanBoard, { template: false, roster: planned }) : baseAuto;
 
     const mine = (
         <MineCard
@@ -246,13 +262,14 @@ export default function PlanPublicPage({ token }: { token: string }) {
             <div className="rp-sheet-main">
             {layout.strip === "left" && strip("left")}
             {hasMap ? (
-                <div ref={stageRef} className={`rp-sheet-stage${panel ? " is-panel" : ""}${pushed ? " is-push" : ""}`} style={{ "--rp-side": `${side}px` } as CSSProperties}>
+                <div ref={stageRef} className={`rp-sheet-stage${panel ? " is-panel" : ""}${pushed ? " is-push" : ""}${scene ? " is-anim" : ""}`} style={{ "--rp-side": `${side}px` } as CSSProperties}>
                     {boss.mapUrl && <img className="rp-sheet-backdrop" src={boss.mapUrl} alt="" aria-hidden="true" />}
                     <div className="rp-sheet-board">
                         <PlanBoard
                             bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} maxHeight={boardHeight}
-                            tokens={boss.tokens} slots={boss.slots} marks={boss.marks} zones={boss.zones} icons={boss.icons} objectScale={boss.objectScale} lines={boss.lines} texts={boss.texts} mapOpacity={boss.mapOpacity}
-                            players={players} roster={planned} me={data.meIds} links={prefs.links ? assignmentLinks({ ...boss, places: auto ? autoPlaces(auto) : {} } as never, data.meIds, auto || null) : []} auto={auto} assignments={boss.assignments} showRings={shownFor(boss.showRings, prefs.groupRings)} groupColors={boss.groupColors} groupMarks={boss.groupMarks} focusGroup={focusGroup}
+                            tokens={drawn.tokens} slots={drawn.slots} marks={drawn.marks} zones={drawn.zones} icons={drawn.icons} objectScale={boss.objectScale} lines={drawn.lines} texts={drawn.texts} mapOpacity={boss.mapOpacity}
+                            fx={anim ? anim.fx : undefined} trails={anim ? anim.trails : undefined}
+                            players={players} roster={planned} me={data.meIds} links={prefs.links && !anim ? assignmentLinks({ ...boss, places: auto ? autoPlaces(auto) : {} } as never, data.meIds, auto || null) : []} auto={auto} assignments={boss.assignments} showRings={shownFor(boss.showRings, prefs.groupRings)} groupColors={boss.groupColors} groupMarks={boss.groupMarks} focusGroup={focusGroup}
                             view={bv.view} frameRef={bv.frame} showNames={shownFor(boss.showNames, prefs.names)} showBadges={boss.showBadges !== false} showRoleRings={shownFor(boss.showRoleRings, prefs.roleRings)} highlightMe={prefs.highlight}
                         />
                     </div>
@@ -266,7 +283,17 @@ export default function PlanPublicPage({ token }: { token: string }) {
                         <SheetViewMenu prefs={prefs} setPref={setPref} hasLinks />
                     </div>
                     {prefs.minimap && bv.view.z > 1 && <MiniMap mapUrl={boss.mapUrl} view={bv.view} onCenter={bv.centerAt} label={t("raidBoard.zoom.minimap")} />}
-                    {mine}
+                    {scene && <SceneCaption scene={scene} t={player.t} />}
+                    {scene ? (
+                        <ScenePlayerBar className="rp-anim-stage" scenes={scenes} scene={scene} player={player} onPick={setAnimId} onClose={() => setAnimId("")} />
+                    ) : scenes.length > 0 && (
+                        <button type="button" className="rp-anim-open" data-tip={t("raidBoard.anim.openTip")} onClick={() => setAnimId(scenes[0].id)}>
+                            <Clapperboard size={18} aria-hidden="true" />
+                            <span>{scenes.length > 1 ? t("raidBoard.anim.openN", { n: scenes.length }) : t("raidBoard.anim.open")}</span>
+                        </button>
+                    )}
+                    {/* while an animation plays, "Deine Aufgaben" makes room for its bar (it comes back with the plan) */}
+                    {!scene && mine}
                     {panel ? tasks : (
                         <button type="button" className="rp-sheet-tab" aria-expanded={false} onClick={togglePanel}>
                             <ChevronLeft size={18} aria-hidden="true" />

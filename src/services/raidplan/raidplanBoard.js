@@ -31,6 +31,7 @@
 //   roles    { [userId]: role }   who plays another role on this boss than in the setup (flex)
 //   slots may carry placed:false = in the Besetzung, not on the map
 //   assignments [{ id, type, title, assignees, targets, note, suggested }]  who heals whom, kicks, curses ... (raidplanAssign.js)
+//   scenes   [{ id, title, loop, length, stepId, frames, loops }]  animations of the board's objects (raidplanScenes.js)
 //   autoPlace   false = the tank rows do not put their mobs and tanks on the map (default: they do, docs/raidplan.md)
 //   autoPos     { [key]: { x, y } }   where an object the tank rows put on the map was moved to by hand; key = "t:<row>:<n>"
 //               (the n-th tank of a row) or "m:<mob>#<n>" (the n-th mob of a kind). The objects themselves are never stored.
@@ -48,6 +49,7 @@
 // Coordinates are relative to the board (0..1). A save is cleaned, never trusted.
 const assign = require("./raidplanAssign");
 const steps = require("./raidplanSteps");
+const scenesOf = require("./raidplanScenes");
 const besetzung = require("./raidplanBesetzung");
 const { str } = require("../../utils/text");
 const { newId } = require("../../utils/ids");
@@ -515,13 +517,16 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     const cleanedSteps = steps.cleanSteps(input.steps, allowed);
     if (cleanedSteps.error) return cleanedSteps;
     ctx.dropped += cleanedSteps.dropped;
+    // the animations: only references to objects this board still has stay
+    const cleanedScenes = scenesOf.cleanScenes(input.scenes, { tokens, slots, marks, icons, zones, lines, texts }, cleanedSteps.steps.map((x) => x.id));
+    if (cleanedScenes.error) return cleanedScenes;
 
     const roles = cleanRoles(input.roles, ctx);
     const mobs = cleanMobs(listOf(input.mobs), ctx);
     const s = cleanSettings(input, new Set([...profileIds].map(str)));
     return {
         board: {
-            tokens, slots, marks, icons, zones, lines, texts, targets, assignments, steps: cleanedSteps.steps,
+            tokens, slots, marks, icons, zones, lines, texts, targets, assignments, steps: cleanedSteps.steps, scenes: cleanedScenes.scenes,
             showMap: s.showMap, autoPlace: s.autoPlace, autoPos: s.autoPos, autoStyle: s.autoStyle, autoScale: s.autoScale,
             hiddenCards: s.hiddenCards, inheritOff: s.inheritOff, showRings: s.showRings, inSheet: s.inSheet,
             groupColors: s.groupColors, groupMarks: s.groupMarks, showNames: s.showNames, showBadges: s.showBadges, showRoleRings: s.showRoleRings,
@@ -594,14 +599,16 @@ function rowKey(a) {
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
     return !!(b.tokens.length || b.slots.length || b.marks.length || b.icons.length || b.zones.length || b.lines.length || b.texts.length
-        || b.targets.length || b.assignments.length || (b.steps || []).length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.view || b.showRings === false || b.inSheet === false || b.showMap === false || b.autoPlace === false || Object.keys(b.autoPos || {}).length || Object.keys(b.autoStyle || {}).length || (b.autoScale !== undefined && b.autoScale !== 1) || b.showNames === false || b.showBadges === false || b.showRoleRings === false || Object.keys(b.groupColors || {}).length || Object.keys(b.groupMarks || {}).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
+        || b.targets.length || b.assignments.length || (b.steps || []).length || (b.scenes || []).length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.view || b.showRings === false || b.inSheet === false || b.showMap === false || b.autoPlace === false || Object.keys(b.autoPos || {}).length || Object.keys(b.autoStyle || {}).length || (b.autoScale !== undefined && b.autoScale !== 1) || b.showNames === false || b.showBadges === false || b.showRoleRings === false || Object.keys(b.groupColors || {}).length || Object.keys(b.groupMarks || {}).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */
 function reidBoard(board) {
     const fresh = (o) => ({ ...o, id: newId(5) });
+    const renamed = new Map();
+    const freshOf = (kind) => (o) => { const n = fresh(o); renamed.set(`${kind}:${o.id}`, `${kind}:${n.id}`); return n; };
     // the icons get new ids: a row that means one of them (a mob target's `oid`) follows it
-    const icons = (board.icons || []).map(fresh);
+    const icons = (board.icons || []).map(freshOf("icon"));
     const iconIds = new Map((board.icons || []).map((ic, i) => [ic.id, icons[i].id]));
     const rows = assign.reidAssignments(board.assignments).map((a) => ({
         ...a,
@@ -618,20 +625,29 @@ function reidBoard(board) {
         }
         return out;
     };
+    const slots = (board.slots || []).map(freshOf("slot"));
+    const marks = (board.marks || []).map(freshOf("mark"));
+    const zones = (board.zones || []).map(freshOf("zone"));
+    const lines = (board.lines || []).map(freshOf("line"));
+    const texts = (board.texts || []).map(freshOf("text"));
+    const newSteps = steps.reidSteps(board.steps);
+    const stepIds = new Map((board.steps || []).map((x, i) => [x.id, newSteps[i].id]));
+    // the animations follow their objects to the new ids; a player token is not copied (a template has none), an auto tank follows its row
+    const renameRef = (ref) => {
+        if (renamed.has(ref)) return renamed.get(ref);
+        if (ref.startsWith("auto:")) return `auto:${Object.keys(rekey({ [ref.slice(5)]: 1 }))[0]}`;
+        return "";
+    };
     return {
         ...board,
         autoPos: rekey(board.autoPos),
         autoStyle: rekey(board.autoStyle),
         tokens: [],
-        slots: (board.slots || []).map(fresh),
-        marks: (board.marks || []).map(fresh),
-        icons,
-        zones: (board.zones || []).map(fresh),
-        lines: (board.lines || []).map(fresh),
-        texts: (board.texts || []).map(fresh),
+        slots, marks, icons, zones, lines, texts,
         targets: (board.targets || []).map((t) => ({ ...fresh(t), userIds: [] })),
         assignments: rows,
-        steps: steps.reidSteps(board.steps),
+        steps: newSteps,
+        scenes: scenesOf.reidScenes(board.scenes, renameRef, stepIds),
     };
 }
 

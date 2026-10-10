@@ -117,3 +117,14 @@
 .rp-glyph-dps { --g: var(--rp-role-dps); }
 .rp-glyph-group { --g: var(--accent); }
 .rp-glyph-disc { fill: var(--rp-glyph-bg); }
+
+/* ---- animations (lib/raidplan/scene.ts, docs/raidplan/animation.md): the effects an animation puts on objects and its trails ---- */
+.rp-board :is(.rp-fx, .rp-trail) { left: var(--rp-x) !important; top: var(--rp-y) !important; }
+.rp-fx { position: absolute; width: 0; height: 0; z-index: 7; pointer-events: none; }
+.rp-fx-badge { position: absolute; left: calc(var(--rp-s, 38px) * -.62); top: calc(var(--rp-s, 38px) * -.62); display: grid; place-items: center; padding: 2px; border-radius: 6px; background: var(--rp-icon-outline); box-shadow: 0 0 0 2px var(--rp-danger-strong), 0 2px 8px var(--shade-50); animation: rp-fx-pop .35s ease-out; }
+.rp-fx-badge img { display: block; border-radius: 4px; }
+.rp-fx-pulse { position: absolute; left: 0; top: 0; width: calc(var(--rp-s, 38px) * 1.25); height: calc(var(--rp-s, 38px) * 1.25); border-radius: 50%; border: 3px solid var(--rp-danger); transform: translate(-50%, -50%); animation: rp-fx-pulse 1.1s ease-out infinite; }
+.rp-trail { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; z-index: 0; pointer-events: none; background: radial-gradient(circle, var(--rp-warn) 0%, var(--rp-danger) 55%, transparent 72%); opacity: calc(var(--rp-to, .5) * .85); }
+@keyframes rp-fx-pop { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes rp-fx-pulse { from { transform: translate(-50%, -50%) scale(.7); opacity: .95; } to { transform: translate(-50%, -50%) scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .rp-fx-badge, .rp-fx-pulse { animation: none; } }

@@ -41,6 +41,8 @@ export type RaidplanBoard = {
     assignments: RaidplanAssignment[];
     /** the tactic: ordered steps, who does what, when and how (references only) */
     steps?: RaidplanStep[];
+    /** animations of the board's objects (lib/raidplan/scene.ts, docs/raidplan/animation.md) */
+    scenes?: RaidplanScene[];
     /** false = this boss / trash section is shown without its map (the objects stay stored) */
     showMap?: boolean;
     /** the tank rows put their mobs and tanks on the map by themselves (default on; lib/raidplan/autoPlace.ts) */
@@ -204,6 +206,20 @@ export type RaidplanTemplate = {
 /** One step of a tactic (docs/raidplan.md, "Taktik"). */
 export type RaidplanStepTarget = { kind: "mob" | "zone" | "mark" | "group" | "role"; ref: string; name?: string; icon?: string };
 export type RaidplanTiming = { kind: "" | "pull" | "phase" | "hp" | "interval" | "now" | "text"; from: number | null; to: number | null; text: string };
+/** How a change of a scene runs: slow in and out (default), even, slow start, slow end. */
+export type RaidplanEase = "inout" | "linear" | "in" | "out";
+/**
+ * What one frame changes about one object (src/services/raidplan/raidplanScenes.js): `obj` = "<kind>:<id>" ("token:<userId>",
+ * "auto:<key>" ...); only the fields it sets change. It starts `delay` s after its frame and takes `dur` s; `path` = the points a
+ * movement passes on its way; `hidden` fades out (true) or in (false); `badge` = a WoW icon name on it ("" takes it off).
+ */
+export type RaidplanChange = { obj: string; x?: number; y?: number; path?: [number, number][]; rotation?: number; opacity?: number; scale?: number; hidden?: boolean; badge?: string; pulse?: boolean; delay: number; dur: number; ease: RaidplanEase };
+/** A "Takt": its start time in seconds (the first one at 0), a caption and what changes. */
+export type RaidplanFrame = { id: string; at: number; caption: string; changes: RaidplanChange[] };
+/** A movement of its own along a path, independent of the frames (kiting): one round takes `period` s; `to` 0 = until the end. */
+export type RaidplanLoop = { id: string; obj: string; path: [number, number][]; closed: boolean; period: number; from: number; to: number; trail: boolean };
+/** An animation of a section: frames in time order, its length in seconds, played once or in a loop, maybe at a tactic step. */
+export type RaidplanScene = { id: string; title: string; loop: boolean; length: number; stepId: string; frames: RaidplanFrame[]; loops: RaidplanLoop[] };
 export type RaidplanStep = { id: string; action: string; participants: string[]; sentence: string; targets: RaidplanStepTarget[]; timing: RaidplanTiming };
 export type RaidplanProfile = { id: string; name: string; category: string; /** the game version (#544) */ versionId: string; bossKey: string; steps: RaidplanStep[]; targets: { title: string }[]; notes: string; updatedAt: number };
 export type RaidplanProfileInput = { name?: string; category?: string; versionId?: string; bossKey?: string; steps?: RaidplanStep[]; targets?: { title: string }[]; notes?: string };
@@ -233,7 +249,7 @@ export type RaidplanView = {
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string; trash: boolean; general: boolean;
     tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
-    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; steps?: RaidplanStep[]; showMap?: boolean; autoPlace?: boolean; autoPos?: Record<string, { x: number; y: number }>; autoStyle?: Record<string, RaidplanAutoStyle>; autoScale?: number; /** who plays another role on this boss (flex): role groups follow it */ roles?: Record<string, string>; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; inSheet?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
+    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; steps?: RaidplanStep[]; scenes?: RaidplanScene[]; showMap?: boolean; autoPlace?: boolean; autoPos?: Record<string, { x: number; y: number }>; autoStyle?: Record<string, RaidplanAutoStyle>; autoScale?: number; /** who plays another role on this boss (flex): role groups follow it */ roles?: Record<string, string>; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; inSheet?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };
