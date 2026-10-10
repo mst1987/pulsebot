@@ -1,5 +1,6 @@
 // The emojis the picker suggests for a raid (lib/raids/raidEmojis.ts).
 import { describe, expect, it } from "vitest";
+import { requireBackend } from "../../test/backend";
 import { emojiKey, loadEmojis } from "../discord/emoji";
 import { RAID_EMOJIS, instanceIdsOfTag, raidEmojiSuggestions } from "./raidEmojis";
 
@@ -15,10 +16,16 @@ describe("raidEmojiSuggestions", () => {
         expect(raidEmojiSuggestions(["za", "zg", "naxx"], 5)).toHaveLength(5);
     });
 
-    it("lets a Forever instance borrow its namesake's row and knows nothing of unknown ids", () => {
-        expect(raidEmojiSuggestions(["forever-hyjal"])).toEqual(RAID_EMOJIS.hyjal);
+    it("gives a Forever instance its own row and knows nothing of unknown ids", () => {
+        expect(raidEmojiSuggestions(["forever-hyjal"])).toEqual(RAID_EMOJIS["forever-hyjal"]);
         expect(raidEmojiSuggestions(["forever-barrow"])).toEqual(RAID_EMOJIS["forever-barrow"]);
         expect(raidEmojiSuggestions(["unknown"])).toEqual([]);
+    });
+
+    it("has a row for every instance of every game version (#749)", () => {
+        const { VERSIONS } = requireBackend<{ VERSIONS: { instances: { id: string }[] }[] }>("config/gameVersions");
+        const missing = VERSIONS.flatMap((v) => v.instances.map((i) => i.id)).filter((id) => !RAID_EMOJIS[id]);
+        expect(missing).toEqual([]);
     });
 
     it("offers only emojis the picker itself has (Emoji 12.1, no flags)", async () => {

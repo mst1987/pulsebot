@@ -10,7 +10,7 @@ const { decorateTemplate } = require("../../services/events/raidTemplates");
 const eventStore = require("../../stores/eventStore");
 const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const { publicVersions } = require("../../config/gameVersions");
-const { mainVersionFor, resolveVersionQuery, visibleVersions, visibleRows } = require("../../services/events/mainVersion");
+const { mainVersionFor, versionOfEvent, resolveVersionQuery, visibleVersions, visibleRows } = require("../../services/events/mainVersion");
 const { versionChoices } = require("../../services/characters/characterVersions");
 const { DEFAULT_SCHEMA } = require("../../utils/channelNames");
 const { deriveChannelName } = require("../../services/discord/channelNaming");
@@ -169,7 +169,7 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
         description: ev.description, channelId: ev.channelId, channelName: ev.channelName,
         categoryId: g.categoryId || "", categoryName: g.categoryName || "",
         startTime: ev.startTime || 0,
-        contentIds: raidContentIds({ title: ev.title, categoryName: g.categoryName, channelName: ev.channelName, instanceIds: ev.instanceIds }).contentIds,
+        contentIds: raidContentIds({ title: ev.title, categoryName: g.categoryName, channelName: ev.channelName, instanceIds: ev.instanceIds, versionId: versionOfEvent({ versionId: ev.versionId, categoryId: g.categoryId }) }).contentIds,
     })));
     const templates = visibleRows(listRaidTemplates(), (t) => t.versionId, config);
     const categoryDefaults = config.categoryRaidTemplate || {};

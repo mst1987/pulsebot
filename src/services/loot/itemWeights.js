@@ -88,6 +88,8 @@ function itemFacts(itemId, name = "") {
 function itemClass(itemId, settings, ctx = {}) {
     const id = Number(itemId) || 0;
     if (id && settings && settings.items && settings.items[String(id)]) return "override";
+    // A version without item table (#748): nothing to classify by, so a plain item.
+    if (ctx.noTable) return "normal";
     const f = itemFacts(id, ctx.itemName);
     if (f.frequent) return "frequent";
     if (f.trinket) return "trinket";

@@ -8,13 +8,26 @@ const { itemCatalog } = require("../../services/loot/lootStats");
 const { versionOfEvent } = require("../../services/events/mainVersion");
 const { versionLinks } = require("../../services/events/versionSettings");
 const { webUrl, lookupReply, respondChoices, clip } = require("../../utils/discord/botLookup");
+const { mainVersionFor } = require("../../services/events/mainVersion");
+const { councilContentFor } = require("../../config/councilContent");
 
-/** Every item the council can be asked about: all raid drops plus whatever was ever looted. */
-function councilItems() {
+/** The game version of the channel the command runs in: its category's, else the main version (#748). */
+function versionOfInteraction(interaction) {
+    const channel = interaction && interaction.channel;
+    return mainVersionFor({ categoryId: (channel && channel.parentId) || "" });
+}
+
+/**
+ * Every item the council can be asked about: all raid drops (the TBC catalogue -
+ * only for a version that has an item table, #748) plus whatever was ever looted.
+ */
+function councilItems(versionId = "tbc") {
     const byId = new Map();
-    for (const [id, entry] of Object.entries(RAID_ITEMS)) {
-        const name = Array.isArray(entry) ? entry[0] : "";
-        if (name) byId.set(Number(id), name);
+    if (councilContentFor(versionId).itemTable) {
+        for (const [id, entry] of Object.entries(RAID_ITEMS)) {
+            const name = Array.isArray(entry) ? entry[0] : "";
+            if (name) byId.set(Number(id), name);
+        }
     }
     for (const item of itemCatalog()) {
         if (item.itemId && item.itemName && !byId.has(item.itemId)) byId.set(item.itemId, item.itemName);
@@ -34,10 +47,10 @@ function itemLinkFor(itemId, channel) {
 }
 
 /** The item an option value names: an id (autocomplete, or typed) or a name. */
-function findCouncilItem(value) {
+function findCouncilItem(value, versionId = "tbc") {
     const raw = String(value || "").trim();
     if (!raw) return null;
-    const items = councilItems();
+    const items = councilItems(versionId);
     const id = Number(raw);
     if (Number.isInteger(id) && id > 0) return items.find((i) => i.id === id) || { id, name: `Item ${id}` };
     const lower = raw.toLowerCase();
@@ -57,7 +70,7 @@ module.exports = {
     itemLinkFor,
     async execute(interaction) {
         const value = interaction.options.getString("item");
-        const item = findCouncilItem(value);
+        const item = findCouncilItem(value, versionOfInteraction(interaction));
         if (!item) {
             return lookupReply(interaction, {
                 title: "Item nicht gefunden",
@@ -75,6 +88,6 @@ module.exports = {
         }, [{ label: "Drop prüfen", url: webUrl(`/lootcouncil/drop/${item.id}`) }]);
     },
     async autocomplete(interaction) {
-        return respondChoices(interaction, councilItems().map((i) => ({ name: i.name, value: String(i.id) })));
+        return respondChoices(interaction, councilItems(versionOfInteraction(interaction)).map((i) => ({ name: i.name, value: String(i.id) })));
     },
 };

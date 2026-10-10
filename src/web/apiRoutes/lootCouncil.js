@@ -49,6 +49,8 @@ const { mainVersionFor } = require("../../services/events/mainVersion");
 const { councilOptsFromQuery, categoryOptions } = require("../loot/councilQuery");
 const { buildCouncilView, councilCategoryIds } = require("../loot/councilView");
 const { councilHead, councilRosters } = require("../loot/councilTargets");
+const { councilContentFor } = require("../../config/councilContent");
+const { knownVersion } = require("../../services/events/mainVersion");
 const { settingsForVersion } = require("../../services/events/versionSettings");
 
 /**
@@ -73,13 +75,16 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
         rows, avgLootCount, avgLootPoints, weights, bisTier: usedBisTier, skipped, categorySources, versions,
         rosterSource, outsiders,
     } = built;
-    const contentFilter = resolveContentFilter({ tierIds, contentIds });
+    // What content data this version has (#748): without BiS/item table the page
+    // gets no gaps, no drop check, no filter options and no simulation - and says so.
+    const content = councilContentFor(versionId);
+    const contentFilter = content.tiers ? resolveContentFilter({ tierIds, contentIds }) : null;
 
     // One named item ("this just dropped") short-circuits the BiS list: the
     // council wants the candidates for that item, not the whole gap report —
     // and, next to them, who cannot wear it at all, so a short list is explained.
     const itemId = Number(url.searchParams.get("item") || 0);
-    const focus = itemId > 0
+    const focus = itemId > 0 && content.itemTable
         // Against the tier that was actually used, so "BiS für …" names the same
         // lists the roster's BiS column is counted against.
         ? { item: itemView(itemId, usedBisTier), ...candidateSplit(itemId, rows) }
@@ -102,9 +107,10 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
         excluded: Object.entries(councilStore.listExcluded())
             .map(([key, entry]) => ({ key, ...entry }))
             .sort((a, b) => (b.at || 0) - (a.at || 0)),
-        gaps: focus ? [] : bisGaps(rows, { contentIds: contentFilter }),
+        gaps: focus || !content.bis ? [] : bisGaps(rows, { contentIds: contentFilter }),
         focus,
-        options: { ...filterOptions(), categories: categoryOptions(guildId) },
+        content,
+        options: { ...filterOptions(content), categories: categoryOptions(guildId) },
         // Who the page works for (#676): the roster picker, the roster with its
         // profile and linked Kader, and which links the caller may follow.
         council: councilHead({ guildId, user, opts, config }),
@@ -124,13 +130,15 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
             roster: rosterSource || null,
         },
         sim: {
-            available: engine.isAvailable(),
+            available: content.sim && engine.isAvailable(),
             version: engine.WOWSIMS_VERSION,
             // What the page tells the reader when there is no binary: there
             // is no gain to show at all, because the page shows no estimates.
-            hint: engine.isAvailable()
-                ? ""
-                : "Keine WoWSims-Simulation verfügbar (WOWSIMCLI_PATH nicht gesetzt) — ohne Simulation zeigt die Seite keine Zugewinne, geschätzt wird nichts.",
+            hint: !content.sim
+                ? "Für diese Spielversion gibt es keine Simulation."
+                : engine.isAvailable()
+                    ? ""
+                    : "Keine WoWSims-Simulation verfügbar (WOWSIMCLI_PATH nicht gesetzt) — ohne Simulation zeigt die Seite keine Zugewinne, geschätzt wird nichts.",
         },
         activeGuildId: guildId,
         versionId,
@@ -486,6 +494,10 @@ const SIM_URLS = {
 const getItemSearch = withUser({}, async ({ user, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
     const tier = url.searchParams.get("tier") || "";
+    // The item table is TBC's (#748): another version has nothing to search in.
+    // `v` names the council's version (the page sends it); else the default view's.
+    const versionId = knownVersion(url.searchParams.get("v")) || councilOptsFromQuery(url.searchParams).versionId;
+    if (!councilContentFor(versionId).itemTable) return ok(res, { items: [] });
     const items = searchItems(url.searchParams.get("q") || "").map((it) => {
         const source = sourceForItem(it.id) || {};
         return {

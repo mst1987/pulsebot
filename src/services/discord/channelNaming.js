@@ -40,7 +40,7 @@ function berlinDay(startTime) {
 function instancesOf(ev) {
     if (Array.isArray(ev.instanceIds) && ev.instanceIds.length) return ev.instanceIds;
     try {
-        return raidContentIds({ title: ev.title, channelName: ev.channelName }).contentIds || [];
+        return raidContentIds({ title: ev.title, channelName: ev.channelName, versionId: ev.versionId }).contentIds || [];
     } catch {
         return [];
     }

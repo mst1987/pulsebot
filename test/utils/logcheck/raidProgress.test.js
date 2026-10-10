@@ -224,4 +224,23 @@ describe("raidProgress — Classic Era", () => {
         const p = analyzeRaidProgress(report([{ name: "Razorgore the Untamed", kill: true }], "Blackwing Lair"));
         expect(raidSummary(p)[0]).toMatchObject({ contentId: "bwl", label: "BWL", killed: 1, total: 8, finalKilled: false, finalBoss: "Nefarian" });
     });
+
+    describe("version-aware lookup (#749)", () => {
+        it("places Archimonde in the Forever Hyjal within a Forever log and never blocks on it", () => {
+            const p = analyzeRaidProgress(report([{ name: "Archimonde", kill: true }], "Hyjal Summit (Forever)"), { versionId: "forever" });
+            expect(p.raids.map((r) => r.contentId)).toEqual(["forever-hyjal"]);
+            expect(p.complete).toBe(true);
+            expect(p.raids[0].killed).toBe(1);
+        });
+
+        it("reads the same fights as the TBC Hyjal for a TBC log (default)", () => {
+            const tbc = analyzeRaidProgress(report([{ name: "Archimonde", kill: true }], "Hyjal Summit"), { versionId: "tbc" });
+            expect(tbc.raids.map((r) => r.contentId)).toEqual(["hyjal"]);
+            expect(analyzeRaidProgress(report([{ name: "Archimonde" }], "Hyjal Summit")).raids[0].contentId).toBe("hyjal");
+        });
+
+        it("reads a zone naming Forever as Forever even without a version", () => {
+            expect(analyzeRaidProgress({ zoneName: "Hyjal Summit (Forever)", fights: [] }).raids.map((r) => r.contentId)).toEqual(["forever-hyjal"]);
+        });
+    });
 });
