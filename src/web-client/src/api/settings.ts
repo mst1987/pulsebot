@@ -48,8 +48,19 @@ export type AdminConfig = {
     categoryRaidTemplate: Record<string, string>;
     /** The game version the guild plays (#541); missing = "tbc". */
     mainVersion?: string;
-    /** Categories that play another version: category id → version id. */
+    /**
+     * The version every active category plays (#738): category id → version
+     * id. The server refuses an active category without one; the main version
+     * is only the default of a category switched on just now.
+     */
     categoryVersion?: Record<string, string>;
+    /** The sections of a category (#738): one per version it played, oldest first (read only). */
+    categoryEras?: Record<string, CategoryEra[]>;
+    /**
+     * Write only, with a version switch (#738): what the confirmation dialog
+     * chose for the category's series — "pause" or a template id of the new version.
+     */
+    categorySwitchFixes?: Record<string, { series: string }>;
     /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
     hideOtherVersions?: boolean;
     /** Language of the bot's public messages and default for every raider; missing = "de". */
@@ -237,8 +248,39 @@ export function getSettings(): Promise<SettingsData> {
     return get<SettingsData>("/api/settings");
 }
 
-export function updateSettings(partial: Partial<AdminConfig>): Promise<{ config: AdminConfig }> {
+/** A section of a category (#738): `from` = ms of the switch (0 = always), `name` = the category name then. */
+export type CategoryEra = { versionId: string; from: number; name: string };
+
+/** A category the save switched to another version (#738), with what happened to its series. */
+export type SwitchedCategory = {
+    categoryId: string; fromVersion: string; toVersion: string; at: number; name: string; series: "" | "paused" | "template";
+};
+
+export function updateSettings(partial: Partial<AdminConfig>): Promise<{ config: AdminConfig; switchedCategories?: SwitchedCategory[] }> {
     return send("PATCH", "/api/settings", partial);
+}
+
+type SwitchVersion = { id: string; label: string; short: string };
+
+/** GET /api/settings/category-switch: what switching a category to another version means (#738). */
+export type CategorySwitchPreview = {
+    categoryId: string;
+    name: string;
+    from: SwitchVersion;
+    to: SwitchVersion;
+    switching: boolean;
+    eras: CategoryEra[];
+    /** The category's coming raids of another version: they keep it (the orga may cancel them). */
+    upcoming: { id: string; title: string; startTime: number; versionId: string; source: EventSource }[];
+    /** The category's series; `fits` = its template (own or the default) is of the new version. */
+    series: { enabled: boolean; usesDefault: boolean; template: { id: string; name: string; versionId: string } | null; fits: boolean } | null;
+    defaultTemplate: { id: string; name: string; versionId: string; fits: boolean } | null;
+    /** The templates of the new version, to pick one for the series or as the default. */
+    templates: { id: string; name: string }[];
+};
+
+export function getCategorySwitch(categoryId: string, versionId: string): Promise<CategorySwitchPreview> {
+    return get<CategorySwitchPreview>(`/api/settings/category-switch?categoryId=${encodeURIComponent(categoryId)}&versionId=${encodeURIComponent(versionId)}`);
 }
 
 export function saveRaidsheet(input: Partial<Raidsheet>): Promise<Raidsheet> {

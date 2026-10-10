@@ -28,6 +28,7 @@ const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const channelNaming = require("../discord/channelNaming");
 const { instanceById } = require("../../config/gameVersions");
 const { mainVersionFor } = require("./mainVersion");
+const { templateVersionProblem } = require("./categoryEras");
 const { emojiStyleOf } = require("../discord/appEmojis");
 const { normalizeOverflow, normalizeLockAtLimit } = require("../../utils/signup/capacity");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
@@ -218,7 +219,16 @@ function deadlineFrom(body, startTime) {
  * @returns {{ plan?: object, error?: object }}
  */
 function planFor(body, categoryId, title, startTime) {
-    const templateId = body.raidTemplateId || (getConfig().categoryRaidTemplate || {})[categoryId];
+    const config = getConfig();
+    const templateId = body.raidTemplateId || (config.categoryRaidTemplate || {})[categoryId];
+    // #738: a template of another version than the category plays creates no
+    // event — a series or the category default must not make a silently wrong
+    // one (the template used to win). A version the body names (the dialog) is
+    // a deliberate choice and wins as before.
+    if (templateId && !given(body, "versionId")) {
+        const problem = templateVersionProblem({ template: getRaidTemplate(String(templateId)), categoryId, config });
+        if (problem) return { error: fail(409, "template_version_mismatch", `${problem} Kein Event angelegt – bitte eine passende Vorlage wählen (Serie oder Einstellungen → Kategorien).`) };
+    }
     const template = templateDefaults(templateId, startTime);
     const merged = { ...template };
     for (const key of PLAN_KEYS) {
@@ -235,14 +245,16 @@ function planFor(body, categoryId, title, startTime) {
     const deadline = deadlineFrom(body, startTime);
     if (deadline !== undefined && given(body, "signupDeadlineHours")) merged.signupDeadline = deadline;
     // Neither the body nor the template names a version: the one the category plays (#541).
-    if (!given(merged, "versionId")) merged.versionId = mainVersionFor({ categoryId, config: getConfig() });
+    if (!given(merged, "versionId")) merged.versionId = mainVersionFor({ categoryId, config });
     // The instances the title names only when they belong to that version — a
     // "Kara" in the title of a Forever raid is no reason to refuse it.
     const fromTitle = () => raidContentIds({ title, versionId: merged.versionId }).contentIds
         .filter((id) => { const inst = instanceById(id); return !inst || inst.versionId === merged.versionId; });
+    // The template's instances only when it is of the event's version.
+    const templateInstances = !template.versionId || template.versionId === merged.versionId ? template.instanceIds || [] : [];
     merged.instanceIds = Array.isArray(body.instanceIds) && body.instanceIds.length
         ? body.instanceIds
-        : ((template.instanceIds || []).length ? template.instanceIds : fromTitle());
+        : (templateInstances.length ? templateInstances : fromTitle());
     const checked = eventStore.normalizePlan(merged);
     if (checked.error) return { error: fail(400, "invalid_plan", checked.error) };
     const signupDeadline = Number(merged.signupDeadline) || 0;
@@ -252,7 +264,7 @@ function planFor(body, categoryId, title, startTime) {
             ...checked.value,
             signupDeadline,
             // The voice channel (#305): the body's choice, else the category's preset.
-            voiceChannelId: String(given(body, "voiceChannelId") ? body.voiceChannelId : ((getConfig().categoryVoiceChannel || {})[categoryId] || "")).trim(),
+            voiceChannelId: String(given(body, "voiceChannelId") ? body.voiceChannelId : ((config.categoryVoiceChannel || {})[categoryId] || "")).trim(),
             fairness: merged.fairness === true,
             wishes: merged.wishes === true,
             autoSuggest: merged.autoSuggest === true,
