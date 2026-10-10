@@ -72,6 +72,12 @@ jest.mock("../../../src/utils/logcheck/rpb/index.js", () => ({
     rpbSummaryLines: jest.fn(() => ["🎭 Rollen: Tank 2"]),
 }));
 jest.mock("../../../src/utils/logcheck/common.js", () => ({ selectPlayers: jest.fn(() => []) }));
+// The real rule sets, unless a test hands in its own for a version (#747).
+let mockRulesOverride = null;
+jest.mock("../../../src/utils/logcheck/rules.js", () => {
+    const actual = jest.requireActual("../../../src/utils/logcheck/rules.js");
+    return { ...actual, logcheckRules: (v) => (mockRulesOverride && mockRulesOverride(v)) || actual.logcheckRules(v) };
+});
 const mockSaveReport = jest.fn();
 const mockGetReport = jest.fn();
 jest.mock("../../../src/stores/reportStore.js", () => ({
@@ -731,5 +737,43 @@ describe("logcheck/report — the version of a log (#746)", () => {
         mockGetReport.mockReturnValue({ id: "abc123", title: "old", sections: ["cla"], roster: [] });
         const { report } = await buildReport("https://fresh.warcraftlogs.com/reports/RPT1", { sections: ["rpb"], mergeIntoId: "abc123" });
         expect(report).toMatchObject({ versionId: "tbc", reportHost: "fresh.warcraftlogs.com" });
+    });
+});
+
+describe("logcheck/report — the rule set of the version (#747)", () => {
+    const rules = jest.requireActual("../../../src/utils/logcheck/rules.js");
+    const { selectPlayers } = require("../../../src/utils/logcheck/common.js");
+    const { buildGearIssues } = require("../../../src/utils/logcheck/gearIssues.js");
+    const { analyzeFightTimeline } = require("../../../src/utils/logcheck/fightTimeline.js");
+    const { analyzeShadowResi } = require("../../../src/utils/logcheck/shadowResi.js");
+    const { analyzeDrums } = require("../../../src/utils/logcheck/drums.js");
+    const { analyzeTotems } = require("../../../src/utils/logcheck/totems.js");
+    const { analyzeSunder } = require("../../../src/utils/logcheck/sunder.js");
+    const { analyzeRaidBuffs } = require("../../../src/utils/logcheck/raidBuffs.js");
+
+    afterEach(() => { mockRulesOverride = null; });
+
+    it("hands TBC's rule set to the class filter, the gear check, Shadow-Resi and the RPB, and the version to the timeline", async () => {
+        const tbc = rules.logcheckRules("tbc");
+        await buildReport("RPT1");
+        expect(selectPlayers).toHaveBeenCalledWith({ entries: [] }, tbc);
+        expect(buildGearIssues).toHaveBeenCalledWith({ entries: [] }, { gemsToConsider: 3, rules: tbc });
+        expect(analyzeShadowResi.mock.calls[0][2]).toBe(tbc);
+        expect(analyzeFightTimeline.mock.calls[0][4]).toEqual({ versionId: "tbc" });
+        expect(analyzeRpb.mock.calls[0][4]).toEqual({ rules: tbc });
+    });
+
+    it("runs only the analyzers its rule set lists and checks no gear without gear rules", async () => {
+        // TBC's classes with Forever's analyzer list and no gear data: what a ready Forever would run
+        mockRulesOverride = (v) => (v === "tbc" ? rules.makeRuleSet({
+            versionId: "tbc", classDefs: rules.logcheckRules("tbc").classDefs, analyzers: rules.analyzersFor("forever"), ready: true, data: { gear: null },
+        }) : null);
+        const { report } = await buildReport("RPT1");
+        for (const fn of [analyzeDrums, analyzeTotems, analyzeShadowResi, analyzeRpb, buildGearIssues]) expect(fn).not.toHaveBeenCalled();
+        for (const fn of [analyzeSunder, analyzeRaidBuffs, analyzeFightTimeline]) expect(fn).toHaveBeenCalledTimes(1);
+        expect(report).toMatchObject({ drums: null, totems: null, shadowResi: null, rpb: null, players: [] });
+        expect(report.raidBuffs).not.toBeNull();
+        // the page keeps its shape: every CLA field is there, null where nothing ran
+        expect(Object.keys(report)).toEqual(expect.arrayContaining(["drums", "totems", "shadowResi", "rpb"]));
     });
 });

@@ -11,15 +11,25 @@
 // Without an API key (Einstellungen → Verbindungen → KI-Formulierung) this
 // module is never called; the page then shows the rule text.
 const { createAnthropicClient } = require("../../classes/anthropic");
+const { rulesFor, LEGACY_VERSION } = require("../../config/gameVersions");
 
 const DEFAULT_MODEL = "claude-opus-5";
 const CONCURRENCY = 4;
 
-const SYSTEM = `Du formulierst Rückmeldungen an Raider einer World-of-Warcraft-Gilde (TBC Classic) nach einem Raidabend. Du bekommst pro Raider eine Liste von Befunden aus der Log-Auswertung, jeder mit Titel, dem technischen Hinweistext und Belegen (Zahlen, Bosse).
+/** The game the raid was played in, as the prompt names it: the label of the report's version (#747); a report without one is TBC. */
+function gameLabel(versionId) {
+    return (rulesFor(versionId) || rulesFor(LEGACY_VERSION)).label;
+}
+
+/** The system prompt for a report of `versionId`. */
+const systemPrompt = (versionId) => `Du formulierst Rückmeldungen an Raider einer World-of-Warcraft-Gilde (${gameLabel(versionId)}) nach einem Raidabend. Du bekommst pro Raider eine Liste von Befunden aus der Log-Auswertung, jeder mit Titel, dem technischen Hinweistext und Belegen (Zahlen, Bosse).
 
 Schreibe zu jedem Befund einen eigenen kurzen Absatz (zwei bis vier Sätze) auf Deutsch, in der Du-Form, direkt an den Raider gerichtet. Konkret, freundlich, ohne Vorwurf, ohne Floskeln, ohne Emojis. Nenne die Zahl oder den Boss aus dem Beleg im Satz. Sag, was beim nächsten Mal anders sein soll, nicht nur was falsch war. Erfinde keine Zahlen und keine Ursachen, die nicht in den Belegen stehen. Keine Anrede und keine Grußformel – nur die Absätze.
 
 Antworte ausschließlich mit einem JSON-Array von Objekten { "key": <key des Befunds>, "text": <dein Absatz> }, für jeden Befund genau ein Objekt, in derselben Reihenfolge, ohne Markdown und ohne weitere Zeichen davor oder danach.`;
+
+// The prompt of a TBC report, kept as a constant for the callers that read it.
+const SYSTEM = systemPrompt(LEGACY_VERSION);
 
 /** The user turn for one raider: the findings as the model should see them. */
 function buildPrompt(report, player) {
@@ -76,7 +86,7 @@ async function phrasePlayer(client, report, player, { model = DEFAULT_MODEL } = 
         fallbacks: "default",
         thinking: { type: "adaptive" },
         output_config: { effort: "low" },
-        system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: systemPrompt(report && report.versionId), cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: buildPrompt(report, player) }],
     });
     if (response.stop_reason === "refusal") throw new Error("Das Modell hat die Anfrage abgelehnt.");
@@ -122,4 +132,4 @@ async function phraseReport(report, { apiKey, model = DEFAULT_MODEL, only = null
     return { phrased, players: done, errors, model };
 }
 
-module.exports = { phraseReport, phrasePlayer, buildPrompt, parseAnswer, DEFAULT_MODEL, SYSTEM };
+module.exports = { phraseReport, phrasePlayer, buildPrompt, parseAnswer, systemPrompt, DEFAULT_MODEL, SYSTEM };

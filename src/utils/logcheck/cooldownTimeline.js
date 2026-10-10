@@ -8,9 +8,9 @@
 // tracked id, then split by who cast it.
 const rpbData = require("../../config/rpbData");
 const { POTION_TYPES } = require("./potions");
+// Bloodlust's ids and window (TBC data, config/logcheckTables.js)
+const { LUST_IDS, LUST_MS } = require("../../config/logcheckTables");
 
-const LUST_IDS = new Set(["2825", "32182"]);
-const LUST_MS = 40000;
 const POTION_COOLDOWN = 120;
 // A cooldown that came back this long before the end and was not pressed
 // again counts as a missed use; anything shorter is not worth pressing.
@@ -197,4 +197,4 @@ async function analyzeCooldownTimeline(wcl, reportId, fights, idToPlayer, timeli
     return { players: summarize(timeline.fights) };
 }
 
-module.exports = { analyzeCooldownTimeline, cooldownRowsForFight, summarize, possibleUses, TRACKED };
+module.exports = { analyzeCooldownTimeline, cooldownRowsForFight, summarize, possibleUses, TRACKED, LUST_IDS, LUST_MS };
