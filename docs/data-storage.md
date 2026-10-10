@@ -45,6 +45,7 @@ Verzeichnisaufbau unten auf – er ist ein Vertrag zwischen diesen Teilen und ä
 | `retention.js` | Welche Schnappschüsse bleiben (rein, ohne Platte) |
 | `snapshotJob.js` | Der Hintergrund-Job (`backupSnapshots` in `src/web/http/jobs.js`) und `runSnapshot()` für „Jetzt sichern“ |
 | `backupConfig.js` | `BACKUP_DIR`, `BACKUP_ENABLED`, Vorgaben und Normalisierung des Einstellungsblocks `backup` |
+| `restore.js` | Prüfen (`verifySnapshot`) und Zurückspielen (`restoreSnapshot`) eines Schnappschusses, Kennzahlen eines Datenverzeichnisses (`countDataDir`, mit `countsOf` aus `snapshot.js`); siehe „Wiederherstellen“ unten |
 
 **Ablage** (`BACKUP_DIR`, Env; Standard auf dem Live-Server `/var/backups/pulsebot`, sonst – Windows, Dev-Checkout –
 `<repo>/../pulsebot-backups`; immer außerhalb von Repo und `DATA_DIR`, ineinander verschachtelt lehnt der Lauf ab):
@@ -122,14 +123,38 @@ ausdrücklich will (dann am besten mit eigenem `BACKUP_DIR` in ihrer `.env.dev`)
 laufenden Bot (liest `.env.dev`, sonst `.env`, wie `bot.js`; `BACKUP_ENABLED` gilt hier nicht). Exit-Code 0 =
 fertig, 1 = fehlgeschlagen, 2 = falsche Argumente, 3 = ein anderer Schnappschuss läuft gerade.
 
+### Wiederherstellen (#693)
+
+Nie von Hand kopieren, sondern mit dem Befehl. Er prüft vorher und legt einen Rückweg an. Das Runbook für die drei
+Fälle (eine Datei, alle Daten, neuer Server) steht in [backup.md](backup.md#wiederherstellen).
+
+```bash
+npm run backup:list                                        # Schnappschüsse mit Zeit, Größe, Kennzahlen
+npm run backup:restore -- latest --dry-run                 # was sich ändern würde
+pm2 stop pulsebot
+npm run backup:restore -- <name|latest|pfad> [--only settings/rosters.json]... [--prune]
+pm2 start pulsebot
+```
+
+- **Prüfung zuerst**: Jede Datei des Manifests muss vorhanden sein, Größe und sha256 müssen stimmen, und jede `*.json`
+  muss sich parsen lassen. Sonst ändert sich nichts. Das ist nötig, weil ein Store eine fehlende oder kaputte Datei
+  stillschweigend als leer liest.
+- **Rückweg**: Vor dem Zurückspielen entsteht ein `pre-restore`-Schnappschuss. `latest` überspringt diese
+  Schnappschüsse, damit ein zweiter Aufruf nicht den kaputten Stand zurückholt.
+- **Schreiben**: Der Befehl kopiert, statt einen Hardlink zu setzen. Schnappschüsse teilen sich Dateien per
+  Hardlink, und `sessions.json` wird an Ort und Stelle geschrieben. Erst wenn alle Kopien gegen das Manifest geprüft
+  sind, tauscht ein synchroner `rename`-Durchgang alle Dateien aus. Dabei hält der Befehl die
+  Schnappschuss-Sperre (`.snapshot.lock`). Ersetzte Dateien behalten Rechte und Besitzer. Neue sensible Dateien
+  (Spalte „Sensibel“ unten) bekommen 600, andere 644, neue Verzeichnisse 700.
+- **Nur im Ziel** liegende Dateien bleiben stehen und werden aufgelistet. `--prune` löscht sie.
+- Ein Schnappschuss kann auch außerhalb von `BACKUP_DIR` liegen, z. B. von restic zurückgeholt unter
+  `<target>/var/backups/pulsebot/offsite-stage/latest`. Es genügen `manifest.json` und `data/`.
+
 ### Sonst
 
 - **Ohne die Schnappschüsse** (z. B. vor einem Umzug von Hand): den Ordner `data/` bei gestopptem Bot kopieren.
   Eine Kopie im laufenden Betrieb ist dateiweise konsistent (atomare Writes), aber nicht über Dateien hinweg.
 - **Docker**: das Volume sichern, das auf `/app/data` liegt ([deployment.md](deployment.md#docker)).
-- **Wiederherstellen**: Bot stoppen, `data/` aus `snapshots/<name>/data/` zurückkopieren, Bot starten. Fehlt eine
-  Datei, startet der Store mit seinem leeren Standard; eine kaputte (kein JSON) liest er ebenfalls als leer, also
-  vor dem Start gegen `manifest.json` (sha256, `counts`) prüfen.
 - Die Sicherung enthält **sensible** Dateien (Tabelle unten, u. a. `config.json` mit API-Schlüsseln und
   `sessions.json`): wie die `.env` behandeln, nicht in ein Ticket, einen Chat oder ein öffentliches Repo legen.
 - Ohne Verlust wegwerfbar sind nur die Caches (`sim/results.json`, `settings/characters.json`,

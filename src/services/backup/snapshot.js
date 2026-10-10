@@ -412,7 +412,11 @@ async function readJsonAsync(file) {
 
 const sizeOf = (value) => (Array.isArray(value) ? value.length : value && typeof value === "object" ? Object.keys(value).length : 0);
 
-/** Plausibility figures for the restore check (#693/#694): how much of the important data a snapshot holds. */
+/**
+ * Plausibility figures for the restore check (#693/#694): how much of the important data a snapshot holds.
+ * `destData` is any directory laid out like DATA_DIR (a snapshot's data/ or DATA_DIR itself), `files` an object
+ * whose keys are the relative paths in it.
+ */
 async function countsOf(destData, files) {
     const rels = Object.keys(files);
     const events = await readJsonAsync(path.join(destData, "settings", "events.json"));
@@ -654,5 +658,7 @@ async function createSnapshot(o = {}) {
 module.exports = {
     createSnapshot, latestSnapshot, listSnapshots, readManifest, readStatus,
     snapshotName, parseSnapshotName, setLatest, pruneSnapshots, copySyncPart, acquireLock,
+    // shared with the restore (restore.js, #693) so counts and hashes are computed one way only
+    countsOf, hashFile, copyAndHash, isTempName,
     REASONS, MIN_FREE_RATIO, LOCK_NAME, MANIFEST_VERSION,
 };
