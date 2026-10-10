@@ -115,7 +115,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], steps: [], showMap: true, autoPlace: true, autoPos: {}, autoStyle: {}, autoScale: 1, mobs: [], hiddenCards: [], inheritOff: [], showRings: true, inSheet: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], steps: [], scenes: [], showMap: true, autoPlace: true, autoPos: {}, autoStyle: {}, autoScale: 1, mobs: [], hiddenCards: [], inheritOff: [], showRings: true, inSheet: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -137,6 +137,8 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
         ],
         // the tactic: ordered steps (an old board has none)
         steps: b.steps || [],
+        // the animations (docs/raidplan/animation.md): kept as they are, or a save from the editor would drop them
+        scenes: b.scenes || [],
         // the section shows its map (a board from before the switch: yes, its objects and map stay)
         showMap: b.showMap !== false,
         // the tank rows put their mobs and tanks on the map (an old board: yes); what was moved by hand
