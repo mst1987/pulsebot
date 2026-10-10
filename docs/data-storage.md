@@ -62,6 +62,11 @@ $BACKUP_DIR/                              Rechte 700
   .snapshot.lock                          Sperre eines laufenden Schnappschusses (Bot oder Befehl)
   status/offsite.json, offsite-stage/,    gehören der Kopie außer Haus (#692, docs/backup.md)
   server-config/
+  status/deploy-snapshot.json             { at, ok, exitCode, attempts, fromCommit, toCommit, error?, result } –
+                                          der Schnappschuss vor dem letzten Deploy (deploy.sh, #695)
+  status/restore-test.json                { at, ok, durationMs, bytes, snapshot, problems, counts, stores, loop,
+                                          error? } – die letzte Wiederherstellungsprobe (#694, docs/backup.md)
+  .restore-test-<id>/                     nur während einer Probe: der zurückgespielte Schnappschuss, danach gelöscht
 ```
 
 **Auf dem Server einmal:** Der Bot muss `BACKUP_DIR` anlegen bzw. beschreiben dürfen. Läuft er nicht als root,

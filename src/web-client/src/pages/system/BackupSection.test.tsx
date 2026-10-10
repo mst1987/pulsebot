@@ -129,6 +129,43 @@ describe("BackupSection", () => {
         expect(screen.getByText(/BACKUP_ENABLED=1/)).toBeInTheDocument();
     });
 
+    describe("the deploy snapshot (#695)", () => {
+        const deploy = { light: "ok" as const, at: NOW - 50 * H, ok: true, fromCommit: "1111111aaaa", toCommit: "2222222bbbb", name: "20261008-100000-deploy", bytes: 1, durationMs: 800, attempts: 1, error: "" };
+
+        it("is one small line in the snapshot tile: when and which commits", async () => {
+            vi.mocked(api.getBackupStatus).mockResolvedValue(backupStatus({ deploy }));
+            await open();
+            const line = within(tileOf("Schnappschuss")).getByText("Vor dem letzten Deploy").closest(".sy-backup-deploy") as HTMLElement;
+            expect(within(line).getByText("vor 2 Tagen")).toBeInTheDocument();
+            expect(within(line).getByText("1111111 → 2222222")).toBeInTheDocument();
+            expect(line).not.toHaveClass("sy-backup-deploy-warn");
+            expect(line).toHaveAttribute("data-tip-sub", expect.stringContaining("20261008-100000-deploy"));
+            expect(within(line).queryByText("fehlgeschlagen")).not.toBeInTheDocument();
+            expect(screen.getAllByText("Vor dem letzten Deploy")).toHaveLength(1);
+        });
+
+        it("shows a failed one yellow with the reason in the tooltip, and leaves the part's own light alone", async () => {
+            vi.mocked(api.getBackupStatus).mockResolvedValue(backupStatus({
+                light: "warn", deploy: { ...deploy, light: "warn", ok: false, at: NOW - 2 * H, name: "", error: "timed out after 600 s" },
+            }));
+            await open();
+            const tile = tileOf("Schnappschuss");
+            const line = within(tile).getByText("Vor dem letzten Deploy").closest(".sy-backup-deploy") as HTMLElement;
+            expect(line).toHaveClass("sy-backup-deploy-warn");
+            expect(within(line).getByText("fehlgeschlagen")).toBeInTheDocument();
+            expect(line).toHaveAttribute("data-tip-sub", expect.stringContaining("timed out after 600 s"));
+            expect(within(tile).getByText("In Ordnung")).toBeInTheDocument();
+            expect(tile).not.toHaveClass("sy-tone-mid");
+            expect(screen.getByText(t("system.backup.crumb.warn"))).toBeInTheDocument();
+        });
+
+        it("is not there while no deploy wrote the file", async () => {
+            vi.mocked(api.getBackupStatus).mockResolvedValue(backupStatus({ deploy: null }));
+            await open();
+            expect(screen.queryByText("Vor dem letzten Deploy")).not.toBeInTheDocument();
+        });
+    });
+
     describe("in English", () => {
         beforeEach(() => switchLang("en"));
         afterEach(() => switchLang("de"));

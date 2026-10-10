@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const { tempStoreFile } = require("../helpers/tempStore");
 const {
-    createJsonStore, writeFileAtomic, writeJsonAtomic, readJsonFile, tempPathFor, deepFreeze,
+    createJsonStore, writeFileAtomic, writeJsonAtomic, readJsonFile, tempPathFor, deepFreeze, registeredStores,
 } = require("../../src/stores/jsonStore");
 
 const listStore = (file, extra = {}) => createJsonStore({
@@ -369,5 +369,38 @@ describe("stores/jsonStore", () => {
             });
             expect(() => writeFileAtomic(file, "x")).toThrow("disk gone");
         });
+    });
+});
+
+describe("stores/jsonStore readStrict and the registry (#694)", () => {
+    it("normalises another file without touching the store, and throws where read() would fall back", () => {
+        const file = tempStoreFile("items.json");
+        const other = path.join(path.dirname(file), "other.json");
+        const store = listStore(file, { cache: true });
+        store.write({ items: [1] });
+        fs.writeFileSync(other, JSON.stringify({ items: [7, 8] }));
+        expect(store.readStrict(other)).toEqual([7, 8]);
+        expect(store.file).toBe(file);
+        expect(store.read()).toEqual([1]);
+
+        fs.writeFileSync(other, "{broken");
+        expect(() => store.readStrict(other)).toThrow();
+        expect(() => store.readStrict(path.join(path.dirname(file), "missing.json"))).toThrow(/ENOENT/);
+        fs.writeFileSync(other, "null");
+        expect(() => store.readStrict(other)).toThrow(TypeError);
+        store.useFile(other);
+        expect(store.read()).toEqual([]); // read() hides the same problem behind the defaults
+    });
+
+    it("registers every store with its default and its current file", () => {
+        const file = tempStoreFile("registered.json");
+        const store = listStore(file);
+        const entry = registeredStores().find((e) => e.defaultFile === file);
+        expect(entry.file).toBe(file);
+        store.useFile(path.join(path.dirname(file), "elsewhere.json"));
+        expect(entry.file).toBe(path.join(path.dirname(file), "elsewhere.json"));
+        store.useFile(null);
+        expect(entry.file).toBe(file);
+        expect(registeredStores()).not.toBe(registeredStores());
     });
 });

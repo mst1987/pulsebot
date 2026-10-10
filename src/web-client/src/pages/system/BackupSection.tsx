@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getBackupStatus, runBackupNow, type BackupLight, type BackupPart, type BackupStatus } from "../../api";
+import { getBackupStatus, runBackupNow, type BackupDeploySnapshot, type BackupLight, type BackupPart, type BackupStatus } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
 import { PartHead } from "../../components/ui/PartHead";
@@ -13,10 +13,37 @@ import { bytes } from "../../lib/system/systemFormat";
 // "Datensicherung" (#696, docs/system-status.md): three tiles - the snapshot on this server, the off-site copy, the
 // restore test - each with a traffic light, the time ("vor 3 Std.") and the size; the list of local snapshots one
 // fold below; one button, "Jetzt sichern". No download of a snapshot, on purpose: it holds API keys and sessions.
+// The snapshot tile carries one small line more: the newest deploy snapshot (#695) - when, which commits, and a yellow
+// "fehlgeschlagen" when deploy.sh could not take it (never red: the hourly snapshot stays the fallback).
 
 const LIGHT_TONE: Record<BackupLight, "ok" | "mid" | "bad" | undefined> = { ok: "ok", warn: "mid", bad: "bad", none: undefined };
 
-function PartTile({ part, now }: { part: BackupPart; now: number }) {
+const shortSha = (sha: string) => sha.slice(0, 7);
+
+/** "Vor dem letzten Deploy / vor 2 Tagen / abc1234 → def5678", a badge when it failed; the details in the tooltip. */
+function DeployLine({ deploy, now }: { deploy: BackupDeploySnapshot; now: number }) {
+    const t = useT();
+    const failed = !deploy.ok;
+    const tipSub = failed
+        ? t("system.backup.deploy.tipFailed", { error: deploy.error || "?" })
+        : [deploy.name ? t("system.backup.deploy.tipOk", { name: deploy.name }) : "", formatDateTime(deploy.at)].filter(Boolean).join(" · ");
+    return (
+        <div className={`sy-backup-deploy${deploy.light === "warn" ? " sy-backup-deploy-warn" : ""}`} data-tip={t("system.backup.deploy.tip")} data-tip-sub={tipSub}>
+            <span className="sy-backup-deploy-label">{t("system.backup.deploy.label")}</span>
+            <span className="sy-backup-deploy-fig">
+                <span className="sy-backup-deploy-when">{backupAgo(deploy.at, now)}</span>
+                {failed && <Badge size="sm" tone={deploy.light === "warn" ? "mid" : undefined}>{t("system.backup.deploy.failed")}</Badge>}
+            </span>
+            {deploy.fromCommit && deploy.toCommit && (
+                <span className="sy-backup-deploy-commits">
+                    {t("system.backup.deploy.commits", { from: shortSha(deploy.fromCommit), to: shortSha(deploy.toCommit) })}
+                </span>
+            )}
+        </div>
+    );
+}
+
+function PartTile({ part, now, deploy }: { part: BackupPart; now: number; deploy?: BackupDeploySnapshot | null }) {
     const t = useT();
     const tone = backupTone(part.light);
     const never = !part.at;
@@ -36,6 +63,7 @@ function PartTile({ part, now }: { part: BackupPart; now: number }) {
             <div className="sy-backup-light">
                 <Badge tone={LIGHT_TONE[part.light]} tip={t(`system.backup.lightTip.${part.light}`)}>{t(`system.backup.light.${part.light}`)}</Badge>
             </div>
+            {deploy && <DeployLine deploy={deploy} now={now} />}
         </div>
     );
 }
@@ -111,7 +139,7 @@ export default function BackupSection() {
             {data && (
                 <>
                     <div className="sy-tiles sy-backup-tiles">
-                        {data.parts.map((p) => <PartTile key={p.key} part={p} now={data.now} />)}
+                        {data.parts.map((p) => <PartTile key={p.key} part={p} now={data.now} deploy={p.key === "snapshot" ? data.deploy : null} />)}
                     </div>
                     {!data.enabled && <p className="hint">{t("system.backup.disabled")}</p>}
                     <SnapshotList status={data} />

@@ -198,6 +198,14 @@
             "snapshot": "Green under 26 hours, yellow under 48 hours, red above.",
             "restoreTest": "Green under 8 days, yellow under 15 days, red above."
         },
+        "deploy": {
+            "label": "Before the last deploy",
+            "commits": "{from} → {to}",
+            "failed": "failed",
+            "tip": "The snapshot the deploy takes before the restart",
+            "tipOk": "Taken: {name}",
+            "tipFailed": "Failed: {error}. Yellow for 7 days, never red – the hourly snapshot stays the fallback."
+        },
         "size": "{size}",
         "sizeAdded": "{size} in total, {added} new",
         "duration": "in {time}",

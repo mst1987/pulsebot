@@ -1,6 +1,6 @@
 # Datensicherung: Kopie außer Haus und Wiederherstellen
 
-Wie PulseBot gesichert wird, vor allem die **verschlüsselte nächtliche Kopie außer Haus** (Issue #692, Teil des Epics #690), und wie man zurückholt: Befehle und Runbook für „Datei kaputt“, „Daten weg“ und „neuer Server“ unter [Wiederherstellen](#wiederherstellen) (#693). Die Schnappschüsse im Bot (#691) und der Verzeichnisaufbau stehen in [data-storage.md](data-storage.md#sichern-und-wiederherstellen).
+Wie PulseBot gesichert wird, vor allem die **verschlüsselte nächtliche Kopie außer Haus** (Issue #692, Teil des Epics #690), und wie man zurückholt: Befehle und Runbook für „Datei kaputt“, „Daten weg“ und „neuer Server“ unter [Wiederherstellen](#wiederherstellen) (#693), und wie die wöchentliche [Wiederherstellungsprobe](#wiederherstellungsprobe) (#694) prüft, dass das auch wirklich geht. Die Schnappschüsse im Bot (#691) und der Verzeichnisaufbau stehen in [data-storage.md](data-storage.md#sichern-und-wiederherstellen).
 
 ## Überblick (3-2-1)
 
@@ -81,6 +81,36 @@ Der Ablauf einer Nacht: der Bot-Job hat unter `$BACKUP_DIR/latest` den neuesten 
 
 Cloudflare R2: 10 GB Speicher im Monat sind frei, der Abruf (Egress) kostet nichts, Anfragen erst oberhalb großzügiger Freimengen. Die Sicherung ist deduplizierend und liegt deutlich unter 1 GB, also dauerhaft im kostenlosen Bereich. Als Zahlungsart muss trotzdem eine hinterlegt sein.
 
+## Wiederherstellungsprobe
+
+Einmal pro Woche spielt der Bot den neuesten Schnappschuss **probeweise** zurück und prüft ihn (#694). So fällt eine Sicherung, die still kaputtgegangen ist (Platte voll, Rechte, ein Store schreibt plötzlich woanders hin, eine leer geschriebene Datei), auf der Systemstatus-Seite auf – nicht erst am Tag, an dem man sie braucht.
+
+**Ein Lauf** (`src/services/backup/restoreTest.js`, `runRestoreTest`):
+1. Der neueste vollständige Schnappschuss (kein `pre-restore`) wird mit `verifySnapshot` (#693) geprüft: Manifest, Größe und sha256 jeder Datei, jede `*.json` parst.
+2. Platz prüfen (eine Kopie der Daten plus 10 % der Platte frei), dann `restoreSnapshot` in ein frisches Verzeichnis `$BACKUP_DIR/.restore-test-<id>/data`. Bewusst auf der Backup-Platte und nicht in `/tmp` (auf dem Server oft klein oder eine andere Platte); der Punkt am Anfang hält es aus allen Lesern der Schnappschüsse heraus, die Kopie außer Haus nimmt es nicht mit.
+3. **Jeder Store liest seine Datei** aus dem zurückgespielten Stand – über seine eigene `normalize`-Funktion, mit `store.readStrict(datei)` (`src/stores/jsonStore.js`). Das ist bewusst **nicht** `useFile`: die Probe läuft im laufenden Bot, und zwischen `useFile(probe)` und `useFile(null)` wäre jede Anfrage – schlimmer: jeder Schreibvorgang – des Bots in den Probe-Dateien gelandet (und mit dem Verzeichnis gelöscht worden). `readStrict` fasst weder die Datei noch den Cache des Stores an und fällt **nicht** auf die Standardwerte zurück: wo `read()` bei einer unlesbaren Datei still `[]` liefert, gibt es hier einen Fehler. Jeder Store meldet sich dafür beim Anlegen in einer Liste (`registeredStores()`); die Probe lädt vorher alle `src/stores/*Store.js`. Fehlt eine Store-Datei im Schnappschuss, obwohl sie live schon vor dem Schnappschuss da war, ist das ebenfalls ein Problem.
+4. **Kennzahlen** (`counts` aus dem Manifest: Events, Anmeldungen, Roster, Raidpläne, Reports, Raumkarten, Dateien): Der zurückgespielte Stand muss genau die Zahlen des Manifests ergeben. Gegen den Live-Stand darf keine Zahl im Schnappschuss mehr als 20 % niedriger sein, sobald live mindestens 10 da sind (Sitzungen ausgenommen, die kommen und gehen) – das Zeichen einer Sicherung, die still leer wurde.
+5. Das Probe-Verzeichnis wird **immer** gelöscht (`finally`, auch nach einem Fehler; Reste eines abgestürzten Laufs räumt der nächste weg). Das Ergebnis steht in `$BACKUP_DIR/status/restore-test.json`: `{ at, ok, durationMs, bytes, files, snapshot: { name, reason, at, commit }, problems: [{ rel, problem }], problemCount, counts: { snapshot, restored, live }, stores: { checked, missing, failed }, loop: { maxMs, p99Ms, meanMs }, error? }`. Die Systemstatus-Seite zeigt es als Kachel „Wiederherstellungsprobe“ (grün < 8 Tage, gelb < 15, rot darüber oder durchgefallen; rot heißt auch DM an den Admin).
+
+**Wann** (`src/services/backup/restoreTestJob.js`, Job `backupRestoreTest`): standardmäßig **mittwochs um 04:30** (Europe/Berlin), und nur in den 6 Stunden danach – nie an einem Raid-Abend. In diesem Morgenfenster läuft sie an jedem Tag auch dann, wenn sie noch nie gelaufen ist, der letzte Lauf 7 Tage oder älter ist (Bot war am Mittwoch aus, ein Deploy fiel ins Fenster) oder der letzte Lauf durchgefallen ist (Wiederholung am nächsten Morgen). Hält gerade ein Schnappschuss seine Sperre, wartet sie auf die nächste Prüfung (alle 10 Minuten). Wie der Schnappschuss-Job nur mit `BACKUP_ENABLED` (auf dem Live-Bot von selbst an). Tag und Uhrzeit stehen in den Einstellungen, `config.json`:
+
+```json
+"backup": { "restoreTest": { "weekday": 3, "time": "04:30" } }
+```
+
+`weekday` 1 = Montag … 7 = Sonntag, `time` als `HH:MM`; Ungültiges fällt auf den Standard zurück.
+
+**Last:** Kopieren und Prüfen laufen asynchron Datei für Datei, nach jedem Store gibt die Probe dem Event-Loop einen Takt (`setImmediate`); die größte Verzögerung, die sie gesehen hat, steht im Status (`loop`). Gemessen auf dem Entwicklungsrechner (Windows, SSD) mit künstlichen Daten: 158 Dateien / 199 MB in etwa 3 s, Event-Loop höchstens 75–83 ms, p99 23 ms; 52 MB in etwa 1 s. Im Bot sind alle Stores schon geladen; der Befehl lädt sie einmal und braucht dafür zusätzlich etwa eine halbe Sekunde. Eine eigene niedrige Prozess-Priorität gibt es im Bot nicht (sie gälte für den ganzen Bot) – dafür das Morgenfenster.
+
+**Von Hand** (läuft neben dem Bot, schreibt nur ins Probe-Verzeichnis und die Statusdatei):
+
+```bash
+npm run backup:restore-test            # Zusammenfassung; Exit 0 bestanden, 1 durchgefallen
+npm run backup:restore-test -- --json  # das Ergebnis als eine JSON-Zeile
+```
+
+**Durchgefallen – was tun?** Die Fehlerzeile der Kachel und `problems` sagen, welche Datei: „fehlt“ / „Prüfsumme weicht ab“ → der Schnappschuss ist beschädigt (Platte, Rechte – `npm run backup:list`, neuen Schnappschuss mit `npm run backup:snapshot -- --reason manual` und Probe wiederholen). „Der Store liest die Datei nicht“ → die Datei ist gültiges JSON, aber nicht mehr im Format des Stores: live dieselbe Datei prüfen, bevor der nächste Neustart sie still durch Standardwerte ersetzt. „mehr als 20 % weniger“ → vergleichen, ob live wirklich so viel dazukam oder der Schnappschuss Daten verloren hat. „Zu wenig Platz“ → `BACKUP_DIR` aufräumen bzw. Aufbewahrung senken.
+
 ## Wiederherstellen
 
 Wiederherstellen ist ein Befehl mit Prüfung (#693). Er nimmt einen lokalen Schnappschuss (#691) oder einen, den restic aus der Kopie außer Haus zurückgeholt hat, und spielt ihn nach `DATA_DIR` zurück. Darunter stehen die drei Fälle als Runbook.
@@ -127,7 +157,7 @@ Rückweg (bei gestopptem Bot): npm run backup:restore -- 20261010-143512-pre-res
 Jetzt den Bot starten (pm2 start pulsebot) und /health prüfen.
 ```
 
-Die Logik steckt in `src/services/backup/restore.js` (`verifySnapshot`, `restoreSnapshot`). Die wöchentliche Wiederherstellungsprobe (#694) nutzt dieselben Funktionen gegen ein Temp-Verzeichnis.
+Die Logik steckt in `src/services/backup/restore.js` (`verifySnapshot`, `restoreSnapshot`). Die wöchentliche [Wiederherstellungsprobe](#wiederherstellungsprobe) (#694) nutzt dieselben Funktionen gegen ein Temp-Verzeichnis.
 
 ### Fall 1: Eine Datei ist kaputt oder wurde versehentlich geändert
 

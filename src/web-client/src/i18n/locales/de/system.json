@@ -198,6 +198,14 @@
             "snapshot": "Grün unter 26 Stunden, gelb unter 48 Stunden, darüber rot.",
             "restoreTest": "Grün unter 8 Tagen, gelb unter 15 Tagen, darüber rot."
         },
+        "deploy": {
+            "label": "Vor dem letzten Deploy",
+            "commits": "{from} → {to}",
+            "failed": "fehlgeschlagen",
+            "tip": "Der Schnappschuss, den der Deploy vor dem Neustart anlegt",
+            "tipOk": "Angelegt: {name}",
+            "tipFailed": "Fehlgeschlagen: {error}. Gelb für 7 Tage, nie rot – der stündliche Schnappschuss bleibt der Rückfall."
+        },
         "size": "{size}",
         "sizeAdded": "{size} gesamt, {added} neu",
         "duration": "in {time}",

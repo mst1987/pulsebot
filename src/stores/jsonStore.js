@@ -109,6 +109,16 @@ function deepFreeze(value) {
     return value;
 }
 
+// Every store created so far: { defaultFile, file, readStrict }. The weekly restore probe (#694,
+// services/backup/restoreTest.js) reads each store's file of a restored snapshot through its own
+// normalize - without useFile, so the running bot never reads or writes anything else meanwhile.
+const registry = [];
+
+/** The stores created so far (a store registers itself in createJsonStore): [{ defaultFile, file, readStrict }]. */
+function registeredStores() {
+    return registry.slice();
+}
+
 /**
  * A store over one JSON file.
  *
@@ -220,11 +230,23 @@ function createJsonStore({ file, defaults, normalize, cache = false, space = 2 }
         cached = null;
     }
 
+    /**
+     * The restore probe (#694): normalize(parsed `otherFile`) WITHOUT the fallback and without touching
+     * this store (its file, its cache). A missing file, invalid JSON or a throwing normalize throws -
+     * where read() would quietly hand out the defaults.
+     */
+    function readStrict(otherFile) {
+        const parsed = JSON.parse(fs.readFileSync(otherFile, "utf8"));
+        return normalize ? normalize(parsed) : parsed;
+    }
+
+    registry.push({ defaultFile, readStrict, get file() { return current; } });
+
     return {
-        read, peek, write, update, ensureDir, remove, useFile,
+        read, peek, write, update, ensureDir, remove, useFile, readStrict,
         get file() { return current; },
         defaultFile,
     };
 }
 
-module.exports = { createJsonStore, writeFileAtomic, writeJsonAtomic, readJsonFile, tempPathFor, deepFreeze };
+module.exports = { createJsonStore, writeFileAtomic, writeJsonAtomic, readJsonFile, tempPathFor, deepFreeze, registeredStores };

@@ -93,6 +93,12 @@
 .sy-backup-when { font-size: 26px; }
 .sy-backup-detail { overflow-wrap: anywhere; }
 .sy-backup-light { margin-top: 6px; }
+.sy-backup-deploy { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 12.5px; color: var(--muted); }
+.sy-backup-deploy-label { display: block; font-size: 11px; font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
+.sy-backup-deploy-fig { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.sy-backup-deploy-when { white-space: nowrap; }
+.sy-backup-deploy-commits { display: block; font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere; }
+.sy-backup-deploy-warn .sy-backup-deploy-fig { color: var(--text); }
 .sy-backup-note { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--line); border-left: 4px solid var(--good); background: var(--panel); font-size: 14px; overflow-wrap: anywhere; }
 .sy-backup-note-bad { border-left-color: var(--high); }
 .sy-backup-list li { justify-content: space-between; flex-wrap: nowrap; }

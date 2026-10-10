@@ -31,6 +31,7 @@ const guildBankItemMeta = require("../../services/guildbank/itemMeta");
 const systemMonitor = require("../../services/system/systemMonitor");
 const backupSnapshots = require("../../services/backup/snapshotJob");
 const backupAlerts = require("../../services/backup/backupAlerts");
+const backupRestoreTest = require("../../services/backup/restoreTestJob");
 const { versionInfo } = require("./version");
 
 const JOBS = [
@@ -71,6 +72,9 @@ const JOBS = [
     // Hourly snapshot of DATA_DIR into BACKUP_DIR (#691, docs/data-storage.md); only on the live bot unless BACKUP_ENABLED=1.
     { name: "backupSnapshots", start: () => backupSnapshots.startBackupJob({ commit: () => versionInfo().commit }), stop: () => backupSnapshots.stopBackupJob() },
     // Every 30 minutes: DM to ADMIN_USER_ID when a backup part failed or turned red (#696), at most once a day per part.
+    // Weekly restore probe (#694, docs/backup.md): the newest snapshot played back into a scratch directory and read by
+    // every store; on the slot of the settings (default Wednesday 04:30), never on a raid evening. Same switch as the snapshots.
+    { name: "backupRestoreTest", start: () => backupRestoreTest.startRestoreTestJob(), stop: () => backupRestoreTest.stopRestoreTestJob() },
     { name: "backupAlerts", start: () => backupAlerts.startBackupAlerts(), stop: () => backupAlerts.stopBackupAlerts() },
 ];
 
