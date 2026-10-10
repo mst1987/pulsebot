@@ -256,7 +256,9 @@ kein Grund, einen Fix nicht auszurollen:
   (`result` = die JSON-Ausgabe der CLI mit `name`, `error`, `durationMs` …,
   oder `null`). Die `status/snapshot.json` der CLI reicht dafür nicht: der
   nächste stündliche Lauf überschreibt sie, und bei belegter Sperre schreibt
-  die CLI gar keine.
+  die CLI gar keine. Die Systemstatus-Seite zeigt sie als Zusatzzeile der
+  Schnappschuss-Kachel („Vor dem letzten Deploy“; fehlgeschlagen = gelb für
+  7 Tage, nie rot – siehe docs/system-status.md).
 
 Im Deploy-Log sieht das so aus (die eingerückte Zeile kommt von der CLI):
 
