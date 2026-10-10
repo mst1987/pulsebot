@@ -592,6 +592,14 @@ describe("KaderPage · Fragen", () => {
 });
 
 describe("KaderPage · Beispiel-Setups", () => {
+    it("offers the sizes of the version's instances, a 40er included (#751)", async () => {
+        vi.mocked(api.saveKaderVariant).mockResolvedValue(change());
+        await show("/kader/k1/setups");
+        for (const n of [10, 20, 40]) expect(screen.getByRole("button", { name: t("kader.setups.sizeN", { n }) })).toBeInTheDocument();
+        await userEvent.click(screen.getByRole("button", { name: t("kader.setups.sizeN", { n: 40 }) }));
+        expect(api.saveKaderVariant).toHaveBeenCalledWith("k1", "v1", { size: 40 });
+    });
+
     it("switches the size and places a picked player on a free slot", async () => {
         vi.mocked(api.saveKaderVariant).mockResolvedValue(change());
         await show("/kader/k1/setups");

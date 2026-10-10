@@ -597,7 +597,7 @@
         "emptyGroup": "leer",
         "missing": "kein {buff}",
         "moreBuffs": "+{n} Buffs",
-        "hiddenGroups": "Gruppe 3 und 4 bleiben erhalten und erscheinen wieder im 20er.",
+        "hiddenGroups": "Die ausgeblendeten Gruppen bleiben erhalten und erscheinen in einer größeren Aufstellung wieder.",
         "none": "Keine Variante.",
         "groupFill": "{n} von {max} Plätzen",
         "placedOf": {

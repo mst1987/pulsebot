@@ -7,6 +7,7 @@ const { extractWclLinks } = require("../../utils/logcheck/logLinks");
 const { eventStartMs } = require("../../services/logcheck/logEventMatch");
 const { eventLinkFields } = require("../../services/logcheck/matchableEvents");
 const logStore = require("../../stores/logStore");
+const { linkConflict } = require("../../services/logcheck/logVersion");
 
 /**
  * Register (if needed) and link a Warcraft-Logs report to an event, given the
@@ -31,6 +32,9 @@ function linkLogByUrl(url, event, guildId) {
         const label = existing.eventLabel || existing.eventId;
         return { error: `Dieses Log ist bereits dem Event „${label}" zugeordnet. Dort zuerst die Zuordnung entfernen.` };
     }
+    // a log belongs only to a raid of its own game version (#746)
+    const conflict = linkConflict(existing || { link: found.link }, event);
+    if (conflict) return { error: conflict };
     const log = existing || logStore.saveLog({
         guildId: guildId || "",
         reportId: found.reportId,

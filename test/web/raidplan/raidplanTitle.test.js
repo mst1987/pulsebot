@@ -30,7 +30,11 @@ describe("instancesFromTitle", () => {
     it("a size named in the title wins; other versions are chosen by hand", () => {
         expect(instancesFromTitle("BT 10er Test").size).toBe(10);
         expect(instancesFromTitle("BT 25 man").size).toBe(25);
-        expect(instancesFromTitle("MC 40er", "classic")).toEqual({ instanceIds: [], size: 0, versionId: "classic" });
+        expect(instancesFromTitle("MC 40er", "classic")).toEqual({ instanceIds: ["mc"], size: 40, versionId: "classic" });
+        expect(instancesFromTitle("Barrow Deeps 10er", "forever")).toEqual({ instanceIds: ["forever-barrow"], size: 10, versionId: "forever" });
+        expect(instancesFromTitle("Ony 40", "forever").instanceIds).toEqual(["forever-ony"]);
+        // Classic's Onyxia is "ony", Forever's "forever-ony": the version picks
+        expect(instancesFromTitle("Ony 40", "classic").instanceIds).toEqual(["ony"]);
         expect(instancesFromTitle("BT", "nope").versionId).toBe("tbc");
     });
 });

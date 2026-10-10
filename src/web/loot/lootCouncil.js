@@ -36,6 +36,7 @@ const { targetSlotFor } = require("../../utils/wowsims/loadout");
 const wowsims = require("../../config/wowsims");
 const bisSource = require("../../config/bisSets");
 const { wearCheck } = require("../../config/wearable");
+const { councilContentFor } = require("../../config/councilContent");
 const {
     ROLES, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitStatFor, hitCapFor,
     bisForSpec, isSimSupported, bisSpecsForItem,
@@ -331,13 +332,14 @@ function itemView(itemId, tierId = "") {
  *
  * `isBis` is resolved here because only the server knows this raider's BiS list.
  */
-function wornItemView(item, bisIds, tierId = "") {
-    const known = wowsims.item(item.itemId);
-    const source = sourceForItem(item.itemId) || {};
+function wornItemView(item, bisIds, tierId = "", content = councilContentFor("tbc")) {
+    // A version without item table / BiS (#748) knows nothing beyond the log's own data.
+    const known = content.itemTable ? wowsims.item(item.itemId) : null;
+    const source = (content.itemTable && sourceForItem(item.itemId)) || {};
     return {
         // Whose BiS list this piece is on — not just "is it BiS", which says
         // nothing when nine specs share one item table.
-        bisSpecs: bisSpecsView(item.itemId, tierId),
+        bisSpecs: content.bis ? bisSpecsView(item.itemId, tierId) : [],
         slot: item.slot,
         slotName: item.slotName,
         itemId: item.itemId,
@@ -620,7 +622,7 @@ function awardedItemView(it, w = { weight: 1, cls: "normal" }) {
 }
 
 /** The raider's last seen gear as the roster row carries it (null without any). */
-function rosterGearView(gear, specEntry, bisIds, bisTier) {
+function rosterGearView(gear, specEntry, bisIds, bisTier, content = councilContentFor("tbc")) {
     if (!gear) return null;
     return {
         seenAt: gear.seenAt,
@@ -630,7 +632,7 @@ function rosterGearView(gear, specEntry, bisIds, bisTier) {
         // The hit that counts for this spec, and its cap: spell hit for a
         // caster, physical hit for melee, hunters and tanks (`hitStat`), none
         // for a healer (hitCap 0 — the page then shows no hit badge).
-        hit: gearHit(gear, hitStatFor(specEntry)),
+        hit: content.itemTable ? gearHit(gear, hitStatFor(specEntry)) : 0,
         hitStat: hitStatFor(specEntry),
         hitCap: hitCapFor(specEntry),
         // Whether this really is the raider's damage kit. A shaman who
@@ -686,7 +688,7 @@ function rosterGearView(gear, specEntry, bisIds, bisTier) {
         // page can show the raider's gear as a row of icons. Whether a
         // piece is on their BiS list is decided here rather than in the
         // client, which has no BiS list per raider to check against.
-        items: gear.items.map((it) => wornItemView(it, bisIds, bisTier)),
+        items: gear.items.map((it) => wornItemView(it, bisIds, bisTier, content)),
     };
 }
 
@@ -751,13 +753,15 @@ function rosterRow(key, ctx) {
     const filtered = bucket.filtered.sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
     const lastAwardAt = filtered.length ? filtered[0].awardedAt : 0;
     const daysSinceLoot = lastAwardAt ? Math.floor((ctx.now - lastAwardAt) / DAY) : null;
-    const bis = bisForSpec(specEntry, ctx.bisTier);
-    const bisItems = bisItemsFor(bis, gear, ctx.bisTier);
+    const content = ctx.content || councilContentFor("tbc");
+    // No BiS data for this version (#748): an honestly empty list, never TBC's.
+    const bis = content.bis ? bisForSpec(specEntry, ctx.bisTier) : { tier: "", exact: false, borrowedFrom: "", items: [], source: "", sourceLabel: "" };
+    const bisItems = content.bis ? bisItemsFor(bis, gear, ctx.bisTier) : [];
     const bisIds = new Set(bis.items.map((entry) => Number(entry.id)));
     // What each award counts as (#668): its weight decides the loot points and
     // how far it reset the wait. A weapon is a BiS weapon against *this*
     // raider's list.
-    const weighed = filtered.map((it) => ({ it, w: itemWeight(it.itemId, ctx.weights, { bisIds, itemName: it.itemName }) }));
+    const weighed = filtered.map((it) => ({ it, w: itemWeight(it.itemId, ctx.weights, { bisIds, itemName: it.itemName, noTable: !content.itemTable }) }));
     const lootPoints = Math.round(weighed.reduce((n, x) => n + x.w.weight, 0) * 10) / 10;
     const joined = ctx.joinedAtFor(key);
 
@@ -803,9 +807,9 @@ function rosterRow(key, ctx) {
         joinedFrom: joined.source,
         tenureDays: tenureDaysOf(joined.joinedAt, ctx.now),
         items: weighed.map((x) => awardedItemView(x.it, x.w)),
-        gear: rosterGearView(gear, specEntry, bisIds, ctx.bisTier),
+        gear: rosterGearView(gear, specEntry, bisIds, ctx.bisTier, content),
         bis: bisView(bis, bisItems),
-        simSupported: isSimSupported(specEntry),
+        simSupported: content.sim && isSimSupported(specEntry),
     };
 }
 
@@ -855,7 +859,9 @@ function scoreRows(rows, weights = resolveWeights()) {
  */
 function councilRoster(opts = {}) {
     const { role = "", categoryId = "", charVersion = "" } = opts;
-    const contentFilter = resolveContentFilter(opts);
+    // What content data the council's version has (#748); without options the TBC council as ever.
+    const content = councilContentFor(opts.versionId === undefined ? "tbc" : opts.versionId);
+    const contentFilter = content.tiers ? resolveContentFilter(opts) : null;
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
     const { roleByKey, planned } = judgedRoles();
     const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
@@ -865,7 +871,7 @@ function councilRoster(opts = {}) {
     const now = Date.now();
 
     const allLoot = listAll();
-    const bisTier = opts.bisTier || currentTier(allLoot);
+    const bisTier = content.bis ? (opts.bisTier || currentTier(allLoot)) : "";
     const loot = lootByCharacter(allLoot, categoryId, contentFilter);
 
     // A category with a roster (#667): the roster IS the candidate list —
@@ -904,7 +910,7 @@ function councilRoster(opts = {}) {
     // "Dabei seit" per raider, read once for the whole roster.
     const joinedAtFor = opts.joinedAtFor || tenureContext({ categoryId, allLoot, now });
     const ctx = {
-        info, charStore, gearMap, loot, planned, role, bisTier, now, links, weights, joinedAtFor,
+        info, charStore, gearMap, loot, planned, role, bisTier, now, links, weights, joinedAtFor, content,
         hints: fromRoster ? fromRoster.entries : null,
     };
     const rows = [];
@@ -1238,7 +1244,8 @@ function bisGaps(roster, { contentIds = null } = {}) {
 }
 
 /** The filter options the page offers, so the client needs no second source. */
-function filterOptions() {
+function filterOptions(content = councilContentFor("tbc")) {
+    if (!content.tiers && !content.bis) return { roles: ROLES, tiers: [], contents: [], bisTiers: [] };
     return {
         roles: ROLES,
         tiers: TIERS,

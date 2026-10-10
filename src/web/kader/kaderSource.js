@@ -78,6 +78,7 @@ function sourceBuffs(rules) {
         icon: b.icon || "",
         providers: [...b.providers],
         beneficiaries: [...(b.beneficiaries || [])],
+        slot: b.slot || "",
         important: KEY_PARTY_BUFFS.has(b.key),
     }));
     return { raid, party };

@@ -49,6 +49,7 @@ const { setupSummary } = require("../../services/setup/setupEditor");
 const setupPresence = require("../../services/setup/setupPresence");
 const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 const { planningOf } = require("../../services/events/planning");
+const { hasSheetLayout } = require("../../config/gameVersions");
 const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 const { expectedRosterIds, listExpectedMembers } = require("../../services/roster/expectedRaiders");
 
@@ -298,8 +299,9 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
 
     const config = getConfig();
     // Raid plan or Google Sheet, never both: the category's choice gates the plan's tab and step and the sheet's.
-    const planning = planningOf(found.g.categoryId, config);
+    // A version without a Google raid sheet layout (everything but TBC, #751) always plans with the raid plan.
     const version = eventVersionSettings(found, config);
+    const planning = hasSheetLayout(version.versionId) ? planningOf(found.g.categoryId, config) : "raidplan";
     const raidsheets = listRaidsheets();
     const matched = pickRaidsheet(raidsheets, found.e.title, { ownId: version.raidsheetId, otherIds: version.otherSheetIds });
     // A raid that is over and whose signups Raid-Helper no longer returns (and

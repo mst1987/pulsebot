@@ -1,6 +1,6 @@
 // The report page /r/<id>: head, KPI cards and the three views.
 const { esc, shellPage } = require("./layout");
-const { LINE, hicon, kpi } = require("./widgets");
+const { LINE, hicon, kpi, withReportVersion } = require("./widgets");
 const { groupByBoss } = require("./fightTopics");
 const { renderBossView } = require("./bossView");
 const { reportContext } = require("./context");
@@ -65,7 +65,12 @@ function kpiCards(report) {
     return `<div class="kpis">${out.join("")}</div>`;
 }
 
+/** The page in the links of the report's version (widgets.withReportVersion, #746). */
 function renderReportPage(report, user) {
+    return withReportVersion(report, () => renderReportPageIn(report, user));
+}
+
+function renderReportPageIn(report, user) {
     const ctx = reportContext(report, user);
     const { reviewer, rec, linkFor } = ctx;
     const dateStr = report.date ? esc(report.date) : "";

@@ -18,7 +18,7 @@ const { createJsonStore } = require("./jsonStore");
 const crypto = require("crypto");
 const defaults = require("../services/raidplan/raidplanCatalogDefaults");
 const { instanceById } = require("../config/gameVersions");
-const { ASSIGN_TYPES, CLASS_IDS } = require("../services/raidplan/raidplanConstants");
+const { ASSIGN_TYPES, CLASS_IDS, typesOfVersion, classIdsOf } = require("../services/raidplan/raidplanConstants");
 const { str } = require("../utils/text");
 
 const DEFAULT_FILE = settingsPath("raidplan-catalog.json");
@@ -120,9 +120,17 @@ function hiddenEntries() {
     };
 }
 
-/** What the plan editor and the read view get: every visible mob and spell. */
+/**
+ * What the plan editor and the read view get: every visible mob and spell, plus the assignment types and the
+ * class ids the version's rule set offers (#751).
+ */
 function catalogView(versionId = "") {
-    return { mobs: listMobs().filter((m) => inVersion(m, versionId)), spells: listSpells().filter((s) => inVersion(s, versionId)) };
+    return {
+        mobs: listMobs().filter((m) => inVersion(m, versionId)),
+        spells: listSpells().filter((s) => inVersion(s, versionId)),
+        types: typesOfVersion(versionId),
+        classes: versionId ? classIdsOf(versionId) : CLASS_IDS,
+    };
 }
 
 /** The classes that can cast a type of assignment, from the visible spells of that type (in the order they first appear). */

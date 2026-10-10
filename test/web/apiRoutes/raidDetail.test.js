@@ -941,6 +941,18 @@ describe("web/apiRoutes/raidDetail", () => {
             expect(mockDriveCopyFile).not.toHaveBeenCalled();
         });
 
+        it("refuses with 409 for an event of a version without a raid sheet layout (Forever, #751) and copies nothing", async () => {
+            setupDefaults();
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e-fv", channelId: "chan1", versionId: "forever" }] }], error: null,
+            });
+            const res = await post("/api/raids/fill", { event: "e-fv", sheetId: "sheet1" });
+            expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+            expect(json(res).error).toEqual({ code: "no_sheet_layout", message: expect.stringContaining("keine Raidsheet-Vorlage") });
+            expect(mockDriveCopyFile).not.toHaveBeenCalled();
+            expect(mockFillSetupSheet).not.toHaveBeenCalled();
+        });
+
         it("leaves an event it cannot find to the fill itself (no refusal from the planning)", async () => {
             setupDefaults();
             raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper down" });

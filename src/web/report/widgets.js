@@ -2,6 +2,7 @@
 // tiles, bars, metric cards, dialogs, number formats and the class colours.
 const { versionLinks } = require("../../services/events/versionSettings");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
+const { recordVersion } = require("../../services/logcheck/logVersion");
 const charLinks = require("../characters/charLinks");
 const { CLASS_COLORS } = require("../../utils/setup/setupView");
 const rpbData = require("../../config/rpbData");
@@ -20,13 +21,36 @@ function tagClass(severity) {
     return severity === "high" ? "tag tag-high" : "tag tag-medium";
 }
 
-// The links of a report (#542): the log analyzers read TBC logs (tbcContent;
-// Forever is Phase 3 of #540), so a report links with the TBC block of the
-// settings. Read once per second, not per icon - a report renders hundreds.
-let linksMemo = { at: 0, links: null };
+// The links of a report (#542, #746) follow the version of the report on the
+// page (`report.versionId`; a report from before #746 is TBC). The pages render
+// synchronously, so the page entry sets the version for the time it renders
+// (withReportVersion) instead of every widget taking the report. Read once per
+// second and version, not per icon - a report renders hundreds.
+let pageVersion = LEGACY_VERSION;
+let linksMemo = { at: 0, versionId: "", links: null };
 function reportLinks(now = Date.now()) {
-    if (!linksMemo.links || now - linksMemo.at > 1000) linksMemo = { at: now, links: versionLinks(LEGACY_VERSION) };
+    if (!linksMemo.links || linksMemo.versionId !== pageVersion || now - linksMemo.at > 1000) {
+        linksMemo = { at: now, versionId: pageVersion, links: versionLinks(pageVersion) };
+    }
     return linksMemo.links;
+}
+
+/**
+ * Render with the links of a report's version: `fn()` runs with it set and the
+ * version goes back to TBC afterwards, also when `fn` throws.
+ * @param {{ versionId?: string }} report
+ * @param {() => T} fn  a synchronous renderer
+ * @returns {T}
+ * @template T
+ */
+function withReportVersion(report, fn) {
+    const before = pageVersion;
+    pageVersion = recordVersion(report);
+    try {
+        return fn();
+    } finally {
+        pageVersion = before;
+    }
 }
 
 /** The Wowhead page of an item in a report, "" when the version has no Wowhead path. */
@@ -36,7 +60,7 @@ function wowheadItemLink(itemId, params) {
 
 /** The armory of a raider in a report (the report's version), "" without a template. */
 function armoryUrlFor(character) {
-    return charLinks.armoryUrlFor(character, LEGACY_VERSION);
+    return charLinks.armoryUrlFor(character, pageVersion);
 }
 
 function issueRow(issue) {
@@ -369,6 +393,6 @@ const sumOf = (list, pick) => (list || []).reduce((n, x) => n + (Number(pick(x))
 const avgOf = (list, pick) => ((list || []).length ? Math.round(sumOf(list, pick) / list.length) : 0);
 
 module.exports = {
-    wowheadItemLink, reportLinks,
+    wowheadItemLink, reportLinks, withReportVersion,
     iconUrl, classIconUrl, classCell, playerCard, pctCell, expBtn, tile, badge, LINE, ibtn, armoryLink, dlgClose, groupHead, detailDialog, whoList, whatList, metricCard, barCell, healBar, HEAL_BAR_HOW, barPct, yesNo, hicon, colHead, ICON_BY_NAME, iconTile, iconRow, classColorOf, pctTone, classIconName, fmtK, fmtSecs, toneCell, naCell, kpi, num, sumOf, avgOf,
 };

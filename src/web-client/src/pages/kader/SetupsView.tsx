@@ -184,7 +184,7 @@ export default function SetupsView() {
     };
 
     const toggleSource = (s: KaderState) => setSources(sources.includes(s) ? sources.filter((x) => x !== s) : [...sources, s]);
-    const setSize = (size: 10 | 20) => { if (size !== variant.size) void run(saveKaderVariant(kader.id, variant.id, { size })); };
+    const setSize = (size: number) => { if (size !== variant.size) void run(saveKaderVariant(kader.id, variant.id, { size })); };
     const auto = async () => {
         if (placed && !(await ask({ title: t("kader.setups.autoTitle"), text: t("kader.setups.autoText"), action: t("kader.setups.auto") }))) return;
         setPicked(null);
@@ -228,7 +228,7 @@ export default function SetupsView() {
                 <span className="kp-grow" />
                 <span className="kicker">{t("kader.setups.size")}</span>
                 <div className="kp-sizes" role="group" aria-label={t("kader.setups.size")}>
-                    {([10, 20] as const).map((size) => (
+                    {(view.setupSizes && view.setupSizes.length ? view.setupSizes : [10, 20]).map((size) => (
                         <button key={size} type="button" aria-pressed={variant.size === size} className={`kp-size${variant.size === size ? " kp-on" : ""}`} disabled={!canWrite} onClick={() => setSize(size)}>
                             {t("kader.setups.sizeN", { n: size })}
                         </button>
@@ -293,7 +293,7 @@ export default function SetupsView() {
                                 onSpec={(g, s, spec) => void save(setSlotSpec(variant.groups, g, s, spec))} />
                         ))}
                     </div>
-                    {variant.size === 10 && variant.groups.slice(2).some((g) => g.some(Boolean)) && <p className="kp-hint">{t("kader.setups.hiddenGroups")}</p>}
+                    {variant.groups.slice(shownGroups).some((g) => g.some(Boolean)) && <p className="kp-hint">{t("kader.setups.hiddenGroups")}</p>}
                 </section>
             </div>
             {renaming && <NameModal initial={variant.name} onClose={() => setRenaming(false)} onSave={(name) => { setRenaming(false); void run(saveKaderVariant(kader.id, variant.id, { name })); }} />}

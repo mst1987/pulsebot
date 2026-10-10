@@ -6,6 +6,9 @@ const { evaluateLog, SECTION_LABEL } = require("../../services/logcheck/logChann
 const { buildReport, reportSummaryLines, ReportError } = require("../../utils/logcheck/report");
 const logStore = require("../../stores/logStore");
 const discord = require("../../services/discord/discord");
+const { tr } = require("../../utils/i18n/botText");
+const { langOfInteraction } = require("../../services/discord/botLanguage");
+const { versionLabel } = require("../../services/events/versionSettings");
 
 // "Trotzdem auswerten" — the deliberate way past the guard that refuses to
 // evaluate a raid whose final boss is not down yet (see utils/logcheck/
@@ -22,20 +25,38 @@ const discord = require("../../services/discord/discord");
 // opens the modal, and submitting the modal — typing JA — is the confirmation.
 //
 // `kind` is "log" for a tracked log (ref = log id, the log-channel buttons) or
-// "id" for a bare report id (ref = WCL report id, the /logcheck command).
+// "id" for a bare report id (ref = WCL report id, the /logcheck command). An
+// "id" button carries the Warcraft-Logs host of the link as a fifth part
+// (logcheck-force:id:<reportId>:all:<host>, #746), so the run asks the host the
+// link was posted with instead of a fixed one.
 
 const FORCE_PREFIX = "logcheck-force";
 const CONFIRM_WORD = "JA";
+const HOST_RE = /^([a-z0-9-]+\.)*warcraftlogs\.com$/;
 
 /** customId for the confirm button under a refused evaluation. */
-function forceCustomId(kind, ref, section) {
-    return `${FORCE_PREFIX}:${kind}:${ref}:${section || "all"}`;
+function forceCustomId(kind, ref, section, host) {
+    const h = HOST_RE.test(String(host || "")) ? `:${host}` : "";
+    return `${FORCE_PREFIX}:${kind}:${ref}:${section || "all"}${h}`;
 }
 
 /** Reads a customId back apart. */
 function parseCustomId(customId) {
-    const [, kind = "", ref = "", section = "all"] = String(customId || "").split(":");
-    return { kind, ref, section };
+    const [, kind = "", ref = "", section = "all", host = ""] = String(customId || "").split(":");
+    return { kind, ref, section, host: HOST_RE.test(host) ? host : "" };
+}
+
+/**
+ * The card for a log of a version the log check has no rules for yet (#746),
+ * in the reader's language.
+ */
+function unsupportedCard(interaction, versionId) {
+    const lang = langOfInteraction(interaction);
+    return card({
+        kind: "warn",
+        title: tr(lang, "Not evaluated yet"),
+        text: tr(lang, "Logs from {version} are not evaluated yet.", { version: versionLabel(versionId) }),
+    });
 }
 
 /**
@@ -70,10 +91,10 @@ function buildForceModal(customId, { section, status }) {
 }
 
 /** The confirm button offered under a refusal, ready to be attached to a reply. */
-function forceButtonRow(kind, ref, section) {
+function forceButtonRow(kind, ref, section, host) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setCustomId(forceCustomId(kind, ref, section))
+            .setCustomId(forceCustomId(kind, ref, section, host))
             .setLabel("Trotzdem auswerten")
             .setStyle(ButtonStyle.Danger)
             .setEmoji("⚠️"),
@@ -126,6 +147,7 @@ function refusalStatus(message) {
 /** Run the forced evaluation of a tracked log and refresh its button message. */
 async function runForcedLog(interaction, logId, section) {
     const res = await evaluateLog(logId, section, { force: true });
+    if (!res.ok && res.unsupported) return interaction.editReply(unsupportedCard(interaction, res.versionId));
     if (!res.ok) return interaction.editReply(refusalCard(res));
 
     const log = res.log || {};
@@ -149,12 +171,24 @@ async function runForcedLog(interaction, logId, section) {
     }));
 }
 
+/**
+ * The link to run a bare report id with: on the host the button carries, else
+ * the one of the log tracked under that id, else the id alone (buildReport then
+ * takes TBC, #746).
+ */
+function forcedLink(reportId, host) {
+    if (host) return `https://${host}/reports/${reportId}`;
+    const tracked = logStore.getByReportId(reportId);
+    return (tracked && tracked.link) || reportId;
+}
+
 /** Run the forced evaluation of a bare report id (the /logcheck path). */
-async function runForcedReport(interaction, reportId) {
+async function runForcedReport(interaction, reportId, host) {
     let result;
     try {
-        result = await buildReport(`https://classic.warcraftlogs.com/reports/${reportId}`, { force: true });
+        result = await buildReport(forcedLink(reportId, host), { force: true });
     } catch (e) {
+        if (e && e.unsupported) return interaction.editReply(unsupportedCard(interaction, e.versionId));
         if (e instanceof ReportError) return interaction.editReply(refusalCard({ error: e.message }));
         console.error("forced logcheck failed:", e);
         return interaction.editReply(card({ kind: "error", title: "Fehler", text: "Unerwarteter Fehler beim Erstellen der Auswertung." }));
@@ -179,9 +213,11 @@ module.exports = {
     refusalCard,
     resultCard,
     refusalStatus,
+    unsupportedCard,
+    forcedLink,
 
     async execute(interaction) {
-        const { kind, ref, section } = parseCustomId(interaction.customId);
+        const { kind, ref, section, host } = parseCustomId(interaction.customId);
         if (!ref) return;
 
         // First half: the click. Ask before spending the analysis — and do it
@@ -203,6 +239,6 @@ module.exports = {
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         if (kind === "log") return runForcedLog(interaction, ref, section);
-        return runForcedReport(interaction, ref);
+        return runForcedReport(interaction, ref, host);
     },
 };

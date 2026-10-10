@@ -90,6 +90,13 @@ describe("/council", () => {
         expect(council.findCouncilItem("999999999")).toEqual({ id: 999999999, name: "Item 999999999" });
     });
 
+    it("offers the TBC raid catalogue only for a version that has one (#748)", () => {
+        expect(council.findCouncilItem("soul essence", "tbc")).toEqual({ id: 21882, name: "Soul Essence" });
+        expect(council.findCouncilItem("soul essence", "forever")).toBeNull();
+        itemCatalog.mockReturnValue([{ itemId: 5, itemName: "Forever Sword", count: 1, awards: [] }]);
+        expect(council.findCouncilItem("forever sword", "forever")).toEqual({ id: 5, name: "Forever Sword" });
+    });
+
     it("reports an unknown name", async () => {
         const i = mockInteraction({ options: { item: "zzzz-kein-item" } });
         await council.execute(i);

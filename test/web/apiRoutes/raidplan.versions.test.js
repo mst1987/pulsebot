@@ -67,7 +67,11 @@ describe("templates carry their game version", () => {
         expect(fv.versionId).toBe("forever");
         expect(tbc.catalog.mobs.length).toBeGreaterThan(30);
         // everything of the catalog is TBC so far: a Forever template offers none of it
-        expect(fv.catalog).toEqual({ mobs: [], spells: [] });
+        expect(fv.catalog).toMatchObject({ mobs: [], spells: [] });
+        // the version's rule set decides the offered types and classes (#751): no Misdirection card in a Forever plan
+        expect(fv.catalog.types).not.toContain("md");
+        expect(tbc.catalog.types).toContain("md");
+        expect(fv.catalog.classes).toHaveLength(9);
 
         const mixed = await call(route.postTemplate, ORGA, { name: "Mix", versionId: "tbc", instanceIds: ["forever-ony"] });
         expect(status(mixed)).toBe(400);
@@ -111,7 +115,7 @@ describe("an event plan and its version", () => {
     });
 
     it("a Forever plan gets no TBC catalog entry; a Forever entry shows there and not in TBC", async () => {
-        expect(body(await call(route.getPlan, ORGA, null, "event=eh-fv")).catalog).toEqual({ mobs: [], spells: [] });
+        expect(body(await call(route.getPlan, ORGA, null, "event=eh-fv")).catalog).toMatchObject({ mobs: [], spells: [] });
         const own = body(await call(route.postMob, ORGA, { name: "Onyxian Whelp", kind: "add", instanceId: "forever-ony", versions: ["forever"] })).entry;
         const fvCatalog = body(await call(route.getPlan, ORGA, null, "event=eh-fv")).catalog;
         expect(fvCatalog.mobs.map((m) => m.id)).toEqual([own.id]);

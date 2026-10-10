@@ -10,7 +10,7 @@ import { useRef, useState } from "react";
 import type { LootCouncilData } from "../../api";
 import { Badge, Button, Segment, Switch } from "../../components/ui";
 import { ChevronDownIcon, FunnelIcon } from "../../components/ui/icons";
-import { ROLE_ICON, categoryNote, roleLabel, rosterNote, type FilterView } from "./council";
+import { ROLE_ICON, categoryNote, councilContent, roleLabel, rosterNote, type FilterView } from "./council";
 import { useDismiss } from "../../hooks/useDismiss";
 import { tParts, useT } from "../../i18n";
 
@@ -85,6 +85,8 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
     const o = data.options;
     const derivedTier = data.filter.bisTierDerived ? o.bisTiers.find((b) => b.id === data.filter.bisTier) : null;
     const note = categoryNote(data);
+    // What this version has content data for (#748): no tier filter, BiS list or simulation without it.
+    const content = councilContent(data);
     // A category with a roster (#667): the roster is the candidate list.
     const fromRoster = rosterNote(data);
     const noSpec = data.filter.roster ? data.filter.roster.noSpec : [];
@@ -120,7 +122,7 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                 </button>
                 {open ? (
                     <div className="lc-fpopmenu" role="dialog" aria-label={t("lootcouncil.filter.button")}>
-                        <ContentFilter data={data} view={view} patch={patch} />
+                        {content.tiers ? <ContentFilter data={data} view={view} patch={patch} /> : null}
                         {data.filter.roster ? (
                             <div className="lc-field">
                                 <Switch
@@ -131,6 +133,7 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                                 />
                             </div>
                         ) : null}
+                        {content.bis ? (
                         <div
                             className="lc-field"
                             data-tip={derivedTier ? t("lootcouncil.filter.derivedTip", { tier: derivedTier.label }) : undefined}
@@ -142,6 +145,7 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                                 {o.bisTiers.map((b) => <option key={b.id} value={b.id}>{tParts("lootcouncil.filter.bisTier", { tier: TIER_SHORT[b.id] || b.label })}</option>)}
                             </select>
                         </div>
+                        ) : null}
                         <div
                             className="lc-field"
                             data-tip={t("lootcouncil.filter.gearTip")}
@@ -154,6 +158,7 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                                 {armoryCount ? t("lootcouncil.filter.gearValueArmory", { armory: armoryCount, count: roster }) : t("lootcouncil.filter.gearValueLog")}
                             </span>
                         </div>
+                        {content.sim ? (
                         <div
                             className="lc-field"
                             data-tip={data.sim.available ? `WoWSims ${data.sim.version}` : t("lootcouncil.sim.noSim")}
@@ -164,6 +169,7 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                                 {data.sim.available ? t("lootcouncil.filter.simValue", { done: simulated, total: simulatable }) : t("lootcouncil.filter.simOffValue")}
                             </span>
                         </div>
+                        ) : null}
                         <div className="lc-fpop-foot">
                             <Button variant="ghost" size="sm" disabled={!active} onClick={() => patch({ tiers: [], contents: [], bisTier: "", bench: false })}>{t("common.reset")}</Button>
                             <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>{t("lootcouncil.filter.done")}</Button>

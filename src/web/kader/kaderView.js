@@ -22,7 +22,7 @@
 // written back to the profile.
 //
 // `differs` codes: "class", "mainSpec", "gear", "tank", "heal", "notInProfile".
-const { STATES } = require("../../services/kader/kaderModel");
+const { STATES, SETUP_SIZES } = require("../../services/kader/kaderModel");
 
 const mainSpecOf = (char) => (char.specs.find((s) => s.main) || char.specs[0] || null);
 
@@ -261,6 +261,8 @@ function buildKaderView({ source, planner, kaderId = "" }) {
         roles: ["tank", "healer", "melee", "ranged"],
         classes: source.classes,
         buffs: source.buffs,
+        // the sizes an example setup can have: the raid sizes of the planner version's instances (#751)
+        setupSizes: SETUP_SIZES,
         raidCategories: source.raidCategories || [],
         players,
         members: memberList,
@@ -295,6 +297,8 @@ function mutationContext({ source, planner, actor = "", now = new Date().toISOSt
         now,
         actor,
         classes: indexClasses(source.classes),
+        // the rule set's party buffs: the auto-assign reads who spreads and who supports from them (#751)
+        partyBuffs: (source.buffs && source.buffs.party) || [],
         memberIds: new Set(source.members.map((m) => m.userId)),
         knownIds,
         prefillOf: (userId, current = planner) => prefillOf({ assignment: (current || planner).assignments[userId] || null, profile: profiles.get(userId) || null, logChar: logChars[userId] || null }),

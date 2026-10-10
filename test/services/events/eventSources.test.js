@@ -174,7 +174,7 @@ describe("services/events/eventSources", () => {
         eventStore.listEvents.mockReturnValue([ownEvent()]);
         expect(sources.ownMatchableEvents("g1", 100, { now: 3000000000 * 1000 })).toEqual([{
             id: "eh-1", source: "eventhelper", title: "Kara", startTime: 2000000000, channelId: "c1",
-            channelName: "kara-do", categoryId: "cat1", categoryName: "Raids",
+            channelName: "kara-do", categoryId: "cat1", categoryName: "Raids", versionId: "tbc",
         }]);
         expect(eventStore.listEvents).toHaveBeenCalledWith("g1", { sinceSeconds: 100, untilSeconds: 3000000000 });
         const raw = sources.ownUpcomingRaw("g1", { categoryId: "cat1" });
