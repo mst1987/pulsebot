@@ -1,5 +1,9 @@
 {
     "title": "Loot council",
+    "noContent": {
+        "text": "There are no BiS lists and no simulation for this game version yet. Needs, wishes, received loot and the weighting by attendance and membership still apply.",
+        "drop": "This game version has no item table and no simulation yet, so the drop check cannot determine candidates."
+    },
     "role": {
         "caster": "Caster",
         "healer": "Healer",

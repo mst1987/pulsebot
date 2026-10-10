@@ -37,7 +37,7 @@ import { usePersistedState } from "../../lib/ui/persistedState";
 import { useTableSort } from "../../lib/ui/tableSort";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { Button, PageHead, useConfirm } from "../../components/ui";
-import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
+import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, councilContent, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
 import { WowheadPathProvider } from "../../lib/settings/versionLinks";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import FilterBar from "./FilterBar";
@@ -105,6 +105,9 @@ export default function LootCouncilPage() {
     // A stored "drop" tab is from before the drop check had its own page; "weights" became "profiles" (#676).
     const tab = view.tab === "drop" ? "roster" : view.tab === "weights" ? "profiles" : view.tab;
     const [data, setData] = useState<LootCouncilData | null>(null);
+    // A version without BiS data has no BiS tabs (#748): a stored one opens the Raider tab.
+    const content = councilContent(data);
+    const shownTab = !content.bis && (tab === "bis" || tab === "bislists") ? "roster" : tab;
     const [error, setError] = useState<ApiError | null>(null);
     const [loading, setLoading] = useState(true);
     // Whether a first load has landed — after it, reloads run as quiet jobs
@@ -375,8 +378,11 @@ export default function LootCouncilPage() {
                 />
             ) : null}
 
+            {/* A version without content data says so, instead of showing TBC's (#748). */}
+            {!content.bis ? <div className="lc-panel empty" role="note">{t("lootcouncil.noContent.text")}</div> : null}
+
             {/* Tabs first, then the one filter line they all share. */}
-            <CouncilTabs tab={tab} patch={patch} rosterCount={roster.length} gapCount={gaps.length} />
+            <CouncilTabs tab={shownTab} patch={patch} rosterCount={roster.length} gapCount={gaps.length} hasBis={content.bis} />
 
             <FilterBar
                 data={data}
@@ -389,7 +395,7 @@ export default function LootCouncilPage() {
                 canWrite={canWrite}
             />
 
-            {tab === "roster" ? (
+            {shownTab === "roster" ? (
                 <RosterTab
                     data={data}
                     roster={roster}
@@ -409,7 +415,7 @@ export default function LootCouncilPage() {
                 />
             ) : null}
 
-            {tab === "bis" ? (
+            {shownTab === "bis" ? (
                 <GapsTab
                     data={data}
                     gaps={gaps}
@@ -425,14 +431,14 @@ export default function LootCouncilPage() {
 
             {/* Die Listen selbst — die einzige Ansicht hier, die nicht von den
                 Raidern und ihrem Loot abhängt, sondern nur von WoWSims. */}
-            {tab === "bislists" ? <BisListsTab view={view} patch={patch} /> : null}
+            {shownTab === "bislists" ? <BisListsTab view={view} patch={patch} versionId={data.versionId} /> : null}
 
             {/* Wer hat was bekommen, nebeneinander: dieselben Raider und derselbe
                 Loot wie im Raider-Tab, nur als Matrix statt als Tooltip je Zeile. */}
             {view.tab === "compare" ? <CompareTab roster={roster} view={view} patch={patch} contents={o.contents} /> : null}
 
             {/* Die Profile (#676): Gewichtung und Ansicht je Roster — ändert jede Zahl oben, also danach neu laden. */}
-            {tab === "profiles" ? (
+            {shownTab === "profiles" ? (
                 <ProfilesTab
                     initialId={profileId || data.council?.profile.id || ""}
                     options={o}

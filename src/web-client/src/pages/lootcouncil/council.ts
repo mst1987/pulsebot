@@ -3,7 +3,7 @@
 // from the components so both routes (/lootcouncil and /lootcouncil/drop/:id)
 // import the same rules instead of two copies drifting apart.
 import { useCallback, useRef, useState } from "react";
-import { runCouncilSim, type LootCouncilData, type CouncilCandidate, type SimResult, type WornItem } from "../../api";
+import { runCouncilSim, type CouncilContent, type LootCouncilData, type CouncilCandidate, type SimResult, type WornItem } from "../../api";
 import { useJobs } from "../../components/shell/Jobs";
 import { t, tOr } from "../../i18n";
 import type { Dir } from "../../lib/ui/tableSort";
@@ -285,4 +285,9 @@ export function rosterNote(data: LootCouncilData): { label: string; head: string
         head: t("lootcouncil.rosterSource.head", { name: src.name }),
         sub: parts.join(" "),
     };
+}
+
+/** The content data the council's version has (#748); an answer without the field is the full TBC council. */
+export function councilContent(data: Pick<LootCouncilData, "content"> | null | undefined): CouncilContent {
+    return (data && data.content) || { bis: true, sim: true, tiers: true, itemTable: true };
 }
