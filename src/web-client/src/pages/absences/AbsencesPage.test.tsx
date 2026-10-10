@@ -374,11 +374,14 @@ describe("Abwesenheiten: Meine Anwesenheit", () => {
         expect(cells.map((c) => c.classList.contains("is-in"))).toEqual([true, true, false]);
         expect(cells[0].tagName).toBe("BUTTON");
 
-        // the list: newest first, the verdict in words
+        // the list: newest first, the verdict as one short word, why in its tooltip (no word said twice)
         const rows = [...mon.querySelectorAll(".ab-att-list li")].slice(0, 3);
-        expect(rows.map((r) => r.querySelector(".ab-att-verdict")?.textContent)).toEqual([
-            "Abgemeldet · für diesen Raid abgemeldet", "Bench · im Setup auf der Bank", "Dabei · im Log",
+        const verdicts = rows.map((r) => r.querySelector(".ab-att-verdict") as HTMLElement);
+        expect(verdicts.map((v) => v.textContent)).toEqual(["Abgemeldet", "Bench", "Dabei"]);
+        expect(verdicts.map((v) => v.getAttribute("data-tip-sub"))).toEqual([
+            t("attendance.hint.absence"), "im Setup auf der Bank", "im Log",
         ]);
+        expect(verdicts[0]).toHaveAttribute("tabindex", "0");
         expect(rows[0]).toHaveClass("ab-att-out");
         expect(rows[1]).toHaveClass("ab-att-in");
 

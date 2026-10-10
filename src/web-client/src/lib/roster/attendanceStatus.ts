@@ -90,3 +90,13 @@ export function verdictText(night: { status?: string | null; reason?: string | n
     const why = detailText(night.detail);
     return why ? `${statusLabel(status)} · ${why}` : statusLabel(status);
 }
+
+// Details that only repeat their status's label ("Nicht angemeldet" · "keine Anmeldung"): the tooltip explains the status instead.
+const PLAIN_DETAILS = new Set(["noSignup", "absence", "vacation", "tentative"]);
+
+/** The tooltip under a night's short label: the override with its reason, else why the night has its status, else what the status means. */
+export function verdictTip(night: { status?: string | null; reason?: string | null; attended?: boolean; detail?: string; override?: AttendanceOverride }): string {
+    if (night.override) return verdictText(night);
+    const why = night.detail && !PLAIN_DETAILS.has(night.detail) ? detailText(night.detail) : "";
+    return why || statusHint(statusOf(night));
+}
