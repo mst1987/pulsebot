@@ -266,7 +266,8 @@ describe("web/apiRoutes/settings", () => {
                 expect(data.gameVersions[2]).toEqual({ id: "forever", label: expect.any(String), short: expect.any(String) });
                 // "Standardwerte übernehmen" (#553): Classic has checked values, Forever none yet
                 expect(data.versionDefaults.classic).toMatchObject({ wowheadPath: "classic", softresEdition: "classic", blizzardRealmSlug: "" });
-                expect(Object.values(data.versionDefaults.forever).every((v) => v === "")).toBe(true);
+                // Forever: only its Wowhead section (#750), no realm, armory or log site
+                expect(data.versionDefaults.forever).toMatchObject({ wowheadPath: "forever", blizzardRealmSlug: "", blizzardNamespace: "", armoryUrlTemplate: "", wclUrlTemplate: "" });
             });
 
             // A role with write on "Einstellungen" may edit the bot config, but must
