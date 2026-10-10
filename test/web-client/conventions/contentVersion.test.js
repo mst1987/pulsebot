@@ -19,11 +19,9 @@ const MENU = require("../../../src/config/menu.json");
 // here is a decision, not a convenience: a page with game content belongs on it
 // only while the issue that moves it is open.
 const NOT_YET = {
-    // the attendance overview follows the version with #740 (attendance and absences per version)
-    absences: "#740",
-    // Aufruf-Vorlagen: plain message texts with placeholders, the same for every version
-    // (no raid, class or item in them); the page sits under Raid-Events and shows its version
-    "raids/templates": "shared texts",
+    // Aufruf-Vorlagen: version-free text templates, decision pending (plain message texts with
+    // placeholders, the same for every version; no raid, class or item in them)
+    "raids/templates": "version-free text templates, decision pending",
 };
 
 /** The relative modules a file imports statically (type-only imports carry no code). */
