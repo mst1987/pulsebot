@@ -28,6 +28,7 @@ const eventStore = require("../../stores/eventStore");
 const { card } = require("../../utils/discord/card");
 const { findMissingRaiders, pingMissingRaiders } = require("./missingPing");
 const { MISSING_PREFIX } = require("./eventMessage");
+const { eventVersionTag } = require("./versionTag");
 
 const EVENT_ID = /^eh-[a-z0-9]{1,40}$/;
 /** Names shown in the preview; the rest is "+N weitere". */
@@ -52,7 +53,7 @@ const plain = (text) => String(text || "").replace(/([\\*_~`|>[\]()#-])/g, "\\$1
 /** The small line above the heading: the raid and its start, short. */
 function kickerOf(event) {
     const start = Number(event && event.startTime) || 0;
-    return [event && event.title, start ? `<t:${start}:d> <t:${start}:t>` : ""].filter(Boolean).join(" · ");
+    return [event && event.title, start ? `<t:${start}:d> <t:${start}:t>` : "", eventVersionTag(event)].filter(Boolean).join(" · ");
 }
 
 /** The names, the first MAX_NAMES of them, then "+N weitere". */

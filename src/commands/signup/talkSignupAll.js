@@ -2,8 +2,8 @@ const profiles = require("../../stores/raiderProfileStore");
 const { ALL_BUTTON_ID } = require("../../services/talk/talkOverview");
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
 const { characterOptions } = require("../../utils/signup/joinPicker");
-const { createSession, getSession, signableRaids, buildCharacterModal } = require("../../utils/signup/multiSignup");
-const { noCharacterReply, noRaidsReply } = require("./talkSignupMulti");
+const { createSession, getSession, buildCharacterModal } = require("../../utils/signup/multiSignup");
+const { noCharacterReply, noRaidsReply, raidsForButton } = require("./talkSignupMulti");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { asEphemeral } = require("../../utils/discord/card");
 
@@ -20,7 +20,9 @@ module.exports = {
         const lang = langOfInteraction(interaction);
         const profile = profiles.getProfile(uid) || { characters: [] };
         if (!characterOptions(profile).length) return interaction.reply(noCharacterReply(lang));
-        const raids = signableRaids();
+        const picked = raidsForButton(interaction, ALL_BUTTON_ID, lang);
+        if (picked.reply) return interaction.reply(asEphemeral(picked.reply));
+        const raids = picked.raids;
         if (!raids.length) return interaction.reply(noRaidsReply(lang));
         const token = createSession(uid, { mode: "all", eventIds: raids.map((e) => e.id) });
         if (interaction.client) await loadAppEmojis(interaction.client);
