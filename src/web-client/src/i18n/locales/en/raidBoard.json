@@ -1553,7 +1553,7 @@
             "move": "moves {dir}",
             "badgeOn": "gets {name}",
             "anIcon": "an icon",
-            "badgeOff": "loses the icon",
+            "badgeOff": "loses the debuff",
             "pulseOn": "pulses",
             "pulseOff": "stops pulsing",
             "hide": "disappears",
@@ -1562,7 +1562,8 @@
             "opacity": "becomes {n} % visible",
             "scale": "becomes {n} % large",
             "loop": "walks a round",
-            "loopOpen": "walks a way there and back"
+            "loopOpen": "walks a way there and back",
+            "badgeLost": "loses {name}"
         },
         "when": {
             "start": "from the start",
@@ -1595,7 +1596,7 @@
             "whatQ": "What should happen?",
             "what": {
                 "move": "Walk",
-                "badge": "Get a debuff",
+                "badge": "Debuff",
                 "fade": "Fade",
                 "turn": "Turn",
                 "loop": "Round",
@@ -1603,7 +1604,7 @@
             },
             "whatSub": {
                 "move": "to a place",
-                "badge": "icon on the player",
+                "badge": "get or lose",
                 "fade": "disappear, appear",
                 "turn": "facing",
                 "loop": "kite, in a circle",
@@ -1625,7 +1626,11 @@
             "nextWhat": "Next: What?",
             "nextWhere": "Next: Where?",
             "add": "Add",
-            "loopDone": "Done"
+            "loopDone": "Done",
+            "badgeGet": "Get",
+            "badgeLose": "Lose",
+            "loseNote": "{who} loses the debuff from this step on.",
+            "stopPulse": "Stop pulsing as well"
         }
     }
 }

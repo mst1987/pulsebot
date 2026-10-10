@@ -107,13 +107,41 @@ describe("the view 'Animation'", () => {
         expect(screen.getByRole("button", { name: "Weiter: Was?" })).toBeDisabled();
         fireEvent.click(within(who()).getByRole("button", { name: /Totenkopf/ }));
         fireEvent.click(screen.getByRole("button", { name: "Weiter: Was?" }));
-        fireEvent.click(screen.getByRole("radio", { name: /Debuff bekommen/ }));
+        fireEvent.click(screen.getByRole("radio", { name: /^Debuff/ }));
         fireEvent.click(screen.getByRole("button", { name: "Bloodboil" }));
         fireEvent.click(screen.getByRole("button", { name: "Hinzufügen" }));
         expect(changes()[0]).toMatchObject({ obj: "mark:m1", badge: "spell_shadow_bloodboil", pulse: true });
         expect(screen.getByRole("button", { name: "Totenkopf bekommt Bloodboil" })).toBeTruthy();
         expect(screen.getByRole("button", { name: "Totenkopf pulsiert" })).toBeTruthy();
         expect(screen.queryByRole("region", { name: "Neue Aktion" })).toBeNull();
+    });
+
+    it("a debuff is taken off again in a later frame, its pulse with it", () => {
+        setup();
+        sceneWithFrame();
+        fireEvent.click(within(who()).getByRole("button", { name: /Totenkopf/ }));
+        fireEvent.click(screen.getByRole("button", { name: /^Aktion$/ }));
+        fireEvent.click(screen.getByRole("radio", { name: /^Debuff/ }));
+        fireEvent.click(screen.getByRole("button", { name: "Hinzufügen" }));
+        expect(document.querySelectorAll(".rp-fx-badge")).toHaveLength(1);
+
+        // frame 3: Totenkopf loses it
+        fireEvent.click(within(strip()).getByRole("button", { name: /^Takt$/ }));
+        expect(screen.getByRole("heading", { name: /Takt 3 von 3/ })).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: /^Aktion$/ }));
+        fireEvent.click(screen.getByRole("radio", { name: /^Debuff/ }));
+        fireEvent.click(screen.getByRole("radio", { name: "Verlieren" }));
+        expect(screen.getByText("Totenkopf verliert den Debuff ab diesem Takt.")).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "Bloodboil" })).toBeNull();
+        expect(screen.getByRole("switch", { name: "Pulsieren auch beenden" })).toBeChecked();
+        fireEvent.click(screen.getByRole("button", { name: "Hinzufügen" }));
+        expect(scenes()[0].frames[2].changes[0]).toMatchObject({ obj: "mark:m1", badge: "", pulse: false });
+        expect(screen.getByRole("button", { name: "Totenkopf verliert Bloodboil" })).toBeTruthy();
+        expect(screen.getByRole("button", { name: "Totenkopf hört auf zu pulsieren" })).toBeTruthy();
+        // gone in frame 3 (badge and pulse), still there in frame 2
+        expect(document.querySelectorAll(".rp-fx-badge, .rp-fx-pulse")).toHaveLength(0);
+        fireEvent.click(within(strip()).getAllByRole("option")[1]);
+        expect(document.querySelectorAll(".rp-fx-badge")).toHaveLength(1);
     });
 
     it("walking goes Wer → Was → Wohin: a click on the map is the target", () => {
