@@ -20,7 +20,8 @@ vi.mock("../../api", async (orig) => ({
     setRosterHidden: vi.fn(),
 }));
 
-const READER = adminUser({ isAdmin: false, access: { roster: { read: true, write: false } } });
+// an orga role with roster read; the page is the orga's since epic #723 (a plain raider gets a notice, see the end)
+const READER = adminUser({ isAdmin: false, isOrga: true, access: { roster: { read: true, write: false } } });
 
 async function openPage(data: RosterData, user = adminUser()) {
     vi.mocked(api.getRoster).mockResolvedValue(data);
@@ -265,5 +266,15 @@ describe("RosterCharsPage per game version (#543, #563)", () => {
         await user.click(within(screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0]).getByRole("radio", { name: /Forever/ }));
         await waitFor(() => expect(api.getRoster).toHaveBeenLastCalledWith("forever"));
         localStorage.removeItem("eh-content-version");
+    });
+});
+
+describe("RosterCharsPage - orga only (epic #723)", () => {
+    it("shows a raider with roster read a short notice instead of the list and asks the server for nothing", () => {
+        const RAIDER = adminUser({ isAdmin: false, isOrga: false, access: { roster: { read: true, write: false } } });
+        renderPage(<RosterCharsPage />, { route: "/roster/chars", user: RAIDER });
+        expect(screen.getByText(t("roster.page.orgaOnly"))).toBeInTheDocument();
+        expect(api.getRoster).not.toHaveBeenCalled();
+        expect(api.getCharacterClaims).not.toHaveBeenCalled();
     });
 });

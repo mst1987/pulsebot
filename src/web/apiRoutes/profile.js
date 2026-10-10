@@ -17,6 +17,7 @@ const { userIcsUrl } = require("../../services/events/icsFeed");
 const { rulesFor, VERSIONS } = require("../../config/gameVersions");
 const { mainVersionFor, knownVersion, isVersionVisible } = require("../../services/events/mainVersion");
 const { getConfig } = require("../../stores/settingsStore");
+const { userIsOrga } = require("../../config/permissions");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
 
 const WEEKDAY_LABELS = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" };
@@ -158,15 +159,17 @@ const getRaiderSearch = withUser({}, async ({ user, res, url }) => {
     ok(res, { raiders: profiles.searchRaiders(q, user.id, 10, { preferVersion: mainVersionFor({ config: getConfig() }) }) });
 });
 
-/** GET /api/profile/user?id= — one raider's profile for the orga, read-only, with wishes. */
-const getUserProfile = withUser({}, async ({ res, url }) => {
+/** GET /api/profile/user?id= — one raider's profile for the orga, read-only, with wishes. 403 "orga_only" for everybody else (epic #723). */
+const getUserProfile = withUser({}, async ({ user, res, url }) => {
+    if (!userIsOrga(user)) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
     const id = String(url.searchParams.get("id") || "").trim();
     if (!id || !profiles.hasProfile(id)) return apiError(res, 404, "not_found", "Kein Profil für dieses Konto.");
     ok(res, { profile: profileView(profiles.getProfile(id), { forOrga: true }) });
 });
 
-/** GET /api/roster/character-claims — characters more than one account has added. */
-const getCharacterClaims = withUser({}, async ({ res }) => {
+/** GET /api/roster/character-claims — characters more than one account has added (orga only, epic #723). */
+const getCharacterClaims = withUser({}, async ({ user, res }) => {
+    if (!userIsOrga(user)) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
     ok(res, { claims: profiles.characterClaims() });
 });
 

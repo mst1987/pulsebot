@@ -97,7 +97,7 @@ describe("RosterFormDialog — create", () => {
         await userEvent.click(await d.findByRole("button", { name: "+ Lunaria" }));
         await userEvent.click(submit);
         expect(api.createRoster).toHaveBeenCalledWith({
-            name: "PuG Karazhan", slots: { total: 10, tank: 2, healer: 4, bench: 2 }, allowMultipleChars: true, signupOnly: false,
+            name: "PuG Karazhan", slots: { total: 10, tank: 2, healer: 4, bench: 2 }, allowMultipleChars: true, signupOnly: false, publicRaids: false,
             categoryId: "cat2", versionId: "tbc", roleIds: ["role-kara"], trialRoleId: "role-trial", managers: { roleIds: [], userIds: ["u-luna"] }, source: "role",
         });
         expect(await screen.findByText("Das Roster „PuG Karazhan“ ist angelegt.")).toBeInTheDocument();
@@ -157,8 +157,10 @@ describe("RosterFormDialog — settings", () => {
         expect(d.getAllByText("Das ändern nur Admins.").length).toBeGreaterThan(0);
         await userEvent.click(within(d.getByRole("group", { name: "Tanks" })).getByRole("button", { name: "Tanks: weniger" }));
         await userEvent.click(d.getByRole("switch", { name: "Anmeldung nur für Roster-Mitglieder" }));
+        // publicRaids: a manager may switch it too (epic #723)
+        await userEvent.click(d.getByRole("switch", { name: "Raids für alle Raider sichtbar" }));
         await userEvent.click(d.getByRole("button", { name: "Speichern" }));
-        expect(api.updateRoster).toHaveBeenCalledWith("raid-mo-do-abc", { slots: { total: 25, tank: 2, healer: 7, bench: 0 }, signupOnly: true });
+        expect(api.updateRoster).toHaveBeenCalledWith("raid-mo-do-abc", { slots: { total: 25, tank: 2, healer: 7, bench: 0 }, signupOnly: true, publicRaids: true });
     });
 
     it("translates a refusal", async () => {

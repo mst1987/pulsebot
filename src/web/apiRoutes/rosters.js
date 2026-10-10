@@ -11,13 +11,17 @@ const { getConfig } = require("../../stores/settingsStore");
 const { buildRosterOverview, buildRosterDetail } = require("../roster/rosterView");
 const { buildRosterHistory } = require("../roster/rosterHistoryView");
 const { activeRoster } = require("../roster/activeRoster");
+const { isRosterOrga } = require("../../services/roster/rosterAccess");
 
 /** GET /api/rosters — one card per roster of the active server, the categories without one, `canCreate`. */
 const getRosters = withUser({}, async ({ req, res, user }) => {
     ok(res, await buildRosterOverview({ guildId: activeGuildFor(req), user, config: getConfig() }));
 });
 
-/** GET /api/rosters/roster?id=<rosterId> — one roster's head and members, `canManage`. */
+/**
+ * GET /api/rosters/roster?id=<rosterId> — one roster's head and members, `canManage`, `isOrga`. For anybody
+ * but the roster's orga the Komposition's slice only (no attendance, roles, history; see rosterView.js).
+ */
 const getRosterDetail = withUser({}, async ({ req, res, user, query }) => {
     const id = q.str(query, "id", { max: 64 });
     if (!id) return apiError(res, 400, "bad_request", "Kein Roster angegeben.");
@@ -30,13 +34,15 @@ const getRosterDetail = withUser({}, async ({ req, res, user, query }) => {
  * GET /api/rosters/history?id=<rosterId>[&userId=<id>][&offset=<n>][&limit=<n>] - the
  * roster's history newest first, a page at a time (default 50, at most 200),
  * only the lines about `userId` when given: { entries, total, offset, limit }.
- * 404 for an unknown roster or one of another server.
+ * 404 for an unknown roster or one of another server; 403 "orga_only" for anybody but the roster's orga
+ * (full admin, orga role, manager of that roster; epic #723).
  */
-const getRosterHistory = withUser({}, async ({ req, res, query }) => {
+const getRosterHistory = withUser({}, async ({ req, res, user, query }) => {
     const id = q.str(query, "id", { max: 64 });
     if (!id) return apiError(res, 400, "bad_request", "Kein Roster angegeben.");
     const roster = activeRoster(req, id);
     if (!roster) return apiError(res, 404, "not_found", "Roster nicht gefunden.");
+    if (!(await isRosterOrga(user, roster))) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
     return ok(res, await buildRosterHistory(roster, {
         userId: q.str(query, "userId", { max: 32 }),
         offset: query.get("offset"),

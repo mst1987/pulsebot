@@ -221,6 +221,21 @@ describe("POST /api/rosters/update", () => {
         expect(status(await post("/api/rosters/update", { rosterId: "nope", name: "X" }))).toBe(404);
     });
 
+    it("switches publicRaids (raids visible to all raiders) for an admin and a manager of that roster, not for a stranger, only as a boolean", async () => {
+        expect(roster.publicRaids).toBe(false);
+        let res = await post("/api/rosters/update", { rosterId: roster.id, publicRaids: true });
+        expect([status(res), data(res).roster.publicRaids]).toEqual([200, true]);
+        mockUser = MANAGER;
+        res = await post("/api/rosters/update", { rosterId: roster.id, publicRaids: false });
+        expect([status(res), data(res).roster.publicRaids]).toEqual([200, false]);
+        res = await post("/api/rosters/update", { rosterId: roster.id, publicRaids: "yes" });
+        expect([status(res), code(res)]).toEqual([400, "bad_request"]);
+        mockUser = WRITER;
+        res = await post("/api/rosters/update", { rosterId: roster.id, publicRaids: true });
+        expect([status(res), code(res)]).toEqual([403, "not_manager"]);
+        expect(rosterStore.getRoster(roster.id).publicRaids).toBe(false);
+    });
+
     it("answers 409 category_taken when moving onto a category with a roster", async () => {
         rosterStore.createRoster({ name: "Other", categoryId: CAT });
         const res = await post("/api/rosters/update", { rosterId: roster.id, categoryId: CAT });

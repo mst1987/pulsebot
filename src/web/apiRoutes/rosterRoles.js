@@ -10,7 +10,7 @@ const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { getConfig } = require("../../stores/settingsStore");
 const { activeRoster } = require("../roster/activeRoster");
-const { canManageRosterLive } = require("../../services/roster/rosterAccess");
+const { canManageRosterLive, isRosterOrga } = require("../../services/roster/rosterAccess");
 const { applyRoleChange } = require("../../services/roster/rosterRoleSync");
 const { rosterSyncView } = require("../../services/roster/rosterSyncView");
 
@@ -48,10 +48,12 @@ const postRosterRole = withUser({ write: "roster", csrf: true, body: true }, asy
  * GET /api/rosters/sync?id=<rosterId> — the four lists of the Abgleich tab
  * (services/roster/rosterSyncView.js), the roster's roles, whether the bot may
  * manage roles there, the role-sync mirrors, and whether the caller may act.
+ * 403 "orga_only" for anybody but the roster's orga (epic #723).
  */
 const getRosterSync = withUser({}, async ({ user, req, query, res }) => {
     const roster = activeRoster(req, query.get("id"));
     if (!roster) return apiError(res, 404, "not_found", "Roster nicht gefunden.");
+    if (!(await isRosterOrga(user, roster))) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
     const [view, canManage] = await Promise.all([
         rosterSyncView(roster, { config: getConfig() }),
         canManageRosterLive(user, roster),

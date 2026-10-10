@@ -24,7 +24,7 @@ describe("stores/rosterStore normalizeRoster", () => {
             id: "r1", guildId: "", name: "Donnerstag", categoryId: null, versionId: "tbc",
             roleIds: [], trialRoleId: null, managers: { roleIds: [], userIds: [] },
             slots: { total: 0, tank: 0, healer: 0, bench: 0 },
-            allowMultipleChars: false, signupOnly: false, source: { kind: "manual" }, kaderId: null,
+            allowMultipleChars: false, signupOnly: false, publicRaids: false, source: { kind: "manual" }, kaderId: null,
             lootSystem: "", lootProfileId: "",
             members: {}, history: [], createdAt: "", createdBy: "",
         });
@@ -84,6 +84,9 @@ describe("stores/rosterStore normalizeRoster", () => {
         expect(r.source).toEqual({ kind: "kader", kaderId: "k1" });
         expect(r.allowMultipleChars).toBe(false);
         expect(r.signupOnly).toBe(true);
+        // publicRaids is a strict boolean: only `true` switches it on
+        expect(normalizeRoster({ id: "r2", publicRaids: true }).publicRaids).toBe(true);
+        expect(normalizeRoster({ id: "r3", publicRaids: "yes" }).publicRaids).toBe(false);
         expect(r.trialRoleId).toBe("55");
         expect(normalizeRoster({ id: "r", source: { kind: "manual", kaderId: "k1" } }).source).toEqual({ kind: "manual" });
         expect(normalizeRoster({ id: "r", versionId: "wotlk" }).versionId).toBe("tbc");

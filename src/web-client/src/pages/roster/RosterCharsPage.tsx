@@ -12,6 +12,7 @@ import { useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import { canAccess, getCharacterClaims, getRoster, setRosterHidden, type ApiError, type RosterChar, type RosterHiddenNote, type RosterRole } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { isOrga } from "../../lib/app/orgaArea";
 import { usePersistedState } from "../../lib/ui/persistedState";
 import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { RosterKpis } from "./RosterHero";
@@ -55,7 +56,22 @@ function byRoleThenName(a: RosterChar, b: RosterChar): number {
     return r || a.character.localeCompare(b.character);
 }
 
+/** The list shows attendance and claims of other people: the orga's (epic #723); a raider gets a short notice. */
 export default function RosterCharsPage() {
+    const { user } = useOutletContext<ShellContext>();
+    const t = useT();
+    if (!isOrga(user)) {
+        return (
+            <div className="rn-page">
+                <BackButton to="/roster" label={t("roster.detail.back")} size="sm" className="rn-back" />
+                <p className="rn-empty">{t("roster.page.orgaOnly")}</p>
+            </div>
+        );
+    }
+    return <RosterCharsList />;
+}
+
+function RosterCharsList() {
     const { user } = useOutletContext<ShellContext>();
     // The game version shown (#543): the menu's content switch (#563), "" = the server's main version.
     const { version } = useContentVersion();

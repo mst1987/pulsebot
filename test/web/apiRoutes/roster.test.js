@@ -190,6 +190,9 @@ const { tempStoreFile } = require("../../helpers/tempStore");
 const { get, post } = routerClient(require("../../../src/web/apiRoutes/roster"));
 
 const ADMIN = { id: "1", name: "Admin", isAdmin: true };
+// a raider role holding `roster` read: opens the roster pages, but is no orga (epic #723)
+const RAIDER = { id: "5", name: "Raider", isAdmin: false, isOrga: false, access: { ...emptyAccess(), roster: { read: true, write: true } } };
+const ORGA_ROLE = { id: "6", name: "Orga", isAdmin: false, isOrga: true, access: { ...emptyAccess(), roster: { read: true, write: true } } };
 // Hiding writes for real, into a scratch file of this suite.
 rosterHidden.useFile(tempStoreFile("roster-hidden.json"));
 
@@ -332,8 +335,41 @@ describe("web/apiRoutes/roster", () => {
         });
     });
 
+    describe("orga only (epic #723)", () => {
+        it("shuts the all-characters list and the hide switch for a raider, opens them for an orga role", async () => {
+            auth.getUser.mockReturnValue(RAIDER);
+            const res = await get("/api/roster");
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(json(res).error.code).toBe("orga_only");
+            expect(characterInfo.annotatedCharacters).not.toHaveBeenCalled();
+            const hide = await post("/api/roster/hide", { character: "Anna", hide: true });
+            expect(json(hide).error.code).toBe("orga_only");
+            expect(rosterHidden.isHidden("Anna")).toBe(false);
+            auth.getUser.mockReturnValue(ORGA_ROLE);
+            expect((await get("/api/roster")).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        });
+    });
+
     describe("GET /api/roster/char", () => {
         beforeEach(() => auth.getUser.mockReturnValue(ADMIN));
+
+        it("keeps other people's attendance from a raider, but not the drop sources; the own character stays whole", async () => {
+            const profiles = require("../../../src/stores/raiderProfileStore");
+            auth.getUser.mockReturnValue(RAIDER);
+            const other = json(await get("/api/roster/char", { name: "Nobody", items: "28453" })).data;
+            expect(other).toMatchObject({ attendanceVisible: false, categories: [], attendance: {} });
+            expect(other.items[28453].boss).toBe("Attumen the Huntsman");
+            const spy = jest.spyOn(profiles, "getProfile").mockReturnValue({ characters: [{ key: "nobody", name: "Nobody", versionId: "tbc" }] });
+            const findSpy = jest.spyOn(profiles, "findCharacter").mockReturnValue({ key: "nobody" });
+            try {
+                expect(json(await get("/api/roster/char", { name: "Nobody" })).data.attendanceVisible).toBe(true);
+            } finally {
+                spy.mockRestore();
+                findSpy.mockRestore();
+            }
+            auth.getUser.mockReturnValue(ORGA_ROLE);
+            expect(json(await get("/api/roster/char", { name: "Nobody" })).data.attendanceVisible).toBe(true);
+        });
 
         it("describes each worn item once: drop source and BiS specs", async () => {
             // 28453 drops from Attumen in Karazhan (config/tbcContent.js)

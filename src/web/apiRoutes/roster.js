@@ -9,6 +9,8 @@ const { sourceForItem, content, tier } = require("../../config/tbcContent");
 const { bisSpecsView } = require("../loot/lootCouncil");
 const { knownVersion, resolveVersionQuery } = require("../../services/events/mainVersion");
 const { getConfig } = require("../../stores/settingsStore");
+const { userIsOrga } = require("../../config/permissions");
+const profiles = require("../../stores/raiderProfileStore");
 
 /**
  * The game version a list is filtered to (#543): `?version=<id>`, "all" for
@@ -26,8 +28,11 @@ const MAX_ITEM_IDS = 30;
 /**
  * GET /api/roster[?version=<id>|all] — every character grouped by raid category (see roster.js),
  * of one game version (#543; the main version unless the page asks for another or "all").
+ * Attendance and who else plays a character are people data: 403 "orga_only" for anybody
+ * but the orga (full admin or orga role; epic #723).
  */
-const getRoster = withUser({}, async ({ req, res, url }) => {
+const getRoster = withUser({}, async ({ req, res, user, url }) => {
+    if (!userIsOrga(user)) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
     // Same one-time backfill the loot pages run, so the hover panel never shows
     // "Item <id>" for rows imported before icon enrichment existed.
     await repairLootItemNames();
@@ -67,6 +72,7 @@ const getRoster = withUser({}, async ({ req, res, url }) => {
  * stay whole, the roster page simply stops listing them (see rosterHiddenStore).
  */
 const postRosterHide = withUser({ write: "roster", csrf: true, body: true }, async ({ user, body, res }) => {
+    if (!userIsOrga(user)) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
     const character = String(body.character || "").trim();
     if (!character) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
 
@@ -100,13 +106,21 @@ function itemFacts(itemId) {
     };
 }
 
+/** Whether `name` is a character on the caller's own raider profile. */
+function isOwnCharacter(user, name) {
+    const profile = user && user.id ? profiles.getProfile(user.id) : null;
+    return !!profile && !!profiles.findCharacter(profile, name);
+}
+
 /**
  * GET /api/roster/char?name=<name>&items=<id,id,…> — the character page's roster
  * facts: role, categories with attendance night by night, and per worn item its
  * drop source and BiS specs. The page asks for it beside /api/history/char and
- * shows these parts only when the answer comes back.
+ * shows these parts only when the answer comes back. The attendance and the categories (who raids
+ * where) are the orga's - or the character's own player: for anybody else both come back empty and
+ * `attendanceVisible` is false (epic #723). Role and the items' drop sources stay.
  */
-const getRosterChar = withUser({}, async ({ req, res, url }) => {
+const getRosterChar = withUser({}, async ({ req, res, user, url }) => {
     const name = String(url.searchParams.get("name") || "").trim();
     const guildId = activeGuildFor(req);
     const version = String(url.searchParams.get("version") || "").trim();
@@ -118,11 +132,13 @@ const getRosterChar = withUser({}, async ({ req, res, url }) => {
         .slice(0, MAX_ITEM_IDS);
     const items = {};
     for (const id of new Set(ids)) items[id] = itemFacts(id);
+    const attendanceVisible = userIsOrga(user) || isOwnCharacter(user, name);
     ok(res, {
         character: name,
         role: (facts && facts.role) || "",
-        categories: (facts && facts.categories) || [],
-        attendance: (facts && facts.attendance) || {},
+        categories: attendanceVisible ? (facts && facts.categories) || [] : [],
+        attendance: attendanceVisible ? (facts && facts.attendance) || {} : {},
+        attendanceVisible,
         items,
     });
 });

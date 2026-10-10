@@ -40,6 +40,7 @@ type FormState = {
     slots: RosterSlots;
     allowMultipleChars: boolean;
     signupOnly: boolean;
+    publicRaids: boolean;
     source: RosterSource;
     kaderId: string;
     /** Settings: the Kader of the Kaderplaner linked to the roster ("" = none). */
@@ -65,6 +66,7 @@ function initialCreate(options: RosterOptions, categoryId: string): FormState {
         slots: tpl ? { total: tpl.total, tank: tpl.tank, healer: tpl.healer, bench: tpl.bench } : { ...NO_SLOTS },
         allowMultipleChars: false,
         signupOnly: false,
+        publicRaids: false,
         source: "role",
         kaderId: "",
         linkedKaderId: "",
@@ -86,6 +88,7 @@ function initialSettings(data: RosterDetail): FormState {
         slots: { ...data.roster.slots },
         allowMultipleChars: data.roster.allowMultipleChars,
         signupOnly: !!(s && s.signupOnly),
+        publicRaids: !!(s && s.publicRaids),
         source: "none",
         kaderId: "",
         linkedKaderId: (s && s.kaderId) || "",
@@ -103,6 +106,7 @@ function patchOf(form: FormState, base: FormState, create: boolean, admin: boole
         slots: form.slots,
         allowMultipleChars: form.allowMultipleChars,
         signupOnly: form.signupOnly,
+        publicRaids: form.publicRaids,
         ...(admin ? {
             categoryId: form.categoryId || null,
             versionId: form.versionId,
@@ -119,6 +123,7 @@ function patchOf(form: FormState, base: FormState, create: boolean, admin: boole
     if (!same(form.slots, base.slots)) out.slots = form.slots;
     if (form.allowMultipleChars !== base.allowMultipleChars) out.allowMultipleChars = form.allowMultipleChars;
     if (form.signupOnly !== base.signupOnly) out.signupOnly = form.signupOnly;
+    if (form.publicRaids !== base.publicRaids) out.publicRaids = form.publicRaids;
     if (admin) {
         if (form.categoryId !== base.categoryId) out.categoryId = form.categoryId || null;
         if (form.versionId !== base.versionId) out.versionId = form.versionId;
@@ -383,6 +388,7 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
                         <p className="rn-sub">{t("roster.form.rulesHint")}</p>
                         <Switch checked={form.allowMultipleChars} onChange={(allowMultipleChars) => set({ allowMultipleChars })} label={t("roster.form.multi")} tip={t("roster.form.multiTip")} />
                         <Switch checked={form.signupOnly} onChange={(signupOnly) => set({ signupOnly })} label={t("roster.form.signupOnly")} tip={t("roster.form.signupOnlyTip")} />
+                        <Switch checked={form.publicRaids} onChange={(publicRaids) => set({ publicRaids })} label={t("roster.form.publicRaids")} tip={t("roster.form.publicRaidsTip")} />
                     </section>
 
                     {create && (

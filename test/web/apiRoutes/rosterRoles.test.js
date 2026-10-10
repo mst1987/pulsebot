@@ -4,7 +4,7 @@ let mockUser = { id: "200001", isAdmin: false, access: { roster: { read: true, w
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/stores/rosterStore", () => ({ getRoster: jest.fn() }));
-jest.mock("../../../src/services/roster/rosterAccess", () => ({ canManageRosterLive: jest.fn(async () => true) }));
+jest.mock("../../../src/services/roster/rosterAccess", () => ({ canManageRosterLive: jest.fn(async () => true), isRosterOrga: jest.fn(async () => true) }));
 jest.mock("../../../src/services/roster/rosterRoleSync", () => ({
     applyRoleChange: jest.fn(async (roster, userId, roleId, give) => ({ roleId, roleName: "Raider", give, ok: true, code: "done", changed: true })),
 }));
@@ -18,7 +18,7 @@ const { readJsonBody } = require("../../../src/web/http/apiBody");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const { requireCsrf } = require("../../../src/web/http/apiMiddleware");
 const rosterStore = require("../../../src/stores/rosterStore");
-const { canManageRosterLive } = require("../../../src/services/roster/rosterAccess");
+const { canManageRosterLive, isRosterOrga } = require("../../../src/services/roster/rosterAccess");
 const { applyRoleChange } = require("../../../src/services/roster/rosterRoleSync");
 const { rosterSyncView } = require("../../../src/services/roster/rosterSyncView");
 const { postRosterRole, getRosterSync, routes } = require("../../../src/web/apiRoutes/rosterRoles");
@@ -44,6 +44,7 @@ beforeEach(() => {
     mockUser = { id: "200001", isAdmin: false, access: { roster: { read: true, write: true } } };
     rosterStore.getRoster.mockImplementation((id) => (id === "r1" ? ROSTER : null));
     canManageRosterLive.mockResolvedValue(true);
+    isRosterOrga.mockResolvedValue(true);
     activeGuildFor.mockReturnValue("g1");
 });
 
@@ -138,6 +139,14 @@ describe("apiRoutes/rosterRoles GET /api/rosters/sync", () => {
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual(expect.objectContaining({ rosterId: "r1", canManage: false, inRosterWithoutRole: [] }));
         expect(rosterSyncView).toHaveBeenCalledWith(ROSTER, { config: { roleSync: [] } });
+    });
+
+    it("answers 403 orga_only for somebody who is not the roster's orga (epic #723)", async () => {
+        isRosterOrga.mockResolvedValueOnce(false);
+        const res = await get("r1");
+        expect(status(res)).toBe(403);
+        expect(body(res).error.code).toBe("orga_only");
+        expect(rosterSyncView).not.toHaveBeenCalled();
     });
 
     it("answers 404 for an unknown roster", async () => {

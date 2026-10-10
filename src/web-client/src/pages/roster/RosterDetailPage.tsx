@@ -6,15 +6,16 @@
 // "n offen") and Verlauf. A member opens in the
 // drawer at the right edge. Names, characters, roles and attendance come from
 // the server (GET /api/rosters/roster); every change reloads the roster.
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
-import { getRosterDetail, getRosterSync, setRosterRole, type RosterDetail, type RosterMember } from "../../api";
+import { getRosterDetail, getRosterSync, setRosterRole, type RosterDetail, type RosterMember, type SessionUser } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePageCrumb } from "../../hooks/usePageCrumb";
 import { tParts, useT } from "../../i18n";
 import { BackButton, Badge, Button, IconTile, WowIcon } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { PlusIcon, SettingsIcon } from "../../components/ui/icons";
+import { OrgaZone } from "../../components/ui/OrgaZone";
 import type { ShellContext } from "../../components/shell/Shell";
 import { changedRoleLines, syncOpenCount } from "../../lib/roster/rosterEdit";
 import AddMemberDialog, { type AddPrefill } from "./AddMemberDialog";
@@ -39,17 +40,22 @@ const TABS: { id: TabId; icon: string; label: string }[] = [
     { id: "history", icon: "inv_misc_book_09", label: "roster.detail.tabHistory" },
 ];
 
-function tabOf(raw: string | undefined): TabId {
+/** Which tab the address names; a raider (not the roster's orga) has the Komposition only (epic #723). */
+function tabOf(raw: string | undefined, orga: boolean): TabId {
+    if (!orga) return "composition";
     return TABS.some((tb) => tb.id === raw) ? (raw as TabId) : "members";
 }
 
-function RosterHeadBlock({ data, tab, open, onSettings, onAdd }: { data: RosterDetail; tab: TabId; open: number | null; onSettings: () => void; onAdd: () => void }) {
+/** The tabs that show people data: attendance, members, Discord sync and history belong to the orga. */
+const ORGA_TABS: TabId[] = ["members", "attendance", "sync", "history"];
+
+function RosterHeadBlock({ data, tab, open, orga, onSettings, onAdd }: { data: RosterDetail; tab: TabId; open: number | null; orga: boolean; onSettings: () => void; onAdd: () => void }) {
     const t = useT();
     const r = data.roster;
     const line = [
         r.slots.total > 0 ? t("roster.detail.places", { places: r.places, total: r.slots.total }) : t("roster.detail.placesNoTarget", { count: r.places }),
     ];
-    if (r.attendance !== null) line.push(t("roster.detail.attendance", { pct: r.attendance }));
+    if (orga && r.attendance !== null) line.push(t("roster.detail.attendance", { pct: r.attendance }));
     const href = (id: TabId) => `/roster/r/${encodeURIComponent(r.id)}${id === "members" ? "" : `/${id}`}`;
     return (
         <>
@@ -70,18 +76,25 @@ function RosterHeadBlock({ data, tab, open, onSettings, onAdd }: { data: RosterD
                     </div>
                 )}
             </div>
-            <nav className="rn-tabs" aria-label={t("roster.detail.tabsAria")}>
-                {TABS.map((tb) => (
-                    <Link key={tb.id} className={`rn-tab${tb.id === tab ? " is-on" : ""}`} to={href(tb.id)} aria-current={tb.id === tab ? "page" : undefined}>
-                        <WowIcon name={tb.icon} size={20} />
-                        {t(tb.label)}
-                        {tb.id === "members" && <Badge count>{r.members}</Badge>}
-                        {tb.id === "sync" && open !== null && open > 0 && <Badge tone="mid">{t("roster.detail.open", { count: open })}</Badge>}
-                    </Link>
-                ))}
-            </nav>
+            {orga && (
+                <nav className="rn-tabs" aria-label={t("roster.detail.tabsAria")}>
+                    {TABS.map((tb) => (
+                        <Link key={tb.id} className={`rn-tab${tb.id === tab ? " is-on" : ""}`} to={href(tb.id)} aria-current={tb.id === tab ? "page" : undefined}>
+                            <WowIcon name={tb.icon} size={20} />
+                            {t(tb.label)}
+                            {tb.id === "members" && <Badge count>{r.members}</Badge>}
+                            {tb.id === "sync" && open !== null && open > 0 && <Badge tone="mid">{t("roster.detail.open", { count: open })}</Badge>}
+                        </Link>
+                    ))}
+                </nav>
+            )}
         </>
     );
+}
+
+/** The orga's tabs inside the visible orga frame (no frame without a session user, as in the page tests). */
+function OrgaPart({ user, children }: { user: SessionUser | null; children: ReactNode }) {
+    return user ? <OrgaZone user={user}>{children}</OrgaZone> : <>{children}</>;
 }
 
 export default function RosterDetailPage() {
@@ -89,9 +102,11 @@ export default function RosterDetailPage() {
     const { rosterId = "", tab: rawTab } = useParams();
     const outlet = useOutletContext<ShellContext | undefined>();
     const user = outlet?.user ?? null;
-    const tab = tabOf(rawTab);
     const state = useApi(() => getRosterDetail(rosterId), [rosterId]);
-    const sync = useApi(() => getRosterSync(rosterId), [rosterId]);
+    // the roster's orga: admin, orga role or manager of this roster; anybody else sees the Komposition only (epic #723)
+    const orga = !state.data || state.data.isOrga !== false;
+    const tab = tabOf(rawTab, orga);
+    const sync = useApi(() => getRosterSync(rosterId), [rosterId], { enabled: !!state.data && orga });
     const [drawer, setDrawer] = useState("");
     const [adding, setAdding] = useState<{ prefill: AddPrefill | null } | null>(null);
     const [settings, setSettings] = useState(false);
@@ -123,12 +138,10 @@ export default function RosterDetailPage() {
     }
     if (!state.data) return <RaidLoader text={t("roster.detail.loading")} />;
     const data = state.data;
-    return (
-        <div className="rn-page">
-            {back}
-            <RosterHeadBlock data={data} tab={tab} open={sync.data ? syncOpenCount(sync.data) : null} onSettings={() => setSettings(true)} onAdd={() => setAdding({ prefill: null })} />
+    // the people tabs: only the roster's orga gets here (the server refuses the rest as well)
+    const orgaTab = (
+        <>
             {tab === "members" && <MembersTab data={data} busy={busy} onOpen={setDrawer} onGiveRole={giveRole} />}
-            {tab === "composition" && <CompositionTab data={data} user={user} reloadKey={reloadKey} onOpen={setDrawer} onSettings={data.canManage ? () => setSettings(true) : undefined} />}
             {tab === "attendance" && <AttendanceTab data={data} onOpen={setDrawer} onChanged={() => { void state.reload(); }} />}
             {tab === "sync" && (
                 sync.data
@@ -136,7 +149,15 @@ export default function RosterDetailPage() {
                     : sync.error ? <p className="rn-empty">{tParts("roster.detail.loadError", { message: sync.error.message })}</p> : <RaidLoader compact text={t("roster.sync.loading")} />
             )}
             {tab === "history" && <HistoryTab rosterId={data.roster.id} reloadKey={reloadKey} />}
-            {drawer && <MemberDrawer key={drawer} data={data} userId={drawer} onClose={() => setDrawer("")} onChanged={reloadAll} />}
+        </>
+    );
+    return (
+        <div className="rn-page">
+            {back}
+            <RosterHeadBlock data={data} tab={tab} orga={orga} open={sync.data ? syncOpenCount(sync.data) : null} onSettings={() => setSettings(true)} onAdd={() => setAdding({ prefill: null })} />
+            {tab === "composition" && <CompositionTab data={data} user={user} reloadKey={reloadKey} onOpen={orga ? setDrawer : undefined} onSettings={data.canManage ? () => setSettings(true) : undefined} />}
+            {ORGA_TABS.includes(tab) && <OrgaPart user={user}>{orgaTab}</OrgaPart>}
+            {orga && drawer && <MemberDrawer key={drawer} data={data} userId={drawer} onClose={() => setDrawer("")} onChanged={reloadAll} />}
             {adding && <AddMemberDialog data={data} prefill={adding.prefill} onClose={() => setAdding(null)} onDone={reloadAll} />}
             {settings && <RosterFormDialog mode="settings" data={data} onClose={() => setSettings(false)} onSaved={() => { void reloadAll(); }} />}
         </div>
