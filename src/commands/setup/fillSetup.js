@@ -6,6 +6,8 @@ const { botEditReply } = require("../../utils/discord/reply");
 const { isOwnEventId, getEvent } = require("../../stores/eventStore");
 const { ownEventInChannel } = require("../../services/events/eventSources");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
+const { sheetVersionRefusal } = require("../../services/events/planning");
+const { versionOfEvent } = require("../../services/events/mainVersion");
 
 /**
  * The own EventHelper event the command is about (#291): an `eh-` id given as
@@ -39,6 +41,9 @@ module.exports = {
         if (own) {
             // ---- An own event: only its APPROVED setup fills a sheet ----
             if (own.missing) return botEditReply(interaction, "Fehler", "Event nicht gefunden. ID prüfen.");
+            // The sheet is laid out for TBC only (#751): no wrongly filled TBC sheet for another version.
+            const noLayout = sheetVersionRefusal(versionOfEvent(own));
+            if (noLayout) return botEditReply(interaction, "Fehler", noLayout.message);
             slots = raidHelperSlots(own);
             if (!slots.length) {
                 return botEditReply(interaction, "Fehler", `**${own.title}** hat noch kein freigegebenes Setup. Erst im Web unter Raid-Details › Setup freigeben.`);

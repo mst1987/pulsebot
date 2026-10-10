@@ -12,7 +12,7 @@
 //                     attendanceCategories: [categoryId],   the raid categories attendance counts in
 //                     questions: [{ id, text, type, options: [{ id, label }], required, rev? }],
 //                     players:   { [userId]: entry },
-//                     setups:    [{ id, name, size: 10|20, groups: [[{ userId, spec }|null x5] x4] }],
+//                     setups:    [{ id, name, size: 10|20, groups: [[{ userId, spec }|null x5] x8] }],
 //                     rev?, activity?: [{ rev, at, by, type, playerId?, count?, from?, to?, questionId? }] }] }
 //
 // The revisions are stamps of the planner's change counter `rev`, set by
@@ -31,7 +31,15 @@
 const { AppError } = require("../../web/http/apiResult");
 const { isProfane, validateCharacterName } = require("../../utils/signup/characterNames");
 const { newId } = require("../../utils/ids");
-const { migrateLegacyPlanner, charOfAssignments } = require("./kaderMigration");
+const { migrateLegacyPlanner, charOfAssignments, PLANNER_VERSION } = require("./kaderMigration");
+const { rulesFor } = require("../../config/gameVersions");
+
+/** The raid sizes of a version's instances (sorted, once each) that fill whole groups of five; [10, 20] when it has none. */
+function setupSizesOf(versionId) {
+    const rules = rulesFor(versionId);
+    const sizes = new Set(((rules && rules.instances) || []).flatMap((i) => i.sizes).filter((n) => n >= 5 && n % 5 === 0));
+    return sizes.size ? [...sizes].sort((a, b) => a - b) : [10, 20];
+}
 
 const FORMAT = 2;
 const ROLES = ["tank", "healer", "melee", "ranged"];
@@ -48,9 +56,12 @@ const OPTION_COLORS = ["blue", "amber", "rose", "teal", "violet", "lime", "orang
 const VOTES = ["yes", "unsure", "no"];
 const NAME_STYLES = ["forever", "nick"];
 const GEAR_LEVELS = ["none", "usable", "ready"];
-const SETUP_SIZES = [10, 20];
-const GROUP_COUNT = 4;
 const GROUP_SIZE = 5;
+// The planner plays one game version (Forever; kaderMigration.PLANNER_VERSION). Its example setups come in
+// the sizes of that version's instances (Barrow Deeps 10, Hyjal 20, Onyxia 40 - #751); a rule set without
+// instances keeps 10 and 20. A variant stores as many groups as the biggest size shows.
+const SETUP_SIZES = setupSizesOf(PLANNER_VERSION);
+const GROUP_COUNT = Math.max(...SETUP_SIZES) / GROUP_SIZE;
 // A nickname: letters (umlauts too), digits, space, hyphen, apostrophe.
 const NICK = /^[\p{L}\p{N}' -]+$/u;
 const NICK_MIN = 2;
@@ -602,7 +613,7 @@ function deleteKader(planner, kaderId) {
 
 module.exports = {
     FORMAT, ROLES, STATES, SETUP_STATES, QUESTION_TYPES, OPTION_COLORS, VOTES, NAME_STYLES, GEAR_LEVELS, SETUP_SIZES,
-    GROUP_COUNT, GROUP_SIZE, LIMITS, ACTIVITY_TYPES,
+    GROUP_COUNT, GROUP_SIZE, LIMITS, ACTIVITY_TYPES, setupSizesOf,
     clone, str, isObject, invalid, notFound, conflict, forbidden, revOf, stale, assertFresh,
     emptyPlanner, emptyGroups, normalizePlanner, normalizeQuestion, normalizeAnswer, normalizeKader, normalizeActivity,
     cleanLabel, getKader, withKader, checkUserId, isKnown, classOf, cleanClassSpec,

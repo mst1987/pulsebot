@@ -7,7 +7,7 @@ import ClassRefIcon from "../ClassRefIcon";
 import RoleGlyph from "../RoleGlyph";
 import { PlayerName, TokenIcon } from "../PlanBoard";
 import { type FlyItem } from "../../../lib/raidplan/flyout";
-import { ROLE_REFS, CLASS_IDS, classIconOf, classPlaceNameFor, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/raidplan/assign";
+import { ROLE_REFS, CLASS_IDS, classIdsOf, classIconOf, classPlaceNameFor, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/raidplan/assign";
 import { ANY, ANY_SPEC, CLASS_COLOR, PREFERRED_ROLES, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, boardContext, candidatesOf, rankCandidates, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole, MAX_COUNT, classPriorityOf, hasPriority, movePriorityClass, rowCount, setPriority, setRowCount, toPriority, togglePriorityClass } from "../../../lib/raidplan/classRefs";
 import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/raidplan/assignModal";
 import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/raidplan/rosterAssign";
@@ -107,7 +107,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
     const tankRow = TANK_TYPES.indexOf(type) >= 0 && !target;
     // a row whose task is tanking by itself: the three tanking classes are the general tanks; the class tiles are the OTHER classes, any spec (a mage tank)
     const impliedTank = tankRow && role === "tank";
-    const classTiles = impliedTank ? CLASS_IDS.filter((c) => TANK_SPEC_CLASSES.indexOf(c) < 0) : CLASS_IDS;
+    const classTiles = impliedTank ? classIdsOf(catalog).filter((c) => TANK_SPEC_CLASSES.indexOf(c) < 0) : classIdsOf(catalog);
     /** The role a class tile adds and counts with: the task's (healing -> healers), on a tanking row any spec for a non-tank class. */
     const tileRole = (c: string) => (target ? "" : defaultClassRole(c, type));
     const countRole = (c: string) => { const e = effectiveRole(tileRole(c), target ? "other" : type); return e === ANY_SPEC ? "" : e; };

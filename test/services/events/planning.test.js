@@ -59,3 +59,16 @@ describe("services/events/planning", () => {
         });
     });
 });
+
+describe("sheetVersionRefusal (#751)", () => {
+    const { sheetVersionRefusal } = require("../../../src/services/events/planning");
+
+    it("lets a TBC raid through", () => {
+        expect(sheetVersionRefusal("tbc")).toBeNull();
+    });
+
+    it("refuses Classic and Forever with a 409 that names the version", () => {
+        expect(sheetVersionRefusal("forever")).toEqual({ status: 409, code: "no_sheet_layout", message: expect.stringContaining("WoW Forever") });
+        expect(sheetVersionRefusal("classic")).toMatchObject({ status: 409, code: "no_sheet_layout" });
+    });
+});

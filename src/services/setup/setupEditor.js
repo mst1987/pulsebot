@@ -405,6 +405,9 @@ function partyBenefits(table, specKey, memberSpecs) {
         if (!b.providers.includes(specKey) || b.beneficiaries.length >= table.specs.size) continue;
         const count = memberSpecs.filter((s) => b.beneficiaries.includes(s)).length;
         if (!count) continue;
+        // A shared slot (Forever's air totems do not stack, even across shamans):
+        // once a mate fills it, a second provider adds nothing.
+        if (b.sharedSlot && memberSpecs.some((m) => table.partyBuffs.some((o) => o.slot === b.slot && o.providers.includes(m)))) continue;
         const hit = { key: b.key, label: b.label, icon: b.icon, count };
         if (!b.slot) {
             out.push(hit);

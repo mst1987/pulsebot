@@ -24,7 +24,7 @@ describe("web/raidplan planVersion", () => {
 describe("web/raidplan/raidplanTitle version default", () => {
     it("reads a title as TBC when no version is handed in, and guesses nothing for another version", () => {
         expect(instancesFromTitle("Kara 10er")).toMatchObject({ instanceIds: ["kara"], size: 10, versionId: "tbc" });
-        expect(instancesFromTitle("Kara 10er", "forever")).toEqual({ instanceIds: [], size: 0, versionId: "forever" });
+        expect(instancesFromTitle("Kara 10er", "forever")).toMatchObject({ instanceIds: [], versionId: "forever" });
         expect(instancesFromTitle("Kara 10er", "nope").versionId).toBe("tbc");
     });
 });

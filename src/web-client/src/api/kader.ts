@@ -140,7 +140,7 @@ export type KaderEntry = {
 export type KaderOption = { id: string; label: string; color?: string };
 export type KaderQuestion = { id: string; text: string; type: KaderQuestionType; options: KaderOption[]; required: boolean; rev?: number };
 export type KaderSlot = { userId: string; spec: string } | null;
-export type KaderVariant = { id: string; name: string; size: 10 | 20; groups: KaderSlot[][] };
+export type KaderVariant = { id: string; name: string; size: number; groups: KaderSlot[][] };
 
 export type KaderData = {
     id: string;
@@ -211,6 +211,8 @@ export type KaderView = {
     roles: KaderRole[];
     classes: KaderClassDef[];
     buffs: { raid: KaderRaidBuff[]; party: KaderPartyBuff[] };
+    /** the sizes an example setup can have (the raid sizes of the version's instances, #751); absent from an older server */
+    setupSizes?: number[];
     /** The server's raid categories, in Discord's order. */
     raidCategories: KaderRaidCategory[];
     players: KaderPlayer[];
@@ -367,7 +369,7 @@ export function addKaderVariant(kaderId: string, input: { name?: string; copyFro
     return send("POST", "/api/kader/variants", { kaderId, ...input });
 }
 
-export function saveKaderVariant(kaderId: string, variantId: string, input: { name?: string; size?: 10 | 20; groups?: KaderSlot[][] }): Promise<KaderChange> {
+export function saveKaderVariant(kaderId: string, variantId: string, input: { name?: string; size?: number; groups?: KaderSlot[][] }): Promise<KaderChange> {
     return send("PUT", "/api/kader/variants", { kaderId, variantId, ...input });
 }
 

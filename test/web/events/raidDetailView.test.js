@@ -151,6 +151,14 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(body.progress.steps.map((s) => s.key)).not.toContain("raidplan");
     });
 
+    it("plans a version without a raid sheet layout with the raid plan, whatever the category picked (#751)", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
+        settingsStore.getConfig.mockReturnValue({ categoryVersion: { cat1: "forever" }, categoryPlanning: { cat1: "sheet" } });
+        const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
+        expect(body.planning).toBe("raidplan");
+        expect(body.progress.steps.map((s) => s.key)).not.toContain("sheet");
+    });
+
     it("follows the version of the event's category (#542): no softres edition, no TBC list, the version's own sheet", async () => {
         loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
         settingsStore.getConfig.mockReturnValue({
