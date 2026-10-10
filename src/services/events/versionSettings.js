@@ -42,13 +42,27 @@ function configOf(config) {
  * @param {string} [versionId]
  * @param {{ config?: object }} [opts]
  * @returns {{ versionId: string, blizzardRegion: string, blizzardRealmSlug: string, blizzardNamespace: string,
- *   armoryUrlTemplate: string, wclUrlTemplate: string, wowheadPath: string, softresEdition: string, raidsheetId: string }}
+ *   armoryUrlTemplate: string, wclUrlTemplate: string, wowheadPath: string, softresEdition: string, raidsheetId: string, color: string }}
  */
 function settingsForVersion(versionId, { config } = {}) {
     const cfg = configOf(config);
     const id = knownVersion(versionId) || mainVersionFor({ config: cfg });
     const map = cfg.versionSettings && typeof cfg.versionSettings === "object" ? cfg.versionSettings : schema.versionSettingsOf(cfg);
     return { versionId: id, ...schema.normalizeBlock(map[id]) };
+}
+
+/**
+ * The colour a version shows in in the web admin (#742): its own setting, else
+ * the rule set's. `custom` says the setting differs from the rule set's colour.
+ * @param {string} [versionId]
+ * @param {{ config?: object }} [opts]
+ * @returns {{ color: string, defaultColor: string, custom: boolean }}
+ */
+function versionColor(versionId, opts = {}) {
+    const s = settingsForVersion(versionId, opts);
+    const defaultColor = schema.defaultColorOf(s.versionId);
+    const color = s.color || defaultColor;
+    return { color, defaultColor, custom: color !== defaultColor };
 }
 
 /**
@@ -167,5 +181,5 @@ function blizzardFor(versionId, opts = {}) {
 module.exports = {
     FIELDS: schema.FIELDS, REGIONS: schema.REGIONS, SOFTRES_EDITIONS: schema.SOFTRES_EDITIONS,
     normalizeBlock: schema.normalizeBlock,
-    settingsForVersion, versionLinks, blizzardFor, fillChar, wclSiteOf, versionLabel,
+    settingsForVersion, versionColor, versionLinks, blizzardFor, fillChar, wclSiteOf, versionLabel,
 };

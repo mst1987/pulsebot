@@ -217,7 +217,7 @@ export type SettingsData = {
     // The raid templates, for the default-template select per category.
     raidTemplates?: { id: string; name: string; versionId: string; size: number | null }[];
     /** Einstellungen → Spielversion (#541): the versions to pick from. */
-    gameVersions?: { id: string; label: string; short: string }[];
+    gameVersions?: { id: string; label: string; short: string; color?: string }[];
     /**
      * The standard values per version (#553) the "Standardwerte übernehmen"
      * button takes over; an all-empty block = the version has none yet.

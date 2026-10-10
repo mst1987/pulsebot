@@ -997,6 +997,12 @@
     "versionLinks": {
         "title": "Links and armory per version",
         "titleSub": "Where a character is looked up (armory, Warcraft Logs) and where items link to (Wowhead), separately for every game version. An event uses the values of its version, raider pages and the loot council those of the main version or the category.",
+        "colorTitle": "Colour",
+        "color": "Version colour",
+        "colorSub": "The accent colour of the web admin (buttons, active menu line, links, selection) while this version is shown. The version's name always stays visible in the switch at the top. Empty = the version's standard colour. Settings, Channels and System status keep the brand colour.",
+        "colorPick": "Pick a colour",
+        "colorReset": "Reset",
+        "colorResetSub": "Puts the standard colour {color} back.",
         "switch": "Game version of the settings",
         "emptyHint": "These values apply only to {version}. Empty field = the link is left out.",
         "armory": "Armory",
@@ -1035,7 +1041,8 @@
             "wclUrlTemplate": "An http(s) address with {char}.",
             "wowheadPath": "Lower-case letters, digits and hyphens only, e.g. tbc.",
             "softresEdition": "Unknown edition.",
-            "raidsheetId": "Raidsheet not found."
+            "raidsheetId": "Raidsheet not found.",
+            "color": "A colour like #4da3ff."
         },
         "defaults": "Use standard values",
         "defaultsSub": "Fills in the known values for {version} (namespace, armory, Warcraft Logs, Wowhead, softres). Realm and raidsheet stay as they are. Nothing is stored until you save.",
