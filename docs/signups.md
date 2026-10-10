@@ -44,7 +44,7 @@ The same signup as the web, inside Discord: the talk overview's select (`talk-si
 
 ## Mehrere Raids auf einmal (Bot) (`src/utils/signup/multiSignup.js`, `commands/signup/talkSignupAll|talkSignupMulti|signupMulti.js`, #293)
 
-The raid overview on the talk server carries *Für alle Raids anmelden* and *Mehrere Raids wählen …* above its single-raid select. Everything is ephemeral and saves through `signupService.submitSignups`.
+The raid overview on the talk server carries *Für alle Raids anmelden* and *Mehrere Raids wählen …* above its single-raid select. Everything is ephemeral and saves through `signupService.submitSignups`. **One version at a time (#743):** TBC and Forever share the server and a signup never mixes them - `signableRaids({ versionId })` offers the raids of one version only; with raids of two versions (`signableVersions()`) the buttons first ask "Which game version …" with one button per version (`talk-signup-all:v:<version>`, `talk-signup-multi:v:<version>`); with one version nothing is asked.
 
 - **Which raids:** `signableRaids()` — own events of the event server that have not begun, are not cancelled/closed, of `config.categoryIds` when set, soonest first, at most 25. Deadline and raider role are **not** filtered out: the result names them per raid.
 - **Mehrere Raids wählen …** (`talk-signup-multi`): *Schritt 1* — a multi-select of those raids (all preselected), a *Status für alle* select and *Weiter: Charaktere*. **Für alle Raids anmelden** (`talk-signup-all`) skips it and opens the modal at once (a modal can only answer a click).

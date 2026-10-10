@@ -137,6 +137,7 @@ module.exports = {
         "Dein Profil hat noch keinen Charakter mit Spec – leg zuerst einen an (Mein Profil).",
     "To sign up for several raids you need characters with a spec in your profile.":
         "Um dich für mehrere Raids anzumelden, brauchst du Charaktere mit Spec in deinem Profil.",
+    "Which game version are you signing up for?": "Für welche Spielversion willst du dich anmelden?",
     "There are no coming raids with an EventHelper signup right now.": "Gerade gibt es keine kommenden Raids mit EventHelper-Anmeldung.",
     // the talk overview's raid select
     "No raid picked.": "Kein Raid gewählt.",
