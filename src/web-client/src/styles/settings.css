@@ -42,10 +42,30 @@
 /* ---- Spielversion (#541): one compact row per category that may differ ---- */
 .gv-cats { display: grid; gap: 8px; max-width: 520px; }
 .gv-cat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 240px); gap: 12px; align-items: center; }
+.gv-cat-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .gv-cat label { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gv-cat-since { flex: 0 0 auto; font-size: 12px; color: var(--muted); }
 .gv-empty { margin: 0; color: var(--muted); font-size: 13px; }
 @media (max-width: 560px) {
     .gv-cat { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+
+/* ---- Spielversion einer Kategorie umstellen (#738): the confirmation dialog ---- */
+.csw { display: grid; gap: 14px; font-size: 14px; }
+.csw p { margin: 0; }
+.csw-intro { font-weight: 600; }
+.csw-facts { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.csw-part { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.csw-head { margin: 0; font-size: 11px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.csw-quiet { color: var(--muted); font-size: 13px; }
+.csw-raids { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.csw-raids li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.csw-raids a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.csw-date { flex: 0 0 auto; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.csw-fix { display: grid; gap: 6px; }
+.csw-pick { display: grid; grid-template-columns: auto minmax(0, 280px); gap: 10px; align-items: center; font-size: 13px; }
+@media (max-width: 560px) {
+    .csw-pick { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }
 
 /* ---- Links und Armory je Version (#542): one version at a time behind a switcher ---- */

@@ -98,10 +98,9 @@
     },
     "gameVersion": {
         "main": "Main version",
-        "mainSub": "A new event, a new raid template and the raider profile start in this version when nobody picks another. Existing events and templates keep their version.",
-        "categories": "Categories that differ",
-        "categoriesSub": "A category that plays another version than the main one. “Main version” follows the setting above.",
-        "followMain": "Main version ({version})",
+        "mainSub": "The default for something new: a category switched on, a new raid template and the raider profile start with it. Existing categories, events and templates keep their version.",
+        "categories": "Version per category",
+        "categoriesSub": "Every active category plays one fixed version. Switching starts a new section: earlier raids, roster and quota stay readable in their version.",
         "categoryAria": "Game version of {name}",
         "noCategories": "No active category yet – switch one on under Categories.",
         "hideOthers": "Hide other versions",
@@ -117,7 +116,40 @@
         "exportJson": "as JSON",
         "preview": "This is how the top bar looks",
         "previewOn": "Hidden: no switch anymore, only a quiet hint which version is active.",
-        "previewOff": "Not hidden: everybody can switch between the versions at the top, the choice is remembered per user."
+        "previewOff": "Not hidden: everybody can switch between the versions at the top, the choice is remembered per user.",
+        "newCategory": "new · starts with {version}",
+        "since": "since {date}"
+    },
+    "categorySwitch": {
+        "kicker": "Switch game version",
+        "title": "{name}: {from} → {to}",
+        "intro": "Switching starts a new section. The past is not re-read.",
+        "keep": "Earlier raids, roster and quota stay readable as {from} (under {from} in the switch).",
+        "new": "From the save on, new raids are created as {to}.",
+        "fresh": "The attendance quota starts afresh, the {to} roster is new.",
+        "upcomingTitle": "Coming raids",
+        "upcoming": {
+            "one": "1 coming raid keeps its version. The orga may cancel it.",
+            "other": "{count} coming raids keep their version. The orga may cancel them."
+        },
+        "upcomingNone": "No coming raids of another version.",
+        "more": "… and {count} more",
+        "templatesTitle": "Series and default template",
+        "seriesMismatch": "The series uses the template “{name}” ({version}). A template of another version creates no events.",
+        "seriesFits": "The series fits the new version.",
+        "seriesFix": "Series",
+        "seriesPause": "Pause the series",
+        "useTemplate": "Use template “{name}”",
+        "defaultMismatch": "The default template “{name}” is {version} and no longer fits.",
+        "defaultFits": "The default template “{name}” fits.",
+        "defaultFix": "Default template",
+        "defaultNone": "no default template",
+        "noTemplates": "There is no raid template for {to} yet – create one under Raid templates.",
+        "hint": "Takes effect with “Save”.",
+        "confirm": "Switch to {version}",
+        "loading": "Loading what the switch affects …",
+        "error": "Could not be loaded: {message}",
+        "switched": "{name}: new section with {version}"
     },
     "level": {
         "none": "off",
@@ -853,7 +885,10 @@
         "infoSub": "The EventHelper addon scans the guild bank, the sync tool uploads the scan. A bank belongs to an event server: with just one event server it lands there by itself, otherwise it waits here for the assignment.",
         "loading": "Loading the guild banks …",
         "none": "No scan has arrived yet.",
-        "waiting": { "one": "{count} waiting", "other": "{count} waiting" },
+        "waiting": {
+            "one": "{count} waiting",
+            "other": "{count} waiting"
+        },
         "allAssigned": "assigned",
         "waitingBadge": "Waiting for assignment",
         "serverAria": "Server for {name}",

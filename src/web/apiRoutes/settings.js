@@ -3,9 +3,10 @@ const { requireFullAdmin } = require("../http/apiMiddleware");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const {
-    getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates,
+    getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
 } = require("../../stores/settingsStore");
-const { normalizeCategoryLanguagePatch, attendanceSettings } = require("../../stores/configSchema");
+const { normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion } = require("../../stores/configSchema");
+const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../services/events/categorySwitch");
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
 } = require("../../stores/ingestTokenStore");
@@ -528,8 +529,13 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.categoryReminders = body.categoryReminders && typeof body.categoryReminders === "object" ? body.categoryReminders : {};
     }
     const before = getConfig();
+    // #738: every active category plays an explicit version; a changed one starts a new section.
+    const versions = categoryVersionPatch(body, partial, before);
+    if (versions.error) return error(res, 400, "category_version_missing", versions.error);
     const langBefore = before.botLanguage;
     const saved = saveConfig(partial);
+    const switchedCategories = afterCategorySwitches(versions.switches, body.categorySwitchFixes, { user });
+    await notifyCategoryVersionSwitch(switchedCategories, { config: saved, user });
     // The settings still edit a category's raider roles; a category with a roster follows them (#653).
     if (partial.categoryRoles !== undefined) syncRosterRoleIds(saved.categoryRoles, { actor: String((user && user.id) || "") });
     // A new server language, or a category's own, redraws the bot's public messages (not awaited).
@@ -539,7 +545,73 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // The guild bank area of the raider organizers comes and goes with its channel:
     // redraw them now instead of at the next five-minute sweep (not awaited, never throws).
     else if (guildBankOf(saved) !== guildBankOf(before)) void availabilityPanel.refreshPanels({ config: saved }).catch(() => {});
-    ok(res, { config: publicConfig(saved) });
+    ok(res, { config: publicConfig(saved), switchedCategories });
+});
+
+/** Category id → name over every event server (live list backed by the snapshot); "" when unknown. */
+function categoryNamesOf(config) {
+    const names = new Map();
+    try {
+        for (const guildId of guildRoles.eventGuildIds(config)) {
+            for (const c of listKnownCategories(guildId) || []) if (c && !names.has(c.id)) names.set(c.id, c.name || "");
+        }
+    } catch {
+        // a name is a courtesy: the section keeps "" and the id still says which category
+    }
+    return names;
+}
+
+/**
+ * The category versions of a PATCH (#738). Every active category must have a
+ * version — checked when the body touches the active categories or the map.
+ * A category whose version changes starts a new section: `partial.categoryEras`
+ * gets the history after the switch.
+ * @returns {{ error?: string, switches: object[] }}
+ */
+function categoryVersionPatch(body, partial, before) {
+    if (body.categoryIds === undefined && body.categoryVersion === undefined) return { switches: [] };
+    const ids = partial.categoryIds !== undefined ? partial.categoryIds : (before.categoryIds || []);
+    const map = normalizeCategoryVersion(partial.categoryVersion !== undefined ? partial.categoryVersion : before.categoryVersion);
+    const missing = ids.filter((id) => !map[id]);
+    const names = categoryNamesOf(before);
+    if (missing.length) {
+        return { error: `Jede aktive Kategorie braucht eine Spielversion: ${missing.map((id) => names.get(id) || id).join(", ")}.`, switches: [] };
+    }
+    if (partial.categoryVersion === undefined) return { switches: [] };
+    const { switches, categoryEras } = versionSwitches({ before, categoryVersion: map, nameOf: (id) => names.get(id) || "" });
+    if (categoryEras) partial.categoryEras = categoryEras;
+    return { switches };
+}
+
+/**
+ * The dialog's choice for each switched category's series (`categorySwitchFixes`
+ * = `{ [categoryId]: { series: "pause" | templateId } }`), applied once the
+ * switch is saved. Returns the switches with what happened to the series.
+ */
+function afterCategorySwitches(switches, fixes, { user }) {
+    const src = fixes && typeof fixes === "object" && !Array.isArray(fixes) ? fixes : {};
+    return (switches || []).map((sw) => {
+        const fix = src[sw.categoryId] && typeof src[sw.categoryId] === "object" ? src[sw.categoryId].series : "";
+        const series = applySeriesFix({ categoryId: sw.categoryId, fix, toVersion: sw.toVersion, getTemplate: getRaidTemplate, user });
+        console.log(`[settings] Kategorie ${sw.name || sw.categoryId}: Spielversion ${sw.fromVersion} → ${sw.toVersion}, neuer Abschnitt (#738)${series ? `, Serie ${series === "paused" ? "pausiert" : "mit neuer Vorlage"}` : ""}`);
+        return { ...sw, series };
+    });
+}
+
+/**
+ * GET /api/settings/category-switch?categoryId=&versionId= — what switching a
+ * category to another version means (#738), for the confirmation dialog: the
+ * coming raids that keep the old version, the series and default template
+ * whose template no longer fits, the templates of the new version.
+ */
+const getCategorySwitch = withUser({}, async ({ res, url }) => {
+    const categoryId = String(url.searchParams.get("categoryId") || "").trim();
+    const versionId = String(url.searchParams.get("versionId") || "").trim();
+    if (!categoryId) return error(res, 400, "invalid", "Keine Kategorie angegeben.");
+    if (!VERSIONS.some((v) => v.id === versionId)) return error(res, 400, "invalid", "Unbekannte Spielversion.");
+    const config = getConfig();
+    const preview = switchPreview({ categoryId, versionId, config, listTemplates: listRaidTemplates });
+    ok(res, { ...preview, name: categoryNamesOf(config).get(categoryId) || "" });
 });
 
 /**
@@ -629,6 +701,7 @@ const routes = [
     { method: "PATCH", path: "/api/settings", handler: updateSettings, area: "settings" },
     { method: "GET", path: "/api/settings/item-search", handler: getItemSearch, area: "settings" },
     { method: "GET", path: "/api/settings/archive-export", handler: getArchiveExport, area: "settings" },
+    { method: "GET", path: "/api/settings/category-switch", handler: getCategorySwitch, area: "settings" },
     { method: "POST", path: "/api/settings/raidsheets", handler: saveRaidsheetHandler, area: "settings" },
     { method: "POST", path: "/api/settings/raidsheets/delete", handler: deleteRaidsheetHandler, area: "settings" },
     { method: "GET", path: "/api/settings/discord-servers", handler: getDiscordServers, area: "settings" },
@@ -640,7 +713,7 @@ const routes = [
 ];
 
 module.exports = {
-    getSettings, updateSettings, getItemSearch, getArchiveExport, saveRaidsheetHandler, deleteRaidsheetHandler,
+    getSettings, updateSettings, getItemSearch, getArchiveExport, getCategorySwitch, saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
     getRoleSync, getReminders,
     publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, FULL_ADMIN_KEYS,

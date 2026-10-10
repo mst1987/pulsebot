@@ -144,6 +144,42 @@ describe("services/events/eventCreate", () => {
         }
     });
 
+    describe("a template of another version (#738)", () => {
+        const TBC = { id: "tpl-t5", name: "SSC + TK", versionId: "tbc", instanceIds: ["ssc", "tk"], size: 25, composition: { tank: 3, healer: 7 } };
+        beforeEach(() => getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? TBC : null)));
+        afterEach(() => getRaidTemplate.mockReturnValue(null));
+
+        it("creates no event from a TBC default template in a Forever category, before any channel", async () => {
+            getConfig.mockReturnValue({ categorySignupSource: { "cat-eh": "eventhelper" }, categoryVersion: { "cat-eh": "forever" }, categoryRaidTemplate: { "cat-eh": "tpl-t5" } });
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "", newChannel: { name: "", categoryId: "cat-eh" }, title: "Montag" }) });
+            expect(result.error).toMatchObject({ status: 409, code: "template_version_mismatch" });
+            expect(result.error.message).toContain("„SSC + TK“ ist für TBC Anniversary, die Kategorie spielt WoW Forever.");
+            expect(result.error.message).toContain("Kein Event angelegt");
+            expect(eventStore.listEvents("g1")).toEqual([]);
+            expect(createFromTemplate).not.toHaveBeenCalled();
+            expect(discord.duplicateChannel).not.toHaveBeenCalled();
+        });
+
+        it("refuses a chosen TBC template in a Forever category too", async () => {
+            getConfig.mockReturnValue({ categorySignupSource: { "cat-eh": "eventhelper" }, categoryVersion: { "cat-eh": "forever" } });
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
+            expect(result.error).toMatchObject({ code: "template_version_mismatch" });
+        });
+
+        it("keeps a version the dialog names: no template instances of another version", async () => {
+            getConfig.mockReturnValue({ categorySignupSource: { "cat-eh": "eventhelper" }, categoryVersion: { "cat-eh": "forever" } });
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", title: "Montag", raidTemplateId: "tpl-t5", versionId: "forever" }) });
+            expect(result.status).toBe(201);
+            expect(eventStore.getEvent(result.body.id)).toMatchObject({ versionId: "forever", instanceIds: [] });
+        });
+
+        it("creates the event when template and category play the same version", async () => {
+            getConfig.mockReturnValue({ categorySignupSource: { "cat-eh": "eventhelper" }, categoryVersion: { "cat-eh": "tbc" }, categoryRaidTemplate: { "cat-eh": "tpl-t5" } });
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", title: "Montag" }) });
+            expect(eventStore.getEvent(result.body.id)).toMatchObject({ versionId: "tbc", instanceIds: ["ssc", "tk"] });
+        });
+    });
+
     it("refuses a bad plan before it clones a channel", async () => {
         eventStore.createEvent({ guildId: "g1", channelId: "c2", categoryId: "cat-eh", title: "Alt", startTime: 1900000000 });
         const source = eventStore.listEvents("g1")[0];

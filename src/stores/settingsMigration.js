@@ -87,11 +87,19 @@
 //     to run before the main version is switched for the first time - it is
 //     part of the first deploy of epic #736. One line per file and version.
 //
+//   - config.json, categoryVersion (#738): every active category gets the
+//     version it plays today written down (the main version unless it already
+//     had its own). From then on the main version is only the default for
+//     something new; a category changes its version only by a deliberate
+//     switch in Einstellungen → Spielversion, which starts a new section
+//     (config.categoryEras, services/events/categoryEras.js). Runs after the
+//     stored versions of #737, which read the same map.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
 const { isSnowflake } = require("../utils/ids");
-const { CONFIG_DEFAULTS } = require("./configSchema");
+const { CONFIG_DEFAULTS, normalizeCategoryVersion } = require("./configSchema");
 const { versionSettingsOf, versionsWithDefaults, fillDefaults } = require("./versionSettingsSchema");
 const { LEGACY_VERSION } = require("../config/gameVersions");
 const { mainVersionFor } = require("../services/events/mainVersion");
@@ -297,6 +305,31 @@ function migrateStoredVersions() {
     ];
 }
 
+/**
+ * Every active category plays a fixed version (#738): an active category
+ * (the stored `categoryIds`, like migrateCategoryPlanning) without one in
+ * `categoryVersion` gets the version it plays today — the main version —
+ * written down, so switching the main version later moves no category. A
+ * fresh install (no file) or a file without categories has nothing to pin;
+ * the settings page writes a version with the first save of its categories.
+ * One line, or none.
+ */
+function migrateCategoryVersions() {
+    const stored = configStore.readStored();
+    if (!Object.keys(stored).length) return [];
+    const config = configStore.getConfig();
+    const map = normalizeCategoryVersion(stored.categoryVersion);
+    const set = [];
+    for (const id of (Array.isArray(stored.categoryIds) ? stored.categoryIds : []).map(String).filter(Boolean)) {
+        if (map[id]) continue;
+        map[id] = mainVersionFor({ categoryId: id, config });
+        set.push(`${id} ${map[id]}`);
+    }
+    if (!set.length) return [];
+    configStore.writeStored({ ...stored, categoryVersion: map });
+    return [`config.json: Spielversion je aktiver Kategorie festgeschrieben (#738) - ${set.join(", ")}`];
+}
+
 /** The Forever character of a raider profile as the Kaderplaner's migration reads it: the raider's first one. */
 function profileCharOf(userId) {
     const c = raiderProfileStore.firstCharacter(raiderProfileStore.getProfile(userId), "forever");
@@ -437,6 +470,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateCategoryPlanning());
         changes.push(...migrateCategoryRosters());
         changes.push(...migrateStoredVersions());
+        changes.push(...migrateCategoryVersions());
         changes.push(...migrateCouncilProfiles());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
@@ -447,6 +481,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCouncilProfiles, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, raidplanDefaultsLine,
     legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

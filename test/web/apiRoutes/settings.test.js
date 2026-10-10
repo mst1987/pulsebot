@@ -407,6 +407,80 @@ describe("web/apiRoutes/settings", () => {
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryVersion: {} });
             });
 
+            describe("a fixed version per category (#738)", () => {
+                const seriesStore = require("../../../src/stores/eventSeriesStore");
+                const { onCategoryVersionSwitch } = require("../../../src/services/events/categorySwitch");
+                const BEFORE = { guildId: "g1", categoryIds: ["cat1"], mainVersion: "tbc", categoryVersion: { cat1: "tbc" } };
+                beforeEach(() => {
+                    auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                    auth.checkCsrf.mockReturnValue(true);
+                    settingsStore.getConfig.mockReturnValue(BEFORE);
+                    discord.listCategories.mockReturnValue([{ id: "cat1", name: "TBC Montag" }, { id: "cat2", name: "Freitag" }]);
+                });
+                afterEach(() => {
+                    settingsStore.getConfig.mockReturnValue({});
+                    seriesStore.deleteSeries("cat1");
+                });
+
+                it("refuses an active category without a version", async () => {
+                    const res = await patch("/api/settings", { categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "tbc" } });
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res)).toMatchObject({ error: { code: "category_version_missing", message: expect.stringContaining("Freitag") } });
+                    // an unknown version counts as none
+                    const res2 = await patch("/api/settings", { categoryVersion: { cat1: "wotlk" } });
+                    expect(res2.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    // the active list alone is checked against the stored map too
+                    const res3 = await patch("/api/settings", { categoryIds: ["cat1", "cat2"] });
+                    expect(res3.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("takes a new category with its version, without a new section", async () => {
+                    const res = await patch("/api/settings", { categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "tbc", cat2: "forever" } });
+                    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                    expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "tbc", cat2: "forever" } });
+                    expect(json(res).data.switchedCategories).toEqual([]);
+                });
+
+                it("starts a new section on a switch, applies the series fix and tells the listeners", async () => {
+                    seriesStore.saveSeries({ categoryId: "cat1", enabled: true, raidTemplateId: "t-tbc", weekdays: [1], time: "19:30" });
+                    const seen = [];
+                    const off = onCategoryVersionSwitch((sw, ctx) => { seen.push({ sw, user: ctx.user.id }); });
+                    try {
+                        const res = await patch("/api/settings", { categoryVersion: { cat1: "forever" }, categorySwitchFixes: { cat1: { series: "pause" } } });
+                        expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        const partial = settingsStore.saveConfig.mock.calls.at(-1)[0];
+                        expect(partial.categoryVersion).toEqual({ cat1: "forever" });
+                        expect(partial.categorySwitchFixes).toBeUndefined();
+                        expect(partial.categoryEras.cat1).toEqual([
+                            { versionId: "tbc", from: 0, name: "TBC Montag" },
+                            { versionId: "forever", from: expect.any(Number), name: "TBC Montag" },
+                        ]);
+                        const [switched] = json(res).data.switchedCategories;
+                        expect(switched).toMatchObject({ categoryId: "cat1", fromVersion: "tbc", toVersion: "forever", name: "TBC Montag", series: "paused" });
+                        expect(seriesStore.getSeries("cat1")).toMatchObject({ enabled: false, updatedBy: "1" });
+                        expect(seen).toEqual([{ sw: expect.objectContaining({ categoryId: "cat1", toVersion: "forever" }), user: "1" }]);
+                    } finally {
+                        off();
+                    }
+                });
+
+                it("previews a switch for the dialog", async () => {
+                    settingsStore.listRaidTemplates.mockReturnValue([{ id: "t-fe", name: "Onyxia", versionId: "forever" }, { id: "t-tbc", name: "Kara", versionId: "tbc" }]);
+                    const res = await get("/api/settings/category-switch", { categoryId: "cat1", versionId: "forever" });
+                    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                    expect(json(res).data).toMatchObject({
+                        categoryId: "cat1", name: "TBC Montag", switching: true, from: { id: "tbc" }, to: { id: "forever" },
+                        upcoming: [], series: null, defaultTemplate: null, templates: [{ id: "t-fe", name: "Onyxia" }],
+                    });
+                    settingsStore.listRaidTemplates.mockReturnValue([]);
+                    const bad = await get("/api/settings/category-switch", { categoryId: "cat1", versionId: "wotlk" });
+                    expect(bad.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    const none = await get("/api/settings/category-switch", { versionId: "forever" });
+                    expect(none.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                });
+            });
+
             it("forwards the Anthropic key only when sent, and never echoes it back", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);

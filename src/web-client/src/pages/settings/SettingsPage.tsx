@@ -27,6 +27,8 @@ import { type Draft, toDraft } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";
 import { ChannelListField, TopItemsField } from "./SettingsFields";
 import GameVersionSection, { VersionSettingsCard } from "./SettingsGameVersion";
+import CategorySwitchDialog, { type CategorySwitchChoice } from "./CategorySwitchDialog";
+import { categoryVersionsToSave, isVersionSwitch, savedCategoryVersion, switchFixesToSend } from "../../lib/settings/categoryVersions";
 import HideOtherVersionsCard from "./HideOtherVersionsCard";
 import BotLanguageCard from "./BotLanguageCard";
 import { useContentVersion } from "../../hooks/useContentVersion";
@@ -82,6 +84,8 @@ export default function SettingsPage() {
         delete rest[categoryId];
         return { ...cur, links: links.length ? { ...rest, [categoryId]: links } : rest };
     });
+    // #738: the category whose version switch waits for the confirmation dialog.
+    const [switching, setSwitching] = useState<{ id: string; versionId: string } | null>(null);
 
     if (settingsData.error) return <div className="empty">{tParts("settings.page.loadError", { message: settingsData.error.message })}</div>;
     if (!data || !draft) return <RaidLoader text={t("settings.page.loading")} />;
@@ -99,6 +103,33 @@ export default function SettingsPage() {
     const toggleCategory = (id: string) => {
         const has = draft.categoryIds.includes(id);
         patch({ categoryIds: has ? draft.categoryIds.filter((c) => c !== id) : [...draft.categoryIds, id] });
+    };
+    // #738: another version for a category that was active is a switch (a new
+    // section) and waits for the dialog; a new category, or going back to the
+    // saved version, changes the draft at once and drops the dialog's choices.
+    const setCategoryVersion = (id: string, versionId: string) => {
+        if (isVersionSwitch(data.config, id, versionId)) {
+            setSwitching({ id, versionId });
+            return;
+        }
+        const fixes = { ...draft.categorySwitchFixes };
+        delete fixes[id];
+        const back = savedCategoryVersion(data.config, id) === versionId;
+        patch({
+            categoryVersion: { ...draft.categoryVersion, [id]: versionId },
+            categorySwitchFixes: fixes,
+            ...(back ? { categoryRaidTemplate: { ...draft.categoryRaidTemplate, [id]: (data.config.categoryRaidTemplate || {})[id] || "" } } : {}),
+        });
+    };
+    const confirmSwitch = (choice: CategorySwitchChoice) => {
+        if (!switching) return;
+        const { id, versionId } = switching;
+        patch({
+            categoryVersion: { ...draft.categoryVersion, [id]: versionId },
+            categorySwitchFixes: { ...draft.categorySwitchFixes, [id]: { series: choice.series } },
+            ...(choice.defaultTemplateId !== undefined ? { categoryRaidTemplate: { ...draft.categoryRaidTemplate, [id]: choice.defaultTemplateId } } : {}),
+        });
+        setSwitching(null);
     };
     const toggleRole = (catId: string, roleId: string) => {
         const current = new Set(draft.categoryRoles[catId] || []);
@@ -122,7 +153,7 @@ export default function SettingsPage() {
     const submit = async () => {
         setSaving(true);
         try {
-            const { config } = await updateSettings({
+            const { config, switchedCategories = [] } = await updateSettings({
                 // Access config is full-admin-only; sending it as anyone else
                 // would (rightly) be rejected with a 403.
                 ...(data.canManageAccess ? {
@@ -160,9 +191,12 @@ export default function SettingsPage() {
                 categorySignupNoteChannel: draft.categorySignupNoteChannel,
                 // Sent whole: a category set back to "keine" is left out.
                 categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
-                // #541: sent whole as well — a category back on "Hauptversion" is left out.
+                // #541/#738: sent whole as well; every active category with its version
+                // (one switched on just now with the main version — the server refuses none).
                 mainVersion: draft.mainVersion,
-                categoryVersion: Object.fromEntries(Object.entries(draft.categoryVersion).filter(([, id]) => id)),
+                categoryVersion: categoryVersionsToSave(draft.categoryVersion, draft.categoryIds, draft.mainVersion),
+                // #738: what the switch dialog chose for a switched category's series.
+                categorySwitchFixes: switchFixesToSend(draft.categorySwitchFixes, data.config, draft.categoryVersion),
                 // #563: only the main version everywhere while it is on.
                 hideOtherVersions: draft.hideOtherVersions,
                 botLanguage: draft.botLanguage,
@@ -180,7 +214,11 @@ export default function SettingsPage() {
             setData({ ...data, config });
             setDraft(toDraft(config));
             toast(t("settings.savedToast"));
-            if ((config.mainVersion || "tbc") !== (saved.mainVersion || "tbc") || !!config.hideOtherVersions !== saved.hideOtherVersions) {
+            // #738: each switched category started a new section.
+            for (const sw of switchedCategories) {
+                toast(t("settings.categorySwitch.switched", { name: categoryNames.get(sw.categoryId) || sw.name || sw.categoryId, version: versionNames.get(sw.toVersion) || sw.toVersion }));
+            }
+            if (switchedCategories.length || (config.mainVersion || "tbc") !== (saved.mainVersion || "tbc") || !!config.hideOtherVersions !== saved.hideOtherVersions) {
                 void content.refresh();
             }
         } catch (err) {
@@ -328,9 +366,20 @@ export default function SettingsPage() {
                         activeIds={draft.categoryIds}
                         mainVersion={draft.mainVersion}
                         categoryVersion={draft.categoryVersion}
+                        savedIds={data.config.categoryIds || []}
+                        categoryEras={data.config.categoryEras}
                         onMainVersion={(mainVersion) => patch({ mainVersion })}
-                        onCategoryVersion={(id, versionId) => patch({ categoryVersion: { ...draft.categoryVersion, [id]: versionId } })}
+                        onCategoryVersion={setCategoryVersion}
                     />
+                    {switching && (
+                        <CategorySwitchDialog
+                            categoryId={switching.id}
+                            categoryName={categoryNames.get(switching.id) || ""}
+                            versionId={switching.versionId}
+                            onCancel={() => setSwitching(null)}
+                            onConfirm={confirmSwitch}
+                        />
+                    )}
                     <HideOtherVersionsCard
                         versions={data.gameVersions || []}
                         mainVersion={draft.mainVersion}
