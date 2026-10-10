@@ -175,6 +175,15 @@ describe("hiding the other versions (#563)", () => {
         expect(resolveVersionQuery("all")).toEqual({ versionId: "forever", mainVersion: "forever" });
         mockConfig = { mainVersion: "forever" };
         expect(resolveVersionQuery("tbc")).toEqual({ versionId: "tbc", mainVersion: "forever" });
-        expect(resolveVersionQuery("all")).toEqual({ versionId: "", mainVersion: "forever" });
+    });
+
+    it("answers one version for every page: 'all' is the main version, only a caller with allowAll reads across (#741)", () => {
+        mockConfig = { mainVersion: "forever" };
+        expect(resolveVersionQuery("all")).toEqual({ versionId: "forever", mainVersion: "forever" });
+        expect(resolveVersionQuery("")).toEqual({ versionId: "forever", mainVersion: "forever" });
+        expect(resolveVersionQuery("all", { allowAll: true })).toEqual({ versionId: "", mainVersion: "forever" });
+        // hidden versions win over allowAll
+        mockConfig = { mainVersion: "forever", hideOtherVersions: true };
+        expect(resolveVersionQuery("all", { allowAll: true })).toEqual({ versionId: "forever", mainVersion: "forever" });
     });
 });

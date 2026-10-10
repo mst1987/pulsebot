@@ -21,6 +21,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { canAccess, getKader, getKaderOnly, type ApiError, type KaderChange, type KaderLive, type KaderView } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useContentVersion } from "../../hooks/useContentVersion";
+import { useFollowVersion } from "../../hooks/useFollowVersion";
 import { usePersistedState } from "../../lib/ui/persistedState";
 import { byId } from "../../lib/kader/model";
 import { liveToast } from "../../lib/kader/live";
@@ -86,7 +88,11 @@ export default function KaderPage() {
     const t = useT();
     const toast = useToast();
     const [last, setLast] = usePersistedState<string>("kader-last", "");
-    const state = useApi(() => getKader(kaderId), [kaderId]);
+    // One game version at a time (#741): the picker lists the Kader of the menu's content
+    // version. A link to a Kader of another version switches the menu to it; switching the
+    // menu away from the open Kader goes back to /kader (the Kader of the version now shown).
+    const { version } = useContentVersion();
+    const state = useApi(() => (version ? getKader(kaderId, version) : getKader(kaderId)), [kaderId, version]);
     const { setData, reload } = state;
     const [modal, setModal] = useState<KaderModal>(null);
     const canWrite = canAccess(user, "kader", "write");
@@ -99,6 +105,7 @@ export default function KaderPage() {
     useEffect(() => {
         if (kader && kader.id !== last) setLast(kader.id);
     }, [kader, last, setLast]);
+    useFollowVersion(kader ? kader.versionId : "", () => navigate("/kader"));
 
     const run = useCallback(async <T,>(call: Promise<T>, options: KaderRunOptions = {}): Promise<T | null> => {
         try {
@@ -129,7 +136,9 @@ export default function KaderPage() {
         if (refreshing.current || !kaderId) return null;
         refreshing.current = true;
         try {
-            const answer: KaderView | KaderChange = whole ? await getKader(kaderId) : await getKaderOnly(kaderId);
+            const answer: KaderView | KaderChange = whole
+                ? await (version ? getKader(kaderId, version) : getKader(kaderId))
+                : await getKaderOnly(kaderId);
             // an own save that landed while this was on its way is newer: keep it
             const older = (prev: KaderView | null) => !!prev && !!prev.kader && !!answer.kader && (answer.kader.rev || 0) < (prev.kader.rev || 0);
             const next = older(viewRef.current) ? viewRef.current : merge(viewRef.current, answer);
@@ -141,7 +150,7 @@ export default function KaderPage() {
         } finally {
             refreshing.current = false;
         }
-    }, [kaderId, setData]);
+    }, [kaderId, version, setData]);
 
     const onMoved = useCallback(async (live: KaderLive) => {
         const current = viewRef.current;

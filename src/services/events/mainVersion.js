@@ -116,21 +116,26 @@ function rulesForEvent(event, opts) {
 
 /**
  * The version filter a list reads from its `?version=` query (#545): every
- * list that mixes game versions takes the same three answers — nothing =
- * the main version, "all" = every version (`versionId` ""), a known id = that
- * one, an unknown id falls back to the main version like "nothing" does. One
- * function so every route filters the same way roster.js did first (#543).
+ * list with game content answers for exactly one version (#741, strictly
+ * separated) — nothing = the main version, a known id = that one, anything
+ * else (an unknown id, "all") falls back to the main version. One function so
+ * every route filters the same way roster.js did first (#543).
+ *
+ * "all" (every version, `versionId` "") is no answer for a page: only a caller
+ * that reads across versions on purpose passes `allowAll` — the loot council's
+ * stored views the sync tool reads (councilView.js). The archive export does
+ * not ask here at all (contentVersions.archiveExport).
  * @param {string} raw  the raw query value, e.g. `url.searchParams.get("version")`
- * @param {{ config?: object }} [opts]
- * @returns {{ versionId: string, mainVersion: string }}  versionId "" = all
+ * @param {{ config?: object, allowAll?: boolean }} [opts]
+ * @returns {{ versionId: string, mainVersion: string }}  versionId "" = all (only with `allowAll`)
  */
-function resolveVersionQuery(raw, { config } = {}) {
+function resolveVersionQuery(raw, { config, allowAll = false } = {}) {
     const cfg = configOf(config);
     const mainVersion = mainVersionFor({ config: cfg });
     // Other versions hidden (#563): the main version, whatever was asked.
     if (hidesOtherVersions(cfg)) return { versionId: mainVersion, mainVersion };
     const key = String(raw || "").trim();
-    if (key === "all") return { versionId: "", mainVersion };
+    if (key === "all" && allowAll) return { versionId: "", mainVersion };
     return { versionId: knownVersion(key) || mainVersion, mainVersion };
 }
 

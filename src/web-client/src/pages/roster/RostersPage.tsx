@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getRosters, type RosterHead, type RosterOverview } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { tParts, useT } from "../../i18n";
 import { Badge, Button, IconTile, PageHead, WowIcon, buttonClass } from "../../components/ui";
 import { PlusIcon } from "../../components/ui/icons";
@@ -138,7 +139,9 @@ function EmptyCategoryCard({ category, onCreate }: { category: RosterOverview["c
 
 export default function RostersPage() {
     const t = useT();
-    const state = useApi(() => getRosters(), []);
+    // The rosters of the menu's content version (#741); a switch loads again.
+    const { version } = useContentVersion();
+    const state = useApi(() => (version ? getRosters(version) : getRosters()), [version]);
     const [creating, setCreating] = useState<{ categoryId: string } | null>(null);
     if (state.error) return <div className="empty">{tParts("roster.overview.loadError", { message: state.error.message })}</div>;
     const data = state.data;

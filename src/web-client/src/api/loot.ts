@@ -316,8 +316,9 @@ export type InboxLinkedSession = {
     at: number;
 };
 
-export function getLootInbox(): Promise<{ sessions: InboxSession[]; linked?: InboxLinkedSession[] }> {
-    return get<{ sessions: InboxSession[]; linked?: InboxLinkedSession[] }>("/api/history/inbox");
+/** `version`: the menu's content version (#741) — sessions of its raids, and those without a raid yet. */
+export function getLootInbox(version = ""): Promise<{ sessions: InboxSession[]; linked?: InboxLinkedSession[] }> {
+    return get<{ sessions: InboxSession[]; linked?: InboxLinkedSession[] }>(`/api/history/inbox${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 /** An event as the import preview names it; startTime in ms. */

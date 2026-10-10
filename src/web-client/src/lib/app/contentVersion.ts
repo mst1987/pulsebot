@@ -53,6 +53,41 @@ export function versionRef(info: ContentInfo, id: string): ContentVersionRef {
     return info.versions.find((v) => v.id === id) || { id, label: id, short: id };
 }
 
+/**
+ * What a page about one record of a game version (a raid, a Kader, a roster)
+ * does with the menu's content version (#741, strictly one version at a time):
+ *
+ *   "switch"  the record is of another version the switch offers: switch the
+ *             menu to it (a link from Discord or a bookmark) and say so;
+ *   "mark"    a record seen the first time that needs no switch (its version is
+ *             shown, or not offered — hidden or without data): remember it;
+ *   "leave"   the record was followed and the user switched away from its
+ *             version: the record is not of the version shown any more, go back
+ *             to the list;
+ *   "stay"    nothing to do (no record yet, outside the shell, nothing changed).
+ *
+ * `record` is the record's version, or the versions it can be shown in, the
+ * preferred first (a character with loot in two versions); `followed` the
+ * `key` of what the page already followed ("" = nothing yet); `to` the version
+ * a "switch" goes to.
+ */
+export type FollowStep = "switch" | "mark" | "leave" | "stay";
+export type FollowDecision = { step: FollowStep; to: string; key: string };
+
+export function followStep({ record, shown, followed, offered }: {
+    record: string | string[]; shown: string; followed: string; offered: string[];
+}): FollowDecision {
+    const list = (Array.isArray(record) ? record : [record]).filter(Boolean);
+    const key = list.join(",");
+    if (!list.length || !shown) return { step: "stay", to: "", key };
+    if (followed !== key) {
+        if (list.includes(shown)) return { step: "mark", to: "", key };
+        const to = list.find((v) => offered.includes(v)) || "";
+        return to ? { step: "switch", to, key } : { step: "mark", to: "", key };
+    }
+    return { step: list.includes(shown) ? "stay" : "leave", to: "", key };
+}
+
 export type UpcomingRaidRef = { id: string; title: string; startTime: number };
 
 /**

@@ -2,7 +2,7 @@
 // switch is there at all, what the browser remembers, and the settings' warning list.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-    CONTENT_VERSION_KEY, canSwitch, otherUpcoming, readStoredVersion, resolveContentVersion, versionRef, writeStoredVersion,
+    CONTENT_VERSION_KEY, canSwitch, followStep, otherUpcoming, readStoredVersion, resolveContentVersion, versionRef, writeStoredVersion,
 } from "./contentVersion";
 import type { ContentInfo } from "../../api/session";
 
@@ -68,5 +68,36 @@ describe("versionRef / otherUpcoming", () => {
         }, "forever");
         expect(list.map((r) => r.id)).toEqual(["m", "b"]);
         expect(otherUpcoming(undefined, "forever")).toEqual([]);
+    });
+});
+
+// A page about one record follows its version (#741, hooks/useFollowVersion).
+describe("followStep", () => {
+    const offered = ["tbc", "forever"];
+    it("switches to a record of another offered version, once", () => {
+        expect(followStep({ record: "tbc", shown: "forever", followed: "", offered })).toEqual({ step: "switch", to: "tbc", key: "tbc" });
+        // after the switch the menu shows it: nothing more to do
+        expect(followStep({ record: "tbc", shown: "tbc", followed: "tbc", offered }).step).toBe("stay");
+    });
+
+    it("only remembers a record of the shown version, or one the switch does not offer (hidden, no data)", () => {
+        expect(followStep({ record: "tbc", shown: "tbc", followed: "", offered })).toEqual({ step: "mark", to: "", key: "tbc" });
+        expect(followStep({ record: "classic", shown: "tbc", followed: "", offered })).toEqual({ step: "mark", to: "", key: "classic" });
+    });
+
+    it("leaves a followed record when the menu switches away from it", () => {
+        expect(followStep({ record: "tbc", shown: "forever", followed: "tbc", offered }).step).toBe("leave");
+    });
+
+    it("takes a record with several versions: stays while one of them is shown, else switches to the first offered", () => {
+        expect(followStep({ record: ["tbc", "forever"], shown: "forever", followed: "", offered }).step).toBe("mark");
+        expect(followStep({ record: ["tbc", "forever"], shown: "forever", followed: "tbc,forever", offered }).step).toBe("stay");
+        expect(followStep({ record: ["classic", "forever"], shown: "tbc", followed: "", offered })).toMatchObject({ step: "switch", to: "forever" });
+    });
+
+    it("does nothing without a record or outside the shell", () => {
+        expect(followStep({ record: "", shown: "tbc", followed: "", offered }).step).toBe("stay");
+        expect(followStep({ record: [], shown: "tbc", followed: "", offered }).step).toBe("stay");
+        expect(followStep({ record: "tbc", shown: "", followed: "", offered }).step).toBe("stay");
     });
 });

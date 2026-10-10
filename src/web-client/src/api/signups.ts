@@ -115,6 +115,10 @@ export type SignupsData = {
     classesByVersion?: Record<string, SignupClass[]>;
     /** The names of the game versions (#543), for "Lege einen Forever-Charakter an". */
     versions?: { id: string; label: string; short?: string }[];
+    /** The version shown (#741). */
+    version?: string;
+    /** The version of the raid `event` named (#741): a link from Discord switches the menu to it; "" = none. */
+    eventVersion?: string;
     error: string | null;
 };
 
@@ -156,8 +160,17 @@ export function saveSignupsBulk(input: { eventIds: string[]; characters: { chara
 /** One signup of an own event as the orga sees it (raid detail, GET /api/signups/event). */
 export type EventSignupEntry = OwnSignup & { userId: string; name: string; at: number };
 
-export function getSignups(): Promise<SignupsData> {
-    return get<SignupsData>("/api/signups");
+/**
+ * `version`: the menu's content version (#741) — only its raids; "" = the
+ * server's main version. `eventId`: a raid a link names — its version comes back
+ * as `eventVersion`.
+ */
+export function getSignups(version = "", eventId = ""): Promise<SignupsData> {
+    const q = new URLSearchParams();
+    if (version) q.set("version", version);
+    if (eventId) q.set("event", eventId);
+    const qs = q.toString();
+    return get<SignupsData>(`/api/signups${qs ? `?${qs}` : ""}`);
 }
 
 /** PUT /api/signups — plus what a full raid made of it (#306). */

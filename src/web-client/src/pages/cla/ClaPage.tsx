@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getClaData, evalLog, resetEval, scanLogs, deleteLogEntry, linkLog, unlinkLog, autoMatchLogs, deleteReport, type ApiError, type ClaFilter, type ClaRow, type LogSection } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { withIncompleteConfirm } from "../../lib/raids/confirmIncomplete";
 import { usePersistedState, usePersistedSearchParam } from "../../lib/ui/persistedState";
 import { SortLabel, ariaSort } from "../../components/ui/SortTh";
@@ -72,7 +73,13 @@ export default function ClaPage() {
     // The page number is deliberately not remembered: the list grows at the top.
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
 
-    const cla = useApi(() => getClaData(filter, sort, dir, page), [filter, sort, dir, page]);
+    // One game version at a time (#741): the menu's content version. A log without a raid
+    // is listed under every version, a linked one only under its raid's (the server decides).
+    const { version } = useContentVersion();
+    const cla = useApi(
+        () => (version ? getClaData(filter, sort, dir, page, version) : getClaData(filter, sort, dir, page)),
+        [filter, sort, dir, page, version],
+    );
     const { data } = cla;
 
     const switchFilter = (f: ClaFilter) => setFilter(f, (p) => { p.delete("page"); });
@@ -104,7 +111,7 @@ export default function ClaPage() {
     };
 
     const scan = () => quick(() => scanLogs(), setScanning);
-    const automatch = () => quick(() => autoMatchLogs(), setAutomatching);
+    const automatch = () => quick(() => (version ? autoMatchLogs(version) : autoMatchLogs()), setAutomatching);
 
     // Hands the evaluation to JobsProvider: it runs server-side either way, but
     // owning the promise up there is what lets the admin leave this page while

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { getHistoryEvent, clearHistoryEvent, deleteLootItems, canAccess, type ApiError, type LootItem } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useFollowVersion } from "../../hooks/useFollowVersion";
 import AsyncView from "../../components/ui/AsyncView";
 import { LootTable } from "../../components/loot/LootTable";
 import ManualLootForm from "./ManualLootForm";
@@ -29,6 +30,9 @@ export default function HistoryEventPage() {
     const toast = useToast();
 
     const event = useApi(() => getHistoryEvent(eventId), [eventId]);
+    // The raid's loot in the raid's version (#741): a link from another version switches the
+    // menu to it; switching away leads back to the loot of the version now shown.
+    useFollowVersion(event.data ? event.data.versionId : "", () => navigate("/history"));
     const [busy, setBusy] = useState(false);
 
     const clear = async () => {

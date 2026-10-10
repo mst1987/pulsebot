@@ -39,13 +39,14 @@ function queriedRoster(searchParams, guildId = "") {
  * version - links, gear realm, Wowhead path); `charVersion` is the character
  * filter (#545), separate from it.
  * @param {URLSearchParams} searchParams
- * @param {{ guildId?: string }} [ctx]  the active server - a roster of another one is ignored
+ * @param {{ guildId?: string, allowAll?: boolean }} [ctx]  the active server - a roster of another one is ignored;
+ *   `allowAll`: a stored view may still say "all" (#741: only the sync tool's views, never the page)
  */
-function councilOptsFromQuery(searchParams, { guildId = "" } = {}) {
+function councilOptsFromQuery(searchParams, { guildId = "", allowAll = false } = {}) {
     const roster = queriedRoster(searchParams, guildId);
     const categoryId = roster ? (roster.categoryId || "") : (searchParams.get("category") || "");
     const config = getConfig();
-    const { versionId: charVersion, mainVersion } = resolveVersionQuery(searchParams.get("version"), { config });
+    const { versionId: charVersion, mainVersion } = resolveVersionQuery(searchParams.get("version"), { config, allowAll });
     // Without a roster or a category of its own version, the content switch (an explicit
     // `version`) decides what the council looks at (#748): a Forever view gets no TBC content.
     const rawVersion = String(searchParams.get("version") || "").trim();
