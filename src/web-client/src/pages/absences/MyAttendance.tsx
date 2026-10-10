@@ -6,6 +6,7 @@ import {
     type ApiError, type AttendanceCategory, type AvailabilityEntry, type SignupStatus,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { Badge, BackButton, Button, IconButton, useConfirm, type Tone } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { AbsenceIcon, CheckMark, TrashIcon } from "../../components/ui/icons";
@@ -33,7 +34,9 @@ export default function MyAttendance({ userId = "", onBack }: {
     onBack?: () => void;
 }) {
     const t = useT();
-    const attendance = useApi(() => getRaiderAttendance(userId), [userId]);
+    // counted within the menu's content version (#740): a switch loads it again
+    const { version } = useContentVersion();
+    const attendance = useApi(() => getRaiderAttendance(userId, version), [userId, version]);
     // the entries of whoever is shown; the caller's own data feeds the dialog when that is somebody else
     const entries = useApi(() => getAvailability(userId), [userId]);
     const caller = useApi(() => getAvailability(), [], { enabled: !!userId });

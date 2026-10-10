@@ -6,9 +6,13 @@
 // POST   /api/availability/preview        area signup   — the raids a period covers; body { kind, from, to, character, spec, userId? }
 // POST   /api/availability                area signup   — enter one; body { kind, from, to, comment, character, spec, eventIds[], userId? }
 // DELETE /api/availability                area signup   — remove one; body { id }
-// GET    /api/availability/attendance[?userId=]        area signup — own attendance per category and raid (orga: anyone's)
-// GET    /api/availability/overview?weeks=&category=  area roster — the orga's overview: who is away when (absenceOverview.js)
-// GET    /api/availability/overview/raider?userId=    area roster — one raider's entries and last raids
+// GET    /api/availability/attendance[?userId=&version=]        area signup — own attendance per category and raid (orga: anyone's)
+// GET    /api/availability/overview?weeks=&category=&version=  area roster — the orga's overview: who is away when (absenceOverview.js)
+// GET    /api/availability/overview/raider?userId=&version=    area roster — one raider's entries and last raids
+//
+// The three views are per game version (#740, the menu's content switch): only raids of `version`
+// (resolveVersionQuery: none = the main version) count and are listed. The absence entries
+// themselves belong to no version - they cover the raids of every version.
 // GET    /api/availability/panels         area settings — the posted Discord panels per raid category
 // POST   /api/availability/panel          area settings — post a category's panel; body { categoryId, channelId }
 // DELETE /api/availability/panel          area settings — take it down; body { categoryId }
@@ -26,7 +30,7 @@ const { getSignup } = require("../../stores/signupStore");
 const availability = require("../../services/signups/availability");
 const availabilityPanel = require("../../services/signups/availabilityPanel");
 const { userCanAny, userIsOrga } = require("../../config/permissions");
-const { visibleVersions } = require("../../services/events/mainVersion");
+const { visibleVersions, resolveVersionQuery } = require("../../services/events/mainVersion");
 const linkCheck = require("../../services/discord/linkCheck");
 const discord = require("../../services/discord/discord");
 const absenceOverview = require("../../services/signups/absenceOverview");
@@ -185,6 +189,15 @@ const deletePanel = withUser({ csrf: true, body: true }, async ({ body, res }) =
 
 // --- the orga's overview (Roster › Abwesenheiten) ---
 
+/**
+ * The game version a view counts (#740): `?version=` as every list reads it, "all" and nothing both
+ * the main version - attendance never mixes versions.
+ */
+function versionOf(query, config) {
+    const { versionId, mainVersion } = resolveVersionQuery(query.get("version"), { config });
+    return versionId || mainVersion;
+}
+
 /** Names of the active categories and of every category an entry names. */
 function categoryNamesOf(config) {
     const ids = new Set([...(Array.isArray(config.categoryIds) ? config.categoryIds : []), ...availabilityStore.listEntries().map((e) => e.categoryId)].map(str).filter(Boolean));
@@ -212,6 +225,7 @@ const getOverview = withUser({}, async ({ user, query, res }) => {
     const view = absenceOverview.buildOverview({
         weeks: Number(query.get("weeks")) || 8,
         categoryId: str(query.get("category")),
+        versionId: versionOf(query, config),
         config,
         withReasons: isOrga(user),
         categoryNames: categoryNamesOf(config),
@@ -227,7 +241,7 @@ const getOverviewRaider = withUser({}, async ({ user, query, res }) => {
     const userId = str(query.get("userId"));
     if (!userId) return apiError(res, 400, "bad_request", "Kein Raider angegeben.");
     const config = getConfig();
-    const view = absenceOverview.raiderDetail(userId, { config, withReasons: isOrga(user), categoryNames: categoryNamesOf(config) });
+    const view = absenceOverview.raiderDetail(userId, { versionId: versionOf(query, config), config, withReasons: isOrga(user), categoryNames: categoryNamesOf(config) });
     const named = await namerFor([userId], config);
     ok(res, { ...named(view), canEdit: isOrga(user) });
 });
@@ -241,7 +255,9 @@ const getAttendance = withUser({}, async ({ user, query, res }) => {
     const target = targetOf(user, query.get("userId"));
     if (target.error) return apiError(res, 403, "forbidden", target.error);
     const config = getConfig();
-    const view = raiderAttendance(target.userId, { config, categoryNames: categoryNamesOf(config), eventUrl: (e) => linkCheck.eventLink(e) });
+    const view = raiderAttendance(target.userId, {
+        versionId: versionOf(query, config), config, categoryNames: categoryNamesOf(config), eventUrl: (e) => linkCheck.eventLink(e),
+    });
     const profile = profiles.getProfile(target.userId);
     const named = await namerFor([target.userId], config);
     ok(res, { ...named({ ...view, name: profile.name || "" }), own: target.userId === str(user.id), orga: isOrga(user), canEdit: canEditAnyAttendance(user) });

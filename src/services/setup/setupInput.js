@@ -8,7 +8,7 @@
 //               status (#320): the proposal weighs the status of the character
 //               it would place, not the signup's
 //   profiles    raiderProfileStore — gear per spec, can offtank/heal, wishes
-//   attendance  rosterAttendance, per raider in the event's category
+//   attendance  rosterAttendance, per raider in the event's category - within the event's version (#740)
 //   history     earlier nights of the same categories: from *approved* setups
 //               (`event.setup.status === "approved"`) — the bench is never
 //               stored separately. As long as no setup was approved yet, the
@@ -28,6 +28,7 @@ const settingsStore = require("../../stores/settingsStore");
 const rosterStore = require("../../stores/rosterStore");
 const { buildAttendanceContext, attendanceFor } = require("../characters/rosterAttendance");
 const { listStoredEvents } = require("../events/eventSources");
+const { versionOfEvent } = require("../events/mainVersion");
 const { buildSetupProposal } = require("../../utils/setup/proposal");
 const { benchAndPool } = require("./setupCore");
 
@@ -156,7 +157,8 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false } = 
     const profiles = profileStore.listProfiles().filter((p) => userIds.has(p.userId));
 
     const attendance = {};
-    const ctx = buildAttendanceContext(guildId, { now });
+    // within the version of the raid being set up (#740)
+    const ctx = buildAttendanceContext(guildId, { now, versionId: versionOfEvent(events[0]) });
     const eventById = new Map(events.map((e) => [e.id, e]));
     const profileById = new Map(profiles.map((p) => [p.userId, p]));
     for (const s of signups) {

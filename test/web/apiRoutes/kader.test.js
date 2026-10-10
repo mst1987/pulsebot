@@ -186,9 +186,9 @@ describe("web/apiRoutes/kader", () => {
 
         beforeEach(() => {
             listStoredEvents.mockReturnValue([
-                { id: "e1", guildId: "g1", categoryId: "c-mo", categoryName: "Mo Raid", title: "Kara", startTime: past(3), signUps: [{ userId: U1, status: "signed" }] },
-                { id: "e2", guildId: "g1", categoryId: "c-do", categoryName: "Do Raid", title: "Gruul", startTime: past(6), signUps: [{ userId: U1, status: "absence" }] },
-                { id: "e3", guildId: "g1", categoryId: "c-mo", categoryName: "Mo Raid", title: "Kara", startTime: past(10), signUps: [{ userId: U1, status: "signed" }] },
+                { id: "e1", guildId: "g1", categoryId: "c-mo", categoryName: "Mo Raid", versionId: "forever", title: "Kara", startTime: past(3), signUps: [{ userId: U1, status: "signed" }] },
+                { id: "e2", guildId: "g1", categoryId: "c-do", categoryName: "Do Raid", versionId: "forever", title: "Gruul", startTime: past(6), signUps: [{ userId: U1, status: "absence" }] },
+                { id: "e3", guildId: "g1", categoryId: "c-mo", categoryName: "Mo Raid", versionId: "forever", title: "Kara", startTime: past(10), signUps: [{ userId: U1, status: "signed" }] },
             ]);
         });
 

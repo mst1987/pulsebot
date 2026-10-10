@@ -254,29 +254,38 @@ describe("web/kader/kaderSource", () => {
             expect(out.raidCategories.map((c) => [c.id, c.nights])).toEqual([["c1", 0], ["c2", 0]]);
         });
 
-        it("counts every account per category over that category's nights, every game version, newest first", async () => {
+        it("counts every account per category over that category's nights of the Kader's version only, newest first (#740)", async () => {
             listStoredEvents.mockReturnValue(EVENTS);
             const out = await loadSource({ now: NOW });
-            expect(out.raidCategories.map((c) => [c.id, c.nights])).toEqual([["c1", 2], ["c2", 1]]);
+            // Forever: the TBC night e3 of c1 counts nowhere
+            expect(out.raidCategories.map((c) => [c.id, c.nights])).toEqual([["c1", 1], ["c2", 1]]);
             const byUser = new Map(out.attendance.map((a) => [a.userId, a.byCategory]));
             expect(byUser.get(U1)).toEqual({
                 c1: {
-                    attended: 2, counted: 2, nights: [
+                    attended: 1, counted: 1, nights: [
                         { date: "2026-12-18", eventId: "e1", title: "Hyjal", attended: true, status: "present", reason: null },
-                        { date: "2026-12-17", eventId: "e3", title: "Kara", attended: true, status: "present", reason: null },
                     ],
                 },
                 c2: { attended: 0, counted: 1, nights: [{ date: "2026-12-15", eventId: "e2", title: "Ony", attended: false, status: "absence", reason: "abgemeldet" }] },
             });
-            // an account with a TBC character only is counted on every night of the category
-            expect(byUser.get(U2).c1).toMatchObject({ attended: 0, counted: 2 });
-            expect(byUser.get(U2).c1.nights.map((n) => n.reason)).toEqual(["keine Anmeldung", "abgemeldet"]);
+            // an account with a TBC character only is counted on the category's Forever nights
+            expect(byUser.get(U2).c1).toMatchObject({ attended: 0, counted: 1 });
+            expect(byUser.get(U2).c1.nights.map((n) => n.reason)).toEqual(["keine Anmeldung"]);
+        });
+
+        it("counts a TBC Kader over the TBC nights only", async () => {
+            listStoredEvents.mockReturnValue(EVENTS);
+            const out = await loadSource({ versionId: "tbc", now: NOW });
+            expect(out.raidCategories.map((c) => [c.id, c.nights])).toEqual([["c1", 1], ["c2", 0]]);
+            const byUser = new Map(out.attendance.map((a) => [a.userId, a.byCategory]));
+            expect(byUser.get(U1).c1.nights.map((n) => n.eventId)).toEqual(["e3"]);
+            expect(byUser.get(U1).c2).toBeUndefined();
         });
 
         it("counts an account the orga assigned a character to, without a profile", async () => {
             raiderCharacters.listAllAssignments.mockReturnValue({ c1: { [U4]: "Kael" } });
             logIndex.mockReturnValue(new Map([["kael", { character: "Kael", className: "Rogue", specKey: "Rogue-Combat" }]]));
-            listStoredEvents.mockReturnValue([{ id: "e1", categoryId: "c1", title: "Kara", startTime: NOW_SEC - DAY, signUps: [{ userId: U4, status: "signed" }] }]);
+            listStoredEvents.mockReturnValue([{ id: "e1", categoryId: "c1", versionId: "forever", title: "Kara", startTime: NOW_SEC - DAY, signUps: [{ userId: U4, status: "signed" }] }]);
             const out = await loadSource({ now: NOW });
             expect(out.attendance.find((a) => a.userId === U4).byCategory).toEqual({
                 c1: { attended: 1, counted: 1, nights: [expect.objectContaining({ eventId: "e1", attended: true })] },
