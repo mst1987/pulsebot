@@ -5,7 +5,9 @@ jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => (
 
 const { getEvent } = require("../../../src/stores/eventStore");
 const { getConfig } = require("../../../src/stores/configStore");
-const { versionOfImport, relinkItems, linkItemsForImport } = require("../../../src/services/loot/lootVersion");
+jest.mock("../../../src/utils/loot/wowhead");
+const wowhead = require("../../../src/utils/loot/wowhead");
+const { versionOfImport, relinkItems, linkItemsForImport, enrichForImport } = require("../../../src/services/loot/lootVersion");
 
 const CONFIG = {
     mainVersion: "tbc",
@@ -19,6 +21,16 @@ beforeEach(() => {
 });
 
 describe("services/loot/lootVersion", () => {
+    it("looks names up in the Wowhead section of the target's version (#750)", async () => {
+        wowhead.lookupItem.mockResolvedValue(null);
+        getConfig.mockReturnValue({ ...CONFIG, versionSettings: { ...CONFIG.versionSettings, forever: { wowheadPath: "forever" } } });
+        await enrichForImport([{ itemId: 5, itemName: "", itemIconUrl: "" }], { categoryId: "fv" });
+        expect(wowhead.lookupItem).toHaveBeenCalledWith(5, { path: "forever" });
+        wowhead.lookupItem.mockClear();
+        await enrichForImport([{ itemId: 6, itemName: "", itemIconUrl: "" }], {});
+        expect(wowhead.lookupItem).toHaveBeenCalledWith(6, { path: "tbc" });
+    });
+
     it("takes an own event's version, else the category's, else the main version", () => {
         getEvent.mockReturnValueOnce({ id: "eh-1", versionId: "classic", categoryId: "fv" });
         expect(versionOfImport({ eventId: "eh-1", categoryId: "x" })).toBe("classic");

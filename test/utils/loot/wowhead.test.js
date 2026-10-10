@@ -111,6 +111,21 @@ describe("utils/loot/wowhead", () => {
         });
     });
 
+    describe("Forever's own section (#750)", () => {
+        it("looks items up and builds links on /forever", async () => {
+            axios.get.mockResolvedValue({ data: { name: "Test Item", icon: "inv_misc_bone_03", quality: 4 } });
+            await wowhead.lookupItem(1234, { path: "forever" });
+            expect(axios.get).toHaveBeenCalledWith("https://nether.wowhead.com/forever/tooltip/item/1234", expect.anything());
+            expect(wowhead.itemLink(1234, "tbc", "forever")).toBe("https://www.wowhead.com/forever/item=1234");
+        });
+
+        it("keeps the name cache apart per path", async () => {
+            axios.get.mockResolvedValue({ data: { results: [{ typeName: "Item", id: 9, name: "Gemname", icon: "x", quality: 3 }] } });
+            expect((await wowhead.findItemByName("Gemname", { path: "forever" })).id).toBe(9);
+            expect(axios.get).toHaveBeenCalledWith("https://www.wowhead.com/forever/search/suggestions-template", expect.anything());
+        });
+    });
+
     describe("lookupItem", () => {
         it("resolves name/icon/quality by id from the tooltip endpoint", async () => {
             axios.get.mockResolvedValue({ data: { name: "Sunhawk Leggings", icon: "inv_pants_plate_07", quality: 4 } });
