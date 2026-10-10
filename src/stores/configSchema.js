@@ -175,9 +175,16 @@ const CONFIG_DEFAULTS = {
     // template and the profile start with when nobody picked one. A version id
     // of config/gameVersions; switched in Einstellungen → Spielversion.
     mainVersion: DEFAULT_VERSION,
-    // A category that plays another version than the main one:
-    // { [categoryId]: versionId }. Only the categories that differ are stored.
+    // The version every raid category plays: { [categoryId]: versionId }. Since
+    // #738 every active category has one written down (the start-up migration
+    // pins the version it played; a new category is saved with the main
+    // version), so the main version is only the default for something new.
     categoryVersion: {},
+    // The sections of a category (#738): { [categoryId]: [{ versionId, from, name }] },
+    // oldest first. Switching a category to another version starts a new one
+    // (`from` = ms of the switch, `name` = the Discord category name then); a
+    // category never switched has none (services/events/categoryEras.js).
+    categoryEras: {},
     // "Andere Versionen ausblenden" (#563): true = every list, selection list
     // and the menu's content switch show only the main version; a direct link
     // to an event of another version opens it read only (archive). Nothing is
@@ -274,6 +281,30 @@ function normalizeCategoryVersion(raw) {
         const key = String(catId).trim();
         const value = String(versionId || "").trim();
         if (key && value && rulesFor(value)) out[key] = value;
+    }
+    return out;
+}
+
+/**
+ * Normalise { [categoryId]: [{ versionId, from, name }] } (#738): only known
+ * versions, `from` a non-negative number (ms), `name` a string; each list
+ * sorted oldest first, an empty list dropped.
+ */
+function normalizeCategoryEras(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, list] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (!key || !Array.isArray(list)) continue;
+        const eras = list
+            .filter((e) => e && typeof e === "object" && rulesFor(String(e.versionId || "").trim()))
+            .map((e) => ({
+                versionId: String(e.versionId).trim(),
+                from: Math.max(0, Math.floor(Number(e.from) || 0)),
+                name: String(e.name || "").trim().slice(0, 100),
+            }))
+            .sort((a, b) => a.from - b.from);
+        if (eras.length) out[key] = eras;
     }
     return out;
 }
@@ -697,6 +728,7 @@ function normalizeConfig(raw) {
         categoryRaidTemplate: normalizeCategoryRaidTemplate(stored.categoryRaidTemplate),
         mainVersion: normalizeMainVersion(stored.mainVersion),
         categoryVersion: normalizeCategoryVersion(stored.categoryVersion),
+        categoryEras: normalizeCategoryEras(stored.categoryEras),
         hideOtherVersions: stored.hideOtherVersions === true,
         botLanguage: normalizeBotLanguage(stored.botLanguage),
         topItems: normalizeTopItems(stored.topItems),
@@ -714,5 +746,5 @@ module.exports = {
     normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOWS, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
     normalizeRaidhelperRetirement, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
-    normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings, normalizeBotLanguage,
+    normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
 };

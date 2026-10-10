@@ -16,7 +16,7 @@ const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeCategorySignupSource,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryAttendance, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
-    normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings, normalizeBotLanguage,
+    normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
 } = require("./configSchema");
 const { planningOf } = require("../services/events/planning");
 const { normalizeBackupSettings } = require("../services/backup/backupConfig");
@@ -144,6 +144,8 @@ function saveConfig(partial) {
     if (partial.mainVersion !== undefined) next.mainVersion = normalizeMainVersion(partial.mainVersion);
     if (partial.botLanguage !== undefined) next.botLanguage = normalizeBotLanguage(partial.botLanguage);
     if (partial.categoryVersion !== undefined) next.categoryVersion = normalizeCategoryVersion(partial.categoryVersion);
+    // #738: the section history is replaced whole (the settings route appends a section on a switch).
+    if (partial.categoryEras !== undefined) next.categoryEras = normalizeCategoryEras(partial.categoryEras);
     // #542: merged per version and per field (a block sent for one version leaves the others alone), then normalised.
     if (partial.versionSettings && typeof partial.versionSettings === "object") {
         const merged = { ...current.versionSettings };

@@ -98,10 +98,9 @@
     },
     "gameVersion": {
         "main": "Hauptversion",
-        "mainSub": "Mit dieser Version startet ein neues Event, eine neue Raid-Vorlage und das Raider-Profil, wenn niemand eine andere wählt. Bestehende Events und Vorlagen behalten ihre Version.",
-        "categories": "Abweichende Kategorien",
-        "categoriesSub": "Eine Kategorie, die eine andere Version spielt als die Hauptversion. „Hauptversion“ folgt der Einstellung oben.",
-        "followMain": "Hauptversion ({version})",
+        "mainSub": "Vorbelegung für Neues: eine neu aktivierte Kategorie, eine neue Raid-Vorlage und das Raider-Profil starten damit. Bestehende Kategorien, Events und Vorlagen behalten ihre Version.",
+        "categories": "Version je Kategorie",
+        "categoriesSub": "Jede aktive Kategorie spielt fest eine Version. Umstellen beginnt einen neuen Abschnitt: bisherige Raids, Roster und Quote bleiben in ihrer Version lesbar.",
         "categoryAria": "Spielversion von {name}",
         "noCategories": "Noch keine aktive Kategorie – aktiviere sie unter Kategorien.",
         "hideOthers": "Andere Versionen ausblenden",
@@ -117,7 +116,40 @@
         "exportJson": "als JSON",
         "preview": "So sieht die Kopfleiste aus",
         "previewOn": "Ausgeblendet: kein Umschalter mehr, nur ein stiller Hinweis, welche Version aktiv ist.",
-        "previewOff": "Nicht ausgeblendet: jeder kann oben zwischen den Versionen wechseln, die Wahl wird je Nutzer gemerkt."
+        "previewOff": "Nicht ausgeblendet: jeder kann oben zwischen den Versionen wechseln, die Wahl wird je Nutzer gemerkt.",
+        "newCategory": "neu · startet mit {version}",
+        "since": "seit {date}"
+    },
+    "categorySwitch": {
+        "kicker": "Spielversion umstellen",
+        "title": "{name}: {from} → {to}",
+        "intro": "Das Umstellen beginnt einen neuen Abschnitt. Die Vergangenheit wird nicht umgedeutet.",
+        "keep": "Bisherige Raids, Roster und Quote bleiben als {from} lesbar (unter {from} im Umschalter).",
+        "new": "Ab dem Speichern werden neue Raids als {to} angelegt.",
+        "fresh": "Die Anwesenheitsquote startet neu, das {to}-Roster ist neu.",
+        "upcomingTitle": "Kommende Raids",
+        "upcoming": {
+            "one": "1 kommender Raid behält seine Version. Die Orga kann ihn absagen.",
+            "other": "{count} kommende Raids behalten ihre Version. Die Orga kann sie absagen."
+        },
+        "upcomingNone": "Keine kommenden Raids in einer anderen Version.",
+        "more": "… und {count} weitere",
+        "templatesTitle": "Serie und Standard-Vorlage",
+        "seriesMismatch": "Die Serie nutzt die Vorlage „{name}“ ({version}). Eine Vorlage einer anderen Version legt keine Events an.",
+        "seriesFits": "Die Serie passt zur neuen Version.",
+        "seriesFix": "Serie",
+        "seriesPause": "Serie pausieren",
+        "useTemplate": "Vorlage „{name}“ verwenden",
+        "defaultMismatch": "Die Standard-Vorlage „{name}“ ist {version} und passt nicht mehr.",
+        "defaultFits": "Die Standard-Vorlage „{name}“ passt.",
+        "defaultFix": "Standard-Vorlage",
+        "defaultNone": "keine Standard-Vorlage",
+        "noTemplates": "Für {to} gibt es noch keine Raid-Vorlage – lege eine unter Raid-Vorlagen an.",
+        "hint": "Wird mit „Speichern“ wirksam.",
+        "confirm": "Auf {version} umstellen",
+        "loading": "Lade, was das Umstellen betrifft …",
+        "error": "Konnte nicht geladen werden: {message}",
+        "switched": "{name}: neuer Abschnitt mit {version}"
     },
     "level": {
         "none": "aus",
@@ -853,7 +885,10 @@
         "infoSub": "Das EventHelper-Addon scannt die Gildenbank, das Sync-Tool lädt den Scan hoch. Eine Bank gehört zu einem Event-Server: Mit nur einem Event-Server kommt sie dort von selbst an, sonst wartet sie hier auf die Zuordnung.",
         "loading": "Lade die Gildenbanken …",
         "none": "Noch kein Scan angekommen.",
-        "waiting": { "one": "{count} wartet", "other": "{count} warten" },
+        "waiting": {
+            "one": "{count} wartet",
+            "other": "{count} warten"
+        },
         "allAssigned": "zugeordnet",
         "waitingBadge": "Wartet auf Zuordnung",
         "serverAria": "Server für {name}",

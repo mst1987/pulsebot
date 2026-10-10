@@ -74,9 +74,19 @@ const BACKUP_DEFAULTS = {
 const after691 = (config) => ({ ...config, backup: BACKUP_DEFAULTS });
 // Oct 2026 adds the roles that count as orga (Einstellungen → Berechtigungen), none by default.
 const afterOrgaRoles = (config) => ({ ...config, orgaRoleIds: [] });
-const schemaOnly = frozen.map((g) => ({ ...g, config: afterOrgaRoles(after691(after542(g.config))) }));
-const golden = schemaOnly.map((g, i) => ({ ...g, config: afterPlanning(g.config, cases[i].config || {}) }));
-const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie"));
+// #738 adds the section history per category (empty until a category switches its version).
+const afterEras = (config) => ({ ...config, categoryEras: {} });
+// #738: the start pins every active category to the version it plays (the main version) -
+// only for a stored file (a missing one is never written).
+function afterCategoryVersions(config, stored) {
+    if (!stored || !Object.keys(stored).length) return config;
+    const map = { ...(config.categoryVersion || {}) };
+    for (const id of Array.isArray(stored.categoryIds) ? stored.categoryIds : []) if (!map[id]) map[id] = config.mainVersion;
+    return { ...config, categoryVersion: map };
+}
+const schemaOnly = frozen.map((g) => ({ ...g, config: afterEras(afterOrgaRoles(after691(after542(g.config)))) }));
+const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");

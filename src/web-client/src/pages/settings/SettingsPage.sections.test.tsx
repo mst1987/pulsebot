@@ -26,6 +26,7 @@ vi.mock("../../api", async (orig) => ({
     updateSettings: vi.fn(),
     getIngestTokens: vi.fn(),
     getAvailabilityPanels: vi.fn(),
+    getCategorySwitch: vi.fn(),
 }));
 
 vi.mock("./RolePermissions", () => ({ default: () => <div>Panel Berechtigungen</div> }));
@@ -360,39 +361,105 @@ describe("Spielversion (#541)", () => {
         { id: "forever", label: "WoW Forever", short: "Forever" },
     ];
 
-    it("switches the main version, overrides one category and sends both with the draft", async () => {
+    const preview = (over: Partial<api.CategorySwitchPreview> = {}): api.CategorySwitchPreview => ({
+        categoryId: "cat1", name: "Montag",
+        from: { id: "tbc", label: "TBC Anniversary", short: "TBC" }, to: { id: "forever", label: "WoW Forever", short: "Forever" },
+        switching: true, eras: [{ versionId: "tbc", from: 0, name: "" }],
+        upcoming: [{ id: "eh-1", title: "Karazhan", startTime: 1_800_000_000, versionId: "tbc", source: "eventhelper" }],
+        series: { enabled: true, usesDefault: false, template: { id: "t-tbc", name: "SSC + TK", versionId: "tbc" }, fits: false },
+        defaultTemplate: { id: "t-tbc", name: "SSC + TK", versionId: "tbc", fits: false },
+        templates: [{ id: "t-fe", name: "Onyxia 40" }],
+        ...over,
+    });
+
+    it("switches the main version without moving a category, which keeps its fixed version (#738)", async () => {
         const user = userEvent.setup();
+        // stored before the migration: the active category has no entry, it plays the saved main version
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions }));
         renderPage(<SettingsPage />, { route: "/settings?section=spielversion" });
 
         const main = await screen.findByRole("radiogroup", { name: "Hauptversion" });
         expect(within(main).getByRole("radio", { name: "TBC" })).toHaveAttribute("aria-checked", "true");
-        // only the active category gets a row, and it follows the main version
+        // only the active category gets a row, with its own version and no "Hauptversion" choice
         const montag = screen.getByRole("combobox", { name: "Spielversion von Montag" });
-        expect(montag).toHaveValue("");
-        expect(within(montag).getByRole("option", { name: "Hauptversion (TBC)" })).toBeInTheDocument();
+        expect(montag).toHaveValue("tbc");
+        expect(within(montag).queryByRole("option", { name: /Hauptversion/ })).not.toBeInTheDocument();
         expect(screen.queryByRole("combobox", { name: "Spielversion von Mittwoch" })).not.toBeInTheDocument();
 
         await user.click(within(main).getByRole("radio", { name: "Forever" }));
-        expect(within(montag).getByRole("option", { name: "Hauptversion (Forever)" })).toBeInTheDocument();
-        await user.selectOptions(montag, "tbc");
-        expect(screen.getByText("2 ungespeicherte Änderungen")).toBeInTheDocument();
-        expect(screen.getByText(/Hauptversion → Forever/)).toBeInTheDocument();
+        expect(montag).toHaveValue("tbc");
+        expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
 
         await user.click(screen.getByRole("button", { name: "Speichern" }));
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
-        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ mainVersion: "forever", categoryVersion: { cat1: "tbc" } });
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ mainVersion: "forever", categoryVersion: { cat1: "tbc" }, categorySwitchFixes: {} });
+        expect(api.getCategorySwitch).not.toHaveBeenCalled();
     });
 
-    it("leaves a category on the main version out of the map", async () => {
+    it("asks before switching a category: the dialog lists what happens and the fixes go with the save (#738)", async () => {
         const user = userEvent.setup();
-        vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions, config: config({ mainVersion: "forever", categoryVersion: { cat1: "tbc" } }) }));
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions, config: config({ categoryVersion: { cat1: "tbc" }, categoryRaidTemplate: { cat1: "t-tbc" } }) }));
+        vi.mocked(api.getCategorySwitch).mockResolvedValue(preview());
+        vi.mocked(api.updateSettings).mockImplementation(async (partial) => ({
+            config: { ...config(), ...partial } as AdminConfig,
+            switchedCategories: [{ categoryId: "cat1", fromVersion: "tbc", toVersion: "forever", at: 1, name: "Montag", series: "template" }],
+        }));
         renderPage(<SettingsPage />, { route: "/settings?section=spielversion" });
 
-        await user.selectOptions(await screen.findByRole("combobox", { name: "Spielversion von Montag" }), "");
+        const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
+        await user.selectOptions(montag, "forever");
+        expect(api.getCategorySwitch).toHaveBeenCalledWith("cat1", "forever");
+        expect(await screen.findByText("Montag: TBC Anniversary → WoW Forever")).toBeInTheDocument();
+        expect(screen.getByText(/Bisherige Raids, Roster und Quote bleiben als TBC lesbar/)).toBeInTheDocument();
+        expect(screen.getByText(/neue Raids als Forever angelegt/)).toBeInTheDocument();
+        expect(screen.getByText("1 kommender Raid behält seine Version. Die Orga kann ihn absagen.")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Karazhan" })).toHaveAttribute("href", "/raids/detail?event=eh-1");
+        // nothing changes before the confirmation
+        expect(montag).toHaveValue("tbc");
+
+        await user.selectOptions(screen.getByRole("combobox", { name: "Serie" }), "t-fe");
+        await user.selectOptions(screen.getByRole("combobox", { name: "Standard-Vorlage" }), "t-fe");
+        await user.click(screen.getByRole("button", { name: "Auf Forever umstellen" }));
+        expect(montag).toHaveValue("forever");
+
         await user.click(screen.getByRole("button", { name: "Speichern" }));
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
-        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ mainVersion: "forever", categoryVersion: {} });
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({
+            categoryVersion: { cat1: "forever" },
+            categorySwitchFixes: { cat1: { series: "t-fe" } },
+            categoryRaidTemplate: { cat1: "t-fe" },
+        });
+        expect(await screen.findByText("Montag: neuer Abschnitt mit Forever")).toBeInTheDocument();
+    });
+
+    it("pauses the series by default, and cancelling or going back leaves nothing behind (#738)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions, config: config({ categoryVersion: { cat1: "tbc" }, categoryRaidTemplate: { cat1: "t-tbc" } }) }));
+        vi.mocked(api.getCategorySwitch).mockResolvedValue(preview({ upcoming: [] }));
+        renderPage(<SettingsPage />, { route: "/settings?section=spielversion" });
+
+        const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
+        await user.selectOptions(montag, "forever");
+        expect(await screen.findByText("Keine kommenden Raids in einer anderen Version.")).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Abbrechen" }));
+        expect(montag).toHaveValue("tbc");
+        expect(screen.queryByText(/ungespeicherte/)).not.toBeInTheDocument();
+
+        await user.selectOptions(montag, "forever");
+        await user.click(await screen.findByRole("button", { name: "Auf Forever umstellen" }));
+        expect(montag).toHaveValue("forever");
+        // back to the saved version: no dialog, the choices are gone
+        await user.selectOptions(montag, "tbc");
+        expect(api.getCategorySwitch).toHaveBeenCalledTimes(2);
+        expect(screen.queryByText(/ungespeicherte/)).not.toBeInTheDocument();
+
+        await user.selectOptions(montag, "forever");
+        await user.click(await screen.findByRole("button", { name: "Auf Forever umstellen" }));
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({
+            categoryVersion: { cat1: "forever" }, categorySwitchFixes: { cat1: { series: "pause" } }, categoryRaidTemplate: {},
+        });
     });
 
     it("says where to switch a category on when none is active", async () => {
@@ -406,6 +473,7 @@ describe("Spielversion (#541)", () => {
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions }));
         renderPage(<SettingsPage />, { route: "/settings?section=spielversion" });
         expect(await screen.findByRole("radiogroup", { name: "Main version" })).toBeInTheDocument();
-        expect(screen.getByRole("option", { name: "Main version (TBC)" })).toBeInTheDocument();
+        expect(screen.getByText("Version per category")).toBeInTheDocument();
+        expect(screen.getByRole("option", { name: "WoW Forever" })).toBeInTheDocument();
     });
 });
