@@ -328,6 +328,13 @@
 }
 .kp-cell-name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .kp-cell-name.kp-namerowcell { flex-direction: row; align-items: center; gap: 6px; }
+/* avatar plus name: the player's Discord picture, like the roster's member list */
+.kp-cell-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.kp-pava {
+    width: 30px; height: 30px; border-radius: 50%; flex: none; display: grid; place-items: center; object-fit: cover;
+    font-weight: 800; font-size: 12px; color: var(--brand-ink); background: var(--av, var(--accent));
+}
+.kp-namerowcell .kp-pava { width: 26px; height: 26px; font-size: 11px; margin-right: 2px; }
 .kp-cell-char { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .kp-cell-stack { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .kp-cell-roles { display: flex; gap: 4px; flex-wrap: wrap; min-width: 0; }
