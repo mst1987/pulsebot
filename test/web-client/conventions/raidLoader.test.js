@@ -38,7 +38,7 @@ describe("RaidLoader", () => {
         // the bosses the loader lists, by the content id each one belongs to
         const keys = [...loader.match(/const BOSSES[\s\S]*?\];/)[0].matchAll(/key: "(\w+)"/g)].map((m) => m[1]);
         const known = read("lib", "wow", "raidIcons.ts");
-        for (const key of keys) expect({ key, known: known.includes(`    ${key}: {`) }).toEqual({ key, known: true });
+        for (const key of keys) expect({ key, known: known.includes(`    ${key}: content("${key}"`) }).toEqual({ key, known: true });
         expect(keys.length).toBeGreaterThan(4);
     });
 
