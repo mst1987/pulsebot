@@ -355,8 +355,9 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.nextRaid).toBeNull();
             expect(data.areas).toBeNull();
             expect(data.tasks).toEqual([]);
-            // reading the raids still opens every category in "Für dich"
-            expect(loadPersonal).toHaveBeenCalledWith("guild-1", reader, expect.objectContaining({ orga: true }));
+            // reading the raids no longer opens every category in "Für dich" (Oct 2026): raider roles hold
+            // `raids` read and still see only the raids of their own categories - only the orga sees all
+            expect(loadPersonal).toHaveBeenCalledWith("guild-1", reader, expect.objectContaining({ orga: false }));
         });
 
         it("keeps the orga block from a raider role even with the right to change raids - an area is no orga rank", async () => {
@@ -487,6 +488,15 @@ describe("web/apiRoutes/dashboard", () => {
     });
 
     describe("GET /api/dashboard/next-raid", () => {
+        it("is the orga block's: a raider role with the dashboard and raids read gets 403 (Oct 2026)", async () => {
+            auth.getUser.mockReturnValue({ id: "8", name: "Rai", isAdmin: false, access: { dashboard: { read: true, write: false }, raids: { read: true, write: false } } });
+            dashboardData.loadNextRaidDetails.mockClear();
+            const res = mockRes();
+            await handle("/api/dashboard/next-raid", { method: "GET" }, res, new URL("http://x/api/dashboard/next-raid?event=ev1"));
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(dashboardData.loadNextRaidDetails).not.toHaveBeenCalled();
+        });
+
         it("needs an event id", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             const res = mockRes();

@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { AttendancePerson, RaidDetailData, SetupPlayer } from "../../api";
 import { t } from "../../i18n";
-import { renderPage } from "../../test/render";
+import { adminUser, renderPage } from "../../test/render";
 import type { RaidCtx } from "./meta";
 import RosterTab from "./RosterTab";
 
@@ -34,7 +34,8 @@ function ctx(): RaidCtx {
             missing: [person({ id: "u4", displayName: "zed" }), person({ id: "u5", displayName: "anna", character: "Anya" })],
         },
     } as unknown as RaidDetailData;
-    return { data, eventId: "e1", onChanged: vi.fn(), openModal: vi.fn(), openPlayer: vi.fn() };
+    // the raid lead's view: the attendance lists are the orga's (a raider's view at the end)
+    return { data, eventId: "e1", onChanged: vi.fn(), openModal: vi.fn(), openPlayer: vi.fn(), orga: true, user: adminUser() };
 }
 
 /** The chip that shows `text`. */
@@ -142,5 +143,41 @@ describe("the tab's one line instead of a card head", () => {
         c.data = { ...c.data, attendanceRoleIds: ["r1"], attendanceSource: null };
         renderPage(<RosterTab ctx={c} />);
         expect(screen.getByText(t("raidDetail.roster.noRoles"))).toBeInTheDocument();
+    });
+});
+
+// Oct 2026: who has not reacted, who is not in the plan and the tab's actions are the orga's.
+describe("the orga's part", () => {
+    const zone = () => screen.queryByRole("region", { name: t("shell.orga.label") });
+
+    it("sits in the orga zone for the orga: the ping, both lists and the roles hint", () => {
+        renderPage(<RosterTab ctx={ctx()} />);
+        expect(within(zone()!).getByRole("button", { name: new RegExp(t("raidDetail.roster.pingMissing")) })).toBeInTheDocument();
+        expect(within(zone()!).getByText(t("raidDetail.roster.noReaction"))).toBeInTheDocument();
+        expect(within(zone()!).getByText(t("raidDetail.roster.notInSetup"))).toBeInTheDocument();
+        // the lineup itself is for everybody: outside the zone
+        expect(within(zone()!).queryByText("Zibbo")).not.toBeInTheDocument();
+    });
+
+    it("is left out for a raider - even if the payload still carried the lists - and names open nothing", () => {
+        const c = { ...ctx(), orga: false, openPlayer: undefined, user: undefined };
+        renderPage(<RosterTab ctx={c} />);
+        expect(zone()).not.toBeInTheDocument();
+        expect(screen.queryByText(t("raidDetail.roster.noReaction"))).not.toBeInTheDocument();
+        expect(screen.queryByText(t("raidDetail.roster.notInSetup"))).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: new RegExp(t("raidDetail.roster.pingMissing")) })).not.toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: t("raidDetail.roster.setRoles") })).not.toBeInTheDocument();
+        expect(screen.queryByText(t("raidDetail.roster.noReactionCount", { count: 2 }))).not.toBeInTheDocument();
+        // the lineup stays, as plain rows
+        const row = screen.getByText("Zibbo").closest(".rd-pl")!;
+        expect(row.tagName).toBe("DIV");
+        expect(screen.queryAllByRole("button")).toHaveLength(0);
+    });
+
+    it("shows a raider no roles hint either", () => {
+        const c = { ...ctx(), orga: false, openPlayer: undefined };
+        c.data = { ...c.data, attendanceRoleIds: [], attendanceSource: null };
+        renderPage(<RosterTab ctx={c} />);
+        expect(screen.queryByText(t("raidDetail.roster.noRoles"))).not.toBeInTheDocument();
     });
 });

@@ -18,22 +18,26 @@ const { signupSourceFor } = require("../../services/events/eventSources");
 const { listSignups } = require("../../stores/signupStore");
 const discord = require("../../services/discord/discord");
 const linkCheck = require("../../services/discord/linkCheck");
+const { raidViewer, visibleEvents } = require("../../services/signups/eventVisibility");
 
 /**
  * GET /api/raids[?version=<id>|all] — the active guild's upcoming events of
  * both sources (Raid-Helper and EventHelper) as flat rows, each with its raid
  * content(s), raid size and soft-reserve link (raidListing.js). Filtered by
  * game version (#545): the main version unless the page asks for another or
- * "all" — see mainVersion.resolveVersionQuery.
+ * "all" — see mainVersion.resolveVersionQuery. A raider sees the raids of the
+ * categories they may see and the ones they signed up for (eventVisibility.js).
  */
-const getRaids = withUser({}, async ({ req, res, url }) => {
+const getRaids = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     const { groups, error: err } = await loadEventGroups(guildId);
     // The server's name goes into the page's kicker ("Raid-Helper · Pulse").
     const guild = guildId ? (discord.listGuilds() || []).find((g) => g.id === guildId) : null;
-    // channelState per row (#537): the list links the Discord post only while the channel exists.
-    const rows = linkCheck.withChannelState(guildId, upcomingRows(groups));
     const config = getConfig();
+    const viewer = await raidViewer(user, guildId, { config });
+    const signUps = new Map((groups || []).flatMap((g) => (g.events || []).map((e) => [e.id, e.signUps])));
+    // channelState per row (#537): the list links the Discord post only while the channel exists.
+    const rows = linkCheck.withChannelState(guildId, visibleEvents(upcomingRows(groups), viewer, (row) => signUps.get(row.id)));
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
     const events = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
     ok(res, {
@@ -47,13 +51,16 @@ const getRaids = withUser({}, async ({ req, res, url }) => {
  * newest first, with their logs, open log decisions and loot count. Its own
  * request because it rescans the event snapshot and assigns fresh logs first,
  * which the coming raids have no need to wait for. Filtered by game version
- * (#545) like GET /api/raids.
+ * (#545) like GET /api/raids. A raider sees the same raids as there
+ * (eventVisibility.js) and no log details: the logs are the orga's work.
  */
-const getPastRaids = withUser({}, async ({ req, res, url }) => {
+const getPastRaids = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     const { events: all, error: err } = await loadPastRaids(guildId);
-    const rows = linkCheck.withChannelState(guildId, all);
     const config = getConfig();
+    const viewer = await raidViewer(user, guildId, { config });
+    const shown = visibleEvents(all, viewer);
+    const rows = linkCheck.withChannelState(guildId, viewer.orga ? shown : shown.map(withoutLogs));
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
     const events = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
     ok(res, {
@@ -61,6 +68,11 @@ const getPastRaids = withUser({}, async ({ req, res, url }) => {
         version: versionId, mainVersion, versions: versionChoices(rows.map((r) => ({ versionIds: [r.versionId] })), mainVersion),
     });
 });
+
+/** A past raid's row without its logs, for a raider (the loot count stays: loot is for everyone). */
+function withoutLogs(row) {
+    return { ...row, logs: [], pendingLogs: [], pendingLogCount: 0 };
+}
 
 /** A Discord list that may throw while the bot is offline — [] then. */
 function safeList(fn) {

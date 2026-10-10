@@ -64,12 +64,12 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     // a raider role may hold any area, reading or even changing raids makes nobody orga
     const orga = userIsOrga(user);
     const raidsWrite = userCanAny(user, ["raids"], "write");
-    // whoever reads the raids sees every category in "Für dich", the others only their own (memberEventRows)
-    const seesAllRaids = userCanAny(user, ["raids"], "read");
+    // the orga sees every category in "Für dich", the others only their own (memberEventRows) -
+    // reading the raids is no orga rank (raider roles hold it), so it no longer widens this
     const [next, recentEvents, personal] = await Promise.all([
         orga ? loadNextRaids(guildId, 2, { versionId }) : { raids: [], error: null },
         orga ? loadRecentEvents(guildId, 5, { versionId }) : { events: [], error: null },
-        userCanAny(user, ["signup"], "read") ? loadPersonal(guildId, user, { orga: seesAllRaids, config, versionId }) : null,
+        userCanAny(user, ["signup"], "read") ? loadPersonal(guildId, user, { orga, config, versionId }) : null,
     ]);
     const report = orga || userCanAny(user, ["cla"], "read") ? loadLatestReport() : null;
     const lastRaid = recentEvents.events[0];
@@ -136,8 +136,9 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
  * GET /api/dashboard/next-raid?event=<id> — the "Raid-Details" modal of an
  * upcoming raid: signups per role and class, preparation, who has not signed
  * up. Loaded when the modal opens, because the member list is a Discord call.
+ * Only the orga: the modal belongs to the orga block (who has not signed up).
  */
-const getNextRaidDetails = withUser({}, async ({ req, res, url }) => {
+const getNextRaidDetails = withUser({ orga: true }, async ({ req, res, url }) => {
     const eventId = String((url && url.searchParams.get("event")) || "").trim();
     if (!eventId) return error(res, 400, "missing_event", "Kein Event angegeben.");
     const guildId = activeGuildFor(req);

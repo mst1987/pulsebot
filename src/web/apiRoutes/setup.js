@@ -1,7 +1,9 @@
 // JSON API of the setup editor (#263) — Raid-Detail › Setup of an own event.
 //
 //   GET  /api/raids/setup?event=<id>          area raids (read): the orga gets the draft,
-//                                              everyone else only the approved lineup
+//                                              everyone else only the approved lineup - and
+//                                              only of a raid they may see (eventVisibility.js)
+//   every write below: the orga (permissions.userIsOrga) with raids write
 //   POST /api/raids/setup/presence            raids write: the open editor's heartbeat — who else
 //                                              is in it, the stored version, what changed
 //   POST /api/raids/setup/propose             raids write: new proposal, locked places kept
@@ -28,7 +30,8 @@
 const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { sendFailure, sendResult } = require("../http/apiResult");
-const { userCan } = require("../../config/permissions");
+const { userCan, userIsOrga } = require("../../config/permissions");
+const { userSeesEvent } = require("../../services/signups/eventVisibility");
 const { getConfig } = require("../../stores/settingsStore");
 const { getEvent, isOwnEventId, setEventExtraRole, EXTRA_ROLES } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");
@@ -52,7 +55,9 @@ const BY_EVENT = (body) => body.event;
 
 const EXPLAIN_SECTION = "setup-explain";
 
-const canWrite = (user) => userCan(user, "raids", "write");
+// The setup editor is the orga's (permissions.userIsOrga) - a raider role holding `raids` write still
+// gets the approved lineup only, and every write below wants the orga as well as `raids` write.
+const canWrite = (user) => userIsOrga(user) && userCan(user, "raids", "write");
 
 async function namesFor(event) {
     const ids = listSignups(event.id).map((s) => s.userId);
@@ -133,6 +138,10 @@ function eventOf(res, id) {
 const getSetup = withUser({}, async ({ user, res, url }) => {
     const event = eventOf(res, url.searchParams.get("event"));
     if (!event) return;
+    // a raid of a category the raider may not see: the same 404 as an unknown one (eventVisibility.js)
+    if (!(await userSeesEvent(user, { guildId: event.guildId, eventId: event.id, categoryId: event.categoryId || "" }))) {
+        return error(res, 404, "not_found", "Event nicht gefunden.");
+    }
     ok(res, await view(event, user, { names: url.searchParams.get("light") !== "1" }));
 });
 
@@ -154,7 +163,7 @@ const placedCount = (setup) => ((setup && setup.groups) || []).reduce((n, g) => 
  * the stored version (newer than the page's = somebody else changed it: fetch it
  * `light`) and what the others did after `since`. `leave: true` when the editor closes.
  */
-const postPresence = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const postPresence = withUser({ orga: true, write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     if (body.leave === true) {
@@ -191,7 +200,7 @@ async function followLive(result, user) {
 }
 
 /** POST /api/raids/setup/propose — body `{ event, weights?, fairness?, wishes?, keep? }` (`keep: "placed"` = "Freie Plätze füllen") */
-const postPropose = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postPropose = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const before = eventOf(res, body.event);
     if (!before) return;
     const result = setupEditor.proposeEventSetup(String(body.event).trim(), body, { userId: user.id });
@@ -206,7 +215,7 @@ const postPropose = withUser({ write: "raids", csrf: true, body: true, archived:
 });
 
 /** PUT /api/raids/setup — body `{ event, version, groups, bench, weights?, fairness?, wishes? }` */
-const putSetup = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const putSetup = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const before = eventOf(res, body.event);
     if (!before) return;
     const result = setupEditor.saveEventSetup(String(body.event).trim(), body, { userId: user.id });
@@ -223,7 +232,7 @@ const benchChoice = (body) => (typeof body.bench === "boolean" ? body.bench : un
 const dmsChoice = (body) => (typeof body.dms === "boolean" ? body.dms : undefined);
 
 /** POST /api/raids/setup/approve — body `{ event, version, bench?, dms? }` */
-const postApprove = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postApprove = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.approveEventSetup(String(body.event).trim(), { version: body.version, userId: user.id });
     if (result.error) return sendFailure(res, result);
@@ -249,7 +258,7 @@ const postApprove = withUser({ write: "raids", csrf: true, body: true, archived:
  * first (only the `version` the editor showed, when one is sent), so there is
  * no separate approval step for the orga.
  */
-const postPublish = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postPublish = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     if (event.setup && event.setup.status !== "approved") {
@@ -272,7 +281,7 @@ const postPublish = withUser({ write: "raids", csrf: true, body: true, archived:
  * Answers at once with only `{ confirmations }` — the Discord message is edited
  * a moment later, once for a run of quick clicks (setupConfirm.js).
  */
-const postConfirm = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postConfirm = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const result = await setupConfirm.setConfirmation(event.id, body.userId, typeof body.status === "string" ? body.status : "", { by: user.id, edit: "later" });
@@ -281,7 +290,7 @@ const postConfirm = withUser({ write: "raids", csrf: true, body: true, archived:
 });
 
 /** POST /api/raids/setup/confirm-all — body `{ event }`: everybody in a group without an answer gets the check (a "Cancel" stays). */
-const postConfirmAll = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postConfirmAll = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const result = await setupConfirm.confirmAll(event.id, { by: user.id });
@@ -290,7 +299,7 @@ const postConfirmAll = withUser({ write: "raids", csrf: true, body: true, archiv
 });
 
 /** POST /api/raids/setup/ping-text — body `{ event, text }`: what "Ping everyone" (and the first post's own ping) sends. */
-const postPingText = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postPingText = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     saveSetupPingText(event.id, body.text);
@@ -303,7 +312,7 @@ const postPingText = withUser({ write: "raids", csrf: true, body: true, archived
  * of the approved setup is pinged in the event channel with the stored ping text, the caller left out.
  * `dryRun` only answers how many and with what, for the question asked before.
  */
-const postPing = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+const postPing = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const guildId = activeGuildFor(req);
@@ -319,7 +328,7 @@ const postPing = withUser({ write: "raids", csrf: true, body: true, archived: BY
 });
 
 /** POST /api/raids/setup/extra-role — body `{ event, userId, role: "tank"|"healer", on }`: mark a raider as an extra tank / healer, or not any more. */
-const postExtraRole = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postExtraRole = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const userId = String(body.userId || "").trim();
@@ -332,7 +341,7 @@ const postExtraRole = withUser({ write: "raids", csrf: true, body: true, archive
 });
 
 /** GET /api/raids/setup/signup?event=<id>&user=<userId> — the signup and the characters/specs the dialog offers. */
-const getSignupEdit = withUser({ write: "raids" }, async ({ res, url }) => {
+const getSignupEdit = withUser({ orga: true, write: "raids" }, async ({ res, url }) => {
     if (!eventOf(res, url.searchParams.get("event"))) return;
     const { view: out, failed } = setupSignup.signupEditView(url.searchParams.get("event"), url.searchParams.get("user"));
     if (failed) return error(res, failed.status, failed.code, failed.error);
@@ -340,7 +349,7 @@ const getSignupEdit = withUser({ write: "raids" }, async ({ res, url }) => {
 });
 
 /** PUT /api/raids/setup/signup — body `{ event, userId, status, character?, spec?, from? }`: the orga changes a raider's signup (#521). */
-const putSignupEdit = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const putSignupEdit = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = await setupSignup.changeSignupFromSetup(String(body.event).trim(), body.userId, body, { user });
     if (result.error) return error(res, result.status || 400, result.code || "failed", result.error);
@@ -349,7 +358,7 @@ const putSignupEdit = withUser({ write: "raids", csrf: true, body: true, archive
 });
 
 /** POST /api/raids/setup/search/text — body `{ event, roles, buffs }`: the message for needs the orga edited (nothing is posted). */
-const postSearchText = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const postSearchText = withUser({ orga: true, write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const result = textForNeeds(event, body);
@@ -358,7 +367,7 @@ const postSearchText = withUser({ write: "raids", csrf: true, body: true }, asyn
 });
 
 /** POST /api/raids/setup/search — body `{ event, text? }`: post the "we are looking for …" message into the event channel. */
-const postSearchMessage = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const postSearchMessage = withUser({ orga: true, write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const result = await postSearch({ guildId: event.guildId, eventId: event.id, userId: user.id, byName: user.username || user.name || "", text: body.text });
@@ -367,7 +376,7 @@ const postSearchMessage = withUser({ write: "raids", csrf: true, body: true }, a
 });
 
 /** POST /api/raids/setup/explain — body `{ event }`. Needs the Anthropic key. */
-const postExplain = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const postExplain = withUser({ orga: true, write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const settings = getConfig().anthropic || {};
@@ -386,7 +395,7 @@ const postExplain = withUser({ write: "raids", csrf: true, body: true }, async (
 });
 
 /** GET /api/raids/setup/explain?event=<id> — the job state plus the stored explanation. */
-const getExplain = withUser({ write: "raids" }, async ({ res, url }) => {
+const getExplain = withUser({ orga: true, write: "raids" }, async ({ res, url }) => {
     const event = eventOf(res, url.searchParams.get("event"));
     if (!event) return;
     ok(res, {

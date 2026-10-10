@@ -100,6 +100,20 @@ describe("web/http/apiHandler withUser", () => {
         expect(fn).toHaveBeenCalledTimes(2);
     });
 
+    it("lets `orga` through only the orga - a full admin or an orga role, never an area right", async () => {
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        mockUser = limited({ raids: { read: true, write: true } });
+        const res = await call(withUser({ orga: true }, fn), { method: "GET" });
+        expect(status(res)).toBe(403);
+        expect(sent(res).error.code).toBe("orga_only");
+        expect(fn).not.toHaveBeenCalled();
+        mockUser = { ...limited({ raids: { read: true, write: false } }), isOrga: true };
+        await call(withUser({ orga: true }, fn), { method: "GET" });
+        mockUser = admin;
+        await call(withUser({ orga: true }, fn), { method: "GET" });
+        expect(fn).toHaveBeenCalledTimes(2);
+    });
+
     it("refuses a bad CSRF token with 403 before reading the body", async () => {
         mockCsrf = false;
         const fn = jest.fn();

@@ -43,6 +43,12 @@ const { pingMissingRaiders } = require("../../services/events/missingPing");
 const { buildRaidDetail } = require("../events/raidDetailView");
 const { postRaidplanLink } = require("../../services/raidplan/raidplanPost");
 const { userCan } = require("../../config/permissions");
+const { raidViewer } = require("../../services/signups/eventVisibility");
+
+// Every action of this file is the orga's (permissions.userIsOrga) as well as its area's write right:
+// raider roles may hold `raids` write and are still no orga. Posting the raid plan's link is the
+// exception - it is area "raidplan", handed to the people who write the tactics.
+const ORGA = { orga: true, csrf: true, body: true, archived: BY_EVENT };
 const { embedColor } = require("../../services/events/embedLook");
 
 /**
@@ -64,11 +70,15 @@ function linkCardOf(found) {
  * GET /api/raids/detail?event=<id> — everything the event-detail page needs in
  * one read; built by raidDetailView.js, this is only the HTTP side. Posting the
  * plan's link is area "raidplan", so its step comes only with that write right.
+ * A raider gets only the raids they may see (eventVisibility.js; any other answers
+ * 404 like an unknown one) and none of the orga's parts (raidDetailView.js).
  */
 const getRaidDetail = withUser({}, async ({ user, req, res, url }) => {
     const eventId = (url.searchParams.get("event") || "").trim();
+    const guildId = activeGuildFor(req);
     const planPost = userCan(user, "raidplan", "write");
-    return sendResult(res, await buildRaidDetail({ guildId: activeGuildFor(req), eventId, planPost }));
+    const viewer = await raidViewer(user, guildId);
+    return sendResult(res, await buildRaidDetail({ guildId, eventId, planPost, viewer }));
 });
 
 /**
@@ -104,7 +114,7 @@ async function planningBlock(req, eventId, action, categoryId) {
 }
 
 /** POST /api/raids/notify — post an Anmelde-Aufruf into the event channel, pinging the chosen roles. Body: { event, templateId, channelId, roleIds }. */
-const postNotify = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, req, res }) => {
+const postNotify = withUser(ORGA, async ({ body, req, res }) => {
     const template = getNotify(q.str(body, "templateId"));
     const channelId = q.str(body, "channelId");
     const target = normalizePingTarget(body.target);
@@ -133,7 +143,7 @@ const postNotify = withUser({ csrf: true, body: true, archived: BY_EVENT }, asyn
  * Missing raiders are re-derived server-side; the client never gets to supply
  * the list of who to ping.
  */
-const postPingMissing = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, req, res }) => {
+const postPingMissing = withUser(ORGA, async ({ body, req, res }) => {
     const eventId = q.str(body, "event");
     const guildId = activeGuildFor(req);
     const result = await pingMissingRaiders({ guildId, eventId, target: body.target, text: body.text });
@@ -147,7 +157,7 @@ const postPingMissing = withUser({ csrf: true, body: true, archived: BY_EVENT },
  * being the caller's own (inviteCall.js). Body: `{ event, dryRun }`; `dryRun`
  * answers who and what without posting (the dialog's preview).
  */
-const postInviteCall = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+const postInviteCall = withUser(ORGA, async ({ user, body, req, res }) => {
     const eventId = q.str(body, "event");
     const guildId = activeGuildFor(req);
     if (body.dryRun) {
@@ -170,7 +180,7 @@ const postInviteCall = withUser({ csrf: true, body: true, archived: BY_EVENT }, 
  * days after the raid. The source raidsheet is never written to or deleted.
  * Body: { event, sheetId, tank3, eventTitle, eventStartTime }.
  */
-const postFill = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, req, res }) => {
+const postFill = withUser(ORGA, async ({ body, req, res }) => {
     const eventId = q.str(body, "event");
     const sheet = getRaidsheet(q.str(body, "sheetId"));
     if (!sheet) return error(res, 400, "sheet_not_found", "Raidsheet nicht gefunden.");
@@ -238,7 +248,7 @@ const postFill = withUser({ csrf: true, body: true, archived: BY_EVENT }, async 
 });
 
 /** POST /api/raids/post-sheet — post the filled raidsheet link into the event channel, with an optional message. Body: { event, message }. */
-const postPostSheet = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, req, res }) => {
+const postPostSheet = withUser(ORGA, async ({ body, req, res }) => {
     const eventId = q.str(body, "event");
     const es = getEventSheet(eventId);
     // Resolve the event's channel + title server-side; never trust posted ids.
@@ -278,7 +288,7 @@ const postPostSheet = withUser({ csrf: true, body: true, archived: BY_EVENT }, a
 });
 
 /** POST /api/raids/post-softres — post the softres list link into the event channel, with an optional message. Body: { event, message }. */
-const postPostSoftres = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, req, res }) => {
+const postPostSoftres = withUser(ORGA, async ({ body, req, res }) => {
     const eventId = q.str(body, "event");
     const sr = getEventSoftres(eventId);
     if (!sr || !sr.url) return error(res, 400, "no_softres", "Für dieses Event gibt es noch keine Softres-Liste.");
@@ -313,7 +323,7 @@ const postPostSoftres = withUser({ csrf: true, body: true, archived: BY_EVENT },
  * a second post edits the same message. Body: { event, message? } — without
  * `message` the text of the last post stays.
  */
-const postPostRaidplan = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+const postPostRaidplan = withUser({ csrf: true, body: true, archived: BY_EVENT },async ({ user, body, req, res }) => {
     const eventId = q.str(body, "event");
     // The channel, title and start come from the server's own event list, never from the body.
     const { found, categoryId, errorMessage, code } = await resolveEventForPost(req, eventId);
@@ -326,7 +336,7 @@ const postPostRaidplan = withUser({ csrf: true, body: true, archived: BY_EVENT }
 });
 
 /** GET /api/raids/softres/item-search?q=&edition= — Wowhead item search for the softres hard-reserve picker. */
-const getItemSearch = withUser({}, async ({ res, url }) => {
+const getItemSearch = withUser({ orga: true }, async ({ res, url }) => {
     const term = url.searchParams.get("q") || "";
     // The softres list's edition picks the Wowhead branch; without one the main
     // version's Wowhead path (#542), and a version without one searches nothing.
@@ -344,7 +354,7 @@ const getItemSearch = withUser({}, async ({ res, url }) => {
  * `protection` (softres.it's "User Protection": reserving needs a login and each
  * raider may only edit their own reserves) is on unless explicitly false.
  */
-const postSoftresCreate = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, res }) => {
+const postSoftresCreate = withUser(ORGA, async ({ body, res }) => {
     const eventId = q.str(body, "event");
     const codes = Array.isArray(body.instanceCodes) ? body.instanceCodes : [];
     if (!codes.length) return error(res, 400, "no_instances", "Mindestens eine Instanz wählen.");
@@ -391,7 +401,7 @@ const postSoftresCreate = withUser({ csrf: true, body: true, archived: BY_EVENT 
  * softres.it link (e.g. one already set up directly on softres.it) instead of
  * one created via the API above. Body: { event, softresUrl, softresEditUrl }.
  */
-const postSoftresLink = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, res }) => {
+const postSoftresLink = withUser(ORGA, async ({ body, res }) => {
     const eventId = q.str(body, "event");
     const softresUrl = q.str(body, "softresUrl");
     if (!/^https:\/\/(www\.)?softres\.it\/raid\/[a-zA-Z0-9]+/i.test(softresUrl)) {
@@ -406,7 +416,7 @@ const postSoftresLink = withUser({ csrf: true, body: true, archived: BY_EVENT },
  * its category's, plus "Softres zusätzlich". Body: { event, system, softres }
  * (`system` "" = like the category). Answers the resolved loot system.
  */
-const postLootSystem = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+const postLootSystem = withUser(ORGA, async ({ user, body, req, res }) => {
     const eventId = q.str(body, "event");
     const system = q.str(body, "system");
     if (system && !normalizeLootSystem(system)) return error(res, 400, "invalid_system", "Unbekanntes Lootsystem.");

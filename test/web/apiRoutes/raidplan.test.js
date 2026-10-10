@@ -22,7 +22,8 @@ const profiles = require("../../../src/stores/raidplanProfileStore");
 const route = require("../../../src/web/apiRoutes/raidplan");
 const { checkAccess, areasFor, UNGATED } = require("../../../src/web/http/apiAccess");
 
-const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };
+// The orga is a role setting (permissions.userIsOrga), no area right: raider roles hold "raids" too.
+const ORGA = { id: "orga", name: "Orga", isAdmin: false, isOrga: true, access: { raidplan: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raidplan: { read: true, write: false } } };
 const MEMBER = { id: "m", isAdmin: false, access: { signup: { read: true, write: true } } };
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)]);
@@ -49,8 +50,16 @@ async function call(handler, user, payload, query = "") {
     return r;
 }
 
+// A raider sees only the raids of the categories they may see (services/signups/eventVisibility.js):
+// no event categories configured means every category, so the readers below see eh_1.
+const settingsStore = require("../../../src/stores/settingsStore");
+const rosterStore = require("../../../src/stores/rosterStore");
+const realConfig = settingsStore.getConfig();
+jest.spyOn(settingsStore, "getConfig");
+
 beforeEach(() => {
     jest.clearAllMocks();
+    settingsStore.getConfig.mockReturnValue({ ...realConfig, categoryIds: [], categoryRoles: {} });
     store.useFile(tempStoreFile("raidplans.json"));
     profiles.useFile(tempStoreFile("profiles.json"));
     mockViewer = null;
@@ -90,6 +99,20 @@ describe("access", () => {
     it("lets the canWrite of the editor follow raidplan write, not raids write", async () => {
         const both = { id: "b", isAdmin: false, access: { raids: { read: true, write: true }, raidplan: { read: true, write: false } } };
         expect(body(await call(route.getPlan, both, null, "event=eh_1")).canWrite).toBe(false);
+    });
+
+    it("answers a raider the plan of a raid of a foreign category with the 404 of an unknown one (eventVisibility.js)", async () => {
+        // the event's category "cat1" is no event category: hidden from a raider, the orga sees it
+        mockEvents.eh_1 = { ...mockEvents.eh_1, categoryId: "cat1" };
+        settingsStore.getConfig.mockReturnValue({ ...realConfig, categoryIds: ["other"], categoryRoles: {} });
+        const r = await call(route.getPlan, READER, null, "event=eh_1");
+        expect(status(r)).toBe(404);
+        expect(json(r).error.code).toBe("not_found");
+        expect(status(await call(route.getPlan, ORGA, null, "event=eh_1"))).toBe(200);
+        // the roster of cat1 opened its raids to everybody: the raider sees the plan too
+        const roster = jest.spyOn(rosterStore, "rosterForCategory").mockReturnValue({ categoryId: "cat1", publicRaids: true, members: {} });
+        expect(status(await call(route.getPlan, READER, null, "event=eh_1"))).toBe(200);
+        roster.mockRestore();
     });
 });
 

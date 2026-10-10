@@ -6,7 +6,7 @@
 //
 // The wrapped function keeps the router's `(req, res, url)` signature, so the
 // route table and direct calls in tests see no difference. The checks run in
-// the order the handlers always ran them: menu user (or full admin), write
+// the order the handlers always ran them: menu user (or full admin), orga, write
 // right on an area, CSRF, then the JSON body. Each refusal is sent by the
 // middleware it always came from (apiMiddleware.js), the answer formats are
 // unchanged. The area gate itself (apiAccess.js) still runs before any of this
@@ -15,14 +15,18 @@
 const { requireAdmin, requireFullAdmin, requireCsrf } = require("./apiMiddleware");
 const { readJsonBody } = require("./apiBody");
 const { error } = require("./apiResponse");
-const { AREAS, userCan } = require("../../config/permissions");
+const { AREAS, userCan, userIsOrga } = require("../../config/permissions");
 const { archivedRefusal } = require("../../services/events/eventArchive");
+
+const ORGA_ONLY = "Das darf nur die Orga.";
 
 const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
 
 /**
  * @param {object} opts
  * @param {boolean} [opts.full]   only a full admin (requireFullAdmin) — the access settings and the foreign credentials
+ * @param {boolean} [opts.orga]   only the orga (permissions.userIsOrga: full admin or an orga role) - an area
+ *        right is no orga rank, raider roles hold some; 403 "orga_only" otherwise
  * @param {string}  [opts.write]  the area the caller needs at write level (403 otherwise)
  * @param {boolean} [opts.csrf]   check the X-CSRF-Token header (every mutating call)
  * @param {boolean} [opts.body]   parse the JSON body (always an object; `{}` when empty or invalid)
@@ -33,10 +37,14 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  */
 function withUser(opts, fn) {
     if (typeof opts === "function") { fn = opts; opts = {}; }
-    const { full = false, write = "", csrf = false, body = false, archived = null } = opts || {};
+    const { full = false, orga = false, write = "", csrf = false, body = false, archived = null } = opts || {};
     return async function handler(req, res, url) {
         const user = full ? requireFullAdmin(req, res) : requireAdmin(req, res);
         if (!user) return undefined;
+        if (orga && !userIsOrga(user)) {
+            error(res, 403, "orga_only", ORGA_ONLY);
+            return undefined;
+        }
         if (write && !userCan(user, write, "write")) {
             error(res, 403, "forbidden", `Keine Schreibrechte für „${LABELS[write] || write}“.`);
             return undefined;

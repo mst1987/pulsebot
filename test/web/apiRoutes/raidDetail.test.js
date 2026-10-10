@@ -803,6 +803,31 @@ describe("web/apiRoutes/raidDetail", () => {
         });
     });
 
+    // Oct 2026: the raid's actions are the orga's - a raider role holding raids write is still no orga.
+    describe("the actions for a raider role with raids write", () => {
+        it("are refused with 403 orga_only, every one of them; posting the raid plan is area raidplan", async () => {
+            auth.getUser.mockReturnValue({ id: "7", name: "Rai", isAdmin: false, access: { raids: { read: true, write: true } } });
+            auth.checkCsrf.mockReturnValue(true);
+            for (const path of ["/api/raids/notify", "/api/raids/ping-missing", "/api/raids/invite-call", "/api/raids/fill", "/api/raids/post-sheet",
+                "/api/raids/post-softres", "/api/raids/softres", "/api/raids/softres/link", "/api/raids/loot-system"]) {
+                const res = await post(path, { event: "e1" });
+                expect({ path, status: res.writeHead.mock.calls[0][0], code: json(res).error.code }).toEqual({ path, status: 403, code: "orga_only" });
+            }
+            const search = await get("/api/raids/softres/item-search", { q: "Warglaive" });
+            expect(search.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(discord.postAnnouncement).not.toHaveBeenCalled();
+        });
+
+        it("go through for an orga role", async () => {
+            auth.getUser.mockReturnValue({ id: "8", name: "Lead", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.getNotify.mockReturnValue({ id: "t1", title: "Anmeldung", body: "Bitte anmelden" });
+            discord.postAnnouncement.mockResolvedValue({ guildId: "g1", channelId: "c1", messageId: "m1" });
+            const res = await post("/api/raids/notify", { event: "e1", templateId: "t1", channelId: "c1" });
+            expect(json(res)).toEqual({ data: { message: "Anmelde-Aufruf gepostet." } });
+        });
+    });
+
     describe("POST /api/raids/ping-missing", () => {
         const event1 = {
             id: "e1", title: "GDKP Kara", channelId: "chan1", categoryId: "cat1",

@@ -22,7 +22,8 @@ const templates = require("../../../src/stores/raidplanTemplateStore");
 const route = require("../../../src/web/apiRoutes/raidplan");
 const { checkAccess, areasFor } = require("../../../src/web/http/apiAccess");
 
-const ORGA = { id: "orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };
+// The orga is a role setting (permissions.userIsOrga), no area right: raider roles hold "raids" too.
+const ORGA = { id: "orga", isAdmin: false, isOrga: true, access: { raidplan: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raidplan: { read: true, write: false } } };
 const MEMBER = { id: "m", isAdmin: false, access: { signup: { read: true, write: true } } };
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)]);

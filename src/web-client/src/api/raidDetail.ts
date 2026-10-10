@@ -218,6 +218,11 @@ export type RaidDetailData = {
     lootSystem?: LootSystem;
     eventLogs: RaidLogRow[];
     unlinkedLogs: RaidLogRow[];
+    /**
+     * Whom the server built the payload for: false = a raider, whose payload has none of the orga's
+     * parts (logs, attendance, other people's comments, steps, dialog data). Missing on an older server.
+     */
+    orga?: boolean;
     /** The progress bar and the head's primary action. */
     progress: RaidProgress;
     /** Die Schritt-Leiste eines eigenen Events (#319); null bei Raid-Helper. */
