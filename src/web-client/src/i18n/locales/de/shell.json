@@ -134,5 +134,18 @@
         "newVersionTitle": "Neue Version verfügbar",
         "newVersionText": "Das Menü wurde aktualisiert. Lade die Seite neu, um weiterzuarbeiten.",
         "newVersionReload": "Seite neu laden"
+    },
+    "orga": {
+        "label": "Orga-Bereich",
+        "pageHidden": "Raider sehen diese Seite nicht",
+        "zoneHidden": "Raider sehen diesen Bereich nicht",
+        "visibleFor": "sichtbar für {who}",
+        "admins": "Admins",
+        "accounts": {
+            "one": "{count} einzelnes Konto",
+            "other": "{count} einzelne Konten"
+        },
+        "asRaider": "So sieht es ein Raider",
+        "asRaiderTip": "Zeigt das Menü mit dem Basiszugang – so, wie es ein Raider ohne weitere Rolle sieht. „Beenden“ oben bringt dich zurück."
     }
 }

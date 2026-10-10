@@ -28,6 +28,7 @@ import AbsenceTimeline from "./AbsenceTimeline";
 import AbsenceRaids from "./AbsenceRaids";
 import RaiderDrawer from "./RaiderDrawer";
 import MyAttendance from "./MyAttendance";
+import { OrgaZone } from "../../components/ui/OrgaZone";
 import { AbsenceTiles, HintCard } from "./AbsenceHead";
 import "../../styles/absences.css";
 
@@ -87,7 +88,7 @@ export default function AbsencesPage() {
             </div>
         );
     }
-    return <OrgaViews view={view} patch={patch} viewSwitch={viewSwitch} onAttendance={(id) => setParams({ userId: id })} />;
+    return <OrgaViews user={user} view={view} patch={patch} viewSwitch={viewSwitch} onAttendance={(id) => setParams({ userId: id })} />;
 }
 
 function Head({ lead, children }: { lead: string; children?: ReactNode }) {
@@ -106,7 +107,8 @@ function Head({ lead, children }: { lead: string; children?: ReactNode }) {
 }
 
 /** Zeitleiste and Pro Raid: the orga's overview of who is away when. */
-function OrgaViews({ view, patch, viewSwitch, onAttendance }: {
+function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
+    user: ShellContext["user"];
     view: View;
     patch: (p: Partial<View>) => void;
     viewSwitch: ReactNode;
@@ -145,6 +147,8 @@ function OrgaViews({ view, patch, viewSwitch, onAttendance }: {
                 )}
             </Head>
 
+            {/* everybody's absences are the orga's (design canvas Oct 2026, B); "Meine Anwesenheit" stays outside */}
+            <OrgaZone user={user} areas={["roster"]}>
             <AbsenceTiles data={data} />
 
             <div className="ab-filters">
@@ -182,6 +186,7 @@ function OrgaViews({ view, patch, viewSwitch, onAttendance }: {
                     <Legend />
                 </>
             ) : <AbsenceRaids data={data} />}
+            </OrgaZone>
 
             {drawer && (
                 <RaiderDrawer

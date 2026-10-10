@@ -244,12 +244,6 @@
             "allGood": "alles gut"
         }
     },
-    "orga": {
-        "divider": {
-            "one": "Orga · {count} offene Aufgabe",
-            "other": "Orga · {count} offene Aufgaben"
-        }
-    },
     "task": {
         "sheet": {
             "title": "Sheet füllen",

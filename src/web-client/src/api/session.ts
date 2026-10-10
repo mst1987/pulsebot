@@ -18,7 +18,11 @@ export type SessionUser = {
     canViewAs?: boolean;
     /** Set while the menu shows the rights of these roles instead of the own ones. */
     viewAs?: ViewAs;
+    /** Who sees each area this account may open (src/web/http/areaAudience.js) — the "Orga-Bereich" marks read it. */
+    audience?: Record<string, AreaAudience>;
 };
+/** An area for everyone (the base access opens it), else the roles that may read / change in it and how many single accounts may read it. */
+export type AreaAudience = { everyone: boolean; roles: string[]; writers: string[]; accounts: number };
 export type ViewAsRole = { id: string; name: string; color: string; admin: boolean; configured: boolean };
 /** "event" | "talk" = the server's fixed role from Einstellungen → Discord-Server, "" = none. */
 export type GuildRole = "event" | "talk" | "";
