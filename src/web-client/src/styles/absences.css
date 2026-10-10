@@ -244,8 +244,9 @@ button.ab-tl-raider:focus-visible { outline: 2px solid var(--accent); outline-of
 .ab-att-list li { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line-soft); }
 .ab-att-list li:last-child { border-bottom: 0; }
 .ab-att-date { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.ab-att-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ab-att-verdict { color: var(--muted); text-align: right; max-width: 22em; }
+/* the raid's name is never cut: the verdict is one short word (details in its tooltip), a long name wraps */
+.ab-att-title { min-width: 0; overflow-wrap: break-word; }
+.ab-att-verdict { color: var(--muted); text-align: right; white-space: nowrap; }
 /* #677: a missed night's verdict in its status colour (--att from [data-att], shared.css) */
 .ab-att-out .ab-att-verdict { color: var(--att, var(--ab-away)); font-weight: 600; }
 /* a "maybe" the setup left out: shown in its colour, but no missed night */
