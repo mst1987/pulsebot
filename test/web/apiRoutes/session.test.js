@@ -283,7 +283,9 @@ describe("web/apiRoutes/session", () => {
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             const data = json(res).data;
             // a full admin may look at the menu as a role ("Ansicht als Rolle")
-            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, access: fullAccess(), canViewAs: true });
+            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, access: fullAccess(), canViewAs: true, audience: expect.any(Object) });
+            // a full admin gets who sees every area
+            expect(Object.keys(data.user.audience)).toEqual(AREA_IDS);
             expect(data.csrfToken).toBe("csrf-abc");
             expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde", role: "" }]);
             expect(data.activeGuildId).toBe("g1");
@@ -335,9 +337,31 @@ describe("web/apiRoutes/session", () => {
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
             const data = json(res).data;
-            expect(data.user).toEqual({ id: "7", name: "Bob", isAdmin: false, access: emptyAccess(), canViewAs: false });
+            expect(data.user).toEqual({ id: "7", name: "Bob", isAdmin: false, access: emptyAccess(), canViewAs: false, audience: {} });
             expect(data.guilds).toEqual([]);
             expect(data.activeGuildId).toBe("");
+        });
+
+        // "Orga-Bereich" (design canvas Oct 2026): who sees each area the caller may open.
+        it("says per area the caller may open whether everyone sees it, and which roles", async () => {
+            auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), raids: { read: true, write: true }, signup: { read: true, write: true } } });
+            auth.getRealUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false });
+            settingsStore.getConfig.mockReturnValue({
+                baseAccess: { signup: { read: true, write: true } },
+                adminRoleIds: ["r-admin"],
+                rolePermissions: { "r-lead": { raids: { read: true, write: true } }, "r-raider": { raids: { read: true, write: false } }, "r-admin": { raids: { read: true, write: true } } },
+                userPermissions: { 99: { raids: { read: true, write: false } } },
+            });
+            discord.listRoles.mockReturnValue([{ id: "r-lead", name: "Raidleitung" }, { id: "r-raider", name: "Mo Raider" }, { id: "r-admin", name: "Officer" }]);
+            const res = mockRes();
+            await handle("/api/session", { method: "GET" }, res);
+            const { audience } = json(res).data.user;
+            // only the areas Bob may open
+            expect(Object.keys(audience).sort()).toEqual(["raids", "signup"]);
+            expect(audience.signup).toEqual({ everyone: true, roles: [], writers: [], accounts: 0 });
+            // admin roles see everything and are not listed; the raider role that may read shows up
+            expect(audience.raids).toEqual({ everyone: false, roles: ["Mo Raider", "Raidleitung"], writers: ["Raidleitung"], accounts: 1 });
+            settingsStore.getConfig.mockReturnValue({});
         });
 
         // A limited user still needs the guild switcher to load anything.

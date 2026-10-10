@@ -38,6 +38,7 @@ import RaidDetailsModal from "./RaidDetailsModal";
 import { RoleBar, IconLink } from "./OverviewParts";
 import { usesSheet } from "./raidPlanning";
 import { taskText } from "../../lib/dashboard/taskText";
+import { OrgaZone } from "../../components/ui/OrgaZone";
 import { AttendanceDots, MyNextRaid, MyRaids, MyRecentRaids } from "./PersonalParts";
 import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { relativeDayLabel } from "../../lib/format";
@@ -463,8 +464,8 @@ export default function DashboardPage() {
                         )}
 
                         {data.orga && (
-                            <>
-                                {me && <PartDivider tone="orga" label={t("dashboard.orga.divider", { count: data.tasks.length })} />}
+                            // the orga's block in its zone (design canvas Oct 2026, B): it goes by the right to change raids
+                            <OrgaZone user={user} areas={["raids"]} level="write">
                                 <div className="ov-grid ov-grid-top">
                                     <NextRaidCard
                                         raid={data.nextRaid} following={data.followingRaid} error={data.nextRaidError}
@@ -473,7 +474,7 @@ export default function DashboardPage() {
                                     <TaskList tasks={data.tasks} onChanged={() => void dashboard.reload()} />
                                 </div>
                                 {data.areas && <AreaTiles areas={data.areas} />}
-                            </>
+                            </OrgaZone>
                         )}
 
                         {/* someone outside the raids with a task of their own (the server's state, the archive) */}

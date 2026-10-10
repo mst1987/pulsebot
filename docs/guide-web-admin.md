@@ -6,6 +6,8 @@ Diese Seite ist für Orga-Mitglieder, die das **Web-Admin-Panel** benutzen — n
 
 **Menü und Icon-Leiste:** Das Hauptmenü ist kurz und flach, nichts klappt auf. Seiten mit Unterbereichen haben links neben dem Inhalt eine schmale **Icon-Leiste**: „Einstellungen“ alle Bereiche der Einstellungen (in Gruppen, durch feine Linien getrennt, mit Zählern am Icon, z. B. fehlende Verbindungen), „Raid-Events“ die Seiten Raid-Events, Raidplan-Vorlagen und Raidplan-Katalog (nur die, die du öffnen darfst). Fährst du über ein Icon (oder gehst mit Tab darauf), steht der Name daneben, bei einem Zähler auch, was er zählt. Der Menüpunkt bleibt markiert, solange du auf einer seiner Seiten bist. Auf dem Handy wird die Leiste zu einer Reihe beschrifteter Knöpfe über der Seite.
 
+**Orga-Bereiche erkennen:** Eine Seite, die der Basiszugang nicht öffnet (die also normale Raider nicht sehen), hat oben eine türkise Leiste **„Orga-Bereich · Raider sehen diese Seite nicht · sichtbar für Admins · @Rolle …“**, im Menü steht neben ihr ein türkiser Punkt. Die Leiste nennt alle Rollen und einzelnen Konten, die die Seite trotzdem öffnen dürfen. Steht dort eine Raider-Rolle, darf sie mehr als gedacht – dann in Einstellungen → Berechtigungen nachsehen. Voll-Admins haben in der Leiste den Knopf **„So sieht es ein Raider“**: Er zeigt das Menü mit dem Basiszugang, „Beenden“ oben führt zurück. Auf Seiten, die alle sehen, steht der Orga-Teil in einer **türkis gestrichelten Zone „Orga-Bereich“**: auf der Übersicht der Orga-Block (nächster Raid, Aufgaben, Kennzahlen), bei den Abwesenheiten die Übersicht aller Raider. Türkis ist die Orga-Farbe, Orange bleibt Warnungen vorbehalten.
+
 ## Übersicht / Dashboard
 
 Technik: [web-admin.md](web-admin.md)

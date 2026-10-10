@@ -7,11 +7,12 @@ const { requireCsrf } = require("../http/apiMiddleware");
 const { withUser } = require("../http/apiHandler");
 const { readJsonBody } = require("../http/apiBody");
 const userPrefs = require("../../stores/userPrefsStore");
-const { AREAS, emptyAccess, fullAccess, userHasMenuAccess } = require("../../config/permissions");
+const { AREAS, emptyAccess, fullAccess, userHasMenuAccess, can } = require("../../config/permissions");
 const { getConfig } = require("../../stores/settingsStore");
 const { guildId: envGuildId, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
 const { normalizeRoleIds, MAX_ROLES } = require("../http/viewAs");
 const { contentVersions } = require("../../services/events/contentVersions");
+const { areaAudience } = require("../http/areaAudience");
 
 /** GET /api/session — who the caller is (if anyone), their CSRF token, what the
  * caller may see (per-area access) and — for menu users — the guilds the bot is
@@ -34,6 +35,9 @@ function getSession(req, res) {
                 // "Ansicht als Rolle" (viewAs.js): which roles the menu shows
                 // right now, and whether this account may start such a view.
                 ...viewAsFields(req, user),
+                // Who sees each area the caller may open (areaAudience.js): the client marks
+                // an area the base access does not open as "Orga-Bereich" and names its readers.
+                audience: audienceFor(user),
             }
             : null,
         csrfToken: user ? auth.csrfToken(req) : null,
@@ -45,6 +49,25 @@ function getSession(req, res) {
         // hidden, and the versions it offers (only those with data or a category).
         content: hasMenu ? contentVersions() : null,
     });
+}
+
+/** areaAudience() for the areas the caller may open (a full admin: all of them); best-effort, {} on any failure. */
+function audienceFor(user) {
+    try {
+        const config = getConfig();
+        const admins = [...(config.adminRoleIds || []), ...(envAdminRoleIds || [])];
+        let roles = [];
+        try {
+            roles = discord.listRoles(permissionGuildId()) || [];
+        } catch {
+            roles = [];
+        }
+        const all = areaAudience({ ...config, adminRoleIds: admins }, roles);
+        const access = user.isAdmin ? fullAccess() : (user.access || {});
+        return Object.fromEntries(Object.entries(all).filter(([area]) => can(access, area, "read")));
+    } catch {
+        return {};
+    }
 }
 
 function langField(userId) {

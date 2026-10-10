@@ -200,15 +200,23 @@ describe("Übersicht for a raider", () => {
 });
 
 describe("Übersicht for the orga", () => {
-    it("puts its own part compact above the orga block, each under its heading", async () => {
-        const admin: SessionUser = { id: "a1", name: "Lead", isAdmin: true, access: {} };
+    it("puts its own part compact above the orga block, the block in the orga zone naming who changes raids", async () => {
+        const admin: SessionUser = {
+            id: "a1", name: "Lead", isAdmin: true, access: {},
+            audience: { raids: { everyone: false, roles: ["Mo Raider", "Raidleitung"], writers: ["Raidleitung"], accounts: 0 } },
+        };
         await show(dashboard({
             orga: true,
             areas: { lastReport: null, newLoot: { count: 0, since: 0 }, roster: { total: 40, withoutDiscord: 0 } },
         }), admin);
         const mine = screen.getByText(t("dashboard.personal.divider"));
-        const orga = screen.getByText(t("dashboard.orga.divider", { count: 0 }));
-        expect(mine.compareDocumentPosition(orga) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        const zone = screen.getByRole("region", { name: t("shell.orga.label") });
+        expect(mine.compareDocumentPosition(zone) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        // the block goes by the right to change raids: the zone names the writers, not every reader
+        expect(zone).toHaveTextContent(t("shell.orga.visibleFor", { who: `${t("shell.orga.admins")} · @Raidleitung` }));
+        expect(zone).not.toHaveTextContent("Mo Raider");
+        expect(within(zone).getByText(t("dashboard.next.title"))).toBeInTheDocument();
+        expect(within(zone).getByText(t("dashboard.tasks.title"))).toBeInTheDocument();
         // compact: one line with the title and the status, no fields
         const card = screen.getByText(t("dashboard.personal.next.title")).closest("section")!;
         expect(within(card).getByText("Hyjal+BT+Gruul")).toBeInTheDocument();

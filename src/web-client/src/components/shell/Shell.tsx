@@ -17,6 +17,8 @@ import { canAccess, getVersion, type SessionUser, type SessionGuild, type Conten
 import { useApi } from "../../hooks/useApi";
 import { PageCrumbContext } from "../../hooks/usePageCrumb";
 import { deployLine } from "../../lib/app/deployVersion";
+import { pageAudience } from "../../lib/app/orgaArea";
+import { OrgaBar, OrgaDot } from "../ui/OrgaZone";
 import { t as tr, tOr, useLang, useT } from "../../i18n";
 
 export type ShellContext = { user: SessionUser };
@@ -89,6 +91,8 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
                         >
                             <WowIcon name={entry.wowIcon} size={24} />
                             <span>{menuLabel(entry)}</span>
+                            {/* an orga page (none of its areas is in the base access, or full admins only): the teal dot */}
+                            {pageAudience(user, entry) && <OrgaDot />}
                         </Link>
                     </div>
                 );
@@ -201,6 +205,8 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                     <div className="content" key={lang}>
                         {/* While an admin looks at the menu as a role: which one, and the way back. */}
                         <ViewAsBanner user={user} />
+                        {/* A page only the orga may open: the teal bar says so, and who sees it after all. */}
+                        {tab && <OrgaBar key={tab.id} user={user} audience={pageAudience(user, tab)} />}
                         {/* Every page is its own chunk (App.tsx, #436): while one loads,
                             the menu stays and only the page body shows the loader. A chunk
                             that cannot be loaded (after a deploy, #530) shows the reload

@@ -134,5 +134,18 @@
         "newVersionTitle": "New version available",
         "newVersionText": "The menu has been updated. Reload the page to carry on.",
         "newVersionReload": "Reload page"
+    },
+    "orga": {
+        "label": "Orga area",
+        "pageHidden": "Raiders do not see this page",
+        "zoneHidden": "Raiders do not see this part",
+        "visibleFor": "visible to {who}",
+        "admins": "Admins",
+        "accounts": {
+            "one": "{count} single account",
+            "other": "{count} single accounts"
+        },
+        "asRaider": "See it as a raider",
+        "asRaiderTip": "Shows the menu with the base access – as a raider without any further role sees it. “Stop” at the top brings you back."
     }
 }

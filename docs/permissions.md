@@ -37,6 +37,15 @@ Access is **per area** (one admin-menu section) and **per level** (`read` = open
 
 **Bot commands are a separate axis.** Who may run which command in Discord is not an area and not a `read`/`write` level — it hangs on Discord roles per command (`config.botCommandAccess`, Einstellungen → Berechtigungen → *Bot-Befehle*, see "Who may run a command" in docs/bot-commands.md). Full admins are admins there too; everything else is configured apart from the web areas. **One exception asks the web areas:** the guild bank's orga buttons (`commands/signup/guildBank.js`, *Erledigt* / *Ablehnen …* under a request in the orga channel) let every click through the bot gate and then require `raids` **write** via `userAccess.userMayAny` — the orga that handles requests is the orga that runs the raids in the web (docs/signups.md, „Gildenbank“).
 
+## Orga-Bereiche markieren (`src/web/http/areaAudience.js`, `components/ui/OrgaZone.tsx`)
+
+What only the orga sees is marked in teal (design canvas Oct 2026, E for whole pages, B for parts). The marks are derived from the permission settings, never hard-wired:
+
+- **`GET /api/session`** carries `user.audience`: per area the caller may open, `{ everyone, roles, writers, accounts }` — `everyone` = the base access opens it; `roles`/`writers` = the names of the (non-admin) roles whose rights open it / let them change in it; `accounts` = single accounts that may read it (`areaAudience(config, roles)`; role names from the bot's cache, admin roles from config + env left out because admins see everything).
+- **`lib/app/orgaArea.ts` `orgaAudience(user, areas, level)`:** a page is orga when **none** of its menu entry's areas is for everyone (Abwesenheiten — `signup` or `roster` — is no orga page). No audience (older server) marks nothing.
+- **`OrgaBar`** (Shell, above every page): the bar "Orga-Bereich · Raider sehen diese Seite nicht · sichtbar für Admins · @Rolle …"; for a full admin not already in a view, "So sieht es ein Raider" starts *Ansicht als* with no role (= base access). **`OrgaDot`**: the menu dot beside an orga page. **`OrgaZone`**: the dashed zone around the orga's part of a page everybody sees — the dashboard's orga block (`level="write"`: it goes by `raids` write, so it names the writers) and the absence overview of all raiders (`roster` read).
+- A raider role that may read an orga area shows up by name in the bar — that is the point: too broad a grant is visible on the page it opens.
+
 ## Ansicht als Rolle (`src/web/http/viewAs.js`, `components/shell/ViewAs.tsx`)
 
 A full admin can look at the whole menu **with the rights of one or more Discord roles**, like Discord's "View server as role" — to test what the permission matrix really opens up. The eye button in the top bar opens the role picker (roles of the permission server, marked *Admin* / *Rechte* / *ohne Rechte*); no role picked = only the base access. While it runs, a bar above every page names the roles and offers *Ändern* and *Beenden*.
