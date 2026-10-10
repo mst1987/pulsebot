@@ -14,7 +14,7 @@
 //               stored separately. As long as no setup was approved yet, the
 //               stored signups stand in (signed/late = placed, "Ersatzbank" = bench).
 //   fixed       the places the orga locked in the event's current setup draft
-//   rosterStatus  the roster of the event's category (#658): `{ userId: status }`
+//   rosterStatus  the roster of the event's category and version (#658, #739): `{ userId: status }`
 //               of its members — core before trial before bench in the proposal;
 //               empty for a category without roster
 //
@@ -201,7 +201,8 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false } = 
 function rosterStatusFor(events) {
     const out = {};
     for (const e of events) {
-        const roster = e.categoryId ? rosterStore.rosterForCategory(String(e.categoryId)) : null;
+        // the roster of the event's version (#739)
+        const roster = e.categoryId ? rosterStore.rosterForCategory(String(e.categoryId), versionOfEvent(e)) : null;
         if (!roster) continue;
         for (const [userId, member] of Object.entries(roster.members)) {
             if (out[userId] === undefined) out[userId] = member.status;

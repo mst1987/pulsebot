@@ -158,7 +158,8 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
                 placement: approvedPlacementFor(stored, uid),
                 // "Anmeldung nur für das Roster" (#658): true when this member may not sign up (no roster member
                 // with status core / trial / bench, no own signup, not the orga) - the dialog says so up front
-                rosterOnly: !orga && !own && rosterOnlyAccess(stored.categoryId || row.categoryId, uid) === false,
+                // (the roster of the raid's version, #739)
+                rosterOnly: !orga && !own && rosterOnlyAccess(stored.categoryId || row.categoryId, uid, { versionId: versionOfEvent(event, { config }) }) === false,
             };
         });
 }

@@ -309,6 +309,35 @@ describe("services/roster/rosterRoleSync reconcile", () => {
     });
 });
 
+describe("services/roster/rosterRoleSync and a closed roster (#739)", () => {
+    beforeEach(() => {
+        rosterStore.upsertMember(roster.id, "100001", { status: "trial" });
+        rosterStore.closeRoster(roster.id, { reason: "version_switch" });
+    });
+
+    it("gives and takes no role for it, ever", async () => {
+        expect(await sync.applyMemberAdded(roster.id, "100001")).toEqual({ ok: true, skipped: "closed", results: [] });
+        expect(await sync.applyStatusChange(roster.id, "100001", "trial", "core")).toEqual({ ok: true, skipped: "closed", results: [] });
+        expect(await sync.applyMemberRemoved(roster.id, "100001")).toEqual({ ok: true, skipped: "closed", results: [] });
+        expect(memberRoles.giveRole).not.toHaveBeenCalled();
+        expect(memberRoles.takeRole).not.toHaveBeenCalled();
+    });
+
+    it("gaining or losing its roles in Discord changes nothing", () => {
+        expect(sync.onGuildMemberUpdate(member("100002", []), member("100002", ["main"]))).toEqual([]);
+        expect(sync.onGuildMemberUpdate(member("100001", ["main"]), member("100001", []))).toEqual([]);
+        expect(Object.keys(fresh().members)).toEqual(["100001"]);
+    });
+
+    it("the reconcile leaves it alone and a server with only closed rosters is not run", async () => {
+        discord.fetchGuildMembersCached.mockResolvedValue([member("100002", ["main"])]);
+        expect((await sync.reconcile("g1")).skipped).toBe("no_rosters");
+        expect(await sync.reconcileAll()).toEqual([]);
+        expect(Object.keys(fresh().members)).toEqual(["100001"]);
+        discord.fetchGuildMembersCached.mockResolvedValue([]);
+    });
+});
+
 describe("services/roster/rosterRoleSync scheduler", () => {
     afterEach(() => jest.useRealTimers());
 

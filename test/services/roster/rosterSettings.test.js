@@ -123,6 +123,29 @@ describe("services/roster/rosterSettings updateRosterSettings (admin)", () => {
         expect(updateRosterSettings(roster.id, { kaderId: "" }, { isAdmin: true }).roster.kaderId).toBeNull();
     });
 
+    it("a second roster of the category in another version is no conflict, the same version is (#739)", () => {
+        const forever = rosterStore.createRoster({ name: "F", categoryId: "700000000000000002", versionId: "forever" });
+        expect(updateRosterSettings(forever.id, { categoryId: "700000000000000001" }, { isAdmin: true }).ok).toBe(true);
+        expect(updateRosterSettings(forever.id, { versionId: "tbc" }, { isAdmin: true }).code).toBe("category_taken");
+    });
+
+    it("a roster of another version than the category plays mirrors nothing into its raider roles (#739)", () => {
+        configStore.saveConfig({ categoryRoles: { "700000000000000001": [R1] } });
+        const forever = rosterStore.createRoster({ name: "F", categoryId: "700000000000000001", versionId: "forever" });
+        updateRosterSettings(forever.id, { roleIds: [R3] }, { isAdmin: true });
+        expect(configStore.getConfig().categoryRoles).toEqual({ "700000000000000001": [R1] });
+        // once the category plays Forever, its roster's roles are the category's
+        configStore.saveConfig({ categoryVersion: { "700000000000000001": "forever" } });
+        updateRosterSettings(forever.id, { roleIds: [R2] }, { isAdmin: true });
+        expect(configStore.getConfig().categoryRoles).toEqual({ "700000000000000001": [R2] });
+    });
+
+    it("a closed roster takes no settings change, not even from a full admin (#739)", () => {
+        rosterStore.closeRoster(roster.id, { reason: "version_switch" });
+        expect(updateRosterSettings(roster.id, { name: "X" }, { isAdmin: true }).code).toBe("roster_closed");
+        expect(rosterStore.getRoster(roster.id).name).toBe("Donnerstag");
+    });
+
     it("passes an unexpected store error on", () => {
         const spy = jest.spyOn(rosterStore, "updateRoster").mockImplementationOnce(() => { throw new Error("disk"); });
         expect(() => updateRosterSettings(roster.id, { name: "x" }, { isAdmin: true })).toThrow("disk");

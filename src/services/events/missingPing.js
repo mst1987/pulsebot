@@ -35,10 +35,12 @@ async function findMissingRaiders({ guildId, eventId }) {
     if (found.e.status === "cancelled") return fail(400, "cancelled", "Das Event ist abgesagt — da wird niemand mehr gepingt.");
     const config = getConfig();
     // A raid of a version the orga hid is not pinged for (#743), like it is not listed or reminded.
-    if (!isVersionVisible(versionOfEvent({ ...found.e, categoryId: found.e.categoryId || found.g.categoryId }, { config }), config)) {
+    const versionId = versionOfEvent({ ...found.e, categoryId: found.e.categoryId || found.g.categoryId }, { config });
+    if (!isVersionVisible(versionId, config)) {
         return fail(400, "version_hidden", "Die Spielversion dieses Raids ist ausgeblendet — da wird niemand gepingt.");
     }
-    if (!hasExpected(found.g.categoryId, config)) {
+    // the roster of the raid's version (#739)
+    if (!hasExpected(found.g.categoryId, config, { versionId })) {
         return fail(400, "no_roles", "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Kategorien).");
     }
     // A raid that already started expects no further signups — and once
@@ -48,7 +50,7 @@ async function findMissingRaiders({ guildId, eventId }) {
         return fail(400, "event_past", "Der Raid hat bereits begonnen — fehlende Raider zu pingen ergibt hier keinen Sinn mehr.");
     }
     // a category with a roster expects its core + trial members (#658), else the role holders
-    const { members, error: membersError, roleIds } = await listExpectedMembers(guildId, found.g.categoryId, config);
+    const { members, error: membersError, roleIds } = await listExpectedMembers(guildId, found.g.categoryId, config, { versionId });
     const tMembers = Date.now();
     if (membersError) return fail(400, "members_unavailable", membersError);
     const { missing } = computeAttendance(members, found.e.signUps || []);

@@ -20,9 +20,19 @@ describe("services/characters/attendanceAccess", () => {
     it("lässt Manager des Rosters der Kategorie zu — per Konto oder per Rolle", async () => {
         mockRosterForCategory.mockReturnValue(ROSTER);
         expect(await canEditAttendance({ id: "m1" }, "cat")).toBe(true);
-        expect(mockRosterForCategory).toHaveBeenCalledWith("cat");
+        // without a version: the one the category plays now
+        expect(mockRosterForCategory).toHaveBeenCalledWith("cat", "tbc");
         expect(await canEditAttendance({ id: "x" }, "cat", { memberRoleIds: async () => ["r9"] })).toBe(true);
         expect(await canEditAttendance({ id: "x" }, "cat", { memberRoleIds: async () => [] })).toBe(false);
         expect(await canEditAttendance({ id: "x" }, "cat", { memberRoleIds: async () => { throw new Error("offline"); } })).toBe(false);
+    });
+
+    it("nimmt das Roster der Version des Abends; ein abgeschlossenes gibt kein Recht (#739)", async () => {
+        mockRosterForCategory.mockImplementation((cat, version) => (version === "forever" ? ROSTER : { ...ROSTER, closedAt: "2026-10-01T00:00:00.000Z" }));
+        expect(await canEditAttendance({ id: "m1" }, "cat", { versionId: "forever" })).toBe(true);
+        expect(mockRosterForCategory).toHaveBeenLastCalledWith("cat", "forever");
+        expect(await canEditAttendance({ id: "m1" }, "cat", { versionId: "tbc" })).toBe(false);
+        // admins and raids write stay free
+        expect(await canEditAttendance({ id: "a", isAdmin: true }, "cat", { versionId: "tbc" })).toBe(true);
     });
 });

@@ -379,6 +379,10 @@ function rosterHead(roster, { ctx, names, discordData, figures, guildId }) {
         allowMultipleChars: roster.allowMultipleChars,
         source: roster.source.kind,
         kaderId: roster.kaderId || null,
+        // closed (#739): read only under its version, badge "abgeschlossen"
+        closed: !!roster.closedAt,
+        closedAt: roster.closedAt || null,
+        closedReason: roster.closedReason || "",
         ...figures,
     };
 }
@@ -441,9 +445,12 @@ async function buildRosterOverview({ guildId = "", user = null, config = {} } = 
         if (!orga) return { ...head, isOrga: false, trialEnding: [] };
         // trials ending within a week or overdue (#658): the managers' hint
         const nameOf = new Map(rows.map((r) => [r.userId, r.displayName]));
-        return { ...head, isOrga: true, trialEnding: trialEnding(roster, { nameOf: (id) => nameOf.get(id) || id }) };
+        // a closed roster (#739) has nothing left to decide
+        const ending = roster.closedAt ? [] : trialEnding(roster, { nameOf: (id) => nameOf.get(id) || id });
+        return { ...head, isOrga: true, trialEnding: ending };
     }));
-    const taken = new Set(list.map((r) => r.categoryId).filter(Boolean));
+    // a category "has a roster" when the version it plays now has one (#739) - a closed one of an older version does not count
+    const taken = new Set(list.filter((r) => r.categoryId && r.versionId === mainVersionFor({ categoryId: r.categoryId, config })).map((r) => r.categoryId));
     const categoriesWithoutRoster = (Array.isArray(config.categoryIds) ? config.categoryIds : [])
         .map(str)
         .filter((id, i, all) => id && all.indexOf(id) === i && !taken.has(id))
@@ -467,9 +474,12 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     if (!roster || (guildId && roster.guildId && roster.guildId !== guildId)) return null;
     const discordData = await loadDiscord(roster.guildId || guildId);
     const ctx = contextCache(roster.guildId || guildId)(roster.versionId);
-    const canManage = await canManageRosterLive(user, roster).catch(() => false);
-    const orga = canManage || await isRosterOrga(user, roster).catch(() => false);
-    const rows = memberRows(roster, { ctx, discordData, config, manage: canManage, orga });
+    const manager = await canManageRosterLive(user, roster).catch(() => false);
+    // a closed roster (#739) is read only: its managers still read everything, nobody edits
+    const closed = !!roster.closedAt;
+    const canManage = manager && !closed;
+    const orga = manager || await isRosterOrga(user, roster).catch(() => false);
+    const rows = memberRows(roster, { ctx, discordData, config, manage: manager, orga });
     const figures = rosterFigures(rows);
     const head = rosterHead(roster, {
         ctx, names: categoryNames(roster.guildId || guildId), discordData, figures: orga ? figures : slimFigures(figures), guildId: roster.guildId || guildId,

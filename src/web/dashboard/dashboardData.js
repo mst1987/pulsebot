@@ -166,16 +166,18 @@ async function loadNextRaidDetails(guildId, eventId) {
 
     // a category with a roster expects its core + trial members (#658), else the role holders
     const config = getConfig();
-    const expects = hasExpected(g.categoryId, config);
+    // the roster of the raid's version (#739)
+    const versionId = versionOfEvent({ ...ev, categoryId: ev.categoryId || g.categoryId }, { config });
+    const expects = hasExpected(g.categoryId, config, { versionId });
     let missing = [];
     let membersError = null;
     let specHistory = {};
     if (expects) {
-        const result = await listExpectedMembers(guildId, g.categoryId, config);
+        const result = await listExpectedMembers(guildId, g.categoryId, config, { versionId });
         membersError = result.error;
         const attendance = computeAttendance(result.members, signUps);
         specHistory = buildSpecHistory(g.events);
-        const assignments = resolveAssignmentProfiles(g.categoryId);
+        const assignments = resolveAssignmentProfiles(g.categoryId, { versionId });
         const annotate = (people) => withCharacterAssignments(withSpecProfiles(people, specHistory), assignments);
         missing = notSignedUp({ missing: annotate(attendance.missing), responded: annotate(attendance.responded), specHistory });
     }
@@ -408,6 +410,8 @@ async function loadTrialEndings(guildId, user, { now = Date.now() } = {}) {
     try {
         const out = [];
         for (const roster of rosterStore.listRosters(guildId || "")) {
+            // a closed roster (#739) takes no decision any more
+            if (roster.closedAt) continue;
             const ending = trialEnding(roster, { now });
             if (!ending.length || !(await canManageRosterLive(user, roster).catch(() => false))) continue;
             const names = await discord.resolveUserNames(roster.guildId || guildId, ending.map((m) => m.userId)).catch(() => ({}));

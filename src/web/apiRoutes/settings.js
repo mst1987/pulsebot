@@ -33,6 +33,7 @@ const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = requi
 const BOM = String.fromCharCode(0xfeff);
 const { defaultVersionSettings, defaultColorOf } = require("../../stores/versionSettingsSchema");
 const { expectedRoleIds, syncRosterRoleIds } = require("../../services/roster/categoryRoles");
+const { switchRosterPreview } = require("../../services/roster/rosterVersionSwitch");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -534,10 +535,15 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (versions.error) return error(res, 400, "category_version_missing", versions.error);
     const langBefore = before.botLanguage;
     const saved = saveConfig(partial);
-    const switchedCategories = afterCategorySwitches(versions.switches, body.categorySwitchFixes, { user });
-    await notifyCategoryVersionSwitch(switchedCategories, { config: saved, user });
-    // The settings still edit a category's raider roles; a category with a roster follows them (#653).
-    if (partial.categoryRoles !== undefined) syncRosterRoleIds(saved.categoryRoles, { actor: String((user && user.id) || "") });
+    // The settings still edit a category's raider roles; the roster of the version a category plays
+    // follows them (#653) - not for a category switched just now: its roster changes below (#739).
+    const switchedIds = new Set(versions.switches.map((sw) => sw.categoryId));
+    if (partial.categoryRoles !== undefined) syncRosterRoleIds(saved.categoryRoles, { actor: String((user && user.id) || ""), config: saved, skip: switchedIds });
+    // #739: the listeners (the roster: close the old one, maybe a new one) get the dialog's choices
+    const switchedCategories = await notifyCategoryVersionSwitch(
+        afterCategorySwitches(versions.switches, body.categorySwitchFixes, { user }),
+        { config: saved, user, fixes: body.categorySwitchFixes && typeof body.categorySwitchFixes === "object" ? body.categorySwitchFixes : {} },
+    );
     // A new server language, or a category's own, redraws the bot's public messages (not awaited).
     if (saved.botLanguage !== langBefore || JSON.stringify(saved.categoryLanguage || {}) !== JSON.stringify(before.categoryLanguage || {})) {
         void languageChange.afterServerLangChange({ config: saved });
@@ -545,7 +551,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // The guild bank area of the raider organizers comes and goes with its channel:
     // redraw them now instead of at the next five-minute sweep (not awaited, never throws).
     else if (guildBankOf(saved) !== guildBankOf(before)) void availabilityPanel.refreshPanels({ config: saved }).catch(() => {});
-    ok(res, { config: publicConfig(saved), switchedCategories });
+    // a switch may have changed the raider roles (#739: they mirror the new roster) - answer what is stored now
+    ok(res, { config: publicConfig(switchedCategories.length ? getConfig() : saved), switchedCategories });
 });
 
 /** Category id → name over every event server (live list backed by the snapshot); "" when unknown. */
@@ -611,7 +618,9 @@ const getCategorySwitch = withUser({}, async ({ res, url }) => {
     if (!VERSIONS.some((v) => v.id === versionId)) return error(res, 400, "invalid", "Unbekannte Spielversion.");
     const config = getConfig();
     const preview = switchPreview({ categoryId, versionId, config, listTemplates: listRaidTemplates });
-    ok(res, { ...preview, name: categoryNamesOf(config).get(categoryId) || "" });
+    // #739: the roster that is closed, the one of the new version, whether one can be created
+    const roster = switchRosterPreview(categoryId, { fromVersion: preview.from.id, toVersion: preview.switching ? preview.to.id : "" });
+    ok(res, { ...preview, roster, name: categoryNamesOf(config).get(categoryId) || "" });
 });
 
 /**

@@ -15,13 +15,17 @@
 const profilesStore = require("../../stores/councilProfilesStore");
 const rosterStore = require("../../stores/rosterStore");
 const { rosterLootSystem } = require("./lootSystem");
+const { rosterOfCategory } = require("../roster/categoryRoster");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
-/** The roster a target means: the named one, else the category's, else null. */
-function rosterOfTarget({ rosterId = "", categoryId = "" } = {}) {
+/**
+ * The roster a target means: the named one, else the category's roster of
+ * `versionId` (#739; none = the version the category plays now), else null.
+ */
+function rosterOfTarget({ rosterId = "", categoryId = "", versionId = "" } = {}) {
     if (str(rosterId)) return rosterStore.getRoster(str(rosterId));
-    return str(categoryId) ? rosterStore.rosterForCategory(str(categoryId)) : null;
+    return str(categoryId) ? rosterOfCategory(str(categoryId), { versionId }) : null;
 }
 
 /**
@@ -90,7 +94,7 @@ function profileUsage({ config = {}, guildId = "" } = {}) {
         else if (roster.lootProfileId) slot(roster.lootProfileId).otherRosters.push({ id: roster.id, name: roster.name });
     }
     for (const [categoryId, profileId] of Object.entries(profilesStore.categoryProfiles())) {
-        if (!rosterStore.rosterForCategory(categoryId)) slot(profileId).categories.push(categoryId);
+        if (!rosterOfCategory(categoryId, { config })) slot(profileId).categories.push(categoryId);
     }
     return usage;
 }

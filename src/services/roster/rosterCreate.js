@@ -155,7 +155,6 @@ function prepare(input, { guildId, config, knownRoleIds }) {
     if (clean.code) return clean;
     const fields = clean.fields;
     const categoryId = fields.categoryId || null;
-    if (categoryId && rosterStore.rosterForCategory(categoryId)) return { code: "category_taken" };
     if (source === "role" && !(fields.roleIds || []).length) return { code: "no_role" };
     if (source === "raids" && !categoryId) return { code: "no_category" };
     let kader = null;
@@ -173,6 +172,8 @@ function prepare(input, { guildId, config, knownRoleIds }) {
         versionId: fields.versionId || (kader && !categoryId && knownVersion(KADER_VERSION)) || mainVersionFor({ categoryId: categoryId || "", config }),
         source: kader ? { kind: "kader", kaderId: kader.id } : { kind: "manual" },
     };
+    // one roster per category and version (#739): another version's roster is no conflict
+    if (categoryId && rosterStore.rosterForCategory(categoryId, data.versionId)) return { code: "category_taken" };
     return { data, source, kader };
 }
 

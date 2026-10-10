@@ -150,7 +150,10 @@ const listeners = new Set();
 /**
  * Register `fn(sw, ctx)`, called once per switched category after the settings
  * were saved: `sw` = `{ categoryId, fromVersion, toVersion, at, name }`, `ctx` =
- * `{ config, user }` (the saved config). Returns the unregister function.
+ * `{ config, user, fixes }` (the saved config; `fixes` = the dialog's choices
+ * per category, `{ [categoryId]: { series, roster } }`). A listener may answer
+ * a plain object - it is merged into that switch's entry of the save's answer
+ * (#739: `{ roster: … }`). Returns the unregister function.
  */
 function onCategoryVersionSwitch(fn) {
     if (typeof fn !== "function") return () => {};
@@ -158,17 +161,25 @@ function onCategoryVersionSwitch(fn) {
     return () => listeners.delete(fn);
 }
 
-/** Call every listener for every switch; a failing one is logged and never fails the save. */
+/**
+ * Call every listener for every switch; a failing one is logged and never
+ * fails the save. Returns the switches with what the listeners answered.
+ */
 async function notifyCategoryVersionSwitch(switches, ctx = {}, { warn = console.error } = {}) {
+    const out = [];
     for (const sw of switches || []) {
+        let entry = { ...sw };
         for (const fn of [...listeners]) {
             try {
-                await fn(sw, ctx);
+                const answer = await fn(sw, ctx);
+                if (answer && typeof answer === "object" && !Array.isArray(answer)) entry = { ...entry, ...answer };
             } catch (e) {
                 warn(`[categorySwitch] ${sw.categoryId} ${sw.fromVersion} → ${sw.toVersion}: ${e.message}`);
             }
         }
+        out.push(entry);
     }
+    return out;
 }
 
 module.exports = {

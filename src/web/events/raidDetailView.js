@@ -161,12 +161,14 @@ async function setupPart(found, eventId) {
  */
 async function attendancePart(guildId, found, signupsKnown) {
     const config = getConfig();
-    const categoryRoleIds = expectedRoleIds(found.g.categoryId, config);
-    const attendanceSource = expectedRosterIds(found.g.categoryId) !== null ? "roster" : (categoryRoleIds.length ? "roles" : null);
+    // the roster of the raid's version (#739): a raid of the old version expects the closed roster's members
+    const versionId = versionOfEvent({ id: found.e.id, versionId: found.e.versionId, categoryId: found.g.categoryId }, { config });
+    const categoryRoleIds = expectedRoleIds(found.g.categoryId, config, { versionId });
+    const attendanceSource = expectedRosterIds(found.g.categoryId, { versionId, config }) !== null ? "roster" : (categoryRoleIds.length ? "roles" : null);
     let attendance = { responded: [], missing: [] };
     let membersError = null;
     if (attendanceSource && signupsKnown) {
-        const membersResult = await listExpectedMembers(guildId, found.g.categoryId, config);
+        const membersResult = await listExpectedMembers(guildId, found.g.categoryId, config, { versionId });
         membersError = membersResult.error;
         attendance = computeAttendance(membersResult.members, found.e.signUps || []);
         // Enrich with class/spec/colour from each member's most recent signup in
@@ -181,7 +183,7 @@ async function attendancePart(guildId, found, signupsKnown) {
         };
         // A manual raider->character assignment for this category (see
         // raiderCharactersStore.js) is admin-confirmed and overrides the guess above.
-        const assignmentProfiles = resolveAssignmentProfiles(found.g.categoryId);
+        const assignmentProfiles = resolveAssignmentProfiles(found.g.categoryId, { versionId });
         attendance = {
             responded: withCharacterAssignments(attendance.responded, assignmentProfiles),
             missing: withCharacterAssignments(attendance.missing, assignmentProfiles),

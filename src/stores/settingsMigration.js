@@ -438,7 +438,8 @@ function migrateCouncilProfiles({ now = Date.now() } = {}) {
         categories: stored.categories,
         views,
         nameOf: councilCategoryName(categoryNameSnapshot(), [...raidEventStore.listRaidEvents(""), ...eventStore.listEvents("")]),
-        rosterFor: (categoryId) => rosterStore.rosterForCategory(categoryId),
+        // a migration of the days with one roster per category (#739: the open one, the newest first)
+        rosterFor: (categoryId) => rosterStore.rostersForCategory(categoryId)[0] || null,
         assign: (rosterId, profileId) => rosterStore.assignLootProfile(rosterId, profileId),
     }, { now });
     if (!result.ran) return [];

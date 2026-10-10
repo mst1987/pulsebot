@@ -23,7 +23,7 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 // A refusal's HTTP status; everything not listed is the caller's input (400).
 const STATUS_OF_CODE = {
     not_found: 404, not_member: 404, not_manager: 403,
-    already_member: 409, member_limit: 409,
+    already_member: 409, member_limit: 409, roster_closed: 409,
     offline: 503, members_unavailable: 503,
 };
 const MEMBER_FIELDS = ["status", "chars", "charNames", "note", "trialUntil", "spec"];

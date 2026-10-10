@@ -4,6 +4,7 @@
 // per-account grant actually reaches the store.
 
 const { mockRes, json, body, routerClient } = require("../../helpers/http");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
@@ -462,6 +463,43 @@ describe("web/apiRoutes/settings", () => {
                         expect(seen).toEqual([{ sw: expect.objectContaining({ categoryId: "cat1", toVersion: "forever" }), user: "1" }]);
                     } finally {
                         off();
+                    }
+                });
+
+                it("closes the category's roster and starts the new one with the dialog's choice (#739)", async () => {
+                    const rosterStore = require("../../../src/stores/rosterStore");
+                    const configStore = require("../../../src/stores/configStore");
+                    const { registerRosterVersionSwitch } = require("../../../src/services/roster/rosterVersionSwitch");
+                    rosterStore.useFile(tempStoreFile("switch-rosters.json"));
+                    configStore.useFile(tempStoreFile("switch-config.json"));
+                    const off = registerRosterVersionSwitch();
+                    try {
+                        const old = rosterStore.createRoster({ guildId: "g1", name: "Montag", categoryId: "cat1", versionId: "tbc", roleIds: ["500000000000000001"] });
+                        rosterStore.upsertMember(old.id, "200000000000000001", { status: "core", chars: ["Kes"] });
+                        // what the (mocked) settings store saves: the category plays Forever from now on
+                        configStore.saveConfig({ categoryIds: ["cat1"], categoryVersion: { cat1: "forever" }, categoryRoles: { cat1: ["500000000000000001"] } });
+
+                        const preview = json(await get("/api/settings/category-switch", { categoryId: "cat1", versionId: "forever" })).data;
+                        expect(preview.roster).toEqual({ closing: { id: old.id, name: "Montag", members: 1 }, existing: null, canCreate: true });
+
+                        const res = await patch("/api/settings", {
+                            categoryVersion: { cat1: "forever" },
+                            // the draft still holds the TBC roles: they never reach the new roster
+                            categoryRoles: { cat1: ["500000000000000001"] },
+                            categorySwitchFixes: { cat1: { series: "", roster: { create: true, copyMembers: true, roleIds: [] } } },
+                        });
+                        expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        const [switched] = json(res).data.switchedCategories;
+                        const next = rosterStore.rosterForCategory("cat1", "forever");
+                        expect(switched.roster).toEqual({ closed: { id: old.id, name: "Montag" }, reopened: null, created: { id: next.id, name: "Montag", members: 1 }, mirrored: true });
+                        expect(rosterStore.getRoster(old.id)).toMatchObject({ closedReason: "version_switch", roleIds: ["500000000000000001"] });
+                        expect(next.roleIds).toEqual([]);
+                        expect(next.members["200000000000000001"]).toMatchObject({ status: "trial", chars: [] });
+                        expect(configStore.getConfig().categoryRoles.cat1 || []).toEqual([]);
+                    } finally {
+                        off();
+                        rosterStore.useFile(null);
+                        configStore.useFile(null);
                     }
                 });
 

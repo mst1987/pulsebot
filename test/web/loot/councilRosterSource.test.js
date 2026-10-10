@@ -32,7 +32,15 @@ describe("councilRosterSource", () => {
         expect(rosterCandidates("")).toBeNull();
         expect(mockRosterForCategory).not.toHaveBeenCalled();
         expect(rosterCandidates("c1")).toBeNull();
-        expect(mockRosterForCategory).toHaveBeenCalledWith("c1");
+        // without a version: the one the category plays now
+        expect(mockRosterForCategory).toHaveBeenCalledWith("c1", "tbc");
+    });
+
+    it("reads the category's roster of the council's version (#739)", () => {
+        rosterCandidates("c1", { versionId: "forever" });
+        expect(mockRosterForCategory).toHaveBeenLastCalledWith("c1", "forever");
+        rosterCandidates("c1", { versionId: "tbc" });
+        expect(mockRosterForCategory).toHaveBeenLastCalledWith("c1", "tbc");
     });
 
     it("keys characters by their bare name, keeps the roster key, the typed name without realm and the status", () => {

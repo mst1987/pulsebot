@@ -227,6 +227,8 @@ function start() {
     // upgrade. Keep it first, before anything can fail.
     console.log(`PulseBot starting on Node ${process.version} (${runMode()}, ${process.env.EVENTHELPER_ENV_FILE}, NODE_ENV=${process.env.NODE_ENV || "-"})`);
     require("./stores/settingsMigration").migrateSettings();
+    // a category switched to another game version closes its roster (#739)
+    require("./services/roster/rosterVersionSwitch").registerRosterVersionSwitch();
     loadCommands(path.join(__dirname, "commands"));
     startWebServer(client);
     startJobs(client);

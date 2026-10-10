@@ -4,8 +4,10 @@
 //   data/settings/rosters.json = {
 //     rosters: { [rosterId]: {
 //       id, guildId, name,                  // name free (≤ 40), default = category name
-//       categoryId | null,                  // at most one roster per category
+//       categoryId | null,                  // at most one roster per category AND version (#739)
 //       versionId,                          // game version of its characters
+//       closedAt: null | iso,               // closed (#739): read only, no role sync, no new members
+//       closedReason: "" | "version_switch" | …,   // why ("version_switch"; #744 adds its own)
 //       roleIds: [],                        // Discord roles that mean "in the roster" (first = main role)
 //       trialRoleId: null,                  // optional extra role for status "trial"
 //       managers: { roleIds: [], userIds: [] },   // ≤ 20 each: who manages this roster
@@ -63,6 +65,15 @@
 // once at start with its category's version of that day (migrateVersions,
 // settingsMigration.js) — switching the main or category version afterwards
 // moves no roster. Read without one it is LEGACY_VERSION (TBC).
+//
+// One roster per category and version (#739): switching a category to another
+// version (services/events/categorySwitch.js) closes the roster of the old
+// version (closeRoster, `closedReason: "version_switch"`) and may start one for
+// the new version. `rosterForCategory(categoryId, versionId)` therefore always
+// names the version — the raid's, the view's, or the one the category plays
+// now (services/roster/categoryRoster.js). A closed roster stays readable under
+// its version; every member write refuses it ("roster_closed"), and nothing
+// touches its Discord roles any more.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore, readJsonFile } = require("./jsonStore");
 const { newId } = require("../utils/ids");
@@ -70,6 +81,7 @@ const { characterKeyOf, VERSION_KEY_SEP } = require("../utils/loot/lootImport");
 const { knownVersion, mainVersionFor } = require("../services/events/mainVersion");
 const { spec: specOfVersion, LEGACY_VERSION } = require("../config/gameVersions");
 const { normalizeLootSystem } = require("../services/loot/lootSystem");
+const logger = require("../logger").child("rosterStore");
 
 const ROSTERS_FILE = settingsPath("rosters.json");
 
@@ -229,6 +241,7 @@ function normalizeRoster(raw, id = raw && raw.id) {
     const source = normalizeSource(raw.source);
     // never stored yet: the Kader it was created from; stored null = unlinked
     const kaderId = raw.kaderId === undefined ? (source.kaderId || null) : (idOf(raw.kaderId) || null);
+    const closedAt = isoOf(raw.closedAt, null);
     return {
         id: rid,
         guildId: idOf(raw.guildId),
@@ -250,23 +263,39 @@ function normalizeRoster(raw, id = raw && raw.id) {
         history: normalizeHistory(raw.history),
         createdAt: isoOf(raw.createdAt),
         createdBy: idOf(raw.createdBy),
+        closedAt,
+        closedReason: closedAt ? reasonOf(raw.closedReason) : "",
     };
 }
 
+/** A close reason: a short lower-case code ("version_switch"), else "". */
+function reasonOf(raw) {
+    const s = str(raw).toLowerCase();
+    return /^[a-z][a-z0-9_]{0,39}$/.test(s) ? s : "";
+}
+
+/** Whether a roster is closed (#739): read only, no role sync, no new members. */
+function isClosed(roster) {
+    return !!(roster && roster.closedAt);
+}
+
+/** The key that is unique per roster with category: category and version (#739). */
+const slotKey = (r) => `${r.categoryId}|${r.versionId}`;
+
 /**
- * The whole file: rosters by id (a second roster of a category drops out, a
- * second link to the same Kader is cut) and the migrated categories.
+ * The whole file: rosters by id (a second roster of a category and version
+ * drops out, a second link to the same Kader is cut) and the migrated categories.
  */
 function normalizeFile(data) {
     const src = isMap(data) ? data : {};
     const rosters = {};
-    const categories = new Set();
+    const slots = new Set();
     const kaders = new Set();
     for (const [id, raw] of Object.entries(isMap(src.rosters) ? src.rosters : {})) {
         const r = normalizeRoster(raw, id);
         if (!r) continue;
-        if (r.categoryId && categories.has(r.categoryId)) continue;
-        if (r.categoryId) categories.add(r.categoryId);
+        if (r.categoryId && slots.has(slotKey(r))) continue;
+        if (r.categoryId) slots.add(slotKey(r));
         if (r.kaderId && kaders.has(r.kaderId)) r.kaderId = null;
         if (r.kaderId) kaders.add(r.kaderId);
         rosters[r.id] = r;
@@ -303,14 +332,44 @@ function getRoster(id) {
     return readAll().rosters[str(id)] || null;
 }
 
-/** The roster of a raid category, or null. */
-function rosterForCategory(categoryId) {
+/**
+ * The version a category lookup asks for (#739): a known one is required —
+ * without one it throws outside production (tests, dev) and on the live bot
+ * takes the version the category plays now, with a warning in the log.
+ */
+function requiredVersion(versionId, categoryId) {
+    const id = knownVersion(versionId);
+    if (id) return id;
+    const message = `rosterForCategory: versionId fehlt oder ist unbekannt (${JSON.stringify(versionId)}, Kategorie ${categoryId})`;
+    if (process.env.NODE_ENV !== "production") throw new Error(message);
+    logger.warn(`${message} - es zählt die aktuelle Version der Kategorie`);
+    return mainVersionFor({ categoryId });
+}
+
+/**
+ * The roster of a raid category in one game version (#739), or null — closed
+ * or not. The version is required: the raid's (versionOfEvent), the view's, or
+ * the one the category plays now (services/roster/categoryRoster.js).
+ */
+function rosterForCategory(categoryId, versionId) {
     const cat = str(categoryId);
     if (!cat) return null;
-    return Object.values(readAll().rosters).find((r) => r.categoryId === cat) || null;
+    const version = requiredVersion(versionId, cat);
+    return Object.values(readAll().rosters).find((r) => r.categoryId === cat && r.versionId === version) || null;
+}
+
+/** Every roster of a raid category, whatever its version: open ones first, then the newest. */
+function rostersForCategory(categoryId) {
+    const cat = str(categoryId);
+    if (!cat) return [];
+    return Object.values(readAll().rosters)
+        .filter((r) => r.categoryId === cat)
+        .sort((a, b) => Number(isClosed(a)) - Number(isClosed(b)) || String(b.createdAt).localeCompare(String(a.createdAt)) || a.id.localeCompare(b.id));
 }
 
 const KADER_TAKEN = "Dieser Kader ist schon mit einem anderen Roster verknüpft.";
+const CATEGORY_TAKEN = "Diese Kategorie hat für diese Spielversion schon ein Roster.";
+const CLOSED = "Dieses Roster ist abgeschlossen und nur noch lesbar.";
 
 /** Whether a roster other than `exceptId` is linked to the Kader. */
 function kaderTaken(all, kaderId, exceptId) {
@@ -347,19 +406,23 @@ function markMigrated(all, categoryId) {
     if (categoryId && !all.migratedCategories.includes(categoryId)) all.migratedCategories.push(categoryId);
 }
 
-const FIXED_FIELDS = ["id", "members", "history", "createdAt", "createdBy"];
+// closedAt / closedReason only through closeRoster
+const FIXED_FIELDS = ["id", "members", "history", "createdAt", "createdBy", "closedAt", "closedReason"];
 
 /**
  * A new roster. `data` as the stored shape (missing fields get their defaults);
  * `name` defaults to the category id. Throws RosterError "category_taken" when
- * the category already has a roster, "invalid_name" without name and category.
+ * the category already has a roster of that version (#739: another version's
+ * roster is no conflict), "invalid_name" without name and category.
  * @returns {object} the stored roster
  */
 function createRoster(data = {}, { actor = "", now = new Date().toISOString() } = {}) {
     const all = readAll();
     const categoryId = idOf(data.categoryId) || null;
-    if (categoryId && Object.values(all.rosters).some((r) => r.categoryId === categoryId)) {
-        throw new RosterError("category_taken", "Diese Kategorie hat schon ein Roster.");
+    // the version its category plays now unless one is named, stored for good (#737)
+    const versionId = knownVersion(data.versionId) || mainVersionFor({ categoryId: categoryId || "" });
+    if (categoryId && Object.values(all.rosters).some((r) => r.categoryId === categoryId && r.versionId === versionId)) {
+        throw new RosterError("category_taken", CATEGORY_TAKEN);
     }
     if (!text(data.name, LIMITS.name) && !categoryId) throw new RosterError("invalid_name", "Name fehlt.");
     const wantedKader = data.kaderId !== undefined ? idOf(data.kaderId) : idOf(normalizeSource(data.source).kaderId);
@@ -369,8 +432,8 @@ function createRoster(data = {}, { actor = "", now = new Date().toISOString() } 
         ...data,
         id,
         categoryId,
-        // the version its category plays now, stored for good (#737)
-        versionId: knownVersion(data.versionId) || mainVersionFor({ categoryId: categoryId || "" }),
+        versionId,
+        closedAt: null,
         createdAt: isoOf(data.createdAt, now),
         createdBy: actor || data.createdBy,
         history: [historyEntry({ at: now, by: actor, what: "created", detail: text(data.name, LIMITS.name) })],
@@ -383,21 +446,24 @@ function createRoster(data = {}, { actor = "", now = new Date().toISOString() } 
 
 /**
  * Change a roster's settings. `patch` may hold every field but id, members,
- * history, createdAt and createdBy (members go through upsertMember). Moving it
- * to a category that has another roster throws RosterError "category_taken".
+ * history, createdAt, createdBy and the closing (members go through
+ * upsertMember, closing through closeRoster). Moving it to a category and
+ * version that has another roster throws RosterError "category_taken", a closed
+ * roster "roster_closed" (#739: it stays as it was).
  * @returns {object|null} the stored roster, null when there is none
  */
 function updateRoster(id, patch = {}, { actor = "", now = new Date().toISOString() } = {}) {
     const all = readAll();
     const current = all.rosters[str(id)];
     if (!current) return null;
+    if (isClosed(current)) throw new RosterError("roster_closed", CLOSED);
     const clean = { ...(isMap(patch) ? patch : {}) };
     for (const key of FIXED_FIELDS) delete clean[key];
     if (clean.managers !== undefined) clean.managers = { ...current.managers, ...(isMap(clean.managers) ? clean.managers : {}) };
     if (clean.slots !== undefined) clean.slots = { ...current.slots, ...(isMap(clean.slots) ? clean.slots : {}) };
     const next = normalizeRoster({ ...current, ...clean }, current.id);
-    if (next.categoryId && Object.values(all.rosters).some((r) => r.id !== current.id && r.categoryId === next.categoryId)) {
-        throw new RosterError("category_taken", "Diese Kategorie hat schon ein Roster.");
+    if (next.categoryId && Object.values(all.rosters).some((r) => r.id !== current.id && r.categoryId === next.categoryId && r.versionId === next.versionId)) {
+        throw new RosterError("category_taken", CATEGORY_TAKEN);
     }
     if (next.kaderId && kaderTaken(all, next.kaderId, current.id)) throw new RosterError("kader_taken", KADER_TAKEN);
     const changed = Object.keys(clean).filter((k) => JSON.stringify(next[k]) !== JSON.stringify(current[k]));
@@ -423,7 +489,51 @@ function assignLootProfile(rosterId, profileId) {
     return true;
 }
 
-/** Delete a roster. @returns {boolean} whether there was one */
+/**
+ * Close a roster (#739): it stays readable under its version, but takes no
+ * new members, no edits and no Discord role sync any more — and closing
+ * touches nobody's roles. `reason` is a short code: "version_switch" (the
+ * category switched its game version), "category_deleted" (#744), … A history
+ * line `closed` with the reason is written. Its Kader link is released (a
+ * closed roster takes nobody from the Kaderplaner; `source.kaderId` still says
+ * where it came from), so the Kader can be linked to another roster. Closing a
+ * closed roster changes nothing.
+ * @param {string} id
+ * @param {{ reason?: string, actor?: string, now?: string }} [opts]
+ * @returns {object|null} the stored roster, null when there is none
+ */
+function closeRoster(id, { reason = "", actor = "", now = new Date().toISOString() } = {}) {
+    const all = readAll();
+    const roster = all.rosters[str(id)];
+    if (!roster) return null;
+    if (isClosed(roster)) return getRoster(roster.id);
+    roster.closedAt = isoOf(now, new Date().toISOString());
+    roster.closedReason = reasonOf(reason);
+    roster.kaderId = null;
+    roster.history.push(historyEntry({ at: roster.closedAt, by: actor, what: "closed", detail: roster.closedReason }));
+    writeAll(all);
+    return getRoster(roster.id);
+}
+
+/**
+ * Open a closed roster again (#739: a category switched back to the version of
+ * this roster). History line `reopened`. One roster per category and version,
+ * so no other roster can be in its way; an open roster is returned unchanged.
+ * @returns {object|null} the stored roster, null when there is none
+ */
+function reopenRoster(id, { actor = "", now = new Date().toISOString() } = {}) {
+    const all = readAll();
+    const roster = all.rosters[str(id)];
+    if (!roster) return null;
+    if (!isClosed(roster)) return getRoster(roster.id);
+    roster.closedAt = null;
+    roster.closedReason = "";
+    roster.history.push(historyEntry({ at: now, by: actor, what: "reopened" }));
+    writeAll(all);
+    return getRoster(roster.id);
+}
+
+/** Delete a roster (a closed one too). @returns {boolean} whether there was one */
 function deleteRoster(id) {
     const all = readAll();
     const key = str(id);
@@ -453,7 +563,8 @@ function viaDetail(via, detail) {
 /**
  * Add a member or change one. `patch`: status, chars (keys or names - made keys
  * of the roster's version), charNames, note, trialUntil. A new member starts as
- * "core" since `now`. Throws RosterError "member_limit" past 500 members.
+ * "core" since `now`. Throws RosterError "member_limit" past 500 members,
+ * "roster_closed" for a closed roster (#739).
  * `via: "discord"` marks the history line as caused by a Discord role (#656).
  * @returns {object|null} the stored member, null without roster or user id
  */
@@ -462,6 +573,7 @@ function upsertMember(rosterId, userId, patch = {}, { actor = "", now = new Date
     const roster = all.rosters[str(rosterId)];
     const uid = idOf(userId);
     if (!roster || !uid) return null;
+    if (isClosed(roster)) throw new RosterError("roster_closed", CLOSED);
     const before = roster.members[uid] || null;
     if (!before && Object.keys(roster.members).length >= LIMITS.members) {
         throw new RosterError("member_limit", `Ein Roster hat höchstens ${LIMITS.members} Mitglieder.`);
@@ -494,12 +606,13 @@ function upsertMember(rosterId, userId, patch = {}, { actor = "", now = new Date
     return getRoster(roster.id).members[uid];
 }
 
-/** Remove a member (`via` as in upsertMember). @returns {boolean} whether they were one */
+/** Remove a member (`via` as in upsertMember; a closed roster throws "roster_closed"). @returns {boolean} whether they were one */
 function removeMember(rosterId, userId, { actor = "", now = new Date().toISOString(), via = "" } = {}) {
     const all = readAll();
     const roster = all.rosters[str(rosterId)];
     const uid = idOf(userId);
     if (!roster || !uid || !roster.members[uid]) return false;
+    if (isClosed(roster)) throw new RosterError("roster_closed", CLOSED);
     delete roster.members[uid];
     roster.history.push(historyEntry({ at: now, by: actor, userId: uid, what: "member-removed", detail: viaDetail(via, "") }));
     writeAll(all);
@@ -523,12 +636,12 @@ function appendHistory(rosterId, entry = {}, { now = new Date().toISOString() } 
  * one write. A user not yet a member joins as "core"; a member left out of
  * `firsts` loses his characters but stays a member with his status — the
  * assignment says which character, membership is the roster's own business.
- * @returns {boolean} whether the roster exists
+ * @returns {boolean} whether the roster exists and is open (a closed one stays as it is)
  */
 function setFirstChars(rosterId, firsts = {}, { actor = "", now = new Date().toISOString() } = {}) {
     const all = readAll();
     const roster = all.rosters[str(rosterId)];
-    if (!roster) return false;
+    if (!roster || isClosed(roster)) return false;
     const log = (userId, what, detail) => roster.history.push(historyEntry({ at: now, by: actor, userId, what, detail }));
     for (const [userId, { key, name }] of Object.entries(firsts)) {
         const uid = idOf(userId);
@@ -628,7 +741,7 @@ function migrateVersions() {
 }
 
 module.exports = {
-    listRosters, getRoster, rosterForCategory, rosterForKader, createRoster, updateRoster, deleteRoster,
+    listRosters, getRoster, rosterForCategory, rostersForCategory, rosterForKader, createRoster, updateRoster, deleteRoster, closeRoster, reopenRoster, isClosed,
     upsertMember, removeMember, appendHistory, setFirstChars, migrateCategories, migrateVersions, assignLootProfile,
     normalizeRoster, normalizeFile, RosterError, LIMITS, STATUSES, SOURCE_KINDS, ROSTERS_FILE,
     useFile: store.useFile,

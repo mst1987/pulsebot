@@ -40,10 +40,10 @@ describe("stores/settingsMigration rosters (#653)", () => {
         expect(line).toContain("3 Roster aus den Raid-Kategorien übernommen");
         expect(log).toHaveBeenCalledWith(`[settings] Migration: ${line}`);
         // server: snapshot (c1), stored event (c2), first event server (c3)
-        expect(rosterStore.rosterForCategory("c1")).toMatchObject({ guildId: G2, name: "Donnerstag", roleIds: ["10"], source: { kind: "migration" } });
-        expect(rosterStore.rosterForCategory("c2")).toMatchObject({ guildId: G2, name: "Mittwoch", roleIds: ["20"] });
-        expect(rosterStore.rosterForCategory("c3")).toMatchObject({ guildId: G1, name: "c3", roleIds: ["30"] });
-        expect(rosterStore.rosterForCategory("c1").members["200000000000000001"]).toMatchObject({ status: "core", chars: ["keslight"] });
+        expect(rosterStore.rosterForCategory("c1", "tbc")).toMatchObject({ guildId: G2, name: "Donnerstag", roleIds: ["10"], source: { kind: "migration" } });
+        expect(rosterStore.rosterForCategory("c2", "tbc")).toMatchObject({ guildId: G2, name: "Mittwoch", roleIds: ["20"] });
+        expect(rosterStore.rosterForCategory("c3", "tbc")).toMatchObject({ guildId: G1, name: "c3", roleIds: ["30"] });
+        expect(rosterStore.rosterForCategory("c1", "tbc").members["200000000000000001"]).toMatchObject({ status: "core", chars: ["keslight"] });
     });
 
     it("the second start finds nothing and writes nothing", () => {

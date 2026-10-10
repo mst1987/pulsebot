@@ -770,7 +770,7 @@ async function raiderCandidates({ guildId, eventId }) {
             key: c.key, name: c.name, className: c.className, specs: c.specs.map((s) => specOf(s.key)).filter(Boolean),
         }));
     }
-    const roleIds = expectedRoleIds(event.categoryId, getConfig());
+    const roleIds = expectedRoleIds(event.categoryId, getConfig(), { versionId: versionOfEvent(event) });
     if (roleIds.length) {
         try {
             const { members = [] } = (await discord.listMembersWithRoles(event.guildId || guildId, roleIds)) || {};
