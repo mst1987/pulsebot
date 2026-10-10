@@ -15,6 +15,7 @@ import { useT } from "../../../i18n";
 import { layerList, slotTally, insertObject, objectName, placeSlot, rosterMap, unplaced, type InsertSpec, type Selection } from "../../../lib/raidplan";
 import TargetsPanel from "./TargetsPanel";
 import StepsCard from "./StepsCard";
+import AnimWorkspace from "./AnimWorkspace";
 import MyTasksPreview from "./MyTasksPreview";
 import Palette from "./Palette";
 import type { MapRow } from "./MapPanel";
@@ -150,6 +151,8 @@ export default function BoardWorkspace({
     const noMap = noBoard || mapOff;
     const shown: PlanView = noBoard ? "tasks" : view;
     const onMapView = shown === "map";
+    /** the view "Animation": the scenes of the board (docs/raidplan/animation.md), with a map of its own */
+    const onAnimView = shown === "anim";
     /** keys, the rubber band and the arrows act on the board only while it is in view */
     const mapAway = noMap || !onMapView;
     const mobs = useMemo(() => sectionMobsOf(scope, boss.key, boss.name, bossIconOf(boss.iconUrl), boss.instanceId, board, catalog), [scope, boss.key, boss.name, boss.iconUrl, boss.instanceId, board, catalog]);
@@ -332,7 +335,7 @@ export default function BoardWorkspace({
                 ) : undefined}
             />
 
-            {!onMapView && (
+            {shown === "tasks" && (
                 <div className="rp-tasksview">
                     {besetzungBlock}
                     {assignPanel(false)}
@@ -355,11 +358,16 @@ export default function BoardWorkspace({
                 </div>
             )}
 
-            {onMapView && mapOff && (
+            {(onMapView || onAnimView) && mapOff && (
                 <p className="rp-mapoff" role="status">
                     <ImageOff size={16} aria-hidden="true" /><span>{t("raidBoard.map.offNote")}</span>
                     {canWrite && <button type="button" className="rp-acard-add" onClick={() => edit((b) => ({ ...b, showMap: true }))}><ImageIcon size={14} aria-hidden="true" />{t("raidBoard.map.show")}</button>}
                 </p>
+            )}
+            {onAnimView && !noMap && (
+                <AnimWorkspace
+                    boss={boss} board={board} edit={edit} players={players} roster={roster} rows={filledRows} isEvent={isEvent} canWrite={canWrite} me={me} mapPx={mapPx} baseAuto={auto}
+                />
             )}
             {onMapView && !noMap && (
             <div className={`rp-mapstage${isEvent || showPanel ? "" : " no-side"}`}>

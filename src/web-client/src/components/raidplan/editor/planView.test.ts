@@ -11,9 +11,10 @@ beforeEach(() => {
 afterEach(() => { window.history.replaceState(null, "", "/"); });
 
 describe("the view's text forms", () => {
-    it("reads only 'map' as the map; everything else is the task list", () => {
+    it("reads only 'map' and 'anim' as those views; everything else is the task list", () => {
         expect(parseView("map")).toBe("map");
-        for (const raw of ["tasks", "", null, undefined, "MAP", "karte"]) expect(parseView(raw)).toBe("tasks");
+        expect(parseView("anim")).toBe("anim");
+        for (const raw of ["tasks", "", null, undefined, "MAP", "karte", "animation"]) expect(parseView(raw)).toBe("tasks");
     });
 
     it("finds the view in a hash beside the section and leaves the default out of it", () => {
@@ -24,6 +25,9 @@ describe("the view's text forms", () => {
         expect(hashWithView("#boss=bt/supremus", "map")).toBe("#boss=bt/supremus&view=map");
         expect(hashWithView("#boss=bt/supremus&view=map", "tasks")).toBe("#boss=bt/supremus");
         expect(hashWithView("", "tasks")).toBe("");
+        // the animation view (docs/raidplan/animation.md) stands in the address like the map
+        expect(viewFromHash("#boss=bt/gurtogg&view=anim")).toBe("anim");
+        expect(hashWithView("#boss=bt/gurtogg", "anim")).toBe("#boss=bt/gurtogg&view=anim");
     });
 });
 

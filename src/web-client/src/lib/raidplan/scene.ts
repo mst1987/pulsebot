@@ -23,8 +23,8 @@ export type SceneBoard = {
 };
 /** The effects on one object at a moment: a WoW icon on it, a pulse. */
 export type SceneFx = { badge?: string; pulse?: boolean };
-/** A loop's trail: where its object was a moment ago (newest last). */
-export type SceneTrail = { obj: string; points: Pt[] };
+/** A loop's trail: where its object was a moment ago (newest last); `hint` = the editor's dotted way of a movement, not a trail. */
+export type SceneTrail = { obj: string; points: Pt[]; hint?: boolean };
 export type SceneState<B> = { board: B; fx: Record<string, SceneFx>; trails: SceneTrail[]; frame: number; caption: string };
 /** Where the objects of the tank rows stand without the scene (their key -> point), so a scene can move them from there. */
 export type AutoAt = Record<string, Pt>;
@@ -329,4 +329,32 @@ export function autoAtOf(plan: { mobs: { key: string; x: number; y: number; icon
     for (const m of plan.mobs) if (!m.iconId) at[m.key] = { x: m.x, y: m.y };
     for (const k of plan.tanks) if (!k.existing) at[k.key] = { x: k.x, y: k.y };
     return at;
+}
+
+/** Where an object of the board stands (a zone's top-left corner, a line's middle, an auto object where it was put); null: no such object. */
+export function positionOf(board: SceneBoard, obj: string, autoAt: AutoAt = {}): Pt | null {
+    const look = baseLook(board, obj, autoAt);
+    return look ? look.pos : null;
+}
+
+/**
+ * The editor's hints for frame k: for every object that moves there, dots along its way from where it stood after the frame before
+ * (straight or along its path), so the orga sees what the frame does without playing it.
+ */
+export function moveHints(board: SceneBoard, scene: RaidplanScene, k: number, autoAt: AutoAt = {}): SceneTrail[] {
+    const f = scene.frames[k];
+    if (!f || k === 0) return [];
+    const before = boardAfter(board, scene, k - 1, autoAt).board;
+    const out: SceneTrail[] = [];
+    for (const c of f.changes) {
+        if (c.x === undefined || c.y === undefined) continue;
+        const from = positionOf(before, c.obj, autoAt);
+        if (!from) continue;
+        const to = { x: c.x, y: c.y };
+        if (Math.hypot(to.x - from.x, to.y - from.y) < 0.01) continue;
+        const points: Pt[] = [];
+        for (let i = 1; i < 14; i++) points.push(pathPoint(from, c.path || [], to, i / 14));
+        out.push({ obj: c.obj, points, hint: true });
+    }
+    return out;
 }

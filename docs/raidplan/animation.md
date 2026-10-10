@@ -82,6 +82,33 @@ the plan. The caption ("Takt 2 von 6" + the frame's sentence) stands big at the 
 assignment lines are hidden, "Deine Aufgaben" makes room for the bar and the zoom stands above it; switching the
 section closes the animation. Phone: the bar takes the width at the bottom.
 
+## In the editor (view "Animation", #711)
+
+The third view of a section next to "Aufgaben | Karte" (`#view=anim` in the address, remembered like the others; Standard
+and Allgemein have none, "Karte aus" shows the note). `components/raidplan/editor/AnimWorkspace.tsx` +
+`AnimPanel.tsx`, the pure editing in `lib/raidplan/sceneEdit.ts`; template editor and event plan alike.
+
+- **No scene yet:** an explanation (what an animation is, the three steps) and "Neue Animation".
+- **Head:** the scenes as chips with their length, "+ Neue Animation" (at most 8), "Vorschau" (plays the scene with the
+  sheet's player and caption; editing is off meanwhile).
+- **Board:** the board **after the chosen frame** (`boardAfter`). A pointer drag on an object moves it **in this frame**
+  (`moveIn`: one change per object and frame, live, one undo step per drag); a split group's raider drags his group
+  (`sceneRef`), a grip (size, turn, corner) only picks the object. The dotted way (`moveHints`) shows where each moved
+  object comes from (straight or along its path). The board itself never changes - only the scene.
+- **Frame strip:** a card per frame (number, start time, length, caption, how many objects change), "+ Takt".
+- **Panel:** the scene (name, "Im Sheet wiederholen", delete after asking); the frame ("Takt n von m", caption, length
+  with −/+ - later frames move with it -, earlier / later = swap with the neighbour, "+ Takt danach", delete - asks when
+  something changes there -, the objects it changes as chips); the picked object: "Startet nach" / "Dauert" (−/+),
+  "Verlauf" (Weich / Gleichmäßig / Anfahren / Abbremsen), "Bewegung entfernen", facing (icons, zones, auto objects),
+  opacity, size, "Sichtbar", the debuff icon (six presets - Bloodboil, fire, poison, shadow, frost, target - or any WoW
+  icon name; "Entfernen"), "Pulsieren", "Alles in diesem Takt zurücksetzen". Values show the state after this frame
+  (`valueAfter`); a change writes the object's change of this frame.
+- **Timeline rules of the editing** (`sceneEdit.ts`): a new frame starts where the scene stands after the chosen one and
+  pushes the later ones back by its length; removing a frame pulls them forward (the first one left starts at 0); a
+  longer or shorter frame moves the ones after it; swapping frames swaps their content, the times stay. A change in the
+  first frame takes no time (the starting position); a new change of a later frame takes one second (at most the frame).
+- **`boardOf` keeps `scenes`** (`lib/raidplan/model.ts`) - without it a save from the editor would drop them.
+
 ## Dev demo
 
 `node scripts/seed-test-raid.js` gives the template "BT Demo" at Gurtogg Bloodboil five split group markers and the
@@ -93,4 +120,7 @@ falls back half a second later, twice).
 `test/services/raidplan/raidplanScenes.test.js` (validation, limits, the board's cleaning, `reidBoard`),
 `test/web/apiRoutes/raidplan.templates.test.js` (the sheet sends the scenes, none without the map),
 `src/web-client/src/lib/raidplan/scene.test.ts` (easing, blending, take-over, paths, loops, auto objects, frames),
-`src/web-client/src/pages/raidplan/PlanPublicPage.anim.test.tsx` (the player in the sheet).
+`src/web-client/src/pages/raidplan/PlanPublicPage.anim.test.tsx` (the player in the sheet),
+`src/web-client/src/lib/raidplan/sceneEdit.test.ts` (editing on the timeline),
+`src/web-client/src/components/raidplan/editor/BoardWorkspace.anim.test.tsx` (the editor's view: create, add a frame, drag,
+panel, preview, delete).

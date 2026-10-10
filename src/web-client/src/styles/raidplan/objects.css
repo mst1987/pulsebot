@@ -125,6 +125,8 @@
 .rp-fx-badge img { display: block; border-radius: 4px; }
 .rp-fx-pulse { position: absolute; left: 0; top: 0; width: calc(var(--rp-s, 38px) * 1.25); height: calc(var(--rp-s, 38px) * 1.25); border-radius: 50%; border: 3px solid var(--rp-danger); transform: translate(-50%, -50%); animation: rp-fx-pulse 1.1s ease-out infinite; }
 .rp-trail { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; z-index: 0; pointer-events: none; background: radial-gradient(circle, var(--rp-warn) 0%, var(--rp-danger) 55%, transparent 72%); opacity: calc(var(--rp-to, .5) * .85); }
+/* the editor's dotted way of a movement in the frame being edited */
+.rp-trail.is-hint { width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; background: var(--accent); opacity: .75; box-shadow: 0 0 0 1px var(--rp-icon-outline); }
 @keyframes rp-fx-pop { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes rp-fx-pulse { from { transform: translate(-50%, -50%) scale(.7); opacity: .95; } to { transform: translate(-50%, -50%) scale(1.6); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .rp-fx-badge, .rp-fx-pulse { animation: none; } }
