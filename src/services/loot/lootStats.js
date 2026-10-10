@@ -115,8 +115,9 @@ function award(it, known, versionCtx) {
         categoryId: it.categoryId || "",
         awardedAt: it.awardedAt || 0,
         source: it.source || "",
-        // The game version this award's raid plays (#545): an own event's own,
-        // else TBC ("ohne Event = tbc") — the "Items" tab filters awards by it.
+        // The game version this award's raid plays (#545): the raid's stored
+        // version (#737, own event or Raid-Helper snapshot), else TBC
+        // ("ohne Event = tbc") — the "Items" tab filters awards by it.
         versionId: eventVersion(versionCtx, it.eventId),
     };
 }

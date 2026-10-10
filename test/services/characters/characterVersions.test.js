@@ -41,6 +41,20 @@ describe("services/characters/characterVersions", () => {
         expect(versionsOfCharacter(ctx, { name: "Zibbo", items: [{ eventId: "eh-barrow" }, { eventId: "rh-1" }] })).toEqual(["tbc", "forever"]);
     });
 
+    // #737: Loot eines gescannten Raid-Helper-Raids hat dessen gespeicherte Version.
+    it("nimmt für Raid-Helper-Loot die gespeicherte Version des Schnappschusses", () => {
+        const raidEvents = require("../../../src/stores/raidEventStore");
+        raidEvents.useFile(tempStoreFile("eh-character-versions-raid-events.json"));
+        try {
+            raidEvents.saveRaidEvents([{ id: "rh-forever", title: "Ony", versionId: "forever" }]);
+            const ctx = buildVersionContext({ config: { mainVersion: "tbc" } });
+            expect(eventVersion(ctx, "rh-forever")).toBe("forever");
+            expect(eventVersion(ctx, "rh-unscanned")).toBe("tbc");
+        } finally {
+            raidEvents.useFile(null);
+        }
+    });
+
     it("fällt auf die Version der Kategorien zurück, dann auf TBC", () => {
         const ctx = buildVersionContext({ config: { mainVersion: "tbc", categoryVersion: { cat9: "forever" } } });
         expect(versionsOfCharacter(ctx, { name: "Neu", categoryIds: ["cat9"] })).toEqual(["forever"]);

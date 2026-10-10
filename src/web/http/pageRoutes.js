@@ -125,8 +125,10 @@ function health({ res }) {
 // token is the whole authentication — calendarFeed verifies it before it reads
 // anything, and an unknown *or* revoked one gets the same plain 404 as a path
 // that never existed, never a hint that it once was a token.
-function userCalendar({ res, params }) {
-    const feed = calendarFeed.feedFor(params[0]);
+function userCalendar({ res, params, url }) {
+    // optional "?version=forever": only the raids of that game version (#743)
+    const version = url && url.searchParams ? url.searchParams.get("version") : "";
+    const feed = version ? calendarFeed.feedFor(params[0], { version }) : calendarFeed.feedFor(params[0]);
     if (!feed) return send(res, 404, renderNotFound());
     res.writeHead(200, {
         "Content-Type": "text/calendar; charset=utf-8",

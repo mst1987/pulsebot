@@ -36,6 +36,9 @@ const linkCheck = require("../discord/linkCheck");
 const guildRoles = require("../discord/guildRoles");
 const { loadEventGroups } = require("../events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
+const { versionOfEvent, isVersionVisible } = require("../events/mainVersion");
+const { versionShort } = require("../events/versionTag");
+const { VERSIONS } = require("../../config/gameVersions");
 const { onSignupsChanged } = require("../../stores/signupStore");
 const { getOverviewState, setOverviewState } = require("../../stores/talkOverviewStore");
 const { signupStatus } = require("../../utils/attendance");
@@ -158,23 +161,43 @@ function raidLine(event, eventGuildId, { emojis = {}, baseUrl = "", channelInfo 
 }
 
 /**
- * The upcoming raids, soonest first, grouped by category — categories ordered by
- * their soonest raid. Only configured event categories when there are any.
+ * The upcoming raids, soonest first, grouped by game version (#743, TBC and
+ * Forever share the server), then by category - categories ordered by their
+ * soonest raid. Only configured event categories when there are any; the raids
+ * of a version the orga hid (hideOtherVersions) are left out. Each group
+ * carries its `versionId`; `versionTitled` says whether more than one
+ * version is listed, so the field titles name it ("Forever · Montag").
  */
-function upcomingGroups(groups, { now = Date.now(), categoryIds = [], lang = "de" } = {}) {
+function upcomingGroups(groups, { now = Date.now(), categoryIds = [], lang = "de", config } = {}) {
     const allowed = new Set((categoryIds || []).map(String));
     const nowSec = Math.floor(now / 1000);
-    return (groups || [])
-        .filter((g) => !allowed.size || allowed.has(String(g.categoryId || "")))
-        .map((g) => ({
-            categoryId: g.categoryId || "",
-            categoryName: g.categoryName || tr(lang, NO_CATEGORY),
-            events: (g.events || [])
-                .filter((e) => e && e.id && (Number(e.startTime) || 0) >= nowSec)
-                .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0)),
-        }))
-        .filter((g) => g.events.length)
-        .sort((a, b) => (Number(a.events[0].startTime) || 0) - (Number(b.events[0].startTime) || 0)
+    const order = new Map(VERSIONS.map((v, i) => [v.id, i]));
+    const byStart = (a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0);
+    const out = [];
+    for (const g of groups || []) {
+        if (allowed.size && !allowed.has(String(g.categoryId || ""))) continue;
+        const perVersion = new Map();
+        for (const e of g.events || []) {
+            if (!e || !e.id || (Number(e.startTime) || 0) < nowSec) continue;
+            const versionId = versionOfEvent({ ...e, categoryId: e.categoryId || g.categoryId }, { config });
+            if (!isVersionVisible(versionId, config)) continue;
+            if (!perVersion.has(versionId)) perVersion.set(versionId, []);
+            perVersion.get(versionId).push(e);
+        }
+        for (const [versionId, events] of perVersion) {
+            out.push({
+                categoryId: g.categoryId || "",
+                categoryName: g.categoryName || tr(lang, NO_CATEGORY),
+                versionId,
+                events: events.sort(byStart),
+            });
+        }
+    }
+    const titled = new Set(out.map((g) => g.versionId)).size > 1;
+    return out
+        .map((g) => ({ ...g, versionTitled: titled }))
+        .sort((a, b) => (order.get(a.versionId) - order.get(b.versionId))
+            || (Number(a.events[0].startTime) || 0) - (Number(b.events[0].startTime) || 0)
             || a.categoryName.localeCompare(b.categoryName));
 }
 
@@ -208,7 +231,8 @@ function buildOverviewMessage(groups, opts = {}) {
         // slot in the 25-field budget too.
         const withSpacer = fields.length > 0;
         if (fields.length + (withSpacer ? 2 : 1) > MAX_FIELDS) break;
-        const name = plain(group.categoryName).slice(0, 256) || tr(lang, NO_CATEGORY);
+        const categoryName = plain(group.categoryName) || tr(lang, NO_CATEGORY);
+        const name = (group.versionTitled ? `${versionShort(group.versionId)} · ${categoryName}` : categoryName).slice(0, 256);
         const lines = [];
         let length = 0;
         for (let i = 0; i < group.events.length; i++) {
@@ -309,6 +333,7 @@ async function currentPayload({ config = getConfig(), now = Date.now(), guildId 
         eventGuildName: guild ? guild.name : "",
         now,
         categoryIds: config.categoryIds || [],
+        config,
         emojis: appEmojiMap(),
         lang,
     });

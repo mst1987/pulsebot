@@ -79,9 +79,31 @@ describe("services/guildbank/guildBankStock", () => {
         expect(again.bank).toMatchObject({ guildId: "", pending: true });
     });
 
-    it("takes the main version for a client that names none", () => {
-        const result = stock.ingestScan(body({ client: {} }), { now: NOW, config: { ...CONFIG, mainVersion: "forever" } });
+    // #737: a scan without client version is never filed under the main version.
+    it("gives a scan without client version to the known bank of its realm and guild", () => {
+        stock.ingestScan(body({ client: { project: "forever" } }), { now: NOW, config: CONFIG });
+        const result = stock.ingestScan(body({ client: {}, scannedAt: 1791003600 }), { now: NOW + 1, config: { ...CONFIG, mainVersion: "tbc" } });
+        expect(result.status).toBe("updated");
         expect(result.bank.key).toBe("forever:spineshatter:die gilde");
+        expect(store.listBanks().map((b) => b.key)).toEqual(["forever:spineshatter:die gilde"]);
+    });
+
+    it("refuses and reports a scan without client version when no bank of its realm and guild is known", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        stock.ingestScan(body({ guild: { name: "Andere Gilde", realm: "Spineshatter" } }), { now: NOW, config: CONFIG });
+        expect(() => stock.ingestScan(body({ client: {} }), { now: NOW, config: { ...CONFIG, mainVersion: "forever" } }))
+            .toThrow(/keine eindeutige Gildenbank für Die Gilde \(Spineshatter\)/);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("[guildbank] Scan abgelehnt"));
+        expect(store.listBanks().map((b) => b.key)).toEqual(["tbc:spineshatter:andere gilde"]);
+        warn.mockRestore();
+    });
+
+    it("refuses a scan without client version when its guild has banks of two versions", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        stock.ingestScan(body(), { now: NOW, config: CONFIG });
+        stock.ingestScan(body({ client: { project: "forever" } }), { now: NOW, config: CONFIG });
+        expect(() => stock.ingestScan(body({ client: {}, scannedAt: 1791003600 }), { now: NOW + 1, config: CONFIG })).toThrow(GuildBankParseError);
+        warn.mockRestore();
     });
 
     it("answers a stale scan without lookups", () => {

@@ -17,6 +17,10 @@ jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: (...a) => mockGetRaidEvent(...a),
 }));
 
+// The config the scan reads the category's version from (#737).
+let mockConfig = {};
+jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+
 const { scanRaidEvents, scanAllGuilds, _resetProbesForTests } = require("../../../src/services/events/raidEventScan.js");
 const { runInBackground } = require("../../../src/utils/raidhelper/budget");
 const { RECENT_WINDOW_DAYS } = require("../../../src/services/events/recentEvents.js");
@@ -33,6 +37,7 @@ describe("services/events/raidEventScan", () => {
         mockListGuilds.mockReset().mockReturnValue([]);
         mockSaveRaidEvents.mockReset().mockReturnValue(0);
         mockGetRaidEvent.mockReset().mockReturnValue(null);
+        mockConfig = {};
         _resetProbesForTests();
     });
     afterEach(() => nowSpy.mockRestore());
@@ -64,9 +69,25 @@ describe("services/events/raidEventScan", () => {
             expect(mockSaveRaidEvents).toHaveBeenCalledWith([{
                 id: "e1", guildId: "g1", title: "Kara",
                 channelId: "c1", channelName: "kara", categoryId: "cat", categoryName: "Raids", startTime: 100,
-                signUps: [], setup: [],
+                versionId: "tbc", signUps: [], setup: [],
             }]);
             expect(result).toEqual({ scanned: 1, error: null });
+        });
+
+        // #737: the version the category plays at the scan goes along; the store
+        // keeps it only on the first scan (raidEventStore.test.js).
+        it("hands in the version the event's category plays right now", async () => {
+            mockConfig = { mainVersion: "tbc", categoryVersion: { cat: "forever" } };
+            mockGetPastEvents.mockResolvedValue([
+                { id: "e1", channelId: "c1", title: "Ony", startTime: 100 },
+                { id: "e2", channelId: "c2", title: "Kara", startTime: 200 },
+            ]);
+            mockGetChannelCategoryMap.mockReturnValue({
+                c1: { name: "ony", categoryId: "cat", categoryName: "Forever" },
+                c2: { name: "kara", categoryId: "other", categoryName: "TBC" },
+            });
+            await scanRaidEvents("g1");
+            expect(mockSaveRaidEvents.mock.calls[0][0].map((e) => [e.id, e.versionId])).toEqual([["e1", "forever"], ["e2", "tbc"]]);
         });
 
         // Raid-Helper drops an event's signups a while after the raid, so the
