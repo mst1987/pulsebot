@@ -47,7 +47,8 @@ function kickerFor(guildId) {
  *   personal  "Für dich", for everyone with their own signup (area `signup`):
  *             their next raids, attendance, last raids and profile
  *             (dashboardPersonal.js)
- *   orga      for whoever reads the raids: the next raid (and the one after),
+ *   orga      for the orga - full admins and whoever may change the raids (reading
+ *             them is no orga rank: raiders often hold it): the next raid (and the one after),
  *             one figure per area and the last raids (dashboardOverview.js)
  *
  * The open tasks are filtered one by one by the right it takes to do them, so a
@@ -59,12 +60,15 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     const config = getConfig();
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
-    const orga = userCanAny(user, ["raids"], "read");
-    const raidsWrite = userCanAny(user, ["raids"], "write");
+    // the orga block: full admins and `raids` write - many a raider role may read the raids, that makes nobody orga
+    const orga = userCanAny(user, ["raids"], "write");
+    const raidsWrite = orga;
+    // whoever reads the raids sees every category in "Für dich", the others only their own (memberEventRows)
+    const seesAllRaids = userCanAny(user, ["raids"], "read");
     const [next, recentEvents, personal] = await Promise.all([
         orga ? loadNextRaids(guildId, 2, { versionId }) : { raids: [], error: null },
         orga ? loadRecentEvents(guildId, 5, { versionId }) : { events: [], error: null },
-        userCanAny(user, ["signup"], "read") ? loadPersonal(guildId, user, { orga, config, versionId }) : null,
+        userCanAny(user, ["signup"], "read") ? loadPersonal(guildId, user, { orga: seesAllRaids, config, versionId }) : null,
     ]);
     const report = orga || userCanAny(user, ["cla"], "read") ? loadLatestReport() : null;
     const lastRaid = recentEvents.events[0];
@@ -145,7 +149,7 @@ const getNextRaidDetails = withUser({}, async ({ req, res, url }) => {
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
-    // "Für dich" is every raider's start page: their own signup area opens it too (the orga part stays with the raids)
+    // "Für dich" is every raider's start page: their own signup area opens it too (the orga part needs `raids` write)
     { method: "GET", path: "/api/dashboard", handler: getDashboard, area: ["dashboard", "signup"] },
     { method: "GET", path: "/api/dashboard/next-raid", handler: getNextRaidDetails, area: "dashboard" },
 ];
