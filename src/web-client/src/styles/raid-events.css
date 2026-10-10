@@ -39,6 +39,8 @@
 .re-glist { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
 .re-up { --re-cols: 52px minmax(0, 1fr) 150px 120px 190px; }
 .re-past { --re-cols: 52px minmax(0, 1fr) 120px 190px 130px 90px; }
+/* a raider's past raids: no logs column (the logs are the orga's) */
+.re-past.re-reader { --re-cols: 52px minmax(0, 1fr) 120px 130px 90px; }
 .re-head, .re-row { display: grid; grid-template-columns: var(--re-cols); align-items: center; gap: 16px; }
 .re-head {
     padding: 8px 16px; background: var(--panel2); border-bottom: 1px solid var(--line);
@@ -241,7 +243,7 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 /* ---- narrow screens: the grid rows stack ---- */
 @media (max-width: 900px) {
     .re-pills { margin-left: 0; }
-    .re-up, .re-past { --re-cols: 52px minmax(0, 1fr) auto; }
+    .re-up, .re-past, .re-past.re-reader { --re-cols: 52px minmax(0, 1fr) auto; }
     .re-head > :nth-child(n+3):not(:last-child) { display: none; }
     .re-head > :last-child { display: none; }
     .re-row { grid-template-columns: 52px minmax(0, 1fr); row-gap: 8px; }

@@ -19,12 +19,13 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listRoles: jest.fn(() => [{ id: "r1", name: "Raider" }]),
     resolveUserNames: jest.fn(async (g, ids) => Object.fromEntries(ids.map((id) => [id, `Name ${id}`]))),
     getGuild: jest.fn(() => null),
+    memberRoleIds: jest.fn(async () => []),
 }));
 jest.mock("../../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn(), raidhelperDisabled: jest.fn(() => false) }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null) }));
 jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null), listRosters: jest.fn(() => []) }));
-jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(() => null) }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(() => null), isOwnEventId: jest.fn((id) => String(id).startsWith("eh")) }));
+jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []), getSignup: jest.fn(() => null) }));
 jest.mock("../../../src/stores/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));
 jest.mock("../../../src/stores/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
 jest.mock("../../../src/stores/raidplanPostStore", () => ({ getRaidplanPost: jest.fn(() => null) }));
@@ -108,7 +109,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
             "softresCatalogue", "softresEdition", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "ownSetupPost",
             "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
-            "progress", "steps", "playerSummaries",
+            "orga", "progress", "steps", "playerSummaries",
         ]);
         expect(body.event).toEqual({
             id: "rh1", source: "raidhelper", title: "Kara Montag", startTime: FUTURE, channelId: "c1", channelName: "kara", channelState: "ok",
@@ -374,12 +375,106 @@ describe("GET /api/raids/detail (the route only speaks HTTP)", () => {
             return json(r).data.steps.steps.map((s) => s.id);
         };
         try {
+            // the step bar is the orga's (a raider gets none, see "a raider's read" below): every caller here is an orga role
             expect(await stepIds(ADMIN)).toContain("plan");
-            expect(await stepIds({ id: "o", isAdmin: false, access: { raids: { read: true, write: true } } })).not.toContain("plan");
-            expect(await stepIds({ id: "p", isAdmin: false, access: { raids: { read: true, write: false }, raidplan: { read: true, write: false } } })).not.toContain("plan");
-            expect(await stepIds({ id: "w", isAdmin: false, access: { raids: { read: true, write: false }, raidplan: { read: true, write: true } } })).toContain("plan");
+            expect(await stepIds({ id: "o", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } })).not.toContain("plan");
+            expect(await stepIds({ id: "p", isAdmin: false, isOrga: true, access: { raids: { read: true, write: false }, raidplan: { read: true, write: false } } })).not.toContain("plan");
+            expect(await stepIds({ id: "w", isAdmin: false, isOrga: true, access: { raids: { read: true, write: false }, raidplan: { read: true, write: true } } })).toContain("plan");
         } finally {
             mockUser = ADMIN;
         }
+    });
+});
+
+describe("a raider's read (Oct 2026: raids of foreign categories and the orga's parts are the orga's)", () => {
+    const RAIDER = { id: "u7", name: "Rai", isAdmin: false, access: { raids: { read: true, write: true } } };
+    const ORGA_ROLE = { id: "o1", name: "Lead", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
+    const read = async (user, eventId) => {
+        mockUser = user;
+        const r = mockRes();
+        await getRaidDetail({ headers: {} }, r, new URL(`http://x/api/raids/detail?event=${eventId}`));
+        mockUser = ADMIN;
+        return sent(r);
+    };
+    const rosterStore = require("../../../src/stores/rosterStore");
+    const signupStore = require("../../../src/stores/signupStore");
+    const signups = [
+        { userId: "u7", character: "Rai", spec: "Warrior-Arms", status: "signed", canAlso: ["tank"], comment: "mine", at: 1 },
+        { userId: "u8", character: "Other", spec: "Mage-Fire", status: "absence", canAlso: ["healer"], comment: "secret", at: 2 },
+    ];
+
+    beforeEach(() => {
+        rosterStore.rosterForCategory.mockReturnValue(null);
+        signupStore.listSignups.mockReturnValue([]);
+        getEvent.mockReturnValue(null);
+    });
+
+    it("answers a raid of a foreign category with the 404 of an unknown one; the orga role opens it", async () => {
+        // cat1 is no event category: hidden from the raider, even with raids write
+        settingsStore.getConfig.mockReturnValue({ categoryIds: ["other"] });
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent({ signUps: [] })));
+        expect(await read(RAIDER, "rh1")).toEqual({ status: 404, body: { error: { code: "not_found", message: "Event nicht gefunden." } } });
+        expect((await read(ORGA_ROLE, "rh1")).status).toBe(200);
+    });
+
+    it("shows a foreign raid the raider signed up for, and one whose roster opened its raids", async () => {
+        settingsStore.getConfig.mockReturnValue({ categoryIds: ["other"] });
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent({ signUps: [{ userId: "u7", specName: "Arms", status: "signed" }] })));
+        expect((await read(RAIDER, "rh1")).status).toBe(200);
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent({ signUps: [] })));
+        rosterStore.rosterForCategory.mockReturnValue({ categoryId: "cat1", publicRaids: true, members: {} });
+        expect((await read(RAIDER, "rh1")).status).toBe(200);
+    });
+
+    it("leaves the orga's parts out: logs, attendance, other people's comments, summaries, steps, dialog data", async () => {
+        settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["r1"] } });
+        // a stale event list: the orga would read the sync warning, a raider does not
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent(), { stale: true, error: "Raid-Helper down" }));
+        getEvent.mockReturnValue({ status: "active", setup: null, log: [{ action: "x" }, { action: "y" }] });
+        signupStore.listSignups.mockReturnValue(signups);
+        getEventSoftres.mockReturnValue({ url: "https://softres.it/raid/abc", editUrl: "https://softres.it/raid/abc?token=t", token: "t", instances: ["kara"], amount: 2, postedMessage: "hi" });
+        logStore.listLogsForEvent.mockReturnValue([{ id: "l1", title: "Log", status: "done" }]);
+        logStore.listLogs.mockReturnValue([{ id: "l2", title: "Frei", status: "open" }]);
+        const { status: code, body } = await read(RAIDER, "eh-1");
+        expect(code).toBe(200);
+        const d = body.data;
+        expect(d.orga).toBe(false);
+        expect(d.eventLogs).toEqual([]);
+        expect(d.unlinkedLogs).toEqual([]);
+        expect(d.attendance).toEqual({ responded: [], missing: [] });
+        expect(d.attendanceRoleIds).toEqual([]);
+        expect(d.attendanceSource).toBeNull();
+        expect(d.membersError).toBeNull();
+        expect(d.notifyTemplates).toEqual([]);
+        expect(d.roles).toEqual([]);
+        expect(d.raidsheets).toEqual([]);
+        expect(d.ownSetupEditors).toEqual([]);
+        expect(d.playerSummaries).toEqual({});
+        expect(d.steps).toBeNull();
+        expect(d.progress).toEqual({ steps: [], next: "", primary: null });
+        expect(d.event.logCount).toBe(0);
+        expect(d.eventsWarning).toBeNull();
+        expect(d).not.toHaveProperty("pingTargets");
+        // the softres link stays, the edit link and the posted message do not
+        expect(d.eventSoftres).toEqual({ url: "https://softres.it/raid/abc", editUrl: "", edition: "", instances: ["kara"], amount: 2, hardReserveCount: 0 });
+        // the signup list keeps names, characters, specs and roles; only the raider's own comment and "kann auch" stay
+        const mine = d.ownSignups.find((s) => s.userId === "u7");
+        const other = d.ownSignups.find((s) => s.userId === "u8");
+        expect(mine).toMatchObject({ character: "Rai", comment: "mine", canAlso: ["tank"] });
+        expect(other).toMatchObject({ character: "Other", name: "Name u8", comment: "", canAlso: [] });
+        // nothing of the orga's parts was even read
+        expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
+        expect(backfillLogTitles).not.toHaveBeenCalled();
+    });
+
+    it("keeps all of it for the orga role", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+        getEvent.mockReturnValue({ status: "active", setup: null });
+        signupStore.listSignups.mockReturnValue(signups);
+        const d = (await read(ORGA_ROLE, "eh-1")).body.data;
+        expect(d.orga).toBe(true);
+        expect(d.ownSignups.find((s) => s.userId === "u8")).toMatchObject({ comment: "secret", canAlso: ["healer"] });
+        expect(d.steps).not.toBeNull();
+        expect(d.notifyTemplates).toEqual([{ id: "n1" }]);
     });
 });

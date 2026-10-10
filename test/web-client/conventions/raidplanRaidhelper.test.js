@@ -10,7 +10,8 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").
 describe("the activation dialog", () => {
     it("the page: the menu for a Raid-Helper event with raidplan write, the dialog, the confirmation before switching off", () => {
         const page = read("pages", "raid-detail", "RaidDetailPage.tsx");
-        expect(page).toContain("const canSwitchPlan = !ownEvent && !archived && planning !== \"sheet\" && canAccess(user, \"raidplan\", \"write\");");
+        // the switch sits in Verwalten, the orga's menu (Oct 2026): raidplan write alone is not enough
+        expect(page).toContain("const canSwitchPlan = orga && !ownEvent && !archived && planning !== \"sheet\" && canAccess(user, \"raidplan\", \"write\");");
         // the switch is the menu's entry for raidplan write; the loot system (raids write) may stand beside it
         expect(page).toContain("...(canSwitchPlan ? raidhelperMenu({ planEnabled: !!data.event.raidplanEnabled, disabled: !!data.event.raidhelperDisabled }) : []),");
         expect(page).toContain("entries={raidhelperEntries}");

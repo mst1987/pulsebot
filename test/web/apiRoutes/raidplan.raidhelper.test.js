@@ -42,7 +42,8 @@ const route = require("../../../src/web/apiRoutes/raidplan");
 const rosterSource = require("../../../src/web/raidplan/raidplanRosterSource");
 const { checkAccess, areasFor } = require("../../../src/web/http/apiAccess");
 
-const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };
+// The orga is a role setting (permissions.userIsOrga), no area right: raider roles hold "raids" too.
+const ORGA = { id: "orga", name: "Orga", isAdmin: false, isOrga: true, access: { raidplan: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raidplan: { read: true, write: false } } };
 const EV = "1400000000000000009";
 

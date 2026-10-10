@@ -19,7 +19,7 @@ const { listSignups } = require("../../stores/signupStore");
 const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../../services/signups/signupService");
 const { memberEventRows, profileForSignup, signupSummary } = require("../signups/signupView");
 const { noteMode, isNoteStatus, MIN_NOTE } = require("../../services/signups/signupNotes");
-const { userCanAny } = require("../../config/permissions");
+const { userCanAny, userIsOrga } = require("../../config/permissions");
 const { VERSIONS } = require("../../config/gameVersions");
 const { mainVersionFor, classesOfVersion, visibleRows, versionOfEvent } = require("../../services/events/mainVersion");
 
@@ -27,7 +27,9 @@ const { mainVersionFor, classesOfVersion, visibleRows, versionOfEvent } = requir
 const getSignups = withUser({}, async ({ user, req, res }) => {
     const guildId = activeGuildFor(req);
     const { groups, error: err } = await loadEventGroups(guildId);
-    const orga = userCanAny(user, ["raids"], "read");
+    // The orga sees every category (permissions.userIsOrga); reading the raids does not -
+    // raider roles hold `raids` read and still see only their own categories.
+    const orga = userIsOrga(user);
     const roleIds = orga ? null : await discord.memberRoleIds(guildId, user.id);
     const profile = profiles.getProfile(user.id);
     const config = getConfig();

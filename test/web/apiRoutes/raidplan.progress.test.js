@@ -24,7 +24,8 @@ const { progressFor } = require("../../../src/services/raidplan/raidplanProgress
 const { checkAccess, UNGATED } = require("../../../src/web/http/apiAccess");
 const { mockRes, status, json } = require("../../helpers/http");
 
-const ORGA = { id: "orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };
+// The orga is a role setting (permissions.userIsOrga), no area right: raider roles hold "raids" too.
+const ORGA = { id: "orga", isAdmin: false, isOrga: true, access: { raidplan: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raidplan: { read: true, write: false } } };
 const MEMBER = { id: "m", isAdmin: false, access: { signup: { read: true, write: true } } };
 const body = (r) => { const p = json(r); return p.data || p.error; };

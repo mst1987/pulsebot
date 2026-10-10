@@ -186,6 +186,18 @@ describe("GET /api/signups", () => {
         data = json(await call(route.getSignups, ORGA)).data;
         expect(data.events).toHaveLength(2);
     });
+
+    it("öffnet fremde Kategorien nur der Orga, nicht einer Raider-Rolle mit Raid-Events-Rechten (Okt 2026)", async () => {
+        mockConfig = { categoryIds: ["cat-kara", "cat-t5"], categoryRoles: { "cat-t5": ["role-t5"] } };
+        mockRoleIds = ["role-other"];
+        // früher sah, wer Raid-Events lesen durfte, alle Kategorien - das ist kein Orga-Rang mehr
+        const raiderRole = { ...ANNA, access: { ...(ANNA.access || {}), raids: { read: true, write: true } } };
+        let data = json(await call(route.getSignups, raiderRole)).data;
+        expect(data.events.map((e) => e.id)).toEqual(["eh-kara"]);
+        const orgaRole = { ...ANNA, isOrga: true };
+        data = json(await call(route.getSignups, orgaRole)).data;
+        expect(data.events).toHaveLength(2);
+    });
 });
 
 describe("PUT /api/signups", () => {

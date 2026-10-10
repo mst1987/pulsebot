@@ -12,8 +12,13 @@
 // The loot system used to be a chip beside the category; for whoever may change
 // it, it is an entry of "Verwalten" now (`lootInMenu`) — a reader still reads it
 // in the time line.
+//
+// The steps, the primary action and "Kanal fehlt" are the orga's (Oct 2026): for the orga the
+// steps sit in an OrgaZone, a raider gets the head with the date, the category and the links —
+// the Discord post, the raid plan, the softres list and the raidsheet.
 import type { CSSProperties, ReactNode } from "react";
-import type { RaidDetailData, RaidPrimaryAction, RaidStep } from "../../api";
+import type { RaidDetailData, RaidPrimaryAction, RaidStep, SessionUser } from "../../api";
+import { OrgaZone } from "../../components/ui/OrgaZone";
 import { eventTimeParts, relativeDayLabel } from "../../lib/format";
 import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { Button, buttonClass } from "../../components/ui/Button";
@@ -59,8 +64,12 @@ function lootSystemText(data: RaidDetailData): string {
     return ls ? `${ls.label}${ls.softresExtra ? " + Softres" : ""}` : "";
 }
 
-export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning, manage, cockpit, lootInMenu = false, onRecreateChannel, recreating = false }: {
+export default function RaidDetailHero({ data, user, orga, onStep, onPrimary, primaryRunning, manage, cockpit, lootInMenu = false, onRecreateChannel, recreating = false }: {
     data: RaidDetailData;
+    /** who is looking, for the OrgaZone around the steps */
+    user?: SessionUser;
+    /** the orga is looking (lib/app/orgaArea.ts isOrga): steps, primary action and "Kanal fehlt" */
+    orga: boolean;
     onStep: (step: RaidStep) => void;
     onPrimary: (action: RaidPrimaryAction) => void;
     primaryRunning: boolean;
@@ -80,9 +89,18 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
     const relDay = relativeDayLabel(ev.startTime);
     const channel = ev.channelName || ev.channelId;
     const cancelled = ev.status === "cancelled";
-    const missing = ev.channelState === "missing";
+    // "Kanal fehlt" is a task for the orga; a raider simply gets no channel link
+    const missing = orga && ev.channelState === "missing";
     // A cancelled raid has no next step to push, and the cockpit brings its own.
-    const primary = cancelled || cockpit ? null : data.progress?.primary || null;
+    const primary = !orga || cancelled || cockpit ? null : data.progress?.primary || null;
+    const steps = !orga ? null : cockpit || (data.progress?.steps?.length ? (
+        <div className="rd-steps" style={{ "--rd-steps": data.progress.steps.length } as CSSProperties}>
+            {data.progress.steps.map((s) => <StepCell key={s.key} step={s} onOpen={onStep} />)}
+        </div>
+    ) : null);
+    // the softres list and the raidsheet: the orga reaches them through the steps, a raider through these links
+    const softresUrl = !orga ? data.eventSoftres?.url || "" : "";
+    const sheetUrl = !orga ? data.sheetLink?.url || "" : "";
     const loot = lootInMenu ? "" : lootSystemText(data);
     const ls = data.lootSystem;
 
@@ -156,6 +174,22 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                             <WowIcon name="inv_misc_map_01" size={24} />
                         </a>
                     )}
+                    {softresUrl && (
+                        <a
+                            className="ibtn" href={softresUrl} target="_blank" rel="noopener noreferrer"
+                            data-tip={t("raidDetail.hero.softres")} data-tip-sub={t("raidDetail.hero.softresSub")} aria-label={t("raidDetail.hero.softresAria")}
+                        >
+                            <WowIcon name="inv_scroll_11" size={24} />
+                        </a>
+                    )}
+                    {sheetUrl && (
+                        <a
+                            className="ibtn" href={sheetUrl} target="_blank" rel="noopener noreferrer"
+                            data-tip={t("raidDetail.hero.sheet")} data-tip-sub={t("raidDetail.hero.sheetSub")} aria-label={t("raidDetail.hero.sheetAria")}
+                        >
+                            <WowIcon name="inv_scroll_03" size={24} />
+                        </a>
+                    )}
                     {primary && (primary.href
                         ? (
                             <a className={buttonClass("primary", "md", true)} href={primary.href} target="_blank" rel="noopener noreferrer">
@@ -175,11 +209,7 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                 </div>
                 {manage && <div className="rd-hero-manage">{manage}</div>}
             </div>
-            {cockpit || (!!data.progress?.steps?.length && (
-                <div className="rd-steps" style={{ "--rd-steps": data.progress.steps.length } as CSSProperties}>
-                    {data.progress.steps.map((s) => <StepCell key={s.key} step={s} onOpen={onStep} />)}
-                </div>
-            ))}
+            {steps && (user ? <OrgaZone user={user}>{steps}</OrgaZone> : steps)}
         </header>
     );
 }

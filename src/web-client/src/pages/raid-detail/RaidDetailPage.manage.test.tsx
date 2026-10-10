@@ -269,10 +269,20 @@ describe("the head and the roster of an own event", () => {
         expect(calls("POST", "/api/raids/manage/recreate-channel")[0][2]).toEqual({ event: OWN_ID });
     });
 
-    it("offers no channel button to a reader", async () => {
-        await show(raidDetail({}, { channelState: "missing" }), READER);
+    it("offers no channel button to an orga role that only reads, and a raider not even the badge", async () => {
+        // "Kanal fehlt" is a task of the orga's (Oct 2026): an orga role reads it, a raider role gets nothing
+        const view = await show(raidDetail({}, { channelState: "missing" }), { ...READER, isOrga: true });
         expect(screen.getByText(t("raidDetail.hero.channelMissing"))).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: t("raidDetail.hero.recreateChannel") })).not.toBeInTheDocument();
+        view.unmount();
+        await show(raidDetail({}, { channelState: "missing" }), READER);
+        expect(screen.queryByText(t("raidDetail.hero.channelMissing"))).not.toBeInTheDocument();
+    });
+
+    it("gives a raider role with raids write neither Verwalten nor Raider eintragen - an area is no orga rank", async () => {
+        await show(raidDetail(), adminUser({ isAdmin: false, access: { raids: { read: true, write: true } } }));
+        expect(manageButton()).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: t("raidDetail.roster.addRaider") })).not.toBeInTheDocument();
     });
 
     it("has a visible way back to the raid list above the head", async () => {
@@ -346,13 +356,17 @@ describe("the raid plan's own area", () => {
     });
 
     it("offers the Raid-Helper event's plan switch to raidplan write, not to raids write", async () => {
-        let view = await show(raidhelperDetail(), EVENT_ORGA);
+        // the switch is in Verwalten, the orga's menu: every caller here is an orga role (a raider role gets none, below)
+        let view = await show(raidhelperDetail(), { ...EVENT_ORGA, isOrga: true });
         expect(manageButton()).toBeNull();
         view.unmount();
-        view = await show(raidhelperDetail(), adminUser({ isAdmin: false, access: { raids: READ, raidplan: WRITE } }));
+        view = await show(raidhelperDetail(), adminUser({ isAdmin: false, isOrga: true, access: { raids: READ, raidplan: WRITE } }));
         expect(manageButton()).not.toBeNull();
         view.unmount();
-        await show(raidhelperDetail(), adminUser({ isAdmin: false, access: { raids: READ, raidplan: READ } }));
+        view = await show(raidhelperDetail(), adminUser({ isAdmin: false, isOrga: true, access: { raids: READ, raidplan: READ } }));
+        expect(manageButton()).toBeNull();
+        view.unmount();
+        await show(raidhelperDetail(), adminUser({ isAdmin: false, access: { raids: READ, raidplan: WRITE } }));
         expect(manageButton()).toBeNull();
     });
 });

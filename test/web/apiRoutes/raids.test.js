@@ -273,6 +273,88 @@ describe("web/apiRoutes/raids", () => {
             expect(json(all).data.events.map((e) => e.id).sort()).toEqual(["e1", "e2"]);
             expect(json(all).data.version).toBe("");
         });
+
+        // Oct 2026: raids of foreign categories are the orga's (services/signups/eventVisibility.js) -
+        // a raider role holding raids read (or write) sees its categories and its own signups only.
+        describe("a raider role", () => {
+            const RAIDER = { id: "u1", name: "Rai", isAdmin: false, access: { raids: { read: true, write: true } } };
+            const ORGA_ROLE = { id: "o1", name: "Lead", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
+            const rosterStore = require("../../../src/stores/rosterStore");
+            let rosterSpy;
+            beforeEach(() => {
+                activeGuildFor.mockReturnValue("guild-1");
+                // "mo" for the role r-mo, "mi" open to everybody, "foreign" no event category at all
+                settingsStore.getConfig.mockReturnValue({ categoryIds: ["mo", "mi"], categoryRoles: { mo: ["r-mo"] } });
+                discord.memberRoleIds = jest.fn(async () => []);
+                rosterSpy = jest.spyOn(rosterStore, "rosterForCategory").mockReturnValue(null);
+                raidEventGroups.loadEventGroups.mockResolvedValue({
+                    groups: [
+                        { categoryId: "mo", categoryName: "Mo", events: [{ id: "e-mo", title: "Kara", startTime: 100, channelId: "c1", signUps: [] }] },
+                        { categoryId: "mi", categoryName: "Mi", events: [{ id: "e-mi", title: "Kara", startTime: 200, channelId: "c1", signUps: [] }] },
+                        { categoryId: "foreign", categoryName: "PuG", events: [
+                            { id: "e-pug", title: "Kara", startTime: 300, channelId: "c1", signUps: [] },
+                            { id: "e-mine", title: "Kara", startTime: 400, channelId: "c1", signUps: [{ userId: "u1", status: "signed" }] },
+                        ] },
+                    ],
+                    error: null,
+                });
+            });
+            afterEach(() => {
+                rosterSpy.mockRestore();
+                settingsStore.getConfig.mockReturnValue({});
+                delete discord.memberRoleIds;
+            });
+            const ids = async (user) => {
+                auth.getUser.mockReturnValue(user);
+                return json(await get("/api/raids")).data.events.map((e) => e.id);
+            };
+
+            it("sees the open categories and the raids they signed up for, not the foreign ones", async () => {
+                expect(await ids(RAIDER)).toEqual(["e-mi", "e-mine"]);
+                expect(discord.memberRoleIds).toHaveBeenCalledWith("guild-1", "u1");
+            });
+
+            it("gets no Raid-Helper sync message - it points into the orga's settings", async () => {
+                const groups = await raidEventGroups.loadEventGroups();
+                raidEventGroups.loadEventGroups.mockResolvedValue({ ...groups, error: "Raid-Helper nicht abgeglichen." });
+                auth.getUser.mockReturnValue(RAIDER);
+                expect(json(await get("/api/raids")).data.error).toBeNull();
+                auth.getUser.mockReturnValue(ORGA_ROLE);
+                expect(json(await get("/api/raids")).data.error).toBe("Raid-Helper nicht abgeglichen.");
+            });
+
+            it("sees a category of their raider role", async () => {
+                discord.memberRoleIds.mockResolvedValue(["r-mo"]);
+                expect(await ids(RAIDER)).toEqual(["e-mo", "e-mi", "e-mine"]);
+            });
+
+            it("sees the raids of a category whose roster opened them", async () => {
+                rosterSpy.mockImplementation((cat) => (cat === "foreign" ? { categoryId: "foreign", publicRaids: true, members: {} } : null));
+                expect(await ids(RAIDER)).toEqual(["e-mi", "e-pug", "e-mine"]);
+            });
+
+            it("leaves the orga role every raid, without asking Discord", async () => {
+                expect(await ids(ORGA_ROLE)).toEqual(["e-mo", "e-mi", "e-pug", "e-mine"]);
+                expect(discord.memberRoleIds).not.toHaveBeenCalled();
+            });
+
+            it("gets the past raids filtered the same way and without their logs; the loot count stays", async () => {
+                const row = (id, categoryId) => ({
+                    id, categoryId, title: "BT", versionId: "tbc", lootCount: 3,
+                    logs: [{ id: "l1", status: "done" }], pendingLogs: [{ title: "x", alsoFits: [] }], pendingLogCount: 1,
+                });
+                const past = { events: [row("p-mi", "mi"), row("p-pug", "foreign")], error: null };
+                raidListing.loadPastRaids.mockResolvedValue(past);
+                auth.getUser.mockReturnValue(RAIDER);
+                const raider = json(await get("/api/raids/past")).data.events;
+                expect(raider.map((e) => e.id)).toEqual(["p-mi"]);
+                expect(raider[0]).toMatchObject({ logs: [], pendingLogs: [], pendingLogCount: 0, lootCount: 3 });
+                auth.getUser.mockReturnValue(ORGA_ROLE);
+                const orga = json(await get("/api/raids/past")).data.events;
+                expect(orga.map((e) => e.id)).toEqual(["p-mi", "p-pug"]);
+                expect(orga[0]).toMatchObject({ logs: [{ id: "l1", status: "done" }], pendingLogCount: 1 });
+            });
+        });
     });
 
     describe("GET /api/raids/past", () => {
