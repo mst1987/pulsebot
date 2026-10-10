@@ -152,5 +152,82 @@
         "truncated": "Very many files - the sizes are lower bounds.",
         "biggest": { "one": "Biggest file", "other": "Biggest {count} files" },
         "noSpace": "The free space of the disk cannot be measured here."
+    },
+    "backup": {
+        "title": "Backup",
+        "tip": "Three parts of the backup: the snapshot on this server, the encrypted off-site copy and the restore test. The overall picture is only as good as the worst part.",
+        "tipSub": "Snapshots cannot be downloaded on purpose: they contain API keys and sessions.",
+        "crumb": {
+            "ok": "Everything backed up",
+            "warn": "Backup is getting old",
+            "bad": "Backup needs a look",
+            "none": "No backup known yet"
+        },
+        "now": "Back up now",
+        "nowTip": "Takes a snapshot of the data right away (on top of the hourly one)",
+        "done": "Backed up in {time}: {size}.",
+        "locked": "A backup is already running – please wait a moment.",
+        "failed": "Backup failed: {error}",
+        "failedPlain": "Backup failed.",
+        "loadFailed": "The backup status could not be loaded.",
+        "disabled": "Hourly snapshots are off on this instance (BACKUP_ENABLED=1 turns them on).",
+        "parts": {
+            "snapshot": "Snapshot",
+            "offsite": "Off-site copy",
+            "restoreTest": "Restore test"
+        },
+        "partTips": {
+            "snapshot": "The last snapshot of the data on this server",
+            "offsite": "The last encrypted copy in the cloud",
+            "restoreTest": "The last check that the backup can really be restored"
+        },
+        "never": "never",
+        "light": {
+            "ok": "Fine",
+            "warn": "Getting old",
+            "bad": "Needs help",
+            "none": "Unknown"
+        },
+        "lightTip": {
+            "ok": "Fresh enough",
+            "warn": "Older than expected",
+            "bad": "Failed or far too old",
+            "none": "Nothing known about it yet"
+        },
+        "limits": {
+            "snapshot": "Green under 26 hours, yellow under 48 hours, red above.",
+            "restoreTest": "Green under 8 days, yellow under 15 days, red above."
+        },
+        "size": "{size}",
+        "sizeAdded": "{size} in total, {added} new",
+        "duration": "in {time}",
+        "error": "Error: {error}",
+        "ago": {
+            "now": "just now",
+            "minutes": "{count} min ago",
+            "hours": "{count} hr ago",
+            "days": {
+                "one": "{count} day ago",
+                "other": "{count} days ago"
+            }
+        },
+        "list": {
+            "label": {
+                "one": "{count} snapshot on this server",
+                "other": "{count} snapshots on this server"
+            },
+            "empty": "No snapshot yet.",
+            "incomplete": "incomplete",
+            "files": {
+                "one": "{count} file",
+                "other": "{count} files"
+            },
+            "reasons": {
+                "hourly": "hourly",
+                "manual": "manual",
+                "deploy": "deploy",
+                "pre-restore": "before restore"
+            }
+        }
     }
 }

@@ -50,7 +50,8 @@ describe("GET /api/system/status", () => {
         expect(systemStatus.build).not.toHaveBeenCalled();
     });
 
-    it("registers one adminOnly GET route", () => {
-        expect(route.routes).toEqual([{ method: "GET", path: "/api/system/status", handler: route.getStatus, adminOnly: true }]);
+    it("registers the status route as adminOnly", () => {
+        expect(route.routes[0]).toEqual({ method: "GET", path: "/api/system/status", handler: route.getStatus, adminOnly: true });
+        expect(route.routes.every((r) => r.adminOnly === true)).toBe(true);
     });
 });

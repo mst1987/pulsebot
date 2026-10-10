@@ -87,3 +87,14 @@
     .sy-rows li { grid-template-columns: minmax(0, 1fr); }
     .sy-rows .bar { width: 100%; }
 }
+
+/* ---- Datensicherung (BackupSection.tsx) ---- */
+.sy-backup-tiles { margin: 0 0 6px; }
+.sy-backup-when { font-size: 26px; }
+.sy-backup-detail { overflow-wrap: anywhere; }
+.sy-backup-light { margin-top: 6px; }
+.sy-backup-note { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--line); border-left: 4px solid var(--good); background: var(--panel); font-size: 14px; overflow-wrap: anywhere; }
+.sy-backup-note-bad { border-left-color: var(--high); }
+.sy-backup-list li { justify-content: space-between; flex-wrap: nowrap; }
+.sy-backup-snap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; }
+.sy-backup-snap-fig { flex: 0 0 auto; font-variant-numeric: tabular-nums; color: var(--muted); }

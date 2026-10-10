@@ -1,4 +1,4 @@
-import { get } from "./client";
+import { get, send } from "./client";
 
 // The "Systemstatus" page (docs/system-status.md): GET /api/system/status,
 // full admins only. Built by src/services/system/systemStatus.js.
@@ -92,4 +92,47 @@ export function getSystemStatus({ processes = false, disk = false }: { processes
     if (disk) q.set("disk", "1");
     const qs = q.toString();
     return get<SystemStatus>(`/api/system/status${qs ? `?${qs}` : ""}`);
+}
+
+// "Datensicherung" (#696): GET /api/system/backup and POST /api/system/backup/snapshot, built by
+// src/services/backup/backupStatus.js. No download of a snapshot on purpose: it holds API keys and sessions.
+
+export type BackupLight = "ok" | "warn" | "bad" | "none";
+export type BackupPartKey = "snapshot" | "offsite" | "restoreTest";
+
+export type BackupPart = {
+    key: BackupPartKey;
+    light: BackupLight;
+    /** fresh, stale (too old), failed (the last run failed) or never */
+    state: "fresh" | "stale" | "failed" | "never";
+    /** ms of the last run; 0 = never */
+    at: number;
+    ok: boolean | null;
+    bytes: number;
+    durationMs: number;
+    addedBytes?: number;
+    error: string;
+};
+
+export type BackupSnapshotRow = { name: string; reason: string; at: number; bytes: number; files: number; commit: string; complete: boolean };
+
+export type BackupStatus = {
+    now: number;
+    enabled: boolean;
+    exists: boolean;
+    light: BackupLight;
+    parts: BackupPart[];
+    count: number;
+    snapshots: BackupSnapshotRow[];
+};
+
+export type BackupRunResult = { ok: boolean; skipped: "" | "locked"; name: string; durationMs: number; bytes: number; error: string };
+
+export function getBackupStatus(): Promise<BackupStatus> {
+    return get<BackupStatus>("/api/system/backup");
+}
+
+/** "Jetzt sichern": one manual snapshot; answers 200 with the result either way. */
+export function runBackupNow(): Promise<BackupRunResult> {
+    return send<BackupRunResult>("POST", "/api/system/backup/snapshot", {});
 }

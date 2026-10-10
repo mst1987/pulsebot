@@ -256,6 +256,8 @@
     "/api/ingest/guildbank/handouts"
   ],
   "adminOnly": [
+    "/api/system/backup",
+    "/api/system/backup/snapshot",
     "/api/system/status"
   ]
 }

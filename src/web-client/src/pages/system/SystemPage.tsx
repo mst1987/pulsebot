@@ -23,6 +23,7 @@ import { useT } from "../../i18n";
 import { POLL_MS, mergePoll, uptime, type Range } from "../../lib/system/systemFormat";
 import Verdict from "./Verdict";
 import { Tiles, HostDetails } from "./Tiles";
+import BackupSection from "./BackupSection";
 import RoutesSection from "./RoutesSection";
 import { DiskSection, ProcessesSection } from "./HostSections";
 import "../../styles/system.css";
@@ -80,6 +81,7 @@ export default function SystemPage() {
                         <Verdict status={d} />
                         <Tiles status={d} range={range} onRange={setRange} />
                         <HostDetails status={d} />
+                        <BackupSection />
                         <RoutesSection requests={d.requests} />
                         {d.processes && d.processes.list.length > 0 && <ProcessesSection processes={d.processes} />}
                         {d.disk && <DiskSection disk={d.disk} />}

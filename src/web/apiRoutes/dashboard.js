@@ -14,6 +14,8 @@ const { loadPersonal } = require("../dashboard/dashboardPersonal");
 const { loadDrift } = require("../../services/discord/roleSync");
 const { seriesFailures } = require("../events/eventSeries");
 const { deployStatus } = require("../http/deployStatus");
+const { readParts: readBackupParts } = require("../../services/backup/backupStatus");
+const { backupEnabled } = require("../../services/backup/backupConfig");
 const linkCheck = require("../../services/discord/linkCheck");
 const { mainVersionFor, resolveVersionQuery } = require("../../services/events/mainVersion");
 const { settingsForVersion } = require("../../services/events/versionSettings");
@@ -73,6 +75,8 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     // settings, the same audience the footer line has. Best-effort and cached
     // for ten minutes in deployStatus.js, so it never slows the page down twice.
     const deploy = userCanAny(user, ["settings"], "read") ? await deployStatus() : null;
+    // The state of the backup (#696): a full admin's task, and only where this instance takes backups at all.
+    const backup = user.isAdmin && backupEnabled() ? readBackupParts() : null;
     // Raids whose channel is gone (#537), for whoever sees the raids.
     const missingChannels = orga ? await loadMissingChannels(guildId) : [];
     // Trials ending soon (#658), for whoever may change roster members: full admins and the roster's managers.
@@ -98,6 +102,7 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
             // Failed dates of a recurring event (#289), for whoever can open the series page.
             seriesFailures: orga ? seriesFailuresFor(guildId) : [],
             deploy,
+            backup,
             missingChannels,
             canRecreate: raidsWrite,
             trials,
