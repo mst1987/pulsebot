@@ -32,7 +32,13 @@ export type ViewAsRole = { id: string; name: string; color: string; admin: boole
 export type GuildRole = "event" | "talk" | "";
 export type SessionGuild = { id: string; name: string; role?: GuildRole };
 /** A game version the content switch offers (#563). */
-export type ContentVersionRef = { id: string; label: string; short: string };
+export type ContentVersionRef = {
+    id: string; label: string; short: string;
+    /** The version's colour (#742): the setting's, else the rule set's. Missing = the stylesheet's default. */
+    color?: string;
+    /** The colour differs from the rule set's — only then the client writes its own values (lib/app/versionColor.ts). */
+    custom?: boolean;
+};
 /** The content switch of the menu (#563): main version, whether the others are hidden, the versions offered (main first). */
 export type ContentInfo = { mainVersion: string; hideOtherVersions: boolean; versions: ContentVersionRef[] };
 export type Session = {

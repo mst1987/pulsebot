@@ -13,6 +13,8 @@
 //   wowheadPath         "tbc"                             www.wowhead.com/<path>/item=…
 //   softresEdition      "classic" | "tbc" | "wotlk" | ""  softres.it edition
 //   raidsheetId         id of a raidsheet (Einstellungen → Raidsheets)
+//   color               "#rrggbb"                         the version's colour in the web admin (#742);
+//                       "" = the rule set's colour (config/gameVersions/<id>.js color, see colorOf)
 //
 // A value that does not pass is "", and "" means "not there for this version".
 //
@@ -25,7 +27,7 @@ const vars = require("../config/variables");
 
 const FIELDS = [
     "blizzardRegion", "blizzardRealmSlug", "blizzardNamespace",
-    "armoryUrlTemplate", "wclUrlTemplate", "wowheadPath", "softresEdition", "raidsheetId",
+    "armoryUrlTemplate", "wclUrlTemplate", "wowheadPath", "softresEdition", "raidsheetId", "color",
 ];
 
 const REGIONS = ["eu", "us", "kr", "tw"];
@@ -33,6 +35,7 @@ const SOFTRES_EDITIONS = [...new Set(Object.values(SOFTRES_INSTANCES).map((i) =>
 const SLUG = /^[a-z0-9][a-z0-9-]{0,59}$/;
 const RAIDSHEET_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const TEMPLATE_MAX = 300;
+const HEX_COLOR = /^#[0-9a-f]{6}$/;
 
 const str = (v) => (v === undefined || v === null ? "" : String(v)).trim();
 
@@ -63,6 +66,7 @@ function normalizeBlock(raw) {
     const wowhead = str(src.wowheadPath).toLowerCase().replace(/^\/+|\/+$/g, "");
     const edition = str(src.softresEdition).toLowerCase();
     const sheet = str(src.raidsheetId);
+    const color = str(src.color).toLowerCase();
     return {
         blizzardRegion: REGIONS.includes(region) ? region : "",
         blizzardRealmSlug: SLUG.test(realm) ? realm : "",
@@ -72,7 +76,19 @@ function normalizeBlock(raw) {
         wowheadPath: SLUG.test(wowhead) ? wowhead : "",
         softresEdition: SOFTRES_EDITIONS.includes(edition) ? edition : "",
         raidsheetId: RAIDSHEET_ID.test(sheet) ? sheet : "",
+        color: HEX_COLOR.test(color) ? color : "",
     };
+}
+
+/** The rule set's own colour of a version (dark theme), "" for an unknown one. */
+function defaultColorOf(versionId) {
+    const rules = VERSIONS.find((v) => v.id === versionId);
+    return rules && HEX_COLOR.test(String(rules.color || "")) ? rules.color : "";
+}
+
+/** The colour a version shows in: the block's own, else the rule set's. */
+function colorOf(block, versionId) {
+    return normalizeBlock(block).color || defaultColorOf(versionId);
 }
 
 /**
@@ -160,6 +176,7 @@ function legacyTbcBlock(stored) {
         wowheadPath: "tbc",
         softresEdition: "tbc",
         raidsheetId: "",
+        color: "",
     });
 }
 
@@ -182,5 +199,6 @@ function versionSettingsOf(stored) {
 module.exports = {
     FIELDS, REGIONS, SOFTRES_EDITIONS,
     normalizeTemplate, normalizeBlock, normalizeVersionSettings, legacyTbcBlock, versionSettingsOf,
+    defaultColorOf, colorOf,
     settingsDefaultsOf, versionsWithDefaults, defaultBlock, defaultVersionSettings, fillDefaults,
 };

@@ -17,6 +17,7 @@ const PREFIX = "/r-assets/";
 
 const FILES = {
     "report.css": "text/css; charset=utf-8",
+    "report-version.css": "text/css; charset=utf-8",
     "report.js": "text/javascript; charset=utf-8",
 };
 

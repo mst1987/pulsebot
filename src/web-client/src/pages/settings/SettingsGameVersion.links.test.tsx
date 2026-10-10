@@ -125,3 +125,48 @@ describe("VersionSettingsCard standard values (#553)", () => {
         });
     });
 });
+
+describe("VersionSettingsCard colour (#742)", () => {
+    const COLORED = VERSIONS.map((v) => ({ ...v, color: v.id === "forever" ? "#4da3ff" : "#9bd45a" }));
+    function ColorHarness({ onChange }: { onChange: (id: string, b: VersionSettingsBlock) => void }) {
+        const [value, setValue] = useState<Record<string, VersionSettingsBlock>>({ tbc: TBC, classic: emptyBlock(), forever: emptyBlock() });
+        return (
+            <VersionSettingsCard
+                versions={COLORED} mainVersion="forever" value={value} defaults={DEFAULTS} raidsheets={[]}
+                onChange={(id, block) => { onChange(id, block); setValue((cur) => ({ ...cur, [id]: block })); }}
+            />
+        );
+    }
+
+    it("shows the rule set's colour as the placeholder, takes a hex and resets to the default", async () => {
+        const onChange = vi.fn();
+        render(<ColorHarness onChange={onChange} />);
+        const field = screen.getByRole("textbox", { name: "Farbe der Version" });
+        expect(field).toHaveValue("");
+        expect(field).toHaveAttribute("placeholder", "#4da3ff");
+        const reset = screen.getByRole("button", { name: "Zurücksetzen" });
+        expect(reset).toBeDisabled();
+        await userEvent.type(field, "#aa3377");
+        expect(onChange).toHaveBeenLastCalledWith("forever", expect.objectContaining({ color: "#aa3377" }));
+        expect(screen.getByLabelText("Farbe wählen")).toHaveValue("#aa3377");
+        await userEvent.click(reset);
+        expect(onChange).toHaveBeenLastCalledWith("forever", expect.objectContaining({ color: "" }));
+        expect(field).toHaveValue("");
+    });
+
+    it("says at the field when the colour is no #rrggbb", async () => {
+        render(<ColorHarness onChange={vi.fn()} />);
+        const field = screen.getByRole("textbox", { name: "Farbe der Version" });
+        await userEvent.type(field, "blau");
+        expect(screen.getByRole("alert")).toHaveTextContent("Eine Farbe wie #4da3ff.");
+        expect(field).toHaveAttribute("aria-invalid", "true");
+    });
+
+    it("keeps the colour per version", async () => {
+        render(<ColorHarness onChange={vi.fn()} />);
+        await userEvent.type(screen.getByRole("textbox", { name: "Farbe der Version" }), "#aa3377");
+        await userEvent.click(screen.getByRole("radio", { name: "TBC" }));
+        expect(screen.getByRole("textbox", { name: "Farbe der Version" })).toHaveValue("");
+        expect(screen.getByRole("textbox", { name: "Farbe der Version" })).toHaveAttribute("placeholder", "#9bd45a");
+    });
+});

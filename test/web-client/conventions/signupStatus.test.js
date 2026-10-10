@@ -15,7 +15,7 @@ describe("signup status colours", () => {
         }
         // The three palette blocks: :root (dark), the prefers-color-scheme one
         // and the explicit [data-theme="light"].
-        const blocks = css.split(/\n(?=:root|@media|\S)/).filter((b) => b.includes("--accent:"));
+        const blocks = css.split(/\n(?=:root|@media|\S)/).filter((b) => b.includes("--accent:") && !b.includes("data-version"));
         expect(blocks.length).toBe(3);
         for (const block of blocks) {
             for (const status of SIGNUP_STATUSES) expect(block).toContain(`--sig-${status}:`);

@@ -263,7 +263,7 @@ describe("web/apiRoutes/settings", () => {
                 expect(data.areas.map((a) => a.id)).toEqual(AREA_IDS);
                 // Einstellungen → Spielversion (#541) picks from these
                 expect(data.gameVersions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
-                expect(data.gameVersions[2]).toEqual({ id: "forever", label: expect.any(String), short: expect.any(String) });
+                expect(data.gameVersions[2]).toEqual({ id: "forever", label: expect.any(String), short: expect.any(String), color: "#4da3ff" });
                 // "Standardwerte übernehmen" (#553): Classic has checked values, Forever none yet
                 expect(data.versionDefaults.classic).toMatchObject({ wowheadPath: "classic", softresEdition: "classic", blizzardRealmSlug: "" });
                 // Forever: only its Wowhead section (#750), no realm, armory or log site
@@ -713,6 +713,17 @@ describe("web/apiRoutes/settings", () => {
                 const res = await patch("/api/settings", { versionSettings: { forever: { armoryUrlTemplate: "https://armory.test/no-placeholder" } } });
                 expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
                 expect(json(res).error).toEqual({ code: "invalid_version_settings", message: "WoW Forever: armoryUrlTemplate ist ungültig." });
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("takes a version colour as lower-case #rrggbb, an empty one resets it, a bad one is refused", async () => {
+                const ok = await patch("/api/settings", { versionSettings: { forever: { color: "#AA3377" }, tbc: { color: "" } } });
+                expect(ok.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ versionSettings: { forever: { color: "#aa3377" }, tbc: { color: "" } } });
+                settingsStore.saveConfig.mockClear();
+                const bad = await patch("/api/settings", { versionSettings: { forever: { color: "blue" } } });
+                expect(bad.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(bad).error.message).toBe("WoW Forever: color ist ungültig.");
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
 
