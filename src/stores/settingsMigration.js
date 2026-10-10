@@ -78,6 +78,15 @@
 //     (councilProfilesStore.migrateLegacy, `migrated`); the old files stay
 //     untouched on disk.
 //
+//   - raid-events.json, rosters.json (#737): every raid has a stored version.
+//     A Raid-Helper snapshot without `versionId` gets the version its category
+//     plays today (config.categoryVersion, else the main version — in practice
+//     TBC), a roster without one the same for its category. From then on a
+//     switch of the main or category version moves no stored raid, loot, log
+//     or roster; the scan stamps new snapshots itself (raidEventScan.js). Has
+//     to run before the main version is switched for the first time - it is
+//     part of the first deploy of epic #736. One line per file and version.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
@@ -85,6 +94,7 @@ const { isSnowflake } = require("../utils/ids");
 const { CONFIG_DEFAULTS } = require("./configSchema");
 const { versionSettingsOf, versionsWithDefaults, fillDefaults } = require("./versionSettingsSchema");
 const { LEGACY_VERSION } = require("../config/gameVersions");
+const { mainVersionFor } = require("../services/events/mainVersion");
 const configStore = require("./configStore");
 const raidTemplateStore = require("./raidTemplateStore");
 const eventStore = require("./eventStore");
@@ -268,6 +278,25 @@ function migrateRecruitmentVersions() {
     return out;
 }
 
+/** `counts` ({ versionId: n }) as log lines `<file>: n <what> → "<versionId>" (#737)`. */
+function versionStampLines(file, what, counts) {
+    return Object.entries(counts || {}).map(([versionId, n]) => `${file}: ${n} ${what} → "${versionId}" (#737)`);
+}
+
+/**
+ * Every raid has a stored version (#737): Raid-Helper snapshots and rosters
+ * without one get the version their category plays today. One line per file
+ * and version, or none.
+ */
+function migrateStoredVersions() {
+    const config = configStore.getConfig();
+    const raids = raidEventStore.migrateVersions((e) => mainVersionFor({ categoryId: e.categoryId || "", config }));
+    return [
+        ...versionStampLines("raid-events.json", "Raid(s)", raids),
+        ...versionStampLines("rosters.json", "Roster", rosterStore.migrateVersions()),
+    ];
+}
+
 /** The Forever character of a raider profile as the Kaderplaner's migration reads it: the raider's first one. */
 function profileCharOf(userId) {
     const c = raiderProfileStore.firstCharacter(raiderProfileStore.getProfile(userId), "forever");
@@ -407,6 +436,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateKaderPlanner());
         changes.push(...migrateCategoryPlanning());
         changes.push(...migrateCategoryRosters());
+        changes.push(...migrateStoredVersions());
         changes.push(...migrateCouncilProfiles());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
@@ -417,6 +447,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateCategoryPlanning, migrateCategoryRosters, migrateCouncilProfiles, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCouncilProfiles, raidplanDefaultsLine,
     legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

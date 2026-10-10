@@ -1,6 +1,7 @@
 // The game version of an imported loot row (#542): the version of the event it
-// is filed under - an own event's own, a Raid-Helper event's category's, a
-// hand-typed label's category's - so a Forever raid's loot links Forever's
+// is filed under - an own event's own, a scanned Raid-Helper raid's stored one
+// (#737), else (a raid not scanned yet, a hand-typed label) the category's -
+// so a Forever raid's loot links Forever's
 // Wowhead and never the TBC one. Asked once per import, after the target event
 // is known (the parse itself linked with the main version).
 const { getEvent } = require("../../stores/eventStore");
@@ -11,7 +12,7 @@ const { enrichItemNames } = require("../../utils/loot/lootImport");
 /** The version of an import target `{ eventId, categoryId }`. */
 function versionOfImport({ eventId = "", categoryId = "" } = {}) {
     const ev = eventId ? getEvent(String(eventId)) : null;
-    return versionOfEvent({ versionId: ev ? ev.versionId : "", categoryId: (ev && ev.categoryId) || categoryId });
+    return versionOfEvent({ id: String(eventId || ""), versionId: ev ? ev.versionId : "", categoryId: (ev && ev.categoryId) || categoryId });
 }
 
 /** Set every item's Wowhead link to the one of `versionId` ("" when it has no Wowhead path); mutates and returns `items`. */

@@ -163,7 +163,9 @@ pm2 start pulsebot
 - Die Sicherung enthält **sensible** Dateien (Tabelle unten, u. a. `config.json` mit API-Schlüsseln und
   `sessions.json`): wie die `.env` behandeln, nicht in ein Ticket, einen Chat oder ein öffentliches Repo legen.
 - Ohne Verlust wegwerfbar sind nur die Caches (`sim/results.json`, `settings/characters.json`,
-  `settings/raid-events.json`, `settings/category-names.json`); sie füllen sich von selbst wieder.
+  `settings/category-names.json`); sie füllen sich von selbst wieder. `settings/raid-events.json` gehört seit #737
+  nicht mehr dazu: Es hält die Spielversion jedes Raid-Helper-Raids (und die Anmeldungen, die Raid-Helper später
+  nicht mehr liefert). Neu gescannt bekäme ein Raid die Version, die seine Kategorie *dann* spielt.
 
 ## Dateien
 
@@ -193,7 +195,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/event-loot-system.json` | `eventLootSystemStore.js` | Loot-System je Event (z. B. softres) | nein |
 | `settings/event-sheets.json` | `eventSheetStore.js` | Welche Events ins Google-Raidsheet geschrieben wurden | nein |
 | `settings/event-softres.json` | `eventSoftresStore.js` | Angelegte softres.it-Listen je Event (Links) | nein |
-| `settings/raid-events.json` | `raidEventStore.js` | Schnappschuss gesehener Raid-Helper-Events (Cache) | nein |
+| `settings/raid-events.json` | `raidEventStore.js` | Schnappschuss gesehener Raid-Helper-Events (Cache) samt `versionId` (#737): die Spielversion, die die Kategorie beim ersten Scan spielte – ein späterer Scan überschreibt sie nicht, ältere Einträge stempelt die Start-Migration einmal; siehe [raid-templates.md](raid-templates.md) „Version fest an jedem Raid“ | nein |
 | `settings/raidhelper-events.json` | `raidhelperEventsStore.js` | Die Raid-Helper-Eventliste (mit Anmeldungen) des letzten Abgleichs, `syncedAt`, letzter Fehler (Cache, #608) | nein |
 | `settings/raidhelper-budget.json` | `raidhelperBudgetStore.js` | Anfragen an Raid-Helper je Stunde der letzten 24 h, Sperre nach HTTP 429 (#608). Löschen setzt nur den Zähler zurück, nicht den von Raid-Helper | nein |
 | `settings/category-names.json` | `services/discord/categoryNames.js` | Letzte bekannte Namen der Discord-Kategorien (Cache) | nein |
@@ -212,7 +214,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/logGear.json` | `logGearStore.js` | Aus einem WCL-Report geladenes Gear je Raider | nein |
 | `settings/characters.json` | `characterStore.js` | Klasse/Spec je Charakter (Cache aus Loot und Logs) | nein |
 | `settings/raider-characters.json` | `raiderCharactersStore.js` | Charakter je Raider und Raid-Kategorie (Orga-Zuordnung) — nur noch für Kategorien ohne Roster; nach der Roster-Migration (#653) bleibt die Datei unverändert liegen, gelesen und geschrieben wird für Kategorien mit Roster `rosters.json` | nein |
-| `settings/rosters.json` | `rosterStore.js` | Raid-Roster (#653): `{ rosters: { [id]: { id, guildId, name, categoryId, versionId, roleIds, trialRoleId, managers: { roleIds, userIds }, slots, allowMultipleChars, signupOnly, source, members: { [userId]: { status, since, by, chars, charNames, note, trialUntil } }, history (die letzten 500), createdAt, createdBy } }, migratedCategories }` — höchstens ein Roster je Kategorie; `migratedCategories` = Kategorien, die die Start-Migration schon übernommen hat (ein gelöschtes Roster entsteht nicht neu); `history` hält seit #656 auch Discord-Rollen (`role-given`, `role-taken`, `role-give-failed`, `role-take-failed`) und Änderungen „via Discord“; siehe [roster-profile.md](roster-profile.md#roster-je-kategorie-store) | nein (Notizen der Orga zu Mitgliedern, nur intern) |
+| `settings/rosters.json` | `rosterStore.js` | Raid-Roster (#653): `{ rosters: { [id]: { id, guildId, name, categoryId, versionId, roleIds, trialRoleId, managers: { roleIds, userIds }, slots, allowMultipleChars, signupOnly, source, members: { [userId]: { status, since, by, chars, charNames, note, trialUntil } }, history (die letzten 500), createdAt, createdBy } }, migratedCategories }` — höchstens ein Roster je Kategorie; `migratedCategories` = Kategorien, die die Start-Migration schon übernommen hat (ein gelöschtes Roster entsteht nicht neu); `versionId` ist gespeichert, nicht aus der aktuellen Einstellung abgeleitet (#737: beim Anlegen die Version der Kategorie, ein Roster ohne Version stempelt die Start-Migration einmal); `history` hält seit #656 auch Discord-Rollen (`role-given`, `role-taken`, `role-give-failed`, `role-take-failed`) und Änderungen „via Discord“; siehe [roster-profile.md](roster-profile.md#roster-je-kategorie-store) | nein (Notizen der Orga zu Mitgliedern, nur intern) |
 | `settings/raider-profiles.json` | `raiderProfileStore.js` | „Mein Profil“: Charaktere (je mit `versionId`, #543), Specs, Wünsche der Raider | nein |
 | `settings/spec-history.json` | `specHistoryStore.js` | Spec-Historie (u. a. aus dem Raid-Helper-Import), je Eintrag `versionId` (#543) | nein |
 | `settings/roster-hidden.json` | `rosterHiddenStore.js` | Im Roster ausgeblendete Charaktere | nein |
