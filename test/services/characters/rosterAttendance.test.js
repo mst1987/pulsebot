@@ -635,3 +635,23 @@ describe("services/characters/rosterAttendance je Spielversion (#543, #740)", ()
         expect(categoryInfo(ctx, "cat1")).toEqual({ raids: 1, contents: ["SSC"], icon: "achievement_boss_ladyvashj" });
     });
 });
+
+describe("services/characters/rosterAttendance - only past nights count", () => {
+    // stored start times are seconds; callers hand in `now` as milliseconds or seconds
+    const SEC = Math.floor(NOW / 1000);
+    const snap = (id, offsetDays) => ({
+        id, guildId: "g1", categoryId: "cat1", title: `Raid ${id}`, startTime: SEC + offsetDays * 86400,
+        signUps: [{ userId: "u1", status: "signed", name: "Anna" }],
+    });
+    beforeEach(() => {
+        jest.clearAllMocks();
+        withReports([]);
+        mockListOwnEvents.mockReturnValue([]);
+        mockListRaidEvents.mockReturnValue([snap("past", -7), snap("coming", 3)]);
+    });
+
+    it.each([["milliseconds", NOW], ["seconds", SEC]])("leaves out a coming Raid-Helper raid with signups (now in %s)", (_unit, now) => {
+        const ctx = buildAttendanceContext("g1", { now, versionId: "tbc" });
+        expect(ctx.raidsByCategory.get("cat1").map((r) => r.id)).toEqual(["past"]);
+    });
+});
