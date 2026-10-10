@@ -423,18 +423,23 @@ function isQuality(q) {
  * (still clickable via itemLink). Call once at import time — the result is
  * stored, so later reads never repeat the network round trip.
  *
+ * `versionId` picks the Wowhead section the lookup asks (the event's version).
+ *
  * `itemQuality` is what the item name is coloured with everywhere in the app
  * (see web-client's lib/wow/itemQuality.ts); it is stored rather than derived on
  * read because nothing in the repo maps an item id to its quality offline.
  */
-async function enrichItemNames(items) {
+async function enrichItemNames(items, { versionId = "" } = {}) {
     const ids = [...new Set(
         (items || [])
             .filter(needsLookup)
             .map((it) => it.itemId)
     )];
     if (!ids.length) return items;
-    const lookups = await Promise.all(ids.map((id) => wowhead.lookupItem(id)));
+    // The Wowhead section of the event's version (#750); without a version, or
+    // for one without links, the lookup stays on TBC like before.
+    const path = versionId ? versionLinks(versionId).wowheadPath : "";
+    const lookups = await Promise.all(ids.map((id) => wowhead.lookupItem(id, { path })));
     const byId = new Map(ids.map((id, i) => [id, lookups[i]]));
     for (const it of items) {
         const found = it && it.itemId ? byId.get(it.itemId) : null;

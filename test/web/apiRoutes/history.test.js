@@ -804,7 +804,7 @@ describe("web/apiRoutes/history", () => {
 
         it("looks up the item's name and icon before storing it", async () => {
             await post("/api/history/loot-add", entry);
-            expect(lootImport.enrichItemNames).toHaveBeenCalledWith([expect.objectContaining({ itemId: 30095 })]);
+            expect(lootImport.enrichItemNames).toHaveBeenCalledWith([expect.objectContaining({ itemId: 30095 })], { versionId: "tbc" });
         });
 
         it("returns 409 when the same award is already stored (a double submit)", async () => {

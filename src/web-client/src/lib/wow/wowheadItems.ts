@@ -33,5 +33,7 @@ export const LEGACY_WOWHEAD_PATH = "tbc";
  */
 export function wowheadItemUrl(itemId: number, params: string[] = [], path: string = LEGACY_WOWHEAD_PATH): string {
     if (!path || !itemId) return "";
-    return `https://www.wowhead.com/${path}/item=${wowheadItemId(itemId)}${params.length ? `?${params.join("&")}` : ""}`;
+    // the re-issues are TBC Anniversary's: another version's section knows no such id
+    const target = path === LEGACY_WOWHEAD_PATH ? wowheadItemId(itemId) : itemId;
+    return `https://www.wowhead.com/${path}/item=${target}${params.length ? `?${params.join("&")}` : ""}`;
 }

@@ -35,9 +35,9 @@ const { itemMeta: raidItemMeta } = require("../../config/tbcLootNames");
 const { settingsForVersion } = require("../events/versionSettings");
 const logger = require("../../logger").child("guildbank");
 
-// The Wowhead path of a version without its own setting (#542): Forever has
-// Classic's items until it gets a branch of its own.
-const FALLBACK_PATH = { tbc: "tbc", classic: "classic", forever: "classic" };
+// The Wowhead path of a version without its own setting (#542); Forever has
+// a section of its own (#750).
+const FALLBACK_PATH = { tbc: "tbc", classic: "classic", forever: "forever" };
 /** Pause between two Wowhead requests. */
 const DEFAULT_GAP_MS = 400;
 /** How long a failed lookup is not tried again. */
