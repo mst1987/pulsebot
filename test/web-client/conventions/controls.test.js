@@ -45,6 +45,13 @@ describe("web-client control styles", () => {
         expect(rule[0]).toContain("min-height: var(--ctl-h)");
     });
 
+    it("gives the chevron to a disabled select only, never to a disabled text field (it tiled across the field)", () => {
+        const shared = css.match(/select:disabled, \.field input:disabled, \.inp-sm:disabled \{[^}]+\}/);
+        expect(shared).not.toBeNull();
+        expect(shared[0]).not.toContain("background-image");
+        expect(css).toMatch(/\nselect:disabled \{ background-image: var\(--ctl-arrow\); \}/);
+    });
+
     it("never sets the control background through the shorthand", () => {
         // The shorthand resets background-image, and it does so from a selector
         // list that outranks the plain `select` rule — .sel-sm loses its chevron.

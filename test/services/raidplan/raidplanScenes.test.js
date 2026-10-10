@@ -127,3 +127,32 @@ describe("scenes on a board", () => {
         expect(scenes.reidScenes(undefined)).toEqual([]);
     });
 });
+
+describe("a single raider of a group marker (member:<slot>~<user>)", () => {
+    const raw = {
+        slots: [{ id: "g1", kind: "group", n: 1, label: "", x: 0.2, y: 0.8 }, { id: "t1", kind: "tank", n: 1, label: "", x: 0.5, y: 0.5 }],
+        scenes: [{ id: "s1", frames: [{ changes: [
+            { obj: "member:g1~u1", x: 0.6, y: 0.4, badge: "spell_shadow_bloodboil" },
+            { obj: "member:g1~stranger", x: 0.6, y: 0.4 },
+            { obj: "member:t1~u1", x: 0.6, y: 0.4 },
+            { obj: "member:gone~u1", x: 0.6, y: 0.4 },
+            { obj: "member:g1", x: 0.6, y: 0.4 },
+        ] }], loops: [{ obj: "member:g1~u1", path: [[0, 0], [1, 1]] }] }],
+    };
+    it("keeps him only for a group marker of the board and a player of the lineup", () => {
+        const [s] = board.cleanBoard(raw, { allowedUserIds: ["u1"] }).board.scenes;
+        expect(s.frames[0].changes.map((c) => c.obj)).toEqual(["member:g1~u1"]);
+        expect(s.loops.map((l) => l.obj)).toEqual(["member:g1~u1"]);
+        // ANY_PLAYER (a Raid-Helper line-up that could not be loaded) keeps a well-formed player
+        expect(board.cleanBoard(raw, { allowedUserIds: board.ANY_PLAYER }).board.scenes[0].frames[0].changes.map((c) => c.obj)).toEqual(["member:g1~u1", "member:g1~stranger"]);
+        // a template has no players: no raider of a group either
+        expect(board.cleanBoard(raw, { allowedUserIds: [] }).board.scenes[0].frames[0].changes).toEqual([]);
+    });
+    it("follows his group marker to its new id when the board is copied", () => {
+        const b = board.cleanBoard(raw, { allowedUserIds: ["u1"] }).board;
+        const copy = board.reidBoard(b);
+        const g1 = copy.slots.find((x) => x.kind === "group").id;
+        expect(copy.scenes[0].frames[0].changes[0].obj).toBe(`member:${g1}~u1`);
+        expect(scenes.MEMBER_REF.test("member:a~b")).toBe(true);
+    });
+});

@@ -34,9 +34,11 @@ loop   { id, obj, path: [[x, y]], closed, period, from, to, trail }
 ```
 
 - `obj` = `"<kind>:<id>"`: `token:<userId>`, `slot:<id>`, `icon:<id>`, `mark:<id>`, `zone:<id>`, `line:<id>`,
-  `text:<id>` or `auto:<key>` (an object the tank rows put on the map, the keys of `autoPos`). A reference to an object
-  the board no longer has is dropped on every save (a player outside the lineup has no token, so nothing of his stays);
-  an `auto:` key is only checked for its form (the rows derive those objects).
+  `text:<id>`, `auto:<key>` (an object the tank rows put on the map, the keys of `autoPos`) or
+  `member:<slotId>~<userId>` (**one raider of a group marker**, #722: only for a group marker of the board and a player
+  of the lineup, so a template has none; a copy renames the slot part with its marker). A reference to an object the
+  board no longer has is dropped on every save (a player outside the lineup has no token, so nothing of his stays); an
+  `auto:` key is only checked for its form (the rows derive those objects).
 - `x`/`y` 0..1 like every board point (a zone's is its top-left corner, a line's its middle); `rotation` 0..359;
   `opacity` 0.1..1; `scale` 0.25..4 of the object's own size (a zone grows round its middle, a group marker also scales
   its ring); `hidden` true fades out / false fades in; `badge` a WoW icon name shown on the object (`""` takes it off);
@@ -65,6 +67,14 @@ loop   { id, obj, path: [[x, y]], closed, period, from, to, trail }
   is never changed. `autoAt` = where the tank rows put their objects without the scene (`autoAtOf(deriveAuto(...))`),
   so an auto tank can be moved from there; the result's `autoPos` / `autoStyle` then carry it (a turned one loses its
   automatic facing).
+- **A single raider** (`member:`, #722) stands in his group's ring and goes where the group goes until a change of his
+  starts; then he walks from where he is to an **absolute** place and stays there even when his group moves on. The
+  board keeps a raider's place as an offset to the marker, so the result is written into the slot's `offsets` relative
+  to where the marker stands at that moment, marked `away` (never stored): his group's ring then keeps its size instead
+  of stretching to him. Where the ring puts a raider without an offset depends on the drawn board, so the caller hands
+  it in: `boardAt(…, autoAt, memberAt)` with `memberAt = memberOffsets(board, roster, aspect)`
+  (`lib/raidplan/members.ts`, the same layout `PlanBoard` draws; `aspect` from `PlanBoard`'s `onAspect`). Members can
+  move, carry a badge, pulse and run a loop; they do not fade, turn or scale.
 - `boardAfter(board, scene, k)` - frame k with everything of frames 0..k arrived and no loops: what the editor edits.
 - `frameAt`, `frameRest`, `frameLength`, `playable` (at least two frames or a loop), `clock`.
 - `useScenePlayer` (hooks) runs the time with `requestAnimationFrame`: play / pause, seek, to frame k, speed 0.5x / 1x /
@@ -104,18 +114,38 @@ and Allgemein have none, "Karte aus" shows the note). `components/raidplan/edito
 - **No scene yet:** an explanation (what an animation is, the three steps) and "Neue Animation".
 - **Head:** the scenes as chips with their length, "+ Neue Animation" (at most 8), "Vorschau" (plays the scene with the
   sheet's player and caption; editing is off meanwhile).
-- **Board:** the board **after the chosen frame** (`boardAfter`). A pointer drag on an object moves it **in this frame**
-  (`moveIn`: one change per object and frame, live, one undo step per drag); a split group's raider drags his group
-  (`sceneRef`), a grip (size, turn, corner) only picks the object. The dotted way (`moveHints`) shows where each moved
-  object comes from (straight or along its path). The board itself never changes - only the scene.
-- **Frame strip:** a card per frame (number, start time, length, caption, how many objects change), "+ Takt".
-- **Panel:** the scene (name, "Im Sheet wiederholen", delete after asking); the frame ("Takt n von m", caption, length
-  with −/+ - later frames move with it -, earlier / later = swap with the neighbour, "+ Takt danach", delete - asks when
-  something changes there -, the objects it changes as chips); the picked object: "Startet nach" / "Dauert" (−/+),
-  "Verlauf" (Weich / Gleichmäßig / Anfahren / Abbremsen), "Bewegung entfernen", facing (icons, zones, auto objects),
-  opacity, size, "Sichtbar", the debuff icon (six presets - Bloodboil, fire, poison, shadow, frost, target - or any WoW
-  icon name; "Entfernen"), "Pulsieren", "Alles in diesem Takt zurücksetzen". Values show the state after this frame
-  (`valueAfter`); a change writes the object's change of this frame.
+Since #722 the view follows **design B "Aktionen als Sätze"** of the canvas "Animation zuweisen": who an action is given
+to is always visible, a frame reads as sentences, and a new action is built Wer → Was → Wohin. The pure parts are in
+`lib/raidplan/sceneActions.ts` (actors, sentences, applying to several) and `lib/raidplan/members.ts` (the ring).
+
+- **Board:** the board **after the chosen frame** (`boardAfter`). **Picking:** a click on an object picks it; a click
+  on a raider of a split group picks **his whole group**, **Alt + click only him** (`member:`), **Shift + click** adds
+  or removes. The picked light up (`PlanBoard`'s `lit`: a glowing ring, everything else dimmed to 30 %; a picked group
+  lights all its raiders) and a label over them names them ("Gruppe 3 · 5 Spieler" + the names, "Heilbert · aus Gruppe
+  4", "2 Gruppen · 10 Spieler"; `selectionSummary`). **A drag moves everyone picked in this frame** by the same distance
+  (one change each, live, one undo step); a grip (size, turn, corner) only picks. The dotted way (`moveHints`) shows
+  where each moved object comes from. The board itself never changes - only the scene.
+- **"Wer?"** under the map (`ActorPicker.tsx`, `sceneActors`): everything that can act, in sections - groups (a picked
+  group opens its raiders as chips "Einzeln:", each pickable alone; a group that lists its names below the marker has
+  none and says how to split it), players and places (free tokens, role slots on the map, the rows' tanks), enemies
+  (icons with their mob's name, the rows' mobs), marks and areas. A dot marks who already acts in this frame.
+- **Frame strip:** a card per frame (number, start time, length, caption, **who acts** as coloured chips), "+ Takt".
+- **Panel:** the frame ("Takt n von m", caption, length with −/+ - later frames move with it -, earlier / later = swap
+  with the neighbour, "+ Takt danach", delete - asks when something changes there); **"Was passiert in diesem Takt"**
+  (`ActionList.tsx`, `frameParts`): every part of every change as a sentence - "Gruppe 3 läuft nach links" (the way in
+  a word, `direction`; a thing "bewegt sich"), "… bekommt Bloodboil", "… pulsiert", "… verschwindet", "… dreht sich auf
+  90°" - with when ("sofort", "nach 0,4 s"), how long, the motion and the way's points, plus the loops that start in the
+  frame ("… läuft einen Rundweg"). A click on a sentence picks its actor; the pencil opens what can be set right there
+  ("Startet nach", "Dauert", "Verlauf" - shared by everything that actor does in the frame -, "Weg zeichnen" / "Gerade",
+  the debuff icon, facing, opacity, size, a loop's settings); the bin takes that part off (`removePart`). At the bottom,
+  folded, the animation's settings (name, "Im Sheet wiederholen", its tactic step, delete after asking).
+- **"+ Aktion"** (`ActionWizard.tsx`, state in `wizardState.ts`): **Wer** (with nothing picked it waits, "Wer?" is
+  framed; the head always names who) → **Was** (Laufen, Debuff bekommen - six presets or any WoW icon, "auch pulsieren"
+  -, Ausblenden - verschwinden / erscheinen / halb durchsichtig -, Drehen, Rundweg, Pulsieren; a single raider cannot
+  fade or turn, only icons, areas and the rows' objects turn) → **Wohin** for walking (a click on the map: everyone
+  picked walks so that their middle ends there, each keeping his place, `moveAllTo`) and for a loop (clicked points, a
+  loop for each picked along that way shifted by his place, from the frame's start, `loopAll`). Other kinds are added
+  for everyone picked at once (`patchAll`). Esc closes it.
 - **Timeline rules of the editing** (`sceneEdit.ts`): a new frame starts where the scene stands after the chosen one and
   pushes the later ones back by its length; removing a frame pulls them forward (the first one left starts at 0); a
   longer or shorter frame moves the ones after it; swapping frames swaps their content, the times stay. A change in the
@@ -123,6 +153,9 @@ and Allgemein have none, "Karte aus" shows the note). `components/raidplan/edito
 - **`boardOf` keeps `scenes`** (`lib/raidplan/model.ts`) - without it a save from the editor would drop them.
 
 ### Ways and loops (#712)
+
+Since #722 a loop is made with the assistant's "Rundweg" and edited with the pencil of its sentence; a movement's way is
+drawn with "Weg zeichnen" in its sentence. The mechanics below are unchanged.
 
 - **The way of a movement:** an object that moves in the chosen frame (not the first) gets "Weg zeichnen" in the panel.
   While drawing, the board has a crosshair and an accent frame; a click on the map (capture phase of the board's wrapper,
@@ -157,5 +190,8 @@ and Allgemein have none, "Karte aus" shows the note). `components/raidplan/edito
 `src/web-client/src/lib/raidplan/scene.test.ts` (easing, blending, take-over, paths, loops, auto objects, frames),
 `src/web-client/src/pages/raidplan/PlanPublicPage.anim.test.tsx` (the player in the sheet, a step's "Animation", the group highlight),
 `src/web-client/src/lib/raidplan/sceneEdit.test.ts` (editing on the timeline),
-`src/web-client/src/components/raidplan/editor/BoardWorkspace.anim.test.tsx` (the editor's view: create, add a frame, drag,
-panel, preview, delete, ways and loops, the step a scene stands at).
+`src/web-client/src/lib/raidplan/sceneActions.test.ts` (actors, the ring of a group, sentences, directions, one action
+for several), `test/web-client/conventions/controls.test.js` (a disabled text field carries no dropdown arrow),
+`src/web-client/src/components/raidplan/editor/BoardWorkspace.anim.test.tsx` (the editor's view: create, drag and read
+it as a sentence, the assistant for a debuff, walking and a loop, a group vs. a single raider by click, Alt + click and
+"Wer?", changing and removing an action, preview, the step a scene stands at, delete).

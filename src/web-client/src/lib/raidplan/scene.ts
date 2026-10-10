@@ -6,13 +6,19 @@
 // while the one before it still runs takes over from where the object is at that moment, so frames ("Takte") and a later free
 // timeline read the same data. Positions, turning, opacity, size and fading are blended; a badge and a pulse switch when their
 // change starts. A loop of the scene moves an object along its path on its own and wins over the frames while it runs.
+//
+// A single raider of a split group is an actor of his own: "member:<slotId>~<userId>". Until a change of his starts he stands
+// in his group's ring and goes where the group goes; a change sends him to a place of the board (absolute) and he stays there
+// even when his group moves on. The board keeps a member's place as an offset to the group marker, so the result is written
+// into the slot's `offsets`, relative to where the marker stands at that moment. Where the ring puts a member without an offset
+// depends on the drawn board, so the caller hands it in (`memberAt`, lib/raidplan/members.ts).
 import type { RaidplanAutoStyle, RaidplanChange, RaidplanEase, RaidplanLoop, RaidplanScene } from "../../api";
 
 type Pt = { x: number; y: number };
 /** What `boardAt` reads and writes of a board: its objects and the auto objects' positions / looks (an editor board or a sheet's boss). */
 export type SceneBoard = {
     tokens: { userId: string; x: number; y: number; size: number; opacity: number; hidden: boolean }[];
-    slots: { id: string; kind: string; x: number; y: number; size: number; opacity: number; hidden: boolean; groupScale?: number }[];
+    slots: { id: string; kind: string; x: number; y: number; size: number; opacity: number; hidden: boolean; groupScale?: number; ringSpread?: number; offsets?: Record<string, { dx: number; dy: number; size: number; away?: boolean }> }[];
     icons: { id: string; x: number; y: number; size: number; rotation: number; opacity: number; hidden: boolean }[];
     marks: { id: string; x: number; y: number; size: number; opacity: number; hidden: boolean }[];
     zones: { id: string; x: number; y: number; w: number; h: number; rotation?: number; opacity: number; hidden: boolean }[];
@@ -28,6 +34,23 @@ export type SceneTrail = { obj: string; points: Pt[]; hint?: boolean };
 export type SceneState<B> = { board: B; fx: Record<string, SceneFx>; trails: SceneTrail[]; frame: number; caption: string };
 /** Where the objects of the tank rows stand without the scene (their key -> point), so a scene can move them from there. */
 export type AutoAt = Record<string, Pt>;
+/** Where the ring puts each raider of a split group, relative to its marker ("<slotId>~<userId>" -> offset in board fractions). */
+export type MemberAt = Record<string, Pt>;
+
+/** How far a group's members stand from its marker relative to what is stored (its scale times its ring spacing, like the board). */
+const spreadOf = (o: { groupScale?: number; ringSpread?: number }) => clamp(o.groupScale === undefined ? 1 : o.groupScale, 0.25, 4) * clamp(o.ringSpread === undefined ? 1 : o.ringSpread, 0.25, 4);
+/** "<slotId>~<userId>" of a member reference. */
+const memberParts = (id: string) => { const i = id.indexOf("~"); return { slotId: id.slice(0, i), userId: id.slice(i + 1) }; };
+
+/** A raider's place relative to his group marker: the offset the board keeps for him, else his place in the ring. */
+function memberOffset(board: SceneBoard, slotId: string, userId: string, memberAt: MemberAt): Pt | null {
+    const sl = board.slots.find((o) => o.id === slotId);
+    if (!sl) return null;
+    const off = sl.offsets ? sl.offsets[userId] : undefined;
+    if (off) { const sp = spreadOf(sl); return { x: off.dx * sp, y: off.dy * sp }; }
+    const ring = memberAt[`${slotId}~${userId}`];
+    return ring ? { x: ring.x, y: ring.y } : null;
+}
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
@@ -119,13 +142,15 @@ function blended(segs: Seg[], base: number, pick: Num, t: number, angle = false)
 }
 
 /** The position at t: like `blended`, a movement with a path follows its curve. */
-function moved(segs: Seg[], base: Pt, t: number): Pt {
+function moved(segs: Seg[], base: Pt | ((t: number) => Pt), t: number): Pt {
+    const baseAt = typeof base === "function" ? base : () => base;
     const mine = segs.filter((s) => s.c.x !== undefined && s.c.y !== undefined);
     const at = (s: Seg, from: Pt, time: number) => {
         const p = s.end > s.start ? ease(s.c.ease, (time - s.start) / (s.end - s.start)) : time >= s.start ? 1 : 0;
         return pathPoint(from, s.c.path || [], { x: s.c.x!, y: s.c.y! }, p);
     };
-    let from = base;
+    if (mine.length === 0 || t < mine[0].start) return baseAt(t);
+    let from = baseAt(mine[0].start);
     for (let i = 0; i < mine.length; i++) {
         const next = mine[i + 1];
         if (t < mine[i].start) return from;
@@ -185,7 +210,7 @@ export function frameLength(scene: RaidplanScene, k: number): number {
 
 /** The object's position and look the scene starts from (null: the board has no such object). */
 type Look = { pos: Pt; rotation: number; opacity: number; scale: number };
-function baseLook(board: SceneBoard, obj: string, autoAt: AutoAt): Look | null {
+function baseLook(board: SceneBoard, obj: string, autoAt: AutoAt, memberAt: MemberAt = {}): Look | null {
     const i = obj.indexOf(":");
     const kind = obj.slice(0, i);
     const id = obj.slice(i + 1);
@@ -199,6 +224,12 @@ function baseLook(board: SceneBoard, obj: string, autoAt: AutoAt): Look | null {
     if (kind === "line") {
         const o = board.lines.find((x) => x.id === id);
         return o ? { pos: { x: (o.x1 + o.x2) / 2, y: (o.y1 + o.y2) / 2 }, rotation: 0, opacity: o.opacity, scale: 1 } : null;
+    }
+    if (kind === "member") {
+        const { slotId, userId } = memberParts(id);
+        const sl = board.slots.find((o) => o.id === slotId);
+        const off = memberOffset(board, slotId, userId, memberAt);
+        return sl && off ? { pos: { x: sl.x + off.x, y: sl.y + off.y }, rotation: 0, opacity: sl.opacity, scale: 1 } : null;
     }
     if (kind === "auto") {
         const st = (board.autoStyle || {})[id] || {};
@@ -243,6 +274,15 @@ function applyLook<B extends SceneBoard>(board: B, obj: string, look: Look & { v
             const dy = look.moved ? look.pos.y - (o.y1 + o.y2) / 2 : 0;
             return { ...common(o), x1: r4(o.x1 + dx), y1: r4(o.y1 + dy), x2: r4(o.x2 + dx), y2: r4(o.y2 + dy) };
         });
+    } else if (kind === "member") {
+        const { slotId, userId } = memberParts(id);
+        put("slots", (o) => o.id === slotId, (o) => {
+            if (!look.moved) return o;
+            const sp = spreadOf(o);
+            const old = o.offsets ? o.offsets[userId] : undefined;
+            // `away`: his group's ring keeps its size instead of stretching to where the animation sent him
+            return { ...o, offsets: { ...(o.offsets || {}), [userId]: { dx: r4((look.pos.x - o.x) / sp), dy: r4((look.pos.y - o.y) / sp), size: old ? old.size : o.size, away: true } } };
+        });
     } else if (kind === "auto") {
         if (look.moved) board.autoPos = { ...(board.autoPos || {}), [id]: { x: r4(look.pos.x), y: r4(look.pos.y) } };
         const st: RaidplanAutoStyle = { ...((board.autoStyle || {})[id] || {}), opacity: Math.max(0.05, opacity) };
@@ -261,16 +301,32 @@ const TRAIL_SHARE = 0.35;
  * on and its caption. `autoAt` = where the tank rows' objects stand without the scene (lib/raidplan/autoPlace.ts), so they can be
  * moved from there. Objects the scene does not name stay exactly as they are; nothing of the board is changed in place.
  */
-export function boardAt<B extends SceneBoard>(board: B, scene: RaidplanScene | null, t: number, autoAt: AutoAt = {}): SceneState<B> {
+export function boardAt<B extends SceneBoard>(board: B, scene: RaidplanScene | null, t: number, autoAt: AutoAt = {}, memberAt: MemberAt = {}): SceneState<B> {
     if (!scene) return { board, fx: {}, trails: [], frame: 0, caption: "" };
     const out = { ...board } as B;
     const fx: Record<string, SceneFx> = {};
     const segs = segmentsOf(scene);
-    for (const [obj, list] of segs) {
-        const base = baseLook(board, obj, autoAt);
+    /** where an object stands at a moment: its loop while that runs, else its changes */
+    const posAt = (ref: string, base: Pt | ((tt: number) => Pt), tt: number): Pt => {
+        const loop = (scene.loops || []).find((l) => l.obj === ref && loopPoint(l, tt));
+        return loop ? loopPoint(loop, tt)! : moved(segs.get(ref) || [], base, tt);
+    };
+    // the members last: they are written relative to where their group marker stands in the result
+    const order = [...segs.keys()].sort((a, b) => Number(a.startsWith("member:")) - Number(b.startsWith("member:")));
+    for (const obj of order) {
+        const list = segs.get(obj)!;
+        const base = baseLook(board, obj, autoAt, memberAt);
         if (!base) continue;
+        let where: Pt | ((tt: number) => Pt) = base.pos;
+        if (obj.startsWith("member:")) {
+            // until his own change starts a raider goes where his group goes
+            const { slotId, userId } = memberParts(obj.slice(7));
+            const sl = board.slots.find((o) => o.id === slotId)!;
+            const off = memberOffset(board, slotId, userId, memberAt)!;
+            where = (tt: number) => { const g = posAt(`slot:${slotId}`, { x: sl.x, y: sl.y }, tt); return { x: g.x + off.x, y: g.y + off.y }; };
+        }
         const look = {
-            pos: moved(list, base.pos, t),
+            pos: moved(list, where, t),
             rotation: blended(list, base.rotation, (c) => c.rotation, t, true),
             opacity: blended(list, base.opacity, (c) => c.opacity, t),
             scale: blended(list, 1, (c) => c.scale, t),
@@ -285,9 +341,10 @@ export function boardAt<B extends SceneBoard>(board: B, scene: RaidplanScene | n
         if (badge || pulse) fx[obj] = { ...(badge ? { badge } : {}), ...(pulse ? { pulse: true } : {}) };
     }
     const trails: SceneTrail[] = [];
-    for (const loop of scene.loops || []) {
+    const loops = [...(scene.loops || [])].sort((a, b) => Number(a.obj.startsWith("member:")) - Number(b.obj.startsWith("member:")));
+    for (const loop of loops) {
         const at = loopPoint(loop, t);
-        const base = at ? baseLook(out, loop.obj, autoAt) : null;
+        const base = at ? baseLook(out, loop.obj, autoAt, memberAt) : null;
         if (!at || !base) continue;
         applyLook(out, loop.obj, { ...base, pos: at, vis: 1, moved: true, turned: false, sized: false });
         if (loop.trail) {
@@ -305,9 +362,9 @@ export function boardAt<B extends SceneBoard>(board: B, scene: RaidplanScene | n
 }
 
 /** The board after frame k with everything of frames 0..k arrived and no loops: what the editor shows and edits for that frame. */
-export function boardAfter<B extends SceneBoard>(board: B, scene: RaidplanScene, k: number, autoAt: AutoAt = {}): SceneState<B> {
+export function boardAfter<B extends SceneBoard>(board: B, scene: RaidplanScene, k: number, autoAt: AutoAt = {}, memberAt: MemberAt = {}): SceneState<B> {
     const part = { ...scene, frames: scene.frames.slice(0, k + 1), loops: [] };
-    const s = boardAt(board, part, Number.MAX_SAFE_INTEGER, autoAt);
+    const s = boardAt(board, part, Number.MAX_SAFE_INTEGER, autoAt, memberAt);
     return { ...s, frame: k, caption: scene.frames[k] ? scene.frames[k].caption : "" };
 }
 
@@ -332,8 +389,8 @@ export function autoAtOf(plan: { mobs: { key: string; x: number; y: number; icon
 }
 
 /** Where an object of the board stands (a zone's top-left corner, a line's middle, an auto object where it was put); null: no such object. */
-export function positionOf(board: SceneBoard, obj: string, autoAt: AutoAt = {}): Pt | null {
-    const look = baseLook(board, obj, autoAt);
+export function positionOf(board: SceneBoard, obj: string, autoAt: AutoAt = {}, memberAt: MemberAt = {}): Pt | null {
+    const look = baseLook(board, obj, autoAt, memberAt);
     return look ? look.pos : null;
 }
 
@@ -341,14 +398,14 @@ export function positionOf(board: SceneBoard, obj: string, autoAt: AutoAt = {}):
  * The editor's hints for frame k: for every object that moves there, dots along its way from where it stood after the frame before
  * (straight or along its path), so the orga sees what the frame does without playing it.
  */
-export function moveHints(board: SceneBoard, scene: RaidplanScene, k: number, autoAt: AutoAt = {}): SceneTrail[] {
+export function moveHints(board: SceneBoard, scene: RaidplanScene, k: number, autoAt: AutoAt = {}, memberAt: MemberAt = {}): SceneTrail[] {
     const f = scene.frames[k];
     if (!f || k === 0) return [];
-    const before = boardAfter(board, scene, k - 1, autoAt).board;
+    const before = boardAfter(board, scene, k - 1, autoAt, memberAt).board;
     const out: SceneTrail[] = [];
     for (const c of f.changes) {
         if (c.x === undefined || c.y === undefined) continue;
-        const from = positionOf(before, c.obj, autoAt);
+        const from = positionOf(before, c.obj, autoAt, memberAt);
         if (!from) continue;
         const to = { x: c.x, y: c.y };
         if (Math.hypot(to.x - from.x, to.y - from.y) < 0.01) continue;

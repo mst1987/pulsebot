@@ -518,7 +518,7 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     if (cleanedSteps.error) return cleanedSteps;
     ctx.dropped += cleanedSteps.dropped;
     // the animations: only references to objects this board still has stay
-    const cleanedScenes = scenesOf.cleanScenes(input.scenes, { tokens, slots, marks, icons, zones, lines, texts }, cleanedSteps.steps.map((x) => x.id));
+    const cleanedScenes = scenesOf.cleanScenes(input.scenes, { tokens, slots, marks, icons, zones, lines, texts }, cleanedSteps.steps.map((x) => x.id), allowed);
     if (cleanedScenes.error) return cleanedScenes;
 
     const roles = cleanRoles(input.roles, ctx);
@@ -635,6 +635,9 @@ function reidBoard(board) {
     // the animations follow their objects to the new ids; a player token is not copied (a template has none), an auto tank follows its row
     const renameRef = (ref) => {
         if (renamed.has(ref)) return renamed.get(ref);
+        // a raider of a group follows his group marker to its new id
+        const member = ref.match(scenesOf.MEMBER_REF);
+        if (member) return renamed.has(`slot:${member[1]}`) ? `member:${renamed.get(`slot:${member[1]}`).slice(5)}~${member[2]}` : "";
         if (ref.startsWith("auto:")) return `auto:${Object.keys(rekey({ [ref.slice(5)]: 1 }))[0]}`;
         return "";
     };

@@ -18,6 +18,7 @@ import PlanBoard from "../../components/raidplan/PlanBoard";
 import ScenePlayerBar, { SceneCaption } from "../../components/raidplan/ScenePlayerBar";
 import { useScenePlayer } from "../../hooks/useScenePlayer";
 import { autoAtOf, boardAfter, boardAt, frameAt, playable } from "../../lib/raidplan/scene";
+import { memberOffsets } from "../../lib/raidplan/members";
 import StageBar from "./stage/StageBar";
 import BossStrip from "./stage/BossStrip";
 import MineCard from "./stage/MineCard";
@@ -134,6 +135,9 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const bv = useBoardView({ touchPan: true });
     // the animation that is open ("" = the plan as it is): it closes with its section
     const [animId, setAnimId] = useState("");
+    // the map's width / height: where a group's ring puts its raiders (a single raider of an animation moves from there)
+    const [aspect, setAspect] = useState(16 / 10);
+    const onAspect = useCallback((a: number) => setAspect(a), []);
     useEffect(() => { setAnimId(""); }, [selected]);
     const animBoss = data ? data.bosses.find((x) => x.key === selected) || null : null;
     const scenes = useMemo(() => (animBoss && animBoss.showMap !== false && !animBoss.general ? playable(animBoss.scenes) : []), [animBoss]);
@@ -222,7 +226,8 @@ export default function PlanPublicPage({ token }: { token: string }) {
 
     // an open animation moves the objects (lib/raidplan/scene.ts): the board at the player's time, the tank rows' objects from where they stand;
     // with less motion asked for, frame by frame. `drawn` is what the map shows: the plan as it is, or that moment of the animation
-    const anim = scene ? (player.still ? boardAfter(boss, scene, frameAt(scene, player.t), autoAtOf(baseAuto)) : boardAt(boss, scene, player.t, autoAtOf(baseAuto))) : null;
+    const memberAt = scene ? memberOffsets({ ...boss, autoUsers: baseAuto ? baseAuto.users : [] } as never, planned, aspect) : {};
+    const anim = scene ? (player.still ? boardAfter(boss, scene, frameAt(scene, player.t), autoAtOf(baseAuto), memberAt) : boardAt(boss, scene, player.t, autoAtOf(baseAuto), memberAt)) : null;
     const drawn = anim ? anim.board : boss;
     const auto = anim ? deriveAuto(drawn.assignments, drawn as unknown as RaidplanBoard, { template: false, roster: planned }) : baseAuto;
 
@@ -276,7 +281,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                     {boss.mapUrl && <img className="rp-sheet-backdrop" src={boss.mapUrl} alt="" aria-hidden="true" />}
                     <div className="rp-sheet-board">
                         <PlanBoard
-                            bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} maxHeight={boardHeight}
+                            bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} maxHeight={boardHeight} onAspect={onAspect}
                             tokens={drawn.tokens} slots={drawn.slots} marks={drawn.marks} zones={drawn.zones} icons={drawn.icons} objectScale={boss.objectScale} lines={drawn.lines} texts={drawn.texts} mapOpacity={boss.mapOpacity}
                             fx={anim ? anim.fx : undefined} trails={anim ? anim.trails : undefined}
                             players={players} roster={planned} me={data.meIds} links={prefs.links && !anim ? assignmentLinks({ ...boss, places: auto ? autoPlaces(auto) : {} } as never, data.meIds, auto || null) : []} auto={auto} assignments={boss.assignments} showRings={shownFor(boss.showRings, prefs.groupRings)} groupColors={boss.groupColors} groupMarks={boss.groupMarks} focusGroup={focusGroup}

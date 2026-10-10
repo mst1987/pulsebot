@@ -1507,6 +1507,125 @@
         "stepTip": "In the sheet this step gets an \"Animation\" button that plays exactly this animation.",
         "noStep": "- no step -",
         "stepHas": "Animation: {titles}",
-        "stepHasShort": "Has an animation"
+        "stepHasShort": "Has an animation",
+        "ofGroup": "of group {n}",
+        "groupN": "Group {n}",
+        "openPlace": "still open",
+        "autoTankSub": "from the assignments",
+        "iconKind": {
+            "spell": "Icon",
+            "enemy": "Enemy"
+        },
+        "kindMark": "Marker",
+        "kindZone": "Area",
+        "kindText": "Text",
+        "kindLine": "Arrow / line",
+        "sumGroup": "{label} · {n} players",
+        "sumGroups": "{g} groups · {n} players",
+        "sumMany": "{n} picked",
+        "actsHere": "does something in this step",
+        "who": "Who?",
+        "whoHint": "pick here or right on the map",
+        "clearPick": "Clear selection",
+        "section": {
+            "groups": "Groups",
+            "players": "Players & places",
+            "enemies": "Enemies & icons",
+            "marks": "Markers & areas"
+        },
+        "raidersOf": "Players of {label}",
+        "alone": "One by one:",
+        "noRaiders": "This group shows its players as a list. Right-click it on the map and split it to move single players.",
+        "removeLoopOne": "Remove round",
+        "dir": {
+            "right": "to the right",
+            "downRight": "down to the right",
+            "down": "down",
+            "downLeft": "down to the left",
+            "left": "to the left",
+            "upLeft": "up to the left",
+            "up": "up",
+            "upRight": "up to the right",
+            "none": "to a new place"
+        },
+        "act": {
+            "walk": "walks {dir}",
+            "move": "moves {dir}",
+            "badgeOn": "gets {name}",
+            "anIcon": "an icon",
+            "badgeOff": "loses the icon",
+            "pulseOn": "pulses",
+            "pulseOff": "stops pulsing",
+            "hide": "disappears",
+            "show": "appears",
+            "turn": "turns to {deg}°",
+            "opacity": "becomes {n} % visible",
+            "scale": "becomes {n} % large",
+            "loop": "walks a round",
+            "loopOpen": "walks a way there and back"
+        },
+        "when": {
+            "start": "from the start",
+            "now": "at once",
+            "after": "after {s} s",
+            "takes": "{s} s",
+            "points": "via {n} points",
+            "at": "from {s} s",
+            "round": "one round {s} s"
+        },
+        "whatHappens": "What happens in this step",
+        "nothingYet": "Nothing happens in this step yet. Add something with \"+ Action\" or drag an object on the map.",
+        "editAction": "Edit: {what}",
+        "removeAction": "Remove: {what}",
+        "edit": "Edit",
+        "remove": "Remove",
+        "timingShared": "Start, length and motion apply to everything {name} does in this step.",
+        "addAction": "Action",
+        "settings": "Animation settings",
+        "pickHint": "Click: whole group · Alt + click: only this player · Shift + click: several · Drag: everyone picked walks there in this step",
+        "wiz": {
+            "title": "New action",
+            "step": {
+                "who": "Who",
+                "what": "What",
+                "where": "Where"
+            },
+            "pickFirst": "Pick below under \"Who?\" or on the map who should do something.",
+            "change": "change",
+            "whatQ": "What should happen?",
+            "what": {
+                "move": "Walk",
+                "badge": "Get a debuff",
+                "fade": "Fade",
+                "turn": "Turn",
+                "loop": "Round",
+                "pulse": "Pulse"
+            },
+            "whatSub": {
+                "move": "to a place",
+                "badge": "icon on the player",
+                "fade": "disappear, appear",
+                "turn": "facing",
+                "loop": "kite, in a circle",
+                "pulse": "draw the eye"
+            },
+            "noTurn": "Only icons, areas and tanks from the assignments can turn.",
+            "noFade": "Single players of a group cannot fade.",
+            "pulseToo": "Pulse as well",
+            "fade": {
+                "hide": "Disappear",
+                "show": "Appear",
+                "half": "Half transparent"
+            },
+            "pulseStart": "Start pulsing",
+            "pulseStop": "Stop pulsing",
+            "whereMove": "Click on the map where {who} should walk.",
+            "whereLoop": "Click the points of the way on the map ({n} set).",
+            "back": "Back",
+            "nextWhat": "Next: What?",
+            "nextWhere": "Next: Where?",
+            "add": "Add",
+            "loopDone": "Done"
+        }
     }
 }

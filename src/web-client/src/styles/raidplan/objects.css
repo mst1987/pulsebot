@@ -130,3 +130,11 @@
 @keyframes rp-fx-pop { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes rp-fx-pulse { from { transform: translate(-50%, -50%) scale(.7); opacity: .95; } to { transform: translate(-50%, -50%) scale(1.6); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .rp-fx-badge, .rp-fx-pulse { animation: none; } }
+
+/* the animation editor's picked actors (#722): they light up, the rest steps back - who a movement is given to is always visible */
+.rp-board .rp-unlit { --rp-gf: .3; }
+.rp-board .rp-zone.rp-unlit, .rp-board .rp-line.rp-unlit { opacity: .3; }
+.rp-board .rp-lit { z-index: 6; }
+.rp-board .rp-lit > .rp-token-btn { border-radius: 999px; box-shadow: 0 0 0 3px var(--rp-icon-ring), 0 0 0 6px var(--accent), 0 0 20px 6px var(--accent); }
+.rp-board .rp-lit > .rp-token-name { font-weight: 800; }
+.rp-board .rp-zone.rp-lit, .rp-board .rp-text.rp-lit { outline: 3px solid var(--accent); outline-offset: 3px; }

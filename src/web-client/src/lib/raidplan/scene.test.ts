@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RaidplanChange, RaidplanScene } from "../../api";
-import { boardAfter, boardAt, clock, ease, frameAt, frameLength, frameRest, lerpAngle, loopPoint, pathPoint, playable, type SceneBoard } from "./scene";
+import { boardAfter, boardAt, clock, ease, frameAt, frameLength, frameRest, lerpAngle, loopPoint, moveHints, pathPoint, playable, positionOf, type SceneBoard } from "./scene";
 
 const look = { opacity: 1, hidden: false };
 const board = (): SceneBoard => ({
@@ -120,6 +120,64 @@ describe("boardAt", () => {
         const open = { ...loop, closed: false, path: [[0, 0.5], [1, 0.5]] as [number, number][], period: 4, from: 0, to: 5 };
         expect(loopPoint(open, 2)!.x).toBeCloseTo(1);
         expect(loopPoint(open, 6)).toBeNull();
+    });
+});
+
+describe("a single raider of a split group (member)", () => {
+    // group g1 stands at (0.2, 0.8); Heilbert's ring place is 0.05 to its right, Klinge has a stored offset
+    const withGroup = (): SceneBoard => {
+        const b = board();
+        b.slots = [{ id: "g1", kind: "group", x: 0.2, y: 0.8, size: 40, opacity: 1, hidden: false, groupScale: 2, offsets: { klinge: { dx: 0, dy: -0.05, size: 38 } } }];
+        return b;
+    };
+    const ring = { "g1~heil": { x: 0.05, y: 0 } };
+    const off = (b: SceneBoard, u: string) => b.slots[0].offsets![u];
+    it("knows where a member stands: his stored offset (times the group's spread), else his ring place", () => {
+        expect(positionOf(withGroup(), "member:g1~heil", {}, ring)).toEqual({ x: 0.25, y: 0.8 });
+        const k = positionOf(withGroup(), "member:g1~klinge", {}, ring)!;
+        expect(k.x).toBeCloseTo(0.2);
+        expect(k.y).toBeCloseTo(0.7);
+        expect(positionOf(withGroup(), "member:g1~nobody", {}, ring)).toBeNull();
+        expect(positionOf(withGroup(), "member:gone~heil", {}, ring)).toBeNull();
+    });
+    it("a member's change moves only him: written as an offset to the marker, the group stays", () => {
+        const sc = scene({ frames: [{ id: "a", at: 0, caption: "", changes: [ch("member:g1~heil", { x: 0.6, y: 0.4 })] }] });
+        const b = boardAt(withGroup(), sc, 1, {}, ring).board;
+        expect(b.slots[0]).toMatchObject({ x: 0.2, y: 0.8 });
+        // spread 2: (0.6 - 0.2) / 2, (0.4 - 0.8) / 2
+        // `away`: his group's ring does not stretch to him
+        expect(off(b, "heil")).toEqual({ dx: 0.2, dy: -0.2, size: 40, away: true });
+        expect(off(b, "klinge")).toEqual({ dx: 0, dy: -0.05, size: 38 });
+        // half way he is between his ring place and the target
+        const half = off(boardAt(withGroup(), sc, 0.5, {}, ring).board, "heil");
+        expect(half.dx * 2 + 0.2).toBeCloseTo(0.425);
+    });
+    it("follows his moving group until his own change starts, then goes from where he is to an absolute place", () => {
+        const sc = scene({ frames: [
+            { id: "a", at: 0, caption: "", changes: [ch("slot:g1", { x: 0.5, y: 0.5, dur: 2 })] },
+            { id: "b", at: 1, caption: "", changes: [ch("member:g1~heil", { x: 0.9, y: 0.9, dur: 1 })] },
+        ] });
+        // at 0.5 s he has not started: no offset of his own, the ring carries him with the group
+        expect(boardAt(withGroup(), sc, 0.5, {}, ring).board.slots[0].offsets!.heil).toBeUndefined();
+        // at 1 s he starts from his ring place beside the group, which is half way: (0.35 + 0.05, 0.65)
+        const start = boardAt(withGroup(), sc, 1, {}, ring).board.slots[0];
+        expect(start.x + start.offsets!.heil.dx * 2).toBeCloseTo(0.4);
+        expect(start.y + start.offsets!.heil.dy * 2).toBeCloseTo(0.65);
+        // when everything has arrived he stands at his target, the group at its own
+        const end = boardAt(withGroup(), sc, 3, {}, ring).board.slots[0];
+        expect(end).toMatchObject({ x: 0.5, y: 0.5 });
+        expect(end.x + end.offsets!.heil.dx * 2).toBeCloseTo(0.9);
+        expect(end.y + end.offsets!.heil.dy * 2).toBeCloseTo(0.9);
+    });
+    it("a member's loop and his badge work like any object's; boardAfter and the hints know members too", () => {
+        const loop = { id: "k", obj: "member:g1~heil", path: [[0.3, 0.3], [0.7, 0.3]] as [number, number][], closed: false, period: 4, from: 0, to: 0, trail: false };
+        const sc = scene({ frames: [{ id: "a", at: 0, caption: "", changes: [] }, { id: "b", at: 1, caption: "", changes: [ch("member:g1~heil", { badge: "spell_shadow_bloodboil", x: 0.25, y: 0.2, dur: 0 })] }], loops: [loop] });
+        const st = boardAt(withGroup(), sc, 2, {}, ring);
+        expect(st.fx["member:g1~heil"]).toEqual({ badge: "spell_shadow_bloodboil" });
+        const s0 = st.board.slots[0];
+        expect(s0.x + s0.offsets!.heil.dx * 2).toBeCloseTo(0.7);
+        expect(off(boardAfter(withGroup(), sc, 1, {}, ring).board, "heil").dy).toBeCloseTo(-0.3);
+        expect(moveHints(withGroup(), sc, 1, {}, ring)[0].obj).toBe("member:g1~heil");
     });
 });
 

@@ -1507,6 +1507,125 @@
         "stepTip": "Im Sheet steht an diesem Schritt ein Knopf „Animation“, der genau diese Animation abspielt.",
         "noStep": "– keinem Schritt –",
         "stepHas": "Animation: {titles}",
-        "stepHasShort": "Hat eine Animation"
+        "stepHasShort": "Hat eine Animation",
+        "ofGroup": "aus Gruppe {n}",
+        "groupN": "Gruppe {n}",
+        "openPlace": "noch frei",
+        "autoTankSub": "aus den Einteilungen",
+        "iconKind": {
+            "spell": "Symbol",
+            "enemy": "Gegner"
+        },
+        "kindMark": "Marker",
+        "kindZone": "Fläche",
+        "kindText": "Text",
+        "kindLine": "Pfeil / Linie",
+        "sumGroup": "{label} · {n} Spieler",
+        "sumGroups": "{g} Gruppen · {n} Spieler",
+        "sumMany": "{n} ausgewählt",
+        "actsHere": "macht in diesem Takt etwas",
+        "who": "Wer?",
+        "whoHint": "auswählen hier oder direkt auf der Karte",
+        "clearPick": "Auswahl aufheben",
+        "section": {
+            "groups": "Gruppen",
+            "players": "Spieler & Plätze",
+            "enemies": "Gegner & Symbole",
+            "marks": "Marker & Flächen"
+        },
+        "raidersOf": "Spieler von {label}",
+        "alone": "Einzeln:",
+        "noRaiders": "Diese Gruppe zeigt ihre Spieler als Liste. Auf der Karte per Rechtsklick „Aufsplitten“, dann lassen sich einzelne bewegen.",
+        "removeLoopOne": "Rundweg entfernen",
+        "dir": {
+            "right": "nach rechts",
+            "downRight": "nach rechts unten",
+            "down": "nach unten",
+            "downLeft": "nach links unten",
+            "left": "nach links",
+            "upLeft": "nach links oben",
+            "up": "nach oben",
+            "upRight": "nach rechts oben",
+            "none": "an einen neuen Platz"
+        },
+        "act": {
+            "walk": "läuft {dir}",
+            "move": "bewegt sich {dir}",
+            "badgeOn": "bekommt {name}",
+            "anIcon": "ein Symbol",
+            "badgeOff": "verliert das Symbol",
+            "pulseOn": "pulsiert",
+            "pulseOff": "hört auf zu pulsieren",
+            "hide": "verschwindet",
+            "show": "erscheint",
+            "turn": "dreht sich auf {deg}°",
+            "opacity": "wird zu {n} % sichtbar",
+            "scale": "wird {n} % groß",
+            "loop": "läuft einen Rundweg",
+            "loopOpen": "läuft einen Weg hin und zurück"
+        },
+        "when": {
+            "start": "von Anfang an",
+            "now": "sofort",
+            "after": "nach {s} s",
+            "takes": "{s} s",
+            "points": "über {n} Wegpunkte",
+            "at": "ab {s} s",
+            "round": "eine Runde {s} s"
+        },
+        "whatHappens": "Was passiert in diesem Takt",
+        "nothingYet": "In diesem Takt passiert noch nichts. Lege mit „+ Aktion“ etwas an oder ziehe ein Objekt auf der Karte.",
+        "editAction": "Ändern: {what}",
+        "removeAction": "Entfernen: {what}",
+        "edit": "Ändern",
+        "remove": "Entfernen",
+        "timingShared": "Start, Dauer und Verlauf gelten für alles, was {name} in diesem Takt macht.",
+        "addAction": "Aktion",
+        "settings": "Einstellungen der Animation",
+        "pickHint": "Klick: ganze Gruppe · Alt + Klick: nur dieser Spieler · Shift + Klick: mehrere · Ziehen: alle Ausgewählten laufen in diesem Takt dorthin",
+        "wiz": {
+            "title": "Neue Aktion",
+            "step": {
+                "who": "Wer",
+                "what": "Was",
+                "where": "Wohin"
+            },
+            "pickFirst": "Wähle unten bei „Wer?“ oder auf der Karte, wer etwas tun soll.",
+            "change": "ändern",
+            "whatQ": "Was soll passieren?",
+            "what": {
+                "move": "Laufen",
+                "badge": "Debuff bekommen",
+                "fade": "Ausblenden",
+                "turn": "Drehen",
+                "loop": "Rundweg",
+                "pulse": "Pulsieren"
+            },
+            "whatSub": {
+                "move": "an einen Platz",
+                "badge": "Symbol am Spieler",
+                "fade": "verschwinden, erscheinen",
+                "turn": "Blickrichtung",
+                "loop": "kiten, im Kreis",
+                "pulse": "Blick hinlenken"
+            },
+            "noTurn": "Drehen geht nur bei Symbolen, Flächen und Tanks aus den Einteilungen.",
+            "noFade": "Einzelne Spieler einer Gruppe lassen sich nicht ausblenden.",
+            "pulseToo": "Auch pulsieren lassen",
+            "fade": {
+                "hide": "Verschwinden",
+                "show": "Erscheinen",
+                "half": "Halb durchsichtig"
+            },
+            "pulseStart": "Pulsieren starten",
+            "pulseStop": "Pulsieren beenden",
+            "whereMove": "Klicke auf die Karte, wohin {who} laufen soll.",
+            "whereLoop": "Klicke die Punkte des Weges auf die Karte ({n} gesetzt).",
+            "back": "Zurück",
+            "nextWhat": "Weiter: Was?",
+            "nextWhere": "Weiter: Wohin?",
+            "add": "Hinzufügen",
+            "loopDone": "Fertig"
+        }
     }
 }
