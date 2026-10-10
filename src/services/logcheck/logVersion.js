@@ -10,20 +10,23 @@
 //   3. LEGACY_VERSION (TBC) — also what every log and report stored before
 //      #746 counts as
 //
-// The log check has rules for TBC only (#747 adds Forever): LOGCHECK_VERSIONS
-// says which versions it evaluates and which v1 site it asks for them. A log of
-// any other version is refused with a clear message before a single request
-// goes to Warcraft Logs (UnsupportedVersionError in utils/logcheck/report.js).
+// Whether the log check can read a version is logcheckCapability (#747): its
+// rule set (utils/logcheck/rules.js) must be ready AND a Warcraft-Logs site
+// must be known for it. Today that is TBC only — Forever's rule set is
+// prepared but not ready, and its site is not known yet. A log of any other
+// version is refused with a clear message before a single request goes to
+// Warcraft Logs (UnsupportedVersionError in utils/logcheck/report.js).
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { parseReportLink, WCL_LEGACY_SITE } = require("../../utils/logcheck/logLinks");
+const { logcheckRules } = require("../../utils/logcheck/rules");
 const { LEGACY_VERSION, VERSIONS } = require("../../config/gameVersions");
 const { knownVersion, versionOfEvent, mainVersionFor } = require("../events/mainVersion");
 const { versionLinks, versionLabel } = require("../events/versionSettings");
 
-// The versions the log check evaluates, each with the v1 site it reads them
-// from. TBC keeps the classic host the CLA port has always asked (it serves the
-// fresh reports too), so nothing changes for TBC; a version without `apiSite`
-// would ask the Warcraft-Logs site of its settings.
+// The v1 site the log check asks for a version, where it is fixed in code.
+// TBC keeps the classic host the CLA port has always asked (it serves the
+// fresh reports too), so nothing changes for TBC; every other version asks the
+// Warcraft-Logs site of its settings (Einstellungen → Spielversion).
 const LOGCHECK_VERSIONS = {
     tbc: { apiSite: WCL_LEGACY_SITE },
 };
@@ -101,9 +104,30 @@ function categoryVersion(log, { config } = {}) {
     return cat ? mainVersionFor({ categoryId: cat, config }) : "";
 }
 
-/** Whether the log check has rules for a version (only TBC until #747). */
-function logcheckSupported(versionId) {
-    return Object.prototype.hasOwnProperty.call(LOGCHECK_VERSIONS, str(versionId));
+/**
+ * Whether the log check can read a version, and why not — the hook the
+ * per-version feature matrix (#761) reads. Possible only when the version's
+ * rule set is ready AND a Warcraft-Logs site is known for it.
+ * @param {string} versionId
+ * @param {{ config?: object }} [opts]
+ * @returns {{ possible: boolean, reason: ""|"unknown_version"|"no_rules"|"rules_not_ready"|"no_site", message: string, missing: string[] }}
+ *   `message` is the German reason for a tooltip, `missing` what the rule set still lacks
+ */
+function logcheckCapability(versionId, { config } = {}) {
+    const id = knownVersion(versionId);
+    const no = (reason, message, missing = []) => ({ possible: false, reason, message, missing });
+    if (!id) return no("unknown_version", "Unbekannte Spielversion.");
+    const label = versionLabel(id);
+    const rules = logcheckRules(id);
+    if (!rules) return no("no_rules", `Für ${label} gibt es keine Logcheck-Regeln.`);
+    if (!rules.ready) return no("rules_not_ready", `Die Logcheck-Regeln für ${label} sind noch nicht fertig.`, [...rules.missing]);
+    if (!wclApiSite(id, { config })) return no("no_site", `Für ${label} ist keine Warcraft-Logs-Seite eingetragen.`);
+    return { possible: true, reason: "", message: "", missing: [] };
+}
+
+/** Whether the log check reads a version: its rule set is ready and its Warcraft-Logs site known. */
+function logcheckSupported(versionId, opts) {
+    return logcheckCapability(versionId, opts).possible;
 }
 
 /** The v1 site the log check asks for a version, "" when it has none. */
@@ -155,5 +179,5 @@ function unsupportedMessage(versionId) {
 module.exports = {
     LOGCHECK_VERSIONS,
     versionOfHost, linkVersion, resolveReportVersion, recordVersion, knownLogVersion, categoryVersion,
-    logcheckSupported, wclApiSite, wclClientFor, reportLink, linkConflict, unsupportedMessage,
+    logcheckCapability, logcheckSupported, wclApiSite, wclClientFor, reportLink, linkConflict, unsupportedMessage,
 };

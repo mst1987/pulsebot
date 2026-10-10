@@ -32,20 +32,20 @@ const defaults = require("../../src/config/defaults");
 // on top of it.
 const EMPTY_BLOCK = {
     blizzardRegion: "", blizzardRealmSlug: "", blizzardNamespace: "", armoryUrlTemplate: "",
-    wclUrlTemplate: "", wowheadPath: "", softresEdition: "", raidsheetId: "",
+    wclUrlTemplate: "", wowheadPath: "", softresEdition: "", raidsheetId: "", color: "",
 };
 function after542(config) {
     const { region, realmSlug, namespace, ...credentials } = config.blizzard;
     const tbc = {
         blizzardRegion: region, blizzardRealmSlug: realmSlug, blizzardNamespace: namespace || `profile-classicann-${region}`,
         armoryUrlTemplate: defaults.applyArmoryUrlTemplate, wclUrlTemplate: defaults.applyWclUrlTemplate,
-        wowheadPath: "tbc", softresEdition: "tbc", raidsheetId: "",
+        wowheadPath: "tbc", softresEdition: "tbc", raidsheetId: "", color: "",
     };
     const classic = {
         blizzardRegion: "eu", blizzardRealmSlug: "", blizzardNamespace: "profile-classic1x-eu",
         armoryUrlTemplate: "https://classic-armory.org/character/{region}/vanilla/{realm}/{char}",
         wclUrlTemplate: "https://vanilla.warcraftlogs.com/character/{region}/{realm}/{char}",
-        wowheadPath: "classic", softresEdition: "classic", raidsheetId: "",
+        wowheadPath: "classic", softresEdition: "classic", raidsheetId: "", color: "",
     };
     return {
         ...config, blizzard: credentials, versionSettings: { tbc, classic, forever: { ...EMPTY_BLOCK, blizzardRegion: "eu", wowheadPath: "forever" } },

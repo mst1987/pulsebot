@@ -289,6 +289,13 @@ describe("web/report/raiderView", () => {
             expect(renderRaiderView(ctx, null)).toContain("<span class=\"badge ok\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_shield_06.jpg\" alt=\"\">Gear ok</span>");
         });
 
+        it("says nothing about potions when the report's version does not count them (#747)", () => {
+            const ctx = reportContext({ id: "x", roster: [{ name: "A", type: "Mage", issues: [] }] }, null);
+            ctx.ran = new Set(["timeline"]); // a rule set without the potions analyzer
+            const { secs } = sectionsOf(ctx, "A");
+            expect(sec(secs, "prep").html).not.toContain("nicht ausgewertet");
+        });
+
         it("reads buffs cell by cell: wrong role, not provable, not expected, partly provable", () => {
             const report = {
                 id: "x", roster: [{ name: "A", type: "Mage" }],

@@ -30,3 +30,9 @@ describe("adminOnly menu entries", () => {
         expect(firstAllowedTab({ id: "2", name: "B", isAdmin: false, access: {} })).toBeNull();
     });
 });
+
+describe("version-neutral pages (#742)", () => {
+    it("are Kanaele, Einstellungen and Systemstatus - the one list; every other page follows the version", () => {
+        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "settings", "system"]);
+    });
+});

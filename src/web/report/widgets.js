@@ -6,7 +6,7 @@ const { recordVersion } = require("../../services/logcheck/logVersion");
 const charLinks = require("../characters/charLinks");
 const { CLASS_COLORS } = require("../../utils/setup/setupView");
 const rpbData = require("../../config/rpbData");
-const { esc } = require("./layout");
+const { esc, setPageVersion } = require("./layout");
 
 function iconUrl(icon) {
     const name = icon ? String(icon).replace(/\.(jpg|jpeg|png|gif)$/i, "").toLowerCase() : "inv_misc_questionmark";
@@ -46,10 +46,13 @@ function reportLinks(now = Date.now()) {
 function withReportVersion(report, fn) {
     const before = pageVersion;
     pageVersion = recordVersion(report);
+    // the page's accent follows the same version (#742)
+    const shown = setPageVersion(pageVersion);
     try {
         return fn();
     } finally {
         pageVersion = before;
+        setPageVersion(shown);
     }
 }
 

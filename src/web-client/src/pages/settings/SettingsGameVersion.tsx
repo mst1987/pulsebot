@@ -46,6 +46,8 @@ export function VersionSettingsCard({ versions, mainVersion, value, defaults = {
     const changes = defaultsDiff(block, std);
     const id = (field: string) => `vs-${version.id}-${field}`;
     const error = (field: keyof VersionSettingsBlock) => (problems.has(field) ? t(`settings.versionLinks.invalid.${field}`) : undefined);
+    const defaultColor = version.color || "";
+    const pickedColor = /^#[0-9a-f]{6}$/i.test(block.color.trim()) ? block.color.trim() : defaultColor;
     const input = (field: keyof VersionSettingsBlock, placeholder: string) => (
         <input
             id={id(field)} value={block[field]} placeholder={placeholder} spellCheck={false}
@@ -83,6 +85,29 @@ export function VersionSettingsCard({ versions, mainVersion, value, defaults = {
                 </Button>
             </div>
             <p className="gv-hint">{t("settings.versionLinks.emptyHint", { version: version.label })}</p>
+
+            <div className="gv-group">
+                <div className="gv-group-title">{t("settings.versionLinks.colorTitle")}</div>
+                <Field
+                    className="set-field" label={t("settings.versionLinks.color")} htmlFor={id("color")}
+                    tip={t("settings.versionLinks.color")} tipSub={t("settings.versionLinks.colorSub")} error={error("color")}
+                >
+                    <div className="gv-color">
+                        <input
+                            type="color" className="gv-color-pick" aria-label={t("settings.versionLinks.colorPick")}
+                            value={pickedColor || "#8a7cff"} onChange={(e) => set({ color: e.target.value })}
+                        />
+                        {input("color", defaultColor || "#rrggbb")}
+                        <Button
+                            variant="ghost" size="sm" disabled={!block.color}
+                            data-tip={t("settings.versionLinks.colorReset")} data-tip-sub={t("settings.versionLinks.colorResetSub", { color: defaultColor })}
+                            onClick={() => set({ color: "" })}
+                        >
+                            {t("settings.versionLinks.colorReset")}
+                        </Button>
+                    </div>
+                </Field>
+            </div>
 
             <div className="gv-group">
                 <div className="gv-group-title">{t("settings.versionLinks.armory")}</div>
@@ -157,7 +182,7 @@ export function VersionSettingsCard({ versions, mainVersion, value, defaults = {
     );
 }
 
-export type GameVersionOption = { id: string; label: string; short: string };
+export type GameVersionOption = { id: string; label: string; short: string; /** the rule set's colour (#742) */ color?: string };
 
 /**
  * Einstellungen → Spielversion (#541): the guild's main version and the

@@ -31,6 +31,8 @@ describe("one menu for both front ends", () => {
                 ...(entry.sub ? { area: "raids", sub: true } : {}),
                 // an adminOnly entry (Systemstatus) belongs to no area: full admins only
                 ...(entry.adminOnly ? { adminOnly: true } : {}),
+                // a version-neutral page keeps the brand colour whichever version is shown (#742)
+                ...(entry.neutral ? { neutral: true } : {}),
                 id: expect.stringMatching(/^[a-zA-Z]+$/),
                 label: expect.any(String),
                 href: expect.stringMatching(/^\//),

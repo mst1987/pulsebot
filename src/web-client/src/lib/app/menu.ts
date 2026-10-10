@@ -33,6 +33,12 @@ export type MenuEntry = {
      * docs/system-status.md): its API route is `adminOnly` too, and `areas` is empty.
      */
     adminOnly?: boolean;
+    /**
+     * a page without game content (Kanäle, Einstellungen, Systemstatus): it keeps
+     * the brand colour whichever version the content switch shows (#742). The one
+     * list of version-neutral pages.
+     */
+    neutral?: boolean;
 };
 
 export const MENU: MenuEntry[] = MENU_JSON;

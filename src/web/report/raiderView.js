@@ -96,7 +96,8 @@ function raiderPrep(ctx, p, i) {
         const types = ((report.potions && report.potions.types) || []).filter((t) => byType[t.key]).sort((a, b) => byType[b.key] - byType[a.key]);
         const total = pot.total || (pot.destruction || 0) + (pot.haste || 0) + (pot.mana || 0);
         consRows += `<div class="kv"><span class="k">${hicon(ic.mana || "inv_potion_137", "")}<span>Tränke</span></span><span class="mono" data-tip="Tränke" data-tip-sub="${esc(`Zerstörung ${pot.destruction || 0} · Hast ${pot.haste || 0} · Mana ${pot.mana || 0}`)}"><span class="potions">${potionCells(ic, pot)}</span></span>${types.length ? badge(`${types[0].label} ${byType[types[0].key]}`, "") : badge(String(total), "", "", true)}</div>`;
-    } else {
+    } else if (!ctx.ran || ctx.ran.has("potions")) {
+        // only where the version's rule set counts potions at all (#747)
         consRows += kv("inv_potion_137", "Tränke", "<span class=\"mute\" data-tip=\"Noch keine CLA-Auswertung für diesen Log\">nicht ausgewertet</span>");
     }
     const drums = ctx.drumsByName.get(name);

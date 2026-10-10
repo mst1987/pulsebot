@@ -15,12 +15,12 @@ const TBC = {
     blizzardRegion: "eu", blizzardRealmSlug: "thunderstrike", blizzardNamespace: "profile-classicann-eu",
     armoryUrlTemplate: "https://classic-armory.org/character/eu/tbc-anniversary/thunderstrike/{char}",
     wclUrlTemplate: "https://fresh.warcraftlogs.com/character/eu/thunderstrike/{char}",
-    wowheadPath: "tbc", softresEdition: "tbc", raidsheetId: "tier45",
+    wowheadPath: "tbc", softresEdition: "tbc", raidsheetId: "tier45", color: "",
 };
 const FOREVER = {
     blizzardRegion: "eu", blizzardRealmSlug: "everlook", blizzardNamespace: "profile-forever-eu",
     armoryUrlTemplate: "https://armory.forever.test/eu/{char}", wclUrlTemplate: "https://forever.warcraftlogs.test/character/eu/everlook/{char}",
-    wowheadPath: "forever", softresEdition: "", raidsheetId: "",
+    wowheadPath: "forever", softresEdition: "", raidsheetId: "", color: "",
 };
 const config = (over = {}) => ({
     mainVersion: "tbc",
@@ -51,6 +51,23 @@ describe("services/events/versionSettings", () => {
 
         it("reads the stored config when none is handed in", () => {
             expect(vs.settingsForVersion("tbc")).toMatchObject({ versionId: "tbc", wowheadPath: "tbc" });
+        });
+    });
+
+    describe("versionColor (#742)", () => {
+        it("is the rule set's colour while the setting is empty", () => {
+            expect(vs.versionColor("forever", { config: config() })).toEqual({ color: "#4da3ff", defaultColor: "#4da3ff", custom: false });
+            expect(vs.versionColor("tbc", { config: config() })).toMatchObject({ color: "#9bd45a", custom: false });
+        });
+
+        it("is the setting's colour when one is set, and says so", () => {
+            const cfg = config({ versionSettings: normalizeVersionSettings({ tbc: { ...TBC, color: "#AA3377" } }) });
+            expect(vs.versionColor("tbc", { config: cfg })).toEqual({ color: "#aa3377", defaultColor: "#9bd45a", custom: true });
+        });
+
+        it("ignores a colour that is no #rrggbb", () => {
+            const cfg = config({ versionSettings: normalizeVersionSettings({ tbc: { ...TBC, color: "red" } }) });
+            expect(vs.versionColor("tbc", { config: cfg }).color).toBe("#9bd45a");
         });
     });
 

@@ -1,11 +1,11 @@
 /* =====================================================================
    What only the orga sees (components/ui/OrgaZone.tsx, design canvas Oct 2026):
    the teal bar over an orga page (E), the tinted dashed zone around the orga's
-   part of a page everybody sees (B) and the menu's dot. Teal (--accent-2), not
+   part of a page everybody sees (B) and the menu's dot. Teal (--orga-teal, its own token: it does not follow the version colour, #742), not
    the orange of "mid": orange already says "warning" all over the menu.
    ===================================================================== */
 
-:root { --orga: var(--accent-2); --orga-soft: color-mix(in srgb, var(--accent-2) 10%, transparent); --orga-line: color-mix(in srgb, var(--accent-2) 45%, transparent); }
+:root { --orga: var(--orga-teal); --orga-soft: color-mix(in srgb, var(--orga-teal) 10%, transparent); --orga-line: color-mix(in srgb, var(--orga-teal) 45%, transparent); }
 
 /* E · the page bar */
 .orga-bar {
