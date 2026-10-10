@@ -115,6 +115,16 @@ export function PlayerName({ userId, entry, className: extra = "" }: { userId: s
     );
 }
 
+/** A player's round Discord picture, else the initial on the prefilled class's colour (like the roster's MemberAvatar). */
+export function PlayerAvatar({ userId, entry }: { userId: string; entry?: KaderEntry }) {
+    const { view, players } = useKader();
+    const p = players.get(userId);
+    if (p && p.avatarUrl) return <img className="kp-pava" src={p.avatarUrl} alt="" loading="lazy" />;
+    const color = classColor(view.classes, p && p.prefill ? p.prefill.className : "");
+    const initial = (playerName(view, userId, entry).trim()[0] || "?").toUpperCase();
+    return <span className="kp-pava" style={color ? { "--av": color } as CSSProperties : undefined} aria-hidden="true">{initial}</span>;
+}
+
 const STATE_ICONS: Record<KaderState, ComponentType> = {
     pool: RosterIcon,
     selected: ListChecksIcon,
