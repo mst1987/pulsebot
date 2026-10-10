@@ -11,12 +11,22 @@
 // later; a record stored before versions existed is LEGACY_VERSION (TBC), not
 // the main version of today (config/gameVersions).
 //
+// Every raid has a stored version (#737): an own event its `versionId`, a
+// Raid-Helper snapshot (raidEventStore) the version its category played when
+// the scan first saw it. versionOfEvent() is the one resolver and reads the
+// stored version first; the live setting (mainVersionFor) only names the
+// version of something not stored yet — a new event, a coming Raid-Helper
+// raid. So switching `mainVersion` or `categoryVersion` moves no stored raid,
+// and with it no loot (characterVersions.eventVersion), attendance or log
+// (storedVersion.js versionOfLog) of it.
+//
 // "Andere Versionen ausblenden" (#563, config.hideOtherVersions): while it is
 // on, every list and selection list shows only the main version —
 // visibleVersions() / isVersionVisible() are the one question they ask, and
 // resolveVersionQuery() ignores a `?version=` of another one. A direct link to
 // an event of a hidden version still opens it, read only (eventArchive.js).
 const { rulesFor, DEFAULT_VERSION, VERSIONS } = require("../../config/gameVersions");
+const raidEventStore = require("../../stores/raidEventStore");
 
 /** `id` when a rule set has it, else "". */
 function knownVersion(id) {
@@ -53,13 +63,50 @@ function mainVersionFor({ categoryId = "", config } = {}) {
 }
 
 /**
- * The version of an event: its own when it has a known one (every own event),
- * else what its category plays (a Raid-Helper event carries none).
- * @param {{ versionId?: string, categoryId?: string } | null} event
+ * The version a Raid-Helper snapshot stored for `eventId` (#737), "" without
+ * one. A store that cannot answer (a test's stand-in) counts as "nothing
+ * stored".
+ */
+function snapshotVersionOf(eventId) {
+    const id = String(eventId || "").trim();
+    if (!id) return "";
+    try {
+        return typeof raidEventStore.versionOfRaidEvent === "function" ? knownVersion(raidEventStore.versionOfRaidEvent(id)) : "";
+    } catch {
+        return "";
+    }
+}
+
+// eventStore requires this module (a new event's version), so it cannot be
+// required back without a cycle; it hands in its lookup when it loads instead:
+// (id) => the own event's stored versionId ("" when gone), or null for an id
+// that is no own event's.
+let ownEventVersions = null;
+
+/** eventStore's lookup of an own event's stored version (see above); anything but a function unsets it. */
+function registerOwnEventVersions(fn) {
+    ownEventVersions = typeof fn === "function" ? fn : null;
+}
+
+/** The version stored for an event id: an own event's, else a Raid-Helper snapshot's — "" without one. */
+function storedVersionOfId(eventId) {
+    const id = String(eventId || "").trim();
+    if (!id) return "";
+    const own = ownEventVersions ? ownEventVersions(id) : null;
+    if (own !== null && own !== undefined) return knownVersion(own);
+    return snapshotVersionOf(id);
+}
+
+/**
+ * The version of an event — the one resolver (#737): the version it carries
+ * (every own event), else the one stored for its id (own event, Raid-Helper
+ * snapshot), else — only for an event not stored yet (a coming Raid-Helper
+ * raid, a new event) — what its category plays today.
+ * @param {{ id?: string, versionId?: string, categoryId?: string } | null} event
  */
 function versionOfEvent(event, { config } = {}) {
     const e = event || {};
-    return knownVersion(e.versionId) || mainVersionFor({ categoryId: e.categoryId, config });
+    return knownVersion(e.versionId) || storedVersionOfId(e.id) || mainVersionFor({ categoryId: e.categoryId, config });
 }
 
 /** The rule set of an event (see versionOfEvent) — never null. */
@@ -140,6 +187,6 @@ function otherVersions(config) {
 }
 
 module.exports = {
-    mainVersionFor, versionOfEvent, rulesForEvent, classesOfVersion, knownVersion, resolveVersionQuery,
+    mainVersionFor, versionOfEvent, snapshotVersionOf, registerOwnEventVersions, rulesForEvent, classesOfVersion, knownVersion, resolveVersionQuery,
     hidesOtherVersions, visibleVersions, isVersionVisible, visibleRows, otherVersions,
 };

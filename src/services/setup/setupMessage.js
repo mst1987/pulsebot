@@ -53,6 +53,7 @@ const {
 const { str, clip } = require("../../utils/text");
 const { approvedSetupOf, benchPosted, confirmationsFor, confirmButtonRow, inviteButtonRow, pingButtonRow } = require("./setupCore");
 const { callSetupPing, refreshSetupPing } = require("./setupPing");
+const { eventVersionTag } = require("../events/versionTag");
 
 const LIMITS = { title: 256, description: 4096, fields: 25, fieldValue: 1024, total: 6000 };
 const CANCELLED_COLOR = 0xe0524f;
@@ -289,7 +290,7 @@ function buildSetupDm(event, placement, { messageUrl = "", reasons = [], fairnes
     const who = name ? ` (${name})` : "";
     const facts = start ? [[tr(lang, "Start"), `<t:${start}:d> <t:${start}:t>`]] : [];
     const buttons = messageUrl ? [new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "Go to the setup")).setURL(messageUrl)] : [];
-    const base = { kind: "raid", color: embedColor(event), kicker: tr(lang, "Setup for {title}", { title: escapeMd(event.title || "Raid") }), facts, buttons };
+    const base = { kind: "raid", color: embedColor(event), kicker: [tr(lang, "Setup for {title}", { title: escapeMd(event.title || "Raid") }), eventVersionTag(event)].filter(Boolean).join(" · "), facts, buttons };
     if (placement.bench) {
         const text = [fairness
             ? tr(lang, "This time on the **bench**{who} – next time you have priority.", { who })

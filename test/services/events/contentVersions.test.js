@@ -18,7 +18,10 @@ jest.mock("../../../src/stores/eventStore", () => ({
     isOwnEventId: (id) => String(id).startsWith("eh-"),
     getEvent: (id) => mockEvents.find((e) => e.id === id) || null,
 }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: () => mockSnapshots }));
+jest.mock("../../../src/stores/raidEventStore", () => ({
+    listRaidEvents: () => mockSnapshots,
+    versionOfRaidEvent: (id) => ((mockSnapshots.find((e) => e.id === id) || {}).versionId || ""),
+}));
 jest.mock("../../../src/stores/lootStore", () => ({ listAll: () => mockLoot }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => mockProfiles }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: () => mockStored }));
@@ -122,6 +125,17 @@ describe("archiveExport / archiveCsv", () => {
             versionId: "tbc", eventId: "rh-1", date: "2026-10-28", raid: "Black Temple", category: "TBC Mittwoch",
             character: "Vexa", className: "Rogue", spec: "Combat", status: "primary",
         }]);
+    });
+
+    // #737: one rule for both - the raid's stored version, not today's category.
+    it("files loot and attendance of a raid by its stored version after the category was switched", () => {
+        mockSnapshots = [{ id: "rh-1", categoryId: "old", versionId: "tbc" }];
+        mockStored = mockStored.map((e) => (e.id === "rh-1" ? { ...e, versionId: "tbc" } : e));
+        mockConfig = { mainVersion: "forever", categoryVersion: { old: "forever" } };
+        const data = archiveExport({ now: NOW });
+        expect(data.versions).toEqual(["tbc"]);
+        expect(data.loot.map((r) => [r.eventId, r.versionId])).toEqual([["rh-1", "tbc"]]);
+        expect(data.attendance.map((r) => [r.eventId, r.versionId])).toEqual([["rh-1", "tbc"]]);
     });
 
     it("writes one CSV with a type column, quoting and defusing what needs it", () => {

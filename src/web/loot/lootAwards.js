@@ -93,7 +93,7 @@ function sortAwards(rows, sort, dir) {
  *              the one on screen.
  *   versionId  restrict to awards of one game version (#545, "" = every one)
  *              — derived from the item's event like the roster does (#543):
- *              an own event's version, else TBC.
+ *              the raid's stored version (#737), else TBC.
  */
 function listAwards({
     topOnly = true, search = "", categoryId = "", contentId = "", reason = "", versionId = "",

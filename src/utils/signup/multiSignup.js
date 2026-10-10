@@ -33,7 +33,8 @@ const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
 const eventStore = require("../../stores/eventStore");
 const { getSignup } = require("../../stores/signupStore");
-const { versionOfEvent } = require("../../services/events/mainVersion");
+const { versionOfEvent, isVersionVisible } = require("../../services/events/mainVersion");
+const { VERSIONS } = require("../../config/gameVersions");
 const { migrateSignup, MAX_CHARACTERS } = require("../../services/signups/signupCharacters");
 const profiles = require("../../stores/raiderProfileStore");
 const guildRoles = require("../../services/discord/guildRoles");
@@ -100,20 +101,37 @@ const shortDate = (value, lang = "de") => serverText(value, "ccc d LLL", lang);
 const plain = (text) => String(text || "").replace(/[*_`~|[\]\\]/g, "").replace(/\s+/g, " ").trim();
 
 /**
- * The own raids a member can sign up for from the overview: coming, not
- * begun, not cancelled or closed, of the event server and — when set — the
- * event categories; soonest first, at most 25. Raider roles and the deadline
- * are not filtered here: the result says per raid why it was refused.
+ * Every own raid a member could sign up for from the overview, unsliced: coming, not
+ * begun, not cancelled or closed, of the event server and - when set - the event
+ * categories, without the raids of a hidden game version; soonest first.
  */
-function signableRaids({ config = getConfig(), now = Date.now() } = {}) {
+function signableAll({ config, now }) {
     const guildId = guildRoles.eventGuildId(config);
     const cats = Array.isArray(config.categoryIds) ? config.categoryIds.map(String) : [];
     return eventStore.listEvents(guildId, { sinceSeconds: Math.floor(now / 1000) })
         .filter((e) => !signupWindow(e, now).started)
         .filter((e) => e.status !== "cancelled" && e.signupsClosed !== true)
         .filter((e) => !cats.length || cats.includes(String(e.categoryId || "")))
-        .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0))
+        .filter((e) => isVersionVisible(versionOfEvent(e, { config }), config))
+        .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0));
+}
+
+/**
+ * The own raids a member can sign up for from the overview (see signableAll) -
+ * of ONE game version when `versionId` is given (#743: TBC and Forever share the
+ * server, one signup never mixes them); at most 25. Raider roles and the deadline
+ * are not filtered here: the result says per raid why it was refused.
+ */
+function signableRaids({ config = getConfig(), now = Date.now(), versionId = "" } = {}) {
+    return signableAll({ config, now })
+        .filter((e) => !versionId || versionOfEvent(e, { config }) === versionId)
         .slice(0, MAX_RAIDS);
+}
+
+/** The game versions that have a signable raid right now, in rule-set order (#743): two = the bot asks first. */
+function signableVersions({ config = getConfig(), now = Date.now() } = {}) {
+    const present = new Set(signableAll({ config, now }).map((e) => versionOfEvent(e, { config })));
+    return VERSIONS.map((v) => v.id).filter((id) => present.has(id));
 }
 
 const optionValue = (o) => `${o.character}|${o.spec}`;
@@ -395,6 +413,6 @@ function buildResults(token, session, { nextPage = null, profile = null, lang = 
 module.exports = {
     PREFIX, PER_MODAL, SESSION_TTL, MAX_RAIDS,
     createSession, getSession, endSession, parseMultiId, multiId,
-    signableRaids, preselected, characterSelectOptions, orderedPicks, pageCount, pageRange,
+    signableRaids, signableVersions, preselected, characterSelectOptions, orderedPicks, pageCount, pageRange,
     buildRaidPicker, buildCharacterModal, modalValues, entriesFromModal, resultLine, buildResults,
 };

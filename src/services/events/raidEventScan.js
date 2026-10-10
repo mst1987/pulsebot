@@ -14,6 +14,7 @@ const discord = require("../discord/discord");
 const { saveRaidEvents, getRaidEvent } = require("../../stores/raidEventStore");
 const { RECENT_WINDOW_DAYS } = require("./recentEvents");
 const { signupStatus } = require("../../utils/attendance");
+const { mainVersionFor } = require("./mainVersion");
 
 // A finished raid's raidplan costs one extra HTTP call, so only events without a
 // setup snapshot are probed, and at most this many per scan — a backlog is worked
@@ -83,6 +84,9 @@ async function scanRaidEvents(guildId, { windowDays = RECENT_WINDOW_DAYS, probeS
                 categoryId: meta.categoryId || "",
                 categoryName: meta.categoryName || "",
                 startTime: ev.startTime,
+                // The version the category plays now (#737) - stored only on
+                // the first scan, a later one keeps the stored version.
+                versionId: mainVersionFor({ categoryId: meta.categoryId || "" }),
                 // The normalised status is kept alongside the spec: Raid-Helper
                 // expresses a bench/absence through fields this reduction drops,
                 // so deriving it later from `specName` alone would lose it.

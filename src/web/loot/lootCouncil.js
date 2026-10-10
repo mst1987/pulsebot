@@ -854,7 +854,7 @@ function scoreRows(rows, weights = resolveWeights()) {
  *   charVersion restrict to raiders of one game version (#545, "" = every
  *               version) — a character's version like the roster derives it
  *               (services/characters/characterVersions.js): its own when
- *               known, else the version of an own event it won loot in, else
+ *               known, else the stored version of a raid it won loot in, else
  *               its category's, else TBC.
  */
 function councilRoster(opts = {}) {

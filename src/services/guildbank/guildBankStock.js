@@ -9,12 +9,16 @@
 // assigns a new bank right away. Only an event server can own a bank: that is
 // where the requests are made.
 //
+// A scan whose client names no game version (#737) is never filed under the
+// main version: it goes to the bank already known for its realm and guild
+// (one version only), else it is refused with a parse error the uploader sees
+// and the log names.
+//
 // Errors use the `{ code, error }` form (web/http/apiResult.js sendFailure),
 // messages in German.
 const store = require("../../stores/guildBankStockStore");
-const { parseGuildBankScan } = require("../../utils/guildbank/guildBankScan");
+const { parseGuildBankScan, bankKeyOf, GuildBankParseError } = require("../../utils/guildbank/guildBankScan");
 const itemMeta = require("./itemMeta");
-const { mainVersionFor } = require("../events/mainVersion");
 const guildRoles = require("../discord/guildRoles");
 const discord = require("../discord/discord");
 const { getConfig } = require("../../stores/settingsStore");
@@ -41,8 +45,27 @@ function onlyEventServer(config = getConfig()) {
  * @throws {GuildBankParseError} for an upload that is no readable scan
  * @returns {{ scan, status: "created"|"updated"|"stale", bank, newItems: number[], lookups: number[] }}
  */
+/**
+ * The game version of a scan without one (#737): the version of the bank
+ * already stored for that realm and guild — "" when there is none, or banks of
+ * several versions (then nobody can tell which client scanned it).
+ */
+function versionOfKnownBank({ realm, guild }) {
+    const rest = bankKeyOf("", realm, guild); // ":<realm>:<guild>"
+    const versions = new Set(store.listBanks()
+        .filter((b) => b.key && b.gameVersion && b.key.slice(b.key.indexOf(":")) === rest)
+        .map((b) => b.gameVersion));
+    return versions.size === 1 ? [...versions][0] : "";
+}
+
 function ingestScan(body, { token = {}, now = Date.now(), config } = {}) {
-    const scan = parseGuildBankScan(body, { fallbackVersion: mainVersionFor({ config }) });
+    let scan;
+    try {
+        scan = parseGuildBankScan(body, { fallbackVersion: versionOfKnownBank });
+    } catch (e) {
+        if (e instanceof GuildBankParseError) console.warn(`[guildbank] Scan abgelehnt: ${e.message}`);
+        throw e;
+    }
     const guildId = serverOfToken(token) || (store.getBank(scan.key) ? "" : onlyEventServer(config));
     const result = store.recordScan(scan, { now, guildId, uploadedBy: (token && token.name) || "" });
     if (result.status === "stale") return { scan, ...result, lookups: [] };

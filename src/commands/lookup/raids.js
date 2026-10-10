@@ -1,6 +1,7 @@
 // /raids — the next raids and where the asking user stands in each (issue #265).
 const { SlashCommandBuilder } = require("discord.js");
 const { listEvents, statusOf, STATUS_LABELS, STATUS_ICONS } = require("../../services/events/eventLookup");
+const { addVersionOption, versionOfCommand, eventsOfVersion, versionNote } = require("../../services/events/commandVersion");
 const { webUrl, lookupReply, deferLookup, discordTime, clip } = require("../../utils/discord/botLookup");
 
 /** How many raids the reply lists. */
@@ -19,18 +20,21 @@ module.exports = {
     description: "Deine nächsten Raids und ob du angemeldet bist.",
     group: "raids",
     defaultAccess: "everyone",
-    data: new SlashCommandBuilder()
+    data: addVersionOption(new SlashCommandBuilder()
         .setName("raids")
-        .setDescription("Deine nächsten Raids und dein Anmeldestatus"),
+        .setDescription("Deine nächsten Raids und dein Anmeldestatus")),
     MAX_RAIDS,
     async execute(interaction) {
         await deferLookup(interaction);
-        const { events, error } = await listEvents();
+        const { versionId } = versionOfCommand(interaction);
+        const footer = { text: versionNote(versionId) };
+        const { events: all, error } = await listEvents();
         const now = Date.now() / 1000;
-        const upcoming = events.filter((ev) => (ev.startTime || 0) >= now - 3 * 3600);
+        const upcoming = eventsOfVersion(all, versionId).filter((ev) => (ev.startTime || 0) >= now - 3 * 3600);
         const link = [{ label: "Im Web öffnen", url: webUrl("/raids") }];
         if (!upcoming.length) {
             return lookupReply(interaction, {
+                footer,
                 title: "Nächste Raids",
                 description: error ? `Die Raids konnten nicht geladen werden: ${clip(error, 200)}` : "Keine Raids geplant.",
             }, link);
@@ -40,6 +44,7 @@ module.exports = {
         const shown = upcoming.slice(0, MAX_RAIDS);
         const more = upcoming.length - shown.length;
         return lookupReply(interaction, {
+            footer,
             title: "Nächste Raids",
             description: [
                 open ? `**${open} ohne Antwort von dir**` : "**Überall geantwortet**",

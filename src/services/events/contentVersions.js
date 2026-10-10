@@ -111,8 +111,12 @@ function archiveExport({ config, now = Date.now() } = {}) {
     const versions = otherVersions(cfg).filter((id) => withData.has(id));
     const wanted = new Set(versions);
     const ctx = buildVersionContext({ config: cfg });
+    // One rule for loot and attendance (#737): the raid's stored version, TBC
+    // without one — so a raid's loot and its signups always land in the same
+    // version, whatever the main or category version says today.
+    const versionOfRaid = (id, event) => knownVersion(event && event.versionId) || eventVersion(ctx, id);
     const loot = lootStore.listAll()
-        .map((it) => ({ it, versionId: eventVersion(ctx, it.eventId) }))
+        .map((it) => ({ it, versionId: versionOfRaid(it.eventId) }))
         .filter((x) => wanted.has(x.versionId))
         .map(({ it, versionId }) => ({
             versionId, eventId: it.eventId || "", date: isoDay(it.awardedAt || it.importedAt), raid: it.eventLabel || it.instance || "",
@@ -120,7 +124,7 @@ function archiveExport({ config, now = Date.now() } = {}) {
         }));
     const { listStoredEvents } = require("./eventSources");
     const attendance = listStoredEvents("", { now })
-        .map((e) => ({ e, versionId: versionOfEvent(e, { config: cfg }) }))
+        .map((e) => ({ e, versionId: versionOfRaid(e.id, e) }))
         .filter((x) => wanted.has(x.versionId))
         .flatMap(({ e, versionId }) => attendanceRows(e, versionId));
     return { exportedAt: new Date(now).toISOString(), mainVersion: mainVersionFor({ config: cfg }), versions, loot, attendance };
