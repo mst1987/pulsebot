@@ -72,7 +72,7 @@ const postRosterCreate = withUser({ write: "roster", csrf: true, body: true }, a
 /**
  * POST /api/rosters/update — change a roster's settings.
  * Body: { rosterId, name?, categoryId?, versionId?, roleIds?, trialRoleId?, managers?, slots?,
- *   allowMultipleChars?, signupOnly?, kaderId? } (only what is sent changes; slots and managers merge per key).
+ *   allowMultipleChars?, signupOnly?, publicRaids?, kaderId? } (only what is sent changes; slots and managers merge per key).
  * `kaderId` (full admins): the Kader of the Kaderplaner linked 1:1 (null unlinks; 404 kader_not_found,
  * 409 kader_taken when another roster holds it).
  * `lootSystem` (full admins, #676): "softres" | "lootcouncil" | "gdkp" | "other" - with a category it is

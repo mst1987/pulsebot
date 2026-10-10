@@ -9,12 +9,13 @@ import * as api from "../../api";
 import RosterDetailPage from "./RosterDetailPage";
 import { renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
-import { detail, member, memberChar, sync } from "./rosters.fixture";
+import { composition, detail, member, memberChar, sync } from "./rosters.fixture";
 
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getRosterDetail: vi.fn(),
     getRosterSync: vi.fn(),
+    getRosterComposition: vi.fn(),
 }));
 
 const MEMBERS = [
@@ -155,5 +156,29 @@ describe("RosterDetailPage — in English", () => {
         expect(screen.getAllByText("has the role").length).toBeGreaterThan(0);
         expect(screen.getByText("Role missing")).toBeInTheDocument();
         expect(screen.getByText("No character assigned")).toBeInTheDocument();
+    });
+});
+
+describe("RosterDetailPage - who sees which tab (epic #723)", () => {
+    it("gives a raider the Komposition only: no tabs, no members, no sync request, no drawer", async () => {
+        vi.mocked(api.getRosterComposition).mockResolvedValue(composition());
+        await openPage(detail(MEMBERS.map((m) => ({ ...m, attendance: null })), { isOrga: false }));
+        // even the address of the members tab lands on the Komposition
+        expect(screen.queryByRole("navigation", { name: "Bereiche des Rosters" })).not.toBeInTheDocument();
+        expect(screen.queryByText("Mitglieder")).not.toBeInTheDocument();
+        expect(screen.queryByRole("region", { name: "Orga-Bereich" })).not.toBeInTheDocument();
+        expect(screen.queryByText(/Anwesenheit/)).not.toBeInTheDocument();
+        expect(api.getRosterSync).not.toHaveBeenCalled();
+        expect(api.getRosterComposition).toHaveBeenCalledWith("raid-mo-do-abc");
+        expect(document.querySelector(".rn-person")).toBeNull();
+    });
+
+    it("shows the orga all tabs, the people ones inside the orga frame", async () => {
+        await openPage(detail(MEMBERS, { isOrga: true }));
+        const tabs = screen.getByRole("navigation", { name: "Bereiche des Rosters" });
+        expect(within(tabs).getAllByRole("link")).toHaveLength(5);
+        const zone = screen.getByRole("region", { name: "Orga-Bereich" });
+        expect(within(zone).getByText("Thorgrim", { selector: ".rn-person b" })).toBeInTheDocument();
+        expect(api.getRosterSync).toHaveBeenCalled();
     });
 });

@@ -198,6 +198,8 @@ export type RosterCharData = {
     role: RosterRole;
     categories: (RosterCategoryInfo & { id: string; name: string })[];
     attendance: Record<string, RosterAttendance>;
+    /** false: the attendance and categories are the orga's (or the player's own) - they come back empty (epic #723). */
+    attendanceVisible?: boolean;
     items: Record<string, RosterItemFacts>;
 };
 
@@ -255,6 +257,8 @@ export type RosterHead = {
     todo: { withoutRole: number | null; withoutChar: number; trial: number };
     /** Overview cards only (#658): trial members whose end lies within 7 days or has passed, earliest first. */
     trialEnding?: { userId: string; displayName: string; trialUntil: string; overdue: boolean }[];
+    /** Overview cards: the caller is the orga of this roster; false = no attendance, no open-work badges (epic #723). */
+    isOrga?: boolean;
 };
 
 export type RosterOverview = {
@@ -262,6 +266,8 @@ export type RosterOverview = {
     categoriesWithoutRoster: { id: string; name: string; versionId: string; versionLabel: string }[];
     /** Full admins create rosters (#657). */
     canCreate: boolean;
+    /** The caller is orga in general (full admin or orga role): the all-characters list is theirs. */
+    isOrga?: boolean;
 };
 
 /** Where a member's spec comes from (services/roster/memberSpec.js): the orga, the last signup, the logs, the profile, the class alone. */
@@ -339,6 +345,8 @@ export type RosterDetail = {
     /** The caller may set a night by hand (roster managers, admins, raids write). */
     canEditAttendance?: boolean;
     membersKnown: boolean;
+    /** The caller is the roster's orga (admin, orga role, manager); false = the Komposition's slice only (epic #723). */
+    isOrga?: boolean;
     canManage: boolean;
     isAdmin: boolean;
     /** What the settings dialog starts from; null for a caller who may not manage the roster. */
@@ -353,6 +361,8 @@ export type RosterSettings = {
     trialRoleId: string | null;
     managers: { roleIds: string[]; userIds: string[]; users: { userId: string; displayName: string }[] };
     signupOnly: boolean;
+    /** The raids of this category are visible to every raider (epic #723). */
+    publicRaids?: boolean;
     allowMultipleChars: boolean;
     slots: RosterHead["slots"];
     /** The linked Kader of the Kaderplaner, null for none. */

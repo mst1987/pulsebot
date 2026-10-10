@@ -64,6 +64,8 @@ function TodoBadges({ roster }: { roster: RosterHead }) {
 
 function RosterCard({ roster }: { roster: RosterHead }) {
     const t = useT();
+    // a raider sees the card and its composition; attendance and open work are the orga's (epic #723)
+    const orga = roster.isOrga !== false;
     const tone = attendanceTone(roster.attendance);
     const total = roster.slots.total;
     return (
@@ -84,23 +86,25 @@ function RosterCard({ roster }: { roster: RosterHead }) {
                             <small>{total > 0 ? t("roster.overview.ofPlaces", { total }) : t("roster.overview.persons", { count: roster.places })}</small>
                         </div>
                     </div>
-                    <div className="rn-card-att">
-                        <div className="rn-kick">{t("roster.overview.attendance")}</div>
-                        {roster.attendance === null
-                            ? <><div className="rn-big rn-tone-none">–</div><div className="rn-sub">{t("roster.overview.noRaids")}</div></>
-                            : (
-                                <div className={`rn-big${tone ? ` rn-tone-${tone}` : ""}`} data-tip={t("roster.overview.attendance")} data-tip-sub={t("roster.overview.attendanceSub", { count: roster.attendanceCounted })}>
-                                    {roster.attendance}<small>%</small>
-                                </div>
-                            )}
-                    </div>
+                    {orga && (
+                        <div className="rn-card-att">
+                            <div className="rn-kick">{t("roster.overview.attendance")}</div>
+                            {roster.attendance === null
+                                ? <><div className="rn-big rn-tone-none">–</div><div className="rn-sub">{t("roster.overview.noRaids")}</div></>
+                                : (
+                                    <div className={`rn-big${tone ? ` rn-tone-${tone}` : ""}`} data-tip={t("roster.overview.attendance")} data-tip-sub={t("roster.overview.attendanceSub", { count: roster.attendanceCounted })}>
+                                        {roster.attendance}<small>%</small>
+                                    </div>
+                                )}
+                        </div>
+                    )}
                 </div>
                 <div className="rn-figs">
                     <RoleFigure role="tank" count={roster.roleCounts.tank} target={roster.slots.tank} />
                     <RoleFigure role="healer" count={roster.roleCounts.healer} target={roster.slots.healer} />
                     <RoleFigure role="dps" count={roster.roleCounts.dps} target={dpsTarget(roster.slots)} />
                 </div>
-                <TodoBadges roster={roster} />
+                {orga && <TodoBadges roster={roster} />}
                 <div className="rn-card-foot">
                     <RoleChip role={roster.mainRole} />
                     <span className={buttonClass("ghost", "sm", false, "rn-open")}>{t("roster.overview.open")}</span>
@@ -152,9 +156,9 @@ export default function RostersPage() {
                 title={t("roster.overview.title")}
                 action={(
                     <>
-                        <Link className={buttonClass("ghost")} to="/roster/chars" data-tip={t("roster.overview.allCharsTip")} data-tip-sub={t("roster.overview.allCharsSub")}>
+                        {data.isOrga !== false && <Link className={buttonClass("ghost")} to="/roster/chars" data-tip={t("roster.overview.allCharsTip")} data-tip-sub={t("roster.overview.allCharsSub")}>
                             {t("roster.overview.allChars")}
-                        </Link>
+                        </Link>}
                         {data.canCreate && <Button icon={<PlusIcon />} onClick={() => setCreating({ categoryId: "" })}>{t("roster.overview.create")}</Button>}
                     </>
                 )}

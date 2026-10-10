@@ -79,10 +79,12 @@ export default function HistoryCharPage() {
                 const issueTone = data.gearIssues?.issues.some((i) => i.severity === "high") ? "bad" : "mid";
                 const att = roster ? combineAttendance(Object.values(roster.attendance)) : null;
 
+                // somebody else's attendance is the orga's: for a raider the server sends none and the tab stays away (epic #723)
+                const showAttendance = !roster || roster.attendanceVisible !== false;
                 const sections: { id: CharTab; label: string; icon: string; count: ReactNode; tone?: string }[] = [
                     { id: "gear", label: t("history.char.gear"), icon: "inv_helmet_98", count: issueCount || null, tone: issueCount ? issueTone : "" },
                     { id: "loot", label: t("history.shared.lootHistory"), icon: "inv_misc_bag_10", count: data.items.length || null },
-                    { id: "attendance", label: t("history.char.attendance"), icon: "ability_warrior_rallyingcry", count: att?.total ? `${att.attended}/${att.total}` : null },
+                    ...(showAttendance ? [{ id: "attendance" as CharTab, label: t("history.char.attendance"), icon: "ability_warrior_rallyingcry", count: att?.total ? `${att.attended}/${att.total}` : null }] : []),
                 ];
 
                 return (
@@ -120,7 +122,7 @@ export default function HistoryCharPage() {
                                     : <p className="sub ros-empty">{t("history.char.lootEmpty")}</p>}
                             </div>
                         )}
-                        {tab === "attendance" && <AttendanceSection roster={roster} />}
+                        {tab === "attendance" && showAttendance && <AttendanceSection roster={roster} />}
 
                         {!!itemSlot && <ItemDetailModal slot={itemSlot} data={data} roster={roster} onClose={() => setItemSlot("")} />}
                     </div>

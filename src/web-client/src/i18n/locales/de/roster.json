@@ -1,5 +1,6 @@
 {
     "page": {
+        "orgaOnly": "Diese Liste ist für die Orga. Als Raider siehst du die Roster und ihre Komposition unter „Roster“.",
         "loadError": "Fehler beim Laden: {message}",
         "loading": "Roster wird geladen",
         "categories": {
@@ -689,6 +690,8 @@
         "multiTip": "Zum Beispiel für PuGs. Aus: jede Person spielt genau einen Charakter in diesem Roster.",
         "signupOnly": "Anmeldung nur für Roster-Mitglieder",
         "signupOnlyTip": "Probe und Ersatz dürfen sich auch anmelden.",
+        "publicRaids": "Raids für alle Raider sichtbar",
+        "publicRaidsTip": "Sonst sehen nur die Raider dieser Kategorie ihre Raids. Ist das an, sehen auch Raider anderer Kategorien diese Raids in Raid-Liste und Übersicht.",
         "sourceTitle": "Wer kommt zuerst hinein?",
         "source": {
             "role": "Alle mit der Rolle",

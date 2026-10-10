@@ -4,9 +4,9 @@
 // Permission split:
 //   full admin           everything - name, category, game version, Discord
 //                        roles (roleIds, trialRoleId), managers, slots,
-//                        allowMultipleChars, signupOnly, the linked Kader
+//                        allowMultipleChars, signupOnly, publicRaids, the linked Kader
 //                        (kaderId); creating and deleting
-//   manager of a roster  name, slots, allowMultipleChars, signupOnly and the
+//   manager of a roster  name, slots, allowMultipleChars, signupOnly, publicRaids and the
 //                        Loot-Council profile (lootProfileId, #676) of that
 //                        roster - not its managers, roles, category, version
 //                        or loot system
@@ -40,8 +40,8 @@ const { knownVersion } = require("../events/mainVersion");
 const { mirrorCategoryRoles } = require("./categoryRoles");
 const { normalizeLootSystem, rosterLootSystem } = require("../loot/lootSystem");
 
-const ADMIN_FIELDS = ["name", "categoryId", "versionId", "roleIds", "trialRoleId", "managers", "slots", "allowMultipleChars", "signupOnly", "kaderId", "lootSystem", "lootProfileId"];
-const MANAGER_FIELDS = ["name", "slots", "allowMultipleChars", "signupOnly", "lootProfileId"];
+const ADMIN_FIELDS = ["name", "categoryId", "versionId", "roleIds", "trialRoleId", "managers", "slots", "allowMultipleChars", "signupOnly", "publicRaids", "kaderId", "lootSystem", "lootProfileId"];
+const MANAGER_FIELDS = ["name", "slots", "allowMultipleChars", "signupOnly", "publicRaids", "lootProfileId"];
 const SLOT_KEYS = ["total", "tank", "healer", "bench"];
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
@@ -151,6 +151,7 @@ function cleanSettings(raw, { current = null, knownRoleIds = null } = {}) {
         ["managers", () => cleanManagers(p.managers, current && current.managers)],
         ["allowMultipleChars", () => cleanBool(p.allowMultipleChars)],
         ["signupOnly", () => cleanBool(p.signupOnly)],
+        ["publicRaids", () => cleanBool(p.publicRaids)],
         ["kaderId", () => cleanKader(p.kaderId)],
     ];
     for (const [key, check] of steps) {

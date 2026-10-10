@@ -1,5 +1,6 @@
 {
     "page": {
+        "orgaOnly": "This list is for the orga. As a raider you see the rosters and their composition under “Roster”.",
         "loadError": "Failed to load: {message}",
         "loading": "Loading roster",
         "categories": {
@@ -689,6 +690,8 @@
         "multiTip": "For example for pugs. Off: everyone plays exactly one character in this roster.",
         "signupOnly": "Signup for roster members only",
         "signupOnlyTip": "Trial and bench may sign up too.",
+        "publicRaids": "Raids visible to all raiders",
+        "publicRaidsTip": "Otherwise only the raiders of this category see its raids. When on, raiders of other categories see these raids in the raid list and overview too.",
         "sourceTitle": "Who comes in first?",
         "source": {
             "role": "Everyone with the role",

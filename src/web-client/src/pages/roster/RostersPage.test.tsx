@@ -130,3 +130,21 @@ describe("RostersPage", () => {
         expect(screen.getByRole("link", { name: "All characters" })).toBeInTheDocument();
     });
 });
+
+describe("RostersPage - a raider (epic #723)", () => {
+    it("sees the composition of a card, but no attendance, no open-work badges and no all-characters link", async () => {
+        await openPage(overview({ isOrga: false, rosters: [rosterHead({ isOrga: false, attendance: null, todo: { withoutRole: null, withoutChar: 0, trial: 0 } })] }));
+        const c = within(card("Raid Mo / Do"));
+        expect(c.getByText("von 25 Plätzen")).toBeInTheDocument();
+        expect(c.getByText("Tanks").closest(".rn-fig")).toHaveTextContent("3 von 3");
+        expect(c.queryByText("Anwesenheit")).not.toBeInTheDocument();
+        expect(c.queryByText("Nichts offen")).not.toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: "Alle Charaktere" })).not.toBeInTheDocument();
+    });
+
+    it("shows the orga everything, with the all-characters link", async () => {
+        await openPage(overview({ isOrga: true }));
+        expect(within(card("Raid Mo / Do")).getByText("Anwesenheit")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Alle Charaktere" })).toBeInTheDocument();
+    });
+});
