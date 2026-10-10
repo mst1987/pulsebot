@@ -8,13 +8,12 @@ const { itemCatalog } = require("../../services/loot/lootStats");
 const { versionOfEvent } = require("../../services/events/mainVersion");
 const { versionLinks } = require("../../services/events/versionSettings");
 const { webUrl, lookupReply, respondChoices, clip } = require("../../utils/discord/botLookup");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
 const { councilContentFor } = require("../../config/councilContent");
 
-/** The game version of the channel the command runs in: its category's, else the main version (#748). */
+/** The game version the command answers for: the `version` option, else the channel category's, else the main version (#743, #748). */
 function versionOfInteraction(interaction) {
-    const channel = interaction && interaction.channel;
-    return mainVersionFor({ categoryId: (channel && channel.parentId) || "" });
+    return versionOfCommand(interaction).versionId;
 }
 
 /**
@@ -39,7 +38,8 @@ function councilItems(versionId = "tbc") {
  * The Wowhead link of an item in the game version of the channel's category
  * (main version when the channel has none or the version has no Wowhead path).
  */
-function itemLinkFor(itemId, channel) {
+function itemLinkFor(itemId, channel, versionId = "") {
+    if (versionId) return versionLinks(versionId).wowheadItem(itemId);
     const inThread = channel && typeof channel.isThread === "function" && channel.isThread();
     const holder = inThread ? channel.parent : channel;
     const categoryId = (holder && holder.parentId) || "";
@@ -62,17 +62,20 @@ module.exports = {
     description: "Öffnet den Loot-Council-Drop-Check für ein Item.",
     group: "loot",
     defaultAccess: "admins",
-    data: new SlashCommandBuilder()
+    data: addVersionOption(new SlashCommandBuilder()
         .setName("council")
         .setDescription("Loot-Council: Drop-Check für ein Item öffnen")
-        .addStringOption((o) => o.setName("item").setDescription("Item").setRequired(true).setAutocomplete(true)),
+        .addStringOption((o) => o.setName("item").setDescription("Item").setRequired(true).setAutocomplete(true))),
     findCouncilItem,
     itemLinkFor,
     async execute(interaction) {
         const value = interaction.options.getString("item");
-        const item = findCouncilItem(value, versionOfInteraction(interaction));
+        const versionId = versionOfInteraction(interaction);
+        const footer = { text: versionNote(versionId) };
+        const item = findCouncilItem(value, versionId);
         if (!item) {
             return lookupReply(interaction, {
+                footer,
                 title: "Item nicht gefunden",
                 description: `Kein Raid-Item zu „${clip(value, 100)}“.`,
             }, [{ label: "Im Web öffnen", url: webUrl("/lootcouncil/drop") }]);
@@ -82,8 +85,9 @@ module.exports = {
             ? `Schon **${looted.count}×** vergeben, zuletzt an ${looted.awards[0] ? `**${looted.awards[0].character}**` : "—"}.`
             : "Noch nie vergeben.";
         return lookupReply(interaction, {
+            footer,
             title: item.name,
-            url: itemLinkFor(item.id, interaction.channel),
+            url: itemLinkFor(item.id, interaction.channel, versionId),
             description: `${history}\nKandidaten, BiS und Simulation stehen im Drop-Check.`,
         }, [{ label: "Drop prüfen", url: webUrl(`/lootcouncil/drop/${item.id}`) }]);
     },

@@ -38,6 +38,7 @@ const { loadEventGroups } = require("../../services/events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
 const { computeAttendance, signupStatus, isRosterKnown } = require("../../utils/attendance");
 const { tr } = require("../../utils/i18n/botText");
+const { versionOfEvent, isVersionVisible } = require("../../services/events/mainVersion");
 const { hasExpected, listExpectedMembers } = require("../../services/roster/expectedRaiders");
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -147,6 +148,8 @@ async function runReminders({ now = Date.now(), config = getConfig() } = {}) {
                 for (const event of group.events || []) {
                     // A cancelled event (#288) reminds nobody.
                     if (event.status === "cancelled") continue;
+                    // A raid of a version the orga hid reminds nobody either (#743).
+                    if (!isVersionVisible(versionOfEvent({ ...event, categoryId: event.categoryId || group.categoryId }, { config }), config)) continue;
                     for (const kind of dueReminders(event, rule, reminderStore.getSent(event.id), now)) {
                         const userIds = await recipients(kind, event, group.categoryId, guildId, config);
                         if (userIds === null) { summary.skipped += 1; continue; }

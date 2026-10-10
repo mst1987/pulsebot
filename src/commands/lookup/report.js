@@ -3,6 +3,8 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { listReports } = require("../../stores/reportStore");
 const { prepareReportList } = require("../../services/logcheck/reportList");
+const { recordVersion } = require("../../services/logcheck/logVersion");
+const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
 const { webUrl, lookupReply, discordTime, clip, plural } = require("../../utils/discord/botLookup");
 
 /** How many evaluations the reply lists. */
@@ -21,15 +23,19 @@ module.exports = {
     description: "Die letzten Log-Auswertungen mit Link.",
     group: "logs",
     defaultAccess: "everyone",
-    data: new SlashCommandBuilder()
+    data: addVersionOption(new SlashCommandBuilder()
         .setName("report")
-        .setDescription("Die letzten Log-Auswertungen mit Link"),
+        .setDescription("Die letzten Log-Auswertungen mit Link")),
     MAX_REPORTS,
     progressText,
     async execute(interaction) {
-        const { items, total } = prepareReportList(listReports(), { sort: "date", dir: "desc" }, { pageSize: MAX_REPORTS });
+        const { versionId } = versionOfCommand(interaction);
+        const footer = { text: versionNote(versionId) };
+        const reports = listReports().filter((r) => recordVersion(r) === versionId);
+        const { items, total } = prepareReportList(reports, { sort: "date", dir: "desc" }, { pageSize: MAX_REPORTS });
         if (!items.length) {
             return lookupReply(interaction, {
+                footer,
                 title: "Letzte Auswertungen",
                 description: "Noch keine Auswertung erstellt. Eine neue gibt es mit `/logcheck`.",
             });
@@ -39,6 +45,7 @@ module.exports = {
             return `**[${clip(r.title || r.id, 80)}](${webUrl(`/r/${r.id}`)})**${meta ? `\n${meta}` : ""}`;
         });
         return lookupReply(interaction, {
+            footer,
             title: "Letzte Auswertungen",
             description: `**${plural(total, "Auswertung", "Auswertungen")}**\n\n${lines.join("\n\n")}`,
         }, [{ label: "Neueste öffnen", url: webUrl(`/r/${items[0].id}`) }]);
