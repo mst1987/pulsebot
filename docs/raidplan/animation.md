@@ -109,11 +109,33 @@ and Allgemein have none, "Karte aus" shows the note). `components/raidplan/edito
   first frame takes no time (the starting position); a new change of a later frame takes one second (at most the frame).
 - **`boardOf` keeps `scenes`** (`lib/raidplan/model.ts`) - without it a save from the editor would drop them.
 
+### Ways and loops (#712)
+
+- **The way of a movement:** an object that moves in the chosen frame (not the first) gets "Weg zeichnen" in the panel.
+  While drawing, the board has a crosshair and an accent frame; a click on the map (capture phase of the board's wrapper,
+  so nothing is picked or moved meanwhile) adds a point **between the neighbours it lies closest to**
+  (`insertIndex`: the movement's start and end count as the ends of the polyline), so a point clicked in the middle of the
+  curve stays there. Every point is a grip (`PlanBoard`'s `overlay` prop, `.rp-path-pt`): drag moves it (live, one undo
+  step), a double click removes it; "Gerade" clears the way; Enter / Esc / "Fertig" end the drawing (a new frame, object
+  or scene too). At most 16 points.
+- **Loops ("Dauerbewegung"):** "+ Dauerbewegung" on the picked object creates a loop that starts **where the object
+  stands after this frame** (first point, drawn hollow) at the frame's start time, and opens its drawing at once
+  (`newLoopId` is picked before the edit). A click adds a point: with one point it is appended, then it goes into the
+  closest segment, the closing one too (`loopInsertIndex`; an open path clicked beyond its end grows there). The loop's
+  card: its points, "Weg zeichnen / Fertig", remove, "Rundweg" (off = there and back), "Eine Runde" (s), "Läuft ab" and
+  "Endet bei" (0 = at the end of the scene), "Spur zeigen". The picked object's loops are drawn as dotted curves
+  (`loopHint`) with their grips. At most 12 loops per scene, 24 points each; a loop with fewer than two points is
+  dropped by the server on save.
+
 ## Dev demo
 
-`node scripts/seed-test-raid.js` gives the template "BT Demo" at Gurtogg Bloodboil five split group markers and the
-scene "Bloodboil-Rotation" (6 frames: the group at the back gets Bloodboil, runs to the front on a curve, the next one
-falls back half a second later, twice).
+`node scripts/seed-test-raid.js` gives the template "BT Demo" two scenes:
+
+- **Gurtogg Bloodboil:** five split group markers and "Bloodboil-Rotation" (6 frames: the group at the back gets
+  Bloodboil, runs to the front on a curve, the next one falls back half a second later, twice).
+- **Illidan:** "Flammen kiten" (4 frames and 4 loops): Illidan flies up (faded, smaller), two Flames of Azzinoth appear
+  with a fire badge and a pulse, they move to tank 2 / tank 3, then each tank kites a round on its half of the room and
+  its flame follows a second behind on the same path, leaving its Blaze as a trail.
 
 ## Tests
 

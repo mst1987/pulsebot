@@ -1476,6 +1476,28 @@
             "spell_frost_frostbolt02": "Frost",
             "ability_hunter_snipershot": "Target / focus"
         },
-        "deleteFrameAsk": "Delete step {n}?"
+        "deleteFrameAsk": "Delete step {n}?",
+        "way": "Way",
+        "wayN": "Way · {n} points",
+        "drawWay": "Draw way",
+        "drawDone": "Done",
+        "straight": "Straight",
+        "drawNote": "Click on the map to set points of the way. Drag a point to move it, double-click removes it. Enter or Esc ends.",
+        "wayPoint": "Point {n} of the way",
+        "wayPointTip": "Drag to move, double-click removes",
+        "loops": "Continuous movement",
+        "loopsTip": "Runs in a loop, independent of the steps - e.g. a tank kiting the flames.",
+        "addLoop": "Continuous movement",
+        "loopN": "Round {n}",
+        "removeLoop": "Remove continuous movement {n}",
+        "loopFirst": "The first point is where the object stands now. Click on the map to draw the way.",
+        "closed": "Round trip",
+        "closedTip": "On: runs in a circle back to the start. Off: runs the way there and back.",
+        "period": "One round",
+        "loopFrom": "Runs from",
+        "loopTo": "Ends at",
+        "loopToEnd": "Ends (0 = at the end)",
+        "trail": "Show trail",
+        "trailTip": "A fading trail behind the object, e.g. the fire (Blaze) behind a flame."
     }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { Clapperboard, Play, Plus, Square } from "lucide-react";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanBoss, RaidplanPlayer } from "../../../api";
 import PlanBoard, { type Handle } from "../PlanBoard";
@@ -7,13 +7,16 @@ import { useBoardView } from "../../../hooks/useBoardView";
 import { useScenePlayer } from "../../../hooks/useScenePlayer";
 import { viewFromSaved } from "../../../lib/raidplan/boardView";
 import { deriveAuto, type AutoPlan } from "../../../lib/raidplan/autoPlace";
-import { autoAtOf, boardAfter, boardAt, clock, frameLength, moveHints, positionOf } from "../../../lib/raidplan/scene";
-import { addFrame, addScene, frameSummary, moveIn, newScene, sceneRef, withScene, SCENE_LIMITS } from "../../../lib/raidplan/sceneEdit";
+import { autoAtOf, boardAfter, boardAt, clock, frameLength, loopHint, moveHints, positionOf } from "../../../lib/raidplan/scene";
+import { addFrame, addScene, changeOf, frameSummary, insertIndex, insertPoint, loopInsertIndex, loopsOf, moveIn, movePoint, newScene, pathOf, removePoint, sceneRef, setPath, updateLoop, withScene, SCENE_LIMITS } from "../../../lib/raidplan/sceneEdit";
 import type { ObjectKind } from "../../../lib/raidplan";
 import { toBoardPoint } from "./workspace/types";
 import AnimPanel from "./AnimPanel";
 import { buttonClass } from "../../ui/Button";
 import { useT } from "../../../i18n";
+
+/** Which way is being drawn: the picked object's movement in this frame, or one of its loops. */
+export type Draw = { kind: "move"; obj: string } | { kind: "loop"; id: string } | null;
 
 /**
  * The editor's view "Animation" of a section (docs/raidplan/animation.md): the scenes of the board as chips, the board as it
@@ -44,6 +47,15 @@ export default function AnimWorkspace({ boss, board, edit, players, roster, rows
     const [k, setK] = useState(0);
     const frame = scene ? Math.min(k, scene.frames.length - 1) : 0;
     const [sel, setSel] = useState("");
+    /** drawing a way (#712): the movement of the picked object in this frame, or one of its loops - a click on the map adds a point */
+    const [draw, setDraw] = useState<Draw>(null);
+    useEffect(() => { setDraw(null); }, [sel, frame, sceneId]);
+    useEffect(() => {
+        if (!draw) return undefined;
+        const key = (e: KeyboardEvent) => { if (e.key === "Escape" || e.key === "Enter") setDraw(null); };
+        window.addEventListener("keydown", key);
+        return () => window.removeEventListener("keydown", key);
+    }, [draw]);
     const [preview, setPreview] = useState(false);
     const player = useScenePlayer(preview ? scene : null, { autoplay: true });
     const boardRef = useRef<HTMLDivElement>(null);
@@ -59,6 +71,12 @@ export default function AnimWorkspace({ boss, board, edit, players, roster, rows
     const drawn = state ? state.board : board;
     const auto = state ? deriveAuto(rows, drawn, { template: !isEvent, roster }) : baseAuto;
     const hints = scene && !preview ? moveHints(board, scene, frame, autoAt) : [];
+    // the ways of the picked object: its movement in this frame (from where it stood to where it goes) and its loops
+    const before = scene && frame > 0 && sel ? boardAfter(board, scene, frame - 1, autoAt).board : null;
+    const moveOfSel = scene && sel ? changeOf(scene, frame, sel) : undefined;
+    const moveWay = moveOfSel && moveOfSel.x !== undefined && moveOfSel.y !== undefined && before ? { from: positionOf(before, sel, autoAt), to: { x: moveOfSel.x, y: moveOfSel.y }, path: pathOf(scene!, frame, sel) } : null;
+    const selLoops = scene && sel && !preview ? loopsOf(scene, sel) : [];
+    const loopHints = selLoops.map(loopHint);
     const selected = sel ? { kind: sel.slice(0, sel.indexOf(":")) as ObjectKind, id: sel.slice(sel.indexOf(":") + 1) } : null;
 
     const create = () => {
@@ -106,6 +124,68 @@ export default function AnimWorkspace({ boss, board, edit, players, roster, rows
         window.addEventListener("pointercancel", up);
     };
 
+    /** A click on the map while a way is drawn: a new point where it fits best (nothing else is picked or moved meanwhile). */
+    const drawDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+        if (!draw || !scene || !canWrite) return;
+        if ((e.target as HTMLElement).closest(".rp-path-pt")) return;
+        const p = toBoardPoint(boardRef.current, frameEl.current, e.clientX, e.clientY);
+        if (!p || !p.inside) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (draw.kind === "move" && moveWay && moveWay.from) {
+            const at = insertIndex(moveWay.path, p.x, p.y, moveWay.from, moveWay.to);
+            edit((b) => withScene(b, scene.id, (s) => setPath(s, frame, draw.obj, insertPoint(pathOf(s, frame, draw.obj), at, p.x, p.y))));
+        } else if (draw.kind === "loop") {
+            edit((b) => withScene(b, scene.id, (s) => {
+                const l = (s.loops || []).find((x) => x.id === draw.id);
+                return l ? updateLoop(s, l.id, { path: insertPoint(l.path, loopInsertIndex(l.path, p.x, p.y, l.closed), p.x, p.y) }) : s;
+            }));
+        }
+    };
+    /** A point of a way dragged (live, one undo step) or removed with a double click. */
+    const pointDown = (e: ReactPointerEvent<HTMLElement>, way: { kind: "move"; obj: string } | { kind: "loop"; id: string }, i: number) => {
+        if (!scene || !canWrite) return;
+        e.preventDefault();
+        e.stopPropagation();
+        let moved = false;
+        const write = (x: number, y: number) => edit((b) => withScene(b, scene.id, (s) => {
+            if (way.kind === "move") return setPath(s, frame, way.obj, movePoint(pathOf(s, frame, way.obj), i, x, y));
+            const l = (s.loops || []).find((q) => q.id === way.id);
+            return l ? updateLoop(s, l.id, { path: movePoint(l.path, i, x, y) }) : s;
+        }), moved);
+        const move = (ev: PointerEvent) => {
+            const p = toBoardPoint(boardRef.current, frameEl.current, ev.clientX, ev.clientY);
+            if (!p) return;
+            write(p.x, p.y);
+            moved = true;
+        };
+        const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", up); };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+        window.addEventListener("pointercancel", up);
+    };
+    const dropPoint = (way: { kind: "move"; obj: string } | { kind: "loop"; id: string }, i: number) => {
+        if (!scene || !canWrite) return;
+        edit((b) => withScene(b, scene.id, (s) => {
+            if (way.kind === "move") return setPath(s, frame, way.obj, removePoint(pathOf(s, frame, way.obj), i));
+            const l = (s.loops || []).find((q) => q.id === way.id);
+            return l ? updateLoop(s, l.id, { path: removePoint(l.path, i) }) : s;
+        }));
+    };
+    const grip = (key: string, x: number, y: number, way: { kind: "move"; obj: string } | { kind: "loop"; id: string }, i: number, first = false) => (
+        <span
+            key={key} className={`rp-path-pt${first ? " is-loopstart" : ""}`} role="button" tabIndex={-1} aria-label={t("raidBoard.anim.wayPoint", { n: i + 1 })} data-tip={t("raidBoard.anim.wayPointTip")}
+            style={{ "--rp-x": `${x * 100}%`, "--rp-y": `${y * 100}%` } as CSSProperties}
+            onPointerDown={(e) => pointDown(e, way, i)} onDoubleClick={() => dropPoint(way, i)}
+        />
+    );
+    const overlay = preview || !canWrite ? null : (
+        <>
+            {moveWay && moveWay.path.map(([x, y], i) => grip(`m${i}`, x, y, { kind: "move", obj: sel }, i))}
+            {selLoops.map((l) => l.path.map(([x, y], i) => grip(`l${l.id}${i}`, x, y, { kind: "loop", id: l.id }, i, i === 0)))}
+        </>
+    );
+
     if (!scene) {
         return (
             <div className="rp-anim-empty">
@@ -143,7 +223,7 @@ export default function AnimWorkspace({ boss, board, edit, players, roster, rows
 
             <div className="rp-anim-stagegrid">
                 <div className="rp-anim-boardcol">
-                    <div className="rp-board-wrap rp-anim-boardwrap">
+                    <div className={`rp-board-wrap rp-anim-boardwrap${draw ? " is-drawing" : ""}`} onPointerDownCapture={drawDown}>
                         <PlanBoard
                             boardRef={boardRef} frameRef={(el) => { frameEl.current = el; bv.frame(el); }} view={bv.view} maxHeight={mapPx}
                             bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} mapOpacity={board.mapOpacity}
@@ -152,7 +232,7 @@ export default function AnimWorkspace({ boss, board, edit, players, roster, rows
                             showNames={board.showNames !== false} showBadges={board.showBadges !== false} showRoleRings={board.showRoleRings !== false}
                             groupColors={board.groupColors} groupMarks={board.groupMarks}
                             selected={preview ? null : selected} onObjectDown={preview ? undefined : startDrag}
-                            fx={state ? state.fx : undefined} trails={[...(state ? state.trails : []), ...hints]}
+                            fx={state ? state.fx : undefined} trails={[...(state ? state.trails : []), ...hints, ...loopHints]} overlay={overlay}
                         />
                         {/* the caption over the map only while it plays: in the editor it would cover the objects (the strip and the panel show it) */}
                         {preview && <SceneCaption scene={scene} t={player.t} />}
@@ -182,6 +262,7 @@ export default function AnimWorkspace({ boss, board, edit, players, roster, rows
                 <AnimPanel
                     board={board} drawn={drawn} scene={scene} frame={frame} sel={preview ? "" : sel} canWrite={canWrite && !preview} players={players} edit={edit}
                     onFrame={setK} onSel={setSel} onSceneGone={() => { setSceneId(""); setK(0); setSel(""); }}
+                    draw={draw} onDraw={setDraw} startOf={(ref) => positionOf(drawn, ref, autoAtOf(auto))}
                 />
             </div>
             {canWrite && !preview && <p className="rp-muted rp-hint">{frame === 0 ? t("raidBoard.anim.hintStart") : t("raidBoard.anim.hint")}</p>}

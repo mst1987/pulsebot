@@ -129,4 +129,38 @@ describe("the view 'Animation'", () => {
         await screen.findByText("Noch keine Animation");
         expect(scenes()).toEqual([]);
     });
+
+    it("draws a movement's way and a loop on the map (#712)", () => {
+        setup();
+        fireEvent.click(screen.getByRole("button", { name: /Neue Animation/ }));
+        fireEvent.click(screen.getByRole("button", { name: /^Takt$/ }));
+        fireEvent.pointerDown(grip(), { clientX: 200, clientY: 250, pointerId: 1 });
+        fireEvent.pointerMove(window, { clientX: 500, clientY: 100, pointerId: 1 });
+        fireEvent.pointerUp(window, { pointerId: 1 });
+        const wrap = document.querySelector(".rp-anim-boardwrap") as HTMLElement;
+
+        // the way of the movement: a click adds a point, a double click on its grip removes it, Esc ends the drawing
+        fireEvent.click(screen.getByRole("button", { name: "Weg zeichnen" }));
+        expect(wrap.classList.contains("is-drawing")).toBe(true);
+        fireEvent.pointerDown(wrap, { clientX: 350, clientY: 300, pointerId: 2 });
+        expect(scenes()[0].frames[1].changes[0].path).toEqual([[0.35, 0.6]]);
+        expect(document.querySelectorAll(".rp-path-pt")).toHaveLength(1);
+        fireEvent.doubleClick(document.querySelector(".rp-path-pt")!);
+        expect(scenes()[0].frames[1].changes[0].path).toBeUndefined();
+        fireEvent.keyDown(window, { key: "Escape" });
+        expect(wrap.classList.contains("is-drawing")).toBe(false);
+
+        // a loop starts where the mark stands after this frame and is drawn at once
+        fireEvent.click(screen.getByRole("button", { name: /^Dauerbewegung$/ }));
+        expect(scenes()[0].loops[0]).toMatchObject({ obj: "mark:m1", path: [[0.5, 0.2]], from: 2, closed: true });
+        fireEvent.pointerDown(wrap, { clientX: 800, clientY: 200, pointerId: 3 });
+        fireEvent.pointerDown(wrap, { clientX: 700, clientY: 400, pointerId: 4 });
+        expect(scenes()[0].loops[0].path).toHaveLength(3);
+        expect(document.querySelectorAll(".rp-path-pt")).toHaveLength(3);
+        fireEvent.click(screen.getByRole("switch", { name: "Spur zeigen" }));
+        fireEvent.click(screen.getByRole("switch", { name: "Rundweg" }));
+        expect(scenes()[0].loops[0]).toMatchObject({ trail: true, closed: false });
+        fireEvent.click(screen.getByRole("button", { name: "Dauerbewegung 1 entfernen" }));
+        expect(scenes()[0].loops).toEqual([]);
+    });
 });

@@ -1,15 +1,16 @@
 import { useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Minus, Plus, RotateCcw, Trash2 } from "lucide-react";
-import type { RaidplanBoard, RaidplanChange, RaidplanEase, RaidplanPlayer, RaidplanScene } from "../../../api";
+import { ChevronLeft, ChevronRight, Minus, Plus, RotateCcw, Route, Trash2 } from "lucide-react";
+import type { RaidplanBoard, RaidplanChange, RaidplanEase, RaidplanLoop, RaidplanPlayer, RaidplanScene } from "../../../api";
 import { NumberField } from "../NumberField";
 import Switch from "../../ui/Switch";
 import { buttonClass } from "../../ui/Button";
 import { useConfirm } from "../../ui/Modal";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { clock, frameLength, type SceneBoard } from "../../../lib/raidplan/scene";
-import { BADGE_PRESETS, EASES, addFrame, changeOf, moveFrame, patchChange, removeChange, removeFrame, removeScene, setCaption, setFrameLength, valueAfter, withScene, SCENE_LIMITS } from "../../../lib/raidplan/sceneEdit";
+import { BADGE_PRESETS, EASES, PATH_LIMITS, addLoop, loopsOf, newLoopId, pathOf, removeLoop, setPath, updateLoop, addFrame, changeOf, moveFrame, patchChange, removeChange, removeFrame, removeScene, setCaption, setFrameLength, valueAfter, withScene, SCENE_LIMITS } from "../../../lib/raidplan/sceneEdit";
 import { objectName, type ObjectKind } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
+import type { Draw } from "./AnimWorkspace";
 
 const ICON_NAME = /^[a-z0-9_'-]{2,64}$/;
 
@@ -39,7 +40,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
  * takes and how it runs, its turn, opacity, size, whether it is shown, a debuff icon on it and a pulse. Every value shows the
  * state after this frame; changing it writes the object's change of this frame.
  */
-export default function AnimPanel({ board, drawn, scene, frame, sel, canWrite, players, edit, onFrame, onSel, onSceneGone }: {
+export default function AnimPanel({ board, drawn, scene, frame, sel, canWrite, players, edit, onFrame, onSel, onSceneGone, draw, onDraw, startOf }: {
     board: RaidplanBoard;
     /** the board as it stands after this frame */
     drawn: SceneBoard;
@@ -53,6 +54,11 @@ export default function AnimPanel({ board, drawn, scene, frame, sel, canWrite, p
     onFrame: (k: number) => void;
     onSel: (ref: string) => void;
     onSceneGone: () => void;
+    /** the way being drawn (a click on the map adds a point) */
+    draw: Draw;
+    onDraw: (d: Draw) => void;
+    /** where an object stands after this frame (a new loop starts there) */
+    startOf: (ref: string) => { x: number; y: number } | null;
 }) {
     const t = useT();
     const ask = useConfirm();
@@ -66,6 +72,14 @@ export default function AnimPanel({ board, drawn, scene, frame, sel, canWrite, p
         const kind = ref.slice(0, i);
         const id = ref.slice(i + 1);
         if (kind === "auto") return id.startsWith("t:") ? t("raidBoard.anim.autoTank") : t("raidBoard.anim.autoMob");
+        // an icon without a label that stands for a mob: the mob's name (from the section's mobs or a row that names it)
+        const icon = kind === "icon" ? board.icons.find((x) => x.id === id) : undefined;
+        if (icon && !icon.label && icon.mobId) {
+            const mob = (board.mobs || []).find((m) => m.id === icon.mobId);
+            const target = board.assignments.flatMap((r) => r.targets).find((tg) => tg.kind === "mob" && tg.ref === icon.mobId);
+            const named = mob ? mob.name : target && "name" in target ? String(target.name || "") : "";
+            if (named) return named;
+        }
         return objectName(board, kind as ObjectKind, id, players) || t("raidBoard.anim.object");
     };
 
@@ -125,13 +139,13 @@ export default function AnimPanel({ board, drawn, scene, frame, sel, canWrite, p
                 ) : <p className="rp-muted rp-anim-note">{frame === 0 ? t("raidBoard.anim.startNote") : t("raidBoard.anim.emptyFrame")}</p>}
             </section>
 
-            {sel && <ObjectSection key={sel} board={board} drawn={drawn} scene={scene} frame={frame} sel={sel} name={nameOf(sel)} canWrite={canWrite} upd={upd} />}
+            {sel && <ObjectSection key={sel} board={board} drawn={drawn} scene={scene} frame={frame} sel={sel} name={nameOf(sel)} canWrite={canWrite} upd={upd} draw={draw} onDraw={onDraw} startOf={startOf} />}
         </aside>
     );
 }
 
 /** What the picked object does in this frame. */
-function ObjectSection({ board, drawn, scene, frame, sel, name, canWrite, upd }: {
+function ObjectSection({ board, drawn, scene, frame, sel, name, canWrite, upd, draw, onDraw, startOf }: {
     board: RaidplanBoard;
     drawn: SceneBoard;
     scene: RaidplanScene;
@@ -140,10 +154,23 @@ function ObjectSection({ board, drawn, scene, frame, sel, name, canWrite, upd }:
     name: string;
     canWrite: boolean;
     upd: (fn: (s: RaidplanScene) => RaidplanScene, coalesce?: boolean) => void;
+    draw: Draw;
+    onDraw: (d: Draw) => void;
+    startOf: (ref: string) => { x: number; y: number } | null;
 }) {
     const t = useT();
     const off = !canWrite;
     const c = changeOf(scene, frame, sel);
+    const path = pathOf(scene, frame, sel);
+    const drawingMove = !!draw && draw.kind === "move" && draw.obj === sel;
+    const loops = loopsOf(scene, sel);
+    const newLoop = () => {
+        const at = startOf(sel);
+        if (!at) return;
+        const id = newLoopId();
+        upd((s) => addLoop(s, sel, at, scene.frames[frame].at, id).scene);
+        onDraw({ kind: "loop", id });
+    };
     const kind = sel.slice(0, sel.indexOf(":"));
     const id = sel.slice(sel.indexOf(":") + 1);
     const patch = (p: Partial<Omit<RaidplanChange, "obj">>, coalesce = false) => upd((s) => patchChange(s, frame, sel, p), coalesce);
@@ -190,6 +217,19 @@ function ObjectSection({ board, drawn, scene, frame, sel, name, canWrite, upd }:
                     <button type="button" className={buttonClass("ghost", "sm", true)} disabled={off} onClick={() => patch({ x: undefined, y: undefined, path: undefined })}><RotateCcw size={13} aria-hidden="true" />{t("raidBoard.anim.noMove")}</button>
                 </Row>
             )}
+            {c && c.x !== undefined && frame > 0 && (
+                <>
+                    <Row label={path.length > 0 ? t("raidBoard.anim.wayN", { n: path.length }) : t("raidBoard.anim.way")}>
+                        <span className="rp-anim-wayctl">
+                            <button type="button" className={buttonClass(drawingMove ? "primary" : "ghost", "sm", true)} disabled={off || (!drawingMove && path.length >= PATH_LIMITS.path)} aria-pressed={drawingMove} onClick={() => onDraw(drawingMove ? null : { kind: "move", obj: sel })}>
+                                <Route size={13} aria-hidden="true" />{drawingMove ? t("raidBoard.anim.drawDone") : t("raidBoard.anim.drawWay")}
+                            </button>
+                            {path.length > 0 && <button type="button" className={buttonClass("ghost", "sm")} disabled={off} onClick={() => upd((s) => setPath(s, frame, sel, []))}>{t("raidBoard.anim.straight")}</button>}
+                        </span>
+                    </Row>
+                    {drawingMove && <p className="rp-anim-drawnote" role="status">{t("raidBoard.anim.drawNote")}</p>}
+                </>
+            )}
             {turnable && (
                 <Row label={t("raidBoard.anim.rotation")}>
                     <Stepper value={rotation} min={0} max={359} step={15} unit="°" label={t("raidBoard.anim.rotation")} disabled={off} onChange={(v) => patch({ rotation: ((v % 360) + 360) % 360 })} />
@@ -227,6 +267,57 @@ function ObjectSection({ board, drawn, scene, frame, sel, name, canWrite, upd }:
             {c && canWrite && (
                 <button type="button" className={buttonClass("ghost", "sm", true, "rp-anim-reset")} onClick={() => upd((s) => removeChange(s, frame, sel))}><RotateCcw size={13} aria-hidden="true" />{t("raidBoard.anim.resetObject")}</button>
             )}
+            <div className="rp-anim-loops">
+                <span className="rp-anim-plabel" data-tip={t("raidBoard.anim.loopsTip")}>{t("raidBoard.anim.loops")}</span>
+                {loops.map((l, i) => (
+                    <LoopEditor key={l.id} n={i + 1} loop={l} length={scene.length} off={off} drawing={!!draw && draw.kind === "loop" && draw.id === l.id}
+                        onDraw={(on) => onDraw(on ? { kind: "loop", id: l.id } : null)}
+                        onChange={(p) => upd((s) => updateLoop(s, l.id, p))} onRemove={() => { upd((s) => removeLoop(s, l.id)); onDraw(null); }}
+                    />
+                ))}
+                {canWrite && (scene.loops || []).length < PATH_LIMITS.loops && (
+                    <button type="button" className={buttonClass("ghost", "sm", true)} onClick={newLoop}><Plus size={13} aria-hidden="true" />{t("raidBoard.anim.addLoop")}</button>
+                )}
+            </div>
         </section>
+    );
+}
+
+/** One loop of the picked object: its way (drawn on the map), round or there and back, how long a round takes, when it runs, a trail. */
+function LoopEditor({ n, loop, length, off, drawing, onDraw, onChange, onRemove }: {
+    n: number;
+    loop: RaidplanLoop;
+    /** the scene's length (the latest a loop can start) */
+    length: number;
+    off: boolean;
+    drawing: boolean;
+    onDraw: (on: boolean) => void;
+    onChange: (patch: Partial<RaidplanLoop>) => void;
+    onRemove: () => void;
+}) {
+    const t = useT();
+    return (
+        <div className={`rp-anim-loop${drawing ? " is-drawing" : ""}`}>
+            <div className="rp-anim-loophead">
+                <b>{t("raidBoard.anim.loopN", { n })}</b>
+                <span className="rp-muted">{t("raidBoard.anim.wayN", { n: loop.path.length })}</span>
+                <button type="button" className={buttonClass(drawing ? "primary" : "ghost", "sm", true)} disabled={off} aria-pressed={drawing} onClick={() => onDraw(!drawing)}>
+                    <Route size={13} aria-hidden="true" />{drawing ? t("raidBoard.anim.drawDone") : t("raidBoard.anim.drawWay")}
+                </button>
+                <button type="button" className="rp-anim-iconbtn" disabled={off} aria-label={t("raidBoard.anim.removeLoop", { n })} data-tip={t("raidBoard.anim.removeLoop", { n })} onClick={onRemove}><Trash2 size={14} aria-hidden="true" /></button>
+            </div>
+            {drawing && <p className="rp-anim-drawnote" role="status">{loop.path.length < 2 ? t("raidBoard.anim.loopFirst") : t("raidBoard.anim.drawNote")}</p>}
+            <Switch checked={loop.closed} disabled={off} onChange={(v) => onChange({ closed: v })} label={t("raidBoard.anim.closed")} tip={t("raidBoard.anim.closedTip")} />
+            <Row label={t("raidBoard.anim.period")}>
+                <Stepper value={loop.period} min={1} max={600} step={1} unit="s" decimals={1} label={t("raidBoard.anim.period")} disabled={off} onChange={(v) => onChange({ period: v })} />
+            </Row>
+            <Row label={t("raidBoard.anim.loopFrom")}>
+                <Stepper value={loop.from} min={0} max={Math.max(0, length)} step={0.5} unit="s" decimals={1} label={t("raidBoard.anim.loopFrom")} disabled={off} onChange={(v) => onChange({ from: v })} />
+            </Row>
+            <Row label={loop.to > 0 ? t("raidBoard.anim.loopTo") : t("raidBoard.anim.loopToEnd")}>
+                <Stepper value={loop.to} min={0} max={600} step={0.5} unit="s" decimals={1} label={t("raidBoard.anim.loopTo")} disabled={off} onChange={(v) => onChange({ to: v })} />
+            </Row>
+            <Switch checked={loop.trail} disabled={off} onChange={(v) => onChange({ trail: v })} label={t("raidBoard.anim.trail")} tip={t("raidBoard.anim.trailTip")} />
+        </div>
     );
 }

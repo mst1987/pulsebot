@@ -1476,6 +1476,28 @@
             "spell_frost_frostbolt02": "Frost",
             "ability_hunter_snipershot": "Ziel / Fokus"
         },
-        "deleteFrameAsk": "Takt {n} löschen?"
+        "deleteFrameAsk": "Takt {n} löschen?",
+        "way": "Weg",
+        "wayN": "Weg · {n} Punkte",
+        "drawWay": "Weg zeichnen",
+        "drawDone": "Fertig",
+        "straight": "Gerade",
+        "drawNote": "Klicke auf die Karte, um Wegpunkte zu setzen. Punkte lassen sich ziehen, Doppelklick entfernt einen. Enter oder Esc beendet.",
+        "wayPoint": "Wegpunkt {n}",
+        "wayPointTip": "Ziehen verschiebt, Doppelklick entfernt",
+        "loops": "Dauerbewegung",
+        "loopsTip": "Läuft unabhängig von den Takten in Schleife – z. B. ein Tank, der die Flammen kitet.",
+        "addLoop": "Dauerbewegung",
+        "loopN": "Runde {n}",
+        "removeLoop": "Dauerbewegung {n} entfernen",
+        "loopFirst": "Der erste Punkt ist, wo das Objekt jetzt steht. Klicke auf die Karte, um den Weg zu zeichnen.",
+        "closed": "Rundweg",
+        "closedTip": "An: läuft im Kreis zurück zum Anfang. Aus: läuft den Weg hin und zurück.",
+        "period": "Eine Runde",
+        "loopFrom": "Läuft ab",
+        "loopTo": "Endet bei",
+        "loopToEnd": "Endet (0 = am Schluss)",
+        "trail": "Spur zeigen",
+        "trailTip": "Eine verblassende Spur hinter dem Objekt, z. B. das Feuer (Blaze) hinter einer Flamme."
     }
 }

@@ -164,3 +164,105 @@ export function valueAfter<K extends keyof RaidplanChange>(scene: RaidplanScene,
     });
     return v;
 }
+
+// ---- ways and loops (#712) ----------------------------------------------------------------------------------------------------
+
+export const PATH_LIMITS = { path: 16, loopPath: 24, loops: 12 };
+/** A fresh id for a loop (the editor picks it before the edit, so it can open the new loop's drawing at once). */
+export const newLoopId = uid;
+/** How long a new loop takes for one round (seconds). */
+export const NEW_LOOP_PERIOD = 10;
+type P = [number, number];
+const pt = (x: number, y: number): P => [Math.round(Math.max(0, Math.min(1, x)) * 10000) / 10000, Math.round(Math.max(0, Math.min(1, y)) * 10000) / 10000];
+
+/** The points a movement of frame k passes on its way ([] = the straight line). */
+export function pathOf(scene: RaidplanScene, k: number, obj: string): P[] {
+    const c = changeOf(scene, k, obj);
+    return c && c.path ? c.path : [];
+}
+/** The movement's way through these points ([] = straight again); only for an object that moves in frame k. */
+export function setPath(scene: RaidplanScene, k: number, obj: string, path: P[]): RaidplanScene {
+    const c = changeOf(scene, k, obj);
+    if (!c || c.x === undefined) return scene;
+    const list = path.slice(0, PATH_LIMITS.path).map(([x, y]) => pt(x, y));
+    return patchChange(scene, k, obj, { path: list.length ? list : undefined });
+}
+
+/** The scene with a new loop of an object, its path starting where the object stands; it runs from `from` seconds on. */
+export function addLoop(scene: RaidplanScene, obj: string, start: { x: number; y: number }, from: number, id = newLoopId()): { scene: RaidplanScene; id: string } {
+    if ((scene.loops || []).length >= PATH_LIMITS.loops) return { scene, id: "" };
+    const loop = { id, obj, path: [pt(start.x, start.y)], closed: true, period: NEW_LOOP_PERIOD, from: r1(Math.max(0, from)), to: 0, trail: false };
+    return { scene: { ...scene, loops: [...(scene.loops || []), loop] }, id };
+}
+export function updateLoop(scene: RaidplanScene, id: string, patch: Partial<RaidplanScene["loops"][number]>): RaidplanScene {
+    return {
+        ...scene,
+        loops: (scene.loops || []).map((l) => {
+            if (l.id !== id) return l;
+            const next = { ...l, ...patch };
+            next.path = next.path.slice(0, PATH_LIMITS.loopPath).map(([x, y]) => pt(x, y));
+            next.period = r1(Math.max(1, Math.min(SCENE_LIMITS.seconds, next.period)));
+            next.from = r1(Math.max(0, Math.min(SCENE_LIMITS.seconds, next.from)));
+            next.to = next.to > next.from ? r1(Math.min(SCENE_LIMITS.seconds, next.to)) : 0;
+            return next;
+        }),
+    };
+}
+export function removeLoop(scene: RaidplanScene, id: string): RaidplanScene {
+    return { ...scene, loops: (scene.loops || []).filter((l) => l.id !== id) };
+}
+/** The loops of one object. */
+export function loopsOf(scene: RaidplanScene, obj: string): RaidplanScene["loops"] {
+    return (scene.loops || []).filter((l) => l.obj === obj);
+}
+
+/** A list of points with one inserted after index i (-1 = at the start), moved, or removed. */
+export function insertPoint(path: P[], i: number, x: number, y: number): P[] {
+    const out = [...path];
+    out.splice(i + 1, 0, pt(x, y));
+    return out;
+}
+export function movePoint(path: P[], i: number, x: number, y: number): P[] {
+    return path.map((p, j) => (j === i ? pt(x, y) : p));
+}
+export function removePoint(path: P[], i: number): P[] {
+    return path.filter((_, j) => j !== i);
+}
+
+/** The index of the segment of a polyline that lies closest to (x, y) (segment i runs from point i to point i + 1). */
+function nearestSegment(all: P[], x: number, y: number): number {
+    let best = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < all.length - 1; i++) {
+        const [ax, ay] = all[i];
+        const [bx, by] = all[i + 1];
+        const dx = bx - ax, dy = by - ay;
+        const q = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1e-9)));
+        const d = Math.hypot(ax + dx * q - x, ay + dy * q - y);
+        if (d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+}
+
+/**
+ * Where a click on the board puts a new point of a movement's way: between the two neighbours it lies closest to (a point
+ * clicked in the middle of the curve does not jump to its end). The movement's start and end are not points of the way.
+ * Returns the index to insert after (-1 = before the first point).
+ */
+export function insertIndex(path: P[], x: number, y: number, from: { x: number; y: number }, to: { x: number; y: number }): number {
+    return nearestSegment([[from.x, from.y], ...path, [to.x, to.y]], x, y) - 1;
+}
+
+/** The same for a loop's own path: with one point the new one is appended, else it goes into the closest segment (the closing one too). */
+export function loopInsertIndex(path: P[], x: number, y: number, closed: boolean): number {
+    if (path.length < 2) return path.length - 1;
+    const all = closed && path.length >= 3 ? [...path, path[0]] : path;
+    const seg = nearestSegment(all, x, y);
+    // an open path clicked beyond its last point grows at its end
+    if (!closed && seg === path.length - 2) {
+        const [lx, ly] = path[path.length - 1];
+        const [px, py] = path[path.length - 2];
+        if ((x - lx) * (lx - px) + (y - ly) * (ly - py) > 0) return path.length - 1;
+    }
+    return seg;
+}
