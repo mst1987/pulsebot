@@ -4,7 +4,7 @@ import { FIT, type BoardView } from "../../lib/raidplan/boardView";
 import { ringShownFor, selectionDrawn } from "../../lib/raidplan/viewRules";
 import { groupColor, groupFocusCls, groupMark, inkOn } from "../../lib/raidplan/groupStyle";
 import { groupScales, rhNote } from "../../lib/raidplan";
-import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { AlertTriangle, Crosshair, Swords, Users } from "lucide-react";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
 import { classColorProps } from "../character/ClassSpec";
@@ -131,6 +131,8 @@ type BoardProps = {
     /** an animation's effects on objects ("<kind>:<id>" -> a WoW icon on it, a pulse) and the trails of its loops (lib/raidplan/scene.ts) */
     fx?: Record<string, SceneFx>;
     trails?: SceneTrail[];
+    /** more to draw on the canvas, in its coordinates (an editor's grips: the points of an animation's way) */
+    overlay?: ReactNode;
 };
 
 /** The pixel size of an element, kept up to date (the lines are drawn in pixels so an arrow head never stretches). */
@@ -173,7 +175,7 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  */
 export default function PlanBoard({
     boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
-    me = "", assignments, maxHeight, showRings = true, view = FIT, frameRef, showNames = true, showBadges = true, showRoleRings = true, highlightMe = true, showSelection = true, groupColors, groupMarks, focusGroup = 0, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText, auto, fx, trails,
+    me = "", assignments, maxHeight, showRings = true, view = FIT, frameRef, showNames = true, showBadges = true, showRoleRings = true, highlightMe = true, showSelection = true, groupColors, groupMarks, focusGroup = 0, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText, auto, fx, trails, overlay,
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
@@ -814,6 +816,8 @@ export default function PlanBoard({
                     {f.badge && <span className="rp-fx-badge"><WowIcon name={f.badge} size={Math.max(14, Math.round(a.px * 0.5))} /></span>}
                 </div>
             )))}
+
+            {overlay}
 
             {band && (
                 <div className="rp-band" aria-hidden="true" style={{ "--rp-x": `${band.x0 * 100}%`, "--rp-y": `${band.y0 * 100}%`, "--rp-w": `${(band.x1 - band.x0) * 100}%`, "--rp-h": `${(band.y1 - band.y0) * 100}%` } as CSSProperties} />

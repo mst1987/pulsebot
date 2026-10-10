@@ -358,3 +358,12 @@ export function moveHints(board: SceneBoard, scene: RaidplanScene, k: number, au
     }
     return out;
 }
+
+/** A loop's path as the editor draws it: dots along its curve (round when closed). */
+export function loopHint(loop: RaidplanLoop): SceneTrail {
+    const pts = loop.path.map(([x, y]) => ({ x, y }));
+    if (pts.length < 2) return { obj: loop.obj, points: pts, hint: true };
+    const line = curve(pts, loop.closed);
+    const n = Math.max(16, loop.path.length * 8);
+    return { obj: loop.obj, points: Array.from({ length: n }, (_, i) => along(line, i / (loop.closed ? n : n - 1))), hint: true };
+}

@@ -98,6 +98,24 @@
 .rp-anim-badgenow { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .rp-anim-badgenow img { border-radius: 4px; }
 
+/* drawing a way (#712): the points as grips on the map, a crosshair while a click adds one, the loops in the panel */
+.rp-board .rp-path-pt { left: var(--rp-x) !important; top: var(--rp-y) !important; }
+.rp-path-pt { position: absolute; z-index: 8; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px solid var(--rp-icon-outline); border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); cursor: grab; touch-action: none; }
+.rp-path-pt.is-loopstart { background: var(--panel); border-color: var(--accent); }
+.rp-path-pt:hover { transform: scale(1.25); }
+.rp-anim-boardwrap.is-drawing { cursor: crosshair; }
+.rp-anim-boardwrap.is-drawing .rp-board { box-shadow: 0 0 0 3px var(--accent); }
+.rp-anim-wayctl { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.rp-anim-drawnote { margin: 0; padding: 6px 8px; border-radius: 8px; background: var(--accent-soft); color: var(--text); font-size: 12px; line-height: 1.4; }
+.rp-anim-loops { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.rp-anim-loops > button { align-self: flex-start; }
+.rp-anim-loop { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
+.rp-anim-loop.is-drawing { border-color: var(--accent); }
+.rp-anim-loophead { display: flex; align-items: center; gap: 8px; }
+.rp-anim-loophead .rp-muted { margin-right: auto; font-size: 12px; }
+.rp-anim-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; }
+.rp-anim-iconbtn:hover:not(:disabled) { border-color: var(--rp-danger); color: var(--rp-danger); }
+
 /* no scene yet: what an animation is and how to make one */
 .rp-anim-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 620px; margin: 24px auto; padding: 28px; border: 1px dashed var(--line); border-radius: 14px; text-align: center; }
 .rp-anim-empty h3 { margin: 0; font-size: 20px; }

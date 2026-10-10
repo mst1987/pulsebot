@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RaidplanBoard, RaidplanScene } from "../../api";
-import { addFrame, addScene, changeOf, frameSummary, moveFrame, moveIn, newScene, patchChange, removeChange, removeFrame, removeScene, sceneRef, setCaption, setFrameLength, withScene, SCENE_LIMITS } from "./sceneEdit";
+import { PATH_LIMITS, addFrame, addLoop, addScene, changeOf, frameSummary, insertIndex, insertPoint, loopInsertIndex, loopsOf, moveFrame, moveIn, movePoint, newLoopId, newScene, patchChange, pathOf, removeChange, removeFrame, removeLoop, removePoint, removeScene, sceneRef, setCaption, setFrameLength, setPath, updateLoop, withScene, SCENE_LIMITS } from "./sceneEdit";
 
 const scene = (): RaidplanScene => ({
     id: "s", title: "S", loop: false, length: 6, stepId: "", loops: [],
@@ -91,5 +91,50 @@ describe("changes of an object in a frame", () => {
         expect(sceneRef("member", "g1~u7")).toBe("slot:g1");
         expect(sceneRef("member", "g1")).toBe("slot:g1");
         expect(sceneRef("auto", "t:r1:1")).toBe("auto:t:r1:1");
+    });
+});
+
+describe("ways and loops (#712)", () => {
+    it("gives a movement a way through points, only where the object moves; [] makes it straight again", () => {
+        let s = setPath(scene(), 2, "slot:g1", [[0.5, 1.4], [0.3, 0.3]]);
+        expect(pathOf(s, 2, "slot:g1")).toEqual([[0.5, 1], [0.3, 0.3]]);
+        s = setPath(s, 2, "slot:g1", []);
+        expect(changeOf(s, 2, "slot:g1")!.path).toBeUndefined();
+        expect(setPath(scene(), 1, "slot:g1", [[0.1, 0.1]])).toEqual(scene());
+        expect(pathOf(scene(), 1, "nope")).toEqual([]);
+    });
+    it("puts a clicked point between the neighbours it is closest to", () => {
+        const from = { x: 0, y: 0 }, to = { x: 1, y: 0 };
+        expect(insertIndex([], 0.5, 0.1, from, to)).toBe(-1);
+        expect(insertIndex([[0.5, 0.5]], 0.2, 0.2, from, to)).toBe(-1);
+        expect(insertIndex([[0.5, 0.5]], 0.8, 0.2, from, to)).toBe(0);
+        expect(insertPoint([[0.5, 0.5]], -1, 0.2, 0.2)).toEqual([[0.2, 0.2], [0.5, 0.5]]);
+        expect(movePoint([[0.5, 0.5], [0.1, 0.1]], 1, 0.3, 2)).toEqual([[0.5, 0.5], [0.3, 1]]);
+        expect(removePoint([[0.5, 0.5], [0.1, 0.1]], 0)).toEqual([[0.1, 0.1]]);
+    });
+    it("a loop's path grows at its end first, then into the closest segment (the closing one too)", () => {
+        expect(loopInsertIndex([[0, 0]], 1, 1, true)).toBe(0);
+        expect(loopInsertIndex([[0, 0], [1, 0]], 0.5, 0.1, true)).toBe(0);
+        // a square's closing side (last point back to the first)
+        expect(loopInsertIndex([[0, 0], [1, 0], [1, 1], [0, 1]], 0.05, 0.5, true)).toBe(3);
+        // an open path clicked beyond its end grows there
+        expect(loopInsertIndex([[0, 0], [0.5, 0]], 0.9, 0, false)).toBe(1);
+    });
+    it("adds, changes and removes loops; their numbers stay in range", () => {
+        const r = addLoop(scene(), "icon:boss", { x: 0.2, y: 0.3 }, 3, "k1");
+        expect(r.id).toBe("k1");
+        expect(r.scene.loops).toEqual([{ id: "k1", obj: "icon:boss", path: [[0.2, 0.3]], closed: true, period: 10, from: 3, to: 0, trail: false }]);
+        let s = updateLoop(r.scene, "k1", { period: 0, to: 2, path: [[0.2, 0.3], [2, 0.5]], trail: true });
+        expect(s.loops[0]).toMatchObject({ period: 1, to: 0, path: [[0.2, 0.3], [1, 0.5]], trail: true });
+        s = updateLoop(s, "k1", { to: 9 });
+        expect(s.loops[0].to).toBe(9);
+        expect(loopsOf(s, "icon:boss")).toHaveLength(1);
+        expect(loopsOf(s, "mark:m")).toEqual([]);
+        expect(removeLoop(s, "k1").loops).toEqual([]);
+        expect(typeof newLoopId()).toBe("string");
+        let full = scene();
+        for (let i = 0; i < 13; i++) full = addLoop(full, "icon:boss", { x: 0, y: 0 }, 0).scene;
+        expect(full.loops).toHaveLength(PATH_LIMITS.loops);
+        expect(addLoop(full, "icon:boss", { x: 0, y: 0 }, 0).id).toBe("");
     });
 });
