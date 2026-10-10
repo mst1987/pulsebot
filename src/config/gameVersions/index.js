@@ -106,33 +106,56 @@ function bossesOf(id) {
 }
 
 // Boss and zone lookups for the non-TBC versions. TBC has its own, richer ones
-// in tbcContent.js (loot table, instance patterns); callers ask that first.
-const BOSS_INSTANCE = new Map();
+// in tbcContent.js (loot table, instance patterns); config/raidContent.js asks
+// the right one for a version. Both lookups take an optional `versionId`: with
+// one they search only that version's instances (Forever's "Hyjal Summit" is
+// not TBC's), without one every non-TBC version in release order.
+const BOSS_INSTANCE = new Map(); // versionId -> Map(normalized boss -> instance id)
 for (const v of VERSIONS) {
+    const byBoss = new Map();
+    BOSS_INSTANCE.set(v.id, byBoss);
     if (v.id === "tbc") continue;
     for (const i of v.instances) {
-        for (const name of [...(i.bosses || []), ...(i.finalBossNames || [])]) {
+        for (const name of [...(i.bosses || []), ...(i.finalBossNames || []), ...(i.bossHints || [])]) {
             const key = normalizeBoss(name);
-            if (key && !BOSS_INSTANCE.has(key)) BOSS_INSTANCE.set(key, i.id);
+            if (key && !byBoss.has(key)) byBoss.set(key, i.id);
         }
     }
 }
 
-/** The non-TBC instance an encounter name belongs to, or "". */
-function instanceForBoss(name) {
-    return BOSS_INSTANCE.get(normalizeBoss(name)) || "";
+function searchedVersions(versionId) {
+    if (versionId) {
+        const v = rulesFor(versionId);
+        return v && v.id !== "tbc" ? [v] : [];
+    }
+    return VERSIONS.filter((v) => v.id !== "tbc");
 }
 
-/** The non-TBC instance a zone name ("Molten Core") names, or "". */
-function instanceForZone(text) {
+/** The non-TBC instance an encounter name belongs to (within `versionId` when given), or "". */
+function instanceForBoss(name, versionId = "") {
+    const key = normalizeBoss(name);
+    for (const v of searchedVersions(versionId)) {
+        const hit = BOSS_INSTANCE.get(v.id).get(key);
+        if (hit) return hit;
+    }
+    return "";
+}
+
+/** The non-TBC instance a zone name ("Molten Core") names (within `versionId` when given), or "". */
+function instanceForZone(text, versionId = "") {
     const s = String(text || "").toLowerCase();
     if (!s) return "";
-    for (const v of VERSIONS) {
-        if (v.id === "tbc") continue;
+    for (const v of searchedVersions(versionId)) {
         const hit = v.instances.find((i) => (i.zoneNames || []).some((z) => s.includes(z)));
         if (hit) return hit.id;
     }
     return "";
+}
+
+/** The boss icon of an instance of any version (rule set, `icon`), or "". */
+function iconOf(id) {
+    const inst = instanceById(id);
+    return (inst && inst.icon) || "";
 }
 
 /** Every version in the shape GET /api/game-versions serves. */
@@ -167,5 +190,5 @@ module.exports = {
     VERSIONS, DEFAULT_VERSION, LEGACY_VERSION, ROLES,
     rulesFor, instance, instanceById, spec, roleOfSpec,
     defaultComposition, compositionFor, finalBossesOf, bossesOf,
-    instanceForBoss, instanceForZone, publicVersions,
+    instanceForBoss, instanceForZone, iconOf, publicVersions,
 };

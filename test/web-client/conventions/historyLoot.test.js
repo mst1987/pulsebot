@@ -161,10 +161,9 @@ describe("Historie & Loot module", () => {
         }
     });
 
-    it("checks only verified WoW icon names for the raids", () => {
-        const icons = src["components/loot/LootBadges.tsx"].match(/export const CONTENT_ICONS[\s\S]*?\};/)[0];
-        // Archimonde exists only with the trailing dash; Prince with the underscore.
-        expect(icons).toContain("hyjal: \"achievement_boss_archimonde-\"");
-        expect(icons).toContain("kara: \"achievement_boss_prince_malchezaar\"");
+    it("reads the raid icons from the shared table, not an icon list of its own (#749)", () => {
+        const badges = src["components/loot/LootBadges.tsx"];
+        expect(badges).toContain("from \"../../lib/wow/raidIcons\"");
+        expect(badges).not.toMatch(/achievement_boss_/);
     });
 });
