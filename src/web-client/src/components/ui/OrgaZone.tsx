@@ -72,8 +72,11 @@ export function OrgaZone({ user, areas, level = "read", children }: { user: Sess
     );
 }
 
-/** The menu's small mark beside an orga page. */
+/**
+ * The menu's small mark beside an orga page. Silent for screen readers: it would change the
+ * link's name ("Roster Orga-Bereich"), and the page's own bar says it in words.
+ */
 export function OrgaDot() {
     const t = useT();
-    return <span className="orga-dot" role="img" aria-label={t("shell.orga.label")} data-tip={t("shell.orga.label")} />;
+    return <span className="orga-dot" aria-hidden="true" data-tip={t("shell.orga.label")} />;
 }

@@ -82,8 +82,10 @@ describe("OrgaZone", () => {
 });
 
 describe("OrgaDot", () => {
-    it("is a small mark with its meaning for screen readers and in its tooltip", () => {
-        render(<OrgaDot />);
-        expect(screen.getByRole("img", { name: t("shell.orga.label") })).toHaveAttribute("data-tip", t("shell.orga.label"));
+    it("is a small mark with its meaning in the tooltip, silent for screen readers (the link keeps its name)", () => {
+        const { container } = render(<OrgaDot />);
+        const dot = container.querySelector(".orga-dot")!;
+        expect(dot).toHaveAttribute("data-tip", t("shell.orga.label"));
+        expect(dot).toHaveAttribute("aria-hidden", "true");
     });
 });
