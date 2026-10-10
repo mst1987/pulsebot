@@ -260,6 +260,10 @@ function requiredVersion(versionId) {
 function buildAttendanceContext(guildId, opts = {}) {
     const versionId = requiredVersion(opts && opts.versionId);
     const now = opts.now || Date.now();
+    // stored start times are seconds, callers hand in `now` as milliseconds (Date.now()) or seconds
+    // (Kaderplaner): compare both in seconds, so a coming raid never counts as a night
+    const toSec = (t) => (t > 1e12 ? Math.floor(t / 1000) : t);
+    const nowSec = toSec(now);
     const maxReports = opts.maxReports > 0 ? opts.maxReports : MAX_REPORTS;
     const reports = listReports().slice(0, maxReports).map(condenseReport);
     const reportById = new Map(reports.map((r) => [String(r.id), r]));
@@ -287,8 +291,8 @@ function buildAttendanceContext(guildId, opts = {}) {
     // category id -> who ever signed up there, in any version: "Meine Anwesenheit" still shows a category
     // switched to this version before its first raid ("noch keine gezählten Raids" instead of nothing)
     const signedAnyVersion = new Map();
-    for (const ev of listStoredEvents(guildId)) {
-        if (!ev || !ev.categoryId || !ev.startTime || ev.startTime > now) continue;
+    for (const ev of listStoredEvents(guildId, { now: nowSec * 1000 })) {
+        if (!ev || !ev.categoryId || !ev.startTime || toSec(ev.startTime) > nowSec) continue;
         noteSigners(signedAnyVersion, ev);
         const evVersion = versionOfEvent(ev);
         if (evVersion !== versionId) continue;
