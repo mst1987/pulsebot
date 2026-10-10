@@ -1,7 +1,7 @@
 jest.mock("@anthropic-ai/sdk", () => jest.fn().mockImplementation(() => ({ beta: { messages: { create: jest.fn() } } })));
 
 const Anthropic = require("@anthropic-ai/sdk");
-const { phraseReport, phrasePlayer, buildPrompt, parseAnswer, DEFAULT_MODEL, SYSTEM } = require("../../../src/utils/logcheck/recommendationText");
+const { phraseReport, phrasePlayer, buildPrompt, parseAnswer, systemPrompt, DEFAULT_MODEL, SYSTEM } = require("../../../src/utils/logcheck/recommendationText");
 
 function report() {
     return {
@@ -61,6 +61,21 @@ describe("recommendationText — phrasePlayer", () => {
         expect(req.system[0].cache_control).toEqual({ type: "ephemeral" });
         expect(req.messages[0].role).toBe("user");
         expect(req.messages[0].content).toContain("- key: gear");
+    });
+
+    it("names the game of the report's version in the system prompt, TBC without one (#747)", async () => {
+        expect(SYSTEM).toBe(systemPrompt("tbc"));
+        expect(systemPrompt("tbc")).toContain("World-of-Warcraft-Gilde (TBC Anniversary)");
+        expect(systemPrompt("forever")).toContain("World-of-Warcraft-Gilde (WoW Forever)");
+        expect(systemPrompt("")).toBe(systemPrompt("tbc"));
+        expect(systemPrompt("nope")).toBe(systemPrompt("tbc"));
+        expect(SYSTEM).not.toContain("TBC Classic");
+
+        const client = fakeClient(async () => answer([]));
+        await phrasePlayer(client, { ...report(), versionId: "forever" }, report().recommendations.players[0]);
+        await phrasePlayer(client, report(), report().recommendations.players[0]);
+        expect(client.beta.messages.create.mock.calls[0][0].system[0].text).toBe(systemPrompt("forever"));
+        expect(client.beta.messages.create.mock.calls[1][0].system[0].text).toBe(SYSTEM);
     });
 
     it("skips the call for a raider without findings, and reports a refusal or a cut-off answer", async () => {

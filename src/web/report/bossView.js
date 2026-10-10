@@ -124,13 +124,14 @@ function bossDetail(b, i, n, linkFor, raidRecs, reviewer) {
 }
 
 /** Sicht Bosse: the table of all bosses, each boss's own page hidden behind its row. */
-function renderBossView(timeline, linkFor, raidRecs, reviewer) {
+function renderBossView(timeline, linkFor, raidRecs, reviewer, { seriesRan = true } = {}) {
     const fights = (timeline && timeline.fights) || [];
     if (fights.length === 0) return "<div class=\"empty\">Keine Boss-Kämpfe im Log.</div>";
     const bosses = groupByBoss(fights);
     // No fight carries a DPS/HPS strip: the v2 client is not set up (or the
-    // report predates it). Said once, here, instead of an empty gap per fight.
-    const noSeries = fights.some((f) => f.series && (f.series.dps || f.series.hps))
+    // report predates it). Said once, here, instead of an empty gap per fight —
+    // and not at all when the version's rule set does not run the series (#747).
+    const noSeries = !seriesRan || fights.some((f) => f.series && (f.series.dps || f.series.hps))
         ? ""
         : "<p class=\"note\">Raid-DPS/HPS und Boss-Leben brauchen den Warcraft-Logs-v2-Zugang (Einstellungen → Verbindungen → Warcraft Logs); bei einer neuen Auswertung erscheinen sie dann als Bereich „Kampfverlauf“.</p>";
     const table = `<div class="boss-index" id="bossIndex">${noSeries}<div class="tbl-wrap"><table class="idx boss-table"><thead><tr><th>Boss</th><th>Kampf</th><th>Tode</th><th>Debuffs</th><th>Buffs</th><th>Dispel</th><th></th></tr></thead><tbody>${bosses.map(bossRow).join("")}</tbody></table></div></div>`;

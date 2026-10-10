@@ -81,6 +81,13 @@ describe("services/logcheck/logTitles — backfillLogTitles", () => {
         expect(logs[0].raids[0].killed).toBe(3);
     });
 
+    it("places the bosses within the log's own version only (#747)", async () => {
+        // Ragnaros is a Classic boss: a TBC log naming it is no Molten Core raid
+        mockGetFights.mockResolvedValue({ title: "x", fights: [{ id: 1, boss: 1, name: "Ragnaros", kill: true }] });
+        await backfillLogTitles([{ id: "l1", reportId: "AAA", title: "x" }], 1_000_000);
+        expect(logStore.setLogRaids).toHaveBeenCalledWith("l1", []);
+    });
+
     it("re-reads an unfinished raid of a fresh post, but not a finished, evaluated or old one", async () => {
         const now = 100 * 60 * 60 * 1000;
         const unfinished = [{ contentId: "hyjal", finalKilled: false }];
