@@ -166,17 +166,20 @@ Health-Check: **etwa eine Minute**, ohne nennenswerten Speicherbedarf.
    Ziel-Server. Ein neuer Talk-Server in den Einstellungen zählt also auch als
    Änderung. Schlägt das Registrieren fehl, wird der Hash nicht gemerkt und der
    nächste Deploy versucht es wieder.
-8. `pm2 update` nur, wenn sich `node --version` gegenüber dem letzten Deploy
+8. **Daten-Schnappschuss** (#695) mit Grund `deploy`, altem und neuem Commit —
+   vor allem, was den Bot mit dem neuen Code startet (siehe „Schnappschuss vor
+   dem Neustart“ unten). Scheitert er, läuft der Deploy mit einer Warnung weiter.
+9. `pm2 update` nur, wenn sich `node --version` gegenüber dem letzten Deploy
    geändert hat. Das Verhalten bei einem Versionswechsel bleibt: der
    PM2-Daemon läuft mit der Node-Version weiter, mit der er gestartet wurde,
    und nur `pm2 update` bringt eine neue Version wirklich zum Bot. Bei
    unverändertem Node spart es einen zweiten Neustart.
-9. Build einsetzen: der neue `dist/` wird neben dem alten als `dist.next`
-   zusammengestellt (inklusive der behaltenen Assets, siehe unten) und dann per
-   zwei `mv` umgeschaltet — ein Request sieht nie einen halb kopierten `dist/`.
-   Das passiert direkt vor dem Neustart, damit der alte Prozess die neue
-   `index.html` nur Sekunden lang ausliefert.
-10. `pm2 restart` und Health-Check wie bisher; erst danach wird
+10. Build einsetzen: der neue `dist/` wird neben dem alten als `dist.next`
+    zusammengestellt (inklusive der behaltenen Assets, siehe unten) und dann per
+    zwei `mv` umgeschaltet — ein Request sieht nie einen halb kopierten `dist/`.
+    Das passiert direkt vor dem Neustart, damit der alte Prozess die neue
+    `index.html` nur Sekunden lang ausliefert.
+11. `pm2 restart` und Health-Check wie bisher; erst danach wird
     `DEPLOYED_COMMIT` gemerkt. Die letzte Zeile nennt die Dauer
     (`Deployment complete. (48 s)`).
 
@@ -189,6 +192,125 @@ Deploy geöffnet wurde, lädt so seine alten Chunks weiter. Dateien älter als
 trotzdem, antwortet der Server mit 404 und die Seite lädt sich einmal neu
 (docs/web-admin.md, „Nach einem Deploy“). Keiner dieser Schritte kann den
 Deploy scheitern lassen (`|| true`).
+
+### Schnappschuss vor dem Neustart (#695)
+
+Die riskantesten Momente für die Daten sind Deploys: neuer Store-Code und
+Migrationen, die beim Start laufen (`src/stores/settingsMigration.js`). Der
+stündliche Schnappschuss (#691) ist dann bis zu einer Stunde alt. Deshalb
+nimmt `deploy.sh` (Schritt 8) einen eigenen:
+
+```bash
+nice -n 19 ionice -c3 env BACKUP_DIR=<dir> timeout 600 \
+  node scripts/backup/snapshot.js --reason deploy --from <alt> --to <neu> --json
+```
+
+- **Wann**: nach `git reset`, `npm ci` und der Command-Registrierung (die
+  ändern nichts unter `data/`; Migrationen laufen nur beim Start des Bots) und
+  **vor** `pm2 update`, dem Umschalten von `dist/` und `pm2 restart` — so spät
+  wie möglich, aber bevor irgendetwas den Bot mit dem neuen Code startet. Beim
+  „nothing to do“-Abbruch (Schritt 2) gibt es keinen.
+- **Commits**: `--from` ist der Commit, der vor dem `git reset` ausgecheckt war
+  (der Code, der die Daten gerade schreibt), `--to` der neue. Beide stehen im
+  `manifest.json` (`fromCommit`, `toCommit`), der Name endet auf `-deploy`.
+- **Aufbewahrung**: die letzten 10 Deploy-Schnappschüsse
+  (`backup.retention.deployKeep`, `src/services/backup/retention.js`),
+  unabhängig von den stündlichen.
+- **Last**: niedrigste CPU- und I/O-Priorität, ein Node-Prozess von wenigen
+  Sekunden — `settings/` und `sessions.json` werden kopiert, unveränderte
+  Reports und Raumkarten nur per Hardlink übernommen. Nach
+  `DEPLOY_SNAPSHOT_TIMEOUT` (600 s) wird er abgebrochen; seine Sperre gilt dann
+  als verwaist und der nächste Lauf räumt sie weg.
+
+**Ob einer entsteht**, entscheidet `deploy.sh` ohne Node, nach denselben Regeln
+wie der Bot (`backupConfig.js`):
+
+| Lage | Schnappschuss |
+|---|---|
+| `DEPLOY_SNAPSHOT=0` (`false`, `no`, `off`) | nie |
+| `DEPLOY_SNAPSHOT=1` | immer (legt `BACKUP_DIR` notfalls an) |
+| `BACKUP_ENABLED=0` in der Umgebung oder der `.env` | nein |
+| das Schnappschuss-Verzeichnis existiert nicht | nein — Backups sind hier nicht eingerichtet (Test-/Staging-Checkout) |
+| sonst | ja |
+
+Das Verzeichnis ist `BACKUP_DIR` (Umgebung, sonst `.env.dev`/`.env` wie beim
+Bot; relativ = ab dem Checkout), ohne Angabe `/var/backups/pulsebot` für den
+Live-Bot. Auf dem Server legt es der stündliche Job des Bots wenige Minuten
+nach seinem Start an; `deploy.sh` reicht genau dieses Verzeichnis an die CLI
+weiter.
+
+**Scheitert er, läuft der Deploy weiter** — ein fehlender Schnappschuss ist
+kein Grund, einen Fix nicht auszurollen:
+
+- Exit 1 (Fehler, z. B. zu wenig Platz) oder Zeitüberschreitung: Warnung im
+  Log, der Deploy geht weiter.
+- Exit 3 (ein anderer Schnappschuss hält die Sperre, meist der stündliche des
+  Bots): `DEPLOY_SNAPSHOT_RETRY_DELAY` (30 s) warten, **ein** zweiter Versuch.
+  Hält die Sperre dann immer noch, Warnung — der laufende stündliche
+  Schnappschuss ist dann ohnehin nur Sekunden alt.
+- Die Warnung steht am Ende des Logs noch einmal, direkt vor
+  `Deployment complete.`
+- `$BACKUP_DIR/status/deploy-snapshot.json` hält das Ergebnis jedes Versuchs
+  fest, für die Überwachung (#696):
+  `{ at, ok, exitCode, attempts, fromCommit, toCommit, error?, result }`
+  (`result` = die JSON-Ausgabe der CLI mit `name`, `error`, `durationMs` …,
+  oder `null`). Die `status/snapshot.json` der CLI reicht dafür nicht: der
+  nächste stündliche Lauf überschreibt sie, und bei belegter Sperre schreibt
+  die CLI gar keine.
+
+Im Deploy-Log sieht das so aus (die eingerückte Zeile kommt von der CLI):
+
+```
+[deploy] Taking a data snapshot before the restart (2be1ea5 -> 4f3c2d1) in /var/backups/pulsebot...
+[deploy]   [info] [backup] Schnappschuss 20261010-183012-deploy: 412 Dateien, 38.2 MB (398 verlinkt, 14 kopiert = 2.1 MB), synchron 12.4 ms, gesamt 1840 ms
+[deploy] Data snapshot 20261010-183012-deploy taken (2 s).
+```
+
+Ohne Schnappschuss eine dieser Zeilen:
+
+```
+[deploy] No data snapshot before the restart: no backup directory at /var/backups/pulsebot (backups are not set up here; DEPLOY_SNAPSHOT=1 takes one anyway).
+[deploy] Another snapshot holds the lock (most likely the bot's hourly one) - trying again in 30 s...
+[deploy] WARNING: no data snapshot before this deploy - the snapshot CLI failed (exit 1). The deploy goes on; ...
+[deploy] WARNING: this deploy ran without a fresh data snapshot (the snapshot CLI failed (exit 1)).
+```
+
+Scheitert danach der Health-Check, nennt das Log den Schnappschuss gleich mit
+(`The data from before this deploy: snapshot 20261010-183012-deploy`).
+
+**Warum die CLI und nicht der laufende Bot?** Ein Schnappschuss im Bot hätte
+die volle Ein-Tick-Konsistenz (kein Store-Schreiben zwischen zwei Dateien).
+Die CLI kopiert `settings/` und `sessions.json` zwar ebenfalls synchron in
+einem Durchgang, aber in einem eigenen Prozess — schreibt der alte Bot genau in
+diesen Millisekunden, kann der Schnappschuss eine Datei vor und eine nach
+diesem einen Schreibvorgang enthalten. Jede Datei für sich bleibt dabei
+vollständig (die Stores schreiben per `rename`), nur die beiden in-place
+schreibenden Dateien (`sessions.json`, Kategorienamen) könnten im
+ungünstigsten Fall halb kopiert sein. Das ist ein Fenster von Millisekunden
+bei einem Bot, der um diese Zeit kaum schreibt. Dagegen steht: der Bot ist oft
+genau das, was der Deploy repariert (hängt, startet in Schleife), eine Route in
+ihn bräuchte eigene Absicherung und doch einen Rückfall auf die CLI. Die CLI
+funktioniert immer, auch ohne laufenden Bot; der stündliche Schnappschuss aus
+dem Bot bleibt als stimmiger Rückfall daneben.
+
+**Zurückrollen** nach einem Deploy, der Daten beschädigt hat:
+
+1. Den Code zurück: den PR auf `main` reverten und deployen lassen. (Ein
+   älterer Commit per `DEPLOY_SHA` endet mit „nothing to do“, siehe
+   Schritt 2.) Auch dieser Deploy macht einen Schnappschuss — vom kaputten
+   Stand, als zweite Absicherung.
+2. Dann die Daten: den Schnappschuss `<…>-deploy` des schuldigen Deploys
+   zurückspielen — sein Name steht im Deploy-Log, sonst
+   `ls /var/backups/pulsebot/snapshots/ | grep -- -deploy` und im
+   `manifest.json` `fromCommit`/`toCommit` prüfen. Das Werkzeug dafür ist
+   `npm run backup:restore` (#693) mit Trockenlauf und eigenem
+   Rückweg-Schnappschuss; Ablauf und Runbook: [backup.md](backup.md).
+   Erst den Code, dann die Daten: andersherum würde der neue Code die
+   zurückgespielten Daten beim nächsten Start gleich wieder migrieren.
+
+Alles, was zwischen dem Schnappschuss und dem Zurückspielen geschrieben wurde
+(Anmeldungen, Einstellungen), fehlt danach — es steckt im Rückweg-Schnappschuss
+des Restores.
 
 ### Die Statusdatei `.deploy/state`
 
@@ -318,19 +440,46 @@ Der zweite Weg neben pm2: ein Multi-Stage-Image, das den Web-Client selbst baut
 ```bash
 docker build --build-arg GIT_COMMIT=$(git rev-parse HEAD) -t pulsebot .
 docker run -d --name pulsebot --env-file .env -p 3005:3005 \
-  -v pulsebot-data:/app/data pulsebot
+  -v pulsebot-data:/app/data -v pulsebot-backups:/app/backups pulsebot
 ```
 
 - **Build-Arg `GIT_COMMIT`**: im Image gibt es kein `.git`; ohne das Argument
   bleibt `commit` in `/health` leer.
 - **Volume `/app/data`**: alle Stores (Einstellungen, Sitzungen, Importe)
   schreiben dorthin — ohne Volume ist nach einem neuen Image alles weg.
+- **Volume `/app/backups`**: die Daten-Schnappschüsse (#691); das Image setzt
+  `BACKUP_DIR=/app/backups`, weil der Standard `/var/backups/pulsebot` für den
+  Benutzer `node` nicht beschreibbar ist. Neben `/app/data`, nie darin.
 - **Healthcheck**: das Image prüft alle 30 s `/health` auf `$WEB_PORT`
   (Standard 3005). Wer einen anderen Port setzt, gibt ihn per `-e WEB_PORT=…`
   mit und veröffentlicht denselben.
 - `.dockerignore` hält alle `.env*` (außer `.env.example`), `data/`, Tests und
   Doku aus dem Build-Kontext — Secrets landen nie in einer Image-Schicht; sie
   kommen nur zur Laufzeit per `--env-file`.
+
+### Schnappschuss vor dem Container-Tausch (#695)
+
+`deploy.sh` läuft auf dem Docker-Weg nicht, der Schnappschuss ist dort ein
+eigener Schritt: **nach** dem Bauen des neuen Images (damit die Lücke bis zum
+Tausch kurz bleibt) und **vor** dem Stoppen des alten Containers, im alten
+Container selbst — er hat Daten- und Backup-Volume schon eingehängt:
+
+```bash
+NEW=$(git rev-parse HEAD)
+docker build --build-arg GIT_COMMIT=$NEW -t pulsebot .
+OLD=$(docker exec pulsebot printenv GIT_COMMIT)
+docker exec pulsebot nice -n 19 node scripts/backup/snapshot.js \
+  --reason deploy --from "$OLD" --to "$NEW" \
+  || echo "WARNUNG: kein Schnappschuss vor dem Tausch (Exit 3 = Sperre belegt: kurz warten, noch einmal)"
+docker stop pulsebot && docker rm pulsebot
+docker run -d --name pulsebot --env-file .env -p 3005:3005 \
+  -v pulsebot-data:/app/data -v pulsebot-backups:/app/backups pulsebot
+```
+
+Wie bei `deploy.sh` bricht ein gescheiterter Schnappschuss den Tausch nicht ab.
+Mit Compose ist es derselbe Schritt vor `docker compose up -d`:
+`docker compose exec <dienst> node scripts/backup/snapshot.js --reason deploy --from … --to …`.
+Den ersten Container gibt es noch nicht — dann entfällt der Schritt.
 
 ## Wenn der Bot hinter `main` hängt
 
