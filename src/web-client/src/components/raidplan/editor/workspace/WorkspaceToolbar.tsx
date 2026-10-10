@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Image as ImageIcon, ListChecks } from "lucide-react";
+import { Clapperboard, Image as ImageIcon, ListChecks } from "lucide-react";
 import { useT } from "../../../../i18n";
 import type { PlanView } from "../planView";
 
@@ -22,6 +22,7 @@ export function ViewSwitch({ view, onView, mapless }: { view: PlanView; onView: 
         <div className="seg sm rp-viewswitch" role="radiogroup" aria-label={t("raidBoard.views.label")}>
             {opt("tasks", t("raidBoard.views.tasks"), <ListChecks size={15} aria-hidden="true" />, t("raidBoard.views.tasksTip"))}
             {opt("map", t("raidBoard.views.map"), <ImageIcon size={15} aria-hidden="true" />, mapless ? t("raidBoard.views.noMap") : t("raidBoard.views.mapTip"), mapless)}
+            {opt("anim", t("raidBoard.views.anim"), <Clapperboard size={15} aria-hidden="true" />, mapless ? t("raidBoard.views.noMap") : t("raidBoard.views.animTip"), mapless)}
         </div>
     );
 }

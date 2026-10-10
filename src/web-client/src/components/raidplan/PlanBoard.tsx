@@ -806,7 +806,7 @@ export default function PlanBoard({
             })}
 
             {trails && trails.map((tr) => tr.points.map((p, i) => (
-                <span key={`trail:${tr.obj}:${i}`} className="rp-trail" aria-hidden="true" style={{ "--rp-x": `${p.x * 100}%`, "--rp-y": `${p.y * 100}%`, "--rp-to": String((i + 1) / (tr.points.length + 1)) } as CSSProperties} />
+                <span key={`trail:${tr.obj}:${i}`} className={`rp-trail${tr.hint ? " is-hint" : ""}`} aria-hidden="true" style={{ "--rp-x": `${p.x * 100}%`, "--rp-y": `${p.y * 100}%`, "--rp-to": String((i + 1) / (tr.points.length + 1)) } as CSSProperties} />
             )))}
             {fx && Object.entries(fx).flatMap(([key, f]) => fxAnchors(key).map((a, i) => (
                 <div key={`fx:${key}:${i}`} className={`rp-fx${f.pulse ? " is-pulse" : ""}`} aria-hidden="true" style={{ "--rp-x": `${a.x * 100}%`, "--rp-y": `${a.y * 100}%`, "--rp-s": `${a.px}px` } as CSSProperties}>
