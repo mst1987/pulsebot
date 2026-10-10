@@ -2,7 +2,8 @@
     "title": "Loot-Council",
     "noContent": {
         "text": "Für diese Spielversion gibt es noch keine BiS-Listen und keine Simulation. Bedarf, Wünsche, erhaltener Loot und die Gewichtung nach Anwesenheit und Zugehörigkeit gelten weiter.",
-        "drop": "Für diese Spielversion gibt es noch keine Item-Tabelle und keine Simulation, der Drop-Check kann keine Kandidaten bestimmen."
+        "drop": "Für diese Spielversion gibt es noch keine Item-Tabelle und keine Simulation, der Drop-Check kann keine Kandidaten bestimmen.",
+        "off": "Die BiS-Listen sind für diese Spielversion ausgeschaltet (Einstellungen → Spielversion). Bedarf, Wünsche, erhaltener Loot und die Gewichtung gelten weiter."
     },
     "role": {
         "caster": "Caster",

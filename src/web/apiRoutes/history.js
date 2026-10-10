@@ -606,7 +606,7 @@ const getHistoryChar = withUser({}, async ({ res, url }) => {
     const gearNamespace = bz.namespace;
     let gear = null;
     // A version without realm/namespace says so instead of asking Blizzard the TBC realm.
-    let gearError = bz.reason === "version_not_configured" ? bz.message : "";
+    let gearError = bz.reason === "version_not_configured" || bz.reason === "feature_off" ? bz.message : "";
     let charSummary = null;
     if (gearConfigured && name) {
         // The summary's level/last-login reveal whether the profile is the right

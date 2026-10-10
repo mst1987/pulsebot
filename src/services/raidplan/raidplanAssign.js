@@ -31,8 +31,14 @@
 
 const { ASSIGN_TYPES, CLASS_IDS } = require("./raidplanConstants");
 const catalog = require("../../stores/raidplanCatalogStore");
+const { catalogEnabled } = require("../events/versionCapabilities");
 const { str } = require("../../utils/text");
 const { newId } = require("../../utils/ids");
+
+// The catalog's spells of a plan's version - none while "Raidplan-Katalog" is switched off for it (#761,
+// versionCapabilities.catalogEnabled); then the built in rules alone pick the classes.
+const catalogSpellsOfType = (type, versionId = "") => (catalogEnabled(versionId) ? catalog.spellsOfType(type, versionId) : []);
+const catalogClassesOf = (type, versionId = "") => (catalogEnabled(versionId) ? catalog.classesOf(type, versionId) : []);
 
 // a whole role group as who does it / at whom ("Melees -> Boss", "Ranged soaken hier")
 const ROLE_REFS = ["melee", "ranged", "healer", "tank", "dps"];
@@ -206,7 +212,7 @@ const make = (type, assignees, targets, spell = null, pref = [], allowOthers = f
 
 /** The classes that fit a type: the catalog's spells of that type say it; without any, the built in rules. */
 function classesFor(type, prefer = [], allowOthers = false, versionId = "") {
-    const fromCatalog = catalog.classesOf(type, versionId);
+    const fromCatalog = catalogClassesOf(type, versionId);
     const rules = CLASS_RULES[type] || [];
     // the built in order (rogue before mage ...) first, then what the admin added
     const base = fromCatalog.length ? [...rules.filter((c) => fromCatalog.includes(c)), ...fromCatalog.filter((c) => !rules.includes(c))] : rules;
@@ -219,7 +225,7 @@ function classesFor(type, prefer = [], allowOthers = false, versionId = "") {
 
 /** A row's spell as it is stored: the catalog entry with a snapshot of name and icon; one of the class first, else the first of the type. */
 function spellFor(type, classId, index = 0, versionId = "") {
-    const list = catalog.spellsOfType(type, versionId);
+    const list = catalogSpellsOfType(type, versionId);
     const of = classId ? list.filter((x) => x.classes.includes(classId)) : list;
     const hit = (of.length ? of : list)[index] || (of.length ? of : list)[0];
     return hit ? { id: hit.id, name: hit.name, icon: hit.icon } : null;
@@ -293,7 +299,7 @@ const GROUP_BUFF_PLAN = {
 };
 /** A default spell of the catalog by its slug, with its classes, or null (hidden by the admin, another game version). */
 function spellBySlug(type, slug, versionId = "") {
-    const hit = catalog.spellsOfType(type, versionId).find((x) => x.id === `d:${slug}`);
+    const hit = catalogSpellsOfType(type, versionId).find((x) => x.id === `d:${slug}`);
     return hit ? { id: hit.id, name: hit.name, icon: hit.icon, classes: hit.classes } : null;
 }
 /** A spell as a row stores it: the id with a snapshot of name and icon. */
@@ -322,7 +328,7 @@ function suggest(type, { slots = [], roster = [], groups = [], preferredClasses 
     const own = (keep || []).filter((a) => a && a.type === type);
     // their class references resolved first: a "Magier-Tank" row counts its mage as a tank
     const named = roster.length ? expandClassRefs([...others, ...own], slots, roster, roles) : [...others, ...own];
-    const ctx = { ...boardContext(named, slots, roles), spellClasses: catalog.classesOf(type, versionId) };
+    const ctx = { ...boardContext(named, slots, roles), spellClasses: catalogClassesOf(type, versionId) };
     const rows = suggestClassRows(type, { tanks, cls: classes(type), pc, allowOthers, roster, versionId, pr, ctx, spellId: str(spellId) })
         .map((a) => (pr ? { ...a, preferredRole: pr } : a));
     // a template has no players: the suggestion names classes ("the first free Hunter"), resolved from the setup once the template is
@@ -377,7 +383,7 @@ function suggestClassRows(type, { tanks, cls, pc, allowOthers, roster = [], vers
     }
     if (type === "curse") {
         // one curse per warlock, in the order of the catalog's curses (Elements, Recklessness, Doom ...)
-        const curses = catalog.spellsOfType("curse", versionId);
+        const curses = catalogSpellsOfType("curse", versionId);
         const count = Math.min(3, curses.length || CURSES.length);
         return Array.from({ length: count }, (_, i) => make("curse", [ref(cls[0], i + 1)], [], withRoster && curses[i] ? { id: curses[i].id, name: curses[i].name, icon: curses[i].icon } : null, pc, allowOthers));
     }
@@ -408,7 +414,7 @@ const SPELL_OF_ONE = ["brez"];
 
 /** The blessings a suggestion hands out, in BLESSING_PLAN's order; the row dialog's wand (`spellId`) = only the row's own blessing. */
 function blessingPlan(spellId, versionId) {
-    const own = spellId ? catalog.spellsOfType("blessing", versionId).find((x) => x.id === spellId) : null;
+    const own = spellId ? catalogSpellsOfType("blessing", versionId).find((x) => x.id === spellId) : null;
     return own ? [snapOf(own)] : BLESSING_PLAN.map((slug) => snapOf(spellBySlug("blessing", slug, versionId))).filter(Boolean);
 }
 
@@ -420,7 +426,7 @@ function blessingPlan(spellId, versionId) {
  */
 function suggestDebuffs({ cls, pc, allowOthers, roster = [], versionId = "", pr = "", ctx = {}, spellId = "" }) {
     let plan = DEBUFF_PLAN.map((e) => ({ ...e, sp: spellBySlug("debuff", e.spell, versionId) })).filter((e) => e.sp);
-    const own = spellId ? catalog.spellsOfType("debuff", versionId).find((x) => x.id === spellId) : null;
+    const own = spellId ? catalogSpellsOfType("debuff", versionId).find((x) => x.id === spellId) : null;
     if (own) plan = [plan.find((e) => e.sp.id === own.id) || { sp: { id: own.id, name: own.name, icon: own.icon, classes: own.classes } }];
     const out = [];
     const taken = new Set();
@@ -461,7 +467,7 @@ function suggestDebuffs({ cls, pc, allowOthers, roster = [], versionId = "", pr 
 function suggestGroupBuffs(type, { roster = [], versionId = "", keep = [], context = [], roles = {}, slots = [], spellId = "" }) {
     const plan = GROUP_BUFF_PLAN[type];
     const sp = (slug) => spellBySlug(type, slug, versionId);
-    const forced = spellId ? catalog.spellsOfType(type, versionId).find((x) => x.id === spellId) : null;
+    const forced = spellId ? catalogSpellsOfType(type, versionId).find((x) => x.id === spellId) : null;
     if (!roster.length) {
         const first = forced || plan.fallback.map(sp).find(Boolean);
         return [make(type, [`class:${plan.classId}:1`], [], snapOf(first))];

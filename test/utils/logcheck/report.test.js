@@ -767,6 +767,7 @@ describe("logcheck/report — the rule set of the version (#747)", () => {
         // TBC's classes with Forever's analyzer list and no gear data: what a ready Forever would run
         mockRulesOverride = (v) => (v === "tbc" ? rules.makeRuleSet({
             versionId: "tbc", classDefs: rules.logcheckRules("tbc").classDefs, analyzers: rules.analyzersFor("forever"), ready: true, data: { gear: null },
+            apiSite: rules.logcheckRules("tbc").apiSite,
         }) : null);
         const { report } = await buildReport("RPT1");
         for (const fn of [analyzeDrums, analyzeTotems, analyzeShadowResi, analyzeRpb, buildGearIssues]) expect(fn).not.toHaveBeenCalled();

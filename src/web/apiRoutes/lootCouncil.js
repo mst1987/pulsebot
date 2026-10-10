@@ -49,9 +49,9 @@ const { mainVersionFor } = require("../../services/events/mainVersion");
 const { councilOptsFromQuery, categoryOptions } = require("../loot/councilQuery");
 const { buildCouncilView, councilCategoryIds } = require("../loot/councilView");
 const { councilHead, councilRosters } = require("../loot/councilTargets");
-const { councilContentFor } = require("../../config/councilContent");
+const { councilContent: councilContentFor } = require("../../services/events/versionCapabilities");
 const { knownVersion } = require("../../services/events/mainVersion");
-const { settingsForVersion } = require("../../services/events/versionSettings");
+const { versionLinks } = require("../../services/events/versionSettings");
 
 /**
  * GET /api/lootcouncil — roster, BiS gaps and filter options.
@@ -77,7 +77,12 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     } = built;
     // What content data this version has (#748): without BiS/item table the page
     // gets no gaps, no drop check, no filter options and no simulation - and says so.
-    const content = councilContentFor(versionId);
+    const content = councilContentFor(versionId, { config });
+    // What the page gets of it; `off` (#761): the version has BiS data, but it is switched off in Einstellungen → Spielversion.
+    const contentView = {
+        bis: content.bis, sim: content.sim, tiers: content.tiers, itemTable: content.itemTable,
+        ...(content.off ? { off: true } : {}),
+    };
     const contentFilter = content.tiers ? resolveContentFilter({ tierIds, contentIds }) : null;
 
     // One named item ("this just dropped") short-circuits the BiS list: the
@@ -109,8 +114,8 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
             .sort((a, b) => (b.at || 0) - (a.at || 0)),
         gaps: focus || !content.bis ? [] : bisGaps(rows, { contentIds: contentFilter }),
         focus,
-        content,
-        options: { ...filterOptions(content), categories: categoryOptions(guildId) },
+        content: contentView,
+        options: { ...filterOptions(contentView), categories: categoryOptions(guildId) },
         // Who the page works for (#676): the roster picker, the roster with its
         // profile and linked Kader, and which links the caller may follow.
         council: councilHead({ guildId, user, opts, config }),
@@ -135,7 +140,7 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
             // What the page tells the reader when there is no binary: there
             // is no gain to show at all, because the page shows no estimates.
             hint: !content.sim
-                ? "Für diese Spielversion gibt es keine Simulation."
+                ? content.simHint
                 : engine.isAvailable()
                     ? ""
                     : "Keine WoWSims-Simulation verfügbar (WOWSIMCLI_PATH nicht gesetzt) — ohne Simulation zeigt die Seite keine Zugewinne, geschätzt wird nichts.",
@@ -143,7 +148,7 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
         activeGuildId: guildId,
         versionId,
         // Where the page's item links go ("" = no Wowhead links for this version).
-        wowheadPath: settingsForVersion(versionId, { config }).wowheadPath,
+        wowheadPath: versionLinks(versionId, { config }).wowheadPath,
         // The character version filter (#545): what is shown ("" = all), the
         // default, and the choices — independent of `versionId` above.
         version: charVersion,
@@ -526,6 +531,9 @@ const postArmoryRefresh = withUser({ write: "lootcouncil", csrf: true, body: tru
     const versionId = mainVersionFor({ categoryId: String(body.category || ""), config: getConfig() });
     const result = await primeArmoryGear(characters, { full: true, force: true, versionId });
     if (!result.configured) {
+        if (result.reason === "feature_off") {
+            return apiError(res, 400, "armory_off", "Der Armory-Abruf ist für diese Spielversion ausgeschaltet (Einstellungen → Spielversion).");
+        }
         if (result.reason === "version_not_configured") {
             return apiError(res, 400, "armory_not_configured", "Armory für diese Spielversion nicht eingerichtet (Einstellungen → Spielversion).");
         }

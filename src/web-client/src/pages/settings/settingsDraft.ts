@@ -1,6 +1,7 @@
 import type { AdminConfig, RolePermissions, Access, TopItem, EventSource, PlanningMode } from "../../api";
 import { type CategorySheet } from "./CategoryMatrix";
 import { blockOf, type VersionSettingsBlock } from "../../lib/settings/versionLinks";
+import { disabledFromConfig } from "../../lib/settings/versionFeatures";
 import type { CategoryAttendance } from "../../lib/settings/settingsLogic";
 import type { SwitchFix } from "../../lib/settings/categoryVersions";
 
@@ -59,6 +60,8 @@ export type Draft = {
     botLanguage: "de" | "en";
     /** Settings per game version (#542), every version the server sent. */
     versionSettings: Record<string, VersionSettingsBlock>;
+    /** The features switched off per version (#761, "Funktionen je Version"), sent inside versionSettings. */
+    versionDisabled: Record<string, string[]>;
     topItems: TopItem[];
 };
 
@@ -103,6 +106,7 @@ export function toDraft(config: AdminConfig): Draft {
         hideOtherVersions: config.hideOtherVersions === true,
         botLanguage: config.botLanguage === "en" ? "en" : "de",
         versionSettings: Object.fromEntries(Object.entries(config.versionSettings || {}).map(([id, block]) => [id, blockOf(block)])),
+        versionDisabled: disabledFromConfig(config.versionSettings),
         topItems: config.topItems || [],
     };
 }

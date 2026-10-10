@@ -130,6 +130,9 @@ module.exports = {
     short: "Classic",
     // The version's colour in the web admin (#742, dark theme); see tbc.js. A neutral grey-blue.
     color: "#9fb0c8",
+    // The raid plan's assignment types this version has not (#751, services/raidplan/raidplanConstants.js):
+    // Misdirection is new in TBC - Classic's hunter has no such spell.
+    raidplanTypesLeftOut: ["md"],
     classes,
     instances,
     ...buildBuffs(classes, { exclude: EXCLUDED_BUFFS }),
