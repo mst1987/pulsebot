@@ -39,7 +39,7 @@ const { serverLang, eventLang } = require("../../services/discord/botLanguage");
 const VIEW_KEYS = [
     "id", "title", "description", "startTime", "endTime", "durationMinutes",
     "signupDeadline", "size", "status", "phase", "cancelReason", "signupsClosed",
-    "icsUrl", "signupUrl",
+    "icsUrl", "signupUrl", "versionId",
     "raids", "counts", "classes", "other", "setup",
     // raids[]
     "label", "icon",
@@ -159,6 +159,7 @@ function publicEventView(event, signups, { now = Date.now(), lang = "de" } = {})
         durationMinutes: durationOf(event.durationMinutes),
         signupDeadline: Number(event.signupDeadline) || 0,
         size: Number(event.size) || 0,
+        versionId: str(event.versionId),
         status: event.status === "cancelled" ? "cancelled" : "active",
         signupsClosed: !!event.signupsClosed,
         cancelReason: clip(str(event.cancel && event.cancel.reason), 300),
@@ -333,7 +334,7 @@ ${renderPublicEventBody(view, { lang })}
 <footer>${esc(tr(lang, "EventHelper · Public event view"))}</footer>
 </div>`;
     // layout() is shared with the German report pages: the page's own language goes into <html lang>.
-    return layout(`${view.title} · EventHelper`, body, { bare: true, extraStyle: PAGE_STYLE }).replace("<html lang=\"de\">", `<html lang="${normalizeLang(lang)}">`);
+    return layout(`${view.title} · EventHelper`, body, { bare: true, extraStyle: PAGE_STYLE, version: view.versionId || "" }).replace("<html lang=\"de\"", `<html lang="${normalizeLang(lang)}"`);
 }
 
 /**

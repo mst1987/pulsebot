@@ -24,6 +24,7 @@ const { listEvents } = require("../../stores/eventStore");
 const { signupsOfUser } = require("../../stores/signupStore");
 const { verifyToken, touchToken } = require("../../stores/calendarTokenStore");
 const { buildUserCalendar } = require("../../services/events/icsFeed");
+const { versionOfEvent, isVersionVisible, knownVersion } = require("../../services/events/mainVersion");
 
 const DAY = 86400;
 // Far enough back that last week's raid is still in the calendar, short enough
@@ -49,9 +50,11 @@ function clearCache() {
  * The raids one raider is signed up for, inside the window, soonest first.
  * Pure over the stores; `null` is never returned — a raider without signups
  * gets an empty list, which is a valid (empty) calendar.
+ * Raids of a version the orga hid (hideOtherVersions) are left out (#743); `versionId` (the feed's
+ * optional `?version=`) narrows it to one game version, "" = every visible one.
  * @returns {{ event: object, status: string, changedAt: number }[]}
  */
-function collectEntries(userId, { now = Date.now() } = {}) {
+function collectEntries(userId, { now = Date.now(), versionId = "", config } = {}) {
     const mine = signupsOfUser(userId);
     const ids = Object.keys(mine);
     if (!ids.length) return [];
@@ -64,6 +67,8 @@ function collectEntries(userId, { now = Date.now() } = {}) {
     for (const event of events) {
         const signup = mine[event.id];
         if (!signup || !event.startTime) continue;
+        const version = versionOfEvent(event, { config });
+        if (!isVersionVisible(version, config) || (versionId && version !== versionId)) continue;
         entries.push({
             event,
             status: String(signup.status || "signed"),
@@ -79,17 +84,19 @@ function collectEntries(userId, { now = Date.now() } = {}) {
 /**
  * The calendar behind a subscription token.
  * @param {string} rawToken the token out of the url
- * @param {{ now?: number }} [opts]
+ * @param {{ now?: number, version?: string }} [opts]  `version`: only the raids of that game version (#743)
  * @returns {{ body: string, cached: boolean, id: string }|null} null = unknown or revoked
  */
-function feedFor(rawToken, { now = Date.now() } = {}) {
+function feedFor(rawToken, { now = Date.now(), version = "", config } = {}) {
     const record = verifyToken(rawToken);
     if (!record || !record.userId) return null;
-    const hit = cache.get(record.id);
+    const versionId = knownVersion(version);
+    const key = `${record.id}|${versionId}`;
+    const hit = cache.get(key);
     if (hit && now - hit.at < CACHE_MS) return { body: hit.body, cached: true, id: record.id };
-    const body = buildUserCalendar(collectEntries(record.userId, { now }), { name: CALENDAR_NAME, now });
+    const body = buildUserCalendar(collectEntries(record.userId, { now, versionId, config }), { name: CALENDAR_NAME, now });
     if (cache.size >= MAX_CACHE) cache.clear();
-    cache.set(record.id, { at: now, body });
+    cache.set(key, { at: now, body });
     // Only on a miss, so a polling client writes to disk at most once per
     // cache window and the profile can still say "noch nie abgerufen".
     touchToken(record.id);

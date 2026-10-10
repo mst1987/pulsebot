@@ -50,6 +50,12 @@ describe("web/report/bossView", () => {
             expect(html).not.toContain("chip-x");
         });
 
+        it("drops the v2 note when the report's version does not run the fight series (#747)", () => {
+            const html = renderBossView({ fights: [fight()] }, null, [], false, { seriesRan: false });
+            expect(html).toMatch(/^<div class="boss-index" id="bossIndex"><div class="tbl-wrap">/);
+            expect(html).not.toContain("Warcraft-Logs-v2-Zugang");
+        });
+
         const html = renderBossView(timeline(), (n) => `/p/${n}`, [], false);
 
         it("renders a table with one row per boss, each opening its hidden page", () => {

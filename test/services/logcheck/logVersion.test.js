@@ -120,6 +120,45 @@ describe("services/logcheck/logVersion — what the log check reads", () => {
         expect(lv.logcheckSupported("")).toBe(false);
     });
 
+    it("keeps Forever refused even with a Warcraft-Logs site set: its rules are not ready", () => {
+        expect(lv.logcheckSupported("forever", { config })).toBe(false);
+    });
+
+    describe("logcheckCapability — the hook of the per-version feature matrix (#761)", () => {
+        it("says TBC is possible", () => {
+            expect(lv.logcheckCapability("tbc")).toEqual({ possible: true, reason: "", message: "", missing: [] });
+        });
+
+        it("names why Forever is not: rules not ready, with what they lack", () => {
+            const cap = lv.logcheckCapability("forever", { config });
+            expect(cap).toMatchObject({ possible: false, reason: "rules_not_ready", message: "Die Logcheck-Regeln für WoW Forever sind noch nicht fertig." });
+            expect(cap.missing.length).toBeGreaterThan(0);
+        });
+
+        it("names a version without rules and an unknown one", () => {
+            expect(lv.logcheckCapability("classic", { config })).toMatchObject({ possible: false, reason: "no_rules", message: "Für Classic Era gibt es keine Logcheck-Regeln." });
+            expect(lv.logcheckCapability("nope")).toMatchObject({ possible: false, reason: "unknown_version" });
+            expect(lv.logcheckCapability("")).toMatchObject({ possible: false, reason: "unknown_version" });
+        });
+
+        it("a ready rule set still needs a Warcraft-Logs site: supported = rules ready AND site known", () => {
+            jest.isolateModules(() => {
+                jest.doMock("../../../src/utils/logcheck/rules", () => {
+                    const actual = jest.requireActual("../../../src/utils/logcheck/rules");
+                    const readyForever = actual.makeRuleSet({
+                        versionId: "forever", classDefs: actual.logcheckRules("forever").classDefs, analyzers: actual.analyzersFor("forever"), ready: true,
+                    });
+                    return { ...actual, logcheckRules: (v) => (v === "forever" ? readyForever : actual.logcheckRules(v)) };
+                });
+                const fresh = require("../../../src/services/logcheck/logVersion");
+                expect(fresh.logcheckCapability("forever", { config: {} })).toMatchObject({ possible: false, reason: "no_site", message: "Für WoW Forever ist keine Warcraft-Logs-Seite eingetragen." });
+                expect(fresh.logcheckSupported("forever", { config: {} })).toBe(false);
+                expect(fresh.logcheckCapability("forever", { config })).toEqual({ possible: true, reason: "", message: "", missing: [] });
+                expect(fresh.logcheckSupported("forever", { config })).toBe(true);
+            });
+        });
+    });
+
     it("asks the classic v1 host for TBC, unchanged; another version its settings' site", () => {
         expect(lv.wclApiSite("tbc", { config })).toBe("https://classic.warcraftlogs.com");
         expect(lv.wclApiSite("classic", { config })).toBe("https://vanilla.warcraftlogs.com");

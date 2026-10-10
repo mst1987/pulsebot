@@ -6,6 +6,7 @@ const { listEvents, statusOf, statusCounts, STATUS_LABELS, STATUS_ICONS } = requ
 const { eventGuildId } = require("../../services/discord/guildRoles");
 const linkCheck = require("../../services/discord/linkCheck");
 const { webUrl, lookupReply, deferLookup, discordTime, respondChoices, clip } = require("../../utils/discord/botLookup");
+const { addVersionOption, versionOfCommand, eventsOfVersion, versionNote } = require("../../services/events/commandVersion");
 const { TIMEZONE } = require("../../config/timezone");
 
 /** "Mi 24.09. 20:00" in the guild's time zone — autocomplete names cannot carry Discord timestamps. */
@@ -36,18 +37,21 @@ module.exports = {
     description: "Ein Raid im Überblick: Termin, Anmeldestand, dein Status.",
     group: "raids",
     defaultAccess: "everyone",
-    data: new SlashCommandBuilder()
+    data: addVersionOption(new SlashCommandBuilder()
         .setName("raid")
         .setDescription("Ein Raid im Überblick: Termin, Anmeldestand, dein Status")
-        .addStringOption((o) => o.setName("event").setDescription("Raid").setRequired(true).setAutocomplete(true)),
+        .addStringOption((o) => o.setName("event").setDescription("Raid").setRequired(true).setAutocomplete(true))),
     shortDate,
     async execute(interaction) {
         await deferLookup(interaction);
         const value = interaction.options.getString("event");
-        const { events, error } = await listEvents({ past: true });
-        const event = findEvent(events, value);
+        const { versionId } = versionOfCommand(interaction);
+        const { events: all, error } = await listEvents({ past: true });
+        const event = findEvent(eventsOfVersion(all, versionId), value);
+        const footer = { text: versionNote(versionId) };
         if (!event) {
             return lookupReply(interaction, {
+                footer,
                 title: "Raid nicht gefunden",
                 description: error ? `Die Raids konnten nicht geladen werden: ${clip(error, 200)}` : `Kein Raid zu „${clip(value, 100)}“.`,
             }, [{ label: "Im Web öffnen", url: webUrl("/raids") }]);
@@ -75,10 +79,12 @@ module.exports = {
             title: event.title || "Raid",
             description: `${discordTime(event.startTime, "d")} ${discordTime(event.startTime, "t")} (${discordTime(event.startTime, "R")})${where ? `\n${where}` : ""}`,
             fields,
+            footer,
         }, links);
     },
     async autocomplete(interaction) {
-        const { events } = await listEvents({ past: true });
+        const { events: all } = await listEvents({ past: true });
+        const events = eventsOfVersion(all, versionOfCommand(interaction).versionId);
         return respondChoices(interaction, pickOrder(events).map((e) => ({
             name: [e.title || "Raid", shortDate(e.startTime)].filter(Boolean).join(" · "),
             value: String(e.id),

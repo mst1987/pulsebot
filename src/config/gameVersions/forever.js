@@ -98,6 +98,8 @@ module.exports = {
     id: "forever",
     label: "WoW Forever",
     short: "Forever",
+    // The version's colour in the web admin (#742, dark theme); see tbc.js.
+    color: "#4da3ff",
     characterNames: { lastName: true },
     // The version's own curve for a raid size without an instance suggestion
     // (defaultComposition); the same estimate as above.

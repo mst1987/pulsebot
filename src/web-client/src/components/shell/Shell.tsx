@@ -147,7 +147,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
         ?? (pageCrumb && pageCrumb.path === location.pathname ? pageCrumb.label : null);
 
     return (
-        <ContentVersionProvider content={content}>
+        <ContentVersionProvider content={content} neutral={!!tab?.neutral}>
             <div className="app">
                 <aside className={`side${menuOpen ? " open" : ""}`}>
                     {/* The crest is the way home: "/" is the dashboard, or — for an

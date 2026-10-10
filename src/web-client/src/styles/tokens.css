@@ -70,8 +70,17 @@
     --rn-core: #a3e635; --rn-trial: #fbbf24; --rn-bench: #60a5fa; --rn-pause: #94a3b8;
     /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
     --att-present: #4ade80; --att-bench: #3b82f6; --att-vacation: #a78bfa; --att-absence: #f59e0b; --att-nosignup: #6b7280; --att-noshow: #f87171; --att-tentative: #2dd4bf; --att-ink: #0b0f14;
-    /* ---- game versions (#563): the dot of the content switch, and the archive banner of a hidden version ---- */
-    --ver-forever: #35d6c4; --ver-tbc: #e0a23a; --ver-classic: #b0b8c4;
+    /* ---- game versions (#563, #742): the colour of a version is the whole accent while it is shown (see the end of the file).
+       The defaults here are the rule sets' colours (config/gameVersions/<id>.js); a colour changed in Einstellungen → Spielversion
+       arrives as --vc-<id>-dark / -light / -ink-dark / -ink-light (lib/app/versionColor.ts) and wins. Every default reaches 4.5:1
+       as text on every panel of its theme, and its ink 4.5:1 on it (lib/app/versionColor.test.ts). ---- */
+    --ver-forever: var(--vc-forever-dark, #4da3ff); --ver-forever-ink: var(--vc-forever-ink-dark, #0b0f14);
+    --ver-tbc: var(--vc-tbc-dark, #9bd45a); --ver-tbc-ink: var(--vc-tbc-ink-dark, #0b0f14);
+    --ver-classic: var(--vc-classic-dark, #9fb0c8); --ver-classic-ink: var(--vc-classic-ink-dark, #0b0f14);
+    --accent-soft-alpha: 16%;
+    /* the orga marking (#732) is teal whichever version is shown; it has its own token, not --accent-2 */
+    --orga-teal: #35d6c4;
+    /* the archive banner of a hidden version */
     --archive-ink: #f0c27a; --archive-text: #c9b28a; --archive-bg: rgba(224, 162, 58, .10); --archive-line: rgba(224, 162, 58, .35);
     /* ---- the same in both themes: ink on a coloured fill, shadows, overlays ---- */
     --on-fill: #fff; --on-good: #10240f; --on-medium: #1c1305;
@@ -183,7 +192,11 @@
         --rn-core: #4d7c0f; --rn-trial: #b45309; --rn-bench: #2563eb; --rn-pause: #64748b;
         /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
         --att-present: #2b9440; --att-bench: #1d4ed8; --att-vacation: #7c3aed; --att-absence: #b45309; --att-nosignup: #9aa3b2; --att-noshow: #dc2626; --att-tentative: #0f766e; --att-ink: #ffffff;
-        --ver-forever: #0f8f82; --ver-tbc: #9a6c12; --ver-classic: #5b616e;
+        --ver-forever: var(--vc-forever-light, #1a65c4); --ver-forever-ink: var(--vc-forever-ink-light, #ffffff);
+        --ver-tbc: var(--vc-tbc-light, #47711a); --ver-tbc-ink: var(--vc-tbc-ink-light, #ffffff);
+        --ver-classic: var(--vc-classic-light, #4a5a73); --ver-classic-ink: var(--vc-classic-ink-light, #ffffff);
+        --accent-soft-alpha: 10%;
+        --orga-teal: #0f8f82;
         --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
         /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
@@ -233,9 +246,30 @@
     --rn-core: #4d7c0f; --rn-trial: #b45309; --rn-bench: #2563eb; --rn-pause: #64748b;
     /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
     --att-present: #2b9440; --att-bench: #1d4ed8; --att-vacation: #7c3aed; --att-absence: #b45309; --att-nosignup: #9aa3b2; --att-noshow: #dc2626; --att-tentative: #0f766e; --att-ink: #ffffff;
-    --ver-forever: #0f8f82; --ver-tbc: #9a6c12; --ver-classic: #5b616e;
+    --ver-forever: var(--vc-forever-light, #1a65c4); --ver-forever-ink: var(--vc-forever-ink-light, #ffffff);
+    --ver-tbc: var(--vc-tbc-light, #47711a); --ver-tbc-ink: var(--vc-tbc-ink-light, #ffffff);
+    --ver-classic: var(--vc-classic-light, #4a5a73); --ver-classic-ink: var(--vc-classic-ink-light, #ffffff);
+    --accent-soft-alpha: 10%;
+    --orga-teal: #0f8f82;
     --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
         /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
         --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
+}
+
+/* ---- the accent follows the version (#742, variant B) ----
+   <html data-version> is set by components/shell/ContentVersionProvider (and left off on
+   a version-neutral page: Einstellungen, Systemstatus, Kanäle, see menu.json), so those keep
+   the brand violet above. Last in the file on purpose: it has the specificity of the light
+   blocks and must win over their --accent. Soft tint, hover and focus are derived from the one
+   colour. --accent-2 (the second hue) and --orga-teal (the orga marking) do not follow. */
+:root[data-version="forever"] { --version-color: var(--ver-forever); --version-ink: var(--ver-forever-ink); }
+:root[data-version="tbc"] { --version-color: var(--ver-tbc); --version-ink: var(--ver-tbc-ink); }
+:root[data-version="classic"] { --version-color: var(--ver-classic); --version-ink: var(--ver-classic-ink); }
+:root[data-version="forever"], :root[data-version="tbc"], :root[data-version="classic"] {
+    --accent: var(--version-color);
+    --accent-ink: var(--version-ink);
+    --accent-soft: color-mix(in srgb, var(--version-color) var(--accent-soft-alpha), transparent);
+    /* Uebersicht is the one area hue that is the brand accent itself: its menu line and tiles follow; the other areas keep their spectrum hue */
+    --area-home: var(--version-color); --area-home-soft: var(--accent-soft);
 }

@@ -1,9 +1,8 @@
 const data = require("../../config/claData");
 const { selectPlayers } = require("./common");
 
-// Shadow resistance granted by enchants / gems (ported from ShadowResistance.js)
-const SR_ENCHANT = { 804: 10, 1888: 5, 2984: 8, 3009: 20, 2998: 7, 2664: 7, 1441: 15, 2683: 10 };
-const SR_GEM = { 22459: 4, 22460: 3 };
+// Shadow resistance granted by enchants / gems (TBC data, config/logcheckTables.js)
+const { SR_ENCHANT, SR_GEM } = require("../../config/logcheckTables");
 
 /**
  * Shadow resistance from gear (base + enchant + gem) for the Mother Shahraz fight.
@@ -11,16 +10,17 @@ const SR_GEM = { 22459: 4, 22460: 3 };
  *
  * @param {object} table  WCL casts table (entries carry per-player gear)
  * @param {object} fights WCL fights response
+ * @param {object} [rules] the report's rule set (which classes are raiders); TBC without one
  * @returns {null | { boss, note, players: [{name,type,sr,items}] }}
  */
-function analyzeShadowResi(table, fights) {
+function analyzeShadowResi(table, fights, rules) {
     // Mother Shahraz's boss guid ends with "607" (same marker CLA uses)
     const mother = ((fights && fights.fights) || []).find(
         (f) => f.boss && String(f.boss).endsWith("607")
     );
     if (!mother) return null;
 
-    const players = selectPlayers(table).map((p) => {
+    const players = selectPlayers(table, rules).map((p) => {
         let sr = 0;
         const items = [];
         for (const item of p.gear || []) {
@@ -48,4 +48,4 @@ function analyzeShadowResi(table, fights) {
     };
 }
 
-module.exports = { analyzeShadowResi };
+module.exports = { analyzeShadowResi, SR_ENCHANT, SR_GEM };

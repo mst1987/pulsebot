@@ -16,6 +16,7 @@ const { normalizePingTarget, deliverUserPing, dmSummary, TARGET_LABELS, missingP
 const { eventLang } = require("../discord/botLanguage");
 const { fail } = require("../../web/http/apiResult");
 const { hasExpected, listExpectedMembers } = require("../roster/expectedRaiders");
+const { versionOfEvent, isVersionVisible } = require("./mainVersion");
 
 /**
  * Who of the expected raiders has not reacted to the event yet: the core and
@@ -33,6 +34,10 @@ async function findMissingRaiders({ guildId, eventId }) {
     if (!found) return fail(404, "not_found", "Event nicht gefunden.");
     if (found.e.status === "cancelled") return fail(400, "cancelled", "Das Event ist abgesagt — da wird niemand mehr gepingt.");
     const config = getConfig();
+    // A raid of a version the orga hid is not pinged for (#743), like it is not listed or reminded.
+    if (!isVersionVisible(versionOfEvent({ ...found.e, categoryId: found.e.categoryId || found.g.categoryId }, { config }), config)) {
+        return fail(400, "version_hidden", "Die Spielversion dieses Raids ist ausgeblendet — da wird niemand gepingt.");
+    }
     if (!hasExpected(found.g.categoryId, config)) {
         return fail(400, "no_roles", "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Kategorien).");
     }
