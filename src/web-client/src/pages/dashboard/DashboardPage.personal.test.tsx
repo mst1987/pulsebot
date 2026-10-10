@@ -145,6 +145,14 @@ describe("Übersicht for a raider", () => {
         expect(within(profile).getByText(t("dashboard.personal.profile.noSpec", { character: "Feuerfritz" }))).toBeInTheDocument();
     });
 
+    it("says so in words while no raid of the shown version counts yet - never 0 % (#740)", async () => {
+        await show(dashboard({ personal: personal({ attendance: null }) }));
+        const tile = screen.getByText(t("dashboard.personal.attendance.label")).closest("a")!;
+        expect(within(tile).getAllByText(t("dashboard.personal.attendance.none")).length).toBeGreaterThan(0);
+        expect(tile.querySelector(".ov-area-big")).toBeNull();
+        expect(tile.querySelectorAll(".ov-dot")).toHaveLength(0);
+    });
+
     it("gives each last raid the status and that night's evaluation for them", async () => {
         await show(dashboard());
         const card = screen.getByText(t("dashboard.personal.recent.title")).closest("section")!;

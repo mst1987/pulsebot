@@ -1,8 +1,10 @@
 // Attendance of one character for the bot's /anwesenheit (issue #265) — the same
 // rules and the same sources as the roster page (rosterAttendance.js), without
 // building the whole roster (gear issues, links, every other character) for a
-// single answer.
+// single answer. Always within one game version (#740): the caller names it
+// (the command: the channel's category's version, or the one picked).
 const { buildAttendanceContext, attendanceFor } = require("./rosterAttendance");
+const { mainVersionFor } = require("../events/mainVersion");
 const { listAllAssignments } = require("../../stores/raiderCharactersStore");
 const { annotatedCharacters } = require("./characterInfo");
 const { listKnownCategories } = require("../discord/categoryNames");
@@ -29,14 +31,20 @@ function knownCharacterNames() {
 
 /**
  * One character's attendance per raid category, the categories it raids in
- * found the way the roster finds them (assignment or loot there).
+ * found the way the roster finds them (assignment or loot there) - those with
+ * raids of the version counted, or that play it today (a category just switched
+ * to it: "keine gezählten Raids" until its first raid there).
  *
- * @returns {{ character: string, categories: {id, name, attended, total, pct, missed}[] }}
+ * @param {{ ctx?: object, versionId?: string }} opts  a context built for the version, or the version
+ *   (one of them is required, #740)
+ * @returns {{ character: string, versionId: string, categories: {id, name, attended, total, pct, missed}[] }}
  */
-function characterAttendance(guildId, name, { ctx } = {}) {
+function characterAttendance(guildId, name, { ctx, versionId } = {}) {
     const key = characterKeyOf(name);
     const character = splitPlayer(String(name || "").trim()).character;
-    if (!key) return { character, categories: [] };
+    const context = ctx || buildAttendanceContext(guildId, { versionId });
+    const version = context.versionId || versionId;
+    if (!key) return { character, versionId: version, categories: [] };
 
     const userIdsByCategory = new Map();
     for (const [categoryId, map] of Object.entries(listAllAssignments())) {
@@ -51,13 +59,15 @@ function characterAttendance(guildId, name, { ctx } = {}) {
     const loot = annotatedCharacters().find((c) => characterKeyOf(c.character) === key);
     for (const id of (loot && loot.categoryIds) || []) categoryIds.add(id);
 
-    const context = ctx || buildAttendanceContext(guildId);
     const names = new Map(listKnownCategories(guildId).map((c) => [c.id, c.name]));
-    const categories = [...categoryIds].map((id) => {
+    // only categories of this version: nights of it, or playing it today
+    const nights = context.raidsByCategory instanceof Map ? context.raidsByCategory : new Map();
+    const ofVersion = (id) => !version || nights.has(id) || mainVersionFor({ categoryId: id }) === version;
+    const categories = [...categoryIds].filter(ofVersion).map((id) => {
         const { attended, total, pct, missed } = attendanceFor(context, id, character, userIdsByCategory.get(id) || []);
         return { id, name: names.get(id) || "Unbekannte Kategorie", attended, total, pct, missed };
     }).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
-    return { character: (loot && loot.character) || character, categories };
+    return { character: (loot && loot.character) || character, versionId: version, categories };
 }
 
 /** The number a reply leads with: attended of counted nights over all categories. */

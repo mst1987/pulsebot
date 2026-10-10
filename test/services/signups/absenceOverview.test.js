@@ -196,3 +196,42 @@ describe("raiderDetail", () => {
         expect(detail).toMatchObject({ userId: "u1", character: "u1", role: "healer", classId: "Druid", classColor: "#FF7D0A", specIcon: expect.stringMatching(/^[a-z_]+$/) });
     });
 });
+
+describe("one game version at a time (#740)", () => {
+    it("lists only the raids of the asked version - the entries cover every version", () => {
+        mockEvents.set("eh-t", raid("eh-t", "2030-03-25"));
+        mockEvents.set("eh-f", raid("eh-f", "2030-03-26", { versionId: "forever" }));
+        signup("eh-t", "single", "absence");
+        signup("eh-f", "single", "absence");
+        entry("away", "2030-03-24", "2030-03-30");
+        const tbc = overview.buildOverview({ now: NOW, versionId: "tbc" });
+        expect(tbc.versionId).toBe("tbc");
+        expect(tbc.raids.map((r) => r.id)).toEqual(["eh-t"]);
+        expect(tbc.raids[0].absent.map((a) => a.userId).sort()).toEqual(["away", "single"]);
+        const forever = overview.buildOverview({ now: NOW, versionId: "forever" });
+        expect(forever.raids.map((r) => r.id)).toEqual(["eh-f"]);
+        // the same period stands in both versions
+        expect(forever.raiders.find((r) => r.userId === "away").periods).toHaveLength(1);
+        expect(forever.raids[0].absent.map((a) => a.userId).sort()).toEqual(["away", "single"]);
+        // nothing named: the main version
+        expect(overview.buildOverview({ now: NOW }).raids.map((r) => r.id)).toEqual(["eh-t"]);
+        mockConfig = { ...mockConfig, mainVersion: "forever" };
+        expect(overview.buildOverview({ now: NOW }).raids.map((r) => r.id)).toEqual(["eh-f"]);
+    });
+
+    it("gives hints and a raider's last raids within the version only", () => {
+        // four TBC sign-offs: a hint under TBC, none under Forever (no Forever raids yet)
+        for (const [i, day] of ["2030-02-25", "2030-03-04", "2030-03-11", "2030-03-18"].entries()) {
+            mockEvents.set(`eh-p${i}`, raid(`eh-p${i}`, day));
+            signup(`eh-p${i}`, "often", "absence");
+        }
+        mockEvents.set("eh-f", raid("eh-f", "2030-03-19", { versionId: "forever" }));
+        signup("eh-f", "often", "signed");
+        expect(overview.buildOverview({ now: NOW, versionId: "tbc" }).hints.map((h) => h.userId)).toEqual(["often"]);
+        expect(overview.buildOverview({ now: NOW, versionId: "forever" }).hints).toEqual([]);
+        expect(overview.raiderDetail("often", { now: NOW, versionId: "tbc" }).history.map((h) => h.eventId)).toEqual(["eh-p0", "eh-p1", "eh-p2", "eh-p3"]);
+        const forever = overview.raiderDetail("often", { now: NOW, versionId: "forever" });
+        expect(forever.versionId).toBe("forever");
+        expect(forever.history.map((h) => [h.eventId, h.status])).toEqual([["eh-f", "in"]]);
+    });
+});

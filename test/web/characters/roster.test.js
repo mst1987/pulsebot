@@ -34,7 +34,8 @@ const mockAttendanceFor = jest.fn(() => ({ attended: 0, total: 0, pct: null, rai
 const mockCategoryInfo = jest.fn(() => ({ raids: 0, contents: [], icon: "" }));
 const mockRoleFor = jest.fn(() => "");
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({
-    buildAttendanceContext: () => ({}),
+    // the context says which version it counts, so a test can tell them apart (#740)
+    buildAttendanceContext: (_g, opts) => ({ versionId: opts.versionId }),
     attendanceFor: (...a) => mockAttendanceFor(...a),
     categoryInfo: (...a) => mockCategoryInfo(...a),
     roleFor: (...a) => mockRoleFor(...a),
@@ -90,6 +91,23 @@ describe("web/characters/roster buildRoster", () => {
         const calls = mockAttendanceFor.mock.calls.map((c) => [c[1], c[3]]);
         expect(calls).toEqual(expect.arrayContaining([["cat1", []], ["cat2", ["u1"]]]));
         expect(roster.categoryInfo.cat2).toEqual({ raids: 2, contents: ["BT"], icon: "icon-cat2" });
+    });
+
+    it("never mixes versions: a picked version counts everywhere, \"all\" counts each category in the version it plays (#740)", () => {
+        mockAnnotatedCharacters.mockReturnValue([lootChar({ categoryIds: ["cat1"] })]);
+        mockListAllAssignments.mockReturnValue({ cat2: { u1: "Anna" } });
+        const config = { categoryVersion: { cat2: "forever" } };
+        const versionsOf = () => Object.fromEntries(mockAttendanceFor.mock.calls.map((c) => [c[1], c[0].versionId]));
+
+        buildRoster("guild-1", { versionId: "", config });
+        expect(versionsOf()).toEqual({ cat1: "tbc", cat2: "forever" });
+        expect(Object.fromEntries(mockCategoryInfo.mock.calls.map((c) => [c[1], c[0].versionId]))).toEqual({ cat1: "tbc", cat2: "forever" });
+
+        mockAttendanceFor.mockClear();
+        mockAnnotatedCharacters.mockReturnValue([lootChar({ categoryIds: ["cat1"] })]);
+        // a picked version: every category counts it (the filter on the rows is the characters' business)
+        buildRoster("guild-1", { versionId: "tbc", config });
+        expect(new Set(Object.values(versionsOf()))).toEqual(new Set(["tbc"]));
     });
 
     it("answers one character with its categories and night-by-night attendance", () => {

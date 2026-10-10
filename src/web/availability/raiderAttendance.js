@@ -10,6 +10,12 @@
 //
 // Which categories: the active ones (config.categoryIds, when any are set) the
 // raider signed up for at least once, or was assigned a character in.
+//
+// Always within one game version (#740, the content switch's `?version=`): only
+// raids of that version count and are listed, the coming ones included. A
+// category shows up when it has raids of that version or plays it today - a
+// category just switched to Forever shows "noch keine gezählten Raids" there
+// until its first Forever raid, its TBC nights stay under TBC.
 const signupStore = require("../../stores/signupStore");
 const eventStore = require("../../stores/eventStore");
 const profileStore = require("../../stores/raiderProfileStore");
@@ -18,6 +24,7 @@ const { categoryAttendanceFor } = require("../../stores/configSchema");
 const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
 const { buildAttendanceContext, attendanceForAccounts, RAID_WINDOW } = require("../../services/characters/rosterAttendance");
 const { accountCharacters } = require("../setup/setupAttendance");
+const { versionOfEvent, mainVersionFor, knownVersion } = require("../../services/events/mainVersion");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -37,12 +44,13 @@ function newestSignup(nights, userId) {
  *            raids: { eventId, title, startTime, attended, reason }[],
  *            upcoming: { eventId, title, startTime, status, url }[] }[] }}
  */
-/** The raider's coming own raids (not cancelled, of the active categories), by category. */
-function upcomingRaids(uid, { now, active, eventUrl }) {
+/** The raider's coming own raids (not cancelled, of the active categories, of this version), by category. */
+function upcomingRaids(uid, { now, active, eventUrl, versionId, config }) {
     const out = new Map();
     for (const e of eventStore.listEvents("", { sinceSeconds: Math.floor(now / 1000) })) {
         if (!e || !e.categoryId || e.status === "cancelled" || Number(e.startTime) * 1000 < now) continue;
         if (active.length && !active.includes(str(e.categoryId))) continue;
+        if (versionOfEvent(e, { config }) !== versionId) continue;
         const signup = signupStore.getSignup(e.id, uid);
         const list = out.get(str(e.categoryId)) || [];
         list.push({ eventId: e.id, title: e.title || "", startTime: Number(e.startTime) || 0, status: signup ? signup.status : "", url: eventUrl(e) || "" });
@@ -51,11 +59,17 @@ function upcomingRaids(uid, { now, active, eventUrl }) {
     return out;
 }
 
-/** One category's card, or null when the raider has nothing to do with it. */
-function categoryView(uid, categoryId, { ctx, nights, upcoming, profile, name, window = RAID_WINDOW }) {
-    const assignments = getCategoryAssignments(categoryId) || {};
+/**
+ * One category's card, or null when the raider has nothing to do with it in this version.
+ * `playsVersion`: the category plays the asked version today - then an assignment or a signup of
+ * another version is enough for a card (its quota empty until the first raid of this version).
+ */
+function categoryView(uid, categoryId, { ctx, nights, upcoming, profile, name, window = RAID_WINDOW, playsVersion = true }) {
     const signup = newestSignup(nights, uid);
-    if (!signup && !assignments[uid] && !upcoming.some((r) => r.status)) return null;
+    if (!nights.length && !upcoming.length && !playsVersion) return null;
+    const assignments = getCategoryAssignments(categoryId) || {};
+    const signedBefore = playsVersion && !!(ctx.signedAnyVersion && ctx.signedAnyVersion.get(categoryId) && ctx.signedAnyVersion.get(categoryId).has(uid));
+    if (!signup && !assignments[uid] && !upcoming.some((r) => r.status) && !signedBefore) return null;
     const chars = accountCharacters(uid, categoryId, signup, profile, assignments);
     const result = (chars.length && attendanceForAccounts(ctx, categoryId, [{ userId: uid, chars }], { nights: true, window }).get(uid)) || null;
     return {
@@ -84,14 +98,20 @@ function eventCategoryNames(now) {
     return out;
 }
 
-function raiderAttendance(userId, { now = Date.now(), config, categoryNames = {}, eventUrl = () => "" } = {}) {
+/**
+ * @param {string} userId
+ * @param {{ versionId?: string, now?: number, config?: object, categoryNames?: Object<string,string>, eventUrl?: (event) => string }} opts
+ *   `versionId`: the game version counted (#740) - the main version when none (or an unknown one) is named
+ */
+function raiderAttendance(userId, { versionId = "", now = Date.now(), config, categoryNames = {}, eventUrl = () => "" } = {}) {
     const uid = str(userId);
     const cfg = config || settingsStore.getConfig();
+    const version = knownVersion(versionId) || mainVersionFor({ config: cfg });
     const active = Array.isArray(cfg.categoryIds) ? cfg.categoryIds.map(String) : [];
-    const ctx = buildAttendanceContext("", { now });
+    const ctx = buildAttendanceContext("", { now, versionId: version });
     const profile = profileStore.getProfile(uid);
     const all = ctx.allRaidsByCategory || ctx.raidsByCategory;
-    const upcomingByCategory = upcomingRaids(uid, { now, active, eventUrl });
+    const upcomingByCategory = upcomingRaids(uid, { now, active, eventUrl, versionId: version, config: cfg });
     const ids = [...new Set([...all.keys(), ...upcomingByCategory.keys(), ...active].map(String))]
         .filter((id) => !active.length || active.includes(id))
         // Einstellungen › Kategorien: "Anwesenheit anzeigen" off hides the category here
@@ -103,12 +123,13 @@ function raiderAttendance(userId, { now = Date.now(), config, categoryNames = {}
             window: categoryAttendanceFor(cfg, id).window,
             nights: all.get(id) || [],
             upcoming: (upcomingByCategory.get(id) || []).sort((a, b) => a.startTime - b.startTime),
+            playsVersion: mainVersionFor({ categoryId: id, config: cfg }) === version,
         }))
         .filter(Boolean)
         .sort((a, b) => (b.total - a.total) || a.name.localeCompare(b.name));
     // the character of the newest signup: what the page calls a raider without a Discord or profile name
     const newest = categories.map((c) => newestSignup(all.get(c.id) || [], uid)).find(Boolean);
-    return { userId: uid, character: str(newest && newest.character), categories };
+    return { userId: uid, versionId: version, character: str(newest && newest.character), categories };
 }
 
 module.exports = { raiderAttendance };
