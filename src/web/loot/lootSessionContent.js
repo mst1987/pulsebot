@@ -18,7 +18,7 @@
 // Bewusst mehrdeutig, wo die Daten mehrdeutig sind: TBC-Abende kombinieren
 // Raids (SSC + Tempest Keep, Gruul + Magtheridon). Erkannt wird deshalb nicht
 // "der eine Raid", sondern die Raids, die einen nennenswerten Anteil ausmachen.
-const { contentForLoot, CONTENTS } = require("../../config/tbcContent");
+const { contentForLoot, content: contentMeta } = require("../../config/raidContent");
 
 // Ab welchem Anteil der zugeordneten Items ein Raid mitgenannt wird. Darunter
 // sind es Einzelstücke — ein mitgeschleppter Gruul-Kill oder ein Item, das die
@@ -28,8 +28,9 @@ const MIN_SHARE = 0.2;
 // und ein Abend mit vier Raids ist ohnehin kein Abend, sondern eine Woche.
 const MAX_NAMED = 3;
 
-const LABELS = Object.fromEntries(CONTENTS.map((c) => [c.id, c.label]));
-const SHORTS = Object.fromEntries(CONTENTS.map((c) => [c.id, c.short || c.label]));
+// Label and short name of a content of any version (rule set).
+const labelOf = (id) => (contentMeta(id) || {}).label || id;
+const shortOf = (id) => { const c = contentMeta(id) || {}; return c.short || c.label || id; };
 
 // Kontinente und Zonen, die RCLootcouncil einträgt, wenn kein Raid erkannt
 // wurde. Sie sehen wie ein Ortsname aus, sagen aber nichts über den Raid — ein
@@ -61,7 +62,7 @@ function cleanInstance(raw) {
  *   total: number,
  * }}
  */
-function deriveContent(items) {
+function deriveContent(items, opts = {}) {
     const list = Array.isArray(items) ? items : [];
     const counts = new Map();
     let matched = 0;
@@ -69,7 +70,7 @@ function deriveContent(items) {
     for (const item of list) {
         // `instance` bewusst nicht mitgeben: contentForLoot() würde sonst auf
         // die Instanz zurückfallen, und genau die soll hier überprüft werden.
-        const { contentId } = contentForLoot({ itemId: item && item.itemId, itemName: item && item.itemName });
+        const { contentId } = contentForLoot({ itemId: item && item.itemId, itemName: item && item.itemName }, { versionId: opts && opts.versionId });
         if (!contentId) continue;
         counts.set(contentId, (counts.get(contentId) || 0) + 1);
         matched += 1;
@@ -85,8 +86,8 @@ function deriveContent(items) {
     // Ein einzelner Raid wird ausgeschrieben; bei mehreren sind die Kürzel
     // lesbarer als drei volle Namen nebeneinander.
     const label = ranked.length === 1
-        ? (LABELS[ranked[0][0]] || ranked[0][0])
-        : ranked.map(([id]) => SHORTS[id] || id).join(" + ");
+        ? labelOf(ranked[0][0])
+        : ranked.map(([id]) => shortOf(id)).join(" + ");
 
     return { contentIds: ranked.map(([id]) => id), label, matched, total: list.length };
 }
@@ -102,7 +103,7 @@ function deriveContent(items) {
  */
 function sessionContentLabel(session) {
     const reported = cleanInstance(session && session.instance);
-    const derived = deriveContent(session && session.items);
+    const derived = deriveContent(session && session.items, { versionId: session && session.versionId });
 
     if (reported && !VAGUE_INSTANCE.test(reported)) {
         return { label: reported, source: "addon", derived };

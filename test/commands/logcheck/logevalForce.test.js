@@ -125,11 +125,46 @@ describe("commands/logcheck/logevalForce — the submitted modal", () => {
 
         await command.execute(submit("logcheck-force:id:RPT123:all", "JA"));
 
-        expect(buildReport).toHaveBeenCalledWith(
-            "https://classic.warcraftlogs.com/reports/RPT123",
-            { force: true },
-        );
+        // no host on the button and no tracked log: the id alone (buildReport takes TBC, #746)
+        expect(buildReport).toHaveBeenCalledWith("RPT123", { force: true });
         expect(evaluateLog).not.toHaveBeenCalled();
+    });
+
+    it("words a version without rules in the reader's language on both forced paths (#746)", async () => {
+        evaluateLog.mockResolvedValue({ ok: false, unsupported: true, versionId: "forever", error: "x" });
+        const viaLog = submit("logcheck-force:log:log1:cla", "JA");
+        await command.execute(viaLog);
+        expect(cardText(viaLog.editReply.mock.calls[0][0])).toContain("Logs von WoW Forever werden noch nicht ausgewertet.");
+
+        buildReport.mockRejectedValue(Object.assign(new Error("x"), { unsupported: true, versionId: "forever" }));
+        const viaId = submit("logcheck-force:id:RPT123:all", "JA");
+        await command.execute(viaId);
+        expect(cardText(viaId.editReply.mock.calls[0][0])).toContain("Logs von WoW Forever werden noch nicht ausgewertet.");
+    });
+
+    it("reads a host from the customId only when it is a Warcraft-Logs one", () => {
+        expect(command.forceCustomId("id", "R1", "all", "fresh.warcraftlogs.com")).toBe("logcheck-force:id:R1:all:fresh.warcraftlogs.com");
+        expect(command.forceCustomId("id", "R1", "all", "evil.example.com")).toBe("logcheck-force:id:R1:all");
+        expect(command.parseCustomId("logcheck-force:id:R1:all:vanilla.warcraftlogs.com")).toEqual({ kind: "id", ref: "R1", section: "all", host: "vanilla.warcraftlogs.com" });
+        expect(command.parseCustomId("logcheck-force:id:R1:all:evil.example.com").host).toBe("");
+    });
+
+    it("asks the host the button carries, never a fixed one (#746)", async () => {
+        buildReport.mockResolvedValue({ id: "r1", url: "https://host/r/r1", report: { title: "Kara" } });
+
+        await command.execute(submit("logcheck-force:id:RPT123:all:fresh.warcraftlogs.com", "JA"));
+
+        expect(buildReport).toHaveBeenCalledWith("https://fresh.warcraftlogs.com/reports/RPT123", { force: true });
+    });
+
+    it("takes the stored link of a log tracked under the id when the button has no host", async () => {
+        buildReport.mockResolvedValue({ id: "r1", url: "https://host/r/r1", report: { title: "Kara" } });
+        logStore.getByReportId.mockReturnValue({ id: "l1", link: "https://vanilla.warcraftlogs.com/reports/RPT123" });
+
+        await command.execute(submit("logcheck-force:id:RPT123:all", "JA"));
+
+        expect(logStore.getByReportId).toHaveBeenCalledWith("RPT123");
+        expect(buildReport).toHaveBeenCalledWith("https://vanilla.warcraftlogs.com/reports/RPT123", { force: true });
     });
 
     it("passes a failed evaluation on instead of claiming success", async () => {

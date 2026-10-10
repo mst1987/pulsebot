@@ -47,9 +47,9 @@ const { listStoredEvents } = require("../events/eventSources");
 const { listLogs } = require("../../stores/logStore");
 const { listReports, getReport } = require("../../stores/reportStore");
 const { characterKeyOf } = require("../../utils/loot/lootImport");
-const { contentsForText, content: contentMeta } = require("../../config/tbcContent");
-const { LEGACY_VERSION } = require("../../config/gameVersions");
-const { knownVersion } = require("../events/mainVersion");
+const { contentsForText, content: contentMeta } = require("../../config/raidContent");
+const { LEGACY_VERSION, VERSIONS } = require("../../config/gameVersions");
+const { knownVersion, mainVersionFor } = require("../events/mainVersion");
 const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const eventStore = require("../../stores/eventStore");
@@ -157,19 +157,11 @@ function attempt(fn, fallback) {
     }
 }
 
-// The raid a category mostly runs, as the icon of its final boss. Names checked
-// against the zamimg CDN (the Archimonde icon only exists with its trailing "-").
-const CONTENT_ICONS = {
-    kara: "achievement_boss_princemalchezaar_02",
-    gruul: "achievement_boss_gruul",
-    mag: "achievement_boss_magtheridon",
-    ssc: "achievement_boss_ladyvashj",
-    tk: "achievement_boss_kael'thassunstrider_01",
-    za: "achievement_boss_zuljin",
-    hyjal: "achievement_boss_archimonde-",
-    bt: "achievement_boss_illidan",
-    swp: "achievement_boss_kiljaedan",
-};
+// The raid a category mostly runs, as the icon of its final boss: one entry per
+// instance of every version, read from the rule set (config/gameVersions).
+const CONTENT_ICONS = Object.fromEntries(
+    VERSIONS.flatMap((v) => v.instances.filter((i) => i.icon).map((i) => [i.id, i.icon])),
+);
 
 const TANK_SPECS = new Set(["protection", "prot", "tank", "feral tank", "guardian"]);
 const HEALER_SPECS = new Set(["holy", "discipline", "disc", "restoration", "resto", "healer"]);
@@ -513,9 +505,11 @@ function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
 function categoryInfo(ctx, categoryId) {
     const raids = ctx.raidsByCategory.get(categoryId) || [];
     const found = new Set();
+    // Zones and titles are read only within the version the category plays.
+    const opts = { versionId: mainVersionFor({ categoryId }) };
     for (const raid of raids) {
-        for (const rep of raid.logs) for (const id of contentsForText(rep.zone)) found.add(id);
-        if (!raid.logs.length) for (const id of contentsForText(raid.title)) found.add(id);
+        for (const rep of raid.logs) for (const id of contentsForText(rep.zone, opts)) found.add(id);
+        if (!raid.logs.length) for (const id of contentsForText(raid.title, opts)) found.add(id);
     }
     const order = Object.keys(CONTENT_ICONS);
     const contents = order.filter((id) => found.has(id));

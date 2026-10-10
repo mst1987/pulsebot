@@ -41,7 +41,7 @@ const LIST_GROUPS = [
     { id: "ranged", labelKey: "lootcouncil.role.ranged" },
 ];
 
-export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) => void }) {
+export function BisListsTab({ view, patch, versionId = "" }: { view: View; patch: (p: Partial<View>) => void; versionId?: string }) {
     const t = useT();
     const [data, setData] = useState<BisListsData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -68,12 +68,12 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
         if (q.length < 2) { setHits([]); return undefined; }
         let alive = true;
         const handle = setTimeout(() => {
-            searchCouncilItems(q, tier)
+            searchCouncilItems(q, tier, versionId)
                 .then((r) => { if (alive) setHits(r.items); })
                 .catch(() => { if (alive) setHits([]); });
         }, 220);
         return () => { alive = false; clearTimeout(handle); };
-    }, [query, tier]);
+    }, [query, tier, versionId]);
 
     const off = useMemo(() => new Set(view.listOff), [view.listOff]);
     const columns = useMemo(

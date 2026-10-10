@@ -158,6 +158,17 @@ describe("services/logcheck/logChannel — handleLogMessage", () => {
 });
 
 describe("services/logcheck/logChannel — evaluateLog", () => {
+    it("builds with the log's stored version, the version of its raid (#746)", async () => {
+        logStore.getLog.mockReturnValue({ id: "l1", status: "open", link: "x", versionId: "forever", versionFrom: "event" });
+        buildReport.mockRejectedValue(Object.assign(new ReportError("Logs von WoW Forever werden noch nicht ausgewertet."), { unsupported: true, versionId: "forever" }));
+
+        const res = await evaluateLog("l1");
+
+        expect(buildReport).toHaveBeenCalledWith("x", expect.objectContaining({ versionId: "forever" }));
+        expect(res).toEqual({ ok: false, unsupported: true, versionId: "forever", error: "Logs von WoW Forever werden noch nicht ausgewertet." });
+        expect(logStore.markEvaluated).not.toHaveBeenCalled();
+    });
+
     it("returns an error for an unknown log", async () => {
         logStore.getLog.mockReturnValue(null);
         const res = await evaluateLog("missing");
@@ -181,7 +192,7 @@ describe("services/logcheck/logChannel — evaluateLog", () => {
         const res = await evaluateLog("l1", "rpb");
         expect(res).toMatchObject({ ok: true, section: "rpb" });
         // merges into the page the CLA run created rather than making a second one
-        expect(buildReport).toHaveBeenCalledWith("x", { sections: ["rpb"], mergeIntoId: "abc123", force: false });
+        expect(buildReport).toHaveBeenCalledWith("x", { versionId: "tbc", sections: ["rpb"], mergeIntoId: "abc123", force: false });
     });
 
     it("builds, marks evaluated and returns the url on success", async () => {
@@ -192,7 +203,7 @@ describe("services/logcheck/logChannel — evaluateLog", () => {
         const res = await evaluateLog("l1");
         expect(buildReport).toHaveBeenCalledWith(
             "https://classic.warcraftlogs.com/reports/RPT1",
-            { sections: ["cla"], mergeIntoId: undefined, force: false },
+            { versionId: "tbc", sections: ["cla"], mergeIntoId: undefined, force: false },
         );
         expect(logStore.markEvaluated).toHaveBeenCalledWith("l1", expect.objectContaining({
             reportRefId: "abc123", reportUrl: "/r/abc123", title: "SSC + TK", sections: ["cla"],

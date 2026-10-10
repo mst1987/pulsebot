@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require("discord.js");
-const WarcraftLogs = require("../../classes/warcraftlogs");
+const { parseReportLink } = require("../../utils/logcheck/logLinks");
 const { buildReport, reportSummaryLines, ReportError } = require("../../utils/logcheck/report");
-const { forceButtonRow, refusalCard } = require("./logevalForce");
+const { forceButtonRow, refusalCard, unsupportedCard } = require("./logevalForce");
 const { botEditReply } = require("../../utils/discord/reply");
 
 module.exports = {
@@ -26,12 +26,15 @@ module.exports = {
             // button under the refusal opens the confirmation modal that runs it
             // anyway (see logevalForce.js).
             if (e && e.incomplete) {
-                const reportId = WarcraftLogs.parseReportId(link);
+                // the host rides on the button, so the forced run asks the same site (#746)
+                const { host, id: reportId } = parseReportLink(link);
                 return interaction.editReply(refusalCard({ error: e.message }, {
                     title: "Raid noch nicht abgeschlossen",
-                    buttons: reportId ? [forceButtonRow("id", reportId, "all")] : [],
+                    buttons: reportId ? [forceButtonRow("id", reportId, "all", host)] : [],
                 }));
             }
+            // A version the log check has no rules for yet (#746): in the reader's language.
+            if (e && e.unsupported) return interaction.editReply(unsupportedCard(interaction, e.versionId));
             if (e instanceof ReportError) return botEditReply(interaction, "Fehler", e.message);
             console.error("logcheck failed:", e);
             return botEditReply(interaction, "Fehler", "Unerwarteter Fehler beim Erstellen der Auswertung.");

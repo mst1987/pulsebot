@@ -8,6 +8,11 @@ const discord = require("../discord/discord");
 const { EVENT_LOOKBACK_DAYS } = require("../events/raidEventGroups");
 const { listRaidEvents } = require("../../stores/raidEventStore");
 const { ownMatchableEvents } = require("../events/eventSources");
+const { versionOfEvent } = require("../events/mainVersion");
+
+// Every row carries its raid's game version (#746): a log is matched only to a
+// raid of its own version (logEventMatch.js) and takes that version when linked.
+const withVersion = (row, stored) => ({ ...row, versionId: versionOfEvent({ versionId: (stored && stored.versionId) || row.versionId, categoryId: row.categoryId }) });
 
 // The live channel join, or {} when Discord cannot give one right now.
 function safeCategoryMap(guildId) {
@@ -42,7 +47,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
     const persistedById = new Map(listRaidEvents(guildId).map((e) => [e.id, e]));
     // Snapshot rows, shaped like the live ones. Used both to fill gaps in a
     // successful fetch and as the whole answer when the fetch fails.
-    const fromPersisted = (e) => ({
+    const fromPersisted = (e) => withVersion({
         id: e.id,
         source: "raidhelper",
         title: e.title,
@@ -51,7 +56,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
         channelName: e.channelName || "",
         categoryId: e.categoryId || "",
         categoryName: e.categoryName || "",
-    });
+    }, e);
     try {
         const rh = createRaidhelperClient();
         const events = await rh.getPastEvents(from);
@@ -62,7 +67,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
             const meta = catMap[ev.channelId];
             const persisted = !meta ? persistedById.get(ev.id) : null;
             if (!meta && !persisted) continue; // channel gone from Discord AND never scanned — nowhere to place it
-            out.push({
+            out.push(withVersion({
                 id: ev.id,
                 source: "raidhelper",
                 title: ev.title,
@@ -71,7 +76,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
                 channelName: meta ? (meta.name || "") : (persisted.channelName || ""),
                 categoryId: meta ? (meta.categoryId || "") : (persisted.categoryId || ""),
                 categoryName: meta ? (meta.categoryName || "") : (persisted.categoryName || ""),
-            });
+            }, persistedById.get(ev.id)));
             seen.add(ev.id);
         }
         for (const e of persistedById.values()) {
@@ -81,7 +86,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
         // The EventHelper's own raids of the window — a log or a loot export can
         // belong to one of them exactly like to a Raid-Helper event.
         for (const e of ownMatchableEvents(guildId, from, { catMap })) {
-            if (!seen.has(e.id)) out.push(e);
+            if (!seen.has(e.id)) out.push(withVersion(e));
         }
         out.sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
         return { events: out, error: null };
@@ -95,20 +100,22 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
         const fallback = [...persistedById.values()]
             .filter((e) => (e.startTime || 0) >= from)
             .map(fromPersisted)
-            .concat(ownMatchableEvents(guildId, from, { catMap: safeCategoryMap(guildId) }))
+            .concat(ownMatchableEvents(guildId, from, { catMap: safeCategoryMap(guildId) }).map((e) => withVersion(e)))
             .sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
         return { events: fallback, error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
     }
 }
 
 // A log's event assignment as stored: label + start snapshot, so it keeps its
-// name once Raid-Helper no longer lists the event.
+// name once Raid-Helper no longer lists the event, and the event's game version
+// the log takes while it is linked (#746).
 function eventLinkFields(event, source) {
     return {
         eventId: event.id,
         eventLabel: event.title || event.id,
         eventStartTime: Number(event.startTime) || 0,
         source,
+        versionId: event.versionId || "",
     };
 }
 

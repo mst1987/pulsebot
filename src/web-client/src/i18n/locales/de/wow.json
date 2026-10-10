@@ -70,7 +70,10 @@
         "zg": "Zul'Gurub",
         "aq20": "Ruinen von Ahn'Qiraj",
         "aq40": "Tempel von Ahn'Qiraj",
-        "naxx": "Naxxramas"
+        "naxx": "Naxxramas",
+        "forever-barrow": "Barrow Deeps",
+        "forever-hyjal": "Hyjalgipfel (Forever)",
+        "forever-ony": "Onyxias Hort (Forever)"
     },
     "specClass": {
         "Priest-Shadow": "Schattenpriester",

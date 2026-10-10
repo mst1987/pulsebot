@@ -167,6 +167,30 @@ describe("read access on the GET handlers", () => {
     });
 });
 
+describe("GET /api/lootcouncil for a version without council content (#748)", () => {
+    it("flags the content, drops gaps, filter options and the simulation, and never reads the item focus", async () => {
+        getConfig.mockReturnValue({ mainVersion: "forever" });
+        const res = await call(getLootCouncil, "/api/lootcouncil", "?item=30000");
+        const answer = body(res);
+        expect(answer.content).toEqual({ bis: false, sim: false, tiers: false, itemTable: false });
+        expect(answer.versionId).toBe("forever");
+        expect(answer.gaps).toEqual([]);
+        expect(answer.focus).toBeNull();
+        expect(lc.bisGaps).not.toHaveBeenCalled();
+        expect(lc.candidateSplit).not.toHaveBeenCalled();
+        expect(lc.filterOptions).toHaveBeenCalledWith(answer.content);
+        expect(answer.sim.available).toBe(false);
+        expect(answer.sim.hint).toMatch(/keine Simulation/);
+    });
+
+    it("keeps TBC as it was", async () => {
+        const answer = body(await call(getLootCouncil));
+        expect(answer.content).toEqual({ bis: true, sim: true, tiers: true, itemTable: true });
+        expect(answer.sim.available).toBe(true);
+        expect(lc.bisGaps).toHaveBeenCalled();
+    });
+});
+
 describe("write access on the POST handlers", () => {
     const writers = [
         ["sim", () => postLootCouncilSim],
@@ -563,6 +587,15 @@ describe("GET /api/lootcouncil/item-search", () => {
                 { id: 30001, name: "Robe", contentId: "", boss: "", bisSpecs: [{ spec: "Mage-Fire" }] },
             ],
         });
+    });
+
+    it("has no item table to search for a version without council content (#748)", async () => {
+        searchItems.mockReturnValue([{ id: 30000, name: "Hat" }]);
+        const res = await call(getItemSearch, "/api/lootcouncil/item-search", "?q=ha&v=forever");
+        expect(searchItems).not.toHaveBeenCalled();
+        expect(body(res)).toEqual({ items: [] });
+        getConfig.mockReturnValue({ mainVersion: "forever" });
+        expect(body(await call(getItemSearch, "/api/lootcouncil/item-search", "?q=ha")).items).toEqual([]);
     });
 
     it("searches with an empty query when none is given", async () => {

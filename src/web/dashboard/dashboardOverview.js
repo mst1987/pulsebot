@@ -7,40 +7,20 @@
 // rules (which task is shown when, how full a role is) testable without mocking
 // Raid-Helper, Discord and five stores.
 const { DateTime } = require("luxon");
-const { contentsForText } = require("../../config/tbcContent");
+const { contentsForText, iconOf } = require("../../config/raidContent");
+const { instanceById, compositionFor, VERSIONS } = require("../../config/gameVersions");
+const { versionOfEvent } = require("../../services/events/mainVersion");
 const { enrichSlot, CLASS_COLORS } = require("../../utils/setup/setupView");
 const { signupStatus } = require("../../utils/attendance");
 const { plural } = require("../../utils/text");
 const { TIMEZONE } = require("../../config/timezone");
 
-// The boss icon a raid is recognised by — its final boss, the one the raid is
-// named after in everyone's head. Names verified against the zamimg CDN; the
-// Archimonde icon only exists with its trailing "-", Kael'thas needs the
-// apostrophe (WowIcon encodes it).
-const ZONE_ICONS = {
-    kara: "achievement_boss_princemalchezaar_02",
-    gruul: "achievement_boss_gruul",
-    mag: "achievement_boss_magtheridon",
-    ssc: "achievement_boss_ladyvashj",
-    tk: "achievement_boss_kael'thassunstrider_01",
-    za: "achievement_boss_zuljin",
-    hyjal: "achievement_boss_archimonde-",
-    bt: "achievement_boss_illidan",
-    swp: "achievement_boss_kiljaedan",
-};
+// The boss icon a raid is recognised by is its instance's `icon` in the rule set
+// (config/gameVersions, every version), read through iconOf(). Release order of
+// every known instance, version after version:
+const ZONE_ORDER = VERSIONS.flatMap((v) => v.instances.map((i) => i.id));
 /** A raid whose title names no known content: a generic raid head, never a wrong boss. */
 const FALLBACK_ZONE_ICON = "inv_misc_head_dragon_01";
-
-// Raids that are ten-man; every other TBC raid is 25.
-const TEN_MAN = new Set(["kara", "za"]);
-
-// The usual composition per raid size. The Raid-Helper setup has no "target"
-// per role, and a setting per category would be one more list to maintain for a
-// number that is the same for every 25-man raid — so the size decides.
-const ROLE_TARGETS = {
-    10: { tank: 2, healer: 3, dps: 5 },
-    25: { tank: 3, healer: 6, dps: 16 },
-};
 
 const ROLES = [
     { key: "tank", label: "Tank", icon: "ability_warrior_defensivestance" },
@@ -62,10 +42,10 @@ const NOT_SIGNED = { tentative: "Tentative", bench: "Ersatzbank", absence: "Abwe
  * order, so the last hit is the raid the night is built around.
  * @returns {{ contentId: string, icon: string }}
  */
-function zoneFor(text) {
-    const hits = contentsForText(text);
+function zoneFor(text, versionId) {
+    const hits = contentsForText(text, { versionId });
     const contentId = hits.length ? hits[hits.length - 1] : "";
-    return { contentId, icon: ZONE_ICONS[contentId] || FALLBACK_ZONE_ICON };
+    return { contentId, icon: iconOf(contentId) || FALLBACK_ZONE_ICON };
 }
 
 /**
@@ -77,19 +57,37 @@ function zoneFor(text) {
  */
 function zoneForEvent(ev) {
     const ids = (ev && ev.source === "eventhelper" && Array.isArray(ev.instanceIds)) ? ev.instanceIds : [];
-    const order = Object.keys(ZONE_ICONS); // release order, like CONTENTS
-    const known = ids.filter((id) => ZONE_ICONS[id]).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    const known = ids.filter((id) => iconOf(id)).sort((a, b) => ZONE_ORDER.indexOf(a) - ZONE_ORDER.indexOf(b));
     if (known.length) {
         const contentId = known[known.length - 1];
-        return { contentId, icon: ZONE_ICONS[contentId] };
+        return { contentId, icon: iconOf(contentId) };
     }
-    return zoneFor(ev && ev.title);
+    // The title is read only within the event's own game version.
+    return zoneFor(ev && ev.title, ev ? versionOfEvent(ev) : undefined);
 }
 
-/** The raid size a night is planned for: the softres list's size wins, else the content, else 25. */
+const RAID_SIZES = [10, 20, 25, 40];
+
+/**
+ * The raid size a night is planned for: the softres list's size wins (a size the
+ * rule sets know is kept, any other is a ten- or a 25-man), else the content's
+ * size from the rule set, else 25.
+ */
 function raidSize(contentId, softresSize = 0) {
-    if (softresSize > 0) return softresSize <= 10 ? 10 : 25;
-    return TEN_MAN.has(contentId) ? 10 : 25;
+    if (softresSize > 0) return RAID_SIZES.includes(softresSize) ? softresSize : (softresSize <= 10 ? 10 : 25);
+    const inst = instanceById(contentId);
+    return (inst && inst.defaultSize) || 25;
+}
+
+/**
+ * The usual composition for a raid size, from the rule set (compositionFor):
+ * 10 → 2/3, 20 → 2/5, 25 → 3/6, 40 → 4/10, the damage dealers taking the rest.
+ * The Raid-Helper setup has no "target" per role, so the size decides.
+ */
+function roleTargets(size) {
+    const n = Number(size) || 25;
+    const { tanks, healers } = compositionFor(null, n);
+    return { tank: tanks, healer: healers, dps: Math.max(0, n - tanks - healers) };
 }
 
 /** tank / healer / dps for one Raid-Helper spec (or a raidplan slot's spec). */
@@ -127,7 +125,7 @@ function roleFill({ setupSlots = [], signUps = [], size = 25, composition = null
         : countRoles((signUps || []).filter(isAttending));
     const targets = composition
         ? { tank: composition.tank || 0, healer: composition.healer || 0, dps: Math.max(0, size - (composition.tank || 0) - (composition.healer || 0)) }
-        : (ROLE_TARGETS[size] || ROLE_TARGETS[25]);
+        : roleTargets(size);
     return ROLES.map((r) => ({ ...r, filled: counts[r.key], target: targets[r.key] }));
 }
 
@@ -557,7 +555,7 @@ function trialTasks(list) {
 }
 
 module.exports = {
-    zoneFor, zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
+    zoneFor, zoneForEvent, raidSize, roleTargets, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
     isAttending, trialTasks,
     // only for the tests (#424): not part of the module's API
     _internal: {

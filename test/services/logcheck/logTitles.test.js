@@ -29,6 +29,19 @@ describe("services/logcheck/logTitles — backfillLogTitles", () => {
         else process.env.WARCRAFTLOGS_API_KEY = OLD_KEY;
     });
 
+    it("asks the site of the log's version, and never for a version without one (#746)", async () => {
+        mockGetFights.mockResolvedValue({ title: "Karazhan" });
+        const logs = [
+            { id: "l1", reportId: "AAA", versionId: "forever" }, // Forever has no Warcraft-Logs site yet
+            { id: "l2", reportId: "BBB" },                       // a log from before #746: TBC
+        ];
+        expect(await backfillLogTitles(logs)).toBe(1);
+        expect(mockGetFights).toHaveBeenCalledTimes(1);
+        expect(mockGetFights).toHaveBeenCalledWith("BBB");
+        expect(WarcraftLogs).toHaveBeenCalledWith(undefined, { site: "https://classic.warcraftlogs.com" });
+        expect(logs[0].title).toBeUndefined();
+    });
+
     it("fills the WCL report name into logs missing a title and persists it", async () => {
         mockGetFights.mockResolvedValue({ title: "  Karazhan 24/07 ", zoneName: "Karazhan" });
         const logs = [
