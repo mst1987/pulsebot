@@ -63,4 +63,15 @@ describe("availability api", () => {
         await getRaiderAttendance("12 34");
         expect(client.get).toHaveBeenLastCalledWith("/api/availability/attendance?userId=12%2034");
     });
+
+    it("asks every attendance view for the content version (#740)", async () => {
+        await getRaiderAttendance("", "forever");
+        expect(client.get).toHaveBeenLastCalledWith("/api/availability/attendance?version=forever");
+        await getRaiderAttendance("12", "tbc");
+        expect(client.get).toHaveBeenLastCalledWith("/api/availability/attendance?userId=12&version=tbc");
+        await getAbsenceOverview(8, "", "forever");
+        expect(client.get).toHaveBeenLastCalledWith("/api/availability/overview?weeks=8&version=forever");
+        await getAbsenceRaider("12", "forever");
+        expect(client.get).toHaveBeenLastCalledWith("/api/availability/overview/raider?userId=12&version=forever");
+    });
 });

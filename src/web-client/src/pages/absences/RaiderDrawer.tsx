@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { deleteAvailability, getAbsenceRaider, type AbsenceRaiderDetail, type ApiError } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { Badge, Button, IconButton, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { AbsenceIcon, ListChecksIcon, TrashIcon, XIcon } from "../../components/ui/icons";
@@ -31,7 +32,9 @@ export default function RaiderDrawer({ userId, onClose, onEnter, onChanged, onAt
     onAttendance?: (userId: string) => void;
 }) {
     const t = useT();
-    const state = useApi(() => getAbsenceRaider(userId), [userId]);
+    // the raider's last raids of the menu's content version (#740); the entries are the same in every version
+    const { version } = useContentVersion();
+    const state = useApi(() => getAbsenceRaider(userId, version), [userId, version]);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {

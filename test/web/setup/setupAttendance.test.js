@@ -11,8 +11,9 @@ jest.mock("../../../src/stores/characterStore", () => ({
 let mockAssignments = {};
 jest.mock("../../../src/stores/raiderCharactersStore", () => ({ getCategoryAssignments: () => mockAssignments }));
 const mockCounted = jest.fn();
+const mockBuild = jest.fn(() => ({}));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({
-    buildAttendanceContext: () => ({}),
+    buildAttendanceContext: (...a) => mockBuild(...a),
     attendanceForAccounts: (...a) => mockCounted(...a),
 }));
 
@@ -121,5 +122,14 @@ describe("setupAttendance", () => {
     it("does nothing for events without a category", () => {
         expect(setupAttendance([{ id: "e1", guildId: "g" }])).toEqual({});
         expect(mockCounted).not.toHaveBeenCalled();
+    });
+
+    it("counts within the version of the raid the setup belongs to (#740)", () => {
+        mockSignups.e1 = [{ userId: "u1", character: "Anna", spec: "Priest-Holy", status: "signed" }];
+        mockCounted.mockReturnValue(new Map());
+        setupAttendance([{ id: "e1", categoryId: "cat", guildId: "g", versionId: "forever" }], { now: 7 });
+        expect(mockBuild).toHaveBeenLastCalledWith("g", { now: 7, versionId: "forever" });
+        setupAttendance([{ id: "e1", categoryId: "cat", guildId: "g", versionId: "tbc" }], { now: 7 });
+        expect(mockBuild).toHaveBeenLastCalledWith("g", { now: 7, versionId: "tbc" });
     });
 });

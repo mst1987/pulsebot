@@ -22,11 +22,30 @@ const { versionLinks } = require("../../services/events/versionSettings");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { buildAttendanceContext, attendanceFor, categoryInfo, roleFor } = require("../../services/characters/rosterAttendance");
 const { buildVersionContext, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
+const { mainVersionFor } = require("../../services/events/mainVersion");
 
 // How much loot a roster row carries for its hover panel. The overview shows
 // the newest pieces, not a full history — the character page has that.
 const MAX_LOOT_PREVIEW = 20;
 
+/**
+ * The attendance contexts of one roster view (#740): attendance never mixes game
+ * versions. With a version picked, its nights count in every category; for "all"
+ * (`versionId` "") each category counts in the version it plays today. Built on
+ * first use, once per version.
+ */
+function attendanceContexts(guildId, versionId, { mainVersion = "", config } = {}) {
+    const cache = new Map();
+    const of = (id) => {
+        if (!cache.has(id)) cache.set(id, buildAttendanceContext(guildId, { versionId: id }));
+        return cache.get(id);
+    };
+    return {
+        // roles come from the logs, whatever version: any context answers them
+        roles: () => of(versionId || mainVersion || mainVersionFor({ config })),
+        forCategory: (categoryId) => of(versionId || mainVersionFor({ categoryId, config })),
+    };
+}
 
 /**
  * Assemble the roster of one guild.
@@ -109,7 +128,7 @@ function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {})
     //    issues, role and attendance per category
     const known = characterMap();
     const issuesByKey = latestIssuesByCharacter();
-    const ctx = buildAttendanceContext(guildId, { versionId });
+    const contexts = attendanceContexts(guildId, versionId, { mainVersion, config });
     const all = [...rows.values()].map(({ allItems, ...row }) => ({
         ...row,
         versionIds: versionsOfCharacter(versionCtx, { name: row.character, items: allItems || [], categoryIds: row.categoryIds }),
@@ -132,7 +151,7 @@ function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {})
         for (const id of row.categoryIds) {
             // The row carries the verdict, the missed nights and the attended ones (its tooltip groups
             // them by status: "Dabei", "Bench", then the missed ones, #677); the full night-by-night list belongs to the character page.
-            const summary = attendanceFor(ctx, id, row.character, raiderIdsByCategory[id] || []);
+            const summary = attendanceFor(contexts.forCategory(id), id, row.character, raiderIdsByCategory[id] || []);
             summary.present = summary.raids.filter((r) => r.attended).map(({ attended: _a, reason: _r, ...night }) => night);
             delete summary.raids;
             attendance[id] = summary;
@@ -147,14 +166,14 @@ function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {})
             armoryUrl: links.armory(row.character),
             wclUrl: links.wcl(row.character),
             gear,
-            role: roleFor(ctx, row.character, className, spec),
+            role: roleFor(contexts.roles(), row.character, className, spec),
             attendance,
         };
     });
     chars.sort((a, b) => a.character.localeCompare(b.character));
 
     const info = {};
-    for (const id of new Set(chars.flatMap((c) => c.categoryIds))) info[id] = categoryInfo(ctx, id);
+    for (const id of new Set(chars.flatMap((c) => c.categoryIds))) info[id] = categoryInfo(contexts.forCategory(id), id);
 
     // Names, not a pick list: a category that Discord no longer offers (gateway
     // offline, category deleted) still has to label the rows it owns instead of
@@ -172,14 +191,14 @@ function rosterCharacter(guildId, name, { versionId = "" } = {}) {
     const roster = buildRoster(guildId, { versionId });
     const row = roster.chars.find((c) => c.key === key);
     if (!row) return null;
-    const ctx = buildAttendanceContext(guildId, { versionId });
+    const contexts = attendanceContexts(guildId, versionId);
     const assignments = listAllAssignments();
     const attendance = {};
     for (const id of row.categoryIds) {
         const userIds = Object.entries(assignments[id] || {})
             .filter(([, charName]) => characterKeyOf(charName) === key)
             .map(([userId]) => userId);
-        attendance[id] = attendanceFor(ctx, id, row.character, userIds);
+        attendance[id] = attendanceFor(contexts.forCategory(id), id, row.character, userIds);
     }
     const names = new Map(roster.categories.map((c) => [c.id, c.name]));
     return {

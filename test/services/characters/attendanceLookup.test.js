@@ -26,8 +26,8 @@ describe("services/characters/attendanceLookup", () => {
     });
 
     it("counts a character in every category it is assigned to or got loot in", () => {
-        const result = characterAttendance("g1", "elesham");
-        expect(buildAttendanceContext).toHaveBeenCalledWith("g1");
+        const result = characterAttendance("g1", "elesham", { versionId: "tbc" });
+        expect(buildAttendanceContext).toHaveBeenCalledWith("g1", { versionId: "tbc" });
         expect(attendanceFor).toHaveBeenCalledWith({ ctx: true }, "mon", "elesham", ["u1"]);
         expect(attendanceFor).toHaveBeenCalledWith({ ctx: true }, "thu", "elesham", ["u1"]);
         expect(attendanceFor).toHaveBeenCalledWith({ ctx: true }, "pug", "elesham", []);
@@ -38,7 +38,21 @@ describe("services/characters/attendanceLookup", () => {
     it("reuses a given context and answers nothing for no name", () => {
         characterAttendance("g1", "Dorn", { ctx: { own: 1 } });
         expect(buildAttendanceContext).not.toHaveBeenCalled();
-        expect(characterAttendance("g1", "").categories).toEqual([]);
+        expect(characterAttendance("g1", "", { versionId: "tbc" }).categories).toEqual([]);
+    });
+
+    it("lists only the categories of the counted version: nights of it, or playing it today (#740)", () => {
+        const configStore = require("../../../src/stores/configStore");
+        const spy = jest.spyOn(configStore, "getConfig").mockReturnValue({ categoryVersion: { thu: "forever" } });
+        try {
+            // Forever: "mon" has Forever nights, "thu" was switched to Forever (none yet), "pug" plays TBC
+            const ctx = { versionId: "forever", raidsByCategory: new Map([["mon", []]]) };
+            const result = characterAttendance("g1", "elesham", { ctx });
+            expect(result.versionId).toBe("forever");
+            expect(result.categories.map((c) => c.id).sort()).toEqual(["mon", "thu"]);
+        } finally {
+            spy.mockRestore();
+        }
     });
 
     it("sums the categories and turns them into fields", () => {
