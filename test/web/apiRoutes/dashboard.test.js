@@ -337,25 +337,44 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.topLoot.items).toHaveLength(1);
         });
 
-        it("hands each task only to whoever can do it: reading the raids is not reviewing or importing", async () => {
-            const reader = { id: "8", name: "Lead", isAdmin: false, access: { raids: { read: true, write: false }, dashboard: { read: true, write: false } } };
+        it("shows the orga block only to whoever may change the raids - reading them (a raider role) is no orga rank", async () => {
+            const reader = { id: "8", name: "Rai", isAdmin: false, access: { raids: { read: true, write: false }, signup: { read: true, write: true } } };
             auth.getUser.mockReturnValue(reader);
             activeGuildFor.mockReturnValue("guild-1");
-            dashboardData.loadNextRaids.mockResolvedValue({ raids: [{ id: "n1", title: "BT", startTime: 2000, sheet: null, planning: "sheet" }], error: null });
-            dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "e1", title: "Hyjal", startTime: 1000, pendingLogCount: 2, logs: [] }], error: null });
+            dashboardData.loadNextRaids.mockClear();
+            dashboardData.loadRecentEvents.mockClear();
             dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, open: 7 });
             dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1] }]);
             loadPersonal.mockClear();
 
             const data = json(await get("/api/dashboard")).data;
 
+            expect(data.orga).toBe(false);
+            expect(dashboardData.loadNextRaids).not.toHaveBeenCalled();
+            expect(dashboardData.loadRecentEvents).not.toHaveBeenCalled();
+            expect(data.nextRaid).toBeNull();
+            expect(data.areas).toBeNull();
+            expect(data.tasks).toEqual([]);
+            // reading the raids still opens every category in "Für dich"
+            expect(loadPersonal).toHaveBeenCalledWith("guild-1", reader, expect.objectContaining({ orga: true }));
+        });
+
+        it("shows the orga block to whoever may change the raids, each task still only for whoever can do it", async () => {
+            const writer = { id: "9", name: "Lead", isAdmin: false, access: { raids: { read: true, write: true }, dashboard: { read: true, write: false } } };
+            auth.getUser.mockReturnValue(writer);
+            activeGuildFor.mockReturnValue("guild-1");
+            dashboardData.loadNextRaids.mockResolvedValue({ raids: [{ id: "n1", title: "BT", startTime: 2000, sheet: null, planning: "sheet" }], error: null });
+            dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "e1", title: "Hyjal", startTime: 1000, pendingLogCount: 2, logs: [] }], error: null });
+            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, open: 7 });
+            dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1] }]);
+
+            const data = json(await get("/api/dashboard")).data;
+
             expect(data.orga).toBe(true);
-            // no own signup area: no "Für dich"
-            expect(loadPersonal).not.toHaveBeenCalled();
-            expect(data.personal).toBeNull();
             expect(data.nextRaid).toMatchObject({ id: "n1" });
             expect(data.areas).toMatchObject({ lastReport: { id: "r1" } });
-            expect(data.tasks.map((t) => t.id)).toEqual([]);
+            // sheet and logs take raids write; reviewing (cla write) and importing (history write) it does not have
+            expect(data.tasks.map((t) => t.id)).toEqual(["sheet", "logs"]);
         });
 
         it("returns 403 for a logged-in non-admin", async () => {
