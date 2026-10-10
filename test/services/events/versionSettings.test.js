@@ -108,6 +108,7 @@ describe("services/events/versionSettings", () => {
             expect(out.reason).toBe("");
             expect(Blizzard).toHaveBeenCalledWith({
                 clientId: "id", clientSecret: "secret", region: "eu", realmSlug: "everlook", namespace: "profile-forever-eu",
+                versionId: "forever", wowheadPath: "forever",
             });
             expect(out).toMatchObject({ versionId: "forever", namespace: "profile-forever-eu", realmSlug: "everlook" });
         });
