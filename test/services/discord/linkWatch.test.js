@@ -43,6 +43,22 @@ describe("services/discord/linkWatch", () => {
         expect(scheduleOverviewSync).toHaveBeenCalledWith({ delayMs: linkWatch.REDRAW_DELAY_MS });
     });
 
+    it("notes a deleted raid category (#744) and nothing for any other category", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        const settingsStore = require("../../../src/stores/settingsStore");
+        settingsStore.getConfig.mockReturnValue({ categoryIds: ["cat"], discordServers: { eventGuilds: [{ guildId: "g1" }] } });
+        try {
+            expect(linkWatch.onChannelDelete({ id: "cat", type: 4, name: "TBC Montag" })).toEqual([]);
+            expect(linkWatch.onChannelDelete({ id: "other", type: 4, name: "Off-Topic" })).toEqual([]);
+            expect(linkWatch.onChannelDelete({ id: "cat", type: 0 })).toEqual([]);
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0].join(" ")).toContain("TBC Montag");
+        } finally {
+            warn.mockRestore();
+            settingsStore.getConfig.mockReturnValue({ discordServers: { eventGuilds: [{ guildId: "g1" }] } });
+        }
+    });
+
     it("ignores a delete without an id", () => {
         expect(linkWatch.onChannelDelete(null)).toEqual([]);
         expect(scheduleOverviewSync).not.toHaveBeenCalled();

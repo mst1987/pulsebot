@@ -53,6 +53,8 @@ export type SeriesCategory = {
     id: string;
     name: string;
     source: EventSource;
+    /** #744: the category is deactivated (Einstellungen → Kategorien) — its series rests until it is active again. */
+    inactive?: boolean;
     series: EventSeries | null;
     template: SeriesTemplate | null;
     summary: string;

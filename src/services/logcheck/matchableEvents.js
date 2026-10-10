@@ -7,7 +7,7 @@ const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const discord = require("../discord/discord");
 const { EVENT_LOOKBACK_DAYS } = require("../events/raidEventGroups");
 const { listRaidEvents } = require("../../stores/raidEventStore");
-const { ownMatchableEvents } = require("../events/eventSources");
+const { ownMatchableEvents, withEraName } = require("../events/eventSources");
 const { versionOfEvent } = require("../events/mainVersion");
 
 // Every row carries its raid's game version (#746): a log is matched only to a
@@ -45,6 +45,8 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
     if (!guildId) return { events: [], error: null };
     const from = Math.floor(Date.now() / 1000) - days * 24 * 60 * 60;
     const persistedById = new Map(listRaidEvents(guildId).map((e) => [e.id, e]));
+    // A raid of a closed section of its category keeps the name it had then (#744).
+    const erasConfig = require("../../stores/configStore").getConfig();
     // Snapshot rows, shaped like the live ones. Used both to fill gaps in a
     // successful fetch and as the whole answer when the fetch fails.
     const fromPersisted = (e) => withVersion({
@@ -89,7 +91,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
             if (!seen.has(e.id)) out.push(withVersion(e));
         }
         out.sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
-        return { events: out, error: null };
+        return { events: out.map((ev) => withEraName(ev, { config: erasConfig })), error: null };
     } catch (e) {
         // Raid-Helper unreachable: serve the local snapshot rather than nothing.
         // A time-based match only needs id/title/startTime/categoryId, all of
@@ -102,7 +104,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
             .map(fromPersisted)
             .concat(ownMatchableEvents(guildId, from, { catMap: safeCategoryMap(guildId) }).map((e) => withVersion(e)))
             .sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
-        return { events: fallback, error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
+        return { events: fallback.map((ev) => withEraName(ev, { config: erasConfig })), error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
     }
 }
 

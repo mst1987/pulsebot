@@ -233,6 +233,20 @@ describe("runSeries", () => {
         expect(store.getRuns("cat1")).toEqual({});
     });
 
+    it("rests while its category is deactivated and resumes once it is active again (#744)", async () => {
+        store.saveSeries({ ...base, guildId: "g1" });
+        const off = { categoryIds: ["cat2"], categoryRaidTemplate: {} };
+        expect(await series.runSeries({ now, config: off })).toMatchObject({ created: 0, inactive: 1 });
+        expect(createEvent).not.toHaveBeenCalled();
+        // the stored series is untouched - nothing was switched off or deleted
+        expect(store.getSeries("cat1")).toMatchObject({ enabled: true });
+        const overview = await series.seriesOverview({ guildId: "g1", now, config: off });
+        const row = overview.categories.find((c) => c.id === "cat1");
+        expect(row).toMatchObject({ inactive: true, series: expect.objectContaining({ enabled: true }) });
+        expect(row.upcoming.every((o) => o.state === "off" || o.state === "skipped")).toBe(true);
+        expect(await series.runSeries({ now, config: { categoryIds: ["cat1"], categoryRaidTemplate: {} } })).toMatchObject({ created: 1 });
+    });
+
     it("waits for Discord instead of failing every date", async () => {
         store.saveSeries({ ...base, guildId: "g1" });
         discord.getClient.mockReturnValue({ isReady: () => false });

@@ -21,6 +21,8 @@ const { getOverviewState } = require("../../stores/talkOverviewStore");
 const { getConfig } = require("../../stores/settingsStore");
 const logger = require("../../logger").child("linkWatch");
 
+// discord.js' ChannelType.GuildCategory (the plain number: this module's tests mock little of discord.js).
+const CATEGORY_TYPE = 4;
 // How long after a deletion the overviews redraw — a bulk delete of several
 // channels ends in one redraw.
 const REDRAW_DELAY_MS = 1500;
@@ -40,6 +42,11 @@ function recentOwnEvents(now = Date.now()) {
 function onChannelDelete(channel, { now = Date.now() } = {}) {
     const channelId = String((channel && channel.id) || "");
     if (!channelId) return [];
+    // A raid category deleted in Discord (#744): Einstellungen → Kategorien marks
+    // it "in Discord gelöscht" and offers to close it (categoryLifecycle.js) — here it is only noted.
+    if (channel.type === CATEGORY_TYPE && ((getConfig() || {}).categoryIds || []).map(String).includes(channelId)) {
+        logger.warn(`Raid-Kategorie ${channel.name || channelId} in Discord gelöscht — Einstellungen → Kategorien → „Kategorie abschließen“`);
+    }
     linkCheck.channelDeleted(channelId, now);
     const hit = recentOwnEvents(now).filter((e) => String(e.channelId) === channelId);
     for (const event of hit) {

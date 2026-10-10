@@ -183,6 +183,15 @@ describe("web/apiRoutes/kader", () => {
 
     describe("the raid categories attendance counts in", () => {
         const past = (days) => Math.floor(Date.now() / 1000) - days * 86400;
+        const configStore = require("../../../src/stores/configStore");
+
+        // Only active categories count (#744): both raid categories are marked for events.
+        beforeAll(() => {
+            const file = tempStoreFile("kader-route-config.json");
+            fs.writeFileSync(file, JSON.stringify({ categoryIds: ["c-mo", "c-do"] }));
+            configStore.useFile(file);
+        });
+        afterAll(() => configStore.useFile(null));
 
         beforeEach(() => {
             listStoredEvents.mockReturnValue([

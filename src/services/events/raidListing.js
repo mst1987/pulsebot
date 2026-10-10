@@ -124,7 +124,7 @@ function upcomingRows(groups) {
             channelId: ev.channelId || "",
             channelName: ev.channelName || "",
             categoryId: g.categoryId || "",
-            categoryName: g.categoryName || "",
+            categoryName: ev.categoryName || g.categoryName || "",
             signupCount: ev.signupCount || 0,
             contentIds,
             contentSources: sources,

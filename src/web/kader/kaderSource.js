@@ -16,6 +16,7 @@ const { rulesFor } = require("../../config/gameVersions");
 const { buildClasses } = require("../../config/gameVersions/classes");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { listStoredEvents } = require("../../services/events/eventSources");
+const { isCategoryActive } = require("../../services/events/categoryLifecycle");
 const { buildAttendanceContext, attendanceForAccounts } = require("../../services/characters/rosterAttendance");
 const discord = require("../../services/discord/discord");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
@@ -163,7 +164,8 @@ function sourceLogChars(index) {
  * Discord category the admin marked for events (config.categoryIds) and every
  * category a raid of this server ran in, with the name Discord gives it (or the
  * one remembered, categoryNames.js) and the game version it plays. An id no
- * name is known for is left out. In Discord's order.
+ * name is known for is left out. In Discord's order. Only active categories
+ * (#744): a deactivated or closed one is history, not something to plan for.
  * @returns {{ id: string, name: string, versionId: string, versionLabel: string }[]}
  */
 function listRaidCategories(guildId) {
@@ -171,7 +173,7 @@ function listRaidCategories(guildId) {
     const ids = new Set((config.categoryIds || []).map((id) => String(id).trim()).filter(Boolean));
     for (const ev of listStoredEvents(guildId)) if (ev && ev.categoryId) ids.add(String(ev.categoryId));
     return listKnownCategories(guildId)
-        .filter((c) => ids.has(c.id) && c.name)
+        .filter((c) => ids.has(c.id) && c.name && isCategoryActive(c.id, config))
         .map((c) => {
             const versionId = mainVersionFor({ categoryId: c.id, config });
             const rules = rulesFor(versionId);

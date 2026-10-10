@@ -97,7 +97,10 @@
         },
         "next": "Nächster Termin",
         "noDate": "kein Termin in Sicht",
-        "edit": "Serie bearbeiten"
+        "edit": "Serie bearbeiten",
+        "inactive": "Kategorie inaktiv",
+        "inactiveTip": "Serie pausiert",
+        "inactiveSub": "Die Kategorie ist unter Einstellungen → Kategorien deaktiviert. Die Serie legt keine Events an, bis die Kategorie wieder aktiv ist."
     },
     "page": {
         "loading": "Serien werden geladen",

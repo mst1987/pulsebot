@@ -240,8 +240,8 @@ describe("web/kader/kaderSource", () => {
             ]);
         });
 
-        it("lists the configured event categories and every category a raid ran in, named, in Discord's order", async () => {
-            getConfig.mockReturnValue({ categoryIds: ["c2", "c-unnamed"], categoryVersion: { c2: "forever" } });
+        it("lists the configured event categories, named, in Discord's order", async () => {
+            getConfig.mockReturnValue({ categoryIds: ["c1", "c2", "c-unnamed"], categoryVersion: { c2: "forever" } });
             listStoredEvents.mockReturnValue([{ id: "e0", categoryId: "c1", title: "Kara", startTime: NOW_SEC - DAY, signUps: [] }]);
             // a category without a raid or the admin's mark (Info), or without any name, is no raid category
             expect(listRaidCategories("g1")).toEqual([
@@ -252,6 +252,18 @@ describe("web/kader/kaderSource", () => {
             // a night without a signup or a log is not counted yet
             const out = await loadSource({ now: NOW });
             expect(out.raidCategories.map((c) => [c.id, c.nights])).toEqual([["c1", 0], ["c2", 0]]);
+        });
+
+        it("leaves out a deactivated category, even with raids (#744)", () => {
+            getConfig.mockReturnValue({ categoryIds: ["c2"], categoryVersion: { c2: "forever" } });
+            listStoredEvents.mockReturnValue([{ id: "e0", categoryId: "c1", title: "Kara", startTime: NOW_SEC - DAY, signUps: [] }]);
+            expect(listRaidCategories("g1").map((c) => c.id)).toEqual(["c2"]);
+        });
+
+        it("without any active category (an install that never picked one) counts every category a raid ran in", () => {
+            getConfig.mockReturnValue({ categoryIds: [] });
+            listStoredEvents.mockReturnValue([{ id: "e0", categoryId: "c1", title: "Kara", startTime: NOW_SEC - DAY, signUps: [] }]);
+            expect(listRaidCategories("g1").map((c) => c.id)).toEqual(["c1"]);
         });
 
         it("counts every account per category over that category's nights of the Kader's version only, newest first (#740)", async () => {

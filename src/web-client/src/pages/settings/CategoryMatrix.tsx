@@ -1,6 +1,8 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { getRaiderCharacters, type Category, type Role } from "../../api";
+import { getRaiderCharacters, type Category, type MissingCategory, type Role } from "../../api";
 import { usePersistedState } from "../../lib/ui/persistedState";
+import { raiderRoleOptions } from "../../lib/settings/categoryLifecycle";
+import { Button } from "../../components/ui/Button";
 import {
     categoryRows, splitCategoryRows, summarizeRaiderChars, signupNoteMode, planningOf,
     type CategoryRow, type RaiderCharSummary,
@@ -25,6 +27,9 @@ import { WarnIcon } from "../../components/ui/icons";
 // 17 are not), so the inactive ones fold away under one line; the part head's
 // segment shows them all. A configured id Discord no longer knows stays visible
 // with a `bad` badge — dropping it would delete its settings on the next save.
+// When the bot sees every event server and the id is really gone (#744,
+// `missing`), the badge says "in Discord gelöscht" and the row offers
+// "Kategorie abschließen" (CategoryCloseDialog.tsx).
 
 export type { CategorySheet } from "./CategoryDetail";
 
@@ -33,6 +38,10 @@ export default function CategoryMatrix(props: CategorySettings & {
     roles: Role[];
     categoryIds: string[];
     onToggleCategory: (id: string) => void;
+    /** #744: configured categories Discord no longer has, and the close action (disabled while the page has unsaved changes). */
+    missing?: MissingCategory[];
+    onCloseCategory?: (category: MissingCategory) => void;
+    closeBlocked?: boolean;
     icon: string;
     crumb: string;
 }) {
@@ -40,8 +49,10 @@ export default function CategoryMatrix(props: CategorySettings & {
         categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper",
         categorySetupDms = {}, categoryLanguage = {}, categoryAttendance = {}, categoryAnnounce = {}, categorySheets, categoryPlanning = {}, savedCategoryRoles,
         categoryDiscordEvent = {}, categoryVoiceChannel = {}, categoryLootSystem = {}, categorySignupNotes = {}, categorySignupNoteChannel = {},
+        missing = [], onCloseCategory, closeBlocked = false,
         onToggleCategory, icon, crumb,
     } = props;
+    const missingById = new Map(missing.map((m) => [m.categoryId, m]));
     const t = useT();
     const [showAll, setShowAll] = usePersistedState("settings-categories-all", false);
     const [openId, setOpenId] = useState("");
@@ -68,15 +79,17 @@ export default function CategoryMatrix(props: CategorySettings & {
         ...Object.keys(categorySignupNoteChannel).filter((id) => categorySignupNoteChannel[id]),
         ...Object.keys(categorySheets),
         ...Object.keys(categoryPlanning),
+        // a series or a Loot-Council profile entry is enough to be listed as deleted in Discord (#744)
+        ...missing.map((m) => m.categoryId),
     ];
-    const rows = categoryRows(categories, configured);
+    // A category deleted in Discord (#744) is an unknown row (always shown) under the last name the server knows.
+    const rows = categoryRows(categories, configured)
+        .map((r) => (r.unknown && missingById.has(r.id) ? { ...r, name: missingById.get(r.id)!.name || t("settings.categoryClose.unknownName") } : r));
     const { shown, folded } = splitCategoryRows(rows, categoryIds, showAll);
-    // Only roles whose name says "raid" are offered — plus any already assigned —
-    // to keep a guild's dozens of cosmetic roles out of the picker.
-    const roleOptions = (catId: string) => {
-        const assigned = new Set(categoryRoles[catId] || []);
-        return roles.filter((r) => /raid/i.test(r.name || "") || assigned.has(r.id));
-    };
+    // Only roles whose name says "raid" are offered — plus any a category already
+    // uses, by id, so a renamed raider role stays (#744) — to keep a guild's
+    // dozens of cosmetic roles out of the picker.
+    const roleOptions = raiderRoleOptions(roles, categoryRoles);
 
     // The "22 / 25" of every category that has saved raider roles. One request
     // per category, best-effort: a failure leaves the cell at "–".
@@ -160,6 +173,7 @@ export default function CategoryMatrix(props: CategorySettings & {
         const summary = chars[cat.id];
         const isOpen = openId === cat.id && active;
         const openCount = summary ? summary.members - summary.assigned : 0;
+        const gone = missingById.get(cat.id);
         return (
             <Fragment key={cat.id}>
                 <div className={`cat-row${active ? " is-on" : ""}${isOpen ? " is-open" : ""}`} data-category={cat.id}>
@@ -169,7 +183,17 @@ export default function CategoryMatrix(props: CategorySettings & {
                     </label>
                     <div className="cat-name">
                         <span>{cat.name}</span>
-                        {cat.unknown && (
+                        {cat.unknown && gone && (
+                            <Badge tone="bad" icon={<WarnIcon />} tip={t("settings.categoryClose.badgeTip")} tipSub={t("settings.categoryClose.badgeSub")}>
+                                {t("settings.categoryClose.badge")}
+                            </Badge>
+                        )}
+                        {cat.unknown && gone && onCloseCategory && (
+                            <span data-tip={closeBlocked ? t("settings.categoryClose.saveFirst") : undefined}>
+                                <Button size="sm" variant="danger" disabled={closeBlocked} onClick={() => onCloseCategory(gone)}>{t("settings.categoryClose.action")}</Button>
+                            </span>
+                        )}
+                        {cat.unknown && !gone && (
                             <Badge tone="bad" icon={<WarnIcon />} tip={t("settings.categories.unknownTip")} tipSub={t("settings.categories.unknownSub")}>
                                 {t("settings.categories.unknown")}
                             </Badge>
@@ -196,7 +220,7 @@ export default function CategoryMatrix(props: CategorySettings & {
                 </div>
                 {isOpen && (
                     <CategoryDetail
-                        cat={cat} s={props} roles={roleOptions(cat.id)} summary={summary}
+                        cat={cat} s={props} roles={roleOptions} summary={summary}
                         tab={tabs[cat.id] || "signup"} onTab={(tab) => setTabs((prev) => ({ ...prev, [cat.id]: tab }))}
                         onAssign={() => setAssigning(cat)}
                     />

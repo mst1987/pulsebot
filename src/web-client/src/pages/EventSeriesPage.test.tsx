@@ -61,6 +61,14 @@ describe("the series page", () => {
         expect(screen.getByRole("button", { name: "Serie einrichten" })).toBeInTheDocument();
     });
 
+    it("marks the series of a deactivated category as paused (#744)", async () => {
+        vi.mocked(api.getEventSeries).mockResolvedValue({ ...DATA, categories: [{ ...DATA.categories[0], inactive: true }] });
+        renderPage(<EventSeriesPage />, { route: "/raids/series" });
+        const row = (await screen.findByText("Mittwochsraid")).closest("li") as HTMLElement;
+        expect(within(row).getByText("Kategorie inaktiv")).toBeInTheDocument();
+        expect(row).toHaveClass("sr-off");
+    });
+
     it("names the weekdays and the next four dates in the modal", async () => {
         renderPage(<EventSeriesPage />, { route: "/raids/series?edit=c1" });
         const dialog = await screen.findByRole("dialog");

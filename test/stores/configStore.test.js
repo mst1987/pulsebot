@@ -205,3 +205,29 @@ describe("stores/configStore backup settings (#691)", () => {
         expect(configStore.saveConfig({ backup: { restoreTest: { time: "5:15" } } }).backup.restoreTest).toEqual({ weekday: 2, time: "05:15" });
     });
 });
+
+describe("stores/configStore dropCategoryEntries (#744)", () => {
+    it("takes one category out of the active list and the named maps, and nothing else", () => {
+        writeFile({
+            categoryIds: ["700000000000000001", "700000000000000002"],
+            categoryRoles: { "700000000000000001": ["r1"], "700000000000000002": ["r2"] },
+            categoryLootSystem: { "700000000000000002": "lootcouncil" },
+            categoryReminders: { "700000000000000002": { missingHours: 24, signedHours: 0, target: "event" } },
+        });
+        const { config, removed } = configStore.dropCategoryEntries("700000000000000002", ["categoryRoles", "categoryReminders", "categorySheets"]);
+        expect(removed).toEqual(["categoryIds", "categoryRoles", "categoryReminders"]);
+        expect(config.categoryIds).toEqual(["700000000000000001"]);
+        expect(config.categoryRoles).toEqual({ "700000000000000001": ["r1"] });
+        expect(config.categoryReminders).toEqual({});
+        // a map not named stays as it is
+        expect(config.categoryLootSystem["700000000000000002"]).toBeTruthy();
+        expect(configStore.getConfig().categoryRoles).toEqual({ "700000000000000001": ["r1"] });
+    });
+
+    it("writes nothing for an unknown or empty id", () => {
+        writeFile({ categoryIds: ["700000000000000001"] });
+        expect(configStore.dropCategoryEntries("nope", ["categoryRoles"]).removed).toEqual([]);
+        expect(configStore.dropCategoryEntries("", ["categoryRoles"]).removed).toEqual([]);
+        expect(configStore.getConfig().categoryIds).toEqual(["700000000000000001"]);
+    });
+});

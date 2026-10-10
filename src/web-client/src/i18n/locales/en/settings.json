@@ -443,7 +443,10 @@
         "missingSub": "Hours before signup closes (without a deadline: before the raid starts) to everyone with a raider role who has not reacted yet. Empty = off.",
         "signed": "Signed up · h before",
         "signedTip": "To signed-up raiders",
-        "signedSub": "Hours before the raid starts to everyone signed up (including \"comes later\"). Empty = off."
+        "signedSub": "Hours before the raid starts to everyone signed up (including \"comes later\"). Empty = off.",
+        "inactive": "paused",
+        "inactiveTip": "Category inactive",
+        "inactiveSub": "The category is deactivated under Settings → Categories. The rule stays but reminds nobody until the category is active again."
     },
     "roleSync": {
         "title": "Role sync",
@@ -701,7 +704,7 @@
         "switchSub": "Channels of this category hold raid events.",
         "switchAria": "{name} as raid category",
         "unknownTip": "Unknown category",
-        "unknownSub": "This ID is configured but no longer exists in Discord. Deselecting and saving removes it.",
+        "unknownSub": "This ID is configured, but Discord does not know it right now (bot offline?). Once the bot sees every event server, a deleted category is marked “deleted in Discord” and can be closed.",
         "unknown": "unknown",
         "roleCount": {
             "one": "{count} role",
@@ -1059,5 +1062,60 @@
         "de": "Deutsch",
         "en": "English",
         "text": "Language of the bot's public messages (signup message, setup, overview, panels) and the default for every raider. Everyone can pick their own language with /language or the DE/EN switch at the top."
+    },
+    "categoryDeactivate": {
+        "kicker": "Deactivate categories",
+        "title": {
+            "one": "What deactivating pauses",
+            "other": "What deactivating {count} categories pauses"
+        },
+        "intro": "Nothing is deleted. What runs on its own pauses until the category is active again.",
+        "series": "Series ({when}) pauses – creates no events",
+        "seriesOff": "Series is already off",
+        "noSeries": "No series",
+        "reminders": "Reminders pause",
+        "noReminders": "No reminders",
+        "upcoming": {
+            "one": "1 upcoming raid stays, without reminders. The organisers can cancel it.",
+            "other": "{count} upcoming raids stay, without reminders. The organisers can cancel them."
+        },
+        "keep": "Settings, rosters, raids, loot and logs stay. The squad planner, the roster picker and /anwesenheit no longer offer the category; archive and history still show it. Activating it again resumes everything.",
+        "emptyBlocked": "At least one raid category must stay active while there are raids.",
+        "confirm": "Deactivate and save",
+        "loading": "Loading what pauses …",
+        "done": "{name}: deactivated – series and reminders pause"
+    },
+    "categoryClose": {
+        "badge": "deleted in Discord",
+        "badgeTip": "Category deleted in Discord",
+        "badgeSub": "This category no longer exists in Discord. “Close category” cleans up its settings; raids, loot and logs stay readable under their version.",
+        "action": "Close category",
+        "saveFirst": "Save or discard the open changes first.",
+        "unknownName": "Unknown category",
+        "kicker": "Close category",
+        "title": "Close {name}",
+        "intro": "The category was deleted in Discord. Closing removes what only new raids need:",
+        "removeSeries": "The series ({when}) is deleted.",
+        "removeReminders": "The reminders are removed.",
+        "removeSettings": {
+            "one": "1 category setting is removed (roles, template, channels …).",
+            "other": "{count} category settings are removed (roles, template, channels …)."
+        },
+        "removeActive": "It is no longer a raid category.",
+        "removeCouncil": "Its Loot Council profile entry is removed.",
+        "removeKaders": {
+            "one": "It no longer counts for attendance in the squad {names}.",
+            "other": "It no longer counts for attendance in {count} squads: {names}."
+        },
+        "nothing": "Nothing is configured any more.",
+        "upcoming": {
+            "one": "1 upcoming raid is still in the category – please cancel it.",
+            "other": "{count} upcoming raids are still in the category – please cancel them."
+        },
+        "rostersTitle": "Rosters",
+        "rosters": "These rosters belong to the category and stay as they are. Please check them on the roster page:",
+        "keep": "What stays: raids, loot, logs and the category's version and name – everything stays readable under its version.",
+        "confirm": "Close",
+        "done": "{name} closed"
     }
 }

@@ -5,6 +5,7 @@
 // (the command: the channel's category's version, or the one picked).
 const { buildAttendanceContext, attendanceFor } = require("./rosterAttendance");
 const { mainVersionFor } = require("../events/mainVersion");
+const { isCategoryActive } = require("../events/categoryLifecycle");
 const { listAllAssignments } = require("../../stores/raiderCharactersStore");
 const { annotatedCharacters } = require("./characterInfo");
 const { listKnownCategories } = require("../discord/categoryNames");
@@ -63,7 +64,8 @@ function characterAttendance(guildId, name, { ctx, versionId } = {}) {
     // only categories of this version: nights of it, or playing it today
     const nights = context.raidsByCategory instanceof Map ? context.raidsByCategory : new Map();
     const ofVersion = (id) => !version || nights.has(id) || mainVersionFor({ categoryId: id }) === version;
-    const categories = [...categoryIds].filter(ofVersion).map((id) => {
+    // only active categories (#744): a deactivated or closed one is history (roster page, archive)
+    const categories = [...categoryIds].filter((id) => ofVersion(id) && isCategoryActive(id)).map((id) => {
         const { attended, total, pct, missed } = attendanceFor(context, id, character, userIdsByCategory.get(id) || []);
         return { id, name: names.get(id) || "Unbekannte Kategorie", attended, total, pct, missed };
     }).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));

@@ -28,6 +28,10 @@ import { RaidsheetsSection } from "./RaidsheetsSection";
 import { ChannelListField, TopItemsField } from "./SettingsFields";
 import GameVersionSection, { VersionSettingsCard } from "./SettingsGameVersion";
 import CategorySwitchDialog, { type CategorySwitchChoice } from "./CategorySwitchDialog";
+import CategoryDeactivateDialog from "./CategoryDeactivateDialog";
+import CategoryCloseDialog from "./CategoryCloseDialog";
+import { deactivatedIds } from "../../lib/settings/categoryLifecycle";
+import type { CategoryCloseResult, MissingCategory } from "../../api";
 import { categoryVersionsToSave, isVersionSwitch, savedCategoryVersion, switchFixesToSend } from "../../lib/settings/categoryVersions";
 import HideOtherVersionsCard from "./HideOtherVersionsCard";
 import BotLanguageCard from "./BotLanguageCard";
@@ -86,6 +90,10 @@ export default function SettingsPage() {
     });
     // #738: the category whose version switch waits for the confirmation dialog.
     const [switching, setSwitching] = useState<{ id: string; versionId: string } | null>(null);
+    // #744: a save that deactivates categories first shows what pauses; a category
+    // deleted in Discord is closed through its own dialog.
+    const [deactivating, setDeactivating] = useState(false);
+    const [closing, setClosing] = useState<MissingCategory | null>(null);
 
     if (settingsData.error) return <div className="empty">{tParts("settings.page.loadError", { message: settingsData.error.message })}</div>;
     if (!data || !draft) return <RaidLoader text={t("settings.page.loading")} />;
@@ -150,10 +158,28 @@ export default function SettingsPage() {
         version: (id) => versionNames.get(id) || id,
     });
 
-    const submit = async () => {
+    // #744: switching a category off pauses its series and reminders — the dialog says so before the save.
+    const submit = () => {
+        if (deactivatedIds(data.config.categoryIds, draft.categoryIds).length) {
+            setDeactivating(true);
+            return;
+        }
+        void save();
+    };
+
+    // "Kategorie abschließen" is only offered without unsaved changes, so the draft can follow the server.
+    const afterClose = (result: CategoryCloseResult) => {
+        setData({ ...data, config: result.config, missingCategories: result.missingCategories });
+        setDraft(toDraft(result.config));
+        setClosing(null);
+        toast(t("settings.categoryClose.done", { name: result.name || t("settings.categoryClose.unknownName") }));
+    };
+
+    const save = async () => {
+        setDeactivating(false);
         setSaving(true);
         try {
-            const { config, switchedCategories = [] } = await updateSettings({
+            const { config, switchedCategories = [], deactivatedCategories = [] } = await updateSettings({
                 // Access config is full-admin-only; sending it as anyone else
                 // would (rightly) be rejected with a 403.
                 ...(data.canManageAccess ? {
@@ -217,6 +243,10 @@ export default function SettingsPage() {
             // #738: each switched category started a new section.
             for (const sw of switchedCategories) {
                 toast(t("settings.categorySwitch.switched", { name: categoryNames.get(sw.categoryId) || sw.name || sw.categoryId, version: versionNames.get(sw.toVersion) || sw.toVersion }));
+            }
+            // #744: each deactivated category rests (series, reminders) until it is active again.
+            for (const d of deactivatedCategories) {
+                toast(t("settings.categoryDeactivate.done", { name: categoryNames.get(d.categoryId) || d.categoryId }));
             }
             // a changed version colour (#742) is read from the session too
             const colors = (map?: Record<string, { color?: string }>) => Object.entries(map || {}).map(([id, b]) => `${id}=${b?.color || ""}`).sort().join();
@@ -300,10 +330,14 @@ export default function SettingsPage() {
             );
 
             case "kategorien": return (
+                <>
                 <CategoryMatrix
                     categories={data.categories}
                     roles={data.roles}
                     categoryIds={draft.categoryIds}
+                    missing={data.missingCategories || []}
+                    onCloseCategory={setClosing}
+                    closeBlocked={changes.length > 0}
                     categoryRoles={draft.categoryRoles}
                     categoryLootTool={draft.categoryLootTool}
                     categoryLootSystem={draft.categoryLootSystem}
@@ -358,6 +392,8 @@ export default function SettingsPage() {
                     icon={activeSection.icon}
                     crumb={activeCrumb}
                 />
+                {closing && <CategoryCloseDialog category={closing} onCancel={() => setClosing(null)} onClosed={afterClose} />}
+                </>
             );
 
             case "spielversion": return (
@@ -503,6 +539,9 @@ export default function SettingsPage() {
                         <Button variant="ghost" onClick={() => setDraft(toDraft(data.config))} disabled={saving}>{t("common.discard")}</Button>
                         <Button onClick={submit} disabled={saving}>{saving ? t("settings.saving") : t("common.save")}</Button>
                     </div>
+                )}
+                {deactivating && (
+                    <CategoryDeactivateDialog next={draft.categoryIds} names={categoryNames} onCancel={() => setDeactivating(false)} onConfirm={() => void save()} />
                 )}
             </div>
         </RailLayout>
