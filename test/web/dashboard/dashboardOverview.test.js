@@ -1,7 +1,7 @@
 // The rules behind the start page ("Übersicht"): which raid icon, how full a
 // role is, which tasks are open, what the evaluation tile counts.
 const {
-    zoneFor, zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
+    zoneFor, zoneForEvent, raidSize, roleTargets, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
     _internal: {
         roleBucket, FALLBACK_ZONE_ICON,
     },
@@ -11,7 +11,7 @@ describe("web/dashboard/dashboardOverview", () => {
     describe("zoneForEvent (#291)", () => {
         it("takes an own event's raids, newest content first, and the title otherwise", () => {
             expect(zoneForEvent({ source: "eventhelper", title: "Mittwoch", instanceIds: ["tk", "ssc"] })).toEqual({ contentId: "tk", icon: "achievement_boss_kael'thassunstrider_01" });
-            expect(zoneForEvent({ source: "eventhelper", title: "Kara Donnerstag", instanceIds: ["ony"] }).contentId).toBe("kara");
+            expect(zoneForEvent({ source: "eventhelper", title: "Kara Donnerstag", instanceIds: ["nope"] }).contentId).toBe("kara");
             expect(zoneForEvent({ source: "raidhelper", title: "Black Temple", instanceIds: ["kara"] }).contentId).toBe("bt");
             expect(zoneForEvent(null).contentId).toBe("");
         });
@@ -39,6 +39,30 @@ describe("web/dashboard/dashboardOverview", () => {
             expect(raidSize("kara", 0)).toBe(10);
             expect(raidSize("bt", 0)).toBe(25);
             expect(raidSize("", 0)).toBe(25);
+        });
+    });
+
+    describe("sizes and role targets from the rule set (#749)", () => {
+        it("sizes a night by its content, any version, and keeps a known softres size", () => {
+            expect(raidSize("ssc")).toBe(25);
+            expect(raidSize("forever-hyjal")).toBe(20);
+            expect(raidSize("forever-ony")).toBe(40);
+            expect(raidSize("kara", 40)).toBe(40);
+            expect(raidSize("kara", 15)).toBe(25);
+        });
+
+        it("gives a 20- and a 40-man their own role targets", () => {
+            expect(roleTargets(10)).toEqual({ tank: 2, healer: 3, dps: 5 });
+            expect(roleTargets(25)).toEqual({ tank: 3, healer: 6, dps: 16 });
+            expect(roleTargets(20)).toEqual({ tank: 2, healer: 5, dps: 13 });
+            expect(roleTargets(40)).toEqual({ tank: 4, healer: 10, dps: 26 });
+            expect(roleFill({ size: 40 }).map((r) => r.target)).toEqual([4, 10, 26]);
+        });
+
+        it("gives a Forever event its own icon, not TBC's Hyjal", () => {
+            const f = zoneForEvent({ source: "eventhelper", title: "Hyjal", versionId: "forever", instanceIds: [] });
+            expect(f).toEqual({ contentId: "forever-hyjal", icon: "achievement_boss_archimonde-" });
+            expect(zoneForEvent({ source: "eventhelper", title: "x", instanceIds: ["forever-ony"] }).contentId).toBe("forever-ony");
         });
     });
 

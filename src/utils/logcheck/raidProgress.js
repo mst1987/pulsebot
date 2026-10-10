@@ -1,5 +1,6 @@
 const tbcContent = require("../../config/tbcContent");
 const gameVersions = require("../../config/gameVersions");
+const raidContent = require("../../config/raidContent");
 
 const { normalizeBoss, encounterKey } = tbcContent;
 
@@ -8,15 +9,21 @@ const { normalizeBoss, encounterKey } = tbcContent;
 // every other game version by its rule set (config/gameVersions). Instance ids
 // are unique across versions, so one id space serves both. An incomplete
 // instance (WoW Forever before release) has no final boss and never blocks.
+//
+// With a `versionId` (#749) bosses and zones are looked up only within that
+// version (config/raidContent.js): Forever's Archimonde is not TBC's. Without
+// one a log is read as before: TBC first, then the other versions.
 
 /** The raid an encounter name belongs to, or "". */
-function contentForBoss(name) {
+function contentForBoss(name, versionId = "") {
+    if (versionId) return raidContent.contentForBoss(name, { versionId });
     return tbcContent.contentForBoss(name) || gameVersions.instanceForBoss(name);
 }
 
 /** The raid a report zone names, or "". */
-function contentForInstance(zone) {
-    return tbcContent.contentForInstance(zone) || gameVersions.instanceForZone(zone);
+function contentForInstance(zone, versionId = "") {
+    if (versionId) return raidContent.contentForInstance(zone, { versionId });
+    return raidContent.contentForInstance(zone) || gameVersions.instanceForZone(zone);
 }
 
 /** Label and short name of a raid in either table, or null. */
@@ -79,7 +86,8 @@ function bossGrid(contentId, killedKeys, finalKilled) {
  *   lastKill: string, lastPull: string,
  * }}
  */
-function analyzeRaidProgress(fights) {
+function analyzeRaidProgress(fights, opts = {}) {
+    const versionId = (opts && opts.versionId) || "";
     const all = (fights && fights.fights) || [];
     const bossFights = all.filter((f) => f && f.boss > 0 && f.name);
 
@@ -87,10 +95,10 @@ function analyzeRaidProgress(fights) {
     // report's own zone — a night that only wiped on trash still names its zone.
     const contentIds = [];
     for (const f of bossFights) {
-        const id = contentForBoss(f.name);
+        const id = contentForBoss(f.name, versionId);
         if (id && !contentIds.includes(id)) contentIds.push(id);
     }
-    const zoneId = contentForInstance((fights && fights.zoneName) || "");
+    const zoneId = contentForInstance((fights && fights.zoneName) || "", versionId);
     if (zoneId && !contentIds.includes(zoneId)) contentIds.push(zoneId);
 
     const killedNames = new Set(bossFights.filter((f) => f.kill).map((f) => normalizeBoss(f.name)));
@@ -112,8 +120,8 @@ function analyzeRaidProgress(fights) {
             // The encounter list with what lies — the "Raid nicht abgeschlossen"
             // dialog draws it as a grid, the log list as "Hyjal 3/5".
             bosses: bossGrid(contentId, killedKeys, finalKilled),
-            killed: bossFights.filter((f) => f.kill && contentForBoss(f.name) === contentId).length,
-            wiped: bossFights.filter((f) => !f.kill && contentForBoss(f.name) === contentId).length,
+            killed: bossFights.filter((f) => f.kill && contentForBoss(f.name, versionId) === contentId).length,
+            wiped: bossFights.filter((f) => !f.kill && contentForBoss(f.name, versionId) === contentId).length,
         };
     });
 

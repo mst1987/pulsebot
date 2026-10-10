@@ -238,7 +238,7 @@ function planFor(body, categoryId, title, startTime) {
     if (!given(merged, "versionId")) merged.versionId = mainVersionFor({ categoryId, config: getConfig() });
     // The instances the title names only when they belong to that version — a
     // "Kara" in the title of a Forever raid is no reason to refuse it.
-    const fromTitle = () => raidContentIds({ title }).contentIds
+    const fromTitle = () => raidContentIds({ title, versionId: merged.versionId }).contentIds
         .filter((id) => { const inst = instanceById(id); return !inst || inst.versionId === merged.versionId; });
     merged.instanceIds = Array.isArray(body.instanceIds) && body.instanceIds.length
         ? body.instanceIds

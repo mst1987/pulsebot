@@ -222,7 +222,7 @@ describe("Log-Auswertung: one list", () => {
 
     it("uses the shared raid icons and its own pocket watch for an unknown raid", () => {
         expect(raidIcon("hyjal")).toBe(RAID_CONTENTS.hyjal.icon);
-        expect(raidIcon("naxx")).toBe(LOG_FALLBACK_ICON);
+        expect(raidIcon("unknown-raid")).toBe(LOG_FALLBACK_ICON);
         expect(raidIcon(undefined)).toBe("inv_misc_pocketwatch_01");
     });
 });

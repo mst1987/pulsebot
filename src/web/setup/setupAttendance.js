@@ -68,7 +68,7 @@ function comparableTo(event) {
     const own = Number(event && event.size);
     if (!(own > 0)) return null;
     return (raid) => {
-        const contents = raidContentIds({ title: raid.title, zones: (raid.logs || []).map((l) => l.zone) }).contentIds;
+        const contents = raidContentIds({ title: raid.title, zones: (raid.logs || []).map((l) => l.zone), versionId: raid.versionId }).contentIds;
         const night = raidSize(contents);
         return !night.known || sizeClass(night.size) === sizeClass(own);
     };
