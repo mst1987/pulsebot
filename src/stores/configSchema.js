@@ -206,7 +206,8 @@ const CONFIG_DEFAULTS = {
     // the raid to the signed-up ones; 0 = off. See src/web/events/reminders.js.
     categoryReminders: {},
     // Data snapshots (#691, services/backup/): how often the bot takes one (minutes) and how many it keeps
-    // (grandfather-father-son over the hourly ones, the newest n of deploy/manual/pre-restore). The directory and
+    // (grandfather-father-son over the hourly ones, the newest n of deploy/manual/pre-restore), and the weekday and
+    // time of the weekly restore probe (`restoreTest`, #694, default Wednesday 04:30). The directory and
     // the on/off switch are env (BACKUP_DIR, BACKUP_ENABLED), see services/backup/backupConfig.js.
     backup: normalizeBackupSettings(null),
 };

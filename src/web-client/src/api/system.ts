@@ -116,12 +116,28 @@ export type BackupPart = {
 
 export type BackupSnapshotRow = { name: string; reason: string; at: number; bytes: number; files: number; commit: string; complete: boolean };
 
+/** The newest deploy snapshot (status/deploy-snapshot.json of deploy.sh, #695): green, yellow for 7 days when it failed, never red. */
+export type BackupDeploySnapshot = {
+    light: BackupLight;
+    at: number;
+    ok: boolean;
+    fromCommit: string;
+    toCommit: string;
+    name: string;
+    bytes: number;
+    durationMs: number;
+    attempts: number;
+    error: string;
+};
+
 export type BackupStatus = {
     now: number;
     enabled: boolean;
     exists: boolean;
     light: BackupLight;
     parts: BackupPart[];
+    /** null while no deploy wrote status/deploy-snapshot.json */
+    deploy?: BackupDeploySnapshot | null;
     count: number;
     snapshots: BackupSnapshotRow[];
 };

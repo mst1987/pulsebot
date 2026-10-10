@@ -123,3 +123,65 @@ describe("readBackupStatus", () => {
         expect(res.snapshots).toEqual([]);
     });
 });
+
+describe("the deploy snapshot (#695)", () => {
+    const deploy = (ago, extra = {}) => ({
+        at: iso(ago), ok: true, exitCode: 0, attempts: 1, fromCommit: "1111111aaaa", toCommit: "2222222BBBB",
+        result: { ok: true, name: "20261010-110000-deploy", durationMs: 800, bytes: 4000 }, ...extra,
+    });
+
+    it("is null and changes nothing while no deploy wrote the file", () => {
+        const res = status.evaluate({ snapshot: snap(H), now: NOW });
+        expect(res.deploy).toBeNull();
+        expect(res.parts).toHaveLength(3);
+    });
+
+    it("is green after a deploy snapshot that worked, with its commits, name and size", () => {
+        const res = status.evaluate({ snapshot: snap(H), offsite: off(H), deploy: deploy(2 * D), now: NOW });
+        expect(res.deploy).toEqual({
+            light: "ok", at: NOW - 2 * D, ok: true, fromCommit: "1111111aaaa", toCommit: "2222222bbbb",
+            name: "20261010-110000-deploy", bytes: 4000, durationMs: 800, attempts: 1, error: "",
+        });
+        expect(res.light).toBe("ok");
+    });
+
+    it("turns the overall light yellow, never red, after a failed one - for a week", () => {
+        const failed = deploy(H, { ok: false, exitCode: 3, attempts: 2, error: "another snapshot still held the lock", result: null });
+        const res = status.evaluate({ snapshot: snap(H), offsite: off(H), deploy: failed, now: NOW });
+        expect(res.deploy).toMatchObject({ light: "warn", ok: false, error: "another snapshot still held the lock", name: "", attempts: 2 });
+        expect(res.light).toBe("warn");
+        expect(res.parts.map((p) => p.light)).toEqual(["ok", "ok", "none"]);
+        const old = status.evaluate({ snapshot: snap(H), offsite: off(H), deploy: { ...failed, at: iso(status.DEPLOY_WARN_MS) }, now: NOW });
+        expect(old.deploy.light).toBe("none");
+        expect(old.light).toBe("ok");
+    });
+
+    it("ignores a file without a time and commits that are no hashes", () => {
+        expect(status.evalDeploy({ ok: true }, NOW)).toBeNull();
+        expect(status.evalDeploy("x", NOW)).toBeNull();
+        expect(status.evalDeploy({ at: iso(H), ok: true, fromCommit: "main; rm", toCommit: "" }, NOW)).toMatchObject({ fromCommit: "", toCommit: "", name: "" });
+    });
+
+    it("is read from status/deploy-snapshot.json by readParts", () => {
+        const backupDir = path.join(path.dirname(tempStoreFile("unused")), "backups");
+        fs.mkdirSync(path.join(backupDir, "status"), { recursive: true });
+        fs.writeFileSync(path.join(backupDir, "status", "deploy-snapshot.json"), JSON.stringify(deploy(H, { ok: false, error: "timed out" })));
+        const res = status.readParts({ backupDir, now: NOW });
+        expect(res.deploy).toMatchObject({ light: "warn", error: "timed out" });
+        expect(res.light).toBe("warn");
+    });
+});
+
+describe("the restore probe's status file (#694)", () => {
+    it("is read as the restore test part: time, result, size, duration and the error line", () => {
+        const backupDir = path.join(path.dirname(tempStoreFile("unused")), "backups");
+        fs.mkdirSync(path.join(backupDir, "status"), { recursive: true });
+        fs.writeFileSync(path.join(backupDir, "status", "restore-test.json"), JSON.stringify({
+            at: iso(D), ok: false, durationMs: 1234, bytes: 999, snapshot: { name: "x" }, problems: [{ rel: "a", problem: "b" }],
+            counts: { snapshot: {}, restored: {}, live: {} }, error: "1 Problem - a: b",
+        }));
+        expect(status.readParts({ backupDir, now: NOW }).parts[2]).toMatchObject({
+            light: "bad", state: "failed", ok: false, error: "1 Problem - a: b", bytes: 999, durationMs: 1234,
+        });
+    });
+});

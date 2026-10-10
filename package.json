@@ -29,7 +29,8 @@
         "check:main": "node scripts/check-main-clean.js",
         "backup:snapshot": "node scripts/backup/snapshot.js",
         "backup:list": "node scripts/backup/list.js",
-        "backup:restore": "node scripts/backup/restore.js"
+        "backup:restore": "node scripts/backup/restore.js",
+        "backup:restore-test": "node scripts/backup/restore-test.js"
     },
     "nodemonConfig": {
         "ignore": [

@@ -48,7 +48,26 @@ const BACKUP_DEFAULTS = Object.freeze({
         manualKeep: 10,
         preRestoreKeep: 10,
     }),
+    // The weekly restore probe (#694, restoreTest.js): ISO weekday (1 = Monday ... 7 = Sunday) and the time of day
+    // in TIMEZONE (config/timezone.js). The probe only ever starts within RESTORE_TEST_WINDOW_MS after that time of
+    // day - a night/morning window, never a raid evening - also when it catches up a missed week.
+    restoreTest: Object.freeze({ weekday: 3, time: "04:30" }),
 });
+
+/** How long after the configured time of day the restore probe may still start (also when it catches up). */
+const RESTORE_TEST_WINDOW_MS = 6 * 60 * 60 * 1000;
+const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+
+/** The `restoreTest` block: a weekday 1-7 and an "HH:MM", each falling back to its default on its own. */
+function normalizeRestoreTest(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const weekday = Number(src.weekday);
+    const time = TIME_RE.exec(String(src.time === undefined || src.time === null ? "" : src.time).trim());
+    return {
+        weekday: Number.isInteger(weekday) && weekday >= 1 && weekday <= 7 ? weekday : BACKUP_DEFAULTS.restoreTest.weekday,
+        time: time ? `${time[1].padStart(2, "0")}:${time[2]}` : BACKUP_DEFAULTS.restoreTest.time,
+    };
+}
 
 // Bounds that keep a typo from deleting everything or snapshotting every second.
 const LIMITS = {
@@ -83,7 +102,10 @@ function normalizeBackupSettings(raw) {
             ? BACKUP_DEFAULTS.intervalMinutes
             : bounded(interval, "intervalMinutes", BACKUP_DEFAULTS.intervalMinutes),
         retention,
+        restoreTest: normalizeRestoreTest(src.restoreTest),
     };
 }
 
-module.exports = { resolveBackupDir, backupEnabled, normalizeBackupSettings, BACKUP_DEFAULTS, SERVER_BACKUP_DIR };
+module.exports = {
+    resolveBackupDir, backupEnabled, normalizeBackupSettings, normalizeRestoreTest, BACKUP_DEFAULTS, SERVER_BACKUP_DIR, RESTORE_TEST_WINDOW_MS,
+};

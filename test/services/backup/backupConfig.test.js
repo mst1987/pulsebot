@@ -51,8 +51,17 @@ describe("normalizeBackupSettings", () => {
         })).toEqual({
             intervalMinutes: 90,
             retention: { hourlyHours: 1, dailyDays: 366, weeklyWeeks: 8, monthlyMonths: 0, deployKeep: 1, manualKeep: 3, preRestoreKeep: 10 },
+            restoreTest: { weekday: 3, time: "04:30" },
         });
         expect(normalizeBackupSettings({ intervalMinutes: 1 }).intervalMinutes).toBe(15);
         expect(normalizeBackupSettings({ intervalMinutes: 99999 }).intervalMinutes).toBe(1440);
+    });
+
+    it("takes the restore probe's weekday 1-7 and an HH:MM time, each on its own (#694)", () => {
+        expect(normalizeBackupSettings({ restoreTest: { weekday: 7, time: "3:05" } }).restoreTest).toEqual({ weekday: 7, time: "03:05" });
+        expect(normalizeBackupSettings({ restoreTest: { weekday: 0, time: "24:00" } }).restoreTest).toEqual({ weekday: 3, time: "04:30" });
+        expect(normalizeBackupSettings({ restoreTest: { weekday: 2.5, time: "" } }).restoreTest).toEqual({ weekday: 3, time: "04:30" });
+        expect(normalizeBackupSettings({ restoreTest: { weekday: "1" } }).restoreTest).toEqual({ weekday: 1, time: "04:30" });
+        expect(normalizeBackupSettings({ restoreTest: [1] }).restoreTest).toEqual({ weekday: 3, time: "04:30" });
     });
 });

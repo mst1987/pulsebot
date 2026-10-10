@@ -65,10 +65,11 @@ function afterPlanning(config, stored = {}) {
     }
     return { ...config, categoryPlanning: planning };
 }
-// #691 adds the data snapshots' schedule and retention with their defaults.
+// #691 adds the data snapshots' schedule and retention with their defaults, #694 the restore probe's slot.
 const BACKUP_DEFAULTS = {
     intervalMinutes: 60,
     retention: { hourlyHours: 48, dailyDays: 14, weeklyWeeks: 8, monthlyMonths: 12, deployKeep: 10, manualKeep: 10, preRestoreKeep: 10 },
+    restoreTest: { weekday: 3, time: "04:30" },
 };
 const after691 = (config) => ({ ...config, backup: BACKUP_DEFAULTS });
 const schemaOnly = frozen.map((g) => ({ ...g, config: after691(after542(g.config)) }));

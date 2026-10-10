@@ -156,12 +156,12 @@ function saveConfig(partial) {
     // Both replace the stored value as a whole, like topItems.
     if (partial.roleSync !== undefined) next.roleSync = normalizeRoleSync(partial.roleSync);
     if (partial.categoryReminders !== undefined) next.categoryReminders = normalizeCategoryReminders(partial.categoryReminders);
-    // Merged per field, the retention per rule, then normalised (#691).
+    // Merged per field, the retention per rule and the restore probe's slot per field, then normalised (#691, #694).
     if (partial.backup && typeof partial.backup === "object") {
         const cur = current.backup || {};
+        const part = (key) => ({ ...(cur[key] || {}), ...((partial.backup && partial.backup[key]) || {}) });
         next.backup = normalizeBackupSettings({
-            ...cur, ...partial.backup,
-            retention: { ...(cur.retention || {}), ...((partial.backup && partial.backup.retention) || {}) },
+            ...cur, ...partial.backup, retention: part("retention"), restoreTest: part("restoreTest"),
         });
     }
     store.write(next);
