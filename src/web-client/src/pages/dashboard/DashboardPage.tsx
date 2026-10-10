@@ -37,6 +37,7 @@ import TopLootList from "../../components/loot/TopLootList";
 import RaidDetailsModal from "./RaidDetailsModal";
 import { RoleBar, IconLink } from "./OverviewParts";
 import { usesSheet } from "./raidPlanning";
+import { taskText } from "../../lib/dashboard/taskText";
 import { AttendanceDots, MyNextRaid, MyRaids, MyRecentRaids } from "./PersonalParts";
 import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { relativeDayLabel } from "../../lib/format";
@@ -163,7 +164,10 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
 
 const TASK_TILE: Record<DashboardTask["tone"], TileTone> = { ok: "ok", mid: "mid", bad: "bad", accent: "home" };
 
+/** The task's second line: its words from the server (`texts.ref`), a ready text, else the raid/report with its date. */
 function taskRef(task: DashboardTask): string {
+    const fallback = task.ref.text || [task.ref.title, task.ref.at ? dayDate(task.ref.at) : ""].filter(Boolean).join(" · ");
+    if (task.texts && task.texts.ref) return taskText(task, "ref", fallback);
     if (task.ref.text) return task.ref.text;
     return [task.ref.title, task.ref.at ? dayDate(task.ref.at) : ""].filter(Boolean).join(" · ");
 }
@@ -188,7 +192,7 @@ function TaskAction({ task, onDone }: { task: DashboardTask; onDone?: () => void
             .catch((err: ApiError) => toast(err.message, "err"))
             .finally(() => setBusy(false));
     };
-    return <Button size="sm" variant="ghost" running={busy} onClick={run}>{action.label}</Button>;
+    return <Button size="sm" variant="ghost" running={busy} onClick={run}>{taskText(task, "action", action.label)}</Button>;
 }
 
 /**
@@ -238,13 +242,13 @@ export function TaskList({ tasks, onChanged }: { tasks: DashboardTask[]; onChang
                 )
                 : (
                     <div className="ov-rows">
-                        {/* `t` here is the task (it shadows the translator; the row shows server texts only) */}
+                        {/* `t` here is the task (it shadows the translator; the row words its texts through taskText) */}
                         {tasks.map((t) => {
                             const row = (
-                                <RowLink key={t.id} href={t.href} className="ov-row ov-task" tip={t.tip} tipSub={t.tipSub}>
+                                <RowLink key={t.id} href={t.href} className="ov-row ov-task" tip={taskText(t, "tip", t.tip)} tipSub={taskText(t, "tipSub", t.tipSub)}>
                                     <IconTile icon={t.icon} tone={(t.tile as TileTone) || TASK_TILE[t.tone]} />
                                     <span className="grow">
-                                        <span className="t1">{t.title}</span>
+                                        <span className="t1">{taskText(t, "title", t.title)}</span>
                                         <span className="t2">{taskRef(t)}</span>
                                     </span>
                                     {t.count > 0 && <Badge tone={t.tone} count>{t.count}</Badge>}

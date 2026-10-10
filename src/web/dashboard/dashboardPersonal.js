@@ -52,6 +52,9 @@ function upcomingRow(row) {
         // "" = not signed up yet; else signed | late | tentative | bench | absence
         status: mine ? str(mine.status) || "signed" : "",
         character: mine ? str(mine.character) : "",
+        // the spec's key ("Rogue-Combat", a Raid-Helper specName): the client words it in the reader's language;
+        // `spec` is the server's German label, the fallback for a key it does not know
+        specKey: mine ? str(mine.spec || mine.specName) : "",
         spec: mine ? str(mine.specLabel || mine.specName) : "",
         specIcon: mine ? str(mine.specIcon) : "",
         // the approved setup's group ({ group }) or bench ({ bench: true }); null = no approved setup / not placed

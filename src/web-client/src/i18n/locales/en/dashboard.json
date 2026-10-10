@@ -166,7 +166,7 @@
         "rosterOnly": "Roster only",
         "rosterOnlyTip": "Only members of the roster sign up for this raid.",
         "status": {
-            "signed": "In",
+            "signed": "Signed up",
             "late": "Late",
             "tentative": "Tentative",
             "bench": "Bench",
@@ -248,6 +248,121 @@
         "divider": {
             "one": "Orga · {count} open task",
             "other": "Orga · {count} open tasks"
+        }
+    },
+    "task": {
+        "sheet": {
+            "title": "Fill the sheet",
+            "tip": {
+                "one": "Raid sheet missing",
+                "other": "{count} raids without a raid sheet"
+            },
+            "tipSub": "No sheet was filled for the raid, and its category has no fixed sheet. Opens the raid event."
+        },
+        "recommendations": {
+            "title": "Review recommendations",
+            "tip": {
+                "one": "{count} recommendation not reviewed",
+                "other": "{count} recommendations not reviewed"
+            },
+            "tipSub": "Nobody approved or discarded them yet – only approved points go to the raiders. Opens the report in the raid view."
+        },
+        "logs": {
+            "title": "Assign logs",
+            "tip": {
+                "one": "{count} log fits several raids",
+                "other": "{count} logs fit several raids"
+            },
+            "tipSub": "Several raids on the same evening fit by time; the automatic assignment picked none. Opens the raid's logs tab."
+        },
+        "inbox": {
+            "title": "Addon inbox",
+            "sessions": {
+                "one": "{count} session",
+                "other": "{count} sessions"
+            },
+            "items": {
+                "one": "{count} item",
+                "other": "{count} items"
+            },
+            "tip": "Uploaded loot is waiting",
+            "tipSub": "The addon uploaded loot that belongs to no raid yet. Opens the addon inbox under History & Loot."
+        },
+        "channels": {
+            "title": "Delete archived channels",
+            "refOverdue": {
+                "one": "{count} channel waiting longer than {days} days",
+                "other": "{count} channels waiting longer than {days} days"
+            },
+            "refWaiting": {
+                "one": "{count} channel waiting to be deleted",
+                "other": "{count} channels waiting to be deleted"
+            },
+            "tip": {
+                "one": "{count} archived channel waiting to be deleted",
+                "other": "{count} archived channels waiting to be deleted"
+            },
+            "tipSub": "Archived channels are never deleted automatically. Opens the archive of the channels page, where an admin deletes them."
+        },
+        "rolesync": {
+            "title": "Check roles",
+            "ref": {
+                "one": "{count} member has @{role} only on {guild}",
+                "other": "{count} members have @{role} only on {guild}"
+            },
+            "refOther": {
+                "one": "{count} member has @{role} only on the other server",
+                "other": "{count} members have @{role} only on the other server"
+            },
+            "more": {
+                "one": "+{count} role",
+                "other": "+{count} roles"
+            },
+            "tip": {
+                "one": "{count} member carries a synced role without its source role",
+                "other": "{count} members carry a synced role without its source role"
+            },
+            "tipSub": "The role sync only adds and never removes. Whoever lost the role on one server keeps it on the other until someone removes it in Discord. Opens Settings → Discord servers."
+        },
+        "channelMissing": {
+            "title": "Channel of {title} is missing",
+            "tip": "The raid's Discord channel no longer exists",
+            "tipSub": "The signup message went with it; the overviews show “channel missing” instead of a link. “Recreate channel” creates it by the naming rule in the event's category and posts the signup message there. Otherwise opens the raid event.",
+            "action": "Recreate channel"
+        },
+        "series": {
+            "title": "Series could not create the event: {reason}",
+            "day": "{day}",
+            "tip": {
+                "one": "A series date failed",
+                "other": "{count} series dates failed"
+            },
+            "tipSub": "The series could not create the event of this date. It tries at most three times, 10 minutes apart, then only at the push of a button. Opens Raid events › Series with the reason and “Try again”."
+        },
+        "deploy": {
+            "title": {
+                "one": "Server is {count} commit behind main",
+                "other": "Server is {count} commits behind main"
+            },
+            "since": {
+                "one": "(for {count} day)",
+                "other": "(for {count} days)"
+            },
+            "running": "running {commit}",
+            "unknown": "version unknown",
+            "main": "main at {commit}",
+            "tip": {
+                "one": "{count} commit is on main but not on the server",
+                "other": "{count} commits are on main but not on the server"
+            },
+            "tipSub": "The automatic deployment did not pick up the latest version. Opens the guide: which secrets it needs and how to deploy by hand."
+        },
+        "trial": {
+            "title": "Trial ends: {name}",
+            "titleOverdue": "Trial over: {name}",
+            "tip": "The trial ends on {date}",
+            "tipOverdue": "The trial ended on {date}",
+            "tipSub": "Take over makes the person core, Extend moves the end 14 days on. Nothing changes by itself. Otherwise opens the roster."
         }
     }
 }
