@@ -19,6 +19,7 @@ jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: () 
 
 const configStore = require("../../../src/stores/configStore");
 const own = require("../../../src/commands/lookup/anwesenheit");
+const { versionNote } = require("../../../src/services/events/commandVersion");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 
 const DAY = 86400;
@@ -44,14 +45,14 @@ describe("/anwesenheit in a channel of a Forever category (#740)", () => {
     it("counts only the Forever raids", async () => {
         const i = mockInteraction({ userId: "u1", channel: { id: "c1", parentId: "fcat" } });
         await own.execute(i);
-        expect(embed(i).title).toBe("Deine Anwesenheit · Forever");
+        expect(embed(i).footer.text).toBe(versionNote("forever"));
         expect(embed(i).description).toBe("**50 %** · 1 von 2 Raids");
     });
 
     it("counts the TBC nights under TBC (the `version` option)", async () => {
         const i = mockInteraction({ userId: "u1", channel: { id: "c1", parentId: "fcat" }, options: { version: "tbc" } });
         await own.execute(i);
-        expect(embed(i).title).toBe("Deine Anwesenheit · TBC");
+        expect(embed(i).footer.text).toBe(versionNote("tbc"));
         expect(embed(i).description).toBe("**100 %** · 3 von 3 Raids");
     });
 

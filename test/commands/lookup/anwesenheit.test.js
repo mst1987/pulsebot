@@ -13,6 +13,7 @@ const { myCharacters: charactersForUser } = require("../../../src/services/chara
 const { characterAttendance, knownCharacterNames } = require("../../../src/services/characters/attendanceLookup");
 const { buildAttendanceContext } = require("../../../src/services/characters/rosterAttendance");
 const configStore = require("../../../src/stores/configStore");
+const { versionNote } = require("../../../src/services/events/commandVersion");
 const { EMBED_LIMITS } = require("../../../src/utils/discord/botLookup");
 const { embedSize } = require("../../helpers/embed");
 const { mockInteraction } = require("../../helpers/mockInteraction");
@@ -41,7 +42,8 @@ describe("/anwesenheit and /anwesenheit-raider count within one game version (#7
         const i = mockInteraction({ channel: forever });
         await own.execute(i);
         expect(buildAttendanceContext).toHaveBeenCalledWith("event-guild", { versionId: "forever" });
-        expect(embed(i).title).toBe("Deine Anwesenheit · Forever");
+        expect(embed(i).title).toBe("Deine Anwesenheit");
+        expect(embed(i).footer.text).toBe(versionNote("forever"));
 
         const thread = { isThread: () => true, parent: forever, parentId: "text-channel" };
         expect(own.versionOfInteraction(mockInteraction({ channel: thread }))).toBe("forever");
@@ -84,7 +86,8 @@ describe("/anwesenheit", () => {
         await own.execute(i);
         expect(buildAttendanceContext).toHaveBeenCalledWith("event-guild", { versionId: "tbc" });
         expect(characterAttendance).toHaveBeenCalledWith("event-guild", "Elesham", { ctx: { ctx: 1 }, versionId: "tbc" });
-        expect(embed(i).title).toBe("Deine Anwesenheit · TBC");
+        expect(embed(i).title).toBe("Deine Anwesenheit");
+        expect(embed(i).footer.text).toBe(versionNote("tbc"));
         expect(i.reply.mock.calls[0][0].flags).toBe(MessageFlags.Ephemeral);
         expect(embed(i).description).toBe("**75 %** · 9 von 12 Raids");
         expect(embed(i).fields.map((f) => f.name)).toEqual(["Montag", "Donnerstag"]);
@@ -137,7 +140,8 @@ describe("/anwesenheit-raider", () => {
         const i = mockInteraction({ options: { raider: "dorn" } });
         await other.execute(i);
         expect(characterAttendance).toHaveBeenCalledWith("event-guild", "dorn", { versionId: "tbc" });
-        expect(embed(i).title).toBe("Anwesenheit Dorn · TBC");
+        expect(embed(i).title).toBe("Anwesenheit Dorn");
+        expect(embed(i).footer.text).toBe(versionNote("tbc"));
         expect(embed(i).description).toBe("**80 %** · 8 von 10 Raids");
         expect(buttons(i)[0].url).toMatch(/name=Dorn$/);
     });
