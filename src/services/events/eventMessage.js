@@ -93,6 +93,7 @@ const { signedUpText } = require("../../utils/signup/capacity");
 const { tr, specLabel, classLabel, normalizeLang } = require("../../utils/i18n/botText");
 const { eventLang } = require("../discord/botLanguage");
 const { hasExpected } = require("../roster/expectedRaiders");
+const { eventVersionTag } = require("./versionTag");
 
 /**
  * The head's "Signed up" line (#520): the single Discord accounts, number in
@@ -671,6 +672,9 @@ function buildEventMessage(event, signups, {
     };
     const text = clip(desc.join("\n"), LIMITS.description);
     if (text) embed.description = text;
+    // TBC and Forever share the Discord server: the post names its version, small (#743)
+    const versionTag = eventVersionTag(event);
+    if (versionTag) embed.footer = { text: versionTag };
     // Shorten the blocks until the whole embed fits Discord's 6000 characters.
     for (let maxLines = 40; maxLines >= 1; maxLines -= maxLines > 10 ? 5 : 1) {
         embed.fields = fitFields([...headFields, ...totals, ...rosterFields(entries, numbers, emojis, maxLines, style, lang), ...tail]);

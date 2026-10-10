@@ -8,6 +8,25 @@ const { itemCatalog } = require("../../services/loot/lootStats");
 const { annotatedCharacters } = require("../../services/characters/characterInfo");
 const { myCharacters } = require("../../services/characters/userCharacters");
 const { webUrl, lookupReply, respondChoices, focusedName, discordTime, plural, clip } = require("../../utils/discord/botLookup");
+const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
+const { eventVersion } = require("../../services/characters/characterVersions");
+const { LEGACY_VERSION } = require("../../config/gameVersions");
+
+/** The awards of one game version only: the version of the raid they were looted in (#743). */
+function awardsOfVersion(items, versionId) {
+    const ctx = { eventCache: new Map() };
+    return (items || []).filter((it) => eventVersion(ctx, it.eventId) === versionId);
+}
+
+/** The item catalogue of one game version: only its awards, an item without one drops out. */
+function catalogOfVersion(versionId) {
+    return itemCatalog()
+        .map((item) => {
+            const awards = (item.awards || []).filter((a) => (a.versionId || LEGACY_VERSION) === versionId);
+            return awards.length === (item.awards || []).length ? item : { ...item, awards, count: awards.length, lastAwardedAt: Math.max(0, ...awards.map((a) => a.awardedAt || 0)) };
+        })
+        .filter((item) => (item.awards || []).length > 0 || !Array.isArray(item.awards));
+}
 
 /** How many awards a reply lists — the web page has the rest. */
 const MAX_ROWS = 6;
@@ -40,25 +59,28 @@ function itemLines(items, { withCharacter = false } = {}) {
 
 const charUrl = (name) => webUrl(`/history/char?name=${encodeURIComponent(name)}`);
 
-async function lootForMe(interaction) {
+async function lootForMe(interaction, versionId) {
     const chars = myCharacters(interaction.user.id);
     if (!chars.length) {
         return lookupReply(interaction, {
+            footer: { text: versionNote(versionId) },
             title: "Dein Loot",
             description: "Dir ist noch kein Charakter zugeordnet. Trag ihn in deinem Profil ein (`/profil`) — bis dahin hilft `/loot raider`.",
         }, [{ label: "Im Web öffnen", url: webUrl("/history") }]);
     }
-    const items = chars.flatMap((c) => listByCharacter(c.character))
+    const items = awardsOfVersion(chars.flatMap((c) => listByCharacter(c.character)), versionId)
         .sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
     const names = chars.map((c) => c.character).join(", ");
     if (!items.length) {
         return lookupReply(interaction, {
+            footer: { text: versionNote(versionId) },
             title: "Dein Loot",
             description: `**0 Items** · ${names}\nNoch nichts vergeben.`,
         }, [{ label: "Im Web öffnen", url: charUrl(chars[0].character) }]);
     }
     const multiple = chars.length > 1;
     return lookupReply(interaction, {
+        footer: { text: versionNote(versionId) },
         title: "Dein Loot",
         description: `**${plural(items.length, "Item", "Items")}** · ${names}\n${reasonLine(items)}`,
         fields: [{ name: "Zuletzt", value: itemLines(items, { withCharacter: multiple }) }],
@@ -66,10 +88,10 @@ async function lootForMe(interaction) {
 }
 
 /** An item of the loot catalog by the autocomplete value (its id) or by a typed name. */
-function findItem(value) {
+function findItem(value, versionId) {
     const raw = String(value || "").trim();
     if (!raw) return null;
-    const catalog = itemCatalog();
+    const catalog = catalogOfVersion(versionId);
     const id = Number(raw);
     if (Number.isInteger(id) && id > 0) {
         const byId = catalog.find((i) => i.itemId === id);
@@ -81,18 +103,20 @@ function findItem(value) {
         || null;
 }
 
-async function lootForItem(interaction) {
+async function lootForItem(interaction, versionId) {
     const value = interaction.options.getString("item");
-    const item = findItem(value);
+    const item = findItem(value, versionId);
     const link = [{ label: "Im Web öffnen", url: webUrl("/history?tab=items") }];
     if (!item) {
         return lookupReply(interaction, {
+            footer: { text: versionNote(versionId) },
             title: "Item nicht gefunden",
             description: `„${clip(value, 100)}“ wurde noch nie vergeben.`,
         }, link);
     }
     const awards = item.awards.map((a) => ({ ...a, itemName: item.itemName, itemId: item.itemId }));
     return lookupReply(interaction, {
+        footer: { text: versionNote(versionId) },
         title: itemLabel(item),
         url: item.itemLink || undefined,
         description: `**${item.count}× vergeben**${item.lastAwardedAt ? ` · zuletzt ${discordTime(item.lastAwardedAt)}` : ""}${item.boss ? `\n${item.boss}` : ""}`,
@@ -103,17 +127,19 @@ async function lootForItem(interaction) {
     }, link);
 }
 
-async function lootForRaider(interaction) {
+async function lootForRaider(interaction, versionId) {
     const name = String(interaction.options.getString("name") || "").trim();
-    const items = listByCharacter(name);
+    const items = awardsOfVersion(listByCharacter(name), versionId);
     if (!items.length) {
         return lookupReply(interaction, {
+            footer: { text: versionNote(versionId) },
             title: clip(name || "Raider", 100),
             description: "Kein Loot gefunden.",
         }, [{ label: "Im Web öffnen", url: webUrl("/history?tab=reasons") }]);
     }
     const character = items[0].character || name;
     return lookupReply(interaction, {
+        footer: { text: versionNote(versionId) },
         title: character,
         description: `**${plural(items.length, "Item", "Items")}**\n${reasonLine(items)}`,
         fields: [{ name: "Zuletzt", value: itemLines(items) }],
@@ -130,20 +156,20 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName("loot")
         .setDescription("Loot nachschlagen")
-        .addSubcommand((s) => s.setName("ich").setDescription("Dein Loot (über deine zugeordneten Charaktere)"))
-        .addSubcommand((s) => s.setName("item").setDescription("Wer ein Item wann bekommen hat")
-            .addStringOption((o) => o.setName("item").setDescription("Item").setRequired(true).setAutocomplete(true)))
-        .addSubcommand((s) => s.setName("raider").setDescription("Was ein Raider bekommen hat")
-            .addStringOption((o) => o.setName("name").setDescription("Charaktername").setRequired(true).setAutocomplete(true))),
+        .addSubcommand((s) => addVersionOption(s.setName("ich").setDescription("Dein Loot (über deine zugeordneten Charaktere)")))
+        .addSubcommand((s) => addVersionOption(s.setName("item").setDescription("Wer ein Item wann bekommen hat")
+            .addStringOption((o) => o.setName("item").setDescription("Item").setRequired(true).setAutocomplete(true))))
+        .addSubcommand((s) => addVersionOption(s.setName("raider").setDescription("Was ein Raider bekommen hat")
+            .addStringOption((o) => o.setName("name").setDescription("Charaktername").setRequired(true).setAutocomplete(true)))),
     MAX_ROWS,
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
         const handler = HANDLERS[sub] || lootForMe;
-        return handler(interaction);
+        return handler(interaction, versionOfCommand(interaction).versionId);
     },
     async autocomplete(interaction) {
         if (focusedName(interaction) === "item") {
-            return respondChoices(interaction, itemCatalog().map((i) => ({ name: itemLabel(i), value: String(i.itemId) })));
+            return respondChoices(interaction, catalogOfVersion(versionOfCommand(interaction).versionId).map((i) => ({ name: itemLabel(i), value: String(i.itemId) })));
         }
         return respondChoices(interaction, annotatedCharacters().map((c) => ({ name: c.character, value: c.character })));
     },

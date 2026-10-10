@@ -93,6 +93,19 @@ describe("web/report/raidGroups", () => {
             expect(html).toContain("Raid › Fehler › Vermeidbarer erhaltener Schaden · RPB · alle Boss-Kämpfe");
             expect(html).toContain("Sortiert nach Rolle · Klick auf einen Raider öffnet seine Seite");
         });
+
+        it("leaves out the areas whose analyzer the report's version does not run (#747)", () => {
+            const forever = groupsOf({ ...fixture("case02-report"), versionId: "forever" });
+            for (const id of ["drums", "shadowresi", "rpbspells", "rpbinterrupts", "rpbdamage", "rpbvalidate"]) {
+                expect([id, card(forever, id)]).toEqual([id, null]);
+            }
+            // what Forever would run stays: sunder, boss uptimes, the gear card
+            expect(card(forever, "sunder")).toMatchObject({ value: "20", unit: "Sunder" });
+            expect(card(forever, "bosses")).toMatchObject({ value: "2", unit: "Boss-Kämpfe" });
+            expect(card(forever, "gear")).not.toBeNull();
+            // a report without a version is TBC: every area as before
+            expect(card(groupsOf({ ...fixture("case02-report"), versionId: "tbc" }), "drums")).toMatchObject({ value: "5" });
+        });
     });
 
     it("sums raid buffs (case04) and raid debuffs with the bosses they were missing on (case09)", () => {

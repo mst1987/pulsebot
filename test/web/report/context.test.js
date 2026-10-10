@@ -1,6 +1,7 @@
 // What the three views of the report page share (src/web/report/context.js):
 // links, review rights, reviewed recommendations, roles and per-raider slices.
-const { ROLE_LABEL, reportContext } = require("../../../src/web/report/context");
+const { ROLE_LABEL, reportContext, analyzersRan } = require("../../../src/web/report/context");
+const { ALL_ANALYZERS, analyzersFor } = require("../../../src/utils/logcheck/rules");
 
 function report(over = {}) {
     return {
@@ -11,6 +12,14 @@ function report(over = {}) {
 }
 
 describe("web/report/context", () => {
+    it("knows which analyzers ran: those of the report's version, every one for a report without a version (#747)", () => {
+        expect([...analyzersRan({})]).toEqual(ALL_ANALYZERS);
+        expect([...analyzersRan({ versionId: "tbc" })]).toEqual(ALL_ANALYZERS);
+        expect([...analyzersRan({ versionId: "forever" })]).toEqual(analyzersFor("forever"));
+        expect(reportContext(report({ versionId: "forever" }), null).ran.has("drums")).toBe(false);
+        expect(reportContext(report(), null).ran.has("drums")).toBe(true);
+    });
+
     it("labels the three roles in German", () => {
         expect(ROLE_LABEL).toEqual({ tank: "Tank", healer: "Heiler", dps: "DPS" });
     });
