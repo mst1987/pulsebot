@@ -151,8 +151,8 @@ describe("web/report/widgets", () => {
             w.withReportVersion({ versionId: "forever" }, () => {
                 w.armoryLink("Brokk", "btn");
                 expect(w.reportLinks().versionId).toBe("forever");
-                // Forever has no Wowhead path in the standard settings: no link rather than a TBC one
-                expect(w.wowheadItemLink(28830)).toBe("");
+                // Forever's own Wowhead section (#750), never the TBC one
+                expect(w.wowheadItemLink(28830)).toContain("/forever/item=28830");
             });
             expect(armoryUrlFor).toHaveBeenLastCalledWith("Brokk", "forever");
             w.withReportVersion({}, () => {

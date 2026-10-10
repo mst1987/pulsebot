@@ -518,8 +518,8 @@ describe("web/report/render", () => {
         });
 
         it("links in the version of the report, never TBC for another one (#746)", () => {
-            // the standard settings give Forever no Wowhead path yet: no link at all
             const forever = renderReportPage({ ...sampleReport(), versionId: "forever" });
+            expect(forever).toContain("https://www.wowhead.com/forever/item=1234");
             expect(forever).not.toContain("wowhead.com/tbc/item=1234");
             const classic = renderPlayerPage({ ...sampleReport(), versionId: "classic" }, 0);
             expect(classic).not.toContain("wowhead.com/tbc/");
