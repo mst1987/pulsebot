@@ -464,8 +464,8 @@ export default function DashboardPage() {
                         )}
 
                         {data.orga && (
-                            // the orga's block in its zone (design canvas Oct 2026, B): it goes by the right to change raids
-                            <OrgaZone user={user} areas={["raids"]} level="write">
+                            // the orga's block in its zone (design canvas Oct 2026, B): for the orga only
+                            <OrgaZone user={user}>
                                 <div className="ov-grid ov-grid-top">
                                     <NextRaidCard
                                         raid={data.nextRaid} following={data.followingRaid} error={data.nextRaidError}

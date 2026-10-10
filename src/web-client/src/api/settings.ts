@@ -30,6 +30,8 @@ export type AdminConfig = {
     // Area rights for single Discord accounts (keyed by user id), for areas that
     // go to named people rather than to a group — same gate as above.
     userPermissions?: RolePermissions;
+    // The roles that count as orga (the rest are raider roles) — same gate as above.
+    orgaRoleIds?: string[];
     // Who may use which bot command (Berechtigungen → Bot-Befehle) — same gate as above.
     botCommandAccess?: Record<string, BotAccessRule>;
     guildId: string;

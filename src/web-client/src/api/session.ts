@@ -20,9 +20,13 @@ export type SessionUser = {
     viewAs?: ViewAs;
     /** Who sees each area this account may open (src/web/http/areaAudience.js) — the "Orga-Bereich" marks read it. */
     audience?: Record<string, AreaAudience>;
+    /** Orga: a full admin, or holding an orga role (Einstellungen → Berechtigungen) — sees the orga's parts of the pages. */
+    isOrga?: boolean;
+    /** The names of the orga roles (admin roles left out) — the orga zones name them. */
+    orgaRoles?: string[];
 };
-/** An area for everyone (the base access opens it), else the roles that may read / change in it and how many single accounts may read it. */
-export type AreaAudience = { everyone: boolean; roles: string[]; writers: string[]; accounts: number };
+/** A raider area (the base access or a raider role opens it), else the orga roles that may read / change in it and how many single accounts may read it. */
+export type AreaAudience = { everyone: boolean; roles: string[]; writers: string[]; raiders?: string[]; accounts: number };
 export type ViewAsRole = { id: string; name: string; color: string; admin: boolean; configured: boolean };
 /** "event" | "talk" = the server's fixed role from Einstellungen → Discord-Server, "" = none. */
 export type GuildRole = "event" | "talk" | "";

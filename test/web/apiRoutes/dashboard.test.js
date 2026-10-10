@@ -337,7 +337,7 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.topLoot.items).toHaveLength(1);
         });
 
-        it("shows the orga block only to whoever may change the raids - reading them (a raider role) is no orga rank", async () => {
+        it("keeps the orga block from a raider role that reads the raids", async () => {
             const reader = { id: "8", name: "Rai", isAdmin: false, access: { raids: { read: true, write: false }, signup: { read: true, write: true } } };
             auth.getUser.mockReturnValue(reader);
             activeGuildFor.mockReturnValue("guild-1");
@@ -359,8 +359,17 @@ describe("web/apiRoutes/dashboard", () => {
             expect(loadPersonal).toHaveBeenCalledWith("guild-1", reader, expect.objectContaining({ orga: true }));
         });
 
-        it("shows the orga block to whoever may change the raids, each task still only for whoever can do it", async () => {
-            const writer = { id: "9", name: "Lead", isAdmin: false, access: { raids: { read: true, write: true }, dashboard: { read: true, write: false } } };
+        it("keeps the orga block from a raider role even with the right to change raids - an area is no orga rank", async () => {
+            const writerRaider = { id: "10", name: "Mo", isAdmin: false, access: { raids: { read: true, write: true }, dashboard: { read: true, write: false } } };
+            auth.getUser.mockReturnValue(writerRaider);
+            activeGuildFor.mockReturnValue("guild-1");
+            const data = json(await get("/api/dashboard")).data;
+            expect(data.orga).toBe(false);
+            expect(data.areas).toBeNull();
+        });
+
+        it("shows the orga block to an orga role, each task still only for whoever can do it", async () => {
+            const writer = { id: "9", name: "Lead", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true }, dashboard: { read: true, write: false } } };
             auth.getUser.mockReturnValue(writer);
             activeGuildFor.mockReturnValue("guild-1");
             dashboardData.loadNextRaids.mockResolvedValue({ raids: [{ id: "n1", title: "BT", startTime: 2000, sheet: null, planning: "sheet" }], error: null });

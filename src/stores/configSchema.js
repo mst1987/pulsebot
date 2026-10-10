@@ -38,6 +38,10 @@ const CONFIG_DEFAULTS = {
     // access. For areas that go to named people (the loot council), where a
     // Discord role would only be a second list to keep in sync.
     userPermissions: {},
+    // The roles that count as orga (guild leads, raid leads) — the others are raider roles,
+    // whatever areas they hold. Who is orga sees the orga's parts (the dashboard's orga
+    // block, everybody's absences); an area only orga roles open is marked "Orga-Bereich".
+    orgaRoleIds: [],
     // Who may use which bot command: { [commandName]: { mode, roleIds } } with
     // mode "everyone" | "roles" | "admins". Empty = every command follows its
     // own defaultAccess (see config/botCommands.js and services/discord/botAccess.js).
@@ -664,6 +668,7 @@ function normalizeConfig(raw) {
         rolePermissions: normalizeRolePermissions(stored.rolePermissions),
         baseAccess: normalizeAreaAccess(stored.baseAccess),
         userPermissions: normalizeUserPermissions(stored.userPermissions),
+        orgaRoleIds: Array.isArray(stored.orgaRoleIds) ? [...new Set(stored.orgaRoleIds.map((id) => String(id).trim()).filter(Boolean))] : CONFIG_DEFAULTS.orgaRoleIds,
         botCommandAccess: normalizeBotCommandAccess(stored.botCommandAccess),
         categoryIds: Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds,
         categoryRoles: normalizeCategoryRoles(stored.categoryRoles),

@@ -15,6 +15,8 @@ export type Draft = {
     baseAccess: Access;
     // Rights handed to single Discord accounts rather than to a role.
     userPermissions: RolePermissions;
+    // The roles that count as orga; every other role is a raider role.
+    orgaRoleIds: string[];
     officerRoleId: string;
     applicationChannelId: string;
     categoryIds: string[];
@@ -64,6 +66,7 @@ export function toDraft(config: AdminConfig): Draft {
         rolePermissions: config.rolePermissions || {},
         baseAccess: config.baseAccess || {},
         userPermissions: config.userPermissions || {},
+        orgaRoleIds: config.orgaRoleIds || [],
         officerRoleId: config.officerRoleId || "",
         applicationChannelId: config.applicationChannelId || "",
         categoryIds: config.categoryIds || [],

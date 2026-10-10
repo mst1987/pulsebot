@@ -101,6 +101,7 @@ export type DraftShape = {
     rolePermissions: GrantMap;
     baseAccess: Grants;
     userPermissions: GrantMap;
+    orgaRoleIds?: string[];
     officerRoleId: string;
     applicationChannelId: string;
     categoryIds: string[];
@@ -284,6 +285,12 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
     out.push(...permissionChanges(saved.rolePermissions, draft.rolePermissions, names.role, names.area));
     out.push(...permissionChanges({ base: saved.baseAccess || {} }, { base: draft.baseAccess || {} }, () => t("settings.permissions.base"), names.area));
     out.push(...permissionChanges(saved.userPermissions, draft.userPermissions, names.user, names.area));
+    const orga = [...new Set([...(saved.orgaRoleIds || []), ...(draft.orgaRoleIds || [])])];
+    for (const id of orga) {
+        const was = (saved.orgaRoleIds || []).includes(id);
+        const is = (draft.orgaRoleIds || []).includes(id);
+        if (was !== is) out.push(t(is ? "settings.changes.orgaAdded" : "settings.changes.orgaRemoved", { name: names.role(id) }));
+    }
 
     const categories = [...new Set([
         ...(saved.categoryIds || []), ...(draft.categoryIds || []),

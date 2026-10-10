@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import * as mod from "./settingsLogic";
 import { inLang } from "../../test/i18n";
+import { t } from "../../i18n";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the tests hand the lib loose fixtures, as the Jest version did
 const logic: any = mod;
@@ -70,6 +71,15 @@ describe("save bar change list", () => {
         categoryIds: ["c1"], categoryRoles: { c1: ["r1", "r2"] }, logChannelIds: ["l1", "l2"],
         raidChannelId: "",
         categoryLootTool: {}, categorySheets: {}, categoryRaidTemplate: { c1: "tpl1" }, topItems: [{ id: 1 }],
+    });
+
+    it("names a role made orga and one set back to a raider role", () => {
+        const saved = { ...base(), orgaRoleIds: ["raidlead"] };
+        const draft = { ...base(), orgaRoleIds: ["officer"] };
+        const lines = logic.draftChanges(saved, draft, names);
+        expect(lines).toContain(t("settings.changes.orgaAdded", { name: names.role("officer") }));
+        expect(lines).toContain(t("settings.changes.orgaRemoved", { name: names.role("raidlead") }));
+        expect(logic.draftChanges(saved, { ...base(), orgaRoleIds: ["raidlead"] }, names)).toEqual([]);
     });
 
     it("names a changed planning per category: the picked mode, else the fixed sheet's default", () => {

@@ -7,12 +7,12 @@ const { requireCsrf } = require("../http/apiMiddleware");
 const { withUser } = require("../http/apiHandler");
 const { readJsonBody } = require("../http/apiBody");
 const userPrefs = require("../../stores/userPrefsStore");
-const { AREAS, emptyAccess, fullAccess, userHasMenuAccess, can } = require("../../config/permissions");
+const { AREAS, emptyAccess, fullAccess, userHasMenuAccess, userIsOrga, can } = require("../../config/permissions");
 const { getConfig } = require("../../stores/settingsStore");
 const { guildId: envGuildId, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
 const { normalizeRoleIds, MAX_ROLES } = require("../http/viewAs");
 const { contentVersions } = require("../../services/events/contentVersions");
-const { areaAudience } = require("../http/areaAudience");
+const { areaAudience, orgaRoleNames } = require("../http/areaAudience");
 
 /** GET /api/session — who the caller is (if anyone), their CSRF token, what the
  * caller may see (per-area access) and — for menu users — the guilds the bot is
@@ -35,9 +35,12 @@ function getSession(req, res) {
                 // "Ansicht als Rolle" (viewAs.js): which roles the menu shows
                 // right now, and whether this account may start such a view.
                 ...viewAsFields(req, user),
-                // Who sees each area the caller may open (areaAudience.js): the client marks
-                // an area the base access does not open as "Orga-Bereich" and names its readers.
-                audience: audienceFor(user),
+                // Orga (permissions.userIsOrga): a full admin, or holding one of the orga roles
+                // (Einstellungen → Berechtigungen) — sees the orga's parts of the pages.
+                isOrga: userIsOrga(user),
+                // Who sees each area the caller may open (areaAudience.js): the client marks an area
+                // only admins and orga roles open as "Orga-Bereich" and names those orga roles.
+                ...audienceFields(user),
             }
             : null,
         csrfToken: user ? auth.csrfToken(req) : null,
@@ -51,8 +54,11 @@ function getSession(req, res) {
     });
 }
 
-/** areaAudience() for the areas the caller may open (a full admin: all of them); best-effort, {} on any failure. */
-function audienceFor(user) {
+/**
+ * `{ audience, orgaRoles }`: areaAudience() for the areas the caller may open (a full admin: all
+ * of them), and the names of the orga roles (the orga zones name them). Best-effort: empty on failure.
+ */
+function audienceFields(user) {
     try {
         const config = getConfig();
         const admins = [...(config.adminRoleIds || []), ...(envAdminRoleIds || [])];
@@ -62,11 +68,15 @@ function audienceFor(user) {
         } catch {
             roles = [];
         }
-        const all = areaAudience({ ...config, adminRoleIds: admins }, roles);
+        const merged = { ...config, adminRoleIds: admins };
+        const all = areaAudience(merged, roles);
         const access = user.isAdmin ? fullAccess() : (user.access || {});
-        return Object.fromEntries(Object.entries(all).filter(([area]) => can(access, area, "read")));
+        return {
+            audience: Object.fromEntries(Object.entries(all).filter(([area]) => can(access, area, "read"))),
+            orgaRoles: orgaRoleNames(merged, roles),
+        };
     } catch {
-        return {};
+        return { audience: {}, orgaRoles: [] };
     }
 }
 

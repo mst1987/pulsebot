@@ -36,7 +36,7 @@ function normalizeRoleIds(raw) {
  * @param {object} config the settings config
  * @param {string[]} roleIds
  * @param {string[]} [envAdminRoleIds] ADMIN_ROLE_IDS from .env
- * @returns {{ isAdmin: boolean, access: object }}
+ * @returns {{ isAdmin: boolean, access: object, isOrga?: true }} `isOrga` when one of the roles is an orga role
  */
 function accessAsRoles(config, roleIds, envAdminRoleIds = []) {
     const cfg = config || {};
@@ -44,7 +44,8 @@ function accessAsRoles(config, roleIds, envAdminRoleIds = []) {
     const adminRoleIds = new Set([...(cfg.adminRoleIds || []), ...(envAdminRoleIds || [])].map(String));
     if (ids.some((id) => adminRoleIds.has(id))) return { isAdmin: true, access: fullAccess() };
     const base = baseAccessMap(cfg.baseAccess);
-    return { isAdmin: false, access: mergeAccess(base || emptyAccess(), accessForRoles(cfg.rolePermissions || {}, ids)) };
+    const orga = ids.some((id) => (cfg.orgaRoleIds || []).map(String).includes(id));
+    return { isAdmin: false, access: mergeAccess(base || emptyAccess(), accessForRoles(cfg.rolePermissions || {}, ids)), ...(orga ? { isOrga: true } : {}) };
 }
 
 /** Whether a stored view is still valid at `now`. */
@@ -59,8 +60,11 @@ function viewAsActive(viewAs, now = Date.now()) {
  */
 function effectiveUser(session, config, envAdminRoleIds = [], now = Date.now()) {
     if (!session || !session.isAdmin || !viewAsActive(session.viewAs, now)) return session;
-    const { isAdmin, access } = accessAsRoles(config, session.viewAs.roleIds, envAdminRoleIds);
-    return { ...session, isAdmin, access, viewAs: { roleIds: session.viewAs.roleIds.slice(), at: session.viewAs.at } };
+    const { isAdmin, access, isOrga } = accessAsRoles(config, session.viewAs.roleIds, envAdminRoleIds);
+    // the role's orga flag, never the admin's own
+    const rest = { ...session };
+    delete rest.isOrga;
+    return { ...rest, isAdmin, access, ...(isOrga ? { isOrga: true } : {}), viewAs: { roleIds: session.viewAs.roleIds.slice(), at: session.viewAs.at } };
 }
 
 module.exports = { MAX_AGE_MS, MAX_ROLES, normalizeRoleIds, accessAsRoles, viewAsActive, effectiveUser };

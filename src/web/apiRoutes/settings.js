@@ -165,7 +165,7 @@ function normalizeCategorySheets(raw) {
 
 // Config keys that decide who gets into the menu — only full admins may change
 // them, so a role with write access to "Einstellungen" can't grant itself more.
-const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions", "botCommandAccess"];
+const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions", "botCommandAccess", "orgaRoleIds"];
 
 // Config keys that hold a credential to a foreign system the bot pays for or
 // acts through (the Anthropic key, the Warcraft Logs API client). Full-admin
@@ -427,6 +427,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
     const partial = {};
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
+    // which roles count as orga (the rest are raider roles) — guarded like the access keys
+    if (body.orgaRoleIds !== undefined) partial.orgaRoleIds = asStringArray(body.orgaRoleIds);
     if (body.rolePermissions !== undefined) partial.rolePermissions = normalizeRolePermissions(body.rolePermissions);
     if (body.baseAccess !== undefined) partial.baseAccess = normalizeAreaAccess(body.baseAccess);
     // Guarded like the other access keys above, but it was never taken over

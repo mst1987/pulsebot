@@ -8,7 +8,7 @@ const {
     loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive, loadMissingChannels,
     dashboardVersions, loadTrialEndings,
 } = require("../dashboard/dashboardData");
-const { userCanAny } = require("../../config/permissions");
+const { userCanAny, userIsOrga } = require("../../config/permissions");
 const { buildTasks, zoneFor } = require("../dashboard/dashboardOverview");
 const { loadPersonal } = require("../dashboard/dashboardPersonal");
 const { loadDrift } = require("../../services/discord/roleSync");
@@ -47,8 +47,8 @@ function kickerFor(guildId) {
  *   personal  "Für dich", for everyone with their own signup (area `signup`):
  *             their next raids, attendance, last raids and profile
  *             (dashboardPersonal.js)
- *   orga      for the orga - full admins and whoever may change the raids (reading
- *             them is no orga rank: raiders often hold it): the next raid (and the one after),
+ *   orga      for the orga - full admins and the orga roles (config.orgaRoleIds; an area
+ *             is no orga rank, raider roles hold some): the next raid (and the one after),
  *             one figure per area and the last raids (dashboardOverview.js)
  *
  * The open tasks are filtered one by one by the right it takes to do them, so a
@@ -60,9 +60,10 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     const config = getConfig();
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
-    // the orga block: full admins and `raids` write - many a raider role may read the raids, that makes nobody orga
-    const orga = userCanAny(user, ["raids"], "write");
-    const raidsWrite = orga;
+    // the orga block: the orga (full admins and the orga roles, Einstellungen → Berechtigungen) -
+    // a raider role may hold any area, reading or even changing raids makes nobody orga
+    const orga = userIsOrga(user);
+    const raidsWrite = userCanAny(user, ["raids"], "write");
     // whoever reads the raids sees every category in "Für dich", the others only their own (memberEventRows)
     const seesAllRaids = userCanAny(user, ["raids"], "read");
     const [next, recentEvents, personal] = await Promise.all([
