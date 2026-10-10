@@ -381,6 +381,9 @@ start page shows the flow and "Ersten Kader anlegen".
 - **Specs are icons**: a spec shows as its spec icon plus the class name in the class colour ("[Resto-Icon]
   Schamane"); "Schamane · Wiederherstellung" is the tooltip and the icon's label (`SpecTag`, `PickLabel`). Wishes
   in a small space are numbered icons ("1 [icon] 2 [icon]", `WishIcons`). Player names stay text.
+- **Discord picture beside the name** (`PlayerAvatar`, `pages/kader/parts.tsx`): the rows of Pool and Übersicht
+  start with the player's round Discord avatar (`avatarUrl` of the player view), like the roster's member list;
+  without one the initial stands on the prefilled class's colour.
 - **Status icons** (`pages/kader/parts.tsx`): interview open = empty circle, running = a ring filled to x/n, held =
   check (also beside the name); answered question = check, required and open = "!"; state icons Pool = people,
   Vorauswahl = checklist, Vorläufig = hourglass, Roster = shield, Bench, Tentative = question mark; votes dafür =
