@@ -144,6 +144,31 @@ describe("web/report/widgets", () => {
         });
     });
 
+    describe("the links follow the report's version (#746)", () => {
+        afterEach(() => armoryUrlFor.mockReset());
+
+        it("links with the version of the report on the page, TBC for one from before #746", () => {
+            w.withReportVersion({ versionId: "forever" }, () => {
+                w.armoryLink("Brokk", "btn");
+                expect(w.reportLinks().versionId).toBe("forever");
+                // Forever's own Wowhead section (#750), never the TBC one
+                expect(w.wowheadItemLink(28830)).toContain("/forever/item=28830");
+            });
+            expect(armoryUrlFor).toHaveBeenLastCalledWith("Brokk", "forever");
+            w.withReportVersion({}, () => {
+                w.armoryLink("Brokk", "btn");
+                expect(w.wowheadItemLink(28830)).toContain("/tbc/item=28830");
+            });
+            expect(armoryUrlFor).toHaveBeenLastCalledWith("Brokk", "tbc");
+        });
+
+        it("goes back to TBC after the page, also when rendering throws", () => {
+            expect(() => w.withReportVersion({ versionId: "forever" }, () => { throw new Error("boom"); })).toThrow("boom");
+            expect(w.reportLinks().versionId).toBe("tbc");
+            expect(w.withReportVersion({ versionId: "classic" }, () => "html")).toBe("html");
+        });
+    });
+
     describe("area heads, dialogs and metric cards", () => {
         it("renders a group head with crumb and action, and without crumb", () => {
             expect(w.groupHead("inv_a", "mid", "<b>T</b>", "A › B", "<button>x</button>")).toBe(`<div class="part-head gh"><span class="tile mid"><img class="hicon" src="${ICON("inv_a")}" alt=""></span><div class="gh-title"><b><b>T</b></b><span class="kicker">A › B</span></div><span class="grow"></span><button>x</button></div>`);

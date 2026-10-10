@@ -7,7 +7,7 @@ const logStore = require("../../stores/logStore");
 const discord = require("../discord/discord");
 const { extractWclLinks } = require("../../utils/logcheck/logLinks");
 const { buildReport, ReportError } = require("../../utils/logcheck/report");
-const WarcraftLogs = require("../../classes/warcraftlogs");
+const { wclClientFor, recordVersion } = require("./logVersion");
 const { autoLinkLogs } = require("./logAutoLink");
 // Re-exported: the pages ask logChannel for the titles; the code lives in logTitles.js.
 const { backfillLogTitles } = require("./logTitles");
@@ -46,7 +46,9 @@ function messageText(message) {
  */
 async function enrichLogButton(log, btn, { client } = {}) {
     try {
-        const wcl = client || new WarcraftLogs();
+        // the site of the log's version; a version without one is not asked (#746)
+        const wcl = client || wclClientFor(recordVersion(log));
+        if (!wcl) return false;
         const report = await wcl.getFights(log.reportId);
         const title = String((report && report.title) || "").trim();
         const startMs = Number(report && report.start) || 0;
@@ -148,7 +150,7 @@ const SECTION_LABEL = { [SECTION_CLA]: "CLA", [SECTION_RPB]: "RPB" };
  *   not down yet; without it such a log comes back as `{ incomplete: true }`
  *   with the progress, so the caller can ask before spending the analysis
  * @returns {Promise<{ok:true,id,url,report,log,section}
- *   | {ok:false,error,already?,url?,incomplete?,progress?}>}
+ *   | {ok:false,error,already?,url?,incomplete?,progress?,unsupported?,versionId?}>}
  */
 async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
     const kind = section === SECTION_RPB ? SECTION_RPB : SECTION_CLA;
@@ -175,6 +177,8 @@ async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
         let result;
         try {
             result = await buildReport(log.link, {
+                // the log's stored version: its raid's, else its host's, else TBC (#746)
+                versionId: recordVersion(log),
                 sections: [kind],
                 // fold into the page the other half already created, if there is one
                 mergeIntoId: log.reportRefId || undefined,
@@ -185,6 +189,10 @@ async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
             // the caller offers "evaluate anyway" instead of showing an error.
             if (e && e.incomplete) {
                 return { ok: false, incomplete: true, progress: e.progress, error: e.message };
+            }
+            // A version the log check has no rules for (#746): the bot words it in the reader's language.
+            if (e && e.unsupported) {
+                return { ok: false, unsupported: true, versionId: e.versionId, error: e.message };
             }
             const msg = e instanceof ReportError ? e.message : "Unerwarteter Fehler beim Erstellen der Auswertung.";
             if (!(e instanceof ReportError)) console.error("evaluateLog build failed:", e);

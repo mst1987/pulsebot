@@ -189,7 +189,8 @@ describe("prepareClaList — the Log-Auswertung's one list", () => {
     it("makes one row per log and one per report no log points at", () => {
         const { page } = prepareClaList(logs, reports, {});
         expect(page.items.map((r) => r.id)).toEqual(["open", "half", "legacy", "report:r3"]);
-        expect(page.items[3]).toMatchObject({ kind: "report", source: "link", sections: ["cla", "rpb"], wclUrl: "https://classic.warcraftlogs.com/reports/Z" });
+        expect(page.items[3]).toMatchObject({ kind: "report", source: "link", sections: ["cla", "rpb"], wclUrl: "https://fresh.warcraftlogs.com/reports/Z", versionId: "tbc" });
+        expect(page.items[0]).toMatchObject({ versionId: "tbc" });
         expect(page.items[0]).toMatchObject({ kind: "log", source: "channel", sections: [], report: null, raids: [hyjal] });
     });
 

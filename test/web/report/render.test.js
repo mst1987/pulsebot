@@ -517,6 +517,16 @@ describe("web/report/render", () => {
             expect(html).toContain("https://www.wowhead.com/tbc/item=1234");
         });
 
+        it("links in the version of the report, never TBC for another one (#746)", () => {
+            const forever = renderReportPage({ ...sampleReport(), versionId: "forever" });
+            expect(forever).toContain("https://www.wowhead.com/forever/item=1234");
+            expect(forever).not.toContain("wowhead.com/tbc/item=1234");
+            const classic = renderPlayerPage({ ...sampleReport(), versionId: "classic" }, 0);
+            expect(classic).not.toContain("wowhead.com/tbc/");
+            // and the next page, of an old report, is TBC again
+            expect(renderReportPage(sampleReport())).toContain("https://www.wowhead.com/tbc/item=1234");
+        });
+
         it("renders the Wipe marker for non-kill boss rows", () => {
             const html = renderReportPage(sampleReport());
             expect(html).toContain("(Wipe)");

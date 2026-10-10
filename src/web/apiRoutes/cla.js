@@ -27,6 +27,7 @@ const { phraseReport } = require("../../utils/logcheck/recommendationText");
 const { listAllAssignments } = require("../../stores/raiderCharactersStore");
 const { loadMatchableEvents, eventLinkFields } = require("../../services/logcheck/matchableEvents");
 const { linkLogByUrl } = require("../logcheck/manualLog");
+const { linkConflict } = require("../../services/logcheck/logVersion");
 const discord = require("../../services/discord/discord");
 
 /**
@@ -293,13 +294,17 @@ const deleteLogHandler = withUser({ csrf: true, body: true }, async ({ body, res
 const linkLog = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const logId = q.str(body, "logId");
     const eventId = q.str(body, "eventId");
-    if (!getLog(logId)) return error(res, 400, "not_found", "Log nicht gefunden.");
+    const log = getLog(logId);
+    if (!log) return error(res, 400, "not_found", "Log nicht gefunden.");
     if (!eventId) return error(res, 400, "no_event", "Kein Event gewählt.");
     // Re-resolve the event server-side; never trust the label posted by the client.
     const { events, error: loadError } = await loadMatchableEvents(activeGuildFor(req));
     if (loadError) return error(res, 400, "events_unavailable", loadError);
     const event = events.find((e) => e.id === eventId);
     if (!event) return error(res, 400, "event_not_found", "Event nicht gefunden.");
+    // a log belongs only to a raid of its own game version (#746)
+    const conflict = linkConflict(log, event);
+    if (conflict) return error(res, 400, "version_mismatch", conflict);
     linkLogEvent(logId, eventLinkFields(event, "manual"));
     ok(res, {
         logId,
@@ -346,8 +351,10 @@ const autoMatchLogs = withUser({ csrf: true }, async ({ req, res }) => {
     const guildId = activeGuildFor(req);
     const { events, error: loadError } = await loadMatchableEvents(guildId);
     if (loadError) return error(res, 400, "events_unavailable", loadError);
-    const logs = (guildId ? listLogs().filter((l) => !l.guildId || l.guildId === guildId) : listLogs())
-        .filter((l) => !l.eventId);
+    // copies with their channel's category: it ranks the candidates and its
+    // version breaks a tie for a log of unknown version (#746)
+    const logs = annotateLogCategories((guildId ? listLogs().filter((l) => !l.guildId || l.guildId === guildId) : listLogs())
+        .filter((l) => !l.eventId).map((l) => ({ ...l })), discord.getChannelCategoryMap(guildId));
     const matches = autoMatches(logs, events);
     for (const m of matches) linkLogEvent(m.log.id, eventLinkFields(m.event, "auto"));
     const rest = logs.length - matches.length;

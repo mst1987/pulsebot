@@ -22,6 +22,17 @@ beforeEach(() => {
 });
 
 describe("commands/logcheck/logeval", () => {
+    it("words a log of a version without rules in the reader's language (#746)", async () => {
+        evaluateLog.mockResolvedValue({ ok: false, unsupported: true, versionId: "forever", error: "Logs von WoW Forever werden noch nicht ausgewertet." });
+        const interaction = mockInteraction({ customId: "logcheck-eval:log1:cla" });
+        interaction.locale = "en-GB";
+
+        await command.execute(interaction);
+
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("Logs from WoW Forever are not evaluated yet.");
+        expect(discord.finishLogButton).not.toHaveBeenCalled();
+    });
+
     it("exports the button contract with the routing name", () => {
         expect(command.name).toBe("logcheck-eval");
         expect(typeof command.execute).toBe("function");

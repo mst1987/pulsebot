@@ -43,7 +43,7 @@ describe("services/logcheck/matchableEvents", () => {
         expect(error).toBeNull();
         expect(events).toEqual([{
             id: "e1", source: "raidhelper", title: "Kara", startTime: 2000000000, channelId: "chan1",
-            channelName: "kara-signup", categoryId: "cat1", categoryName: "Raids",
+            channelName: "kara-signup", categoryId: "cat1", categoryName: "Raids", versionId: "tbc",
         }]);
     });
 
@@ -65,7 +65,7 @@ describe("services/logcheck/matchableEvents", () => {
         expect(error).toBeNull();
         expect(events).toEqual([{
             id: "e1", source: "raidhelper", title: "Kara", startTime: 2000000000, channelId: "chan1",
-            channelName: "kara-signup (gone)", categoryId: "cat1", categoryName: "Raids",
+            channelName: "kara-signup (gone)", categoryId: "cat1", categoryName: "Raids", versionId: "tbc",
         }]);
     });
 
@@ -88,7 +88,7 @@ describe("services/logcheck/matchableEvents", () => {
         expect(error).toBeNull();
         expect(events).toEqual([{
             id: "e2", source: "raidhelper", title: "SSC", startTime: 2000000000, channelId: "chan2",
-            channelName: "ssc", categoryId: "cat2", categoryName: "Raids",
+            channelName: "ssc", categoryId: "cat2", categoryName: "Raids", versionId: "tbc",
         }]);
     });
 
@@ -157,7 +157,7 @@ describe("services/logcheck/matchableEvents", () => {
         expect(events.map((e) => e.id)).toEqual(["e2", "e1"]); // newest first
         expect(events[1]).toEqual({
             id: "e1", source: "raidhelper", title: "Kara", startTime: 2000000000, channelId: "chan1",
-            channelName: "kara", categoryId: "cat1", categoryName: "Raids",
+            channelName: "kara", categoryId: "cat1", categoryName: "Raids", versionId: "tbc",
         });
     });
 
@@ -210,13 +210,13 @@ describe("services/logcheck/matchableEvents", () => {
 describe("services/logcheck/matchableEvents eventLinkFields", () => {
     it("builds the stored link fields from an event, preferring its title over its id", () => {
         expect(eventLinkFields({ id: "e1", title: "Kara", startTime: "123" }, "manual")).toEqual({
-            eventId: "e1", eventLabel: "Kara", eventStartTime: 123, source: "manual",
+            eventId: "e1", eventLabel: "Kara", eventStartTime: 123, source: "manual", versionId: "",
         });
     });
 
     it("falls back to the event id as the label when it has no title", () => {
         expect(eventLinkFields({ id: "e1", startTime: 0 }, "auto")).toEqual({
-            eventId: "e1", eventLabel: "e1", eventStartTime: 0, source: "auto",
+            eventId: "e1", eventLabel: "e1", eventStartTime: 0, source: "auto", versionId: "",
         });
     });
 });

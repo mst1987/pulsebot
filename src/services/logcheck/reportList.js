@@ -3,6 +3,8 @@
 // unit-testable; the server route feeds it the list plus the ?sort/?dir/?page
 // query params.
 
+const { reportLink, recordVersion } = require("./logVersion");
+
 const DEFAULT_PAGE_SIZE = 15;
 
 function toInt(value, fallback) {
@@ -141,7 +143,11 @@ function annotateReportEvents(reports, logs) {
 
 const CLA_FILTERS = ["all", "open", "unlinked", "done"];
 
-const WCL_REPORT_URL = "https://classic.warcraftlogs.com/reports/";
+// The Warcraft-Logs link of a row without a stored one: on the site of its
+// version (#746, logVersion.reportLink), never a fixed host.
+function wclLinkOf(record, host) {
+    return reportLink({ host, reportId: record.reportId, versionId: record.versionId });
+}
 
 function reportMeta(r) {
     if (!r) return null;
@@ -172,7 +178,10 @@ function claRowFromLog(log, report) {
         title: l.title || (report && report.title) || l.reportId || "",
         zone: (report && report.zone) || l.zone || "",
         reportId: l.reportId || "",
-        wclUrl: l.link || (l.reportId ? `${WCL_REPORT_URL}${l.reportId}` : ""),
+        wclUrl: l.link || wclLinkOf(l, l.host),
+        // the log's game version (#746); hostVersionId feeds the raid match (logEventMatch)
+        versionId: recordVersion(l),
+        hostVersionId: l.hostVersionId,
         postedAt: logPostedAt(l),
         source: l.messageId ? "channel" : "link",
         guildId: l.guildId || "",
@@ -200,7 +209,8 @@ function claRowFromReport(r) {
         title: r.title || r.id,
         zone: r.zone || "",
         reportId: r.reportId || "",
-        wclUrl: r.reportUrl || (r.reportId ? `${WCL_REPORT_URL}${r.reportId}` : ""),
+        wclUrl: r.reportUrl || wclLinkOf(r, r.reportHost),
+        versionId: recordVersion(r),
         postedAt: r.generatedAt || 0,
         source: "link",
         guildId: "",

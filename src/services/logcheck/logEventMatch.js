@@ -1,7 +1,9 @@
 // Assigning detected Warcraft-Logs to the Raid-Helper event they belong to,
 // purely by time: a log link is posted in the log channel when the raid starts
 // (live logging) or shortly after it ends, so the raid that started closest
-// before the post is the one the log belongs to.
+// before the post is the one the log belongs to. Only raids of the log's game
+// version count, and the version of the log channel's category breaks a tie
+// for a log of unknown version (#746, logVersion.js).
 //
 // Kept framework-free and side-effect-free (like reportList.js) so it is
 // trivially unit-testable; the server route feeds it the tracked logs plus the
@@ -9,6 +11,8 @@
 
 const { logPostedAt } = require("./reportList");
 const { LOG_WINDOW_BEFORE_MS, LOG_WINDOW_AFTER_MS } = require("../events/recentEvents");
+const { knownLogVersion, categoryVersion } = require("./logVersion");
+const { knownVersion } = require("../events/mainVersion");
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -46,32 +50,41 @@ function windowFrom(opts = {}) {
  * @param {object} log     tracked log (postedAt / messageId / detectedAt, categoryId)
  * @param {object[]} events  [{ id, title, startTime, categoryId, ... }]
  * @param {object} [opts]  { beforeMs, afterMs }
- * @returns {{event: object, diffMs: number, sameCategory: boolean}[]}
+ * @returns {{event: object, diffMs: number, sameCategory: boolean, sameVersion: boolean}[]}
  *   diffMs is the log post time minus the event start (positive = posted after).
+ *   Only raids of the log's game version when its host told one (#746,
+ *   logVersion.knownLogVersion); an event without a version stays in.
  *   Ranked by category match first (a log posted in a channel of the event's
- *   category is a stronger signal than a few minutes of time difference), then
- *   by absolute time distance.
+ *   category is a stronger signal than a few minutes of time difference), then,
+ *   for a log of unknown version, by whether the raid plays the version of the
+ *   log channel's category (sameVersion), then by absolute time distance.
  */
 function candidatesFor(log, events, opts = {}) {
     const posted = logPostedAt(log || {});
     if (!posted) return [];
     const { beforeMs, afterMs } = windowFrom(opts);
     const logCategory = String((log && log.categoryId) || "");
+    const logVersion = knownLogVersion(log);
+    const tieVersion = logVersion ? "" : categoryVersion(log);
     const out = [];
     for (const event of events || []) {
         const start = eventStartMs(event);
         if (!start) continue;
         const diffMs = posted - start;
         if (diffMs < -beforeMs || diffMs > afterMs) continue;
+        const eventVersion = knownVersion(event && event.versionId);
+        if (logVersion && eventVersion && eventVersion !== logVersion) continue;
         const eventCategory = String((event && event.categoryId) || "");
         out.push({
             event,
             diffMs,
             sameCategory: !!(logCategory && eventCategory && logCategory === eventCategory),
+            sameVersion: !!(tieVersion && eventVersion === tieVersion),
         });
     }
     return out.sort((a, b) => {
         if (a.sameCategory !== b.sameCategory) return a.sameCategory ? -1 : 1;
+        if (a.sameVersion !== b.sameVersion) return a.sameVersion ? -1 : 1;
         return Math.abs(a.diffMs) - Math.abs(b.diffMs);
     });
 }
@@ -91,10 +104,12 @@ function bestMatch(log, events, opts = {}) {
     const [best, second] = candidates;
     let ambiguous = false;
     if (second) {
-        // A unique category hit decides it; otherwise compare time distances.
+        // A unique category hit decides it, then a unique hit on the version of
+        // the log channel's category (#746); otherwise compare time distances.
         const decidedByCategory = best.sameCategory && !second.sameCategory;
+        const decidedByVersion = best.sameCategory === second.sameCategory && best.sameVersion && !second.sameVersion;
         const gap = Math.abs(Math.abs(second.diffMs) - Math.abs(best.diffMs));
-        ambiguous = !decidedByCategory && gap < ambiguousMs;
+        ambiguous = !decidedByCategory && !decidedByVersion && gap < ambiguousMs;
     }
     return { match: best, candidates, ambiguous };
 }
@@ -120,6 +135,7 @@ function annotateMatches(logs, events, opts = {}) {
             categoryName: c.event.categoryName || "",
             diffMs: c.diffMs,
             sameCategory: c.sameCategory,
+            versionId: c.event.versionId || "",
         }));
         log.matchAmbiguous = ambiguous;
     }

@@ -1,4 +1,4 @@
-const WarcraftLogs = require("../../classes/warcraftlogs");
+const { parseReportLink } = require("./logLinks");
 const { buildGearIssues, buildArmory } = require("./gearIssues");
 const { analyzeConsumables } = require("./consumables");
 const { analyzeShadowResi } = require("./shadowResi");
@@ -24,6 +24,7 @@ const { saveReport, getReport } = require("../../stores/reportStore");
 const { getConfig } = require("../../stores/settingsStore");
 const WarcraftLogsV2 = require("../../classes/warcraftlogsV2");
 const { publicBaseUrl } = require("../../config/variables");
+const { resolveReportVersion, logcheckSupported, wclClientFor, reportLink, unsupportedMessage } = require("../../services/logcheck/logVersion");
 
 // A user-facing failure whose message is safe to show directly.
 class ReportError extends Error {}
@@ -42,6 +43,20 @@ class IncompleteRaidError extends ReportError {
         // in its tests — a mock without the class turns `instanceof` into a
         // TypeError, which would swallow the real error behind it.
         this.incomplete = true;
+    }
+}
+
+/**
+ * The log belongs to a game version the log check has no rules for yet
+ * (services/logcheck/logVersion.js, #746). Thrown before any request to
+ * Warcraft Logs; `unsupported` and `versionId` let the bot word it in the
+ * reader's language (same flag-not-instanceof reason as IncompleteRaidError).
+ */
+class UnsupportedVersionError extends ReportError {
+    constructor(versionId) {
+        super(unsupportedMessage(versionId));
+        this.unsupported = true;
+        this.versionId = versionId;
     }
 }
 
@@ -77,28 +92,34 @@ function normalizeSections(sections) {
  *   so both halves of a log end up on one page under one link
  * @param {boolean} [opts.force]  build even though the raid's final boss is not
  *   down yet — the deliberate answer to an IncompleteRaidError
+ * @param {object} [opts.event]  the raid the log is linked to: its version is the report's
+ * @param {string} [opts.versionId]  the stored version of a tracked log (logStore);
+ *   without event or version the link's host decides, else TBC (logVersion.js)
  * @throws {ReportError} with a user-friendly message on any expected failure
  * @throws {IncompleteRaidError} when the raid is still running and force is not set
+ * @throws {UnsupportedVersionError} for a version the log check has no rules for — before any WCL request
  */
 async function buildReport(link, opts = {}) {
-    const reportId = WarcraftLogs.parseReportId(link);
+    const { host, id: reportId } = parseReportLink(link);
     if (!reportId) {
         throw new ReportError("Konnte keine Report-ID aus dem Link lesen.");
     }
+    const { versionId } = resolveReportVersion({ event: opts.event, versionId: opts.versionId, host });
+    if (!logcheckSupported(versionId)) throw new UnsupportedVersionError(versionId);
     const sections = normalizeSections(opts.sections);
     // A forced build must not join an in-flight one that is about to refuse, and
     // vice versa — they answer different questions about the same report.
     const key = `${reportId}:${sections.join("+")}${opts.force ? ":force" : ""}`;
     const running = inFlight.get(key);
     if (running) return running;
-    const build = buildReportForId(reportId, sections, opts.mergeIntoId, !!opts.force)
+    const build = buildReportForId(reportId, sections, opts.mergeIntoId, !!opts.force, { host, versionId })
         .finally(() => inFlight.delete(key));
     inFlight.set(key, build);
     return build;
 }
 
-async function buildReportForId(reportId, sections, mergeIntoId, force) {
-    const wcl = connectWcl();
+async function buildReportForId(reportId, sections, mergeIntoId, force, { host, versionId }) {
+    const wcl = connectWcl(versionId);
     const fights = await loadFromWcl(() => wcl.getFights(reportId));
 
     // Before anything expensive: has the raid actually ended? The fight list is
@@ -135,7 +156,10 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         zone: fights.zoneName || (fights.zone ? String(fights.zone) : ""),
         date: fights.start ? new Date(fights.start).toLocaleString("de-DE") : "",
         reportId,
-        reportUrl: `https://classic.warcraftlogs.com/reports/${reportId}`,
+        // where the link pointed, else the site of the report's version (#746)
+        reportUrl: reportLink({ host, reportId, versionId }),
+        reportHost: host,
+        versionId,
         generatedAt: Date.now(),
         sections,
         // Kept on the report so a page built over a still-running raid says so,
@@ -152,12 +176,16 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
 
 // ---- buildReportForId's phases (#431) ---------------------------------------
 
-function connectWcl() {
+/** The v1 client on the site the log check reads the version from (logVersion.wclApiSite). */
+function connectWcl(versionId) {
+    let wcl;
     try {
-        return new WarcraftLogs();
+        wcl = wclClientFor(versionId);
     } catch {
         throw new ReportError("WCL-API-Key fehlt (WARCRAFTLOGS_API_KEY in .env).");
     }
+    if (!wcl) throw new UnsupportedVersionError(versionId);
+    return wcl;
 }
 
 /** One WCL request the report cannot do without; a failure becomes a ReportError. */
@@ -298,7 +326,7 @@ function finishReport(fresh, sections, mergeIntoId) {
 function mergeReports(existing, fresh, sections) {
     const merged = { ...existing };
     // shared meta always follows the newer run
-    for (const key of ["title", "zone", "date", "reportId", "reportUrl", "generatedAt", "players"]) {
+    for (const key of ["title", "zone", "date", "reportId", "reportUrl", "reportHost", "versionId", "generatedAt", "players"]) {
         if (fresh[key] !== undefined && fresh[key] !== null) merged[key] = fresh[key];
     }
     merged.roster = mergeRoster(existing.roster, fresh.roster, sections);
@@ -487,6 +515,7 @@ module.exports = {
     stripSection,
     ReportError,
     IncompleteRaidError,
+    UnsupportedVersionError,
     SECTION_CLA,
     SECTION_RPB,
     ALL_SECTIONS,
