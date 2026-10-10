@@ -49,8 +49,12 @@ COPY --from=client /app/src/web-client/dist ./src/web-client/dist
 
 # Every store writes below data/ - keep it on a volume so settings, sessions
 # and imports survive a new image. Created here so it belongs to `node`.
-RUN mkdir -p /app/data && chown node:node /app/data
+# The data snapshots (#691, #695) go next to it, never inside: the default
+# /var/backups/pulsebot is not writable for `node`. Its own volume too.
+ENV BACKUP_DIR=/app/backups
+RUN mkdir -p /app/data /app/backups && chown node:node /app/data /app/backups && chmod 700 /app/backups
 VOLUME /app/data
+VOLUME /app/backups
 
 EXPOSE 3005
 
