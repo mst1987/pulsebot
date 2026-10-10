@@ -27,7 +27,7 @@ const { getEventSoftres } = require("../../stores/eventSoftresStore");
 const { getPlan } = require("../../stores/raidplanStore");
 const { listLogsForEvent } = require("../../stores/logStore");
 const { getReportHints } = require("../../stores/reportStore");
-const { versionOfEvent } = require("../../services/events/mainVersion");
+const { versionOfEvent, mainVersionFor } = require("../../services/events/mainVersion");
 const { zoneFor } = require("./dashboardOverview");
 
 const UPCOMING = 4;
@@ -121,9 +121,11 @@ function reportFor(eventId, names) {
 /**
  * Attendance over every counted category together, the last nights as dots,
  * and the last raids with their evaluation. Null figures when nothing counts.
+ * Within one game version (#740): the page's, the main version for "all" -
+ * attendance never mixes versions.
  */
-function loadAttendance(userId, { config, now, names }) {
-    const view = raiderAttendance(userId, { now, config });
+function loadAttendance(userId, { config, now, names, versionId = "" }) {
+    const view = raiderAttendance(userId, { now, config, versionId: versionId || mainVersionFor({ config }) });
     const counted = ((view && view.categories) || []).filter((c) => c.total > 0);
     const nights = counted
         .flatMap((c) => (c.raids || []).map((r) => ({ ...r, categoryName: c.name || "" })))
@@ -179,7 +181,7 @@ async function loadPersonal(guildId, user, { orga = false, config, versionId = "
     let attendance = null;
     let recent = [];
     try {
-        ({ attendance, recent } = loadAttendance(user.id, { config, now, names: characterNames(user.id, profile) }));
+        ({ attendance, recent } = loadAttendance(user.id, { config, now, versionId, names: characterNames(user.id, profile) }));
     } catch (e) {
         console.error("dashboard personal attendance failed:", e.message);
     }

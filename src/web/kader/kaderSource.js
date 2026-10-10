@@ -221,8 +221,8 @@ function nightOf(r) {
 
 /**
  * Attendance per Discord account in each raid category: the category's last
- * RAID_WINDOW nights with evidence (rosterAttendance.js), whatever game version
- * they were played in. An account carries only the categories that counted a
+ * RAID_WINDOW nights with evidence (rosterAttendance.js) of the Kader's game
+ * version (#740) - nights of another version never count. An account carries only the categories that counted a
  * night for it; one without any is left out (the page shows "—").
  * @returns {{ userId: string, byCategory: Object<string, { attended: number, counted: number, nights: object[] }> }[]}
  */
@@ -280,7 +280,7 @@ async function loadKaderSource({ guildId = "", versionId = plannerVersion(), now
     let attendance = [];
     try {
         const categories = listRaidCategories(guildId);
-        const ctx = buildAttendanceContext(guildId, { now: Math.floor(now / 1000) });
+        const ctx = buildAttendanceContext(guildId, { now: Math.floor(now / 1000), versionId });
         raidCategories = categories.map((c) => ({ ...c, nights: (ctx.raidsByCategory.get(c.id) || []).length }));
         attendance = sourceAttendance(ctx, categories, attendanceAccounts(index));
     } catch (e) {

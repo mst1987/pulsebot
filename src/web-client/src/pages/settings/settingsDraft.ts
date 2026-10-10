@@ -2,6 +2,7 @@ import type { AdminConfig, RolePermissions, Access, TopItem, EventSource, Planni
 import { type CategorySheet } from "./CategoryMatrix";
 import { blockOf, type VersionSettingsBlock } from "../../lib/settings/versionLinks";
 import type { CategoryAttendance } from "../../lib/settings/settingsLogic";
+import type { SwitchFix } from "../../lib/settings/categoryVersions";
 
 export const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -48,8 +49,10 @@ export type Draft = {
     categoryRaidTemplate: Record<string, string>;
     /** Einstellungen → Spielversion (#541). */
     mainVersion: string;
-    /** Category id → version; missing/"" = the main version. */
+    /** Category id → version (#738: fixed per category); missing = a category switched on just now, saved with the main version. */
     categoryVersion: Record<string, string>;
+    /** What the switch dialog chose for a switched category's series (#738), sent with the save. */
+    categorySwitchFixes: Record<string, SwitchFix>;
     /** "Andere Versionen ausblenden" (#563). */
     hideOtherVersions: boolean;
     /** Language of the bot's public messages (default for every raider). */
@@ -90,7 +93,13 @@ export function toDraft(config: AdminConfig): Draft {
         categoryPlanning: config.categoryPlanning || {},
         categoryRaidTemplate: config.categoryRaidTemplate || {},
         mainVersion: config.mainVersion || "tbc",
-        categoryVersion: config.categoryVersion || {},
+        // #738: an active category stored without a version (before the start-up
+        // migration) plays the saved main version — written down with the next save.
+        categoryVersion: {
+            ...Object.fromEntries((config.categoryIds || []).map((id) => [id, config.mainVersion || "tbc"])),
+            ...(config.categoryVersion || {}),
+        },
+        categorySwitchFixes: {},
         hideOtherVersions: config.hideOtherVersions === true,
         botLanguage: config.botLanguage === "en" ? "en" : "de",
         versionSettings: Object.fromEntries(Object.entries(config.versionSettings || {}).map(([id, block]) => [id, blockOf(block)])),

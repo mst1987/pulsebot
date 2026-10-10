@@ -142,6 +142,18 @@ describe("loadPersonal", () => {
         errors.mockRestore();
     });
 
+    it("counts attendance within the page's version, the main version for \"all\" (#740)", async () => {
+        raiderAttendance.mockReturnValue({ categories: [{ id: "c1", name: "Do", attended: 0, total: 0, raids: [] }] });
+        const forever = await loadPersonal("g1", user, { orga: true, config: {}, versionId: "forever" });
+        expect(raiderAttendance).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "forever" }));
+        // a category switched to Forever before its first raid: no figure, never 0 %
+        expect(forever.attendance).toBeNull();
+        await loadPersonal("g1", user, { orga: true, config: { mainVersion: "forever" }, versionId: "" });
+        expect(raiderAttendance).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "forever" }));
+        await loadPersonal("g1", user, { orga: true, config: {} });
+        expect(raiderAttendance).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "tbc" }));
+    });
+
     it("has no raids without a guild", async () => {
         raiderAttendance.mockReturnValue({ categories: [] });
         const result = await loadPersonal("", user, {});

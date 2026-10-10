@@ -280,3 +280,19 @@ describe("Meine Anwesenheit", () => {
         expect(json(res).data).toMatchObject({ userId: "u1", name: "Bananajoe#discord", own: false, orga: true });
     });
 });
+
+describe("one game version per view (#740)", () => {
+    it("hands every attendance view the asked version, the main version for none or \"all\"", async () => {
+        await call("GET", "/api/availability/attendance", ANNA, { query: "version=forever" });
+        expect(raiderAttendance).toHaveBeenLastCalledWith(ANNA.id, expect.objectContaining({ versionId: "forever" }));
+        await call("GET", "/api/availability/attendance", ANNA);
+        expect(raiderAttendance).toHaveBeenLastCalledWith(ANNA.id, expect.objectContaining({ versionId: "tbc" }));
+        await call("GET", "/api/availability/attendance", ANNA, { query: "version=all" });
+        expect(raiderAttendance).toHaveBeenLastCalledWith(ANNA.id, expect.objectContaining({ versionId: "tbc" }));
+
+        await call("GET", "/api/availability/overview", ORGA, { query: "weeks=4&version=forever" });
+        expect(absenceOverview.buildOverview).toHaveBeenLastCalledWith(expect.objectContaining({ versionId: "forever" }));
+        await call("GET", "/api/availability/overview/raider", ORGA, { query: "userId=u1&version=forever" });
+        expect(absenceOverview.raiderDetail).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "forever" }));
+    });
+});

@@ -77,7 +77,7 @@ describe("services/characters/rosterAttendance", () => {
             { id: "r1", eventId: "e1", names: ["Anna-Thunderstrike"] },
             { id: "r2", eventId: "e2", names: ["Bob"] },
         ]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
 
         const a = attendanceFor(ctx, "cat1", "Anna");
 
@@ -95,7 +95,7 @@ describe("services/characters/rosterAttendance", () => {
             event("e4", 28, { signUps: [{ userId: "u1", status: "bench" }] }),
             event("e5", 35, { signUps: [{ userId: "u1", status: "late" }] }),
         ]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
 
         const a = attendanceFor(ctx, "cat1", "Anna", ["u1"]);
 
@@ -112,14 +112,14 @@ describe("services/characters/rosterAttendance", () => {
 
     it("does not count a night without a log for a character no raider is assigned to", () => {
         mockListRaidEvents.mockReturnValue([event("e1", 7, { signUps: [{ userId: "u1", status: "signed" }] })]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         expect(attendanceFor(ctx, "cat1", "Anna", [])).toMatchObject({ attended: 0, total: 0, pct: null, missed: [] });
     });
 
     it("keeps the signed-off reason on a logged night the character missed", () => {
         mockListRaidEvents.mockReturnValue([event("e1", 7, { signUps: [{ userId: "u1", status: "absence" }] })]);
         withReports([{ id: "r1", eventId: "e1", names: ["Bob"] }]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         expect(attendanceFor(ctx, "cat1", "Anna", ["u1"]).missed[0].reason).toBe("abgemeldet");
     });
 
@@ -130,7 +130,7 @@ describe("services/characters/rosterAttendance", () => {
         }
         events.push(event("other", 2, { categoryId: "cat2", signUps: [{ userId: "u1", status: "absence" }] }));
         mockListRaidEvents.mockReturnValue(events);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
 
         const a = attendanceFor(ctx, "cat1", "Anna", ["u1"]);
 
@@ -145,7 +145,7 @@ describe("services/characters/rosterAttendance", () => {
             { id: "new", names: ["Dorn"], healers: ["Dorn"] },
             { id: "old", names: ["Dorn", "Brok", "Rex"], tanks: ["Dorn"], rpbRoles: { Rex: "Tank" } },
         ]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
 
         expect(roleFor(ctx, "Dorn", "Druid", "Feral")).toBe("healer");
         expect(roleFor(ctx, "Rex", "Warrior", "Arms")).toBe("tank");
@@ -166,7 +166,7 @@ describe("services/characters/rosterAttendance", () => {
             event("e2", 14, { title: "egal" }),
         ]);
         withReports([{ id: "r2", eventId: "e2", names: ["Anna"], zone: "Serpentshrine Cavern" }]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         mockListRaidEvents.mockReturnValue([]);
 
         // e1 has neither signups nor a log, so it is not a counted night
@@ -185,7 +185,7 @@ describe("services/characters/rosterAttendance", () => {
             ? [{ userId: "u1", spec: "Mage-Fire", role: "ranged", status: "signed" }]
             : [{ userId: "u1", status: "absence" }]));
         try {
-            const ctx = buildAttendanceContext("g1");
+            const ctx = buildAttendanceContext("g1", { versionId: "tbc" });
             const result = attendanceFor(ctx, "cat1", "Anna", ["u1"]);
             expect(result).toMatchObject({ attended: 1, total: 2, pct: 50 });
             expect(result.missed).toEqual([expect.objectContaining({ eventId: "eh-2", reason: "abgemeldet" })]);
@@ -210,7 +210,7 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
             { id: "r1", eventId: "e1", names: ["Mainchar"] },
             { id: "r2", eventId: "e2", names: ["Twink"] },
         ]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Mainchar", "Druid", true), ch("Twink", "Mage", true)])]);
         expect(out.get("u1")).toMatchObject({ attended: 2, total: 2, pct: 100, link: "manual", inferred: 0, missed: [] });
         expect(out.get("u1")).not.toHaveProperty("raids");
@@ -218,7 +218,7 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
 
     it("hands out every counted night with `nights: true` (the Kaderplaner)", () => {
         withReports([{ id: "r1", eventId: "e1", names: ["Mainchar"] }, { id: "r2", eventId: "e2", names: ["Else"] }]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Mainchar", "Druid", true)])], { nights: true });
         expect(out.get("u1").raids.map((r) => [r.eventId, r.attended, r.reason])).toEqual([
             ["e1", true, "im Log"],
@@ -231,7 +231,7 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
         const nights = Array.from({ length: 30 }, (_, i) => event(`e${i + 1}`, (i + 1) * 3, { title: i % 2 ? "SSC" : "Karazhan" }));
         mockListRaidEvents.mockReturnValue(nights);
         withReports(nights.map((n, i) => ({ id: `r${i}`, eventId: n.id, names: [n.title === "SSC" ? "Anna" : "Bob"] })));
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         const accounts = [acc("u1", [ch("Anna", "Priest", true)])];
 
         // the whole category: about half of the last eleven are nights she never joins
@@ -245,7 +245,7 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
         const nights = Array.from({ length: 20 }, (_, i) => event(`e${i + 1}`, (i + 1) * 3));
         mockListRaidEvents.mockReturnValue(nights);
         withReports(nights.map((n, i) => ({ id: `r${i}`, eventId: n.id, names: [i < 4 ? "Anna" : "Bob"] })));
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         const accounts = [acc("u1", [ch("Anna", "Priest", true)])];
         expect(attendanceForAccounts(ctx, "cat1", accounts, { window: 4 }).get("u1")).toMatchObject({ attended: 4, total: 4, pct: 100 });
         expect(attendanceForAccounts(ctx, "cat1", accounts, { window: 16 }).get("u1")).toMatchObject({ attended: 4, total: 16 });
@@ -254,7 +254,7 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
 
     it("badges the link \"auto\" while only signup characters stand behind it", () => {
         withReports([{ id: "r1", eventId: "e1", names: ["Mainchar"] }, { id: "r2", eventId: "e2", names: ["Mainchar"] }]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Mainchar", "Druid", false)])]);
         expect(out.get("u1")).toMatchObject({ pct: 100, link: "auto" });
     });
@@ -264,7 +264,7 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
             { id: "r1", eventId: "e1", names: ["Mainchar", "Stranger"], classes: { Mainchar: "Druid", Stranger: "Mage" } },
             { id: "r2", eventId: "e2", names: ["Mainchar"], classes: { Mainchar: "Druid" } },
         ]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         const out = attendanceForAccounts(ctx, "cat1", [
             acc("u1", [ch("Mainchar", "Druid", true)]),
             acc("u2", [ch("Elsewhere", "Mage", true)]),
@@ -277,7 +277,7 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
 
     it("does not guess when more accounts of a class are missing than unclaimed players of it", () => {
         withReports([{ id: "r1", eventId: "e1", names: ["Stranger"], classes: { Stranger: "Mage" } }, { id: "r2", eventId: "e2", names: ["Stranger"], classes: { Stranger: "Mage" } }]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         const out = attendanceForAccounts(ctx, "cat1", [acc("a", [ch("A", "Mage", true)]), acc("b", [ch("B", "Mage", true)])]);
         expect(out.get("a")).toMatchObject({ attended: 0, inferred: 0 });
         expect(out.get("b")).toMatchObject({ attended: 0, inferred: 0 });
@@ -286,7 +286,7 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
     it("never guesses over a signed-off night (the reason stays)", () => {
         mockListRaidEvents.mockReturnValue([event("e1", 7, { signUps: [{ userId: "u1", status: "absence" }] })]);
         withReports([{ id: "r1", eventId: "e1", names: ["Stranger"], classes: { Stranger: "Mage" } }]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Mage1", "Mage", true)])]);
         expect(out.get("u1")).toMatchObject({ attended: 0, total: 1 });
         expect(out.get("u1").missed[0].reason).toBe("abgemeldet");
@@ -294,7 +294,7 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
 
     it("gives null instead of a percentage while no raid is countable, and skips accounts without characters", () => {
         mockListRaidEvents.mockReturnValue([]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Anna", "Priest", true)]), acc("u2", [])]);
         expect(out.get("u1")).toMatchObject({ total: 0, pct: null });
         expect(out.has("u2")).toBe(false);
@@ -355,7 +355,7 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
         ]);
         availabilityStore.addEntry({ userId: "u1", kind: "absence", from: day(22), to: day(20), categoryId: "" });
 
-        const a = attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]);
+        const a = attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]);
 
         expect(a.raids.map((r) => [r.eventId, r.status, r.attended])).toEqual([
             ["present", "present", true],
@@ -388,7 +388,7 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
             { id: "r4", eventId: "none", names: ["Bob"] },
         ]);
 
-        const a = attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]);
+        const a = attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]);
 
         expect(a.raids.map((r) => [r.eventId, r.status, r.detail, r.attended])).toEqual([
             ["signed", "bench", "benchNotInLog", true],
@@ -410,7 +410,7 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
             { id: "r2", eventId: "eh-left-out", names: ["Bob"] },
         ]);
 
-        const a = attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]);
+        const a = attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]);
 
         expect(a.raids.map((r) => [r.eventId, r.status, r.detail])).toEqual([
             ["eh-placed", "noShow", "tentativePlaced"],
@@ -434,7 +434,7 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
         // the rogue is assigned to u1 under another category only
         mockAssignments.mockReturnValue({ montag: { u1: "Schleich" }, pug: {} });
 
-        const out = attendanceForAccounts(buildAttendanceContext("g1", { now: NOW }), "pug", [{ userId: "u1", chars: [{ name: "Heilbert", className: "Priest", manual: true }] }], { nights: true });
+        const out = attendanceForAccounts(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "pug", [{ userId: "u1", chars: [{ name: "Heilbert", className: "Priest", manual: true }] }], { nights: true });
 
         expect(out.get("u1").raids.map((r) => [r.eventId, r.status, r.detail])).toEqual([
             ["rogue", "present", "inLog"],
@@ -449,7 +449,7 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
         mockListRaidEvents.mockReturnValue([ev("e1", 7, { categoryId: "pug", signUps: [{ userId: "u1", status: "signed" }] })]);
         withReports([{ id: "r1", eventId: "e1", names: ["Schleich"] }]);
         mockAssignments.mockReturnValue({ montag: { u1: "Schleich" } });
-        const out = attendanceForAccounts(buildAttendanceContext("g1", { now: NOW }), "pug", [{ userId: "u1", chars: [] }]);
+        const out = attendanceForAccounts(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "pug", [{ userId: "u1", chars: [] }]);
         expect(out.get("u1")).toMatchObject({ attended: 1, total: 1 });
         mockAssignments.mockReturnValue({});
     });
@@ -461,14 +461,14 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
         ]);
         availabilityStore.addEntry({ userId: "u2", kind: "absence", from: day(8), to: day(6), categoryId: "" });
         availabilityStore.addEntry({ userId: "u1", kind: "absence", from: day(15), to: day(13), categoryId: "otherCat" });
-        const a = attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]);
+        const a = attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]);
         expect(a.raids.map((r) => r.status)).toEqual(["absence", "absence"]);
 
         const skipped = availabilityStore.addEntry({ userId: "u1", kind: "absence", from: day(8), to: day(6), categoryId: "cat1", skip: ["a"] });
-        expect(attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]).raids[0].status).toBe("absence");
+        expect(attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]).raids[0].status).toBe("absence");
         availabilityStore.removeEntry(skipped.entry.id);
         availabilityStore.addEntry({ userId: "u1", kind: "absence", from: day(8), to: day(6), categoryId: "cat1" });
-        expect(attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]).raids[0].status).toBe("vacation");
+        expect(attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]).raids[0].status).toBe("vacation");
     });
 
     it("counts the setup's explicit bench as Bench — the approved lineup first, the pool never", () => {
@@ -478,7 +478,7 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
             own("eh-placed", 21, { groups: [{ index: 1, slots: [{ userId: "u1" }] }], bench: [{ userId: "u1" }], pool: [] }),
         ]);
         mockListSignups.mockReturnValue([{ userId: "u1", status: "absence" }, { userId: "u2", status: "absence" }]);
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
 
         expect(attendanceFor(ctx, "cat1", "Anna", ["u1"]).raids.map((r) => [r.eventId, r.status, r.detail])).toEqual([
             ["eh-draft", "bench", "benchSetup"],
@@ -495,7 +495,7 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
             ev("e2", 14),
         ]);
         withReports([{ id: "r1", eventId: "e1", names: ["Bob"] }, { id: "r2", eventId: "e2", names: ["Anna"] }]);
-        const out = attendanceForAccounts(buildAttendanceContext("g1", { now: NOW }), "cat1", [{ userId: "u1", chars: [{ name: "Anna", className: "Mage", manual: true }] }], { nights: true });
+        const out = attendanceForAccounts(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", [{ userId: "u1", chars: [{ name: "Anna", className: "Mage", manual: true }] }], { nights: true });
         expect(out.get("u1")).toMatchObject({ attended: 2, total: 2, pct: 100, missed: [] });
         expect(out.get("u1").raids.map((r) => r.status)).toEqual(["bench", "present"]);
     });
@@ -505,7 +505,7 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
         withReports([{ id: "r1", eventId: "e1", names: ["Bob"] }]);
         overridesStore.setOverride("e1", "u1", { status: "bench", reason: "hat gewartet", by: "m1", byName: "Marc" }, { now: 5 });
 
-        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
         const one = attendanceFor(ctx, "cat1", "Anna", ["u1"]);
         expect(one).toMatchObject({ attended: 1, total: 1 });
         expect(one.raids[0]).toMatchObject({
@@ -517,10 +517,10 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
 
         // an override may also say "missed" where the log says present
         overridesStore.setOverride("e1", "u2", { status: "noShow" });
-        expect(attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Bob", ["u2"]).raids[0]).toMatchObject({ status: "noShow", attended: false });
+        expect(attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Bob", ["u2"]).raids[0]).toMatchObject({ status: "noShow", attended: false });
 
         overridesStore.clearOverride("e1", "u1");
-        const back = attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]);
+        const back = attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]);
         expect(back.raids[0]).toMatchObject({ status: "absence", detail: "absence", attended: false });
         expect(back.raids[0]).not.toHaveProperty("override");
     });
@@ -529,7 +529,7 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
         mockListRaidEvents.mockReturnValue([ev("e1", 7)]);
         withReports([{ id: "r1", eventId: "e1", names: ["Stranger"], classes: { Stranger: "Mage" } }]);
         overridesStore.setOverride("e1", "u1", { status: "noSignup" });
-        const out = attendanceForAccounts(buildAttendanceContext("g1", { now: NOW }), "cat1", [{ userId: "u1", chars: [{ name: "Mage1", className: "Mage" }] }]);
+        const out = attendanceForAccounts(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", [{ userId: "u1", chars: [{ name: "Mage1", className: "Mage" }] }]);
         expect(out.get("u1")).toMatchObject({ attended: 0, inferred: 0 });
     });
 
@@ -544,22 +544,94 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
     });
 });
 
-describe("services/characters/rosterAttendance je Spielversion (#543)", () => {
+describe("services/characters/rosterAttendance je Spielversion (#543, #740)", () => {
+    const configStore = require("../../../src/stores/configStore");
+    let getConfigSpy;
+
     beforeEach(() => {
         jest.clearAllMocks();
         withReports([]);
+        getConfigSpy = jest.spyOn(configStore, "getConfig").mockReturnValue({});
     });
 
-    it("zaehlt mit versionId nur die Raids dieser Version, ohne Version sind es TBC-Raids", () => {
+    afterEach(() => {
+        getConfigSpy.mockRestore();
+    });
+
+    it("zaehlt nur die Raids der genannten Version", () => {
         mockListRaidEvents.mockReturnValue([
             event("e1", 7, { signUps: [{ userId: "u1", status: "signed" }] }),
             event("e2", 14, { versionId: "forever", signUps: [{ userId: "u1", status: "absence" }] }),
         ]);
-        const all = attendanceFor(buildAttendanceContext("g1", { now: NOW }), "cat1", "Anna", ["u1"]);
-        expect(all).toMatchObject({ attended: 1, total: 2 });
         const tbc = attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]);
         expect(tbc).toMatchObject({ attended: 1, total: 1, pct: 100 });
         const forever = attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "forever" }), "cat1", "Anna", ["u1"]);
         expect(forever).toMatchObject({ attended: 0, total: 1, pct: 0 });
+    });
+
+    it("verlangt eine Version: ohne (oder mit einer unbekannten) wirft der Aufruf ausserhalb der Produktion", () => {
+        expect(() => buildAttendanceContext("g1", { now: NOW })).toThrow(/versionId/);
+        expect(() => buildAttendanceContext("g1")).toThrow(/versionId/);
+        expect(() => buildAttendanceContext("g1", { now: NOW, versionId: "gibts-nicht" })).toThrow(/versionId/);
+    });
+
+    it("zaehlt in der Produktion ohne Version die Hauptversion und schreibt eine Warnung", () => {
+        const before = process.env.NODE_ENV;
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        process.env.NODE_ENV = "production";
+        try {
+            getConfigSpy.mockReturnValue({ mainVersion: "forever" });
+            mockListRaidEvents.mockReturnValue([
+                event("e1", 7, { versionId: "tbc", signUps: [{ userId: "u1", status: "signed" }] }),
+                event("e2", 14, { versionId: "forever", signUps: [{ userId: "u1", status: "signed" }] }),
+            ]);
+            const ctx = buildAttendanceContext("g1", { now: NOW });
+            expect(ctx.versionId).toBe("forever");
+            expect(attendanceFor(ctx, "cat1", "Anna", ["u1"]).raids.map((r) => r.eventId)).toEqual(["e2"]);
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining("attendance"), expect.stringContaining("versionId"));
+        } finally {
+            process.env.NODE_ENV = before;
+            warn.mockRestore();
+        }
+    });
+
+    it("eine Kategorie mit 11 TBC-Raids wird auf Forever umgestellt, danach 2 Forever-Raids: Forever zaehlt 2, TBC die 11", () => {
+        // the 11 TBC nights, stored with their version, then two Forever nights after the switch
+        const tbcNights = Array.from({ length: 11 }, (_, i) => event(`t${i + 1}`, 21 + i * 7, { versionId: "tbc", signUps: [{ userId: "u1", status: "signed" }] }));
+        const foreverNights = [
+            event("f1", 7, { versionId: "forever", signUps: [{ userId: "u1", status: "signed" }] }),
+            event("f2", 14, { versionId: "forever", signUps: [{ userId: "u1", status: "absence" }] }),
+        ];
+        mockListRaidEvents.mockReturnValue([...foreverNights, ...tbcNights]);
+        getConfigSpy.mockReturnValue({ categoryVersion: { cat1: "forever" } });
+
+        const forever = attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "forever" }), "cat1", "Anna", ["u1"]);
+        expect(forever).toMatchObject({ attended: 1, total: 2, pct: 50 });
+        expect(forever.raids.map((r) => r.eventId)).toEqual(["f1", "f2"]);
+
+        const tbc = attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]);
+        // the window is the last eleven *TBC* nights - the two Forever nights push none of them out
+        expect(tbc).toMatchObject({ attended: 11, total: 11, pct: 100 });
+        expect(tbc.raids.map((r) => r.eventId)).toEqual(tbcNights.map((e) => e.id));
+    });
+
+    it("startet die Forever-Quote nach dem Umstellen leer: null statt 0 %", () => {
+        mockListRaidEvents.mockReturnValue([event("t1", 7, { versionId: "tbc", signUps: [{ userId: "u1", status: "signed" }] })]);
+        getConfigSpy.mockReturnValue({ categoryVersion: { cat1: "forever" } });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "forever" });
+        expect(attendanceFor(ctx, "cat1", "Anna", ["u1"])).toMatchObject({ attended: 0, total: 0, pct: null, raids: [] });
+        const accounts = attendanceForAccounts(ctx, "cat1", [{ userId: "u1", chars: [{ name: "Anna", className: "Mage", manual: true }] }]);
+        expect(accounts.get("u1")).toMatchObject({ attended: 0, total: 0, pct: null });
+        // who signed up there in any version: "Meine Anwesenheit" still shows the category
+        expect(ctx.signedAnyVersion.get("cat1").has("u1")).toBe(true);
+    });
+
+    it("benennt einen alten TBC-Abend mit TBC-Inhalten, auch wenn die Kategorie heute Forever spielt", () => {
+        mockListRaidEvents.mockReturnValue([event("t1", 7, { versionId: "tbc", title: "egal" })]);
+        withReports([{ id: "r1", eventId: "t1", names: ["Anna"], zone: "Serpentshrine Cavern" }]);
+        getConfigSpy.mockReturnValue({ categoryVersion: { cat1: "forever" } });
+        const ctx = buildAttendanceContext("g1", { now: NOW, versionId: "tbc" });
+        expect(ctx.raidsByCategory.get("cat1")[0].versionId).toBe("tbc");
+        expect(categoryInfo(ctx, "cat1")).toEqual({ raids: 1, contents: ["SSC"], icon: "achievement_boss_ladyvashj" });
     });
 });

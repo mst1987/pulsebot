@@ -33,9 +33,11 @@ describe("stores/settingsMigration migrateSettings (#420)", () => {
         const log = jest.fn();
         const { changes } = migrateSettings({ log });
         // the four upgrades of the old install, plus the planning of its two raid categories (nothing used yet: raid plan)
-        expect(changes).toHaveLength(5);
+        // and their version pinned to the one they play (#738)
+        expect(changes).toHaveLength(6);
         expect(changes[4]).toBe("config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - c1 raidplan, c2 raidplan");
-        expect(log).toHaveBeenCalledTimes(5);
+        expect(changes[5]).toBe("config.json: Spielversion je aktiver Kategorie festgeschrieben (#738) - c1 tbc, c2 tbc");
+        expect(log).toHaveBeenCalledTimes(6);
         expect(log.mock.calls.every(([line]) => line.startsWith("[settings] Migration: "))).toBe(true);
 
         expect(stored(TEMPLATES_FILE).templates[0]).toMatchObject({ id: "rh-3", raidhelperTemplateId: "3" });

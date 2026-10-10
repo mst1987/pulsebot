@@ -408,7 +408,10 @@ function PersonalTiles({ personal }: { personal: DashboardPersonal }) {
                 area="absences" icon="spell_nature_timestop" label={t("dashboard.personal.attendance.label")} href="/absences"
                 tip={t("dashboard.personal.attendance.tip")} tipSub={a ? t("dashboard.personal.attendance.sub", { count: a.bench }) : t("dashboard.personal.attendance.none")}
             >
-                <span className="ov-area-big">{a ? t("dashboard.personal.attendance.value", { attended: a.attended, total: a.total }) : "–"}</span>
+                {/* within the shown version (#740): a category just switched to it has no counted raid yet - words, never "0 %" */}
+                {a
+                    ? <span className="ov-area-big">{t("dashboard.personal.attendance.value", { attended: a.attended, total: a.total })}</span>
+                    : <span className="ov-area-val">{t("dashboard.personal.attendance.none")}</span>}
                 {a && a.last.length > 0 && <AttendanceDots nights={a.last} />}
             </AreaTile>
             <AreaTile

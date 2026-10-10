@@ -41,6 +41,7 @@ const { parseClockTime } = require("../../utils/time");
 
 const { TIMEZONE } = require("../../config/timezone");
 const { createEvent } = require("../../services/events/eventCreate");
+const { templateVersionProblem } = require("../../services/events/categoryEras");
 const WEEKDAY_SHORT = ["", "Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MIN_DAYS_BEFORE = 1;
 const MAX_DAYS_BEFORE = 28;
@@ -59,10 +60,10 @@ function todayIn(now) {
 /**
  * Validate a series as the page sends it.
  * @param {object} input { categoryId, enabled, weekdays, time, raidTemplateId, daysBefore, title, skipDates }
- * @param {{ now?: number, categoryTemplateId?: string }} opts
+ * @param {{ now?: number, categoryTemplateId?: string, config?: object }} opts
  * @returns {{ value?: object, error?: string }}
  */
-function normalizeSeries(input = {}, { now = Date.now(), categoryTemplateId = "" } = {}) {
+function normalizeSeries(input = {}, { now = Date.now(), categoryTemplateId = "", config } = {}) {
     const categoryId = String(input.categoryId || "").trim();
     if (!categoryId) return { error: "Keine Kategorie angegeben." };
     const weekdays = [...new Set((Array.isArray(input.weekdays) ? input.weekdays : [])
@@ -78,6 +79,12 @@ function normalizeSeries(input = {}, { now = Date.now(), categoryTemplateId = ""
     if (raidTemplateId && !getRaidTemplate(raidTemplateId)) return { error: "Die Raid-Vorlage gibt es nicht mehr." };
     if (!raidTemplateId && !categoryTemplateId) {
         return { error: "Bitte eine Raid-Vorlage wählen — die Kategorie hat keine Standard-Vorlage." };
+    }
+    // #738: a running series needs a template of the version the category
+    // plays — a paused one may keep its old template until the orga picks one.
+    if (input.enabled !== false) {
+        const problem = templateVersionProblem({ template: getRaidTemplate(raidTemplateId || categoryTemplateId), categoryId, config });
+        if (problem) return { error: `${problem} Bitte eine passende Vorlage wählen oder die Serie pausieren.` };
     }
     const today = todayIn(now);
     const skipDates = [...new Set((Array.isArray(input.skipDates) ? input.skipDates : [])
@@ -435,7 +442,7 @@ const RAIDHELPER_HINT = "Neue Events dieser Kategorie laufen über Raid-Helper �
  */
 async function previewSeries({ guildId, input = {}, config = getConfig(), now = Date.now(), count = 4 } = {}) {
     const categoryTemplateId = (config.categoryRaidTemplate || {})[String(input.categoryId || "")] || "";
-    const checked = normalizeSeries(input, { now, categoryTemplateId });
+    const checked = normalizeSeries(input, { now, categoryTemplateId, config });
     if (checked.error) return { error: checked.error, summary: "", upcoming: [], template: null, lastCreated: null };
     const series = { ...(store.getSeries(checked.value.categoryId) || {}), ...checked.value };
     const view = await describeSeries(series, { guildId, config, now, count });
@@ -453,7 +460,7 @@ function saveSeriesFor({ guildId, input = {}, user = null, config = getConfig(),
     if (categoryId && !current && signupSourceFor(categoryId) !== "eventhelper") {
         return { error: { status: 409, code: "raidhelper_category", message: RAIDHELPER_HINT } };
     }
-    const checked = normalizeSeries(input, { now, categoryTemplateId: (config.categoryRaidTemplate || {})[categoryId] || "" });
+    const checked = normalizeSeries(input, { now, categoryTemplateId: (config.categoryRaidTemplate || {})[categoryId] || "", config });
     if (checked.error) return { error: { status: 400, code: "invalid", message: checked.error } };
     const series = store.saveSeries({
         ...checked.value,

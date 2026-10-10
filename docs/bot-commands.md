@@ -61,8 +61,8 @@ Short answers in Discord, the big view one click away: every reply is **ephemera
 | `/loot ich · item <Item> · raider <Name>` | everyone | `lootStore.listByCharacter`, `lootStats.itemCatalog`, `services/characters/userCharacters.js` | `/history/char?name=`, `/history?tab=items` |
 | `/raids` | everyone | `services/events/eventLookup.js` → `loadEventGroups()` (so own events from #254 arrive too) | `/raids` |
 | `/raid <Event>` | everyone | same, with the lookback window | `/raids/detail?event=`, the Discord channel |
-| `/anwesenheit` | everyone | `services/characters/attendanceLookup.js` → `rosterAttendance` (own characters only) | `/roster/char?name=` |
-| `/anwesenheit-raider <Name>` | admins | same, any character | `/roster/char?name=` |
+| `/anwesenheit [version]` | everyone | `services/characters/attendanceLookup.js` → `rosterAttendance` (own characters only), within the version of the channel's category or the picked `version` (#740) | `/roster/char?name=` |
+| `/anwesenheit-raider <Name> [version]` | admins | same, any character | `/roster/char?name=` |
 | `/report` | everyone | `reportStore.listReports` + `reportList.prepareReportList` | `/r/<id>` |
 | `/council <Item>` | admins | `tbcLootNames.RAID_ITEMS` + `lootStats.itemCatalog` | `/lootcouncil/drop/<itemId>` |
 | `/kanal umbenennen · archivieren · anlegen` | admins | `discordChannels.js`, `channelArchiveStore.js`, `utils/channelNames.js` | `/channels` |
@@ -141,7 +141,7 @@ In tests, `test/helpers/axiosMock.js` replaces only axios' adapter (`jest.mock("
 
 ### Lookup commands and the game version (#743)
 
-`/raid`, `/raids`, `/loot`, `/council`, `/report` answer for one game version (`services/events/commandVersion.js`): the optional `version` choice (`addVersionOption`), else the version of the category of the channel the command runs in (a thread counts as its parent channel's category), else the main version. A hidden version falls back to the main version. Every reply names the version in its footer ("Version: WoW Forever"). Adding or changing the option needs `npm run register`.
+`/raid`, `/raids`, `/loot`, `/council`, `/report` and `/anwesenheit`, `/anwesenheit-raider` (#740: attendance counts only raids of that version) answer for one game version (`services/events/commandVersion.js`): the optional `version` choice (`addVersionOption`), else the version of the category of the channel the command runs in (a thread counts as its parent channel's category), else the main version. A hidden version falls back to the main version. Every reply names the version in its footer ("Version: WoW Forever"). Adding or changing the option needs `npm run register`.
 
 ### Deferred replies for slow operations
 ```javascript

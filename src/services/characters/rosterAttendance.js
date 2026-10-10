@@ -34,6 +34,11 @@
 // The window is the category's last RAID_WINDOW nights that carry any evidence
 // (a signup or a log), not a calendar span: a raid that runs every week and one
 // that runs every other week both get "the last 11 raids".
+// Attendance is always counted within one game version (#740): every caller
+// names it (buildAttendanceContext's `versionId`), a night belongs to the version
+// stored with it (versionOfEvent), and the window is the last nights *of that
+// version* - a category switched from TBC to Forever starts its Forever quota
+// empty ("noch keine gezählten Raids") and keeps its TBC quota under TBC.
 //
 // Role (the second open question): what the character last played in a log —
 // a hybrid's spec in the loot export says little about whether they healed
@@ -49,7 +54,8 @@ const { listReports, getReport } = require("../../stores/reportStore");
 const { characterKeyOf } = require("../../utils/loot/lootImport");
 const { contentsForText, content: contentMeta } = require("../../config/raidContent");
 const { VERSIONS } = require("../../config/gameVersions");
-const { versionOfEvent, mainVersionFor } = require("../events/mainVersion");
+const { versionOfEvent, mainVersionFor, knownVersion } = require("../events/mainVersion");
+const logger = require("../../logger").child("attendance");
 const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const eventStore = require("../../stores/eventStore");
@@ -218,14 +224,41 @@ function condenseReport(meta) {
     return condensed;
 }
 
+/** Adds who signed up for a night to `byCategory` (category id -> user ids), whatever its version. */
+function noteSigners(byCategory, ev) {
+    for (const s of Array.isArray(ev.signUps) ? ev.signUps : []) {
+        if (!s || !s.userId) continue;
+        if (!byCategory.has(ev.categoryId)) byCategory.set(ev.categoryId, new Set());
+        byCategory.get(ev.categoryId).add(String(s.userId));
+    }
+}
+
+/**
+ * The game version a context counts (#740): attendance is always counted within
+ * one version, never across. A call without a known version is a bug in the
+ * caller - it throws outside production (tests, dev), and on the live bot counts
+ * the main version and says so in the log rather than taking a page down.
+ */
+function requiredVersion(versionId) {
+    const id = knownVersion(versionId);
+    if (id) return id;
+    const message = `buildAttendanceContext: versionId fehlt oder ist unbekannt (${JSON.stringify(versionId)})`;
+    if (process.env.NODE_ENV !== "production") throw new Error(message);
+    logger.warn(`${message} - es zählt die Hauptversion`);
+    return mainVersionFor();
+}
+
 /**
  * Everything attendance and role need, read once per request.
  *
  * @param {string} guildId  only events of this guild count ("" = all)
- * @param {{now?: number, maxReports?: number, versionId?: string}} opts  `versionId` (#543): only
- *   raid nights of that game version count — the raid's stored version (#737, versionOfEvent)
+ * @param {{versionId: string, now?: number, maxReports?: number}} opts  `versionId` (required, #740):
+ *   only raid nights of that game version count - each raid's stored version (#737, versionOfEvent).
+ *   The window (the last RAID_WINDOW nights) is taken within that version, so a category switched to
+ *   another version starts its quota empty there.
  */
 function buildAttendanceContext(guildId, opts = {}) {
+    const versionId = requiredVersion(opts && opts.versionId);
     const now = opts.now || Date.now();
     const maxReports = opts.maxReports > 0 ? opts.maxReports : MAX_REPORTS;
     const reports = listReports().slice(0, maxReports).map(condenseReport);
@@ -251,9 +284,14 @@ function buildAttendanceContext(guildId, opts = {}) {
 
     // category id -> its past raid nights with evidence, newest first
     const raidsByCategory = new Map();
+    // category id -> who ever signed up there, in any version: "Meine Anwesenheit" still shows a category
+    // switched to this version before its first raid ("noch keine gezählten Raids" instead of nothing)
+    const signedAnyVersion = new Map();
     for (const ev of listStoredEvents(guildId)) {
         if (!ev || !ev.categoryId || !ev.startTime || ev.startTime > now) continue;
-        if (opts.versionId && versionOfEvent(ev) !== opts.versionId) continue;
+        noteSigners(signedAnyVersion, ev);
+        const evVersion = versionOfEvent(ev);
+        if (evVersion !== versionId) continue;
         const logs = reportsByEvent.get(String(ev.id)) || [];
         const signUps = Array.isArray(ev.signUps) ? ev.signUps : [];
         if (!logs.length && !signUps.length) continue;
@@ -261,6 +299,8 @@ function buildAttendanceContext(guildId, opts = {}) {
         const places = setupPlaces(setupById.get(String(ev.id)));
         list.push({
             id: String(ev.id), title: ev.title || "", startTime: ev.startTime, signUps, logs,
+            // the night's stored version (#737): its zones and title are named with that version's content
+            versionId: evVersion,
             bench: places.bench,
             // who stood in a group: a tentative who did was expected, one who did not was not
             placed: places.placed,
@@ -285,7 +325,7 @@ function buildAttendanceContext(guildId, opts = {}) {
         }
     }
 
-    return { raidsByCategory, allRaidsByCategory, roleByKey };
+    return { versionId, raidsByCategory, allRaidsByCategory, roleByKey, signedAnyVersion };
 }
 
 /**
@@ -505,9 +545,10 @@ function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
 function categoryInfo(ctx, categoryId) {
     const raids = ctx.raidsByCategory.get(categoryId) || [];
     const found = new Set();
-    // Zones and titles are read only within the version the category plays.
-    const opts = { versionId: mainVersionFor({ categoryId }) };
+    // Zones and titles are read within each night's own stored version (#740), not the one the
+    // category plays today: an old TBC night of a category switched to Forever is named with TBC content.
     for (const raid of raids) {
+        const opts = { versionId: raid.versionId || ctx.versionId || mainVersionFor({ categoryId }) };
         for (const rep of raid.logs) for (const id of contentsForText(rep.zone, opts)) found.add(id);
         if (!raid.logs.length) for (const id of contentsForText(raid.title, opts)) found.add(id);
     }
