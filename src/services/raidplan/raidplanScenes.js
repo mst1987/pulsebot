@@ -7,7 +7,8 @@
 //   loop   { id, obj, path: [[x, y]], closed, period, from, to, trail }   a movement of its own, independent of the frames (kiting)
 //
 //   obj       the board object it moves: "token:<userId>", "slot:<id>", "icon:<id>", "mark:<id>", "zone:<id>", "line:<id>", "text:<id>"
-//             or "auto:<key>" (an object the tank rows put on the map, see autoPos); a line's x / y is its middle
+//             or "auto:<key>" (an object the tank rows put on the map, see autoPos) or "member:<slotId>~<userId>" (one raider of a
+//             group marker: only a group of this board, only a player of the lineup - a template has none); a line's x / y is its middle
 //   x, y      where it goes (0..1, like every board point); rotation 0..359; opacity 0.1..1; scale 0.25..4 (of its own size)
 //   hidden    true = it fades out, false = it fades in; badge = a WoW icon name shown on it ("" takes it off); pulse = it pulses
 //   delay     seconds after the frame's start the change begins; dur = how long it takes; ease = inout | linear | in | out
@@ -26,6 +27,8 @@ const OBJ_KINDS = ["token", "slot", "icon", "mark", "zone", "line", "text"];
 const OBJ_REF = /^(token|slot|icon|mark|zone|line|text):([\w-]{1,40})$/;
 // the key of an object the tank rows put on the map (raidplanBoard.js AUTO_KEY)
 const AUTO_REF = /^auto:(t:[\w-]{1,24}:\d{1,2}|m:[dcb]:[\w\-/']{1,70}#\d{1,2})$/;
+// one raider of a group marker
+const MEMBER_REF = /^member:([\w-]{1,40})~([\w-]{1,40})$/;
 const ICON_NAME = /^[a-z0-9_'-]{2,64}$/;
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -42,16 +45,21 @@ function cleanId(raw, seen) {
     return id;
 }
 
-/** The object references a board offers to its scenes: its objects by kind and id (players by their userId). */
-function boardRefs(board) {
+/**
+ * The object references a board offers to its scenes: its objects by kind and id (players by their userId), and `members`: a
+ * reference "member:<slot>~<user>" is known when the slot is a group marker of the board and `allowed` holds the player.
+ */
+function boardRefs(board, allowed = new Set()) {
     const b = board || {};
     const refs = new Set();
     for (const t of b.tokens || []) refs.add(`token:${t.userId}`);
     for (const kind of OBJ_KINDS.slice(1)) for (const o of b[`${kind}s`] || []) refs.add(`${kind}:${o.id}`);
+    const groups = new Set((b.slots || []).filter((o) => o.kind === "group").map((o) => o.id));
+    refs.member = (ref) => { const m = ref.match(MEMBER_REF); return !!m && groups.has(m[1]) && allowed.has(m[2]); };
     return refs;
 }
 /** Whether a reference means an object of the board (an auto object cannot be checked here: the tank rows derive it). */
-const knownRef = (ref, refs) => (OBJ_REF.test(ref) ? refs.has(ref) : AUTO_REF.test(ref));
+const knownRef = (ref, refs) => (OBJ_REF.test(ref) ? refs.has(ref) : MEMBER_REF.test(ref) ? !!refs.member && refs.member(ref) : AUTO_REF.test(ref));
 
 /** One change of a frame; null when it means no object of the board or changes nothing. */
 function cleanChange(raw, refs) {
@@ -126,12 +134,13 @@ function cleanLoops(raw, refs) {
 
 /**
  * Cleans the scenes of one board. `board` is the board as cleaned so far (its objects decide which references stay), `stepIds` the
- * ids of its tactic steps (a scene may stand at one). Returns `{ scenes }` or `{ code, error }` for too many scenes.
+ * ids of its tactic steps (a scene may stand at one), `allowed` the players of the lineup (a single raider of a group must be one).
+ * Returns `{ scenes }` or `{ code, error }` for too many scenes.
  */
-function cleanScenes(raw, board, stepIds = []) {
+function cleanScenes(raw, board, stepIds = [], allowed = new Set()) {
     const list = Array.isArray(raw) ? raw : [];
     if (list.length > LIMITS.scenes) return { code: "invalid", error: `Höchstens ${LIMITS.scenes} Animationen je Abschnitt.` };
-    const refs = boardRefs(board);
+    const refs = boardRefs(board, allowed);
     const steps = new Set([...stepIds].map(str));
     const seen = new Set();
     const scenes = list.map((s, i) => {
@@ -173,4 +182,4 @@ function reidScenes(scenes, rename = (r) => r, stepIds = new Map()) {
     }));
 }
 
-module.exports = { LIMITS, EASES, OBJ_REF, AUTO_REF, cleanScenes, renameRefs, reidScenes, boardRefs };
+module.exports = { LIMITS, EASES, OBJ_REF, AUTO_REF, MEMBER_REF, cleanScenes, renameRefs, reidScenes, boardRefs };

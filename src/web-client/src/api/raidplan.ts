@@ -11,7 +11,7 @@ export type RaidplanTarget = { id: string; title: string; userIds: string[] };
 export type RaidplanSlotKind = "tank" | "healer" | "melee" | "ranged" | "dps" | "group" | "label";
 /** A placeholder place: tank 1..n, healer 1..n, dps, a group marker (n = the setup group) or a free label; `userId` "" = open. */
 /** A raider of a split group who was moved or scaled on his own: relative to the group marker, in board fractions. */
-export type RaidplanOffset = { dx: number; dy: number; size: number };
+export type RaidplanOffset = { dx: number; dy: number; size: number; /** never stored: an animation moved him on his own (lib/raidplan/scene.ts) - his group's ring does not stretch to him */ away?: boolean };
 /** A group marker also has hideMembers (only its tag shows), split (its raiders stand around it) and per-raider offsets. */
 export type RaidplanSlot = {
     /** a group: its scale as a whole, of its ring spacing and of its member tokens (0.25 .. 4, missing = 1) */

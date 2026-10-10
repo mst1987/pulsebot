@@ -73,8 +73,10 @@ select {
 }
 select:hover:not(:disabled) { border-color: var(--muted); background-image: var(--ctl-arrow-hi); }
 select:disabled, .field input:disabled, .inp-sm:disabled {
-    opacity: .55; cursor: not-allowed; background-color: var(--panel2); background-image: var(--ctl-arrow);
+    opacity: .55; cursor: not-allowed; background-color: var(--panel2);
 }
+/* only a select carries the chevron: on a text field it tiled across the whole field once it was disabled */
+select:disabled { background-image: var(--ctl-arrow); }
 /* The popup list is native, so it can only be tinted through the options
    themselves (plus the pinned color-scheme in :root). */
 select option { background: var(--panel); color: var(--text); }
