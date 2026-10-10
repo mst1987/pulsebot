@@ -313,9 +313,27 @@ function areaGroup(g, list) {
     };
 }
 
+// The analyzer each area stands for (utils/logcheck/rules.js). An area whose
+// analyzer did not run for the report's version is left out (#747), even when
+// an older run left data behind; the gear area and the RPB fallbacks inside
+// Aktivität/Cooldowns are not tied to one analyzer and always ask their data.
+const AREA_ANALYZER = new Map([
+    [raidBuffsArea, "raidBuffs"], [raidDebuffsArea, "raidDebuffs"], [consumablesArea, "consumables"],
+    [potionsArea, "potions"], [drumsArea, "drums"], [shadowResiArea, "shadowResi"],
+    [healersArea, "healers"], [totemsArea, "totems"], [sunderArea, "sunder"], [bossUptimesArea, "bossUptimes"],
+    [mechanicsArea, "mechanics"],
+    [rpbSpellsArea, "rpb"], [rpbInterruptsArea, "rpb"], [rpbDamageArea, "rpb"], [rpbValidationArea, "rpb"],
+]);
+
+/** Whether an area's analyzer ran (a context without `ran` counts every one as run). */
+function areaRan(ctx, fn) {
+    const key = AREA_ANALYZER.get(fn);
+    return !key || !ctx.ran || ctx.ran.has(key);
+}
+
 /** The three area groups of Sicht Raid, only those with something in them: { id, flagged, html }. */
 function raidGroups(ctx) {
-    return AREA_GROUPS.map((g) => areaGroup(g, g.areas.map((fn) => fn(ctx)).filter(Boolean))).filter(Boolean);
+    return AREA_GROUPS.map((g) => areaGroup(g, g.areas.filter((fn) => areaRan(ctx, fn)).map((fn) => fn(ctx)).filter(Boolean))).filter(Boolean);
 }
 
 module.exports = {

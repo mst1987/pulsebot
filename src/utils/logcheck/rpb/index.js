@@ -36,9 +36,10 @@ async function fetchBossSummaries(wcl, reportId, fights) {
  * @param {string} reportId
  * @param {object} fights   WCL fights response
  * @param {Array<{id,name,type}>} players  selected players (see logcheck/common.js)
+ * @param {{ rules?: object }} [opts]  the report's rule set (role mapping); TBC without one
  * @returns {Promise<null | object>}
  */
-async function analyzeRpb(wcl, reportId, fights, players) {
+async function analyzeRpb(wcl, reportId, fights, players, { rules } = {}) {
     if (!players || players.length === 0) return null;
     const end = fights.end || 999999999999;
 
@@ -48,7 +49,7 @@ async function analyzeRpb(wcl, reportId, fights, players) {
     // role per player, with the class-specific tie-breaks of the original
     const roles = {};
     for (const p of players) {
-        roles[p.name] = roleForClass(p.type, roleCounts[p.id] || {});
+        roles[p.name] = roleForClass(p.type, roleCounts[p.id] || {}, rules);
     }
 
     const bossSeconds = bossSecondsOf(fights);

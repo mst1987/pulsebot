@@ -9,19 +9,9 @@
 // (scripts/data-sources/rpb/config/validate*.csv) via scripts/build-rpb-data.js.
 const rpbData = require("../../../config/rpbData");
 const { EXCLUDE_KALECGOS, bossFights } = require("./common");
-
-// WCL zone id -> zone tag, used only to label the result. Detection itself runs
-// off the killed npcs (see detectZones), because zone ids differ between the
-// classic and the fresh/anniversary realms — a fresh SSC+TK report reports zone
-// 1056, which the v1 /zones endpoint does not even list.
-const ZONE_TAGS = {
-    1007: ["Kara"],
-    1010: ["SSC", "TK"],
-    1011: ["BT", "MH"],
-    1012: ["ZA"],
-    1013: ["SW"],
-    1060: ["BT", "MH"],
-};
+// WCL zone id -> zone tag, used only to label the result (TBC data,
+// config/logcheckTables.js); detection itself runs off the killed npcs (detectZones).
+const { ZONE_TAGS } = require("../../../config/logcheckTables");
 
 /** Zone tags suggested by the report's zone id (may be empty for fresh realms). */
 function zoneTagsOf(fights) {

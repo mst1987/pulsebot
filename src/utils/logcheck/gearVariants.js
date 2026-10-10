@@ -43,9 +43,10 @@ function situationalSlots(entry) {
  * @param {string} reportId
  * @param {object} fights   the report's fight list (report/fights response)
  * @param {object[]} roster the roster rows, modified in place
+ * @param {{ rules?: object }} [opts]  the report's rule set (which classes are raiders); TBC without one
  * @returns {Promise<{checked: number, resolved: number}>}
  */
-async function resolveSituationalGear(wcl, reportId, fights, roster) {
+async function resolveSituationalGear(wcl, reportId, fights, roster, { rules } = {}) {
     // Who is missing what. Built once: if nobody wears such a piece — the
     // normal case — this returns without touching the network at all.
     const open = new Map();
@@ -70,7 +71,7 @@ async function resolveSituationalGear(wcl, reportId, fights, roster) {
         }
         checked += 1;
 
-        for (const player of selectPlayers(table)) {
+        for (const player of selectPlayers(table, rules)) {
             const pending = open.get(player.name);
             if (!pending || !pending.want.size) continue;
             const { entry, want } = pending;

@@ -78,7 +78,8 @@ async function backfillLogTitles(logs, now = Date.now(), { limit = BACKFILL_PAGE
                 filled += 1;
             }
             if (data && Array.isArray(data.fights)) {
-                const raids = raidSummary(analyzeRaidProgress(data));
+                // the raids of the log's own version only: Forever's Hyjal is not TBC's (#747)
+                const raids = raidSummary(analyzeRaidProgress(data, { versionId: recordVersion(l) }));
                 logStore.setLogRaids(l.id, raids);
                 l.raids = raids;
                 l.raidsAt = now;

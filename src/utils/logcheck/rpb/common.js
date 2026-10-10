@@ -4,8 +4,11 @@
 // 4.6k-line function that writes straight into a spreadsheet; here the analysis is
 // split per topic and returns plain data.
 const rpbData = require("../../../config/rpbData");
+const { logcheckRules } = require("../rules");
 
 const { EXCLUDED_ENCOUNTER_ID, HASTE_RATING_PER_PERCENT } = rpbData;
+
+const TBC_RULES = logcheckRules("tbc");
 
 // The roles the RPB groups its whole breakdown by.
 const ROLES = ["Tank", "Healer", "Caster", "Physical"];
@@ -40,44 +43,17 @@ function totalFightTime(fights, { bossesOnly = false } = {}) {
  * Decide a player's role the way the RPB does: count the roles WCL reported for
  * them across all boss fights and pick the majority, with class-specific
  * tie-breaks (a Balance druid / Elemental shaman counts as Caster, everything
- * else feral/enhancement counts as Physical).
+ * else feral/enhancement counts as Physical). The mapping belongs to the
+ * report's rule set (utils/logcheck/rules.js, #747): the nine pre-Wrath classes
+ * keep the RPB's switch, a class only the rule set knows is placed by its specs.
  *
  * @param {string} playerClass  WCL class name ("Druid", "Mage", ...)
  * @param {{dps:number, tank:number, healer:number, dpsSpec:string}} counts
+ * @param {object} [rules]  the report's rule set; TBC without one
  * @returns {string} one of ROLES
  */
-function roleForClass(playerClass, counts) {
-    const dps = counts.dps || 0;
-    const tank = counts.tank || 0;
-    const healer = counts.healer || 0;
-    const spec = counts.dpsSpec || "";
-
-    switch (playerClass) {
-        case "Hunter":
-        case "Rogue":
-            return "Physical";
-        case "Mage":
-        case "Warlock":
-            return "Caster";
-        case "Priest":
-            return dps >= tank && dps >= healer ? "Caster" : "Healer";
-        case "Warrior":
-            return dps >= tank && dps >= healer ? "Physical" : "Tank";
-        case "Paladin":
-            if (healer >= tank && healer >= dps) return "Healer";
-            if (tank >= dps && tank >= healer) return "Tank";
-            return "Physical";
-        case "Druid":
-            if (healer >= tank && healer >= dps) return "Healer";
-            if (tank >= dps && tank >= healer) return "Tank";
-            return spec === "Balance" ? "Caster" : "Physical";
-        case "Shaman":
-            if (healer >= tank && healer >= dps) return "Healer";
-            if (tank >= dps && tank >= healer) return "Tank";
-            return spec === "Elemental" ? "Caster" : "Physical";
-        default:
-            return "Physical";
-    }
+function roleForClass(playerClass, counts, rules = TBC_RULES) {
+    return rules.roleForClass(playerClass, counts);
 }
 
 /**
