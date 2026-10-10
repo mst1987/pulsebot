@@ -55,6 +55,24 @@ describe("services/discord/channelNaming — namingContext", () => {
         expect(naming.namingLine(result)).toBe("abgeleitet aus #🔥・mi-16-09-ssc-tk (Datum 16-09 → 23-09)");
     });
 
+    it("does not care what the category is called (#744): a rename names nothing anew and duplicates nothing", () => {
+        const before = ctxFor({ raid: "ssc-tk", events: EVENTS.map((e) => ({ ...e, categoryId: CAT, categoryName: "TBC Mittwoch" })) });
+        const after = ctxFor({ raid: "ssc-tk", events: EVENTS.map((e) => ({ ...e, categoryId: CAT, categoryName: "Forever Mittwoch" })) });
+        expect(naming.describeResult(after, "2026-09-23", "ssc-tk")).toEqual(naming.describeResult(before, "2026-09-23", "ssc-tk"));
+        // the next channel is derived from the previous one, never from the category's name
+        expect(naming.describeResult(after, "2026-09-23", "ssc-tk").name).not.toMatch(/forever|tbc/i);
+        // quick-create skips a name that exists, so the existing channels are neither renamed nor made twice
+        const { planChannels } = require("../../../src/utils/channelNames");
+        const plan = planChannels({
+            from: "2026-09-16", count: 2, interval: "weekly", existingNames: CHANNELS.map((c) => c.name),
+            render: (day) => naming.describeResult(after, day, "ssc-tk").name,
+        });
+        expect(plan).toEqual([
+            { date: "2026-09-16", name: "🔥・mi-16-09-ssc-tk", exists: true },
+            { date: "2026-09-23", name: "🔥・mi-23-09-ssc-tk", exists: false },
+        ]);
+    });
+
     it("takes the latest channel of the category when no raid matches, and replaces the raid", () => {
         const ctx = ctxFor({ raid: "kara" });
         expect(ctx.fromChannel).toBe("⚔┃do-17-09-hyjal-bt");

@@ -242,12 +242,13 @@ function SeriesRow({ c, canWrite, onOpen }: { c: SeriesCategory; canWrite: boole
     }
 
     return (
-        <li className={`sr-row${c.series.enabled && !raidHelper ? "" : " sr-off"}`} data-category={c.id}>
+        <li className={`sr-row${c.series.enabled && !raidHelper && !c.inactive ? "" : " sr-off"}`} data-category={c.id}>
             <button type="button" className="sr-open" onClick={onOpen} aria-label={t("series.row.openAria", { name })} />
             <div className="sr-main">
                 <div className="sr-name">
                     {name}
                     {!c.series.enabled && <Badge>{t("series.row.off")}</Badge>}
+                    {c.inactive && c.series.enabled && <Badge tone="mid" icon={<WarnIcon />} tip={t("series.row.inactiveTip")} tipSub={t("series.row.inactiveSub")}>{t("series.row.inactive")}</Badge>}
                     {raidHelper && <Badge tone="mid" icon={<WarnIcon />} tip={t("series.row.restingTip")} tipSub={t("series.row.restingSub")}>Raid-Helper</Badge>}
                     {failed > 0 && <Badge tone="bad" icon={<WarnIcon />}>{t("series.row.errors", { count: failed })}</Badge>}
                 </div>

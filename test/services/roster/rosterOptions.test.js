@@ -44,12 +44,12 @@ beforeEach(() => {
 describe("services/roster/rosterOptions", () => {
     it("lists the raid categories with the roster each has", () => {
         const r = rosterStore.createRoster({ name: "Do", guildId: "g1", categoryId: "700000000000000001" });
-        expect(rosterCategories("g1", { categoryIds: ["700000000000000001"] })).toEqual([
+        expect(rosterCategories("g1", { categoryIds: ["700000000000000001", "700000000000000002"] })).toEqual([
             {
-                id: "700000000000000001", name: "Donnerstag", versionId: "tbc", rosterId: r.id, rosterName: "Do",
+                id: "700000000000000001", name: "Donnerstag", active: true, versionId: "tbc", rosterId: r.id, rosterName: "Do",
                 rosters: [{ id: r.id, name: "Do", versionId: "tbc", closed: false }],
             },
-            { id: "700000000000000002", name: "Freitag", versionId: "tbc", rosterId: null, rosterName: "", rosters: [] },
+            { id: "700000000000000002", name: "Freitag", active: true, versionId: "tbc", rosterId: null, rosterName: "", rosters: [] },
         ]);
     });
 
@@ -66,6 +66,17 @@ describe("services/roster/rosterOptions", () => {
         ]));
         // played in TBC (before the switch): the closed TBC roster is the category's
         expect(rosterCategories("g1", { categoryIds: ["700000000000000001"] })[0]).toMatchObject({ versionId: "tbc", rosterId: tbc.id });
+    });
+
+    it("offers no deactivated category - one that has a roster stays, marked inactive (#744)", () => {
+        const r = rosterStore.createRoster({ name: "Do", guildId: "g1", categoryId: "700000000000000001" });
+        // Freitag had raids but is no longer active: no new roster for it
+        expect(rosterCategories("g1", { categoryIds: ["700000000000000003"] }).map((c) => [c.id, c.active, c.rosterId])).toEqual([
+            ["700000000000000001", false, r.id],
+            ["700000000000000003", true, null],
+        ]);
+        // an install that never picked a category still offers every raid category
+        expect(rosterCategories("g1", { categoryIds: [] }).map((c) => c.id)).toEqual(["700000000000000001", "700000000000000002"]);
     });
 
     it("lists the roles highest first, without @everyone, with whether the bot can hand them out", () => {

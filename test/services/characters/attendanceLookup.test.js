@@ -2,6 +2,7 @@ jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAtt
 jest.mock("../../../src/stores/raiderCharactersStore", () => ({ listAllAssignments: jest.fn() }));
 jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: jest.fn() }));
 jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCategories: jest.fn() }));
+jest.mock("../../../src/services/events/categoryLifecycle", () => ({ isCategoryActive: jest.fn(() => true) }));
 
 const { buildAttendanceContext, attendanceFor } = require("../../../src/services/characters/rosterAttendance");
 const { listAllAssignments } = require("../../../src/stores/raiderCharactersStore");
@@ -33,6 +34,17 @@ describe("services/characters/attendanceLookup", () => {
         expect(attendanceFor).toHaveBeenCalledWith({ ctx: true }, "pug", "elesham", []);
         expect(result.character).toBe("Elesham");
         expect(result.categories.map((c) => c.name)).toEqual(["Montag", "Donnerstag", "Unbekannte Kategorie"]);
+    });
+
+    it("leaves out a deactivated category (#744): /anwesenheit lists only active ones", () => {
+        const { isCategoryActive } = require("../../../src/services/events/categoryLifecycle");
+        isCategoryActive.mockImplementation((id) => id !== "thu");
+        try {
+            const result = characterAttendance("g1", "elesham", { versionId: "tbc" });
+            expect(result.categories.map((c) => c.id)).toEqual(["mon", "pug"]);
+        } finally {
+            isCategoryActive.mockImplementation(() => true);
+        }
     });
 
     it("reuses a given context and answers nothing for no name", () => {

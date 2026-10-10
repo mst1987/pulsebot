@@ -12,6 +12,7 @@ const { listSignups } = require("../../stores/signupStore");
 const { listRaidEvents, getRaidEvent } = require("../../stores/raidEventStore");
 const { getConfig } = require("../../stores/settingsStore");
 const { ALIASES } = require("../../config/classlist");
+const { categoryNameAt } = require("./categoryEras");
 
 const SOURCES = ["raidhelper", "eventhelper"];
 const DEFAULT_SOURCE = "raidhelper";
@@ -124,7 +125,11 @@ function ownSignUps(eventId) {
     return listSignups(eventId).map(toSignUpShape);
 }
 
-/** Channel/category name: the live Discord join first, the stored name second. */
+/**
+ * Channel/category name: the live Discord join first, the stored name second.
+ * The category name is the current one; a single raid shows the name of its
+ * section instead (withEraName, #744).
+ */
 function placement(ev, catMap) {
     const meta = (catMap || {})[ev.channelId];
     return {
@@ -132,6 +137,26 @@ function placement(ev, catMap) {
         categoryId: meta ? (meta.categoryId || ev.categoryId || "") : (ev.categoryId || ""),
         categoryName: meta ? (meta.categoryName || ev.categoryName || "") : (ev.categoryName || ""),
     };
+}
+
+/** The stored config the section names come from, read once per list (categoryEras reads configStore). */
+function erasConfig() {
+    try {
+        return require("../../stores/configStore").getConfig() || {};
+    } catch {
+        return {};
+    }
+}
+
+/**
+ * A raid row (either source) with the category name it shows (#744): a raid
+ * of a closed section of its category keeps the name the category had then
+ * (categoryEras.categoryNameAt), every other one the name it carries.
+ */
+function withEraName(row, { config } = {}) {
+    if (!row || !row.categoryId) return row;
+    const name = categoryNameAt(row.categoryId, row.startTime, row.categoryName || "", { config });
+    return name === (row.categoryName || "") ? row : { ...row, categoryName: name };
 }
 
 /** What only an own event carries, kept on every shape it is handed out in. */
@@ -168,16 +193,16 @@ function toEventGroupShape(ev, { catMap, signUps } = {}) {
         signUps: rows,
         signUpsFromSnapshot: false,
         ...planFields(ev),
-        // categoryName is not part of a group row (the group carries it); the
-        // caller places the row under it.
+        // The group carries the category's current name; the caller places the
+        // row under it (and gives the row the name of its section, #744).
         _categoryName: place.categoryName,
     };
 }
 
 /** An own event as a loadMatchableEvents() row. */
-function toMatchableShape(ev, { catMap } = {}) {
+function toMatchableShape(ev, { catMap, config } = {}) {
     const place = placement(ev, catMap);
-    return {
+    return withEraName({
         id: ev.id,
         source: "eventhelper",
         title: ev.title,
@@ -187,12 +212,12 @@ function toMatchableShape(ev, { catMap } = {}) {
         categoryId: place.categoryId,
         categoryName: place.categoryName,
         versionId: ev.versionId || "",
-    };
+    }, { config });
 }
 
 /** An own event in the shape of a raidEventStore snapshot row. */
-function toStoredShape(ev) {
-    return {
+function toStoredShape(ev, { config } = {}) {
+    return withEraName({
         id: ev.id,
         source: "eventhelper",
         guildId: ev.guildId,
@@ -205,7 +230,7 @@ function toStoredShape(ev) {
         signUps: ownSignUps(ev.id),
         setup: [],
         ...planFields(ev),
-    };
+    }, { config });
 }
 
 /**
@@ -250,8 +275,9 @@ function ownEventGroupRows(guildId, { sinceSeconds, catMap, now = Date.now() } =
 /** Own events that already started within [fromSeconds, now], for log/loot matching. */
 function ownMatchableEvents(guildId, fromSeconds, { catMap, now = Date.now() } = {}) {
     if (!guildId) return [];
+    const config = erasConfig();
     return listEvents(guildId, { sinceSeconds: fromSeconds, untilSeconds: Math.floor(now / 1000) })
-        .map((ev) => toMatchableShape(ev, { catMap }));
+        .map((ev) => toMatchableShape(ev, { catMap, config }));
 }
 
 /** Own upcoming events of a guild in Raid-Helper's raw list shape, soonest first. */
@@ -281,8 +307,9 @@ function ownSignedUpEvents(userId, { now = Date.now() } = {}) {
  * plus the own events that already started. The drop-in for listRaidEvents().
  */
 function listStoredEvents(guildId, { now = Date.now() } = {}) {
-    const rh = listRaidEvents(guildId).map((e) => ({ source: "raidhelper", ...e }));
-    const own = listEvents(guildId, { untilSeconds: Math.floor(now / 1000) }).map(toStoredShape);
+    const config = erasConfig();
+    const rh = listRaidEvents(guildId).map((e) => withEraName({ source: "raidhelper", ...e }, { config }));
+    const own = listEvents(guildId, { untilSeconds: Math.floor(now / 1000) }).map((ev) => toStoredShape(ev, { config }));
     return [...rh, ...own].sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
 }
 
@@ -310,7 +337,7 @@ function getStoredEvent(id) {
         return ev ? toStoredShape(ev) : null;
     }
     const snap = getRaidEvent(id);
-    return snap ? { source: "raidhelper", ...snap } : null;
+    return snap ? withEraName({ source: "raidhelper", ...snap }) : null;
 }
 
 module.exports = {
@@ -318,4 +345,5 @@ module.exports = {
     specNameFor, specKeyFromRaidHelper, signupSourceFor, defaultSignupSource, sourceOfEventId,
     toSignUpShape, ownSignUps, toEventGroupShape, toMatchableShape, toStoredShape, toRaidHelperShape,
     ownEventGroupRows, ownMatchableEvents, ownUpcomingRaw, ownSignedUpEvents, ownEventInChannel, listStoredEvents, getStoredEvent,
+    withEraName,
 };

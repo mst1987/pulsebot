@@ -174,7 +174,7 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
         return {
             id: ev.id, source: ev.source || "raidhelper", title: ev.title, templateId: ev.templateId,
             description: ev.description, channelId: ev.channelId, channelName: ev.channelName,
-            categoryId: g.categoryId || "", categoryName: g.categoryName || "",
+            categoryId: g.categoryId || "", categoryName: ev.categoryName || g.categoryName || "",
             startTime: ev.startTime || 0,
             versionId,
             contentIds: raidContentIds({ title: ev.title, categoryName: g.categoryName, channelName: ev.channelName, instanceIds: ev.instanceIds, versionId }).contentIds,

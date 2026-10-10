@@ -193,7 +193,7 @@ async function loadNextRaidDetails(guildId, eventId) {
             channelId: ev.channelId,
             channelName: ev.channelName || "",
             categoryId: g.categoryId || "",
-            categoryName: g.categoryName || "",
+            categoryName: ev.categoryName || g.categoryName || "",
             planning: planningOf(g.categoryId, config),
             icon: zone.icon,
             size,

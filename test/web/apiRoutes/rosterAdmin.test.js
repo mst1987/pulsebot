@@ -339,7 +339,7 @@ describe("GET /api/rosters/options", () => {
         const res = await get("/api/rosters/options");
         expect(status(res)).toBe(200);
         const d = data(res);
-        expect(d.categories).toEqual([{ id: CAT, name: "Donnerstag Raid", versionId: "tbc", rosterId: null, rosterName: "", rosters: [] }]);
+        expect(d.categories).toEqual([{ id: CAT, name: "Donnerstag Raid", active: true, versionId: "tbc", rosterId: null, rosterName: "", rosters: [] }]);
         expect(d.roles.map((r) => r.id)).toEqual([ROLE, ROLE2]);
         expect(d.kaders).toEqual([{ id: "k1", name: "Forever-Kader", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "" }]);
         expect(d.isAdmin).toBe(true);

@@ -1,6 +1,6 @@
 // The sections of a raid category (#738): which version it played when, the
 // history a switch writes, and the one rule for a template of another version.
-const { erasOf, categoryEraAt, currentEra, switchEras, templateVersionProblem } = require("../../../src/services/events/categoryEras");
+const { erasOf, categoryEraAt, categoryNameAt, currentEra, switchEras, templateVersionProblem } = require("../../../src/services/events/categoryEras");
 
 const T1 = Date.UTC(2026, 9, 1);
 const T2 = Date.UTC(2026, 11, 1);
@@ -31,6 +31,25 @@ describe("services/events/categoryEras", () => {
         expect(categoryEraAt("mon", Math.floor(T1 / 1000) + 60, { config })).toMatchObject({ versionId: "classic", current: false });
         expect(categoryEraAt("mon", T2 + 1, { config })).toMatchObject({ versionId: "forever", current: true });
         expect(categoryEraAt("fri", T2, { config })).toMatchObject({ versionId: "tbc", current: true });
+    });
+
+    describe("categoryNameAt (#744: a renamed category)", () => {
+        it("gives a raid of a closed section the name the category had then", () => {
+            expect(categoryNameAt("mon", T1 - 1, "Forever Montag", { config })).toBe("TBC Montag");
+            expect(categoryNameAt("mon", Math.floor(T1 / 1000) + 60, "Forever Montag", { config })).toBe("Classic Montag");
+        });
+
+        it("gives a raid of the current section the live name, not the one stored at the switch", () => {
+            expect(categoryNameAt("mon", T2 + 1, "Montag (neu)", { config })).toBe("Montag (neu)");
+        });
+
+        it("keeps the live name for a category never switched, a closed section without a name, and without a time", () => {
+            expect(categoryNameAt("fri", T1, "Freitag", { config })).toBe("Freitag");
+            const unnamed = { categoryEras: { mon: [{ versionId: "tbc", from: 0, name: "" }, { versionId: "forever", from: T2, name: "" }] } };
+            expect(categoryNameAt("mon", T1, "Forever Montag", { config: unnamed })).toBe("Forever Montag");
+            expect(categoryNameAt("mon", 0, "Forever Montag", { config })).toBe("Forever Montag");
+            expect(categoryNameAt("", T1, "x", { config })).toBe("x");
+        });
     });
 
     it("names the current section", () => {

@@ -40,6 +40,7 @@ const { computeAttendance, signupStatus, isRosterKnown } = require("../../utils/
 const { tr } = require("../../utils/i18n/botText");
 const { versionOfEvent, isVersionVisible } = require("../../services/events/mainVersion");
 const { hasExpected, listExpectedMembers } = require("../../services/roster/expectedRaiders");
+const { isCategoryActive } = require("../../services/events/categoryLifecycle");
 
 const HOUR_MS = 60 * 60 * 1000;
 const KINDS = ["missing", "signed"];
@@ -146,6 +147,8 @@ async function runReminders({ now = Date.now(), config = getConfig() } = {}) {
             for (const group of groups || []) {
                 const rule = rules[group.categoryId];
                 if (!rule) continue;
+                // A deactivated category (#744) reminds nobody; its rule stays for when it is active again.
+                if (!isCategoryActive(group.categoryId, config)) continue;
                 for (const event of group.events || []) {
                     // A cancelled event (#288) reminds nobody.
                     if (event.status === "cancelled") continue;

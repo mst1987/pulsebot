@@ -27,6 +27,8 @@ vi.mock("../../api", async (orig) => ({
     getIngestTokens: vi.fn(),
     getAvailabilityPanels: vi.fn(),
     getCategorySwitch: vi.fn(),
+    getCategoryDeactivate: vi.fn(),
+    closeCategory: vi.fn(),
 }));
 
 vi.mock("./RolePermissions", () => ({ default: () => <div>Panel Berechtigungen</div> }));
@@ -36,13 +38,21 @@ vi.mock("./SettingsRaidhelperRetirement", () => ({ default: () => null }));
 // The category matrix edits the per-category maps through its callbacks; the
 // stand-in clears the first category's sheet url the way its field would.
 vi.mock("./CategoryMatrix", () => ({
-    default: ({ onSheet, onPlanning, availabilityPanels }: {
+    default: ({ onSheet, onPlanning, availabilityPanels, onToggleCategory, missing = [], onCloseCategory, closeBlocked }: {
         onSheet: (id: string, sheet: { url: string; name: string }) => void;
         onPlanning?: (id: string, mode: "raidplan" | "sheet") => void;
         availabilityPanels?: { panels: { categoryId: string }[]; channels: { id: string }[]; onChange: (id: string, panel: unknown) => void };
+        onToggleCategory: (id: string) => void;
+        missing?: { categoryId: string; name: string }[];
+        onCloseCategory?: (c: unknown) => void;
+        closeBlocked?: boolean;
     }) => (
         <div>
             Panel Kategorien
+            <button type="button" onClick={() => onToggleCategory("cat1")}>Montag umschalten</button>
+            {missing.map((m) => (
+                <button key={m.categoryId} type="button" disabled={closeBlocked} onClick={() => onCloseCategory && onCloseCategory(m)}>{`${m.name} abschließen …`}</button>
+            ))}
             <button type="button" onClick={() => onSheet("cat1", { url: "", name: "Montag-Sheet" })}>Sheet-URL leeren</button>
             {onPlanning && <button type="button" onClick={() => onPlanning("cat2", "raidplan")}>Mittwoch mit Raidplan</button>}
             {availabilityPanels && (
@@ -303,6 +313,69 @@ describe("the save bar", () => {
             cat1: { url: "", name: "Montag-Sheet" },
             cat2: { url: "https://docs.google.com/b", name: "Mittwoch" },
         });
+    });
+
+    it("shows what deactivating a category pauses before the save goes out (#744)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ categoryIds: ["cat1", "cat2"] }) }));
+        vi.mocked(api.getCategoryDeactivate).mockResolvedValue({
+            categories: [{ categoryId: "cat1", series: { enabled: true, weekdays: [1], time: "19:30" }, reminders: false, upcoming: 0 }], emptyBlocked: false,
+        });
+        vi.mocked(api.updateSettings).mockImplementation(async (partial) => ({
+            config: { ...config(), ...partial } as AdminConfig,
+            deactivatedCategories: [{ categoryId: "cat1", series: { enabled: true, weekdays: [1], time: "19:30" }, reminders: false, upcoming: 0 }],
+        }));
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorien" });
+
+        await user.click(await screen.findByRole("button", { name: "Montag umschalten" }));
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        expect(await screen.findByText("Serie (Mo 19:30) pausiert – legt keine Events an")).toBeInTheDocument();
+        expect(api.getCategoryDeactivate).toHaveBeenCalledWith(["cat2"]);
+        expect(api.updateSettings).not.toHaveBeenCalled();
+
+        await user.click(screen.getByRole("button", { name: "Deaktivieren und speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0].categoryIds).toEqual(["cat2"]);
+        expect(await screen.findByText("Montag: deaktiviert – Serie und Erinnerungen pausieren")).toBeInTheDocument();
+    });
+
+    it("saves a newly switched-on category without a dialog", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ categoryIds: [] }) }));
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorien" });
+        await user.click(await screen.findByRole("button", { name: "Montag umschalten" }));
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(api.getCategoryDeactivate).not.toHaveBeenCalled();
+    });
+
+    it("closes a category deleted in Discord, only without unsaved changes (#744)", async () => {
+        const user = userEvent.setup();
+        const gone: api.MissingCategory = {
+            categoryId: "gone", name: "TBC Montag", active: true, series: null, reminders: true, settings: ["categoryReminders"],
+            councilProfile: false, kaders: [], rosters: [], upcoming: 0,
+        };
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ missingCategories: [gone], config: config({ categoryIds: ["cat1", "gone"] }) }));
+        vi.mocked(api.closeCategory).mockResolvedValue({
+            ok: true, name: "TBC Montag", removed: { series: false, reminders: true, settings: [], active: true, councilProfile: false, kaders: 0 },
+            rosters: [], config: config({ categoryIds: ["cat1"] }), missingCategories: [],
+        });
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorien" });
+
+        const close = await screen.findByRole("button", { name: "TBC Montag abschließen …" });
+        // an unsaved change first has to be saved or thrown away
+        await user.click(screen.getByRole("button", { name: "Sheet-URL leeren" }));
+        expect(close).toBeDisabled();
+        await user.click(screen.getByRole("button", { name: "Verwerfen" }));
+        expect(close).toBeEnabled();
+
+        await user.click(close);
+        expect(screen.getByText("Die Erinnerungen werden entfernt.")).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Abschließen" }));
+        expect(api.closeCategory).toHaveBeenCalledWith("gone");
+        expect(await screen.findByText("TBC Montag abgeschlossen")).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "TBC Montag abschließen …" })).not.toBeInTheDocument();
+        expect(api.updateSettings).not.toHaveBeenCalled();
     });
 
     it("sends the picked planning and names it in the save bar", async () => {

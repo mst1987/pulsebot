@@ -173,7 +173,8 @@ export type RoleSyncData = {
 };
 export type RemindersData = {
     categoryReminders: Record<string, ReminderRule>;
-    categories: { id: string; name: string; roleCount: number }[];
+    /** `active: false`: a deactivated category (#744) — its rule stays but reminds nobody. */
+    categories: { id: string; name: string; roleCount: number; active?: boolean }[];
     pingTargets: PingTargetInfo;
     lastRun: { at: number; sent: number; failed: number; skipped: number; error: string | null } | null;
 };
@@ -246,6 +247,8 @@ export type SettingsData = {
     bot?: { online: boolean; readySince: number; guildName: string };
     // The event and talk server cards; null for a limited settings user.
     servers?: { events: DiscordServerCard[]; talk: DiscordServerCard | null } | null;
+    /** #744: configured categories Discord no longer has (only known while the bot sees every event server). */
+    missingCategories?: MissingCategory[];
     activeGuildId: string;
 };
 
@@ -273,7 +276,7 @@ export type SwitchedCategory = {
     roster?: SwitchRosterResult;
 };
 
-export function updateSettings(partial: Partial<AdminConfig>): Promise<{ config: AdminConfig; switchedCategories?: SwitchedCategory[] }> {
+export function updateSettings(partial: Partial<AdminConfig>): Promise<{ config: AdminConfig; switchedCategories?: SwitchedCategory[]; deactivatedCategories?: DeactivatedCategory[] }> {
     return send("PATCH", "/api/settings", partial);
 }
 
@@ -307,6 +310,50 @@ export type CategorySwitchPreview = {
 
 export function getCategorySwitch(categoryId: string, versionId: string): Promise<CategorySwitchPreview> {
     return get<CategorySwitchPreview>(`/api/settings/category-switch?categoryId=${encodeURIComponent(categoryId)}&versionId=${encodeURIComponent(versionId)}`);
+}
+
+/** A category's series as the lifecycle dialogs name it (#744). */
+export type CategorySeriesInfo = { enabled: boolean; weekdays: number[]; time: string };
+
+/** What deactivating a category pauses (#744): its series and reminders rest, its coming raids stay. */
+export type DeactivatedCategory = {
+    categoryId: string; name?: string; series: CategorySeriesInfo | null; reminders: boolean; upcoming: number;
+};
+
+/** GET /api/settings/category-deactivate?next=…: what saving these active categories pauses (#744). */
+export function getCategoryDeactivate(next: string[]): Promise<{ categories: DeactivatedCategory[]; emptyBlocked: boolean }> {
+    return get(`/api/settings/category-deactivate?next=${encodeURIComponent(next.join(","))}`);
+}
+
+/** A configured category Discord no longer has (#744), with what "Kategorie abschließen" removes. */
+export type MissingCategory = {
+    categoryId: string;
+    name: string;
+    active: boolean;
+    series: CategorySeriesInfo | null;
+    reminders: boolean;
+    /** The category settings that go (config keys). */
+    settings: string[];
+    councilProfile: boolean;
+    kaders: { kaderId: string; name: string }[];
+    /** The category's rosters, one per game version (#739); closing the category closes them. */
+    rosters: { id: string; name: string; versionId?: string; closed?: boolean }[];
+    upcoming: number;
+};
+
+export type CategoryCloseResult = {
+    ok: true;
+    name: string;
+    removed: { series: boolean; reminders: boolean; settings: string[]; active: boolean; councilProfile: boolean; kaders: number };
+    /** The category's rosters, now closed (#739). */
+    rosters: { id: string; name: string; versionId?: string; closed?: boolean }[];
+    config: AdminConfig;
+    missingCategories: MissingCategory[];
+};
+
+/** POST /api/settings/category-close: close a category deleted in Discord (#744). */
+export function closeCategory(categoryId: string): Promise<CategoryCloseResult> {
+    return send("POST", "/api/settings/category-close", { categoryId });
 }
 
 export function saveRaidsheet(input: Partial<Raidsheet>): Promise<Raidsheet> {

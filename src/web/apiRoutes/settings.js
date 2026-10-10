@@ -7,6 +7,7 @@ const {
 } = require("../../stores/settingsStore");
 const { normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion } = require("../../stores/configSchema");
 const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../services/events/categorySwitch");
+const categoryLifecycle = require("../../services/events/categoryLifecycle");
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
 } = require("../../stores/ingestTokenStore");
@@ -244,6 +245,9 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // The channel picker of "Nachricht bei Vielleicht/Absage" per category (#335).
         noteChannels: noteChannels(config),
         bot: botStatus(guildId),
+        // #744: configured categories Discord no longer has (only when the bot sees
+        // every event server), each with what "Kategorie abschließen" would remove.
+        missingCategories: missingCategoriesOf(config),
         // The two server cards (cheap: names, member counts, rights). The member
         // overlap needs a full member fetch and loads with the section itself.
         servers: user.isAdmin ? serverCards(config) : null,
@@ -334,7 +338,8 @@ const getReminders = withUser({}, async ({ res }) => {
     const ids = [...new Set([...(config.categoryIds || []), ...Object.keys(config.categoryReminders || {})])];
     ok(res, {
         categoryReminders: config.categoryReminders || {},
-        categories: ids.map((id) => ({ id, name: names.get(id) || "", roleCount: expectedRoleIds(id, config).length })),
+        // `active: false`: a deactivated category (#744) — its rule stays, but it reminds nobody.
+        categories: ids.map((id) => ({ id, name: names.get(id) || "", roleCount: expectedRoleIds(id, config).length, active: categoryLifecycle.isCategoryActive(id, config) })),
         pingTargets: pingTargetInfo(config),
         lastRun: lastReminderRun(),
     });
@@ -543,10 +548,14 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.categoryReminders = body.categoryReminders && typeof body.categoryReminders === "object" ? body.categoryReminders : {};
     }
     const before = getConfig();
+    // #744: no active category at all would read as "every category" — refused while raids exist.
+    if (emptiesActiveCategories(partial, before)) return error(res, 400, "categories_empty", categoryLifecycle.EMPTY_LIST_MESSAGE);
     // #738: every active category plays an explicit version; a changed one starts a new section.
     const versions = categoryVersionPatch(body, partial, before);
     if (versions.error) return error(res, 400, "category_version_missing", versions.error);
     const langBefore = before.botLanguage;
+    // #744: what deactivating pauses (series, reminders), for the save's answer.
+    const deactivated = deactivationOf(partial, before);
     const saved = saveConfig(partial);
     // The settings still edit a category's raider roles; the roster of the version a category plays
     // follows them (#653) - not for a category switched just now: its roster changes below (#739).
@@ -565,7 +574,71 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // redraw them now instead of at the next five-minute sweep (not awaited, never throws).
     else if (guildBankOf(saved) !== guildBankOf(before)) void availabilityPanel.refreshPanels({ config: saved }).catch(() => {});
     // a switch may have changed the raider roles (#739: they mirror the new roster) - answer what is stored now
-    ok(res, { config: publicConfig(switchedCategories.length ? getConfig() : saved), switchedCategories });
+    ok(res, { config: publicConfig(switchedCategories.length ? getConfig() : saved), switchedCategories, deactivatedCategories: deactivated });
+});
+
+/** The categories a PATCH takes out of the active list, with what pauses (#744) — logged once. */
+function deactivationOf(partial, before) {
+    if (partial.categoryIds === undefined) return [];
+    const list = categoryLifecycle.deactivationPreview({ config: before, nextIds: partial.categoryIds }).categories;
+    for (const d of list) {
+        const paused = [d.series && d.series.enabled ? "Serie" : "", d.reminders ? "Erinnerungen" : ""].filter(Boolean).join(", ");
+        console.log(`[settings] Kategorie ${d.categoryId} deaktiviert (#744)${paused ? `, pausiert: ${paused}` : ""}`);
+    }
+    return list;
+}
+
+/** Whether a PATCH takes the last active category away although raids exist (#744). */
+function emptiesActiveCategories(partial, before) {
+    if (partial.categoryIds === undefined || partial.categoryIds.length) return false;
+    // An install that never picked one keeps "every category" (it was never a choice made here).
+    if (!(before.categoryIds || []).length) return false;
+    return categoryLifecycle.emptyListBlocked(partial.categoryIds);
+}
+
+/** The categories Discord no longer has, with their names (#744). Best-effort: [] on any trouble. */
+function missingCategoriesOf(config) {
+    try {
+        const names = categoryNamesOf(config);
+        return categoryLifecycle.missingCategories({ config, nameOf: (id) => names.get(id) || "" });
+    } catch (e) {
+        console.warn("missingCategories failed:", e.message);
+        return [];
+    }
+}
+
+/**
+ * GET /api/settings/category-deactivate?next=a,b — what saving the active
+ * categories `next` pauses (#744): per category taken out its series and
+ * reminders, and whether the list would be empty although raids exist.
+ */
+const getCategoryDeactivate = withUser({}, async ({ res, url }) => {
+    const next = String(url.searchParams.get("next") || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const config = getConfig();
+    const preview = categoryLifecycle.deactivationPreview({ config, nextIds: next });
+    const names = categoryNamesOf(config);
+    ok(res, {
+        categories: preview.categories.map((c) => ({ ...c, name: names.get(c.categoryId) || "" })),
+        emptyBlocked: !next.length && !!(config.categoryIds || []).length && preview.emptyBlocked,
+    });
+});
+
+/**
+ * POST /api/settings/category-close { categoryId } — "Kategorie abschließen"
+ * (#744) for a category deleted in Discord: its series, settings, reminders,
+ * Loot-Council profile entry and Kader attendance entries go, its rosters are
+ * closed (#739: readable, no role sync); raids, loot and
+ * logs stay. 409 while Discord still has it, 503 while that is unknown.
+ */
+const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body, res, user }) => {
+    const categoryId = String((body && body.categoryId) || "").trim();
+    const config = getConfig();
+    const name = categoryNamesOf(config).get(categoryId) || "";
+    // #739: its rosters are closed too, by this caller
+    const result = categoryLifecycle.closeCategory(categoryId, { config, actor: String((user && user.id) || "") });
+    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    console.log(`[settings] Kategorie ${name || categoryId} abgeschlossen (#744) von ${(user && (user.name || user.id)) || "?"}`);
+    ok(res, { ...result, name, config: publicConfig(getConfig()), missingCategories: missingCategoriesOf(getConfig()) });
 });
 
 /** Category id → name over every event server (live list backed by the snapshot); "" when unknown. */
@@ -724,6 +797,8 @@ const routes = [
     { method: "GET", path: "/api/settings/item-search", handler: getItemSearch, area: "settings" },
     { method: "GET", path: "/api/settings/archive-export", handler: getArchiveExport, area: "settings" },
     { method: "GET", path: "/api/settings/category-switch", handler: getCategorySwitch, area: "settings" },
+    { method: "GET", path: "/api/settings/category-deactivate", handler: getCategoryDeactivate, area: "settings" },
+    { method: "POST", path: "/api/settings/category-close", handler: closeCategoryHandler, area: "settings" },
     { method: "POST", path: "/api/settings/raidsheets", handler: saveRaidsheetHandler, area: "settings" },
     { method: "POST", path: "/api/settings/raidsheets/delete", handler: deleteRaidsheetHandler, area: "settings" },
     { method: "GET", path: "/api/settings/discord-servers", handler: getDiscordServers, area: "settings" },

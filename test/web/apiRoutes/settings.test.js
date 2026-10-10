@@ -1279,8 +1279,8 @@ describe("web/apiRoutes/settings", () => {
                 const data = body(res);
                 expect(discord.listCategories).toHaveBeenCalledWith("200000");
                 expect(data.categories).toEqual([
-                    { id: "900000", name: "Raids Mittwoch", roleCount: 2 },
-                    { id: "910000", name: "", roleCount: 0 },
+                    { id: "900000", name: "Raids Mittwoch", roleCount: 2, active: true },
+                    { id: "910000", name: "", roleCount: 0, active: false },
                 ]);
                 expect(data.pingTargets.talk).toBe(false);
                 expect(data.categoryReminders["910000"].missingHours).toBe(24);
@@ -1297,7 +1297,7 @@ describe("web/apiRoutes/settings", () => {
                 getReminders({}, res);
                 expect(discord.listCategories).toHaveBeenCalledWith("200000");
                 expect(discord.listCategories).toHaveBeenCalledWith("300000");
-                expect(body(res).categories).toEqual([{ id: "920000", name: "PvP-Raids", roleCount: 0 }]);
+                expect(body(res).categories).toEqual([{ id: "920000", name: "PvP-Raids", roleCount: 0, active: true }]);
                 settingsStore.getConfig.mockReturnValue({});
             });
         });
