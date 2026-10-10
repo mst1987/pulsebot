@@ -1370,5 +1370,24 @@
         "moreSub": "Template, post to the channel, open assignments",
         "openListSub": "Per section; a click opens it",
         "saveViewHint": "Zoom in first – the sheet then opens this section with this cutout."
+    },
+    "anim": {
+        "player": "Play animation",
+        "scenes": "Animations of this section",
+        "prev": "Previous step",
+        "next": "Next step",
+        "play": "Play",
+        "pause": "Pause",
+        "time": "Time in the animation",
+        "frameN": "Step {n}: {caption}",
+        "frameShort": "Step {n}",
+        "frameOf": "Step {n} of {of}",
+        "speed": "Speed {v}x",
+        "speedTip": "Speed: 0.5× · 1× · 2×",
+        "loop": "Repeat",
+        "close": "Close the animation, back to the plan",
+        "open": "Watch animation",
+        "openN": "Animations ({n})",
+        "openTip": "Shows in motion who goes where and when"
     }
 }

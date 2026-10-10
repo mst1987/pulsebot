@@ -1,0 +1,96 @@
+# Raidplan: animations
+
+Part of the raid plan docs, see [the entry page](../raidplan.md) for the other parts. Endnutzer-Sicht: siehe
+[guide-web-admin.md#raidplan](../guide-web-admin.md#raidplan). Epic #709.
+
+An animation ("Szene") explains a task in motion on the board of a section: Bloodboil hits the group at the back, it runs
+to the front, the next group falls back; a tank kites the Flames of Azzinoth round the room. The raiders play it in the
+sheet (`/p/<token>`).
+
+## Decisions
+
+- **Frames ("Takte") as the surface, a timeline as the model.** A scene is a row of frames (key moments); a frame holds
+  only what changes, the player blends between them. Every frame carries its **start time** `at` in seconds and every
+  change its own `delay` and `dur` in seconds, so a scene already *is* a timeline: a later "expert timeline" view would
+  edit the same data, without a migration. Nothing in the model may depend on frame indexes as time.
+- **Fine timing per object** (delay, duration, easing) so a swap does not look robotic: group 4 starts half a second
+  after group 3.
+- **Paths and loops** for movements that are not a straight line or not tied to frames (kiting, #712).
+- **The actors are board objects** (slots, group markers, role groups, icons, marks, zones, lines, texts, auto tanks /
+  mobs, tokens). A scene in a template names slots and groups, never players, so it works in every raid.
+- **One renderer:** the pure function `boardAt(board, scene, t)` returns the board as it looks at `t`; editor, template
+  and sheet hand it to the same `PlanBoard`.
+- **Discord export** (GIF/MP4 for the assignments post) is planned as #714 and **deferred**.
+
+## Data model
+
+`board.scenes` (`src/services/raidplan/raidplanScenes.js`, part of `cleanBoard`, so plans and templates alike):
+
+```
+scene  { id, title, loop, length, stepId, frames: [frame], loops: [loop] }
+frame  { id, at, caption, changes: [change] }
+change { obj, x?, y?, path?, rotation?, opacity?, scale?, hidden?, badge?, pulse?, delay, dur, ease }
+loop   { id, obj, path: [[x, y]], closed, period, from, to, trail }
+```
+
+- `obj` = `"<kind>:<id>"`: `token:<userId>`, `slot:<id>`, `icon:<id>`, `mark:<id>`, `zone:<id>`, `line:<id>`,
+  `text:<id>` or `auto:<key>` (an object the tank rows put on the map, the keys of `autoPos`). A reference to an object
+  the board no longer has is dropped on every save (a player outside the lineup has no token, so nothing of his stays);
+  an `auto:` key is only checked for its form (the rows derive those objects).
+- `x`/`y` 0..1 like every board point (a zone's is its top-left corner, a line's its middle); `rotation` 0..359;
+  `opacity` 0.1..1; `scale` 0.25..4 of the object's own size (a zone grows round its middle, a group marker also scales
+  its ring); `hidden` true fades out / false fades in; `badge` a WoW icon name shown on the object (`""` takes it off);
+  `pulse` a pulsing ring. `path` = points a movement passes (a Catmull-Rom curve through them, by its length).
+- `delay`/`dur` 0..60 s in tenths (defaults 0 / 1), `ease` `inout` (default) | `linear` | `in` | `out`.
+- Frames are kept in time order; the first starts at 0, each later one at least 0.1 s after the one before. `length`
+  is at least 0.1 s after the last frame (default: 2 s after it), at most 600 s.
+- One change per object per frame (the first wins) - the editor merges the fields of an object into one change.
+- `stepId` = a tactic step of the board the scene stands at (kept only while the step exists, #713).
+- A loop needs at least two points; `period` 1..600 s is one round, `from`/`to` when it runs (`to` 0 = until the end),
+  a closed path goes round, an open one there and back; `trail` draws where the object was a moment ago.
+- Limits: 8 scenes per board, 24 frames per scene, 60 changes per frame, 16 path points, 12 loops with 24 points,
+  title 60 and caption 120 characters.
+- **Copies** (`reidBoard`, a template applied to an event, a template duplicated): scenes, frames and loops get new
+  ids, every `obj` follows its object to its new id, a moved auto tank follows its row, `stepId` follows its step, a
+  token reference is not copied (templates hold no players).
+- **Sheet:** `publicView` sends `scenes` of a section with its map (none with "Karte aus"); a reference to an object the
+  sheet does not show (hidden, a raider outside the approved setup) simply moves nothing.
+
+## Playing (`src/web-client/src/lib/raidplan/scene.ts`)
+
+- `boardAt(board, scene, t, autoAt)` - every change of a frame starts at `at + delay` and ends `dur` later; values are
+  blended per property; **a change that starts while the one before it still runs takes over from where the object is
+  at that moment** (timeline semantics, also when frames overlap). A badge and a pulse switch when their change starts.
+  A loop wins over the frames while it runs. Objects the scene does not name are returned as they are; the input board
+  is never changed. `autoAt` = where the tank rows put their objects without the scene (`autoAtOf(deriveAuto(...))`),
+  so an auto tank can be moved from there; the result's `autoPos` / `autoStyle` then carry it (a turned one loses its
+  automatic facing).
+- `boardAfter(board, scene, k)` - frame k with everything of frames 0..k arrived and no loops: what the editor edits.
+- `frameAt`, `frameRest`, `frameLength`, `playable` (at least two frames or a loop), `clock`.
+- `useScenePlayer` (hooks) runs the time with `requestAnimationFrame`: play / pause, seek, to frame k, speed 0.5x / 1x /
+  2x, loop (default: the scene's own). With `prefers-reduced-motion` the sheet shows frame by frame (`boardAfter`) and
+  the badge / pulse animations are off.
+- `PlanBoard` draws the effects (`fx`, `trails` props): the badge at the upper left of an object, the pulse as a ring;
+  on a **split group** both sit on each of its raiders (a group gets Bloodboil: every member shows it).
+
+## In the sheet (`/p/<token>`)
+
+A section with a playable scene shows **"Animation ansehen"** (several: "Animationen (n)") at the bottom of the map.
+It opens the player (`components/raidplan/ScenePlayerBar.tsx`): the scenes as tabs, back / play-pause / forward by
+frame, the time line with a dot per frame (a click jumps there), the time, the speed, the loop and "Schließen" back to
+the plan. The caption ("Takt 2 von 6" + the frame's sentence) stands big at the top of the map. While it plays, the
+assignment lines are hidden, "Deine Aufgaben" makes room for the bar and the zoom stands above it; switching the
+section closes the animation. Phone: the bar takes the width at the bottom.
+
+## Dev demo
+
+`node scripts/seed-test-raid.js` gives the template "BT Demo" at Gurtogg Bloodboil five split group markers and the
+scene "Bloodboil-Rotation" (6 frames: the group at the back gets Bloodboil, runs to the front on a curve, the next one
+falls back half a second later, twice).
+
+## Tests
+
+`test/services/raidplan/raidplanScenes.test.js` (validation, limits, the board's cleaning, `reidBoard`),
+`test/web/apiRoutes/raidplan.templates.test.js` (the sheet sends the scenes, none without the map),
+`src/web-client/src/lib/raidplan/scene.test.ts` (easing, blending, take-over, paths, loops, auto objects, frames),
+`src/web-client/src/pages/raidplan/PlanPublicPage.anim.test.tsx` (the player in the sheet).

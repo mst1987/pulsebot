@@ -151,9 +151,9 @@ describe("the pages", () => {
 
     it("renders zones, marks, slots, lines, texts and groups in the shared board and the read view", () => {
         for (const needle of ["zones.filter", "marks.filter", "slots.filter", "lines.filter", "texts.filter", "tokens.filter", "groupListMembers", "rp-zone-label", "ZONE_GLYPHS", "arrowHead"]) expect(board2).toContain(needle);
-        expect(pub).toContain("slots={boss.slots}");
-        expect(pub).toContain("lines={boss.lines}");
-        expect(pub).toContain("texts={boss.texts}");
+        expect(pub).toContain("slots={drawn.slots}");
+        expect(pub).toContain("lines={drawn.lines}");
+        expect(pub).toContain("texts={drawn.texts}");
         expect(pub).toContain("mapOpacity={boss.mapOpacity}");
         // the visitor's own place and tasks: "Deine Aufgaben" floating over the map (the stage, Oct 2026)
         expect(pub).toContain("<MineCard");
@@ -275,7 +275,7 @@ describe("the new pages", () => {
 
     it("draws icons, split groups and the new roles on the shared board and in the read view", () => {
         for (const needle of ["icons.filter", "splitMembers", "ringOffsets", "rp-member", "hideMembers", "rp-icon-face", "sizeHandle(", "objectScale"]) expect(board2).toContain(needle);
-        expect(pub).toContain("icons={boss.icons}");
+        expect(pub).toContain("icons={drawn.icons}");
         expect(pub).toContain("objectScale={boss.objectScale}");
         expect(css).toMatch(/\.rp-role-melee \{/);
     });
