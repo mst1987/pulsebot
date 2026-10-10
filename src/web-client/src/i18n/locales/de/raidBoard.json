@@ -1498,6 +1498,15 @@
         "loopTo": "Endet bei",
         "loopToEnd": "Endet (0 = am Schluss)",
         "trail": "Spur zeigen",
-        "trailTip": "Eine verblassende Spur hinter dem Objekt, z. B. das Feuer (Blaze) hinter einer Flamme."
+        "trailTip": "Eine verblassende Spur hinter dem Objekt, z. B. das Feuer (Blaze) hinter einer Flamme.",
+        "playStep": "Animation ansehen: {title}",
+        "playShort": "Animation",
+        "focusMine": "Meine Gruppe hervorheben",
+        "focusMineTip": "Deine Gruppe bleibt hell, die anderen werden gedimmt",
+        "step": "Gehört zum Taktik-Schritt",
+        "stepTip": "Im Sheet steht an diesem Schritt ein Knopf „Animation“, der genau diese Animation abspielt.",
+        "noStep": "– keinem Schritt –",
+        "stepHas": "Animation: {titles}",
+        "stepHasShort": "Hat eine Animation"
     }
 }

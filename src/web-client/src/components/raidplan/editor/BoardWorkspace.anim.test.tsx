@@ -43,6 +43,7 @@ class FakePointerEvent extends MouseEvent {
     constructor(type: string, init: PointerEventInit = {}) { super(type, init); this.pointerId = init.pointerId ?? 1; }
 }
 const scenes = () => latest!.scenes || [];
+const strip = () => screen.getByRole("listbox", { name: "Takte der Animation" });
 
 beforeEach(() => {
     window.localStorage.clear();
@@ -62,14 +63,14 @@ describe("the view 'Animation'", () => {
         fireEvent.click(screen.getByRole("button", { name: /Neue Animation/ }));
         expect(scenes()).toHaveLength(1);
         expect(screen.getByRole("tab", { name: /Animation 1/ })).toHaveAttribute("aria-selected", "true");
-        expect(screen.getByRole("option", { name: /Ausgangsstellung/ })).toHaveAttribute("aria-selected", "true");
+        expect(within(strip()).getByRole("option", { name: /Ausgangsstellung/ })).toHaveAttribute("aria-selected", "true");
     });
 
     it("adds a frame, moves the dragged object in it and shows its dotted way", () => {
         setup();
         fireEvent.click(screen.getByRole("button", { name: /Neue Animation/ }));
         fireEvent.click(screen.getByRole("button", { name: /^Takt$/ }));
-        expect(screen.getAllByRole("option")).toHaveLength(2);
+        expect(within(strip()).getAllByRole("option")).toHaveLength(2);
         expect(screen.getByRole("heading", { name: /Takt 2 von 2/ })).toBeTruthy();
 
         fireEvent.pointerDown(grip(), { clientX: 200, clientY: 250, pointerId: 1 });
@@ -83,7 +84,7 @@ describe("the view 'Animation'", () => {
         expect(latest!.marks[0]).toMatchObject({ x: 0.2, y: 0.5 });
 
         // the first frame shows the starting position again
-        fireEvent.click(screen.getByRole("option", { name: /Ausgangsstellung/ }));
+        fireEvent.click(within(strip()).getByRole("option", { name: /Ausgangsstellung/ }));
         expect(mark().style.getPropertyValue("--rp-x")).toBe("20%");
     });
 
@@ -92,7 +93,7 @@ describe("the view 'Animation'", () => {
         fireEvent.click(screen.getByRole("button", { name: /Neue Animation/ }));
         fireEvent.click(screen.getByRole("button", { name: /^Takt$/ }));
         fireEvent.change(screen.getByRole("textbox", { name: "Untertitel des Takts" }), { target: { value: "Totenkopf läuft" } });
-        expect(screen.getByRole("option", { selected: true })).toHaveTextContent("Totenkopf läuft");
+        expect(within(strip()).getByRole("option", { selected: true })).toHaveTextContent("Totenkopf läuft");
 
         fireEvent.pointerDown(grip(), { clientX: 200, clientY: 250, pointerId: 1 });
         fireEvent.pointerMove(window, { clientX: 300, clientY: 250, pointerId: 1 });
@@ -162,5 +163,15 @@ describe("the view 'Animation'", () => {
         expect(scenes()[0].loops[0]).toMatchObject({ trail: true, closed: false });
         fireEvent.click(screen.getByRole("button", { name: "Dauerbewegung 1 entfernen" }));
         expect(scenes()[0].loops).toEqual([]);
+    });
+
+    it("links a scene to a tactic step and marks the step in the task view (#713)", () => {
+        const step = { id: "st1", action: "kite", participants: ["slot:tank:2"], sentence: "kitet die Flamme", targets: [], timing: { kind: "" as const, from: null, to: null, text: "" } };
+        setup({ steps: [step] });
+        fireEvent.click(screen.getByRole("button", { name: /Neue Animation/ }));
+        fireEvent.change(screen.getByRole("combobox", { name: /Gehört zum Taktik-Schritt/ }), { target: { value: "st1" } });
+        expect(scenes()[0].stepId).toBe("st1");
+        fireEvent.click(screen.getByRole("radio", { name: "Aufgaben" }));
+        expect(screen.getByLabelText("Hat eine Animation")).toBeTruthy();
     });
 });

@@ -226,6 +226,15 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const drawn = anim ? anim.board : boss;
     const auto = anim ? deriveAuto(drawn.assignments, drawn as unknown as RaidplanBoard, { template: false, roster: planned }) : baseAuto;
 
+    // a step's "Animation" (#713): plays that scene; a panel that lies over the map makes room for it
+    const playFromStep = (id: string) => {
+        setAnimId(id);
+        if (panel && !pushed) togglePanel();
+    };
+    // "Meine Gruppe hervorheben" in the player: the visitor's own group stays bright, the others dim (the bar's group chips do the same)
+    const myGroup = data.meIds.map((id) => (players.get(id) || { group: 0 }).group).find((g) => g > 0) || 0;
+    const focusMine = myGroup > 0 ? { on: focusGroup === myGroup, toggle: () => setFocusGroup(focusGroup === myGroup ? 0 : myGroup) } : null;
+
     const mine = (
         <MineCard
             boss={boss} ctx={ctx} roster={planned} meIds={data.meIds} names={names} loggedIn={!!data.me} loginHref={loginHref}
@@ -238,6 +247,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
             boss={boss} title={label(boss)} ctx={ctx} meIds={data.meIds} names={names} loggedIn={!!data.me} loginHref={loginHref}
             focusGroup={focusGroup} onFocusGroup={setFocusGroup} onClose={hasMap ? togglePanel : undefined}
             push={hasMap && pushable ? { on: layout.push, toggle: togglePush } : null}
+            scenes={scenes} onPlay={playFromStep}
         />
     );
 
@@ -285,7 +295,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                     {prefs.minimap && bv.view.z > 1 && <MiniMap mapUrl={boss.mapUrl} view={bv.view} onCenter={bv.centerAt} label={t("raidBoard.zoom.minimap")} />}
                     {scene && <SceneCaption scene={scene} t={player.t} />}
                     {scene ? (
-                        <ScenePlayerBar className="rp-anim-stage" scenes={scenes} scene={scene} player={player} onPick={setAnimId} onClose={() => setAnimId("")} />
+                        <ScenePlayerBar className="rp-anim-stage" scenes={scenes} scene={scene} player={player} onPick={setAnimId} onClose={() => setAnimId("")} focusMine={focusMine} />
                     ) : scenes.length > 0 && (
                         <button type="button" className="rp-anim-open" data-tip={t("raidBoard.anim.openTip")} onClick={() => setAnimId(scenes[0].id)}>
                             <Clapperboard size={18} aria-hidden="true" />

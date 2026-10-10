@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Pause, Play, Repeat, SkipBack, SkipForward, X } from "lucide-react";
+import { Pause, Play, Repeat, SkipBack, SkipForward, UserRound, X } from "lucide-react";
 import type { RaidplanScene } from "../../api";
 import { SPEEDS, type ScenePlayer } from "../../hooks/useScenePlayer";
 import { clock, frameAt } from "../../lib/raidplan/scene";
@@ -10,13 +10,15 @@ import { useT } from "../../i18n";
  * section as chips (when there are several), back / play-pause / forward by frame, the time line with a mark per frame (a click
  * jumps there), the time, the speed and the loop; "Schließen" goes back to the plan.
  */
-export default function ScenePlayerBar({ scenes, scene, player, onPick, onClose, className = "" }: {
+export default function ScenePlayerBar({ scenes, scene, player, onPick, onClose, className = "", focusMine = null }: {
     scenes: RaidplanScene[];
     scene: RaidplanScene;
     player: ScenePlayer;
     onPick: (id: string) => void;
     onClose?: () => void;
     className?: string;
+    /** "Meine Gruppe hervorheben": the viewer's group stays bright, the others dim (only for a visitor who stands in the plan) */
+    focusMine?: { on: boolean; toggle: () => void } | null;
 }) {
     const t = useT();
     const k = frameAt(scene, player.t);
@@ -59,6 +61,11 @@ export default function ScenePlayerBar({ scenes, scene, player, onPick, onClose,
                 <button type="button" className="rp-anim-btn rp-anim-speed" aria-label={t("raidBoard.anim.speed", { v: player.speed })} data-tip={t("raidBoard.anim.speedTip")} onClick={() => player.setSpeed(nextSpeed)}>
                     {String(player.speed).replace(".", ",")}×
                 </button>
+                {focusMine && (
+                    <button type="button" className={`rp-anim-btn${focusMine.on ? " is-on" : ""}`} aria-pressed={focusMine.on} aria-label={t("raidBoard.anim.focusMine")} data-tip={t("raidBoard.anim.focusMineTip")} onClick={focusMine.toggle}>
+                        <UserRound size={16} aria-hidden="true" />
+                    </button>
+                )}
                 <button type="button" className={`rp-anim-btn${player.loop ? " is-on" : ""}`} aria-pressed={player.loop} aria-label={t("raidBoard.anim.loop")} data-tip={t("raidBoard.anim.loop")} onClick={() => player.setLoop(!player.loop)}>
                     <Repeat size={16} aria-hidden="true" />
                 </button>

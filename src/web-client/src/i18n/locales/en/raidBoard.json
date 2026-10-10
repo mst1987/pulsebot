@@ -1498,6 +1498,15 @@
         "loopTo": "Ends at",
         "loopToEnd": "Ends (0 = at the end)",
         "trail": "Show trail",
-        "trailTip": "A fading trail behind the object, e.g. the fire (Blaze) behind a flame."
+        "trailTip": "A fading trail behind the object, e.g. the fire (Blaze) behind a flame.",
+        "playStep": "Watch animation: {title}",
+        "playShort": "Animation",
+        "focusMine": "Highlight my group",
+        "focusMineTip": "Your group stays bright, the others are dimmed",
+        "step": "Belongs to the tactic step",
+        "stepTip": "In the sheet this step gets an \"Animation\" button that plays exactly this animation.",
+        "noStep": "- no step -",
+        "stepHas": "Animation: {titles}",
+        "stepHasShort": "Has an animation"
     }
 }
