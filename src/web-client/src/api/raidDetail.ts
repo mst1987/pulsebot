@@ -199,6 +199,8 @@ export type RaidDetailData = {
     eventSoftres: EventSoftres;
     softresCatalogue: SoftresCatalogueGroup[];
     softresEdition: string;
+    /** Softres switched off for the event's version (#761, Einstellungen → Spielversion). */
+    softresOff?: boolean;
     softresSuggested: string[];
     attendance: Attendance;
     /** An own event's signups with "kann auch" and comment; null for a Raid-Helper event. */

@@ -84,6 +84,32 @@
 .gv-links .set-field input:not([type=checkbox]) { max-width: 100%; }
 .gv-links .set-field input[aria-invalid] { border-color: var(--high); }
 
+/* ---- Funktionen je Version (#761): features as rows, versions as columns, a switch where possible ---- */
+.vf-card { margin-top: 16px; gap: 12px; }
+.vf-table { width: 100%; max-width: 640px; border-collapse: collapse; font-size: 14px; }
+.vf-table th, .vf-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+.vf-table tbody tr:last-child th, .vf-table tbody tr:last-child td { border-bottom: 0; }
+.vf-table thead th { font-size: 11px; font-family: var(--font-mono); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.vf-version-name { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.vf-feature { font-weight: 500; }
+.vf-feature .tip-anchor { cursor: help; }
+.vf-cell { white-space: nowrap; }
+.vf-switch { gap: 8px; }
+.vf-state { font-size: 13px; }
+.vf-off .vf-state { color: var(--muted); }
+.vf-none { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; cursor: help; border-radius: 4px; }
+.vf-none:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.vf-none-mark { display: none; }
+.vf-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* a phone: the switch and a dash carry the state, the words go to the tooltip */
+@media (max-width: 560px) {
+    .vf-table th, .vf-table td { padding: 7px 6px; }
+    .vf-cell { text-align: center; }
+    .vf-feature { white-space: normal; font-size: 13px; }
+    .vf-cell .vf-state { display: none; }
+    .vf-none-mark { display: inline; font-size: 15px; }
+}
+
 .set-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
 .set-form { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
 .set-form.sheetcard { border-radius: 10px; margin: 0; }

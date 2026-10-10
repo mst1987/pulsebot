@@ -19,7 +19,7 @@
 // services/logcheck/logVersion.js: rules ready AND a Warcraft-Logs site known
 // (logcheckCapability).
 //
-// This module requires config only, never an analyzer (common.js and
+// This module requires config (and logLinks, which requires nothing) only, never an analyzer (common.js and
 // rpb/common.js require it): the tables the analyzers used to keep inside
 // themselves (potions, drums, Bloodlust, the shadow resistance enchants, the
 // RPB zone tags) now live in config/logcheckTables.js.
@@ -31,6 +31,7 @@ const raidBuffs = require("../../config/raidBuffs");
 const raidDebuffs = require("../../config/raidDebuffs");
 const totems = require("../../config/totems");
 const healerSpells = require("../../config/healerSpells");
+const { WCL_LEGACY_SITE } = require("./logLinks");
 
 // The CLA analyzers in the order report.js runs them (its CLA_ANALYZERS carry
 // the same keys — test/utils/logcheck/rules.test.js holds them together), and
@@ -143,12 +144,15 @@ function specRole(classDef, counts) {
  * @param {object} [o.data]
  * @param {string[]} [o.missing]
  * @param {object} [o.leftOut]  analyzer key → why it does not run
+ * @param {string} [o.apiSite]  the v1 site the log check asks, fixed by the rule set; "" = the
+ *   Warcraft-Logs site of the version's settings (logVersion.wclApiSite)
  */
-function makeRuleSet({ versionId, label = "", classDefs, analyzers, ready = false, data = {}, missing = [], leftOut = {} }) {
+function makeRuleSet({ versionId, label = "", classDefs, analyzers, ready = false, data = {}, missing = [], leftOut = {}, apiSite = "" }) {
     const set = {
         versionId,
         label,
         ready: !!ready,
+        apiSite,
         classes: classDefs.map((c) => c.id),
         classDefs,
         // kept in the order report.js runs them, whatever order was handed in
@@ -194,6 +198,8 @@ const TBC = makeRuleSet({
     analyzers: ALL_ANALYZERS,
     ready: true,
     data: tbcData(),
+    // TBC keeps the classic host the CLA port has always asked (it serves the fresh reports too, #746).
+    apiSite: WCL_LEGACY_SITE,
 });
 
 const FOREVER = makeRuleSet({

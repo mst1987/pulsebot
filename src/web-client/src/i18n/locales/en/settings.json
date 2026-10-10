@@ -198,6 +198,7 @@
         "hideOtherOff": "Hide other versions off",
         "followMain": "main version",
         "versionSettings": "Links and armory · {value}",
+        "versionFeatures": "Features per version · {value}",
         "planning": "{name} · planning → {value}",
         "botLanguage": "Bot language: {value}"
     },
@@ -1048,6 +1049,52 @@
         "defaultsSub": "Fills in the known values for {version} (namespace, armory, Warcraft Logs, Wowhead, softres). Realm and raidsheet stay as they are. Nothing is stored until you save.",
         "defaultsSame": "The standard values are already filled in.",
         "defaultsNone": "No standard values are known for {version} yet."
+    },
+    "versionFeatures": {
+        "title": "Features per version",
+        "titleSub": "What each game version can do. A feature is possible when data, rules or settings exist for the version. Only then is there a switch. Stored with “Save”.",
+        "hint": "“Possible” follows the saved settings.",
+        "feature": "Feature",
+        "on": "on",
+        "off": "off",
+        "impossible": "not possible",
+        "cellAria": "{feature} · {version}",
+        "onSub": "Switched on. Off behaves like “not possible”.",
+        "features": {
+            "logcheck": "Log check",
+            "lootCouncilBis": "BiS lists",
+            "simulation": "Simulation",
+            "raidSheet": "Raid sheet",
+            "softres": "Softres",
+            "armory": "Armory lookup",
+            "wowheadLinks": "Wowhead links",
+            "raidplanCatalog": "Raid plan catalog"
+        },
+        "featureSub": {
+            "logcheck": "Evaluating Warcraft Logs reports.",
+            "lootCouncilBis": "BiS lists, item table and tier filter in the loot council.",
+            "simulation": "DPS simulation (WoWSims) in the loot council.",
+            "raidSheet": "Filling the Google raid sheet. Without it the raid plans with the raid plan.",
+            "softres": "Creating a softres list on the raid page.",
+            "armory": "Fetching gear and character data from Battle.net.",
+            "wowheadLinks": "Links to Wowhead for items and spells.",
+            "raidplanCatalog": "The catalog's mobs and spells in the raid plan."
+        },
+        "reason": {
+            "disabled": "Switched off for {version}.",
+            "unknown_version": "Unknown game version.",
+            "unknown_feature": "Unknown feature.",
+            "no_rules": "No log check rules for {version}.",
+            "rules_not_ready": "Log check rules for {version} not finished yet ({count} open).",
+            "no_site": "No Warcraft Logs site set for {version}.",
+            "no_bis_data": "No BiS data for {version}.",
+            "no_sim_data": "No simulation data for {version}.",
+            "no_sheet_layout": "No raid sheet layout for {version}.",
+            "no_softres_edition": "No softres edition set for {version}.",
+            "armory_not_configured": "Armory for {version} not set up (region, realm, namespace).",
+            "no_wowhead_path": "No Wowhead path set for {version}.",
+            "no_catalog_entries": "No catalog entries for {version}."
+        }
     },
     "planning": {
         "raidplan": "Raid plan",

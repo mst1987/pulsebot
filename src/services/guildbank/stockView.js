@@ -16,6 +16,7 @@
 const stockStore = require("../../stores/guildBankStockStore");
 const { reservedByItem, handedOutSince, reservedRequestCount } = require("./reservations");
 const { wowheadPathFor } = require("./itemMeta");
+const { featureOn } = require("../events/versionCapabilities");
 const { rulesFor } = require("../../config/gameVersions");
 const { classLabel, subclassLabel } = require("../../config/itemClassLabels");
 
@@ -116,7 +117,8 @@ function stockForServer(guildId, { key = "", versionId = "" } = {}) {
     const bank = {
         ...chosen,
         versionShort: versionShort(chosen.gameVersion),
-        wowheadPath: wowheadPathFor(chosen.gameVersion),
+        // the item links: only while Wowhead links are on for the bank's version (#761)
+        wowheadPath: featureOn(chosen.gameVersion, "wowheadLinks") ? wowheadPathFor(chosen.gameVersion) : "",
         reservedRequests: reservedRequestCount(chosen.key),
         items: chosen.items.map((it) => withAvailability(it, reserved, hidden, out)),
     };

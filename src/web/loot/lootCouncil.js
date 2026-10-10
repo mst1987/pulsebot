@@ -36,7 +36,7 @@ const { targetSlotFor } = require("../../utils/wowsims/loadout");
 const wowsims = require("../../config/wowsims");
 const bisSource = require("../../config/bisSets");
 const { wearCheck } = require("../../config/wearable");
-const { councilContentFor } = require("../../config/councilContent");
+const { councilContent: councilContentFor } = require("../../services/events/versionCapabilities");
 const {
     ROLES, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitStatFor, hitCapFor,
     bisForSpec, isSimSupported, bisSpecsForItem,
@@ -860,7 +860,7 @@ function scoreRows(rows, weights = resolveWeights()) {
 function councilRoster(opts = {}) {
     const { role = "", categoryId = "", charVersion = "" } = opts;
     // What content data the council's version has (#748); without options the TBC council as ever.
-    const content = councilContentFor(opts.versionId === undefined ? "tbc" : opts.versionId);
+    const content = councilContentFor(opts.versionId === undefined ? "tbc" : opts.versionId, { config: opts.config });
     const contentFilter = content.tiers ? resolveContentFilter(opts) : null;
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
     const { roleByKey, planned } = judgedRoles();

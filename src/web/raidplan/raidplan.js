@@ -21,6 +21,13 @@ const assign = require("../../services/raidplan/raidplanAssign");
 const stepsOf = require("../../services/raidplan/raidplanSteps");
 const besetzungOf = require("../../services/raidplan/raidplanBesetzung");
 const catalogStore = require("../../stores/raidplanCatalogStore");
+const { catalogEnabled } = require("../../services/events/versionCapabilities");
+
+/** The catalog a plan of a version gets: no mobs and no spells while "Raidplan-Katalog" is off for it (#761). */
+function catalogFor(versionId) {
+    const view = catalogStore.catalogView(versionId);
+    return catalogEnabled(versionId) ? view : { ...view, mobs: [], spells: [] };
+}
 const raiderProfiles = require("../../stores/raiderProfileStore");
 const characterKey = raiderProfiles.characterKey;
 
@@ -172,7 +179,7 @@ function templateView(t) {
             instanceMap: !!store.mapVersion(b.instanceId),
         };
     });
-    return { ...t, bossList: withStandard(bosses), catalog: catalogStore.catalogView(t.versionId), besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
+    return { ...t, bossList: withStandard(bosses), catalog: catalogFor(t.versionId), besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
 }
 
 /** What a template picker needs of a template (no boards). */
@@ -233,7 +240,7 @@ function editorView(event, { canWrite, me = "" }) {
         rosterSource: event.rosterSource || null,
         profiles: profileStore.listProfiles(),
         templates: templatesFor(event, { allVersions: true }).map(templateSummary),
-        catalog: catalogStore.catalogView(planVersion(event)),
+        catalog: catalogFor(planVersion(event)),
         limits: { ...store.LIMITS, profileName: profileStore.LIMITS.name, profileCategory: profileStore.LIMITS.category },
     };
 }
@@ -365,7 +372,7 @@ function publicView(plan, event, { me = "" } = {}) {
         roster: [...roster, ...outside].filter((r) => used.has(r.userId)),
         me: meIds[0] || "",
         meIds,
-        catalog: catalogStore.catalogView(planVersion(event)),
+        catalog: catalogFor(planVersion(event)),
         loggedIn: !!me,
     };
 }

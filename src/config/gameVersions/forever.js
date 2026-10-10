@@ -101,6 +101,8 @@ module.exports = {
     // The version's colour in the web admin (#742, dark theme); see tbc.js.
     color: "#4da3ff",
     characterNames: { lastName: true },
+    // Classic's classes, so Classic's assignment types (#751): no Misdirection.
+    raidplanTypesLeftOut: classic.raidplanTypesLeftOut,
     // The version's own curve for a raid size without an instance suggestion
     // (defaultComposition); the same estimate as above.
     composition: { 10: { tanks: 2, healers: 3 }, 20: { tanks: 2, healers: 5 }, 40: { tanks: 2, healers: 8 } },
