@@ -268,7 +268,16 @@ async function repairItemNames() {
     const missing = all.filter(needsLookup);
     if (!missing.length) return 0;
     const before = missing.map(itemMetaKey);
-    await enrichItemNames(missing); // mutates the rows in place
+    // One lookup round per game version: each row asks the Wowhead section of
+    // the event it is filed under (#750). Mutates the rows in place.
+    const { versionOfImport } = require("../services/loot/lootVersion");
+    const byVersion = new Map();
+    for (const it of missing) {
+        const v = versionOfImport({ eventId: it.eventId, categoryId: it.categoryId });
+        if (!byVersion.has(v)) byVersion.set(v, []);
+        byVersion.get(v).push(it);
+    }
+    for (const [versionId, rows] of byVersion) await enrichItemNames(rows, { versionId });
     const repaired = missing.filter((it, i) => itemMetaKey(it) !== before[i]).length;
     if (repaired) writeAll(all);
     return repaired;

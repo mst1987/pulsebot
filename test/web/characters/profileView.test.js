@@ -194,7 +194,7 @@ describe("lookupArmory", () => {
         mockBlizzard.getCharacterSummary.mockResolvedValueOnce({ className: "MAGE", level: 70, guild: "Pulse" });
         const out = await lookupArmory("Frosty", "Die Aldor");
         // the realm of the main version (#542): the TBC block read from the old values
-        expect(Blizzard).toHaveBeenCalledWith({ clientId: "id", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", namespace: "profile-classicann-eu" } });
+        expect(Blizzard).toHaveBeenCalledWith({ clientId: "id", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", namespace: "profile-classicann-eu", versionId: "tbc", wowheadPath: "tbc" } });
         expect(mockBlizzard.getCharacterSummary).toHaveBeenCalledWith("Frosty", { realmSlug: "die-aldor" });
         expect(out).toEqual({ url: armoryUrlFor("Frosty"), fetched: true, className: "Mage", level: 70, guild: "Pulse" });
     });
@@ -220,7 +220,7 @@ describe("lookupArmory", () => {
     it("builds the client with the TBC realm and no credentials when no Blizzard config is stored", async () => {
         getConfig.mockReturnValueOnce({});
         await lookupArmory("Frosty");
-        expect(Blizzard).toHaveBeenCalledWith({ clientId: "", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", namespace: "profile-classicann-eu" } });
+        expect(Blizzard).toHaveBeenCalledWith({ clientId: "", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", namespace: "profile-classicann-eu", versionId: "tbc", wowheadPath: "tbc" } });
     });
 
     it("asks nobody for a version without a realm (#542) and keeps the link empty without a template", async () => {

@@ -147,6 +147,26 @@ describe("classes/Blizzard", () => {
             expect(item.sockets[0].gemIconUrl).toBe("https://wow.zamimg.com/images/wow/icons/large/inv_misc_gem_diamond_06.jpg");
         });
 
+        it("asks the version's Wowhead section and knows no TBC gem table for another version (#750)", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockImplementation((url) => {
+                if (url.includes("wowhead.com/forever/tooltip/item/999901")) {
+                    return Promise.resolve({ data: { name: "Helm", icon: "inv_helm", quality: 4 } });
+                }
+                if (url.includes("nether.wowhead.com")) return Promise.resolve({ data: {} });
+                return Promise.resolve({ data: { equipped_items: [{
+                    slot: { type: "HEAD" }, item: { id: 999901 }, name: "Helm",
+                    enchantments: [{ display_string: "+8 Agility" }],
+                }] } });
+            });
+            const b = new Blizzard({ clientId: "id", clientSecret: "secret", versionId: "forever", wowheadPath: "forever" });
+            const [item] = await b.getEquipment("Foo");
+            expect(item.iconUrl).toContain("inv_helm");
+            // "+8 Agility" is a TBC gem text: for Forever it stays a plain enchant entry
+            expect(item.enchants).toEqual(["+8 Agility"]);
+            expect(item.sockets).toEqual([]);
+        });
+
         it("classifies plain-stat enchantment entries as gems (real Thunderstrike shape: no sockets array)", async () => {
             axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
             axios.get.mockImplementation((url) => {
