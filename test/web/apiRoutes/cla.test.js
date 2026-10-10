@@ -313,7 +313,7 @@ describe("web/apiRoutes/cla", () => {
             );
             expect(logEventMatch.annotateMatches).toHaveBeenCalledWith(
                 expect.any(Array),
-                [{ id: "e1", source: "raidhelper", title: "Kara", startTime: 100, channelId: "c1", channelName: "log-chan", categoryId: "cat1", categoryName: "Raids" }],
+                [{ id: "e1", source: "raidhelper", title: "Kara", startTime: 100, channelId: "c1", channelName: "log-chan", categoryId: "cat1", categoryName: "Raids", versionId: "tbc" }],
             );
         });
 
@@ -377,6 +377,17 @@ describe("web/apiRoutes/cla", () => {
             const res = await get("/api/cla/report-status", { jobId: json(started).data.jobId });
 
             expect(json(res).data).toMatchObject({ status: "done", id: "abc123", url: "/r/abc123" });
+        });
+
+        it("says clearly that a Forever log is not evaluated yet, not a 404 (#746)", async () => {
+            buildReport.mockRejectedValue(Object.assign(
+                new ReportError("Logs von WoW Forever werden noch nicht ausgewertet."), { unsupported: true, versionId: "forever" }));
+
+            const started = await post("/api/cla", { link: "https://forever.warcraftlogs.com/reports/X" });
+            await flushJobs();
+            const res = await get("/api/cla/report-status", { jobId: json(started).data.jobId });
+
+            expect(json(res).data).toMatchObject({ status: "error", error: "Logs von WoW Forever werden noch nicht ausgewertet." });
         });
 
         it("reports a ReportError as the job's error message", async () => {
@@ -816,10 +827,26 @@ describe("web/apiRoutes/cla", () => {
 
             const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e2" });
 
-            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e2", eventLabel: "Other", eventStartTime: 100, source: "manual" });
+            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e2", eventLabel: "Other", eventStartTime: 100, source: "manual", versionId: "tbc" });
             expect(json(res)).toEqual({
                 data: { logId: "l1", eventId: "e2", eventLabel: "Other", message: "Log „Other\" zugeordnet." },
             });
+        });
+
+        it("refuses a raid of another version than the log's host told (#746)", async () => {
+            logStore.getLog.mockReturnValue({ id: "l1", hostVersionId: "forever" });
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "chan", categoryId: "cat1", categoryName: "Raids" } });
+            mockGetPastEvents.mockResolvedValue([{ id: "e2", title: "Other", startTime: 100, channelId: "c1" }]);
+
+            const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e2" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(json(res)).toEqual({ error: {
+                code: "version_mismatch",
+                message: "Dieses Log ist von WoW Forever, der Raid von TBC Anniversary. Ein Log gehört nur zu einem Raid seiner Version.",
+            } });
+            expect(logStore.linkEvent).not.toHaveBeenCalled();
         });
     });
 
@@ -919,7 +946,7 @@ describe("web/apiRoutes/cla", () => {
             ]);
             discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "chan", categoryId: "cat1", categoryName: "Raids" } });
             mockGetPastEvents.mockResolvedValue([{ id: "e9", title: "Match Event", startTime: 500, channelId: "c1" }]);
-            const matchedEvent = { id: "e9", source: "raidhelper", title: "Match Event", startTime: 500, channelId: "c1", channelName: "chan", categoryId: "cat1", categoryName: "Raids" };
+            const matchedEvent = { id: "e9", source: "raidhelper", title: "Match Event", startTime: 500, channelId: "c1", channelName: "chan", categoryId: "cat1", categoryName: "Raids", versionId: "tbc" };
             logEventMatch.autoMatches.mockReturnValue([{ log: { id: "l1" }, event: matchedEvent, diffMs: 1000 }]);
 
             const res = await post("/api/cla/log-automatch", {});
@@ -928,7 +955,7 @@ describe("web/apiRoutes/cla", () => {
                 [{ id: "l1", guildId: "guild-1" }, { id: "l3", guildId: "guild-1" }],
                 [matchedEvent],
             );
-            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e9", eventLabel: "Match Event", eventStartTime: 500, source: "auto" });
+            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e9", eventLabel: "Match Event", eventStartTime: 500, source: "auto", versionId: "tbc" });
             expect(json(res)).toEqual({
                 data: { matched: 1, remaining: 1, message: "1 Log(s) automatisch zugeordnet, 1 ohne eindeutiges Event." },
             });

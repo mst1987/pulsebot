@@ -186,6 +186,7 @@ function toMatchableShape(ev, { catMap } = {}) {
         channelName: place.channelName,
         categoryId: place.categoryId,
         categoryName: place.categoryName,
+        versionId: ev.versionId || "",
     };
 }
 

@@ -1,4 +1,5 @@
 const { createClient } = require("./httpClient");
+const { parseReportLink, WCL_LEGACY_SITE } = require("../utils/logcheck/logLinks");
 
 // v1 tables of a whole raid night can take a while; this caps a hung request.
 const REQUEST_TIMEOUT_MS = 60000;
@@ -25,7 +26,9 @@ const REQUEST_TIMEOUT_MS = 60000;
  * the one the bot needs anyway. The importers and why each stays on v1:
  *   - utils/logcheck/report.js    the whole log check: summary, casts, buffs,
  *                                 debuffs, damage, deaths tables and raw events,
- *                                 read as v1 answers throughout the analyzers
+ *                                 read as v1 answers throughout the analyzers; on
+ *                                 the site of the log's version (#746, through
+ *                                 services/logcheck/logVersion.js wclClientFor)
  *   - commands/apply/applyModal   getParses (character rankings on the fresh
  *                                 host, analyzeApplicant), then report.js
  *   - services/characters/characterInfo.js        getSummary: the gear snapshot of a report
@@ -35,31 +38,44 @@ const REQUEST_TIMEOUT_MS = 60000;
  *                                 and in another shape (raidProgress reads v1's
  *                                 boss/kill/zoneName), so a v2 path would need
  *                                 this one as fallback: two paths for one list
- *   - commands/logcheck/logcheck  only the static parseReportId(), no request
+ *   - services/logcheck/logTitles.js  getFights for the list's titles, per version
+ *   - logLinks.parseReportLink    host + id of a link (also as a static here), no request
  */
+// The v1 site a client asks when nobody names one: the classic host the CLA
+// port has always read (it serves the fresh/TBC Anniversary reports as well).
+// The log check hands the site of the log's version instead
+// (services/logcheck/logVersion.js, #746); the other readers are TBC-only and
+// keep this one.
+const LEGACY_SITE = WCL_LEGACY_SITE;
+const SITE_RE = /^https:\/\/[a-z0-9.-]*warcraftlogs\.com$/i;
+
 class WarcraftLogs {
-    constructor(apiKey = process.env.WARCRAFTLOGS_API_KEY) {
+    /**
+     * @param {string} [apiKey]
+     * @param {{ site?: string }} [opts] the origin of the WCL site whose v1 API
+     *   to ask ("https://vanilla.warcraftlogs.com"); LEGACY_SITE without a valid one
+     */
+    constructor(apiKey = process.env.WARCRAFTLOGS_API_KEY, { site } = {}) {
         if (!apiKey) {
             throw new Error("WARCRAFTLOGS_API_KEY is not set in the environment.");
         }
         this.apiKey = apiKey;
-        // CLA always targets the classic v1 host regardless of fresh/tbc/classic reports.
-        this.baseUrl = "https://classic.warcraftlogs.com/v1/";
+        this.site = SITE_RE.test(String(site || "")) ? String(site) : LEGACY_SITE;
+        this.baseUrl = `${this.site}/v1/`;
         this.http = createClient({ service: "Warcraft Logs", baseURL: this.baseUrl, timeout: REQUEST_TIMEOUT_MS });
     }
 
     /**
-     * Extract the report id from a full WCL url or return the input if it already is an id.
+     * The host and the report id of a WCL link, `{ host, id }`; a bare id has
+     * no host (utils/logcheck/logLinks.js' parseReportLink, #746).
      */
+    static parseReportLink(reportUrlOrId) {
+        return parseReportLink(reportUrlOrId);
+    }
+
+    /** The report id of a WCL link, or the input when it already is an id (see parseReportLink). */
     static parseReportId(reportUrlOrId) {
-        if (!reportUrlOrId) return "";
-        let input = reportUrlOrId.toString().trim().replace(".cn/", ".com/");
-        const marker = "warcraftlogs.com/reports/";
-        if (input.indexOf(marker) > -1) {
-            input = input.split(marker)[1];
-        }
-        // strip query string and #fragment (fight=, type=, ...)
-        return input.split("#")[0].split("?")[0].split("/")[0];
+        return parseReportLink(reportUrlOrId).id;
     }
 
     async #get(path, params = {}) {
@@ -178,5 +194,6 @@ class WarcraftLogs {
 }
 
 WarcraftLogs.REQUEST_TIMEOUT_MS = REQUEST_TIMEOUT_MS;
+WarcraftLogs.LEGACY_SITE = LEGACY_SITE;
 
 module.exports = WarcraftLogs;

@@ -1,7 +1,7 @@
 const { MessageFlags } = require("discord.js");
 const { evaluateLog, SECTION_LABEL } = require("../../services/logcheck/logChannel");
 const { reportSummaryLines } = require("../../utils/logcheck/report");
-const { forceButtonRow, refusalCard, resultCard } = require("./logevalForce");
+const { forceButtonRow, refusalCard, resultCard, unsupportedCard } = require("./logevalForce");
 const logStore = require("../../stores/logStore");
 const discord = require("../../services/discord/discord");
 
@@ -33,6 +33,8 @@ module.exports = {
                     buttons: [forceButtonRow("log", logId, section)],
                 }));
             }
+            // A version the log check has no rules for yet (#746): in the reader's language.
+            if (res.unsupported) return interaction.editReply(unsupportedCard(interaction, res.versionId));
             return interaction.editReply(refusalCard(res));
         }
 

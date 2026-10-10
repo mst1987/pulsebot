@@ -81,4 +81,17 @@ describe("web/logcheck/manualLog — linkLogByUrl", () => {
         expect(again.log.id).toBe(first.log.id);
         expect(logStore.listLogs()).toHaveLength(1);
     });
+
+    it("refuses a log of another version than the raid's, when its host tells one (#746)", () => {
+        // fresh is the TBC site of the standard settings
+        const result = linkLogByUrl("https://fresh.warcraftlogs.com/reports/RPT4", { ...EVENT, versionId: "forever" }, "g1");
+        expect(result.error).toBe("Dieses Log ist von TBC Anniversary, der Raid von WoW Forever. Ein Log gehört nur zu einem Raid seiner Version.");
+        expect(logStore.listLogs()).toHaveLength(0);
+    });
+
+    it("gives the log the version of its raid", () => {
+        const result = linkLogByUrl("https://classic.warcraftlogs.com/reports/RPT5", { ...EVENT, versionId: "forever" }, "g1");
+        expect(result.error).toBeUndefined();
+        expect(result.log).toMatchObject({ eventId: "e1", versionId: "forever", versionFrom: "event", hostVersionId: "" });
+    });
 });

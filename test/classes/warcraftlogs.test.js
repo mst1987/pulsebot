@@ -37,11 +37,46 @@ describe("classes/WarcraftLogs", () => {
             expect(client.apiKey).toBe("explicit-key");
         });
 
+        it("targets the v1 host of the site it is handed (#746), the classic one for anything else", async () => {
+            const vanilla = new WarcraftLogs("k", { site: "https://vanilla.warcraftlogs.com" });
+            expect(vanilla.baseUrl).toBe("https://vanilla.warcraftlogs.com/v1/");
+            respond(reply(200, { fights: [] }));
+            await vanilla.getFights("R1");
+            expect(url(sent())).toBe("https://vanilla.warcraftlogs.com/v1/report/fights/R1");
+            expect(new WarcraftLogs("k", { site: "https://evil.example.com" }).baseUrl).toBe("https://classic.warcraftlogs.com/v1/");
+            expect(new WarcraftLogs("k", { site: "http://fresh.warcraftlogs.com" }).baseUrl).toBe("https://classic.warcraftlogs.com/v1/");
+            expect(WarcraftLogs.LEGACY_SITE).toBe("https://classic.warcraftlogs.com");
+        });
+
         it("throws when no api key is available", () => {
             delete process.env.WARCRAFTLOGS_API_KEY;
             expect(() => new WarcraftLogs()).toThrow(
                 "WARCRAFTLOGS_API_KEY is not set in the environment."
             );
+        });
+    });
+
+    describe("parseReportLink (#746)", () => {
+        it.each([
+            ["https://fresh.warcraftlogs.com/reports/aBcD1234", "fresh.warcraftlogs.com"],
+            ["https://vanilla.warcraftlogs.com/reports/aBcD1234#fight=3", "vanilla.warcraftlogs.com"],
+            ["https://classic.warcraftlogs.com/reports/aBcD1234?fight=last", "classic.warcraftlogs.com"],
+            ["https://www.warcraftlogs.com/reports/aBcD1234/", "www.warcraftlogs.com"],
+            ["https://FRESH.warcraftlogs.com/reports/aBcD1234", "fresh.warcraftlogs.com"],
+            ["https://cn.warcraftlogs.cn/reports/aBcD1234", "cn.warcraftlogs.com"],
+            ["fresh.warcraftlogs.com/reports/aBcD1234", "fresh.warcraftlogs.com"],
+        ])("keeps the host of %s", (link, host) => {
+            expect(WarcraftLogs.parseReportLink(link)).toEqual({ host, id: "aBcD1234" });
+        });
+
+        it("has no host for a bare id, and nothing for nothing", () => {
+            expect(WarcraftLogs.parseReportLink("aBcD1234")).toEqual({ host: "", id: "aBcD1234" });
+            expect(WarcraftLogs.parseReportLink("")).toEqual({ host: "", id: "" });
+            expect(WarcraftLogs.parseReportLink(null)).toEqual({ host: "", id: "" });
+        });
+
+        it("drops a host that is no warcraftlogs.com address", () => {
+            expect(WarcraftLogs.parseReportLink("see https://fresh.warcraftlogs.com/reports/aBcD1234")).toEqual({ host: "", id: "aBcD1234" });
         });
     });
 

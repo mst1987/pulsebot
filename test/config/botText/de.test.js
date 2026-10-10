@@ -43,6 +43,7 @@ const AREAS = {
     "setup.js": require("../../../src/config/botText/de/setup"),
     "talk.js": require("../../../src/config/botText/de/talk"),
     "guildBank.js": require("../../../src/config/botText/de/guildBank"),
+    "logcheck.js": require("../../../src/config/botText/de/logcheck"),
 };
 
 describe("config/botText/de", () => {

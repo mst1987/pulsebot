@@ -60,6 +60,7 @@ describe("services/logcheck/logAutoLink", () => {
                 eventLabel: "Gruul",
                 eventStartTime: raidB.startTime,
                 source: "auto",
+                versionId: "",
             });
         });
 
