@@ -105,4 +105,9 @@ function migrateLegacy({ now, charOfFor, roleOf } = {}) {
     return done;
 }
 
-module.exports = { readPlanner, writePlanner, liveState, migrateLegacy, useFile };
+/** The server keys the file holds a planner for ("_" = the one without a server). */
+function plannerGuildKeys() {
+    return Object.keys(store.read());
+}
+
+module.exports = { readPlanner, writePlanner, plannerGuildKeys, liveState, migrateLegacy, useFile };

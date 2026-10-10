@@ -97,7 +97,10 @@
         },
         "next": "Next date",
         "noDate": "no date in sight",
-        "edit": "Edit series"
+        "edit": "Edit series",
+        "inactive": "Category inactive",
+        "inactiveTip": "Series paused",
+        "inactiveSub": "The category is deactivated under Settings → Categories. The series creates no events until the category is active again."
     },
     "page": {
         "loading": "Loading series",

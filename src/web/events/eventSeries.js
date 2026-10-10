@@ -42,6 +42,7 @@ const { parseClockTime } = require("../../utils/time");
 const { TIMEZONE } = require("../../config/timezone");
 const { createEvent } = require("../../services/events/eventCreate");
 const { templateVersionProblem } = require("../../services/events/categoryEras");
+const { isCategoryActive } = require("../../services/events/categoryLifecycle");
 const WEEKDAY_SHORT = ["", "Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MIN_DAYS_BEFORE = 1;
 const MAX_DAYS_BEFORE = 28;
@@ -254,7 +255,7 @@ let running = false;
  * @returns {Promise<{ created: number, failed: number, existing: number, ignored: number, error: string|null, results: object[] }>}
  */
 async function runSeries({ now = Date.now(), config = getConfig(), onlyCategoryId = "" } = {}) {
-    const summary = { created: 0, failed: 0, existing: 0, ignored: 0, error: null, results: [] };
+    const summary = { created: 0, failed: 0, existing: 0, ignored: 0, inactive: 0, error: null, results: [] };
     const all = Object.values(store.listSeries()).filter((s) => s && s.enabled && (!onlyCategoryId || s.categoryId === onlyCategoryId));
     if (!all.length) return summary;
     if (running) return { ...summary, error: "läuft bereits" };
@@ -267,6 +268,8 @@ async function runSeries({ now = Date.now(), config = getConfig(), onlyCategoryI
         for (const series of all) {
             const categoryId = series.categoryId;
             if (signupSourceFor(categoryId) !== "eventhelper") { summary.ignored += 1; continue; }
+            // A deactivated category (#744): its series rests until the category is active again.
+            if (!isCategoryActive(categoryId, config)) { summary.inactive += 1; continue; }
             const guildId = series.guildId || guildRoles.eventGuildId(config);
             if (!guildId) { summary.error = "Kein Event-Discord eingestellt."; continue; }
             const due = dueDates(series, store.getRuns(categoryId), now);
@@ -365,9 +368,11 @@ async function seriesOverview({ guildId, config = getConfig(), now = Date.now(),
     for (const id of ids) {
         const series = stored[id] || null;
         const source = signupSourceFor(id);
-        const row = { id, name: names[id] || "", source, series: null, template: null, summary: "", upcoming: [], lastCreated: null };
+        // #744: the series of a deactivated category rests; its dates read "off".
+        const inactive = !isCategoryActive(id, config);
+        const row = { id, name: names[id] || "", source, inactive, series: null, template: null, summary: "", upcoming: [], lastCreated: null };
         if (series) {
-            const view = await describeSeries(series, { guildId, config, now, count, inputs });
+            const view = await describeSeries(inactive ? { ...series, enabled: false } : series, { guildId, config, now, count, inputs });
             Object.assign(row, view, { series });
         } else {
             const template = templateFor({ categoryId: id, raidTemplateId: "" }, config);

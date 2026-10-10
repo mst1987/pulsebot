@@ -21,7 +21,12 @@ vi.mock("../../api", async (orig) => ({
 
 const noop = () => undefined;
 
-function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance }: {
+function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles }: {
+    missing?: api.MissingCategory[];
+    onCloseCategory?: (c: api.MissingCategory) => void;
+    closeBlocked?: boolean;
+    roles?: api.Role[];
+    categoryRoles?: Record<string, string[]>;
     attendance?: Record<string, Partial<CategoryAttendance>>;
     onAttendance?: (id: string, value: CategoryAttendance) => void;
     languages?: Record<string, string>;
@@ -35,9 +40,12 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
     return (
         <CategoryMatrix
             categories={[{ id: "c1", name: "Raids Mittwoch" }]}
-            roles={[{ id: "r1", name: "Raider" }]}
+            roles={roles || [{ id: "r1", name: "Raider" }]}
             categoryIds={["c1"]}
-            categoryRoles={{ c1: ["r1"] }}
+            categoryRoles={categoryRoles || { c1: ["r1"] }}
+            missing={missing}
+            onCloseCategory={onCloseCategory}
+            closeBlocked={closeBlocked}
             categoryLootTool={{ c1: "gargul" }}
             categorySheets={sheets}
             categoryPlanning={plan}
@@ -212,9 +220,43 @@ describe("CategoryMatrix: the open card's tabs", () => {
     });
 
     it("words the tabs in English", async () => {
-        switchLang("en");
+        await switchLang("en");
         await openCard();
         expect(screen.getByRole("tablist", { name: "Settings of Raids Mittwoch" })).toBeInTheDocument();
         expect(screen.getAllByRole("tab").map((b) => b.textContent)).toEqual(["Signup4", "Message5", "Setup & planning3", "Loot2"]);
+    });
+});
+
+describe("CategoryMatrix: a category's life (#744)", () => {
+    // the tabs' English case above leaves the page in English
+    beforeEach(() => switchLang("de"));
+
+    const gone: api.MissingCategory = {
+        categoryId: "gone", name: "TBC Montag", active: false, series: { enabled: true, weekdays: [1], time: "19:30" }, reminders: false,
+        settings: [], councilProfile: false, kaders: [], rosters: [], upcoming: 0,
+    };
+
+    it("marks a category deleted in Discord under its last name and offers to close it", async () => {
+        const user = userEvent.setup();
+        const onClose = vi.fn();
+        renderPage(<Harness missing={[gone]} onCloseCategory={onClose} />);
+        const row = screen.getByText("TBC Montag").closest(".cat-row") as HTMLElement;
+        expect(within(row).getByText("in Discord gelöscht")).toBeInTheDocument();
+        expect(within(row).queryByText("unbekannt")).toBeNull();
+        await user.click(within(row).getByRole("button", { name: "Kategorie abschließen" }));
+        expect(onClose).toHaveBeenCalledWith(gone);
+    });
+
+    it("keeps the close action shut while the page has unsaved changes", () => {
+        renderPage(<Harness missing={[gone]} onCloseCategory={noop} closeBlocked />);
+        expect(screen.getByRole("button", { name: "Kategorie abschließen" })).toBeDisabled();
+    });
+
+    it("offers a renamed raider role by its id, also in a category that does not use it yet", async () => {
+        const user = userEvent.setup();
+        renderPage(<Harness roles={[{ id: "r1", name: "Kern" }, { id: "r2", name: "Gamer" }]} categoryRoles={{ c1: ["r1"] }} />);
+        await user.click(screen.getByRole("button", { name: "Details" }));
+        expect(screen.getByRole("button", { name: "@Kern" })).toHaveAttribute("aria-pressed", "true");
+        expect(screen.queryByRole("button", { name: "@Gamer" })).toBeNull();
     });
 });

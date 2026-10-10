@@ -66,6 +66,28 @@ function categoryEraAt(categoryId, time, { config } = {}) {
     return { ...hit, current: hit === eras[eras.length - 1] };
 }
 
+/**
+ * The category name a raid shows (#744): the name of its section when that
+ * section is closed and recorded one, else `liveName` — the name the category
+ * has in Discord now (or the one stored with the raid). So after "TBC Montag"
+ * became "Forever Montag", the TBC raids keep "TBC Montag" and the new ones
+ * read "Forever Montag". Everything else keys on the category id; this is
+ * display only.
+ * @param {string} categoryId
+ * @param {number} time       the raid's start (unix seconds or ms)
+ * @param {string} liveName   the current name ("" when unknown)
+ */
+function categoryNameAt(categoryId, time, liveName = "", { config } = {}) {
+    const fallback = String(liveName || "");
+    const id = String(categoryId || "").trim();
+    if (!id || !time) return fallback;
+    const cfg = configOf(config);
+    const stored = cfg.categoryEras && typeof cfg.categoryEras === "object" ? cfg.categoryEras[id] : null;
+    if (!Array.isArray(stored) || stored.length < 2) return fallback; // never switched: one section, the live name
+    const era = categoryEraAt(id, time, { config: cfg });
+    return !era.current && era.name ? era.name : fallback;
+}
+
 /** The section a category is in now — the last one. */
 function currentEra(categoryId, { config } = {}) {
     const eras = erasOf(categoryId, { config });
@@ -107,4 +129,4 @@ function templateVersionProblem({ template, categoryId, config } = {}) {
     return `Die Raid-Vorlage${name ? ` „${name}“` : ""} ist für ${label(templateVersion)}, die Kategorie spielt ${label(categoryVersion)}.`;
 }
 
-module.exports = { erasOf, categoryEraAt, currentEra, switchEras, templateVersionProblem };
+module.exports = { erasOf, categoryEraAt, categoryNameAt, currentEra, switchEras, templateVersionProblem };

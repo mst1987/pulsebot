@@ -58,7 +58,10 @@ describe("Kategorien list", () => {
     });
 
     it("keeps an unknown category id visible with a bad badge", () => {
-        expect(matrix).toMatch(/\{cat\.unknown && \(\s*<Badge tone="bad"/);
+        expect(matrix).toMatch(/\{cat\.unknown && !gone && \(\s*<Badge tone="bad"/);
+        // #744: one Discord really deleted says so and offers to close it
+        expect(matrix).toMatch(/\{cat\.unknown && gone && \(\s*<Badge tone="bad"/);
+        expect(matrix).toContain("t(\"settings.categoryClose.action\")");
     });
 
     it("shows the per-category settings as badges in the row", () => {

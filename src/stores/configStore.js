@@ -170,4 +170,35 @@ function saveConfig(partial) {
     return getConfig();
 }
 
-module.exports = { getConfig, saveConfig, resolveEventSheetLink, readStored, writeStored, useFile };
+/**
+ * Remove one category from the config (#744: "Kategorie abschließen"): out of
+ * `categoryIds` and out of every map named in `keys`. saveConfig() merges most
+ * category maps, so a key can only be dropped here. Returns the config as
+ * getConfig() reads it, and the keys that held an entry.
+ * @param {string} categoryId
+ * @param {string[]} keys  the category maps to clear (config keys)
+ * @returns {{ config: object, removed: string[] }}
+ */
+function dropCategoryEntries(categoryId, keys = []) {
+    const id = String(categoryId || "").trim();
+    const current = getConfig();
+    if (!id) return { config: current, removed: [] };
+    const next = { ...current };
+    const removed = [];
+    if (Array.isArray(current.categoryIds) && current.categoryIds.map(String).includes(id)) {
+        next.categoryIds = current.categoryIds.filter((c) => String(c) !== id);
+        removed.push("categoryIds");
+    }
+    for (const key of keys) {
+        const map = current[key];
+        if (!map || typeof map !== "object" || Array.isArray(map) || !Object.prototype.hasOwnProperty.call(map, id)) continue;
+        const rest = { ...map };
+        delete rest[id];
+        next[key] = rest;
+        removed.push(key);
+    }
+    if (removed.length) store.write(next);
+    return { config: getConfig(), removed };
+}
+
+module.exports = { getConfig, saveConfig, dropCategoryEntries, resolveEventSheetLink, readStored, writeStored, useFile };

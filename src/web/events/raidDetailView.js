@@ -332,7 +332,7 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
         // "raidplan" | "sheet": which of the two this raid's category plans with (Einstellungen → Kategorien).
         planning,
         setupFromSnapshot: setupInfo.setupFromSnapshot,
-        categoryName: found.g.categoryName,
+        categoryName: found.e.categoryName || found.g.categoryName,
         guildId,
         eventsWarning: stale ? (groupsError || "Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.") : null,
         notifyTemplates: listNotify(),

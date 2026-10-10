@@ -9,6 +9,7 @@ const { canManageRoles } = require("../discord/roleSync");
 const { roleBelowBot } = require("../discord/memberRoles");
 const { listKnownCategories } = require("../discord/categoryNames");
 const { listStoredEvents } = require("../events/eventSources");
+const { isCategoryActive } = require("../events/categoryLifecycle");
 const { mainVersionFor, visibleVersions } = require("../events/mainVersion");
 const { publicVersions } = require("../../config/gameVersions");
 const { getRaidTemplate } = require("../../stores/raidTemplateStore");
@@ -22,6 +23,8 @@ const { LOOT_SYSTEMS } = require("../loot/lootSystem");
  * (config.categoryIds), every category a stored raid of this server ran in and
  * every category a roster names - with a known name, in Discord's order.
  * `rosterId`: the roster that category has (one per category), else null.
+ * Only active categories (#744) - a deactivated one stays only while a roster
+ * names it (`active: false`), so that roster's settings still show its category.
  */
 function rosterCategories(guildId, config = {}) {
     const ids = new Set((config.categoryIds || []).map((id) => String(id).trim()).filter(Boolean));
@@ -33,12 +36,13 @@ function rosterCategories(guildId, config = {}) {
         if (!guildId || r.guildId === guildId) ids.add(r.categoryId);
     }
     return listKnownCategories(guildId)
-        .filter((c) => ids.has(c.id) && c.name)
+        .filter((c) => ids.has(c.id) && c.name && (isCategoryActive(c.id, config) || rosterOf.has(c.id)))
         .map((c) => {
             const roster = rosterOf.get(c.id) || null;
             return {
                 id: c.id,
                 name: c.name,
+                active: isCategoryActive(c.id, config),
                 versionId: mainVersionFor({ categoryId: c.id, config }),
                 rosterId: roster ? roster.id : null,
                 rosterName: roster ? roster.name : "",

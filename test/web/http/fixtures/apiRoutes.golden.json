@@ -84,6 +84,8 @@
   "GET /api/settings",
   "GET /api/settings/archive-export",
   "GET /api/settings/category-switch",
+  "GET /api/settings/category-deactivate",
+  "POST /api/settings/category-close",
   "GET /api/settings/discord-servers",
   "GET /api/settings/ingest-tokens",
   "GET /api/settings/item-search",
