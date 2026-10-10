@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
     getHistoryData, getLootInbox } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { useToast } from "../../components/shell/Jobs";
 import { IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
@@ -22,7 +23,9 @@ export default function HistoryInboxPage() {
     const t = useT();
     const navigate = useNavigate();
     const toast = useToast();
-    const inbox = useApi(() => getLootInbox(), []);
+    // One game version at a time (#741): the sessions of its raids and those not matched yet.
+    const { version } = useContentVersion();
+    const inbox = useApi(() => (version ? getLootInbox(version) : getLootInbox()), [version]);
     const sessions = inbox.data ? inbox.data.sessions : null;
     const linked = inbox.data?.linked || [];
     const loadError = inbox.error;

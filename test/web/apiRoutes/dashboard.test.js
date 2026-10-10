@@ -417,7 +417,7 @@ describe("web/apiRoutes/dashboard", () => {
             expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2, { versionId: "tbc" });
             expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5, { versionId: "tbc" });
             // "Neuer Loot" counts from the newest past raid's start
-            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(1000);
+            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(1000, { versionId: "tbc" });
             const data = json(res).data;
             expect(data.kicker).toEqual({ guild: "Pulse", realm: "Thunderstrike EU" });
             expect(data.nextRaid).toEqual(next);
@@ -442,7 +442,7 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.versions).toEqual([{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 0 }]);
         });
 
-        it("passes the game version filter through to the three tiles (#545)", async () => {
+        it("passes the game version filter through to every tile with game content (#545, #741)", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             activeGuildFor.mockReturnValue("guild-1");
             settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat2: "forever" } });
@@ -461,14 +461,19 @@ describe("web/apiRoutes/dashboard", () => {
             expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2, { versionId: "forever" });
             expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5, { versionId: "forever" });
             expect(dashboardData.loadTopLoot).toHaveBeenCalledWith(5, "forever");
+            // the latest report, the new loot and the roster figures follow it too (#741)
+            expect(dashboardData.loadLatestReport).toHaveBeenCalledWith({ versionId: "forever" });
+            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(0, { versionId: "forever" });
+            expect(dashboardData.loadRosterFigures).toHaveBeenCalledWith("guild-1", { versionId: "forever" });
             const data = json(res).data;
             expect(data.version).toBe("forever");
             // Every version dashboardVersions() found, plus the main one.
             expect(data.versions.map((v) => v.id).sort()).toEqual(["forever", "tbc"]);
 
+            // strictly one version (#741): "all" is the main version
             const all = await get("/api/dashboard", { version: "all" });
-            expect(dashboardData.loadNextRaids).toHaveBeenLastCalledWith("guild-1", 2, { versionId: "" });
-            expect(json(all).data.version).toBe("");
+            expect(dashboardData.loadNextRaids).toHaveBeenLastCalledWith("guild-1", 2, { versionId: "tbc" });
+            expect(json(all).data.version).toBe("tbc");
         });
 
         it("shows no tasks and no next raid when nothing is due", async () => {
@@ -482,7 +487,7 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.nextRaid).toBeNull();
             expect(data.nextRaidError).toBe("Raid-Helper down");
             expect(data.tasks).toEqual([]);
-            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(0);
+            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(0, { versionId: "tbc" });
         });
     });
 

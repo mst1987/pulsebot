@@ -75,8 +75,9 @@ export type SeriesPreview = {
     template: SeriesTemplate | null;
 };
 
-export function getEventSeries(): Promise<EventSeriesData> {
-    return get<EventSeriesData>("/api/raids/series");
+/** `version`: the menu's content version (#741) — the series of its categories; "" = the main version. */
+export function getEventSeries(version = ""): Promise<EventSeriesData> {
+    return get<EventSeriesData>(`/api/raids/series${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 export function previewEventSeries(query: string): Promise<SeriesPreview> {

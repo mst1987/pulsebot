@@ -1,4 +1,4 @@
-const { json, routerClient } = require("../../helpers/http");
+const { json, mockRes, routerClient } = require("../../helpers/http");
 
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
@@ -310,6 +310,61 @@ describe("web/apiRoutes/history", () => {
             expect(data.versions.map((v) => v.id)).toEqual(["forever"]);
             dashboardData.annotateUpcomingExtras.mockReset();
             settingsStore.getConfig.mockReturnValue({});
+        });
+
+        it("lists the logs of one version: unlinked ones in every version, linked ones only in their raid's (#741)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc" });
+            logStore.listLogs.mockReturnValue([
+                { id: "tbc-log", eventId: "rh-1", versionId: "tbc" },
+                { id: "forever-log", eventId: "rh-2", versionId: "forever" },
+                { id: "waiting", eventId: "" },
+            ]);
+            try {
+                const forever = json(await get("/api/history", { version: "forever" })).data;
+                expect(forever.logs.map((l) => l.id)).toEqual(["forever-log", "waiting"]);
+                const tbc = json(await get("/api/history")).data;
+                expect(tbc.logs.map((l) => l.id)).toEqual(["tbc-log", "waiting"]);
+            } finally {
+                logStore.listLogs.mockReturnValue([]);
+                settingsStore.getConfig.mockReturnValue({});
+            }
+        });
+
+        it("shows the addon inbox of one version: a session without a raid in every version (#741)", async () => {
+            const pending = [
+                { id: "p-tbc", items: [], match: { suggested: { eventId: "eh-tbc" } } },
+                { id: "p-forever", items: [], match: { suggested: { eventId: "eh-forever" } } },
+                { id: "p-open", items: [], match: null },
+            ];
+            const linked = [{ sessionId: "l-tbc", eventId: "eh-tbc" }, { sessionId: "l-forever", eventId: "eh-forever" }];
+            // the inbox store reads its file; here it is a stand-in, in a registry of its own
+            let route;
+            let isolatedAuth;
+            jest.isolateModules(() => {
+                jest.doMock("../../../src/stores/lootInboxStore", () => ({
+                    listPending: () => pending, listLinked: () => linked,
+                    getPending: jest.fn(), resolvePending: jest.fn(), upsertPending: jest.fn(), resolutionFor: jest.fn(), noteAppended: jest.fn(),
+                }));
+                jest.doMock("../../../src/services/events/storedVersion", () => ({
+                    storedVersionOf: (id) => ({ "eh-tbc": "tbc", "eh-forever": "forever" })[id] || "",
+                    versionOfLog: () => "",
+                }));
+                route = require("../../../src/web/apiRoutes/history");
+                isolatedAuth = require("../../../src/web/http/auth");
+            });
+            isolatedAuth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            const inbox = async (version) => {
+                const res = mockRes();
+                await route.getLootInbox({ method: "GET", headers: {} }, res, new URL(`http://x/api/history/inbox?version=${version}`));
+                return json(res).data;
+            };
+            const forever = await inbox("forever");
+            expect(forever.sessions.map((s) => s.id)).toEqual(["p-forever", "p-open"]);
+            expect(forever.linked.map((s) => s.sessionId)).toEqual(["l-forever"]);
+            const tbc = await inbox("tbc");
+            expect(tbc.sessions.map((s) => s.id)).toEqual(["p-tbc", "p-open"]);
+            expect(tbc.linked.map((s) => s.sessionId)).toEqual(["l-tbc"]);
         });
 
         it("returns 401 for an anonymous caller", async () => {
@@ -859,6 +914,8 @@ describe("web/apiRoutes/history", () => {
                     eventId: "e1",
                     label: "Kara",
                     items: [{ eventLabel: "Kara", itemName: "Sword", className: "", spec: "", classColor: "", specIconUrl: "" }],
+                    // the raid's version (#741): a link from another version switches the menu to it
+                    versionId: "tbc",
                 },
             });
         });
@@ -1032,10 +1089,22 @@ describe("web/apiRoutes/history", () => {
             expect(data.armoryUrl).toContain("Anna");
         });
 
+        it("takes the version asked for only when the character plays it (#741)", async () => {
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc" });
+            // Anna has TBC loot only: a Forever view still shows her in TBC (the page then switches the menu)
+            const data = json(await get("/api/history/char", { name: "Anna", version: "forever" })).data;
+            expect(data).toMatchObject({ versionId: "tbc", versionIds: ["tbc"] });
+        });
+
         it("asks no armory and links nothing for a version without settings (#542, asked by ?version=)", async () => {
             mockIsConfigured.mockReturnValue(true);
             settingsStore.getConfig.mockReturnValue({ mainVersion: "forever", blizzard: { clientId: "id", clientSecret: "s" }, versionSettings: {} });
+            // Anna has loot of a Forever raid (its stored version, #737)
+            const raidEventStore = require("../../../src/stores/raidEventStore");
+            raidEventStore.versionOfRaidEvent = jest.fn((id) => (id === "rh-forever" ? "forever" : ""));
+            lootStore.listByCharacter.mockReturnValueOnce([{ character: "Anna", itemName: "Axe", eventId: "rh-forever" }]);
             const data = json(await get("/api/history/char", { name: "Anna", version: "forever" })).data;
+            delete raidEventStore.versionOfRaidEvent;
             expect(mockGetEquipment).not.toHaveBeenCalled();
             expect(mockGetCharacterSummary).not.toHaveBeenCalled();
             expect(data).toMatchObject({

@@ -34,6 +34,20 @@ const { newId } = require("../../utils/ids");
 const { migrateLegacyPlanner, charOfAssignments, PLANNER_VERSION } = require("./kaderMigration");
 const { rulesFor } = require("../../config/gameVersions");
 
+/** A Kader's game version (#741): a known one, else the planner's own (PLANNER_VERSION, Forever). */
+function kaderVersion(id) {
+    const key = String(id || "").trim();
+    return key && rulesFor(key) ? key : PLANNER_VERSION;
+}
+
+/**
+ * Whether a Kader is listed under a game version (#741): the web shows one
+ * version at a time, a Kader only under its own. `versionId` "" = every Kader.
+ */
+function kaderInVersion(kader, versionId) {
+    return !versionId || kaderVersion(kader && kader.versionId) === versionId;
+}
+
 /** The raid sizes of a version's instances (sorted, once each) that fill whole groups of five; [10, 20] when it has none. */
 function setupSizesOf(versionId) {
     const rules = rulesFor(versionId);
@@ -335,6 +349,9 @@ function normalizeKader(k) {
         leads: [...new Set((Array.isArray(k.leads) ? k.leads : []).map(str).filter(Boolean))].slice(0, LIMITS.leads),
         createdAt: str(k.createdAt),
         createdBy: str(k.createdBy),
+        // The game version the Kader is for (#741): the web lists it only under that
+        // version. One stored before had none — the planner was made for Forever.
+        versionId: kaderVersion(k.versionId),
         // A Kader stored before the setting existed counts in no category: the
         // page says "—" and asks for a pick instead of guessing (docs/kaderplaner.md).
         attendanceCategories: categoryIds(k.attendanceCategories),
@@ -571,6 +588,8 @@ function createKader(planner, input, ctx) {
         leads: ctx.actor ? [ctx.actor] : [],
         createdAt: ctx.now,
         createdBy: ctx.actor || "",
+        // the version the page shows while it is created (#741), else the planner's own
+        versionId: kaderVersion(input.versionId),
         attendanceCategories: [],
         questions: [],
         players: {},
@@ -613,7 +632,7 @@ function deleteKader(planner, kaderId) {
 
 module.exports = {
     FORMAT, ROLES, STATES, SETUP_STATES, QUESTION_TYPES, OPTION_COLORS, VOTES, NAME_STYLES, GEAR_LEVELS, SETUP_SIZES,
-    GROUP_COUNT, GROUP_SIZE, LIMITS, ACTIVITY_TYPES, setupSizesOf,
+    GROUP_COUNT, GROUP_SIZE, LIMITS, ACTIVITY_TYPES, setupSizesOf, kaderVersion, kaderInVersion,
     clone, str, isObject, invalid, notFound, conflict, forbidden, revOf, stale, assertFresh,
     emptyPlanner, emptyGroups, normalizePlanner, normalizeQuestion, normalizeAnswer, normalizeKader, normalizeActivity,
     cleanLabel, getKader, withKader, checkUserId, isKnown, classOf, cleanClassSpec,

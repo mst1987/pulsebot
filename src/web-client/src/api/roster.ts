@@ -169,7 +169,7 @@ export type RosterData = {
 
 export type RosterVersion = { id: string; label: string; short: string; count: number };
 
-/** The roster of one game version (#543): "" = the main version, "all" = every version. */
+/** The roster of one game version (#543): "" = the main version; never every version at once (#741). */
 export function getRoster(version = ""): Promise<RosterData> {
     return get<RosterData>(`/api/roster${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
@@ -375,8 +375,9 @@ export type RosterSettings = {
 };
 
 /** Every roster of the active server as a card. */
-export function getRosters(): Promise<RosterOverview> {
-    return get<RosterOverview>("/api/rosters");
+/** `version`: the menu's content version (#741) — its rosters only; "" = the main version. */
+export function getRosters(version = ""): Promise<RosterOverview> {
+    return get<RosterOverview>(`/api/rosters${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 /** One roster with its members. */

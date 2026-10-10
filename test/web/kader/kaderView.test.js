@@ -138,8 +138,8 @@ describe("web/kader/kaderView", () => {
         expect(view.members.find((m) => m.userId === U.a)).toMatchObject({ displayName: "Aldric", roleIds: ["r1"], prefill: { spec: "Druid-Restoration" } });
         expect(view.names).toMatchObject({ [U.lead]: "Kurt", [U.hand]: "Hand", [U.c]: "Oldie", [U.b]: "Bea" });
         expect(view.kaders).toEqual([
-            { id: "k1", name: "Forever-Kader", leads: [U.lead], createdAt: "", createdBy: "", counts: { pool: 1, selected: 1, provisional: 0, roster: 1, bench: 0, tentative: 0 }, questions: 0 },
-            { id: "k2", name: "Zweiter", leads: [], createdAt: "", createdBy: "", counts: { pool: 0, selected: 0, provisional: 0, roster: 0, bench: 1, tentative: 0 }, questions: 0 },
+            { id: "k1", name: "Forever-Kader", leads: [U.lead], createdAt: "", createdBy: "", versionId: "forever", counts: { pool: 1, selected: 1, provisional: 0, roster: 1, bench: 0, tentative: 0 }, questions: 0 },
+            { id: "k2", name: "Zweiter", leads: [], createdAt: "", createdBy: "", versionId: "forever", counts: { pool: 0, selected: 0, provisional: 0, roster: 0, bench: 1, tentative: 0 }, questions: 0 },
         ]);
         expect(view.kader.id).toBe("k1");
         expect(view.kader.players[U.a].decision).toEqual({ className: "Warrior", spec: "Warrior-Protection" });
@@ -152,6 +152,23 @@ describe("web/kader/kaderView", () => {
         expect(payload.kader.id).toBe("k2");
         expect(payload.kaders.map((k) => k.id)).toEqual(["k1", "k2"]);
         expect(kaderPayload(planner(), "gone").kader).toBeNull();
+    });
+
+    it("lists the Kader of one game version only; a Kader the address names comes along (#741)", () => {
+        const p = planner();
+        p.kaders.push(model.normalizeKader({ id: "k3", name: "TBC-Kader", versionId: "tbc" }));
+        // stored before #741 without a version: the planner was made for Forever
+        expect(p.kaders.map((k) => k.versionId)).toEqual(["forever", "forever", "tbc"]);
+        const forever = buildKaderView({ source: source(), planner: p, kaderId: "k1", versionId: "forever" });
+        expect(forever.kaders.map((k) => k.id)).toEqual(["k1", "k2"]);
+        const tbc = buildKaderView({ source: source(), planner: p, kaderId: "", versionId: "tbc" });
+        expect(tbc.kaders.map((k) => k.id)).toEqual(["k3"]);
+        expect(tbc.kader).toBeNull();
+        // a link to a Forever Kader from the TBC view still opens it (the page follows its version)
+        expect(buildKaderView({ source: source(), planner: p, kaderId: "k1", versionId: "tbc" }).kader.id).toBe("k1");
+        // a change inside a Kader answers the list of its own version
+        expect(kaderPayload(p, "k3").kaders.map((k) => k.id)).toEqual(["k3"]);
+        expect(kaderPayload(p, "k2").kaders.map((k) => k.id)).toEqual(["k1", "k2"]);
     });
 
     it("gives the mutators their helpers", () => {

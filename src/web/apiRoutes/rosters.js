@@ -12,10 +12,21 @@ const { buildRosterOverview, buildRosterDetail } = require("../roster/rosterView
 const { buildRosterHistory } = require("../roster/rosterHistoryView");
 const { activeRoster } = require("../roster/activeRoster");
 const { isRosterOrga } = require("../../services/roster/rosterAccess");
+const { resolveVersionQuery } = require("../../services/events/mainVersion");
 
-/** GET /api/rosters — one card per roster of the active server, the categories without one, `canCreate`. */
-const getRosters = withUser({}, async ({ req, res, user }) => {
-    ok(res, await buildRosterOverview({ guildId: activeGuildFor(req), user, config: getConfig() }));
+/**
+ * GET /api/rosters[?version=<id>] — one card per roster of the active server, the categories
+ * without one, `canCreate`; only the rosters and categories of the shown game version (#741).
+ */
+const getRosters = withUser({}, async ({ req, res, user, query }) => {
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(query && query.get("version"), { config });
+    const view = await buildRosterOverview({ guildId: activeGuildFor(req), user, config });
+    ok(res, {
+        ...view,
+        rosters: view.rosters.filter((r) => r.versionId === versionId),
+        categoriesWithoutRoster: view.categoriesWithoutRoster.filter((c) => c.versionId === versionId),
+    });
 });
 
 /**

@@ -58,9 +58,10 @@ beforeEach(() => {
             { id: CARL, displayName: "Carl", avatarUrl: null, roleIds: ["role-main"] },
         ],
     });
+    // two past nights (seconds, May 2026) - a coming raid never counts (#768)
     listStoredEvents.mockReturnValue([
-        night("e1", 1900000000, [{ userId: ANNA, status: "signed", character: "Thorgrim" }, { userId: BERT, status: "absence" }]),
-        night("e2", 1900600000, [{ userId: ANNA, status: "signed", character: "Thorgrim" }, { userId: BERT, status: "signed" }]),
+        night("e1", 1779000000, [{ userId: ANNA, status: "signed", character: "Thorgrim" }, { userId: BERT, status: "absence" }]),
+        night("e2", 1779600000, [{ userId: ANNA, status: "signed", character: "Thorgrim" }, { userId: BERT, status: "signed" }]),
     ]);
 });
 afterAll(() => {
