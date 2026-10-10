@@ -12,6 +12,7 @@
 //       slots: { total, tank, healer, bench },
 //       allowMultipleChars: false,          // off: a member keeps at most one character
 //       signupOnly: false,
+//       publicRaids: false,                 // on: raiders of other categories see this category's raids too (#723)
 //       source: { kind: "manual" | "kader" | "migration", kaderId? },
 //       kaderId | null,                     // the Kader of the Kaderplaner linked to it (1:1, see below)
 //       lootSystem: "" | "softres" | "lootcouncil" | "gdkp" | "other",  // only read WITHOUT category (#676)
@@ -232,6 +233,7 @@ function normalizeRoster(raw, id = raw && raw.id) {
         slots: normalizeSlots(raw.slots),
         allowMultipleChars: multi,
         signupOnly: raw.signupOnly === true,
+        publicRaids: raw.publicRaids === true,
         source,
         kaderId,
         lootSystem: normalizeLootSystem(raw.lootSystem),

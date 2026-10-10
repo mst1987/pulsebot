@@ -122,6 +122,62 @@ describe("buildRosterOverview", () => {
     });
 });
 
+describe("who sees the people data (epic #723)", () => {
+    const ORGA = { id: "8", name: "Orga", isAdmin: false, isOrga: true };
+
+    it("gives a raider the Komposition only: places and roles, no attendance, Discord roles or settings", async () => {
+        const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
+        expect(view.isOrga).toBe(false);
+        expect(view.nights).toEqual([]);
+        expect(view.window).toBeNull();
+        expect(view.settings).toBeNull();
+        expect(view.roster.attendance).toBeNull();
+        expect(view.roster.todo).toEqual({ withoutRole: null, withoutChar: 0, trial: 0 });
+        expect(view.roster.roleCounts).toEqual({ tank: 1, healer: 1, dps: 0, unknown: 0 });
+        const anna = view.members.find((m) => m.userId === ANNA);
+        expect(anna).toMatchObject({ status: "core", attendance: null, hasRole: null, heldRoles: null, onServer: null, since: "", trialUntil: null });
+        expect(anna.chars[0].name).toBe("Thorgrim");
+        expect(anna.resolved).toBeUndefined();
+    });
+
+    it("shows everything to an orga role, a full admin and a manager of that roster", async () => {
+        const asOrga = await buildRosterDetail({ guildId: G, id: rosterId(), user: ORGA, config: CONFIG });
+        expect(asOrga.isOrga).toBe(true);
+        expect(asOrga.members.find((m) => m.userId === ANNA).attendance).not.toBeNull();
+        expect(asOrga.canManage).toBe(false);
+        expect((await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG })).isOrga).toBe(true);
+        rosterStore.updateRoster(rosterId(), { managers: { userIds: [READER.id] } });
+        const asManager = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
+        expect(asManager.isOrga).toBe(true);
+        expect(asManager.members.find((m) => m.userId === ANNA).attendance).not.toBeNull();
+    });
+
+    it("trims the overview cards per roster: a raider sees no todo badges, the orga and that roster's manager do", async () => {
+        const mineId = rosterId();
+        const other = rosterStore.createRoster({ guildId: G, name: "Anderes Roster" });
+        rosterStore.updateRoster(mineId, { managers: { userIds: [READER.id] } });
+        const cards = (await buildRosterOverview({ guildId: G, user: READER, config: CONFIG })).rosters;
+        const mine = cards.find((c) => c.id === mineId);
+        const foreign = cards.find((c) => c.id === other.id);
+        expect(mine.isOrga).toBe(true);
+        expect(mine.attendance).not.toBeUndefined();
+        expect(foreign).toMatchObject({ isOrga: false, attendance: null, trialEnding: [], todo: { withoutRole: null, withoutChar: 0, trial: 0 } });
+        const raiderCard = (await buildRosterOverview({ guildId: G, user: { id: "7", isAdmin: false }, config: CONFIG })).rosters.find((c) => c.id === mineId);
+        expect(raiderCard).toMatchObject({ isOrga: false, attendance: null, trialEnding: [], places: 2 });
+        expect(raiderCard.roleCounts).toEqual({ tank: 1, healer: 1, dps: 0, unknown: 0 });
+        expect((await buildRosterOverview({ guildId: G, user: READER, config: CONFIG })).isOrga).toBe(false);
+        expect((await buildRosterOverview({ guildId: G, user: ORGA, config: CONFIG })).isOrga).toBe(true);
+        const orgaCard = (await buildRosterOverview({ guildId: G, user: ORGA, config: CONFIG })).rosters.find((c) => c.id === mineId);
+        expect(orgaCard.isOrga).toBe(true);
+    });
+
+    it("carries publicRaids in the head's settings for the managers", async () => {
+        rosterStore.updateRoster(rosterId(), { publicRaids: true });
+        const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
+        expect(view.settings.publicRaids).toBe(true);
+    });
+});
+
 describe("buildRosterDetail", () => {
     it("resolves every member: identity, characters from the profile or the cache, role, Discord role, attendance", async () => {
         const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
@@ -186,7 +242,7 @@ describe("buildRosterDetail", () => {
         expect(view.settings).toEqual({
             categoryId: "cat1", versionId: "tbc", roleIds: ["role-main"], trialRoleId: "role-trial",
             managers: { roleIds: ["role-lead"], userIds: [ANNA, "300000000000000009"], users: [{ userId: ANNA, displayName: "Anna Discord" }, { userId: "300000000000000009", displayName: "300000000000000009" }] },
-            signupOnly: true, allowMultipleChars: false, slots: { total: 25, tank: 3, healer: 7, bench: 0 }, kaderId: null,
+            signupOnly: true, publicRaids: false, allowMultipleChars: false, slots: { total: 25, tank: 3, healer: 7, bench: 0 }, kaderId: null,
             lootSystem: "softres", lootSystemSource: "default", lootProfileId: "",
         });
         // the drawer's spec picker: the specs of the first character's class

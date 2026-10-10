@@ -137,6 +137,8 @@ export type RosterSettingsPatch = {
     slots?: Partial<RosterSlots>;
     allowMultipleChars?: boolean;
     signupOnly?: boolean;
+    /** Admins and managers: the raids of the category are visible to every raider. */
+    publicRaids?: boolean;
     /** Full admins: the Kader of the Kaderplaner to link (null unlinks). */
     kaderId?: string | null;
     /** Full admins (#676): with a category written to the category's loot system. */

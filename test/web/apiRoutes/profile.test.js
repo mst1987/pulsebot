@@ -205,6 +205,18 @@ describe("Wünsche bleiben bei der Orga", () => {
         expect(data.profile.note).toBe("nur für die Orga");
     });
 
+    it("sperrt Profil und Doppel-Charaktere für Raider (403 orga_only), auch mit Roster-Leserecht (epic #723)", async () => {
+        const raider = { ...ANNA, isOrga: false, access: { roster: { read: true, write: false } } };
+        for (const [handler, query] of [[route.getUserProfile, `id=${BERT.id}`], [route.getCharacterClaims, ""]]) {
+            const res = await call(handler, raider, { query });
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("orga_only");
+        }
+        const orgaRole = { ...ANNA, isOrga: true };
+        expect(status(await call(route.getUserProfile, orgaRole, { query: `id=${BERT.id}` }))).toBe(200);
+        expect(status(await call(route.getCharacterClaims, orgaRole))).toBe(200);
+    });
+
     it("antwortet 404 für ein Konto ohne Profil", async () => {
         const res = await call(route.getUserProfile, ORGA, { query: "id=200000000000000055" });
         expect(status(res)).toBe(404);

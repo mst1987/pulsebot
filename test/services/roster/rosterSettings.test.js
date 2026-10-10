@@ -66,7 +66,7 @@ describe("services/roster/rosterSettings cleanSettings", () => {
 
 describe("services/roster/rosterSettings permission split", () => {
     it("lets managers change name, slots, allowMultipleChars, signupOnly and the council profile only", () => {
-        expect(MANAGER_FIELDS).toEqual(["name", "slots", "allowMultipleChars", "signupOnly", "lootProfileId"]);
+        expect(MANAGER_FIELDS).toEqual(["name", "slots", "allowMultipleChars", "signupOnly", "publicRaids", "lootProfileId"]);
         const { fields } = cleanSettings({ name: "X", roleIds: [R1], managers: { userIds: ["100001"] } }, { current: roster });
         // roleIds unchanged passes, the new manager does not
         expect(adminOnlyChanges(fields, roster)).toEqual(["managers"]);
