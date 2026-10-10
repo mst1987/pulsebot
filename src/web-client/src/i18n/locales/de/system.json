@@ -152,5 +152,82 @@
         "truncated": "Sehr viele Dateien – die Größen sind Mindestwerte.",
         "biggest": { "one": "Größte Datei", "other": "Größte {count} Dateien" },
         "noSpace": "Der freie Platz des Datenträgers lässt sich hier nicht messen."
+    },
+    "backup": {
+        "title": "Datensicherung",
+        "tip": "Drei Teile der Sicherung: der Schnappschuss auf diesem Server, die verschlüsselte Kopie außer Haus und die Wiederherstellungsprobe. Das Gesamtbild ist so gut wie der schlechteste Teil.",
+        "tipSub": "Schnappschüsse lassen sich bewusst nicht herunterladen: sie enthalten API-Schlüssel und Sitzungen.",
+        "crumb": {
+            "ok": "Alles gesichert",
+            "warn": "Sicherung wird alt",
+            "bad": "Sicherung braucht einen Blick",
+            "none": "Noch keine Sicherung bekannt"
+        },
+        "now": "Jetzt sichern",
+        "nowTip": "Legt sofort einen Schnappschuss der Daten an (zusätzlich zum stündlichen)",
+        "done": "Gesichert in {time}: {size}.",
+        "locked": "Eine Sicherung läuft schon – bitte kurz warten.",
+        "failed": "Sicherung fehlgeschlagen: {error}",
+        "failedPlain": "Sicherung fehlgeschlagen.",
+        "loadFailed": "Der Stand der Sicherung konnte nicht geladen werden.",
+        "disabled": "Auf dieser Instanz sind die stündlichen Schnappschüsse aus (BACKUP_ENABLED=1 schaltet sie ein).",
+        "parts": {
+            "snapshot": "Schnappschuss",
+            "offsite": "Kopie außer Haus",
+            "restoreTest": "Wiederherstellungsprobe"
+        },
+        "partTips": {
+            "snapshot": "Der letzte Schnappschuss der Daten auf diesem Server",
+            "offsite": "Die letzte verschlüsselte Kopie in der Cloud",
+            "restoreTest": "Die letzte Probe, ob sich die Sicherung wirklich zurückspielen lässt"
+        },
+        "never": "noch nie",
+        "light": {
+            "ok": "In Ordnung",
+            "warn": "Wird alt",
+            "bad": "Braucht Hilfe",
+            "none": "Unbekannt"
+        },
+        "lightTip": {
+            "ok": "Frisch genug",
+            "warn": "Älter als erwartet",
+            "bad": "Fehlgeschlagen oder viel zu alt",
+            "none": "Dazu gibt es noch keine Angabe"
+        },
+        "limits": {
+            "snapshot": "Grün unter 26 Stunden, gelb unter 48 Stunden, darüber rot.",
+            "restoreTest": "Grün unter 8 Tagen, gelb unter 15 Tagen, darüber rot."
+        },
+        "size": "{size}",
+        "sizeAdded": "{size} gesamt, {added} neu",
+        "duration": "in {time}",
+        "error": "Fehler: {error}",
+        "ago": {
+            "now": "gerade eben",
+            "minutes": "vor {count} Min.",
+            "hours": "vor {count} Std.",
+            "days": {
+                "one": "vor {count} Tag",
+                "other": "vor {count} Tagen"
+            }
+        },
+        "list": {
+            "label": {
+                "one": "{count} Schnappschuss auf diesem Server",
+                "other": "{count} Schnappschüsse auf diesem Server"
+            },
+            "empty": "Noch kein Schnappschuss vorhanden.",
+            "incomplete": "unvollständig",
+            "files": {
+                "one": "{count} Datei",
+                "other": "{count} Dateien"
+            },
+            "reasons": {
+                "hourly": "stündlich",
+                "manual": "von Hand",
+                "deploy": "Deploy",
+                "pre-restore": "vor Rückspielen"
+            }
+        }
     }
 }

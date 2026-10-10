@@ -14,6 +14,7 @@ import { t } from "../../i18n";
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getSystemStatus: vi.fn(),
+    getBackupStatus: vi.fn(() => new Promise(() => undefined)),
 }));
 
 beforeEach(() => {

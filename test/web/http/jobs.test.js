@@ -23,13 +23,14 @@ jest.mock("../../../src/services/guildbank/itemMeta", () => mockJob("startMetaRe
 jest.mock("../../../src/services/loot/softresDetect", () => mockJob("startSoftresDetect", "stopSoftresDetect"));
 jest.mock("../../../src/services/system/systemMonitor", () => mockJob("start", "stop"));
 jest.mock("../../../src/services/backup/snapshotJob", () => mockJob("startBackupJob", "stopBackupJob"));
+jest.mock("../../../src/services/backup/backupAlerts", () => mockJob("startBackupAlerts", "stopBackupAlerts"));
 
 const discord = require("../../../src/services/discord/discord");
 const { startJobs, stopJobs, JOBS } = require("../../../src/web/http/jobs");
 
 const START_ORDER = [
     "start", "startSheetCleanup", "startRaidhelperSync", "startLogAutoLink", "startEventMessageSync",
-    "startReminders", "startRoleSync", "startRosterRoleSync", "startTalkOverview", "startEventSeries", "start", "startPanelRefresh", "startMetaRefresh", "startSoftresDetect", "startBackupJob",
+    "startReminders", "startRoleSync", "startRosterRoleSync", "startTalkOverview", "startEventSeries", "start", "startPanelRefresh", "startMetaRefresh", "startSoftresDetect", "startBackupJob", "startBackupAlerts",
 ];
 
 beforeEach(() => {
@@ -45,7 +46,7 @@ describe("web/http/jobs", () => {
         expect(mockCalls).toEqual(START_ORDER.map((n) => `start:${n}`));
         expect(names).toEqual([
             "systemMonitor", "sheetCleanup", "raidhelperSync", "logAutoLink", "eventMessageSync",
-            "reminders", "roleSync", "rosterRoleSync", "talkOverview", "eventSeries", "applicationState", "availabilityPanels", "guildBankItemMeta", "softresDetect", "backupSnapshots",
+            "reminders", "roleSync", "rosterRoleSync", "talkOverview", "eventSeries", "applicationState", "availabilityPanels", "guildBankItemMeta", "softresDetect", "backupSnapshots", "backupAlerts",
         ]);
         expect(JOBS.map((j) => j.name)).toEqual(names);
     });
@@ -54,7 +55,7 @@ describe("web/http/jobs", () => {
         startJobs();
         startJobs();
         const lines = console.log.mock.calls.map((c) => c[0]).filter((l) => /Background jobs started/.test(l));
-        expect(lines).toEqual(["Background jobs started: systemMonitor, sheetCleanup, raidhelperSync, logAutoLink, eventMessageSync, reminders, roleSync, rosterRoleSync, talkOverview, eventSeries, applicationState, availabilityPanels, guildBankItemMeta, softresDetect, backupSnapshots"]);
+        expect(lines).toEqual(["Background jobs started: systemMonitor, sheetCleanup, raidhelperSync, logAutoLink, eventMessageSync, reminders, roleSync, rosterRoleSync, talkOverview, eventSeries, applicationState, availabilityPanels, guildBankItemMeta, softresDetect, backupSnapshots, backupAlerts"]);
     });
 
     // #608: what a job asks Raid-Helper counts as background work (utils/raidhelper/budget.js)
@@ -99,7 +100,7 @@ describe("web/http/jobs", () => {
         mockCalls.length = 0;
         stopJobs();
         expect(mockCalls).toEqual([
-            "stop:stopBackupJob", "stop:stopSoftresDetect", "stop:stopMetaRefresh", "stop:stopPanelRefresh", "stop:stop", "stop:stopEventSeries", "stop:stopTalkOverview", "stop:stopRosterRoleSync", "stop:stopRoleSync", "stop:stopReminders",
+            "stop:stopBackupAlerts", "stop:stopBackupJob", "stop:stopSoftresDetect", "stop:stopMetaRefresh", "stop:stopPanelRefresh", "stop:stop", "stop:stopEventSeries", "stop:stopTalkOverview", "stop:stopRosterRoleSync", "stop:stopRoleSync", "stop:stopReminders",
             "stop:stopEventMessageSync", "stop:stopLogAutoLink", "stop:stopRaidhelperSync", "stop:stopSheetCleanup", "stop:stop",
         ]);
         mockCalls.length = 0;

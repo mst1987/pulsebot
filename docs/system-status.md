@@ -48,6 +48,23 @@ Nichts davon: „Alles im grünen Bereich“. Der Server schickt nur Id, Stufe u
 - *Prozesse auf dem Server* nur, wenn eine Liste da ist; *Speicherplatz* mit Balken je Ordner und aufklappbar den größten Dateien.
 - Stil `styles/system.css` (Präfix `sy-`), Bereichsfarbe `--area-system`; die Seite gehört zu den schmalen (`--page-narrow`).
 
+## Datensicherung (#696)
+
+Ein eigener Abschnitt der Seite (`BackupSection.tsx`), lädt für sich `GET /api/system/backup` (kein Polling, nach dem Knopf neu). Gelesen werden nur die Statusdateien unter `$BACKUP_DIR/status/` (Aufbau: Kopf von `src/services/backup/snapshot.js`), ausgewertet in `src/services/backup/backupStatus.js` (reine Funktion `evaluate`, Leser `readParts` / `readBackupStatus`).
+
+| Teil | Quelle | grün | gelb | rot |
+|---|---|---|---|---|
+| Schnappschuss | `status/snapshot.json` | < 26 Std. | < 48 Std. | älter oder `ok: false` |
+| Kopie außer Haus | `status/offsite.json` | < 26 Std. | < 48 Std. | älter, `ok: false`, oder noch nie gelaufen und der älteste Schnappschuss ist über 26 Std. alt |
+| Wiederherstellungsprobe | `status/restore-test.json` (#694) | < 8 Tage | < 15 Tage | älter oder `ok: false` |
+
+Fehlt die Datei: grau („noch nie“) – bei der Probe bleibt das so, bis #694 sie schreibt. Die Gesamtlage ist die schlechteste Ampel der Teile, die etwas wissen. Fehlt `status/snapshot.json` (Verzeichnis aus der Zeit davor), steht der neueste Schnappschuss dafür ein. Die Liste zeigt die 30 neuesten Schnappschüsse (Zeit, Grund, Größe aus dem Manifest; ein Manifest ändert sich nie, die Summe wird je Schnappschuss nur einmal berechnet).
+
+- **Jetzt sichern:** `POST /api/system/backup/snapshot` (adminOnly, CSRF) ruft `runSnapshot({ reason: "manual" })` und antwortet immer mit 200 und `{ ok, skipped, name, durationMs, bytes, error }`; `skipped: "locked"` heißt, im selben Prozess läuft schon eine Sicherung.
+- **Kein Download** von Schnappschüssen, mit Absicht: sie enthalten API-Schlüssel und Sitzungen.
+- **Übersicht-Aufgabe** (nur Voll-Admins, nur wo Schnappschüsse an sind): `backupTask` in `src/web/dashboard/dashboardOverview.js`, gelb/rot nach Ampel, „Letzte Sicherung vor 3 Tagen“ bzw. „Sicherung fehlgeschlagen“ (bei der Kopie außer Haus / der Probe mit deren Namen), Ziel `/system`; gleich hinter der Deploy-Aufgabe.
+- **Discord-DM** (`src/services/backup/backupAlerts.js`, Job `backupAlerts` alle 30 Minuten, nur mit `BACKUP_ENABLED`): an die erste ID aus `ADMIN_USER_ID`, wenn ein Teil **rot** ist (Fehlschlag oder zu alt). Je Teil höchstens eine Nachricht pro Tag; sofort wieder, wenn sich der Zustand ändert (zu alt → fehlgeschlagen) oder das Teil zwischendurch wieder in Ordnung war. Der Drossel-Zustand steht in `settings/backup-alerts.json` (`backupAlertStore.js`). Ist der Bot noch nicht verbunden, wird nichts vermerkt (nächster Versuch in 30 Minuten); eine abgelehnte DM zählt für den Tag als gesendet und steht im Log.
+
 ## Tests
 
-Jest: `test/services/system/*.test.js` (Stichprobe mit falschem os/`/proc`/Histogramm/Uhr, Ringpuffer und Minutenpunkte, Pfad-Normalisierung, p95, Einschätzungsregeln, `/proc`- und `ps`-Parser, Datenträger gegen ein Scratch-Verzeichnis), `test/web/apiRoutes/system.test.js` (über `routerClient`: 200 für Admins, 403 für eine Rolle mit allen Bereichen, 401 ohne Login), `test/web/http/compression.test.js` (zählt in die Statistik, kein Querystring), `jobs.test.js`. Vitest: `pages/system/SystemPage.test.tsx`, `lib/system/systemFormat.test.ts`, `lib/app/menu.test.ts`.
+Jest: `test/services/system/*.test.js` (Stichprobe mit falschem os/`/proc`/Histogramm/Uhr, Ringpuffer und Minutenpunkte, Pfad-Normalisierung, p95, Einschätzungsregeln, `/proc`- und `ps`-Parser, Datenträger gegen ein Scratch-Verzeichnis), `test/web/apiRoutes/system.test.js` (über `routerClient`: 200 für Admins, 403 für eine Rolle mit allen Bereichen, 401 ohne Login), `test/services/backup/backupStatus.test.js` (Ampel-Grenzen, „noch nie“), `backupAlerts.test.js` (DM-Drossel), `test/web/apiRoutes/system.backup.test.js`, `test/web/dashboard/backupTask.test.js`, `test/web/http/compression.test.js` (zählt in die Statistik, kein Querystring), `jobs.test.js`. Vitest: `pages/system/SystemPage.test.tsx`, `pages/system/BackupSection.test.tsx`, `lib/system/systemFormat.test.ts`, `lib/app/menu.test.ts`.

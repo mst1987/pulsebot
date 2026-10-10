@@ -236,11 +236,12 @@ function newLootSince(awards, sinceMs) {
  * @param {object|null} p.roleDrift  from roleSync.loadDrift(): { groups, total }
  * @param {object[]} p.seriesFailures from eventSeries.seriesFailures(): { categoryId, categoryName, date, error }
  * @param {object|null} p.deploy     from deployStatus(): { status, behind, behindSince, short, … }
+ * @param {object|null} p.backup     from backupStatus.readParts() (full admins only): { parts: [{ key, light, state, at, error }] }
  * @param {object[]} p.trials        from loadTrialEndings(): trials ending soon in rosters the caller manages (trialTasks)
  */
 function buildTasks({
     nextRaids = [], recentEvents = [], report = null, inbox = [], archive = null, roleDrift = null, seriesFailures = [], deploy = null,
-    missingChannels = [], canRecreate = false, trials = [],
+    missingChannels = [], canRecreate = false, trials = [], backup = null,
 }) {
     const tasks = [];
 
@@ -248,6 +249,10 @@ function buildTasks({
     // may not even be running (#314).
     const deployT = deployTask(deploy);
     if (deployT) tasks.push(deployT);
+
+    // The backup (#696), a full admin's task: no use in a roster if the data is gone.
+    const backupT = backupTask(backup);
+    if (backupT) tasks.push(backupT);
 
     const seriesTask = eventSeriesTask(seriesFailures);
     if (seriesTask) tasks.push(seriesTask);
@@ -435,6 +440,41 @@ function deployTask(deploy, now = Date.now()) {
     };
 }
 
+// The parts of the backup in the words of a task title, and the order to name them in when several need a look.
+const BACKUP_PART_NAMES = { snapshot: "Sicherung", offsite: "Kopie außer Haus", restoreTest: "Wiederherstellungsprobe" };
+const BACKUP_PART_ORDER = ["snapshot", "offsite", "restoreTest"];
+
+/**
+ * "Letzte Sicherung vor 3 Tagen" / "Sicherung fehlgeschlagen" (#696) - yellow or red like the traffic light on the
+ * Systemstatus page it leads to. One row, for the part that needs a look most (red before yellow, the snapshot
+ * before the off-site copy before the restore test). Nothing while everything is green or nothing is known yet.
+ * @param {{ parts: { key: string, light: string, state: string, at: number, error: string }[] }|null} backup
+ */
+function backupTask(backup, now = Date.now()) {
+    if (!backup || !Array.isArray(backup.parts)) return null;
+    const rank = { warn: 1, bad: 2 };
+    const worst = BACKUP_PART_ORDER.map((key) => backup.parts.find((p) => p.key === key))
+        .filter((p) => p && rank[p.light])
+        .sort((a, b) => rank[b.light] - rank[a.light])[0];
+    if (!worst) return null;
+    const name = BACKUP_PART_NAMES[worst.key] || worst.key;
+    const days = Math.floor((now - worst.at) / 86400000);
+    const hours = Math.floor((now - worst.at) / 3600000);
+    const ago = days >= 2 ? plural(days, "Tag", "Tagen") : plural(Math.max(1, hours), "Stunde", "Stunden");
+    let title;
+    if (worst.state === "failed") title = `${name} fehlgeschlagen`;
+    else if (worst.state === "never") title = `${name}: bisher nie gelaufen`;
+    else title = worst.key === "snapshot" ? `Letzte Sicherung vor ${ago}` : `${name} zuletzt vor ${ago}`;
+    return {
+        id: "backup", tone: worst.light === "bad" ? "bad" : "mid", tile: "settings", icon: "inv_misc_gear_02",
+        title,
+        ref: { text: "Systemstatus" },
+        href: "/system",
+        tip: "Die Datensicherung braucht einen Blick",
+        tipSub: worst.error || "Öffnet die Systemstatus-Seite: Zeitpunkt, Größe und Ergebnis jeder Sicherung, dort auch „Jetzt sichern“.",
+    };
+}
+
 /**
  * "Probezeit endet: Zibbo" (#658) — a calm row per trial member whose trial
  * ends within a week (accent) or has run out (yellow), for the managers of
@@ -465,6 +505,6 @@ module.exports = {
     isAttending, trialTasks,
     // only for the tests (#424): not part of the module's API
     _internal: {
-        eventSeriesTask, deployTask, DEPLOY_GUIDE_URL, FALLBACK_ZONE_ICON, roleBucket, roleDriftTask, missingChannelTasks,
+        eventSeriesTask, deployTask, backupTask, DEPLOY_GUIDE_URL, FALLBACK_ZONE_ICON, roleBucket, roleDriftTask, missingChannelTasks,
     },
 };
