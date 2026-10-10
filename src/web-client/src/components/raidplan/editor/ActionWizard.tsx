@@ -74,8 +74,22 @@ export default function ActionWizard({ wiz, set, who, names, count, canFade, can
                     </div>
                     {wiz.what === "badge" && (
                         <>
-                            <BadgePicker value={wiz.badge} onPick={(badge) => set({ ...wiz, badge })} />
-                            <Switch checked={wiz.pulseToo} onChange={(v) => set({ ...wiz, pulseToo: v })} label={t("raidBoard.anim.wiz.pulseToo")} />
+                            <div className="rp-anim-eases" role="radiogroup" aria-label={t("raidBoard.anim.wiz.what.badge")}>
+                                {[false, true].map((offNow) => (
+                                    <button key={String(offNow)} type="button" role="radio" aria-checked={wiz.badgeOff === offNow} className={`rp-anim-chip${wiz.badgeOff === offNow ? " is-on" : ""}`} onClick={() => set({ ...wiz, badgeOff: offNow })}>{t(offNow ? "raidBoard.anim.wiz.badgeLose" : "raidBoard.anim.wiz.badgeGet")}</button>
+                                ))}
+                            </div>
+                            {wiz.badgeOff ? (
+                                <>
+                                    <p className="rp-muted rp-anim-note">{t("raidBoard.anim.wiz.loseNote", { who })}</p>
+                                    <Switch checked={wiz.pulseToo} onChange={(v) => set({ ...wiz, pulseToo: v })} label={t("raidBoard.anim.wiz.stopPulse")} />
+                                </>
+                            ) : (
+                                <>
+                                    <BadgePicker value={wiz.badge} onPick={(badge) => set({ ...wiz, badge })} />
+                                    <Switch checked={wiz.pulseToo} onChange={(v) => set({ ...wiz, pulseToo: v })} label={t("raidBoard.anim.wiz.pulseToo")} />
+                                </>
+                            )}
                         </>
                     )}
                     {wiz.what === "fade" && (

@@ -140,8 +140,9 @@ to is always visible, a frame reads as sentences, and a new action is built Wer 
   the debuff icon, facing, opacity, size, a loop's settings); the bin takes that part off (`removePart`). At the bottom,
   folded, the animation's settings (name, "Im Sheet wiederholen", its tactic step, delete after asking).
 - **"+ Aktion"** (`ActionWizard.tsx`, state in `wizardState.ts`): **Wer** (with nothing picked it waits, "Wer?" is
-  framed; the head always names who) → **Was** (Laufen, Debuff bekommen - six presets or any WoW icon, "auch pulsieren"
-  -, Ausblenden - verschwinden / erscheinen / halb durchsichtig -, Drehen, Rundweg, Pulsieren; a single raider cannot
+  framed; the head always names who) → **Was** (Laufen, **Debuff** - "Bekommen": six presets or any WoW icon, "auch
+  pulsieren"; "Verlieren": `badge: ""` from this frame on, "Pulsieren auch beenden" sets `pulse: false`, the sentence
+  names the debuff it had before, "… verliert Bloodboil" -, Ausblenden - verschwinden / erscheinen / halb durchsichtig -, Drehen, Rundweg, Pulsieren; a single raider cannot
   fade or turn, only icons, areas and the rows' objects turn) → **Wohin** for walking (a click on the map: everyone
   picked walks so that their middle ends there, each keeping his place, `moveAllTo`) and for a loop (clicked points, a
   loop for each picked along that way shifted by his place, from the frame's start, `loopAll`). Other kinds are added

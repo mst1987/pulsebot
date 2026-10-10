@@ -215,7 +215,8 @@ export default function AnimWorkspace({ boss, board, edit, players, roster, rows
     /** The assistant adds an action that needs no place, for everyone picked. */
     const addAction = () => {
         if (!wiz) return;
-        const patch = wiz.what === "badge" ? { badge: wiz.badge, ...(wiz.pulseToo ? { pulse: true } : {}) }
+        // a debuff is given (with a pulse) or taken off from this frame on (the pulse ends with it)
+        const patch = wiz.what === "badge" ? (wiz.badgeOff ? { badge: "", ...(wiz.pulseToo ? { pulse: false } : {}) } : { badge: wiz.badge, ...(wiz.pulseToo ? { pulse: true } : {}) })
             : wiz.what === "fade" ? (wiz.fade === "half" ? { opacity: 0.5 } : { hidden: wiz.fade === "hide" })
                 : wiz.what === "turn" ? { rotation: wiz.deg }
                     : { pulse: wiz.pulseOn };
@@ -245,7 +246,7 @@ export default function AnimWorkspace({ boss, board, edit, players, roster, rows
             {canWrite && moveWay && moveWay.path.map(([x, y], i) => grip(`m${i}`, x, y, { kind: "move", obj: single }, i))}
             {canWrite && selLoops.map((l) => l.path.map(([x, y], i) => grip(`l${l.id}${i}`, x, y, { kind: "loop", id: l.id }, i, i === 0)))}
             {live.length > 0 && (
-                <div className="rp-anim-sellabel" role="status" style={{ "--rp-x": `${selMid.x * 100}%`, "--rp-y": `${selMid.y * 100}%` } as CSSProperties}>
+                <div className={`rp-anim-sellabel${selMid.x < 0.25 ? " is-leanstart" : selMid.x > 0.75 ? " is-leanend" : ""}`} role="status" style={{ "--rp-x": `${selMid.x * 100}%`, "--rp-y": `${selMid.y * 100}%` } as CSSProperties}>
                     <strong>{summary.title}</strong>
                     {names && <span>{names}</span>}
                 </div>

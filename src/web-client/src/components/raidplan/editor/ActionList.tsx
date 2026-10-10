@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from "react";
 import { Pencil, Route, Trash2 } from "lucide-react";
 import type { RaidplanEase, RaidplanLoop, RaidplanScene } from "../../../api";
 import { buttonClass } from "../../ui/Button";
-import { EASES, PATH_LIMITS, patchChange, removeLoop, setPath, updateLoop, BADGE_PRESETS } from "../../../lib/raidplan/sceneEdit";
+import { EASES, PATH_LIMITS, patchChange, removeLoop, setPath, updateLoop, valueAfter, BADGE_PRESETS } from "../../../lib/raidplan/sceneEdit";
 import { removePart, type ActionPart, type Actor } from "../../../lib/raidplan/sceneActions";
 import { BadgePicker, LoopEditor, Row, Stepper } from "./AnimParts";
 import type { Draw } from "./AnimWorkspace";
@@ -44,7 +44,9 @@ export default function ActionList({ scene, frame, parts, loops, index, canWrite
         }
         if (p.part === "badge") {
             const icon = String(p.value || "");
-            if (!icon) return t("raidBoard.anim.act.badgeOff");
+            // taken off: the debuff it had before this frame, by its name
+            const lost = icon ? "" : String((frame > 0 && valueAfter(scene, frame - 1, p.obj, "badge")) || "");
+            if (!icon) return lost && BADGE_PRESETS.includes(lost) ? t("raidBoard.anim.act.badgeLost", { name: t(`raidBoard.anim.preset.${lost}`) }) : t("raidBoard.anim.act.badgeOff");
             return t("raidBoard.anim.act.badgeOn", { name: BADGE_PRESETS.includes(icon) ? t(`raidBoard.anim.preset.${icon}`) : t("raidBoard.anim.act.anIcon") });
         }
         if (p.part === "pulse") return t(p.value ? "raidBoard.anim.act.pulseOn" : "raidBoard.anim.act.pulseOff");
@@ -121,7 +123,7 @@ export default function ActionList({ scene, frame, parts, loops, index, canWrite
                                     </Row>
                                 )}
                                 {drawing && <p className="rp-anim-drawnote" role="status">{t("raidBoard.anim.drawNote")}</p>}
-                                {p.part === "badge" && <BadgePicker value={String(p.value || "")} disabled={off} onPick={(icon) => upd((s) => patchChange(s, frame, p.obj, { badge: icon }))} />}
+                                {p.part === "badge" && p.value !== "" && <BadgePicker value={String(p.value || "")} disabled={off} onPick={(icon) => upd((s) => patchChange(s, frame, p.obj, { badge: icon }))} />}
                                 {p.part === "rotation" && (
                                     <Row label={t("raidBoard.anim.rotation")}>
                                         <Stepper value={Number(p.value)} min={0} max={359} step={15} unit="°" label={t("raidBoard.anim.rotation")} disabled={off} onChange={(v) => upd((s) => patchChange(s, frame, p.obj, { rotation: ((v % 360) + 360) % 360 }))} />

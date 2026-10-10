@@ -159,6 +159,9 @@
 .rp-board .rp-anim-sellabel { left: var(--rp-x) !important; top: var(--rp-y) !important; }
 .rp-anim-sellabel { position: absolute; z-index: 9; display: flex; flex-direction: column; gap: 1px; width: max-content; max-width: 340px; padding: 6px 11px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); box-shadow: 0 6px 18px var(--shade-50); font-size: 12px; transform: translate(-50%, calc(-100% - 46px)); pointer-events: none; }
 .rp-anim-sellabel strong { font-size: 13px; }
+/* near the map's edge the label leans towards its middle instead of running off the map */
+.rp-anim-sellabel.is-leanstart { transform: translate(-24px, calc(-100% - 46px)); }
+.rp-anim-sellabel.is-leanend { transform: translate(calc(-100% + 24px), calc(-100% - 46px)); }
 .rp-anim-picking { position: absolute; left: 50%; top: 10px; z-index: 9; transform: translateX(-50%); padding: 8px 14px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font-size: 14px; font-weight: 800; box-shadow: 0 6px 18px var(--shade-50); pointer-events: none; }
 
 /* the frame strip names who acts */

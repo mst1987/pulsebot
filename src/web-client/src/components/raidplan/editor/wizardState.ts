@@ -6,6 +6,9 @@ export type Wizard = {
     step: "who" | "what" | "where";
     what: WizardWhat | "";
     badge: string;
+    /** "Debuff": take it off instead of giving one (it ends from this frame on) */
+    badgeOff: boolean;
+    /** with a debuff given: pulse as well; with one taken off: stop pulsing as well */
     pulseToo: boolean;
     fade: "hide" | "show" | "half";
     deg: number;
@@ -15,7 +18,7 @@ export type Wizard = {
 };
 /** A fresh assistant: with somebody picked it starts at "Was?", else at "Wer?". */
 export function newWizard(picked: boolean): Wizard {
-    return { step: picked ? "what" : "who", what: "", badge: "spell_shadow_bloodboil", pulseToo: true, fade: "hide", deg: 0, pulseOn: true, closed: true, points: [] };
+    return { step: picked ? "what" : "who", what: "", badge: "spell_shadow_bloodboil", badgeOff: false, pulseToo: true, fade: "hide", deg: 0, pulseOn: true, closed: true, points: [] };
 }
 /** Whether the chosen kind of action needs a place on the map ("Wohin?"). */
 export const needsWhere = (w: WizardWhat | "") => w === "move" || w === "loop";

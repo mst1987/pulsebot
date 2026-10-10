@@ -1553,7 +1553,7 @@
             "move": "bewegt sich {dir}",
             "badgeOn": "bekommt {name}",
             "anIcon": "ein Symbol",
-            "badgeOff": "verliert das Symbol",
+            "badgeOff": "verliert den Debuff",
             "pulseOn": "pulsiert",
             "pulseOff": "hört auf zu pulsieren",
             "hide": "verschwindet",
@@ -1562,7 +1562,8 @@
             "opacity": "wird zu {n} % sichtbar",
             "scale": "wird {n} % groß",
             "loop": "läuft einen Rundweg",
-            "loopOpen": "läuft einen Weg hin und zurück"
+            "loopOpen": "läuft einen Weg hin und zurück",
+            "badgeLost": "verliert {name}"
         },
         "when": {
             "start": "von Anfang an",
@@ -1595,7 +1596,7 @@
             "whatQ": "Was soll passieren?",
             "what": {
                 "move": "Laufen",
-                "badge": "Debuff bekommen",
+                "badge": "Debuff",
                 "fade": "Ausblenden",
                 "turn": "Drehen",
                 "loop": "Rundweg",
@@ -1603,7 +1604,7 @@
             },
             "whatSub": {
                 "move": "an einen Platz",
-                "badge": "Symbol am Spieler",
+                "badge": "bekommen oder verlieren",
                 "fade": "verschwinden, erscheinen",
                 "turn": "Blickrichtung",
                 "loop": "kiten, im Kreis",
@@ -1625,7 +1626,11 @@
             "nextWhat": "Weiter: Was?",
             "nextWhere": "Weiter: Wohin?",
             "add": "Hinzufügen",
-            "loopDone": "Fertig"
+            "loopDone": "Fertig",
+            "badgeGet": "Bekommen",
+            "badgeLose": "Verlieren",
+            "loseNote": "{who} verliert den Debuff ab diesem Takt.",
+            "stopPulse": "Pulsieren auch beenden"
         }
     }
 }
