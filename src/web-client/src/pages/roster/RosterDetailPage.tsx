@@ -7,9 +7,10 @@
 // drawer at the right edge. Names, characters, roles and attendance come from
 // the server (GET /api/rosters/roster); every change reloads the roster.
 import { useState, type ReactNode } from "react";
-import { Link, useOutletContext, useParams } from "react-router-dom";
+import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { getRosterDetail, getRosterSync, setRosterRole, type RosterDetail, type RosterMember, type SessionUser } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useFollowVersion } from "../../hooks/useFollowVersion";
 import { usePageCrumb } from "../../hooks/usePageCrumb";
 import { tParts, useT } from "../../i18n";
 import { BackButton, Badge, Button, IconTile, WowIcon } from "../../components/ui";
@@ -103,6 +104,10 @@ export default function RosterDetailPage() {
     const outlet = useOutletContext<ShellContext | undefined>();
     const user = outlet?.user ?? null;
     const state = useApi(() => getRosterDetail(rosterId), [rosterId]);
+    // A roster plays one game version (#741): a link from another version switches the menu
+    // to it; switching away leads back to the rosters of the version now shown.
+    const navigate = useNavigate();
+    useFollowVersion(state.data ? state.data.roster.versionId : "", () => navigate("/roster"));
     // the roster's orga: admin, orga role or manager of this roster; anybody else sees the Komposition only (epic #723)
     const orga = !state.data || state.data.isOrga !== false;
     const tab = tabOf(rawTab, orga);

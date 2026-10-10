@@ -152,7 +152,7 @@ describe("web/apiRoutes/kader", () => {
     describe("GET /api/kader", () => {
         it("answers the server's side and the chosen Kader", async () => {
             const { kaderId } = await kaderWithPlayers();
-            const view = body(await get("/api/kader", { kader: kaderId }));
+            const view = body(await get("/api/kader", { kader: kaderId, version: "forever" }));
             expect(view).toMatchObject({ versionId: "forever", guildId: "g1", roles: ["tank", "healer", "melee", "ranged"] });
             expect(view.kaders).toEqual([expect.objectContaining({ id: kaderId, name: "Forever-Kader 2027", counts: expect.objectContaining({ pool: 2 }) })]);
             expect(view.kader.id).toBe(kaderId);
@@ -162,6 +162,20 @@ describe("web/apiRoutes/kader", () => {
             // no raids yet: no attendance at all, the page shows "—"
             expect(view.players[0].attendance).toBeNull();
             expect(body(await get("/api/kader")).kader).toBeNull();
+        });
+
+        it("lists a Kader only under its game version (#741): no Forever Kader in the TBC view", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            const tbcKader = body(await post("/api/kader/kaders", { name: "TBC-Kader", versionId: "tbc" }));
+            expect(tbcKader.kader.versionId).toBe("tbc");
+            // a change inside a Kader answers the list of its own version
+            expect(tbcKader.kaders.map((k) => k.id)).toEqual([tbcKader.kaderId]);
+            const forever = body(await get("/api/kader", { version: "forever" }));
+            expect(forever.kaders.map((k) => [k.id, k.versionId])).toEqual([[kaderId, "forever"]]);
+            const tbc = body(await get("/api/kader", { version: "tbc" }));
+            expect(tbc.kaders.map((k) => [k.id, k.versionId])).toEqual([[tbcKader.kaderId, "tbc"]]);
+            // without a version: the main version (TBC), never every Kader
+            expect(body(await get("/api/kader", { version: "all" })).kaders.map((k) => k.id)).toEqual([tbcKader.kaderId]);
         });
 
         it("never lets private profile fields out", async () => {

@@ -7,7 +7,36 @@ jest.mock("../../../src/classes/warcraftlogs", () => jest.fn().mockImplementatio
     return { args };
 }));
 
+// The stored version of a raid (storedVersion.js has its own test): two raids, one per version.
+jest.mock("../../../src/services/events/storedVersion", () => ({
+    versionOfLog: (log) => ({ "raid-tbc": "tbc", "raid-forever": "forever" })[log && log.eventId] || "",
+}));
+
 const lv = require("../../../src/services/logcheck/logVersion");
+
+describe("services/logcheck/logVersion — which list a log belongs to (#741)", () => {
+    it("puts a log without a raid into every version, a linked one into its raid's", () => {
+        const waiting = { id: "l0" };
+        expect(lv.inVersionList(waiting, "tbc")).toBe(true);
+        expect(lv.inVersionList(waiting, "forever")).toBe(true);
+        expect(lv.inVersionList({ kind: "log", eventId: "" }, "forever")).toBe(true);
+        // the raid's stored version wins over the version stamped on the log
+        const linked = { eventId: "raid-forever", versionId: "tbc" };
+        expect(lv.inVersionList(linked, "forever")).toBe(true);
+        expect(lv.inVersionList(linked, "tbc")).toBe(false);
+        // a raid nobody stored any more: the version stamped when it was linked
+        expect(lv.inVersionList({ eventId: "gone", versionId: "forever" }, "forever")).toBe(true);
+        expect(lv.inVersionList({ eventId: "gone" }, "forever")).toBe(false);
+    });
+
+    it("puts a report without a log into its own version; no version lets everything through", () => {
+        expect(lv.inVersionList({ kind: "report", eventId: "", versionId: "forever" }, "forever")).toBe(true);
+        expect(lv.inVersionList({ kind: "report", eventId: "", versionId: "forever" }, "tbc")).toBe(false);
+        // a report from before #746 is TBC
+        expect(lv.inVersionList({ kind: "report", eventId: "" }, "tbc")).toBe(true);
+        expect(lv.inVersionList({ kind: "report", versionId: "forever" }, "")).toBe(true);
+    });
+});
 
 const template = (sub) => `https://${sub}.warcraftlogs.com/character/{region}/{realm}/{char}`;
 // fresh = TBC, vanilla = Classic, a made-up Forever site: what Einstellungen → Spielversion could hold

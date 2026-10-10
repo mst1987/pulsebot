@@ -240,13 +240,13 @@ export type DashboardData = {
     topLoot: { items: TopLootAward[]; configured: number };
     activeGuildId: string;
     // The version filter shared by the three raid/loot tiles (#545): what is
-    // shown ("" = every version, "all" asked for), the default, and the choices.
+    // shown, the default, and the choices.
     version: string;
     mainVersion: string;
     versions: VersionChoice[];
 };
 
-/** `version`: a version id, "all" for every version, "" (default) = the main version. */
+/** `version`: a version id, "" (default) = the main version — never every version at once (#741). */
 export function getDashboard(version = ""): Promise<DashboardData> {
     return get<DashboardData>(`/api/dashboard${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }

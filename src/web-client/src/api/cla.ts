@@ -88,12 +88,14 @@ export type ClaData = {
     activeGuildId: string;
 };
 
-export function getClaData(filter: ClaFilter, sort?: string, dir?: string, page?: number): Promise<ClaData> {
+export function getClaData(filter: ClaFilter, sort?: string, dir?: string, page?: number, version?: string): Promise<ClaData> {
     const qs = new URLSearchParams();
     qs.set("filter", filter);
     if (sort) qs.set("sort", sort);
     if (dir) qs.set("dir", dir);
     if (page) qs.set("page", String(page));
+    // the menu's content version (#741): a linked log of another version is not listed
+    if (version) qs.set("version", version);
     return get<ClaData>(`/api/cla?${qs.toString()}`);
 }
 
@@ -224,6 +226,7 @@ export function unlinkLog(logId: string): Promise<{ logId: string; message: stri
     return send("POST", "/api/cla/log-unlink", { logId });
 }
 
-export function autoMatchLogs(): Promise<{ matched: number; remaining: number; message: string }> {
-    return send("POST", "/api/cla/log-automatch", {});
+/** Links the open logs to the raids of `version` (#741, the menu's content version; "" = the main version). */
+export function autoMatchLogs(version = ""): Promise<{ matched: number; remaining: number; message: string }> {
+    return send("POST", `/api/cla/log-automatch${version ? `?version=${encodeURIComponent(version)}` : ""}`, {});
 }

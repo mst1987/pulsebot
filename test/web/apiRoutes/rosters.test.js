@@ -14,7 +14,7 @@ jest.mock("../../../src/web/http/auth", () => ({
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ categoryIds: ["cat1"] })) }));
 jest.mock("../../../src/web/roster/rosterView", () => ({
-    buildRosterOverview: jest.fn(async () => ({ rosters: [{ id: "r1", name: "Raid Mo / Do" }], categoriesWithoutRoster: [], canCreate: true })),
+    buildRosterOverview: jest.fn(async () => ({ rosters: [{ id: "r1", name: "Raid Mo / Do", versionId: "tbc" }], categoriesWithoutRoster: [], canCreate: true })),
     buildRosterDetail: jest.fn(async ({ id }) => (id === "r1" ? { roster: { id: "r1" }, members: [], canManage: false } : null)),
 }));
 
@@ -45,8 +45,19 @@ describe("GET /api/rosters", () => {
     it("answers the overview of the active server", async () => {
         const res = await get("/api/rosters");
         expect(status(res)).toBe(200);
-        expect(body(res)).toEqual({ rosters: [{ id: "r1", name: "Raid Mo / Do" }], categoriesWithoutRoster: [], canCreate: true });
+        expect(body(res)).toEqual({ rosters: [{ id: "r1", name: "Raid Mo / Do", versionId: "tbc" }], categoriesWithoutRoster: [], canCreate: true });
         expect(view.buildRosterOverview).toHaveBeenCalledWith({ guildId: "g1", user: ADMIN, config: { categoryIds: ["cat1"] } });
+    });
+
+    it("lists only the rosters and categories of the shown game version (#741)", async () => {
+        view.buildRosterOverview.mockResolvedValueOnce({
+            rosters: [{ id: "r-tbc", versionId: "tbc" }, { id: "r-forever", versionId: "forever" }],
+            categoriesWithoutRoster: [{ id: "c-tbc", versionId: "tbc" }, { id: "c-forever", versionId: "forever" }],
+            canCreate: true,
+        });
+        const forever = body(await get("/api/rosters", { version: "forever" }));
+        expect(forever.rosters.map((r) => r.id)).toEqual(["r-forever"]);
+        expect(forever.categoriesWithoutRoster.map((c) => c.id)).toEqual(["c-forever"]);
     });
 
     it("opens for roster readers and stays shut for everybody else", async () => {

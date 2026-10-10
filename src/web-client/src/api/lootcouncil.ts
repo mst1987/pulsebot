@@ -587,7 +587,7 @@ export type CouncilFilter = {
     category?: string;
     bisTier?: string;
     item?: number;
-    /** A version id, or "all" for every version; unset = the main version (#545). */
+    /** A version id; unset = the main version (#545) — the page never asks for every version (#741). */
     version?: string;
     /** With a roster: Ersatz shown as candidates too (#667). */
     bench?: boolean;

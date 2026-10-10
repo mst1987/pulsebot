@@ -279,7 +279,7 @@ describe("GET /api/lootcouncil", () => {
         expect(body(plain).outsiders).toEqual([]);
     });
 
-    it("passes the game version filter through, and 'all' lifts it (#545)", async () => {
+    it("passes the game version filter through; 'all' is no answer for the page (#545, #741)", async () => {
         lc.councilRoster.mockReturnValue({
             rows: [], avgLootCount: 0, bisTier: "t5", skipped: 0, categorySources: {}, versions: [{ id: "tbc", label: "TBC", short: "TBC", count: 3 }],
         });
@@ -290,9 +290,10 @@ describe("GET /api/lootcouncil", () => {
         expect(body(forever).version).toBe("forever");
         expect(body(forever).versions).toEqual([{ id: "tbc", label: "TBC", short: "TBC", count: 3 }]);
 
+        // strictly one version at a time (#741): "all" falls back to the main version
         const all = await call(getLootCouncil, "/api/lootcouncil", "?version=all");
-        expect(lc.councilRoster).toHaveBeenCalledWith(expect.objectContaining({ charVersion: "" }));
-        expect(body(all).version).toBe("");
+        expect(lc.councilRoster).toHaveBeenLastCalledWith(expect.objectContaining({ charVersion: "tbc" }));
+        expect(body(all).version).toBe("tbc");
     });
 
     it("narrows to one dropped item: candidates instead of the gap list", async () => {

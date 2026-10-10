@@ -441,6 +441,44 @@ describe("web/dashboard/dashboardData area loaders", () => {
         expect(reportStore.getReport).toHaveBeenCalledWith("r2");
     });
 
+    it("reads the newest report of the shown game version (#741)", () => {
+        reportStore.getReport.mockReturnValue({ players: [] });
+        reportStore.listReports.mockReturnValue([
+            { id: "r-forever", zone: "Barrow Deeps", generatedAt: 9, versionId: "forever" },
+            { id: "r-tbc", zone: "Black Temple", generatedAt: 5, versionId: "tbc" },
+            // stored before #746: TBC
+            { id: "r-old", zone: "Karazhan", generatedAt: 1 },
+        ]);
+        expect(loadLatestReport({ versionId: "tbc" })).toMatchObject({ id: "r-tbc" });
+        expect(loadLatestReport({ versionId: "forever" })).toMatchObject({ id: "r-forever" });
+        expect(loadLatestReport({ versionId: "classic" })).toBeNull();
+        expect(loadLatestReport()).toMatchObject({ id: "r-forever" });
+    });
+
+    it("builds the roster figures and the new loot of the shown version (#741)", () => {
+        buildRoster.mockReturnValue({ chars: [] });
+        loadRosterFigures("g1", { versionId: "forever" });
+        expect(buildRoster).toHaveBeenLastCalledWith("g1", { versionId: "forever" });
+
+        const eventStore = require("../../../src/stores/eventStore");
+        eventStore.getEvent.mockImplementation((id) => (id === "eh-forever" ? { id, versionId: "forever" } : null));
+        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+        const start = 1_800_000_000;
+        lootStore.listAll.mockReturnValue([
+            lootRow({ awardedAt: start * 1000 + 60_000, eventId: "eh-forever", character: "Forever" }),
+            lootRow({ awardedAt: start * 1000 + 90_000, eventId: "e1", character: "Tbc" }),
+        ]);
+        try {
+            expect(loadNewLoot(start, { versionId: "forever" })).toEqual({ count: 1, since: start * 1000 });
+            expect(loadNewLoot(start, { versionId: "tbc" })).toEqual({ count: 1, since: start * 1000 });
+            expect(loadNewLoot(start, { versionId: "classic" })).toEqual({ count: 0, since: start * 1000 });
+        } finally {
+            eventStore.getEvent.mockReset();
+            lootStore.listAll.mockReturnValue([]);
+            settingsStore.getConfig.mockReturnValue({});
+        }
+    });
+
     it("has no report tile without reports or on an unreadable one", () => {
         reportStore.listReports.mockReturnValue([]);
         expect(loadLatestReport()).toBeNull();

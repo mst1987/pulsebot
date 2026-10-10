@@ -81,14 +81,17 @@ export default function HistoryPage() {
     const legacy = legacyTab ? LEGACY_TABS[legacyTab] : undefined;
     const tab = legacy && allowedTabs.includes(legacy.tab) ? legacy.tab : paramTab;
 
-    const history = useApi(() => getHistoryData(), []);
+    // The game version of every view (#563): the menu's content switch. The logs come from
+    // the server for it (#741), a switch loads them again.
+    const { version: contentVersion } = useContentVersion();
+    const history = useApi(() => (contentVersion ? getHistoryData(contentVersion) : getHistoryData()), [contentVersion]);
     const { data, error } = history;
     const toast = useToast();
     // Loaded with the page: the head's count is the only hint that a raid is
     // waiting to be filed, so it has to be there before anyone thinks to look.
     // Skipped without "history": the inbox is not open to that caller, and the
     // call would only earn a 403. A failed load counts as "nothing waiting".
-    const inbox = useApi(() => getLootInbox().then((r) => r.sessions.length), [], { enabled: fullHistory });
+    const inbox = useApi(() => (contentVersion ? getLootInbox(contentVersion) : getLootInbox()).then((r) => r.sessions.length), [contentVersion], { enabled: fullHistory });
     const inboxCount = inbox.error ? 0 : inbox.data || 0;
     const [importOpen, setImportOpen] = useState(legacyTab === LEGACY_IMPORT && canWrite);
     // The kicker names the guild whose history this is (blank until known, or when it cannot be).
@@ -111,9 +114,6 @@ export default function HistoryPage() {
         if (legacy.raids) setRaidsView(legacy.raids);
         if (legacy.items) setItemsView(legacy.items);
     }, [legacy, setRaidsView, setItemsView]);
-    // The game version of every view (#563): the menu's content switch.
-    const { version: contentVersion } = useContentVersion();
-
     // The overviews are fetched on the first visit to one of their views, then
     // kept — and refreshed after an import only once they were opened, since
     // before that there is nothing on screen that could go stale. Switched on

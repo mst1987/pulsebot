@@ -26,6 +26,7 @@ const { userCan } = require("../../config/permissions");
 const kaderStore = require("../../stores/kaderStore");
 const rosterStore = require("../../stores/rosterStore");
 const { getConfig } = require("../../stores/settingsStore");
+const { resolveVersionQuery } = require("../../services/events/mainVersion");
 const { rosterLootSystem } = require("../../services/loot/lootSystem");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
 const { kaderRosterState, rosterOfKader, syncRosterFromKader, kaderLinkChoices, linkRosterToKader } = require("../../services/roster/rosterCreate");
@@ -66,14 +67,20 @@ function guarded(fn) {
     };
 }
 
-/** GET /api/kader?kader=<id> — the whole view model of the active server, with the chosen Kader. */
+/** The game version the page shows (#741): `?version=`, else the main version. */
+const shownVersion = (query) => resolveVersionQuery(query && query.get("version"), { config: getConfig() }).versionId;
+
+/**
+ * GET /api/kader?kader=<id>&version=<id> — the whole view model of the active
+ * server, with the chosen Kader and the Kader of the shown game version (#741).
+ */
 const getKader = withUser({}, async ({ req, res, query }) => {
     const guildId = activeGuildFor(req);
     const source = await loadKaderSource({ guildId });
-    ok(res, buildKaderView({ source, planner: kaderStore.readPlanner(guildId), kaderId: str(query, "kader") }));
+    ok(res, buildKaderView({ source, planner: kaderStore.readPlanner(guildId), kaderId: str(query, "kader"), versionId: shownVersion(query) }));
 });
 
-/** GET /api/kader/kader?kader=<id> — only the Kader as stored and the summaries (a change inside it, seen live). */
+/** GET /api/kader/kader?kader=<id> — only the Kader as stored and the summaries of its version (a change inside it, seen live). */
 const getKaderOnly = withUser({}, async ({ req, res, query }) => {
     ok(res, kaderPayload(kaderStore.readPlanner(activeGuildFor(req)), str(query, "kader")));
 });
@@ -147,7 +154,11 @@ function kaderWrite(mutate, { source: withSource = false, categories = false } =
 }
 
 // ------------------------------------------------------------ Kader
-/** POST /api/kader/kaders — body: { name }; the creator becomes its lead. Answers `kaderId`. */
+/**
+ * POST /api/kader/kaders — body: { name, versionId? }; the creator becomes its
+ * lead, the Kader belongs to the version the page shows (#741, else the
+ * planner's own). Answers `kaderId`.
+ */
 const createKader = kaderWrite((p, body, ctx) => model.createKader(p, body, ctx));
 /**
  * PUT /api/kader/kaders — body: { kaderId, name?, leads?, attendanceCategories? }; a

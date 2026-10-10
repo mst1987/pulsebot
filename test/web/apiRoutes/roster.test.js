@@ -248,7 +248,7 @@ describe("web/apiRoutes/roster", () => {
             });
         });
 
-        it("filtert nach Spielversion: Standard Hauptversion, ?version=forever, ?version=all (#543)", async () => {
+        it("filtert nach Spielversion: Standard Hauptversion, ?version=forever, nie alle (#543, #741)", async () => {
             const settingsStore = require("../../../src/stores/settingsStore");
             settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat2: "forever" } });
             auth.getUser.mockReturnValue(ADMIN);
@@ -267,9 +267,10 @@ describe("web/apiRoutes/roster", () => {
                 expect(forever.chars.map((c) => [c.character, c.versionIds])).toEqual([["Devi Res", ["forever"]]]);
                 expect(forever.version).toBe("forever");
 
+                // streng getrennt (#741): "all" ist die Hauptversion, keine Mischliste
                 const all = json(await get("/api/roster", { version: "all" })).data;
-                expect(all.chars.map((c) => c.character)).toEqual(["Anna", "Devi Res"]);
-                expect(all.version).toBe("");
+                expect(all.chars.map((c) => c.character)).toEqual(["Anna"]);
+                expect(all.version).toBe("tbc");
                 // an unknown version is the main version, never an empty page
                 expect(json(await get("/api/roster", { version: "gibtsnicht" })).data.version).toBe("tbc");
             } finally {
