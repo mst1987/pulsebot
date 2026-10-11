@@ -13,6 +13,10 @@
 //   GET  /api/guildbank/item/search?key=&q= Wowhead's items for a name on the bank's version, { items }
 //   POST /api/guildbank/tab                 { key, index, hidden } — hide or show a whole bank tab
 //   GET  /api/guildbank/requests?key=       the bank's open and confirmed requests (the "Anfragen" dialog)
+//   GET  /api/guildbank/handedout?key=      the bank's handed-out requests, newest first (the "Ausgegeben" tab)
+//   GET  /api/guildbank/characters?key=&q=  the raider profiles' characters to link a request to (write)
+//   POST /api/guildbank/request/link        { key, id, userId, characterKey } — a pending request's recipient
+//                                           becomes that profile character (linked, card redrawn)
 //   GET  /api/guildbank/waitlist?key=       the bank's waiting list (#775, the "Warteliste" dialog)
 //   POST /api/guildbank/waitlist/add        { key, name, itemId, amount } — an entry at the end of the item's list
 //   POST /api/guildbank/waitlist/move       { key, id, direction: "up" | "down" }
@@ -41,7 +45,8 @@ const stock = require("../../services/guildbank/guildBankStock");
 const view = require("../../services/guildbank/stockView");
 const { queueLookups } = require("../../services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../services/guildbank/itemEmojis");
-const { pendingForBank, advanceWaitlist } = require("../../services/signups/guildBank");
+const { pendingForBank, handedOutForBank, linkRequest, advanceWaitlist } = require("../../services/signups/guildBank");
+const linking = require("../../services/guildbank/linking");
 const waitlist = require("../../services/guildbank/waitlist");
 const addItem = require("../../services/guildbank/addItem");
 const requestStore = require("../../stores/guildBankStore");
@@ -105,6 +110,7 @@ function requestRow(r, items) {
         id: r.id, itemId: r.itemId, item: (item && item.name) || r.item, iconUrl: iconUrl(icon), amount: r.amount,
         userId: r.userId, userName: r.userName, characterName: r.characterName, realm: r.realm, purpose: r.purpose,
         status: r.status, createdAt: r.createdAt, handledByName: r.handledByName, handledAt: r.handledAt,
+        linked: r.linked === undefined ? linking.isLinked(r) : r.linked,
     };
 }
 
@@ -115,6 +121,44 @@ const getGuildBankRequests = withUser(async ({ req, res, query }) => {
     if (!bank) return sendFailure(res, NOT_FOUND);
     const items = new Map(bank.items.map((it) => [it.itemId, it]));
     ok(res, { requests: pendingForBank(key).map((r) => requestRow(r, items)) });
+});
+
+/** One handed-out request as the "Ausgegeben" tab lists it: what, to whom, when, by whom, how. */
+function handedOutRow(r, items) {
+    const item = items.get(r.itemId);
+    return {
+        id: r.id, itemId: r.itemId, item: (item && item.name) || r.item, iconUrl: iconUrl((item && item.icon) || r.icon), amount: r.amount,
+        userId: r.userId, userName: r.userName, characterName: r.characterName, realm: r.realm, purpose: r.purpose,
+        createdAt: r.createdAt, confirmedByName: r.handledByName,
+        handedOutAt: r.handedOutAt, handedOutByName: r.handedOutByName, handoutVia: r.handoutVia, fromWaitlist: r.fromWaitlist,
+    };
+}
+
+/** GET /api/guildbank/handedout?key= — the bank's handed-out requests (kept 90 days), newest first. */
+const getGuildBankHandedOut = withUser(async ({ req, res, query }) => {
+    const bank = view.bankOfServer(q.str(query, "key", { max: 200 }), activeGuildFor(req));
+    if (!bank) return sendFailure(res, NOT_FOUND);
+    const items = new Map(bank.items.map((it) => [it.itemId, it]));
+    ok(res, { requests: handedOutForBank(bank.key).map((r) => handedOutRow(r, items)) });
+});
+
+/** GET /api/guildbank/characters?key=&q= — the profile characters to link a request to, the bank's version first. */
+const searchGuildBankCharacters = withUser({ write: "raids" }, async ({ req, res, query }) => {
+    const bank = view.bankOfServer(q.str(query, "key", { max: 200 }), activeGuildFor(req));
+    if (!bank) return sendFailure(res, NOT_FOUND);
+    ok(res, { characters: linking.characterChoices({ query: q.str(query, "q", { max: 60 }), gameVersion: bank.gameVersion }) });
+});
+
+/** POST /api/guildbank/request/link — body: { key, id, userId, characterKey }; a pending request of this bank gets that recipient. */
+const linkGuildBankRequest = withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res }) => {
+    const bank = view.bankOfServer(q.str(body, "key", { max: 200 }), activeGuildFor(req));
+    if (!bank) return sendFailure(res, NOT_FOUND);
+    const result = await linkRequest(q.str(body, "id", { max: 40 }), {
+        bankKey: bank.key, userId: q.str(body, "userId", { max: 40 }), characterKey: q.str(body, "characterKey", { max: 80 }),
+    });
+    if (result.error) return sendFailure(res, { code: result.code || "invalid", error: result.error });
+    const items = new Map(bank.items.map((it) => [it.itemId, it]));
+    ok(res, { request: requestRow(result.request, items) });
 });
 
 /** Move the waiting list up now; the cards and DMs follow in the background (never awaited, never throws). */
@@ -128,7 +172,7 @@ function waitingRow(r, items) {
     return {
         id: r.id, itemId: r.itemId, item: (item && item.name) || r.item, iconUrl: iconUrl((item && item.icon) || r.icon), amount: r.amount,
         userId: r.userId, userName: r.userName, characterName: r.characterName, realm: r.realm, purpose: r.purpose,
-        createdAt: r.createdAt, position: r.position, addedByName: r.addedByName,
+        createdAt: r.createdAt, position: r.position, addedByName: r.addedByName, linked: !!r.linked,
     };
 }
 
@@ -169,7 +213,8 @@ const GONE = { code: "not_found", error: "Dieser Eintrag wartet nicht mehr." };
 /** POST /api/guildbank/waitlist/add — body: { key, name, itemId, amount }. */
 const addGuildBankWaiting = waitlistWrite(({ bank, body, by, byName }) => {
     const result = waitlist.addEntry(bank.key, {
-        name: q.str(body, "name", { max: 40 }), itemId: q.int(body, "itemId", { fallback: 0 }), amount: body.amount, by, byName,
+        name: q.str(body, "name", { max: 40 }), userId: q.str(body, "userId", { max: 40 }), characterKey: q.str(body, "characterKey", { max: 80 }),
+        itemId: q.int(body, "itemId", { fallback: 0 }), amount: body.amount, by, byName,
     });
     return result.error ? result : { added: 1 };
 });
@@ -193,17 +238,29 @@ const removeGuildBankWaiting = waitlistWrite(({ bank, body }) => {
 /** The longest text an import takes (200 lines of a sheet). */
 const IMPORT_TEXT_MAX = 20000;
 
-/** POST /api/guildbank/waitlist/preview — body: { key, text }; stores nothing. */
+/** The import's picks: `{ [line]: { userId, characterKey } }` (at most one per line of the text), anything else ignored. */
+function linksOf(body) {
+    const raw = body && body.links;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const out = {};
+    for (const [line, pick] of Object.entries(raw).slice(0, waitlist.IMPORT_MAX_LINES)) {
+        if (!/^\d{1,3}$/.test(line) || !pick || typeof pick !== "object") continue;
+        out[line] = { userId: q.str(pick, "userId", { max: 40 }), characterKey: q.str(pick, "characterKey", { max: 80 }) };
+    }
+    return out;
+}
+
+/** POST /api/guildbank/waitlist/preview — body: { key, text, links? }; stores nothing. */
 const previewGuildBankWaitlist = withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res }) => {
     const bank = view.bankOfServer(q.str(body, "key", { max: 200 }), activeGuildFor(req));
     if (!bank) return sendFailure(res, NOT_FOUND);
-    ok(res, waitlist.previewImport(bank.key, q.str(body, "text", { max: IMPORT_TEXT_MAX })));
+    ok(res, waitlist.previewImport(bank.key, q.str(body, "text", { max: IMPORT_TEXT_MAX }), { links: linksOf(body) }));
 });
 
-/** POST /api/guildbank/waitlist/import — body: { key, text }; the lines the preview marks ok, at the end of their lists. */
+/** POST /api/guildbank/waitlist/import — body: { key, text, links? }; the lines the preview marks ok, at the end of their lists. */
 const importGuildBankWaitlist = waitlistWrite(({ bank, body, by, byName }) => {
-    const result = waitlist.importLines(bank.key, q.str(body, "text", { max: IMPORT_TEXT_MAX }), { by, byName });
-    return result.error ? result : { added: result.added.length, skipped: result.skipped };
+    const result = waitlist.importLines(bank.key, q.str(body, "text", { max: IMPORT_TEXT_MAX }), { by, byName, links: linksOf(body) });
+    return result.error ? result : { added: result.added.length, skipped: result.skipped, unlinked: result.unlinked };
 });
 
 /** POST /api/guildbank/tab — hide or show a whole bank tab. */
@@ -247,6 +304,9 @@ const routes = [
     { method: "GET", path: "/api/guildbank/item/search", handler: searchGuildBankItems, area: "raids" },
     { method: "POST", path: "/api/guildbank/tab", handler: postGuildBankTab, area: "raids" },
     { method: "GET", path: "/api/guildbank/requests", handler: getGuildBankRequests, area: "raids" },
+    { method: "GET", path: "/api/guildbank/handedout", handler: getGuildBankHandedOut, area: "raids" },
+    { method: "GET", path: "/api/guildbank/characters", handler: searchGuildBankCharacters, area: "raids" },
+    { method: "POST", path: "/api/guildbank/request/link", handler: linkGuildBankRequest, area: "raids" },
     { method: "GET", path: "/api/guildbank/waitlist", handler: getGuildBankWaitlist, area: "raids" },
     { method: "POST", path: "/api/guildbank/waitlist/add", handler: addGuildBankWaiting, area: "raids" },
     { method: "POST", path: "/api/guildbank/waitlist/move", handler: moveGuildBankWaiting, area: "raids" },
@@ -260,6 +320,7 @@ const routes = [
 
 module.exports = {
     getGuildBank, postGuildBankItem, addGuildBankItem, searchGuildBankItems, postGuildBankTab, getGuildBankRequests, getGuildBanks, assignGuildBank, deleteGuildBank,
+    getGuildBankHandedOut, searchGuildBankCharacters, linkGuildBankRequest,
     getGuildBankWaitlist, addGuildBankWaiting, moveGuildBankWaiting, removeGuildBankWaiting, previewGuildBankWaitlist, importGuildBankWaitlist,
     routes,
 };

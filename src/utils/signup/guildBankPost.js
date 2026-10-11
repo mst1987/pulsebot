@@ -16,6 +16,9 @@
 // A request that moved up from the waiting list (#775) is a normal open card
 // with "aus der Warteliste" in its note; one imported by character name alone
 // shows the name instead of the raider ("ohne Discord-Konto, keine DM").
+// A request from the stock without a linked character (services/guildbank/
+// linking.js) shows "⚠ Kein verknüpfter Charakter – Post erst nach Verknüpfen
+// im Web" and its "Bestätigen" stays disabled until the orga links it.
 //
 // What the raider reads is in their language (tr); the orga card and the orga's
 // modal are orga texts and stay German.
@@ -194,8 +197,11 @@ function stockFacts(request, stock) {
     return [["Bestand", String(Number(stock.count) || 0)], ["Vorgemerkt", String(Number(stock.reserved) || 0)], ["Verfügbar", `${available}${after}`]];
 }
 
-/** The card's buttons for the request's status. */
-function orgaButtons(request) {
+/** The orga card's warning for a request from the stock without a linked character. German (orga text). */
+const NOT_LINKED_LINE = "⚠ **Kein verknüpfter Charakter** – Post erst nach Verknüpfen im Web (Gildenbank)";
+
+/** The card's buttons for the request's status; "Bestätigen" disabled while the character is not linked. */
+function orgaButtons(request, { linked = true } = {}) {
     const id = request.id;
     const button = (action, label, style, emoji) => {
         const b = new ButtonBuilder().setCustomId(`${PREFIX}:${action}:${id}`).setLabel(label).setStyle(style);
@@ -203,7 +209,7 @@ function orgaButtons(request) {
     };
     const reject = button("reject", "Ablehnen …", ButtonStyle.Secondary);
     if (!request.itemId) return request.status === "open" ? [button("done", "Erledigt", ButtonStyle.Success, "✅"), reject] : [];
-    if (request.status === "open") return [button("confirm", "Bestätigen", ButtonStyle.Success, "✅"), reject];
+    if (request.status === "open") return [button("confirm", "Bestätigen", ButtonStyle.Success, "✅").setDisabled(!linked), reject];
     if (request.status === "confirmed") {
         return [button("handout", "Ausgegeben", ButtonStyle.Secondary), button("release", "Vormerkung lösen", ButtonStyle.Secondary)];
     }
@@ -217,10 +223,11 @@ function orgaButtons(request) {
  * text); `<@id>` shows the raider's name and pings nobody (discord.postPayload
  * allows no mentions).
  * @param {object} request a guildBankStore request
- * @param {{ categoryName?: string, stock?: object|null }} [o] the organizer's category name; the item as
- *   stockView.stockItem reads it now (count, reserved, available, group, icon), null when unknown
+ * @param {{ categoryName?: string, stock?: object|null, linked?: boolean }} [o] the organizer's category name; the item as
+ *   stockView.stockItem reads it now (count, reserved, available, group, icon), null when unknown; `linked`
+ *   false = the request's character is no profile character (linking.isLinked): warning, "Bestätigen" disabled
  */
-function orgaPayload(request, { categoryName = "", stock = null } = {}) {
+function orgaPayload(request, { categoryName = "", stock = null, linked = true } = {}) {
     const created = seconds(request.createdAt);
     const fromStock = !!request.itemId;
     const group = fromStock ? str((stock && stock.group) || request.group) : "";
@@ -230,6 +237,7 @@ function orgaPayload(request, { categoryName = "", stock = null } = {}) {
     if (str(request.purpose)) text.push(`Wofür: ${plain(request.purpose)}`);
     const to = recipientName(request);
     if (to) text.push(`An: ${plain(to)}`);
+    if (fromStock && !linked && (request.status === "open" || request.status === "confirmed")) text.push(NOT_LINKED_LINE);
     const status = request.status === "open" ? "offen" : statusLine(request);
     const icon = fromStock ? iconUrl(str((stock && stock.icon) || request.icon)) : "";
     return card({
@@ -239,7 +247,7 @@ function orgaPayload(request, { categoryName = "", stock = null } = {}) {
         text: text.join("\n"),
         thumbnail: icon,
         facts: stockFacts(request, stock),
-        buttons: orgaButtons(request),
+        buttons: orgaButtons(request, { linked: !fromStock || linked }),
         note: [plainCategoryName(categoryName), request.fromWaitlist ? "aus der Warteliste" : "", status].filter(Boolean).join(" · "),
     });
 }
@@ -263,6 +271,6 @@ function parseOrgaId(customId) {
 }
 
 module.exports = {
-    PREFIX, COLOR_OPEN, COLOR_CONFIRMED, COLOR_DONE, COLOR_REJECTED, guildBankChannelId, plain, amountItem, recipientName,
+    PREFIX, COLOR_OPEN, COLOR_CONFIRMED, COLOR_DONE, COLOR_REJECTED, NOT_LINKED_LINE, guildBankChannelId, plain, amountItem, recipientName,
     requestModal, requestSummary, waitingSummary, movedUpCard, decisionCard, statusLine, stockFacts, orgaPayload, rejectModal, parseOrgaId,
 };

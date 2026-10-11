@@ -183,6 +183,9 @@ async function onGuildBankItemModal(interaction, categoryId, config, lang) {
     const parts = [];
     if (result.request) parts.push(`✅ ${tr(lang, "Request sent – the orga will get back to you by DM.")}\n${requestSummary(result.request, lang)}`);
     if (result.waiting) parts.push(`⏳ ${waitingSummary(result.waiting, result.position, lang)}`);
+    // no character of the bank's version: nothing to mail to, the orga cannot confirm it yet
+    const stored = result.request || result.waiting;
+    if (stored && !stored.characterName) parts.push(`⚠️ ${tr(lang, "Add a character in your profile, otherwise the orga cannot hand it out.")}`);
     return interaction.editReply(answerPayload(parts.join("\n\n"), { lang }));
 }
 

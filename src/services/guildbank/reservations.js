@@ -81,4 +81,11 @@ function reservedRequestCount(bankKey) {
     return store.listRequests({ status: "confirmed" }).filter((r) => r.bankKey === key && r.itemId).length;
 }
 
-module.exports = { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount };
+/** How many requests of one bank were handed out and are still kept (90 days, store.prune) — the page's "Ausgegeben" tab. */
+function handedOutRequestCount(bankKey) {
+    const key = String(bankKey || "").trim();
+    if (!key) return 0;
+    return store.listRequests({ status: "handedOut" }).filter((r) => r.bankKey === key && r.itemId).length;
+}
+
+module.exports = { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount, handedOutRequestCount };

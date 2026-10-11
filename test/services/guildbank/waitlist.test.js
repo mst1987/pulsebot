@@ -166,7 +166,8 @@ describe("services/guildbank/waitlist — import", () => {
             ["Y", "Hidden Gem", "Nicht ausgebbar.", "", false, false],
             ["Z", "Crimson Spinal", "", "", false, true],
         ]);
-        expect(rows[0].match).toEqual({ userId: "u-alina", userName: "Ali", characterName: "Alina", realm: "" });
+        expect(rows[0].match).toEqual({ userId: "u-alina", userName: "Ali", characterKey: "alina", characterName: "Alina", realm: "", className: "Priest" });
+        expect(rows[0].linked).toBe(true);
         expect(waitlist.previewImport("nope", "a\tb\t1")).toEqual({ rows: [] });
         expect(waitlist.foldName("  Alîna  Ölund ")).toBe("alina olund");
     });
@@ -202,5 +203,34 @@ describe("services/guildbank/waitlist — import", () => {
         expect(waitlist.addEntry(KEY, { name: "A", itemId: HIDDEN, amount: 1 })).toEqual({ error: "Diesen Gegenstand gibt die Bank nicht aus." });
         expect(waitlist.addEntry(KEY, { name: "A", itemId: PYRE, amount: 0 })).toEqual({ error: "Die Menge muss eine ganze Zahl von 1 bis 9999 sein." });
         expect(waitlist.addEntry("nope", { name: "A", itemId: PYRE, amount: 1 })).toEqual({ error: "Gildenbank nicht gefunden." });
+    });
+});
+
+describe("services/guildbank/waitlist — linking in the import and the list", () => {
+    it("lists ambiguous candidates, takes the orga's picks and counts what lands unlinked", () => {
+        profiles.addCharacter("u-a", { name: "Josh", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] }, { name: "Anna" });
+        profiles.addCharacter("u-b", { name: "Josh", className: "Mage", specs: [{ key: "Mage-Frost", gear: "ready" }] }, { name: "Bert" });
+        profiles.addCharacter("u-c", { name: "Ragemain", className: "Warrior" }, { name: "Cleo" });
+        const text = "Josh\tCrimson Spinal\t1\nRageholic\tCrimson Spinal\t1\nWhapap\tCrimson Spinal\t1";
+        const { rows } = waitlist.previewImport(KEY, text);
+        expect(rows[0]).toMatchObject({ ambiguous: true, linked: false, match: null });
+        expect(rows[0].candidates.map((c) => [c.userId, c.characterKey, c.className])).toEqual([["u-a", "josh", "Priest"], ["u-b", "josh", "Mage"]]);
+        expect(rows[1]).toMatchObject({ ambiguous: false, linked: false, candidates: [] });
+
+        const links = { 1: { userId: "u-b", characterKey: "josh" }, 2: { userId: "u-c", characterKey: "ragemain" }, 3: { userId: "u-c", characterKey: "nope" } };
+        const picked = waitlist.previewImport(KEY, text, { links }).rows;
+        expect(picked.map((r) => [r.linked, r.picked, r.match && r.match.userId])).toEqual([[true, true, "u-b"], [true, true, "u-c"], [false, false, null]]);
+
+        const result = waitlist.importLines(KEY, text, { by: "o1", byName: "Orga", links });
+        expect(result.unlinked).toBe(1);
+        expect(result.added.map((r) => [r.userId, r.userName, r.characterName])).toEqual([["u-b", "Bert", "Josh"], ["u-c", "Cleo", "Ragemain"], ["", "Whapap", "Whapap"]]);
+        expect(waitlist.listForBank(KEY).map((e) => e.linked)).toEqual([true, true, false]);
+    });
+
+    it("adds one entry for a picked profile character, refuses a pick the profile does not have", () => {
+        profiles.addCharacter("u-c", { name: "Ragemain", className: "Warrior" }, { name: "Cleo" });
+        const added = waitlist.addEntry(KEY, { userId: "u-c", characterKey: "ragemain", itemId: SPINAL, amount: 2, by: "o1" });
+        expect(added.request).toMatchObject({ userId: "u-c", characterName: "Ragemain", amount: 2 });
+        expect(waitlist.addEntry(KEY, { userId: "u-c", characterKey: "nope", itemId: SPINAL, amount: 1 })).toEqual({ error: "Diesen Charakter gibt es im Profil nicht." });
     });
 });

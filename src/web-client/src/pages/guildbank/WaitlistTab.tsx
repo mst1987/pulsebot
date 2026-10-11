@@ -6,35 +6,44 @@
 // orga. Adding one entry and the sheet import are dialogs of their own
 // (WaitlistAddDialog.tsx, WaitlistImportDialog.tsx) opened from the filter
 // line; this tab reads the list again when they are done (`reloadToken`).
+// An entry whose character is no character of its raider's profile is marked
+// "nicht verknüpft" — when it moves up, the orga cannot confirm it until it is
+// linked: "Verknüpfen" opens the character search (CharacterPicker.tsx), a
+// linked entry can be linked anew with the small chain button.
 // Reading takes "raids", every change "raids" write — without it only the list.
 import { useState } from "react";
 import {
-    getGuildBankWaitlist, moveGuildBankWaiting, removeGuildBankWaiting,
-    type ApiError, type GuildBankItem, type GuildBankWaitingEntry, type GuildBankWaitlist,
+    getGuildBankWaitlist, linkGuildBankRequest, moveGuildBankWaiting, removeGuildBankWaiting,
+    type ApiError, type GuildBankCharacterChoice, type GuildBankItem, type GuildBankWaitingEntry, type GuildBankWaitlist,
 } from "../../api";
-import { Badge, IconButton, useConfirm } from "../../components/ui";
-import { ChevronDownIcon, ChevronUpIcon, TrashIcon } from "../../components/ui/icons";
+import { Badge, Button, IconButton, useConfirm } from "../../components/ui";
+import { ChevronDownIcon, ChevronUpIcon, LinkIcon, TrashIcon } from "../../components/ui/icons";
 import { ItemIcon } from "../../components/loot/LootBadges";
 import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import { formatDateTime } from "../../lib/format";
 import { useT } from "../../i18n";
-import { availableTone, filterWaitlist, groupWaitlist, waitingName, type WaitlistGroup } from "./bankView";
+import { availableTone, filterWaitlist, groupWaitlist, recipientName, waitingName, type WaitlistGroup } from "./bankView";
+import LinkCharacterDialog, { NotLinkedBadge } from "./CharacterPicker";
 
-function EntryRow({ entry, first, last, canWrite, busy, onMove, onRemove }: {
+type RowActions = {
+    onMove: (entry: GuildBankWaitingEntry, direction: "up" | "down") => void;
+    onRemove: (entry: GuildBankWaitingEntry) => void;
+    onLink: (entry: GuildBankWaitingEntry) => void;
+};
+
+function EntryRow({ entry, first, last, canWrite, busy, onMove, onRemove, onLink }: RowActions & {
     entry: GuildBankWaitingEntry;
     first: boolean;
     last: boolean;
     canWrite: boolean;
     busy: boolean;
-    onMove: (entry: GuildBankWaitingEntry, direction: "up" | "down") => void;
-    onRemove: (entry: GuildBankWaitingEntry) => void;
 }) {
     const t = useT();
     const name = waitingName(entry);
     const sub = [
         // a raider's recipient character, when it is not the name shown already
-        entry.characterName && entry.characterName !== name ? t("guildbank.requests.to", { name: entry.characterName }) : "",
+        entry.characterName && entry.characterName !== name ? t("guildbank.requests.to", { name: recipientName(entry) }) : "",
         t("guildbank.waitlist.since", { date: formatDateTime(entry.createdAt) }),
         entry.addedByName ? t("guildbank.waitlist.addedBy", { name: entry.addedByName }) : "",
     ];
@@ -44,7 +53,13 @@ function EntryRow({ entry, first, last, canWrite, busy, onMove, onRemove }: {
             <div className="gb-req-text">
                 <span className="gb-req-title">
                     {name}
-                    {!entry.userId && <Badge size="sm" tip={t("guildbank.waitlist.noDiscord")} tipSub={t("guildbank.waitlist.noDiscordTip")}>{t("guildbank.waitlist.noDiscord")}</Badge>}
+                    {!entry.linked && <NotLinkedBadge noRaider={!entry.userId} />}
+                    {!entry.linked && canWrite && (
+                        <Button size="sm" variant="ghost" icon={<LinkIcon />} disabled={busy} onClick={() => onLink(entry)}
+                            aria-label={`${t("guildbank.link.button")}: ${name}`}>
+                            {t("guildbank.link.button")}
+                        </Button>
+                    )}
                 </span>
                 <span className="gb-req-sub">{sub.filter(Boolean).join(" · ")}</span>
             </div>
@@ -52,6 +67,10 @@ function EntryRow({ entry, first, last, canWrite, busy, onMove, onRemove }: {
             <span className="gb-wl-actions">
                 {canWrite && (
                     <>
+                        {entry.linked && (
+                            <IconButton icon={<LinkIcon />} size="sm" tip={t("guildbank.link.relink")} tipSub={t("guildbank.link.relinkTip", { name: recipientName(entry) })}
+                                aria-label={`${t("guildbank.link.relink")}: ${name}`} disabled={busy} onClick={() => onLink(entry)} />
+                        )}
                         <IconButton icon={<ChevronUpIcon />} size="sm" tip={t("guildbank.waitlist.up")} aria-label={`${t("guildbank.waitlist.up")}: ${name}`}
                             disabled={busy || first} onClick={() => onMove(entry, "up")} />
                         <IconButton icon={<ChevronDownIcon />} size="sm" tip={t("guildbank.waitlist.down")} aria-label={`${t("guildbank.waitlist.down")}: ${name}`}
@@ -65,13 +84,11 @@ function EntryRow({ entry, first, last, canWrite, busy, onMove, onRemove }: {
     );
 }
 
-function ItemQueue({ group, item, canWrite, busyId, onMove, onRemove }: {
+function ItemQueue({ group, item, canWrite, busyId, ...actions }: RowActions & {
     group: WaitlistGroup;
     item: GuildBankItem | undefined;
     canWrite: boolean;
     busyId: string;
-    onMove: (entry: GuildBankWaitingEntry, direction: "up" | "down") => void;
-    onRemove: (entry: GuildBankWaitingEntry) => void;
 }) {
     const t = useT();
     const free = item ? item.free : 0;
@@ -86,7 +103,7 @@ function ItemQueue({ group, item, canWrite, busyId, onMove, onRemove }: {
             <ol className="gb-wl-list">
                 {group.entries.map((e, i) => (
                     <EntryRow key={e.id} entry={e} first={i === 0} last={i === group.entries.length - 1}
-                        canWrite={canWrite} busy={busyId === e.id} onMove={onMove} onRemove={onRemove} />
+                        canWrite={canWrite} busy={busyId === e.id} {...actions} />
                 ))}
             </ol>
         </section>
@@ -110,6 +127,7 @@ export default function WaitlistTab({ bankKey, items, canWrite, category, search
     const ask = useConfirm();
     const list = useApi(() => getGuildBankWaitlist(bankKey), [bankKey, reloadToken]);
     const [busyId, setBusyId] = useState("");
+    const [linking, setLinking] = useState<GuildBankWaitingEntry | null>(null);
     const entries = list.data?.entries || [];
     const byId = new Map(items.map((it) => [it.itemId, it]));
     const groups = groupWaitlist(filterWaitlist(entries, byId, { category, search }));
@@ -127,6 +145,20 @@ export default function WaitlistTab({ bankKey, items, canWrite, category, search
         }
     };
     const move = (entry: GuildBankWaitingEntry, direction: "up" | "down") => { void step(entry, () => moveGuildBankWaiting(bankKey, entry.id, direction)); };
+    // the entry's raider and character become the picked profile character; the list is read again
+    const link = async (entry: GuildBankWaitingEntry, choice: GuildBankCharacterChoice) => {
+        setBusyId(entry.id);
+        try {
+            await linkGuildBankRequest(bankKey, entry.id, { userId: choice.userId, characterKey: choice.characterKey });
+            toast(t("guildbank.link.done", { name: recipientName(choice), raider: choice.userName }), "ok");
+            setLinking(null);
+            await list.reload();
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        } finally {
+            setBusyId("");
+        }
+    };
     const remove = async (entry: GuildBankWaitingEntry) => {
         const ok = await ask({
             title: t("guildbank.waitlist.removeTitle"),
@@ -146,9 +178,20 @@ export default function WaitlistTab({ bankKey, items, canWrite, category, search
             {list.data && entries.length > 0 && !groups.length && <div className="empty">{t("guildbank.waitlist.noMatch")}</div>}
             <div className="gb-wl-groups">
                 {groups.map((g) => (
-                    <ItemQueue key={g.itemId} group={g} item={byId.get(g.itemId)} canWrite={canWrite} busyId={busyId} onMove={move} onRemove={(e) => { void remove(e); }} />
+                    <ItemQueue key={g.itemId} group={g} item={byId.get(g.itemId)} canWrite={canWrite} busyId={busyId}
+                        onMove={move} onRemove={(e) => { void remove(e); }} onLink={setLinking} />
                 ))}
             </div>
+            {linking && canWrite && (
+                <LinkCharacterDialog
+                    bankKey={bankKey}
+                    what={t("guildbank.requests.amountItem", { amount: linking.amount, item: linking.item })}
+                    current={linking.characterName || waitingName(linking)}
+                    busy={busyId === linking.id}
+                    onPick={(choice) => { void link(linking, choice); }}
+                    onClose={() => setLinking(null)}
+                />
+            )}
         </div>
     );
 }

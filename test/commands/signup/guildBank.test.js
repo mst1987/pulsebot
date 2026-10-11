@@ -147,6 +147,13 @@ describe("guildbank (Orga-Knöpfe)", () => {
             expect(said(i.editReply)).toBe("## Nicht genug verfügbar\nNicht genug verfügbar: noch 2, angefragt 5.");
         });
 
+        it("Bestätigen ohne verknüpften Charakter: der Hinweis aufs Web", async () => {
+            guildBank.confirmRequest.mockResolvedValueOnce({ error: "Erst einen Charakter verknüpfen – im Web unter Gildenbank.", request: { id: open.id, status: "open" }, notLinked: true });
+            const i = click(`guildbank:confirm:${open.id}`);
+            await command.execute(i);
+            expect(said(i.editReply)).toBe("## Kein verknüpfter Charakter\nErst einen Charakter verknüpfen – im Web unter Gildenbank.");
+        });
+
         it("Ausgegeben beendet die Vormerkung über den Knopf, Vormerkung lösen ohne DM", async () => {
             const out = click(`guildbank:handout:${open.id}`);
             await command.execute(out);
