@@ -177,6 +177,9 @@ describe("services/events/eventSources", () => {
             channelName: "kara-do", categoryId: "cat1", categoryName: "Raids", versionId: "tbc",
         }]);
         expect(eventStore.listEvents).toHaveBeenCalledWith("g1", { sinceSeconds: 100, untilSeconds: 3000000000 });
+        // the log matching asks a little beyond now: raids that start soon
+        sources.ownMatchableEvents("g1", 100, { now: 3000000000 * 1000, untilSeconds: 3000007200 });
+        expect(eventStore.listEvents).toHaveBeenLastCalledWith("g1", { sinceSeconds: 100, untilSeconds: 3000007200 });
         const raw = sources.ownUpcomingRaw("g1", { categoryId: "cat1" });
         expect(raw[0]).toMatchObject({ id: "eh-1", source: "eventhelper", channelId: "c1", leaderId: "u9", signUps: [] });
         expect(sources.ownUpcomingRaw("g1", { categoryId: "other" })).toEqual([]);

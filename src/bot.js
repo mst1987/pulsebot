@@ -14,6 +14,7 @@ const userPrefs = require("./stores/userPrefsStore.js");
 const { langOfInteraction } = require("./services/discord/botLanguage.js");
 const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./services/logcheck/logChannel.js");
+const { autoLinkAllGuilds } = require("./services/logcheck/logAutoLink.js");
 const softresDetect = require("./services/loot/softresDetect.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
 const rosterRoleSync = require("./services/roster/rosterRoleSync.js");
@@ -65,6 +66,9 @@ client.on(Events.ClientReady, () => {
     ensureAppEmojis(client).catch((error) => logger.warn("ensureAppEmojis failed:", error.message));
     // The guild bank items' icons (#633): whatever changed while the bot was offline.
     queueItemEmojiSync({ delay: 30 * 1000 });
+    // Logs waiting for their raid: the job's first sweep runs at web start, before the
+    // login, when there are no guilds yet — without this the next try is 10 min away.
+    autoLinkAllGuilds().catch((error) => logger.warn("log auto-link after login failed:", error.message));
     // The member lists of the configured servers, in the background: the first raid detail,
     // roster or dashboard after a restart then finds them cached (services/discord/discord.js).
     try {

@@ -9,6 +9,7 @@ const { EVENT_LOOKBACK_DAYS } = require("../events/raidEventGroups");
 const { listRaidEvents } = require("../../stores/raidEventStore");
 const { ownMatchableEvents, withEraName } = require("../events/eventSources");
 const { versionOfEvent } = require("../events/mainVersion");
+const { LOG_WINDOW_BEFORE_MS } = require("../events/recentEvents");
 
 // Every row carries its raid's game version (#746): a log is matched only to a
 // raid of its own version (logEventMatch.js) and takes that version when linked.
@@ -44,6 +45,10 @@ function safeCategoryMap(guildId) {
 async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
     if (!guildId) return { events: [], error: null };
     const from = Math.floor(Date.now() / 1000) - days * 24 * 60 * 60;
+    // Up to the start a log may still be posted before (logEventMatch.js): a log
+    // posted at the pull, minutes before the raid's start time, belongs to it and
+    // is linked right away instead of after the raid started and the next sweep ran.
+    const until = Math.floor((Date.now() + LOG_WINDOW_BEFORE_MS) / 1000);
     const persistedById = new Map(listRaidEvents(guildId).map((e) => [e.id, e]));
     // A raid of a closed section of its category keeps the name it had then (#744).
     const erasConfig = require("../../stores/configStore").getConfig();
@@ -61,7 +66,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
     }, e);
     try {
         const rh = createRaidhelperClient();
-        const events = await rh.getPastEvents(from);
+        const events = await rh.getPastEvents(from, { untilSeconds: until });
         const catMap = discord.getChannelCategoryMap(guildId);
         const out = [];
         const seen = new Set();
@@ -87,7 +92,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
         }
         // The EventHelper's own raids of the window — a log or a loot export can
         // belong to one of them exactly like to a Raid-Helper event.
-        for (const e of ownMatchableEvents(guildId, from, { catMap })) {
+        for (const e of ownMatchableEvents(guildId, from, { catMap, untilSeconds: until })) {
             if (!seen.has(e.id)) out.push(withVersion(e));
         }
         out.sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
@@ -102,7 +107,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
         const fallback = [...persistedById.values()]
             .filter((e) => (e.startTime || 0) >= from)
             .map(fromPersisted)
-            .concat(ownMatchableEvents(guildId, from, { catMap: safeCategoryMap(guildId) }).map((e) => withVersion(e)))
+            .concat(ownMatchableEvents(guildId, from, { catMap: safeCategoryMap(guildId), untilSeconds: until }).map((e) => withVersion(e)))
             .sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
         return { events: fallback.map((ev) => withEraName(ev, { config: erasConfig })), error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
     }
