@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-    availableTone, filterWaitlist, groupItems, groupNames, groupWaitlist, isDirectItemInput, itemName, itemsInTab, listedItems, tabCounts, tabLine, waitingName, waitingTotal, waitlistItems, wholeNumber,
+    availableTone, filterWaitlist, groupItems, groupNames, groupWaitlist, isDirectItemInput, itemName, itemsInTab, listedItems, tabCounts, tabLine, waitingName, waitingTotal, waitlistItems, wholeNumber, dayLabel, filterHandedOut, groupHandedOutByDay, itemTabOf, recipientName,
 } from "./bankView";
-import type { GuildBankWaitingEntry } from "../../api";
+import type { GuildBankHandedOut, GuildBankWaitingEntry } from "../../api";
 import { bankData, bankItem } from "./guildBank.fixture";
 
 const items = () => bankData().bank!.items;
@@ -109,5 +109,55 @@ describe("waiting list filter", () => {
         const out = filterWaitlist(entries, byId, { category: group, search: "" });
         expect(out.every((x) => x.itemId === 2 || byId.get(x.itemId)!.group === byId.get(2)!.group)).toBe(true);
         expect(filterWaitlist(entries, byId, { category: "Nichts", search: "" })).toEqual([]);
+    });
+});
+
+describe("handed out (Ausgegeben)", () => {
+    const at = (iso: string) => Date.parse(iso);
+    const out = (over: Partial<GuildBankHandedOut>): GuildBankHandedOut => ({
+        id: "h", itemId: 1, item: "Bold Living Ruby", iconUrl: "", amount: 1, userId: "u1", userName: "Anna", characterName: "Zibbo", realm: "",
+        purpose: "", createdAt: 0, confirmedByName: "", handedOutAt: 0, handedOutByName: "", handoutVia: "manual", fromWaitlist: false, ...over,
+    });
+
+    it("maps the extra tabs onto the offered items", () => {
+        expect(itemTabOf("wait")).toBe("give");
+        expect(itemTabOf("out")).toBe("give");
+        expect(itemTabOf("show")).toBe("show");
+    });
+
+    it("names the recipient Name-Realm without spaces, the name alone, or nothing", () => {
+        expect(recipientName({ characterName: "Zibbo", realm: "Spine Shatter" })).toBe("Zibbo-SpineShatter");
+        expect(recipientName({ characterName: "Zibbo", realm: "" })).toBe("Zibbo");
+        expect(recipientName({ characterName: "", realm: "Spineshatter" })).toBe("");
+    });
+
+    it("groups by day in the guild's time zone, newest or oldest first", () => {
+        const list = [
+            out({ id: "a", handedOutAt: at("2026-10-10T20:00:00Z") }),
+            out({ id: "b", handedOutAt: at("2026-10-11T08:00:00Z") }),
+            // 23:30 UTC is already the 12th in Berlin
+            out({ id: "c", handedOutAt: at("2026-10-11T23:30:00Z") }),
+            out({ id: "d", handedOutAt: at("2026-10-11T09:00:00Z") }),
+        ];
+        expect(groupHandedOutByDay(list).map((d) => [d.day, d.requests.map((r) => r.id)])).toEqual([
+            ["2026-10-12", ["c"]], ["2026-10-11", ["d", "b"]], ["2026-10-10", ["a"]],
+        ]);
+        expect(groupHandedOutByDay(list, { newestFirst: false }).map((d) => d.requests.map((r) => r.id))).toEqual([["a"], ["b", "d"], ["c"]]);
+    });
+
+    it("labels today and yesterday, else the weekday with its date", () => {
+        const now = at("2026-10-11T12:00:00Z");
+        expect(dayLabel(at("2026-10-11T06:00:00Z"), now)).toBe("Heute");
+        expect(dayLabel(at("2026-10-10T06:00:00Z"), now)).toBe("Gestern");
+        expect(dayLabel(at("2026-10-08T06:00:00Z"), now)).toBe("Donnerstag, 8. Oktober");
+    });
+
+    it("filters by category and by item, character or raider", () => {
+        const items = new Map([[1, bankItem({ itemId: 1 })], [3, bankItem({ itemId: 3, group: "Fläschchen" })]]);
+        const list = [out({ id: "a" }), out({ id: "b", itemId: 3, item: "Flask", characterName: "Bobo", userName: "Bo" }), out({ id: "c", itemId: 9 })];
+        expect(filterHandedOut(list, items, { category: "", search: "" }).map((r) => r.id)).toEqual(["a", "b", "c"]);
+        expect(filterHandedOut(list, items, { category: "Fläschchen", search: "" }).map((r) => r.id)).toEqual(["b"]);
+        expect(filterHandedOut(list, items, { category: "", search: "BOBO" }).map((r) => r.id)).toEqual(["b"]);
+        expect(filterHandedOut(list, items, { category: "", search: "anna" }).map((r) => r.id)).toEqual(["a", "c"]);
     });
 });

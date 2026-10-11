@@ -47,6 +47,7 @@ module.exports = {
     "On the waiting list: {item} – you are no. {position}.": "Auf der Warteliste: {item} – du bist Nr. {position}.",
     "On the waiting list: {item}.": "Auf der Warteliste: {item}.",
     "You get a DM as soon as it is your turn.": "Du bekommst eine DM, sobald du dran bist.",
+    "Add a character in your profile, otherwise the orga cannot hand it out.": "Leg in deinem Profil einen Charakter an, sonst kann die Orga nicht ausgeben.",
     "Your turn on the waiting list": "Du bist dran",
     "It is in the guild bank now – the orga will confirm it shortly.": "Der Gegenstand ist jetzt in der Gildenbank – die Orga bestätigt gleich.",
     "{count} more stay on the waiting list for you – you are first in line.": "{count} weitere bleiben für dich auf der Warteliste – du bist als Nächstes dran.",

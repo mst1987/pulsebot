@@ -2,7 +2,8 @@
 // with its count next to "Ausgebbar", the queues per item with place, name
 // and amount, forward / back / remove, the filter line, adding one entry
 // with − / + and the pasted import with its preview (each in a dialog from
-// the tab), the badges on the page, and a reader who only looks.
+// the tab), the badges on the page, and a reader who only looks. Linking an
+// entry or an import line to a raider profile's character.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,7 +11,7 @@ import * as api from "../../api";
 import { adminUser, renderPage } from "../../test/render";
 import GuildBankPage from "./GuildBankPage";
 import { bankData, bankItem } from "./guildBank.fixture";
-import type { GuildBankImportRow, GuildBankWaitingEntry } from "../../api";
+import type { GuildBankCharacterChoice, GuildBankImportRow, GuildBankWaitingEntry } from "../../api";
 
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
@@ -21,6 +22,8 @@ vi.mock("../../api", async (orig) => ({
     removeGuildBankWaiting: vi.fn(),
     previewGuildBankWaitlist: vi.fn(),
     importGuildBankWaitlist: vi.fn(),
+    searchGuildBankCharacters: vi.fn(),
+    linkGuildBankRequest: vi.fn(),
 }));
 
 const KEY = "tbc:spineshatter:die gilde";
@@ -28,19 +31,24 @@ const KEY = "tbc:spineshatter:die gilde";
 function entry(over: Partial<GuildBankWaitingEntry> = {}): GuildBankWaitingEntry {
     return {
         id: "w1", itemId: 1, item: "Bold Living Ruby", iconUrl: "", amount: 2, userId: "u1", userName: "Anna", characterName: "Zibbo",
-        realm: "Spineshatter", purpose: "", createdAt: Date.UTC(2026, 9, 6, 18), position: 1, addedByName: "", ...over,
+        realm: "Spineshatter", purpose: "", createdAt: Date.UTC(2026, 9, 6, 18), position: 1, addedByName: "", linked: true, ...over,
     };
 }
 
 const ENTRIES = [
     entry(),
-    entry({ id: "w2", userId: "", userName: "Whapap", characterName: "Whapap", amount: 1, position: 2, addedByName: "Arthas" }),
+    entry({ id: "w2", userId: "", userName: "Whapap", characterName: "Whapap", amount: 1, position: 2, addedByName: "Arthas", linked: false }),
     entry({ id: "w3", itemId: 3, item: "Flask of Relentless Assault", amount: 3, userName: "Bo", position: 1 }),
 ];
 
 function row(over: Partial<GuildBankImportRow>): GuildBankImportRow {
     return { line: 1, name: "Whapap", itemText: "Bold Living Ruby", amount: 1, error: "", item: { itemId: 1, name: "Bold Living Ruby", iconUrl: "" }, itemError: "", match: null, ambiguous: false, ok: true, ...over };
 }
+
+const WHAPAP: GuildBankCharacterChoice = {
+    userId: "u7", userName: "Wha", characterKey: "whapap", characterName: "Whapap", realm: "Spineshatter", className: "Mage",
+    versionId: "tbc", ownVersion: true, icon: "spell_frost_frostbolt02", classColor: "#69CCF0", specKey: "Mage-Frost",
+};
 
 async function openTab(user: ReturnType<typeof userEvent.setup>) {
     await user.click(await screen.findByRole("tab", { name: /^Warteliste/ }));
@@ -65,6 +73,7 @@ beforeEach(() => {
         ],
     }));
     vi.mocked(api.getGuildBankWaitlist).mockResolvedValue({ entries: ENTRIES });
+    vi.mocked(api.searchGuildBankCharacters).mockResolvedValue({ characters: [WHAPAP] });
 });
 
 describe("guild bank waiting list", () => {
@@ -79,7 +88,7 @@ describe("guild bank waiting list", () => {
     it("has a tab next to \"Ausgebbar\" that counts who waits, and no head button any more", async () => {
         renderPage(<GuildBankPage />, { route: "/guildbank" });
         const tabs = await screen.findAllByRole("tab");
-        expect(tabs.map((tab) => tab.textContent)).toEqual(["Ausgebbar 3", "Warteliste 3", "Nur Bestand 1", "Ausgeblendet 0", "Neu 0"]);
+        expect(tabs.map((tab) => tab.textContent)).toEqual(["Ausgebbar 3", "Warteliste 3", "Ausgegeben 0", "Nur Bestand 1", "Ausgeblendet 0", "Neu 0"]);
         expect(screen.queryByRole("button", { name: "Warteliste" })).toBeNull();
     });
 
@@ -105,7 +114,7 @@ describe("guild bank waiting list", () => {
         expect(screen.queryByRole("region", { name: "Flask of Relentless Assault" })).toBeNull();
     });
 
-    it("lists each item's queue with place, name, amount and the entries without Discord", async () => {
+    it("lists each item's queue with place, name, amount and the entries not linked", async () => {
         const user = userEvent.setup();
         renderPage(<GuildBankPage />, { route: "/guildbank" });
         await openTab(user);
@@ -115,9 +124,13 @@ describe("guild bank waiting list", () => {
         expect(rows).toHaveLength(2);
         expect(within(rows[0]).getByText("Anna")).toBeInTheDocument();
         expect(within(rows[0]).getByText("2×")).toBeInTheDocument();
-        expect(within(rows[0]).getByText(/^an Zibbo · seit /)).toBeInTheDocument();
+        expect(within(rows[0]).getByText(/^an Zibbo-Spineshatter · seit /)).toBeInTheDocument();
+        expect(within(rows[0]).queryByText("nicht verknüpft")).toBeNull();
         expect(within(rows[1]).getByText("Whapap")).toBeInTheDocument();
-        expect(within(rows[1]).getByText("ohne Discord")).toBeInTheDocument();
+        expect(within(rows[1]).getByText("nicht verknüpft")).toBeInTheDocument();
+        expect(within(rows[1]).getByRole("button", { name: "Verknüpfen: Whapap" })).toBeInTheDocument();
+        // a linked entry can be linked anew with the small chain button
+        expect(within(rows[0]).getByRole("button", { name: "Anders verknüpfen: Anna" })).toBeInTheDocument();
         expect(within(rows[1]).getByText(/eingetragen von Arthas/)).toBeInTheDocument();
         expect(within(ruby).getByText("2 Einträge")).toBeInTheDocument();
         expect(within(ruby).getByText("Verfügbar 0")).toBeInTheDocument();
@@ -190,17 +203,71 @@ describe("guild bank waiting list", () => {
         await user.click(within(dialog).getByRole("button", { name: "Vorschau" }));
         expect(api.previewGuildBankWaitlist).toHaveBeenCalledWith(KEY, text);
         expect(await within(dialog).findByText("Raider: Ali")).toBeInTheDocument();
-        expect(within(dialog).getAllByText("nur Charakter")).toHaveLength(2);
-        expect(within(dialog).getByText("mehrdeutig – nur Charakter")).toBeInTheDocument();
+        // not matched and ambiguous rows land unlinked unless the orga picks someone; the unknown item needs nobody
+        expect(within(dialog).getAllByText("nicht verknüpft")).toHaveLength(2);
+        expect(within(dialog).getByText("Mehrere Raider – wer?")).toBeInTheDocument();
+        expect(within(dialog).getByText(/^2 Zeilen kommen ohne verknüpften Charakter/)).toBeInTheDocument();
         // a typo in the item name: the real item is named under the row
         expect(within(dialog).getByText("erkannt als Bold Living Ruby")).toBeInTheDocument();
         const bad = within(dialog).getByText("Unbekannter Gegenstand.").closest("li");
         expect(bad).toHaveClass("gb-wl-bad");
         await user.click(within(dialog).getByRole("button", { name: "3 Einträge importieren" }));
-        expect(api.importGuildBankWaitlist).toHaveBeenCalledWith(KEY, text);
+        expect(api.importGuildBankWaitlist).toHaveBeenCalledWith(KEY, text, {});
         expect(await screen.findByText("3 importiert, 1 übersprungen.")).toBeInTheDocument();
         expect(await screen.findByRole("region", { name: "Bold Living Ruby" })).toBeInTheDocument();
         await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    });
+
+    it("links an entry to a profile character: search prefilled with its name, a click links it, the list is read again", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.linkGuildBankRequest).mockImplementation(async () => {
+            vi.mocked(api.getGuildBankWaitlist).mockResolvedValue({ entries: ENTRIES.map((e) => (e.id === "w2" ? { ...e, userId: "u7", userName: "Wha", linked: true } : e)) });
+            return { request: {} as never };
+        });
+        renderPage(<GuildBankPage />, { route: "/guildbank" });
+        await openTab(user);
+        await user.click(screen.getByRole("button", { name: "Verknüpfen: Whapap" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText("Charakter verknüpfen")).toBeInTheDocument();
+        expect(within(dialog).getByRole("textbox", { name: "Charakter oder Raider suchen" })).toHaveValue("Whapap");
+        await waitFor(() => expect(api.searchGuildBankCharacters).toHaveBeenCalledWith(KEY, "Whapap"));
+        await user.click(await within(dialog).findByRole("button", { name: "Whapap-Spineshatter von Wha wählen" }));
+        expect(api.linkGuildBankRequest).toHaveBeenCalledWith(KEY, "w2", { userId: "u7", characterKey: "whapap" });
+        expect(await screen.findByText("Verknüpft mit Whapap-Spineshatter (Wha).")).toBeInTheDocument();
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        await waitFor(() => expect(screen.queryByText("nicht verknüpft")).toBeNull());
+    });
+
+    it("picks one of several raiders of an ambiguous import line, or searches one for a name nobody has", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.previewGuildBankWaitlist).mockResolvedValue({
+            rows: [
+                row({ line: 1, name: "Josh", ambiguous: true, candidates: [
+                    { userId: "u-a", userName: "Anna", characterKey: "josh", characterName: "Josh", realm: "", className: "Priest" },
+                    { userId: "u-b", userName: "Bert", characterKey: "josh", characterName: "Josh", realm: "", className: "Mage" },
+                ] }),
+                row({ line: 2, name: "Whappy" }),
+            ],
+        });
+        vi.mocked(api.importGuildBankWaitlist).mockResolvedValue({ added: 2, skipped: 0, unlinked: 0, entries: ENTRIES });
+        renderPage(<GuildBankPage />, { route: "/guildbank" });
+        const dialog = await openDialog(user, "Import");
+        await user.click(within(dialog).getByRole("textbox", { name: "Zeilen einfügen" }));
+        await user.paste("Josh\tBold Living Ruby\nWhappy\tBold Living Ruby");
+        await user.click(within(dialog).getByRole("button", { name: "Vorschau" }));
+        // the ambiguous line: the candidates as chips
+        await user.click(await within(dialog).findByRole("button", { name: "Bert · Magier" }));
+        expect(within(dialog).getByText("Josh (Bert)")).toBeInTheDocument();
+        // the unknown name: the search inside the dialog
+        await user.click(within(dialog).getByRole("button", { name: "Verknüpfen: Whappy" }));
+        expect(within(dialog).getByRole("textbox", { name: "Charakter oder Raider suchen" })).toHaveValue("Whappy");
+        await user.click(await within(dialog).findByRole("button", { name: "Whapap-Spineshatter von Wha wählen" }));
+        expect(within(dialog).getByText("Whapap (Wha)")).toBeInTheDocument();
+        expect(within(dialog).queryByText("nicht verknüpft")).toBeNull();
+        await user.click(within(dialog).getByRole("button", { name: "2 Einträge importieren" }));
+        expect(api.importGuildBankWaitlist).toHaveBeenCalledWith(KEY, "Josh\tBold Living Ruby\nWhappy\tBold Living Ruby", {
+            1: { userId: "u-b", characterKey: "josh" }, 2: { userId: "u7", characterKey: "whapap" },
+        });
     });
 
     it("lets a reader look but not change", async () => {
@@ -210,6 +277,8 @@ describe("guild bank waiting list", () => {
         expect(screen.queryByRole("button", { name: "Import" })).toBeNull();
         expect(screen.queryByRole("button", { name: "Eintrag anlegen" })).toBeNull();
         expect(screen.queryByRole("button", { name: /Entfernen/ })).toBeNull();
+        expect(screen.queryByRole("button", { name: /Verknüpfen/ })).toBeNull();
+        expect(screen.getByText("nicht verknüpft")).toBeInTheDocument();
     });
 
     it("says so when nobody waits", async () => {

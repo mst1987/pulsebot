@@ -58,6 +58,8 @@ beforeEach(() => {
     profiles.reset();
     settingsStore.getConfig.mockReturnValue(CONFIG);
     seedBank();
+    // the raider's character: requests are linked, so the orga may confirm them
+    profiles.addCharacter("u1", { name: "Zibbo", className: "Priest", realm: "Spineshatter", specs: [{ key: "Priest-Holy", gear: "ready" }] });
     jest.spyOn(console, "warn").mockImplementation(() => {});
 });
 afterEach(() => console.warn.mockRestore());
@@ -75,7 +77,6 @@ describe("services/signups/guildBank — requests from the stock", () => {
     });
 
     it("stores the item, the recipient (the raider's first character of the bank's version) and posts the card", async () => {
-        profiles.addCharacter("u1", { name: "Zibbo", className: "Priest", realm: "Spineshatter", specs: [{ key: "Priest-Holy", gear: "ready" }] });
         profiles.addCharacter("u1", { name: "Zibbowar", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }] });
         profiles.addCharacter("u1", { name: "Devi Res", className: "Mage", specs: [{ key: "Mage-Frost", gear: "ready" }] }, { versionId: "forever" });
         const bank = stockStore.getBank(KEY);
@@ -189,5 +190,45 @@ describe("services/signups/guildBank — requests from the stock", () => {
         await guildBank.createRequest("u1", { item: "Freitext", amount: 1 }, {});
         expect(guildBank.pendingForBank(KEY).map((r) => [r.id, r.status])).toEqual([[b.id, "open"], [a.id, "confirmed"]]);
         expect(guildBank.pendingForBank("")).toEqual([]);
+    });
+});
+
+describe("services/signups/guildBank — linked characters and the hand-out history", () => {
+    it("a raider without a character of the bank's version: the card warns, confirming is refused", async () => {
+        profiles.reset();
+        const { request } = await ask();
+        expect(request.characterName).toBe("");
+        const card = discord.postPayload.mock.calls[0][1];
+        expect(cardText(card)).toContain("Kein verknüpfter Charakter");
+        expect(cardButtons(card)[0]).toMatchObject({ label: "Bestätigen", disabled: true });
+        expect(await guildBank.confirmRequest(request.id, { byName: "A" })).toMatchObject({ error: guildBank.NOT_LINKED, notLinked: true });
+        expect(guildBank.pendingForBank(KEY)).toEqual([expect.objectContaining({ id: request.id, linked: false })]);
+    });
+
+    it("links a pending request to a profile character, redraws the card; refuses another bank, a handled one and an unknown character", async () => {
+        const { request } = await ask();
+        profiles.addCharacter("u2", { name: "Bertie", className: "Mage" }, { name: "Bert" });
+        discord.editPayload.mockClear();
+        const linked = await guildBank.linkRequest(request.id, { bankKey: KEY, userId: "u2", characterKey: "bertie" });
+        // no realm of its own: the bank's
+        expect(linked.request).toMatchObject({ userId: "u2", userName: "Bert", characterName: "Bertie", realm: "Spineshatter", linked: true });
+        expect(cardText(discord.editPayload.mock.calls[0][2])).toContain("An: Bertie-Spineshatter");
+        expect(await guildBank.linkRequest(request.id, { bankKey: "other", userId: "u2", characterKey: "bertie" })).toMatchObject({ code: "not_found" });
+        expect(await guildBank.linkRequest(request.id, { bankKey: KEY, userId: "u2", characterKey: "zibbo" })).toMatchObject({ code: "invalid" });
+        expect(await guildBank.linkRequest("nope", { bankKey: KEY, userId: "u2", characterKey: "bertie" })).toMatchObject({ code: "not_found" });
+        await guildBank.resolveRequest(request.id, { status: "rejected" });
+        expect(await guildBank.linkRequest(request.id, { bankKey: KEY, userId: "u1", characterKey: "zibbo" })).toMatchObject({ code: "not_found" });
+    });
+
+    it("lists the bank's handed-out requests, newest hand-out first", async () => {
+        const a = (await ask()).request;
+        const b = (await ask()).request;
+        const c = (await ask()).request;
+        for (const r of [a, b]) await guildBank.confirmRequest(r.id, {});
+        await guildBank.handOutRequest(a.id, { byName: "Jaina", via: "mail" }, { now: 2000 });
+        await guildBank.handOutRequest(b.id, { byName: "Arthas" }, { now: 3000 });
+        expect(guildBank.handedOutForBank(KEY).map((r) => [r.id, r.handoutVia])).toEqual([[b.id, "discord"], [a.id, "mail"]]);
+        expect(guildBank.handedOutForBank("")).toEqual([]);
+        expect(c.status).toBe("open");
     });
 });

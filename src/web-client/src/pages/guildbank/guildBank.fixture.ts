@@ -16,7 +16,7 @@ export function bankData(over: Partial<GuildBank> = {}, banks?: GuildBankPageDat
     const bank: GuildBank = {
         key: "tbc:spineshatter:die gilde", gameVersion: "tbc", versionShort: "TBC", realm: "Spineshatter", guild: "Die Gilde",
         faction: "Alliance", guildId: "g1", pending: false, scannedAt: Date.UTC(2026, 9, 6, 16, 42), scannedBy: "Gemli",
-        money: 48120000, uploadedBy: "PC", wowheadPath: "tbc", reservedRequests: 3,
+        money: 48120000, uploadedBy: "PC", wowheadPath: "tbc", reservedRequests: 3, handedOutRequests: 0,
         tabs: [{ index: 2, name: "Edelsteine", inScan: true, hidden: false }, { index: 3, name: "Raid", inScan: true, hidden: false }, { index: 5, name: "Lager", inScan: true, hidden: true }],
         items: [
             bankItem({ itemId: 1, reserved: 4, available: 6, count: 10 }),

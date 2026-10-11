@@ -23,13 +23,16 @@
 // sheet ("Name<Tab>Item<Tab>Anzahl", also ; or ,). A name is matched to a
 // raider by the characters in the raider profiles (no case, no accents —
 // "alina" finds "Alîna"); an unmatched name is imported as a character alone
-// (`userId: ""`, no DM). An unknown item is never imported. A typo in the item
+// (`userId: ""`, no DM, not linked — linking.js) unless the orga picked a
+// profile character for its line (`links`; an ambiguous name lists its
+// `candidates`). An unknown item is never imported. A typo in the item
 // name is forgiven (, findItem): the one item within two letters (and a
 // fifth of the name) is taken, the preview marks the row `fuzzy`.
 const store = require("../../stores/guildBankStore");
 const stockStore = require("../../stores/guildBankStockStore");
 const profiles = require("../../stores/raiderProfileStore");
 const stockView = require("./stockView");
+const linking = require("./linking");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -86,13 +89,16 @@ function promoteBank(bankKey, { itemId = 0, now = Date.now() } = {}) {
     return ids.flatMap((id) => promoteItem(bankKey, id, { now }));
 }
 
-/** A bank's waiting list for the web, each entry with its place (1 = next) in its item's queue. */
+/**
+ * A bank's waiting list for the web, each entry with its place (1 = next) in
+ * its item's queue and whether its character is linked (linking.isLinked).
+ */
 function listForBank(bankKey) {
     const places = new Map();
     return store.waitingQueue(bankKey).map((r) => {
         const place = (places.get(r.itemId) || 0) + 1;
         places.set(r.itemId, place);
-        return { ...r, position: place };
+        return { ...r, position: place, linked: linking.isLinked(r) };
     });
 }
 
@@ -103,10 +109,8 @@ function positionOf(request) {
     return at + 1;
 }
 
-/** A name as it is compared: no case, no accents, no outer spaces ("Alîna" → "alina"). */
-function foldName(name) {
-    return str(name).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").toLowerCase();
-}
+/** A name as it is compared: no case, no accents, no outer spaces ("Alîna" → "alina") — the one rule is linking.js's. */
+const { foldName } = linking;
 
 /** One pasted line as its fields: tab-separated (a sheet), else by ";", else by ",". */
 function splitLine(line) {
@@ -146,21 +150,8 @@ function parseImport(text) {
     return rows;
 }
 
-/** The edit distance (insert, delete, replace one letter) of two strings. */
-function levenshtein(a, b) {
-    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-    for (let i = 1; i <= a.length; i++) {
-        const row = [i];
-        for (let j = 1; j <= b.length; j++) {
-            row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-        }
-        prev = row;
-    }
-    return prev[b.length];
-}
-
-/** How many wrong letters a typed name may have: 2 at most and about a fifth of its length (none under 5 letters). */
-const typoLimit = (key) => Math.min(2, Math.floor(key.length * 0.2));
+/** The edit distance of two strings and how many wrong letters a typed name may have — linking.js has both rules. */
+const { levenshtein, typoLimit } = linking;
 
 /**
  * The bank item a typed name (or id) means — no case, no accents. No exact
@@ -201,9 +192,9 @@ function matchItem(itemText, items) {
 
 /**
  * The raider whose profile has a character of that name: a character of the
- * bank's game version first, then any. `{ userId, userName, characterName,
- * realm }`, or `{ ambiguous: true }` when characters of several raiders carry
- * the name, or null.
+ * bank's game version first, then any. `{ userId, userName, characterKey,
+ * characterName, realm, className }`, or `{ ambiguous: true, candidates }`
+ * (each such a hit) when characters of several raiders carry the name, or null.
  */
 function matchCharacter(name, gameVersion = "", list = profiles.listProfiles()) {
     const key = foldName(name);
@@ -213,23 +204,38 @@ function matchCharacter(name, gameVersion = "", list = profiles.listProfiles()) 
         for (const p of list) {
             const c = (p.characters || []).find((ch) => foldName(ch.name) === key
                 && (!versionOnly || profiles.charactersOfVersion({ characters: [ch] }, gameVersion).length));
-            if (c) found.push({ userId: p.userId, userName: p.name || c.name, characterName: c.name, realm: c.realm || "" });
+            if (c) {
+                found.push({
+                    userId: p.userId, userName: p.name || c.name, characterKey: c.key, characterName: c.name, realm: c.realm || "", className: c.className || "",
+                });
+            }
         }
         return found;
     };
     const found = gameVersion ? hits(true) : [];
     const all = found.length ? found : hits(false);
-    if (all.length > 1) return { ambiguous: true };
+    if (all.length > 1) return { ambiguous: true, candidates: all };
     return all[0] || null;
+}
+
+/** A row's own pick in the import (`links[line] = { userId, characterKey }`) as a match, or null when it names no profile character. */
+function pickedMatch(links, line) {
+    const pick = links && typeof links === "object" ? links[line] || links[String(line)] : null;
+    if (!pick || typeof pick !== "object") return null;
+    const choice = linking.resolveChoice(pick.userId, pick.characterKey);
+    return choice ? { ...choice, characterKey: str(pick.characterKey) } : null;
 }
 
 /**
  * The import's preview for one bank: every pasted row with the item it found
  * (`item: { itemId, name, iconUrl } | null`, `itemError` when it is not
- * offered) and the raider (`match`, null = imported as a character alone).
- * `ok` = the row will be imported.
+ * offered) and the raider (`match`, null = imported as a character alone,
+ * not linked). An ambiguous name lists its `candidates`; the orga's own pick
+ * of a row (`links[line] = { userId, characterKey }`, linking.resolveChoice)
+ * wins over the name (`picked`). `linked` = the row lands linked to a profile
+ * character; `ok` = the row will be imported.
  */
-function previewImport(bankKey, text) {
+function previewImport(bankKey, text, { links = null } = {}) {
     const bank = stockStore.getBank(bankKey);
     if (!bank) return { rows: [] };
     const list = profiles.listProfiles();
@@ -240,14 +246,19 @@ function previewImport(bankKey, text) {
         let itemError = "";
         if (!row.error && !item) itemError = "Unbekannter Gegenstand.";
         else if (item && !stockView.isRequestable(item)) itemError = "Nicht ausgebbar.";
-        const match = row.error ? null : matchCharacter(row.name, bank.gameVersion, list);
+        const picked = row.error ? null : pickedMatch(links, row.line);
+        const match = row.error || picked ? null : matchCharacter(row.name, bank.gameVersion, list);
+        const hit = picked || (match && !match.ambiguous ? match : null);
         return {
             ...row,
             item: item ? { itemId: item.itemId, name: item.name || `Item ${item.itemId}`, iconUrl: item.iconUrl || "" } : null,
             itemError,
             fuzzy: !!(item && found.fuzzy),
-            match: match && !match.ambiguous ? match : null,
+            match: hit,
+            picked: !!picked,
             ambiguous: !!(match && match.ambiguous),
+            candidates: match && match.ambiguous ? match.candidates : [],
+            linked: !!hit,
             ok: !row.error && !itemError,
         };
     });
@@ -269,13 +280,15 @@ function entryFor(bank, item, { name, match, amount, by, byName }) {
 
 /**
  * Import the pasted lines of one bank: every row the preview marks `ok` goes
- * to the end of its item's list, in the order of the lines. Returns
- * `{ added: [request], skipped: number }` or `{ error }` (German).
+ * to the end of its item's list, in the order of the lines — linked to the
+ * row's pick (`links`) or match, else as the character alone (not linked).
+ * Returns `{ added: [request], skipped: number, unlinked: number }` or
+ * `{ error }` (German).
  */
-function importLines(bankKey, text, { by = "", byName = "", now = Date.now() } = {}) {
+function importLines(bankKey, text, { by = "", byName = "", links = null, now = Date.now() } = {}) {
     const bank = stockStore.getBank(bankKey);
     if (!bank) return { error: "Gildenbank nicht gefunden." };
-    const { rows } = previewImport(bankKey, text);
+    const { rows } = previewImport(bankKey, text, { links });
     if (!rows.length) return { error: "Keine Zeile zum Importieren." };
     const added = [];
     let skipped = 0;
@@ -290,22 +303,25 @@ function importLines(bankKey, text, { by = "", byName = "", now = Date.now() } =
         if (result.request) added.push(result.request);
         else skipped += 1;
     });
-    return { added, skipped };
+    return { added, skipped, unlinked: added.filter((r) => !linking.isLinked(r)).length };
 }
 
 /**
- * The orga adds one entry in the web: a name (matched like the import), an
- * offered item of the bank and the amount. Returns `{ request }` or `{ error }`.
+ * The orga adds one entry in the web: a name (matched like the import) or a
+ * picked profile character (`userId` + `characterKey`), an offered item of
+ * the bank and the amount. Returns `{ request }` or `{ error }`.
  */
-function addEntry(bankKey, { name = "", itemId = 0, amount = 0, by = "", byName = "" } = {}, { now = Date.now() } = {}) {
+function addEntry(bankKey, { name = "", userId = "", characterKey = "", itemId = 0, amount = 0, by = "", byName = "" } = {}, { now = Date.now() } = {}) {
     const bank = stockStore.getBank(bankKey);
     if (!bank) return { error: "Gildenbank nicht gefunden." };
-    if (!str(name)) return { error: "Bitte einen Namen angeben." };
+    const picked = userId || characterKey ? pickedMatch({ 1: { userId, characterKey } }, 1) : null;
+    if ((userId || characterKey) && !picked) return { error: "Diesen Charakter gibt es im Profil nicht." };
+    if (!picked && !str(name)) return { error: "Bitte einen Namen angeben." };
     const item = stockView.stockItem(bank.key, itemId);
     if (!item || !stockView.isRequestable(item)) return { error: "Diesen Gegenstand gibt die Bank nicht aus." };
     const n = store.parseAmount(amount);
     if (!n) return { error: `Die Menge muss eine ganze Zahl von ${store.AMOUNT_MIN} bis ${store.AMOUNT_MAX} sein.` };
-    const match = matchCharacter(name, bank.gameVersion);
+    const match = picked || matchCharacter(name, bank.gameVersion);
     return store.addWaiting(entryFor(bank, item, { name, match: match && !match.ambiguous ? match : null, amount: n, by, byName }), { now });
 }
 

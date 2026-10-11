@@ -8,7 +8,7 @@ import { ChevronDownIcon, FunnelIcon } from "../../components/ui/icons";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 
-export default function BankFilterLine({ categories, category, onCategory, search, onSearch, banks, bankKey, onBank, searchPlaceholder, actions }: {
+export default function BankFilterLine({ categories, category, onCategory, search, onSearch, banks, bankKey, onBank, searchPlaceholder, actions, showFormula = true }: {
     categories: string[];
     category: string;
     onCategory: (category: string) => void;
@@ -21,6 +21,8 @@ export default function BankFilterLine({ categories, category, onCategory, searc
     searchPlaceholder?: string;
     /** Buttons at the right end of the line (the waiting list's "Eintrag anlegen" / "Import"). */
     actions?: ReactNode;
+    /** The "Verfügbar = …" formula at the right end (not on the "Ausgegeben" tab, where no stock is shown). */
+    showFormula?: boolean;
 }) {
     const t = useT();
     const [open, setOpen] = useState(false);
@@ -64,9 +66,8 @@ export default function BankFilterLine({ categories, category, onCategory, searc
                 )}
             </div>
             <SearchBox id="gb-search" value={search} onChange={onSearch} placeholder={searchPlaceholder || t("guildbank.filter.search")} />
-            {actions
-                ? <span className="gb-actions">{actions}</span>
-                : <span className="gb-formula">{t("guildbank.filter.formula")}</span>}
+            {actions && <span className="gb-actions">{actions}</span>}
+            {!actions && showFormula && <span className="gb-formula">{t("guildbank.filter.formula")}</span>}
         </div>
     );
 }

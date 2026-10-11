@@ -4,6 +4,7 @@ jest.mock("../../../src/services/guildbank/reservations", () => ({
     reservedByItem: jest.fn(() => ({})),
     handedOutSince: jest.fn(() => ({})),
     reservedRequestCount: jest.fn(() => 0),
+    handedOutRequestCount: jest.fn(() => 0),
     pendingByItem: jest.fn(() => ({ open: {}, waiting: {}, waitingAmount: {} })),
 }));
 
