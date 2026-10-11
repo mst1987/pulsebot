@@ -68,13 +68,18 @@ describe("utils/signup/guildBankPick", () => {
         const modal = pick.itemModal({ categoryId: "cat1", item: item(), characters: [{ key: "zibbo", name: "Zibbo" }], lang: "de" });
         expect(modal.custom_id).toBe("availability:mbi:cat1:32193");
         expect(modal.title).toBe("Gildenbank-Anfrage");
-        expect(modal.components[0]).toEqual({ type: 10, content: "**Bold Living Ruby** · Verfügbar: 10 · max. 5" });
+        expect(modal.components[0]).toEqual({ type: 10, content: "**Bold Living Ruby** · Verfügbar: 10 · Warteliste: 0 vor dir · max. 5\n-# Was gerade nicht verfügbar ist, kommt auf die Warteliste – du bekommst eine DM, wenn du dran bist." });
         expect(modal.components.slice(1).map((c) => [c.type, c.label, c.component.custom_id, c.component.required])).toEqual([
             [18, "Wie viel?", "amount", true],
             [18, "Wofür? (optional)", "purpose", false],
         ]);
         expect(modal.components[1].component).toMatchObject({ type: 4, max_length: 6, placeholder: "z. B. 2" });
-        expect(pick.itemModal({ item: item({ maxPerRequest: 0, name: "" }), lang: "en" }).components[0].content).toBe("**Item 32193** · Available: 10");
+        expect(pick.itemModal({ item: item({ maxPerRequest: 0, name: "" }), lang: "en" }).components[0].content).toBe("**Item 32193** · Available: 10 · Waiting list: 0 ahead of you\n-# What is not available now goes on the waiting list – you get a DM when it is your turn.");
+        // somebody waits already: both numbers, and the request will wait behind them
+        expect(pick.itemModal({ item: item({ maxPerRequest: 0, waiting: 3, free: 2 }), lang: "en" }).components[0].content)
+            .toBe("**Bold Living Ruby** · Available: 2 · Waiting list: 3 ahead of you\n-# Others are waiting already – your request goes on the waiting list.");
+        expect(pick.availabilityText(item({ waiting: 2 }), "en")).toBe("Waiting list: 2 ahead of you · max. 5 per request");
+        expect(pick.availabilityText(item({ free: 4 }), "en")).toBe("Available: 4 · max. 5 per request");
     });
 
     it("asks 'To which character?' with two or more, the first preselected", () => {

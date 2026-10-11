@@ -7,13 +7,18 @@
 //
 // Two kinds of request:
 //   - from the stock (#633): the server has a guild bank (guildBankStockStore,
-//     assigned in Einstellungen) with items on "give" and something left. The
-//     raider picks an item (utils/signup/guildBankPick.js), the amount is
-//     checked against "Verfügbar" and the item's maxPerRequest, the recipient
-//     is one of their characters of the bank's version. The orga confirms
-//     (the amount is set aside — checked again, someone may have been faster),
-//     takes the confirmation back, or marks it handed out; or declines it.
-//       open → confirmed → handedOut, open → rejected, confirmed → open
+//     assigned in Einstellungen) with items on "give". The raider picks an
+//     item (utils/signup/guildBankPick.js), the amount is checked against the
+//     item's maxPerRequest, the recipient is one of their characters of the
+//     bank's version. What is free (Verfügbar minus the open requests) becomes
+//     an open request, the rest goes on the item's waiting list (#775,
+//     services/guildbank/waitlist.js) — all of it while somebody waits already.
+//     The orga confirms (the amount is set aside — checked again, someone may
+//     have been faster), takes the confirmation back, or marks it handed out;
+//     or declines it. When stock comes free (advanceWaitlist: a scan, a
+//     decline, a released confirmation, the orga's changes), the first of the
+//     list move up to open requests: a card "aus der Warteliste" and a DM.
+//       waiting → open → confirmed → handedOut, open → rejected, confirmed → open
 //   - free text (no bank data): what was typed, open → done | rejected.
 //
 // Stored in stores/guildBankStore.js, cards built by utils/signup/guildBankPost.js;
@@ -31,6 +36,7 @@ const { langOf } = require("../discord/botLanguage");
 const { categoryNameFor } = require("./availabilityPanel");
 const { mainVersionFor } = require("../events/mainVersion");
 const stockView = require("../guildbank/stockView");
+const waitlist = require("../guildbank/waitlist");
 const post = require("../../utils/signup/guildBankPost");
 const logger = require("../../logger");
 
@@ -112,37 +118,99 @@ async function createRequest(userId, input = {}, { userName = "", categoryId = "
 }
 
 /**
- * A raider's request from the stock: the item must still be offered, the
- * amount at most what is left and at most the item's maxPerRequest; the
- * recipient is the picked character of the bank's version, else the first
- * (none = no name, the orga sees the raider). Realm: the character's, else
- * the bank's; faction: the bank's (the profile knows none).
+ * How a request from the stock splits (#775): while somebody waits for the
+ * item, everything waits behind them (strict order); else what is free (stock
+ * view `free` = Verfügbar minus the open requests) goes out now and the rest
+ * waits.
+ * @returns {{ now: number, wait: number }}
+ */
+function splitAmount(item, amount) {
+    if (item.waiting > 0) return { now: 0, wait: amount };
+    const now = Math.min(amount, Math.max(0, Number(item.free) || 0));
+    return { now, wait: amount - now };
+}
+
+/**
+ * The checks of a request from the stock, before anything is stored: the item
+ * offered, the amount, maxPerRequest and the limit of the part it lands in.
+ * `{ bank, item, amount, split }` or `{ error }` (German).
+ */
+function checkStockRequest(userId, input) {
+    const bank = input.bankKey ? stockStore.getBank(input.bankKey) : null;
+    const item = bank ? stockView.stockItem(bank.key, input.itemId) : null;
+    if (!item || !stockView.isRequestable(item)) return { error: NOT_OFFERED };
+    const amount = store.parseAmount(input.amount);
+    if (!amount) return { error: `Die Menge muss eine ganze Zahl von ${store.AMOUNT_MIN} bis ${store.AMOUNT_MAX} sein.` };
+    if (item.maxPerRequest > 0 && amount > item.maxPerRequest) return { error: `Höchstens ${item.maxPerRequest} pro Anfrage.` };
+    const split = splitAmount(item, amount);
+    if (split.now && store.openCount(userId) >= store.MAX_OPEN) return { error: `Höchstens ${store.MAX_OPEN} offene Anfragen – warte, bis die Orga eine erledigt hat.` };
+    if (split.wait && store.waitingCount(userId) >= store.MAX_WAITING) {
+        return { error: `Höchstens ${store.MAX_WAITING} Einträge auf der Warteliste – warte, bis einer drankommt.` };
+    }
+    return { bank, item, amount, split };
+}
+
+/** The fields a request from the stock shares in both parts: item, raider, recipient. */
+function stockRequestBase(userId, input, { bank, item }, { userName, categoryId }) {
+    const characters = charactersFor(userId, bank);
+    const character = characters.find((c) => c.key === str(input.characterKey)) || characters[0] || null;
+    return {
+        userId, userName, categoryId, purpose: input.purpose,
+        item: item.name || `Item ${item.itemId}`,
+        bankKey: bank.key, itemId: item.itemId, icon: item.icon, group: item.group,
+        characterName: character ? character.name : "",
+        realm: (character && character.realm) || bank.realm || "",
+        faction: bank.faction || "",
+    };
+}
+
+/**
+ * A raider's request from the stock: the item must still be offered
+ * (requestable — nothing left is fine) and the amount at most the item's
+ * maxPerRequest. What is free becomes an open request (posted to the orga),
+ * the rest goes on the item's waiting list (splitAmount); both limits are
+ * checked before anything is stored (MAX_OPEN for the open part, MAX_WAITING
+ * for the waiting one). The recipient is the picked character of the bank's
+ * version, else the first (none = no name, the orga sees the raider). Realm:
+ * the character's, else the bank's; faction: the bank's (the profile knows none).
  * @param {string} userId
  * @param {{ bankKey: string, itemId: number, amount: string|number, purpose?: string, characterKey?: string }} input
  * @param {{ userName?: string, categoryId?: string, config?: object, now?: number }} [o]
- * @returns {Promise<{ request: object } | { error: string }>}
+ * @returns {Promise<{ request: object|null, waiting: object|null, position: number } | { error: string }>}
+ *   `request` the open part, `waiting` the waiting part with its `position` (1 = next)
  */
 async function createStockRequest(userId, input = {}, { userName = "", categoryId = "", config, now = Date.now() } = {}) {
     const cfg = config || settingsStore.getConfig();
     const channelId = guildBankChannelId(cfg);
     if (!channelId) return { error: NOT_SET_UP };
-    const bank = input.bankKey ? stockStore.getBank(input.bankKey) : null;
-    const item = bank ? stockView.stockItem(bank.key, input.itemId) : null;
-    if (!item || !stockView.isOfferable(item)) return { error: NOT_OFFERED };
-    const amount = store.parseAmount(input.amount);
-    if (!amount) return { error: `Die Menge muss eine ganze Zahl von ${store.AMOUNT_MIN} bis ${store.AMOUNT_MAX} sein.` };
-    if (item.maxPerRequest > 0 && amount > item.maxPerRequest) return { error: `Höchstens ${item.maxPerRequest} pro Anfrage.` };
-    if (amount > item.available) return { error: `Nur noch ${item.available} verfügbar.` };
-    const characters = charactersFor(userId, bank);
-    const character = characters.find((c) => c.key === str(input.characterKey)) || characters[0] || null;
-    return storeAndPost({
-        userId, userName, categoryId,
-        item: item.name || `Item ${item.itemId}`, amount, purpose: input.purpose,
-        bankKey: bank.key, itemId: item.itemId, icon: item.icon, group: item.group,
-        characterName: character ? character.name : "",
-        realm: (character && character.realm) || bank.realm || "",
-        faction: bank.faction || "",
-    }, { channelId, config: cfg, now });
+    const checked = checkStockRequest(userId, input);
+    if (checked.error) return checked;
+    const { bank, item, split } = checked;
+    const base = stockRequestBase(userId, input, checked, { userName, categoryId });
+    let request = null;
+    if (split.now) {
+        const posted = await storeAndPost({ ...base, amount: split.now }, { channelId, config: cfg, now });
+        if (posted.error) return posted;
+        request = posted.request;
+    }
+    let waiting = null;
+    if (split.wait) {
+        const added = store.addWaiting({ ...base, amount: split.wait }, { now });
+        // the limit was checked above; only a race of two clicks lands here
+        if (added.error) logger.warn(`[guildBank] Wartelisten-Eintrag von ${userId} nicht gespeichert: ${added.error}`);
+        else waiting = added.request;
+    }
+    if (!waiting) return { request, waiting: null, position: 0 };
+    // strict order: if anything is free while people wait, the list goes first
+    await advanceWaitlist({ bankKey: bank.key, itemId: item.itemId, config: cfg, now });
+    const still = store.getRequest(waiting.id);
+    const stillWaiting = !!still && still.status === "waiting";
+    return {
+        // moved up at once (stock was free while others waited): it went out with a card and a DM
+        request: request || (still && still.status === "open" ? still : null),
+        waiting: stillWaiting ? still : null,
+        position: stillWaiting ? waitlist.positionOf(still) : 0,
+    };
 }
 
 /** Draw a request's orga card as it should look now (best-effort). Returns whether it was edited. */
@@ -165,11 +233,16 @@ async function redrawSiblings(request, { config } = {}) {
     for (const r of others) await redrawPost(r, { config });
 }
 
-/** Tell the raider in their language. `{ ok }` or `{ ok: false, error }`, never throws. */
-async function notifyRaider(request, { config } = {}) {
+/**
+ * Tell the raider in their language (`build(request, lang)`, the decision card
+ * by default). An entry the orga imported without a Discord account gets
+ * none. `{ ok }` or `{ ok: false, error }`, never throws.
+ */
+async function notifyRaider(request, { config, build = post.decisionCard } = {}) {
+    if (!request.userId) return { ok: false, error: "kein Discord-Konto" };
     try {
         const lang = langOf(request.userId, { config });
-        const sent = await discord.sendDirectMessage(request.userId, post.decisionCard(request, lang));
+        const sent = await discord.sendDirectMessage(request.userId, build(request, lang));
         if (!sent.ok) logger.warn(`[guildBank] DM an ${request.userId} nicht zugestellt: ${sent.error}`);
         return sent;
     } catch (e) {
@@ -201,7 +274,10 @@ async function finish(result, { config, dm = true } = {}) {
  */
 async function resolveRequest(id, { by = "", byName = "", status, reason = "" } = {}, { config, now = Date.now() } = {}) {
     const cfg = config || settingsStore.getConfig();
-    return finish(store.resolveRequest(id, { status, by, byName, reason }, { now }), { config: cfg });
+    const result = await finish(store.resolveRequest(id, { status, by, byName, reason }, { now }), { config: cfg });
+    // a declined request from the stock frees what it had promised: the waiting list moves up
+    if (!result.error && result.request.itemId) await advanceWaitlist({ bankKey: result.request.bankKey, itemId: result.request.itemId, config: cfg, now });
+    return result;
 }
 
 /**
@@ -227,7 +303,9 @@ async function confirmRequest(id, { by = "", byName = "" } = {}, { config, now =
 /** The orga takes a confirmation back: open again, nothing set aside. No DM. */
 async function releaseRequest(id, { config } = {}) {
     const cfg = config || settingsStore.getConfig();
-    return finish(store.releaseRequest(id), { config: cfg, dm: false });
+    const result = await finish(store.releaseRequest(id), { config: cfg, dm: false });
+    if (!result.error) await advanceWaitlist({ bankKey: result.request.bankKey, itemId: result.request.itemId, config: cfg });
+    return result;
 }
 
 /**
@@ -241,14 +319,70 @@ async function handOutRequest(id, { by = "", byName = "", via = "discord" } = {}
     return finish(store.handOutRequest(id, { by, byName, via }, { now }), { config: cfg });
 }
 
-/** The open and confirmed requests from one bank's stock (the web page's "Anfragen"): open first, each oldest first. */
+/** The open and confirmed requests from one bank's stock (the web page's "Anfragen"): open first, each oldest first. The waiting list has its own dialog. */
 function pendingForBank(bankKey) {
     const key = str(bankKey);
     if (!key) return [];
-    return store.listRequests().filter((r) => r.bankKey === key && r.itemId && store.PENDING_STATUSES.includes(r.status));
+    return store.listRequests().filter((r) => r.bankKey === key && r.itemId && (r.status === "open" || r.status === "confirmed"));
+}
+
+/** Post the orga card of a request that moved up from the waiting list. Returns whether it reached the channel. */
+async function postMovedUp(request, { channelId, config }) {
+    try {
+        const posted = await discord.postPayload(channelId, postFor(request, { config }));
+        store.setMessage(request.id, posted);
+        return true;
+    } catch (e) {
+        logger.warn(`[guildBank] Nachgerückte Anfrage ${request.id} nicht in ${channelId} gepostet: ${(e && e.message) || e}`);
+        return false;
+    }
+}
+
+let posting = Promise.resolve();
+
+/**
+ * Stock came free (or the list changed): move the first of the waiting list up
+ * (services/guildbank/waitlist.js) — of one item, else of every item of the
+ * bank, else of every bank — then post their orga cards ("aus der Warteliste")
+ * and DM the raiders ("Du bist dran"). The moving up happens at once (before
+ * the first await), so the caller reads the new state right after the call;
+ * the posts run one after another across calls. A card that did not reach
+ * the channel (bot offline) is posted again on the next run. Never throws.
+ * @param {{ bankKey?: string, itemId?: number, config?: object, now?: number }} [o]
+ * @returns {Promise<{ moved: object[], posted: number }>}
+ */
+function advanceWaitlist({ bankKey = "", itemId = 0, config, now = Date.now() } = {}) {
+    let moved = [];
+    let keys = [];
+    try {
+        keys = bankKey ? [str(bankKey)] : stockStore.listBanks().map((b) => b.key);
+        moved = keys.flatMap((key) => waitlist.promoteBank(key, { itemId, now }));
+    } catch (e) {
+        logger.warn(`[guildBank] Warteliste nicht nachgerückt: ${(e && e.message) || e}`);
+    }
+    const run = posting.then(async () => {
+        const cfg = config || settingsStore.getConfig();
+        const channelId = guildBankChannelId(cfg);
+        if (!channelId) return { moved, posted: 0 };
+        let posted = 0;
+        const unposted = store.listRequests({ status: "open" })
+            .filter((r) => r.fromWaitlist && !r.messageId && keys.includes(r.bankKey));
+        for (const request of unposted) {
+            if (await postMovedUp(request, { channelId, config: cfg })) posted += 1;
+        }
+        for (const { request, rest } of moved) {
+            await notifyRaider(request, { config: cfg, build: (r, lang) => post.movedUpCard(r, lang, { rest: rest ? rest.amount : 0 }) });
+        }
+        return { moved, posted };
+    }).catch((e) => {
+        logger.warn(`[guildBank] Nachgerückte Anfragen nicht gepostet: ${(e && e.message) || e}`);
+        return { moved, posted: 0 };
+    });
+    posting = run;
+    return run;
 }
 
 module.exports = {
-    NOT_SET_UP, NOT_OFFERED, guildBankChannelId, postFor, offerFor, charactersFor, createRequest, createStockRequest,
-    resolveRequest, confirmRequest, releaseRequest, handOutRequest, redrawPost, pendingForBank,
+    NOT_SET_UP, NOT_OFFERED, guildBankChannelId, postFor, offerFor, charactersFor, createRequest, createStockRequest, splitAmount,
+    resolveRequest, confirmRequest, releaseRequest, handOutRequest, redrawPost, pendingForBank, advanceWaitlist,
 };

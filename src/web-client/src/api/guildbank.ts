@@ -43,6 +43,14 @@ export type GuildBankItem = {
     handedOut: number;
     /** count - reserved - handedOut - reserve, never below 0. */
     available: number;
+    /** Open (not yet confirmed) requests of the item: promised, not set aside (#775). */
+    open: number;
+    /** available - open, never below 0: what a new request or the waiting list may still get. */
+    free: number;
+    /** How many waiting-list entries wait for the item. */
+    waiting: number;
+    /** Their amounts together. */
+    waitingAmount: number;
     /** The item's application emoji in the bot's selects ("" = none yet, #633). */
     emojiId: string;
     /** The line it is listed under: category, else Wowhead's class/subclass, "" unknown. */
@@ -124,6 +132,76 @@ export type GuildBankRequest = {
 /** The bank's open and confirmed requests (the "Anfragen" dialog), open first. */
 export function getGuildBankRequests(key: string): Promise<{ requests: GuildBankRequest[] }> {
     return get<{ requests: GuildBankRequest[] }>(`/api/guildbank/requests?key=${encodeURIComponent(key)}`);
+}
+
+/** One entry of a bank's waiting list (#775): a raider — or, imported by the orga, a character alone (userId ""). */
+export type GuildBankWaitingEntry = {
+    id: string;
+    itemId: number;
+    item: string;
+    iconUrl: string;
+    amount: number;
+    userId: string;
+    userName: string;
+    characterName: string;
+    realm: string;
+    purpose: string;
+    createdAt: number;
+    /** 1 = next in its item's queue. */
+    position: number;
+    /** The orga member who added or imported it ("" = the raider in Discord). */
+    addedByName: string;
+};
+
+export type GuildBankWaitlist = { entries: GuildBankWaitingEntry[] };
+
+/** A bank's waiting list, each item's queue in order. */
+export function getGuildBankWaitlist(key: string): Promise<GuildBankWaitlist> {
+    return get<GuildBankWaitlist>(`/api/guildbank/waitlist?key=${encodeURIComponent(key)}`);
+}
+
+/** Add an entry at the end of an item's list: a name (matched to a raider's character, else the character alone). */
+export function addGuildBankWaiting(key: string, entry: { name: string; itemId: number; amount: number }): Promise<GuildBankWaitlist & { added: number }> {
+    return send<GuildBankWaitlist & { added: number }>("POST", "/api/guildbank/waitlist/add", { key, ...entry });
+}
+
+/** One place forward ("up") or back ("down") in the item's list. */
+export function moveGuildBankWaiting(key: string, id: string, direction: "up" | "down"): Promise<GuildBankWaitlist> {
+    return send<GuildBankWaitlist>("POST", "/api/guildbank/waitlist/move", { key, id, direction });
+}
+
+/** Take an entry off the list. */
+export function removeGuildBankWaiting(key: string, id: string): Promise<GuildBankWaitlist> {
+    return send<GuildBankWaitlist>("POST", "/api/guildbank/waitlist/remove", { key, id });
+}
+
+/** A pasted line as the import's preview reads it. */
+export type GuildBankImportRow = {
+    line: number;
+    name: string;
+    itemText: string;
+    amount: number;
+    /** The line could not be read (German). */
+    error: string;
+    item: { itemId: number; name: string; iconUrl: string } | null;
+    /** Unknown or not offered (German). */
+    itemError: string;
+    /** The raider the name belongs to; null = imported as the character alone. */
+    match: { userId: string; userName: string; characterName: string; realm: string } | null;
+    /** Characters of several raiders carry the name. */
+    ambiguous: boolean;
+    /** Will be imported. */
+    ok: boolean;
+};
+
+/** What pasted lines would import (nothing stored). */
+export function previewGuildBankWaitlist(key: string, text: string): Promise<{ rows: GuildBankImportRow[] }> {
+    return send<{ rows: GuildBankImportRow[] }>("POST", "/api/guildbank/waitlist/preview", { key, text });
+}
+
+/** Import pasted lines ("Name<Tab>Item<Tab>Anzahl"): the readable ones at the end of their lists, in order. */
+export function importGuildBankWaitlist(key: string, text: string): Promise<GuildBankWaitlist & { added: number; skipped: number }> {
+    return send<GuildBankWaitlist & { added: number; skipped: number }>("POST", "/api/guildbank/waitlist/import", { key, text });
 }
 
 /** An event server a bank can be assigned to. */

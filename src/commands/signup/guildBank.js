@@ -9,6 +9,9 @@
 //   guildbank:reject:<id>    "Ablehnen …" — opens the decline modal
 //   guildbank:mreject:<id>   the submitted decline modal (optional reason)
 //
+// Declining a request from the stock and releasing a confirmation move the
+// item's waiting list up (services/signups/guildBank.advanceWaitlist, #775).
+//
 // Only the orga with write access to `raids` may — the same rights model as
 // the web menu (config/permissions.js), resolved by services/discord/userAccess.js
 // from the member's roles on the event servers. The bot gate (botAccess.js)
@@ -38,6 +41,8 @@ const mayHandle = (interaction) => userMayAny(interaction.user.id, ["raids"], "w
 
 /** The DM line of an answer. */
 function dmLine(result) {
+    // a waiting-list entry imported by character name alone (#775)
+    if (result.request.userId === "" && result.request.characterName) return `${plain(result.request.characterName) || "Der Eintrag"} hat kein Discord-Konto – keine DM.`;
     const name = plain(result.request.userName);
     return result.dm ? `${name || "Der Raider"} bekommt eine DM.` : `Die DM an ${name || "den Raider"} kam nicht an – sind die DMs zu?`;
 }
@@ -47,7 +52,7 @@ const TITLES = { done: "Erledigt", rejected: "Abgelehnt", confirmed: "Vorgemerkt
 /** What the orga reads after handling a request, as a card; `dm` = whether the step sends one. */
 function doneCard(result, dm) {
     const r = result.request;
-    const ok = r.status !== "rejected" && (!dm || result.dm);
+    const ok = r.status !== "rejected" && (!dm || result.dm || r.userId === "");
     return card({
         kind: ok ? "ok" : "warn",
         title: TITLES[r.status] || "Erledigt",

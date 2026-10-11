@@ -58,6 +58,14 @@ describe("guildbank (Orga-Knöpfe)", () => {
         expect(said(i.editReply)).toContain("Anna bekommt eine DM.");
     });
 
+    it("ein importierter Eintrag ohne Discord-Konto (#775): keine DM, und das ist kein Fehler", async () => {
+        guildBank.confirmRequest.mockResolvedValueOnce({ request: { status: "confirmed", userId: "", userName: "Whapap", characterName: "Whapap" }, posted: true, dm: false });
+        const i = click(`guildbank:confirm:${open.id}`);
+        await command.execute(i);
+        expect(said(i.editReply)).toBe("## Vorgemerkt\nWhapap hat kein Discord-Konto – keine DM.");
+        expect(cardColor(i.editReply.mock.calls[0][0])).toBe(KIND_COLORS.ok);
+    });
+
     it("sagt, wenn die DM nicht ankam oder der Post nicht aktualisiert wurde", async () => {
         guildBank.resolveRequest.mockResolvedValueOnce({ request: { status: "rejected", userName: "" }, posted: false, dm: false });
         const i = click(`guildbank:done:${open.id}`);

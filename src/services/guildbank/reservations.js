@@ -6,6 +6,7 @@
 // moving the request on to "handedOut".
 //
 //   reservedByItem(bankKey) -> { [itemId]: amount }   only items with a reservation
+//   pendingByItem(bankKey)  -> { open, waiting, waitingAmount }  open requests and the waiting list (#775)
 //
 // A request counts when its `bankKey` is this bank's, its `itemId` is set and
 // its status is "confirmed". Open requests are not reserved yet (the orga has
@@ -49,6 +50,30 @@ function handedOutSince(bankKey, scannedAt) {
     return out;
 }
 
+/**
+ * What still waits for the orga per item of one bank (#775): `open` = the
+ * amounts of the open (not yet confirmed) requests from the stock — not set
+ * aside, but already promised, so a new request or the waiting list's move-up
+ * must not hand them out a second time; `waiting` = how many waiting-list
+ * entries wait, `waitingAmount` = their amounts.
+ * @param {string} bankKey
+ * @returns {{ open: Record<string, number>, waiting: Record<string, number>, waitingAmount: Record<string, number> }}
+ */
+function pendingByItem(bankKey) {
+    const key = String(bankKey || "").trim();
+    const out = { open: {}, waiting: {}, waitingAmount: {} };
+    if (!key) return out;
+    for (const r of store.listRequests()) {
+        if (r.bankKey !== key || !r.itemId || !(r.amount > 0)) continue;
+        if (r.status === "open") out.open[r.itemId] = (out.open[r.itemId] || 0) + r.amount;
+        if (r.status === "waiting") {
+            out.waiting[r.itemId] = (out.waiting[r.itemId] || 0) + 1;
+            out.waitingAmount[r.itemId] = (out.waitingAmount[r.itemId] || 0) + r.amount;
+        }
+    }
+    return out;
+}
+
 /** How many confirmed requests of one bank wait for the hand-out. */
 function reservedRequestCount(bankKey) {
     const key = String(bankKey || "").trim();
@@ -56,4 +81,4 @@ function reservedRequestCount(bankKey) {
     return store.listRequests({ status: "confirmed" }).filter((r) => r.bankKey === key && r.itemId).length;
 }
 
-module.exports = { reservedByItem, handedOutSince, reservedRequestCount };
+module.exports = { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount };
