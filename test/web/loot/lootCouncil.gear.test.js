@@ -193,7 +193,7 @@ describe("web/loot/lootCouncil — the worn gear a council looks at", () => {
             mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
             mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
             const row = councilRoster().rows[0];
-            const [candidate] = candidatesForItem(31064, [row]);
+            const [candidate] = candidatesForItem(32525, [row]);
             expect(candidate.needScore).toBe(row.needScore);
             expect(candidate.needParts).toEqual(row.needParts);
             expect(candidate.daysSinceLoot).toBe(row.daysSinceLoot);
