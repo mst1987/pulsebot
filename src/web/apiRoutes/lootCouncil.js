@@ -49,7 +49,7 @@ const { mainVersionFor } = require("../../services/events/mainVersion");
 const { councilOptsFromQuery, categoryOptions } = require("../loot/councilQuery");
 const { buildCouncilView, councilCategoryIds } = require("../loot/councilView");
 const { councilHead, councilRosters } = require("../loot/councilTargets");
-const { councilContent: councilContentFor } = require("../../services/events/versionCapabilities");
+const { councilContent: councilContentFor, featureState } = require("../../services/events/versionCapabilities");
 const { knownVersion } = require("../../services/events/mainVersion");
 const { versionLinks } = require("../../services/events/versionSettings");
 
@@ -159,14 +159,28 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
 
 /**
  * POST /api/lootcouncil/sim — start simulating.
- * Body: { id, subjects: [{key, specKey}], items: [itemId] }
+ * Body: { id, subjects: [{key, specKey}], items: [itemId], roster?, category?, version? }
  *
  * Running a simulation is work the server does on request, so it takes write
  * level (`write: "lootcouncil"`) - a read-only council member sees the numbers.
+ *
+ * The version is the council view's (#745): `roster`, `category` and `version`
+ * are read like the page's query (councilOptsFromQuery). Without the feature
+ * "Simulation" for it (#761: no WoWSims data, or switched off in Einstellungen →
+ * Spielversion) the server refuses with 409 - not only the page's button.
  */
-const postLootCouncilSim = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, res }) => {
+const postLootCouncilSim = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, req, res }) => {
     const id = String(body.id || "").trim();
     if (!id) return apiError(res, 400, "bad_request", "Job-Id fehlt.");
+    const scope = new URLSearchParams();
+    for (const key of ["roster", "category", "version"]) if (body[key]) scope.set(key, String(body[key]).trim());
+    const { versionId, config } = councilOptsFromQuery(scope, { guildId: activeGuildFor(req) });
+    const sim = featureState(versionId, "simulation", { config });
+    if (!sim.on) {
+        return sim.reason === "disabled"
+            ? apiError(res, 409, "feature_off", sim.message)
+            : apiError(res, 409, "no_sim_data", "Für diese Spielversion gibt es keine Simulation.");
+    }
     const subjects = (Array.isArray(body.subjects) ? body.subjects : [])
         .map((s) => ({ key: String((s && s.key) || "").trim(), specKey: String((s && s.specKey) || "").trim() }))
         .filter((s) => s.key && s.specKey);

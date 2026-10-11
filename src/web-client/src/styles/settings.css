@@ -114,6 +114,34 @@
     .vf-none-mark { display: inline; font-size: 15px; }
 }
 
+/* ---- Neue Version starten (#745): one line per checklist item - badge, label, value, where to fix it ---- */
+.vl-card { margin-top: 16px; gap: 10px; scroll-margin-top: 80px; }
+.vl-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.vl-head > .badge { margin-left: auto; }
+.vl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.vl-item { display: grid; grid-template-columns: 112px minmax(0, 1fr) 170px 250px; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+.vl-item:last-child { border-bottom: 0; }
+.vl-item .badge { justify-self: start; }
+.vl-label { justify-self: start; font-weight: 600; cursor: help; }
+.vl-label:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.vl-item.is-optional .vl-label { font-weight: 500; color: var(--muted); }
+.vl-value { font-family: var(--font-mono); font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vl-act { justify-self: end; display: inline-flex; align-items: center; gap: 12px; }
+.vl-mark { gap: 6px; font-size: 13px; }
+.vl-link { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; white-space: nowrap; color: var(--accent); text-decoration: none; }
+.vl-link:hover { text-decoration: underline; }
+.vl-link svg { width: 14px; height: 14px; }
+.vl-jump { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; }
+.vl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+#gv-main, #gv-links { scroll-margin-top: 80px; }
+/* a phone: badge and label in the first row, value and action below */
+@media (max-width: 640px) {
+    .vl-item { grid-template-columns: 96px minmax(0, 1fr); gap: 4px 10px; }
+    .vl-value { grid-column: 1; justify-self: start; }
+    .vl-act { grid-column: 2; justify-self: end; flex-wrap: wrap; justify-content: flex-end; }
+    .vl-head > .badge { margin-left: 0; }
+}
+
 .set-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
 .set-form { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
 .set-form.sheetcard { border-radius: 10px; margin: 0; }

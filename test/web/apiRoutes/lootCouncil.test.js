@@ -384,6 +384,28 @@ describe("POST /api/lootcouncil/sim", () => {
         expect(startCouncilSim).not.toHaveBeenCalled();
     });
 
+    it("refuses a version without simulation data (#745), read from the category like the page", async () => {
+        getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { c9: "forever" } });
+        mockBody = { id: "job", subjects: [{ key: "a", specKey: "b" }], category: "c9" };
+        let res = await call(postLootCouncilSim, "/api/lootcouncil/sim");
+        expect(status(res)).toBe(409);
+        expectError(res, "no_sim_data", "Für diese Spielversion gibt es keine Simulation.");
+
+        mockBody = { id: "job", subjects: [{ key: "a", specKey: "b" }], version: "forever" };
+        res = await call(postLootCouncilSim, "/api/lootcouncil/sim");
+        expect(status(res)).toBe(409);
+        expect(startCouncilSim).not.toHaveBeenCalled();
+    });
+
+    it("refuses when the simulation is switched off for the version (#745)", async () => {
+        getConfig.mockReturnValue({ mainVersion: "tbc", versionSettings: { tbc: { wowheadPath: "tbc", disabled: ["simulation"] } } });
+        mockBody = { id: "job", subjects: [{ key: "a", specKey: "b" }] };
+        const res = await call(postLootCouncilSim, "/api/lootcouncil/sim");
+        expect(status(res)).toBe(409);
+        expectError(res, "feature_off", "Simulation ist für TBC Anniversary ausgeschaltet (Einstellungen → Spielversion).");
+        expect(startCouncilSim).not.toHaveBeenCalled();
+    });
+
     it("answers 503 without a simulator and starts nothing", async () => {
         engine.isAvailable.mockReturnValue(false);
         mockBody = { id: "job", subjects: [{ key: "a", specKey: "b" }] };

@@ -190,6 +190,11 @@ const CONFIG_DEFAULTS = {
     // to an event of another version opens it read only (archive). Nothing is
     // deleted, switching it off brings everything back.
     hideOtherVersions: false,
+    // "Neue Version starten" (#745, Einstellungen → Spielversion): the items of
+    // the checklist that cannot be computed and were marked done by hand, per
+    // target version: { [versionId]: { [itemId]: { at, byName } } } — item ids
+    // of VERSION_LAUNCH_MANUAL only (services/events/versionLaunch.js).
+    versionLaunch: {},
     // The language of the bot's public messages (event and setup message, talk
     // overview, panels, announcements) and the fallback for every raider who
     // chose none (userPrefsStore): "de" | "en". Einstellungen -> Discord-Server.
@@ -635,6 +640,30 @@ function normalizeRaidhelperRetirement(raw) {
     };
 }
 
+// The items of the checklist "Neue Version starten" (#745) that are marked done by hand.
+const VERSION_LAUNCH_MANUAL = Object.freeze(["backup", "export", "lootAddon", "talk"]);
+
+/**
+ * The hand-made marks of the version checklist (#745):
+ * { [versionId]: { [itemId]: { at, byName } } } — known versions and the item
+ * ids of VERSION_LAUNCH_MANUAL only; a version without a mark is dropped.
+ */
+function normalizeVersionLaunch(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+    for (const [versionId, marks] of Object.entries(raw)) {
+        const id = String(versionId).trim();
+        if (!rulesFor(id) || !marks || typeof marks !== "object" || Array.isArray(marks)) continue;
+        const kept = {};
+        for (const item of VERSION_LAUNCH_MANUAL) {
+            const m = marks[item];
+            if (m && typeof m === "object") kept[item] = { at: Number(m.at) || 0, byName: String(m.byName || "").slice(0, 100) };
+        }
+        if (Object.keys(kept).length) out[id] = kept;
+    }
+    return out;
+}
+
 /**
  * Normalise the categorySheets map to `{ [categoryId]: { url, name } }`: coerce
  * both fields to trimmed strings and drop every category without a url, so an
@@ -730,6 +759,7 @@ function normalizeConfig(raw) {
         categoryVersion: normalizeCategoryVersion(stored.categoryVersion),
         categoryEras: normalizeCategoryEras(stored.categoryEras),
         hideOtherVersions: stored.hideOtherVersions === true,
+        versionLaunch: normalizeVersionLaunch(stored.versionLaunch),
         botLanguage: normalizeBotLanguage(stored.botLanguage),
         topItems: normalizeTopItems(stored.topItems),
         roleSync: normalizeRoleSync(stored.roleSync),
@@ -745,6 +775,6 @@ module.exports = {
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch,
     normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOWS, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
-    normalizeRaidhelperRetirement, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
+    normalizeRaidhelperRetirement, normalizeVersionLaunch, VERSION_LAUNCH_MANUAL, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
     normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
 };

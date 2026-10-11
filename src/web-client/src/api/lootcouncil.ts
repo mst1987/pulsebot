@@ -665,12 +665,24 @@ export type SimJob = {
     error?: string;
 };
 
+/**
+ * Which council view a simulation belongs to (#745): the server reads its game
+ * version from these like the page's query and refuses a version without the
+ * feature "Simulation".
+ */
+export type CouncilSimScope = { roster?: string; category?: string; version?: string };
+
 export function startCouncilSim(
     id: string,
     subjects: { key: string; specKey: string }[],
     items: number[],
+    scope: CouncilSimScope = {},
 ): Promise<{ status: string; alreadyRunning: boolean; id: string }> {
-    return send("POST", "/api/lootcouncil/sim", { id, subjects, items });
+    const view: CouncilSimScope = {};
+    if (scope.roster) view.roster = scope.roster;
+    else if (scope.category) view.category = scope.category;
+    if (scope.version) view.version = scope.version;
+    return send("POST", "/api/lootcouncil/sim", { id, subjects, items, ...view });
 }
 
 export function getCouncilSim(id: string): Promise<SimJob> {
@@ -689,8 +701,9 @@ export async function runCouncilSim(
     subjects: { key: string; specKey: string }[],
     items: number[],
     onProgress?: (job: SimJob) => void,
+    scope: CouncilSimScope = {},
 ): Promise<SimResult> {
-    await startCouncilSim(id, subjects, items);
+    await startCouncilSim(id, subjects, items, scope);
     const startedAt = Date.now();
     const POLL_MS = 1500;
     // One raider is ~1s per item; a whole roster against a full BiS gap list is

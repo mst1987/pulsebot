@@ -71,6 +71,17 @@ describe("CategorySwitchDialog (#738)", () => {
         expect(onConfirm).toHaveBeenCalledWith({ series: "", roster: { create: true, copyMembers: false, roleIds: ["500000000000000002"] } });
     });
 
+    it("offers no chip for a role a bot owns (@MEE6, #745)", async () => {
+        vi.mocked(api.getCategorySwitch).mockResolvedValue({
+            ...fitting,
+            roster: { closing: { id: "r-tbc", name: "Montag", members: 2 }, existing: null, canCreate: true },
+        });
+        const roles = [{ id: "500000000000000001", name: "Raider" }, { id: "500000000000000003", name: "MEE6", managed: true }];
+        renderPage(<CategorySwitchDialog categoryId="cat1" categoryName="Montag" versionId="forever" roles={roles} onCancel={() => {}} onConfirm={() => {}} />);
+        expect(await screen.findByRole("button", { name: "@Raider" })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "@MEE6" })).not.toBeInTheDocument();
+    });
+
     it("can switch without a new roster", async () => {
         const user = userEvent.setup();
         vi.mocked(api.getCategorySwitch).mockResolvedValue({

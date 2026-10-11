@@ -3,7 +3,7 @@
 // from the components so both routes (/lootcouncil and /lootcouncil/drop/:id)
 // import the same rules instead of two copies drifting apart.
 import { useCallback, useRef, useState } from "react";
-import { runCouncilSim, type CouncilContent, type LootCouncilData, type CouncilCandidate, type SimResult, type WornItem } from "../../api";
+import { runCouncilSim, type CouncilContent, type CouncilSimScope, type LootCouncilData, type CouncilCandidate, type SimResult, type WornItem } from "../../api";
 import { useJobs } from "../../components/shell/Jobs";
 import { t, tOr } from "../../i18n";
 import type { Dir } from "../../lib/ui/tableSort";
@@ -177,14 +177,20 @@ type Subject = { key: string; specKey: string };
  * that drop's candidates when a drop is checked — the difference between
  * minutes and seconds. Results are merged, not replaced: simulating one drop
  * must not throw away the deltas of the BiS run somebody started earlier.
+ *
+ * `scope` is the council view (roster, category, content version): the server
+ * reads the game version from it and refuses one without "Simulation" (#745).
  */
-export function useCouncilSim() {
+export function useCouncilSim(scope: CouncilSimScope = {}) {
     const jobs = useJobs();
     const [sim, setSim] = useState<SimResult | null>(null);
     const [simRunning, setSimRunning] = useState(false);
     // The same flag as a ref, so an automatic run (the drop check) cannot start
     // a second simulation while one is going.
     const simBusy = useRef(false);
+    // The view of the moment, read when a run starts (runSim keeps its identity).
+    const scopeRef = useRef(scope);
+    scopeRef.current = scope;
 
     const runSim = useCallback(async (items: number[], subjects: Subject[], what = "") => {
         if (simBusy.current || !subjects.length) return;
@@ -208,7 +214,7 @@ export function useCouncilSim() {
             (update) => runCouncilSim(id, subjects, items, (job) => update({
                 progress: job.total ? (job.progress ?? 0) / job.total : undefined,
                 detail: t("lootcouncil.sim.progress", { detail, done: job.progress ?? 0, total: job.total ?? total }),
-            })),
+            }), scopeRef.current),
         );
         simBusy.current = false;
         setSimRunning(false);

@@ -76,6 +76,8 @@ const after691 = (config) => ({ ...config, backup: BACKUP_DEFAULTS });
 const afterOrgaRoles = (config) => ({ ...config, orgaRoleIds: [] });
 // #738 adds the section history per category (empty until a category switches its version).
 const afterEras = (config) => ({ ...config, categoryEras: {} });
+// #745 adds the hand-made marks of the checklist "Neue Version starten" (empty until one is ticked off).
+const afterLaunch = (config) => ({ ...config, versionLaunch: {} });
 // #738: the start pins every active category to the version it plays (the main version) -
 // only for a stored file (a missing one is never written).
 function afterCategoryVersions(config, stored) {
@@ -84,7 +86,7 @@ function afterCategoryVersions(config, stored) {
     for (const id of Array.isArray(stored.categoryIds) ? stored.categoryIds : []) if (!map[id]) map[id] = config.mainVersion;
     return { ...config, categoryVersion: map };
 }
-const schemaOnly = frozen.map((g) => ({ ...g, config: afterEras(afterOrgaRoles(after691(after542(g.config)))) }));
+const schemaOnly = frozen.map((g) => ({ ...g, config: afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))) }));
 const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
 const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)"));
 
@@ -146,6 +148,16 @@ describe("stores/configSchema normalisers", () => {
         expect(schema.normalizeConfig(null)).toEqual(empty);
         expect(schema.normalizeConfig([1, 2])).toEqual(empty);
         expect(schema.normalizeConfig("x")).toEqual(empty);
+    });
+
+    it("normalizeVersionLaunch keeps known versions and the manual items only (#745)", () => {
+        expect(schema.normalizeVersionLaunch({
+            forever: { talk: { at: "5", byName: "Orga" }, rosters: { at: 1 }, export: null },
+            nope: { talk: { at: 1 } },
+            tbc: {},
+        })).toEqual({ forever: { talk: { at: 5, byName: "Orga" } } });
+        expect(schema.normalizeVersionLaunch([1])).toEqual({});
+        expect(schema.VERSION_LAUNCH_MANUAL).toEqual(["backup", "export", "lootAddon", "talk"]);
     });
 
     it("normalizeEventGuilds ignores everything but a list (no legacy fallback in the read path)", () => {

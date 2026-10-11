@@ -1121,6 +1121,148 @@
             "no_catalog_entries": "No catalog entries for {version}."
         }
     },
+    "versionLaunch": {
+        "title": "Start a new version",
+        "titleSub": "What should be done on the switch day, per target version. The state comes from the real data. Only what cannot be checked is ticked off by hand. Details in each item's tooltip.",
+        "target": "Target version",
+        "doneOf": "{done} of {total} done",
+        "loading": "Checking the list",
+        "loadError": "Checklist could not be loaded: {message}",
+        "status": {
+            "done": "done",
+            "open": "open"
+        },
+        "optional": "optional",
+        "optionalTip": "Only when the old version ends for good. Not counted.",
+        "manualTip": "Cannot be checked from the data: tick it off yourself.",
+        "mark": "done",
+        "markAria": "{item}: done",
+        "markedBy": "ticked off on {date} by {name}",
+        "markedAt": "ticked off on {date}",
+        "jump": "Up here",
+        "toLink": "To {label}",
+        "markFailed": "Not saved: {message}",
+        "items": {
+            "backup": {
+                "label": "Data backed up",
+                "why": "A fresh backup before the switch: if something goes wrong, today's state can be brought back."
+            },
+            "export": {
+                "label": "Archive of the old version downloaded",
+                "why": "Loot and attendance of every version but the main one as CSV. Worth it when the old version ends: download it after switching the main version."
+            },
+            "categories": {
+                "label": "Every category has a fixed version",
+                "why": "Every active category plays exactly one version. A switch starts a new section, old raids stay in their version."
+            },
+            "versionSettings": {
+                "label": "Links of the version set",
+                "why": "Realm, armory, Warcraft Logs, Wowhead, softres and raid sheet of the target version. Empty is fine where the feature is not possible for the version or switched off."
+            },
+            "templates": {
+                "label": "Raid templates of the version exist",
+                "why": "New raids, series and a category's default template need templates of this version."
+            },
+            "series": {
+                "label": "Series and default templates fit",
+                "why": "A template of another version creates no event. The series would fail."
+            },
+            "rosters": {
+                "label": "Rosters with roles and managers",
+                "why": "Every category of the version needs an open roster with Discord roles and managers. Rosters exist per version."
+            },
+            "guildBank": {
+                "label": "Guild bank assigned",
+                "why": "The new version's bank arrives with the first scan from the game and needs a Discord server."
+            },
+            "lootAddon": {
+                "label": "Loot addon tested on the new client",
+                "why": "Record loot and a bank scan once on the new client and upload them. Does the version arrive correctly?"
+            },
+            "talk": {
+                "label": "Talk overview and reminders checked",
+                "why": "The raid overview on the talk server and the reminders show raids of every version. Take a look whether the new raids appear correctly."
+            },
+            "mainVersion": {
+                "label": "Main version switched, others hidden",
+                "why": "Only when the old version ends for good: switch the main version to the new one and turn on “Hide other versions”."
+            }
+        },
+        "value": {
+            "manual": "by hand",
+            "backupAt": "backup {date}",
+            "backupStale": "not fresh",
+            "noCategory": "no category",
+            "categories": "{done} / {total}",
+            "fieldsOk": "complete",
+            "fieldsMissing": {
+                "one": "{count} missing",
+                "other": "{count} missing"
+            },
+            "templates": {
+                "one": "{count} template",
+                "other": "{count} templates"
+            },
+            "none": "none",
+            "seriesOk": "fits",
+            "seriesNothing": "nothing to check",
+            "seriesBad": {
+                "one": "{count} does not fit",
+                "other": "{count} do not fit"
+            },
+            "rosters": "{done} / {total}",
+            "noTargetCategory": "no {version} category",
+            "bankOk": "assigned",
+            "bankWaiting": "waiting for a server",
+            "bankNone": "no bank",
+            "isMain": "main version",
+            "mainNotHidden": "others visible",
+            "mainOther": "main: {version}"
+        },
+        "detail": {
+            "categoriesMissing": "Without a version: {names}",
+            "categoriesTarget": "Playing {version}: {names}",
+            "fieldMissing": "Missing: {fields}",
+            "fieldNotNeeded": "Empty, not needed: {fields}",
+            "templateNames": "Templates: {names}",
+            "incomplete": "Enter the bosses once known: {raids}",
+            "seriesItem": "{name}: series with “{template}”",
+            "defaultItem": "{name}: default template “{template}”",
+            "rosterItem": "{name}: {problems}",
+            "bankItem": "{guild} ({realm}): {state}",
+            "noTarget": "No active category plays {version}. Switch a category first.",
+            "backupManual": "This instance takes no backup of its own: back up by hand and tick it off.",
+            "backupParts": "Local: {snapshot} · Off-site: {offsite}",
+            "never": "never"
+        },
+        "fields": {
+            "realm": "Realm",
+            "armory": "Armory link",
+            "wcl": "Warcraft Logs",
+            "wowhead": "Wowhead",
+            "softres": "Softres",
+            "raidsheet": "Raid sheet"
+        },
+        "notNeeded": {
+            "disabled": "switched off",
+            "other": "not possible for the version"
+        },
+        "roster": {
+            "missing": "no roster",
+            "closed": "closed",
+            "noRoles": "without roles",
+            "noManagers": "without managers"
+        },
+        "links": {
+            "backup": "System status",
+            "export": "Download CSV",
+            "templates": "Raid templates",
+            "series": "Series",
+            "rosters": "Rosters",
+            "guildBank": "Guild banks",
+            "talk": "Discord servers"
+        }
+    },
     "planning": {
         "raidplan": "Raid plan",
         "sheet": "Sheet"

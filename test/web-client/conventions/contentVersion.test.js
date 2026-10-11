@@ -15,14 +15,20 @@ const { read } = require("../clientSource");
 const SRC = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const MENU = require("../../../src/config/menu.json");
 
+// Version-neutral pages below a menu entry that is not neutral as a whole — the
+// one explicit allowlist besides menu.json, each with its reason. They carry no
+// game content, so there is nothing to separate (docs/game-versions.md,
+// "Mit Absicht versionsneutral").
+const NEUTRAL_PAGES = {
+    // Aufruf-Vorlagen (#745, decision on #736): plain message texts with placeholders,
+    // the same for every version - no raid, class or item in them.
+    "raids/templates": "call text templates: text without game content",
+};
+
 // Pages that neither follow nor are neutral yet — each with its reason. An entry
 // here is a decision, not a convenience: a page with game content belongs on it
-// only while the issue that moves it is open.
-const NOT_YET = {
-    // Aufruf-Vorlagen: version-free text templates, decision pending (plain message texts with
-    // placeholders, the same for every version; no raid, class or item in them)
-    "raids/templates": "version-free text templates, decision pending",
-};
+// only while the issue that moves it is open. Empty since #745.
+const NOT_YET = {};
 
 /** The relative modules a file imports statically (type-only imports carry no code). */
 function staticImports(file) {
@@ -94,14 +100,20 @@ describe("one game version per page (#741)", () => {
 
     it("lets every other page follow the content switch", () => {
         const missing = routes
-            .filter((r) => !isNeutral(r.path) && !NOT_YET[r.path] && !followsVersion(r.file))
+            .filter((r) => !isNeutral(r.path) && !NEUTRAL_PAGES[r.path] && !NOT_YET[r.path] && !followsVersion(r.file))
             .map((r) => `${r.path || "/"} (${r.page})`);
         expect(missing).toEqual([]);
     });
 
-    it("lists only real routes as not yet following", () => {
+    it("lists only real routes as neutral or not yet following", () => {
         const known = new Set(routes.map((r) => r.path));
-        for (const p of Object.keys(NOT_YET)) expect({ p, known: known.has(p) }).toEqual({ p, known: true });
+        for (const p of [...Object.keys(NEUTRAL_PAGES), ...Object.keys(NOT_YET)]) expect({ p, known: known.has(p) }).toEqual({ p, known: true });
+    });
+
+    it("keeps the call text templates version-neutral: they never read the content version (#745)", () => {
+        const page = routes.find((r) => r.path === "raids/templates");
+        expect(page && page.page).toBe("NotifyTemplatesPage");
+        expect(followsVersion(page.file)).toBe(false);
     });
 
     it("shows no version state on a neutral page", () => {

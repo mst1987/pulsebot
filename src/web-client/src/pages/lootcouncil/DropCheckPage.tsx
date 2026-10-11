@@ -64,7 +64,7 @@ export default function DropCheckPage() {
     // The character a "Log laden"/"Gear aus Armory holen" reload is running
     // for, from a candidate's fold-out gear panel — one at a time.
     const [gearBusyChar, setGearBusyChar] = useState<string | null>(null);
-    const { sim, simRunning, runSim } = useCouncilSim();
+    const { sim, simRunning, runSim } = useCouncilSim({ roster: view.roster || "", category: view.category, version: contentVersion });
     const candidateSort = useTableSort<CandidateSortKey>("lootcouncil.candidate-sort", CANDIDATE_SORT, "gain");
 
     /** This item against the raiders it fits. */

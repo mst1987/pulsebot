@@ -8,8 +8,12 @@ import type { BotAccessRule } from "./botCommands";
 import type { VersionSettingsBlock } from "../lib/settings/versionLinks";
 import type { CapabilityMatrix } from "../lib/settings/versionFeatures";
 
-/** `color`: the role's Discord colour as hex, "" when it has none. */
-export type Role = { id: string; name: string; color?: string };
+/**
+ * `color`: the role's Discord colour as hex, "" when it has none. `managed`: a
+ * role a bot or an integration owns (@MEE6) — nobody can be given it, so the
+ * role pickers leave it out (lib/settings/assignableRoles.ts, #745).
+ */
+export type Role = { id: string; name: string; color?: string; managed?: boolean };
 
 // The Battle.net client. The secret never comes back from the server — only
 // whether one is stored. Read: { …, hasClientSecret }. Write: { …, clientSecret? }

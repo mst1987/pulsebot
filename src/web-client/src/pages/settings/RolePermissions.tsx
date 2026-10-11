@@ -14,6 +14,7 @@ import WowIcon from "../../components/ui/WowIcon";
 import { EyeIcon, LockIcon, PenIcon, PlusIcon, TrashIcon, XIcon } from "../../components/ui/icons";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import { useDismiss } from "../../hooks/useDismiss";
+import { assignableRoles } from "../../lib/settings/assignableRoles";
 
 // Einstellungen → Berechtigungen as one matrix: rows = who, columns = the areas
 // of the menu, each cell one tri-state button (aus › Lesen › Schreiben). It
@@ -404,7 +405,8 @@ function AddOwnerModal({ mode, roles, taken, takenUsers, onClose, onAddRole, onA
     const [kind, setKind] = useState<"role" | "user">(roles.length || mode === "admin" ? "role" : "user");
     const [roleId, setRoleId] = useState("");
     const [userId, setUserId] = useState("");
-    const addable = roles.filter((r) => !taken.includes(r.id));
+    // a bot's own role (@MEE6) is held by no member: nothing to grant it (#745)
+    const addable = assignableRoles(roles).filter((r) => !taken.includes(r.id));
     const trimmed = userId.trim();
     const idValid = isDiscordId(trimmed);
     const duplicate = idValid && takenUsers.includes(trimmed);

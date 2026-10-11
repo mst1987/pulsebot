@@ -86,6 +86,18 @@ Technik: [discord-servers.md](discord-servers.md), [raidhelper-retirement.md](ra
 - Optional ein **natives Discord-Event** (Kalendereintrag) pro Raid.
 - Farbige **App-Emojis** für Klassen, Specs und Status in allen Bot-Nachrichten.
 
+### Neue Spielversion
+
+Technik: [game-versions.md](game-versions.md)
+
+Startet die Gilde eine neue Spielversion (z. B. WoW Forever neben TBC), laufen beide nebeneinander, oft auf demselben Discord:
+
+- **Jeder Raid hat seine Version** und behält sie. Die Anmelde-Nachricht nennt sie unten klein; anmelden kannst du dich nur mit einem Charakter dieser Version (legst du im Profil oder direkt im Dialog an).
+- **Eine Kategorie spielt eine Version.** Stellt die Orga eine Kategorie um, gehören die Raids danach zur neuen Version; die alten Raids, dein Loot und deine Anwesenheit bleiben unter der alten.
+- **Roster je Version:** Die neue Version bekommt ein eigenes Roster, oft mit eigener Discord-Rolle. Deine Rolle aus dem alten Roster verlierst du dabei nicht.
+- **Anwesenheit je Version:** `/anwesenheit` zählt die Version der Kategorie des Kanals; mit der Option `version` fragst du eine andere. In der neuen Version steht anfangs „Noch keine Raids gezählt“. Eingetragene Abwesenheiten gelten für alle Versionen.
+- **Talk-Übersicht und Erinnerungen** zeigen die Raids aller Versionen, nach Version gruppiert. Blendet die Orga eine Version aus, verschwinden ihre Raids dort, und alte Anmelde-Buttons antworten mit „This raid is archived“.
+
 ### Umstieg von Raid-Helper
 
 Neue Raid-Kategorien laufen standardmäßig über die eigene Anmeldung des Bots. Ältere Kategorien bleiben auf Raid-Helper, bis die Orga sie umstellt. Für Raider ändert sich dabei nur die Optik — eigene Anmelde-/Setup-Nachricht des Bots statt eines Raid-Helper-Posts. Details für die Orga: [docs/raidhelper-retirement.md](raidhelper-retirement.md).
