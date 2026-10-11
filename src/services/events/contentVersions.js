@@ -17,6 +17,7 @@ const eventStore = require("../../stores/eventStore");
 const { listRaidEvents } = require("../../stores/raidEventStore");
 const lootStore = require("../../stores/lootStore");
 const profiles = require("../../stores/raiderProfileStore");
+const { kaderVersionIds } = require("../kader/kaderVersions");
 const settingsStore = require("../../stores/settingsStore");
 const { buildVersionContext, eventVersion } = require("../characters/characterVersions");
 
@@ -26,7 +27,7 @@ function versionInfo(v, config) {
     return { id: v.id, label: v.label, short: v.short || v.label, color, custom };
 }
 
-/** Every version something is stored for: events, categories, templates, characters, loot. */
+/** Every version something is stored for: events, categories, templates, characters, loot, Kader of the Kaderplaner. */
 function versionsWithData(config) {
     const found = new Set();
     const add = (id) => { const key = knownVersion(id); if (key) found.add(key); };
@@ -37,6 +38,9 @@ function versionsWithData(config) {
     for (const p of profiles.listProfiles()) for (const c of p.characters || []) add(c.versionId || LEGACY_VERSION);
     const ctx = buildVersionContext({ config });
     for (const it of lootStore.listAll()) add(eventVersion(ctx, it.eventId));
+    // A Kader stands only under its own version (#741): without it here, a server whose only
+    // Forever data is the Kaderplaner could never switch to Forever and lost its Kader.
+    for (const id of kaderVersionIds()) add(id);
     return found;
 }
 
