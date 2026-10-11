@@ -13,6 +13,10 @@
 //   guildbank:reject:<id>          "Ablehnen …" → rejectModal
 //   guildbank:mreject:<id>         the submitted decline modal
 //
+// A request that moved up from the waiting list (#775) is a normal open card
+// with "aus der Warteliste" in its note; one imported by character name alone
+// shows the name instead of the raider ("ohne Discord-Konto, keine DM").
+//
 // What the raider reads is in their language (tr); the orga card and the orga's
 // modal are orga texts and stay German.
 const {
@@ -94,6 +98,38 @@ function requestSummary(request, lang = "de") {
     const to = recipientName(request);
     if (to) lines.push(tr(lang, "To: {character}", { character: plain(to) }));
     return lines.join("\n");
+}
+
+/**
+ * The answer line of a request that went on the waiting list (#775), in the
+ * raider's language: "On the waiting list: **2× Crimson Spinal** – you are
+ * no. 4." plus when they hear from the bot.
+ */
+function waitingSummary(request, position, lang = "de") {
+    const line = position > 0
+        ? tr(lang, "On the waiting list: {item} – you are no. {position}.", { item: `**${amountItem(request)}**`, position })
+        : tr(lang, "On the waiting list: {item}.", { item: `**${amountItem(request)}**` });
+    return `${line}\n${tr(lang, "You get a DM as soon as it is your turn.")}`;
+}
+
+/**
+ * The DM when a waiting-list entry moved up to a request (#775): "Your turn" —
+ * the item is in the bank, the orga confirms it next. `rest` = what still
+ * waits for the raider (a part moved up), they stay first in line.
+ */
+function movedUpCard(request, lang = "de", { rest = 0 } = {}) {
+    const to = recipientName(request);
+    return card({
+        color: COLOR_OPEN,
+        kicker: tr(lang, "Guild bank"),
+        title: tr(lang, "Your turn on the waiting list"),
+        text: [
+            `**${amountItem(request)}**`,
+            tr(lang, "It is in the guild bank now – the orga will confirm it shortly."),
+            rest > 0 ? tr(lang, "{count} more stay on the waiting list for you – you are first in line.", { count: rest }) : "",
+            to ? tr(lang, "To: {character}", { character: plain(to) }) : "",
+        ].filter(Boolean).join("\n"),
+    });
 }
 
 /**
@@ -188,7 +224,9 @@ function orgaPayload(request, { categoryName = "", stock = null } = {}) {
     const created = seconds(request.createdAt);
     const fromStock = !!request.itemId;
     const group = fromStock ? str((stock && stock.group) || request.group) : "";
-    const text = [`<@${request.userId}>${created ? ` · <t:${created}:R>` : ""}`];
+    // an entry the orga imported by character name has no Discord account (#775)
+    const who = request.userId ? `<@${request.userId}>` : `**${plain(request.characterName) || "?"}** · ohne Discord-Konto, keine DM`;
+    const text = [`${who}${created ? ` · <t:${created}:R>` : ""}`];
     if (str(request.purpose)) text.push(`Wofür: ${plain(request.purpose)}`);
     const to = recipientName(request);
     if (to) text.push(`An: ${plain(to)}`);
@@ -202,7 +240,7 @@ function orgaPayload(request, { categoryName = "", stock = null } = {}) {
         thumbnail: icon,
         facts: stockFacts(request, stock),
         buttons: orgaButtons(request),
-        note: [plainCategoryName(categoryName), status].filter(Boolean).join(" · "),
+        note: [plainCategoryName(categoryName), request.fromWaitlist ? "aus der Warteliste" : "", status].filter(Boolean).join(" · "),
     });
 }
 
@@ -226,5 +264,5 @@ function parseOrgaId(customId) {
 
 module.exports = {
     PREFIX, COLOR_OPEN, COLOR_CONFIRMED, COLOR_DONE, COLOR_REJECTED, guildBankChannelId, plain, amountItem, recipientName,
-    requestModal, requestSummary, decisionCard, statusLine, stockFacts, orgaPayload, rejectModal, parseOrgaId,
+    requestModal, requestSummary, waitingSummary, movedUpCard, decisionCard, statusLine, stockFacts, orgaPayload, rejectModal, parseOrgaId,
 };

@@ -54,7 +54,8 @@ describe("utils/signup/botEnglish", () => {
         // the request from the stock (#633): the item, maxPerRequest, what is left
         expect(toEnglish("Diesen Gegenstand gibt es gerade nicht in der Gildenbank.")).toBe("This item is not available in the guild bank right now.");
         expect(toEnglish("Höchstens 5 pro Anfrage.")).toBe("At most 5 per request.");
-        expect(toEnglish("Nur noch 3 verfügbar.")).toBe("Only 3 left.");
+        // the waiting list (#775)
+        expect(toEnglish("Höchstens 10 Einträge auf der Warteliste – warte, bis einer drankommt.")).toBe("At most 10 entries on the waiting list – wait until one is your turn.");
     });
 
     it("translates every fixed refusal of absences and attendances", () => {

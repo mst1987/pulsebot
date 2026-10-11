@@ -171,4 +171,82 @@ describe("stores/guildBankStore", () => {
         expect(store.listRequests().map((r) => r.id).sort()).toEqual([old.id, handledRecently.id].sort());
         expect(store.prune({ now: NOW })).toBe(0);
     });
+
+    describe("the waiting list (#775)", () => {
+        const KEY = "tbc:spineshatter:die gilde";
+        const wait = (over = {}, now = NOW) => store.addWaiting({
+            userId: "u1", userName: "Anna", bankKey: KEY, itemId: 32470, item: "Crimson Spinal", amount: 3, ...over,
+        }, { now });
+
+        it("puts entries at the end of their item's list; never pruned", () => {
+            const a = wait().request;
+            const b = wait({ userId: "u2" }, NOW + 1).request;
+            const other = wait({ itemId: 32471 }, NOW + 2).request;
+            expect(a).toMatchObject({ status: "waiting", queueRank: 1, fromWaitlist: false, amount: 3 });
+            expect([b.queueRank, other.queueRank]).toEqual([2, 1]);
+            expect(store.waitingQueue(KEY, 32470).map((r) => r.id)).toEqual([a.id, b.id]);
+            expect(store.waitingQueue(KEY).map((r) => r.id)).toEqual([a.id, b.id, other.id]);
+            expect(store.waitingQueue("")).toEqual([]);
+            expect(store.PENDING_STATUSES).toContain("waiting");
+            expect(store.prune({ now: NOW + 400 * DAY })).toBe(0);
+            // open first, then the waiting entries by their place
+            const open = add({}, NOW + 3).request;
+            expect(store.listRequests().map((r) => r.id)).toEqual([open.id, a.id, other.id, b.id]);
+            expect(store.waitingCount("u1")).toBe(2);
+            expect(store.openCount("u1")).toBe(1);
+            expect([store.waitingCount(""), store.openCount("")]).toEqual([0, 0]);
+        });
+
+        it("checks the entry: a raider or a character, an item of the stock, the amount, MAX_WAITING for raiders", () => {
+            expect(store.addWaiting({ bankKey: KEY, itemId: 1, item: "x", amount: 1 })).toEqual({ error: "Kein Raider und kein Charakter." });
+            expect(wait({ itemId: 0 })).toEqual({ error: "Nur Gegenstände aus dem Bestand haben eine Warteliste." });
+            expect(wait({ amount: "0" })).toEqual({ error: "Die Menge muss eine ganze Zahl von 1 bis 9999 sein." });
+            for (let i = 0; i < store.MAX_WAITING; i++) expect(wait().request).toBeTruthy();
+            expect(wait()).toEqual({ error: "Höchstens 10 Einträge auf der Warteliste – warte, bis einer drankommt." });
+            // the orga's entries are not limited
+            expect(wait({ addedBy: "o1", addedByName: "Orga" }).request).toMatchObject({ addedBy: "o1", addedByName: "Orga" });
+        });
+
+        it("keeps an entry with a character name alone (imported by the orga) — also across a reload", () => {
+            const { request } = wait({ userId: "", userName: "", characterName: "Alîna", addedBy: "web" });
+            expect(request).toMatchObject({ userId: "", userName: "Alîna", characterName: "Alîna" });
+            expect(store.getRequest(request.id)).toMatchObject({ characterName: "Alîna" });
+        });
+
+        it("moves an entry up: all of it turns open, a part leaves the rest at the same place", () => {
+            const a = wait().request;
+            const b = wait({ userId: "u2", amount: 1 }, NOW + 1).request;
+            const part = store.promoteWaiting(a.id, 2, { now: NOW + 5 });
+            expect(part.request).toMatchObject({ status: "open", amount: 2, fromWaitlist: true, queueRank: 0, createdAt: NOW + 5, userId: "u1" });
+            expect(part.request.id).not.toBe(a.id);
+            expect(part.rest).toMatchObject({ id: a.id, status: "waiting", amount: 1, queueRank: 1, createdAt: NOW });
+            const all = store.promoteWaiting(a.id, 5, { now: NOW + 6 });
+            expect(all).toEqual({ request: expect.objectContaining({ id: a.id, status: "open", amount: 1, fromWaitlist: true }), rest: null });
+            expect(store.promoteWaiting(a.id, 1)).toEqual({ error: "Kein Eintrag der Warteliste." });
+            expect(store.promoteWaiting(b.id, 0)).toEqual({ error: "Nichts zu verteilen." });
+            expect(store.waitingQueue(KEY).map((r) => r.id)).toEqual([b.id]);
+        });
+
+        it("reorders an item's list and removes entries", () => {
+            const a = wait().request;
+            const b = wait({}, NOW + 1).request;
+            const c = wait({}, NOW + 2).request;
+            const order = () => store.waitingQueue(KEY).map((r) => r.id);
+            expect(store.moveWaiting(c.id, "up").request.id).toBe(c.id);
+            expect(order()).toEqual([a.id, c.id, b.id]);
+            store.moveWaiting(a.id, "down");
+            expect(order()).toEqual([c.id, a.id, b.id]);
+            // the first up and the last down stay
+            store.moveWaiting(c.id, "up");
+            store.moveWaiting(b.id, "down");
+            expect(order()).toEqual([c.id, a.id, b.id]);
+            expect(store.moveWaiting(a.id, "sideways")).toEqual({ error: "Unbekannte Richtung." });
+            expect(store.moveWaiting("nope", "up")).toEqual({ error: "Kein Eintrag der Warteliste." });
+            expect(store.removeWaiting(a.id).id).toBe(a.id);
+            expect(order()).toEqual([c.id, b.id]);
+            const open = add().request;
+            expect(store.removeWaiting(open.id)).toBeNull();
+            expect(store.removeWaiting("nope")).toBeNull();
+        });
+    });
 });

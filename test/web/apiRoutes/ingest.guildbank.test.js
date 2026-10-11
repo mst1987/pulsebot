@@ -31,6 +31,7 @@ const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStor
 const { queueLookups } = require("../../../src/services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../../src/services/guildbank/itemEmojis");
 const store = require("../../../src/stores/guildBankStockStore");
+const requests = require("../../../src/stores/guildBankStore");
 const { handle } = require("../../../src/web/http/apiRouter");
 const { GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");
 const { tempStoreFile } = require("../../helpers/tempStore");
@@ -61,12 +62,19 @@ async function upload(payload, authorization = "Bearer ehl_good") {
     return res;
 }
 
-beforeAll(() => store.useFile(tempStoreFile("guild-bank-stock.json")));
-afterAll(() => store.useFile(null));
+beforeAll(() => {
+    store.useFile(tempStoreFile("guild-bank-stock.json"));
+    requests.useFile(tempStoreFile("guild-bank.json"));
+});
+afterAll(() => {
+    store.useFile(null);
+    requests.useFile(null);
+});
 beforeEach(() => {
     jest.clearAllMocks();
     verifyToken.mockReturnValue(TOKEN);
     for (const b of store.listBanks()) store.removeBank(b.key);
+    for (const r of requests.listRequests()) requests.removeRequest(r.id);
 });
 
 describe("POST /api/ingest/guildbank", () => {
@@ -121,6 +129,14 @@ describe("POST /api/ingest/guildbank", () => {
         const items = Object.fromEntries(store.getBank(KEY).items.map((i) => [i.itemId, i]));
         expect(items[22854]).toMatchObject({ count: 12, status: "give", reserve: 5 });
         expect(items[21877]).toMatchObject({ count: 0, status: "new" });
+    });
+
+    it("moves the waiting list up with the new stock (#775)", async () => {
+        await upload(scan());
+        store.setItemSettings(KEY, 22854, { status: "give" });
+        requests.addWaiting({ userId: "", characterName: "Whapap", bankKey: KEY, itemId: 22854, item: "Flask", amount: 50, addedBy: "web" });
+        await upload(scan({ scannedAt: 1791003600 }));
+        expect(requests.listRequests().map((r) => [r.status, r.amount])).toEqual([["open", 40], ["waiting", 10]]);
     });
 
     it("answers a late upload of an older scan as stale and changes nothing", async () => {

@@ -10,7 +10,9 @@
 // version, else the first; with several a select in the filter line picks
 // one. "Verfügbar" is Bestand - Vorgemerkt - Reserve, computed by the server
 // (services/guildbank/stockView.js) — the request form uses the same number.
-// Reading takes "raids", every change "raids" write.
+// Reading takes "raids", every change "raids" write. Every offered item has a
+// waiting list (#775): the head counts who waits, each row says how many, the
+// "Warteliste" dialog keeps them (WaitlistDialog.tsx).
 import { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
@@ -27,12 +29,13 @@ import { usePersistedState } from "../../lib/ui/persistedState";
 import { formatDateTime, formatMoney } from "../../lib/format";
 import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { tParts, useT } from "../../i18n";
-import { BANK_TABS, REQUESTS_ICON, groupItems, groupNames, tabCounts } from "./bankView";
+import { BANK_TABS, REQUESTS_ICON, WAITLIST_ICON, groupItems, groupNames, tabCounts, waitingTotal } from "./bankView";
 import BankFilterLine from "./BankFilterLine";
 import BankList from "./BankList";
 import ItemSettingsDialog from "./ItemSettingsDialog";
 import BankTabsDialog from "./BankTabsDialog";
 import RequestsDialog from "./RequestsDialog";
+import WaitlistDialog from "./WaitlistDialog";
 import "../../styles/loot-council.css";
 import "../../styles/history-loot.css";
 import "../../styles/guildbank.css";
@@ -75,6 +78,7 @@ export default function GuildBankPage() {
     const [editing, setEditing] = useState<GuildBankItem | null>(null);
     const [bankTabsOpen, setBankTabsOpen] = useState(false);
     const [requestsOpen, setRequestsOpen] = useState(false);
+    const [waitlistOpen, setWaitlistOpen] = useState(false);
     const [busyItem, setBusyItem] = useState(0);
     const [busyTab, setBusyTab] = useState(0);
 
@@ -92,6 +96,7 @@ export default function GuildBankPage() {
 
     const counts = tabCounts(items);
     const hiddenTabs = bank.tabs.filter((x) => x.hidden).length;
+    const waiting = waitingTotal(items);
 
     const replaceItem = (item: GuildBankItem) => page.setData((d) => (d && d.bank
         ? { ...d, bank: { ...d.bank, items: d.bank.items.map((it) => (it.itemId === item.itemId ? item : it)) } }
@@ -144,11 +149,15 @@ export default function GuildBankPage() {
                         {bank.reservedRequests > 0 && (
                             <Badge tone="mid" tip={t("guildbank.page.reservedTip")}>{tParts("guildbank.page.reserved", { count: bank.reservedRequests })}</Badge>
                         )}
+                        {waiting > 0 && (
+                            <Badge tone="accent" tip={t("guildbank.page.waitingTip")}>{tParts("guildbank.page.waiting", { count: waiting })}</Badge>
+                        )}
                     </>
                 )}
                 action={(
                     <>
                         <Button variant="ghost" icon={REQUESTS_ICON} onClick={() => setRequestsOpen(true)}>{t("guildbank.requests.button")}</Button>
+                        <Button variant="ghost" icon={WAITLIST_ICON} onClick={() => setWaitlistOpen(true)}>{t("guildbank.waitlist.button")}</Button>
                         <Button variant="ghost" icon={<RowsIcon />} onClick={() => setBankTabsOpen(true)}>{t("guildbank.page.bankTabs")}</Button>
                     </>
                 )}
@@ -206,6 +215,15 @@ export default function GuildBankPage() {
                     bankKey={bank.key}
                     // the orga may have confirmed or handed out meanwhile: read the numbers again
                     onClose={() => { setRequestsOpen(false); void page.reload(); }}
+                />
+            )}
+            {waitlistOpen && (
+                <WaitlistDialog
+                    bankKey={bank.key}
+                    items={items}
+                    canWrite={canWrite}
+                    // entries may have moved up meanwhile: read the numbers again
+                    onClose={() => { setWaitlistOpen(false); void page.reload(); }}
                 />
             )}
             {bankTabsOpen && (

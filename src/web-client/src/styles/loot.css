@@ -341,7 +341,10 @@
 
 /* Caster oder Heiler auf einmal — dreizehn Specs einzeln wegzuklicken, um eine
    Hälfte zu sehen, ist keine Bedienung. */
-.lc-blgroups { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.lc-blgroups { max-width: 100%; margin-bottom: 16px; }
+.lc-blgroups .seg-opt { padding-left: 16px; padding-right: 16px; font-weight: 600; }
+.lc-blgroups .seg-opt.active { background: var(--accent); color: var(--on-fill); }
+@media (max-width: 640px) { .lc-blgroups { display: flex; flex-wrap: wrap; } }
 
 /* Die Schalter. Jede Spec einzeln zuschaltbar; der Punkt trägt den Zustand,
    denn die Farbe ist schon die Klassenfarbe und kann ihn nicht auch noch
@@ -366,7 +369,11 @@
 .lc-blspec:hover { background: var(--panel3); }
 .lc-blspec img { width: 20px; height: 20px; border-radius: 5px; }
 .lc-blmark { width: 9px; height: 9px; border-radius: 50%; background: var(--cc); flex: none; }
-.lc-blspec.off { opacity: .4; border-left-color: var(--line); }
+.lc-blspec:not(.off) { border-color: var(--cc); background: var(--panel3); }
+.lc-blspec:not(.off) .class-colored { filter: contrast(1.25); }
+.lc-blspec.off { color: var(--muted); background: transparent; border-style: dashed; border-left-style: solid; border-left-color: var(--line); }
+.lc-blspec.off img { opacity: .55; filter: grayscale(.6); }
+.lc-blspec.off .class-colored { color: var(--muted); }
 .lc-blspec.off .lc-blmark { background: transparent; border: 1px solid var(--line); }
 
 .lc-blfilters { display: flex; gap: 8px; flex-wrap: wrap; }

@@ -58,12 +58,44 @@ a.gb-name:hover { text-decoration: underline; }
 .gb-req-title { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
 .gb-req-sub { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
 
+/* ---- the waiting list (#775) ---- */
+.gb-waiting { margin-left: 8px; vertical-align: middle; }
+.gb-wl-views { margin-bottom: 14px; }
+.gb-wl-group { margin-bottom: 14px; }
+.gb-wl-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+.gb-wl-item { font-size: 15px; font-weight: 700; color: var(--text); flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.gb-wl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.gb-wl-row { display: flex; align-items: center; gap: 12px; padding: 7px 10px; border: 1px solid var(--line-soft); border-radius: 8px; }
+.gb-wl-row:first-child { border-color: var(--accent-soft); background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+.gb-wl-place {
+    display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 999px;
+    background: var(--panel2); border: 1px solid var(--line); font-family: var(--font-mono); font-weight: 700; color: var(--text);
+}
+.gb-wl-row .gb-req-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gb-wl-amount { font-size: 16px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.gb-wl-actions { display: flex; gap: 2px; }
+.gb-wl-submit { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.gb-wl-preview { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.gb-wl-prow { display: grid; grid-template-columns: 32px 1fr 1fr auto; gap: 10px; align-items: start; padding: 7px 10px; border-top: 1px solid var(--line-soft); font-size: 13.5px; }
+.gb-wl-prow:first-child { border-top: 0; }
+.gb-wl-line { font-family: var(--font-mono); color: var(--muted); text-align: right; }
+.gb-wl-bad { background: var(--high-bg); }
+.gb-wl-err { color: var(--high); }
+.gb-stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); background: var(--panel2); border-radius: var(--ctl-radius); overflow: hidden; }
+.gb-stepper button { display: grid; place-items: center; width: 38px; height: 38px; border: 0; background: transparent; color: var(--text); cursor: pointer; }
+.gb-stepper button:hover:not(:disabled) { background: var(--accent-soft); }
+.gb-stepper button:disabled { color: var(--muted); opacity: .5; cursor: not-allowed; }
+.gb-stepper button svg { width: 16px; height: 16px; }
+.gb-stepper b { min-width: 48px; text-align: center; font-size: 16px; }
+
 /* ---- no bank for this server ---- */
 .gb-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 24px; text-align: center; }
 .gb-empty h2 { margin: 6px 0 0; font-size: 18px; color: var(--text); }
 .gb-empty p { margin: 0; max-width: 60ch; }
 
 @media (max-width: 600px) {
+    .gb-wl-prow { grid-template-columns: 28px 1fr auto; }
+    .gb-wl-prow > .gb-req-text:nth-child(3) { grid-column: 2 / -1; }
     .gb-formula { margin-left: 0; flex-basis: 100%; }
     .gb-fields { grid-template-columns: 1fr; }
 }

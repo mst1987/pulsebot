@@ -81,6 +81,8 @@ export function BisListsTab({ view, patch, versionId = "" }: { view: View; patch
         [data, off],
     );
 
+    const noneOn = !!data && data.specs.every((s) => off.has(s.key));
+
     /** From a hit into the list: only this spec, the piece marked in its column. */
     const only = (specKey: string, itemId: number) => {
         if (!data) return;
@@ -172,7 +174,7 @@ export function BisListsTab({ view, patch, versionId = "" }: { view: View; patch
                     </div>
                 }
             >
-                <div className="lc-blgroups">
+                <div className="seg lc-blgroups" role="radiogroup" aria-label={t("lootcouncil.bisLists.groupLabel")}>
                     {LIST_GROUPS.map((group) => {
                         const inGroup = (key: string) => !group.id
                             || data.specs.find((s) => s.key === key)?.role === group.id;
@@ -181,7 +183,9 @@ export function BisListsTab({ view, patch, versionId = "" }: { view: View; patch
                             <button
                                 key={group.id || "all"}
                                 type="button"
-                                className={`lc-filter${active ? " active" : ""}`}
+                                role="radio"
+                                aria-checked={active}
+                                className={`seg-opt${active ? " active" : ""}`}
                                 onClick={() => patch({
                                     listOff: data.specs.filter((s) => !inGroup(s.key)).map((s) => s.key),
                                     listFocus: 0,
@@ -191,6 +195,15 @@ export function BisListsTab({ view, patch, versionId = "" }: { view: View; patch
                             </button>
                         );
                     })}
+                    <button
+                        type="button"
+                        role="radio"
+                        aria-checked={noneOn}
+                        className={`seg-opt${noneOn ? " active" : ""}`}
+                        onClick={() => patch({ listOff: data.specs.map((s) => s.key), listFocus: 0 })}
+                    >
+                        {t("lootcouncil.bisLists.none")}
+                    </button>
                 </div>
                 <div className="lc-blspecs">
                     {data.specs.map((spec) => (
@@ -204,7 +217,8 @@ export function BisListsTab({ view, patch, versionId = "" }: { view: View; patch
                                     ? view.listOff.filter((k) => k !== spec.key)
                                     : [...view.listOff, spec.key],
                             })}
-                            data-tip={spec.ownList ? t("lootcouncil.bisLists.ownList") : t("lootcouncil.bisLists.borrowsList")} aria-label={spec.ownList ? t("lootcouncil.bisLists.ownList") : t("lootcouncil.bisLists.borrowsList")}
+                            aria-pressed={!off.has(spec.key)}
+                            data-tip={spec.ownList ? undefined : t("lootcouncil.bisLists.borrowsList")}
                         >
                             <img src={spec.iconUrl} alt="" loading="lazy" />
                             <span className="class-colored">{specClassLabel(spec.key, spec.label)}</span>

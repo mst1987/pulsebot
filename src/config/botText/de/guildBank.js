@@ -40,4 +40,14 @@ module.exports = {
     "Handed out to {character}.": "An {character} ausgegeben.",
     "Sent by mail to {character}.": "Per Post an {character} geschickt.",
     "Sent by mail.": "Per Post geschickt.",
+    // the waiting list (#775)
+    "Waiting list: {count} ahead of you": "Warteliste: {count} vor dir",
+    "Others are waiting already – your request goes on the waiting list.": "Es warten schon andere – deine Anfrage kommt auf die Warteliste.",
+    "What is not available now goes on the waiting list – you get a DM when it is your turn.": "Was gerade nicht verfügbar ist, kommt auf die Warteliste – du bekommst eine DM, wenn du dran bist.",
+    "On the waiting list: {item} – you are no. {position}.": "Auf der Warteliste: {item} – du bist Nr. {position}.",
+    "On the waiting list: {item}.": "Auf der Warteliste: {item}.",
+    "You get a DM as soon as it is your turn.": "Du bekommst eine DM, sobald du dran bist.",
+    "Your turn on the waiting list": "Du bist dran",
+    "It is in the guild bank now – the orga will confirm it shortly.": "Der Gegenstand ist jetzt in der Gildenbank – die Orga bestätigt gleich.",
+    "{count} more stay on the waiting list for you – you are first in line.": "{count} weitere bleiben für dich auf der Warteliste – du bist als Nächstes dran.",
 };

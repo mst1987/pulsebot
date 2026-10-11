@@ -3,7 +3,8 @@
 // quality frame, the name as a Wowhead link, the bank tab under it), the
 // numbers, "Verfügbar" as a badge, the sorting as a three-icon switch and the
 // item's settings behind a small button. Numbers that only matter for a
-// requestable item (set aside, reserve, available) read "–" elsewhere.
+// requestable item (set aside, reserve, available) read "–" elsewhere. An
+// item somebody waits for says so under its name ("3 warten", #775).
 import { Fragment } from "react";
 import type { GuildBankItem, GuildBankStatus, GuildBankTab } from "../../api";
 import { Badge, IconButton, Segment } from "../../components/ui";
@@ -11,7 +12,7 @@ import { ItemIcon } from "../../components/loot/LootBadges";
 import { EyeIcon, EyeOffIcon, GiftIcon, SlidersIcon } from "../../components/ui/icons";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { wowheadItemUrl } from "../../lib/wow/wowheadItems";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { availableTone, itemName, tabLine, type ItemGroup } from "./bankView";
 
 type SettableStatus = Exclude<GuildBankStatus, "new">;
@@ -21,6 +22,7 @@ function Head({ label, tip }: { label: string; tip?: string }) {
 }
 
 function ItemCell({ item, tabs, wowheadPath }: { item: GuildBankItem; tabs: GuildBankTab[]; wowheadPath: string }) {
+    const t = useT();
     const name = itemName(item);
     const href = wowheadItemUrl(item.itemId, [], wowheadPath);
     const nameProps = itemQualityProps(item.quality, "hl-item-name gb-name");
@@ -31,7 +33,14 @@ function ItemCell({ item, tabs, wowheadPath }: { item: GuildBankItem; tabs: Guil
                 {href
                     ? <a {...nameProps} href={href} target="_blank" rel="noreferrer">{name}</a>
                     : <span {...nameProps}>{name}</span>}
-                <span className="hl-item-sub">{tabLine(item, tabs)}</span>
+                <span className="hl-item-sub">
+                    {tabLine(item, tabs)}
+                    {item.waiting > 0 && (
+                        <Badge size="sm" tone="accent" className="gb-waiting" tip={t("guildbank.list.waitingTip", { amount: item.waitingAmount })}>
+                            {tParts("guildbank.list.waiting", { count: item.waiting })}
+                        </Badge>
+                    )}
+                </span>
             </div>
         </div>
     );

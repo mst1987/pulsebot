@@ -33,6 +33,7 @@ const { queueLookups } = require("../../services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../services/guildbank/itemEmojis");
 const { GuildBankParseError } = require("../../utils/guildbank/guildBankScan");
 const { handoutList, reportHandouts, HandoutReportError } = require("../../services/guildbank/handouts");
+const { advanceWaitlist } = require("../../services/signups/guildBank");
 
 /** The token behind the request, or null after sending the 401. */
 function requireToken(req, res) {
@@ -386,6 +387,8 @@ async function ingestGuildBank(req, res) {
     if (lookups.length) queueLookups(bank.gameVersion, lookups);
     // items already on "give" get (or keep) their emoji (#633); the sync runs in the background
     if (status !== "stale" && bank.counts && bank.counts.give > 0) queueItemEmojiSync();
+    // new stock: the waiting list moves up (#775), cards and DMs in the background
+    if (status !== "stale") advanceWaitlist({ bankKey: bank.key }).catch(() => {});
 }
 
 /**

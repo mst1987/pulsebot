@@ -2,7 +2,7 @@
 // they are grouped and sorted, the tone of "Verfügbar" and the bank-tab line
 // under an item's name. The numbers themselves (reserved, available, group)
 // come from the server (src/services/guildbank/stockView.js).
-import type { GuildBankItem, GuildBankStatus, GuildBankTab } from "../../api";
+import type { GuildBankItem, GuildBankStatus, GuildBankTab, GuildBankWaitingEntry } from "../../api";
 import { locale, t } from "../../i18n";
 
 /** The page's tabs, in the order of the design: what raiders see first. */
@@ -85,6 +85,41 @@ export function tabLine(item: GuildBankItem, tabs: GuildBankTab[]): string {
 /** How many items lie in a bank tab, hidden or not (the tab dialog's count). */
 export function itemsInTab(items: GuildBankItem[], index: number): number {
     return items.filter((it) => Number((it.allTabs || {})[String(index)]) > 0).length;
+}
+
+/** The WoW icon of the "Warteliste" button and dialog (#775). */
+export const WAITLIST_ICON = "inv_misc_pocketwatch_01";
+
+/** How many waiting-list entries wait over the listed items (the head's "N warten"). */
+export function waitingTotal(items: GuildBankItem[]): number {
+    return listedItems(items).reduce((sum, it) => sum + (Number(it.waiting) || 0), 0);
+}
+
+export type WaitlistGroup = { itemId: number; item: string; iconUrl: string; entries: GuildBankWaitingEntry[] };
+
+/** The waiting list per item, items by name, each item's entries in their order (place 1 first). */
+export function groupWaitlist(entries: GuildBankWaitingEntry[]): WaitlistGroup[] {
+    const byItem = new Map<number, WaitlistGroup>();
+    for (const e of entries) {
+        const group = byItem.get(e.itemId) || { itemId: e.itemId, item: e.item, iconUrl: e.iconUrl, entries: [] };
+        group.entries.push(e);
+        byItem.set(e.itemId, group);
+    }
+    return [...byItem.values()]
+        .map((g) => ({ ...g, entries: [...g.entries].sort((a, b) => a.position - b.position) }))
+        .sort((a, b) => a.item.localeCompare(b.item, locale()) || a.itemId - b.itemId);
+}
+
+/** Who waits: the raider's name, else the character imported without a Discord account. */
+export function waitingName(entry: GuildBankWaitingEntry): string {
+    return entry.userName || entry.characterName || entry.userId;
+}
+
+/** The items an orga member may put on the waiting list: offered and not only in hidden tabs, by name. */
+export function waitlistItems(items: GuildBankItem[]): GuildBankItem[] {
+    return listedItems(items)
+        .filter((it) => it.status === "give")
+        .sort((a, b) => itemName(a).localeCompare(itemName(b), locale()) || a.itemId - b.itemId);
 }
 
 /** A whole number from 0 as typed, else null. */

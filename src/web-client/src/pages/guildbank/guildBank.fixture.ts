@@ -7,7 +7,7 @@ export function bankItem(over: Partial<GuildBankItem> = {}): GuildBankItem {
         status: "give", reserve: 0, maxPerRequest: 0, category: "", firstSeenAt: 1,
         name: "Bold Living Ruby", icon: "inv_jewelcrafting_livingruby_03", iconUrl: "https://example.test/ruby.jpg",
         quality: 3, classId: 3, subclassId: 0, className: "Gems", subclassName: "Red", metaSource: "wowhead",
-        reserved: 0, handedOut: 0, available: 10, emojiId: "", group: "Edelsteine", autoGroup: "Edelsteine",
+        reserved: 0, handedOut: 0, available: 10, open: 0, free: 10, waiting: 0, waitingAmount: 0, emojiId: "", group: "Edelsteine", autoGroup: "Edelsteine",
         ...over,
     };
 }
