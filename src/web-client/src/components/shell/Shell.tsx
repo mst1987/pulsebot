@@ -18,7 +18,7 @@ import { useApi } from "../../hooks/useApi";
 import { PageCrumbContext } from "../../hooks/usePageCrumb";
 import { deployLine } from "../../lib/app/deployVersion";
 import { pageAudience } from "../../lib/app/orgaArea";
-import { OrgaBar, OrgaDot } from "../ui/OrgaZone";
+import { OrgaChip, OrgaDot } from "../ui/OrgaZone";
 import { t as tr, tOr, useLang, useT } from "../../i18n";
 
 export type ShellContext = { user: SessionUser };
@@ -138,6 +138,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
 
     const tab = crumbTab(location.pathname);
     const label = tab ? menuLabel(tab) : t("shell.menu.home");
+    const orgaAudience = tab ? pageAudience(user, tab) : null;
     // a page that knows its own name (one roster) sets it (hooks/usePageCrumb.ts); it counts only on the path it was set for
     const [pageCrumb, setPageCrumb] = useState<{ path: string; label: string } | null>(null);
     const setCrumb = useCallback((next: string | null) => {
@@ -182,13 +183,15 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                     </div>
                 </aside>
                 <div className="main">
-                    <header className="topbar">
+                    <header className={orgaAudience ? "topbar is-orga" : "topbar"}>
                         <IconButton className="menu-toggle" icon={<BurgerIcon />} tip={t("shell.menuToggle")} onClick={() => setMenuOpen((o) => !o)} />
                         <div className="crumbs">
                             <Link to="/">{t("shell.crumb.menu")}</Link> <span className="crumb-sep">/</span>{" "}
                             {crumb && tab ? <Link to={tab.href}>{label}</Link> : <b>{label}</b>}
                             {crumb && <> <span className="crumb-sep">/</span> <b>{crumb}</b></>}
                         </div>
+                        {/* A page only the orga may open: the teal chip says so, and who sees it after all. */}
+                        {tab && <OrgaChip key={tab.id} user={user} audience={orgaAudience} />}
                         <div className="top-actions">
                             {/* A page without game content (menu.json `neutral`: Kanäle, Einstellungen,
                                 Systemstatus) shows no version state (#741); every other page follows it. */}
@@ -207,8 +210,6 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                     <div className="content" key={lang}>
                         {/* While an admin looks at the menu as a role: which one, and the way back. */}
                         <ViewAsBanner user={user} />
-                        {/* A page only the orga may open: the teal bar says so, and who sees it after all. */}
-                        {tab && <OrgaBar key={tab.id} user={user} audience={pageAudience(user, tab)} />}
                         {/* Every page is its own chunk (App.tsx, #436): while one loads,
                             the menu stays and only the page body shows the loader. A chunk
                             that cannot be loaded (after a deploy, #530) shows the reload
