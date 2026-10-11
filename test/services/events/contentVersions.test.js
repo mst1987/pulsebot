@@ -7,6 +7,7 @@ let mockLoot = [];
 let mockProfiles = [];
 let mockTemplates = [];
 let mockStored = [];
+let mockPlanners = {};
 
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/stores/settingsStore", () => ({
@@ -25,6 +26,10 @@ jest.mock("../../../src/stores/raidEventStore", () => ({
 jest.mock("../../../src/stores/lootStore", () => ({ listAll: () => mockLoot }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => mockProfiles }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: () => mockStored }));
+jest.mock("../../../src/stores/kaderStore", () => ({
+    plannerGuildKeys: () => Object.keys(mockPlanners),
+    readPlanner: (guildId) => mockPlanners[guildId],
+}));
 
 const {
     contentVersions, upcomingByVersion, archiveExport, archiveCsv, versionsWithData,
@@ -41,6 +46,7 @@ beforeEach(() => {
     mockProfiles = [];
     mockTemplates = [];
     mockStored = [];
+    mockPlanners = {};
 });
 
 describe("contentVersions", () => {
@@ -64,6 +70,15 @@ describe("contentVersions", () => {
         mockProfiles = [{ characters: [{ versionId: "classic" }] }];
         mockTemplates = [{ versionId: "tbc" }];
         expect([...versionsWithData(mockConfig)].sort()).toEqual(["classic", "tbc"]);
+    });
+
+    it("offers the version of a Kader, so the Kaderplaner stays reachable without other data of it", () => {
+        mockConfig = { mainVersion: "tbc" };
+        mockPlanners = { g1: { kaders: [{ id: "k1", versionId: "forever" }, { id: "k2" }] }, g2: { kaders: [] } };
+        expect(contentVersions().versions.map((v) => v.id)).toEqual(["tbc", "forever"]);
+        // a Kader stored before #741 has no version: it is the planner's own, Forever
+        mockPlanners = { g1: { kaders: [{ id: "k2" }] } };
+        expect(versionsWithData(mockConfig).has("forever")).toBe(true);
     });
 
     it("offers nothing but the main version while the others are hidden", () => {
