@@ -240,7 +240,13 @@
     "/api/guildbank": "raids",
     "/api/guildbank/item": "raids",
     "/api/guildbank/tab": "raids",
-    "/api/guildbank/requests": "raids"
+    "/api/guildbank/requests": "raids",
+    "/api/guildbank/waitlist": "raids",
+    "/api/guildbank/waitlist/add": "raids",
+    "/api/guildbank/waitlist/move": "raids",
+    "/api/guildbank/waitlist/remove": "raids",
+    "/api/guildbank/waitlist/preview": "raids",
+    "/api/guildbank/waitlist/import": "raids"
   },
   "ungated": [
     "/api/session",

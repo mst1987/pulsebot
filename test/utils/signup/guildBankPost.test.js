@@ -149,6 +149,33 @@ describe("utils/signup/guildBankPost", () => {
         expect(post.parseOrgaId(undefined)).toEqual({ action: "", id: "" });
     });
 
+    describe("the waiting list (#775)", () => {
+        const STOCK = { ...REQUEST, item: "Crimson Spinal", amount: 2, bankKey: "k", itemId: 32470, characterName: "Zibbo", realm: "Spineshatter" };
+
+        it("tells the raider their place, in their language", () => {
+            expect(post.waitingSummary(STOCK, 4, "de")).toBe("Auf der Warteliste: **2× Crimson Spinal** – du bist Nr. 4.\nDu bekommst eine DM, sobald du dran bist.");
+            expect(post.waitingSummary(STOCK, 0, "en")).toBe("On the waiting list: **2× Crimson Spinal**.\nYou get a DM as soon as it is your turn.");
+        });
+
+        it("DMs 'Your turn' with what still waits", () => {
+            const de = cardText(post.movedUpCard(STOCK, "de", { rest: 1 }));
+            expect(de).toContain("## Du bist dran");
+            expect(de).toContain("Der Gegenstand ist jetzt in der Gildenbank – die Orga bestätigt gleich.");
+            expect(de).toContain("1 weitere bleiben für dich auf der Warteliste");
+            expect(de).toContain("An: Zibbo-Spineshatter");
+            const en = cardText(post.movedUpCard({ ...STOCK, characterName: "" }, "en"));
+            expect(en).toContain("## Your turn on the waiting list");
+            expect(en).not.toContain("first in line");
+        });
+
+        it("marks a moved-up card and names a character without a Discord account", () => {
+            const card = post.orgaPayload({ ...STOCK, fromWaitlist: true, userId: "", characterName: "Alîna" }, { categoryName: "TBC Montag" });
+            expect(cardText(card)).toContain("**Alîna** · ohne Discord-Konto, keine DM");
+            expect(cardText(card)).toContain("-# TBC Montag · aus der Warteliste · offen");
+            expect(cardText(post.orgaPayload({ ...STOCK }))).not.toContain("aus der Warteliste");
+        });
+    });
+
     it("keeps typed text plain: no markdown, no mentions", () => {
         expect(post.plain("**@everyone** [x](y)")).toBe("\\*\\*@​everyone\\*\\* \\[x\\]\\(y\\)");
     });

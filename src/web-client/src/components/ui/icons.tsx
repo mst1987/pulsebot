@@ -241,6 +241,15 @@ export function ChevronDownIcon() {
     );
 }
 
+/** A chevron pointing up: one place forward (the guild bank's waiting list). */
+export function ChevronUpIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m6 15 6-6 6 6" />
+        </svg>
+    );
+}
+
 export function ChevronLeftIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { availableTone, groupItems, groupNames, itemName, itemsInTab, listedItems, tabCounts, tabLine, wholeNumber } from "./bankView";
+import {
+    availableTone, groupItems, groupNames, groupWaitlist, itemName, itemsInTab, listedItems, tabCounts, tabLine, waitingName, waitingTotal, waitlistItems, wholeNumber,
+} from "./bankView";
+import type { GuildBankWaitingEntry } from "../../api";
 import { bankData, bankItem } from "./guildBank.fixture";
 
 const items = () => bankData().bank!.items;
@@ -49,5 +52,31 @@ describe("guild bank page rules", () => {
 
     it("reads whole numbers from 0 only", () => {
         expect([wholeNumber(" 12 "), wholeNumber("0"), wholeNumber("-1"), wholeNumber("1.5"), wholeNumber("")]).toEqual([12, 0, null, null, null]);
+    });
+
+    describe("the waiting list (#775)", () => {
+        const entry = (over: Partial<GuildBankWaitingEntry>): GuildBankWaitingEntry => ({
+            id: "w", itemId: 1, item: "Ruby", iconUrl: "", amount: 1, userId: "u", userName: "Anna", characterName: "Zibbo",
+            realm: "", purpose: "", createdAt: 1, position: 1, addedByName: "", ...over,
+        });
+
+        it("counts who waits over the listed items only", () => {
+            const list = [bankItem({ itemId: 1, waiting: 2 }), bankItem({ itemId: 2, waiting: 1 }), bankItem({ itemId: 3, waiting: 5, tabHidden: true })];
+            expect(waitingTotal(list)).toBe(3);
+            expect(waitingTotal([])).toBe(0);
+        });
+
+        it("groups the entries per item, items by name, places in order", () => {
+            const groups = groupWaitlist([
+                entry({ id: "a", itemId: 2, item: "Spinal", position: 2 }), entry({ id: "b", itemId: 2, item: "Spinal", position: 1 }), entry({ id: "c", itemId: 1, item: "Pyrestone" }),
+            ]);
+            expect(groups.map((g) => [g.item, g.entries.map((e) => e.id)])).toEqual([["Pyrestone", ["c"]], ["Spinal", ["b", "a"]]]);
+        });
+
+        it("names the raider, else the character, and offers only the items on 'give'", () => {
+            expect(waitingName(entry({}))).toBe("Anna");
+            expect(waitingName(entry({ userName: "", userId: "" }))).toBe("Zibbo");
+            expect(waitlistItems(items()).map((i) => i.itemId)).toEqual([1, 3, 2]);
+        });
     });
 });

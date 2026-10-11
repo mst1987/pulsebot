@@ -101,14 +101,18 @@ describe("services/signups/guildBank — requests from the stock", () => {
         expect((await ask()).request).toMatchObject({ characterName: "", realm: "Spineshatter" });
     });
 
-    it("checks the item, the amount, maxPerRequest and what is left", async () => {
+    it("checks the item, the amount and maxPerRequest; more than is left goes on the waiting list", async () => {
         expect(await ask({ itemId: FLASK })).toEqual({ error: guildBank.NOT_OFFERED });
         expect(await ask({ itemId: 1 })).toEqual({ error: guildBank.NOT_OFFERED });
         expect(await ask({ bankKey: "" })).toEqual({ error: guildBank.NOT_OFFERED });
         expect(await ask({ amount: "0" })).toEqual({ error: "Die Menge muss eine ganze Zahl von 1 bis 9999 sein." });
         expect(await ask({ amount: "6" })).toEqual({ error: "Höchstens 5 pro Anfrage." });
         stockStore.setItemSettings(KEY, RUBY, { maxPerRequest: 0, reserve: 10 });
-        expect(await ask({ amount: "5" })).toEqual({ error: "Nur noch 4 verfügbar." });
+        const split = await ask({ amount: "5" });
+        expect(split.request).toMatchObject({ amount: 4, status: "open" });
+        expect(split.waiting).toMatchObject({ amount: 1, status: "waiting" });
+        expect(split.position).toBe(1);
+        discord.postPayload.mockClear();
         settingsStore.getConfig.mockReturnValue({ discordServers: {} });
         expect(await ask()).toEqual({ error: guildBank.NOT_SET_UP });
         expect(discord.postPayload).not.toHaveBeenCalled();
@@ -135,16 +139,16 @@ describe("services/signups/guildBank — requests from the stock", () => {
         expect(cardText(discord.sendDirectMessage.mock.calls[0][1])).toContain("## Anfrage bestätigt");
     });
 
-    it("confirm checks again: someone may have taken it meanwhile", async () => {
+    it("confirm checks again: the stock may have shrunk meanwhile", async () => {
         const first = (await ask({ amount: "5" })).request;
-        const second = (await ask({ amount: "5" })).request;
         const third = (await ask({ amount: "5" })).request;
+        // the orga keeps more back now: 14 - 6 = 8 left for two open requests of 5
+        stockStore.setItemSettings(KEY, RUBY, { reserve: 6 });
         await guildBank.confirmRequest(first.id, { byName: "A" });
-        await guildBank.confirmRequest(second.id, { byName: "B" });
         discord.editPayload.mockClear();
         discord.sendDirectMessage.mockClear();
         const late = await guildBank.confirmRequest(third.id, { byName: "C" });
-        expect(late).toMatchObject({ error: "Nicht genug verfügbar: noch 2, angefragt 5.", available: 2, request: { id: third.id } });
+        expect(late).toMatchObject({ error: "Nicht genug verfügbar: noch 3, angefragt 5.", available: 3, request: { id: third.id } });
         expect(store.getRequest(third.id).status).toBe("open");
         expect(discord.editPayload).toHaveBeenCalledTimes(1);
         expect(discord.sendDirectMessage).not.toHaveBeenCalled();

@@ -3,7 +3,7 @@
 // fixtures here write them straight into the store's file.
 const fs = require("fs");
 const store = require("../../../src/stores/guildBankStore");
-const { reservedByItem, handedOutSince, reservedRequestCount } = require("../../../src/services/guildbank/reservations");
+const { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount } = require("../../../src/services/guildbank/reservations");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 const FILE = tempStoreFile("guild-bank.json");
@@ -16,6 +16,16 @@ beforeAll(() => store.useFile(FILE));
 afterAll(() => store.useFile(null));
 
 describe("services/guildbank/reservations", () => {
+    it("sums the open requests and counts the waiting list per item of this bank (#775)", () => {
+        write([
+            request({ status: "open", amount: 2 }), request({ status: "open", amount: 3 }), request({ status: "confirmed", amount: 9 }),
+            request({ status: "waiting", amount: 4, queueRank: 1 }), request({ status: "waiting", amount: 1, queueRank: 2, userId: "", characterName: "Whapap" }),
+            request({ status: "open", amount: 7, bankKey: "other" }), request({ status: "open", itemId: 0 }),
+        ]);
+        expect(pendingByItem(KEY)).toEqual({ open: { 22854: 5 }, waiting: { 22854: 2 }, waitingAmount: { 22854: 5 } });
+        expect(pendingByItem("")).toEqual({ open: {}, waiting: {}, waitingAmount: {} });
+    });
+
     it("is empty without requests, without a key and for free-text requests", () => {
         write([]);
         expect(reservedByItem(KEY)).toEqual({});
