@@ -120,19 +120,34 @@ describe("services/signups/guildBank — waiting list", () => {
         expect(discord.postPayload).not.toHaveBeenCalled();
     });
 
-    it("an entry imported without a Discord account moves up with a card and no DM", async () => {
+    it("an entry imported without a Discord account moves up unlinked: no DM, no confirming until the orga links it", async () => {
         waitlist.importLines(KEY, "Whapap\tCrimson Spinal\t1", { by: "o1", byName: "Orga" });
         scan(1);
         await guildBank.advanceWaitlist({ bankKey: KEY });
         const card = discord.postPayload.mock.calls[0][1];
         expect(cardText(card)).toContain("**Whapap** · ohne Discord-Konto, keine DM");
+        expect(cardText(card)).toContain("Kein verknüpfter Charakter");
+        expect(cardButtons(card).find((b) => b.label === "Bestätigen").disabled).toBe(true);
         expect(discord.sendDirectMessage).not.toHaveBeenCalled();
         const open = store.listRequests({ status: "open" })[0];
         expect(open).toMatchObject({ userId: "", characterName: "Whapap", fromWaitlist: true });
-        // the orga handles it like any other: confirm without a DM
+        // confirming is refused (the addon would mail to a name nobody plays), the card is drawn again
+        discord.editPayload.mockClear();
+        const refused = await guildBank.confirmRequest(open.id, { by: "o1", byName: "Arthas" });
+        expect(refused).toMatchObject({ error: guildBank.NOT_LINKED, notLinked: true, request: { id: open.id } });
+        expect(store.getRequest(open.id).status).toBe("open");
+        expect(discord.editPayload).toHaveBeenCalledTimes(1);
+        // the orga links the raider's character in the web: card redrawn, confirming works, the raider gets the DM
+        profiles.addCharacter("u7", { name: "Whapap", className: "Mage", realm: "Spineshatter", specs: [{ key: "Mage-Frost", gear: "ready" }] }, { name: "Wha" });
+        discord.editPayload.mockClear();
+        const linked = await guildBank.linkRequest(open.id, { bankKey: KEY, userId: "u7", characterKey: "whapap" });
+        expect(linked.request).toMatchObject({ userId: "u7", userName: "Wha", characterName: "Whapap", realm: "Spineshatter", linked: true });
+        const redrawn = discord.editPayload.mock.calls[0][2];
+        expect(cardText(redrawn)).not.toContain("Kein verknüpfter Charakter");
+        expect(cardButtons(redrawn).find((b) => b.label === "Bestätigen").disabled).toBeFalsy();
         const confirmed = await guildBank.confirmRequest(open.id, { by: "o1", byName: "Arthas" });
-        expect(confirmed).toMatchObject({ request: { status: "confirmed" }, dm: false });
-        expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+        expect(confirmed).toMatchObject({ request: { status: "confirmed" }, dm: true });
+        expect(discord.sendDirectMessage.mock.calls[0][0]).toBe("u7");
     });
 
     it("posts a moved-up card again on the next run when the channel was not reachable", async () => {

@@ -3,7 +3,7 @@
 // fixtures here write them straight into the store's file.
 const fs = require("fs");
 const store = require("../../../src/stores/guildBankStore");
-const { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount } = require("../../../src/services/guildbank/reservations");
+const { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount, handedOutRequestCount } = require("../../../src/services/guildbank/reservations");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 const FILE = tempStoreFile("guild-bank.json");
@@ -74,5 +74,19 @@ describe("services/guildbank/reservations", () => {
         ]);
         expect(store.prune({ now })).toBe(1);
         expect(reservedByItem(KEY)).toEqual({ 22854: 3 });
+    });
+});
+
+describe("services/guildbank/reservations — handedOutRequestCount", () => {
+    it("counts the bank's handed-out requests from the stock that are still kept", () => {
+        write([
+            request({ status: "handedOut" }),
+            request({ status: "handedOut" }),
+            request({ status: "handedOut", itemId: 0 }),
+            request({ status: "handedOut", bankKey: "other" }),
+            request({ status: "confirmed" }),
+        ]);
+        expect(handedOutRequestCount(KEY)).toBe(2);
+        expect(handedOutRequestCount("")).toBe(0);
     });
 });

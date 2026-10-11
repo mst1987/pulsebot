@@ -180,3 +180,28 @@ describe("utils/signup/guildBankPost", () => {
         expect(post.plain("**@everyone** [x](y)")).toBe("\\*\\*@​everyone\\*\\* \\[x\\]\\(y\\)");
     });
 });
+
+describe("utils/signup/guildBankPost — a request without a linked character", () => {
+    const UNLINKED = {
+        ...REQUEST, item: "Crimson Spinel", amount: 1, bankKey: "tbc:x:y", itemId: 32227, userId: "", characterName: "Whapap", realm: "Spineshatter",
+    };
+
+    it("open: the warning in the text and Bestätigen disabled, Ablehnen stays", () => {
+        const payload = post.orgaPayload(UNLINKED, { linked: false });
+        expect(cardText(payload)).toContain(post.NOT_LINKED_LINE);
+        expect(cardButtons(payload).map((b) => [b.label, !!b.disabled])).toEqual([["Bestätigen", true], ["Ablehnen …", false]]);
+    });
+
+    it("confirmed (from before the rule): the warning, the buttons stay; handed out: no warning", () => {
+        const confirmed = post.orgaPayload({ ...UNLINKED, status: "confirmed", handledByName: "Arthas" }, { linked: false });
+        expect(cardText(confirmed)).toContain("Kein verknüpfter Charakter");
+        expect(cardButtons(confirmed).map((b) => b.label)).toEqual(["Ausgegeben", "Vormerkung lösen"]);
+        expect(cardText(post.orgaPayload({ ...UNLINKED, status: "handedOut" }, { linked: false }))).not.toContain("Kein verknüpfter Charakter");
+    });
+
+    it("a free-text request knows no link: no warning, Erledigt enabled", () => {
+        const payload = post.orgaPayload({ ...REQUEST }, { linked: false });
+        expect(cardText(payload)).not.toContain("Kein verknüpfter Charakter");
+        expect(cardButtons(payload).every((b) => !b.disabled)).toBe(true);
+    });
+});

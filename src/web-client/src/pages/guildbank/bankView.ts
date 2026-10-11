@@ -2,12 +2,21 @@
 // they are grouped and sorted, the tone of "Verfügbar" and the bank-tab line
 // under an item's name. The numbers themselves (reserved, available, group)
 // come from the server (src/services/guildbank/stockView.js).
-import type { GuildBankItem, GuildBankStatus, GuildBankTab, GuildBankWaitingEntry } from "../../api";
+import type { GuildBankHandedOut, GuildBankItem, GuildBankStatus, GuildBankTab, GuildBankWaitingEntry } from "../../api";
 import { locale, t } from "../../i18n";
+import { formatWith, isoDay } from "../../lib/format";
 
-/** The page's tabs, in the order of the design: what raiders see first; "wait" is the waiting list (#775), no item status. */
-export type PageTab = GuildBankStatus | "wait";
-export const BANK_TABS: PageTab[] = ["give", "wait", "show", "hide", "new"];
+/**
+ * The page's tabs, in the order of the design: what raiders see first; "wait"
+ * is the waiting list (#775) and "out" what was handed out — no item status.
+ */
+export type PageTab = GuildBankStatus | "wait" | "out";
+export const BANK_TABS: PageTab[] = ["give", "wait", "out", "show", "hide", "new"];
+
+/** The item status whose items a tab lists ("wait" and "out" filter by the offered ones). */
+export function itemTabOf(tab: PageTab): GuildBankStatus {
+    return tab === "wait" || tab === "out" ? "give" : tab;
+}
 
 /** A stored tab id that is none of the page's tabs falls back to the first. */
 export function isPageTab(value: string): value is PageTab {
@@ -147,6 +156,50 @@ export function waitlistItems(items: GuildBankItem[]): GuildBankItem[] {
     return listedItems(items)
         .filter((it) => it.status === "give")
         .sort((a, b) => itemName(a).localeCompare(itemName(b), locale()) || a.itemId - b.itemId);
+}
+
+/** Who receives it in game: "Name-Realm" (the realm without spaces), the name alone without a realm, "" without a name. */
+export function recipientName(entry: { characterName: string; realm: string }): string {
+    if (!entry.characterName) return "";
+    return entry.realm ? `${entry.characterName}-${entry.realm.replace(/\s+/g, "")}` : entry.characterName;
+}
+
+/** The handed-out requests the filter line lets through: the item's category and a search in the item, the character or the raider. */
+export function filterHandedOut(
+    list: GuildBankHandedOut[],
+    items: Map<number, GuildBankItem>,
+    filter: { category: string; search: string },
+): GuildBankHandedOut[] {
+    const needle = filter.search.trim().toLocaleLowerCase(locale());
+    return list.filter((r) => {
+        const item = items.get(r.itemId);
+        if (filter.category && (!item || groupName(item) !== filter.category)) return false;
+        if (!needle) return true;
+        return [r.item, r.characterName, r.userName].some((s) => (s || "").toLocaleLowerCase(locale()).includes(needle));
+    });
+}
+
+export type HandedOutDay = { day: string; at: number; requests: GuildBankHandedOut[] };
+
+/** The handed-out requests per day (the guild's time zone), newest first (or oldest first), each day's in the same order. */
+export function groupHandedOutByDay(list: GuildBankHandedOut[], { newestFirst = true }: { newestFirst?: boolean } = {}): HandedOutDay[] {
+    const sorted = [...list].sort((a, b) => (newestFirst ? b.handedOutAt - a.handedOutAt : a.handedOutAt - b.handedOutAt));
+    const days: HandedOutDay[] = [];
+    for (const r of sorted) {
+        const day = isoDay(r.handedOutAt);
+        const last = days[days.length - 1];
+        if (last && last.day === day) last.requests.push(r);
+        else days.push({ day, at: r.handedOutAt, requests: [r] });
+    }
+    return days;
+}
+
+/** "Heute", "Gestern" or the weekday with its date, for a day group's head. */
+export function dayLabel(at: number, now: number = Date.now()): string {
+    const day = isoDay(at);
+    if (day === isoDay(now)) return t("guildbank.handedOut.today");
+    if (day === isoDay(now - 24 * 60 * 60 * 1000)) return t("guildbank.handedOut.yesterday");
+    return formatWith(at, { weekday: "long", day: "numeric", month: "long" });
 }
 
 /** A whole number from 0 as typed, else null. */

@@ -17,7 +17,7 @@
 //              (config/itemClassLabels.js), while the item names are English —
 //              "" when Wowhead has not answered yet; autoGroup = Wowhead's alone
 const stockStore = require("../../stores/guildBankStockStore");
-const { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount } = require("./reservations");
+const { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount, handedOutRequestCount } = require("./reservations");
 const { wowheadPathFor } = require("./itemMeta");
 const { featureOn } = require("../events/versionCapabilities");
 const { rulesFor } = require("../../config/gameVersions");
@@ -130,6 +130,7 @@ function stockForServer(guildId, { key = "", versionId = "" } = {}) {
         // the item links: only while Wowhead links are on for the bank's version (#761)
         wowheadPath: featureOn(chosen.gameVersion, "wowheadLinks") ? wowheadPathFor(chosen.gameVersion) : "",
         reservedRequests: reservedRequestCount(chosen.key),
+        handedOutRequests: handedOutRequestCount(chosen.key),
         items: chosen.items.map((it) => withAvailability(it, reserved, hidden, out, pending)),
     };
     return { banks: all.map(summary), bank };

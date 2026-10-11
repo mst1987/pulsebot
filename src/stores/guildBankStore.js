@@ -5,7 +5,8 @@
 // `data/settings/guild-bank.json` = { requests: [request] }
 //
 //   request = { id, userId (""  only for a waiting-list entry the orga imported
-//               by character name, and the request it moves up to), userName,
+//               by character name, and the request it moves up to — until the
+//               orga links a profile character, setRecipient), userName,
 //               categoryId (the organizer it came from),
 //               item, amount (1–9999), purpose, status: "waiting" | "open" |
 //               "done" | "rejected" | "confirmed" | "handedOut", reason (why it
@@ -300,6 +301,24 @@ function removeWaiting(id) {
     return hit && hit.status === "waiting" ? removeRequest(hit.id) : null;
 }
 
+/**
+ * Give a pending request (waiting, open or confirmed) a new recipient: the
+ * raider and the character the orga linked it to in the web
+ * (services/guildbank/linking.js). Handled requests keep theirs. Returns
+ * `{ request }` or `{ error }` (German).
+ */
+function setRecipient(id, { userId = "", userName = "", characterName = "", realm = "" } = {}) {
+    const name = str(characterName).slice(0, CHARACTER_MAX);
+    if (!str(userId) || !name) return { error: "Kein Raider und kein Charakter." };
+    const data = store.read();
+    const hit = data.requests.find((r) => r.id === str(id));
+    if (!hit) return { error: "Anfrage nicht gefunden." };
+    if (!PENDING_STATUSES.includes(hit.status || "open")) return { error: "Diese Anfrage ist schon erledigt.", request: complete(hit) };
+    Object.assign(hit, { userId: str(userId), userName: str(userName) || name, characterName: name, realm: str(realm).slice(0, 60) });
+    store.write(data);
+    return { request: complete(hit) };
+}
+
 /** Remember where the orga post of a request is. Returns the request or null. */
 function setMessage(id, { channelId = "", messageId = "" } = {}) {
     const data = store.read();
@@ -429,7 +448,7 @@ function renamePendingItem({ bankKeys = [], itemId = 0, name = "" } = {}) {
 
 module.exports = {
     STATUSES, PENDING_STATUSES, HANDOUT_VIAS, ITEM_MAX, PURPOSE_MAX, REASON_MAX, AMOUNT_MIN, AMOUNT_MAX, MAX_OPEN, MAX_WAITING, KEEP_DAYS,
-    parseAmount, checkInput, listRequests, getRequest, addRequest, setMessage, resolveRequest,
+    parseAmount, checkInput, listRequests, getRequest, addRequest, setMessage, setRecipient, resolveRequest,
     confirmRequest, releaseRequest, handOutRequest, removeRequest, prune, renamePendingItem,
     openCount, waitingCount, waitingQueue, addWaiting, promoteWaiting, moveWaiting, removeWaiting,
     useFile,

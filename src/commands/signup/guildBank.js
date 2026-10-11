@@ -3,7 +3,9 @@
 //
 //   guildbank:done:<id>      "Erledigt" (free-text request) — resolves at once, the raider gets a DM
 //   guildbank:confirm:<id>   "Bestätigen" (request from the stock) — sets the amount aside after
-//                            checking "Verfügbar" again, the raider gets a DM
+//                            checking "Verfügbar" again, the raider gets a DM; only with a linked
+//                            character (services/guildbank/linking.js), else "Erst einen Charakter
+//                            verknüpfen – im Web unter Gildenbank."
 //   guildbank:handout:<id>   "Ausgegeben" — a confirmed request was handed out in game, DM
 //   guildbank:release:<id>   "Vormerkung lösen" — a confirmed request is open again, no DM
 //   guildbank:reject:<id>    "Ablehnen …" — opens the decline modal
@@ -61,9 +63,11 @@ function doneCard(result, dm) {
     });
 }
 
-/** A refused step: gone, handled before, or not enough left. */
+/** A refused step: gone, handled before, no linked character, or not enough left. */
 function refusedCard(result) {
     if (!result.request) return card({ kind: "warn", title: GONE });
+    // the addon would mail to a name nobody plays: the orga links a profile character first
+    if (result.notLinked) return card({ kind: "warn", title: "Kein verknüpfter Charakter", text: result.error });
     if (result.available !== undefined) return card({ kind: "warn", title: "Nicht genug verfügbar", text: result.error });
     return card({ kind: "warn", title: result.error });
 }

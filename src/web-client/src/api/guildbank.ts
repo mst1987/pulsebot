@@ -85,6 +85,8 @@ export type GuildBank = {
     wowheadPath: string;
     /** Confirmed requests waiting for the hand-out in game. */
     reservedRequests: number;
+    /** Handed-out requests still kept (90 days) — the "Ausgegeben" tab's count. */
+    handedOutRequests: number;
     items: GuildBankItem[];
 };
 
@@ -129,6 +131,8 @@ export type GuildBankRequest = {
     /** Who confirmed it. */
     handledByName: string;
     handledAt: number;
+    /** The recipient is a character of the raider's profile: only then may the orga confirm it, only then does the addon mail it. */
+    linked: boolean;
 };
 
 /** The bank's open and confirmed requests (the "Anfragen" dialog), open first. */
@@ -153,6 +157,8 @@ export type GuildBankWaitingEntry = {
     position: number;
     /** The orga member who added or imported it ("" = the raider in Discord). */
     addedByName: string;
+    /** Its character is a character of the raider's profile (else it cannot be confirmed when it moves up). */
+    linked: boolean;
 };
 
 export type GuildBankWaitlist = { entries: GuildBankWaitingEntry[] };
@@ -162,8 +168,11 @@ export function getGuildBankWaitlist(key: string): Promise<GuildBankWaitlist> {
     return get<GuildBankWaitlist>(`/api/guildbank/waitlist?key=${encodeURIComponent(key)}`);
 }
 
-/** Add an entry at the end of an item's list: a name (matched to a raider's character, else the character alone). */
-export function addGuildBankWaiting(key: string, entry: { name: string; itemId: number; amount: number }): Promise<GuildBankWaitlist & { added: number }> {
+/** Add an entry at the end of an item's list: a name (matched to a raider's character, else the character alone) or a picked profile character. */
+export function addGuildBankWaiting(
+    key: string,
+    entry: { name: string; itemId: number; amount: number; userId?: string; characterKey?: string },
+): Promise<GuildBankWaitlist & { added: number }> {
     return send<GuildBankWaitlist & { added: number }>("POST", "/api/guildbank/waitlist/add", { key, ...entry });
 }
 
@@ -201,24 +210,93 @@ export type GuildBankImportRow = {
     item: { itemId: number; name: string; iconUrl: string } | null;
     /** Unknown or not offered (German). */
     itemError: string;
-    /** The raider the name belongs to; null = imported as the character alone. */
-    match: { userId: string; userName: string; characterName: string; realm: string } | null;
+    /** The raider the name belongs to (or the orga picked); null = imported as the character alone, not linked. */
+    match: { userId: string; userName: string; characterName: string; realm: string; characterKey?: string; className?: string } | null;
     /** Characters of several raiders carry the name. */
     ambiguous: boolean;
+    /** The raiders' characters of that name when it is ambiguous — one of them can be picked. */
+    candidates?: { userId: string; userName: string; characterKey: string; characterName: string; realm: string; className: string }[];
+    /** The row lands linked to a profile character. */
+    linked?: boolean;
+    /** The orga picked the character (`links`). */
+    picked?: boolean;
     /** Will be imported. */
     ok: boolean;
     /** The item was found despite a typo in its name: `item` is the real one. */
     fuzzy?: boolean;
 };
 
+/** The orga's pick for an import line: line number → profile character. */
+export type GuildBankImportLinks = Record<number, { userId: string; characterKey: string }>;
+
 /** What pasted lines would import (nothing stored). */
-export function previewGuildBankWaitlist(key: string, text: string): Promise<{ rows: GuildBankImportRow[] }> {
-    return send<{ rows: GuildBankImportRow[] }>("POST", "/api/guildbank/waitlist/preview", { key, text });
+export function previewGuildBankWaitlist(key: string, text: string, links: GuildBankImportLinks = {}): Promise<{ rows: GuildBankImportRow[] }> {
+    return send<{ rows: GuildBankImportRow[] }>("POST", "/api/guildbank/waitlist/preview", { key, text, links });
 }
 
-/** Import pasted lines ("Name<Tab>Item<Tab>Anzahl"): the readable ones at the end of their lists, in order. */
-export function importGuildBankWaitlist(key: string, text: string): Promise<GuildBankWaitlist & { added: number; skipped: number }> {
-    return send<GuildBankWaitlist & { added: number; skipped: number }>("POST", "/api/guildbank/waitlist/import", { key, text });
+/** Import pasted lines ("Name<Tab>Item<Tab>Anzahl"): the readable ones at the end of their lists, in order, linked to the picks. */
+export function importGuildBankWaitlist(
+    key: string,
+    text: string,
+    links: GuildBankImportLinks = {},
+): Promise<GuildBankWaitlist & { added: number; skipped: number; unlinked?: number }> {
+    return send<GuildBankWaitlist & { added: number; skipped: number; unlinked?: number }>("POST", "/api/guildbank/waitlist/import", { key, text, links });
+}
+
+/** A raider profile's character the link dialog offers. */
+export type GuildBankCharacterChoice = {
+    userId: string;
+    /** The raider's name in the profile. */
+    userName: string;
+    characterKey: string;
+    characterName: string;
+    realm: string;
+    className: string;
+    versionId: string;
+    /** Of the bank's game version. */
+    ownVersion: boolean;
+    /** WoW icon name: the first spec's, else the class's. */
+    icon: string;
+    classColor: string;
+    specKey: string;
+};
+
+/** The profile characters to link a request to, the bank's version first (`q`: character or raider name). */
+export function searchGuildBankCharacters(key: string, q: string): Promise<{ characters: GuildBankCharacterChoice[] }> {
+    return get<{ characters: GuildBankCharacterChoice[] }>(`/api/guildbank/characters?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}`);
+}
+
+/** Link a waiting, open or confirmed request to a profile character: it becomes the raider and the recipient. */
+export function linkGuildBankRequest(key: string, id: string, pick: { userId: string; characterKey: string }): Promise<{ request: GuildBankRequest }> {
+    return send<{ request: GuildBankRequest }>("POST", "/api/guildbank/request/link", { key, id, ...pick });
+}
+
+/** How a request was handed out: the orga's button in Discord, ticked off in game, or mailed from the mailbox (addon). */
+export type GuildBankHandoutVia = "" | "discord" | "manual" | "mail";
+
+/** A handed-out request of the bank (the "Ausgegeben" tab). */
+export type GuildBankHandedOut = {
+    id: string;
+    itemId: number;
+    item: string;
+    iconUrl: string;
+    amount: number;
+    userId: string;
+    userName: string;
+    characterName: string;
+    realm: string;
+    purpose: string;
+    createdAt: number;
+    confirmedByName: string;
+    handedOutAt: number;
+    handedOutByName: string;
+    handoutVia: GuildBankHandoutVia;
+    fromWaitlist: boolean;
+};
+
+/** The bank's handed-out requests (kept 90 days), newest first. */
+export function getGuildBankHandedOut(key: string): Promise<{ requests: GuildBankHandedOut[] }> {
+    return get<{ requests: GuildBankHandedOut[] }>(`/api/guildbank/handedout?key=${encodeURIComponent(key)}`);
 }
 
 /** An event server a bank can be assigned to. */

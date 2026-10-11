@@ -250,3 +250,30 @@ describe("stores/guildBankStore", () => {
         });
     });
 });
+
+describe("stores/guildBankStore — setRecipient (linking a character)", () => {
+    beforeEach(() => {
+        for (const r of store.listRequests()) store.removeRequest(r.id);
+    });
+
+    it("gives a waiting, open or confirmed request a new raider and character", () => {
+        const waiting = store.addWaiting({ characterName: "Whapap", item: "Spinel", amount: 1, bankKey: "k", itemId: 5, addedBy: "o1" }).request;
+        expect(waiting).toMatchObject({ userId: "", userName: "Whapap" });
+        const linked = store.setRecipient(waiting.id, { userId: "u7", userName: "Wha", characterName: "Whapâp", realm: "Spineshatter" });
+        expect(linked.request).toMatchObject({ userId: "u7", userName: "Wha", characterName: "Whapâp", realm: "Spineshatter", status: "waiting" });
+        const open = add({ bankKey: "k", itemId: 5, characterName: "" }).request;
+        expect(store.setRecipient(open.id, { userId: "u1", characterName: "Zibbo" }).request).toMatchObject({ userName: "Zibbo", characterName: "Zibbo" });
+        store.confirmRequest(open.id, {});
+        expect(store.setRecipient(open.id, { userId: "u2", userName: "Bert", characterName: "Bertie" }).request).toMatchObject({ status: "confirmed", userId: "u2" });
+    });
+
+    it("refuses a handled request, an unknown one and an empty pick", () => {
+        const r = add({ bankKey: "k", itemId: 5 }).request;
+        store.confirmRequest(r.id, {});
+        store.handOutRequest(r.id, {});
+        expect(store.setRecipient(r.id, { userId: "u2", characterName: "X" })).toMatchObject({ error: "Diese Anfrage ist schon erledigt.", request: { userId: "u1" } });
+        expect(store.setRecipient("nope", { userId: "u2", characterName: "X" })).toEqual({ error: "Anfrage nicht gefunden." });
+        expect(store.setRecipient(r.id, { userId: "", characterName: "X" })).toEqual({ error: "Kein Raider und kein Charakter." });
+        expect(store.setRecipient(r.id, { userId: "u2", characterName: " " })).toEqual({ error: "Kein Raider und kein Charakter." });
+    });
+});

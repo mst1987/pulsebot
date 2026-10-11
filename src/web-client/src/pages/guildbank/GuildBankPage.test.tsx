@@ -17,6 +17,8 @@ vi.mock("../../api", async (orig) => ({
     setGuildBankItem: vi.fn(),
     setGuildBankTabHidden: vi.fn(),
     getGuildBankRequests: vi.fn(),
+    searchGuildBankCharacters: vi.fn(),
+    linkGuildBankRequest: vi.fn(),
 }));
 
 const KEY = "tbc:spineshatter:die gilde";
@@ -121,12 +123,12 @@ describe("guild bank page", () => {
             requests: [
                 {
                     id: "r2", itemId: 2, item: "Smooth Dawnstone", iconUrl: "", amount: 1, userId: "u2", userName: "Bo", characterName: "",
-                    realm: "", purpose: "", status: "open", createdAt: Date.UTC(2026, 9, 6, 18), handledByName: "", handledAt: 0,
+                    realm: "", purpose: "", status: "open", createdAt: Date.UTC(2026, 9, 6, 18), handledByName: "", handledAt: 0, linked: false,
                 },
                 {
                     id: "r1", itemId: 1, item: "Bold Living Ruby", iconUrl: "https://example.test/ruby.jpg", amount: 2, userId: "u1",
                     userName: "Anna", characterName: "Zibbo", realm: "Spine Shatter", purpose: "Gruul", status: "confirmed",
-                    createdAt: Date.UTC(2026, 9, 6, 17), handledByName: "Arthas", handledAt: 1,
+                    createdAt: Date.UTC(2026, 9, 6, 17), handledByName: "Arthas", handledAt: 1, linked: true,
                 },
             ],
         });
@@ -137,6 +139,10 @@ describe("guild bank page", () => {
         expect(rows).toHaveLength(2);
         expect(within(rows[0]).getByText("1× Smooth Dawnstone")).toBeInTheDocument();
         expect(within(rows[0]).getByText("Offen")).toBeInTheDocument();
+        // no character: not linked, the orga cannot confirm it in Discord yet
+        expect(within(rows[0]).getByText("nicht verknüpft")).toBeInTheDocument();
+        expect(screen.getByText(/^1 Anfrage ohne verknüpften Charakter/)).toBeInTheDocument();
+        expect(within(rows[1]).queryByText("nicht verknüpft")).toBeNull();
         expect(within(rows[1]).getByText("2× Bold Living Ruby")).toBeInTheDocument();
         expect(within(rows[1]).getByText(/^Anna · an Zibbo-SpineShatter · /)).toBeInTheDocument();
         expect(within(rows[1]).getByText("Wofür: Gruul")).toBeInTheDocument();
@@ -146,6 +152,32 @@ describe("guild bank page", () => {
         const closers = screen.getAllByRole("button", { name: "Schließen" });
         await user.click(closers[closers.length - 1]);
         await waitFor(() => expect(api.getGuildBank).toHaveBeenCalledTimes(2));
+    });
+
+    it("links a request to a profile character inside the 'Anfragen' dialog", async () => {
+        const user = userEvent.setup();
+        const open = {
+            id: "r2", itemId: 2, item: "Smooth Dawnstone", iconUrl: "", amount: 1, userId: "u2", userName: "Bo", characterName: "",
+            realm: "", purpose: "", status: "open" as const, createdAt: Date.UTC(2026, 9, 6, 18), handledByName: "", handledAt: 0, linked: false,
+        };
+        vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [open] });
+        vi.mocked(api.searchGuildBankCharacters).mockResolvedValue({
+            characters: [{
+                userId: "u2", userName: "Bo", characterKey: "bobo", characterName: "Bobo", realm: "", className: "Druid",
+                versionId: "tbc", ownVersion: true, icon: "", classColor: "", specKey: "",
+            }],
+        });
+        vi.mocked(api.linkGuildBankRequest).mockResolvedValue({ request: { ...open, characterName: "Bobo", realm: "Spineshatter", linked: true } });
+        renderPage(<GuildBankPage />, { route: "/guildbank" });
+        await user.click(await screen.findByRole("button", { name: "Anfragen" }));
+        await user.click(await screen.findByRole("button", { name: "Verknüpfen: 1× Smooth Dawnstone" }));
+        // the search in the same dialog, prefilled with the raider's name (no character yet)
+        expect(screen.getByRole("textbox", { name: "Charakter oder Raider suchen" })).toHaveValue("Bo");
+        await user.click(await screen.findByRole("button", { name: "Bobo von Bo wählen" }));
+        expect(api.linkGuildBankRequest).toHaveBeenCalledWith(KEY, "r2", { userId: "u2", characterKey: "bobo" });
+        const list = await screen.findByRole("list", { name: "Anfragen" });
+        expect(within(list).getByText(/an Bobo-Spineshatter/)).toBeInTheDocument();
+        expect(within(list).queryByText("nicht verknüpft")).toBeNull();
     });
 
     it("says so when no request waits", async () => {
