@@ -42,7 +42,12 @@ function EntryRow({ entry, first, last, canWrite, busy, onMove, onRemove }: {
 }) {
     const t = useT();
     const name = waitingName(entry);
-    const sub = [t("guildbank.waitlist.since", { date: formatDateTime(entry.createdAt) }), entry.addedByName ? t("guildbank.waitlist.addedBy", { name: entry.addedByName }) : ""];
+    const sub = [
+        // a raider's recipient character, when it is not the name shown already
+        entry.characterName && entry.characterName !== name ? t("guildbank.requests.to", { name: entry.characterName }) : "",
+        t("guildbank.waitlist.since", { date: formatDateTime(entry.createdAt) }),
+        entry.addedByName ? t("guildbank.waitlist.addedBy", { name: entry.addedByName }) : "",
+    ];
     return (
         <li className="gb-wl-row">
             <span className="gb-wl-place" aria-label={`#${entry.position}`}>{entry.position}</span>

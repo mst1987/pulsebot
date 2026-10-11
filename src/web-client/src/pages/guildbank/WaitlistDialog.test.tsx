@@ -77,6 +77,7 @@ describe("guild bank waiting list", () => {
         expect(rows).toHaveLength(2);
         expect(within(rows[0]).getByText("Anna")).toBeInTheDocument();
         expect(within(rows[0]).getByText("2×")).toBeInTheDocument();
+        expect(within(rows[0]).getByText(/^an Zibbo · seit /)).toBeInTheDocument();
         expect(within(rows[1]).getByText("Whapap")).toBeInTheDocument();
         expect(within(rows[1]).getByText("ohne Discord")).toBeInTheDocument();
         expect(within(rows[1]).getByText(/eingetragen von Arthas/)).toBeInTheDocument();
