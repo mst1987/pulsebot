@@ -920,13 +920,22 @@ function councilRoster(opts = {}) {
     // Roster members whose spec the council does not know (yet): counted and
     // named rather than left out silently.
     const noSpec = [];
+    // Who was set aside *in this view* — the page names only them under
+    // „Nicht eingeplant“, not every character ever set aside: a TBC raider has
+    // no business in the Forever council's list.
+    const setAside = [];
     for (const key of keys) {
         if (!fromRoster && members && !members.keys.has(key)) { skipped.category += 1; continue; }
-        if (excluded.has(key)) { skipped.excluded += 1; continue; }
         // A roster member's version is the roster's; everyone else's is derived.
         const versionIds = fromRoster ? [fromRoster.roster.versionId] : derivedVersions(key, { info, loot, versionCtx });
+        const inVersion = !charVersion || versionIds.includes(charVersion);
+        if (excluded.has(key)) {
+            // Another version's raider is missing for the version, not for being set aside.
+            if (inVersion) { skipped.excluded += 1; setAside.push(key); } else skipped.version += 1;
+            continue;
+        }
         seenVersions.push({ versionIds });
-        if (charVersion && !versionIds.includes(charVersion)) { skipped.version += 1; continue; }
+        if (!inVersion) { skipped.version += 1; continue; }
         const row = rosterRow(key, ctx);
         const entry = fromRoster ? fromRoster.entries.get(key) : null;
         if (row) {
@@ -962,6 +971,9 @@ function councilRoster(opts = {}) {
         // of this category has, plus the main version even with none.
         versions: versionChoices(seenVersions, mainVersion),
         skipped,
+        // The keys behind skipped.excluded: the page's „Nicht eingeplant“ lists
+        // exactly these, so its count and its names agree.
+        setAside,
         // How the category filter knew who belongs: from the maintained
         // assignment, or only from who won loot there (which cannot see a
         // raider who never won anything).

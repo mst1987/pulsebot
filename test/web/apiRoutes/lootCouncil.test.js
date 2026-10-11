@@ -224,7 +224,9 @@ describe("write access on the POST handlers", () => {
 describe("GET /api/lootcouncil", () => {
     it("builds the whole picture from stored data with the filters from the query", async () => {
         const rows = [{ character: "Alpha", gear: { dropped: [] } }];
-        lc.councilRoster.mockReturnValue({ rows, avgLootCount: 2.5, bisTier: "t5", skipped: 3, categorySources: { c1: "signups" } });
+        lc.councilRoster.mockReturnValue({
+            rows, avgLootCount: 2.5, bisTier: "t5", skipped: 3, categorySources: { c1: "signups" }, setAside: ["old", "newer", "undated"],
+        });
         councilStore.listExcluded.mockReturnValue({
             old: { reason: "left", at: 10 },
             newer: { reason: "break", at: 20 },
@@ -268,6 +270,23 @@ describe("GET /api/lootcouncil", () => {
         // The version filter (#545): nothing asked = the main version.
         expect(data.version).toBe("tbc");
         expect(data.mainVersion).toBe("tbc");
+    });
+
+    // The store is one list for every version and roster: a TBC raider set
+    // aside there must not show up as „Nicht eingeplant“ in the Forever council.
+    it("names only those set aside who this view would otherwise list", async () => {
+        lc.councilRoster.mockReturnValue({ rows: [], avgLootCount: 0, bisTier: "t5", skipped: 0, categorySources: {}, setAside: ["hier"] });
+        councilStore.listExcluded.mockReturnValue({
+            hier: { character: "Hier", at: 2 },
+            tbcchar: { character: "Tbcchar", at: 3 },
+        });
+        const data = body(await call(getLootCouncil, "/api/lootcouncil", "?version=forever"));
+        expect(data.excluded).toEqual([{ key: "hier", character: "Hier", at: 2 }]);
+    });
+
+    it("names nobody when the view set nobody aside", async () => {
+        councilStore.listExcluded.mockReturnValue({ tbcchar: { character: "Tbcchar", at: 3 } });
+        expect(body(await call(getLootCouncil)).excluded).toEqual([]);
     });
 
     it("hands the category's roster and its stand-ins to the page, and asks for Ersatz only with bench=1 (#667)", async () => {

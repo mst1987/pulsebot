@@ -363,9 +363,30 @@ describe("web/loot/lootCouncil — raiders the council set aside", () => {
         ]);
         mockExcludedKeys.mockReturnValue(new Set(["weg"]));
 
-        const { rows, skipped } = councilRoster({});
+        const { rows, skipped, setAside } = councilRoster({});
         expect(rows.map((r) => r.character)).toEqual(["Aktiv"]);
         expect(skipped.excluded).toBe(1);
+        expect(setAside).toEqual(["weg"]);
+    });
+
+    // „Nicht eingeplant“ is one store for every version: a TBC raider set aside
+    // there is missing from the Forever council for the version, not for that.
+    it("names only the set-aside raiders of the council's version", () => {
+        mockListAll.mockReturnValue([
+            lootRow({ characterKey: "weg", character: "Weg" }),
+            lootRow({ characterKey: "fweg", character: "Fweg" }),
+        ]);
+        mockAnnotated.mockReturnValue([
+            { key: "weg", character: "Weg", className: "Mage", spec: "Arcane", categoryIds: [] },
+            { key: "fweg", character: "Fweg", className: "Mage", spec: "Arcane", categoryIds: [] },
+        ]);
+        mockListProfiles.mockReturnValue([{ characters: [{ name: "Fweg", versionId: "forever" }] }]);
+        mockExcludedKeys.mockReturnValue(new Set(["weg", "fweg"]));
+
+        const forever = councilRoster({ charVersion: "forever" });
+        expect(forever.setAside).toEqual(["fweg"]);
+        expect(forever.skipped).toMatchObject({ excluded: 1, version: 1 });
+        expect(councilRoster({ charVersion: "tbc" }).setAside.sort()).toEqual(["fweg", "weg"]);
     });
 
     it("leaves them out of the candidate lists too", () => {
