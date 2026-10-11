@@ -73,8 +73,9 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     const built = await buildCouncilView(opts);
     const {
         rows, avgLootCount, avgLootPoints, weights, bisTier: usedBisTier, skipped, categorySources, versions,
-        rosterSource, outsiders,
+        rosterSource, outsiders, setAside,
     } = built;
+    const setAsideKeys = new Set(setAside || []);
     // What content data this version has (#748): without BiS/item table the page
     // gets no gaps, no drop check, no filter options and no simulation - and says so.
     const content = councilContentFor(versionId, { config });
@@ -108,8 +109,12 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
         // to pick from instead of asking for a link every time.
         recentLogs: recentLogs(),
         // Who the council has set aside, so the page can offer them back — and
-        // say why a familiar name is missing instead of looking broken.
+        // say why a familiar name is missing instead of looking broken. Only
+        // those this view would otherwise list (`setAside`): the store is one
+        // list for every version and roster, and a TBC raider set aside there
+        // is nobody the Forever council planned without.
         excluded: Object.entries(councilStore.listExcluded())
+            .filter(([key]) => setAsideKeys.has(key))
             .map(([key, entry]) => ({ key, ...entry }))
             .sort((a, b) => (b.at || 0) - (a.at || 0)),
         gaps: focus || !content.bis ? [] : bisGaps(rows, { contentIds: contentFilter }),
