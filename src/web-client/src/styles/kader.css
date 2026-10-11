@@ -99,6 +99,7 @@
 /* ---- header: Kader picker, leads, settings ---- */
 .kp-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
 .kp-top-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kp-back-row { flex-basis: 100%; display: flex; }
 .kp-picker { position: relative; min-width: 0; }
 .kp-picker-btn {
     display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 0; border: 0; background: none;
@@ -1003,4 +1004,39 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
     .kp-loglist-wide li { grid-template-columns: minmax(0, 1fr); }
     .kp-top-act { margin-left: auto; }
     .kp-iv-foot-state { min-width: 0; }
+}
+/* ---- the overview of all Kader (/kader): one card per Kader ---- */
+.kp-ov-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); gap: 18px; }
+.kp-ov-cards > li { display: flex; min-width: 0; }
+.kp-ov-card {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 18px 20px; text-align: left;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: inherit; text-decoration: none; font: inherit;
+    transition: border-color .15s ease;
+}
+.kp-ov-card:hover, .kp-ov-card:focus-visible { border-color: var(--area-kader); color: inherit; outline: none; }
+.kp-ov-card:focus-visible { box-shadow: inset 0 0 0 2px var(--area-kader); }
+.kp-ov-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.kp-ov-title { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.kp-ov-title b { font-size: 18px; overflow-wrap: anywhere; }
+.kp-ov-ver { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.kp-ov-last { margin-left: auto; flex: none; }
+.kp-ov-chain { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.kp-ov-n { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.kp-ov-n b { font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.kp-ov-n-roster b { color: var(--accent); }
+.kp-ov-lab { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); min-width: 0; }
+.kp-ov-lab .kp-sico { flex: none; }
+.kp-ov-side { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
+.kp-ov-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line-soft); padding-top: 14px; margin-top: auto; }
+.kp-ov-leads { display: inline-flex; align-items: center; gap: 4px; }
+.kp-ov-leads .kp-avatar { font-weight: 800; color: var(--text); background: color-mix(in srgb, var(--hue) 24%, transparent); box-shadow: inset 0 0 0 1.5px var(--hue); }
+.kp-ov-more, .kp-ov-noleads, .kp-ov-q { font-size: 12.5px; color: var(--muted); }
+.kp-ov-open { margin-left: auto; }
+.kp-ov-new { align-items: center; justify-content: center; gap: 6px; border-style: dashed; background: transparent; cursor: pointer; color: var(--muted); min-height: 160px; }
+.kp-ov-new svg { width: 22px; height: 22px; color: var(--area-kader); }
+.kp-ov-new b { font-size: 16px; color: var(--text); }
+.kp-ov-new span { font-size: 12.5px; }
+@media (max-width: 700px) {
+    .kp-ov-card { padding: 16px; }
+    .kp-ov-n b { font-size: 24px; }
 }

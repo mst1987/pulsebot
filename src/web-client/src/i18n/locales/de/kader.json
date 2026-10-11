@@ -121,6 +121,31 @@
             }
         }
     },
+    "kaders": {
+        "kicker": {
+            "one": "{count} Kader",
+            "other": "{count} Kader"
+        },
+        "title": "Kader",
+        "cardsAria": "Alle Kader",
+        "last": "Zuletzt geöffnet",
+        "open": "Öffnen",
+        "questions": {
+            "one": "{count} Frage",
+            "other": "{count} Fragen"
+        },
+        "newHint": "Einen weiteren Kader anlegen",
+        "side": {
+            "bench": {
+                "one": "{count} Spieler auf der Bench",
+                "other": "{count} Spieler auf der Bench"
+            },
+            "tentative": {
+                "one": "{count} Spieler tentative",
+                "other": "{count} Spieler tentative"
+            }
+        }
+    },
     "header": {
         "kicker": "Kaderplaner",
         "pick": "Kader wählen",
@@ -128,7 +153,8 @@
         "leads": "Leitung",
         "noLeads": "noch niemand",
         "settings": "Einstellungen des Kaders",
-        "countLine": "{roster} im Roster · {total} gesamt"
+        "countLine": "{roster} im Roster · {total} gesamt",
+        "all": "Alle Kader"
     },
     "start": {
         "kicker": "Kaderplaner · Ablauf je Kader",

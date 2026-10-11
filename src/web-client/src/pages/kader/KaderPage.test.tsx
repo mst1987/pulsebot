@@ -57,11 +57,45 @@ async function show(route: string, user = adminUser()) {
 }
 
 describe("KaderPage · Kader", () => {
-    it("opens the Kader used last when the address names none", async () => {
-        localStorage.setItem("eh-kader-last", JSON.stringify("k1"));
+    it("shows the overview of all Kader when the address names none, without jumping into the last one", async () => {
+        localStorage.setItem("eh-kader-last", JSON.stringify("k2"));
         renderPage(<KaderPage />, { route: "/kader", path: PATH });
-        await screen.findByRole("button", { name: /Forever-Kader/ });
-        expect(api.getKader).toHaveBeenLastCalledWith("k1");
+        expect(await screen.findByRole("heading", { name: t("kader.kaders.title") })).toBeInTheDocument();
+        expect(api.getKader).toHaveBeenLastCalledWith("");
+        const cards = screen.getByRole("list", { name: t("kader.kaders.cardsAria") });
+        const first = within(cards).getByRole("link", { name: /Forever-Kader/ });
+        expect(first).toHaveAttribute("href", "/kader/k1/pool");
+        expect(within(cards).getByRole("link", { name: /Zweiter Kader/ })).toHaveAttribute("href", "/kader/k2/pool");
+        // the counts of the first Kader: pool 1, preselection 2, provisional 1, roster 1; 3 questions; one lead
+        expect(first).toHaveTextContent(t("kader.kaders.questions", { count: 3 }));
+        expect(first).toHaveTextContent(t("kader.kaders.side.bench", { count: 1 }));
+        expect(within(first).getByText(t("kader.state.selected")).previousElementSibling).toHaveTextContent("2");
+        expect(within(first).getByRole("img", { name: /Admin/ })).toBeInTheDocument();
+        // only the Kader opened last carries the badge
+        expect(within(first).queryByText(t("kader.kaders.last"))).toBeNull();
+        expect(within(within(cards).getByRole("link", { name: /Zweiter Kader/ })).getByText(t("kader.kaders.last"))).toBeInTheDocument();
+    });
+
+    it("creates a Kader from the overview, the head's button and the dashed card, only with write access", async () => {
+        vi.mocked(api.createKader).mockResolvedValue({ ...change(), kaderId: "k1" });
+        const view = renderPage(<KaderPage />, { route: "/kader", path: PATH });
+        await screen.findByRole("heading", { name: t("kader.kaders.title") });
+        expect(screen.getAllByRole("button", { name: new RegExp(t("kader.header.new")) })).toHaveLength(2);
+        await userEvent.click(screen.getAllByRole("button", { name: new RegExp(t("kader.header.new")) })[0]);
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.type(within(dialog).getByRole("textbox"), "Neuer");
+        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.settings.create") }));
+        expect(api.createKader).toHaveBeenCalledWith("Neuer");
+        view.unmount();
+        renderPage(<KaderPage />, { route: "/kader", path: PATH, user: reader });
+        await screen.findByRole("heading", { name: t("kader.kaders.title") });
+        expect(screen.queryByRole("button", { name: t("kader.header.new") })).toBeNull();
+        expect(screen.getByRole("link", { name: /Forever-Kader/ })).toBeInTheDocument();
+    });
+
+    it("offers a visible way back to all Kader inside a Kader", async () => {
+        await show("/kader/k1/pool");
+        expect(screen.getByRole("link", { name: t("kader.header.all") })).toHaveAttribute("href", "/kader");
     });
 
     it("starts with the flow and creates the first Kader", async () => {
