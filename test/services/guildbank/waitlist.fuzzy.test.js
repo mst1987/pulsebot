@@ -1,4 +1,4 @@
-// The import forgives a typo in the item name (#778): the one item within two
+// The import forgives a typo in the item name: the one item within two
 // letters (and a fifth of the name) is taken, the preview marks it `fuzzy`.
 const stockStore = require("../../../src/stores/guildBankStockStore");
 const store = require("../../../src/stores/guildBankStore");

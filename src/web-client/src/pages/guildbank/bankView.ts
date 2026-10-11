@@ -70,7 +70,7 @@ export function availableTone(available: number): "ok" | "mid" | "bad" {
     return available <= 3 ? "mid" : "ok";
 }
 
-/** "Tab 2: Edelsteine" (several: joined), or "Nicht in der Bank" for an item that left or was added by hand (#778). */
+/** "Tab 2: Edelsteine" (several: joined), or "Nicht in der Bank" for an item that left or was added by hand. */
 export function tabLine(item: GuildBankItem, tabs: GuildBankTab[]): string {
     const names = new Map(tabs.map((tab) => [String(tab.index), tab.name]));
     const parts = Object.keys(item.tabs || {})
@@ -87,7 +87,7 @@ export function itemsInTab(items: GuildBankItem[], index: number): number {
     return items.filter((it) => Number((it.allTabs || {})[String(index)]) > 0).length;
 }
 
-/** An item id or a Wowhead link (item=123): the server reads it as it is, no name search needed (#778). */
+/** An item id or a Wowhead link (item=123): the server reads it as it is, no name search needed. */
 export function isDirectItemInput(text: string): boolean {
     const v = text.trim();
     return /^\d{1,12}$/.test(v) || (/wowhead\.com|^item=/i.test(v) && /item[=/]\d+/i.test(v));

@@ -24,12 +24,12 @@
 //                    category (the orga's own group, "" = none), firstSeenAt,
 //                    name, icon, quality, classId, subclassId, className, subclassName,
 //                    metaSource: "" | "local" | "wowhead", metaAt, metaVersion,
-//                    addedByHand (true = the orga created the row, #778), addedAt }
+//                    addedByHand (true = the orga created the row), addedAt }
 //
 // The settings outlive scans: a new scan replaces `lastScan` only. An item id
 // seen for the first time gets status "new"; an item that left the bank keeps
 // its settings and reads with count 0. The orga can also create a row by hand
-// (addItem, #778) for an item the bank does not hold yet: count 0, status
+// (addItem) for an item the bank does not hold yet: count 0, status
 // "give", so a waiting list can be kept before a scan ever shows the item. A scan older than the stored one (a
 // second PC uploading late) is ignored. Item names are English — from the local
 // item tables or from Wowhead (services/guildbank/itemMeta.js); every item
@@ -318,7 +318,7 @@ function setItemSettings(key, itemId, patch = {}) {
 }
 
 /**
- * Create an item row by hand (#778): an item the bank does not hold (yet). It
+ * Create an item row by hand: an item the bank does not hold (yet). It
  * reads with count 0 until a scan shows it. An item the bank already knows
  * keeps everything it has, only its status is set (default "give"). Returns
  * `{ item, created }` (the item view) or `{ error }` (German).

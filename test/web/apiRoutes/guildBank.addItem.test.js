@@ -1,4 +1,4 @@
-// POST /api/guildbank/item/add and GET /api/guildbank/item/search (#778).
+// POST /api/guildbank/item/add and GET /api/guildbank/item/search.
 let mockUser = { id: "1", isAdmin: true };
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());

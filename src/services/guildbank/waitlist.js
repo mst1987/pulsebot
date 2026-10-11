@@ -24,7 +24,7 @@
 // raider by the characters in the raider profiles (no case, no accents —
 // "alina" finds "Alîna"); an unmatched name is imported as a character alone
 // (`userId: ""`, no DM). An unknown item is never imported. A typo in the item
-// name is forgiven (#778, findItem): the one item within two letters (and a
+// name is forgiven (, findItem): the one item within two letters (and a
 // fifth of the name) is taken, the preview marks the row `fuzzy`.
 const store = require("../../stores/guildBankStore");
 const stockStore = require("../../stores/guildBankStockStore");

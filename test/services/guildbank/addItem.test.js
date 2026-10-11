@@ -1,4 +1,4 @@
-// Create a guild bank item by hand (#778): id, Wowhead link or name. Wowhead
+// Create a guild bank item by hand: id, Wowhead link or name. Wowhead
 // is mocked, the stores run on temp files.
 jest.mock("../../../src/utils/loot/wowhead", () => ({
     ...jest.requireActual("../../../src/utils/loot/wowhead"),

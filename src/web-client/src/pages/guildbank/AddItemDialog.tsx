@@ -1,4 +1,4 @@
-// "Gegenstand hinzufügen" (#778): an item the bank does not hold gets a row of
+// "Gegenstand hinzufügen": an item the bank does not hold gets a row of
 // its own, so the orga can offer it and keep a waiting list for it. The input
 // is an item id, a Wowhead link or a name; a name is searched on Wowhead
 // (debounced) and a hit is added with one click. The item lands on "Ausgebbar"

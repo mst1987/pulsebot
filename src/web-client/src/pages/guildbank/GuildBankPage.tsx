@@ -119,7 +119,7 @@ export default function GuildBankPage() {
         }
     };
 
-    // An item by hand (#778): it lands on "Ausgebbar", so the list shows that tab.
+    // An item by hand: it lands on "Ausgebbar", so the list shows that tab.
     const addItem = async (input: { itemId: number } | { query: string }) => {
         setAdding(true);
         try {

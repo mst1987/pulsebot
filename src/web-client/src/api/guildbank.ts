@@ -28,7 +28,7 @@ export type GuildBankItem = {
     /** The orga's own group, "" = Wowhead's. */
     category: string;
     firstSeenAt: number;
-    /** Created by the orga, not by a scan (#778). */
+    /** Created by the orga, not by a scan. */
     addedByHand?: boolean;
     name: string;
     icon: string;

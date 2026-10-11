@@ -1,4 +1,4 @@
-// Items created by hand (#778): a row for an item the bank does not hold.
+// Items created by hand: a row for an item the bank does not hold.
 const store = require("../../src/stores/guildBankStockStore");
 const { tempStoreFile } = require("../helpers/tempStore");
 

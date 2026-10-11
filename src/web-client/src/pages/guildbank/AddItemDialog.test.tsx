@@ -1,4 +1,4 @@
-// "Gegenstand hinzufügen" (#778) against a mocked API: an id or link adds at
+// "Gegenstand hinzufügen" against a mocked API: an id or link adds at
 // once, a name is searched on Wowhead and a hit adds, the new item shows under
 // "Ausgebbar", a refusal stays in the dialog, and a reader has no button.
 import { screen, waitFor, within } from "@testing-library/react";

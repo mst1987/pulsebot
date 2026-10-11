@@ -7,7 +7,7 @@
 //                                           (?key= one of them, else ?version= the content
 //                                           switch's, else the first) with its items
 //   POST /api/guildbank/item                { key, itemId, status?, reserve?, maxPerRequest?, category? }
-//   POST /api/guildbank/item/add            { key, query | itemId } — create an item by hand (#778): id, Wowhead link
+//   POST /api/guildbank/item/add            { key, query | itemId } — create an item by hand: id, Wowhead link
 //                                           or name; stock 0, status "give"; { item, created }, or 400 "ambiguous"
 //                                           when a name fits several items (the dialog picks from /item/search)
 //   GET  /api/guildbank/item/search?key=&q= Wowhead's items for a name on the bank's version, { items }

@@ -88,7 +88,7 @@ a.gb-name:hover { text-decoration: underline; }
 .gb-stepper button svg { width: 16px; height: 16px; }
 .gb-stepper b { min-width: 48px; text-align: center; font-size: 16px; }
 
-/* ---- add an item by hand (#778) ---- */
+/* ---- add an item by hand ---- */
 .gb-add-hits { min-height: 24px; }
 .gb-add-hit { display: flex; align-items: center; gap: 12px; width: 100%; padding: 7px 10px; border: 1px solid var(--line-soft); border-radius: 8px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
 .gb-add-hit:hover:not(:disabled) { border-color: var(--accent-soft); background: var(--accent-soft); }

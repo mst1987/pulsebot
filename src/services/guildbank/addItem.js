@@ -1,4 +1,4 @@
-// Create a guild bank item by hand (#778): the orga wants a waiting list for an
+// Create a guild bank item by hand: the orga wants a waiting list for an
 // item the bank does not hold, so it has no row in the stock yet (a row only
 // appears with a scan). The input is an item id, a Wowhead link
 // (".../item=32227/crimson-spinel") or a name; a name goes through Wowhead's
