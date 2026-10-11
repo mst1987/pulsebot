@@ -146,11 +146,14 @@ class Raidhelper {
     // Events that have already started, newest first. Raid-Helper's StartTimeFilter
     // is only a LOWER bound (there is no documented upper-bound header on v4), so we
     // ask for everything since `sinceSeconds` and drop what is still upcoming here.
-    async getPastEvents(sinceSeconds) {
+    // `untilSeconds` moves that upper bound (default now): the log matching also
+    // wants raids that start soon, since a log is often posted just before the pull.
+    async getPastEvents(sinceSeconds, { untilSeconds } = {}) {
         const now = Math.floor(Date.now() / 1000);
+        const until = Number.isFinite(Number(untilSeconds)) && Number(untilSeconds) > 0 ? Math.floor(untilSeconds) : now;
         const events = await this.fetchEvents(Math.floor(sinceSeconds) || now);
         return events
-            .filter((event) => Number(event.startTime) <= now)
+            .filter((event) => Number(event.startTime) <= until)
             .sort((a, b) => b.startTime - a.startTime);
     }
 

@@ -195,6 +195,23 @@ describe("services/logcheck/matchableEvents", () => {
             expect(pairs.map((p) => [p.log.id, p.event.id])).toEqual([["l1", "eh-1"]]);
         });
 
+        // 11.10.2026: the log was posted at 18:55 for the raid at 19:00 and stayed
+        // unassigned until the raid had started and the sweep ran again.
+        it("offers a raid that starts within the next two hours, so a log posted before the pull matches it at once", async () => {
+            const soon = Math.floor(Date.now() / 1000) + 5 * 60;
+            const ownSoon = { ...own, id: "eh-soon", startTime: soon };
+            eventStore.listEvents.mockReturnValue([ownSoon]);
+
+            const { events } = await loadMatchableEvents("g1");
+
+            const twoHours = Math.floor(Date.now() / 1000) + 2 * 3600;
+            const { untilSeconds } = eventStore.listEvents.mock.calls[0][1];
+            expect(Math.abs(untilSeconds - twoHours)).toBeLessThanOrEqual(2);
+            expect(Math.abs(mockGetPastEvents.mock.calls[0][1].untilSeconds - twoHours)).toBeLessThanOrEqual(2);
+            const pairs = autoMatches([{ id: "l1", postedAt: (soon - 5 * 60) * 1000 }], events);
+            expect(pairs.map((p) => [p.log.id, p.event.id])).toEqual([["l1", "eh-soon"]]);
+        });
+
         it("still offers them while Raid-Helper is down", async () => {
             mockGetPastEvents.mockRejectedValue(new Error("down"));
             eventStore.listEvents.mockReturnValue([own]);

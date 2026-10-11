@@ -272,11 +272,16 @@ function ownEventGroupRows(guildId, { sinceSeconds, catMap, now = Date.now() } =
     });
 }
 
-/** Own events that already started within [fromSeconds, now], for log/loot matching. */
-function ownMatchableEvents(guildId, fromSeconds, { catMap, now = Date.now() } = {}) {
+/**
+ * Own events that start within [fromSeconds, untilSeconds], for log/loot matching.
+ * `untilSeconds` defaults to now (already started); the log matching passes a
+ * bit beyond now, since a log is often posted shortly before the raid starts.
+ */
+function ownMatchableEvents(guildId, fromSeconds, { catMap, now = Date.now(), untilSeconds } = {}) {
     if (!guildId) return [];
     const config = erasConfig();
-    return listEvents(guildId, { sinceSeconds: fromSeconds, untilSeconds: Math.floor(now / 1000) })
+    const until = Number.isFinite(Number(untilSeconds)) && Number(untilSeconds) > 0 ? Math.floor(untilSeconds) : Math.floor(now / 1000);
+    return listEvents(guildId, { sinceSeconds: fromSeconds, untilSeconds: until })
         .map((ev) => toMatchableShape(ev, { catMap, config }));
 }
 
