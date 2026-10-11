@@ -1,14 +1,14 @@
 // The filter line under the tabs, like the Loot-Council's: the category as a
 // button with a small box, the search, and the formula behind "Verfügbar".
 // With several banks on the server (TBC and Forever) a select picks one.
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { GuildBankSummary } from "../../api";
 import { SearchBox } from "../../components/loot/LootFilters";
 import { ChevronDownIcon, FunnelIcon } from "../../components/ui/icons";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 
-export default function BankFilterLine({ categories, category, onCategory, search, onSearch, banks, bankKey, onBank }: {
+export default function BankFilterLine({ categories, category, onCategory, search, onSearch, banks, bankKey, onBank, searchPlaceholder, actions }: {
     categories: string[];
     category: string;
     onCategory: (category: string) => void;
@@ -17,6 +17,10 @@ export default function BankFilterLine({ categories, category, onCategory, searc
     banks: GuildBankSummary[];
     bankKey: string;
     onBank: (key: string) => void;
+    /** Another hint in the search box (the waiting list also looks for players). */
+    searchPlaceholder?: string;
+    /** Buttons at the right end of the line (the waiting list's "Eintrag anlegen" / "Import"). */
+    actions?: ReactNode;
 }) {
     const t = useT();
     const [open, setOpen] = useState(false);
@@ -59,8 +63,10 @@ export default function BankFilterLine({ categories, category, onCategory, searc
                     </div>
                 )}
             </div>
-            <SearchBox id="gb-search" value={search} onChange={onSearch} placeholder={t("guildbank.filter.search")} />
-            <span className="gb-formula">{t("guildbank.filter.formula")}</span>
+            <SearchBox id="gb-search" value={search} onChange={onSearch} placeholder={searchPlaceholder || t("guildbank.filter.search")} />
+            {actions
+                ? <span className="gb-actions">{actions}</span>
+                : <span className="gb-formula">{t("guildbank.filter.formula")}</span>}
         </div>
     );
 }

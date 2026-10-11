@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-    availableTone, groupItems, groupNames, groupWaitlist, isDirectItemInput, itemName, itemsInTab, listedItems, tabCounts, tabLine, waitingName, waitingTotal, waitlistItems, wholeNumber,
+    availableTone, filterWaitlist, groupItems, groupNames, groupWaitlist, isDirectItemInput, itemName, itemsInTab, listedItems, tabCounts, tabLine, waitingName, waitingTotal, waitlistItems, wholeNumber,
 } from "./bankView";
 import type { GuildBankWaitingEntry } from "../../api";
 import { bankData, bankItem } from "./guildBank.fixture";
@@ -86,5 +86,28 @@ describe("guild bank page rules", () => {
             expect(waitingName(entry({ userName: "", userId: "" }))).toBe("Zibbo");
             expect(waitlistItems(items()).map((i) => i.itemId)).toEqual([1, 3, 2]);
         });
+    });
+});
+
+describe("waiting list filter", () => {
+    const e = (over: Partial<GuildBankWaitingEntry>): GuildBankWaitingEntry => ({
+        id: "w", itemId: 1, item: "Bold Living Ruby", iconUrl: "", amount: 1, userId: "u", userName: "Anna", characterName: "Zibbo",
+        realm: "", purpose: "", createdAt: 0, position: 1, addedByName: "", ...over,
+    });
+    const entries = [e({ id: "a" }), e({ id: "b", itemId: 2, item: "Smooth Dawnstone", userName: "Bo", characterName: "Bo" })];
+    const byId = new Map(items().map((it) => [it.itemId, it]));
+
+    it("lets everything through without a filter and finds by item, player or character", () => {
+        expect(filterWaitlist(entries, byId, { category: "", search: "" })).toHaveLength(2);
+        expect(filterWaitlist(entries, byId, { category: "", search: "dawn" }).map((x) => x.id)).toEqual(["b"]);
+        expect(filterWaitlist(entries, byId, { category: "", search: "anna" }).map((x) => x.id)).toEqual(["a"]);
+        expect(filterWaitlist(entries, byId, { category: "", search: "zibbo" }).map((x) => x.id)).toEqual(["a"]);
+    });
+
+    it("filters by the item's category", () => {
+        const group = byId.get(2) ? groupNames(items()).find((g) => g === (byId.get(2)!.group || "Sonstiges")) || "" : "";
+        const out = filterWaitlist(entries, byId, { category: group, search: "" });
+        expect(out.every((x) => x.itemId === 2 || byId.get(x.itemId)!.group === byId.get(2)!.group)).toBe(true);
+        expect(filterWaitlist(entries, byId, { category: "Nichts", search: "" })).toEqual([]);
     });
 });

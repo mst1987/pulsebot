@@ -17,6 +17,7 @@
     },
     "tabs": {
         "give": "Ausgebbar",
+        "wait": "Warteliste",
         "show": "Nur Bestand",
         "hide": "Ausgeblendet",
         "new": "Neu"
@@ -26,6 +27,7 @@
         "categoryLabel": "Kategorie",
         "allCategories": "Alle",
         "search": "Gegenstand suchen",
+        "searchWait": "Item oder Spieler",
         "formula": "Verfügbar = Bestand - Vorgemerkt - Reserve"
     },
     "newNotice": "Seit dem letzten Scan neu in der Bank. Einmal einordnen, danach bleibt es bei jedem Scan so.",
@@ -88,15 +90,13 @@
         "confirmedBy": "Vorgemerkt von {name}"
     },
     "waitlist": {
-        "button": "Warteliste",
         "title": "Warteliste",
         "hint": "Je Gegenstand eine Liste: Wer zuerst fragt, kommt zuerst dran. Wird etwas frei, rücken die Ersten von selbst als offene Anfrage nach – mit Karte im Orga-Kanal und DM.",
-        "views": "Ansicht",
-        "viewList": "Liste",
         "viewAdd": "Eintrag anlegen",
         "viewImport": "Import",
         "loading": "Lade die Warteliste …",
-        "empty": "Gerade wartet niemand.",
+        "empty": "Niemand wartet gerade. Fragt ein Raider mehr an, als da ist, landet der Rest hier.",
+        "noMatch": "Nichts gefunden.",
         "entries": { "one": "{count} Eintrag", "other": "{count} Einträge" },
         "free": "Verfügbar {count}",
         "amount": "{amount}×",
