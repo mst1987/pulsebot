@@ -1,0 +1,34 @@
+{
+    "title": "Sync-Tool & Addon",
+    "loading": "Suche die neueste Version …",
+    "version": "Version {version}",
+    "published": "veröffentlicht am {date}",
+    "news": "Was ist neu?",
+    "missing": "In dieser Version gibt es diese Datei nicht. Schau auf der Release-Seite nach.",
+    "exe": {
+        "title": "Sync-Tool",
+        "text": "Windows-Programm, das den Loot aus dem Spiel an den EventHelper schickt.",
+        "button": "EventHelperSync.exe herunterladen"
+    },
+    "zip": {
+        "title": "WoW-Addon",
+        "text": "Das Addon fürs Spiel: sammelt Loot und Gildenbank.",
+        "button": "Addon herunterladen (.zip)"
+    },
+    "install": {
+        "title": "Erste Installation",
+        "zipTitle": "Addon (zip)",
+        "zip1": "Zip entpacken. Der Ordner „EventHelperSync“ gehört nach „<WoW>/_anniversary_/Interface/AddOns/“ (TBC Anniversary) oder „<WoW>/_classic_beta_/Interface/AddOns/“ (WoW Forever).",
+        "zip2": "Das Spiel starten oder im Spiel „/reload“ eingeben.",
+        "zip3": "Im Addon-Menü prüfen, dass „EventHelperSync“ aktiv ist.",
+        "exeTitle": "Sync-Tool (exe)",
+        "exe1": "EventHelperSync.exe per Doppelklick starten.",
+        "exe2": "Serveradresse und API-Token eintragen. Das Token legst du unter Einstellungen → Loot-Sync an.",
+        "update": "Ab Version 1.14.0 aktualisiert sich das Sync-Tool selbst und spielt das Addon über den Knopf „Installieren“ ein. Diese Seite brauchst du also nur für die erste Installation."
+    },
+    "fallback": {
+        "title": "Die neueste Version konnte gerade nicht geladen werden",
+        "text": "GitHub ist im Moment nicht erreichbar. Die Downloads findest du direkt auf der Release-Seite.",
+        "open": "Zur Release-Seite"
+    }
+}

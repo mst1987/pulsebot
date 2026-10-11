@@ -33,6 +33,6 @@ describe("adminOnly menu entries", () => {
 
 describe("version-neutral pages (#742)", () => {
     it("are Kanaele, Einstellungen and Systemstatus - the one list; every other page follows the version", () => {
-        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "settings", "system"]);
+        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["addon", "channels", "settings", "system"]);
     });
 });

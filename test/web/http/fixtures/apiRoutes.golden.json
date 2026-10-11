@@ -7,6 +7,7 @@
   "DELETE /api/raidplan/profiles",
   "DELETE /api/raidplan/templates",
   "DELETE /api/raids/series",
+  "GET /api/addon-release",
   "GET /api/availability",
   "GET /api/availability/attendance",
   "GET /api/availability/overview",
