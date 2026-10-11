@@ -208,11 +208,27 @@ export type CouncilUnwearable = {
     note: string;
 };
 
-/** The picked drop: the item, who could take it, who cannot. */
+/**
+ * A raider who already has the drop — worn in their last seen gear, or won
+ * per the loot history. Never a candidate: it would replace itself.
+ */
+export type CouncilOwner = {
+    key: string;
+    character: string;
+    classColor: string;
+    specKey: string;
+    specLabel: string;
+    specIconUrl: string;
+    /** "worn" | "awarded" */
+    source: string;
+};
+
+/** The picked drop: the item, who could take it, who cannot, who has it. */
 export type CouncilFocus = {
     item: CouncilItem;
     candidates: CouncilCandidate[];
     unwearable: CouncilUnwearable[];
+    owned: CouncilOwner[];
 };
 
 /**

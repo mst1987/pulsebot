@@ -56,7 +56,7 @@ export function councilCandidate(over: Partial<CouncilCandidate> = {}): CouncilC
 }
 
 export function councilFocus(over: Partial<CouncilFocus> = {}): CouncilFocus {
-    return { item: councilItem(), candidates: [councilCandidate()], unwearable: [], ...over };
+    return { item: councilItem(), candidates: [councilCandidate()], unwearable: [], owned: [], ...over };
 }
 
 /** The head of the council page (#676): one Loot-Council roster with a profile and a Kader, one category without roster. */

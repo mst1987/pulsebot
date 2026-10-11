@@ -230,7 +230,10 @@
         "candidatesTitle": "Everyone who can wear it",
         "candidatesTip": "Gain and need kept apart",
         "candidatesTipSub": "What the item brings (simulated only), and what the raider is due — the council weighs the two.",
-        "unwearable": "Cannot wear it"
+        "unwearable": "Cannot wear it",
+        "owned": "Already have it",
+        "ownedWorn": "Wears it per the last seen gear",
+        "ownedAwarded": "Already won it per the loot history"
     },
     "candidates": {
         "noSimTipSub": "There is no simulation for this spec — the bot only simulates caster DPS so far. Tanks, melee, hunters and healers are suggested by need and stat weights.",

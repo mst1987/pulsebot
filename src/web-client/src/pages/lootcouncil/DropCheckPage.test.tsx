@@ -64,6 +64,18 @@ describe("drop check (German)", () => {
         expect(await screen.findByText("Alle, die ihn tragen können")).toBeInTheDocument();
         expect(screen.getByText("Staff of Test")).toBeInTheDocument();
     });
+
+    it("names who already has the drop instead of listing them as candidates", async () => {
+        vi.mocked(api.getLootCouncil).mockResolvedValue(councilData({
+            focus: councilFocus({
+                owned: [{ key: "ohkami", character: "Ohkami", classColor: "#0070DE", specKey: "Shaman-Enhancement", specLabel: "Verstärkungs-Schamane", specIconUrl: "", source: "worn" }],
+            }),
+            sim: { available: false, version: "", hint: "" },
+        }));
+        renderPage(<DropCheckPage />, { route: "/lootcouncil/drop/200", path: PATH });
+        expect(await screen.findByText("Haben es schon")).toBeInTheDocument();
+        expect(screen.getByText("Ohkami")).toBeInTheDocument();
+    });
 });
 
 describe("drop check (English)", () => {
