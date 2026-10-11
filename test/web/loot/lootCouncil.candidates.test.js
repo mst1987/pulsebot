@@ -146,9 +146,10 @@ describe("web/loot/lootCouncil", () => {
             mockGearByCharacter.mockReturnValue(new Map([
                 ["devihra", gearOf([
                     { ...item(12, 23207), situational: { note: "wirkt nur gegen Untote und Dämonen" } },
-                    item(13, 29370),
+                    item(13, 28789),
                 ])],
-                ["magier", gearOf([item(12, 29370), item(13, 32483)], { key: "magier", character: "Magier", className: "Mage" })],
+                // Not the trinket itself: it is unique, whoever wears it is no candidate.
+                ["magier", gearOf([item(12, 28789), item(13, 32483)], { key: "magier", character: "Magier", className: "Mage" })],
             ]));
             const byChar = Object.fromEntries(
                 candidatesForItem(trinketId, councilRoster({ bisTier: "t6" }).rows).map((c) => [c.character, c]),
@@ -240,7 +241,7 @@ describe("web/loot/lootCouncil — the loot history on a candidate", () => {
         mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
         mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
 
-        const [candidate] = candidatesForItem(31064, councilRoster().rows);
+        const [candidate] = candidatesForItem(32525, councilRoster().rows);
         expect(candidate.recentItems.map((i) => i.itemName)).toEqual(["Neu", "Alt"]);
         expect(candidate.lootCount).toBe(2);
     });
@@ -252,7 +253,7 @@ describe("web/loot/lootCouncil — the loot history on a candidate", () => {
         mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
         mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
 
-        const [candidate] = candidatesForItem(31064, councilRoster().rows);
+        const [candidate] = candidatesForItem(32525, councilRoster().rows);
         expect(candidate.lootCount).toBe(20);
         expect(candidate.recentItems.length).toBeLessThan(20);
         expect(candidate.recentItems.length).toBeGreaterThan(0);
@@ -334,6 +335,66 @@ describe("web/loot/lootCouncil — wer das Item überhaupt tragen kann", () => {
 
     it("hält candidatesForItem als reine Kandidatenliste bei", () => {
         expect(candidatesForItem(CORRUPTOR_HOOD, mixedRoster()).map((c) => c.key)).toEqual(["hexer"]);
+    });
+
+    // Wer das Teil schon hat, bekäme es noch einmal statt des eigenen — ohne
+    // Simulation stand er trotzdem oben, weil nur der Bedarf zählte.
+    it("nimmt aus, wer das Item schon trägt, und nennt ihn", () => {
+        const { candidates, owned } = candidateSplit(31064, mixedRoster()); // Hood of Absolution, Kopf der Devihra
+        expect(candidates.map((c) => c.key)).not.toContain("devihra");
+        expect(owned).toEqual([expect.objectContaining({ key: "devihra", character: "Devihra", source: "worn" })]);
+    });
+
+    it("nimmt aus, wer das Item laut Loot-Historie schon bekommen hat, auch wenn das Log es noch nicht zeigt", () => {
+        mockListAll.mockReturnValue([lootRow({ characterKey: "magier", character: "Magier", itemId: ZHARDOOM })]);
+        const { candidates, owned } = candidateSplit(ZHARDOOM, mixedRoster());
+        expect(candidates.map((c) => c.key).sort()).toEqual(["devihra", "hexer", "schami"]);
+        expect(owned).toEqual([expect.objectContaining({ key: "magier", source: "awarded" })]);
+    });
+
+    it("lässt einen zweiten Ring zu, solange ein Fingerplatz frei von ihm ist", () => {
+        const RING = 32527; // Ring of Ancient Knowledge — nicht einzigartig
+        expect(wowsims.item(RING).unique).toBeUndefined();
+        mockAnnotated.mockReturnValue([
+            { key: "einer", className: "Mage", spec: "Arcane" },
+            { key: "zwei", className: "Mage", spec: "Fire" },
+        ]);
+        mockGearByCharacter.mockReturnValue(new Map([
+            ["einer", gearOf([item(10, RING), item(11, 29367)], { key: "einer", character: "Einer", className: "Mage" })],
+            ["zwei", gearOf([item(10, RING), item(11, RING)], { key: "zwei", character: "Zwei", className: "Mage" })],
+        ]));
+        const { candidates, owned } = candidateSplit(RING, councilRoster().rows);
+        expect(candidates.map((c) => c.key)).toEqual(["einer"]);
+        expect(owned.map((o) => o.key)).toEqual(["zwei"]);
+    });
+
+    // Dragonspine Trophy: zwei Schmuckplätze, aber einzigartig anlegbar — wer
+    // eine trägt, kann keine zweite brauchen und stand trotzdem oben.
+    it("nimmt aus, wer ein einzigartiges Schmuckstück schon in einem der beiden Plätze trägt", () => {
+        const DST = 28830;
+        expect(wowsims.item(DST).unique).toBe(true);
+        mockAnnotated.mockReturnValue([
+            { key: "hat", className: "Warrior", spec: "Fury" },
+            { key: "will", className: "Warrior", spec: "Fury" },
+        ]);
+        mockGearByCharacter.mockReturnValue(new Map([
+            ["hat", gearOf([item(12, 29383), item(13, DST)], { key: "hat", character: "Hat", className: "Warrior", profile: { role: "melee", confident: true } })],
+            ["will", gearOf([item(12, 29383), item(13, 28034)], { key: "will", character: "Will", className: "Warrior", profile: { role: "melee", confident: true } })],
+        ]));
+        const { candidates, owned } = candidateSplit(DST, councilRoster().rows);
+        expect(candidates.map((c) => c.key)).toEqual(["will"]);
+        expect(owned).toEqual([expect.objectContaining({ key: "hat", source: "worn" })]);
+    });
+
+    it("zählt bei einem einzigartigen Ring schon die erste Kopie aus der Loot-Historie", () => {
+        const RING = 29287; // Violet Signet of the Archmage — einzigartig
+        mockListAll.mockReturnValue([lootRow({ characterKey: "magier", character: "Magier", itemId: RING })]);
+        const { owned } = candidateSplit(RING, mixedRoster());
+        expect(owned).toEqual([expect.objectContaining({ key: "magier", source: "awarded" })]);
+    });
+
+    it("hat niemanden unter „schon da“, wenn keiner das Item hat", () => {
+        expect(candidateSplit(ZHARDOOM, mixedRoster()).owned).toEqual([]);
     });
 
     it("nimmt sie damit auch aus den BiS-Lücken", () => {

@@ -230,7 +230,10 @@
         "candidatesTitle": "Alle, die ihn tragen können",
         "candidatesTip": "Zugewinn und Bedarf getrennt",
         "candidatesTipSub": "Was das Item bringt (nur simuliert), und was dem Raider zusteht — die Abwägung trifft der Council.",
-        "unwearable": "Können es nicht tragen"
+        "unwearable": "Können es nicht tragen",
+        "owned": "Haben es schon",
+        "ownedWorn": "Trägt es laut letztem Gear-Stand",
+        "ownedAwarded": "Hat es laut Loot-Historie schon bekommen"
     },
     "candidates": {
         "noSimTipSub": "Für diese Spec gibt es keine Simulation — der Bot simuliert bisher nur Caster-DPS. Tanks, Nahkampf, Jäger und Heiler werden nach Bedarf und Stat-Gewichten vorgeschlagen.",

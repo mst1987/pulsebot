@@ -1058,13 +1058,19 @@ function rosterGear(roster) {
  * disk, so the BiS overview — which asks per item — paid that price once per
  * gap and took minutes on a real guild's data.
  *
- * @returns {{candidates: object[], unwearable: object[]}}
+ * ⚠️ A raider who already has the item is no candidate either: the drop would
+ * replace the very piece it is, so it gains them nothing, yet their need score
+ * still ranked them first whenever nothing was simulated. `owned` names them
+ * (alreadyHas), so the council sees why they are missing from the list.
+ *
+ * @returns {{candidates: object[], unwearable: object[], owned: object[]}}
  */
 function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
     const item = wowsims.item(itemId);
-    if (!item) return { candidates: [], unwearable: [] };
+    if (!item) return { candidates: [], unwearable: [], owned: [] };
     const out = [];
     const unwearable = [];
+    const owned = [];
     for (const row of roster) {
         const specEntry = specByKey(row.specKey);
         const fit = wearCheck(row.className, itemId, { spec: (specEntry && specEntry.spec) || row.spec || "" });
@@ -1082,6 +1088,19 @@ function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
             continue;
         }
         const gear = gearMap.get(row.key) || null;
+        const has = alreadyHas(row, gear, itemId, item);
+        if (has) {
+            owned.push({
+                key: row.key,
+                character: row.character,
+                classColor: row.classColor,
+                specKey: row.specKey,
+                specLabel: row.specLabel,
+                specIconUrl: row.specIconUrl,
+                source: has,
+            });
+            continue;
+        }
         const target = targetSlotFor(gear, itemId);
         if (!target) continue; // the item fits no slot this raider has
         const bisIds = new Set(row.bis.items.map((i) => i.id));
@@ -1186,7 +1205,26 @@ function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
     // half); the weighted need only breaks ties, because a council weighs
     // fairness itself and should see the raw upgrade unblurred.
     out.sort((a, b) => b.value * b.bisWeight - a.value * a.bisWeight || b.itemNeedScore - a.itemNeedScore);
-    return { candidates: out, unwearable };
+    return { candidates: out, unwearable, owned };
+}
+
+/**
+ * Whether a raider already has every copy of the item they could use: "worn"
+ * when the last seen gear shows it, "awarded" when only the loot history does
+ * (won last raid, not in a log yet), "" when the drop could still go to them.
+ *
+ * Copies, not a yes/no: a ring or a one-hander fits two slots, and wearing one
+ * still leaves room for the second — unless it is unique-equipped, as nearly
+ * every raid trinket and ring is (Dragonspine Trophy), or a two-hander: then
+ * one copy is all a raider can use.
+ */
+function alreadyHas(row, gear, itemId, item) {
+    const id = Number(itemId);
+    const room = item.hand === "two" || item.unique ? 1 : Math.max(1, (item.slots || []).length);
+    const worn = ((gear && gear.items) || []).filter((it) => Number(it.itemId) === id).length;
+    if (worn >= room) return "worn";
+    const awarded = (row.items || []).filter((it) => Number(it.itemId) === id).length;
+    return Math.max(worn, awarded) >= room ? "awarded" : "";
 }
 
 /** The candidates alone — everyone on the roster who can wear the item. */

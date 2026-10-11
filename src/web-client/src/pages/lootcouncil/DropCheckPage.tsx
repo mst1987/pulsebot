@@ -61,6 +61,7 @@ export default function DropCheckPage() {
     const [error, setError] = useState<ApiError | null>(null);
     const [loading, setLoading] = useState(false);
     const [unwearableOpen, setUnwearableOpen] = useState(false);
+    const [ownedOpen, setOwnedOpen] = useState(false);
     // The character a "Log laden"/"Gear aus Armory holen" reload is running
     // for, from a candidate's fold-out gear panel — one at a time.
     const [gearBusyChar, setGearBusyChar] = useState<string | null>(null);
@@ -328,6 +329,28 @@ export default function DropCheckPage() {
                                     <div key={u.key} className="lc-dlist-row">
                                         <RaiderIdent name={u.character} classColor={u.classColor} specIconUrl={u.specIconUrl} sub={u.specLabel} size={30} />
                                         <span className="lc-muted">{u.note}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </FoldRow>
+                    ) : null}
+
+                    {/* Wer es schon trägt oder gewonnen hat, ist kein Kandidat —
+                        aber genannt, damit sein Fehlen in der Liste erklärt ist. */}
+                    {focus.owned?.length ? (
+                        <FoldRow
+                            icon="inv_misc_bag_10"
+                            title={t("lootcouncil.drop.owned")}
+                            count={focus.owned.length}
+                            names={focus.owned.map((o) => o.character).join(", ")}
+                            open={ownedOpen}
+                            onToggle={() => setOwnedOpen((o) => !o)}
+                        >
+                            <div className="lc-dlist">
+                                {focus.owned.map((o) => (
+                                    <div key={o.key} className="lc-dlist-row">
+                                        <RaiderIdent name={o.character} classColor={o.classColor} specIconUrl={o.specIconUrl} sub={o.specLabel} size={30} />
+                                        <span className="lc-muted">{o.source === "awarded" ? t("lootcouncil.drop.ownedAwarded") : t("lootcouncil.drop.ownedWorn")}</span>
                                     </div>
                                 ))}
                             </div>
