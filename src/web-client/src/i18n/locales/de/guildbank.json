@@ -43,7 +43,7 @@
         "status": "Einordnung",
         "tab": "Tab {index}: {name}",
         "tabNoName": "Tab {index}",
-        "gone": "Nicht mehr in der Bank",
+        "gone": "Nicht in der Bank",
         "other": "Sonstiges",
         "itemFallback": "Gegenstand {id}",
         "empty": "Hier ist gerade nichts.",
@@ -130,7 +130,25 @@
         "unmatched": "nur Charakter",
         "ambiguous": "mehrdeutig – nur Charakter",
         "imported": "{added} importiert, {skipped} übersprungen.",
-        "noRows": "Keine Zeile erkannt."
+        "noRows": "Keine Zeile erkannt.",
+        "fuzzy": "erkannt als {name}"
+    },
+    "add": {
+        "button": "Gegenstand hinzufügen",
+        "kicker": "Gildenbank",
+        "title": "Gegenstand hinzufügen",
+        "label": "Item-ID, Wowhead-Link oder Name",
+        "hint": "Die ID steht in der Wowhead-Adresse hinter item=.",
+        "placeholder": "z. B. 32227 oder Crimson Spinel",
+        "note": "Liegt gerade nicht in der Bank? Kein Problem – der Gegenstand wird mit Bestand 0 angelegt und ist sofort ausgebbar, Anfragen kommen auf die Warteliste.",
+        "searching": "Suche bei Wowhead …",
+        "noHits": "Nichts gefunden. Die ID oder den Link von Wowhead einfügen.",
+        "hits": "Treffer",
+        "itemId": "Item-ID {id}",
+        "directHint": "Wird mit dieser ID angelegt.",
+        "submit": "Hinzufügen",
+        "added": "{name} ist jetzt ausgebbar.",
+        "known": "{name} war schon da und ist jetzt ausgebbar."
     },
     "tabsDialog": {
         "kicker": "Gildenbank",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-    availableTone, groupItems, groupNames, groupWaitlist, itemName, itemsInTab, listedItems, tabCounts, tabLine, waitingName, waitingTotal, waitlistItems, wholeNumber,
+    availableTone, groupItems, groupNames, groupWaitlist, isDirectItemInput, itemName, itemsInTab, listedItems, tabCounts, tabLine, waitingName, waitingTotal, waitlistItems, wholeNumber,
 } from "./bankView";
 import type { GuildBankWaitingEntry } from "../../api";
 import { bankData, bankItem } from "./guildBank.fixture";
@@ -38,11 +38,19 @@ describe("guild bank page rules", () => {
         expect([availableTone(0), availableTone(3), availableTone(4)]).toEqual(["bad", "mid", "ok"]);
     });
 
+    it("tells an item id or Wowhead link from a name to search for", () => {
+        expect(isDirectItemInput("32227")).toBe(true);
+        expect(isDirectItemInput(" https://www.wowhead.com/tbc/item=32227/crimson-spinel ")).toBe(true);
+        expect(isDirectItemInput("item=32227")).toBe(true);
+        expect(isDirectItemInput("Crimson Spinel")).toBe(false);
+        expect(isDirectItemInput("https://example.com/item=5")).toBe(false);
+    });
+
     it("writes the bank tabs an item lies in, or that it left the bank", () => {
         const tabs = bankData().bank!.tabs;
         expect(tabLine(bankItem({ tabs: { 3: 1, 2: 4 } }), tabs)).toBe("Tab 2: Edelsteine · Tab 3: Raid");
         expect(tabLine(bankItem({ tabs: { 9: 1 } }), tabs)).toBe("Tab 9");
-        expect(tabLine(bankItem({ tabs: {} }), tabs)).toBe("Nicht mehr in der Bank");
+        expect(tabLine(bankItem({ tabs: {} }), tabs)).toBe("Nicht in der Bank");
     });
 
     it("counts the items of a tab, hidden ones included", () => {

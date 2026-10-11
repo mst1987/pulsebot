@@ -137,7 +137,7 @@ describe("guild bank waiting list", () => {
         vi.mocked(api.previewGuildBankWaitlist).mockResolvedValue({
             rows: [
                 row({ line: 1, name: "Alîna", match: { userId: "u-a", userName: "Ali", characterName: "Alina", realm: "" } }),
-                row({ line: 2, name: "Whapap" }),
+                row({ line: 2, name: "Whapap", itemText: "Bold Living Rubi", fuzzy: true }),
                 row({ line: 3, name: "Josh", ambiguous: true }),
                 row({ line: 4, name: "X", itemText: "Dragon Egg", item: null, itemError: "Unbekannter Gegenstand.", ok: false }),
             ],
@@ -155,6 +155,8 @@ describe("guild bank waiting list", () => {
         expect(await within(dialog).findByText("Raider: Ali")).toBeInTheDocument();
         expect(within(dialog).getAllByText("nur Charakter")).toHaveLength(2);
         expect(within(dialog).getByText("mehrdeutig – nur Charakter")).toBeInTheDocument();
+        // a typo in the item name: the real item is named under the row
+        expect(within(dialog).getByText("erkannt als Bold Living Ruby")).toBeInTheDocument();
         const bad = within(dialog).getByText("Unbekannter Gegenstand.").closest("li");
         expect(bad).toHaveClass("gb-wl-bad");
         await user.click(within(dialog).getByRole("button", { name: "3 Einträge importieren" }));

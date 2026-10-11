@@ -16,12 +16,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
-    canAccess, getGuildBank, setGuildBankItem, setGuildBankTabHidden,
+    addGuildBankItem, canAccess, getGuildBank, setGuildBankItem, setGuildBankTabHidden,
     type ApiError, type GuildBankItem, type GuildBankItemPatch, type GuildBankPageData, type GuildBankStatus, type GuildBankTab,
 } from "../../api";
 import type { ShellContext } from "../../components/shell/Shell";
 import { Badge, Button, PageHead, RaidLoader, WowIcon, buttonClass } from "../../components/ui";
-import { RowsIcon } from "../../components/ui/icons";
+import { PlusIcon, RowsIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
@@ -29,7 +29,8 @@ import { usePersistedState } from "../../lib/ui/persistedState";
 import { formatDateTime, formatMoney } from "../../lib/format";
 import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { tParts, useT } from "../../i18n";
-import { BANK_TABS, REQUESTS_ICON, WAITLIST_ICON, groupItems, groupNames, tabCounts, waitingTotal } from "./bankView";
+import { BANK_TABS, REQUESTS_ICON, itemName, WAITLIST_ICON, groupItems, groupNames, tabCounts, waitingTotal } from "./bankView";
+import AddItemDialog from "./AddItemDialog";
 import BankFilterLine from "./BankFilterLine";
 import BankList from "./BankList";
 import ItemSettingsDialog from "./ItemSettingsDialog";
@@ -79,6 +80,8 @@ export default function GuildBankPage() {
     const [bankTabsOpen, setBankTabsOpen] = useState(false);
     const [requestsOpen, setRequestsOpen] = useState(false);
     const [waitlistOpen, setWaitlistOpen] = useState(false);
+    const [addOpen, setAddOpen] = useState(false);
+    const [adding, setAdding] = useState(false);
     const [busyItem, setBusyItem] = useState(0);
     const [busyTab, setBusyTab] = useState(0);
 
@@ -113,6 +116,24 @@ export default function GuildBankPage() {
             return false;
         } finally {
             setBusyItem(0);
+        }
+    };
+
+    // An item by hand: it lands on "Ausgebbar", so the list shows that tab.
+    const addItem = async (input: { itemId: number } | { query: string }) => {
+        setAdding(true);
+        try {
+            const r = await addGuildBankItem(bank.key, input);
+            setAddOpen(false);
+            setTab("give");
+            setCategory("");
+            setSearch("");
+            toast(t(r.created ? "guildbank.add.added" : "guildbank.add.known", { name: itemName(r.item) }), "ok");
+            await page.reload();
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        } finally {
+            setAdding(false);
         }
     };
 
@@ -156,6 +177,7 @@ export default function GuildBankPage() {
                 )}
                 action={(
                     <>
+                        {canWrite && <Button variant="ghost" icon={<PlusIcon />} onClick={() => setAddOpen(true)}>{t("guildbank.add.button")}</Button>}
                         <Button variant="ghost" icon={REQUESTS_ICON} onClick={() => setRequestsOpen(true)}>{t("guildbank.requests.button")}</Button>
                         <Button variant="ghost" icon={WAITLIST_ICON} onClick={() => setWaitlistOpen(true)}>{t("guildbank.waitlist.button")}</Button>
                         <Button variant="ghost" icon={<RowsIcon />} onClick={() => setBankTabsOpen(true)}>{t("guildbank.page.bankTabs")}</Button>
@@ -209,6 +231,9 @@ export default function GuildBankPage() {
                     onClose={() => setEditing(null)}
                     onSave={async (patch) => { if (await saveItem(editing, patch)) setEditing(null); }}
                 />
+            )}
+            {addOpen && (
+                <AddItemDialog bankKey={bank.key} saving={adding} onClose={() => setAddOpen(false)} onAdd={(input) => { void addItem(input); }} />
             )}
             {requestsOpen && (
                 <RequestsDialog

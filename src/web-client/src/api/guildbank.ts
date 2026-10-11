@@ -28,6 +28,8 @@ export type GuildBankItem = {
     /** The orga's own group, "" = Wowhead's. */
     category: string;
     firstSeenAt: number;
+    /** Created by the orga, not by a scan. */
+    addedByHand?: boolean;
     name: string;
     icon: string;
     iconUrl: string;
@@ -175,6 +177,19 @@ export function removeGuildBankWaiting(key: string, id: string): Promise<GuildBa
     return send<GuildBankWaitlist>("POST", "/api/guildbank/waitlist/remove", { key, id });
 }
 
+/** One Wowhead hit of the add-item dialog's name search. */
+export type GuildBankItemHit = { id: number; name: string; icon: string; iconUrl: string; quality: number | null };
+
+/** Wowhead's items for a name on the bank's version. */
+export function searchGuildBankItems(key: string, q: string): Promise<{ items: GuildBankItemHit[] }> {
+    return get<{ items: GuildBankItemHit[] }>(`/api/guildbank/item/search?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}`);
+}
+
+/** Create an item the bank does not hold (yet): an item id, a Wowhead link or a name; it lands on "Ausgebbar" with stock 0. */
+export function addGuildBankItem(key: string, input: { itemId: number } | { query: string }): Promise<{ item: GuildBankItem; created: boolean }> {
+    return send<{ item: GuildBankItem; created: boolean }>("POST", "/api/guildbank/item/add", { key, ...input });
+}
+
 /** A pasted line as the import's preview reads it. */
 export type GuildBankImportRow = {
     line: number;
@@ -192,6 +207,8 @@ export type GuildBankImportRow = {
     ambiguous: boolean;
     /** Will be imported. */
     ok: boolean;
+    /** The item was found despite a typo in its name: `item` is the real one. */
+    fuzzy?: boolean;
 };
 
 /** What pasted lines would import (nothing stored). */

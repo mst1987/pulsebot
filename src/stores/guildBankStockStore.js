@@ -23,11 +23,14 @@
 //   itemSettings = { status: "new" | "hide" | "show" | "give", reserve, maxPerRequest (0 = no limit),
 //                    category (the orga's own group, "" = none), firstSeenAt,
 //                    name, icon, quality, classId, subclassId, className, subclassName,
-//                    metaSource: "" | "local" | "wowhead", metaAt, metaVersion }
+//                    metaSource: "" | "local" | "wowhead", metaAt, metaVersion,
+//                    addedByHand (true = the orga created the row), addedAt }
 //
 // The settings outlive scans: a new scan replaces `lastScan` only. An item id
 // seen for the first time gets status "new"; an item that left the bank keeps
-// its settings and reads with count 0. A scan older than the stored one (a
+// its settings and reads with count 0. The orga can also create a row by hand
+// (addItem) for an item the bank does not hold yet: count 0, status
+// "give", so a waiting list can be kept before a scan ever shows the item. A scan older than the stored one (a
 // second PC uploading late) is ignored. Item names are English — from the local
 // item tables or from Wowhead (services/guildbank/itemMeta.js); every item
 // without a current Wowhead answer is looked up again for its class and icon.
@@ -87,6 +90,8 @@ function completeItem(raw) {
         metaSource: META_SOURCES.includes(r.metaSource) ? r.metaSource : "",
         metaAt: num(r.metaAt),
         metaVersion: Math.max(0, Math.floor(num(r.metaVersion))),
+        addedByHand: r.addedByHand === true,
+        addedAt: num(r.addedAt),
     };
 }
 
@@ -312,6 +317,31 @@ function setItemSettings(key, itemId, patch = {}) {
     return { item: itemView(id, next, scanOf(bank), data.emojis) };
 }
 
+/**
+ * Create an item row by hand: an item the bank does not hold (yet). It
+ * reads with count 0 until a scan shows it. An item the bank already knows
+ * keeps everything it has, only its status is set (default "give"). Returns
+ * `{ item, created }` (the item view) or `{ error }` (German).
+ * @param {string} key
+ * @param {number} itemId
+ * @param {{ status?: string, now?: number }} [opts]
+ */
+function addItem(key, itemId, { status = "give", now = Date.now() } = {}) {
+    const data = store.read();
+    const bank = findBank(data, key);
+    if (!bank) return { error: "Gildenbank nicht gefunden." };
+    const id = Number(itemId);
+    if (!Number.isInteger(id) || id < 1 || id > 9_999_999) return { error: "Ungültige Item-ID." };
+    if (!SETTABLE_STATUSES.includes(status)) return { error: "Unbekannte Einordnung." };
+    const items = obj(bank.items);
+    const at = String(id);
+    const created = !items[at];
+    items[at] = completeItem(created ? { firstSeenAt: now, addedByHand: true, addedAt: now, status } : { ...items[at], status });
+    bank.items = items;
+    store.write(data);
+    return { item: itemView(id, items[at], scanOf(bank), data.emojis), created };
+}
+
 /** Hide or show a whole bank tab (by its index). Returns `{ bank }` (summary) or `{ error }`. */
 function setTabHidden(key, index, hidden) {
     const data = store.read();
@@ -453,7 +483,7 @@ function setItemEmoji(itemId, emoji) {
 module.exports = {
     STATUSES, SETTABLE_STATUSES, RESERVE_MAX, MAX_PER_REQUEST_MAX, CATEGORY_MAX, META_VERSION,
     recordScan, getBank, listBanks, listForServer, assignBank, removeBank,
-    setItemSettings, setTabHidden, knownMeta, setItemMeta, itemsWithoutWowheadMeta, banksWithItem,
+    setItemSettings, addItem, setTabHidden, knownMeta, setItemMeta, itemsWithoutWowheadMeta, banksWithItem,
     offeredIcons, itemEmojis, setItemEmoji,
     useFile,
 };

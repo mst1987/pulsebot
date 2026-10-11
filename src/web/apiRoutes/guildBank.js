@@ -7,6 +7,10 @@
 //                                           (?key= one of them, else ?version= the content
 //                                           switch's, else the first) with its items
 //   POST /api/guildbank/item                { key, itemId, status?, reserve?, maxPerRequest?, category? }
+//   POST /api/guildbank/item/add            { key, query | itemId } — create an item by hand: id, Wowhead link
+//                                           or name; stock 0, status "give"; { item, created }, or 400 "ambiguous"
+//                                           when a name fits several items (the dialog picks from /item/search)
+//   GET  /api/guildbank/item/search?key=&q= Wowhead's items for a name on the bank's version, { items }
 //   POST /api/guildbank/tab                 { key, index, hidden } — hide or show a whole bank tab
 //   GET  /api/guildbank/requests?key=       the bank's open and confirmed requests (the "Anfragen" dialog)
 //   GET  /api/guildbank/waitlist?key=       the bank's waiting list (#775, the "Warteliste" dialog)
@@ -39,6 +43,7 @@ const { queueLookups } = require("../../services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../services/guildbank/itemEmojis");
 const { pendingForBank, advanceWaitlist } = require("../../services/signups/guildBank");
 const waitlist = require("../../services/guildbank/waitlist");
+const addItem = require("../../services/guildbank/addItem");
 const requestStore = require("../../stores/guildBankStore");
 const { iconUrl } = require("../../utils/loot/wowhead");
 
@@ -71,6 +76,25 @@ const postGuildBankItem = withUser({ write: "raids", csrf: true, body: true }, a
     // a new status or reserve may free stock for the waiting list
     moveUp(key, q.int(body, "itemId", { fallback: 0 }));
     ok(res, { item: view.itemForPage(key, result.item) });
+});
+
+/** POST /api/guildbank/item/add — an item the bank does not hold (yet), created by hand and offered at once. */
+const addGuildBankItem = withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res }) => {
+    const key = q.str(body, "key", { max: 200 });
+    if (!view.bankOfServer(key, activeGuildFor(req))) return sendFailure(res, NOT_FOUND);
+    const result = await addItem.addByHand(key, { itemId: q.int(body, "itemId", { fallback: 0 }), query: q.str(body, "query", { max: 300 }) });
+    if (result.error) return sendFailure(res, { code: result.choices ? "ambiguous" : "invalid", error: result.error });
+    queueItemEmojiSync();
+    // on "give" with nothing in stock: raiders may ask for it, their requests wait
+    moveUp(key, result.item.itemId);
+    ok(res, { item: result.item, created: result.created });
+});
+
+/** GET /api/guildbank/item/search?key=&q= — Wowhead's items for a name, to pick one to add. */
+const searchGuildBankItems = withUser({}, async ({ req, res, query }) => {
+    const bank = view.bankOfServer(q.str(query, "key", { max: 200 }), activeGuildFor(req));
+    if (!bank) return sendFailure(res, NOT_FOUND);
+    ok(res, { items: await addItem.search(bank.gameVersion, q.str(query, "q", { max: 80 })) });
 });
 
 /** One request as the page's "Anfragen" dialog lists it. */
@@ -219,6 +243,8 @@ const deleteGuildBank = withUser({ csrf: true, body: true }, async ({ body, res 
 const routes = [
     { method: "GET", path: "/api/guildbank", handler: getGuildBank, area: "raids" },
     { method: "POST", path: "/api/guildbank/item", handler: postGuildBankItem, area: "raids" },
+    { method: "POST", path: "/api/guildbank/item/add", handler: addGuildBankItem, area: "raids" },
+    { method: "GET", path: "/api/guildbank/item/search", handler: searchGuildBankItems, area: "raids" },
     { method: "POST", path: "/api/guildbank/tab", handler: postGuildBankTab, area: "raids" },
     { method: "GET", path: "/api/guildbank/requests", handler: getGuildBankRequests, area: "raids" },
     { method: "GET", path: "/api/guildbank/waitlist", handler: getGuildBankWaitlist, area: "raids" },
@@ -233,7 +259,7 @@ const routes = [
 ];
 
 module.exports = {
-    getGuildBank, postGuildBankItem, postGuildBankTab, getGuildBankRequests, getGuildBanks, assignGuildBank, deleteGuildBank,
+    getGuildBank, postGuildBankItem, addGuildBankItem, searchGuildBankItems, postGuildBankTab, getGuildBankRequests, getGuildBanks, assignGuildBank, deleteGuildBank,
     getGuildBankWaitlist, addGuildBankWaiting, moveGuildBankWaiting, removeGuildBankWaiting, previewGuildBankWaitlist, importGuildBankWaitlist,
     routes,
 };
