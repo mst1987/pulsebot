@@ -125,3 +125,10 @@ export function fmtMs(ms: number | undefined, withTime = true): string {
         ? { timeZone: DISPLAY_TZ, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }
         : { timeZone: DISPLAY_TZ, day: "2-digit", month: "2-digit", year: "numeric" });
 }
+
+/** "69,8 MB" - the size of a download in megabytes (0 = unknown). */
+export function formatSize(bytes: number): string {
+    if (!bytes) return "";
+    const mb = bytes / (1024 * 1024);
+    return `${mb.toLocaleString(locale(), { maximumFractionDigits: mb >= 10 ? 0 : 1 })} MB`;
+}

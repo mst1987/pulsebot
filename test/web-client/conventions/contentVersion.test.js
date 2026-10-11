@@ -1,7 +1,7 @@
 // The web shows one game version at a time (#741, decision on #736: strictly
 // separated). Every page of the menu either follows the content switch, or is on
 // the one list of version-neutral pages: menu.json's `neutral` entries, the pages
-// without game content (Kanäle, Einstellungen, Systemstatus).
+// without game content (Kanäle, Einstellungen, Systemstatus, Sync-Tool & Addon).
 //
 // "Follows" means the page (or one of its own parts under pages/) reads the
 // version with hooks/useContentVersion, or shows one record in its version with
@@ -94,8 +94,8 @@ describe("one game version per page (#741)", () => {
         for (const r of routes) expect({ page: r.page, file: !!r.file }).toEqual({ page: r.page, file: true });
     });
 
-    it("keeps the one list of neutral pages in menu.json: Kanäle, Einstellungen, Systemstatus", () => {
-        expect(MENU.filter((e) => e.neutral === true).map((e) => e.id).sort()).toEqual(["channels", "settings", "system"]);
+    it("keeps the one list of neutral pages in menu.json: Kanäle, Einstellungen, Systemstatus, Sync-Tool & Addon", () => {
+        expect(MENU.filter((e) => e.neutral === true).map((e) => e.id).sort()).toEqual(["addon", "channels", "settings", "system"]);
     });
 
     it("lets every other page follow the content switch", () => {

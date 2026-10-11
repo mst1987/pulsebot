@@ -25,6 +25,7 @@ export * from "./loot";
 export * from "./cla";
 export * from "./lootcouncil";
 export * from "./guildbank";
+export * from "./addonRelease";
 export * from "./profile";
 export * from "./signups";
 export * from "./availability";

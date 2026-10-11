@@ -45,6 +45,7 @@ const LootCouncilPage = lazyWithReload(() => import("./pages/lootcouncil/LootCou
 const DropCheckPage = lazyWithReload(() => import("./pages/lootcouncil/DropCheckPage"));
 const GuildBankPage = lazyWithReload(() => import("./pages/guildbank/GuildBankPage"));
 const KaderPage = lazyWithReload(() => import("./pages/kader/KaderPage"));
+const AddonPage = lazyWithReload(() => import("./pages/addon/AddonPage"));
 const SystemPage = lazyWithReload(() => import("./pages/system/SystemPage"));
 
 /**
@@ -241,6 +242,8 @@ function MenuApp() {
                                 <Route path="guildbank" element={<Guard user={user} areas={["raids"]}><GuildBankPage /></Guard>} />
                                 {/* The Kaderplaner (area "kader"): one Kader at a time, /kader opens the one used last. */}
                                 <Route path="kader/:kaderId?/:sub?" element={<Guard user={user} areas={["kader"]}><KaderPage /></Guard>} />
+                                {/* Sync-Tool & Addon: the download page, read with "history" (the people who import loot). */}
+                                <Route path="addon" element={<Guard user={user} areas={["history"]}><AddonPage /></Guard>} />
                                 {/* Systemstatus: full admins only, no area opens it (docs/system-status.md). */}
                                 <Route path="system" element={<AdminGuard user={user}><SystemPage /></AdminGuard>} />
                                 {/* Inside the shell on purpose: a mistyped path should still

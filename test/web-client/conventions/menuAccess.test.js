@@ -29,6 +29,8 @@ describe("one menu for both front ends", () => {
             expect(entry).toEqual({
                 // a sub entry keeps its parent's colour (the raid plan pages under Raid-Events)
                 ...(entry.sub ? { area: "raids", sub: true } : {}),
+                // the download page (Sync-Tool & Addon) is a System tool and wears the System colour
+                ...(entry.id === "addon" ? { area: "system" } : {}),
                 // an adminOnly entry (Systemstatus) belongs to no area: full admins only
                 ...(entry.adminOnly ? { adminOnly: true } : {}),
                 // a version-neutral page keeps the brand colour whichever version is shown (#742)
@@ -59,7 +61,7 @@ describe("one menu for both front ends", () => {
             { name: "Raids", ids: ["raids", "cla", "history", "lootcouncil"] },
             { name: "Gilde", ids: ["roster", "kader", "recruitment", "bank"] },
             // Systemstatus (Oct 2026): full admins only
-            { name: "System", ids: ["channels", "settings", "system"] },
+            { name: "System", ids: ["channels", "addon", "settings", "system"] },
         ]);
         // a group is one contiguous block, so its heading is printed once
         expect(new Set(groups.map((g) => g.name)).size).toBe(groups.length);
@@ -83,6 +85,7 @@ describe("one menu for both front ends", () => {
             bank: "achievement_guildperk_mobilebanking",
             kader: "inv_misc_groupneedmore",
             channels: "inv_letter_15",
+            addon: "inv_gizmo_01",
             settings: "trade_engineering",
             system: "inv_gizmo_02",
         });

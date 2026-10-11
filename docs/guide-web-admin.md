@@ -300,6 +300,15 @@ Technik: [loot-import.md](loot-import.md)
 - **Warteliste** als Reiter neben Ausgebbar: Jeder ausgebbare Gegenstand hat eine (je Bank). Wer zuerst fragt, kommt zuerst dran; der Kopf zeigt „N warten“, jede Zeile „3 warten“. Der Reiter zeigt je Gegenstand die Liste (Platz, Raider oder Charakter, Menge, seit wann; mit Schreibrecht nach vorne/hinten und entfernen; die Filterzeile sucht nach Gegenstand oder Spieler; ein Klick auf „N warten“ im Kopf springt hierher). Rechts in der Filterzeile öffnen zwei Knöpfe je einen kleinen Dialog: **Eintrag anlegen** (Name, Gegenstand, Menge mit -/+) und **Import**: Zeilen „Name, Gegenstand, Anzahl“ direkt aus Google Sheets einfügen (Tab, auch ; oder ,), dann *Vorschau* — sie zeigt, ob der Gegenstand gefunden und der Name einem Raider-Charakter zugeordnet wurde (ohne Groß-/Kleinschreibung und Akzente); nicht zugeordnete Namen kommen nur mit Charakternamen rein (keine DM), unbekannte Gegenstände (rot) gar nicht; ein kleiner Tippfehler im Gegenstandsnamen (z. B. „Crimson Spinal“) wird erkannt und in der Vorschau als „erkannt als …“ angezeigt. Neue Einträge stehen hinten, in der Reihenfolge der Zeilen. Wird etwas frei (Scan, Ablehnen, Vormerkung lösen, Reserve gesenkt …), rücken die Ersten von selbst als offene Anfrage nach.
 - Gehören mehrere Banken zum Server (z. B. TBC und Forever), folgt die Seite dem Content-Umschalter; eine Auswahl in der Filterzeile wechselt die Bank. Welche Bank zu welchem Server gehört, steht unter Einstellungen → Verbindungen → *Gildenbanken* (mit nur einem Event-Server ordnet sich eine neue Bank selbst zu).
 
+## Sync-Tool & Addon
+
+Technik: [loot-import.md](loot-import.md)
+
+*Bereich "history" — lesen reicht; Menü: System*
+
+- Hier lädst du die neueste Version vom **Sync-Tool** (`EventHelperSync.exe`, Windows) und vom **WoW-Addon** (zip) herunter. Die Seite zeigt Version und Datum, zwei große Download-Knöpfe und den Link „Was ist neu?“ zur Release-Seite.
+- Die Dateien kommen direkt von GitHub. Die Versionsabfrage wird gemerkt (etwa eine Stunde); ist GitHub gerade nicht erreichbar, bietet die Seite einen Link auf die Release-Seite an.
+- Installation (nur beim ersten Mal): Zip entpacken, den Ordner `EventHelperSync` nach `<WoW>/_anniversary_/Interface/AddOns/` (TBC Anniversary) oder `<WoW>/_classic_beta_/Interface/AddOns/` (WoW Forever) legen, im Spiel `/reload`. Die exe per Doppelklick starten und Serveradresse und API-Token eintragen (Token: Einstellungen → Loot-Sync). Ab Version 1.14.0 aktualisiert sich das Sync-Tool selbst und installiert das Addon über „Installieren“.
 ## Log-Auswertung (CLA/RPB)
 
 Technik: [logcheck.md](logcheck.md)

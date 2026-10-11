@@ -248,7 +248,8 @@
     "/api/guildbank/waitlist/move": "raids",
     "/api/guildbank/waitlist/remove": "raids",
     "/api/guildbank/waitlist/preview": "raids",
-    "/api/guildbank/waitlist/import": "raids"
+    "/api/guildbank/waitlist/import": "raids",
+    "/api/addon-release": "history"
   },
   "ungated": [
     "/api/session",

@@ -1,0 +1,34 @@
+{
+    "title": "Sync tool & addon",
+    "loading": "Looking for the newest version …",
+    "version": "Version {version}",
+    "published": "released on {date}",
+    "news": "What's new?",
+    "missing": "This release has no such file. Check the release page.",
+    "exe": {
+        "title": "Sync tool",
+        "text": "Windows program that sends the loot from the game to EventHelper.",
+        "button": "Download EventHelperSync.exe"
+    },
+    "zip": {
+        "title": "WoW addon",
+        "text": "The in-game addon: collects loot and guild bank.",
+        "button": "Download addon (.zip)"
+    },
+    "install": {
+        "title": "First installation",
+        "zipTitle": "Addon (zip)",
+        "zip1": "Unzip it. The folder \"EventHelperSync\" goes into \"<WoW>/_anniversary_/Interface/AddOns/\" (TBC Anniversary) or \"<WoW>/_classic_beta_/Interface/AddOns/\" (WoW Forever).",
+        "zip2": "Start the game, or type \"/reload\" in game.",
+        "zip3": "Check in the addon menu that \"EventHelperSync\" is enabled.",
+        "exeTitle": "Sync tool (exe)",
+        "exe1": "Start EventHelperSync.exe with a double click.",
+        "exe2": "Enter the server address and API token. You create the token under Settings → Loot sync.",
+        "update": "From version 1.14.0 the sync tool updates itself and installs the addon with the \"Install\" button. You only need this page for the first installation."
+    },
+    "fallback": {
+        "title": "The newest version could not be loaded right now",
+        "text": "GitHub is not reachable at the moment. You find the downloads on the release page itself.",
+        "open": "Open the release page"
+    }
+}
