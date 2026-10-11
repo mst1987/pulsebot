@@ -80,7 +80,7 @@ describe("guild bank: add an item by hand", () => {
 
     it("gives a reader no button", async () => {
         renderPage(<GuildBankPage />, { route: "/guildbank", user: adminUser({ isAdmin: false, access: { raids: { read: true, write: false } } }) });
-        await screen.findByRole("button", { name: "Warteliste" });
+        await screen.findByRole("button", { name: "Anfragen" });
         expect(screen.queryByRole("button", { name: "Gegenstand hinzufügen" })).toBeNull();
     });
 });

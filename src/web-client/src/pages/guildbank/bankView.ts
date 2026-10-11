@@ -5,8 +5,14 @@
 import type { GuildBankItem, GuildBankStatus, GuildBankTab, GuildBankWaitingEntry } from "../../api";
 import { locale, t } from "../../i18n";
 
-/** The page's tabs, in the order of the design: what raiders see first. */
-export const BANK_TABS: GuildBankStatus[] = ["give", "show", "hide", "new"];
+/** The page's tabs, in the order of the design: what raiders see first; "wait" is the waiting list (#775), no item status. */
+export type PageTab = GuildBankStatus | "wait";
+export const BANK_TABS: PageTab[] = ["give", "wait", "show", "hide", "new"];
+
+/** A stored tab id that is none of the page's tabs falls back to the first. */
+export function isPageTab(value: string): value is PageTab {
+    return (BANK_TABS as string[]).includes(value);
+}
 
 /** The WoW icon of the "Anfragen" button and dialog (#633). */
 export const REQUESTS_ICON = "inv_misc_bag_10";
@@ -93,7 +99,7 @@ export function isDirectItemInput(text: string): boolean {
     return /^\d{1,12}$/.test(v) || (/wowhead\.com|^item=/i.test(v) && /item[=/]\d+/i.test(v));
 }
 
-/** The WoW icon of the "Warteliste" button and dialog (#775). */
+/** The WoW icon of the "Warteliste" dialogs (#775). */
 export const WAITLIST_ICON = "inv_misc_pocketwatch_01";
 
 /** How many waiting-list entries wait over the listed items (the head's "N warten"). */
@@ -114,6 +120,21 @@ export function groupWaitlist(entries: GuildBankWaitingEntry[]): WaitlistGroup[]
     return [...byItem.values()]
         .map((g) => ({ ...g, entries: [...g.entries].sort((a, b) => a.position - b.position) }))
         .sort((a, b) => a.item.localeCompare(b.item, locale()) || a.itemId - b.itemId);
+}
+
+/** The entries the filter line lets through: the item's category and a search in the item's or the waiting player's name. */
+export function filterWaitlist(
+    entries: GuildBankWaitingEntry[],
+    items: Map<number, GuildBankItem>,
+    filter: { category: string; search: string },
+): GuildBankWaitingEntry[] {
+    const needle = filter.search.trim().toLocaleLowerCase(locale());
+    return entries.filter((e) => {
+        const item = items.get(e.itemId);
+        if (filter.category && (!item || groupName(item) !== filter.category)) return false;
+        if (!needle) return true;
+        return [e.item, waitingName(e), e.characterName].some((s) => (s || "").toLocaleLowerCase(locale()).includes(needle));
+    });
 }
 
 /** Who waits: the raider's name, else the character imported without a Discord account. */

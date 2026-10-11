@@ -17,6 +17,7 @@
     },
     "tabs": {
         "give": "Requestable",
+        "wait": "Waiting list",
         "show": "Stock only",
         "hide": "Hidden",
         "new": "New"
@@ -26,6 +27,7 @@
         "categoryLabel": "Category",
         "allCategories": "All",
         "search": "Search item",
+        "searchWait": "Item or player",
         "formula": "Available = stock - set aside - reserve"
     },
     "newNotice": "New in the bank since the last scan. Sort it once, it stays that way with every scan.",
@@ -88,15 +90,13 @@
         "confirmedBy": "Set aside by {name}"
     },
     "waitlist": {
-        "button": "Waiting list",
         "title": "Waiting list",
         "hint": "One list per item: whoever asks first is served first. When stock comes free, the first move up on their own as open requests – with a card in the orga channel and a DM.",
-        "views": "View",
-        "viewList": "List",
         "viewAdd": "Add entry",
         "viewImport": "Import",
         "loading": "Loading the waiting list …",
-        "empty": "Nobody is waiting right now.",
+        "empty": "Nobody is waiting right now. If a raider asks for more than there is, the rest lands here.",
+        "noMatch": "Nothing found.",
         "entries": { "one": "{count} entry", "other": "{count} entries" },
         "free": "Available {count}",
         "amount": "{amount}×",

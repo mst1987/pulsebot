@@ -2,6 +2,7 @@
 // per item — design "Webseite: Gildenbank" (Canvas of epic #635).
 //
 //   Ausgebbar     raiders may request it (Discord form, #633)
+//   Warteliste    who waits for an offered item, in order (#775)
 //   Nur Bestand   visible, not requestable
 //   Ausgeblendet  shows up nowhere
 //   Neu           came with the last scan, still to be sorted
@@ -12,16 +13,16 @@
 // (services/guildbank/stockView.js) — the request form uses the same number.
 // Reading takes "raids", every change "raids" write. Every offered item has a
 // waiting list (#775): the head counts who waits, each row says how many, the
-// "Warteliste" dialog keeps them (WaitlistDialog.tsx).
+// "Warteliste" tab keeps them (WaitlistTab.tsx), next to "Ausgebbar".
 import { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
     addGuildBankItem, canAccess, getGuildBank, setGuildBankItem, setGuildBankTabHidden,
-    type ApiError, type GuildBankItem, type GuildBankItemPatch, type GuildBankPageData, type GuildBankStatus, type GuildBankTab,
+    type ApiError, type GuildBankItem, type GuildBankItemPatch, type GuildBankPageData, type GuildBankTab,
 } from "../../api";
 import type { ShellContext } from "../../components/shell/Shell";
 import { Badge, Button, PageHead, RaidLoader, WowIcon, buttonClass } from "../../components/ui";
-import { PlusIcon, RowsIcon } from "../../components/ui/icons";
+import { PlusIcon, RowsIcon, SheetIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
@@ -29,14 +30,16 @@ import { usePersistedState } from "../../lib/ui/persistedState";
 import { formatDateTime, formatMoney } from "../../lib/format";
 import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { tParts, useT } from "../../i18n";
-import { BANK_TABS, REQUESTS_ICON, itemName, WAITLIST_ICON, groupItems, groupNames, tabCounts, waitingTotal } from "./bankView";
+import { BANK_TABS, REQUESTS_ICON, isPageTab, itemName, groupItems, groupNames, tabCounts, waitingTotal, type PageTab } from "./bankView";
 import AddItemDialog from "./AddItemDialog";
 import BankFilterLine from "./BankFilterLine";
 import BankList from "./BankList";
 import ItemSettingsDialog from "./ItemSettingsDialog";
 import BankTabsDialog from "./BankTabsDialog";
 import RequestsDialog from "./RequestsDialog";
-import WaitlistDialog from "./WaitlistDialog";
+import WaitlistAddDialog from "./WaitlistAddDialog";
+import WaitlistImportDialog from "./WaitlistImportDialog";
+import WaitlistTab from "./WaitlistTab";
 import "../../styles/loot-council.css";
 import "../../styles/history-loot.css";
 import "../../styles/guildbank.css";
@@ -73,13 +76,16 @@ export default function GuildBankPage() {
     const [picked, setPicked] = useState({ key: "", version });
     const key = picked.version === version ? picked.key : "";
     const page = useApi<GuildBankPageData>(() => getGuildBank({ key, version }), [key, version]);
-    const [tab, setTab] = usePersistedState<GuildBankStatus>("guildbank-tab", "give");
+    const [storedTab, setTab] = usePersistedState<PageTab>("guildbank-tab", "give");
+    const tab: PageTab = isPageTab(storedTab) ? storedTab : "give";
     const [category, setCategory] = useState("");
     const [search, setSearch] = useState("");
     const [editing, setEditing] = useState<GuildBankItem | null>(null);
     const [bankTabsOpen, setBankTabsOpen] = useState(false);
     const [requestsOpen, setRequestsOpen] = useState(false);
-    const [waitlistOpen, setWaitlistOpen] = useState(false);
+    const [waitAdd, setWaitAdd] = useState(false);
+    const [waitImport, setWaitImport] = useState(false);
+    const [waitToken, setWaitToken] = useState(0);
     const [addOpen, setAddOpen] = useState(false);
     const [adding, setAdding] = useState(false);
     const [busyItem, setBusyItem] = useState(0);
@@ -90,7 +96,7 @@ export default function GuildBankPage() {
     const categories = useMemo(() => groupNames(items), [items]);
     // a category the list no longer has (its last item was re-sorted) filters nothing
     const activeCategory = categories.includes(category) ? category : "";
-    const groups = useMemo(() => groupItems(items, { tab, category: activeCategory, search }), [items, tab, activeCategory, search]);
+    const groups = useMemo(() => groupItems(items, { tab: tab === "wait" ? "give" : tab, category: activeCategory, search }), [items, tab, activeCategory, search]);
     useEffect(() => { refreshWowheadLinks(); }, [groups]);
 
     if (page.error && !page.data) return <div className="empty">{page.error.message}</div>;
@@ -100,6 +106,14 @@ export default function GuildBankPage() {
     const counts = tabCounts(items);
     const hiddenTabs = bank.tabs.filter((x) => x.hidden).length;
     const waiting = waitingTotal(items);
+    const tabCount = { ...counts, wait: waiting };
+    // entries came in by hand or by import: the list and the item numbers are read again
+    const waitDone = () => {
+        setWaitAdd(false);
+        setWaitImport(false);
+        setWaitToken((n) => n + 1);
+        void page.reload();
+    };
 
     const replaceItem = (item: GuildBankItem) => page.setData((d) => (d && d.bank
         ? { ...d, bank: { ...d.bank, items: d.bank.items.map((it) => (it.itemId === item.itemId ? item : it)) } }
@@ -171,7 +185,9 @@ export default function GuildBankPage() {
                             <Badge tone="mid" tip={t("guildbank.page.reservedTip")}>{tParts("guildbank.page.reserved", { count: bank.reservedRequests })}</Badge>
                         )}
                         {waiting > 0 && (
-                            <Badge tone="accent" tip={t("guildbank.page.waitingTip")}>{tParts("guildbank.page.waiting", { count: waiting })}</Badge>
+                            <button type="button" className="gb-badge-link" onClick={() => setTab("wait")}>
+                                <Badge tone="accent" tip={t("guildbank.page.waitingTip")}>{tParts("guildbank.page.waiting", { count: waiting })}</Badge>
+                            </button>
                         )}
                     </>
                 )}
@@ -179,7 +195,6 @@ export default function GuildBankPage() {
                     <>
                         {canWrite && <Button variant="ghost" icon={<PlusIcon />} onClick={() => setAddOpen(true)}>{t("guildbank.add.button")}</Button>}
                         <Button variant="ghost" icon={REQUESTS_ICON} onClick={() => setRequestsOpen(true)}>{t("guildbank.requests.button")}</Button>
-                        <Button variant="ghost" icon={WAITLIST_ICON} onClick={() => setWaitlistOpen(true)}>{t("guildbank.waitlist.button")}</Button>
                         <Button variant="ghost" icon={<RowsIcon />} onClick={() => setBankTabsOpen(true)}>{t("guildbank.page.bankTabs")}</Button>
                     </>
                 )}
@@ -196,7 +211,7 @@ export default function GuildBankPage() {
                         onClick={() => setTab(id)}
                     >
                         {t(`guildbank.tabs.${id}`)}{" "}
-                        <span className={`tab-count${id === "new" && counts.new > 0 ? " gb-hot" : ""}`}>{counts[id]}</span>
+                        <span className={`tab-count${id === "new" && counts.new > 0 ? " gb-hot" : ""}`}>{tabCount[id]}</span>
                     </button>
                 ))}
             </div>
@@ -210,19 +225,38 @@ export default function GuildBankPage() {
                 banks={page.data.banks}
                 bankKey={bank.key}
                 onBank={(k) => setPicked({ key: k, version })}
+                searchPlaceholder={tab === "wait" ? t("guildbank.filter.searchWait") : undefined}
+                actions={tab === "wait" && canWrite ? (
+                    <>
+                        <Button variant="ghost" icon={<PlusIcon />} onClick={() => setWaitAdd(true)}>{t("guildbank.waitlist.viewAdd")}</Button>
+                        <Button variant="ghost" icon={<SheetIcon />} onClick={() => setWaitImport(true)}>{t("guildbank.waitlist.viewImport")}</Button>
+                    </>
+                ) : undefined}
             />
 
             {tab === "new" && counts.new > 0 && <div className="flash gb-notice">{t("guildbank.newNotice")}</div>}
 
-            <BankList
-                groups={groups}
-                tabs={bank.tabs}
-                wowheadPath={bank.wowheadPath}
-                canWrite={canWrite}
-                busyId={busyItem}
-                onStatus={(item, status) => { void saveItem(item, { status }); }}
-                onSettings={setEditing}
-            />
+            {tab === "wait" ? (
+                <WaitlistTab
+                    bankKey={bank.key}
+                    items={items}
+                    canWrite={canWrite}
+                    category={activeCategory}
+                    search={search}
+                    reloadToken={waitToken}
+                    onChanged={() => { void page.reload(); }}
+                />
+            ) : (
+                <BankList
+                    groups={groups}
+                    tabs={bank.tabs}
+                    wowheadPath={bank.wowheadPath}
+                    canWrite={canWrite}
+                    busyId={busyItem}
+                    onStatus={(item, status) => { void saveItem(item, { status }); }}
+                    onSettings={setEditing}
+                />
+            )}
 
             {editing && (
                 <ItemSettingsDialog
@@ -242,15 +276,8 @@ export default function GuildBankPage() {
                     onClose={() => { setRequestsOpen(false); void page.reload(); }}
                 />
             )}
-            {waitlistOpen && (
-                <WaitlistDialog
-                    bankKey={bank.key}
-                    items={items}
-                    canWrite={canWrite}
-                    // entries may have moved up meanwhile: read the numbers again
-                    onClose={() => { setWaitlistOpen(false); void page.reload(); }}
-                />
-            )}
+            {waitAdd && canWrite && <WaitlistAddDialog bankKey={bank.key} items={items} onClose={() => setWaitAdd(false)} onDone={waitDone} />}
+            {waitImport && canWrite && <WaitlistImportDialog bankKey={bank.key} onClose={() => setWaitImport(false)} onDone={waitDone} />}
             {bankTabsOpen && (
                 <BankTabsDialog
                     tabs={bank.tabs}
