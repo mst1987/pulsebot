@@ -115,7 +115,7 @@ export default function LootCouncilPage() {
     const loaded = useRef(false);
     // Sim results live next to the data, not in it: the page is complete
     // without them and they are only ever an improvement laid over the top.
-    const { sim, setSim, simRunning, runSim } = useCouncilSim();
+    const { sim, setSim, simRunning, runSim } = useCouncilSim({ roster: view.roster || "", category: view.category, version: contentVersion });
     // The open WoWSims export, if any — one raider at a time.
     const [exportData, setExportData] = useState<CouncilExport | null>(null);
     // Which per-raider actions are in flight, as "action:character" — two

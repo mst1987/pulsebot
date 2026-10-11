@@ -9,6 +9,7 @@ export * from "./channels";
 export * from "./settings";
 export * from "./discordServers";
 export * from "./raidhelperRetirement";
+export * from "./versionLaunch";
 export * from "./botCommands";
 export * from "./roster";
 export * from "./rosterEdit";

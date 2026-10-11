@@ -1121,6 +1121,148 @@
             "no_catalog_entries": "Keine Katalog-Einträge für {version}."
         }
     },
+    "versionLaunch": {
+        "title": "Neue Version starten",
+        "titleSub": "Was am Umstiegstag erledigt sein sollte, je Zielversion. Der Stand kommt aus den echten Daten. Nur was sich nicht prüfen lässt, hakst du selbst ab. Details im Tooltip jedes Punkts.",
+        "target": "Zielversion",
+        "doneOf": "{done} von {total} erledigt",
+        "loading": "Checkliste wird geprüft",
+        "loadError": "Checkliste nicht ladbar: {message}",
+        "status": {
+            "done": "erledigt",
+            "open": "offen"
+        },
+        "optional": "optional",
+        "optionalTip": "Nur wenn die alte Version ganz endet. Zählt nicht mit.",
+        "manualTip": "Lässt sich nicht aus den Daten prüfen: selbst abhaken.",
+        "mark": "erledigt",
+        "markAria": "{item}: erledigt",
+        "markedBy": "abgehakt am {date} von {name}",
+        "markedAt": "abgehakt am {date}",
+        "jump": "Hier oben",
+        "toLink": "Zu {label}",
+        "markFailed": "Nicht gespeichert: {message}",
+        "items": {
+            "backup": {
+                "label": "Daten gesichert",
+                "why": "Vor dem Umstellen eine frische Sicherung: falls etwas schiefgeht, lässt sich der Stand von heute zurückholen."
+            },
+            "export": {
+                "label": "Archiv der alten Version geladen",
+                "why": "Loot und Anwesenheit jeder Version außer der Hauptversion als CSV. Lohnt sich, wenn die alte Version endet: nach dem Umstellen der Hauptversion laden."
+            },
+            "categories": {
+                "label": "Jede Kategorie hat eine feste Version",
+                "why": "Jede aktive Kategorie spielt genau eine Version. Umstellen startet einen neuen Abschnitt, alte Raids bleiben in ihrer Version."
+            },
+            "versionSettings": {
+                "label": "Links der Version gesetzt",
+                "why": "Realm, Armory, Warcraft Logs, Wowhead, Softres und Raidsheet der Zielversion. Leer ist in Ordnung, wo die Funktion für die Version nicht möglich oder ausgeschaltet ist."
+            },
+            "templates": {
+                "label": "Raid-Vorlagen der Version da",
+                "why": "Neue Raids, Serien und die Standardvorlage einer Kategorie brauchen Vorlagen dieser Version."
+            },
+            "series": {
+                "label": "Serien und Standardvorlagen passen",
+                "why": "Eine Vorlage einer anderen Version legt kein Event an. Die Serie würde scheitern."
+            },
+            "rosters": {
+                "label": "Roster mit Rollen und Managern",
+                "why": "Jede Kategorie der Version braucht ein offenes Roster mit Discord-Rollen und Managern. Roster gibt es je Version."
+            },
+            "guildBank": {
+                "label": "Gildenbank zugeordnet",
+                "why": "Die Bank der neuen Version kommt mit dem ersten Scan aus dem Spiel und braucht einen Discord-Server."
+            },
+            "lootAddon": {
+                "label": "Loot-Addon im neuen Client getestet",
+                "why": "Einmal Loot und einen Bank-Scan im neuen Client aufnehmen und hochladen. Kommt die Version richtig an?"
+            },
+            "talk": {
+                "label": "Talk-Übersicht und Erinnerungen geprüft",
+                "why": "Die Raid-Übersicht auf dem Talk-Server und die Erinnerungen zeigen Raids aller Versionen. Einmal ansehen, ob die neuen Raids richtig erscheinen."
+            },
+            "mainVersion": {
+                "label": "Hauptversion umgestellt, andere ausgeblendet",
+                "why": "Nur wenn die alte Version ganz endet: Hauptversion auf die neue stellen und „Andere Versionen ausblenden“ einschalten."
+            }
+        },
+        "value": {
+            "manual": "von Hand",
+            "backupAt": "Sicherung {date}",
+            "backupStale": "nicht frisch",
+            "noCategory": "keine Kategorie",
+            "categories": "{done} / {total}",
+            "fieldsOk": "vollständig",
+            "fieldsMissing": {
+                "one": "{count} fehlt",
+                "other": "{count} fehlen"
+            },
+            "templates": {
+                "one": "{count} Vorlage",
+                "other": "{count} Vorlagen"
+            },
+            "none": "keine",
+            "seriesOk": "passt",
+            "seriesNothing": "nichts zu prüfen",
+            "seriesBad": {
+                "one": "{count} passt nicht",
+                "other": "{count} passen nicht"
+            },
+            "rosters": "{done} / {total}",
+            "noTargetCategory": "keine {version}-Kategorie",
+            "bankOk": "zugeordnet",
+            "bankWaiting": "wartet auf Zuordnung",
+            "bankNone": "keine Bank",
+            "isMain": "Hauptversion",
+            "mainNotHidden": "andere sichtbar",
+            "mainOther": "Haupt: {version}"
+        },
+        "detail": {
+            "categoriesMissing": "Ohne Version: {names}",
+            "categoriesTarget": "Spielen {version}: {names}",
+            "fieldMissing": "Fehlt: {fields}",
+            "fieldNotNeeded": "Leer, nicht nötig: {fields}",
+            "templateNames": "Vorlagen: {names}",
+            "incomplete": "Bosse eintragen, sobald bekannt: {raids}",
+            "seriesItem": "{name}: Serie mit „{template}“",
+            "defaultItem": "{name}: Standardvorlage „{template}“",
+            "rosterItem": "{name}: {problems}",
+            "bankItem": "{guild} ({realm}): {state}",
+            "noTarget": "Keine aktive Kategorie spielt {version}. Erst eine Kategorie umstellen.",
+            "backupManual": "Diese Instanz macht keine eigene Sicherung: von Hand sichern und abhaken.",
+            "backupParts": "Lokal: {snapshot} · Außer Haus: {offsite}",
+            "never": "nie"
+        },
+        "fields": {
+            "realm": "Realm",
+            "armory": "Armory-Link",
+            "wcl": "Warcraft Logs",
+            "wowhead": "Wowhead",
+            "softres": "Softres",
+            "raidsheet": "Raidsheet"
+        },
+        "notNeeded": {
+            "disabled": "ausgeschaltet",
+            "other": "für die Version nicht möglich"
+        },
+        "roster": {
+            "missing": "kein Roster",
+            "closed": "abgeschlossen",
+            "noRoles": "ohne Rollen",
+            "noManagers": "ohne Manager"
+        },
+        "links": {
+            "backup": "Systemstatus",
+            "export": "CSV laden",
+            "templates": "Raid-Vorlagen",
+            "series": "Serien",
+            "rosters": "Roster",
+            "guildBank": "Gildenbanken",
+            "talk": "Discord-Server"
+        }
+    },
     "planning": {
         "raidplan": "Raidplan",
         "sheet": "Sheet"

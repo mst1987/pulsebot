@@ -195,7 +195,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/event-loot-system.json` | `eventLootSystemStore.js` | Loot-System je Event (z. B. softres) | nein |
 | `settings/event-sheets.json` | `eventSheetStore.js` | Welche Events ins Google-Raidsheet geschrieben wurden | nein |
 | `settings/event-softres.json` | `eventSoftresStore.js` | Angelegte softres.it-Listen je Event (Links) | nein |
-| `settings/raid-events.json` | `raidEventStore.js` | Schnappschuss gesehener Raid-Helper-Events (Cache) samt `versionId` (#737): die Spielversion, die die Kategorie beim ersten Scan spielte – ein späterer Scan überschreibt sie nicht, ältere Einträge stempelt die Start-Migration einmal; siehe [raid-templates.md](raid-templates.md) „Version fest an jedem Raid“ | nein |
+| `settings/raid-events.json` | `raidEventStore.js` | Schnappschuss gesehener Raid-Helper-Events (Cache) samt `versionId` (#737): die Spielversion, die die Kategorie beim ersten Scan spielte – ein späterer Scan überschreibt sie nicht, ältere Einträge stempelt die Start-Migration einmal; siehe [game-versions.md](game-versions.md) „Version fest an jedem Raid“ | nein |
 | `settings/raidhelper-events.json` | `raidhelperEventsStore.js` | Die Raid-Helper-Eventliste (mit Anmeldungen) des letzten Abgleichs, `syncedAt`, letzter Fehler (Cache, #608) | nein |
 | `settings/raidhelper-budget.json` | `raidhelperBudgetStore.js` | Anfragen an Raid-Helper je Stunde der letzten 24 h, Sperre nach HTTP 429 (#608). Löschen setzt nur den Zähler zurück, nicht den von Raid-Helper | nein |
 | `settings/category-names.json` | `services/discord/categoryNames.js` | Letzte bekannte Namen der Discord-Kategorien (Cache) | nein |

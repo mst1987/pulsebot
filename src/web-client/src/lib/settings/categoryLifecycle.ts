@@ -4,6 +4,7 @@
 // src/services/events/categoryLifecycle.js.
 import type { CategorySeriesInfo, Role } from "../../api";
 import { weekdayShort } from "../raids/eventSeries";
+import { assignableRoles } from "./assignableRoles";
 
 /** The categories active now (saved) that the draft no longer has — a save deactivates them. */
 export function deactivatedIds(saved: string[] | undefined, draft: string[]): string[] {
@@ -22,10 +23,11 @@ export function seriesWhen(series: CategorySeriesInfo | null | undefined): strin
  * The roles the raider-role picker of a category offers: every role whose name
  * says "raid", plus every role a category already uses — matched by id, so a
  * raider role renamed in Discord (#744: "TBC Raider" → "Kern") stays offered and
- * stays picked. The roles in use come first.
+ * stays picked. The roles in use come first; a bot's own role (@MEE6, #745) only
+ * while a category still uses it.
  */
 export function raiderRoleOptions(roles: Role[], categoryRoles: Record<string, string[]>): Role[] {
     const used = new Set(Object.values(categoryRoles || {}).flat());
-    const offered = roles.filter((r) => used.has(r.id) || /raid/i.test(r.name || ""));
+    const offered = assignableRoles(roles, [...used]).filter((r) => used.has(r.id) || /raid/i.test(r.name || ""));
     return [...offered.filter((r) => used.has(r.id)), ...offered.filter((r) => !used.has(r.id))];
 }

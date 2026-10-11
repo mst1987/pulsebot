@@ -64,7 +64,7 @@ export function VersionSettingsCard({ versions, mainVersion, value, defaults = {
         { key: "wowhead", url: links.wowheadItem(SAMPLE_ITEM) },
     ];
     return (
-        <div className="set-card set-form gv-links">
+        <div className="set-card set-form gv-links" id="gv-links">
             <div className="gv-links-head">
                 <FieldLabel tip={t("settings.versionLinks.title")} tipSub={t("settings.versionLinks.titleSub")}>{t("settings.versionLinks.title")}</FieldLabel>
                 <Segment
@@ -221,7 +221,7 @@ export default function GameVersionSection({ versions, categories, activeIds, ma
         return eras.length > 1 && last && last.from ? formatDayDate(last.from) : "";
     };
     return (
-        <div className="set-card set-form">
+        <div className="set-card set-form" id="gv-main">
             <div className="set-field">
                 <FieldLabel tip={t("settings.gameVersion.main")} tipSub={t("settings.gameVersion.mainSub")}>{t("settings.gameVersion.main")}</FieldLabel>
                 <Segment

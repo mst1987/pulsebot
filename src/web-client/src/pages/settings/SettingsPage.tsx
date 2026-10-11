@@ -36,6 +36,7 @@ import { categoryVersionsToSave, isVersionSwitch, savedCategoryVersion, switchFi
 import HideOtherVersionsCard from "./HideOtherVersionsCard";
 import BotLanguageCard from "./BotLanguageCard";
 import VersionFeaturesCard from "./VersionFeaturesCard";
+import VersionLaunchCard from "./VersionLaunchCard";
 import { withDisabled } from "../../lib/settings/versionFeatures";
 import { useContentVersion } from "../../hooks/useContentVersion";
 
@@ -453,6 +454,7 @@ export default function SettingsPage() {
                         raidsheets={data.raidsheets || []}
                         onChange={(id, block) => patch({ versionSettings: { ...draft.versionSettings, [id]: block } })}
                     />
+                    <VersionLaunchCard versions={data.gameVersions || []} canExport={data.canManageAccess} saved={data.config} />
                 </>
             );
 

@@ -131,7 +131,8 @@ Dieses Dokument ist der Einstieg und bleibt kurz: hier steht nur, was *jeder* Ag
 | [docs/signups.md](docs/signups.md) | Anmeldung im Web und im Bot, mehrere Raids auf einmal, Anmelder-Nachricht, Warteliste und Ankündigung, App-Emojis |
 | [docs/setup.md](docs/setup.md) | Setup-Vorschlag, Setup-Editor und das Setup im Kanal (Nachricht + DMs) |
 | [docs/raidplan.md](docs/raidplan.md) | Raidplan: ein Board je Boss (Karte, Spieler-Tokens, Aufgabenzeilen), Taktik-Profile, Karten-Upload, Freigabe und die öffentliche Lese-Ansicht `/p/<token>` |
-| [docs/raid-templates.md](docs/raid-templates.md) | Spielversionen und Instanzen (`src/config/gameVersions/`) sowie Raid-Vorlagen |
+| [docs/raid-templates.md](docs/raid-templates.md) | Regelsätze der Spielversionen (`src/config/gameVersions/`: Klassen, Instanzen, Buffs) sowie Raid-Vorlagen |
+| [docs/game-versions.md](docs/game-versions.md) | Versionsmodell (Version am Raid, feste Version je Kategorie, Abschnitte, Einstellungen und Funktionen je Version, strenge Trennung) und das Runbook „Neue Version starten“ |
 | [docs/channels.md](docs/channels.md) | Kanäle-Seite, Namensregeln und -ableitung, Archiv, Schnellanlage |
 | [docs/roster-profile.md](docs/roster-profile.md) | Roster-Bereich und das Raider-Profil („Mein Profil“) |
 | [docs/kaderplaner.md](docs/kaderplaner.md) | Kaderplaner für WoW Forever: Bereich `kader`, Kader mit Status je Spieler (Pool → Vorauswahl → Vorläufig → Roster), Gespräche und Fragen, Stimmen, Beispiel-Setups, Datenschutz, Umstellung |

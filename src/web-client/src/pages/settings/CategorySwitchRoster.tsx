@@ -11,6 +11,7 @@ import type { CategorySwitchPreview, Role, RosterSwitchChoice } from "../../api"
 import Chip from "../../components/ui/Chip";
 import Switch from "../../components/ui/Switch";
 import { useT } from "../../i18n";
+import { assignableRoles } from "../../lib/settings/assignableRoles";
 
 export default function CategorySwitchRoster({ preview, roles, value, onChange }: {
     preview: CategorySwitchPreview;
@@ -24,6 +25,8 @@ export default function CategorySwitchRoster({ preview, roles, value, onChange }
     const from = preview.from.short;
     const to = preview.to.short;
     const toggleRole = (id: string) => onChange({ ...value, roleIds: value.roleIds.includes(id) ? value.roleIds.filter((r) => r !== id) : [...value.roleIds, id] });
+    // a bot's own role (@MEE6) can be given to nobody: no chip for it (#745)
+    const offered = assignableRoles(roles, value.roleIds);
     return (
         <section className="csw-part" aria-label={t("settings.categorySwitch.rosterTitle")}>
             <h3 className="csw-head">{t("settings.categorySwitch.rosterTitle")}</h3>
@@ -53,9 +56,9 @@ export default function CategorySwitchRoster({ preview, roles, value, onChange }
                             />
                             <div className="csw-roles">
                                 <span className="csw-lbl">{t("settings.categorySwitch.rosterRoles")}</span>
-                                {roles.length ? (
+                                {offered.length ? (
                                     <div className="chip-row" role="group" aria-label={t("settings.categorySwitch.rosterRoles")}>
-                                        {roles.map((r) => (
+                                        {offered.map((r) => (
                                             <Chip key={r.id} pressed={value.roleIds.includes(r.id)} onClick={() => toggleRole(r.id)}>@{r.name || r.id}</Chip>
                                         ))}
                                     </div>

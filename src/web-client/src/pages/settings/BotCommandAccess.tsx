@@ -20,6 +20,7 @@ import Switch from "../../components/ui/Switch";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { LockIcon, PenIcon, XIcon } from "../../components/ui/icons";
 import { FieldLabel } from "../../components/ui/Field";
+import { assignableRoles } from "../../lib/settings/assignableRoles";
 
 // Einstellungen → Berechtigungen → Bot-Befehle (issue #252): who may use which
 // bot command in Discord. One line per command group, folded; open, one row per
@@ -214,7 +215,8 @@ function CommandModal({ command, groupLabel, groupIcon, groupSize, rule, roles, 
     const t = useT();
     const draft: BotAccessRule = { mode, roleIds: mode === "roles" ? roleIds : [] };
     const isDefault = sameRule(draft, command.defaultAccess);
-    const addable = roles.filter((r) => !roleIds.includes(r.id));
+    // a bot's own role (@MEE6) is held by no member: nothing to grant it (#745)
+    const addable = assignableRoles(roles).filter((r) => !roleIds.includes(r.id));
 
     return (
         <Modal

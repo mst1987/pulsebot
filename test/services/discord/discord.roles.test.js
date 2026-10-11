@@ -1,10 +1,11 @@
 // listRoles() feeds the role pickers and the permission matrix, which tints a
-// role's tile with its Discord colour.
+// role's tile with its Discord colour; `managed` marks a role a bot or an
+// integration owns, which the pickers leave out (#745).
 const discord = require("../../../src/services/discord/discord.js");
 const { makeClient, makeGuild } = require("../../helpers/discordClient");
 
-function role(id, name, rawPosition, color = 0, hexColor = "#000000") {
-    return { id, name, rawPosition, color, hexColor };
+function role(id, name, rawPosition, color = 0, hexColor = "#000000", managed = false) {
+    return { id, name, rawPosition, color, hexColor, managed };
 }
 
 afterEach(() => discord.setClient(null));
@@ -21,9 +22,15 @@ describe("services/discord/discord listRoles", () => {
         });
         discord.setClient(makeClient({ guilds: [guild] }));
         expect(discord.listRoles("g1")).toEqual([
-            { id: "r2", name: "Offizier", color: "" },
-            { id: "r1", name: "Raider", color: "#35d6c4" },
+            { id: "r2", name: "Offizier", color: "", managed: false },
+            { id: "r1", name: "Raider", color: "#35d6c4", managed: false },
         ]);
+    });
+
+    it("marks a role a bot owns as managed (#745)", () => {
+        const guild = makeGuild({ id: "g1", roles: [role("r1", "Raider", 1), role("m1", "MEE6", 9, 0, "#000000", true)] });
+        discord.setClient(makeClient({ guilds: [guild] }));
+        expect(discord.listRoles("g1").map((r) => [r.name, r.managed])).toEqual([["MEE6", true], ["Raider", false]]);
     });
 
     it("returns [] without a client", () => {

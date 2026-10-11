@@ -2,6 +2,7 @@ import type { Role, TextChannel } from "../../api";
 import Badge from "../ui/Badge";
 import { LockIcon } from "../ui/icons";
 import { tParts, useT } from "../../i18n";
+import { assignableRoles } from "../../lib/settings/assignableRoles";
 
 // Small pieces the Einstellungen page shares between its sections: the
 // "Nur Voll-Admins" badge and the channel/role pickers that replace typed
@@ -48,8 +49,11 @@ export function ChannelPicker({ id, value, channels, onChange, placeholder }: {
     );
 }
 
-/** A role by name — the same fallbacks as ChannelPicker. */
-export function RolePicker({ id, value, roles, onChange, placeholder }: {
+/**
+ * A role by name — the same fallbacks as ChannelPicker. A bot's own role
+ * (@MEE6, `managed`) is left out unless it is the stored value (#745).
+ */
+export function RolePicker({ id, value, roles: all, onChange, placeholder }: {
     id?: string;
     value: string;
     roles: Role[];
@@ -58,9 +62,10 @@ export function RolePicker({ id, value, roles, onChange, placeholder }: {
     placeholder?: string;
 }) {
     const t = useT();
-    if (!roles.length) {
+    if (!all.length) {
         return <input id={id} type="text" className="mono" value={value} onChange={(e) => onChange(e.target.value)} placeholder={t("settings.ui.roleIdPlaceholder")} />;
     }
+    const roles = assignableRoles(all, value ? [value] : []);
     const known = !value || roles.some((r) => r.id === value);
     return (
         <select id={id} value={value} onChange={(e) => onChange(e.target.value)} data-tip={value ? `ID ${value}` : undefined}>
