@@ -146,9 +146,10 @@ describe("web/loot/lootCouncil", () => {
             mockGearByCharacter.mockReturnValue(new Map([
                 ["devihra", gearOf([
                     { ...item(12, 23207), situational: { note: "wirkt nur gegen Untote und Dämonen" } },
-                    item(13, 29370),
+                    item(13, 28789),
                 ])],
-                ["magier", gearOf([item(12, 29370), item(13, 32483)], { key: "magier", character: "Magier", className: "Mage" })],
+                // Not the trinket itself: it is unique, whoever wears it is no candidate.
+                ["magier", gearOf([item(12, 28789), item(13, 32483)], { key: "magier", character: "Magier", className: "Mage" })],
             ]));
             const byChar = Object.fromEntries(
                 candidatesForItem(trinketId, councilRoster({ bisTier: "t6" }).rows).map((c) => [c.character, c]),
@@ -352,7 +353,8 @@ describe("web/loot/lootCouncil — wer das Item überhaupt tragen kann", () => {
     });
 
     it("lässt einen zweiten Ring zu, solange ein Fingerplatz frei von ihm ist", () => {
-        const RING = 29287;
+        const RING = 32527; // Ring of Ancient Knowledge — nicht einzigartig
+        expect(wowsims.item(RING).unique).toBeUndefined();
         mockAnnotated.mockReturnValue([
             { key: "einer", className: "Mage", spec: "Arcane" },
             { key: "zwei", className: "Mage", spec: "Fire" },
@@ -364,6 +366,31 @@ describe("web/loot/lootCouncil — wer das Item überhaupt tragen kann", () => {
         const { candidates, owned } = candidateSplit(RING, councilRoster().rows);
         expect(candidates.map((c) => c.key)).toEqual(["einer"]);
         expect(owned.map((o) => o.key)).toEqual(["zwei"]);
+    });
+
+    // Dragonspine Trophy: zwei Schmuckplätze, aber einzigartig anlegbar — wer
+    // eine trägt, kann keine zweite brauchen und stand trotzdem oben.
+    it("nimmt aus, wer ein einzigartiges Schmuckstück schon in einem der beiden Plätze trägt", () => {
+        const DST = 28830;
+        expect(wowsims.item(DST).unique).toBe(true);
+        mockAnnotated.mockReturnValue([
+            { key: "hat", className: "Warrior", spec: "Fury" },
+            { key: "will", className: "Warrior", spec: "Fury" },
+        ]);
+        mockGearByCharacter.mockReturnValue(new Map([
+            ["hat", gearOf([item(12, 29383), item(13, DST)], { key: "hat", character: "Hat", className: "Warrior", profile: { role: "melee", confident: true } })],
+            ["will", gearOf([item(12, 29383), item(13, 28034)], { key: "will", character: "Will", className: "Warrior", profile: { role: "melee", confident: true } })],
+        ]));
+        const { candidates, owned } = candidateSplit(DST, councilRoster().rows);
+        expect(candidates.map((c) => c.key)).toEqual(["will"]);
+        expect(owned).toEqual([expect.objectContaining({ key: "hat", source: "worn" })]);
+    });
+
+    it("zählt bei einem einzigartigen Ring schon die erste Kopie aus der Loot-Historie", () => {
+        const RING = 29287; // Violet Signet of the Archmage — einzigartig
+        mockListAll.mockReturnValue([lootRow({ characterKey: "magier", character: "Magier", itemId: RING })]);
+        const { owned } = candidateSplit(RING, mixedRoster());
+        expect(owned).toEqual([expect.objectContaining({ key: "magier", source: "awarded" })]);
     });
 
     it("hat niemanden unter „schon da“, wenn keiner das Item hat", () => {

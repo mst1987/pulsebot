@@ -455,6 +455,10 @@ async function main() {
             phase: Number(item.phase || 0),
             stats,
             ...(item.setName ? { setName: String(item.setName) } : {}),
+            // „Einzigartig anlegbar“: wer eins trägt, kann kein zweites in den
+            // anderen Ring-/Schmuck-/Waffenplatz legen — der Drop-Check nimmt
+            // ihn dann aus den Kandidaten (lootCouncil.js alreadyHas).
+            ...(item.unique ? { unique: true } : {}),
             // Only weapons have one, and only "two" changes anything downstream.
             ...(HAND_TYPE[item.handType] ? { hand: HAND_TYPE[item.handType] } : {}),
             ...(Array.isArray(item.gemSockets) && item.gemSockets.length ? { sockets: item.gemSockets.map(Number) } : {}),

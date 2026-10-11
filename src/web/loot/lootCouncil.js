@@ -1214,12 +1214,13 @@ function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
  * (won last raid, not in a log yet), "" when the drop could still go to them.
  *
  * Copies, not a yes/no: a ring or a one-hander fits two slots, and wearing one
- * still leaves room for the second. A two-hander only ever takes one. The item
- * table knows no "unique-equipped", so a second unique ring stays a candidate.
+ * still leaves room for the second — unless it is unique-equipped, as nearly
+ * every raid trinket and ring is (Dragonspine Trophy), or a two-hander: then
+ * one copy is all a raider can use.
  */
 function alreadyHas(row, gear, itemId, item) {
     const id = Number(itemId);
-    const room = item.hand === "two" ? 1 : Math.max(1, (item.slots || []).length);
+    const room = item.hand === "two" || item.unique ? 1 : Math.max(1, (item.slots || []).length);
     const worn = ((gear && gear.items) || []).filter((it) => Number(it.itemId) === id).length;
     if (worn >= room) return "worn";
     const awarded = (row.items || []).filter((it) => Number(it.itemId) === id).length;
