@@ -1,4 +1,4 @@
-// What only the orga sees (design canvas Oct 2026): the bar over an orga page, the zone
+// What only the orga sees (design canvas Oct 2026): the chip in the top bar of an orga page, the zone
 // around the orga's part of a page, the menu dot — each naming who sees it after all.
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { SessionUser } from "../../api";
 import { t } from "../../i18n";
-import { OrgaBar, OrgaDot, OrgaZone } from "./OrgaZone";
+import { OrgaChip, OrgaDot, OrgaZone } from "./OrgaZone";
 import { pageAudience } from "../../lib/app/orgaArea";
 
 vi.mock("../../api", async (orig) => ({
@@ -24,21 +24,26 @@ const admin: SessionUser = { id: "2", name: "Anna", isAdmin: true, access: {}, a
 
 beforeEach(() => vi.mocked(api.setViewAs).mockReset());
 
-describe("OrgaBar", () => {
+describe("OrgaChip", () => {
     it("says on an orga page that raiders do not see it, and who does — a raider role that may read shows up", () => {
-        render(<OrgaBar user={lead} audience={pageAudience(lead, { areas: ["raids"] })} />);
+        render(<OrgaChip user={lead} audience={pageAudience(lead, { areas: ["raids"] })} />);
         const bar = screen.getByRole("note");
         expect(bar).toHaveTextContent(t("shell.orga.label"));
-        expect(bar).toHaveTextContent(t("shell.orga.pageHidden"));
-        expect(bar).toHaveTextContent(t("shell.orga.visibleFor", { who: "Admins · @Mo Raider · @Raidleitung" }));
+        // the explanation is the tooltip and the accessible name
+        const who = t("shell.orga.visibleFor", { who: "Admins · @Mo Raider · @Raidleitung" });
+        expect(bar).toHaveAccessibleName(expect.stringContaining(who));
+        expect(bar).toHaveAccessibleName(expect.stringContaining(t("shell.orga.pageHidden")));
+        const lbl = bar.querySelector(".orga-chip-lbl")!;
+        expect(lbl).toHaveAttribute("data-tip", t("shell.orga.pageHidden"));
+        expect(lbl).toHaveAttribute("data-tip-sub", who);
         // only a full admin may look at it as a raider
         expect(screen.queryByRole("button", { name: t("shell.orga.asRaider") })).not.toBeInTheDocument();
     });
 
     it("shows nothing on a page every raider may open, or without the server's audience", () => {
-        const { container } = render(<OrgaBar user={lead} audience={pageAudience(lead, { areas: ["signup"] })} />);
+        const { container } = render(<OrgaChip user={lead} audience={pageAudience(lead, { areas: ["signup"] })} />);
         expect(container).toBeEmptyDOMElement();
-        const second = render(<OrgaBar user={{ ...lead, audience: undefined }} audience={pageAudience({ ...lead, audience: undefined }, { areas: ["raids"] })} />);
+        const second = render(<OrgaChip user={{ ...lead, audience: undefined }} audience={pageAudience({ ...lead, audience: undefined }, { areas: ["raids"] })} />);
         expect(second.container).toBeEmptyDOMElement();
     });
 
@@ -46,19 +51,19 @@ describe("OrgaBar", () => {
         vi.mocked(api.setViewAs).mockResolvedValue({ viewAs: { roleIds: [] } });
         const assign = vi.fn();
         vi.stubGlobal("location", { ...window.location, assign });
-        render(<OrgaBar user={admin} audience={pageAudience(admin, { areas: ["raids"] })} />);
+        render(<OrgaChip user={admin} audience={pageAudience(admin, { areas: ["raids"] })} />);
         await userEvent.click(screen.getByRole("button", { name: t("shell.orga.asRaider") }));
         expect(api.setViewAs).toHaveBeenCalledWith({ roleIds: [] });
         expect(assign).toHaveBeenCalledWith("/");
         vi.unstubAllGlobals();
         // already looking as a role: no second way in
-        render(<OrgaBar user={{ ...admin, viewAs: { roleIds: [], roleNames: [], at: 1 } }} audience={pageAudience(admin, { areas: ["raids"] })} />);
+        render(<OrgaChip user={{ ...admin, viewAs: { roleIds: [], roleNames: [], at: 1 } }} audience={pageAudience(admin, { areas: ["raids"] })} />);
         expect(screen.getAllByRole("note")).toHaveLength(2);
         expect(screen.getAllByRole("button", { name: t("shell.orga.asRaider") })).toHaveLength(1);
     });
     it("marks a page only full admins open (Systemstatus) as seen by the admins alone", () => {
-        render(<OrgaBar user={admin} audience={pageAudience(admin, { areas: [], adminOnly: true })} />);
-        expect(screen.getByRole("note")).toHaveTextContent(t("shell.orga.visibleFor", { who: t("shell.orga.admins") }));
+        render(<OrgaChip user={admin} audience={pageAudience(admin, { areas: [], adminOnly: true })} />);
+        expect(screen.getByRole("note")).toHaveAccessibleName(expect.stringContaining(t("shell.orga.visibleFor", { who: t("shell.orga.admins") })));
     });
 });
 

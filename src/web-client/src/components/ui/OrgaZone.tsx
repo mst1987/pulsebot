@@ -1,8 +1,9 @@
 // The marks for what only the orga sees (design canvas Oct 2026: E for whole pages, B for parts):
 //
-//   OrgaBar   the teal bar over a page none of whose areas the base access opens —
-//             "Orga-Bereich · Raider sehen diese Seite nicht · sichtbar für …", and for a
-//             full admin the way to look at it as a raider (the base access only)
+//   OrgaChip  the teal chip in the top bar (after the breadcrumbs) on a page none of whose areas
+//             the base access opens — "Orga-Bereich", the "Raider sehen diese Seite nicht /
+//             sichtbar für …" in its tooltip and accessible name, and for a full admin the way
+//             to look at it as a raider (the base access only)
 //   OrgaZone  the tinted, dashed frame around the orga's part of a page everybody sees
 //             (the dashboard's orga block, the absence overview of all raiders)
 //
@@ -23,8 +24,17 @@ function ShieldIcon() {
     );
 }
 
-/** The bar over an orga page (`audience`: lib/app/orgaArea.ts pageAudience); nothing for a page every raider may open (null). */
-export function OrgaBar({ user, audience }: { user: SessionUser; audience: OrgaAudience | null }) {
+function EyeIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+            <circle cx="12" cy="12" r="3" />
+        </svg>
+    );
+}
+
+/** The chip in the top bar for an orga page (`audience`: lib/app/orgaArea.ts pageAudience); nothing for a page every raider may open (null). */
+export function OrgaChip({ user, audience }: { user: SessionUser; audience: OrgaAudience | null }) {
     const t = useT();
     const toast = useToast();
     const [busy, setBusy] = useState(false);
@@ -41,13 +51,16 @@ export function OrgaBar({ user, audience }: { user: SessionUser; audience: OrgaA
             setBusy(false);
         }
     };
+    const visibleFor = t("shell.orga.visibleFor", { who: audienceText(audience) });
     return (
-        <div className="orga-bar" role="note">
-            <b className="orga-bar-lbl"><ShieldIcon />{t("shell.orga.label")}</b>
-            <span className="orga-bar-text">{t("shell.orga.pageHidden")} · {t("shell.orga.visibleFor", { who: audienceText(audience) })}</span>
+        <div className="orga-chip" role="note" aria-label={[t("shell.orga.label"), t("shell.orga.pageHidden"), visibleFor].join(" · ")}>
+            <span className="orga-chip-lbl" data-tip={t("shell.orga.pageHidden")} data-tip-sub={visibleFor}>
+                <ShieldIcon /><span className="orga-chip-txt">{t("shell.orga.label")}</span>
+            </span>
             {preview && (
-                <button type="button" className="orga-bar-btn" disabled={busy} onClick={() => void asRaider()} data-tip={t("shell.orga.asRaiderTip")}>
-                    {t("shell.orga.asRaider")}
+                <button type="button" className="orga-chip-btn" disabled={busy} onClick={() => void asRaider()}
+                    aria-label={t("shell.orga.asRaider")} data-tip={t("shell.orga.asRaider")} data-tip-sub={t("shell.orga.asRaiderTip")}>
+                    <EyeIcon /><span className="orga-chip-btn-txt">{t("shell.orga.asRaider")}</span>
                 </button>
             )}
         </div>
@@ -71,7 +84,7 @@ export function OrgaZone({ user, children }: { user: SessionUser; children: Reac
 
 /**
  * The menu's small mark beside an orga page. Silent for screen readers: it would change the
- * link's name ("Roster Orga-Bereich"), and the page's own bar says it in words.
+ * link's name ("Roster Orga-Bereich"), and the page's chip says it in words.
  */
 export function OrgaDot() {
     const t = useT();
