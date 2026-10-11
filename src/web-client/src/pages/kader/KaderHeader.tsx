@@ -9,7 +9,7 @@ import { Fragment, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { KaderState } from "../../api";
 import { ChevronDownIcon, ChevronRightIcon, ClockIcon, PlusIcon, SettingsIcon } from "../../components/ui/icons";
-import { IconButton, IconTile, buttonClass } from "../../components/ui";
+import { BackButton, IconButton, IconTile, buttonClass } from "../../components/ui";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 import { countStates } from "../../lib/kader/model";
@@ -61,6 +61,7 @@ export default function KaderHeader() {
     const { canWrite, open } = useKader();
     return (
         <div className="kp-top">
+            <div className="kp-back-row"><BackButton to="/kader" label={t("kader.header.all")} size="sm" /></div>
             <IconTile icon="inv_misc_groupneedmore" tone="kader" size="lg" />
             <div className="kp-top-text">
                 <span className="kicker kp-accent2">{t("kader.header.kicker")}</span>

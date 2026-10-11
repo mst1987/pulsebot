@@ -28,7 +28,7 @@ profile.
 | `src/services/kader/kaderActivity.js` | Live: what a write changed — revisions and the Kader's activity log (`recordChanges`), the lines after a revision (`changesSince`) |
 | `src/web/kader/kaderPresence.js` | Live: who is in which Kader right now, in memory only |
 | `src/stores/kaderStore.js` | `data/settings/kader.json`, one planner per Discord server; `liveState` for the poll |
-| `src/web-client/src/pages/kader/` | the page (`KaderPage.tsx`): header, status bar, the six views and the dialogs; live: `useKaderLive.ts` (the poll), `useInterviewDraft.ts` (the interview's draft and its conflicts), `Presence.tsx` (who is here, the conflict banner), `ActivityLog.tsx` (Verlauf, Aktivität) |
+| `src/web-client/src/pages/kader/` | the page (`KaderPage.tsx`): the overview of all Kader (`KaderOverview.tsx`), header, status bar, the six views and the dialogs; live: `useKaderLive.ts` (the poll), `useInterviewDraft.ts` (the interview's draft and its conflicts), `Presence.tsx` (who is here, the conflict banner), `ActivityLog.tsx` (Verlauf, Aktivität) |
 | `src/web-client/src/lib/kader/` | client logic: `model.ts` (names, icons, states, counts, the attendance sum over the Kader's raid categories), `interview.ts` (progress, draft/patch), `filters.ts`, `sort.ts` (the sort keys of the planner's tables), `colors.ts` (the colours of the answers), `setup.ts` (slots, buff hints, Discord text), `names.ts`, `live.ts` (activity lines as sentences, the toast, presence in words) |
 | `src/web-client/src/styles/kader.css` | the module stylesheet, prefix `kp-` (modifiers too) |
 
@@ -115,7 +115,7 @@ interview note and a comment with a marker and asserts neither reaches the roste
   Forever). The picker lists only the Kader of the menu's content version (`GET /api/kader?version=`,
   `kaderView.kadersShown`); a change inside a Kader answers the list of its version; a new Kader takes the version
   the page shows. A link to a Kader of another version opens it and switches the menu to its version
-  (`hooks/useFollowVersion`); switching the menu away goes back to `/kader`.
+  (`hooks/useFollowVersion`); switching the menu away goes back to the overview at `/kader`.
 - Server: the **active guild** of the session (`activeGuildFor(req)`): its members and roles, its events for
   attendance, and the planner is stored under its id.
 
@@ -371,10 +371,16 @@ Parameters in the body; `kaderId` names the Kader.
 
 ## The page
 
-`/kader/:kaderId/:sub` — `/kader` opens the Kader used last (`kader-last`), else the first; without any Kader the
-start page shows the flow and "Ersten Kader anlegen".
+`/kader/:kaderId/:sub` — `/kader` is the **overview** (`pages/kader/KaderOverview.tsx`, like the roster overview):
+one card per Kader of the shown version, built from the server's `kaderSummary` only (counts, leads' names, number
+of questions — never wishes, answers, notes or votes). A card shows the name, the version, the players per state
+(Pool → Vorauswahl → Vorläufig → Roster big, Bench and Tentative small), the leads as coloured initials and the
+questions; the whole card is a link to `/kader/<id>/pool`. The Kader opened last (`kader-last`) carries "Zuletzt
+geöffnet"; there is no automatic jump into it any more. The head's "Neuer Kader" and a dashed card at the end open
+the create dialog (write access only). Without any Kader the start page shows the flow and "Ersten Kader anlegen".
+Deleting a Kader and switching the menu's version away from the open one land on the overview.
 
-- **Header**: the Kader picker (every Kader with "n im Roster · m gesamt", "Neuer Kader"), the leads as avatars,
+- **Header**: a coloured back button "Alle Kader" (to `/kader`), the Kader picker (every Kader with "n im Roster · m gesamt", "Neuer Kader"), the leads as avatars,
   the settings (name, leads as rows with a remove button, add a member, the raid categories attendance counts in as a
   checklist with their nights, delete behind a confirmation). Below the
   **status bar** "Spieler je Status": one rectangular segment per state — icon, label, the count as a badge, the
