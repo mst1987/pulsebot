@@ -304,7 +304,9 @@
         "userOwnTip": "Diese Liste gehört ihm",
         "userBorrowTip": "Spielt diese Liste, hat keine eigene",
         "ownListShort": "eigene Liste",
-        "noSpec": "Keine Spec ausgewählt — oben wieder eine zuschalten.",
+        "noSpec": "Keine Spec ausgewählt — oben eine oder mehrere zuschalten.",
+        "groupLabel": "Rollen-Filter",
+        "none": "Keine",
         "free": "frei",
         "reference": "WoWSims-Referenz: {gems}, {enchant}",
         "gems": {
