@@ -43,7 +43,7 @@
         "status": "Sorting",
         "tab": "Tab {index}: {name}",
         "tabNoName": "Tab {index}",
-        "gone": "No longer in the bank",
+        "gone": "Not in the bank",
         "other": "Other",
         "itemFallback": "Item {id}",
         "empty": "Nothing here right now.",
@@ -130,7 +130,25 @@
         "unmatched": "character only",
         "ambiguous": "ambiguous – character only",
         "imported": "{added} imported, {skipped} skipped.",
-        "noRows": "No line recognised."
+        "noRows": "No line recognised.",
+        "fuzzy": "recognised as {name}"
+    },
+    "add": {
+        "button": "Add item",
+        "kicker": "Guild bank",
+        "title": "Add item",
+        "label": "Item ID, Wowhead link or name",
+        "hint": "The ID is in the Wowhead address after item=.",
+        "placeholder": "e.g. 32227 or Crimson Spinel",
+        "note": "Not in the bank right now? No problem – the item is created with stock 0 and is offered at once, requests go on the waiting list.",
+        "searching": "Searching Wowhead …",
+        "noHits": "Nothing found. Paste the ID or the link from Wowhead.",
+        "hits": "Hits",
+        "itemId": "Item ID {id}",
+        "directHint": "Will be created with this ID.",
+        "submit": "Add",
+        "added": "{name} is now offered.",
+        "known": "{name} was already there and is now offered."
     },
     "tabsDialog": {
         "kicker": "Guild bank",

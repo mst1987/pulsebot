@@ -88,6 +88,14 @@ a.gb-name:hover { text-decoration: underline; }
 .gb-stepper button svg { width: 16px; height: 16px; }
 .gb-stepper b { min-width: 48px; text-align: center; font-size: 16px; }
 
+/* ---- add an item by hand (#778) ---- */
+.gb-add-hits { min-height: 24px; }
+.gb-add-hit { display: flex; align-items: center; gap: 12px; width: 100%; padding: 7px 10px; border: 1px solid var(--line-soft); border-radius: 8px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.gb-add-hit:hover:not(:disabled) { border-color: var(--accent-soft); background: var(--accent-soft); }
+.gb-add-hit:disabled { opacity: .6; cursor: not-allowed; }
+.gb-add-note { font-size: 13px; color: var(--muted); }
+.gb-fuzzy { color: var(--muted); }
+
 /* ---- no bank for this server ---- */
 .gb-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 24px; text-align: center; }
 .gb-empty h2 { margin: 6px 0 0; font-size: 18px; color: var(--text); }

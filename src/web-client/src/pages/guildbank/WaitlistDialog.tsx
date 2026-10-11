@@ -171,6 +171,7 @@ function PreviewRow({ row }: { row: GuildBankImportRow }) {
             </span>
             <span className="gb-req-text">
                 <span>{row.item ? row.item.name : row.itemText || "–"}</span>
+                {row.fuzzy && row.item && <span className="gb-req-sub gb-fuzzy">{t("guildbank.waitlist.fuzzy", { name: row.item.name })}</span>}
                 {(row.error || row.itemError) && <span className="gb-req-sub gb-wl-err">{row.error || row.itemError}</span>}
             </span>
             <span className="gb-wl-amount">{row.amount ? t("guildbank.waitlist.amount", { amount: row.amount }) : "–"}</span>

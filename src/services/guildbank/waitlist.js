@@ -23,7 +23,9 @@
 // sheet ("Name<Tab>Item<Tab>Anzahl", also ; or ,). A name is matched to a
 // raider by the characters in the raider profiles (no case, no accents —
 // "alina" finds "Alîna"); an unmatched name is imported as a character alone
-// (`userId: ""`, no DM). An unknown item is never imported.
+// (`userId: ""`, no DM). An unknown item is never imported. A typo in the item
+// name is forgiven (#778, findItem): the one item within two letters (and a
+// fifth of the name) is taken, the preview marks the row `fuzzy`.
 const store = require("../../stores/guildBankStore");
 const stockStore = require("../../stores/guildBankStockStore");
 const profiles = require("../../stores/raiderProfileStore");
@@ -144,12 +146,57 @@ function parseImport(text) {
     return rows;
 }
 
-/** The bank item a typed name (or id) means — no case, no accents — or null. */
-function matchItem(itemText, items) {
+/** The edit distance (insert, delete, replace one letter) of two strings. */
+function levenshtein(a, b) {
+    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+        const row = [i];
+        for (let j = 1; j <= b.length; j++) {
+            row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        }
+        prev = row;
+    }
+    return prev[b.length];
+}
+
+/** How many wrong letters a typed name may have: 2 at most and about a fifth of its length (none under 5 letters). */
+const typoLimit = (key) => Math.min(2, Math.floor(key.length * 0.2));
+
+/**
+ * The bank item a typed name (or id) means — no case, no accents. No exact
+ * name: the one item with the smallest edit distance, within typoLimit and
+ * only when no other item is as close ("Crimson Spinal" -> "Crimson Spinel").
+ * `{ item, fuzzy }` — `item` null when nothing fits.
+ */
+function findItem(itemText, items) {
     const text = str(itemText);
-    if (/^\d+$/.test(text)) return (items || []).find((it) => it.itemId === Number(text)) || null;
+    const list = items || [];
+    if (/^\d+$/.test(text)) return { item: list.find((it) => it.itemId === Number(text)) || null, fuzzy: false };
     const key = foldName(text);
-    return key ? (items || []).find((it) => foldName(it.name) === key) || null : null;
+    if (!key) return { item: null, fuzzy: false };
+    const exact = list.find((it) => foldName(it.name) === key);
+    if (exact) return { item: exact, fuzzy: false };
+    const limit = typoLimit(key);
+    if (!limit) return { item: null, fuzzy: false };
+    let best = [];
+    let bestDistance = limit + 1;
+    for (const it of list) {
+        const name = foldName(it.name);
+        if (!name || Math.abs(name.length - key.length) > limit) continue;
+        const d = levenshtein(key, name);
+        if (d < bestDistance) {
+            bestDistance = d;
+            best = [it];
+        } else if (d === bestDistance) {
+            best.push(it);
+        }
+    }
+    return best.length === 1 ? { item: best[0], fuzzy: true } : { item: null, fuzzy: false };
+}
+
+/** The bank item a typed name (or id) means (also a near miss, see findItem), or null. */
+function matchItem(itemText, items) {
+    return findItem(itemText, items).item;
 }
 
 /**
@@ -187,7 +234,8 @@ function previewImport(bankKey, text) {
     if (!bank) return { rows: [] };
     const list = profiles.listProfiles();
     const rows = parseImport(text).map((row) => {
-        const raw = row.error ? null : matchItem(row.itemText, bank.items);
+        const found = row.error ? { item: null, fuzzy: false } : findItem(row.itemText, bank.items);
+        const raw = found.item;
         const item = raw ? stockView.stockItem(bank.key, raw.itemId) : null;
         let itemError = "";
         if (!row.error && !item) itemError = "Unbekannter Gegenstand.";
@@ -197,6 +245,7 @@ function previewImport(bankKey, text) {
             ...row,
             item: item ? { itemId: item.itemId, name: item.name || `Item ${item.itemId}`, iconUrl: item.iconUrl || "" } : null,
             itemError,
+            fuzzy: !!(item && found.fuzzy),
             match: match && !match.ambiguous ? match : null,
             ambiguous: !!(match && match.ambiguous),
             ok: !row.error && !itemError,
@@ -262,5 +311,5 @@ function addEntry(bankKey, { name = "", itemId = 0, amount = 0, by = "", byName 
 
 module.exports = {
     IMPORT_MAX_LINES, allocate, freeOf, promoteItem, promoteBank, listForBank, positionOf,
-    foldName, parseImport, matchItem, matchCharacter, previewImport, importLines, addEntry,
+    foldName, levenshtein, parseImport, findItem, matchItem, matchCharacter, previewImport, importLines, addEntry,
 };

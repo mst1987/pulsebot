@@ -239,6 +239,8 @@
     "/api/settings/guild-banks/delete": "settings",
     "/api/guildbank": "raids",
     "/api/guildbank/item": "raids",
+    "/api/guildbank/item/add": "raids",
+    "/api/guildbank/item/search": "raids",
     "/api/guildbank/tab": "raids",
     "/api/guildbank/requests": "raids",
     "/api/guildbank/waitlist": "raids",

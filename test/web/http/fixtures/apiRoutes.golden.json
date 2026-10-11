@@ -273,6 +273,8 @@
   "POST /api/settings/guild-banks/delete",
   "GET /api/guildbank",
   "POST /api/guildbank/item",
+  "POST /api/guildbank/item/add",
+  "GET /api/guildbank/item/search",
   "POST /api/guildbank/tab",
   "GET /api/guildbank/requests",
   "GET /api/guildbank/waitlist",
