@@ -53,7 +53,8 @@ describe("event-rename — Kanal umbenennen", () => {
     it("the button opens a modal with one field, prefilled with the actual channel name", async () => {
         const i = run();
         await renameCommand.execute(i);
-        expect(userMayAny).toHaveBeenCalledWith("123", ["channels"], "write");
+        // nothing is looked up before the modal: it has to be the first answer (the submit checks the right)
+        expect(userMayAny).not.toHaveBeenCalled();
         const json = i.showModal.mock.calls[0][0].toJSON();
         expect(json.custom_id).toBe(ID);
         expect(json.components).toHaveLength(1);
@@ -73,19 +74,22 @@ describe("event-rename — Kanal umbenennen", () => {
         for (const [name, text] of [["DO-24-09-BT", "gibt es schon"], ["!!!", "kein gültiger"], ["🔥・mi-23-09-ssc-tk", "heißt schon so"]]) {
             const i = run({ modal: true, options: { name } });
             await renameCommand.execute(i);
-            expect(cardText(i.reply.mock.calls[0][0])).toContain(text);
+            expect(cardText(i.editReply.mock.calls[0][0])).toContain(text);
         }
         expect(discordChannels.editChannel).not.toHaveBeenCalled();
     });
 
     it("needs the channels area (write) on top of the /event rule", async () => {
         userMayAny.mockResolvedValue(false);
-        for (const modal of [false, true]) {
-            const i = run({ modal, options: { name: "neuer-name" } });
-            await renameCommand.execute(i);
-            expect(cardText(i.reply.mock.calls[0][0])).toContain("Kanäle");
-            expect(i.showModal).not.toHaveBeenCalled();
-        }
+        // the button only opens the modal (no lookup before it); the submit is where the right is checked
+        const button = run();
+        await renameCommand.execute(button);
+        expect(button.showModal).toHaveBeenCalled();
+        const i = run({ modal: true, options: { name: "neuer-name" } });
+        await renameCommand.execute(i);
+        expect(i.deferReply).toHaveBeenCalled();
+        expect(cardText(i.editReply.mock.calls[0][0])).toContain("Kanäle");
+        expect(i.showModal).not.toHaveBeenCalled();
         expect(discordChannels.editChannel).not.toHaveBeenCalled();
     });
 
@@ -93,8 +97,12 @@ describe("event-rename — Kanal umbenennen", () => {
         for (const customId of [`event-rename:${ELSEWHERE}`, "event-rename:999000000000000009", "event-rename:abc"]) {
             const i = run({ customId, modal: true, options: { name: "neuer-name" } });
             await renameCommand.execute(i);
-            expect(i.reply).toHaveBeenCalled();
+            expect(i.editReply).toHaveBeenCalled();
             expect(i.showModal).not.toHaveBeenCalled();
+            const b = run({ customId });
+            await renameCommand.execute(b);
+            expect(b.reply).toHaveBeenCalled();
+            expect(b.showModal).not.toHaveBeenCalled();
         }
         expect(discordChannels.editChannel).not.toHaveBeenCalled();
     });

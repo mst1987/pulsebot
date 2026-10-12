@@ -101,8 +101,10 @@ describe("/event anlegen — step 1", () => {
         eventGuildId.mockReturnValue("other-guild");
         const i = mockInteraction({ commandName: "event", options: { __subcommand: "anlegen" } });
         await eventCommand.execute(i);
-        expect(cardText(i.reply.mock.calls[0][0])).toContain("Events legst du auf dem Event-Server an.");
-        expect(i.reply.mock.calls[0][0].flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+        // acknowledged first (ephemeral), the refusal then replaces the "thinking" message
+        expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
+        expect(cardText(i.editReply.mock.calls[0][0])).toContain("Events legst du auf dem Event-Server an.");
+        expect(i.reply).not.toHaveBeenCalled();
     });
 
     it("a select redraws the message with the choice in every customId", async () => {

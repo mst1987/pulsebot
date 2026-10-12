@@ -76,7 +76,7 @@ describe("services/events/eventDraft — step 1", () => {
         expect(cats[0].options.map((o) => o.label)).toEqual(["Mittwoch-Raid", "PuG"]);
         expect(tpls[0].options).toEqual([expect.objectContaining({ value: T5.id, default: true, description: "SSC + TK · 25er · 3 T / 6 H / 16 DPS" })]);
         expect(modes[0].options.map((o) => o.value)).toEqual(["n", "d", "e"]);
-        expect(buttons.map((b) => b.label)).toEqual(["Weiter", "Anmeldung über Raid-Helper", "Ankündigung: aus", "Abbrechen"]);
+        expect(buttons.map((b) => b.label)).toEqual(["Weiter", "Anmeldung über Raid-Helper", "Ankündigung: aus", "Kanalname anpassen …", "Abbrechen"]);
         expect(buttons[0]).toMatchObject({ custom_id: draft._internal.formId(state()), disabled: false });
         expect(payload.embeds[0].description).toContain("neu nach Standard-Schema `{tag}-{dd}-{mm}-{raid}`");
         expect(payload.embeds[0].description).toContain("**Anmeldung über:** EventHelper");

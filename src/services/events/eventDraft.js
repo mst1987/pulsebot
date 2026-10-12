@@ -43,7 +43,7 @@ const { firstEmojiOf } = require("../../utils/leadEmoji");
 const archiveStore = require("../../stores/channelArchiveStore");
 const { MIN_DURATION, MAX_DURATION } = require("../../stores/eventStore");
 const { instanceById } = require("../../config/gameVersions");
-const { WEEKDAYS } = require("../../utils/channelNames");
+const { WEEKDAYS, renderChannelName, unknownPlaceholders, PATTERN_KEYS } = require("../../utils/channelNames");
 const { parseGermanDate, parseClockTime } = require("../../utils/time");
 const { webUrl, clip } = require("../../utils/discord/botLookup");
 const { isSnowflake } = require("../../utils/ids");
@@ -54,6 +54,7 @@ const FORM_PREFIX = "event-form";
 const RENAME_PREFIX = "event-rename";
 const CUSTOM_ID_MAX = 100;
 const MAX_OPTIONS = 25;
+const NAME_FIELD = "name";
 const { TIMEZONE } = require("../../config/timezone");
 
 const MODES = ["n", "d", "e"]; // new by schema · duplicate · existing channel
@@ -111,6 +112,90 @@ function parseCustomId(customId) {
     }
     const [, cat, tpl, mode, src, ref, ann, ico, token = ""] = parts;
     return { prefix, field: "", state: cleanState({ cat, tpl, mode, src, ref, ann, ico }), token: /^[a-f0-9]{8}$/.test(token) ? token : "" };
+}
+
+// ---- the channel name typed by hand ("Kanalname anpassen …") ----
+//
+// The pattern the orga typed ("🏔️👑》hyjal-bt-{dd}-{mon}") is kept per user, not in the
+// customId: the worst-case state already uses all 100 characters, so a token would not fit.
+// It belongs to one combination of category, template, channel mode and duplicated event
+// (`slotKey`): choosing another one drops it, like the icon pick. The slot also keeps the
+// pattern step 1 *derived* last — the modal opens from it without any slow call, because
+// a modal has to be the direct answer to the click.
+
+const NAME_PATTERN_MAX = 150;
+const nameSlots = new Map();
+const slotKey = (state) => [state.cat, state.tpl, state.mode, state.ref].join("|");
+
+/** The user's slot for this state (a changed state or an expired slot starts over); `derived` updates the derived pattern. */
+function touchNameSlot(userId, state, { derived, now = Date.now() } = {}) {
+    const id = String(userId || "");
+    for (const [k, slot] of nameSlots) if (now - slot.at > DRAFT_TTL) nameSlots.delete(k);
+    const key = slotKey(state);
+    const old = nameSlots.get(id);
+    const same = !!old && old.key === key;
+    const slot = { key, derived: derived !== undefined ? derived : same ? old.derived : "", custom: same ? old.custom : "", at: now };
+    nameSlots.delete(id);
+    while (nameSlots.size >= DRAFT_MAX) nameSlots.delete(nameSlots.keys().next().value);
+    nameSlots.set(id, slot);
+    return slot;
+}
+
+/** The pattern typed for this state, "" without one (or in the mode of an existing channel). */
+function getNamePattern(userId, state, now = Date.now()) {
+    const slot = nameSlots.get(String(userId || ""));
+    if (!slot || state.mode === "e" || slot.key !== slotKey(state) || now - slot.at > DRAFT_TTL) return "";
+    return slot.custom;
+}
+
+/** Forgets the user's typed name and derived pattern (a flow starting, finishing or cancelled). */
+function clearNamePattern(userId) {
+    nameSlots.delete(String(userId || ""));
+}
+
+/** What the modal starts with: the typed pattern, else the derived one. */
+function namePrefill(userId, state, now = Date.now()) {
+    const slot = nameSlots.get(String(userId || ""));
+    if (!slot || slot.key !== slotKey(state) || now - slot.at > DRAFT_TTL) return "";
+    return slot.custom || slot.derived;
+}
+
+/** The modal of "Kanalname anpassen …": one field, the same customId as the button (event-new:n:<state>). */
+function nameModal(state, prefill = "") {
+    const field = new TextInputBuilder()
+        .setCustomId(NAME_FIELD)
+        .setLabel("Kanalname ({dd} {mm} {mon} {tag} {raid})")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setMaxLength(NAME_PATTERN_MAX)
+        .setPlaceholder(clip("Leer = automatisch · {dd} Tag, {mm} Monat, {mon} sep, {tag} mi, {raid} ssc-tk", 100));
+    if (prefill) field.setValue(String(prefill).slice(0, NAME_PATTERN_MAX));
+    return new ModalBuilder()
+        .setCustomId(stepId("n", state))
+        .setTitle("Kanalname anpassen")
+        .addComponents(new ActionRowBuilder().addComponents(field));
+}
+
+/**
+ * The submit of that modal: keeps the pattern for this user and state, or forgets it
+ * (empty field = back to the derived name). Returns `{ error }` for a pattern that
+ * cannot become a channel name; the earlier pattern stays then.
+ */
+function submitNamePattern(userId, state, typed, now = Date.now()) {
+    const text = String(typed || "").trim();
+    if (!text) {
+        touchNameSlot(userId, state, { now }).custom = "";
+        return { cleared: true };
+    }
+    if (text.length > NAME_PATTERN_MAX) return { error: `Das Muster ist zu lang (höchstens ${NAME_PATTERN_MAX} Zeichen).` };
+    const unknown = unknownPlaceholders(text);
+    if (unknown.length) {
+        const known = PATTERN_KEYS.map((k) => `{${k}}`).join(" ");
+        return { error: `Unbekannter Platzhalter ${unknown.map((k) => `{${k}}`).join(", ")}. Möglich: ${known}.` };
+    }
+    if (!renderChannelName(text, { date: "2026-10-14", raid: "ssc-tk" })) return { error: "Daraus ergibt sich kein gültiger Kanalname." };
+    touchNameSlot(userId, state, { now }).custom = text;
+    return { pattern: text };
 }
 
 // ---- what there is to choose from ----
@@ -263,8 +348,10 @@ const option = (label, value, selected, description) => ({
  * The step-1 message for a state. Async because duplicating lists the
  * category's events. Returns `{ state, payload }` — the state as it was shown
  * (a missing template or event is filled in), so the buttons carry that one.
+ * With `userId` the channel name typed by that user shows up, and the pattern step 1
+ * derives is kept for the "Kanalname anpassen …" modal.
  */
-async function stepMessage(guildId, rawState) {
+async function stepMessage(guildId, rawState, { userId = "" } = {}) {
     let state = cleanState(rawState);
     const categories = eventCategories(guildId);
     const cancel = button(stepId("x", state), "Abbrechen");
@@ -308,6 +395,20 @@ async function stepMessage(guildId, rawState) {
     const iconChoice = icons ? icon.resolveIcon(icons.options, state.ico) : null;
     if (iconChoice && iconChoice.code !== state.ico) state = { ...state, ico: iconChoice.code };
 
+    // The name typed by hand wins over the derived one and over the icon pick (see buildBody):
+    // with it the icon select and button are gone, the line says so.
+    let custom = "";
+    if (naming && userId) {
+        const slot = touchNameSlot(userId, state, {
+            derived: icon.applyIcon(naming.patternText || naming.name, iconChoice.code, icons, { raw: true }),
+        });
+        custom = slot.custom;
+        if (custom) {
+            const shown = `Name \`${clip(custom, 70)}\` · von Hand angepasst`;
+            channelLine = state.mode === "d" ? channelLine.replace(/ · Name .*$/, ` · ${shown}`) : `neu · ${shown}`;
+        }
+    }
+
     const announce = announceFor(state);
     const templateLine = template
         ? templateSummary(template)
@@ -319,7 +420,8 @@ async function stepMessage(guildId, rawState) {
         `**Kanal:** ${channelLine}`,
         `**Anmeldung über:** ${SOURCE_LABELS[state.src]}`,
     ];
-    if (iconChoice) {
+    if (custom) lines.push("**Kanal-Icon:** steckt im Namen von Hand");
+    else if (iconChoice) {
         // The previous channel's name with the pick applied: what the icon does to the name, the date is filled in later.
         const preview = icon.applyIcon(naming.fromChannel || naming.name, iconChoice.code, icons);
         lines.push(`**Kanal-Icon:** ${[iconChoice.emoji, iconChoice.label].filter(Boolean).join(" ")}${preview ? ` · \`${clip(preview, 60)}\`` : ""}`);
@@ -344,7 +446,7 @@ async function stepMessage(guildId, rawState) {
     }));
     // A message holds five rows: with "Kanal-Icon" as a select only while the duplicate mode's
     // event select does not need its row (then a button cycles through the same options).
-    if (icons && state.mode === "n") {
+    if (icons && !custom && state.mode === "n") {
         components.push(row({
             type: 3, custom_id: stepId("i", state), placeholder: "Kanal-Icon",
             options: icons.options.map((o) => {
@@ -373,17 +475,21 @@ async function stepMessage(guildId, rawState) {
     }
     const ready = !!state.cat && (state.mode === "n" || !!state.ref) && (state.src === "e" || !!state.tpl);
     const other = state.src === "e" ? "r" : "e";
-    components.push(row(
+    const buttons = [
         button(formId(state), "Weiter", 1, !ready),
         button(stepId("s", state), `Anmeldung über ${SOURCE_LABELS[other]}`),
         ...(state.src === "e" ? [button(stepId("a", state), announce.enabled ? "Ankündigung: an" : "Ankündigung: aus")] : []),
-        ...(icons && state.mode === "d" ? [button(
+        ...(icons && !custom && state.mode === "d" ? [button(
             // the customId already carries the *next* choice; "j" applies nothing but the state
             stepId("j", { ...state, ico: icon.nextIcon(icons.options, state.ico) }),
             `Icon: ${iconChoice.emoji || iconChoice.label}`,
         )] : []),
+        ...(naming ? [button(stepId("n", state), custom ? "Kanalname: von Hand …" : "Kanalname anpassen …", custom ? 1 : 2)] : []),
         button(stepId("x", state), "Abbrechen"),
-    ));
+    ];
+    // A row holds five buttons. Duplicating with the signup source EventHelper has six: the cancel button goes
+    // then — the ephemeral message can be dismissed anyway, and every other button does something the flow needs.
+    components.push(row(...(buttons.length > 5 ? buttons.slice(0, 5) : buttons)));
 
     return {
         state,
@@ -599,12 +705,22 @@ async function buildBody(guildId, rawState, values, { userId, now = Date.now() }
     } else {
         if (state.mode === "d" && !state.ref) return fail("Kein Event gewählt, dessen Kanal dupliziert wird.");
         naming = await channelNamingFor(guildId, state, template, date);
-        if (!naming.name) return fail("Aus dem letzten Kanal und dem Namensschema der Kategorie ergibt sich kein Kanalname.");
-        // The icon pick, resolved again against what the category has now.
-        const name = icon.applyIcon(naming.name, state.ico, iconsFor(guildId, state, template, naming));
-        naming = { ...naming, name };
+        // A name typed by hand ("Kanalname anpassen …") is final: filled with this event's date and
+        // raid, normalised like Discord does, and the icon pick does not touch it any more.
+        const custom = userId ? getNamePattern(userId, state, now) : "";
+        let name;
+        if (custom) {
+            name = renderChannelName(custom, { date, raid: channelNaming.raidTagFor((template && template.instanceIds) || []) });
+            if (!name) return fail(`Aus dem Muster \`${clip(custom, 80)}\` ergibt sich kein Kanalname.`);
+            naming = { ...naming, name, source: "manual", label: "von Hand angepasst", detail: `Muster ${clip(custom, 80)}` };
+        } else {
+            if (!naming.name) return fail("Aus dem letzten Kanal und dem Namensschema der Kategorie ergibt sich kein Kanalname.");
+            // The icon pick, resolved again against what the category has now.
+            name = icon.applyIcon(naming.name, state.ico, iconsFor(guildId, state, template, naming));
+            naming = { ...naming, name };
+        }
         if (channels.some((c) => String(c.name).toLowerCase() === name)) {
-            return fail(`Einen Kanal **${name}** gibt es schon (${namingLine(naming)}).`);
+            return fail(`Einen Kanal **${name}** gibt es schon (${namingLine(naming)}).${custom ? " Passe den Namen über „Zurück“ und „Kanalname anpassen …“ an." : ""}`);
         }
         if (state.mode === "d") {
             body.sourceEventId = state.ref;
@@ -673,12 +789,13 @@ async function submitForm(guildId, rawState, values, { userId, now = Date.now() 
     if (built.error) return { ok: false, payload: errorMessage(state, saveDraft(userId, values, now), built.error) };
     const result = await createEvent({ guildId, user: { id: String(userId || "") }, body: built.body });
     if (result.error) return { ok: false, payload: errorMessage(state, saveDraft(userId, values, now), result.error.message) };
+    clearNamePattern(userId);
     return { ok: true, payload: successMessage(guildId, state, built, result.body || {}) };
 }
 
 module.exports = {
     STEP_PREFIX, FORM_PREFIX, RENAME_PREFIX, eventCategories, parseCustomId, guildFor, initialState, applyStep, stepMessage, parseComposition, formModal, readForm,
-    getDraft, submitForm,
+    getDraft, submitForm, nameModal, namePrefill, submitNamePattern, getNamePattern, clearNamePattern, NAME_FIELD,
     // only for the tests (#424): not part of the module's API
     _internal: {
         CUSTOM_ID_MAX, cleanState, stepId, formId, compositionOf, buildBody,

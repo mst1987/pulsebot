@@ -10,7 +10,7 @@
 // refusal only they see.
 const { MessageFlags } = require("discord.js");
 const { card } = require("../../utils/discord/card");
-const { initialState, stepMessage } = require("./eventDraft");
+const { initialState, stepMessage, clearNamePattern } = require("./eventDraft");
 const { resolveAccess } = require("../discord/userAccess");
 const { isRosterOrga } = require("../roster/rosterAccess");
 const { currentRoster } = require("../roster/categoryRoster");
@@ -38,7 +38,9 @@ async function openCreateFlow(interaction, guildId) {
     if (!(await isCategoryOrga(interaction.user && interaction.user.id, categoryId))) {
         return interaction.editReply(card({ kind: "error", title: DENIED }));
     }
-    const { payload } = await stepMessage(guildId, initialState(guildId, categoryId));
+    const userId = String((interaction.user && interaction.user.id) || "");
+    clearNamePattern(userId); // a new flow starts with the derived name
+    const { payload } = await stepMessage(guildId, initialState(guildId, categoryId), { userId });
     return interaction.editReply(payload);
 }
 
