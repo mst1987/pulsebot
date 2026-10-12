@@ -183,3 +183,25 @@
 .pf-logrow { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--line-soft); }
 .pf-logrow .wi { border-radius: 50%; }
 .pf-logname { display: grid; gap: 2px; flex: 1; min-width: 0; font-weight: 800; font-size: 15px; }
+/* edit dialog: the "aus den Logs" hint between segment and list */
+.pf-edit-hint { margin: 12px 0 0; }
+.pf-edit-hint + .pf-loglist { margin-top: 10px; }
+
+/* ---- "Alle Charaktere", the orga's tab ---- */
+.pf-tabs { margin-top: -6px; }
+.pf-all { display: flex; flex-direction: column; gap: 12px; }
+.pf-all-bar { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.pf-all-bar .pf-search { flex: 0 1 320px; }
+.pf-all-grow { flex: 1; }
+.pf-all-wrap { overflow-x: auto; }
+.pf-all-row.is-clickable { cursor: pointer; }
+.pf-all-row.is-clickable:hover td { background: var(--area-profile-soft); }
+.pf-all-char { display: inline-flex; align-items: center; gap: 10px; }
+.pf-all-char .wi { border-radius: 50%; flex: 0 0 auto; }
+.pf-all-char > span { display: grid; gap: 1px; }
+.pf-all-char b { font-size: 15px; }
+.pf-all-specs { display: inline-flex; gap: 4px; }
+.pf-all-spec { display: inline-flex; border-radius: 6px; outline: 2px solid transparent; outline-offset: 1px; }
+.pf-all-spec .wi { border-radius: 6px; }
+.pf-all-spec.pf-gear-ready { outline-color: var(--good); }
+.pf-all-spec.pf-gear-none { opacity: .5; }

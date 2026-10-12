@@ -1,11 +1,18 @@
 import { useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../../components/shell/Shell";
-import { getProfile, saveProfile, removeProfileCharacter, getCalendarTokens, type ApiError, type ProfileCharacter, type ProfilePatch, type RaiderProfile } from "../../api";
+import {
+    canAccess, editProfileCharacter, getLogCharacters, getProfile, saveProfile, removeProfileCharacter, getCalendarTokens,
+    type ApiError, type ProfileCharacter, type ProfilePatch, type RaiderProfile,
+} from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { Badge, Button, PageHead, RaidLoader, useConfirm } from "../../components/ui";
 import { useToast } from "../../components/shell/Jobs";
 import AddCharacterDialog, { type AddWay } from "../../components/character/AddCharacterDialog";
+import EditCharacterDialog from "../../components/character/EditCharacterDialog";
+import { isOrga } from "../../lib/app/orgaArea";
+import { editToast } from "../../lib/profile/allCharacters";
+import AllCharactersTab from "./AllCharactersTab";
 import { EyeOffIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
 import { specSuggestion } from "../../lib/settings/raidhelperRetirement";
@@ -29,6 +36,16 @@ export default function ProfilePage() {
     const [params, setParams] = useSearchParams();
     const [fold, setFold] = useState<Fold>("days");
     const [adding, setAdding] = useState<AddWay | null>(null);
+    const [editing, setEditing] = useState<ProfileCharacter | null>(null);
+    // "Alle Charaktere" (?view=all): the orga's tab — every raider's characters, editable with write access to the roster area.
+    const orga = isOrga(user) && canAccess(user, "roster");
+    const view = orga && params.get("view") === "all" ? "all" : "own";
+    const setView = (next: "own" | "all") => {
+        const p = new URLSearchParams(params);
+        if (next === "all") p.set("view", "all");
+        else p.delete("view");
+        setParams(p, { replace: true });
+    };
     // Kalender-Abo (#312) — its own small payload, so the profile request stays
     // what it was; a failed load leaves the fold at "loading", as before.
     const calendar = useApi(() => getCalendarTokens(), []);
@@ -53,7 +70,8 @@ export default function ProfilePage() {
     const firstOfVersion = charactersOfVersion(shownChars, shownVersion ? "" : data?.mainVersion || "")[0] || shownChars[0] || null;
     const selected = (linked && shownChars.includes(linked) ? linked : null) || firstOfVersion;
     // A character's class from its own version's rule set (#543), the main version's as a fallback.
-    const classOf = (c: ProfileCharacter) => ((c.versionId && data?.classesByVersion?.[c.versionId]) || data?.classes || []).find((x) => x.id === c.className);
+    const classesOf = (c: ProfileCharacter) => (c.versionId && data?.classesByVersion?.[c.versionId]) || data?.classes || [];
+    const classOf = (c: ProfileCharacter) => classesOf(c).find((x) => x.id === c.className);
 
     if (profileData.error) return <div className="empty">{t("profile.loadError", { message: profileData.error.message })}</div>;
     if (!data || !profile) return <RaidLoader text={t("profile.loading")} />;
@@ -119,12 +137,24 @@ export default function ProfilePage() {
                 kicker={`Discord · ${user.name} · ${t("profile.characters", { count: shownChars.length })}`}
                 title={t("profile.title")}
                 meta={profile.updatedAt ? <Badge>{t("profile.changed", { date: formatDate(profile.updatedAt) })}</Badge> : <Badge tone="accent">{t("profile.new")}</Badge>}
-                action={shownChars.length > 0 && (
+                action={view === "own" && shownChars.length > 0 && (
                     <Button icon="inv_misc_grouplooking" onClick={() => setAdding("log")}>{t("profile.addCharacter")}</Button>
                 )}
             />
 
-            {shownChars.length === 0 ? (
+            {orga && (
+                <div className="tabs pf-tabs" role="tablist" aria-label={t("profile.tabs.aria")}>
+                    {(["own", "all"] as const).map((id) => (
+                        <button key={id} type="button" role="tab" aria-selected={view === id} className={`tab-btn${view === id ? " active" : ""}`} onClick={() => setView(id)}>
+                            {t(`profile.tabs.${id}`)}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {view === "all" ? (
+                <AllCharactersTab data={data} canWrite={canAccess(user, "roster", "write")} />
+            ) : shownChars.length === 0 ? (
                 <FirstCharacter onPick={setAdding} />
             ) : (
                 <>
@@ -159,6 +189,7 @@ export default function ProfilePage() {
                                         { characters: profile.characters.map((c) => (c.key === selected.key ? { ...c, [field]: value } : c)) },
                                     )}
                                     onRemove={() => removeChar(selected)}
+                                    onEdit={() => setEditing(selected)}
                                 />
                             )}
                         </div>
@@ -265,6 +296,22 @@ export default function ProfilePage() {
                     setProfile(next);
                     selectChar(key);
                     setAdding(null);
+                }}
+            />
+
+            <EditCharacterDialog
+                character={editing}
+                classes={editing ? classesOf(editing) : data.classes}
+                lastName={!!editing && !!(data.versions || []).find((v) => v.id === editing.versionId)?.lastName}
+                loadLog={(q) => getLogCharacters(q, editing?.key || "")}
+                onClose={() => setEditing(null)}
+                onSave={async (input) => {
+                    if (!editing) return;
+                    const res = await editProfileCharacter(editing.key, input);
+                    setProfile(res.profile);
+                    selectChar(res.character.key);
+                    setEditing(null);
+                    toast(editToast(editing.name, res.renamed ? res.renamed.toName : null, res.moved));
                 }}
             />
         </div>

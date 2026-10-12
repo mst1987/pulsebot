@@ -237,6 +237,42 @@ function removeSignup(eventId, userId) {
     return true;
 }
 
+/**
+ * A raider's character got another name (raiderProfileStore.editCharacter —
+ * a name that was never a real character): every signup of this raider that
+ * names it (as `character` or among `characters`) names the new one, past
+ * raids too, since the old name was wrong rather than history. `nameKey` is the
+ * old name in lower case without realm; `keep(eventId)` may narrow the events
+ * (the caller's: those of the character's game version). Each changed event is
+ * announced, so its signup message is drawn again.
+ * @returns {string[]} the event ids that changed
+ */
+function renameCharacter(userId, nameKey, toName, { keep = null } = {}) {
+    const uid = String(userId || "").trim();
+    const from = String(nameKey || "").trim().toLowerCase();
+    const name = String(toName || "").trim();
+    if (!uid || !from || !name) return [];
+    const same = (value) => String(value || "").trim().toLowerCase().split("-")[0] === from;
+    const all = readAll();
+    const changed = [];
+    for (const [eventId, byUser] of Object.entries(all)) {
+        const s = byUser && byUser[uid];
+        if (!s || (keep && !keep(eventId))) continue;
+        const characters = Array.isArray(s.characters) ? s.characters : [];
+        if (!same(s.character) && !characters.some((c) => c && same(c.character))) continue;
+        byUser[uid] = {
+            ...s,
+            character: same(s.character) ? name : s.character,
+            ...(Array.isArray(s.characters) ? { characters: characters.map((c) => (c && same(c.character) ? { ...c, character: name } : c)) } : {}),
+        };
+        changed.push(eventId);
+    }
+    if (!changed.length) return [];
+    writeAll(all);
+    for (const eventId of changed) notify(eventId);
+    return changed;
+}
+
 /** Drop every signup of an event (the event itself was deleted). */
 function deleteEventSignups(eventId) {
     const all = readAll();
@@ -247,6 +283,6 @@ function deleteEventSignups(eventId) {
 }
 
 module.exports = {
-    listSignups, getSignup, signupsOfUser, lastSignupOf, saveSignup, removeSignup, deleteEventSignups,
+    listSignups, getSignup, signupsOfUser, lastSignupOf, saveSignup, removeSignup, renameCharacter, deleteEventSignups,
     normalizeSignup, migrateSignup, onSignupsChanged, SIGNUPS_FILE, MAX_CHARACTERS, useFile: store.useFile,
 };
