@@ -102,3 +102,17 @@ describe("stores/raiderProfileStore je Spielversion", () => {
         expect(store.searchRaiders("forever", A)).toEqual([]);
     });
 });
+
+describe("stores/raiderProfileStore — moveCharacterFirst (#809)", () => {
+    it("puts a character first among its version, the other version keeps its places", () => {
+        store.addCharacter(A, { name: "Gentle", className: "Druid" });
+        store.addCharacter(A, { name: "Devi Res", className: "Priest", versionId: "forever" });
+        store.addCharacter(A, { name: "Gentletwowl", className: "Priest" });
+        const moved = store.moveCharacterFirst(A, "gentletwowl");
+        expect(moved.character).toMatchObject({ name: "Gentletwowl" });
+        expect(store.getProfile(A).characters.map((c) => c.name)).toEqual(["Gentletwowl", "Gentle", "Devi Res"]);
+        expect(store.charactersOfVersion(store.getProfile(A), "tbc")[0].name).toBe("Gentletwowl");
+        expect(store.moveCharacterFirst(A, "nobody")).toBeNull();
+        expect(store.moveCharacterFirst(B, "gentle")).toBeNull();
+    });
+});

@@ -23,6 +23,7 @@ const { trackAck } = require("./services/discord/ackTiming.js");
 const { runMode } = require("./config/runMode.js");
 const { ensureAppEmojis } = require("./services/discord/appEmojiSync.js");
 const { queueItemEmojiSync } = require("./services/guildbank/itemEmojis.js");
+const { redrawPendingCards } = require("./services/signups/guildBank");
 const linkWatch = require("./services/discord/linkWatch.js");
 const discord = require("./services/discord/discord.js");
 const { configuredGuildIds } = require("./services/discord/guildRoles.js");
@@ -67,6 +68,9 @@ client.on(Events.ClientReady, () => {
     ensureAppEmojis(client).catch((error) => logger.warn("ensureAppEmojis failed:", error.message));
     // The guild bank items' icons (#633): whatever changed while the bot was offline.
     queueItemEmojiSync({ delay: 30 * 1000 });
+    // The guild bank's open cards (#809): drawn again with today's buttons, so a card from an older
+    // version never keeps a disabled "Bestätigen" after a deploy.
+    setTimeout(() => { redrawPendingCards().catch(() => {}); }, 20 * 1000).unref();
     // Logs waiting for their raid: the job's first sweep runs at web start, before the
     // login, when there are no guilds yet — without this the next try is 10 min away.
     autoLinkAllGuilds().catch((error) => logger.warn("log auto-link after login failed:", error.message));

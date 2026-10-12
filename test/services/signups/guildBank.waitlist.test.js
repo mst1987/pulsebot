@@ -108,7 +108,7 @@ describe("services/signups/guildBank — waiting list", () => {
         const card = discord.postPayload.mock.calls[0][1];
         expect(cardText(card)).toContain("## 2× Crimson Spinal");
         expect(cardText(card)).toContain("aus der Warteliste · offen");
-        expect(cardButtons(card).map((b) => b.label)).toEqual(["Bestätigen", "Ablehnen …"]);
+        expect(cardButtons(card).map((b) => b.label)).toEqual(["Bestätigen", "Charakter ändern …", "Ablehnen …"]);
         const [to, dm] = discord.sendDirectMessage.mock.calls[0];
         expect(to).toBe("u1");
         expect(cardText(dm)).toContain("## Du bist dran");
@@ -128,7 +128,7 @@ describe("services/signups/guildBank — waiting list", () => {
         expect(cardText(card)).toContain("**Whapap** · ohne Discord-Konto, keine DM");
         expect(cardText(card)).toContain("Kein verknüpfter Charakter");
         // no dead Bestätigen: the orga can vouch for the name on the card (#806)
-        expect(cardButtons(card).map((b) => b.label)).toEqual(["Geprüft & bestätigen", "Ablehnen …"]);
+        expect(cardButtons(card).map((b) => b.label)).toEqual(["Geprüft & bestätigen", "Charakter ändern …", "Ablehnen …"]);
         expect(discord.sendDirectMessage).not.toHaveBeenCalled();
         const open = store.listRequests({ status: "open" })[0];
         expect(open).toMatchObject({ userId: "", characterName: "Whapap", fromWaitlist: true });
@@ -167,7 +167,7 @@ describe("services/signups/guildBank — waiting list", () => {
         const card = discord.editPayload.mock.calls[0][2];
         expect(cardText(card)).toContain("**Skerra** · ohne Discord-Konto, keine DM");
         expect(cardText(card)).not.toContain("Kein verknüpfter Charakter");
-        expect(cardButtons(card).map((b) => b.label)).toEqual(["Ausgegeben", "Vormerkung lösen"]);
+        expect(cardButtons(card).map((b) => b.label)).toEqual(["Ausgegeben", "Vormerkung lösen", "Charakter ändern …"]);
         // the addon gets it, to Skerra-Spineshatter
         const [bank] = handouts.handoutList().banks;
         expect(bank.handouts.map((h) => [h.id, h.character.name, h.character.realm])).toEqual([[open.id, "Skerra", "Spineshatter"]]);
@@ -177,7 +177,7 @@ describe("services/signups/guildBank — waiting list", () => {
         await guildBank.releaseRequest(open.id);
         const reopened = discord.editPayload.mock.calls[0][2];
         expect(cardText(reopened)).not.toContain("Kein verknüpfter Charakter");
-        expect(cardButtons(reopened).map((b) => [b.label, !!b.disabled])).toEqual([["Bestätigen", false], ["Ablehnen …", false]]);
+        expect(cardButtons(reopened).map((b) => [b.label, !!b.disabled])).toEqual([["Bestätigen", false], ["Charakter ändern …", false], ["Ablehnen …", false]]);
         expect(await guildBank.confirmRequest(open.id, { by: "o2", byName: "Jaina" })).toMatchObject({ request: { status: "confirmed" } });
     });
 
@@ -192,7 +192,7 @@ describe("services/signups/guildBank — waiting list", () => {
         // it moves up linked: the card offers "Bestätigen" straight away
         scan(1);
         await guildBank.advanceWaitlist({ bankKey: KEY });
-        expect(cardButtons(discord.postPayload.mock.calls[0][1]).map((b) => [b.label, !!b.disabled])).toEqual([["Bestätigen", false], ["Ablehnen …", false]]);
+        expect(cardButtons(discord.postPayload.mock.calls[0][1]).map((b) => [b.label, !!b.disabled])).toEqual([["Bestätigen", false], ["Charakter ändern …", false], ["Ablehnen …", false]]);
         // a request without any name has nothing to vouch for
         const nameless = store.addWaiting({ userId: "u9", item: "Crimson Spinal", amount: 1, bankKey: KEY, itemId: SPINAL, addedBy: "o1" }).request;
         expect(await guildBank.checkRequestRecipient(nameless.id, { bankKey: KEY, by: "o1" })).toMatchObject({ code: "invalid", error: "Die Anfrage nennt keinen Charakter – erst verknüpfen." });

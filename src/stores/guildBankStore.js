@@ -349,6 +349,29 @@ function setRecipient(id, { userId = "", userName = "", characterName = "", real
 }
 
 /**
+ * The orga gives a pending request another character name (#809, "Charakter
+ * ändern …" on the card, a free name in the web): the raider (`userId`, the
+ * DMs) stays, only who receives it in game changes. `checked` = the orga
+ * vouches for the new name (found it in game), else no vouch — it was for the
+ * old name. The name is stored as given; the caller checks it. Returns
+ * `{ request }` or `{ error, request? }` (German).
+ */
+function setRecipientName(id, { characterName = "", realm = "", by = "", byName = "", checked = false } = {}, { now = Date.now() } = {}) {
+    const name = str(characterName).replace(/\s+/g, " ").slice(0, CHARACTER_MAX);
+    if (!name) return { error: "Bitte einen Namen angeben." };
+    const data = store.read();
+    const hit = data.requests.find((r) => r.id === str(id));
+    if (!hit) return { error: "Anfrage nicht gefunden." };
+    if (!PENDING_STATUSES.includes(hit.status || "open")) return { error: "Diese Anfrage ist schon erledigt.", request: complete(hit) };
+    const patch = { characterName: name, realm: str(realm).slice(0, 60) };
+    // an entry without a Discord account is called by its character
+    if (!str(hit.userId)) patch.userName = name;
+    Object.assign(hit, patch, checked ? checkFields(by, byName, now) : checkFields("", "", 0));
+    store.write(data);
+    return { request: complete(hit) };
+}
+
+/**
  * The orga vouches for a pending request's recipient (#806): it checked the
  * name in game ("Im Spiel geprüft" in the web, "Geprüft & bestätigen" on the
  * card) — the addon may mail to it although no raider profile confirms it
@@ -508,7 +531,7 @@ function renamePendingItem({ bankKeys = [], itemId = 0, name = "" } = {}) {
 
 module.exports = {
     STATUSES, PENDING_STATUSES, HANDOUT_VIAS, ITEM_MAX, PURPOSE_MAX, REASON_MAX, AMOUNT_MIN, AMOUNT_MAX, MAX_OPEN, MAX_WAITING, KEEP_DAYS,
-    parseAmount, checkInput, listRequests, getRequest, addRequest, setMessage, setRecipient, checkRecipient, resolveRequest,
+    parseAmount, checkInput, listRequests, getRequest, addRequest, setMessage, setRecipient, setRecipientName, checkRecipient, resolveRequest,
     confirmRequest, releaseRequest, handOutRequest, removeRequest, prune, renamePendingItem,
     openCount, waitingCount, waitingQueue, addWaiting, promoteWaiting, moveWaiting, removeWaiting,
     useFile,

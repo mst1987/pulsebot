@@ -12,6 +12,8 @@
 //                                  names a character: the orga vouches for the name and confirms (#806)
 //   guildbank:handout:<id>         "Ausgegeben" under a confirmed request
 //   guildbank:release:<id>         "Vormerkung lösen": confirmed → open again
+//   guildbank:rename:<id>          "Charakter ändern …" (open or confirmed, #809) → renameModal
+//   guildbank:mrename:<id>         the submitted rename modal: the request goes to that name
 //   guildbank:reject:<id>          "Ablehnen …" → rejectModal
 //   guildbank:mreject:<id>         the submitted decline modal
 //
@@ -49,6 +51,8 @@ const ITEM_MAX = 80;
 const AMOUNT_MAX_LENGTH = 6;
 const PURPOSE_MAX = 100;
 const REASON_MAX = 200;
+// Forever's "Vorname Nachname" (utils/signup/characterNames.js NAME_MAX).
+const RENAME_NAME_MAX = 25;
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -211,11 +215,41 @@ const NOT_VERIFIED_LINE = "⚠ **Charakter nicht bestätigt** – im Spiel prüf
 const NO_CHARACTER_LINE = "⚠ **Kein Charakter** – Post erst nach Verknüpfen im Web (Gildenbank)";
 
 /**
+ * The card's line when the stock does not cover an open request (#809) — its
+ * own reason, apart from any character problem: "Bestätigen" checks against
+ * Verfügbar. German (orga text).
+ */
+function shortLine(available, amount) {
+    return `⚠ **Nicht genug verfügbar** – noch ${available}, angefragt ${amount}. Bestätigen geht wieder, sobald genug frei ist (nächster Scan, gelöste Vormerkung, kleinere Reserve) – oder ablehnen.`;
+}
+
+/** Whether the stock (stockView.stockItem) does not cover an open request: then "Bestätigen" would be refused. */
+function isShort(request, stock) {
+    return !!stock && request.status === "open" && (Number(stock.available) || 0) < (Number(request.amount) || 0);
+}
+
+/**
+ * The warnings of a card from the stock, each its own reason: the character
+ * (open or confirmed, not linked) and the stock (open, not covered, #809).
+ */
+function warningLines(request, { linked, linkProblem, to, stock, short }) {
+    const lines = [];
+    if (!linked && (request.status === "open" || request.status === "confirmed")) {
+        lines.push(!to ? NO_CHARACTER_LINE : linkProblem === "unverified" ? NOT_VERIFIED_LINE : NOT_LINKED_LINE);
+    }
+    if (short) lines.push(shortLine(Number(stock.available) || 0, Number(request.amount) || 0));
+    return lines;
+}
+
+/**
  * The card's buttons for the request's status. Not linked (#806): "Geprüft &
  * bestätigen" while the request names a character (the click vouches for it),
- * else "Bestätigen" disabled.
+ * else "Bestätigen" disabled; either disabled while the stock does not cover
+ * it (`short`, #809). A request from the stock always has "Charakter ändern …"
+ * (#809) — the way out of a wrong name without the web — and, while open,
+ * "Ablehnen …".
  */
-function orgaButtons(request, { linked = true } = {}) {
+function orgaButtons(request, { linked = true, short = false } = {}) {
     const id = request.id;
     const button = (action, label, style, emoji) => {
         const b = new ButtonBuilder().setCustomId(`${PREFIX}:${action}:${id}`).setLabel(label).setStyle(style);
@@ -223,11 +257,17 @@ function orgaButtons(request, { linked = true } = {}) {
     };
     const reject = button("reject", "Ablehnen …", ButtonStyle.Secondary);
     if (!request.itemId) return request.status === "open" ? [button("done", "Erledigt", ButtonStyle.Success, "✅"), reject] : [];
-    // not linked, but a name to mail to: the orga checks it in game and vouches for it with the click (#806)
-    if (request.status === "open" && !linked && str(request.characterName)) return [button("vouch", "Geprüft & bestätigen", ButtonStyle.Success, "✅"), reject];
-    if (request.status === "open") return [button("confirm", "Bestätigen", ButtonStyle.Success, "✅").setDisabled(!linked), reject];
+    const rename = button("rename", "Charakter ändern …", ButtonStyle.Secondary);
+    if (request.status === "open") {
+        // not linked, but a name to mail to: the orga checks it in game and vouches for it with the click (#806)
+        const confirm = !linked && str(request.characterName)
+            ? button("vouch", "Geprüft & bestätigen", ButtonStyle.Success, "✅")
+            : button("confirm", "Bestätigen", ButtonStyle.Success, "✅").setDisabled(!linked);
+        if (short) confirm.setDisabled(true);
+        return [confirm, rename, reject];
+    }
     if (request.status === "confirmed") {
-        return [button("handout", "Ausgegeben", ButtonStyle.Secondary), button("release", "Vormerkung lösen", ButtonStyle.Secondary)];
+        return [button("handout", "Ausgegeben", ButtonStyle.Secondary), button("release", "Vormerkung lösen", ButtonStyle.Secondary), rename];
     }
     return [];
 }
@@ -254,9 +294,8 @@ function orgaPayload(request, { categoryName = "", stock = null, linked = true, 
     if (str(request.purpose)) text.push(`Wofür: ${plain(request.purpose)}`);
     const to = recipientName(request);
     if (to) text.push(`An: ${plain(to)}`);
-    if (fromStock && !linked && (request.status === "open" || request.status === "confirmed")) {
-        text.push(!to ? NO_CHARACTER_LINE : linkProblem === "unverified" ? NOT_VERIFIED_LINE : NOT_LINKED_LINE);
-    }
+    const short = fromStock && isShort(request, stock);
+    if (fromStock) text.push(...warningLines(request, { linked, linkProblem, to, stock, short }));
     const status = request.status === "open" ? "offen" : statusLine(request);
     const icon = fromStock ? iconUrl(str((stock && stock.icon) || request.icon)) : "";
     return card({
@@ -266,7 +305,7 @@ function orgaPayload(request, { categoryName = "", stock = null, linked = true, 
         text: text.join("\n"),
         thumbnail: icon,
         facts: stockFacts(request, stock),
-        buttons: orgaButtons(request, { linked: !fromStock || linked }),
+        buttons: orgaButtons(request, { linked: !fromStock || linked, short }),
         note: [plainCategoryName(categoryName), request.fromWaitlist ? "aus der Warteliste" : "", status].filter(Boolean).join(" · "),
     });
 }
@@ -283,6 +322,28 @@ function rejectModal(requestId) {
         ));
 }
 
+/**
+ * "Charakter ändern …" (#809): the orga names the character the request goes
+ * to in game — the raider stays. Prefilled with the current name and realm;
+ * the label says that the name must be checked in game, the submit vouches for
+ * it. German (orga text).
+ */
+function renameModal(request) {
+    const input = (id, label, value, max, required, placeholder) => {
+        const field = new TextInputBuilder().setCustomId(id).setLabel(label).setStyle(TextInputStyle.Short)
+            .setMaxLength(max).setRequired(required).setPlaceholder(placeholder);
+        if (str(value)) field.setValue(str(value).slice(0, max));
+        return new ActionRowBuilder().addComponents(field);
+    };
+    return new ModalBuilder()
+        .setCustomId(`${PREFIX}:mrename:${request.id}`)
+        .setTitle("Empfänger ändern")
+        .addComponents(
+            input("name", "Charakter (im Spiel geprüft, z. B. per /who)", request.characterName, RENAME_NAME_MAX, true, "z. B. Gentletwowl"),
+            input("realm", "Realm (leer = der der Gildenbank)", request.realm, 60, false, "z. B. Thunderstrike"),
+        );
+}
+
 /** `{ action, id }` of a `guildbank:<action>:<id>` customId. */
 function parseOrgaId(customId) {
     const [, action = "", id = ""] = String(customId || "").split(":");
@@ -291,5 +352,5 @@ function parseOrgaId(customId) {
 
 module.exports = {
     PREFIX, COLOR_OPEN, COLOR_CONFIRMED, COLOR_DONE, COLOR_REJECTED, NOT_LINKED_LINE, NOT_VERIFIED_LINE, NO_CHARACTER_LINE, guildBankChannelId, plain, amountItem, recipientName,
-    requestModal, requestSummary, waitingSummary, movedUpCard, decisionCard, statusLine, stockFacts, orgaPayload, rejectModal, parseOrgaId,
+    requestModal, requestSummary, waitingSummary, movedUpCard, decisionCard, statusLine, stockFacts, orgaPayload, rejectModal, renameModal, shortLine, isShort, parseOrgaId,
 };

@@ -92,7 +92,7 @@ describe("services/signups/guildBank — requests from the stock", () => {
         expect(cardText(card)).toContain("-# Gildenbank · Edelsteine\n## 2× Bold Living Ruby");
         expect(cardText(card)).toContain("An: Zibbo-Spineshatter");
         expect(cardText(card)).toContain("**Bestand** 14 · **Vorgemerkt** 0 · **Verfügbar** 12 (danach 10)");
-        expect(cardButtons(card).map((b) => b.custom_id)).toEqual([`guildbank:confirm:${request.id}`, `guildbank:reject:${request.id}`]);
+        expect(cardButtons(card).map((b) => b.custom_id)).toEqual([`guildbank:confirm:${request.id}`, `guildbank:rename:${request.id}`, `guildbank:reject:${request.id}`]);
 
         // the picked character wins; without a realm of its own the bank's
         const picked = (await ask({ characterKey: "zibbowar" })).request;
@@ -134,7 +134,7 @@ describe("services/signups/guildBank — requests from the stock", () => {
         expect(stockStore.getBank(KEY) && guildBank.offerFor({ guildIds: ["g1"] }).groups[0].items[0].available).toBe(7);
         const [own, sibling] = discord.editPayload.mock.calls.map((c) => c[2]);
         expect(cardText(own)).toContain("-# TBC Montag · Vorgemerkt von Arthas · wartet auf Ausgabe im Spiel");
-        expect(cardButtons(own).map((b) => b.label)).toEqual(["Ausgegeben", "Vormerkung lösen"]);
+        expect(cardButtons(own).map((b) => b.label)).toEqual(["Ausgegeben", "Vormerkung lösen", "Charakter ändern …"]);
         expect(cardText(sibling)).toContain("**Bestand** 14 · **Vorgemerkt** 5 · **Verfügbar** 7 (danach 3)");
         expect(discord.editPayload.mock.calls[1][1]).toBe(second.messageId);
         expect(cardText(discord.sendDirectMessage.mock.calls[0][1])).toContain("## Anfrage bestätigt");

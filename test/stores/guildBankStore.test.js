@@ -353,3 +353,31 @@ describe("stores/guildBankStore — the orga's vouch for the recipient (#806)", 
         expect(store.checkRecipient(done.id, { by: "o1" })).toMatchObject({ error: "Diese Anfrage ist schon erledigt." });
     });
 });
+
+describe("stores/guildBankStore — setRecipientName (#809)", () => {
+    beforeEach(() => {
+        for (const r of store.listRequests()) store.removeRequest(r.id);
+    });
+
+    it("changes only the name and realm: the raider stays, a vouch only with `checked`", () => {
+        const r = add({ bankKey: "k", itemId: 5, characterName: "Gentle" }).request;
+        store.confirmRequest(r.id, { by: "o1", byName: "Arthas" });
+        const plain = store.setRecipientName(r.id, { characterName: " Gentletwowl ", realm: "Thunderstrike" }).request;
+        expect(plain).toMatchObject({ userId: "u1", userName: "Anna", characterName: "Gentletwowl", realm: "Thunderstrike", status: "confirmed", recipientCheckedAt: 0 });
+        const checked = store.setRecipientName(r.id, { characterName: "Gentletwowl", by: "o2", byName: "Jaina", checked: true }, { now: NOW }).request;
+        expect(checked).toMatchObject({ recipientCheckedBy: "o2", recipientCheckedByName: "Jaina", recipientCheckedAt: NOW, realm: "" });
+    });
+
+    it("an entry without a Discord account is called by its new name", () => {
+        const w = store.addWaiting({ characterName: "Skera", item: "Spinel", amount: 1, bankKey: "k", itemId: 5, addedBy: "o1" }).request;
+        expect(store.setRecipientName(w.id, { characterName: "Skerra" }).request).toMatchObject({ userId: "", userName: "Skerra", characterName: "Skerra" });
+    });
+
+    it("refuses an empty name, an unknown and a handled request", () => {
+        const r = add({ bankKey: "k", itemId: 5 }).request;
+        expect(store.setRecipientName(r.id, { characterName: " " })).toEqual({ error: "Bitte einen Namen angeben." });
+        expect(store.setRecipientName("nope", { characterName: "X" })).toEqual({ error: "Anfrage nicht gefunden." });
+        store.resolveRequest(r.id, { status: "rejected" });
+        expect(store.setRecipientName(r.id, { characterName: "X" })).toMatchObject({ error: "Diese Anfrage ist schon erledigt." });
+    });
+});

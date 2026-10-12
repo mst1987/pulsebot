@@ -49,6 +49,7 @@
 // link is services/signups/guildBank.linkRequest (it redraws the orga card).
 const profiles = require("../../stores/raiderProfileStore");
 const stockStore = require("../../stores/guildBankStockStore");
+const requestStore = require("../../stores/guildBankStore");
 const { characterEvidence, seenIndex } = require("../characters/characterEvidence");
 const { CLASSES } = require("../../config/gameVersions/classes");
 const { versionShort } = require("./stockView");
@@ -169,7 +170,9 @@ function linkState(request, { profile, gameVersion, index } = {}) {
  * for: `{ verified, via }` with `via` "orga" (the orga vouched for it:
  * confirmed the request or checked the name in game, guildBankStore
  * recipientCheckedAt), else "log" / "loot" (the name was seen in a log of the
- * bank's version or the loot export, characterEvidence's index). No name = none.
+ * bank's version or the loot export, characterEvidence's index), else "bank"
+ * (#809: this bank already handed something out to the name, receivedFromBank).
+ * No name = none.
  * @param {object} request
  * @param {{ gameVersion?: string, index?: Map<string, string> }} [o]
  */
@@ -179,7 +182,26 @@ function recipientEvidence(request, { gameVersion = "", index } = {}) {
     if (!name) return none;
     if (Number(request.recipientCheckedAt) > 0) return { verified: true, via: "orga" };
     const seen = (index || seenIndex()).get(profiles.characterKey(name, profiles.characterVersion(gameVersion))) || "";
-    return seen ? { verified: true, via: seen } : none;
+    if (seen) return { verified: true, via: seen };
+    return receivedFromBank(request) ? { verified: true, via: "bank" } : none;
+}
+
+/**
+ * Whether the bank already handed something out to this name (#809): a
+ * handed-out request of the same bank whose recipient is the same name (and
+ * realm, when both name one) — the mail reached it, the character exists.
+ */
+function receivedFromBank(request) {
+    const key = str(request && request.bankKey);
+    const name = foldName(request && request.characterName);
+    if (!key || !name) return false;
+    const realm = foldRealm(request.realm);
+    try {
+        return requestStore.listRequests({ status: "handedOut" }).some((r) => r.id !== request.id && r.bankKey === key
+            && foldName(r.characterName) === name && (!realm || !str(r.realm) || foldRealm(r.realm) === realm));
+    } catch {
+        return false;
+    }
 }
 
 /** Whether a request's recipient is a confirmed character of its raider's profile (linkState). */
@@ -366,6 +388,6 @@ function pickError(userId, characterKey, gameVersion) {
 }
 
 module.exports = {
-    CHOICES_MAX, SUGGEST_MAX, foldName, foldRealm, levenshtein, typoLimit, linkedCharacter, linkState, recipientEvidence, isLinked, withLinked,
+    CHOICES_MAX, SUGGEST_MAX, foldName, foldRealm, levenshtein, typoLimit, linkedCharacter, linkState, recipientEvidence, receivedFromBank, isLinked, withLinked,
     characterChoices, suggestedCharacters, resolveChoice, choiceFor, playsVersion, versionError, pickError,
 };

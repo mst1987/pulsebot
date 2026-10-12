@@ -14,7 +14,7 @@
 // Reading takes "raids", every change "raids" write — without it only the list.
 import { useState } from "react";
 import {
-    getGuildBankWaitlist, linkGuildBankRequest, moveGuildBankWaiting, removeGuildBankWaiting, verifyGuildBankRequest,
+    getGuildBankWaitlist, linkGuildBankRequest, moveGuildBankWaiting, reassignGuildBankRequest, removeGuildBankWaiting, verifyGuildBankRequest,
     type ApiError, type GuildBankCharacterChoice, type GuildBankItem, type GuildBankWaitingEntry, type GuildBankWaitlist,
 } from "../../api";
 import { Badge, Button, IconButton, useConfirm } from "../../components/ui";
@@ -24,8 +24,8 @@ import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import { formatDateTime } from "../../lib/format";
 import { useT } from "../../i18n";
-import { availableTone, filterWaitlist, groupWaitlist, recipientName, waitingName, type WaitlistGroup } from "./bankView";
-import LinkCharacterDialog, { NotLinkedBadge } from "./CharacterPicker";
+import { availableTone, filterWaitlist, groupWaitlist, profileNote, recipientName, waitingName, type WaitlistGroup } from "./bankView";
+import LinkCharacterDialog, { NotLinkedBadge, type NamePick } from "./CharacterPicker";
 
 type RowActions = {
     onMove: (entry: GuildBankWaitingEntry, direction: "up" | "down") => void;
@@ -174,6 +174,20 @@ export default function WaitlistTab({ bankKey, items, canWrite, category, search
             setBusyId("");
         }
     };
+    // #809: another character name — known, or checked in game — the raider stays
+    const takeName = async (entry: GuildBankWaitingEntry, pick: NamePick) => {
+        setBusyId(entry.id);
+        try {
+            const r = await reassignGuildBankRequest(bankKey, entry.id, pick);
+            toast([t("guildbank.link.taken", { name: recipientName(r.request) }), profileNote(r.profile, entry.userName)].filter(Boolean).join(" "), "ok");
+            setLinking(null);
+            await list.reload();
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        } finally {
+            setBusyId("");
+        }
+    };
     const remove = async (entry: GuildBankWaitingEntry) => {
         const ok = await ask({
             title: t("guildbank.waitlist.removeTitle"),
@@ -205,6 +219,8 @@ export default function WaitlistTab({ bankKey, items, canWrite, category, search
                     busy={busyId === linking.id}
                     onPick={(choice) => { void link(linking, choice); }}
                     onVerify={!linking.linked && linking.characterName ? () => { void verify(linking); } : undefined}
+                    onTakeName={(pick) => { void takeName(linking, pick); }}
+                    raiderName={linking.userId ? linking.userName || linking.userId : undefined}
                     onClose={() => setLinking(null)}
                 />
             )}

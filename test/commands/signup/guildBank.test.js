@@ -16,6 +16,7 @@ jest.mock("../../../src/services/signups/guildBank", () => ({
     resolveRequest: jest.fn(async () => ({ request: { status: "done", userName: "Anna" }, posted: true, dm: true })),
     redrawPost: jest.fn(async () => true),
     confirmRequest: jest.fn(async () => ({ request: { status: "confirmed", userName: "Anna" }, posted: true, dm: true })),
+    reassignRequest: jest.fn(async () => ({ request: { status: "open", userId: "u1", characterName: "Gentletwowl", realm: "Thunderstrike" }, profile: "" })),
     checkAndConfirm: jest.fn(async () => ({ request: { status: "confirmed", userId: "", userName: "Skerra", characterName: "Skerra" }, posted: true, dm: false })),
     handOutRequest: jest.fn(async () => ({ request: { status: "handedOut", userName: "Anna" }, posted: true, dm: true })),
     releaseRequest: jest.fn(async () => ({ request: { status: "open", userName: "Anna" }, posted: false, dm: false })),
@@ -74,6 +75,42 @@ describe("guildbank (Orga-Knöpfe)", () => {
         expect(guildBank.checkAndConfirm).toHaveBeenCalledWith(open.id, { by: ORGA, byName: "Arthas" });
         expect(guildBank.confirmRequest).not.toHaveBeenCalled();
         expect(said(i.editReply)).toBe("## Vorgemerkt\nSkerra hat kein Discord-Konto – keine DM.");
+    });
+    it("Charakter ändern … (#809): öffnet das Modal mit Name und Realm, das Absenden bürgt für den Namen", async () => {
+        const stockRequest = store.addRequest({ userId: "u1", userName: "Gentle", item: "Pyrestone", amount: 1, bankKey: "k", itemId: 5, characterName: "Gentle", realm: "Thunderstrike" }).request;
+        const btn = click(`guildbank:rename:${stockRequest.id}`);
+        await command.execute(btn);
+        const modal = btn.showModal.mock.calls[0][0].toJSON();
+        expect(modal.custom_id).toBe(`guildbank:mrename:${stockRequest.id}`);
+        const fields = modal.components.map((row) => row.components[0]);
+        expect(fields.map((f) => [f.custom_id, f.value, f.required])).toEqual([["name", "Gentle", true], ["realm", "Thunderstrike", false]]);
+
+        const submit = mockInteraction({ customId: `guildbank:mrename:${stockRequest.id}`, userId: ORGA, modal: true, options: { name: " Gentletwowl ", realm: "" } });
+        await command.execute(submit);
+        expect(guildBank.reassignRequest).toHaveBeenCalledWith(stockRequest.id, { by: ORGA, byName: "tester", characterName: "Gentletwowl", realm: "", checked: true });
+        expect(said(submit.editReply)).toBe("## Empfänger geändert\nGeht jetzt an Gentletwowl-Thunderstrike.");
+
+        guildBank.reassignRequest.mockResolvedValueOnce({ error: "Der Name darf nur Buchstaben haben.", code: "invalid" });
+        const bad = mockInteraction({ customId: `guildbank:mrename:${stockRequest.id}`, userId: ORGA, modal: true, options: { name: "G3ntle" } });
+        await command.execute(bad);
+        expect(said(bad.editReply)).toBe("## Empfänger nicht geändert\nDer Name darf nur Buchstaben haben.");
+    });
+
+    it("Charakter ändern … ohne Recht, für eine erledigte oder unbekannte Anfrage: kein Modal", async () => {
+        userMayAny.mockResolvedValue(false);
+        const denied = click(`guildbank:rename:${open.id}`);
+        await command.execute(denied);
+        expect(denied.showModal).not.toHaveBeenCalled();
+        expect(said(denied.reply, true)).toContain("Das darf nur die Orga mit Raid-Rechten.");
+        userMayAny.mockResolvedValue(true);
+        const gone = click("guildbank:rename:nope");
+        await command.execute(gone);
+        expect(said(gone.reply, true)).toContain("Diese Anfrage gibt es nicht mehr.");
+        store.resolveRequest(open.id, { status: "rejected" });
+        const handled = click(`guildbank:rename:${open.id}`);
+        await command.execute(handled);
+        expect(handled.showModal).not.toHaveBeenCalled();
+        expect(guildBank.redrawPost).toHaveBeenCalledWith(expect.objectContaining({ id: open.id }));
     });
     it("sagt, wenn die DM nicht ankam oder der Post nicht aktualisiert wurde", async () => {
         guildBank.resolveRequest.mockResolvedValueOnce({ request: { status: "rejected", userName: "" }, posted: false, dm: false });

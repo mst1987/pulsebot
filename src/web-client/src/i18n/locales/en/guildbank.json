@@ -140,7 +140,22 @@
         "gameChecked": "{name} is confirmed.",
         "currentCheckHint": "No matching profile (e.g. no Discord account)? Check the name itself:",
         "currentCheck": "{name} checked in game",
-        "currentChecked": "{name} is checked in game – the request can be confirmed."
+        "currentChecked": "{name} is checked in game – the request can be confirmed.",
+        "otherNames": "Other names (without a raider profile)",
+        "takeName": "Send it to {name}",
+        "takeTyped": "{name} checked in game – send it there",
+        "freeHint": "“{name}” is in no profile and no hand-out. Found it in game?",
+        "nameVia": {
+            "bank": "got guild bank mail before",
+            "log": "from logs",
+            "loot": "loot"
+        },
+        "addToProfile": "Also add it to {raider}'s profile (future requests go to this character)",
+        "taken": "Goes to {name} now.",
+        "profileAdded": "Added to {raider}'s profile.",
+        "profileNoClass": "Not added to {raider}'s profile: class unknown – add it there by hand.",
+        "profileMissing": "{raider} has no profile yet – not added.",
+        "profileError": "Not added to the profile: {reason}"
     },
     "handedOut": {
         "hint": "What went out once it was ticked off – in Discord, in game or by mail. Kept for 90 days.",

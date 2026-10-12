@@ -28,7 +28,7 @@ const requests = require("../../../src/stores/guildBankStore");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");
 const {
-    linkGuildBankRequest, verifyGuildBankRequest, searchGuildBankCharacters, getGuildBankHandedOut, getGuildBankRequests, getGuildBankWaitlist, importGuildBankWaitlist,
+    linkGuildBankRequest, verifyGuildBankRequest, reassignGuildBankRequest, searchGuildBankCharacters, getGuildBankHandedOut, getGuildBankRequests, getGuildBankWaitlist, importGuildBankWaitlist,
     previewGuildBankWaitlist, addGuildBankWaiting, getGuildBank,
 } = require("../../../src/web/apiRoutes/guildBank");
 const { AREA_BY_PATH } = require("../../../src/web/http/apiAccess");
@@ -87,7 +87,7 @@ beforeEach(() => {
 
 describe("apiRoutes/guildBank — linking and the hand-out history", () => {
     it("gates the new routes under raids", () => {
-        for (const path of ["/api/guildbank/handedout", "/api/guildbank/characters", "/api/guildbank/request/link", "/api/guildbank/request/verify"]) expect(AREA_BY_PATH[path]).toBe("raids");
+        for (const path of ["/api/guildbank/handedout", "/api/guildbank/characters", "/api/guildbank/request/link", "/api/guildbank/request/verify", "/api/guildbank/request/recipient"]) expect(AREA_BY_PATH[path]).toBe("raids");
     });
 
     it("the waiting list and the requests say whether an entry is linked", async () => {
@@ -145,6 +145,33 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
         expect(status(res)).toBe(404);
         mockUser = { id: "2", name: "Leser", areas: { raids: "read" } };
         res = await call(verifyGuildBankRequest, { payload: { key: KEY, id: entry.id } });
+        expect(status(res)).toBe(403);
+    });
+    it("#809: the search also answers known names without a profile; a request goes to such a name, or to a checked one", async () => {
+        // an earlier hand-out of the bank to Gentletwowl (no profile has it)
+        const earlier = requests.promoteWaiting(requests.addWaiting({ characterName: "Gentletwowl", realm: "Spineshatter", item: "Crimson Spinal", amount: 1, bankKey: KEY, itemId: SPINAL, addedBy: "o1" }).request.id, 1).request;
+        requests.confirmRequest(earlier.id, { by: "o1" });
+        requests.handOutRequest(earlier.id, { via: "mail" });
+        let res = await call(searchGuildBankCharacters, { url: q("characters", { key: KEY, q: "gentle" }) });
+        expect(body(res)).toMatchObject({ characters: [], names: [{ name: "Gentletwowl", realm: "Spineshatter", via: "bank" }] });
+
+        const entry = imported();
+        requests.promoteWaiting(entry.id, 1);
+        requests.setMessage(entry.id, { channelId: "900000", messageId: "m9" });
+        res = await call(reassignGuildBankRequest, { payload: { key: KEY, id: entry.id, characterName: "Gentletwowl" } });
+        expect(status(res)).toBe(200);
+        expect(body(res)).toMatchObject({ request: { id: entry.id, characterName: "Gentletwowl", realm: "Spineshatter", linked: true }, profile: "" });
+        expect(discord.editPayload).toHaveBeenCalledWith("900000", "m9", expect.anything());
+        // a name nobody knows: only once the orga checked it in game
+        res = await call(reassignGuildBankRequest, { payload: { key: KEY, id: entry.id, characterName: "Neuling" } });
+        expect(status(res)).toBe(400);
+        res = await call(reassignGuildBankRequest, { payload: { key: KEY, id: entry.id, characterName: "Neuling", checked: true } });
+        expect(body(res).request).toMatchObject({ characterName: "Neuling", linked: true });
+        expect(requests.getRequest(entry.id)).toMatchObject({ recipientCheckedBy: "1", recipientCheckedByName: "Orga" });
+        res = await call(reassignGuildBankRequest, { payload: { key: "nope", id: entry.id, characterName: "Neuling", checked: true } });
+        expect(status(res)).toBe(404);
+        mockUser = { id: "2", name: "Leser", areas: { raids: "read" } };
+        res = await call(reassignGuildBankRequest, { payload: { key: KEY, id: entry.id, characterName: "Neuling", checked: true } });
         expect(status(res)).toBe(403);
     });
     it("refuses another server's bank, an unknown request, a character the profile does not have and a reader", async () => {
