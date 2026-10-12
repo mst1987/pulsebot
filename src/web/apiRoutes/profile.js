@@ -19,6 +19,7 @@ const { mainVersionFor, knownVersion, isVersionVisible } = require("../../servic
 const { getConfig } = require("../../stores/settingsStore");
 const { userIsOrga } = require("../../config/permissions");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
+const { editProfileCharacter } = require("../../services/characters/characterEdit");
 
 const WEEKDAY_LABELS = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" };
 const GEAR_LABELS = { none: "keins", usable: "brauchbar", ready: "raidbereit" };
@@ -55,6 +56,35 @@ function pageContext({ versionId, config = getConfig() } = {}) {
         gearLevels: profiles.GEAR_LEVELS.map((id) => ({ id, label: GEAR_LABELS[id] })),
         limits: { characters: profiles.MAX_CHARACTERS, wishes: profiles.MAX_WISHES, avoid: profiles.MAX_AVOID, note: profiles.MAX_NOTE },
     };
+}
+
+/**
+ * What an edit of `current` (a profile character) may change, from a request
+ * body (raiderProfileStore.editCharacter): only the fields it names — or, with
+ * `fromLog: name`, the logged character of that name: its name and class, from
+ * the logs, not from the request; a class change brings the logged spec.
+ * `{ input }`, or `{ status, code, error }` for a name no log knows.
+ */
+function editInput(body, current = null, index = null) {
+    if (body.fromLog !== undefined) {
+        const entry = (index || logIndex()).get(profiles.characterKey(String(body.fromLog || "")));
+        if (!entry || !entry.className) return { status: 404, code: "not_in_logs", error: "Dieser Charakter taucht in keinem Log auf." };
+        const input = { name: entry.character, className: entry.className, source: "log" };
+        if (current && current.className !== entry.className) input.specs = entry.specKey ? [entry.specKey] : [];
+        return { input };
+    }
+    const input = {};
+    for (const key of ["name", "realm", "className"]) {
+        if (body[key] !== undefined) input[key] = String(body[key] || "");
+    }
+    if (Array.isArray(body.specs)) input.specs = body.specs;
+    return { input };
+}
+
+/** `near` for logSuggestions: the profile character `key` of `userId` that is being set right, or null. */
+function nearOf(userId, key) {
+    const c = key ? profiles.findCharacter(profiles.getProfile(userId), key) : null;
+    return c ? { name: c.name, className: c.className } : null;
 }
 
 /** The caller's own profile in its member shape. */
@@ -95,16 +125,22 @@ const putProfile = withUser({ csrf: true, body: true }, async ({ user, body, res
     ok(res, { profile: ownView(user) });
 });
 
-/** GET /api/profile/log-characters?q= — characters from the logs the caller could take over. */
+/**
+ * GET /api/profile/log-characters?q=&near= — characters from the logs the caller
+ * could take over; `near` (an own character's key) puts the names that look
+ * like a typo of it first ("Bearbeiten" › aus den Logs).
+ */
 const getLogCharacters = withUser({}, async ({ user, res, url }) => {
     const q = String(url.searchParams.get("q") || "").slice(0, 32);
-    ok(res, { characters: logSuggestions(user, { query: q }) });
+    const near = nearOf(user.id, String(url.searchParams.get("near") || "").slice(0, 80));
+    ok(res, { characters: logSuggestions(user, { query: q, near }) });
 });
 
 /**
  * POST /api/profile/characters — add a character to the caller's own profile,
- * or remove one.
- * Body: { remove: key } | { source: "log", name } | { source: "armory", name, realm, className? }
+ * edit one or remove one.
+ * Body: { remove: key } | { edit: key, name?, realm?, className?, specs? } | { edit: key, fromLog: name }
+ *     | { source: "log", name } | { source: "armory", name, realm, className? }
  *     | { source: "manual", name, className, specs: [key] } — each with `versionId` (#543), the
  * character's game version; missing or unknown = the main version.
  *
@@ -116,6 +152,15 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
     if (body.remove !== undefined) {
         const removed = profiles.removeCharacter(user.id, String(body.remove || ""));
         return ok(res, { removed, profile: ownView(user) });
+    }
+    if (body.edit !== undefined) {
+        const key = String(body.edit || "");
+        const asked = editInput(body, profiles.findCharacter(profiles.getProfile(user.id), key));
+        if (asked.error) return apiError(res, asked.status, asked.code, asked.error);
+        const edited = editProfileCharacter(user.id, key, asked.input, { actor: user.id });
+        if (edited.error) return apiError(res, edited.code === "not_found" ? 404 : 400, edited.code, edited.error);
+        const profile = ownView(user);
+        return ok(res, { character: profile.characters.find((c) => c.key === edited.character.key), renamed: edited.renamed, moved: edited.moved, profile });
     }
 
     const name = String(body.name || "").trim();
@@ -232,6 +277,6 @@ const routes = [
 module.exports = {
     getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getUserProfile, getCharacterClaims,
     getCalendarTokens, postCalendarToken,
-    pageContext,
+    pageContext, editInput, nearOf,
     routes,
 };

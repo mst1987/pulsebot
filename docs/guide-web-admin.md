@@ -202,6 +202,8 @@ Technik: [roster-profile.md](roster-profile.md)
 - Für einen Raid kannst du dich nur mit einem Charakter **seiner** Version anmelden. Fehlt dir einer, sagt die Anmeldung das und verlinkt aufs Profil.
 - Wunschpartner und "nicht zusammen raiden mit" hinterlegen.
 - Persönlichen Kalender-Abo-Link erzeugen, der alle eigenen Anmeldungen enthält.
+- **Charakter bearbeiten** (Stift in der Charakterkarte): für einen falschen Namen – einen Tippfehler oder einen Namen, den es im Spiel gar nicht gibt. Zwei Wege: **Aus den Logs wählen** (Name und Klasse kommen aus dem Log, ähnlich geschriebene Namen stehen ganz oben, der Charakter gilt danach als bestätigt) oder **von Hand ändern** (Name, Realm, Klasse, Specs). Ein neuer Name ersetzt den alten auch in deinen Rostern, Anmeldungen (auch vergangenen), offenen Gildenbank-Anfragen und Anwesenheiten; die Meldung danach sagt, was mitgenommen wurde.
+- **Alle Charaktere** (zweiter Tab, nur für die Orga, Bereich „roster“): alle Charaktere aller Raider in einer Liste – suchen nach Charakter, Raider oder Realm, filtern nach Version und „nur ungeprüfte“. Ein Klick öffnet die Karte des Charakters (Specs, Gear, Offtank/Heilen, herausnehmen), der Stift das Bearbeiten-Fenster wie oben. Ohne Schreibrecht im Roster ist die Liste nur zum Lesen.
 
 ## Roster
 

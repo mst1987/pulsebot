@@ -682,6 +682,37 @@ function setFirstChars(rosterId, firsts = {}, { actor = "", now = new Date().toI
 }
 
 /**
+ * A raider's character got another name (raiderProfileStore.editCharacter —
+ * mostly a name that was never a real character, "Gentle" for a druid): every
+ * roster that lists it for this member carries the new key and name in its
+ * place, closed rosters too, since the old name was wrong rather than history.
+ * Order, status and the orga's spec stay. A key that does not change (only the
+ * spelling did) just updates the shown name.
+ * @returns {number} how many rosters changed
+ */
+function renameMemberChar(userId, fromKey, toKey, toName, { actor = "", now = new Date().toISOString() } = {}) {
+    const uid = idOf(userId);
+    const from = characterKeyOf(fromKey);
+    const to = characterKeyOf(toKey);
+    const name = text(toName, LIMITS.charName);
+    if (!uid || !from || !to || !name) return 0;
+    const all = readAll();
+    let changed = 0;
+    for (const roster of Object.values(all.rosters)) {
+        const member = roster.members[uid];
+        if (!member || !member.chars.includes(from)) continue;
+        member.chars = [...new Set(member.chars.map((c) => (c === from ? to : c)))];
+        const names = { ...member.charNames };
+        delete names[from];
+        member.charNames = { ...names, [to]: name };
+        roster.history.push(historyEntry({ at: now, by: actor, userId: uid, what: "member", detail: `char ${from} → ${to}` }));
+        changed += 1;
+    }
+    if (changed) writeAll(all);
+    return changed;
+}
+
+/**
  * The start-up migration (settingsMigration.js): one roster per entry of
  * `categories` ([{ categoryId, guildId, name, versionId, roleIds, members:
  * { [userId]: { key, name } } }]) whose category has no roster and was never
@@ -753,7 +784,7 @@ function migrateVersions() {
 
 module.exports = {
     listRosters, getRoster, rosterForCategory, rostersForCategory, rosterForKader, createRoster, updateRoster, deleteRoster, closeRoster, reopenRoster, isClosed,
-    upsertMember, removeMember, appendHistory, setFirstChars, migrateCategories, migrateVersions, assignLootProfile,
+    upsertMember, removeMember, appendHistory, setFirstChars, renameMemberChar, migrateCategories, migrateVersions, assignLootProfile,
     normalizeRoster, normalizeFile, RosterError, LIMITS, STATUSES, SOURCE_KINDS, ROSTERS_FILE,
     useFile: store.useFile,
 };
