@@ -23,6 +23,14 @@ function graphemes(text) {
     return Array.from(segmenter.segment(text), (s) => s.segment);
 }
 
+/**
+ * The first emoji of a lead: "🏔️" of "🏔️👑". A Discord select option takes exactly one
+ * emoji — two in its `emoji.name` make Discord refuse the whole message.
+ */
+function firstEmojiOf(text) {
+    return graphemes(String(text || ""))[0] || "";
+}
+
 /** "🐍" of "🐍・mi-16-09", "🔥⚔️" of "🔥⚔️raid", "" of "mi-16-09": the emojis a name starts with. */
 function leadEmojiOf(name) {
     let lead = "";
@@ -74,5 +82,5 @@ function emojiStyleOf(names) {
 }
 
 module.exports = {
-    EMOJI_GRAPHEME_RE, NAME_START_RE, DEFAULT_EMOJI_SEPARATOR, emojiKey, leadEmojiOf, setLeadEmoji, stripLeadEmoji, emojiStyleOf,
+    EMOJI_GRAPHEME_RE, NAME_START_RE, DEFAULT_EMOJI_SEPARATOR, emojiKey, firstEmojiOf, leadEmojiOf, setLeadEmoji, stripLeadEmoji, emojiStyleOf,
 };
