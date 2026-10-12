@@ -8,6 +8,11 @@ const { buildAttendanceContext, attendanceFor } = require("../../../src/services
 const { listAllAssignments } = require("../../../src/stores/raiderCharactersStore");
 const { annotatedCharacters } = require("../../../src/services/characters/characterInfo");
 const { listKnownCategories } = require("../../../src/services/discord/categoryNames");
+jest.mock("../../../src/services/characters/characterVersions", () => ({
+    buildVersionContext: jest.fn(() => ({})),
+    // Brokk and the "pug" category are Forever; everything else TBC
+    versionsOfCharacter: jest.fn((ctx, { name, categoryIds = [] }) => (name === "Brokk" || categoryIds.includes("fcat") ? ["forever"] : ["tbc"])),
+}));
 const { knownCharacterNames, characterAttendance, overall, attendanceFields } = require("../../../src/services/characters/attendanceLookup");
 
 beforeEach(() => {
@@ -24,6 +29,12 @@ beforeEach(() => {
 describe("services/characters/attendanceLookup", () => {
     it("knows every character from loot and assignments once, sorted", () => {
         expect(knownCharacterNames()).toEqual(["Brokk", "Dorn", "Elesham"]);
+    });
+
+    it("lists only the characters that play the version when one is asked (#741), each name judged once", () => {
+        listAllAssignments.mockReturnValue({ mon: { u1: "Elesham", u2: "Dorn" }, fcat: { u3: "Neu", u4: "Brokk" } });
+        expect(knownCharacterNames({ versionId: "forever" })).toEqual(["Brokk", "Neu"]);
+        expect(knownCharacterNames({ versionId: "tbc" })).toEqual(["Dorn", "Elesham"]);
     });
 
     it("counts a character in every category it is assigned to or got loot in", () => {

@@ -6,7 +6,7 @@ jest.mock("../../../src/stores/eventStore", () => ({
 }));
 
 const profiles = require("../../../src/stores/raiderProfileStore");
-const { buildVersionContext, eventVersion, versionsOfCharacter, versionChoices } = require("../../../src/services/characters/characterVersions");
+const { buildVersionContext, eventVersion, versionsOfCharacter, versionChoices, charactersOfVersion } = require("../../../src/services/characters/characterVersions");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 const ANNA = "300000000000000001";
@@ -69,5 +69,37 @@ describe("services/characters/characterVersions", () => {
             { id: "forever", label: "WoW Forever", short: "Forever", count: 1 },
         ]);
         expect(versionChoices([], "forever")).toEqual([{ id: "forever", label: "WoW Forever", short: "Forever", count: 0 }]);
+    });
+
+    describe("charactersOfVersion (#741)", () => {
+        const rows = [
+            { character: "Devi Res", categoryIds: [] },
+            { character: "Anna", categoryIds: [] },
+            { character: "Beide", categoryIds: [] },
+            { character: "Neu", categoryIds: ["fcat"] },
+        ];
+        const itemsOf = (name) => ({ Beide: [{ eventId: "eh-barrow" }, { eventId: "eh-kara" }], Anna: [{ eventId: "eh-kara" }] }[name] || []);
+
+        it("keeps the rows that play the version: by profile, by loot (itemsOf) and by the category's version", () => {
+            profiles.addCharacter(ANNA, { name: "Devi Res", className: "Priest", versionId: "forever" });
+            const config = { categoryVersion: { fcat: "forever" } };
+            expect(charactersOfVersion(rows, "forever", { itemsOf, config }).map((r) => r.character)).toEqual(["Devi Res", "Beide", "Neu"]);
+            expect(charactersOfVersion(rows, "tbc", { itemsOf, config }).map((r) => r.character)).toEqual(["Anna", "Beide"]);
+        });
+
+        it("counts the category of a hand-assigned character as evidence beside its loot (assigned)", () => {
+            const mine = [{ character: "Anna", categoryIds: ["fcat"] }];
+            const config = { categoryVersion: { fcat: "forever" } };
+            // Anna has TBC loot only, but sits in a category that plays Forever now
+            expect(charactersOfVersion(mine, "forever", { itemsOf, config })).toEqual([]);
+            expect(charactersOfVersion(mine, "forever", { itemsOf, config, assigned: true })).toEqual(mine);
+            expect(charactersOfVersion(mine, "tbc", { itemsOf, config, assigned: true })).toEqual(mine);
+        });
+
+        it("prefers the items a row carries to the lookup", () => {
+            const own = [{ character: "Anna", items: [{ eventId: "eh-barrow" }] }];
+            expect(charactersOfVersion(own, "forever", { itemsOf })).toEqual(own);
+            expect(charactersOfVersion(own, "tbc", { itemsOf })).toEqual([]);
+        });
     });
 });

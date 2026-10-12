@@ -50,6 +50,11 @@ function Catalog({ user }: ShellContext) {
     // the game versions: the switch's choices and the main version it starts on (#541 makes that a setting; it is read from the same place)
     const gameVersions = useApi(() => getGameVersions(), []);
     const known: VersionInfo[] = useMemo(() => (gameVersions.data ? gameVersions.data.versions.map((v) => ({ id: v.id, short: v.short, label: v.label })) : []), [gameVersions.data]);
+    // The chips of the entry form offer the shown versions only (#563); an entry's own versions stay (versionChips).
+    const chipVersions = useMemo(() => {
+        const visible = gameVersions.data?.visible;
+        return visible ? known.filter((v) => visible.includes(v.id)) : known;
+    }, [known, gameVersions.data]);
     // The game version shown (#563): the menu's content switch.
     const { version: picked } = useContentVersion();
     const version = picked || (gameVersions.data ? gameVersions.data.defaultVersion : "") || "tbc";
@@ -189,7 +194,7 @@ function Catalog({ user }: ShellContext) {
 
             {draft && (
                 <EntryModal
-                    which={which} data={data} known={known} initial={draft} onClose={() => setDraft(null)}
+                    which={which} data={data} known={chipVersions} initial={draft} onClose={() => setDraft(null)}
                     onSave={async (d) => { if (await run(() => saveCatalogEntry(which, d), t("catalog.saved"))) setDraft(null); }}
                 />
             )}

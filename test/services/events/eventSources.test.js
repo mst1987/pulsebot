@@ -120,6 +120,24 @@ describe("services/events/eventSources", () => {
         expect(sources.defaultSignupSource({ signupSourceDefault: "eventhelper" })).toBe("eventhelper");
     });
 
+    describe("ownSignedUpEvents (#563)", () => {
+        it("lists the raids a user is signed up for, without those of a hidden version", () => {
+            eventStore.listEvents.mockReturnValue([ownEvent({ id: "eh-1", versionId: "tbc" }), ownEvent({ id: "eh-2", versionId: "forever" })]);
+            listSignups.mockReturnValue([{ userId: "u1", status: "signed" }]);
+            const spy = jest.spyOn(require("../../../src/stores/configStore"), "getConfig");
+            try {
+                spy.mockReturnValue({ mainVersion: "tbc" });
+                expect(sources.ownSignedUpEvents("u1").map((e) => e.id)).toEqual(["eh-1", "eh-2"]);
+                spy.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+                expect(sources.ownSignedUpEvents("u1").map((e) => e.id)).toEqual(["eh-1"]);
+            } finally {
+                spy.mockRestore();
+                eventStore.listEvents.mockReturnValue([]);
+                listSignups.mockReturnValue([]);
+            }
+        });
+    });
+
     describe("specKeyFromRaidHelper (#291)", () => {
         it("reads every Raid-Helper spec name back to its rule-set key, with and without the class", () => {
             for (const cls of buildClasses(CLASSES)) {

@@ -8,23 +8,33 @@ const { mainVersionFor } = require("../events/mainVersion");
 const { isCategoryActive } = require("../events/categoryLifecycle");
 const { listAllAssignments } = require("../../stores/raiderCharactersStore");
 const { annotatedCharacters } = require("./characterInfo");
+const { buildVersionContext, versionsOfCharacter } = require("./characterVersions");
 const { listKnownCategories } = require("../discord/categoryNames");
 const { splitPlayer, characterKeyOf } = require("../../utils/loot/lootImport");
 
 /**
- * Every character name the roster knows (loot and assignments), for autocomplete.
+ * Every character name the roster knows (loot and assignments), for autocomplete -
+ * with `versionId` only those that play that game version (#741).
+ * @param {{ versionId?: string }} [opts]
  * @returns {string[]}
  */
-function knownCharacterNames() {
+function knownCharacterNames({ versionId = "" } = {}) {
     const names = new Map();
+    const seen = new Set(); // a name is judged once, by the strongest evidence (its loot), not again by its category
+    const ctx = versionId ? buildVersionContext() : null;
+    const plays = (name, items, categoryIds) => !ctx || versionsOfCharacter(ctx, { name, items, categoryIds }).includes(versionId);
     for (const c of annotatedCharacters()) {
         const key = characterKeyOf(c.character);
-        if (key && !names.has(key)) names.set(key, c.character);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        if (plays(c.character, c.items, c.categoryIds)) names.set(key, c.character);
     }
-    for (const map of Object.values(listAllAssignments())) {
+    for (const [categoryId, map] of Object.entries(listAllAssignments())) {
         for (const name of Object.values(map)) {
             const key = characterKeyOf(name);
-            if (key && !names.has(key)) names.set(key, String(name).trim());
+            if (!key || seen.has(key)) continue;
+            seen.add(key);
+            if (plays(name, [], [categoryId])) names.set(key, String(name).trim());
         }
     }
     return [...names.values()].sort((a, b) => a.localeCompare(b));

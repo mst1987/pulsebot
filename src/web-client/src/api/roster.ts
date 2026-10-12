@@ -204,9 +204,10 @@ export type RosterCharData = {
 };
 
 /** The character page's roster facts: role, attendance night by night, drop source and BiS per worn item. */
-export function getRosterChar(name: string, itemIds: number[] = []): Promise<RosterCharData> {
+export function getRosterChar(name: string, itemIds: number[] = [], version = ""): Promise<RosterCharData> {
     const items = itemIds.length ? `&items=${itemIds.join(",")}` : "";
-    return get<RosterCharData>(`/api/roster/char?name=${encodeURIComponent(name)}${items}`);
+    const ver = version ? `&version=${encodeURIComponent(version)}` : "";
+    return get<RosterCharData>(`/api/roster/char?name=${encodeURIComponent(name)}${items}${ver}`);
 }
 
 // ===== Raid rosters per category (#654, read only) =====

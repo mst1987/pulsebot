@@ -9,6 +9,8 @@
 // another one (services/events/commandVersion.js, shared with the other lookups).
 const { SlashCommandBuilder } = require("discord.js");
 const { myCharacters } = require("../../services/characters/userCharacters");
+const { charactersOfVersion } = require("../../services/characters/characterVersions");
+const { listByCharacter } = require("../../stores/lootStore");
 const { characterAttendance, overall, attendanceFields } = require("../../services/characters/attendanceLookup");
 const { buildAttendanceContext } = require("../../services/characters/rosterAttendance");
 const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
@@ -54,15 +56,17 @@ module.exports = {
     attendanceReply,
     versionOfInteraction,
     async execute(interaction) {
-        const chars = myCharacters(interaction.user.id);
+        const versionId = versionOfInteraction(interaction);
+        // Strictly one version (#741): only the characters that play it count and get a link.
+        const chars = charactersOfVersion(myCharacters(interaction.user.id), versionId, { itemsOf: listByCharacter, assigned: true });
         if (!chars.length) {
             return lookupReply(interaction, {
                 title: "Deine Anwesenheit",
                 description: "Dir ist noch kein Charakter zugeordnet. Trag ihn in deinem Profil ein (`/profil`).",
+                footer: { text: versionNote(versionId) },
             }, [{ label: "Im Web öffnen", url: webUrl("/roster") }]);
         }
         const guildId = eventGuildId();
-        const versionId = versionOfInteraction(interaction);
         const ctx = buildAttendanceContext(guildId, { versionId });
         const results = chars.map((c) => characterAttendance(guildId, c.character, { ctx, versionId }));
         const links = chars.slice(0, 5).map((c) => ({

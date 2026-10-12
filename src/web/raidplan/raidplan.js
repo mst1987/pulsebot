@@ -14,7 +14,7 @@ const profileStore = require("../../stores/raidplanProfileStore");
 const templateStore = require("../../stores/raidplanTemplateStore");
 const { approvedSetupOf, benchAndPool } = require("../../services/setup/setupCore");
 const groupsOf = require("../../services/raidplan/raidplanGroups");
-const { rulesForEvent, versionOfEvent } = require("../../services/events/mainVersion");
+const { rulesForEvent, versionOfEvent, visibleRows } = require("../../services/events/mainVersion");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { wowIconUrl } = require("../../config/menu");
 const assign = require("../../services/raidplan/raidplanAssign");
@@ -204,7 +204,9 @@ function planVersion(event) {
  * `allVersions`: also those of other versions (the editor lists them apart, applying one asks first).
  */
 function templatesFor(event, { allVersions = false } = {}) {
-    return templateStore.listTemplates().filter((t) => (!t.guildId || t.guildId === String(event.guildId || "")) && (allVersions || t.versionId === planVersion(event)));
+    const own = templateStore.listTemplates().filter((t) => (!t.guildId || t.guildId === String(event.guildId || "")) && (allVersions || t.versionId === planVersion(event)));
+    // Other versions hidden (#563): the templates of a hidden version are no choice, not even "of another version".
+    return visibleRows(own, (t) => t.versionId);
 }
 
 /** GET /api/raidplan — everything the editor needs. */
@@ -238,7 +240,7 @@ function editorView(event, { canWrite, me = "" }) {
         hasApprovedSetup: event.rosterSource ? !!event.rosterSource.available : !!approvedSetupOf(event),
         // where the players of a Raid-Helper event come from (the header shows it); null for an own event
         rosterSource: event.rosterSource || null,
-        profiles: profileStore.listProfiles(),
+        profiles: visibleRows(profileStore.listProfiles(), (p) => p.versionId),
         templates: templatesFor(event, { allVersions: true }).map(templateSummary),
         catalog: catalogFor(planVersion(event)),
         limits: { ...store.LIMITS, profileName: profileStore.LIMITS.name, profileCategory: profileStore.LIMITS.category },

@@ -9,7 +9,7 @@ const { annotatedCharacters } = require("../../services/characters/characterInfo
 const { myCharacters } = require("../../services/characters/userCharacters");
 const { webUrl, lookupReply, respondChoices, focusedName, discordTime, plural, clip } = require("../../utils/discord/botLookup");
 const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
-const { eventVersion } = require("../../services/characters/characterVersions");
+const { eventVersion, charactersOfVersion } = require("../../services/characters/characterVersions");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 
 /** The awards of one game version only: the version of the raid they were looted in (#743). */
@@ -60,7 +60,8 @@ function itemLines(items, { withCharacter = false } = {}) {
 const charUrl = (name) => webUrl(`/history/char?name=${encodeURIComponent(name)}`);
 
 async function lootForMe(interaction, versionId) {
-    const chars = myCharacters(interaction.user.id);
+    // Strictly one version (#741): only the characters that play it, names and links alike.
+    const chars = charactersOfVersion(myCharacters(interaction.user.id), versionId, { itemsOf: listByCharacter, assigned: true });
     if (!chars.length) {
         return lookupReply(interaction, {
             footer: { text: versionNote(versionId) },
@@ -171,6 +172,7 @@ module.exports = {
         if (focusedName(interaction) === "item") {
             return respondChoices(interaction, catalogOfVersion(versionOfCommand(interaction).versionId).map((i) => ({ name: itemLabel(i), value: String(i.itemId) })));
         }
-        return respondChoices(interaction, annotatedCharacters().map((c) => ({ name: c.character, value: c.character })));
+        const versionId = versionOfCommand(interaction).versionId;
+        return respondChoices(interaction, charactersOfVersion(annotatedCharacters(), versionId).map((c) => ({ name: c.character, value: c.character })));
     },
 };

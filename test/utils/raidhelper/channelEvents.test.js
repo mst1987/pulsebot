@@ -57,6 +57,26 @@ describe("utils/raidhelper/channelEvents", () => {
         expect(eventSources.ownUpcomingRaw).toHaveBeenCalledWith("guild-1");
     });
 
+    it("getCategoryEvents leaves out the raids of a hidden version (#563)", async () => {
+        const spy = jest.spyOn(require("../../../src/stores/configStore"), "getConfig").mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+        try {
+            mockRh.getAllEvents.mockResolvedValue([
+                { id: "rh-1", channelId: "c1", startTime: 30, versionId: "forever" },
+                { id: "rh-3", channelId: "c1", startTime: 5, versionId: "tbc" },
+            ]);
+            eventSources.ownUpcomingRaw.mockReturnValue([
+                { id: "eh-1", channelId: "c1", startTime: 20, versionId: "tbc" },
+                { id: "eh-2", channelId: "c1", startTime: 25, versionId: "forever" },
+            ]);
+            const events = await getCategoryEvents(mockInteraction({ channels }), "cat-1");
+            expect(events.map((e) => e.id)).toEqual(["rh-3", "eh-1"]);
+            spy.mockReturnValue({ mainVersion: "tbc" });
+            expect((await getCategoryEvents(mockInteraction({ channels }), "cat-1")).map((e) => e.id)).toEqual(["rh-3", "eh-1", "eh-2", "rh-1"]);
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
     it("showAllEvents lists the events of the category", async () => {
         mockRh.getAllEvents.mockResolvedValue([
             { id: "rh-1", title: "Karazhan", channelId: "c1", leaderId: "u1", startTime: 1700000000 },

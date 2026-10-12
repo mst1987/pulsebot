@@ -37,7 +37,7 @@ describe("/anwesenheit and /anwesenheit-raider count within one game version (#7
 
     it("take the version of the channel's category, a thread its channel's", async () => {
         configSpy.mockReturnValue({ categoryVersion: { fcat: "forever" } });
-        charactersForUser.mockReturnValue([{ character: "Elesham" }]);
+        charactersForUser.mockReturnValue([{ character: "Elesham", categoryIds: ["fcat"] }]);
         characterAttendance.mockReturnValue({ character: "Elesham", categories: [category()] });
         const i = mockInteraction({ channel: forever });
         await own.execute(i);
@@ -49,6 +49,23 @@ describe("/anwesenheit and /anwesenheit-raider count within one game version (#7
         expect(own.versionOfInteraction(mockInteraction({ channel: thread }))).toBe("forever");
         // no category: the main version
         expect(own.versionOfInteraction(mockInteraction({ channel: { id: "x" } }))).toBe("tbc");
+    });
+
+    it("count, name and link only the characters that play the version (#741)", async () => {
+        configSpy.mockReturnValue({ categoryVersion: { fcat: "forever" } });
+        charactersForUser.mockReturnValue([{ character: "Anna", categoryIds: ["tcat"] }, { character: "Elesham", categoryIds: ["fcat"] }]);
+        characterAttendance.mockReturnValue({ character: "Elesham", categories: [category()] });
+        const i = mockInteraction({ channel: forever });
+        await own.execute(i);
+        expect(characterAttendance).toHaveBeenCalledTimes(1);
+        expect(characterAttendance).toHaveBeenCalledWith("event-guild", "Elesham", expect.anything());
+        expect(buttons(i)).toHaveLength(1);
+
+        const none = mockInteraction({ options: { version: "forever" }, channel: { id: "x" } });
+        charactersForUser.mockReturnValue([{ character: "Anna", categoryIds: ["tcat"] }]);
+        await own.execute(none);
+        expect(embed(none).description).toContain("kein Charakter zugeordnet");
+        expect(embed(none).footer.text).toBe(versionNote("forever"));
     });
 
     it("let the `version` option pick another version", async () => {
@@ -151,5 +168,7 @@ describe("/anwesenheit-raider", () => {
         const i = mockInteraction({ focused: { name: "raider", value: "char" } });
         await other.autocomplete(i);
         expect(i.respond.mock.calls[0][0]).toHaveLength(25);
+        // only those of the command's version (#741)
+        expect(knownCharacterNames).toHaveBeenCalledWith({ versionId: "tbc" });
     });
 });

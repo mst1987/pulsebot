@@ -25,6 +25,6 @@ module.exports = {
         return attendanceReply(interaction, `Anwesenheit ${title}`, [result], links, versionId);
     },
     async autocomplete(interaction) {
-        return respondChoices(interaction, knownCharacterNames().map((name) => ({ name, value: name })));
+        return respondChoices(interaction, knownCharacterNames({ versionId: versionOfInteraction(interaction) }).map((name) => ({ name, value: name })));
     },
 };

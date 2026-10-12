@@ -4,17 +4,23 @@ const {
     listRaidTemplates, getRaidTemplate, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate, getConfig,
 } = require("../../stores/settingsStore");
 const { decorateTemplate } = require("../../services/events/raidTemplates");
-const { visibleRows } = require("../../services/events/mainVersion");
+const { visibleRows, resolveVersionQuery } = require("../../services/events/mainVersion");
 const discord = require("../../services/discord/discord");
 const { activeGuildFor } = require("../http/activeGuild");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 
-/** Every template as the list shows it, with its badges and the categories using it as default. */
-function decoratedTemplates() {
+/**
+ * Every template as the list shows it, with its badges and the categories using it as default.
+ * `versionQuery` (the page's `?version=`, #741): only the templates of that game version; null = of every shown one.
+ */
+function decoratedTemplates(versionQuery = null) {
     const config = getConfig();
     const defaults = config.categoryRaidTemplate || {};
     // Other versions hidden (#563): their templates stay out of the list.
-    return visibleRows(listRaidTemplates(), (t) => t.versionId, config).map((t) => decorateTemplate(t, defaults));
+    const shown = visibleRows(listRaidTemplates(), (t) => t.versionId, config);
+    const { versionId } = resolveVersionQuery(versionQuery, { config });
+    const rows = versionQuery === null ? shown : shown.filter((t) => (t.versionId || "tbc") === versionId);
+    return rows.map((t) => decorateTemplate(t, defaults));
 }
 
 /** The Discord category names, so "Standard für …" reads as names. Best-effort: offline = {}. */
@@ -27,9 +33,9 @@ function categoryNames(req) {
     }
 }
 
-/** GET /api/raid-templates — the raid templates (#266) with their badges. */
-const getRaidTemplates = withUser({}, async ({ req, res }) => {
-    ok(res, { templates: decoratedTemplates(), categoryNames: categoryNames(req) });
+/** GET /api/raid-templates[?version=<id>] — the raid templates (#266) with their badges (of one game version with `version`, #741). */
+const getRaidTemplates = withUser({}, async ({ req, res, url }) => {
+    ok(res, { templates: decoratedTemplates(url ? url.searchParams.get("version") : null), categoryNames: categoryNames(req) });
 });
 
 /** POST /api/raid-templates — create a template. Body: the template without id. */

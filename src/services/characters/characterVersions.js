@@ -76,4 +76,28 @@ function versionChoices(rows, mainVersion, { config } = {}) {
         .map((v) => ({ id: v.id, label: v.label, short: v.short || v.label, count: counts.get(v.id) || 0 }));
 }
 
-module.exports = { buildVersionContext, eventVersion, versionsOfCharacter, versionChoices };
+/**
+ * The rows of a list that play one game version (#741, strictly one version per
+ * answer) - a Discord lookup lists only the characters of its version. A row is
+ * `{ character, items?, categoryIds? }`; one without `items` gets them from
+ * `itemsOf(name)` (the caller owns the loot store, this module reads none).
+ * @template {{ character: string, items?: object[], categoryIds?: string[] }} T
+ * @param {T[]} rows
+ * @param {string} versionId
+ * `assigned`: the rows' `categoryIds` are categories the character was assigned to
+ * by hand (a user's own characters) - then a category that plays the version
+ * counts as evidence beside the loot, so a raider whose category just switched
+ * to the version, with only the old loot so far, still finds the character there.
+ * @param {{ itemsOf?: (name: string) => object[], config?: object, ctx?: object, assigned?: boolean }} [opts]
+ * @returns {T[]}
+ */
+function charactersOfVersion(rows, versionId, { itemsOf = () => [], config, ctx, assigned = false } = {}) {
+    const versionCtx = ctx || buildVersionContext({ config });
+    return (rows || []).filter((r) => versionsOfCharacter(versionCtx, {
+        name: r.character,
+        items: r.items || itemsOf(r.character),
+        categoryIds: r.categoryIds || [],
+    }).includes(versionId) || (assigned && (r.categoryIds || []).some((id) => mainVersionFor({ categoryId: id, config }) === versionId)));
+}
+
+module.exports = { buildVersionContext, eventVersion, versionsOfCharacter, versionChoices, charactersOfVersion };

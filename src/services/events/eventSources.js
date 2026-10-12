@@ -13,6 +13,7 @@ const { listRaidEvents, getRaidEvent } = require("../../stores/raidEventStore");
 const { getConfig } = require("../../stores/settingsStore");
 const { ALIASES } = require("../../config/classlist");
 const { categoryNameAt } = require("./categoryEras");
+const { visibleRows, versionOfEvent } = require("./mainVersion");
 
 const SOURCES = ["raidhelper", "eventhelper"];
 const DEFAULT_SOURCE = "raidhelper";
@@ -301,7 +302,8 @@ function ownUpcomingRaw(guildId, { now = Date.now(), categoryId } = {}) {
 function ownSignedUpEvents(userId, { now = Date.now() } = {}) {
     const uid = String(userId || "");
     if (!uid) return [];
-    return listEvents("", { sinceSeconds: Math.floor(now / 1000) })
+    // Other versions hidden (#563): a raid of a hidden version is archive, its setup is not listed.
+    return visibleRows(listEvents("", { sinceSeconds: Math.floor(now / 1000) }), (ev) => versionOfEvent(ev))
         .filter((ev) => listSignups(ev.id).some((s) => String(s.userId) === uid && s.status !== "absence"))
         .map(toRaidHelperShape);
 }

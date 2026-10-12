@@ -91,7 +91,7 @@ export default function RecruitmentPage() {
     // their entry from there; the server is asked for none. Closing an editor
     // reloads too: coming back from a save has to show the changed list, and
     // that is the same transition.
-    const recruitment = useApi(() => getRecruitmentData({ view }), [view, templateEditor.open === "", postEditor.open === ""]);
+    const recruitment = useApi(() => getRecruitmentData({ view, version: contentVersion }), [view, contentVersion, templateEditor.open === "", postEditor.open === ""]);
 
     // Switching the tab always leaves whichever editor was open — otherwise it
     // would keep forcing its own tab back on.

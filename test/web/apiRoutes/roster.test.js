@@ -44,6 +44,10 @@ jest.mock("../../../src/stores/settingsStore", () => ({
         ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
         : null)),
 }));
+jest.mock("../../../src/web/characters/roster", () => {
+    const actual = jest.requireActual("../../../src/web/characters/roster");
+    return { ...actual, rosterCharacter: jest.fn(actual.rosterCharacter) };
+});
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
@@ -353,6 +357,23 @@ describe("web/apiRoutes/roster", () => {
 
     describe("GET /api/roster/char", () => {
         beforeEach(() => auth.getUser.mockReturnValue(ADMIN));
+
+        it("reads the facts in the page's version (#741), the main version while the others are hidden (#563), every one when none is asked", async () => {
+            const settingsStore = require("../../../src/stores/settingsStore");
+            const rosterCharacter = require("../../../src/web/characters/roster").rosterCharacter;
+            const lastVersion = () => rosterCharacter.mock.calls[rosterCharacter.mock.calls.length - 1][2].versionId;
+            try {
+                await get("/api/roster/char", { name: "Nobody", version: "forever" });
+                expect(lastVersion()).toBe("forever");
+                await get("/api/roster/char", { name: "Nobody" });
+                expect(lastVersion()).toBe("");
+                settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+                await get("/api/roster/char", { name: "Nobody", version: "forever" });
+                expect(lastVersion()).toBe("tbc");
+            } finally {
+                settingsStore.getConfig.mockReturnValue({});
+            }
+        });
 
         it("keeps other people's attendance from a raider, but not the drop sources; the own character stays whole", async () => {
             const profiles = require("../../../src/stores/raiderProfileStore");

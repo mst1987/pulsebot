@@ -210,16 +210,17 @@ export default function RaidTemplatesPage() {
     const editor = useCollectionEditor("edit");
     const toast = useToast();
     const canWrite = canAccess(user, "raids", "write");
+    // The game version (#563): the menu's content switch, else the main version.
+    const { version: contentVersion, hidden: othersHidden } = useContentVersion();
+    // The server answers with the templates of that version alone (#741); the list filters again, as a second line.
     const loaded = useApi(
-        () => Promise.all([getRaidTemplates(), getGameVersions()])
+        () => Promise.all([getRaidTemplates(contentVersion), getGameVersions()])
             .then(([templates, v]) => ({ templates, versions: v.versions, defaultVersion: v.defaultVersion })),
-        [],
+        [contentVersion],
     );
     const data = loaded.data?.templates ?? null;
     const versions = loaded.data?.versions ?? null;
     const defaultVersion = loaded.data?.defaultVersion ?? "";
-    // The game version (#563): the menu's content switch, else the main version.
-    const { version: contentVersion, hidden: othersHidden } = useContentVersion();
     const [importing, setImporting] = useState(false);
 
     if (loaded.error) return <div className="empty">{tParts("raidTemplates.page.loadError", { message: loaded.error.message })}</div>;
